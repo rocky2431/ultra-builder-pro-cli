@@ -1,14 +1,16 @@
 # ultra-builder-pro-cli — 执行计划
 
 **状态**：Phase 0 完成 · Phase 1 可启动
-**版本**：0.1.0-plan · 起草 2026-04-17
+**版本**：0.1.0-plan · 起草 2026-04-17 · **同日基于官方文档重做 §5 §6.2/3 §9 §10**
 **范围**：v0.1 交付。v0.2+ 的条目明确标注延后。
-**整体置信度**：**96%**（逐 Phase 拆分见 §10）
+**整体置信度**：**92%**（下调自初版 96%，逐 Phase 拆分见 §10）
 
 本文件是 Hermes（Ultra Builder Pro）从 Claude Code 专属转为跨 runtime
 CLI 的技术契约。§6 每条任务都有一条审阅者可独立复跑的验收准则。
 
-对照英文版 `PLAN.md`——两份文档语义等价，任何一边的修改都应同步另一边。
+**本文件为唯一权威**。所有外部事实（配置目录、frontmatter 字段、hook
+事件名、工具名大小写、skill 协议）都核对到官方文档 URL，见 §14 决策
+D11 的证据清单。
 
 ---
 
@@ -123,9 +125,8 @@ ultra-builder-pro-cli/
 ├── output-styles/            2 个 *.md（Claude 专属，其它 runtime 跳过）
 ├── .ultra-template/          项目初始化脚手架
 ├── docs/
-│   ├── ROADMAP.md            5 个 Phase 时间线
-│   ├── PLAN.md               英文版计划
-│   ├── PLAN.zh-CN.md         本文件
+│   ├── ROADMAP.md            5 个 Phase 时间线（随包发布）
+│   ├── PLAN.zh-CN.md         本文件（唯一权威，仓库内部）
 │   ├── TOOL-MAPPING.md       Phase 4 产物
 │   └── MIGRATION.md          Phase 5 产物
 └── package.json
@@ -146,25 +147,99 @@ ultra-builder-pro-cli/
 
 ## 5. 工具映射矩阵
 
-Hermes 所依赖的 12 个工具，按各 runtime 的处理方式分类。只有 `Claude 独占`
-行需要降级。
+> 本节所有条目基于 2026-04 官方文档核实，不再依赖经验推测。每处关键断言都
+> 可追溯到 §14 决策 D11 列出的文档 URL。
 
-| Hermes 工具 | Claude | OpenCode | Codex | Gemini | 降级手段 |
-|------------|--------|----------|-------|--------|----------|
-| Read | ✅ | ✅ read | ✅ read | ✅ read | 改名即可 |
-| Write | ✅ | ✅ write | ✅ write | ✅ write | 改名即可 |
-| Edit | ✅ | ✅ edit | ✅ edit | ✅ edit | 改名即可 |
-| Bash | ✅ | ✅ bash | ✅ bash | ✅ bash | 无 |
-| Grep/Glob | ✅ | ✅ | ✅ | ✅ | 无 |
-| WebSearch/Fetch | ✅ | ⚠ 视情况 | ⚠ 视情况 | ✅ | 退回 Bash `curl` |
-| **TaskCreate/\*** | ✅ 原生 | ❌ | ❌ | ❌ | `ultra-tools task …`（fs-lock 的文件 JSON） |
-| **AskUserQuestion** | ✅ 原生 | ❌ | ❌ | ❌ | `ultra-tools ask --text-mode`（编号菜单，从 stdin 读） |
-| **Skill** | ✅ 原生 | ❌ | ❌ | ❌ | `ultra-tools skill invoke <name>`（打印 SKILL.md；外层 agent 注入） |
-| **Agent（subagent）** | ✅ 原生 | ⚠ 有限 | ⚠ exec | ⚠ --prompt | `ultra-tools subagent run <name> --prompt …`（CLI 递归或 SDK） |
-| **TeamCreate / SendMessage** | ✅ 原生 | ❌ | ❌ | ❌ | `<unsupported_in_runtime>` 块；以串行 sub-agent 运行为替代 |
-| **EnterWorktree / ExitWorktree** | ✅ 原生 | ❌ | ❌ | ❌ | `ultra-tools worktree …` shell out 调 `git worktree`（Phase 4.5 可选） |
+Hermes 所依赖的工具按"是否原生存在 / 名称是否相同 / 调用语义是否相同"
+三维度分类。
 
-### 5.1 降级契约
+### 5.1 基础工具（4 runtime 都原生支持，仅改名）
+
+| Hermes (Claude) | OpenCode | Codex CLI | Gemini CLI | 降级 |
+|-----------------|----------|-----------|------------|------|
+| Read | `read`（frontmatter `tools: {read: true}`，小写） | 原生（通过 `[permissions]` 表管控） | 原生（工具表未细分命名） | frontmatter 工具名改写 |
+| Write | `write`（小写） | 原生 | 原生 | 同上 |
+| Edit | `edit`（小写） | 原生 | 原生 | 同上 |
+| Bash | `bash`（小写） | 原生 | 原生 | 同上 |
+| Grep / Glob | 原生 | 原生 | 原生 | 无 |
+| WebSearch / WebFetch | 原生（`webfetch` 权限） | 原生（`[features] web_search`） | 原生 | 无 |
+
+**关键事实**：OpenCode 的 agent frontmatter 里工具名**一律小写**
+（`tools: {write: true, edit: true, bash: true}`），与 Claude 的 `Read/Write/
+Edit/Bash` 不同。Phase 2 的 `frontmatter.js` 必须做大小写转换。
+
+### 5.2 Skill — 4 runtime 全部原生支持（大幅降低 Phase 4 负担）
+
+| Runtime | Skill 发现路径 | 格式 |
+|---------|---------------|------|
+| Claude Code | `~/.claude/skills/<name>/SKILL.md` 或 `.claude/skills/` | `SKILL.md` + frontmatter |
+| OpenCode | `~/.config/opencode/skills/<name>/` 或 `.opencode/skills/` | `SKILL.md` + frontmatter（结构同 Claude） |
+| Codex CLI | `./.agents/skills/` → `$REPO_ROOT/.agents/skills/` → `$HOME/.agents/skills/` → `/etc/codex/skills/`（四级发现） | `SKILL.md` + 可选 `scripts/ references/ assets/ agents/openai.yaml`；Codex 官方声明"建立于 open agent skills standard" |
+| Gemini CLI | extension 内部 `skills/<name>/SKILL.md` | 同 SKILL.md 约定 |
+
+**结论**：`Skill` 调用在 4 runtime 都有原生对应。`ultra-tools skill invoke`
+退化为"把 SKILL.md 打到 stdout 让 agent 注入 prompt"的垫片，不是功能缺失
+降级——而是**跨 runtime 的统一调用入口**。4 个 adapter 只需把 `skills/`
+目录拷到各 runtime 的发现路径即可。
+
+### 5.3 Subagent — 4 runtime 全部支持，但协议各异
+
+| Runtime | 协议 | 调用方式 |
+|---------|------|----------|
+| Claude Code | `Task(subagent_type=X)` 原生工具；一次性 | `.claude/agents/<name>.md` |
+| OpenCode | `.opencode/agents/<name>.md`，frontmatter `mode: subagent`；`@<name>` 提及或自动 | `@researcher please investigate X` |
+| Codex CLI | `[agents.<name>]` TOML 块指向 `config_file`；运行时工具 `spawn_agent/send_input/resume_agent/wait_agent/close_agent`（**长连接 agent**，与 Claude 一次性语义不同） | 需要 `features.multi_agent = true` |
+| Gemini CLI | 必须包成 **extension**；`agents/*.md` 放在 extension 根下 | 预览特性（preview） |
+
+**关键差异**：Codex 是"长连接多 agent"模型（spawn / send / wait / close），
+Claude/OpenCode/Gemini 偏"一次性派发"。`ultra-tools subagent run` 垫片
+在 Codex 下默认把"一次性"语义模拟为 `spawn → wait → close` 序列。
+
+### 5.4 Hook — 4 runtime 能力差距最大
+
+| Runtime | 原生 hook 位置 | 事件数 | 置信度 |
+|---------|---------------|-------|-------|
+| Claude Code | `~/.claude/settings.json` 或插件 `hooks/hooks.json` | **26 个**（SessionStart/End、UserPromptSubmit、InstructionsLoaded、PreToolUse、PermissionRequest、PermissionDenied、PostToolUse、PostToolUseFailure、Notification、SubagentStart/Stop、TaskCreated/Completed、Stop/StopFailure、TeammateIdle、ConfigChange、CwdChanged、FileChanged、WorktreeCreate/Remove、PreCompact/PostCompact、Elicitation/ElicitationResult） | 高（官方文档） |
+| OpenCode | `opencode.json` 下实验性 `experimental.hooks` | **2 个**（`file_edited`、`session_completed`；其它事件文档未公开） | 中（官方搜索摘要；`rules/` 页已核对未列事件 schema） |
+| Codex CLI | `notify` 配置接收 JSON + `features.codex_hooks` 触发 `hooks.json`（under development，off by default） | 实际只能捕 **1 个** 事件（`agent-turn-complete`）经 `notify`；`hooks.json` schema 官方未公开 | 低（schema 未公开 — 见 R11） |
+| Gemini CLI | 必须在 extension 内 `hooks/hooks.json` | 文档声明"可在 tool 执行前/后拦截"，具体事件名未公开完整列表 | 低（见 R13） |
+
+**设计结论**：Hermes 今天用到的 Claude hook 事件（10 个左右）中：
+- 有直接对应：`PreToolUse`、`PostToolUse`、`UserPromptSubmit`、
+  `SessionStart`、`Stop`、`SubagentStart/Stop`、`PreCompact`（Claude 全部保留）
+- OpenCode 只有 `file_edited` + `session_completed` 两事件，**Hermes 所
+  依赖的 `PreToolUse`/`UserPromptSubmit`/`PreCompact` 在 OpenCode 上无法
+  复刻**——Phase 3 要把这些 hook 的"守卫语义"前移到 prompt 层（见 §6 Phase 3.3）。
+- Codex 连 `PreToolUse` 都没有（`notify` 是事后通知），**Codex 上没有
+  阻断式 hook** — 降级为"审计日志"语义。
+- Gemini 需要把 Hermes hooks 整体打包成一个 extension 才能触达。
+
+### 5.5 TaskCreate / AskUserQuestion / Team — 确认全部 Claude 独占
+
+| Hermes 工具 | Claude | OpenCode | Codex | Gemini | 降级 |
+|------------|--------|----------|-------|--------|------|
+| `TaskCreate/Update/List/Get` | ✅ 原生 | ❌ | ❌ | ❌ | `ultra-tools task …`（fs-lock 的 `.ultra/tasks/tasks.json`） |
+| `AskUserQuestion` | ✅ 原生 | ❌ | ❌ | ❌ | `ultra-tools ask --text-mode`（编号菜单读 stdin） |
+| `TeamCreate` / `SendMessage` | ✅ 原生（含 `TeammateIdle` 事件） | ❌ | ❌ | ❌ | 非 Claude runtime 上明确标记 `<unsupported_in_runtime>`；以串行子 agent 为替代 |
+| `EnterWorktree` / `ExitWorktree` | ✅ 原生（有 `WorktreeCreate/Remove` hook） | ❌（Git 原生 `worktree` 可用） | ❌ | ❌ | v0.2 可选 `ultra-tools worktree …` shell 包装 |
+
+### 5.6 命令 & Prompt 注入语法差异
+
+Phase 4 rewriter 必须做的语法映射：
+
+| 语法 | Claude | OpenCode | Codex | Gemini |
+|------|--------|----------|-------|--------|
+| 文件扩展 | `.md` | `.md` | `.md`（至 `~/.codex/prompts/` 或 AGENTS.md）| **`.toml`**（强制） |
+| 参数占位 | `$ARGUMENTS`、`$1`、`$2` | `$ARGUMENTS`、`$1`、`$2`（与 Claude 一致） | `$ARGUMENTS` | **`{{args}}`**（不是 `$ARGUMENTS`） |
+| shell 注入 | 无原生；靠 Bash 工具 | `` !`cmd` `` 反引号包 | 通过 AGENTS.md 无 | `!{cmd}` |
+| 文件注入 | 无原生；靠 Read 工具 | `@path/to/file` | 无 | `@{path/to/file}` |
+| 工具白名单 | `allowed-tools:` frontmatter | **无**（继承 agent） | 无（TOML）| 无 |
+
+**结论**：Gemini 命令是 **TOML 不是 markdown**；Hermes 的 9 个 `ultra-*.md`
+在 Gemini 上要被 rewriter 转写成 9 个 `.toml`（`prompt = """<原 body>"""`
++ 参数替换 `$ARGUMENTS → {{args}}`）。
+
+### 5.7 降级契约（ultra-tools）
 
 当 Claude 独占工具在非 Claude runtime 被调用时，`ultra-tools` 垫片
 **必须**：
@@ -264,7 +339,11 @@ stdout 发结构化 JSON（`{ok, data, error}`），让 agent 在各 runtime 上
 （`scripts/phase1-smoke.sh`）把一个 5 步工作流喂过 ultra-tools，在
 stdout 上产出预期的 JSON 流。
 
-### Phase 2 — Adapters · **5–7 天 · 置信度 94%**
+### Phase 2 — Adapters · **6–8 天 · 置信度 90%**
+
+> 置信度由 94% → 90%：Codex 的 `[agents.X]` 结构不支持内联 `model/tools`
+> （要求 `config_file` 指向另一 TOML），Gemini 命令必须是 TOML 而非 MD，
+> 两处实施比原先估计复杂。
 
 为 4 个 runtime 各实现 `install(ctx)` 与 `uninstall(ctx)`。每个 adapter
 在热缓存下 <30 秒完成。
@@ -272,18 +351,25 @@ stdout 上产出预期的 JSON 流。
 #### 2.1 共享 adapter 工具 · 1 天
 - `adapters/_shared/file-ops.js`：复制、符号链接、哈希后跳过、覆盖前
   备份（备份存到 `${target}/.ubp-backup/`）。
-- `adapters/_shared/frontmatter.js`：YAML ↔ TOML ↔ JSON。用 `yaml` 库
-  + 最小 TOML writer（不引入依赖爆炸）。
+- `adapters/_shared/frontmatter.js`：YAML ↔ TOML ↔ JSON 以及**工具名
+  大小写转换**（Claude `Read` ↔ OpenCode `read`）。用 `yaml` 库 + 最小
+  TOML writer。
 - `adapters/_shared/settings-merge.js`：带哨兵块识别的深合并；冲突
-  策略 = 大声失败 + 可执行提示。
+  策略 = 大声失败 + 可执行提示。同时处理 TOML 的合并（Codex）。
 - `adapters/_shared/path-rewrite.js`：跨文件体展开 `${UBP_CONFIG_DIR}`
   `${UBP_RUNTIME}` `${UBP_SCOPE}`。
-- **AC**：4 个模块共 12 条单测；shared 覆盖率 ≥85%。
+- `adapters/_shared/md-to-toml.js`：把 markdown 命令转为 Gemini TOML
+  （`prompt = """<body>"""` + `$ARGUMENTS` → `{{args}}` 替换）。
+- **AC**：5 个模块共 15 条单测；shared 覆盖率 ≥85%。
 
 #### 2.2 Claude adapter · 1 天
 - 目标：`~/.claude/`（global）或 `./.claude/`（local）。
 - 资产：`commands/` `agents/` `skills/` `hooks/` 直接复制；`settings.json`
   经 settings-merge；`CLAUDE.md` 在哨兵块内追加。
+- 26 个 hook 事件全部可用（`PreToolUse`、`PostToolUse`、`UserPromptSubmit`、
+  `InstructionsLoaded`、`PermissionRequest`、`Stop`、`SessionStart/End`、
+  `SubagentStart/Stop`、`TaskCreated/Completed`、`PreCompact/PostCompact`、
+  `WorktreeCreate/Remove` 等）。
 - **AC**：**diff-equal 门槛**——`diff -r existing-claude-install
   new-claude-install` 返回 0。在空 `~/.claude/` 上 install 之后
   `--uninstall`，目录回到空。
@@ -291,42 +377,80 @@ stdout 上产出预期的 JSON 流。
 #### 2.3 OpenCode adapter · 1.5 天
 - 目标：XDG（`~/.config/opencode/`）或 `./.opencode/`。
 - 变换：
-  - `commands/*.md` → `commands/*.md`（YAML frontmatter 兼容）。
-  - `agents/*.md` → `agents/*.md`（工具名基本兼容，局部修正在
-    frontmatter 注释里记录）。
-  - `skills/` → `skills/`（Phase 1 验证 SKILL.md 可用）。
-  - `hooks/*.py` → `opencode.json` hook 条目指向 `${target}/hooks/*.py`。
-- **AC**：install 产出合法 `opencode.json`（若有 schema 则用它校验，
-  否则 JSON-parse 通过）；空项目上跑 `/ultra-init` 烟测无崩溃。
+  - `commands/*.md` → `commands/*.md`；frontmatter 字段重映射
+    （Claude `allowed-tools` → 丢弃，改为继承 agent；新增 `agent:`
+    字段指向默认 agent；`model:` 保留）。
+  - `agents/*.md` → `agents/*.md`；**frontmatter 大改**：
+    - Claude `tools: Read, Write, Edit, Bash` → OpenCode
+      `tools: {read: true, write: true, edit: true, bash: true}`
+      （**小写** + 对象化）
+    - 新增 `mode: subagent`（或 `primary`/`all`）
+    - 新增 `permission: {edit: "ask", bash: "ask"}`
+  - `skills/` → `skills/`（格式兼容，直接复制到 OpenCode skills 目录）。
+  - `hooks/*.py` → `opencode.json` 的 `experimental.hooks` 条目；**仅
+    `file_edited` + `session_completed` 两事件可用**；其余 Hermes hook
+    在 OpenCode 上"无对应"（由 Phase 3.3 降级为 prompt 守卫）。
+- **AC**：install 产出合法 `opencode.json`（若有 schema 则用它校验；
+  否则 JSON-parse 通过 + 必要字段断言）；空项目上跑 `/ultra-init`
+  烟测无崩溃。
 
-#### 2.4 Codex adapter · 1.5 天
-- 目标：`$CODEX_HOME` 或 `~/.codex/`。
+#### 2.4 Codex adapter · 2 天（含 0.5 天 spike）
+- 目标：`$CODEX_HOME` 或 `~/.codex/`（全局）；项目级 `.codex/`。
+- **前置 spike**（0.5 天）：跑真 `codex` 实例，抓 `hooks.json` 当前
+  wire format（官方标为 "under development, off by default"）；如仍
+  未公开，则放弃 hook 映射、仅映射 `notify`。
 - 变换：
-  - `commands/*.md` → `prompts/*.md`（剥掉 YAML frontmatter，保留
-    内联 `$ARGUMENTS` 支持）。
-  - `agents/*.md` → `config.toml` 下 `[agents.<name>]`，含 sandbox、
-    model、由 frontmatter 推出的 tools。
-  - `skills/` → `${target}/skills/` 下可被 Bash 寻址；agent prompt 通过
-    `ultra-tools skill invoke` 引用。
-  - `hooks/*.py` → `[codex_hooks]` 条目，`event = "pre_tool"` 形状
-    （具体按当前 Codex TOML 参考）。
-- 工具名改写：由 `frontmatter.js` 执行。
-- **AC**：install 产出合法 `config.toml`（Node TOML 读取器可解析）；
-  `codex exec "run /ultra-init"` 完成（CI 若无真 Codex，可用 mock 二进制
-  满足契约）。
+  - `commands/*.md` → `prompts/*.md`（需要先核实官方 prompts 目录约定；
+    如未定则放进 AGENTS.md 语境内联；或放 `~/.codex/prompts/` 并文档化）。
+  - `agents/*.md` → **不能直接变成 `[agents.<name>]` 单个块**（Codex
+    `[agents.X]` 字段限于 `config_file/description/nickname_candidates`，
+    不含 model/tools）。正确做法：把 Hermes agent prompt 写入
+    `~/.codex/agents/<name>.toml`，然后在主 `config.toml` 加
+    `[agents.<name>] config_file = "agents/<name>.toml"`。
+  - `skills/` → `~/.agents/skills/<name>/SKILL.md`（Codex 按 open
+    agent skills standard 发现），**4 级路径**之一。
+  - `hooks/*.py` → 唯一可用事件是 `notify` 的 `agent-turn-complete`。
+    Hermes 的 `Stop`/`session_journal.py` 可映射；`PreToolUse` 类
+    不可映射（降级由 Phase 3.4 处理）。
+  - AGENTS.md：可选地把 CLAUDE.md 内容同步过去（Codex 自动读 AGENTS.md）。
+- 工具名：Codex 有 `spawn_agent/send_input/resume_agent/wait_agent/
+  close_agent` 多 agent 工具，与 Claude `Task()` 不同语义；agent
+  frontmatter 里的 `tools:` 字段**丢弃**，由 Codex `[permissions]` 接管。
+- **AC**：install 产出合法 `config.toml`（Node TOML reader 解析通过）；
+  `codex exec --sandbox read-only "run /ultra-init"` 完成（CI 用 mock
+  codex 二进制满足契约，真 codex 留在本地冒烟）。
 
-#### 2.5 Gemini adapter · 1.5 天
+#### 2.5 Gemini adapter · 2 天（含 0.5 天 spike）
 - 目标：`$GEMINI_CONFIG_DIR` 或 `~/.gemini/`。
+- **前置 spike**（0.5 天）：跑真 `gemini` 创建一个 extension，抓
+  `gemini-extension.json` manifest 完整字段 + `hooks/hooks.json` schema
+  + `agents/*.md` subagent frontmatter 实际字段。
+- 结构变化（相对其它 runtime 的最大差异）：**Hermes 资产必须整体打包
+  为一个 Gemini extension**，目录布局：
+  ```
+  ~/.gemini/extensions/ultra-builder-pro/
+  ├── gemini-extension.json   (manifest: name, version, mcpServers...)
+  ├── commands/               (注意：是 .toml 不是 .md)
+  ├── agents/                 (.md, extension 内部)
+  ├── skills/                 (.md)
+  ├── hooks/
+  │   └── hooks.json          (Gemini 格式，schema 待 spike 核实)
+  └── GEMINI.md               (对应 CLAUDE.md)
+  ```
 - 变换：
-  - `commands/*.md` → `commands/*.toml`（Gemini 命令格式，1 对 1 机械
-    映射）。`$ARGUMENTS` → Gemini 的 `{{args}}` 模板。
-  - `agents/*.md` → sub-agent 注册（按 2026-04 的 Gemini sub-agent 协议；
-    Phase 2.0 加一天 spike 确认）。
-  - `skills/` → Bash 可寻址；无原生 skill 概念。
-  - **Hook：Gemini CLI 不支持**。降级：install 时剥掉 hook，在
-    `.gemini/README.ubp.md` 里显眼地写一条 `# hooks-disabled` 附理由。
-- **AC**：在空 `~/.gemini` 上 install 无崩溃；uninstall 目录为空；跑
-  一个命令 via `gemini --prompt` 返回退出码 0。
+  - `commands/*.md` → `commands/*.toml`（`md-to-toml.js` 共享工具；
+    `prompt = """<body>"""`；`$ARGUMENTS → {{args}}`；`@file → @{file}`；
+    `` !`cmd` → !{cmd} ``）。**如果原命令有复杂分支/多步流程，转到
+    TOML 后由单一 `prompt` 字段承载，无 `allowed-tools` 等价。**
+  - `agents/*.md` → extension 内 `agents/*.md`（Gemini 预览特性；
+    frontmatter 字段待 spike 确认）。
+  - `skills/` → extension 内 `skills/<name>/SKILL.md`。
+  - `hooks/*.py` → extension 内 `hooks/hooks.json` 指向 python 脚本
+    （schema 待 spike；官方仅确认"pre-tool / post-tool 拦截"）。
+  - `CLAUDE.md` → `GEMINI.md`（extension 的 `contextFileName` 字段指定）。
+- **AC**：在空 `~/.gemini` 上 install 成功创建 extension 目录；
+  `gemini` 启动时能识别 extension；一个命令 via `gemini --prompt`
+  返回退出码 0；uninstall 把整个 extension 目录删除。
 
 #### 2.6 路径重写集成 · 0.5 天
 - 在 install 对每个复制的文件体应用 `path-rewrite.js`。源 token：
@@ -339,10 +463,14 @@ stdout 上产出预期的 JSON 流。
 **Phase 2 门槛**：4 个 adapter 各自 AC 通过；矩阵安装（4 runtime × 2
 scope）uninstall 后宿主文件系统回到 diff-equal 预安装态。
 
-### Phase 3 — Python hooks 三分拆 · **3–5 天 · 置信度 92%**
+### Phase 3 — Python hooks 三分拆 + prompt 守卫化 · **4–6 天 · 置信度 85%**
 
-把每个 hook 拆成"纯逻辑 core + 薄 runtime adapter"。一次改 core 4 个
-runtime 同时生效。
+> 置信度由 92% → 85%：Codex `hooks.json`、Gemini `hooks/hooks.json`、
+> OpenCode `experimental.hooks` 三家 schema 都**未完整公开**。此 Phase
+> 需要先跑 spike 抓取实际 wire format。
+
+把每个 hook 拆成"纯逻辑 core + 薄 runtime adapter"。能映射的映射、
+不能映射的转为**prompt 守卫**（见 §5.4 的 Hermes hook 可达性表）。
 
 #### 3.1 Core 抽取 · 1 天
 - 把业务逻辑迁到 `hooks/core/<name>.py`（纯函数，不解析 stdin、不读
@@ -351,28 +479,56 @@ runtime 同时生效。
   每个 `hooks/core/*.py` 在 `hooks/tests/core/` 下有 pytest 文件。
 
 #### 3.2 Claude adapter · 0.5 天
-- `hooks/adapters/claude.py`：读当前 stdin JSON 形状，调 core，打印
-  预期响应。今天的行为原样保留。
+- `hooks/adapters/claude.py`：读当前 stdin JSON 形状（26 事件的 payload
+  精确已知——见 §5.4 引用），调 core，打印预期响应。今天的行为原样保留。
 - **AC**：录制当前 hook payload 跑出来字节级一致。
 
 #### 3.3 OpenCode adapter · 1 天
-- `hooks/adapters/opencode.py`：按官方 schema 将 OpenCode hook JSON
-  事件翻译成 core 输入并翻译回去。
-- **AC**：以规格测试驱动——每个 hook 给一条 OpenCode 事件样本，被转换
-  后调 core、输出匹配 OpenCode hook response envelope。
+- **前置 spike**（0.25 天）：抓 OpenCode `experimental.hooks` 的
+  `file_edited` + `session_completed` 事件的实际 JSON payload 结构
+  （需跑真 opencode 实例捕）。
+- `hooks/adapters/opencode.py`：仅支持这 2 事件。Hermes 其余依赖事件
+  （`PreToolUse`、`UserPromptSubmit`、`PreCompact`、`SubagentStart` 等）
+  转为 prompt 守卫（见 3.6）。
+- **AC**：2 事件 happy path；缺失事件被明确标注 "moved to prompt guard"。
 
 #### 3.4 Codex adapter · 1 天
-- `hooks/adapters/codex.py`：读 Codex TOML hook payload 形状（编码前
-  先 0.5 天 spike 核实线缆格式）。
-- **AC**：同 OpenCode；另外 `codex exec` 针对小 fixture 项目跑 hook
-  后产出预期副作用。
+- **前置 spike**（0.5 天）：跑真 codex，打开 `features.codex_hooks`，
+  抓 `hooks.json` 实际调用 wire format（若仍 "under development"
+  则仅保留 `notify` 路径）。
+- `hooks/adapters/codex.py`：主路径是 `notify` 接收 JSON（仅
+  `agent-turn-complete`）。所有"前置拦截"类 hook 在 Codex 上无对应，
+  转 prompt 守卫。
+- **AC**：`notify` JSON 被 core 正确消费；`spike` 产出文档化的 wire
+  format 或"未公开"的负面证据。
 
-#### 3.5 Gemini adapter · 0.5 天
-- 无 hook 表面。产物改为 `hooks/adapters/gemini.md` 文档——说明每个
-  守卫被丢弃的原因以及如何以"agent 必须在 prompt 调 `ultra-tools
-  verify …`"等手段替代。
-- **AC**：审阅者确认 15 个 hook 均给出处置结论（"drop"、"挪到
-  prompt guard"、"挪到 pre-commit 垫片"）。
+#### 3.5 Gemini adapter · 1 天
+- **前置 spike**（0.5 天）：跑真 gemini 创建 extension，抓
+  `hooks/hooks.json` schema + 事件名集合。
+- `hooks/adapters/gemini.py`：若文档支持 pre/post tool，映射之；否则
+  全部走 prompt 守卫。
+- **AC**：能映射的事件有 E2E 测试；不能映射的 15 个 hook 均有处置结论。
+
+#### 3.6 Prompt 守卫化（跨 OpenCode / Codex / Gemini 共用）· 1 天
+- 在非 Claude runtime 上无 hook 对应的 Hermes 守卫（约 8 个），转为
+  "在 command / agent prompt 起始位置调用 `ultra-tools verify …`"。
+- 具体清单：
+  | 原 Claude hook | 降级手段 |
+  |---|---|
+  | `block_dangerous_commands` | agent prompt 头注入 `ultra-tools guard bash` |
+  | `post_edit_guard` | command 中每次 Edit 后调 `ultra-tools verify edit` |
+  | `mid_workflow_recall` | agent prompt 头调 `ultra-tools memory search` |
+  | `user_prompt_capture` | CLI wrapper（`ultra` alias）记录 prompt 历史 |
+  | `pre_compact_context` / `post_compact_inject` | 非 Claude 无 compact 事件 — 功能丢失 + 文档声明 |
+  | `session_context` / `session_journal` | `SessionStart/End` 有 OpenCode 对应；Codex/Gemini 用 CLI wrapper 补 |
+  | `subagent_tracker` | `ultra-tools subagent run` 内置埋点 |
+  | `health_check` | 改为 `/ultra-health` 命令按需调用，不再随 SessionStart 自动 |
+  | `observation_capture` | Hermes 可观测性路径；非 Claude 用 CLI wrapper |
+  | `system_doctor` | 命令式 `/ultra-doctor`，不再 hook |
+- **AC**：每个 hook 有 `hooks/adapters/README.md` 里一行落点记录。
+
+**Phase 3 门槛**：Claude 下 hook 输出字节级一致；其余 3 runtime 有
+显式的"已覆盖 / 已降级 / 功能丢失"表，供 README 引用。
 
 **Phase 3 门槛**：Claude 下 hook 输出字节级一致；OpenCode + Codex
 通过 adapter AC；Gemini 覆盖表已审。
@@ -575,34 +731,44 @@ CI 下 mock `codex`/`gemini` 二进制——当真 CLI 不可用时使用。
 
 ## 9. 风险与对策
 
+> 2026-04-17 文档核验后新增 R10–R14（详见 §14 决策 D11）。
+
 | ID | 风险 | 概率 | 影响 | 对策 | Owner |
 |----|------|------|------|------|-------|
-| R1 | Codex hook payload 格式无文档 / 改动 | 中 | 高 | Phase 3 先做半天 spike 记录当前线缆格式；adapter 是薄翻译层，恢复成本低 | Phase 3.4 |
-| R2 | Gemini sub-agent 协议不稳定 | 中 | 中 | §5 写明"Gemini 仅串行"；降级矩阵标"并发退化"；加 `--gemini-agent-backend=flat` 作为逃生口 | Phase 2.5 |
+| R1 | Codex `hooks.json` 格式无文档 / 改动 | **高** | 高 | Phase 3.4 前置 0.5 天 spike 抓 wire format；若仍 `under development` 则仅保留 `notify` 单事件路径，其余 hook 走 prompt 守卫 | Phase 3.4 |
+| R2 | Gemini sub-agent 协议处于 preview | 中 | 中 | Phase 2.5 前置 spike；subagent 在 extension 内，不可用时退化为"Gemini 下 subagent 串行" | Phase 2.5 |
 | R3 | settings-merge 破坏用户手写配置 | 低 | 高 | 三重防护：(a) 每次写前备份到 `.ubp-backup/`；(b) 哨兵块隔离；(c) `--dry` 打印 diff 不落盘 | Phase 2.1 |
-| R4 | `hooks/*.py` 依赖 Claude 专属 env 变量 | 中 | 中 | Phase 3.1 盘点每个 `os.environ.get(...)`；adapter 翻译 | Phase 3.1 |
+| R4 | `hooks/*.py` 依赖 Claude 专属 env 变量或 JSON 键 | 中 | 中 | Phase 3.1 盘点每个 `os.environ.get(...)` 与 `json.load(sys.stdin)` 键使用；adapter 翻译 | Phase 3.1 |
 | R5 | `proper-lockfile` 跨平台抖动 | 低 | 中 | 用库自带 `retries` + 失效锁识别；加 lock-timeout 集成测试 | Phase 1.1 |
-| R6 | 慢网下 `npx` 启动延迟 | 低 | 低 | 用 esbuild 输出预打包单文件 ESM（`build:bin` 脚本）给高级用户 | Phase 5.1 |
-| R7 | diff-equal 门槛因现 `~/.claude` 有杂项改动而失败 | 高 | 中 | 精确定义"基线"：pre-CLI git tag 的 Hermes 全新安装，而非用户当前工作树 | Phase 2.2 |
-| R8 | formula 坏掉后 Homebrew tap 无人照管 | 低 | 低 | 每个 release tag CI 跑 `brew install --build-from-source`；formula 自动生成 | Phase 5.3 |
+| R6 | 慢网下 `npx` 启动延迟 | 低 | 低 | 用 esbuild 输出预打包单文件 ESM（`build:bin`） | Phase 5.1 |
+| R7 | diff-equal 门槛因现 `~/.claude` 有杂项改动而失败 | 高 | 中 | 精确定义基线：pre-CLI git tag 的 Hermes 全新安装 | Phase 2.2 |
+| R8 | Homebrew tap formula 坏掉 | 低 | 低 | release CI 跑 `brew install --build-from-source`；formula 自动生成 | Phase 5.3 |
 | R9 | pip wrapper 令 Python-only 用户困惑 | 中 | 低 | wrapper `--help` 显式写"需 Node 22+"；缺 Node 时优雅报错 | Phase 5.3 |
+| **R10** | **OpenCode `experimental.hooks` 仅 2 个事件，Hermes 8+ 个守卫无法映射** | 高 | 中 | Phase 3.6 把无法映射的守卫转为 prompt-level `ultra-tools guard/verify` 调用；明确标 "moved to prompt guard" | Phase 3.3+3.6 |
+| **R11** | **Codex `hooks.json` 官方标 "under development, off by default"，schema 未公开** | 高 | 中 | Phase 3.4 仅映射 `notify` 单事件；文档声明"Codex 上无 PreToolUse 等拦截"；spike 若失败就接受降级 | Phase 3.4 |
+| **R12** | **Gemini 的 hooks 只能在 extension 内部，Hermes 必须整体包成 extension** | 中 | 中 | Phase 2.5 按 extension 布局组织输出；`gemini-extension.json` manifest 自动生成 | Phase 2.5 |
+| **R13** | **Gemini 命令强制 TOML 不支持 markdown**，Hermes 复杂命令体转 `prompt = """…"""` 单字段丢失结构 | 中 | 中 | `md-to-toml.js` 做机械转换；超过 1 KB 的命令 body 转 extension 内 `commands/<name>.md` + TOML 只存 prompt 引用（若官方支持） | Phase 2.1 + 2.5 |
+| **R14** | **Codex `[agents.<name>]` 仅接受 `config_file/description/nickname_candidates`**，Hermes agent 的 `tools/model` 等字段不能直接内联 | 中 | 中 | Phase 2.4 为每个 agent 生成独立 `agents/<name>.toml` + 主 config 引用；Claude 的 `tools:` 降级由 Codex `[permissions]` 接管 | Phase 2.4 |
 
 ---
 
 ## 10. 置信度拆分
 
+> 2026-04-17 文档核验后下调：综合 96% → **92%**。Phase 2/3 下调最明显。
+
 | Phase | 工作 | 置信度 | 为何没更高 |
 |-------|------|-------:|------------|
 | 0 | 骨架 | 100% | 已完成 |
 | 1 | ultra-tools | 98% | 直白的状态引擎；唯一残留风险是 `proper-lockfile` 边界情况（R5） |
-| 2 | Adapters | 94% | runtime 细节后现：R1（Codex hook 格式）、R7（基线定义） |
-| 3 | Hook 三分拆 | 92% | Codex 与 OpenCode 的 hook 线缆格式公开度不高；各自可能要一天 spike |
-| 4 | Prompt 改写 | 95% | 确定性变换；golden-file 能捕漂移 |
+| 2 | Adapters | 90% | Codex agent 结构（R14）、Gemini extension 打包（R12）、命令 TOML 转换（R13）叠加 |
+| 3 | Hook 三分拆 + prompt 守卫化 | 85% | 三家 hook schema 未完整公开（R1 / R10 / R11 / Gemini 亦同），需 spike；8 个 Hermes 守卫转 prompt-level 是新工程 |
+| 4 | Prompt 改写 | 95% | 确定性变换；golden-file 能捕漂移；得益于 4 runtime 都原生支持 Skill，工作量下降 |
 | 5 | 发布流水线 | 98% | 3 个标准渠道；Homebrew tap 是变量（R8） |
-| **综合** | | **96%** | 按工时加权；Phase 2+3 权重最大 |
+| **综合** | | **92%** | 按工时加权；Phase 2+3 权重最大，两者都受文档不完整影响 |
 
-**残差 4%**：Codex / OpenCode hook 协议里冒出真正的新东西，被迫重新
-架构。对策：两家都开源，文档不够就读 hook 处理器源码。
+**残差 8%**：三家 hook 协议 spike 一次仍无法抓到确定性 wire format，
+被迫把更多守卫挪到 prompt 层或接受"该 runtime 上此守卫功能丢失"。
+对策：三家都开源，文档不够就读源码；实在不行就"声明不支持"，让用户知情。
 
 ---
 
@@ -675,6 +841,7 @@ Week 4     ███████████████████████
 | D8 | 2026-04-17 | `settings.json` 精简为最小合并模板 | 隐私安全；用户同意 |
 | D9 | 2026-04-17 | `README.md` 改写延到 Phase 5 | 用户同意；不阻塞开发 |
 | D10 | 2026-04-17 | `hooks/tests/` 不入 npm tarball | 与 get-shit-done 一致；保持包体精简 |
+| **D11** | **2026-04-17** | **放弃初版工具映射（凭经验编撰），基于官方文档重做 §5 + §6 Phase 2/3 + §9 风险 + §10 置信度** | 用户指出初版依赖训练知识而非最新官方。核验源：[OpenCode Commands](https://opencode.ai/docs/commands/) · [OpenCode Agents](https://opencode.ai/docs/agents/) · [OpenCode Config](https://opencode.ai/docs/config/) · [Codex Config Reference](https://developers.openai.com/codex/config-reference) · [Codex Agent Skills](https://developers.openai.com/codex/skills) · [Gemini Custom Commands](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/custom-commands.md) · [Gemini Extensions Reference](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/reference.md) · [Claude Code Hooks](https://code.claude.com/docs/en/hooks) · [Claude Code Sub-agents](https://code.claude.com/docs/en/sub-agents)。核验颠覆了 6 处假设，新增 5 条风险 R10–R14。 |
 
 ---
 
