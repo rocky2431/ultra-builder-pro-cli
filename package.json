@@ -48,7 +48,14 @@
   },
   "scripts": {
     "test": "node --test ultra-tools/*.test.cjs || true",
+    "test:spec": "node spec/scripts/test-all.cjs",
     "install:claude": "node bin/install.js --claude --local",
     "install:all": "node bin/install.js --all --local"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "better-sqlite3": "^11.5.0",
+    "js-yaml": "^4.1.0"
   }
 }

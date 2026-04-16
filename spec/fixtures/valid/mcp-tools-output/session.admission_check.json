@@ -1,0 +1,15 @@
+[
+  {
+    "can_spawn": true,
+    "recommended_action": "spawn"
+  },
+  {
+    "can_spawn": false,
+    "conflict": {
+      "sid": "ses_2026_04_17_x9y8z7",
+      "status": "running",
+      "heartbeat_age_ms": 1200
+    },
+    "recommended_action": "resume"
+  }
+]

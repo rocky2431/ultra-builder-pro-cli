@@ -64,6 +64,7 @@ ide/
 shell-snapshots/
 scripts/
 !skills/*/scripts/
+!spec/scripts/
 session-env/
 
 # Statistics and logs

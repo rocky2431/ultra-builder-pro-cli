@@ -1,0 +1,6 @@
+{
+  "task_id": "task-001",
+  "runtime": "claude",
+  "takeover": false,
+  "worktree_base": ".ultra/worktrees"
+}

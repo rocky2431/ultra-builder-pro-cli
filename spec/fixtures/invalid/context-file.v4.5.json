@@ -1,0 +1,24 @@
+[
+  {
+    "header": {
+      "task_id": "task-z",
+      "title": "status section in body is forbidden (D17)",
+      "status": "in_progress",
+      "schema_version": "4.5"
+    },
+    "body": {
+      "sections": [
+        { "heading": "Status", "content": "in_progress" }
+      ]
+    }
+  },
+  {
+    "header": {
+      "task_id": "task-z",
+      "title": "wrong schema version",
+      "status": "pending",
+      "schema_version": "5.0"
+    },
+    "body": { "sections": [] }
+  }
+]

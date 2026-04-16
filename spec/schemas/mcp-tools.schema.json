@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultra-builder-pro.dev/spec/mcp-tools.schema.json",
+  "title": "MCP tools manifest",
+  "description": "Meta-schema describing the shape of spec/mcp-tools.yaml. The manifest itself is the single source for MCP tool contracts (PLAN R19).",
+  "type": "object",
+  "required": ["version", "info", "tools"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$" },
+    "info": {
+      "type": "object",
+      "required": ["title", "phase", "trace_to"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "phase": { "type": "string" },
+        "trace_to": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z]+$" },
+          "description": { "type": "string", "minLength": 10 },
+          "phase": { "type": "string" }
+        }
+      }
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/tool" }
+    }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "required": [
+        "name",
+        "family",
+        "description",
+        "phase",
+        "input_schema",
+        "output_schema",
+        "errors",
+        "cli_subcommand"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z_]*\\.[a-z][a-z_]*$",
+          "description": "family.verb naming convention (PLAN §7.3)"
+        },
+        "family": {
+          "type": "string",
+          "enum": ["task", "memory", "review", "impact", "skill", "session", "ask", "plan"]
+        },
+        "description": { "type": "string", "minLength": 10 },
+        "phase": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?[ab]?$",
+          "description": "earliest phase that implements this tool (e.g. 2, 4.5, 4.6a, 8a)"
+        },
+        "readonly": { "type": "boolean", "default": false },
+        "writer_role": {
+          "type": "string",
+          "enum": ["mcp", "cli", "orchestrator", "any"],
+          "default": "mcp",
+          "description": "which process is allowed to invoke (R25 access policy)"
+        },
+        "input_schema": { "$ref": "#/$defs/jsonSchemaFragment" },
+        "output_schema": { "$ref": "#/$defs/jsonSchemaFragment" },
+        "errors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["code", "description"],
+            "additionalProperties": false,
+            "properties": {
+              "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+              "description": { "type": "string", "minLength": 5 },
+              "retriable": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "cli_subcommand": {
+          "type": "string",
+          "pattern": "^[a-z][a-z\\- ]*$",
+          "description": "ultra-tools subcommand path (e.g. 'task create', 'session spawn')"
+        },
+        "emits_events": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "events.type values appended to state.db on success"
+        },
+        "trace_to": {
+          "type": "string",
+          "description": "PLAN section/decision id (e.g. §7.3, D33)"
+        }
+      }
+    },
+    "jsonSchemaFragment": {
+      "type": "object",
+      "description": "embedded JSON Schema (Draft 2020-12 subset). validate-mcp-tools.cjs compiles each fragment to ensure it is a usable schema.",
+      "required": ["type"],
+      "properties": {
+        "type": {},
+        "properties": {},
+        "required": {},
+        "additionalProperties": {},
+        "items": {},
+        "enum": {},
+        "oneOf": {},
+        "anyOf": {},
+        "allOf": {},
+        "$ref": {},
+        "format": {},
+        "pattern": {},
+        "minimum": {},
+        "maximum": {},
+        "minLength": {},
+        "maxLength": {},
+        "minItems": {},
+        "description": {}
+      }
+    }
+  }
+}

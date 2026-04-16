@@ -1,0 +1,8 @@
+{
+  "id": "task-001",
+  "patch": {
+    "status": "in_progress",
+    "session_id": "ses_2026_04_17_a1b2c3",
+    "files_modified": ["spec/mcp-tools.yaml", "spec/schemas/mcp-tools.schema.json"]
+  }
+}

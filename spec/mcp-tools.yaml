@@ -1,0 +1,873 @@
+# Ultra Builder Pro — MCP tool contracts
+# Single source for tool name, schema, errors, and CLI mapping.
+# Validated by spec/schemas/mcp-tools.schema.json (run `npm run test:spec`).
+# Trace: PLAN §7.3, decisions D12 / D29 / D31-D34.
+
+version: '1.0'
+
+info:
+  title: Ultra Builder Pro MCP tool contracts
+  phase: '1.1'
+  trace_to: 'PLAN docs/PLAN.zh-CN.md §7.3'
+  notes: |
+    Phase 3+ generators consume this YAML to derive TypeScript types,
+    skill frontmatter validators, and CLI argument parsers (R19).
+    Adding a tool requires: (a) update this file, (b) add valid+invalid
+    fixture to spec/fixtures/{valid,invalid}/, (c) `npm run test:spec` green.
+
+families:
+  - { name: task,    description: 'authoritative task lifecycle on state.db', phase: '2' }
+  - { name: memory,  description: 'cross-session retain / recall / reflect (hindsight wrapper)', phase: '7' }
+  - { name: review,  description: 'code review pipeline orchestration', phase: '3' }
+  - { name: impact,  description: 'code-review-graph queries — radius / changes / dependents', phase: '6' }
+  - { name: skill,   description: 'read-only skill discovery (D29)', phase: '3' }
+  - { name: session, description: 'execution-unit lifecycle with single-active-lease admission (D33)', phase: '4.5' }
+  - { name: ask,     description: 'human-in-the-loop prompts and menus', phase: '3' }
+  - { name: plan,    description: 'execution-plan artifact export and query (D34)', phase: '8a' }
+
+tools:
+
+  # ─────────────────────────── task family ────────────────────────────────
+  - name: task.create
+    family: task
+    description: Create a new task in state.db. Emits task_created event.
+    phase: '2'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [title, type, priority]
+      additionalProperties: false
+      properties:
+        title:       { type: string, minLength: 3 }
+        type:        { type: string, enum: [architecture, feature, bugfix] }
+        priority:    { type: string, enum: [P0, P1, P2, P3] }
+        complexity:  { type: integer, minimum: 1, maximum: 10 }
+        deps:        { type: array, items: { type: string } }
+        tag:         { type: string, description: 'git branch tag (Phase 7.2)' }
+        trace_to:    { type: string, description: 'spec anchor (e.g. spec/mcp-tools.yaml#task.create)' }
+    output_schema:
+      type: object
+      required: [id, status, created_at]
+      additionalProperties: false
+      properties:
+        id:         { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        status:     { type: string, enum: [pending] }
+        created_at: { type: string, format: date-time }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'input failed schema validation' }
+      - { code: DUPLICATE_TASK_ID, description: 'task id already exists' }
+      - { code: STATE_DB_LOCKED, description: 'database is locked', retriable: true }
+    cli_subcommand: task create
+    emits_events: [task_created]
+    trace_to: '§7.3, §7.1'
+
+  - name: task.update
+    family: task
+    description: Patch a task's mutable fields. status transitions enforced server-side.
+    phase: '2'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, patch]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        patch:
+          type: object
+          additionalProperties: false
+          properties:
+            status:        { type: string, enum: [pending, in_progress, completed, blocked, expanded] }
+            priority:      { type: string, enum: [P0, P1, P2, P3] }
+            complexity:    { type: integer, minimum: 1, maximum: 10 }
+            deps:          { type: array, items: { type: string } }
+            files_modified: { type: array, items: { type: string } }
+            session_id:    { type: string }
+            stale:         { type: boolean }
+            tag:           { type: string }
+            completion_commit: { type: string, pattern: '^[0-9a-f]{7,40}$' }
+    output_schema:
+      type: object
+      required: [ok, task]
+      additionalProperties: false
+      properties:
+        ok:   { type: boolean }
+        task: { type: object }
+    errors:
+      - { code: TASK_NOT_FOUND, description: 'no task with given id' }
+      - { code: ILLEGAL_STATUS_TRANSITION, description: 'transition rejected by state machine' }
+      - { code: VALIDATION_ERROR, description: 'patch failed schema validation' }
+    cli_subcommand: task update
+    emits_events: [task_started, task_completed, task_blocked, task_stale_marked]
+    trace_to: '§7.3, §7.2'
+
+  - name: task.list
+    family: task
+    description: List tasks filtered by status / tag / time window.
+    phase: '2'
+    readonly: true
+    writer_role: any
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [pending, in_progress, completed, blocked, expanded, any] }
+        tag:    { type: string }
+        since:  { type: string, format: date-time }
+        limit:  { type: integer, minimum: 1, maximum: 1000 }
+    output_schema:
+      type: object
+      required: [tasks, count]
+      additionalProperties: false
+      properties:
+        tasks: { type: array, items: { type: object } }
+        count: { type: integer, minimum: 0 }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'filter failed schema validation' }
+    cli_subcommand: task list
+    emits_events: []
+    trace_to: '§7.3'
+
+  - name: task.get
+    family: task
+    description: Fetch one task with its full row.
+    phase: '2'
+    readonly: true
+    writer_role: any
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+    output_schema:
+      type: object
+      required: [task]
+      additionalProperties: false
+      properties:
+        task: { type: object }
+    errors:
+      - { code: TASK_NOT_FOUND, description: 'no task with given id' }
+    cli_subcommand: task get
+    emits_events: []
+    trace_to: '§7.3'
+
+  - name: task.delete
+    family: task
+    description: Hard-delete a task. Refuses if any in_progress session is bound.
+    phase: '2'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id:    { type: string }
+        force: { type: boolean, default: false }
+    output_schema:
+      type: object
+      required: [ok]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean }
+    errors:
+      - { code: TASK_NOT_FOUND, description: 'no task with given id' }
+      - { code: SESSION_ACTIVE, description: 'task has an active session; pass force=true to override' }
+    cli_subcommand: task delete
+    emits_events: []
+    trace_to: '§7.3'
+
+  - name: task.expand
+    family: task
+    description: Expand a parent task into N child sub-tasks (Phase 8A).
+    phase: '8a'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id:        { type: string }
+        sub_count: { type: integer, minimum: 1, maximum: 16 }
+        strategy:  { type: string, enum: [llm, manual], default: llm }
+    output_schema:
+      type: object
+      required: [parent_id, children]
+      additionalProperties: false
+      properties:
+        parent_id: { type: string }
+        children:  { type: array, items: { type: object } }
+    errors:
+      - { code: TASK_NOT_FOUND, description: 'parent id missing' }
+      - { code: ALREADY_EXPANDED, description: 'task is already expanded' }
+    cli_subcommand: task expand
+    emits_events: [task_expanded]
+    trace_to: '§7.3, D34'
+
+  - name: task.parse_prd
+    family: task
+    description: Parse a PRD document into a task graph (Phase 8A).
+    phase: '8a'
+    writer_role: mcp
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        prd_path: { type: string }
+        prd_text: { type: string }
+        tag:      { type: string }
+    output_schema:
+      type: object
+      required: [tasks, topo]
+      additionalProperties: false
+      properties:
+        tasks: { type: array, items: { type: object } }
+        topo:  { type: array, items: { type: array, items: { type: string } } }
+    errors:
+      - { code: NO_INPUT, description: 'one of prd_path or prd_text required' }
+      - { code: PARSE_FAILED, description: 'PRD could not be parsed into tasks' }
+    cli_subcommand: task parse-prd
+    emits_events: [task_created]
+    trace_to: '§7.3, D34'
+
+  - name: task.dependency_topo
+    family: task
+    description: Compute topological waves for a set of tasks; consumed by execution-plan.
+    phase: '8a'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        task_ids: { type: array, items: { type: string } }
+    output_schema:
+      type: object
+      required: [waves]
+      additionalProperties: false
+      properties:
+        waves: { type: array, items: { type: array, items: { type: string } } }
+        cycles: { type: array, items: { type: array, items: { type: string } } }
+    errors:
+      - { code: CYCLE_DETECTED, description: 'dependency graph has cycles' }
+    cli_subcommand: task topo
+    emits_events: []
+    trace_to: '§7.3, D34'
+
+  - name: task.append_event
+    family: task
+    description: Append a row to events table. Returns assigned id (subscribe cursor).
+    phase: '2'
+    writer_role: any
+    input_schema:
+      type: object
+      required: [type]
+      additionalProperties: false
+      properties:
+        task_id:    { type: string }
+        session_id: { type: string }
+        runtime:    { type: string, enum: [claude, opencode, codex, gemini] }
+        type:
+          type: string
+          enum:
+            - task_created
+            - task_started
+            - task_completed
+            - task_failed
+            - task_blocked
+            - task_expanded
+            - task_stale_marked
+            - session_spawned
+            - session_closed
+            - session_crashed
+            - session_orphaned
+            - session_heartbeat_lost
+            - spec_changed
+            - context_updated
+            - plan_approved
+            - commit_pushed
+            - review_verdict
+            - merge_conflict
+            - auto_merged
+            - cost_alert
+            - token_alert
+            - circuit_open
+        payload: { type: object }
+    output_schema:
+      type: object
+      required: [event_id, ts]
+      additionalProperties: false
+      properties:
+        event_id: { type: integer, minimum: 1 }
+        ts:       { type: string, format: date-time }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'event payload failed validation' }
+      - { code: STATE_DB_LOCKED, description: 'database is locked', retriable: true }
+    cli_subcommand: task append-event
+    emits_events: []
+    trace_to: '§7.2, D31'
+
+  - name: task.subscribe_events
+    family: task
+    description: Pull events with id > since_id. Cursor is monotonic (D31, R26).
+    phase: '2'
+    readonly: true
+    input_schema:
+      type: object
+      required: [since_id]
+      additionalProperties: false
+      properties:
+        since_id: { type: integer, minimum: 0 }
+        types:    { type: array, items: { type: string } }
+        task_id:  { type: string }
+        limit:    { type: integer, minimum: 1, maximum: 500, default: 100 }
+    output_schema:
+      type: object
+      required: [events, next_since_id]
+      additionalProperties: false
+      properties:
+        events: { type: array, items: { type: object } }
+        next_since_id: { type: integer, minimum: 0 }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'cursor or filter invalid' }
+    cli_subcommand: task subscribe
+    emits_events: []
+    trace_to: '§7.2, D31'
+
+  # ────────────────────────── memory family ───────────────────────────────
+  - name: memory.retain
+    family: memory
+    description: Persist a memory record into the cross-session store (hindsight wrapper).
+    phase: '7'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [scope, content]
+      additionalProperties: false
+      properties:
+        scope:   { type: string, enum: [user, project, feedback, reference] }
+        content: { type: string, minLength: 1 }
+        tags:    { type: array, items: { type: string } }
+        ttl_days: { type: integer, minimum: 1 }
+    output_schema:
+      type: object
+      required: [memory_id]
+      additionalProperties: false
+      properties:
+        memory_id: { type: string }
+    errors:
+      - { code: STORE_UNAVAILABLE, description: 'memory backend not reachable', retriable: true }
+    cli_subcommand: memory retain
+    emits_events: []
+    trace_to: '§7.3, D25'
+
+  - name: memory.recall
+    family: memory
+    description: Semantic + tag retrieval against the memory store.
+    phase: '7'
+    readonly: true
+    input_schema:
+      type: object
+      required: [query]
+      additionalProperties: false
+      properties:
+        query: { type: string, minLength: 1 }
+        scope: { type: string, enum: [user, project, feedback, reference, any] }
+        k:     { type: integer, minimum: 1, maximum: 50, default: 5 }
+        tags:  { type: array, items: { type: string } }
+    output_schema:
+      type: object
+      required: [hits]
+      additionalProperties: false
+      properties:
+        hits: { type: array, items: { type: object } }
+    errors:
+      - { code: STORE_UNAVAILABLE, description: 'memory backend not reachable', retriable: true }
+    cli_subcommand: memory recall
+    emits_events: []
+    trace_to: '§7.3, D25'
+
+  - name: memory.reflect
+    family: memory
+    description: Summarize recent session into recall-ready notes (auto on session close).
+    phase: '7'
+    writer_role: mcp
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        window_minutes: { type: integer, minimum: 1, maximum: 1440, default: 60 }
+        session_id:     { type: string }
+    output_schema:
+      type: object
+      required: [summary, suggested_actions]
+      additionalProperties: false
+      properties:
+        summary:           { type: string }
+        suggested_actions: { type: array, items: { type: object } }
+    errors:
+      - { code: NO_DATA, description: 'no events in window' }
+    cli_subcommand: memory reflect
+    emits_events: []
+    trace_to: '§7.3, D25'
+
+  # ────────────────────────── review family ───────────────────────────────
+  - name: review.run
+    family: review
+    description: Run the multi-agent review pipeline against a target (file / pr / diff).
+    phase: '3'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [target]
+      additionalProperties: false
+      properties:
+        target:
+          type: object
+          required: [kind, ref]
+          properties:
+            kind: { type: string, enum: [file, pr, diff, branch] }
+            ref:  { type: string }
+        profile: { type: string, enum: [security, design, tests, all], default: all }
+    output_schema:
+      type: object
+      required: [review_id, findings, verdict]
+      additionalProperties: false
+      properties:
+        review_id: { type: string }
+        findings:  { type: array, items: { type: object } }
+        verdict:   { type: string, enum: [pass, warn, block] }
+    errors:
+      - { code: TARGET_NOT_FOUND, description: 'target ref does not resolve' }
+      - { code: REVIEW_TIMEOUT, description: 'pipeline exceeded budget', retriable: true }
+    cli_subcommand: review run
+    emits_events: [review_verdict]
+    trace_to: '§7.3'
+
+  - name: review.verdict
+    family: review
+    description: Fetch the cached verdict of a previous review.
+    phase: '3'
+    readonly: true
+    input_schema:
+      type: object
+      required: [review_id]
+      additionalProperties: false
+      properties:
+        review_id: { type: string }
+    output_schema:
+      type: object
+      required: [verdict]
+      additionalProperties: false
+      properties:
+        verdict: { type: string, enum: [pass, warn, block] }
+        reasons: { type: array, items: { type: string } }
+    errors:
+      - { code: REVIEW_NOT_FOUND, description: 'review id unknown' }
+    cli_subcommand: review verdict
+    emits_events: []
+    trace_to: '§7.3'
+
+  # ────────────────────────── impact family ───────────────────────────────
+  - name: impact.radius
+    family: impact
+    description: Blast-radius query against code-review-graph for a file / symbol.
+    phase: '6'
+    readonly: true
+    input_schema:
+      type: object
+      required: [target]
+      additionalProperties: false
+      properties:
+        target:
+          type: object
+          properties:
+            file:   { type: string }
+            symbol: { type: string }
+        max_depth: { type: integer, minimum: 1, maximum: 6, default: 2 }
+    output_schema:
+      type: object
+      required: [nodes, depth]
+      additionalProperties: false
+      properties:
+        nodes: { type: array, items: { type: object } }
+        depth: { type: integer }
+    errors:
+      - { code: GRAPH_NOT_BUILT, description: 'code-review-graph index missing', retriable: true }
+    cli_subcommand: impact radius
+    emits_events: []
+    trace_to: '§7.3'
+
+  - name: impact.changes
+    family: impact
+    description: Nodes added/changed/removed since a commit (incremental graph diff).
+    phase: '6'
+    readonly: true
+    input_schema:
+      type: object
+      required: [since_commit]
+      additionalProperties: false
+      properties:
+        since_commit: { type: string }
+    output_schema:
+      type: object
+      required: [changed_nodes]
+      additionalProperties: false
+      properties:
+        changed_nodes: { type: array, items: { type: object } }
+    errors:
+      - { code: COMMIT_NOT_FOUND, description: 'reference commit not in repo' }
+    cli_subcommand: impact changes
+    emits_events: []
+    trace_to: '§7.3'
+
+  - name: impact.dependents
+    family: impact
+    description: Reverse-dependents of a symbol (who calls / imports it).
+    phase: '6'
+    readonly: true
+    input_schema:
+      type: object
+      required: [symbol]
+      additionalProperties: false
+      properties:
+        symbol:    { type: string }
+        max_depth: { type: integer, minimum: 1, maximum: 6, default: 2 }
+    output_schema:
+      type: object
+      required: [dependents]
+      additionalProperties: false
+      properties:
+        dependents: { type: array, items: { type: object } }
+    errors:
+      - { code: SYMBOL_NOT_FOUND, description: 'symbol not in graph' }
+    cli_subcommand: impact dependents
+    emits_events: []
+    trace_to: '§7.3'
+
+  # ────────────────────────── skill family (read-only, D29) ───────────────
+  - name: skill.resolve
+    family: skill
+    description: Resolve a skill name to its on-disk path and parsed manifest.
+    phase: '3'
+    readonly: true
+    writer_role: any
+    input_schema:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:    { type: string }
+        runtime: { type: string, enum: [claude, opencode, codex, gemini] }
+    output_schema:
+      type: object
+      required: [path, manifest]
+      additionalProperties: false
+      properties:
+        path:     { type: string }
+        manifest: { type: object }
+    errors:
+      - { code: SKILL_NOT_FOUND, description: 'no skill with given name in any source' }
+    cli_subcommand: skill resolve
+    emits_events: []
+    trace_to: '§7.3, D29'
+
+  - name: skill.manifest
+    family: skill
+    description: Return only the parsed frontmatter of a skill (no body).
+    phase: '3'
+    readonly: true
+    writer_role: any
+    input_schema:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+    output_schema:
+      type: object
+      required: [frontmatter]
+      additionalProperties: false
+      properties:
+        frontmatter: { type: object }
+    errors:
+      - { code: SKILL_NOT_FOUND, description: 'no skill with given name in any source' }
+    cli_subcommand: skill manifest
+    emits_events: []
+    trace_to: '§7.3, D29'
+
+  # ────────────────────────── session family ──────────────────────────────
+  - name: session.spawn
+    family: session
+    description: Spawn a new execution session — new process + worktree + lease + artifact dir (D20). Caller must hold an admission_check verdict allowing spawn.
+    phase: '4.5'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [task_id, runtime]
+      additionalProperties: false
+      properties:
+        task_id:  { type: string }
+        runtime:  { type: string, enum: [claude, opencode, codex, gemini] }
+        takeover: { type: boolean, default: false, description: 'override active lease (D33 takeover strategy)' }
+        worktree_base: { type: string }
+    output_schema:
+      type: object
+      required: [sid, worktree_path, artifact_dir, lease_expires_at]
+      additionalProperties: false
+      properties:
+        sid:               { type: string }
+        worktree_path:     { type: string }
+        artifact_dir:      { type: string }
+        lease_expires_at:  { type: string, format: date-time }
+    errors:
+      - { code: TASK_NOT_FOUND, description: 'task id missing' }
+      - { code: ADMISSION_DENIED, description: 'active lease exists; choose takeover/resume/abandon' }
+      - { code: WORKTREE_FAILED, description: 'git worktree could not be created' }
+    cli_subcommand: session spawn
+    emits_events: [session_spawned]
+    trace_to: '§7.3, D20, D33'
+
+  - name: session.close
+    family: session
+    description: Close a session and release its lease.
+    phase: '4.5'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [sid, status]
+      additionalProperties: false
+      properties:
+        sid:    { type: string }
+        status: { type: string, enum: [completed, crashed, orphan] }
+        notes:  { type: string }
+    output_schema:
+      type: object
+      required: [ok]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean }
+    errors:
+      - { code: SESSION_NOT_FOUND, description: 'sid unknown' }
+    cli_subcommand: session close
+    emits_events: [session_closed, session_crashed, session_orphaned]
+    trace_to: '§7.3, D32'
+
+  - name: session.get
+    family: session
+    description: Fetch a session row.
+    phase: '4.5'
+    readonly: true
+    input_schema:
+      type: object
+      required: [sid]
+      additionalProperties: false
+      properties:
+        sid: { type: string }
+    output_schema:
+      type: object
+      required: [session]
+      additionalProperties: false
+      properties:
+        session: { type: object }
+    errors:
+      - { code: SESSION_NOT_FOUND, description: 'sid unknown' }
+    cli_subcommand: session get
+    emits_events: []
+    trace_to: '§7.3'
+
+  - name: session.admission_check
+    family: session
+    description: Check whether spawning a new session for task_id is allowed (D33). Returns recommended action.
+    phase: '4.5'
+    readonly: true
+    input_schema:
+      type: object
+      required: [task_id]
+      additionalProperties: false
+      properties:
+        task_id: { type: string }
+        runtime: { type: string, enum: [claude, opencode, codex, gemini] }
+    output_schema:
+      type: object
+      required: [can_spawn, recommended_action]
+      additionalProperties: false
+      properties:
+        can_spawn:          { type: boolean }
+        conflict:
+          type: object
+          properties:
+            sid:          { type: string }
+            status:       { type: string }
+            heartbeat_age_ms: { type: integer, minimum: 0 }
+        recommended_action:
+          type: string
+          enum: [spawn, takeover, resume, abandon]
+    errors:
+      - { code: TASK_NOT_FOUND, description: 'task id missing' }
+    cli_subcommand: session admission
+    emits_events: []
+    trace_to: '§7.3, D33'
+
+  - name: session.heartbeat
+    family: session
+    description: Refresh lease for a running session. Lease expires after grace period without heartbeat.
+    phase: '4.5'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [sid]
+      additionalProperties: false
+      properties:
+        sid: { type: string }
+    output_schema:
+      type: object
+      required: [ok, lease_expires_at]
+      additionalProperties: false
+      properties:
+        ok:               { type: boolean }
+        lease_expires_at: { type: string, format: date-time }
+    errors:
+      - { code: SESSION_NOT_FOUND, description: 'sid unknown' }
+      - { code: LEASE_EXPIRED, description: 'lease already expired; need takeover/resume' }
+    cli_subcommand: session heartbeat
+    emits_events: [session_heartbeat_lost]
+    trace_to: '§7.3, D32'
+
+  - name: session.subscribe_events
+    family: session
+    description: Pull session-related events with cursor.
+    phase: '4.5'
+    readonly: true
+    input_schema:
+      type: object
+      required: [since_id]
+      additionalProperties: false
+      properties:
+        since_id: { type: integer, minimum: 0 }
+        sid:      { type: string }
+        limit:    { type: integer, minimum: 1, maximum: 500, default: 100 }
+    output_schema:
+      type: object
+      required: [events, next_since_id]
+      additionalProperties: false
+      properties:
+        events:        { type: array, items: { type: object } }
+        next_since_id: { type: integer, minimum: 0 }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'cursor invalid' }
+    cli_subcommand: session subscribe
+    emits_events: []
+    trace_to: '§7.3, D31'
+
+  # ────────────────────────── ask family ──────────────────────────────────
+  - name: ask.question
+    family: ask
+    description: Ask the human a single question (free text or constrained choices).
+    phase: '3'
+    writer_role: any
+    input_schema:
+      type: object
+      required: [prompt]
+      additionalProperties: false
+      properties:
+        prompt:  { type: string, minLength: 3 }
+        choices: { type: array, items: { type: string } }
+        default: { type: string }
+        timeout_seconds: { type: integer, minimum: 1, maximum: 3600 }
+    output_schema:
+      type: object
+      required: [answer]
+      additionalProperties: false
+      properties:
+        answer:    { type: string }
+        timed_out: { type: boolean, default: false }
+    errors:
+      - { code: NO_TTY, description: 'no interactive terminal available' }
+      - { code: TIMEOUT, description: 'human did not respond in time' }
+    cli_subcommand: ask question
+    emits_events: []
+    trace_to: '§7.3'
+
+  - name: ask.menu
+    family: ask
+    description: Present a labelled menu and return the selected id.
+    phase: '3'
+    writer_role: any
+    input_schema:
+      type: object
+      required: [title, items]
+      additionalProperties: false
+      properties:
+        title: { type: string }
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [id, label]
+            properties:
+              id:    { type: string }
+              label: { type: string }
+              description: { type: string }
+    output_schema:
+      type: object
+      required: [selected_id]
+      additionalProperties: false
+      properties:
+        selected_id: { type: string }
+    errors:
+      - { code: NO_TTY, description: 'no interactive terminal available' }
+      - { code: USER_ABORTED, description: 'user dismissed the menu' }
+    cli_subcommand: ask menu
+    emits_events: []
+    trace_to: '§7.3'
+
+  # ────────────────────────── plan family (D34) ───────────────────────────
+  - name: plan.export
+    family: plan
+    description: Render the current execution-plan artifact to disk (waves + ownership + conflict surface).
+    phase: '8a'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [out_path]
+      additionalProperties: false
+      properties:
+        format:   { type: string, enum: [json, md], default: json }
+        out_path: { type: string }
+        tag:      { type: string }
+    output_schema:
+      type: object
+      required: [plan_path, wave_count]
+      additionalProperties: false
+      properties:
+        plan_path:  { type: string }
+        wave_count: { type: integer, minimum: 0 }
+    errors:
+      - { code: NO_TASKS, description: 'no tasks to plan' }
+      - { code: WRITE_FAILED, description: 'cannot write plan file' }
+    cli_subcommand: plan export
+    emits_events: [plan_approved]
+    trace_to: '§7.3, D34'
+
+  - name: plan.get
+    family: plan
+    description: Query a section of the in-memory execution-plan without writing to disk.
+    phase: '8a'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        section: { type: string, enum: [tasks, topo, conflicts, all], default: all }
+        tag:     { type: string }
+    output_schema:
+      type: object
+      required: [plan]
+      additionalProperties: false
+      properties:
+        plan: { type: object }
+    errors:
+      - { code: NO_PLAN, description: 'no plan has been computed yet' }
+    cli_subcommand: plan get
+    emits_events: []
+    trace_to: '§7.3, D34'

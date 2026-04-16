@@ -406,7 +406,7 @@ ultra-builder-pro-cli/
 
 ---
 
-### Phase 1 — 三层接口定义（规则层基础）
+### Phase 1 — 三层接口定义（规则层基础）✅ 完成
 
 **目标**：把 skill / MCP tool / CLI 三层的**schema 锁死**。后续所有 Phase 只
 引用 spec/，不再定义新 schema。接口先行是避免"写到一半发现 schema 不兼容"
@@ -417,6 +417,26 @@ ultra-builder-pro-cli/
 **置信度**：95%（纯设计工作，风险低）
 
 **工时**：3-4 天
+
+**完成清单**（D38）：
+- 1.1 ✅ `spec/mcp-tools.yaml` — 8 族 / 30 tool，meta-schema 校验，13 sample
+  fixture 全绿；CLI 子命令唯一映射
+- 1.2a ✅ `spec/schemas/state-db.sql` — 7 表（含 schema_version /
+  migration_history / telemetry / specs_refs），WAL/foreign_keys 已开；
+  8 valid INSERT + 8 invalid INSERT（type/priority/complexity/status/NOT NULL/
+  FK/runtime/direction CHECK）全绿
+- 1.2b ✅ `spec/schemas/tasks.v4.5.schema.json` + `context-file.v4.5.schema.json`
+  — `x-derived` 标记到 status/deps/session_id；body 禁止出现 Status section；
+  4 valid + 5 invalid fixture 全绿
+- 1.3 ✅ `spec/schemas/skill-manifest.schema.json` — 现有 17/17 skill 100% 通
+  过（`skills/learned/` 是元目录无 SKILL.md）；不一致时落 `spec/migration-
+  notes.md`
+- 1.4 ✅ `spec/cli-protocol.md` — 输入/输出/退出码三段约束，30-行
+  tool↔CLI 映射表；`spec/scripts/check-cli-mapping.cjs` 0 漂移
+- 1.5 ✅ `docs/ARCHITECTURE.md` — 三层数据流图 + state.db 七表 + session
+  标准单元 + 双时间线
+- gate ✅ `npm run test:spec` → 5 validator 全绿（json-schema / mcp-tools /
+  state-db / skills / cli-mapping）
 
 #### 任务清单
 
@@ -1564,6 +1584,7 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | **D35** | **2026-04-17** | **Phase 4.6 拆 4.6a（v0.1 smoke flow）+ 4.6b（v0.2 full conformance）** | Codex 第二轮 R6：v0.1 先交付核心价值，full conformance 推迟到 v0.2；R32 |
 | **D36** | **2026-04-17** | **Phase 8A 对 Phase 7 的依赖从"强前置"软化为"加分项"** | Codex 第二轮 R5：memory/complexity 是 enhancement，不是正确性前置；8A 可单独跑 |
 | **D37** | **2026-04-17** | **新增多进程访问策略文档 `docs/STATE-DB-ACCESS-POLICY.md`** | Codex 第二轮 R4：MCP / CLI / orchestrator 同时写谁写哪；R25 |
+| **D38** | **2026-04-17** | **Phase 1 完成** — `spec/` 锁死三层契约：30 个 MCP tool / 7 表 SQLite schema / tasks 与 context 投影 schema / skill manifest / CLI 协议 + 映射表；`npm run test:spec` 5 validator 全绿；新增 `docs/ARCHITECTURE.md` | Phase 1 gate 全过；后续 Phase 只引用 spec/，不再发明 schema |
 
 ---
 

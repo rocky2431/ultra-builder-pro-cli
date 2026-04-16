@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultra-builder-pro.dev/spec/skill-manifest.schema.json",
+  "title": "Skill manifest (frontmatter)",
+  "description": "YAML frontmatter contract for skills/*/SKILL.md. Strict additionalProperties=false: any new field must be added here AND propagated through validate-skills.cjs (PLAN R19 single-source rule).",
+  "type": "object",
+  "required": ["name", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9\\-]*$",
+      "description": "kebab-case slug; matches the directory name"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 10,
+      "description": "human-readable trigger sentence consumed by the runtime's skill router"
+    },
+    "runtime": {
+      "oneOf": [
+        { "type": "string", "enum": ["claude", "opencode", "codex", "gemini", "all"] },
+        {
+          "type": "array",
+          "items": { "type": "string", "enum": ["claude", "opencode", "codex", "gemini"] },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      ],
+      "description": "v4.5 — which runtime(s) this skill targets. Defaults to 'all' when absent (Phase 4 adapter installs everywhere)."
+    },
+    "mcp_tools_required": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z]+\\.[a-z_]+$" },
+      "uniqueItems": true,
+      "description": "v4.5 — MCP tool names this skill calls; Phase 3+ generators verify availability"
+    },
+    "cli_fallback": {
+      "type": "string",
+      "description": "v4.5 — ultra-tools subcommand to fall back to when MCP unreachable"
+    },
+    "complexity_hint": {
+      "type": "string",
+      "enum": ["haiku", "sonnet", "opus"],
+      "description": "v4.5 — model routing hint (Phase 7+)"
+    },
+    "argument-hint": {
+      "type": "string",
+      "description": "Claude Code convention: hint shown after slash-command name"
+    },
+    "allowed-tools": {
+      "type": "string",
+      "description": "Claude Code convention: comma-separated tool allowlist"
+    },
+    "user-invocable": {
+      "type": "boolean",
+      "description": "Claude Code convention: can the user call this via slash command"
+    },
+    "disable-model-invocation": {
+      "type": "boolean",
+      "description": "Claude Code convention: skill is not auto-invoked by the model"
+    },
+    "context": {
+      "type": "string",
+      "enum": ["fork", "main"],
+      "description": "Claude Code convention: 'fork' isolates skill output from main conversation"
+    },
+    "license": {
+      "type": "string",
+      "description": "third-party skill license (e.g. MIT)"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "author":  { "type": "string" },
+        "version": { "type": "string" }
+      },
+      "description": "third-party metadata block (vercel skills, etc.)"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["user-invocable"], "properties": { "user-invocable": { "const": true } } },
+      "then": {
+        "not": {
+          "required": ["disable-model-invocation"],
+          "properties": { "disable-model-invocation": { "const": true } }
+        },
+        "errorMessage": "user-invocable=true cannot coexist with disable-model-invocation=true"
+      }
+    }
+  ]
+}

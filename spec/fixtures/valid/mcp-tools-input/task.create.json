@@ -1,0 +1,9 @@
+{
+  "title": "Phase 1 — three-layer interface contracts",
+  "type": "architecture",
+  "priority": "P0",
+  "complexity": 6,
+  "deps": [],
+  "tag": "main",
+  "trace_to": "spec/mcp-tools.yaml#task.create"
+}
