@@ -132,7 +132,15 @@ compact-snapshot.md
 .context_monitor_state
 .code-review-graph/
 
-# Plugin marketplace cache (transient)
+# Team coordination data — per-project instance state, not part of the CLI payload.
+# teams/ is created fresh by the runtime when a user spawns a team; nothing shipped.
+teams/
+
+# Plugin local state (user preferences, marketplace cache, blocklists are user-owned)
+plugins/blocklist.json
+plugins/installed_plugins.json
+plugins/known_marketplaces.json
+plugins/install-counts-cache.json
 plugins/marketplaces/
 
 # Chrome extension runtime
