@@ -1,0 +1,158 @@
+# Ultra Builder Pro 5.8.0 - Git Ignore
+
+# ===== macOS System Files =====
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== Backup Files =====
+*.backup
+*.bak
+*~
+
+# ===== Temporary Files =====
+*.tmp
+*.temp
+.cache/
+cache/
+tmp/
+temp/
+
+# ===== Logs =====
+*.log
+
+# ===== Personal Notes =====
+*.local.md
+NOTES.md
+
+# ===== Todo History (Agent execution records) =====
+todos/
+
+# ===== Claude Code Runtime Files =====
+
+# Commands migration marker
+.commands/
+
+# API cache and history
+ccline/
+history.jsonl
+
+# Debug and session files
+debug/
+projects/
+file-history/
+ide/
+shell-snapshots/
+scripts/
+!skills/*/scripts/
+session-env/
+
+# Statistics and logs
+statsig/
+todos/
+
+# Serena MCP local configuration
+.serena/
+
+# Backups and old versions
+.backup/
+backup/
+.git.backup-*/
+*.backup
+
+# Settings (local overrides only)
+settings.local.json
+
+# Claude internal directories (runtime cache, not the CLI's own bin/)
+.claude/
+lib/
+templates/
+
+# npm / build artifacts
+node_modules/
+dist/
+*.tgz
+*.tar.gz
+
+# Context archives (developer-local, not shared across team)
+.ultra/context-archive/
+
+# Phase delivery reports (optional - commit if needed for documentation)
+# PHASE_*_DELIVERY_REPORT.md
+hooks/node_modules/
+plugins/marketplaces/
+
+# ===== Claude Code Runtime Cache =====
+
+# Telemetry data (local only)
+telemetry/
+
+# Session plans (temporary)
+plans/
+
+# Paste cache
+paste-cache/
+
+# Task tracking (local)
+tasks/
+
+# Security warnings state (session-specific)
+security_warnings_state_*.json
+
+# Ultra working directories (local — entire .ultra/ is per-project state,
+# only .ultra-template/ is shipped as a scaffold)
+.ultra/
+
+# Runtime artifacts that must never be committed
+sessions/
+usage-data/
+memory/
+agent-memory/
+backups/
+compact-snapshot.md
+.context_monitor_state
+.code-review-graph/
+
+# Plugin marketplace cache (transient)
+plugins/marketplaces/
+
+# Chrome extension runtime
+chrome/
+
+# Statistics cache
+stats-cache.json
+
+# Plugin cache files (auto-generated)
+plugins/install-counts-cache.json
+plugins/installed_plugins.json
+plugins/known_marketplaces.json
+
+# Third-party skills (install via plugin system)
+# Keep only core Ultra skills in repo
+skills/react-best-practices/
+skills/web-design-guidelines/
+image-cache/
+
+# ===== Python Cache =====
+__pycache__/
+*.pyc
+*.pyo

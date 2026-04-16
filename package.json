@@ -1,0 +1,57 @@
+{
+  "name": "ultra-builder-pro-cli",
+  "version": "0.1.0",
+  "description": "Multi-runtime installer for the Ultra Builder Pro (Hermes) agent engineering system — deploys commands, agents, skills, and hooks to Claude Code, OpenCode, Codex CLI, and Gemini CLI.",
+  "bin": {
+    "ultra-builder-pro-cli": "bin/install.js",
+    "ubp": "bin/install.js"
+  },
+  "files": [
+    "bin",
+    "adapters",
+    "ultra-tools",
+    "commands",
+    "agents",
+    "skills",
+    "hooks",
+    "output-styles",
+    "teams",
+    "plugins",
+    "memory",
+    "CLAUDE.md",
+    "settings.json",
+    ".ultra-template",
+    "docs/ROADMAP.md"
+  ],
+  "keywords": [
+    "claude-code",
+    "opencode",
+    "codex",
+    "gemini",
+    "agent",
+    "cli",
+    "multi-runtime",
+    "hermes",
+    "ultra-builder-pro",
+    "meta-prompting",
+    "context-engineering"
+  ],
+  "author": "Ultra Builder Pro contributors",
+  "license": "MIT",
+  "homepage": "https://github.com/rocky2431/ultra-builder-pro-cli",
+  "bugs": {
+    "url": "https://github.com/rocky2431/ultra-builder-pro-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --test ultra-tools/*.test.cjs || true",
+    "install:claude": "node bin/install.js --claude --local",
+    "install:all": "node bin/install.js --all --local"
+  }
+}

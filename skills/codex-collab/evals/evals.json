@@ -1,0 +1,40 @@
+{
+  "skill_name": "codex-collab",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/codex-collab review",
+      "expected_output": "Claude delegates to /codex:review (official plugin), then adds its own perspective and presents a dual-AI synthesis report",
+      "assertions": [
+        "Delegates to /codex:review instead of invoking codex CLI directly",
+        "Does NOT run 'codex review --uncommitted' directly",
+        "After receiving Codex output, Claude adds its own review perspective",
+        "Presents a synthesis with Consensus and Divergent Views sections"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/codex-collab opinion 'Should we use a monorepo or polyrepo?'",
+      "expected_output": "Claude sends the question to Codex via exec mode with sandbox, reads output, and presents both opinions",
+      "assertions": [
+        "Uses 'codex exec' (not codex review) for opinion mode",
+        "Uses --sandbox read-only for analysis-only task",
+        "Uses -o (--output-last-message) to capture clean output",
+        "Does NOT reveal Claude's position in the prompt",
+        "Creates session directory under .ultra/collab/",
+        "Presents both opinions with trade-off analysis"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/codex-collab review --base main with a focus on security",
+      "expected_output": "Claude delegates to /codex:adversarial-review for security-focused review, then synthesizes",
+      "assertions": [
+        "Delegates to /codex:review or /codex:adversarial-review (official plugin)",
+        "Does NOT invoke codex CLI directly for review tasks",
+        "After receiving output, presents dual-AI synthesis",
+        "Reads output with Read tool, not Bash stdout"
+      ]
+    }
+  ]
+}
