@@ -116,6 +116,7 @@ paste-cache/
 
 # Task tracking (local)
 tasks/
+!spec/fixtures/**/tasks/
 
 # Security warnings state (session-specific)
 security_warnings_state_*.json
