@@ -123,6 +123,7 @@ security_warnings_state_*.json
 # Ultra working directories (local — entire .ultra/ is per-project state,
 # only .ultra-template/ is shipped as a scaffold)
 .ultra/
+!spec/fixtures/**/.ultra/
 
 # Runtime artifacts that must never be committed
 sessions/

@@ -1,0 +1,8 @@
+[
+  { "ts": "2026-04-15T10:00:01Z", "type": "task_created", "task_id": "task-1", "payload": { "by": "user" } },
+  { "ts": "2026-04-15T10:00:02Z", "type": "task_started", "task_id": "task-1" },
+  { "ts": "2026-04-15T11:30:00Z", "type": "task_completed", "task_id": "task-1", "payload": { "commit": "abc1234" } },
+  { "ts": "2026-04-15T11:30:30Z", "type": "task_created", "task_id": "task-2" },
+  { "ts": "2026-04-15T11:31:00Z", "type": "task_started", "task_id": "task-2", "session_id": "ses_legacy_a" },
+  { "ts": "2026-04-16T09:30:00Z", "type": "task_created", "task_id": "task-3" }
+]
