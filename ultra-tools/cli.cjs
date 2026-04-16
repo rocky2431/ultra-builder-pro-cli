@@ -66,6 +66,7 @@ SUBCOMMANDS:
   skill     invoke <name>                                    (Phase 3)
   subagent  run <agent-name> --prompt "..."                 (Phase 3)
   db        init | checkpoint | vacuum | integrity | backup (Phase 2)
+  migrate   --from=4.4 --to=4.5 [--dry|--rollback]          (Phase 2)
 
   --help / -h      show this message
   --version / -v   show version
@@ -91,6 +92,7 @@ function notImplemented(name) {
 }
 
 const dbCommand = require('./commands/db.cjs');
+const migrateCommand = require('./commands/migrate.cjs');
 
 const SUBCOMMANDS = {
   task: (_args) => notImplemented('task'),
@@ -99,6 +101,7 @@ const SUBCOMMANDS = {
   skill: (_args) => notImplemented('skill'),
   subagent: (_args) => notImplemented('subagent'),
   db: (args) => process.exit(dbCommand.dispatch(args)),
+  migrate: (args) => process.exit(migrateCommand.dispatch(args)),
 };
 
 function main(argv) {
