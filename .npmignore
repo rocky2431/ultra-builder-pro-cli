@@ -1,0 +1,39 @@
+# .npmignore — what NOT to publish to npm.
+#
+# package.json "files" is the allow-list; .npmignore is the deny-list on top
+# of that. Use this for paths that we *do* want under "files" for local use
+# but don't want in the published tarball.
+
+# Hook unit tests — kept in the repo for contributors, not shipped.
+hooks/tests
+hooks/tests/**
+
+# Docs archive — only ROADMAP.md is shipped via the explicit "files" entry.
+docs/*
+!docs/ROADMAP.md
+
+# Local state that should never leak even if someone edits "files".
+.ultra/
+sessions/
+usage-data/
+memory/
+agent-memory/
+backups/
+teams/
+.code-review-graph/
+compact-snapshot.md
+.context_monitor_state
+plugins/blocklist.json
+plugins/installed_plugins.json
+plugins/known_marketplaces.json
+plugins/install-counts-cache.json
+plugins/marketplaces/
+
+# Build / packaging artifacts
+node_modules/
+*.tgz
+*.tar.gz
+dist/
+
+# Backup bundles from re-init
+*.bundle

@@ -71,6 +71,17 @@ Implement `install(ctx)` and `uninstall(ctx)` for each of the 4 runtimes.
 - Claude install produces **diff-equal** output against the previous hand-
   crafted `~/.claude` setup — this is the hard gate.
 
+**Path rewrites during install** (must handle; hard-coded today):
+- `CLAUDE.md:209` — `~/.claude/skills/learned/`
+- `CLAUDE.md:306` — `~/.claude/skills/graphify/SKILL.md`
+- `commands/learn.md` — `~/.claude/skills/learned/` (3 occurrences)
+- `commands/ultra-init.md:141` — `~/.claude/.ultra-template/`
+
+  Rewrite rule: adapters replace `~/.claude/` with the runtime's own config
+  dir during file copy. Claude: unchanged. OpenCode: `~/.config/opencode/`.
+  Codex: `~/.codex/`. Gemini: `~/.gemini/`. Keep the template token
+  `${UBP_CONFIG_DIR}` in source; adapter expands on write.
+
 **Tool-name mapping** (applies only where runtimes have different native
 tool names; content is otherwise untouched):
 
