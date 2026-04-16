@@ -1,10 +1,21 @@
-# ultra-builder-pro-cli — 执行计划 v0.2
+# ultra-builder-pro-cli — 执行计划 v0.3
 
 **状态**：Phase 0 完成 · Phase 1 待启动
-**版本**：0.2.0-plan · 2026-04-17 基于三层架构 + 双时间线重写（v0.1.0-plan 的继任版）
-**范围**：最终目标 = 可落地的"跨 runtime coding 自动化工厂"。按 9 个 Phase 渐进交付。
-**整体置信度**：**88%**（下调自 v0.1 的 92% — 范围扩大了，9 Phase 含执行层与智能层）
-**关键变更**：从"分发器"升级为"skill + MCP + CLI 三层框架 + 规则/执行双时间线"
+**版本**：0.3.0-plan · 2026-04-17 基于 Codex 架构评审重订（v0.2.0-plan 的继任版）
+**范围**：最终目标 = 可落地的"跨 runtime coding 自动化工厂"。按 10 个 Phase 渐进交付（原 9 个 Phase 中 Phase 4 增 4.6，新增 Phase 4.5，Phase 8 拆 8A/8B）。
+**整体置信度**：**86%**（下调自 v0.2 的 88% — 权威状态层迁移 + execution-lite 新抽象）
+**关键变更**（vs v0.2）：
+- **权威状态层 SQLite + WAL**（D18）替代"多文件 JSON + lock"，Phase 2 大幅重写
+- **v0.1 带 execution-lite**（D19）：新增 Phase 4.5，先有会话隔离再发布
+- **Session 标准单元**（D20）：新进程 + 独立 worktree + lease + artifact，`ctx.newSession()` 仅作 Claude 优化
+- **Schema v4.5 过渡**（D21）替代 v5 breaking
+- **Phase 8 拆 8A/8B**（D22）：计划自动化 / 执行自动化分线
+- **Runtime capability matrix + conformance tests**（D23）加到 Phase 4
+- **code-review-graph 实时增量 watcher**（D24）从启动 build 升级
+- **hindsight wrapper 式自动记忆**（D25）从显式 retain/recall 升级
+- **Task Master tagged task lists**（D26）新增 Phase 7
+- **模型自适应路由后移到 v0.2+**（D27）
+- **工期 11-13w → 14-18w**（D28）
 
 ---
 
@@ -29,12 +40,12 @@
 - PRD → task → 独立 agent 并行执行 → 合并 → 审查 → 交付，无人值守可跑。
 
 **分阶段**：
-- **v0.1** = Phase 0-4（规则层可用） → 4-5 周
-- **v0.2** = Phase 5-6（执行层 MVP + 监控） → +3 周
-- **v0.3** = Phase 7-8（智能层 + 自动化工厂） → +4 周
-- **v1.0** = Phase 9（三渠道发布） → +0.5 周
+- **v0.1** = Phase 0-4.5（规则层 + execution-lite：会话隔离已可用） → 8 周
+- **v0.2** = Phase 5-6（执行层进阶 + 监控 + 实时图谱） → +3 周
+- **v0.3** = Phase 7-8A-8B（智能层 + 计划自动化 + 执行自动化） → +5-6 周
+- **v1.0** = Phase 9（三渠道发布） → +1 周
 
-**总工期**：11-13 周 AI 协助，~250-350 工时。
+**总工期**：14-18 周 AI 协助（Codex 评审后上调，原 11-13 周）。
 
 ---
 
@@ -85,15 +96,17 @@ Hermes（Ultra Builder Pro）是一套成熟的 agent 工程系统：
 | # | 目标 | 可验证条件 | 归属 Phase |
 |---|------|-----------|----------|
 | G1 | Hermes 在 Claude / OpenCode / Codex / Gemini 四 runtime 原生可用 | 每 runtime 能跑完整 `init→research→plan→dev→test` | 4 |
-| G2 | 状态读-改-写原子且可并发 | 两个 subprocess 同时改 tasks.json 不丢更新（压力测试） | 2 |
-| G3 | `tasks.json` 与 context 文件无双写 | status 字段单源（只在 tasks.json），context 只载不变字段 | 2 |
-| G4 | 每 task 独立 session，对话不污染 | executor spawn fresh session；session 结束自动 closeout | 5 |
-| G5 | 跨 session 事件可订阅 | agent A commit 后 agent B 秒级可通过 MCP 读到 | 5 |
-| G6 | 崩溃自动恢复，失败有熔断 | kill -9 agent 后重启能续；同一 task 重试 ≥3 次自动停 | 5 |
-| G7 | RTK / code-review-graph / hindsight 作为 MCP tool 跨 runtime 共享 | 4 runtime 下都能调 `impact.*` / `memory.*` | 6, 7 |
-| G8 | PRD 自动拆 task + 并行分派 | 10 task 的 PRD 一键触发，≤3 失败项，其余自动完成并合入 | 8 |
+| G2 | 状态权威源单一、并发安全 | SQLite + WAL；20 worker 并发 updateTaskStatus 无丢失 | 2 |
+| G3 | `tasks.json` / context md 降级为投影，state.db 权威 | 所有写入走 state-db；JSON/MD 自动再生成（D18） | 2 |
+| G4 | 每 task 独立会话（新进程 + 独立 worktree + lease），对话不污染 | 2 并发 session 各独立 worktree；kill -9 后 lease 过期可清理 | **4.5** |
+| G5 | 跨 session 事件可订阅 | MCP `session.subscribe_events` 从 state-db events 表实时推 | **4.5** |
+| G6 | 崩溃自动恢复，失败有熔断 | kill -9 agent 后 orchestrator 重启能续；同 task 重试 ≥3 次自动停 | 5 |
+| G7 | RTK / code-review-graph / hindsight 作为 MCP tool 跨 runtime 共享；图谱实时增量 | 4 runtime 下都能调 `impact.*` / `memory.*`；editor save → 图谱 ≤3s 更新（D24） | 6, 7 |
+| G8 | PRD 自动拆 task + 并行分派（8A + 8B） | 10 task 的 PRD 一键触发，≤3 失败项，其余自动完成并合入 | **8A, 8B** |
 | G9 | 三渠道可装（npm / Homebrew / pip） | 干净 macOS / Ubuntu 60 秒装好 | 9 |
 | G10 | 0 私人数据泄漏 | npm tarball / brew bottle / pip wheel 审计干净 | 9 |
+| **G11** | Runtime capability matrix + conformance tests | 4 runtime × 5+ 能力点的 E2E 测试全绿（D23） | **4** |
+| **G12** | v0.1 = 规则层 + execution-lite 可用 | 用户能在 4 runtime 下并发跑任务，会话独立 | **4.5** |
 
 ---
 
@@ -314,13 +327,17 @@ ultra-builder-pro-cli/
 | A1 | 三层分离（skill/MCP/CLI）而非单层 | skill 只能"软指导"；MCP 提供强类型契约；CLI 做最低公约数兜底。单层满足不了 "knowledge + state + hook 兜底" 三类需求 |
 | A2 | MCP server stdio 而非 HTTP | 4 runtime 全支持 stdio MCP；零端口、零防火墙问题 |
 | A3 | 单源 schema（spec/）驱动三层 | 避免 "skill 说的 tool" 与 "MCP 实际的 tool" 不一致 |
-| A4 | 状态机沿用 GSD 的 `readModifyWriteStateMd` 模式 | 已在 14 runtime 实战；改名 `state-machine.ts` 落 TypeScript |
-| A5 | session 隔离沿用 GSD-2 的 `ctx.newSession()` 模式 | 已实战；用户明确"独立对话避污染"目标 |
-| A6 | 事件流 = append-only `activity-log.json`（fs-watch） | 不要消息队列（过重）；文件就是协议，任何 runtime 能读 |
+| **A4** | **权威状态层 = SQLite + WAL**（`.ultra/state.db`）；tasks.json / context md / activity-log.json / workflow-state 全部降级为投影 | Codex Q1：多文件多主写入最易炸；SQLite 提供事务 + 并发读；D18 |
+| **A5** | **Session 标准单元 = 新进程 + 独立 worktree + lease/heartbeat + artifact dir**；`ctx.newSession()` 仅作 Claude/GSD-2 适配优化 | Codex Q7：跨 4 runtime 通用；systemd/launchd 过重；D20 |
+| A6 | 事件流 = state-db `events` 表（append-only）+ MCP subscribe | 取代 activity-log.json 文件；state-db 统一权威源（D18） |
 | A7 | Python hooks 沿用，Node shell out | 15 hook 重写 Node 要 2-3 周纯折腾；零价值 |
 | A8 | orchestrator 是可选的常驻 Node daemon | 规则层可不依赖执行层独立跑；半自动 → 全自动平滑升级 |
 | A9 | RTK / code-review-graph / hindsight 全部作为 **MCP tool** 暴露 | 不自建等价功能；它们都是 MIT + MCP 友好 |
-| A10 | 规则层 v0.1 先发布；执行层 v0.2 再迭代 | 降低 v0.1 复杂度；用户早拿到价值 |
+| **A10** | **v0.1 = 规则层 + execution-lite**（非裸规则层） | Codex Q3：用户核心诉求是"独立会话"，无执行层 v0.1 不够用；D19 |
+| **A11** | **Schema v4.4 → v4.5 过渡（不直接 v5 breaking）** | Codex Q5：tasks.json 成 authoritative view，context status 降级派生，停止手写保留兼容；等命令全迁完再 v5；D21 |
+| **A12** | **Runtime capability matrix + conformance tests** 代替纸面 parity | Codex Q8：4 runtime 在 hook / subagent / 权限 / usage 统计不等价；D23 |
+| **A13** | **code-review-graph 实时增量**（fs-watch + tree-sitter），不是启动 build | Codex Q6：实时反馈给 agent 才有价值；D24 |
+| **A14** | **hindsight wrapper 式自动记忆**（session 结束自动 retain；session 启动自动 recall），不仅是显式 API | Codex Q6：hindsight 强项是 wrapper 而非显式 CRUD；D25 |
 
 ---
 
@@ -330,18 +347,18 @@ ultra-builder-pro-cli/
 
 | # | 痛点 | 来源证据 | 解决方案 | Phase |
 |---|------|----------|---------|-------|
-| P1 | tasks.json 读-改-写无原子 | ultra-dev.md Step 1.5 / Step 5 | GSD `readModifyWriteStateMd` + flock | 2 |
-| P2 | workflow-state.json 单会话 | ultra-dev.md Step 0/3.3/4.5/6 | 按 session_id 分文件；orchestrator 管多 session | 5 |
-| P3 | tasks.json 与 context 双写 | ultra-dev.md Step 1.5 + 5 明写 BOTH | Schema 重构：status 单源（tasks.json），context 只载不变字段 | 2 |
-| P4 | Git 分支硬绑 task_id → 并发冲突 | ultra-dev.md Step 2 | worktree 隔离 + files_modified 重叠检测（GSD） | 8 |
-| P5 | /compact + compact-snapshot.md Claude 专属 | ultra-dev.md Step 4.4 | 不依赖 /compact；用 ctx.newSession() 代替 | 5 |
+| P1 | tasks.json 读-改-写无原子 | ultra-dev.md Step 1.5 / Step 5 | **SQLite 事务（A4/D18）** | **2** |
+| P2 | workflow-state.json 单会话 | ultra-dev.md Step 0/3.3/4.5/6 | 按 session_id 存 state-db sessions 表；orchestrator 管多 session | **4.5** |
+| P3 | tasks.json 与 context 双写 | ultra-dev.md Step 1.5 + 5 明写 BOTH | **v4.5 过渡：state-db 权威，tasks.json/context 降级为投影**（A11/D21） | **2** |
+| P4 | Git 分支硬绑 task_id → 并发冲突 | ultra-dev.md Step 2 | worktree 隔离 + files_modified 重叠检测（GSD） | **8B** |
+| P5 | /compact + compact-snapshot.md Claude 专属 | ultra-dev.md Step 4.4 | 不依赖 /compact；用 Session 标准单元（A5）代替 | **4.5** |
 | P6 | /ultra-review 5 subagent Claude 独占 | ultra-dev.md Step 4.5 | MCP `review.run`；跨 runtime 并行（CTM 模式） | 3 |
-| P7 | Dual-Write Mode spec 改后不 invalidate | ultra-dev.md Dual-Write | activity-log 事件 + task staleness 字段 | 5 |
-| P8 | 无 task 间事件通知 | 整个体系 | activity-log.json append-only（GSD-2） | 5 |
-| P9 | status 字段 tasks.json 与 context 重复 | plan + dev 都要求同步 | 同 P3 Schema 重构 | 2 |
-| P10 | 无项目级事件流 | 仅 workflow-state.json 单点 | 同 P8 | 5 |
+| P7 | Dual-Write Mode spec 改后不 invalidate | ultra-dev.md Dual-Write | events 表 `spec_changed` + task staleness 字段 | 5 |
+| P8 | 无 task 间事件通知 | 整个体系 | state-db `events` 表 append-only + MCP subscribe | **4.5** |
+| P9 | status 字段 tasks.json 与 context 重复 | plan + dev 都要求同步 | 同 P3（schema v4.5 过渡） | **2** |
+| P10 | 无项目级事件流 | 仅 workflow-state.json 单点 | 同 P8 | **4.5** |
 | P11 | commit hash 回填 amend 链非原子 | ultra-dev.md Step 6.3 | 先 commit → 读 hash → 写 context → 第二次 commit（不 amend） | 3 |
-| P12 | ultra-test/deliver 顺序假设 | 命令本身结构 | DISPATCH_RULES + slice-parallel-orch（GSD-2） | 8 |
+| P12 | ultra-test/deliver 顺序假设 | 命令本身结构 | DISPATCH_RULES + parallel-orch（GSD-2） | **8B** |
 
 ### 5.2 能力升级（非痛点，来自参考项目）→ Phase
 
@@ -451,64 +468,93 @@ ultra-builder-pro-cli/
 
 ---
 
-### Phase 2 — 原子状态机重构
+### Phase 2 — 权威状态层（SQLite + WAL）
 
-**目标**：修掉 P1/P3/P9/P11 四个架构级痛点。`tasks.json` 读写带锁原子化；
-状态字段单源；事件日志 append-only。
+**目标**：建立 `.ultra/state.db` 为**唯一权威状态源**，解决 P1/P3/P8/P9/P10
+五大架构级痛点。tasks.json / context md 的 status / activity-log.json /
+workflow-state 全部降级为**投影（projection）**或**导出视图**。一次写，
+多处派生。
+
+**依据**：Codex Q1 评审（状态权威源不明是最大风险）+ D18 + A4 决策。
 
 **前置**：Phase 1（schema 已定）
 
-**置信度**：95%（GSD 代码直接参考，模式已验证）
+**置信度**：92%（下调自 95%；SQLite 工程成熟，但权威源切换 + 投影器是新工作）
 
-**工时**：4-5 天
+**工时**：5-6 天
 
 #### 任务清单
 
-**2.1 atomic-write 库**（0.5 天）
-- 移植 `get-shit-done/get-shit-done/bin/lib/core.cjs` 的 `atomicWriteFileSync`
-  到 `mcp-server/lib/atomic-write.ts`（TypeScript）。
-- 机制：临时文件 + `fs.rename`；跨平台保证 POSIX 原子 rename。
-- **AC**：单元测试：写入过程 SIGKILL，原文件完整，临时文件可留给清理。
+**2.1 SQLite schema 设计**（1 天）
+- `.ultra/state.db` 五张核心表：
+  - `tasks`（id / title / status / deps JSON / files_modified JSON /
+    session_id / stale / complexity_hint / trace_to / created_at /
+    updated_at）
+  - `events`（id / ts / type / task_id / session_id / runtime /
+    payload_json）append-only，`CREATE INDEX ON (ts, type)`
+  - `sessions`（sid / task_id / runtime / pid / worktree_path /
+    artifact_dir / status / lease_expires_at / heartbeat_at /
+    started_at）
+  - `telemetry`（session_id / event_type / tokens_input / tokens_output
+    / tool_name / cost_usd / ts）
+  - `specs_refs`（spec_file / section / anchor / last_modified_at）
+- WAL 模式：`PRAGMA journal_mode=WAL` + `PRAGMA synchronous=NORMAL`
+- 产物：`spec/schemas/state-db.sql`（CREATE 语句 + 迁移脚本）
+- **AC**：schema 通过 sqlite3 解析；5 表 + 索引全部创建成功。
 
-**2.2 state-machine（lockable RMW）**（1.5 天）
-- 移植 `state.cjs::readModifyWriteStateMd(path, transformFn)` → TS，用
-  `proper-lockfile` 替代 fs 自锁实现。
-- 暴露 `readModifyWrite(path, transform)` 函数：拿 flock → 读 → transform →
-  原子写 → 释放。
-- retry：10 次 × 200ms backoff，超时报错。
-- **AC**：压力测试：20 个并发 Node worker 对同一 tasks.json 做
-  `status pending→in_progress`，最终必须有且只有 1 个 in_progress，其余
-  19 个看到锁 busy 后成功重试。
+**2.2 state-ops 库**（1.5 天）
+- `mcp-server/lib/state-db.ts`：基于 `better-sqlite3`（同步，零依赖编译）。
+- 暴露：`tx(fn)` 事务 / `readTask(id)` / `updateTaskStatus(id, status)`
+  / `appendEvent(event)` / `createSession({task_id, runtime, ...})` /
+  `updateSession(sid, patch)` / `listActiveSessions()` /
+  `listStaleTasks()` / ...
+- 所有写入在事务里；events append 原子。
+- **AC**：
+  - 20 worker 并发 `updateTaskStatus` 压测 → 无丢失、无 lock timeout
+  - 事务回滚测试：事务内抛错 → 无部分写入
 
-**2.3 event-log 库**（0.5 天）
-- `mcp-server/lib/event-log.ts`：append 一行 JSON 到
-  `.ultra/activity-log.json`（JSONL），fs.open `a` 模式 + fcntl lock。
-- 支持 tail：`watch(callback)` 用 `fs.watch` 监听新增行。
-- 按 §5.1 P8 定义的事件类型枚举。
-- **AC**：append 1000 条并发事件无行损坏；watch 回调按顺序收到全部 1000 条。
+**2.3 Migration v4.4 → v4.5**（0.5 天）
+- CLI 工具 `ultra-tools migrate --from=4.4 --to=4.5`：
+  - 读现有 `.ultra/tasks/tasks.json` → insert into `tasks` 表
+  - 读 `contexts/task-*.md` header 中的 status → merge 进 tasks 表（冲突
+    时 tasks.json 为准）
+  - 读 `.ultra/activity-log.json`（若有）→ insert into `events` 表
+  - 产出 backup：`.ultra/backup-v4.4/`
+- **AC**：现存一个 v4.4 项目跑 migration → state.db 完整；`rollback` 可
+  还原。
 
-**2.4 MCP `task.*` 工具实装**（1.5 天）
-- 用 2.1+2.2+2.3 实现：
-  - `task.create` / `task.update` / `task.list` / `task.get` / `task.delete`
-  - 每次改动 tasks.json 的同时 append 一个事件到 activity-log
-- status 字段规范化：只在 tasks.json，不再在 context 文件 header。
-- 读 context 文件时：从 tasks.json 取 status；context 只提供不变字段。
-- **AC**：(a) 所有 task.* tool 通过契约测试（fixture input → 期望 output）；
-  (b) 双写场景替换：Phase 3 迁移 ultra-dev 后，Step 1.5/5 只写一次 tasks.json。
+**2.4 投影器（projection）**（1 天）
+- 每次 state.db 变更 trigger 重写 **投影文件**：
+  - `.ultra/tasks/tasks.json` — authoritative view，从 `tasks` 表再生成
+  - `.ultra/tasks/contexts/task-*.md` 的 status header — 从 `tasks.status`
+    派生；**context md 的其它 body 部分不动**（仍是人/LLM 写）
+- 投影是**只读视图**：Phase 3+ 代码禁止手写这两处（读时走 state-db API；
+  写时走 MCP task.* tool）
+- **AC**：改 state.db 后 ≤1s 内 tasks.json 同步；tasks.json 手动被改
+  → 下次任何 state-db 写入覆盖（投影优先，符合"authoritative = state.db"）
 
-**2.5 Commit hash 回填重构**（0.5 天）
+**2.5 MCP `task.*` 实装**（1 天）
+- `task.create` / `task.update` / `task.list` / `task.get` /
+  `task.delete` / `task.append_event`
+- 全部走 state-db（不再碰文件）
+- 每次写同时 append 对应 event
+- **AC**：契约测试全绿（fixture input × 期望 state-db 变化 × 期望 event）。
+
+**2.6 Commit hash 回填重构**（0.5 天）
 - 旧流程：commit → read hash → edit context → `git commit --amend`（非原子）
-- 新流程：commit (空 context) → read hash → edit context → **第二次 commit**
+- 新流程：commit（空 hash context）→ read hash → update state-db tasks
+  表 `completion_commit` 字段 → 投影器更新 context md → **第二次 commit**
   "chore: record task-N completion hash"
 - 修改 `skills/ultra-dev/SKILL.md` 的 Step 6 描述；Phase 3 落地。
-- **AC**：`git log --oneline` 里能看到 "feat: …" 和 "chore: record hash" 两
-  个 commit 并列。
+- **AC**：`git log --oneline` 看到 "feat: …" + "chore: record hash" 两
+  commit 并列。
 
 #### Phase 2 gate
 
-- 压力测试通过（见 2.2 AC）
-- activity-log 并发 append 无损坏
-- 所有 `task.*` MCP tool 有契约测试且全绿
+- 20 worker 并发 `updateTaskStatus` 压测过
+- migration 可逆测试过（v4.4 → v4.5 → rollback）
+- 投影器响应 ≤1s
+- 所有 `task.*` MCP tool 契约测试全绿
 
 ---
 
@@ -642,8 +688,27 @@ CLI"。消除对 Claude 独占工具的硬依赖。
 - MCP server 在 extension manifest 里声明。
 - **AC**：extension 目录合法；gemini 启动识别；`gemini --prompt` 烟测成功。
 
-**4.6 install.js 真实装配**（0.5 天）
-- 从 v0.1 PLAN 的 stub 升级为真调用 adapter。
+**4.6 Runtime capability matrix + conformance tests**（2 天，**新增 D23**）
+- `docs/RUNTIME-COMPAT-MATRIX.md`：列 4 runtime × ~25 能力点：
+  - 问答：AskUserQuestion / CLI menu / MCP `ask.question`
+  - Hook 事件：每 runtime 的可用事件名单 + payload 形状
+  - Subagent：Claude Task / Codex spawn_agent / Gemini preview / OpenCode @mention
+  - Usage 统计：token / cost 能否拿到
+  - MCP：stdio 稳定性 / HTTP 支持
+  - Skill 发现路径
+  - Worktree 兼容性
+  - 权限/审批模型
+- `tests/conformance/<runtime>/`：每 runtime 一套 E2E：
+  - 基础 4 工具（read/write/edit/bash）
+  - MCP tool 调用（task.list / memory.recall）
+  - Hook 事件触发（pre-tool / post-tool 如可用）
+  - Session 隔离
+- CI 矩阵 + 每周定跑（catch 上游变更）
+- **AC**：4 runtime × 5 capability = 20 testcase 全绿；matrix 文档完整覆盖
+  每一行
+
+**4.7 install.js 真实装配**（0.5 天）
+- 从 Phase 0 stub 升级为真调用 adapter。
 - `--claude/--opencode/--codex/--gemini/--all` + `--local/--global` + `--uninstall`。
 - 幂等：跑两次 install diff = 空。
 - **AC**：4 runtime × 2 scope = 8 条安装路径全绿；uninstall 后目录干净。
@@ -652,75 +717,121 @@ CLI"。消除对 Claude 独占工具的硬依赖。
 
 - 4 runtime 下 `/ultra-init` 都能跑通
 - Claude diff-equal 基线通过
-- 运行时兼容矩阵产出 `docs/RUNTIME-COMPAT-MATRIX.md`（哪些 skill/tool
-  每 runtime 是全支持 / 降级 / 不支持）
-
-**▶ v0.1 发布就绪点**：Phase 0-4 完工 → 用户可以 `npx ultra-builder-pro-cli
---claude --global` 装上，手动跑完整工作流。执行层（Phase 5+）是后续增值。
+- runtime-compat-matrix 20 conformance testcase 全绿
+- `docs/RUNTIME-COMPAT-MATRIX.md` 完整产出
 
 ---
 
-### Phase 5 — Session 隔离 + 事件循环（执行层基础）
+### Phase 4.5 — Execution-lite（新增；Codex Q3）
 
-**目标**：解决 P2/P5/P7/P8/P10 —— 多 agent 并发、对话污染、spec 变更传播、
-崩溃恢复。用户明确诉求"独立 agent 独立对话不受污染"首次落地。
+**目标**：让 **v0.1 带最小执行层**，解决用户核心诉求"独立会话不污染"。
+不等 Phase 5 全量执行层；先把 Session 标准单元（D20）+ 事件订阅 + 活跃
+会话可见这三件最核心的能力落地。
 
-**前置**：Phase 4（规则层可跑）
+**依据**：Codex Q3 + D19 + A10。
 
-**置信度**：85%（session 管理是新能力，需 1-2 天 spike）
+**前置**：Phase 4（规则层完整）
 
-**工时**：5-7 天
+**置信度**：82%（session 进程化是新抽象；不复用 Claude `/compact`）
+
+**工时**：5-6 天
 
 #### 任务清单
 
-**5.1 Session manager**（1.5 天）
-- `orchestrator/session-manager.ts`：每 task 分配唯一 `session_id`；session
-  有独立的 `.ultra/sessions/<sid>/` 目录，存 workflow-state、checkpoint、
-  transient context。
-- 从 GSD-2 `src/resources/extensions/gsd/auto/session.ts` 移植设计。
-- 对外接口：`newSession({task_id, runtime})` → sid；`closeSession(sid)` →
-  合并 artifact；`getSession(sid)` → status。
-- **AC**：并发起 5 个 session，状态互不干扰；closeSession 后 workflow-state
-  归档。
+**4.5.1 Session 标准单元**（2 天）
+- `orchestrator/session-runner.ts`：session = 新进程 + 独立 worktree +
+  lease + artifact dir
+- API：
+  - `spawn({task_id, runtime})` → 创建 `.ultra/worktrees/<sid>/` +
+    `.ultra/sessions/<sid>/` + 启动 runtime CLI 子进程
+  - `lease.json` 含 sid / pid / runtime / started_at / expires_at
+  - `heartbeat`：子进程每 30s touch `.ultra/sessions/<sid>/heartbeat`
+  - session 结束：`closeSession(sid)` 合并 artifact 到主 worktree 前提下
+    校验 files_modified 冲突（Phase 8B 会强化）
+- **AC**：
+  - spawn 一个 `/ultra-dev 1`，进程隔离、worktree 独立、artifact 写入
+    `.ultra/sessions/<sid>/`
+  - kill -9 子进程 → 5 分钟后 lease 过期可被识别
 
-**5.2 Event watcher**（1 天）
-- `orchestrator/event-watcher.ts`：fs.watch `activity-log.json`，新事件推送
-  给订阅方（Node EventEmitter 模式）。
-- MCP tool `session.subscribe_events(filter)` → 阻塞返回事件流。
-- **AC**：agent A 调 `task.update_status completed`，agent B 的订阅回调 < 1s
-  收到。
+**4.5.2 Event subscribe 接口**（0.5 天）
+- Phase 2 已有 `events` 表；此处补 MCP tool `session.subscribe_events(filter)`
+  的实时推送语义（SQLite 无原生 pub/sub，用 polling + `max(ts)` 游标
+  实现，≤1s latency 可接受）
+- **AC**：session A 调 `task.update_status completed` → session B 订阅
+  回调 ≤1s 收到
 
-**5.3 Recovery + circuit breaker**（1.5 天）
+**4.5.3 `/ultra-status` 基础版**（1 天）
+- 读 state-db `sessions` + `events` → 文本面板：活跃 session 列表 + 最近
+  事件
+- **AC**：status 输出 "2 active sessions: sid-abc (task 1, claude), sid-def
+  (task 3, codex); last event: task-1 completed 2min ago"
+
+**4.5.4 `/ultra-dev` session 化**（1 天）
+- 改 `skills/ultra-dev/SKILL.md`：开始调 `session.spawn`，结束调
+  `session.close`
+- 移除对 `/compact` 的依赖（D19）；用 session checkpoint（artifact dir 暂存）
+  代替
+- **AC**：两 user 同机并发 `/ultra-dev 1` 和 `/ultra-dev 2` 各在独立 worktree
+  / session，commit 分别记录
+
+**4.5.5 Orphan lease 清理**（0.5 天）
+- 启动时扫 `sessions` 表 + lease heartbeat：超过 `lease_expires_at` 且无
+  heartbeat → 标记 orphan → （Phase 5 接管 recovery 决策，此处只打标）
+- **AC**：orphan session 被打标；不被误当成 active
+
+#### Phase 4.5 gate
+
+- 2 并发 session 隔离测试过
+- kill -9 → lease 过期识别测试过
+- event subscribe latency ≤1s
+
+**▶ v0.1 发布就绪点**：Phase 0-4.5 完工 → 用户 `npx ultra-builder-pro-cli
+--claude --global` 装上，即可跨 4 runtime 手动并发跑任务、会话独立、事件
+订阅、活跃会话可见。真·可用的最小单元。
+
+---
+
+### Phase 5 — 执行层进阶（recovery + staleness + 自动分派）
+
+**目标**：在 Phase 4.5 的基础单元上加 recovery + 熔断 + staleness +
+runtime 自动路由。
+
+**前置**：Phase 4.5
+
+**置信度**：85%
+
+**工时**：4-5 天
+
+#### 任务清单
+
+**5.1 Recovery**（2 天）
 - `orchestrator/recovery.ts`：
-  - 启动时扫 `.ultra/sessions/*/`，发现 status=running 超过心跳阈值 → 标记
-    crashed → 决策重试 / 熔断。
-  - `circuit-breaker.json` per task：连续失败 ≥3 次 → 熔断 → 警告给人。
-- 从 GSD-2 `recovery.ts` + `circuit-breaker` 移植。
-- **AC**：`kill -9` 跑 dev 的 session，orchestrator 重启后能续（或熔断）。
+  - 启动时扫 `sessions` 表：status=running + lease 过期 + 无 heartbeat
+    → 标记 crashed → 决策重试 / 熔断
+  - 从 GSD-2 `recovery.ts` 移植策略
+- **AC**：`kill -9` 跑 dev 的 session，orchestrator 重启后能续（或按策略熔断）
 
-**5.4 Task staleness**（0.5 天）
-- 当 `activity-log` 收到 `spec_changed(sections: [X])` 事件：
-  - 扫 tasks.json，`trace_to` 命中 section X 的所有 pending task 标记
-    `stale: true`。
-  - 这些 task 的 context 文件 header 显示 "⚠️ stale: spec 已变更于 <time>"。
-- **AC**：手动改 specs/product.md 后，pending task 被正确标 stale。
+**5.2 Circuit breaker**（0.5 天）
+- `circuit-breaker` 表：per task 连续失败 ≥3 次 → 熔断 → 事件 + 警告
+- **AC**：故意 make test 必失败，跑 3 次自动停止
 
-**5.5 ultra-dev session 化**（1 天）
-- 改 `skills/ultra-dev/SKILL.md`：开始时调 `session.new`，结束时
-  `session.close`。
-- 移除对 `/compact` 的依赖（用 session checkpoint 代替）。
-- **AC**：两个 user 同时跑 `/ultra-dev 1` 和 `/ultra-dev 2` 各自在独立 session
-  下完成，互不干扰。
+**5.3 Task staleness**（0.5 天）
+- events 表收到 `spec_changed(sections: [X])`：扫 tasks.trace_to 命中的
+  pending task → 设 `stale=true`
+- 投影器更新 context md header 显示 "⚠️ stale since <ts>"
+- **AC**：手动改 specs/product.md 后，pending task 被正确标 stale
 
-**5.6 /ultra-status 升级**（0.5 天）
-- 读 sessions/ + activity-log.json → 显示所有活跃 session + 最近事件。
-- **AC**：status 输出含"5 min 前 task 3 completed by session sid-abc"等行。
+**5.4 Runtime 自动路由（orchestrator daemon）**（1.5 天）
+- `orchestrator/daemon.ts`：常驻监听 events 流，pending task 出现时按
+  `complexity_hint` + runtime 可用性分派
+- 注意：**不是 dispatch rules**（那是 Phase 8B），只是最简单的按 tag /
+  runtime 选择
+- **AC**：tasks.json 新增 pending → daemon 1s 内 spawn 对应 session
 
 #### Phase 5 gate
 
-- 并发 5 session 压力测试通过
-- kill -9 → 重启恢复测试通过
-- spec 改动触发 staleness 标记
+- kill -9 恢复 + 熔断 + staleness 三组测试过
+- daemon 自动分派可开关（opt-in）
 
 **▶ v0.2 发布就绪点**：Phase 5 完工 → 半自动协作可能。用户可以起多个
 agent 并行，orchestrator 负责 session 隔离和状态一致。
@@ -759,7 +870,20 @@ agent 并行，orchestrator 负责 session 隔离和状态一致。
   task top 3"。
 - **AC**：status 输出含 cost 面板。
 
-**6.4 Runtime stdout 拦截（可选）**（1 天）
+**6.4 code-review-graph 实时增量 watcher**（2 天，**新增 D24**）
+- 不是 "Phase 启动时 build"；而是 daemon 模式：
+  - `orchestrator/code-graph-watcher.ts`：fs-watch 项目代码路径 +
+    debounce 500ms
+  - 每次 editor save / git commit → 增量 tree-sitter 解析 → 更新
+    `.code-review-graph/graph.db`
+  - 大改（>50 文件）触发后台 full rebuild，不阻塞 agent
+- MCP tool `impact.*`（`impact.radius` / `impact.changes` /
+  `impact.dependents`）从最新 graph.db 查询
+- agent session 启动时调 `impact.radius(target_files)` 获得最小必读集
+- **AC**：editor save → graph.db ≤3s 更新（小改 ≤1s）；impact.radius
+  返回准确依赖集（10 文件项目的命中率 ≥95%）
+
+**6.5 Runtime stdout 拦截（可选）**（1 天）
 - orchestrator spawn agent 时拦截 stdout，解析 Anthropic/OpenAI/Gemini
   SDK 的 usage 字段（若可达）。
 - 更精准的 token 统计（不依赖 rtk 推测）。
@@ -769,128 +893,170 @@ agent 并行，orchestrator 负责 session 隔离和状态一致。
 
 - telemetry 覆盖率：每 MCP tool 调用 100% 有埋点
 - `/ultra-status` cost panel 数字可信（与 SDK usage 对账 <5% 误差）
+- code-review-graph watcher 实时增量测试过
 
 ---
 
-### Phase 7 — 智能层
+### Phase 7 — 智能层（记忆 + tagged + skill 学习）
 
-**目标**：引入**记忆 / 代码图 / skill 学习**，让每 task 起步即有上下文。
+**目标**：引入**wrapper 式自动记忆 + tagged task 分区 + skill 自动萃取**，
+让每 task 起步即有上下文，分支并发无混乱。
 
-**前置**：Phase 6（监控支持智能层的触发器与成本验证）
+> 变更：原 Phase 7.1（code-review-graph）已移至 Phase 6.4（实时增量 watcher）。
+> 原 Phase 7.4（模型自适应路由）后移到 v0.2+（D27）。
+> 新增 Phase 7.2（Task Master tagged lists）（D26）。
+> hindsight 升级为 wrapper 式（D25）。
 
-**置信度**：82%（hindsight 运维复杂；pgvector 是新依赖）
+**前置**：Phase 6（监控 + 实时图谱）
 
-**工时**：8-10 天
+**置信度**：80%（hindsight wrapper 自定义实现；tagged 迁移 schema）
+
+**工时**：7-8 天
 
 #### 任务清单
 
-**7.1 code-review-graph MCP 集成**（2 天）
-- 装 `code-review-graph` 作为可选 MCP server（独立二进制）。
-- 包装 MCP tool `impact.*`：`impact.radius(files)`、`impact.changes(range)`、
-  `impact.dependents(symbol)`。
-- `skills/ultra-dev/SKILL.md` 起步阶段调 `impact.radius` 决定要读哪些文件。
-- `skills/ultra-review/SKILL.md` 用 `impact.*` 决定要审哪些文件。
-- **AC**：`/ultra-dev 5` 启动时自动从 impact.radius 拿到"task 5 改动影响
-  面"，而非读整个 repo。
+**7.1 Hindsight wrapper 式自动记忆**（3 天，**D25**）
+- 不仅暴露 `memory.retain` / `memory.recall` / `memory.reflect` 三个 MCP tool。
+- **Wrapper 自动化**：
+  - session 结束 hook：自动从 session 的 events + transcript 中提取结构化
+    事实 → 自动 `memory.retain` 到 bank=project
+  - session 启动前：自动 `memory.recall(query=当前 task title + 上下文)`
+    → prefetch 到 session prompt 注入
+- 内嵌 hindsight-server（`HindsightServer` context manager），避免 Docker
+- **AC**：
+  - 跑 3 个相关 task 后，第 4 个 task 起步自动 prefetch ≥2 条相关历史
+  - MCP 显式调用也能用（兜底）
 
-**7.2 hindsight MCP 集成**（5 天）
-- 内嵌 hindsight-server 启动（`HindsightServer` context manager），避免用户
-  跑 Docker。
-- 包装 MCP tool `memory.*`：`memory.retain(bank, content, meta)`、
-  `memory.recall(bank, query, limit)`、`memory.reflect(bank, query)`。
-- `skills/ultra-research/SKILL.md` 每步产出 → `memory.retain`。
-- `skills/ultra-plan/SKILL.md` 起步前 → `memory.recall(bank=project)` 拿
-  历史决策。
-- `/learn` → `memory.retain` 同时写 skills/learned/。
-- **AC**：做完 research → plan → dev 全流程后，下一个相似项目的 research
-  起步能从 memory.recall 拿到 ≥3 条相关历史洞察。
+**7.2 Task Master tagged task lists**（2 天，**D26**）
+- tasks 表新增 `tag` 字段 + index
+- `/ultra-plan` 支持 `--tag <name>`；`/ultra-dev --tag` 限定任务列表
+- 分支并发场景：每 git branch 自动关联一个 tag（首次进入该分支时交互
+  创建）
+- MCP `task.list --tag X` / `task.switch_tag`
+- **AC**：在 branch `feat/auth` 下运行 `/ultra-dev` 只看到 auth tag 的任务
+  列表，切到 `feat/billing` 立刻切上下文
 
 **7.3 Skill 自动萃取（OMC 模式）**（2 天）
 - session 结束 hook：分析 transcript → 提取"解决了什么非平凡问题" →
-  草稿为 `skills/learned/<id>_unverified.md`。
-- 人审通过后去掉 `_unverified` 后缀。
+  草稿为 `skills/learned/<id>_unverified.md`
+- 人审通过后去掉 `_unverified` 后缀
 - **AC**：跑 5 个包含 debugging 的 task 后，skills/learned/ 下生成 ≥3 个
-  unverified skill。
-
-**7.4 Model 自适应路由（OMC 模式）**（1 天）
-- skill frontmatter 新增 `complexity_hint: low|medium|high`。
-- orchestrator spawn 时按 hint 选 model：low → Haiku，medium → Sonnet，
-  high → Opus。
-- skill 可在运行时自己升级 hint（"遇到嵌套泛型"）。
-- **AC**：跑完一个典型 mixed project，Haiku:Sonnet:Opus 调用比 ≥ 60:30:10。
+  unverified skill
 
 #### Phase 7 gate
 
-- code-review-graph + hindsight MCP tool 契约测试全绿
-- 跨 session 记忆召回 smoke test 通过（先 retain A，关会话，新会话 recall 能
-  查到 A）
+- hindsight wrapper 自动 retain + prefetch smoke test 通过
+- tagged task list 分支切换测试通过
+- skill 萃取至少 3 条 unverified 产出
 
 ---
 
-### Phase 8 — 自动化工厂
+### Phase 8A — 计划自动化（planner 线）
 
-**目标**：**"PRD 一键拆任务 → 并行分派 → 自动完成 / 合并 / 审查"**。这是
-用户"coding 工厂"愿景的终点。
+**目标**：PRD → task 分解 → 依赖拓扑 → 自动 expand → human gate 批准。
+这是 "coding 工厂" 的**前端**（决定做什么 / 做的顺序）。
 
-**前置**：Phase 7（智能层提供 dispatch 输入）
+**依据**：Codex Q4 + D22（原 Phase 8 拆分）
 
-**置信度**：80%（GSD-2 模式已验证，但移植到 UBP 任务重）
+**前置**：Phase 7（智能层提供 complexity_hint 与 memory.recall 输入）
 
-**工时**：8-10 天
+**置信度**：88%（PRD 解析成熟；human gate 简单；依赖拓扑算法标准）
+
+**工时**：3-4 天
 
 #### 任务清单
 
-**8.1 PRD 自动拆 task（CTM 模式）**（2 天）
+**8A.1 PRD 自动拆 task（CTM 模式）**（2 天）
 - 新 MCP tool `task.parse_prd(prd_text)` → 返回 task[]（ID、title、deps、
-  complexity 预估）。
-- 后端：调 Anthropic/OpenAI LLM（model 可配）。
-- skill `ultra-plan` 新分支："从 PRD 自动拆"。
-- **AC**：给一份 2 KB PRD，产出的 tasks.json ≥ 80% 与人工拆分语义等价。
+  complexity 预估）
+- 后端：调 Anthropic/OpenAI LLM（model 可配）
+- skill `ultra-plan` 新分支："从 PRD 自动拆"
+- **AC**：给一份 2 KB PRD，产出的 tasks.json ≥80% 与人工拆分语义等价
 
-**8.2 DISPATCH_RULES 声明表（GSD-2 模式）**（2 天）
+**8A.2 Dependency graph + 拓扑**（1 天）
+- `task.dependency_topo` MCP tool：返回拓扑排序 + 可并行的 wave 分组
+- 循环检测：若有 cycle 直接报错
+- **AC**：环任务 tasks.json 被拒绝；无环 tasks.json 输出正确 wave 分组
+
+**8A.3 Auto-expand**（1 天）
+- `task.expand(task_id)` MCP tool：用 LLM 把 complexity ≥7 的 task 自动
+  拆 subtasks
+- 输出保留原 task 为"parent"，新增 subtasks 插入 tasks 表
+- **AC**：complexity=9 的 task 自动拆成 3-4 subtask；parent status 变
+  "expanded"
+
+**8A.4 Human gate in /ultra-plan（OMX 模式）**（0.5 天）
+- 生成 tasks.json 后调 MCP `ask.question` 展示 plan 摘要 + estimated cost
+  → 等用户 approve 才 commit 到 state-db
+- **AC**：plan 产出一个 `ask` 对话；用户 reject 时不写 state-db
+
+#### Phase 8A gate
+
+- PRD 解析准确率 ≥80%
+- 拓扑算法正确性（5 组 fixture 测试）
+- auto-expand 可开关
+- human gate 强制 gate
+
+---
+
+### Phase 8B — 执行自动化（executor 线）
+
+**目标**：dispatch rules + 并行 orchestrator + worktree 并发 +
+files_modified 重叠检测 + 自动合并。这是 "coding 工厂" 的**后端**
+（怎么把 8A 的任务跑完）。
+
+**依据**：Codex Q4 + D22
+
+**前置**：Phase 8A（计划自动化提供队列输入）+ Phase 4.5（session 标准单元）
+
+**置信度**：78%（GSD-2 模式移植量大；并发 worktree + merge back 是最高
+风险点）
+
+**工时**：5-6 天
+
+#### 任务清单
+
+**8B.1 DISPATCH_RULES 声明表（GSD-2 模式）**（2 天）
 - `orchestrator/dispatch-rules.ts`：数组化规则：
   ```ts
   {
     when: (ctx) => ctx.task.status === 'pending' && deps_ready(ctx),
     action: 'spawn_agent',
-    agent_kind: 'executor',
     runtime: select_runtime(ctx.complexity),
   }
   ```
-- 从 `gsd-2/src/resources/extensions/gsd/auto-dispatch.ts` 移植。
-- **AC**：orchestrator 在 pending task 出现时 1s 内分派对应 agent。
+- 从 `gsd-2/src/resources/extensions/gsd/auto-dispatch.ts` 移植
+- 比 Phase 5.4 的"最简路由"强：规则可组合、可观测、可回放
+- **AC**：规则表能在不改代码的情况下调整分派行为；10 规则 fixture 测试
+  全绿
 
-**8.3 Parallel orchestrator（GSD-2 模式）**（2 天）
-- `orchestrator/parallel-orchestrator.ts`：多 session 并行，slice 级并发。
-- 每 slice 检测 `files_modified` 重叠 → 重叠则串行（GSD 算法）。
-- **AC**：10 个独立文件的 task 全部并行跑；2 个改同一文件的 task 自动串
-  行化。
+**8B.2 Parallel orchestrator**（2 天）
+- `orchestrator/parallel-orchestrator.ts`：多 session 并行，slice 级并发
+- 每 slice 检测 `files_modified` 重叠 → 重叠则串行（GSD 算法）
+- **AC**：10 个独立文件的 task 全部并行跑；2 个改同一文件的 task 自动
+  串行化
 
-**8.4 Worktree 隔离（GSD 模式）**（1 天）
-- `orchestrator/worktree-manager.ts`：每并发 slice 创建独立 git worktree；
-  避免 .git/config.lock 竞争。
-- session 结束后清理 worktree。
-- **AC**：3 个并发 slice 在独立 worktree 跑，`git branch` 互不干扰。
+**8B.3 Worktree 并发管理**（1 天）
+- `orchestrator/worktree-manager.ts`：每并发 slice 创建独立 git worktree
+  （Phase 4.5 已有单 session worktree；此处是 N 并发 worktree 调度）
+- session 结束后清理 worktree
+- **AC**：3 slice 并发独立 worktree；`git branch` 互不干扰；`.git/config.lock`
+  不竞争
 
-**8.5 Human gate in /ultra-plan（OMX 模式）**（0.5 天）
-- 生成 tasks.json 后调 `ask.question` 展示 plan 摘要 + estimated cost，
-  等 approve 才写入最终版。
-- **AC**：plan 产出一个 `ask` 对话；用户 reject 时不写 tasks.json。
+**8B.4 Auto-merge back**（1 天）
+- session.close 时：
+  - 检查 files_modified 与主分支最新状态是否冲突
+  - 无冲突 → 自动 merge；有冲突 → 标记事件 `merge_conflict` 等人
+- **AC**：3 slice 各改独立文件 → 自动全部 merge；2 slice 改同文件 →
+  一个 merge 一个等
 
-**8.6 Task dependency graph + auto-expand**（1.5 天）
-- `task.dependency_topo` MCP tool：返回拓扑排序 + 并行波次。
-- `task.expand(task_id)` MCP tool：用 LLM 把复杂度 ≥7 的 task 自动拆
-  subtasks。
-- **AC**：一个 complexity=9 的 task 自动拆成 3-4 个 subtask；tasks.json
-  的拓扑排序与手工一致。
+#### Phase 8B gate
 
-#### Phase 8 gate
-
-- 跑一个 10-task PRD → orchestrator 全自动完成率 ≥80%（少数失败人工干预）
+- 跑一个 10-task PRD（8A 产出）→ 8B 自动完成率 ≥80%
 - 并发 worktree 压力测试：5 slice 同时跑无 git 锁冲突
-- Human gate 开启后，plan 不能自动进 dev（必须有用户 approve 事件）
+- merge back 冲突被正确识别
 
-**▶ v0.3 完工 = 自动化 coding 工厂可用**。
+**▶ v0.3 完工 = 自动化 coding 工厂可用**（8A+8B 合并里程碑）。
 
 ---
 
@@ -941,43 +1107,108 @@ agent 并行，orchestrator 负责 session 隔离和状态一致。
 
 ## 7. 跨 Phase 契约（核心接口）
 
-### 7.1 `tasks.v5.schema.json`（简版示例）
+### 7.1 `.ultra/state.db` SQLite schema（Phase 2 权威源）
 
-```jsonc
-{
-  "version": "5.0",
-  "tasks": [
-    {
-      "id": "1",
-      "title": "Walking skeleton: auth E2E",
-      "type": "architecture",
-      "priority": "P0",
-      "complexity": 4,
-      "status": "pending",           // 单源
-      "dependencies": [],             // Phase 2
-      "files_modified": [],           // Phase 8 并发检测用
-      "estimated_days": 2,
-      "context_file": "contexts/task-1.md",
-      "trace_to": ".ultra/specs/product.md#auth",
-      "session_id": null,             // Phase 5 填
-      "stale": false,                 // Phase 5 填
-      "complexity_hint": "medium"     // Phase 7 填
-    }
-  ],
-  "metadata": { "totalTasks": 1 }
-}
+```sql
+-- tasks 表（权威 task 状态）
+CREATE TABLE tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  type TEXT,                       -- architecture|feature|bugfix
+  priority TEXT,                   -- P0-P3
+  complexity INTEGER,              -- 1-10
+  status TEXT NOT NULL,            -- pending|in_progress|completed|blocked|expanded
+  deps JSON,                       -- [task_id]
+  files_modified JSON,             -- [path] (Phase 8B 并发检测)
+  session_id TEXT,                 -- 当前执行方（Phase 4.5）
+  stale BOOLEAN DEFAULT 0,         -- spec 改动标记（Phase 5.3）
+  complexity_hint TEXT,            -- low|medium|high（Phase 7）
+  tag TEXT,                        -- Phase 7.2 分支分区
+  trace_to TEXT,                   -- spec 引用
+  context_file TEXT,               -- 投影文件路径
+  completion_commit TEXT,          -- Phase 2.6 hash 回填
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+
+-- events 表（append-only 事件流）
+CREATE TABLE events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TIMESTAMP NOT NULL,
+  type TEXT NOT NULL,              -- task_started|task_completed|spec_changed|...
+  task_id TEXT,
+  session_id TEXT,
+  runtime TEXT,
+  payload_json JSON
+);
+CREATE INDEX events_ts_type ON events(ts, type);
+
+-- sessions 表（执行单元）
+CREATE TABLE sessions (
+  sid TEXT PRIMARY KEY,
+  task_id TEXT,
+  runtime TEXT,                    -- claude|opencode|codex|gemini
+  pid INTEGER,
+  worktree_path TEXT,
+  artifact_dir TEXT,
+  status TEXT,                     -- running|completed|crashed|orphan
+  lease_expires_at TIMESTAMP,
+  heartbeat_at TIMESTAMP,
+  started_at TIMESTAMP
+);
+
+-- telemetry 表（监控）
+CREATE TABLE telemetry (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT,
+  event_type TEXT,                 -- tool_call|token_usage|cost
+  tokens_input INTEGER,
+  tokens_output INTEGER,
+  tool_name TEXT,
+  cost_usd REAL,
+  ts TIMESTAMP
+);
+
+-- specs_refs 表（spec 变更追踪）
+CREATE TABLE specs_refs (
+  spec_file TEXT,
+  section TEXT,
+  anchor TEXT,
+  last_modified_at TIMESTAMP,
+  PRIMARY KEY (spec_file, section)
+);
+
+PRAGMA journal_mode=WAL;
+PRAGMA synchronous=NORMAL;
 ```
 
-**注意**：没有 `context file 里再存 status` — P3/P9 修复。
+**投影（projection）**：
+- `.ultra/tasks/tasks.json` 由 `tasks` 表再生成（v4.5 过渡保留）
+- `.ultra/tasks/contexts/task-*.md` 的 Status header 由 `tasks.status` 派生
+- `.ultra/activity-log.json`（可选 JSONL 导出）由 `events` 表 dump
 
-### 7.2 `activity-log` 事件类型（Phase 2 枚举）
+**权威路径**：所有读写走 MCP `task.*` / `session.*` / `memory.*` tool →
+state-db。手工改 JSON/MD **不生效**（投影覆盖）。
 
-```jsonc
-{ "ts": "2026-04-17T...", "type": "task_started", "task_id": "1", "session_id": "sid-abc", "runtime": "claude" }
-{ "ts": "...", "type": "task_completed", "task_id": "1", "commit": "abc123" }
-{ "ts": "...", "type": "task_failed", "task_id": "1", "error": "..." }
-{ "ts": "...", "type": "spec_changed", "sections": ["product.md#auth"] }
-{ "ts": "...", "type": "review_verdict", "task_id": "1", "verdict": "APPROVE" }
+### 7.2 `events` 表事件类型枚举
+
+```
+-- 状态生命周期
+task_created / task_started / task_completed / task_failed / task_blocked
+task_expanded / task_stale_marked
+
+-- 会话生命周期
+session_spawned / session_closed / session_crashed / session_orphaned
+session_heartbeat_lost
+
+-- spec / 内容变更
+spec_changed / context_updated / plan_approved
+
+-- 外部动作
+commit_pushed / review_verdict / merge_conflict / auto_merged
+
+-- 监控
+cost_alert / token_alert / circuit_open
 ```
 
 ### 7.3 MCP tool 命名约定（Phase 1 `spec/mcp-tools.yaml`）
@@ -991,22 +1222,57 @@ agent 并行，orchestrator 负责 session 隔离和状态一致。
 - `session.new / close / get / subscribe_events`
 - `ask.question / menu`
 
-### 7.4 Phase 依赖显式图
+### 7.4 Phase 依赖显式图（v0.3）
 
 ```
-Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 ───▶ v0.1 RELEASE
-                                                  │
-                                                  ▼
-                                Phase 5 → Phase 6 ───▶ v0.2 RELEASE
-                                              │
-                                              ▼
-                                    Phase 7 → Phase 8 ───▶ v0.3 RELEASE
-                                                      │
-                                                      ▼
-                                                  Phase 9 ───▶ v1.0
+Phase 0 (done)
+   │
+   ▼
+Phase 1 (三层接口定义)
+   │
+   ▼
+Phase 2 (权威状态层 SQLite)
+   │
+   ▼
+Phase 3 (命令规则化)
+   │
+   ▼
+Phase 4 (跨 runtime 分发 + 4.6 capability matrix)
+   │
+   ▼
+Phase 4.5 (execution-lite: session + event subscribe + status)
+   │
+   └─────────────────────────▶ v0.1 RELEASE（规则层 + execution-lite）
+   │
+   ▼
+Phase 5 (执行层进阶: recovery + staleness + 自动路由)
+   │
+   ▼
+Phase 6 (监控 + code-review-graph 实时 watcher)
+   │
+   └─────────────────────────▶ v0.2 RELEASE（半自动 + 监控）
+   │
+   ▼
+Phase 7 (hindsight wrapper + tagged lists + skill 萃取)
+   │
+   ▼
+Phase 8A (计划自动化: PRD → topo → expand → human gate)
+   │
+   ▼
+Phase 8B (执行自动化: dispatch rules + parallel worktree + merge)
+   │
+   └─────────────────────────▶ v0.3 RELEASE（自动化 coding 工厂）
+   │
+   ▼
+Phase 9 (发布: npm + Homebrew + pip)
+   │
+   └─────────────────────────▶ v1.0 RELEASE
 ```
 
-**没有横向依赖**（同 Phase 内任务可并行，跨 Phase 严格串行）。
+**依赖性**：
+- 同 Phase 内任务可并行
+- 跨 Phase 严格串行
+- **例外**：Phase 8B 依赖 **Phase 8A + Phase 4.5**（两个前置）
 
 ---
 
@@ -1014,30 +1280,43 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 ───▶ v0.1 RELEAS
 
 | 层 | 框架 | 覆盖目标 | Phase |
 |---|---|---|---|
-| spec schema fixtures | `ajv` | 合法 + 非法 fixture 各 ≥1 | 1 |
-| atomic-write / state-machine | node:test + 20-worker 压力脚本 | ≥90% 行覆盖 + 并发无损 | 2 |
-| MCP tool 契约 | fixture → tool → 期望 output | 100% tool 有契约测试 | 3 |
+| spec schema fixtures | `ajv` + sqlite CLI | 合法 + 非法 fixture 各 ≥1 | 1 |
+| SQLite 并发写 | node:test + 20-worker 压力脚本 | 并发无丢失、事务回滚正确 | 2 |
+| migration v4.4→v4.5→rollback | node:test + tmp fixture 项目 | 双向无损 | 2 |
+| 投影器响应时间 | fs-watch + 时间采样 | ≤1s | 2 |
+| MCP tool 契约 | fixture → tool → 期望 state-db 变化 | 100% tool 契约测试 | 3 |
 | adapter install / uninstall | shell E2E with tmp dir | 每 runtime diff-equal | 4 |
-| session isolation | kill -9 重启测试 + 并发 5 session | 无数据腐败 | 5 |
+| **conformance tests** | **per-runtime E2E (mocked CLI binary 兜底)** | **4 runtime × 5 能力全绿** | **4.6** |
+| session isolation | kill -9 lease 过期测试 + 2 并发独立 worktree | 无数据腐败 | 4.5 |
+| event subscribe latency | fixture 发事件 + 订阅端时间采样 | ≤1s | 4.5 |
+| recovery + circuit breaker | 故意 kill / 故意 fail 3 次 | 正确续 / 正确熔断 | 5 |
 | telemetry 准确性 | 对照官方 SDK usage | 误差 <5% | 6 |
-| hindsight 召回 | retain → 关 session → recall | 命中率 ≥90% | 7 |
-| PRD 拆 task | 人工 vs 自动语义对比 | ≥80% 一致 | 8 |
+| code-review-graph 增量 | editor save 时间采样 | ≤3s 更新 | 6.4 |
+| hindsight wrapper 自动化 | 跑 3 task → 第 4 task 起步 prefetch | ≥2 条相关 | 7.1 |
+| tagged task list 切换 | git branch 切换 + task.list | 上下文隔离 | 7.2 |
+| PRD 拆 task | 人工 vs 自动语义对比 | ≥80% 一致 | 8A |
+| 并发 worktree | 5 slice 并发 | 无 git 锁冲突 | 8B |
+| merge back 冲突检测 | 2 slice 改同文件 | 一 merge 一 等 | 8B |
 | 发布矩阵 | GHA 8-job 矩阵 | 全绿 | 9 |
 
 ---
 
 ## 9. 风险与对策
 
-继承 v0.1 PLAN 的 R1-R14，新增 R15-R20：
+继承 v0.2 PLAN 的 R1-R20（见 git 历史），v0.3 新增 R21-R24：
 
 | ID | 风险 | 概率 | 影响 | 对策 | Owner |
 |----|------|------|------|------|-------|
-| **R15** | MCP server stdio 在部分 runtime 有 buffer 问题（Windows/WSL） | 中 | 中 | 首版仅 macOS/Linux；Windows 加明确警告 | Phase 4 |
-| **R16** | hindsight 内嵌 server 启动慢 → orchestrator 首次延迟 | 中 | 低 | 首次启动后 fork 常驻；健康检查 + 预热 | Phase 7 |
-| **R17** | code-review-graph 大仓库首次 build > 2min | 中 | 低 | 后台构建 + UI "构建中" 提示；Phase 8 并发前必 build 完 | Phase 7 |
-| **R18** | orchestrator daemon 崩溃但 session 还在跑 | 低 | 高 | session 自带心跳写 `.ultra/sessions/<sid>/heartbeat`；5 min 无心跳 → 自动清理 + 标记 orphan | Phase 5 |
-| **R19** | 三层 schema 不同步（Phase 1 后各 Phase 漂移） | 中 | 高 | 单源生成脚本：`spec/mcp-tools.yaml` → TypeScript 类型 + skill frontmatter 校验 + CLI 参数解析 | Phase 1 |
-| **R20** | v0.2 执行层复杂度爆炸 → v0.1 发布延迟 | 高 | 高 | 严格分阶段发布：v0.1 Phase 0-4 完就发；Phase 5-8 任何滑动不影响 v0.1 | 整体 |
+| R15 | MCP server stdio 在部分 runtime 有 buffer 问题（Windows/WSL） | 中 | 中 | 首版仅 macOS/Linux；Windows 加明确警告 | Phase 4 |
+| R16 | hindsight 内嵌 server 启动慢 → orchestrator 首次延迟 | 中 | 低 | 首次启动后 fork 常驻；健康检查 + 预热 | Phase 7 |
+| R17 | code-review-graph 大仓库首次 build > 2min | 中 | 低 | 后台构建 + UI "构建中" 提示；Phase 8 并发前必 build 完 | Phase 6 |
+| R18 | orchestrator daemon 崩溃但 session 还在跑 | 低 | 高 | session 自带 heartbeat；lease 过期 5 min 无心跳 → 自动清理 + 标记 orphan | Phase 5 |
+| R19 | 三层 schema 不同步（Phase 1 后各 Phase 漂移） | 中 | 高 | 单源生成脚本：`spec/mcp-tools.yaml` → TypeScript 类型 + skill frontmatter 校验 + CLI 参数解析 | Phase 1 |
+| R20 | v0.2 执行层复杂度爆炸 → v0.1 发布延迟 | 高 | 高 | 严格分阶段发布：Phase 0-4.5 完就发 v0.1 | 整体 |
+| **R21** | **SQLite WAL 模式在 NFS / SMB / Docker mount 不可靠** | 中 | 高 | 首版仅本地文件系统；`.ultra` 在网络盘时给警告；fallback 到 DELETE 模式（降级并发能力）| Phase 2 |
+| **R22** | **v4.4 → v4.5 migration 在异常项目上失败**（已有 context 文件手改过 / 字段缺失 / 编码问题） | 中 | 中 | migration 前自动备份；跑 dry-run 模式；手动修复 path 可选；跑错可 rollback | Phase 2.3 |
+| **R23** | **conformance tests 基础设施投入过重** | 中 | 中 | 用 mock runtime 二进制覆盖 CI；真 runtime 只在 release 前跑一次；不阻塞日常 PR | Phase 4.6 |
+| **R24** | **Phase 4.5 execution-lite 把 v0.1 工期从 5 周推到 8 周** | **高** | **中** | 接受（D19 已决）；作为 v0.1 的最大价值点；任何 Phase 5+ 的滑动不影响 v0.1 | Phase 4.5 |
 
 ---
 
@@ -1046,40 +1325,56 @@ Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 ───▶ v0.1 RELEAS
 | Phase | 工作 | 置信度 | 降低原因 |
 |-------|------|-------:|---------|
 | 0 | 骨架 | 100% | 已完成 |
-| 1 | 三层接口定义 | 95% | 纯设计；R19 减分 |
-| 2 | 原子状态机重构 | 95% | GSD 模式已验证 |
-| 3 | 命令规则化（9 命令） | 90% | 工作量大但模式清；双写消除是关键风险 |
-| 4 | 跨 runtime 分发 | 88% | R1/R10-R14 hook schema 未公开 |
-| 5 | Session 隔离 + 事件循环 | 85% | 新能力，需 spike；R18 心跳设计 |
-| 6 | 监控与优化 | 93% | RTK 成熟；埋点标准工程 |
-| 7 | 智能层 | 82% | hindsight 重量级；R16 启动延迟；pgvector 运维 |
-| 8 | 自动化工厂 | 80% | GSD-2 移植工作量大；R20 范围蔓延 |
+| 1 | 三层接口定义 | 95% | 纯设计；R19 单源生成减分 |
+| 2 | **权威状态层（SQLite + WAL + v4.5 过渡）** | **92%** | 下调自 95%；migration 风险 R22；NFS 问题 R21 |
+| 3 | 命令规则化（9 命令薄壳化） | 90% | 工作量大但模式清；状态源统一后简化 |
+| 4 | 跨 runtime 分发 | 86% | 下调；conformance tests R23 是新投入 |
+| **4.5** | **Execution-lite（session + event + status）** | **82%** | **新增**；session 进程化 + worktree + lease 是新抽象；R24 工期推后 |
+| 5 | 执行层进阶（recovery + staleness + 自动路由） | 85% | 规模减小；R18 心跳机制 |
+| 6 | 监控 + code-review-graph 实时增量 | 88% | 下调自 93%；fs-watch 增量比启动 build 复杂 |
+| 7 | 智能层（hindsight wrapper + tagged + skill 萃取） | 80% | 下调；hindsight wrapper 是自定义实现；tagged 需 schema 迁移 |
+| 8A | 计划自动化（parse/topo/expand/human gate） | 88% | 拆后独立；PRD parse 成熟 |
+| 8B | 执行自动化（dispatch/parallel/worktree/merge） | 78% | 拆后仍是最高风险；并发 merge back 难度最大 |
 | 9 | 发布 | 97% | 三渠道标准 |
-| **综合** | | **88%** | 按工时加权；Phase 5/7/8 是主要风险 |
+| **综合** | | **86%** | 下调自 88%；权威状态迁移 + execution-lite 新抽象 |
 
-**残差 12%**：
-- 6% = hook schema 不公开导致多次 spike 或功能丢失
-- 4% = session 管理的生产级稳定性（R18 心跳 + 心跳丢失场景）
-- 2% = pgvector / 内嵌 hindsight 在用户机器上不可靠
+**残差 14%**（加权）：
+- 5% = 4 runtime hook schema 不公开（Phase 4/R1/R10-R14）
+- 3% = session 管理生产稳定性（Phase 4.5/5 / R18）
+- 3% = SQLite 在异常文件系统上的稳定性（Phase 2/R21）
+- 3% = 并发 merge back 复杂度（Phase 8B）
 
 ---
 
-## 11. 时间线
+## 11. 时间线（14-18 周，Codex Q9 修订）
 
 ```
-Week 1     ████████  Phase 0 (done) + Phase 1 开工
-Week 2     ████████  Phase 1 完 + Phase 2 开工
-Week 3     ████████  Phase 2 完 + Phase 3 开工
-Week 4     ████████  Phase 3 完
-Week 5     ████████  Phase 4 + v0.1 发布内测
+Week 1       Phase 1 三层接口定义
+Week 2-3     Phase 2 权威状态层（SQLite + v4.5 migration）
+Week 4-5     Phase 3 命令规则化（9 命令薄壳化）
+Week 6-7     Phase 4 跨 runtime 分发 + conformance matrix
+Week 8       Phase 4.5 execution-lite
+            ──────────── v0.1 RELEASE ────────────
+Week 9-10    Phase 5 执行层进阶
+Week 11      Phase 6 监控 + code-review-graph 实时 watcher
+            ──────────── v0.2 RELEASE ────────────
+Week 12-13   Phase 7 智能层
+Week 14      Phase 8A 计划自动化
+Week 15-16   Phase 8B 执行自动化
+            ──────────── v0.3 RELEASE ────────────
+Week 17      Phase 9 发布流水线
+            ──────────── v1.0 RELEASE ────────────
+Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
+```
 
-Week 6     ████████  Phase 5
-Week 7     ████████  Phase 5 完 + Phase 6
-Week 8     ████████  Phase 6 完 + v0.2 发布内测
+**关键里程碑**（可独立对外交付）：
+- **Week 8 · v0.1**：规则层 + 独立会话隔离 + 活跃会话可见（用户最核心诉求）
+- **Week 11 · v0.2**：自动恢复 + 监控 + 实时图谱（半自动协作）
+- **Week 16 · v0.3**：PRD → task → 自动并行分派 / 合并（coding 工厂）
+- **Week 17-18 · v1.0**：三渠道发布
 
-Week 9     ████████  Phase 7
-Week 10    ████████  Phase 7 完 + Phase 8 开工
-Week 11    ████████  Phase 8
+**总工时**：14-18 周 AI 协助，~300-400 工时（工时比 v0.2 的 250-350
+小时多 ~50，主要来自 SQLite 迁移 + execution-lite + conformance tests）。
 Week 12    ████████  Phase 8 完 + v0.3 发布内测
 
 Week 13    ████      Phase 9 + v1.0 正式发布
@@ -1146,7 +1441,18 @@ Week 13    ████      Phase 9 + v1.0 正式发布
 | **D14** | **2026-04-17** | **范围从"分发器"扩展到"自动化 coding 工厂"**，总工时从 4-5 周扩到 11-13 周 | 用户诉求：跨 agent 上下文共享 + 独立对话避污染 + 监控 + 实时代码图 + 记忆系统；不只是 distribution tool |
 | **D15** | **2026-04-17** | 集成 RTK / code-review-graph / hindsight 作为 **MCP tool 包装**（不自建等价） | 三者都 MIT + MCP 友好；自建等价 = 4-8 周纯折腾无价值 |
 | **D16** | **2026-04-17** | GSD / GSD-2 的 **atomic-write / state-machine / ctx.newSession / DISPATCH_RULES** 直接移植（不自建） | 已在 14 runtime 实战；用户确认"可以先集成，混合" |
-| **D17** | **2026-04-17** | Phase 3 消除 **tasks.json 与 context 的 status 双写**（breaking change from v4.4 → v5.0） | 用户指痛点"异步效果不好"根因之一；schema 升级附 migration 脚本 |
+| **D17** | **2026-04-17** | Phase 3 消除 **tasks.json 与 context 的 status 双写**（原 v4.4 → v5.0，**后被 D21 覆盖为 v4.5 过渡**） | 用户指痛点"异步效果不好"根因之一 |
+| **D18** | **2026-04-17** | **权威状态层 = `.ultra/state.db` SQLite + WAL**，md/json 降级为投影/导出视图 | Codex Q1：多主写入是最大架构风险；SQLite 提供事务 + 并发读；tasks.json/activity-log/sessions/workflow-state 多文件各管一摊易炸 |
+| **D19** | **2026-04-17** | **v0.1 带 execution-lite**（session + event subscribe + 活跃会话可见），不裸发规则层 | Codex Q3：用户核心诉求是"独立会话不污染"，规则层没 session 不算解决问题；新增 Phase 4.5 |
+| **D20** | **2026-04-17** | **Session 标准单元 = 新进程 + 独立 worktree + lease/heartbeat + artifact dir**；`ctx.newSession()` 仅作 Claude/GSD-2 适配优化 | Codex Q7：跨 4 runtime 通用定义；systemd/launchd 过重；单纯复用 Claude 会话切换不够 |
+| **D21** | **2026-04-17** | **Schema v4.4 → v4.5 过渡**（tasks.json 成 authoritative view + context status 降级派生 + 停止手写保留读兼容），不直接 v5 breaking（覆盖 D17） | Codex Q5：直接 breaking 迁移风险大；过渡期让老代码还能读；等命令全迁完再物理删除字段 |
+| **D22** | **2026-04-17** | **Phase 8 拆 8A（计划自动化）+ 8B（执行自动化）** | Codex Q4：现在绑太死；分开后 8A 可先交付 v0.3 早期内测，8B 晚些跟上 |
+| **D23** | **2026-04-17** | **Phase 4 新增 4.6 Runtime capability matrix + conformance tests** | Codex Q8：同一 skill 文本 + 同名 MCP tool ≠ 一致行为；4 runtime 在权限 / hook / subagent / usage 不等价 |
+| **D24** | **2026-04-17** | **code-review-graph 实时增量 watcher**（fs-watch + tree-sitter），不是启动时 build；移到 Phase 6.4 | Codex Q6：实时反馈给 agent 才有价值；用户原话"需要做到实时的变更，能够及时的反馈给到 agent，而不是改完填坑" |
+| **D25** | **2026-04-17** | **hindsight 用法升级为 wrapper 式自动记忆**（session 结束自动 retain + session 启动自动 prefetch），不仅是显式 MCP retain/recall | Codex Q6：hindsight 强项是 wrapper，agent 不需要手工调 |
+| **D26** | **2026-04-17** | **Phase 7 新增 Task Master tagged task lists**（per git branch 上下文分区） | Codex Q6：分支并发场景没有 tagged 会 context 混乱 |
+| **D27** | **2026-04-17** | **模型自适应路由（原 Phase 7.4）后移到 v0.2+** | Codex Q10：v0.3 前不紧；Phase 7 已经重 |
+| **D28** | **2026-04-17** | **总工期 11-13 周 → 14-18 周** | Codex Q9：4 runtime 兼容 + session/recovery + 并发 worktree + 外部工具整合会吞大量集成调试时间 |
 
 ---
 
