@@ -86,6 +86,7 @@ settings.local.json
 # Claude internal directories (runtime cache, not the CLI's own bin/)
 .claude/
 lib/
+!mcp-server/lib/
 templates/
 
 # npm / build artifacts
