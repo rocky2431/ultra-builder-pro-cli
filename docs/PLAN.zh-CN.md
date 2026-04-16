@@ -406,7 +406,7 @@ ultra-builder-pro-cli/
 
 ---
 
-### Phase 1 — 三层接口定义（规则层基础）✅ 完成
+### Phase 1 — 三层接口定义（规则层基础）✅ 完成，commit `926cd74`
 
 **目标**：把 skill / MCP tool / CLI 三层的**schema 锁死**。后续所有 Phase 只
 引用 spec/，不再定义新 schema。接口先行是避免"写到一半发现 schema 不兼容"
