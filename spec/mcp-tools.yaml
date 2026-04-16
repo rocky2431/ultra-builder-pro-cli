@@ -30,7 +30,7 @@ tools:
   # ─────────────────────────── task family ────────────────────────────────
   - name: task.create
     family: task
-    description: Create a new task in state.db. Emits task_created event.
+    description: Create a new task in state.db. Emits task_created event. If `id` is omitted the server mints a uuid.
     phase: '2'
     writer_role: mcp
     input_schema:
@@ -38,6 +38,7 @@ tools:
       required: [title, type, priority]
       additionalProperties: false
       properties:
+        id:          { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'optional caller-supplied id; otherwise server mints a uuid' }
         title:       { type: string, minLength: 3 }
         type:        { type: string, enum: [architecture, feature, bugfix] }
         priority:    { type: string, enum: [P0, P1, P2, P3] }
