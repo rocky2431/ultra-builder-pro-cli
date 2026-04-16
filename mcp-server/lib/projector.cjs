@@ -50,13 +50,20 @@ function writeAtomic(file, contents) {
   fs.renameSync(tmp, file);
 }
 
+function dbContentTimestamp(db) {
+  const row = db.prepare("SELECT MAX(latest) AS ts FROM (SELECT MAX(updated_at) AS latest FROM tasks UNION ALL SELECT MAX(ts) AS latest FROM events UNION ALL SELECT MAX(applied_at) AS latest FROM schema_version)").get();
+  return (row && row.ts) || new Date(0).toISOString();
+}
+
 function projectTasks(db, { tasksJson } = {}, opts = {}) {
   const rootDir = opts.rootDir;
   const target = tasksJson || defaultPaths(rootDir || '.').tasksJson;
   const rows = db.prepare(LIST_TASKS_FOR_PROJECTION_SQL).all();
+  // generated_at = max(content timestamps) so identical state → identical
+  // bytes → idempotent commits (PLAN Phase 2.6 / Phase 2.8 chore commit).
   const payload = {
     schema_version: SCHEMA_VERSION,
-    generated_at: new Date().toISOString(),
+    generated_at: dbContentTimestamp(db),
     source: SOURCE_TAG,
     tasks: rows.map(rowToProjection),
   };
@@ -74,8 +81,9 @@ function buildContextDoc(taskRow, existingBody) {
   if (taskRow.priority) headerLines.push(`priority: ${taskRow.priority}`);
   if (taskRow.type) headerLines.push(`type: ${taskRow.type}`);
   if (taskRow.session_id) headerLines.push(`session_id: ${taskRow.session_id}`);
+  if (taskRow.completion_commit) headerLines.push(`completion_commit: ${taskRow.completion_commit}`);
   headerLines.push(`schema_version: ${SCHEMA_VERSION}`);
-  headerLines.push(`generated_at: ${new Date().toISOString()}`);
+  headerLines.push(`generated_at: ${taskRow.updated_at || new Date().toISOString()}`);
   headerLines.push('---', '');
   return headerLines.join('\n') + (existingBody || '');
 }
