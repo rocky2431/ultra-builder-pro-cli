@@ -33,8 +33,8 @@ loop with isolated sessions sharing one authoritative state store.
 |-------|------------------------------------------------|---------------|
 | 0     | Skeleton                                       | ✅ done (`da69a7a`) |
 | 1     | Three-layer interface contracts (`spec/`)      | ✅ done (D38) |
-| 2     | Authoritative state — SQLite + WAL             | next          |
-| 3     | Command thin-shells (skill + MCP + CLI)        | pending       |
+| 2     | Authoritative state — SQLite + WAL             | ✅ done (D39, `e286e41`) |
+| 3     | Command thin-shells (skill + MCP + CLI)        | next          |
 | 4     | Cross-runtime distribution + 4.6a smoke flow   | pending       |
 | 4.5   | Execution-lite (session + admission + events)  | pending → v0.1 gate |
 | 5     | Recovery + staleness + auto-routing            | pending → v0.2 |
@@ -48,37 +48,46 @@ loop with isolated sessions sharing one authoritative state store.
 ## What is in the repo today
 
 ```
-spec/             ← Phase 1 single source of truth (this milestone)
-├── mcp-tools.yaml         (30 tools across 8 families)
-├── cli-protocol.md        (CLI ↔ MCP mapping table)
-├── schemas/
-│   ├── state-db.sql       (7-table SQLite authoritative schema)
-│   ├── tasks.v4.5.schema.json
-│   ├── context-file.v4.5.schema.json
-│   ├── mcp-tools.schema.json
-│   └── skill-manifest.schema.json
-├── fixtures/{valid,invalid}/  (machine-checked samples)
-└── scripts/test-all.cjs   (npm run test:spec — 5 validators)
+spec/                       ← Phase 1 single source of truth
+├── mcp-tools.yaml          (30 tools across 8 families)
+├── cli-protocol.md         (CLI ↔ MCP mapping table)
+├── schemas/                (state-db.sql + 4 JSON schemas)
+├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
+└── scripts/test-all.cjs    (npm run test:spec — 5 validators)
 
-bin/install.js    ← Phase 0 skeleton; per-runtime adapters fleshed out in Phase 4
-adapters/         ← Phase 0 stubs; Phase 4 implements install/uninstall
-ultra-tools/      ← Phase 0 stubs; Phase 3 implements the CLI fallback layer
-skills/           ← 17 existing skills, all conformant to skill-manifest.schema
-hooks/            ← 15 Python hooks; Phase 3 splits into core + per-runtime
+mcp-server/                 ← Phase 2 authoritative state layer
+├── server.cjs              (stdio MCP server, 7 task.* tools)
+├── lib/
+│   ├── state-db.cjs        (SQLite + WAL + pragmas)
+│   ├── state-ops.cjs       (full write API, status state machine)
+│   └── projector.cjs       (state.db → tasks.json + context md)
+└── tests/                  (npm run test:state — 44 tests)
+
+ultra-tools/                ← CLI fallback layer (db init / migrate done)
+├── cli.cjs
+└── commands/
+    ├── db.cjs              (init/checkpoint/vacuum/integrity/backup)
+    └── migrate.cjs         (v4.4 → v4.5 + dry/rollback)
+
+bin/install.js              ← Phase 0 skeleton; Phase 4 fleshes out adapters
+adapters/                   ← Phase 0 stubs; Phase 4 implements install/uninstall
+skills/                     ← 17 skills, conformant to skill-manifest.schema
+hooks/                      ← 15 Python hooks; Phase 3 splits core + per-runtime
 docs/
-├── PLAN.zh-CN.md         ← authoritative plan (1607 lines)
-├── ARCHITECTURE.md       ← Phase 1 — single-page architecture entry point
-└── ROADMAP.md            ← this file
+├── PLAN.zh-CN.md                authoritative plan (1640+ lines)
+├── ARCHITECTURE.md              Phase 1 single-page entry point
+├── STATE-DB-ACCESS-POLICY.md    Phase 2 multi-process write contract
+├── COMMIT-HASH-BACKFILL.md      Phase 2.8 two-commit completion flow
+└── ROADMAP.md                   this file
 ```
 
-## How to verify Phase 1
+## How to verify Phase 1 + Phase 2
 
 ```
 npm install
-npm run test:spec
+npm run test:spec     # 5 passed, 0 failed
+npm run test:state    # 44 passed, 0 failed
 ```
-
-Expected: `5 passed, 0 failed, 0 skipped`.
 
 ## Out of scope for v1.0 (deferred)
 
