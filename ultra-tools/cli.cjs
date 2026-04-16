@@ -60,11 +60,12 @@ USAGE:
   ultra-tools <subcommand> [args]
 
 SUBCOMMANDS:
-  task      create | update | list | get | delete           (Phase 1)
-  ask       --question "<q>" --options "A|B|C"              (Phase 1)
-  memory    search <query> | save --summary "..."           (Phase 1)
-  skill     invoke <name>                                    (Phase 1)
-  subagent  run <agent-name> --prompt "..."                 (Phase 1)
+  task      create | update | list | get | delete           (Phase 2-3)
+  ask       --question "<q>" --options "A|B|C"              (Phase 3)
+  memory    search <query> | save --summary "..."           (Phase 7)
+  skill     invoke <name>                                    (Phase 3)
+  subagent  run <agent-name> --prompt "..."                 (Phase 3)
+  db        init | checkpoint | vacuum | integrity | backup (Phase 2)
 
   --help / -h      show this message
   --version / -v   show version
@@ -89,12 +90,15 @@ function notImplemented(name) {
   fail(`'${name}' not implemented — scheduled for Phase 1`, 2);
 }
 
+const dbCommand = require('./commands/db.cjs');
+
 const SUBCOMMANDS = {
   task: (_args) => notImplemented('task'),
   ask: (_args) => notImplemented('ask'),
   memory: (_args) => notImplemented('memory'),
   skill: (_args) => notImplemented('skill'),
   subagent: (_args) => notImplemented('subagent'),
+  db: (args) => process.exit(dbCommand.dispatch(args)),
 };
 
 function main(argv) {

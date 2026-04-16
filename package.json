@@ -48,6 +48,7 @@
   },
   "scripts": {
     "test": "node --test ultra-tools/*.test.cjs || true",
+    "test:state": "node --test 'mcp-server/**/*.test.cjs'",
     "test:spec": "node spec/scripts/test-all.cjs",
     "install:claude": "node bin/install.js --claude --local",
     "install:all": "node bin/install.js --all --local"
