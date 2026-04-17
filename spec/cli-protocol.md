@@ -104,6 +104,7 @@ is the authoritative reference; do not duplicate it in command md files.
 | `session.spawn`           | `session spawn`             | 4.5   | mcp     |
 | `session.close`           | `session close`             | 4.5   | mcp     |
 | `session.get`             | `session get`               | 4.5   | any     |
+| `session.list`            | `session list`              | 4.5   | any     |
 | `session.admission_check` | `session admission`         | 4.5   | any     |
 | `session.heartbeat`       | `session heartbeat`         | 4.5   | mcp     |
 | `session.subscribe_events`| `session subscribe`         | 4.5   | any     |

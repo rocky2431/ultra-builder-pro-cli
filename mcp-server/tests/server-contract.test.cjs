@@ -48,13 +48,20 @@ function expectError(result) {
   return JSON.parse(result.content[0].text).error;
 }
 
-test('listTools returns the registered task.* tools with input schemas', async () => {
+test('listTools returns the registered task.* + session.* tools with input schemas', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
       assert.deepEqual(names, [
+        'session.admission_check',
+        'session.close',
+        'session.get',
+        'session.heartbeat',
+        'session.list',
+        'session.spawn',
+        'session.subscribe_events',
         'task.append_event',
         'task.create',
         'task.delete',
@@ -267,5 +274,168 @@ test('task.init_project returns ULTRA_DIR_EXISTS on re-init without overwrite', 
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
     fs.rmSync(freshTarget, { recursive: true, force: true });
+  }
+});
+
+async function seedTask(client, id = 's-1') {
+  await client.callTool({
+    name: 'task.create',
+    arguments: { id, title: 'session target', type: 'feature', priority: 'P1' },
+  });
+}
+
+test('session.admission_check + session.spawn: happy path returns sid and paths', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-happy');
+
+      const admission = await client.callTool({
+        name: 'session.admission_check',
+        arguments: { task_id: 's-happy' },
+      });
+      const verdict = readToolPayload(admission);
+      assert.equal(verdict.can_spawn, true);
+      assert.equal(verdict.recommended_action, 'spawn');
+
+      const spawn = await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-happy', runtime: 'claude' },
+      });
+      const session = readToolPayload(spawn);
+      assert.match(session.sid, /^sess-/);
+      assert.ok(session.worktree_path.includes(session.sid));
+      assert.ok(session.artifact_dir.endsWith(path.join('.ultra', 'sessions', session.sid)));
+      assert.ok(session.lease_expires_at);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('session.spawn refuses second session for same task without takeover (ADMISSION_DENIED)', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-conflict');
+      await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-conflict', runtime: 'claude' },
+      });
+
+      const admissionAgain = await client.callTool({
+        name: 'session.admission_check',
+        arguments: { task_id: 's-conflict' },
+      });
+      const verdict = readToolPayload(admissionAgain);
+      assert.equal(verdict.can_spawn, false);
+      assert.ok(verdict.conflict);
+
+      const second = await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-conflict', runtime: 'opencode' },
+      });
+      const err = expectError(second);
+      assert.equal(err.code, 'ADMISSION_DENIED');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('session.spawn with takeover=true crashes the old session and succeeds', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-takeover');
+      const first = readToolPayload(await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-takeover', runtime: 'claude' },
+      }));
+
+      const second = readToolPayload(await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-takeover', runtime: 'codex', takeover: true },
+      }));
+      assert.notEqual(second.sid, first.sid);
+
+      const firstAfter = readToolPayload(await client.callTool({
+        name: 'session.get', arguments: { sid: first.sid },
+      }));
+      assert.equal(firstAfter.session.status, 'crashed');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('session.subscribe_events sees task events with ≤1s latency (D31 id cursor)', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-sub');
+
+      // pin cursor before any writes
+      const before = readToolPayload(await client.callTool({
+        name: 'session.subscribe_events',
+        arguments: { since_id: 0 },
+      }));
+      const cursor = before.next_since_id;
+
+      const t0 = Date.now();
+      await client.callTool({
+        name: 'task.update',
+        arguments: { id: 's-sub', patch: { status: 'in_progress' } },
+      });
+
+      const after = readToolPayload(await client.callTool({
+        name: 'session.subscribe_events',
+        arguments: { since_id: cursor },
+      }));
+      const elapsedMs = Date.now() - t0;
+      assert.ok(after.events.length >= 1, 'expected at least one new event');
+      const types = after.events.map((e) => e.type);
+      const sawTransition = types.some((t) => t === 'task_started' || t === 'task_status_changed');
+      assert.ok(sawTransition, `got event types ${JSON.stringify(types)}`);
+      assert.ok(elapsedMs < 1000, `latency ${elapsedMs}ms exceeds 1s budget`);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('session.heartbeat refreshes lease; session.close marks completed', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-heart');
+      const spawn = readToolPayload(await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-heart', runtime: 'claude' },
+      }));
+      const firstLease = spawn.lease_expires_at;
+
+      // heartbeat extends the lease
+      await new Promise((r) => setTimeout(r, 5));
+      const hb = readToolPayload(await client.callTool({
+        name: 'session.heartbeat', arguments: { sid: spawn.sid },
+      }));
+      assert.equal(hb.ok, true);
+      assert.ok(Date.parse(hb.lease_expires_at) >= Date.parse(firstLease));
+
+      // close flips status
+      const closed = readToolPayload(await client.callTool({
+        name: 'session.close',
+        arguments: { sid: spawn.sid, status: 'completed' },
+      }));
+      assert.equal(closed.ok, true);
+
+      const got = readToolPayload(await client.callTool({
+        name: 'session.get', arguments: { sid: spawn.sid },
+      }));
+      assert.equal(got.session.status, 'completed');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
   }
 });

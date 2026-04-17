@@ -1,10 +1,12 @@
 ---
 name: ultra-status
-description: "Real-time project status — progress, risk analysis, workflow routing. Reads task.list from state.db; reads test/delivery reports from files."
+description: "Real-time project status — progress, risk analysis, workflow routing. Reads task.list + session.list from state.db; reads test/delivery reports from files."
 runtime: all
 mcp_tools_required:
   - task.list
   - task.get
+  - session.list
+  - session.subscribe_events
 cli_fallback: "task list"
 ---
 
@@ -30,9 +32,17 @@ reports progress + risks + workflow routing.
 // MCP: task.list (no filter — get all tasks)
 {}
 // → { tasks: [...], count: N }
+
+// MCP: session.list (active sessions; Phase 4.5.4)
+{ "status": "running" }
+// → { sessions: [...], count: N }
+
+// MCP: session.subscribe_events (recent events for the "last event" panel)
+{ "since_id": 0, "limit": 20 }
+// → { events: [...], next_since_id: M }
 ```
 
-**CLI fallback**: `ultra-tools task list`.
+**CLI fallback**: `ultra-tools task list` + `ultra-tools session list`.
 
 Also read:
 - `.ultra/test-report.json` — if present
@@ -41,6 +51,8 @@ Also read:
 Extract:
 - Task stats: by status (`pending`/`in_progress`/`completed`/`blocked`), by priority (P0-P3)
 - Current `in_progress` task, next `pending` task (topological order)
+- Active sessions: count, per-runtime breakdown, orphan warnings
+- Most recent 20 events (by `events.id` DESC) — "last event" panel
 - Test passed / failed / stale (compare `git_commit` to HEAD)
 - Delivery readiness (tag + pushed)
 
@@ -62,6 +74,8 @@ Auto-detect:
 - **Overdue**: past `estimated_days` from when moved to `in_progress`
 - **Complexity spike**: 3+ consecutive `pending` tasks with complexity ≥7
 - **Test stale**: `test-report.json.git_commit ≠ HEAD`
+- **Orphan sessions**: any session with `lease_expires_at < now()` still status=running
+  (uninitialized by orphan-reaper; escalate)
 
 | Icon | Meaning | Action |
 |------|---------|--------|

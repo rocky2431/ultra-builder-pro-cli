@@ -735,6 +735,31 @@ tools:
     emits_events: []
     trace_to: '§7.3'
 
+  - name: session.list
+    family: session
+    description: List sessions filtered by status (default 'running') and optional task_id. Read-only snapshot for /ultra-status + orchestrator dashboards.
+    phase: '4.5'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        status:   { type: string, enum: [running, completed, crashed, orphan] }
+        task_id:  { type: string }
+        limit:    { type: integer, minimum: 1, maximum: 500, default: 100 }
+    output_schema:
+      type: object
+      required: [sessions, count]
+      additionalProperties: false
+      properties:
+        sessions: { type: array, items: { type: object } }
+        count:    { type: integer, minimum: 0 }
+    errors:
+      - { code: STATE_DB_ERROR, description: 'database unavailable', retriable: true }
+    cli_subcommand: session list
+    emits_events: []
+    trace_to: '§7.3, Phase 4.5.4'
+
   - name: session.admission_check
     family: session
     description: Check whether spawning a new session for task_id is allowed (D33). Returns recommended action.

@@ -94,9 +94,11 @@ function notImplemented(name) {
 const dbCommand = require('./commands/db.cjs');
 const migrateCommand = require('./commands/migrate.cjs');
 const taskCommand = require('./commands/task.cjs');
+const sessionCommand = require('./commands/session.cjs');
 
 const SUBCOMMANDS = {
   task: (args) => process.exit(taskCommand.dispatch(args)),
+  session: (args) => process.exit(sessionCommand.dispatch(args)),
   ask: (_args) => notImplemented('ask'),
   memory: (_args) => notImplemented('memory'),
   skill: (_args) => notImplemented('skill'),

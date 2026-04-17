@@ -374,6 +374,70 @@ function listStaleTasks(db, graceSeconds = 300) {
   }).map(rowToTask);
 }
 
+function readSession(db, sid) {
+  if (!sid) return null;
+  const row = db.prepare('SELECT * FROM sessions WHERE sid = ?').get(sid);
+  return row || null;
+}
+
+function heartbeatSession(db, sid, { lease_seconds = 1800 } = {}) {
+  const cur = readSession(db, sid);
+  if (!cur) throw new StateOpsError('SESSION_NOT_FOUND', `no session ${sid}`);
+  const now = Date.now();
+  const oldExpiry = cur.lease_expires_at ? Date.parse(cur.lease_expires_at) : null;
+  if (oldExpiry !== null && oldExpiry < now) {
+    throw new StateOpsError('LEASE_EXPIRED', `lease for ${sid} already expired`);
+  }
+  const nextHeartbeat = new Date(now).toISOString();
+  const nextExpiry = new Date(now + lease_seconds * 1000).toISOString();
+  updateSession(db, sid, {
+    heartbeat_at: nextHeartbeat,
+    lease_expires_at: nextExpiry,
+  });
+  return { ok: true, lease_expires_at: nextExpiry };
+}
+
+function admissionCheck(db, task_id, { freshnessSeconds = 120 } = {}) {
+  if (!readTask(db, task_id)) {
+    throw new StateOpsError('TASK_NOT_FOUND', `task ${task_id} does not exist`);
+  }
+  const active = listActiveSessions(db, { task_id });
+  if (active.length === 0) {
+    return { can_spawn: true, recommended_action: 'spawn' };
+  }
+  const conflict = active[0];
+  const now = Date.now();
+  const heartbeatAge = conflict.heartbeat_at ? now - Date.parse(conflict.heartbeat_at) : null;
+  const leaseExpired = conflict.lease_expires_at && Date.parse(conflict.lease_expires_at) < now;
+  // Fresh heartbeat — default abandon (D33 conservative default)
+  let recommended_action = 'abandon';
+  if (leaseExpired || (heartbeatAge !== null && heartbeatAge > freshnessSeconds * 1000)) {
+    recommended_action = 'takeover';
+  }
+  return {
+    can_spawn: false,
+    conflict: {
+      sid: conflict.sid,
+      status: conflict.status,
+      heartbeat_age_ms: heartbeatAge !== null ? Math.max(0, heartbeatAge) : 0,
+    },
+    recommended_action,
+  };
+}
+
+function reapOrphanSessions(db, { graceSeconds = 300 } = {}) {
+  const cutoff = new Date(Date.now() - graceSeconds * 1000).toISOString();
+  const candidates = db.prepare(
+    "SELECT * FROM sessions WHERE status = 'running' AND (lease_expires_at < ? OR heartbeat_at < ?)",
+  ).all(cutoff, cutoff);
+  const reaped = [];
+  for (const s of candidates) {
+    updateSession(db, s.sid, { status: 'orphan' });
+    reaped.push(s.sid);
+  }
+  return { reaped, count: reaped.length };
+}
+
 // ─── exports ─────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -399,4 +463,8 @@ module.exports = {
   updateSession,
   listActiveSessions,
   listStaleTasks,
+  readSession,
+  heartbeatSession,
+  admissionCheck,
+  reapOrphanSessions,
 };

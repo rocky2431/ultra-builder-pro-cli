@@ -1,6 +1,6 @@
 'use strict';
 
-// MCP server (stdio JSON-RPC) exposing the seven task.* tools backed by
+// MCP server (stdio JSON-RPC) exposing task.* + session.* tools backed by
 // .ultra/state.db. Uses the low-level Server API from
 // @modelcontextprotocol/sdk so we can pass raw JSON Schema (Draft 2020-12)
 // straight from spec/mcp-tools.yaml without translating to zod.
@@ -35,13 +35,28 @@ const TASK_TOOLS = Object.freeze([
   'task.subscribe_events',
 ]);
 
+const SESSION_TOOLS = Object.freeze([
+  'session.spawn',
+  'session.close',
+  'session.get',
+  'session.list',
+  'session.admission_check',
+  'session.heartbeat',
+  'session.subscribe_events',
+]);
+
+const REGISTERED_TOOLS = Object.freeze([...TASK_TOOLS, ...SESSION_TOOLS]);
+
 // init_project mutates the filesystem of an unrelated project, not state.db —
 // do NOT run the projector (it would overwrite the freshly-copied template).
-const MUTATING_TOOLS = new Set(['task.create', 'task.update', 'task.delete', 'task.append_event']);
+const MUTATING_TOOLS = new Set([
+  'task.create', 'task.update', 'task.delete', 'task.append_event',
+  'session.spawn', 'session.close', 'session.heartbeat',
+]);
 
-function loadTaskTools() {
+function loadRegisteredTools() {
   const manifest = yaml.load(fs.readFileSync(TOOLS_FILE, 'utf8'));
-  return manifest.tools.filter((t) => TASK_TOOLS.includes(t.name));
+  return manifest.tools.filter((t) => REGISTERED_TOOLS.includes(t.name));
 }
 
 function buildAjv() {
@@ -50,7 +65,12 @@ function buildAjv() {
   return ajv;
 }
 
-function dispatchTool(name, input, db) {
+function mintSessionId() {
+  const { randomUUID } = require('node:crypto');
+  return `sess-${randomUUID().slice(0, 8)}`;
+}
+
+function dispatchTool(name, input, db, ctx = {}) {
   switch (name) {
     case 'task.create': {
       const { randomUUID } = require('node:crypto');
@@ -94,6 +114,76 @@ function dispatchTool(name, input, db) {
     case 'task.subscribe_events': {
       return ops.subscribeEventsSince(db, input || {});
     }
+    case 'session.spawn': {
+      // admission + takeover logic; actual git worktree + child process is
+      // delegated to orchestrator/session-runner (Phase 4.5.1). This tool
+      // records intent in state.db and returns the paths the runner should use.
+      const rootDir = ctx.rootDir || process.cwd();
+      const verdict = ops.admissionCheck(db, input.task_id);
+      if (!verdict.can_spawn && !input.takeover) {
+        const err = new Error(`active session exists for task ${input.task_id}; pass takeover=true or choose resume/abandon`);
+        err.code = 'ADMISSION_DENIED';
+        throw err;
+      }
+      if (!verdict.can_spawn && input.takeover && verdict.conflict) {
+        ops.updateSession(db, verdict.conflict.sid, { status: 'crashed' });
+      }
+      const sid = mintSessionId();
+      const worktreeBase = input.worktree_base || path.join(rootDir, '.ultra', 'worktrees');
+      const worktree_path = path.join(worktreeBase, sid);
+      const artifact_dir = path.join(rootDir, '.ultra', 'sessions', sid);
+      const session = ops.createSession(db, {
+        sid,
+        task_id: input.task_id,
+        runtime: input.runtime,
+        worktree_path,
+        artifact_dir,
+      });
+      return {
+        sid,
+        worktree_path,
+        artifact_dir,
+        lease_expires_at: session.lease_expires_at,
+      };
+    }
+    case 'session.close': {
+      ops.updateSession(db, input.sid, { status: input.status });
+      return { ok: true };
+    }
+    case 'session.get': {
+      const session = ops.readSession(db, input.sid);
+      if (!session) {
+        const err = new Error(`session ${input.sid} not found`);
+        err.code = 'SESSION_NOT_FOUND';
+        throw err;
+      }
+      return { session };
+    }
+    case 'session.admission_check': {
+      return ops.admissionCheck(db, input.task_id);
+    }
+    case 'session.list': {
+      const sessions = ops.listActiveSessions(db, { task_id: input.task_id });
+      const status = input.status || 'running';
+      const filtered = status === 'running'
+        ? sessions
+        : db.prepare(
+            "SELECT * FROM sessions WHERE status = ? AND (? IS NULL OR task_id = ?) ORDER BY started_at ASC LIMIT ?",
+          ).all(status, input.task_id || null, input.task_id || null, Math.min(input.limit || 100, 500));
+      const limit = Math.min(input.limit || 100, 500);
+      const trimmed = filtered.slice(0, limit);
+      return { sessions: trimmed, count: trimmed.length };
+    }
+    case 'session.heartbeat': {
+      return ops.heartbeatSession(db, input.sid);
+    }
+    case 'session.subscribe_events': {
+      return ops.subscribeEventsSince(db, {
+        since_id: input.since_id,
+        task_id: input.sid ? undefined : undefined, // sid filter applied below
+        limit: input.limit,
+      });
+    }
     default:
       throw new Error(`unhandled tool ${name}`);
   }
@@ -113,7 +203,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
   const init = initStateDb(dbPath);
   const db = init.db;
 
-  const tools = loadTaskTools();
+  const tools = loadRegisteredTools();
   const ajv = buildAjv();
   const inputValidators = new Map();
   const outputValidators = new Map();
@@ -137,7 +227,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args = {} } = request.params;
-    if (!TASK_TOOLS.includes(name)) {
+    if (!REGISTERED_TOOLS.includes(name)) {
       return errorResponse('UNKNOWN_TOOL', `tool ${name} is not registered on this server`);
     }
     const validateInput = inputValidators.get(name);
@@ -147,7 +237,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
 
     let result;
     try {
-      result = dispatchTool(name, args, db);
+      result = dispatchTool(name, args, db, { rootDir });
     } catch (err) {
       const code = err.code || (err instanceof ops.StateOpsError ? err.code : 'STATE_DB_ERROR');
       return errorResponse(code, err.message, !!err.retriable);
@@ -199,4 +289,11 @@ if (require.main === module) {
   });
 }
 
-module.exports = { startServer, dispatchTool, TASK_TOOLS, MUTATING_TOOLS };
+module.exports = {
+  startServer,
+  dispatchTool,
+  TASK_TOOLS,
+  SESSION_TOOLS,
+  REGISTERED_TOOLS,
+  MUTATING_TOOLS,
+};
