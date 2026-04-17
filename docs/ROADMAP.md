@@ -40,7 +40,7 @@ loop with isolated sessions sharing one authoritative state store.
 | 5     | Recovery + staleness + auto-routing            | ✅ done (D43) → v0.2 |
 | 6     | Monitoring + code-review-graph live watcher    | ✅ done (D44) → v0.2 |
 | 4.6b  | Full conformance suite                         | ✅ done (D45) — 20 conformance + 21 resolveTarget tests |
-| 7     | hindsight wrapper + tagged tasks + skill mining| pending → v0.3 |
+| 7     | hindsight wrapper + tagged tasks + skill mining| ✅ done (D46) → v0.3 |
 | 8A    | Plan automation (parse / topo / expand + artifact + human gate) | pending → v0.3 |
 | 8B    | Execution automation (dispatch / parallel worktree / merge) | pending → v0.3 |
 | 9     | Release pipeline (npm / Homebrew / pip)        | pending → v1.0 |

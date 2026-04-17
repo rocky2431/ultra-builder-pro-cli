@@ -143,8 +143,48 @@ CREATE TABLE IF NOT EXISTS circuit_breaker (
 CREATE INDEX IF NOT EXISTS circuit_breaker_tripped ON circuit_breaker(tripped_at)
   WHERE tripped_at IS NOT NULL;
 
+-- ──────────────────────────── memory_entries (Phase 7.1) ──────────────────
+-- Wrapper-style memory store. session.close auto-retains extracted facts
+-- and session.spawn auto-recalls relevant history into prefetch.md. The
+-- FTS5 virtual table backs memory.recall() queries.
+CREATE TABLE IF NOT EXISTS memory_entries (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id    TEXT,
+  session_id TEXT,
+  tag        TEXT,
+  kind       TEXT NOT NULL CHECK (kind IN ('fact', 'decision', 'error_fix', 'pattern', 'note')),
+  content    TEXT NOT NULL,
+  source     TEXT,
+  ts         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS memory_task    ON memory_entries(task_id);
+CREATE INDEX IF NOT EXISTS memory_session ON memory_entries(session_id);
+CREATE INDEX IF NOT EXISTS memory_tag     ON memory_entries(tag);
+CREATE INDEX IF NOT EXISTS memory_ts      ON memory_entries(ts);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+  content, kind,
+  content='memory_entries',
+  content_rowid='id'
+);
+
+-- Keep FTS5 in sync with memory_entries.
+CREATE TRIGGER IF NOT EXISTS memory_ai AFTER INSERT ON memory_entries BEGIN
+  INSERT INTO memory_fts(rowid, content, kind) VALUES (new.id, new.content, new.kind);
+END;
+CREATE TRIGGER IF NOT EXISTS memory_ad AFTER DELETE ON memory_entries BEGIN
+  INSERT INTO memory_fts(memory_fts, rowid, content, kind) VALUES('delete', old.id, old.content, old.kind);
+END;
+CREATE TRIGGER IF NOT EXISTS memory_au AFTER UPDATE ON memory_entries BEGIN
+  INSERT INTO memory_fts(memory_fts, rowid, content, kind) VALUES('delete', old.id, old.content, old.kind);
+  INSERT INTO memory_fts(rowid, content, kind) VALUES (new.id, new.content, new.kind);
+END;
+
 -- ──────────────────────────── seed: schema_version ────────────────────────
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('4.5', 'Phase 2 initial — tasks/events/sessions/schema_version/migration_history/telemetry/specs_refs');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('5.2', 'Phase 5.2 — circuit_breaker table for per-task trip tracking');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('7.1', 'Phase 7.1 — memory_entries + FTS5 wrapper memory store');

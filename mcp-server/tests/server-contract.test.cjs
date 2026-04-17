@@ -48,13 +48,16 @@ function expectError(result) {
   return JSON.parse(result.content[0].text).error;
 }
 
-test('listTools returns the registered task.* + session.* tools with input schemas', async () => {
+test('listTools returns the registered task.* + session.* + memory.* tools with input schemas', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
       assert.deepEqual(names, [
+        'memory.recall',
+        'memory.reflect',
+        'memory.retain',
         'session.admission_check',
         'session.close',
         'session.get',
@@ -69,6 +72,7 @@ test('listTools returns the registered task.* + session.* tools with input schem
         'task.init_project',
         'task.list',
         'task.subscribe_events',
+        'task.switch_tag',
         'task.update',
       ]);
       for (const t of list.tools) {
@@ -434,6 +438,49 @@ test('session.heartbeat refreshes lease; session.close marks completed', async (
         name: 'session.get', arguments: { sid: spawn.sid },
       }));
       assert.equal(got.session.status, 'completed');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+// Phase 7.1 — memory.* MCP round-trip: retain → recall → reflect all via MCP client
+test('memory.retain → memory.recall → memory.reflect round-trip via MCP', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      const r1 = readToolPayload(await client.callTool({
+        name: 'memory.retain',
+        arguments: { kind: 'decision', content: 'Chose PostgreSQL over MySQL for strict typing', tag: 'arch' },
+      }));
+      assert.ok(r1.id > 0);
+
+      const r2 = readToolPayload(await client.callTool({
+        name: 'memory.retain',
+        arguments: { kind: 'error_fix', content: 'Fixed auth race by locking session table', tag: 'auth' },
+      }));
+      assert.ok(r2.id > r1.id);
+
+      const recallOut = readToolPayload(await client.callTool({
+        name: 'memory.recall',
+        arguments: { query: 'PostgreSQL', limit: 3 },
+      }));
+      assert.ok(Array.isArray(recallOut.hits));
+      assert.ok(recallOut.hits.some((h) => /PostgreSQL/.test(h.content)));
+
+      const filtered = readToolPayload(await client.callTool({
+        name: 'memory.recall',
+        arguments: { query: 'auth', tag: 'auth' },
+      }));
+      assert.equal(filtered.hits.length, 1);
+
+      const reflected = readToolPayload(await client.callTool({
+        name: 'memory.reflect', arguments: {},
+      }));
+      assert.ok(reflected.counts);
+      assert.equal(reflected.counts.decision, 1);
+      assert.equal(reflected.counts.error_fix, 1);
+      assert.ok(Array.isArray(reflected.recent));
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

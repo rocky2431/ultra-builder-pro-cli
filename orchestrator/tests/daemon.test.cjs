@@ -205,6 +205,34 @@ test('runDaemon.stop() halts polling; existing children stay alive', async () =>
   }
 });
 
+test('runDaemon branchScoped=true only spawns tasks matching cwd branch tag', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    // Normalize to a known branch name so the test doesn't depend on
+    // the dev machine's git init.defaultBranch config.
+    execFileSync('git', ['checkout', '-q', '-B', 'main'], { cwd: repoRoot });
+    ops.createTask(db, { id: 'd-branch-match', title: 'main task', type: 'feature', priority: 'P1', tag: 'main' });
+    ops.createTask(db, { id: 'd-branch-other', title: 'other task', type: 'feature', priority: 'P1', tag: 'feat-other' });
+    handle = daemon.runDaemon({
+      db, repoRoot,
+      runtimes: ['claude'],
+      pollMs: 50,
+      command: LONG_SLEEP_CMD,
+      commandArgs: LONG_SLEEP_ARGS,
+      branchScoped: true,
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    const match = db.prepare("SELECT * FROM sessions WHERE task_id = 'd-branch-match'").all();
+    const other = db.prepare("SELECT * FROM sessions WHERE task_id = 'd-branch-other'").all();
+    assert.equal(match.length, 1, 'current-branch task must spawn');
+    assert.equal(other.length, 0, 'other-branch task must stay pending');
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
 test('runDaemon applies complexity_hint route', async () => {
   const repoRoot = mkRepo();
   const db = mkDb(repoRoot);

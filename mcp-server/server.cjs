@@ -20,6 +20,7 @@ const { initStateDb, closeStateDb } = require('./lib/state-db.cjs');
 const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
 const telemetry = require('./lib/telemetry.cjs');
+const memory = require('./lib/memory-store.cjs');
 const { initProject } = require('./lib/init-project.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -34,6 +35,7 @@ const TASK_TOOLS = Object.freeze([
   'task.init_project',
   'task.append_event',
   'task.subscribe_events',
+  'task.switch_tag',
 ]);
 
 const SESSION_TOOLS = Object.freeze([
@@ -46,13 +48,20 @@ const SESSION_TOOLS = Object.freeze([
   'session.subscribe_events',
 ]);
 
-const REGISTERED_TOOLS = Object.freeze([...TASK_TOOLS, ...SESSION_TOOLS]);
+const MEMORY_TOOLS = Object.freeze([
+  'memory.retain',
+  'memory.recall',
+  'memory.reflect',
+]);
+
+const REGISTERED_TOOLS = Object.freeze([...TASK_TOOLS, ...SESSION_TOOLS, ...MEMORY_TOOLS]);
 
 // init_project mutates the filesystem of an unrelated project, not state.db —
 // do NOT run the projector (it would overwrite the freshly-copied template).
 const MUTATING_TOOLS = new Set([
-  'task.create', 'task.update', 'task.delete', 'task.append_event',
+  'task.create', 'task.update', 'task.delete', 'task.append_event', 'task.switch_tag',
   'session.spawn', 'session.close', 'session.heartbeat',
+  // memory writes do not change tasks.json projection — skip projector.
 ]);
 
 function loadRegisteredTools() {
@@ -184,6 +193,20 @@ function dispatchTool(name, input, db, ctx = {}) {
         task_id: input.sid ? undefined : undefined, // sid filter applied below
         limit: input.limit,
       });
+    }
+    case 'task.switch_tag': {
+      return ops.switchTaskTag(db, input.id, input.tag);
+    }
+    case 'memory.retain': {
+      const out = memory.retain(db, input);
+      return { id: out.id, ts: out.ts };
+    }
+    case 'memory.recall': {
+      const hits = memory.recall(db, input || {});
+      return { hits };
+    }
+    case 'memory.reflect': {
+      return memory.reflect(db, input || {});
     }
     default:
       throw new Error(`unhandled tool ${name}`);

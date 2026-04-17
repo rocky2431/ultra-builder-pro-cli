@@ -41,6 +41,7 @@ function runDaemon({
   command = null,
   commandArgs = [],
   onError = null,
+  branchScoped = false,
 } = {}) {
   if (!db) throw new Error('runDaemon: db required');
   if (!repoRoot) throw new Error('runDaemon: repoRoot required');
@@ -55,7 +56,12 @@ function runDaemon({
     if (stopped) return;
     let pending;
     try {
-      pending = ops.listTasks(db, { status: 'pending' });
+      const filter = { status: 'pending' };
+      if (branchScoped) {
+        const tag = ops.deriveBranchTag(repoRoot);
+        if (tag) filter.tag = tag;
+      }
+      pending = ops.listTasks(db, filter);
     } catch (err) {
       if (onError) onError(err); else throw err;
       return;

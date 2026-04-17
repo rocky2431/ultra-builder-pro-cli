@@ -152,6 +152,33 @@ tools:
     emits_events: []
     trace_to: '§7.3'
 
+  - name: task.switch_tag
+    family: task
+    description: Change a task's tag (branch-scoped context partition, Phase 7.2). Emits task_tag_changed.
+    phase: '7.2'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, tag]
+      additionalProperties: false
+      properties:
+        id:  { type: string }
+        tag: { type: ['string', 'null'] }
+    output_schema:
+      type: object
+      required: [task_id, tag]
+      additionalProperties: false
+      properties:
+        task_id: { type: string }
+        tag:     { type: ['string', 'null'] }
+        from:    { type: ['string', 'null'] }
+    errors:
+      - { code: TASK_NOT_FOUND, description: 'no task with given id' }
+      - { code: VALIDATION_ERROR, description: 'task_id missing' }
+    cli_subcommand: task switch-tag
+    emits_events: [task_tag_changed]
+    trace_to: '§6, D26'
+
   - name: task.delete
     family: task
     description: Hard-delete a task. Refuses if any in_progress session is bound.
@@ -394,81 +421,9 @@ tools:
     trace_to: '§7.2, D31'
 
   # ────────────────────────── memory family ───────────────────────────────
-  - name: memory.retain
-    family: memory
-    description: Persist a memory record into the cross-session store (hindsight wrapper).
-    phase: '7'
-    writer_role: mcp
-    input_schema:
-      type: object
-      required: [scope, content]
-      additionalProperties: false
-      properties:
-        scope:   { type: string, enum: [user, project, feedback, reference] }
-        content: { type: string, minLength: 1 }
-        tags:    { type: array, items: { type: string } }
-        ttl_days: { type: integer, minimum: 1 }
-    output_schema:
-      type: object
-      required: [memory_id]
-      additionalProperties: false
-      properties:
-        memory_id: { type: string }
-    errors:
-      - { code: STORE_UNAVAILABLE, description: 'memory backend not reachable', retriable: true }
-    cli_subcommand: memory retain
-    emits_events: []
-    trace_to: '§7.3, D25'
-
-  - name: memory.recall
-    family: memory
-    description: Semantic + tag retrieval against the memory store.
-    phase: '7'
-    readonly: true
-    input_schema:
-      type: object
-      required: [query]
-      additionalProperties: false
-      properties:
-        query: { type: string, minLength: 1 }
-        scope: { type: string, enum: [user, project, feedback, reference, any] }
-        k:     { type: integer, minimum: 1, maximum: 50, default: 5 }
-        tags:  { type: array, items: { type: string } }
-    output_schema:
-      type: object
-      required: [hits]
-      additionalProperties: false
-      properties:
-        hits: { type: array, items: { type: object } }
-    errors:
-      - { code: STORE_UNAVAILABLE, description: 'memory backend not reachable', retriable: true }
-    cli_subcommand: memory recall
-    emits_events: []
-    trace_to: '§7.3, D25'
-
-  - name: memory.reflect
-    family: memory
-    description: Summarize recent session into recall-ready notes (auto on session close).
-    phase: '7'
-    writer_role: mcp
-    input_schema:
-      type: object
-      additionalProperties: false
-      properties:
-        window_minutes: { type: integer, minimum: 1, maximum: 1440, default: 60 }
-        session_id:     { type: string }
-    output_schema:
-      type: object
-      required: [summary, suggested_actions]
-      additionalProperties: false
-      properties:
-        summary:           { type: string }
-        suggested_actions: { type: array, items: { type: object } }
-    errors:
-      - { code: NO_DATA, description: 'no events in window' }
-    cli_subcommand: memory reflect
-    emits_events: []
-    trace_to: '§7.3, D25'
+  # Definitions live later in this file (after plan.*) — they were promoted to
+  # Phase 7.1 implementation-backed schemas (kind enum, FTS5 query, no-LLM
+  # reflect). Placeholder kept here for section grouping only.
 
   # ────────────────────────── review family ───────────────────────────────
   - name: review.run
@@ -957,3 +912,103 @@ tools:
     cli_subcommand: plan get
     emits_events: []
     trace_to: '§7.3, D34'
+
+  - name: memory.retain
+    family: memory
+    description: Store a structured fact/decision/error_fix/pattern/note into the wrapper memory store (Phase 7.1).
+    phase: '7.1'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [kind, content]
+      additionalProperties: false
+      properties:
+        kind:       { type: string, enum: [fact, decision, error_fix, pattern, note] }
+        content:    { type: string, minLength: 1 }
+        task_id:    { type: string }
+        session_id: { type: string }
+        tag:        { type: string }
+        source:     { type: string }
+    output_schema:
+      type: object
+      required: [id, ts]
+      additionalProperties: false
+      properties:
+        id: { type: integer, minimum: 1 }
+        ts: { type: string, format: date-time }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'required field missing or kind invalid' }
+    cli_subcommand: memory retain
+    emits_events: []
+    trace_to: '§6, D25'
+
+  - name: memory.recall
+    family: memory
+    description: FTS5 keyword search over retained memory; optional task_id/tag/session_id filters. Empty query returns most-recent entries.
+    phase: '7.1'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        query:      { type: string }
+        task_id:    { type: string }
+        session_id: { type: string }
+        tag:        { type: string }
+        limit:      { type: integer, minimum: 1, maximum: 100, default: 5 }
+    output_schema:
+      type: object
+      required: [hits]
+      additionalProperties: false
+      properties:
+        hits:
+          type: array
+          items:
+            type: object
+            required: [id, kind, content, ts]
+            additionalProperties: true
+            properties:
+              id:      { type: integer }
+              kind:    { type: string }
+              content: { type: string }
+              ts:      { type: string, format: date-time }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'limit out of range' }
+    cli_subcommand: memory recall
+    emits_events: []
+    trace_to: '§6, D25'
+
+  - name: memory.reflect
+    family: memory
+    description: Return per-kind counts and recent entries for a tag or time window (read-only, no LLM summarization).
+    phase: '7.1'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        tag:   { type: string }
+        since: { type: string, format: date-time }
+        limit: { type: integer, minimum: 1, maximum: 500, default: 20 }
+    output_schema:
+      type: object
+      required: [counts, recent]
+      additionalProperties: false
+      properties:
+        counts: { type: object, additionalProperties: { type: integer } }
+        recent:
+          type: array
+          items:
+            type: object
+            required: [id, kind, content, ts]
+            additionalProperties: true
+            properties:
+              id:      { type: integer }
+              kind:    { type: string }
+              content: { type: string }
+              ts:      { type: string, format: date-time }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'since must be ISO-8601 if set' }
+    cli_subcommand: memory reflect
+    emits_events: []
+    trace_to: '§6, D25'

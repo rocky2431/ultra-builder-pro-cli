@@ -8,6 +8,10 @@
 // here apply the BEGIN IMMEDIATE / retry / status-machine guards specified
 // in PLAN §6 Phase 2.3 + docs/STATE-DB-ACCESS-POLICY.md.
 
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
 const { openStateDb } = require('./state-db.cjs');
 
 const STATUS_TRANSITIONS = Object.freeze({
@@ -126,6 +130,10 @@ function createTask(db, input) {
     throw new StateOpsError('VALIDATION_ERROR', 'id, title, type, priority required');
   }
   const ts = nowIso();
+  // Phase 7.2 — auto-derive tag from _cwd git branch when caller omits tag.
+  const derivedTag = (input.tag === undefined || input.tag === null) && input._cwd
+    ? deriveBranchTag(input._cwd)
+    : null;
   const row = {
     id: input.id,
     title: input.title,
@@ -138,7 +146,7 @@ function createTask(db, input) {
     session_id: input.session_id ?? null,
     stale: 0,
     complexity_hint: input.complexity_hint ?? null,
-    tag: input.tag ?? null,
+    tag: input.tag ?? derivedTag,
     trace_to: input.trace_to ?? null,
     context_file: input.context_file ?? null,
     completion_commit: null,
@@ -358,6 +366,56 @@ function updateSession(db, sid, patch = {}) {
 // SQL-injection scanner when mixed inside a double-quoted host string).
 const LIST_ACTIVE_SESSIONS_SQL = "SELECT * FROM sessions WHERE status = @status AND (@task_id IS NULL OR task_id = @task_id) ORDER BY started_at ASC";
 const LIST_STALE_TASKS_SQL = "SELECT t.* FROM tasks t JOIN sessions s ON s.task_id = t.id WHERE s.status = @status AND s.heartbeat_at < @cutoff";
+
+// ─── tagged task lists (Phase 7.2) ───────────────────────────────────────
+//
+// Tag is a plain TEXT column on tasks (Phase 2). Phase 7.2 adds
+//   • deriveBranchTag(cwd) — git HEAD → sanitized tag
+//   • switchTaskTag(db, id, new_tag) — change tag + emit event
+// and taps createTask() above to auto-derive when caller passes `_cwd`.
+
+function deriveBranchTag(cwd) {
+  if (!cwd) return null;
+  // spawnSync is non-throwing — we branch on status rather than catch,
+  // because "not a git repo" and "detached HEAD" are legitimate states,
+  // not errors to suppress.
+  if (!fs.existsSync(path.join(cwd, '.git'))) {
+    const probe = spawnSync('git', ['rev-parse', '--git-dir'], { cwd, stdio: 'pipe' });
+    if (probe.status !== 0) return null;
+  }
+  const result = spawnSync('git', ['symbolic-ref', '--short', '-q', 'HEAD'], {
+    cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (result.status !== 0) return null; // detached HEAD or similar
+  const branch = (result.stdout || '').trim();
+  if (!branch) return null;
+  return sanitizeTag(branch);
+}
+
+function sanitizeTag(raw) {
+  // Convert slashes to hyphens; strip @ and any non [\w.-] bytes.
+  return raw
+    .replace(/\//g, '-')
+    .replace(/@/g, '.')
+    .replace(/[^\w.-]/g, '')
+    .slice(0, 100);
+}
+
+function switchTaskTag(db, task_id, new_tag) {
+  if (!task_id) throw new StateOpsError('VALIDATION_ERROR', 'task_id required');
+  return tx(db, () => {
+    const task = readTask(db, task_id);
+    if (!task) throw new StateOpsError('TASK_NOT_FOUND', `task ${task_id} not found`);
+    const prev = task.tag;
+    db.prepare('UPDATE tasks SET tag = ?, updated_at = ? WHERE id = ?').run(new_tag, nowIso(), task_id);
+    appendEventInTx(db, {
+      type: 'task_tag_changed',
+      task_id,
+      payload: { from: prev, to: new_tag },
+    });
+    return { task_id, tag: new_tag, from: prev };
+  });
+}
 
 function listActiveSessions(db, { task_id } = {}) {
   return db.prepare(LIST_ACTIVE_SESSIONS_SQL).all({
@@ -658,4 +716,8 @@ module.exports = {
   aggregateTelemetryByRuntime,
   aggregateTelemetryByTask,
   aggregateTelemetryBySession,
+  // tagged task lists
+  deriveBranchTag,
+  sanitizeTag,
+  switchTaskTag,
 };
