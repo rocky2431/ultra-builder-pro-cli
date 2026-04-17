@@ -91,3 +91,19 @@ test('install is idempotent + uninstall strips only managed block', () => {
     fs.rmSync(target, { recursive: true, force: true });
   }
 });
+
+// P2 #4 / D45: TOML basic-string escape must cover newline + control chars,
+// otherwise paths containing those bytes produce invalid TOML that Codex
+// rejects on startup.
+test('tomlEscape covers newline / tab / control / quote / backslash', () => {
+  const { _internal } = codex;
+  // Build a tiny artificial fragment so we can inspect the escape result.
+  // The real buildMcpBlock also wraps in markers, but here we want the
+  // isolated tomlEscape output. Re-export via _internal if you add a helper.
+  const fragment = _internal.buildMcpBlock('/repo', '/weird\ndir\twith\x01ctl"end');
+  assert.match(fragment, /\\n/, 'newline must escape to \\\\n');
+  assert.match(fragment, /\\t/, 'tab must escape to \\\\t');
+  assert.match(fragment, /\\u0001/, 'control byte must escape to \\\\u0001');
+  assert.match(fragment, /\\"/, 'double quote must escape to \\\\"');
+  assert.ok(!fragment.includes('\n/weird'), 'raw newline must not appear inside quoted values');
+});

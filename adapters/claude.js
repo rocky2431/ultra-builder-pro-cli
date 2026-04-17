@@ -12,7 +12,8 @@
  *   skills/**      → <target>/skills/
  *   hooks/*.py     → <target>/hooks/
  *   mcp-server/    → registered via settings.json mcpServers
- *   settings.json  → merged (hooks + mcpServers under _source='ubp' tag
+ *   settings.json  → merged (hooks tagged with _source='ubp'; mcpServers entry
+ *                     carries sibling `_ubp: { source: 'ubp' }` block outside env
  *                    tracked by _ubp_manifest sentinel)
  *
  * Install is idempotent: re-running install produces byte-equal output.
@@ -115,8 +116,11 @@ function buildMcpServerEntry(repoRoot, target) {
     env: {
       UBP_DB_PATH: path.join(target, 'state.db'),
       UBP_ROOT_DIR: target,
-      _source: SOURCE_TAG,
     },
+    // Sibling identification block — lives outside env so it never leaks
+    // into the child process environment. Used by uninstall to distinguish
+    // our mcpServers entry from user-authored ones (P2 #9, D45).
+    _ubp: { source: SOURCE_TAG },
   };
 }
 
@@ -150,7 +154,9 @@ function install(ctx) {
 
   // 4. Merge settings.json
   const settingsFile = path.join(target, 'settings.json');
-  const existing = readJsonSafe(settingsFile);
+  // rescue=true: if the user's settings.json is syntactically broken, back
+  // it up and proceed with an empty object so install can still finish.
+  const existing = readJsonSafe(settingsFile, { rescue: true });
   const template = loadTemplateSettings(repoRoot) || {};
   const taggedHooks = tagHookEntries(template.hooks);
   const mergedHooks = mergeHooks(existing.hooks, taggedHooks);
@@ -163,9 +169,14 @@ function install(ctx) {
     hooks: mergedHooks,
     mcpServers,
   };
-  // Preserve user permissions / env; only merge from template when missing
+  // Preserve user permissions: only seed when absent (permissions structure
+  // is nested — we don't want to second-guess the user's allow/deny lists).
   if (!existing.permissions && template.permissions) next.permissions = template.permissions;
-  if (!existing.env && template.env) next.env = template.env;
+  // env: shallow key-wise merge so template defaults like MAX_THINKING_TOKENS
+  // land even when the user already set EDITOR or other unrelated keys. User
+  // keys still win per-key to preserve overrides.
+  const mergedEnv = { ...(template.env || {}), ...(existing.env || {}) };
+  if (Object.keys(mergedEnv).length > 0) next.env = mergedEnv;
 
   const withSentinel = withSentinelBlock(next, SENTINEL_KEY, {
     hook_events: Object.keys(taggedHooks),

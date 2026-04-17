@@ -22,7 +22,8 @@ test('gemini v0.1 smoke — extension packaging + manifest + mcp round-trip + un
 
     const manifest = JSON.parse(fs.readFileSync(path.join(extRoot, 'gemini-extension.json'), 'utf8'));
     assert.equal(manifest.name, gemini.EXTENSION_NAME);
-    assert.equal(manifest._source, gemini.SOURCE_TAG);
+    // D45: identification moved to sibling `_ubp` block (was _source)
+    assert.equal(manifest._ubp.source, gemini.SOURCE_TAG);
     assert.ok(manifest.mcpServers[gemini.MCP_SERVER_NAME]);
 
     const serverHome = mkTarget('gemini-server');

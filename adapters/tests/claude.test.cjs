@@ -54,7 +54,9 @@ test('install merges settings.json — user data preserved, ubp hooks tagged, mc
     assert.equal(merged.env.USER_VAR, '1');
     assert.ok(merged.mcpServers.my_existing_mcp);
     assert.ok(merged.mcpServers[claude.MCP_SERVER_NAME]);
-    assert.equal(merged.mcpServers[claude.MCP_SERVER_NAME].env._source, claude.SOURCE_TAG);
+    // P2 #9 / D45: identification lives in sibling `_ubp` block, NOT in env
+    assert.equal(merged.mcpServers[claude.MCP_SERVER_NAME]._ubp.source, claude.SOURCE_TAG);
+    assert.equal(merged.mcpServers[claude.MCP_SERVER_NAME].env._source, undefined, 'env must not leak _source');
 
     // user's PostToolUse hook preserved; ubp hooks added
     const postToolUse = merged.hooks.PostToolUse;

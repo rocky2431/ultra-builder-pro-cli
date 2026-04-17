@@ -55,8 +55,25 @@ function resolveRepoRoot(ctx) {
   return ctx.repoRoot || path.resolve(__dirname, '..');
 }
 
+// Codex spawns MCP servers via `spawn(argv)` per the MCP spec — argv is
+// passed directly to execve, there is no shell interpolation layer. The
+// `_source` tag in our env block is data, not a command, so it cannot be
+// re-parsed as a shell fragment. (P2 #5 — no code change needed; left as
+// a tripwire comment in case a future contributor worries.)
 function tomlEscape(str) {
-  return String(str).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  // TOML basic-string escape sequences (§https://toml.io/en/v1.0.0#string).
+  // Missing escapes silently break the TOML parse when a path contains
+  // newlines or control characters — P2 #4 from Phase 4 code review.
+  return String(str)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\x08/g, '\\b')   // eslint-disable-line no-control-regex
+    .replace(/\t/g, '\\t')
+    .replace(/\n/g, '\\n')
+    .replace(/\f/g, '\\f')
+    .replace(/\r/g, '\\r')
+    // Any remaining C0 control char (0x00–0x1F) rendered as \uXXXX per TOML.
+    .replace(/[\u0000-\u001f]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 }
 
 function buildMcpBlock(repoRoot, target) {
@@ -69,7 +86,9 @@ function buildMcpBlock(repoRoot, target) {
     '[mcp_servers.' + MCP_SERVER_NAME + '.env]',
     `UBP_DB_PATH = "${tomlEscape(path.join(target, 'state.db'))}"`,
     `UBP_ROOT_DIR = "${tomlEscape(target)}"`,
-    `_source = "${SOURCE_TAG}"`,
+    // `_source` moved out of env — for Codex the MARKER_BEGIN / MARKER_END
+    // fence is itself the identification predicate; no sibling field needed
+    // because Codex config.toml has no nested object shape like JSON runtimes.
     MARKER_END,
     '',
   ];
@@ -165,5 +184,8 @@ module.exports = {
   resolveTarget,
   install,
   uninstall,
+  // Test-only surface. Other adapters don't export internals because their
+  // install shape is JSON-diff-testable end-to-end; codex's TOML block uses
+  // marker-based string surgery so unit tests need the internal helpers.
   _internal: { stripManagedBlock, hasManagedBlock, buildMcpBlock },
 };

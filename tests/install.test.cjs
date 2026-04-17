@@ -111,3 +111,8 @@ test('install.js — argument parsing errors fail with exit 1', () => {
   assert.equal(unknownFlag.status, 1);
   assert.match(unknownFlag.stderr, /unknown flag/);
 });
+
+// P3 #13 / D45: --config-dir NUL-byte rejection — unit-tested via
+// `adapters/_shared/tests/validate.test.cjs`. Can't integration-test from
+// here because Node child_process.spawnSync refuses NUL bytes in argv
+// before our code sees them.

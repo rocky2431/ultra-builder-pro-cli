@@ -112,7 +112,14 @@ Consequences:
 - OpenCode: [Commands](https://opencode.ai/docs/commands/), [Agents](https://opencode.ai/docs/agents/), [Config](https://opencode.ai/docs/config/)
 - Codex: [Config Reference](https://developers.openai.com/codex/config-reference), [Skills](https://developers.openai.com/codex/skills), spike R11 pending
 - Gemini: [Custom Commands](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/custom-commands.md), [Extensions](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/reference.md), spike R13 pending
-- PLAN §5 + §14 decisions D23 (matrix requirement) / D35 (a/b split) / R10–R14 (runtime risk register)
+- PLAN §5 + §14 decisions D23 (matrix requirement) / D35 (a/b split) / D45 (4.6b conformance + P2/P3 clearance) / R10–R14 (runtime risk register)
+
+## Verified by
+
+- `tests/conformance/{claude,opencode,codex,gemini}/conformance.test.cjs` — 4×5 = 20 capability tests (Phase 4.6b / D45)
+- `tests/conformance/{claude,opencode,codex,gemini}/smoke.test.cjs` — 4×2 = 8 smoke flows (Phase 4.6a / D41)
+- `adapters/_shared/tests/resolve-target.test.cjs` — 21 resolveTarget contract tests (D45)
+- Last run: 2026-04-17 — 28 conformance + 21 resolveTarget, 0 failed
 
 ## Update protocol
 

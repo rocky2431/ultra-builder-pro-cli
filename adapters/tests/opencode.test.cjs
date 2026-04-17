@@ -51,7 +51,9 @@ test('install writes opencode.json with mcp entry and sentinel', () => {
     const config = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
     assert.ok(config.mcp);
     assert.ok(config.mcp[opencode.MCP_SERVER_NAME]);
-    assert.equal(config.mcp[opencode.MCP_SERVER_NAME].env._source, opencode.SOURCE_TAG);
+    // P2 #9 / D45: identification moved out of env to sibling `_ubp` block
+    assert.equal(config.mcp[opencode.MCP_SERVER_NAME]._ubp.source, opencode.SOURCE_TAG);
+    assert.equal(config.mcp[opencode.MCP_SERVER_NAME].env._source, undefined, 'env must not leak _source');
     assert.equal(config[opencode.SENTINEL_KEY].__sentinel, 1);
     assert.deepEqual(config[opencode.SENTINEL_KEY].reachable_events, ['session.start', 'event']);
   } finally {

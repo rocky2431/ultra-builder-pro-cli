@@ -7,12 +7,25 @@
 
 const SENTINEL_VERSION = 1;
 
-function readJsonSafe(filepath, { fs = require('node:fs') } = {}) {
+function readJsonSafe(filepath, { fs = require('node:fs'), rescue = false } = {}) {
   if (!fs.existsSync(filepath)) return {};
   const raw = fs.readFileSync(filepath, 'utf8').trim();
   if (!raw) return {};
   try { return JSON.parse(raw); }
-  catch (err) { throw new Error(`settings-merge: cannot parse ${filepath}: ${err.message}`); }
+  catch (err) {
+    // rescue mode: back up the corrupt file and treat as empty so install
+    // can proceed instead of exploding mid-setup (P2 #7 from Phase 4 review).
+    // Callers that need strict semantics leave rescue=false (default).
+    if (rescue) {
+      const backup = `${filepath}.bak-${Date.now()}`;
+      try {
+        fs.copyFileSync(filepath, backup);
+        process.stderr.write(`settings-merge: corrupt ${filepath}; backed up to ${backup}, continuing with empty object\n`);
+      } catch (_backupErr) { /* best-effort */ }
+      return {};
+    }
+    throw new Error(`settings-merge: cannot parse ${filepath}: ${err.message}`);
+  }
 }
 
 function withSentinelBlock(existing, sentinelKey, block) {

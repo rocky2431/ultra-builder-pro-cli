@@ -6,6 +6,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const DEFAULT_EXCLUDES = new Set(['.DS_Store', 'Thumbs.db']);
 
@@ -15,7 +16,9 @@ function ensureDir(dir) {
 
 function writeAtomic(file, content) {
   ensureDir(path.dirname(file));
-  const tmp = `${file}.tmp-${process.pid}-${Date.now()}`;
+  // randomUUID defeats predictable tmp-name attacks and PID+ms collisions
+  // when two writers hit the same path inside one millisecond.
+  const tmp = `${file}.tmp-${crypto.randomUUID()}`;
   fs.writeFileSync(tmp, content);
   fs.renameSync(tmp, file);
 }

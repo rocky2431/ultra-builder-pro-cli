@@ -67,6 +67,15 @@ test('mergeArrayField dedupes; readJsonSafe handles missing/empty/malformed', ()
     // malformed → throws
     fs.writeFileSync(p, '{not json');
     assert.throws(() => readJsonSafe(p), /cannot parse/);
+
+    // P2 #7 / D45: rescue mode backs up corrupt file and returns {} instead
+    // of throwing — lets `install` finish even if the user's settings.json
+    // is syntactically broken.
+    fs.writeFileSync(p, '{still not json');
+    const rescued = readJsonSafe(p, { rescue: true });
+    assert.deepEqual(rescued, {});
+    const backups = fs.readdirSync(tmp).filter((f) => f.startsWith('existing.json.bak-'));
+    assert.ok(backups.length > 0, `expected a .bak-* file in ${tmp}, saw ${fs.readdirSync(tmp).join(',')}`);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

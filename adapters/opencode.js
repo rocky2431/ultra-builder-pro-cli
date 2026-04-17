@@ -77,8 +77,10 @@ function buildMcpEntry(repoRoot, target) {
     env: {
       UBP_DB_PATH: path.join(target, 'state.db'),
       UBP_ROOT_DIR: target,
-      _source: SOURCE_TAG,
     },
+    // Sibling identification block — sits outside env so it cannot leak
+    // into the spawned server's process environment (P2 #9).
+    _ubp: { source: SOURCE_TAG },
   };
 }
 
@@ -116,7 +118,7 @@ function install(ctx) {
 
   // 4. opencode.json — merge mcp entry + sentinel
   const configFile = path.join(target, 'opencode.json');
-  const existing = readJsonSafe(configFile);
+  const existing = readJsonSafe(configFile, { rescue: true });
   const mcp = { ...(existing.mcp || {}) };
   mcp[MCP_SERVER_NAME] = buildMcpEntry(repoRoot, target);
   const next = { ...existing, mcp };

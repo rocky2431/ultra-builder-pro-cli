@@ -28,6 +28,7 @@ const path = require('node:path');
 const os = require('node:os');
 
 const pkg = require('../package.json');
+const { validateConfigDir } = require('../adapters/_shared/validate.cjs');
 
 const SUPPORTED_RUNTIMES = ['claude', 'opencode', 'codex', 'gemini'];
 
@@ -130,10 +131,16 @@ function parseArgs(argv) {
         if (!flags.configDir || flags.configDir.startsWith('-')) {
           bail(`--config-dir requires a path argument`);
         }
+        {
+          const verdict = validateConfigDir(flags.configDir);
+          if (!verdict.ok) bail(verdict.error);
+        }
         break;
       default:
         if (a.startsWith('--config-dir=')) {
           flags.configDir = a.split('=')[1];
+          const verdict = validateConfigDir(flags.configDir);
+          if (!verdict.ok) bail(verdict.error);
         } else if (a.startsWith('-')) {
           bail(`unknown flag: ${a}`);
         } else {
