@@ -1,0 +1,63 @@
+'use strict';
+
+// Sentinel-block merge/remove for JSON settings files (D7).
+// Protects user-authored settings by confining our writes to a single
+// well-known key (the sentinel). Install writes/updates the sentinel value;
+// uninstall deletes it. Everything else in the JSON is left untouched.
+
+const SENTINEL_VERSION = 1;
+
+function readJsonSafe(filepath, { fs = require('node:fs') } = {}) {
+  if (!fs.existsSync(filepath)) return {};
+  const raw = fs.readFileSync(filepath, 'utf8').trim();
+  if (!raw) return {};
+  try { return JSON.parse(raw); }
+  catch (err) { throw new Error(`settings-merge: cannot parse ${filepath}: ${err.message}`); }
+}
+
+function withSentinelBlock(existing, sentinelKey, block) {
+  if (!sentinelKey || typeof sentinelKey !== 'string') {
+    throw new TypeError('withSentinelBlock: sentinelKey must be non-empty string');
+  }
+  const next = { ...existing };
+  next[sentinelKey] = {
+    __sentinel: SENTINEL_VERSION,
+    __generated_by: 'ultra-builder-pro-cli',
+    __generated_at: new Date().toISOString(),
+    ...block,
+  };
+  return next;
+}
+
+function removeSentinelBlock(existing, sentinelKey) {
+  if (!(sentinelKey in existing)) return existing;
+  const next = { ...existing };
+  delete next[sentinelKey];
+  return next;
+}
+
+function hasSentinelBlock(existing, sentinelKey) {
+  return Boolean(existing && existing[sentinelKey] && existing[sentinelKey].__sentinel);
+}
+
+function mergeArrayField(existing, key, items) {
+  const current = Array.isArray(existing[key]) ? existing[key] : [];
+  const seen = new Set(current.map((x) => JSON.stringify(x)));
+  const appended = [...current];
+  for (const item of items) {
+    const tag = JSON.stringify(item);
+    if (seen.has(tag)) continue;
+    appended.push(item);
+    seen.add(tag);
+  }
+  return { ...existing, [key]: appended };
+}
+
+module.exports = {
+  SENTINEL_VERSION,
+  readJsonSafe,
+  withSentinelBlock,
+  removeSentinelBlock,
+  hasSentinelBlock,
+  mergeArrayField,
+};

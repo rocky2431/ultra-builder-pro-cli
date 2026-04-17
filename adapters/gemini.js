@@ -1,44 +1,169 @@
 'use strict';
 
 /**
- * Gemini CLI adapter.
+ * Gemini CLI adapter — Phase 4.5 installer (extension-packaged).
  *
  * Target config dirs:
  *   global: $GEMINI_CONFIG_DIR → ~/.gemini
  *   local:  <cwd>/.gemini
  *
- * Transformations required (Phase 2):
- *   commands → ~/.gemini/commands/*.toml  (Gemini command format)
- *   agents   → subagent registrations (Gemini sub-agent protocol, TBD)
- *   skills   → bash-addressable scripts; Gemini has no native skill concept
- *   hooks    → NOT SUPPORTED by Gemini CLI as of 2026-04; we downgrade
- *              guard logic to prompt-injected self-checks (Phase 3)
+ * Layout — everything is packaged as a Gemini extension under
+ * <target>/extensions/ultra-builder-pro/:
  *
- * Claude-only tool downgrades (Phase 4):
- *   All routed through ultra-tools shim (task/ask/memory/skill/subagent).
- *   AskUserQuestion → text-mode numbered list is the canonical fallback.
+ *   gemini-extension.json  → extension manifest (mcpServers declared here)
+ *   commands/*.toml        → generated from commands/*.md via md-to-toml
+ *   skills/**              → copied verbatim (Gemini reads these as prompt includes)
+ *   GEMINI.md              → canonical agent context (docs/AGENT-CONTEXT.md copy)
+ *   hooks/                 → NOT installed; Gemini has no hook surface.
+ *                            prompt-guard downgrade is described inside GEMINI.md.
+ *
+ * Scope boundaries (documented):
+ *   - Gemini has no hook event loop; runtime-enforced guards degrade to
+ *     prompt-level guidance (hooks/adapters/gemini.py explains).
+ *   - Subagent registration requires the upstream spec to settle — Phase 4.5
+ *     spike captures whatever shape lands.
  */
 
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+
+const {
+  copyTree,
+  writeAtomic,
+  ensureDir,
+  removeTree,
+} = require('./_shared/file-ops.cjs');
+const { mdCommandToToml } = require('./_shared/md-to-toml.cjs');
+
+const EXTENSION_NAME = 'ultra-builder-pro';
+const MCP_SERVER_NAME = 'ultra-builder-pro';
+const SOURCE_TAG = 'ubp';
 
 function resolveTarget(ctx) {
   if (ctx.configDir) return ctx.configDir;
   if (ctx.scope === 'global') {
     return process.env.GEMINI_CONFIG_DIR || path.join(ctx.homeDir || os.homedir(), '.gemini');
   }
-  return path.join(process.cwd(), '.gemini');
+  return path.join(ctx.cwd || process.cwd(), '.gemini');
+}
+
+function resolveExtensionRoot(ctx) {
+  return path.join(resolveTarget(ctx), 'extensions', EXTENSION_NAME);
+}
+
+function resolveRepoRoot(ctx) {
+  return ctx.repoRoot || path.resolve(__dirname, '..');
+}
+
+function loadPkgVersion(repoRoot) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).version;
+  } catch (_err) {
+    return '0.0.0';
+  }
+}
+
+function buildManifest(repoRoot, extensionRoot) {
+  const serverPath = path.join(repoRoot, 'mcp-server', 'server.cjs');
+  return {
+    name: EXTENSION_NAME,
+    version: loadPkgVersion(repoRoot),
+    description: 'Ultra Builder Pro — skill/MCP/CLI agent engineering system (Gemini packaging).',
+    _source: SOURCE_TAG,
+    mcpServers: {
+      [MCP_SERVER_NAME]: {
+        command: process.execPath,
+        args: [serverPath],
+        env: {
+          UBP_DB_PATH: path.join(extensionRoot, 'state.db'),
+          UBP_ROOT_DIR: extensionRoot,
+          _source: SOURCE_TAG,
+        },
+      },
+    },
+    contextFileName: 'GEMINI.md',
+  };
+}
+
+function install(ctx) {
+  const extensionRoot = resolveExtensionRoot(ctx);
+  const repoRoot = resolveRepoRoot(ctx);
+  ensureDir(extensionRoot);
+
+  const report = { target: extensionRoot, copied: {}, config: { updated: false } };
+
+  // 1. Skills — copy verbatim
+  const skillsSrc = path.join(repoRoot, 'skills');
+  if (fs.existsSync(skillsSrc)) {
+    report.copied.skills = copyTree(skillsSrc, path.join(extensionRoot, 'skills'));
+  }
+
+  // 2. Commands — md → toml
+  const commandsSrc = path.join(repoRoot, 'commands');
+  if (fs.existsSync(commandsSrc)) {
+    const dstCommands = path.join(extensionRoot, 'commands');
+    ensureDir(dstCommands);
+    const tomlFiles = [];
+    for (const f of fs.readdirSync(commandsSrc)) {
+      if (!f.endsWith('.md')) continue;
+      const md = fs.readFileSync(path.join(commandsSrc, f), 'utf8');
+      const tomlName = f.replace(/\.md$/, '.toml');
+      writeAtomic(path.join(dstCommands, tomlName), mdCommandToToml(md));
+      tomlFiles.push(tomlName);
+    }
+    report.copied.commands = tomlFiles;
+  }
+
+  // 3. GEMINI.md — copy docs/AGENT-CONTEXT.md into the extension context file
+  const agentContext = path.join(repoRoot, 'docs', 'AGENT-CONTEXT.md');
+  if (fs.existsSync(agentContext)) {
+    const dst = path.join(extensionRoot, 'GEMINI.md');
+    fs.copyFileSync(agentContext, dst);
+    report.copied.context = 'GEMINI.md';
+  }
+
+  // 4. Manifest
+  const manifest = buildManifest(repoRoot, extensionRoot);
+  writeAtomic(
+    path.join(extensionRoot, 'gemini-extension.json'),
+    JSON.stringify(manifest, null, 2) + '\n',
+  );
+  report.config.updated = true;
+  return report;
+}
+
+function uninstall(ctx) {
+  const extensionRoot = resolveExtensionRoot(ctx);
+  const report = { target: extensionRoot, removed: {}, config: { updated: false } };
+  if (fs.existsSync(extensionRoot)) {
+    // Manifest carries _source tag — if tampered with, bail loud.
+    const manifestFile = path.join(extensionRoot, 'gemini-extension.json');
+    if (fs.existsSync(manifestFile)) {
+      try {
+        const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+        if (manifest._source !== SOURCE_TAG) {
+          throw new Error(`refusing to uninstall: ${manifestFile} was not generated by this adapter`);
+        }
+      } catch (err) {
+        if (err.message.startsWith('refusing')) throw err;
+        // malformed manifest: proceed — we still own the directory name
+      }
+    }
+    removeTree(extensionRoot);
+    report.removed.extension = true;
+    report.config.updated = true;
+  }
+  return report;
 }
 
 module.exports = {
   name: 'gemini',
+  EXTENSION_NAME,
+  MCP_SERVER_NAME,
+  SOURCE_TAG,
   resolveTarget,
-  install(ctx) {
-    const target = resolveTarget(ctx);
-    throw new Error(`gemini adapter install not implemented (target would be ${target}) — scheduled for Phase 2`);
-  },
-  uninstall(ctx) {
-    const target = resolveTarget(ctx);
-    throw new Error(`gemini adapter uninstall not implemented (target would be ${target}) — scheduled for Phase 2`);
-  },
+  resolveExtensionRoot,
+  install,
+  uninstall,
 };
