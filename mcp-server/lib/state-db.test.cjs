@@ -52,14 +52,15 @@ test('initStateDb is idempotent — second call does not duplicate seed rows', (
   const { dir, file } = tmpDbPath();
   try {
     const first = initStateDb(file);
+    const firstRows = first.db.prepare('SELECT COUNT(*) AS n FROM schema_version').get().n;
     closeStateDb(first.db);
 
     const second = initStateDb(file);
     assert.equal(second.created, false, 'second init should not recreate schema');
     assert.equal(second.schema_version, EXPECTED_VERSION);
 
-    const versionRows = second.db.prepare('SELECT COUNT(*) AS n FROM schema_version').get().n;
-    assert.equal(versionRows, 1, 'schema_version must remain a single row');
+    const secondRows = second.db.prepare('SELECT COUNT(*) AS n FROM schema_version').get().n;
+    assert.equal(secondRows, firstRows, 'schema_version row count must not grow on re-init');
     closeStateDb(second.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

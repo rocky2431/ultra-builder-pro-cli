@@ -243,6 +243,47 @@ test('concurrent spawns on same task: only one succeeds (admission serialization
   }
 });
 
+test('spawnSession refuses tripped task (CIRCUIT_TRIPPED, takeover cannot override)', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  try {
+    seedTask(db, 'r-cb');
+    for (let i = 0; i < 3; i += 1) ops.recordTaskFailure(db, 'r-cb', { reason: 'test' });
+    assert.equal(ops.isCircuitTripped(db, 'r-cb'), true);
+
+    const attempt = (takeover) => runner.spawnSession({
+      db, repoRoot,
+      task_id: 'r-cb', runtime: 'claude',
+      command: LONG_SLEEP_CMD, args: LONG_SLEEP_ARGS,
+      takeover,
+    });
+    assert.throws(() => attempt(false), (err) => err.code === 'CIRCUIT_TRIPPED');
+    assert.throws(() => attempt(true), (err) => err.code === 'CIRCUIT_TRIPPED');
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('spawnSession works again after resetCircuitBreaker', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  let handle;
+  try {
+    seedTask(db, 'r-cb-reset');
+    for (let i = 0; i < 3; i += 1) ops.recordTaskFailure(db, 'r-cb-reset', { reason: 'test' });
+    ops.resetCircuitBreaker(db, 'r-cb-reset');
+    handle = runner.spawnSession({
+      db, repoRoot,
+      task_id: 'r-cb-reset', runtime: 'claude',
+      command: LONG_SLEEP_CMD, args: LONG_SLEEP_ARGS,
+    });
+    assert.ok(handle.sid);
+  } finally {
+    if (handle && handle.pid) { try { process.kill(handle.pid, 'SIGKILL'); } catch (_) { /* ignore */ } }
+    cleanup(repoRoot, db);
+  }
+});
+
 test('two sessions on different tasks get independent worktrees', () => {
   const repoRoot = mkRepo();
   const { db } = mkDb(repoRoot);

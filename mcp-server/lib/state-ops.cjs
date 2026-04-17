@@ -401,6 +401,9 @@ function admissionCheck(db, task_id, { freshnessSeconds = 120 } = {}) {
   if (!readTask(db, task_id)) {
     throw new StateOpsError('TASK_NOT_FOUND', `task ${task_id} does not exist`);
   }
+  if (isCircuitTripped(db, task_id)) {
+    return { can_spawn: false, recommended_action: 'blocked_by_breaker' };
+  }
   const active = listActiveSessions(db, { task_id });
   if (active.length === 0) {
     return { can_spawn: true, recommended_action: 'spawn' };
@@ -438,6 +441,154 @@ function reapOrphanSessions(db, { graceSeconds = 300 } = {}) {
   return { reaped, count: reaped.length };
 }
 
+// ─── circuit breaker (Phase 5.2) ─────────────────────────────────────────
+//
+// Per-task failure accumulator. Each `recordTaskFailure` upserts the row and
+// emits `task_failure`; when the count crosses `fail_threshold` for the first
+// time, `tripped_at` is stamped and a single `task_circuit_broken` event
+// fires. Admission control refuses new spawns while tripped — Phase 8B will
+// add automatic reset strategies; for now `resetCircuitBreaker` is manual or
+// called on task completion.
+
+const DEFAULT_FAIL_THRESHOLD = 3;
+
+function readCircuitBreakerRow(db, task_id) {
+  return db.prepare('SELECT * FROM circuit_breaker WHERE task_id = ?').get(task_id) || null;
+}
+
+function recordTaskFailure(db, task_id, {
+  reason = 'unknown',
+  session_id = null,
+  fail_threshold = DEFAULT_FAIL_THRESHOLD,
+} = {}) {
+  if (!task_id) throw new StateOpsError('VALIDATION_ERROR', 'task_id required');
+  return tx(db, () => {
+    const now = nowIso();
+    const existing = readCircuitBreakerRow(db, task_id);
+    const wasTripped = !!(existing && existing.tripped_at);
+    const newCount = (existing ? existing.failure_count : 0) + 1;
+    const crossesThreshold = !wasTripped && newCount >= fail_threshold;
+    const trippedAt = wasTripped
+      ? existing.tripped_at
+      : (crossesThreshold ? now : null);
+
+    if (existing) {
+      db.prepare(
+        'UPDATE circuit_breaker SET failure_count = ?, tripped_at = ?, last_failure_at = ?, last_failure_reason = ? WHERE task_id = ?',
+      ).run(newCount, trippedAt, now, reason, task_id);
+    } else {
+      db.prepare(
+        'INSERT INTO circuit_breaker (task_id, failure_count, tripped_at, last_failure_at, last_failure_reason) VALUES (?, ?, ?, ?, ?)',
+      ).run(task_id, newCount, trippedAt, now, reason);
+    }
+
+    appendEventInTx(db, {
+      type: 'task_failure',
+      task_id,
+      session_id,
+      payload: { reason, failure_count: newCount },
+    });
+
+    if (crossesThreshold) {
+      appendEventInTx(db, {
+        type: 'task_circuit_broken',
+        task_id,
+        session_id,
+        payload: { failure_count: newCount, threshold: fail_threshold },
+      });
+    }
+
+    return { failure_count: newCount, tripped: crossesThreshold || wasTripped };
+  });
+}
+
+function resetCircuitBreaker(db, task_id) {
+  if (!task_id) throw new StateOpsError('VALIDATION_ERROR', 'task_id required');
+  return tx(db, () => {
+    const existing = readCircuitBreakerRow(db, task_id);
+    if (!existing) return { reset: false };
+    db.prepare(
+      'UPDATE circuit_breaker SET failure_count = 0, tripped_at = NULL, last_failure_reason = NULL WHERE task_id = ?',
+    ).run(task_id);
+    appendEventInTx(db, {
+      type: 'task_circuit_reset',
+      task_id,
+      payload: {
+        prior_count: existing.failure_count,
+        was_tripped: !!existing.tripped_at,
+      },
+    });
+    return { reset: true, prior_count: existing.failure_count };
+  });
+}
+
+function isCircuitTripped(db, task_id) {
+  const row = db.prepare('SELECT tripped_at FROM circuit_breaker WHERE task_id = ?').get(task_id);
+  return !!(row && row.tripped_at);
+}
+
+// ─── staleness (Phase 5.3) ───────────────────────────────────────────────
+//
+// When a spec section changes, every pending task whose trace_to points at
+// that section needs to be flagged stale so the next scheduler skips it
+// until the context is refreshed. Only pending tasks are touched —
+// in-progress/blocked/completed tasks are the running agent's concern.
+
+// Frozen SELECT: variadic section list via json_each to avoid dynamic SQL.
+const LIST_PENDING_BY_SECTIONS_SQL = "SELECT id, trace_to, stale FROM tasks WHERE status = 'pending' AND trace_to IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(@sections_json) WHERE value = tasks.trace_to)";
+
+function markTasksStaleBySpecSections(db, sections) {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return { marked_count: 0, marked_ids: [] };
+  }
+  return tx(db, () => {
+    const candidates = db.prepare(LIST_PENDING_BY_SECTIONS_SQL).all({
+      sections_json: JSON.stringify(sections),
+    });
+    const toMark = candidates.filter((r) => !r.stale);
+    if (toMark.length === 0) return { marked_count: 0, marked_ids: [] };
+    const ts = nowIso();
+    const update = db.prepare('UPDATE tasks SET stale = 1, updated_at = ? WHERE id = ?');
+    for (const row of toMark) {
+      update.run(ts, row.id);
+      appendEventInTx(db, {
+        type: 'task_stale_marked',
+        task_id: row.id,
+        payload: { sections, trace_to: row.trace_to },
+      });
+    }
+    return { marked_count: toMark.length, marked_ids: toMark.map((r) => r.id) };
+  });
+}
+
+const LIST_SPEC_CHANGED_SQL = "SELECT id, payload_json FROM events WHERE id > @since_id AND type = 'spec_changed' ORDER BY id ASC LIMIT @maxn";
+
+function consumeSpecChangedEvents(db, { since_id = 0, limit = 100 } = {}) {
+  const rows = db.prepare(LIST_SPEC_CHANGED_SQL).all({
+    since_id,
+    maxn: Math.min(Math.max(limit, 1), 500),
+  });
+  if (rows.length === 0) return { processed: 0, next_since_id: since_id, marked_ids: [] };
+
+  const allMarked = [];
+  let lastId = since_id;
+  for (const r of rows) {
+    let sections = null;
+    if (typeof r.payload_json === 'string') {
+      try {
+        const payload = JSON.parse(r.payload_json);
+        sections = Array.isArray(payload && payload.sections) ? payload.sections : null;
+      } catch { sections = null; }
+    }
+    if (sections && sections.length > 0) {
+      const out = markTasksStaleBySpecSections(db, sections);
+      for (const id of out.marked_ids) allMarked.push(id);
+    }
+    lastId = Number(r.id);
+  }
+  return { processed: rows.length, next_since_id: lastId, marked_ids: allMarked };
+}
+
 // ─── exports ─────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -467,4 +618,12 @@ module.exports = {
   heartbeatSession,
   admissionCheck,
   reapOrphanSessions,
+  // circuit breaker
+  recordTaskFailure,
+  resetCircuitBreaker,
+  isCircuitTripped,
+  DEFAULT_FAIL_THRESHOLD,
+  // staleness
+  markTasksStaleBySpecSections,
+  consumeSpecChangedEvents,
 };

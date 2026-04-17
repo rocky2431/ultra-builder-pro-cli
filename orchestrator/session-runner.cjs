@@ -72,6 +72,15 @@ function spawnSession({
 
   // 1. Admission check
   const verdict = ops.admissionCheck(db, task_id);
+  // Circuit breaker trumps takeover — tripped tasks require explicit reset.
+  if (verdict.recommended_action === 'blocked_by_breaker') {
+    const err = new SessionRunnerError(
+      'CIRCUIT_TRIPPED',
+      `task ${task_id} is tripped by circuit breaker; call resetCircuitBreaker before spawning`,
+    );
+    err.verdict = verdict;
+    throw err;
+  }
   if (!verdict.can_spawn && !takeover) {
     const err = new SessionRunnerError(
       'ADMISSION_DENIED',

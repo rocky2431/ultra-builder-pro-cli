@@ -128,6 +128,23 @@ CREATE TABLE IF NOT EXISTS specs_refs (
   PRIMARY KEY (spec_file, section)
 );
 
+-- ──────────────────────────── circuit_breaker ─────────────────────────────
+-- Per-task failure accumulator (Phase 5.2). When failure_count crosses the
+-- threshold, tripped_at is stamped and `task_circuit_broken` fires. Admission
+-- control refuses new spawns for tripped tasks until manually reset.
+CREATE TABLE IF NOT EXISTS circuit_breaker (
+  task_id             TEXT PRIMARY KEY REFERENCES tasks(id) ON DELETE CASCADE,
+  failure_count       INTEGER NOT NULL DEFAULT 0,
+  tripped_at          TEXT,
+  last_failure_at     TEXT,
+  last_failure_reason TEXT
+);
+
+CREATE INDEX IF NOT EXISTS circuit_breaker_tripped ON circuit_breaker(tripped_at)
+  WHERE tripped_at IS NOT NULL;
+
 -- ──────────────────────────── seed: schema_version ────────────────────────
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('4.5', 'Phase 2 initial — tasks/events/sessions/schema_version/migration_history/telemetry/specs_refs');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('5.2', 'Phase 5.2 — circuit_breaker table for per-task trip tracking');

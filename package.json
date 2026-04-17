@@ -4,7 +4,8 @@
   "description": "Multi-runtime installer for the Ultra Builder Pro (Hermes) agent engineering system — deploys commands, agents, skills, and hooks to Claude Code, OpenCode, Codex CLI, and Gemini CLI.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
-    "ubp": "bin/install.js"
+    "ubp": "bin/install.js",
+    "ubp-orchestrator": "bin/orchestrator.js"
   },
   "files": [
     "bin",

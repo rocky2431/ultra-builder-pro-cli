@@ -34,10 +34,10 @@ loop with isolated sessions sharing one authoritative state store.
 | 0     | Skeleton                                       | ✅ done (`da69a7a`) |
 | 1     | Three-layer interface contracts (`spec/`)      | ✅ done (D38) |
 | 2     | Authoritative state — SQLite + WAL             | ✅ done (D39, `e286e41`) |
-| 3     | Command thin-shells (skill + MCP + CLI)        | next          |
-| 4     | Cross-runtime distribution + 4.6a smoke flow   | pending       |
-| 4.5   | Execution-lite (session + admission + events)  | pending → v0.1 gate |
-| 5     | Recovery + staleness + auto-routing            | pending → v0.2 |
+| 3     | Command thin-shells (skill + MCP + CLI)        | ✅ done (D40, `b3d1797`) |
+| 4     | Cross-runtime distribution + 4.6a smoke flow   | ✅ done (D41, `5aa1fd0`) |
+| 4.5   | Execution-lite (session + admission + events)  | ✅ done (D42, `0d3e5ed`) — **v0.1 ready** |
+| 5     | Recovery + staleness + auto-routing            | ✅ done (D43) → v0.2 |
 | 6     | Monitoring + code-review-graph live watcher    | pending → v0.2 |
 | 4.6b  | Full conformance suite                         | pending → v0.2 |
 | 7     | hindsight wrapper + tagged tasks + skill mining| pending → v0.3 |

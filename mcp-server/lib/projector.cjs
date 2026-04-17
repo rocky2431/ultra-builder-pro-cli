@@ -82,10 +82,23 @@ function buildContextDoc(taskRow, existingBody) {
   if (taskRow.type) headerLines.push(`type: ${taskRow.type}`);
   if (taskRow.session_id) headerLines.push(`session_id: ${taskRow.session_id}`);
   if (taskRow.completion_commit) headerLines.push(`completion_commit: ${taskRow.completion_commit}`);
+  if (taskRow.stale) headerLines.push('stale: true');
   headerLines.push(`schema_version: ${SCHEMA_VERSION}`);
   headerLines.push(`generated_at: ${taskRow.updated_at || new Date().toISOString()}`);
   headerLines.push('---', '');
-  return headerLines.join('\n') + (existingBody || '');
+
+  let body = existingBody || '';
+  // Strip any previous STALE banner so re-projection after reset is clean.
+  body = body.replace(/^> ⚠️\s*STALE[^\n]*\n(?:>[^\n]*\n)*\n?/m, '');
+  if (taskRow.stale) {
+    const banner = [
+      `> ⚠️ STALE since ${taskRow.updated_at || new Date().toISOString()}`,
+      '> spec 改动可能让此 task 上下文失效；重新跑 spec 对齐后再继续。',
+      '',
+    ].join('\n');
+    body = banner + body;
+  }
+  return headerLines.join('\n') + body;
 }
 
 function escapeYaml(str) {

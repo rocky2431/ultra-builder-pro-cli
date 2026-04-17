@@ -7,7 +7,7 @@ const Database = require('better-sqlite3');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '4.5';
+const EXPECTED_VERSION = '5.2';
 
 const REQUIRED_TABLES = Object.freeze([
   'tasks',
@@ -17,6 +17,7 @@ const REQUIRED_TABLES = Object.freeze([
   'migration_history',
   'telemetry',
   'specs_refs',
+  'circuit_breaker',
 ]);
 
 function readSchemaSql() {
@@ -58,13 +59,15 @@ function applySchema(db) {
 }
 
 function ensureSchemaVersion(db) {
-  const row = db.prepare('SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1').get();
+  // schema_version is an audit trail — multiple rows across phase upgrades.
+  // Guard by checking whether the expected version row exists rather than
+  // relying on applied_at ordering (same-tick inserts from the seed block
+  // make `ORDER BY applied_at DESC LIMIT 1` non-deterministic).
+  const row = db.prepare('SELECT version FROM schema_version WHERE version = ?').get(EXPECTED_VERSION);
   if (!row) {
-    throw new Error('schema_version table missing seed row after schema apply');
-  }
-  if (row.version !== EXPECTED_VERSION) {
+    const latest = db.prepare('SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1').get();
     throw new Error(
-      `state.db schema_version mismatch: file has '${row.version}', expected '${EXPECTED_VERSION}'`,
+      `state.db schema_version mismatch: expected '${EXPECTED_VERSION}', file has '${latest ? latest.version : '(empty)'}'`,
     );
   }
   return row.version;
