@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultra-builder-pro.dev/spec/command-manifest.schema.json",
+  "title": "Command manifest (frontmatter)",
+  "description": "YAML frontmatter contract for commands/ultra-*.md thin-shell files. Phase 3 薄壳化: 命令文件 ≤ 80 行正文，真实 workflow 放 skills/<name>/SKILL.md。additionalProperties=false (PLAN R19).",
+  "type": "object",
+  "required": ["description"],
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 10,
+      "description": "一句话触发描述; 给 runtime 的 skill router / 用户命令列表使用"
+    },
+    "argument-hint": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      ],
+      "description": "Claude Code convention: hint shown after slash-command name. Both `argument-hint: [foo]` (YAML array form) and `argument-hint: \"[foo]\"` (string form) are accepted."
+    },
+    "allowed-tools": {
+      "type": "string",
+      "description": "Claude Code convention: comma-separated tool allowlist"
+    },
+    "model": {
+      "type": "string",
+      "enum": ["haiku", "sonnet", "opus"],
+      "description": "Claude Code convention: model routing hint"
+    },
+    "workflow-ref": {
+      "type": "string",
+      "pattern": "^@skills/[a-z][a-z0-9\\-]*/SKILL\\.md$",
+      "description": "Phase 3 薄壳关键字段: 指向 skills/<name>/SKILL.md; 存在即表示该命令已迁为薄壳"
+    },
+    "mcp_tools_required": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z]+\\.[a-z_]+$" },
+      "uniqueItems": true,
+      "description": "Phase 3+: 命令运行时会调用的 MCP tool 名单; 无 MCP 时走 cli_fallback"
+    },
+    "cli_fallback": {
+      "type": "string",
+      "description": "Phase 3+: MCP 不可达时回退的 ultra-tools 子命令 (e.g. 'init' -> 'ultra-tools init')"
+    }
+  }
+}

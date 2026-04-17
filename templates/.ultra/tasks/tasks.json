@@ -1,0 +1,33 @@
+{
+  "version": "4.4",
+  "created": "",
+  "updated": "",
+  "project": {
+    "name": "",
+    "type": "",
+    "stack": ""
+  },
+  "tasks": [],
+  "metadata": {
+    "totalTasks": 0,
+    "completedTasks": 0,
+    "inProgressTasks": 0,
+    "pendingTasks": 0,
+    "totalEstimatedDays": 0
+  },
+  "_schema": {
+    "_comment": "Lightweight task registry - full context in contexts/task-{id}.md",
+    "task_example": {
+      "id": "1",
+      "title": "Action verb + specific target",
+      "type": "feature|architecture|bugfix",
+      "priority": "P0|P1|P2|P3",
+      "complexity": "1-10",
+      "status": "pending|in_progress|completed|blocked",
+      "dependencies": ["task_id"],
+      "estimated_days": 2,
+      "context_file": "contexts/task-1.md",
+      "trace_to": ".ultra/specs/product.md#section-id"
+    }
+  }
+}

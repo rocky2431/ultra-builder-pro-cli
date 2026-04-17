@@ -88,6 +88,8 @@ settings.local.json
 lib/
 !mcp-server/lib/
 templates/
+!/templates/
+!/templates/**
 
 # npm / build artifacts
 node_modules/
@@ -125,6 +127,8 @@ security_warnings_state_*.json
 # only .ultra-template/ is shipped as a scaffold)
 .ultra/
 !spec/fixtures/**/.ultra/
+!/templates/.ultra/
+!/templates/.ultra/**
 
 # Runtime artifacts that must never be committed
 sessions/

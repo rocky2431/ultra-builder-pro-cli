@@ -1,0 +1,22 @@
+[
+  {
+    "created_path": "/tmp/ubp-init-demo/.ultra",
+    "status": "created",
+    "copied_files": [
+      "specs/discovery.md",
+      "specs/product.md",
+      "specs/architecture.md",
+      "tasks/tasks.json",
+      "tasks/contexts/TEMPLATE.md",
+      "docs/research/README.md",
+      "test-report.json",
+      "delivery-report.json"
+    ]
+  },
+  {
+    "created_path": "/Users/demo/sandbox/.ultra",
+    "status": "overwritten",
+    "copied_files": ["specs/discovery.md", "tasks/tasks.json"],
+    "backup_path": "/Users/demo/sandbox/.ultra.backup.20260417-091530"
+  }
+]

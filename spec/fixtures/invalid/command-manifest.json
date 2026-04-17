@@ -1,0 +1,29 @@
+[
+  {
+    "argument-hint": "missing description"
+  },
+  {
+    "description": "bad workflow-ref path",
+    "workflow-ref": "skills/ultra-init/SKILL.md"
+  },
+  {
+    "description": "workflow-ref points at non-skill folder",
+    "workflow-ref": "@commands/ultra-init.md"
+  },
+  {
+    "description": "model enum violation",
+    "model": "gpt-4"
+  },
+  {
+    "description": "mcp tool name pattern violation",
+    "mcp_tools_required": ["TaskCreate"]
+  },
+  {
+    "description": "unknown field leak",
+    "foo": "bar"
+  },
+  {
+    "description": "too short",
+    "extra": 1
+  }
+]

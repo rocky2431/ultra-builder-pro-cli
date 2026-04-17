@@ -21,7 +21,7 @@ Transform vague ideas into complete, high-confidence specifications through prog
 - **Sequential Enforcement**: Steps must be completed in order, no skipping
 - **Write-Immediately**: Every step writes its output to the spec file BEFORE presenting to user
 - **User Gate**: User must explicitly confirm [C] Continue before proceeding to next step
-- **State Tracking**: Track progress via TaskCreate/TaskUpdate system
+- **State Tracking**: Track per-session progress via the runtime's native TaskCreate/TaskUpdate (session-local). Research does NOT write business tasks to state.db — it only emits spec files. Business tasks are created later by `/ultra-plan` via MCP `task.create`.
 - **Web-First**: Every analysis step REQUIRES web search with citations. No search = no proceed.
 
 ### Step Processing Rules
@@ -134,6 +134,25 @@ Follow every instruction in that file. When the step is complete and user confir
 | `.ultra/specs/architecture.md` | §1-12: arc42 structure |
 | `.ultra/specs/research-distillate.md` | Token-efficient summary for /ultra-plan consumption |
 | `.ultra/docs/research/*.md` | Per-round research reports |
+
+## POST-STEP HOOK — memory.retain (Phase 7 placeholder)
+
+After each step completes (spec written + user confirms [C]), emit a retention
+signal so Phase 7 hindsight can replay research for future sessions:
+
+```jsonc
+// MCP call: memory.retain  (spec: spec/mcp-tools.yaml#memory.retain)
+{
+  "kind": "research_step_output",
+  "step": "<NN>",
+  "tags": ["research", "<project_name>", "<round>"],
+  "content": "<the markdown section this step wrote into the spec file>"
+}
+```
+
+**Phase 3 behaviour**: `memory.retain` is not yet implemented — MCP returns
+`UNKNOWN_TOOL`. The skill MUST catch this and continue silently (no error
+surface to user). Phase 7 wires the real retain/recall loop.
 
 ## QUALITY STANDARDS
 

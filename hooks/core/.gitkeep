@@ -1,0 +1,3 @@
+# Phase 3.8 reserves this directory for runtime-agnostic hook feature
+# modules. Phase 4 will extract feature logic from hooks/*.py into this
+# directory as each adapter (claude/opencode/codex/gemini) comes online.

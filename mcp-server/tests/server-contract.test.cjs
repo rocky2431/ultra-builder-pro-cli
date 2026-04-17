@@ -48,7 +48,7 @@ function expectError(result) {
   return JSON.parse(result.content[0].text).error;
 }
 
-test('listTools returns the seven task.* tools with input schemas', async () => {
+test('listTools returns the registered task.* tools with input schemas', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
@@ -59,6 +59,7 @@ test('listTools returns the seven task.* tools with input schemas', async () => 
         'task.create',
         'task.delete',
         'task.get',
+        'task.init_project',
         'task.list',
         'task.subscribe_events',
         'task.update',
@@ -221,5 +222,50 @@ test('mutating tools trigger the projector — tasks.json appears under .ultra/'
     assert.equal(data.tasks[0].id, 'pj-1');
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.init_project creates .ultra/ skeleton in a fresh target directory', async () => {
+  const proj = tmpProject();
+  const freshTarget = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-init-target-'));
+  try {
+    await withClient(proj, async (client) => {
+      const res = await client.callTool({
+        name: 'task.init_project',
+        arguments: { target_dir: freshTarget, project_name: 'mcp-init', project_type: 'cli' },
+      });
+      const payload = readToolPayload(res);
+      assert.equal(payload.status, 'created');
+      assert.equal(payload.created_path, path.join(freshTarget, '.ultra'));
+      assert.ok(payload.copied_files.includes('tasks/tasks.json'));
+      const tasksJson = JSON.parse(fs.readFileSync(path.join(payload.created_path, 'tasks', 'tasks.json'), 'utf8'));
+      assert.equal(tasksJson.project.name, 'mcp-init');
+      assert.equal(tasksJson.project.type, 'cli');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+    fs.rmSync(freshTarget, { recursive: true, force: true });
+  }
+});
+
+test('task.init_project returns ULTRA_DIR_EXISTS on re-init without overwrite', async () => {
+  const proj = tmpProject();
+  const freshTarget = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-init-target-'));
+  try {
+    await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'task.init_project',
+        arguments: { target_dir: freshTarget, project_name: 'once' },
+      });
+      const second = await client.callTool({
+        name: 'task.init_project',
+        arguments: { target_dir: freshTarget, project_name: 'twice' },
+      });
+      const err = expectError(second);
+      assert.equal(err.code, 'ULTRA_DIR_EXISTS');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+    fs.rmSync(freshTarget, { recursive: true, force: true });
   }
 });

@@ -1,106 +1,44 @@
 ---
-description: Extract reusable patterns from current session and save to skills/learned/
-argument-hint: [pattern-name]
+description: Extract one reusable pattern from current session and save (user-gated) to ~/.claude/skills/learned/<name>_unverified.md
+argument-hint: "[pattern-name]"
 allowed-tools: Read, Write, Grep, Glob, AskUserQuestion
 model: opus
+workflow-ref: "@skills/learn/SKILL.md"
+mcp_tools_required:
+  - ask.question
+cli_fallback: "ask"
 ---
 
-# /learn - Extract Reusable Patterns
+# /learn
 
-Analyze current session and extract patterns worth saving as skills.
+## 目标
 
-## Trigger Conditions
+扫当前会话挑一个最值得保存的「可复用模式」，以 Speculation 级别写到
+`~/.claude/skills/learned/<slug>_unverified.md`。写入前必问用户确认。
 
-After solving a non-trivial problem, run `/learn` to extract patterns.
+## 参数
 
-## What to Extract
+| 位 | 含义 | 缺省 |
+|----|------|------|
+| `$1` | pattern 文件名建议 slug | 由 skill 自动生成 |
 
-Look for these types of patterns:
+## Workflow
 
-### 1. Error Resolution Patterns
-- What error occurred?
-- What was the root cause?
-- How was it fixed?
-- Can it be used for similar errors?
+完整 5 步见 `@skills/learn/SKILL.md`（review → pick one → draft → 用户确认 → write）。
 
-### 2. Debugging Techniques
-- Non-obvious debugging steps
-- Effective tool combinations
-- Diagnostic patterns
+**命令入口做的事**：
+1. 回溯会话找可提炼的模式（错误修复 / 调试套路 / workaround / 项目级惯例）
+2. 选一个价值最高的（不是多个 — 一个文件一个模式）
+3. 按模板起草 → `ask.question` 让用户选 Save/Edit/Cancel
+4. 保存到 `~/.claude/skills/learned/<slug>_unverified.md`（不覆盖已存在）
 
-### 3. Workarounds
-- Library quirks
-- API limitations
-- Version-specific fixes
+## 用法
 
-### 4. Project-Specific Patterns
-- Discovered codebase conventions
-- Architectural decisions made
-- Integration patterns
-
-## Output Format
-
-Create skill file to `~/.claude/skills/learned/[pattern-name]_unverified.md`:
-
-```markdown
-# [Descriptive Pattern Name]
-
-**Extracted:** YYYY-MM-DD
-**Confidence:** Speculation (unverified)
-**Context:** [Brief description of when this applies]
-
-## Problem
-[What problem does this pattern solve - be specific]
-
-## Solution
-[Pattern/technique/workaround]
-
-## Example
-[Code example if applicable]
-
-## Trigger Conditions
-[What situations should activate this skill]
-
-## Verification Status
-- [ ] Human review passed
-- [ ] Multiple successful uses
+```bash
+/learn                       # 自动挑
+/learn supabase-rls-debug    # 指定文件名 slug
 ```
 
-## Process
+## 下一步
 
-1. Review session for extractable patterns
-2. Identify most valuable/reusable insights
-3. Draft skill file
-4. **Ask user confirmation** before saving
-5. Save to `~/.claude/skills/learned/` with `_unverified` suffix
-
-## Verification Upgrade Path
-
-1. **Speculation**: Freshly extracted, unverified
-2. **Inference**: Human review passed, remove `_unverified` suffix
-3. **Fact**: Multiple successful uses verified
-
-## What NOT to Extract
-
-- Simple typo fixes
-- One-time issues (specific API outages, etc.)
-- Patterns too specific to reuse
-
-## Example
-
-```
-User: /learn
-
-Claude: I identified the following extractable pattern from this session:
-
-**Pattern: Supabase RLS Policy Debugging**
-
-When Supabase queries return empty results but data exists:
-1. Check if RLS policies are enabled
-2. Verify auth.uid() matches
-3. Test bypassing RLS with service role key
-
-Save this pattern to ~/.claude/skills/learned/supabase-rls-debug_unverified.md?
-```
-
-**Remember**: Only extract patterns that will save time in future sessions. Keep skills focused - one pattern per skill.
+用户以后 review 后手动去掉 `_unverified` 后缀升为 Inference；多次成功使用后升为 Fact。

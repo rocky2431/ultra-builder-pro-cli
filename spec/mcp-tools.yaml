@@ -177,6 +177,66 @@ tools:
     emits_events: []
     trace_to: '§7.3'
 
+  - name: task.init_project
+    family: task
+    description: |
+      Bootstrap a fresh `.ultra/` skeleton in target_dir from the bundled
+      templates/.ultra/ source. Copies spec templates, tasks.json, context
+      template, and report stubs. Phase 3.1 entry point for /ultra-init.
+    phase: '3'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [target_dir, project_name]
+      additionalProperties: false
+      properties:
+        target_dir:
+          type: string
+          description: absolute or repo-relative path of the project root where `.ultra/` will be created
+        project_name:
+          type: string
+          minLength: 1
+        project_type:
+          type: string
+          enum: [web, api, cli, fullstack, other]
+          description: optional; skill will pass detected value when available
+        stack:
+          type: string
+          description: optional tech stack descriptor (comma-separated for fullstack)
+        overwrite:
+          type: boolean
+          default: false
+          description: when true, back up an existing `.ultra/` to `.ultra.backup.<ts>` then re-create
+        source_template:
+          type: string
+          description: override path to the template root (defaults to bundled templates/.ultra/)
+    output_schema:
+      type: object
+      required: [created_path, status, copied_files]
+      additionalProperties: false
+      properties:
+        created_path:
+          type: string
+          description: absolute path to the created `.ultra/` directory
+        status:
+          type: string
+          enum: [created, overwritten]
+        copied_files:
+          type: array
+          items: { type: string }
+          description: paths relative to created_path
+        backup_path:
+          type: string
+          description: set only when status=overwritten
+    errors:
+      - { code: ULTRA_DIR_EXISTS,  description: '.ultra/ already exists and overwrite=false' }
+      - { code: TEMPLATE_MISSING,  description: 'source_template path does not exist' }
+      - { code: TARGET_NOT_DIR,    description: 'target_dir is not a directory' }
+      - { code: IO_ERROR,          description: 'filesystem write failed', retriable: true }
+    cli_subcommand: task init-project
+    emits_events: [project_initialized]
+    trace_to: 'PLAN §6 Phase 3.1'
+
   - name: task.expand
     family: task
     description: Expand a parent task into N child sub-tasks (Phase 8A).

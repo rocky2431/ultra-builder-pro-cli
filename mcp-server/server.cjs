@@ -19,6 +19,7 @@ const { ListToolsRequestSchema, CallToolRequestSchema } = require('@modelcontext
 const { initStateDb, closeStateDb } = require('./lib/state-db.cjs');
 const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
+const { initProject } = require('./lib/init-project.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const TOOLS_FILE = path.join(REPO_ROOT, 'spec', 'mcp-tools.yaml');
@@ -29,10 +30,13 @@ const TASK_TOOLS = Object.freeze([
   'task.list',
   'task.get',
   'task.delete',
+  'task.init_project',
   'task.append_event',
   'task.subscribe_events',
 ]);
 
+// init_project mutates the filesystem of an unrelated project, not state.db —
+// do NOT run the projector (it would overwrite the freshly-copied template).
 const MUTATING_TOOLS = new Set(['task.create', 'task.update', 'task.delete', 'task.append_event']);
 
 function loadTaskTools() {
@@ -73,6 +77,9 @@ function dispatchTool(name, input, db) {
     }
     case 'task.delete': {
       return ops.deleteTask(db, input.id, { force: !!input.force });
+    }
+    case 'task.init_project': {
+      return initProject(input);
     }
     case 'task.append_event': {
       const r = ops.appendEvent(db, {

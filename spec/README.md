@@ -10,11 +10,13 @@ spec/
 ├── README.md                   # 本文
 ├── mcp-tools.yaml              # MCP tool schema（OpenAPI 3 风格）
 ├── cli-protocol.md             # CLI 输入输出约定 + tool↔CLI 映射表
+├── command-template.md         # Phase 3 命令薄壳模板 + 硬约束
 ├── schemas/                    # JSON Schema / SQL schema
 │   ├── state-db.sql            # SQLite 权威源 schema（7 表）
 │   ├── tasks.v4.5.schema.json  # tasks.json 投影视图 schema
 │   ├── context-file.v4.5.schema.json # context md 投影视图 schema
-│   └── skill-manifest.schema.json    # skill frontmatter 规范
+│   ├── skill-manifest.schema.json    # skill frontmatter 规范
+│   └── command-manifest.schema.json  # Phase 3 命令 frontmatter 规范
 ├── fixtures/
 │   ├── valid/                  # 应通过校验的样例
 │   └── invalid/                # 应被拒的样例（命名同 schema）
@@ -23,6 +25,7 @@ spec/
 │   ├── validate-json-schemas.cjs
 │   ├── validate-state-db.cjs
 │   ├── validate-skills.cjs
+│   ├── validate-commands.cjs   # Phase 3 薄壳检查 (UBP_COMMAND_STRICT=1 开严)
 │   └── check-cli-mapping.cjs
 └── migration-notes.md          # skill / 数据格式过渡说明（按需追加）
 ```

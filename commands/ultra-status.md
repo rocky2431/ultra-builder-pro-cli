@@ -1,140 +1,46 @@
 ---
-description: Status query with native task system (real-time progress + risk analysis)
-argument-hint: [task-id]
+description: Real-time project status — progress + risks + workflow routing, via MCP task.list
+argument-hint: "[task-id]"
 allowed-tools: Read, Bash(git status), Bash(git log *), Grep, Glob, Task
 model: opus
+workflow-ref: "@skills/ultra-status/SKILL.md"
+mcp_tools_required:
+  - task.list
+  - task.get
+cli_fallback: "task list"
 ---
 
 # /ultra-status
 
-## Purpose
+## 目标
 
-Real-time project status monitoring with progress tracking, risk analysis, and actionable insights using native task system.
+一次调用拿整个项目近况：任务进度（来自 state.db `task.list`）+ 测试状态（`test-report.json`）+
+发布状态（`delivery-report.json`）+ 风险检测 + 下一步命令路由。只读。
+
+## 参数
+
+| 位 | 含义 | 缺省 |
+|----|------|------|
+| `$1` | 单 task id（只看这个 task） | 不填 → 全局报告 |
 
 ## Workflow
 
-### Phase 0: Validation
+完整 5 阶段见 `@skills/ultra-status/SKILL.md`（validation → load → progress → risk → routing）。
 
-**Check environment before displaying status:**
-1. Does `.ultra/tasks/tasks.json` exist? → If not: Suggest `/ultra-init` (Chinese)
-2. Are there tasks in the system? → If not: Suggest `/ultra-plan` (Chinese)
-3. Is task data valid? → Verify structure and timestamps
-4. Determine output format (quick vs full report)
+**命令入口做的事**：
+1. 环境检查（state.db 可达 + 有 task）
+2. `task.list` 拿全量；读 test-report / delivery-report
+3. 算进度 + 风险（blocked / stalled / overdue / complexity spike / test stale）
+4. 按当前 artifact 组合路由到下一个命令（/ultra-init → /ultra-research → /ultra-plan → /ultra-dev → /ultra-test → /ultra-deliver）
 
-### Phase 1: Load Project Data
-
-Read all status files:
-- `.ultra/tasks/tasks.json` - Task progress
-- `.ultra/test-report.json` - Test status
-- `.ultra/delivery-report.json` - Delivery status
-
-Extract:
-- Task statistics (total, by status, by priority)
-- Current task (in_progress) and next pending task
-- Test pass/fail status and run count
-- Delivery readiness
-
-### Phase 2: Generate Progress Report
-
-Display comprehensive project status:
-- 📊 **Overview**: Progress bar, completion %, task velocity
-- 📝 **Tasks**: By status (pending/in_progress/completed/blocked)
-- 🧪 **Test**: Pass/fail, run count, blocking issues
-- 📦 **Delivery**: Version, pushed status
-- ⚠️ **Risks**: Auto-detected issues
-- 📈 **Next**: Optimal next task
-
-### Phase 3: Analyze Risks
-
-**Auto-detect issues**:
-- **Blockers**: Tasks with unsatisfied dependencies
-- **Stalled tasks**: In-progress >3 days
-- **Overdue**: Past estimated completion
-- **Complexity spikes**: Multiple complex tasks queued
-- **Resource constraints**: Parallel task limits
-
-### Phase 4: Provide Recommendations
-
-Suggest next optimal task based on:
-- Priority (P0 > P1 > P2 > P3)
-- Dependencies (only ready tasks)
-- Complexity (balance with velocity)
-- Context (similar to recent tasks)
-
-### Phase 5: Workflow Routing (▶ Next Up)
-
-**Detect workflow position from existing artifacts** (no extra state file needed):
-
-| Check | Condition | Route |
-|-------|-----------|-------|
-| No `.ultra/` dir | Missing | → `/ultra-init` |
-| No specs | `product.md` missing or has `[NEEDS CLARIFICATION]` | → `/ultra-research` |
-| No tasks | `tasks.json` missing or empty | → `/ultra-plan` |
-| Tasks pending | Any task status "pending" | → `/ultra-dev` (show which task) |
-| All tasks done | All tasks "completed" | → `/ultra-test` |
-| Test passed | `test-report.json` `passed: true` | → `/ultra-deliver` |
-| Test failed | `test-report.json` `passed: false` | → `/ultra-dev` (show blocking issues) |
-| Delivered | `delivery-report.json` exists | → Done. Suggest next milestone |
-
-**Safety checks before routing**:
-- If routing to deliver but `test-report.json` `git_commit` ≠ HEAD → "Tests stale, re-run `/ultra-test`"
-- If `git status` has uncommitted changes → warn
-
-**Output format** (standardized continuation block):
-```markdown
----
-## ▶ Next Up
-**{command}** — {description}
-`/clear` then: `/{command}`
----
-**Also available:**
-- `/{alt}` — {description}
----
-```
-
-## Usage
+## 用法
 
 ```bash
-/ultra-status          # Full project status report
-/ultra-status [task-id] # Status of specific task
+/ultra-status            # 项目全局报告
+/ultra-status 3          # 只看 task 3
 ```
 
-## Risk Indicators
+## 下一步
 
-| Icon | Meaning | Action |
-|------|---------|--------|
-| 🟢 | All good, on track | Continue current plan |
-| 🟡 | Minor issues, monitor | Review stalled tasks |
-| 🟠 | Significant risks | Address blockers immediately |
-| 🔴 | Critical blockers | Stop and resolve before continuing |
-
-## Smart Analysis Features
-
-**Velocity Calculation**: completed tasks / elapsed days = ETA for remaining tasks
-
-**Critical Path Identification**: Find bottleneck tasks (most dependencies, longest chains)
-
-**Task Recommendations**: Next task based on priority + dependencies + complexity + context
-
-## Integration
-
-- **Input**:
-  - `.ultra/tasks/tasks.json` - Task progress
-  - `.ultra/test-report.json` - Test status
-  - `.ultra/delivery-report.json` - Delivery status
-- **Output**: Console report in Chinese
-- **Timing**: Run anytime to check project status
-
-## Benefits
-
-- ✅ Real-time insights (no external APIs)
-- ✅ Risk early warning (prevent delays)
-- ✅ Smart recommendations (optimize task order)
-- ✅ Velocity tracking (predictable delivery)
-- ✅ Native integration (consistent with workflow)
-
-## Output Format
-
-> Claude responds in Chinese per CLAUDE.md.
-
-**Command icon**: 📊
+看输出的 `▶ Next Up` 块。常见场景：有 pending → `/ultra-dev`；全绿 → `/ultra-test`；
+test passed → `/ultra-deliver`。

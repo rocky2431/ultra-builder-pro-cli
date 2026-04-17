@@ -1,101 +1,47 @@
 ---
-description: Deep analysis with structured adversarial reasoning and human-AI collaboration
-argument-hint: [problem or decision to analyze]
+description: Deep analysis with adversarial reasoning — Evidence-First + Multi-Perspective + Stress-Test + Confidence-Quantified recommendation
+argument-hint: "[problem or decision to analyze]"
 allowed-tools: Read, Grep, Glob, Bash, Write, Task, WebSearch, WebFetch, AskUserQuestion, mcp__exa__web_search_exa, mcp__exa__get_code_context_exa, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: opus
+workflow-ref: "@skills/ultra-think/SKILL.md"
+mcp_tools_required:
+  - ask.question
+cli_fallback: "ask"
 ---
 
 # /ultra-think
 
-## Workflow Tracking (MANDATORY)
+## 目标
 
-**On command start**, create tasks for each major step using `TaskCreate`:
+结构化深度分析复杂问题/决策/诊断。Evidence-First 标注（Fact/Inference/Speculation）+
+多视角 + 对抗压测（Steel-Man / Pre-Mortem / Sensitivity / Second-Order）→
+量化置信度的推荐 + 验证计划。
 
-| Step | Subject | activeForm |
-|------|---------|------------|
-| 1 | Scope Check | Clarifying problem... |
-| 2 | Evidence Gathering | Gathering evidence... |
-| 3 | Multi-Perspective Analysis | Analyzing perspectives... |
-| 4 | Adversarial Stress-Testing | Stress-testing reasoning... |
-| 5 | Synthesis | Synthesizing recommendation... |
-
-**Before each step**: `TaskUpdate` → `status: "in_progress"`
-**After each step**: `TaskUpdate` → `status: "completed"`
-**On context recovery**: `TaskList` → resume from last incomplete step
-
----
-
-Respond in Chinese per CLAUDE.md. Deep analysis for complex problems and decisions.
-
-## Problem
+## 参数
 
 <problem>
 $ARGUMENTS
 </problem>
 
-## Analysis Protocol
+## Workflow
 
-### Step 1: Scope Check
+完整 5 步见 `@skills/ultra-think/SKILL.md`（Scope → Evidence → Multi-Perspective →
+Adversarial → Synthesis）。
 
-If the problem is ambiguous or underspecified, ask up to 3 clarifying questions via AskUserQuestion before proceeding. If the problem is simple enough for a direct answer, skip the full framework and respond concisely — mark all remaining tasks as `completed` with note "skipped: simple answer path".
+**命令入口做的事**：
+1. 读 `$ARGUMENTS` 判定问题范围 — 模糊 → 最多 3 个 `ask.question` 澄清
+2. 简单问题 → 直接答；复杂 → 跑完整框架
+3. 输出 Markdown 报告（Problem / Analysis / Options / Adversarial / Recommendation /
+   Verification / Next Steps）
 
-### Step 2: Evidence Gathering
+## 用法
 
-For any factual claim about technology, APIs, or best practices, verify via Context7/Exa MCP before asserting. Label each assertion:
-- **Fact**: Verified from official source
-- **Inference**: Deduced from facts
-- **Speculation**: Needs verification (list verification steps)
+```bash
+/ultra-think "should we switch from REST to gRPC for the internal API?"
+/ultra-think "why is the deploy pipeline flaky every 3rd run?"
+```
 
-### Step 3: Multi-Perspective Analysis
+## 下一步
 
-Generate at least 3 distinct approaches. For each, analyze through whichever lenses are relevant:
-
-- **Technical**: Feasibility, scalability, security, maintainability
-- **Business**: Value, cost, time-to-market, competitive advantage
-- **User**: Needs, experience, edge cases, accessibility
-- **System**: Integration, dependencies, emergent behaviors
-
-### Step 4: Adversarial Stress-Testing
-
-Apply these techniques to pressure-test your reasoning:
-
-- **Steel Man**: Before recommending, build the strongest possible case FOR the option you're inclined to reject
-- **Pre-Mortem**: Assume the recommended option has failed in 6 months. List the 3 most likely causes
-- **Sensitivity**: Identify which assumption, if wrong, would reverse your recommendation
-- **Second-Order**: What new problems does the recommended option create 6-12 months out?
-
-### Step 5: Synthesis
-
-Produce a recommendation with quantified confidence (0-100%) and explicit uncertainty bounds.
-
-## Output Structure
-
-Adapt the following to fit the problem type. Skip sections that don't apply.
-
-### Problem Statement
-[1-2 sentences: core decision + key constraints]
-
-### Analysis
-[Deep analysis using relevant lenses from Step 3]
-
-### Options Comparison (if applicable)
-| Criterion | Weight | Option A | Option B | Option C |
-|-----------|--------|----------|----------|----------|
-[Quantified where possible. Omit this table for diagnostic/investigative problems.]
-
-### Adversarial Findings
-- **Strongest counter-argument**: [steel man for rejected option]
-- **Pre-mortem top risk**: [most likely failure mode + mitigation]
-- **Assumption sensitivity**: [which assumption is load-bearing]
-
-### Recommendation
-- **Choice**: [option]
-- **Confidence**: [X]% because [rationale]
-- **Key Assumptions**: [what must be true for this to work]
-- **What would change my mind**: [specific evidence or outcome that would reverse this recommendation]
-
-### Verification Plan
-[Concrete steps to validate this decision: metrics, tests, time-boxed experiments]
-
-### Next Steps
-[Ordered, actionable items]
+方案进入 spec → `/ultra-research` 补证据或 `/ultra-plan` 直接排任务；
+纯诊断 → 跟着 Verification Plan 走，取证后再定。

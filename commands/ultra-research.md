@@ -1,8 +1,11 @@
 ---
-description: Think-Driven Interactive Discovery - Deep research with step-file architecture
+description: Think-Driven Interactive Discovery — 17-step research with per-step web search and spec-file output
 argument-hint: [topic]
 allowed-tools: Task, Read, Write, WebSearch, WebFetch, Grep, Glob, AskUserQuestion
 model: opus
+workflow-ref: "@skills/ultra-research/SKILL.md"
+mcp_tools_required:
+  - memory.retain
 ---
 
 # Ultra Research v2

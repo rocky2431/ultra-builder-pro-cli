@@ -1,0 +1,19 @@
+[
+  {
+    "description": "Initialize Ultra Builder Pro project with native task management",
+    "argument-hint": "<name> <type> <stack> [git]",
+    "allowed-tools": "Read, Write, Bash, Grep, Glob, Task, AskUserQuestion",
+    "model": "opus",
+    "workflow-ref": "@skills/ultra-init/SKILL.md",
+    "mcp_tools_required": ["task.create", "ask.question"],
+    "cli_fallback": "init"
+  },
+  {
+    "description": "Deep analysis with structured adversarial reasoning"
+  },
+  {
+    "description": "Status query with real-time progress and risk analysis",
+    "workflow-ref": "@skills/ultra-status/SKILL.md",
+    "mcp_tools_required": ["task.list", "task.get"]
+  }
+]

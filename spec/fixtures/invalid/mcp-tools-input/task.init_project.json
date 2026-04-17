@@ -1,0 +1,22 @@
+[
+  {
+    "project_name": "missing-target-dir"
+  },
+  {
+    "target_dir": "/tmp/x"
+  },
+  {
+    "target_dir": "/tmp/x",
+    "project_name": ""
+  },
+  {
+    "target_dir": "/tmp/x",
+    "project_name": "bad-type",
+    "project_type": "iOS"
+  },
+  {
+    "target_dir": "/tmp/x",
+    "project_name": "unknown-field",
+    "extra": "should-reject"
+  }
+]

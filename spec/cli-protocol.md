@@ -85,6 +85,7 @@ is the authoritative reference; do not duplicate it in command md files.
 | `task.list`               | `task list`                 | 2     | any     |
 | `task.get`                | `task get`                  | 2     | any     |
 | `task.delete`             | `task delete`               | 2     | mcp     |
+| `task.init_project`       | `task init-project`         | 3     | mcp     |
 | `task.expand`             | `task expand`               | 8a    | mcp     |
 | `task.parse_prd`          | `task parse-prd`            | 8a    | mcp     |
 | `task.dependency_topo`    | `task topo`                 | 8a    | mcp     |

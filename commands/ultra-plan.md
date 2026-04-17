@@ -1,368 +1,50 @@
 ---
-description: Task planning with intelligent dependency analysis and complexity assessment
+description: Generate task breakdown from complete specs — walking-skeleton first, vertical slices, via MCP task.create
 argument-hint: [scope]
-allowed-tools: Read, Write, Edit, Bash(mkdir .ultra/*), Grep, Glob, Task, AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash(mkdir .ultra/*), Grep, Glob, AskUserQuestion
 model: opus
+workflow-ref: "@skills/ultra-plan/SKILL.md"
+mcp_tools_required:
+  - task.create
+  - ask.question
+cli_fallback: "task create"
 ---
 
 # /ultra-plan
 
-## Workflow Tracking (MANDATORY)
+## 目标
 
-**On command start**, create tasks for each major step using `TaskCreate`:
+把 `/ultra-research` 验证过的完整 spec 转成可执行的任务计划：先 Walking
+Skeleton 贯穿所有层，再切 vertical slices，每 3-4 个 feature task 插一个
+Integration Checkpoint。任务写入 state.db（MCP `task.create`），projector
+自动生成 `.ultra/tasks/tasks.json` + contexts/*.md frontmatter。
 
-| Step | Subject | activeForm |
-|------|---------|------------|
-| 0 | Specification Validation | Validating specs... |
-| 1 | Requirements Analysis | Analyzing requirements... |
-| 2 | Codebase Analysis | Analyzing codebase... |
-| 3 | Task Generation | Generating tasks... |
-| 4 | Dependency Analysis | Analyzing dependencies... |
-| 5 | Save Tasks | Saving tasks to files... |
-| 6 | Generate Report | Generating report... |
+## 参数
 
-**Before each step**: `TaskUpdate` → `status: "in_progress"`
-**After each step**: `TaskUpdate` → `status: "completed"`
-**On context recovery**: `TaskList` → resume from last incomplete step
-
----
-
-## Purpose
-
-Generate task breakdown from complete specifications (created by /ultra-research).
-
-## Step 0: Scope Mode Selection
-
-Use AskUserQuestion to determine planning posture before any analysis:
-
-| Mode | Posture | When to Use |
-|------|---------|-------------|
-| **EXPAND** | Challenge scope upward. For each task, ask "what would make this 10x better for 2x effort?" Surface expansion opportunities as individual AskUserQuestion decisions. | New product, greenfield, user wants to think bigger |
-| **SELECTIVE** | Hold current scope as baseline. Surface optional expansions individually — user cherry-picks. Neutral recommendation posture. | Most common. Existing product, feature work. |
-| **HOLD** | Scope is locked. Make it bulletproof — catch every failure mode, test every edge case. Do not add or remove scope. | User has clear requirements, just needs execution plan |
-| **REDUCE** | Find the minimum viable version. Cut everything non-essential. Be ruthless. | Time pressure, MVP, proof of concept |
-
-**Default**: SELECTIVE (if user doesn't specify)
-
-**Commitment rule**: Once mode is selected, COMMIT to it. Do not silently drift. EXPAND mode does not argue for less work. REDUCE mode does not sneak scope back in.
-
-**Dual-scale effort** (show on every expansion decision in EXPAND/SELECTIVE mode):
-`Complete: ~X LOC, AI ~Y min | Shortcut: ~X LOC, saves Y min but ___`
-
----
-
-## Pre-Execution Checks
-
-### Specification Completeness Validation
-
-**Check all files exist and are complete**:
-- `.ultra/specs/product.md`
-- `.ultra/specs/architecture.md`
-- `.ultra/specs/research-distillate.md` (preferred primary context — if exists, use it)
-
-**Field-level validation checklist** (not just "file exists"):
-
-**discovery.md** (if exists):
-- [ ] §0 Problem Validation — has demand signal + confidence %
-- [ ] §2 Market Assessment — has TAM/SAM/SOM with numeric values + sources
-- [ ] §3 Competitive Landscape — has ≥2 competitors in comparison matrix
-- [ ] §4 Product Strategy — has ≥3 strategic trade-offs stated
-
-**product.md**:
-- [ ] §2 Personas — has ≥2 personas with goals + pain points
-- [ ] §3 Scenarios — has ≥3 scenarios with current + desired flow
-- [ ] §4 User Stories — all stories have acceptance criteria (Given/When/Then)
-- [ ] §5 Feature Scope — has Features Out section with rationale
-- [ ] §6 Success Metrics — North Star metric has specific numeric target
-
-**architecture.md**:
-- [ ] §1 Quality Goals — has ≥3 goals with measurable scenarios
-- [ ] §4 Solution Strategy — tech stack choices have rationale + source URL
-- [ ] §5 Building Blocks — modules map to features
-- [ ] §6 Runtime Scenarios — ≥1 scenario with data flow
-
-**Validation criteria**:
-- ❌ **BLOCK if**: File has [NEEDS CLARIFICATION] markers
-- ❌ **BLOCK if**: File is empty or missing
-- ❌ **BLOCK if**: Any checklist item above fails
-- ✅ **PROCEED if**: All items pass
-
-**If validation fails**:
-```
-⚠️  Specifications incomplete
-
-Failed checks:
-- [Specific checklist items that failed]
-
-Solution: Run /ultra-research to fill gaps (step-file architecture will target specific sections)
-```
-
-### Optional Checks
-
-- Check for `.ultra/specs/research-distillate.md` → Use as primary context (token-efficient)
-- Check for existing tasks → Ask whether to replace/extend/cancel
-- Clarify scope: Full project plan vs specific feature tasks
+| 位 | 含义 | 缺省 |
+|----|------|------|
+| `$1` | scope 模式（EXPAND / SELECTIVE / HOLD / REDUCE） | 询问用户；默认 SELECTIVE |
 
 ## Workflow
 
-### 1. Requirements Analysis
+完整 8 步流程见 `@skills/ultra-plan/SKILL.md`。
 
-**Load specifications** (prefer distillate when available):
-- `.ultra/specs/research-distillate.md` - Token-efficient summary (PRIMARY if exists)
-- `.ultra/specs/discovery.md` - Market context, strategy, assumptions
-- `.ultra/specs/product.md` - User stories, features
-- `.ultra/specs/architecture.md` - Technical decisions
+**命令入口做的事**：
+1. 探测 spec 完整度 — 未填充则 block 并转 `/ultra-research`
+2. 交互选 scope 模式（MCP `ask.question`；Claude 回退 `AskUserQuestion`）
+3. 驱动 skill 跑生成 → 依赖分析 → `task.create` 循环 → 写 context-md 正文
+4. 跑 7 项 verification（requirement coverage / 无环 / trace_to / 复杂度等）
+5. 输出 report + 下一步
 
-**Extract**:
-- Functional requirements (product.md §4)
-- Technical constraints (architecture.md §2)
-- Quality requirements (architecture.md §10)
-- Success metrics (product.md §6)
+## 用法
 
-### 2. Codebase Analysis
-
-**Analyze existing codebase for AI-executable context**:
-
-1. **Directory structure**: Identify src/, tests/, config/ patterns
-2. **Existing patterns**: Find similar implementations to reference
-3. **Tech stack detection**: Framework versions, test runners, build tools
-4. **Naming conventions**: File naming, function naming, variable naming
-
-### 3. Task Generation
-
-**Output structure**:
-```
-.ultra/tasks/
-├── tasks.json           # Lightweight registry
-└── contexts/
-    ├── task-1.md        # Full context for task 1
-    ├── task-2.md        # Full context for task 2
-    └── ...
-```
-
-**tasks.json fields**:
-
-| Field | Purpose |
-|-------|---------|
-| `id`, `title` | Identification |
-| `type` | architecture / feature / bugfix |
-| `priority` | P0 / P1 / P2 / P3 |
-| `complexity` | 1-10 |
-| `status` | pending / in_progress / completed / blocked |
-| `dependencies` | Prerequisite task IDs |
-| `estimated_days` | Effort estimate |
-| `context_file` | Path to context MD file |
-| `trace_to` | Spec section reference |
-
-**task-{id}.md structure**:
-
-```markdown
-# Task {id}: {title}
-
-> **Status**: pending | **Priority**: P0 | **Complexity**: 4
-
-## Context
-**What**: [Clear description]
-**Why**: [Business value + Persona/Scenario link]
-**Constraints**:
-- [Constraint 1]
-- [Constraint 2]
-
-## Implementation
-**Target Files**:
-- `path/to/file.ts` (create)
-- `path/to/existing.ts` (modify: description)
-
-**Pattern**: [Reference to existing code]
-**Tech Notes**: [Framework/library guidance]
-
-## Acceptance
-**Tests**:
-- [ ] `test command`
-- [ ] Pass: [scenario description]
-
-**Verification**:
 ```bash
-# Command to verify this task works
+/ultra-plan                 # 交互模式；默认 SELECTIVE
+/ultra-plan EXPAND          # 直接进入"激进扩张"模式
+/ultra-plan REDUCE          # MVP 最小化模式
 ```
 
-## Trace
-**Source**: `.ultra/specs/product.md#section-id`
+## 下一步
 
-## Change Log
-| Date | Change | Specs Updated | Reason |
-|------|--------|---------------|--------|
-| {date} | Initial creation | - | Generated by /ultra-plan |
-
-## Completion
-> _Fill when task completed_
-- **Completed**: {date}
-- **Commit**: {hash}
-- **Summary**: {brief description}
-```
-
-**Task granularity**:
-- Ideal complexity: 3-5 (completable in one session)
-- Too large (>6): Break down into subtasks
-- Too small (<3): Merge with related tasks
-- **Context budget**: Target 40% context window per task. Max 8 files touched. Complexity ≥7 must split.
-
-**Integration task generation**:
-
-After generating feature tasks, insert these integration tasks:
-
-1. **Walking Skeleton** (always Task #1, Priority P0):
-   - Title: "Walking skeleton: {primary use case} end-to-end"
-   - Type: `architecture`
-   - Must touch all layers: entry point → use case → domain → persistence
-   - Acceptance: One real request returns real data through all layers
-
-2. **Contract Definition** (when specs show component boundaries):
-   - Title: "Define contract: {component A} ↔ {component B}"
-   - Type: `architecture`
-   - Must PRECEDE implementation tasks for both sides
-   - Acceptance: Shared interface/schema exists, contract test validates compatibility
-
-3. **Integration Checkpoint** (every 3-4 feature tasks):
-   - Title: "Integration checkpoint: verify {feature group} connectivity"
-   - Type: `architecture`
-   - Acceptance: All components from recent tasks communicate correctly end-to-end
-
-### 4. Dependency Analysis
-
-- Build dependency graph
-- Detect cycles (error if found)
-- Order tasks topologically
-- Identify parallel opportunities
-- Validate vertical slicing: Flag any task touching only one layer. If found, split into vertical slices or merge with related tasks
-- Walking skeleton (Task #1) has no dependencies and blocks all feature tasks
-- Contract tasks precede their consumer implementation tasks
-
-### 5. Save Tasks (MANDATORY)
-
-**CRITICAL**: BOTH tasks.json AND all context files MUST be created. Do not proceed until verified.
-
-**5.1 Create directory structure**:
-```bash
-mkdir -p .ultra/tasks/contexts
-```
-
-**5.2 Save tasks.json**:
-```json
-{
-  "version": "4.4",
-  "created": "YYYY-MM-DD HH:mm:ss",
-  "tasks": [
-    {
-      "id": "1",
-      "title": "Implement JWT login endpoint",
-      "type": "feature",
-      "priority": "P0",
-      "complexity": 4,
-      "status": "pending",
-      "dependencies": [],
-      "estimated_days": 2,
-      "context_file": "contexts/task-1.md",
-      "trace_to": ".ultra/specs/product.md#user-authentication"
-    }
-  ]
-}
-```
-
-**5.3 Generate context file for EACH task**:
-
-For every task in tasks.json, create `.ultra/tasks/contexts/task-{id}.md` using the template structure defined above.
-
-**5.4 Verify ALL outputs exist**:
-- Read tasks.json → count tasks
-- List `.ultra/tasks/contexts/` → count files
-- **If counts don't match → create missing context files before proceeding**
-
-### 5.5. Plan Verification (BLOCKING)
-
-**Programmatic checks before presenting to user. If any CRITICAL check fails → fix before proceeding.**
-
-**5.5.1 Requirement Coverage**:
-- Read `.ultra/specs/product.md` §4 (User Stories) — extract all story IDs (US-XX)
-- For each story, verify ≥1 task in tasks.json has `trace_to` referencing that story
-- **CRITICAL**: Any unmapped user story → create missing task or flag to user
-
-**5.5.2 Dependency Acyclicity**:
-- Build dependency graph from tasks.json `dependencies` field
-- Traverse for cycles (DFS with visited/recursion-stack)
-- **CRITICAL**: Cycle detected → report exact cycle chain, block plan
-
-**5.5.3 trace_to Completeness**:
-- For each task, verify `trace_to` path points to an existing section in specs
-- **WARN**: Missing or broken trace_to → suggest correction
-
-**5.5.4 Scope Sanity**:
-- Tasks with complexity ≥ 7 → WARN "Consider splitting into subtasks"
-- Tasks touching > 8 target files → WARN "Large blast radius, consider split"
-- Total tasks > 20 for a single plan cycle → WARN "Consider phased delivery"
-
-**5.5.5 Context Budget**:
-- Estimate: each task consumes ~(complexity × 5)% of context window
-- If any single task > 40% estimated context → WARN "Task may exhaust context, split recommended"
-
-**If all checks pass** → present plan overview to user for approval (Step 6)
-**If CRITICAL failures** → auto-fix or present issues before continuing
-
-### 6. Report
-
-Output summary:
-- Total tasks generated
-- Priority distribution (P0/P1/P2)
-- Complexity distribution
-- Dependency count
-- Estimated total effort
-- Traceability coverage
-- First task details
-- Suggest `/ultra-dev` to start
-
-## Quality Standards
-
-- ✅ 100% requirement coverage
-- ✅ Clear acceptance criteria for all tasks
-- ✅ No circular dependencies
-- ✅ Realistic complexity estimates
-- ✅ Action-verb task titles
-- ✅ Walking skeleton is Task #1
-- ✅ Every feature task touches ≥ 2 layers (vertical slice)
-- ✅ Integration checkpoint every 3-4 feature tasks
-- ✅ Contract tasks precede cross-boundary implementations
-
-## Integration
-
-- **Prerequisites**: `/ultra-research` (specs must be complete)
-- **Input**: `.ultra/specs/research-distillate.md` (primary), `.ultra/specs/discovery.md` (optional), `.ultra/specs/product.md`, `.ultra/specs/architecture.md`
-- **Output**: `.ultra/tasks/tasks.json`, `.ultra/tasks/contexts/*.md`
-- **Next**: `/ultra-dev`
-
-**Workflow**:
-```
-/ultra-init → /ultra-research → /ultra-plan → /ultra-dev → /ultra-test → /ultra-deliver
-```
-
-## Continuation Format (MANDATORY)
-
-End output with standardized next-step block:
-
-```markdown
----
-
-## ▶ Next Up
-
-**Start Development** — TDD workflow on Task #1: {first task title}
-
-`/clear` then:
-
-`/ultra-dev`
-
----
-
-**Also available:**
-- `/ultra-status` — View project overview and workflow routing
-
----
-```
+所有 CRITICAL check 过了 → `/clear` 然后 `/ultra-dev` 开始 TDD。
+单个 task 完成后 `/ultra-status` 看进度。

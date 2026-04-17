@@ -1,0 +1,20 @@
+[
+  {
+    "target_dir": "/tmp/ubp-init-demo",
+    "project_name": "demo",
+    "project_type": "cli",
+    "stack": "node",
+    "overwrite": false
+  },
+  {
+    "target_dir": "./sandbox",
+    "project_name": "fs-app",
+    "project_type": "fullstack",
+    "stack": "next,postgres",
+    "overwrite": true
+  },
+  {
+    "target_dir": "/tmp/minimal",
+    "project_name": "bare"
+  }
+]

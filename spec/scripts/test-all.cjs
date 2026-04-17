@@ -11,6 +11,7 @@ const subScripts = [
   'validate-mcp-tools.cjs',
   'validate-state-db.cjs',
   'validate-skills.cjs',
+  'validate-commands.cjs',
   'check-cli-mapping.cjs',
 ];
 
