@@ -38,7 +38,7 @@ loop with isolated sessions sharing one authoritative state store.
 | 4     | Cross-runtime distribution + 4.6a smoke flow   | ✅ done (D41, `5aa1fd0`) |
 | 4.5   | Execution-lite (session + admission + events)  | ✅ done (D42, `0d3e5ed`) — **v0.1 ready** |
 | 5     | Recovery + staleness + auto-routing            | ✅ done (D43) → v0.2 |
-| 6     | Monitoring + code-review-graph live watcher    | pending → v0.2 |
+| 6     | Monitoring + code-review-graph live watcher    | ✅ done (D44) → v0.2 |
 | 4.6b  | Full conformance suite                         | pending → v0.2 |
 | 7     | hindsight wrapper + tagged tasks + skill mining| pending → v0.3 |
 | 8A    | Plan automation (parse / topo / expand + artifact + human gate) | pending → v0.3 |

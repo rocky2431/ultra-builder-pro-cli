@@ -95,10 +95,32 @@ const dbCommand = require('./commands/db.cjs');
 const migrateCommand = require('./commands/migrate.cjs');
 const taskCommand = require('./commands/task.cjs');
 const sessionCommand = require('./commands/session.cjs');
+const statusCommand = require('./commands/status.cjs');
+
+// Phase 6.2 — CLI telemetry: best-effort, never blocks the subcommand.
+function emitCliTelemetry(sub, rest) {
+  try {
+    const dbPath = path.resolve('.ultra', 'state.db');
+    if (!fs.existsSync(dbPath)) return;
+    const Database = require('better-sqlite3');
+    const db = new Database(dbPath);
+    try {
+      const telemetry = require('../mcp-server/lib/telemetry.cjs');
+      telemetry.appendTelemetry(db, {
+        event_type: 'tool_call',
+        tool_name: `cli.${sub}`,
+        session_id: process.env.UBP_SESSION_ID || null,
+        rootDir: process.cwd(),
+        payload: { args: Array.isArray(rest) ? rest.slice(0, 4) : [] },
+      });
+    } finally { db.close(); }
+  } catch (_) { /* telemetry is opt-in side channel; never crash the CLI */ }
+}
 
 const SUBCOMMANDS = {
   task: (args) => process.exit(taskCommand.dispatch(args)),
   session: (args) => process.exit(sessionCommand.dispatch(args)),
+  status: (args) => process.exit(statusCommand.dispatch(args)),
   ask: (_args) => notImplemented('ask'),
   memory: (_args) => notImplemented('memory'),
   skill: (_args) => notImplemented('skill'),
@@ -121,6 +143,7 @@ function main(argv) {
   const [sub, ...rest] = args;
   const handler = SUBCOMMANDS[sub];
   if (!handler) fail(`unknown subcommand: ${sub}\n\n${USAGE}`);
+  emitCliTelemetry(sub, rest);
   handler(rest);
 }
 

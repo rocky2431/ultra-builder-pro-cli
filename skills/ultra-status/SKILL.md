@@ -7,7 +7,7 @@ mcp_tools_required:
   - task.get
   - session.list
   - session.subscribe_events
-cli_fallback: "task list"
+cli_fallback: "status --cost --json"
 ---
 
 # ultra-status — Phase 3.6
@@ -138,6 +138,14 @@ session_id (if active), `context_file`, `trace_to`, stale flag, update history.
 |---------|----------|--------------|
 | List tasks | `task.list` | `ultra-tools task list` |
 | Single task detail | `task.get` | `ultra-tools task get <id>` |
+| Cost panel (Phase 6.3) | — | `ultra-tools status --cost --json --since 7d` |
+
+## Cost panel (Phase 6.3)
+
+`ultra-tools status --cost --json` returns `{period, by_runtime, top_tasks,
+total_cost_usd}`. Render under the progress section when the user asks
+"how much did we spend?" or `/ultra-status --cost` is invoked. `--since 7d`
+is the conventional weekly window; override with ISO-8601 for custom ranges.
 
 ## What this skill DOES NOT do
 

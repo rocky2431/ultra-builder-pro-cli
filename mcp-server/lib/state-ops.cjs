@@ -561,6 +561,34 @@ function markTasksStaleBySpecSections(db, sections) {
   });
 }
 
+// ─── telemetry aggregation (Phase 6.2) ───────────────────────────────────
+//
+// Reads are LEFT-JOINed against `sessions` so CLI telemetry (session_id=null)
+// shows up under a synthetic "unknown" runtime bucket. Writes go through
+// mcp-server/lib/telemetry.cjs — don't insert telemetry rows directly.
+
+const AGGREGATE_BY_RUNTIME_SQL = "SELECT COALESCE(s.runtime, 'unknown') AS runtime, COUNT(*) AS calls, COALESCE(SUM(t.tokens_input), 0) AS tokens_in, COALESCE(SUM(t.tokens_output), 0) AS tokens_out, COALESCE(SUM(t.cost_usd), 0.0) AS cost_usd FROM telemetry t LEFT JOIN sessions s ON t.session_id = s.sid WHERE (@since IS NULL OR t.ts >= @since) GROUP BY COALESCE(s.runtime, 'unknown') ORDER BY cost_usd DESC";
+
+const AGGREGATE_BY_TASK_SQL = "SELECT s.task_id AS task_id, COUNT(*) AS calls, COALESCE(SUM(t.tokens_input), 0) AS tokens_in, COALESCE(SUM(t.tokens_output), 0) AS tokens_out, COALESCE(SUM(t.cost_usd), 0.0) AS cost_usd FROM telemetry t JOIN sessions s ON t.session_id = s.sid WHERE s.task_id IS NOT NULL AND (@since IS NULL OR t.ts >= @since) GROUP BY s.task_id ORDER BY cost_usd DESC LIMIT @maxn";
+
+const AGGREGATE_BY_SESSION_SQL = "SELECT @sid AS session_id, COUNT(*) AS tool_calls, COALESCE(SUM(tokens_input), 0) AS tokens_in, COALESCE(SUM(tokens_output), 0) AS tokens_out, COALESCE(SUM(cost_usd), 0.0) AS cost_usd FROM telemetry WHERE session_id = @sid";
+
+function aggregateTelemetryByRuntime(db, { since = null } = {}) {
+  return db.prepare(AGGREGATE_BY_RUNTIME_SQL).all({ since });
+}
+
+function aggregateTelemetryByTask(db, { since = null, limit = 10 } = {}) {
+  return db.prepare(AGGREGATE_BY_TASK_SQL).all({
+    since,
+    maxn: Math.min(Math.max(limit, 1), 500),
+  });
+}
+
+function aggregateTelemetryBySession(db, sid) {
+  if (!sid) throw new StateOpsError('VALIDATION_ERROR', 'sid required');
+  return db.prepare(AGGREGATE_BY_SESSION_SQL).get({ sid });
+}
+
 const LIST_SPEC_CHANGED_SQL = "SELECT id, payload_json FROM events WHERE id > @since_id AND type = 'spec_changed' ORDER BY id ASC LIMIT @maxn";
 
 function consumeSpecChangedEvents(db, { since_id = 0, limit = 100 } = {}) {
@@ -626,4 +654,8 @@ module.exports = {
   // staleness
   markTasksStaleBySpecSections,
   consumeSpecChangedEvents,
+  // telemetry aggregation
+  aggregateTelemetryByRuntime,
+  aggregateTelemetryByTask,
+  aggregateTelemetryBySession,
 };

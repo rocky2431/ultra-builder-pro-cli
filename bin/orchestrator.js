@@ -51,15 +51,13 @@ function parseRuntimes() {
 }
 
 function cmdRun(opts = {}) {
-  if (!opts.skipOptIn) {
-    const settings = readSettings();
-    if (!optInAllowed(settings)) {
-      process.stderr.write(
-        'orchestrator.auto_dispatch is not enabled in settings.json.\n' +
-        'Set {"orchestrator":{"auto_dispatch":true}} to opt in.\n',
-      );
-      process.exit(2);
-    }
+  const settings = readSettings();
+  if (!opts.skipOptIn && !optInAllowed(settings)) {
+    process.stderr.write(
+      'orchestrator.auto_dispatch is not enabled in settings.json.\n' +
+      'Set {"orchestrator":{"auto_dispatch":true}} to opt in.\n',
+    );
+    process.exit(2);
   }
   const { initStateDb } = require('../mcp-server/lib/state-db.cjs');
   const { runDaemon } = require('../orchestrator/daemon.cjs');
@@ -71,9 +69,34 @@ function cmdRun(opts = {}) {
     pollMs: Number(process.env.UBP_ORCH_POLL_MS || 1000),
     onError: (err) => process.stderr.write(`orchestrator error: ${err.message}\n`),
   });
+
+  // Phase 6.4 — optional code-graph watcher (opt-in via settings or CLI).
+  const watcherEnabled =
+    opts.withGraphWatcher === true ||
+    !!(settings && settings.orchestrator && settings.orchestrator.graph_watcher === true);
+  let watcherHandle = null;
+  if (watcherEnabled) {
+    try {
+      const { startWatcher } = require('../orchestrator/code-graph-watcher.cjs');
+      const jsonlPath = path.join(REPO_ROOT, '.ultra', 'code-graph-events.jsonl');
+      fs.mkdirSync(path.dirname(jsonlPath), { recursive: true });
+      watcherHandle = startWatcher({
+        repoRoot: REPO_ROOT,
+        onBatch: (batch) => {
+          try { fs.appendFileSync(jsonlPath, JSON.stringify(batch) + '\n'); }
+          catch (err) { process.stderr.write(`graph-watcher write error: ${err.message}\n`); }
+        },
+      });
+      process.stderr.write(`orchestrator: graph-watcher enabled → ${jsonlPath}\n`);
+    } catch (err) {
+      process.stderr.write(`orchestrator: graph-watcher disabled (${err.message})\n`);
+    }
+  }
+
   const shutdown = (signal) => {
     process.stderr.write(`orchestrator received ${signal}, stopping\n`);
     handle.stop();
+    if (watcherHandle) watcherHandle.stop();
     try { db.close(); } catch (_) { /* ignore */ }
     process.exit(0);
   };
@@ -173,12 +196,14 @@ function usage() {
   );
 }
 
-const subcommand = process.argv[2];
+const argv = process.argv.slice(2);
+const subcommand = argv[0];
+const runOpts = { withGraphWatcher: argv.includes('--with-graph-watcher') };
 switch (subcommand) {
-  case 'run':    cmdRun();    break;
-  case 'start':  cmdStart();  break;
-  case 'stop':   cmdStop();   break;
-  case 'status': cmdStatus(); break;
+  case 'run':    cmdRun(runOpts); break;
+  case 'start':  cmdStart();      break;
+  case 'stop':   cmdStop();       break;
+  case 'status': cmdStatus();     break;
   case '-h':
   case '--help':
   case 'help':

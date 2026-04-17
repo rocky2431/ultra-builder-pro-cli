@@ -80,6 +80,7 @@ function printHelp() {
   ${paint('yellow', 'Other:')}
     ${paint('cyan', '-u, --uninstall')}    remove installed assets
     ${paint('cyan', '-c, --config-dir')}   override runtime's config directory (string path)
+    ${paint('cyan', '--skip-rtk')}        skip RTK hook registration (RTK is a soft dependency)
     ${paint('cyan', '-h, --help')}         show this help
     ${paint('cyan', '-v, --version')}      show CLI version
 
@@ -105,6 +106,7 @@ function parseArgs(argv) {
     help: false,
     version: false,
     configDir: null,
+    skipRtk: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -122,6 +124,7 @@ function parseArgs(argv) {
       case '-u': case '--uninstall': flags.uninstall = true; break;
       case '-h': case '--help': flags.help = true; break;
       case '-v': case '--version': flags.version = true; break;
+      case '--skip-rtk': flags.skipRtk = true; break;
       case '-c': case '--config-dir':
         flags.configDir = args[++i];
         if (!flags.configDir || flags.configDir.startsWith('-')) {
@@ -218,6 +221,22 @@ async function main() {
     console.error(`  ${paint('red', `${failed} runtime(s) failed`)}`);
     process.exit(1);
   }
+
+  // Phase 6.1 — RTK hook (soft dependency; install continues on absence).
+  if (mode === 'install') {
+    const rtk = require('../adapters/_shared/rtk-detect.cjs');
+    const result = rtk.installHook({ skip: flags.skipRtk, scope });
+    if (result.skipped) {
+      console.log(`  ${paint('dim', '⤼ rtk skipped (--skip-rtk)')}`);
+    } else if (result.available && result.initialized) {
+      console.log(`  ${paint('green', '✓')} rtk hook registered (${result.version})`);
+    } else if (result.available && !result.initialized) {
+      console.log(`  ${paint('yellow', '!')} rtk present but init failed: ${result.init_error}`);
+    } else {
+      console.log(`  ${paint('dim', '⤼ ' + result.hint.replace(/\n/g, '\n    '))}`);
+    }
+  }
+
   console.log(`  ${paint('green', 'Done.')}`);
 }
 

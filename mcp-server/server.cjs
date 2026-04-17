@@ -19,6 +19,7 @@ const { ListToolsRequestSchema, CallToolRequestSchema } = require('@modelcontext
 const { initStateDb, closeStateDb } = require('./lib/state-db.cjs');
 const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
+const telemetry = require('./lib/telemetry.cjs');
 const { initProject } = require('./lib/init-project.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -227,11 +228,36 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args = {} } = request.params;
+    const toolStart = Date.now();
+    let toolError = null;
+
+    const emitTelemetry = () => {
+      try {
+        telemetry.appendTelemetry(db, {
+          event_type: 'tool_call',
+          tool_name: name,
+          session_id: (args && args.sid) || null,
+          rootDir,
+          payload: {
+            duration_ms: Date.now() - toolStart,
+            task_id: (args && (args.task_id || args.id)) || null,
+            error: toolError,
+          },
+        });
+      } catch (err) {
+        process.stderr.write(`telemetry warning: ${err.message}\n`);
+      }
+    };
+
     if (!REGISTERED_TOOLS.includes(name)) {
+      toolError = 'UNKNOWN_TOOL';
+      emitTelemetry();
       return errorResponse('UNKNOWN_TOOL', `tool ${name} is not registered on this server`);
     }
     const validateInput = inputValidators.get(name);
     if (!validateInput(args)) {
+      toolError = 'VALIDATION_ERROR';
+      emitTelemetry();
       return errorResponse('VALIDATION_ERROR', ajv.errorsText(validateInput.errors));
     }
 
@@ -240,11 +266,15 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
       result = dispatchTool(name, args, db, { rootDir });
     } catch (err) {
       const code = err.code || (err instanceof ops.StateOpsError ? err.code : 'STATE_DB_ERROR');
+      toolError = code;
+      emitTelemetry();
       return errorResponse(code, err.message, !!err.retriable);
     }
 
     const validateOutput = outputValidators.get(name);
     if (!validateOutput(result)) {
+      toolError = 'OUTPUT_SCHEMA_DRIFT';
+      emitTelemetry();
       return errorResponse('OUTPUT_SCHEMA_DRIFT', ajv.errorsText(validateOutput.errors));
     }
 
@@ -253,6 +283,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
       catch (err) { process.stderr.write(`projector warning: ${err.message}\n`); }
     }
 
+    emitTelemetry();
     return {
       content: [{ type: 'text', text: JSON.stringify(result) }],
       structuredContent: result,

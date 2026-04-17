@@ -60,6 +60,7 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "better-sqlite3": "^11.5.0",
+    "chokidar": "^3.6.0",
     "js-yaml": "^4.1.0"
   }
 }
