@@ -77,3 +77,38 @@ test('openStateDb on an empty file produces no tables until schema is applied', 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('Phase 8A.1 schema: tasks.parent_id column + tasks_parent partial index + seed row', () => {
+  const { dir, file } = tmpDbPath();
+  try {
+    const { db } = initStateDb(file);
+
+    const cols = db.prepare("PRAGMA table_info(tasks)").all();
+    const parentCol = cols.find((c) => c.name === 'parent_id');
+    assert.ok(parentCol, 'tasks.parent_id column must exist');
+    assert.equal(parentCol.type, 'TEXT');
+    assert.equal(parentCol.notnull, 0, 'parent_id must be nullable (top-level tasks)');
+
+    const indexRow = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'tasks_parent'")
+      .get();
+    assert.ok(indexRow, 'tasks_parent index must exist');
+
+    const seedRow = db
+      .prepare("SELECT version, description FROM schema_version WHERE version = '8A.1'")
+      .get();
+    assert.ok(seedRow, 'schema_version row for 8A.1 must be seeded');
+    assert.match(seedRow.description, /parent_id/);
+
+    const fkInfo = db.prepare("PRAGMA foreign_key_list(tasks)").all();
+    const parentFk = fkInfo.find((fk) => fk.from === 'parent_id');
+    assert.ok(parentFk, 'parent_id must declare a foreign key to tasks(id)');
+    assert.equal(parentFk.table, 'tasks');
+    assert.equal(parentFk.to, 'id');
+    assert.equal(parentFk.on_delete, 'SET NULL');
+
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

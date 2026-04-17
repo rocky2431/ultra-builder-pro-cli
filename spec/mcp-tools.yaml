@@ -38,14 +38,16 @@ tools:
       required: [title, type, priority]
       additionalProperties: false
       properties:
-        id:          { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'optional caller-supplied id; otherwise server mints a uuid' }
-        title:       { type: string, minLength: 3 }
-        type:        { type: string, enum: [architecture, feature, bugfix] }
-        priority:    { type: string, enum: [P0, P1, P2, P3] }
-        complexity:  { type: integer, minimum: 1, maximum: 10 }
-        deps:        { type: array, items: { type: string } }
-        tag:         { type: string, description: 'git branch tag (Phase 7.2)' }
-        trace_to:    { type: string, description: 'spec anchor (e.g. spec/mcp-tools.yaml#task.create)' }
+        id:             { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'optional caller-supplied id; otherwise server mints a uuid' }
+        title:          { type: string, minLength: 3 }
+        type:           { type: string, enum: [architecture, feature, bugfix] }
+        priority:       { type: string, enum: [P0, P1, P2, P3] }
+        complexity:     { type: integer, minimum: 1, maximum: 10 }
+        deps:           { type: array, items: { type: string } }
+        files_modified: { type: array, items: { type: string }, description: 'Phase 8A conflict detection' }
+        parent_id:      { type: string, description: 'Phase 8A.3 parent reference for task.expand children' }
+        tag:            { type: string, description: 'git branch tag (Phase 7.2)' }
+        trace_to:       { type: string, description: 'spec anchor (e.g. spec/mcp-tools.yaml#task.create)' }
     output_schema:
       type: object
       required: [id, status, created_at]
@@ -293,7 +295,7 @@ tools:
 
   - name: task.parse_prd
     family: task
-    description: Parse a PRD document into a task graph (Phase 8A).
+    description: Parse a PRD document into a task graph (Phase 8A). When dry_run=true the tasks are returned without writing to state.db (supports ultra-plan human gate workflow).
     phase: '8a'
     writer_role: mcp
     input_schema:
@@ -303,6 +305,7 @@ tools:
         prd_path: { type: string }
         prd_text: { type: string }
         tag:      { type: string }
+        dry_run:  { type: boolean, default: false, description: 'when true, do not persist to state.db — used by ultra-plan gate to preview before approve' }
     output_schema:
       type: object
       required: [tasks, topo]

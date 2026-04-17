@@ -7,7 +7,7 @@ const Database = require('better-sqlite3');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '7.1';
+const EXPECTED_VERSION = '8A.1';
 
 const REQUIRED_TABLES = Object.freeze([
   'tasks',

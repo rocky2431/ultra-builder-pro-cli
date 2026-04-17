@@ -25,7 +25,7 @@ const STATUS_TRANSITIONS = Object.freeze({
 const TASK_FIELDS = Object.freeze([
   'id', 'title', 'type', 'priority', 'complexity', 'status',
   'deps', 'files_modified', 'session_id', 'stale', 'complexity_hint',
-  'tag', 'trace_to', 'context_file', 'completion_commit',
+  'tag', 'trace_to', 'context_file', 'completion_commit', 'parent_id',
   'created_at', 'updated_at',
 ]);
 
@@ -150,6 +150,7 @@ function createTask(db, input) {
     trace_to: input.trace_to ?? null,
     context_file: input.context_file ?? null,
     completion_commit: null,
+    parent_id: input.parent_id ?? null,
     created_at: ts,
     updated_at: ts,
   };

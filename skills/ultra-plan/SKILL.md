@@ -1,9 +1,13 @@
 ---
 name: ultra-plan
-description: "Generate task breakdown from complete specs. Scope-mode-aware; writes state.db via task.create; projector generates tasks.json + contexts/*.md."
+description: "Generate task breakdown from complete specs OR from a raw PRD (Phase 8A). Scope-mode-aware; writes state.db via task.create or task.parse_prd; projector generates tasks.json + contexts/*.md."
 runtime: all
 mcp_tools_required:
   - task.create
+  - task.parse_prd
+  - task.dependency_topo
+  - plan.export
+  - plan.get
   - ask.question
 cli_fallback: "task create"
 ---
@@ -22,6 +26,54 @@ automatically. Context-md bodies are written by this skill (not projector).
 - `.ultra/specs/research-distillate.md` preferred when present (token-efficient)
 
 ## Workflow
+
+### Input Mode Selection (BEFORE Step 0)
+
+Two entry points lead into the planner:
+
+| Mode | When | Path |
+|------|------|------|
+| **Spec Mode** (default) | `.ultra/specs/` exists and `/ultra-research` is complete | Steps 0–7 below |
+| **PRD Direct** (Phase 8A) | User hands you a raw PRD (path or inline text) and wants to skip the spec layer | see **PRD Direct Workflow** below |
+
+---
+
+### PRD Direct Workflow (Phase 8A — human-gated artifact)
+
+For a one-shot PRD → task graph pipeline with approval gate:
+
+1. **Dry-run parse** (no state.db writes):
+   ```jsonc
+   // MCP
+   { "tool": "task.parse_prd", "args": { "prd_path": "<path>", "dry_run": true, "tag": "<branch>" } }
+   ```
+   Returns `{ tasks: [...], topo: [[...],[...]] }` without touching state.db.
+
+2. **Build execution plan** (in-memory via the server's `plan-builder`):
+   The server composes `computeWaves` + `files_modified` overlap + `pricing.computeCost`
+   into a plan with `waves`, `ownership_forecast`, `conflict_surface`, and
+   estimated cost / duration.
+
+3. **Human gate** — `ask.question` with plan summary + estimated cost:
+   - `approve` → re-run `task.parse_prd` **with `dry_run: false`** to commit
+     tasks, then `plan.export { out_path: ".ultra/execution-plan.json" }`
+     to land the artifact and emit the `plan_approved` event.
+   - `reject` → **do not** call the non-dry-run path. No state.db rows, no
+     artifact. Prompt user for PRD revision and loop.
+
+4. **Post-approval** — the artifact at `.ultra/execution-plan.json` is the
+   source of truth for Phase 8B orchestration (wave-by-wave dispatch).
+   Use `plan.get { section: "topo" | "conflicts" | "all" }` to inspect
+   without re-reading the file.
+
+**AC guarantees**:
+- `reject` path performs zero state.db writes (dry_run=true on parse).
+- `approve` path emits exactly one `plan_approved` event, tied to the
+  persisted artifact path.
+- Task IDs returned by the dry-run and the final persisted tasks are
+  identical (parser is deterministic given the same LLM output).
+
+---
 
 ### Step 0 — Scope Mode Selection
 

@@ -37,6 +37,21 @@ async function withClient({ dir, dbPath }, fn) {
   }
 }
 
+async function withClientNoLlmKey({ dir, dbPath }, fn) {
+  const env = { ...process.env, UBP_DB_PATH: dbPath, UBP_ROOT_DIR: dir };
+  delete env.ANTHROPIC_API_KEY;
+  delete env.OPENAI_API_KEY;
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [SERVER],
+    env,
+    stderr: 'pipe',
+  });
+  const client = new Client({ name: 'ubp-test', version: '0.0.0' }, { capabilities: {} });
+  await client.connect(transport);
+  try { await fn(client); } finally { await client.close(); }
+}
+
 function readToolPayload(result) {
   if (result.structuredContent) return result.structuredContent;
   const text = result.content[0].text;
@@ -58,6 +73,8 @@ test('listTools returns the registered task.* + session.* + memory.* tools with 
         'memory.recall',
         'memory.reflect',
         'memory.retain',
+        'plan.export',
+        'plan.get',
         'session.admission_check',
         'session.close',
         'session.get',
@@ -68,9 +85,12 @@ test('listTools returns the registered task.* + session.* + memory.* tools with 
         'task.append_event',
         'task.create',
         'task.delete',
+        'task.dependency_topo',
+        'task.expand',
         'task.get',
         'task.init_project',
         'task.list',
+        'task.parse_prd',
         'task.subscribe_events',
         'task.switch_tag',
         'task.update',
@@ -481,6 +501,183 @@ test('memory.retain → memory.recall → memory.reflect round-trip via MCP', as
       assert.equal(reflected.counts.decision, 1);
       assert.equal(reflected.counts.error_fix, 1);
       assert.ok(Array.isArray(reflected.recent));
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.dependency_topo: happy path groups tasks into correct waves', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      for (const [id, deps] of [['A', []], ['B', ['A']], ['C', ['A']]]) {
+        await client.callTool({
+          name: 'task.create',
+          arguments: { id, title: `task ${id}`, type: 'feature', priority: 'P2', deps },
+        });
+      }
+      const resp = await client.callTool({
+        name: 'task.dependency_topo',
+        arguments: { task_ids: ['A', 'B', 'C'] },
+      });
+      const data = readToolPayload(resp);
+      assert.equal(data.waves.length, 2);
+      assert.deepEqual(new Set(data.waves[0]), new Set(['A']));
+      assert.deepEqual(new Set(data.waves[1]), new Set(['B', 'C']));
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.parse_prd: neither prd_path nor prd_text → NO_INPUT', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      const resp = await client.callTool({ name: 'task.parse_prd', arguments: {} });
+      const err = expectError(resp);
+      assert.equal(err.code, 'NO_INPUT');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.parse_prd: missing LLM credentials → NO_LLM_CREDENTIALS', async () => {
+  const proj = tmpProject();
+  try {
+    await withClientNoLlmKey(proj, async (client) => {
+      const resp = await client.callTool({
+        name: 'task.parse_prd',
+        arguments: { prd_text: 'Build a login feature with email and password.' },
+      });
+      const err = expectError(resp);
+      assert.equal(err.code, 'NO_LLM_CREDENTIALS');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.expand: unknown parent → TASK_NOT_FOUND (no LLM call needed)', async () => {
+  const proj = tmpProject();
+  try {
+    await withClientNoLlmKey(proj, async (client) => {
+      const resp = await client.callTool({
+        name: 'task.expand',
+        arguments: { id: 'nonexistent-parent' },
+      });
+      const err = expectError(resp);
+      assert.equal(err.code, 'TASK_NOT_FOUND');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.expand: missing LLM credentials on valid parent → NO_LLM_CREDENTIALS', async () => {
+  const proj = tmpProject();
+  try {
+    await withClientNoLlmKey(proj, async (client) => {
+      await client.callTool({
+        name: 'task.create',
+        arguments: { id: 'parent-1', title: 'Build something complex', type: 'feature', priority: 'P1', complexity: 9 },
+      });
+      const resp = await client.callTool({
+        name: 'task.expand',
+        arguments: { id: 'parent-1' },
+      });
+      const err = expectError(resp);
+      assert.equal(err.code, 'NO_LLM_CREDENTIALS');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('plan.export: no tasks → NO_TASKS', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      const resp = await client.callTool({
+        name: 'plan.export',
+        arguments: { out_path: '.ultra/execution-plan.json' },
+      });
+      const err = expectError(resp);
+      assert.equal(err.code, 'NO_TASKS');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('plan.export → plan.get round trip: artifact on disk + retrievable', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      for (const [id, deps, files] of [
+        ['p-a', [], ['src/a.ts']],
+        ['p-b', ['p-a'], ['src/b.ts']],
+        ['p-c', ['p-a'], ['src/c.ts']],
+      ]) {
+        await client.callTool({
+          name: 'task.create',
+          arguments: { id, title: `task ${id}`, type: 'feature', priority: 'P2', complexity: 3, deps, files_modified: files },
+        });
+      }
+      const exp = await client.callTool({
+        name: 'plan.export',
+        arguments: { out_path: '.ultra/execution-plan.json', format: 'json' },
+      });
+      const expData = readToolPayload(exp);
+      assert.equal(expData.wave_count, 2);
+      assert.ok(fs.existsSync(expData.plan_path), 'artifact file must exist');
+
+      const got = await client.callTool({ name: 'plan.get', arguments: { section: 'topo' } });
+      const gotData = readToolPayload(got);
+      assert.ok(Array.isArray(gotData.plan.waves));
+      assert.equal(gotData.plan.waves.length, 2);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('plan.get: no plan written yet → NO_PLAN', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      const resp = await client.callTool({ name: 'plan.get', arguments: {} });
+      const err = expectError(resp);
+      assert.equal(err.code, 'NO_PLAN');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.dependency_topo: cycle returns CYCLE_DETECTED with cycles in details', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'task.create',
+        arguments: { id: 'X', title: 'task X', type: 'feature', priority: 'P2', deps: ['Y'] },
+      });
+      await client.callTool({
+        name: 'task.create',
+        arguments: { id: 'Y', title: 'task Y', type: 'feature', priority: 'P2', deps: ['X'] },
+      });
+      const resp = await client.callTool({
+        name: 'task.dependency_topo',
+        arguments: { task_ids: ['X', 'Y'] },
+      });
+      const err = expectError(resp);
+      assert.equal(err.code, 'CYCLE_DETECTED');
+      assert.ok(err.details && Array.isArray(err.details.cycles));
+      assert.equal(err.details.cycles.length, 1);
+      assert.deepEqual(new Set(err.details.cycles[0]), new Set(['X', 'Y']));
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

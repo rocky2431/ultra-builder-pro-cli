@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   trace_to          TEXT,                -- spec anchor reference
   context_file      TEXT,                -- projection target path
   completion_commit TEXT,                -- backfilled hash (Phase 2.8)
+  parent_id         TEXT REFERENCES tasks(id) ON DELETE SET NULL,  -- Phase 8A.1: task.expand subtask→parent
   created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
@@ -40,6 +41,7 @@ CREATE INDEX IF NOT EXISTS tasks_status      ON tasks(status);
 CREATE INDEX IF NOT EXISTS tasks_tag         ON tasks(tag);
 CREATE INDEX IF NOT EXISTS tasks_session     ON tasks(session_id) WHERE session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS tasks_stale       ON tasks(stale) WHERE stale = 1;
+CREATE INDEX IF NOT EXISTS tasks_parent      ON tasks(parent_id) WHERE parent_id IS NOT NULL;
 
 -- ──────────────────────────── events ──────────────────────────────────────
 -- Append-only event stream. id is the subscription cursor (D31, R26):
@@ -188,3 +190,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('5.2', 'Phase 5.2 — circuit_breaker table for per-task trip tracking');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('7.1', 'Phase 7.1 — memory_entries + FTS5 wrapper memory store');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('8A.1', 'Phase 8A.1 — tasks.parent_id for task.expand parent→children');

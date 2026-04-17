@@ -21,6 +21,11 @@ const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
 const telemetry = require('./lib/telemetry.cjs');
 const memory = require('./lib/memory-store.cjs');
+const topo = require('./lib/topo.cjs');
+const llm = require('./lib/llm-client.cjs');
+const parser = require('./lib/prd-parser.cjs');
+const expander = require('./lib/task-expander.cjs');
+const planStore = require('./lib/plan-store.cjs');
 const { initProject } = require('./lib/init-project.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -36,6 +41,9 @@ const TASK_TOOLS = Object.freeze([
   'task.append_event',
   'task.subscribe_events',
   'task.switch_tag',
+  'task.dependency_topo',
+  'task.parse_prd',
+  'task.expand',
 ]);
 
 const SESSION_TOOLS = Object.freeze([
@@ -54,12 +62,20 @@ const MEMORY_TOOLS = Object.freeze([
   'memory.reflect',
 ]);
 
-const REGISTERED_TOOLS = Object.freeze([...TASK_TOOLS, ...SESSION_TOOLS, ...MEMORY_TOOLS]);
+const PLAN_TOOLS = Object.freeze([
+  'plan.export',
+  'plan.get',
+]);
+
+const REGISTERED_TOOLS = Object.freeze([
+  ...TASK_TOOLS, ...SESSION_TOOLS, ...MEMORY_TOOLS, ...PLAN_TOOLS,
+]);
 
 // init_project mutates the filesystem of an unrelated project, not state.db —
 // do NOT run the projector (it would overwrite the freshly-copied template).
 const MUTATING_TOOLS = new Set([
   'task.create', 'task.update', 'task.delete', 'task.append_event', 'task.switch_tag',
+  'task.parse_prd', 'task.expand',
   'session.spawn', 'session.close', 'session.heartbeat',
   // memory writes do not change tasks.json projection — skip projector.
 ]);
@@ -80,7 +96,23 @@ function mintSessionId() {
   return `sess-${randomUUID().slice(0, 8)}`;
 }
 
-function dispatchTool(name, input, db, ctx = {}) {
+function resolvePrdText(input, ctx) {
+  if (input.prd_text && String(input.prd_text).trim()) return String(input.prd_text);
+  if (input.prd_path) {
+    const abs = path.isAbsolute(input.prd_path)
+      ? input.prd_path
+      : path.join(ctx.rootDir || process.cwd(), input.prd_path);
+    return fs.readFileSync(abs, 'utf8');
+  }
+  return null;
+}
+
+function buildLlmClient(ctx) {
+  if (ctx && ctx.llmClient) return ctx.llmClient;
+  return llm.createLlmClient({});
+}
+
+async function dispatchTool(name, input, db, ctx = {}) {
   switch (name) {
     case 'task.create': {
       const { randomUUID } = require('node:crypto');
@@ -197,6 +229,78 @@ function dispatchTool(name, input, db, ctx = {}) {
     case 'task.switch_tag': {
       return ops.switchTaskTag(db, input.id, input.tag);
     }
+    case 'task.dependency_topo': {
+      const requested = Array.isArray(input && input.task_ids) ? input.task_ids : null;
+      const rows = requested
+        ? requested.map((id) => ops.readTask(db, id)).filter(Boolean)
+        : ops.listTasks(db, {});
+      const graph = rows.map((t) => ({
+        id: t.id,
+        deps: Array.isArray(t.deps) ? t.deps : [],
+      }));
+      const result = topo.computeWaves(graph);
+      if (result.cycles.length > 0) {
+        const err = new Error(`dependency graph has ${result.cycles.length} cycle(s)`);
+        err.code = 'CYCLE_DETECTED';
+        err.details = { cycles: result.cycles };
+        throw err;
+      }
+      return { waves: result.waves };
+    }
+    case 'task.parse_prd': {
+      const prdText = resolvePrdText(input, ctx);
+      if (!prdText || !prdText.trim()) {
+        const err = new Error('one of prd_path or prd_text required');
+        err.code = 'NO_INPUT';
+        throw err;
+      }
+      const client = buildLlmClient(ctx);
+      const parsed = await parser.parsePrd(prdText, { llmClient: client, tag: input.tag });
+      const shaped = parsed.tasks.map((t) => ({
+        id: t.id, title: t.title, type: t.type, priority: t.priority,
+        complexity: t.complexity, deps: t.deps, files_modified: t.files_modified,
+        tag: t.tag,
+      }));
+      const dryRun = input.dry_run === true;
+      if (!dryRun) {
+        try {
+          ops.tx(db, () => {
+            for (const t of shaped) ops.createTask(db, t);
+          });
+        } catch (err) {
+          const wrap = new Error(`failed to persist parsed tasks: ${err.message}`);
+          wrap.code = 'PARSE_FAILED';
+          wrap.cause = err;
+          throw wrap;
+        }
+      }
+      const graph = shaped.map((t) => ({ id: t.id, deps: t.deps || [] }));
+      const topoResult = topo.computeWaves(graph);
+      return { tasks: shaped, topo: topoResult.waves };
+    }
+    case 'task.expand': {
+      // Cheap guards before paying for LLM client construction (which would
+      // throw NO_LLM_CREDENTIALS when env keys are missing).
+      const parent = ops.readTask(db, input.id);
+      if (!parent) {
+        const err = new Error(`no task ${input.id}`);
+        err.code = 'TASK_NOT_FOUND';
+        throw err;
+      }
+      if (parent.status === 'expanded') {
+        const err = new Error(`task ${input.id} is already expanded`);
+        err.code = 'ALREADY_EXPANDED';
+        throw err;
+      }
+      const client = buildLlmClient(ctx);
+      const result = await expander.expandTask(db, {
+        id: input.id,
+        sub_count: input.sub_count,
+        strategy: input.strategy,
+        llmClient: client,
+      });
+      return { parent_id: result.parent_id, children: result.children };
+    }
     case 'memory.retain': {
       const out = memory.retain(db, input);
       return { id: out.id, ts: out.ts };
@@ -208,17 +312,48 @@ function dispatchTool(name, input, db, ctx = {}) {
     case 'memory.reflect': {
       return memory.reflect(db, input || {});
     }
+    case 'plan.export': {
+      const rootDir = ctx.rootDir || process.cwd();
+      const abs = path.isAbsolute(input.out_path)
+        ? input.out_path
+        : path.join(rootDir, input.out_path);
+      const tasks = ops.listTasks(db, { tag: input.tag });
+      if (tasks.length === 0) {
+        const err = new Error('no tasks to plan');
+        err.code = 'NO_TASKS';
+        throw err;
+      }
+      const plan = planStore.buildPlan(tasks, {});
+      const { plan_path } = planStore.savePlanArtifact(plan, abs, input.format || 'json');
+      ops.appendEvent(db, {
+        type: 'plan_approved',
+        payload: { plan_path, wave_count: plan.waves.length, tag: input.tag || null },
+      });
+      return { plan_path, wave_count: plan.waves.length };
+    }
+    case 'plan.get': {
+      const rootDir = ctx.rootDir || process.cwd();
+      const loaded = planStore.loadPlanArtifact(rootDir);
+      if (!loaded) {
+        const err = new Error('no plan has been computed yet');
+        err.code = 'NO_PLAN';
+        throw err;
+      }
+      return { plan: planStore.selectSection(loaded, input.section) };
+    }
     default:
       throw new Error(`unhandled tool ${name}`);
   }
 }
 
-function errorResponse(code, message, retriable = false) {
+function errorResponse(code, message, retriable = false, details = undefined) {
+  const error = { code, message, retriable };
+  if (details !== undefined) error.details = details;
   return {
     isError: true,
     content: [{
       type: 'text',
-      text: JSON.stringify({ ok: false, error: { code, message, retriable } }),
+      text: JSON.stringify({ ok: false, error }),
     }],
   };
 }
@@ -286,12 +421,12 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
 
     let result;
     try {
-      result = dispatchTool(name, args, db, { rootDir });
+      result = await dispatchTool(name, args, db, { rootDir });
     } catch (err) {
       const code = err.code || (err instanceof ops.StateOpsError ? err.code : 'STATE_DB_ERROR');
       toolError = code;
       emitTelemetry();
-      return errorResponse(code, err.message, !!err.retriable);
+      return errorResponse(code, err.message, !!err.retriable, err.details);
     }
 
     const validateOutput = outputValidators.get(name);

@@ -56,11 +56,13 @@
     "install:all": "node bin/install.js --all --local"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "better-sqlite3": "^11.5.0",
     "chokidar": "^3.6.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "openai": "^6.34.0"
   }
 }
