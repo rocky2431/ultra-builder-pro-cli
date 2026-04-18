@@ -1,7 +1,7 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.1.0",
-  "description": "Multi-runtime installer for the Ultra Builder Pro (Hermes) agent engineering system — deploys commands, agents, skills, and hooks to Claude Code, OpenCode, Codex CLI, and Gemini CLI.",
+  "version": "0.3.0",
+  "description": "Multi-runtime installer for the Ultra Builder Pro agent engineering system — deploys commands, agents, skills, hooks, and MCP server to Claude Code, OpenCode, Codex CLI, and Gemini CLI.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
     "ubp": "bin/install.js",
@@ -11,15 +11,25 @@
     "bin",
     "adapters",
     "ultra-tools",
+    "mcp-server",
+    "orchestrator",
     "commands",
     "agents",
     "skills",
     "hooks/*.py",
     "output-styles",
+    "spec/mcp-tools.yaml",
+    "spec/cli-protocol.md",
+    "spec/schemas",
     "CLAUDE.md",
+    "LICENSE",
+    "CHANGELOG.md",
     "settings.json",
     ".ultra-template",
-    "docs/ROADMAP.md"
+    "docs/ROADMAP.md",
+    "docs/ARCHITECTURE.md",
+    "docs/AGENT-CONTEXT.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md"
   ],
   "keywords": [
     "claude-code",
@@ -29,8 +39,8 @@
     "agent",
     "cli",
     "multi-runtime",
-    "hermes",
     "ultra-builder-pro",
+    "mcp",
     "meta-prompting",
     "context-engineering"
   ],
@@ -48,14 +58,16 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "test": "node --test ultra-tools/*.test.cjs || true",
+    "test": "npm run test:all",
     "test:state": "node --test 'mcp-server/**/*.test.cjs'",
     "test:orch": "node --test 'orchestrator/**/*.test.cjs'",
     "test:spec": "node spec/scripts/test-all.cjs",
+    "test:rest": "node --test adapters/_shared/tests/*.test.cjs adapters/tests/*.test.cjs ultra-tools/*.test.cjs tests/conformance/**/*.test.cjs tests/install.test.cjs",
+    "test:all": "npm run test:state && npm run test:orch && npm run test:spec && npm run test:rest",
     "install:claude": "node bin/install.js --claude --local",
     "install:all": "node bin/install.js --all --local"
   },
-  "devDependencies": {
+  "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ajv": "^8.17.1",
@@ -64,5 +76,6 @@
     "chokidar": "^3.6.0",
     "js-yaml": "^4.1.0",
     "openai": "^6.34.0"
-  }
+  },
+  "devDependencies": {}
 }
