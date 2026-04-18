@@ -3,8 +3,10 @@
 /**
  * ultra-builder-pro-cli — multi-runtime installer.
  *
- * Distributes Ultra Builder Pro (Hermes) assets — commands, agents, skills,
- * hooks — to Claude Code, OpenCode, Codex CLI, and Gemini CLI.
+ * Distributes Ultra Builder Pro assets — commands, agents, skills, hooks,
+ * MCP server — to Claude Code, OpenCode, Codex CLI, and Gemini CLI via
+ * runtime-specific adapters under adapters/. Install is idempotent and
+ * uses atomic writes; uninstall reverses via sentinel/manifest blocks.
  *
  * Usage:
  *   npx ultra-builder-pro-cli [options]
@@ -15,10 +17,8 @@
  *   -l, --local                                   install into current working directory
  *   -u, --uninstall                               remove installed assets
  *   -c, --config-dir <path>                       override config directory
+ *       --skip-rtk                                do not detect / install RTK hook
  *   -h, --help                                    show help
- *
- * Phase 0 skeleton: argument parsing + routing only. Adapters are stubs that
- * print "not implemented" — real adapter work lands in Phase 2.
  */
 
 'use strict';

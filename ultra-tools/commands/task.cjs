@@ -87,7 +87,7 @@ function dispatch(args) {
   switch (verb) {
     case 'init-project': return dispatchInitProject(rest);
     default:
-      emit({ ok: false, error: { code: 'UNKNOWN_VERB', message: `task ${verb} not implemented in Phase 3.1; see spec/cli-protocol.md` } });
+      emit({ ok: false, error: { code: 'UNKNOWN_VERB', message: `unknown task verb '${verb}'; see spec/cli-protocol.md for supported task CLI verbs` } });
       return 1;
   }
 }

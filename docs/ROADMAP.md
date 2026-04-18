@@ -41,8 +41,8 @@ loop with isolated sessions sharing one authoritative state store.
 | 6     | Monitoring + code-review-graph live watcher    | ✅ done (D44) → v0.2 |
 | 4.6b  | Full conformance suite                         | ✅ done (D45) — 20 conformance + 21 resolveTarget tests |
 | 7     | hindsight wrapper + tagged tasks + skill mining| ✅ done (D46) → v0.3 |
-| 8A    | Plan automation (parse / topo / expand + artifact + human gate) | pending → v0.3 |
-| 8B    | Execution automation (dispatch / parallel worktree / merge) | pending → v0.3 |
+| 8A    | Plan automation (parse / topo / expand + artifact + human gate) | ✅ done (D47, `a932cb8`) → v0.3 |
+| 8B    | Execution automation (dispatch / parallel worktree / merge) | ✅ done (D48, `8224159`) — **v0.3 ready** |
 | 9     | Release pipeline (npm / Homebrew / pip)        | pending → v1.0 |
 
 ## What is in the repo today
@@ -74,19 +74,26 @@ adapters/                   ← Phase 0 stubs; Phase 4 implements install/uninst
 skills/                     ← 17 skills, conformant to skill-manifest.schema
 hooks/                      ← 15 Python hooks; Phase 3 splits core + per-runtime
 docs/
-├── PLAN.zh-CN.md                authoritative plan (1640+ lines)
+├── PLAN.zh-CN.md                authoritative plan (1670+ lines)
 ├── ARCHITECTURE.md              Phase 1 single-page entry point
+├── AGENT-CONTEXT.md             Phase 3 canonical runtime context contract
+├── RUNTIME-COMPAT-MATRIX.md     Phase 4 runtime capability matrix
 ├── STATE-DB-ACCESS-POLICY.md    Phase 2 multi-process write contract
 ├── COMMIT-HASH-BACKFILL.md      Phase 2.8 two-commit completion flow
 └── ROADMAP.md                   this file
 ```
 
-## How to verify Phase 1 + Phase 2
+## How to verify (v0.3)
 
 ```
 npm install
-npm run test:spec     # 5 passed, 0 failed
-npm run test:state    # 44 passed, 0 failed
+npm run test:spec     # 6 passed, 0 failed
+npm run test:state    # 182 passed, 0 failed
+npm run test:orch     # 103 passed, 0 failed
+node --test adapters/_shared/tests/*.test.cjs adapters/tests/*.test.cjs \
+            ultra-tools/*.test.cjs tests/conformance/**/*.test.cjs \
+            tests/install.test.cjs   # 106 passed, 0 failed
+# total: 397 tests across state / orch / spec / adapters / conformance / install
 ```
 
 ## Out of scope for v1.0 (deferred)

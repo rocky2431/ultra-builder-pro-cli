@@ -88,7 +88,7 @@ function fail(msg, code) {
 }
 
 function notImplemented(name) {
-  fail(`'${name}' not implemented — scheduled for Phase 1`, 2);
+  fail(`'${name}' is not available via CLI — call the MCP tool instead (see spec/cli-protocol.md)`, 2);
 }
 
 const dbCommand = require('./commands/db.cjs');

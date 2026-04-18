@@ -45,7 +45,7 @@ function dispatch(args) {
     case 'integrity':  return cmdIntegrity(flags);
     case 'backup':     return cmdBackup(flags);
     default:
-      emit({ ok: false, error: { code: 'UNKNOWN_VERB', message: `db ${verb} is not implemented yet` } });
+      emit({ ok: false, error: { code: 'UNKNOWN_VERB', message: `unknown db verb '${verb}'; supported: init, checkpoint, vacuum, integrity, backup` } });
       return 1;
   }
 }

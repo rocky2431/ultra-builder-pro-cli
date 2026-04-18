@@ -171,7 +171,7 @@ function dispatch(args) {
       return 1;
     }
     default: {
-      emit({ ok: false, error: { code: 'UNKNOWN_VERB', message: `session ${verb} not implemented` } });
+      emit({ ok: false, error: { code: 'UNKNOWN_VERB', message: `unknown session verb '${verb}'; see spec/cli-protocol.md for supported session CLI verbs` } });
       return 1;
     }
   }

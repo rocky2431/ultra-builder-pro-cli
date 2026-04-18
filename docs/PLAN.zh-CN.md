@@ -1,6 +1,6 @@
 # ultra-builder-pro-cli — 执行计划 v0.3.1
 
-**状态**：Phase 0 完成 · Phase 1 待启动（Codex 第二轮评审已吸收）
+**状态**：Phase 0-8B 完成（D48 `8224159` 2026-04-18）· v0.3 ready（planner + executor 合线）· 397 tests 全绿 · Phase 9 发布待启动
 **版本**：0.3.1-plan · 2026-04-17 Codex 第二轮评审收尾（v0.3.0-plan 的修订）
 **范围**：最终目标 = 可落地的"跨 runtime coding 自动化工厂"。12 个 Phase 渐进交付。
 **整体置信度**：**86%**（同 v0.3；Phase 2 下调被 4.5/8A/8B 上调抵消）

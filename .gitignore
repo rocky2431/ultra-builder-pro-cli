@@ -24,6 +24,10 @@ Temporary Items
 *.swp
 *.swo
 
+# ===== Local tool state =====
+# RTK (Rust Token Killer) per-project filter cache — local preference, not repo state
+.rtk/
+
 # ===== Backup Files =====
 *.backup
 *.bak
