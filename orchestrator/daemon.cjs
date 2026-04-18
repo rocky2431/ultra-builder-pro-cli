@@ -13,24 +13,20 @@
 
 const ops = require('../mcp-server/lib/state-ops.cjs');
 const runner = require('./session-runner.cjs');
+const { evaluate, DEFAULT_RULES, ROUTE_PREFERENCES } = require('./dispatch-rules.cjs');
 
-// Preference lists by complexity_hint. Intersection with availableRuntimes
-// picks the first match; fallback is any available runtime.
-const ROUTE_PREFERENCES = Object.freeze({
-  haiku:  ['opencode', 'gemini', 'claude', 'codex'],
-  sonnet: ['claude', 'codex', 'opencode', 'gemini'],
-  opus:   ['claude', 'codex'],
-});
-
+// Phase 8B.1 — routeTask is now a thin wrapper over evaluate() so Phase 5.4
+// callers see identical behavior while the parallel orchestrator (8B.2) can
+// feed richer ctx (wave, deps_ready) to the same rule engine.
 function routeTask(task, availableRuntimes) {
-  if (!Array.isArray(availableRuntimes) || availableRuntimes.length === 0) return null;
-  const pref = ROUTE_PREFERENCES[task && task.complexity_hint] || null;
-  if (pref) {
-    for (const r of pref) {
-      if (availableRuntimes.includes(r)) return r;
-    }
-  }
-  return availableRuntimes[0];
+  const d = evaluate({
+    task: task || {},
+    deps_ready: true,
+    available_runtimes: Array.isArray(availableRuntimes) ? availableRuntimes : [],
+    breaker_state: 'ok',
+    wave: null,
+  }, DEFAULT_RULES);
+  return d.action === 'spawn_agent' ? d.runtime : null;
 }
 
 function runDaemon({

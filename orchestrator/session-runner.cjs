@@ -171,6 +171,8 @@ function closeSession({
   autoMemory = false,
   mineSkill = false,
   skillsRoot = null,
+  autoMerge = false,
+  mergeBaseBranch = 'main',
 } = {}) {
   if (!db || !sid) throw new SessionRunnerError('VALIDATION_ERROR', 'db + sid required');
   const session = ops.readSession(db, sid);
@@ -193,10 +195,28 @@ function closeSession({
     try { skillMiner.mineSession(db, { sid, skillsRoot }); }
     catch (err) { process.stderr.write(`skill-miner error: ${err.message}\n`); }
   }
-  if (remove_worktree && repoRoot && session.worktree_path) {
+  // Phase 8B.4 — opt-in auto-merge. Conflict preserves worktree for the
+  // human; clean/no-op merges fall through to normal removal below.
+  let mergeResult;
+  let effectiveRemove = remove_worktree;
+  if (autoMerge && status === 'completed' && repoRoot && session.worktree_path) {
+    const autoMergeMod = require('./auto-merge.cjs');
+    mergeResult = autoMergeMod.autoMerge({
+      repoRoot,
+      worktreePath: session.worktree_path,
+      baseBranch: mergeBaseBranch,
+      sid,
+      task_id: session.task_id,
+      db,
+    });
+    if (mergeResult.reason === 'conflict') effectiveRemove = false;
+  }
+  if (effectiveRemove && repoRoot && session.worktree_path) {
     gitWorktreeRemove(repoRoot, session.worktree_path);
   }
-  return { sid, status };
+  const out = { sid, status };
+  if (mergeResult) out.merge = mergeResult;
+  return out;
 }
 
 function attachHeartbeat(db, sid, { intervalMs = 30000 } = {}) {
