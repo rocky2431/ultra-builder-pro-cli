@@ -2,8 +2,8 @@
 """System Doctor - Deep audit for Ultra Builder Pro.
 
 Automates the manual audits that catch silent degradation:
-1. CLAUDE.md cross-references vs actual files
-2. settings.json hook references
+1. Host instruction cross-references vs actual files
+2. Host hook-manifest references
 3. memory.db data quality
 4. Chroma vs DB consistency
 5. Summary coverage
@@ -23,6 +23,9 @@ from pathlib import Path
 
 HOOKS_DIR = Path(__file__).parent
 CLAUDE_DIR = HOOKS_DIR.parent
+IS_CODEX = os.environ.get("UBP_HOOK_RUNTIME") == "codex"
+CODEX_HOME = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
+PLUGIN_ROOT = Path(os.environ.get("PLUGIN_ROOT", HOOKS_DIR.parent))
 GIT_TIMEOUT = 3
 
 PASS = "\033[32mPASS\033[0m"
@@ -35,7 +38,7 @@ def get_git_toplevel() -> str:
     try:
         r = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                            capture_output=True, text=True, timeout=GIT_TIMEOUT,
-                           cwd=str(CLAUDE_DIR))
+                           cwd=os.getcwd() if IS_CODEX else str(CLAUDE_DIR))
         return r.stdout.strip() if r.returncode == 0 else ""
     except Exception:
         return ""
@@ -45,30 +48,31 @@ def print_check(status: str, msg: str):
     print(f"  [{status}] {msg}")
 
 
-# -- Check 1: CLAUDE.md cross-references --
+# -- Check 1: host instruction cross-references --
 
 def check_claude_md_refs():
-    """Verify agent/skill/command names in CLAUDE.md exist on disk."""
-    print("\n1. CLAUDE.md cross-references")
-    claude_md = CLAUDE_DIR / "CLAUDE.md"
-    if not claude_md.exists():
-        print_check(FAIL, "CLAUDE.md not found")
+    """Verify named agents in the host instruction file exist on disk."""
+    instruction_file = CODEX_HOME / "AGENTS.md" if IS_CODEX else CLAUDE_DIR / "CLAUDE.md"
+    print(f"\n1. {instruction_file.name} cross-references")
+    if not instruction_file.exists():
+        print_check(FAIL, f"{instruction_file.name} not found")
         return 1
 
-    content = claude_md.read_text(encoding="utf-8")
+    content = instruction_file.read_text(encoding="utf-8")
     issues = 0
 
     # Check agent references
     agent_names = set()
-    agents_dir = CLAUDE_DIR / "agents"
+    agents_dir = CODEX_HOME / "agents" if IS_CODEX else CLAUDE_DIR / "agents"
     if agents_dir.exists():
-        agent_names = {f.stem for f in agents_dir.glob("*.md")}
+        agent_names = {f.stem for f in agents_dir.glob("*.toml" if IS_CODEX else "*.md")}
 
-    # Find agent name references in CLAUDE.md
+    # Find known custom-agent references in the host instruction file.
     for match in re.finditer(r'\b(code-reviewer|debugger|tdd-runner|review-\w+|smart-contract-\w+)\b', content):
         name = match.group(1)
         if name not in agent_names and name not in ("review-pipeline",):
-            print_check(FAIL, f"References agent '{name}' but agents/{name}.md not found")
+            suffix = ".toml" if IS_CODEX else ".md"
+            print_check(FAIL, f"References agent '{name}' but agents/{name}{suffix} not found")
             issues += 1
 
     if issues == 0:
@@ -76,14 +80,14 @@ def check_claude_md_refs():
     return issues
 
 
-# -- Check 2: settings.json hook files --
+# -- Check 2: host hook files --
 
 def check_settings_hooks():
-    """Verify all hook script files referenced in settings.json exist."""
-    print("\n2. settings.json hook references")
-    settings_path = CLAUDE_DIR / "settings.json"
+    """Verify all hook script files referenced by the host manifest exist."""
+    settings_path = PLUGIN_ROOT / "hooks" / "hooks.json" if IS_CODEX else CLAUDE_DIR / "settings.json"
+    print(f"\n2. {settings_path.name} hook references")
     if not settings_path.exists():
-        print_check(FAIL, "settings.json not found")
+        print_check(FAIL, f"{settings_path.name} not found")
         return 1
 
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
@@ -95,13 +99,12 @@ def check_settings_hooks():
         for entry in entries:
             for hook in entry.get("hooks", []):
                 cmd = hook.get("command", "")
-                for part in cmd.split():
-                    if part.endswith(".py"):
-                        total += 1
-                        script = Path(os.path.expanduser(part))
-                        if not script.exists():
-                            print_check(FAIL, f"{event}: {script.name} not found")
-                            issues += 1
+                for part in re.findall(r'[\w./$~-]+\.py', cmd):
+                    total += 1
+                    script = Path(os.path.expanduser(part.replace("$PLUGIN_ROOT", str(PLUGIN_ROOT))))
+                    if not script.exists():
+                        print_check(FAIL, f"{event}: {script.name} not found")
+                        issues += 1
 
     if issues == 0:
         print_check(PASS, f"All {total} hook scripts exist")
@@ -267,7 +270,11 @@ def check_daemon_log():
     paths = []
     if toplevel:
         paths.append(Path(toplevel) / ".ultra" / "memory" / "daemon-errors.log")
-    paths.append(Path.home() / ".claude" / "memory" / "daemon-errors.log")
+    if IS_CODEX:
+        from hook_utils import get_runtime_data_root
+        paths.append(get_runtime_data_root() / "memory" / "daemon-errors.log")
+    else:
+        paths.append(Path.home() / ".claude" / "memory" / "daemon-errors.log")
 
     for log_path in paths:
         if log_path.exists():

@@ -148,7 +148,7 @@ function main(argv) {
 }
 
 // exports kept for unit tests (Phase 1+)
-module.exports = { USAGE, SUBCOMMANDS, readJsonIfExists, VERSION };
+module.exports = { USAGE, SUBCOMMANDS, readJsonIfExists, VERSION, main };
 
 if (require.main === module) {
   main(process.argv);

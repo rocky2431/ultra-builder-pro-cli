@@ -1,9 +1,9 @@
 # Ultra Builder Pro — Agent Context
 
-Canonical rule-injection file for every runtime (Claude / OpenCode / Codex /
-Gemini). Phase 4 adapters copy this file verbatim to each runtime's native
-context location (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`). **Edit here, not
-in the generated copies.**
+Shared architecture reference for Claude, OpenCode, Codex, and Gemini. Runtime
+adapters translate these contracts onto each host's real surfaces. In particular,
+the Codex adapter does not overwrite user or project `AGENTS.md`; it installs a
+personal plugin, native custom agents, hooks, and MCP registration.
 
 ## 1. Three-layer architecture
 
@@ -32,31 +32,26 @@ Source: `spec/mcp-tools.yaml`. CLI mappings in `spec/cli-protocol.md`.
 
 ### Implemented today (`mcp-server/server.cjs` round-trips verified)
 
-| Tool | Phase | Purpose | CLI |
-|------|------:|---------|-----|
-| `task.create` | 2 | create a task in state.db | `ultra-tools task create` |
-| `task.update` | 2 | patch status/fields; state-machine enforced | `ultra-tools task update <id>` |
-| `task.list` | 2 | filter by status/tag | `ultra-tools task list` |
-| `task.get` | 2 | single-task detail | `ultra-tools task get <id>` |
-| `task.delete` | 2 | hard delete; refuses if session bound | `ultra-tools task delete <id>` |
-| `task.init_project` | 3 | scaffold `.ultra/` from `templates/.ultra/` | `ultra-tools task init-project` |
-| `task.append_event` | 2 | append to event log | `ultra-tools task append-event` |
-| `task.subscribe_events` | 2 | tail events since cursor | `ultra-tools task subscribe` |
+| Family | Count | Live tools |
+|--------|------:|------------|
+| `task.*` | 12 | create, update, list, get, delete, init_project, append_event, subscribe_events, switch_tag, dependency_topo, parse_prd, expand |
+| `session.*` | 7 | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
+| `memory.*` | 3 | retain, recall, reflect |
+| `plan.*` | 2 | export, get |
 
-### Declared (spec in `mcp-tools.yaml`, implementation pending)
+### Declared upstream but not registered by the live server
 
-| Tool | Target Phase | Consumed by |
-|------|-------------:|-------------|
-| `ask.question` | 3.7 | `/ultra-init`, `/ultra-plan`, `/ultra-dev`, `/ultra-think`, `/learn`, `/ultra-deliver`, `/ultra-test` |
-| `ask.menu` | 3.7 | same as above |
-| `review.run` | 3 (later) | `/ultra-dev` Step 4.5 |
-| `review.verdict` | 3 (later) | `/ultra-dev` |
-| `session.*` (6 tools) | 4.5 | session lifecycle + `/ultra-dev` checkpoint |
-| `memory.retain/recall/reflect` | 7 | `/ultra-research` post-step hook |
-| `impact.*` (3 tools) | 6 | code-review-graph integration |
-| `skill.resolve / manifest` | 3 | skill discovery |
-| `plan.export / get` | 8a | PRD-driven task planning |
-| `task.expand / parse_prd / dependency_topo` | 8a | plan automation |
+| Contracts | Count | Codex adaptation |
+|-----------|------:|------------------|
+| `review.run / verdict` | 2 | native custom review agents + coordinator synthesis |
+| `impact.radius / changes / dependents` | 3 | current code graph when indexed, otherwise targeted repository and git discovery |
+| `skill.resolve / manifest` | 2 | Codex plugin skill discovery and `agents/openai.yaml` |
+| `ask.question / menu` | 2 | direct user interaction or `request_user_input` where exposed |
+
+The generated Codex plugin keeps the full declaration as
+`spec/upstream-mcp-tools.yaml`, writes only the 24 registered tools to the live
+`spec/mcp-tools.yaml`, and records all nine substitutions in
+`spec/codex-capability-map.json`.
 
 **Rule R19 — single source**: any new tool MUST be defined in
 `spec/mcp-tools.yaml` first, with valid+invalid fixtures in
@@ -173,10 +168,16 @@ Examples of runtime-specific content:
 - **Claude** (`CLAUDE.md`): hook registrations in `settings.json`, PUA /
   hookify / impeccable plugin config
 - **OpenCode** (`AGENTS.md`): lowercased agent frontmatter notes
-- **Codex** (`AGENTS.md` + `config.toml`): `hooks.json` wire format
+- **Codex**: user/project `AGENTS.md` remains user-owned; detailed workflows live
+  in the `ultra-builder-pro` personal plugin, lifecycle automation in
+  `hooks/hooks.json`, MCP in plugin `.mcp.json`, and custom agents in
+  `.codex/agents/*.toml`
 - **Gemini** (`GEMINI.md`): extension-manifest requirements
 
-Phase 4 adapters maintain the delimiter and never clobber the append block.
+Adapters for runtimes that generate a context file maintain the delimiter and
+never clobber the append block. The Codex adapter does not generate or overwrite
+`AGENTS.md`; an explicit user-stack migration may add only a small runtime contract
+to the user's existing handbook.
 
 ## 9. Change protocol for this file
 

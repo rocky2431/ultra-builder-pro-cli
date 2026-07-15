@@ -1,105 +1,79 @@
 'use strict';
 
 /**
- * Codex CLI adapter — Phase 4.4 installer + partial spike.
+ * Codex adapter.
  *
- * Target config dirs:
- *   global: $CODEX_HOME → ~/.codex
- *   local:  <cwd>/.codex
+ * Codex-native mapping:
+ *   commands/*.md       -> explicit plugin skills ($ultra-builder-pro:<name>)
+ *   skills/**           -> ~/plugins/ultra-builder-pro/skills/**
+ *   agents/*.md         -> ~/.codex/agents/*.toml
+ *   hooks/*.py          -> plugin hooks with a Codex wire adapter
+ *   mcp-server          -> plugin .mcp.json (project cwd owns .ultra/state.db)
+ *   plugin marketplace  -> ~/.agents/plugins/marketplace.json
  *
- * What install does:
- *   - copy skills/**   → <target>/skills/  (open-agent skills standard location)
- *   - copy commands/*.md → <target>/prompts/*.md (prompt files; Codex loads
- *     these as slash-like commands pending AGENTS.md inline alternative)
- *   - copy hooks/*.py  → <target>/hooks/  (wire format TBD — spike R11)
- *   - append to <target>/config.toml:
- *       [mcp_servers.ultra-builder-pro]
- *       command = "node"
- *       args = ["<server.cjs>"]
- *   - block is delimited by marker comments so uninstall can remove it cleanly
- *
- * Scope boundaries (deliberately out of Phase 4.4; tracked in hooks/adapters/codex.py):
- *   - hooks.json runtime wiring awaits the upstream spec; Phase 4.4 spike R11 captures it
- *   - AGENTS.md inline command mode is an alternative to prompts/*.md; current installer
- *     writes prompts/*.md — the AGENTS.md variant lands once the spike confirms format
+ * Deprecated ~/.codex/prompts and ~/.codex/skills projection is intentionally
+ * not used. The plugin remains the single distribution boundary for skills,
+ * hooks, and MCP; custom agents use Codex's standalone TOML surface.
  */
 
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const {
-  copyTree,
-  writeAtomic,
   ensureDir,
-  removeTree,
-  markManaged,
   isManaged,
-  copyFlatByExt,
+  removeTree,
+  writeAtomic,
 } = require('./_shared/file-ops.cjs');
+const {
+  PLUGIN_NAME,
+  MANAGED_MARKER,
+  buildPlugin,
+  installAgents,
+} = require('./_shared/codex-assets.cjs');
 
-const MCP_SERVER_NAME = 'ultra-builder-pro';
+const MCP_SERVER_NAME = PLUGIN_NAME;
+const SOURCE_TAG = 'ubp';
 const MARKER_BEGIN = '# >>> ultra-builder-pro managed block — do not edit by hand';
 const MARKER_END = '# <<< ultra-builder-pro managed block';
-const SOURCE_TAG = 'ubp';
+const RUNTIME_MANIFEST_DIR = 'ultra-builder-pro';
+const RUNTIME_MANIFEST_FILE = 'install-manifest.json';
 
-function resolveTarget(ctx) {
-  if (ctx.configDir) return ctx.configDir;
+function resolveTarget(ctx = {}) {
+  if (ctx.configDir) return path.resolve(ctx.configDir);
   if (ctx.scope === 'global') {
     return process.env.CODEX_HOME || path.join(ctx.homeDir || os.homedir(), '.codex');
   }
   return path.join(ctx.cwd || process.cwd(), '.codex');
 }
 
-function resolveRepoRoot(ctx) {
+function resolveHomeDir(ctx = {}) {
+  return path.resolve(ctx.homeDir || os.homedir());
+}
+
+function resolveRepoRoot(ctx = {}) {
   return ctx.repoRoot || path.resolve(__dirname, '..');
 }
 
-// Codex spawns MCP servers via `spawn(argv)` per the MCP spec — argv is
-// passed directly to execve, there is no shell interpolation layer. The
-// `_source` tag in our env block is data, not a command, so it cannot be
-// re-parsed as a shell fragment. (P2 #5 — no code change needed; left as
-// a tripwire comment in case a future contributor worries.)
-function tomlEscape(str) {
-  // TOML basic-string escape sequences (§https://toml.io/en/v1.0.0#string).
-  // Missing escapes silently break the TOML parse when a path contains
-  // newlines or control characters — P2 #4 from Phase 4 code review.
-  return String(str)
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\x08/g, '\\b')   // eslint-disable-line no-control-regex
-    .replace(/\t/g, '\\t')
-    .replace(/\n/g, '\\n')
-    .replace(/\f/g, '\\f')
-    .replace(/\r/g, '\\r')
-    // Any remaining C0 control char (0x00–0x1F) rendered as \uXXXX per TOML.
-    .replace(/[\u0000-\u001f]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+function resolvePluginRoot(ctx = {}) {
+  return path.join(resolveHomeDir(ctx), 'plugins', PLUGIN_NAME);
 }
 
-function buildMcpBlock(repoRoot, target) {
-  const serverPath = path.join(repoRoot, 'mcp-server', 'server.cjs');
-  const lines = [
-    MARKER_BEGIN,
-    `[mcp_servers.${MCP_SERVER_NAME}]`,
-    `command = "${tomlEscape(process.execPath)}"`,
-    `args = ["${tomlEscape(serverPath)}"]`,
-    '[mcp_servers.' + MCP_SERVER_NAME + '.env]',
-    `UBP_DB_PATH = "${tomlEscape(path.join(target, 'state.db'))}"`,
-    `UBP_ROOT_DIR = "${tomlEscape(target)}"`,
-    // `_source` moved out of env — for Codex the MARKER_BEGIN / MARKER_END
-    // fence is itself the identification predicate; no sibling field needed
-    // because Codex config.toml has no nested object shape like JSON runtimes.
-    MARKER_END,
-    '',
-  ];
-  return lines.join('\n');
+function resolveMarketplaceFile(ctx = {}) {
+  return path.join(resolveHomeDir(ctx), '.agents', 'plugins', 'marketplace.json');
+}
+
+function runtimeManifestFile(configDir) {
+  return path.join(configDir, RUNTIME_MANIFEST_DIR, RUNTIME_MANIFEST_FILE);
 }
 
 function stripManagedBlock(text) {
   const begin = text.indexOf(MARKER_BEGIN);
   if (begin === -1) return text;
   const end = text.indexOf(MARKER_END, begin);
-  if (end === -1) return text; // malformed; leave alone
+  if (end === -1) return text;
   const endLine = text.indexOf('\n', end);
   const after = endLine === -1 ? text.length : endLine + 1;
   const leading = text.slice(0, begin).replace(/\n+$/, '\n');
@@ -110,69 +84,207 @@ function hasManagedBlock(text) {
   return text.includes(MARKER_BEGIN);
 }
 
-function install(ctx) {
-  const target = resolveTarget(ctx);
-  const repoRoot = resolveRepoRoot(ctx);
-  ensureDir(target);
-
-  const report = { target, copied: {}, config: { updated: false } };
-
-  const skillsSrc = path.join(repoRoot, 'skills');
-  if (fs.existsSync(skillsSrc)) {
-    report.copied.skills = copyTree(skillsSrc, path.join(target, 'skills'));
-    markManaged(path.join(target, 'skills'), { adapter: 'codex' });
-  }
-
-  const commandsSrc = path.join(repoRoot, 'commands');
-  if (fs.existsSync(commandsSrc)) {
-    report.copied.prompts = copyTree(commandsSrc, path.join(target, 'prompts'));
-    markManaged(path.join(target, 'prompts'), { adapter: 'codex' });
-  }
-
-  const hookFiles = copyFlatByExt(path.join(repoRoot, 'hooks'), path.join(target, 'hooks'), '.py');
-  if (hookFiles.length > 0) {
-    report.copied.hooks = hookFiles;
-    markManaged(path.join(target, 'hooks'), { adapter: 'codex' });
-  }
-
-  const configFile = path.join(target, 'config.toml');
-  const existing = fs.existsSync(configFile) ? fs.readFileSync(configFile, 'utf8') : '';
-  const withoutOld = stripManagedBlock(existing);
-  // Normalize trailing whitespace so a second install produces byte-equal output (P1 #2).
-  const normalizedBase = withoutOld.length > 0 ? withoutOld.replace(/\n*$/, '\n') : '';
-  const managedBlock = buildMcpBlock(repoRoot, target);
-  const next = normalizedBase + managedBlock;
-  writeAtomic(configFile, next);
-  report.config.updated = true;
-  return report;
-}
-
-function uninstall(ctx) {
-  const target = resolveTarget(ctx);
-  const report = { target, removed: {}, config: { updated: false } };
-
-  const configFile = path.join(target, 'config.toml');
+function cleanupLegacyConfig(configDir) {
+  const configFile = path.join(configDir, 'config.toml');
+  let configUpdated = false;
   if (fs.existsSync(configFile)) {
     const existing = fs.readFileSync(configFile, 'utf8');
     if (hasManagedBlock(existing)) {
       const stripped = stripManagedBlock(existing);
-      if (stripped.trim().length === 0) {
-        fs.unlinkSync(configFile);
-      } else {
-        writeAtomic(configFile, stripped);
-      }
-      report.config.updated = true;
+      if (stripped.trim()) writeAtomic(configFile, stripped);
+      else fs.unlinkSync(configFile);
+      configUpdated = true;
     }
   }
 
-  for (const sub of ['skills', 'prompts', 'hooks']) {
-    const dir = path.join(target, sub);
+  const removed = [];
+  for (const sub of ['skills', 'prompts']) {
+    const dir = path.join(configDir, sub);
     if (fs.existsSync(dir) && isManaged(dir)) {
       removeTree(dir);
-      report.removed[sub] = true;
+      removed.push(sub);
     }
   }
-  return report;
+  return { configUpdated, removed };
+}
+
+function loadMarketplace(file) {
+  if (!fs.existsSync(file)) {
+    return {
+      name: 'personal',
+      interface: { displayName: 'Personal' },
+      plugins: [],
+    };
+  }
+  const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error(`${file} must contain a JSON object`);
+  }
+  if (typeof payload.name !== 'string' || !payload.name.trim()) {
+    throw new Error(`${file} must contain a non-empty marketplace name`);
+  }
+  if (!payload.interface || typeof payload.interface !== 'object' || Array.isArray(payload.interface)) {
+    payload.interface = { displayName: 'Personal' };
+  }
+  if (!Array.isArray(payload.plugins)) {
+    throw new Error(`${file} field plugins must be an array`);
+  }
+  return payload;
+}
+
+function marketplaceEntry() {
+  return {
+    name: PLUGIN_NAME,
+    source: { source: 'local', path: `./plugins/${PLUGIN_NAME}` },
+    policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+    category: 'Developer Tools',
+  };
+}
+
+function upsertMarketplace(file) {
+  const payload = loadMarketplace(file);
+  const entry = marketplaceEntry();
+  const index = payload.plugins.findIndex((plugin) => plugin && plugin.name === PLUGIN_NAME);
+  if (index === -1) payload.plugins.push(entry);
+  else payload.plugins[index] = entry;
+  writeAtomic(file, JSON.stringify(payload, null, 2) + '\n');
+  return { file, name: payload.name, entry };
+}
+
+function removeMarketplaceEntry(file) {
+  if (!fs.existsSync(file)) return { file, updated: false, name: 'personal' };
+  const payload = loadMarketplace(file);
+  const next = payload.plugins.filter((plugin) => !plugin || plugin.name !== PLUGIN_NAME);
+  if (next.length === payload.plugins.length) {
+    return { file, updated: false, name: payload.name };
+  }
+  payload.plugins = next;
+  writeAtomic(file, JSON.stringify(payload, null, 2) + '\n');
+  return { file, updated: true, name: payload.name };
+}
+
+function shouldRunPluginCli(ctx = {}) {
+  if (typeof ctx.runPluginCli === 'boolean') return ctx.runPluginCli;
+  return ctx.scope === 'global' && !ctx.configDir;
+}
+
+function runPluginCli(action, marketplaceName, ctx = {}) {
+  const codexBin = ctx.codexBin || 'codex';
+  const selector = `${PLUGIN_NAME}@${marketplaceName}`;
+  const args = action === 'add'
+    ? ['plugin', 'add', selector, '--json']
+    : ['plugin', 'remove', selector];
+  const result = spawnSync(codexBin, args, { encoding: 'utf8' });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim();
+    throw new Error(`codex plugin ${action} failed${detail ? `: ${detail}` : ''}`);
+  }
+  return { selector, stdout: result.stdout.trim() };
+}
+
+function writeRuntimeManifest(configDir, data) {
+  const file = runtimeManifestFile(configDir);
+  writeAtomic(file, JSON.stringify({
+    source: SOURCE_TAG,
+    adapter: 'codex',
+    plugin: data.plugin,
+    marketplace: data.marketplace,
+    agents: data.agents,
+  }, null, 2) + '\n');
+  return file;
+}
+
+function install(ctx = {}) {
+  const configDir = resolveTarget(ctx);
+  const repoRoot = resolveRepoRoot(ctx);
+  const pluginRoot = resolvePluginRoot(ctx);
+  const marketplaceFile = resolveMarketplaceFile(ctx);
+  ensureDir(configDir);
+
+  const legacy = cleanupLegacyConfig(configDir);
+  const plugin = buildPlugin({ repoRoot, pluginRoot });
+  const agents = installAgents({ repoRoot, configDir });
+  const marketplace = upsertMarketplace(marketplaceFile);
+  const manifestFile = writeRuntimeManifest(configDir, {
+    plugin: { root: plugin.root, version: plugin.version },
+    marketplace: { file: marketplace.file, name: marketplace.name },
+    agents: agents.installed,
+  });
+
+  const registration = shouldRunPluginCli(ctx)
+    ? runPluginCli('add', marketplace.name, ctx)
+    : null;
+
+  return {
+    target: configDir,
+    plugin,
+    agents,
+    marketplace,
+    registration,
+    legacy,
+    manifestFile,
+    config: { updated: legacy.configUpdated },
+  };
+}
+
+function removeManagedAgents(configDir, manifest) {
+  const agentRoot = path.join(configDir, 'agents');
+  const requested = manifest && Array.isArray(manifest.agents)
+    ? manifest.agents
+    : (fs.existsSync(agentRoot) ? fs.readdirSync(agentRoot).filter((name) => name.endsWith('.toml')) : []);
+  const removed = [];
+  for (const file of requested) {
+    const target = path.join(agentRoot, path.basename(file));
+    if (!fs.existsSync(target)) continue;
+    const contents = fs.readFileSync(target, 'utf8');
+    if (!contents.startsWith(`# ${MANAGED_MARKER}`)) continue;
+    fs.unlinkSync(target);
+    removed.push(path.basename(target));
+  }
+  return removed;
+}
+
+function readRuntimeManifest(configDir) {
+  const file = runtimeManifestFile(configDir);
+  if (!fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (_error) {
+    return null;
+  }
+}
+
+function uninstall(ctx = {}) {
+  const configDir = resolveTarget(ctx);
+  const pluginRoot = resolvePluginRoot(ctx);
+  const marketplaceFile = resolveMarketplaceFile(ctx);
+  const manifest = readRuntimeManifest(configDir);
+  const marketplaceBefore = loadMarketplace(marketplaceFile);
+
+  const registration = shouldRunPluginCli(ctx)
+    ? runPluginCli('remove', marketplaceBefore.name, ctx)
+    : null;
+  const agents = removeManagedAgents(configDir, manifest);
+
+  let pluginRemoved = false;
+  if (fs.existsSync(pluginRoot) && fs.existsSync(path.join(pluginRoot, '.ubp-managed'))) {
+    removeTree(pluginRoot);
+    pluginRemoved = true;
+  }
+  const marketplace = removeMarketplaceEntry(marketplaceFile);
+  const legacy = cleanupLegacyConfig(configDir);
+  const manifestDir = path.join(configDir, RUNTIME_MANIFEST_DIR);
+  if (fs.existsSync(manifestDir)) removeTree(manifestDir);
+
+  return {
+    target: configDir,
+    removed: { plugin: pluginRemoved, agents },
+    marketplace,
+    registration,
+    legacy,
+    config: { updated: legacy.configUpdated },
+  };
 }
 
 module.exports = {
@@ -182,10 +294,18 @@ module.exports = {
   MARKER_END,
   SOURCE_TAG,
   resolveTarget,
+  resolveHomeDir,
+  resolvePluginRoot,
+  resolveMarketplaceFile,
   install,
   uninstall,
-  // Test-only surface. Other adapters don't export internals because their
-  // install shape is JSON-diff-testable end-to-end; codex's TOML block uses
-  // marker-based string surgery so unit tests need the internal helpers.
-  _internal: { stripManagedBlock, hasManagedBlock, buildMcpBlock },
+  _internal: {
+    stripManagedBlock,
+    hasManagedBlock,
+    cleanupLegacyConfig,
+    loadMarketplace,
+    upsertMarketplace,
+    removeMarketplaceEntry,
+    runPluginCli,
+  },
 };

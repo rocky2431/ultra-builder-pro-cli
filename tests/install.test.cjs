@@ -13,10 +13,11 @@ const path = require('node:path');
 const REPO_ROOT = path.resolve(__dirname, '..');
 const INSTALL_JS = path.join(REPO_ROOT, 'bin', 'install.js');
 
-function runCli(args, { cwd } = {}) {
+function runCli(args, { cwd, homeDir } = {}) {
   return spawnSync(process.execPath, [INSTALL_JS, ...args], {
     cwd: cwd || REPO_ROOT,
     encoding: 'utf8',
+    env: { ...process.env, ...(homeDir ? { HOME: homeDir } : {}) },
   });
 }
 
@@ -31,7 +32,18 @@ function cleanup(dir) {
 const RUNTIMES = [
   { flag: '--claude',   name: 'claude',   expectRelPaths: ['commands', 'skills', 'hooks', 'settings.json'] },
   { flag: '--opencode', name: 'opencode', expectRelPaths: ['commands', 'skills', 'hooks', 'opencode.json'] },
-  { flag: '--codex',    name: 'codex',    expectRelPaths: ['skills', 'prompts', 'hooks', 'config.toml'] },
+  {
+    flag: '--codex',
+    name: 'codex',
+    expectRelPaths: [
+      'plugins/ultra-builder-pro/.codex-plugin/plugin.json',
+      'plugins/ultra-builder-pro/runtime/launch.cjs',
+      'plugins/ultra-builder-pro/runtime/index.cjs',
+      'agents/review-code.toml',
+      '.agents/plugins/marketplace.json',
+      'ultra-builder-pro/install-manifest.json',
+    ],
+  },
   { flag: '--gemini',   name: 'gemini',   expectRelPaths: ['extensions/ultra-builder-pro/gemini-extension.json'] },
 ];
 
@@ -39,13 +51,13 @@ for (const rt of RUNTIMES) {
   test(`install.js — ${rt.name} install + uninstall round-trip (--config-dir)`, () => {
     const target = mkTarget(rt.name);
     try {
-      const installed = runCli([rt.flag, '--config-dir', target]);
+      const installed = runCli([rt.flag, '--config-dir', target], { homeDir: target });
       assert.equal(installed.status, 0, `install stderr:\n${installed.stderr}`);
       for (const rel of rt.expectRelPaths) {
         assert.ok(fs.existsSync(path.join(target, rel)), `expected ${rel} after ${rt.name} install`);
       }
 
-      const uninstalled = runCli([rt.flag, '--config-dir', target, '--uninstall']);
+      const uninstalled = runCli([rt.flag, '--config-dir', target, '--uninstall'], { homeDir: target });
       assert.equal(uninstalled.status, 0, `uninstall stderr:\n${uninstalled.stderr}`);
       // After uninstall, the leaf sentinel/config should either be gone or no longer
       // contain our managed block. For simplicity, assert that the primary asset
@@ -65,7 +77,7 @@ test('install.js — --all fans out to all four runtimes', () => {
   // can pass a distinct --config-dir (install.js v1 keeps --config-dir a single path).
   try {
     for (const t of targets) {
-      const r = runCli([t.flag, '--config-dir', t.dir]);
+      const r = runCli([t.flag, '--config-dir', t.dir], { homeDir: t.dir });
       assert.equal(r.status, 0, `${t.name} install via --all loop stderr:\n${r.stderr}`);
     }
     // Confirm each target received assets

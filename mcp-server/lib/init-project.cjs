@@ -14,7 +14,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
+  ? path.resolve(process.env.UBP_RUNTIME_ROOT)
+  : path.resolve(__dirname, '..', '..');
 const DEFAULT_TEMPLATE = path.join(REPO_ROOT, 'templates', '.ultra');
 
 class InitProjectError extends Error {

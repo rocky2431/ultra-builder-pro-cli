@@ -1,6 +1,7 @@
 """Tests for pre_stop_check.py — stop check logic."""
 import json
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -89,3 +90,20 @@ class TestComplianceChecklist:
 
     def test_contains_task_list_check(self):
         assert "TaskList" in COMPLIANCE_CHECKLIST
+
+    def test_codex_runtime_uses_native_plan_language(self):
+        env = {**os.environ, "UBP_HOOK_RUNTIME": "codex"}
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from pre_stop_check import COMPLIANCE_CHECKLIST; print(COMPLIANCE_CHECKLIST)",
+            ],
+            cwd=Path(__file__).parent.parent,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert "current Codex plan" in proc.stdout
+        assert "TaskList" not in proc.stdout

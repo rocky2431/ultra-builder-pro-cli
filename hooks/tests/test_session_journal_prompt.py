@@ -1,12 +1,56 @@
-"""Prompt engineering guardrails for session_journal._build_summary_prompt.
+"""Prompt and transcript guardrails for session_journal.
 
 These are static assertions on prompt structure — no live Haiku calls. They
 protect against future edits that silently drop the injection guard or the
 structured-output rules.
 """
 import pytest
+import json
 
 import session_journal
+
+
+def test_codex_runtime_never_spawns_nested_model_summary(monkeypatch):
+    monkeypatch.setattr(session_journal, "IS_CODEX", True)
+    assert session_journal.should_spawn_ai_summary() is False
+
+
+def test_extracts_codex_response_item_transcript(tmp_path, monkeypatch):
+    monkeypatch.setattr(session_journal, "ALLOWED_TRANSCRIPT_DIRS", [tmp_path])
+    transcript = tmp_path / "rollout.jsonl"
+    rows = [
+        {
+            "type": "response_item",
+            "payload": {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "Please repair the parser regression."}],
+            },
+        },
+        {
+            "type": "response_item",
+            "payload": {
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": "The parser regression is repaired and tested."}],
+            },
+        },
+        {
+            "type": "response_item",
+            "payload": {
+                "type": "message",
+                "role": "developer",
+                "content": [{"type": "input_text", "text": "Do not archive this host instruction."}],
+            },
+        },
+    ]
+    transcript.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+
+    text = session_journal.extract_transcript_text(str(transcript))
+
+    assert "user: Please repair the parser regression." in text
+    assert "assistant: The parser regression is repaired and tested." in text
+    assert "host instruction" not in text
 
 
 def test_transcript_wrapped_in_xml_tags():

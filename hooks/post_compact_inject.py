@@ -3,7 +3,7 @@
 
 Triggered after auto-compact via SessionStart matcher="compact".
 Reads compact-snapshot.md and workflow-state.json, injects ~800 tokens
-of recovery context so Claude retains critical working state.
+of recovery context so the active agent retains critical working state.
 
 Complements session_context.py (which provides base git/project/memory context).
 This hook provides the detailed recovery: tasks, workflow step, key files, decisions.
@@ -20,7 +20,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from hook_utils import get_snapshot_path, get_workflow_state
 
 GIT_TIMEOUT = 3
-COMPACT_MARKER = f".claude_compact_ts_{os.getuid()}"
+RUNTIME_NAME = "codex" if os.environ.get("UBP_HOOK_RUNTIME") == "codex" else "claude"
+COMPACT_MARKER = f".{RUNTIME_NAME}_compact_ts_{os.getuid()}"
 SNAPSHOT_MAX_AGE = 3600  # 1 hour — ignore stale snapshots
 MAX_INJECT_CHARS = 3200  # ~800 tokens budget
 

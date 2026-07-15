@@ -1,33 +1,38 @@
 #!/usr/bin/env python3
-"""SessionStart Hook - Lightweight system health check.
+"""SessionStart Hook - Lightweight cross-runtime system health check.
 
 Verifies critical components exist and are functional.
-Reports issues via stderr (visible to Claude, never blocks).
+Reports issues via stderr (visible to the host agent, never blocks).
 
 Performance target: <200ms total.
 """
 
 import json
 import os
+import re
 import sqlite3
 import sys
 from pathlib import Path
 
 HOOKS_DIR = Path(__file__).parent
 CLAUDE_DIR = HOOKS_DIR.parent
+IS_CODEX = os.environ.get("UBP_HOOK_RUNTIME") == "codex"
+CODEX_HOME = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
+PLUGIN_ROOT = Path(os.environ.get("PLUGIN_ROOT", HOOKS_DIR.parent))
 EXPECTED_MIN_AGENTS = 8
 SCHEMA_VERSION = 2
 
 
 def check_agents() -> list:
     """Verify agent files exist."""
-    agents_dir = CLAUDE_DIR / "agents"
+    agents_dir = CODEX_HOME / "agents" if IS_CODEX else CLAUDE_DIR / "agents"
     if not agents_dir.exists():
         return ["agents/ directory missing"]
 
-    md_files = list(agents_dir.glob("*.md"))
-    if len(md_files) < EXPECTED_MIN_AGENTS:
-        return [f"agents/: only {len(md_files)} files (expected >= {EXPECTED_MIN_AGENTS})"]
+    extension = "*.toml" if IS_CODEX else "*.md"
+    agent_files = list(agents_dir.glob(extension))
+    if len(agent_files) < EXPECTED_MIN_AGENTS:
+        return [f"agents/: only {len(agent_files)} files (expected >= {EXPECTED_MIN_AGENTS})"]
     return []
 
 
@@ -45,10 +50,10 @@ def check_hooks_syntax() -> list:
 
 
 def check_settings_hooks() -> list:
-    """Verify hooks referenced in settings.json actually exist."""
-    settings_path = CLAUDE_DIR / "settings.json"
+    """Verify hooks referenced in the active runtime manifest actually exist."""
+    settings_path = PLUGIN_ROOT / "hooks" / "hooks.json" if IS_CODEX else CLAUDE_DIR / "settings.json"
     if not settings_path.exists():
-        return ["settings.json missing"]
+        return [f"{settings_path.name} missing"]
 
     issues = []
     try:
@@ -58,15 +63,13 @@ def check_settings_hooks() -> list:
             for entry in hook_list:
                 for hook in entry.get("hooks", []):
                     cmd = hook.get("command", "")
-                    # Extract python script path from command
-                    for part in cmd.split():
-                        if part.endswith(".py"):
-                            # Expand ~ in path
-                            script_path = Path(os.path.expanduser(part))
-                            if not script_path.exists():
-                                issues.append(f"{event_name}: {script_path.name} not found")
+                    for raw_path in re.findall(r'[\w./$~-]+\.py', cmd):
+                        expanded = raw_path.replace("$PLUGIN_ROOT", str(PLUGIN_ROOT))
+                        script_path = Path(os.path.expanduser(expanded))
+                        if not script_path.exists():
+                            issues.append(f"{event_name}: {script_path.name} not found")
     except (json.JSONDecodeError, KeyError):
-        issues.append("settings.json: parse error")
+        issues.append(f"{settings_path.name}: parse error")
     return issues
 
 
@@ -106,13 +109,13 @@ def check_memory_db() -> list:
     return issues
 
 
-def check_claude_md() -> list:
-    """Verify CLAUDE.md exists and is non-empty."""
-    claude_md = CLAUDE_DIR / "CLAUDE.md"
-    if not claude_md.exists():
-        return ["CLAUDE.md missing"]
-    if claude_md.stat().st_size < 100:
-        return ["CLAUDE.md appears empty or truncated"]
+def check_instruction_file() -> list:
+    """Verify the host's durable user instruction file exists and is non-empty."""
+    instruction_file = CODEX_HOME / "AGENTS.md" if IS_CODEX else CLAUDE_DIR / "CLAUDE.md"
+    if not instruction_file.exists():
+        return [f"{instruction_file.name} missing"]
+    if instruction_file.stat().st_size < 100:
+        return [f"{instruction_file.name} appears empty or truncated"]
     return []
 
 
@@ -129,7 +132,7 @@ def main():
     all_issues.extend(check_hooks_syntax())
     all_issues.extend(check_settings_hooks())
     all_issues.extend(check_memory_db())
-    all_issues.extend(check_claude_md())
+    all_issues.extend(check_instruction_file())
 
     if all_issues:
         print(f"[Health] {len(all_issues)} issue(s) detected:", file=sys.stderr)

@@ -8,9 +8,9 @@ Simple two-layer logic:
 1. Source files changed → block + suggest code-reviewer
 
 Complex audits (security, full pipeline) are the user's responsibility
-via /ultra-review. This hook only catches "forgot to review" scenarios.
+via the Ultra review skill. This hook only catches "forgot to review" scenarios.
 
-Counter file: /tmp/.claude_stop_count_<session_id>
+Counter file: /tmp/.<runtime>_stop_count_<session_id>
 """
 
 import sys
@@ -22,7 +22,8 @@ import time
 import glob as glob_module
 
 
-STOP_COUNT_PREFIX = ".claude_stop_count_"
+RUNTIME_NAME = "codex" if os.environ.get("UBP_HOOK_RUNTIME") == "codex" else "claude"
+STOP_COUNT_PREFIX = f".{RUNTIME_NAME}_stop_count_"
 MAX_STOP_BLOCKS = 2
 GIT_TIMEOUT = 3
 COUNTER_MAX_AGE = 86400
@@ -32,7 +33,13 @@ SOURCE_EXTENSIONS = {
     '.sol', '.rb', '.vue', '.svelte', '.css', '.scss', '.html', '.sh',
 }
 
-COMPLIANCE_CHECKLIST = """
+TASK_LIST_CHECK = (
+    "Are all items in the current Codex plan and Ultra task list completed?"
+    if RUNTIME_NAME == "codex"
+    else "Are ALL tasks marked completed? Check with TaskList."
+)
+
+COMPLIANCE_CHECKLIST = f"""
 ## Completion Compliance Check
 
 Before stopping, verify ALL of the following:
@@ -40,7 +47,7 @@ Before stopping, verify ALL of the following:
 1. **Goal Check**: Re-read the user's original request. Is it FULLY achieved? Not partially — DONE.
 2. **Verification**: Did you actually run tests and show passing output? "Should work" is not evidence.
 3. **Loose Ends**: Any TODO/FIXME/placeholder? Any promised tests not written? Any skipped edge cases?
-4. **Task List**: Are ALL tasks marked completed? Check with TaskList.
+4. **Task List**: {TASK_LIST_CHECK}
 
 The following are NOT valid reasons to stop:
 - "made good progress" / "mostly done" / "diminishing returns"

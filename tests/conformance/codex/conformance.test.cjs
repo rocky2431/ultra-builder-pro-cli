@@ -1,97 +1,121 @@
 'use strict';
 
-// Phase 4.6b — Codex conformance suite.
-// Codex packs commands under `prompts/` as plain-text TOML-adjacent files;
-// MCP lives inside config.toml marker-block.
+// Codex conformance: Ultra Builder Pro is distributed as one personal plugin.
+// Command workflows are explicit plugin skills, custom agents are native TOML,
+// lifecycle automation uses current Codex hook events, and MCP state stays project-local.
 
 const { test } = require('node:test');
+const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const assert = require('node:assert/strict');
 
 const codex = require('../../../adapters/codex.js');
 const { REPO_ROOT, mkTarget, cleanup } = require('../_lib.cjs');
-const caps = require('../_capabilities.cjs');
 
-function buildCfg() {
+const COMMANDS = [
+  'learn', 'ultra-deliver', 'ultra-dev', 'ultra-init', 'ultra-plan',
+  'ultra-research', 'ultra-status', 'ultra-test', 'ultra-think',
+];
+const AGENTS = [
+  'code-reviewer', 'debugger', 'review-code', 'review-comments',
+  'review-coordinator', 'review-design', 'review-errors', 'review-tests', 'tdd-runner',
+];
+
+function mkLayout(prefix) {
+  const homeDir = mkTarget(prefix);
   return {
-    adapter: codex,
-    commandsDir: (target) => path.join(target, 'prompts'),
-    skillsDir: (target) => path.join(target, 'skills'),
-    expectCommands: ['ultra-init.md', 'ultra-dev.md', 'ultra-plan.md'],
-    commandFrontmatterPatterns: [/ultra-/i],
-    expectSkills: ['ultra-init', 'ultra-dev', 'ultra-status'],
-    hookCheck: (target) => {
-      // Codex degrades to pre-tool-exec + post-session stubs; adapter drops
-      // hooks/*.py stubs. Presence of at least the Python stub directory is
-      // our smoke signal; matrix §3 marks full events N/A.
-      const hooksDir = path.join(target, 'hooks');
-      assert.ok(fs.existsSync(hooksDir), 'codex hooks stub dir must exist');
-    },
-    readMcpEntry: (target) => {
-      // Codex MCP lives in config.toml; expose a synthetic entry {env} so
-      // shared assertion runs on a consistent shape.
-      const text = fs.readFileSync(path.join(target, 'config.toml'), 'utf8');
-      const envMatch = text.match(/\[mcp_servers\.ultra-builder-pro\.env\]([\s\S]*?)(?:\n\[|\n#|$)/);
-      assert.ok(envMatch, 'codex config.toml must carry [mcp_servers.ultra-builder-pro.env] block');
-      const envBody = envMatch[1];
-      const env = {};
-      for (const line of envBody.split('\n')) {
-        const m = line.match(/^(\w+)\s*=\s*"(.*)"$/);
-        if (m) env[m[1]] = m[2];
-      }
-      return { env };
-    },
-    identityCheck: (_entry, target) => {
-      // Codex identification is the MARKER_BEGIN/END fence, not a sibling field.
-      const text = fs.readFileSync(path.join(target, 'config.toml'), 'utf8');
-      assert.match(text, /# >>> ultra-builder-pro managed block/, 'codex must keep MARKER_BEGIN');
-      assert.match(text, /# <<< ultra-builder-pro managed block/, 'codex must keep MARKER_END');
-    },
-    readIdempotencyArtifact: (target) => fs.readFileSync(path.join(target, 'config.toml'), 'utf8'),
+    homeDir,
+    configDir: path.join(homeDir, '.codex'),
+    pluginRoot: path.join(homeDir, 'plugins', 'ultra-builder-pro'),
+    marketplaceFile: path.join(homeDir, '.agents', 'plugins', 'marketplace.json'),
   };
 }
 
-test('codex conformance — command surface', () => {
-  const target = mkTarget('codex-cap-cmd');
+function install(layout) {
+  return codex.install({
+    configDir: layout.configDir,
+    homeDir: layout.homeDir,
+    scope: 'global',
+    repoRoot: REPO_ROOT,
+    runPluginCli: false,
+  });
+}
+
+test('codex conformance — nine command workflows are explicit plugin skills', () => {
+  const layout = mkLayout('codex-cap-cmd');
   try {
-    const cfg = buildCfg();
-    cfg.adapter.install({ configDir: target, repoRoot: REPO_ROOT });
-    caps.assertCommandSurface(target, cfg);
-  } finally { cleanup(target); }
+    install(layout);
+    const commandMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'command-map.json'), 'utf8'));
+    assert.deepEqual(Object.keys(commandMap).sort(), COMMANDS.map((name) => `/${name}`).sort());
+    for (const command of COMMANDS) {
+      assert.equal(commandMap[`/${command}`], `$ultra-builder-pro:${command}`);
+      assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'skills', command, 'SKILL.md')));
+    }
+    assert.ok(!fs.existsSync(path.join(layout.configDir, 'prompts')));
+  } finally { cleanup(layout.homeDir); }
 });
 
-test('codex conformance — skills packaging', () => {
-  const target = mkTarget('codex-cap-skill');
+test('codex conformance — complete skill and native agent packaging', () => {
+  const layout = mkLayout('codex-cap-assets');
   try {
-    const cfg = buildCfg();
-    cfg.adapter.install({ configDir: target, repoRoot: REPO_ROOT });
-    caps.assertSkillsPackaging(target, cfg);
-  } finally { cleanup(target); }
+    install(layout);
+    const skills = fs.readdirSync(path.join(layout.pluginRoot, 'skills'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(layout.pluginRoot, 'skills', entry.name, 'SKILL.md')))
+      .map((entry) => entry.name)
+      .sort();
+    assert.equal(skills.length, 25);
+    assert.ok(skills.includes('cc-collab'));
+    assert.ok(!skills.includes('codex-collab'));
+    assert.ok(!skills.includes('learned'));
+    assert.deepEqual(
+      fs.readdirSync(path.join(layout.configDir, 'agents')).filter((name) => name.endsWith('.toml')).sort(),
+      AGENTS.map((name) => `${name}.toml`).sort(),
+    );
+  } finally { cleanup(layout.homeDir); }
 });
 
-test('codex conformance — hook stubs (matrix §3 DEGRADED)', () => {
-  const target = mkTarget('codex-cap-hook');
+test('codex conformance — current hook event coverage', () => {
+  const layout = mkLayout('codex-cap-hook');
   try {
-    const cfg = buildCfg();
-    cfg.adapter.install({ configDir: target, repoRoot: REPO_ROOT });
-    caps.assertHookConfig(target, cfg);
-  } finally { cleanup(target); }
+    install(layout);
+    const manifest = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
+    assert.deepEqual(Object.keys(manifest.hooks).sort(), [
+      'PostCompact', 'PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop',
+      'SubagentStart', 'SubagentStop', 'UserPromptSubmit',
+    ].sort());
+    assert.match(JSON.stringify(manifest), /hooks\/adapters\/codex\.py/);
+  } finally { cleanup(layout.homeDir); }
 });
 
-test('codex conformance — MCP registration + no env._source leak', () => {
-  const target = mkTarget('codex-cap-mcp');
+test('codex conformance — plugin MCP has no global state override', () => {
+  const layout = mkLayout('codex-cap-mcp');
   try {
-    const cfg = buildCfg();
-    cfg.adapter.install({ configDir: target, repoRoot: REPO_ROOT });
-    caps.assertMcpRegistration(target, cfg);
-  } finally { cleanup(target); }
+    install(layout);
+    const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
+    const entry = mcp.mcpServers['ultra-builder-pro'];
+    assert.equal(entry.type, 'stdio');
+    assert.ok(path.isAbsolute(entry.command));
+    assert.ok(path.isAbsolute(entry.args[0]));
+    assert.equal(entry.args[0], path.join(layout.pluginRoot, 'runtime', 'launch.cjs'));
+    assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'runtime', 'index.cjs')));
+    assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'runtime', 'build', 'Release', 'better_sqlite3.node')));
+    assert.ok(!entry.env, 'the current task cwd must own .ultra/state.db');
+  } finally { cleanup(layout.homeDir); }
 });
 
-test('codex conformance — install idempotency (byte-equal)', () => {
-  const target = mkTarget('codex-cap-idem');
+test('codex conformance — complete install is byte-idempotent', () => {
+  const layout = mkLayout('codex-cap-idem');
   try {
-    const cfg = buildCfg();
-    caps.assertInstallIdempotency(target, cfg);
-  } finally { cleanup(target); }
+    install(layout);
+    const files = [
+      path.join(layout.pluginRoot, '.codex-plugin', 'plugin.json'),
+      path.join(layout.pluginRoot, 'hooks', 'hooks.json'),
+      path.join(layout.pluginRoot, 'command-map.json'),
+      path.join(layout.configDir, 'agents', 'review-code.toml'),
+      layout.marketplaceFile,
+    ];
+    const first = files.map((file) => fs.readFileSync(file));
+    install(layout);
+    files.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), first[index]));
+  } finally { cleanup(layout.homeDir); }
 });

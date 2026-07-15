@@ -8,23 +8,38 @@ const path = require('node:path');
 const codex = require('../../../adapters/codex.js');
 const { REPO_ROOT, mkTarget, cleanup, withMcpClient, readToolPayload } = require('../_lib.cjs');
 
-// Flow 1: install → managed config.toml block present → MCP server responds → uninstall.
-test('codex v0.1 smoke — install + config.toml block + mcp round-trip + uninstall', async () => {
-  const target = mkTarget('codex');
-  const freshProject = mkTarget('codex-proj');
+function mkLayout(prefix) {
+  const homeDir = mkTarget(prefix);
+  return {
+    homeDir,
+    configDir: path.join(homeDir, '.codex'),
+    pluginRoot: path.join(homeDir, 'plugins', 'ultra-builder-pro'),
+    marketplaceFile: path.join(homeDir, '.agents', 'plugins', 'marketplace.json'),
+  };
+}
+
+function install(layout) {
+  return codex.install({
+    configDir: layout.configDir,
+    homeDir: layout.homeDir,
+    scope: 'global',
+    repoRoot: REPO_ROOT,
+    runPluginCli: false,
+  });
+}
+
+test('codex smoke — plugin install + MCP round-trip + scoped uninstall', async () => {
+  const layout = mkLayout('codex-smoke');
+  const serverHome = mkTarget('codex-server');
+  const initTarget = mkTarget('codex-init');
   try {
-    const r = codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    assert.ok(r.copied.prompts.includes('ultra-init.md'));
-
-    const toml = fs.readFileSync(path.join(target, 'config.toml'), 'utf8');
-    assert.match(toml, new RegExp(`\\[mcp_servers\\.${codex.MCP_SERVER_NAME}\\]`));
-    assert.match(toml, /ultra-builder-pro managed block/);
-
-    // Round-trip — the command + args extracted from the adapter would
-    // be the ones codex reads out of config.toml.
-    const serverHome = mkTarget('codex-server');
-    const initTarget = mkTarget('codex-init');
     fs.rmSync(initTarget, { recursive: true, force: true });
+    const report = install(layout);
+    assert.equal(report.plugin.skills.length, 25);
+    assert.equal(report.agents.installed.length, 9);
+
+    const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
+    assert.ok(mcp.mcpServers['ultra-builder-pro']);
     await withMcpClient({ dbPath: path.join(serverHome, 'state.db'), rootDir: serverHome }, async (client) => {
       const init = await client.callTool({
         name: 'task.init_project',
@@ -32,36 +47,50 @@ test('codex v0.1 smoke — install + config.toml block + mcp round-trip + uninst
       });
       assert.equal(readToolPayload(init).status, 'created');
     });
-    cleanup(initTarget);
 
-    codex.uninstall({ configDir: target });
-    assert.ok(!fs.existsSync(path.join(target, 'prompts')));
+    codex.uninstall({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      runPluginCli: false,
+    });
+    assert.ok(!fs.existsSync(layout.pluginRoot));
+    assert.ok(!fs.existsSync(path.join(layout.configDir, 'agents', 'review-code.toml')));
   } finally {
-    cleanup(target); cleanup(freshProject);
+    cleanup(layout.homeDir);
+    cleanup(serverHome);
+    cleanup(initTarget);
   }
 });
 
-// Flow 2: user-authored TOML sections survive install + uninstall idempotency.
-test('codex v0.1 smoke — user toml content preserved; install is idempotent', () => {
-  const target = mkTarget('codex2');
-  const configFile = path.join(target, 'config.toml');
+test('codex smoke — user config and unrelated marketplace entries survive install/uninstall', () => {
+  const layout = mkLayout('codex-preserve');
+  const configFile = path.join(layout.configDir, 'config.toml');
   try {
-    fs.mkdirSync(target, { recursive: true });
+    fs.mkdirSync(layout.configDir, { recursive: true });
     fs.writeFileSync(configFile, '[profile]\nname = "dev"\n[mcp_servers.mine]\ncommand = "node"\n');
+    fs.mkdirSync(path.dirname(layout.marketplaceFile), { recursive: true });
+    fs.writeFileSync(layout.marketplaceFile, JSON.stringify({
+      name: 'personal',
+      interface: { displayName: 'Personal' },
+      plugins: [{
+        name: 'mine',
+        source: { source: 'local', path: './plugins/mine' },
+        policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+        category: 'Developer Tools',
+      }],
+    }, null, 2) + '\n');
 
-    codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    const firstLen = fs.readFileSync(configFile, 'utf8').length;
+    install(layout);
+    codex.uninstall({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      runPluginCli: false,
+    });
 
-    codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    const secondLen = fs.readFileSync(configFile, 'utf8').length;
-    assert.equal(firstLen, secondLen);
-
-    codex.uninstall({ configDir: target });
-    const after = fs.readFileSync(configFile, 'utf8');
-    assert.match(after, /name = "dev"/);
-    assert.match(after, /\[mcp_servers\.mine\]/);
-    assert.ok(!after.includes('[mcp_servers.' + codex.MCP_SERVER_NAME + ']'));
-  } finally {
-    cleanup(target);
-  }
+    assert.equal(fs.readFileSync(configFile, 'utf8'), '[profile]\nname = "dev"\n[mcp_servers.mine]\ncommand = "node"\n');
+    const marketplace = JSON.parse(fs.readFileSync(layout.marketplaceFile, 'utf8'));
+    assert.deepEqual(marketplace.plugins.map((entry) => entry.name), ['mine']);
+  } finally { cleanup(layout.homeDir); }
 });
