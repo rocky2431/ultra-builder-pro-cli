@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   24 live MCP tools from nine upstream scheduled contracts and document each
   Codex-native replacement.
 
+### Fixed
+
+- Preserved live Codex task hooks across plugin cache refreshes by restoring
+  retired adapter paths as forwarding shims to the current cached adapter.
+  Failed refreshes recover through the managed plugin source, and corrupt
+  runtime manifests now stop uninstall before managed assets are removed.
+
 ## [0.3.0] — 2026-04-18
 
 ### Added
