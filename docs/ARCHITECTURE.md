@@ -8,13 +8,15 @@
 
 ## 1. One sentence
 
-`ultra-builder-pro-cli` is a multi-runtime CLI that **distributes** the
-Ultra Builder Pro engineering loop (skills + commands + hooks) to four
-agent runtimes — Claude Code, OpenCode, Codex CLI, Gemini CLI — and
+`ultra-builder-pro-cli` is a multi-runtime plugin suite that **distributes** the
+Ultra Builder Pro engineering loop (skills + commands + workflow hooks) as
+native Claude Code, OpenCode, and Codex plugins, with a Gemini compatibility
+adapter, and
 **runs** that loop with isolated sessions sharing one authoritative state
 store (`.ultra/state.db`).
 
-It is not an agent. It is the substrate four agents share.
+It is not an agent and it is not a memory provider. It is the workflow substrate
+the supported hosts share.
 
 ## 2. Three layers
 
@@ -52,7 +54,7 @@ It is not an agent. It is the substrate four agents share.
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all four runtimes |
-| **MCP**      | the only path that **mutates** state          | stdio MCP server exposing the eight tool families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **MCP**      | authoritative workflow-state API             | stdio MCP server exposing seven declared tool families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml); 21 tools are live and nine scheduled contracts map to host-native surfaces |
 | **CLI**      | the lowest common denominator hooks can call  | `ultra-tools <family> <verb>` — same contract, last-line JSON envelope (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
 Why three: skills give us behavior portability across runtimes; MCP gives
@@ -68,9 +70,9 @@ because skills are documentation, not RPC.
 
 ## 3. Authoritative state — `.ultra/state.db`
 
-All durable state lives in one SQLite file with WAL enabled. Schema is
+All durable Ultra workflow state lives in one SQLite file with WAL enabled. Schema is
 fixed in [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) and
-covers seven tables:
+covers eight tables:
 
 | Table              | Holds                                             | Phase |
 |--------------------|---------------------------------------------------|-------|
@@ -81,6 +83,7 @@ covers seven tables:
 | `migration_history`| one row per migration attempt (audit trail)        | 2     |
 | `telemetry`        | per-session token / cost / tool-call counters     | 6     |
 | `specs_refs`       | spec change tracking → staleness propagation       | 5     |
+| `circuit_breaker`  | bounded retry and halt state for failed tasks       | 5     |
 
 Two rules make this work:
 
@@ -105,6 +108,15 @@ Two rules make this work:
 
 Subscribers always pull `events.id > since_id` rather than `max(ts)`,
 because two events may share the same millisecond timestamp (D31).
+
+### Memory ownership is outside Ultra Builder Pro
+
+Ultra Builder Pro does not retain prompts, transcripts, tool observations,
+session summaries, or cross-session memory. It ships no `memory.*` MCP family,
+no recall skill, and no memory-capture hook. A separately installed provider
+such as cloud-mem/claude-mem owns persistent memory and its own lifecycle. The
+only related migration surface is the explicit `ultra-tools legacy-memory`
+archive/prune command for data created by older releases.
 
 ## 4. Sessions — the execution unit
 

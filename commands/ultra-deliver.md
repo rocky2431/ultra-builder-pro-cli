@@ -4,9 +4,7 @@ argument-hint: "[version-type]"
 allowed-tools: Task, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 model: opus
 workflow-ref: "@skills/ultra-deliver/SKILL.md"
-mcp_tools_required:
-  - ask.question
-cli_fallback: "ask"
+cli_fallback: "direct user interaction"
 ---
 
 # /ultra-deliver
@@ -28,7 +26,7 @@ production build → 版本号 + git tag + push。写 `.ultra/delivery-report.js
 
 **命令入口做的事**：
 1. 读 `.ultra/test-report.json` 验 `passed=true` + `git_commit === HEAD`
-2. `git status` 清洁检查；不干净 → `ask.question` 选处理方式
+2. `git status` 清洁检查；不干净 → 通过 Host 原生提问界面选处理方式
 3. 驱动 skill 跑文档 + build + 版本 + tag + push
 4. 写 `.ultra/delivery-report.json`
 5. 输出 release summary

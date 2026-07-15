@@ -135,25 +135,6 @@ Follow every instruction in that file. When the step is complete and user confir
 | `.ultra/specs/research-distillate.md` | Token-efficient summary for /ultra-plan consumption |
 | `.ultra/docs/research/*.md` | Per-round research reports |
 
-## POST-STEP HOOK — memory.retain (Phase 7 placeholder)
-
-After each step completes (spec written + user confirms [C]), emit a retention
-signal so Phase 7 hindsight can replay research for future sessions:
-
-```jsonc
-// MCP call: memory.retain  (spec: spec/mcp-tools.yaml#memory.retain)
-{
-  "kind": "research_step_output",
-  "step": "<NN>",
-  "tags": ["research", "<project_name>", "<round>"],
-  "content": "<the markdown section this step wrote into the spec file>"
-}
-```
-
-**Phase 3 behaviour**: `memory.retain` is not yet implemented — MCP returns
-`UNKNOWN_TOOL`. The skill MUST catch this and continue silently (no error
-surface to user). Phase 7 wires the real retain/recall loop.
-
 ## QUALITY STANDARDS
 
 | Element | Requirement |

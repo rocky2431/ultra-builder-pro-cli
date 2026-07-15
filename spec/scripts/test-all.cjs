@@ -12,6 +12,7 @@ const subScripts = [
   'validate-state-db.cjs',
   'validate-skills.cjs',
   'validate-commands.cjs',
+  'validate-runtime-references.cjs',
   'check-cli-mapping.cjs',
 ];
 

@@ -1,6 +1,6 @@
 # Ultra Verify Modes
 
-4 modes for three-way AI verification. All modes follow the orchestration flow in `orchestration-flow.md`.
+Four modes for three-way AI verification. All modes follow the safe orchestration contract in the parent `SKILL.md`.
 
 ## 1. Decision (`decision`)
 

@@ -20,7 +20,7 @@ function tmpDbPath(prefix = 'ubp-state') {
   return { dir, file: path.join(dir, 'state.db') };
 }
 
-test('initStateDb creates the seven required tables on a fresh file', () => {
+test('initStateDb creates workflow tables without an Ultra memory store', () => {
   const { dir, file } = tmpDbPath();
   try {
     const init = initStateDb(file);
@@ -29,6 +29,8 @@ test('initStateDb creates the seven required tables on a fresh file', () => {
     for (const t of REQUIRED_TABLES) {
       assert.ok(init.tables.includes(t), `missing table ${t}`);
     }
+    assert.ok(!init.tables.includes('memory_entries'));
+    assert.ok(!init.tables.includes('memory_fts'));
     closeStateDb(init.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

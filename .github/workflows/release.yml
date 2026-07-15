@@ -3,28 +3,63 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
     name: npm publish
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Use npm with trusted-publishing support
+        run: npm install --global npm@11
+      - name: Read and verify release metadata
+        id: package
+        run: |
+          node -e "const fs=require('node:fs');const p=require('./package.json');if(process.env.GITHUB_REF_NAME!=='v'+p.version){throw new Error('tag '+process.env.GITHUB_REF_NAME+' does not match package version '+p.version)}fs.appendFileSync(process.env.GITHUB_OUTPUT,'name='+p.name+'\nversion='+p.version+'\n')"
       - name: Configure git identity (test suite prereq)
         run: |
           git config --global user.email "ci@ubp.dev"
           git config --global user.name "ubp-ci"
           git config --global init.defaultBranch main
-      - run: npm ci
-      - run: npm run test:all
-      - run: npm publish --provenance --access public
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Install hook test dependency
+        run: python -m pip install pytest==8.4.2
+      - name: Run complete release gate
+        run: npm run verify:release
+      - name: Publish npm package
+        run: |
+          if npm view "${{ steps.package.outputs.name }}@${{ steps.package.outputs.version }}" version >/dev/null 2>&1; then
+            echo "npm version already published; skipping"
+          else
+            npm publish --ignore-scripts --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create GitHub release
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "GitHub release already exists; skipping"
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

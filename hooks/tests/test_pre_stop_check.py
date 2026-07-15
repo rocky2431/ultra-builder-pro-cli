@@ -1,109 +1,64 @@
-"""Tests for pre_stop_check.py — stop check logic."""
+"""Contract tests for the Ultra workflow-only Stop hook."""
+
 import json
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from pre_stop_check import (
-    COMPLIANCE_CHECKLIST,
-    get_stop_count,
-    increment_stop_count,
-    check_workflow_state,
-    MAX_STOP_BLOCKS,
-)
+HOOK = Path(__file__).parent.parent / "pre_stop_check.py"
 
 
-class TestStopCounter:
-    """Stop count tracking via temp files."""
-
-    def test_initial_count_is_zero(self):
-        count = get_stop_count("test-session-nonexistent")
-        assert count == 0
-
-    def test_increment_returns_new_count(self):
-        sid = f"test-stop-{os.getpid()}"
-        count = increment_stop_count(sid)
-        assert count == 1
-        count = increment_stop_count(sid)
-        assert count == 2
-        # Cleanup
-        path = os.path.join(tempfile.gettempdir(), f".claude_stop_count_{sid}")
-        os.unlink(path)
-
-    def test_circuit_breaker_threshold(self):
-        assert MAX_STOP_BLOCKS == 2
+def run_hook(cwd: Path, payload: dict | str):
+    raw = payload if isinstance(payload, str) else json.dumps({"cwd": str(cwd), **payload})
+    proc = subprocess.run(
+        [sys.executable, str(HOOK)],
+        input=raw,
+        text=True,
+        capture_output=True,
+        check=True,
+        cwd=cwd,
+    )
+    return json.loads(proc.stdout), proc.stderr
 
 
-class TestCheckWorkflowState:
-    """check_workflow_state: reads .ultra/workflow-state.json."""
-
-    def test_returns_none_when_no_file(self, tmp_path):
-        with patch("pre_stop_check.get_git_toplevel", return_value=str(tmp_path)):
-            result = check_workflow_state()
-            assert result is None
-
-    def test_returns_none_when_completed(self, tmp_path):
-        ultra_dir = tmp_path / ".ultra"
-        ultra_dir.mkdir()
-        state_file = ultra_dir / "workflow-state.json"
-        state_file.write_text(json.dumps({
-            "command": "ultra-dev", "step": "6", "status": "committed"
-        }))
-        with patch("pre_stop_check.get_git_toplevel", return_value=str(tmp_path)):
-            result = check_workflow_state()
-            assert result is None
-
-    def test_returns_message_when_incomplete(self, tmp_path):
-        ultra_dir = tmp_path / ".ultra"
-        ultra_dir.mkdir()
-        state_file = ultra_dir / "workflow-state.json"
-        state_file.write_text(json.dumps({
-            "command": "ultra-dev", "step": "3.3", "status": "tdd_complete"
-        }))
-        with patch("pre_stop_check.get_git_toplevel", return_value=str(tmp_path)):
-            result = check_workflow_state()
-            assert result is not None
-            assert "ultra-dev" in result
-            assert "3.3" in result
+def write_state(root: Path, status: str):
+    ultra = root / ".ultra"
+    ultra.mkdir()
+    (ultra / "workflow-state.json").write_text(json.dumps({
+        "command": "ultra-dev",
+        "task_id": "task-1",
+        "step": "4.5",
+        "status": status,
+    }))
 
 
-class TestComplianceChecklist:
-    """The compliance checklist should contain key anti-excuse patterns."""
+def test_no_ultra_workflow_is_a_no_op(tmp_path):
+    result, _ = run_hook(tmp_path, {})
+    assert result == {}
 
-    def test_contains_goal_check(self):
-        assert "Goal Check" in COMPLIANCE_CHECKLIST
 
-    def test_contains_verification(self):
-        assert "Verification" in COMPLIANCE_CHECKLIST
+def test_completed_workflow_allows_stop(tmp_path):
+    write_state(tmp_path, "completed")
+    result, _ = run_hook(tmp_path, {})
+    assert result == {}
 
-    def test_contains_invalid_excuses(self):
-        assert "diminishing returns" in COMPLIANCE_CHECKLIST
-        assert "broader architectural" in COMPLIANCE_CHECKLIST
-        assert "beyond the scope" in COMPLIANCE_CHECKLIST
-        assert "should work" in COMPLIANCE_CHECKLIST
 
-    def test_contains_task_list_check(self):
-        assert "TaskList" in COMPLIANCE_CHECKLIST
+def test_active_workflow_blocks_once_with_exact_boundary(tmp_path):
+    write_state(tmp_path, "review_pending")
+    result, _ = run_hook(tmp_path, {})
+    assert result["decision"] == "block"
+    assert "ultra-dev" in result["reason"]
+    assert "task-1" in result["reason"]
+    assert "4.5" in result["reason"]
 
-    def test_codex_runtime_uses_native_plan_language(self):
-        env = {**os.environ, "UBP_HOOK_RUNTIME": "codex"}
-        proc = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                "from pre_stop_check import COMPLIANCE_CHECKLIST; print(COMPLIANCE_CHECKLIST)",
-            ],
-            cwd=Path(__file__).parent.parent,
-            env=env,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        assert "current Codex plan" in proc.stdout
-        assert "TaskList" not in proc.stdout
+
+def test_retrigger_allows_stop_to_avoid_a_loop(tmp_path):
+    write_state(tmp_path, "review_pending")
+    result, _ = run_hook(tmp_path, {"stop_hook_active": True})
+    assert result == {}
+
+
+def test_malformed_input_fails_open_with_diagnostic(tmp_path):
+    result, stderr = run_hook(tmp_path, "not-json")
+    assert result == {}
+    assert "invalid hook input" in stderr

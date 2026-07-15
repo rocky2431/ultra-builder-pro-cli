@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const claude = require('../claude.js');
+const { skillsForRuntime, WORKFLOW_HOOK_FILES } = require('../_shared/runtime-assets.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -14,149 +15,103 @@ function mkTarget() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-claude-'));
 }
 
-test('install copies commands/skills/hooks into target', () => {
-  const target = mkTarget();
+function skillNames(root) {
+  return fs.readdirSync(path.join(root, 'skills'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(root, 'skills', entry.name, 'SKILL.md')))
+    .map((entry) => entry.name)
+    .sort();
+}
+
+test('install builds the Claude-native plugin from the explicit Ultra allowlist', () => {
+  const parent = mkTarget();
+  const target = path.join(parent, 'skills', 'ultra-builder-pro');
   try {
-    const r = claude.install({ configDir: target, repoRoot: REPO_ROOT });
-    assert.equal(r.target, target);
-    assert.ok(r.copied.commands.includes('ultra-init.md'));
-    assert.ok(r.copied.skills.some((p) => p.includes('ultra-init/SKILL.md')));
-    assert.ok(r.copied.hooks.includes('post_edit_guard.py'));
-    assert.ok(fs.existsSync(path.join(target, 'commands', 'ultra-init.md')));
-    assert.ok(fs.existsSync(path.join(target, 'skills', 'ultra-init', 'SKILL.md')));
-    assert.ok(fs.existsSync(path.join(target, 'hooks', 'post_edit_guard.py')));
+    const report = claude.install({ configDir: parent, repoRoot: REPO_ROOT });
+    assert.deepEqual(skillNames(target), skillsForRuntime('claude').sort());
+    assert.deepEqual(report.copied.hooks.sort(), WORKFLOW_HOOK_FILES.slice().sort());
+    assert.ok(fs.existsSync(path.join(target, '.claude-plugin', 'plugin.json')));
+    assert.ok(fs.existsSync(path.join(target, 'hooks', 'hooks.json')));
+    assert.ok(fs.existsSync(path.join(target, '.mcp.json')));
+    assert.ok(fs.existsSync(path.join(target, 'agents', 'code-reviewer.md')));
+
+    const hooks = JSON.parse(fs.readFileSync(path.join(target, 'hooks', 'hooks.json'), 'utf8'));
+    const serialized = JSON.stringify(hooks);
+    for (const name of WORKFLOW_HOOK_FILES) assert.match(serialized, new RegExp(name.replace('.', '\\.')));
+    assert.doesNotMatch(serialized, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
+    assert.match(serialized, /\$\{CLAUDE_PLUGIN_ROOT\}/);
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(parent, { recursive: true, force: true });
   }
 });
 
-test('install merges settings.json — user data preserved, ubp hooks tagged, mcpServers registered', () => {
-  const target = mkTarget();
-  const settingsFile = path.join(target, 'settings.json');
+test('Claude plugin collaboration and learn workflows are safe native plugin assets', () => {
+  const parent = mkTarget();
+  const target = path.join(parent, 'skills', 'ultra-builder-pro');
   try {
-    // pre-existing user settings
-    const userSettings = {
-      user_only: 'keep-me',
-      env: { USER_VAR: '1' },
-      hooks: {
-        PostToolUse: [
-          { matcher: 'Edit', hooks: [{ type: 'command', command: 'user-hook.sh', timeout: 10 }] },
-        ],
-      },
-      mcpServers: { my_existing_mcp: { command: 'node', args: ['./mine.js'] } },
-    };
-    fs.writeFileSync(settingsFile, JSON.stringify(userSettings, null, 2));
+    claude.install({ configDir: parent, repoRoot: REPO_ROOT });
+    const read = (name) => fs.readFileSync(path.join(target, 'skills', name, 'SKILL.md'), 'utf8');
+    const learn = read('learn');
+    const codexCollab = read('codex-collab');
+    const geminiCollab = read('gemini-collab');
+    const verify = read('ultra-verify');
+    const review = read('ultra-review');
 
-    claude.install({ configDir: target, repoRoot: REPO_ROOT });
+    assert.match(learn, /~\/.claude\/skills\/learned-<pattern-slug>-unverified\/SKILL\.md/);
+    assert.doesNotMatch(learn, /_unverified\.md/);
+    assert.match(codexCollab, /-s read-only/);
+    assert.match(geminiCollab, /--approval-mode plan/);
+    assert.match(verify, /--approval-mode plan/);
+    assert.match(verify, /-s read-only/);
+    assert.match(verify, /\$CLAUDE_PLUGIN_ROOT\/skills\/ultra-verify\/scripts\/verify_wait\.py/);
+    assert.match(review, /\$CLAUDE_PLUGIN_ROOT\/skills\/ultra-review\/scripts\/review_wait\.py/);
 
-    const merged = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
-    assert.equal(merged.user_only, 'keep-me');
-    assert.equal(merged.env.USER_VAR, '1');
-    assert.ok(merged.mcpServers.my_existing_mcp);
-    assert.ok(merged.mcpServers[claude.MCP_SERVER_NAME]);
-    // P2 #9 / D45: identification lives in sibling `_ubp` block, NOT in env
-    assert.equal(merged.mcpServers[claude.MCP_SERVER_NAME]._ubp.source, claude.SOURCE_TAG);
-    assert.equal(merged.mcpServers[claude.MCP_SERVER_NAME].env._source, undefined, 'env must not leak _source');
-
-    // user's PostToolUse hook preserved; ubp hooks added
-    const postToolUse = merged.hooks.PostToolUse;
-    const userHookMatcher = postToolUse.find((m) =>
-      m.hooks.some((h) => h.command === 'user-hook.sh'),
-    );
-    assert.ok(userHookMatcher, 'user hook should be preserved');
-    const ubpHookMatcher = postToolUse.find((m) =>
-      m.hooks.some((h) => h._source === claude.SOURCE_TAG),
-    );
-    assert.ok(ubpHookMatcher, 'ubp hook should be inserted');
-
-    // sentinel block present
-    assert.equal(merged[claude.SENTINEL_KEY].__sentinel, 1);
+    for (const [name, contents] of Object.entries({ codexCollab, geminiCollab, verify })) {
+      assert.doesNotMatch(contents, /--yolo|--full-auto|\/codex:/, name);
+    }
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(parent, { recursive: true, force: true });
   }
 });
 
-test('install is idempotent — running twice yields byte-equal settings.json', () => {
-  const target = mkTarget();
-  const settingsFile = path.join(target, 'settings.json');
+test('global target is a Claude skills-directory plugin', () => {
+  const homeDir = mkTarget();
   try {
-    claude.install({ configDir: target, repoRoot: REPO_ROOT });
-    const first = fs.readFileSync(settingsFile, 'utf8');
-    // Strip the timestamp from sentinel for comparison (it changes per run)
-    const stripTs = (s) => s.replace(/"__generated_at": "[^"]+"/g, '"__generated_at": "<t>"');
-
-    claude.install({ configDir: target, repoRoot: REPO_ROOT });
-    const second = fs.readFileSync(settingsFile, 'utf8');
-
-    assert.equal(stripTs(second), stripTs(first));
-    // commands untouched
-    assert.ok(fs.existsSync(path.join(target, 'commands', 'ultra-init.md')));
+    const ctx = { scope: 'global', homeDir };
+    assert.equal(claude.resolveTarget(ctx), path.join(homeDir, '.claude'));
+    assert.equal(claude.resolvePluginRoot(ctx), path.join(homeDir, '.claude', 'skills', 'ultra-builder-pro'));
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(homeDir, { recursive: true, force: true });
   }
 });
 
-test('uninstall refuses to delete user-owned directories missing .ubp-managed sentinel', () => {
-  const target = mkTarget();
+test('reinstall is deterministic and uninstall removes only the managed plugin root', () => {
+  const parent = mkTarget();
+  const target = path.join(parent, 'skills', 'ultra-builder-pro');
+  const sibling = path.join(parent, 'user-plugin');
   try {
-    // User had their own commands/ that we should not touch
-    const userCommands = path.join(target, 'commands');
-    fs.mkdirSync(userCommands, { recursive: true });
-    fs.writeFileSync(path.join(userCommands, 'user-cmd.md'), '---\ndescription: user\n---\n');
-
-    // Simulate a prior install adding our sentinel block but (somehow) without marking
-    // commands/ managed — e.g. commands/.ubp-managed manually removed.
-    fs.writeFileSync(path.join(target, 'settings.json'), JSON.stringify({
-      _ubp_manifest: { __sentinel: 1, hook_events: [], mcp_server_name: claude.MCP_SERVER_NAME },
-    }, null, 2));
-
-    claude.uninstall({ configDir: target });
-
-    // commands/ untouched because no .ubp-managed file was present
-    assert.ok(fs.existsSync(userCommands));
-    assert.ok(fs.existsSync(path.join(userCommands, 'user-cmd.md')));
+    fs.mkdirSync(sibling);
+    fs.writeFileSync(path.join(sibling, 'keep.txt'), 'keep');
+    claude.install({ configDir: parent, repoRoot: REPO_ROOT });
+    claude.install({ configDir: parent, repoRoot: REPO_ROOT });
+    claude.uninstall({ configDir: parent });
+    assert.ok(!fs.existsSync(target));
+    assert.equal(fs.readFileSync(path.join(sibling, 'keep.txt'), 'utf8'), 'keep');
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(parent, { recursive: true, force: true });
   }
 });
 
-test('uninstall removes ubp assets and strips sentinel while preserving user data', () => {
-  const target = mkTarget();
-  const settingsFile = path.join(target, 'settings.json');
+test('install refuses to replace an unmanaged directory', () => {
+  const parent = mkTarget();
+  const target = path.join(parent, 'skills', 'ultra-builder-pro');
   try {
-    const userSettings = {
-      user_only: 'keep-me',
-      hooks: {
-        PostToolUse: [
-          { matcher: 'Edit', hooks: [{ type: 'command', command: 'user-hook.sh', timeout: 10 }] },
-        ],
-      },
-    };
-    fs.writeFileSync(settingsFile, JSON.stringify(userSettings, null, 2));
-
-    claude.install({ configDir: target, repoRoot: REPO_ROOT });
-    claude.uninstall({ configDir: target });
-
-    const after = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
-    assert.equal(after.user_only, 'keep-me');
-    assert.ok(!(claude.SENTINEL_KEY in after));
-    // user hook preserved; ubp hooks gone
-    const userHook = after.hooks.PostToolUse.find((m) =>
-      m.hooks.some((h) => h.command === 'user-hook.sh'),
+    fs.mkdirSync(target, { recursive: true });
+    fs.writeFileSync(path.join(target, 'user.txt'), 'keep');
+    assert.throws(
+      () => claude.install({ configDir: parent, repoRoot: REPO_ROOT }),
+      /unmanaged Claude plugin/,
     );
-    assert.ok(userHook);
-    const anyUbpHook = after.hooks.PostToolUse.some((m) =>
-      m.hooks.some((h) => h._source === claude.SOURCE_TAG),
-    );
-    assert.ok(!anyUbpHook);
-    // mcp ubp entry removed
-    assert.ok(!after.mcpServers || !after.mcpServers[claude.MCP_SERVER_NAME]);
-
-    // assets removed
-    assert.ok(!fs.existsSync(path.join(target, 'commands')));
-    assert.ok(!fs.existsSync(path.join(target, 'skills')));
-    assert.ok(!fs.existsSync(path.join(target, 'hooks')));
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(parent, { recursive: true, force: true });
   }
 });

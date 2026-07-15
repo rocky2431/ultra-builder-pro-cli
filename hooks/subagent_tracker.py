@@ -17,33 +17,29 @@ Usage:
 import json
 import os
 import random
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-from hook_utils import get_runtime_data_root
-
-GIT_TIMEOUT = 3
+TERMINAL = {"committed", "completed", "done", "cancelled"}
 MAX_LOG_LINES = 5000
 
 
-def get_log_dir() -> Path:
-    """Get project-level log directory (.ultra/debug/ relative to git toplevel).
-
-    Falls back to the active runtime data directory if not in a git repo.
-    """
-    try:
-        proc = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=GIT_TIMEOUT
-        )
-        if proc.returncode == 0 and proc.stdout.strip():
-            return Path(proc.stdout.strip()) / ".ultra" / "debug"
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return get_runtime_data_root() / "debug"
+def get_log_dir(hook_input: dict):
+    start = Path(hook_input.get("cwd") or Path.cwd()).resolve()
+    for root in (start, *start.parents):
+        state_file = root / ".ultra" / "workflow-state.json"
+        if not state_file.is_file():
+            continue
+        try:
+            state = json.loads(state_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"[subagent_tracker] cannot read {state_file}: {exc}", file=sys.stderr)
+            return None
+        if isinstance(state, dict) and state.get("status") not in TERMINAL:
+            return root / ".ultra" / "runtime"
+        return None
+    return None
 
 
 def rotate_log(log_file: Path) -> None:
@@ -57,8 +53,8 @@ def rotate_log(log_file: Path) -> None:
             return
         with open(log_file, "w", encoding="utf-8") as f:
             f.writelines(lines[-MAX_LOG_LINES:])
-    except OSError:
-        pass
+    except OSError as exc:
+        print(f"[subagent_tracker] log rotation failed: {exc}", file=sys.stderr)
 
 
 def main():
@@ -77,11 +73,15 @@ def main():
         hook_input = json.loads(raw) if raw.strip() else {}
         if not isinstance(hook_input, dict):
             hook_input = {}
-    except (json.JSONDecodeError, EOFError):
+    except (json.JSONDecodeError, EOFError) as exc:
+        print(f"[subagent_tracker] invalid hook input: {exc}", file=sys.stderr)
         hook_input = {}
 
     # Lazy init: avoid module-level subprocess
-    log_dir = get_log_dir()
+    log_dir = get_log_dir(hook_input)
+    if log_dir is None:
+        print(json.dumps({}))
+        return
     log_file = log_dir / "subagent-log.jsonl"
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -102,8 +102,8 @@ def main():
     try:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except OSError:
-        pass
+    except OSError as exc:
+        print(f"[subagent_tracker] event write failed: {exc}", file=sys.stderr)
 
     # Periodic log rotation (~1% of writes)
     if random.random() < 0.01:

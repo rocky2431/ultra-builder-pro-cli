@@ -30,18 +30,13 @@ from typing import Any
 
 HOOK_ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_FEATURES = {
-    "block_dangerous_commands.py",
+    "active_task_context.py",
     "health_check.py",
-    "mid_workflow_recall.py",
-    "observation_capture.py",
-    "post_compact_inject.py",
-    "post_edit_guard.py",
-    "pre_compact_context.py",
     "pre_stop_check.py",
-    "session_context.py",
-    "session_journal.py",
     "subagent_tracker.py",
-    "user_prompt_capture.py",
+    "workflow_checkpoint.py",
+    "workflow_context.py",
+    "workflow_resume.py",
 }
 UNIVERSAL_OUTPUT_FIELDS = {"continue", "stopReason", "suppressOutput", "systemMessage"}
 PATCH_FILE_RE = re.compile(r"^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$", re.MULTILINE)
@@ -244,7 +239,7 @@ def run_feature(feature: str, payload: dict[str, Any], feature_args: list[str]) 
         return {"systemMessage": f"Ultra hook feature is missing: {feature}"}
 
     event = str(payload.get("hook_event_name") or "")
-    if feature == "post_compact_inject.py" and event == "PostCompact":
+    if feature == "workflow_resume.py" and event == "PostCompact":
         payload = dict(payload)
         payload["hook_event_name"] = "SessionStart"
         payload["source"] = "compact"

@@ -4,8 +4,6 @@ argument-hint: [topic]
 allowed-tools: Task, Read, Write, WebSearch, WebFetch, Grep, Glob, AskUserQuestion
 model: opus
 workflow-ref: "@skills/ultra-research/SKILL.md"
-mcp_tools_required:
-  - memory.retain
 ---
 
 # Ultra Research v2

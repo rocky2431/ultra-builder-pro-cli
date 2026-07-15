@@ -5,7 +5,6 @@ description: |
   Used exclusively by /ultra-review after all review agents complete.
 tools: Read, Grep, Glob, Bash, Write
 model: opus
-memory: project
 maxTurns: 15
 ---
 
@@ -143,6 +142,5 @@ Total: X findings (P0:A P1:B P2:C P3:D), deduplicated from Y
 Files: SESSION_PATH/SUMMARY.md, SESSION_PATH/SUMMARY.json
 ```
 
-## Memory
-
-Consult your agent memory for patterns in deduplication and common cross-agent finding overlaps.
+Use only the review artifacts in `SESSION_PATH` and the context supplied by the
+parent agent. Do not create or update a private Ultra memory store.

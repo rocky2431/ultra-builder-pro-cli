@@ -8,7 +8,6 @@ mcp_tools_required:
   - task.update
   - task.get
   - task.list
-  - review.run
 cli_fallback: "task update"
 ---
 
@@ -33,10 +32,10 @@ MCP `task.update` 改一次；projector 自动更新 tasks.json + context-md fro
 
 **命令入口做的事**：
 1. 读 `.ultra/workflow-state.json` 决定新跑 vs resume
-2. 首跑触发 Design Approval Gate（`ask.question`）
+2. 首跑通过 Host 原生提问触发 Design Approval Gate
 3. 驱动 skill 走 TDD + review 循环；状态仅通过 MCP `task.update`（双写消除）
-4. Step 4.5 review 优先走 MCP `review.run`；不可达回退 `Task`/`ultra-tools subagent run`
-5. Step 4.4 pre-review checkpoint 用 `session.checkpoint`（Phase 5 前回退 workflow-state.json；不再依赖 `/compact`）
+4. Step 4.5 review 通过 `/ultra-review` 和 Host 原生 subagent 执行
+5. Step 4.4 pre-review checkpoint 写入 workflow-state.json，不依赖 `/compact`
 
 ## 用法
 

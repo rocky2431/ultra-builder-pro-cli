@@ -281,14 +281,15 @@ function appendEvent(db, event) {
 }
 
 // Single static SQL using json_each for the optional types IN-list and
-// NULL-pass-through for task_id. Frozen literal — no concat, no interpolation.
-const SUBSCRIBE_EVENTS_SQL = "SELECT id, ts, type, task_id, session_id, runtime, payload_json FROM events WHERE id > @since_id AND (@types_json IS NULL OR EXISTS (SELECT 1 FROM json_each(@types_json) WHERE value = events.type)) AND (@task_id IS NULL OR task_id = @task_id) ORDER BY id ASC LIMIT @maxn";
+// NULL-pass-through for task_id/session_id. Frozen literal — no concat, no interpolation.
+const SUBSCRIBE_EVENTS_SQL = "SELECT id, ts, type, task_id, session_id, runtime, payload_json FROM events WHERE id > @since_id AND (@types_json IS NULL OR EXISTS (SELECT 1 FROM json_each(@types_json) WHERE value = events.type)) AND (@task_id IS NULL OR task_id = @task_id) AND (@session_id IS NULL OR session_id = @session_id) ORDER BY id ASC LIMIT @maxn";
 
-function subscribeEventsSince(db, { since_id = 0, types, task_id, limit = 100 } = {}) {
+function subscribeEventsSince(db, { since_id = 0, types, task_id, session_id, limit = 100 } = {}) {
   const events = db.prepare(SUBSCRIBE_EVENTS_SQL).all({
     since_id,
     types_json: types && types.length > 0 ? JSON.stringify(types) : null,
     task_id: task_id || null,
+    session_id: session_id || null,
     maxn: Math.min(Math.max(limit, 1), 500),
   });
 

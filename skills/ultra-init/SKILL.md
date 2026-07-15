@@ -55,8 +55,8 @@ MCP 不可达时回退 `ultra-tools task init-project`。
 
 交互渠道：
 - **Claude runtime**：调 `AskUserQuestion`（原生）
-- **其他 runtime**：调 `ultra-tools ask --question ... --options ...`（Phase 3.7 实装；
-  在那之前使用 runtime 的原生菜单或回退到命令行参数）
+- **其他 runtime**：使用 Host 原生提问界面；若当前表面不支持交互，
+  要求用户通过显式命令行参数选择
 
 确认 4 个问题：
 1. 项目类型（可多选，`detected` 标签打在识别项）

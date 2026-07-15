@@ -10,19 +10,16 @@ info:
   phase: '1.1'
   trace_to: 'PLAN docs/PLAN.zh-CN.md §7.3'
   notes: |
-    Phase 3+ generators consume this YAML to derive TypeScript types,
-    skill frontmatter validators, and CLI argument parsers (R19).
+    This published contract contains only tools registered by the MCP server.
+    Host-native review, impact, skill discovery, and human-interaction capabilities
+    are documented by each adapter's capability map rather than advertised as MCP.
+    Generators consume this YAML to derive types, validators, and CLI parsers (R19).
     Adding a tool requires: (a) update this file, (b) add valid+invalid
     fixture to spec/fixtures/{valid,invalid}/, (c) `npm run test:spec` green.
 
 families:
   - { name: task,    description: 'authoritative task lifecycle on state.db', phase: '2' }
-  - { name: memory,  description: 'cross-session retain / recall / reflect (hindsight wrapper)', phase: '7' }
-  - { name: review,  description: 'code review pipeline orchestration', phase: '3' }
-  - { name: impact,  description: 'code-review-graph queries — radius / changes / dependents', phase: '6' }
-  - { name: skill,   description: 'read-only skill discovery (D29)', phase: '3' }
   - { name: session, description: 'execution-unit lifecycle with single-active-lease admission (D33)', phase: '4.5' }
-  - { name: ask,     description: 'human-in-the-loop prompts and menus', phase: '3' }
   - { name: plan,    description: 'execution-plan artifact export and query (D34)', phase: '8a' }
 
 tools:
@@ -278,7 +275,7 @@ tools:
       properties:
         id:        { type: string }
         sub_count: { type: integer, minimum: 1, maximum: 16 }
-        strategy:  { type: string, enum: [llm, manual], default: llm }
+        strategy:  { type: string, enum: [llm], default: llm }
     output_schema:
       type: object
       required: [parent_id, children]
@@ -423,200 +420,10 @@ tools:
     emits_events: []
     trace_to: '§7.2, D31'
 
-  # ────────────────────────── memory family ───────────────────────────────
-  # Definitions live later in this file (after plan.*) — they were promoted to
-  # Phase 7.1 implementation-backed schemas (kind enum, FTS5 query, no-LLM
-  # reflect). Placeholder kept here for section grouping only.
-
-  # ────────────────────────── review family ───────────────────────────────
-  - name: review.run
-    family: review
-    description: Run the multi-agent review pipeline against a target (file / pr / diff).
-    phase: '3'
-    writer_role: mcp
-    input_schema:
-      type: object
-      required: [target]
-      additionalProperties: false
-      properties:
-        target:
-          type: object
-          required: [kind, ref]
-          properties:
-            kind: { type: string, enum: [file, pr, diff, branch] }
-            ref:  { type: string }
-        profile: { type: string, enum: [security, design, tests, all], default: all }
-    output_schema:
-      type: object
-      required: [review_id, findings, verdict]
-      additionalProperties: false
-      properties:
-        review_id: { type: string }
-        findings:  { type: array, items: { type: object } }
-        verdict:   { type: string, enum: [pass, warn, block] }
-    errors:
-      - { code: TARGET_NOT_FOUND, description: 'target ref does not resolve' }
-      - { code: REVIEW_TIMEOUT, description: 'pipeline exceeded budget', retriable: true }
-    cli_subcommand: review run
-    emits_events: [review_verdict]
-    trace_to: '§7.3'
-
-  - name: review.verdict
-    family: review
-    description: Fetch the cached verdict of a previous review.
-    phase: '3'
-    readonly: true
-    input_schema:
-      type: object
-      required: [review_id]
-      additionalProperties: false
-      properties:
-        review_id: { type: string }
-    output_schema:
-      type: object
-      required: [verdict]
-      additionalProperties: false
-      properties:
-        verdict: { type: string, enum: [pass, warn, block] }
-        reasons: { type: array, items: { type: string } }
-    errors:
-      - { code: REVIEW_NOT_FOUND, description: 'review id unknown' }
-    cli_subcommand: review verdict
-    emits_events: []
-    trace_to: '§7.3'
-
-  # ────────────────────────── impact family ───────────────────────────────
-  - name: impact.radius
-    family: impact
-    description: Blast-radius query against code-review-graph for a file / symbol.
-    phase: '6'
-    readonly: true
-    input_schema:
-      type: object
-      required: [target]
-      additionalProperties: false
-      properties:
-        target:
-          type: object
-          properties:
-            file:   { type: string }
-            symbol: { type: string }
-        max_depth: { type: integer, minimum: 1, maximum: 6, default: 2 }
-    output_schema:
-      type: object
-      required: [nodes, depth]
-      additionalProperties: false
-      properties:
-        nodes: { type: array, items: { type: object } }
-        depth: { type: integer }
-    errors:
-      - { code: GRAPH_NOT_BUILT, description: 'code-review-graph index missing', retriable: true }
-    cli_subcommand: impact radius
-    emits_events: []
-    trace_to: '§7.3'
-
-  - name: impact.changes
-    family: impact
-    description: Nodes added/changed/removed since a commit (incremental graph diff).
-    phase: '6'
-    readonly: true
-    input_schema:
-      type: object
-      required: [since_commit]
-      additionalProperties: false
-      properties:
-        since_commit: { type: string }
-    output_schema:
-      type: object
-      required: [changed_nodes]
-      additionalProperties: false
-      properties:
-        changed_nodes: { type: array, items: { type: object } }
-    errors:
-      - { code: COMMIT_NOT_FOUND, description: 'reference commit not in repo' }
-    cli_subcommand: impact changes
-    emits_events: []
-    trace_to: '§7.3'
-
-  - name: impact.dependents
-    family: impact
-    description: Reverse-dependents of a symbol (who calls / imports it).
-    phase: '6'
-    readonly: true
-    input_schema:
-      type: object
-      required: [symbol]
-      additionalProperties: false
-      properties:
-        symbol:    { type: string }
-        max_depth: { type: integer, minimum: 1, maximum: 6, default: 2 }
-    output_schema:
-      type: object
-      required: [dependents]
-      additionalProperties: false
-      properties:
-        dependents: { type: array, items: { type: object } }
-    errors:
-      - { code: SYMBOL_NOT_FOUND, description: 'symbol not in graph' }
-    cli_subcommand: impact dependents
-    emits_events: []
-    trace_to: '§7.3'
-
-  # ────────────────────────── skill family (read-only, D29) ───────────────
-  - name: skill.resolve
-    family: skill
-    description: Resolve a skill name to its on-disk path and parsed manifest.
-    phase: '3'
-    readonly: true
-    writer_role: any
-    input_schema:
-      type: object
-      required: [name]
-      additionalProperties: false
-      properties:
-        name:    { type: string }
-        runtime: { type: string, enum: [claude, opencode, codex, gemini] }
-    output_schema:
-      type: object
-      required: [path, manifest]
-      additionalProperties: false
-      properties:
-        path:     { type: string }
-        manifest: { type: object }
-    errors:
-      - { code: SKILL_NOT_FOUND, description: 'no skill with given name in any source' }
-    cli_subcommand: skill resolve
-    emits_events: []
-    trace_to: '§7.3, D29'
-
-  - name: skill.manifest
-    family: skill
-    description: Return only the parsed frontmatter of a skill (no body).
-    phase: '3'
-    readonly: true
-    writer_role: any
-    input_schema:
-      type: object
-      required: [name]
-      additionalProperties: false
-      properties:
-        name: { type: string }
-    output_schema:
-      type: object
-      required: [frontmatter]
-      additionalProperties: false
-      properties:
-        frontmatter: { type: object }
-    errors:
-      - { code: SKILL_NOT_FOUND, description: 'no skill with given name in any source' }
-    cli_subcommand: skill manifest
-    emits_events: []
-    trace_to: '§7.3, D29'
-
   # ────────────────────────── session family ──────────────────────────────
   - name: session.spawn
     family: session
-    description: Spawn a new execution session — new process + worktree + lease + artifact dir (D20). Caller must hold an admission_check verdict allowing spawn.
+    description: Register execution-session intent, lease, and proposed worktree/artifact paths. The orchestrator creates the process and worktree after this admission step.
     phase: '4.5'
     writer_role: mcp
     input_schema:
@@ -640,7 +447,6 @@ tools:
     errors:
       - { code: TASK_NOT_FOUND, description: 'task id missing' }
       - { code: ADMISSION_DENIED, description: 'active lease exists; choose takeover/resume/abandon' }
-      - { code: WORKTREE_FAILED, description: 'git worktree could not be created' }
     cli_subcommand: session spawn
     emits_events: [session_spawned]
     trace_to: '§7.3, D20, D33'
@@ -657,7 +463,6 @@ tools:
       properties:
         sid:    { type: string }
         status: { type: string, enum: [completed, crashed, orphan] }
-        notes:  { type: string }
     output_schema:
       type: object
       required: [ok]
@@ -744,7 +549,7 @@ tools:
             heartbeat_age_ms: { type: integer, minimum: 0 }
         recommended_action:
           type: string
-          enum: [spawn, takeover, resume, abandon]
+          enum: [spawn, takeover, resume, abandon, blocked_by_breaker]
     errors:
       - { code: TASK_NOT_FOUND, description: 'task id missing' }
     cli_subcommand: session admission
@@ -802,69 +607,6 @@ tools:
     emits_events: []
     trace_to: '§7.3, D31'
 
-  # ────────────────────────── ask family ──────────────────────────────────
-  - name: ask.question
-    family: ask
-    description: Ask the human a single question (free text or constrained choices).
-    phase: '3'
-    writer_role: any
-    input_schema:
-      type: object
-      required: [prompt]
-      additionalProperties: false
-      properties:
-        prompt:  { type: string, minLength: 3 }
-        choices: { type: array, items: { type: string } }
-        default: { type: string }
-        timeout_seconds: { type: integer, minimum: 1, maximum: 3600 }
-    output_schema:
-      type: object
-      required: [answer]
-      additionalProperties: false
-      properties:
-        answer:    { type: string }
-        timed_out: { type: boolean, default: false }
-    errors:
-      - { code: NO_TTY, description: 'no interactive terminal available' }
-      - { code: TIMEOUT, description: 'human did not respond in time' }
-    cli_subcommand: ask question
-    emits_events: []
-    trace_to: '§7.3'
-
-  - name: ask.menu
-    family: ask
-    description: Present a labelled menu and return the selected id.
-    phase: '3'
-    writer_role: any
-    input_schema:
-      type: object
-      required: [title, items]
-      additionalProperties: false
-      properties:
-        title: { type: string }
-        items:
-          type: array
-          minItems: 1
-          items:
-            type: object
-            required: [id, label]
-            properties:
-              id:    { type: string }
-              label: { type: string }
-              description: { type: string }
-    output_schema:
-      type: object
-      required: [selected_id]
-      additionalProperties: false
-      properties:
-        selected_id: { type: string }
-    errors:
-      - { code: NO_TTY, description: 'no interactive terminal available' }
-      - { code: USER_ABORTED, description: 'user dismissed the menu' }
-    cli_subcommand: ask menu
-    emits_events: []
-    trace_to: '§7.3'
-
   # ────────────────────────── plan family (D34) ───────────────────────────
   - name: plan.export
     family: plan
@@ -895,7 +637,7 @@ tools:
 
   - name: plan.get
     family: plan
-    description: Query a section of the in-memory execution-plan without writing to disk.
+    description: Read a section of the current project's persisted .ultra/execution-plan.json artifact.
     phase: '8a'
     readonly: true
     input_schema:
@@ -903,7 +645,6 @@ tools:
       additionalProperties: false
       properties:
         section: { type: string, enum: [tasks, topo, conflicts, all], default: all }
-        tag:     { type: string }
     output_schema:
       type: object
       required: [plan]
@@ -915,103 +656,3 @@ tools:
     cli_subcommand: plan get
     emits_events: []
     trace_to: '§7.3, D34'
-
-  - name: memory.retain
-    family: memory
-    description: Store a structured fact/decision/error_fix/pattern/note into the wrapper memory store (Phase 7.1).
-    phase: '7.1'
-    writer_role: mcp
-    input_schema:
-      type: object
-      required: [kind, content]
-      additionalProperties: false
-      properties:
-        kind:       { type: string, enum: [fact, decision, error_fix, pattern, note] }
-        content:    { type: string, minLength: 1 }
-        task_id:    { type: string }
-        session_id: { type: string }
-        tag:        { type: string }
-        source:     { type: string }
-    output_schema:
-      type: object
-      required: [id, ts]
-      additionalProperties: false
-      properties:
-        id: { type: integer, minimum: 1 }
-        ts: { type: string, format: date-time }
-    errors:
-      - { code: VALIDATION_ERROR, description: 'required field missing or kind invalid' }
-    cli_subcommand: memory retain
-    emits_events: []
-    trace_to: '§6, D25'
-
-  - name: memory.recall
-    family: memory
-    description: FTS5 keyword search over retained memory; optional task_id/tag/session_id filters. Empty query returns most-recent entries.
-    phase: '7.1'
-    readonly: true
-    input_schema:
-      type: object
-      additionalProperties: false
-      properties:
-        query:      { type: string }
-        task_id:    { type: string }
-        session_id: { type: string }
-        tag:        { type: string }
-        limit:      { type: integer, minimum: 1, maximum: 100, default: 5 }
-    output_schema:
-      type: object
-      required: [hits]
-      additionalProperties: false
-      properties:
-        hits:
-          type: array
-          items:
-            type: object
-            required: [id, kind, content, ts]
-            additionalProperties: true
-            properties:
-              id:      { type: integer }
-              kind:    { type: string }
-              content: { type: string }
-              ts:      { type: string, format: date-time }
-    errors:
-      - { code: VALIDATION_ERROR, description: 'limit out of range' }
-    cli_subcommand: memory recall
-    emits_events: []
-    trace_to: '§6, D25'
-
-  - name: memory.reflect
-    family: memory
-    description: Return per-kind counts and recent entries for a tag or time window (read-only, no LLM summarization).
-    phase: '7.1'
-    readonly: true
-    input_schema:
-      type: object
-      additionalProperties: false
-      properties:
-        tag:   { type: string }
-        since: { type: string, format: date-time }
-        limit: { type: integer, minimum: 1, maximum: 500, default: 20 }
-    output_schema:
-      type: object
-      required: [counts, recent]
-      additionalProperties: false
-      properties:
-        counts: { type: object, additionalProperties: { type: integer } }
-        recent:
-          type: array
-          items:
-            type: object
-            required: [id, kind, content, ts]
-            additionalProperties: true
-            properties:
-              id:      { type: integer }
-              kind:    { type: string }
-              content: { type: string }
-              ts:      { type: string, format: date-time }
-    errors:
-      - { code: VALIDATION_ERROR, description: 'since must be ISO-8601 if set' }
-    cli_subcommand: memory reflect
-    emits_events: []
-    trace_to: '§6, D25'

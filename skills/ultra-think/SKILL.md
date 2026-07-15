@@ -2,9 +2,7 @@
 name: ultra-think
 description: "Deep analysis with adversarial reasoning — Evidence-First + Multi-Perspective + Steel-Man + Pre-Mortem + Sensitivity. Produces a recommendation with confidence bounds."
 runtime: all
-mcp_tools_required:
-  - ask.question
-cli_fallback: "ask"
+cli_fallback: "direct user interaction"
 ---
 
 # ultra-think — Phase 3.6
@@ -18,7 +16,7 @@ a recommendation with explicit confidence.
 ### Step 1 — Scope Check
 
 If the problem is ambiguous / underspecified, ask up to **3** clarifying
-questions via `ask.question` (fallback: `AskUserQuestion` / CLI menu).
+questions through the current Host's native user-interaction surface.
 If the problem is simple, **skip the framework**, answer concisely, and mark
 downstream steps `completed` with note `"skipped: simple answer path"`.
 
@@ -94,7 +92,7 @@ Ordered, actionable items.
 
 | Purpose | MCP tool | CLI fallback |
 |---------|----------|--------------|
-| Clarifying questions | `ask.question` | Claude: `AskUserQuestion`; others: `ultra-tools ask --question …` |
+| Clarifying questions | none | current Host's native user-interaction surface |
 
 ## What this skill DOES NOT do
 

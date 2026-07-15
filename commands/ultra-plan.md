@@ -6,7 +6,6 @@ model: opus
 workflow-ref: "@skills/ultra-plan/SKILL.md"
 mcp_tools_required:
   - task.create
-  - ask.question
 cli_fallback: "task create"
 ---
 
@@ -31,7 +30,7 @@ Integration Checkpoint。任务写入 state.db（MCP `task.create`），projecto
 
 **命令入口做的事**：
 1. 探测 spec 完整度 — 未填充则 block 并转 `/ultra-research`
-2. 交互选 scope 模式（MCP `ask.question`；Claude 回退 `AskUserQuestion`）
+2. 使用 Host 原生提问界面交互选 scope 模式
 3. 驱动 skill 跑生成 → 依赖分析 → `task.create` 循环 → 写 context-md 正文
 4. 跑 7 项 verification（requirement coverage / 无环 / trace_to / 复杂度等）
 5. 输出 report + 下一步

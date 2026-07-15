@@ -24,7 +24,6 @@ description: |
   </example>
 tools: Read, Grep, Glob, Bash, Write, Edit
 model: opus
-memory: project
 maxTurns: 30
 skills:
   - security-rules
@@ -94,12 +93,10 @@ After collecting all findings, classify each as AUTO-FIX or ASK:
 ## Additional Checks (from CLAUDE.md rules)
 
 - Pattern violations: mock usage, TODO/FIXME, console.log in prod
-- Architecture: business state in memory, missing persistence
+- Architecture: business state kept only in volatile process state, missing persistence
 - Forbidden patterns: InMemoryRepository, jest.mock for domain/service, hardcoded config
 - Integration: orphan code (no entry point), missing contract tests, horizontal-only changes
 
-## Memory
-
-Update your agent memory as you discover project-specific patterns, common issues,
-and review conventions. Write concise notes about what you found and where.
-Consult your memory before starting work.
+Use only the current checkout, the task context supplied by the parent agent, and
+verifiable runtime evidence. Persistent memory is owned by the host's separately
+installed memory provider, not by this agent.

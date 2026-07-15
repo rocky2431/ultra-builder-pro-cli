@@ -63,7 +63,7 @@ test('codex conformance — complete skill and native agent packaging', () => {
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(layout.pluginRoot, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    assert.equal(skills.length, 25);
+    assert.equal(skills.length, 17);
     assert.ok(skills.includes('cc-collab'));
     assert.ok(!skills.includes('codex-collab'));
     assert.ok(!skills.includes('learned'));
@@ -80,8 +80,8 @@ test('codex conformance — current hook event coverage', () => {
     install(layout);
     const manifest = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
     assert.deepEqual(Object.keys(manifest.hooks).sort(), [
-      'PostCompact', 'PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop',
-      'SubagentStart', 'SubagentStop', 'UserPromptSubmit',
+      'PostCompact', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop',
+      'SubagentStart', 'SubagentStop',
     ].sort());
     assert.match(JSON.stringify(manifest), /hooks\/adapters\/codex\.py/);
   } finally { cleanup(layout.homeDir); }

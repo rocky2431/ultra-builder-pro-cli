@@ -20,7 +20,6 @@ const REQUIRED_TABLES = Object.freeze([
   'telemetry',
   'specs_refs',
   'circuit_breaker',
-  'memory_entries',
 ]);
 
 function readSchemaSql() {

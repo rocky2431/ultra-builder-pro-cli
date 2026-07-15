@@ -14,7 +14,6 @@ const { spawn, execFileSync } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 
 const ops = require('../mcp-server/lib/state-ops.cjs');
-const memoryWrapper = require('./memory-wrapper.cjs');
 const skillMiner = require('./skill-miner.cjs');
 
 class SessionRunnerError extends Error {
@@ -66,7 +65,6 @@ function spawnSession({
   stdio = 'ignore',
   worktreeRef = 'HEAD',
   lease_seconds = 1800,
-  autoMemory = false,
 }) {
   if (!db) throw new SessionRunnerError('VALIDATION_ERROR', 'db handle required');
   if (!repoRoot) throw new SessionRunnerError('VALIDATION_ERROR', 'repoRoot required');
@@ -104,13 +102,6 @@ function spawnSession({
   // 3. Git worktree (throws WORKTREE_FAILED on failure)
   gitWorktreeAdd(repoRoot, worktree_path, worktreeRef);
   fs.mkdirSync(artifact_dir, { recursive: true });
-
-  // 3b. Phase 7.1 — opt-in memory prefetch (before child boots, so the agent
-  // sees prefetch.md in its artifact_dir from the start).
-  if (autoMemory) {
-    try { memoryWrapper.autoRecallOnSpawn(db, { task_id, artifact_dir }); }
-    catch (err) { process.stderr.write(`memory-wrapper: autoRecall error: ${err.message}\n`); }
-  }
 
   // 4. Spawn child process (optional — caller may want a record-only session)
   let proc = null;
@@ -168,7 +159,6 @@ function closeSession({
   status = 'completed',
   remove_worktree = true,
   kill_signal = 'SIGTERM',
-  autoMemory = false,
   mineSkill = false,
   skillsRoot = null,
   autoMerge = false,
@@ -184,11 +174,6 @@ function closeSession({
     catch (_) { /* already dead */ }
   }
   ops.updateSession(db, sid, { status });
-  // Phase 7.1 — opt-in retain AFTER status flip so event stream is complete.
-  if (autoMemory) {
-    try { memoryWrapper.autoRetainOnClose(db, sid); }
-    catch (err) { process.stderr.write(`memory-wrapper: autoRetain error: ${err.message}\n`); }
-  }
   // Phase 7.3 — opt-in skill mining (same lifecycle moment; runs after
   // status flip so task_completed events are visible).
   if (mineSkill && skillsRoot) {

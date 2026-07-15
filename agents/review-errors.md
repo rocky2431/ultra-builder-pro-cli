@@ -5,7 +5,6 @@ description: |
   Writes JSON findings to file. Used exclusively by /ultra-review.
 tools: Read, Grep, Glob, Bash, Write
 model: opus
-memory: project
 maxTurns: 15
 skills:
   - security-rules
@@ -84,6 +83,5 @@ After writing, output exactly one line:
 Wrote N findings (P0:X P1:X P2:X P3:X) to <filepath>
 ```
 
-## Memory
-
-Consult your agent memory for project-specific error handling patterns.
+Use the current checkout and the review inputs supplied by the parent agent. Do
+not create or update a private Ultra memory store.

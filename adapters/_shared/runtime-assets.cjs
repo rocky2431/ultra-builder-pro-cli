@@ -1,0 +1,70 @@
+'use strict';
+
+/**
+ * Canonical Ultra Builder Pro package boundary.
+ *
+ * Adapters must build from this allowlist. A new directory under skills/ or
+ * hooks/ is not packaged until it is deliberately classified here.
+ */
+
+const CORE_PUBLIC_SKILLS = Object.freeze([
+  'learn',
+  'ultra-init',
+  'ultra-research',
+  'ultra-plan',
+  'ultra-dev',
+  'ultra-test',
+  'ultra-review',
+  'ultra-deliver',
+  'ultra-status',
+  'ultra-think',
+]);
+
+const INTERNAL_AGENT_SKILLS = Object.freeze([
+  'code-review-expert',
+  'security-rules',
+  'integration-rules',
+  'testing-rules',
+]);
+
+const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
+  claude: Object.freeze(['codex-collab', 'gemini-collab', 'ultra-verify']),
+  codex: Object.freeze(['cc-collab', 'gemini-collab', 'ultra-verify']),
+  opencode: Object.freeze(['cc-collab', 'codex-collab', 'gemini-collab', 'ultra-verify']),
+  gemini: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
+});
+
+const RETIRED_SKILLS = Object.freeze([
+  'agent-browser',
+  'find-skills',
+  'recall',
+  'use-railway',
+  'vercel-composition-patterns',
+  'vercel-react-best-practices',
+  'vercel-react-native-skills',
+]);
+
+const WORKFLOW_HOOK_FILES = Object.freeze([
+  'active_task_context.py',
+  'health_check.py',
+  'pre_stop_check.py',
+  'subagent_tracker.py',
+  'workflow_checkpoint.py',
+  'workflow_context.py',
+  'workflow_resume.py',
+]);
+
+function skillsForRuntime(runtime) {
+  const collab = COLLAB_SKILLS_BY_RUNTIME[runtime];
+  if (!collab) throw new Error(`unsupported Ultra runtime: ${runtime}`);
+  return [...CORE_PUBLIC_SKILLS, ...INTERNAL_AGENT_SKILLS, ...collab];
+}
+
+module.exports = {
+  CORE_PUBLIC_SKILLS,
+  INTERNAL_AGENT_SKILLS,
+  COLLAB_SKILLS_BY_RUNTIME,
+  RETIRED_SKILLS,
+  WORKFLOW_HOOK_FILES,
+  skillsForRuntime,
+};

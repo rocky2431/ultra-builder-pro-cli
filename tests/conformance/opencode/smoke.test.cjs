@@ -22,9 +22,13 @@ test('opencode v0.1 smoke — install + lowercased frontmatter + mcp round-trip 
     const config = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
     const mcp = config.mcp[opencode.MCP_SERVER_NAME];
     assert.ok(mcp);
-    assert.equal(mcp.command, process.execPath);
-    // OpenCode reachable hook events documented in sentinel
-    assert.deepEqual(config[opencode.SENTINEL_KEY].reachable_events, ['session.start', 'event']);
+    assert.deepEqual(mcp.command, [
+      process.execPath,
+      path.join(target, opencode.BUNDLE_DIR, 'runtime', 'launch.cjs'),
+    ]);
+    assert.equal('_ubp_manifest' in config, false);
+    assert.ok(fs.existsSync(path.join(target, opencode.BUNDLE_DIR, '.ubp-managed')));
+    assert.ok(fs.existsSync(path.join(target, 'plugins', 'ultra-builder-pro.js')));
 
     // skill frontmatter is lowercased in-transit — pick one and verify keys
     const skillText = fs.readFileSync(path.join(target, 'skills', 'ultra-init', 'SKILL.md'), 'utf8');
@@ -70,7 +74,7 @@ test('opencode v0.1 smoke — user mcp entries survive install/uninstall', () =>
     assert.equal(after.theme, 'dark');
     assert.ok(after.mcp.my_server);
     assert.ok(!after.mcp[opencode.MCP_SERVER_NAME]);
-    assert.ok(!(opencode.SENTINEL_KEY in after));
+    assert.ok(!('_ubp_manifest' in after));
   } finally {
     cleanup(target);
   }

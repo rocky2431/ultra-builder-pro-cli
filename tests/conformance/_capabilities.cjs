@@ -54,8 +54,12 @@ function assertHookConfig(target, cfg) {
 function assertMcpRegistration(target, cfg) {
   const entry = cfg.readMcpEntry(target);
   assert.ok(entry, 'MCP entry not found');
-  assert.ok(entry.env, 'MCP entry has no env block');
-  assert.equal(entry.env._source, undefined, 'env must not leak _source (D45)');
+  if (cfg.expectNoEnv) {
+    assert.ok(!entry.env, 'native plugin MCP must inherit the active project cwd');
+  } else {
+    assert.ok(entry.env, 'MCP entry has no env block');
+    assert.equal(entry.env._source, undefined, 'env must not leak _source (D45)');
+  }
   if (cfg.identityCheck) cfg.identityCheck(entry, target);
 }
 

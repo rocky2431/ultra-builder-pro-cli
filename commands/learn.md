@@ -1,12 +1,9 @@
 ---
-description: Extract one reusable pattern from current session and save (user-gated) to ~/.claude/skills/learned/<name>_unverified.md
+description: Extract one reusable pattern into a valid user skill after explicit approval
 argument-hint: "[pattern-name]"
 allowed-tools: Read, Write, Grep, Glob, AskUserQuestion
 model: opus
 workflow-ref: "@skills/learn/SKILL.md"
-mcp_tools_required:
-  - ask.question
-cli_fallback: "ask"
 ---
 
 # /learn
@@ -14,7 +11,7 @@ cli_fallback: "ask"
 ## 目标
 
 扫当前会话挑一个最值得保存的「可复用模式」，以 Speculation 级别写到
-`~/.claude/skills/learned/<slug>_unverified.md`。写入前必问用户确认。
+`~/.claude/skills/learned-<slug>-unverified/SKILL.md`。写入前必问用户确认。
 
 ## 参数
 
@@ -29,8 +26,8 @@ cli_fallback: "ask"
 **命令入口做的事**：
 1. 回溯会话找可提炼的模式（错误修复 / 调试套路 / workaround / 项目级惯例）
 2. 选一个价值最高的（不是多个 — 一个文件一个模式）
-3. 按模板起草 → `ask.question` 让用户选 Save/Edit/Cancel
-4. 保存到 `~/.claude/skills/learned/<slug>_unverified.md`（不覆盖已存在）
+3. 按模板起草 → 直接询问用户选择 Save/Edit/Cancel
+4. 保存到 `~/.claude/skills/learned-<slug>-unverified/SKILL.md`（不覆盖已存在目录）
 
 ## 用法
 

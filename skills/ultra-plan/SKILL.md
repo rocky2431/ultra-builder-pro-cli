@@ -8,7 +8,6 @@ mcp_tools_required:
   - task.dependency_topo
   - plan.export
   - plan.get
-  - ask.question
 cli_fallback: "task create"
 ---
 
@@ -54,7 +53,8 @@ For a one-shot PRD → task graph pipeline with approval gate:
    into a plan with `waves`, `ownership_forecast`, `conflict_surface`, and
    estimated cost / duration.
 
-3. **Human gate** — `ask.question` with plan summary + estimated cost:
+3. **Human gate** — ask through the current Host's native user-interaction
+   surface with the plan summary and estimated cost:
    - `approve` → re-run `task.parse_prd` **with `dry_run: false`** to commit
      tasks, then `plan.export { out_path: ".ultra/execution-plan.json" }`
      to land the artifact and emit the `plan_approved` event.
@@ -87,8 +87,8 @@ drift silently.**
 | **HOLD** | Scope locked; make it bulletproof; catch every failure mode | Requirements clear, need execution depth |
 | **REDUCE** | Find the minimum viable version; cut ruthlessly | MVP, time pressure, PoC |
 
-Interactive prompt uses **MCP `ask.question`** (Phase 3.7+). Until then, fall
-back to the runtime's native picker (Claude: `AskUserQuestion`; CLI: menu).
+Use the current Host's native picker. If that Host has no structured picker,
+present the choices directly and require an explicit answer.
 
 **Dual-scale effort** on every EXPAND/SELECTIVE expansion decision:
 `Complete: ~X LOC, AI ~Y min | Shortcut: ~X LOC, saves Y min but ___`
@@ -203,8 +203,8 @@ ultra-tools task create \
 After each `task.create`, the server auto-runs the projector — `tasks.json`
 and `contexts/task-{id}.md` (frontmatter only) appear.
 
-**Note on batching**: Phase 3.3 does one `task.create` per task. Phase 8A may
-introduce `task.create_batch` for bulk inserts; not required here.
+Create one task per `task.create` call so every write is schema-validated and
+projected through the same live MCP contract.
 
 ### Step 5.5 — Context-md body (skill responsibility)
 
@@ -303,11 +303,8 @@ Summary output:
 
 | Purpose | MCP tool | CLI fallback |
 |---------|----------|--------------|
-| Scope mode prompt | `ask.question` | `ultra-tools ask --question … --options …` |
+| Scope mode prompt | none | current Host's native user-interaction surface |
 | Create task | `task.create` | `ultra-tools task create --title … --type … --priority …` |
-
-**Phase 3.7 placeholder**: `ask.question` not yet wired cross-runtime — skill
-falls back to the runtime's native picker (Claude `AskUserQuestion`).
 
 ## What this skill DOES NOT do
 

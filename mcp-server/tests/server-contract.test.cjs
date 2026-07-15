@@ -5,12 +5,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const yaml = require('js-yaml');
 
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SERVER = path.join(REPO_ROOT, 'mcp-server', 'server.cjs');
+const PACKAGE_VERSION = require(path.join(REPO_ROOT, 'package.json')).version;
 
 function tmpProject() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mcp-'));
@@ -63,16 +65,13 @@ function expectError(result) {
   return JSON.parse(result.content[0].text).error;
 }
 
-test('listTools returns the registered task.* + session.* + memory.* tools with input schemas', async () => {
+test('listTools returns workflow tools and exposes no Ultra memory API', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
       assert.deepEqual(names, [
-        'memory.recall',
-        'memory.reflect',
-        'memory.retain',
         'plan.export',
         'plan.get',
         'session.admission_check',
@@ -95,6 +94,7 @@ test('listTools returns the registered task.* + session.* + memory.* tools with 
         'task.switch_tag',
         'task.update',
       ]);
+      assert.ok(!names.some((name) => name.startsWith('memory.')));
       for (const t of list.tools) {
         assert.equal(typeof t.inputSchema, 'object');
         assert.equal(t.inputSchema.type, 'object');
@@ -103,6 +103,26 @@ test('listTools returns the registered task.* + session.* + memory.* tools with 
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
   }
+});
+
+test('MCP metadata matches the package and tools/list does not create project state', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      assert.equal(client.getServerVersion().version, PACKAGE_VERSION);
+      await client.listTools();
+      assert.equal(fs.existsSync(proj.dbPath), false, 'tool discovery must not create .ultra/state.db');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('published MCP contract contains exactly the live server tools', () => {
+  const manifest = yaml.load(fs.readFileSync(path.join(REPO_ROOT, 'spec', 'mcp-tools.yaml'), 'utf8'));
+  const declared = manifest.tools.map((tool) => tool.name).sort();
+  const { REGISTERED_TOOLS } = require(SERVER);
+  assert.deepEqual(declared, [...REGISTERED_TOOLS].sort());
 });
 
 test('task.create + task.get round trip via MCP', async () => {
@@ -428,6 +448,79 @@ test('session.subscribe_events sees task events with ≤1s latency (D31 id curso
   }
 });
 
+test('session.subscribe_events filters events by sid', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-filter-a');
+      await seedTask(client, 's-filter-b');
+      const sessionA = readToolPayload(await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-filter-a', runtime: 'claude' },
+      }));
+      const sessionB = readToolPayload(await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-filter-b', runtime: 'codex' },
+      }));
+      const before = readToolPayload(await client.callTool({
+        name: 'session.subscribe_events',
+        arguments: { since_id: 0 },
+      }));
+
+      await client.callTool({
+        name: 'task.append_event',
+        arguments: { type: 'context_updated', task_id: 's-filter-a', session_id: sessionA.sid },
+      });
+      await client.callTool({
+        name: 'task.append_event',
+        arguments: { type: 'context_updated', task_id: 's-filter-b', session_id: sessionB.sid },
+      });
+
+      const filtered = readToolPayload(await client.callTool({
+        name: 'session.subscribe_events',
+        arguments: { since_id: before.next_since_id, sid: sessionA.sid },
+      }));
+      assert.equal(filtered.events.length, 1);
+      assert.equal(filtered.events[0].session_id, sessionA.sid);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('MCP rejects declared inputs that have no runtime behavior', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await seedTask(client, 'unused-inputs');
+      const session = readToolPayload(await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 'unused-inputs', runtime: 'claude' },
+      }));
+
+      const manual = await client.callTool({
+        name: 'task.expand',
+        arguments: { id: 'unused-inputs', strategy: 'manual' },
+      });
+      assert.equal(expectError(manual).code, 'VALIDATION_ERROR');
+
+      const notes = await client.callTool({
+        name: 'session.close',
+        arguments: { sid: session.sid, status: 'completed', notes: 'ignored before contract fix' },
+      });
+      assert.equal(expectError(notes).code, 'VALIDATION_ERROR');
+
+      const tag = await client.callTool({
+        name: 'plan.get',
+        arguments: { tag: 'ignored-before-contract-fix' },
+      });
+      assert.equal(expectError(tag).code, 'VALIDATION_ERROR');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('session.heartbeat refreshes lease; session.close marks completed', async () => {
   const proj = tmpProject();
   try {
@@ -464,43 +557,15 @@ test('session.heartbeat refreshes lease; session.close marks completed', async (
   }
 });
 
-// Phase 7.1 — memory.* MCP round-trip: retain → recall → reflect all via MCP client
-test('memory.retain → memory.recall → memory.reflect round-trip via MCP', async () => {
+test('retired memory tools are rejected as unknown', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
-      const r1 = readToolPayload(await client.callTool({
+      const result = await client.callTool({
         name: 'memory.retain',
-        arguments: { kind: 'decision', content: 'Chose PostgreSQL over MySQL for strict typing', tag: 'arch' },
-      }));
-      assert.ok(r1.id > 0);
-
-      const r2 = readToolPayload(await client.callTool({
-        name: 'memory.retain',
-        arguments: { kind: 'error_fix', content: 'Fixed auth race by locking session table', tag: 'auth' },
-      }));
-      assert.ok(r2.id > r1.id);
-
-      const recallOut = readToolPayload(await client.callTool({
-        name: 'memory.recall',
-        arguments: { query: 'PostgreSQL', limit: 3 },
-      }));
-      assert.ok(Array.isArray(recallOut.hits));
-      assert.ok(recallOut.hits.some((h) => /PostgreSQL/.test(h.content)));
-
-      const filtered = readToolPayload(await client.callTool({
-        name: 'memory.recall',
-        arguments: { query: 'auth', tag: 'auth' },
-      }));
-      assert.equal(filtered.hits.length, 1);
-
-      const reflected = readToolPayload(await client.callTool({
-        name: 'memory.reflect', arguments: {},
-      }));
-      assert.ok(reflected.counts);
-      assert.equal(reflected.counts.decision, 1);
-      assert.equal(reflected.counts.error_fix, 1);
-      assert.ok(Array.isArray(reflected.recent));
+        arguments: { kind: 'decision', content: 'must not be retained' },
+      });
+      assert.equal(expectError(result).code, 'UNKNOWN_TOOL');
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

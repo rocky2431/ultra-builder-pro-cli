@@ -15,8 +15,7 @@ const path = require('node:path');
 const SCHEMA_VERSION = '4.5';
 const SOURCE_TAG = '.ultra/state.db';
 
-// Frozen SELECTs — values bind through @placeholders so post_edit_guard
-// has nothing to flag.
+// Frozen SELECTs — values bind through @placeholders.
 const LIST_TASKS_FOR_PROJECTION_SQL = "SELECT id, title, type, priority, complexity, status, deps, files_modified, session_id, stale, complexity_hint, tag, trace_to, context_file, completion_commit, created_at, updated_at FROM tasks ORDER BY created_at ASC";
 const READ_TASK_FOR_PROJECTION_SQL = "SELECT id, title, type, priority, complexity, status, deps, files_modified, session_id, stale, complexity_hint, tag, trace_to, context_file, completion_commit, created_at, updated_at FROM tasks WHERE id = @id";
 

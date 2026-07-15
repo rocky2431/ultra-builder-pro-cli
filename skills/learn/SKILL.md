@@ -1,16 +1,12 @@
 ---
 name: learn
-description: "Extract reusable patterns from current session into skills/learned/<name>_unverified.md; user-gated before write."
-runtime: all
-mcp_tools_required:
-  - ask.question
-cli_fallback: "ask"
+description: "Extract one reusable pattern from the current session into a valid user skill, with explicit user approval before writing."
 ---
 
 # learn — Phase 3.6
 
 Mine the current session for a reusable pattern and save it as a Speculation-
-grade skill under `~/.claude/skills/learned/<name>_unverified.md`. User
+grade skill under `~/.claude/skills/learned-<name>-unverified/SKILL.md`. User
 confirmation is mandatory before the write — never silently persist.
 
 ## Trigger conditions
@@ -41,9 +37,9 @@ Multiple candidates? Pick one. Keep skills focused — **one pattern per file**.
 ### Step 3 — Draft skill body
 
 Use the **learned-skill template** below. Mark confidence as `Speculation`
-and append the `_unverified` suffix to the filename.
+and append `-unverified` to the skill directory name.
 
-### Step 4 — User confirmation (`ask.question` gate)
+### Step 4 — User confirmation
 
 Present a concise summary (pattern name, one-sentence description, trigger,
 proposed filename) to the user and ask to approve the save. Options:
@@ -53,13 +49,18 @@ proposed filename) to the user and ask to approve the save. Options:
 
 ### Step 5 — Write file
 
-Path: `~/.claude/skills/learned/<pattern-slug>_unverified.md`.
-Never overwrite an existing unverified file — increment the slug
-(`pattern-slug-2_unverified.md`) if it already exists.
+Path: `~/.claude/skills/learned-<pattern-slug>-unverified/SKILL.md`.
+Never overwrite an existing learned skill directory — increment the slug
+(`learned-pattern-slug-2-unverified/`) if it already exists.
 
 ## Learned-skill template
 
 ```markdown
+---
+name: learned-<pattern-slug>-unverified
+description: Use when <specific trigger for this reusable pattern>.
+---
+
 # <Descriptive Pattern Name>
 
 **Extracted**: <YYYY-MM-DD>
@@ -86,7 +87,8 @@ Never overwrite an existing unverified file — increment the slug
 ## Verification upgrade path
 
 1. **Speculation** (this skill writes this level) — freshly extracted, unverified
-2. **Inference** — after human review passes, remove the `_unverified` suffix
+2. **Inference** — after human review passes, rename the directory to remove
+   `-unverified` and update the frontmatter name
 3. **Fact** — after multiple successful uses confirm the pattern
 
 ## What NOT to extract
@@ -94,13 +96,11 @@ Never overwrite an existing unverified file — increment the slug
 - Simple typo fixes
 - One-time issues (API outage, transient CI flake)
 - Patterns too project-specific to reuse (belongs in project docs, not a skill)
-- Anything the user already wrote in CLAUDE.md or similar project instructions
+- Anything already captured in CLAUDE.md or equivalent project instructions
 
-## MCP → CLI fallback matrix
+## Approval boundary
 
-| Purpose | MCP tool | CLI fallback |
-|---------|----------|--------------|
-| Confirm before save | `ask.question` | Claude: `AskUserQuestion`; others: `ultra-tools ask --question …` |
+Ask the user directly before writing. No Ultra MCP or legacy interaction wrapper is involved.
 
 ## What this skill DOES NOT do
 
@@ -113,5 +113,5 @@ Never overwrite an existing unverified file — increment the slug
 | | |
 |---|---|
 | **Input** | current session transcript / recent tool outputs |
-| **Output** | `~/.claude/skills/learned/<slug>_unverified.md` |
+| **Output** | `~/.claude/skills/learned-<slug>-unverified/SKILL.md` |
 | **Next** | user may promote after review; `/learn` again later when another pattern appears |

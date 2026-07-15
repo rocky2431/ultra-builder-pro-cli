@@ -23,7 +23,6 @@ description: |
   </example>
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
-memory: project
 maxTurns: 40
 ---
 
@@ -123,8 +122,6 @@ If **3 consecutive fix attempts fail**, and each reveals new problems in differe
 - If a hypothesis is wrong, discard it and try the next one.
 - If stuck after 3 hypotheses, report findings and ask for more context.
 
-## Memory
-
-Update your agent memory as you discover debugging patterns, common error causes,
-and diagnostic techniques. Write concise notes about what you found and where.
-Consult your memory before starting work.
+Use only the current checkout, the task context supplied by the parent agent, and
+verifiable runtime evidence. Persistent memory is owned by the host's separately
+installed memory provider, not by this agent.

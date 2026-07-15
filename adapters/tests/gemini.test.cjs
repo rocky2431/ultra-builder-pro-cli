@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const gemini = require('../gemini.js');
+const { RETIRED_SKILLS, skillsForRuntime } = require('../_shared/runtime-assets.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -25,9 +26,31 @@ test('install packages into extensions/ultra-builder-pro with manifest + command
     assert.ok(r.copied.commands.includes('ultra-init.toml'));
     assert.ok(r.copied.skills.some((p) => p.includes('ultra-init/SKILL.md')));
 
+    const installedSkills = fs.readdirSync(path.join(extRoot, 'skills')).sort();
+    assert.deepEqual(installedSkills, skillsForRuntime('gemini').sort());
+    for (const retired of RETIRED_SKILLS) assert.ok(!installedSkills.includes(retired));
+
     const tomlContent = fs.readFileSync(path.join(extRoot, 'commands', 'ultra-init.toml'), 'utf8');
     assert.match(tomlContent, /description = "/);
     assert.match(tomlContent, /prompt = """/);
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('reinstall removes stale managed skill assets while preserving runtime state', () => {
+  const target = mkTarget();
+  try {
+    gemini.install({ configDir: target, repoRoot: REPO_ROOT });
+    const extRoot = gemini.resolveExtensionRoot({ configDir: target });
+    const stale = path.join(extRoot, 'skills', 'recall');
+    fs.mkdirSync(stale, { recursive: true });
+    fs.writeFileSync(path.join(stale, 'SKILL.md'), 'retired');
+    fs.writeFileSync(path.join(extRoot, 'state.db'), 'preserve');
+
+    gemini.install({ configDir: target, repoRoot: REPO_ROOT });
+    assert.equal(fs.existsSync(stale), false);
+    assert.equal(fs.readFileSync(path.join(extRoot, 'state.db'), 'utf8'), 'preserve');
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
   }
@@ -44,8 +67,24 @@ test('manifest declares mcpServers with _ubp tag (not in env — P2 #9)', () => 
     assert.ok(manifest.mcpServers[gemini.MCP_SERVER_NAME]);
     // D45: identification lives outside env so it never leaks into spawned MCP server.
     assert.equal(manifest.mcpServers[gemini.MCP_SERVER_NAME]._ubp.source, gemini.SOURCE_TAG);
-    assert.equal(manifest.mcpServers[gemini.MCP_SERVER_NAME].env._source, undefined, 'env must not leak _source');
+    assert.equal(manifest.mcpServers[gemini.MCP_SERVER_NAME].env, undefined, 'project cwd must own MCP state');
     assert.equal(manifest.contextFileName, 'GEMINI.md');
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('manifest uses a durable bundled MCP runtime and project-local state defaults', () => {
+  const target = mkTarget();
+  try {
+    gemini.install({ configDir: target, repoRoot: REPO_ROOT });
+    const extRoot = gemini.resolveExtensionRoot({ configDir: target });
+    const manifest = JSON.parse(fs.readFileSync(path.join(extRoot, 'gemini-extension.json'), 'utf8'));
+    const server = manifest.mcpServers[gemini.MCP_SERVER_NAME];
+    const launcher = server.args[0];
+    assert.ok(launcher.startsWith(path.join(extRoot, 'runtime') + path.sep));
+    assert.ok(fs.existsSync(launcher), 'bundled launcher must survive the installer source directory');
+    assert.equal(server.env, undefined, 'Gemini must resolve .ultra/state.db from the active project cwd');
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
   }

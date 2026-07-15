@@ -9,7 +9,7 @@ const ops = require('../../mcp-server/lib/state-ops.cjs');
 const SUPPORTED_FROM = '4.4';
 const SUPPORTED_TO = '4.5';
 
-// Frozen SQL — values flow through @bindings (post_edit_guard contract).
+// Frozen SQL — values flow through parameter bindings.
 const RECORD_MIGRATION_SQL = "INSERT INTO migration_history (from_version, to_version, direction, status, notes) VALUES (@from, @to, @direction, @status, @notes)";
 
 function emit(envelope) {

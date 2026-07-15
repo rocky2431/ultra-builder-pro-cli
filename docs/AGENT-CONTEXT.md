@@ -1,190 +1,143 @@
 # Ultra Builder Pro — Agent Context
 
-Shared architecture reference for Claude, OpenCode, Codex, and Gemini. Runtime
-adapters translate these contracts onto each host's real surfaces. In particular,
-the Codex adapter does not overwrite user or project `AGENTS.md`; it installs a
-personal plugin, native custom agents, hooks, and MCP registration.
+Current shared runtime contract for the native Claude Code, OpenCode, and Codex
+plugins. Gemini CLI remains a compatibility adapter and is not the reference
+shape for the three first-class plugins.
 
-## 1. Three-layer architecture
+## 1. Ownership boundary
 
-Ultra Builder Pro ships three interchangeable layers. Any runtime that
-supports at least one layer can run the full workflow.
+Ultra Builder Pro owns only:
 
+- ten public workflows: `learn`, `ultra-init`, `ultra-research`, `ultra-plan`,
+  `ultra-dev`, `ultra-test`, `ultra-review`, `ultra-deliver`, `ultra-status`, and
+  `ultra-think`;
+- four internal agent-only rule skills: `code-review-expert`, `security-rules`,
+  `integration-rules`, and `testing-rules`;
+- the host-specific collaboration companions and `ultra-verify`;
+- bounded review/debug agents, workflow-only hooks, MCP task state, and the
+  portable CLI/orchestrator.
+
+Browser automation, deployment helpers, skill discovery, Vercel guidance, and
+other framework skills are external packages. Adapters build exclusively from
+`adapters/_shared/runtime-assets.cjs`; adding a directory under `skills/` does
+not put it in a plugin until that allowlist classifies it.
+
+## 2. Three-layer architecture
+
+```text
+native command or skill -> MCP workflow-state operation -> CLI fallback
+                                  |
+                                  v
+                         .ultra/state.db
 ```
-Skill (authoring)  ──→  MCP tool (server-side execution)  ──→  CLI fallback (portable)
-       ▲                                                              │
-       └── SKILL.md ties commands to tools/flags; same flow regardless of which layer fires. ──┘
+
+| Layer | Artifact | Contract |
+|---|---|---|
+| Skill/command | `skills/*/SKILL.md`, `commands/*.md` | Model-facing workflow and host-native entry point |
+| MCP | `mcp-server/server.cjs` | Authoritative typed operations over `.ultra/state.db` |
+| CLI | `ultra-tools`, `ubp-orchestrator` | Portable fallback, automation, and diagnostics |
+
+`.ultra/state.db` is the only durable Ultra authority for tasks, sessions,
+events, telemetry, review evidence, and circuit-breaker state. `tasks.json`,
+context Markdown, execution plans, and reports are projections or workflow
+artifacts; never treat them as a second writable authority.
+
+## 3. Live MCP and declared contracts
+
+`spec/mcp-tools.yaml` declares 30 contracts across seven families. The bundled
+server registers 21 tools:
+
+| Family | Live tools |
+|---|---|
+| `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
+| `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
+| `plan.*` | export, get |
+
+The nine declared `review.*`, `impact.*`, `skill.*`, and `ask.*` contracts are
+not advertised by the live server. A generated Codex plugin records their
+native replacements in `spec/codex-capability-map.json`; other hosts use their
+own native review agents, repository discovery, skill loader, and user
+interaction surfaces.
+
+Any new MCP contract starts in `spec/mcp-tools.yaml` with valid and invalid
+fixtures. Do not add an ad-hoc server handler first.
+
+## 4. Native host presentation
+
+| Host | Plugin form | Workflow entry | Hook form | Collaboration companions |
+|---|---|---|---|---|
+| Claude Code | `.claude-plugin/plugin.json`, native commands/skills/agents, `.mcp.json` | `/ultra-*`, `/learn` | native `hooks/hooks.json` | `codex-collab`, `gemini-collab` |
+| Codex | personal plugin with `.codex-plugin/plugin.json`, namespaced skills, TOML agents, `.mcp.json` | `$ultra-builder-pro:ultra-*`, `$ultra-builder-pro:learn` | native `hooks/hooks.json` through the Codex wire adapter | `cc-collab`, `gemini-collab` |
+| OpenCode | config bundle plus native JavaScript plugin | `/ultra-*`, `/learn` | `event`, system transform, compaction, and tool lifecycle handlers | `cc-collab`, `codex-collab`, `gemini-collab` |
+
+The current host remains primary. Collaboration skills call another runtime
+only when explicitly requested, use it as a read-only advisor, and return the
+evidence to the primary host for final verification.
+
+## 5. Hook boundary
+
+The canonical Python hook allowlist contains seven workflow-only adapters:
+
+- `health_check.py` and `workflow_context.py` on session start;
+- `active_task_context.py` before an edit;
+- `workflow_checkpoint.py` before compaction;
+- `workflow_resume.py` after compaction/resume;
+- `pre_stop_check.py` at stop;
+- `subagent_tracker.py` for bounded worker lifecycle evidence.
+
+Every hook is a no-op unless `.ultra/workflow-state.json` describes an active,
+non-terminal workflow. OpenCode expresses the same boundary in its native
+JavaScript plugin. Generic command blocking, post-edit governance, and unrelated
+user hooks are not copied into Ultra Builder Pro.
+
+## 6. Memory boundary
+
+Ultra Builder Pro has no memory MCP family, recall skill, prompt capture,
+transcript capture, observation journal, or session-summary hook. Persistent
+cross-session memory belongs to a separately installed provider such as
+cloud-mem/claude-mem.
+
+Old Ultra data is never deleted during install. The explicit migration path is:
+
+```bash
+ultra-tools legacy-memory inspect
+ultra-tools legacy-memory archive
+ultra-tools legacy-memory prune --confirm DELETE_ULTRA_LEGACY_MEMORY
 ```
 
-| Layer | Artifact | When it runs |
-|-------|----------|--------------|
-| **Skill** | `skills/<name>/SKILL.md` | The runtime's skill router picks it from a slash command (`/ultra-dev …`) |
-| **MCP** | `mcp-server/server.cjs` (stdio) | Runtime connects via MCP; tools exposed by `spec/mcp-tools.yaml` |
-| **CLI** | `ultra-tools <subcommand>` | Any shell-capable runtime; same stdout envelope as MCP (`spec/cli-protocol.md`) |
-
-**Authority**: state.db is the single source of truth (D32). Projections
-(`tasks.json`, `contexts/task-*.md` frontmatter) are regenerated by the
-projector after every successful write. **Never hand-edit the projections.**
-
-## 2. MCP tool catalogue (Phase 3)
-
-Source: `spec/mcp-tools.yaml`. CLI mappings in `spec/cli-protocol.md`.
-
-### Implemented today (`mcp-server/server.cjs` round-trips verified)
-
-| Family | Count | Live tools |
-|--------|------:|------------|
-| `task.*` | 12 | create, update, list, get, delete, init_project, append_event, subscribe_events, switch_tag, dependency_topo, parse_prd, expand |
-| `session.*` | 7 | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
-| `memory.*` | 3 | retain, recall, reflect |
-| `plan.*` | 2 | export, get |
-
-### Declared upstream but not registered by the live server
-
-| Contracts | Count | Codex adaptation |
-|-----------|------:|------------------|
-| `review.run / verdict` | 2 | native custom review agents + coordinator synthesis |
-| `impact.radius / changes / dependents` | 3 | current code graph when indexed, otherwise targeted repository and git discovery |
-| `skill.resolve / manifest` | 2 | Codex plugin skill discovery and `agents/openai.yaml` |
-| `ask.question / menu` | 2 | direct user interaction or `request_user_input` where exposed |
-
-The generated Codex plugin keeps the full declaration as
-`spec/upstream-mcp-tools.yaml`, writes only the 24 registered tools to the live
-`spec/mcp-tools.yaml`, and records all nine substitutions in
-`spec/codex-capability-map.json`.
-
-**Rule R19 — single source**: any new tool MUST be defined in
-`spec/mcp-tools.yaml` first, with valid+invalid fixtures in
-`spec/fixtures/{valid,invalid}/mcp-tools-input|output/`. No ad-hoc
-definitions in server code.
-
-## 3. CLI command catalogue
-
-Source: `ultra-tools/cli.cjs`. All subcommands emit a final JSON line:
-`{ok: true, data: {...}}` or `{ok: false, error: {code, message, retriable}}`.
-Exit codes (from `spec/cli-protocol.md §3`):
-
-| Code | Meaning |
-|-----:|---------|
-| 0 | success |
-| 1 | user error (bad flags / missing input) |
-| 2 | system error (DB unavailable / IO failure) |
-| 3 | lease conflict (`ADMISSION_DENIED`) |
-| 4 | schema mismatch (input or output) |
-| 5 | timeout |
-| 124 | killed by orchestrator |
-
-### Commands live today
-
-| Command | Backed by | Notes |
-|---------|-----------|-------|
-| `ultra-tools db {init,checkpoint,vacuum,integrity,backup}` | `mcp-server/lib/state-db.cjs` | local-only, no MCP needed |
-| `ultra-tools migrate --from=4.4 --to=4.5 [--dry\|--rollback]` | `mcp-server/lib/migrate.cjs` | v4.4 → v4.5 migration |
-| `ultra-tools task init-project` | `mcp-server/lib/init-project.cjs` | Phase 3.1 |
-| `ultra-tools --help` / `--version` | — | meta |
-
-### Commands scheduled
-
-| Command | Phase | Notes |
-|---------|------:|-------|
-| `ultra-tools task {create,update,list,get,delete,append-event,subscribe}` | 3 | wire next |
-| `ultra-tools ask --question … --options …` | 3.7 | cross-runtime picker |
-| `ultra-tools memory {search,save}` | 7 | hindsight wrapper |
-| `ultra-tools skill invoke <name>` | 3 | skill discovery |
-| `ultra-tools subagent run <name> --backend auto` | 3 | runtime-portable subagent |
-
-## 4. Skill discovery
-
-- Project skills: `skills/<name>/SKILL.md` (kebab-case name, validated by
-  `spec/schemas/skill-manifest.schema.json`)
-- Learned skills: `~/.claude/skills/learned/<slug>[_unverified].md`
-  (written by `/learn`; promoted manually by user)
-- Third-party skills: `~/.claude/skills/<package>/…` (vercel-*, impeccable-*,
-  etc.); treated as read-only unless the user modifies them.
-
-The skill **manifest contract** requires: `name` (kebab-case) +
-`description` (≥10 chars). Optional: `runtime`, `mcp_tools_required`,
-`cli_fallback`, `complexity_hint`, `argument-hint`, `user-invocable`, etc.
-See `spec/schemas/skill-manifest.schema.json` for the full list.
-
-## 5. Command (thin-shell) contract
-
-Source: `spec/command-template.md` + `spec/schemas/command-manifest.schema.json`.
-
-Every `commands/<name>.md` file is a thin shell ≤ 80 body lines that
-**references** a skill via frontmatter `workflow-ref: "@skills/<name>/SKILL.md"`.
-The command file contains the slash-command frontmatter + a 4-section body
-(目标 / 参数 / Workflow (reference only) / 用法 / 下一步). All real workflow lives
-in the referenced SKILL.md.
-
-Validated by `spec/scripts/validate-commands.cjs`. Phase 3 gate enforces
-the thin-shell contract strictly via `UBP_COMMAND_STRICT=1`.
-
-## 6. File layout (canonical)
-
-```
-ultra-builder-pro/
-├── spec/                   # Three-layer contracts (schemas + validators)
-├── commands/               # Slash-command thin shells (≤80 lines)
-├── skills/                 # SKILL.md files — one per command + 3rd-party
-├── mcp-server/             # MCP stdio server + state.db implementation
-│   ├── server.cjs          # JSON-RPC dispatch
-│   └── lib/                # state-ops, projector, migrate, init-project
-├── ultra-tools/            # Portable CLI
-│   ├── cli.cjs             # dispatcher
-│   └── commands/           # subcommand modules
-├── templates/.ultra/       # Bundled .ultra/ skeleton for `task.init_project`
-└── docs/                   # Human docs (PLAN, ARCHITECTURE, this file)
-```
+Archive before prune; the confirmation token is intentionally required.
 
 ## 7. Project state layout
 
-Every initialized project has `.ultra/` with:
-
-```
+```text
 .ultra/
-├── state.db                # SQLite — the authority (D32)
-├── tasks/
-│   ├── tasks.json          # projected from state.db (read-only)
-│   └── contexts/           # projected (frontmatter) + skill-written (body)
-├── specs/                  # /ultra-research outputs
-│   ├── discovery.md
-│   ├── product.md
-│   ├── architecture.md
-│   └── research-distillate.md
-├── docs/research/          # per-step research reports
-├── test-report.json        # /ultra-test gate result
-├── delivery-report.json    # /ultra-deliver output
-└── workflow-state.json     # /ultra-dev checkpoint (fallback for session.checkpoint)
+├── state.db                 # authoritative SQLite store
+├── workflow-state.json      # active workflow/recovery checkpoint
+├── tasks/                   # projections and task contexts
+├── specs/                   # research/product/architecture artifacts
+├── sessions/                # bounded runtime artifacts
+├── reviews/                 # review evidence
+├── test-report.json
+└── delivery-report.json
 ```
 
-## 8. Runtime-native overrides
+## 8. User handbook integration
 
-Each runtime's context file may **append** runtime-specific sections after
-this canonical body. Everything above the delimiter `<!-- runtime-append -->`
-is generated; below it is hand-owned per runtime.
+General engineering doctrine remains user-owned in `CLAUDE.md` or `AGENTS.md`.
+Ultra Builder Pro contributes one managed section only. Preview or apply it with:
 
-Examples of runtime-specific content:
-- **Claude** (`CLAUDE.md`): hook registrations in `settings.json`, PUA /
-  hookify / impeccable plugin config
-- **OpenCode** (`AGENTS.md`): lowercased agent frontmatter notes
-- **Codex**: user/project `AGENTS.md` remains user-owned; detailed workflows live
-  in the `ultra-builder-pro` personal plugin, lifecycle automation in
-  `hooks/hooks.json`, MCP in plugin `.mcp.json`, and custom agents in
-  `.codex/agents/*.toml`
-- **Gemini** (`GEMINI.md`): extension-manifest requirements
+```bash
+ubp-handbook preview --runtime codex
+ubp-handbook apply --runtime codex
+```
 
-Adapters for runtimes that generate a context file maintain the delimiter and
-never clobber the append block. The Codex adapter does not generate or overwrite
-`AGENTS.md`; an explicit user-stack migration may add only a small runtime contract
-to the user's existing handbook.
+Supported runtime names are `claude`, `codex`, and `opencode`. Apply creates a
+timestamped backup, replaces only the marked block, and can migrate the old
+Codex `## Ultra Builder Pro Runtime Contract` section without touching the next
+user section. Plugin adapters themselves do not silently overwrite handbooks.
 
-## 9. Change protocol for this file
+## 9. Verification
 
-1. Edit **only** `docs/AGENT-CONTEXT.md` (this file)
-2. Run `npm run test:spec` to verify no contract drift
-3. Phase 4 adapter rewrites each runtime's context file; append blocks are
-   preserved by the adapter
-
-**Do NOT** edit the generated `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` copies
-expecting it to propagate — adapters overwrite the canonical section.
+Run `npm run test:all`, `python3 -m pytest hooks/tests -q`, and `npm audit`.
+Adapter tests assert the allowlisted assets, native manifests, hook boundary,
+MCP visibility, and host-specific skill rendering.

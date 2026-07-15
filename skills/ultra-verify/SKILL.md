@@ -1,49 +1,30 @@
 ---
 name: ultra-verify
-description: "This skill should be used when the user asks to 'ultra-verify', 'cross-verify', 'triple review', 'all AIs check', 'multi-AI verify', 'three-way check', or wants independent analysis from all three AI models (Claude + Gemini + Codex)."
-argument-hint: "decision|diagnose|audit|estimate <question>"
-user-invocable: true
+description: Run three-way verification with the current host as primary and read-only Gemini and Codex advisors, then verify and synthesize the evidence.
 ---
 
-# Ultra Verify - Three-Way AI Verification
+# Ultra Verify — Three-Way Verification
 
-Orchestrate Claude + Gemini + Codex for independent three-way analysis. Each AI works independently, then Claude synthesizes with a confidence score based on consensus.
+Claude Code remains primary. It writes the first independent analysis, verifies consequential
+claims, and owns the final answer. Gemini and Codex are untrusted read-only advisors. Use this
+workflow only when the user explicitly asks for cross-model or three-way verification.
 
-## Prerequisites
+## Modes
 
-- Gemini CLI installed: `npm install -g @google/gemini-cli` + authenticated
-- Codex CLI installed: `npm install -g @openai/codex` + `codex login`
-- Verify both: `gemini --version && codex --version`
+- `decision <question>`: architecture or product decision.
+- `diagnose <symptoms>`: independent root-cause hypotheses.
+- `audit <scope>`: evidence-backed findings.
+- `estimate <task>`: estimates with explicit assumptions.
 
-## Usage
+## Preconditions
 
-```
-/ultra-verify decision <question>    # Architecture/design decision — three independent analyses
-/ultra-verify diagnose <symptoms>    # Bug diagnosis — three sets of hypotheses
-/ultra-verify audit <scope>          # Code audit — findings ranked by consensus
-/ultra-verify estimate <task>        # Effort estimation — confidence from agreement
-```
+1. Confirm `gemini --version` and `codex --version` plus authentication.
+2. Define the exact workspace, question, evidence standard, and response shape.
+3. Do not send secrets, unrelated files, or an unbounded home directory.
+4. Track the four workflow steps in the current host plan: primary analysis, advisor launch,
+   completion wait, and verified synthesis.
 
-## Workflow Tracking (MANDATORY)
-
-**On command start**, create tasks for each major step using `TaskCreate`:
-
-| Step | Subject | activeForm |
-|------|---------|------------|
-| 1 | Session Setup + Claude Analysis | Writing Claude analysis... |
-| 2 | Launch External AIs | Launching Gemini + Codex... |
-| 3 | Wait for Completion | Waiting for AI outputs... |
-| 4 | Collect + Synthesize | Synthesizing results... |
-
-**Before each step**: `TaskUpdate` → `status: "in_progress"`
-**After each step**: `TaskUpdate` → `status: "completed"`
-**On context recovery**: `TaskList` → resume from last incomplete step
-
-## Orchestration — STRICT SEQUENTIAL EXECUTION
-
-**RULE: Each step REQUIRES the output of the previous step. Never skip ahead. Never start synthesis without wait script JSON.**
-
-### Step 1: Session Setup + Claude Analysis
+## 1. Create the session and write the primary view
 
 ```bash
 SESSION_ID="$(date +%Y%m%d-%H%M%S)-verify-<mode>"
@@ -51,97 +32,80 @@ SESSION_PATH=".ultra/collab/${SESSION_ID}"
 mkdir -p "${SESSION_PATH}"
 ```
 
-Write Claude's own analysis to `${SESSION_PATH}/claude-analysis.md` FIRST (before reading external AI output).
+Write Claude Code's evidence-backed analysis to `${SESSION_PATH}/claude-analysis.md` before
+reading either advisor. Record the mode, checkout, scope, and evidence boundary.
 
-### Step 2: Launch External AIs (both `run_in_background: true`, `timeout: 600000`)
+## 2. Launch both advisors read-only
 
-Launch BOTH commands in a **single message** with two parallel Bash calls. Both MUST use `run_in_background: true`.
+Give both advisors the same bounded raw question and evidence, without the primary conclusion.
+Launch them concurrently when the host supports independent shell sessions; otherwise start both
+before collecting either result.
 
-**Gemini** (all modes):
-```bash
-gemini -p "<PROMPT>" --yolo > "${SESSION_PATH}/gemini-output.md" 2>"${SESSION_PATH}/gemini-error.log"
-```
-
-**Codex** (all modes — always use `codex exec`):
-```bash
-codex exec "<PROMPT>" -s read-only -o "${SESSION_PATH}/codex-output.md" 2>"${SESSION_PATH}/codex-error.log"
-```
-
-**CRITICAL PROHIBITION** (after launching background tasks):
-1. Run `verify_wait.py` IMMEDIATELY in the **next message** — do NOT process background task notifications first
-2. NEVER read gemini-output.md or codex-output.md directly — wait for the wait script
-3. Ignore ALL background task completion/idle notifications between launch and wait script return
-4. The ONLY information path from external AIs is: `verify_wait.py` JSON → then Read output files
-
-Violation of these rules causes premature synthesis without external AI input.
-
-### Step 3: BACKGROUND WAIT
-
-**IMMEDIATELY** after Step 2 (in the very next message), run this as a **background** Bash command:
+Gemini:
 
 ```bash
-python3 ~/.claude/skills/ultra-verify/scripts/verify_wait.py "${SESSION_PATH}" --timeout 1200
+gemini --approval-mode plan \
+  --output-format text \
+  -p "<bounded prompt>" \
+  > "${SESSION_PATH}/gemini-output.md" \
+  2> "${SESSION_PATH}/gemini-error.log"
 ```
 
-Use `run_in_background: true` (no Bash 600s limit for background tasks). The script polls every 3s for up to 20 minutes.
+Codex:
 
-Two exit conditions:
-1. **Output ready**: output file non-empty (size > 0) and size unchanged between consecutive polls → `status: "complete"`
-2. **Timeout**: reached 1200s limit → `status: "timeout"`
-
-Always exit 0. Result expressed via JSON `status` field.
-
-When the background task completes, read the JSON output and proceed to Step 4.
-
-### Step 4: Collect + Synthesize (REQUIRES Step 3 JSON)
-
-**Do NOT enter this step without the JSON output from Step 3.**
-
-1. **Parse the wait script JSON** — extract `gemini.status` and `codex.status`
-2. **Read output files** only for AIs with `"complete"` status
-3. **Compute confidence** — see `references/confidence-system.md`
-4. **Write synthesis** — see `references/collab-protocol.md` for template
-
-If both AIs failed → Claude-only analysis with explicit warning.
-If one AI failed → two-way synthesis, note missing perspective.
-
-### Session Structure
-
+```bash
+codex exec -s read-only \
+  -o "${SESSION_PATH}/codex-output.md" \
+  "<bounded prompt>" \
+  2> "${SESSION_PATH}/codex-error.log"
 ```
+
+Never enable auto-edit, write-capable automation, danger-full-access, or permission bypass for
+either advisor.
+
+## 3. Wait for completed outputs
+
+Run the bundled waiter in an asynchronous or yielded shell session and poll it at bounded
+intervals; never hold one blocking tool call longer than 60 seconds.
+
+```bash
+python3 "$CLAUDE_PLUGIN_ROOT/skills/ultra-verify/scripts/verify_wait.py" \
+  "${SESSION_PATH}" --timeout 1200
+```
+
+The waiter reports each advisor as `complete`, `failed`, `empty`, or `pending`. Read an advisor
+output only after the corresponding status is `complete` and the file is non-empty. Preserve its
+error log when it fails.
+
+## 4. Verify and synthesize
+
+Compare `claude-analysis.md` with each completed advisor output:
+
+1. Verify claims against the current checkout, tests, runtime, or primary documentation.
+2. Separate consensus, majority views, useful dissent, and unsupported assertions.
+3. Explain scope, version, and assumption differences before scoring agreement.
+4. Write `synthesis.md` and `metadata.json`, then return one Claude Code-owned conclusion.
+
+Use `references/confidence-system.md` for scoring and
+`references/cross-verify-modes.md` for mode-specific evidence expectations. Model agreement never
+overrides failing tests or authoritative runtime evidence.
+
+## Degraded operation
+
+- One advisor fails: continue with the primary view plus the available advisor and name the gap.
+- Both advisors fail: return primary-only analysis with an explicit single-source warning.
+- Never block the underlying user task solely because an advisor is absent, unauthenticated, or
+  slow.
+
+## Session files
+
+```text
 .ultra/collab/<SESSION_ID>/
-  ├── metadata.json
-  ├── claude-analysis.md
-  ├── gemini-output.md
-  ├── codex-output.md
-  └── synthesis.md
+  claude-analysis.md
+  gemini-output.md
+  gemini-error.log
+  codex-output.md
+  codex-error.log
+  metadata.json
+  synthesis.md
 ```
-
-## Modes
-
-- **decision** — Architecture/design decisions with three independent recommendations
-- **diagnose** — Bug diagnosis with three sets of top-3 hypotheses, ranked by consensus
-- **audit** — Code audit with findings graded by consensus count (3=critical, 2=high, 1=investigate)
-- **estimate** — Effort estimation with confidence based on estimate convergence
-
-## Confidence System
-
-| Level | Agreement | Meaning |
-|-------|-----------|---------|
-| **Consensus** | 3/3 agree | Highest confidence — strongly recommended |
-| **Majority** | 2/3 agree | High confidence — investigate the dissenting view |
-| **No Consensus** | All differ | Low confidence — decompose the problem or gather more data |
-
-## Degraded Operation
-
-- **One AI fails**: Continue with two-way comparison, note the missing perspective
-- **Two AIs fail**: Claude-only analysis with explicit warning about reduced confidence
-- Never block the workflow on external AI failures
-
-## Reference Files
-
-Read these when you need details beyond what's in this SKILL.md:
-
-- **`references/orchestration-flow.md`** — READ when setting up session dirs, collecting results, or writing metadata.json. Contains session setup commands, parallel invocation patterns, result collection steps, and metadata schema.
-- **`references/cross-verify-modes.md`** — READ when you need mode-specific prompt templates or scoring criteria. Contains detailed definitions for decision/diagnose/audit/estimate modes.
-- **`references/confidence-system.md`** — READ when computing confidence scores. Contains consensus calculation rules and thresholds.
-- **`references/collab-protocol.md`** — READ when writing synthesis reports. Contains core principles, synthesis report template, session management, and error handling.

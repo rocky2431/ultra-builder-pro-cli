@@ -13,6 +13,10 @@ const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio
 const codex = require('../codex.js');
 const { parse: parseFrontmatter } = require('../_shared/frontmatter.cjs');
 const PACKAGE_VERSION = require('../../package.json').version;
+const {
+  skillsForRuntime,
+  WORKFLOW_HOOK_FILES,
+} = require('../_shared/runtime-assets.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const COMMANDS = [
@@ -83,15 +87,9 @@ test('install builds one Codex-native plugin with complete skill and command cov
     assert.equal(manifest.mcpServers, './.mcp.json');
     assert.ok(!Object.hasOwn(manifest, 'hooks'), 'default hooks/hooks.json discovery avoids unsupported manifest field');
 
-    const sourceSkills = fs.readdirSync(path.join(REPO_ROOT, 'skills'), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(REPO_ROOT, 'skills', entry.name, 'SKILL.md')))
-      .map((entry) => entry.name);
-    const expectedSkills = sourceSkills
-      .filter((name) => name !== 'codex-collab')
-      .concat('cc-collab')
-      .sort();
+    const expectedSkills = skillsForRuntime('codex').sort();
     assert.deepEqual(skillNames(layout.pluginRoot), expectedSkills);
-    assert.equal(expectedSkills.length, 25);
+    assert.equal(expectedSkills.length, 17);
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'codex-collab')));
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'learned')));
 
@@ -151,7 +149,6 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
 
     const coreWorkflowText = [
       ...COMMANDS,
-      'recall',
       'ultra-review',
     ].map((name) => fs.readFileSync(path.join(layout.pluginRoot, 'skills', name, 'SKILL.md'), 'utf8')).join('\n');
     assert.doesNotMatch(coreWorkflowText, /Phase (?:3\.7|5|7) placeholder|not yet implemented|UNKNOWN_TOOL/);
@@ -190,18 +187,14 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     install(layout);
     const hooks = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'hooks', 'hooks.json'), 'utf8')).hooks;
     assert.deepEqual(Object.keys(hooks).sort(), [
-      'PostCompact', 'PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop',
-      'SubagentStart', 'SubagentStop', 'UserPromptSubmit',
+      'PostCompact', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop',
+      'SubagentStart', 'SubagentStop',
     ].sort());
     const serializedHooks = JSON.stringify(hooks);
-    for (const feature of [
-      'block_dangerous_commands.py', 'health_check.py', 'mid_workflow_recall.py',
-      'observation_capture.py', 'post_compact_inject.py', 'post_edit_guard.py',
-      'pre_compact_context.py', 'pre_stop_check.py', 'session_context.py',
-      'session_journal.py', 'subagent_tracker.py', 'user_prompt_capture.py',
-    ]) {
+    for (const feature of WORKFLOW_HOOK_FILES) {
       assert.match(serializedHooks, new RegExp(feature.replace('.', '\\.')));
     }
+    assert.doesNotMatch(serializedHooks, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
     assert.match(serializedHooks, /\$PLUGIN_ROOT\/hooks\/adapters\/codex\.py/);
 
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
@@ -230,8 +223,9 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const liveSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
     const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
     const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
-    assert.equal(liveSpec.tools.length, 24);
-    assert.equal(upstreamSpec.tools.length, 33);
+    assert.equal(liveSpec.tools.length, 21);
+    assert.equal(upstreamSpec.tools.length, 21);
+    assert.deepEqual(upstreamSpec.tools.map((tool) => tool.name).sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);
     assert.equal(capabilityMap.codex_native_replacements['review.run'].surface, 'native_custom_agents');

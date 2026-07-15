@@ -1,15 +1,15 @@
 # ultra-builder-pro-cli
 
-Multi-runtime distributor + autonomous coding factory for the Ultra Builder Pro
-agent engineering system. Installs commands, agents, skills, hooks, and an MCP
-server to **Claude Code · OpenCode · Codex CLI · Gemini CLI**, then orchestrates
-PRD → dependency graph → parallel session execution → auto-merge with a single
+Multi-runtime plugin suite + autonomous coding factory for the Ultra Builder Pro
+agent engineering system. It ships native plugins for **Claude Code · OpenCode ·
+Codex**, retains a compatibility adapter for Gemini CLI, and orchestrates PRD →
+dependency graph → parallel session execution → auto-merge with a single
 authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue)](./CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-403_passing-brightgreen)](#verification)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue)](./CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
 
@@ -21,12 +21,15 @@ authoritative `.ultra/state.db`.
 
 ## What it does
 
-- **Distributes one toolkit to four runtimes.** One `npx ubp --all` call
-  lands commands, skills, an MCP server, and hooks into every installed
-  agent runtime's config dir; uninstall is symmetric.
+- **Builds host-native plugins from one allowlist.** Claude Code, OpenCode, and
+  Codex receive their own command/skill, agent, hook, and MCP representation.
+  Gemini remains a compatibility adapter; uninstall is symmetric.
 - **Shares state across runtimes.** `.ultra/state.db` (SQLite + WAL) is the
   authoritative source for tasks, sessions, events, and telemetry. `tasks.json`
   and context markdown are generated projections, not handwritten.
+- **Keeps memory ownership explicit.** Ultra Builder Pro does not collect
+  prompts, transcripts, observations, summaries, or cross-session memory.
+  Install cloud-mem/claude-mem separately if persistent memory is wanted.
 - **Runs real PRDs end-to-end.** `task.parse_prd` → `lib/topo.cjs` waves →
   `.ultra/execution-plan.json` → parallel worktree sessions → auto-merge back.
 - **Observes without overhead.** Per-task / per-session / per-runtime token
@@ -52,11 +55,12 @@ npx ultra-builder-pro-cli --claude --global
 npx ultra-builder-pro-cli --all --local --uninstall
 ```
 
-After install, point your runtime at this project. Claude/OpenCode/Gemini expose
-their native command form. Codex exposes the same workflows as namespaced plugin
+After install, start a new host session/task and point it at the project.
+Claude Code and OpenCode expose native command forms. Codex exposes the same workflows as namespaced plugin
 skills such as `$ultra-builder-pro:ultra-init`, `$ultra-builder-pro:ultra-plan`,
 and `$ultra-builder-pro:ultra-dev`; `command-map.json` records the nine legacy
-command-to-skill mappings.
+command mappings (`ultra-review` remains a directly invocable skill). Gemini
+retains its compatibility command form.
 See [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
 for per-runtime capabilities.
 
@@ -65,15 +69,19 @@ for per-runtime capabilities.
 | Layer | Purpose | When it's used |
 |-------|---------|----------------|
 | **skill** (`skills/ultra-*/`) | Knowledge — prompts, workflows, prose | Runtime's native skill/prompt loader picks them up after install |
-| **MCP** (`mcp-server/`) | Authoritative state — reads/writes `.ultra/state.db` via stdio JSON-RPC | Primary path for task / session / event / memory / plan operations |
+| **MCP** (`mcp-server/`) | Authoritative state — reads/writes `.ultra/state.db` via stdio JSON-RPC | Primary path for task / session / event / plan operations |
 | **CLI** (`ultra-tools`, `bin/*`) | Shell fallback for CI and non-MCP contexts | `ultra-tools task init-project`, `ubp-orchestrator run`, `ultra-tools status --cost` |
 
 The three layers share one `.ultra/state.db`. See
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full contract and
-[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 33 declared contracts.
-The live server exposes 24 task/session/memory/plan tools. The nine scheduled
-review/impact/skill/ask contracts are mapped to Codex-native surfaces in the
-generated `spec/codex-capability-map.json` rather than advertised as live MCP tools.
+[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 21 live contracts.
+Review, impact discovery, skill resolution, and user interaction stay on each
+Host's native surfaces; the generated Codex capability map documents those
+replacements without advertising non-existent MCP tools.
+
+The package boundary is deliberate: ten public Ultra workflow skills, four
+internal review-rule skills, and host-specific collaboration companions. Browser,
+deployment, skill-discovery, and framework guidance belong to their original plugins.
 
 ## Runtime capability matrix
 
@@ -82,7 +90,7 @@ generated `spec/codex-capability-map.json` rather than advertised as live MCP to
 | Custom commands              | ✅          | ✅       | ✅        | ✅         |
 | Skill loader                 | ✅          | ✅       | ✅ (personal plugin) | ✅ |
 | MCP server (stdio)           | ✅          | ✅       | ✅ (plugin `.mcp.json`) | ✅ |
-| Hooks (pre/post tool-use)    | ✅          | ✅       | ✅ (9 native events) | ⚠︎ no-op |
+| Workflow hooks               | ✅ (native plugin) | ✅ (native JS plugin) | ✅ (native plugin) | ⚠︎ compatibility only |
 | Sub-agents                   | ✅          | ✅       | ✅ (9 native TOML agents) | ⚠︎ |
 | Session worktree isolation   | ✅ (all runtimes; driven by `orchestrator/session-runner.cjs`) | ✅ | ✅ | ✅ |
 | Parallel dispatch + auto-merge | ✅ (`ubp-orchestrator run`) | ✅ | ✅ | ✅ |
@@ -93,7 +101,7 @@ Full details in [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.m
 ## Typical workflow
 
 ```bash
-# 1. Initialize a project (writes .ultra/ skeleton, seeds state.db)
+# 1. Initialize a project (writes .ultra/ skeleton; state.db stays lazy)
 ultra-tools task init-project --name myapp
 
 # 2. Turn a PRD into a task graph + execution plan (human-gate via dry-run)
@@ -118,17 +126,18 @@ Or let the skills drive it. In Codex, invoke
 |--------|---------|
 | `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --gemini / --all`, `--local / --global`, `--uninstall`, `--skip-rtk` |
 | `ubp-orchestrator` | Session dispatch daemon — `run`, `start`, `stop`, `status` |
-| `ultra-tools` | State-layer CLI — `task`, `session`, `status`, `db`, `migrate` |
+| `ultra-tools` | State-layer CLI — `task`, `session`, `status`, `db`, `migrate`; explicit `legacy-memory` archive/prune migration |
+| `ubp-handbook` | Preview/apply the managed Ultra contract in `CLAUDE.md` / `AGENTS.md`, with backup |
 
 ## Verification
 
 ```bash
 npm install
 npm run test:all
-# test:state 182 · test:orch 103 · test:spec 6 · rest 112 — 403 passing
-
-/opt/anaconda3/bin/pytest hooks/tests -q
-# 100 passed
+python3 -m pytest hooks/tests -q
+npm audit
+# Or run the complete publish gate:
+npm run verify:release
 ```
 
 Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
@@ -147,7 +156,12 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
 - **Installed commands don't show up**: check the runtime's actual config
   dir (`ultra-builder-pro-cli --<runtime> --local` only writes to `./.claude`
   or `./.opencode` etc.; `--global` writes to the user-level dir). The
-  install log prints the exact target path.
+  install log prints the exact target path. Restart Claude Code/OpenCode or
+  start a new Codex task after changing an installed plugin.
+- **Legacy Ultra memory data remains on disk**: inspect first with
+  `ultra-tools legacy-memory inspect`, archive with
+  `ultra-tools legacy-memory archive`, then prune only with the explicit
+  confirmation token printed by the command. Nothing is deleted implicitly.
 - **MCP tool errors with `ANTHROPIC_API_KEY` missing**: `task.parse_prd` and
   `task.expand` need a real LLM key at runtime. Set `ANTHROPIC_API_KEY` or
   `OPENAI_API_KEY` before invoking those tools; all other MCP tools work
@@ -161,11 +175,12 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
 | [`docs/ROADMAP.md`](./docs/ROADMAP.md) | One-page English roadmap + phase status |
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Single-page system architecture |
 | [`docs/AGENT-CONTEXT.md`](./docs/AGENT-CONTEXT.md) | Canonical runtime context contract |
+| [`docs/USER-HANDBOOK-CONTRACT.md`](./docs/USER-HANDBOOK-CONTRACT.md) | Shared user-handbook policy and host renderings |
 | [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md) | Per-runtime capability matrix |
 | [`docs/STATE-DB-ACCESS-POLICY.md`](./docs/STATE-DB-ACCESS-POLICY.md) | Multi-process write contract |
 | [`docs/COMMIT-HASH-BACKFILL.md`](./docs/COMMIT-HASH-BACKFILL.md) | Two-commit task-completion flow |
 | [`docs/LEGACY-HERMES.md`](./docs/LEGACY-HERMES.md) | Archived pre-CLI "Hermes 6.6" documentation |
-| [`CHANGELOG.md`](./CHANGELOG.md) | v0.1 → v0.3 release notes |
+| [`CHANGELOG.md`](./CHANGELOG.md) | v0.1 → current release notes |
 
 ## License
 

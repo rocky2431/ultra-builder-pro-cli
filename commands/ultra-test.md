@@ -6,7 +6,6 @@ model: opus
 workflow-ref: "@skills/ultra-test/SKILL.md"
 mcp_tools_required:
   - task.list
-  - ask.question
 cli_fallback: "task list"
 ---
 

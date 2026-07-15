@@ -21,22 +21,24 @@ function buildCfg() {
     commandFrontmatterPatterns: [/^---/m, /description:/i],
     expectSkills: ['ultra-init', 'ultra-dev', 'ultra-status'],
     hookCheck: (target) => {
-      // OpenCode hooks land in opencode.json under sentinel-managed shape
       const cfg = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
-      assert.ok(cfg[opencode.SENTINEL_KEY], 'opencode sentinel missing');
-      // Matrix: OpenCode reaches session.start + event (2 events)
-      assert.ok(
-        Array.isArray(cfg[opencode.SENTINEL_KEY].reachable_events),
-        'reachable_events list must be documented',
-      );
+      assert.equal('_ubp_manifest' in cfg, false, 'OpenCode rejects unknown top-level config keys');
+      assert.ok(fs.existsSync(path.join(target, opencode.BUNDLE_DIR, '.ubp-managed')));
+      const plugin = fs.readFileSync(path.join(target, 'plugins', 'ultra-builder-pro.js'), 'utf8');
+      assert.match(plugin, /experimental\.session\.compacting/);
+      assert.match(plugin, /tool\.execute\.before/);
     },
     readMcpEntry: (target) => {
       const cfg = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
       return cfg.mcp && cfg.mcp[opencode.MCP_SERVER_NAME];
     },
-    identityCheck: (entry) => {
-      assert.ok(entry._ubp && entry._ubp.source === opencode.SOURCE_TAG,
-        'opencode mcp entry must carry sibling _ubp.source (D45)');
+    expectNoEnv: true,
+    identityCheck: (entry, target) => {
+      assert.equal(entry.type, 'local');
+      assert.deepEqual(entry.command, [
+        process.execPath,
+        path.join(target, opencode.BUNDLE_DIR, 'runtime', 'launch.cjs'),
+      ]);
     },
     readIdempotencyArtifact: (target) => fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'),
   };

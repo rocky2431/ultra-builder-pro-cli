@@ -24,7 +24,6 @@ description: |
   </example>
 tools: Bash, Read, Grep, Glob
 model: opus
-memory: project
 maxTurns: 20
 skills:
   - testing-rules

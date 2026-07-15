@@ -12,6 +12,8 @@ const path = require('node:path');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const INSTALL_JS = path.join(REPO_ROOT, 'bin', 'install.js');
+const PACKAGE = require(path.join(REPO_ROOT, 'package.json'));
+const ULTRA_TOOLS = require(path.join(REPO_ROOT, 'ultra-tools', 'cli.cjs'));
 
 function runCli(args, { cwd, homeDir } = {}) {
   return spawnSync(process.execPath, [INSTALL_JS, ...args], {
@@ -29,9 +31,25 @@ function cleanup(dir) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
 }
 
+test('package exports every documented CLI entrypoint', () => {
+  assert.equal(PACKAGE.bin['ultra-tools'], 'ultra-tools/cli.cjs');
+  assert.deepEqual(Object.keys(ULTRA_TOOLS.SUBCOMMANDS).sort(), [
+    'db', 'legacy-memory', 'migrate', 'session', 'status', 'task',
+  ]);
+});
+
 const RUNTIMES = [
-  { flag: '--claude',   name: 'claude',   expectRelPaths: ['commands', 'skills', 'hooks', 'settings.json'] },
-  { flag: '--opencode', name: 'opencode', expectRelPaths: ['commands', 'skills', 'hooks', 'opencode.json'] },
+  {
+    flag: '--claude',
+    name: 'claude',
+    expectRelPaths: [
+      'skills/ultra-builder-pro/.claude-plugin/plugin.json',
+      'skills/ultra-builder-pro/commands',
+      'skills/ultra-builder-pro/hooks/hooks.json',
+      'skills/ultra-builder-pro/.mcp.json',
+    ],
+  },
+  { flag: '--opencode', name: 'opencode', expectRelPaths: ['commands', 'skills', 'plugins/ultra-builder-pro.js', 'opencode.json'] },
   {
     flag: '--codex',
     name: 'codex',
@@ -94,17 +112,17 @@ test('install.js — idempotent: two installs produce equal asset counts', () =>
   try {
     const first = runCli(['--claude', '--config-dir', target]);
     assert.equal(first.status, 0);
-    const countOne = fs.readdirSync(path.join(target, 'commands')).length;
-    const settingsOne = fs.readFileSync(path.join(target, 'settings.json'), 'utf8');
+    const pluginRoot = path.join(target, 'skills', 'ultra-builder-pro');
+    const countOne = fs.readdirSync(path.join(pluginRoot, 'commands')).length;
+    const manifestOne = fs.readFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8');
 
     const second = runCli(['--claude', '--config-dir', target]);
     assert.equal(second.status, 0);
-    const countTwo = fs.readdirSync(path.join(target, 'commands')).length;
-    const settingsTwo = fs.readFileSync(path.join(target, 'settings.json'), 'utf8');
+    const countTwo = fs.readdirSync(path.join(pluginRoot, 'commands')).length;
+    const manifestTwo = fs.readFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8');
 
     assert.equal(countTwo, countOne, 'command count should not grow on re-install');
-    const stripTs = (s) => s.replace(/"__generated_at": "[^"]+"/g, '"__generated_at": "<t>"');
-    assert.equal(stripTs(settingsTwo), stripTs(settingsOne));
+    assert.equal(manifestTwo, manifestOne);
   } finally {
     cleanup(target);
   }

@@ -5,7 +5,6 @@ description: |
   NOT for interactive use (use code-reviewer for that). Used exclusively by /ultra-review.
 tools: Read, Grep, Glob, Bash, Write
 model: opus
-memory: project
 maxTurns: 18
 skills:
   - security-rules
@@ -61,7 +60,7 @@ You will receive:
      - `// TODO:`, `// FIXME:`
      - `console.log()` in production code
      - Hardcoded config values
-     - Business state stored only in memory
+     - Business state stored only in volatile process state
 4. **Score Confidence**: Only report findings with confidence >= 75
 5. **Write JSON**: Output to `SESSION_PATH/OUTPUT_FILE` using unified-schema-v1
 6. **Integration Review** using integration-rules:
@@ -122,6 +121,5 @@ After writing, output exactly one line:
 Wrote N findings (P0:X P1:X P2:X P3:X) to <filepath>
 ```
 
-## Memory
-
-Consult your agent memory for project-specific patterns. Update memory with recurring findings.
+Use the current checkout and the review inputs supplied by the parent agent. Do
+not create or update a private Ultra memory store.

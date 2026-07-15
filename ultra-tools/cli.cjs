@@ -3,36 +3,9 @@
 /**
  * ultra-tools — runtime-agnostic state engine for Ultra Builder Pro.
  *
- * Single CLI that every runtime (Claude / OpenCode / Codex / Gemini) can invoke
- * via Bash. Collapses Claude-only built-in tools into file-backed, portable
- * equivalents so the same commands and agents work everywhere.
- *
- * Subcommands (Phase 1 will implement; Phase 0 = stubs + USAGE):
- *
- *   task create|update|list|get|delete
- *       Reads/writes .ultra/tasks/tasks.json. Replaces TaskCreate/TaskUpdate/
- *       TaskList/TaskGet.
- *
- *   ask --question "<q>" --options "A|B|C" [--header H] [--text-mode]
- *       Native AskUserQuestion on Claude (via stdout JSON sentinel);
- *       text-mode numbered menu + stdin on other runtimes.
- *
- *   memory search <query> [--limit N]
- *   memory save --summary "<s>" [--tags "a,b"]
- *       Wraps .ultra/memory/memory.db (SQLite FTS5). Phase 1 hooks in
- *       Python `memory_db.py` logic via subprocess.
- *
- *   skill invoke <name> [--args "..."]
- *       Loads skills/<name>/SKILL.md and prints it so the outer runtime
- *       can inject it into the prompt. Replaces the native Skill() tool.
- *
- *   subagent run <agent-name> --prompt "..." [--backend auto|claude|codex|gemini|sdk]
- *       Dispatches a sub-agent. Backends:
- *         claude  → emits Task() JSON sentinel for Claude Code
- *         codex   → shells out to `codex exec …` with injected prompt
- *         gemini  → shells out to `gemini --prompt …`
- *         sdk     → uses @anthropic-ai/claude-agent-sdk headless query()
- *         auto    → picks based on env.UBP_RUNTIME
+ * Shell fallback for Ultra task/session state, status, database maintenance,
+ * migration, and explicit legacy-memory cleanup. User interaction, skill
+ * discovery, and subagent delegation stay on each host's native surfaces.
  *
  * Usage:
  *   ultra-tools <subcommand> [...]
@@ -60,13 +33,12 @@ USAGE:
   ultra-tools <subcommand> [args]
 
 SUBCOMMANDS:
-  task      create | update | list | get | delete           (Phase 2-3)
-  ask       --question "<q>" --options "A|B|C"              (Phase 3)
-  memory    search <query> | save --summary "..."           (Phase 7)
-  skill     invoke <name>                                    (Phase 3)
-  subagent  run <agent-name> --prompt "..."                 (Phase 3)
+  task      create | update | list | get | delete
+  session   spawn | close | get | list | admission | heartbeat | subscribe
+  status    [--cost] [--since <duration>] [--json]
   db        init | checkpoint | vacuum | integrity | backup (Phase 2)
   migrate   --from=4.4 --to=4.5 [--dry|--rollback]          (Phase 2)
+  legacy-memory inspect | archive | prune --confirm DELETE_ULTRA_LEGACY_MEMORY
 
   --help / -h      show this message
   --version / -v   show version
@@ -87,15 +59,12 @@ function fail(msg, code) {
   process.exit(code || 1);
 }
 
-function notImplemented(name) {
-  fail(`'${name}' is not available via CLI — call the MCP tool instead (see spec/cli-protocol.md)`, 2);
-}
-
 const dbCommand = require('./commands/db.cjs');
 const migrateCommand = require('./commands/migrate.cjs');
 const taskCommand = require('./commands/task.cjs');
 const sessionCommand = require('./commands/session.cjs');
 const statusCommand = require('./commands/status.cjs');
+const legacyMemoryCommand = require('./commands/legacy-memory.cjs');
 
 // Phase 6.2 — CLI telemetry: best-effort, never blocks the subcommand.
 function emitCliTelemetry(sub, rest) {
@@ -121,12 +90,9 @@ const SUBCOMMANDS = {
   task: (args) => process.exit(taskCommand.dispatch(args)),
   session: (args) => process.exit(sessionCommand.dispatch(args)),
   status: (args) => process.exit(statusCommand.dispatch(args)),
-  ask: (_args) => notImplemented('ask'),
-  memory: (_args) => notImplemented('memory'),
-  skill: (_args) => notImplemented('skill'),
-  subagent: (_args) => notImplemented('subagent'),
   db: (args) => process.exit(dbCommand.dispatch(args)),
   migrate: (args) => process.exit(migrateCommand.dispatch(args)),
+  'legacy-memory': (args) => process.exit(legacyMemoryCommand.dispatch(args)),
 };
 
 function main(argv) {

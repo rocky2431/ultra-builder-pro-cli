@@ -1,9 +1,9 @@
 # `ultra-tools` CLI protocol
 
-`ultra-tools` is the Bash-fallback layer of the three-layer architecture
-(PLAN §4, D12). Every MCP tool listed in `spec/mcp-tools.yaml` has a
-matching `ultra-tools <subcommand>`; both call the same `state-db` write
-path. This file is the **contract** the hook system and shell users rely on.
+`ultra-tools` is the shell fallback for the live MCP state contract
+(PLAN §4, D12). Every tool in `spec/mcp-tools.yaml` has a matching
+`ultra-tools <subcommand>`; host-native review, impact discovery, skill
+resolution, and human interaction are intentionally outside this protocol.
 
 Trace: PLAN §6 Phase 1.4, decisions D12 / D29 / D33 / D37.
 
@@ -92,16 +92,6 @@ is the authoritative reference; do not duplicate it in command md files.
 | `task.dependency_topo`    | `task topo`                 | 8a    | mcp     |
 | `task.append_event`       | `task append-event`         | 2     | any     |
 | `task.subscribe_events`   | `task subscribe`            | 2     | any     |
-| `memory.retain`           | `memory retain`             | 7     | mcp     |
-| `memory.recall`           | `memory recall`             | 7     | any     |
-| `memory.reflect`          | `memory reflect`            | 7     | mcp     |
-| `review.run`              | `review run`                | 3     | mcp     |
-| `review.verdict`          | `review verdict`            | 3     | any     |
-| `impact.radius`           | `impact radius`             | 6     | any     |
-| `impact.changes`          | `impact changes`            | 6     | any     |
-| `impact.dependents`       | `impact dependents`         | 6     | any     |
-| `skill.resolve`           | `skill resolve`             | 3     | any     |
-| `skill.manifest`          | `skill manifest`            | 3     | any     |
 | `session.spawn`           | `session spawn`             | 4.5   | mcp     |
 | `session.close`           | `session close`             | 4.5   | mcp     |
 | `session.get`             | `session get`               | 4.5   | any     |
@@ -109,8 +99,6 @@ is the authoritative reference; do not duplicate it in command md files.
 | `session.admission_check` | `session admission`         | 4.5   | any     |
 | `session.heartbeat`       | `session heartbeat`         | 4.5   | mcp     |
 | `session.subscribe_events`| `session subscribe`         | 4.5   | any     |
-| `ask.question`            | `ask question`              | 3     | any     |
-| `ask.menu`                | `ask menu`                  | 3     | any     |
 | `plan.export`             | `plan export`               | 8a    | mcp     |
 | `plan.get`                | `plan get`                  | 8a    | any     |
 

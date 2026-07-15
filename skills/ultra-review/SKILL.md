@@ -150,7 +150,7 @@ Review the changed files and write your findings as JSON to:
 {SESSION_PATH}/{agent-name}.json
 
 Follow the ultra-review-findings-v1 schema exactly. Read the schema from:
-~/.claude/skills/ultra-review/references/unified-schema.md
+$CLAUDE_PLUGIN_ROOT/skills/ultra-review/references/unified-schema.md
 
 Only report findings with confidence >= 75.
 
@@ -177,7 +177,7 @@ Violation of these rules causes context overflow. The review agents write to fil
 **Step 4a: Wait for agents** — Use Bash to block until all agents finish writing:
 
 ```bash
-python3 ~/.claude/skills/ultra-review/scripts/review_wait.py {SESSION_PATH} agents {AGENT_COUNT}
+python3 "$CLAUDE_PLUGIN_ROOT/skills/ultra-review/scripts/review_wait.py" {SESSION_PATH} agents {AGENT_COUNT}
 ```
 
 This polls for `review-*.json` files every 2 seconds. Timeout: 5 minutes.
@@ -203,7 +203,7 @@ compute verdict, and generate SUMMARY.md + SUMMARY.json.
 **Step 4c: Wait for coordinator:**
 
 ```bash
-python3 ~/.claude/skills/ultra-review/scripts/review_wait.py {SESSION_PATH} summary
+python3 "$CLAUDE_PLUGIN_ROOT/skills/ultra-review/scripts/review_wait.py" {SESSION_PATH} summary
 ```
 
 Output is a single verdict line (~15 tokens).
@@ -391,7 +391,7 @@ When user selects "Fix all" or "Fix P0 only" after review:
 4. **After all files fixed**: run FULL test suite once as validation
 5. **Update verdict** — after all P0 fixes applied and tests pass:
    ```bash
-   python3 ~/.claude/skills/ultra-review/scripts/review_verdict_update.py {SESSION_PATH}
+   python3 "$CLAUDE_PLUGIN_ROOT/skills/ultra-review/scripts/review_verdict_update.py" {SESSION_PATH}
    ```
    This recalculates the verdict from current P0/P1 counts and updates both SUMMARY.json and index.json.
    Without this step, pre_stop_check will block on stale REQUEST_CHANGES verdict.

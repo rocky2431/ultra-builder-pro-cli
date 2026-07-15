@@ -2,9 +2,7 @@
 name: ultra-deliver
 description: "Release preparation — verify /ultra-test passed, update docs, build, version-bump, tag, push. Writes .ultra/delivery-report.json."
 runtime: all
-mcp_tools_required:
-  - ask.question
-cli_fallback: "ask"
+cli_fallback: "direct user interaction"
 ---
 
 # ultra-deliver — Phase 3.5
@@ -25,7 +23,8 @@ Read `.ultra/test-report.json`:
 
 ### Validation 2 — No uncommitted changes
 
-`git status --porcelain` must be empty. If dirty → `ask.question`:
+`git status --porcelain` must be empty. If dirty, ask through the current
+Host's native user-interaction surface:
 - A: "Auto-commit all changes" → `git add -A && git commit -m "chore: pre-delivery cleanup"`
 - B: "Review changes first" → `git diff --stat` → re-ask
 - C: "Block delivery" → **EXIT**
@@ -75,9 +74,9 @@ Detect build command (priority order):
 2. `Makefile` → `make build` or `make release`
 3. `Cargo.toml` → `cargo build --release`
 4. `go.mod` → `go build ./...`
-5. Nothing detected → `ask.question` for the command
+5. Nothing detected → ask the user for the command
 
-Non-zero exit → block with stderr captured, `ask.question`:
+Non-zero exit → block with stderr captured, then ask the user:
 - A: "Fix error and retry"
 - B: "Abort delivery"
 
@@ -86,7 +85,7 @@ Non-zero exit → block with stderr captured, `ask.question`:
 **3.1 Determine version bump**:
 - `git log <last-tag>..HEAD --oneline` → analyze commit types
 - `feat:` → minor, `BREAKING CHANGE:` / `!:` → major, else patch
-- Display `<old> → <new>`; allow `ask.question` override.
+- Display `<old> → <new>`; allow an explicit user override.
 
 **3.2 Update version in project files**:
 - `package.json`, `Cargo.toml`, `pyproject.toml`, etc.
@@ -154,8 +153,8 @@ outstanding technical-debt count, next suggested action (deploy / announce).
 
 | Purpose | MCP tool | CLI fallback |
 |---------|----------|--------------|
-| Resolve dirty-tree action | `ask.question` | Claude: `AskUserQuestion`; CLI: `ultra-tools ask …` |
-| Override version bump | `ask.question` | same |
+| Resolve dirty-tree action | none | current Host's native user-interaction surface |
+| Override version bump | none | current Host's native user-interaction surface |
 
 ## What this skill DOES NOT do
 

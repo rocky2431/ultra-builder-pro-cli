@@ -28,6 +28,7 @@ function buildCfg() {
       const manifest = JSON.parse(fs.readFileSync(path.join(extRoot(target), 'gemini-extension.json'), 'utf8'));
       return manifest.mcpServers && manifest.mcpServers[gemini.MCP_SERVER_NAME];
     },
+    expectNoEnv: true,
     identityCheck: (entry, target) => {
       assert.ok(entry._ubp && entry._ubp.source === gemini.SOURCE_TAG,
         'gemini mcp entry must carry sibling _ubp.source (D45)');

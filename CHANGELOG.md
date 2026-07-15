@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-16
+
+### Added
+
+- Added first-class native Claude Code and OpenCode plugin builders alongside
+  the Codex personal plugin. All hosts build from one explicit runtime asset
+  allowlist; Gemini remains a compatibility extension using the same boundary.
+- Added `ubp-handbook` for previewed, backed-up managed-block integration with
+  user-level Claude `CLAUDE.md`, Codex `AGENTS.md`, and OpenCode `AGENTS.md`.
+- Added `ultra-tools legacy-memory inspect|archive|prune`; prune requires the
+  exact `DELETE_ULTRA_LEGACY_MEMORY` confirmation token and never runs during
+  install or update.
+- Added release verification for a freshly packed npm consumer, including
+  executable CLI links and live Claude Code, OpenCode, and Codex MCP round trips.
+
+### Changed
+
+- Reduced the package to ten Ultra-owned public workflows, four internal
+  agent-rule skills, and host-specific collaboration companions. The internal
+  `code-review-expert` skill is no longer implicitly user-invocable.
+- Replaced the imported hook suite with seven workflow-only hooks that are
+  no-ops outside an active `.ultra/workflow-state.json`. OpenCode uses native
+  JavaScript lifecycle hooks; Claude Code and Codex use native plugin manifests.
+- Upgraded `@anthropic-ai/sdk` to the patched `^0.111.0` line.
+- Reduced the published MCP contract to the 21 tools the server actually
+  exposes; review, impact, skill discovery, and user interaction use native
+  Host surfaces.
+
+### Fixed
+
+- Made MCP database initialization lazy, synchronized the handshake version
+  with the npm package, and fixed `session.subscribe_events` sid filtering.
+- Aligned session/plan input schemas with runtime behavior, including circuit
+  breaker output, session spawn intent semantics, and removal of ignored inputs.
+- Bundled Gemini's compatibility MCP runtime durably and restored project-local
+  `.ultra/state.db` ownership across all adapters.
+- Exported the documented `ultra-tools` executable and included every README
+  documentation target in the npm tarball.
+
+### Removed
+
+- Removed Ultra's memory MCP tools, store, wrapper, recall skill, memory-capture
+  and summary hooks, and private agent-memory declarations. Persistent memory is
+  now solely the responsibility of a separate cloud-mem/claude-mem plugin.
+- Removed bundled copies of `agent-browser`, `find-skills`, `use-railway`, the
+  three Vercel skill packs, and all Impeccable-derived assets from Ultra output.
+- Removed generic dangerous-command and post-edit governance hooks from the
+  Ultra plugin; unrelated user/repository hooks remain outside this package.
+
 ## [0.4.0] — 2026-07-15
 
 ### Changed
@@ -137,6 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.4.0
 [0.3.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.3.0
 [0.2.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.2.0

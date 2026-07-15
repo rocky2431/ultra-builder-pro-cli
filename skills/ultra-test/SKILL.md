@@ -4,7 +4,6 @@ description: "Pre-delivery quality audit — Anti-Pattern + Coverage Gap + Wirin
 runtime: all
 mcp_tools_required:
   - task.list
-  - ask.question
 cli_fallback: "task list"
 ---
 
@@ -179,7 +178,7 @@ when `passed=true`.
 | Purpose | MCP tool | CLI fallback |
 |---------|----------|--------------|
 | Confirm ≥1 completed task | `task.list { status: "completed" }` | `ultra-tools task list --status completed` |
-| Confirm risky auto-fix | `ask.question` | Claude: `AskUserQuestion`; CLI: `ultra-tools ask --question …` |
+| Confirm risky auto-fix | none | current Host's native user-interaction surface |
 
 ## What this skill DOES NOT do
 

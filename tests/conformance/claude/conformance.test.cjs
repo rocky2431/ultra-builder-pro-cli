@@ -13,30 +13,31 @@ const { REPO_ROOT, mkTarget, cleanup } = require('../_lib.cjs');
 const caps = require('../_capabilities.cjs');
 
 function buildCfg() {
+  const pluginRoot = (target) => path.join(target, 'skills', 'ultra-builder-pro');
   return {
     adapter: claude,
-    commandsDir: (target) => path.join(target, 'commands'),
-    skillsDir: (target) => path.join(target, 'skills'),
+    commandsDir: (target) => path.join(pluginRoot(target), 'commands'),
+    skillsDir: (target) => path.join(pluginRoot(target), 'skills'),
     expectCommands: ['ultra-init.md', 'ultra-dev.md', 'ultra-plan.md'],
     commandFrontmatterPatterns: [/^---/m, /description:/i],
     expectSkills: ['ultra-init', 'ultra-dev', 'ultra-status'],
     hookCheck: (target) => {
-      const settings = JSON.parse(fs.readFileSync(path.join(target, 'settings.json'), 'utf8'));
-      assert.ok(settings.hooks, 'claude settings.json must carry hooks');
-      // Claude gets the full 8-event hook set; we assert a representative subset
-      for (const ev of ['PostToolUse', 'PreToolUse', 'SessionStart']) {
-        assert.ok(Array.isArray(settings.hooks[ev]), `claude hook event ${ev} must be an array`);
+      const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot(target), 'hooks', 'hooks.json'), 'utf8'));
+      for (const ev of ['PreCompact', 'PreToolUse', 'SessionStart', 'Stop']) {
+        assert.ok(Array.isArray(manifest.hooks[ev]), `claude hook event ${ev} must be an array`);
       }
+      assert.match(JSON.stringify(manifest), /\$\{CLAUDE_PLUGIN_ROOT\}/);
     },
     readMcpEntry: (target) => {
-      const settings = JSON.parse(fs.readFileSync(path.join(target, 'settings.json'), 'utf8'));
-      return settings.mcpServers && settings.mcpServers[claude.MCP_SERVER_NAME];
+      const mcp = JSON.parse(fs.readFileSync(path.join(pluginRoot(target), '.mcp.json'), 'utf8'));
+      return mcp.mcpServers && mcp.mcpServers[claude.MCP_SERVER_NAME];
     },
-    identityCheck: (entry) => {
-      assert.ok(entry._ubp && entry._ubp.source === claude.SOURCE_TAG,
-        'claude mcp entry must carry sibling _ubp.source (D45)');
+    expectNoEnv: true,
+    identityCheck: (entry, target) => {
+      assert.equal(entry.command, process.execPath);
+      assert.equal(entry.args[0], path.join(pluginRoot(target), 'runtime', 'launch.cjs'));
     },
-    readIdempotencyArtifact: (target) => fs.readFileSync(path.join(target, 'settings.json'), 'utf8'),
+    readIdempotencyArtifact: (target) => fs.readFileSync(path.join(pluginRoot(target), '.claude-plugin', 'plugin.json'), 'utf8'),
   };
 }
 

@@ -6,6 +6,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const yaml = require('js-yaml');
+const {
+  CORE_PUBLIC_SKILLS,
+  INTERNAL_AGENT_SKILLS,
+  WORKFLOW_HOOK_FILES,
+  skillsForRuntime,
+} = require('./runtime-assets.cjs');
 
 const { parse: parseFrontmatter } = require('./frontmatter.cjs');
 const {
@@ -56,31 +62,15 @@ const CODEX_NATIVE_MCP_REPLACEMENTS = Object.freeze({
     replacement: 'present a concise choice directly, or request_user_input when that Codex surface is available',
   },
 });
-const COMMAND_NAMES = Object.freeze([
-  'learn',
-  'ultra-deliver',
-  'ultra-dev',
-  'ultra-init',
-  'ultra-plan',
-  'ultra-research',
-  'ultra-status',
-  'ultra-test',
-  'ultra-think',
-]);
+const COMMAND_NAMES = Object.freeze(CORE_PUBLIC_SKILLS.filter((name) => name !== 'ultra-review'));
 const SKILL_REFERENCE_NAMES = Object.freeze([
   ...COMMAND_NAMES,
   'cc-collab',
   'gemini-collab',
-  'recall',
   'ultra-review',
   'ultra-verify',
 ]);
-const INTERNAL_SKILLS = new Set([
-  'ai-collab-base',
-  'integration-rules',
-  'security-rules',
-  'testing-rules',
-]);
+const INTERNAL_SKILLS = new Set(INTERNAL_AGENT_SKILLS);
 const CODEX_PRIMARY_SKILLS = new Set([...COMMAND_NAMES, 'ultra-review']);
 const TEXT_EXTENSIONS = new Set(['.md', '.json', '.py', '.sh', '.txt', '.yaml', '.yml']);
 
@@ -424,30 +414,6 @@ node ~/plugins/ultra-builder-pro/runtime/ultra-tools.cjs task init-project \\
     text = text.replaceAll('不再依赖 `~/.codex/.ultra-template/`', '不依赖任何用户目录模板');
   }
 
-  if (skillName === 'ultra-research') {
-    text = text.replace(
-      /## POST-STEP HOOK — memory\.retain[\s\S]*?(?=\n## QUALITY STANDARDS)/,
-      `## Post-step retention — current MCP contract
-
-After each confirmed research step, retain only the concise reusable conclusion through the bundled
-\`memory.retain\` tool. This is a current registered MCP tool, not a placeholder:
-
-\`\`\`json
-{
-  "kind": "fact",
-  "tag": "research",
-  "content": "<verified conclusion from this step>",
-  "source": "ultra-research:step-<NN>"
-}
-\`\`\`
-
-Use \`kind: "decision"\` when the user approved an architectural or product choice. Do not retain
-raw web pages, secrets, speculative claims, or an entire spec section. If the MCP call fails, report
-the failed retention separately; the spec file remains the research artifact.
-`,
-    );
-  }
-
   if (skillName === 'ultra-plan') {
     text = text.replace(
       /Interactive prompt uses[\s\S]*?(?=\n\n\*\*Dual-scale effort)/,
@@ -671,6 +637,7 @@ function adaptHostText(input, skillName = '') {
   let text = String(input);
   text = text.replaceAll('codex-collab', 'cc-collab');
   text = text.replaceAll('CLAUDE.md', 'AGENTS.md');
+  text = text.replaceAll('$CLAUDE_PLUGIN_ROOT/skills', '~/plugins/ultra-builder-pro/skills');
   text = text.replaceAll('~/.claude/skills', '~/plugins/ultra-builder-pro/skills');
   text = text.replaceAll('~/.codex/skills', '~/plugins/ultra-builder-pro/skills');
   text = text.replaceAll('~/.claude/hooks', '~/plugins/ultra-builder-pro/hooks');
@@ -708,6 +675,18 @@ function adaptHostText(input, skillName = '') {
 
   if (skillName === 'learn') {
     text = text.replaceAll(
+      '~/plugins/ultra-builder-pro/skills/learned-<name>-unverified/SKILL.md',
+      '~/.agents/skills/learned-<name>-unverified/SKILL.md',
+    );
+    text = text.replaceAll(
+      '~/plugins/ultra-builder-pro/skills/learned-<pattern-slug>-unverified/SKILL.md',
+      '~/.agents/skills/learned-<pattern-slug>-unverified/SKILL.md',
+    );
+    text = text.replaceAll(
+      '~/plugins/ultra-builder-pro/skills/learned-<slug>-unverified/SKILL.md',
+      '~/.agents/skills/learned-<slug>-unverified/SKILL.md',
+    );
+    text = text.replaceAll(
       '~/plugins/ultra-builder-pro/skills/learned/<name>_unverified.md',
       '~/.agents/skills/learned-<name>-unverified/SKILL.md',
     );
@@ -731,30 +710,6 @@ function adaptHostText(input, skillName = '') {
     text += `\n\n## Codex packaging requirement\n\nEach learned pattern must be a valid skill directory, not a loose Markdown file. The generated\n\`SKILL.md\` must start with only \`name\` and \`description\` frontmatter. Also create\n\`agents/openai.yaml\` with \`policy.allow_implicit_invocation: false\`. A new Codex task is required\nbefore the learned skill appears in discovery.\n`;
   }
 
-  if (skillName === 'recall') {
-    text = text.replace(
-      /\*\*Runs in forked context\*\*:[\s\S]*?caller\.\n/,
-      '**Context isolation**: use a native read-only Codex subagent only when delegation is explicitly allowed; otherwise run the search directly and return a concise synthesis.\n',
-    );
-    text = text.replaceAll('**CLI tool**: `~/.codex/hooks/memory_db.py`', '**CLI tool**: `~/plugins/ultra-builder-pro/hooks/memory_db.py`');
-    text = text.replace(
-      /## Search Modes/,
-      `## Codex memory routing
-
-Ultra has two intentionally separate stores:
-
-- Use bundled MCP \`memory.recall\` for task-linked facts, decisions, fixes, and patterns held in
-  \`.ultra/state.db\`.
-- Use this skill's \`memory_db.py\` commands for hook-captured session chronology, summaries, tags,
-  and observations held in \`.ultra/memory/memory.db\`.
-
-Do not present one store as a fallback copy of the other. Choose by question type and label which
-store supplied the result.
-
-## Search Modes`,
-    );
-  }
-
   return text;
 }
 
@@ -765,7 +720,6 @@ function adaptedDescription(sourceDescription, targetName) {
     'ultra-verify': 'Run Codex-primary three-way verification with read-only Claude Code and Gemini advisors, then verify and synthesize the evidence.',
     'ultra-dev': 'Execute one Ultra task with Codex-native TDD, persistent task.update state, workflow checkpoints, and the native Ultra review agents.',
     'learn': 'Extract one reusable pattern from the current Codex task into a valid user skill, with explicit user approval before writing.',
-    'recall': 'Search and manage Ultra Builder Pro cross-session memory for the current project. Use for prior decisions, recurring issues, recent sessions, summaries, and tags.',
   };
   return special[targetName] || adaptHostText(String(sourceDescription || `${titleCase(targetName)} workflow for Codex.`), targetName)
     .replace(/\s+/g, ' ')
@@ -861,28 +815,19 @@ function buildHooksManifest() {
     hooks: {
       SessionStart: [
         { hooks: [commandHook('health_check.py', 5, 'Checking Ultra runtime')] },
-        { hooks: [commandHook('session_context.py', 10, 'Loading Ultra session context')] },
+        { hooks: [commandHook('workflow_context.py', 10, 'Loading active Ultra workflow')] },
       ],
       PreToolUse: [
-        { matcher: 'Bash', hooks: [commandHook('block_dangerous_commands.py', 5, 'Checking destructive command')] },
-        { matcher: 'Edit|Write', hooks: [commandHook('mid_workflow_recall.py', 3, 'Checking prior observations')] },
-      ],
-      PostToolUse: [
-        { matcher: 'Edit|Write', hooks: [commandHook('post_edit_guard.py', 5, 'Running Ultra edit guard')] },
-        { matcher: 'Edit|Write|Bash', hooks: [commandHook('observation_capture.py', 3, 'Capturing Ultra observation')] },
-      ],
-      UserPromptSubmit: [
-        { hooks: [commandHook('user_prompt_capture.py', 3, 'Capturing initial request')] },
+        { matcher: 'Edit|Write', hooks: [commandHook('active_task_context.py', 3, 'Checking active Ultra task')] },
       ],
       PreCompact: [
-        { matcher: 'manual|auto', hooks: [commandHook('pre_compact_context.py', 10, 'Saving Ultra compact snapshot')] },
+        { matcher: 'manual|auto', hooks: [commandHook('workflow_checkpoint.py', 10, 'Saving Ultra workflow checkpoint')] },
       ],
       PostCompact: [
-        { hooks: [commandHook('post_compact_inject.py', 10, 'Restoring Ultra context')] },
+        { hooks: [commandHook('workflow_resume.py', 10, 'Restoring Ultra workflow checkpoint')] },
       ],
       Stop: [
         { hooks: [commandHook('pre_stop_check.py', 5, 'Checking Ultra completion gates')] },
-        { hooks: [commandHook('session_journal.py', 5, 'Saving Ultra session journal')] },
       ],
       SubagentStart: [
         { hooks: [commandHook('subagent_tracker.py', 5, 'Tracking Ultra subagent', 'start')] },
@@ -898,10 +843,8 @@ function copyHooks(repoRoot, pluginRoot) {
   const sourceRoot = path.join(repoRoot, 'hooks');
   const targetRoot = path.join(pluginRoot, 'hooks');
   ensureDir(targetRoot);
-  for (const entry of fs.readdirSync(sourceRoot, { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith('.py')) {
-      fs.copyFileSync(path.join(sourceRoot, entry.name), path.join(targetRoot, entry.name));
-    }
+  for (const name of WORKFLOW_HOOK_FILES) {
+    fs.copyFileSync(path.join(sourceRoot, name), path.join(targetRoot, name));
   }
   ensureDir(path.join(targetRoot, 'adapters'));
   fs.copyFileSync(
@@ -911,7 +854,7 @@ function copyHooks(repoRoot, pluginRoot) {
   writeAtomic(path.join(targetRoot, 'hooks.json'), JSON.stringify(buildHooksManifest(), null, 2) + '\n');
 }
 
-function buildMcpRuntime(repoRoot, pluginRoot) {
+function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {
   const source = path.join(repoRoot, 'mcp-server', 'server.cjs');
   const cliSource = path.join(repoRoot, 'adapters', '_shared', 'codex-ultra-tools-entry.cjs');
   const runtimeRoot = path.join(pluginRoot, 'runtime');
@@ -920,7 +863,7 @@ function buildMcpRuntime(repoRoot, pluginRoot) {
   try {
     nccCli = require.resolve('@vercel/ncc/dist/ncc/cli.js');
   } catch (error) {
-    throw new Error(`Codex MCP bundling requires @vercel/ncc: ${error.message}`);
+    throw new Error(`Ultra MCP bundling requires @vercel/ncc: ${error.message}`);
   }
 
   try {
@@ -940,7 +883,7 @@ function buildMcpRuntime(repoRoot, pluginRoot) {
     if (bundled.error) throw bundled.error;
     if (bundled.status !== 0) {
       const detail = (bundled.stderr || bundled.stdout || '').trim();
-      throw new Error(`ncc failed to bundle the Codex MCP runtime${detail ? `: ${detail}` : ''}`);
+      throw new Error(`ncc failed to bundle the Ultra MCP runtime${detail ? `: ${detail}` : ''}`);
     }
     copyTree(buildRoot, runtimeRoot);
   } finally {
@@ -965,7 +908,7 @@ function buildMcpRuntime(repoRoot, pluginRoot) {
     if (bundled.error) throw bundled.error;
     if (bundled.status !== 0) {
       const detail = (bundled.stderr || bundled.stdout || '').trim();
-      throw new Error(`ncc failed to bundle the Codex fallback CLI${detail ? `: ${detail}` : ''}`);
+      throw new Error(`ncc failed to bundle the Ultra fallback CLI${detail ? `: ${detail}` : ''}`);
     }
     for (const rel of listRelative(cliBuildRoot)) {
       const target = rel === 'index.cjs'
@@ -1004,8 +947,7 @@ main().catch((error) => {
     ...upstreamManifest,
     info: {
       ...upstreamManifest.info,
-      runtime: 'codex',
-      notes: `${upstreamManifest.info.notes.trim()}\n\nCodex plugin live subset: only tools registered by the bundled server are listed here. See upstream-mcp-tools.yaml and codex-capability-map.json for scheduled contracts and native replacements.`,
+      notes: `${upstreamManifest.info.notes.trim()}\n\n${runtime} bundled runtime: only tools registered by the MCP server are listed here.`,
     },
     families: upstreamManifest.families.filter((family) => liveFamilies.has(family.name)),
     tools: upstreamManifest.tools.filter((tool) => registered.has(tool.name)),
@@ -1013,12 +955,14 @@ main().catch((error) => {
   const specRoot = path.join(pluginRoot, 'spec');
   ensureDir(specRoot);
   writeAtomic(path.join(specRoot, 'mcp-tools.yaml'), yaml.dump(liveManifest, { lineWidth: -1, noRefs: true }));
-  fs.copyFileSync(sourceToolsFile, path.join(specRoot, 'upstream-mcp-tools.yaml'));
-  writeAtomic(path.join(specRoot, 'codex-capability-map.json'), JSON.stringify({
-    runtime: 'codex',
-    live_mcp_tools: REGISTERED_TOOLS,
-    codex_native_replacements: CODEX_NATIVE_MCP_REPLACEMENTS,
-  }, null, 2) + '\n');
+  if (runtime === 'codex') {
+    fs.copyFileSync(sourceToolsFile, path.join(specRoot, 'upstream-mcp-tools.yaml'));
+    writeAtomic(path.join(specRoot, 'codex-capability-map.json'), JSON.stringify({
+      runtime: 'codex',
+      live_mcp_tools: REGISTERED_TOOLS,
+      codex_native_replacements: CODEX_NATIVE_MCP_REPLACEMENTS,
+    }, null, 2) + '\n');
+  }
   const sourceSchema = path.join(repoRoot, 'spec', 'schemas', 'state-db.sql');
   const targetSchema = path.join(specRoot, 'schemas', 'state-db.sql');
   ensureDir(path.dirname(targetSchema));
@@ -1060,15 +1004,14 @@ function buildPlugin({ repoRoot, pluginRoot }) {
   }
   ensureDir(pluginRoot);
 
-  const sourceSkills = path.join(repoRoot, 'skills');
   const installedSkills = [];
-  for (const entry of fs.readdirSync(sourceSkills, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (!entry.isDirectory()) continue;
-    const sourceDir = path.join(sourceSkills, entry.name);
-    if (!fs.existsSync(path.join(sourceDir, 'SKILL.md'))) continue;
-    const targetName = entry.name === 'codex-collab' ? 'cc-collab' : entry.name;
-    copySkill(sourceDir, path.join(pluginRoot, 'skills', targetName), entry.name, targetName);
-    installedSkills.push(targetName);
+  for (const name of skillsForRuntime('codex')) {
+    const sourceDir = path.join(repoRoot, 'skills', name);
+    if (!fs.existsSync(path.join(sourceDir, 'SKILL.md'))) {
+      throw new Error(`missing allowlisted Codex skill: ${name}`);
+    }
+    copySkill(sourceDir, path.join(pluginRoot, 'skills', name), name, name);
+    installedSkills.push(name);
   }
 
   copyHooks(repoRoot, pluginRoot);

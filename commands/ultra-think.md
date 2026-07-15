@@ -4,9 +4,7 @@ argument-hint: "[problem or decision to analyze]"
 allowed-tools: Read, Grep, Glob, Bash, Write, Task, WebSearch, WebFetch, AskUserQuestion, mcp__exa__web_search_exa, mcp__exa__get_code_context_exa, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: opus
 workflow-ref: "@skills/ultra-think/SKILL.md"
-mcp_tools_required:
-  - ask.question
-cli_fallback: "ask"
+cli_fallback: "direct user interaction"
 ---
 
 # /ultra-think
@@ -29,7 +27,7 @@ $ARGUMENTS
 Adversarial → Synthesis）。
 
 **命令入口做的事**：
-1. 读 `$ARGUMENTS` 判定问题范围 — 模糊 → 最多 3 个 `ask.question` 澄清
+1. 读 `$ARGUMENTS` 判定问题范围 — 模糊 → 用 Host 原生提问界面最多澄清 3 个问题
 2. 简单问题 → 直接答；复杂 → 跑完整框架
 3. 输出 Markdown 报告（Problem / Analysis / Options / Adversarial / Recommendation /
    Verification / Next Steps）

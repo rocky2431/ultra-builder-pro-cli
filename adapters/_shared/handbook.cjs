@@ -1,0 +1,144 @@
+'use strict';
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const { writeAtomic } = require('./file-ops.cjs');
+
+const BEGIN_MARKER = '<!-- ultra-builder-pro:handbook:start -->';
+const END_MARKER = '<!-- ultra-builder-pro:handbook:end -->';
+const LEGACY_HEADING = '## Ultra Builder Pro Runtime Contract';
+
+const HOSTS = Object.freeze({
+  claude: Object.freeze({
+    name: 'Claude Code',
+    handbook: ['.claude', 'CLAUDE.md'],
+    invocation: '`/ultra-init`, `/ultra-research`, `/ultra-plan`, `/ultra-dev`, `/ultra-test`, `/ultra-review`, and `/ultra-deliver`; diagnostics use `/ultra-status` and `/ultra-think`',
+    collaboration: '`/codex-collab` and `/gemini-collab` are explicitly requested read-only advisors',
+    coordination: 'Claude Code task UI is host coordination; it does not replace Ultra task state',
+  }),
+  codex: Object.freeze({
+    name: 'Codex',
+    handbook: ['.codex', 'AGENTS.md'],
+    invocation: '`$ultra-builder-pro:ultra-init`, `$ultra-builder-pro:ultra-research`, `$ultra-builder-pro:ultra-plan`, `$ultra-builder-pro:ultra-dev`, `$ultra-builder-pro:ultra-test`, `$ultra-builder-pro:ultra-review`, and `$ultra-builder-pro:ultra-deliver`; diagnostics use `$ultra-builder-pro:ultra-status` and `$ultra-builder-pro:ultra-think`',
+    collaboration: '`$ultra-builder-pro:cc-collab` and `$ultra-builder-pro:gemini-collab` are explicitly requested read-only advisors',
+    coordination: 'The Codex plan is turn-facing coordination; it does not replace Ultra task state',
+  }),
+  opencode: Object.freeze({
+    name: 'OpenCode',
+    handbook: ['.config', 'opencode', 'AGENTS.md'],
+    invocation: '`/ultra-init`, `/ultra-research`, `/ultra-plan`, `/ultra-dev`, `/ultra-test`, `/ultra-review`, and `/ultra-deliver`; diagnostics use `/ultra-status` and `/ultra-think`',
+    collaboration: '`/cc-collab`, `/codex-collab`, and `/gemini-collab` are explicitly requested read-only advisors',
+    coordination: 'OpenCode session coordination does not replace Ultra task state',
+  }),
+});
+
+function host(runtime) {
+  const value = HOSTS[runtime];
+  if (!value) throw new Error(`unsupported handbook runtime: ${runtime}`);
+  return value;
+}
+
+function renderHandbook(runtime) {
+  const value = host(runtime);
+  return [
+    BEGIN_MARKER,
+    '## Ultra Builder Pro Runtime Contract',
+    '',
+    `Ultra Builder Pro is installed as a native ${value.name} plugin. Keep general engineering`,
+    'policy in this handbook and detailed Ultra procedures in the plugin skills.',
+    '',
+    `- Workflow entry points: ${value.invocation}.`,
+    `- Collaboration boundary: ${value.collaboration}. The current host remains primary and owns final verification.`,
+    `- Coordination boundary: ${value.coordination}.`,
+    '- Authority: `.ultra/state.db` is the only durable Ultra authority for tasks, sessions, events, telemetry, and review evidence. Generated JSON and Markdown are projections or workflow artifacts.',
+    '- Memory boundary: Ultra Builder Pro does not capture prompts, transcripts, observations, summaries, or cross-session memory. Persistent memory belongs to a separately installed provider such as cloud-mem or claude-mem.',
+    '- Hook boundary: Ultra hooks are workflow-only lifecycle adapters and are no-ops unless `.ultra/workflow-state.json` describes an active non-terminal workflow. Generic command blocking and post-edit policy stay in user or repository governance.',
+    '- Agent boundary: the bundled review and debugging agents are bounded workers. They use the current checkout and parent-supplied context, do not own private persistent state, and never replace the primary agent.',
+    '- Package boundary: only the ten Ultra workflows, four internal review-rule skills, and host-specific collaboration companions belong to this plugin. General browser, deployment, discovery, and framework skills must be installed from their owners.',
+    END_MARKER,
+  ].join('\n');
+}
+
+function markerCount(text, marker) {
+  return text.split(marker).length - 1;
+}
+
+function replaceManagedBlock(existing, block) {
+  const beginCount = markerCount(existing, BEGIN_MARKER);
+  const endCount = markerCount(existing, END_MARKER);
+  if (beginCount !== endCount || beginCount > 1) {
+    throw new Error('handbook contains malformed or duplicate Ultra managed markers');
+  }
+  if (beginCount === 0) return null;
+
+  const start = existing.indexOf(BEGIN_MARKER);
+  const end = existing.indexOf(END_MARKER, start) + END_MARKER.length;
+  return existing.slice(0, start) + block + existing.slice(end);
+}
+
+function replaceLegacyCodexSection(existing, block) {
+  const heading = new RegExp(`^${LEGACY_HEADING.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\n]*$`, 'm');
+  const match = heading.exec(existing);
+  if (!match) return null;
+
+  const start = match.index;
+  const remainder = existing.slice(start + match[0].length);
+  const nextHeading = /^##\s+/m.exec(remainder);
+  const end = nextHeading ? start + match[0].length + nextHeading.index : existing.length;
+  const before = existing.slice(0, start).trimEnd();
+  const after = existing.slice(end).trimStart();
+  return `${before}${before ? '\n\n' : ''}${block}${after ? `\n\n${after}` : '\n'}`;
+}
+
+function mergeHandbook(existing, runtime) {
+  host(runtime);
+  const current = typeof existing === 'string' ? existing : '';
+  const block = renderHandbook(runtime);
+  const managed = replaceManagedBlock(current, block);
+  if (managed !== null) return managed;
+
+  if (runtime === 'codex') {
+    const migrated = replaceLegacyCodexSection(current, block);
+    if (migrated !== null) return migrated;
+  }
+
+  const before = current.trimEnd();
+  return `${before}${before ? '\n\n' : ''}${block}\n`;
+}
+
+function resolveHandbookFile(runtime, { homeDir = os.homedir() } = {}) {
+  return path.join(homeDir, ...host(runtime).handbook);
+}
+
+function timestamp() {
+  return new Date().toISOString().replace(/[-:.]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+function applyHandbook({ runtime, file, homeDir, now = timestamp() }) {
+  const target = path.resolve(file || resolveHandbookFile(runtime, { homeDir }));
+  const exists = fs.existsSync(target);
+  const existing = exists ? fs.readFileSync(target, 'utf8') : '';
+  const merged = mergeHandbook(existing, runtime);
+  if (merged === existing) return { runtime, file: target, changed: false, backup: null };
+
+  let backup = null;
+  if (exists) {
+    backup = `${target}.ubp-backup-${now}`;
+    if (fs.existsSync(backup)) throw new Error(`handbook backup already exists: ${backup}`);
+    writeAtomic(backup, existing);
+  }
+  writeAtomic(target, merged);
+  return { runtime, file: target, changed: true, backup };
+}
+
+module.exports = {
+  BEGIN_MARKER,
+  END_MARKER,
+  HOSTS,
+  applyHandbook,
+  mergeHandbook,
+  renderHandbook,
+  resolveHandbookFile,
+};

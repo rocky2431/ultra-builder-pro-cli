@@ -15,12 +15,12 @@ const addFormats = require('ajv-formats');
 const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const { ListToolsRequestSchema, CallToolRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
+const { version: PACKAGE_VERSION } = require('../package.json');
 
 const { initStateDb, closeStateDb } = require('./lib/state-db.cjs');
 const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
 const telemetry = require('./lib/telemetry.cjs');
-const memory = require('./lib/memory-store.cjs');
 const topo = require('./lib/topo.cjs');
 const llm = require('./lib/llm-client.cjs');
 const parser = require('./lib/prd-parser.cjs');
@@ -58,20 +58,16 @@ const SESSION_TOOLS = Object.freeze([
   'session.subscribe_events',
 ]);
 
-const MEMORY_TOOLS = Object.freeze([
-  'memory.retain',
-  'memory.recall',
-  'memory.reflect',
-]);
-
 const PLAN_TOOLS = Object.freeze([
   'plan.export',
   'plan.get',
 ]);
 
 const REGISTERED_TOOLS = Object.freeze([
-  ...TASK_TOOLS, ...SESSION_TOOLS, ...MEMORY_TOOLS, ...PLAN_TOOLS,
+  ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS,
 ]);
+
+const STATELESS_TOOLS = new Set(['task.init_project']);
 
 // init_project mutates the filesystem of an unrelated project, not state.db —
 // do NOT run the projector (it would overwrite the freshly-copied template).
@@ -79,7 +75,6 @@ const MUTATING_TOOLS = new Set([
   'task.create', 'task.update', 'task.delete', 'task.append_event', 'task.switch_tag',
   'task.parse_prd', 'task.expand',
   'session.spawn', 'session.close', 'session.heartbeat',
-  // memory writes do not change tasks.json projection — skip projector.
 ]);
 
 function loadRegisteredTools() {
@@ -224,7 +219,7 @@ async function dispatchTool(name, input, db, ctx = {}) {
     case 'session.subscribe_events': {
       return ops.subscribeEventsSince(db, {
         since_id: input.since_id,
-        task_id: input.sid ? undefined : undefined, // sid filter applied below
+        session_id: input.sid,
         limit: input.limit,
       });
     }
@@ -303,17 +298,6 @@ async function dispatchTool(name, input, db, ctx = {}) {
       });
       return { parent_id: result.parent_id, children: result.children };
     }
-    case 'memory.retain': {
-      const out = memory.retain(db, input);
-      return { id: out.id, ts: out.ts };
-    }
-    case 'memory.recall': {
-      const hits = memory.recall(db, input || {});
-      return { hits };
-    }
-    case 'memory.reflect': {
-      return memory.reflect(db, input || {});
-    }
     case 'plan.export': {
       const rootDir = ctx.rootDir || process.cwd();
       const abs = path.isAbsolute(input.out_path)
@@ -361,8 +345,11 @@ function errorResponse(code, message, retriable = false, details = undefined) {
 }
 
 function startServer({ dbPath, rootDir, projectOnWrite = true }) {
-  const init = initStateDb(dbPath);
-  const db = init.db;
+  let db = null;
+  const getDb = () => {
+    if (!db) db = initStateDb(dbPath).db;
+    return db;
+  };
 
   const tools = loadRegisteredTools();
   const ajv = buildAjv();
@@ -374,7 +361,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
   }
 
   const server = new Server(
-    { name: 'ultra-builder-pro-mcp', version: '0.2.0' },
+    { name: 'ultra-builder-pro-mcp', version: PACKAGE_VERSION },
     { capabilities: { tools: {} } },
   );
 
@@ -392,6 +379,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
     let toolError = null;
 
     const emitTelemetry = () => {
+      if (!db) return;
       try {
         telemetry.appendTelemetry(db, {
           event_type: 'tool_call',
@@ -422,8 +410,10 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
     }
 
     let result;
+    let toolDb = null;
     try {
-      result = await dispatchTool(name, args, db, { rootDir });
+      toolDb = STATELESS_TOOLS.has(name) ? null : getDb();
+      result = await dispatchTool(name, args, toolDb, { rootDir });
     } catch (err) {
       const code = err.code || (err instanceof ops.StateOpsError ? err.code : 'STATE_DB_ERROR');
       toolError = code;
@@ -438,8 +428,8 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
       return errorResponse('OUTPUT_SCHEMA_DRIFT', ajv.errorsText(validateOutput.errors));
     }
 
-    if (projectOnWrite && MUTATING_TOOLS.has(name)) {
-      try { projector.projectAll(db, { rootDir }); }
+    if (toolDb && projectOnWrite && MUTATING_TOOLS.has(name)) {
+      try { projector.projectAll(toolDb, { rootDir }); }
       catch (err) { process.stderr.write(`projector warning: ${err.message}\n`); }
     }
 
@@ -452,7 +442,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
 
   return {
     server,
-    db,
+    get db() { return db; },
     tools,
     async close() { closeStateDb(db); },
   };
@@ -487,5 +477,6 @@ module.exports = {
   TASK_TOOLS,
   SESSION_TOOLS,
   REGISTERED_TOOLS,
+  STATELESS_TOOLS,
   MUTATING_TOOLS,
 };

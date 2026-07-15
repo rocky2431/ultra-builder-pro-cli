@@ -11,5 +11,9 @@
       "heartbeat_age_ms": 1200
     },
     "recommended_action": "resume"
+  },
+  {
+    "can_spawn": false,
+    "recommended_action": "blocked_by_breaker"
   }
 ]

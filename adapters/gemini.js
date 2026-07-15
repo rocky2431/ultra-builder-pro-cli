@@ -12,7 +12,7 @@
  *
  *   gemini-extension.json  → extension manifest (mcpServers declared here)
  *   commands/*.toml        → generated from commands/*.md via md-to-toml
- *   skills/**              → copied verbatim (Gemini reads these as prompt includes)
+ *   skills/**              → Ultra-owned allowlist (Gemini reads these as prompt includes)
  *   GEMINI.md              → canonical agent context (docs/AGENT-CONTEXT.md copy)
  *   hooks/                 → NOT installed; Gemini has no hook surface.
  *                            prompt-guard downgrade is described inside GEMINI.md.
@@ -35,6 +35,8 @@ const {
   removeTree,
 } = require('./_shared/file-ops.cjs');
 const { mdCommandToToml } = require('./_shared/md-to-toml.cjs');
+const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
+const { skillsForRuntime } = require('./_shared/runtime-assets.cjs');
 
 const EXTENSION_NAME = 'ultra-builder-pro';
 const MCP_SERVER_NAME = 'ultra-builder-pro';
@@ -67,8 +69,7 @@ function loadPkgVersion(repoRoot) {
   }
 }
 
-function buildManifest(repoRoot, extensionRoot) {
-  const serverPath = path.join(repoRoot, 'mcp-server', 'server.cjs');
+function buildManifest(repoRoot, runtime) {
   return {
     name: EXTENSION_NAME,
     version: loadPkgVersion(repoRoot),
@@ -79,11 +80,7 @@ function buildManifest(repoRoot, extensionRoot) {
     mcpServers: {
       [MCP_SERVER_NAME]: {
         command: process.execPath,
-        args: [serverPath],
-        env: {
-          UBP_DB_PATH: path.join(extensionRoot, 'state.db'),
-          UBP_ROOT_DIR: extensionRoot,
-        },
+        args: [runtime.launcher],
         _ubp: { source: SOURCE_TAG },
       },
     },
@@ -91,17 +88,49 @@ function buildManifest(repoRoot, extensionRoot) {
   };
 }
 
+function ownsExtension(extensionRoot) {
+  const manifestFile = path.join(extensionRoot, 'gemini-extension.json');
+  if (!fs.existsSync(manifestFile)) return false;
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+    return manifest?._ubp?.source === SOURCE_TAG;
+  } catch (_error) {
+    return false;
+  }
+}
+
 function install(ctx) {
   const extensionRoot = resolveExtensionRoot(ctx);
   const repoRoot = resolveRepoRoot(ctx);
+  if (fs.existsSync(extensionRoot)) {
+    const entries = fs.readdirSync(extensionRoot);
+    if (entries.length > 0 && !ownsExtension(extensionRoot)) {
+      throw new Error(`refusing to replace unmanaged Gemini extension: ${extensionRoot}`);
+    }
+    if (entries.length > 0) {
+      for (const managed of ['skills', 'commands', 'runtime', 'spec', 'templates']) {
+        removeTree(path.join(extensionRoot, managed));
+      }
+      for (const managed of ['GEMINI.md', 'gemini-extension.json']) {
+        const file = path.join(extensionRoot, managed);
+        if (fs.existsSync(file)) fs.unlinkSync(file);
+      }
+    }
+  }
   ensureDir(extensionRoot);
 
   const report = { target: extensionRoot, copied: {}, config: { updated: false } };
 
-  // 1. Skills — copy verbatim
+  // 1. Skills — copy only the canonical Ultra-owned allowlist.
   const skillsSrc = path.join(repoRoot, 'skills');
-  if (fs.existsSync(skillsSrc)) {
-    report.copied.skills = copyTree(skillsSrc, path.join(extensionRoot, 'skills'));
+  report.copied.skills = [];
+  for (const name of skillsForRuntime('gemini')) {
+    const source = path.join(skillsSrc, name);
+    if (!fs.existsSync(path.join(source, 'SKILL.md'))) {
+      throw new Error(`missing allowlisted Gemini skill: ${name}`);
+    }
+    const files = copyTree(source, path.join(extensionRoot, 'skills', name));
+    report.copied.skills.push(...files.map((file) => path.join(name, file)));
   }
 
   // 2. Commands — md → toml
@@ -129,7 +158,8 @@ function install(ctx) {
   }
 
   // 4. Manifest
-  const manifest = buildManifest(repoRoot, extensionRoot);
+  const runtime = buildMcpRuntime(repoRoot, extensionRoot, { runtime: 'gemini' });
+  const manifest = buildManifest(repoRoot, runtime);
   writeAtomic(
     path.join(extensionRoot, 'gemini-extension.json'),
     JSON.stringify(manifest, null, 2) + '\n',

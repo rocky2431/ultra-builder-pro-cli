@@ -1,12 +1,11 @@
 ---
 name: ultra-dev
-description: "Agile development execution with TDD workflow. Writes state via task.update; review via review.run (Phase 3 wired) / subagent CLI fallback; pre-review checkpoint via session.checkpoint (Phase 5 placeholder)."
+description: "Agile development execution with TDD workflow. Writes state through live task MCP tools, reviews through native host subagents, and checkpoints through workflow-state plus lifecycle hooks."
 runtime: all
 mcp_tools_required:
   - task.update
   - task.get
   - task.list
-  - review.run
 cli_fallback: "task update"
 ---
 
@@ -23,14 +22,11 @@ Completion, Dual-Write notes).
 - **Single-write status**: Step 1.5 / Step 5 stop touching `contexts/task-{id}.md`
   frontmatter or the "`> **Status**: xxx`" line. Only MCP `task.update` fires;
   projector rewrites frontmatter; humans read body for history.
-- **MCP review path**: `/ultra-review all` is fronted by MCP `review.run` when
-  available (Phase 3 runs a worker pool server-side). When MCP is down the
-  skill falls back to the runtime's native subagent/Task path (Claude:
-  `Task` tool; others: `ultra-tools subagent run ... --backend auto`).
-- **No `/compact` dependency**: Step 4.4 writes a checkpoint via MCP
-  `session.checkpoint` (Phase 5 placeholder — until wired, skill falls back to
-  `.ultra/workflow-state.json` + the runtime's optional compact). Removing the
-  hard `/compact` dependency is a v0.1 gate.
+- **Native review path**: `/ultra-review all` delegates bounded review work to
+  the current Host's installed review agents. Review is not an MCP service.
+- **No `/compact` dependency**: Step 4.4 writes `.ultra/workflow-state.json`;
+  trusted lifecycle hooks preserve and restore it around compaction when the
+  Host exposes those events.
 
 ## Prerequisites
 
@@ -60,7 +56,7 @@ Fires when `.ultra/workflow-state.json` does NOT exist.
 2. If ANY task has `status` in (`in_progress`, `completed`) → plan was already
    approved → skip this gate
 3. Present plan overview (totals, P0/P1/P2, Walking-Skeleton position)
-4. `ask.question` (or runtime `AskUserQuestion`):
+4. Ask through the current Host's native user-interaction surface:
    - A: "Confirm, start implementation" → continue to Step 1
    - B: "Revise plan first" → suggest `/ultra-plan` → **EXIT**
 5. On approval, write workflow-state:
@@ -95,7 +91,7 @@ frontmatter re-generated with `status: in_progress`. **Do not hand-edit either.*
 
 **Unmerged-completed recovery**: `git branch --list 'feat/task-*'`; for each,
 extract task id, look up status via `task.get`. If any completed task has an
-unmerged branch → `ask.question`:
+unmerged branch → ask the user:
 - "Merge task-{id} to main first" (recommended)
 - "Delete branch (abandoned)"
 - "Skip, continue with new task"
@@ -106,15 +102,15 @@ unmerged branch → `ask.question`:
 |----------------|--------|
 | `main` / `master` | `git pull origin main && git checkout -b feat/task-{id}-{slug}` |
 | `feat/task-{id}-*` (same task) | continue (resume checkpoint) |
-| other | `ask.question`: switch to main + new branch / continue current |
+| other | ask the user: switch to main + new branch / continue current |
 
 **Dependencies**: soft-warn only; parallel work is allowed.
 
 ### Step 3 — TDD Cycle
 
-**Subagent isolation (complexity ≥ 7)**: optional — spawn the cycle via
-`ultra-tools subagent run --backend auto --prompt "…"` or runtime equivalent;
-subagent returns summary.
+**Subagent isolation (complexity ≥ 7)**: optional — delegate a bounded TDD
+cycle through the current Host's native subagent surface; the subagent returns
+a summary and the primary agent owns verification.
 
 **Mid-TDD checkpoint (complexity ≥ 6)**: after GREEN phase, write a
 checkpoint. See Step 4.4 for the preferred MCP route.
@@ -151,33 +147,21 @@ checkpoint. See Step 4.4 for the preferred MCP route.
 
 Checkpoint `step="4"`, `status="gates_passed"`.
 
-### Step 4.4 — Pre-Review Checkpoint (no more `/compact` dependency)
+### Step 4.4 — Pre-Review Checkpoint
 
-**MCP primary path** (Phase 5 wires this):
-```jsonc
-// session.checkpoint — stores workflow state so review can reclaim context
-{ "session_id": "<current>", "task_id": "<id>", "step": "4.5", "status": "pre_review" }
-```
-
-**Fallback (Phase 5 placeholder, current reality)**:
-1. Write `.ultra/workflow-state.json` with `step=4.5, status=pre_review`
-2. On Claude runtime, the user may still `/compact` manually; the skill reads
-   `.ultra/workflow-state.json` on resume to restore state
-3. Other runtimes skip `/compact` entirely (no dependency)
+1. Write `.ultra/workflow-state.json` with `step=4.5, status=pre_review`.
+2. Let trusted Host lifecycle hooks preserve and restore that state when
+   compaction events exist.
+3. On Hosts without compaction hooks, resume directly from the same file.
 
 **Gate**: the skill MUST NOT require `/compact`; it MUST work when the
 runtime cannot compact.
 
 ### Step 4.5 — Ultra Review (MANDATORY)
 
-**MCP primary path** (Phase 3 wires this):
-```jsonc
-// review.run — orchestrates the parallel agent pool server-side, writes SUMMARY.json
-{ "mode": "all", "scope": { "diff_range": "HEAD" } }
-```
-
-**Fallback — Claude Task tool**: invoke skill `/ultra-review all` (current behavior).
-**Fallback — other runtimes**: `ultra-tools subagent run review-code --backend auto` + loop.
+Invoke `/ultra-review all`. The workflow uses the current Host's installed
+review agents and writes the unified review artifact. The primary agent owns
+the final verdict and re-runs relevant tests after fixes.
 
 **MAX_REVIEW_ITERATIONS = 2**
 
@@ -243,7 +227,7 @@ Any unchecked → fix; do NOT commit.
 ### Step 6 — Commit + Merge
 
 1. `git status` → show diff
-2. `ask.question`:
+2. Ask through the current Host's native user-interaction surface:
    - A: "Commit + Merge to main" (recommended)
    - B: "Commit only, create PR later"
    - C: "Review diff first" → `git diff --stat` → re-ask
@@ -295,7 +279,7 @@ Triggered when implementation reveals spec gaps or requirement changes.
 |------|---------|--------|
 | **EXPANSION** | new requirement surfaced | update spec + Change Log |
 | **CORRECTION** | spec error/ambiguity | update spec + Change Log |
-| **REDUCTION** | removing/weakening scope | **STOP** → `ask.question` for approval |
+| **REDUCTION** | removing/weakening scope | **STOP** → ask the user for approval |
 
 **REDUCTION gate** — options:
 - A: "Approve reduction, update spec"
@@ -319,17 +303,17 @@ never silently shrink (REDUCTION without gate).
 |---------|------------------|------------------------|
 | Select pending task | `task.list` (2) / `task.get` (2) | `ultra-tools task list --status pending` |
 | Status → in_progress | `task.update` (2) | `ultra-tools task update <id> --status in_progress` |
-| Pre-review checkpoint | `session.checkpoint` (5 — placeholder) | write `.ultra/workflow-state.json` |
-| Run review | `review.run` (3 — placeholder) | Claude: `Task` → `/ultra-review all`; others: `ultra-tools subagent run review-code --backend auto` |
+| Pre-review checkpoint | none | write `.ultra/workflow-state.json`; lifecycle hooks restore it |
+| Run review | none | `/ultra-review all` + Host-native review agents |
 | Status → completed | `task.update` (2) | `ultra-tools task update <id> --status completed` |
-| Ask user | `ask.question` (3 — placeholder) | Claude: `AskUserQuestion`; CLI: `ultra-tools ask --question … --options …` |
+| Ask user | none | current Host's native user-interaction surface |
 
 ## What this skill DOES NOT do
 
 - Does NOT write `tasks.json` directly (projector owns it)
 - Does NOT edit context-md frontmatter (projector owns it)
 - Does NOT require the runtime to support `/compact`
-- Does NOT assume `review.run` or `session.checkpoint` are wired — fallbacks are first-class
+- Does NOT advertise review or checkpoint operations as MCP tools
 
 ## Integration
 

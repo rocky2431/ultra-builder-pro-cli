@@ -1,67 +1,51 @@
 ---
 name: gemini-collab
-description: "This skill should be used when the user asks to 'ask Gemini', 'Gemini review', 'let Gemini check', 'Gemini analysis', 'dual AI', or mentions 'gemini' in any collaborative context for code review, project analysis, architecture opinions, or comparative verification."
-argument-hint: "review|understand|opinion|compare|free [target]"
-user-invocable: true
+description: Ask Gemini CLI for an explicitly requested, read-only second opinion on a bounded review, diagnosis, architecture, or comparison question.
 ---
 
-# Gemini Collab - Dual AI Collaboration
+# Gemini Collaboration
 
-Use Gemini CLI as an independent sub-agent within Claude Code. Claude orchestrates, Gemini provides independent analysis, Claude synthesizes the final result. All output goes through files — zero context pollution.
+Claude Code remains primary and owns scope, evidence, edits, verification, and the final answer.
+Gemini is an untrusted read-only advisor. Use this skill only when the user explicitly requests a
+Gemini perspective.
 
-## Prerequisites
+## Preconditions
 
-- Gemini CLI installed: `npm install -g @google/gemini-cli`
-- Authenticated: `gemini` should work in terminal
-- Verify: `gemini --version`
+1. Confirm `gemini --version` and authentication.
+2. Fix the workspace, files or diff range, question, evidence standard, and expected response shape.
+3. Write the primary analysis first when independence matters.
+4. Never send secrets, unrelated files, or an unbounded home directory.
 
-## Usage
+## Modes
 
-```
-/gemini-collab review                # Gemini reviews current changes
-/gemini-collab review <file>         # Gemini reviews specific file(s)
-/gemini-collab understand            # Gemini analyzes project structure
-/gemini-collab opinion <topic>       # Get Gemini's take on an architecture decision
-/gemini-collab compare <topic>       # Both AIs answer independently, then synthesize
-/gemini-collab free <prompt>         # Free-form prompt to Gemini
-```
+- `review`: findings against an exact diff or file set.
+- `understand`: a bounded architecture or flow question.
+- `opinion`: one decision with named constraints and alternatives.
+- `compare`: independent answers to the same question.
+- `free`: another tightly scoped read-only prompt.
 
-When the user doesn't use a subcommand but mentions Gemini in a collaborative way, infer the most appropriate mode from context.
+## Safe invocation
 
-## How to Call Gemini
+Create a session directory under `.ultra/collab/`, then use Gemini's plan approval mode:
 
 ```bash
 SESSION_PATH=".ultra/collab/$(date +%Y%m%d-%H%M%S)-gemini-<mode>"
 mkdir -p "${SESSION_PATH}"
-
-# Standard call — output goes to stdout by default (no -o flag needed)
-gemini -p "Your prompt here" --yolo > "${SESSION_PATH}/output.md" 2>"${SESSION_PATH}/error.log"
-
-# With file context piped in
-cat file.py | gemini -p "Review this code" --yolo > "${SESSION_PATH}/output.md" 2>"${SESSION_PATH}/error.log"
-
-# Always read output with Read tool, never rely on Bash stdout
+gemini --approval-mode plan \
+  --output-format text \
+  -p "<bounded prompt>" \
+  > "${SESSION_PATH}/gemini-output.md" \
+  2> "${SESSION_PATH}/gemini-error.log"
 ```
 
-**Important:**
-- Always redirect to file with `> output.md`
-- Always use `--yolo` for auto-approve in headless mode
-- Use `2>"${SESSION_PATH}/error.log"` to suppress stderr noise
-- Use the Read tool to read output files
-- Set Bash timeout to 300000ms for large analyses
+Do not use auto-edit, YOLO, or permission bypass.
 
-## Error Handling
+## Synthesis
 
-- If `gemini` not found: `npm install -g @google/gemini-cli`
-- If timeout (>5min): check partial output in file
-- If empty output: proceed with Claude-only analysis
-- Never block the workflow on Gemini failure
+1. Read the output only after the process exits and the file is non-empty.
+2. Verify consequential claims against the current checkout, tests, runtime, or primary docs.
+3. Separate agreement, useful dissent, and unsupported assertions.
+4. Return one Claude Code-owned conclusion; do not paste an unreviewed advisor transcript.
 
-## Reference Files
-
-Read these when you need details beyond what's in this SKILL.md:
-
-- **`references/gemini-cli-reference.md`** — READ when you need advanced Gemini CLI flags (model selection, sandbox, output format). Contains full flag reference, approval modes, and pipe patterns.
-- **`references/gemini-prompts.md`** — READ when constructing Gemini prompts. Contains CLI-ready prompt templates for each collaboration mode with recommended model per mode.
-- **`references/collaboration-modes.md`** — READ when you need the detailed step-by-step flow for a specific mode. Contains definitions for review/understand/opinion/compare/free modes.
-- **`references/collab-protocol.md`** — READ when writing synthesis reports or managing sessions. Contains core principles, synthesis template, session management, and error handling.
+If Gemini is missing, unauthenticated, times out, or returns empty output, report the degraded path
+and continue with primary evidence. Never block the user's task solely on advisor failure.
