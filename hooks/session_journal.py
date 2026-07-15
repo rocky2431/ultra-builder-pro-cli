@@ -4,7 +4,8 @@
 Records session events to SQLite + JSONL for cross-session memory.
 Identity: uses content_session_id from hook protocol; merge window as fallback.
 
-Layer 2: AI-generated structured summary via Haiku (non-blocking daemon).
+Layer 2 (Claude runtime only): AI-generated structured summary via the host CLI
+(non-blocking daemon). Codex hooks stay deterministic and never launch nested Codex.
 Layer 2 fallback: Git commit messages as summary.
 
 Execution target: < 100ms (daemon spawns async, no blocking in hot path).
@@ -20,6 +21,7 @@ from pathlib import Path
 # Import shared memory_db module
 sys.path.insert(0, str(Path(__file__).parent))
 import memory_db
+from hook_utils import get_runtime_data_root
 
 GIT_TIMEOUT = 3
 COMMIT_WINDOW_MIN = 30
@@ -28,6 +30,7 @@ TRANSCRIPT_HEAD_CHARS = 4000   # First N chars: problem context & initial decisi
 TRANSCRIPT_TAIL_CHARS = 11000  # Last N chars: resolution & recent work
 TRANSCRIPT_MAX_CHARS = 15000   # Total budget (head + tail)
 TRANSCRIPT_MAX_MESSAGES = 100  # Increased from 50 for better coverage
+IS_CODEX = os.environ.get("UBP_HOOK_RUNTIME") == "codex"
 AI_MODEL_CLI = "haiku"
 AI_MAX_TOKENS = 1000
 
@@ -44,11 +47,13 @@ def _get_daemon_log() -> Path:
             return Path(result.stdout.strip()) / ".ultra" / "memory" / "daemon-errors.log"
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
-    return Path.home() / ".claude" / "memory" / "daemon-errors.log"
+    return get_runtime_data_root() / "memory" / "daemon-errors.log"
 
 # Allowed parent directories for transcript files
 ALLOWED_TRANSCRIPT_DIRS = [
     Path.home() / ".claude",
+    Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")),
+    get_runtime_data_root(),
     Path("/tmp"),
     Path("/private/tmp"),
 ]
@@ -56,7 +61,7 @@ ALLOWED_TRANSCRIPT_DIRS = [
 # Env vars allowed in AI summarize daemon (whitelist > blacklist for security)
 DAEMON_ENV_WHITELIST = {
     "PATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL", "LC_CTYPE",
-    "TMPDIR", "TERM", "LOGNAME", "XDG_RUNTIME_DIR",
+    "TMPDIR", "TERM", "LOGNAME", "XDG_RUNTIME_DIR", "CODEX_HOME",
 }
 
 
@@ -183,10 +188,15 @@ def extract_transcript_text(transcript_path: str) -> str:
                     continue
 
                 entry_type = entry.get("type")
-                if entry_type not in ("user", "assistant"):
+                if entry_type in ("user", "assistant"):
+                    msg = entry.get("message", {})
+                elif entry_type == "response_item":
+                    payload = entry.get("payload", {})
+                    if payload.get("type") != "message" or payload.get("role") not in ("user", "assistant"):
+                        continue
+                    msg = payload
+                else:
                     continue
-
-                msg = entry.get("message", {})
                 role = msg.get("role", "")
                 content = msg.get("content", "")
 
@@ -196,7 +206,7 @@ def extract_transcript_text(transcript_path: str) -> str:
                 elif isinstance(content, list):
                     parts = []
                     for item in content:
-                        if isinstance(item, dict) and item.get("type") == "text":
+                        if isinstance(item, dict) and item.get("type") in ("text", "input_text", "output_text"):
                             t = item.get("text", "").strip()
                             if t:
                                 parts.append(t)
@@ -248,7 +258,7 @@ def extract_transcript_text(transcript_path: str) -> str:
 
 
 def _build_summary_prompt(transcript_text: str) -> str:
-    """Build the structured-summary prompt for Haiku.
+    """Build the structured-summary prompt for the runtime summarizer.
 
     Isolated for testability and to keep the injection guard (XML-wrapped
     transcript) visible. Do not inline — tests assert on this function.
@@ -259,7 +269,7 @@ def _build_summary_prompt(transcript_text: str) -> str:
     """
     safe_text = transcript_text.replace("</transcript>", "</transcript\u200b>")
     return (
-        "You are a session archivist for Claude Code engineering sessions. "
+        "You are a session archivist for software engineering agent sessions. "
         "Extract structured facts from the transcript below. Do not speculate; "
         "report only what is clearly stated or demonstrated.\n\n"
         "<transcript>\n"
@@ -302,7 +312,7 @@ def spawn_ai_summarize(session_id: str, transcript_path: str,
     """Spawn a double-fork daemon for non-blocking AI summarization.
 
     Parent returns immediately (<1ms). Daemon waits AI_SUMMARIZE_DELAY
-    seconds, generates structured summary via Haiku, writes to DB + Chroma.
+    seconds, generates a structured summary, and writes to DB + Chroma.
     """
     try:
         pid = os.fork()
@@ -343,7 +353,12 @@ def spawn_ai_summarize(session_id: str, transcript_path: str,
     except Exception:
         _log_daemon_error()
 
-    os._exit(0)
+        os._exit(0)
+
+
+def should_spawn_ai_summary() -> bool:
+    """Keep Codex lifecycle hooks deterministic and free of nested model calls."""
+    return not IS_CODEX
 
 
 def _log_daemon_error() -> None:
@@ -379,7 +394,7 @@ def _log_daemon_info(event: str, detail: str = "") -> None:
 
 def _run_ai_summarize(session_id: str, transcript_path: str,
                       db_path: str) -> None:
-    """Daemon main: wait, extract transcript, summarize via Haiku, store structured.
+    """Daemon main: wait, extract transcript, summarize, and store structured data.
 
     Output: JSON with request/completed/learned/next_steps fields.
     Storage: session_summaries table (structured) + sessions.summary (legacy compat).
@@ -394,9 +409,7 @@ def _run_ai_summarize(session_id: str, transcript_path: str,
 
     prompt = _build_summary_prompt(text)
 
-    # SDK fallback removed: ANTHROPIC_API_KEY is stripped by DAEMON_ENV_WHITELIST,
-    # so _try_anthropic_sdk would never succeed in the daemon context.
-    raw = _try_claude_cli(prompt)
+    raw = _try_runtime_cli(prompt)
     if not raw:
         _log_daemon_info("empty_cli_response", session_id)
         return
@@ -496,24 +509,20 @@ def _parse_summary_json(raw: str) -> dict | None:
     return result
 
 
-def _try_claude_cli(prompt: str) -> str:
-    """Tier 1: claude -p --model haiku --no-session-persistence.
-
-    Uses Claude Code's existing OAuth auth (Max subscription).
-    --no-session-persistence prevents polluting /resume with summary sessions.
-    Clears CLAUDE* env vars to avoid nesting detection, and removes
-    ANTHROPIC_API_KEY to force OAuth fallback (the env var may contain
-    a placeholder that causes 401 errors).
-    """
+def _try_runtime_cli(prompt: str) -> str:
+    """Summarize with the isolated Claude CLI on the Claude runtime only."""
+    if IS_CODEX:
+        return ""
     try:
         env = {k: v for k, v in os.environ.items()
                if k in DAEMON_ENV_WHITELIST}
         env.setdefault("PATH", "/usr/bin:/usr/local/bin")
         env["ULTRA_AI_DAEMON"] = "1"
 
+        command = ["claude", "-p", "--model", AI_MODEL_CLI,
+                   "--no-session-persistence", prompt]
         result = subprocess.run(
-            ["claude", "-p", "--model", AI_MODEL_CLI,
-             "--no-session-persistence", prompt],
+            command,
             capture_output=True, text=True, timeout=60, env=env
         )
         if result.returncode == 0:
@@ -534,7 +543,7 @@ def _try_claude_cli(prompt: str) -> str:
     except subprocess.TimeoutExpired:
         _log_daemon_failure("CLI timed out after 60s")
     except FileNotFoundError:
-        _log_daemon_failure("'claude' CLI not found in PATH")
+        _log_daemon_failure(f"'{command[0] if 'command' in locals() else 'host'}' CLI not found in PATH")
     except OSError as e:
         _log_daemon_failure(f"OSError: {e}")
     return ""
@@ -629,7 +638,8 @@ def main():
         print("[session_journal] DB write failed", file=sys.stderr)
 
     # Spawn AI summarize daemon only if no existing summary
-    if transcript_path and session_id and not has_existing_summary:
+    if (transcript_path and session_id and not has_existing_summary
+            and should_spawn_ai_summary()):
         spawn_ai_summarize(session_id, transcript_path, db_path)
 
     # Append to JSONL (backup)

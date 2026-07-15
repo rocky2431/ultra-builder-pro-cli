@@ -15,11 +15,15 @@ Usage:
 """
 
 import json
+import os
 import random
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from hook_utils import get_runtime_data_root
 
 GIT_TIMEOUT = 3
 MAX_LOG_LINES = 5000
@@ -28,7 +32,7 @@ MAX_LOG_LINES = 5000
 def get_log_dir() -> Path:
     """Get project-level log directory (.ultra/debug/ relative to git toplevel).
 
-    Falls back to ~/.claude/debug/ if not in a git repo.
+    Falls back to the active runtime data directory if not in a git repo.
     """
     try:
         proc = subprocess.run(
@@ -39,7 +43,7 @@ def get_log_dir() -> Path:
             return Path(proc.stdout.strip()) / ".ultra" / "debug"
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
-    return Path.home() / ".claude" / "debug"
+    return get_runtime_data_root() / "debug"
 
 
 def rotate_log(log_file: Path) -> None:

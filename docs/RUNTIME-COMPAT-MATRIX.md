@@ -13,37 +13,38 @@ what degrades, and what is outright unavailable. Every decision in
 
 | Capability | Claude | OpenCode | Codex | Gemini |
 |-----------|:------:|:--------:|:-----:|:------:|
-| Slash command (`/ultra-init …`) | FULL | FULL | DEGRADED (via `prompts/*.md`) | DEGRADED (via `commands/*.toml`) |
-| Command frontmatter recognized | FULL (`description`, `model`, `allowed-tools`, `argument-hint`) | FULL (lowercased keys) | N/A (plain prompt, frontmatter stripped) | FULL (`description`, `prompt`) |
+| Slash command (`/ultra-init …`) | FULL | FULL | N/A (custom prompts deprecated; maps to `$ultra-builder-pro:ultra-init`) | DEGRADED (via `commands/*.toml`) |
+| Command frontmatter recognized | FULL (`description`, `model`, `allowed-tools`, `argument-hint`) | FULL (lowercased keys) | FULL after conversion to skill `name` + `description` | FULL (`description`, `prompt`) |
 | `argument-hint` rendered in picker | FULL | FULL | N/A | DEGRADED (description only) |
-| `$ARGUMENTS` / positional args | FULL | FULL | FULL | FULL |
-| Thin-shell `workflow-ref` resolution | FULL (agent loads referenced SKILL.md) | FULL | DEGRADED (referenced SKILL.md copied alongside prompt) | DEGRADED (SKILL.md shipped in extension) |
+| `$ARGUMENTS` / positional args | FULL | FULL | DEGRADED (natural-language task context, no custom-prompt positional variables) | FULL |
+| Thin-shell `workflow-ref` resolution | FULL (agent loads referenced SKILL.md) | FULL | FULL (command workflow and referenced skill are bundled in one plugin) | DEGRADED (SKILL.md shipped in extension) |
 
 ## 2. Skills
 
 | Capability | Claude | OpenCode | Codex | Gemini |
 |-----------|:------:|:--------:|:-----:|:------:|
-| Skills directory | `~/.claude/skills/` | `~/.config/opencode/skills/` | `~/.agents/skills/` (open-agent standard) | `~/.gemini/extensions/<ext>/skills/` |
-| `user-invocable: true` opt-in | FULL | FULL | DEGRADED (read as prompt include) | DEGRADED (read as prompt include) |
-| Skill frontmatter parse | FULL | FULL (lowercased) | N/A | N/A |
-| Auto-discovery by name | FULL | FULL | FULL (agents convention) | DEGRADED (manifest enumeration) |
+| Skills directory | `~/.claude/skills/` | `~/.config/opencode/skills/` | `~/plugins/ultra-builder-pro/skills/` → installed plugin cache | `~/.gemini/extensions/<ext>/skills/` |
+| Explicit invocation | FULL | FULL | FULL (`$ultra-builder-pro:<skill>`) | DEGRADED (read as prompt include) |
+| Skill frontmatter parse | FULL | FULL (lowercased) | FULL (`name`, `description`; `agents/openai.yaml` for UI/policy) | N/A |
+| Auto-discovery by name | FULL | FULL | FULL where `allow_implicit_invocation` is enabled | DEGRADED (manifest enumeration) |
 
 ## 3. Hook events
 
 | Event | Claude | OpenCode | Codex | Gemini |
 |-------|:------:|:--------:|:-----:|:------:|
-| SessionStart | FULL | DEGRADED (mapped from `session.start`) | N/A | N/A |
-| UserPromptSubmit | FULL | DEGRADED (synth from event bus) | N/A | N/A |
-| PreToolUse | FULL | DEGRADED (synth from event bus) | DEGRADED (`pre-tool-exec`, spec pending) | N/A |
-| PostToolUse | FULL | DEGRADED (synth from event bus) | DEGRADED (`pre-tool-exec` inverse) | N/A |
-| PreCompact / PostCompact | FULL | N/A (no compact) | N/A (no compact) | N/A (no compact) |
-| Stop | FULL | DEGRADED (synth) | DEGRADED (`post-session`) | N/A |
-| SubagentStop | FULL | N/A | N/A | N/A |
-| **Total reachable events** | **8** | **2** (session.start + event) | **2** (pre-tool-exec + post-session, pending) | **0** |
+| SessionStart | FULL | DEGRADED (mapped from `session.start`) | FULL | N/A |
+| UserPromptSubmit | FULL | DEGRADED (synth from event bus) | FULL | N/A |
+| PreToolUse | FULL | DEGRADED (synth from event bus) | FULL (deny decisions preserved) | N/A |
+| PostToolUse | FULL | DEGRADED (synth from event bus) | FULL | N/A |
+| PreCompact / PostCompact | FULL | N/A (no compact) | FULL | N/A (no compact) |
+| Stop | FULL | DEGRADED (synth) | FULL | N/A |
+| SubagentStart / SubagentStop | PARTIAL / FULL | N/A | FULL | N/A |
+| **Total Ultra-registered events** | **8** | **2** (session.start + event) | **9** | **0** |
 
 Consequences:
 - Claude enforces hooks at runtime — gold standard
-- OpenCode / Codex enforce at tool-call + stop boundaries; mid-workflow checks degrade
+- Codex executes project/plugin/user hooks natively after trust is granted; each event is schema-normalized by `hooks/adapters/codex.py`
+- OpenCode enforces at its reachable event boundaries; mid-workflow checks degrade
 - Gemini cannot enforce at runtime; guidance degrades to prompt context (see `hooks/adapters/gemini.py`)
 
 ## 4. MCP (Model Context Protocol)
@@ -52,9 +53,11 @@ Consequences:
 |-----------|:------:|:--------:|:-----:|:------:|
 | stdio transport | FULL | FULL | FULL | FULL (via extension manifest) |
 | HTTP / SSE transport | FULL | FULL | PARTIAL (upstream) | DEGRADED (extension only) |
-| Server registration location | `settings.json → mcpServers` | `opencode.json → mcp` | `config.toml → [mcp_servers.<name>]` | `gemini-extension.json → mcpServers` |
+| Server registration location | `settings.json → mcpServers` | `opencode.json → mcp` | plugin `.mcp.json` | `gemini-extension.json → mcpServers` |
 | Our MCP server name | `ultra-builder-pro` | `ultra-builder-pro` | `ultra-builder-pro` | `ultra-builder-pro` |
 | Tool call propagation to agent | FULL | FULL | FULL | FULL |
+| Live vs declared contract truth | 24 live / 33 declared | 24 live / 33 declared | 24 live + 9 explicit native replacements | 24 live / 33 declared |
+| Runtime packaging | source dependency tree | source dependency tree | self-contained `ncc` bundle + native SQLite binary | extension dependency tree |
 
 ## 5. Subagents
 
@@ -62,14 +65,14 @@ Consequences:
 |-----------|:------:|:--------:|:-----:|:------:|
 | Native subagent primitive | `Task` tool | `@mention` | `spawn_agent` | preview (evolving) |
 | Parent ↔ child message channel | FULL | FULL | FULL | DEGRADED |
-| Stop event emitted to parent | FULL | N/A | N/A | N/A |
-| `ultra-tools subagent run` fallback | FULL (all) | FULL | FULL | FULL |
+| Start/stop lifecycle event emitted | FULL (stop) | N/A | FULL (`SubagentStart` + `SubagentStop`) | N/A |
+| `ultra-tools subagent run` fallback | N/A (not implemented) | N/A | N/A (native agents are authoritative) | N/A |
 
 ## 6. Ask / user prompts
 
 | Capability | Claude | OpenCode | Codex | Gemini |
 |-----------|:------:|:--------:|:-----:|:------:|
-| Rich picker widget | `AskUserQuestion` (native) | DEGRADED (text menu) | DEGRADED (text menu) | DEGRADED (text menu) |
+| Rich picker widget | `AskUserQuestion` (native) | DEGRADED (text menu) | `request_user_input` where exposed; direct question otherwise | DEGRADED (text menu) |
 | `ask.question` MCP fallback | scheduled (Phase 3.7) | scheduled | scheduled | scheduled |
 | `ultra-tools ask …` CLI | scheduled | scheduled | scheduled | scheduled |
 
@@ -78,8 +81,8 @@ Consequences:
 | Capability | Claude | OpenCode | Codex | Gemini |
 |-----------|:------:|:--------:|:-----:|:------:|
 | Tokens consumed | FULL | PARTIAL | PARTIAL | N/A |
-| Cost accounting | FULL | N/A | N/A | N/A |
-| Exposed to agent at runtime | FULL | N/A | N/A | N/A |
+| Cost accounting | FULL | N/A | PARTIAL (recorded telemetry only) | N/A |
+| Exposed to agent at runtime | FULL | N/A | FULL through the bundled status CLI | N/A |
 
 ## 8. Worktree / process isolation
 
@@ -102,7 +105,7 @@ Consequences:
 | Capability | Claude | OpenCode | Codex | Gemini |
 |-----------|:------:|:--------:|:-----:|:------:|
 | `ultra-builder-pro-cli --<runtime>` install | FULL | FULL | FULL | FULL |
-| Uninstall removes only managed assets | FULL (sentinel `_ubp_manifest`) | FULL (sentinel) | FULL (marker block) | FULL (whole extension dir) |
+| Uninstall removes only managed assets | FULL (sentinel `_ubp_manifest`) | FULL (sentinel) | FULL (`.ubp-managed`, install manifest, managed agent headers) | FULL (whole extension dir) |
 | Install idempotency | FULL | FULL | FULL | FULL |
 | User-authored config preserved | FULL | FULL | FULL | N/A (extension is isolated) |
 
@@ -110,7 +113,7 @@ Consequences:
 
 - Claude: [Claude Code Hooks](https://code.claude.com/docs/en/hooks), [Sub-agents](https://code.claude.com/docs/en/sub-agents)
 - OpenCode: [Commands](https://opencode.ai/docs/commands/), [Agents](https://opencode.ai/docs/agents/), [Config](https://opencode.ai/docs/config/)
-- Codex: [Config Reference](https://developers.openai.com/codex/config-reference), [Skills](https://developers.openai.com/codex/skills), spike R11 pending
+- Codex: current Codex manual for [plugins](https://developers.openai.com/codex/plugins), [hooks](https://developers.openai.com/codex/hooks), [skills](https://developers.openai.com/codex/skills), and custom agents
 - Gemini: [Custom Commands](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/custom-commands.md), [Extensions](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/reference.md), spike R13 pending
 - PLAN §5 + §14 decisions D23 (matrix requirement) / D35 (a/b split) / D45 (4.6b conformance + P2/P3 clearance) / R10–R14 (runtime risk register)
 
@@ -119,7 +122,7 @@ Consequences:
 - `tests/conformance/{claude,opencode,codex,gemini}/conformance.test.cjs` — 4×5 = 20 capability tests (Phase 4.6b / D45)
 - `tests/conformance/{claude,opencode,codex,gemini}/smoke.test.cjs` — 4×2 = 8 smoke flows (Phase 4.6a / D41)
 - `adapters/_shared/tests/resolve-target.test.cjs` — 21 resolveTarget contract tests (D45)
-- Last run: 2026-04-17 — 28 conformance + 21 resolveTarget, 0 failed
+- Codex-specific adapter, hook, conformance, and smoke coverage is exercised by `npm run test:all`.
 
 ## Update protocol
 

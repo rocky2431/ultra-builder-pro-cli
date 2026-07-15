@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared utilities for Claude Code hooks.
+"""Shared utilities for Ultra Builder Pro hooks across supported runtimes.
 
 Provides common functions to avoid duplication across hook files:
 - Git repository detection and commands
@@ -45,7 +45,17 @@ def run_git(*args, timeout: int = GIT_TIMEOUT) -> str:
     return ""
 
 
-def get_project_path(subpath: str, fallback_base: str = "~/.claude") -> Path:
+def get_runtime_data_root() -> Path:
+    """Return the runtime-owned fallback directory outside a git project."""
+    configured = os.environ.get("UBP_HOOK_DATA", "").strip()
+    if configured:
+        return Path(configured).expanduser()
+    if os.environ.get("UBP_HOOK_RUNTIME") == "codex":
+        return Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "ultra-builder-pro"
+    return Path.home() / ".claude"
+
+
+def get_project_path(subpath: str, fallback_base: str | None = None) -> Path:
     """Resolve project-level path: {git_toplevel}/.ultra/{subpath}.
 
     Falls back to {fallback_base}/{subpath} if not in a git repo.
@@ -53,7 +63,8 @@ def get_project_path(subpath: str, fallback_base: str = "~/.claude") -> Path:
     toplevel = get_git_toplevel()
     if toplevel:
         return Path(toplevel) / ".ultra" / subpath
-    return Path(fallback_base).expanduser() / subpath
+    base = Path(fallback_base).expanduser() if fallback_base else get_runtime_data_root()
+    return base / subpath
 
 
 def get_snapshot_path() -> Path:
@@ -61,7 +72,7 @@ def get_snapshot_path() -> Path:
     toplevel = get_git_toplevel()
     if toplevel:
         return Path(toplevel) / ".ultra" / "compact-snapshot.md"
-    return Path.home() / ".claude" / "compact-snapshot.md"
+    return get_runtime_data_root() / "compact-snapshot.md"
 
 
 def get_workflow_state() -> dict | None:

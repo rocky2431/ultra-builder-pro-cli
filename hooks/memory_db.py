@@ -37,6 +37,9 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from hook_utils import get_runtime_data_root
+
 GIT_TIMEOUT = 3
 DEFAULT_MERGE_WINDOW_MIN = 30
 DEFAULT_RETENTION_DAYS = 90
@@ -63,15 +66,17 @@ def get_git_toplevel() -> str:
 def _resolve_memory_root() -> Path:
     """Resolve the memory root directory for this invocation.
 
-    Global config dir ~/.claude is not a project, so its memory routes to
-    ~/.claude/memory/ — shared across all sessions started under it. Real
-    projects get their own {project}/.ultra/memory/ subtree.
+    The active runtime's global config dir is not a project, so its memory
+    routes to the runtime data directory. Real projects get their own
+    {project}/.ultra/memory/ subtree.
     """
-    claude_home = Path.home() / ".claude"
+    runtime_home = get_runtime_data_root()
+    codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
+    global_roots = {runtime_home.resolve(), codex_home.resolve(), (Path.home() / ".claude").resolve()}
     toplevel = get_git_toplevel()
-    if toplevel and Path(toplevel).resolve() != claude_home.resolve():
+    if toplevel and Path(toplevel).resolve() not in global_roots:
         return Path(toplevel) / ".ultra" / "memory"
-    return claude_home / "memory"
+    return runtime_home / "memory"
 
 
 def get_db_path() -> Path:
@@ -633,7 +638,7 @@ def get_observations(conn: sqlite3.Connection, session_id: str) -> list:
 
 def get_session_by_content_id(conn: sqlite3.Connection,
                               content_session_id: str) -> dict | None:
-    """Look up session by Claude Code's content_session_id."""
+    """Look up a session by the host runtime's content_session_id."""
     row = conn.execute(
         "SELECT * FROM sessions WHERE content_session_id = ?",
         (content_session_id,)

@@ -17,6 +17,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from hook_utils import get_runtime_data_root
+
 MAX_INJECTIONS = 10
 GIT_TIMEOUT = 3
 
@@ -40,12 +43,13 @@ def get_db_path() -> Path | None:
                 return db
     except Exception:
         pass
-    fallback = Path.home() / ".claude" / "memory" / "memory.db"
+    fallback = get_runtime_data_root() / "memory" / "memory.db"
     return fallback if fallback.exists() else None
 
 
 def get_tracker_path(session_id: str) -> str:
-    return os.path.join(tempfile.gettempdir(), f".claude_recall_{session_id}")
+    runtime = "codex" if os.environ.get("UBP_HOOK_RUNTIME") == "codex" else "claude"
+    return os.path.join(tempfile.gettempdir(), f".{runtime}_recall_{session_id}")
 
 
 def load_recalled(session_id: str) -> set:

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.4.0] — 2026-07-15
+
+### Changed
+
+- Replaced the deprecated Codex `prompts/` and `config.toml` marker projection
+  with a complete personal plugin: 25 adapted skills, nine legacy-command maps,
+  plugin MCP registration, and current native hook events.
+- Converted all nine Ultra agents to native `.codex/agents/*.toml` definitions.
+- Renamed the cross-model skill from `codex-collab` to `cc-collab`; Codex remains
+  the primary agent and Claude Code is an explicitly requested, read-only advisor.
+- Made hook memory, compaction, health, subagent, transcript, and summary behavior
+  runtime-aware. Codex no longer writes fallback state under `~/.claude` or
+  launches a nested model CLI for session summaries.
+- Bundled the Codex MCP and status CLI with `@vercel/ncc`, preserving the active
+  task cwd for project-local state. Generated Codex plugins now distinguish the
+  24 live MCP tools from nine upstream scheduled contracts and document each
+  Codex-native replacement.
+
 ## [0.3.0] — 2026-04-18
 
 ### Added
@@ -110,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
+[0.4.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.4.0
 [0.3.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.3.0
 [0.2.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.2.0
 [0.1.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.1.0

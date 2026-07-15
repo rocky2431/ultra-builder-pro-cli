@@ -3,7 +3,7 @@
 
 Two-layer strategy:
 1. additionalContext → guides the compactor on what to preserve in summary
-2. Disk file (~/.claude/compact-snapshot.md) → full context recoverable via Read tool
+2. Runtime data file → full context recoverable through the file tools
 
 Usage:
   python3 pre_compact_context.py  # called by PreCompact hook
@@ -17,10 +17,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from hook_utils import get_snapshot_path, get_workflow_state, run_git
+from hook_utils import get_runtime_data_root, get_snapshot_path, get_workflow_state, run_git
 
 GIT_TIMEOUT = 3
-COMPACT_MARKER = f".claude_compact_ts_{os.getuid()}"
+RUNTIME_NAME = "codex" if os.environ.get("UBP_HOOK_RUNTIME") == "codex" else "claude"
+COMPACT_MARKER = f".{RUNTIME_NAME}_compact_ts_{os.getuid()}"
 
 
 def get_active_subagents() -> list:
@@ -29,7 +30,7 @@ def get_active_subagents() -> list:
         log_dir = Path.cwd() / ".ultra" / "debug"
         log_file = log_dir / "subagent-log.jsonl"
         if not log_file.exists():
-            log_file = Path.home() / ".claude" / "debug" / "subagent-log.jsonl"
+            log_file = get_runtime_data_root() / "debug" / "subagent-log.jsonl"
         if not log_file.exists():
             return []
 
@@ -87,7 +88,9 @@ def get_task_context():
 
 
 def get_native_tasks():
-    """Read native Claude Code task list files if they exist."""
+    """Read native Claude Code task files when running under Claude Code."""
+    if os.environ.get("UBP_HOOK_RUNTIME") == "codex":
+        return []
     todos_dir = Path.home() / ".claude" / "todos"
     if not todos_dir.exists():
         return []

@@ -42,14 +42,14 @@ def is_generated_file(file_path):
     indicators = [
         '/node_modules/', '/dist/', '/build/', '/.next/',
         '/coverage/', '.min.js', '.bundle.js', '.generated.',
-        '/.claude/hooks/',
+        '/.claude/hooks/', '/plugins/ultra-builder-pro/hooks/',
     ]
     return any(ind in file_path for ind in indicators)
 
 
 def is_hook_file(file_path):
     """Hook files - skip security self-detection."""
-    return '/.claude/hooks/' in file_path
+    return '/.claude/hooks/' in file_path or '/plugins/ultra-builder-pro/hooks/' in file_path
 
 
 def is_example_or_docs(file_path):
@@ -232,7 +232,7 @@ def check_code_quality(_file_path, content, lines):
         for match in re.finditer(pattern, content, re.IGNORECASE):
             line_num = get_line_number(content, match.start())
             line_content = lines[line_num - 1].strip() if line_num <= len(lines) else ''
-            # All TODO/FIXME/XXX/HACK are forbidden per CLAUDE.md - no exceptions
+            # All TODO/FIXME/XXX/HACK markers are forbidden by the host instructions.
             blocks.append({'line': line_num, 'message': message, 'code': line_content[:80]})
 
     # WARN patterns deferred to review-code agent (reduces PostToolUse noise)

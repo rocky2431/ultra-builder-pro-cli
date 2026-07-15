@@ -5,105 +5,358 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const yaml = require('js-yaml');
+const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
+const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 
 const codex = require('../codex.js');
+const { parse: parseFrontmatter } = require('../_shared/frontmatter.cjs');
+const PACKAGE_VERSION = require('../../package.json').version;
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const COMMANDS = [
+  'learn',
+  'ultra-deliver',
+  'ultra-dev',
+  'ultra-init',
+  'ultra-plan',
+  'ultra-research',
+  'ultra-status',
+  'ultra-test',
+  'ultra-think',
+];
+const AGENTS = [
+  'code-reviewer',
+  'debugger',
+  'review-code',
+  'review-comments',
+  'review-coordinator',
+  'review-design',
+  'review-errors',
+  'review-tests',
+  'tdd-runner',
+];
 
-function mkTarget() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-codex-'));
+function mkLayout() {
+  const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-codex-home-'));
+  return {
+    homeDir,
+    configDir: path.join(homeDir, '.codex'),
+    pluginRoot: path.join(homeDir, 'plugins', 'ultra-builder-pro'),
+    marketplaceFile: path.join(homeDir, '.agents', 'plugins', 'marketplace.json'),
+  };
 }
 
-test('install copies skills/prompts/hooks + writes config.toml managed block', () => {
-  const target = mkTarget();
-  try {
-    const r = codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    assert.ok(r.copied.skills.some((p) => p.includes('ultra-init/SKILL.md')));
-    assert.ok(r.copied.prompts.includes('ultra-init.md'));
-    assert.ok(r.copied.hooks.includes('post_edit_guard.py'));
+function cleanup(layout) {
+  fs.rmSync(layout.homeDir, { recursive: true, force: true });
+}
 
-    const toml = fs.readFileSync(path.join(target, 'config.toml'), 'utf8');
-    assert.match(toml, />>> ultra-builder-pro managed block/);
-    assert.match(toml, /\[mcp_servers\.ultra-builder-pro\]/);
-    assert.match(toml, /command = "/);
-    assert.match(toml, /\[mcp_servers\.ultra-builder-pro\.env\]/);
-    assert.match(toml, /UBP_DB_PATH = "/);
+function install(layout) {
+  return codex.install({
+    configDir: layout.configDir,
+    homeDir: layout.homeDir,
+    scope: 'global',
+    repoRoot: REPO_ROOT,
+    runPluginCli: false,
+  });
+}
+
+function skillNames(pluginRoot) {
+  return fs.readdirSync(path.join(pluginRoot, 'skills'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(pluginRoot, 'skills', entry.name, 'SKILL.md')))
+    .map((entry) => entry.name)
+    .sort();
+}
+
+test('install builds one Codex-native plugin with complete skill and command coverage', () => {
+  const layout = mkLayout();
+  try {
+    const report = install(layout);
+    assert.equal(report.plugin.root, layout.pluginRoot);
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8'));
+    assert.equal(manifest.name, 'ultra-builder-pro');
+    const escapedVersion = PACKAGE_VERSION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.match(manifest.version, new RegExp(`^${escapedVersion}\\+codex\\.[0-9a-f]{12}$`));
+    assert.equal(manifest.skills, './skills/');
+    assert.equal(manifest.mcpServers, './.mcp.json');
+    assert.ok(!Object.hasOwn(manifest, 'hooks'), 'default hooks/hooks.json discovery avoids unsupported manifest field');
+
+    const sourceSkills = fs.readdirSync(path.join(REPO_ROOT, 'skills'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(REPO_ROOT, 'skills', entry.name, 'SKILL.md')))
+      .map((entry) => entry.name);
+    const expectedSkills = sourceSkills
+      .filter((name) => name !== 'codex-collab')
+      .concat('cc-collab')
+      .sort();
+    assert.deepEqual(skillNames(layout.pluginRoot), expectedSkills);
+    assert.equal(expectedSkills.length, 25);
+    assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'codex-collab')));
+    assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'learned')));
+
+    const commandMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'command-map.json'), 'utf8'));
+    assert.deepEqual(Object.keys(commandMap).sort(), COMMANDS.map((name) => `/${name}`).sort());
+    for (const command of COMMANDS) {
+      assert.equal(commandMap[`/${command}`], `$ultra-builder-pro:${command}`);
+      assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'skills', command, 'SKILL.md')));
+    }
+    assert.ok(!fs.existsSync(path.join(layout.configDir, 'prompts')), 'deprecated Codex prompts must not be installed');
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    cleanup(layout);
   }
 });
 
-test('install preserves user-authored config.toml content around managed block', () => {
-  const target = mkTarget();
-  const configFile = path.join(target, 'config.toml');
+test('every generated skill is Codex-valid, UI-visible, and free of Claude host bindings', () => {
+  const layout = mkLayout();
   try {
-    fs.mkdirSync(target, { recursive: true });
-    fs.writeFileSync(configFile, '[profile]\nname = "dev"\n\n[mcp_servers.mine]\ncommand = "node"\n');
+    install(layout);
+    for (const name of skillNames(layout.pluginRoot)) {
+      const skillDir = path.join(layout.pluginRoot, 'skills', name);
+      const text = fs.readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8');
+      const { fm } = parseFrontmatter(text);
+      assert.deepEqual(Object.keys(fm).sort(), ['description', 'name'], `${name} should use Codex skill frontmatter only`);
+      assert.equal(fm.name, name);
+      assert.doesNotMatch(
+        text,
+        /~\/\.claude|CLAUDE\.md|AskUserQuestion|(^|[\s`(>])\/(?:ultra-[a-z-]+|recall|learn|gemini-collab|codex-collab)(?=$|[\s`,.;):])/m,
+      );
+      assert.doesNotMatch(text, /TaskCreate|TaskUpdate|TaskList|TaskOutput|run_in_background|~\/\.codex\/skills|mcp__claude/);
 
-    codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    const merged = fs.readFileSync(configFile, 'utf8');
-    assert.match(merged, /name = "dev"/);
-    assert.match(merged, /\[mcp_servers\.mine\]/);
-    assert.match(merged, /\[mcp_servers\.ultra-builder-pro\]/);
+      const openai = yaml.load(fs.readFileSync(path.join(skillDir, 'agents', 'openai.yaml'), 'utf8'));
+      assert.ok(openai.interface.display_name);
+      assert.ok(openai.interface.short_description);
+      assert.match(openai.interface.default_prompt, new RegExp(`\\$ultra-builder-pro:${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+      assert.equal(typeof openai.policy.allow_implicit_invocation, 'boolean');
+    }
+
+    const cc = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'cc-collab', 'SKILL.md'), 'utf8');
+    assert.match(cc, /Claude Code/);
+    assert.match(cc, /claude --safe-mode/);
+
+    const verify = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-verify', 'SKILL.md'), 'utf8');
+    assert.match(verify, /Codex owns the task/);
+    assert.match(verify, /claude --safe-mode/);
+    assert.match(verify, /gemini --approval-mode plan/);
+    assert.match(verify, /codex-analysis\.md/);
+    assert.doesNotMatch(verify, /codex-output\.md|Claude synthesizes|Claude-only/);
+
+    const waiter = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-verify', 'scripts', 'verify_wait.py'), 'utf8');
+    assert.match(waiter, /"claude": "claude-output\.md"/);
+    assert.doesNotMatch(waiter, /"codex": "codex-output\.md"/);
+
+    const review = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-review', 'SKILL.md'), 'utf8');
+    assert.match(review, /native Codex custom agents/);
+    assert.match(review, /~\/plugins\/ultra-builder-pro\/skills\/ultra-review/);
+
+    const coreWorkflowText = [
+      ...COMMANDS,
+      'recall',
+      'ultra-review',
+    ].map((name) => fs.readFileSync(path.join(layout.pluginRoot, 'skills', name, 'SKILL.md'), 'utf8')).join('\n');
+    assert.doesNotMatch(coreWorkflowText, /Phase (?:3\.7|5|7) placeholder|not yet implemented|UNKNOWN_TOOL/);
+    assert.doesNotMatch(coreWorkflowText, /session\.checkpoint|review\.run|ultra-tools subagent/);
+    assert.doesNotMatch(coreWorkflowText, /ask\.question|ultra-tools task (?:create|update|list|get)/);
+    assert.doesNotMatch(coreWorkflowText, /Context7 MCP|mcp__context7|Exa MCP|mcp__exa|Playwright via Bash/);
+    assert.doesNotMatch(coreWorkflowText, /`\/{command}`/);
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    cleanup(layout);
   }
 });
 
-test('install is byte-equal on re-run (P1 #2 idempotency)', () => {
-  const target = mkTarget();
-  const configFile = path.join(target, 'config.toml');
+test('install converts all nine Claude agents into native Codex agent TOML', () => {
+  const layout = mkLayout();
   try {
-    fs.mkdirSync(target, { recursive: true });
+    const report = install(layout);
+    assert.deepEqual(report.agents.installed.sort(), AGENTS.map((name) => `${name}.toml`).sort());
+    for (const name of AGENTS) {
+      const text = fs.readFileSync(path.join(layout.configDir, 'agents', `${name}.toml`), 'utf8');
+      assert.match(text, new RegExp(`^name = "${name}"`, 'm'));
+      assert.match(text, /^description = /m);
+      assert.match(text, /^developer_instructions = """/m);
+      assert.doesNotMatch(
+        text,
+        /model = "opus"|^tools =|^memory =|maxTurns|CLAUDE\.md|AskUserQuestion|(^|[\s`(>])\/(?:ultra-[a-z-]+|recall|learn|gemini-collab|codex-collab)(?=$|[\s`,.;):])/m,
+      );
+    }
+  } finally {
+    cleanup(layout);
+  }
+});
+
+test('plugin declares current Codex hooks and a project-local Ultra MCP server', () => {
+  const layout = mkLayout();
+  try {
+    install(layout);
+    const hooks = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'hooks', 'hooks.json'), 'utf8')).hooks;
+    assert.deepEqual(Object.keys(hooks).sort(), [
+      'PostCompact', 'PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop',
+      'SubagentStart', 'SubagentStop', 'UserPromptSubmit',
+    ].sort());
+    const serializedHooks = JSON.stringify(hooks);
+    for (const feature of [
+      'block_dangerous_commands.py', 'health_check.py', 'mid_workflow_recall.py',
+      'observation_capture.py', 'post_compact_inject.py', 'post_edit_guard.py',
+      'pre_compact_context.py', 'pre_stop_check.py', 'session_context.py',
+      'session_journal.py', 'subagent_tracker.py', 'user_prompt_capture.py',
+    ]) {
+      assert.match(serializedHooks, new RegExp(feature.replace('.', '\\.')));
+    }
+    assert.match(serializedHooks, /\$PLUGIN_ROOT\/hooks\/adapters\/codex\.py/);
+
+    const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
+    const server = mcp.mcpServers['ultra-builder-pro'];
+    assert.equal(server.type, 'stdio');
+    assert.ok(path.isAbsolute(server.command));
+    assert.ok(path.isAbsolute(server.args[0]));
+    assert.equal(server.args[0], path.join(layout.pluginRoot, 'runtime', 'launch.cjs'));
+    assert.doesNotMatch(server.args[0], new RegExp(REPO_ROOT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.ok(!server.env, 'MCP must use each Codex task cwd so .ultra/state.db stays project-local');
+
+    for (const rel of [
+      'runtime/index.cjs',
+      'runtime/launch.cjs',
+      'runtime/ultra-tools.cjs',
+      'runtime/build/Release/better_sqlite3.node',
+      'spec/mcp-tools.yaml',
+      'spec/upstream-mcp-tools.yaml',
+      'spec/codex-capability-map.json',
+      'spec/schemas/state-db.sql',
+      'templates/.ultra/tasks/tasks.json',
+    ]) {
+      assert.ok(fs.existsSync(path.join(layout.pluginRoot, rel)), `missing bundled MCP asset ${rel}`);
+    }
+
+    const liveSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
+    const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
+    const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
+    assert.equal(liveSpec.tools.length, 24);
+    assert.equal(upstreamSpec.tools.length, 33);
+    assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
+    assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);
+    assert.equal(capabilityMap.codex_native_replacements['review.run'].surface, 'native_custom_agents');
+    assert.equal(capabilityMap.codex_native_replacements['ask.question'].surface, 'direct_user_interaction');
+  } finally {
+    cleanup(layout);
+  }
+});
+
+test('bundled plugin MCP runs outside the source checkout and keeps state in the Codex task cwd', async () => {
+  const layout = mkLayout();
+  const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-codex-mcp-project-'));
+  let client;
+  try {
+    install(layout);
+    const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
+    const server = mcp.mcpServers['ultra-builder-pro'];
+    const env = { ...process.env };
+    delete env.UBP_DB_PATH;
+    delete env.UBP_ROOT_DIR;
+    delete env.UBP_RUNTIME_ROOT;
+    const transport = new StdioClientTransport({
+      command: server.command,
+      args: server.args,
+      cwd: projectDir,
+      env,
+      stderr: 'pipe',
+    });
+    client = new Client({ name: 'ubp-codex-adapter-test', version: '0.0.0' }, { capabilities: {} });
+    await client.connect(transport);
+
+    const tools = await client.listTools();
+    assert.ok(tools.tools.some((tool) => tool.name === 'task.create'));
+    const created = await client.callTool({
+      name: 'task.create',
+      arguments: { id: 'codex-bundle-1', title: 'bundled runtime', type: 'feature', priority: 'P1' },
+    });
+    assert.equal(created.isError, undefined);
+    assert.ok(fs.existsSync(path.join(projectDir, '.ultra', 'state.db')));
+    assert.ok(!fs.existsSync(path.join(layout.pluginRoot, '.ultra', 'state.db')));
+
+    const status = spawnSync(process.execPath, [
+      path.join(layout.pluginRoot, 'runtime', 'ultra-tools.cjs'),
+      'status', '--cost', '--json',
+    ], { cwd: projectDir, encoding: 'utf8' });
+    assert.equal(status.status, 0, status.stderr);
+    assert.equal(JSON.parse(status.stdout).ok, true);
+
+    const freshTarget = path.join(projectDir, 'fresh-project');
+    const initialized = await client.callTool({
+      name: 'task.init_project',
+      arguments: { target_dir: freshTarget, project_name: 'Codex bundle', project_type: 'cli' },
+    });
+    assert.equal(initialized.isError, undefined);
+    assert.ok(fs.existsSync(path.join(freshTarget, '.ultra', 'tasks', 'tasks.json')));
+  } finally {
+    if (client) await client.close();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+    cleanup(layout);
+  }
+});
+
+test('install preserves user config and marketplace entries and is byte-idempotent', () => {
+  const layout = mkLayout();
+  try {
+    fs.mkdirSync(layout.configDir, { recursive: true });
+    const configFile = path.join(layout.configDir, 'config.toml');
     fs.writeFileSync(configFile, '[profile]\nname = "dev"\n');
-    codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    const first = fs.readFileSync(configFile, 'utf8');
-    codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    const second = fs.readFileSync(configFile, 'utf8');
-    assert.equal(second, first, 'second install should produce byte-equal config.toml');
+    fs.mkdirSync(path.dirname(layout.marketplaceFile), { recursive: true });
+    fs.writeFileSync(layout.marketplaceFile, JSON.stringify({
+      name: 'personal',
+      interface: { displayName: 'Personal' },
+      plugins: [{
+        name: 'mine',
+        source: { source: 'local', path: './plugins/mine' },
+        policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+        category: 'Developer Tools',
+      }],
+    }, null, 2) + '\n');
+
+    install(layout);
+    const firstConfig = fs.readFileSync(configFile, 'utf8');
+    const firstMarketplace = fs.readFileSync(layout.marketplaceFile, 'utf8');
+    const firstManifest = fs.readFileSync(path.join(layout.pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8');
+    const firstAgent = fs.readFileSync(path.join(layout.configDir, 'agents', 'review-code.toml'), 'utf8');
+    install(layout);
+
+    assert.equal(fs.readFileSync(configFile, 'utf8'), firstConfig);
+    assert.equal(fs.readFileSync(layout.marketplaceFile, 'utf8'), firstMarketplace);
+    assert.equal(fs.readFileSync(path.join(layout.pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8'), firstManifest);
+    assert.equal(fs.readFileSync(path.join(layout.configDir, 'agents', 'review-code.toml'), 'utf8'), firstAgent);
+
+    const marketplace = JSON.parse(firstMarketplace);
+    assert.deepEqual(marketplace.plugins.map((entry) => entry.name), ['mine', 'ultra-builder-pro']);
+    assert.equal(marketplace.plugins[1].source.path, './plugins/ultra-builder-pro');
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    cleanup(layout);
   }
 });
 
-test('install is idempotent + uninstall strips only managed block', () => {
-  const target = mkTarget();
-  const configFile = path.join(target, 'config.toml');
+test('uninstall removes only UBP-managed plugin and agents', () => {
+  const layout = mkLayout();
   try {
-    fs.mkdirSync(target, { recursive: true });
+    fs.mkdirSync(layout.configDir, { recursive: true });
+    const configFile = path.join(layout.configDir, 'config.toml');
     fs.writeFileSync(configFile, '[profile]\nname = "dev"\n');
+    install(layout);
+    fs.writeFileSync(path.join(layout.configDir, 'agents', 'mine.toml'), 'name = "mine"\n');
 
-    codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    const firstLen = fs.readFileSync(configFile, 'utf8').length;
-    codex.install({ configDir: target, repoRoot: REPO_ROOT });
-    const secondLen = fs.readFileSync(configFile, 'utf8').length;
-    assert.equal(secondLen, firstLen, 'idempotent install should not grow the file');
+    codex.uninstall({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      runPluginCli: false,
+    });
 
-    codex.uninstall({ configDir: target });
-    const after = fs.readFileSync(configFile, 'utf8');
-    assert.match(after, /name = "dev"/);
-    assert.ok(!after.includes('ultra-builder-pro managed block'));
-    assert.ok(!after.includes('[mcp_servers.ultra-builder-pro]'));
-    assert.ok(!fs.existsSync(path.join(target, 'skills')));
-    assert.ok(!fs.existsSync(path.join(target, 'prompts')));
-    assert.ok(!fs.existsSync(path.join(target, 'hooks')));
+    assert.ok(!fs.existsSync(layout.pluginRoot));
+    for (const name of AGENTS) {
+      assert.ok(!fs.existsSync(path.join(layout.configDir, 'agents', `${name}.toml`)));
+    }
+    assert.ok(fs.existsSync(path.join(layout.configDir, 'agents', 'mine.toml')));
+    assert.equal(fs.readFileSync(configFile, 'utf8'), '[profile]\nname = "dev"\n');
+    const marketplace = JSON.parse(fs.readFileSync(layout.marketplaceFile, 'utf8'));
+    assert.ok(!marketplace.plugins.some((entry) => entry.name === 'ultra-builder-pro'));
   } finally {
-    fs.rmSync(target, { recursive: true, force: true });
+    cleanup(layout);
   }
-});
-
-// P2 #4 / D45: TOML basic-string escape must cover newline + control chars,
-// otherwise paths containing those bytes produce invalid TOML that Codex
-// rejects on startup.
-test('tomlEscape covers newline / tab / control / quote / backslash', () => {
-  const { _internal } = codex;
-  // Build a tiny artificial fragment so we can inspect the escape result.
-  // The real buildMcpBlock also wraps in markers, but here we want the
-  // isolated tomlEscape output. Re-export via _internal if you add a helper.
-  const fragment = _internal.buildMcpBlock('/repo', '/weird\ndir\twith\x01ctl"end');
-  assert.match(fragment, /\\n/, 'newline must escape to \\\\n');
-  assert.match(fragment, /\\t/, 'tab must escape to \\\\t');
-  assert.match(fragment, /\\u0001/, 'control byte must escape to \\\\u0001');
-  assert.match(fragment, /\\"/, 'double quote must escape to \\\\"');
-  assert.ok(!fragment.includes('\n/weird'), 'raw newline must not appear inside quoted values');
 });

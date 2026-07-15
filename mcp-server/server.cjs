@@ -28,7 +28,9 @@ const expander = require('./lib/task-expander.cjs');
 const planStore = require('./lib/plan-store.cjs');
 const { initProject } = require('./lib/init-project.cjs');
 
-const REPO_ROOT = path.resolve(__dirname, '..');
+const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
+  ? path.resolve(process.env.UBP_RUNTIME_ROOT)
+  : path.resolve(__dirname, '..');
 const TOOLS_FILE = path.join(REPO_ROOT, 'spec', 'mcp-tools.yaml');
 
 const TASK_TOOLS = Object.freeze([
@@ -479,6 +481,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  main,
   startServer,
   dispatchTool,
   TASK_TOOLS,

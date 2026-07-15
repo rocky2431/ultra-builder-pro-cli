@@ -8,8 +8,8 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.3.0-blue)](./CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-397_passing-brightgreen)](#verification)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue)](./CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-403_passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
 
@@ -52,8 +52,11 @@ npx ultra-builder-pro-cli --claude --global
 npx ultra-builder-pro-cli --all --local --uninstall
 ```
 
-After install, point your runtime at this project and the new commands
-(`/ultra-init`, `/ultra-plan`, `/ultra-dev`, `/ultra-status`, …) appear.
+After install, point your runtime at this project. Claude/OpenCode/Gemini expose
+their native command form. Codex exposes the same workflows as namespaced plugin
+skills such as `$ultra-builder-pro:ultra-init`, `$ultra-builder-pro:ultra-plan`,
+and `$ultra-builder-pro:ultra-dev`; `command-map.json` records the nine legacy
+command-to-skill mappings.
 See [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
 for per-runtime capabilities.
 
@@ -67,17 +70,20 @@ for per-runtime capabilities.
 
 The three layers share one `.ultra/state.db`. See
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full contract and
-[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 33 CLI ↔ MCP mappings.
+[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 33 declared contracts.
+The live server exposes 24 task/session/memory/plan tools. The nine scheduled
+review/impact/skill/ask contracts are mapped to Codex-native surfaces in the
+generated `spec/codex-capability-map.json` rather than advertised as live MCP tools.
 
 ## Runtime capability matrix
 
 | Feature                      | Claude Code | OpenCode | Codex CLI | Gemini CLI |
 |------------------------------|:-----------:|:--------:|:---------:|:----------:|
 | Custom commands              | ✅          | ✅       | ✅        | ✅         |
-| Skill loader                 | ✅          | ✅       | ✅ (via prompts) | ✅ |
-| MCP server (stdio)           | ✅          | ✅       | ✅ (marker-block TOML) | ✅ |
-| Hooks (pre/post tool-use)    | ✅          | ✅       | ✅ (2-event subset) | ⚠︎ no-op |
-| Sub-agents                   | ✅          | ✅       | ⚠︎ skills-as-agents | ⚠︎ |
+| Skill loader                 | ✅          | ✅       | ✅ (personal plugin) | ✅ |
+| MCP server (stdio)           | ✅          | ✅       | ✅ (plugin `.mcp.json`) | ✅ |
+| Hooks (pre/post tool-use)    | ✅          | ✅       | ✅ (9 native events) | ⚠︎ no-op |
+| Sub-agents                   | ✅          | ✅       | ✅ (9 native TOML agents) | ⚠︎ |
 | Session worktree isolation   | ✅ (all runtimes; driven by `orchestrator/session-runner.cjs`) | ✅ | ✅ | ✅ |
 | Parallel dispatch + auto-merge | ✅ (`ubp-orchestrator run`) | ✅ | ✅ | ✅ |
 
@@ -102,8 +108,9 @@ ultra-tools status --cost --since 24h
 ultra-tools session list --json
 ```
 
-Or let the skills drive it: type `/ultra-plan` → `/ultra-dev` → `/ultra-status`
-inside any installed runtime.
+Or let the skills drive it. In Codex, invoke
+`$ultra-builder-pro:ultra-plan` → `$ultra-builder-pro:ultra-dev` →
+`$ultra-builder-pro:ultra-status`; other runtimes retain their native command form.
 
 ## CLI surface
 
@@ -118,7 +125,10 @@ inside any installed runtime.
 ```bash
 npm install
 npm run test:all
-# test:state 182 · test:orch 103 · test:spec 6 · rest 106 — 397 passing
+# test:state 182 · test:orch 103 · test:spec 6 · rest 112 — 403 passing
+
+/opt/anaconda3/bin/pytest hooks/tests -q
+# 100 passed
 ```
 
 Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
