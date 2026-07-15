@@ -40,6 +40,7 @@ const MARKER_BEGIN = '# >>> ultra-builder-pro managed block — do not edit by h
 const MARKER_END = '# <<< ultra-builder-pro managed block';
 const RUNTIME_MANIFEST_DIR = 'ultra-builder-pro';
 const RUNTIME_MANIFEST_FILE = 'install-manifest.json';
+const HOOK_ADAPTER_RELATIVE = path.join('hooks', 'adapters', 'codex.py');
 
 function resolveTarget(ctx = {}) {
   if (ctx.configDir) return path.resolve(ctx.configDir);
@@ -183,6 +184,53 @@ function runPluginCli(action, marketplaceName, ctx = {}) {
   return { selector, stdout: result.stdout.trim() };
 }
 
+function pluginCacheRoot(configDir, marketplaceName) {
+  if (typeof marketplaceName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(marketplaceName)) {
+    throw new Error(`invalid Codex marketplace name: ${marketplaceName}`);
+  }
+  return path.join(configDir, 'plugins', 'cache', marketplaceName, PLUGIN_NAME);
+}
+
+function listCachedHookAdapters(configDir, marketplaceName) {
+  const root = pluginCacheRoot(configDir, marketplaceName);
+  if (!fs.existsSync(root)) return [];
+  return fs.readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(root, entry.name, HOOK_ADAPTER_RELATIVE))
+    .filter((file) => fs.existsSync(file))
+    .sort();
+}
+
+function hookForwarder(target) {
+  return `#!/usr/bin/env python3
+"""Forward a live Codex task from a retired plugin cache to the current adapter."""
+
+import runpy
+
+runpy.run_path(${JSON.stringify(path.resolve(target))}, run_name="__main__")
+`;
+}
+
+function restoreCachedHookAdapters(previousAdapters, target) {
+  const resolvedTarget = path.resolve(target);
+  if (!fs.existsSync(resolvedTarget)) {
+    throw new Error(`current Codex hook adapter is missing: ${resolvedTarget}`);
+  }
+  const restored = [];
+  for (const previous of previousAdapters) {
+    if (path.resolve(previous) === resolvedTarget || fs.existsSync(previous)) continue;
+    writeAtomic(previous, hookForwarder(resolvedTarget));
+    restored.push(previous);
+  }
+  return { target: resolvedTarget, restored };
+}
+
+function currentHookAdapter(configDir, marketplaceName, plugin) {
+  const cached = path.join(pluginCacheRoot(configDir, marketplaceName), plugin.version, HOOK_ADAPTER_RELATIVE);
+  if (fs.existsSync(cached)) return cached;
+  return path.join(plugin.root, HOOK_ADAPTER_RELATIVE);
+}
+
 function writeRuntimeManifest(configDir, data) {
   const file = runtimeManifestFile(configDir);
   writeAtomic(file, JSON.stringify({
@@ -212,9 +260,31 @@ function install(ctx = {}) {
     agents: agents.installed,
   });
 
-  const registration = shouldRunPluginCli(ctx)
-    ? runPluginCli('add', marketplace.name, ctx)
-    : null;
+  let registration = null;
+  let hookCompatibility = null;
+  if (shouldRunPluginCli(ctx)) {
+    const previousAdapters = listCachedHookAdapters(configDir, marketplace.name);
+    try {
+      registration = runPluginCli('add', marketplace.name, ctx);
+    } catch (registrationError) {
+      try {
+        hookCompatibility = restoreCachedHookAdapters(
+          previousAdapters,
+          currentHookAdapter(configDir, marketplace.name, plugin),
+        );
+      } catch (recoveryError) {
+        throw new AggregateError(
+          [registrationError, recoveryError],
+          `codex plugin add and hook cache recovery both failed`,
+        );
+      }
+      throw registrationError;
+    }
+    hookCompatibility = restoreCachedHookAdapters(
+      previousAdapters,
+      currentHookAdapter(configDir, marketplace.name, plugin),
+    );
+  }
 
   return {
     target: configDir,
@@ -222,6 +292,7 @@ function install(ctx = {}) {
     agents,
     marketplace,
     registration,
+    hookCompatibility,
     legacy,
     manifestFile,
     config: { updated: legacy.configUpdated },
@@ -250,8 +321,8 @@ function readRuntimeManifest(configDir) {
   if (!fs.existsSync(file)) return null;
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch (_error) {
-    return null;
+  } catch (error) {
+    throw new Error(`invalid Codex runtime manifest ${file}: ${error.message}`, { cause: error });
   }
 }
 
@@ -307,5 +378,8 @@ module.exports = {
     upsertMarketplace,
     removeMarketplaceEntry,
     runPluginCli,
+    pluginCacheRoot,
+    listCachedHookAdapters,
+    restoreCachedHookAdapters,
   },
 };

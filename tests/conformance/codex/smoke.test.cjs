@@ -14,6 +14,7 @@ function mkLayout(prefix) {
     homeDir,
     configDir: path.join(homeDir, '.codex'),
     pluginRoot: path.join(homeDir, 'plugins', 'ultra-builder-pro'),
+    cacheRoot: path.join(homeDir, '.codex', 'plugins', 'cache', 'personal', 'ultra-builder-pro'),
     marketplaceFile: path.join(homeDir, '.agents', 'plugins', 'marketplace.json'),
   };
 }
@@ -26,6 +27,29 @@ function install(layout) {
     repoRoot: REPO_ROOT,
     runPluginCli: false,
   });
+}
+
+function writeFakeCodexCli(layout, { fail = false } = {}) {
+  const executable = path.join(layout.homeDir, `fake-codex-${fail ? 'fail' : 'ok'}.cjs`);
+  fs.writeFileSync(executable, `#!/usr/bin/env node
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const pluginRoot = ${JSON.stringify(layout.pluginRoot)};
+const cacheRoot = ${JSON.stringify(layout.cacheRoot)};
+fs.rmSync(cacheRoot, { recursive: true, force: true });
+if (${JSON.stringify(fail)}) {
+  process.stderr.write('simulated plugin add failure');
+  process.exit(1);
+}
+const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8'));
+const target = path.join(cacheRoot, manifest.version);
+fs.mkdirSync(path.dirname(target), { recursive: true });
+fs.cpSync(pluginRoot, target, { recursive: true });
+process.stdout.write(JSON.stringify({ installed: true, version: manifest.version }));
+`);
+  fs.chmodSync(executable, 0o755);
+  return executable;
 }
 
 test('codex smoke — plugin install + MCP round-trip + scoped uninstall', async () => {
@@ -92,5 +116,105 @@ test('codex smoke — user config and unrelated marketplace entries survive inst
     assert.equal(fs.readFileSync(configFile, 'utf8'), '[profile]\nname = "dev"\n[mcp_servers.mine]\ncommand = "node"\n');
     const marketplace = JSON.parse(fs.readFileSync(layout.marketplaceFile, 'utf8'));
     assert.deepEqual(marketplace.plugins.map((entry) => entry.name), ['mine']);
+  } finally { cleanup(layout.homeDir); }
+});
+
+test('codex smoke — live hook cache paths survive a successful plugin refresh', () => {
+  const layout = mkLayout('codex-hook-cache-success');
+  const oldAdapter = path.join(
+    layout.cacheRoot,
+    '0.3.0+codex.previous',
+    'hooks',
+    'adapters',
+    'codex.py',
+  );
+  try {
+    fs.mkdirSync(path.dirname(oldAdapter), { recursive: true });
+    fs.writeFileSync(oldAdapter, '# previous adapter\n');
+
+    const report = codex.install({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: true,
+      codexBin: writeFakeCodexCli(layout),
+    });
+    const currentAdapter = path.join(
+      layout.cacheRoot,
+      report.plugin.version,
+      'hooks',
+      'adapters',
+      'codex.py',
+    );
+
+    assert.ok(fs.existsSync(currentAdapter));
+    assert.ok(fs.existsSync(oldAdapter));
+    assert.match(fs.readFileSync(oldAdapter, 'utf8'), /runpy\.run_path/);
+    assert.deepEqual(report.hookCompatibility, {
+      target: currentAdapter,
+      restored: [oldAdapter],
+    });
+  } finally { cleanup(layout.homeDir); }
+});
+
+test('codex smoke — failed plugin refresh restores live hook cache paths', () => {
+  const layout = mkLayout('codex-hook-cache-failure');
+  const oldAdapter = path.join(
+    layout.cacheRoot,
+    '0.3.0+codex.previous',
+    'hooks',
+    'adapters',
+    'codex.py',
+  );
+  try {
+    fs.mkdirSync(path.dirname(oldAdapter), { recursive: true });
+    fs.writeFileSync(oldAdapter, '# previous adapter\n');
+
+    assert.throws(() => codex.install({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: true,
+      codexBin: writeFakeCodexCli(layout, { fail: true }),
+    }), /simulated plugin add failure/);
+
+    const sourceAdapter = path.join(layout.pluginRoot, 'hooks', 'adapters', 'codex.py');
+    assert.ok(fs.existsSync(sourceAdapter));
+    assert.ok(fs.existsSync(oldAdapter));
+    assert.match(fs.readFileSync(oldAdapter, 'utf8'), /runpy\.run_path/);
+  } finally { cleanup(layout.homeDir); }
+});
+
+test('codex smoke — corrupt runtime manifest fails closed before uninstall', () => {
+  const layout = mkLayout('codex-corrupt-manifest');
+  try {
+    install(layout);
+    const manifestFile = path.join(
+      layout.configDir,
+      'ultra-builder-pro',
+      'install-manifest.json',
+    );
+    fs.writeFileSync(manifestFile, '{ invalid json\n');
+
+    assert.throws(() => codex.uninstall({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      runPluginCli: false,
+    }), /invalid Codex runtime manifest/);
+    assert.ok(fs.existsSync(layout.pluginRoot));
+    assert.ok(fs.existsSync(path.join(layout.configDir, 'agents', 'review-code.toml')));
+  } finally { cleanup(layout.homeDir); }
+});
+
+test('codex smoke — hook cache root rejects marketplace path traversal', () => {
+  const layout = mkLayout('codex-cache-traversal');
+  try {
+    assert.throws(
+      () => codex._internal.pluginCacheRoot(layout.configDir, '../../outside'),
+      /invalid Codex marketplace name/,
+    );
   } finally { cleanup(layout.homeDir); }
 });
