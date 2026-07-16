@@ -211,11 +211,11 @@ Three pillars: Logs (structured JSON + correlation IDs) | Metrics (counters/gaug
 **Priority**: Fact > Inference > Speculation
 </learned_patterns>
 
-<session_memory>
-**Auto**: Stop hook → `.ultra/memory/memory.db` (SQLite FTS5). SessionStart injects last session (~50 tokens).
-**`/recall`**: "last time..." / resuming / recurring issue / architecture decision → search keywords
-**`/recall --save`**: significant feature/fix, architecture decision, non-obvious root cause
-</session_memory>
+<memory_boundary>
+Ultra Builder Pro does not capture prompts, transcripts, observations, summaries, or cross-session memory.
+Persistent memory belongs to a separately installed host provider such as cloud-mem or claude-mem.
+`.ultra/state.db` is authoritative only for Ultra tasks, sessions, events, telemetry, and review evidence.
+</memory_boundary>
 
 <workflow_tracking>
 **Tools**: TaskCreate, TaskList, TaskGet, TaskUpdate
