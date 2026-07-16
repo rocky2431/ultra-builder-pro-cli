@@ -89,6 +89,18 @@ test('workflow hook allowlist contains no memory, prompt capture, or generic pol
   assert.doesNotMatch(WORKFLOW_HOOK_FILES.join('\n'), /memory|recall|journal|observation|prompt|dangerous|post_edit/);
 });
 
+test('bundled agents never instruct workers to own persistent memory', () => {
+  const agentsDir = path.join(REPO_ROOT, 'agents');
+  const agentText = fs.readdirSync(agentsDir)
+    .filter((name) => name.endsWith('.md'))
+    .map((name) => fs.readFileSync(path.join(agentsDir, name), 'utf8'))
+    .join('\n');
+
+  assert.doesNotMatch(agentText, /^## Memory$/m);
+  assert.doesNotMatch(agentText, /Update your project memory|Consult memory before starting work/);
+  assert.doesNotMatch(agentText, /\.ultra\/memory|\/recall(?:\s|`|$)/m);
+});
+
 test('npm publish list uses the same explicit skill boundary', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
   const publishedSkills = pkg.files

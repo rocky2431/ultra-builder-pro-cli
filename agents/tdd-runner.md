@@ -86,7 +86,8 @@ Scan test files for forbidden patterns:
 ALL PASS / X FAILURES NEED ATTENTION
 ```
 
-## Memory
+## Handoff
 
-Update your project memory with test patterns, common failure causes, and framework
-quirks for this project. Consult memory before starting work.
+Return reusable test patterns, common failure causes, and framework quirks to the
+parent agent as explicit evidence. Do not create or update a private Ultra memory
+store; persistent memory belongs to the host's separately installed provider.
