@@ -341,6 +341,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const TERMINAL = new Set(["committed", "completed", "done", "cancelled"]);
+const TASKS_PROJECTION = ".ultra/tasks/tasks.json";
 
 function findActiveWorkflow(directory) {
   let current = path.resolve(directory);
@@ -374,6 +375,25 @@ function contextText(active) {
   ].join("\\n");
 }
 
+function targetPaths(tool, args) {
+  if (!args || typeof args !== "object") return [];
+  const paths = [args.file_path, args.filePath, args.filepath, args.path]
+    .filter((value) => typeof value === "string" && value.length > 0);
+  const patch = args.patch ?? args.command;
+  if (String(tool).toLowerCase() === "apply_patch" && typeof patch === "string") {
+    const pattern = /^\\*\\*\\* (?:Add|Update|Delete) File: (.+?)\\s*$/gm;
+    for (const match of patch.matchAll(pattern)) paths.push(match[1].trim());
+  }
+  return [...new Set(paths)];
+}
+
+function isTasksProjection(active, candidate) {
+  const target = path.isAbsolute(candidate)
+    ? path.resolve(candidate)
+    : path.resolve(active.root, candidate);
+  return target === path.resolve(active.root, TASKS_PROJECTION);
+}
+
 export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
   const root = worktree || directory;
   let active = findActiveWorkflow(root);
@@ -390,7 +410,18 @@ export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
       refresh();
       if (active) output.context.push(contextText(active));
     },
-    "tool.execute.before": async () => { refresh(); },
+    "tool.execute.before": async (input, output) => {
+      refresh();
+      if (!active) return;
+      const tool = String(input?.tool ?? "").toLowerCase();
+      if (!["write", "edit", "apply_patch"].includes(tool)) return;
+      if (targetPaths(tool, output?.args).some((candidate) => isTasksProjection(active, candidate))) {
+        throw new Error(
+          "Ultra Builder Pro refused a direct write to .ultra/tasks/tasks.json. " +
+          ".ultra/state.db is authoritative; use MCP task tools or run the required v4.4 to v4.5 migration."
+        );
+      }
+    },
     "tool.execute.after": async () => { refresh(); },
   };
 };

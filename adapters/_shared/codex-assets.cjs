@@ -818,7 +818,7 @@ function buildHooksManifest() {
         { hooks: [commandHook('workflow_context.py', 10, 'Loading active Ultra workflow')] },
       ],
       PreToolUse: [
-        { matcher: 'Edit|Write', hooks: [commandHook('active_task_context.py', 3, 'Checking active Ultra task')] },
+        { matcher: 'Edit|Write|apply_patch', hooks: [commandHook('active_task_context.py', 3, 'Checking active Ultra task')] },
       ],
       PreCompact: [
         { matcher: 'manual|auto', hooks: [commandHook('workflow_checkpoint.py', 10, 'Saving Ultra workflow checkpoint')] },

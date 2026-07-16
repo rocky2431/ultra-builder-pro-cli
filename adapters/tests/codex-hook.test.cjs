@@ -74,6 +74,31 @@ test('Codex hook adapter maps apply_patch payloads to Edit-compatible file input
   assert.ok(outputs.every((entry) => entry.tool_name === 'Edit'));
 });
 
+test('Codex hook adapter denies apply_patch writes to tasks.json during an active Ultra workflow', () => {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-codex-hook-deny-'));
+  try {
+    fs.mkdirSync(path.join(project, '.ultra'));
+    fs.writeFileSync(path.join(project, '.ultra', 'workflow-state.json'), JSON.stringify({
+      command: 'ultra-plan', task_id: 'plan', step: 'persist', status: 'active',
+    }));
+    const result = run('active_task_context.py', {
+      session_id: 'session-deny',
+      cwd: project,
+      hook_event_name: 'PreToolUse',
+      tool_name: 'apply_patch',
+      tool_input: {
+        patch: '*** Begin Patch\n*** Update File: .ultra/tasks/tasks.json\n*** End Patch',
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, 'deny');
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /\.ultra\/state\.db/);
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
 test('Codex hook adapter converts compact recovery context to PostCompact schema', () => {
   const script = [
     'import importlib.util, json, pathlib',

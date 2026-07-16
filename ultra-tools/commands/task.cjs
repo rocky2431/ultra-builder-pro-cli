@@ -1,10 +1,8 @@
 'use strict';
 
-// CLI dispatcher for the `task` family. Phase 3.1 implements `init-project`
-// as the fallback for /ultra-init when MCP is unreachable. Additional verbs
-// (create / update / list / ...) will be wired in Phase 3.3+ as each command
-// migrates — they share the same stdout envelope contract declared in
-// spec/cli-protocol.md §2.
+// CLI dispatcher for the only task-family maintenance command. Runtime task
+// reads and writes intentionally remain MCP-only so a Host cannot silently
+// bypass the state-authority and projection-conflict gates.
 
 const { initProject, InitProjectError } = require('../../mcp-server/lib/init-project.cjs');
 
@@ -87,7 +85,7 @@ function dispatch(args) {
   switch (verb) {
     case 'init-project': return dispatchInitProject(rest);
     default:
-      emit({ ok: false, error: { code: 'UNKNOWN_VERB', message: `unknown task verb '${verb}'; see spec/cli-protocol.md for supported task CLI verbs` } });
+      emit({ ok: false, error: { code: 'UNKNOWN_VERB', message: `unknown task verb '${verb}'; only init-project is supported by the maintenance CLI` } });
       return 1;
   }
 }

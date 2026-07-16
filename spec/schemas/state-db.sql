@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   type              TEXT NOT NULL CHECK (type IN ('architecture', 'feature', 'bugfix')),
   priority          TEXT NOT NULL CHECK (priority IN ('P0', 'P1', 'P2', 'P3')),
   complexity        INTEGER CHECK (complexity BETWEEN 1 AND 10),
+  estimated_days    REAL CHECK (estimated_days IS NULL OR estimated_days > 0),
   status            TEXT NOT NULL DEFAULT 'pending'
                       CHECK (status IN ('pending', 'in_progress', 'completed', 'blocked', 'expanded')),
   deps              TEXT,                -- JSON array of task ids
@@ -152,3 +153,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('5.2', 'Phase 5.2 — circuit_breaker table for per-task trip tracking');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('8A.1', 'Phase 8A.1 — tasks.parent_id for task.expand parent→children');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('8A.2', 'Phase 8A.2 — tasks.estimated_days preserved across MCP and v4.4 migration');

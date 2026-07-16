@@ -23,14 +23,14 @@ const STATUS_TRANSITIONS = Object.freeze({
 });
 
 const TASK_FIELDS = Object.freeze([
-  'id', 'title', 'type', 'priority', 'complexity', 'status',
+  'id', 'title', 'type', 'priority', 'complexity', 'estimated_days', 'status',
   'deps', 'files_modified', 'session_id', 'stale', 'complexity_hint',
   'tag', 'trace_to', 'context_file', 'completion_commit', 'parent_id',
   'created_at', 'updated_at',
 ]);
 
 const PATCHABLE_FIELDS = Object.freeze([
-  'priority', 'complexity', 'deps', 'files_modified',
+  'priority', 'complexity', 'estimated_days', 'deps', 'files_modified',
   'session_id', 'stale', 'complexity_hint', 'tag', 'trace_to',
   'context_file', 'completion_commit',
 ]);
@@ -140,6 +140,7 @@ function createTask(db, input) {
     type: input.type,
     priority: input.priority,
     complexity: input.complexity ?? null,
+    estimated_days: input.estimated_days ?? null,
     status: 'pending',
     deps: input.deps ? JSON.stringify(input.deps) : null,
     files_modified: input.files_modified ? JSON.stringify(input.files_modified) : null,

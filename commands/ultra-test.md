@@ -6,7 +6,6 @@ model: opus
 workflow-ref: "@skills/ultra-test/SKILL.md"
 mcp_tools_required:
   - task.list
-cli_fallback: "task list"
 ---
 
 # /ultra-test
@@ -16,6 +15,8 @@ cli_fallback: "task list"
 `/ultra-deliver` 前的项目级质量审计：6 类 gate（Anti-Pattern / Coverage Gap /
 Wiring / E2E / Performance / Security）× auto-fix loop。**只读** state.db，
 写 `.ultra/test-report.json` 作为 `/ultra-deliver` 的准入凭证。
+completed-task 前置检查必须来自 MCP `task.list`；失败时停止，绝不回退到
+`tasks.json`。`LEGACY_STATE_MIGRATION_REQUIRED` 必须先完成 v4.4→v4.5 迁移。
 
 **注意**：这不是跑单测（那是 `/ultra-dev`）。这是交付前的体检。
 

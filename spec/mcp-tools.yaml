@@ -14,6 +14,8 @@ info:
     Host-native review, impact, skill discovery, and human-interaction capabilities
     are documented by each adapter's capability map rather than advertised as MCP.
     Generators consume this YAML to derive types, validators, and CLI parsers (R19).
+    cli_subcommand values reserve stable names; runtime availability is defined by
+    ultra-tools <family> --help. Task lifecycle skills use MCP and fail closed.
     Adding a tool requires: (a) update this file, (b) add valid+invalid
     fixture to spec/fixtures/{valid,invalid}/, (c) `npm run test:spec` green.
 
@@ -40,6 +42,7 @@ tools:
         type:           { type: string, enum: [architecture, feature, bugfix] }
         priority:       { type: string, enum: [P0, P1, P2, P3] }
         complexity:     { type: integer, minimum: 1, maximum: 10 }
+        estimated_days: { type: number, exclusiveMinimum: 0, description: 'estimated implementation effort in days' }
         deps:           { type: array, items: { type: string } }
         files_modified: { type: array, items: { type: string }, description: 'Phase 8A conflict detection' }
         parent_id:      { type: string, description: 'Phase 8A.3 parent reference for task.expand children' }
@@ -56,6 +59,7 @@ tools:
     errors:
       - { code: VALIDATION_ERROR, description: 'input failed schema validation' }
       - { code: DUPLICATE_TASK_ID, description: 'task id already exists' }
+      - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'non-empty v4.4 projection must be migrated before state-backed tools can run' }
       - { code: STATE_DB_LOCKED, description: 'database is locked', retriable: true }
     cli_subcommand: task create
     emits_events: [task_created]
@@ -79,6 +83,7 @@ tools:
             status:        { type: string, enum: [pending, in_progress, completed, blocked, expanded] }
             priority:      { type: string, enum: [P0, P1, P2, P3] }
             complexity:    { type: integer, minimum: 1, maximum: 10 }
+            estimated_days: { type: number, exclusiveMinimum: 0 }
             deps:          { type: array, items: { type: string } }
             files_modified: { type: array, items: { type: string } }
             session_id:    { type: string }
@@ -96,6 +101,7 @@ tools:
       - { code: TASK_NOT_FOUND, description: 'no task with given id' }
       - { code: ILLEGAL_STATUS_TRANSITION, description: 'transition rejected by state machine' }
       - { code: VALIDATION_ERROR, description: 'patch failed schema validation' }
+      - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'non-empty v4.4 projection must be migrated before state-backed tools can run' }
     cli_subcommand: task update
     emits_events: [task_started, task_completed, task_blocked, task_stale_marked]
     trace_to: '§7.3, §7.2'
@@ -123,6 +129,7 @@ tools:
         count: { type: integer, minimum: 0 }
     errors:
       - { code: VALIDATION_ERROR, description: 'filter failed schema validation' }
+      - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'non-empty v4.4 projection must be migrated before state-backed tools can run' }
     cli_subcommand: task list
     emits_events: []
     trace_to: '§7.3'

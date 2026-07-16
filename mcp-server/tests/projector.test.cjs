@@ -34,7 +34,7 @@ function readJson(p) {
 test('projectTasks emits a v4.5-conformant tasks.json', () => {
   const { dir, db } = tmpProject();
   try {
-    ops.createTask(db, { id: 'p-1', title: 'first', type: 'feature', priority: 'P1', tag: 'main' });
+    ops.createTask(db, { id: 'p-1', title: 'first', type: 'feature', priority: 'P1', tag: 'main', estimated_days: 2.5 });
     ops.createTask(db, { id: 'p-2', title: 'second', type: 'bugfix', priority: 'P2' });
     ops.updateTaskStatus(db, 'p-1', 'in_progress');
 
@@ -49,6 +49,7 @@ test('projectTasks emits a v4.5-conformant tasks.json', () => {
 
     const p1 = projection.tasks.find((t) => t.id === 'p-1');
     assert.equal(p1.status, 'in_progress');
+    assert.equal(p1.estimated_days, 2.5);
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -72,6 +73,37 @@ test('projectContext rebuilds header but preserves the body', () => {
     assert.match(text, /schema_version: 4\.5/);
     assert.match(text, /# body that must survive/);
     assert.match(text, /User notes go here\./);
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('projectContext removes the legacy body status banner while preserving task content', () => {
+  const { dir, db } = tmpProject();
+  try {
+    ops.createTask(db, {
+      id: 'legacy-body', title: 'legacy context body', type: 'feature', priority: 'P1',
+      context_file: '.ultra/tasks/contexts/task-legacy-body.md',
+    });
+    const ctxFile = path.join(dir, '.ultra', 'tasks', 'contexts', 'task-legacy-body.md');
+    fs.mkdirSync(path.dirname(ctxFile), { recursive: true });
+    fs.writeFileSync(ctxFile, [
+      '# Task legacy-body',
+      '',
+      '> **Status**: pending | **Priority**: P1 | **Complexity**: 4',
+      '',
+      '## Context',
+      'Keep this body.',
+      '',
+    ].join('\n'));
+
+    projector.projectContext(db, 'legacy-body', {}, { rootDir: dir });
+    const text = fs.readFileSync(ctxFile, 'utf8');
+    assert.match(text, /status: pending/);
+    assert.doesNotMatch(text, /> \*\*Status\*\*:/);
+    assert.match(text, /# Task legacy-body/);
+    assert.match(text, /Keep this body\./);
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

@@ -1,9 +1,9 @@
 # `ultra-tools` CLI protocol
 
-`ultra-tools` is the shell fallback for the live MCP state contract
-(PLAN §4, D12). Every tool in `spec/mcp-tools.yaml` has a matching
-`ultra-tools <subcommand>`; host-native review, impact discovery, skill
-resolution, and human interaction are intentionally outside this protocol.
+`ultra-tools` is the maintenance CLI around the live MCP runtime (PLAN §4,
+D12). The mapping registry below reserves stable command names for MCP tools;
+it does not mean every mapping is executable. Task lifecycle workflows must use
+the live MCP server and fail closed when it is unavailable.
 
 Trace: PLAN §6 Phase 1.4, decisions D12 / D29 / D33 / D37.
 
@@ -74,9 +74,10 @@ informational. Never rely on stderr for status.
 
 ## 5. Tool ↔ CLI mapping
 
-The mapping below is generated from `spec/mcp-tools.yaml` by
+The compatibility mapping below is generated from `spec/mcp-tools.yaml` by
 `spec/scripts/check-cli-mapping.cjs` and asserted at gate time. This table
-is the authoritative reference; do not duplicate it in command md files.
+is a naming contract, not an implementation inventory; do not advertise a row
+as a fallback unless `ultra-tools <family> --help` lists it.
 
 | MCP tool                  | CLI subcommand              | Phase | Writer  |
 |---------------------------|-----------------------------|------:|---------|
@@ -102,13 +103,11 @@ is the authoritative reference; do not duplicate it in command md files.
 | `plan.export`             | `plan export`               | 8a    | mcp     |
 | `plan.get`                | `plan get`                  | 8a    | any     |
 
-`Writer = mcp` rows go through the MCP server's single-writer connection;
-the CLI shells out to the running MCP server over stdio rather than
-touching `.ultra/state.db` directly. `Writer = any` rows are safe to
-execute from any process — read-only queries and `events` appends fall
-into this bucket because `events.id AUTOINCREMENT` makes concurrent
-INSERTs collision-free under WAL + `busy_timeout`. The full policy lives
-in `docs/STATE-DB-ACCESS-POLICY.md` (Phase 2.2 / R25).
+Current executable maintenance surfaces are `task init-project`,
+`session close|get|list|admission|heartbeat|subscribe|reap`, `status`, `db`,
+`migrate`, and `legacy-memory`. In particular, `task create|update|list|get`
+are not CLI fallbacks. The full access policy lives in
+`docs/STATE-DB-ACCESS-POLICY.md` (Phase 2.2 / R25).
 
 ## 6. Versioning
 

@@ -73,6 +73,17 @@ test('migrate forward inserts tasks + events, records migration_history, creates
     const taskIds = db.prepare('SELECT id FROM tasks ORDER BY id').all().map((r) => r.id);
     assert.deepEqual(taskIds, ['task-1', 'task-2', 'task-3']);
 
+    const migrated = db.prepare(
+      'SELECT id, deps, estimated_days, context_file, created_at, updated_at FROM tasks ORDER BY id',
+    ).all();
+    assert.deepEqual(JSON.parse(migrated[1].deps), ['task-1']);
+    assert.equal(migrated[1].estimated_days, 1.5);
+    assert.equal(migrated[1].context_file, '.ultra/tasks/contexts/task-2.md');
+    for (const task of migrated) {
+      assert.match(task.created_at, /^2026-04-15T00:00:00\.000Z$/);
+      assert.match(task.updated_at, /^2026-04-16T00:00:00\.000Z$/);
+    }
+
     // Status comes from tasks.json (task-3 = pending), not the context md (blocked)
     const t3 = db.prepare("SELECT status FROM tasks WHERE id = 'task-3'").get();
     assert.equal(t3.status, 'pending');
@@ -85,6 +96,27 @@ test('migrate forward inserts tasks + events, records migration_history, creates
     assert.equal(mig[0].direction, 'forward');
     assert.equal(mig[0].status, 'success');
     closeStateDb(db);
+
+    const projected = JSON.parse(fs.readFileSync(
+      path.join(dir, '.ultra', 'tasks', 'tasks.json'),
+      'utf8',
+    ));
+    assert.equal(projected.schema_version, '4.5');
+    assert.equal(projected.source, '.ultra/state.db');
+    assert.equal(projected.tasks.length, 3);
+    assert.equal(projected.tasks[1].estimated_days, 1.5);
+    assert.deepEqual(projected.tasks[1].deps, ['task-1']);
+    assert.match(
+      fs.readFileSync(path.join(dir, '.ultra', 'tasks', 'contexts', 'task-2.md'), 'utf8'),
+      /Wire JWT validation into the request pipeline/,
+    );
+    const contextTemplate = fs.readFileSync(
+      path.join(dir, '.ultra', 'tasks', 'contexts', 'TEMPLATE.md'),
+      'utf8',
+    );
+    assert.doesNotMatch(contextTemplate, /> \*\*Status\*\*:/);
+    assert.doesNotMatch(contextTemplate, /mid_workflow_recall|session_context/);
+    assert.match(contextTemplate, /Preserve this acceptance item/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -112,9 +144,32 @@ test('migrate --rollback restores .ultra contents and writes a rollback row', ()
 
     // .ultra/tasks/tasks.json restored to original v4.4 content
     const tasksJson = JSON.parse(fs.readFileSync(path.join(dir, '.ultra', 'tasks', 'tasks.json'), 'utf8'));
-    assert.equal(tasksJson.schema_version, '4.4');
+    assert.equal(tasksJson.version, '4.4');
     assert.equal(tasksJson.tasks.length, 3);
     closeStateDb(undefined);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('migrate refuses to merge a v4.4 projection into a non-empty state.db', () => {
+  const dir = tmpProject();
+  try {
+    const dbPath = path.join(dir, '.ultra', 'state.db');
+    const init = require('../lib/state-db.cjs').initStateDb(dbPath);
+    require('../lib/state-ops.cjs').createTask(init.db, {
+      id: 'existing', title: 'existing task', type: 'feature', priority: 'P1',
+    });
+    closeStateDb(init.db);
+
+    const r = runCli(['migrate', '--from=4.4', '--to=4.5', '--source-dir', dir]);
+    assert.equal(r.code, 2);
+    assert.equal(r.envelope.error.code, 'MIGRATE_FAILED');
+    assert.match(r.envelope.error.message, /non-empty state\.db/);
+
+    const db = openStateDb(dbPath);
+    assert.deepEqual(db.prepare('SELECT id FROM tasks ORDER BY id').all(), [{ id: 'existing' }]);
+    closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

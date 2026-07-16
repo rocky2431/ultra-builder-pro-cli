@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 const opencode = require('../opencode.js');
 const { parse: parseFm } = require('../_shared/frontmatter.cjs');
@@ -70,6 +71,9 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     assert.match(geminiCollab, /OpenCode remains primary/);
     assert.match(verify, /OpenCode remains primary/);
     assert.match(verify, /opencode-analysis\.md/);
+    assert.match(plan, /LEGACY_STATE_MIGRATION_REQUIRED/);
+    assert.match(plan, /never read or write .*tasks\.json/i);
+    assert.doesNotMatch(plan, /ultra-tools task create/);
 
     const markdown = [];
     for (const root of ['commands', 'skills', 'agents']) {
@@ -165,10 +169,43 @@ test('install writes a schema-safe opencode.json and keeps ownership outside hos
     assert.match(plugin, /experimental\.chat\.system\.transform/);
     assert.match(plugin, /experimental\.session\.compacting/);
     assert.match(plugin, /tool\.execute\.before/);
+    assert.match(plugin, /\.ultra[\\/]tasks[\\/]tasks\.json/);
+    assert.match(plugin, /throw new Error/);
     assert.match(plugin, /session\.compacted/);
     assert.doesNotMatch(plugin, /memory|recall|journal|observation/);
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('OpenCode before-tool hook blocks tasks.json writes only during an active workflow', async () => {
+  const target = mkTarget();
+  const project = mkTarget();
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    const pluginFile = path.join(target, 'plugins', 'ultra-builder-pro.js');
+    const module = await import(pathToFileURL(pluginFile).href);
+    const plugin = await module.UltraBuilderProPlugin({ directory: project });
+
+    await plugin['tool.execute.before'](
+      { tool: 'edit' },
+      { args: { filePath: '.ultra/tasks/tasks.json' } },
+    );
+
+    fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
+    fs.writeFileSync(path.join(project, '.ultra', 'workflow-state.json'), JSON.stringify({
+      command: 'ultra-plan', task_id: 'plan', step: 'persist', status: 'active',
+    }));
+    await assert.rejects(
+      plugin['tool.execute.before'](
+        { tool: 'apply_patch' },
+        { args: { patch: '*** Begin Patch\n*** Update File: .ultra/tasks/tasks.json\n*** End Patch' } },
+      ),
+      /state\.db is authoritative/,
+    );
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(project, { recursive: true, force: true });
   }
 });
 

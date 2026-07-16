@@ -7,7 +7,6 @@ workflow-ref: "@skills/ultra-status/SKILL.md"
 mcp_tools_required:
   - task.list
   - task.get
-cli_fallback: "task list"
 ---
 
 # /ultra-status
@@ -16,6 +15,8 @@ cli_fallback: "task list"
 
 一次调用拿整个项目近况：任务进度（来自 state.db `task.list`）+ 测试状态（`test-report.json`）+
 发布状态（`delivery-report.json`）+ 风险检测 + 下一步命令路由。只读。
+任务状态只接受 MCP `task.list`/`task.get`；失败时原样报告并停止，绝不读取
+`tasks.json` 冒充权威数据。旧 v4.4 数据必须先执行正式迁移。
 
 ## 参数
 

@@ -9,7 +9,7 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '8A.1';
+const EXPECTED_VERSION = '8A.2';
 
 const REQUIRED_TABLES = Object.freeze([
   'tasks',
@@ -60,6 +60,22 @@ function applySchema(db) {
   runScript(db, readSchemaSql());
 }
 
+function columnNames(db, table) {
+  return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name));
+}
+
+function applyCompatibleUpgrades(db) {
+  const taskColumns = columnNames(db, 'tasks');
+  if (!taskColumns.has('estimated_days')) {
+    db.transaction(() => {
+      db.exec('ALTER TABLE tasks ADD COLUMN estimated_days REAL CHECK (estimated_days IS NULL OR estimated_days > 0)');
+      db.prepare(
+        'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
+      ).run(EXPECTED_VERSION, 'Phase 8A.2 — tasks.estimated_days preserved across MCP and v4.4 migration');
+    })();
+  }
+}
+
 function ensureSchemaVersion(db) {
   // schema_version is an audit trail — multiple rows across phase upgrades.
   // Guard by checking whether the expected version row exists rather than
@@ -82,6 +98,7 @@ function initStateDb(dbPath) {
   if (missing.length > 0) {
     applySchema(db);
   }
+  applyCompatibleUpgrades(db);
   const version = ensureSchemaVersion(db);
   return {
     db,
@@ -104,6 +121,7 @@ module.exports = {
   SCHEMA_FILE,
   openStateDb,
   applySchema,
+  applyCompatibleUpgrades,
   applyPragmas,
   ensureSchemaVersion,
   initStateDb,

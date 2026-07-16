@@ -131,7 +131,7 @@ test('task.create + task.get round trip via MCP', async () => {
     await withClient(proj, async (client) => {
       const created = await client.callTool({
         name: 'task.create',
-        arguments: { id: 'mcp-1', title: 'first', type: 'feature', priority: 'P1' },
+        arguments: { id: 'mcp-1', title: 'first', type: 'feature', priority: 'P1', estimated_days: 2.5 },
       });
       const createdData = readToolPayload(created);
       assert.equal(createdData.id, 'mcp-1');
@@ -141,6 +141,39 @@ test('task.create + task.get round trip via MCP', async () => {
       const gotData = readToolPayload(got);
       assert.equal(gotData.task.id, 'mcp-1');
       assert.equal(gotData.task.title, 'first');
+      assert.equal(gotData.task.estimated_days, 2.5);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('state-backed MCP tools fail closed when a non-empty v4.4 tasks.json meets an empty state.db', async () => {
+  const proj = tmpProject();
+  try {
+    const tasksDir = path.join(proj.dir, '.ultra', 'tasks');
+    fs.mkdirSync(tasksDir, { recursive: true });
+    fs.writeFileSync(path.join(tasksDir, 'tasks.json'), JSON.stringify({
+      version: '4.4',
+      tasks: [{
+        id: 'legacy-1', title: 'legacy task', type: 'feature', priority: 'P1',
+        status: 'pending', dependencies: [], estimated_days: 1,
+        context_file: 'contexts/task-legacy-1.md',
+      }],
+    }));
+
+    await withClient(proj, async (client) => {
+      const listed = await client.callTool({ name: 'task.list', arguments: {} });
+      const error = expectError(listed);
+      assert.equal(error.code, 'LEGACY_STATE_MIGRATION_REQUIRED');
+      assert.match(error.message, /ultra-tools migrate --from=4\.4 --to=4\.5/);
+      assert.equal(error.details.legacy_task_count, 1);
+
+      const created = await client.callTool({
+        name: 'task.create',
+        arguments: { title: 'must not overwrite legacy', type: 'feature', priority: 'P1' },
+      });
+      assert.equal(expectError(created).code, 'LEGACY_STATE_MIGRATION_REQUIRED');
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

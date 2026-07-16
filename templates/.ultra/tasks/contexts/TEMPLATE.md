@@ -1,6 +1,6 @@
-# Task {id}: {title}
+<!-- Body template only. The projector generates authoritative YAML frontmatter. -->
 
-> **Status**: pending | **Priority**: {priority} | **Complexity**: {complexity}
+# Task {id}: {title}
 
 ## Context
 

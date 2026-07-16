@@ -147,6 +147,12 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
     assert.match(review, /native Codex custom agents/);
     assert.match(review, /~\/plugins\/ultra-builder-pro\/skills\/ultra-review/);
 
+    const plan = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-plan', 'SKILL.md'), 'utf8');
+    const status = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-status', 'SKILL.md'), 'utf8');
+    assert.match(plan, /LEGACY_STATE_MIGRATION_REQUIRED/);
+    assert.match(plan, /Never read or write .*tasks\.json/i);
+    assert.match(status, /Never fall back to .*tasks\.json/i);
+
     const coreWorkflowText = [
       ...COMMANDS,
       'ultra-review',
@@ -196,6 +202,7 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     }
     assert.doesNotMatch(serializedHooks, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
     assert.match(serializedHooks, /\$PLUGIN_ROOT\/hooks\/adapters\/codex\.py/);
+    assert.match(serializedHooks, /apply_patch/);
 
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
     const server = mcp.mcpServers['ultra-builder-pro'];

@@ -41,7 +41,7 @@ result for primary verification.
 | Lifecycle | Claude Code | OpenCode | Codex | Gemini CLI |
 |---|---|---|---|---|
 | Session context/health | FULL, native `SessionStart` | FULL, system transform + event refresh | FULL, native `SessionStart` | N/A |
-| Active edit boundary | FULL, `PreToolUse Edit|Write` | DEGRADED, tool lifecycle can refresh but not inject a native pre-edit message | FULL, `PreToolUse Edit|Write` | N/A |
+| Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | N/A |
 | Compaction recovery | FULL, `PreCompact` + compact resume matcher | FULL, native compacting context | FULL, `PreCompact` + `PostCompact` | N/A |
 | Incomplete-stop gate | FULL, native blocking `Stop` hook | DEGRADED, no equivalent blocking stop hook | FULL, native blocking `Stop` hook | N/A |
 | Subagent lifecycle evidence | FULL | DEGRADED, no equivalent packaged event | FULL | N/A |

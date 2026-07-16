@@ -8,7 +8,6 @@ mcp_tools_required:
   - task.update
   - task.get
   - task.list
-cli_fallback: "task update"
 ---
 
 # /ultra-dev
@@ -18,6 +17,8 @@ cli_fallback: "task update"
 把一个 task 从 `pending` 推到 `completed`：进入 feature 分支 → RED/GREEN/REFACTOR
 TDD → 质量门 → `/ultra-review all` → 完成 → commit/merge。**单写**：状态只通过
 MCP `task.update` 改一次；projector 自动更新 tasks.json + context-md frontmatter。
+MCP 状态工具失败时 fail closed；`LEGACY_STATE_MIGRATION_REQUIRED` 只允许先跑
+v4.4→v4.5 迁移，绝不从 `tasks.json` 回退或直接改投影。
 
 ## 参数
 

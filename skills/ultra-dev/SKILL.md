@@ -6,7 +6,6 @@ mcp_tools_required:
   - task.update
   - task.get
   - task.list
-cli_fallback: "task update"
 ---
 
 # ultra-dev — Phase 3.4
@@ -16,6 +15,19 @@ Drive one task from `pending → completed` using a strict TDD loop, gated by
 MCP `task.update`; the projector regenerates `tasks.json` and context-md
 frontmatter. The skill only writes context-md **bodies** (Change Log,
 Completion, Dual-Write notes).
+
+## Authority failure boundary
+
+All task selection and transitions require the live MCP state tools. If they
+are unavailable or return an authority error, stop. For
+`LEGACY_STATE_MIGRATION_REQUIRED`, instruct:
+
+```bash
+ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>
+```
+
+Never fall back to `.ultra/tasks/tasks.json`, direct SQLite writes, or a task
+CLI. The JSON file is only a projector-owned view.
 
 ## Design decisions vs pre-Phase-3
 
@@ -30,9 +42,7 @@ Completion, Dual-Write notes).
 
 ## Prerequisites
 
-- `.ultra/tasks/tasks.json` exists (from `/ultra-plan`)
-- At least one task with `status=pending`
-- `state.db` initialized (first `task.*` call will init if missing)
+- `task.list` succeeds against state.db and returns at least one `pending` task
 
 ## Arguments
 
@@ -81,8 +91,6 @@ Acceptance sections. Use the Acceptance list as the initial todo set.
 // MCP: task.update  (R: do NOT touch context-md frontmatter or "> **Status**" line)
 { "id": "<id>", "patch": { "status": "in_progress" } }
 ```
-
-**CLI fallback**: `ultra-tools task update <id> --status in_progress`.
 
 Projector runs after the write → `tasks.json` + `contexts/task-{id}.md`
 frontmatter re-generated with `status: in_progress`. **Do not hand-edit either.**
@@ -191,13 +199,10 @@ Checkpoint `step="4.5", status="review_done", review_session=<id>, review_iterat
 {
   "id": "<id>",
   "patch": {
-    "status": "completed",
-    "completion_commit": "_pending_"  // overwritten in Step 6 after commit
+    "status": "completed"
   }
 }
 ```
-
-**CLI fallback**: `ultra-tools task update <id> --status completed`.
 
 Projector regenerates frontmatter. **Then** write the context-md **body**
 Completion section (skill responsibility, not projector):
@@ -297,15 +302,15 @@ Log in context-md body Change Log:
 history. Specs may grow (EXPANSION) or be corrected (CORRECTION). Specs must
 never silently shrink (REDUCTION without gate).
 
-## MCP → CLI fallback matrix
+## MCP failure matrix
 
-| Purpose | MCP tool (phase) | CLI / runtime fallback |
-|---------|------------------|------------------------|
-| Select pending task | `task.list` (2) / `task.get` (2) | `ultra-tools task list --status pending` |
-| Status → in_progress | `task.update` (2) | `ultra-tools task update <id> --status in_progress` |
+| Purpose | MCP tool (phase) | Failure behavior |
+|---------|------------------|------------------|
+| Select pending task | `task.list` (2) / `task.get` (2) | stop and surface the MCP error |
+| Status → in_progress | `task.update` (2) | stop; do not edit a projection |
 | Pre-review checkpoint | none | write `.ultra/workflow-state.json`; lifecycle hooks restore it |
 | Run review | none | `/ultra-review all` + Host-native review agents |
-| Status → completed | `task.update` (2) | `ultra-tools task update <id> --status completed` |
+| Status → completed | `task.update` (2) | stop; do not claim completion |
 | Ask user | none | current Host's native user-interaction surface |
 
 ## What this skill DOES NOT do
@@ -319,6 +324,6 @@ never silently shrink (REDUCTION without gate).
 
 | | |
 |---|---|
-| **Input** | `.ultra/tasks/tasks.json`, `.ultra/tasks/contexts/task-<id>.md` body, state.db |
+| **Input** | state.db via MCP, plus the `context_file` body returned for the selected task |
 | **Writes** | state.db (via `task.update`), context-md body (Completion + Change Log), workflow-state.json checkpoints |
 | **Next** | `/ultra-dev <next-id>` or `/ultra-test` when all Walking Skeleton + critical-path tasks complete |

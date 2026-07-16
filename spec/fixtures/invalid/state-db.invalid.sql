@@ -14,6 +14,9 @@ INSERT INTO tasks (id, title, type, priority) VALUES ('bad-2', 'wrong prio', 'fe
 --EXPECT_REJECT: complexity range
 INSERT INTO tasks (id, title, type, priority, complexity) VALUES ('bad-3', 'oob', 'feature', 'P1', 99);
 
+--EXPECT_REJECT: estimated_days positive
+INSERT INTO tasks (id, title, type, priority, estimated_days) VALUES ('bad-estimate', 'bad estimate', 'feature', 'P1', -1);
+
 --EXPECT_REJECT: status CHECK
 INSERT INTO tasks (id, title, type, priority, status) VALUES ('bad-4', 'wrong status', 'feature', 'P1', 'doing');
 

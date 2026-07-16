@@ -20,18 +20,31 @@ function freshDb() {
   return { ...t, db: init.db };
 }
 
-test('createTask inserts a row, defaults status=pending, emits task_created', () => {
+test('createTask inserts a row, preserves estimated_days, defaults status=pending, emits task_created', () => {
   const { dir, db } = freshDb();
   try {
     const out = ops.createTask(db, {
-      id: 'task-001', title: 'first task', type: 'feature', priority: 'P1',
+      id: 'task-001', title: 'first task', type: 'feature', priority: 'P1', estimated_days: 2.5,
     });
     assert.equal(out.id, 'task-001');
     assert.equal(out.status, 'pending');
+    assert.equal(out.estimated_days, 2.5);
     const events = db.prepare('SELECT type, task_id FROM events').all();
     assert.equal(events.length, 1);
     assert.equal(events[0].type, 'task_created');
     assert.equal(events[0].task_id, 'task-001');
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('patchTask updates estimated_days', () => {
+  const { dir, db } = freshDb();
+  try {
+    ops.createTask(db, { id: 'estimate', title: 'estimate task', type: 'feature', priority: 'P2' });
+    const out = ops.patchTask(db, 'estimate', { estimated_days: 1.5 });
+    assert.equal(out.estimated_days, 1.5);
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

@@ -8,7 +8,6 @@ mcp_tools_required:
   - task.dependency_topo
   - plan.export
   - plan.get
-cli_fallback: "task create"
 ---
 
 # ultra-plan — Phase 3.3
@@ -18,6 +17,20 @@ the authority** (D32): every new task is created via MCP `task.create`; the
 projector regenerates `.ultra/tasks/tasks.json` and context-md frontmatter
 automatically. Context-md bodies are written by this skill (not projector).
 
+## Authority failure boundary
+
+Before planning, call a state-backed MCP tool. If the MCP server is missing,
+unreachable, or returns any authority error, stop before creating tasks. In
+particular, `LEGACY_STATE_MIGRATION_REQUIRED` means the project still has a
+non-empty v4.4 projection; tell the user to run:
+
+```bash
+ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>
+```
+
+Never read or write `.ultra/tasks/tasks.json` as a fallback. It is a generated
+projection, not an alternate task store. There is no task-mutation CLI fallback.
+
 ## Prerequisites
 
 - `/ultra-research` completed — specs must be 100% (no `[NEEDS CLARIFICATION]`)
@@ -25,6 +38,13 @@ automatically. Context-md bodies are written by this skill (not projector).
 - `.ultra/specs/research-distillate.md` preferred when present (token-efficient)
 
 ## Workflow
+
+### Workflow activation
+
+At entry, write `.ultra/workflow-state.json` with
+`{"command":"ultra-plan","task_id":"plan","step":"0","status":"active","ts":"<ISO8601>"}`.
+This activates the workflow-only hooks. Mark it terminal only after the MCP
+task writes and verification complete.
 
 ### Input Mode Selection (BEFORE Step 0)
 
@@ -140,7 +160,7 @@ On fail → instruct user to run `/ultra-research` targeting the gap.
 
 Fields per task: `id`, `title` (action verb + target), `type`
 (architecture/feature/bugfix), `priority` (P0-P3), `complexity` (1-10),
-`status` (pending initially), `dependencies` (task IDs), `estimated_days`,
+`status` (pending initially), `deps` (task IDs), `estimated_days`,
 `context_file`, `trace_to` (spec section anchor).
 
 #### Integration tasks — MANDATORY inserts
@@ -187,17 +207,11 @@ For **each** task in the planned list (topological order):
   "type": "architecture",
   "priority": "P0",
   "complexity": 4,
+  "estimated_days": 2,
   "deps": [],
   "tag": "<git branch>",              // optional
   "trace_to": ".ultra/specs/product.md#US-01"
 }
-```
-
-**CLI fallback** (per task):
-```bash
-ultra-tools task create \
-  --title "Walking skeleton: …" --type architecture --priority P0 \
-  --complexity 4 --trace-to ".ultra/specs/product.md#US-01"
 ```
 
 After each `task.create`, the server auto-runs the projector — `tasks.json`
@@ -299,16 +313,17 @@ Summary output:
 | **Output (projected)** | `.ultra/tasks/tasks.json`, `.ultra/tasks/contexts/task-*.md` |
 | **Next** | `/ultra-dev` |
 
-## MCP → CLI fallback matrix
+## MCP failure matrix
 
-| Purpose | MCP tool | CLI fallback |
-|---------|----------|--------------|
+| Purpose | MCP tool | Failure behavior |
+|---------|----------|------------------|
 | Scope mode prompt | none | current Host's native user-interaction surface |
-| Create task | `task.create` | `ultra-tools task create --title … --type … --priority …` |
+| Create task | `task.create` | stop; surface the MCP error; never write a projection |
 
 ## What this skill DOES NOT do
 
 - Does NOT write state.db directly — all task writes go through `task.create`
 - Does NOT regenerate `tasks.json` — projector owns that
+- Does NOT read `tasks.json` when MCP state is empty or unavailable
 - Does NOT start implementation — that's `/ultra-dev`
 - Does NOT re-run research — if specs are incomplete, redirects to `/ultra-research`

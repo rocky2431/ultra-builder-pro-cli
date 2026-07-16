@@ -55,6 +55,8 @@ test('Claude plugin collaboration and learn workflows are safe native plugin ass
     const geminiCollab = read('gemini-collab');
     const verify = read('ultra-verify');
     const review = read('ultra-review');
+    const plan = read('ultra-plan');
+    const status = read('ultra-status');
 
     assert.match(learn, /~\/.claude\/skills\/learned-<pattern-slug>-unverified\/SKILL\.md/);
     assert.doesNotMatch(learn, /_unverified\.md/);
@@ -64,6 +66,10 @@ test('Claude plugin collaboration and learn workflows are safe native plugin ass
     assert.match(verify, /-s read-only/);
     assert.match(verify, /\$CLAUDE_PLUGIN_ROOT\/skills\/ultra-verify\/scripts\/verify_wait\.py/);
     assert.match(review, /\$CLAUDE_PLUGIN_ROOT\/skills\/ultra-review\/scripts\/review_wait\.py/);
+    assert.match(plan, /LEGACY_STATE_MIGRATION_REQUIRED/);
+    assert.match(plan, /never read or write .*tasks\.json/i);
+    assert.match(status, /never fall back .*tasks\.json/i);
+    assert.doesNotMatch(plan, /ultra-tools task create/);
 
     for (const [name, contents] of Object.entries({ codexCollab, geminiCollab, verify })) {
       assert.doesNotMatch(contents, /--yolo|--full-auto|\/codex:/, name);

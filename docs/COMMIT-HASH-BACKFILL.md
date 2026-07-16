@@ -77,10 +77,10 @@ The post-commit hook installed by `skills/ultra-dev/` will invoke this
 flow as soon as a feat commit lands on a task branch:
 
 ```
-post-commit hook → if commit message starts with "feat:" and the
+post-commit workflow → if commit message starts with "feat:" and the
                    working tree contains contexts/task-N.md →
-                   ultra-tools task update --id task-N \
-                       --completion-commit $(git rev-parse HEAD) &&
+                   MCP task.update {id: task-N,
+                       patch: {completion_commit: $(git rev-parse HEAD)}} &&
                    git add contexts/task-N.md &&
                    git commit -m "chore: record task-N completion hash"
 ```

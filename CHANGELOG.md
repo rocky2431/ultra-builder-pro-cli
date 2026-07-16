@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-07-16
+
+### Changed
+
+- Made task lifecycle workflows fail closed when MCP state is unavailable or
+  reports an authority conflict. Removed the nonexistent task create/update/list
+  CLI fallbacks from Claude Code, OpenCode, and Codex workflow assets.
+- Advanced the state schema to `8A.2` so `estimated_days` is authoritative and
+  survives MCP create/update, projection, and legacy migration.
+
+### Fixed
+
+- Fixed the v4.4→v4.5 migration for the real Ultra task shape: top-level
+  `version`, `dependencies`, relative `contexts/...` paths, date-only project
+  timestamps, and task rows without individual timestamps.
+- Added a state-authority gate that returns `LEGACY_STATE_MIGRATION_REQUIRED`
+  when a non-empty v4.4 task projection meets an empty state database, instead
+  of returning a misleading empty task list.
+- Made migration task/event inserts atomic, refused merges into a non-empty task
+  table, projected immediately after success, and preserved context bodies while
+  removing obsolete duplicate status banners and retired memory-hook references.
+- Added deterministic projection-write guards for Claude Code `Edit|Write`,
+  OpenCode `tool.execute.before`, and Codex `Edit|Write|apply_patch` during active
+  Ultra workflows.
+
 ## [0.5.0] — 2026-07-16
 
 ### Added
@@ -186,7 +211,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.4.0
 [0.3.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.3.0

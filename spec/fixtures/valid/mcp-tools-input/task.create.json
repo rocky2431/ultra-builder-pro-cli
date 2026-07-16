@@ -3,6 +3,7 @@
   "type": "architecture",
   "priority": "P0",
   "complexity": 6,
+  "estimated_days": 2.5,
   "deps": [],
   "tag": "main",
   "trace_to": "spec/mcp-tools.yaml#task.create"

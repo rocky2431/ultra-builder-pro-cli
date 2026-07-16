@@ -1,5 +1,13 @@
 {
-  "schema_version": "4.4",
+  "version": "4.4",
+  "created": "2026-04-15",
+  "updated": "2026-04-16",
+  "project": {
+    "name": "fixture-project",
+    "type": "fullstack",
+    "stack": "Node.js"
+  },
+  "scope_mode": "HOLD",
   "tasks": [
     {
       "id": "task-1",
@@ -8,11 +16,11 @@
       "priority": "P0",
       "complexity": 4,
       "status": "completed",
-      "deps": [],
+      "dependencies": [],
+      "estimated_days": 2,
+      "context_file": "contexts/task-1.md",
       "tag": "main",
-      "trace_to": "specs/architecture.md#bootstrap",
-      "created_at": "2026-04-15T10:00:00Z",
-      "updated_at": "2026-04-15T11:30:00Z"
+      "trace_to": "specs/architecture.md#bootstrap"
     },
     {
       "id": "task-2",
@@ -21,11 +29,11 @@
       "priority": "P1",
       "complexity": 6,
       "status": "in_progress",
-      "deps": ["task-1"],
+      "dependencies": ["task-1"],
+      "estimated_days": 1.5,
+      "context_file": "contexts/task-2.md",
       "tag": "main",
-      "trace_to": "specs/auth.md",
-      "created_at": "2026-04-15T11:30:00Z",
-      "updated_at": "2026-04-16T09:00:00Z"
+      "trace_to": "specs/auth.md"
     },
     {
       "id": "task-3",
@@ -33,10 +41,18 @@
       "type": "feature",
       "priority": "P2",
       "status": "pending",
-      "deps": ["task-2"],
+      "dependencies": ["task-2"],
+      "estimated_days": 1,
+      "context_file": "contexts/task-3.md",
       "tag": "feat-ratelimit",
-      "created_at": "2026-04-16T09:30:00Z",
-      "updated_at": "2026-04-16T09:30:00Z"
+      "trace_to": "specs/rate-limit.md"
     }
-  ]
+  ],
+  "metadata": {
+    "totalTasks": 3,
+    "completedTasks": 1,
+    "inProgressTasks": 1,
+    "pendingTasks": 1,
+    "totalEstimatedDays": 4.5
+  }
 }

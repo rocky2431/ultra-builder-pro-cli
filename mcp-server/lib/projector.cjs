@@ -16,8 +16,8 @@ const SCHEMA_VERSION = '4.5';
 const SOURCE_TAG = '.ultra/state.db';
 
 // Frozen SELECTs — values bind through @placeholders.
-const LIST_TASKS_FOR_PROJECTION_SQL = "SELECT id, title, type, priority, complexity, status, deps, files_modified, session_id, stale, complexity_hint, tag, trace_to, context_file, completion_commit, created_at, updated_at FROM tasks ORDER BY created_at ASC";
-const READ_TASK_FOR_PROJECTION_SQL = "SELECT id, title, type, priority, complexity, status, deps, files_modified, session_id, stale, complexity_hint, tag, trace_to, context_file, completion_commit, created_at, updated_at FROM tasks WHERE id = @id";
+const LIST_TASKS_FOR_PROJECTION_SQL = "SELECT id, title, type, priority, complexity, estimated_days, status, deps, files_modified, session_id, stale, complexity_hint, tag, trace_to, context_file, completion_commit, created_at, updated_at FROM tasks ORDER BY created_at ASC";
+const READ_TASK_FOR_PROJECTION_SQL = "SELECT id, title, type, priority, complexity, estimated_days, status, deps, files_modified, session_id, stale, complexity_hint, tag, trace_to, context_file, completion_commit, created_at, updated_at FROM tasks WHERE id = @id";
 
 function rowToProjection(row) {
   if (!row) return null;
@@ -87,6 +87,11 @@ function buildContextDoc(taskRow, existingBody) {
   headerLines.push('---', '');
 
   let body = existingBody || '';
+  // v4.4 contexts carried a second generated status banner in the Markdown
+  // body. Once frontmatter is authoritative, retaining that line creates two
+  // state surfaces that can disagree. Remove only the legacy generated line;
+  // all task-authored body content remains intact.
+  body = body.replace(/^>\s*\*\*Status\*\*:.*(?:\r?\n|$)(?:\r?\n)?/mi, '');
   // Strip any previous STALE banner so re-projection after reset is clean.
   body = body.replace(/^> ⚠️\s*STALE[^\n]*\n(?:>[^\n]*\n)*\n?/m, '');
   if (taskRow.stale) {

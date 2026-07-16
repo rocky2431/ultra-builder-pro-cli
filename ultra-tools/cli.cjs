@@ -3,9 +3,9 @@
 /**
  * ultra-tools — runtime-agnostic state engine for Ultra Builder Pro.
  *
- * Shell fallback for Ultra task/session state, status, database maintenance,
- * migration, and explicit legacy-memory cleanup. User interaction, skill
- * discovery, and subagent delegation stay on each host's native surfaces.
+ * Maintenance CLI for Ultra initialization, status, database operations,
+ * migration, and explicit legacy-memory cleanup. Authoritative task mutations
+ * stay on the live MCP server; this CLI is not a task-state fallback.
  *
  * Usage:
  *   ultra-tools <subcommand> [...]
@@ -33,8 +33,8 @@ USAGE:
   ultra-tools <subcommand> [args]
 
 SUBCOMMANDS:
-  task      create | update | list | get | delete
-  session   spawn | close | get | list | admission | heartbeat | subscribe
+  task      init-project
+  session   close | get | list | admission | heartbeat | subscribe | reap
   status    [--cost] [--since <duration>] [--json]
   db        init | checkpoint | vacuum | integrity | backup (Phase 2)
   migrate   --from=4.4 --to=4.5 [--dry|--rollback]          (Phase 2)

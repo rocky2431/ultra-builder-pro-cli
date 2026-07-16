@@ -16,13 +16,20 @@ Single-call dashboard. Pulls task state from state.db (authoritative), layers
 in `.ultra/test-report.json` + `.ultra/delivery-report.json` (file artifacts),
 reports progress + risks + workflow routing.
 
+## Authority failure boundary
+
+`task.list` and `task.get` are the only task-state inputs. If either is
+unavailable or returns an authority error, surface it and stop. Never fall back to `.ultra/tasks/tasks.json`.
+On `LEGACY_STATE_MIGRATION_REQUIRED`, instruct the
+user to run `ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>`.
+
 ## Workflow
 
 ### Phase 0 — Environment validation
 
 | Check | If missing |
 |-------|-----------|
-| `.ultra/tasks/tasks.json` projection present (or state.db reachable) | suggest `/ultra-init` |
+| state.db reachable through `task.list` | suggest `/ultra-init` only when `.ultra/` is absent; otherwise surface the MCP error |
 | At least one task visible via `task.list` | suggest `/ultra-plan` |
 | `task.list` returns valid rows | surface error |
 
@@ -41,8 +48,6 @@ reports progress + risks + workflow routing.
 { "since_id": 0, "limit": 20 }
 // → { events: [...], next_since_id: M }
 ```
-
-**CLI fallback**: `ultra-tools task list` + `ultra-tools session list`.
 
 Also read:
 - `.ultra/test-report.json` — if present
@@ -132,12 +137,12 @@ When `task-id` provided:
 Display: title, status, priority, complexity, deps, files_modified (if set),
 session_id (if active), `context_file`, `trace_to`, stale flag, update history.
 
-## MCP → CLI fallback matrix
+## MCP and CLI matrix
 
 | Purpose | MCP tool | CLI fallback |
 |---------|----------|--------------|
-| List tasks | `task.list` | `ultra-tools task list` |
-| Single task detail | `task.get` | `ultra-tools task get <id>` |
+| List tasks | `task.list` | none; fail closed |
+| Single task detail | `task.get` | none; fail closed |
 | Cost panel (Phase 6.3) | — | `ultra-tools status --cost --json --since 7d` |
 
 ## Cost panel (Phase 6.3)

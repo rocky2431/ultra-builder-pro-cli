@@ -6,7 +6,6 @@ model: opus
 workflow-ref: "@skills/ultra-plan/SKILL.md"
 mcp_tools_required:
   - task.create
-cli_fallback: "task create"
 ---
 
 # /ultra-plan
@@ -17,6 +16,11 @@ cli_fallback: "task create"
 Skeleton 贯穿所有层，再切 vertical slices，每 3-4 个 feature task 插一个
 Integration Checkpoint。任务写入 state.db（MCP `task.create`），projector
 自动生成 `.ultra/tasks/tasks.json` + contexts/*.md frontmatter。
+
+入口先写 active `.ultra/workflow-state.json`。MCP 不可用或返回
+`LEGACY_STATE_MIGRATION_REQUIRED` 时立即停止，提示运行
+`ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>`；绝不读取或写入
+`tasks.json` 作为回退。
 
 ## 参数
 

@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const { initStateDb, openStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
+const projector = require('../../mcp-server/lib/projector.cjs');
 
 const SUPPORTED_FROM = '4.4';
 const SUPPORTED_TO = '4.5';
@@ -78,11 +79,84 @@ function copyDirSync(src, dst) {
   }
 }
 
+function isoTimestamp(value, fallback) {
+  const candidate = value || fallback;
+  const date = new Date(candidate);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`migrate: invalid timestamp ${JSON.stringify(candidate)}`);
+  }
+  return date.toISOString();
+}
+
+function projectRelativeContextPath(sourceDir, value) {
+  if (!value) return null;
+  const normalized = String(value).replaceAll('\\', '/');
+  if (normalized.startsWith('.ultra/')) return normalized;
+  if (normalized.startsWith('contexts/')) return `.ultra/tasks/${normalized}`;
+  if (path.isAbsolute(value)) {
+    const relative = path.relative(sourceDir, value).replaceAll(path.sep, '/');
+    if (relative.startsWith('../') || relative === '..') {
+      throw new Error(`migrate: context_file escapes project root: ${value}`);
+    }
+    return relative;
+  }
+  return `.ultra/tasks/contexts/${path.basename(normalized)}`;
+}
+
+function sanitizeLegacyContextTemplate(sourceDir) {
+  const file = path.join(sourceDir, '.ultra', 'tasks', 'contexts', 'TEMPLATE.md');
+  if (!fs.existsSync(file)) return false;
+  const current = fs.readFileSync(file, 'utf8');
+  const next = current
+    .replace(/^>\s*\*\*Status\*\*:.*(?:\r?\n|$)(?:\r?\n)?/mi, '')
+    .replace(
+      /Read by mid_workflow_recall\.py and session_context\.py and injected into agent context\./g,
+      'Used as task-local acceptance criteria by the active Ultra workflow.',
+    );
+  if (next === current) return false;
+  fs.writeFileSync(file, next);
+  return true;
+}
+
+function normalizeLegacyTask(task, tasksJson, contextHeaders, sourceDir) {
+  if (!task || typeof task !== 'object') throw new Error('migrate: every task must be an object');
+  for (const field of ['id', 'title', 'type', 'priority', 'status']) {
+    if (task[field] === undefined || task[field] === null || task[field] === '') {
+      throw new Error(`migrate: task ${task.id || '(unknown)'} missing ${field}`);
+    }
+  }
+  const deps = task.dependencies ?? task.deps ?? [];
+  if (!Array.isArray(deps)) throw new Error(`migrate: task ${task.id} dependencies must be an array`);
+  if (task.estimated_days !== undefined
+      && (!Number.isFinite(task.estimated_days) || task.estimated_days <= 0)) {
+    throw new Error(`migrate: task ${task.id} estimated_days must be a positive number`);
+  }
+  const createdAt = isoTimestamp(task.created_at, tasksJson.created);
+  const updatedAt = isoTimestamp(task.updated_at, tasksJson.updated || tasksJson.created);
+  const ctx = contextHeaders[task.id];
+  const contextFile = projectRelativeContextPath(
+    sourceDir,
+    task.context_file || (ctx && ctx._file),
+  );
+  return {
+    ...task,
+    deps,
+    estimated_days: task.estimated_days ?? null,
+    context_file: contextFile,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  };
+}
+
 function planForward(sourceDir) {
   const tasksPath = path.join(sourceDir, '.ultra', 'tasks', 'tasks.json');
   const tasksJson = readJsonOptional(tasksPath);
   if (!tasksJson || !Array.isArray(tasksJson.tasks)) {
     throw new Error(`migrate: tasks.json missing or malformed at ${tasksPath}`);
+  }
+  const version = String(tasksJson.version || tasksJson.schema_version || '');
+  if (version !== SUPPORTED_FROM) {
+    throw new Error(`migrate: expected v${SUPPORTED_FROM} tasks.json, found ${version || '(missing version)'}`);
   }
 
   const contextHeaders = {};
@@ -107,9 +181,12 @@ function planForward(sourceDir) {
   const eventsPath = path.join(sourceDir, '.ultra', 'activity-log.json');
   const events = readJsonOptional(eventsPath);
   const eventList = Array.isArray(events) ? events : [];
+  const tasks = tasksJson.tasks.map((task) => (
+    normalizeLegacyTask(task, tasksJson, contextHeaders, sourceDir)
+  ));
 
   return {
-    tasks: tasksJson.tasks,
+    tasks,
     events: eventList,
     contextHeaders,
     warnings,
@@ -118,50 +195,44 @@ function planForward(sourceDir) {
 
 function applyForward(db, plan) {
   const insertTask = db.prepare(
-    "INSERT INTO tasks (id, title, type, priority, complexity, status, deps, tag, trace_to, context_file, created_at, updated_at) VALUES (@id, @title, @type, @priority, @complexity, @status, @deps, @tag, @trace_to, @context_file, @created_at, @updated_at)",
+    "INSERT INTO tasks (id, title, type, priority, complexity, estimated_days, status, deps, tag, trace_to, context_file, created_at, updated_at) VALUES (@id, @title, @type, @priority, @complexity, @estimated_days, @status, @deps, @tag, @trace_to, @context_file, @created_at, @updated_at)",
   );
   const insertEvent = db.prepare(
     "INSERT INTO events (ts, type, task_id, session_id, runtime, payload_json) VALUES (@ts, @type, @task_id, @session_id, @runtime, @payload)",
   );
 
-  const taskInserted = ops.tx(db, () => {
-    let n = 0;
-    for (const t of plan.tasks) {
-      const ctx = plan.contextHeaders[t.id];
-      insertTask.run({
-        id: t.id,
-        title: t.title,
-        type: t.type,
-        priority: t.priority,
-        complexity: t.complexity ?? null,
-        status: t.status,
-        deps: t.deps ? JSON.stringify(t.deps) : null,
-        tag: t.tag ?? null,
-        trace_to: t.trace_to ?? null,
-        context_file: ctx ? ctx._file : null,
-        created_at: t.created_at,
-        updated_at: t.updated_at,
-      });
-      n++;
-    }
-    return n;
-  });
+  let taskInserted = 0;
+  for (const t of plan.tasks) {
+    insertTask.run({
+      id: t.id,
+      title: t.title,
+      type: t.type,
+      priority: t.priority,
+      complexity: t.complexity ?? null,
+      estimated_days: t.estimated_days,
+      status: t.status,
+      deps: JSON.stringify(t.deps),
+      tag: t.tag ?? null,
+      trace_to: t.trace_to ?? null,
+      context_file: t.context_file,
+      created_at: t.created_at,
+      updated_at: t.updated_at,
+    });
+    taskInserted++;
+  }
 
-  const eventsInserted = ops.tx(db, () => {
-    let n = 0;
-    for (const e of plan.events) {
-      insertEvent.run({
-        ts: e.ts || new Date().toISOString(),
-        type: e.type,
-        task_id: e.task_id ?? null,
-        session_id: e.session_id ?? null,
-        runtime: e.runtime ?? null,
-        payload: e.payload === undefined ? null : JSON.stringify(e.payload),
-      });
-      n++;
-    }
-    return n;
-  });
+  let eventsInserted = 0;
+  for (const e of plan.events) {
+    insertEvent.run({
+      ts: e.ts || new Date().toISOString(),
+      type: e.type,
+      task_id: e.task_id ?? null,
+      session_id: e.session_id ?? null,
+      runtime: e.runtime ?? null,
+      payload: e.payload === undefined ? null : JSON.stringify(e.payload),
+    });
+    eventsInserted++;
+  }
 
   return { taskInserted, eventsInserted };
 }
@@ -220,14 +291,23 @@ function cmdForward(flags) {
   let db;
   try {
     db = initStateDb(dbPath).db;
-    const counts = applyForward(db, plan);
-    recordMigration(db, {
-      from: SUPPORTED_FROM,
-      to: SUPPORTED_TO,
-      direction: 'forward',
-      status: 'success',
-      notes: `tasks=${counts.taskInserted} events=${counts.eventsInserted} warnings=${plan.warnings.length}`,
+    const counts = ops.tx(db, () => {
+      const existing = db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count;
+      if (existing > 0) {
+        throw new Error(`migrate: refusing to merge into non-empty state.db (tasks=${existing})`);
+      }
+      const inserted = applyForward(db, plan);
+      recordMigration(db, {
+        from: SUPPORTED_FROM,
+        to: SUPPORTED_TO,
+        direction: 'forward',
+        status: 'success',
+        notes: `tasks=${inserted.taskInserted} events=${inserted.eventsInserted} warnings=${plan.warnings.length}`,
+      });
+      return inserted;
     });
+    projector.projectAll(db, { rootDir: sourceDir });
+    const contextTemplateSanitized = sanitizeLegacyContextTemplate(sourceDir);
     emit({
       ok: true,
       data: {
@@ -240,6 +320,7 @@ function cmdForward(flags) {
         tasks_inserted: counts.taskInserted,
         events_inserted: counts.eventsInserted,
         warnings: plan.warnings,
+        context_template_sanitized: contextTemplateSanitized,
       },
     });
     return 0;
@@ -351,4 +432,11 @@ Rollback restores from the latest backup-v4.4-* directory and writes a
 matching migration_history rollback row before dropping state.db.
 `;
 
-module.exports = { dispatch, USAGE, parseFlags, planForward, parseFrontmatter };
+module.exports = {
+  dispatch,
+  USAGE,
+  parseFlags,
+  planForward,
+  parseFrontmatter,
+  sanitizeLegacyContextTemplate,
+};

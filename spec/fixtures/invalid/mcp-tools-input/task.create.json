@@ -1,4 +1,12 @@
-{
-  "title": "missing priority field",
-  "type": "feature"
-}
+[
+  {
+    "title": "missing priority field",
+    "type": "feature"
+  },
+  {
+    "title": "negative task estimate",
+    "type": "feature",
+    "priority": "P1",
+    "estimated_days": -1
+  }
+]

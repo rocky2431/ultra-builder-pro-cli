@@ -9,6 +9,7 @@
       "type": "architecture",
       "priority": "P0",
       "complexity": 6,
+      "estimated_days": 2.5,
       "status": "in_progress",
       "deps": [],
       "files_modified": ["spec/mcp-tools.yaml", "spec/schemas/state-db.sql"],

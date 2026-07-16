@@ -4,7 +4,6 @@ description: "Pre-delivery quality audit — Anti-Pattern + Coverage Gap + Wirin
 runtime: all
 mcp_tools_required:
   - task.list
-cli_fallback: "task list"
 ---
 
 # ultra-test — Phase 3.5
@@ -13,6 +12,13 @@ Project-level quality audit before `/ultra-deliver`. Auditors are orthogonal;
 each writes a JSON gate result; the skill aggregates into `.ultra/test-report.json`.
 This is **not** for running unit tests (that is `/ultra-dev`). This is the
 pre-ship gate.
+
+## Authority failure boundary
+
+The completed-task precheck requires MCP `task.list`. If it is unavailable or
+returns an authority error, stop the audit. Never fall back to
+`.ultra/tasks/tasks.json`. For `LEGACY_STATE_MIGRATION_REQUIRED`, instruct
+`ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>`.
 
 ## Prerequisites
 
@@ -173,11 +179,11 @@ when `passed=true`.
 | Performance | all Core Web Vitals (if frontend) |
 | Security | 0 critical/high |
 
-## MCP → CLI fallback matrix
+## MCP failure matrix
 
 | Purpose | MCP tool | CLI fallback |
 |---------|----------|--------------|
-| Confirm ≥1 completed task | `task.list { status: "completed" }` | `ultra-tools task list --status completed` |
+| Confirm ≥1 completed task | `task.list { status: "completed" }` | none; fail closed |
 | Confirm risky auto-fix | none | current Host's native user-interaction surface |
 
 ## What this skill DOES NOT do

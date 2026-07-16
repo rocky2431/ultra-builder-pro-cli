@@ -18,6 +18,7 @@ const { ListToolsRequestSchema, CallToolRequestSchema } = require('@modelcontext
 const { version: PACKAGE_VERSION } = require('../package.json');
 
 const { initStateDb, closeStateDb } = require('./lib/state-db.cjs');
+const { assertStateAuthority } = require('./lib/state-authority.cjs');
 const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
 const telemetry = require('./lib/telemetry.cjs');
@@ -413,6 +414,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
     let toolDb = null;
     try {
       toolDb = STATELESS_TOOLS.has(name) ? null : getDb();
+      if (toolDb) assertStateAuthority(toolDb, rootDir);
       result = await dispatchTool(name, args, toolDb, { rootDir });
     } catch (err) {
       const code = err.code || (err instanceof ops.StateOpsError ? err.code : 'STATE_DB_ERROR');
