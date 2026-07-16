@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-07-16
+
+### Fixed
+
+- Preserved Codex hook entry points for already-running tasks across plugin
+  refreshes, including cache versions whose adapter file or entire cache
+  directory had already disappeared. Historical cache versions are now kept in
+  the managed runtime manifest and restored as validated forwarders to the
+  current adapter.
+
 ## [0.5.1] — 2026-07-16
 
 ### Changed
@@ -211,7 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.5.0
 [0.4.0]: https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v0.4.0

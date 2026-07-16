@@ -191,14 +191,53 @@ function pluginCacheRoot(configDir, marketplaceName) {
   return path.join(configDir, 'plugins', 'cache', marketplaceName, PLUGIN_NAME);
 }
 
-function listCachedHookAdapters(configDir, marketplaceName) {
+function normalizeHookCacheVersions(versions) {
+  const normalized = new Set();
+  for (const version of versions) {
+    if (typeof version !== 'string'
+      || !/^[A-Za-z0-9][A-Za-z0-9.+_-]*$/.test(version)) {
+      throw new Error(`invalid Codex plugin cache version: ${String(version)}`);
+    }
+    normalized.add(version);
+  }
+  return [...normalized].sort();
+}
+
+function listKnownHookCacheVersions(configDir, marketplaceName, manifest = null) {
   const root = pluginCacheRoot(configDir, marketplaceName);
-  if (!fs.existsSync(root)) return [];
-  return fs.readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(root, entry.name, HOOK_ADAPTER_RELATIVE))
-    .filter((file) => fs.existsSync(file))
-    .sort();
+  const versions = [];
+  if (fs.existsSync(root)) {
+    versions.push(...fs.readdirSync(root, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
+      .map((entry) => entry.name));
+  }
+
+  if (manifest && manifest.source === SOURCE_TAG && manifest.adapter === 'codex') {
+    if (manifest.plugin && manifest.plugin.version !== undefined) {
+      versions.push(manifest.plugin.version);
+    }
+    if (manifest.hook_cache_versions !== undefined) {
+      if (!Array.isArray(manifest.hook_cache_versions)) {
+        throw new Error('invalid Codex runtime manifest hook_cache_versions');
+      }
+      versions.push(...manifest.hook_cache_versions);
+    }
+  }
+  return normalizeHookCacheVersions(versions);
+}
+
+function hookAdaptersForVersions(configDir, marketplaceName, versions) {
+  const root = pluginCacheRoot(configDir, marketplaceName);
+  return normalizeHookCacheVersions(versions)
+    .map((version) => path.join(root, version, HOOK_ADAPTER_RELATIVE));
+}
+
+function listCachedHookAdapters(configDir, marketplaceName, manifest = null) {
+  return hookAdaptersForVersions(
+    configDir,
+    marketplaceName,
+    listKnownHookCacheVersions(configDir, marketplaceName, manifest),
+  );
 }
 
 function hookForwarder(target) {
@@ -211,6 +250,20 @@ runpy.run_path(${JSON.stringify(path.resolve(target))}, run_name="__main__")
 `;
 }
 
+function prepareHookAdapterPath(file) {
+  const versionRoot = path.dirname(path.dirname(path.dirname(file)));
+  try {
+    const stat = fs.lstatSync(versionRoot);
+    if (stat.isSymbolicLink()) {
+      fs.unlinkSync(versionRoot);
+    } else if (!stat.isDirectory()) {
+      throw new Error(`Codex plugin cache version is not a directory: ${versionRoot}`);
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
+
 function restoreCachedHookAdapters(previousAdapters, target) {
   const resolvedTarget = path.resolve(target);
   if (!fs.existsSync(resolvedTarget)) {
@@ -219,6 +272,7 @@ function restoreCachedHookAdapters(previousAdapters, target) {
   const restored = [];
   for (const previous of previousAdapters) {
     if (path.resolve(previous) === resolvedTarget || fs.existsSync(previous)) continue;
+    prepareHookAdapterPath(previous);
     writeAtomic(previous, hookForwarder(resolvedTarget));
     restored.push(previous);
   }
@@ -239,6 +293,7 @@ function writeRuntimeManifest(configDir, data) {
     plugin: data.plugin,
     marketplace: data.marketplace,
     agents: data.agents,
+    hook_cache_versions: data.hookCacheVersions,
   }, null, 2) + '\n');
   return file;
 }
@@ -250,20 +305,25 @@ function install(ctx = {}) {
   const marketplaceFile = resolveMarketplaceFile(ctx);
   ensureDir(configDir);
 
+  const previousManifest = readRuntimeManifest(configDir);
   const legacy = cleanupLegacyConfig(configDir);
   const plugin = buildPlugin({ repoRoot, pluginRoot });
   const agents = installAgents({ repoRoot, configDir });
   const marketplace = upsertMarketplace(marketplaceFile);
-  const manifestFile = writeRuntimeManifest(configDir, {
-    plugin: { root: plugin.root, version: plugin.version },
-    marketplace: { file: marketplace.file, name: marketplace.name },
-    agents: agents.installed,
-  });
+  const previousVersions = listKnownHookCacheVersions(
+    configDir,
+    marketplace.name,
+    previousManifest,
+  );
 
   let registration = null;
   let hookCompatibility = null;
   if (shouldRunPluginCli(ctx)) {
-    const previousAdapters = listCachedHookAdapters(configDir, marketplace.name);
+    const previousAdapters = hookAdaptersForVersions(
+      configDir,
+      marketplace.name,
+      previousVersions,
+    );
     try {
       registration = runPluginCli('add', marketplace.name, ctx);
     } catch (registrationError) {
@@ -285,6 +345,16 @@ function install(ctx = {}) {
       currentHookAdapter(configDir, marketplace.name, plugin),
     );
   }
+  const hookCacheVersions = normalizeHookCacheVersions([
+    ...previousVersions,
+    plugin.version,
+  ]);
+  const manifestFile = writeRuntimeManifest(configDir, {
+    plugin: { root: plugin.root, version: plugin.version },
+    marketplace: { file: marketplace.file, name: marketplace.name },
+    agents: agents.installed,
+    hookCacheVersions,
+  });
 
   return {
     target: configDir,
@@ -379,7 +449,9 @@ module.exports = {
     removeMarketplaceEntry,
     runPluginCli,
     pluginCacheRoot,
+    listKnownHookCacheVersions,
     listCachedHookAdapters,
+    prepareHookAdapterPath,
     restoreCachedHookAdapters,
   },
 };

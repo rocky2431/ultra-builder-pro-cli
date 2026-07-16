@@ -158,6 +158,124 @@ test('codex smoke — live hook cache paths survive a successful plugin refresh'
   } finally { cleanup(layout.homeDir); }
 });
 
+test('codex smoke — retained cache versions recover a missing hook adapter', () => {
+  const layout = mkLayout('codex-hook-cache-missing-adapter');
+  const oldAdapter = path.join(
+    layout.cacheRoot,
+    '0.4.0+codex.missing-adapter',
+    'hooks',
+    'adapters',
+    'codex.py',
+  );
+  try {
+    fs.mkdirSync(path.dirname(oldAdapter), { recursive: true });
+
+    const report = codex.install({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: true,
+      codexBin: writeFakeCodexCli(layout),
+    });
+
+    assert.ok(fs.existsSync(oldAdapter));
+    assert.match(fs.readFileSync(oldAdapter, 'utf8'), /runpy\.run_path/);
+    assert.deepEqual(report.hookCompatibility.restored, [oldAdapter]);
+  } finally { cleanup(layout.homeDir); }
+});
+
+test('codex smoke — runtime manifest recovers a cache version removed before refresh', () => {
+  const layout = mkLayout('codex-hook-cache-manifest-history');
+  const retiredVersion = '0.4.0+codex.removed-before-refresh';
+  const oldAdapter = path.join(
+    layout.cacheRoot,
+    retiredVersion,
+    'hooks',
+    'adapters',
+    'codex.py',
+  );
+  try {
+    install(layout);
+    const manifestFile = path.join(
+      layout.configDir,
+      'ultra-builder-pro',
+      'install-manifest.json',
+    );
+    const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+    manifest.plugin.version = retiredVersion;
+    fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n');
+
+    const report = codex.install({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: true,
+      codexBin: writeFakeCodexCli(layout),
+    });
+
+    assert.ok(fs.existsSync(oldAdapter));
+    assert.match(fs.readFileSync(oldAdapter, 'utf8'), /runpy\.run_path/);
+    assert.ok(report.hookCompatibility.restored.includes(oldAdapter));
+
+    const updated = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+    assert.ok(updated.hook_cache_versions.includes(retiredVersion));
+  } finally { cleanup(layout.homeDir); }
+});
+
+test('codex smoke — dangling cache symlinks become local hook forwarders', () => {
+  const layout = mkLayout('codex-hook-cache-dangling-symlink');
+  const currentAdapter = path.join(
+    layout.cacheRoot,
+    '0.5.2+codex.current',
+    'hooks',
+    'adapters',
+    'codex.py',
+  );
+  const oldRoot = path.join(layout.cacheRoot, '0.4.0+codex.dangling');
+  const oldAdapter = path.join(oldRoot, 'hooks', 'adapters', 'codex.py');
+  try {
+    fs.mkdirSync(path.dirname(currentAdapter), { recursive: true });
+    fs.writeFileSync(currentAdapter, '# current adapter\n');
+    fs.symlinkSync(path.join(layout.cacheRoot, 'removed-version'), oldRoot);
+
+    const report = codex._internal.restoreCachedHookAdapters(
+      [oldAdapter],
+      currentAdapter,
+    );
+
+    assert.equal(fs.lstatSync(oldRoot).isSymbolicLink(), false);
+    assert.ok(fs.existsSync(oldAdapter));
+    assert.match(fs.readFileSync(oldAdapter, 'utf8'), /runpy\.run_path/);
+    assert.deepEqual(report.restored, [oldAdapter]);
+  } finally { cleanup(layout.homeDir); }
+});
+
+test('codex smoke — refresh discovers dangling cache symlinks without manifest history', () => {
+  const layout = mkLayout('codex-hook-cache-discover-dangling');
+  const retiredVersion = '0.4.0+codex.discovered-dangling';
+  const oldRoot = path.join(layout.cacheRoot, retiredVersion);
+  const oldAdapter = path.join(oldRoot, 'hooks', 'adapters', 'codex.py');
+  try {
+    fs.mkdirSync(layout.cacheRoot, { recursive: true });
+    fs.symlinkSync(path.join(layout.cacheRoot, 'removed-version'), oldRoot);
+
+    const report = codex.install({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: true,
+      codexBin: writeFakeCodexCli(layout),
+    });
+
+    assert.ok(fs.existsSync(oldAdapter));
+    assert.match(fs.readFileSync(oldAdapter, 'utf8'), /runpy\.run_path/);
+    assert.ok(report.hookCompatibility.restored.includes(oldAdapter));
+  } finally { cleanup(layout.homeDir); }
+});
+
 test('codex smoke — failed plugin refresh restores live hook cache paths', () => {
   const layout = mkLayout('codex-hook-cache-failure');
   const oldAdapter = path.join(
@@ -215,6 +333,18 @@ test('codex smoke — hook cache root rejects marketplace path traversal', () =>
     assert.throws(
       () => codex._internal.pluginCacheRoot(layout.configDir, '../../outside'),
       /invalid Codex marketplace name/,
+    );
+    assert.throws(
+      () => codex._internal.listCachedHookAdapters(
+        layout.configDir,
+        'personal',
+        {
+          source: 'ubp',
+          adapter: 'codex',
+          plugin: { version: '../../outside' },
+        },
+      ),
+      /invalid Codex plugin cache version/,
     );
   } finally { cleanup(layout.homeDir); }
 });
