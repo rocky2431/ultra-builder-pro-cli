@@ -10,7 +10,7 @@
 > 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
 > memory/hindsight 章节仅作为历史实施记录，不再是当前需求或运行时契约。
 
-**当前状态**：v0.8.0；三宿主 native plugin、29 个 live MCP tool、
+**当前状态**：v0.8.1；三宿主 native plugin、29 个 live MCP tool、
 schema 9.0（15 表）、持续 change/context/convergence/doctor、incident debug lane、
 checkpoint 恢复消费与跨宿主安装 provenance/doctor 已落地；npm 发布由
 `v*.*.*` tag 触发。以下 Phase 0-9 正文保留为 2026-04 的实施历史，不再作为
@@ -1640,7 +1640,7 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | **D50** | **2026-07-15** | **重划插件与记忆边界**：Claude Code、Codex、OpenCode 改为各自 native plugin；只打包 10 个 Ultra 公共 workflow、4 个 agent-only 规则 skill 与宿主专属 collab companion；删除 6 个外部 skill、recall、Impeccable 残留、Ultra memory MCP/store/wrapper/capture hooks；持久记忆由独立 cloud-mem/claude-mem 负责；用户 handbook 通过可预览、可备份的 managed block 显式同步 | 用户确认最终方案；运行时 allowlist、conformance、hook 与 handbook 回归测试共同锁定边界 |
 | **D51** | **2026-07-17** | **runtime 收敛为 Claude Code、OpenCode、Codex**：删除第四 runtime 的 adapter、安装参数、collab skill、prompt、schema、pricing、调度与测试面；`ultra-verify` 改为当前宿主主责加单一只读外部顾问 | 用户确认不再需要第四 runtime；0.6.0 退役契约阻止其重新进入活跃源码或发布包 |
 | **D52** | **2026-07-17** | **初始交付后进入持续变更闭环**：新增 `ultra-change` / `ultra-doctor`、change/context/artifact/trace/incident/projection/consumer 状态、delta-first spec、确定性 convergence 与 baseline reconciliation；删除内置 code-graph watcher 和通用命令代理，Memory/图谱只保留外部 provider 元数据引用 | 用户确认采用最佳组合落地；解决日常小改导致 spec/context 漂移、投影失败静默和异常无恢复证据的问题 |
-| **D53** | **2026-07-17** | **Harness 缺口一次性闭环**：`incident` 成为带五段 `diagnosis.md` 结构门禁的 canonical debug lane；compact checkpoint 由 resume 消费、校验、择新并原子恢复；三宿主安装写 normalized provenance，`ubp --doctor` 只读校验 asset hash 与 plugin/hook/MCP/runtime contract | 将 GSD 的 debug/fresh context、GStack 的 checkpoint/readiness 与 ECC 的 doctor/provenance 思路收敛为 Ultra 自有契约；不引入外部 Memory/图谱、RTK 或已退役 runtime |
+| **D53** | **2026-07-17** | **Harness 缺口一次性闭环**：`incident` 成为带五段 `diagnosis.md` 结构门禁的 canonical debug lane；compact checkpoint 由 resume 消费、校验、择新并原子恢复；三宿主安装写 normalized provenance，`ubp --doctor` 只读校验 asset hash 与 plugin/hook/MCP/runtime contract | 将 GSD 的 debug/fresh context、GStack 的 checkpoint/readiness 与 ECC 的 doctor/provenance 思路收敛为 Ultra 自有契约；Memory 与图谱继续由外部 provider 所有，且不恢复任何已退役 surface |
 
 ---
 
