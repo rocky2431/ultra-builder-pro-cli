@@ -1,15 +1,20 @@
-# ultra-builder-pro-cli — 执行计划 v0.3.1
+# ultra-builder-pro-cli — 历史执行计划与决策日志
 
-> **2026-07-17 当前生效边界（D50-D51，覆盖下文旧 Phase 7 / D25 / D46 的 memory 与 runtime 设计）**：
+> **2026-07-17 当前生效边界（D50-D52，覆盖下文旧 Phase 6/7 的内置图谱、memory 与 runtime 设计）**：
 > Ultra Builder Pro 不再拥有 `memory.*`、recall、prompt/transcript/observation/summary
 > 收集 hook 或私有 agent memory。跨会话记忆全部交给独立安装的 cloud-mem/claude-mem。
-> 插件只保留 10 个 Ultra 公共 workflow、4 个 agent-only 规则 skill、宿主专属 collab
-> companion、工作流 hook 与 `.ultra/state.db` 任务权威。Claude Code、Codex、OpenCode
+> 插件只保留 12 个 Ultra 公共 workflow（新增 daily `ultra-change` 与诊断
+> `ultra-doctor`）、4 个 agent-only 规则 skill、宿主专属 collab companion、
+> workflow/change hook 与 `.ultra/state.db` 权威。Memory 和代码图谱内容全部由外部
+> provider 所有，Ultra 只保存 provider 元数据引用。Claude Code、Codex、OpenCode
 > 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
 > memory/hindsight 章节仅作为历史实施记录，不再是当前需求或运行时契约。
 
-**状态**：Phase 0-8B 完成（D48 `8224159` 2026-04-18）· v0.3 ready（planner + executor 合线）· 397 tests 全绿 · Phase 9 发布待启动
-**版本**：0.3.1-plan · 2026-04-17 Codex 第二轮评审收尾（v0.3.0-plan 的修订）
+**当前状态**：v0.7.0 发布候选；三宿主 native plugin、29 个 live MCP tool、
+schema 9.0（15 表）、持续 change/context/convergence/doctor 已落地；npm 发布由
+`v*.*.*` tag 触发。以下 Phase 0-9 正文保留为 2026-04 的实施历史，不再作为
+当前 runtime 或发布状态的事实来源。
+**历史版本**：0.3.1-plan · 2026-04-17 Codex 第二轮评审收尾
 **范围**：最终目标 = 可落地的"跨 runtime coding 自动化工厂"。12 个 Phase 渐进交付。
 **整体置信度**：**86%**（同 v0.3；Phase 2 下调被 4.5/8A/8B 上调抵消）
 **关键变更**（vs v0.3，基于 Codex 第二轮 R1-R7）：
@@ -22,14 +27,16 @@
 - **Phase 4.6 拆 a/b**（R6 + D35）：v0.1 只跑 smoke flow，full conformance 推 v0.2
 - **Codex 第二轮结论**："小改后开工"（tl;dr）；本版已完成小改
 
-**总决策数**：D1-D51（当前边界以 D50-D51 为准）
+**总决策数**：D1-D52（当前边界以 D50-D52 为准）
 **总风险数**：R1-R32（v0.3.1 新增 R25-R32 共 8 条）
 
 ---
 
-> **本文件为唯一权威**。范围 / 置信度 / 时间线 / 架构的任何变更，必须先在 §14
-> 决策日志写明理由和日期，再落代码。所有外部事实追溯到 §14 D11 + D12 的文档
-> URL 证据。
+> **当前事实权威**：live MCP 以 `spec/mcp-tools.yaml` 为准，持久状态以
+> `spec/schemas/state-db.sql` 为准，插件边界以 `docs/AGENT-CONTEXT.md` 与
+> `adapters/_shared/runtime-assets.cjs` 为准，宿主差异以
+> `docs/RUNTIME-COMPAT-MATRIX.md` 为准。本文件只保存历史方案与决策来源；任何
+> 与上述当前契约冲突的旧 Phase 文本均不生效。
 
 ---
 
@@ -109,7 +116,7 @@ Hermes（Ultra Builder Pro）是一套成熟的 agent 工程系统：
 | G4 | 每 task 独立会话（新进程 + 独立 worktree + lease），对话不污染 | 2 并发 session 各独立 worktree；kill -9 后 lease 过期可清理 | **4.5** |
 | G5 | 跨 session 事件可订阅 | MCP `session.subscribe_events` 从 state-db events 表实时推 | **4.5** |
 | G6 | 崩溃自动恢复，失败有熔断 | kill -9 agent 后 orchestrator 重启能续；同 task 重试 ≥3 次自动停 | 5 |
-| G7 | RTK / code-review-graph / hindsight 作为 MCP tool 跨 runtime 共享；图谱实时增量 | 4 runtime 下都能调 `impact.*` / `memory.*`；editor save → 图谱 ≤3s 更新（D24） | 6, 7 |
+| G7 | Memory 与代码图谱由外部 provider 完成，Ultra 只保存可追溯引用 | 三个 runtime 的 context manifest 都只含 provider 元数据，不复制 provider 内容 | 6, 7 |
 | G8 | PRD 自动拆 task + 并行分派（8A + 8B） | 10 task 的 PRD 一键触发，≤3 失败项，其余自动完成并合入 | **8A, 8B** |
 | G9 | 三渠道可装（npm / Homebrew / pip） | 干净 macOS / Ubuntu 60 秒装好 | 9 |
 | G10 | 0 私人数据泄漏 | npm tarball / brew bottle / pip wheel 审计干净 | 9 |
@@ -252,7 +259,7 @@ v0.2 加执行层进阶（recovery + 监控 + 实时图谱）→ 半自动 → v
     │                   ▼ TDD RED/GREEN/REFACTOR (调 impact.radius + memory.recall)
     │                   ▼ review: MCP review.run → 5 个 subagent 并行
     │                   │                   │
-    │                   │                   ▼ (Phase 6) RTK 压缩 + telemetry
+    │                   │                   ▼ (Phase 6) telemetry
     │                   │
     │                   ▼ task.update_status completed + commit
     │                   ▼ activity-log: task_complete(id=1, commit=abc)
@@ -308,7 +315,6 @@ ultra-builder-pro-cli/
 │   └── recovery.ts                # Phase 5 circuit-breaker
 ├── telemetry/                     # Phase 6
 │   ├── collectors/                # token / tool_call / cost
-│   └── rtk-integration.ts
 ├── adapters/                      # Phase 4 跨 runtime 分发
 │   ├── claude.ts
 │   ├── opencode.ts
@@ -341,7 +347,7 @@ ultra-builder-pro-cli/
 | A6 | 事件流 = state-db `events` 表（append-only）+ MCP subscribe | 取代 activity-log.json 文件；state-db 统一权威源（D18） |
 | A7 | Python hooks 沿用，Node shell out | 15 hook 重写 Node 要 2-3 周纯折腾；零价值 |
 | A8 | orchestrator 是可选的常驻 Node daemon | 规则层可不依赖执行层独立跑；半自动 → 全自动平滑升级 |
-| A9 | RTK / code-review-graph / hindsight 全部作为 **MCP tool** 暴露 | 不自建等价功能；它们都是 MIT + MCP 友好 |
+| A9 | Memory 与代码图谱全部归外部 provider 所有 | Ultra 只存 provider、project、reference、revision、indexed_head、status 等元数据引用，不内嵌内容或自建等价能力 |
 | **A10** | **v0.1 = 规则层 + execution-lite**（非裸规则层） | Codex Q3：用户核心诉求是"独立会话"，无执行层 v0.1 不够用；D19 |
 | **A11** | **Schema v4.4 → v4.5 过渡（不直接 v5 breaking）** | Codex Q5：tasks.json 成 authoritative view，context status 降级派生，停止手写保留兼容；等命令全迁完再 v5；D21 |
 | **A12** | **Runtime capability matrix + conformance tests** 代替纸面 parity | Codex Q8：4 runtime 在 hook / subagent / 权限 / usage 统计不等价；D23 |
@@ -373,7 +379,6 @@ ultra-builder-pro-cli/
 
 | 能力 | 来源 | 加到哪 | Phase | 工时 |
 |------|------|-------|-------|-----:|
-| RTK Bash 命令压缩（60-90%） | RTK | `rtk init -g` + hook 注册 | 6 | 0.5d |
 | 爆炸半径分析（8x 减少） | code-review-graph | MCP `impact.*` tool | 7 | 2d |
 | 长期记忆（retain/recall/reflect） | hindsight | MCP `memory.*` tool | 7 | 5d |
 | Skill 自动萃取 + 注入 | OMC | `/learn` 扩展；dev 起步读匹配 skill | 7 | 2d |
@@ -935,16 +940,16 @@ agent 并行，orchestrator 负责 session 隔离和状态一致。
 
 **前置**：Phase 5（session 是监控的归属单位）
 
-**置信度**：93%（RTK 成熟；埋点是标准工程）
+**置信度**：93%（埋点与结构化事件是标准工程）
 
 **工时**：3-4 天
 
 #### 任务清单
 
-**6.1 RTK 集成**（0.5 天）
-- install.js 完工时检测 rtk 二进制 → 调 `rtk init -g` 注册 PreToolUse hook。
-- 无 rtk → 提示安装 + 跳过（不硬依赖）。
-- **AC**：Claude 下 `cargo test` 输出 token 压缩 60%+。
+**6.1 外部能力边界**（0.5 天）
+- 安装器不检测、不注册、也不代理任何通用 shell 压缩工具。
+- Memory 与代码图谱由独立 provider 安装和运行；Ultra 只消费显式传入的元数据引用。
+- **AC**：干净环境安装不产生第三方命令代理配置，context manifest 不包含外部 provider 的内容正文。
 
 **6.2 Telemetry collectors**（1.5 天）
 - `telemetry/collectors/token.ts`：从 activity-log + session log 抽 token
@@ -977,7 +982,7 @@ agent 并行，orchestrator 负责 session 隔离和状态一致。
 **6.5 Runtime stdout 拦截（可选）**（1 天）
 - orchestrator spawn agent 时拦截 stdout，解析 Anthropic/OpenAI
   SDK 的 usage 字段（若可达）。
-- 更精准的 token 统计（不依赖 rtk 推测）。
+- 更精准的 token 统计（不依赖命令输出压缩推测）。
 - **AC**：对一个已知 token 数的 task 做 E2E，telemetry 与官方 usage 误差 <5%。
 
 #### Phase 6 gate
@@ -985,7 +990,7 @@ agent 并行，orchestrator 负责 session 隔离和状态一致。
 - ✅ telemetry 覆盖率：每 MCP tool 调用 100% 有埋点（state.db.telemetry + jsonl 双写）
 - ✅ `/ultra-status --cost` panel 数字可信（token → pricing 表 → cost_usd 推算；SDK usage 精确对账推迟 6.5）
 - ✅ code-review-graph watcher 实时增量测试过（debounce + exclude + large_batch 6 tests）
-- ⤼ 6.5 Runtime stdout 拦截按 PLAN 原文"可选"skip 至 v0.3+（YAGNI：RTK + pricing 估算对大多数场景已够）
+- ⤼ 6.5 Runtime stdout 拦截按 PLAN 原文“可选”跳过（YAGNI：宿主 usage 与 pricing 估算已覆盖当前需求）
 - ✅ **Phase 6 完成 — D44**（2026-04-17）
 
 ---
@@ -1193,7 +1198,7 @@ files_modified 重叠检测 + 自动合并。这是 "coding 工厂" 的**后端*
 
 **9.1 CI 矩阵**（1 天）
 - GitHub Actions：`{claude, opencode, codex} × {local, global}`
-  = 8 jobs + `rtk / code-review-graph / hindsight` 可选集成测试。
+  = 6 jobs + 外部 provider 引用边界测试。
 - **AC**：所有矩阵单元绿，每周定时跑一次（catch runtime 上游变更）。
 
 **9.2 README 重写**（0.5 天）
@@ -1559,7 +1564,7 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
    最终 commit 独立。
 4. **事件传播**：agent A 完成 task 1 后，≤1s 内 agent B 通过 MCP 看到。
 5. **崩溃恢复**：kill -9 跑 dev 的 agent，重启后能续或熔断。
-6. **Token 压缩**：RTK 启用后 Bash 命令 token 减少 ≥60%。
+6. **Provider 边界**：Memory 与图谱正文不进入 Ultra state.db 或发布包，只保留可追溯元数据引用。
 7. **记忆召回**：跨 session retain → recall 命中率 ≥90%。
 8. **PRD 自动拆**：2KB PRD 自动拆与人工 ≥80% 一致。
 9. **并行工厂**：10 task PRD 自动完成率 ≥80%。
@@ -1597,7 +1602,7 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | **D12** | **2026-04-17** | **采用 skill + MCP + CLI 三层架构**，skill=说明书、MCP=状态操作主路径、CLI=Bash 兜底 | 参考 CTM（MCP 模式）+ OMC/OMX（skill 模式）+ get-shit-done（CLI 模式）；三层分工覆盖 "knowledge / state / hook" 三类需求 |
 | **D13** | **2026-04-17** | **规则层 / 执行层双时间线交付**（Phase 1-4 规则层 → v0.1；Phase 5-8 执行层 → v0.2-v0.3） | 用户明确"规则 vs 自动化执行"的维度；降低单次发布复杂度；早让用户拿到可用价值 |
 | **D14** | **2026-04-17** | **范围从"分发器"扩展到"自动化 coding 工厂"**，总工时从 4-5 周扩到 11-13 周 | 用户诉求：跨 agent 上下文共享 + 独立对话避污染 + 监控 + 实时代码图 + 记忆系统；不只是 distribution tool |
-| **D15** | **2026-04-17** | 集成 RTK / code-review-graph / hindsight 作为 **MCP tool 包装**（不自建等价） | 三者都 MIT + MCP 友好；自建等价 = 4-8 周纯折腾无价值 |
+| **D15** | **2026-04-17** | 外部 Memory / 图谱能力采用 provider 引用，不自建等价实现 | 避免复制第三方能力与内容，让 Ultra 聚焦 change workflow 与收敛证据 |
 | **D16** | **2026-04-17** | GSD / GSD-2 的 **atomic-write / state-machine / ctx.newSession / DISPATCH_RULES** 直接移植（不自建） | 已在 14 runtime 实战；用户确认"可以先集成，混合" |
 | **D17** | **2026-04-17** | Phase 3 消除 **tasks.json 与 context 的 status 双写**（原 v4.4 → v5.0，**后被 D21 覆盖为 v4.5 过渡**） | 用户指痛点"异步效果不好"根因之一 |
 | **D18** | **2026-04-17** | **权威状态层 = `.ultra/state.db` SQLite + WAL**，md/json 降级为投影/导出视图 | Codex Q1：多主写入是最大架构风险；SQLite 提供事务 + 并发读；tasks.json/activity-log/sessions/workflow-state 多文件各管一摊易炸 |
@@ -1626,13 +1631,14 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | **D41** | **2026-04-17** | **Phase 4 初始跨 runtime 分发里程碑** — adapter、能力矩阵、smoke flow 与 installer 装配首次闭环；0.6.0 后只保留 Claude Code、OpenCode、Codex 三个 native plugin | 历史里程碑；当前边界由 D51 覆盖 |
 | **D46** | **2026-04-17** | **Phase 7 完成 — 智能层落地** — 偏离原 PLAN：**不内嵌 hindsight-server（Python/Docker），改自建 SQLite FTS5 memory store**（理由：PLAN 自己说"避免 Docker"已承认痛点；Node 内嵌 Python 要 subprocess/HTTP 胶水，成本高于直接用 state.db）。**7.1 Memory store**：schema 升 5.2 → 7.1，新增 `memory_entries` 表（task_id/session_id/tag/kind/content/source/ts；kind CHECK `fact/decision/error_fix/pattern/note`）+ `memory_fts` FTS5 虚表 + 3 trigger（ai/ad/au 同步）；`mcp-server/lib/memory-store.cjs` retain/recall/reflect 三函数（FTS5 MATCH 构造 escape 用 quote-wrap 防注入；空 query → 近期条目 fallback；bm25 ranking）；3 MCP tool `memory.retain/recall/reflect`（spec/mcp-tools.yaml 老 schema 用 scope/ttl_days 方案 → 替换为 kind 方案，更贴事件自动提取）；`orchestrator/memory-wrapper.cjs` autoRecallOnSpawn（task.title+trace_to → recall → prefetch.md）+ autoRetainOnClose（event-type heuristic 映射 task_completed→decision / task_circuit_broken→error_fix / session_crashed→pattern / task_stale_marked→fact；**不调 LLM**）；session-runner opt-in `autoMemory: true`。**7.2 Tagged task lists**：`deriveBranchTag(cwd)` 用 `spawnSync`(非 throw, 状态码判断) 读 git symbolic-ref + `sanitizeTag`(slash→hyphen, @→dot, 非 `\w.-` 剥离, ≤100 chars)；`switchTaskTag` + `task_tag_changed` event；`createTask` 接 `_cwd` 字段自动推导 tag 不覆盖显式传入；MCP `task.switch_tag` + spec/cli-protocol.md 加 33rd mapping；daemon `branchScoped: true` 过滤 pending by current branch tag。**7.3 Skill 萃取（heuristic, 0 LLM cost）**：`orchestrator/skill-miner.cjs` mineSession 扫 session events → 3 signal 触发（`task_completed` → task-completion / `task_circuit_broken` → debug-pattern / `session_crashed` → recovery-pattern）→ 写 `skills/learned/<ts>_<sid>_unverified.md` 含 YAML frontmatter + Problem/Signal/Evidence/Suggested reuse 4 section；idempotent（同 sid 再跑检到已有 draft 则 skip）；session-runner opt-in `mineSkill: true` + `skillsRoot`。**聚合**：Phase 7 新增 38 tests（memory-store 11 + memory-wrapper 7 + tagged-tasks 11 + skill-miner 7 + server-contract 1 memory roundtrip + daemon 1 branchScoped），D45 基线 232 → **270 tests 全绿**，0 回归。schema_version 升到 7.1（第三个 seed 行），RequiredTables 加 `memory_entries` | v0.3 准备期：用户现在每 task 起步自动拿到相关历史 prefetch；branch 切换自动过滤任务；debug / crash / 完成自动生成 skill draft；所有 opt-in 默认关，不破坏现有集成 |
 | **D45** | **2026-04-17** | **Phase 4 backlog 与 full conformance 完工** — 共享 capability assertions、三宿主 install/MCP/hook/skill/idempotency 覆盖与 `resolveTarget` 合约形成自动化防护网 | 当前三宿主 conformance 继续保留并由退役回归契约补强 |
-| **D44** | **2026-04-17** | **Phase 6 完成** — RTK soft dependency、三宿主 pricing/telemetry、成本面板与 code-graph watcher 落地 | 0.6.0 runtime allowlist 同步约束 telemetry 写入 |
+| **D44** | **2026-04-17** | **Phase 6 完成** — 三宿主 pricing/telemetry、成本面板与早期 code-graph watcher 落地 | 后续由外部 provider 边界取代内置 watcher |
 | **D43** | **2026-04-17** | **Phase 5 完成** — 执行层进阶四件套落地：(5.1) `orchestrator/recovery.cjs` `recoverOnBoot` 扫 orphan 用 `process.kill(pid,0)` 探测 pid 存活，死的 → crashed + `task_failure` event（5 tests 含 kill -9 真实集成）；(5.2) `circuit_breaker` 表（schema_version 升 4.5 → 5.2，`ensureSchemaVersion` 从 "latest row" 改 "exact match" 解决同 ms seed 排序不稳）+ `recordTaskFailure` 计数器（连续 ≥3 → `tripped_at` + `task_circuit_broken` 一次性 event）+ `resetCircuitBreaker` + `admissionCheck` 短路 `blocked_by_breaker` + `spawnSession` 抛 `CIRCUIT_TRIPPED`（7 tests，含 takeover 不可越过熔断）；(5.3) `markTasksStaleBySpecSections` + `consumeSpecChangedEvents` 游标消费 + projector `⚠️ STALE` banner（只对 pending + 幂等，10 tests）；(5.4) `orchestrator/daemon.cjs` 轮询 + `routeTask` 按 complexity_hint(haiku/sonnet/opus) 最简路由 + `bin/orchestrator.js` 四子命令 `run/start/stop/status` + `settings.json` `orchestrator.auto_dispatch` opt-in gate（11 tests + 手测 opt-in 拒启/pidfile 生命周期）；Recovery 明确不自动 retry（retry 留给 Phase 8B），仅计失败交给熔断；总计 108 tests 全绿（state 76 + orch 26 + spec 6），原 118 基线 +35 无回归 | v0.2 执行层进阶完工；可起 daemon 自动捡 pending task，熔断+恢复+staleness 闭环 |
 | **D42** | **2026-04-17** | **Phase 4.5 完成 — v0.1 发布就绪点** — execution-lite 落地：MCP 新增 7 个 session.* tool（spawn/close/get/list/admission_check/heartbeat/subscribe_events；spec 新增 session.list + meta-schema errors minItems 兼容）；state-ops 新增 readSession / heartbeatSession / admissionCheck / reapOrphanSessions（D32/D33）；`orchestrator/session-runner.cjs` 真 git worktree + child_process + state.db sessions 表 lease/heartbeat（替代 lease.json 文件 — grep 证代码零出现）；`ultra-tools session {list,admission,reap,get,heartbeat,close,subscribe}` 7 verb CLI；skills/ultra-status 升级读 session.list + session.subscribe_events；Phase 4.5 gate 全过（2 并发 session 隔离 / 并发 spawn 单活 / kill -9 → orphan 识别 / event subscribe ≤1s latency / 无文件+表双源）；总计 118 tests 全绿（state 59 + orch 8 + spec 6 + adapter/conformance/install 45）；0 回归 | v0.1 发布就绪点达成：用户装上即可跨 4 runtime 手动并发跑任务、会话独立、事件订阅、活跃会话可见。真·可用最小单元 |
 | **D47** | **2026-04-17** | **Phase 8A 完成 — planner 线就绪** — PRD → task graph → execution-plan 全链 MCP：(8A.0) schema 升 7.1 → 8A.1，tasks.parent_id TEXT REFERENCES tasks(id) ON DELETE SET NULL + `tasks_parent` 部分索引；EXPECTED_VERSION bump。(8A.1) `lib/llm-client.cjs` 官方 SDK 双 provider（`@anthropic-ai/sdk` + `openai`，+2 devDeps，用户选 D）按 model 前缀推（claude|opus|sonnet|haiku → anthropic；gpt|o1|o3 → openai），统一 `completeJson({system, user, maxTokens})`；`lib/prd-parser.cjs` Test Double 注入；`orchestrator/planner/prd-prompt.cjs` 模板；`task.parse_prd` input 加 `dry_run`（默认 false）实现 human-gate preview→approve；server.cjs dispatchTool 改 async。(8A.2) `lib/topo.cjs` Kahn + Tarjan SCC — 外部 dep 视已满足；有环返 CYCLE_DETECTED + `err.details.cycles`；errorResponse 扩展 optional `details`。(8A.3) `lib/task-expander.cjs` LLM prompt（sub_count 默认 3）→ 原子 tx（createTask children with parent_id + patchTask parent.status='expanded' → 自动 emit task_expanded）；server 前置 parent 检查避免无谓 LLM client 构造。(8A.4a) `orchestrator/planner/plan-builder.cjs` Functional Core；`listWaveConflicts` pair-wise files_modified 交集；parallel wave 取 max(complexity)，serial sum；cost 用 `pricing.computeCost`。(8A.4b) `lib/plan-store.cjs` `writeAtomic` 原子落 `.ultra/execution-plan.json`；`loadPlanArtifact` corrupt→null；`selectSection` 投影 tasks/topo/conflicts/all；emit plan_approved。(8A.5) `skills/ultra-plan` PRD Direct workflow — dry_run=true parse → buildPlan → ask.question → approve 走 dry_run=false + plan.export / reject 0 写入；frontmatter mcp_tools_required +5 tool。**spec 扩展**：task.create input 加 `files_modified` + `parent_id`；task.parse_prd input 加 `dry_run`。D46 基线 270 → **361 tests 全绿**（+91：state +71 / orch +20 / spec +5）；0 回归 | v0.3 planner 里程碑就绪；execution-plan.json 是 Phase 8B 的权威输入；dry_run 是 human-gate 最小扩展 |
 | **D48** | **2026-04-18** | **Phase 8B 完成 — executor 线就绪，v0.3 coding 工厂可用** — (8B.0) schema 不动（tasks.files_modified/session_id/parent_id 齐备）；events 新增 5 type（wave_started / wave_completed / plan_completed / merged_back / merge_conflict），利用 events.type 无 CHECK 约束向后兼容。(8B.1) `orchestrator/dispatch-rules.cjs` 声明式规则数组（GSD-2 模式）：`evaluate(ctx, rules)` 按 priority 取首个 match 返 `{rule_id, action, runtime}`；3 action（`spawn_agent`/`defer`/`block`）；6 DEFAULT_RULES（breaker-blocked / deps-not-ready / no-runtimes / wave-conflict / by-preference / fallback-first-available）；ROUTE_PREFERENCES 从 daemon.cjs 移过来；daemon.routeTask 改为 `evaluate` 的 thin wrapper，Phase 5.4 daemon 6 routeTask 测试 0 回归。(8B.2) `orchestrator/parallel-orchestrator.cjs` 读 plan waves → wave.parallel=true 批 `Promise.all` / parallel=false await 串行；前置 dispatch-rules.evaluate；`STATUS_TRANSITIONS` 约束要求 spawn 后 patchTask(in_progress)，exit 后 patchTask(completed|pending)；失败 task 不短路同 wave 其他任务；`finalizeSession` 调 `closeSession` 统一 session+worktree+可选 autoMerge 生命周期；runPlan 加 `autoMerge`/`mergeBaseBranch` opt-in（默认关，Phase 4/5/6/7/8A 0 回归）。(8B.3) `orchestrator/worktree-manager.cjs` N 并发 git worktree 注册簿：allocate/release/listActive/releaseAll；`listActive` 用 `git worktree list --porcelain` + realpath 规范化（macOS `/var`↔`/private/var` 符号链接坑）+ `.ultra/worktrees/` 域过滤；`releaseAll` 兼作崩溃恢复（git-tracked 清理 + 文件系统孤儿 sweep）；Node 单线程 execFileSync 天然序列化避免 `.git/config.lock` 竞争。(8B.4) `orchestrator/auto-merge.cjs` — autoMerge 三出口（no_changes / merged_back / merge_conflict）；冲突路径用 `git diff --name-only --diff-filter=U` 在 abort 之前收集；closeSession 加 `autoMerge`/`mergeBaseBranch` opt-in，conflict 时强制 `remove_worktree=false` 保留 worktree 给人。(8B.5 gate) `orchestrator/tests/phase-8b-gate.test.cjs` 三条 gate 全过：10-task PRD 端到端完成率 100%（要求 ≥80%）；5 slice 压力 0 git lock 错误；merge 冲突正确识别 + conflict_paths 准确。**总计 +36 tests**（dispatch-rules +12 / worktree-manager +8 / parallel-orchestrator +7 / auto-merge +6 / gate +3），D47 基线 361 → **397 tests 全绿**（state 182 / orch 103 / spec 6 / rest 106），0 回归 | **v0.3 = 自动化 coding 工厂**：8A plan → 8B 执行 → 冲突人审 全链打通；autoMerge 默认关保留手动控制；worktree 全生命周期可观测可恢复 |
 | **D50** | **2026-07-15** | **重划插件与记忆边界**：Claude Code、Codex、OpenCode 改为各自 native plugin；只打包 10 个 Ultra 公共 workflow、4 个 agent-only 规则 skill 与宿主专属 collab companion；删除 6 个外部 skill、recall、Impeccable 残留、Ultra memory MCP/store/wrapper/capture hooks；持久记忆由独立 cloud-mem/claude-mem 负责；用户 handbook 通过可预览、可备份的 managed block 显式同步 | 用户确认最终方案；运行时 allowlist、conformance、hook 与 handbook 回归测试共同锁定边界 |
 | **D51** | **2026-07-17** | **runtime 收敛为 Claude Code、OpenCode、Codex**：删除第四 runtime 的 adapter、安装参数、collab skill、prompt、schema、pricing、调度与测试面；`ultra-verify` 改为当前宿主主责加单一只读外部顾问 | 用户确认不再需要第四 runtime；0.6.0 退役契约阻止其重新进入活跃源码或发布包 |
+| **D52** | **2026-07-17** | **初始交付后进入持续变更闭环**：新增 `ultra-change` / `ultra-doctor`、change/context/artifact/trace/incident/projection/consumer 状态、delta-first spec、确定性 convergence 与 baseline reconciliation；删除内置 code-graph watcher 和通用命令代理，Memory/图谱只保留外部 provider 元数据引用 | 用户确认采用最佳组合落地；解决日常小改导致 spec/context 漂移、投影失败静默和异常无恢复证据的问题 |
 
 ---
 
@@ -1656,9 +1662,9 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 - **规则层 / 执行层**：§4.2；Phase 1-4 / Phase 4.5-8。
 - **Session**：GSD-2 模式升级版（D20）：新进程 + 独立 worktree + lease/
   heartbeat（存 sessions 表） + artifact dir；Phase 4.5 实装。
-- **state.db**：`.ultra/state.db` SQLite + WAL 数据库，所有状态的权威源；
-  七表（tasks/events/sessions/telemetry/specs_refs/schema_version/
-  migration_history）；Phase 2 建立。
+- **state.db**：`.ultra/state.db` SQLite + WAL 数据库，所有 Ultra workflow
+  状态的权威源；当前 15 表，新增 changes/artifacts/context_snapshots/
+  trace_links/incidents/projection_jobs/event_consumers；Phase 2 建立，D52 扩展。
 - **三层架构**：§4.1；skill（知识，只读发现）+ MCP（状态操作主路径）+
   CLI（兜底）。
 - **staleness**：task 的 spec 被改后，未开工的 pending task 自动标记

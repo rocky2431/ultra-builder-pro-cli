@@ -112,6 +112,25 @@ test('patchTask updates JSON arrays + flags + status atomically', () => {
   }
 });
 
+test('patchTask status event follows the newly assigned continuous change', () => {
+  const { dir, db } = freshDb();
+  try {
+    db.prepare(
+      `INSERT INTO changes (id, title, kind, intent, artifact_root)
+       VALUES ('chg-link', 'Link task', 'quick', 'Link task to change.', '.ultra/changes/active/chg-link')`,
+    ).run();
+    ops.createTask(db, { id: 'link-task', title: 'link me', type: 'feature', priority: 'P1' });
+    ops.patchTask(db, 'link-task', { change_id: 'chg-link', status: 'in_progress' });
+    const event = db.prepare(
+      "SELECT change_id FROM events WHERE task_id = 'link-task' AND type = 'task_started'",
+    ).get();
+    assert.equal(event.change_id, 'chg-link');
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('patchTask rejects unknown fields', () => {
   const { dir, db } = freshDb();
   try {

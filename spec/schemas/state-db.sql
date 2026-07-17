@@ -12,6 +12,28 @@
 --   PRAGMA busy_timeout=5000;       -- block up to 5s on lock (R25)
 --   PRAGMA foreign_keys=ON;         -- enforce FK constraints
 
+-- ──────────────────────────── changes ─────────────────────────────────────
+-- A project baseline is continuous; each feature, fix, incident, or redesign
+-- is an independently converged change unit. Only changes become terminal.
+CREATE TABLE IF NOT EXISTS changes (
+  id                TEXT PRIMARY KEY,
+  title             TEXT NOT NULL,
+  kind              TEXT NOT NULL CHECK (kind IN ('quick', 'standard', 'major', 'incident')),
+  status            TEXT NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('active', 'blocked', 'ready', 'archived', 'cancelled')),
+  intent            TEXT NOT NULL,
+  docs_impact_json  TEXT NOT NULL DEFAULT '{"status":"unknown","files":[],"rationale":null}',
+  provider_refs_json TEXT NOT NULL DEFAULT '{}',
+  base_commit       TEXT,
+  artifact_root     TEXT NOT NULL,
+  created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  closed_at         TEXT
+);
+
+CREATE INDEX IF NOT EXISTS changes_status ON changes(status, created_at);
+CREATE INDEX IF NOT EXISTS changes_kind   ON changes(kind, created_at);
+
 -- ──────────────────────────── tasks ───────────────────────────────────────
 -- Authoritative task row. tasks.json is generated from this table by the
 -- projector (Phase 2.6). Manual edits to tasks.json are overwritten.
@@ -33,6 +55,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   trace_to          TEXT,                -- spec anchor reference
   context_file      TEXT,                -- projection target path
   completion_commit TEXT,                -- backfilled hash (Phase 2.8)
+  change_id         TEXT REFERENCES changes(id) ON DELETE SET NULL,
   parent_id         TEXT REFERENCES tasks(id) ON DELETE SET NULL,  -- Phase 8A.1: task.expand subtask→parent
   created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -43,6 +66,7 @@ CREATE INDEX IF NOT EXISTS tasks_tag         ON tasks(tag);
 CREATE INDEX IF NOT EXISTS tasks_session     ON tasks(session_id) WHERE session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS tasks_stale       ON tasks(stale) WHERE stale = 1;
 CREATE INDEX IF NOT EXISTS tasks_parent      ON tasks(parent_id) WHERE parent_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS tasks_change      ON tasks(change_id) WHERE change_id IS NOT NULL;
 
 -- ──────────────────────────── events ──────────────────────────────────────
 -- Append-only event stream. id is the subscription cursor (D31, R26):
@@ -53,6 +77,7 @@ CREATE TABLE IF NOT EXISTS events (
   ts            TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   type          TEXT    NOT NULL,
   task_id       TEXT,
+  change_id     TEXT,
   session_id    TEXT,
   runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex')),
   payload_json  TEXT
@@ -61,6 +86,7 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_ts_type ON events(ts, type);
 CREATE INDEX IF NOT EXISTS events_task    ON events(task_id, id);
 CREATE INDEX IF NOT EXISTS events_session ON events(session_id, id);
+CREATE INDEX IF NOT EXISTS events_change  ON events(change_id, id);
 
 -- ──────────────────────────── sessions ────────────────────────────────────
 -- Authoritative session row. lease_expires_at + heartbeat_at live ONLY here
@@ -146,6 +172,95 @@ CREATE TABLE IF NOT EXISTS circuit_breaker (
 CREATE INDEX IF NOT EXISTS circuit_breaker_tripped ON circuit_breaker(tripped_at)
   WHERE tripped_at IS NOT NULL;
 
+-- ──────────────────────────── change artifacts ────────────────────────────
+CREATE TABLE IF NOT EXISTS artifacts (
+  id            TEXT PRIMARY KEY,
+  change_id     TEXT NOT NULL REFERENCES changes(id) ON DELETE CASCADE,
+  task_id       TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  kind          TEXT NOT NULL,
+  path          TEXT NOT NULL,
+  content_hash  TEXT,
+  metadata_json TEXT,
+  status        TEXT NOT NULL DEFAULT 'current' CHECK (status IN ('current', 'archived')),
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE(change_id, kind, path)
+);
+
+CREATE INDEX IF NOT EXISTS artifacts_change ON artifacts(change_id, kind);
+
+CREATE TABLE IF NOT EXISTS context_snapshots (
+  id                 TEXT PRIMARY KEY,
+  change_id          TEXT NOT NULL REFERENCES changes(id) ON DELETE CASCADE,
+  task_id            TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  git_head           TEXT,
+  provider_refs_json TEXT NOT NULL DEFAULT '{}',
+  manifest_path      TEXT NOT NULL,
+  manifest_hash      TEXT NOT NULL,
+  created_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS context_snapshots_change ON context_snapshots(change_id, created_at);
+
+CREATE TABLE IF NOT EXISTS trace_links (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  change_id   TEXT NOT NULL REFERENCES changes(id) ON DELETE CASCADE,
+  task_id     TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  source_ref  TEXT NOT NULL,
+  target_ref  TEXT NOT NULL,
+  relation    TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE(change_id, source_ref, target_ref, relation)
+);
+
+CREATE INDEX IF NOT EXISTS trace_links_change ON trace_links(change_id, task_id);
+
+-- ──────────────────────────── runtime reliability ─────────────────────────
+CREATE TABLE IF NOT EXISTS incidents (
+  id               TEXT PRIMARY KEY,
+  code             TEXT NOT NULL,
+  severity         TEXT NOT NULL CHECK (severity IN ('warning', 'error', 'critical')),
+  status           TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
+  retryable        INTEGER NOT NULL DEFAULT 0 CHECK (retryable IN (0, 1)),
+  message          TEXT NOT NULL,
+  change_id        TEXT REFERENCES changes(id) ON DELETE SET NULL,
+  task_id          TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  session_id       TEXT REFERENCES sessions(sid) ON DELETE SET NULL,
+  source_kind      TEXT,
+  source_id        TEXT,
+  evidence_json    TEXT,
+  occurrence_count INTEGER NOT NULL DEFAULT 1,
+  first_seen_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  last_seen_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  resolved_at      TEXT,
+  resolution       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS incidents_open ON incidents(status, severity, last_seen_at);
+CREATE INDEX IF NOT EXISTS incidents_change ON incidents(change_id, status);
+
+CREATE TABLE IF NOT EXISTS projection_jobs (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  tool_name      TEXT NOT NULL,
+  event_cursor   INTEGER NOT NULL DEFAULT 0,
+  status         TEXT NOT NULL DEFAULT 'pending'
+                   CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+  attempts       INTEGER NOT NULL DEFAULT 0,
+  max_attempts   INTEGER NOT NULL DEFAULT 3 CHECK (max_attempts > 0),
+  last_error     TEXT,
+  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  completed_at   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS projection_jobs_status ON projection_jobs(status, id);
+
+CREATE TABLE IF NOT EXISTS event_consumers (
+  name       TEXT PRIMARY KEY,
+  cursor     INTEGER NOT NULL DEFAULT 0 CHECK (cursor >= 0),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
 -- ──────────────────────────── seed: schema_version ────────────────────────
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('4.5', 'Phase 2 initial — tasks/events/sessions/schema_version/migration_history/telemetry/specs_refs');
@@ -155,3 +270,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('8A.1', 'Phase 8A.1 — tasks.parent_id for task.expand parent→children');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('8A.2', 'Phase 8A.2 — tasks.estimated_days preserved across MCP and v4.4 migration');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('9.0', 'Continuous change units, context snapshots, trace links, incidents, projection outbox, and durable consumers');

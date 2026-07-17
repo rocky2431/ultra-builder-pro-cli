@@ -18,6 +18,8 @@ const CORE_PUBLIC_SKILLS = Object.freeze([
   'ultra-deliver',
   'ultra-status',
   'ultra-think',
+  'ultra-change',
+  'ultra-doctor',
 ]);
 
 const INTERNAL_AGENT_SKILLS = Object.freeze([

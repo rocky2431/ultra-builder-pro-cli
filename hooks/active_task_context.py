@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remind an active Ultra workflow of its task boundary before edits."""
+"""Protect Ultra projections and restate an active task boundary before edits."""
 
 import json
 import sys
@@ -33,9 +33,28 @@ def main() -> None:
         data = {}
     start = Path(data.get("cwd") or Path.cwd()).resolve()
     for root in (start, *start.parents):
-        state_file = root / ".ultra" / "workflow-state.json"
-        if not state_file.is_file():
+        ultra = root / ".ultra"
+        state_file = ultra / "workflow-state.json"
+        initialized = (
+            (ultra / "state.db").is_file()
+            or state_file.is_file()
+            or (ultra / "changes" / "active").is_dir()
+        )
+        if not initialized:
             continue
+        if targets_tasks_projection(data, root):
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": (
+                    "Refusing a direct write to the .ultra/tasks/tasks.json projection. "
+                    ".ultra/state.db is authoritative; use the Ultra MCP task tools and "
+                    "run ultra-doctor when state or projection health is degraded."
+                ),
+            }}))
+            return
+        if not state_file.is_file():
+            break
         try:
             state = json.loads(state_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -45,18 +64,6 @@ def main() -> None:
             break
         task = state.get("task_id", state.get("task", "unknown"))
         step = state.get("step", "unknown")
-        if targets_tasks_projection(data, root):
-            print(json.dumps({"hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    "Refusing a direct write to .ultra/tasks/tasks.json during an active Ultra "
-                    "workflow. .ultra/state.db is authoritative; use the Ultra MCP task tools. "
-                    "If they report LEGACY_STATE_MIGRATION_REQUIRED, run the v4.4 to v4.5 "
-                    "migration before continuing."
-                ),
-            }}))
-            return
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "additionalContext": (

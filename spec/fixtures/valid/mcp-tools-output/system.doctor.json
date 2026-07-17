@@ -1,0 +1,7 @@
+{
+  "status": "healthy",
+  "checks": {
+    "state_db": { "status": "pass" }
+  },
+  "repair_performed": false
+}

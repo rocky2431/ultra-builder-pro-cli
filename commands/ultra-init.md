@@ -1,5 +1,5 @@
 ---
-description: Initialize Ultra Builder Pro project — scaffold .ultra/, seed tasks.json, optional git
+description: Initialize Ultra Builder Pro project — scaffold .ultra/, initialize state.db and continuous-change directories, optional git
 argument-hint: <name> <type> <stack> [git]
 allowed-tools: Read, Write, Bash, Grep, Glob, AskUserQuestion
 model: opus
@@ -13,8 +13,9 @@ cli_fallback: "task init-project"
 
 ## 目标
 
-搭 `.ultra/` 骨架（specs + tasks + docs + reports）；写入带元数据的 `tasks.json`；
-按需初始化 git。4 个 runtime 行为一致，不依赖 Claude 独占工具。
+搭 `.ultra/` 骨架（specs + tasks + changes + docs + reports），初始化权威
+`state.db`，写入带元数据的初始 `tasks.json`，并按需初始化 git。Claude Code、
+OpenCode、Codex 三个 runtime 行为一致。
 
 ## 参数
 

@@ -1,6 +1,6 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Multi-runtime installer for the Ultra Builder Pro agent engineering system — deploys commands, agents, skills, hooks, and MCP server to Claude Code, OpenCode, and Codex CLI.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
@@ -27,6 +27,8 @@
     "skills/ultra-deliver",
     "skills/ultra-status",
     "skills/ultra-think",
+    "skills/ultra-change",
+    "skills/ultra-doctor",
     "skills/code-review-expert",
     "skills/security-rules",
     "skills/integration-rules",
@@ -49,7 +51,6 @@
     "docs/ARCHITECTURE.md",
     "docs/AGENT-CONTEXT.md",
     "docs/COMMIT-HASH-BACKFILL.md",
-    "docs/LEGACY-HERMES.md",
     "docs/PLAN.zh-CN.md",
     "docs/STATE-DB-ACCESS-POLICY.md",
     "docs/USER-HANDBOOK-CONTRACT.md",
@@ -100,7 +101,6 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "better-sqlite3": "^11.5.0",
-    "chokidar": "^3.6.0",
     "js-yaml": "^4.1.0",
     "openai": "^6.34.0"
   }

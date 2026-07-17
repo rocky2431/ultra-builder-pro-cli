@@ -100,13 +100,24 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `session.admission_check` | `session admission`         | 4.5   | any     |
 | `session.heartbeat`       | `session heartbeat`         | 4.5   | mcp     |
 | `session.subscribe_events`| `session subscribe`         | 4.5   | any     |
+| `change.create`           | `change create`             | 9     | mcp     |
+| `change.update`           | `change update`             | 9     | mcp     |
+| `change.get`              | `change get`                | 9     | any     |
+| `change.list`             | `change list`               | 9     | any     |
+| `change.context`          | `change context`            | 9     | mcp     |
+| `change.converge`         | `change converge`           | 9     | mcp     |
+| `change.archive`          | `change archive`            | 9     | mcp     |
+| `system.doctor`           | `system doctor`             | 9     | mcp     |
 | `plan.export`             | `plan export`               | 8a    | mcp     |
 | `plan.get`                | `plan get`                  | 8a    | any     |
 
 Current executable maintenance surfaces are `task init-project`,
 `session close|get|list|admission|heartbeat|subscribe|reap`, `status`, `db`,
 `migrate`, and `legacy-memory`. In particular, `task create|update|list|get`
-are not CLI fallbacks. The full access policy lives in
+and all `change` lifecycle verbs are not CLI fallbacks. Change state must use
+the live MCP server; `system doctor` may additionally be exposed by the
+maintenance CLI because it is the recovery path when MCP startup is degraded.
+The full access policy lives in
 `docs/STATE-DB-ACCESS-POLICY.md` (Phase 2.2 / R25).
 
 ## 6. Versioning

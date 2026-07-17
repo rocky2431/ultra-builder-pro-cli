@@ -13,7 +13,7 @@ const codex = require('../../../adapters/codex.js');
 const { REPO_ROOT, mkTarget, cleanup } = require('../_lib.cjs');
 
 const COMMANDS = [
-  'learn', 'ultra-deliver', 'ultra-dev', 'ultra-init', 'ultra-plan',
+  'learn', 'ultra-change', 'ultra-deliver', 'ultra-dev', 'ultra-doctor', 'ultra-init', 'ultra-plan',
   'ultra-research', 'ultra-status', 'ultra-test', 'ultra-think',
 ];
 const AGENTS = [
@@ -41,7 +41,7 @@ function install(layout) {
   });
 }
 
-test('codex conformance — nine command workflows are explicit plugin skills', () => {
+test('codex conformance — eleven command workflows are explicit plugin skills', () => {
   const layout = mkLayout('codex-cap-cmd');
   try {
     install(layout);
@@ -63,7 +63,7 @@ test('codex conformance — complete skill and native agent packaging', () => {
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(layout.pluginRoot, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    assert.equal(skills.length, 16);
+    assert.equal(skills.length, 18);
     assert.ok(skills.includes('cc-collab'));
     assert.ok(!skills.includes('codex-collab'));
     assert.ok(!skills.includes('learned'));

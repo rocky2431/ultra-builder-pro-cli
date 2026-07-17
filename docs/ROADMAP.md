@@ -1,8 +1,9 @@
 # ultra-builder-pro-cli — Roadmap
 
-> **Authoritative roadmap**: [`PLAN.zh-CN.md`](./PLAN.zh-CN.md) (v0.3.1).
-> This file is a one-page summary; details, decisions, and time estimates
-> live in PLAN. If they disagree, PLAN wins.
+> **Current roadmap**. [`PLAN.zh-CN.md`](./PLAN.zh-CN.md) preserves the original
+> phase plan and decision history. Current executable contracts live in
+> `spec/`, `AGENT-CONTEXT.md`, and `RUNTIME-COMPAT-MATRIX.md`; those sources win
+> when historical plan text differs.
 
 **Goal**: distribute the Ultra Builder Pro engineering loop as native Claude
 Code, OpenCode, and Codex plugins, and run it with isolated sessions sharing one
@@ -12,9 +13,7 @@ authoritative workflow store.
 
 **Distribution channels (v1.0)**: npm · Homebrew · pip.
 
-**Confidence**: 86% (PLAN §10).
-
-**Timeline**: 14–18 weeks AI-assisted (PLAN §11).
+**Release line**: `0.7.x`; every release is gated by `npm run verify:release`.
 
 ---
 
@@ -23,7 +22,7 @@ authoritative workflow store.
 | Release | Week | Contents                                                                  |
 |---------|-----:|---------------------------------------------------------------------------|
 | **v0.1**| 8    | Rule layer + execution-lite (session isolation + admission + event subscribe + active-session visibility) — solves the core "independent conversations don't pollute each other" pain |
-| **v0.2**| 11   | Auto-recovery + monitoring + real-time code-review-graph + full conformance |
+| **v0.2**| 11   | Auto-recovery + monitoring + full conformance |
 | **v0.3**| 16   | PRD → execution-plan artifact → parallel dispatch / merge — coding factory |
 | **v1.0**| 17–18| Three-channel publish (npm + Homebrew + pip)                              |
 
@@ -38,30 +37,31 @@ authoritative workflow store.
 | 4     | Cross-runtime distribution + 4.6a smoke flow   | ✅ done (D41, `5aa1fd0`) |
 | 4.5   | Execution-lite (session + admission + events)  | ✅ done (D42, `0d3e5ed`) — **v0.1 ready** |
 | 5     | Recovery + staleness + auto-routing            | ✅ done (D43) → v0.2 |
-| 6     | Monitoring + code-review-graph live watcher    | ✅ done (D44) → v0.2 |
+| 6     | Monitoring + telemetry                          | ✅ done (D44) → v0.2 |
 | 4.6b  | Full conformance suite                         | ✅ done (D45) — 20 conformance + 21 resolveTarget tests |
 | 7     | tagged tasks + skill mining; retired Ultra memory handed to cloud-mem/claude-mem | ✅ superseded by D50 boundary cleanup |
 | 8A    | Plan automation (parse / topo / expand + artifact + human gate) | ✅ done (D47, `a932cb8`) → v0.3 |
 | 8B    | Execution automation (dispatch / parallel worktree / merge) | ✅ done (D48, `8224159`) — **v0.3 ready** |
-| 9     | Release pipeline (npm / Homebrew / pip)        | pending → v1.0 |
+| 8C    | Continuous change packets + context compiler + convergence + doctor | ✅ done (D52) |
+| 9     | Release pipeline                               | npm tag publishing live; Homebrew / pip not implemented |
 
 ## What is in the repo today
 
 ```
 spec/                       ← Phase 1 single source of truth
-├── mcp-tools.yaml          (30 declared tools across 7 families; 21 live)
+├── mcp-tools.yaml          (29 live tools across 5 families)
 ├── cli-protocol.md         (CLI ↔ MCP mapping table)
 ├── schemas/                (state-db.sql + 4 JSON schemas)
 ├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
-└── scripts/test-all.cjs    (npm run test:spec — 5 validators)
+└── scripts/test-all.cjs    (npm run test:spec — 7 validation stages)
 
 mcp-server/                 ← Phase 2 authoritative state layer
-├── server.cjs              (stdio MCP server, 21 task/session/plan tools)
+├── server.cjs              (stdio MCP server, 29 task/session/change/system/plan tools)
 ├── lib/
 │   ├── state-db.cjs        (SQLite + WAL + pragmas)
 │   ├── state-ops.cjs       (full write API, status state machine)
 │   └── projector.cjs       (state.db → tasks.json + context md)
-└── tests/                  (npm run test:state — 44 tests)
+└── tests/                  (npm run test:state)
 
 ultra-tools/                ← CLI fallback, migration, and diagnostics
 ├── cli.cjs
@@ -76,7 +76,7 @@ adapters/                   ← native Claude/OpenCode/Codex plugin builders
 skills/                     ← allowlisted Ultra workflows, internal rules, and collab companions
 hooks/                      ← 7 workflow-only Python hooks; OpenCode uses native JavaScript hooks
 docs/
-├── PLAN.zh-CN.md                authoritative plan (1670+ lines)
+├── PLAN.zh-CN.md                historical phase plan + decision log
 ├── ARCHITECTURE.md              Phase 1 single-page entry point
 ├── AGENT-CONTEXT.md             Phase 3 canonical runtime context contract
 ├── USER-HANDBOOK-CONTRACT.md    managed CLAUDE.md / AGENTS.md boundary

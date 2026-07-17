@@ -23,6 +23,8 @@ families:
   - { name: task,    description: 'authoritative task lifecycle on state.db', phase: '2' }
   - { name: session, description: 'execution-unit lifecycle with single-active-lease admission (D33)', phase: '4.5' }
   - { name: plan,    description: 'execution-plan artifact export and query (D34)', phase: '8a' }
+  - { name: change,  description: 'continuous post-delivery change lifecycle and convergence', phase: '9' }
+  - { name: system,  description: 'read-only diagnostics and explicit backup-first repair', phase: '9' }
 
 tools:
 
@@ -48,6 +50,7 @@ tools:
         parent_id:      { type: string, description: 'Phase 8A.3 parent reference for task.expand children' }
         tag:            { type: string, description: 'git branch tag (Phase 7.2)' }
         trace_to:       { type: string, description: 'spec anchor (e.g. spec/mcp-tools.yaml#task.create)' }
+        change_id:      { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'continuous change unit owning this task' }
     output_schema:
       type: object
       required: [id, status, created_at]
@@ -90,6 +93,7 @@ tools:
             stale:         { type: boolean }
             tag:           { type: string }
             completion_commit: { type: string, pattern: '^[0-9a-f]{7,40}$' }
+            change_id:    { type: ['string', 'null'], pattern: '^[a-zA-Z0-9_\-]+$' }
     output_schema:
       type: object
       required: [ok, task]
@@ -245,12 +249,15 @@ tools:
           description: override path to the template root (defaults to bundled templates/.ultra/)
     output_schema:
       type: object
-      required: [created_path, status, copied_files]
+      required: [created_path, state_db_path, status, copied_files]
       additionalProperties: false
       properties:
         created_path:
           type: string
           description: absolute path to the created `.ultra/` directory
+        state_db_path:
+          type: string
+          description: absolute path to the initialized authoritative SQLite database
         status:
           type: string
           enum: [created, overwritten]
@@ -358,6 +365,7 @@ tools:
       additionalProperties: false
       properties:
         task_id:    { type: string }
+        change_id:  { type: string }
         session_id: { type: string }
         runtime:    { type: string, enum: [claude, opencode, codex] }
         type:
@@ -385,6 +393,11 @@ tools:
             - cost_alert
             - token_alert
             - circuit_open
+            - change_created
+            - change_updated
+            - change_blocked
+            - change_converged
+            - change_archived
         payload: { type: object }
     output_schema:
       type: object
@@ -613,6 +626,329 @@ tools:
     cli_subcommand: session subscribe
     emits_events: []
     trace_to: '§7.3, D31'
+
+  # ────────────────────────── change family ──────────────────────────────
+  - name: change.create
+    family: change
+    description: Create a continuous feature, fix, redesign, or incident change unit and its initial context manifest.
+    phase: '9'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, title, kind, intent]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        title: { type: string, minLength: 3 }
+        kind: { type: string, enum: [quick, standard, major, incident] }
+        intent: { type: string, minLength: 3 }
+        base_commit: { type: string, pattern: '^[0-9a-f]{7,40}$' }
+        docs_impact:
+          type: object
+          additionalProperties: false
+          properties:
+            status: { type: string, enum: [unknown, required, none] }
+            files: { type: array, items: { type: string } }
+            rationale: { type: ['string', 'null'] }
+        provider_refs:
+          type: object
+          additionalProperties: false
+          properties:
+            memory:
+              type: object
+              required: [provider]
+              additionalProperties: false
+              properties:
+                provider: { type: string }
+                project: { type: string }
+                reference: { type: string }
+                revision: { type: string }
+                indexed_head: { type: string }
+                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+            code_graph:
+              type: object
+              required: [provider]
+              additionalProperties: false
+              properties:
+                provider: { type: string }
+                project: { type: string }
+                reference: { type: string }
+                revision: { type: string }
+                indexed_head: { type: string }
+                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+    output_schema:
+      type: object
+      required: [change, intent_path, context_manifest_path]
+      additionalProperties: false
+      properties:
+        change: { type: object }
+        intent_path: { type: string }
+        context_manifest_path: { type: string }
+    errors:
+      - { code: DUPLICATE_CHANGE_ID, description: 'change id already exists' }
+      - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
+      - { code: VALIDATION_ERROR, description: 'change input failed validation' }
+    cli_subcommand: change create
+    emits_events: [change_created, context_updated]
+
+  - name: change.update
+    family: change
+    description: Update change intent, documentation impact, external provider metadata, or active status.
+    phase: '9'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, patch]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        patch:
+          type: object
+          additionalProperties: false
+          properties:
+            title: { type: string, minLength: 3 }
+            intent: { type: string, minLength: 3 }
+            status: { type: string, enum: [active, blocked, cancelled] }
+            docs_impact:
+              type: object
+              additionalProperties: false
+              properties:
+                status: { type: string, enum: [unknown, required, none] }
+                files: { type: array, items: { type: string } }
+                rationale: { type: ['string', 'null'] }
+            provider_refs:
+              type: object
+              additionalProperties: false
+              properties:
+                memory:
+                  type: object
+                  required: [provider]
+                  additionalProperties: false
+                  properties:
+                    provider: { type: string }
+                    project: { type: string }
+                    reference: { type: string }
+                    revision: { type: string }
+                    indexed_head: { type: string }
+                    status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+                code_graph:
+                  type: object
+                  required: [provider]
+                  additionalProperties: false
+                  properties:
+                    provider: { type: string }
+                    project: { type: string }
+                    reference: { type: string }
+                    revision: { type: string }
+                    indexed_head: { type: string }
+                    status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+    output_schema:
+      type: object
+      required: [ok, change]
+      additionalProperties: false
+      properties:
+        ok: { type: boolean }
+        change: { type: object }
+    errors:
+      - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
+      - { code: CHANGE_NOT_MUTABLE, description: 'ready, archived, and cancelled changes are immutable' }
+      - { code: ILLEGAL_CHANGE_TRANSITION, description: 'change transition is not permitted' }
+      - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
+    cli_subcommand: change update
+    emits_events: [change_updated]
+
+  - name: change.get
+    family: change
+    description: Read one continuous change unit from authoritative state.
+    phase: '9'
+    readonly: true
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+    output_schema:
+      type: object
+      required: [change]
+      additionalProperties: false
+      properties:
+        change: { type: object }
+    errors:
+      - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
+    cli_subcommand: change get
+    emits_events: []
+
+  - name: change.list
+    family: change
+    description: List continuous changes by lifecycle status or change kind.
+    phase: '9'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [active, blocked, ready, archived, cancelled] }
+        kind: { type: string, enum: [quick, standard, major, incident] }
+        limit: { type: integer, minimum: 1, maximum: 500 }
+    output_schema:
+      type: object
+      required: [changes, count]
+      additionalProperties: false
+      properties:
+        changes: { type: array, items: { type: object } }
+        count: { type: integer, minimum: 0 }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'change filter failed validation' }
+    cli_subcommand: change list
+    emits_events: []
+
+  - name: change.context
+    family: change
+    description: Compile an inspectable task context manifest from Ultra state and external provider metadata references.
+    phase: '9'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        task_id: { type: string }
+        spec_refs: { type: array, items: { type: object } }
+        allowed_paths: { type: array, items: { type: string } }
+        provider_refs:
+          type: object
+          additionalProperties: false
+          properties:
+            memory:
+              type: object
+              required: [provider]
+              additionalProperties: false
+              properties:
+                provider: { type: string }
+                project: { type: string }
+                reference: { type: string }
+                revision: { type: string }
+                indexed_head: { type: string }
+                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+            code_graph:
+              type: object
+              required: [provider]
+              additionalProperties: false
+              properties:
+                provider: { type: string }
+                project: { type: string }
+                reference: { type: string }
+                revision: { type: string }
+                indexed_head: { type: string }
+                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+    output_schema:
+      type: object
+      required: [manifest_path, manifest_hash, manifest]
+      additionalProperties: false
+      properties:
+        manifest_path: { type: string }
+        manifest_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        manifest: { type: object }
+    errors:
+      - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
+      - { code: CHANGE_TERMINAL, description: 'terminal change cannot compile a new context' }
+      - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
+    cli_subcommand: change context
+    emits_events: [context_updated]
+
+  - name: change.converge
+    family: change
+    description: Deterministically verify task, spec, test, documentation, review, and context evidence before closure.
+    phase: '9'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, evidence]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        evidence:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [category, status, evidence]
+            additionalProperties: false
+            properties:
+              category: { type: string, enum: [diagnosis, diff, tests, spec, docs, review] }
+              status: { type: string, enum: [pass, fail, not_applicable] }
+              evidence: { type: string, minLength: 3 }
+    output_schema:
+      type: object
+      required: [ready, status, blockers]
+      additionalProperties: false
+      properties:
+        ready: { type: boolean }
+        status: { type: string, enum: [blocked, ready] }
+        blockers: { type: array, items: { type: string } }
+        verification_path: { type: string }
+    errors:
+      - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
+      - { code: CHANGE_NOT_CONVERGEABLE, description: 'change lifecycle does not allow convergence' }
+    cli_subcommand: change converge
+    emits_events: [change_blocked, change_converged]
+
+  - name: change.archive
+    family: change
+    description: Archive a converged change after explicit baseline-spec reconciliation.
+    phase: '9'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, summary]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        summary: { type: string, minLength: 3 }
+        baseline_updates: { type: array, items: { type: string } }
+        no_baseline_change_reason: { type: string, minLength: 3 }
+    output_schema:
+      type: object
+      required: [change, archive_path]
+      additionalProperties: false
+      properties:
+        change: { type: object }
+        archive_path: { type: string }
+    errors:
+      - { code: CHANGE_NOT_READY, description: 'change has not passed convergence' }
+      - { code: BASELINE_RECONCILIATION_REQUIRED, description: 'baseline update or explicit no-change reason required' }
+      - { code: ARCHIVE_EXISTS, description: 'archive target already exists' }
+    cli_subcommand: change archive
+    emits_events: [change_archived]
+
+  # ────────────────────────── system family ──────────────────────────────
+  - name: system.doctor
+    family: system
+    description: Inspect Ultra runtime health and optionally perform backup-first recovery and projection repair.
+    phase: '9'
+    writer_role: mcp
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        repair: { type: boolean, default: false }
+    output_schema:
+      type: object
+      required: [status, checks, repair_performed]
+      additionalProperties: true
+      properties:
+        status: { type: string, enum: [healthy, degraded] }
+        checks: { type: object }
+        repair_performed: { type: boolean }
+        backup_path: { type: string }
+        repair: { type: object }
+    errors:
+      - { code: BACKUP_FAILED, description: 'state database backup failed before repair' }
+      - { code: STATE_DB_ERROR, description: 'runtime state could not be inspected' }
+    cli_subcommand: system doctor
+    emits_events: []
 
   # ────────────────────────── plan family (D34) ───────────────────────────
   - name: plan.export

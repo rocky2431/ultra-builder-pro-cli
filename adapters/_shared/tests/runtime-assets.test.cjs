@@ -27,6 +27,8 @@ const CORE = [
   'ultra-deliver',
   'ultra-status',
   'ultra-think',
+  'ultra-change',
+  'ultra-doctor',
 ];
 
 const INTERNAL = [

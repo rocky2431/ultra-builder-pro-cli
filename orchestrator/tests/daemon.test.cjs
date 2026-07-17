@@ -259,3 +259,53 @@ test('runDaemon applies complexity_hint route', async () => {
     cleanup(repoRoot, db, handle);
   }
 });
+
+test('maintainState consumes spec changes with a durable cursor', () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  try {
+    ops.createTask(db, {
+      id: 'maintain-stale', title: 'stale target', type: 'feature', priority: 'P1',
+      trace_to: '.ultra/specs/product.md#daily-change',
+    });
+    ops.appendEvent(db, {
+      type: 'spec_changed', payload: { sections: ['.ultra/specs/product.md#daily-change'] },
+    });
+    const first = daemon.maintainState({ db, repoRoot });
+    assert.equal(first.staleness.processed, 1);
+    assert.equal(ops.readTask(db, 'maintain-stale').stale, true);
+    const second = daemon.maintainState({ db, repoRoot });
+    assert.equal(second.staleness.processed, 0);
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('runDaemon performs crash recovery before dispatch polling', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    ops.createTask(db, { id: 'recover-boot', title: 'recover boot', type: 'bugfix', priority: 'P0' });
+    ops.updateTaskStatus(db, 'recover-boot', 'in_progress');
+    ops.createSession(db, {
+      sid: 'dead-session', task_id: 'recover-boot', runtime: 'claude', pid: 999999,
+      worktree_path: '/tmp/dead-worktree', artifact_dir: '/tmp/dead-artifact', lease_seconds: 1,
+    });
+    db.prepare(
+      "UPDATE sessions SET heartbeat_at = '2000-01-01T00:00:00.000Z', lease_expires_at = '2000-01-01T00:00:00.000Z' WHERE sid = 'dead-session'",
+    ).run();
+
+    handle = daemon.runDaemon({
+      db, repoRoot, runtimes: ['claude'], pollMs: 50,
+      command: LONG_SLEEP_CMD, commandArgs: LONG_SLEEP_ARGS,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const session = ops.readSession(db, 'dead-session');
+    assert.equal(session.status, 'crashed');
+    const failure = db.prepare("SELECT * FROM circuit_breaker WHERE task_id = 'recover-boot'").get();
+    assert.equal(failure.failure_count, 1);
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});

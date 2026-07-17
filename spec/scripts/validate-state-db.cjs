@@ -42,7 +42,12 @@ try {
   process.exit(1);
 }
 
-const expectedTables = ['tasks', 'events', 'sessions', 'schema_version', 'migration_history', 'telemetry', 'specs_refs'];
+const expectedTables = [
+  'tasks', 'events', 'sessions', 'schema_version', 'migration_history',
+  'telemetry', 'specs_refs', 'circuit_breaker', 'changes', 'artifacts',
+  'context_snapshots', 'trace_links', 'incidents', 'projection_jobs',
+  'event_consumers',
+];
 const actualTables = db.prepare(
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
 ).all().map((r) => r.name);
@@ -56,12 +61,12 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare('SELECT version FROM schema_version').get();
-if (v && v.version === '4.5') {
-  console.log('ok schema_version seeded to 4.5');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '9.0'").get();
+if (v && v.version === '9.0') {
+  console.log('ok schema_version includes 9.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version seed: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 9.0: got ${JSON.stringify(v)}`);
   fail++;
 }
 

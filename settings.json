@@ -2,7 +2,6 @@
   "_comment": "Ultra Builder Pro runtime settings. Host hooks and plugin permissions live in each native plugin manifest.",
   "cleanupPeriodDays": 30,
   "orchestrator": {
-    "auto_dispatch": false,
-    "graph_watcher": false
+    "auto_dispatch": false
   }
 }

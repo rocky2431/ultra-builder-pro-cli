@@ -34,7 +34,7 @@ function cleanup(dir) {
 test('package exports every documented CLI entrypoint', () => {
   assert.equal(PACKAGE.bin['ultra-tools'], 'ultra-tools/cli.cjs');
   assert.deepEqual(Object.keys(ULTRA_TOOLS.SUBCOMMANDS).sort(), [
-    'db', 'legacy-memory', 'migrate', 'session', 'status', 'task',
+    'db', 'legacy-memory', 'migrate', 'session', 'status', 'system', 'task',
   ]);
 });
 

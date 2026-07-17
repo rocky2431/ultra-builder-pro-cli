@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const yaml = require('js-yaml');
+const Database = require('better-sqlite3');
 
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
@@ -19,7 +20,7 @@ function tmpProject() {
   return { dir, dbPath: path.join(dir, '.ultra', 'state.db') };
 }
 
-async function withClient({ dir, dbPath }, fn) {
+async function withClient({ dir, dbPath }, fn, extraEnv = {}) {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [SERVER],
@@ -27,6 +28,7 @@ async function withClient({ dir, dbPath }, fn) {
       ...process.env,
       UBP_DB_PATH: dbPath,
       UBP_ROOT_DIR: dir,
+      ...extraEnv,
     },
     stderr: 'pipe',
   });
@@ -72,6 +74,13 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
       assert.deepEqual(names, [
+        'change.archive',
+        'change.context',
+        'change.converge',
+        'change.create',
+        'change.get',
+        'change.list',
+        'change.update',
         'plan.export',
         'plan.get',
         'session.admission_check',
@@ -81,6 +90,7 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
         'session.list',
         'session.spawn',
         'session.subscribe_events',
+        'system.doctor',
         'task.append_event',
         'task.create',
         'task.delete',
@@ -99,6 +109,67 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
         assert.equal(typeof t.inputSchema, 'object');
         assert.equal(t.inputSchema.type, 'object');
       }
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('change.create + change.context expose a continuous change unit with external provider references', async () => {
+  const proj = tmpProject();
+  try {
+    fs.writeFileSync(path.join(proj.dir, 'README.md'), '# project\n');
+    await withClient(proj, async (client) => {
+      const created = await client.callTool({
+        name: 'change.create',
+        arguments: {
+          id: 'mcp-change', title: 'Continuous maintenance', kind: 'quick',
+          intent: 'Keep daily modifications synchronized after initial delivery.',
+          docs_impact: { status: 'none', files: [], rationale: 'Contract-only fixture.' },
+          provider_refs: {
+            memory: { provider: 'cloud-mem', status: 'available', reference: 'cmem://fixture' },
+            code_graph: { provider: 'codebase-memory-mcp', status: 'stale', project: 'fixture' },
+          },
+        },
+      });
+      const payload = readToolPayload(created);
+      assert.equal(payload.change.id, 'mcp-change');
+      assert.equal(payload.change.status, 'active');
+      assert.equal(created._meta.ultra.state_commit, 'committed');
+      assert.equal(created._meta.ultra.projection_status, 'completed');
+
+      const context = readToolPayload(await client.callTool({
+        name: 'change.context', arguments: { id: 'mcp-change' },
+      }));
+      assert.equal(context.manifest.change.id, 'mcp-change');
+      assert.equal(context.manifest.providers.memory.provider, 'cloud-mem');
+      assert.equal(context.manifest.provider_boundary.includes('content remain external'), true);
+
+      const listed = readToolPayload(await client.callTool({
+        name: 'change.list', arguments: { status: 'active' },
+      }));
+      assert.equal(listed.count, 1);
+      assert.equal(listed.changes[0].id, 'mcp-change');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('system.doctor returns structured provider ownership and projection health', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'task.create',
+        arguments: { id: 'doctor-seed', title: 'doctor seed', type: 'feature', priority: 'P1' },
+      });
+      const result = readToolPayload(await client.callTool({
+        name: 'system.doctor', arguments: { repair: false },
+      }));
+      assert.equal(result.status, 'healthy');
+      assert.equal(result.checks.external_providers.ownership, 'external');
+      assert.equal(result.repair_performed, false);
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
@@ -309,6 +380,54 @@ test('mutating tools trigger the projector — tasks.json appears under .ultra/'
   }
 });
 
+test('output schema drift cannot strand a committed mutation without a projection job', async () => {
+  const proj = tmpProject();
+  try {
+    const runtimeRoot = path.join(proj.dir, 'runtime-contract');
+    fs.mkdirSync(path.join(runtimeRoot, 'spec', 'schemas'), { recursive: true });
+    fs.copyFileSync(path.join(REPO_ROOT, 'package.json'), path.join(runtimeRoot, 'package.json'));
+    fs.copyFileSync(
+      path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql'),
+      path.join(runtimeRoot, 'spec', 'schemas', 'state-db.sql'),
+    );
+    const manifest = yaml.load(
+      fs.readFileSync(path.join(REPO_ROOT, 'spec', 'mcp-tools.yaml'), 'utf8'),
+    );
+    const createTool = manifest.tools.find((tool) => tool.name === 'task.create');
+    createTool.output_schema.required = ['impossible_output_field'];
+    createTool.output_schema.properties.impossible_output_field = { type: 'string' };
+    fs.writeFileSync(
+      path.join(runtimeRoot, 'spec', 'mcp-tools.yaml'),
+      yaml.dump(manifest, { noRefs: true, lineWidth: 120 }),
+    );
+
+    await withClient(proj, async (client) => {
+      const result = await client.callTool({
+        name: 'task.create',
+        arguments: { id: 'schema-drift', title: 'schema drift', type: 'feature', priority: 'P1' },
+      });
+      const error = expectError(result);
+      assert.equal(error.code, 'OUTPUT_SCHEMA_DRIFT');
+      assert.equal(error.details._ultra.state_commit, 'committed');
+      assert.equal(error.details._ultra.projection_status, 'completed');
+    }, { UBP_RUNTIME_ROOT: runtimeRoot });
+
+    const db = new Database(proj.dbPath, { readonly: true, fileMustExist: true });
+    try {
+      assert.equal(db.prepare('SELECT COUNT(*) AS count FROM tasks WHERE id = ?').get('schema-drift').count, 1);
+      const job = db.prepare(
+        "SELECT status FROM projection_jobs WHERE tool_name = 'task.create' ORDER BY id DESC LIMIT 1",
+      ).get();
+      assert.deepEqual(job, { status: 'completed' });
+    } finally {
+      db.close();
+    }
+    assert.ok(fs.existsSync(path.join(proj.dir, '.ultra', 'tasks', 'tasks.json')));
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('task.init_project creates .ultra/ skeleton in a fresh target directory', async () => {
   const proj = tmpProject();
   const freshTarget = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-init-target-'));
@@ -321,6 +440,8 @@ test('task.init_project creates .ultra/ skeleton in a fresh target directory', a
       const payload = readToolPayload(res);
       assert.equal(payload.status, 'created');
       assert.equal(payload.created_path, path.join(freshTarget, '.ultra'));
+      assert.equal(payload.state_db_path, path.join(freshTarget, '.ultra', 'state.db'));
+      assert.ok(fs.existsSync(payload.state_db_path));
       assert.ok(payload.copied_files.includes('tasks/tasks.json'));
       const tasksJson = JSON.parse(fs.readFileSync(path.join(payload.created_path, 'tasks', 'tasks.json'), 'utf8'));
       assert.equal(tasksJson.project.name, 'mcp-init');
@@ -748,6 +869,7 @@ test('plan.export → plan.get round trip: artifact on disk + retrievable', asyn
       const expData = readToolPayload(exp);
       assert.equal(expData.wave_count, 2);
       assert.ok(fs.existsSync(expData.plan_path), 'artifact file must exist');
+      assert.equal(exp._meta.ultra.projection_status, 'completed');
 
       const got = await client.callTool({ name: 'plan.get', arguments: { section: 'topo' } });
       const gotData = readToolPayload(got);

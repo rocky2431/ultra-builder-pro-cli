@@ -25,7 +25,10 @@ test('renders one common contract with host-native invocation syntax', () => {
   assert.match(opencode, /\/ultra-plan/);
   for (const rendered of [claude, codex, opencode]) {
     assert.match(rendered, /\.ultra\/state\.db/);
-    assert.match(rendered, /claude-mem|cloud-mem/);
+    assert.match(rendered, /Separately installed providers/);
+    assert.match(rendered, /ultra-change/);
+    assert.match(rendered, /ultra-doctor/);
+    assert.match(rendered, /metadata references/);
     assert.doesNotMatch(rendered, /\.ultra\/memory|memory\.retain|memory\.recall/);
     assert.match(rendered, new RegExp(BEGIN_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(rendered, new RegExp(END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));

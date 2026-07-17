@@ -27,6 +27,7 @@ const TASK_FIELDS = Object.freeze([
   'id', 'title', 'type', 'priority', 'complexity', 'estimated_days', 'status',
   'deps', 'files_modified', 'session_id', 'stale', 'complexity_hint',
   'tag', 'trace_to', 'context_file', 'completion_commit', 'parent_id',
+  'change_id',
   'created_at', 'updated_at',
 ]);
 
@@ -34,6 +35,7 @@ const PATCHABLE_FIELDS = Object.freeze([
   'priority', 'complexity', 'estimated_days', 'deps', 'files_modified',
   'session_id', 'stale', 'complexity_hint', 'tag', 'trace_to',
   'context_file', 'completion_commit',
+  'change_id',
 ]);
 
 const SESSION_PATCHABLE = Object.freeze([
@@ -153,10 +155,14 @@ function createTask(db, input) {
     context_file: input.context_file ?? null,
     completion_commit: null,
     parent_id: input.parent_id ?? null,
+    change_id: input.change_id ?? null,
     created_at: ts,
     updated_at: ts,
   };
   return tx(db, () => {
+    if (row.change_id && !db.prepare('SELECT id FROM changes WHERE id = ?').get(row.change_id)) {
+      throw new StateOpsError('CHANGE_NOT_FOUND', `change ${row.change_id} does not exist`);
+    }
     try {
       db.prepare(
         `INSERT INTO tasks (${TASK_FIELDS.join(', ')})
@@ -171,6 +177,7 @@ function createTask(db, input) {
     appendEventInTx(db, {
       type: 'task_created',
       task_id: row.id,
+      change_id: row.change_id,
       payload: { priority: row.priority, type: row.type },
     });
     return readTask(db, row.id);
@@ -193,6 +200,10 @@ function patchTask(db, id, patch = {}) {
         throw new StateOpsError('VALIDATION_ERROR', `field ${key} is not patchable`);
       }
       let value = patch[key];
+      if (key === 'change_id' && value !== null
+        && !db.prepare('SELECT id FROM changes WHERE id = ?').get(value)) {
+        throw new StateOpsError('CHANGE_NOT_FOUND', `change ${value} does not exist`);
+      }
       if (key === 'deps' || key === 'files_modified') {
         if (value !== null && !Array.isArray(value)) {
           throw new StateOpsError('VALIDATION_ERROR', `${key} must be an array`);
@@ -224,6 +235,7 @@ function patchTask(db, id, patch = {}) {
       appendEventInTx(db, {
         type: statusEventType(nextStatus),
         task_id: id,
+        change_id: patch.change_id !== undefined ? patch.change_id : current.change_id,
         payload: { from: current.status, to: nextStatus },
       });
     }
@@ -268,11 +280,12 @@ function appendEventInTx(db, event) {
     throw new StateOpsError('VALIDATION_ERROR', `unsupported runtime: ${event.runtime}`);
   }
   const result = db.prepare(
-    `INSERT INTO events (type, task_id, session_id, runtime, payload_json)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO events (type, task_id, change_id, session_id, runtime, payload_json)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(
     event.type,
     event.task_id ?? null,
+    event.change_id ?? null,
     event.session_id ?? null,
     event.runtime ?? null,
     event.payload === undefined ? null : JSON.stringify(event.payload),
@@ -287,7 +300,7 @@ function appendEvent(db, event) {
 
 // Single static SQL using json_each for the optional types IN-list and
 // NULL-pass-through for task_id/session_id. Frozen literal — no concat, no interpolation.
-const SUBSCRIBE_EVENTS_SQL = "SELECT id, ts, type, task_id, session_id, runtime, payload_json FROM events WHERE id > @since_id AND (@types_json IS NULL OR EXISTS (SELECT 1 FROM json_each(@types_json) WHERE value = events.type)) AND (@task_id IS NULL OR task_id = @task_id) AND (@session_id IS NULL OR session_id = @session_id) ORDER BY id ASC LIMIT @maxn";
+const SUBSCRIBE_EVENTS_SQL = "SELECT id, ts, type, task_id, change_id, session_id, runtime, payload_json FROM events WHERE id > @since_id AND (@types_json IS NULL OR EXISTS (SELECT 1 FROM json_each(@types_json) WHERE value = events.type)) AND (@task_id IS NULL OR task_id = @task_id) AND (@session_id IS NULL OR session_id = @session_id) ORDER BY id ASC LIMIT @maxn";
 
 function subscribeEventsSince(db, { since_id = 0, types, task_id, session_id, limit = 100 } = {}) {
   const events = db.prepare(SUBSCRIBE_EVENTS_SQL).all({
@@ -704,6 +717,7 @@ module.exports = {
   deleteTask,
   // events
   appendEvent,
+  appendEventInTx,
   subscribeEventsSince,
   // sessions
   createSession,

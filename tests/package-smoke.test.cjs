@@ -38,7 +38,7 @@ async function verifyMcp(launcher, projectDir) {
   try {
     assert.equal(client.getServerVersion().version, PACKAGE.version);
     const tools = await client.listTools();
-    assert.equal(tools.tools.length, 21);
+    assert.equal(tools.tools.length, 29);
     assert.equal(fs.existsSync(path.join(projectDir, '.ultra', 'state.db')), false);
     const listed = await client.callTool({ name: 'task.list', arguments: {} });
     assert.notEqual(listed.isError, true, listed.content?.[0]?.text || 'task.list failed');
@@ -66,15 +66,20 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     assert.equal(run(ultraTools, ['--version'], { cwd: consumer }), PACKAGE.version);
 
     for (const doc of [
-      'COMMIT-HASH-BACKFILL.md', 'LEGACY-HERMES.md', 'PLAN.zh-CN.md', 'STATE-DB-ACCESS-POLICY.md',
+      'COMMIT-HASH-BACKFILL.md', 'PLAN.zh-CN.md', 'STATE-DB-ACCESS-POLICY.md',
     ]) {
       assert.ok(fs.existsSync(path.join(packageRoot, 'docs', doc)), `tarball missing docs/${doc}`);
     }
+    assert.equal(
+      fs.existsSync(path.join(packageRoot, 'docs', 'LEGACY-HERMES.md')),
+      false,
+      'retired Hermes documentation must not ship in the npm tarball',
+    );
 
     const configRoot = path.join(tempRoot, 'hosts');
     for (const runtime of ['claude', 'opencode', 'codex']) {
       const hostRoot = path.join(configRoot, runtime);
-      run(ubp, [`--${runtime}`, '--config-dir', hostRoot, '--skip-rtk'], {
+      run(ubp, [`--${runtime}`, '--config-dir', hostRoot], {
         cwd: consumer,
         env: runtime === 'codex' ? { HOME: hostRoot } : {},
       });

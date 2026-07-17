@@ -1,18 +1,24 @@
 ---
-description: Release preparation — docs + build + version bump + tag + push, gated by /ultra-test pass
+description: Converge and deliver a verified baseline or continuous change — reconcile specs, archive evidence, version, tag, and push
 argument-hint: "[version-type]"
 allowed-tools: Task, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 model: opus
 workflow-ref: "@skills/ultra-deliver/SKILL.md"
 cli_fallback: "direct user interaction"
+mcp_tools_required:
+  - change.list
+  - change.get
+  - change.context
+  - change.converge
+  - change.archive
 ---
 
 # /ultra-deliver
 
 ## 目标
 
-`/ultra-test` 绿灯后做发布准备：更新 CHANGELOG + technical-debt + README →
-production build → 版本号 + git tag + push。写 `.ultra/delivery-report.json`。
+`/ultra-test` 绿灯后，把 active delta 合并回 baseline，重跑发布证据，调用
+`change.converge` 与 `change.archive`，再完成版本号、tag、push 和 delivery report。
 
 ## 参数
 
@@ -22,14 +28,15 @@ production build → 版本号 + git tag + push。写 `.ultra/delivery-report.js
 
 ## Workflow
 
-完整 5 步见 `@skills/ultra-deliver/SKILL.md`（validations → 文档 → build → 版本发布 → 产物报告）。
+完整流程见 `@skills/ultra-deliver/SKILL.md`（绑定 change → baseline reconciliation →
+build/test → release commit → context/convergence/archive → tag/push → report）。
 
 **命令入口做的事**：
 1. 读 `.ultra/test-report.json` 验 `passed=true` + `git_commit === HEAD`
 2. `git status` 清洁检查；不干净 → 通过 Host 原生提问界面选处理方式
-3. 驱动 skill 跑文档 + build + 版本 + tag + push
-4. 写 `.ultra/delivery-report.json`
-5. 输出 release summary
+3. 有 active change 时合并 delta、刷新 context，并通过确定性 convergence gate
+4. archive 完成后才允许 tag/push
+5. 写带 change id、archive path、baseline updates 的 delivery report
 
 ## 用法
 

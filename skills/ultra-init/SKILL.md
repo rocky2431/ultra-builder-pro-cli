@@ -10,7 +10,8 @@ cli_fallback: "task init-project"
 # ultra-init — Phase 3.1
 
 把当前工作目录（或 `--target-dir`）初始化为一个 Ultra Builder Pro 项目：拉起
-`.ultra/` 骨架、写入 `tasks.json` 元数据、按需配 git。
+`.ultra/` 骨架、初始化权威 `state.db`、建立持续变更目录、写入 `tasks.json`
+初始元数据，并按需配置 git。
 
 真实的目录搭建 + 模板拷贝 + tasks.json 注入统一由 **MCP tool `task.init_project`** 完成；
 MCP 不可达时回退 `ultra-tools task init-project`。
@@ -18,7 +19,7 @@ MCP 不可达时回退 `ultra-tools task init-project`。
 ## 设计要点（对比 pre-Phase-3 行为）
 
 - **无 Claude 独占依赖**：`task.init_project` + `ultra-tools init-project` 两条路径
-  都不调 Claude 原生工具，4 个 runtime 都能走通。
+  都不调 Claude 原生工具，Claude Code、OpenCode、Codex 三个 runtime 都能走通。
 - **模板内置**：`.ultra/` 骨架来自仓内 `templates/.ultra/`；不再依赖 `~/.claude/.ultra-template/`。
 - **幂等**：二次 init 默认拒绝，`--overwrite` 才会备份旧 `.ultra/` 为
   `.ultra.backup.<ts>` 后重建。
@@ -83,9 +84,11 @@ MCP 不可达时回退 `ultra-tools task init-project`。
   "copied_files": [
     "specs/discovery.md", "specs/product.md", "specs/architecture.md",
     "tasks/tasks.json", "tasks/contexts/TEMPLATE.md",
+    "changes/active/.gitkeep", "changes/archive/.gitkeep",
     "docs/research/README.md",
     "test-report.json", "delivery-report.json"
-  ]
+  ],
+  "state_db_path": "/abs/path/to/project/.ultra/state.db"
 }
 ```
 
@@ -121,7 +124,8 @@ CLI 最后一行是 `{ "ok": true, "data": { ... } }`（见 spec/cli-protocol.md
 ### Step 4: 成功总结 + 下一步
 
 用中文输出：
-- ✅ `.ultra/` 骨架（specs / tasks / docs / reports）
+- ✅ `.ultra/` 骨架（specs / tasks / changes / docs / reports）
+- ✅ `.ultra/state.db` 已初始化为当前 schema，后续不再依赖第一次写操作懒创建
 - ✅ tasks.json 注入元数据（name / type / stack / created / updated）
 - ✅ git 状态（按选择）
 - ⚠️ **下一步**：跑 `/ultra-research` 做 17 步 discovery 填 spec；不要跳过直接 `/ultra-plan`
@@ -143,5 +147,4 @@ CLI 最后一行是 `{ "ok": true, "data": { ... } }`（见 spec/cli-protocol.md
 ## 不做的事
 
 - **不**创建业务 task（业务 task 由 `/ultra-plan` 在 spec 填完后批量创建）
-- **不**写入 state.db（state.db 由第一次 MCP 写操作或显式 `ultra-tools db init` 触发）
 - **不**调 web：离线可执行

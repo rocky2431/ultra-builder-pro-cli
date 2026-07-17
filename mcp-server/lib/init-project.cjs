@@ -14,6 +14,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { initStateDb } = require('./state-db.cjs');
+
 const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
@@ -109,6 +111,20 @@ function injectTasksJson(ultraDir, { project_name, project_type, stack }) {
   fs.writeFileSync(tasksFile, JSON.stringify(data, null, 2) + '\n');
 }
 
+function rollbackInitialization(ultraDir, backupPath) {
+  const errors = [];
+  try {
+    if (fs.existsSync(ultraDir)) fs.rmSync(ultraDir, { recursive: true, force: true });
+  } catch (error) {
+    errors.push(`partial cleanup failed: ${error.message}`);
+  }
+  if (backupPath) {
+    try { fs.renameSync(backupPath, ultraDir); }
+    catch (error) { errors.push(`backup restore failed: ${error.message}`); }
+  }
+  return errors;
+}
+
 function initProject({
   target_dir,
   project_name,
@@ -138,20 +154,30 @@ function initProject({
     status = 'overwritten';
   }
 
-  try { fs.mkdirSync(ultraDir, { recursive: true }); }
-  catch (err) { throw new InitProjectError('IO_ERROR', `cannot create .ultra/: ${err.message}`, { retriable: true, cause: err }); }
-
   let copiedFiles;
   try {
+    fs.mkdirSync(ultraDir, { recursive: true });
     copiedFiles = copyTemplate(source, ultraDir);
+    injectTasksJson(ultraDir, { project_name, project_type, stack });
+    const stateDbPath = path.join(ultraDir, 'state.db');
+    const { db } = initStateDb(stateDbPath);
+    db.close();
   } catch (err) {
-    throw new InitProjectError('IO_ERROR', `template copy failed: ${err.message}`, { retriable: true, cause: err });
+    const rollbackErrors = rollbackInitialization(ultraDir, backupPath);
+    const rollbackNote = rollbackErrors.length > 0
+      ? `; rollback incomplete: ${rollbackErrors.join('; ')}`
+      : '; prior state restored';
+    throw new InitProjectError(
+      'IO_ERROR',
+      `project initialization failed: ${err.message}${rollbackNote}`,
+      { retriable: true, cause: err },
+    );
   }
 
-  injectTasksJson(ultraDir, { project_name, project_type, stack });
-
+  const stateDbPath = path.join(ultraDir, 'state.db');
   const result = {
     created_path: ultraDir,
+    state_db_path: stateDbPath,
     status,
     copied_files: copiedFiles,
   };

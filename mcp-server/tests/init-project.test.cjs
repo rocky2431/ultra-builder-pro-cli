@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const Database = require('better-sqlite3');
 
 const { initProject, InitProjectError, DEFAULT_TEMPLATE } = require('../lib/init-project.cjs');
 
@@ -29,6 +30,18 @@ test('initProject copies bundled template into .ultra/', () => {
     assert.equal(r.created_path, path.join(target, '.ultra'));
     assert.ok(r.copied_files.includes('tasks/tasks.json'));
     assert.ok(r.copied_files.includes('specs/product.md'));
+    assert.ok(r.copied_files.includes('changes/active/.gitkeep'));
+    assert.ok(r.copied_files.includes('changes/archive/.gitkeep'));
+    assert.equal(r.state_db_path, path.join(target, '.ultra', 'state.db'));
+    assert.ok(fs.existsSync(r.state_db_path));
+    const db = new Database(r.state_db_path, { readonly: true });
+    try {
+      const version = db.prepare("SELECT version FROM schema_version WHERE version = '9.0'").get();
+      assert.equal(version.version, '9.0');
+      assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name = 'changes'").get());
+    } finally {
+      db.close();
+    }
     assert.ok(!r.copied_files.some((f) => f.endsWith('.DS_Store')));
   } finally { cleanup(target); }
 });
@@ -79,6 +92,38 @@ test('initProject with overwrite=true backs up existing .ultra/', () => {
     );
     assert.ok(!fs.existsSync(sentinel));
   } finally { cleanup(target); }
+});
+
+test('initProject restores the prior .ultra when overwrite initialization fails', () => {
+  const target = mkTempDir();
+  const badTemplate = mkTempDir('ubp-bad-template-');
+  try {
+    initProject({ target_dir: target, project_name: 'first' });
+    fs.writeFileSync(path.join(target, '.ultra', 'sentinel.txt'), 'restore-me');
+    fs.cpSync(DEFAULT_TEMPLATE, badTemplate, { recursive: true });
+    fs.writeFileSync(path.join(badTemplate, 'tasks', 'tasks.json'), '{not-json\n');
+
+    assert.throws(
+      () => initProject({
+        target_dir: target,
+        project_name: 'broken-overwrite',
+        overwrite: true,
+        source_template: badTemplate,
+      }),
+      (error) => error instanceof InitProjectError && error.code === 'IO_ERROR',
+    );
+    assert.equal(
+      fs.readFileSync(path.join(target, '.ultra', 'sentinel.txt'), 'utf8'),
+      'restore-me',
+    );
+    assert.equal(
+      fs.readdirSync(target).some((name) => name.startsWith('.ultra.backup.')),
+      false,
+    );
+  } finally {
+    cleanup(target);
+    cleanup(badTemplate);
+  }
 });
 
 test('initProject rejects empty project_name', () => {

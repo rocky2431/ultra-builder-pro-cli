@@ -8,6 +8,8 @@ mcp_tools_required:
   - task.update
   - task.get
   - task.list
+  - change.get
+  - change.context
 ---
 
 # /ultra-dev
@@ -34,9 +36,10 @@ v4.4→v4.5 迁移，绝不从 `tasks.json` 回退或直接改投影。
 **命令入口做的事**：
 1. 读 `.ultra/workflow-state.json` 决定新跑 vs resume
 2. 首跑通过 Host 原生提问触发 Design Approval Gate
-3. 驱动 skill 走 TDD + review 循环；状态仅通过 MCP `task.update`（双写消除）
-4. Step 4.5 review 通过 `/ultra-review` 和 Host 原生 subagent 执行
-5. Step 4.4 pre-review checkpoint 写入 workflow-state.json，不依赖 `/compact`
+3. 驱动 skill 走 TDD + review 循环；状态仅通过 MCP `task.update`
+4. task 有 `change_id` 时把需求变化写进 active delta，并用 `change.context` 刷新上下文
+5. Step 4.5 review 通过 `/ultra-review` 和 Host 原生 subagent 执行
+6. Step 4.4 pre-review checkpoint 写入 workflow-state.json，不依赖 `/compact`
 
 ## 用法
 

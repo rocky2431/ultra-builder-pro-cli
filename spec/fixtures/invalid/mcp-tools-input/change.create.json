@@ -1,0 +1,19 @@
+[
+  {
+    "title": "Missing identifier",
+    "kind": "quick",
+    "intent": "This must be rejected."
+  },
+  {
+    "id": "embedded-provider-content",
+    "title": "Embedded provider content",
+    "kind": "quick",
+    "intent": "Provider content must stay external.",
+    "provider_refs": {
+      "memory": {
+        "provider": "cloud-mem",
+        "content": "copied memory payload"
+      }
+    }
+  }
+]

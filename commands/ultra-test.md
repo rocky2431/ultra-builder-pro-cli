@@ -6,6 +6,7 @@ model: opus
 workflow-ref: "@skills/ultra-test/SKILL.md"
 mcp_tools_required:
   - task.list
+  - change.list
 ---
 
 # /ultra-test
@@ -33,7 +34,7 @@ completed-task 前置检查必须来自 MCP `task.list`；失败时停止，绝�
 **命令入口做的事**：
 1. 探测项目类型 + `task.list` 确认 ≥1 completed
 2. 按 scope 跑 gates；失败进 auto-fix（最多 5 轮）
-3. 写 `.ultra/test-report.json`（`passed` + gate-level 明细 + blocking_issues）
+3. 写 `.ultra/test-report.json`（change_id + exact commands + gate 明细 + blocking_issues）
 4. 通过 → 提示 `/ultra-deliver`
 
 ## 用法

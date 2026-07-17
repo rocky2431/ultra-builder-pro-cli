@@ -4,6 +4,7 @@ description: "Pre-delivery quality audit — Anti-Pattern + Coverage Gap + Wirin
 runtime: all
 mcp_tools_required:
   - task.list
+  - change.list
 ---
 
 # ultra-test — Phase 3.5
@@ -31,7 +32,9 @@ returns an authority error, stop the audit. Never fall back to
 
 1. Detect project type from config (`package.json` / `Cargo.toml` / `go.mod` / `pyproject.toml` / …)
 2. `task.list { status: "completed" }` → confirm ≥1 task delivered
-3. Find test files (suffix `.test.*`, `.spec.*`, `test_*.py`, `*_test.go`)
+3. `change.list` → identify the active/blocked change, if any; filter linked
+   tasks locally by `change_id`
+4. Find test files (suffix `.test.*`, `.spec.*`, `test_*.py`, `*_test.go`)
 
 Block with instructive error if any precheck fails.
 
@@ -144,8 +147,12 @@ If max reached → surface remaining issues; `passed=false`.
 {
   "timestamp": "<ISO8601>",
   "git_commit": "<HEAD>",
+  "change_id": "<active-change-id-or-null>",
   "passed": true,
   "run_count": 1,
+  "commands": [
+    { "command": "<exact command>", "exit_code": 0, "scope": "unit/integration/e2e/build" }
+  ],
   "gates": {
     "anti_pattern":  { "passed": true, "critical": 0, "warning": 1 },
     "coverage_gaps": { "passed": true, "high": 0, "medium": 3, "low": 5 },
@@ -162,6 +169,10 @@ Rules:
 - File exists → increment `run_count`
 - `passed = true` iff all gates `.passed === true`
 - `blocking_issues` lists human-readable strings for any fail
+- `commands` records exact executable evidence; prose such as “tests look good”
+  is not convergence evidence
+- when a continuous change is active, `change_id` must match it; never reuse a
+  report from another change
 
 ### Step 8 — Report
 
@@ -184,6 +195,7 @@ when `passed=true`.
 | Purpose | MCP tool | CLI fallback |
 |---------|----------|--------------|
 | Confirm ≥1 completed task | `task.list { status: "completed" }` | none; fail closed |
+| Identify active change | `change.list` | none; omit only for initial baseline delivery |
 | Confirm risky auto-fix | none | current Host's native user-interaction surface |
 
 ## What this skill DOES NOT do
@@ -197,5 +209,5 @@ when `passed=true`.
 | | |
 |---|---|
 | **Input** | Source + test files, state.db (read-only) |
-| **Output** | `.ultra/test-report.json`, `.ultra/docs/test-coverage-gaps.md` |
+| **Output** | `.ultra/test-report.json` with exact commands/change id, `.ultra/docs/test-coverage-gaps.md` |
 | **Next** | `/ultra-deliver` (only when `passed=true`) |

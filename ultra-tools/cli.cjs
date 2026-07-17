@@ -35,6 +35,7 @@ USAGE:
 SUBCOMMANDS:
   task      init-project
   session   close | get | list | admission | heartbeat | subscribe | reap
+  system    doctor [--repair]
   status    [--cost] [--since <duration>] [--json]
   db        init | checkpoint | vacuum | integrity | backup (Phase 2)
   migrate   --from=4.4 --to=4.5 [--dry|--rollback]          (Phase 2)
@@ -65,6 +66,7 @@ const taskCommand = require('./commands/task.cjs');
 const sessionCommand = require('./commands/session.cjs');
 const statusCommand = require('./commands/status.cjs');
 const legacyMemoryCommand = require('./commands/legacy-memory.cjs');
+const systemCommand = require('./commands/system.cjs');
 
 // Phase 6.2 — CLI telemetry: best-effort, never blocks the subcommand.
 function emitCliTelemetry(sub, rest) {
@@ -93,6 +95,7 @@ const SUBCOMMANDS = {
   db: (args) => process.exit(dbCommand.dispatch(args)),
   migrate: (args) => process.exit(migrateCommand.dispatch(args)),
   'legacy-memory': (args) => process.exit(legacyMemoryCommand.dispatch(args)),
+  system: (args) => systemCommand.dispatch(args).then((code) => process.exit(code)),
 };
 
 function main(argv) {

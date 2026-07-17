@@ -8,6 +8,8 @@ const test = require('node:test');
 const REPO_ROOT = path.resolve(__dirname, '..');
 const RETIRED_RUNTIME = ['gem', 'ini'].join('');
 const RETIRED_RE = new RegExp(RETIRED_RUNTIME, 'i');
+const RETIRED_COMMAND_PROXY = ['r', 'tk'].join('');
+const RETIRED_COMMAND_PROXY_RE = new RegExp(`\\b${RETIRED_COMMAND_PROXY}\\b|skip-${RETIRED_COMMAND_PROXY}|${RETIRED_COMMAND_PROXY}-instructions`, 'i');
 
 const ACTIVE_ROOTS = [
   'bin',
@@ -59,4 +61,48 @@ test('retired runtime has no active adapter, skill, prompt, schema, or package s
     const text = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(text, RETIRED_RE, path.relative(REPO_ROOT, file));
   }
+});
+
+test('retired command proxy has no installer, adapter, prompt, cache, or documentation surface', () => {
+  const retiredPaths = [
+    path.join('adapters', '_shared', `${RETIRED_COMMAND_PROXY}-detect.cjs`),
+    path.join('adapters', '_shared', 'tests', `${RETIRED_COMMAND_PROXY}-detect.test.cjs`),
+    `.${RETIRED_COMMAND_PROXY}`,
+  ];
+  for (const rel of retiredPaths) {
+    assert.equal(fs.existsSync(path.join(REPO_ROOT, rel)), false, `${rel} must be removed`);
+  }
+
+  const files = [
+    ...ACTIVE_ROOTS.flatMap((rel) => activeFiles(path.join(REPO_ROOT, rel))),
+    ...fs.readdirSync(path.join(REPO_ROOT, 'docs'))
+      .filter((name) => name.endsWith('.md'))
+      .map((name) => path.join(REPO_ROOT, 'docs', name)),
+    ...['README.md', 'CHANGELOG.md', 'CLAUDE.md', 'AGENTS.md', 'package.json', '.gitignore']
+      .map((rel) => path.join(REPO_ROOT, rel))
+      .filter((file) => fs.existsSync(file)),
+  ];
+  for (const file of files) {
+    const text = fs.readFileSync(file, 'utf8');
+    assert.doesNotMatch(text, RETIRED_COMMAND_PROXY_RE, path.relative(REPO_ROOT, file));
+  }
+});
+
+test('memory and code graph stay external to the Ultra runtime', () => {
+  assert.equal(
+    fs.existsSync(path.join(REPO_ROOT, 'orchestrator', 'code-graph-watcher.cjs')),
+    false,
+    'Ultra must not ship an internal code graph watcher',
+  );
+  assert.equal(
+    fs.existsSync(path.join(REPO_ROOT, 'orchestrator', 'tests', 'code-graph-watcher.test.cjs')),
+    false,
+    'Ultra must not ship tests for an internal code graph watcher',
+  );
+
+  const settings = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'settings.json'), 'utf8'));
+  assert.equal(Object.hasOwn(settings.orchestrator || {}, 'graph_watcher'), false);
+
+  const installer = fs.readFileSync(path.join(REPO_ROOT, 'bin', 'orchestrator.js'), 'utf8');
+  assert.doesNotMatch(installer, /code-graph-watcher|graph_watcher|code-graph-events/i);
 });

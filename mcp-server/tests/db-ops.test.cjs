@@ -46,7 +46,11 @@ test('db vacuum reports reclaimed bytes after deleting rows', () => {
   try {
     const init = initStateDb(dbPath);
     for (let i = 0; i < 50; i++) {
-      ops.appendEvent(init.db, { type: 'task_created', task_id: `t-${i}` });
+      ops.appendEvent(init.db, {
+        type: 'task_created',
+        task_id: `t-${i}`,
+        payload: { padding: 'x'.repeat(16 * 1024) },
+      });
     }
     init.db.prepare('DELETE FROM events').run();
     closeStateDb(init.db);

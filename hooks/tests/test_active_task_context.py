@@ -40,6 +40,18 @@ class ActiveTaskContextTest(unittest.TestCase):
             output = self.run_hook(project, {"file_path": ".ultra/tasks/tasks.json"})
             self.assertEqual(output, {})
 
+    def test_denies_projection_write_for_initialized_ultra_project_without_workflow(self):
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw)
+            ultra = project / ".ultra"
+            ultra.mkdir()
+            (ultra / "state.db").touch()
+
+            output = self.run_hook(project, {"file_path": ".ultra/tasks/tasks.json"})
+            hook = output["hookSpecificOutput"]
+            self.assertEqual(hook["permissionDecision"], "deny")
+            self.assertIn("projection", hook["permissionDecisionReason"])
+
 
 if __name__ == "__main__":
     unittest.main()

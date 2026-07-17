@@ -35,8 +35,8 @@ the supported hosts share.
         ║              ║   ║                ║   ║    fallback) ║
         ╚══════╤═══════╝   ╚════════╤═══════╝   ╚══════╤═══════╝
                │                    │                  │
-               │ resolve / read     │ task.* etc.      │ same tools
-               │  (D29 read-only)   │                  │ via stdio
+               │ resolve / read     │ task.* etc.      │ selected init /
+               │  (D29 read-only)   │                  │ recovery / ops
                └────────────┬───────┴──────────────────┘
                             ▼
                   ┌─────────────────────┐
@@ -53,25 +53,24 @@ the supported hosts share.
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
-| **MCP**      | authoritative workflow-state API             | stdio MCP server exposing seven declared tool families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml); 21 tools are live and nine scheduled contracts map to host-native surfaces |
-| **CLI**      | the lowest common denominator hooks can call  | `ultra-tools <family> <verb>` — same contract, last-line JSON envelope (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
+| **MCP**      | authoritative workflow-state API             | stdio MCP server exposing 29 live tools across task/session/change/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **CLI**      | explicit initialization, recovery, diagnostics, and orchestration | `ultra-tools` / `ubp-orchestrator`; only commands listed by `--help` are executable (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
 Why three: skills give us behavior portability across runtimes; MCP gives
 us a strongly-typed contract so we can refactor implementations without
-rewriting prompts; CLI gives us a Python-hook-callable fallback when a
-runtime's MCP transport is unavailable. None of the three could carry the
-load alone (D12).
+rewriting prompts; the CLI supplies bounded maintenance and recovery paths when
+the MCP cannot start. It is deliberately not a second change-state API:
+continuous change mutations remain MCP-only and fail closed (D12).
 
-The skill layer is **read-only by design** (D29). We keep `skill.resolve`
-and `skill.manifest` to let the runtime locate a SKILL.md and parse its
-frontmatter; we deliberately removed `skill.invoke` and `skill.list`
-because skills are documentation, not RPC.
+The skill layer is **read-only by design** (D29) and is discovered directly by
+each host. Ultra exposes no `skill.*` MCP family: skills are documentation, not
+RPC, and host-native loaders own resolution and invocation.
 
 ## 3. Authoritative state — `.ultra/state.db`
 
 All durable Ultra workflow state lives in one SQLite file with WAL enabled. Schema is
 fixed in [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) and
-covers eight tables:
+covers fifteen tables:
 
 | Table              | Holds                                             | Phase |
 |--------------------|---------------------------------------------------|-------|
@@ -83,6 +82,13 @@ covers eight tables:
 | `telemetry`        | per-session token / cost / tool-call counters     | 6     |
 | `specs_refs`       | spec change tracking → staleness propagation       | 5     |
 | `circuit_breaker`  | bounded retry and halt state for failed tasks       | 5     |
+| `changes`          | continuous feature/fix/incident lifecycle           | 8C    |
+| `artifacts`        | intent/context/verification artifact registry       | 8C    |
+| `context_snapshots`| compiled context hashes, git head, provider refs    | 8C    |
+| `trace_links`      | task/spec/change traceability                        | 8C    |
+| `incidents`        | structured runtime failures and resolutions         | 8C    |
+| `projection_jobs` | durable projection outbox/retry state                | 8C    |
+| `event_consumers` | durable monotonic consumer cursors                   | 8C    |
 
 Two rules make this work:
 
@@ -117,9 +123,32 @@ such as cloud-mem/claude-mem owns persistent memory and its own lifecycle. The
 only related migration surface is the explicit `ultra-tools legacy-memory`
 archive/prune command for data created by older releases.
 
-## 4. Sessions — the execution unit
+## 4. Continuous changes — the daily unit of convergence
 
-A **session** is the standard unit of execution across all four runtimes
+After the initial baseline delivery, every fix, feature, redesign, or incident
+is represented by a `changes` row and an inspectable packet:
+
+```text
+active -> blocked -> active -> ready -> archived
+   |                              |
+   ├─ intent + delta + plan       └─ verification + baseline reconciliation
+   ├─ linked tasks
+   └─ context-manifest (current HEAD + provider metadata references)
+```
+
+`quick`, `standard`, `major`, and `incident` kinds require different evidence,
+but all require completed linked tasks, current context, declared documentation
+impact, and no open incident. Memory and graph payloads never enter Ultra;
+`context_snapshots.provider_refs_json` stores metadata references only.
+
+Mutating MCP calls enqueue durable `projection_jobs`. Success is exposed in MCP
+response metadata; failure becomes a retryable structured incident instead of a
+swallowed warning. `system.doctor` is read-only by default and performs only
+backup-first mechanical recovery when explicitly requested.
+
+## 5. Sessions — the execution unit
+
+A **session** is the standard unit of execution across all three runtimes
 (D20). One session =
 
 - a fresh OS process for the runtime,
@@ -139,7 +168,7 @@ This admission gate is the smallest piece that prevents two agents from
 silently double-writing the same task — it is part of the v0.1 minimum
 execution layer, not deferred to Phase 5.
 
-## 5. Two timelines — rule layer vs execution layer
+## 6. Two timelines — rule layer vs execution layer
 
 The roadmap separates two concerns that compete for the same surface
 area (D13):
@@ -167,7 +196,7 @@ value from "skills + tasks survive across sessions" long before they get
 value from "ten agents in parallel." Each milestone is independently
 shippable; downstream slip never blocks an earlier release.
 
-## 6. Where to look next
+## 7. Where to look next
 
 | Question                                           | File                                                |
 |----------------------------------------------------|-----------------------------------------------------|
@@ -177,7 +206,7 @@ shippable; downstream slip never blocks an earlier release.
 | What does a tasks.json look like after projection? | [`spec/fixtures/valid/tasks.v4.5.json`](../spec/fixtures/valid/tasks.v4.5.json) |
 | Phase-by-phase work breakdown + decision log       | [`docs/PLAN.zh-CN.md`](./PLAN.zh-CN.md)             |
 
-## 7. Verifying the architecture
+## 8. Verifying the architecture
 
 Every contract on this page is enforced by `npm run test:spec`:
 

@@ -13,12 +13,12 @@ equivalent lifecycle/control surface, **N/A** = intentionally not installed.
 |---|---|---|---|
 | Package form | `.claude-plugin` native plugin | native config bundle + JS plugin | personal `.codex-plugin` |
 | Public entry | `/ultra-*`, `/learn` | `/ultra-*`, `/learn` | `$ultra-builder-pro:<skill>` |
-| Public Ultra workflows | 10 | 10 | 10 |
+| Public Ultra workflows | 12 | 12 | 12 |
 | Internal agent-rule skills | 4, non-user-facing | 4, non-user-facing | 4 with implicit invocation disabled |
 | Collaboration companions | `codex-collab`, `ultra-verify` | `cc-collab`, `codex-collab`, `ultra-verify` | `cc-collab`, `ultra-verify` |
 | External browser/deploy/framework skills | N/A | N/A | N/A |
 
-Codex converts the workflows into namespaced skills and records nine legacy
+Codex converts the workflows into namespaced skills and records eleven legacy
 command mappings in `command-map.json`; `ultra-review` remains directly
 invocable as a skill.
 
@@ -39,14 +39,15 @@ primary verification.
 
 | Lifecycle | Claude Code | OpenCode | Codex |
 |---|---|---|---|
-| Session context/health | FULL, native `SessionStart` | FULL, system transform + event refresh | FULL, native `SessionStart` |
+| Session context/health | FULL, native `SessionStart` | DEGRADED, native context; health via `system.doctor` | FULL, native `SessionStart` |
 | Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects projection writes | FULL, `PreToolUse Edit|Write|apply_patch` |
 | Compaction recovery | FULL, `PreCompact` + resume matcher | FULL, native compacting context | FULL, `PreCompact` + `PostCompact` |
 | Incomplete-stop gate | FULL, native blocking `Stop` | DEGRADED, no equivalent blocking stop hook | FULL, native blocking `Stop` |
 | Subagent lifecycle evidence | FULL | DEGRADED, no equivalent packaged event | FULL |
 
-All reachable hooks are workflow-only and no-op without an active non-terminal
-`.ultra/workflow-state.json`. No host receives Ultra prompt capture, transcript
+Health/context hooks inspect initialized projects; projection protection also
+applies at baseline, while compact/stop/subagent enforcement remains active-workflow scoped.
+No host receives prompt capture, transcript
 capture, observation journaling, session-summary memory, generic command
 blocking, or generic post-edit policy.
 
@@ -55,15 +56,14 @@ blocking, or generic post-edit policy.
 | Capability | Claude Code | OpenCode | Codex |
 |---|---|---|---|
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` |
-| Live contracts | 21 | 21 | 21 |
-| Declared contracts | 30 | 30 | 30 |
-| Nine non-live contracts | host-native review/discovery/ask | host-native review/discovery/ask | `codex-capability-map.json` |
+| Live/declared contracts | 29 | 29 | 29 |
+| Host-native review/discovery/ask | native | native | documented in `codex-capability-map.json` |
 | Durable authority | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` |
 | Ultra memory API | N/A | N/A | N/A |
 
-Only the 21 `task.*`, `session.*`, and `plan.*` operations registered by
-`mcp-server/server.cjs` are advertised as live. Review, impact, skill, and user
-interaction remain host-native surfaces.
+All 29 `task.*`, `session.*`, `change.*`, `system.*`, and `plan.*` operations
+registered by `mcp-server/server.cjs` are live. Review, impact discovery, skill
+loading, and user interaction remain host-native surfaces.
 
 ## 5. User handbook presentation
 

@@ -1,0 +1,9 @@
+{
+  "id": "feature-auth",
+  "provider_refs": {
+    "code_graph": {
+      "provider": "external-graph",
+      "nodes": ["embedded", "content"]
+    }
+  }
+}

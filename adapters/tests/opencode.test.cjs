@@ -171,13 +171,14 @@ test('install writes a schema-safe opencode.json and keeps ownership outside hos
     assert.match(plugin, /\.ultra[\\/]tasks[\\/]tasks\.json/);
     assert.match(plugin, /throw new Error/);
     assert.match(plugin, /session\.compacted/);
-    assert.doesNotMatch(plugin, /memory|recall|journal|observation/);
+    assert.doesNotMatch(plugin, /memory\.(?:retain|recall|reflect)|journal|observation|prompt[_ -]?capture/);
+    assert.match(plugin, /metadata references only/);
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
   }
 });
 
-test('OpenCode before-tool hook blocks tasks.json writes only during an active workflow', async () => {
+test('OpenCode context covers active changes and projection writes are blocked for Ultra projects', async () => {
   const target = mkTarget();
   const project = mkTarget();
   try {
@@ -186,15 +187,21 @@ test('OpenCode before-tool hook blocks tasks.json writes only during an active w
     const module = await import(pathToFileURL(pluginFile).href);
     const plugin = await module.UltraBuilderProPlugin({ directory: project });
 
-    await plugin['tool.execute.before'](
-      { tool: 'edit' },
-      { args: { filePath: '.ultra/tasks/tasks.json' } },
-    );
-
     fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
-    fs.writeFileSync(path.join(project, '.ultra', 'workflow-state.json'), JSON.stringify({
-      command: 'ultra-plan', task_id: 'plan', step: 'persist', status: 'active',
+    fs.writeFileSync(path.join(project, '.ultra', 'state.db'), 'owned-by-ultra');
+    const changeRoot = path.join(project, '.ultra', 'changes', 'active', 'daily-fix');
+    fs.mkdirSync(changeRoot, { recursive: true });
+    fs.writeFileSync(path.join(changeRoot, 'context-manifest.json'), JSON.stringify({
+      change: { id: 'daily-fix', title: 'Daily fix', kind: 'quick', status: 'active', intent: 'Fix drift' },
+      providers: { memory: { provider: 'cloud-mem', status: 'available' } },
     }));
+
+    const output = { system: [] };
+    await plugin['experimental.chat.system.transform']({}, output);
+    assert.match(output.system.join('\n'), /Ultra continuous change/);
+    assert.match(output.system.join('\n'), /daily-fix/);
+    assert.match(output.system.join('\n'), /metadata references only/);
+
     await assert.rejects(
       plugin['tool.execute.before'](
         { tool: 'apply_patch' },

@@ -28,6 +28,9 @@ const parser = require('./lib/prd-parser.cjs');
 const expander = require('./lib/task-expander.cjs');
 const planStore = require('./lib/plan-store.cjs');
 const { initProject } = require('./lib/init-project.cjs');
+const changes = require('./lib/change-workflow.cjs');
+const runtimeState = require('./lib/runtime-state.cjs');
+const doctor = require('./lib/doctor.cjs');
 
 const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
@@ -64,8 +67,22 @@ const PLAN_TOOLS = Object.freeze([
   'plan.get',
 ]);
 
+const CHANGE_TOOLS = Object.freeze([
+  'change.create',
+  'change.update',
+  'change.get',
+  'change.list',
+  'change.context',
+  'change.converge',
+  'change.archive',
+]);
+
+const SYSTEM_TOOLS = Object.freeze([
+  'system.doctor',
+]);
+
 const REGISTERED_TOOLS = Object.freeze([
-  ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS,
+  ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS, ...CHANGE_TOOLS, ...SYSTEM_TOOLS,
 ]);
 
 const STATELESS_TOOLS = new Set(['task.init_project']);
@@ -76,6 +93,8 @@ const MUTATING_TOOLS = new Set([
   'task.create', 'task.update', 'task.delete', 'task.append_event', 'task.switch_tag',
   'task.parse_prd', 'task.expand',
   'session.spawn', 'session.close', 'session.heartbeat',
+  'plan.export',
+  'change.create', 'change.update', 'change.context', 'change.converge', 'change.archive',
 ]);
 
 function loadRegisteredTools() {
@@ -145,6 +164,7 @@ async function dispatchTool(name, input, db, ctx = {}) {
       const r = ops.appendEvent(db, {
         type: input.type,
         task_id: input.task_id,
+        change_id: input.change_id,
         session_id: input.session_id,
         runtime: input.runtime,
         payload: input.payload,
@@ -328,6 +348,53 @@ async function dispatchTool(name, input, db, ctx = {}) {
       }
       return { plan: planStore.selectSection(loaded, input.section) };
     }
+    case 'change.create': {
+      const { randomUUID } = require('node:crypto');
+      const id = input.id || `chg-${randomUUID().slice(0, 12)}`;
+      return changes.createChange(db, { ...input, id }, { rootDir: ctx.rootDir || process.cwd() });
+    }
+    case 'change.update': {
+      return {
+        ok: true,
+        change: changes.updateChange(
+          db, input.id, input.patch || {}, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
+    case 'change.get': {
+      const change = changes.readChange(db, input.id);
+      if (!change) {
+        const err = new Error(`change ${input.id} not found`);
+        err.code = 'CHANGE_NOT_FOUND';
+        throw err;
+      }
+      return { change };
+    }
+    case 'change.list': {
+      const rows = changes.listChanges(db, input || {});
+      return { changes: rows, count: rows.length };
+    }
+    case 'change.context': {
+      const out = changes.compileContext(db, input, { rootDir: ctx.rootDir || process.cwd() });
+      return {
+        manifest_path: out.context_manifest_path,
+        manifest_hash: out.manifest_hash,
+        manifest: out.manifest,
+      };
+    }
+    case 'change.converge': {
+      return changes.convergeChange(db, input, { rootDir: ctx.rootDir || process.cwd() });
+    }
+    case 'change.archive': {
+      return changes.archiveChange(db, input, { rootDir: ctx.rootDir || process.cwd() });
+    }
+    case 'system.doctor': {
+      return doctor.runDoctor(db, {
+        rootDir: ctx.rootDir || process.cwd(),
+        repair: input.repair === true,
+        project: ctx.projector || projector.projectAll,
+      });
+    }
     default:
       throw new Error(`unhandled tool ${name}`);
   }
@@ -345,7 +412,7 @@ function errorResponse(code, message, retriable = false, details = undefined) {
   };
 }
 
-function startServer({ dbPath, rootDir, projectOnWrite = true }) {
+function startServer({ dbPath, rootDir, projectOnWrite = true, project = projector.projectAll }) {
   let db = null;
   const getDb = () => {
     if (!db) db = initStateDb(dbPath).db;
@@ -415,7 +482,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
     try {
       toolDb = STATELESS_TOOLS.has(name) ? null : getDb();
       if (toolDb) assertStateAuthority(toolDb, rootDir);
-      result = await dispatchTool(name, args, toolDb, { rootDir });
+      result = await dispatchTool(name, args, toolDb, { rootDir, projector: project });
     } catch (err) {
       const code = err.code || (err instanceof ops.StateOpsError ? err.code : 'STATE_DB_ERROR');
       toolError = code;
@@ -423,22 +490,45 @@ function startServer({ dbPath, rootDir, projectOnWrite = true }) {
       return errorResponse(code, err.message, !!err.retriable, err.details);
     }
 
+    let runtimeMeta = null;
+    if (toolDb && projectOnWrite && MUTATING_TOOLS.has(name)) {
+      const job = runtimeState.enqueueProjection(toolDb, { tool_name: name });
+      const processed = runtimeState.processProjectionJobs(toolDb, { rootDir, project, limit: 500 });
+      const own = processed.jobs.find((item) => item.id === job.id);
+      runtimeMeta = {
+        state_commit: 'committed',
+        projection_status: own ? own.status : 'failed',
+        projection_job_id: job.id,
+      };
+      if (own && own.incident_id) runtimeMeta.incident_id = own.incident_id;
+    } else if (toolDb && name === 'system.doctor' && args.repair === true) {
+      runtimeMeta = {
+        state_commit: 'committed',
+        projection_status: result.checks.projections.status === 'pass' ? 'completed' : 'failed',
+        backup_path: result.backup_path,
+      };
+    }
+
     const validateOutput = outputValidators.get(name);
     if (!validateOutput(result)) {
       toolError = 'OUTPUT_SCHEMA_DRIFT';
       emitTelemetry();
-      return errorResponse('OUTPUT_SCHEMA_DRIFT', ajv.errorsText(validateOutput.errors));
-    }
-
-    if (toolDb && projectOnWrite && MUTATING_TOOLS.has(name)) {
-      try { projector.projectAll(toolDb, { rootDir }); }
-      catch (err) { process.stderr.write(`projector warning: ${err.message}\n`); }
+      const response = errorResponse(
+        'OUTPUT_SCHEMA_DRIFT',
+        ajv.errorsText(validateOutput.errors),
+        false,
+        runtimeMeta ? { _ultra: runtimeMeta } : undefined,
+      );
+      if (runtimeMeta) response._meta = { ultra: runtimeMeta };
+      return response;
     }
 
     emitTelemetry();
+    const visible = runtimeMeta ? { ...result, _ultra: runtimeMeta } : result;
     return {
-      content: [{ type: 'text', text: JSON.stringify(result) }],
+      content: [{ type: 'text', text: JSON.stringify(visible) }],
       structuredContent: result,
+      ...(runtimeMeta ? { _meta: { ultra: runtimeMeta } } : {}),
     };
   });
 
@@ -478,6 +568,8 @@ module.exports = {
   dispatchTool,
   TASK_TOOLS,
   SESSION_TOOLS,
+  CHANGE_TOOLS,
+  SYSTEM_TOOLS,
   REGISTERED_TOOLS,
   STATELESS_TOOLS,
   MUTATING_TOOLS,

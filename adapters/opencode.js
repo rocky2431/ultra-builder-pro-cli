@@ -337,19 +337,54 @@ import path from "node:path";
 
 const TERMINAL = new Set(["committed", "completed", "done", "cancelled"]);
 const TASKS_PROJECTION = ".ultra/tasks/tasks.json";
+const PROVIDER_FIELDS = new Set(["provider", "project", "reference", "revision", "indexed_head", "status"]);
 
-function findActiveWorkflow(directory) {
+function providerMetadata(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const clean = {};
+  for (const [kind, ref] of Object.entries(value)) {
+    if (!["memory", "code_graph"].includes(kind) || !ref || typeof ref !== "object" || Array.isArray(ref)) continue;
+    clean[kind] = Object.fromEntries(Object.entries(ref).filter(([key]) => PROVIDER_FIELDS.has(key)));
+  }
+  return clean;
+}
+
+function findUltraContext(directory) {
   let current = path.resolve(directory);
   while (true) {
-    const file = path.join(current, ".ultra", "workflow-state.json");
-    if (fs.existsSync(file)) {
+    const ultra = path.join(current, ".ultra");
+    const workflowFile = path.join(ultra, "workflow-state.json");
+    const statePresent = fs.existsSync(path.join(ultra, "state.db"));
+    let workflow = null;
+    if (fs.existsSync(workflowFile)) {
       try {
-        const state = JSON.parse(fs.readFileSync(file, "utf8"));
-        return state && !TERMINAL.has(state.status) ? { root: current, state } : null;
+        const state = JSON.parse(fs.readFileSync(workflowFile, "utf8"));
+        workflow = state && !TERMINAL.has(state.status) ? state : null;
       } catch (error) {
-        process.stderr.write(\`[ultra-builder-pro] cannot read \${file}: \${error.message}\\n\`);
-        return null;
+        process.stderr.write(\`[ultra-builder-pro] cannot read \${workflowFile}: \${error.message}\\n\`);
       }
+    }
+    const changes = [];
+    const changeRoot = path.join(ultra, "changes", "active");
+    if (fs.existsSync(changeRoot)) {
+      for (const entry of fs.readdirSync(changeRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const manifestPath = path.join(changeRoot, entry.name, "context-manifest.json");
+        if (!fs.existsSync(manifestPath)) continue;
+        try {
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+          if (manifest?.change) changes.push({
+            ...manifest.change,
+            providers: providerMetadata(manifest.providers),
+            manifestPath: path.relative(current, manifestPath),
+          });
+        } catch (error) {
+          process.stderr.write(\`[ultra-builder-pro] cannot read \${manifestPath}: \${error.message}\\n\`);
+        }
+      }
+    }
+    if (statePresent || workflow || changes.length > 0) {
+      return { root: current, workflow, changes, statePresent };
     }
     const parent = path.dirname(current);
     if (parent === current) return null;
@@ -358,16 +393,42 @@ function findActiveWorkflow(directory) {
 }
 
 function contextText(active) {
-  const state = active.state;
-  return [
-    "[Ultra active workflow]",
-    \`Project: \${active.root}\`,
-    \`Command: \${state.command ?? "unknown"}\`,
-    \`Task: \${state.task_id ?? state.task ?? "unknown"}\`,
-    \`Step: \${state.step ?? "unknown"}\`,
-    \`Status: \${state.status ?? "active"}\`,
-    "Authority: .ultra/state.db; recovery: .ultra/workflow-state.json.",
-  ].join("\\n");
+  const lines = [];
+  if (active.workflow) {
+    const state = active.workflow;
+    lines.push(
+      "[Ultra active workflow]",
+      \`Project: \${active.root}\`,
+      \`Command: \${state.command ?? "unknown"}\`,
+      \`Task: \${state.task_id ?? state.task ?? "unknown"}\`,
+      \`Step: \${state.step ?? "unknown"}\`,
+      \`Status: \${state.status ?? "active"}\`,
+    );
+  }
+  if (active.changes.length > 0) {
+    const change = active.changes[0];
+    lines.push(
+      "[Ultra continuous change]",
+      \`Project: \${active.root}\`,
+      \`Change: \${change.id} (\${change.kind ?? "unknown"}, \${change.status ?? "active"})\`,
+      \`Title: \${change.title ?? "unknown"}\`,
+      \`Intent: \${change.intent ?? "unknown"}\`,
+      \`Context manifest: \${change.manifestPath}\`,
+      \`External providers (metadata references only): \${JSON.stringify(change.providers)}\`,
+    );
+    if (active.changes.length > 1) lines.push(
+      \`Active change count: \${active.changes.length}; resolve scope with change.list before mutation.\`,
+    );
+  }
+  if (!active.workflow && active.changes.length === 0) {
+    lines.push(
+      "[Ultra baseline]",
+      \`Project: \${active.root}\`,
+      "No active continuous change. Start daily work with the ultra-change workflow.",
+    );
+  }
+  lines.push("Authority: .ultra/state.db; generated JSON/Markdown are projections or artifacts.");
+  return lines.join("\\n");
 }
 
 function targetPaths(tool, args) {
@@ -391,8 +452,8 @@ function isTasksProjection(active, candidate) {
 
 export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
   const root = worktree || directory;
-  let active = findActiveWorkflow(root);
-  const refresh = () => { active = findActiveWorkflow(root); };
+  let active = findUltraContext(root);
+  const refresh = () => { active = findUltraContext(root); };
   return {
     event: async ({ event }) => {
       if (["session.created", "session.compacted", "session.idle"].includes(event?.type)) refresh();
@@ -413,7 +474,7 @@ export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
       if (targetPaths(tool, output?.args).some((candidate) => isTasksProjection(active, candidate))) {
         throw new Error(
           "Ultra Builder Pro refused a direct write to .ultra/tasks/tasks.json. " +
-          ".ultra/state.db is authoritative; use MCP task tools or run the required v4.4 to v4.5 migration."
+          ".ultra/state.db is authoritative; use MCP task tools and run ultra-doctor when state or projection health is degraded."
         );
       }
     },

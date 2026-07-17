@@ -1,0 +1,8 @@
+{
+  "change": {
+    "id": "continuous-change",
+    "status": "active"
+  },
+  "intent_path": "/project/.ultra/changes/active/continuous-change/intent.md",
+  "context_manifest_path": "/project/.ultra/changes/active/continuous-change/context-manifest.json"
+}

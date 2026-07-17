@@ -21,8 +21,10 @@ const {
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const COMMANDS = [
   'learn',
+  'ultra-change',
   'ultra-deliver',
   'ultra-dev',
+  'ultra-doctor',
   'ultra-init',
   'ultra-plan',
   'ultra-research',
@@ -89,7 +91,7 @@ test('install builds one Codex-native plugin with complete skill and command cov
 
     const expectedSkills = skillsForRuntime('codex').sort();
     assert.deepEqual(skillNames(layout.pluginRoot), expectedSkills);
-    assert.equal(expectedSkills.length, 16);
+    assert.equal(expectedSkills.length, 18);
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'codex-collab')));
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'learned')));
 
@@ -229,8 +231,8 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const liveSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
     const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
     const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
-    assert.equal(liveSpec.tools.length, 21);
-    assert.equal(upstreamSpec.tools.length, 21);
+    assert.equal(liveSpec.tools.length, 29);
+    assert.equal(upstreamSpec.tools.length, 29);
     assert.deepEqual(upstreamSpec.tools.map((tool) => tool.name).sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);

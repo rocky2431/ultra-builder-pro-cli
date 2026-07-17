@@ -12,7 +12,10 @@
 // calling runDaemon — the runtime layer itself has no opt-in concept.
 
 const ops = require('../mcp-server/lib/state-ops.cjs');
+const runtimeState = require('../mcp-server/lib/runtime-state.cjs');
+const projector = require('../mcp-server/lib/projector.cjs');
 const runner = require('./session-runner.cjs');
+const recovery = require('./recovery.cjs');
 const { evaluate, DEFAULT_RULES, ROUTE_PREFERENCES } = require('./dispatch-rules.cjs');
 
 // Phase 8B.1 — routeTask is now a thin wrapper over evaluate() so Phase 5.4
@@ -27,6 +30,19 @@ function routeTask(task, availableRuntimes) {
     wave: null,
   }, DEFAULT_RULES);
   return d.action === 'spawn_agent' ? d.runtime : null;
+}
+
+function maintainState({ db, repoRoot, project = projector.projectAll } = {}) {
+  if (!db) throw new Error('maintainState: db required');
+  if (!repoRoot) throw new Error('maintainState: repoRoot required');
+  const cursor = runtimeState.readConsumerCursor(db, 'spec-staleness');
+  const staleness = ops.consumeSpecChangedEvents(db, { since_id: cursor, limit: 500 });
+  runtimeState.writeConsumerCursor(db, 'spec-staleness', staleness.next_since_id);
+  const ensured = runtimeState.ensureProjectionJob(db, { tool_name: 'orchestrator.maintenance' });
+  const projections = runtimeState.processProjectionJobs(db, {
+    rootDir: repoRoot, project, limit: 500,
+  });
+  return { staleness, ensured, projections };
 }
 
 function runDaemon({
@@ -47,9 +63,30 @@ function runDaemon({
 
   let stopped = false;
   const children = [];
+  let bootRecovery;
+  try {
+    bootRecovery = recovery.recoverOnBoot(db);
+  } catch (error) {
+    runtimeState.recordIncident(db, {
+      code: 'BOOT_RECOVERY_FAILED', severity: 'critical', retryable: true,
+      message: error.message, source_kind: 'orchestrator', source_id: 'boot',
+    });
+    if (onError) onError(error); else throw error;
+    bootRecovery = { recovered: [], count: 0, error: error.message };
+  }
 
   function tick() {
     if (stopped) return;
+    try {
+      maintainState({ db, repoRoot });
+    } catch (error) {
+      runtimeState.recordIncident(db, {
+        code: 'RUNTIME_MAINTENANCE_FAILED', severity: 'error', retryable: true,
+        message: error.message, source_kind: 'orchestrator', source_id: 'maintenance',
+      });
+      if (onError) onError(error); else throw error;
+      return;
+    }
     let pending;
     try {
       const filter = { status: 'pending' };
@@ -102,6 +139,7 @@ function runDaemon({
     },
     get running() { return !stopped; },
     get children() { return children.slice(); },
+    get bootRecovery() { return bootRecovery; },
   };
 }
 
@@ -109,4 +147,5 @@ module.exports = {
   runDaemon,
   routeTask,
   ROUTE_PREFERENCES,
+  maintainState,
 };

@@ -2,6 +2,10 @@
 name: ultra-review
 description: "Parallel code review orchestration with 6 specialized agents + coordinator. Zero context pollution - all output via JSON files."
 user-invocable: true
+runtime: all
+mcp_tools_required:
+  - change.list
+  - task.list
 ---
 
 # /ultra-review - Ultra Review System
@@ -54,6 +58,7 @@ Orchestrates parallel code review using specialized agents. All findings written
 # 1. Determine session context
 BRANCH = git branch --show-current            # e.g., "feat/task-3-auth"
 ITER = count existing sessions matching this branch + 1  # iteration number
+CHANGE_ID = active change whose linked tasks/diff match this scope, else null
 
 # 2. Create session directory with full context
 SESSION_ID = "<YYYYMMDD-HHmmss>-<branch>-iter<N>"
@@ -93,6 +98,15 @@ DIFF_RANGE="$(gh pr view NUMBER --json baseRefName -q .baseRefName)..HEAD"
 git diff RANGE --name-only
 DIFF_RANGE="RANGE"
 ```
+
+**Continuous-change linkage**:
+
+Call `change.list` and `task.list`, then bind the review to the single active or
+blocked change whose linked task files intersect `DIFF_FILES`. If multiple
+changes match, require an explicit scope instead of guessing. Write
+`change_id` and reviewed HEAD into `SUMMARY.json` and the session index so
+`/ultra-deliver` can use this artifact as review evidence. Initial-baseline
+reviews may use `change_id: null`.
 
 ### Phase 2: Agent Selection
 
@@ -277,6 +291,7 @@ A lightweight index file tracks all sessions for cross-referencing:
     {
       "id": "20260214-103000-feat-task-3-auth-iter1",
       "branch": "feat/task-3-auth",
+      "change_id": "auth-change",
       "iteration": 1,
       "mode": "full",
       "timestamp": "2026-02-14T10:30:00Z",
@@ -308,6 +323,7 @@ A lightweight index file tracks all sessions for cross-referencing:
 |-------|-------------|
 | `id` | Session directory name |
 | `branch` | Git branch at review time |
+| `change_id` | Continuous change reviewed, or null for initial baseline |
 | `iteration` | Nth review for this branch (auto-incremented) |
 | `mode` | Review mode used (full/quick/security/recheck/delta) |
 | `timestamp` | ISO 8601 |

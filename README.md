@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.6.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -25,16 +25,21 @@ authoritative `.ultra/state.db`.
   Codex receive their own command/skill, agent, hook, and MCP representation.
   Install and uninstall are symmetric on every supported host.
 - **Shares state across runtimes.** `.ultra/state.db` (SQLite + WAL) is the
-  authoritative source for tasks, sessions, events, and telemetry. `tasks.json`
-  and context markdown are generated projections, not handwritten.
+  authoritative source for changes, tasks, sessions, events, incidents,
+  projection jobs, and telemetry. `tasks.json` and context markdown are
+  generated projections, not handwritten.
 - **Keeps memory ownership explicit.** Ultra Builder Pro does not collect
   prompts, transcripts, observations, summaries, or cross-session memory.
   Install cloud-mem/claude-mem separately if persistent memory is wanted.
 - **Runs real PRDs end-to-end.** `task.parse_prd` → `lib/topo.cjs` waves →
   `.ultra/execution-plan.json` → parallel worktree sessions → auto-merge back.
-- **Observes without overhead.** Per-task / per-session / per-runtime token
-  and cost telemetry; live code-review-graph watcher on file save;
-  subscribe-events cursor for real-time dashboards.
+- **Keeps daily work convergent.** `/ultra-change` creates a bounded delta and
+  context manifest; `/ultra-deliver` requires docs/test/review evidence and
+  baseline reconciliation before archive. `/ultra-doctor` reports incidents,
+  projection lag, orphan sessions, and backup-first mechanical recovery.
+- **Keeps external context external.** Memory and code-graph providers retain
+  their own content; Ultra stores only provider/project/revision/status metadata
+  references in a compiled change context.
 
 ## Quickstart
 
@@ -57,7 +62,7 @@ npx ultra-builder-pro-cli --all --local --uninstall
 After install, start a new host session/task and point it at the project.
 Claude Code and OpenCode expose native command forms. Codex exposes the same workflows as namespaced plugin
 skills such as `$ultra-builder-pro:ultra-init`, `$ultra-builder-pro:ultra-plan`,
-and `$ultra-builder-pro:ultra-dev`; `command-map.json` records the nine legacy
+and `$ultra-builder-pro:ultra-dev`; `command-map.json` records the eleven legacy
 command mappings (`ultra-review` remains a directly invocable skill).
 See [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
 for per-runtime capabilities.
@@ -68,16 +73,17 @@ for per-runtime capabilities.
 |-------|---------|----------------|
 | **skill** (`skills/ultra-*/`) | Knowledge — prompts, workflows, prose | Runtime's native skill/prompt loader picks them up after install |
 | **MCP** (`mcp-server/`) | Authoritative state — reads/writes `.ultra/state.db` via stdio JSON-RPC | Primary path for task / session / event / plan operations |
-| **CLI** (`ultra-tools`, `bin/*`) | Shell fallback for CI and non-MCP contexts | `ultra-tools task init-project`, `ubp-orchestrator run`, `ultra-tools status --cost` |
+| **CLI** (`ultra-tools`, `bin/*`) | Selected initialization, recovery, diagnostics, and orchestration surfaces | `ultra-tools task init-project`, `ultra-tools system doctor`, `ubp-orchestrator run` |
 
-The three layers share one `.ultra/state.db`. See
+The layers share one `.ultra/state.db`, but the CLI is not a mirror of every MCP
+tool: continuous change mutations are MCP-only and fail closed. See
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full contract and
-[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 21 live contracts.
+[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 29 live contracts.
 Review, impact discovery, skill resolution, and user interaction stay on each
 Host's native surfaces; the generated Codex capability map documents those
 replacements without advertising non-existent MCP tools.
 
-The package boundary is deliberate: ten public Ultra workflow skills, four
+The package boundary is deliberate: twelve public Ultra workflow skills, four
 internal review-rule skills, and host-specific collaboration companions. Browser,
 deployment, skill-discovery, and framework guidance belong to their original plugins.
 
@@ -99,30 +105,33 @@ Full details in [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.m
 ## Typical workflow
 
 ```bash
-# 1. Initialize a project (writes .ultra/ skeleton; state.db stays lazy)
+# 1. Initialize a project (writes .ultra/ skeleton and initializes state.db)
 ultra-tools task init-project --name myapp
 
 # 2. Turn a PRD into a task graph + execution plan (human-gate via dry-run)
 #    (invoked by /ultra-plan skill or via MCP task.parse_prd + plan.export)
 
 # 3. Run the plan — parallel sessions, auto-merge back to main on success
-ubp-orchestrator run --with-graph-watcher
+ubp-orchestrator run
 
-# 4. Monitor cost and progress
+# 4. Monitor cost, progress, and runtime health
 ultra-tools status
 ultra-tools status --cost --since 24h
 ultra-tools session list --json
+ultra-tools system doctor
 ```
 
 Or let the skills drive it. In Codex, invoke
 `$ultra-builder-pro:ultra-plan` → `$ultra-builder-pro:ultra-dev` →
-`$ultra-builder-pro:ultra-status`; other runtimes retain their native command form.
+`$ultra-builder-pro:ultra-status`; after the baseline is delivered, daily work
+starts with `$ultra-builder-pro:ultra-change`. Other runtimes retain their
+native command form.
 
 ## CLI surface
 
 | Binary | Purpose |
 |--------|---------|
-| `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --all`, `--local / --global`, `--uninstall`, `--skip-rtk` |
+| `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --all`, `--local / --global`, `--uninstall` |
 | `ubp-orchestrator` | Session dispatch daemon — `run`, `start`, `stop`, `status` |
 | `ultra-tools` | State-layer CLI — `task`, `session`, `status`, `db`, `migrate`; explicit `legacy-memory` archive/prune migration |
 | `ubp-handbook` | Preview/apply the managed Ultra contract in `CLAUDE.md` / `AGENTS.md`, with backup |
@@ -169,7 +178,7 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
 
 | Doc | What's in it |
 |-----|--------------|
-| [`docs/PLAN.zh-CN.md`](./docs/PLAN.zh-CN.md) | Authoritative 12-phase execution plan (zh-CN) — decisions, risks, timeline |
+| [`docs/PLAN.zh-CN.md`](./docs/PLAN.zh-CN.md) | Historical 12-phase plan and decision log with a current-boundary overlay |
 | [`docs/ROADMAP.md`](./docs/ROADMAP.md) | One-page English roadmap + phase status |
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Single-page system architecture |
 | [`docs/AGENT-CONTEXT.md`](./docs/AGENT-CONTEXT.md) | Canonical runtime context contract |
@@ -177,7 +186,6 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
 | [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md) | Per-runtime capability matrix |
 | [`docs/STATE-DB-ACCESS-POLICY.md`](./docs/STATE-DB-ACCESS-POLICY.md) | Multi-process write contract |
 | [`docs/COMMIT-HASH-BACKFILL.md`](./docs/COMMIT-HASH-BACKFILL.md) | Two-commit task-completion flow |
-| [`docs/LEGACY-HERMES.md`](./docs/LEGACY-HERMES.md) | Archived pre-CLI "Hermes 6.6" documentation |
 | [`CHANGELOG.md`](./CHANGELOG.md) | v0.1 → current release notes |
 
 ## License

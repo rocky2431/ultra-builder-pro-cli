@@ -1,6 +1,7 @@
 [
   {
     "created_path": "/tmp/ubp-init-demo/.ultra",
+    "state_db_path": "/tmp/ubp-init-demo/.ultra/state.db",
     "status": "created",
     "copied_files": [
       "specs/discovery.md",
@@ -15,6 +16,7 @@
   },
   {
     "created_path": "/Users/demo/sandbox/.ultra",
+    "state_db_path": "/Users/demo/sandbox/.ultra/state.db",
     "status": "overwritten",
     "copied_files": ["specs/discovery.md", "tasks/tasks.json"],
     "backup_path": "/Users/demo/sandbox/.ultra.backup.20260417-091530"

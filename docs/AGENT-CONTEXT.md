@@ -7,9 +7,9 @@ plugins.
 
 Ultra Builder Pro owns only:
 
-- ten public workflows: `learn`, `ultra-init`, `ultra-research`, `ultra-plan`,
+- twelve public workflows: `learn`, `ultra-init`, `ultra-research`, `ultra-plan`,
   `ultra-dev`, `ultra-test`, `ultra-review`, `ultra-deliver`, `ultra-status`, and
-  `ultra-think`;
+  `ultra-think`, plus the daily `ultra-change` and diagnostic `ultra-doctor`;
 - four internal agent-only rule skills: `code-review-expert`, `security-rules`,
   `integration-rules`, and `testing-rules`;
 - the host-specific collaboration companions and `ultra-verify`;
@@ -24,39 +24,39 @@ not put it in a plugin until that allowlist classifies it.
 ## 2. Three-layer architecture
 
 ```text
-native command or skill -> MCP workflow-state operation -> CLI fallback
-                                  |
-                                  v
-                         .ultra/state.db
+native command or skill -> MCP workflow-state operation -> .ultra/state.db
+                                      ^
+                                      |
+              selected CLI init / doctor / diagnostics / orchestration
 ```
 
 | Layer | Artifact | Contract |
 |---|---|---|
 | Skill/command | `skills/*/SKILL.md`, `commands/*.md` | Model-facing workflow and host-native entry point |
 | MCP | `mcp-server/server.cjs` | Authoritative typed operations over `.ultra/state.db` |
-| CLI | `ultra-tools`, `ubp-orchestrator` | Portable fallback, automation, and diagnostics |
+| CLI | `ultra-tools`, `ubp-orchestrator` | Selected initialization, backup-first recovery, automation, and diagnostics; not a change-state mirror |
 
-`.ultra/state.db` is the only durable Ultra authority for tasks, sessions,
-events, telemetry, review evidence, and circuit-breaker state. `tasks.json`,
-context Markdown, execution plans, and reports are projections or workflow
-artifacts; never treat them as a second writable authority.
+`.ultra/state.db` is the only durable Ultra authority for changes, tasks,
+sessions, events, incidents, projection jobs/cursors, telemetry, review evidence,
+and circuit-breaker state. `tasks.json`, context Markdown, execution plans, and
+reports are projections or workflow artifacts.
 
 ## 3. Live MCP and declared contracts
 
-`spec/mcp-tools.yaml` declares 30 contracts across seven families. The bundled
-server registers 21 tools:
+`spec/mcp-tools.yaml` declares and the bundled server registers 29 tools across
+five families:
 
 | Family | Live tools |
 |---|---|
 | `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
 | `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
+| `change.*` | create, update, get, list, context, converge, archive |
+| `system.*` | doctor |
 | `plan.*` | export, get |
 
-The nine declared `review.*`, `impact.*`, `skill.*`, and `ask.*` contracts are
-not advertised by the live server. A generated Codex plugin records their
-native replacements in `spec/codex-capability-map.json`; other hosts use their
-own native review agents, repository discovery, skill loader, and user
-interaction surfaces.
+Review, repository impact discovery, skill loading, and user interaction remain
+host-native capabilities rather than fake MCP contracts. The generated Codex
+capability map documents those replacements.
 
 Any new MCP contract starts in `spec/mcp-tools.yaml` with valid and invalid
 fixtures. Do not add an ad-hoc server handler first.
@@ -84,17 +84,22 @@ The canonical Python hook allowlist contains seven workflow-only adapters:
 - `pre_stop_check.py` at stop;
 - `subagent_tracker.py` for bounded worker lifecycle evidence.
 
-Every hook is a no-op unless `.ultra/workflow-state.json` describes an active,
-non-terminal workflow. OpenCode expresses the same boundary in its native
-JavaScript plugin. Generic command blocking, post-edit governance, and unrelated
-user hooks are not copied into Ultra Builder Pro.
+`health_check.py` and `workflow_context.py` may inspect any initialized project;
+`active_task_context.py` always protects the task projection but limits ordinary
+edit guidance to an active workflow. Compact/stop/subagent hooks remain
+active-workflow scoped. OpenCode natively injects baseline/change context and
+protects the projection; full health inspection is available through
+`system.doctor` rather than a session-start health hook.
+Generic command blocking, post-edit governance, and unrelated user hooks are not
+copied into Ultra Builder Pro.
 
 ## 6. Memory boundary
 
 Ultra Builder Pro has no memory MCP family, recall skill, prompt capture,
 transcript capture, observation journal, or session-summary hook. Persistent
 cross-session memory belongs to a separately installed provider such as
-cloud-mem/claude-mem.
+cloud-mem/claude-mem. Code graph content is equally external. A change context
+may contain only provider metadata references, never provider payload content.
 
 Old Ultra data is never deleted during install. The explicit migration path is:
 
@@ -112,6 +117,9 @@ Archive before prune; the confirmation token is intentionally required.
 .ultra/
 ├── state.db                 # authoritative SQLite store
 ├── workflow-state.json      # active workflow/recovery checkpoint
+├── changes/
+│   ├── active/<id>/         # intent, delta, plan, compiled context, verification
+│   └── archive/             # converged packets after baseline reconciliation
 ├── tasks/                   # projections and task contexts
 ├── specs/                   # research/product/architecture artifacts
 ├── sessions/                # bounded runtime artifacts

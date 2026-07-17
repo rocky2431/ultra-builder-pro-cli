@@ -301,7 +301,6 @@ Strong success criteria enable independent loops; weak criteria force clarificat
 **Completeness Principle**: KISS decides WHAT to build; Completeness decides HOW THOROUGH. Once committed to building a feature → tests, error handling, edge cases must be complete. Marginal cost is near-zero with AI; no half-finished features.
 </ask_user_format>
 
-@RTK.md
 # graphify
 - **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, invoke the Skill tool with `skill: "graphify"` before doing anything else.

@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-17
+
+### Added
+
+- Added `ultra-change` and `ultra-doctor` as native workflows on Claude Code,
+  OpenCode, and Codex. Daily fixes, features, redesigns, and incidents now stay
+  attached to an explicit change packet after the initial baseline delivery.
+- Added seven `change.*` MCP tools and `system.doctor`, advancing the live MCP
+  contract to 29 tools and `.ultra/state.db` to schema `9.0` with 15 tables for
+  changes, artifacts, context snapshots, trace links, incidents, projection
+  jobs, and durable event-consumer cursors.
+- Added deterministic convergence and archive gates for task completion, spec
+  deltas, tests, documentation impact, review evidence, context freshness, and
+  baseline reconciliation.
+
+### Changed
+
+- `task.init_project` now initializes `state.db` immediately and creates active
+  and archived change roots. `tasks.json` remains a generated projection.
+- MCP mutations now commit authority first, enqueue a durable projection job,
+  process it, and expose projection status in MCP metadata instead of silently
+  swallowing projection failures.
+- Session-start and edit hooks now understand initialized baselines and active
+  changes. Health checks surface incidents, projection lag, orphan sessions,
+  and missing change artifacts; direct writes to the task projection remain
+  blocked even outside a command-scoped workflow.
+- Memory and code-graph content are exclusively owned by separately installed
+  providers. Ultra accepts only provider metadata references in compiled change
+  contexts and never stores recalled content, graph payloads, or embeddings.
+
+### Fixed
+
+- Wired spec-staleness consumption, crash recovery, projection processing, and
+  durable cursors into the real orchestrator loop instead of leaving production
+  helpers unconsumed.
+- Kept `intent.md` synchronized with authoritative change updates, linked task
+  status events to their newly assigned change, and included `plan.export`
+  events in projection accounting.
+- Added atomic projection claims and backup-first recovery for failed or stale
+  interrupted jobs so a crashed projector cannot remain invisibly `running`.
+- Kept all three native plugin bundles, MCP launchers, agents, hooks, commands,
+  and user-handbook renderings on one explicit Ultra-owned asset allowlist.
+
+### Removed
+
+- Removed the internal filesystem graph watcher and its dependency; external
+  graph providers own indexing and refresh.
+- Removed the retired command-proxy detector, installer option, managed handbook
+  block, cache artifacts, prompts, configuration, and documentation surface.
+- Stopped publishing the archived pre-CLI manual in the npm package; it remains
+  repository history and cannot be mistaken for an active plugin contract.
+
 ## [0.6.0] — 2026-07-17
 
 ### Changed
@@ -21,9 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Removed the Gemini CLI adapter, `--gemini` installer surface, extension and
-  conformance packaging, pricing entries, `gemini-collab`, and all active Ultra
-  prompts and documentation that offered Gemini as an advisor or runtime.
+- Removed the retired fourth-runtime adapter, installer surface, extension and
+  conformance packaging, pricing entries, collaboration companion, and all
+  active Ultra prompts and documentation that offered it as an advisor.
 
 ### Fixed
 
@@ -189,8 +241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - D49 tech-debt sweep: stale Phase comments (`"scheduled for Phase 1"`,
   `"not implemented in Phase 3.1"`) replaced with accurate `unknown verb`
-  messages; `docs/ROADMAP.md` status table synchronized; `.gitignore`
-  excludes `.rtk/` local filter cache.
+  messages; `docs/ROADMAP.md` status table synchronized.
 
 ### Tests
 
@@ -201,13 +252,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Phase 6 — monitoring + live code graph** (D44): RTK soft-dependency hook
-  (`adapters/_shared/rtk-detect.cjs`) with `--skip-rtk` flag and install hint;
-  token / cost telemetry with per-runtime pricing table, `telemetry` table +
+- **Phase 6 — monitoring + live code graph** (D44): token / cost telemetry
+  with per-runtime pricing table, `telemetry` table +
   daily `.ultra/telemetry/YYYY-MM-DD.jsonl`; `ultra-tools status --cost`
   panel with by-runtime / by-task / by-session aggregation; chokidar-based
-  code-graph watcher with debounce / awaitWriteFinish / batch thresholds,
-  opt-in via `--with-graph-watcher`.
+  then-experimental incremental graph watcher with debounce and batch thresholds.
 - **Phase 5 — execution resilience** (D43): `recovery.cjs` boot-time orphan
   scan using live PID probe; `circuit_breaker` table with `recordTaskFailure`
   counter and `resetCircuitBreaker` escape hatch; spec-change staleness
@@ -257,7 +306,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.0...v0.5.1

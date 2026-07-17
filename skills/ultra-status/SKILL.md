@@ -7,6 +7,8 @@ mcp_tools_required:
   - task.get
   - session.list
   - session.subscribe_events
+  - change.list
+  - system.doctor
 cli_fallback: "status --cost --json"
 ---
 
@@ -15,6 +17,8 @@ cli_fallback: "status --cost --json"
 Single-call dashboard. Pulls task state from state.db (authoritative), layers
 in `.ultra/test-report.json` + `.ultra/delivery-report.json` (file artifacts),
 reports progress + risks + workflow routing.
+It never treats a completed initial delivery as a terminal state: a healthy
+baseline routes the next daily request through `/ultra-change`.
 
 ## Authority failure boundary
 
@@ -47,6 +51,12 @@ user to run `ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>
 // MCP: session.subscribe_events (recent events for the "last event" panel)
 { "since_id": 0, "limit": 20 }
 // → { events: [...], next_since_id: M }
+
+// MCP: change.list (continuous-change lane)
+{ "limit": 20 }
+
+// MCP: system.doctor (read-only runtime health)
+{ "repair": false }
 ```
 
 Also read:
@@ -60,6 +70,8 @@ Extract:
 - Most recent 20 events (by `events.id` DESC) — "last event" panel
 - Test passed / failed / stale (compare `git_commit` to HEAD)
 - Delivery readiness (tag + pushed)
+- Active/blocked/ready change, linked task counts, docs impact, and context freshness
+- Runtime health: open incidents, projection lag/failure, orphan sessions, missing change artifacts
 
 ### Phase 2 — Progress report
 
@@ -68,6 +80,8 @@ Compact multi-section output:
 - **Tasks**: counts per status + per priority
 - **Test**: pass/fail, `run_count`, `blocking_issues` if any
 - **Delivery**: `version` + `pushed` + last tag
+- **Change**: active id/kind/status, docs impact, task completion, context/provider freshness
+- **Runtime**: healthy/degraded with failing doctor checks only
 - **Risks**: auto-detected list (see Phase 3)
 - **Next**: recommended next task (see Phase 4)
 
@@ -81,6 +95,10 @@ Auto-detect:
 - **Test stale**: `test-report.json.git_commit ≠ HEAD`
 - **Orphan sessions**: any session with `lease_expires_at < now()` still status=running
   (uninitialized by orphan-reaper; escalate)
+- **Projection/incident failure**: read-only doctor is degraded → route to
+  `/ultra-doctor`; never infer recovery from a generated JSON file
+- **Context stale**: active change manifest head or task set differs from current state
+- **Docs drift**: change has `docs_impact.status=unknown` or declared required file is missing
 
 | Icon | Meaning | Action |
 |------|---------|--------|
@@ -105,12 +123,15 @@ Detect position from artifacts:
 |-----------|-------|
 | No `.ultra/` | `/ultra-init` |
 | Specs have `[NEEDS CLARIFICATION]` or missing | `/ultra-research` |
-| No tasks | `/ultra-plan` |
-| Any `pending` | `/ultra-dev` (show which) |
-| All `completed` | `/ultra-test` |
-| `test-report.json.passed === true` | `/ultra-deliver` |
+| No tasks and no delivered baseline | `/ultra-plan` |
+| Doctor degraded because of Ultra runtime state | `/ultra-doctor` |
+| No active/blocked/ready change and fresh delivery exists | `/ultra-change` for the next daily change |
+| Active change has any `pending` linked task | `/ultra-dev` (show which) |
+| Active change linked tasks all `completed` | `/ultra-test` |
+| Matching fresh `test-report.json.passed === true` | `/ultra-deliver` |
 | `test-report.json.passed === false` | `/ultra-dev` (show blocking issues) |
-| `delivery-report.json` exists + fresh | Done; suggest next milestone |
+| Change is `ready` | `/ultra-deliver` to reconcile/archive before release completion |
+| Latest change archived and delivery fresh | Baseline healthy; next work starts with `/ultra-change` |
 
 **Safety checks before routing**:
 - Routing to deliver but `test-report.git_commit ≠ HEAD` → warn "Tests stale"
@@ -143,6 +164,8 @@ session_id (if active), `context_file`, `trace_to`, stale flag, update history.
 |---------|----------|--------------|
 | List tasks | `task.list` | none; fail closed |
 | Single task detail | `task.get` | none; fail closed |
+| Change lane | `change.list` | none; fail closed |
+| Runtime health | `system.doctor { repair:false }` | `ultra-tools system doctor` |
 | Cost panel (Phase 6.3) | — | `ultra-tools status --cost --json --since 7d` |
 
 ## Cost panel (Phase 6.3)
@@ -154,7 +177,7 @@ is the conventional weekly window; override with ISO-8601 for custom ranges.
 
 ## What this skill DOES NOT do
 
-- Does NOT modify state
+- Does NOT modify or repair state
 - Does NOT run tests / build / deploy
 - Does NOT require all artifacts (partial reports are tolerated)
 
@@ -162,6 +185,6 @@ is the conventional weekly window; override with ISO-8601 for custom ranges.
 
 | | |
 |---|---|
-| **Input** | state.db (via `task.list`/`task.get`), `test-report.json`, `delivery-report.json`, git HEAD |
+| **Input** | state.db via task/change/session/system reads, test/delivery reports, git HEAD |
 | **Output** | console report (Chinese per project rule) |
 | **When** | anytime — idempotent read-only |

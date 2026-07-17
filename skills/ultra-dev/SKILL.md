@@ -6,6 +6,8 @@ mcp_tools_required:
   - task.update
   - task.get
   - task.list
+  - change.get
+  - change.context
 ---
 
 # ultra-dev — Phase 3.4
@@ -13,8 +15,9 @@ mcp_tools_required:
 Drive one task from `pending → completed` using a strict TDD loop, gated by
 `/ultra-review`. **state.db is the authority**: status transitions go through
 MCP `task.update`; the projector regenerates `tasks.json` and context-md
-frontmatter. The skill only writes context-md **bodies** (Change Log,
-Completion, Dual-Write notes).
+frontmatter. For a task linked by `change_id`, requirement discoveries go to
+the active change delta first; baseline reconciliation happens in
+`/ultra-deliver`.
 
 ## Authority failure boundary
 
@@ -84,6 +87,11 @@ Fires when `.ultra/workflow-state.json` does NOT exist.
 Pick the first result (dependency-resolved) or the one matching `$1`.
 Read `.ultra/tasks/contexts/task-{id}.md` body for the Implementation /
 Acceptance sections. Use the Acceptance list as the initial todo set.
+
+If the task has `change_id`, call `change.get` and inspect its
+`context-manifest.json`. The task id, git head, allowed paths, spec refs, and
+external provider metadata must match the current slice. Call `change.context`
+before editing whenever they are stale. Provider content remains external.
 
 ### Step 1.5 — Status → in_progress (single-write)
 
@@ -266,6 +274,10 @@ Any unchecked → fix; do NOT commit.
    git push origin main && git branch -d feat/task-<id>-<slug>
    ```
 
+8. For a task with `change_id`, call `change.context` after the final commit,
+   rebase, and verification so the manifest records the actual HEAD and task
+   set used for convergence.
+
 Checkpoint `step="6", status="committed", commit=<sha>`.
 
 ### Step 7 — Report
@@ -274,16 +286,16 @@ Checkpoint `step="6", status="committed", commit=<sha>`.
 - Project progress (`task.list` → `completed/total`)
 - Next task suggestion (first remaining `pending` in topological order)
 
-## Dual-Write Mode
+## Delta-First Specification Mode
 
-Triggered when implementation reveals spec gaps or requirement changes.
+Triggered when implementation reveals specification gaps or requirement changes.
 
 **Classification (mandatory before updating specs)**:
 
 | Kind | Meaning | Action |
 |------|---------|--------|
-| **EXPANSION** | new requirement surfaced | update spec + Change Log |
-| **CORRECTION** | spec error/ambiguity | update spec + Change Log |
+| **EXPANSION** | new requirement surfaced | update active change delta + Change Log |
+| **CORRECTION** | spec error/ambiguity | update active change delta + Change Log |
 | **REDUCTION** | removing/weakening scope | **STOP** → ask the user for approval |
 
 **REDUCTION gate** — options:
@@ -291,16 +303,23 @@ Triggered when implementation reveals spec gaps or requirement changes.
 - B: "Keep original scope, find alternative implementation"
 - C: "Split into separate task, defer to next cycle"
 
-Update `.ultra/specs/` immediately so parallel tasks see current truth.
-Log in context-md body Change Log:
+For a task with `change_id`, update
+`.ultra/changes/active/<change-id>/delta/` immediately, then recompile
+`change.context`. Do not silently rewrite the baseline while parallel tasks are
+still executing. `/ultra-deliver` must reconcile the approved delta into the
+declared baseline files before archive.
+
+For an initial-baseline task with no `change_id`, update `.ultra/specs/`
+directly because no continuous-change packet exists yet. In both cases log the
+decision in the context-md body Change Log:
 
 ```markdown
 | <date> | <KIND> | <change desc> | specs/<file>#<section> | <reason> |
 ```
 
-**Principle**: `specs/` is source of truth; `contexts/` tracks implementation
-history. Specs may grow (EXPANSION) or be corrected (CORRECTION). Specs must
-never silently shrink (REDUCTION without gate).
+**Principle**: the baseline specs describe accepted product truth; the active
+delta describes proposed change; task contexts record implementation history.
+No layer may silently shrink scope without the REDUCTION gate.
 
 ## MCP failure matrix
 
@@ -311,6 +330,7 @@ never silently shrink (REDUCTION without gate).
 | Pre-review checkpoint | none | write `.ultra/workflow-state.json`; lifecycle hooks restore it |
 | Run review | none | `/ultra-review all` + Host-native review agents |
 | Status → completed | `task.update` (2) | stop; do not claim completion |
+| Refresh linked context | `change.context` (9) | stop; do not claim the change packet is current |
 | Ask user | none | current Host's native user-interaction surface |
 
 ## What this skill DOES NOT do
@@ -325,5 +345,5 @@ never silently shrink (REDUCTION without gate).
 | | |
 |---|---|
 | **Input** | state.db via MCP, plus the `context_file` body returned for the selected task |
-| **Writes** | state.db (via `task.update`), context-md body (Completion + Change Log), workflow-state.json checkpoints |
+| **Writes** | state.db (via `task.update`/`change.context`), active delta or baseline spec as classified, context-md body, workflow-state checkpoints |
 | **Next** | `/ultra-dev <next-id>` or `/ultra-test` when all Walking Skeleton + critical-path tasks complete |
