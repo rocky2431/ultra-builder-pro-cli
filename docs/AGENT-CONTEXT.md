@@ -1,8 +1,7 @@
 # Ultra Builder Pro — Agent Context
 
 Current shared runtime contract for the native Claude Code, OpenCode, and Codex
-plugins. Gemini CLI remains a compatibility adapter and is not the reference
-shape for the three first-class plugins.
+plugins.
 
 ## 1. Ownership boundary
 
@@ -66,9 +65,9 @@ fixtures. Do not add an ad-hoc server handler first.
 
 | Host | Plugin form | Workflow entry | Hook form | Collaboration companions |
 |---|---|---|---|---|
-| Claude Code | `.claude-plugin/plugin.json`, native commands/skills/agents, `.mcp.json` | `/ultra-*`, `/learn` | native `hooks/hooks.json` | `codex-collab`, `gemini-collab` |
-| Codex | personal plugin with `.codex-plugin/plugin.json`, namespaced skills, TOML agents, `.mcp.json` | `$ultra-builder-pro:ultra-*`, `$ultra-builder-pro:learn` | native `hooks/hooks.json` through the Codex wire adapter | `cc-collab`, `gemini-collab` |
-| OpenCode | config bundle plus native JavaScript plugin | `/ultra-*`, `/learn` | `event`, system transform, compaction, and tool lifecycle handlers | `cc-collab`, `codex-collab`, `gemini-collab` |
+| Claude Code | `.claude-plugin/plugin.json`, native commands/skills/agents, `.mcp.json` | `/ultra-*`, `/learn` | native `hooks/hooks.json` | `codex-collab`, `ultra-verify` |
+| Codex | personal plugin with `.codex-plugin/plugin.json`, namespaced skills, TOML agents, `.mcp.json` | `$ultra-builder-pro:ultra-*`, `$ultra-builder-pro:learn` | native `hooks/hooks.json` through the Codex wire adapter | `cc-collab`, `ultra-verify` |
+| OpenCode | config bundle plus native JavaScript plugin | `/ultra-*`, `/learn` | `event`, system transform, compaction, and tool lifecycle handlers | `cc-collab`, `codex-collab`, `ultra-verify` |
 
 The current host remains primary. Collaboration skills call another runtime
 only when explicitly requested, use it as a read-only advisor, and return the

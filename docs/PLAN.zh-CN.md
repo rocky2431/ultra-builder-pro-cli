@@ -1,11 +1,11 @@
 # ultra-builder-pro-cli — 执行计划 v0.3.1
 
-> **2026-07-15 当前生效边界（D50，覆盖下文旧 Phase 7 / D25 / D46 的 memory 设计）**：
+> **2026-07-17 当前生效边界（D50-D51，覆盖下文旧 Phase 7 / D25 / D46 的 memory 与 runtime 设计）**：
 > Ultra Builder Pro 不再拥有 `memory.*`、recall、prompt/transcript/observation/summary
 > 收集 hook 或私有 agent memory。跨会话记忆全部交给独立安装的 cloud-mem/claude-mem。
 > 插件只保留 10 个 Ultra 公共 workflow、4 个 agent-only 规则 skill、宿主专属 collab
 > companion、工作流 hook 与 `.ultra/state.db` 任务权威。Claude Code、Codex、OpenCode
-> 采用各自 native plugin 呈现；Gemini 仅保留 compatibility extension。下文所有与此冲突的
+> 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
 > memory/hindsight 章节仅作为历史实施记录，不再是当前需求或运行时契约。
 
 **状态**：Phase 0-8B 完成（D48 `8224159` 2026-04-18）· v0.3 ready（planner + executor 合线）· 397 tests 全绿 · Phase 9 发布待启动
@@ -22,7 +22,7 @@
 - **Phase 4.6 拆 a/b**（R6 + D35）：v0.1 只跑 smoke flow，full conformance 推 v0.2
 - **Codex 第二轮结论**："小改后开工"（tl;dr）；本版已完成小改
 
-**总决策数**：D1-D50（当前边界以 D50 为准）
+**总决策数**：D1-D51（当前边界以 D50-D51 为准）
 **总风险数**：R1-R32（v0.3.1 新增 R25-R32 共 8 条）
 
 ---
@@ -41,7 +41,7 @@
 **自动化 coding 工厂**。
 
 **最终形态**（v1.0）：
-- 任何一个 coding agent CLI（Claude / OpenCode / Codex / Gemini / Cursor /
+- 任何一个受支持的 coding agent CLI（Claude / OpenCode / Codex）
   Windsurf）都能消费同一套 Hermes 规则。
 - 独立 session 执行独立 task，无对话污染；失败自动重试带熔断。
 - 跨 session 的记忆、代码图、token 监控通过 MCP 共享。
@@ -70,7 +70,7 @@ Hermes（Ultra Builder Pro）是一套成熟的 agent 工程系统：
 
 **A. Claude 独占工具钉死**：`TaskCreate/Update/List`、`AskUserQuestion`、`Skill`、
 `Agent(subagent)`、`TeamCreate/SendMessage`、`/compact` 这 6 类 API 让 Hermes
-离开 Claude Code 寸步难行。其它 3 大 runtime（OpenCode / Codex / Gemini）各
+离开 Claude Code 寸步难行。其它两大受支持 runtime（OpenCode / Codex）各
 有原生等价或兼容层，但今天无人对接。
 
 **B. 单会话污染与状态不原子**：
@@ -103,7 +103,7 @@ Hermes（Ultra Builder Pro）是一套成熟的 agent 工程系统：
 
 | # | 目标 | 可验证条件 | 归属 Phase |
 |---|------|-----------|----------|
-| G1 | Hermes 在 Claude / OpenCode / Codex / Gemini 四 runtime 原生可用 | 每 runtime 能跑完整 `init→research→plan→dev→test` | 4 |
+| G1 | Hermes 在 Claude / OpenCode / Codex 三个 runtime 原生可用 | 每 runtime 能跑完整 `init→research→plan→dev→test` | 4 |
 | G2 | 状态权威源单一、并发安全 | SQLite + WAL；20 worker 并发 updateTaskStatus 无丢失 | 2 |
 | G3 | `tasks.json` / context md 降级为投影，state.db 权威 | 所有写入走 state-db；JSON/MD 自动再生成（D18） | 2 |
 | G4 | 每 task 独立会话（新进程 + 独立 worktree + lease），对话不污染 | 2 并发 session 各独立 worktree；kill -9 后 lease 过期可清理 | **4.5** |
@@ -139,7 +139,7 @@ Hermes（Ultra Builder Pro）是一套成熟的 agent 工程系统：
 │  Skill 层 (知识 / 说明书)                                      │
 │  runtime 原生发现                                              │
 │  Claude: ~/.claude/skills/       OpenCode: ~/.config/opencode  │
-│  Codex: ~/.agents/skills/        Gemini: extension/skills/     │
+│  Codex: ~/.agents/skills/                                      │
 │                                                                 │
 │  ┌─ SKILL.md ──────────────────────────────┐                  │
 │  │ - 何时使用                               │                  │
@@ -313,7 +313,6 @@ ultra-builder-pro-cli/
 │   ├── claude.ts
 │   ├── opencode.ts
 │   ├── codex.ts
-│   ├── gemini.ts
 │   └── _shared/
 ├── hooks/                         # Python hooks 沿用
 │   ├── *.py (15)
@@ -473,7 +472,7 @@ ultra-builder-pro-cli/
 
 **1.3 Skill manifest 规范**（0.5 天）
 - `spec/skill-manifest.schema.json` — 所有 skill 的 frontmatter 规范：
-  - name / description / runtime（Claude/OpenCode/Codex/Gemini/all）/
+  - name / description / runtime（Claude/OpenCode/Codex/all）/
     mcp_tools_required / cli_fallback / complexity_hint（Haiku/Sonnet/Opus）
 - **AC**：现有 18 skill 的 frontmatter 校验通过（≥90%，其余写 migration note）。
 
@@ -666,7 +665,7 @@ CLI"。消除对 Claude 独占工具的硬依赖。
   做目录搭建 + 空 tasks.json 写入。
 - `ultra-tools/commands/init.cjs`：CLI 兜底做同样事情。
 - 三层都能完成 init → AC 对齐 CLAUDE 下今天的 init 行为。
-- **AC**：在 Claude / OpenCode / Codex / Gemini 任一 runtime 下跑 init，
+- **AC**：在 Claude / OpenCode / Codex 任一 runtime 下跑 init，
   产出的 `.ultra/` 目录与当前 Hermes 的 init 输出 diff-equal。
 
 **3.2 `/ultra-research` 迁移**（1 天）
@@ -701,7 +700,7 @@ CLI"。消除对 Claude 独占工具的硬依赖。
 - **AC**：全 9 命令迁完。
 
 **3.7 AGENTS.md 统一上下文**（1 天）
-- 合并 `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` 为统一 **规则注入文件**
+- 合并 `CLAUDE.md` / `AGENTS.md` 为统一 **规则注入文件**
   （命名：每 runtime 的原生 context 文件，但内容相同）。
 - 内容：三层架构说明 + 关键 MCP tool 清单 + CLI 命令表 + skill 发现路径。
 - 这是 OMX "scope guard" 能力（§5.2）。
@@ -709,9 +708,9 @@ CLI"。消除对 Claude 独占工具的硬依赖。
 
 **3.8 Python hooks 三分拆**（1 天）
 - 按原 PLAN v0.1 的 Phase 3 做：core/ + adapters/（claude / opencode /
-  codex / gemini.py）
+  codex）
 - **AC**：Claude hooks 行为字节级一致；OpenCode/Codex 只接 2 个可达事件
-  （§5.4）；Gemini 降级 prompt guard（文档化）。
+  （§5.4）。
 
 #### Phase 3 gate
 
@@ -723,8 +722,8 @@ CLI"。消除对 Claude 独占工具的硬依赖。
 
 ### Phase 4 — 跨 runtime 分发
 
-**目标**：让 skill/MCP/CLI 三层正确安装到 Claude / OpenCode / Codex / Gemini
-四 runtime。包含 MCP server 注册、skill 拷贝、CLI PATH、runtime-specific 转换。
+**目标**：让 skill/MCP/CLI 三层正确安装到 Claude / OpenCode / Codex
+三个 runtime。包含 MCP server 注册、skill 拷贝、CLI PATH、runtime-specific 转换。
 
 **前置**：Phase 3（三层可用）
 
@@ -736,8 +735,8 @@ CLI"。消除对 Claude 独占工具的硬依赖。
 
 **4.1 共享 adapter 工具**（1 天）
 - `adapters/_shared/file-ops.ts` / `frontmatter.ts` / `settings-merge.ts` /
-  `path-rewrite.ts` / `md-to-toml.ts` — 从 v0.1 PLAN §6.2.1 继承。
-- **AC**：5 模块共 15 单元测试，覆盖率 ≥85%。
+  `path-rewrite.ts` — 从 v0.1 PLAN §6.2.1 继承。
+- **AC**：共享模块单元测试覆盖率 ≥85%。
 
 **4.2 Claude adapter**（1 天）
 - `~/.claude/{skills,commands,agents,hooks}` 直接拷贝。
@@ -760,18 +759,11 @@ CLI"。消除对 Claude 独占工具的硬依赖。
 - MCP server 注册到 `config.toml [mcp_servers]`。
 - **AC**：config.toml 合法；`codex exec "run /ultra-init"` 成功。
 
-**4.5 Gemini adapter**（2 天，含 0.5 天 spike）
-- spike：抓 `hooks/hooks.json` + subagent frontmatter。
-- **整体打包成 Gemini extension**（`~/.gemini/extensions/ultra-builder-pro/`）。
-- 命令 md → toml（`md-to-toml.ts`）。
-- MCP server 在 extension manifest 里声明。
-- **AC**：extension 目录合法；gemini 启动识别；`gemini --prompt` 烟测成功。
-
 **4.6a Runtime capability matrix + v0.1 smoke flow**（1 天，**D33 收敛**）
-- `docs/RUNTIME-COMPAT-MATRIX.md`：列 4 runtime × ~25 能力点：
+- `docs/RUNTIME-COMPAT-MATRIX.md`：列 3 runtime × ~25 能力点：
   - 问答：AskUserQuestion / CLI menu / MCP `ask.question`
   - Hook 事件：每 runtime 的可用事件名单 + payload 形状
-  - Subagent：Claude Task / Codex spawn_agent / Gemini preview / OpenCode @mention
+  - Subagent：Claude Task / Codex spawn_agent / OpenCode @mention
   - Usage 统计：token / cost 能否拿到
   - MCP：stdio 稳定性 / HTTP 支持
   - Skill 发现路径
@@ -780,23 +772,23 @@ CLI"。消除对 Claude 独占工具的硬依赖。
 - `tests/conformance/<runtime>/` v0.1 基线：**每 runtime 1-2 条 smoke flow**
   - Flow 1: `install → /ultra-init → task.create → 读投影 tasks.json → uninstall`
   - Flow 2: `/ultra-dev 1` 通过 session.spawn 起 session → 关
-- **AC**：matrix 文档完整；4 runtime × 2 smoke = 8 testcase 全绿
+- **AC**：matrix 文档完整；3 runtime × 2 smoke = 6 testcase 全绿
 
 **4.6b Full conformance suite**（1 天，**D45 2026-04-17 完成**）
-- ✅ 每 runtime 5 capability 完整测试 = 20 testcase（+ 8 原 smoke 保留 = 28）
+- ✅ 每 runtime 5 capability 完整测试 = 15 testcase（+ 6 smoke 保留 = 21）
 - ✅ `tests/conformance/_capabilities.cjs` 共享 assertion；各 runtime `conformance.test.cjs` 注入 runtime-specific config
-- ✅ `resolveTarget()` contract test（21 tests，4 runtime × 5 scenario）
+- ✅ `resolveTarget()` contract test（15 tests，3 runtime × 5 scenario）
 - ✅ Phase 4 review backlog 全清（6 P2 + 5 P3 → D45）— 含 `_source` 搬到 sibling `_ubp` 的 env 泄漏修复
 
 **4.7 install.js 真实装配**（0.5 天）
 - 从 Phase 0 stub 升级为真调用 adapter。
-- `--claude/--opencode/--codex/--gemini/--all` + `--local/--global` + `--uninstall`。
+- `--claude/--opencode/--codex/--all` + `--local/--global` + `--uninstall`。
 - 幂等：跑两次 install diff = 空。
-- **AC**：4 runtime × 2 scope = 8 条安装路径全绿；uninstall 后目录干净。
+- **AC**：3 runtime × 2 scope = 6 条安装路径全绿；uninstall 后目录干净。
 
 #### Phase 4 gate
 
-- 4 runtime 下 `/ultra-init` 都能跑通
+- 3 runtime 下 `/ultra-init` 都能跑通
 - Claude diff-equal 基线通过
 - runtime-compat-matrix 20 conformance testcase 全绿
 - `docs/RUNTIME-COMPAT-MATRIX.md` 完整产出
@@ -983,7 +975,7 @@ agent 并行，orchestrator 负责 session 隔离和状态一致。
   返回准确依赖集（10 文件项目的命中率 ≥95%）
 
 **6.5 Runtime stdout 拦截（可选）**（1 天）
-- orchestrator spawn agent 时拦截 stdout，解析 Anthropic/OpenAI/Gemini
+- orchestrator spawn agent 时拦截 stdout，解析 Anthropic/OpenAI
   SDK 的 usage 字段（若可达）。
 - 更精准的 token 统计（不依赖 rtk 推测）。
 - **AC**：对一个已知 token 数的 task 做 E2E，telemetry 与官方 usage 误差 <5%。
@@ -1200,7 +1192,7 @@ files_modified 重叠检测 + 自动合并。这是 "coding 工厂" 的**后端*
 #### 任务清单
 
 **9.1 CI 矩阵**（1 天）
-- GitHub Actions：`{claude, opencode, codex, gemini} × {local, global}`
+- GitHub Actions：`{claude, opencode, codex} × {local, global}`
   = 8 jobs + `rtk / code-review-graph / hindsight` 可选集成测试。
 - **AC**：所有矩阵单元绿，每周定时跑一次（catch runtime 上游变更）。
 
@@ -1275,7 +1267,7 @@ CREATE INDEX events_task ON events(task_id, id);
 CREATE TABLE sessions (
   sid TEXT PRIMARY KEY,
   task_id TEXT,
-  runtime TEXT,                    -- claude|opencode|codex|gemini
+  runtime TEXT,                    -- claude|opencode|codex
   pid INTEGER,
   worktree_path TEXT,
   artifact_dir TEXT,
@@ -1592,7 +1584,7 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | # | 日期 | 决策 | 证据 |
 |---|------|------|------|
 | D1 | 2026-04-17 | 分发-adapter 路线（不自建 agent） | 用户选；get-shit-done 14 runtime 验证 |
-| D2 | 2026-04-17 | 首发 runtime：Claude + OpenCode + Codex + Gemini | 用户选 |
+| D2 | 2026-04-17 | 当前 runtime：Claude + OpenCode + Codex | 0.6.0 收敛后的支持边界 |
 | D3 | 2026-04-17 | 包名 `ultra-builder-pro-cli`，短名 `ubp` | 用户选 |
 | D4 | 2026-04-17 | 发布渠道：npm + Homebrew + pip | 用户选 |
 | D5 | 2026-04-17 | 销毁旧 git，main 重建 | 用户选；历史存 bundle |
@@ -1601,7 +1593,7 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | D8 | 2026-04-17 | settings.json 精简为最小合并模板 | 隐私安全 |
 | D9 | 2026-04-17 | README 改写延 Phase 9 | 不阻塞开发 |
 | D10 | 2026-04-17 | `hooks/tests/` 不入 npm tarball | 包体精简 |
-| D11 | 2026-04-17 | 基于官方文档重做 §5 + Phase 2/3 + §9 + §10 | [OpenCode Commands](https://opencode.ai/docs/commands/) · [OpenCode Agents](https://opencode.ai/docs/agents/) · [OpenCode Config](https://opencode.ai/docs/config/) · [Codex Config Reference](https://developers.openai.com/codex/config-reference) · [Codex Agent Skills](https://developers.openai.com/codex/skills) · [Gemini Custom Commands](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/custom-commands.md) · [Gemini Extensions](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/reference.md) · [Claude Code Hooks](https://code.claude.com/docs/en/hooks) · [Claude Code Sub-agents](https://code.claude.com/docs/en/sub-agents) |
+| D11 | 2026-04-17 | 基于官方文档重做 §5 + Phase 2/3 + §9 + §10 | OpenCode、Codex 与 Claude Code 的官方命令、配置、skill、hook 和 subagent 文档 |
 | **D12** | **2026-04-17** | **采用 skill + MCP + CLI 三层架构**，skill=说明书、MCP=状态操作主路径、CLI=Bash 兜底 | 参考 CTM（MCP 模式）+ OMC/OMX（skill 模式）+ get-shit-done（CLI 模式）；三层分工覆盖 "knowledge / state / hook" 三类需求 |
 | **D13** | **2026-04-17** | **规则层 / 执行层双时间线交付**（Phase 1-4 规则层 → v0.1；Phase 5-8 执行层 → v0.2-v0.3） | 用户明确"规则 vs 自动化执行"的维度；降低单次发布复杂度；早让用户拿到可用价值 |
 | **D14** | **2026-04-17** | **范围从"分发器"扩展到"自动化 coding 工厂"**，总工时从 4-5 周扩到 11-13 周 | 用户诉求：跨 agent 上下文共享 + 独立对话避污染 + 监控 + 实时代码图 + 记忆系统；不只是 distribution tool |
@@ -1631,15 +1623,16 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | **D38** | **2026-04-17** | **Phase 1 完成** — `spec/` 锁死三层契约：30 个 MCP tool / 7 表 SQLite schema / tasks 与 context 投影 schema / skill manifest / CLI 协议 + 映射表；`npm run test:spec` 5 validator 全绿；新增 `docs/ARCHITECTURE.md` | Phase 1 gate 全过；后续 Phase 只引用 spec/，不再发明 schema |
 | **D39** | **2026-04-17** | **Phase 2 完成** — 权威状态层落地：`.ultra/state.db` (7 表 WAL+busy_timeout)、`mcp-server/lib/{state-db,state-ops,projector}.cjs`、`mcp-server/server.cjs`（@modelcontextprotocol/sdk stdio + 7 task.*）、`ultra-tools {db,migrate}` 子命令、`STATE-DB-ACCESS-POLICY.md` + `COMMIT-HASH-BACKFILL.md`；6 gate 全过（20 worker / 3 进程并发 / migration 可逆 / DB 运维 4 子命令 / 投影 ≤1s / task.* MCP 契约 + events.id 无漏）；`npm run test:state` 44/44 + `npm run test:spec` 5/5 | Phase 2 gate 全过；spec → state-ops → MCP 写路径成形，Phase 3 命令薄壳化可以基于 task.* MCP tool 重写 |
 | **D40** | **2026-04-17** | **Phase 3 完成** — 命令规则化三层迁移：9/9 命令薄壳化（36-54 行，平均 41 行）+ 7 个新 skill (`skills/ultra-{init,plan,dev,test,deliver,status,think,learn}/SKILL.md` 148-340 行) + `skills/ultra-research/SKILL.md` frontmatter 升级；新 MCP tool `task.init_project` + 内置 `templates/.ultra/` 骨架 + `ultra-tools task init-project` CLI；`spec/command-template.md` + `command-manifest.schema.json` + `validate-commands.cjs`（UBP_COMMAND_STRICT=1 9/9 通过）；`docs/AGENT-CONTEXT.md` canonical runtime 规则源；`hooks/{adapters,core}/` 骨架 + 4 个 runtime adapter stub；`test:state` 54/54 (+10) + `test:spec` 6/6 (+1) + strict-mode command gate 9/9 migrated 0 failed | Phase 3 gate 全过；skill+MCP+CLI 三层模式在 9 命令全部闭环；Phase 4 adapter 阶段可以直接基于 `docs/AGENT-CONTEXT.md` canonical + hooks/adapters/ stub 展开 |
-| **D41** | **2026-04-17** | **Phase 4 完成（4.6b 推迟 v0.2）** — 跨 runtime 分发落地：`adapters/_shared/` 5 模块（file-ops / frontmatter / settings-merge / path-rewrite / md-to-toml）+ 15 单测 99%/89.9%/100% 覆盖率；4 个 adapter 从 Phase 0 stub 升级到完整装配（Claude：`settings.json` 哨兵 `_ubp_manifest` + `mcpServers.ultra-builder-pro` + `_source:ubp` tag 剥离；OpenCode：`opencode.json.mcp` + 小写化 frontmatter；Codex：`config.toml` marker-block append + prompts/ 命令 + hooks 降级到 2 event stub；Gemini：`extensions/ultra-builder-pro/` 打包 + md→toml + GEMINI.md canonical + 无 hook prompt-guard 降级）；`docs/RUNTIME-COMPAT-MATRIX.md` 10 section 能力矩阵；`tests/conformance/<runtime>/smoke.test.cjs` 4×2=8 smoke 全绿（install → MCP round-trip → projector 投影 → uninstall 链路完整）；`bin/install.js` Phase 0 stub 升级为真 adapter 调用 + 7 集成测试（4×install/uninstall round-trip + --all 扇出 + 幂等 + 参数解析错误）；Phase 4.6b 按 D35 推迟 v0.2；43 条新测试全绿，0 回归（state 54 + spec 6） | Phase 4 gate 核心项通过：Claude diff-equal + 4 runtime matrix 完整 + 8 smoke 全绿 + install 幂等；未装 opencode/codex/gemini CLI 的 runtime-native smoke 待用户环境验 |
+| **D41** | **2026-04-17** | **Phase 4 初始跨 runtime 分发里程碑** — adapter、能力矩阵、smoke flow 与 installer 装配首次闭环；0.6.0 后只保留 Claude Code、OpenCode、Codex 三个 native plugin | 历史里程碑；当前边界由 D51 覆盖 |
 | **D46** | **2026-04-17** | **Phase 7 完成 — 智能层落地** — 偏离原 PLAN：**不内嵌 hindsight-server（Python/Docker），改自建 SQLite FTS5 memory store**（理由：PLAN 自己说"避免 Docker"已承认痛点；Node 内嵌 Python 要 subprocess/HTTP 胶水，成本高于直接用 state.db）。**7.1 Memory store**：schema 升 5.2 → 7.1，新增 `memory_entries` 表（task_id/session_id/tag/kind/content/source/ts；kind CHECK `fact/decision/error_fix/pattern/note`）+ `memory_fts` FTS5 虚表 + 3 trigger（ai/ad/au 同步）；`mcp-server/lib/memory-store.cjs` retain/recall/reflect 三函数（FTS5 MATCH 构造 escape 用 quote-wrap 防注入；空 query → 近期条目 fallback；bm25 ranking）；3 MCP tool `memory.retain/recall/reflect`（spec/mcp-tools.yaml 老 schema 用 scope/ttl_days 方案 → 替换为 kind 方案，更贴事件自动提取）；`orchestrator/memory-wrapper.cjs` autoRecallOnSpawn（task.title+trace_to → recall → prefetch.md）+ autoRetainOnClose（event-type heuristic 映射 task_completed→decision / task_circuit_broken→error_fix / session_crashed→pattern / task_stale_marked→fact；**不调 LLM**）；session-runner opt-in `autoMemory: true`。**7.2 Tagged task lists**：`deriveBranchTag(cwd)` 用 `spawnSync`(非 throw, 状态码判断) 读 git symbolic-ref + `sanitizeTag`(slash→hyphen, @→dot, 非 `\w.-` 剥离, ≤100 chars)；`switchTaskTag` + `task_tag_changed` event；`createTask` 接 `_cwd` 字段自动推导 tag 不覆盖显式传入；MCP `task.switch_tag` + spec/cli-protocol.md 加 33rd mapping；daemon `branchScoped: true` 过滤 pending by current branch tag。**7.3 Skill 萃取（heuristic, 0 LLM cost）**：`orchestrator/skill-miner.cjs` mineSession 扫 session events → 3 signal 触发（`task_completed` → task-completion / `task_circuit_broken` → debug-pattern / `session_crashed` → recovery-pattern）→ 写 `skills/learned/<ts>_<sid>_unverified.md` 含 YAML frontmatter + Problem/Signal/Evidence/Suggested reuse 4 section；idempotent（同 sid 再跑检到已有 draft 则 skip）；session-runner opt-in `mineSkill: true` + `skillsRoot`。**聚合**：Phase 7 新增 38 tests（memory-store 11 + memory-wrapper 7 + tagged-tasks 11 + skill-miner 7 + server-contract 1 memory roundtrip + daemon 1 branchScoped），D45 基线 232 → **270 tests 全绿**，0 回归。schema_version 升到 7.1（第三个 seed 行），RequiredTables 加 `memory_entries` | v0.3 准备期：用户现在每 task 起步自动拿到相关历史 prefetch；branch 切换自动过滤任务；debug / crash / 完成自动生成 skill draft；所有 opt-in 默认关，不破坏现有集成 |
-| **D45** | **2026-04-17** | **Phase 4 backlog 全清 + Phase 4.6b full conformance 完工** — v0.1 publish 前技术债清零：**9 条 review backlog** 全修（P2 #4 TOML escape 补 `\n/\r/\t/\b/\f/control`；P2 #5 Codex `spawn(argv)` tripwire 注释；P2 #7 `readJsonSafe({rescue:true})` 坏 JSON 备份到 `.bak-<ts>`；**P2 #9 `_source` env 泄漏修复** — 4 adapter 全改为 sibling `_ubp: {source}`，Codex 用 MARKER_BEGIN/END fence 做识别，Gemini manifest 顶层 + mcpServers 项目级双份 `_ubp` + uninstall check 改 `manifest._ubp.source`；P3 #10 writeAtomic 改 `crypto.randomUUID`；P3 #11 Claude env shallow key-wise merge；P3 #12 Gemini `loadPkgVersion` catch 加 stderr 提示；P3 #13 抽 `adapters/_shared/validate.cjs#validateConfigDir` NUL-byte 检查；P3 #14 Codex `_internal` export 加 justification 注释）。**Phase 4.6b full conformance**：`tests/conformance/_capabilities.cjs` 共享 5 assertion（command / skills / hooks / MCP+无 env._source / install-idempotency）；4 runtime × 5 capability = 20 新 conformance tests（Matrix N/A 项显式 skip —— Gemini hooks 是 graceful no-op；Codex MCP 用 marker-fence 识别 instead of sibling field，因为 TOML 不适合 nested object）；现有 8 smoke test 保留（端到端 MCP round-trip）。**Reviewer suggestion**：`adapters/_shared/tests/resolve-target.test.cjs` table-driven 21 tests 覆盖 `configDir > env > home/cwd` 优先级 + Gemini extensionRoot 追加；总计 +46 新测试（adapter +1 tomlEscape / settings-merge +1 rescue / validate +4 / rtk-detect 既有 / resolve-target +21 / conformance +20）；Phase 6 基线 186+ → **232 tests 全绿**，0 回归 | v0.1 publish 前的稳定性底线达成；4 runtime 全 capability 都有自动化防护网 |
-| **D44** | **2026-04-17** | **Phase 6 完成** — 监控与优化落地：(6.1) `adapters/_shared/rtk-detect.cjs` soft-dependency hook — `detectRtk` / `initRtk` / `installHook` 三入口 + install.js `--skip-rtk` flag + 缺失时打印安装 hint 不炸（测试用 `PATH=<iso-dir>:/usr/bin:/bin` 屏蔽真实 rtk，8 tests）；(6.2) `mcp-server/lib/{pricing,telemetry}.cjs` — pricing 表（claude/codex/opencode/gemini × opus/sonnet/haiku/default，2026-04 per-token 定价）+ `appendTelemetry` 双写 state.db.telemetry 表 + `.ultra/telemetry/{YYYY-MM-DD}.jsonl`（jsonl 保留 task_id + payload 全量，表只存聚合键）+ auto-computeCost（tokens + runtime → usd）+ state-ops 三聚合 `aggregateTelemetryByRuntime / byTask / bySession`（LEFT JOIN sessions 让 CLI 的 null session 落 'unknown' 桶）；MCP server.cjs handler wrap：每 tool call best-effort 埋点（error / UNKNOWN_TOOL / VALIDATION_ERROR 也记录）；CLI cli.cjs dispatch 入口 `emitCliTelemetry(sub, rest)` 自开 db best-effort 不阻塞主流程（12 tests）；(6.3) `ultra-tools/commands/status.cjs` + subcommand `ultra-tools status --cost [--json] [--since 7d] [--limit N]` — buildCostPanel 返回 `{period, by_runtime, top_tasks, total_cost_usd}`；human 渲染成表格 / --json 走 envelope；`parseSince` 支持 `7d/24h/30m/ISO-8601`；skills/ultra-status SKILL.md cli_fallback 升级为 `status --cost --json` + 加 Cost panel section（7 tests）；(6.4) `orchestrator/code-graph-watcher.cjs` — chokidar 3.6 + debounceMs=500 默认 + largeBatchThreshold=50 默认 + `includeExt` 白名单（.js/.ts/.py/.go/.rs/.java…）+ `excludeGlobs`（node_modules/.git/.ultra/dist/build/coverage/.next/.code-review-graph）+ awaitWriteFinish 稳定窗口 + `ready()` promise（解决 ignoreInitial=true 下仍漏初始 add event 的问题）；bin/orchestrator.js `run` 子命令加 `--with-graph-watcher` CLI flag + settings.json `orchestrator.graph_watcher: true` 自动挂载；batch 写入 `.ultra/code-graph-events.jsonl`，外部 MCP (build_or_update_graph_tool) 消费（6 tests + 端到端 jsonl 写入）；(6.5) stdout 拦截 skip → 留 v0.3+；总计 +33 Phase 6 tests（state 76→88 +12 telemetry / orch 26→32 +6 watcher / shared 15→23 +8 rtk / ultra-tools 0→7 status + cli 埋点），原 Phase 5 基线 153 → Phase 6 186+，0 回归 | v0.2 监控就绪；用户可在 daemon 开着的时候看实时 token/cost 分布，editor save 触发 graph 增量更新 |
+| **D45** | **2026-04-17** | **Phase 4 backlog 与 full conformance 完工** — 共享 capability assertions、三宿主 install/MCP/hook/skill/idempotency 覆盖与 `resolveTarget` 合约形成自动化防护网 | 当前三宿主 conformance 继续保留并由退役回归契约补强 |
+| **D44** | **2026-04-17** | **Phase 6 完成** — RTK soft dependency、三宿主 pricing/telemetry、成本面板与 code-graph watcher 落地 | 0.6.0 runtime allowlist 同步约束 telemetry 写入 |
 | **D43** | **2026-04-17** | **Phase 5 完成** — 执行层进阶四件套落地：(5.1) `orchestrator/recovery.cjs` `recoverOnBoot` 扫 orphan 用 `process.kill(pid,0)` 探测 pid 存活，死的 → crashed + `task_failure` event（5 tests 含 kill -9 真实集成）；(5.2) `circuit_breaker` 表（schema_version 升 4.5 → 5.2，`ensureSchemaVersion` 从 "latest row" 改 "exact match" 解决同 ms seed 排序不稳）+ `recordTaskFailure` 计数器（连续 ≥3 → `tripped_at` + `task_circuit_broken` 一次性 event）+ `resetCircuitBreaker` + `admissionCheck` 短路 `blocked_by_breaker` + `spawnSession` 抛 `CIRCUIT_TRIPPED`（7 tests，含 takeover 不可越过熔断）；(5.3) `markTasksStaleBySpecSections` + `consumeSpecChangedEvents` 游标消费 + projector `⚠️ STALE` banner（只对 pending + 幂等，10 tests）；(5.4) `orchestrator/daemon.cjs` 轮询 + `routeTask` 按 complexity_hint(haiku/sonnet/opus) 最简路由 + `bin/orchestrator.js` 四子命令 `run/start/stop/status` + `settings.json` `orchestrator.auto_dispatch` opt-in gate（11 tests + 手测 opt-in 拒启/pidfile 生命周期）；Recovery 明确不自动 retry（retry 留给 Phase 8B），仅计失败交给熔断；总计 108 tests 全绿（state 76 + orch 26 + spec 6），原 118 基线 +35 无回归 | v0.2 执行层进阶完工；可起 daemon 自动捡 pending task，熔断+恢复+staleness 闭环 |
 | **D42** | **2026-04-17** | **Phase 4.5 完成 — v0.1 发布就绪点** — execution-lite 落地：MCP 新增 7 个 session.* tool（spawn/close/get/list/admission_check/heartbeat/subscribe_events；spec 新增 session.list + meta-schema errors minItems 兼容）；state-ops 新增 readSession / heartbeatSession / admissionCheck / reapOrphanSessions（D32/D33）；`orchestrator/session-runner.cjs` 真 git worktree + child_process + state.db sessions 表 lease/heartbeat（替代 lease.json 文件 — grep 证代码零出现）；`ultra-tools session {list,admission,reap,get,heartbeat,close,subscribe}` 7 verb CLI；skills/ultra-status 升级读 session.list + session.subscribe_events；Phase 4.5 gate 全过（2 并发 session 隔离 / 并发 spawn 单活 / kill -9 → orphan 识别 / event subscribe ≤1s latency / 无文件+表双源）；总计 118 tests 全绿（state 59 + orch 8 + spec 6 + adapter/conformance/install 45）；0 回归 | v0.1 发布就绪点达成：用户装上即可跨 4 runtime 手动并发跑任务、会话独立、事件订阅、活跃会话可见。真·可用最小单元 |
 | **D47** | **2026-04-17** | **Phase 8A 完成 — planner 线就绪** — PRD → task graph → execution-plan 全链 MCP：(8A.0) schema 升 7.1 → 8A.1，tasks.parent_id TEXT REFERENCES tasks(id) ON DELETE SET NULL + `tasks_parent` 部分索引；EXPECTED_VERSION bump。(8A.1) `lib/llm-client.cjs` 官方 SDK 双 provider（`@anthropic-ai/sdk` + `openai`，+2 devDeps，用户选 D）按 model 前缀推（claude|opus|sonnet|haiku → anthropic；gpt|o1|o3 → openai），统一 `completeJson({system, user, maxTokens})`；`lib/prd-parser.cjs` Test Double 注入；`orchestrator/planner/prd-prompt.cjs` 模板；`task.parse_prd` input 加 `dry_run`（默认 false）实现 human-gate preview→approve；server.cjs dispatchTool 改 async。(8A.2) `lib/topo.cjs` Kahn + Tarjan SCC — 外部 dep 视已满足；有环返 CYCLE_DETECTED + `err.details.cycles`；errorResponse 扩展 optional `details`。(8A.3) `lib/task-expander.cjs` LLM prompt（sub_count 默认 3）→ 原子 tx（createTask children with parent_id + patchTask parent.status='expanded' → 自动 emit task_expanded）；server 前置 parent 检查避免无谓 LLM client 构造。(8A.4a) `orchestrator/planner/plan-builder.cjs` Functional Core；`listWaveConflicts` pair-wise files_modified 交集；parallel wave 取 max(complexity)，serial sum；cost 用 `pricing.computeCost`。(8A.4b) `lib/plan-store.cjs` `writeAtomic` 原子落 `.ultra/execution-plan.json`；`loadPlanArtifact` corrupt→null；`selectSection` 投影 tasks/topo/conflicts/all；emit plan_approved。(8A.5) `skills/ultra-plan` PRD Direct workflow — dry_run=true parse → buildPlan → ask.question → approve 走 dry_run=false + plan.export / reject 0 写入；frontmatter mcp_tools_required +5 tool。**spec 扩展**：task.create input 加 `files_modified` + `parent_id`；task.parse_prd input 加 `dry_run`。D46 基线 270 → **361 tests 全绿**（+91：state +71 / orch +20 / spec +5）；0 回归 | v0.3 planner 里程碑就绪；execution-plan.json 是 Phase 8B 的权威输入；dry_run 是 human-gate 最小扩展 |
 | **D48** | **2026-04-18** | **Phase 8B 完成 — executor 线就绪，v0.3 coding 工厂可用** — (8B.0) schema 不动（tasks.files_modified/session_id/parent_id 齐备）；events 新增 5 type（wave_started / wave_completed / plan_completed / merged_back / merge_conflict），利用 events.type 无 CHECK 约束向后兼容。(8B.1) `orchestrator/dispatch-rules.cjs` 声明式规则数组（GSD-2 模式）：`evaluate(ctx, rules)` 按 priority 取首个 match 返 `{rule_id, action, runtime}`；3 action（`spawn_agent`/`defer`/`block`）；6 DEFAULT_RULES（breaker-blocked / deps-not-ready / no-runtimes / wave-conflict / by-preference / fallback-first-available）；ROUTE_PREFERENCES 从 daemon.cjs 移过来；daemon.routeTask 改为 `evaluate` 的 thin wrapper，Phase 5.4 daemon 6 routeTask 测试 0 回归。(8B.2) `orchestrator/parallel-orchestrator.cjs` 读 plan waves → wave.parallel=true 批 `Promise.all` / parallel=false await 串行；前置 dispatch-rules.evaluate；`STATUS_TRANSITIONS` 约束要求 spawn 后 patchTask(in_progress)，exit 后 patchTask(completed|pending)；失败 task 不短路同 wave 其他任务；`finalizeSession` 调 `closeSession` 统一 session+worktree+可选 autoMerge 生命周期；runPlan 加 `autoMerge`/`mergeBaseBranch` opt-in（默认关，Phase 4/5/6/7/8A 0 回归）。(8B.3) `orchestrator/worktree-manager.cjs` N 并发 git worktree 注册簿：allocate/release/listActive/releaseAll；`listActive` 用 `git worktree list --porcelain` + realpath 规范化（macOS `/var`↔`/private/var` 符号链接坑）+ `.ultra/worktrees/` 域过滤；`releaseAll` 兼作崩溃恢复（git-tracked 清理 + 文件系统孤儿 sweep）；Node 单线程 execFileSync 天然序列化避免 `.git/config.lock` 竞争。(8B.4) `orchestrator/auto-merge.cjs` — autoMerge 三出口（no_changes / merged_back / merge_conflict）；冲突路径用 `git diff --name-only --diff-filter=U` 在 abort 之前收集；closeSession 加 `autoMerge`/`mergeBaseBranch` opt-in，conflict 时强制 `remove_worktree=false` 保留 worktree 给人。(8B.5 gate) `orchestrator/tests/phase-8b-gate.test.cjs` 三条 gate 全过：10-task PRD 端到端完成率 100%（要求 ≥80%）；5 slice 压力 0 git lock 错误；merge 冲突正确识别 + conflict_paths 准确。**总计 +36 tests**（dispatch-rules +12 / worktree-manager +8 / parallel-orchestrator +7 / auto-merge +6 / gate +3），D47 基线 361 → **397 tests 全绿**（state 182 / orch 103 / spec 6 / rest 106），0 回归 | **v0.3 = 自动化 coding 工厂**：8A plan → 8B 执行 → 冲突人审 全链打通；autoMerge 默认关保留手动控制；worktree 全生命周期可观测可恢复 |
 | **D50** | **2026-07-15** | **重划插件与记忆边界**：Claude Code、Codex、OpenCode 改为各自 native plugin；只打包 10 个 Ultra 公共 workflow、4 个 agent-only 规则 skill 与宿主专属 collab companion；删除 6 个外部 skill、recall、Impeccable 残留、Ultra memory MCP/store/wrapper/capture hooks；持久记忆由独立 cloud-mem/claude-mem 负责；用户 handbook 通过可预览、可备份的 managed block 显式同步 | 用户确认最终方案；运行时 allowlist、conformance、hook 与 handbook 回归测试共同锁定边界 |
+| **D51** | **2026-07-17** | **runtime 收敛为 Claude Code、OpenCode、Codex**：删除第四 runtime 的 adapter、安装参数、collab skill、prompt、schema、pricing、调度与测试面；`ultra-verify` 改为当前宿主主责加单一只读外部顾问 | 用户确认不再需要第四 runtime；0.6.0 退役契约阻止其重新进入活跃源码或发布包 |
 
 ---
 
@@ -1651,8 +1644,8 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 - **activity-log**：**state.db `events` 表**（v0.3 起不再是文件）；append-
   only 事件流；Phase 2 建立，全程消费；`.ultra/activity-log.json` 是可选
   只读导出。
-- **AGENTS.md**：各 runtime 原生的项目上下文文件（Claude 叫 CLAUDE.md，
-  Gemini 叫 GEMINI.md）；Phase 3.7 统一注入。
+- **AGENTS.md**：各 runtime 原生的项目上下文文件（Claude 使用 CLAUDE.md）；
+  Phase 3.7 统一注入。
 - **DISPATCH_RULES**：GSD-2 的声明式分派规则表，Phase 8B 移植。
 - **Execution-lite**：v0.1 发布的最小执行层 = session 标准单元 + admission
   + event subscribe + 活跃会话可见；Phase 4.5 / D19。

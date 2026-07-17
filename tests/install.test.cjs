@@ -62,7 +62,6 @@ const RUNTIMES = [
       'ultra-builder-pro/install-manifest.json',
     ],
   },
-  { flag: '--gemini',   name: 'gemini',   expectRelPaths: ['extensions/ultra-builder-pro/gemini-extension.json'] },
 ];
 
 for (const rt of RUNTIMES) {
@@ -88,22 +87,20 @@ for (const rt of RUNTIMES) {
   });
 }
 
-test('install.js — --all fans out to all four runtimes', () => {
-  const targets = RUNTIMES.map((r) => ({ ...r, dir: mkTarget(`all-${r.name}`) }));
-  // `--all` uses the runtime's default config dir, but we want an isolated
-  // target for the test — run each runtime individually via its flag so we
-  // can pass a distinct --config-dir (install.js v1 keeps --config-dir a single path).
+test('install.js — --all fans out to every supported runtime', () => {
+  const target = mkTarget('all');
+  const localRoots = { claude: '.claude', opencode: '.opencode', codex: '' };
   try {
-    for (const t of targets) {
-      const r = runCli([t.flag, '--config-dir', t.dir], { homeDir: t.dir });
-      assert.equal(r.status, 0, `${t.name} install via --all loop stderr:\n${r.stderr}`);
-    }
-    // Confirm each target received assets
-    for (const t of targets) {
-      assert.ok(fs.existsSync(path.join(t.dir, t.expectRelPaths[0])));
+    const installed = runCli(['--all', '--local'], { cwd: target, homeDir: target });
+    assert.equal(installed.status, 0, `--all install stderr:\n${installed.stderr}`);
+    for (const runtime of RUNTIMES) {
+      assert.ok(
+        fs.existsSync(path.join(target, localRoots[runtime.name], runtime.expectRelPaths[0])),
+        runtime.name,
+      );
     }
   } finally {
-    for (const t of targets) cleanup(t.dir);
+    cleanup(target);
   }
 });
 
@@ -140,6 +137,11 @@ test('install.js — argument parsing errors fail with exit 1', () => {
   const unknownFlag = runCli(['--claude', '--bogus']);
   assert.equal(unknownFlag.status, 1);
   assert.match(unknownFlag.stderr, /unknown flag/);
+
+  const retiredFlag = `--${['gem', 'ini'].join('')}`;
+  const retiredRuntime = runCli([retiredFlag, '--local']);
+  assert.equal(retiredRuntime.status, 1);
+  assert.match(retiredRuntime.stderr, /unknown flag/);
 });
 
 // P3 #13 / D45: --config-dir NUL-byte rejection — unit-tested via

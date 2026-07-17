@@ -89,7 +89,7 @@ test('install builds one Codex-native plugin with complete skill and command cov
 
     const expectedSkills = skillsForRuntime('codex').sort();
     assert.deepEqual(skillNames(layout.pluginRoot), expectedSkills);
-    assert.equal(expectedSkills.length, 17);
+    assert.equal(expectedSkills.length, 16);
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'codex-collab')));
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'learned')));
 
@@ -117,7 +117,7 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
       assert.equal(fm.name, name);
       assert.doesNotMatch(
         text,
-        /~\/\.claude|CLAUDE\.md|AskUserQuestion|(^|[\s`(>])\/(?:ultra-[a-z-]+|recall|learn|gemini-collab|codex-collab)(?=$|[\s`,.;):])/m,
+        /~\/\.claude|CLAUDE\.md|AskUserQuestion|(^|[\s`(>])\/(?:ultra-[a-z-]+|recall|learn|codex-collab)(?=$|[\s`,.;):])/m,
       );
       assert.doesNotMatch(text, /TaskCreate|TaskUpdate|TaskList|TaskOutput|run_in_background|~\/\.codex\/skills|mcp__claude/);
 
@@ -135,13 +135,12 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
     const verify = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-verify', 'SKILL.md'), 'utf8');
     assert.match(verify, /Codex owns the task/);
     assert.match(verify, /claude --safe-mode/);
-    assert.match(verify, /gemini --approval-mode plan/);
     assert.match(verify, /codex-analysis\.md/);
     assert.doesNotMatch(verify, /codex-output\.md|Claude synthesizes|Claude-only/);
 
     const waiter = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-verify', 'scripts', 'verify_wait.py'), 'utf8');
-    assert.match(waiter, /"claude": "claude-output\.md"/);
-    assert.doesNotMatch(waiter, /"codex": "codex-output\.md"/);
+    assert.match(waiter, /ADVISOR = "claude"/);
+    assert.match(waiter, /OUTPUT_FILE = "claude-output\.md"/);
 
     const review = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-review', 'SKILL.md'), 'utf8');
     assert.match(review, /native Codex custom agents/);
@@ -179,7 +178,7 @@ test('install converts all nine Claude agents into native Codex agent TOML', () 
       assert.match(text, /^developer_instructions = """/m);
       assert.doesNotMatch(
         text,
-        /model = "opus"|^tools =|^memory =|maxTurns|CLAUDE\.md|AskUserQuestion|(^|[\s`(>])\/(?:ultra-[a-z-]+|recall|learn|gemini-collab|codex-collab)(?=$|[\s`,.;):])/m,
+        /model = "opus"|^tools =|^memory =|maxTurns|CLAUDE\.md|AskUserQuestion|(^|[\s`(>])\/(?:ultra-[a-z-]+|recall|learn|codex-collab)(?=$|[\s`,.;):])/m,
       );
     }
   } finally {

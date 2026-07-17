@@ -11,12 +11,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { evaluate, DEFAULT_RULES, ROUTE_PREFERENCES } = require('../dispatch-rules.cjs');
+const RETIRED_RUNTIME = ['gem', 'ini'].join('');
 
 function baseCtx(overrides = {}) {
   return {
     task: { id: 't1' },
     deps_ready: true,
-    available_runtimes: ['claude', 'opencode', 'codex', 'gemini'],
+    available_runtimes: ['claude', 'opencode', 'codex'],
     breaker_state: 'ok',
     wave: null,
     ...overrides,
@@ -42,7 +43,7 @@ test('evaluate: opus hint + only codex available → codex', () => {
 test('evaluate: opus hint + preference exhausted → first available fallback', () => {
   const d = evaluate(baseCtx({
     task: { id: 't', complexity_hint: 'opus' },
-    available_runtimes: ['opencode', 'gemini'],
+    available_runtimes: ['opencode'],
   }));
   assert.equal(d.action, 'spawn_agent');
   assert.equal(d.runtime, 'opencode');
@@ -58,13 +59,13 @@ test('evaluate: sonnet hint + all available → claude', () => {
   assert.equal(d.runtime, 'claude');
 });
 
-test('evaluate: no hint → first available fallback', () => {
+test('evaluate: retired runtimes are discarded before fallback routing', () => {
   const d = evaluate(baseCtx({
     task: { id: 't' },
-    available_runtimes: ['gemini', 'claude'],
+    available_runtimes: [RETIRED_RUNTIME, 'claude'],
   }));
   assert.equal(d.action, 'spawn_agent');
-  assert.equal(d.runtime, 'gemini');
+  assert.equal(d.runtime, 'claude');
 });
 
 // ─── block / defer paths (new in 8B.1) ────────────────────────────────────
@@ -97,20 +98,21 @@ test('evaluate: serial wave already has running task → defer', () => {
 
 // ─── composability: custom rules override defaults ────────────────────────
 
-test('evaluate: custom high-priority rule overrides defaults', () => {
+test('evaluate: custom rules cannot select an unsupported runtime', () => {
   const customRules = [
     ...DEFAULT_RULES,
     {
-      id: 'force-gemini',
+      id: 'force-retired-runtime',
       priority: 999,
       when: () => true,
       action: 'spawn_agent',
-      resolve: () => 'gemini',
+      resolve: () => RETIRED_RUNTIME,
     },
   ];
   const d = evaluate(baseCtx({ task: { id: 't', complexity_hint: 'opus' } }), customRules);
-  assert.equal(d.runtime, 'gemini');
-  assert.equal(d.rule_id, 'force-gemini');
+  assert.equal(d.action, 'block');
+  assert.equal(d.runtime, null);
+  assert.equal(d.rule_id, 'force-retired-runtime');
 });
 
 // ─── ROUTE_PREFERENCES shape guard (regression: don't drift from Phase 5.4) ─

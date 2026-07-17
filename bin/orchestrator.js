@@ -22,6 +22,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { isSupportedRuntime } = require('../adapters/_shared/runtime-assets.cjs');
 
 const REPO_ROOT = process.env.UBP_REPO_ROOT || process.cwd();
 const PIDFILE = path.join(REPO_ROOT, '.ultra', 'orchestrator.pid');
@@ -46,8 +47,13 @@ function optInAllowed(settings) {
 }
 
 function parseRuntimes() {
-  const raw = process.env.UBP_ORCH_RUNTIMES || 'claude,opencode,codex,gemini';
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  const raw = process.env.UBP_ORCH_RUNTIMES || 'claude,opencode,codex';
+  const runtimes = [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))];
+  const invalid = runtimes.filter((runtime) => !isSupportedRuntime(runtime));
+  if (invalid.length > 0) {
+    throw new Error(`unsupported orchestrator runtime(s): ${invalid.join(', ')}`);
+  }
+  return runtimes;
 }
 
 function cmdRun(opts = {}) {
@@ -61,11 +67,12 @@ function cmdRun(opts = {}) {
   }
   const { initStateDb } = require('../mcp-server/lib/state-db.cjs');
   const { runDaemon } = require('../orchestrator/daemon.cjs');
+  const runtimes = parseRuntimes();
   const { db } = initStateDb(path.join(REPO_ROOT, '.ultra', 'state.db'));
   const handle = runDaemon({
     db,
     repoRoot: REPO_ROOT,
-    runtimes: parseRuntimes(),
+    runtimes,
     pollMs: Number(process.env.UBP_ORCH_POLL_MS || 1000),
     onError: (err) => process.stderr.write(`orchestrator error: ${err.message}\n`),
   });
@@ -102,7 +109,7 @@ function cmdRun(opts = {}) {
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-  process.stderr.write(`orchestrator running (pollMs=${Number(process.env.UBP_ORCH_POLL_MS || 1000)}, runtimes=${parseRuntimes().join(',')})\n`);
+  process.stderr.write(`orchestrator running (pollMs=${Number(process.env.UBP_ORCH_POLL_MS || 1000)}, runtimes=${runtimes.join(',')})\n`);
   // Keep process alive while the setInterval is unref'd.
   setInterval(() => {}, 60000);
 }

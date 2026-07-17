@@ -14,7 +14,6 @@ const RUNTIME_SKILL_ROOT = {
   claude: '.claude/skills',
   opencode: '.config/opencode/skills',
   codex: '.agents/skills',
-  gemini: '.gemini/extensions/ultra-builder-pro/skills',
 };
 
 function parseSkillRef(ref) {
@@ -52,7 +51,6 @@ function runtimeRoot(runtime) {
     case 'claude': return '.claude';
     case 'opencode': return '.config/opencode';
     case 'codex': return '.agents';
-    case 'gemini': return '.gemini/extensions/ultra-builder-pro';
     default: throw new Error(`unknown runtime: ${runtime}`);
   }
 }
@@ -62,7 +60,6 @@ function localRoot(runtime) {
     case 'claude': return '.claude';
     case 'opencode': return '.opencode';
     case 'codex': return '.agents';
-    case 'gemini': return '.gemini/extensions/ultra-builder-pro';
     default: throw new Error(`unknown runtime: ${runtime}`);
   }
 }

@@ -9,6 +9,7 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const {
   CORE_PUBLIC_SKILLS,
   INTERNAL_AGENT_SKILLS,
+  SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
   RETIRED_SKILLS,
   WORKFLOW_HOOK_FILES,
@@ -51,19 +52,17 @@ test('runtime asset manifest exposes only Ultra-owned core and internal skills',
   assert.deepEqual(RETIRED_SKILLS, RETIRED);
 
   assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.claude, [
-    'codex-collab', 'gemini-collab', 'ultra-verify',
+    'codex-collab', 'ultra-verify',
   ]);
   assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.codex, [
-    'cc-collab', 'gemini-collab', 'ultra-verify',
+    'cc-collab', 'ultra-verify',
   ]);
   assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.opencode, [
-    'cc-collab', 'codex-collab', 'gemini-collab', 'ultra-verify',
-  ]);
-  assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.gemini, [
     'cc-collab', 'codex-collab', 'ultra-verify',
   ]);
+  assert.deepEqual(SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex']);
 
-  for (const runtime of ['claude', 'codex', 'opencode', 'gemini']) {
+  for (const runtime of SUPPORTED_RUNTIMES) {
     const names = skillsForRuntime(runtime);
     for (const retired of RETIRED) assert.ok(!names.includes(retired));
     assert.ok(!names.some((name) => /impeccable/i.test(name)));

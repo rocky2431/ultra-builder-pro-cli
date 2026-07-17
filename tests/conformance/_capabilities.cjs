@@ -4,7 +4,7 @@
 //
 // Each runtime's conformance.test.cjs plugs a runtime config object into
 // the helpers below and runs 5 capability checks against its adapter.
-// Keeping the assertions here avoids copy-paste between 4 runtime files.
+// Keeping the assertions here avoids copy-paste between runtime files.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -43,10 +43,6 @@ function assertSkillsPackaging(target, cfg) {
 
 // Capability 3 — Hook configuration in runtime-native location
 function assertHookConfig(target, cfg) {
-  if (cfg.hookCheck === 'skip') {
-    // Matrix says N/A for this runtime (Gemini) — documented graceful no-op.
-    return;
-  }
   cfg.hookCheck(target);
 }
 

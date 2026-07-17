@@ -6,7 +6,7 @@ Phase 3 产物。所有 `/ultra-*` 命令文件（`commands/ultra-*.md`）必须
 - 通过 `workflow-ref` frontmatter 字段指向对应 skill
 
 这么做的原因（PLAN §6 Phase 3）：
-- **跨 runtime**：OpenCode / Codex / Gemini 有各自的命令格式，薄壳好转换
+- **跨 runtime**：OpenCode / Codex 有各自的命令格式，薄壳好转换
 - **单源真相**：每条 workflow 只有 skill 一份，避免命令文件和 skill 双写漂移
 - **测试边界**：命令文件几乎无逻辑，验收只看是否正确 include skill
 

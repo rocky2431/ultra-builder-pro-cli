@@ -4,14 +4,14 @@
  * ultra-builder-pro-cli — multi-runtime installer.
  *
  * Distributes Ultra Builder Pro assets — commands, agents, skills, hooks,
- * MCP server — to Claude Code, OpenCode, Codex CLI, and Gemini CLI via
+ * MCP server — to Claude Code, OpenCode, and Codex CLI via
  * runtime-specific adapters under adapters/. Install is idempotent and
  * uses atomic writes; uninstall reverses via sentinel/manifest blocks.
  *
  * Usage:
  *   npx ultra-builder-pro-cli [options]
  *
- *   --claude / --opencode / --codex / --gemini   select runtime(s)
+ *   --claude / --opencode / --codex              select runtime(s)
  *   --all                                         install to all supported runtimes
  *   -g, --global                                  install to runtime's global config dir
  *   -l, --local                                   install into current working directory
@@ -29,8 +29,7 @@ const os = require('node:os');
 
 const pkg = require('../package.json');
 const { validateConfigDir } = require('../adapters/_shared/validate.cjs');
-
-const SUPPORTED_RUNTIMES = ['claude', 'opencode', 'codex', 'gemini'];
+const { SUPPORTED_RUNTIMES } = require('../adapters/_shared/runtime-assets.cjs');
 
 const COLORS = {
   reset: '\x1b[0m',
@@ -58,7 +57,7 @@ function printBanner() {
     paint('cyan', '   ╚═════╝ ╚═════╝ ╚═╝         ╚═════╝╚══════╝╚═╝'),
     '',
     `  ${paint('bold', 'Ultra Builder Pro CLI')} ${paint('dim', 'v' + pkg.version)}`,
-    `  ${paint('dim', 'Multi-runtime installer for Claude Code, OpenCode, Codex, Gemini')}`,
+    `  ${paint('dim', 'Multi-runtime installer for Claude Code, OpenCode, and Codex')}`,
     '',
   ];
   console.log(banner.join('\n'));
@@ -71,7 +70,6 @@ function printHelp() {
     ${paint('cyan', '--claude')}           Claude Code
     ${paint('cyan', '--opencode')}         OpenCode
     ${paint('cyan', '--codex')}            Codex CLI (OpenAI)
-    ${paint('cyan', '--gemini')}           Gemini CLI (Google)
     ${paint('cyan', '--all')}              all supported runtimes
 
   ${paint('yellow', 'Scope:')}
@@ -89,7 +87,7 @@ function printHelp() {
     ${paint('dim', '# Install to Claude Code globally')}
     npx ultra-builder-pro-cli --claude --global
 
-    ${paint('dim', '# Install to all 4 runtimes locally in this repo')}
+    ${paint('dim', '# Install to all supported runtimes locally in this repo')}
     npx ultra-builder-pro-cli --all --local
 
     ${paint('dim', '# Uninstall from OpenCode')}
@@ -116,7 +114,6 @@ function parseArgs(argv) {
       case '--claude': runtimes.add('claude'); break;
       case '--opencode': runtimes.add('opencode'); break;
       case '--codex': runtimes.add('codex'); break;
-      case '--gemini': runtimes.add('gemini'); break;
       case '--all':
         SUPPORTED_RUNTIMES.forEach(r => runtimes.add(r));
         break;
@@ -193,7 +190,7 @@ async function main() {
   }
 
   if (runtimes.length === 0) {
-    bail('no runtime selected; use --claude / --opencode / --codex / --gemini / --all');
+    bail('no runtime selected; use --claude / --opencode / --codex / --all');
   }
 
   const scope = resolveScope(flags);

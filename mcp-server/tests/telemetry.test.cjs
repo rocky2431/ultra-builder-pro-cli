@@ -140,6 +140,20 @@ test('appendTelemetry event_type constraint: invalid value rejected', () => {
   } finally { teardown(dir, db); }
 });
 
+test('appendTelemetry rejects unsupported runtime labels', () => {
+  const { dir, db } = freshFixture();
+  const retiredRuntime = ['gem', 'ini'].join('');
+  try {
+    assert.throws(
+      () => telemetry.appendTelemetry(db, {
+        event_type: 'tool_call', runtime: retiredRuntime, rootDir: dir,
+      }),
+      /unsupported runtime/,
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM telemetry').get().n, 0);
+  } finally { teardown(dir, db); }
+});
+
 // ─── aggregation ─────────────────────────────────────────────────────────
 
 test('aggregateTelemetryByRuntime: groups calls + sums tokens/cost', () => {

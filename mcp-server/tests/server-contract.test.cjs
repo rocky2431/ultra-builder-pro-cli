@@ -390,6 +390,23 @@ test('session.admission_check + session.spawn: happy path returns sid and paths'
   }
 });
 
+test('session.spawn rejects a retired runtime at the MCP schema boundary', async () => {
+  const proj = tmpProject();
+  const retiredRuntime = ['gem', 'ini'].join('');
+  try {
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-runtime-guard');
+      const spawn = await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-runtime-guard', runtime: retiredRuntime },
+      });
+      assert.equal(expectError(spawn).code, 'VALIDATION_ERROR');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('session.spawn refuses second session for same task without takeover (ADMISSION_DENIED)', async () => {
   const proj = tmpProject();
   try {

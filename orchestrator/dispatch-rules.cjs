@@ -13,9 +13,11 @@
 // parallel orchestrator (8B.2) gets a richer decision surface: wave state,
 // deps readiness, and custom rule injection.
 
+const { isSupportedRuntime } = require('../adapters/_shared/runtime-assets.cjs');
+
 const ROUTE_PREFERENCES = Object.freeze({
-  haiku:  ['opencode', 'gemini', 'claude', 'codex'],
-  sonnet: ['claude', 'codex', 'opencode', 'gemini'],
+  haiku:  ['opencode', 'claude', 'codex'],
+  sonnet: ['claude', 'codex', 'opencode'],
   opus:   ['claude', 'codex'],
 });
 
@@ -73,12 +75,21 @@ const DEFAULT_RULES = Object.freeze([
 ]);
 
 function evaluate(ctx, rules = DEFAULT_RULES) {
+  const normalizedCtx = {
+    ...ctx,
+    available_runtimes: Array.isArray(ctx && ctx.available_runtimes)
+      ? [...new Set(ctx.available_runtimes.filter(isSupportedRuntime))]
+      : [],
+  };
   const sorted = [...rules].sort((a, b) => (b.priority || 0) - (a.priority || 0));
   for (const rule of sorted) {
-    if (rule.when(ctx)) {
+    if (rule.when(normalizedCtx)) {
       let runtime = null;
       if (rule.action === 'spawn_agent') {
-        runtime = rule.resolve ? rule.resolve(ctx) : (rule.runtime || null);
+        runtime = rule.resolve ? rule.resolve(normalizedCtx) : (rule.runtime || null);
+        if (!isSupportedRuntime(runtime)) {
+          return { rule_id: rule.id, action: 'block', runtime: null };
+        }
       }
       return { rule_id: rule.id, action: rule.action, runtime };
     }

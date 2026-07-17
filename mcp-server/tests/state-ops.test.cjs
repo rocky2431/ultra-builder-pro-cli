@@ -194,6 +194,29 @@ test('createSession requires existing task and emits session_spawned', () => {
   }
 });
 
+test('runtime-bearing mutations reject unsupported runtimes before touching state', () => {
+  const { dir, db } = freshDb();
+  const retiredRuntime = ['gem', 'ini'].join('');
+  try {
+    ops.createTask(db, { id: 'runtime-guard', title: 'guard', type: 'feature', priority: 'P1' });
+    assert.throws(
+      () => ops.createSession(db, {
+        sid: 'unsupported', task_id: 'runtime-guard', runtime: retiredRuntime,
+        worktree_path: '/tmp/wt', artifact_dir: '/tmp/art',
+      }),
+      (error) => error.code === 'VALIDATION_ERROR' && /unsupported runtime/.test(error.message),
+    );
+    assert.throws(
+      () => ops.appendEvent(db, { type: 'task_started', task_id: 'runtime-guard', runtime: retiredRuntime }),
+      (error) => error.code === 'VALIDATION_ERROR' && /unsupported runtime/.test(error.message),
+    );
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sessions").get().n, 0);
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('updateSession status=completed emits session_closed', () => {
   const { dir, db } = freshDb();
   try {

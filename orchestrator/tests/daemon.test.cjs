@@ -15,6 +15,7 @@ const { execFileSync } = require('node:child_process');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
 const daemon = require('../daemon.cjs');
+const RETIRED_RUNTIME = ['gem', 'ini'].join('');
 
 const LONG_SLEEP_CMD = process.execPath;
 const LONG_SLEEP_ARGS = ['-e', 'setInterval(() => {}, 60000);'];
@@ -55,15 +56,15 @@ function cleanup(repoRoot, db, handle) {
 test('routeTask: haiku hint prefers cheap runtimes', () => {
   const runtime = daemon.routeTask(
     { id: 't', complexity_hint: 'haiku' },
-    ['claude', 'opencode', 'codex', 'gemini'],
+    ['claude', 'opencode', 'codex'],
   );
-  assert.ok(['opencode', 'gemini'].includes(runtime), `got ${runtime}`);
+  assert.equal(runtime, 'opencode');
 });
 
 test('routeTask: opus hint prefers strong runtimes', () => {
   const runtime = daemon.routeTask(
     { id: 't', complexity_hint: 'opus' },
-    ['claude', 'opencode', 'codex', 'gemini'],
+    ['claude', 'opencode', 'codex'],
   );
   assert.ok(['claude', 'codex'].includes(runtime), `got ${runtime}`);
 });
@@ -71,23 +72,23 @@ test('routeTask: opus hint prefers strong runtimes', () => {
 test('routeTask: sonnet hint middle-ground', () => {
   const runtime = daemon.routeTask(
     { id: 't', complexity_hint: 'sonnet' },
-    ['claude', 'opencode', 'codex', 'gemini'],
+    ['claude', 'opencode', 'codex'],
   );
-  assert.ok(['claude', 'codex', 'opencode', 'gemini'].includes(runtime));
+  assert.ok(['claude', 'codex', 'opencode'].includes(runtime));
 });
 
 test('routeTask: respects availability constraint', () => {
   const runtime = daemon.routeTask(
     { id: 't', complexity_hint: 'opus' },
-    ['opencode', 'gemini'],
+    ['opencode'],
   );
   // Prefers claude/codex but those aren't available → fall back to any.
-  assert.ok(['opencode', 'gemini'].includes(runtime));
+  assert.equal(runtime, 'opencode');
 });
 
-test('routeTask: no hint → first available', () => {
-  const runtime = daemon.routeTask({ id: 't' }, ['gemini', 'claude']);
-  assert.ok(['gemini', 'claude'].includes(runtime));
+test('routeTask: no hint skips unsupported runtimes', () => {
+  const runtime = daemon.routeTask({ id: 't' }, [RETIRED_RUNTIME, 'claude']);
+  assert.equal(runtime, 'claude');
 });
 
 test('routeTask: no runtimes available → null', () => {
@@ -244,7 +245,7 @@ test('runDaemon applies complexity_hint route', async () => {
     });
     handle = daemon.runDaemon({
       db, repoRoot,
-      runtimes: ['claude', 'opencode', 'gemini'],
+      runtimes: ['claude', 'opencode'],
       pollMs: 50,
       command: LONG_SLEEP_CMD,
       commandArgs: LONG_SLEEP_ARGS,
@@ -252,7 +253,7 @@ test('runDaemon applies complexity_hint route', async () => {
     await new Promise((r) => setTimeout(r, 300));
     const sessions = db.prepare("SELECT * FROM sessions WHERE task_id = 'd-opus'").all();
     assert.equal(sessions.length, 1);
-    // opus should prefer claude over opencode/gemini.
+    // opus should prefer claude over opencode.
     assert.equal(sessions[0].runtime, 'claude');
   } finally {
     cleanup(repoRoot, db, handle);

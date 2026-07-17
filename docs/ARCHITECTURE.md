@@ -10,8 +10,7 @@
 
 `ultra-builder-pro-cli` is a multi-runtime plugin suite that **distributes** the
 Ultra Builder Pro engineering loop (skills + commands + workflow hooks) as
-native Claude Code, OpenCode, and Codex plugins, with a Gemini compatibility
-adapter, and
+native Claude Code, OpenCode, and Codex plugins, and
 **runs** that loop with isolated sessions sharing one authoritative state
 store (`.ultra/state.db`).
 
@@ -24,7 +23,7 @@ the supported hosts share.
                        ┌──────────────────────────┐
                        │       runtime CLI        │
                        │  (claude / opencode /    │
-                       │   codex / gemini)        │
+                       │   codex)                 │
                        └────────────┬─────────────┘
                                     │
                 ┌───────────────────┼────────────────────┐
@@ -53,7 +52,7 @@ the supported hosts share.
 
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
-| **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all four runtimes |
+| **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
 | **MCP**      | authoritative workflow-state API             | stdio MCP server exposing seven declared tool families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml); 21 tools are live and nine scheduled contracts map to host-native surfaces |
 | **CLI**      | the lowest common denominator hooks can call  | `ultra-tools <family> <verb>` — same contract, last-line JSON envelope (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 

@@ -26,12 +26,10 @@ test('resolveSkillRef routes to runtime-specific root under homeDir', () => {
   const claude = resolveSkillRef('@skills/ultra-init/SKILL.md', { runtime: 'claude', homeDir: home });
   const opencode = resolveSkillRef('@skills/ultra-init/SKILL.md', { runtime: 'opencode', homeDir: home });
   const codex = resolveSkillRef('@skills/ultra-init/SKILL.md', { runtime: 'codex', homeDir: home });
-  const gemini = resolveSkillRef('@skills/ultra-init/SKILL.md', { runtime: 'gemini', homeDir: home });
 
   assert.equal(claude, path.join(home, '.claude/skills/ultra-init/SKILL.md'));
   assert.equal(opencode, path.join(home, '.config/opencode/skills/ultra-init/SKILL.md'));
   assert.equal(codex, path.join(home, '.agents/skills/ultra-init/SKILL.md'));
-  assert.equal(gemini, path.join(home, '.gemini/extensions/ultra-builder-pro/skills/ultra-init/SKILL.md'));
 
   assert.throws(
     () => resolveSkillRef('@skills/ultra-init/SKILL.md', { runtime: 'unknown', homeDir: home }),
@@ -47,7 +45,7 @@ test('rewriteWorkflowRefInText + resolveAssetTarget give predictable paths', () 
   assert.equal(out, `see ${path.join(home, '.claude/skills/ultra-init/SKILL.md')} for details`);
 
   // Cover every runtime × every scope so runtimeRoot/localRoot branches hit
-  for (const rt of ['claude', 'opencode', 'codex', 'gemini']) {
+  for (const rt of ['claude', 'opencode', 'codex']) {
     const g = resolveAssetTarget('x', { runtime: rt, scope: 'global', homeDir: home, cwd });
     const l = resolveAssetTarget('x', { runtime: rt, scope: 'local', homeDir: home, cwd });
     assert.ok(g.startsWith(home));

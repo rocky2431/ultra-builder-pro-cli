@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-17
+
+### Changed
+
+- Reduced the supported host matrix to Claude Code, OpenCode, and Codex.
+- Reworked `ultra-verify` into independent two-model verification: the current
+  host remains primary, one read-only external advisor supplies a second view,
+  and evidence rather than model voting determines confidence.
+- Restricted orchestrator routing, MCP session/event inputs, telemetry writes,
+  state schema enums, installer flags, package metadata, and handbooks to the
+  three supported runtimes.
+
+### Removed
+
+- Removed the Gemini CLI adapter, `--gemini` installer surface, extension and
+  conformance packaging, pricing entries, `gemini-collab`, and all active Ultra
+  prompts and documentation that offered Gemini as an advisor or runtime.
+
+### Fixed
+
+- Added a retirement regression contract so unsupported runtimes cannot
+  re-enter active source, package, schema, prompt, or generated plugin surfaces.
+- Rejects unsupported runtime labels before state, event, or telemetry writes,
+  including old databases whose historical SQLite constraints were broader.
+
 ## [0.5.3] — 2026-07-17
 
 ### Fixed
@@ -59,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added first-class native Claude Code and OpenCode plugin builders alongside
   the Codex personal plugin. All hosts build from one explicit runtime asset
-  allowlist; Gemini remains a compatibility extension using the same boundary.
+  allowlist; the then-supported compatibility extension used the same boundary.
 - Added `ubp-handbook` for previewed, backed-up managed-block integration with
   user-level Claude `CLAUDE.md`, Codex `AGENTS.md`, and OpenCode `AGENTS.md`.
 - Added `ultra-tools legacy-memory inspect|archive|prune`; prune requires the
@@ -87,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the npm package, and fixed `session.subscribe_events` sid filtering.
 - Aligned session/plan input schemas with runtime behavior, including circuit
   breaker output, session spawn intent semantics, and removal of ignored inputs.
-- Bundled Gemini's compatibility MCP runtime durably and restored project-local
+- Bundled the compatibility MCP runtime durably and restored project-local
   `.ultra/state.db` ownership across all adapters.
 - Exported the documented `ultra-tools` executable and included every README
   documentation target in the npm tarball.
@@ -193,8 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Phase 4.6b — full conformance suite** (D45): 4 runtime × 5 capability
   (command / skills / hooks / MCP + no `env._source` leak / install idempotency)
   = 20 additional conformance tests; table-driven `resolve-target.test.cjs`
-  (21 tests) covering `configDir > env > home/cwd` precedence + Gemini
-  extensionRoot append; schema bump 5.2 → 7.1 alongside memory store.
+  (21 tests) covering `configDir > env > home/cwd` precedence and extension
+  root resolution; schema bump 5.2 → 7.1 alongside memory store.
 
 ### Changed
 
@@ -213,9 +238,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   admission control with takeover / resume / abandon strategies (D33).
 - **Phase 4 — cross-runtime distribution** (D41, `5aa1fd0`): shared adapter
   toolkit (`adapters/_shared/` — file-ops / frontmatter / settings-merge /
-  path-rewrite / md-to-toml); 4 runtime adapters (Claude sentinel-block
+  path-rewrite / md-to-toml); the initial runtime adapters (Claude sentinel-block
   settings.json merge; OpenCode `opencode.json.mcp`; Codex `config.toml`
-  marker-block + prompts/; Gemini `extensions/ultra-builder-pro/` package);
+  marker-block + prompts/; plus the then-supported compatibility package);
   `docs/RUNTIME-COMPAT-MATRIX.md` with 10-section capability matrix;
   install / uninstall round-trip tests + idempotency.
 - **Phase 3 — thin-shell commands** (D40, `b3d1797`): 9 commands migrated

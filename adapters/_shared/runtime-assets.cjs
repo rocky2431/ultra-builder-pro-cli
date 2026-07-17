@@ -27,11 +27,12 @@ const INTERNAL_AGENT_SKILLS = Object.freeze([
   'testing-rules',
 ]);
 
+const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex']);
+
 const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
-  claude: Object.freeze(['codex-collab', 'gemini-collab', 'ultra-verify']),
-  codex: Object.freeze(['cc-collab', 'gemini-collab', 'ultra-verify']),
-  opencode: Object.freeze(['cc-collab', 'codex-collab', 'gemini-collab', 'ultra-verify']),
-  gemini: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
+  claude: Object.freeze(['codex-collab', 'ultra-verify']),
+  codex: Object.freeze(['cc-collab', 'ultra-verify']),
+  opencode: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
 });
 
 const RETIRED_SKILLS = Object.freeze([
@@ -60,11 +61,17 @@ function skillsForRuntime(runtime) {
   return [...CORE_PUBLIC_SKILLS, ...INTERNAL_AGENT_SKILLS, ...collab];
 }
 
+function isSupportedRuntime(runtime) {
+  return SUPPORTED_RUNTIMES.includes(runtime);
+}
+
 module.exports = {
   CORE_PUBLIC_SKILLS,
   INTERNAL_AGENT_SKILLS,
+  SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
   RETIRED_SKILLS,
   WORKFLOW_HOOK_FILES,
+  isSupportedRuntime,
   skillsForRuntime,
 };

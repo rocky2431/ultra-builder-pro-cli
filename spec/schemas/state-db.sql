@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS events (
   type          TEXT    NOT NULL,
   task_id       TEXT,
   session_id    TEXT,
-  runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex', 'gemini')),
+  runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex')),
   payload_json  TEXT
 );
 
@@ -69,7 +69,7 @@ CREATE INDEX IF NOT EXISTS events_session ON events(session_id, id);
 CREATE TABLE IF NOT EXISTS sessions (
   sid               TEXT PRIMARY KEY,
   task_id           TEXT NOT NULL REFERENCES tasks(id),
-  runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex', 'gemini')),
+  runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex')),
   pid               INTEGER,
   worktree_path     TEXT NOT NULL,
   artifact_dir      TEXT NOT NULL,

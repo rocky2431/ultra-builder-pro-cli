@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { computeCost } = require('./pricing.cjs');
+const { isSupportedRuntime } = require('../../adapters/_shared/runtime-assets.cjs');
 
 function todayStamp() {
   return new Date().toISOString().slice(0, 10);
@@ -33,6 +34,9 @@ function appendTelemetry(db, {
   payload = null,
   rootDir = '.',
 } = {}) {
+  if (runtime != null && !isSupportedRuntime(runtime)) {
+    throw new Error(`unsupported runtime: ${runtime}`);
+  }
   if (!event_type) throw new Error('appendTelemetry: event_type required');
 
   // Auto-derive cost when tokens + runtime known and caller didn't supply one.

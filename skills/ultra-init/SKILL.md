@@ -133,7 +133,6 @@ CLI 最后一行是 `{ "ok": true, "data": { ... } }`（见 spec/cli-protocol.md
 | Claude  | `/ultra-init [name] [type] [stack] [git]` — 命令薄壳拉起此 skill |
 | OpenCode | `/ultra-init …` 同上（agent frontmatter 小写化） |
 | Codex   | `codex exec "run /ultra-init …"`（Phase 4.4 adapter 接） |
-| Gemini  | `gemini --prompt "run /ultra-init …"`（Phase 4.5 extension 接） |
 
 ## 输出锚点
 

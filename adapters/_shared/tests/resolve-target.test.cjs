@@ -1,13 +1,10 @@
 'use strict';
 
-// Phase 4.6b reviewer suggestion — scope-precedence contract across all
-// four adapter.resolveTarget implementations.
+// Scope-precedence contract across every supported adapter.resolveTarget.
 //
 // Each adapter honors the same ordering:
 //   ctx.configDir  >  ctx.scope='global' → env var or homeDir/.<runtime>
 //                  >  ctx.scope='local'  → cwd/.<runtime>
-//
-// Gemini also exposes resolveExtensionRoot that appends extensions/<NAME>.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -16,7 +13,6 @@ const path = require('node:path');
 const claude = require('../../../adapters/claude.js');
 const opencode = require('../../../adapters/opencode.js');
 const codex = require('../../../adapters/codex.js');
-const gemini = require('../../../adapters/gemini.js');
 
 // Stable fake values so assertions don't depend on real $HOME / $CWD.
 const FAKE_HOME = '/fake-home';
@@ -43,7 +39,6 @@ const CASES = [
   { name: 'claude',   resolve: claude.resolveTarget,   localLeaf: '.claude',   globalHome: '.claude',   envKey: 'CLAUDE_CONFIG_DIR' },
   { name: 'opencode', resolve: opencode.resolveTarget, localLeaf: '.opencode', globalHome: path.join('.config', 'opencode'), envKey: 'OPENCODE_CONFIG_DIR' },
   { name: 'codex',    resolve: codex.resolveTarget,    localLeaf: '.codex',    globalHome: '.codex',    envKey: 'CODEX_HOME' },
-  { name: 'gemini',   resolve: gemini.resolveTarget,   localLeaf: '.gemini',   globalHome: '.gemini',   envKey: 'GEMINI_CONFIG_DIR' },
 ];
 
 for (const tc of CASES) {
@@ -78,8 +73,3 @@ for (const tc of CASES) {
     assert.equal(out, path.join(FAKE_CWD, tc.localLeaf));
   });
 }
-
-test('gemini.resolveExtensionRoot layers extensions/<NAME> on top of resolveTarget', () => {
-  const out = gemini.resolveExtensionRoot({ configDir: '/explicit' });
-  assert.equal(out, path.join('/explicit', 'extensions', 'ultra-builder-pro'));
-});

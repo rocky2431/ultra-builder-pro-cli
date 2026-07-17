@@ -60,7 +60,6 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     const learn = fs.readFileSync(path.join(target, 'skills', 'learn', 'SKILL.md'), 'utf8');
     const review = fs.readFileSync(path.join(target, 'skills', 'ultra-review', 'SKILL.md'), 'utf8');
     const codexCollab = fs.readFileSync(path.join(target, 'skills', 'codex-collab', 'SKILL.md'), 'utf8');
-    const geminiCollab = fs.readFileSync(path.join(target, 'skills', 'gemini-collab', 'SKILL.md'), 'utf8');
     const verify = fs.readFileSync(path.join(target, 'skills', 'ultra-verify', 'SKILL.md'), 'utf8');
 
     assert.deepEqual(Object.keys(parseFm(plan).fm), ['name', 'description']);
@@ -68,9 +67,9 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     assert.doesNotMatch(learn, /_unverified\.md/);
     assert.match(review, /~\/.config\/opencode\/skills\/ultra-review\/scripts\/review_wait\.py/);
     assert.match(codexCollab, /OpenCode remains primary/);
-    assert.match(geminiCollab, /OpenCode remains primary/);
     assert.match(verify, /OpenCode remains primary/);
     assert.match(verify, /opencode-analysis\.md/);
+    assert.match(verify, /codex exec -s read-only/);
     assert.match(plan, /LEGACY_STATE_MIGRATION_REQUIRED/);
     assert.match(plan, /never read or write .*tasks\.json/i);
     assert.doesNotMatch(plan, /ultra-tools task create/);

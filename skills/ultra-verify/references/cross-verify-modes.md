@@ -1,73 +1,28 @@
 # Ultra Verify Modes
 
-Four modes for three-way AI verification. All modes follow the safe orchestration contract in the parent `SKILL.md`.
+All four modes compare an independently written primary analysis with one read-only external
+advisor. Agreement is useful corroboration, not proof; evidence decides the final result.
 
 ## 1. Decision (`decision`)
 
-For architecture decisions, technology choices, or design trade-offs.
-
-**Flow:**
-1. Present the decision context, constraints, and options to all three AIs independently
-2. Each AI provides: recommendation, pros/cons, risks, trade-offs
-3. Synthesis ranks options by consensus:
-   - 3/3 recommend same → **Strong recommendation**
-   - 2/3 agree → **Recommended** with dissenting view analyzed
-   - All different → Present all three with trade-off matrix
-
-**Output structure:**
-- Per-AI recommendation summary
-- Consensus matrix (which AI recommends what)
-- Trade-off analysis
-- Final recommendation with confidence level
+Give both analyses the same decision context, constraints, and options. Compare recommendation,
+trade-offs, risks, and assumptions. When they differ, identify the assumption or evidence that
+caused the split and resolve it before recommending an option.
 
 ## 2. Diagnose (`diagnose`)
 
-For bug diagnosis, root cause analysis, or troubleshooting.
-
-**Flow:**
-1. Provide symptoms, error messages, relevant code, and recent changes to all three AIs
-2. Each AI provides its top-3 hypotheses with evidence and verification steps
-3. Synthesis:
-   - Hypotheses appearing in 3/3 lists → **Most likely** (investigate first)
-   - Hypotheses in 2/3 lists → **Probable** (investigate second)
-   - Unique hypotheses → **Worth checking** (may catch edge cases)
-
-**Output structure:**
-- Ranked hypothesis list (by consensus count)
-- Per-hypothesis: description, evidence, verification steps, suggested fix
-- Recommended investigation order
+Provide symptoms, exact errors, relevant code, and recent changes. Each analysis should rank its
+root-cause hypotheses and provide discriminating checks. Merge duplicate hypotheses, retain useful
+unique ones, and order investigation by evidence strength and verification cost.
 
 ## 3. Audit (`audit`)
 
-For code review, security audit, or quality assessment.
-
-**Flow:**
-1. Provide the code scope to all three AIs with the same audit prompt
-2. Each AI reports findings with severity and location
-3. Synthesis grades findings by consensus:
-   - Found by 3/3 → **Critical** — fix immediately
-   - Found by 2/3 → **High** — likely real, investigate
-   - Found by 1/3 → **Investigate** — may be false positive or edge case
-
-**Output structure:**
-- Findings table: description, severity, consensus count, which AIs found it
-- Grouped by consensus level (Critical → High → Investigate)
-- Action items prioritized by consensus
+Use the same code scope and severity model for both analyses. Deduplicate findings by root cause,
+verify every location against the current checkout, and retain a single-model finding when source
+evidence confirms it. Never derive severity from model agreement alone.
 
 ## 4. Estimate (`estimate`)
 
-For effort estimation, complexity assessment, or timeline planning.
-
-**Flow:**
-1. Describe the task, requirements, and constraints to all three AIs
-2. Each AI provides: estimate (time/effort), breakdown, assumptions, risks
-3. Synthesis evaluates convergence:
-   - All within 20% of each other → **High confidence** estimate (use average)
-   - One outlier → **Moderate confidence** — investigate the outlier's reasoning
-   - All significantly different → **Low confidence** — task needs decomposition
-
-**Output structure:**
-- Per-AI estimate with breakdown and assumptions
-- Convergence analysis
-- Recommended estimate with confidence level
-- Risk factors that could shift the estimate
+Require a breakdown, assumptions, dependencies, and risk range from both analyses. Explain large
+differences by locating mismatched scope or assumptions. Return a range supported by the reconciled
+work breakdown rather than averaging estimates mechanically.

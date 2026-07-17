@@ -5,8 +5,8 @@
 > live in PLAN. If they disagree, PLAN wins.
 
 **Goal**: distribute the Ultra Builder Pro engineering loop as native Claude
-Code, OpenCode, and Codex plugins, retain a Gemini compatibility extension, and
-run the loop with isolated sessions sharing one authoritative workflow store.
+Code, OpenCode, and Codex plugins, and run it with isolated sessions sharing one
+authoritative workflow store.
 
 **First-class runtimes**: Claude Code · OpenCode · Codex.
 
@@ -72,7 +72,7 @@ ultra-tools/                ← CLI fallback, migration, and diagnostics
 
 bin/install.js              ← multi-runtime installer
 bin/handbook.js             ← explicit managed user-handbook sync
-adapters/                   ← native Claude/OpenCode/Codex plugin builders + Gemini compatibility
+adapters/                   ← native Claude/OpenCode/Codex plugin builders
 skills/                     ← allowlisted Ultra workflows, internal rules, and collab companions
 hooks/                      ← 7 workflow-only Python hooks; OpenCode uses native JavaScript hooks
 docs/

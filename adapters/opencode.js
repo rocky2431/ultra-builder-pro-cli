@@ -94,7 +94,7 @@ function openCodeTextTransform(input, assetName = '') {
   text = text.replaceAll('Claude runtime', 'OpenCode runtime');
   text = text.replaceAll('Claude-only', 'OpenCode-only');
 
-  if (assetName === 'codex-collab' || assetName === 'gemini-collab') {
+  if (assetName === 'codex-collab') {
     text = text.replaceAll('within Claude Code', 'from OpenCode');
     text = text.replaceAll('Claude Code remains primary', 'OpenCode remains primary');
     text = text.replaceAll('Claude orchestrates', 'OpenCode remains primary and orchestrates');
@@ -104,13 +104,8 @@ function openCodeTextTransform(input, assetName = '') {
   }
   if (assetName === 'ultra-verify') {
     text = text.replaceAll('claude-analysis.md', 'opencode-analysis.md');
-    text = text.replaceAll('Claude + Gemini + Codex', 'OpenCode + Gemini + Codex');
     text = text.replaceAll('Claude Code', 'OpenCode');
     text = text.replaceAll('Claude', 'OpenCode');
-    text = text.replace(
-      /Orchestrate OpenCode \+ Gemini \+ Codex for independent three-way analysis\./,
-      'OpenCode remains primary while Gemini and Codex provide independent read-only analyses.',
-    );
   }
   if (assetName === 'learn') {
     text = text.replaceAll(

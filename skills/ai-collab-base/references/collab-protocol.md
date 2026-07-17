@@ -1,6 +1,6 @@
 # AI Collaboration Protocol
 
-Shared protocol for all AI collaboration skills (Gemini, Codex, cross-verify).
+Shared protocol for Codex collaboration and cross-model verification skills.
 
 ## Core Principles
 
@@ -90,7 +90,7 @@ For simple `free` mode calls, skip the full report format — just present the r
 
 ```
 .ultra/collab/
-  ├── 20260307-1100-gemini-review/
+  ├── 20260307-1100-external-review/
   │   ├── metadata.json
   │   ├── output.md
   │   └── synthesis.md

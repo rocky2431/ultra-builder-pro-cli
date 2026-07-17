@@ -1,8 +1,8 @@
 'use strict';
 
 // YAML frontmatter parsing / serialization for markdown assets.
-// Every runtime adapter consumes this — OpenCode lowercases keys,
-// Gemini extracts description for toml, Claude preserves verbatim.
+// Every runtime adapter consumes this — OpenCode lowercases keys while
+// Claude Code and Codex preserve their native metadata contracts.
 
 const yaml = require('js-yaml');
 

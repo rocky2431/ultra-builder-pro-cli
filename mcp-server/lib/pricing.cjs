@@ -9,7 +9,6 @@
 // Sources (2026-04):
 //   Claude:  https://www.anthropic.com/pricing
 //   OpenAI:  https://platform.openai.com/docs/pricing
-//   Gemini:  https://ai.google.dev/pricing
 //
 // `default` inside each runtime is the fallback when a session did not
 // record which specific model it used.
@@ -29,11 +28,6 @@ const PRICING = Object.freeze({
     // OpenCode is a frontend over whichever model the user configured;
     // treat as sonnet-equivalent unless a model name is passed in.
     default:                { input: 3e-6,  output: 15e-6 },
-  }),
-  gemini: Object.freeze({
-    'gemini-2.5-pro':       { input: 1.25e-6, output: 10e-6 },
-    'gemini-2.5-flash':     { input: 0.15e-6, output: 0.6e-6 },
-    default:                { input: 1.25e-6, output: 10e-6 },
   }),
 });
 

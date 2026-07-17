@@ -13,6 +13,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const { openStateDb } = require('./state-db.cjs');
+const { isSupportedRuntime } = require('../../adapters/_shared/runtime-assets.cjs');
 
 const STATUS_TRANSITIONS = Object.freeze({
   pending:     new Set(['in_progress', 'blocked', 'expanded']),
@@ -263,6 +264,9 @@ function appendEventInTx(db, event) {
   if (!event || !event.type) {
     throw new StateOpsError('VALIDATION_ERROR', 'event.type is required');
   }
+  if (event.runtime != null && !isSupportedRuntime(event.runtime)) {
+    throw new StateOpsError('VALIDATION_ERROR', `unsupported runtime: ${event.runtime}`);
+  }
   const result = db.prepare(
     `INSERT INTO events (type, task_id, session_id, runtime, payload_json)
      VALUES (?, ?, ?, ?, ?)`,
@@ -310,6 +314,9 @@ function subscribeEventsSince(db, { since_id = 0, types, task_id, session_id, li
 function createSession(db, { sid, task_id, runtime, pid = null, worktree_path, artifact_dir, lease_seconds = 1800 }) {
   if (!sid || !task_id || !runtime || !worktree_path || !artifact_dir) {
     throw new StateOpsError('VALIDATION_ERROR', 'sid, task_id, runtime, worktree_path, artifact_dir required');
+  }
+  if (!isSupportedRuntime(runtime)) {
+    throw new StateOpsError('VALIDATION_ERROR', `unsupported runtime: ${runtime}`);
   }
   const lease = new Date(Date.now() + lease_seconds * 1000).toISOString();
   return tx(db, () => {

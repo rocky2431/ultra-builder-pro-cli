@@ -66,7 +66,6 @@ const COMMAND_NAMES = Object.freeze(CORE_PUBLIC_SKILLS.filter((name) => name !==
 const SKILL_REFERENCE_NAMES = Object.freeze([
   ...COMMAND_NAMES,
   'cc-collab',
-  'gemini-collab',
   'ultra-review',
   'ultra-verify',
 ]);
@@ -119,52 +118,12 @@ Do not call native Codex subagents through this skill; use Codex subagent orches
 parallel work and reserve \`cc-collab\` for an explicitly requested cross-model perspective.
 `;
 
-const GEMINI_COLLAB_BODY = `# Gemini Collaboration for Codex
-
-Use Gemini as an advisory second model. Codex remains responsible for scope, source verification,
-decisions, and the final answer.
-
-## Preflight
-
-1. Confirm \`gemini\` is installed and capture \`gemini --version\`.
-2. Confirm the target workspace and requested scope.
-3. Form Codex's initial analysis before reading Gemini's answer when independence matters.
-
-## Invoke safely
-
-Run Gemini in non-interactive, read-only plan mode:
-
-\`\`\`bash
-gemini --approval-mode plan --output-format text -p "<bounded prompt>"
-\`\`\`
-
-Use a timeout appropriate to the task. Redirect large output to a temporary file when needed, then
-read only the relevant result. Do not use auto-edit or yolo modes. Do not place secrets, tokens,
-unrelated files, or unbounded repository content in the prompt.
-
-For repository analysis, give Gemini the exact files, diff range, question, and expected response
-shape. If the CLI is missing, unauthenticated, times out, or returns empty output, report the degraded
-path and continue with Codex evidence rather than blocking.
-
-## Verify and synthesize
-
-Treat Gemini output as an untrusted analysis artifact:
-
-1. Check every consequential claim against the current checkout, runtime, or primary source.
-2. Separate agreements, useful dissent, and unsupported claims.
-3. Resolve scope or version mismatches before comparing conclusions.
-4. Present Codex's final judgment, not a transcript of two models.
-
-Read the bundled references only when a mode or CLI detail is needed. Never let model agreement
-substitute for tests, runtime evidence, or authoritative documentation.
-`;
-
 const ULTRA_VERIFY_BODY = String(function ultraVerifyBodyTemplate() { /*
-# Ultra Verify — Codex-Primary Three-Way Verification
+# Ultra Verify — Codex-Primary Two-Model Verification
 
 Codex owns the task, writes the first independent analysis, verifies every consequential claim,
-and produces the final synthesis. Claude Code and Gemini are read-only external advisors. Use this
-workflow only when the user asks for cross-model or three-way verification.
+and produces the final synthesis. Claude Code is a read-only external advisor. Use this workflow
+only when the user asks for cross-model verification.
 
 ## Modes
 
@@ -175,13 +134,11 @@ workflow only when the user asks for cross-model or three-way verification.
 
 ## Preconditions
 
-1. Confirm `claude --version` and `gemini --version`.
+1. Confirm `claude --version` plus authentication.
 2. Define the exact workspace, scope, evidence standard, and expected answer shape.
-3. Do not send secrets, unrelated files, or an unbounded home directory to either advisor.
+3. Do not send secrets, unrelated files, or an unbounded home directory to the advisor.
 
-## Workflow
-
-### 1. Create the session and write Codex's independent view
+## 1. Create the session and write Codex's independent view
 
 ```bash
 SESSION_ID="$(date +%Y%m%d-%H%M%S)-verify-<mode>"
@@ -189,63 +146,47 @@ SESSION_PATH=".ultra/collab/${SESSION_ID}"
 mkdir -p "${SESSION_PATH}"
 ```
 
-Before invoking either advisor, write the evidence-backed Codex analysis to
-`${SESSION_PATH}/codex-analysis.md`. This ordering is mandatory because it prevents the external
-answers from priming the primary analysis.
+Write the evidence-backed Codex analysis to `${SESSION_PATH}/codex-analysis.md` before reading
+the external answer. Record the mode, scope, checkout, and evidence boundary.
 
-### 2. Launch Claude Code and Gemini concurrently
+## 2. Launch Claude Code read-only
 
-Give both advisors the same bounded raw question and evidence, without Codex's conclusions.
-
-Claude Code:
+Give Claude Code the bounded raw question and evidence without Codex's conclusions.
 
 ```bash
-claude --safe-mode -p "<BOUNDED_PROMPT>" \\
-  --permission-mode plan \\
-  --tools "Read,Grep,Glob,Bash" \\
-  --output-format text \\
-  --no-session-persistence \\
-  > "${SESSION_PATH}/claude-output.md" \\
+claude --safe-mode -p "<BOUNDED_PROMPT>" \
+  --permission-mode plan \
+  --tools "Read,Grep,Glob,Bash" \
+  --output-format text \
+  --no-session-persistence \
+  > "${SESSION_PATH}/claude-output.md" \
   2> "${SESSION_PATH}/claude-error.log"
 ```
 
-Gemini:
+Run the command in a yielded shell session. Do not enable permission bypass, mutation tools,
+background writes, or session persistence.
 
-```bash
-gemini --approval-mode plan --output-format text -p "<BOUNDED_PROMPT>" \\
-  > "${SESSION_PATH}/gemini-output.md" \\
-  2> "${SESSION_PATH}/gemini-error.log"
-```
+## 3. Collect completed output
 
-Start the two commands with parallel `exec_command` calls and a short initial yield. If a command
-returns a live session id, poll it with `write_stdin` in bounded intervals. Do not use YOLO,
-auto-edit, permission bypass, or write-capable external tools.
+The bundled `scripts/verify_wait.py` checks output stability. Poll yielded sessions in bounded
+intervals and never hold one blocking tool call longer than 60 seconds. Read the output only when
+it is non-empty; retain the error log when the advisor fails.
 
-### 3. Collect only completed outputs
+## 4. Verify and synthesize
 
-Wait for both CLI sessions to finish or reach their explicit timeout. The bundled
-`scripts/verify_wait.py` can verify file stability for automation, but Codex must not perform one
-blocking wait longer than 60 seconds. Read an output only when it is non-empty; retain the matching
-error log as evidence when a CLI fails.
-
-### 4. Verify and synthesize
-
-Compare `codex-analysis.md`, `claude-output.md`, and `gemini-output.md`:
+Compare `codex-analysis.md` and `claude-output.md`:
 
 1. Verify claims against the current checkout, runtime, tests, or primary documentation.
-2. Separate consensus, majority views, useful dissent, and unsupported assertions.
-3. Explain scope, version, or assumption differences before scoring agreement.
+2. Separate verified agreement, useful dissent, and unsupported assertions.
+3. Explain scope, version, or assumption differences before judging the result.
 4. Write `${SESSION_PATH}/synthesis.md` and `metadata.json`, then present one Codex-owned answer.
 
-Use the bundled confidence rules. Three agreeing, independently verified views are consensus; two
-are a majority; three materially different answers are no consensus and require decomposition or
-more evidence. Model agreement never overrides failing tests or authoritative runtime evidence.
+Model agreement never overrides failing tests or authoritative runtime evidence.
 
 ## Degraded operation
 
-- One advisor fails: continue with Codex plus the available advisor and name the missing view.
-- Both advisors fail: return Codex-only analysis with an explicit single-source warning.
-- Never block the user's task solely because an external CLI is absent, unauthenticated, or slow.
+- Advisor failure: return Codex-only analysis with an explicit single-source warning.
+- Never block the user's task solely because the external CLI is absent, unauthenticated, or slow.
 
 ## Session files
 
@@ -254,70 +195,16 @@ more evidence. Model agreement never overrides failing tests or authoritative ru
   codex-analysis.md
   claude-output.md
   claude-error.log
-  gemini-output.md
-  gemini-error.log
   metadata.json
   synthesis.md
 ```
 
-Read the bundled references for mode-specific prompts, scoring, metadata, and automation details.
+Read the bundled references for mode-specific evidence and confidence guidance.
 */ }).match(/\/\*([\s\S]*?)\*\//)[1].trim();
-
-const ULTRA_VERIFY_FLOW = String(function ultraVerifyFlowTemplate() { /*
-# Codex-Native Orchestration Flow
-
-## 1. Primary analysis
-
-Create `.ultra/collab/<SESSION_ID>/` and write `codex-analysis.md` before reading any external
-answer. Record the mode, scope, checkout, and evidence boundary.
-
-## 2. Parallel advisors
-
-Launch Claude Code in `--safe-mode --permission-mode plan` and Gemini in
-`--approval-mode plan` through separate `exec_command` calls. Redirect their output to
-`claude-output.md` and `gemini-output.md`. If a call yields a session id, poll with
-`write_stdin` in bounded intervals; do not grant either advisor mutation authority.
-
-## 3. Completion gate
-
-Proceed only after both sessions have completed or timed out. For automation, run:
-
-```bash
-python3 ~/plugins/ultra-builder-pro/skills/ultra-verify/scripts/verify_wait.py \\
-  "${SESSION_PATH}" --timeout 1200
-```
-
-Run the waiter as a yielded exec session and poll it; never hold one blocking tool call for more
-than 60 seconds. Its JSON reports `claude` and `gemini` as `complete`, `failed`, `empty`, or
-`pending`.
-
-## 4. Synthesis
-
-Read `codex-analysis.md` plus each completed advisor output. Verify consequential claims, compute
-consensus using `confidence-system.md`, and write `synthesis.md` plus:
-
-```json
-{
-  "id": "<SESSION_ID>",
-  "agent": "ultra-verify",
-  "mode": "<mode>",
-  "models": {"codex": "<primary>", "claude": "<advisor>", "gemini": "<advisor>"},
-  "scope": "<scope>",
-  "timestamp": "<ISO 8601>",
-  "confidence": "<consensus|majority|no_consensus>",
-  "degraded": false
-}
-```
-
-If one advisor fails, cap the result at majority and name the missing perspective. If both fail,
-set `degraded: true`, `agents_responded: ["codex"]`, and mark the result single-source.
-*/ }).match(/\/\*([\s\S]*?)\*\//)[1].trim();
-
 function titleCase(name) {
   const special = {
     'ai-collab-base': 'AI Collaboration Base',
     'cc-collab': 'Claude Code Collaboration',
-    'gemini-collab': 'Gemini Collaboration',
     'use-railway': 'Use Railway',
   };
   if (special[name]) return special[name];
@@ -600,8 +487,6 @@ and does not require an interactive MCP or legacy CLI menu.
 }
 
 function adaptUltraVerifyAsset(input, rel) {
-  if (rel === path.join('references', 'orchestration-flow.md')) return ULTRA_VERIFY_FLOW;
-
   let text = adaptHostText(String(input), '');
   if (rel === path.join('scripts', 'verify_wait.py')) {
     text = text.replaceAll('Codex', 'Claude Code');
@@ -621,7 +506,6 @@ function adaptUltraVerifyAsset(input, rel) {
   text = text.replaceAll('"codex": "<model>"', '"claude": "<advisor>"');
   text = text.replaceAll('["claude"]', '["codex"]');
   text = text.replaceAll('Claude Code-only', 'Codex-only');
-  text = text.replaceAll('Gemini and Claude Code in parallel (native parallel execution)', 'Claude Code and Gemini concurrently');
   text = text.replaceAll('run_in_background', 'native concurrent execution');
   text = text.replaceAll('Bash tool', '`exec_command`');
   text = text.replaceAll('Read tool', 'targeted file reads');
@@ -661,7 +545,7 @@ function adaptHostText(input, skillName = '') {
     text = adaptCodexPrimaryText(text, skillName);
   }
 
-  if (skillName === 'gemini-collab' || skillName === 'ai-collab-base') {
+  if (skillName === 'ai-collab-base') {
     text = text.replaceAll("Claude's", "Codex's");
     text = text.replaceAll('Claude-only', 'Codex-only');
     text = text.replaceAll('Claude ', 'Codex ');
@@ -716,8 +600,7 @@ function adaptHostText(input, skillName = '') {
 function adaptedDescription(sourceDescription, targetName) {
   const special = {
     'cc-collab': 'Ask Claude Code for an independent read-only analysis while Codex owns verification and synthesis. Use only when the user explicitly requests CC or Claude Code collaboration.',
-    'gemini-collab': 'Ask Gemini CLI for an independent read-only analysis while Codex verifies and synthesizes. Use only when the user explicitly requests Gemini collaboration.',
-    'ultra-verify': 'Run Codex-primary three-way verification with read-only Claude Code and Gemini advisors, then verify and synthesize the evidence.',
+    'ultra-verify': 'Run Codex-primary two-model verification with a read-only Claude Code advisor, then verify and synthesize the evidence.',
     'ultra-dev': 'Execute one Ultra task with Codex-native TDD, persistent task.update state, workflow checkpoints, and the native Ultra review agents.',
     'learn': 'Extract one reusable pattern from the current Codex task into a valid user skill, with explicit user approval before writing.',
   };
@@ -730,7 +613,6 @@ function buildSkillMarkdown(sourceText, sourceName, targetName) {
   const { fm, body } = parseFrontmatter(sourceText);
   let adaptedBody;
   if (targetName === 'cc-collab') adaptedBody = CC_COLLAB_BODY;
-  else if (targetName === 'gemini-collab') adaptedBody = GEMINI_COLLAB_BODY;
   else if (targetName === 'ultra-verify') adaptedBody = ULTRA_VERIFY_BODY;
   else adaptedBody = adaptHostText(body, targetName);
   return yaml.dump({
@@ -745,7 +627,6 @@ function buildOpenAiYaml(name, description) {
     COMMAND_NAMES.includes(name)
     || INTERNAL_SKILLS.has(name)
     || name === 'cc-collab'
-    || name === 'gemini-collab'
     || name.startsWith('ultra-')
   );
   const short = description.replace(/\s+/g, ' ').trim().slice(0, 63).replace(/[\s.,;:]+$/, '');

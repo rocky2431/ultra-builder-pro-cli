@@ -1,38 +1,21 @@
-# Confidence System
+# Evidence-Based Confidence
 
-Confidence scoring based on AI consensus for cross-verify results.
+Cross-model agreement is a signal, not an authority. Assign confidence only after checking claims
+against source code, tests, runtime output, or primary documentation.
 
 ## Levels
 
-### Consensus (3/3 Agree)
-- **Confidence**: Highest
-- **Action**: Strongly recommended — proceed with high confidence
-- **Display**: `[CONSENSUS 3/3]`
+- **Verified agreement**: both analyses agree and the consequential claims have authoritative
+  supporting evidence.
+- **Resolved dissent**: the analyses differ, but current evidence supports one position and explains
+  the disagreement.
+- **Unresolved**: available evidence cannot distinguish the positions or key assumptions remain
+  untested.
+- **Single source**: the advisor failed or returned no usable output; no cross-model corroboration is
+  available.
 
-### Majority (2/3 Agree)
-- **Confidence**: High
-- **Action**: Recommended — investigate the dissenting view for edge cases or alternative perspectives
-- **Display**: `[MAJORITY 2/3]` + note which AI dissented and why
+## Reporting
 
-### No Consensus (All Differ)
-- **Confidence**: Low
-- **Action**: Decompose the problem into smaller questions, gather more data, or accept that the answer is genuinely ambiguous
-- **Display**: `[NO CONSENSUS]` + summary of each position
-
-## Application by Mode
-
-| Mode | Consensus | Majority | No Consensus |
-|------|-----------|----------|--------------|
-| decision | Strong recommendation | Recommended + dissent analysis | Present all options, suggest decomposition |
-| diagnose | Investigate first | Investigate second | Check all, may need more data |
-| audit | Critical — fix now | High — likely real | Investigate — may be false positive |
-| estimate | Use average, high confidence | Investigate outlier | Decompose task further |
-
-## Degraded Confidence
-
-When only 2 AIs respond (one failed):
-
-- **2/2 Agree**: Equivalent to Majority (not Consensus — missing perspective)
-- **2/2 Differ**: Low confidence — note missing third opinion
-
-When only 1 AI responds: Claude-only analysis — explicitly mark as single-source, no consensus scoring.
+Record which claims were verified, the evidence used, useful dissent, unsupported assertions, and
+remaining uncertainty. Model agreement never upgrades a claim contradicted by tests or runtime
+evidence, and a uniquely reported finding remains valid when independently verified.

@@ -117,8 +117,7 @@ If ANY component is fake/mocked/simulated -> Quality = 0
 | Skill | Purpose | User-Invocable |
 |-------|---------|----------------|
 | `ultra-review` | Parallel code review with 6 agents + coordinator | Yes |
-| `ultra-verify` | Three-way AI verification (Claude + Gemini + Codex) | Yes |
-| `gemini-collab` | Gemini CLI as independent sub-agent for review, analysis, opinions | Yes |
+| `ultra-verify` | Independent cross-model verification | Yes |
 | `codex-collab` | OpenAI Codex CLI as independent sub-agent for review, analysis | Yes |
 | `recall` | Cross-session memory search, save summaries, tags | Yes |
 | `agent-browser` | Browser automation CLI for AI agents | Yes |
@@ -203,54 +202,6 @@ Used exclusively by `/ultra-review`. Each agent writes JSON findings to `.ultra/
 ### Integration with ultra-dev
 
 Step 4.5 of `/ultra-dev` runs `/ultra-review all` (forced full coverage) as a mandatory quality gate before commit. The `pre_stop_check.py` hook blocks session stop if source files are changed but not reviewed (circuit breaker allows stop after 2 blocks).
-
----
-
-## Ultra Verify — Three-Way AI Cross-Verification
-
-### Overview
-
-`/ultra-verify` orchestrates Claude + Gemini + Codex for independent three-way analysis. Each AI works independently, then Claude synthesizes with a confidence score based on consensus.
-
-### Prerequisites
-
-- Gemini CLI: `npm install -g @google/gemini-cli` + authenticated
-- Codex CLI: `npm install -g @openai/codex` + `codex login`
-
-### Usage
-
-```
-/ultra-verify decision <question>    # Architecture/design decision
-/ultra-verify diagnose <symptoms>    # Bug diagnosis — three sets of hypotheses
-/ultra-verify audit <scope>          # Code audit — findings ranked by consensus
-/ultra-verify estimate <task>        # Effort estimation
-```
-
-### How It Works
-
-1. **Claude answers first** (writes to file before reading external AI output — prevents contamination)
-2. **Gemini + Codex run in parallel** (background tasks, 5 min timeout)
-3. **Claude reads all three outputs** via Read tool
-4. **Confidence scoring**: Consensus (3/3) > Majority (2/3) > No Consensus
-5. **Synthesis** written to `.ultra/collab/<session-id>/synthesis.md`
-
-### Degraded Operation
-
-- **One AI fails**: Two-way comparison, confidence capped at Majority
-- **Two AIs fail**: Claude-only with explicit warning
-- Never blocks the workflow on external AI failures
-
-### Architecture: Shared Base + Thin Skills
-
-```
-ai-collab-base/         # Canonical shared files (non-user-invocable)
-  ├── references/        # collab-protocol.md, collaboration-modes.md, prompt-templates.md
-  └── sync.sh            # Copies canonical files to consumer skills
-
-gemini-collab/           # Thin skill: Gemini-specific CLI reference + shared files
-codex-collab/            # Thin skill: Codex-specific CLI reference + shared files
-ultra-verify/            # Orchestration: parallel execution + confidence scoring
-```
 
 ---
 
@@ -479,14 +430,12 @@ Automated enforcement via Python hooks in `hooks/`. **Hooks are deterministic �
 |   |   |-- templates/        # Output templates (reserved)
 |   |-- ultra-review/         # Parallel review orchestration
 |   |   |-- scripts/          # review_wait.py, review_verdict_update.py
-|   |-- ultra-verify/         # Three-way AI verification (Claude+Gemini+Codex)
+|   |-- ultra-verify/         # Independent cross-model verification
 |   |   |-- references/       # cross-verify-modes, confidence-system, orchestration-flow
 |   |   |-- evals/            # skill-creator eval tests
 |   |-- ai-collab-base/       # Shared collab protocol (non-user-invocable)
 |   |   |-- references/       # collab-protocol, collaboration-modes, prompt-templates
 |   |   |-- sync.sh           # Sync canonical files to consumer skills
-|   |-- gemini-collab/        # Gemini CLI as independent sub-agent
-|   |   |-- references/       # gemini-cli-reference, gemini-prompts, shared files
 |   |   |-- evals/            # skill-creator eval tests
 |   |-- codex-collab/         # OpenAI Codex CLI as independent sub-agent
 |   |   |-- references/       # codex-cli-reference, codex-prompts, shared files
@@ -532,7 +481,6 @@ Automated enforcement via Python hooks in `hooks/`. **Hooks are deterministic �
 |   |-- collab/                      # AI collaboration sessions (auto-managed)
 |   |   |-- <session-id>/           # Per-session output
 |   |       |-- claude-analysis.md
-|   |       |-- gemini-output.md
 |   |       |-- codex-output.md
 |   |       |-- synthesis.md
 |   |       |-- metadata.json
@@ -648,7 +596,7 @@ Multi-step tasks use the Task system:
 
 ### v6.3.0 (2026-03-09) - Memory System v2
 
-**Structured summaries, real session identity, security hardening**, verified by 3 rounds of ultra-verify (Claude + Gemini + Codex):
+**Structured summaries, real session identity, security hardening**, verified by repeated independent review:
 
 **Schema v2 Migration**:
 - New `session_summaries` table: structured JSON fields (`request`, `completed`, `learned`, `next_steps`)
@@ -681,29 +629,6 @@ Multi-step tasks use the Task system:
 - `hooks/user_prompt_capture.py` (New), `hooks/observation_capture.py` (New)
 - `CLAUDE.md`, `README.md`
 
-### v6.2.0 (2026-03-08) - Multi-AI Collaboration Refactor
-
-**Shared base architecture + three-way AI verification**, verified by 3 rounds of ultra-verify audit (Claude + Gemini + Codex):
-
-- New `ai-collab-base` skill: shared collaboration protocol, modes, prompt templates (non-user-invocable)
-  - `sync.sh` keeps canonical files in sync across 3 consumer skills
-  - Eliminates ~90% structural duplication between gemini-collab and codex-collab
-- New `ultra-verify` skill: three-way AI cross-verification (Claude + Gemini + Codex)
-  - 4 modes: `decision`, `diagnose`, `audit`, `estimate`
-  - Confidence scoring: Consensus (3/3), Majority (2/3), No Consensus
-  - Degraded operation: one AI fails → two-way, two fail → Claude-only with warning
-- Rewritten `gemini-collab`: thin skill pointing to shared base + Gemini-specific CLI reference
-- Rewritten `codex-collab`: thin skill pointing to shared base + Codex-specific CLI reference
-- CLI bug fixes verified against actual `--help` output:
-  - `--commit-title` → `--title` (codex review)
-  - `--full-auto` + `--sandbox read-only` conflict resolved
-  - `$(cat $FILE)` shell injection → stdin pipe pattern
-  - `2>/dev/null` → `error.log` (all files, not just orchestration)
-  - `-o`/`--output-format` correctly documented for Gemini CLI
-  - Hardcoded model names removed (use `-m <model>`)
-- skill-creator compatible `evals/evals.json` for all 3 user-invocable skills
-- Files: `skills/ai-collab-base/`, `skills/ultra-verify/`, `skills/gemini-collab/`, `skills/codex-collab/`
-
 ### v6.1.0 (2026-03-08) - Product Discovery Round 0
 
 **Product Discovery & Strategy phase** — fills the gap between vague ideas and technical specification. Inspired by [phuryn/pm-skills](https://github.com/phuryn/pm-skills) frameworks:
@@ -723,7 +648,6 @@ Multi-step tasks use the Task system:
 
 **System consolidation, cleanup, and Multi-AI collaboration**:
 
-- New `gemini-collab` skill: Gemini CLI as sub-agent for review, project analysis, second opinions
 - New `codex-collab` skill: OpenAI Codex CLI as sub-agent with built-in `codex review` integration
 - Removed codex skill and all references (CLAUDE.md, README.md, skills/codex/)
 - Stop hook hardening: removed main branch bypass, fixed git status path truncation
@@ -1048,7 +972,7 @@ Multi-step tasks use the Task system:
 
 **Removed (redundant - Claude handles natively)**:
 - Agents: build-error-resolver, doc-updater, e2e-runner, frontend-developer, refactor-cleaner
-- Skills: gemini, promptup, skill-creator
+- Skills: promptup, skill-creator
 - Hooks: user_prompt_agent.py (routing), agent_reminder.py (routing)
 
 **Improved**:
@@ -1149,7 +1073,7 @@ Multi-step tasks use the Task system:
 
 **Core Changes**:
 - Unified Priority Stack in CLAUDE.md
-- Codex and Gemini skill integration
+- Codex skill integration
 - Anti-Pattern Detection in `/ultra-test`
 
 ---

@@ -9,7 +9,7 @@ SKILLS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "Syncing from: $BASE"
 
-for skill in gemini-collab codex-collab ultra-verify; do
+for skill in codex-collab ultra-verify; do
   target="${SKILLS_DIR}/${skill}/references"
   if [ -d "$target" ]; then
     cp "$BASE/collab-protocol.md" "$target/"
