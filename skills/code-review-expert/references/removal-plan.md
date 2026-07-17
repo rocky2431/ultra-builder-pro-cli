@@ -1,52 +1,24 @@
-# Removal and Iteration Plan Template
+# Removal evidence
 
-## Priority Levels
+Read this reference only when the proposed change deletes or retires code, a contract,
+configuration, data, or a dependency.
 
-- **P0**: Immediate removal needed (security risk, significant cost, blocking other work)
-- **P1**: Remove in current sprint
-- **P2**: Backlog / next iteration
+## Prove reachability and ownership
 
----
+Search static references, registrations, dynamic loading, reflection, generated code,
+configuration, feature flags, scripts, documentation, and external interfaces that may
+consume the item. Distinguish no evidence of use from evidence of no use.
 
-## Safe to Remove Now
+## Determine the safe action
 
-### Item: [Name/Description]
+Record:
 
-| Field | Details |
-|-------|---------|
-| **Location** | `path/to/file.ts:line` |
-| **Rationale** | Why this should be removed |
-| **Evidence** | Unused (no references), dead feature flag, deprecated API |
-| **Impact** | None / Low - no active consumers |
-| **Deletion steps** | 1. Remove code 2. Remove tests 3. Remove config |
-| **Verification** | Run tests, check no runtime errors, monitor logs |
+- exact item and owner;
+- current consumers and supporting evidence;
+- compatibility, data, deployment, and operator impact;
+- prerequisites for removal when a consumer or migration remains;
+- focused deletion steps, verification, monitoring, and rollback.
 
----
-
-## Defer Removal (Plan Required)
-
-### Item: [Name/Description]
-
-| Field | Details |
-|-------|---------|
-| **Location** | `path/to/file.ts:line` |
-| **Why defer** | Active consumers, needs migration, stakeholder sign-off |
-| **Preconditions** | Feature flag off for 2 weeks, telemetry shows 0 usage |
-| **Breaking changes** | List any API/contract changes |
-| **Migration plan** | Steps for consumers to migrate |
-| **Timeline** | Target date or sprint |
-| **Owner** | Person/team responsible |
-| **Validation** | Metrics to confirm safe removal (error rates, usage counts) |
-| **Rollback plan** | How to restore if issues found |
-
----
-
-## Checklist Before Removal
-
-- [ ] Searched codebase for all references (Grep)
-- [ ] Checked for dynamic/reflection-based usage
-- [ ] Verified no external consumers (APIs, SDKs, docs)
-- [ ] Feature flag telemetry reviewed (if applicable)
-- [ ] Tests updated/removed
-- [ ] Documentation updated
-- [ ] Team notified (if shared code)
+Do not assign urgency from age, naming, or deprecation text alone. Severity follows the
+cost of retaining an actual hazard or deleting a reachable contract. When evidence is
+incomplete, report the missing proof instead of declaring the item safe to remove.

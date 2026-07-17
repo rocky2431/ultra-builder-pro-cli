@@ -121,20 +121,19 @@ test('Kimi assets are allowlisted and adapted to native tools and paths', () => 
       path.join(pluginRoot, 'skills', 'using-ultra-builder-pro', 'SKILL.md'),
       'utf8',
     );
-    assert.match(learn, /~\/.kimi-code\/skills\/learned-<pattern-slug>-unverified\/SKILL\.md/);
+    assert.match(learn, /`~\/.kimi-code\/skills`/);
+    assert.doesNotMatch(learn, /_unverified|learned-[^\s/]*-unverified/i);
     assert.match(review, /Kimi `AgentSwarm`/);
-    assert.match(review, /Five engineering specialists/);
-    assert.match(review, /axes\.spec_fidelity/);
-    assert.doesNotMatch(review, /6 specialized|ALL 6/);
-    assert.match(review, /\$KIMI_PLUGIN_ROOT\/agents\/review-code\.md/);
-    assert.match(review, /`prompt_template` containing\s+`\{\{item\}\}`/);
-    assert.match(review, /selected reviewer names as the `items` array/);
-    assert.match(review, /Launch the coordinator with one foreground Kimi `Agent` call/);
-    assert.doesNotMatch(review, /background mode|Set Kimi `AgentSwarm` parallel execution|Launch review-coordinator with Kimi `AgentSwarm`/);
-    assert.match(init, /\| Kimi \| `\/ultra-builder-pro:ultra-init/);
-    assert.doesNotMatch(init, /codex exec "run \/ultra-init/);
+    assert.match(review, /\$KIMI_PLUGIN_ROOT\/agents\//);
+    assert.match(review, /scripts\/review_wait\.py/);
+    assert.match(review, /spec_fidelity/);
+    assert.match(review, /engineering_standards/);
+    assert.doesNotMatch(review, /background mode|run_in_background/);
+    assert.match(init, /task\.init_project/);
+    assert.doesNotMatch(init, /Claude Code|OpenCode|Codex/);
     assert.match(bootstrap, /\.ultra\/state\.db/);
     assert.match(bootstrap, /external providers/);
+    assert.match(fs.readFileSync(path.join(pluginRoot, 'skills', 'codex-collab', 'SKILL.md'), 'utf8'), /--ephemeral/);
 
     const allPromptAssets = [];
     for (const root of ['commands', 'skills', 'agents']) {
@@ -153,6 +152,7 @@ test('Kimi assets are allowlisted and adapted to native tools and paths', () => 
       const text = fs.readFileSync(file, 'utf8');
       assert.doesNotMatch(text, foreign, file);
       assert.doesNotMatch(text, /(^|[\s`("'])\/ultra-(?!builder-pro:)[a-z]/m, file);
+      assert.doesNotMatch(text, /[\u3400-\u9fff]|ultra-review-findings-v1|Context7|Exa MCP|confidence\s*>=?\s*\d+/iu, file);
     }
   } finally {
     fs.rmSync(home, { recursive: true, force: true });

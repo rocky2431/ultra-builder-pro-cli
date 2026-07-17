@@ -1,110 +1,51 @@
 ---
 name: ultra-think
-description: "Deep analysis with adversarial reasoning — Evidence-First + Multi-Perspective + Steel-Man + Pre-Mortem + Sensitivity. Produces a recommendation with confidence bounds."
-user-invocable: true
-runtime: all
-cli_fallback: "direct user interaction"
+description: Produce an evidence-bounded recommendation or diagnosis for a consequential technical or product question. Use when the decision has material tradeoffs, uncertainty, or failure risk that benefits from explicit stress testing.
 ---
 
-# ultra-think — Phase 3.6
+# Analyze a consequential question
 
-Reasoning harness for complex decisions / diagnostics / architecture calls.
-Enforces Evidence-First labelling and adversarial stress-tests before issuing
-a recommendation with explicit confidence.
+Use the smallest reasoning structure that resolves the user's actual decision. Answer
+simple questions directly; do not turn every request into a framework exercise.
 
 ## Workflow
 
-### Step 1 — Scope Check
+1. State the decision, observed symptom, or disputed claim and the constraints that
+   could change the answer. Ask only for missing information that materially affects
+   the result.
+2. Gather evidence from the most authoritative available source:
+   - current checkout and runtime for repository claims;
+   - official primary documentation for product or API behavior;
+   - current web sources for unstable external facts.
+3. Separate verified facts, evidence-backed inferences, and unresolved assumptions.
+   Cite the supporting file, command, runtime result, or source near each consequential
+   claim.
+4. For a decision, compare only credible alternatives. Do not invent a fixed number of
+   options or assign arbitrary numeric scores. Name the criteria that actually drive
+   the choice and explain the tradeoffs.
+5. For a diagnosis, form falsifiable hypotheses and identify the smallest observation
+   that distinguishes them. Do not recommend implementation before the earliest
+   incorrect state is supported by evidence.
+6. Stress-test the leading conclusion with the techniques that fit the problem:
+   - strongest counterargument;
+   - likely failure scenario and recovery;
+   - load-bearing assumption;
+   - meaningful second-order effect.
+7. Return the recommendation or diagnosis, evidence, uncertainty, what would change
+   the conclusion, and the smallest verification step.
 
-If the problem is ambiguous / underspecified, ask up to **3** clarifying
-questions through the current Host's native user-interaction surface.
-If the problem is simple, **skip the framework**, answer concisely, and mark
-downstream steps `completed` with note `"skipped: simple answer path"`.
+## Output
 
-### Step 2 — Evidence Gathering
+Adapt the response to the question. Include:
 
-Every factual claim about tech/API/best-practices must be verified via:
-- Repo source (Read/Grep)
-- Official docs (Context7 MCP: `mcp__context7__query-docs`)
-- Community (Exa MCP: `mcp__exa__web_search_exa`)
-- Web search (fallback)
+- the conclusion first;
+- the decisive evidence and tradeoffs;
+- unresolved uncertainty without false precision;
+- one concrete verification or follow-up action.
 
-Label each assertion:
-- **Fact** — verified, cite source (URL / file path)
-- **Inference** — deduced from facts (show the derivation chain)
-- **Speculation** — unverified; list verification steps the user can run
+Use a comparison table only when several alternatives share the same decision
+criteria. Comparisons are an analysis tool, not a required output section.
 
-**Iron law**: never trade accuracy for speed. Wrong-with-confidence > "I don't know + here's how to check".
-
-### Step 3 — Multi-Perspective Analysis
-
-Generate **≥3 distinct approaches**. For each, apply whichever lenses are relevant:
-- **Technical** — feasibility, scalability, security, maintainability
-- **Business** — value, cost, time-to-market, competitive advantage
-- **User** — needs, experience, edge cases, accessibility
-- **System** — integration, dependencies, emergent behaviors
-
-### Step 4 — Adversarial Stress-Testing
-
-Apply all four techniques:
-
-| Technique | Question |
-|-----------|----------|
-| **Steel Man** | For the option you're inclined to REJECT, build its strongest possible case. What do you discover? |
-| **Pre-Mortem** | Assume the recommended option has failed in 6 months. List the 3 most likely causes. |
-| **Sensitivity** | Which single assumption, if wrong, would reverse your recommendation? |
-| **Second-Order** | What new problems does the recommendation create 6-12 months out? |
-
-### Step 5 — Synthesis
-
-Recommendation with quantified confidence (0-100%) and explicit uncertainty bounds.
-
-## Output Structure (adapt to problem type)
-
-### Problem Statement
-1-2 sentences: core decision + key constraints.
-
-### Analysis
-Deep analysis using relevant lenses from Step 3.
-
-### Options Comparison (skip for diagnostic/investigative problems)
-| Criterion | Weight | Option A | Option B | Option C |
-|-----------|-------:|----------|----------|----------|
-Quantified where possible.
-
-### Adversarial Findings
-- **Strongest counter-argument** (steel man for rejected option)
-- **Pre-mortem top risk** (most likely failure + mitigation)
-- **Assumption sensitivity** (load-bearing assumption)
-
-### Recommendation
-- **Choice**: <option>
-- **Confidence**: <X>% because <rationale>
-- **Key Assumptions**: what must be true
-- **What would change my mind**: specific evidence / outcome
-
-### Verification Plan
-Concrete steps to validate the decision — metrics, tests, time-boxed experiments.
-
-### Next Steps
-Ordered, actionable items.
-
-## MCP → CLI fallback matrix
-
-| Purpose | MCP tool | CLI fallback |
-|---------|----------|--------------|
-| Clarifying questions | none | current Host's native user-interaction surface |
-
-## What this skill DOES NOT do
-
-- Does NOT modify state.db or project files
-- Does NOT implement the recommendation (that's `/ultra-dev` after `/ultra-plan`)
-- Does NOT replace independent review — output is one model's analysis
-
-## Integration
-
-| | |
-|---|---|
-| **Input** | the problem statement in `$ARGUMENTS`, optional repo context via Read/Grep, docs via Context7/Exa |
-| **Output** | structured Markdown report (Chinese per project rule) |
-| **Feeds** | decisions captured in `.ultra/specs/architecture.md` via Dual-Write Mode of `/ultra-dev` |
+This skill is read-only unless the user separately authorizes writing an analysis
+artifact. It does not update Ultra state, implement the recommendation, or replace an
+independent review.

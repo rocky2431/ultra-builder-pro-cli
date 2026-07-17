@@ -1,88 +1,254 @@
 #!/usr/bin/env python3
-"""Review Wait - File-based completion waiter for /ultra-review pipeline.
-
-Polls the session directory for expected review JSON files and/or SUMMARY.json.
-Returns a one-line verdict on stdout. Blocks until complete or timeout.
+"""Wait for and validate Ultra review v2 artifacts.
 
 Usage:
-    python3 review_wait.py <session_path> agents <count>   # Wait for N review-*.json files
-    python3 review_wait.py <session_path> summary           # Wait for SUMMARY.json only
+    python3 review_wait.py <session_path> agents <artifact-stem> [<artifact-stem> ...]
+    python3 review_wait.py <session_path> summary
 
-Exit codes:
-    0 - All expected files found
-    1 - Timeout (default 5 minutes)
-    2 - Invalid arguments
+The agents mode validates the exact named JSON files. The summary mode validates the
+two-axis verdict contract. Timeout and poll intervals can be shortened in tests with
+UBP_REVIEW_WAIT_TIMEOUT and UBP_REVIEW_WAIT_POLL.
 """
 
-import glob
 import json
+import os
+import re
 import sys
 import time
 from pathlib import Path
 
-POLL_INTERVAL = 2  # seconds
-DEFAULT_TIMEOUT = 300  # 5 minutes
+FINDINGS_SCHEMA = "ultra-review-findings-v2"
+SUMMARY_SCHEMA = "ultra-review-summary-v2"
+AXES = {"spec_fidelity", "engineering_standards"}
+SEVERITIES = {"P0", "P1", "P2", "P3"}
+AXIS_VERDICTS = {"PASS", "FAIL", "INCOMPLETE"}
+OVERALL_VERDICTS = {"APPROVE", "REQUEST_CHANGES", "INCOMPLETE"}
+ARTIFACT_STEM = re.compile(r"^[a-z][a-z0-9-]*$")
+FINDING_FIELDS = {
+    "id", "axis", "severity", "category", "title", "file", "line", "trigger",
+    "impact", "evidence", "suggestion",
+}
 
 
-def wait_for_agents(session_path: Path, expected_count: int, timeout: int) -> bool:
-    """Wait for expected_count review-*.json files to appear.
+def env_seconds(name: str, default: float) -> float:
+    try:
+        value = float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
 
-    Returns structured JSON on stdout:
-    - status: "complete" (all agents) or "partial" (>=1 agent on timeout)
-    - agents_done / agents_missing: lists of agent names
-    - count: number of completed agents
 
-    Exit code: 0 if all complete OR partial (>=1), 1 if 0 agents.
-    """
-    all_agents = ["review-code", "review-tests", "review-errors",
-                  "review-design", "review-comments"]
+DEFAULT_TIMEOUT = env_seconds("UBP_REVIEW_WAIT_TIMEOUT", 300.0)
+POLL_INTERVAL = env_seconds("UBP_REVIEW_WAIT_POLL", 2.0)
+
+
+def read_json(path: Path):
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return None, f"unreadable JSON: {error}"
+    if not isinstance(data, dict):
+        return None, "top-level value must be an object"
+    return data, None
+
+
+def nonempty_string(value) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def validate_finding(finding, artifact_axis: str, seen_ids):
+    if not isinstance(finding, dict):
+        return "finding must be an object"
+    missing = sorted(FINDING_FIELDS - set(finding))
+    if missing:
+        return f"finding missing fields: {', '.join(missing)}"
+    if not nonempty_string(finding.get("id")):
+        return "finding id must be a non-empty string"
+    if finding["id"] in seen_ids:
+        return f"duplicate finding id: {finding['id']}"
+    seen_ids.add(finding["id"])
+    if finding.get("axis") != artifact_axis:
+        return "finding axis must match artifact axis"
+    if finding.get("severity") not in SEVERITIES:
+        return "finding severity must be P0, P1, P2, or P3"
+    for field in ["category", "title", "file", "trigger", "impact", "evidence", "suggestion"]:
+        if not nonempty_string(finding.get(field)):
+            return f"finding {field} must be a non-empty string"
+    if not isinstance(finding.get("line"), int) or finding["line"] < 1:
+        return "finding line must be a positive integer"
+    line_end = finding.get("line_end")
+    if line_end is not None and (not isinstance(line_end, int) or line_end < finding["line"]):
+        return "finding line_end must be at or after line"
+    return None
+
+
+def validate_specialist(data):
+    if data.get("$schema") != FINDINGS_SCHEMA:
+        return f"$schema must be {FINDINGS_SCHEMA}"
+    if not nonempty_string(data.get("agent")):
+        return "agent must be a non-empty string"
+    axis = data.get("axis")
+    if axis not in AXES:
+        return "axis must be spec_fidelity or engineering_standards"
+    for field in ["session", "timestamp"]:
+        if not nonempty_string(data.get(field)):
+            return f"{field} must be a non-empty string"
+    scope = data.get("scope")
+    if not isinstance(scope, dict):
+        return "scope must be an object"
+    for field in ["head", "range"]:
+        if not nonempty_string(scope.get(field)):
+            return f"scope.{field} must be a non-empty string"
+    if not isinstance(scope.get("files_analyzed"), list) or not all(
+        nonempty_string(item) for item in scope["files_analyzed"]
+    ):
+        return "scope.files_analyzed must be a string array"
+    if not isinstance(scope.get("diff_only"), bool):
+        return "scope.diff_only must be boolean"
+    if data.get("status") != "complete":
+        return "status must be complete"
+    findings = data.get("findings")
+    if not isinstance(findings, list):
+        return "findings must be an array"
+    seen_ids = set()
+    for finding in findings:
+        error = validate_finding(finding, axis, seen_ids)
+        if error:
+            return error
+    for field in ["positive_observations", "limitations"]:
+        if not isinstance(data.get(field), list):
+            return f"{field} must be an array"
+    return None
+
+
+def evaluate_artifacts(session_path: Path, expected):
+    done = []
+    missing = []
+    invalid = []
+    errors = {}
+    for stem in expected:
+        path = session_path / f"{stem}.json"
+        if not path.exists():
+            missing.append(stem)
+            continue
+        data, error = read_json(path)
+        if error is None:
+            error = validate_specialist(data)
+        if error:
+            invalid.append(stem)
+            errors[stem] = error
+        else:
+            done.append(stem)
+    return done, missing, invalid, errors
+
+
+def wait_for_agents(session_path: Path, expected, timeout: float) -> bool:
     deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        found = glob.glob(str(session_path / "review-*.json"))
-        if len(found) >= expected_count:
-            names = [Path(f).stem for f in sorted(found)]
-            result = {"status": "complete", "agents_done": names, "agents_missing": [], "count": len(found)}
-            print(json.dumps(result))
+    while True:
+        done, missing, invalid, errors = evaluate_artifacts(session_path, expected)
+        if len(done) == len(expected):
+            print(json.dumps({
+                "status": "complete",
+                "artifacts_done": done,
+                "artifacts_missing": [],
+                "artifacts_invalid": [],
+                "errors": {},
+                "count": len(done),
+            }, sort_keys=True))
             return True
-        remaining = int(deadline - time.monotonic())
-        sys.stderr.write(f"\r  Waiting: {len(found)}/{expected_count} ({remaining}s remaining)")
-        sys.stderr.flush()
-        time.sleep(POLL_INTERVAL)
+        if time.monotonic() >= deadline:
+            print(json.dumps({
+                "status": "incomplete",
+                "artifacts_done": done,
+                "artifacts_missing": missing,
+                "artifacts_invalid": invalid,
+                "errors": errors,
+                "count": len(done),
+            }, sort_keys=True))
+            return False
+        time.sleep(min(POLL_INTERVAL, max(0.0, deadline - time.monotonic())))
 
-    # Timeout — report partial results as structured JSON
-    found = glob.glob(str(session_path / "review-*.json"))
-    found_names = [Path(f).stem for f in sorted(found)]
-    missing = [a for a in all_agents if a not in found_names]
-    result = {"status": "partial", "agents_done": found_names, "agents_missing": missing, "count": len(found)}
-    print(json.dumps(result))
-    return len(found) >= 1  # At least 1 agent = partial success
+
+def expected_overall_verdict(data) -> str:
+    verdicts = {data["axes"][axis]["verdict"] for axis in AXES}
+    severities = {finding["severity"] for finding in data["findings"]}
+    if "INCOMPLETE" in verdicts:
+        return "INCOMPLETE"
+    if "FAIL" in verdicts or severities.intersection({"P0", "P1"}):
+        return "REQUEST_CHANGES"
+    return "APPROVE"
 
 
-def wait_for_summary(session_path: Path, timeout: int) -> bool:
-    """Wait for SUMMARY.json to appear."""
+def validate_summary(data):
+    if data.get("$schema") != SUMMARY_SCHEMA:
+        return f"$schema must be {SUMMARY_SCHEMA}"
+    for field in ["session", "head"]:
+        if not nonempty_string(data.get(field)):
+            return f"{field} must be a non-empty string"
+    if data.get("status") != "complete":
+        return "status must be complete"
+    if data.get("verdict") not in OVERALL_VERDICTS:
+        return "invalid overall verdict"
+    axes = data.get("axes")
+    if not isinstance(axes, dict) or set(axes) != AXES:
+        return "axes must contain exactly spec_fidelity and engineering_standards"
+    for axis in AXES:
+        item = axes[axis]
+        if not isinstance(item, dict) or item.get("verdict") not in AXIS_VERDICTS:
+            return f"invalid {axis} verdict"
+        refs = item.get("evidence_refs")
+        if not isinstance(refs, list) or not refs or not all(nonempty_string(ref) for ref in refs):
+            return f"{axis}.evidence_refs must be a non-empty string array"
+    workers = data.get("workers")
+    if not isinstance(workers, dict):
+        return "workers must be an object"
+    for field in ["completed", "failed", "skipped"]:
+        if not isinstance(workers.get(field), list):
+            return f"workers.{field} must be an array"
+    findings = data.get("findings")
+    if not isinstance(findings, list):
+        return "findings must be an array"
+    seen_ids = set()
+    for finding in findings:
+        axis = finding.get("axis") if isinstance(finding, dict) else None
+        if axis not in AXES:
+            return "summary finding has invalid axis"
+        error = validate_finding(finding, axis, seen_ids)
+        if error:
+            return error
+    for field in ["positive_observations", "limitations"]:
+        if not isinstance(data.get(field), list):
+            return f"{field} must be an array"
+    expected = expected_overall_verdict(data)
+    if data["verdict"] != expected:
+        return f"verdict {data['verdict']} conflicts with evidence; expected {expected}"
+    return None
+
+
+def wait_for_summary(session_path: Path, timeout: float) -> bool:
     summary_path = session_path / "SUMMARY.json"
     deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if summary_path.exists() and summary_path.stat().st_size > 0:
-            try:
-                data = json.loads(summary_path.read_text(encoding="utf-8"))
-                verdict = data.get("verdict", "UNKNOWN")
-                p0 = data.get("p0", 0)
-                p1 = data.get("p1", 0)
-                total = data.get("total", 0)
-                print(f"Review complete: {verdict} (P0:{p0} P1:{p1} total:{total})")
+    last_error = "SUMMARY.json is missing"
+    while True:
+        if summary_path.exists():
+            data, error = read_json(summary_path)
+            if error is None:
+                error = validate_summary(data)
+            if error is None:
+                counts = {severity: 0 for severity in sorted(SEVERITIES)}
+                for finding in data["findings"]:
+                    counts[finding["severity"]] += 1
+                print(
+                    f"Review complete: {data['verdict']} "
+                    f"(P0:{counts['P0']} P1:{counts['P1']} P2:{counts['P2']} "
+                    f"P3:{counts['P3']} total:{len(data['findings'])})"
+                )
                 return True
-            except (json.JSONDecodeError, KeyError):
-                pass  # File still being written
-        remaining = int(deadline - time.monotonic())
-        print(
-            f"\r  Waiting for coordinator ({remaining}s remaining)",
-            end="", flush=True
-        )
-        time.sleep(POLL_INTERVAL)
-
-    print("\nTimeout: coordinator did not produce SUMMARY.json")
-    return False
+            last_error = error
+        if time.monotonic() >= deadline:
+            print(json.dumps({"status": "incomplete", "error": last_error}, sort_keys=True))
+            return False
+        time.sleep(min(POLL_INTERVAL, max(0.0, deadline - time.monotonic())))
 
 
 def main():
@@ -92,28 +258,27 @@ def main():
 
     session_path = Path(sys.argv[1])
     mode = sys.argv[2]
-
     if not session_path.is_dir():
         print(f"Error: session directory not found: {session_path}", file=sys.stderr)
         sys.exit(2)
 
-    timeout = DEFAULT_TIMEOUT
-
     if mode == "agents":
-        if len(sys.argv) < 4:
-            print("Error: agents mode requires <count> argument", file=sys.stderr)
+        expected = sys.argv[3:]
+        if not expected or len(expected) != len(set(expected)) or not all(
+            ARTIFACT_STEM.fullmatch(stem) for stem in expected
+        ):
+            print("Error: agents mode requires unique safe artifact stems", file=sys.stderr)
             sys.exit(2)
-        expected = int(sys.argv[3])
-        ok = wait_for_agents(session_path, expected, timeout)
-        sys.exit(0 if ok else 1)
-
+        ok = wait_for_agents(session_path, expected, DEFAULT_TIMEOUT)
     elif mode == "summary":
-        ok = wait_for_summary(session_path, timeout)
-        sys.exit(0 if ok else 1)
-
+        if len(sys.argv) != 3:
+            print("Error: summary mode accepts no additional arguments", file=sys.stderr)
+            sys.exit(2)
+        ok = wait_for_summary(session_path, DEFAULT_TIMEOUT)
     else:
         print(f"Error: unknown mode '{mode}'. Use 'agents' or 'summary'.", file=sys.stderr)
         sys.exit(2)
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

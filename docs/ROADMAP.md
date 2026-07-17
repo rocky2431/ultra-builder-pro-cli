@@ -13,7 +13,7 @@ sharing one authoritative workflow store.
 
 **Distribution channels (v1.0)**: npm · Homebrew · pip.
 
-**Release line**: `0.10.x`; every release is gated by `npm run verify:release`.
+**Release line**: `0.11.x`; every release is gated by `npm run verify:release`.
 
 ---
 

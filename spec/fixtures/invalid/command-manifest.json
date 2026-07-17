@@ -1,29 +1,32 @@
 [
   {
-    "argument-hint": "missing description"
+    "description": "Missing the required workflow reference"
   },
   {
-    "description": "bad workflow-ref path",
+    "description": "Workflow reference has the wrong path shape",
     "workflow-ref": "skills/ultra-init/SKILL.md"
   },
   {
-    "description": "workflow-ref points at non-skill folder",
+    "description": "Workflow reference points outside the Skill surface",
     "workflow-ref": "@commands/ultra-init.md"
   },
   {
-    "description": "model enum violation",
-    "model": "gpt-4"
+    "description": "Host model routing does not belong in the portable launcher",
+    "workflow-ref": "@skills/ultra-init/SKILL.md",
+    "model": "opus"
   },
   {
-    "description": "mcp tool name pattern violation",
-    "mcp_tools_required": ["TaskCreate"]
+    "description": "MCP dependencies belong in runtime metadata rather than this prompt",
+    "workflow-ref": "@skills/ultra-init/SKILL.md",
+    "mcp_tools_required": ["task.create"]
   },
   {
-    "description": "unknown field leak",
+    "description": "Unknown source launcher field",
+    "workflow-ref": "@skills/ultra-init/SKILL.md",
     "foo": "bar"
   },
   {
-    "description": "too short",
-    "extra": 1
+    "description": "short",
+    "workflow-ref": "@skills/ultra-init/SKILL.md"
   }
 ]

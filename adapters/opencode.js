@@ -70,62 +70,29 @@ function openCodeTextTransform(input, assetName = '') {
   text = text.replaceAll('CLAUDE.md', 'AGENTS.md');
   text = text.replace(/@skills\/([a-z0-9-]+)\/SKILL\.md/g, '~/.config/opencode/skills/$1/SKILL.md');
 
-  text = text.replaceAll('TaskCreate/TaskUpdate (session-local)', 'the OpenCode plan (session-local)');
-  text = text.replaceAll('TaskCreate', 'an OpenCode plan item');
-  text = text.replaceAll('TaskUpdate', 'an OpenCode plan update');
-  text = text.replaceAll('TaskList', 'the current OpenCode plan');
-  text = text.replaceAll('`run_in_background: true`', 'concurrent OpenCode task execution');
-  text = text.replaceAll('run_in_background: true', 'concurrent OpenCode task execution');
-  text = text.replaceAll('Claude Task tool', 'OpenCode `task` tool');
-  text = text.replaceAll('Task tool', 'OpenCode `task` tool');
-  text = text.replaceAll('multiple Task calls', 'multiple OpenCode `task` calls');
-  text = text.replaceAll('Bash tool', 'OpenCode `bash` tool');
-  text = text.replaceAll('Read tool', 'OpenCode `read` tool');
-  text = text.replaceAll('Write tool', 'OpenCode `edit` tool');
-
-  text = text.replaceAll('MCP `review.run`', 'OpenCode native review subagents');
-  text = text.replaceAll('`review.run`', 'OpenCode native review subagents');
-  text = text.replaceAll('review.run', 'OpenCode native review subagents');
-  text = text.replaceAll('MCP `ask.question`', 'OpenCode `question` tool');
-  text = text.replaceAll('`ask.question`', 'OpenCode `question` tool');
-  text = text.replaceAll('ask.question', 'OpenCode question tool');
-  text = text.replaceAll('AskUserQuestion', 'OpenCode `question` tool');
-  text = text.replaceAll('ultra-tools ask --question … --options …', 'OpenCode `question` tool');
-  text = text.replaceAll('ultra-tools ask --question …', 'OpenCode `question` tool');
-  text = text.replaceAll('ultra-tools ask …', 'OpenCode `question` tool');
-  text = text.replaceAll('Claude runtime', 'OpenCode runtime');
-  text = text.replaceAll('Claude-only', 'OpenCode-only');
-
   if (assetName === 'codex-collab') {
-    text = text.replaceAll('within Claude Code', 'from OpenCode');
-    text = text.replaceAll('Claude Code remains primary', 'OpenCode remains primary');
-    text = text.replaceAll('Claude orchestrates', 'OpenCode remains primary and orchestrates');
-    text = text.replaceAll('Claude synthesizes', 'OpenCode verifies and synthesizes');
-    text = text.replaceAll("Claude's", "OpenCode's");
-    text = text.replaceAll('proceed with Claude-only analysis', 'proceed with OpenCode-only analysis');
+    text = text.replaceAll('the current host', 'OpenCode');
+    text = text.replaceAll('current host', 'OpenCode');
   }
   if (assetName === 'ultra-verify') {
+    text = text.replaceAll('the current host', 'OpenCode');
+    text = text.replaceAll('current host', 'OpenCode');
     text = text.replaceAll('claude-analysis.md', 'opencode-analysis.md');
     text = text.replaceAll('Claude Code', 'OpenCode');
     text = text.replaceAll('Claude', 'OpenCode');
   }
+  if (assetName === 'cc-collab') {
+    text = text.replaceAll('the current host', 'OpenCode');
+    text = text.replaceAll('current host', 'OpenCode');
+  }
+  if (assetName === 'ultra-review') {
+    text = text.replaceAll(
+      "the current host's native bounded-worker mechanism",
+      'the OpenCode `task` tool using the installed bounded review agents',
+    );
+  }
   if (assetName === 'learn') {
-    text = text.replaceAll(
-      '~/.config/opencode/skills/learned/<name>_unverified.md',
-      '~/.config/opencode/skills/learned-<name>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/.config/opencode/skills/learned/<pattern-slug>_unverified.md',
-      '~/.config/opencode/skills/learned-<pattern-slug>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/.config/opencode/skills/learned/<slug>_unverified.md',
-      '~/.config/opencode/skills/learned-<slug>-unverified/SKILL.md',
-    );
-    text = text.replaceAll('append the `_unverified` suffix to the filename', 'append `-unverified` to the skill directory name');
-    text = text.replaceAll('Never overwrite an existing unverified file', 'Never overwrite an existing learned skill directory');
-    text = text.replaceAll('remove the `_unverified` suffix', 'rename the directory to remove `-unverified` and update the frontmatter name');
-    text = text.replaceAll('(`pattern-slug-2_unverified.md`)', '(`learned-pattern-slug-2-unverified/`)');
+    text = text.replaceAll("current host's user skill directory", '`~/.config/opencode/skills`');
   }
   return text;
 }

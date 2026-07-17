@@ -1,111 +1,73 @@
 ---
 name: ultra-deliver
-description: "Converge an implementation, approved specification learning, independent review axes, and release evidence into one recoverable baseline."
-user-invocable: true
-runtime: all
-mcp_tools_required:
-  - change.list
-  - change.get
-  - change.context
-  - change.breadcrumb
-  - change.learning_resolve
-  - change.converge
-  - change.archive
-cli_fallback: "direct user interaction"
+description: Converge verified implementation, specification learning, review evidence, and release artifacts into a recoverable baseline. Use when an initial baseline or active change has current passing evidence and is ready to archive or release.
 ---
 
-# ultra-deliver — Converge, Archive, Release
+# Converge and deliver
 
-Deliver the current baseline or one continuous-change packet. Change lifecycle writes
-use MCP only; `.ultra/test-report.json`, review sessions, and delivery reports are
-evidence artifacts.
+Deliver one baseline or continuous change. Change lifecycle writes use MCP; test,
+review, and delivery reports are evidence artifacts.
 
-## 1. Bind the delivery
+## Bind current evidence
 
-1. Call `change.list` for active, blocked, and ready changes.
-2. Bind exactly one relevant change; require an id when ambiguous. Initial baseline
-   delivery may use `change_id: null`.
-3. Call `change.breadcrumb`. A stale/blocked context or incomplete linked task blocks.
-4. Verify `.ultra/test-report.json` exists, passed, matches the change, and records the
-   current full HEAD plus at least one public seam.
-5. Verify the latest review session matches the same HEAD and has passing independent
-   `spec_fidelity` and `engineering_standards` axes.
+1. Call `change.list` and bind exactly one relevant change, or a null change id for an
+   initial baseline.
+2. Call `change.breadcrumb`. Block on stale context, incomplete linked tasks, or
+   unresolved readiness.
+3. Require a passing test report for the current full HEAD and at least one declared
+   public seam.
+4. Require current independent `spec_fidelity` and `engineering_standards` review
+   verdicts. Evidence from another checkout, commit, task set, or change is invalid.
 
-Do not reuse evidence from another checkout, commit, task set, or change.
+## Reconcile the baseline
 
-## 2. Reconcile specification learning
+Call `change.get` for authoritative learning candidates.
 
-Call `change.get` for authoritative `learning_candidates`; use the packet's
-`spec-learning.json` only as the inspectable projection.
+- Resolve every proposed item as approved or rejected.
+- Apply each approved item to its declared baseline target, verify the edit, then mark
+  it applied.
+- Preserve rejection reasons as decision evidence.
+- Confirm previously applied items remain represented in the target document.
 
-- `proposed`: require approve or reject through `change.learning_resolve`.
-- `approved`: update the declared baseline target, verify the edit, then mark `apply`.
-- `rejected`: preserve the reason as decision evidence.
-- `applied`: verify the target still contains the accepted behavior.
+Reconcile accepted delta content and documentation impact into baseline documents.
+Record updated paths or a specific no-change reason. Unknown documentation impact,
+unresolved placeholders, and behavior that exists only in the delta block convergence.
 
-Any proposed or approved candidate blocks convergence. This is the mandatory path that
-keeps baseline specs alive after daily changes; it is not cross-session memory.
+## Verify the release candidate
 
-Reconcile accepted `delta/` content and declared documentation impact into baseline
-documents. Record `baseline_updates`, or a specific no-change reason. No unresolved
-placeholder, unknown docs impact, or delivered-only-in-delta behavior may remain.
+Use a clean, reviewed release commit. Show any remaining diff and obtain explicit
+authorization before staging or committing. Never stage unrelated user changes.
 
-## 3. Verify the release candidate
+Run the exact repository commands needed for focused regression, relevant full tests,
+static checks, production build, package/install/doctor smoke when distributed, the
+public seam, and rollback or recovery sanity. Any post-verification edit invalidates
+the affected evidence.
 
-Require a clean, reviewed release commit. If changes remain, show the diff and obtain
-explicit approval before committing. Never auto-stage unrelated user changes.
+Compile final change context at the release commit with the convergence gate. It must
+be ready before calling `change.converge`.
 
-Run exact project commands for:
+## Converge and archive
 
-1. focused regression/acceptance feedback loop;
-2. full relevant tests;
-3. static checks and production build;
-4. package/install/doctor smoke where the product is distributed;
-5. public-seam acceptance and rollback/recovery sanity.
+Submit structured evidence for the reviewed diff and seam, test signals, baseline and
+delta, documentation, both independent review axes, and incident diagnosis when
+applicable. Do not collapse review axes or replace exact signal fields with prose.
 
-Record commands, exit results, and current HEAD. Any post-test edit invalidates the
-test and review gates.
+Resolve named blockers, rerun invalidated gates, then call `change.archive` with the
+summary and baseline updates.
 
-## 4. Compile final role context
+## Optional release
 
-Call `change.context` at the release commit with `role=review`, `gate=convergence`,
-current required refs/digests, the public seam, exact verification command, and the
-single next action `Archive the converged change`. Readiness must be `ready`.
+Only when release authorization is in scope:
 
-## 5. Converge
-
-Call `change.converge` with evidence rows for:
-
-- `diff`: reviewed release diff and public seam;
-- `tests`: exact signal object (`command`, expected/observed red, observed green,
-  deterministic, duration when known) and seam;
-- `spec`: baseline/delta and applied learning evidence;
-- `docs`: updated paths or explicit non-applicability;
-- `review`, `axis=spec_fidelity`;
-- `review`, `axis=engineering_standards`;
-- `diagnosis` for incidents.
-
-Do not collapse the two review axes or substitute prose for the signal fields. If
-convergence returns blockers, fix the named source and rerun the invalidated gates.
-
-## 6. Archive and release
-
-After `ready=true`, call `change.archive` with summary and `baseline_updates` (or the
-validated no-change reason). Then:
-
-1. determine the semantic version from user-visible compatibility;
+1. determine the semantic version from compatibility impact;
 2. update version and changelog;
-3. rerun release verification if version files changed;
-4. create a non-force commit/tag and push only with explicit release authorization;
-5. publish the package/release through the repository's authenticated workflow;
-6. verify the remote tag/release and registry version independently.
+3. rerun checks invalidated by version changes;
+4. create a non-force commit and tag;
+5. push and publish through the repository's authenticated workflow;
+6. independently verify the remote commit, tag, release, and registry version.
 
-Write `.ultra/delivery-report.json` with change id, archived status, commit, version,
-commands, package/release identifiers, baseline updates, rollback notes, and timestamp.
+Write the delivery report with the change id, archive status, commit, version, exact
+commands, release identifiers, baseline updates, rollback notes, and timestamp.
 
-## Completion gate
-
-Delivery is complete only when the change is archived, local and remote commit/tag
-agree, registry/release verification is current, and the worktree contains no
-unexplained scope. Report the outcome first, exact evidence next, and residual risks
-last. Never say “published” based only on a local version bump.
+Delivery is complete only when local and remote evidence agree and the worktree has no
+unexplained scope. A local version bump is not publication evidence.

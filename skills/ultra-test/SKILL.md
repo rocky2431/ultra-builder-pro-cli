@@ -1,94 +1,59 @@
 ---
 name: ultra-test
-description: "Run the pre-delivery check gate from a fresh role context and record exact feedback-loop, wiring, recovery, and acceptance evidence."
-user-invocable: true
-runtime: all
-mcp_tools_required:
-  - task.list
-  - change.list
-  - change.context
-  - change.breadcrumb
+description: Run an independent pre-delivery verification gate and record exact feedback-loop, reachability, recovery, and acceptance evidence. Use when scoped implementation tasks are complete and delivery readiness must be established.
 ---
 
-# ultra-test — Independent Check Context
+# Verify delivery readiness
 
-This is the project/change pre-delivery gate, not a replacement for the task-level TDD
-loop. It produces `.ultra/test-report.json`; task and change authority remain in
-`.ultra/state.db`.
+Run this gate from a fresh checking context. It complements task-level development
+tests and writes `.ultra/test-report.json`; it does not replace authoritative task or
+change state.
 
 ## Entry gate
 
-1. Call `task.list`; require at least one completed task in scope.
-2. Call `change.list` and bind to exactly one relevant active/blocked/ready change, or
-   explicitly record `change_id: null` for an initial baseline.
-3. For a change, compile `change.context` with `role=check`, `gate=verification`, only
-   the tests/specs/source seams needed to verify it, and the same execution contract.
+1. Call `task.list` and require at least one completed task in scope.
+2. Call `change.list` and bind exactly one relevant change, or record a null change id
+   for an initial baseline.
+3. For a change, compile `change.context` for the checking role and verification gate
+   with only the specifications, tests, and source seams needed for acceptance.
 4. Call `change.breadcrumb`; stop when context is stale or readiness is blocked.
 
-Never fall back to `.ultra/tasks/tasks.json`. Do not reuse the implementer's full
+Never use generated task JSON as authority or reuse the implementer's full
 conversation as test context.
 
-## Verification matrix
+## Evidence matrix
 
-Build a matrix from acceptance claims to observable evidence:
+Map each acceptance claim to observable evidence:
 
-| Check | Required evidence | Blocking condition |
+| Check | Evidence | Blocking result |
 |---|---|---|
-| Feedback loop | exact command and observed green | command fails or no prior red for fix/incident |
-| Public seam | reachable entry-to-consumer path | orphan/stub/unwired behavior |
-| Regression | focused and adjacent suites | failure or meaningful skipped assertion |
-| Build/static | typecheck/lint/build as applicable | non-zero result |
-| Error/recovery | failure mode and recovery path | silent/swallowed/unrecoverable critical path |
-| Security | input/auth/secrets/dependency checks in scope | high-severity issue |
-| Docs/spec | delivered behavior matches declared delta | drift or unknown impact |
+| Feedback loop | exact command and observed result | failure or missing baseline signal for a fix |
+| Public seam | reachable entry-to-consumer path | orphan, stub, or unwired behavior |
+| Regression | focused and adjacent suites | failure or weakened assertion |
+| Static/build | applicable type, lint, and build commands | non-zero result |
+| Error/recovery | exercised failure and recovery path | silent or unrecoverable critical path |
+| Security | relevant input, authorization, secret, and dependency checks | high-impact exploitable issue |
+| Docs/spec | delivered behavior matches the declared baseline or delta | drift or unknown impact |
 
-Use repository-native commands and real boundaries where practical. Test doubles are
-acceptable only at costly or nondeterministic external boundaries and must be named.
+Use repository-native commands and real boundaries when practical. Use test doubles
+only at costly or nondeterministic external boundaries, and state why they preserve
+the contract being tested.
 
-## Quality checks
-
-- Detect tautologies, empty tests, weakened assertions, and core-domain over-mocking.
-- Find changed exports without meaningful test coverage.
-- Trace changed source into non-test consumers; flag orphan modules and placeholder
-  handlers/components.
-- Exercise key API/UI/CLI flows when the project exposes them.
-- Inspect error handling, authorization, migrations, idempotency, and rollback in the
-  affected risk surface.
-- Compare current HEAD and context digests with the implementation evidence.
-
-Do not mechanically require every possible test category. Mark a check
-`not_applicable` only with a concrete scope reason.
+Inspect tests for tautologies, empty assertions, hidden skips, excessive boundary
+mocking, changed exports without behavioral coverage, and code with no non-test
+consumer. Apply checks by risk and scope rather than forcing every category.
 
 ## Report contract
 
-Write `.ultra/test-report.json` atomically with at least:
+Write the report atomically with the current full HEAD, change id, context manifest
+hash, exact commands, baseline and final signals, verified public seams, checks, and
+blocking issues. Preserve concise failure excerpts instead of full logs.
 
-```json
-{
-  "schema_version": "2.0",
-  "change_id": "<id-or-null>",
-  "git_commit": "<full-head>",
-  "context_manifest_hash": "<hash-or-null>",
-  "passed": true,
-  "feedback_loop": {
-    "command": "<exact command>",
-    "expected_red": "<failure contract or not-applicable reason>",
-    "observed_red": true,
-    "observed_green": true,
-    "deterministic": true
-  },
-  "public_seams": ["<verified seam>"],
-  "checks": [],
-  "blocking_issues": [],
-  "commands": []
-}
-```
-
-Set `passed=true` only when every required check passes, the report HEAD is current,
-and at least one public seam is verified. Preserve exact commands, exit results, and
-concise failure excerpts; do not paste full logs.
+Set `passed: true` only when every required check passes, the report HEAD is current,
+and at least one declared public seam is verified. A not-applicable check needs a
+specific scope reason.
 
 ## Exit
 
-Call `change.breadcrumb` and route one next action: fix a named blocker, run
-`/ultra-review all`, or run `/ultra-deliver`. A stale report never routes to delivery.
+Call `change.breadcrumb` and return one next action: fix a named blocker, run
+`ultra-review`, or run `ultra-deliver`. A stale report never routes to delivery.

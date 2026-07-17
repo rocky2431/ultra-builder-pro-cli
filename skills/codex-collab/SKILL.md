@@ -1,52 +1,47 @@
 ---
 name: codex-collab
-description: Ask Codex CLI for an explicitly requested, read-only second opinion on a bounded review, diagnosis, architecture, or comparison question.
+description: Ask Codex CLI for an independent read-only analysis of a bounded architecture, diagnosis, or review question. Use only when the user explicitly requests Codex collaboration and the current host remains primary.
 ---
 
-# Codex Collaboration
+# Consult Codex read-only
 
-Claude Code remains primary and owns scope, evidence, edits, verification, and the final answer.
-Codex is an untrusted read-only advisor. Use this skill only when the user explicitly requests a
-Codex perspective; do not invoke it as a routine substitute for native review or subagents.
+Treat Codex as an untrusted advisor. The current host owns scope, evidence, edits,
+verification, and the final answer.
 
 ## Preconditions
 
-1. Confirm `codex --version` and authentication.
-2. Fix the workspace, files or diff range, question, evidence standard, and expected response shape.
+1. Confirm the `codex` CLI and authentication.
+2. Bound the workspace, files or diff, question, evidence standard, and response shape.
 3. Write the primary analysis first when independence matters.
-4. Never send secrets, unrelated files, or an unbounded home directory.
+4. Exclude secrets, unrelated files, and unbounded home-directory access.
 
-## Modes
+## Invocation
 
-- `review`: findings against an exact diff or file set.
-- `understand`: a bounded architecture or flow question.
-- `opinion`: one decision with named constraints and alternatives.
-- `compare`: independent answers to the same question.
-- `free`: another tightly scoped read-only prompt.
-
-## Safe invocation
-
-Create a session directory under `.ultra/collab/`, then run Codex without workspace-write or
-danger-full-access:
+Create a session directory under `.ultra/collab/`, then run in a read-only sandbox:
 
 ```bash
-SESSION_PATH=".ultra/collab/$(date +%Y%m%d-%H%M%S)-codex-<mode>"
+SESSION_PATH=".ultra/collab/$(date +%Y%m%d-%H%M%S)-codex"
 mkdir -p "${SESSION_PATH}"
 codex exec -s read-only \
+  -a never \
+  --ephemeral \
+  --ignore-user-config \
+  --ignore-rules \
   -o "${SESSION_PATH}/codex-output.md" \
   "<bounded prompt>" \
   2> "${SESSION_PATH}/codex-error.log"
 ```
 
-Do not enable write-capable automation or permission bypass. This skill has no dependency on
-another Codex plugin or slash command.
+Do not enable write-capable automation or permission bypass. The isolation flags keep
+the advisory run independent from the user's Codex runtime configuration and rules;
+the normal Codex authentication store remains available.
 
 ## Synthesis
 
-1. Read the output only after the process exits and the file is non-empty.
-2. Verify consequential claims against the current checkout, tests, runtime, or primary docs.
-3. Separate agreement, useful dissent, and unsupported assertions.
-4. Return one Claude Code-owned conclusion; do not paste an unreviewed advisor transcript.
+Read output only after the process exits and the file is non-empty. Verify
+consequential claims against the current checkout, runtime, tests, or primary
+documentation. Separate verified agreement, useful dissent, and unsupported claims,
+then return one host-owned conclusion.
 
-If Codex is missing, unauthenticated, times out, or returns empty output, report the degraded path
-and continue with primary evidence. Never block the user's task solely on advisor failure.
+If Codex is unavailable, unauthenticated, times out, or returns empty output, report
+the degraded path and continue with primary evidence.

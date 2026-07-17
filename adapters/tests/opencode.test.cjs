@@ -64,15 +64,17 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     const verify = fs.readFileSync(path.join(target, 'skills', 'ultra-verify', 'SKILL.md'), 'utf8');
 
     assert.deepEqual(Object.keys(parseFm(plan).fm), ['name', 'description']);
-    assert.match(learn, /~\/.config\/opencode\/skills\/learned-<pattern-slug>-unverified\/SKILL\.md/);
-    assert.doesNotMatch(learn, /_unverified\.md/);
-    assert.match(review, /~\/.config\/opencode\/skills\/ultra-review\/scripts\/review_wait\.py/);
+    assert.match(learn, /`~\/.config\/opencode\/skills`/);
+    assert.doesNotMatch(learn, /_unverified|learned-[^\s/]*-unverified/i);
+    assert.match(review, /OpenCode `task` tool/);
+    assert.match(review, /scripts\/review_wait\.py/);
     assert.match(codexCollab, /OpenCode remains primary/);
-    assert.match(verify, /OpenCode remains primary/);
+    assert.match(verify, /OpenCode writes the first analysis/);
     assert.match(verify, /opencode-analysis\.md/);
     assert.match(verify, /codex exec -s read-only/);
-    assert.match(plan, /LEGACY_STATE_MIGRATION_REQUIRED/);
-    assert.match(plan, /never read or write .*tasks\.json/i);
+    assert.match(verify, /--ignore-user-config/);
+    assert.doesNotMatch(plan, /LEGACY_STATE_MIGRATION_REQUIRED|v4\.4|v4\.5/);
+    assert.match(plan, /never read or\s+write .*tasks\.json/i);
     assert.doesNotMatch(plan, /ultra-tools task create/);
 
     const markdown = [];
@@ -89,7 +91,9 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     }
     const incompatible = /~\/.claude|CLAUDE\.md|AskUserQuestion|TaskCreate|TaskUpdate|TaskList|run_in_background:\s*true|--yolo|--full-auto|\/codex:|ask\.question|review\.run/;
     for (const file of markdown) {
-      assert.doesNotMatch(fs.readFileSync(file, 'utf8'), incompatible, file);
+      const text = fs.readFileSync(file, 'utf8');
+      assert.doesNotMatch(text, incompatible, file);
+      assert.doesNotMatch(text, /[\u3400-\u9fff]|ultra-review-findings-v1|Context7|Exa MCP|confidence\s*>=?\s*\d+/iu, file);
     }
   } finally {
     fs.rmSync(target, { recursive: true, force: true });

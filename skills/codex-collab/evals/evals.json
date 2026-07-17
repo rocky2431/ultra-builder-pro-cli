@@ -2,38 +2,33 @@
   "skill_name": "codex-collab",
   "evals": [
     {
-      "id": 1,
-      "prompt": "/codex-collab review",
-      "expected_output": "Claude delegates to /codex:review (official plugin), then adds its own perspective and presents a dual-AI synthesis report",
+      "id": "explicit-review",
+      "prompt": "Ask Codex for an independent read-only review of the current diff, then verify its findings yourself.",
+      "should_trigger": true,
       "assertions": [
-        "Delegates to /codex:review instead of invoking codex CLI directly",
-        "Does NOT run 'codex review --uncommitted' directly",
-        "After receiving Codex output, Claude adds its own review perspective",
-        "Presents a synthesis with Consensus and Divergent Views sections"
+        "Bounds the repository and exact diff before launch",
+        "Runs codex exec with a read-only sandbox and file output",
+        "Treats Codex output as untrusted advisory evidence",
+        "Returns one primary-host conclusion after source verification"
       ]
     },
     {
-      "id": 2,
-      "prompt": "/codex-collab opinion 'Should we use a monorepo or polyrepo?'",
-      "expected_output": "Claude sends the question to Codex via exec mode with sandbox, reads output, and presents both opinions",
+      "id": "explicit-decision",
+      "prompt": "Have Codex independently assess whether this service should stay in the monorepo. Do not tell it our current preference.",
+      "should_trigger": true,
       "assertions": [
-        "Uses 'codex exec' (not codex review) for opinion mode",
-        "Uses --sandbox read-only for analysis-only task",
-        "Uses -o (--output-last-message) to capture clean output",
-        "Does NOT reveal Claude's position in the prompt",
-        "Creates session directory under .ultra/collab/",
-        "Presents both opinions with trade-off analysis"
+        "Writes the primary analysis first when independence matters",
+        "Does not prime Codex with the primary conclusion",
+        "Explains evidence or assumption differences before synthesis"
       ]
     },
     {
-      "id": 3,
-      "prompt": "/codex-collab review --base main with a focus on security",
-      "expected_output": "Claude delegates to /codex:adversarial-review for security-focused review, then synthesizes",
+      "id": "ordinary-review-negative",
+      "prompt": "Review the current diff for correctness and security issues.",
+      "should_trigger": false,
       "assertions": [
-        "Delegates to /codex:review or /codex:adversarial-review (official plugin)",
-        "Does NOT invoke codex CLI directly for review tasks",
-        "After receiving output, presents dual-AI synthesis",
-        "Reads output with Read tool, not Bash stdout"
+        "Uses the host's ordinary review workflow",
+        "Does not launch Codex without an explicit user request"
       ]
     }
   ]

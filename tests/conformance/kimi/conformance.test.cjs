@@ -49,8 +49,9 @@ test('kimi conformance — complete skills plus functional worker templates', ()
     assert.equal(skills.length, 20);
     assert.equal(
       fs.readdirSync(path.join(value.pluginRoot, 'agents')).filter((name) => name.endsWith('.md')).length,
-      9,
+      10,
     );
+    assert.ok(fs.existsSync(path.join(value.pluginRoot, 'agents', 'review-spec.md')));
     const manifest = JSON.parse(fs.readFileSync(path.join(value.pluginRoot, 'kimi.plugin.json'), 'utf8'));
     assert.equal(manifest.agents, undefined);
   } finally { cleanup(value.home); }

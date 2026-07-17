@@ -18,7 +18,7 @@ const COMMANDS = [
 ];
 const AGENTS = [
   'code-reviewer', 'debugger', 'review-code', 'review-comments',
-  'review-coordinator', 'review-design', 'review-errors', 'review-tests', 'tdd-runner',
+  'review-coordinator', 'review-design', 'review-errors', 'review-spec', 'review-tests', 'tdd-runner',
 ];
 
 function mkLayout(prefix) {

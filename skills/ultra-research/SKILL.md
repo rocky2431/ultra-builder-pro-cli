@@ -1,156 +1,63 @@
 ---
 name: ultra-research
-description: "Think-Driven Interactive Discovery - Deep research with step-file architecture for high-density output"
-user-invocable: true
+description: Turn uncertain product or architecture intent into evidence-backed baseline specifications with explicit decisions and traceable acceptance. Use when an Ultra project has unresolved requirements that are not ready for planning.
 ---
 
-# Ultra Research v2 — Step-File Architecture
+# Build a validated baseline
 
-## Overview
+Research only the uncertainty that blocks a durable product, architecture, or delivery
+decision. Do not force a fixed discovery ceremony onto a well-defined change.
 
-Transform vague ideas into complete, high-confidence specifications through progressive interactive discovery. Each research step is a self-contained instruction file loaded just-in-time for maximum LLM attention density.
+## Preflight
 
-**Philosophy**: Research is collaborative. Each decision validated with user before proceeding. All findings must have 90%+ confidence. Every claim needs a source.
+1. Require an initialized `.ultra/specs/` directory. Route to `ultra-init` when it is
+   absent.
+2. Read the current specification files and repository evidence before asking the
+   user to repeat known facts.
+3. Define the intended deliverable, unresolved decisions, and evidence standard.
+4. Select only the research lanes that the uncertainty requires:
+   - problem and product: `references/problem-product.md`;
+   - users and scope: `references/users-scope.md`;
+   - architecture: `references/architecture.md`;
+   - quality and delivery: `references/quality-delivery.md`;
+   - final traceability: `references/synthesis.md`.
 
-## WORKFLOW ARCHITECTURE
+Read a reference completely only when its lane is selected. Do not load all lanes by
+default.
 
-### Core Principles
+## Evidence discipline
 
-- **Step-File Design**: Each step is a self-contained .md file with full execution instructions
-- **Just-In-Time Loading**: Only the current step file is in context — never load future steps
-- **Sequential Enforcement**: Steps must be completed in order, no skipping
-- **Write-Immediately**: Every step writes its output to the spec file BEFORE presenting to user
-- **User Gate**: User must explicitly confirm [C] Continue before proceeding to next step
-- **State Tracking**: Track per-session progress via the runtime's native TaskCreate/TaskUpdate (session-local). Research does NOT write business tasks to state.db — it only emits spec files. Business tasks are created later by `/ultra-plan` via MCP `task.create`.
-- **Web-First**: Every analysis step REQUIRES web search with citations. No search = no proceed.
+- Prefer the current checkout and existing project artifacts for repository facts.
+- Browse only when a claim is external, unstable, or requires primary-source support.
+- Prefer official and primary sources; cite each consequential external claim near the
+  statement it supports.
+- Separate observed facts, evidence-backed inferences, user decisions, and unresolved
+  assumptions.
+- Do not manufacture confidence percentages, market numbers, personas, competitors,
+  or options when evidence does not support them.
 
-### Step Processing Rules
+## Workflow
 
-1. **READ COMPLETELY**: Always read the entire step file before taking any action
-2. **FOLLOW SEQUENCE**: Execute all numbered sections in order
-3. **SEARCH FIRST**: Execute web searches BEFORE generating analysis
-4. **WRITE IMMEDIATELY**: Append content to spec file as soon as analysis is complete
-5. **WAIT FOR INPUT**: Present [C] Continue — halt and wait for user selection
-6. **LOAD NEXT**: When user confirms, Read the next step file and follow it
+1. Build a short research agenda from the selected lanes and the decisions they must
+   unlock.
+2. Gather evidence before recommending a direction. Ask one concise question when a
+   user decision is load-bearing; batch independent low-impact questions only when it
+   improves flow.
+3. Present material tradeoffs before recording a decision. Comparisons are appropriate
+   only when real alternatives share meaningful criteria.
+4. Update the relevant baseline specification sections. Preserve source links,
+   decisions, rejected alternatives when useful, acceptance criteria, and explicit
+   open questions. Do not duplicate the same narrative across several files.
+5. Validate cross-document consistency and trace each required behavior from problem
+   or constraint to acceptance and architecture.
+6. Use `references/synthesis.md` for the completion check and report one next action.
 
-### Critical Rules (NO EXCEPTIONS)
+## Completion gate
 
-- NEVER load multiple step files simultaneously
-- ALWAYS read entire step file before execution
-- NEVER skip steps or optimize the sequence
-- ALWAYS write output to spec file before presenting to user
-- ALWAYS halt at [C] Continue and wait for user input
-- NEVER proceed without user confirmation
-- NEVER rely solely on training data — web search is mandatory for factual claims
+Research is complete when the selected scope has enough evidence for planning, every
+material decision is recorded, required acceptance is testable, architecture respects
+known constraints, and unresolved items are either blocking or explicitly outside the
+accepted scope.
 
-## STEP SEQUENCE
-
-### Round 0: Product Discovery & Strategy
-
-| Step | File | Focus | Output |
-|------|------|-------|--------|
-| 00 | `step-00-problem-validation.md` | Validate the problem is real and worth solving | discovery.md §0 |
-| 01 | `step-01-opportunity-discovery.md` | Opportunity Solution Tree (Teresa Torres) | discovery.md §1 |
-| 02 | `step-02-market-assessment.md` | TAM/SAM/SOM with dual approach | discovery.md §2 |
-| 03 | `step-03-competitive-landscape.md` | Competitors + Porter's Five Forces | discovery.md §3 |
-| 04 | `step-04-product-strategy.md` | Vision, segments, value prop, trade-offs | discovery.md §4 |
-| 05 | `step-05-assumptions-validation.md` | Risk assumptions + experiment design | discovery.md §5 |
-
-### Round 1: User & Scenario Discovery
-
-| Step | File | Focus | Output |
-|------|------|-------|--------|
-| 10 | `step-10-user-personas.md` | 2-3 personas with goals, pain points, context | product.md §1-2 |
-| 11 | `step-11-user-scenarios.md` | 3-5 user scenarios with trigger/flow/outcome | product.md §3 |
-
-### Round 2: Feature Definition
-
-| Step | File | Focus | Output |
-|------|------|-------|--------|
-| 20 | `step-20-user-stories.md` | User stories with acceptance criteria | product.md §4 |
-| 21 | `step-21-features-scope.md` | Feature prioritization + explicit exclusions | product.md §5 |
-| 22 | `step-22-success-metrics.md` | Business + user metrics with targets | product.md §6 |
-
-### Round 3: Architecture Design
-
-| Step | File | Focus | Output |
-|------|------|-------|--------|
-| 30 | `step-30-architecture-context.md` | Quality goals, constraints, system context | architecture.md §1-3 |
-| 31 | `step-31-solution-strategy.md` | Tech stack selection with rationale | architecture.md §4 |
-| 32 | `step-32-building-blocks.md` | Module decomposition + runtime scenarios | architecture.md §5-6 |
-
-### Round 4: Quality & Deployment
-
-| Step | File | Focus | Output |
-|------|------|-------|--------|
-| 40 | `step-40-deployment.md` | Infrastructure, environments, CI/CD | architecture.md §7-9 |
-| 41 | `step-41-quality-risks.md` | Quality scenarios, risks, tech debt | architecture.md §10-12 |
-
-### Synthesis
-
-| Step | File | Focus | Output |
-|------|------|-------|--------|
-| 99 | `step-99-synthesis.md` | Distillate + validation + quality summary | research-distillate.md |
-
-## ACTIVATION
-
-When invoked, follow this sequence:
-
-### 1. Pre-Research Check
-
-- If `.ultra/specs/product.md` has [NEEDS CLARIFICATION] → proceed with research
-- If `.ultra/specs/` doesn't exist → suggest `/ultra-init` first
-- If specs 100% complete → suggest skip to `/ultra-plan`
-
-### 2. Project Type Detection
-
-Ask user to determine research scope:
-
-| Type | Steps | Focus |
-|------|-------|-------|
-| Full Project | 00-99 | All rounds |
-| Product Only | 00-22 | Discovery + product |
-| Feature Only | 10-22 | User scenarios + features (skip discovery) |
-| Architecture Change | 30-41 | Architecture + deployment |
-| Custom | User selects | Specific steps |
-
-**Round 0 skip conditions**: Skip if user provides existing market research, validated strategy docs, or explicitly states "I already know the market".
-
-### 3. Begin Step Execution
-
-Read the first applicable step file:
-```
-Read: skills/ultra-research/steps/step-{NN}-{name}.md
-```
-
-Follow every instruction in that file. When the step is complete and user confirms [C], read the next step file.
-
-### 4. Output Files
-
-| File | Content |
-|------|---------|
-| `.ultra/specs/discovery.md` | §0-5: Problem, Opportunities, Market, Competition, Strategy, Assumptions |
-| `.ultra/specs/product.md` | §1-6: Problem, Personas, Scenarios, Stories, Scope, Metrics |
-| `.ultra/specs/architecture.md` | §1-12: arc42 structure |
-| `.ultra/specs/research-distillate.md` | Token-efficient summary for /ultra-plan consumption |
-| `.ultra/docs/research/*.md` | Per-round research reports |
-
-## QUALITY STANDARDS
-
-| Element | Requirement |
-|---------|-------------|
-| Sources | Every factual claim has URL citation |
-| Confidence | 90%+ for recommendations |
-| Code | Production-ready (no TODO/demo) |
-| Trade-offs | Quantified pros/cons |
-| Next steps | Specific, actionable items |
-
-## COMPLETION
-
-Research is complete when:
-- All selected steps have [C] confirmed by user
-- All spec files have no [NEEDS CLARIFICATION] markers
-- Research distillate generated
-- All recommendations have 90%+ confidence
-
-**Next**: Run `/ultra-plan` to generate task breakdown from complete specs.
+Route a validated baseline to `ultra-plan`. Do not create business tasks, write Ultra
+state, or maintain a second condensed specification that can drift from the baseline.

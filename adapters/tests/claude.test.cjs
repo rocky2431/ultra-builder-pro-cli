@@ -7,7 +7,12 @@ const os = require('node:os');
 const path = require('node:path');
 
 const claude = require('../claude.js');
-const { skillsForRuntime, WORKFLOW_HOOK_FILES } = require('../_shared/runtime-assets.cjs');
+const { parse: parseFrontmatter } = require('../_shared/frontmatter.cjs');
+const {
+  INTERNAL_AGENT_SKILLS,
+  skillsForRuntime,
+  WORKFLOW_HOOK_FILES,
+} = require('../_shared/runtime-assets.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -60,16 +65,25 @@ test('Claude plugin collaboration and learn workflows are safe native plugin ass
     const plan = read('ultra-plan');
     const status = read('ultra-status');
 
-    assert.match(learn, /~\/.claude\/skills\/learned-<pattern-slug>-unverified\/SKILL\.md/);
-    assert.doesNotMatch(learn, /_unverified\.md/);
+    assert.match(learn, /`~\/.claude\/skills`/);
+    assert.doesNotMatch(learn, /_unverified|learned-[^\s/]*-unverified/i);
     assert.match(codexCollab, /-s read-only/);
+    assert.match(codexCollab, /--ephemeral/);
+    assert.match(codexCollab, /--ignore-user-config/);
     assert.match(verify, /-s read-only/);
-    assert.match(verify, /\$CLAUDE_PLUGIN_ROOT\/skills\/ultra-verify\/scripts\/verify_wait\.py/);
-    assert.match(review, /\$CLAUDE_PLUGIN_ROOT\/skills\/ultra-review\/scripts\/review_wait\.py/);
-    assert.match(plan, /LEGACY_STATE_MIGRATION_REQUIRED/);
-    assert.match(plan, /never read or write .*tasks\.json/i);
-    assert.match(status, /never fall back .*tasks\.json/i);
+    assert.match(verify, /--ephemeral/);
+    assert.match(verify, /scripts\/verify_wait\.py/);
+    assert.match(review, /Claude Code Task workers/);
+    assert.match(review, /scripts\/review_wait\.py/);
+    assert.doesNotMatch(plan, /LEGACY_STATE_MIGRATION_REQUIRED|v4\.4|v4\.5/);
+    assert.match(plan, /Never read or\s+write .*tasks\.json/i);
+    assert.match(status, /Never fall\s+back to generated task JSON/i);
     assert.doesNotMatch(plan, /ultra-tools task create/);
+
+    for (const name of skillsForRuntime('claude')) {
+      const { fm } = parseFrontmatter(read(name));
+      assert.equal(fm['user-invocable'], !INTERNAL_AGENT_SKILLS.includes(name), name);
+    }
 
     for (const [name, contents] of Object.entries({ codexCollab, verify })) {
       assert.doesNotMatch(contents, /--yolo|--full-auto|\/codex:/, name);

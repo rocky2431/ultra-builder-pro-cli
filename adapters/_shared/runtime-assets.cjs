@@ -38,6 +38,18 @@ const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
   kimi: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
 });
 
+const MCP_DEPENDENT_SKILLS = Object.freeze([
+  'ultra-init',
+  'ultra-change',
+  'ultra-plan',
+  'ultra-dev',
+  'ultra-test',
+  'ultra-review',
+  'ultra-deliver',
+  'ultra-status',
+  'ultra-doctor',
+]);
+
 const RETIRED_SKILLS = Object.freeze([
   'agent-browser',
   'find-skills',
@@ -69,13 +81,25 @@ function isSupportedRuntime(runtime) {
   return SUPPORTED_RUNTIMES.includes(runtime);
 }
 
+function skillPolicy(name) {
+  const packaged = SUPPORTED_RUNTIMES.some((runtime) => skillsForRuntime(runtime).includes(name));
+  if (!packaged) throw new Error(`unknown packaged Ultra skill: ${name}`);
+  return {
+    userInvocable: !INTERNAL_AGENT_SKILLS.includes(name),
+    allowImplicitInvocation: false,
+    requiresUltraMcp: MCP_DEPENDENT_SKILLS.includes(name),
+  };
+}
+
 module.exports = {
   CORE_PUBLIC_SKILLS,
   INTERNAL_AGENT_SKILLS,
   SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
+  MCP_DEPENDENT_SKILLS,
   RETIRED_SKILLS,
   WORKFLOW_HOOK_FILES,
   isSupportedRuntime,
+  skillPolicy,
   skillsForRuntime,
 };

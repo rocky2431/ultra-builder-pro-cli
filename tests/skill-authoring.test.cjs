@@ -1,0 +1,164 @@
+'use strict';
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const { parse: parseFrontmatter } = require('../adapters/_shared/frontmatter.cjs');
+const {
+  CORE_PUBLIC_SKILLS,
+  INTERNAL_AGENT_SKILLS,
+  SUPPORTED_RUNTIMES,
+  skillsForRuntime,
+} = require('../adapters/_shared/runtime-assets.cjs');
+
+const ROOT = path.resolve(__dirname, '..');
+const SKILLS_ROOT = path.join(ROOT, 'skills');
+const COMMANDS_ROOT = path.join(ROOT, 'commands');
+const AGENTS_ROOT = path.join(ROOT, 'agents');
+const COLLAB_SKILLS = new Set(['cc-collab', 'codex-collab', 'ultra-verify']);
+const PACKAGED_SKILLS = new Set(SUPPORTED_RUNTIMES.flatMap((runtime) => skillsForRuntime(runtime)));
+const NEUTRAL_SKILLS = new Set([...CORE_PUBLIC_SKILLS, ...INTERNAL_AGENT_SKILLS]);
+
+function walk(root, predicate = () => true) {
+  const files = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const file = path.join(root, entry.name);
+    if (entry.isDirectory()) files.push(...walk(file, predicate));
+    else if (predicate(file)) files.push(file);
+  }
+  return files;
+}
+
+function sourceSkill(name) {
+  const file = path.join(SKILLS_ROOT, name, 'SKILL.md');
+  return { file, text: fs.readFileSync(file, 'utf8') };
+}
+
+test('skills directory contains only deliberately packaged skill roots', () => {
+  const roots = fs.readdirSync(SKILLS_ROOT, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  assert.deepEqual(roots, [...PACKAGED_SKILLS].sort());
+});
+
+test('source SKILL.md files use portable Agent Skills frontmatter', () => {
+  for (const name of [...PACKAGED_SKILLS].sort()) {
+    const { text } = sourceSkill(name);
+    const { fm } = parseFrontmatter(text);
+    assert.ok(fm, `${name} must have YAML frontmatter`);
+    assert.deepEqual(Object.keys(fm).sort(), ['description', 'name'], `${name} has host/runtime metadata in SKILL.md`);
+    assert.equal(fm.name, name, `${name} frontmatter name must match its directory`);
+    assert.match(fm.description, /\bUse(?: only)? when\b/i, `${name} description must say when it should activate`);
+    assert.ok(fm.description.length <= 1024, `${name} description exceeds Agent Skills limit`);
+  }
+});
+
+test('packaged skill markdown is English and free of release-history prompt residue', () => {
+  const forbidden = [
+    { pattern: /[\u3400-\u9fff]/u, label: 'Han-script instruction text' },
+    { pattern: /\bpre-Phase\b|\bPhase\s+\d+\.\d+\b|\bv4\.4\b|\bv4\.5\b/i, label: 'release or migration history' },
+    { pattern: /\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bGemini\b|\bRTK\b/i, label: 'retired or external tool binding' },
+    { pattern: /\b90%\+?\s+confidence\b|\b80%\s+overall\b|\b100%\s+Functional Core\b/i, label: 'unsupported global quality threshold' },
+    { pattern: /\bFlag as\s+(?:an?\s+)?(?:P[0-3]|orphan|horizontal)|\bRequired Test\b|\/\/\s*(?:Bad|Good):/i, label: 'mechanical pattern-to-verdict teaching' },
+    { pattern: /\bFunction\s*>\s*\d+\s+lines\b|\bNesting depth\s*>\s*\d+|\baggregate score\b/i, label: 'arbitrary design threshold' },
+  ];
+
+  for (const name of [...PACKAGED_SKILLS].sort()) {
+    const files = walk(path.join(SKILLS_ROOT, name), (file) => file.endsWith('.md'));
+    for (const file of files) {
+      const text = fs.readFileSync(file, 'utf8');
+      for (const { pattern, label } of forbidden) {
+        assert.doesNotMatch(text, pattern, `${path.relative(ROOT, file)} contains ${label}`);
+      }
+    }
+  }
+});
+
+test('core and internal skills are host-neutral', () => {
+  const hostBindings = /\bClaude Code\b|\bOpenCode\b|\bCodex\b|\bKimi(?: Code)?\b|AskUserQuestion|TaskCreate|TaskUpdate|TaskList|\$CLAUDE_PLUGIN_ROOT|~\/\.claude|(^|[\s`(>])\/(?:ultra-[a-z-]+|learn)(?=$|[\s`,.;):])/m;
+  for (const name of [...NEUTRAL_SKILLS].sort()) {
+    const files = walk(path.join(SKILLS_ROOT, name), (file) => file.endsWith('.md'));
+    for (const file of files) {
+      assert.doesNotMatch(
+        fs.readFileSync(file, 'utf8'),
+        hostBindings,
+        `${path.relative(ROOT, file)} contains a host-specific invocation`,
+      );
+    }
+  }
+});
+
+test('research uses focused references instead of a second prompt framework', () => {
+  const root = path.join(SKILLS_ROOT, 'ultra-research');
+  assert.ok(fs.existsSync(path.join(root, 'references')), 'ultra-research must use references/');
+  assert.ok(!fs.existsSync(path.join(root, 'steps')), 'ultra-research steps/ duplicates the main workflow');
+  const skillLines = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8').split('\n').length;
+  assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
+});
+
+test('command markdown files are English thin launchers', () => {
+  const commands = fs.readdirSync(COMMANDS_ROOT).filter((name) => name.endsWith('.md')).sort();
+  for (const name of commands) {
+    const file = path.join(COMMANDS_ROOT, name);
+    const text = fs.readFileSync(file, 'utf8');
+    const { fm, body } = parseFrontmatter(text);
+    assert.ok(fm && typeof fm['workflow-ref'] === 'string', `${name} must route to one skill`);
+    assert.doesNotMatch(text, /[\u3400-\u9fff]/u, `${name} contains Han-script prompt text`);
+    assert.ok(body.split('\n').length <= 12, `${name} duplicates workflow instructions instead of remaining a thin launcher`);
+    assert.match(body, /follow/i, `${name} must direct the host to follow the referenced skill`);
+  }
+});
+
+test('collaboration skills remain explicit companions, not neutral workflow dependencies', () => {
+  for (const name of COLLAB_SKILLS) assert.ok(PACKAGED_SKILLS.has(name));
+  for (const name of NEUTRAL_SKILLS) assert.ok(!COLLAB_SKILLS.has(name));
+});
+
+test('agent prompts use the current evidence-based review contract', () => {
+  const forbidden = [
+    { pattern: /[\u3400-\u9fff]/u, label: 'Han-script instruction text' },
+    { pattern: /\bultra-review-findings-v1\b/i, label: 'retired review schema' },
+    { pattern: /\bCLAUDE\.md\b/, label: 'host-specific handbook binding' },
+    { pattern: /\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bGemini\b|\bRTK\b/i, label: 'retired or external tool binding' },
+    { pattern: /\babsolute P0\b|\bnon-negotiable P0\b|\bP1 count\s*>\s*\d+|\bconfidence\s*>=?\s*\d+/i, label: 'mechanical severity or verdict threshold' },
+    { pattern: /\bforbidden mock patterns?\b|\bmock violations?\b/i, label: 'blanket test-double ban' },
+    { pattern: /\bFour-Dimension Scoring\b|\baggregate score\b/i, label: 'unsupported design score' },
+  ];
+
+  for (const file of walk(AGENTS_ROOT, (candidate) => candidate.endsWith('.md'))) {
+    const text = fs.readFileSync(file, 'utf8');
+    const { fm, body } = parseFrontmatter(text);
+    assert.ok(fm && typeof fm.description === 'string', `${path.basename(file)} needs a concise description`);
+    assert.ok(fm.description.replace(/\s+/g, ' ').trim().length <= 400, `${path.basename(file)} description is prompt-heavy`);
+    assert.ok(body.split('\n').length <= 120, `${path.basename(file)} body exceeds the bounded worker prompt budget`);
+    for (const { pattern, label } of forbidden) {
+      assert.doesNotMatch(text, pattern, `${path.relative(ROOT, file)} contains ${label}`);
+    }
+  }
+
+  for (const name of ['review-spec', 'review-code', 'review-comments', 'review-design', 'review-errors', 'review-tests']) {
+    const text = fs.readFileSync(path.join(AGENTS_ROOT, `${name}.md`), 'utf8');
+    assert.match(text, /ultra-review-findings-v2/, `${name} must write the current specialist artifact`);
+    assert.match(text, /SCHEMA_PATH/, `${name} must receive a host-resolved schema path`);
+  }
+  const coordinator = fs.readFileSync(path.join(AGENTS_ROOT, 'review-coordinator.md'), 'utf8');
+  assert.match(coordinator, /ultra-review-summary-v2/, 'review-coordinator must write the current summary artifact');
+  assert.match(coordinator, /SCHEMA_PATH/, 'review-coordinator must receive a host-resolved schema path');
+  assert.match(coordinator, /spec_fidelity/);
+  assert.match(coordinator, /engineering_standards/);
+});
+
+test('focused references do not duplicate standalone policy skills', () => {
+  const references = fs.readdirSync(path.join(SKILLS_ROOT, 'code-review-expert', 'references')).sort();
+  assert.deepEqual(references, ['correctness-reliability.md', 'design-boundaries.md', 'removal-plan.md']);
+});
+
+test('repository documents the source prompt boundary separately from runtime prompts', () => {
+  const authoring = fs.readFileSync(path.join(ROOT, 'docs', 'SKILL-AUTHORING.md'), 'utf8');
+  assert.match(authoring, /Source frontmatter contains only `name` and `description`/);
+  assert.match(authoring, /standards do not prohibit Chinese/i);
+  assert.match(authoring, /Comparison is appropriate only when/i);
+});

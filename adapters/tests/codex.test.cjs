@@ -14,6 +14,7 @@ const codex = require('../codex.js');
 const { parse: parseFrontmatter } = require('../_shared/frontmatter.cjs');
 const PACKAGE_VERSION = require('../../package.json').version;
 const {
+  MCP_DEPENDENT_SKILLS,
   skillsForRuntime,
   WORKFLOW_HOOK_FILES,
 } = require('../_shared/runtime-assets.cjs');
@@ -40,6 +41,7 @@ const AGENTS = [
   'review-coordinator',
   'review-design',
   'review-errors',
+  'review-spec',
   'review-tests',
   'tdd-runner',
 ];
@@ -122,12 +124,22 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
         /~\/\.claude|CLAUDE\.md|AskUserQuestion|(^|[\s`(>])\/(?:ultra-[a-z-]+|recall|learn|codex-collab)(?=$|[\s`,.;):])/m,
       );
       assert.doesNotMatch(text, /TaskCreate|TaskUpdate|TaskList|TaskOutput|run_in_background|~\/\.codex\/skills|mcp__claude/);
+      assert.doesNotMatch(text, /[\u3400-\u9fff]|ultra-review-findings-v1|Context7|Exa MCP|confidence\s*>=?\s*\d+/iu);
 
       const openai = yaml.load(fs.readFileSync(path.join(skillDir, 'agents', 'openai.yaml'), 'utf8'));
       assert.ok(openai.interface.display_name);
       assert.ok(openai.interface.short_description);
       assert.match(openai.interface.default_prompt, new RegExp(`\\$ultra-builder-pro:${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
-      assert.equal(typeof openai.policy.allow_implicit_invocation, 'boolean');
+      assert.equal(openai.policy.allow_implicit_invocation, false);
+      if (MCP_DEPENDENT_SKILLS.includes(name)) {
+        assert.deepEqual(openai.dependencies.tools, [{
+          type: 'mcp',
+          value: 'ultra-builder-pro',
+          description: 'Ultra Builder Pro authoritative task and change runtime',
+        }]);
+      } else {
+        assert.equal(openai.dependencies, undefined);
+      }
     }
 
     const cc = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'cc-collab', 'SKILL.md'), 'utf8');
@@ -146,13 +158,14 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
 
     const review = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-review', 'SKILL.md'), 'utf8');
     assert.match(review, /native Codex custom agents/);
-    assert.match(review, /~\/plugins\/ultra-builder-pro\/skills\/ultra-review/);
+    assert.match(review, /review-spec/);
+    assert.match(review, /scripts\/review_wait\.py/);
 
     const plan = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-plan', 'SKILL.md'), 'utf8');
     const status = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-status', 'SKILL.md'), 'utf8');
-    assert.match(plan, /LEGACY_STATE_MIGRATION_REQUIRED/);
-    assert.match(plan, /Never read or write .*tasks\.json/i);
-    assert.match(status, /Never fall back to .*tasks\.json/i);
+    assert.doesNotMatch(plan, /LEGACY_STATE_MIGRATION_REQUIRED|v4\.4|v4\.5/);
+    assert.match(plan, /Never read or\s+write .*tasks\.json/i);
+    assert.match(status, /Never fall\s+back to generated task JSON/i);
 
     const coreWorkflowText = [
       ...COMMANDS,
@@ -168,7 +181,7 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
   }
 });
 
-test('install converts all nine Claude agents into native Codex agent TOML', () => {
+test('install converts all bundled agent prompts into native Codex agent TOML', () => {
   const layout = mkLayout();
   try {
     const report = install(layout);

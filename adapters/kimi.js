@@ -76,154 +76,31 @@ function kimiTextTransform(input, assetName = '') {
   text = text.replaceAll('CLAUDE.md', 'AGENTS.md');
   text = text.replace(/@skills\/([a-z0-9-]+)\/SKILL\.md/g, '$KIMI_PLUGIN_ROOT/skills/$1/SKILL.md');
 
-  text = text.replaceAll('`TaskCreate/TaskUpdate (session-local)`', 'Kimi `TodoList` (session-local)');
-  text = text.replaceAll('TaskCreate/TaskUpdate (session-local)', 'Kimi `TodoList` (session-local)');
-  text = text.replaceAll('`TaskCreate/TaskUpdate`', 'Kimi `TodoList`');
-  text = text.replaceAll('TaskCreate/TaskUpdate', 'Kimi `TodoList`');
-  text = text.replaceAll('`TaskCreate`', 'Kimi `TodoList`');
-  text = text.replaceAll('`TaskUpdate`', 'Kimi `TodoList`');
-  text = text.replaceAll('`TaskList`', 'the current Kimi `TodoList`');
-  text = text.replaceAll('TaskCreate', 'Kimi TodoList item creation');
-  text = text.replaceAll('TaskUpdate', 'Kimi TodoList updates');
-  text = text.replaceAll('TaskList', 'the current Kimi TodoList');
-  text = text.replaceAll('TaskOutput', 'subagent transcript output');
-  text = text.replaceAll('Claude Task tool', 'Kimi `AgentSwarm`');
-  text = text.replaceAll('Task tool', 'Kimi `AgentSwarm`');
-  text = text.replaceAll('multiple Task calls', 'one Kimi `AgentSwarm` call with multiple independent tasks');
-  text = text.replaceAll('Task calls', 'Kimi `AgentSwarm` items');
-  text = text.replaceAll('Task call', 'Kimi `AgentSwarm` item');
-  text = text.replaceAll('`run_in_background: true`', 'Kimi `AgentSwarm` parallel execution');
-  text = text.replaceAll('run_in_background: true', 'Kimi `AgentSwarm` parallel execution');
-  text = text.replaceAll('AskUserQuestion', 'a direct question to the user');
-  text = text.replaceAll('Bash tool', 'Kimi `Bash` tool');
-  text = text.replaceAll('Use Bash', 'Use Kimi `Bash`');
-  text = text.replaceAll('Read tool', 'Kimi `Read` tool');
-  text = text.replaceAll('Write tool', 'Kimi `Write` tool');
-  text = text.replaceAll('MCP `review.run`', 'Kimi `AgentSwarm` review workers');
-  text = text.replaceAll('`review.run`', 'Kimi `AgentSwarm` review workers');
-  text = text.replaceAll('review.run', 'Kimi `AgentSwarm` review workers');
-  text = text.replaceAll('MCP `ask.question`', 'a direct question to the user');
-  text = text.replaceAll('`ask.question`', 'a direct question to the user');
-  text = text.replaceAll('ask.question', 'a direct question to the user');
-  text = text.replaceAll('Claude runtime', 'Kimi runtime');
-  text = text.replaceAll('Claude-only', 'Kimi-only');
-  text = text.replaceAll('Claude Code、OpenCode、Codex 三个 runtime', 'Claude Code、OpenCode、Codex、Kimi Code 四个 runtime');
-  text = text.replaceAll('Claude Code, OpenCode, and Codex', 'Claude Code, OpenCode, Codex, and Kimi Code');
-
   if (assetName === 'codex-collab') {
+    text = text.replaceAll('the current host', 'Kimi Code');
+    text = text.replaceAll('current host', 'Kimi Code');
     text = text.replaceAll('Claude Code remains primary', 'Kimi Code remains primary');
     text = text.replaceAll('one Claude Code-owned conclusion', 'one Kimi Code-owned conclusion');
   }
   if (assetName === 'ultra-verify') {
-    text = text.replaceAll('Claude Code remains primary', 'Kimi Code remains primary');
-    text = text.replaceAll("Claude Code's evidence-backed analysis", "Kimi Code's evidence-backed analysis");
-    text = text.replaceAll('Claude writes its analysis first', 'Kimi writes its analysis first');
-    text = text.replaceAll('Claude writes its own analysis', 'Kimi writes its own analysis');
+    text = text.replaceAll('the current host', 'Kimi Code');
+    text = text.replaceAll('current host', 'Kimi Code');
+    text = text.replaceAll('Claude Code', 'Kimi Code');
+    text = text.replaceAll('Claude', 'Kimi');
     text = text.replaceAll('claude-analysis.md', 'kimi-analysis.md');
-    text = text.replaceAll('one Claude Code-owned conclusion', 'one Kimi Code-owned conclusion');
   }
-  if (assetName === 'learn') {
-    text = text.replaceAll(
-      '~/.kimi-code/skills/learned/<name>_unverified.md',
-      '~/.kimi-code/skills/learned-<name>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/.kimi-code/skills/learned/<pattern-slug>_unverified.md',
-      '~/.kimi-code/skills/learned-<pattern-slug>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/.kimi-code/skills/learned/<slug>_unverified.md',
-      '~/.kimi-code/skills/learned-<slug>-unverified/SKILL.md',
-    );
-    text = text.replaceAll('append the `_unverified` suffix to the filename', 'append `-unverified` to the skill directory name');
-    text = text.replaceAll('Never overwrite an existing unverified file', 'Never overwrite an existing learned skill directory');
-    text = text.replaceAll('remove the `_unverified` suffix', 'rename the directory to remove `-unverified` and update its frontmatter name');
-    text = text.replaceAll('(`pattern-slug-2_unverified.md`)', '(`learned-pattern-slug-2-unverified/`)');
-  }
-  if (assetName === 'ultra-init') {
-    text = text.replaceAll('调用方（Claude / CLI / SDK）', '调用方（Kimi / CLI / SDK）');
-    text = text.replace(
-      /- 如果调用方是 Claude，可在此用 Kimi `TodoList` 跟踪 Step 0–4 的 session 内进度\n  （这是 runtime 的 session-local 跟踪，不走 MCP）/,
-      '- 在 Kimi 中，用原生 `TodoList` 跟踪 Step 0–4 的 session 内进度；这是 session-local 协调，不走 MCP',
-    );
-    text = text.replace(
-      /## 调用方式（按 runtime）[\s\S]*?## 输出锚点/,
-      [
-        '## Kimi 调用方式',
-        '',
-        '| Runtime | 调用形态 |',
-        '|---------|----------|',
-        '| Kimi | `/ultra-builder-pro:ultra-init [name] [type] [stack] [git]` — 原生命令拉起此 skill |',
-        '',
-        '## 输出锚点',
-      ].join('\n'),
-    );
+  if (assetName === 'cc-collab') {
+    text = text.replaceAll('the current host', 'Kimi Code');
+    text = text.replaceAll('current host', 'Kimi Code');
   }
   if (assetName === 'ultra-review') {
-    text = text.replace(
-      '# /ultra-review - Ultra Review System',
-      `# /ultra-review - Ultra Review System
-
-## Kimi native worker contract
-
-Use one Kimi \`AgentSwarm\` call when two or more independent reviewers are selected; use one
-foreground Kimi \`Agent\` call when only one reviewer is selected. Each reviewer first reads its
-matching prompt template (for example \`$KIMI_PLUGIN_ROOT/agents/review-code.md\`) and writes only
-its JSON artifact under \`SESSION_PATH\`. Run the coordinator as a final foreground Kimi \`Agent\`
-after the reviewer artifacts are complete. Kimi has no custom-agent plugin manifest field; these
-bundled files are bounded prompt templates, not separately registered host agents.`,
+    text = text.replaceAll(
+      "the current host's native bounded-worker mechanism",
+      'Kimi `AgentSwarm` for parallel reviewers or one foreground Kimi `Agent` for a single reviewer, using the worker prompt files under `$KIMI_PLUGIN_ROOT/agents/`',
     );
-    const executionContract = [
-      '### Phase 3: Kimi Reviewer Execution (File-Based)',
-      '',
-      'When two or more reviewers are selected, call Kimi `AgentSwarm` exactly once and make it the',
-      'only tool call in that response. Use `subagent_type: "coder"`, a `prompt_template` containing',
-      '`{{item}}`, and the selected reviewer names as the `items` array. The filled prompt must tell',
-      'each reviewer to:',
-      '',
-      '1. Read `$KIMI_PLUGIN_ROOT/agents/{{item}}.md` and follow that bounded worker contract.',
-      '2. Review only `DIFF_FILES` / `DIFF_RANGE` and write',
-      '   `{SESSION_PATH}/{{item}}.json` using the schema at',
-      '   `$KIMI_PLUGIN_ROOT/skills/ultra-review/references/unified-schema.md`.',
-      '3. Report at most 12 findings with confidence >= 75, ordered by severity then confidence.',
-      '4. Return only `Wrote N findings (P0:X P1:X P2:X P3:X) to <filepath>` after the file exists.',
-      '',
-      'Kimi `AgentSwarm` is foreground and accepts at least two items; it has no',
-      '`run_in_background` field. When exactly one reviewer is selected, launch one foreground Kimi',
-      '`Agent` with `subagent_type: "coder"`, `run_in_background: false`, and the same file contract.',
-      'The short final lines may appear in the parent context; the JSON files remain the only findings',
-      'input to the coordinator.',
-      '',
-      '### Phase 4: Validate & Coordinate',
-      '',
-      '**Step 4a: validate reviewer artifacts** — after the foreground call returns, run:',
-      '',
-      '```bash',
-      'python3 "$KIMI_PLUGIN_ROOT/skills/ultra-review/scripts/review_wait.py" {SESSION_PATH} agents {AGENT_COUNT}',
-      '```',
-      '',
-      'Use only the valid `review-*.json` files reported by the waiter. A partial result is explicit;',
-      'zero valid reviewer files skips coordination and reports the failure.',
-      '',
-      '**Step 4b: coordinate** — Launch the coordinator with one foreground Kimi `Agent` call using',
-      '`subagent_type: "coder"` and `run_in_background: false`. Its prompt must first read',
-      '`$KIMI_PLUGIN_ROOT/agents/review-coordinator.md`, then read the valid reviewer JSON files,',
-      'deduplicate findings, and write `SUMMARY.md` plus `SUMMARY.json` under `SESSION_PATH`.',
-      '',
-      '**Step 4c: validate the summary** — after the coordinator returns, run:',
-      '',
-      '```bash',
-      'python3 "$KIMI_PLUGIN_ROOT/skills/ultra-review/scripts/review_wait.py" {SESSION_PATH} summary',
-      '```',
-      '',
-      'Read `SUMMARY.json` only after this validation succeeds.',
-    ].join('\n');
-    text = text.replace(
-      /#{2,3} Phase 3:[\s\S]*?#{2,3} Phase 5: Report to User/,
-      `${executionContract}\n\n## Phase 5: Report to User`,
-    );
-    text = text.replaceAll('Background Execution', 'Reviewer Execution');
-    text = text.replaceAll('Wait & Coordinate', 'Validate & Coordinate');
+  }
+  if (assetName === 'learn') {
+    text = text.replaceAll("current host's user skill directory", '`~/.kimi-code/skills`');
   }
   text = text.replace(
     /(^|[\s`("'])\/ultra-(?!builder-pro:)([a-z][a-z0-9-]*)/gm,

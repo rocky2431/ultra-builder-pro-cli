@@ -1,26 +1,23 @@
 ---
 name: cc-collab
-description: "Use Claude Code as an explicitly requested, read-only advisor for bounded architecture, diagnosis, or review questions. The current host remains primary and verifies all claims."
-argument-hint: "review|understand|opinion|compare|free [target]"
-user-invocable: true
+description: Ask Claude Code for an independent read-only analysis of a bounded architecture, diagnosis, or review question. Use only when the user explicitly requests Claude Code or CC collaboration and the current host remains primary.
 ---
 
-# Claude Code Collaboration
+# Consult Claude Code read-only
 
-Use Claude Code only when the user explicitly requests a Claude/CC perspective. The current host
-owns scope, evidence, decisions, edits, and final verification. Claude Code is an untrusted,
-read-only advisor.
+Treat Claude Code as an untrusted advisor. The current host owns scope, evidence,
+decisions, edits, and final verification.
 
 ## Preconditions
 
-1. Confirm `claude --version` and authentication.
-2. Bound the workspace, files or diff, question, and expected response shape.
-3. Write the primary host's independent analysis first when independence matters.
-4. Do not pass credentials, unrelated files, or an unbounded home directory.
+1. Confirm the `claude` CLI and authentication.
+2. Bound the workspace, files or diff, question, evidence standard, and response shape.
+3. Write the primary host's analysis first when independence matters.
+4. Exclude credentials, unrelated files, and unbounded home-directory access.
 
 ## Invocation
 
-Run Claude Code without mutation or session persistence:
+Run without mutation or session persistence:
 
 ```bash
 claude --safe-mode -p "<bounded prompt>" \
@@ -30,12 +27,13 @@ claude --safe-mode -p "<bounded prompt>" \
   --no-session-persistence
 ```
 
-Store large output under `.ultra/collab/<session-id>/claude-output.md`. A missing CLI, failed auth,
-timeout, or empty response degrades to host-only analysis; it never blocks the task.
+Store large output under `.ultra/collab/<session-id>/claude-output.md`. A missing CLI,
+failed authentication, timeout, or empty response degrades to host-only analysis and
+never blocks the underlying task.
 
 ## Synthesis
 
-- Verify consequential claims against the current checkout, runtime, tests, or primary docs.
-- Separate agreement, useful dissent, and unsupported assertions.
-- Explain scope or version mismatches before comparing conclusions.
-- Return one host-owned conclusion, not a transcript or a model vote.
+Verify consequential claims against the current checkout, runtime, tests, or primary
+documentation. Separate verified agreement, useful dissent, and unsupported claims.
+Explain scope or version differences and return one host-owned conclusion rather than
+a transcript or model vote.

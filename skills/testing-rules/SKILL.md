@@ -1,56 +1,32 @@
 ---
 name: testing-rules
-description: Ultra Builder Pro testing discipline rules
-user-invocable: false
+description: Review whether changed behavior has meaningful, trustworthy, and proportionate test evidence across its real boundaries. Use only when assigned to a test review or delivery verification scope.
 ---
 
-# Testing Rules
+# Review test evidence
 
-These rules are mandatory for all test-related work.
+Evaluate what the tests prove about the accepted behavior. Line coverage and the mere
+presence of a test file are supporting signals, not the contract.
 
-## TDD Workflow
+## Procedure
 
-RED → GREEN → REFACTOR (all new code).
+1. Map each changed behavior and acceptance claim to a test or other executable check.
+2. Confirm the test can fail for the intended defect and observes a public or stable
+   contract rather than implementation trivia.
+3. Inspect happy, error, boundary, state-transition, and concurrency cases according to
+   the risk introduced by the diff.
+4. Verify integration seams with the most realistic practical boundary. Prefer real
+   persistence and protocol behavior when their semantics matter.
+5. Accept test doubles at costly, unavailable, or nondeterministic external boundaries
+   when the double preserves the documented contract and the reason is clear.
+6. Flag mocks or fakes only when they bypass the behavior under review, encode a false
+   contract, or make a passing test unrelated to production behavior.
+7. Detect skipped checks, tautological assertions, swallowed failures, non-determinism,
+   weakened expectations, and tests that never reach the changed code.
 
-## Test Strategy
+## Finding contract
 
-| Layer | Test Type | Mock Strategy |
-|-------|-----------|---------------|
-| Functional Core | Unit Test | No mocks needed (pure input→output) |
-| Imperative Shell | Integration | Testcontainers (real DB/services) |
-| External APIs | Test Double | With `// Test Double rationale: [reason]` |
-
-## Forbidden Patterns
-
-These patterns are **never** acceptable:
-
-| Pattern | Why Forbidden | Alternative |
-|---------|---------------|-------------|
-| `jest.fn()` for Repository/Service/Domain | Invalid test — doesn't prove production works | Testcontainers |
-| `class InMemoryRepository` | Diverges from real DB behavior | Real DB container |
-| `class MockXxx` / `class FakeXxx` | Hides integration issues | Direct instantiation or Testcontainers |
-| `jest.mock('../services/X')` | Skips real collaboration | Test real collaboration |
-| `it.skip('...database...')` | "Too slow" is not valid | Testcontainers are fast enough |
-
-## Coverage Requirements
-
-- 80% overall minimum
-- 100% Functional Core (pure logic must be fully tested)
-- Critical paths for Imperative Shell
-
-## Dev/Prod Parity
-
-Tests must use real dependencies:
-- Real database via Testcontainers (not in-memory substitutes)
-- Config via environment variables
-- Mock tests passing ≠ production working
-
-## Detection Checklist
-
-When analyzing test files, flag:
-1. Any `jest.fn()` usage on Repository, Service, or Domain classes
-2. Any `InMemory*` or `Mock*` or `Fake*` class definitions
-3. Any `jest.mock()` calls on internal modules
-4. Any skipped tests with database/slow excuses
-5. Missing error case coverage
-6. Missing edge case coverage
+Name the unproven behavior, why current evidence is insufficient, the failure that can
+escape, and the smallest test or boundary check that closes the gap. Calibrate severity
+to product risk and reachability; do not impose a universal coverage percentage or a
+single test technology on every repository.

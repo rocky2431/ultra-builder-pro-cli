@@ -11,8 +11,10 @@ const {
   INTERNAL_AGENT_SKILLS,
   SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
+  MCP_DEPENDENT_SKILLS,
   RETIRED_SKILLS,
   WORKFLOW_HOOK_FILES,
+  skillPolicy,
   skillsForRuntime,
 } = require('../runtime-assets.cjs');
 
@@ -74,10 +76,15 @@ test('runtime asset manifest exposes only Ultra-owned core and internal skills',
   }
 });
 
-test('code-review-expert and rule skills are internal, never implicitly exposed', () => {
-  const codexAssets = fs.readFileSync(path.join(REPO_ROOT, 'adapters', '_shared', 'codex-assets.cjs'), 'utf8');
-  assert.match(codexAssets, /const INTERNAL_SKILLS = new Set\(INTERNAL_AGENT_SKILLS\)/);
-  assert.match(codexAssets, /INTERNAL_SKILLS\.has\(name\)/);
+test('host invocation and MCP metadata live outside source SKILL frontmatter', () => {
+  const all = new Set(SUPPORTED_RUNTIMES.flatMap((runtime) => skillsForRuntime(runtime)));
+  for (const name of all) {
+    const policy = skillPolicy(name);
+    assert.equal(policy.allowImplicitInvocation, false, name);
+    assert.equal(policy.userInvocable, !INTERNAL_AGENT_SKILLS.includes(name), name);
+    assert.equal(policy.requiresUltraMcp, MCP_DEPENDENT_SKILLS.includes(name), name);
+  }
+  assert.throws(() => skillPolicy('not-packaged'), /unknown packaged Ultra skill/);
 });
 
 test('workflow hook allowlist contains no memory, prompt capture, or generic policy hook', () => {

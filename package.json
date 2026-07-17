@@ -1,6 +1,6 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Multi-runtime installer for the Ultra Builder Pro agent engineering system — deploys commands, agents, skills, hooks, and MCP server to Claude Code, OpenCode, Codex CLI, and Kimi Code.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
@@ -50,6 +50,7 @@
     "docs/ROADMAP.md",
     "docs/ARCHITECTURE.md",
     "docs/AGENT-CONTEXT.md",
+    "docs/SKILL-AUTHORING.md",
     "docs/COMMIT-HASH-BACKFILL.md",
     "docs/PLAN.zh-CN.md",
     "docs/STATE-DB-ACCESS-POLICY.md",
@@ -87,7 +88,7 @@
     "test:state": "node --test 'mcp-server/**/*.test.cjs'",
     "test:orch": "node --test 'orchestrator/**/*.test.cjs'",
     "test:spec": "node spec/scripts/test-all.cjs",
-    "test:rest": "node --test adapters/_shared/tests/*.test.cjs adapters/tests/*.test.cjs ultra-tools/*.test.cjs tests/conformance/**/*.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs tests/retired-runtime.test.cjs",
+    "test:rest": "node --test adapters/_shared/tests/*.test.cjs adapters/tests/*.test.cjs ultra-tools/*.test.cjs tests/conformance/**/*.test.cjs tests/*.test.cjs",
     "test:all": "npm run test:state && npm run test:orch && npm run test:spec && npm run test:rest",
     "test:hooks": "pytest hooks/tests -q",
     "verify:release": "npm run test:all && npm run test:hooks && npm audit --omit=dev --audit-level=high",

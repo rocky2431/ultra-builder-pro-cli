@@ -60,7 +60,8 @@ test('codex smoke — plugin install + MCP round-trip + scoped uninstall', async
     fs.rmSync(initTarget, { recursive: true, force: true });
     const report = install(layout);
     assert.equal(report.plugin.skills.length, 18);
-    assert.equal(report.agents.installed.length, 9);
+    assert.equal(report.agents.installed.length, 10);
+    assert.ok(report.agents.installed.includes('review-spec.toml'));
 
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
     assert.ok(mcp.mcpServers['ultra-builder-pro']);

@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.10.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.11.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)

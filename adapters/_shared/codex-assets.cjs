@@ -8,8 +8,8 @@ const { spawnSync } = require('node:child_process');
 const yaml = require('js-yaml');
 const {
   CORE_PUBLIC_SKILLS,
-  INTERNAL_AGENT_SKILLS,
   WORKFLOW_HOOK_FILES,
+  skillPolicy,
   skillsForRuntime,
 } = require('./runtime-assets.cjs');
 
@@ -69,7 +69,6 @@ const SKILL_REFERENCE_NAMES = Object.freeze([
   'ultra-review',
   'ultra-verify',
 ]);
-const INTERNAL_SKILLS = new Set(INTERNAL_AGENT_SKILLS);
 const CODEX_PRIMARY_SKILLS = new Set([...COMMAND_NAMES, 'ultra-review']);
 const TEXT_EXTENSIONS = new Set(['.md', '.json', '.py', '.sh', '.txt', '.yaml', '.yml']);
 
@@ -202,11 +201,7 @@ Model agreement never overrides failing tests or authoritative runtime evidence.
 Read the bundled references for mode-specific evidence and confidence guidance.
 */ }).match(/\/\*([\s\S]*?)\*\//)[1].trim();
 function titleCase(name) {
-  const special = {
-    'ai-collab-base': 'AI Collaboration Base',
-    'cc-collab': 'Claude Code Collaboration',
-    'use-railway': 'Use Railway',
-  };
+  const special = { 'cc-collab': 'Claude Code Collaboration' };
   if (special[name]) return special[name];
   return name.split('-').map((part) => part ? part[0].toUpperCase() + part.slice(1) : part).join(' ');
 }
@@ -221,276 +216,11 @@ function replaceSlashCommand(text, command, replacement) {
 
 function adaptCodexPrimaryText(input, skillName) {
   let text = String(input);
-  text = text.replaceAll('mcp__claude-in-chrome__*', 'the available Codex browser verification tools');
-  text = text.replaceAll('claude_md_rule', 'agents_md_rule');
-  text = text.replaceAll('claude-opus-4-6', '<codex-model>');
-  text = text.replaceAll('Claude', 'Codex');
-  text = text.replaceAll('TaskCreate/TaskUpdate', 'the Codex plan tool');
-  text = text.replaceAll('TaskCreate', 'the Codex plan tool');
-  text = text.replaceAll('TaskUpdate', 'the Codex plan tool');
-  text = text.replaceAll('TaskList', 'the current Codex plan');
-  text = text.replaceAll('TaskOutput', 'verbose subagent transcript output');
-  text = text.replaceAll('run_in_background: true', 'native parallel execution');
-  text = text.replaceAll('Bash tool', '`exec_command`');
-  text = text.replaceAll('Bash calls', '`exec_command` calls');
-  text = text.replaceAll('Read tool', 'targeted file reads');
-  text = text.replaceAll('Write tool', '`apply_patch`');
-  text = text.replaceAll('`ask.question`', 'a direct user question');
-  text = text.replaceAll('ask.question', 'ask the user directly');
-  text = text.replaceAll('Playwright via Bash', 'Playwright through `exec_command`');
-  text = text.replaceAll('mcp__context7__query-docs', 'official documentation lookup');
-  text = text.replaceAll('mcp__exa__web_search_exa', 'verified web search');
-  text = text.replaceAll('Context7 MCP', 'official primary documentation');
-  text = text.replaceAll('Context7/Exa', 'official primary documentation and verified web search');
-  text = text.replaceAll('Context7', 'official primary documentation');
-  text = text.replaceAll('Exa MCP', 'verified web search');
-  text = text.replaceAll('a direct user question (or runtime `ask the user directly`)', 'ask the user directly');
-  text = text.replaceAll('a direct user question (fallback: `ask the user directly` / CLI menu)', 'ask the user directly');
-  text = text.replaceAll('questions via ask the user directly.', 'questions directly to the user.');
-  text = text.replaceAll('using `the Codex plan tool`', 'with the Codex plan tool');
-  text = text.replaceAll("via the runtime's native the Codex plan tool", 'with the Codex plan tool when available');
-  text = text.replaceAll('`the Codex plan tool` → `status: "in_progress"`', 'Mark the current Codex plan item `in_progress`');
-  text = text.replaceAll('`the Codex plan tool` → `status: "completed"`', 'Mark the current Codex plan item `completed`');
-  text = text.replaceAll('`the current Codex plan` → resume from last incomplete step', 'Resume from the first incomplete item in the current Codex plan');
-  text = text.replaceAll('`the Codex plan tool`', 'the Codex plan tool');
-
-  if (skillName === 'ultra-init') {
-    text = text.replace(
-      /MCP 不可达时回退[^。]*。/,
-      'MCP 不可达时只使用插件内置的可验证 CLI 初始化路径；不得手写投影文件。',
-    );
-    text = text.replace(
-      /- \*\*无 Codex 独占依赖\*\*[：:][\s\S]*?(?=\n- \*\*模板内置)/,
-      '- **Codex-native boundary**: use the bundled `task.init_project` MCP tool; the plugin-local CLI below is only the verified initialization fallback.',
-    );
-    text = text.replace(
-      /在调 `task\.init_project` 之前，调用方（Codex \/ CLI \/ SDK）需要先判断：/,
-      '在调 `task.init_project` 之前，Codex 需要先判断：',
-    );
-    text = text.replace(
-      /- 如果调用方是 Codex，可在此用 the Codex plan tool 跟踪 Step 0–4 的 session 内进度\n  （这是 runtime 的 session-local 跟踪，不走 MCP）/,
-      '- 多步初始化可用 Codex plan 跟踪；持久项目状态仍只通过 Ultra MCP 写入。',
-    );
-    text = text.replace(
-      /交互渠道：[\s\S]*?(?=\n确认 4 个问题：)/,
-      '交互渠道：直接向用户提问；不要调用未注册的人机交互 MCP tool。\n',
-    );
-    text = text.replace(
-      /\*\*CLI 回退路径\*\*[\s\S]*?(?=\n\*\*错误处理\*\*)/,
-      `**插件内置 CLI 回退路径**（只在 MCP 启动失败时使用）：
-
-\`\`\`bash
-node ~/plugins/ultra-builder-pro/runtime/ultra-tools.cjs task init-project \\
-  --target-dir "$TARGET" \\
-  --project-name "$NAME" \\
-  --project-type "$TYPE" \\
-  --stack "$STACK"
-\`\`\`
-
-该 CLI 与 MCP 使用同一模板和校验规则。不得改写 \`.ultra/tasks/tasks.json\` 来模拟成功。
-`,
-    );
-    text = text.replace(
-      /## 调用方式（按 runtime）[\s\S]*?(?=\n## 输出锚点)/,
-      '## Codex 调用方式\n\n在 Codex 中显式调用 `$ultra-builder-pro:ultra-init`，并在同一条任务消息中提供项目名、类型、技术栈或 git 约束。\n',
-    );
-    text = text.replace(
-      /- \*\*不\*\*写入 state\.db（state\.db 由第一次 MCP 写操作或显式 `ultra-tools db init` 触发）/,
-      '- **不**直接写入 state.db；它由第一次 Ultra MCP 状态写操作初始化。',
-    );
-    text = text.replaceAll('不再依赖 `~/.codex/.ultra-template/`', '不依赖任何用户目录模板');
-  }
-
-  if (skillName === 'ultra-plan') {
-    text = text.replace(
-      /Interactive prompt uses[\s\S]*?(?=\n\n\*\*Dual-scale effort)/,
-      'Ask the user directly in Codex and record the selected posture.',
-    );
-    text = text.replace(
-      /\*\*CLI fallback\*\* \(per task\):[\s\S]*?(?=\nAfter each `task\.create`)/,
-      '**Failure boundary**: if the bundled MCP cannot execute `task.create`, stop and report the MCP error. Do not write state.db or its JSON/Markdown projections directly.\n\n',
-    );
-    text = text.replace(
-      /## MCP → CLI fallback matrix[\s\S]*?(?=\n## What this skill DOES NOT do)/,
-      `## Codex runtime boundary
-
-- Ask scope and approval questions directly in the Codex conversation.
-- Persist tasks only through bundled MCP \`task.create\` or \`task.parse_prd\`.
-- If that MCP is unavailable, stop the state mutation with evidence; the legacy CLI does not
-  implement task creation and is not a valid fallback.
-`,
-    );
-  }
-
-  if (skillName === 'ultra-dev') {
-    text = text.replace(
-      /## Design decisions vs pre-Phase-3[\s\S]*?(?=\n## Prerequisites)/,
-      `## Codex-native execution boundaries
-
-- Status changes use bundled MCP \`task.update\`; projected JSON and frontmatter are read-only.
-- Review uses \`$ultra-builder-pro:ultra-review\` and the installed native Codex custom agents.
-  The active MCP server does not expose a server-side review worker.
-- Recovery uses the Codex plan plus \`.ultra/workflow-state.json\`, with the bundled compact hooks.
-  The active MCP server does not expose a checkpoint tool, and no manual compact is required.
-`,
-    );
-    text = text.replaceAll(
-      '**CLI fallback**: `ultra-tools task update <id> --status in_progress`.',
-      '**Failure boundary**: if `task.update` is unavailable, stop; do not edit state.db or projections directly.',
-    );
-    text = text.replaceAll(
-      '**CLI fallback**: `ultra-tools task update <id> --status completed`.',
-      '**Failure boundary**: if `task.update` is unavailable, stop; do not mark the projection completed manually.',
-    );
-    text = text.replace(
-      /\*\*Subagent isolation \(complexity ≥ 7\)\*\*:[\s\S]*?subagent returns summary\./,
-      '**Subagent isolation (complexity ≥ 7)**: use a bounded installed Codex custom agent only when the Subagent Policy or this invoked workflow authorizes delegation; the parent retains decisions and verification.',
-    );
-    text = text.replace(
-      /### Step 4\.4 — Pre-Review Checkpoint[\s\S]*?(?=\n### Step 4\.5)/,
-      `### Step 4.4 — Pre-Review Checkpoint
-
-Atomically write \`.ultra/workflow-state.json\` with \`step=4.5\`,
-\`status=pre_review\`, the task id, branch, and timestamp. Mark the matching Codex plan item
-complete. The PreCompact/PostCompact hooks preserve and restore this checkpoint automatically;
-do not require the user to compact or call a nonexistent checkpoint tool.
-`,
-    );
-    text = text.replace(
-      /### Step 4\.5 — Ultra Review \(MANDATORY\)[\s\S]*?(?=\n\*\*MAX_REVIEW_ITERATIONS)/,
-      `### Step 4.5 — Ultra Review (MANDATORY)
-
-Invoke \`$ultra-builder-pro:ultra-review all\`. That skill selects and dispatches the installed
-native Codex review agents, waits on their structured files, and owns \`SUMMARY.json\`. Do not call
-an unregistered review MCP tool or shell out to another Codex process as a substitute.
-
-`,
-    );
-    text = text.replace(
-      /## MCP → CLI fallback matrix[\s\S]*?(?=\n## What this skill DOES NOT do)/,
-      `## Codex runtime boundary
-
-| Purpose | Authoritative Codex path |
-|---------|--------------------------|
-| Select/read/update task | bundled MCP \`task.list\`, \`task.get\`, \`task.update\` |
-| Pre-review recovery | Codex plan + \`.ultra/workflow-state.json\` + compact hooks |
-| Review | \`$ultra-builder-pro:ultra-review\` + native custom agents |
-| Human decision | ask the user directly |
-
-If a required task MCP operation fails, stop and report it; never fall back to direct database or
-projection writes.
-`,
-    );
-    text = text.replace(
-      /- Does NOT assume `review\.run` or `session\.checkpoint` are wired — fallbacks are first-class/,
-      '- Does NOT call unregistered review or checkpoint MCP tools.',
-    );
-  }
-
-  if (skillName === 'ultra-test') {
-    text = text.replace(
-      /## MCP → CLI fallback matrix[\s\S]*?(?=\n## What this skill DOES NOT do)/,
-      `## Codex runtime boundary
-
-- Read task completion through bundled MCP \`task.list\`.
-- Ask before risky auto-fixes directly in the Codex conversation.
-- If task state is unavailable, report the missing gate rather than trusting a projection alone.
-`,
-    );
-  }
-
-  if (skillName === 'ultra-deliver') {
-    text = text.replace(
-      /## MCP → CLI fallback matrix[\s\S]*?(?=\n## What this skill DOES NOT do)/,
-      `## Codex runtime boundary
-
-Ask the user directly before committing, tagging, pushing, or overriding the version bump. These are
-external repository mutations; never infer approval from a prior read-only or test request.
-`,
-    );
-  }
-
-  if (skillName === 'ultra-status') {
-    text = text.replace(
-      /\*\*CLI fallback\*\*: `ultra-tools task list` \+ `ultra-tools session list`\./,
-      '**Failure boundary**: if the bundled task/session MCP tools are unavailable, report those panels as unavailable; do not trust projections as authority.',
-    );
-    text = text.replace(
-      /\*\*Output block\*\*:[\s\S]*?(?=\n## Single-task mode)/,
-      `**Output block**: name the concrete next skill and use its namespaced Codex invocation, for
-example \`$ultra-builder-pro:ultra-dev\`. If a fresh context would help, recommend starting a new
-Codex task; do not emit a legacy slash-command placeholder.
-
-`,
-    );
-    text = text.replace(
-      /## MCP → CLI fallback matrix[\s\S]*?(?=\n## Cost panel)/,
-      `## Codex data paths
-
-| Purpose | Path |
-|---------|------|
-| List/detail tasks | bundled MCP \`task.list\` / \`task.get\` |
-| Cost panel | \`node ~/plugins/ultra-builder-pro/runtime/ultra-tools.cjs status --cost --json --since 7d\` |
-
-Task projections are not an authority fallback. If the MCP is unavailable, label the task panel
-unavailable while still reporting file and git evidence.
-`,
-    );
-    text = text.replaceAll(
-      '`ultra-tools status --cost --json`',
-      '`node ~/plugins/ultra-builder-pro/runtime/ultra-tools.cjs status --cost --json`',
-    );
-  }
-
-  if (skillName === 'ultra-think') {
-    text = text.replace(
-      /Every factual claim about tech\/API\/best-practices must be verified via:[\s\S]*?(?=\n\nLabel each assertion:)/,
-      `Every factual claim about technology, APIs, or current behavior must use the best available
-primary evidence in this order:
-- current repository or installed source;
-- official primary documentation;
-- web search when the fact may have changed or local evidence is insufficient.
-`,
-    );
-    text = text.replaceAll(
-      'docs via Context7/Exa',
-      'official primary documentation or verified web sources',
-    );
-    text = text.replace(
-      /## MCP → CLI fallback matrix[\s\S]*?(?=\n## What this skill DOES NOT do)/,
-      `## Codex interaction boundary
-
-Ask clarifying questions directly in the Codex conversation. This reasoning workflow is read-only
-and does not require an interactive MCP or legacy CLI menu.
-`,
-    );
-  }
-
   if (skillName === 'ultra-review') {
-    text = text.replace(
-      '# $ultra-builder-pro:ultra-review - Ultra Review System',
-      `# $ultra-builder-pro:ultra-review - Ultra Review System
-
-## Codex native worker contract
-
-Use the installed native Codex custom agents as bounded review workers. Dispatch independent
-workers concurrently, keep the current Codex task primary, and treat their JSON artifacts—not
-their conversational transcripts—as review evidence.`,
+    text = text.replaceAll(
+      "the current host's native bounded-worker mechanism",
+      'native Codex custom agents installed for the selected review workers',
     );
-    text = text.replaceAll('### Phase 3: Background Execution', '### Phase 3: Parallel Native Agent Execution');
-    text = text.replaceAll('**Step 4b: Launch coordinator in background:**', '**Step 4b: Delegate coordination:**');
-    text = text.replaceAll('in **background mode** (`native parallel execution`)', 'concurrently with native Codex subagent orchestration');
-    text = text.replaceAll('using multiple native Codex subagent orchestration calls in a single message', 'using the installed native Codex custom agents');
-    text = text.replaceAll('Set `native parallel execution` on every Task call.', 'Dispatch every selected custom agent concurrently and keep each delegated scope bounded.');
-    text = text.replaceAll('NEVER call verbose subagent transcript output for any review agent', 'Do not copy verbose subagent transcripts into the parent context');
-    text = text.replaceAll('Call `review_wait.py` IMMEDIATELY — do NOT process idle notifications', 'Use `review_wait.py` as the file-completion gate before synthesis');
-    text = text.replaceAll('Ignore all agent idle/completion messages between launch and wait script return', 'Treat completion messages only as lifecycle evidence; findings still come from the JSON files');
-    text = text.replaceAll('Launch review-coordinator with `native parallel execution`:', 'After reviewer completion, delegate coordination to the native `review-coordinator` agent:');
-    text = text.replaceAll('Use Bash to block until all agents finish writing:', 'Run the waiter through `exec_command` with a short yield; if it returns a live session, poll in bounded intervals:');
-    text = text.replaceAll('After launching background agents', 'After dispatching the review agents');
-    text = text.replaceAll('The review agents write to files; you read from files.', 'The review agents write findings to files; the parent reads only the structured files and concise lifecycle acknowledgements.');
-    text = text.replaceAll('The ONLY information path from agents is: wait script → Read SUMMARY.json', 'The authoritative finding path is: wait script → inspect SUMMARY.json');
-    text = text.replaceAll('**Read SUMMARY.json**', '**Inspect SUMMARY.json**');
   }
 
   return text;
@@ -536,15 +266,6 @@ function adaptHostText(input, skillName = '') {
   text = text.replaceAll('~/.codex/skills', '~/plugins/ultra-builder-pro/skills');
   text = text.replaceAll('~/.claude/hooks', '~/plugins/ultra-builder-pro/hooks');
   text = text.replaceAll('~/.claude', '~/.codex');
-  text = text.replaceAll('AskUserQuestion', 'ask the user directly');
-  text = text.replaceAll('Claude runtime', 'Codex runtime');
-  text = text.replaceAll('Claude-only', 'Codex-only');
-  text = text.replaceAll('Claude Task tool', 'Codex native subagent orchestration');
-  text = text.replaceAll('Claude `Task` tool', 'Codex native subagent orchestration');
-  text = text.replaceAll('Claude: `Task`', 'Codex: native subagent orchestration');
-  text = text.replaceAll('Task tool', 'native Codex subagent orchestration');
-  text = text.replaceAll('`Task`/`ultra-tools subagent run`', 'native Codex subagent orchestration / `ultra-tools subagent run`');
-  text = text.replaceAll('`Task` →', 'native Codex subagent orchestration →');
 
   for (const skill of SKILL_REFERENCE_NAMES) {
     text = replaceSlashCommand(text, skill, `$ultra-builder-pro:${skill}`);
@@ -555,52 +276,8 @@ function adaptHostText(input, skillName = '') {
     text = adaptCodexPrimaryText(text, skillName);
   }
 
-  if (skillName === 'ai-collab-base') {
-    text = text.replaceAll("Claude's", "Codex's");
-    text = text.replaceAll('Claude-only', 'Codex-only');
-    text = text.replaceAll('Claude ', 'Codex ');
-    text = text.replaceAll('Claude\n', 'Codex\n');
-    text = text.replaceAll('--approval-mode yolo', '--approval-mode plan');
-    text = text.replaceAll('--yolo', '--approval-mode plan');
-    text = text.replaceAll('Bash tool', '`exec_command`');
-    text = text.replaceAll('Read tool', 'targeted file reads');
-    text = text.replaceAll('Write tool', '`apply_patch`');
-  }
-
   if (skillName === 'learn') {
-    text = text.replaceAll(
-      '~/plugins/ultra-builder-pro/skills/learned-<name>-unverified/SKILL.md',
-      '~/.agents/skills/learned-<name>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/plugins/ultra-builder-pro/skills/learned-<pattern-slug>-unverified/SKILL.md',
-      '~/.agents/skills/learned-<pattern-slug>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/plugins/ultra-builder-pro/skills/learned-<slug>-unverified/SKILL.md',
-      '~/.agents/skills/learned-<slug>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/plugins/ultra-builder-pro/skills/learned/<name>_unverified.md',
-      '~/.agents/skills/learned-<name>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/plugins/ultra-builder-pro/skills/learned/<pattern-slug>_unverified.md',
-      '~/.agents/skills/learned-<pattern-slug>-unverified/SKILL.md',
-    );
-    text = text.replaceAll(
-      '~/plugins/ultra-builder-pro/skills/learned/<slug>_unverified.md',
-      '~/.agents/skills/learned-<slug>-unverified/SKILL.md',
-    );
-    text = text.replaceAll('append the `_unverified` suffix to the filename', 'append `-unverified` to the skill directory name');
-    text = text.replaceAll('Never overwrite an existing unverified file', 'Never overwrite an existing learned skill directory');
-    text = text.replaceAll('remove the `_unverified` suffix', 'rename the directory to remove `-unverified` and update the frontmatter name');
-    text = text.replaceAll('(`pattern-slug-2_unverified.md`)', '(`learned-pattern-slug-2-unverified/`)');
-    text = text.replaceAll('Anything the user already wrote in AGENTS.md or similar project instructions', 'Anything already captured in AGENTS.md or equivalent project instructions');
-    text = text.replace(
-      /## MCP → CLI fallback matrix[\s\S]*?(?=\n## What this skill DOES NOT do)/,
-      '## Codex approval boundary\n\nAsk the user directly before writing a learned skill. No MCP or legacy CLI interaction layer is required.\n',
-    );
+    text = text.replaceAll("current host's user skill directory", '`~/.agents/skills`');
     text += `\n\n## Codex packaging requirement\n\nEach learned pattern must be a valid skill directory, not a loose Markdown file. The generated\n\`SKILL.md\` must start with only \`name\` and \`description\` frontmatter. Also create\n\`agents/openai.yaml\` with \`policy.allow_implicit_invocation: false\`. A new Codex task is required\nbefore the learned skill appears in discovery.\n`;
   }
 
@@ -610,9 +287,9 @@ function adaptHostText(input, skillName = '') {
 function adaptedDescription(sourceDescription, targetName) {
   const special = {
     'cc-collab': 'Ask Claude Code for an independent read-only analysis while Codex owns verification and synthesis. Use only when the user explicitly requests CC or Claude Code collaboration.',
-    'ultra-verify': 'Run Codex-primary two-model verification with a read-only Claude Code advisor, then verify and synthesize the evidence.',
-    'ultra-dev': 'Execute one Ultra task with Codex-native TDD, persistent task.update state, workflow checkpoints, and the native Ultra review agents.',
-    'learn': 'Extract one reusable pattern from the current Codex task into a valid user skill, with explicit user approval before writing.',
+    'ultra-verify': 'Run Codex-primary cross-model verification with a read-only Claude Code advisor. Use only when the user explicitly requests independent model verification.',
+    'ultra-dev': 'Execute one authoritative Ultra task with Codex-native implementation, verification, and review. Use when a dependency-ready slice is ready for development.',
+    'learn': 'Extract one verified reusable workflow from the current Codex task into a portable user skill. Use when the user explicitly asks to preserve the method.',
   };
   return special[targetName] || adaptHostText(String(sourceDescription || `${titleCase(targetName)} workflow for Codex.`), targetName)
     .replace(/\s+/g, ' ')
@@ -633,21 +310,26 @@ function buildSkillMarkdown(sourceText, sourceName, targetName) {
 }
 
 function buildOpenAiYaml(name, description) {
-  const implicit = !(
-    COMMAND_NAMES.includes(name)
-    || INTERNAL_SKILLS.has(name)
-    || name === 'cc-collab'
-    || name.startsWith('ultra-')
-  );
+  const policy = skillPolicy(name);
   const short = description.replace(/\s+/g, ' ').trim().slice(0, 63).replace(/[\s.,;:]+$/, '');
-  return yaml.dump({
+  const metadata = {
     interface: {
       display_name: titleCase(name),
       short_description: short || `${titleCase(name)} for Codex`,
       default_prompt: `Use $ultra-builder-pro:${name} for this task and follow its workflow.`,
     },
-    policy: { allow_implicit_invocation: implicit },
-  }, { lineWidth: -1, noRefs: true });
+    policy: { allow_implicit_invocation: policy.allowImplicitInvocation },
+  };
+  if (policy.requiresUltraMcp) {
+    metadata.dependencies = {
+      tools: [{
+        type: 'mcp',
+        value: PLUGIN_NAME,
+        description: 'Ultra Builder Pro authoritative task and change runtime',
+      }],
+    };
+  }
+  return yaml.dump(metadata, { lineWidth: -1, noRefs: true });
 }
 
 function isTextFile(rel) {

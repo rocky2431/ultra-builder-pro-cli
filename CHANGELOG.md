@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-07-18
+
+### Added
+
+- Added a portable Skill authoring contract aligned with OpenAI Skills guidance
+  and the Agent Skills progressive-disclosure model, plus regression coverage for
+  source prompts, commands, agents, generated runtimes, and package contents.
+- Added an independent `review-spec` worker and the `ultra-review-findings-v2` /
+  `ultra-review-summary-v2` evidence contracts so specification fidelity and
+  engineering standards remain separate release-gate axes.
+- Added focused research and code-review references that are loaded only when the
+  active workflow needs them.
+
+### Changed
+
+- Rewrote the nineteen packaged source Skills as concise, English, host-neutral
+  procedures with portable `name` and `description` frontmatter. Runtime metadata,
+  invocation policy, and MCP dependencies now belong to host adapters.
+- Reduced all eleven command documents to thin workflow launchers and rewrote the
+  bundled workers as bounded, evidence-based roles without arbitrary confidence,
+  coverage, severity, or option-count thresholds.
+- Simplified Claude Code, Codex, OpenCode, and Kimi Code adaptation by removing
+  stale prompt rewriting branches while preserving each host's native invocation,
+  MCP, hook, and agent contracts.
+
+### Fixed
+
+- Made the review waiter validate exact named v2 artifacts, reject partial or stale
+  schemas, derive severity counts from evidence, and fail inconsistent two-axis
+  summaries closed.
+- Isolated read-only collaboration commands from user configuration and repository
+  rules, and passed the review schema by an explicit absolute path instead of
+  guessing an installed plugin root.
+- Prevented Python caches and retired prompt/runtime artifacts from entering the npm
+  tarball.
+
+### Removed
+
+- Removed the duplicate `ai-collab-base` prompt framework, the seventeen-step
+  research prompt tree, redundant review checklists, learned-Skill placeholder, and
+  obsolete v1 verdict updater.
+
 ## [0.10.0] — 2026-07-18
 
 ### Added
@@ -409,7 +451,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.7.0...v0.8.0

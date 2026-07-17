@@ -1,109 +1,69 @@
 ---
 name: ultra-plan
-description: "Turn a validated baseline, active delta, or approved PRD into fresh-context vertical slices with public seams and exact verification contracts."
-user-invocable: true
-runtime: all
-mcp_tools_required:
-  - task.create
-  - task.parse_prd
-  - task.dependency_topo
-  - plan.export
-  - plan.get
-  - change.get
-  - change.context
-  - change.breadcrumb
+description: Convert a validated baseline, active delta, or approved PRD into dependency-valid vertical slices with bounded context and exact verification. Use when requirements are ready to become authoritative Ultra tasks.
 ---
 
-# ultra-plan — Fresh-Context Execution Planning
+# Plan fresh-context execution
 
-Produce a dependency-valid plan whose tasks can be executed in isolated contexts.
-`.ultra/state.db` is authoritative; the projector owns task JSON and context
-frontmatter.
+Produce a task graph whose slices can be completed independently and verified through
+live product seams. `.ultra/state.db` remains authoritative; task JSON and context
+Markdown are generated projections.
 
-## Failure boundary
+## Entry gate
 
-Start with a state-backed MCP read. On `LEGACY_STATE_MIGRATION_REQUIRED`, stop and
-instruct:
+Start with a state-backed MCP read. If state or schema health blocks access, stop and
+route to `ultra-doctor`. Never read or write `.ultra/tasks/tasks.json` as a fallback.
 
-```bash
-ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>
-```
+Choose one input:
 
-Never read or write `.ultra/tasks/tasks.json` as authority. If task MCP mutation is
-unavailable, stop; there is no task-creation CLI fallback.
+- validated baseline specifications;
+- one active change packet;
+- a raw PRD through the approval-gated mode below.
 
-## Inputs
-
-Choose exactly one:
-
-- validated baseline specs under `.ultra/specs/`;
-- one active change packet (`intent.md`, `delta/`, `plan.md`);
-- raw PRD using the approval-gated direct mode below.
-
-Ask only for a product or risk decision that cannot be derived from current evidence.
-Record assumptions explicitly; unresolved material assumptions block planning.
+Ask only for product, scope, cost, or risk decisions that cannot be derived from
+current evidence. A material unresolved assumption blocks persistence.
 
 ## Planning rules
 
-1. Trace acceptance through a live entry point, domain behavior, side effects, and a
-   user-observable/public seam.
-2. Prefer a walking skeleton / `tracer_bullet` before horizontal layers.
-3. Make each task completable in a fresh context: one outcome, bounded references,
-   explicit dependencies, and one deterministic verification command.
-4. Keep the default context packet at or below 12 files, 12k approximate tokens, and
-   40% of the fresh context budget.
-5. Use `expand_contract` only when a wider change is approved and cannot be split
-   without losing correctness.
-6. Create integration checkpoints at real seams, not after arbitrary task counts.
-7. Include error, recovery, documentation, and migration work in the task that owns
-   the behavior; do not create unreachable scaffolding tasks.
+1. Trace acceptance through an entry point, domain behavior, side effects, and a
+   user-observable or public seam.
+2. Prefer a walking skeleton or `tracer_bullet` before horizontal layers.
+3. Give each task one outcome, bounded ownership, explicit dependencies, required
+   references, and one deterministic verification command.
+4. Use the context budget returned by the current Ultra contract. Widen it only when
+   an approved slice cannot be split without losing correctness.
+5. Add integration checkpoints at actual boundaries, not after arbitrary task counts.
+6. Put validation, errors, recovery, documentation, and migrations in the task that
+   owns the behavior.
+7. Reject scaffolding with no reachable consumer.
 
-## Task contract
+Every persisted task must include its slice kind, public seam, verification command,
+acceptance evidence, ownership, dependencies, documentation impact, and linked change
+id when applicable.
 
-Every `task.create` must carry or be paired with:
-
-- outcome and acceptance assertions;
-- priority, complexity, dependencies, and ownership paths;
-- linked `change_id` when planning a delta;
-- `slice_kind`: `tracer_bullet`, `expand_contract`, or `integration_checkpoint`;
-- `public_seam`;
-- exact `verification_command`;
-- required context references and their reasons;
-- expected red/green signal for fixes and incidents;
-- documentation impact.
-
-After each task is persisted, compile `change.context` with `role=plan` and
-`gate=planning` when it belongs to a change. A blocked readiness result must be fixed
-before the task is called executable.
-
-## Spec mode / change mode
+## Baseline or change mode
 
 1. Read the smallest authoritative references that define acceptance.
-2. Build a task DAG in memory and check file-ownership conflicts.
-3. Present the outcome, order, cost/risk concentration, and walking-skeleton seam.
-4. Obtain approval when the plan materially changes scope or cost.
-5. Persist tasks through `task.create`.
-6. Call `task.dependency_topo`; cycles or missing dependencies are blocking.
-7. Call `plan.export`, then verify it with `plan.get` rather than reparsing the file.
-8. For an active change, call `change.breadcrumb` and report its one next action.
+2. Build the task DAG in memory and check dependency and ownership conflicts.
+3. Present the proposed outcome, execution order, risk concentration, and first live
+   seam. Obtain approval if scope, cost, or delivery semantics change materially.
+4. Persist approved tasks with `task.create`.
+5. For change-linked tasks, compile `change.context` with the planning role and gate.
+   Resolve every readiness blocker before calling a task executable.
+6. Call `task.dependency_topo`; cycles and missing dependencies block completion.
+7. Call `plan.export`, then verify the persisted result with `plan.get`.
+8. Call `change.breadcrumb` when a change is active and return one next action.
 
-## PRD direct mode
+## PRD mode
 
 1. Call `task.parse_prd` with `dry_run: true`.
-2. Show the proposed vertical slices, topology, conflict surface, and estimated cost.
-3. Require explicit approval. Rejection performs no state write.
-4. On approval, repeat the same parse with `dry_run: false`, then `plan.export`.
-5. Verify dry-run and persisted task ids match; mismatch is a deterministic failure.
-
-## Context body
-
-Human-readable task context may explain intent, acceptance, seam, red/green signal,
-and relevant references. It must not duplicate entire specs, provider memory, or a
-static codebase tour. The next worker should be able to begin from the manifest and
-verify the slice without recovering the planner's full conversation.
+2. Show the proposed slices, topology, conflict surface, and cost estimate.
+3. Require explicit approval; rejection performs no state write.
+4. On approval, repeat with `dry_run: false`, export the plan, and verify that the
+   dry-run and persisted task identities agree.
 
 ## Completion gate
 
-Planning is complete only when the DAG is valid, every task is reachable through a
-public seam, every command is executable, every change-linked task has a ready Context
-Manifest v2 snapshot, and no required documentation or decision is unknown.
+Planning is complete only when the DAG is valid, each task reaches a public seam, each
+verification command is executable, every change-linked context is ready, and no
+required documentation or decision remains unknown.

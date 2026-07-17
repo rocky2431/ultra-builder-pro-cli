@@ -1,71 +1,32 @@
 ---
 name: integration-rules
-description: Ultra Builder Pro system integration rules
-user-invocable: false
+description: Verify that changed components are reachable, contract-compatible, and tested across the boundaries required by the accepted behavior. Use only when an assigned review or implementation slice crosses modules, services, persistence, protocols, or UI seams.
 ---
 
-# Integration Rules
+# Verify integration and reachability
 
-These rules are mandatory for all code review and development work involving multi-component systems.
+Prove that new behavior is connected to a real consumer and that data and failures
+cross each boundary according to one contract.
 
-## Vertical Slice Principle
+## Procedure
 
-Every task MUST deliver a thin, working end-to-end path:
+1. Start at the declared public seam or entry point and trace the changed path through
+   domain behavior, state, side effects, and the final consumer.
+2. At each boundary, identify the producer, consumer, data shape, ownership, error
+   semantics, compatibility expectation, and recovery behavior.
+3. Confirm both sides use the same contract or a deliberate adapter. Inspect runtime
+   configuration and registration, not only exported types.
+4. Verify the implementation is reachable in the production path. A module, handler,
+   schema, or component with no caller or registration is incomplete.
+5. Check that tests cross the boundary whose semantics matter and would fail on a
+   producer-consumer mismatch.
+6. For a larger feature, confirm an executable vertical slice exists before broad
+   expansion. The slice may be narrow, but it must use real wiring and observable data.
+7. Inspect partial failure, retry, idempotency, ordering, rollback, and observability
+   when the boundary can leave inconsistent state.
 
-| Good (Vertical Slice) | Bad (Horizontal Layer) |
-|------------------------|------------------------|
-| "User can send message" (UI + API + LLM + response display) | "Create all database tables" |
-| "Display product list" (API call + domain filter + UI render) | "Build all API endpoints" |
-| "Process payment" (UI form + gateway + order update) | "Create all UI components" |
+## Finding contract
 
-## Walking Skeleton
-
-The FIRST deliverable of any multi-component feature must be a walking skeleton:
-- One request flows through ALL layers
-- Returns real data (not hardcoded/mocked)
-- Proves the architecture connects end-to-end
-- Does NOT need to be feature-complete — just connected
-
-## Contract-First Development
-
-When two components will communicate:
-
-| Step | Action | Artifact |
-|------|--------|----------|
-| 1 | Define interface before implementation | TypeScript interface, OpenAPI schema, or protobuf |
-| 2 | Both sides code against the contract | Import shared types or generated clients |
-| 3 | Contract test validates both sides | Test that producer output matches consumer expectation |
-
-## Integration Test Requirements
-
-| Boundary | Required Test |
-|----------|---------------|
-| HTTP API endpoint | Request with real HTTP client, validate response shape + status |
-| Database operation | Testcontainers with real queries, validate data persisted |
-| Message queue | Real producer + consumer, validate message delivered |
-| External service | Test Double with `// Test Double rationale:` (only exception) |
-| In-process module boundary | Real function call, validate input/output contract |
-
-## Orphan Detection
-
-Code without a live entry point is dead-on-arrival.
-
-**Valid entry points** (at least one required per new module):
-- HTTP/WebSocket handler
-- CLI command handler
-- Event/message listener
-- Scheduled job/cron handler
-- Exported function called by a module that has an entry point
-
-**Detection**: Trace from new code upward — if no path reaches an entry point, the code is an orphan.
-
-## Detection Checklist
-
-When reviewing code, flag:
-1. New module/service without any caller (orphan code)
-2. Task structured as horizontal layer instead of vertical slice
-3. Two components communicating without shared interface/contract
-4. New boundary crossing without integration test
-5. Use case with DB/API dependency but only unit tests
-6. Component "works in isolation" but not wired to any entry point
-7. Interface defined but no contract test validating compatibility
+Report the broken path, mismatched contract, missing consumer, or unverified failure
+mode with exact source evidence and observable impact. Do not flag a horizontal task
+solely by its name when another completed slice already proves the integration.

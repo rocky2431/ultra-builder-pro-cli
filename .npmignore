@@ -31,6 +31,8 @@ plugins/marketplaces/
 
 # Build / packaging artifacts
 node_modules/
+**/__pycache__/
+**/*.pyc
 *.tgz
 *.tar.gz
 dist/

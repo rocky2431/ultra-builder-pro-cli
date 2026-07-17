@@ -15,10 +15,12 @@ const {
   writeAtomic,
 } = require('./_shared/file-ops.cjs');
 const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
+const { parse: parseFrontmatter, serialize: serializeFrontmatter } = require('./_shared/frontmatter.cjs');
 const provenance = require('./_shared/provenance.cjs');
 const {
   CORE_PUBLIC_SKILLS,
   WORKFLOW_HOOK_FILES,
+  skillPolicy,
   skillsForRuntime,
 } = require('./_shared/runtime-assets.cjs');
 
@@ -46,12 +48,33 @@ function resolveRepoRoot(ctx = {}) {
   return ctx.repoRoot || path.resolve(__dirname, '..');
 }
 
-function copyNamedDirectories(repoRoot, target, parent, names) {
+function copySkills(repoRoot, target, names) {
   const copied = [];
   for (const name of names) {
-    const source = path.join(repoRoot, parent, name);
-    if (!fs.existsSync(source)) throw new Error(`missing allowlisted Claude asset: ${parent}/${name}`);
-    const files = copyTree(source, path.join(target, parent, name));
+    const source = path.join(repoRoot, 'skills', name);
+    if (!fs.existsSync(source)) throw new Error(`missing allowlisted Claude skill: ${name}`);
+    const files = copyTree(source, path.join(target, 'skills', name), {
+      transform(buf, rel) {
+        if (rel !== 'SKILL.md') return buf;
+        const { fm, body } = parseFrontmatter(buf.toString('utf8'));
+        if (!fm) throw new Error(`missing frontmatter in Claude skill: ${name}`);
+        let adaptedBody = body;
+        if (name === 'learn') {
+          adaptedBody = adaptedBody.replaceAll("current host's user skill directory", '`~/.claude/skills`');
+        }
+        if (name === 'ultra-review') {
+          adaptedBody = adaptedBody.replaceAll(
+            "the current host's native bounded-worker mechanism",
+            'Claude Code Task workers using the installed review agent definitions',
+          );
+        }
+        return Buffer.from(serializeFrontmatter({
+          name,
+          description: fm.description,
+          'user-invocable': skillPolicy(name).userInvocable,
+        }, adaptedBody));
+      },
+    });
     copied.push(...files.map((rel) => path.join(name, rel)));
   }
   return copied;
@@ -126,7 +149,7 @@ function install(ctx = {}) {
 
   const report = { target, copied: {}, config: { updated: false } };
   report.copied.commands = copyCommands(repoRoot, target);
-  report.copied.skills = copyNamedDirectories(repoRoot, target, 'skills', skillsForRuntime('claude'));
+  report.copied.skills = copySkills(repoRoot, target, skillsForRuntime('claude'));
   report.copied.agents = copyTree(path.join(repoRoot, 'agents'), path.join(target, 'agents'));
 
   ensureDir(path.join(target, 'hooks'));

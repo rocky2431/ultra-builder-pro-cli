@@ -1,122 +1,65 @@
 ---
 name: ultra-change
-description: "Open or resume a continuous change, capture its delta and decisions, compile bounded role context, and route one executable slice."
-user-invocable: true
-runtime: all
-mcp_tools_required:
-  - change.create
-  - change.update
-  - change.get
-  - change.list
-  - change.context
-  - change.breadcrumb
-  - change.learning_propose
-  - change.learning_resolve
-  - task.create
-  - task.list
+description: Open or resume a bounded continuous change and connect its intent, delta, decisions, context, and executable tasks. Use when maintaining or extending an Ultra project after its baseline exists.
 ---
 
-# ultra-change — Delta Entry and Alignment Gate
+# Open or resume a continuous change
 
-Use this after the first baseline delivery for fixes, small features, redesigns,
-incidents, and maintenance. It keeps specifications live through a delta → implement
-→ learn → converge loop.
+Keep post-delivery work aligned through a delta, implementation, learning, and
+convergence loop.
 
 ## Authority boundary
 
-All change and task lifecycle writes use the live MCP tools. Do not write raw SQLite
-or mutate generated task/context projections. Provider payloads stay in their owning
-memory or graph system; Ultra stores metadata references only.
+Use Ultra MCP tools for change and task lifecycle writes. Do not write raw SQLite or
+mutate generated task and context projections. External memory or code-graph systems
+own their payloads; Ultra stores only provider references supplied by the user or host.
 
-## 1. Establish the change
+## Workflow
 
-Call `change.list` and `change.breadcrumb` first.
+1. Call `change.list` and `change.breadcrumb`.
+   - Resume the single change that matches the requested outcome.
+   - Require an explicit id when several changes could match.
+   - Create a new change only when no existing packet represents the same outcome.
+2. Capture the observable outcome, acceptance, non-goals, affected public seam,
+   documentation impact, and unresolved decisions.
+3. Classify the change as `quick`, `standard`, `major`, or `incident`. Ask only for a
+   material product, risk, or recovery decision that repository evidence cannot answer.
+4. Call `change.create` with a stable kebab-case id, or `change.update` when resuming.
+5. Write the minimum artifact set required by the classification:
 
-- Resume the single matching active/blocked change.
-- If several may match, require an explicit id.
-- Otherwise auto-discover repository facts, then ask only the highest-value unresolved
-  question. Do not ask the user for branch, stack, paths, or behavior already visible.
+   ```text
+   .ultra/changes/active/<change-id>/
+     intent.md
+     delta/                 # standard and major
+     plan.md                # standard and major
+     diagnosis.md           # incident
+     context-manifest.json  # generated projection
+     spec-learning.json     # generated projection
+     verification.md        # generated projection
+   ```
 
-Capture:
+   Delta files describe differences from the baseline, not a second copy of it.
+   Incident diagnosis records the symptom, earliest bad state, falsifiable
+   hypotheses, evidence, root cause, and recovery boundary.
+6. Create the smallest executable vertical slice with `task.create`. Each task needs
+   one outcome, bounded ownership, dependencies, a live public seam, an exact
+   verification command, and documentation impact.
+7. Compile `change.context` for the next role and gate. Include only required
+   references and the task execution contract. Treat missing references, digest or
+   HEAD drift, an exceeded context budget, and unknown documentation impact as
+   blockers.
+8. Call `change.breadcrumb` and return its single next action.
 
-- observable problem or requested outcome;
-- acceptance and explicit non-goals;
-- affected public seam or integration boundary;
-- documentation impact: `required` paths, `none` with rationale, or blocking `unknown`;
-- kind: `quick`, `standard`, `major`, or `incident`;
-- decision inventory: accepted decisions, rejected alternatives, and unresolved choices.
+## Specification learning
 
-Create with `change.create` using a stable kebab-case id. Update an existing packet
-with `change.update`; never create a parallel packet for the same outcome.
+When implementation uncovers a stable requirement, invariant, or public behavior
+missing from the baseline, call `change.learning_propose` with evidence and a target
+document. The proposal does not edit the baseline. It must be approved or rejected,
+and an approved item is marked applied only after the target document is updated and
+verified.
 
-## 2. Write only the delta
+## Completion gate
 
-The bounded packet is:
-
-```text
-.ultra/changes/active/<change-id>/
-  intent.md
-  delta/                 # standard and major
-  plan.md                # standard and major
-  diagnosis.md           # incident
-  context-manifest.json  # MCP projection
-  spec-learning.json     # MCP projection
-  verification.md        # convergence projection
-```
-
-`intent.md` records outcome, acceptance, non-goals, docs impact, and decisions.
-Delta files describe only differences from the baseline. An incident diagnosis must
-record symptom, earliest bad state, root-cause hypothesis, discriminating evidence,
-and recovery boundary.
-
-## 3. Create an executable slice
-
-Prefer the smallest vertical `tracer_bullet` that crosses a live public seam. Split
-only when ownership or verification is genuinely independent. Each task must declare:
-
-- one observable outcome and linked `change_id`;
-- bounded files/contracts and dependencies;
-- `public_seam` that proves reachability;
-- exact `verification_command`;
-- expected red signal for a bug/incident;
-- documentation impact.
-
-Persist tasks with `task.create`. Generated `tasks.json` is never an input authority.
-
-## 4. Compile Context Manifest v2
-
-Call `change.context` for the next task with:
-
-```json
-{
-  "id": "<change-id>",
-  "task_id": "<task-id>",
-  "role": "plan",
-  "gate": "planning",
-  "context_refs": [{"ref":"<path>","kind":"spec","reason":"defines acceptance","required":true}],
-  "budget": {"max_tokens":12000,"max_files":12},
-  "execution_contract": {
-    "slice_kind":"tracer_bullet",
-    "public_seam":"<reachable boundary>",
-    "verification_command":"<exact command>",
-    "context_budget_percent":40
-  }
-}
-```
-
-Include only files needed for the current role and gate. Missing required references,
-digest drift, file-count overflow, or a fresh-context budget over 40% blocks readiness.
-Use `expand_contract` only for an explicitly approved wider slice.
-
-## 5. Handle discoveries without silent spec drift
-
-When implementation reveals a stable requirement, invariant, or public behavior not
-in the baseline, call `change.learning_propose` with evidence and target document.
-It is a candidate, not an automatic edit. A human/primary-agent decision must approve
-or reject it; approved learning is marked applied only after the baseline was updated.
-
-## Exit contract
-
-Call `change.breadcrumb` and report the compiled task, readiness, blockers, and its
-single next action. Do not claim alignment while documentation impact is unknown,
-context is stale, or a material decision remains unresolved.
+Do not claim alignment while a material decision is unresolved, documentation impact
+is unknown, context is stale, or the next task is not executable from a bounded fresh
+context.
