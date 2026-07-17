@@ -141,7 +141,9 @@ evidence required by kind:
 
 - `quick`: diff, tests, spec;
 - `standard` / `major`: diff, tests, spec, docs, review;
-- `incident`: diagnosis, diff, tests.
+- `incident`: diagnosis, diff, tests. The diagnosis evidence must point to the
+  completed `diagnosis.md`; convergence separately validates all five required
+  debugging sections and cannot be satisfied by the evidence string alone.
 
 Evidence must name concrete commands, artifacts, or file paths. If blockers are
 returned, stop before tag/push and route to the owning workflow. Do not weaken

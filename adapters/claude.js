@@ -15,6 +15,7 @@ const {
   writeAtomic,
 } = require('./_shared/file-ops.cjs');
 const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
+const provenance = require('./_shared/provenance.cjs');
 const {
   CORE_PUBLIC_SKILLS,
   WORKFLOW_HOOK_FILES,
@@ -26,6 +27,7 @@ const MCP_SERVER_NAME = PLUGIN_NAME;
 const SOURCE_TAG = 'ubp';
 const SENTINEL_KEY = '_ubp_manifest';
 const COMMAND_NAMES = CORE_PUBLIC_SKILLS.filter((name) => name !== 'ultra-review');
+const PROVENANCE_FILE = 'provenance.json';
 
 function resolveTarget(ctx = {}) {
   if (ctx.configDir) return ctx.configDir;
@@ -155,7 +157,37 @@ function install(ctx = {}) {
     license: pkg.license || 'MIT',
   }, null, 2) + '\n');
   markManaged(target, { adapter: 'claude', plugin: PLUGIN_NAME });
+  const source = provenance.packageSource(repoRoot);
+  const provenanceFile = path.join(target, PROVENANCE_FILE);
+  report.provenance = provenance.writeProvenance({
+    file: provenanceFile,
+    adapter: 'claude',
+    ...source,
+    roots: { plugin: target },
+    assets: provenance.assetRefsForTree('plugin', target, {
+      exclude: ['.ubp-managed', PROVENANCE_FILE],
+    }),
+    contracts: {
+      plugin_manifest: { root: 'plugin', path: '.claude-plugin/plugin.json' },
+      mcp_registration: { root: 'plugin', path: '.mcp.json' },
+      mcp_launcher: { root: 'plugin', path: 'runtime/launch.cjs' },
+      hooks_manifest: { root: 'plugin', path: 'hooks/hooks.json' },
+      checkpoint_hook: { root: 'plugin', path: 'hooks/workflow_checkpoint.py' },
+      resume_hook: { root: 'plugin', path: 'hooks/workflow_resume.py' },
+    },
+  });
+  report.provenance.file = provenanceFile;
   return report;
+}
+
+function doctor(ctx = {}) {
+  const repoRoot = resolveRepoRoot(ctx);
+  const source = provenance.packageSource(repoRoot);
+  return provenance.inspectProvenance({
+    file: path.join(resolvePluginRoot(ctx), PROVENANCE_FILE),
+    expectedAdapter: 'claude',
+    expectedPackageVersion: source.packageInfo.version,
+  });
 }
 
 function uninstall(ctx = {}) {
@@ -179,4 +211,5 @@ module.exports = {
   resolvePluginRoot,
   install,
   uninstall,
+  doctor,
 };

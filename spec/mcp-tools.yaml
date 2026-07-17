@@ -630,7 +630,7 @@ tools:
   # ────────────────────────── change family ──────────────────────────────
   - name: change.create
     family: change
-    description: Create a continuous feature, fix, redesign, or incident change unit and its initial context manifest.
+    description: Create a continuous feature, fix, redesign, or incident change unit and its initial context manifest; incidents also register a five-section diagnosis artifact.
     phase: '9'
     writer_role: mcp
     input_schema:
@@ -860,7 +860,7 @@ tools:
 
   - name: change.converge
     family: change
-    description: Deterministically verify task, spec, test, documentation, review, and context evidence before closure.
+    description: Deterministically verify task, spec, test, documentation, review, context, and incident diagnosis structure before closure.
     phase: '9'
     writer_role: mcp
     input_schema:

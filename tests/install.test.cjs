@@ -47,9 +47,10 @@ const RUNTIMES = [
       'skills/ultra-builder-pro/commands',
       'skills/ultra-builder-pro/hooks/hooks.json',
       'skills/ultra-builder-pro/.mcp.json',
+      'skills/ultra-builder-pro/provenance.json',
     ],
   },
-  { flag: '--opencode', name: 'opencode', expectRelPaths: ['commands', 'skills', 'plugins/ultra-builder-pro.js', 'opencode.json'] },
+  { flag: '--opencode', name: 'opencode', expectRelPaths: ['commands', 'skills', 'plugins/ultra-builder-pro.js', 'opencode.json', '.ultra-builder-pro/provenance.json'] },
   {
     flag: '--codex',
     name: 'codex',
@@ -60,6 +61,7 @@ const RUNTIMES = [
       'agents/review-code.toml',
       '.agents/plugins/marketplace.json',
       'ultra-builder-pro/install-manifest.json',
+      'ultra-builder-pro/provenance.json',
     ],
   },
 ];
@@ -125,6 +127,62 @@ test('install.js — idempotent: two installs produce equal asset counts', () =>
   }
 });
 
+test('install.js — doctor verifies all host provenance and reports managed-asset drift', () => {
+  const target = mkTarget('doctor');
+  try {
+    const installed = runCli(['--all', '--local'], { cwd: target, homeDir: target });
+    assert.equal(installed.status, 0, installed.stderr);
+
+    const healthy = runCli(['--all', '--local', '--doctor', '--json'], {
+      cwd: target, homeDir: target,
+    });
+    assert.equal(healthy.status, 0, healthy.stderr);
+    const healthyReport = JSON.parse(healthy.stdout);
+    assert.equal(healthyReport.status, 'healthy');
+    assert.deepEqual(
+      healthyReport.reports.map((report) => [report.adapter, report.status]),
+      [['claude', 'healthy'], ['opencode', 'healthy'], ['codex', 'healthy']],
+    );
+
+    const managedHook = path.join(
+      target, '.claude', 'skills', 'ultra-builder-pro', 'hooks', 'workflow_resume.py',
+    );
+    fs.appendFileSync(managedHook, '\n# drift\n');
+    const degraded = runCli(['--all', '--local', '--doctor', '--json'], {
+      cwd: target, homeDir: target,
+    });
+    assert.equal(degraded.status, 2, degraded.stderr);
+    const degradedReport = JSON.parse(degraded.stdout);
+    assert.equal(degradedReport.status, 'degraded');
+    const claude = degradedReport.reports.find((report) => report.adapter === 'claude');
+    assert.equal(claude.status, 'degraded');
+    assert.ok(claude.issues.some((issue) => issue.code === 'ASSET_HASH_MISMATCH'));
+
+    const openCodeConfigFile = path.join(target, '.opencode', 'opencode.json');
+    const openCodeConfig = JSON.parse(fs.readFileSync(openCodeConfigFile, 'utf8'));
+    delete openCodeConfig.mcp['ultra-builder-pro'];
+    fs.writeFileSync(openCodeConfigFile, `${JSON.stringify(openCodeConfig, null, 2)}\n`);
+    const codexManifestFile = path.join(
+      target, '.codex', 'ultra-builder-pro', 'install-manifest.json',
+    );
+    const codexManifest = JSON.parse(fs.readFileSync(codexManifestFile, 'utf8'));
+    codexManifest.hook_cache_versions.push('0.1.0+codex.missing-hook');
+    fs.writeFileSync(codexManifestFile, `${JSON.stringify(codexManifest, null, 2)}\n`);
+
+    const boundaryDrift = runCli(['--all', '--local', '--doctor', '--json'], {
+      cwd: target, homeDir: target,
+    });
+    assert.equal(boundaryDrift.status, 2, boundaryDrift.stderr);
+    const boundaryReport = JSON.parse(boundaryDrift.stdout);
+    const opencode = boundaryReport.reports.find((report) => report.adapter === 'opencode');
+    assert.ok(opencode.issues.some((issue) => issue.code === 'MCP_REGISTRATION_INVALID'));
+    const codex = boundaryReport.reports.find((report) => report.adapter === 'codex');
+    assert.ok(codex.issues.some((issue) => issue.code === 'HOOK_TARGET_MISSING'));
+  } finally {
+    cleanup(target);
+  }
+});
+
 test('install.js — argument parsing errors fail with exit 1', () => {
   const noRuntime = runCli([]);
   assert.equal(noRuntime.status, 1);
@@ -142,6 +200,10 @@ test('install.js — argument parsing errors fail with exit 1', () => {
   const retiredRuntime = runCli([retiredFlag, '--local']);
   assert.equal(retiredRuntime.status, 1);
   assert.match(retiredRuntime.stderr, /unknown flag/);
+
+  const conflictingModes = runCli(['--claude', '--doctor', '--uninstall']);
+  assert.equal(conflictingModes.status, 1);
+  assert.match(conflictingModes.stderr, /cannot combine --doctor and --uninstall/);
 });
 
 // P3 #13 / D45: --config-dir NUL-byte rejection — unit-tested via

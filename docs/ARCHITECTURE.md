@@ -141,6 +141,14 @@ but all require completed linked tasks, current context, declared documentation
 impact, and no open incident. Memory and graph payloads never enter Ultra;
 `context_snapshots.provider_refs_json` stores metadata references only.
 
+`incident` is the canonical debug lane. Creating one also registers a durable
+`diagnosis.md` artifact with five mandatory sections: reproduction, hypotheses,
+root cause, regression test, and recovery. Convergence validates the artifact
+structure and refreshes its content hash, so a debugger result that exists only
+in chat cannot satisfy delivery. A host-native debugger may produce the bounded
+analysis, but the primary agent owns the artifact, linked task, regression
+evidence, and final convergence decision.
+
 Mutating MCP calls enqueue durable `projection_jobs`. Success is exposed in MCP
 response metadata; failure becomes a retryable structured incident instead of a
 swallowed warning. `system.doctor` is read-only by default and performs only
@@ -168,7 +176,33 @@ This admission gate is the smallest piece that prevents two agents from
 silently double-writing the same task — it is part of the v0.1 minimum
 execution layer, not deferred to Phase 5.
 
-## 6. Two timelines — rule layer vs execution layer
+## 6. Compaction recovery — checkpoint as a validated consumer
+
+`workflow_checkpoint.py` validates the current non-terminal workflow and writes
+a schema-versioned checkpoint atomically before compaction. On resume,
+`workflow_resume.py` reads both the live workflow and checkpoint defensively,
+rejects corrupt, non-object, schema-mismatched, or terminal candidates, and
+selects the newest valid state. A newer live state wins; a newer checkpoint can
+atomically restore a missing or older live state before context is re-injected.
+The checkpoint is therefore a recovery artifact and consumer, never a second
+durable authority alongside `.ultra/state.db`.
+
+## 7. Installation provenance — read-only cross-host diagnosis
+
+Every Claude Code, OpenCode, and Codex adapter writes a normalized
+`provenance.json` for the assets it owns. The manifest records adapter/package
+identity, source metadata, per-file SHA-256 hashes, an aggregate digest, and the
+host-specific plugin, MCP, hook, launcher, and runtime contracts expected at
+that install scope. It never attributes a package to an enclosing consumer
+repository commit.
+
+`ubp --doctor [--json]` is read-only: it recomputes hashes and validates those
+entry points, returning a non-zero degraded result for missing/corrupt
+provenance, content drift, or broken host wiring. This is separate from
+`system.doctor`, which diagnoses project state, projection, incidents, sessions,
+and backup-first workflow recovery.
+
+## 8. Two timelines — rule layer vs execution layer
 
 The roadmap separates two concerns that compete for the same surface
 area (D13):
@@ -196,7 +230,7 @@ value from "skills + tasks survive across sessions" long before they get
 value from "ten agents in parallel." Each milestone is independently
 shippable; downstream slip never blocks an earlier release.
 
-## 7. Where to look next
+## 9. Where to look next
 
 | Question                                           | File                                                |
 |----------------------------------------------------|-----------------------------------------------------|
@@ -206,7 +240,7 @@ shippable; downstream slip never blocks an earlier release.
 | What does a tasks.json look like after projection? | [`spec/fixtures/valid/tasks.v4.5.json`](../spec/fixtures/valid/tasks.v4.5.json) |
 | Phase-by-phase work breakdown + decision log       | [`docs/PLAN.zh-CN.md`](./PLAN.zh-CN.md)             |
 
-## 8. Verifying the architecture
+## 10. Verifying the architecture
 
 Every contract on this page is enforced by `npm run test:spec`:
 

@@ -115,6 +115,18 @@ If **3 consecutive fix attempts fail**, and each reveals new problems in differe
 {test output proving fix resolves the issue, no regressions}
 ```
 
+When the parent assigns an Ultra `incident` change, also map the verified report
+into the exact durable `diagnosis.md` contract:
+
+- `Reproduction`: the smallest repeatable symptom and exact trigger;
+- `Hypotheses`: falsifiable hypotheses and the evidence that accepted/rejected each;
+- `Root cause`: the earliest incorrect state and why it occurred;
+- `Regression test`: the failing-first test and its final passing command;
+- `Recovery`: rollback, retry, repair, or operator action when applicable.
+
+Return this content to the primary agent. Do not write `.ultra/state.db` or claim
+incident convergence; the primary agent owns the change artifact and verification.
+
 ## Rules
 
 - Never guess. Every claim must have evidence from code or output.

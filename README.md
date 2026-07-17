@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.7.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -23,7 +23,8 @@ authoritative `.ultra/state.db`.
 
 - **Builds host-native plugins from one allowlist.** Claude Code, OpenCode, and
   Codex receive their own command/skill, agent, hook, and MCP representation.
-  Install and uninstall are symmetric on every supported host.
+  Install and uninstall are symmetric on every supported host; `ubp --doctor`
+  verifies the installed asset hashes and host entry points without mutation.
 - **Shares state across runtimes.** `.ultra/state.db` (SQLite + WAL) is the
   authoritative source for changes, tasks, sessions, events, incidents,
   projection jobs, and telemetry. `tasks.json` and context markdown are
@@ -37,6 +38,8 @@ authoritative `.ultra/state.db`.
   context manifest; `/ultra-deliver` requires docs/test/review evidence and
   baseline reconciliation before archive. `/ultra-doctor` reports incidents,
   projection lag, orphan sessions, and backup-first mechanical recovery.
+  Incident changes additionally require a five-section `diagnosis.md` covering
+  reproduction, hypotheses, root cause, regression test, and recovery.
 - **Keeps external context external.** Memory and code-graph providers retain
   their own content; Ultra stores only provider/project/revision/status metadata
   references in a compiled change context.
@@ -57,6 +60,10 @@ npx ultra-builder-pro-cli --claude --global
 
 # Uninstall (symmetric)
 npx ultra-builder-pro-cli --all --local --uninstall
+
+# Read-only installation provenance and drift diagnosis
+npx ultra-builder-pro-cli --all --local --doctor
+npx ultra-builder-pro-cli --all --local --doctor --json
 ```
 
 After install, start a new host session/task and point it at the project.
@@ -131,7 +138,7 @@ native command form.
 
 | Binary | Purpose |
 |--------|---------|
-| `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --all`, `--local / --global`, `--uninstall` |
+| `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --all`, `--local / --global`, `--uninstall`; read-only install checks via `--doctor [--json]` |
 | `ubp-orchestrator` | Session dispatch daemon — `run`, `start`, `stop`, `status` |
 | `ultra-tools` | State-layer CLI — `task`, `session`, `status`, `db`, `migrate`; explicit `legacy-memory` archive/prune migration |
 | `ubp-handbook` | Preview/apply the managed Ultra contract in `CLAUDE.md` / `AGENTS.md`, with backup |
@@ -165,6 +172,11 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
   or `./.opencode` etc.; `--global` writes to the user-level dir). The
   install log prints the exact target path. Restart Claude Code/OpenCode or
   start a new Codex task after changing an installed plugin.
+- **Installed hook/MCP path is missing or stale**: run
+  `npx ultra-builder-pro-cli --<runtime> --local --doctor` first. It compares
+  the recorded install provenance with current asset hashes and validates the
+  host-specific hook, MCP, plugin, and runtime-manifest entry points. Reinstall
+  only after preserving the degraded report as evidence.
 - **Legacy Ultra memory data remains on disk**: inspect first with
   `ultra-tools legacy-memory inspect`, archive with
   `ultra-tools legacy-memory archive`, then prune only with the explicit

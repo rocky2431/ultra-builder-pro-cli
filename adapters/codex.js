@@ -33,6 +33,7 @@ const {
   buildPlugin,
   installAgents,
 } = require('./_shared/codex-assets.cjs');
+const provenance = require('./_shared/provenance.cjs');
 
 const MCP_SERVER_NAME = PLUGIN_NAME;
 const SOURCE_TAG = 'ubp';
@@ -40,6 +41,7 @@ const MARKER_BEGIN = '# >>> ultra-builder-pro managed block — do not edit by h
 const MARKER_END = '# <<< ultra-builder-pro managed block';
 const RUNTIME_MANIFEST_DIR = 'ultra-builder-pro';
 const RUNTIME_MANIFEST_FILE = 'install-manifest.json';
+const PROVENANCE_FILE = 'provenance.json';
 const HOOK_ADAPTER_RELATIVE = path.join('hooks', 'adapters', 'codex.py');
 
 function resolveTarget(ctx = {}) {
@@ -355,6 +357,30 @@ function install(ctx = {}) {
     agents: agents.installed,
     hookCacheVersions,
   });
+  const source = provenance.packageSource(repoRoot);
+  const provenanceFile = path.join(configDir, RUNTIME_MANIFEST_DIR, PROVENANCE_FILE);
+  const provenanceManifest = provenance.writeProvenance({
+    file: provenanceFile,
+    adapter: 'codex',
+    ...source,
+    roots: { plugin: pluginRoot, config: configDir },
+    assets: [
+      ...provenance.assetRefsForTree('plugin', pluginRoot, {
+        exclude: ['.ubp-managed'],
+      }),
+      ...agents.installed.map((file) => ({ root: 'config', path: path.join('agents', file) })),
+      { root: 'config', path: path.join(RUNTIME_MANIFEST_DIR, RUNTIME_MANIFEST_FILE) },
+    ],
+    contracts: {
+      plugin_manifest: { root: 'plugin', path: '.codex-plugin/plugin.json' },
+      mcp_registration: { root: 'plugin', path: '.mcp.json' },
+      mcp_launcher: { root: 'plugin', path: 'runtime/launch.cjs' },
+      hooks_manifest: { root: 'plugin', path: 'hooks/hooks.json' },
+      hook_adapter: { root: 'plugin', path: HOOK_ADAPTER_RELATIVE },
+      runtime_manifest: { root: 'config', path: path.join(RUNTIME_MANIFEST_DIR, RUNTIME_MANIFEST_FILE) },
+    },
+  });
+  provenanceManifest.file = provenanceFile;
 
   return {
     target: configDir,
@@ -365,8 +391,68 @@ function install(ctx = {}) {
     hookCompatibility,
     legacy,
     manifestFile,
+    provenance: provenanceManifest,
     config: { updated: legacy.configUpdated },
   };
+}
+
+function doctor(ctx = {}) {
+  const configDir = resolveTarget(ctx);
+  const pluginRoot = resolvePluginRoot(ctx);
+  const repoRoot = resolveRepoRoot(ctx);
+  const marketplaceFile = resolveMarketplaceFile(ctx);
+  const source = provenance.packageSource(repoRoot);
+  const report = provenance.inspectProvenance({
+    file: path.join(configDir, RUNTIME_MANIFEST_DIR, PROVENANCE_FILE),
+    expectedAdapter: 'codex',
+    expectedPackageVersion: source.packageInfo.version,
+  });
+
+  let runtimeManifest = null;
+  try {
+    runtimeManifest = readRuntimeManifest(configDir);
+  } catch (error) {
+    report.issues.push({ code: 'RUNTIME_MANIFEST_INVALID', message: error.message });
+  }
+  const runtimeManifestOk = runtimeManifest?.source === SOURCE_TAG
+    && runtimeManifest.adapter === 'codex'
+    && runtimeManifest.plugin?.root === pluginRoot
+    && typeof runtimeManifest.plugin?.version === 'string';
+  if (!runtimeManifestOk && !report.issues.some((entry) => entry.code === 'RUNTIME_MANIFEST_INVALID')) {
+    report.issues.push({ code: 'RUNTIME_MANIFEST_INVALID', path: runtimeManifestFile(configDir) });
+  }
+  report.checks.runtime_manifest = { status: runtimeManifestOk ? 'pass' : 'fail' };
+
+  let marketplaceOk = false;
+  try {
+    const marketplace = loadMarketplace(marketplaceFile);
+    const entry = marketplace.plugins.find((plugin) => plugin?.name === PLUGIN_NAME);
+    marketplaceOk = entry?.source?.source === 'local'
+      && entry.source.path === `./plugins/${PLUGIN_NAME}`;
+  } catch (error) {
+    report.issues.push({ code: 'MARKETPLACE_REGISTRATION_INVALID', message: error.message });
+  }
+  if (!marketplaceOk && !report.issues.some((entry) => entry.code === 'MARKETPLACE_REGISTRATION_INVALID')) {
+    report.issues.push({ code: 'MARKETPLACE_REGISTRATION_INVALID', path: marketplaceFile });
+  }
+  report.checks.marketplace = { status: marketplaceOk ? 'pass' : 'fail' };
+
+  let hookTargetsOk = runtimeManifestOk;
+  if (runtimeManifestOk) {
+    const cacheRoot = pluginCacheRoot(configDir, runtimeManifest.marketplace?.name || 'personal');
+    const currentCacheRequired = shouldRunPluginCli(ctx);
+    for (const version of runtimeManifest.hook_cache_versions || []) {
+      if (version === runtimeManifest.plugin.version && !currentCacheRequired) continue;
+      const adapter = path.join(cacheRoot, version, HOOK_ADAPTER_RELATIVE);
+      if (!fs.existsSync(adapter)) {
+        hookTargetsOk = false;
+        report.issues.push({ code: 'HOOK_TARGET_MISSING', version, path: adapter });
+      }
+    }
+  }
+  report.checks.hook_targets = { status: hookTargetsOk ? 'pass' : 'fail' };
+  if (report.status !== 'missing') report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
+  return report;
 }
 
 function removeManagedAgents(configDir, manifest) {
@@ -440,6 +526,7 @@ module.exports = {
   resolveMarketplaceFile,
   install,
   uninstall,
+  doctor,
   _internal: {
     stripManagedBlock,
     hasManagedBlock,

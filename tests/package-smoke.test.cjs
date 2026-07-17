@@ -79,10 +79,18 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     const configRoot = path.join(tempRoot, 'hosts');
     for (const runtime of ['claude', 'opencode', 'codex']) {
       const hostRoot = path.join(configRoot, runtime);
+      const env = runtime === 'codex' ? { HOME: hostRoot } : {};
       run(ubp, [`--${runtime}`, '--config-dir', hostRoot], {
         cwd: consumer,
-        env: runtime === 'codex' ? { HOME: hostRoot } : {},
+        env,
       });
+      const doctor = JSON.parse(run(
+        ubp,
+        [`--${runtime}`, '--config-dir', hostRoot, '--doctor', '--json'],
+        { cwd: consumer, env },
+      ));
+      assert.equal(doctor.status, 'healthy', JSON.stringify(doctor, null, 2));
+      assert.deepEqual(doctor.reports.map((report) => report.adapter), [runtime]);
     }
     const launchers = {
       claude: path.join(configRoot, 'claude', 'skills', 'ultra-builder-pro', 'runtime', 'launch.cjs'),

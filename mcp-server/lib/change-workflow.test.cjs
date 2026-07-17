@@ -38,6 +38,14 @@ function standardEvidence() {
   ];
 }
 
+function incidentEvidence() {
+  return [
+    { category: 'diagnosis', status: 'pass', evidence: 'Structured diagnosis artifact reviewed.' },
+    { category: 'diff', status: 'pass', evidence: 'Root-cause fix diff reviewed.' },
+    { category: 'tests', status: 'pass', evidence: 'Regression test reproduces then verifies the fix.' },
+  ];
+}
+
 test('createChange persists a change and an inspectable external-provider context manifest', () => {
   const fx = fixture();
   try {
@@ -252,6 +260,85 @@ test('updateChange rejects whitespace-only title or intent outside the MCP bound
     assert.throws(
       () => changes.updateChange(fx.db, 'chg-update-validation', { intent: '\t' }, { rootDir: fx.rootDir }),
       (error) => error.code === 'VALIDATION_ERROR',
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('incident changes create a durable structured diagnosis artifact', () => {
+  const fx = fixture();
+  try {
+    const created = changes.createChange(fx.db, {
+      id: 'chg-incident-diagnosis', title: 'Diagnose runtime failure', kind: 'incident',
+      intent: 'Reproduce and fix the runtime failure at its root cause.',
+      docs_impact: { status: 'none', files: [], rationale: 'Internal runtime repair.' },
+    }, { rootDir: fx.rootDir });
+
+    const diagnosisPath = path.join(path.dirname(created.intent_path), 'diagnosis.md');
+    assert.ok(fs.existsSync(diagnosisPath));
+    const text = fs.readFileSync(diagnosisPath, 'utf8');
+    for (const heading of ['Reproduction', 'Hypotheses', 'Root cause', 'Regression test', 'Recovery']) {
+      assert.match(text, new RegExp(`^## ${heading}$`, 'm'));
+    }
+    const artifact = fx.db.prepare(
+      "SELECT kind, path, content_hash FROM artifacts WHERE change_id = ? AND kind = 'diagnosis'",
+    ).get('chg-incident-diagnosis');
+    assert.equal(artifact.kind, 'diagnosis');
+    assert.match(artifact.content_hash, /^[0-9a-f]{64}$/);
+    assert.equal(path.join(fx.rootDir, artifact.path), diagnosisPath);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('incident convergence requires every structured diagnosis section and refreshes its artifact hash', () => {
+  const fx = fixture();
+  try {
+    const created = changes.createChange(fx.db, {
+      id: 'chg-incident-converge', title: 'Converge runtime diagnosis', kind: 'incident',
+      intent: 'Require inspectable debugging evidence before incident closure.',
+      docs_impact: { status: 'none', files: [], rationale: 'Internal runtime repair.' },
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'incident-task', title: 'Fix diagnosed failure', type: 'bugfix', priority: 'P0',
+      change_id: 'chg-incident-converge',
+    });
+    ops.updateTaskStatus(fx.db, 'incident-task', 'in_progress');
+    ops.updateTaskStatus(fx.db, 'incident-task', 'completed');
+    changes.compileContext(fx.db, { id: 'chg-incident-converge' }, { rootDir: fx.rootDir });
+
+    const blocked = changes.convergeChange(fx.db, {
+      id: 'chg-incident-converge', evidence: incidentEvidence(),
+    }, { rootDir: fx.rootDir });
+    assert.equal(blocked.ready, false);
+    assert.ok(blocked.blockers.includes('DIAGNOSIS_SECTION_MISSING:reproduction'));
+    assert.ok(blocked.blockers.includes('DIAGNOSIS_SECTION_MISSING:root-cause'));
+
+    const diagnosisPath = path.join(path.dirname(created.intent_path), 'diagnosis.md');
+    const beforeHash = fx.db.prepare(
+      "SELECT content_hash FROM artifacts WHERE change_id = ? AND kind = 'diagnosis'",
+    ).get('chg-incident-converge').content_hash;
+    fs.writeFileSync(diagnosisPath, [
+      '# Incident diagnosis: Converge runtime diagnosis', '',
+      '## Reproduction', '', 'The projection worker fails after an interrupted claim.', '',
+      '## Hypotheses', '', 'A stale running job is never returned to the pending queue.', '',
+      '## Root cause', '', 'Boot recovery did not consume interrupted projection state.', '',
+      '## Regression test', '', 'The test seeds a stale running job and verifies requeue.', '',
+      '## Recovery', '', 'Requeue the job after the stale cutoff and replay projection.', '',
+    ].join('\n'));
+
+    const ready = changes.convergeChange(fx.db, {
+      id: 'chg-incident-converge', evidence: incidentEvidence(),
+    }, { rootDir: fx.rootDir });
+    assert.equal(ready.ready, true);
+    const afterHash = fx.db.prepare(
+      "SELECT content_hash FROM artifacts WHERE change_id = ? AND kind = 'diagnosis'",
+    ).get('chg-incident-converge').content_hash;
+    assert.notEqual(afterHash, beforeHash);
+    assert.equal(
+      afterHash,
+      require('node:crypto').createHash('sha256').update(fs.readFileSync(diagnosisPath)).digest('hex'),
     );
   } finally {
     cleanup(fx);

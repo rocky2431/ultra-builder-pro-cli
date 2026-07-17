@@ -66,9 +66,16 @@ remaining incident unresolved.
 For an installed hook that points to a missing cached file:
 
 1. capture the exact hook config path and missing target;
-2. verify the currently installed plugin/cache version;
-3. reinstall or regenerate the host-native plugin through the adapter;
-4. rerun read-only doctor and a host hook smoke test.
+2. run the separate read-only installer boundary check:
+   `npx ultra-builder-pro-cli --<runtime> --local --doctor --json` (or use
+   `--global` when that is the actual install scope);
+3. preserve its provenance, asset-hash, and host-contract findings;
+4. reinstall or regenerate the host-native plugin through the adapter;
+5. rerun both installer doctor and `system.doctor`, then a host hook smoke test.
+
+`system.doctor` diagnoses project `.ultra/state.db` and workflow recovery.
+Installer `ubp --doctor` diagnoses the installed plugin files and host wiring.
+Neither report substitutes for the other.
 
 Do not bypass a broken hook by changing application implementation, and do not
 treat a hook failure as project-code evidence.

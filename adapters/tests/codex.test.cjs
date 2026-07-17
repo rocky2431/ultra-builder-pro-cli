@@ -362,3 +362,40 @@ test('uninstall removes only UBP-managed plugin and agents', () => {
     cleanup(layout);
   }
 });
+
+test('doctor checks the current Codex cache hook target for a CLI-managed global install', () => {
+  const layout = mkLayout();
+  try {
+    install(layout);
+    const runtimeManifest = JSON.parse(fs.readFileSync(
+      path.join(layout.configDir, 'ultra-builder-pro', 'install-manifest.json'),
+      'utf8',
+    ));
+    const version = runtimeManifest.plugin.version;
+    const cacheAdapter = path.join(
+      codex._internal.pluginCacheRoot(layout.configDir, 'personal'),
+      version,
+      'hooks',
+      'adapters',
+      'codex.py',
+    );
+    const doctorCtx = {
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: true,
+    };
+
+    const degraded = codex.doctor(doctorCtx);
+    assert.equal(degraded.status, 'degraded');
+    assert.ok(degraded.issues.some((entry) => (
+      entry.code === 'HOOK_TARGET_MISSING' && entry.version === version
+    )));
+
+    fs.mkdirSync(path.dirname(cacheAdapter), { recursive: true });
+    fs.copyFileSync(path.join(layout.pluginRoot, 'hooks', 'adapters', 'codex.py'), cacheAdapter);
+    assert.equal(codex.doctor(doctorCtx).status, 'healthy');
+  } finally {
+    cleanup(layout);
+  }
+});

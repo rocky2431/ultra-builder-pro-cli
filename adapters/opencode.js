@@ -15,6 +15,7 @@ const {
   writeAtomic,
 } = require('./_shared/file-ops.cjs');
 const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
+const provenance = require('./_shared/provenance.cjs');
 const {
   CORE_PUBLIC_SKILLS,
   skillsForRuntime,
@@ -34,6 +35,7 @@ const SOURCE_TAG = 'ubp';
 const BUNDLE_DIR = '.ultra-builder-pro';
 const MANAGED_TEXT_MARKER = '<!-- ultra-builder-pro:managed -->';
 const PLUGIN_MARKER = '// Managed by Ultra Builder Pro.';
+const PROVENANCE_FILE = 'provenance.json';
 const COMMAND_NAMES = CORE_PUBLIC_SKILLS.filter((name) => name !== 'ultra-review');
 
 function resolveTarget(ctx = {}) {
@@ -515,6 +517,69 @@ function install(ctx = {}) {
   delete next[LEGACY_SENTINEL_KEY];
   writeAtomic(configFile, JSON.stringify(next, null, 2) + '\n');
   report.config.updated = true;
+  const source = provenance.packageSource(repoRoot);
+  const bundleAssets = provenance.assetRefsForTree('config', bundleRoot, {
+    exclude: [PROVENANCE_FILE],
+  }).map((asset) => ({ ...asset, path: path.join(BUNDLE_DIR, asset.path) }));
+  const skillMarkers = skillsForRuntime('opencode').map((name) => ({
+    root: 'config', path: path.join('skills', name, '.ubp-managed'),
+  }));
+  const provenanceFile = path.join(bundleRoot, PROVENANCE_FILE);
+  report.provenance = provenance.writeProvenance({
+    file: provenanceFile,
+    adapter: 'opencode',
+    ...source,
+    roots: { config: target },
+    assets: [
+      ...report.copied.commands.map((file) => ({ root: 'config', path: path.join('commands', file) })),
+      ...report.copied.skills.map((file) => ({ root: 'config', path: path.join('skills', file) })),
+      ...skillMarkers,
+      ...report.copied.agents.map((file) => ({ root: 'config', path: path.join('agents', file) })),
+      { root: 'config', path: path.join('plugins', 'ultra-builder-pro.js') },
+      ...bundleAssets,
+    ],
+    contracts: {
+      host_plugin: { root: 'config', path: path.join('plugins', 'ultra-builder-pro.js') },
+      mcp_config: { root: 'config', path: 'opencode.json' },
+      mcp_launcher: { root: 'config', path: path.join(BUNDLE_DIR, 'runtime', 'launch.cjs') },
+    },
+  });
+  report.provenance.file = provenanceFile;
+  return report;
+}
+
+function doctor(ctx = {}) {
+  const target = resolveTarget(ctx);
+  const repoRoot = resolveRepoRoot(ctx);
+  const source = provenance.packageSource(repoRoot);
+  const report = provenance.inspectProvenance({
+    file: path.join(target, BUNDLE_DIR, PROVENANCE_FILE),
+    expectedAdapter: 'opencode',
+    expectedPackageVersion: source.packageInfo.version,
+  });
+  const configFile = path.join(target, 'opencode.json');
+  const expectedLauncher = path.join(target, BUNDLE_DIR, 'runtime', 'launch.cjs');
+  let registrationOk = false;
+  try {
+    const config = readJsonSafe(configFile);
+    const entry = config.mcp && config.mcp[MCP_SERVER_NAME];
+    registrationOk = entry?.type === 'local'
+      && entry.enabled === true
+      && Array.isArray(entry.command)
+      && entry.command[0] === process.execPath
+      && entry.command[1] === expectedLauncher;
+  } catch (error) {
+    report.issues.push({ code: 'MCP_REGISTRATION_INVALID', message: error.message });
+  }
+  if (!registrationOk && !report.issues.some((entry) => entry.code === 'MCP_REGISTRATION_INVALID')) {
+    report.issues.push({
+      code: 'MCP_REGISTRATION_INVALID',
+      path: configFile,
+      expected_launcher: expectedLauncher,
+    });
+  }
+  report.checks.registration = { status: registrationOk ? 'pass' : 'fail' };
+  if (report.status !== 'missing') report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
   return report;
 }
 
@@ -590,4 +655,5 @@ module.exports = {
   resolveTarget,
   install,
   uninstall,
+  doctor,
 };

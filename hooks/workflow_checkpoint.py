@@ -11,6 +11,17 @@ from pathlib import Path
 TERMINAL = {"committed", "completed", "done", "cancelled"}
 
 
+def valid_workflow(state: object) -> bool:
+    return (
+        isinstance(state, dict)
+        and isinstance(state.get("command"), str)
+        and bool(state["command"].strip())
+        and state.get("step") is not None
+        and isinstance(state.get("status"), str)
+        and bool(state["status"].strip())
+    )
+
+
 def main() -> None:
     try:
         data = json.loads(sys.stdin.read() or "{}")
@@ -28,7 +39,10 @@ def main() -> None:
         except (OSError, json.JSONDecodeError) as exc:
             print(f"[workflow_checkpoint] cannot read {state_file}: {exc}", file=sys.stderr)
             break
-        if not isinstance(state, dict) or state.get("status") in TERMINAL:
+        if not valid_workflow(state):
+            print(f"[workflow_checkpoint] invalid workflow state in {state_file}", file=sys.stderr)
+            break
+        if state.get("status") in TERMINAL:
             break
         runtime_dir = root / ".ultra" / "runtime"
         runtime_dir.mkdir(parents=True, exist_ok=True)

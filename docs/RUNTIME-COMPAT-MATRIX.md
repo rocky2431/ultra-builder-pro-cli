@@ -41,7 +41,7 @@ primary verification.
 |---|---|---|---|
 | Session context/health | FULL, native `SessionStart` | DEGRADED, native context; health via `system.doctor` | FULL, native `SessionStart` |
 | Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects projection writes | FULL, `PreToolUse Edit|Write|apply_patch` |
-| Compaction recovery | FULL, `PreCompact` + resume matcher | FULL, native compacting context | FULL, `PreCompact` + `PostCompact` |
+| Compaction recovery | FULL, validated checkpoint + resume/restore matcher | FULL, native compacting context | FULL, validated checkpoint + `PostCompact` restore |
 | Incomplete-stop gate | FULL, native blocking `Stop` | DEGRADED, no equivalent blocking stop hook | FULL, native blocking `Stop` |
 | Subagent lifecycle evidence | FULL | DEGRADED, no equivalent packaged event | FULL |
 
@@ -83,6 +83,9 @@ loading, and user interaction remain host-native surfaces.
 | Removes stale managed assets | FULL | FULL | FULL |
 | Preserves unrelated config | FULL | FULL | FULL |
 | Uninstall ownership guard | managed plugin root | sentinels + owned MCP entry | managed root/manifest/agent headers |
+| Normalized install provenance | FULL | FULL | FULL |
+| Read-only `ubp --doctor` | FULL | FULL | FULL |
+| Asset-content and host-contract drift detection | FULL | FULL | FULL |
 
 ## 7. Verification sources
 
@@ -95,5 +98,9 @@ loading, and user interaction remain host-native surfaces.
   from re-entering active product surfaces.
 - `adapters/_shared/tests/handbook.test.cjs` verifies host rendering, backup,
   migration, and idempotency.
+- `adapters/_shared/tests/provenance.test.cjs` verifies normalized manifests,
+  content hashes, source attribution, corruption handling, and contract drift.
+- `tests/install.test.cjs` verifies healthy three-host doctor output and
+  host-specific hook/MCP degradation after controlled tampering.
 
 Any capability claim elsewhere must match current adapter code and these tests.

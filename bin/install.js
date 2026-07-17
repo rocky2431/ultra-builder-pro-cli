@@ -16,6 +16,8 @@
  *   -g, --global                                  install to runtime's global config dir
  *   -l, --local                                   install into current working directory
  *   -u, --uninstall                               remove installed assets
+ *   -d, --doctor                                  inspect installation provenance without mutation
+ *   --json                                        emit machine-readable doctor output
  *   -c, --config-dir <path>                       override config directory
  *   -h, --help                                    show help
  */
@@ -77,6 +79,8 @@ function printHelp() {
 
   ${paint('yellow', 'Other:')}
     ${paint('cyan', '-u, --uninstall')}    remove installed assets
+    ${paint('cyan', '-d, --doctor')}       verify installed version, provenance, managed assets, and live entry points
+    ${paint('cyan', '--json')}             emit machine-readable doctor output (doctor only)
     ${paint('cyan', '-c, --config-dir')}   override runtime's config directory (string path)
     ${paint('cyan', '-h, --help')}         show this help
     ${paint('cyan', '-v, --version')}      show CLI version
@@ -90,6 +94,9 @@ function printHelp() {
 
     ${paint('dim', '# Uninstall from OpenCode')}
     npx ultra-builder-pro-cli --opencode --global --uninstall
+
+    ${paint('dim', '# Verify all host installations without changing them')}
+    npx ultra-builder-pro-cli --all --global --doctor
 `);
 }
 
@@ -100,6 +107,8 @@ function parseArgs(argv) {
     global: false,
     local: false,
     uninstall: false,
+    doctor: false,
+    json: false,
     help: false,
     version: false,
     configDir: null,
@@ -117,6 +126,8 @@ function parseArgs(argv) {
       case '-g': case '--global': flags.global = true; break;
       case '-l': case '--local': flags.local = true; break;
       case '-u': case '--uninstall': flags.uninstall = true; break;
+      case '-d': case '--doctor': flags.doctor = true; break;
+      case '--json': flags.json = true; break;
       case '-h': case '--help': flags.help = true; break;
       case '-v': case '--version': flags.version = true; break;
       case '-c': case '--config-dir':
@@ -178,12 +189,14 @@ async function main() {
     return;
   }
 
-  printBanner();
-
   if (flags.help) {
+    printBanner();
     printHelp();
     return;
   }
+
+  if (flags.doctor && flags.uninstall) bail('cannot combine --doctor and --uninstall');
+  if (flags.json && !flags.doctor) bail('--json is available only with --doctor');
 
   if (runtimes.length === 0) {
     bail('no runtime selected; use --claude / --opencode / --codex / --all');
@@ -193,14 +206,56 @@ async function main() {
   const repoRoot = path.resolve(__dirname, '..');
   const configDir = flags.configDir ? expandTilde(flags.configDir) : null;
 
-  const mode = flags.uninstall ? 'uninstall' : 'install';
-  console.log(`  ${paint('bold', 'Mode:')}     ${mode}`);
-  console.log(`  ${paint('bold', 'Scope:')}    ${scope}`);
-  console.log(`  ${paint('bold', 'Runtimes:')} ${runtimes.join(', ')}`);
-  if (configDir) console.log(`  ${paint('bold', 'ConfigDir:')} ${configDir}`);
-  console.log();
+  if (!flags.json) printBanner();
+
+  const mode = flags.doctor ? 'doctor' : flags.uninstall ? 'uninstall' : 'install';
+  if (!flags.json) {
+    console.log(`  ${paint('bold', 'Mode:')}     ${mode}`);
+    console.log(`  ${paint('bold', 'Scope:')}    ${scope}`);
+    console.log(`  ${paint('bold', 'Runtimes:')} ${runtimes.join(', ')}`);
+    if (configDir) console.log(`  ${paint('bold', 'ConfigDir:')} ${configDir}`);
+    console.log();
+  }
 
   const ctx = { repoRoot, scope, configDir, homeDir: os.homedir() };
+
+  if (flags.doctor) {
+    const reports = [];
+    for (const runtime of runtimes) {
+      const adapter = loadAdapter(runtime);
+      try {
+        if (typeof adapter.doctor !== 'function') throw new Error('adapter does not expose doctor()');
+        reports.push(await adapter.doctor(ctx));
+      } catch (error) {
+        reports.push({
+          adapter: runtime,
+          status: 'degraded',
+          manifest_path: null,
+          checks: {},
+          issues: [{ code: 'DOCTOR_FAILED', message: error.message }],
+        });
+      }
+    }
+    const output = {
+      status: reports.every((report) => report.status === 'healthy') ? 'healthy' : 'degraded',
+      reports,
+    };
+    if (flags.json) {
+      process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    } else {
+      for (const report of reports) {
+        const color = report.status === 'healthy' ? 'green' : 'red';
+        console.log(`  ${paint(color, report.status === 'healthy' ? '✓' : '✗')} ${report.adapter}: ${report.status}`);
+        for (const finding of report.issues || []) {
+          const location = finding.path ? ` (${finding.path})` : '';
+          console.log(`      ${finding.code}${location}`);
+        }
+      }
+      console.log();
+    }
+    if (output.status !== 'healthy') process.exitCode = 2;
+    return;
+  }
 
   let failed = 0;
   for (const runtime of runtimes) {

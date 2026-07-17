@@ -26,6 +26,13 @@ const REQUIRED_EVIDENCE = Object.freeze({
   major: ['diff', 'tests', 'spec', 'docs', 'review'],
   incident: ['diagnosis', 'diff', 'tests'],
 });
+const INCIDENT_DIAGNOSIS_SECTIONS = Object.freeze([
+  { heading: 'Reproduction', key: 'reproduction' },
+  { heading: 'Hypotheses', key: 'hypotheses' },
+  { heading: 'Root cause', key: 'root-cause' },
+  { heading: 'Regression test', key: 'regression-test' },
+  { heading: 'Recovery', key: 'recovery' },
+]);
 
 class ChangeWorkflowError extends Error {
   constructor(code, message, details) {
@@ -147,6 +154,53 @@ function writeIntent(file, change) {
   ];
   if (impact.rationale) lines.push('## Documentation rationale', '', impact.rationale, '');
   fs.writeFileSync(file, `${lines.join('\n')}\n`);
+}
+
+function writeIncidentDiagnosis(file, change) {
+  const lines = [
+    `# Incident diagnosis: ${change.title}`,
+    '',
+    ...INCIDENT_DIAGNOSIS_SECTIONS.flatMap(({ heading }) => [`## ${heading}`, '', '']),
+  ];
+  fs.writeFileSync(file, `${lines.join('\n')}\n`);
+}
+
+function readMarkdownSections(text) {
+  const sections = new Map();
+  let current = null;
+  for (const line of String(text).split(/\r?\n/)) {
+    const heading = /^##\s+(.+?)\s*$/.exec(line);
+    if (heading) {
+      current = heading[1].trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      if (!sections.has(current)) sections.set(current, []);
+      continue;
+    }
+    if (current) sections.get(current).push(line);
+  }
+  return new Map([...sections].map(([key, lines]) => [key, lines.join('\n').trim()]));
+}
+
+function inspectIncidentDiagnosis(change, artifactDir, rootDir) {
+  if (change.kind !== 'incident') return { blockers: [], artifact: null };
+  const diagnosisPath = path.join(artifactDir, 'diagnosis.md');
+  if (!fs.existsSync(diagnosisPath)) {
+    return { blockers: ['DIAGNOSIS_ARTIFACT_MISSING'], artifact: null };
+  }
+  const content = fs.readFileSync(diagnosisPath);
+  const sections = readMarkdownSections(content.toString('utf8'));
+  const blockers = INCIDENT_DIAGNOSIS_SECTIONS
+    .filter(({ key }) => !sections.get(key) || sections.get(key).length < 3)
+    .map(({ key }) => `DIAGNOSIS_SECTION_MISSING:${key}`);
+  return {
+    blockers,
+    artifact: {
+      change_id: change.id,
+      kind: 'diagnosis',
+      artifactPath: path.relative(rootDir, diagnosisPath),
+      contentHash: crypto.createHash('sha256').update(content).digest('hex'),
+      metadata: { required_sections: INCIDENT_DIAGNOSIS_SECTIONS.map(({ key }) => key) },
+    },
+  };
 }
 
 function upsertArtifact(db, { change_id, task_id = null, kind, artifactPath, contentHash, metadata }) {
@@ -275,6 +329,17 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
         change_id: row.id, kind: 'intent', artifactPath: path.relative(rootDir, intentPath),
         contentHash: crypto.createHash('sha256').update(fs.readFileSync(intentPath)).digest('hex'),
       });
+      if (row.kind === 'incident') {
+        const diagnosisPath = path.join(artifactDir, 'diagnosis.md');
+        writeIncidentDiagnosis(diagnosisPath, row);
+        upsertArtifact(db, {
+          change_id: row.id,
+          kind: 'diagnosis',
+          artifactPath: path.relative(rootDir, diagnosisPath),
+          contentHash: crypto.createHash('sha256').update(fs.readFileSync(diagnosisPath)).digest('hex'),
+          metadata: { required_sections: INCIDENT_DIAGNOSIS_SECTIONS.map(({ key }) => key) },
+        });
+      }
       ops.appendEventInTx(db, {
         type: 'change_created', change_id: row.id,
         payload: { kind: row.kind, artifact_root: row.artifact_root },
@@ -410,6 +475,8 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   }
 
   const artifactDir = path.resolve(rootDir, change.artifact_root);
+  const diagnosis = inspectIncidentDiagnosis(change, artifactDir, rootDir);
+  for (const blocker of diagnosis.blockers) blockers.add(blocker);
   if (['standard', 'major'].includes(change.kind)) {
     if (filesUnder(path.join(artifactDir, 'delta')).length === 0) blockers.add('SPEC_DELTA_MISSING');
     if (!fs.existsSync(path.join(artifactDir, 'plan.md'))) blockers.add('CHANGE_PLAN_MISSING');
@@ -434,6 +501,7 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
     ops.tx(db, () => {
       db.prepare("UPDATE changes SET status = 'blocked', updated_at = ? WHERE id = ?")
         .run(nowIso(), change.id);
+      if (diagnosis.artifact) upsertArtifact(db, diagnosis.artifact);
       ops.appendEventInTx(db, {
         type: 'change_blocked', change_id: change.id, payload: { blockers: blockerList },
       });
@@ -452,6 +520,7 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   ops.tx(db, () => {
     db.prepare("UPDATE changes SET status = 'ready', updated_at = ? WHERE id = ?")
       .run(nowIso(), change.id);
+    if (diagnosis.artifact) upsertArtifact(db, diagnosis.artifact);
     upsertArtifact(db, {
       change_id: change.id, kind: 'verification', artifactPath: path.relative(rootDir, verificationPath),
       contentHash: crypto.createHash('sha256').update(fs.readFileSync(verificationPath)).digest('hex'),

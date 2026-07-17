@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-07-17
+
+### Added
+
+- Added a first-class incident debug lane: incident changes now create a
+  registered `diagnosis.md` artifact whose reproduction, hypotheses, root
+  cause, regression-test, and recovery sections are required by convergence.
+- Added normalized install-provenance manifests for Claude Code, OpenCode, and
+  Codex plus read-only `ubp --doctor [--json]` checks for asset hashes and
+  host-specific plugin, hook, MCP, launcher, and runtime entry points.
+
+### Fixed
+
+- Turned workflow compaction checkpoints into a real recovery consumer:
+  resume now rejects malformed or terminal checkpoints, selects the newest
+  valid live/checkpoint state, and atomically restores missing or older live
+  workflow state before re-injecting context.
+
 ## [0.7.0] — 2026-07-17
 
 ### Added
@@ -306,7 +324,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.5.2...v0.5.3
