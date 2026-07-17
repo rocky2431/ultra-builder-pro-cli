@@ -38,7 +38,7 @@ async function verifyMcp(launcher, projectDir) {
   try {
     assert.equal(client.getServerVersion().version, PACKAGE.version);
     const tools = await client.listTools();
-    assert.equal(tools.tools.length, 29);
+    assert.equal(tools.tools.length, 32);
     assert.equal(fs.existsSync(path.join(projectDir, '.ultra', 'state.db')), false);
     const listed = await client.callTool({ name: 'task.list', arguments: {} });
     assert.notEqual(listed.isError, true, listed.content?.[0]?.text || 'task.list failed');

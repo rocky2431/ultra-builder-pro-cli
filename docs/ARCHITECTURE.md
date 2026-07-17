@@ -53,7 +53,7 @@ the supported hosts share.
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
-| **MCP**      | authoritative workflow-state API             | stdio MCP server exposing 29 live tools across task/session/change/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **MCP**      | authoritative workflow-state and Context Spine API | stdio MCP server exposing 32 live tools across task/session/change/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
 | **CLI**      | explicit initialization, recovery, diagnostics, and orchestration | `ultra-tools` / `ubp-orchestrator`; only commands listed by `--help` are executable (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
 Why three: skills give us behavior portability across runtimes; MCP gives
@@ -70,7 +70,7 @@ RPC, and host-native loaders own resolution and invocation.
 
 All durable Ultra workflow state lives in one SQLite file with WAL enabled. Schema is
 fixed in [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) and
-covers fifteen tables:
+covers sixteen tables:
 
 | Table              | Holds                                             | Phase |
 |--------------------|---------------------------------------------------|-------|
@@ -84,7 +84,8 @@ covers fifteen tables:
 | `circuit_breaker`  | bounded retry and halt state for failed tasks       | 5     |
 | `changes`          | continuous feature/fix/incident lifecycle           | 8C    |
 | `artifacts`        | intent/context/verification artifact registry       | 8C    |
-| `context_snapshots`| compiled context hashes, git head, provider refs    | 8C    |
+| `context_snapshots`| role/gate context, readiness, budget, execution seam, hashes, git head, provider refs | 10 |
+| `spec_learning_candidates` | approval-gated implementation discoveries for baseline convergence | 10 |
 | `trace_links`      | task/spec/change traceability                        | 8C    |
 | `incidents`        | structured runtime failures and resolutions         | 8C    |
 | `projection_jobs` | durable projection outbox/retry state                | 8C    |
@@ -101,7 +102,8 @@ Two rules make this work:
 2. **Single writer for mutable tables, multi-writer for `events`.**
    `.ultra/state.db` opens in WAL with `busy_timeout=5000`. The MCP
    server holds the single writer connection for `tasks`, `sessions`,
-   `telemetry`, `specs_refs`, and `migration_history`; the CLI calls
+   `changes`, `context_snapshots`, `spec_learning_candidates`, `telemetry`,
+   `specs_refs`, and `migration_history`; the CLI calls
    those tools over stdio rather than opening its own writer. The
    `events` table is append-only and explicitly multi-writer — CLI and
    orchestrator processes append directly to it under the same WAL +
@@ -133,13 +135,37 @@ active -> blocked -> active -> ready -> archived
    |                              |
    ├─ intent + delta + plan       └─ verification + baseline reconciliation
    ├─ linked tasks
-   └─ context-manifest (current HEAD + provider metadata references)
+   ├─ context-manifest v2 (role + gate + readiness + execution seam)
+   └─ spec-learning candidates (proposed -> approved/rejected -> applied)
 ```
 
 `quick`, `standard`, `major`, and `incident` kinds require different evidence,
 but all require completed linked tasks, current context, declared documentation
 impact, and no open incident. Memory and graph payloads never enter Ultra;
 `context_snapshots.provider_refs_json` stores metadata references only.
+
+### Context Spine
+
+Context Manifest v2 is the handoff contract between planning, implementation,
+checking, review, convergence, and recovery. Each snapshot records:
+
+- one role (`plan`, `implement`, `check`, or `review`) and lifecycle gate;
+- required context references with local digests and reasons;
+- readiness blockers for missing/stale references or budget overflow;
+- a fresh-context budget (12 files / about 12k tokens / 40% by default);
+- an execution contract (`slice_kind`, public seam, exact verification command);
+- one deterministic next action.
+
+`change.breadcrumb` derives the compact current position from state.db. Session,
+edit, and resume hooks inject only this breadcrumb, never the intent body,
+provider content, or a conversation summary. A changed git HEAD marks the
+snapshot stale and routes back to `change.context`.
+
+`change.learning_propose` records a durable implementation discovery without
+silently rewriting the baseline. `change.learning_resolve` enforces approval,
+rejection, and applied transitions. Proposed or merely approved candidates block
+convergence, so daily work cannot leave accepted behavior stranded in chat or a
+delta packet.
 
 `incident` is the canonical debug lane. Creating one also registers a durable
 `diagnosis.md` artifact with five mandatory sections: reproduction, hypotheses,

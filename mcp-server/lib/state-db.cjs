@@ -9,7 +9,8 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '9.1';
+const EXPECTED_VERSION = '10.0';
+const KIMI_SCHEMA_VERSION = '9.1';
 
 const REQUIRED_TABLES = Object.freeze([
   'tasks',
@@ -23,6 +24,7 @@ const REQUIRED_TABLES = Object.freeze([
   'changes',
   'artifacts',
   'context_snapshots',
+  'spec_learning_candidates',
   'trace_links',
   'incidents',
   'projection_jobs',
@@ -71,6 +73,13 @@ function columnNames(db, table) {
   return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name));
 }
 
+function latestSchemaVersion(db) {
+  if (!tableNames(db).includes('schema_version')) return null;
+  return db.prepare(
+    'SELECT version FROM schema_version ORDER BY applied_at DESC, rowid DESC LIMIT 1',
+  ).get()?.version || null;
+}
+
 function applyCompatibleColumns(db) {
   const tables = new Set(tableNames(db));
   if (!tables.has('tasks')) return;
@@ -87,6 +96,48 @@ function applyCompatibleColumns(db) {
   }
 }
 
+function applyContextSpineUpgrade(db) {
+  const tables = new Set(tableNames(db));
+  if (!tables.has('context_snapshots')) return false;
+  let changed = !tables.has('spec_learning_candidates');
+  const columns = columnNames(db, 'context_snapshots');
+  const additions = [
+    ['role', "TEXT NOT NULL DEFAULT 'plan' CHECK (role IN ('plan', 'implement', 'check', 'review'))"],
+    ['gate', "TEXT NOT NULL DEFAULT 'alignment' CHECK (gate IN ('alignment', 'planning', 'implementation', 'verification', 'review', 'convergence', 'recovery'))"],
+    ['next_action', "TEXT NOT NULL DEFAULT 'Resolve the next Ultra workflow action.'"],
+    ['readiness', "TEXT NOT NULL DEFAULT 'ready' CHECK (readiness IN ('ready', 'blocked'))"],
+    ['blockers_json', "TEXT NOT NULL DEFAULT '[]'"],
+    ['context_json', "TEXT NOT NULL DEFAULT '{}'"],
+    ['token_estimate', 'INTEGER NOT NULL DEFAULT 0 CHECK (token_estimate >= 0)'],
+    ['token_budget', 'INTEGER NOT NULL DEFAULT 12000 CHECK (token_budget > 0)'],
+  ];
+  for (const [name, definition] of additions) {
+    if (!columns.has(name)) {
+      db.exec(`ALTER TABLE context_snapshots ADD COLUMN ${name} ${definition}`);
+      changed = true;
+    }
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS spec_learning_candidates (
+      id            TEXT PRIMARY KEY,
+      change_id     TEXT NOT NULL REFERENCES changes(id) ON DELETE CASCADE,
+      task_id       TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+      target_ref    TEXT NOT NULL,
+      summary       TEXT NOT NULL,
+      evidence_json TEXT NOT NULL DEFAULT '[]',
+      status        TEXT NOT NULL DEFAULT 'proposed'
+                      CHECK (status IN ('proposed', 'approved', 'rejected', 'applied')),
+      resolution    TEXT,
+      proposed_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      resolved_at   TEXT,
+      applied_at    TEXT
+    );
+    CREATE INDEX IF NOT EXISTS spec_learning_change
+      ON spec_learning_candidates(change_id, status, proposed_at);
+  `);
+  return changed;
+}
+
 function tableSupportsKimi(db, table) {
   const row = db.prepare(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -94,11 +145,9 @@ function tableSupportsKimi(db, table) {
   return typeof row?.sql === 'string' && row.sql.includes("'kimi'");
 }
 
-function upgradeRuntimeConstraints(db) {
+function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
   if (tableSupportsKimi(db, 'events') && tableSupportsKimi(db, 'sessions')) return false;
-  const previousVersion = db.prepare(
-    'SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1',
-  ).get()?.version || 'unknown';
+  const previousVersion = fromVersion || 'unknown';
   const foreignKeys = db.pragma('foreign_keys', { simple: true });
   db.pragma('foreign_keys = OFF');
   try {
@@ -155,7 +204,7 @@ function upgradeRuntimeConstraints(db) {
          VALUES (?, ?, 'forward', 'success', ?)`,
       ).run(
         previousVersion,
-        EXPECTED_VERSION,
+        KIMI_SCHEMA_VERSION,
         'Add Kimi to durable event and session runtime constraints',
       );
       const violations = db.pragma('foreign_key_check');
@@ -169,15 +218,27 @@ function upgradeRuntimeConstraints(db) {
   return true;
 }
 
-function applyCompatibleUpgrades(db) {
-  upgradeRuntimeConstraints(db);
+function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db)) {
+  const runtimeChanged = upgradeRuntimeConstraints(db, fromVersion);
   db.transaction(() => {
     applyCompatibleColumns(db);
+    const contextChanged = applyContextSpineUpgrade(db);
+    if (contextChanged || (fromVersion && fromVersion !== EXPECTED_VERSION)) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        runtimeChanged ? KIMI_SCHEMA_VERSION : (fromVersion || 'unknown'),
+        EXPECTED_VERSION,
+        'Add Context Spine role/gate readiness, execution contracts, breadcrumbs, and specification learning',
+      );
+    }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
     db.exec('CREATE INDEX IF NOT EXISTS events_change ON events(change_id, id)');
     db.prepare(
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
-    ).run(EXPECTED_VERSION, 'Kimi runtime support with durable event and session state');
+    ).run(EXPECTED_VERSION, 'Role-scoped context snapshots, deterministic breadcrumbs, and approval-gated specification learning');
   })();
 }
 
@@ -199,12 +260,13 @@ function ensureSchemaVersion(db) {
 function initStateDb(dbPath) {
   const db = openStateDb(dbPath);
   const existing = new Set(tableNames(db));
+  const fromVersion = latestSchemaVersion(db);
   applyCompatibleColumns(db);
   const missing = REQUIRED_TABLES.filter((t) => !existing.has(t));
   if (missing.length > 0) {
     applySchema(db);
   }
-  applyCompatibleUpgrades(db);
+  applyCompatibleUpgrades(db, fromVersion);
   const version = ensureSchemaVersion(db);
   return {
     db,

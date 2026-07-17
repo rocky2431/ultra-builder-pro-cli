@@ -1,6 +1,7 @@
 ---
 name: ultra-change
-description: "Start or resume a continuous post-delivery change, compile bounded context, declare documentation impact, and route the change through implementation and convergence."
+description: "Open or resume a continuous change, capture its delta and decisions, compile bounded role context, and route one executable slice."
+user-invocable: true
 runtime: all
 mcp_tools_required:
   - change.create
@@ -8,142 +9,114 @@ mcp_tools_required:
   - change.get
   - change.list
   - change.context
+  - change.breadcrumb
+  - change.learning_propose
+  - change.learning_resolve
   - task.create
   - task.list
 ---
 
-# ultra-change — Continuous Change Entry
+# ultra-change — Delta Entry and Alignment Gate
 
-Use this workflow for daily fixes, small features, redesigns, and incidents after
-the initial `init → research → plan → dev → test → deliver` baseline exists.
-Each piece of work becomes one durable change unit instead of an informal edit
-that drifts away from specifications and verification evidence.
+Use this after the first baseline delivery for fixes, small features, redesigns,
+incidents, and maintenance. It keeps specifications live through a delta → implement
+→ learn → converge loop.
 
-## Authority and provider boundary
+## Authority boundary
 
-- `.ultra/state.db` is authoritative for the change, its tasks, events, incidents,
-  context snapshots, and projection status.
-- `.ultra/changes/active/<change-id>/` contains inspectable artifacts, not a
-  second state authority.
-- Memory and code graph are external providers. Pass only metadata references:
-  `provider`, `project`, `reference`, `revision`, `indexed_head`, and `status`.
-- Never paste recalled memories, graph nodes, embeddings, summaries, or provider
-  payloads into `provider_refs`. If provider data is unavailable, record
-  `status: unavailable` and continue with current-checkout evidence.
-- If any required change/task MCP operation is unavailable, stop. Do not edit
-  `state.db`, `tasks.json`, or context projections directly.
+All change and task lifecycle writes use the live MCP tools. Do not write raw SQLite
+or mutate generated task/context projections. Provider payloads stay in their owning
+memory or graph system; Ultra stores metadata references only.
 
-## Arguments
+## 1. Establish the change
 
-- `$1`: existing change id, or a short title for a new change.
-- Optional flags/concepts: `quick`, `standard`, `major`, `incident` and an
-  explicit documentation impact.
+Call `change.list` and `change.breadcrumb` first.
 
-## 1. Resume before creating
+- Resume the single matching active/blocked change.
+- If several may match, require an explicit id.
+- Otherwise auto-discover repository facts, then ask only the highest-value unresolved
+  question. Do not ask the user for branch, stack, paths, or behavior already visible.
 
-Call `change.list` for `active` and `blocked` changes. If `$1` matches an
-existing id, call `change.get` and resume it. If the request clearly belongs to
-an active change, show the match and continue there rather than creating a
-duplicate.
+Capture:
 
-Do not resume `ready`, `archived`, or `cancelled` work as a new mutation. Create
-a follow-up change that links to the prior archive in its intent.
+- observable problem or requested outcome;
+- acceptance and explicit non-goals;
+- affected public seam or integration boundary;
+- documentation impact: `required` paths, `none` with rationale, or blocking `unknown`;
+- kind: `quick`, `standard`, `major`, or `incident`;
+- decision inventory: accepted decisions, rejected alternatives, and unresolved choices.
 
-## 2. Classify the change
+Create with `change.create` using a stable kebab-case id. Update an existing packet
+with `change.update`; never create a parallel packet for the same outcome.
 
-Choose the smallest honest kind:
+## 2. Write only the delta
 
-| Kind | Use when | Required convergence evidence |
-|---|---|---|
-| `quick` | localized fix or tiny behavior change | diff, tests, spec |
-| `standard` | normal feature or cross-file change | diff, tests, spec, docs, review |
-| `major` | architecture, public contract, migration, or broad redesign | diff, tests, spec, docs, review |
-| `incident` | canonical debug lane for a production/runtime failure | diagnosis, diff, tests |
-
-When uncertain between two kinds, choose the higher-risk kind. Classification
-changes the proof required; it must not be used to bypass evidence.
-
-## 3. Declare intent and documentation impact
-
-Before implementation, write a concise intent with:
-
-- observed problem or requested outcome;
-- acceptance behavior and non-goals;
-- affected contract/surface;
-- recovery or rollback concern when material.
-
-Documentation impact is mandatory:
-
-- `required`: list every baseline document expected to change;
-- `none`: provide a concrete rationale;
-- `unknown`: allowed only while investigating and blocks convergence.
-
-Create the change with `change.create`. Use a stable kebab-case id. External
-provider references are optional and metadata-only.
-
-## 4. Build the delta packet
-
-The change directory is the bounded execution packet:
+The bounded packet is:
 
 ```text
 .ultra/changes/active/<change-id>/
   intent.md
-  context-manifest.json
-  delta/                  # required for standard and major
-  plan.md                 # required for standard and major
-  diagnosis.md            # created and structurally required for incident
-  verification.md         # generated by convergence
+  delta/                 # standard and major
+  plan.md                # standard and major
+  diagnosis.md           # incident
+  context-manifest.json  # MCP projection
+  spec-learning.json     # MCP projection
+  verification.md        # convergence projection
 ```
 
-For `standard` and `major`, write delta documents under `delta/` describing
-what changes relative to the current baseline. Do not copy the whole baseline.
-Write `plan.md` with live entry points, files/contracts, tests, documentation,
-and rollback. For `quick`, add only artifacts needed to make the decision and
-evidence inspectable. For `incident`, complete the generated `diagnosis.md` with
-non-empty `Reproduction`, `Hypotheses`, `Root cause`, `Regression test`, and
-`Recovery` sections. Free-form convergence evidence never substitutes for this
-durable diagnosis artifact.
+`intent.md` records outcome, acceptance, non-goals, docs impact, and decisions.
+Delta files describe only differences from the baseline. An incident diagnosis must
+record symptom, earliest bad state, root-cause hypothesis, discriminating evidence,
+and recovery boundary.
 
-Create at least one task through `task.create` with `change_id` set. Split only
-when ownership, dependencies, or independent verification justify it. All task
-status changes remain MCP-authoritative.
+## 3. Create an executable slice
 
-## 5. Compile task context
+Prefer the smallest vertical `tracer_bullet` that crosses a live public seam. Split
+only when ownership or verification is genuinely independent. Each task must declare:
 
-Call `change.context` before implementation and again whenever any of these
-changes: git HEAD, task set, relevant specs, allowed paths, or provider revision.
-Supply only the minimum task/spec/path references needed for the current slice.
+- one observable outcome and linked `change_id`;
+- bounded files/contracts and dependencies;
+- `public_seam` that proves reachability;
+- exact `verification_command`;
+- expected red signal for a bug/incident;
+- documentation impact.
 
-Inspect `context-manifest.json` before handing work to an agent. A stale git head
-or task set is a hard signal to recompile. Provider `status: stale` is visible
-context, not permission to silently refresh or mutate the external provider.
+Persist tasks with `task.create`. Generated `tasks.json` is never an input authority.
 
-## 6. Route execution
+## 4. Compile Context Manifest v2
 
-- For `incident`, diagnosis is the first execution slice. Route it to the bundled
-  `debugger` agent when the Host exposes native subagents; otherwise the primary
-  Host follows the same four-phase method. Supply only the compiled change/task
-  context. The primary Host owns the fix, updates `diagnosis.md`, and reruns the
-  discriminating regression test.
-- Implement one linked task with `/ultra-dev <task-id>`.
-- Run `/ultra-test` for project-level evidence.
-- Run `/ultra-review` when the change kind requires review.
-- Update baseline docs declared in `docs_impact` during the change, not after
-  memory has gone cold.
-- Finish with `/ultra-deliver`; it runs deterministic change convergence and
-  archive reconciliation before release actions.
+Call `change.context` for the next task with:
 
-If work exposes a new requirement, update the change intent/delta and recompile
-context before continuing. Never let code become the only record of the change.
+```json
+{
+  "id": "<change-id>",
+  "task_id": "<task-id>",
+  "role": "plan",
+  "gate": "planning",
+  "context_refs": [{"ref":"<path>","kind":"spec","reason":"defines acceptance","required":true}],
+  "budget": {"max_tokens":12000,"max_files":12},
+  "execution_contract": {
+    "slice_kind":"tracer_bullet",
+    "public_seam":"<reachable boundary>",
+    "verification_command":"<exact command>",
+    "context_budget_percent":40
+  }
+}
+```
 
-## 7. Report
+Include only files needed for the current role and gate. Missing required references,
+digest drift, file-count overflow, or a fresh-context budget over 40% blocks readiness.
+Use `expand_contract` only for an explicitly approved wider slice.
 
-Return the change id, kind, artifact root, linked tasks, documentation impact,
-context freshness, provider-reference status, and exact next workflow. Separate
-provider unavailability from an Ultra runtime incident.
+## 5. Handle discoveries without silent spec drift
 
-## What this skill does not do
+When implementation reveals a stable requirement, invariant, or public behavior not
+in the baseline, call `change.learning_propose` with evidence and target document.
+It is a candidate, not an automatic edit. A human/primary-agent decision must approve
+or reject it; approved learning is marked applied only after the baseline was updated.
 
-- It does not implement, test, review, release, or repair runtime state.
-- It does not own or synchronize Memory/code-graph content.
-- It does not bypass user approval for destructive or external release actions.
+## Exit contract
+
+Call `change.breadcrumb` and report the compiled task, readiness, blockers, and its
+single next action. Do not claim alignment while documentation impact is unknown,
+context is stale, or a material decision remains unresolved.

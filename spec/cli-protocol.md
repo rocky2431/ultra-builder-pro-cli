@@ -105,6 +105,9 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `change.get`              | `change get`                | 9     | any     |
 | `change.list`             | `change list`               | 9     | any     |
 | `change.context`          | `change context`            | 9     | mcp     |
+| `change.breadcrumb`       | `change breadcrumb`         | 10    | any     |
+| `change.learning_propose` | `change learning-propose`   | 10    | mcp     |
+| `change.learning_resolve` | `change learning-resolve`   | 10    | mcp     |
 | `change.converge`         | `change converge`           | 9     | mcp     |
 | `change.archive`          | `change archive`            | 9     | mcp     |
 | `system.doctor`           | `system doctor`             | 9     | mcp     |

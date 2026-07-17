@@ -13,7 +13,7 @@ sharing one authoritative workflow store.
 
 **Distribution channels (v1.0)**: npm · Homebrew · pip.
 
-**Release line**: `0.9.x`; every release is gated by `npm run verify:release`.
+**Release line**: `0.10.x`; every release is gated by `npm run verify:release`.
 
 ---
 
@@ -43,20 +43,21 @@ sharing one authoritative workflow store.
 | 8A    | Plan automation (parse / topo / expand + artifact + human gate) | ✅ done (D47, `a932cb8`) → v0.3 |
 | 8B    | Execution automation (dispatch / parallel worktree / merge) | ✅ done (D48, `8224159`) — **v0.3 ready** |
 | 8C    | Continuous change packets + context compiler + convergence + doctor | ✅ done (D52) |
+| 10    | Context Spine v2 + breadcrumb + fresh-context budget + spec learning + two-axis review | ✅ done |
 | 9     | Release pipeline                               | npm tag publishing live; Homebrew / pip not implemented |
 
 ## What is in the repo today
 
 ```
 spec/                       ← Phase 1 single source of truth
-├── mcp-tools.yaml          (29 live tools across 5 families)
+├── mcp-tools.yaml          (32 live tools across 5 families)
 ├── cli-protocol.md         (CLI ↔ MCP mapping table)
 ├── schemas/                (state-db.sql + 4 JSON schemas)
 ├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
 └── scripts/test-all.cjs    (npm run test:spec — 7 validation stages)
 
 mcp-server/                 ← Phase 2 authoritative state layer
-├── server.cjs              (stdio MCP server, 29 task/session/change/system/plan tools)
+├── server.cjs              (stdio MCP server, 32 task/session/change/system/plan tools)
 ├── lib/
 │   ├── state-db.cjs        (SQLite + WAL + pragmas)
 │   ├── state-ops.cjs       (full write API, status state machine)
@@ -74,7 +75,7 @@ bin/install.js              ← multi-runtime installer
 bin/handbook.js             ← explicit managed user-handbook sync
 adapters/                   ← native Claude/OpenCode/Codex plugin builders
 skills/                     ← allowlisted Ultra workflows, internal rules, and collab companions
-hooks/                      ← 7 workflow-only Python hooks; OpenCode uses native JavaScript hooks
+hooks/                      ← 7 executable workflow hooks + shared Context Spine helper; OpenCode uses native JavaScript hooks
 docs/
 ├── PLAN.zh-CN.md                historical phase plan + decision log
 ├── ARCHITECTURE.md              Phase 1 single-page entry point

@@ -1,6 +1,7 @@
 ---
 name: learn
 description: "Extract one reusable pattern from the current session into a valid user skill, with explicit user approval before writing."
+user-invocable: true
 ---
 
 # learn — Phase 3.6

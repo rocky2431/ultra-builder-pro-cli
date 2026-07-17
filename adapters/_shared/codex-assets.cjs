@@ -467,6 +467,16 @@ and does not require an interactive MCP or legacy CLI menu.
   }
 
   if (skillName === 'ultra-review') {
+    text = text.replace(
+      '# $ultra-builder-pro:ultra-review - Ultra Review System',
+      `# $ultra-builder-pro:ultra-review - Ultra Review System
+
+## Codex native worker contract
+
+Use the installed native Codex custom agents as bounded review workers. Dispatch independent
+workers concurrently, keep the current Codex task primary, and treat their JSON artifacts—not
+their conversational transcripts—as review evidence.`,
+    );
     text = text.replaceAll('### Phase 3: Background Execution', '### Phase 3: Parallel Native Agent Execution');
     text = text.replaceAll('**Step 4b: Launch coordinator in background:**', '**Step 4b: Delegate coordination:**');
     text = text.replaceAll('in **background mode** (`native parallel execution`)', 'concurrently with native Codex subagent orchestration');

@@ -1,6 +1,7 @@
 ---
 name: ultra-init
 description: "Initialize Ultra Builder Pro project: detect context, confirm with user, scaffold .ultra/ via task.init_project, set up git."
+user-invocable: true
 runtime: all
 mcp_tools_required:
   - task.init_project

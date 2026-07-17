@@ -46,7 +46,7 @@ not presented as nonexistent custom agents.
 
 | Lifecycle | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
-| Session context/health | FULL, native `SessionStart` | DEGRADED, native context; health via `system.doctor` | FULL, native `SessionStart` | FULL, session-start skill + `SessionStart` hooks |
+| Session context/health | FULL, DB-derived Context Spine breadcrumb on native `SessionStart` | DEGRADED, projected v2 breadcrumb; health via `system.doctor` | FULL, DB-derived breadcrumb on native `SessionStart` | FULL, DB-derived breadcrumb via session-start skill + hooks |
 | Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | FULL, native `PreToolUse Edit|Write` deny contract |
 | Pre-compact checkpoint | FULL | FULL | FULL | FULL, native `PreCompact` |
 | Post-compact context injection | FULL | FULL, native compacting context | FULL, native `PostCompact` restore | DEGRADED; checkpoint restoration runs, but Kimi 0.26/0.27 does not reinject fire-and-forget hook text |
@@ -69,12 +69,14 @@ generic post-edit policy.
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
-| Live/declared contracts | 29 | 29 | 29 | 29 |
+| Live/declared contracts | 32 | 32 | 32 | 32 |
+| Context Spine v2 / breadcrumb | FULL | FULL, DB-generated projection consumed by native JS | FULL | FULL |
+| Approval-gated spec learning | FULL | FULL | FULL | FULL |
 | Host-native review/discovery/ask | native | native | documented in `codex-capability-map.json` | native Kimi tools and workers |
 | Durable authority | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` |
 | Ultra memory API | N/A | N/A | N/A | N/A |
 
-All 29 `task.*`, `session.*`, `change.*`, `system.*`, and `plan.*` operations
+All 32 `task.*`, `session.*`, `change.*`, `system.*`, and `plan.*` operations
 registered by `mcp-server/server.cjs` are live. Review, impact discovery, skill
 loading, and user interaction remain host-native surfaces.
 
@@ -121,9 +123,9 @@ records. Uninstall refuses an unmanaged or conflicting root.
 
 | Capability | Contract |
 |---|---|
-| Current state schema | `9.1` |
+| Current state schema | `10.0` |
 | Runtime values | `claude`, `opencode`, `codex`, `kimi` |
-| Upgrade from pre-Kimi schema | transactionally rebuilds only constrained `events` and `sessions` tables |
+| Upgrade from earlier schema | preserves Kimi runtime rows, adds Context Spine columns and `spec_learning_candidates` transactionally |
 | Preservation gate | rows, IDs, indexes, foreign keys, telemetry, incidents, and migration history remain intact |
 | Failure behavior | rollback; no partially upgraded authority database |
 

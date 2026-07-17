@@ -1,6 +1,7 @@
 ---
 name: ultra-doctor
 description: "Inspect Ultra state, projection, session, incident, and active-change health; optionally run explicit backup-first mechanical recovery."
+user-invocable: true
 runtime: all
 mcp_tools_required:
   - system.doctor

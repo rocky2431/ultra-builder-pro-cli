@@ -3,7 +3,7 @@
 # Validated by spec/schemas/mcp-tools.schema.json (run `npm run test:spec`).
 # Trace: PLAN §7.3, decisions D12 / D29 / D31-D34.
 
-version: '1.0'
+version: '1.1'
 
 info:
   title: Ultra Builder Pro MCP tool contracts
@@ -398,6 +398,8 @@ tools:
             - change_blocked
             - change_converged
             - change_archived
+            - spec_learning_proposed
+            - spec_learning_resolved
         payload: { type: object }
     output_schema:
       type: object
@@ -759,7 +761,7 @@ tools:
 
   - name: change.get
     family: change
-    description: Read one continuous change unit from authoritative state.
+    description: Read one continuous change unit and its specification-learning candidates from authoritative state.
     phase: '9'
     readonly: true
     input_schema:
@@ -805,8 +807,8 @@ tools:
 
   - name: change.context
     family: change
-    description: Compile an inspectable task context manifest from Ultra state and external provider metadata references.
-    phase: '9'
+    description: Compile a role-scoped Context Spine manifest with readiness, budget, execution seam, and next-action evidence.
+    phase: '10'
     writer_role: mcp
     input_schema:
       type: object
@@ -815,7 +817,37 @@ tools:
       properties:
         id: { type: string }
         task_id: { type: string }
+        role: { type: string, enum: [plan, implement, check, review] }
+        gate: { type: string, enum: [alignment, planning, implementation, verification, review, convergence, recovery] }
+        next_action: { type: string, minLength: 3 }
         spec_refs: { type: array, items: { type: object } }
+        context_refs:
+          type: array
+          maxItems: 64
+          items:
+            type: object
+            required: [ref, reason]
+            additionalProperties: false
+            properties:
+              ref: { type: string, minLength: 1 }
+              kind: { type: string, enum: [spec, source, test, docs, external], default: source }
+              reason: { type: string, minLength: 3 }
+              required: { type: boolean, default: true }
+              digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        budget:
+          type: object
+          additionalProperties: false
+          properties:
+            max_tokens: { type: integer, minimum: 1, default: 12000 }
+            max_files: { type: integer, minimum: 1, default: 12 }
+        execution_contract:
+          type: object
+          additionalProperties: false
+          properties:
+            slice_kind: { type: string, enum: [tracer_bullet, expand_contract, integration_checkpoint], default: tracer_bullet }
+            public_seam: { type: string }
+            verification_command: { type: string }
+            context_budget_percent: { type: integer, minimum: 1, maximum: 100, default: 40 }
         allowed_paths: { type: array, items: { type: string } }
         provider_refs:
           type: object
@@ -852,11 +884,95 @@ tools:
         manifest_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
         manifest: { type: object }
     errors:
+      - { code: VALIDATION_ERROR, description: 'context role, gate, references, budget, or execution contract is invalid' }
       - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
       - { code: CHANGE_TERMINAL, description: 'terminal change cannot compile a new context' }
+      - { code: TASK_NOT_FOUND, description: 'task id is not linked to the change' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
     cli_subcommand: change context
     emits_events: [context_updated]
+
+  - name: change.breadcrumb
+    family: change
+    description: Read the compact DB-derived Context Spine position, readiness, and single recommended next action.
+    phase: '10'
+    readonly: true
+    writer_role: any
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string }
+    output_schema:
+      type: object
+      required: [breadcrumb]
+      additionalProperties: false
+      properties:
+        breadcrumb: { type: object }
+    errors:
+      - { code: CHANGE_NOT_FOUND, description: 'explicit change id does not exist' }
+      - { code: STATE_DB_ERROR, description: 'runtime state could not be read' }
+    cli_subcommand: change breadcrumb
+    emits_events: []
+
+  - name: change.learning_propose
+    family: change
+    description: Propose one stable implementation discovery for approval-gated baseline specification convergence.
+    phase: '10'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [change_id, target_ref, summary]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        task_id: { type: string }
+        target_ref: { type: string, minLength: 1 }
+        summary: { type: string, minLength: 3 }
+        evidence: { type: array, items: { type: string, minLength: 1 } }
+    output_schema:
+      type: object
+      required: [candidate]
+      additionalProperties: false
+      properties:
+        candidate: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'candidate id, target, summary, or evidence is invalid' }
+      - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
+      - { code: CHANGE_NOT_MUTABLE, description: 'learning must resolve before convergence' }
+      - { code: TASK_NOT_FOUND, description: 'task is not linked to the change' }
+      - { code: DUPLICATE_LEARNING_ID, description: 'candidate id already exists' }
+    cli_subcommand: change learning-propose
+    emits_events: [spec_learning_proposed]
+
+  - name: change.learning_resolve
+    family: change
+    description: Approve, reject, or mark applied one specification-learning candidate through a guarded state transition.
+    phase: '10'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [change_id, candidate_id, decision]
+      additionalProperties: false
+      properties:
+        change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        candidate_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        decision: { type: string, enum: [approve, reject, apply] }
+        resolution: { type: string }
+    output_schema:
+      type: object
+      required: [candidate]
+      additionalProperties: false
+      properties:
+        candidate: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'decision or required resolution is invalid' }
+      - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
+      - { code: LEARNING_NOT_FOUND, description: 'candidate id does not exist for the change' }
+      - { code: ILLEGAL_LEARNING_TRANSITION, description: 'candidate state transition is not permitted' }
+    cli_subcommand: change learning-resolve
+    emits_events: [spec_learning_resolved]
 
   - name: change.converge
     family: change
@@ -880,6 +996,19 @@ tools:
               category: { type: string, enum: [diagnosis, diff, tests, spec, docs, review] }
               status: { type: string, enum: [pass, fail, not_applicable] }
               evidence: { type: string, minLength: 3 }
+              axis: { type: string, enum: [spec_fidelity, engineering_standards] }
+              seam: { type: string, minLength: 3 }
+              signal:
+                type: object
+                additionalProperties: false
+                required: [command, expected_red, observed_red, observed_green, deterministic]
+                properties:
+                  command: { type: string, minLength: 3 }
+                  expected_red: { type: string, minLength: 3 }
+                  observed_red: { type: boolean }
+                  observed_green: { type: boolean }
+                  deterministic: { type: boolean }
+                  duration_ms: { type: number, minimum: 0 }
     output_schema:
       type: object
       required: [ready, status, blockers]

@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const stateDb = require('../lib/state-db.cjs');
 
-test('initStateDb upgrades a pre-9.1 database in place with task/event change linkage', () => {
+test('initStateDb upgrades a pre-10.0 database in place with Context Spine state', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-db-upgrade-'));
   const file = path.join(dir, 'state.db');
   try {
@@ -59,8 +59,25 @@ test('initStateDb upgrades a pre-9.1 database in place with task/event change li
     assert.ok(columns.includes('change_id'));
     const eventColumns = upgraded.db.prepare('PRAGMA table_info(events)').all().map((row) => row.name);
     assert.ok(eventColumns.includes('change_id'));
-    assert.equal(upgraded.schema_version, '9.1');
-    assert.ok(upgraded.db.prepare("SELECT 1 FROM schema_version WHERE version = '9.1'").get());
+    assert.equal(upgraded.schema_version, '10.0');
+    assert.ok(upgraded.db.prepare("SELECT 1 FROM schema_version WHERE version = '10.0'").get());
+    const contextColumns = upgraded.db.prepare('PRAGMA table_info(context_snapshots)').all()
+      .map((row) => row.name);
+    for (const column of ['role', 'gate', 'next_action', 'readiness', 'context_json', 'token_budget']) {
+      assert.ok(contextColumns.includes(column), column);
+    }
+    assert.ok(upgraded.db.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'spec_learning_candidates'",
+    ).get());
+    const contextMigration = upgraded.db.prepare(
+      "SELECT from_version, to_version, notes FROM migration_history WHERE to_version = '10.0' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.equal(contextMigration.from_version, '9.1');
+    assert.equal(contextMigration.to_version, '10.0');
+    assert.match(contextMigration.notes, /Context Spine/);
+    assert.ok(upgraded.db.prepare(
+      "SELECT 1 FROM migration_history WHERE from_version = '8A.1' AND to_version = '9.1' AND notes LIKE '%Kimi%'",
+    ).get());
     stateDb.closeStateDb(upgraded.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

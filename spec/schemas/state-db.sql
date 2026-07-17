@@ -197,10 +197,39 @@ CREATE TABLE IF NOT EXISTS context_snapshots (
   provider_refs_json TEXT NOT NULL DEFAULT '{}',
   manifest_path      TEXT NOT NULL,
   manifest_hash      TEXT NOT NULL,
+  role               TEXT NOT NULL DEFAULT 'plan'
+                       CHECK (role IN ('plan', 'implement', 'check', 'review')),
+  gate               TEXT NOT NULL DEFAULT 'alignment'
+                       CHECK (gate IN ('alignment', 'planning', 'implementation', 'verification', 'review', 'convergence', 'recovery')),
+  next_action        TEXT NOT NULL DEFAULT 'Resolve the next Ultra workflow action.',
+  readiness          TEXT NOT NULL DEFAULT 'ready'
+                       CHECK (readiness IN ('ready', 'blocked')),
+  blockers_json      TEXT NOT NULL DEFAULT '[]',
+  context_json       TEXT NOT NULL DEFAULT '{}',
+  token_estimate     INTEGER NOT NULL DEFAULT 0 CHECK (token_estimate >= 0),
+  token_budget       INTEGER NOT NULL DEFAULT 12000 CHECK (token_budget > 0),
   created_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 CREATE INDEX IF NOT EXISTS context_snapshots_change ON context_snapshots(change_id, created_at);
+
+CREATE TABLE IF NOT EXISTS spec_learning_candidates (
+  id            TEXT PRIMARY KEY,
+  change_id     TEXT NOT NULL REFERENCES changes(id) ON DELETE CASCADE,
+  task_id       TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  target_ref    TEXT NOT NULL,
+  summary       TEXT NOT NULL,
+  evidence_json TEXT NOT NULL DEFAULT '[]',
+  status        TEXT NOT NULL DEFAULT 'proposed'
+                  CHECK (status IN ('proposed', 'approved', 'rejected', 'applied')),
+  resolution    TEXT,
+  proposed_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  resolved_at   TEXT,
+  applied_at    TEXT
+);
+
+CREATE INDEX IF NOT EXISTS spec_learning_change
+  ON spec_learning_candidates(change_id, status, proposed_at);
 
 CREATE TABLE IF NOT EXISTS trace_links (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -274,3 +303,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('9.0', 'Continuous change units, context snapshots, trace links, incidents, projection outbox, and durable consumers');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('9.1', 'Kimi runtime support in durable events and sessions');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('10.0', 'Role-scoped context snapshots, deterministic breadcrumbs, and approval-gated specification learning');

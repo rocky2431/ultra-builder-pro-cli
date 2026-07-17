@@ -3,10 +3,13 @@
 
 import json
 import os
+import sqlite3
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+from context_spine import find_root, read_breadcrumb, render_breadcrumb
 
 TERMINAL = {"committed", "completed", "done", "cancelled"}
 
@@ -86,6 +89,24 @@ def main() -> None:
         print(f"[workflow_resume] invalid hook input: {exc}", file=sys.stderr)
         data = {}
     start = Path(data.get("cwd") or Path.cwd()).resolve()
+    root = find_root(start)
+    if root is not None:
+        try:
+            breadcrumb = read_breadcrumb(root)
+        except (sqlite3.Error, OSError) as exc:
+            print(f"[workflow_resume] cannot inspect Context Spine: {exc}", file=sys.stderr)
+            breadcrumb = None
+        if breadcrumb:
+            text = render_breadcrumb(root, breadcrumb)
+            event = data.get("hook_event_name", "SessionStart")
+            if event == "SessionStart":
+                print(json.dumps({"hookSpecificOutput": {
+                    "hookEventName": "SessionStart",
+                    "additionalContext": text,
+                }}))
+            else:
+                print(json.dumps({"additionalContext": text}))
+            return
     for root in (start, *start.parents):
         state_file = root / ".ultra" / "workflow-state.json"
         checkpoint_file = root / ".ultra" / "runtime" / "checkpoint.json"

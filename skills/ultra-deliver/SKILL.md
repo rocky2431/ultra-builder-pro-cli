@@ -1,239 +1,111 @@
 ---
 name: ultra-deliver
-description: "Converge and deliver a verified baseline or continuous change: reconcile specs, build/test, archive evidence, version, tag, and push."
+description: "Converge an implementation, approved specification learning, independent review axes, and release evidence into one recoverable baseline."
+user-invocable: true
 runtime: all
 mcp_tools_required:
   - change.list
   - change.get
   - change.context
+  - change.breadcrumb
+  - change.learning_resolve
   - change.converge
   - change.archive
 cli_fallback: "direct user interaction"
 ---
 
-# ultra-deliver — Phase 3.5
+# ultra-deliver — Converge, Archive, Release
 
-Release the current working tree and close its continuous-change packet when
-one exists. `.ultra/test-report.json` is the test gate; `change.converge` is the
-deterministic closure gate; `.ultra/delivery-report.json` is the release report.
-Change lifecycle writes go through MCP only.
+Deliver the current baseline or one continuous-change packet. Change lifecycle writes
+use MCP only; `.ultra/test-report.json`, review sessions, and delivery reports are
+evidence artifacts.
 
-## Prerequisites (all validations are blocking)
+## 1. Bind the delivery
 
-### Validation 0 — Resolve continuous change
+1. Call `change.list` for active, blocked, and ready changes.
+2. Bind exactly one relevant change; require an id when ambiguous. Initial baseline
+   delivery may use `change_id: null`.
+3. Call `change.breadcrumb`. A stale/blocked context or incomplete linked task blocks.
+4. Verify `.ultra/test-report.json` exists, passed, matches the change, and records the
+   current full HEAD plus at least one public seam.
+5. Verify the latest review session matches the same HEAD and has passing independent
+   `spec_fidelity` and `engineering_standards` axes.
 
-Call `change.list` for `active`, `blocked`, and `ready` work.
+Do not reuse evidence from another checkout, commit, task set, or change.
 
-- Exactly one relevant change → bind delivery to that id.
-- More than one → require an explicit id; never guess which change to archive.
-- None → allow initial-baseline delivery, but record `change_id: null`.
-- Active/blocked change → its linked tasks must all be completed and its
-  `test-report.json.change_id` must match.
-- Ready change → do not rerun convergence blindly; verify its existing
-  verification artifact still matches current HEAD before archive.
+## 2. Reconcile specification learning
 
-### Validation 1 — `/ultra-test` passed
+Call `change.get` for authoritative `learning_candidates`; use the packet's
+`spec-learning.json` only as the inspectable projection.
 
-Read `.ultra/test-report.json`:
-- File must exist → else: "Run `/ultra-test` first" → **EXIT**
-- `passed === true` → else: show `blocking_issues`, **EXIT**
-- `git_commit === current HEAD` → else: "Code changed since last test;
-  re-run `/ultra-test`" → **EXIT**
+- `proposed`: require approve or reject through `change.learning_resolve`.
+- `approved`: update the declared baseline target, verify the edit, then mark `apply`.
+- `rejected`: preserve the reason as decision evidence.
+- `applied`: verify the target still contains the accepted behavior.
 
-### Validation 2 — No uncommitted changes
+Any proposed or approved candidate blocks convergence. This is the mandatory path that
+keeps baseline specs alive after daily changes; it is not cross-session memory.
 
-`git status --porcelain` must be empty. If dirty, ask through the current
-Host's native user-interaction surface:
-- A: "Auto-commit all changes" → `git add -A && git commit -m "chore: pre-delivery cleanup"`
-- B: "Review changes first" → `git diff --stat` → re-ask
-- C: "Block delivery" → **EXIT**
+Reconcile accepted `delta/` content and declared documentation impact into baseline
+documents. Record `baseline_updates`, or a specific no-change reason. No unresolved
+placeholder, unknown docs impact, or delivered-only-in-delta behavior may remain.
 
-Commit failure (conflicts, hook rejection) → surface error and **EXIT**.
+## 3. Verify the release candidate
 
-## Workflow
+Require a clean, reviewed release commit. If changes remain, show the diff and obtain
+explicit approval before committing. Never auto-stage unrelated user changes.
 
-### Step 1 — Documentation Update (MANDATORY)
+Run exact project commands for:
 
-**1.1 CHANGELOG.md** (required):
-1. `git log --oneline <last-tag>..HEAD`
-2. Categorize by Conventional Commit type: `feat:` → Added, `fix:` → Fixed,
-   `chore:` → Maintenance, `refactor:` → Changed, `docs:` → Documentation,
-   `test:` → Tests, `perf:` → Performance.
-3. Insert a new version section at the top of CHANGELOG.md.
-4. Verify: Read CHANGELOG.md; confirm new version section exists.
+1. focused regression/acceptance feedback loop;
+2. full relevant tests;
+3. static checks and production build;
+4. package/install/doctor smoke where the product is distributed;
+5. public-seam acceptance and rollback/recovery sanity.
 
-**1.2 Technical debt report** (required):
-1. Grep source for `TODO:` / `FIXME:` / `HACK:` / `XXX:`.
-2. Generate / refresh `.ultra/docs/technical-debt.md`:
-   ```markdown
-   # Technical Debt (<date>, <commit>)
-   | File | Line | Kind | Note |
-   |------|------|------|------|
-   | src/foo.ts | 42 | TODO | "remove after v1.3" |
-   ```
-3. Verify: file reflects current grep output.
+Record commands, exit results, and current HEAD. Any post-test edit invalidates the
+test and review gates.
 
-**1.3 README.md** (conditional — public API changed):
-1. Diff exported API signatures since last release (`git diff <last-tag>..HEAD -- 'src/**'`)
-2. If signatures changed, update README usage examples
-3. Verify examples match the new API
+## 4. Compile final role context
 
-**1.4 Baseline specification reconciliation** (continuous change):
+Call `change.context` at the release commit with `role=review`, `gate=convergence`,
+current required refs/digests, the public seam, exact verification command, and the
+single next action `Archive the converged change`. Readiness must be `ready`.
 
-1. Read `intent.md`, `delta/`, and `docs_impact` from the bound change.
-2. Merge accepted deltas into the declared baseline documents.
-3. Record every updated project-relative path as `baseline_updates`.
-4. If no baseline file changes, write a specific `no_baseline_change_reason`.
-5. Verify no `[NEEDS CLARIFICATION]` or unresolved delta remains for delivered behavior.
+## 5. Converge
 
-**Checklist**:
-- [ ] CHANGELOG.md updated
-- [ ] technical-debt.md refreshed
-- [ ] README.md reflects current API (if applicable)
-- [ ] active delta reconciled into baseline, or explicit no-change rationale exists
+Call `change.converge` with evidence rows for:
 
-Any unchecked → fix, then continue.
+- `diff`: reviewed release diff and public seam;
+- `tests`: exact signal object (`command`, expected/observed red, observed green,
+  deterministic, duration when known) and seam;
+- `spec`: baseline/delta and applied learning evidence;
+- `docs`: updated paths or explicit non-applicability;
+- `review`, `axis=spec_fidelity`;
+- `review`, `axis=engineering_standards`;
+- `diagnosis` for incidents.
 
-### Step 2 — Production Build
+Do not collapse the two review axes or substitute prose for the signal fields. If
+convergence returns blockers, fix the named source and rerun the invalidated gates.
 
-Detect build command (priority order):
-1. `package.json → scripts.build` → `npm run build` (or `pnpm build`/`yarn build`
-   based on lockfile)
-2. `Makefile` → `make build` or `make release`
-3. `Cargo.toml` → `cargo build --release`
-4. `go.mod` → `go build ./...`
-5. Nothing detected → ask the user for the command
+## 6. Archive and release
 
-Non-zero exit → block with stderr captured, then ask the user:
-- A: "Fix error and retry"
-- B: "Abort delivery"
+After `ready=true`, call `change.archive` with summary and `baseline_updates` (or the
+validated no-change reason). Then:
 
-### Step 3 — Version + convergence + release
+1. determine the semantic version from user-visible compatibility;
+2. update version and changelog;
+3. rerun release verification if version files changed;
+4. create a non-force commit/tag and push only with explicit release authorization;
+5. publish the package/release through the repository's authenticated workflow;
+6. verify the remote tag/release and registry version independently.
 
-**3.1 Determine version bump**:
-- `git log <last-tag>..HEAD --oneline` → analyze commit types
-- `feat:` → minor, `BREAKING CHANGE:` / `!:` → major, else patch
-- Display `<old> → <new>`; allow an explicit user override.
+Write `.ultra/delivery-report.json` with change id, archived status, commit, version,
+commands, package/release identifiers, baseline updates, rollback notes, and timestamp.
 
-**3.2 Update version in project files**:
-- `package.json`, `Cargo.toml`, `pyproject.toml`, etc.
-- Verify: read the file; confirm new version.
+## Completion gate
 
-**3.2a Re-run release evidence after docs/version edits**:
-
-- Run the exact relevant test, type-check, build, and package commands again.
-- Capture command, exit code, and result. Any non-zero exit blocks delivery.
-- Do not reuse a test report whose `change_id` or pre-change HEAD belongs to a
-  different change as final evidence.
-
-**3.3 Release commit**:
-```bash
-git add -A
-git commit -m "chore(release): v<X.Y.Z>"
-```
-Verify with `git log -1 --oneline`.
-
-**3.4 Recompile context and converge the change** (skip only for initial baseline):
-
-For `active` or `blocked`, call `change.context` after the release commit so its
-git head and task set are current. Then call `change.converge` with the exact
-evidence required by kind:
-
-- `quick`: diff, tests, spec;
-- `standard` / `major`: diff, tests, spec, docs, review;
-- `incident`: diagnosis, diff, tests. The diagnosis evidence must point to the
-  completed `diagnosis.md`; convergence separately validates all five required
-  debugging sections and cannot be satisfied by the evidence string alone.
-
-Evidence must name concrete commands, artifacts, or file paths. If blockers are
-returned, stop before tag/push and route to the owning workflow. Do not weaken
-the change kind or mark failed evidence `not_applicable` merely to pass.
-
-**3.5 Archive after baseline reconciliation**:
-
-Call `change.archive` with the summary and either `baseline_updates` or the
-explicit no-change reason. This moves the packet from `changes/active` to the
-dated archive and records closure in state.db. Archive failure blocks release.
-
-**3.6 Git tag**:
-```bash
-git tag v<X.Y.Z>
-```
-Verify with `git tag -l v<X.Y.Z>`.
-
-**3.7 Push to remote**:
-```bash
-git push origin main     # release commit
-git push origin v<X.Y.Z> # version tag
-```
-Verify with `git ls-remote --tags origin | grep v<X.Y.Z>`.
-
-**Release checklist**:
-- [ ] Version determined and displayed
-- [ ] Version file updated and verified
-- [ ] Release commit created and verified
-- [ ] Change context current, convergence ready, baseline reconciled, archive complete
-- [ ] Git tag created and verified
-- [ ] Commit and tag pushed and verified on remote
-
-Any failure → stop immediately; do NOT continue; surface last-step error.
-
-### Step 4 — Persist `.ultra/delivery-report.json`
-
-```jsonc
-{
-  "timestamp": "<ISO8601>",
-  "version": "<X.Y.Z>",
-  "git_tag": "v<X.Y.Z>",
-  "git_commit": "<HEAD SHA>",
-  "change_id": "<archived-change-id-or-null>",
-  "change_archive_path": "<path-or-null>",
-  "convergence_ready": true,
-  "baseline_updates": ["<project-relative-path>"],
-  "changelog_updated": true,
-  "technical_debt_refreshed": true,
-  "build_success": true,
-  "pushed": true
-}
-```
-
-### Step 5 — Report
-
-Print a tight release summary: change id/archive, baseline files reconciled,
-tag, commit, exact verification commands, outstanding technical-debt count,
-and next suggested action. After release, daily work starts with `/ultra-change`.
-
-## Deliverables Checklist (final)
-
-- [ ] `/ultra-test` passed (verified via test-report.json)
-- [ ] Uncommitted changes handled
-- [ ] CHANGELOG + technical-debt refreshed (README if API changed)
-- [ ] Production build exit 0
-- [ ] Continuous change converged and archived (when present)
-- [ ] Version bumped, tagged, pushed
-- [ ] delivery-report.json written
-
-## MCP → CLI fallback matrix
-
-| Purpose | MCP tool | CLI fallback |
-|---------|----------|--------------|
-| Resolve dirty-tree action | none | current Host's native user-interaction surface |
-| Override version bump | none | current Host's native user-interaction surface |
-| Resolve/bind change | `change.list` / `change.get` | none; fail closed |
-| Refresh context | `change.context` | none; fail closed |
-| Deterministic closure | `change.converge` / `change.archive` | none; fail closed |
-
-## What this skill DOES NOT do
-
-- Does NOT replace `/ultra-test`; it re-runs the exact release evidence after
-  documentation and version changes so the shipped commit is verified
-- Does NOT publish to npm / crates.io / PyPI (Phase 9 handles distribution)
-- Does NOT directly mutate state.db or external provider state
-
-## Integration
-
-| | |
-|---|---|
-| **Input** | bound change (if any), test/review artifacts, current repo |
-| **Output** | archived change, reconciled baseline, delivery report, git tag + remote push |
-| **Next** | deploy/announce; next daily change begins with `/ultra-change` |
+Delivery is complete only when the change is archived, local and remote commit/tag
+agree, registry/release verification is current, and the worktree contains no
+unexplained scope. Report the outcome first, exact evidence next, and residual risks
+last. Never say “published” based only on a local version bump.

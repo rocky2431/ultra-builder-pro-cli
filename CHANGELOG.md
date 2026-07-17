@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-07-18
+
+### Added
+
+- Added Context Manifest v2 and a DB-derived Context Spine across planning,
+  implementation, checking, review, convergence, and recovery. Context snapshots
+  now carry role, gate, readiness blockers, bounded references and digests,
+  fresh-context budgets, a public seam, an exact verification command, and one
+  deterministic next action.
+- Added `change.breadcrumb`, `change.learning_propose`, and
+  `change.learning_resolve`, advancing the live MCP contract to 32 tools and
+  `.ultra/state.db` to schema 10.0 with 16 tables.
+- Added approval-gated specification-learning candidates. Proposed or approved
+  discoveries block convergence until rejected or applied to a declared baseline
+  target, and `change.get` exposes their authoritative state.
+- Added independent `spec_fidelity` and `engineering_standards` review evidence,
+  plus public-seam and exact red/green signal fields for convergence.
+
+### Changed
+
+- Rebuilt the daily harness around one status router, one highest-value alignment
+  question, fresh-context tracer bullets, explicit expand contracts, independent
+  check/review contexts, and convergence before release.
+- Reduced the seven core execution workflow prompts from 1,922 to 758 lines and
+  added a 220-line ceiling for every public Ultra skill so host prompts cannot
+  silently accumulate duplicated procedure. All twelve public workflows are now
+  explicitly user-invocable; four rule skills remain agent-only.
+- Session-start, pre-edit, and recovery hooks now share one read-only
+  `context_spine.py` helper and inject only the compact DB breadcrumb. Intent,
+  transcript, memory-provider, and graph-provider payloads never enter hook context.
+- OpenCode now consumes the DB-generated Context Manifest v2 projection, strips
+  provider/intent content, and fails context readiness when its compiled HEAD
+  differs from the current repository.
+- Updated Claude Code, Codex, OpenCode, and Kimi Code native renderings, managed
+  handbook blocks, MCP mapping, architecture, and compatibility documentation.
+
+### Fixed
+
+- Prevented plan-role task context from becoming ready without an execution
+  contract, public seam, and verification command.
+- Prevented breadcrumbs from reusing a snapshot after task state or git HEAD
+  changed, and made an explicitly missing change id fail closed.
+- Added auditable 9.1 → 10.0 migration history while preserving existing runtime
+  rows, references, projections, and foreign-key integrity.
+- Corrected hook conformance to package `context_spine.py` as an imported helper
+  without registering it as a duplicate lifecycle hook.
+
 ## [0.9.0] — 2026-07-17
 
 ### Added

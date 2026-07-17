@@ -198,9 +198,10 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
       'SubagentStart', 'SubagentStop',
     ].sort());
     const serializedHooks = JSON.stringify(hooks);
-    for (const feature of WORKFLOW_HOOK_FILES) {
+    for (const feature of WORKFLOW_HOOK_FILES.filter((value) => value !== 'context_spine.py')) {
       assert.match(serializedHooks, new RegExp(feature.replace('.', '\\.')));
     }
+    assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'hooks', 'context_spine.py')));
     assert.doesNotMatch(serializedHooks, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
     assert.match(serializedHooks, /\$PLUGIN_ROOT\/hooks\/adapters\/codex\.py/);
     assert.match(serializedHooks, /apply_patch/);
@@ -231,8 +232,8 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const liveSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
     const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
     const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
-    assert.equal(liveSpec.tools.length, 29);
-    assert.equal(upstreamSpec.tools.length, 29);
+    assert.equal(liveSpec.tools.length, 32);
+    assert.equal(upstreamSpec.tools.length, 32);
     assert.deepEqual(upstreamSpec.tools.map((tool) => tool.name).sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);

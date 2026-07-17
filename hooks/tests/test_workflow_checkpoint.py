@@ -1,12 +1,14 @@
 """Checkpoint hooks preserve and consume a real workflow recovery snapshot."""
 
 import json
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
 
 HOOK_ROOT = Path(__file__).parent.parent
+SCHEMA = HOOK_ROOT.parent / "spec" / "schemas" / "state-db.sql"
 
 
 def run_hook(name: str, cwd: Path, payload: dict | None = None):
@@ -134,3 +136,49 @@ def test_terminal_live_state_does_not_resurrect_an_active_checkpoint(tmp_path):
     assert output == {}
     assert stderr == ""
     assert json.loads(state_file.read_text(encoding="utf-8"))["status"] == "completed"
+
+
+def test_resume_prefers_db_context_spine_over_stale_workflow_projection(tmp_path):
+    write_state(tmp_path, task_id="legacy-task", step="2", status="active")
+    db_path = tmp_path / ".ultra" / "state.db"
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(SCHEMA.read_text(encoding="utf-8"))
+        conn.execute(
+            """INSERT INTO changes
+               (id, title, kind, status, intent, docs_impact_json, provider_refs_json, artifact_root)
+               VALUES ('daily-fix', 'Daily fix', 'quick', 'active', 'Fix drift',
+                       '{"status":"none","files":[],"rationale":"fixture"}', '{}',
+                       '.ultra/changes/active/daily-fix')"""
+        )
+        conn.execute(
+            """INSERT INTO tasks
+               (id, title, type, priority, status, change_id)
+               VALUES ('daily-task', 'Fix drift', 'bugfix', 'P0', 'in_progress', 'daily-fix')"""
+        )
+        context = {
+            "readiness": {"status": "ready", "blockers": []},
+            "context": {
+                "items": [], "budget": {"max_tokens": 12000, "max_files": 12},
+                "token_estimate": 0, "file_count": 0,
+            },
+            "resume": {"task_id": "daily-task", "task_status": "in_progress"}
+        }
+        conn.execute(
+            """INSERT INTO context_snapshots
+               (id, change_id, task_id, manifest_path, manifest_hash, role, gate,
+                next_action, readiness, blockers_json, context_json)
+               VALUES ('ctx-daily', 'daily-fix', 'daily-task',
+                       '.ultra/changes/active/daily-fix/context-manifest.json', ?,
+                       'check', 'verification', 'Run npm test.', 'ready', '[]', ?)""",
+            ("a" * 64, json.dumps(context)),
+        )
+
+    output, stderr = run_hook(
+        "workflow_resume.py", tmp_path, {"hook_event_name": "PostCompact"}
+    )
+
+    assert stderr == ""
+    assert "Ultra context spine" in output["additionalContext"]
+    assert "daily-task" in output["additionalContext"]
+    assert "Run npm test" in output["additionalContext"]
+    assert "legacy-task" not in output["additionalContext"]

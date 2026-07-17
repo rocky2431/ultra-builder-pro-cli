@@ -12,6 +12,11 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const skillsRoot = path.join(repoRoot, 'skills');
 const schemaPath = path.join(__dirname, '..', 'schemas', 'skill-manifest.schema.json');
 const migrationNotesPath = path.join(__dirname, '..', 'migration-notes.md');
+const {
+  CORE_PUBLIC_SKILLS,
+  INTERNAL_AGENT_SKILLS,
+} = require('../../adapters/_shared/runtime-assets.cjs');
+const MAX_CORE_SKILL_LINES = 220;
 
 if (!fs.existsSync(schemaPath) || !fs.existsSync(skillsRoot)) {
   console.log('skill-manifest schema or skills/ missing, skip');
@@ -53,12 +58,29 @@ for (const dir of skillDirs) {
     fail++;
     continue;
   }
-  const ok = validate(fm);
-  if (ok) {
+  const schemaOk = validate(fm);
+  const contractErrors = [];
+  if (CORE_PUBLIC_SKILLS.includes(dir)) {
+    const lines = text.split('\n').length;
+    if (fm['user-invocable'] !== true) {
+      contractErrors.push('core public skill must declare user-invocable: true');
+    }
+    if (lines > MAX_CORE_SKILL_LINES) {
+      contractErrors.push(`core public skill has ${lines} lines; maximum is ${MAX_CORE_SKILL_LINES}`);
+    }
+  }
+  if (INTERNAL_AGENT_SKILLS.includes(dir) && fm['user-invocable'] !== false) {
+    contractErrors.push('internal agent skill must declare user-invocable: false');
+  }
+
+  if (schemaOk && contractErrors.length === 0) {
     console.log(`  ok ${dir}`);
     pass++;
   } else {
-    const errs = validate.errors.map((e) => `${e.instancePath || '/'} ${e.message}`);
+    const errs = [
+      ...(schemaOk ? [] : validate.errors.map((e) => `${e.instancePath || '/'} ${e.message}`)),
+      ...contractErrors,
+    ];
     console.error(`  FAIL ${dir}:\n      ${errs.join('\n      ')}`);
     failures.push({ dir, errors: errs });
     fail++;

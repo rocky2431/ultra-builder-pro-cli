@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.9.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.10.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -36,8 +36,10 @@ authoritative `.ultra/state.db`.
 - **Runs real PRDs end-to-end.** `task.parse_prd` → `lib/topo.cjs` waves →
   `.ultra/execution-plan.json` → parallel worktree sessions → auto-merge back.
 - **Keeps daily work convergent.** `/ultra-change` creates a bounded delta and
-  context manifest; `/ultra-deliver` requires docs/test/review evidence and
-  baseline reconciliation before archive. `/ultra-doctor` reports incidents,
+  Context Manifest v2; the Context Spine assigns a role/gate, verifies required
+  references and fresh-context budget, exposes one DB-derived breadcrumb, and
+  routes a single next action. `/ultra-deliver` requires applied specification
+  learning plus docs/test/two-axis review evidence before archive. `/ultra-doctor` reports incidents,
   projection lag, orphan sessions, and backup-first mechanical recovery.
   Incident changes additionally require a five-section `diagnosis.md` covering
   reproduction, hypotheses, root cause, regression test, and recovery.
@@ -91,7 +93,7 @@ for per-runtime capabilities.
 The layers share one `.ultra/state.db`, but the CLI is not a mirror of every MCP
 tool: continuous change mutations are MCP-only and fail closed. See
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full contract and
-[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 29 live contracts.
+[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 32 live contracts.
 Review, impact discovery, skill resolution, and user interaction stay on each
 Host's native surfaces; the generated Codex capability map documents those
 replacements without advertising non-existent MCP tools.
@@ -137,8 +139,11 @@ ultra-tools system doctor
 
 Or let the skills drive it. In Codex, invoke
 `$ultra-builder-pro:ultra-plan` → `$ultra-builder-pro:ultra-dev` →
-`$ultra-builder-pro:ultra-status`; after the baseline is delivered, daily work
-starts with `$ultra-builder-pro:ultra-change`. Kimi uses the corresponding
+`$ultra-builder-pro:ultra-test` → `$ultra-builder-pro:ultra-review` →
+`$ultra-builder-pro:ultra-deliver`; after the baseline is delivered, daily work
+starts with `$ultra-builder-pro:ultra-change`, while
+`$ultra-builder-pro:ultra-status` reads the compact authoritative breadcrumb.
+Kimi uses the corresponding
 `/ultra-builder-pro:ultra-*` namespace. Other runtimes retain their native
 command form.
 

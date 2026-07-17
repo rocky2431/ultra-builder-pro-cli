@@ -1,213 +1,94 @@
 ---
 name: ultra-test
-description: "Pre-delivery quality audit — Anti-Pattern + Coverage Gap + Wiring + E2E + Performance + Security. Writes .ultra/test-report.json; no state.db writes."
+description: "Run the pre-delivery check gate from a fresh role context and record exact feedback-loop, wiring, recovery, and acceptance evidence."
+user-invocable: true
 runtime: all
 mcp_tools_required:
   - task.list
   - change.list
+  - change.context
+  - change.breadcrumb
 ---
 
-# ultra-test — Phase 3.5
+# ultra-test — Independent Check Context
 
-Project-level quality audit before `/ultra-deliver`. Auditors are orthogonal;
-each writes a JSON gate result; the skill aggregates into `.ultra/test-report.json`.
-This is **not** for running unit tests (that is `/ultra-dev`). This is the
-pre-ship gate.
+This is the project/change pre-delivery gate, not a replacement for the task-level TDD
+loop. It produces `.ultra/test-report.json`; task and change authority remain in
+`.ultra/state.db`.
 
-## Authority failure boundary
+## Entry gate
 
-The completed-task precheck requires MCP `task.list`. If it is unavailable or
-returns an authority error, stop the audit. Never fall back to
-`.ultra/tasks/tasks.json`. For `LEGACY_STATE_MIGRATION_REQUIRED`, instruct
-`ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>`.
+1. Call `task.list`; require at least one completed task in scope.
+2. Call `change.list` and bind to exactly one relevant active/blocked/ready change, or
+   explicitly record `change_id: null` for an initial baseline.
+3. For a change, compile `change.context` with `role=check`, `gate=verification`, only
+   the tests/specs/source seams needed to verify it, and the same execution contract.
+4. Call `change.breadcrumb`; stop when context is stale or readiness is blocked.
 
-## Prerequisites
+Never fall back to `.ultra/tasks/tasks.json`. Do not reuse the implementer's full
+conversation as test context.
 
-- `task.list` returns ≥1 task with `status=completed`
-- Repo has test files (Step 0 pre-check)
+## Verification matrix
 
-## Workflow
+Build a matrix from acceptance claims to observable evidence:
 
-### Step 0 — Pre-Execution
+| Check | Required evidence | Blocking condition |
+|---|---|---|
+| Feedback loop | exact command and observed green | command fails or no prior red for fix/incident |
+| Public seam | reachable entry-to-consumer path | orphan/stub/unwired behavior |
+| Regression | focused and adjacent suites | failure or meaningful skipped assertion |
+| Build/static | typecheck/lint/build as applicable | non-zero result |
+| Error/recovery | failure mode and recovery path | silent/swallowed/unrecoverable critical path |
+| Security | input/auth/secrets/dependency checks in scope | high-severity issue |
+| Docs/spec | delivered behavior matches declared delta | drift or unknown impact |
 
-1. Detect project type from config (`package.json` / `Cargo.toml` / `go.mod` / `pyproject.toml` / …)
-2. `task.list { status: "completed" }` → confirm ≥1 task delivered
-3. `change.list` → identify the active/blocked change, if any; filter linked
-   tasks locally by `change_id`
-4. Find test files (suffix `.test.*`, `.spec.*`, `test_*.py`, `*_test.go`)
+Use repository-native commands and real boundaries where practical. Test doubles are
+acceptable only at costly or nondeterministic external boundaries and must be named.
 
-Block with instructive error if any precheck fails.
+## Quality checks
 
-### Step 1 — Anti-Pattern Detection
+- Detect tautologies, empty tests, weakened assertions, and core-domain over-mocking.
+- Find changed exports without meaningful test coverage.
+- Trace changed source into non-test consumers; flag orphan modules and placeholder
+  handlers/components.
+- Exercise key API/UI/CLI flows when the project exposes them.
+- Inspect error handling, authorization, migrations, idempotency, and rollback in the
+  affected risk surface.
+- Compare current HEAD and context digests with the implementation evidence.
 
-Detect fake / meaningless tests that waste CI time.
+Do not mechanically require every possible test category. Mark a check
+`not_applicable` only with a concrete scope reason.
 
-| Pattern | Example | Severity |
-|---------|---------|----------|
-| Tautology | `assert True`, `expect(true).toBe(true)` | CRITICAL |
-| Empty test | function body is just `pass` / `{}` | CRITICAL |
-| Core-logic mock | `jest.mock()` on domain/service/state files | CRITICAL |
+## Report contract
 
-Use Grep with language-appropriate regex; count matches per file.
+Write `.ultra/test-report.json` atomically with at least:
 
-**Gate**: any CRITICAL match → fail.
-
-### Step 2 — Coverage Gap Analysis
-
-Find exported functions / classes with **zero** test references.
-
-1. Enumerate exports in `src/` (or language equivalent)
-2. For each symbol, grep test files for its name
-3. Bucket:
-   - HIGH: core business logic untested
-   - MEDIUM: utility untested
-   - LOW: config/constant untested
-
-**Output**: `.ultra/docs/test-coverage-gaps.md`
-**Gate**: any HIGH → fail.
-
-### Step 2.5 — Wiring Verification
-
-Detect orphan code — files that exist and pass tests but are not reachable.
-
-1. Enumerate exported symbols in source files
-2. For each export, grep **non-test** source for imports
-3. Report exports with 0 non-test imports as orphaned
-
-Also check boundary wiring:
-- Component → API (fetch/axios targets a real route)
-- API → DB (handler imports a real client)
-- Form → handler (onSubmit is not `() => {}`)
-- State → render (state appears in JSX/template)
-
-Stub detection (Level-2 substantive):
-- Functions returning empty `[]` / `{}` without real work
-- `console.log`-only bodies
-- Handlers calling only `e.preventDefault()`
-- Components returning only `<div>Placeholder</div>`
-
-**Output**: append to `test-coverage-gaps.md` under `## Wiring Gaps`.
-**Gate**: any HIGH orphan or stub → fail.
-
-### Step 3 — E2E Testing (conditional)
-
-**Trigger**: project has web UI or API endpoints.
-
-1. Start dev server (detect `scripts.dev` / `scripts.start`)
-2. Navigate key pages/endpoints
-3. Verify elements render; check console errors
-4. Exercise primary user flows
-
-**Method per runtime**:
-- Claude: `mcp__claude-in-chrome__*` or Playwright via Bash
-- Others: Playwright via `npx playwright` (CLI portable)
-
-**Gate**: critical pages fail / major errors → fail.
-
-### Step 4 — Performance (conditional, frontend only)
-
-Lighthouse on dev server. Core Web Vitals gates:
-- LCP < 2.5s
-- INP < 200ms
-- CLS < 0.1
-
-**Gate**: any metric above threshold → fail.
-
-### Step 5 — Security Audit
-
-Dependency vulnerability scan via project's native tool:
-- `npm audit --json` / `pnpm audit --json` / `yarn audit --json`
-- `cargo audit --json`
-- `pip-audit --format=json`
-- `govulncheck ./...`
-
-**Severity**:
-- Critical/High → fail
-- Medium → warn
-- Low → info
-
-### Step 6 — Auto-Fix Loop
-
-If any gate failed, loop (max 5 attempts):
-
-1. Read `blocking_issues`
-2. Fix what is fixable without user input:
-   - Coverage Gap → write missing tests
-   - Anti-Pattern → rewrite fake tests
-   - E2E error → fix the code
-   - Performance → code-level optimizations (lazy, splitting, memoization)
-3. External blockers (upstream CVE, breaking dep bump) → break, report, ask user
-4. If all gates pass → exit loop
-
-If max reached → surface remaining issues; `passed=false`.
-
-### Step 7 — Persist `.ultra/test-report.json`
-
-```jsonc
+```json
 {
-  "timestamp": "<ISO8601>",
-  "git_commit": "<HEAD>",
-  "change_id": "<active-change-id-or-null>",
+  "schema_version": "2.0",
+  "change_id": "<id-or-null>",
+  "git_commit": "<full-head>",
+  "context_manifest_hash": "<hash-or-null>",
   "passed": true,
-  "run_count": 1,
-  "commands": [
-    { "command": "<exact command>", "exit_code": 0, "scope": "unit/integration/e2e/build" }
-  ],
-  "gates": {
-    "anti_pattern":  { "passed": true, "critical": 0, "warning": 1 },
-    "coverage_gaps": { "passed": true, "high": 0, "medium": 3, "low": 5 },
-    "wiring":        { "passed": true, "orphans": 0, "stubs": 0 },
-    "e2e":           { "passed": true, "skipped": false },
-    "performance":   { "passed": true, "lcp": 1.8, "inp": 150, "cls": 0.05 },
-    "security":      { "passed": true, "critical": 0, "high": 0, "medium": 2 }
+  "feedback_loop": {
+    "command": "<exact command>",
+    "expected_red": "<failure contract or not-applicable reason>",
+    "observed_red": true,
+    "observed_green": true,
+    "deterministic": true
   },
-  "blocking_issues": []
+  "public_seams": ["<verified seam>"],
+  "checks": [],
+  "blocking_issues": [],
+  "commands": []
 }
 ```
 
-Rules:
-- File exists → increment `run_count`
-- `passed = true` iff all gates `.passed === true`
-- `blocking_issues` lists human-readable strings for any fail
-- `commands` records exact executable evidence; prose such as “tests look good”
-  is not convergence evidence
-- when a continuous change is active, `change_id` must match it; never reuse a
-  report from another change
+Set `passed=true` only when every required check passes, the report HEAD is current,
+and at least one public seam is verified. Preserve exact commands, exit results, and
+concise failure excerpts; do not paste full logs.
 
-### Step 8 — Report
+## Exit
 
-Print a compact summary (emoji-free, ≤20 lines). Suggest `/ultra-deliver` only
-when `passed=true`.
-
-## Quality Gates — summary
-
-| Gate | Requirement |
-|------|-------------|
-| Anti-Pattern | 0 critical |
-| Coverage Gaps | 0 HIGH |
-| Wiring | 0 HIGH orphan, 0 HIGH stub |
-| E2E | all flows pass (if applicable) |
-| Performance | all Core Web Vitals (if frontend) |
-| Security | 0 critical/high |
-
-## MCP failure matrix
-
-| Purpose | MCP tool | CLI fallback |
-|---------|----------|--------------|
-| Confirm ≥1 completed task | `task.list { status: "completed" }` | none; fail closed |
-| Identify active change | `change.list` | none; omit only for initial baseline delivery |
-| Confirm risky auto-fix | none | current Host's native user-interaction surface |
-
-## What this skill DOES NOT do
-
-- Does NOT run unit tests (that is `/ultra-dev`)
-- Does NOT mutate state.db (auditing is read-only against state)
-- Does NOT release or tag (that is `/ultra-deliver`)
-
-## Integration
-
-| | |
-|---|---|
-| **Input** | Source + test files, state.db (read-only) |
-| **Output** | `.ultra/test-report.json` with exact commands/change id, `.ultra/docs/test-coverage-gaps.md` |
-| **Next** | `/ultra-deliver` (only when `passed=true`) |
+Call `change.breadcrumb` and route one next action: fix a named blocker, run
+`/ultra-review all`, or run `/ultra-deliver`. A stale report never routes to delivery.

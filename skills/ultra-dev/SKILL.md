@@ -1,6 +1,7 @@
 ---
 name: ultra-dev
-description: "Agile development execution with TDD workflow. Writes state through live task MCP tools, reviews through native host subagents, and checkpoints through workflow-state plus lifecycle hooks."
+description: "Execute one fresh-context vertical slice through a public seam with strict red-green evidence, bounded recovery, and specification learning."
+user-invocable: true
 runtime: all
 mcp_tools_required:
   - task.update
@@ -8,342 +9,112 @@ mcp_tools_required:
   - task.list
   - change.get
   - change.context
+  - change.breadcrumb
+  - change.learning_propose
 ---
 
-# ultra-dev — Phase 3.4
+# ultra-dev — One Slice, One Feedback Loop
 
-Drive one task from `pending → completed` using a strict TDD loop, gated by
-`/ultra-review`. **state.db is the authority**: status transitions go through
-MCP `task.update`; the projector regenerates `tasks.json` and context-md
-frontmatter. For a task linked by `change_id`, requirement discoveries go to
-the active change delta first; baseline reconciliation happens in
-`/ultra-deliver`.
+Drive one task from `pending` to `completed`. Task status lives in
+`.ultra/state.db`; generated task JSON and context frontmatter are read-only.
 
-## Authority failure boundary
+## Authority and recovery
 
-All task selection and transitions require the live MCP state tools. If they
-are unavailable or return an authority error, stop. For
-`LEGACY_STATE_MIGRATION_REQUIRED`, instruct:
+If `task.list`, `task.get`, or `task.update` fails, stop. Never write raw SQLite,
+`.ultra/tasks/tasks.json`, or projected status fields. On
+`LEGACY_STATE_MIGRATION_REQUIRED`, use the documented migration command before work.
 
-```bash
-ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root>
-```
+At entry, read `change.breadcrumb` when a change is active. A blocked or stale
+breadcrumb is an implementation blocker, not an advisory warning.
 
-Never fall back to `.ultra/tasks/tasks.json`, direct SQLite writes, or a task
-CLI. The JSON file is only a projector-owned view.
+`.ultra/workflow-state.json` is a compact recovery checkpoint only. Record command,
+task, branch, current step, status, and timestamp; do not copy prompts, codebase
+summaries, or provider memory into it.
 
-## Design decisions vs pre-Phase-3
+## 1. Select and compile the slice
 
-- **Single-write status**: Step 1.5 / Step 5 stop touching `contexts/task-{id}.md`
-  frontmatter or the "`> **Status**: xxx`" line. Only MCP `task.update` fires;
-  projector rewrites frontmatter; humans read body for history.
-- **Native review path**: `/ultra-review all` delegates bounded review work to
-  the current Host's installed review agents. Review is not an MCP service.
-- **No `/compact` dependency**: Step 4.4 writes `.ultra/workflow-state.json`;
-  trusted lifecycle hooks preserve and restore it around compaction when the
-  Host exposes those events.
+1. Select the requested task, otherwise the first dependency-ready pending task.
+2. Call `task.get`; verify dependencies, ownership, acceptance, public seam, and exact
+   verification command.
+3. If linked to a change, call `change.get`, then compile `change.context` with:
+   `role=implement`, `gate=implementation`, the smallest required references, and the
+   task's execution contract.
+4. Stop on missing/stale references, budget overflow, unknown documentation impact,
+   or a HEAD mismatch. Do not compensate by loading the whole repository.
+5. Mark the task `in_progress` with `task.update` and checkpoint the step.
 
-## Prerequisites
+The default slice is a `tracer_bullet`. An `expand_contract` must already be approved;
+implementation does not widen its own contract silently.
 
-- `task.list` succeeds against state.db and returns at least one `pending` task
+## 2. Establish red
 
-## Arguments
+Before production logic changes:
 
-- `$1`: task id (optional; default = first `pending` task in topological order)
+1. Reproduce the smallest observable symptom at the declared public seam.
+2. Add or identify the regression/contract test.
+3. Run the exact command and record:
+   - command;
+   - expected failure;
+   - observed red result;
+   - deterministic/non-deterministic classification;
+   - duration when useful.
 
-## Workflow
+For a new feature, red means an assertion expressing missing behavior. For a refactor,
+establish a green characterization baseline first. Documentation/config-only tasks may
+use a structural validator instead of a failing test, but must state why.
 
-### Step 0 — Workflow Resume Check
+If red cannot be observed, stop and correct the task contract; do not implement against
+an unproven hypothesis.
 
-Read `.ultra/workflow-state.json` if present.
-- If `branch` matches current `git branch --show-current` → resume from the
-  step after `status`
-- If `review_session` is set → skip re-running review
-- Otherwise → proceed to Step 0.5
+## 3. Implement the minimum complete path
 
-### Step 0.5 — Design Approval Gate (first run only)
+- Trace entry point → domain rule → side effect → public seam.
+- Search for existing utilities and dependencies before adding helpers.
+- Keep IO at boundaries and domain behavior testable.
+- Include required validation, errors, observability, recovery, and documentation.
+- Preserve unrelated dirty worktree changes and stay within allowed paths.
+- Verify each meaningful increment through the same feedback loop.
 
-Fires when `.ultra/workflow-state.json` does NOT exist.
+If implementation reveals a stable invariant or public behavior absent from the
+baseline, call `change.learning_propose` with its evidence and target document. Do not
+edit the baseline silently and do not store the discovery as Ultra memory.
 
-1. `task.list` → confirm plan present; if empty, instruct `/ultra-plan` and **EXIT**
-2. If ANY task has `status` in (`in_progress`, `completed`) → plan was already
-   approved → skip this gate
-3. Present plan overview (totals, P0/P1/P2, Walking-Skeleton position)
-4. Ask through the current Host's native user-interaction surface:
-   - A: "Confirm, start implementation" → continue to Step 1
-   - B: "Revise plan first" → suggest `/ultra-plan` → **EXIT**
-5. On approval, write workflow-state:
-   ```jsonc
-   {"command":"ultra-dev","task_id":0,"branch":"","step":"0.5","status":"design_approved","ts":"<ISO8601>"}
-   ```
+## 4. Establish green and inspect reachability
 
-### Step 1 — Task Selection
+Run, in order:
 
-```jsonc
-// MCP: task.list (or runtime args supply id)
-{ "status": "pending" }
-```
+1. the exact red command until the observed failure becomes green;
+2. adjacent focused tests;
+3. type check/lint/build proportionate to the change;
+4. the live public-seam acceptance path;
+5. final diff and worktree scope inspection.
 
-Pick the first result (dependency-resolved) or the one matching `$1`.
-Read `.ultra/tasks/contexts/task-{id}.md` body for the Implementation /
-Acceptance sections. Use the Acceptance list as the initial todo set.
+Record exact commands and zero-failure results. “Compiled” or “unit tests pass” is not
+enough when the new module is not connected to a consumer.
 
-If the task has `change_id`, call `change.get` and inspect its
-`context-manifest.json`. The task id, git head, allowed paths, spec refs, and
-external provider metadata must match the current slice. Call `change.context`
-before editing whenever they are stale. Provider content remains external.
+## 5. Review gate
 
-### Step 1.5 — Status → in_progress (single-write)
+Checkpoint `status=pre_review`, then invoke `/ultra-review all`. The review must produce
+independent `spec_fidelity` and `engineering_standards` verdicts. Fix all P0/P1 issues,
+rerun affected tests, and recheck until both axes pass. The primary host owns final
+verification; review workers never mutate durable Ultra state.
 
-```jsonc
-// MCP: task.update  (R: do NOT touch context-md frontmatter or "> **Status**" line)
-{ "id": "<id>", "patch": { "status": "in_progress" } }
-```
+## 6. Complete the task
 
-Projector runs after the write → `tasks.json` + `contexts/task-{id}.md`
-frontmatter re-generated with `status: in_progress`. **Do not hand-edit either.**
+First call `task.update` with `status=completed` and completion commit/evidence
+supported by the task contract. Then, for a linked change, recompile
+`change.context` at the final HEAD with:
 
-### Step 2 — Environment Setup
+- `role=implement`, `gate=verification`;
+- exact required references and current digests;
+- the public seam and verification command;
+- a single next action, normally `Run ultra-test for this change`.
 
-**Unmerged-completed recovery**: `git branch --list 'feat/task-*'`; for each,
-extract task id, look up status via `task.get`. If any completed task has an
-unmerged branch → ask the user:
-- "Merge task-{id} to main first" (recommended)
-- "Delete branch (abandoned)"
-- "Skip, continue with new task"
+This ordering ensures the snapshot records the completed task state. Clear the active
+workflow checkpoint, call `change.breadcrumb`, and report exactly one next action.
 
-**Branch setup**:
-
-| Current branch | Action |
-|----------------|--------|
-| `main` / `master` | `git pull origin main && git checkout -b feat/task-{id}-{slug}` |
-| `feat/task-{id}-*` (same task) | continue (resume checkpoint) |
-| other | ask the user: switch to main + new branch / continue current |
-
-**Dependencies**: soft-warn only; parallel work is allowed.
-
-### Step 3 — TDD Cycle
-
-**Subagent isolation (complexity ≥ 7)**: optional — delegate a bounded TDD
-cycle through the current Host's native subagent surface; the subagent returns
-a summary and the primary agent owns verification.
-
-**Mid-TDD checkpoint (complexity ≥ 6)**: after GREEN phase, write a
-checkpoint. See Step 4.4 for the preferred MCP route.
-
-**RED** — write failing tests:
-- Mine Acceptance list for test specs
-- Cover 5 dimensions: functional / boundary / exception / security / integration
-- At least one integration test per boundary-crossing module
-- Run; confirm failure
-
-**GREEN** — minimum code to pass:
-- Production-ready (no TODO / placeholder)
-- Run; confirm pass
-
-**REFACTOR** — SOLID / DRY / KISS / YAGNI; tests stay green.
-
-**Checkpoint after Step 3.3**:
-```jsonc
-{"command":"ultra-dev","task_id":<id>,"branch":"<branch>","step":"3.3","status":"tdd_complete","ts":"<iso>"}
-```
-→ `.ultra/workflow-state.json`
-
-### Step 4 — Quality Gates
-
-| Gate | Requirement |
-|------|-------------|
-| Tests green | 0 failures |
-| Coverage | ≥80% overall; 100% functional-core; critical paths for shell |
-| Mock policy | Core logic: no mocks; external: testcontainers/stub OK |
-| No degradation | Zero fallback or demo code |
-| Integration test | Boundary-crossing code has ≥1 real integration test |
-| Entry-point reachable | New modules trace to a handler/listener/cron |
-| Spec compliance | Each Acceptance criterion implemented AND tested |
-
-Checkpoint `step="4"`, `status="gates_passed"`.
-
-### Step 4.4 — Pre-Review Checkpoint
-
-1. Write `.ultra/workflow-state.json` with `step=4.5, status=pre_review`.
-2. Let trusted Host lifecycle hooks preserve and restore that state when
-   compaction events exist.
-3. On Hosts without compaction hooks, resume directly from the same file.
-
-**Gate**: the skill MUST NOT require `/compact`; it MUST work when the
-runtime cannot compact.
-
-### Step 4.5 — Ultra Review (MANDATORY)
-
-Invoke `/ultra-review all`. The workflow uses the current Host's installed
-review agents and writes the unified review artifact. The primary agent owns
-the final verdict and re-runs relevant tests after fixes.
-
-**MAX_REVIEW_ITERATIONS = 2**
-
-| Verdict | Iter | Action |
-|---------|------|--------|
-| APPROVE | any | → Step 5 |
-| COMMENT | any | review P1s, fix if warranted, → Step 5 |
-| REQUEST_CHANGES | 1 | fix ALL P0, re-run tests, `/ultra-review recheck` |
-| REQUEST_CHANGES | 2 | stall check → escalate or fix |
-
-**Stall detection before iter 2**: if `curr_count >= prev_count` (P0+P1 not
-shrinking) → write `UNRESOLVED.md`, WARN user, proceed to Step 5.
-
-**Verification gate before Step 5**:
-- SUMMARY.json verdict ≠ `REQUEST_CHANGES`
-- All P0 resolved
-- Tests still green
-
-Checkpoint `step="4.5", status="review_done", review_session=<id>, review_iteration=<N>`.
-
-### Step 5 — Status → completed (single-write)
-
-**Prerequisites**: Step 4 + Step 4.5 green.
-
-```jsonc
-// MCP: task.update
-{
-  "id": "<id>",
-  "patch": {
-    "status": "completed"
-  }
-}
-```
-
-Projector regenerates frontmatter. **Then** write the context-md **body**
-Completion section (skill responsibility, not projector):
-
-```markdown
-## Completion
-- **Completed**: <YYYY-MM-DD>
-- **Commit**: _pending_   # filled in Step 6
-- **Summary**: <one-line delivery summary>
-```
-
-**Do not** hand-edit `> **Status**` anywhere in the body — frontmatter owns it.
-
-### Step 5.5 — Pre-Commit Checklist (BLOCKING)
-
-Before `git commit`, verify every item:
-
-- [ ] `task.get` confirms `status="completed"`
-- [ ] context-md body has updated Completion section
-- [ ] All tests pass
-- [ ] Ultra Review verdict ≠ `REQUEST_CHANGES`
-- [ ] New modules reach a live entry point (no orphan)
-- [ ] Boundary-crossing code has integration test
-
-Any unchecked → fix; do NOT commit.
-
-### Step 6 — Commit + Merge
-
-1. `git status` → show diff
-2. Ask through the current Host's native user-interaction surface:
-   - A: "Commit + Merge to main" (recommended)
-   - B: "Commit only, create PR later"
-   - C: "Review diff first" → `git diff --stat` → re-ask
-
-3. On approval:
-   ```bash
-   git add -A
-   git commit -m "feat(scope): description"
-   ```
-
-4. Record commit hash via MCP:
-   ```jsonc
-   { "id": "<id>", "patch": { "completion_commit": "<sha>" } }
-   ```
-   Update context-md body Completion line to the real hash; amend:
-   ```bash
-   git add .ultra/tasks/contexts/task-<id>.md
-   git commit --amend --no-edit
-   ```
-   (The amend is OK here — the first commit is a local, not-yet-pushed commit
-   in the feature branch. Never amend pushed commits.)
-
-5. `git fetch origin && git rebase origin/main`; resolve any conflicts.
-
-6. Re-run tests after rebase. Fail → fix → amend → repeat 5-6.
-
-7. If Option A chosen:
-   ```bash
-   git checkout main && git pull origin main
-   git merge --no-ff feat/task-<id>-<slug>
-   git push origin main && git branch -d feat/task-<id>-<slug>
-   ```
-
-8. For a task with `change_id`, call `change.context` after the final commit,
-   rebase, and verification so the manifest records the actual HEAD and task
-   set used for convergence.
-
-Checkpoint `step="6", status="committed", commit=<sha>`.
-
-### Step 7 — Report
-
-- Commit hash
-- Project progress (`task.list` → `completed/total`)
-- Next task suggestion (first remaining `pending` in topological order)
-
-## Delta-First Specification Mode
-
-Triggered when implementation reveals specification gaps or requirement changes.
-
-**Classification (mandatory before updating specs)**:
-
-| Kind | Meaning | Action |
-|------|---------|--------|
-| **EXPANSION** | new requirement surfaced | update active change delta + Change Log |
-| **CORRECTION** | spec error/ambiguity | update active change delta + Change Log |
-| **REDUCTION** | removing/weakening scope | **STOP** → ask the user for approval |
-
-**REDUCTION gate** — options:
-- A: "Approve reduction, update spec"
-- B: "Keep original scope, find alternative implementation"
-- C: "Split into separate task, defer to next cycle"
-
-For a task with `change_id`, update
-`.ultra/changes/active/<change-id>/delta/` immediately, then recompile
-`change.context`. Do not silently rewrite the baseline while parallel tasks are
-still executing. `/ultra-deliver` must reconcile the approved delta into the
-declared baseline files before archive.
-
-For an initial-baseline task with no `change_id`, update `.ultra/specs/`
-directly because no continuous-change packet exists yet. In both cases log the
-decision in the context-md body Change Log:
-
-```markdown
-| <date> | <KIND> | <change desc> | specs/<file>#<section> | <reason> |
-```
-
-**Principle**: the baseline specs describe accepted product truth; the active
-delta describes proposed change; task contexts record implementation history.
-No layer may silently shrink scope without the REDUCTION gate.
-
-## MCP failure matrix
-
-| Purpose | MCP tool (phase) | Failure behavior |
-|---------|------------------|------------------|
-| Select pending task | `task.list` (2) / `task.get` (2) | stop and surface the MCP error |
-| Status → in_progress | `task.update` (2) | stop; do not edit a projection |
-| Pre-review checkpoint | none | write `.ultra/workflow-state.json`; lifecycle hooks restore it |
-| Run review | none | `/ultra-review all` + Host-native review agents |
-| Status → completed | `task.update` (2) | stop; do not claim completion |
-| Refresh linked context | `change.context` (9) | stop; do not claim the change packet is current |
-| Ask user | none | current Host's native user-interaction surface |
-
-## What this skill DOES NOT do
-
-- Does NOT write `tasks.json` directly (projector owns it)
-- Does NOT edit context-md frontmatter (projector owns it)
-- Does NOT require the runtime to support `/compact`
-- Does NOT advertise review or checkpoint operations as MCP tools
-
-## Integration
-
-| | |
-|---|---|
-| **Input** | state.db via MCP, plus the `context_file` body returned for the selected task |
-| **Writes** | state.db (via `task.update`/`change.context`), active delta or baseline spec as classified, context-md body, workflow-state checkpoints |
-| **Next** | `/ultra-dev <next-id>` or `/ultra-test` when all Walking Skeleton + critical-path tasks complete |
+## Completion evidence
+
+Report task/change id, changed paths, red signal, green commands, public-seam result,
+review session, spec-learning candidates, and remaining blockers. If any item is
+missing, leave the task in progress or blocked rather than claiming completion.

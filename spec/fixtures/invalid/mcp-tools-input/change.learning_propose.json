@@ -1,0 +1,5 @@
+{
+  "change_id": "feature-auth",
+  "target_ref": "docs/spec.md",
+  "evidence": ["missing summary must be rejected"]
+}

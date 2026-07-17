@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import subprocess
 import tempfile
 import unittest
@@ -6,6 +7,7 @@ from pathlib import Path
 
 
 HOOK = Path(__file__).resolve().parents[1] / "active_task_context.py"
+SCHEMA = Path(__file__).resolve().parents[2] / "spec" / "schemas" / "state-db.sql"
 
 
 class ActiveTaskContextTest(unittest.TestCase):
@@ -51,6 +53,52 @@ class ActiveTaskContextTest(unittest.TestCase):
             hook = output["hookSpecificOutput"]
             self.assertEqual(hook["permissionDecision"], "deny")
             self.assertIn("projection", hook["permissionDecisionReason"])
+
+    def test_injects_compact_db_breadcrumb_before_an_edit(self):
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw)
+            ultra = project / ".ultra"
+            ultra.mkdir()
+            with sqlite3.connect(ultra / "state.db") as conn:
+                conn.executescript(SCHEMA.read_text(encoding="utf-8"))
+                conn.execute(
+                    """INSERT INTO changes
+                       (id, title, kind, status, intent, docs_impact_json,
+                        provider_refs_json, artifact_root)
+                       VALUES ('edit-change', 'Edit change', 'quick', 'active', 'Edit safely',
+                               '{"status":"none","files":[],"rationale":"fixture"}', '{}',
+                               '.ultra/changes/active/edit-change')"""
+                )
+                conn.execute(
+                    """INSERT INTO tasks
+                       (id, title, type, priority, status, change_id)
+                       VALUES ('edit-task', 'Edit safely', 'feature', 'P0', 'in_progress', 'edit-change')"""
+                )
+                context = {
+                    "readiness": {"status": "ready", "blockers": []},
+                    "context": {
+                        "items": [], "budget": {"max_tokens": 12000, "max_files": 12},
+                        "token_estimate": 0, "file_count": 0,
+                    },
+                    "resume": {"task_id": "edit-task", "task_status": "in_progress"},
+                }
+                conn.execute(
+                    """INSERT INTO context_snapshots
+                       (id, change_id, task_id, manifest_path, manifest_hash, role, gate,
+                        next_action, readiness, blockers_json, context_json)
+                       VALUES ('ctx-edit', 'edit-change', 'edit-task',
+                               '.ultra/changes/active/edit-change/context-manifest.json', ?,
+                               'implement', 'implementation', 'Continue edit-task.',
+                               'ready', '[]', ?)""",
+                    ("b" * 64, json.dumps(context)),
+                )
+
+            output = self.run_hook(project, {"file_path": "src/example.js"})
+            context_text = output["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("edit-task", context_text)
+            self.assertIn("Gate: implementation", context_text)
+            self.assertIn("Next: Continue edit-task", context_text)
+            self.assertNotIn("Edit safely", context_text)
 
 
 if __name__ == "__main__":

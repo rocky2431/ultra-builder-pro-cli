@@ -36,7 +36,10 @@ test('install builds the Claude-native plugin from the explicit Ultra allowlist'
 
     const hooks = JSON.parse(fs.readFileSync(path.join(target, 'hooks', 'hooks.json'), 'utf8'));
     const serialized = JSON.stringify(hooks);
-    for (const name of WORKFLOW_HOOK_FILES) assert.match(serialized, new RegExp(name.replace('.', '\\.')));
+    for (const name of WORKFLOW_HOOK_FILES.filter((value) => value !== 'context_spine.py')) {
+      assert.match(serialized, new RegExp(name.replace('.', '\\.')));
+    }
+    assert.ok(fs.existsSync(path.join(target, 'hooks', 'context_spine.py')));
     assert.doesNotMatch(serialized, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
     assert.match(serialized, /\$\{CLAUDE_PLUGIN_ROOT\}/);
   } finally {

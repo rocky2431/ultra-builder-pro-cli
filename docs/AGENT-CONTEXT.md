@@ -44,14 +44,14 @@ reports are projections or workflow artifacts.
 
 ## 3. Live MCP and declared contracts
 
-`spec/mcp-tools.yaml` declares and the bundled server registers 29 tools across
+`spec/mcp-tools.yaml` declares and the bundled server registers 32 tools across
 five families:
 
 | Family | Live tools |
 |---|---|
 | `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
 | `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
-| `change.*` | create, update, get, list, context, converge, archive |
+| `change.*` | create, update, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
 | `system.*` | doctor |
 | `plan.*` | export, get |
 
@@ -62,7 +62,26 @@ capability map documents those replacements.
 Any new MCP contract starts in `spec/mcp-tools.yaml` with valid and invalid
 fixtures. Do not add an ad-hoc server handler first.
 
-## 4. Native host presentation
+## 4. Context Spine contract
+
+Context Manifest v2 is a DB-backed role handoff, not a static codebase summary.
+`change.context` compiles required references, digests, readiness, context budget,
+public seam, exact verification command, and one next action for `plan`,
+`implement`, `check`, or `review`. The default fresh-context contract is at most
+12 files, about 12k tokens, and 40% of the host context; wider work must use an
+explicit `expand_contract`.
+
+`change.breadcrumb` is the only compact router. Hooks may inject its change/task,
+role, gate, readiness, blockers, and one next action. They must not inject intent
+bodies, transcripts, external memory, or graph payloads. Missing references,
+digest drift, HEAD drift, or budget overflow blocks readiness.
+
+Stable discoveries use `change.learning_propose`; they reach the baseline only
+through approve/reject/apply transitions in `change.learning_resolve`. Unresolved
+learning blocks convergence. Review contributes two independent axes,
+`spec_fidelity` and `engineering_standards`; neither can replace the other.
+
+## 5. Native host presentation
 
 | Host | Plugin form | Workflow entry | Hook form | Collaboration companions |
 |---|---|---|---|---|
@@ -75,9 +94,10 @@ The current host remains primary. Collaboration skills call another runtime
 only when explicitly requested, use it as a read-only advisor, and return the
 evidence to the primary host for final verification.
 
-## 5. Hook boundary
+## 6. Hook boundary
 
-The canonical Python hook allowlist contains seven workflow-only adapters:
+The canonical Python hook bundle contains seven executable workflow hooks plus
+the shared read-only `context_spine.py` breadcrumb helper:
 
 - `health_check.py` and `workflow_context.py` on session start;
 - `active_task_context.py` before an edit;
@@ -86,7 +106,9 @@ The canonical Python hook allowlist contains seven workflow-only adapters:
 - `pre_stop_check.py` at stop;
 - `subagent_tracker.py` for bounded worker lifecycle evidence.
 
-`health_check.py` and `workflow_context.py` may inspect any initialized project;
+`workflow_context.py`, `active_task_context.py`, and `workflow_resume.py` read the
+same DB-derived breadcrumb through `context_spine.py`. `health_check.py` and
+`workflow_context.py` may inspect any initialized project;
 `active_task_context.py` always protects the task projection but limits ordinary
 edit guidance to an active workflow. Compact/stop/subagent hooks remain
 active-workflow scoped. OpenCode natively injects baseline/change context and
@@ -95,7 +117,7 @@ protects the projection; full health inspection is available through
 Generic command blocking, post-edit governance, and unrelated user hooks are not
 copied into Ultra Builder Pro.
 
-## 6. Memory boundary
+## 7. Memory boundary
 
 Ultra Builder Pro has no memory MCP family, recall skill, prompt capture,
 transcript capture, observation journal, or session-summary hook. Persistent
@@ -113,14 +135,14 @@ ultra-tools legacy-memory prune --confirm DELETE_ULTRA_LEGACY_MEMORY
 
 Archive before prune; the confirmation token is intentionally required.
 
-## 7. Project state layout
+## 8. Project state layout
 
 ```text
 .ultra/
 ├── state.db                 # authoritative SQLite store
 ├── workflow-state.json      # active workflow/recovery checkpoint
 ├── changes/
-│   ├── active/<id>/         # intent, delta, plan, compiled context, verification
+│   ├── active/<id>/         # intent, delta, plan, context v2, learning, verification
 │   └── archive/             # converged packets after baseline reconciliation
 ├── tasks/                   # projections and task contexts
 ├── specs/                   # research/product/architecture artifacts
@@ -130,7 +152,7 @@ Archive before prune; the confirmation token is intentionally required.
 └── delivery-report.json
 ```
 
-## 8. User handbook integration
+## 9. User handbook integration
 
 General engineering doctrine remains user-owned in `CLAUDE.md` or `AGENTS.md`.
 Ultra Builder Pro contributes one managed section only. Preview or apply it with:
@@ -140,12 +162,12 @@ ubp-handbook preview --runtime codex
 ubp-handbook apply --runtime codex
 ```
 
-Supported runtime names are `claude`, `codex`, and `opencode`. Apply creates a
+Supported runtime names are `claude`, `codex`, `opencode`, and `kimi`. Apply creates a
 timestamped backup, replaces only the marked block, and can migrate the old
 Codex `## Ultra Builder Pro Runtime Contract` section without touching the next
 user section. Plugin adapters themselves do not silently overwrite handbooks.
 
-## 9. Verification
+## 10. Verification
 
 Run `npm run test:all`, `python3 -m pytest hooks/tests -q`, and `npm audit`.
 Adapter tests assert the allowlisted assets, native manifests, hook boundary,

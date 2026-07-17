@@ -2,8 +2,11 @@
 """Protect Ultra projections and restate an active task boundary before edits."""
 
 import json
+import sqlite3
 import sys
 from pathlib import Path
+
+from context_spine import read_breadcrumb, render_breadcrumb
 
 TERMINAL = {"committed", "completed", "done", "cancelled"}
 TASKS_PROJECTION = Path(".ultra/tasks/tasks.json")
@@ -51,6 +54,17 @@ def main() -> None:
                     ".ultra/state.db is authoritative; use the Ultra MCP task tools and "
                     "run ultra-doctor when state or projection health is degraded."
                 ),
+            }}))
+            return
+        try:
+            breadcrumb = read_breadcrumb(root)
+        except (sqlite3.Error, OSError) as exc:
+            print(f"[active_task_context] cannot inspect Context Spine: {exc}", file=sys.stderr)
+            breadcrumb = None
+        if breadcrumb and breadcrumb.get("task_id"):
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "additionalContext": render_breadcrumb(root, breadcrumb),
             }}))
             return
         if not state_file.is_file():

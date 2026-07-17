@@ -6,6 +6,8 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ops = require('./state-ops.cjs');
+const contextSpine = require('./context-spine.cjs');
+const specLearning = require('./spec-learning.cjs');
 
 const CHANGE_ID = /^[a-zA-Z0-9_-]+$/;
 const PROVIDER_KINDS = new Set(['memory', 'code_graph']);
@@ -227,13 +229,16 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     ? change.provider_refs
     : normalizeProviderRefs(input.provider_refs);
   const tasks = db.prepare(
-    'SELECT id, title, status, priority, stale, trace_to, context_file FROM tasks WHERE change_id = ? ORDER BY created_at ASC',
+    `SELECT id, title, type, status, priority, complexity, stale, trace_to,
+            context_file, files_modified, session_id, created_at, updated_at
+     FROM tasks WHERE change_id = ? ORDER BY created_at ASC`,
   ).all(change.id).map((task) => ({ ...task, stale: Boolean(task.stale) }));
   const specs = Array.isArray(input.spec_refs) ? input.spec_refs : [];
   const allowedPaths = Array.isArray(input.allowed_paths) ? input.allowed_paths : [];
   const head = gitHead(rootDir);
+  const spine = contextSpine.compileRoleContext(db, { input, change, tasks, rootDir });
   const manifest = {
-    schema_version: '1.0',
+    schema_version: '2.0',
     generated_at: nowIso(),
     change: {
       id: change.id, title: change.title, kind: change.kind, status: change.status,
@@ -241,7 +246,15 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     },
     git: { head },
     tasks,
+    selected_task: spine.selected_task,
     specs,
+    role: spine.role,
+    gate: spine.gate,
+    next_action: spine.next_action,
+    readiness: spine.readiness,
+    context: spine.context,
+    execution_contract: spine.execution_contract,
+    resume: spine.resume,
     providers,
     provider_boundary: 'metadata references only; memory and code graph content remain external',
     tool_policy: { allowed_paths: allowedPaths },
@@ -257,15 +270,24 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
   ops.tx(db, () => {
     db.prepare(
       `INSERT INTO context_snapshots
-       (id, change_id, task_id, git_head, provider_refs_json, manifest_path, manifest_hash)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (id, change_id, task_id, git_head, provider_refs_json, manifest_path, manifest_hash,
+        role, gate, next_action, readiness, blockers_json, context_json,
+        token_estimate, token_budget)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       `ctx-${crypto.randomUUID().slice(0, 12)}`, change.id, input.task_id || null,
       head, JSON.stringify(providers), relative, hash,
+      spine.role, spine.gate, spine.next_action, spine.readiness.status,
+      JSON.stringify(spine.readiness.blockers), JSON.stringify(spine),
+      spine.context.token_estimate, spine.context.budget.max_tokens,
     );
     upsertArtifact(db, {
       change_id: change.id, task_id: input.task_id || null, kind: 'context_manifest',
-      artifactPath: relative, contentHash: hash, metadata: { git_head: head },
+      artifactPath: relative, contentHash: hash,
+      metadata: {
+        git_head: head, role: spine.role, gate: spine.gate,
+        readiness: spine.readiness.status, token_estimate: spine.context.token_estimate,
+      },
     });
     for (const task of tasks) {
       if (!task.trace_to) continue;
@@ -278,7 +300,11 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
       .run(JSON.stringify(providers), nowIso(), change.id);
     ops.appendEventInTx(db, {
       type: 'context_updated', change_id: change.id, task_id: input.task_id || null,
-      payload: { manifest_path: relative, manifest_hash: hash, git_head: head },
+      payload: {
+        manifest_path: relative, manifest_hash: hash, git_head: head,
+        role: spine.role, gate: spine.gate, readiness: spine.readiness.status,
+        next_action: spine.next_action,
+      },
     });
   });
   return { manifest, context_manifest_path: manifestPath, manifest_hash: hash };
@@ -438,15 +464,42 @@ function filesUnder(dir) {
   return out;
 }
 
-function evidenceBlockers(change, evidence) {
+function evidenceBlockers(change, evidence, tasks) {
   const blockers = [];
   const rows = Array.isArray(evidence) ? evidence : [];
   const byCategory = new Map(rows.map((row) => [row.category, row]));
-  for (const category of REQUIRED_EVIDENCE[change.kind]) {
+  for (const category of REQUIRED_EVIDENCE[change.kind].filter((value) => value !== 'review')) {
     const row = byCategory.get(category);
     if (!row) blockers.push(`EVIDENCE_MISSING:${category}`);
     else if (!['pass', 'not_applicable'].includes(row.status)) blockers.push(`EVIDENCE_FAILED:${category}`);
     else if (!row.evidence || String(row.evidence).trim().length < 3) blockers.push(`EVIDENCE_EMPTY:${category}`);
+  }
+  if (['standard', 'major'].includes(change.kind)) {
+    const reviews = rows.filter((row) => row.category === 'review');
+    for (const axis of ['spec_fidelity', 'engineering_standards']) {
+      const row = reviews.find((candidate) => candidate.axis === axis);
+      if (!row) blockers.push(`REVIEW_AXIS_MISSING:${axis}`);
+      else if (row.status !== 'pass') blockers.push(`REVIEW_AXIS_FAILED:${axis}`);
+      else if (!row.evidence || String(row.evidence).trim().length < 3) {
+        blockers.push(`REVIEW_AXIS_EMPTY:${axis}`);
+      }
+    }
+  }
+  const tests = byCategory.get('tests');
+  if (tests && ['standard', 'major', 'incident'].includes(change.kind)
+    && (!tests.seam || String(tests.seam).trim().length < 3)) {
+    blockers.push('TEST_SEAM_MISSING');
+  }
+  if (tests && (change.kind === 'incident' || tasks.some((task) => task.type === 'bugfix'))) {
+    const signal = tests.signal;
+    if (!signal) blockers.push('TEST_RED_SIGNAL_MISSING');
+    else {
+      if (!signal.command || String(signal.command).trim().length < 3) blockers.push('TEST_SIGNAL_COMMAND_MISSING');
+      if (!signal.expected_red || String(signal.expected_red).trim().length < 3) blockers.push('TEST_EXPECTED_RED_MISSING');
+      if (signal.observed_red !== true) blockers.push('TEST_RED_NOT_OBSERVED');
+      if (signal.observed_green !== true) blockers.push('TEST_GREEN_NOT_OBSERVED');
+      if (signal.deterministic !== true) blockers.push('TEST_SIGNAL_NOT_DETERMINISTIC');
+    }
   }
   return blockers;
 }
@@ -457,11 +510,31 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   if (!['active', 'blocked'].includes(change.status)) {
     throw new ChangeWorkflowError('CHANGE_NOT_CONVERGEABLE', `change ${input.id} is ${change.status}`);
   }
-  const blockers = new Set(evidenceBlockers(change, input.evidence));
-  const tasks = db.prepare('SELECT id, status, stale FROM tasks WHERE change_id = ? ORDER BY id').all(change.id);
+  const tasks = db.prepare('SELECT id, type, status, stale FROM tasks WHERE change_id = ? ORDER BY id').all(change.id);
+  const blockers = new Set(evidenceBlockers(change, input.evidence, tasks));
   if (tasks.length === 0) blockers.add('NO_TASKS');
   if (tasks.some((task) => !['completed', 'expanded'].includes(task.status))) blockers.add('TASKS_INCOMPLETE');
   if (tasks.some((task) => Boolean(task.stale))) blockers.add('TASK_CONTEXT_STALE');
+  for (const task of tasks) {
+    const snapshot = db.prepare(
+      `SELECT readiness, context_json FROM context_snapshots
+       WHERE change_id = ? AND task_id = ?
+       ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+    ).get(change.id, task.id);
+    if (!snapshot) {
+      blockers.add(`TASK_CONTEXT_MISSING:${task.id}`);
+      continue;
+    }
+    const context = parseJson(snapshot.context_json, 'context_snapshots.context_json');
+    if (snapshot.readiness !== 'ready') blockers.add(`TASK_CONTEXT_NOT_READY:${task.id}`);
+    if (!context.execution_contract?.public_seam) blockers.add(`TASK_SEAM_MISSING:${task.id}`);
+    if (!context.execution_contract?.verification_command) blockers.add(`TASK_VERIFICATION_MISSING:${task.id}`);
+  }
+
+  for (const candidate of specLearning.listSpecLearning(db, change.id)) {
+    if (candidate.status === 'proposed') blockers.add(`SPEC_LEARNING_UNRESOLVED:${candidate.id}`);
+    if (candidate.status === 'approved') blockers.add(`SPEC_LEARNING_NOT_APPLIED:${candidate.id}`);
+  }
 
   if (change.docs_impact.status === 'unknown') blockers.add('DOCS_IMPACT_UNKNOWN');
   if (change.docs_impact.status === 'none' && (!change.docs_impact.rationale || change.docs_impact.rationale.length < 3)) {
@@ -513,7 +586,8 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   const lines = [
     `# Verification: ${change.title}`, '',
     ...input.evidence.flatMap((row) => [
-      `## ${row.category}`, '', `Status: **${row.status}**`, '', String(row.evidence).trim(), '',
+      `## ${row.category}${row.axis ? `:${row.axis}` : ''}`, '',
+      `Status: **${row.status}**`, '', String(row.evidence).trim(), '',
     ]),
   ];
   fs.writeFileSync(verificationPath, `${lines.join('\n')}\n`);
@@ -618,6 +692,10 @@ module.exports = {
   listChanges,
   updateChange,
   compileContext,
+  readBreadcrumb: contextSpine.readBreadcrumb,
+  proposeSpecLearning: specLearning.proposeSpecLearning,
+  resolveSpecLearning: specLearning.resolveSpecLearning,
+  listSpecLearning: specLearning.listSpecLearning,
   convergeChange,
   archiveChange,
   normalizeDocsImpact,

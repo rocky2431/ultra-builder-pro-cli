@@ -1,6 +1,7 @@
 ---
 name: ultra-think
 description: "Deep analysis with adversarial reasoning — Evidence-First + Multi-Perspective + Steel-Man + Pre-Mortem + Sensitivity. Produces a recommendation with confidence bounds."
+user-invocable: true
 runtime: all
 cli_fallback: "direct user interaction"
 ---

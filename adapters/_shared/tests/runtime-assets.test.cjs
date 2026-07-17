@@ -83,6 +83,7 @@ test('code-review-expert and rule skills are internal, never implicitly exposed'
 test('workflow hook allowlist contains no memory, prompt capture, or generic policy hook', () => {
   assert.deepEqual(WORKFLOW_HOOK_FILES, [
     'active_task_context.py',
+    'context_spine.py',
     'health_check.py',
     'pre_stop_check.py',
     'subagent_tracker.py',

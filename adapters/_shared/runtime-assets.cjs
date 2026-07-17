@@ -50,6 +50,7 @@ const RETIRED_SKILLS = Object.freeze([
 
 const WORKFLOW_HOOK_FILES = Object.freeze([
   'active_task_context.py',
+  'context_spine.py',
   'health_check.py',
   'pre_stop_check.py',
   'subagent_tracker.py',

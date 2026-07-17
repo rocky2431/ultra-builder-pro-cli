@@ -75,10 +75,13 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
       const names = list.tools.map((t) => t.name).sort();
       assert.deepEqual(names, [
         'change.archive',
+        'change.breadcrumb',
         'change.context',
         'change.converge',
         'change.create',
         'change.get',
+        'change.learning_propose',
+        'change.learning_resolve',
         'change.list',
         'change.update',
         'plan.export',
@@ -142,14 +145,85 @@ test('change.create + change.context expose a continuous change unit with extern
         name: 'change.context', arguments: { id: 'mcp-change' },
       }));
       assert.equal(context.manifest.change.id, 'mcp-change');
+      assert.equal(context.manifest.schema_version, '2.0');
+      assert.equal(context.manifest.role, 'plan');
+      assert.equal(context.manifest.readiness.status, 'ready');
       assert.equal(context.manifest.providers.memory.provider, 'cloud-mem');
       assert.equal(context.manifest.provider_boundary.includes('content remain external'), true);
+
+      const breadcrumb = readToolPayload(await client.callTool({
+        name: 'change.breadcrumb', arguments: { id: 'mcp-change' },
+      }));
+      assert.equal(breadcrumb.breadcrumb.change_id, 'mcp-change');
+      assert.equal(breadcrumb.breadcrumb.recommended_workflow, 'ultra-change');
+      assert.match(breadcrumb.breadcrumb.context_manifest_hash, /^[0-9a-f]{64}$/);
 
       const listed = readToolPayload(await client.callTool({
         name: 'change.list', arguments: { status: 'active' },
       }));
       assert.equal(listed.count, 1);
       assert.equal(listed.changes[0].id, 'mcp-change');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('spec-learning MCP tools persist an approval-gated candidate and projection', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'change.create',
+        arguments: {
+          id: 'learning-change', title: 'Learn stable contract', kind: 'quick',
+          intent: 'Persist only approved specification discoveries.',
+          docs_impact: { status: 'none', files: [], rationale: 'Contract fixture.' },
+        },
+      });
+      await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'learning-task', title: 'Discover contract', type: 'feature', priority: 'P1',
+          change_id: 'learning-change',
+        },
+      });
+      const proposed = readToolPayload(await client.callTool({
+        name: 'change.learning_propose',
+        arguments: {
+          id: 'learning-contract', change_id: 'learning-change', task_id: 'learning-task',
+          target_ref: 'README.md#contract', summary: 'Context compilation fails closed on stale refs.',
+          evidence: ['node --test context-spine.test.cjs'],
+        },
+      }));
+      assert.equal(proposed.candidate.status, 'proposed');
+      const withLearning = readToolPayload(await client.callTool({
+        name: 'change.get', arguments: { id: 'learning-change' },
+      }));
+      assert.deepEqual(
+        withLearning.change.learning_candidates.map((candidate) => candidate.id),
+        ['learning-contract'],
+      );
+
+      const approved = readToolPayload(await client.callTool({
+        name: 'change.learning_resolve',
+        arguments: {
+          change_id: 'learning-change', candidate_id: 'learning-contract', decision: 'approve',
+          resolution: 'Stable behavior contract.',
+        },
+      }));
+      assert.equal(approved.candidate.status, 'approved');
+      const applied = readToolPayload(await client.callTool({
+        name: 'change.learning_resolve',
+        arguments: {
+          change_id: 'learning-change', candidate_id: 'learning-contract', decision: 'apply',
+          resolution: 'Applied to README.md#contract.',
+        },
+      }));
+      assert.equal(applied.candidate.status, 'applied');
+      assert.ok(fs.existsSync(path.join(
+        proj.dir, '.ultra', 'changes', 'active', 'learning-change', 'spec-learning.json',
+      )));
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

@@ -10,7 +10,7 @@ from pathlib import Path
 REQUIRED_TABLES = {
     "tasks", "events", "sessions", "schema_version", "migration_history",
     "telemetry", "specs_refs", "circuit_breaker", "changes", "artifacts",
-    "context_snapshots", "trace_links", "incidents", "projection_jobs",
+    "context_snapshots", "spec_learning_candidates", "trace_links", "incidents", "projection_jobs",
     "event_consumers",
 }
 

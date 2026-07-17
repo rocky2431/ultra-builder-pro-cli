@@ -1,9 +1,17 @@
-{
-  "id": "feature-auth",
-  "provider_refs": {
-    "code_graph": {
-      "provider": "external-graph",
-      "nodes": ["embedded", "content"]
+[
+  {
+    "id": "feature-auth",
+    "provider_refs": {
+      "code_graph": {
+        "provider": "external-graph",
+        "nodes": ["embedded", "content"]
+      }
     }
+  },
+  {
+    "id": "feature-auth",
+    "task_id": "task-1",
+    "role": "builder",
+    "budget": {"max_tokens": 0, "max_files": 12}
   }
-}
+]

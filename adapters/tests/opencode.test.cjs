@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 
 const opencode = require('../opencode.js');
@@ -172,7 +173,8 @@ test('install writes a schema-safe opencode.json and keeps ownership outside hos
     assert.match(plugin, /throw new Error/);
     assert.match(plugin, /session\.compacted/);
     assert.doesNotMatch(plugin, /memory\.(?:retain|recall|reflect)|journal|observation|prompt[_ -]?capture/);
-    assert.match(plugin, /metadata references only/);
+    assert.match(plugin, /Ultra context spine/);
+    assert.doesNotMatch(plugin, /providerMetadata|External providers/);
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
   }
@@ -189,18 +191,59 @@ test('OpenCode context covers active changes and projection writes are blocked f
 
     fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
     fs.writeFileSync(path.join(project, '.ultra', 'state.db'), 'owned-by-ultra');
+    execFileSync('git', ['init'], { cwd: project, stdio: 'ignore' });
+    fs.writeFileSync(path.join(project, 'app.txt'), 'initial\n');
+    execFileSync('git', ['add', 'app.txt'], { cwd: project, stdio: 'ignore' });
+    execFileSync('git', ['-c', 'user.name=Ultra Tests', '-c', 'user.email=ultra@example.invalid', 'commit', '-m', 'initial'], {
+      cwd: project, stdio: 'ignore',
+    });
+    const compiledHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: project, encoding: 'utf8' }).trim();
     const changeRoot = path.join(project, '.ultra', 'changes', 'active', 'daily-fix');
     fs.mkdirSync(changeRoot, { recursive: true });
     fs.writeFileSync(path.join(changeRoot, 'context-manifest.json'), JSON.stringify({
+      schema_version: '2.0',
       change: { id: 'daily-fix', title: 'Daily fix', kind: 'quick', status: 'active', intent: 'Fix drift' },
+      role: 'implement',
+      gate: 'implementation',
+      next_action: 'Run the exact regression test.',
+      readiness: { status: 'ready', blockers: [] },
+      git: { head: compiledHead },
+      selected_task: { id: 'daily-task', status: 'in_progress' },
+      context: { token_estimate: 1200, budget: { max_tokens: 8000, max_files: 8 } },
       providers: { memory: { provider: 'cloud-mem', status: 'available' } },
     }));
 
     const output = { system: [] };
     await plugin['experimental.chat.system.transform']({}, output);
-    assert.match(output.system.join('\n'), /Ultra continuous change/);
+    assert.match(output.system.join('\n'), /Ultra context spine/);
     assert.match(output.system.join('\n'), /daily-fix/);
-    assert.match(output.system.join('\n'), /metadata references only/);
+    assert.match(output.system.join('\n'), /daily-task/);
+    assert.match(output.system.join('\n'), /Role: implement/);
+    assert.match(output.system.join('\n'), /Gate: implementation/);
+    assert.match(output.system.join('\n'), /Readiness: ready/);
+    assert.match(output.system.join('\n'), /Run the exact regression test/);
+    assert.doesNotMatch(output.system.join('\n'), /Fix drift|cloud-mem/);
+
+    const manifestFile = path.join(changeRoot, 'context-manifest.json');
+    const legacyManifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+    legacyManifest.schema_version = '1.0';
+    fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
+    const legacyOutput = { system: [] };
+    await plugin['experimental.chat.system.transform']({}, legacyOutput);
+    assert.match(legacyOutput.system.join('\n'), /CONTEXT_SNAPSHOT_UPGRADE_REQUIRED/);
+    legacyManifest.schema_version = '2.0';
+    fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
+
+    fs.writeFileSync(path.join(project, 'app.txt'), 'changed\n');
+    execFileSync('git', ['add', 'app.txt'], { cwd: project, stdio: 'ignore' });
+    execFileSync('git', ['-c', 'user.name=Ultra Tests', '-c', 'user.email=ultra@example.invalid', 'commit', '-m', 'change'], {
+      cwd: project, stdio: 'ignore',
+    });
+    const staleOutput = { system: [] };
+    await plugin['experimental.chat.system.transform']({}, staleOutput);
+    assert.match(staleOutput.system.join('\n'), /Readiness: blocked/);
+    assert.match(staleOutput.system.join('\n'), /CONTEXT_HEAD_STALE/);
+    assert.match(staleOutput.system.join('\n'), /recompile change\.context/);
 
     await assert.rejects(
       plugin['tool.execute.before'](

@@ -7,10 +7,11 @@ bounded to the relevant Ultra projection or a non-terminal workflow.
 | Lifecycle | Hook | Purpose |
 |---|---|---|
 | Session start | `health_check.py` | Read-only integrity, incident, projection, session, and change-artifact checks |
-| Session start | `workflow_context.py` | Inject baseline/active workflow/change context and filtered provider metadata references |
-| Before edit | `active_task_context.py` | Protect `tasks.json` projection and restate an active task boundary |
+| Shared helper | `context_spine.py` | Read the latest role/gate/readiness snapshot from state.db and derive one compact breadcrumb |
+| Session start | `workflow_context.py` | Inject the DB-derived breadcrumb without intent or provider payloads |
+| Before edit | `active_task_context.py` | Protect `tasks.json` and restate the same DB-derived task breadcrumb |
 | Before compact | `workflow_checkpoint.py` | Validate and atomically save a minimal workflow checkpoint |
-| After compact/resume | `workflow_resume.py` | Select the newest valid live/checkpoint state, restore it atomically when needed, and re-inject the boundary |
+| After compact/resume | `workflow_resume.py` | Prefer the DB breadcrumb; restore the minimal file checkpoint only when no active change owns recovery |
 | Stop | `pre_stop_check.py` | Block once when the Ultra workflow is incomplete |
 | Subagent lifecycle | `subagent_tracker.py` | Append lifecycle evidence under `.ultra/runtime/` |
 
@@ -18,7 +19,8 @@ The plugin deliberately does not capture prompts, tool observations, transcripts
 cross-session memory or code-graph content. Generic command blocking and post-edit policy are
 user/repository governance. Persistent Memory/graph content belongs to separately installed providers.
 
-The checkpoint is a recovery artifact, not a second authority. A valid newer
+`context_spine.py` is an imported library, not an eighth lifecycle registration.
+Registering it separately would duplicate hook execution. The checkpoint is a recovery artifact, not a second authority. A valid newer
 live workflow wins; a newer valid checkpoint may restore a missing or older
 live file; corrupt, non-object, or terminal checkpoints are ignored.
 

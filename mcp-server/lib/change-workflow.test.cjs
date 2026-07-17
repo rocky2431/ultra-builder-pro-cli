@@ -31,10 +31,20 @@ function cleanup({ rootDir, db }) {
 function standardEvidence() {
   return [
     { category: 'diff', status: 'pass', evidence: 'git diff reviewed' },
-    { category: 'tests', status: 'pass', evidence: 'node --test passed' },
+    {
+      category: 'tests', status: 'pass', evidence: 'node --test passed',
+      seam: 'public change workflow contract',
+    },
     { category: 'spec', status: 'pass', evidence: 'delta reconciled' },
     { category: 'docs', status: 'pass', evidence: 'docs/feature.md updated' },
-    { category: 'review', status: 'pass', evidence: 'review findings resolved' },
+    {
+      category: 'review', axis: 'spec_fidelity', status: 'pass',
+      evidence: 'Acceptance behavior matches the approved delta.',
+    },
+    {
+      category: 'review', axis: 'engineering_standards', status: 'pass',
+      evidence: 'Engineering findings are resolved.',
+    },
   ];
 }
 
@@ -42,8 +52,41 @@ function incidentEvidence() {
   return [
     { category: 'diagnosis', status: 'pass', evidence: 'Structured diagnosis artifact reviewed.' },
     { category: 'diff', status: 'pass', evidence: 'Root-cause fix diff reviewed.' },
-    { category: 'tests', status: 'pass', evidence: 'Regression test reproduces then verifies the fix.' },
+    {
+      category: 'tests', status: 'pass', evidence: 'Regression test reproduces then verifies the fix.',
+      seam: 'projection recovery boundary',
+      signal: {
+        command: 'node --test recovery.test.cjs',
+        expected_red: 'stale projection remains running',
+        observed_red: true,
+        observed_green: true,
+        deterministic: true,
+        duration_ms: 25,
+      },
+    },
   ];
+}
+
+function executionContext(taskId, overrides = {}) {
+  return {
+    task_id: taskId,
+    role: 'implement',
+    gate: 'implementation',
+    next_action: `Implement and verify ${taskId}.`,
+    context_refs: [
+      {
+        ref: 'README.md', kind: 'spec', reason: 'Public behavior contract', required: true,
+      },
+    ],
+    budget: { max_tokens: 2_000, max_files: 4 },
+    execution_contract: {
+      slice_kind: 'tracer_bullet',
+      public_seam: `public seam for ${taskId}`,
+      verification_command: `node --test ${taskId}.test.cjs`,
+      context_budget_percent: 40,
+    },
+    ...overrides,
+  };
 }
 
 test('createChange persists a change and an inspectable external-provider context manifest', () => {
@@ -120,7 +163,9 @@ test('convergeChange blocks incomplete work and marks a fully evidenced standard
     });
     ops.updateTaskStatus(fx.db, 'change-task', 'in_progress');
     ops.updateTaskStatus(fx.db, 'change-task', 'completed');
-    changes.compileContext(fx.db, { id: 'chg-converge' }, { rootDir: fx.rootDir });
+    changes.compileContext(fx.db, {
+      id: 'chg-converge', ...executionContext('change-task'),
+    }, { rootDir: fx.rootDir });
 
     const ready = changes.convergeChange(fx.db, {
       id: 'chg-converge', evidence: standardEvidence(),
@@ -148,12 +193,20 @@ test('archiveChange moves a ready change into immutable history and records base
     });
     ops.updateTaskStatus(fx.db, 'archive-task', 'in_progress');
     ops.updateTaskStatus(fx.db, 'archive-task', 'completed');
-    changes.compileContext(fx.db, { id: 'chg-archive' }, { rootDir: fx.rootDir });
+    changes.compileContext(fx.db, {
+      id: 'chg-archive', ...executionContext('archive-task'),
+    }, { rootDir: fx.rootDir });
     const converged = changes.convergeChange(fx.db, {
       id: 'chg-archive',
       evidence: [
         { category: 'diff', status: 'pass', evidence: 'diff reviewed' },
-        { category: 'tests', status: 'pass', evidence: 'tests passed' },
+        {
+          category: 'tests', status: 'pass', evidence: 'tests passed', seam: 'archive command',
+          signal: {
+            command: 'node --test archive-task.test.cjs', expected_red: 'archive accepts stale context',
+            observed_red: true, observed_green: true, deterministic: true, duration_ms: 10,
+          },
+        },
         { category: 'spec', status: 'not_applicable', evidence: 'No behavior contract changed.' },
       ],
     }, { rootDir: fx.rootDir });
@@ -306,7 +359,9 @@ test('incident convergence requires every structured diagnosis section and refre
     });
     ops.updateTaskStatus(fx.db, 'incident-task', 'in_progress');
     ops.updateTaskStatus(fx.db, 'incident-task', 'completed');
-    changes.compileContext(fx.db, { id: 'chg-incident-converge' }, { rootDir: fx.rootDir });
+    changes.compileContext(fx.db, {
+      id: 'chg-incident-converge', ...executionContext('incident-task'),
+    }, { rootDir: fx.rootDir });
 
     const blocked = changes.convergeChange(fx.db, {
       id: 'chg-incident-converge', evidence: incidentEvidence(),
@@ -340,6 +395,146 @@ test('incident convergence requires every structured diagnosis section and refre
       afterHash,
       require('node:crypto').createHash('sha256').update(fs.readFileSync(diagnosisPath)).digest('hex'),
     );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('compileContext v2 persists role-scoped context, budget, execution contract, and breadcrumb in state.db', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, {
+      id: 'chg-context-v2', title: 'Compile role context', kind: 'standard',
+      intent: 'Give each execution role only the context it needs.',
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'context-v2-task', title: 'Build role-scoped manifest', type: 'feature', priority: 'P0',
+      change_id: 'chg-context-v2',
+    });
+
+    const compiled = changes.compileContext(fx.db, {
+      id: 'chg-context-v2',
+      ...executionContext('context-v2-task'),
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(compiled.manifest.schema_version, '2.0');
+    assert.equal(compiled.manifest.role, 'implement');
+    assert.equal(compiled.manifest.gate, 'implementation');
+    assert.equal(compiled.manifest.readiness.status, 'ready');
+    assert.equal(compiled.manifest.context.items[0].ref, 'README.md');
+    assert.match(compiled.manifest.context.items[0].digest, /^[0-9a-f]{64}$/);
+    assert.equal(compiled.manifest.execution_contract.slice_kind, 'tracer_bullet');
+    assert.equal(compiled.manifest.resume.task_id, 'context-v2-task');
+    assert.match(compiled.manifest.next_action, /Implement and verify/);
+
+    const snapshot = fx.db.prepare(
+      'SELECT role, gate, next_action, readiness, context_json, token_budget FROM context_snapshots ORDER BY created_at DESC LIMIT 1',
+    ).get();
+    assert.equal(snapshot.role, 'implement');
+    assert.equal(snapshot.gate, 'implementation');
+    assert.equal(snapshot.readiness, 'ready');
+    assert.equal(snapshot.token_budget, 2_000);
+    assert.equal(JSON.parse(snapshot.context_json).execution_contract.public_seam, 'public seam for context-v2-task');
+
+    const breadcrumb = changes.readBreadcrumb(fx.db, { id: 'chg-context-v2' }, { rootDir: fx.rootDir });
+    assert.equal(breadcrumb.change_id, 'chg-context-v2');
+    assert.equal(breadcrumb.task_id, 'context-v2-task');
+    assert.equal(breadcrumb.role, 'implement');
+    assert.equal(breadcrumb.readiness, 'ready');
+    assert.match(breadcrumb.context_manifest_hash, /^[0-9a-f]{64}$/);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('compileContext blocks a required missing ref or an over-budget role packet', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, {
+      id: 'chg-context-budget', title: 'Bound context packet', kind: 'quick',
+      intent: 'Fail closed when required context is missing or too large.',
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'budget-task', title: 'Compile bounded packet', type: 'bugfix', priority: 'P0',
+      change_id: 'chg-context-budget',
+    });
+
+    const compiled = changes.compileContext(fx.db, {
+      id: 'chg-context-budget',
+      ...executionContext('budget-task', {
+        context_refs: [
+          { ref: 'missing-contract.md', kind: 'spec', reason: 'Required contract', required: true },
+          { ref: 'README.md', kind: 'source', reason: 'Current implementation', required: true },
+        ],
+        budget: { max_tokens: 1, max_files: 1 },
+      }),
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(compiled.manifest.readiness.status, 'blocked');
+    assert.ok(compiled.manifest.readiness.blockers.includes('CONTEXT_REQUIRED_REF_MISSING:missing-contract.md'));
+    assert.ok(compiled.manifest.readiness.blockers.includes('CONTEXT_FILE_BUDGET_EXCEEDED'));
+    assert.ok(compiled.manifest.readiness.blockers.includes('CONTEXT_TOKEN_BUDGET_EXCEEDED'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('spec-learning candidates are approval-gated and unresolved candidates block convergence', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, {
+      id: 'chg-learning', title: 'Converge learned contract', kind: 'quick',
+      intent: 'Promote stable implementation discoveries into an approved baseline update.',
+      docs_impact: { status: 'none', files: [], rationale: 'Fixture exercises the approval state machine.' },
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'learning-task', title: 'Capture stable contract', type: 'bugfix', priority: 'P0',
+      change_id: 'chg-learning',
+    });
+    ops.updateTaskStatus(fx.db, 'learning-task', 'in_progress');
+    ops.updateTaskStatus(fx.db, 'learning-task', 'completed');
+    changes.compileContext(fx.db, {
+      id: 'chg-learning', ...executionContext('learning-task'),
+    }, { rootDir: fx.rootDir });
+
+    const proposed = changes.proposeSpecLearning(fx.db, {
+      id: 'learning-1', change_id: 'chg-learning', task_id: 'learning-task',
+      target_ref: 'README.md#contract', summary: 'The public command fails closed on stale context.',
+      evidence: ['node --test learning-task.test.cjs'],
+    }, { rootDir: fx.rootDir });
+    assert.equal(proposed.status, 'proposed');
+
+    const blocked = changes.convergeChange(fx.db, {
+      id: 'chg-learning',
+      evidence: [
+        { category: 'diff', status: 'pass', evidence: 'diff reviewed' },
+        {
+          category: 'tests', status: 'pass', evidence: 'regression passed', seam: 'public command',
+          signal: {
+            command: 'node --test learning-task.test.cjs', expected_red: 'stale context accepted',
+            observed_red: true, observed_green: true, deterministic: true, duration_ms: 20,
+          },
+        },
+        { category: 'spec', status: 'pass', evidence: 'candidate recorded' },
+      ],
+    }, { rootDir: fx.rootDir });
+    assert.ok(blocked.blockers.includes('SPEC_LEARNING_UNRESOLVED:learning-1'));
+
+    assert.equal(changes.resolveSpecLearning(fx.db, {
+      change_id: 'chg-learning', candidate_id: 'learning-1', decision: 'approve',
+      resolution: 'Stable public contract.',
+    }, { rootDir: fx.rootDir }).status, 'approved');
+    assert.equal(changes.resolveSpecLearning(fx.db, {
+      change_id: 'chg-learning', candidate_id: 'learning-1', decision: 'apply',
+      resolution: 'Applied to README.md#contract.',
+    }, { rootDir: fx.rootDir }).status, 'applied');
+
+    const projection = JSON.parse(fs.readFileSync(
+      path.join(fx.rootDir, '.ultra', 'changes', 'active', 'chg-learning', 'spec-learning.json'),
+      'utf8',
+    ));
+    assert.equal(projection.source, '.ultra/state.db');
+    assert.equal(projection.candidates[0].status, 'applied');
   } finally {
     cleanup(fx);
   }

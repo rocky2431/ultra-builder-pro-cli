@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Read and render the compact DB-derived Ultra Context Spine breadcrumb."""
+
+import json
+import sqlite3
+import subprocess
+from pathlib import Path
+
+
+ACTIVE_CHANGE_STATUSES = ("active", "blocked", "ready")
+TERMINAL_TASK_STATUSES = ("completed", "expanded")
+CONTEXT_COLUMNS = {
+    "role", "gate", "next_action", "readiness", "blockers_json",
+    "context_json", "manifest_path", "manifest_hash", "git_head", "task_id",
+}
+
+
+def find_root(start: Path):
+    for root in (start, *start.parents):
+        ultra = root / ".ultra"
+        if (
+            (ultra / "state.db").is_file()
+            or (ultra / "workflow-state.json").is_file()
+            or (ultra / "changes" / "active").is_dir()
+        ):
+            return root
+    return None
+
+
+def safe_json(raw, fallback):
+    if not isinstance(raw, str) or not raw.strip():
+        return fallback
+    try:
+        value = json.loads(raw)
+        return value
+    except json.JSONDecodeError:
+        return fallback
+
+
+def git_head(root: Path):
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=2,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _next_action(change, task, tasks, role, readiness, stored, state_changed):
+    if readiness != "ready":
+        return "Resolve the context readiness blockers, then recompile change.context."
+    if not state_changed and isinstance(stored, str) and stored.strip():
+        return stored.strip()
+    if change["status"] == "ready":
+        return f"Run ultra-deliver for change {change['id']}."
+    if change["status"] == "blocked":
+        return f"Resolve the blockers for change {change['id']}, then recompile context."
+    if task and task["status"] == "pending":
+        return f"Start task {task['id']} through ultra-dev."
+    if task and task["status"] == "in_progress":
+        if role == "check":
+            return f"Run the exact verification command for task {task['id']}."
+        if role == "review":
+            return (
+                "Complete independent spec-fidelity and engineering-standards "
+                f"review for task {task['id']}."
+            )
+        return f"Continue the approved vertical slice for task {task['id']}."
+    if tasks and all(row["status"] in TERMINAL_TASK_STATUSES for row in tasks):
+        return f"Run ultra-test for change {change['id']}."
+    pending = next((row for row in tasks if row["status"] == "pending"), None)
+    if pending:
+        return f"Compile implement context for task {pending['id']}."
+    return f"Create the first fresh-context tracer-bullet task for change {change['id']}."
+
+
+def _route(change, task, tasks, readiness):
+    if readiness != "ready" or change["status"] == "blocked":
+        return "ultra-change"
+    if change["status"] == "ready":
+        return "ultra-deliver"
+    if task and task["status"] in ("pending", "in_progress"):
+        return "ultra-dev"
+    if tasks and all(row["status"] in TERMINAL_TASK_STATUSES for row in tasks):
+        return "ultra-test"
+    return "ultra-change"
+
+
+def read_breadcrumb(root: Path):
+    db_path = root / ".ultra" / "state.db"
+    if not db_path.is_file():
+        return None
+    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=1) as conn:
+        conn.row_factory = sqlite3.Row
+        tables = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        if not {"changes", "tasks", "context_snapshots"}.issubset(tables):
+            return None
+        change = conn.execute(
+            """SELECT id, status FROM changes
+               WHERE status IN ('active', 'blocked', 'ready')
+               ORDER BY updated_at DESC LIMIT 1"""
+        ).fetchone()
+        if change is None:
+            return None
+        tasks = list(conn.execute(
+            "SELECT id, status, session_id FROM tasks WHERE change_id = ? ORDER BY created_at ASC",
+            (change["id"],),
+        ))
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(context_snapshots)")
+        }
+        snapshot = None
+        if CONTEXT_COLUMNS.issubset(columns):
+            snapshot = conn.execute(
+                """SELECT task_id, git_head, manifest_path, manifest_hash, role, gate,
+                          next_action, readiness, blockers_json, context_json
+                   FROM context_snapshots WHERE change_id = ?
+                   ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+                (change["id"],),
+            ).fetchone()
+
+    task_id = snapshot["task_id"] if snapshot else None
+    if not task_id:
+        active = next((row for row in tasks if row["status"] == "in_progress"), None)
+        pending = next((row for row in tasks if row["status"] == "pending"), None)
+        task_id = (active or pending)["id"] if (active or pending) else None
+    task = next((row for row in tasks if row["id"] == task_id), None)
+    context = safe_json(snapshot["context_json"], {}) if snapshot else {}
+    role = snapshot["role"] if snapshot else "plan"
+    gate = snapshot["gate"] if snapshot else "alignment"
+    current_head = git_head(root)
+    head_stale = bool(
+        snapshot and snapshot["git_head"] and current_head
+        and snapshot["git_head"] != current_head
+    )
+    snapshot_missing = snapshot is None
+    legacy_context = bool(
+        snapshot and (
+            not isinstance(context.get("resume"), dict)
+            or not isinstance(context.get("context"), dict)
+            or not isinstance(context.get("readiness"), dict)
+        )
+    )
+    stored_status = context.get("resume", {}).get("task_status")
+    current_status = task["status"] if task else None
+    state_changed = stored_status is not None and stored_status != current_status
+    stored_action = snapshot["next_action"] if snapshot else None
+    blockers = []
+    if snapshot_missing:
+        blockers.append("CONTEXT_NOT_COMPILED")
+    else:
+        if legacy_context:
+            blockers.append("CONTEXT_SNAPSHOT_UPGRADE_REQUIRED")
+        if head_stale:
+            blockers.append("CONTEXT_HEAD_STALE")
+        if state_changed:
+            blockers.append("CONTEXT_TASK_STATE_STALE")
+        for blocker in safe_json(snapshot["blockers_json"], []):
+            if blocker not in blockers:
+                blockers.append(blocker)
+    readiness = "blocked" if blockers else snapshot["readiness"]
+    if snapshot_missing:
+        next_action = f"Compile change.context for change {change['id']} before continuing."
+    elif legacy_context:
+        next_action = "Recompile change.context to upgrade this legacy context snapshot."
+    elif head_stale:
+        next_action = "Git HEAD changed after context compilation; recompile change.context."
+    elif state_changed:
+        next_action = "Task state changed after context compilation; recompile change.context."
+    else:
+        next_action = _next_action(change, task, tasks, role, readiness, stored_action, False)
+    return {
+        "change_id": change["id"],
+        "change_status": change["status"],
+        "task_id": task["id"] if task else None,
+        "task_status": task["status"] if task else None,
+        "session_id": task["session_id"] if task else None,
+        "role": role,
+        "gate": gate,
+        "readiness": readiness,
+        "blockers": blockers,
+        "next_action": next_action,
+        "recommended_workflow": _route(change, task, tasks, readiness),
+        "context_manifest_path": snapshot["manifest_path"] if snapshot else None,
+        "context_manifest_hash": snapshot["manifest_hash"] if snapshot else None,
+        "git_head": current_head,
+    }
+
+
+def render_breadcrumb(root: Path, breadcrumb: dict) -> str:
+    task = breadcrumb.get("task_id") or "none"
+    task_status = breadcrumb.get("task_status") or "none"
+    lines = [
+        "[Ultra context spine]",
+        f"Project: {root}",
+        f"Change: {breadcrumb['change_id']} ({breadcrumb.get('change_status', 'active')})",
+        f"Task: {task} ({task_status})",
+        f"Role: {breadcrumb.get('role', 'plan')}",
+        f"Gate: {breadcrumb.get('gate', 'alignment')}",
+        f"Readiness: {breadcrumb.get('readiness', 'ready')}",
+    ]
+    if breadcrumb.get("blockers"):
+        lines.append("Blockers: " + ", ".join(breadcrumb["blockers"]))
+    lines.extend([
+        f"Next: {breadcrumb.get('next_action', 'Inspect Ultra status.')}",
+        f"Route: {breadcrumb.get('recommended_workflow', 'ultra-change')}",
+    ])
+    if breadcrumb.get("context_manifest_path"):
+        digest = breadcrumb.get("context_manifest_hash") or "unknown"
+        lines.append(f"Context: {breadcrumb['context_manifest_path']} sha256={digest}")
+    lines.append("Authority: .ultra/state.db; JSON/Markdown remain projections or evidence artifacts.")
+    return "\n".join(lines)

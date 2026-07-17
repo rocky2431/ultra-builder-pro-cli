@@ -73,6 +73,9 @@ const CHANGE_TOOLS = Object.freeze([
   'change.get',
   'change.list',
   'change.context',
+  'change.breadcrumb',
+  'change.learning_propose',
+  'change.learning_resolve',
   'change.converge',
   'change.archive',
 ]);
@@ -95,6 +98,7 @@ const MUTATING_TOOLS = new Set([
   'session.spawn', 'session.close', 'session.heartbeat',
   'plan.export',
   'change.create', 'change.update', 'change.context', 'change.converge', 'change.archive',
+  'change.learning_propose', 'change.learning_resolve',
 ]);
 
 function loadRegisteredTools() {
@@ -368,7 +372,12 @@ async function dispatchTool(name, input, db, ctx = {}) {
         err.code = 'CHANGE_NOT_FOUND';
         throw err;
       }
-      return { change };
+      return {
+        change: {
+          ...change,
+          learning_candidates: changes.listSpecLearning(db, change.id),
+        },
+      };
     }
     case 'change.list': {
       const rows = changes.listChanges(db, input || {});
@@ -380,6 +389,27 @@ async function dispatchTool(name, input, db, ctx = {}) {
         manifest_path: out.context_manifest_path,
         manifest_hash: out.manifest_hash,
         manifest: out.manifest,
+      };
+    }
+    case 'change.breadcrumb': {
+      return {
+        breadcrumb: changes.readBreadcrumb(
+          db, input || {}, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
+    case 'change.learning_propose': {
+      return {
+        candidate: changes.proposeSpecLearning(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
+    case 'change.learning_resolve': {
+      return {
+        candidate: changes.resolveSpecLearning(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
       };
     }
     case 'change.converge': {

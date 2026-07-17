@@ -85,7 +85,10 @@ test('Kimi manifest exposes native skills, commands, hooks, session bootstrap, a
 
     const hookText = JSON.stringify(manifest.hooks);
     assert.match(hookText, /hooks\/adapters\/kimi\.py/);
-    for (const hook of WORKFLOW_HOOK_FILES) assert.match(hookText, new RegExp(hook.replace('.', '\\.')));
+    for (const hook of WORKFLOW_HOOK_FILES.filter((value) => value !== 'context_spine.py')) {
+      assert.match(hookText, new RegExp(hook.replace('.', '\\.')));
+    }
+    assert.ok(fs.existsSync(path.join(pluginRoot, 'hooks', 'context_spine.py')));
     assert.doesNotMatch(hookText, /memory|recall|journal|prompt[_ -]?capture|block_dangerous|post_edit_guard/i);
 
     const commands = fs.readdirSync(path.join(pluginRoot, 'commands')).sort();
@@ -120,7 +123,8 @@ test('Kimi assets are allowlisted and adapted to native tools and paths', () => 
     );
     assert.match(learn, /~\/.kimi-code\/skills\/learned-<pattern-slug>-unverified\/SKILL\.md/);
     assert.match(review, /Kimi `AgentSwarm`/);
-    assert.match(review, /5 specialized reviewers/);
+    assert.match(review, /Five engineering specialists/);
+    assert.match(review, /axes\.spec_fidelity/);
     assert.doesNotMatch(review, /6 specialized|ALL 6/);
     assert.match(review, /\$KIMI_PLUGIN_ROOT\/agents\/review-code\.md/);
     assert.match(review, /`prompt_template` containing\s+`\{\{item\}\}`/);

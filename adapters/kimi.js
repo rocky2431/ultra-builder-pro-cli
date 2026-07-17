@@ -219,8 +219,8 @@ bundled files are bounded prompt templates, not separately registered host agent
       'Read `SUMMARY.json` only after this validation succeeds.',
     ].join('\n');
     text = text.replace(
-      /### Phase 3:[\s\S]*?### Phase 5: Report to User/,
-      `${executionContract}\n\n### Phase 5: Report to User`,
+      /#{2,3} Phase 3:[\s\S]*?#{2,3} Phase 5: Report to User/,
+      `${executionContract}\n\n## Phase 5: Report to User`,
     );
     text = text.replaceAll('Background Execution', 'Reviewer Execution');
     text = text.replaceAll('Wait & Coordinate', 'Validate & Coordinate');

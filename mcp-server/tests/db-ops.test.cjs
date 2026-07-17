@@ -11,7 +11,7 @@ const Database = require('better-sqlite3');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const CLI = path.join(REPO_ROOT, 'ultra-tools', 'cli.cjs');
-const { initStateDb, closeStateDb } = require('../lib/state-db.cjs');
+const { EXPECTED_VERSION, initStateDb, closeStateDb } = require('../lib/state-db.cjs');
 const ops = require('../lib/state-ops.cjs');
 
 function tmpDir() {
@@ -97,8 +97,8 @@ test('db backup writes a file that opens independently with the same schema', ()
 
     // Independently open the backup with a fresh connection
     const snap = new Database(backupPath);
-    const v = snap.prepare("SELECT version FROM schema_version").get();
-    assert.equal(v.version, '4.5');
+    const v = snap.prepare('SELECT version FROM schema_version WHERE version = ?').get(EXPECTED_VERSION);
+    assert.equal(v.version, EXPECTED_VERSION);
     const t = snap.prepare("SELECT id FROM tasks WHERE id = 'b-1'").get();
     assert.equal(t.id, 'b-1');
     snap.close();
