@@ -802,11 +802,39 @@ function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {
     removeTree(cliBuildRoot);
   }
 
+  const runtimeBootstrap = runtime === 'kimi' ? `
+const fs = require('node:fs');
+const pluginRoot = path.resolve(__dirname, '..');
+
+function usableProjectRoot(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const candidate = path.resolve(value);
+  if (candidate === pluginRoot || candidate.startsWith(pluginRoot + path.sep)) return null;
+  try {
+    return fs.statSync(candidate).isDirectory() ? candidate : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+if (!process.env.UBP_ROOT_DIR) {
+  const rootDir = usableProjectRoot(process.cwd()) || usableProjectRoot(process.env.PWD);
+  if (!rootDir) {
+    throw new Error('Kimi Ultra MCP could not resolve the active project root; start Kimi from the project directory');
+  }
+  process.env.UBP_ROOT_DIR = rootDir;
+}
+if (!process.env.UBP_DB_PATH) {
+  process.env.UBP_DB_PATH = path.join(process.env.UBP_ROOT_DIR, '.ultra', 'state.db');
+}
+` : '';
+
   const launcher = `'use strict';
 
 const path = require('node:path');
 
 process.env.UBP_RUNTIME_ROOT = path.resolve(__dirname, '..');
+${runtimeBootstrap}
 
 const { main } = require('./index.cjs');
 

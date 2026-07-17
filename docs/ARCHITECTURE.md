@@ -10,7 +10,7 @@
 
 `ultra-builder-pro-cli` is a multi-runtime plugin suite that **distributes** the
 Ultra Builder Pro engineering loop (skills + commands + workflow hooks) as
-native Claude Code, OpenCode, and Codex plugins, and
+native Claude Code, OpenCode, Codex, and Kimi Code plugins, and
 **runs** that loop with isolated sessions sharing one authoritative state
 store (`.ultra/state.db`).
 
@@ -23,7 +23,7 @@ the supported hosts share.
                        ┌──────────────────────────┐
                        │       runtime CLI        │
                        │  (claude / opencode /    │
-                       │   codex)                 │
+                       │   codex / kimi)          │
                        └────────────┬─────────────┘
                                     │
                 ┌───────────────────┼────────────────────┐
@@ -156,7 +156,7 @@ backup-first mechanical recovery when explicitly requested.
 
 ## 5. Sessions — the execution unit
 
-A **session** is the standard unit of execution across all three runtimes
+A **session** is the standard unit of execution across all four runtimes
 (D20). One session =
 
 - a fresh OS process for the runtime,
@@ -189,7 +189,7 @@ durable authority alongside `.ultra/state.db`.
 
 ## 7. Installation provenance — read-only cross-host diagnosis
 
-Every Claude Code, OpenCode, and Codex adapter writes a normalized
+Every Claude Code, OpenCode, Codex, and Kimi Code adapter writes a normalized
 `provenance.json` for the assets it owns. The manifest records adapter/package
 identity, source metadata, per-file SHA-256 hashes, an aggregate digest, and the
 host-specific plugin, MCP, hook, launcher, and runtime contracts expected at

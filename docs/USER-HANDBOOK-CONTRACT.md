@@ -15,8 +15,9 @@ syntax:
 | Claude Code | `~/.claude/CLAUDE.md` | `/ultra-plan` |
 | Codex | `~/.codex/AGENTS.md` | `$ultra-builder-pro:ultra-plan` |
 | OpenCode | `~/.config/opencode/AGENTS.md` | `/ultra-plan` |
+| Kimi Code | `~/.kimi-code/AGENTS.md` | `/ultra-builder-pro:ultra-plan` |
 
-The renderer never copies Claude Code-only APIs into Codex or OpenCode. Each
+The renderer never copies Claude Code-only APIs into Codex, OpenCode, or Kimi. Each
 host receives only its native invocation and collaboration names.
 
 ## Managed-block contract
@@ -42,6 +43,7 @@ Preview the full merged result before applying:
 ubp-handbook preview --runtime claude
 ubp-handbook preview --runtime codex
 ubp-handbook preview --runtime opencode
+ubp-handbook preview --runtime kimi
 ```
 
 Apply when the preview is correct:
@@ -50,6 +52,7 @@ Apply when the preview is correct:
 ubp-handbook apply --runtime claude
 ubp-handbook apply --runtime codex
 ubp-handbook apply --runtime opencode
+ubp-handbook apply --runtime kimi
 ```
 
 An existing target is copied to

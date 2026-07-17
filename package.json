@@ -1,7 +1,7 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.8.1",
-  "description": "Multi-runtime installer for the Ultra Builder Pro agent engineering system — deploys commands, agents, skills, hooks, and MCP server to Claude Code, OpenCode, and Codex CLI.",
+  "version": "0.9.0",
+  "description": "Multi-runtime installer for the Ultra Builder Pro agent engineering system — deploys commands, agents, skills, hooks, and MCP server to Claude Code, OpenCode, Codex CLI, and Kimi Code.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
     "ubp": "bin/install.js",
@@ -60,6 +60,7 @@
     "claude-code",
     "opencode",
     "codex",
+    "kimi-code",
     "agent",
     "cli",
     "multi-runtime",
@@ -92,6 +93,7 @@
     "verify:release": "npm run test:all && npm run test:hooks && npm audit --omit=dev --audit-level=high",
     "prepublishOnly": "npm run verify:release",
     "install:claude": "node bin/install.js --claude --local",
+    "install:kimi": "node bin/install.js --kimi --local",
     "install:all": "node bin/install.js --all --local"
   },
   "dependencies": {

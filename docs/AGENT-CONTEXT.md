@@ -1,7 +1,7 @@
 # Ultra Builder Pro — Agent Context
 
-Current shared runtime contract for the native Claude Code, OpenCode, and Codex
-plugins.
+Current shared runtime contract for the native Claude Code, OpenCode, Codex,
+and Kimi Code plugins.
 
 ## 1. Ownership boundary
 
@@ -12,7 +12,8 @@ Ultra Builder Pro owns only:
   `ultra-think`, plus the daily `ultra-change` and diagnostic `ultra-doctor`;
 - four internal agent-only rule skills: `code-review-expert`, `security-rules`,
   `integration-rules`, and `testing-rules`;
-- the host-specific collaboration companions and `ultra-verify`;
+- the host-specific collaboration companions, `ultra-verify`, and the minimal
+  Kimi session bootstrap required to establish the shared runtime boundary;
 - bounded review/debug agents, workflow-only hooks, MCP task state, and the
   portable CLI/orchestrator.
 
@@ -68,6 +69,7 @@ fixtures. Do not add an ad-hoc server handler first.
 | Claude Code | `.claude-plugin/plugin.json`, native commands/skills/agents, `.mcp.json` | `/ultra-*`, `/learn` | native `hooks/hooks.json` | `codex-collab`, `ultra-verify` |
 | Codex | personal plugin with `.codex-plugin/plugin.json`, namespaced skills, TOML agents, `.mcp.json` | `$ultra-builder-pro:ultra-*`, `$ultra-builder-pro:learn` | native `hooks/hooks.json` through the Codex wire adapter | `cc-collab`, `ultra-verify` |
 | OpenCode | config bundle plus native JavaScript plugin | `/ultra-*`, `/learn` | `event`, system transform, compaction, and tool lifecycle handlers | `cc-collab`, `codex-collab`, `ultra-verify` |
+| Kimi Code 0.26+ | managed `kimi.plugin.json` plugin with commands, skills, hooks, and MCP | `/ultra-builder-pro:ultra-*`, `/ultra-builder-pro:learn` | native hooks through the Kimi wire adapter | `cc-collab`, `codex-collab`, `ultra-verify` |
 
 The current host remains primary. Collaboration skills call another runtime
 only when explicitly requested, use it as a read-only advisor, and return the

@@ -29,12 +29,13 @@ const INTERNAL_AGENT_SKILLS = Object.freeze([
   'testing-rules',
 ]);
 
-const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex']);
+const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi']);
 
 const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
   claude: Object.freeze(['codex-collab', 'ultra-verify']),
   codex: Object.freeze(['cc-collab', 'ultra-verify']),
   opencode: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
+  kimi: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
 });
 
 const RETIRED_SKILLS = Object.freeze([

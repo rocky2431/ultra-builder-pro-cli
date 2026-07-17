@@ -14,8 +14,8 @@ const {
 function usage() {
   return [
     'Usage:',
-    '  ubp-handbook preview --runtime <claude|codex|opencode> [--file <path>]',
-    '  ubp-handbook apply   --runtime <claude|codex|opencode> [--file <path>]',
+    '  ubp-handbook preview --runtime <claude|codex|opencode|kimi> [--file <path>]',
+    '  ubp-handbook apply   --runtime <claude|codex|opencode|kimi> [--file <path>]',
     '',
     'The apply command creates a timestamped backup before changing an existing file.',
   ].join('\n');

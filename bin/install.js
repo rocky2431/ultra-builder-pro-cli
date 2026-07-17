@@ -4,14 +4,14 @@
  * ultra-builder-pro-cli — multi-runtime installer.
  *
  * Distributes Ultra Builder Pro assets — commands, agents, skills, hooks,
- * MCP server — to Claude Code, OpenCode, and Codex CLI via
+ * MCP server — to Claude Code, OpenCode, Codex CLI, and Kimi Code via
  * runtime-specific adapters under adapters/. Install is idempotent and
  * uses atomic writes; uninstall reverses via sentinel/manifest blocks.
  *
  * Usage:
  *   npx ultra-builder-pro-cli [options]
  *
- *   --claude / --opencode / --codex              select runtime(s)
+ *   --claude / --opencode / --codex / --kimi     select runtime(s)
  *   --all                                         install to all supported runtimes
  *   -g, --global                                  install to runtime's global config dir
  *   -l, --local                                   install into current working directory
@@ -58,7 +58,7 @@ function printBanner() {
     paint('cyan', '   ╚═════╝ ╚═════╝ ╚═╝         ╚═════╝╚══════╝╚═╝'),
     '',
     `  ${paint('bold', 'Ultra Builder Pro CLI')} ${paint('dim', 'v' + pkg.version)}`,
-    `  ${paint('dim', 'Multi-runtime installer for Claude Code, OpenCode, and Codex')}`,
+    `  ${paint('dim', 'Multi-runtime installer for Claude Code, OpenCode, Codex, and Kimi Code')}`,
     '',
   ];
   console.log(banner.join('\n'));
@@ -71,6 +71,7 @@ function printHelp() {
     ${paint('cyan', '--claude')}           Claude Code
     ${paint('cyan', '--opencode')}         OpenCode
     ${paint('cyan', '--codex')}            Codex CLI (OpenAI)
+    ${paint('cyan', '--kimi')}             Kimi Code (Moonshot AI)
     ${paint('cyan', '--all')}              all supported runtimes
 
   ${paint('yellow', 'Scope:')}
@@ -94,6 +95,9 @@ function printHelp() {
 
     ${paint('dim', '# Uninstall from OpenCode')}
     npx ultra-builder-pro-cli --opencode --global --uninstall
+
+    ${paint('dim', '# Install to Kimi Code globally')}
+    npx ultra-builder-pro-cli --kimi --global
 
     ${paint('dim', '# Verify all host installations without changing them')}
     npx ultra-builder-pro-cli --all --global --doctor
@@ -120,6 +124,7 @@ function parseArgs(argv) {
       case '--claude': runtimes.add('claude'); break;
       case '--opencode': runtimes.add('opencode'); break;
       case '--codex': runtimes.add('codex'); break;
+      case '--kimi': runtimes.add('kimi'); break;
       case '--all':
         SUPPORTED_RUNTIMES.forEach(r => runtimes.add(r));
         break;
@@ -199,7 +204,7 @@ async function main() {
   if (flags.json && !flags.doctor) bail('--json is available only with --doctor');
 
   if (runtimes.length === 0) {
-    bail('no runtime selected; use --claude / --opencode / --codex / --all');
+    bail('no runtime selected; use --claude / --opencode / --codex / --kimi / --all');
   }
 
   const scope = resolveScope(flags);

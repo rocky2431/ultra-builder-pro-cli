@@ -62,7 +62,10 @@ test('runtime asset manifest exposes only Ultra-owned core and internal skills',
   assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.opencode, [
     'cc-collab', 'codex-collab', 'ultra-verify',
   ]);
-  assert.deepEqual(SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex']);
+  assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.kimi, [
+    'cc-collab', 'codex-collab', 'ultra-verify',
+  ]);
+  assert.deepEqual(SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex', 'kimi']);
 
   for (const runtime of SUPPORTED_RUNTIMES) {
     const names = skillsForRuntime(runtime);

@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const stateDb = require('../lib/state-db.cjs');
 
-test('initStateDb upgrades a pre-9.0 database in place with task/event change linkage', () => {
+test('initStateDb upgrades a pre-9.1 database in place with task/event change linkage', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-db-upgrade-'));
   const file = path.join(dir, 'state.db');
   try {
@@ -59,8 +59,8 @@ test('initStateDb upgrades a pre-9.0 database in place with task/event change li
     assert.ok(columns.includes('change_id'));
     const eventColumns = upgraded.db.prepare('PRAGMA table_info(events)').all().map((row) => row.name);
     assert.ok(eventColumns.includes('change_id'));
-    assert.equal(upgraded.schema_version, '9.0');
-    assert.ok(upgraded.db.prepare("SELECT 1 FROM schema_version WHERE version = '9.0'").get());
+    assert.equal(upgraded.schema_version, '9.1');
+    assert.ok(upgraded.db.prepare("SELECT 1 FROM schema_version WHERE version = '9.1'").get());
     stateDb.closeStateDb(upgraded.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

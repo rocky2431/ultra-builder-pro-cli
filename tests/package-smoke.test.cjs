@@ -77,7 +77,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     );
 
     const configRoot = path.join(tempRoot, 'hosts');
-    for (const runtime of ['claude', 'opencode', 'codex']) {
+    for (const runtime of ['claude', 'opencode', 'codex', 'kimi']) {
       const hostRoot = path.join(configRoot, runtime);
       const env = runtime === 'codex' ? { HOME: hostRoot } : {};
       run(ubp, [`--${runtime}`, '--config-dir', hostRoot], {
@@ -96,6 +96,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
       claude: path.join(configRoot, 'claude', 'skills', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
       opencode: path.join(configRoot, 'opencode', '.ultra-builder-pro', 'runtime', 'launch.cjs'),
       codex: path.join(configRoot, 'codex', 'plugins', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
+      kimi: path.join(configRoot, 'kimi', 'plugins', 'managed', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
     };
     for (const [runtime, launcher] of Object.entries(launchers)) {
       assert.ok(fs.existsSync(launcher), `${runtime} launcher missing`);

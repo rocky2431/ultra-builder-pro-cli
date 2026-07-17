@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-07-17
+
+### Added
+
+- Added Kimi Code 0.26+ as a fourth native plugin host with namespaced commands,
+  twenty allowlisted skills including its session bootstrap, lifecycle hooks,
+  bundled review-worker prompt templates, native plugin registration, and
+  read-only install diagnostics.
+- Added packed-package and live MCP conformance coverage for the Kimi-managed
+  plugin layout while preserving unrelated registry entries and `config.toml`.
+
+### Changed
+
+- Advanced `.ultra/state.db` to schema `9.1` so Kimi is a valid runtime for
+  events and sessions. Existing databases rebuild only the constrained tables
+  transactionally while preserving rows, foreign keys, telemetry, incidents,
+  and migration history.
+- Extended CLI, handbook, orchestrator runtime selection, package metadata, and
+  runtime compatibility documentation to include Kimi without reintroducing
+  Ultra-owned memory, graph, browser, deployment, or framework capabilities.
+
+### Fixed
+
+- Made the Kimi MCP launcher recover the active project from the inherited
+  working-directory contract even though Kimi starts plugin MCP processes from
+  the managed plugin root. It fails closed instead of creating `.ultra` inside
+  the installed plugin.
+- Avoided Kimi's embedded Node native-module ABI mismatch by launching the
+  bundled MCP with the installer-compatible Node executable from `PATH`.
+
 ## [0.8.1] — 2026-07-17
 
 ### Fixed
@@ -332,7 +362,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.6.0...v0.7.0

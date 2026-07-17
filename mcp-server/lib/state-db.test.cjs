@@ -9,11 +9,13 @@ const path = require('node:path');
 const {
   EXPECTED_VERSION,
   REQUIRED_TABLES,
+  SCHEMA_FILE,
   initStateDb,
   closeStateDb,
   openStateDb,
   tableNames,
 } = require('./state-db.cjs');
+const stateOps = require('./state-ops.cjs');
 
 function tmpDbPath(prefix = 'ubp-state') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
@@ -110,6 +112,60 @@ test('Phase 8A.1 schema: tasks.parent_id column + tasks_parent partial index + s
     assert.equal(parentFk.on_delete, 'SET NULL');
 
     closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('initStateDb migrates existing runtime constraints to Kimi without losing references', () => {
+  const { dir, file } = tmpDbPath('ubp-kimi-runtime-upgrade');
+  try {
+    const legacy = openStateDb(file);
+    const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
+    legacy.exec(legacySchema);
+    legacy.prepare("DELETE FROM schema_version WHERE version = '9.1'").run();
+    legacy.prepare(
+      "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
+    ).run();
+    legacy.prepare(
+      `INSERT INTO sessions
+       (sid, task_id, runtime, worktree_path, artifact_dir, lease_expires_at)
+       VALUES ('session-old', 'task-old', 'codex', '/tmp/worktree', '/tmp/artifacts', '2099-01-01T00:00:00.000Z')`,
+    ).run();
+    legacy.prepare(
+      "INSERT INTO telemetry (session_id, event_type, tool_name) VALUES ('session-old', 'tool_call', 'task.list')",
+    ).run();
+    legacy.prepare(
+      `INSERT INTO incidents
+       (id, code, severity, message, session_id)
+       VALUES ('incident-old', 'OLD', 'warning', 'preserve me', 'session-old')`,
+    ).run();
+    legacy.prepare(
+      "INSERT INTO events (type, session_id, runtime) VALUES ('session_spawned', 'session-old', 'codex')",
+    ).run();
+    closeStateDb(legacy);
+
+    const upgraded = initStateDb(file);
+    assert.equal(upgraded.schema_version, '9.1');
+    assert.equal(upgraded.db.prepare("SELECT runtime FROM sessions WHERE sid = 'session-old'").get().runtime, 'codex');
+    assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM telemetry WHERE session_id = 'session-old'").get().n, 1);
+    assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM incidents WHERE session_id = 'session-old'").get().n, 1);
+    assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
+
+    upgraded.db.prepare(
+      "INSERT INTO tasks (id, title, type, priority) VALUES ('task-kimi', 'Kimi', 'feature', 'P1')",
+    ).run();
+    const session = stateOps.createSession(upgraded.db, {
+      sid: 'session-kimi',
+      task_id: 'task-kimi',
+      runtime: 'kimi',
+      worktree_path: '/tmp/kimi-worktree',
+      artifact_dir: '/tmp/kimi-artifacts',
+    });
+    assert.equal(session.runtime, 'kimi');
+    const event = stateOps.appendEvent(upgraded.db, { type: 'kimi-ready', runtime: 'kimi' });
+    assert.ok(event.event_id > 0);
+    closeStateDb(upgraded.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

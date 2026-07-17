@@ -64,6 +64,19 @@ const RUNTIMES = [
       'ultra-builder-pro/provenance.json',
     ],
   },
+  {
+    flag: '--kimi',
+    name: 'kimi',
+    expectRelPaths: [
+      'plugins/managed/ultra-builder-pro/kimi.plugin.json',
+      'plugins/managed/ultra-builder-pro/commands',
+      'plugins/managed/ultra-builder-pro/skills',
+      'plugins/managed/ultra-builder-pro/hooks/adapters/kimi.py',
+      'plugins/managed/ultra-builder-pro/runtime/launch.cjs',
+      'plugins/managed/ultra-builder-pro/provenance.json',
+      'plugins/installed.json',
+    ],
+  },
 ];
 
 for (const rt of RUNTIMES) {
@@ -91,7 +104,7 @@ for (const rt of RUNTIMES) {
 
 test('install.js — --all fans out to every supported runtime', () => {
   const target = mkTarget('all');
-  const localRoots = { claude: '.claude', opencode: '.opencode', codex: '' };
+  const localRoots = { claude: '.claude', opencode: '.opencode', codex: '', kimi: '.kimi-code' };
   try {
     const installed = runCli(['--all', '--local'], { cwd: target, homeDir: target });
     assert.equal(installed.status, 0, `--all install stderr:\n${installed.stderr}`);
@@ -141,7 +154,7 @@ test('install.js — doctor verifies all host provenance and reports managed-ass
     assert.equal(healthyReport.status, 'healthy');
     assert.deepEqual(
       healthyReport.reports.map((report) => [report.adapter, report.status]),
-      [['claude', 'healthy'], ['opencode', 'healthy'], ['codex', 'healthy']],
+      [['claude', 'healthy'], ['opencode', 'healthy'], ['codex', 'healthy'], ['kimi', 'healthy']],
     );
 
     const managedHook = path.join(
@@ -200,6 +213,14 @@ test('install.js — argument parsing errors fail with exit 1', () => {
   const retiredRuntime = runCli([retiredFlag, '--local']);
   assert.equal(retiredRuntime.status, 1);
   assert.match(retiredRuntime.stderr, /unknown flag/);
+
+  const kimiTarget = mkTarget('kimi-parse');
+  try {
+    const kimi = runCli(['--kimi', '--config-dir', kimiTarget, '--doctor', '--json']);
+    assert.notEqual(kimi.status, 1, kimi.stderr);
+  } finally {
+    cleanup(kimiTarget);
+  }
 
   const conflictingModes = runCli(['--claude', '--doctor', '--uninstall']);
   assert.equal(conflictingModes.status, 1);

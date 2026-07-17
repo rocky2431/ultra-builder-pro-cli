@@ -61,12 +61,12 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '9.0'").get();
-if (v && v.version === '9.0') {
-  console.log('ok schema_version includes 9.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '9.1'").get();
+if (v && v.version === '9.1') {
+  console.log('ok schema_version includes 9.1');
   pass++;
 } else {
-  console.error(`FAIL schema_version 9.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 9.1: got ${JSON.stringify(v)}`);
   fail++;
 }
 

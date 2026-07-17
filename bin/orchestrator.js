@@ -47,7 +47,7 @@ function optInAllowed(settings) {
 }
 
 function parseRuntimes() {
-  const raw = process.env.UBP_ORCH_RUNTIMES || 'claude,opencode,codex';
+  const raw = process.env.UBP_ORCH_RUNTIMES || 'claude,opencode,codex,kimi';
   const runtimes = [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))];
   const invalid = runtimes.filter((runtime) => !isSupportedRuntime(runtime));
   if (invalid.length > 0) {

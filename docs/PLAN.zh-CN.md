@@ -6,12 +6,12 @@
 > 插件只保留 12 个 Ultra 公共 workflow（新增 daily `ultra-change` 与诊断
 > `ultra-doctor`）、4 个 agent-only 规则 skill、宿主专属 collab companion、
 > workflow/change hook 与 `.ultra/state.db` 权威。Memory 和代码图谱内容全部由外部
-> provider 所有，Ultra 只保存 provider 元数据引用。Claude Code、Codex、OpenCode
-> 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
+> provider 所有，Ultra 只保存 provider 元数据引用。Claude Code、Codex、OpenCode、
+> Kimi Code 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
 > memory/hindsight 章节仅作为历史实施记录，不再是当前需求或运行时契约。
 
-**当前状态**：v0.8.1；三宿主 native plugin、29 个 live MCP tool、
-schema 9.0（15 表）、持续 change/context/convergence/doctor、incident debug lane、
+**当前状态**：v0.9.0；四宿主 native plugin、29 个 live MCP tool、
+schema 9.1（15 表）、持续 change/context/convergence/doctor、incident debug lane、
 checkpoint 恢复消费与跨宿主安装 provenance/doctor 已落地；npm 发布由
 `v*.*.*` tag 触发。以下 Phase 0-9 正文保留为 2026-04 的实施历史，不再作为
 当前 runtime 或发布状态的事实来源。

@@ -367,7 +367,7 @@ tools:
         task_id:    { type: string }
         change_id:  { type: string }
         session_id: { type: string }
-        runtime:    { type: string, enum: [claude, opencode, codex] }
+        runtime:    { type: string, enum: [claude, opencode, codex, kimi] }
         type:
           type: string
           enum:
@@ -452,7 +452,7 @@ tools:
       additionalProperties: false
       properties:
         task_id:  { type: string }
-        runtime:  { type: string, enum: [claude, opencode, codex] }
+        runtime:  { type: string, enum: [claude, opencode, codex, kimi] }
         takeover: { type: boolean, default: false, description: 'override active lease (D33 takeover strategy)' }
         worktree_base: { type: string }
     output_schema:
@@ -554,7 +554,7 @@ tools:
       additionalProperties: false
       properties:
         task_id: { type: string }
-        runtime: { type: string, enum: [claude, opencode, codex] }
+        runtime: { type: string, enum: [claude, opencode, codex, kimi] }
     output_schema:
       type: object
       required: [can_spawn, recommended_action]

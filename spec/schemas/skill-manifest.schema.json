@@ -19,10 +19,10 @@
     },
     "runtime": {
       "oneOf": [
-        { "type": "string", "enum": ["claude", "opencode", "codex", "all"] },
+        { "type": "string", "enum": ["claude", "opencode", "codex", "kimi", "all"] },
         {
           "type": "array",
-          "items": { "type": "string", "enum": ["claude", "opencode", "codex"] },
+          "items": { "type": "string", "enum": ["claude", "opencode", "codex", "kimi"] },
           "minItems": 1,
           "uniqueItems": true
         }

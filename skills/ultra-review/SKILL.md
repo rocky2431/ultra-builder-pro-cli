@@ -1,6 +1,6 @@
 ---
 name: ultra-review
-description: "Parallel code review orchestration with 6 specialized agents + coordinator. Zero context pollution - all output via JSON files."
+description: "Parallel code review orchestration with 5 specialized reviewers + coordinator. Zero context pollution - all output via JSON files."
 user-invocable: true
 runtime: all
 mcp_tools_required:
@@ -32,7 +32,7 @@ Orchestrates parallel code review using specialized agents. All findings written
 
 ```
 /ultra-review              # Full review (smart skip based on diff content)
-/ultra-review all          # Force ALL 6 agents, no auto-skip (pre-merge gate)
+/ultra-review all          # Force ALL 5 reviewers, no auto-skip (pre-merge gate)
 /ultra-review quick        # Quick review (review-code only)
 /ultra-review security     # Security focus (review-code + review-errors)
 /ultra-review tests        # Test quality focus (review-tests only)
@@ -138,7 +138,7 @@ echo "<diff_files>" | grep -E "\.(test|spec)\.(ts|tsx|js|jsx)$|test_.*\.py$|.*_t
 grep -l "try\|catch\|\.catch\|throw\|Error(" <diff_files>
 ```
 
-**Mode: `all`** → Force ALL 6 agents, no auto-skip. Use for pre-merge gates (`/ultra-dev`).
+**Mode: `all`** → Force ALL 5 reviewers, no auto-skip. Use for pre-merge gates (`/ultra-dev`).
 **Mode: `quick`** → review-code only
 **Mode: `security`** → review-code + review-errors
 **Mode: `tests`** → review-tests only

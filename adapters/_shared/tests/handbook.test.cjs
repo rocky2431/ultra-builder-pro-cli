@@ -19,11 +19,15 @@ test('renders one common contract with host-native invocation syntax', () => {
   const claude = renderHandbook('claude');
   const codex = renderHandbook('codex');
   const opencode = renderHandbook('opencode');
+  const kimi = renderHandbook('kimi');
 
   assert.match(claude, /\/ultra-plan/);
   assert.match(codex, /\$ultra-builder-pro:ultra-plan/);
   assert.match(opencode, /\/ultra-plan/);
-  for (const rendered of [claude, codex, opencode]) {
+  assert.match(kimi, /\/ultra-builder-pro:ultra-plan/);
+  assert.match(kimi, /Kimi Code/);
+  assert.match(kimi, /AgentSwarm/);
+  for (const rendered of [claude, codex, opencode, kimi]) {
     assert.match(rendered, /\.ultra\/state\.db/);
     assert.match(rendered, /Separately installed providers/);
     assert.match(rendered, /ultra-change/);
@@ -86,4 +90,5 @@ test('default handbook paths are host-specific', () => {
   assert.equal(resolveHandbookFile('claude', { homeDir }), path.join(homeDir, '.claude', 'CLAUDE.md'));
   assert.equal(resolveHandbookFile('codex', { homeDir }), path.join(homeDir, '.codex', 'AGENTS.md'));
   assert.equal(resolveHandbookFile('opencode', { homeDir }), path.join(homeDir, '.config', 'opencode', 'AGENTS.md'));
+  assert.equal(resolveHandbookFile('kimi', { homeDir }), path.join(homeDir, '.kimi-code', 'AGENTS.md'));
 });

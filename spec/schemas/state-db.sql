@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS events (
   task_id       TEXT,
   change_id     TEXT,
   session_id    TEXT,
-  runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex')),
+  runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex', 'kimi')),
   payload_json  TEXT
 );
 
@@ -95,7 +95,7 @@ CREATE INDEX IF NOT EXISTS events_change  ON events(change_id, id);
 CREATE TABLE IF NOT EXISTS sessions (
   sid               TEXT PRIMARY KEY,
   task_id           TEXT NOT NULL REFERENCES tasks(id),
-  runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex')),
+  runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex', 'kimi')),
   pid               INTEGER,
   worktree_path     TEXT NOT NULL,
   artifact_dir      TEXT NOT NULL,
@@ -272,3 +272,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('8A.2', 'Phase 8A.2 — tasks.estimated_days preserved across MCP and v4.4 migration');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('9.0', 'Continuous change units, context snapshots, trace links, incidents, projection outbox, and durable consumers');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('9.1', 'Kimi runtime support in durable events and sessions');

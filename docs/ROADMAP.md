@@ -6,14 +6,14 @@
 > when historical plan text differs.
 
 **Goal**: distribute the Ultra Builder Pro engineering loop as native Claude
-Code, OpenCode, and Codex plugins, and run it with isolated sessions sharing one
-authoritative workflow store.
+Code, OpenCode, Codex, and Kimi Code plugins, and run it with isolated sessions
+sharing one authoritative workflow store.
 
-**First-class runtimes**: Claude Code · OpenCode · Codex.
+**First-class runtimes**: Claude Code · OpenCode · Codex · Kimi Code.
 
 **Distribution channels (v1.0)**: npm · Homebrew · pip.
 
-**Release line**: `0.7.x`; every release is gated by `npm run verify:release`.
+**Release line**: `0.9.x`; every release is gated by `npm run verify:release`.
 
 ---
 

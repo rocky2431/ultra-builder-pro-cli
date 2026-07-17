@@ -36,8 +36,8 @@ test('initProject copies bundled template into .ultra/', () => {
     assert.ok(fs.existsSync(r.state_db_path));
     const db = new Database(r.state_db_path, { readonly: true });
     try {
-      const version = db.prepare("SELECT version FROM schema_version WHERE version = '9.0'").get();
-      assert.equal(version.version, '9.0');
+      const version = db.prepare("SELECT version FROM schema_version WHERE version = '9.1'").get();
+      assert.equal(version.version, '9.1');
       assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name = 'changes'").get());
     } finally {
       db.close();

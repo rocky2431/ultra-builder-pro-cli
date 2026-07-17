@@ -2,13 +2,13 @@
 
 Multi-runtime plugin suite + autonomous coding factory for the Ultra Builder Pro
 agent engineering system. It ships native plugins for **Claude Code · OpenCode ·
-Codex** and orchestrates PRD →
+Codex · Kimi Code** and orchestrates PRD →
 dependency graph → parallel session execution → auto-merge with a single
 authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.8.1-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.9.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -21,8 +21,9 @@ authoritative `.ultra/state.db`.
 
 ## What it does
 
-- **Builds host-native plugins from one allowlist.** Claude Code, OpenCode, and
-  Codex receive their own command/skill, agent, hook, and MCP representation.
+- **Builds host-native plugins from one allowlist.** Claude Code, OpenCode,
+  Codex, and Kimi Code receive their own command/skill, agent, hook, and MCP
+  representation.
   Install and uninstall are symmetric on every supported host; `ubp --doctor`
   verifies the installed asset hashes and host entry points without mutation.
 - **Shares state across runtimes.** `.ultra/state.db` (SQLite + WAL) is the
@@ -51,12 +52,14 @@ authoritative `.ultra/state.db`.
 npx ultra-builder-pro-cli --claude   --local
 npx ultra-builder-pro-cli --opencode --local
 npx ultra-builder-pro-cli --codex    --local
+npx ultra-builder-pro-cli --kimi     --local
 
 # Or blanket-install to every supported runtime you have
 npx ultra-builder-pro-cli --all --local
 
 # Global (into the runtime's ~/.config-style dir)
 npx ultra-builder-pro-cli --claude --global
+npx ultra-builder-pro-cli --kimi   --global
 
 # Uninstall (symmetric)
 npx ultra-builder-pro-cli --all --local --uninstall
@@ -70,7 +73,10 @@ After install, start a new host session/task and point it at the project.
 Claude Code and OpenCode expose native command forms. Codex exposes the same workflows as namespaced plugin
 skills such as `$ultra-builder-pro:ultra-init`, `$ultra-builder-pro:ultra-plan`,
 and `$ultra-builder-pro:ultra-dev`; `command-map.json` records the eleven legacy
-command mappings (`ultra-review` remains a directly invocable skill).
+command mappings (`ultra-review` remains a directly invocable skill). Kimi Code
+uses native namespaced commands such as `/ultra-builder-pro:ultra-init` and
+`/ultra-builder-pro:ultra-plan`; run `/reload` or start a new Kimi session after
+install or update.
 See [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
 for per-runtime capabilities.
 
@@ -91,20 +97,21 @@ Host's native surfaces; the generated Codex capability map documents those
 replacements without advertising non-existent MCP tools.
 
 The package boundary is deliberate: twelve public Ultra workflow skills, four
-internal review-rule skills, and host-specific collaboration companions. Browser,
-deployment, skill-discovery, and framework guidance belong to their original plugins.
+internal review-rule skills, host-specific collaboration companions, and the
+minimal host bootstrap required by Kimi. Browser, deployment, skill-discovery,
+and framework guidance belong to their original plugins.
 
 ## Runtime capability matrix
 
-| Feature                      | Claude Code | OpenCode | Codex CLI |
-|------------------------------|:-----------:|:--------:|:---------:|
-| Custom commands              | ✅          | ✅       | ✅        |
-| Skill loader                 | ✅          | ✅       | ✅ (personal plugin) |
-| MCP server (stdio)           | ✅          | ✅       | ✅ (plugin `.mcp.json`) |
-| Workflow hooks               | ✅ (native plugin) | ✅ (native JS plugin) | ✅ (native plugin) |
-| Sub-agents                   | ✅          | ✅       | ✅ (9 native TOML agents) |
-| Session worktree isolation   | ✅ (driven by `orchestrator/session-runner.cjs`) | ✅ | ✅ |
-| Parallel dispatch + auto-merge | ✅ (`ubp-orchestrator run`) | ✅ | ✅ |
+| Feature                      | Claude Code | OpenCode | Codex CLI | Kimi Code 0.26+ |
+|------------------------------|:-----------:|:--------:|:---------:|:---------------:|
+| Custom commands              | ✅          | ✅       | ✅        | ✅ (namespaced) |
+| Skill loader                 | ✅          | ✅       | ✅ (personal plugin) | ✅ (native plugin) |
+| MCP server (stdio)           | ✅          | ✅       | ✅ (plugin `.mcp.json`) | ✅ (`mcpServers`) |
+| Workflow hooks               | ✅ (native plugin) | ✅ (native JS plugin) | ✅ (native plugin) | ✅ with documented compact limitation |
+| Sub-agents                   | ✅          | ✅       | ✅ (9 native TOML agents) | ✅ via `Agent` / `AgentSwarm` prompt templates |
+| Session worktree isolation   | ✅ (driven by `orchestrator/session-runner.cjs`) | ✅ | ✅ | ✅ |
+| Parallel dispatch + auto-merge | ✅ (`ubp-orchestrator run`) | ✅ | ✅ | ✅ |
 
 Full details in [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
 (10 sections, with per-runtime deviations called out).
@@ -131,14 +138,15 @@ ultra-tools system doctor
 Or let the skills drive it. In Codex, invoke
 `$ultra-builder-pro:ultra-plan` → `$ultra-builder-pro:ultra-dev` →
 `$ultra-builder-pro:ultra-status`; after the baseline is delivered, daily work
-starts with `$ultra-builder-pro:ultra-change`. Other runtimes retain their
-native command form.
+starts with `$ultra-builder-pro:ultra-change`. Kimi uses the corresponding
+`/ultra-builder-pro:ultra-*` namespace. Other runtimes retain their native
+command form.
 
 ## CLI surface
 
 | Binary | Purpose |
 |--------|---------|
-| `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --all`, `--local / --global`, `--uninstall`; read-only install checks via `--doctor [--json]` |
+| `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --kimi / --all`, `--local / --global`, `--uninstall`; read-only install checks via `--doctor [--json]` |
 | `ubp-orchestrator` | Session dispatch daemon — `run`, `start`, `stop`, `status` |
 | `ultra-tools` | State-layer CLI — `task`, `session`, `status`, `db`, `migrate`; explicit `legacy-memory` archive/prune migration |
 | `ubp-handbook` | Preview/apply the managed Ultra contract in `CLAUDE.md` / `AGENTS.md`, with backup |
@@ -168,10 +176,16 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
   and `node -e "require('./orchestrator/worktree-manager.cjs').releaseAll(process.cwd())"`
   cleans them up.
 - **Installed commands don't show up**: check the runtime's actual config
-  dir (`ultra-builder-pro-cli --<runtime> --local` only writes to `./.claude`
-  or `./.opencode` etc.; `--global` writes to the user-level dir). The
+  dir (`ultra-builder-pro-cli --<runtime> --local` writes to the host-specific
+  project dir such as `./.claude`, `./.opencode`, or `./.kimi-code`;
+  `--global` writes to the user-level dir). The
   install log prints the exact target path. Restart Claude Code/OpenCode or
-  start a new Codex task after changing an installed plugin.
+  start a new Codex task after changing an installed plugin. In Kimi Code,
+  run `/reload` or start a new session.
+- **Kimi MCP reports a native-module ABI error**: Kimi 0.26/0.27 embeds a different
+  Node ABI from the package installer. The generated plugin intentionally runs
+  the MCP with `env node`; keep a Node.js `>=22` executable on `PATH` when
+  starting Kimi.
 - **Installed hook/MCP path is missing or stale**: run
   `npx ultra-builder-pro-cli --<runtime> --local --doctor` first. It compares
   the recorded install provenance with current asset hashes and validates the

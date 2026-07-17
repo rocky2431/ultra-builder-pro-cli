@@ -32,6 +32,13 @@ const HOSTS = Object.freeze({
     collaboration: '`/cc-collab` and `/codex-collab` are explicitly requested read-only advisors',
     coordination: 'OpenCode session coordination does not replace Ultra task state',
   }),
+  kimi: Object.freeze({
+    name: 'Kimi Code',
+    handbook: ['.kimi-code', 'AGENTS.md'],
+    invocation: '`/ultra-builder-pro:ultra-init`, `/ultra-builder-pro:ultra-research`, `/ultra-builder-pro:ultra-plan`, `/ultra-builder-pro:ultra-change`, `/ultra-builder-pro:ultra-dev`, `/ultra-builder-pro:ultra-test`, `/ultra-builder-pro:ultra-review`, and `/ultra-builder-pro:ultra-deliver`; diagnostics use `/ultra-builder-pro:ultra-status`, `/ultra-builder-pro:ultra-think`, and `/ultra-builder-pro:ultra-doctor`',
+    collaboration: '`/skill:cc-collab` and `/skill:codex-collab` are explicitly requested read-only advisors',
+    coordination: 'Kimi `TodoList` and `Agent` / `AgentSwarm` are host coordination; they do not replace Ultra task state',
+  }),
 });
 
 function host(runtime) {
@@ -57,7 +64,7 @@ function renderHandbook(runtime) {
     '- Hook boundary: Ultra hooks observe workflow/change lifecycle only. Health/context may run when `.ultra/state.db` exists; projection protection is always authoritative, while edit/compact/stop/subagent enforcement remains active-workflow scoped. Generic command blocking and post-edit policy stay in user or repository governance.',
     '- Installation boundary: `ubp --doctor` is the read-only authority for installed asset provenance, content hashes, and host entry-point wiring; `system.doctor` remains scoped to project state and workflow recovery.',
     '- Agent boundary: the bundled review and debugging agents are bounded workers. They use the current checkout and parent-supplied context, do not own private persistent state, and never replace the primary agent.',
-    '- Package boundary: only the twelve Ultra workflows, four internal review-rule skills, and host-specific collaboration companions belong to this plugin. General browser, deployment, discovery, and framework skills must be installed from their owners.',
+    '- Package boundary: only the twelve Ultra workflows, four internal review-rule skills, host-specific collaboration companions, and the minimal host bootstrap belong to this plugin. General browser, deployment, discovery, and framework skills must be installed from their owners.',
     END_MARKER,
   ].join('\n');
 }
