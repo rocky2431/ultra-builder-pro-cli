@@ -10,7 +10,7 @@
 > Kimi Code 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
 > memory/hindsight 章节仅作为历史实施记录，不再是当前需求或运行时契约。
 
-**当前状态**：v0.12.0；四宿主 native plugin、36 个 live MCP tool、
+**当前状态**：v0.12.1；四宿主 native plugin、36 个 live MCP tool、
 schema 11.0（17 表）、portable Skill authoring contract、双轴 review、
 Context Spine v2 / breadcrumb / spec-learning、持续 change/context/convergence/doctor、incident debug lane、
 checkpoint 恢复消费与跨宿主安装 provenance/doctor 已落地；npm 发布由

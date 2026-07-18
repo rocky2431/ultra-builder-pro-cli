@@ -121,6 +121,8 @@ paste-cache/
 # Task tracking (local)
 tasks/
 !spec/fixtures/**/tasks/
+!/.ultra-template/tasks/
+!/.ultra-template/tasks/**
 
 # Security warnings state (session-specific)
 security_warnings_state_*.json

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-07-18
+
+### Fixed
+
+- Fixed the published project scaffold so its task projection and neutral context
+  template are tracked on fresh checkouts instead of being hidden by a broad ignore
+  rule; the seed projection now uses the authoritative v4.5 state contract.
+
 ## [0.12.0] — 2026-07-18
 
 ### Added
@@ -482,7 +490,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.9.0...v0.10.0
