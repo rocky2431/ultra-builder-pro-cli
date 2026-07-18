@@ -70,7 +70,7 @@ ultra-tools/                ← CLI fallback, migration, and diagnostics
 ├── cli.cjs
 └── commands/
     ├── db.cjs              (init/checkpoint/vacuum/integrity/backup)
-    ├── migrate.cjs         (v4.4 → v4.5 + dry/rollback)
+    ├── migrate.cjs         (v4.4 projection → v4.5 authority; v4.5 projection → schema 12; dry/rollback)
     └── legacy-memory.cjs   (explicit inspect/archive/confirmed prune)
 
 bin/install.js              ← multi-runtime installer

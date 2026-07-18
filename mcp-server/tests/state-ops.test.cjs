@@ -20,6 +20,13 @@ function freshDb() {
   return { ...t, db: init.db };
 }
 
+function seedChange(db, id, status = 'active') {
+  db.prepare(
+    `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+     VALUES (?, ?, 'quick', ?, ?, ?)`,
+  ).run(id, `Change ${id}`, status, `Intent for ${id}.`, `.ultra/changes/active/${id}`);
+}
+
 test('createTask inserts a row, preserves estimated_days, defaults status=pending, emits task_created', () => {
   const { dir, db } = freshDb();
   try {
@@ -61,6 +68,107 @@ test('createTask rejects duplicates with DUPLICATE_TASK_ID', () => {
     );
     closeStateDb(db);
   } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('createTask preserves parent change ownership and rejects terminal change targets', () => {
+  const { dir, db } = freshDb();
+  try {
+    seedChange(db, 'change-a');
+    seedChange(db, 'change-b');
+    seedChange(db, 'change-closed', 'archived');
+    ops.createTask(db, {
+      id: 'parent-owned', title: 'owned parent', type: 'feature', priority: 'P1',
+      change_id: 'change-a',
+    });
+    const inherited = ops.createTask(db, {
+      id: 'child-inherited', title: 'inherited child', type: 'feature', priority: 'P1',
+      parent_id: 'parent-owned',
+    });
+    assert.equal(inherited.change_id, 'change-a');
+    assert.throws(
+      () => ops.createTask(db, {
+        id: 'child-mismatch', title: 'mismatched child', type: 'feature', priority: 'P1',
+        parent_id: 'parent-owned', change_id: 'change-b',
+      }),
+      (error) => error.code === 'TASK_CHANGE_OWNERSHIP_MISMATCH',
+    );
+    assert.throws(
+      () => ops.createTask(db, {
+        id: 'child-orphan', title: 'orphan child', type: 'feature', priority: 'P1',
+        parent_id: 'missing-parent',
+      }),
+      (error) => error.code === 'TASK_NOT_FOUND',
+    );
+    assert.throws(
+      () => ops.createTask(db, {
+        id: 'closed-change-task', title: 'closed change task', type: 'feature', priority: 'P1',
+        change_id: 'change-closed',
+      }),
+      (error) => error.code === 'CHANGE_NOT_MUTABLE',
+    );
+  } finally {
+    closeStateDb(db);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('patchTask keeps established ownership immutable and rejects terminal-change writes', () => {
+  const { dir, db } = freshDb();
+  try {
+    seedChange(db, 'change-a');
+    seedChange(db, 'change-b');
+    seedChange(db, 'change-ready', 'ready');
+    ops.createTask(db, {
+      id: 'patch-parent', title: 'patch parent', type: 'feature', priority: 'P1',
+      change_id: 'change-a',
+    });
+    ops.createTask(db, {
+      id: 'patch-child', title: 'patch child', type: 'feature', priority: 'P1',
+      parent_id: 'patch-parent',
+    });
+    assert.throws(
+      () => ops.patchTask(db, 'patch-child', { change_id: null }),
+      (error) => error.code === 'TASK_CHANGE_OWNERSHIP_MISMATCH',
+    );
+    assert.throws(
+      () => ops.patchTask(db, 'patch-child', { change_id: 'change-b' }),
+      (error) => error.code === 'TASK_CHANGE_OWNERSHIP_MISMATCH',
+    );
+    assert.throws(
+      () => ops.patchTask(db, 'patch-parent', { change_id: 'change-b' }),
+      (error) => error.code === 'TASK_CHANGE_OWNERSHIP_MISMATCH',
+    );
+    const root = ops.createTask(db, {
+      id: 'patch-root', title: 'owned root', type: 'feature', priority: 'P1',
+      change_id: 'change-a',
+    });
+    assert.equal(root.change_id, 'change-a');
+    assert.throws(
+      () => ops.patchTask(db, 'patch-root', { change_id: null }),
+      (error) => error.code === 'TASK_CHANGE_OWNERSHIP_MISMATCH',
+    );
+    assert.throws(
+      () => ops.patchTask(db, 'patch-root', { change_id: 'change-b' }),
+      (error) => error.code === 'TASK_CHANGE_OWNERSHIP_MISMATCH',
+    );
+    const standalone = ops.createTask(db, {
+      id: 'patch-standalone', title: 'patch standalone', type: 'feature', priority: 'P1',
+    });
+    assert.equal(standalone.change_id, null);
+    assert.equal(ops.patchTask(db, 'patch-standalone', { change_id: 'change-b' }).change_id, 'change-b');
+    assert.throws(
+      () => ops.patchTask(db, 'patch-root', { change_id: 'change-ready' }),
+      (error) => error.code === 'TASK_CHANGE_OWNERSHIP_MISMATCH',
+    );
+    db.prepare("UPDATE changes SET status = 'archived' WHERE id = 'change-a'").run();
+    assert.throws(
+      () => ops.patchTask(db, 'patch-root', { priority: 'P0' }),
+      (error) => error.code === 'CHANGE_NOT_MUTABLE',
+    );
+  } finally {
+    closeStateDb(db);
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

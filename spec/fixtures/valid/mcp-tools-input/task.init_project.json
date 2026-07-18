@@ -11,6 +11,7 @@
     "project_name": "fs-app",
     "project_type": "fullstack",
     "stack": "next,postgres",
+    "scope": ["apps/web", "apps/api"],
     "overwrite": true
   },
   {

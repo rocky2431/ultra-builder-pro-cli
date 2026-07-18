@@ -1,0 +1,10 @@
+[
+  { "project_name": "missing mode" },
+  { "project_name": "bad scope", "mode": "brownfield", "scope": [] },
+  { "project_name": "missing replacement authorization", "mode": "brownfield", "replace_ready": true },
+  {
+    "project_name": "authorization without replacement flag",
+    "mode": "brownfield",
+    "replacement_authorization": { "approved_by": "owner", "reason": "new boundary" }
+  }
+]

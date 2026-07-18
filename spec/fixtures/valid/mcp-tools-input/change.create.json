@@ -1,24 +1,36 @@
-{
-  "id": "continuous-change",
-  "title": "Continuous change workflow",
-  "kind": "standard",
-  "intent": "Keep specifications and verification evidence synchronized after initial delivery.",
-  "docs_impact": {
-    "status": "required",
-    "files": ["README.md"],
-    "rationale": "The public workflow changes."
-  },
-  "provider_refs": {
-    "memory": {
-      "provider": "cloud-mem",
-      "project": "ultra-builder-pro",
-      "status": "available"
+[
+  {
+    "id": "continuous-change",
+    "title": "Continuous change workflow",
+    "kind": "standard",
+    "intent": "Keep specifications and verification evidence synchronized after initial delivery.",
+    "docs_impact": {
+      "status": "required",
+      "files": ["README.md"],
+      "rationale": "The public workflow changes."
     },
-    "code_graph": {
-      "provider": "codebase-memory-mcp",
-      "project": "ultra-builder-pro",
-      "indexed_head": "5c08342b9577",
-      "status": "fresh"
+    "provider_refs": {
+      "memory": {
+        "provider": "cloud-mem",
+        "project": "ultra-builder-pro",
+        "status": "available"
+      },
+      "code_graph": {
+        "provider": "codebase-memory-mcp",
+        "project": "ultra-builder-pro",
+        "indexed_head": "5c08342b9577",
+        "status": "fresh"
+      }
+    }
+  },
+  {
+    "id": "production-incident",
+    "title": "Restore the production path",
+    "kind": "incident",
+    "intent": "Diagnose and restore the failed production path while preserving reconciliation evidence.",
+    "baseline_bypass": {
+      "reason": "The baseline migration cannot precede the production recovery.",
+      "approved_by": "incident-commander"
     }
   }
-}
+]

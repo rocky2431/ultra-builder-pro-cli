@@ -9,6 +9,8 @@ const runtime = require('./runtime-state.cjs');
 const projector = require('./projector.cjs');
 const recovery = require('../../orchestrator/recovery.cjs');
 const baselines = require('./baseline-workflow.cjs');
+const changes = require('./change-workflow.cjs');
+const archiveJournal = require('./archive-journal.cjs');
 
 const SPEC_CONSUMER = 'spec-staleness';
 
@@ -49,11 +51,14 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
          WHERE status IN ('active', 'blocked', 'ready') AND artifact_root IS NOT NULL`,
       ).all().filter((row) => row.artifact_root && !fs.existsSync(path.resolve(rootDir, row.artifact_root))).length
     : 0;
+  const archiveIntents = missing.length === 0 ? archiveJournal.listArchiveIntents(rootDir) : [];
+  const corruptArchiveIntents = archiveIntents.filter((item) => item.error).length;
   const baseline = missing.length === 0
     ? baselines.inspectBaseline(db, { rootDir })
     : { status: 'fail', blockers: ['BASELINE_STATE_UNAVAILABLE'], warnings: [], baseline: null };
   const degraded = integrity !== 'ok' || missing.length > 0 || incidents.length > 0
     || pending.length > 0 || running.length > 0 || failed.length > 0 || orphanSessions > 0 || activeMissing > 0
+    || archiveIntents.length > 0
     || eventCursor > projectedCursor;
   return {
     status: degraded ? 'degraded' : 'healthy',
@@ -67,6 +72,10 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
       },
       sessions: { status: orphanSessions === 0 ? 'pass' : 'fail', orphan: orphanSessions },
       change_artifacts: { status: activeMissing === 0 ? 'pass' : 'fail', missing: activeMissing },
+      archive_recovery: {
+        status: archiveIntents.length === 0 ? 'pass' : 'fail',
+        pending: archiveIntents.length, corrupt: corruptArchiveIntents,
+      },
       baseline: {
         status: baseline.status === 'pass' ? 'pass' : 'warning',
         readiness: baseline.status,
@@ -74,6 +83,9 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
         baseline_status: baseline.baseline?.status || null,
         id: baseline.baseline?.id || null,
         repository_revision: baseline.baseline?.repository_revision || null,
+        repository_branch: baseline.baseline?.repository_branch || null,
+        worktree_state: baseline.baseline?.worktree_state || 'unavailable',
+        gaps: baseline.baseline ? baselines.summarizeGaps(baseline.baseline.gaps) : null,
         blockers: baseline.blockers,
         warnings: baseline.warnings,
       },
@@ -100,6 +112,7 @@ async function runDoctor(db, {
 } = {}) {
   if (!repair) return { ...inspectSystem(db, { rootDir }), repair_performed: false };
   const backupPath = await backupDatabase(db, rootDir);
+  const archives = changes.recoverInterruptedArchives(db, { rootDir });
   const recovered = recovery.recoverOnBoot(db);
   const cursor = runtime.readConsumerCursor(db, SPEC_CONSUMER);
   const consumed = ops.consumeSpecChangedEvents(db, { since_id: cursor, limit: 500 });
@@ -114,7 +127,7 @@ async function runDoctor(db, {
     ...inspectSystem(db, { rootDir }),
     repair_performed: true,
     backup_path: backupPath,
-    repair: { recovered, consumed, interrupted, requeued, ensured, projections },
+    repair: { archives, recovered, consumed, interrupted, requeued, ensured, projections },
   };
 }
 

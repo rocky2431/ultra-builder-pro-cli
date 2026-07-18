@@ -8,7 +8,8 @@
       "id": "project-baseline",
       "mode": "greenfield",
       "status": "draft",
-      "repository_revision": null
+      "repository_revision": null,
+      "scope": ["."]
     },
     "copied_files": [
       "specs/discovery.md",
@@ -19,7 +20,13 @@
       "docs/research/README.md",
       "test-report.json",
       "delivery-report.json"
-    ]
+    ],
+    "repository_profile": {
+      "mode": "greenfield",
+      "detected_mode": "greenfield",
+      "reasons": ["SKELETON_ONLY"],
+      "repository_kind": "single"
+    }
   },
   {
     "created_path": "/Users/demo/sandbox/.ultra",
@@ -30,9 +37,17 @@
       "id": "project-baseline",
       "mode": "brownfield",
       "status": "adopting",
-      "repository_revision": "0123456789abcdef0123456789abcdef01234567"
+      "repository_revision": "0123456789abcdef0123456789abcdef01234567",
+      "scope": ["apps/web", "apps/api"]
     },
     "copied_files": ["specs/discovery.md", "tasks/tasks.json"],
+    "repository_profile": {
+      "mode": "brownfield",
+      "detected_mode": "brownfield",
+      "reasons": ["SOURCE_PRESENT", "MONOREPO_PRESENT"],
+      "repository_kind": "monorepo",
+      "workspace_roots": ["apps/web", "apps/api"]
+    },
     "backup_path": "/Users/demo/sandbox/.ultra.backup.20260417-091530"
   }
 ]

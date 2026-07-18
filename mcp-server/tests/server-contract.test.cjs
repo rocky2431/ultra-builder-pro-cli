@@ -15,19 +15,32 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SERVER = path.join(REPO_ROOT, 'mcp-server', 'server.cjs');
 const PACKAGE_VERSION = require(path.join(REPO_ROOT, 'package.json')).version;
 const { initStateDb, closeStateDb } = require('../lib/state-db.cjs');
+const { dispatchTool } = require('../server.cjs');
+const changes = require('../lib/change-workflow.cjs');
+const ops = require('../lib/state-ops.cjs');
 
 function tmpProject() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mcp-'));
   return { dir, dbPath: path.join(dir, '.ultra', 'state.db') };
 }
 
-function seedMigratedBaseline(project) {
+function seedReadyBaseline(project) {
   const { db } = initStateDb(project.dbPath);
   db.prepare(
     `INSERT OR IGNORE INTO baselines
      (id, project_name, mode, status, approved_by, approval_note, converged_at)
-     VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+     VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'test fixture', ?)`,
   ).run(new Date().toISOString());
+  closeStateDb(db);
+}
+
+function seedBaseline(project, { mode, status }) {
+  const { db } = initStateDb(project.dbPath);
+  db.prepare(
+    `INSERT OR REPLACE INTO baselines
+     (id, project_name, mode, status)
+     VALUES ('test-baseline', 'fixture', ?, ?)`,
+  ).run(mode, status);
   closeStateDb(db);
 }
 
@@ -76,6 +89,29 @@ function readToolPayload(result) {
 function expectError(result) {
   assert.equal(result.isError, true, 'expected isError result');
   return JSON.parse(result.content[0].text).error;
+}
+
+function fakePrdClient(taskId) {
+  const client = {
+    calls: 0,
+    provider: 'anthropic',
+    model: 'test-model',
+    async completeJson() {
+      client.calls += 1;
+      const json = {
+        tasks: [{
+          id: taskId,
+          title: `Implement ${taskId}`,
+          type: 'feature',
+          priority: 'P1',
+          deps: [],
+          files_modified: [`src/${taskId}.js`],
+        }],
+      };
+      return { json, raw: JSON.stringify(json), usage: {}, model: client.model, provider: client.provider };
+    },
+  };
+  return client;
 }
 
 test('listTools returns workflow tools and exposes no Ultra memory API', async () => {
@@ -204,7 +240,7 @@ test('baseline MCP tools adopt and converge an existing checkout without storing
 test('change.create + change.context expose a continuous change unit with external provider references', async () => {
   const proj = tmpProject();
   try {
-    seedMigratedBaseline(proj);
+    seedReadyBaseline(proj);
     fs.writeFileSync(path.join(proj.dir, 'README.md'), '# project\n');
     await withClient(proj, async (client) => {
       const created = await client.callTool({
@@ -256,7 +292,7 @@ test('change.create + change.context expose a continuous change unit with extern
 test('spec-learning MCP tools persist an approval-gated candidate and projection', async () => {
   const proj = tmpProject();
   try {
-    seedMigratedBaseline(proj);
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'change.create',
@@ -318,7 +354,7 @@ test('spec-learning MCP tools persist an approval-gated candidate and projection
 test('system.doctor returns structured provider ownership and projection health', async () => {
   const proj = tmpProject();
   try {
-    seedMigratedBaseline(proj);
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'task.create',
@@ -359,6 +395,7 @@ test('published MCP contract contains exactly the live server tools', () => {
 test('task.create + task.get round trip via MCP', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       const created = await client.callTool({
         name: 'task.create',
@@ -376,6 +413,226 @@ test('task.create + task.get round trip via MCP', async () => {
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.create requires ready baseline authority or an already-authorized active change', async () => {
+  for (const baseline of [
+    null,
+    { mode: 'greenfield', status: 'draft' },
+    { mode: 'migrated', status: 'adopting' },
+  ]) {
+    const proj = tmpProject();
+    try {
+      if (baseline) seedBaseline(proj, baseline);
+      await withClient(proj, async (client) => {
+        const result = await client.callTool({
+          name: 'task.create',
+          arguments: {
+            id: `blocked-${baseline?.mode || 'missing'}`,
+            title: 'Must wait for baseline readiness', type: 'feature', priority: 'P1',
+          },
+        });
+        assert.equal(expectError(result).code, 'BASELINE_NOT_READY');
+      });
+    } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
+  }
+
+  const incidentProject = tmpProject();
+  try {
+    seedBaseline(incidentProject, { mode: 'brownfield', status: 'adopting' });
+    await withClient(incidentProject, async (client) => {
+      const change = await client.callTool({
+        name: 'change.create',
+        arguments: {
+          id: 'incident-task-bypass', title: 'Restore production', kind: 'incident',
+          intent: 'Repair the urgent production path while adoption remains incomplete.',
+          baseline_bypass: {
+            reason: 'Production recovery cannot wait for baseline convergence.',
+            approved_by: 'incident-commander',
+          },
+        },
+      });
+      assert.equal(readToolPayload(change).change.id, 'incident-task-bypass');
+      const task = await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'authorized-incident-task', title: 'Repair the production path',
+          type: 'bugfix', priority: 'P0', change_id: 'incident-task-bypass',
+        },
+      });
+      assert.equal(readToolPayload(task).id, 'authorized-incident-task');
+    });
+  } finally { fs.rmSync(incidentProject.dir, { recursive: true, force: true }); }
+});
+
+test('task.create enforces terminal-change and parent ownership invariants at the MCP boundary', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    const initialized = initStateDb(proj.dbPath);
+    for (const [id, status] of [
+      ['parent-change', 'active'],
+      ['other-change', 'active'],
+      ['terminal-change', 'archived'],
+    ]) {
+      initialized.db.prepare(
+        `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+         VALUES (?, ?, 'quick', ?, ?, ?)`,
+      ).run(id, id, status, `Intent for ${id}.`, `.ultra/changes/active/${id}`);
+    }
+    closeStateDb(initialized.db);
+
+    await withClient(proj, async (client) => {
+      const parent = await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'owned-parent', title: 'Owned parent task', type: 'feature', priority: 'P1',
+          change_id: 'parent-change',
+        },
+      });
+      assert.equal(parent.isError, undefined);
+
+      const child = await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'owned-child', title: 'Owned child task', type: 'feature', priority: 'P1',
+          parent_id: 'owned-parent',
+        },
+      });
+      assert.equal(child.isError, undefined);
+      const inherited = readToolPayload(await client.callTool({
+        name: 'task.get', arguments: { id: 'owned-child' },
+      }));
+      assert.equal(inherited.task.change_id, 'parent-change');
+
+      const mismatch = await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'cross-change-child', title: 'Cross change child', type: 'feature', priority: 'P1',
+          parent_id: 'owned-parent', change_id: 'other-change',
+        },
+      });
+      assert.equal(expectError(mismatch).code, 'TASK_CHANGE_OWNERSHIP_MISMATCH');
+
+      const orphan = await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'orphan-child', title: 'Orphan child task', type: 'feature', priority: 'P1',
+          parent_id: 'missing-parent',
+        },
+      });
+      assert.equal(expectError(orphan).code, 'TASK_NOT_FOUND');
+
+      const terminal = await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'terminal-task', title: 'Terminal task', type: 'feature', priority: 'P1',
+          change_id: 'terminal-change',
+        },
+      });
+      assert.equal(expectError(terminal).code, 'CHANGE_NOT_MUTABLE');
+
+      const missing = await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'missing-change-task', title: 'Missing change task', type: 'feature', priority: 'P1',
+          change_id: 'missing-change',
+        },
+      });
+      assert.equal(expectError(missing).code, 'CHANGE_NOT_FOUND');
+    });
+  } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
+});
+
+test('task.parse_prd keeps dry runs read-only and blocks persistence before baseline readiness', async () => {
+  const dryProject = tmpProject();
+  try {
+    const { db } = initStateDb(dryProject.dbPath);
+    try {
+      const client = fakePrdClient('dry-run-task');
+      const result = await dispatchTool('task.parse_prd', {
+        prd_text: 'Build a dry-run task.', dry_run: true,
+      }, db, { rootDir: dryProject.dir, llmClient: client });
+      assert.equal(result.tasks[0].id, 'dry-run-task');
+      assert.equal(client.calls, 1);
+      assert.equal(ops.listTasks(db, {}).length, 0);
+    } finally { closeStateDb(db); }
+  } finally { fs.rmSync(dryProject.dir, { recursive: true, force: true }); }
+
+  for (const baseline of [
+    null,
+    { mode: 'greenfield', status: 'draft' },
+    { mode: 'migrated', status: 'adopting' },
+  ]) {
+    const proj = tmpProject();
+    try {
+      if (baseline) seedBaseline(proj, baseline);
+      const { db } = initStateDb(proj.dbPath);
+      try {
+        const client = fakePrdClient(`blocked-prd-${baseline?.mode || 'missing'}`);
+        await assert.rejects(
+          dispatchTool('task.parse_prd', {
+            prd_text: 'Persist a task before adoption.', dry_run: false,
+          }, db, { rootDir: proj.dir, llmClient: client }),
+          (error) => error.code === 'BASELINE_NOT_READY',
+        );
+        assert.equal(client.calls, 0, 'baseline gate must run before the LLM call');
+        assert.equal(ops.listTasks(db, {}).length, 0);
+      } finally { closeStateDb(db); }
+    } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
+  }
+});
+
+test('task.parse_prd persists only under ready or already-authorized change ownership', async () => {
+  const readyProject = tmpProject();
+  try {
+    seedReadyBaseline(readyProject);
+    const { db } = initStateDb(readyProject.dbPath);
+    try {
+      await dispatchTool('task.parse_prd', {
+        prd_text: 'Build a ready task.', dry_run: false,
+      }, db, { rootDir: readyProject.dir, llmClient: fakePrdClient('ready-prd-task') });
+      assert.equal(ops.readTask(db, 'ready-prd-task').change_id, null);
+    } finally { closeStateDb(db); }
+  } finally { fs.rmSync(readyProject.dir, { recursive: true, force: true }); }
+
+  for (const kind of ['quick', 'incident']) {
+    const proj = tmpProject();
+    try {
+      seedReadyBaseline(proj);
+      const { db } = initStateDb(proj.dbPath);
+      try {
+        if (kind === 'incident') {
+          db.prepare(
+            "UPDATE baselines SET mode = 'brownfield', status = 'adopting' WHERE id = 'test-baseline'",
+          ).run();
+        }
+        const changeId = `parsed-${kind}`;
+        changes.createChange(db, {
+          id: changeId,
+          title: kind === 'incident' ? 'Recover parsed incident work' : 'Continue parsed ordinary work',
+          kind,
+          intent: 'Keep parsed tasks bound to the already-authorized continuous change.',
+          ...(kind === 'incident' ? {
+            baseline_bypass: {
+              approved_by: 'incident-commander',
+              reason: 'Production recovery requires an approved task graph before adoption converges.',
+            },
+          } : {}),
+        }, { rootDir: proj.dir });
+        if (kind === 'quick') {
+          db.prepare(
+            "UPDATE baselines SET mode = 'brownfield', status = 'adopting' WHERE id = 'test-baseline'",
+          ).run();
+        }
+        const taskId = `parsed-${kind}-task`;
+        await dispatchTool('task.parse_prd', {
+          prd_text: 'Build a change-owned task.', dry_run: false, change_id: changeId,
+        }, db, { rootDir: proj.dir, llmClient: fakePrdClient(taskId) });
+        assert.equal(ops.readTask(db, taskId).change_id, changeId);
+      } finally { closeStateDb(db); }
+    } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
   }
 });
 
@@ -411,9 +668,35 @@ test('state-backed MCP tools fail closed when a non-empty v4.4 tasks.json meets 
   }
 });
 
+test('state-backed MCP tools return the supported v4.5 projection migration command', async () => {
+  const proj = tmpProject();
+  try {
+    const tasksDir = path.join(proj.dir, '.ultra', 'tasks');
+    fs.mkdirSync(tasksDir, { recursive: true });
+    fs.writeFileSync(path.join(tasksDir, 'tasks.json'), JSON.stringify({
+      schema_version: '4.5', source: '.ultra/state.db',
+      tasks: [{
+        id: 'projection-only', title: 'projection-only task', type: 'feature', priority: 'P1',
+        status: 'pending', deps: [], estimated_days: 1,
+      }],
+    }));
+
+    await withClient(proj, async (client) => {
+      const listed = await client.callTool({ name: 'task.list', arguments: {} });
+      const error = expectError(listed);
+      assert.equal(error.code, 'LEGACY_STATE_MIGRATION_REQUIRED');
+      assert.match(error.message, /ultra-tools migrate --from=4\.5 --to=12\.0/);
+      assert.equal(error.details.projection_version, '4.5');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('task.update enforces the status state machine', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'task.create',
@@ -443,9 +726,63 @@ test('task.update enforces the status state machine', async () => {
   }
 });
 
+test('task.update preserves established change ownership and freezes terminal change tasks', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    const initialized = initStateDb(proj.dbPath);
+    try {
+      for (const id of ['update-change-a', 'update-change-b', 'update-terminal']) {
+        initialized.db.prepare(
+          `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+           VALUES (?, ?, 'quick', 'active', ?, ?)`,
+        ).run(id, id, `Intent for ${id}.`, `.ultra/changes/active/${id}`);
+      }
+      ops.createTask(initialized.db, {
+        id: 'update-owned-root', title: 'Owned root task', type: 'feature', priority: 'P1',
+        change_id: 'update-change-a',
+      });
+      ops.createTask(initialized.db, {
+        id: 'update-terminal-task', title: 'Terminal change task', type: 'feature', priority: 'P1',
+        change_id: 'update-terminal',
+      });
+      initialized.db.prepare("UPDATE changes SET status = 'archived' WHERE id = 'update-terminal'").run();
+    } finally { closeStateDb(initialized.db); }
+
+    await withClient(proj, async (client) => {
+      const detach = await client.callTool({
+        name: 'task.update', arguments: { id: 'update-owned-root', patch: { change_id: null } },
+      });
+      assert.equal(expectError(detach).code, 'TASK_CHANGE_OWNERSHIP_MISMATCH');
+
+      const cross = await client.callTool({
+        name: 'task.update',
+        arguments: { id: 'update-owned-root', patch: { change_id: 'update-change-b' } },
+      });
+      assert.equal(expectError(cross).code, 'TASK_CHANGE_OWNERSHIP_MISMATCH');
+
+      const terminal = await client.callTool({
+        name: 'task.update', arguments: { id: 'update-terminal-task', patch: { priority: 'P0' } },
+      });
+      assert.equal(expectError(terminal).code, 'CHANGE_NOT_MUTABLE');
+
+      await client.callTool({
+        name: 'task.create',
+        arguments: { id: 'update-unowned', title: 'Unowned task', type: 'feature', priority: 'P1' },
+      });
+      const firstBinding = readToolPayload(await client.callTool({
+        name: 'task.update',
+        arguments: { id: 'update-unowned', patch: { change_id: 'update-change-b' } },
+      }));
+      assert.equal(firstBinding.task.change_id, 'update-change-b');
+    });
+  } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
+});
+
 test('task.append_event + subscribe_events drive a monotonic cursor', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'task.create',
@@ -483,6 +820,7 @@ test('task.append_event + subscribe_events drive a monotonic cursor', async () =
 test('task.list filters by status and tag', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({ name: 'task.create', arguments: { id: 'l-1', title: 'list one', type: 'feature', priority: 'P0', tag: 'main' } });
       await client.callTool({ name: 'task.create', arguments: { id: 'l-2', title: 'list two', type: 'feature', priority: 'P1', tag: 'main' } });
@@ -524,6 +862,7 @@ test('task.create rejects bad input via the JSON Schema validator', async () => 
 test('mutating tools trigger the projector — tasks.json appears under .ultra/', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'task.create',
@@ -543,6 +882,7 @@ test('mutating tools trigger the projector — tasks.json appears under .ultra/'
 test('output schema drift cannot strand a committed mutation without a projection job', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     const runtimeRoot = path.join(proj.dir, 'runtime-contract');
     fs.mkdirSync(path.join(runtimeRoot, 'spec', 'schemas'), { recursive: true });
     fs.copyFileSync(path.join(REPO_ROOT, 'package.json'), path.join(runtimeRoot, 'package.json'));
@@ -646,6 +986,34 @@ test('task.init_project returns ULTRA_DIR_EXISTS on re-init without overwrite', 
   }
 });
 
+test('task.init_project resume preserves existing files and installs missing current assets', async () => {
+  const proj = tmpProject();
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-init-resume-'));
+  try {
+    fs.mkdirSync(path.join(target, '.ultra', 'specs'), { recursive: true });
+    fs.writeFileSync(path.join(target, '.ultra', 'specs', 'product.md'), '# Preserved contract\n');
+    await withClient(proj, async (client) => {
+      const result = await client.callTool({
+        name: 'task.init_project',
+        arguments: {
+          target_dir: target, project_name: 'resume-project', mode: 'brownfield', resume: true,
+        },
+      });
+      const payload = readToolPayload(result);
+      assert.equal(payload.status, 'resumed');
+      assert.equal(payload.baseline.status, 'adopting');
+      assert.equal(
+        fs.readFileSync(path.join(target, '.ultra', 'specs', 'product.md'), 'utf8'),
+        '# Preserved contract\n',
+      );
+      assert.ok(payload.copied_files.includes('specs/architecture.md'));
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
 async function seedTask(client, id = 's-1') {
   await client.callTool({
     name: 'task.create',
@@ -656,6 +1024,7 @@ async function seedTask(client, id = 's-1') {
 test('session.admission_check + session.spawn: happy path returns sid and paths', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-happy');
 
@@ -702,6 +1071,7 @@ test('session.spawn rejects a retired runtime at the MCP schema boundary', async
 test('session.spawn refuses second session for same task without takeover (ADMISSION_DENIED)', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-conflict');
       await client.callTool({
@@ -732,6 +1102,7 @@ test('session.spawn refuses second session for same task without takeover (ADMIS
 test('session.spawn with takeover=true crashes the old session and succeeds', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-takeover');
       const first = readToolPayload(await client.callTool({
@@ -758,6 +1129,7 @@ test('session.spawn with takeover=true crashes the old session and succeeds', as
 test('session.subscribe_events sees task events with ≤1s latency (D31 id cursor)', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-sub');
 
@@ -793,6 +1165,7 @@ test('session.subscribe_events sees task events with ≤1s latency (D31 id curso
 test('session.subscribe_events filters events by sid', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-filter-a');
       await seedTask(client, 's-filter-b');
@@ -866,6 +1239,7 @@ test('MCP rejects declared inputs that have no runtime behavior', async () => {
 test('session.heartbeat refreshes lease; session.close marks completed', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-heart');
       const spawn = readToolPayload(await client.callTool({
@@ -917,6 +1291,7 @@ test('retired memory tools are rejected as unknown', async () => {
 test('task.dependency_topo: happy path groups tasks into correct waves', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       for (const [id, deps] of [['A', []], ['B', ['A']], ['C', ['A']]]) {
         await client.callTool({
@@ -957,7 +1332,7 @@ test('task.parse_prd: missing LLM credentials → NO_LLM_CREDENTIALS', async () 
     await withClientNoLlmKey(proj, async (client) => {
       const resp = await client.callTool({
         name: 'task.parse_prd',
-        arguments: { prd_text: 'Build a login feature with email and password.' },
+        arguments: { prd_text: 'Build a login feature with email and password.', dry_run: true },
       });
       const err = expectError(resp);
       assert.equal(err.code, 'NO_LLM_CREDENTIALS');
@@ -986,6 +1361,7 @@ test('task.expand: unknown parent → TASK_NOT_FOUND (no LLM call needed)', asyn
 test('task.expand: missing LLM credentials on valid parent → NO_LLM_CREDENTIALS', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClientNoLlmKey(proj, async (client) => {
       await client.callTool({
         name: 'task.create',
@@ -1022,6 +1398,7 @@ test('plan.export: no tasks → NO_TASKS', async () => {
 test('plan.export → plan.get round trip: artifact on disk + retrievable', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       for (const [id, deps, files] of [
         ['p-a', [], ['src/a.ts']],
@@ -1068,6 +1445,7 @@ test('plan.get: no plan written yet → NO_PLAN', async () => {
 test('task.dependency_topo: cycle returns CYCLE_DETECTED with cycles in details', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'task.create',

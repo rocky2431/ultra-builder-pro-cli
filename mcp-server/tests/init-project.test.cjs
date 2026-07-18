@@ -8,7 +8,9 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const Database = require('better-sqlite3');
 
-const { initProject, InitProjectError, DEFAULT_TEMPLATE } = require('../lib/init-project.cjs');
+const {
+  initProject, InitProjectError, DEFAULT_TEMPLATE, classifyRepository,
+} = require('../lib/init-project.cjs');
 const { EXPECTED_VERSION } = require('../lib/state-db.cjs');
 
 function mkTempDir(prefix = 'ubp-init-test-') {
@@ -71,6 +73,85 @@ test('initProject auto-detects existing source as brownfield and starts adoption
   } finally { cleanup(target); }
 });
 
+test('auto classification keeps a documentation-and-manifest-only skeleton greenfield', () => {
+  const target = mkTempDir();
+  try {
+    fs.writeFileSync(path.join(target, 'README.md'), '# New service skeleton\n');
+    fs.writeFileSync(path.join(target, 'package.json'), JSON.stringify({
+      name: 'new-service', private: true, scripts: { test: 'node --test' },
+    }));
+    const profile = classifyRepository(target);
+    assert.equal(profile.mode, 'greenfield');
+    assert.equal(profile.repository_kind, 'single');
+    assert.deepEqual(profile.source_signals, []);
+
+    const result = initProject({ target_dir: target, project_name: 'new-service' });
+    assert.equal(result.mode, 'greenfield');
+    assert.deepEqual(result.repository_profile.verification_commands, ['npm test']);
+  } finally { cleanup(target); }
+});
+
+test('auto classification records bounded monorepo evidence for brownfield adoption', () => {
+  const target = mkTempDir();
+  try {
+    fs.mkdirSync(path.join(target, 'packages', 'api', 'src'), { recursive: true });
+    fs.writeFileSync(path.join(target, 'package.json'), JSON.stringify({
+      name: 'legacy-suite', private: true, workspaces: ['packages/*'],
+      scripts: { build: 'turbo build', test: 'turbo test', lint: 'turbo lint' },
+    }));
+    fs.writeFileSync(path.join(target, 'packages', 'api', 'package.json'), '{"name":"api"}\n');
+    fs.writeFileSync(path.join(target, 'packages', 'api', 'src', 'index.js'), 'module.exports = true;\n');
+    fs.writeFileSync(path.join(target, 'Dockerfile'), 'FROM node:22\n');
+
+    const result = initProject({ target_dir: target, project_name: 'legacy-suite' });
+    assert.equal(result.mode, 'brownfield');
+    assert.equal(result.repository_profile.repository_kind, 'monorepo');
+    assert.deepEqual(result.repository_profile.workspace_roots, ['packages/api']);
+    assert.ok(result.repository_profile.source_signals.includes('packages/api/src/index.js'));
+    assert.ok(result.repository_profile.deployment_signals.includes('Dockerfile'));
+    assert.deepEqual(
+      result.repository_profile.verification_commands,
+      ['npm run build', 'npm test', 'npm run lint'],
+    );
+
+    const db = new Database(result.state_db_path, { readonly: true });
+    try {
+      const row = db.prepare(
+        'SELECT repository_branch, worktree_state, classification_json FROM baselines',
+      ).get();
+      assert.equal(row.repository_branch, null);
+      assert.equal(row.worktree_state, 'unavailable');
+      assert.equal(JSON.parse(row.classification_json).repository_kind, 'monorepo');
+    } finally { db.close(); }
+  } finally { cleanup(target); }
+});
+
+test('brownfield initialization persists an explicitly selected monorepo scope', () => {
+  const target = mkTempDir();
+  try {
+    fs.mkdirSync(path.join(target, 'packages', 'api', 'src'), { recursive: true });
+    fs.mkdirSync(path.join(target, 'packages', 'web', 'src'), { recursive: true });
+    fs.writeFileSync(path.join(target, 'package.json'), JSON.stringify({
+      name: 'legacy-suite', private: true, workspaces: ['packages/*'],
+    }));
+    fs.writeFileSync(path.join(target, 'packages', 'api', 'src', 'index.js'), 'module.exports = true;\n');
+    fs.writeFileSync(path.join(target, 'packages', 'web', 'src', 'index.js'), 'module.exports = true;\n');
+
+    const result = initProject({
+      target_dir: target,
+      project_name: 'legacy-suite',
+      scope: ['packages/api'],
+    });
+
+    const db = new Database(result.state_db_path, { readonly: true });
+    try {
+      const baseline = db.prepare('SELECT scope_json FROM baselines').get();
+      assert.deepEqual(JSON.parse(baseline.scope_json), ['packages/api']);
+      assert.deepEqual(result.baseline.scope, ['packages/api']);
+    } finally { db.close(); }
+  } finally { cleanup(target); }
+});
+
 test('maintenance CLI forwards an explicit initialization mode', () => {
   const target = mkTempDir();
   try {
@@ -110,6 +191,25 @@ test('initProject keeps project metadata in authoritative baseline state and tas
   } finally { cleanup(target); }
 });
 
+test('initProject records the declared project_initialized lifecycle event', () => {
+  const rootDir = mkTempDir();
+  try {
+    const result = initProject({ target_dir: rootDir, project_name: 'events-fixture' });
+    const db = new Database(result.state_db_path, { readonly: true });
+    try {
+      const events = db.prepare('SELECT type, payload_json FROM events ORDER BY id').all();
+      assert.deepEqual(events.map((row) => row.type), ['baseline_started', 'project_initialized']);
+      assert.deepEqual(JSON.parse(events[1].payload_json), {
+        project_name: 'events-fixture', mode: 'greenfield', baseline_id: 'project-baseline',
+      });
+    } finally {
+      db.close();
+    }
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
 test('initProject refuses when .ultra/ already exists and overwrite=false', () => {
   const target = mkTempDir();
   try {
@@ -117,6 +217,67 @@ test('initProject refuses when .ultra/ already exists and overwrite=false', () =
     assert.throws(
       () => initProject({ target_dir: target, project_name: 'again' }),
       (err) => err instanceof InitProjectError && err.code === 'ULTRA_DIR_EXISTS',
+    );
+  } finally { cleanup(target); }
+});
+
+test('initProject resume preserves existing artifacts and installs only missing current scaffold files', () => {
+  const target = mkTempDir();
+  try {
+    fs.mkdirSync(path.join(target, '.ultra', 'specs'), { recursive: true });
+    fs.writeFileSync(path.join(target, '.ultra', 'specs', 'product.md'), '# Existing product contract\n');
+
+    const result = initProject({
+      target_dir: target, project_name: 'existing-project', mode: 'brownfield', resume: true,
+    });
+    assert.equal(result.status, 'resumed');
+    assert.equal(
+      fs.readFileSync(path.join(target, '.ultra', 'specs', 'product.md'), 'utf8'),
+      '# Existing product contract\n',
+    );
+    assert.ok(fs.existsSync(path.join(target, '.ultra', 'specs', 'architecture.md')));
+    assert.ok(result.copied_files.includes('specs/architecture.md'));
+    assert.equal(result.copied_files.includes('specs/product.md'), false);
+
+    const second = initProject({
+      target_dir: target, project_name: 'existing-project', resume: true,
+    });
+    assert.equal(second.status, 'resumed');
+    assert.deepEqual(second.copied_files, []);
+    const db = new Database(result.state_db_path, { readonly: true });
+    try {
+      assert.equal(db.prepare('SELECT COUNT(*) AS count FROM baselines').get().count, 1);
+    } finally { db.close(); }
+  } finally { cleanup(target); }
+});
+
+test('initProject resume refuses projection-only tasks until the supported import runs', () => {
+  const target = mkTempDir();
+  try {
+    fs.mkdirSync(path.join(target, '.ultra', 'tasks'), { recursive: true });
+    fs.writeFileSync(path.join(target, '.ultra', 'tasks', 'tasks.json'), JSON.stringify({
+      schema_version: '4.5', source: '.ultra/state.db',
+      tasks: [{ id: 'legacy', title: 'Legacy task', type: 'feature', priority: 'P1', status: 'pending' }],
+    }));
+    assert.throws(
+      () => initProject({ target_dir: target, project_name: 'legacy', resume: true }),
+      (error) => error.code === 'LEGACY_STATE_MIGRATION_REQUIRED'
+        && /--from=4\.5 --to=12\.0/.test(error.message),
+    );
+    assert.equal(fs.existsSync(path.join(target, '.ultra', 'state.db')), false);
+    assert.equal(fs.existsSync(path.join(target, '.ultra', 'specs', 'product.md')), false);
+  } finally { cleanup(target); }
+});
+
+test('initProject rejects conflicting resume and overwrite modes', () => {
+  const target = mkTempDir();
+  try {
+    fs.mkdirSync(path.join(target, '.ultra'));
+    assert.throws(
+      () => initProject({
+        target_dir: target, project_name: 'conflict', resume: true, overwrite: true,
+      }),
+      (error) => error.code === 'VALIDATION_ERROR' && /resume.*overwrite/i.test(error.message),
     );
   } finally { cleanup(target); }
 });

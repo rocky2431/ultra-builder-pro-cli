@@ -62,12 +62,36 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '11.0'").get();
-if (v && v.version === '11.0') {
-  console.log('ok schema_version includes 11.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '12.0'").get();
+if (v && v.version === '12.0') {
+  console.log('ok schema_version includes 12.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 11.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 12.0: got ${JSON.stringify(v)}`);
+  fail++;
+}
+
+const requiredBaselineColumns = [
+  'repository_branch', 'worktree_state', 'worktree_digest', 'worktree_files_json',
+  'worktree_accepted', 'gaps_json', 'classification_json',
+];
+const baselineColumns = new Set(db.prepare('PRAGMA table_info(baselines)').all().map((row) => row.name));
+for (const column of requiredBaselineColumns) {
+  if (baselineColumns.has(column)) {
+    console.log(`  ok baselines.${column}`);
+    pass++;
+  } else {
+    console.error(`  FAIL baselines.${column} missing`);
+    fail++;
+  }
+}
+
+const changeColumns = new Set(db.prepare('PRAGMA table_info(changes)').all().map((row) => row.name));
+if (changeColumns.has('baseline_bypass_json')) {
+  console.log('  ok changes.baseline_bypass_json');
+  pass++;
+} else {
+  console.error('  FAIL changes.baseline_bypass_json missing');
   fail++;
 }
 

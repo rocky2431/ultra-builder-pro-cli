@@ -12,8 +12,8 @@ authoritative; reports and Markdown are evidence or projections.
 
 1. Call `system.doctor` in read-only mode. If authority is unhealthy, route only to
    `ultra-doctor` and include the blocking diagnostic.
-2. Call `baseline.get` for mode, lifecycle status, repository revision, specification
-   digest health, known warnings, and adoption blockers.
+2. Call `baseline.get` for mode, lifecycle status, repository revision, branch,
+   worktree snapshot, specification digest health, gap ledger, and adoption blockers.
 3. Call `change.breadcrumb` for the active change, task, role, gate, readiness,
    blockers, advisory warnings, staleness, and next action.
 4. Call `task.list` and `session.list` for progress and active execution details.
@@ -30,7 +30,9 @@ Follow the breadcrumb's primary route and return one action, not a menu:
 
 - unhealthy authority: `ultra-doctor`;
 - missing Ultra project: `ultra-init`;
-- missing baseline evidence with no active change: `ultra-init`, then
+- projection-only authority conflict: run the exact supported import command from the
+  MCP error, then `ultra-init`;
+- migrated or missing baseline evidence with no active change: `ultra-init`, then
   `ultra-research` or `ultra-plan` according to the gap;
 - baseline or context-budget warning during an active change: keep the current route
   and surface the warning; do not turn it into a refusal;
@@ -50,7 +52,7 @@ Use a compact shape:
 ```text
 Ultra: <healthy|degraded> · <branch>@<head> · worktree <clean|dirty>
 Position: change=<id|none> task=<id|none> role=<role> gate=<gate>
-Baseline: <greenfield|brownfield|migrated>/<status> revision=<revision|none>
+Baseline: <greenfield|brownfield|migrated>/<status> revision=<revision|none> gaps=<open>/<blocking>
 Readiness: <ready|blocked|stale> — <blockers or none>
 Warnings: <advisory conditions or none>
 Progress: <completed>/<total>; sessions=<active count>

@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const claude = require('../../../adapters/claude.js');
+const { initStateDb, closeStateDb } = require('../../../mcp-server/lib/state-db.cjs');
 const { REPO_ROOT, mkTarget, cleanup, withMcpClient, readToolPayload } = require('../_lib.cjs');
 
 test('claude native plugin — install, MCP round-trip, and scoped uninstall', async () => {
@@ -24,7 +25,16 @@ test('claude native plugin — install, MCP round-trip, and scoped uninstall', a
     assert.equal(mcp.command, process.execPath);
     assert.equal(mcp.args[0], path.join(pluginRoot, 'runtime', 'launch.cjs'));
 
-    await withMcpClient({ dbPath: path.join(serverHome, 'state.db'), rootDir: serverHome }, async (client) => {
+    const statePath = path.join(serverHome, 'state.db');
+    const initializedState = initStateDb(statePath);
+    initializedState.db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('test-baseline', 'claude-smoke', 'greenfield', 'ready', 'test', 'smoke fixture', ?)`,
+    ).run(new Date().toISOString());
+    closeStateDb(initializedState.db);
+
+    await withMcpClient({ dbPath: statePath, rootDir: serverHome }, async (client) => {
       const initialized = await client.callTool({
         name: 'task.init_project',
         arguments: { target_dir: initTarget, project_name: 'claude-smoke' },

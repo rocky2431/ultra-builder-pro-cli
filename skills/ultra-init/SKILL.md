@@ -1,66 +1,111 @@
 ---
 name: ultra-init
-description: Initialize Ultra Builder Pro or resume greenfield and brownfield baseline adoption. Use when a repository lacks Ultra state or its project baseline is missing, draft, adopting, or blocked.
+description: Initialize a new repository, adopt an existing codebase, or upgrade prior Ultra state into an evidence-backed project baseline. Use when `.ultra` is absent, baseline readiness is incomplete, or legacy project state must be migrated.
 ---
 
-# Initialize or adopt a project
+# Establish the project baseline
 
-Create project-local Ultra state, then route the repository according to its actual
-baseline status. Do not treat an existing codebase as a new product.
+Create or recover project-local Ultra authority, classify the repository, and finish
+the applicable baseline workflow. Keep application source unchanged during adoption.
 
-## Preflight
+## Authority rules
 
-Use the current working directory unless the user names another target. Inspect the
-root, project manifests, Git state, and `.ultra/` without mutation.
+- Treat `.ultra/state.db` as the only durable Ultra authority.
+- Preserve every existing `.ultra/` tree and migration backup.
+- Require explicit authorization before replacing a healthy baseline or discarding a
+  corrupt database.
+- Store only metadata references for external memory and code-graph providers.
+- Create ordinary tasks only after the baseline is ready. Record characterization
+  needs and adoption gaps in the gap ledger until convergence.
 
-If `.ultra/` exists, call `baseline.get` and `system.doctor`:
+## Inspect and route
 
-- a healthy `ready` baseline routes to `ultra-change` or `ultra-status`;
-- `draft`, `adopting`, or baseline-blocked state resumes this workflow;
-- state integrity or migration failure routes to `ultra-doctor`;
-- recreation requires explicit authorization and must preserve the returned backup.
-
-Never overwrite `.ultra/` merely because the repository is old or its documents are
-incomplete.
+1. Bind the repository root, Git branch and HEAD, worktree status, manifests, package
+   scripts, workspace markers, deployment files, and existing `.ultra/` assets.
+2. When `.ultra/` is absent, run **Bootstrap**.
+3. When `.ultra/tasks/tasks.json` contains tasks but `state.db` is absent or has no
+   tasks, run **Import projection-only state** before ordinary state-backed work.
+4. When `state.db` exists, run read-only project doctor first. Call `baseline.get`
+   only when doctor confirms that the current schema authority is readable. Route an
+   old schema to repair and a corrupt database to recovery without another DB read.
+5. After current authority is readable, call `task.init_project` with `resume: true` to install
+   only missing current scaffold files. Verify that existing artifacts were preserved.
+6. Route the result:
+   - healthy `ready` baseline: return `ultra-change` or `ultra-status`;
+   - `draft`, `adopting`, or baseline-blocked: resume the matching baseline;
+   - `migrated`: start evidence-backed brownfield re-adoption;
+   - old schema: run backup-first schema repair;
+   - corrupt database: preserve it and stop at the restore-or-rebaseline decision.
 
 ## Bootstrap
 
-When `.ultra/` is absent, derive project name, type, and stack from repository evidence,
-then call `task.init_project` with `mode: "auto"`. Use an explicit `greenfield` or
-`brownfield` mode only when the user has made that classification authoritative.
+Derive project metadata from repository evidence. Call `task.init_project` with
+`mode: "auto"`. Pass `scope` when the user selected a monorepo boundary; otherwise use
+the repository root. Use an explicit mode only when the user supplied an authoritative
+classification.
 
-Verify the returned mode, baseline id and status, state database path, initial
-projection, and copied specification files.
+Verify `repository_profile`, selected scope, detected mode, baseline lifecycle, schema
+version, copied templates, initial projection, and `project_initialized` event.
 
-## Route by mode
+## Import projection-only state
 
-### Greenfield
+Call `task.init_project` with `resume: true` as the single authority check and run the
+exact supported backup-first import command returned in its structured error. Do not
+infer an import path or edit the projection manually.
 
-The new baseline begins as `draft`. Route unresolved product or architecture intent to
-`ultra-research`. That workflow records evidence and converges the baseline before
-planning. Do not create implementation tasks during initialization.
+Verify imported task and event counts, backup path, current schema state, projection
+parity, and the `migrated/adopting` compatibility baseline. Then call `baseline.start` with a
+new id, `mode: "brownfield"`, `replace_migrated: true`, the selected scope, current
+revision, and repository classification. Never treat the compatibility row as owner
+approval.
 
-### Brownfield
+For an older database schema, run `ultra-tools system doctor --repair`; verify both the
+pre-migration backup and post-repair backup plus the current schema before continuing.
+Then resume initialization to merge missing scaffold assets without overwriting the
+project's existing baseline documents.
 
-Read `references/brownfield-adoption.md` completely. Adopt current behavior from the
-checkout, tests, maintained documentation, and runtime evidence. Use `baseline.record`
-for the bounded snapshot and `baseline.converge` only after the owner approves the
-captured baseline and any accepted known-red verification.
+## Complete the selected mode
 
-## Failure handling
+For `brownfield`, `migrated`, or an incomplete existing adoption, read
+`references/brownfield-adoption.md` completely and execute it through owner approval.
 
-- `ULTRA_DIR_EXISTS`: inspect and resume; do not retry with overwrite automatically.
-- `BASELINE_EXISTS`: keep the ready baseline unless explicit re-adoption is required.
-- `BASELINE_IN_PROGRESS`: resume the named baseline rather than creating another.
-- `TEMPLATE_MISSING`: report a package-integrity failure and route to installer doctor.
-- `TARGET_NOT_DIR`, `VALIDATION_ERROR`, or `IO_ERROR`: correct only the evidenced input;
-  preserve any backup and partial diagnostic.
+For `greenfield`, keep the baseline in `draft` until product and architecture intent is
+evidence-backed. Route unresolved intent through `ultra-research`, record the complete
+baseline snapshot, obtain owner approval, and converge it before planning.
 
-## Output
+## Recovery handling
 
-Report target path, detected mode, baseline id/status/revision, state health, known-red
-verification, blocking unknowns, and one next action. `.ultra/state.db` is authoritative;
-JSON and Markdown projections do not create state.
+- `ULTRA_DIR_EXISTS`: inspect and resume the existing state.
+- `LEGACY_STATE_MIGRATION_REQUIRED`: execute the returned migration command.
+- `BASELINE_IN_PROGRESS`: resume the named row; never create a parallel authority.
+- `BASELINE_EXISTS`: return the healthy route. Replacing a ready baseline is outside
+  ordinary initialization; stop for owner authorization before calling
+  `baseline.start` with a new id, `replace_ready: true`, and
+  `replacement_authorization: { approved_by, reason }`. The approval identity and
+  rationale must be persisted in the `baseline_started` event.
+- `BASELINE_SCOPE_MISSING`: correct the selected monorepo boundary.
+- `TEMPLATE_MISSING`: run installer doctor and reinstall through the host adapter.
+- `STATE_DB_CORRUPT`: retain the database, inspect `.ultra/backups`, and obtain the
+  restore-or-rebaseline decision. Restore only a verified managed backup with
+  `ultra-tools system restore --backup <path> --confirm REPLACE_CORRUPT_ULTRA_STATE`.
+  When no valid backup exists and the owner explicitly accepts rebuilding authority,
+  run `ultra-tools system rebaseline --project-name <name> [--scope <path>] --confirm
+  REBASELINE_CORRUPT_ULTRA_STATE`; verify the quarantined database and legacy
+  projection paths before continuing adoption.
+- `IO_ERROR`: verify rollback restoration and preserve every reported backup path.
 
-Do not browse by default, invent missing behavior, rewrite application code, create
-business tasks, stage files, or commit as part of initialization.
+## Completion
+
+Initialization is complete only when:
+
+- current schema authority is readable;
+- repository classification and scope are recorded;
+- product and architecture baseline files exist;
+- verification, unknowns, gaps, evidence, and provider references are recorded;
+- explicit owner approval has converged the baseline to `ready`;
+- `baseline.get` reports current health and project doctor has no authority failure.
+
+Report the target, classification evidence, migration and backup paths, baseline id,
+mode, status, revision, branch, worktree snapshot, verification results, gap summary,
+approval state, and one exact next action. Stop at the approval step when owner consent
+has not yet been provided.

@@ -17,6 +17,8 @@ FLAGS (init-project):
   --project-type <type>     web | api | cli | fullstack | other
   --stack <stack>           tech stack descriptor (comma-separated ok)
   --mode <mode>             auto | greenfield | brownfield (default: auto)
+  --scope <path>            baseline scope; repeat for multiple paths (default: .)
+  --resume                  preserve existing .ultra/ and install only missing assets
   --overwrite               replace existing .ultra/ (backup created)
   --source-template <path>  override bundled template source
   -h, --help                show this message
@@ -27,7 +29,7 @@ function emit(envelope) {
 }
 
 function parseInitFlags(args) {
-  const flags = { _: [] };
+  const flags = { _: [], scope: [] };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     switch (a) {
@@ -36,6 +38,8 @@ function parseInitFlags(args) {
       case '--project-type':     flags.project_type     = args[++i]; break;
       case '--stack':            flags.stack            = args[++i]; break;
       case '--mode':             flags.mode             = args[++i]; break;
+      case '--scope':            flags.scope.push(args[++i]); break;
+      case '--resume':           flags.resume            = true; break;
       case '--source-template':  flags.source_template  = args[++i]; break;
       case '--overwrite':        flags.overwrite        = true; break;
       case '--no-overwrite':     flags.overwrite        = false; break;
@@ -62,6 +66,8 @@ function dispatchInitProject(rawArgs) {
     project_type: flags.project_type,
     stack: flags.stack,
     mode: flags.mode || 'auto',
+    scope: flags.scope.length > 0 ? flags.scope : undefined,
+    resume: !!flags.resume,
     overwrite: !!flags.overwrite,
     source_template: flags.source_template,
   };

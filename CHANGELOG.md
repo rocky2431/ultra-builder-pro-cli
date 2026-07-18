@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-07-18
+
+### Added
+
+- Added schema 12 repository snapshots, branch and dirty-worktree evidence,
+  classification metadata, and a categorized baseline gap ledger with explicit
+  blocker, ownership, acceptance, and resolution state.
+- Added safe `task.init_project` resume semantics, bounded monorepo scope
+  detection, projection-only import routing, explicit migrated-baseline
+  replacement, and backup-first recovery for old state databases.
+- Added explicit corrupt-state restore and rebaseline commands that quarantine
+  the original database, WAL, SHM, and task projection and restore every moved
+  artifact when recovery fails.
+- Added approved incident break-glass records and mandatory post-incident
+  baseline reconciliation gaps, plus durable archive-journal crash recovery.
+
+### Changed
+
+- Made `ultra-init` the single route for empty repositories, existing
+  codebases, healthy installations, incomplete adoptions, prior Ultra state,
+  and corrupt databases. Existing application and baseline files are preserved;
+  resume installs only missing current scaffold assets.
+- New ordinary changes now require a healthy ready baseline. Already-active
+  work remains executable with visible drift warnings, while convergence still
+  requires current approved authority.
+- Ready-baseline replacement now requires durable owner identity and rationale;
+  a bare `replace_ready` boolean is rejected and cannot erase provenance.
+- Reworked baseline templates and host-neutral Skills around
+  `Observed`/`Verified`/`Decided`/`Unknown` evidence, characterization results,
+  owner approval, and one deterministic next action.
+
+### Fixed
+
+- Prevented prior-version projects from being treated as approved after a
+  schema upgrade; compatibility baselines remain `migrated/adopting` until an
+  evidence-backed brownfield replacement is approved.
+- Made status and doctor report old or corrupt state as structured recovery
+  guidance, retain pre-migration backup paths on failure, and close failed
+  database handles safely.
+- Prevented maintenance CLI telemetry from opening corrupt authority before
+  evidence-preserving recovery checks, and made task creation enforce the same
+  baseline boundary as change creation.
+- Closed bulk-parse and task-expansion task-creation bypasses; persisted PRD
+  tasks now carry their active change id, and expanded children inherit the
+  parent task's authorized change ownership.
+- Rejected task writes against missing or terminal changes even when the
+  baseline is healthy, and enforced parent-child change ownership for generic
+  task creation and reassignment paths.
+- Fixed installed npm tarballs so direct `ultra-tools task init-project` calls
+  can locate the packaged scaffold outside a source checkout.
+
 ## [0.12.1] — 2026-07-18
 
 ### Fixed
@@ -490,7 +541,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.10.0...v0.11.0

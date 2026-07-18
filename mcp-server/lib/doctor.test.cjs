@@ -11,15 +11,17 @@ const ops = require('./state-ops.cjs');
 const runtime = require('./runtime-state.cjs');
 const doctor = require('./doctor.cjs');
 const baselines = require('./baseline-workflow.cjs');
+const changes = require('./change-workflow.cjs');
+const archiveJournal = require('./archive-journal.cjs');
 
-function fixture({ migratedBaseline = true } = {}) {
+function fixture({ baseline = true } = {}) {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-doctor-'));
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
-  if (migratedBaseline) {
+  if (baseline) {
     db.prepare(
       `INSERT INTO baselines
        (id, project_name, mode, status, approved_by, approval_note, converged_at)
-       VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+       VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'accepted fixture', ?)`,
     ).run(new Date().toISOString());
   }
   return { rootDir, db };
@@ -44,7 +46,7 @@ test('doctor reports structured health for an initialized Ultra project', async 
 });
 
 test('doctor reports incomplete brownfield adoption as advisory rather than authority failure', async () => {
-  const fx = fixture({ migratedBaseline: false });
+  const fx = fixture({ baseline: false });
   try {
     baselines.startBaseline(fx.db, {
       id: 'adoption', project_name: 'legacy', mode: 'brownfield', scope: ['.'],
@@ -53,6 +55,9 @@ test('doctor reports incomplete brownfield adoption as advisory rather than auth
     assert.equal(report.status, 'healthy');
     assert.equal(report.checks.baseline.status, 'warning');
     assert.equal(report.checks.baseline.mode, 'brownfield');
+    assert.deepEqual(report.checks.baseline.gaps, {
+      total: 0, open: 0, blocking: 0, by_category: {},
+    });
     assert.ok(report.checks.baseline.blockers.includes('BASELINE_NOT_READY:adopting'));
   } finally {
     cleanup(fx);
@@ -104,6 +109,39 @@ test('doctor reports running projection work and repairs only stale interrupted 
     assert.equal(after.repair.interrupted.requeued, 1);
     assert.equal(after.checks.projections.running, 0);
     assert.equal(after.status, 'healthy');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('doctor repair resumes an archive journal left after a process crash', async () => {
+  const fx = fixture();
+  try {
+    const activeRoot = path.join(fx.rootDir, '.ultra', 'changes', 'active', 'doctor-archive');
+    fs.mkdirSync(activeRoot, { recursive: true });
+    fs.writeFileSync(path.join(activeRoot, 'intent.md'), '# Authorized archive\n');
+    fx.db.prepare(
+      `INSERT INTO changes
+       (id, title, kind, status, intent, docs_impact_json, provider_refs_json, artifact_root)
+       VALUES ('doctor-archive', 'Recover archive', 'quick', 'ready', 'Recover it',
+               '{"status":"none","files":[],"rationale":"recovery"}', '{}',
+               '.ultra/changes/active/doctor-archive')`,
+    ).run();
+    const prepared = archiveJournal.prepareArchiveMove({
+      rootDir: fx.rootDir, change: changes.readChange(fx.db, 'doctor-archive'),
+      summary: 'Resume the authorized archive.', baselineUpdates: [],
+      noBaselineChangeReason: 'No baseline content changed.',
+    });
+    assert.equal(fs.existsSync(prepared.source), false);
+    const before = doctor.inspectSystem(fx.db, { rootDir: fx.rootDir });
+    assert.equal(before.status, 'degraded');
+    assert.equal(before.checks.archive_recovery.pending, 1);
+
+    const after = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir, repair: true });
+    assert.equal(after.repair.archives.resumed, 1);
+    assert.equal(changes.readChange(fx.db, 'doctor-archive').status, 'archived');
+    assert.equal(after.checks.archive_recovery.pending, 0);
+    assert.equal(fs.existsSync(path.join(prepared.destination, archiveJournal.INTENT_FILE)), false);
   } finally {
     cleanup(fx);
   }

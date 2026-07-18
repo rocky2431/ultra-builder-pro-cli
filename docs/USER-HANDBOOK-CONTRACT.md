@@ -22,10 +22,11 @@ host receives only its native invocation and collaboration names.
 
 The managed block deliberately stays short. It says that `.ultra/state.db` is
 authoritative; `change.context` compiles role/gate readiness, bounded references,
-fresh-context budget, public seam, and exact verification; size budgets and an
-incomplete baseline during active work are advisory, while an approved baseline is
-required for convergence and full baseline health is restored atomically at archive;
-hooks inject only the DB-derived
+fresh-context budget, public seam, and exact verification; size budgets are advisory,
+new ordinary work requires a healthy baseline, existing active work may continue with
+warnings, and only an approved incident break-glass may start without baseline
+readiness; ordinary archive restores baseline health while break-glass archive records
+a blocking reconciliation gap; hooks inject only the DB-derived
 `change.breadcrumb`; and unresolved specification learning or either failed review
 axis blocks convergence. Detailed procedures remain in the plugin skills so user
 handbooks do not accumulate duplicated prompt sediment.

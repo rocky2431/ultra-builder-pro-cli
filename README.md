@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.12.1-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.13.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -44,9 +44,10 @@ authoritative `.ultra/state.db`.
   Incident changes additionally require a five-section `diagnosis.md` covering
   reproduction, hypotheses, root cause, regression test, and recovery.
 - **Adopts existing repositories without pretending they are new.** `ultra-init`
-  auto-detects greenfield versus brownfield work. Brownfield adoption records
-  current specifications, repository/runtime evidence, known-red verification,
-  unknowns, and explicit approval without rewriting application code.
+  classifies greenfield, brownfield, and monorepo scope. Brownfield adoption records
+  current specifications, repository/runtime evidence, worktree snapshot, known-red
+  verification, categorized gaps, unknowns, and explicit approval without rewriting
+  application code. v4.4 and v4.5 projection-only projects have backup-first imports.
 - **Keeps external context external.** Memory and code-graph providers retain
   their own content; Ultra stores only provider/project/revision/status metadata
   references in a compiled change context.
@@ -89,10 +90,10 @@ for per-runtime capabilities.
 Start with `ultra-init` in both new and existing projects. An empty project opens
 a `draft` greenfield baseline. An existing codebase opens an `adopting`
 brownfield baseline; inspect current behavior, call `baseline.record`, then
-approve it through `baseline.converge` before normal planning or delivery. An
-urgent active fix may continue while adoption or context-size warnings are
-visible. `change.converge` requires approved adoption, while normal HEAD/spec drift
-from that change is declared and health-checked atomically by `change.archive`.
+approve it through `baseline.converge` before normal planning or delivery. Existing
+active work may continue while adoption drift is visible. A new incident requires an
+explicit break-glass approver and leaves a blocking reconciliation gap at archive;
+new ordinary work always requires a healthy ready baseline.
 
 ## Three-layer architecture
 
@@ -133,8 +134,12 @@ Full details in [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.m
 ## Typical workflow
 
 ```bash
-# 1. Initialize a new project or adopt an existing repository automatically
+# 1. Bootstrap project state (the ultra-init skill completes adoption and approval)
 ultra-tools task init-project --project-name myapp --mode auto
+
+# Projection-only projects from prior releases use one backup-first import:
+ultra-tools migrate --from=4.4 --to=4.5 --source-dir .
+ultra-tools migrate --from=4.5 --to=12.0 --source-dir .
 
 # 2. Record and converge the greenfield/brownfield baseline, then turn accepted
 #    behavior into a task graph (normally driven by ultra-init/research/plan)
@@ -208,6 +213,17 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
   the recorded install provenance with current asset hashes and validates the
   host-specific hook, MCP, plugin, and runtime-manifest entry points. Reinstall
   only after preserving the degraded report as evidence.
+- **Projection tasks exist but state.db has no tasks**: run the exact v4.4 or v4.5
+  `ultra-tools migrate` command returned by MCP, verify the backup and imported counts,
+  then run `ultra-init` to replace the compatibility row with a reviewed brownfield
+  baseline.
+- **Old or corrupt state.db**: `ultra-tools system doctor` is read-only;
+  `ultra-tools system doctor --repair` upgrades supported schemas with two backup
+  checkpoints. A corrupt database is never overwritten automatically. After explicit
+  owner approval, restore a verified managed copy with
+  `ultra-tools system restore --backup <path> --confirm REPLACE_CORRUPT_ULTRA_STATE`,
+  or preserve the corrupt DB and legacy projection before rebuilding authority with
+  `ultra-tools system rebaseline --project-name <name> --confirm REBASELINE_CORRUPT_ULTRA_STATE`.
 - **Legacy Ultra memory data remains on disk**: inspect first with
   `ultra-tools legacy-memory inspect`, archive with
   `ultra-tools legacy-memory archive`, then prune only with the explicit

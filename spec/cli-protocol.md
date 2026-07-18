@@ -120,10 +120,20 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 
 Current executable maintenance surfaces are `task init-project`,
 `session close|get|list|admission|heartbeat|subscribe|reap`, `status`, `db`,
-`migrate`, and `legacy-memory`. In particular, `task create|update|list|get`
+`migrate`, `system doctor|restore|rebaseline`, and `legacy-memory`. In particular, `task create|update|list|get`
 and all `change` lifecycle verbs are not CLI fallbacks. Change state must use
 the live MCP server; `system doctor` may additionally be exposed by the
 maintenance CLI because it is the recovery path when MCP startup is degraded.
+`task init-project --resume` preserves existing `.ultra` files and installs only
+missing current scaffold assets. Projection-only state uses the supported
+`migrate --from=4.4 --to=4.5` or `--from=4.5 --to=12.0` transition before resume.
+`system doctor --repair` applies supported schema upgrades with a pre-migration
+backup before mechanical recovery.
+`system restore` requires the exact `REPLACE_CORRUPT_ULTRA_STATE` confirmation and a
+verified database inside `.ultra/backups`; it quarantines the corrupt state before
+atomic replacement. `system rebaseline` requires the exact
+`REBASELINE_CORRUPT_ULTRA_STATE` confirmation and preserves corrupt state plus the
+legacy task projection before starting a new brownfield adoption.
 The full access policy lives in
 `docs/STATE-DB-ACCESS-POLICY.md` (Phase 2.2 / R25).
 

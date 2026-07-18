@@ -1,0 +1,12 @@
+{
+  "baseline": {
+    "id": "project-baseline",
+    "mode": "brownfield",
+    "status": "ready"
+  },
+  "health": {
+    "status": "pass",
+    "blockers": [],
+    "warnings": []
+  }
+}

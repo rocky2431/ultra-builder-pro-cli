@@ -52,6 +52,11 @@ test('a task is not plan-ready before its execution contract is compiled', () =>
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-spine-plan-'));
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
   try {
+    db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'accepted fixture', ?)`,
+    ).run(new Date().toISOString());
     const { change } = createChange(db, {
       id: 'planning-contract', title: 'Planning contract', kind: 'standard',
       intent: 'Require an executable fresh-context slice before implementation.',

@@ -9,6 +9,7 @@ const { spawnSync } = require('node:child_process');
 const yaml = require('js-yaml');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 
 const codex = require('../codex.js');
 const { parse: parseFrontmatter } = require('../_shared/frontmatter.cjs');
@@ -263,6 +264,13 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
   let client;
   try {
     install(layout);
+    const seededState = initStateDb(path.join(projectDir, '.ultra', 'state.db'));
+    seededState.db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('test-baseline', 'codex-bundle', 'greenfield', 'ready', 'test', 'smoke fixture', ?)`,
+    ).run(new Date().toISOString());
+    closeStateDb(seededState.db);
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
     const server = mcp.mcpServers['ultra-builder-pro'];
     const env = { ...process.env };

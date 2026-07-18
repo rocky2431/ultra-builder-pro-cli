@@ -13,11 +13,17 @@ const path = require('node:path');
 
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const ops = require('./state-ops.cjs');
+const changes = require('./change-workflow.cjs');
 const { expandTask, TaskExpandError } = require('./task-expander.cjs');
 
 function tmpDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-expand-'));
   const { db } = initStateDb(path.join(dir, 'state.db'));
+  db.prepare(
+    `INSERT INTO baselines
+     (id, project_name, mode, status, approved_by, approval_note, converged_at)
+     VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'fixture', ?)`,
+  ).run(new Date().toISOString());
   return { dir, db };
 }
 
@@ -249,5 +255,70 @@ test('expandTask: children inherit parent tag', async () => {
     }
   } finally {
     cleanup(ctx);
+  }
+});
+
+test('expandTask blocks new children when baseline authority is missing, draft, or migrated', async () => {
+  for (const baseline of ['missing', 'draft', 'migrated']) {
+    const ctx = tmpDb();
+    try {
+      seedParent(ctx.db);
+      if (baseline === 'missing') ctx.db.prepare('DELETE FROM baselines').run();
+      else if (baseline === 'draft') {
+        ctx.db.prepare("UPDATE baselines SET status = 'draft' WHERE id = 'test-baseline'").run();
+      } else {
+        ctx.db.prepare(
+          "UPDATE baselines SET mode = 'migrated', status = 'adopting' WHERE id = 'test-baseline'",
+        ).run();
+      }
+      await assert.rejects(
+        expandTask(ctx.db, {
+          id: 'parent-1', llmClient: fakeLlm(HAPPY_CHILDREN), rootDir: ctx.dir,
+        }),
+        (error) => error.code === 'BASELINE_NOT_READY',
+      );
+      assert.equal(ops.readTask(ctx.db, 'child-1'), null);
+      assert.equal(ops.readTask(ctx.db, 'parent-1').status, 'pending');
+    } finally { cleanup(ctx); }
+  }
+});
+
+test('expandTask preserves active ordinary and approved incident change ownership while adoption is incomplete', async () => {
+  for (const kind of ['quick', 'incident']) {
+    const ctx = tmpDb();
+    try {
+      if (kind === 'incident') {
+        ctx.db.prepare(
+          "UPDATE baselines SET mode = 'brownfield', status = 'adopting' WHERE id = 'test-baseline'",
+        ).run();
+      }
+      const changeId = `expand-${kind}`;
+      changes.createChange(ctx.db, {
+        id: changeId,
+        title: kind === 'incident' ? 'Recover production expansion' : 'Continue planned expansion',
+        kind,
+        intent: 'Keep every expanded child inside the already-authorized continuous change.',
+        ...(kind === 'incident' ? {
+          baseline_bypass: {
+            approved_by: 'incident-commander',
+            reason: 'Production recovery requires a bounded task expansion before adoption converges.',
+          },
+        } : {}),
+      }, { rootDir: ctx.dir });
+      seedParent(ctx.db, { change_id: changeId });
+      if (kind === 'quick') {
+        ctx.db.prepare(
+          "UPDATE baselines SET mode = 'brownfield', status = 'adopting' WHERE id = 'test-baseline'",
+        ).run();
+      }
+
+      const result = await expandTask(ctx.db, {
+        id: 'parent-1', llmClient: fakeLlm(HAPPY_CHILDREN), rootDir: ctx.dir,
+      });
+      assert.equal(result.children.length, HAPPY_CHILDREN.length);
+      for (const child of HAPPY_CHILDREN) {
+        assert.equal(ops.readTask(ctx.db, child.id).change_id, changeId);
+      }
+    } finally { cleanup(ctx); }
   }
 });

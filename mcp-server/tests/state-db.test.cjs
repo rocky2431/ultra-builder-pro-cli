@@ -59,7 +59,9 @@ test('initStateDb upgrades a pre-10.0 database through Context Spine into baseli
     assert.ok(columns.includes('change_id'));
     const eventColumns = upgraded.db.prepare('PRAGMA table_info(events)').all().map((row) => row.name);
     assert.ok(eventColumns.includes('change_id'));
-    assert.equal(upgraded.schema_version, '11.0');
+    assert.equal(upgraded.schema_version, '12.0');
+    assert.ok(upgraded.backup_path);
+    assert.ok(fs.existsSync(upgraded.backup_path));
     assert.ok(upgraded.db.prepare("SELECT 1 FROM schema_version WHERE version = '10.0'").get());
     const contextColumns = upgraded.db.prepare('PRAGMA table_info(context_snapshots)').all()
       .map((row) => row.name);
@@ -72,7 +74,7 @@ test('initStateDb upgrades a pre-10.0 database through Context Spine into baseli
     const baseline = upgraded.db.prepare(
       "SELECT mode, status FROM baselines WHERE id = 'migrated-baseline'",
     ).get();
-    assert.deepEqual(baseline, { mode: 'migrated', status: 'ready' });
+    assert.deepEqual(baseline, { mode: 'migrated', status: 'adopting' });
     const contextMigration = upgraded.db.prepare(
       "SELECT from_version, to_version, notes FROM migration_history WHERE to_version = '10.0' ORDER BY id DESC LIMIT 1",
     ).get();
@@ -84,6 +86,16 @@ test('initStateDb upgrades a pre-10.0 database through Context Spine into baseli
     ).get();
     assert.equal(baselineMigration.from_version, '10.0');
     assert.match(baselineMigration.notes, /baseline adoption/i);
+    const adoptionMigration = upgraded.db.prepare(
+      "SELECT from_version, to_version, notes FROM migration_history WHERE to_version = '12.0' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.equal(adoptionMigration.from_version, '11.0');
+    assert.match(adoptionMigration.notes, /gap ledger|re-adoption/i);
+    const migrated = upgraded.db.prepare(
+      "SELECT gaps_json, worktree_state FROM baselines WHERE id = 'migrated-baseline'",
+    ).get();
+    assert.equal(migrated.worktree_state, 'unavailable');
+    assert.equal(JSON.parse(migrated.gaps_json)[0].category, 'baseline_blocker');
     assert.ok(upgraded.db.prepare(
       "SELECT 1 FROM migration_history WHERE from_version = '8A.1' AND to_version = '9.1' AND notes LIKE '%Kimi%'",
     ).get());

@@ -1,0 +1,10 @@
+{
+  "ready": true,
+  "status": "ready",
+  "blockers": [],
+  "baseline": {
+    "id": "project-baseline",
+    "mode": "brownfield",
+    "status": "ready"
+  }
+}

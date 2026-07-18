@@ -122,6 +122,39 @@ test('migrate forward inserts tasks + events, records migration_history, creates
   }
 });
 
+test('migrate imports a v4.5 projection into schema 12 authority and requires evidence-backed re-adoption', () => {
+  const dir = tmpProject();
+  try {
+    const tasksPath = path.join(dir, '.ultra', 'tasks', 'tasks.json');
+    const projection = JSON.parse(fs.readFileSync(tasksPath, 'utf8'));
+    delete projection.version;
+    projection.schema_version = '4.5';
+    projection.source = '.ultra/state.db';
+    fs.writeFileSync(tasksPath, `${JSON.stringify(projection, null, 2)}\n`);
+
+    const r = runCli(['migrate', '--from=4.5', '--to=12.0', '--source-dir', dir]);
+    assert.equal(r.code, 0);
+    assert.equal(r.envelope.data.from, '4.5');
+    assert.equal(r.envelope.data.to, '12.0');
+    assert.match(path.basename(r.envelope.data.backup_dir), /^backup-v4\.5-/);
+
+    const db = openStateDb(path.join(dir, '.ultra', 'state.db'));
+    try {
+      assert.equal(db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count, 3);
+      const baseline = db.prepare(
+        "SELECT mode, status, gaps_json FROM baselines WHERE id = 'migrated-baseline'",
+      ).get();
+      assert.deepEqual(
+        { mode: baseline.mode, status: baseline.status },
+        { mode: 'migrated', status: 'adopting' },
+      );
+      assert.equal(JSON.parse(baseline.gaps_json)[0].id, 'legacy-rebaseline-required');
+    } finally { closeStateDb(db); }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('migrate --rollback restores .ultra contents and writes a rollback row', () => {
   const dir = tmpProject();
   try {

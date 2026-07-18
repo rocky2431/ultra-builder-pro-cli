@@ -56,11 +56,29 @@ def git_head(root: Path):
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def git_branch(root: Path):
+    result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=2,
+    )
+    return (result.stdout.strip() or None) if result.returncode == 0 else None
+
+
 def baseline_health(conn, root: Path):
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(baselines)")}
+    optional = [
+        name for name in (
+            "repository_branch", "worktree_state", "worktree_accepted", "gaps_json"
+        ) if name in columns
+    ]
     row = conn.execute(
-        """SELECT id, mode, status, repository_revision, spec_refs_json
-           FROM baselines WHERE status != 'superseded'
-           ORDER BY updated_at DESC, rowid DESC LIMIT 1"""
+        f"""SELECT id, mode, status, repository_revision, spec_refs_json{''.join(f', {name}' for name in optional)}
+            FROM baselines WHERE status != 'superseded'
+            ORDER BY updated_at DESC, rowid DESC LIMIT 1"""
     ).fetchone()
     if row is None:
         return {"status": "fail", "blockers": ["BASELINE_MISSING"], "warnings": [], "baseline": None}
@@ -70,8 +88,22 @@ def baseline_health(conn, root: Path):
     if baseline["status"] != "ready":
         blockers.append(f"BASELINE_NOT_READY:{baseline['status']}")
     elif baseline["mode"] == "migrated":
-        warnings.append("BASELINE_MIGRATION_REVIEW_RECOMMENDED")
+        blockers.append("BASELINE_MIGRATION_REVIEW_REQUIRED")
     else:
+        if "gaps_json" not in columns:
+            blockers.append("BASELINE_SCHEMA_MIGRATION_REQUIRED")
+        for gap in safe_json(baseline.get("gaps_json"), []):
+            if (
+                isinstance(gap, dict)
+                and gap.get("status") == "open"
+                and gap.get("blocking") is True
+            ):
+                blockers.append(f"BASELINE_GAP_BLOCKING:{gap.get('id', 'unknown')}")
+        if baseline.get("worktree_state") == "dirty" and not baseline.get("worktree_accepted"):
+            blockers.append("BASELINE_DIRTY_WORKTREE_NOT_ACCEPTED")
+        branch = git_branch(root)
+        if baseline.get("repository_branch") and branch and baseline["repository_branch"] != branch:
+            blockers.append("BASELINE_BRANCH_STALE")
         for spec in safe_json(baseline.get("spec_refs_json"), []):
             ref = spec.get("path") if isinstance(spec, dict) else None
             expected = spec.get("digest") if isinstance(spec, dict) else None
@@ -95,6 +127,7 @@ def baseline_health(conn, root: Path):
         if head and revision and not str(revision).startswith("workspace:") and head != revision:
             blockers.append("BASELINE_HEAD_STALE")
     baseline.pop("spec_refs_json", None)
+    baseline.pop("gaps_json", None)
     return {
         "status": "fail" if blockers else "pass",
         "blockers": blockers,

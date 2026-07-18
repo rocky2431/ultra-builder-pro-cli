@@ -36,6 +36,16 @@ Separate blocking unknowns from questions that are outside the accepted scope.
 |---|---|---|---|
 | | | | |
 
+## Baseline Gaps
+
+Reference the authoritative gap ids recorded in `.ultra/state.db`. Use one of
+`baseline_blocker`, `documentation_drift`, `known_defect`, `technical_debt`,
+`unknown`, or `future_change`.
+
+| Gap id | Category | Status | Evidence reference | Owner |
+|---|---|---|---|---|
+| | | | | |
+
 ## Current Behavior Notes
 
 For an existing project, describe only behavior confirmed from source, tests, runtime,

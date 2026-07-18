@@ -148,7 +148,10 @@ async function dispatchTool(name, input, db, ctx = {}) {
     case 'task.create': {
       const { randomUUID } = require('node:crypto');
       const id = input.id || `task-${randomUUID()}`;
-      const task = ops.createTask(db, { ...input, id });
+      const changeId = ops.resolveTaskCreationChangeId(db, input);
+      const authorizedInput = { ...input, change_id: changeId };
+      changes.assertTaskCreationAllowed(db, authorizedInput, { rootDir: ctx.rootDir || process.cwd() });
+      const task = ops.createTask(db, { ...authorizedInput, id });
       return { id: task.id, status: task.status, created_at: task.created_at };
     }
     case 'task.update': {
@@ -286,20 +289,25 @@ async function dispatchTool(name, input, db, ctx = {}) {
         err.code = 'NO_INPUT';
         throw err;
       }
+      const dryRun = input.dry_run === true;
+      const rootDir = ctx.rootDir || process.cwd();
+      const creationAuthority = { change_id: input.change_id };
+      if (!dryRun) changes.assertTaskCreationAllowed(db, creationAuthority, { rootDir });
       const client = buildLlmClient(ctx);
       const parsed = await parser.parsePrd(prdText, { llmClient: client, tag: input.tag });
       const shaped = parsed.tasks.map((t) => ({
         id: t.id, title: t.title, type: t.type, priority: t.priority,
         complexity: t.complexity, deps: t.deps, files_modified: t.files_modified,
-        tag: t.tag,
+        tag: t.tag, change_id: input.change_id,
       }));
-      const dryRun = input.dry_run === true;
       if (!dryRun) {
         try {
           ops.tx(db, () => {
+            changes.assertTaskCreationAllowed(db, creationAuthority, { rootDir });
             for (const t of shaped) ops.createTask(db, t);
           });
         } catch (err) {
+          if (['BASELINE_NOT_READY', 'CHANGE_NOT_FOUND', 'CHANGE_NOT_MUTABLE'].includes(err.code)) throw err;
           const wrap = new Error(`failed to persist parsed tasks: ${err.message}`);
           wrap.code = 'PARSE_FAILED';
           wrap.cause = err;
@@ -324,12 +332,15 @@ async function dispatchTool(name, input, db, ctx = {}) {
         err.code = 'ALREADY_EXPANDED';
         throw err;
       }
+      const rootDir = ctx.rootDir || process.cwd();
+      changes.assertTaskCreationAllowed(db, { change_id: parent.change_id }, { rootDir });
       const client = buildLlmClient(ctx);
       const result = await expander.expandTask(db, {
         id: input.id,
         sub_count: input.sub_count,
         strategy: input.strategy,
         llmClient: client,
+        rootDir,
       });
       return { parent_id: result.parent_id, children: result.children };
     }

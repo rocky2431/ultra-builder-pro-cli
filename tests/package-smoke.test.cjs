@@ -65,6 +65,16 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     assert.match(run(ubp, ['--version'], { cwd: consumer }), new RegExp(`v${PACKAGE.version}$`));
     assert.equal(run(ultraTools, ['--version'], { cwd: consumer }), PACKAGE.version);
 
+    const cliProject = path.join(tempRoot, 'direct-cli-project');
+    fs.mkdirSync(cliProject);
+    const initialized = JSON.parse(run(ultraTools, [
+      'task', 'init-project', '--target-dir', cliProject, '--project-name', 'tarball-cli',
+    ], { cwd: consumer }));
+    assert.equal(initialized.ok, true);
+    assert.equal(initialized.data.status, 'created');
+    assert.ok(fs.existsSync(path.join(cliProject, '.ultra', 'specs', 'product.md')));
+    assert.ok(fs.existsSync(path.join(cliProject, '.ultra', 'state.db')));
+
     for (const doc of [
       'COMMIT-HASH-BACKFILL.md', 'PLAN.zh-CN.md', 'STATE-DB-ACCESS-POLICY.md',
     ]) {
@@ -101,6 +111,12 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     for (const [runtime, launcher] of Object.entries(launchers)) {
       assert.ok(fs.existsSync(launcher), `${runtime} launcher missing`);
       assert.ok(!launcher.startsWith(REPO_ROOT), `${runtime} launcher leaked source checkout`);
+      const bundledTools = path.join(path.dirname(launcher), 'ultra-tools.cjs');
+      assert.equal(
+        run(process.execPath, [bundledTools, '--version'], { cwd: consumer }),
+        PACKAGE.version,
+        `${runtime} bundled Ultra tools reported the wrong package version`,
+      );
       await verifyMcp(launcher, path.join(tempRoot, 'projects', runtime));
     }
   } finally {

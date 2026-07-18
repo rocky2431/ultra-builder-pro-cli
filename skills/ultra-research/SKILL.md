@@ -51,11 +51,18 @@ default.
 5. Validate cross-document consistency and trace each required behavior from problem
    or constraint to acceptance and architecture.
 6. Use `references/synthesis.md` for the completion check.
-7. Call `baseline.record` with the complete current specification list, bounded evidence
-   references, actual verification results, provider metadata, and explicit unknowns.
-   Use the returned repository revision for convergence.
-8. Present the baseline and any known-red verification to the owner. After explicit
-   approval, call `baseline.converge`. Resolve deterministic blockers before routing.
+7. Record unresolved evidence as the baseline gap ledger: `baseline_blocker`,
+   `documentation_drift`, `known_defect`, `technical_debt`, `unknown`, or
+   `future_change`. Keep accepted non-blocking work out of the implementation backlog
+   until the owner selects it.
+8. Call `baseline.record` with the complete current specification list, bounded evidence
+   references, actual verification results, provider metadata, explicit unknowns,
+   classification, and the full gap ledger. Use the returned repository revision for
+   convergence.
+9. Present the baseline, open gaps, dirty-worktree state, and any known-red verification
+   to the owner. After explicit approval, call `baseline.converge`, setting acceptance
+   flags only for the exact known-red or dirty snapshot approved by the owner. Resolve
+   deterministic blockers before routing.
 
 ## Completion gate
 

@@ -44,12 +44,12 @@ def test_context_is_noop_outside_an_ultra_project(tmp_path):
     assert output == {}
 
 
-def test_context_routes_healthy_baseline_to_continuous_change(tmp_path):
+def test_context_routes_migrated_baseline_to_explicit_readoption(tmp_path):
     init_db(tmp_path)
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
-    assert "Ultra baseline" in text
-    assert "ultra-change" in text
+    assert "BASELINE_MIGRATION_REVIEW_REQUIRED" in text
+    assert "Route: ultra-init" in text
     assert ".ultra/state.db" in text
 
 
@@ -65,6 +65,25 @@ def test_context_routes_incomplete_brownfield_baseline_to_adoption(tmp_path):
     assert "Baseline: adoption (brownfield/adopting)" in text
     assert "Readiness: blocked" in text
     assert "BASELINE_NOT_READY:adopting" in text
+    assert "Route: ultra-init" in text
+
+
+def test_context_routes_a_ready_baseline_with_an_open_blocking_gap_to_adoption(tmp_path):
+    db_path = init_db(tmp_path, baseline=None)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """INSERT INTO baselines
+               (id, project_name, mode, status, gaps_json, approved_by, approval_note)
+               VALUES ('gap-baseline', 'legacy', 'brownfield', 'ready', ?, 'owner', 'accepted')""",
+            (json.dumps([{
+                "id": "incident-reconciliation", "category": "baseline_blocker",
+                "status": "open", "blocking": True, "summary": "Reconcile incident",
+                "evidence_refs": [],
+            }]),),
+        )
+    output, _ = run_hook("workflow_context.py", tmp_path)
+    text = output["hookSpecificOutput"]["additionalContext"]
+    assert "BASELINE_GAP_BLOCKING:incident-reconciliation" in text
     assert "Route: ultra-init" in text
 
 

@@ -23,7 +23,7 @@ function fixture() {
   db.prepare(
     `INSERT INTO baselines
      (id, project_name, mode, status, approved_by, approval_note, converged_at)
-     VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+     VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'accepted fixture', ?)`,
   ).run(new Date().toISOString());
   changes.createChange(db, {
     id: 'learning-change', title: 'Learning change', kind: 'quick',

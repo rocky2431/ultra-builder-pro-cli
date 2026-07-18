@@ -3,12 +3,17 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { initStateDb, openStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
+const {
+  initStateDb, openStateDb, closeStateDb, MIGRATED_GAPS,
+} = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
 const projector = require('../../mcp-server/lib/projector.cjs');
 
-const SUPPORTED_FROM = '4.4';
-const SUPPORTED_TO = '4.5';
+const DEFAULT_FROM = '4.4';
+const SUPPORTED_TRANSITIONS = Object.freeze({
+  '4.4': '4.5',
+  '4.5': '12.0',
+});
 
 // Frozen SQL — values flow through parameter bindings.
 const RECORD_MIGRATION_SQL = "INSERT INTO migration_history (from_version, to_version, direction, status, notes) VALUES (@from, @to, @direction, @status, @notes)";
@@ -73,7 +78,7 @@ function copyDirSync(src, dst) {
     const s = path.join(src, entry.name);
     const d = path.join(dst, entry.name);
     if (entry.name === 'state.db' || entry.name === 'state.db-wal' || entry.name === 'state.db-shm') continue;
-    if (entry.name.startsWith('backup-v4.4-')) continue;
+    if (/^backup-v[^/]+-/.test(entry.name)) continue;
     if (entry.isDirectory()) copyDirSync(s, d);
     else fs.copyFileSync(s, d);
   }
@@ -148,15 +153,15 @@ function normalizeLegacyTask(task, tasksJson, contextHeaders, sourceDir) {
   };
 }
 
-function planForward(sourceDir) {
+function planForward(sourceDir, expectedFrom = DEFAULT_FROM) {
   const tasksPath = path.join(sourceDir, '.ultra', 'tasks', 'tasks.json');
   const tasksJson = readJsonOptional(tasksPath);
   if (!tasksJson || !Array.isArray(tasksJson.tasks)) {
     throw new Error(`migrate: tasks.json missing or malformed at ${tasksPath}`);
   }
   const version = String(tasksJson.version || tasksJson.schema_version || '');
-  if (version !== SUPPORTED_FROM) {
-    throw new Error(`migrate: expected v${SUPPORTED_FROM} tasks.json, found ${version || '(missing version)'}`);
+  if (version !== expectedFrom) {
+    throw new Error(`migrate: expected v${expectedFrom} tasks.json, found ${version || '(missing version)'}`);
   }
 
   const contextHeaders = {};
@@ -173,7 +178,7 @@ function planForward(sourceDir) {
         task_id: task.id,
         json_status: task.status,
         context_status: ctx.status,
-        resolution: 'tasks.json wins (v4.4 → v4.5 D21 rule)',
+        resolution: `tasks.json wins (v${expectedFrom} projection migration rule)`,
       });
     }
   }
@@ -190,6 +195,7 @@ function planForward(sourceDir) {
     events: eventList,
     contextHeaders,
     warnings,
+    projectName: tasksJson.project?.name || path.basename(sourceDir),
   };
 }
 
@@ -241,16 +247,17 @@ function recordMigration(db, { from, to, direction, status, notes }) {
   db.prepare(RECORD_MIGRATION_SQL).run({ from, to, direction, status, notes });
 }
 
-function ensureBackupName(sourceDir) {
+function ensureBackupName(sourceDir, fromVersion = DEFAULT_FROM) {
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
-  return path.join(sourceDir, '.ultra', `backup-v4.4-${ts}`);
+  return path.join(sourceDir, '.ultra', `backup-v${fromVersion}-${ts}`);
 }
 
-function findLatestBackup(sourceDir) {
+function findLatestBackup(sourceDir, fromVersion = DEFAULT_FROM) {
   const ultra = path.join(sourceDir, '.ultra');
   if (!fs.existsSync(ultra)) return null;
+  const prefix = `backup-v${fromVersion}-`;
   const candidates = fs.readdirSync(ultra)
-    .filter((n) => n.startsWith('backup-v4.4-'))
+    .filter((n) => n.startsWith(prefix))
     .sort();
   return candidates.length === 0 ? null : path.join(ultra, candidates[candidates.length - 1]);
 }
@@ -258,9 +265,11 @@ function findLatestBackup(sourceDir) {
 function cmdForward(flags) {
   const sourceDir = path.resolve(flags.sourceDir || '.');
   const dbPath = path.resolve(flags.dbPath || path.join(sourceDir, '.ultra', 'state.db'));
+  const fromVersion = flags.from || DEFAULT_FROM;
+  const toVersion = flags.to || SUPPORTED_TRANSITIONS[fromVersion];
   let plan;
   try {
-    plan = planForward(sourceDir);
+    plan = planForward(sourceDir, fromVersion);
   } catch (err) {
     emit({ ok: false, error: { code: 'MIGRATE_FAILED', message: err.message, retriable: false } });
     return 2;
@@ -271,8 +280,8 @@ function cmdForward(flags) {
       ok: true,
       data: {
         mode: 'dry',
-        from: SUPPORTED_FROM,
-        to: SUPPORTED_TO,
+        from: fromVersion,
+        to: toVersion,
         source_dir: sourceDir,
         db_path: dbPath,
         tasks_to_insert: plan.tasks.length,
@@ -284,7 +293,7 @@ function cmdForward(flags) {
   }
 
   // Real run: backup the entire .ultra subtree first.
-  const backupDir = ensureBackupName(sourceDir);
+  const backupDir = ensureBackupName(sourceDir, fromVersion);
   const ultraSource = path.join(sourceDir, '.ultra');
   copyDirSync(ultraSource, backupDir);
 
@@ -297,9 +306,18 @@ function cmdForward(flags) {
         throw new Error(`migrate: refusing to merge into non-empty state.db (tasks=${existing})`);
       }
       const inserted = applyForward(db, plan);
+      db.prepare(
+        `INSERT INTO baselines
+         (id, project_name, mode, status, gaps_json, approval_note)
+         VALUES ('migrated-baseline', ?, 'migrated', 'adopting', ?, ?)`,
+      ).run(
+        plan.projectName,
+        JSON.stringify(MIGRATED_GAPS),
+        `Legacy v${fromVersion} projection imported; evidence-backed owner re-adoption is required`,
+      );
       recordMigration(db, {
-        from: SUPPORTED_FROM,
-        to: SUPPORTED_TO,
+        from: fromVersion,
+        to: toVersion,
         direction: 'forward',
         status: 'success',
         notes: `tasks=${inserted.taskInserted} events=${inserted.eventsInserted} warnings=${plan.warnings.length}`,
@@ -312,8 +330,8 @@ function cmdForward(flags) {
       ok: true,
       data: {
         mode: 'apply',
-        from: SUPPORTED_FROM,
-        to: SUPPORTED_TO,
+        from: fromVersion,
+        to: toVersion,
         source_dir: sourceDir,
         db_path: dbPath,
         backup_dir: backupDir,
@@ -328,8 +346,8 @@ function cmdForward(flags) {
     if (db) {
       try {
         recordMigration(db, {
-          from: SUPPORTED_FROM,
-          to: SUPPORTED_TO,
+          from: fromVersion,
+          to: toVersion,
           direction: 'forward',
           status: 'failed',
           notes: err.message,
@@ -346,9 +364,11 @@ function cmdForward(flags) {
 function cmdRollback(flags) {
   const sourceDir = path.resolve(flags.sourceDir || '.');
   const dbPath = path.resolve(flags.dbPath || path.join(sourceDir, '.ultra', 'state.db'));
-  const backupDir = findLatestBackup(sourceDir);
+  const fromVersion = flags.from || DEFAULT_FROM;
+  const toVersion = flags.to || SUPPORTED_TRANSITIONS[fromVersion];
+  const backupDir = findLatestBackup(sourceDir, fromVersion);
   if (!backupDir) {
-    emit({ ok: false, error: { code: 'NO_BACKUP', message: 'no backup-v4.4-* directory found' } });
+    emit({ ok: false, error: { code: 'NO_BACKUP', message: `no backup-v${fromVersion}-* directory found` } });
     return 2;
   }
 
@@ -358,8 +378,8 @@ function cmdRollback(flags) {
     if (fs.existsSync(dbPath)) {
       db = openStateDb(dbPath);
       recordMigration(db, {
-        from: SUPPORTED_TO,
-        to: SUPPORTED_FROM,
+        from: toVersion,
+        to: fromVersion,
         direction: 'rollback',
         status: 'success',
         notes: `restored from ${backupDir}`,
@@ -376,7 +396,7 @@ function cmdRollback(flags) {
     // Restore .ultra contents from backup, leaving the backup itself in place.
     const ultraDir = path.join(sourceDir, '.ultra');
     for (const entry of fs.readdirSync(ultraDir, { withFileTypes: true })) {
-      if (entry.name.startsWith('backup-v4.4-')) continue;
+      if (/^backup-v[^/]+-/.test(entry.name)) continue;
       const target = path.join(ultraDir, entry.name);
       fs.rmSync(target, { recursive: true, force: true });
     }
@@ -386,8 +406,8 @@ function cmdRollback(flags) {
       ok: true,
       data: {
         mode: 'rollback',
-        from: SUPPORTED_TO,
-        to: SUPPORTED_FROM,
+        from: toVersion,
+        to: fromVersion,
         backup_dir: backupDir,
         source_dir: sourceDir,
       },
@@ -406,29 +426,35 @@ function dispatch(args) {
     process.stdout.write(USAGE);
     return 0;
   }
-  if (flags.from && flags.from !== SUPPORTED_FROM) {
-    emit({ ok: false, error: { code: 'UNSUPPORTED_VERSION', message: `--from ${flags.from} unsupported (only ${SUPPORTED_FROM})` } });
+  const fromVersion = flags.from || DEFAULT_FROM;
+  const expectedTo = SUPPORTED_TRANSITIONS[fromVersion];
+  if (!expectedTo) {
+    emit({ ok: false, error: { code: 'UNSUPPORTED_VERSION', message: `--from ${fromVersion} unsupported (supported: ${Object.keys(SUPPORTED_TRANSITIONS).join(', ')})` } });
     return 1;
   }
-  if (flags.to && flags.to !== SUPPORTED_TO) {
-    emit({ ok: false, error: { code: 'UNSUPPORTED_VERSION', message: `--to ${flags.to} unsupported (only ${SUPPORTED_TO})` } });
+  if (flags.to && flags.to !== expectedTo) {
+    emit({ ok: false, error: { code: 'UNSUPPORTED_VERSION', message: `--to ${flags.to} unsupported for --from ${fromVersion} (expected ${expectedTo})` } });
     return 1;
   }
   return flags.rollback ? cmdRollback(flags) : cmdForward(flags);
 }
 
-const USAGE = `ultra-tools migrate --from=4.4 --to=4.5 [flags]
+const USAGE = `ultra-tools migrate --from=<version> --to=<version> [flags]
+
+Supported transitions:
+  4.4 -> 4.5   import the legacy task projection into authoritative state
+  4.5 -> 12.0  import a projection-only project into current authoritative state
 
 Flags:
   --source-dir <dir>   project root containing .ultra/ (default: .)
   --db-path <path>     state.db destination (default: <source-dir>/.ultra/state.db)
   --dry                print the migration plan without writing
-  --rollback           restore the most recent backup-v4.4-* and drop state.db
+  --rollback           restore the most recent matching backup-v<from>-* and drop state.db
 
 The forward flow: backup .ultra/ → init state.db → insert tasks from
 tasks.json → merge context md status (tasks.json wins on conflict, warnings
 recorded) → insert activity-log events → record migration_history.
-Rollback restores from the latest backup-v4.4-* directory and writes a
+Rollback restores from the latest matching backup-v<from>-* directory and writes a
 matching migration_history rollback row before dropping state.db.
 `;
 

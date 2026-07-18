@@ -15,6 +15,7 @@ Call `system.doctor` with `{ "repair": false }` and inspect:
 - open structured incidents;
 - event and projection cursor lag;
 - failed or interrupted projection jobs;
+- interrupted archive journals;
 - orphan sessions;
 - missing active-change artifact roots;
 - missing, incomplete, or stale project baseline readiness and specification digests;
@@ -36,17 +37,31 @@ delete artifacts, or collect memory during diagnosis.
   not approve a baseline, accept known-red verification, or invent adoption evidence.
   Baseline readiness is an advisory workflow check, not state-database corruption and
   not a reason for doctor repair.
+- A compatibility `migrated` baseline requires explicit brownfield re-adoption and
+  cannot authorize ordinary changes.
+- A corrupt SQLite file requires preserving the file, locating a verified backup, and
+  an explicit restore-or-rebaseline decision.
 
 ## Explicit repair
 
 After authorization, call `system.doctor` with `{ "repair": true }` or use the
-installed `ultra-tools system doctor --repair` fallback. The runtime must create a
-timestamped state database backup before any mechanical repair.
+installed `ultra-tools system doctor --repair` fallback. The CLI applies supported
+schema upgrades to the packaged current schema and reports a pre-migration backup path. Doctor then
+creates a second timestamped backup before runtime recovery.
 
-Repair is limited to documented recovery operations such as reconciling orphan
-sessions, consuming staleness events, requeueing interrupted or failed projections,
-and regenerating projections from authoritative state. If backup fails, stop. Always
-inspect the post-repair report; a completed repair action does not imply healthy state.
+Repair is limited to documented schema upgrades, archive-journal completion,
+reconciling orphan sessions, consuming staleness events, requeueing interrupted or
+failed projections, and regenerating projections from authoritative state. If either
+backup fails, stop. Always inspect the post-repair report; a completed repair action
+does not imply healthy state.
+
+If SQLite integrity prevents doctor from opening authority, preserve the original
+database, WAL, and SHM. After the owner chooses a recovery path, either run
+`ultra-tools system restore --backup <managed-backup> --confirm
+REPLACE_CORRUPT_ULTRA_STATE` or run `ultra-tools system rebaseline --project-name
+<name> [--scope <path>] --confirm REBASELINE_CORRUPT_ULTRA_STATE`. Both commands
+must report the recovery backup directory. A failed command must restore the
+original authority, sidecars, and task projection before returning an error.
 
 ## Installed-plugin failures
 

@@ -9,8 +9,20 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '11.0';
+const EXPECTED_VERSION = '12.0';
 const KIMI_SCHEMA_VERSION = '9.1';
+const CONTEXT_SCHEMA_VERSION = '10.0';
+const BASELINE_SCHEMA_VERSION = '11.0';
+
+const MIGRATED_GAPS = Object.freeze([{
+  id: 'legacy-rebaseline-required',
+  category: 'baseline_blocker',
+  status: 'open',
+  blocking: true,
+  summary: 'Legacy Ultra state requires evidence-backed brownfield re-adoption.',
+  evidence_refs: [],
+  owner: null,
+}]);
 
 const REQUIRED_TABLES = Object.freeze([
   'baselines',
@@ -32,7 +44,7 @@ const REQUIRED_TABLES = Object.freeze([
   'event_consumers',
 ]);
 
-function applyBaselineUpgrade(db, fromVersion) {
+function applyBaselineUpgrade(db, { legacyState = false } = {}) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS baselines (
       id                  TEXT PRIMARY KEY,
@@ -45,10 +57,18 @@ function applyBaselineUpgrade(db, fromVersion) {
       repository_root     TEXT NOT NULL DEFAULT '.',
       scope_json          TEXT NOT NULL DEFAULT '["."]',
       repository_revision TEXT,
+      repository_branch   TEXT,
+      worktree_state      TEXT NOT NULL DEFAULT 'unavailable'
+                              CHECK (worktree_state IN ('clean', 'dirty', 'unavailable')),
+      worktree_digest     TEXT,
+      worktree_files_json TEXT NOT NULL DEFAULT '[]',
+      worktree_accepted   INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1)),
       spec_refs_json      TEXT NOT NULL DEFAULT '[]',
       evidence_json       TEXT NOT NULL DEFAULT '[]',
       verification_json   TEXT NOT NULL DEFAULT '[]',
       unknowns_json       TEXT NOT NULL DEFAULT '[]',
+      gaps_json           TEXT NOT NULL DEFAULT '[]',
+      classification_json TEXT NOT NULL DEFAULT '{}',
       provider_refs_json  TEXT NOT NULL DEFAULT '{}',
       approved_by         TEXT,
       approval_note       TEXT,
@@ -58,15 +78,69 @@ function applyBaselineUpgrade(db, fromVersion) {
     );
     CREATE INDEX IF NOT EXISTS baselines_status ON baselines(status, updated_at);
   `);
-  if (fromVersion && fromVersion !== EXPECTED_VERSION) {
+  if (legacyState && db.prepare('SELECT COUNT(*) AS count FROM baselines').get().count === 0) {
     db.prepare(
       `INSERT OR IGNORE INTO baselines
-       (id, project_name, mode, status, approved_by, approval_note, converged_at)
-       VALUES ('migrated-baseline', 'Migrated Ultra project', 'migrated', 'ready',
-               'schema-migration', 'Legacy project preserved during schema 11.0 migration',
-               strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
-    ).run();
+       (id, project_name, mode, status, gaps_json, approval_note)
+       VALUES ('migrated-baseline', 'Migrated Ultra project', 'migrated', 'adopting', ?,
+               'Legacy project preserved; owner re-adoption is required')`,
+    ).run(JSON.stringify(MIGRATED_GAPS));
   }
+}
+
+function addColumnIfMissing(db, table, columns, name, definition) {
+  if (!columns.has(name)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+    columns.add(name);
+    return true;
+  }
+  return false;
+}
+
+function applyBaselineColumns(db) {
+  if (!tableNames(db).includes('baselines')) return false;
+  const columns = columnNames(db, 'baselines');
+  let changed = false;
+  changed = addColumnIfMissing(db, 'baselines', columns, 'repository_branch', 'TEXT') || changed;
+  changed = addColumnIfMissing(
+    db, 'baselines', columns, 'worktree_state',
+    "TEXT NOT NULL DEFAULT 'unavailable' CHECK (worktree_state IN ('clean', 'dirty', 'unavailable'))",
+  ) || changed;
+  changed = addColumnIfMissing(db, 'baselines', columns, 'worktree_digest', 'TEXT') || changed;
+  changed = addColumnIfMissing(
+    db, 'baselines', columns, 'worktree_files_json', "TEXT NOT NULL DEFAULT '[]'",
+  ) || changed;
+  changed = addColumnIfMissing(
+    db, 'baselines', columns, 'worktree_accepted',
+    'INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1))',
+  ) || changed;
+  changed = addColumnIfMissing(db, 'baselines', columns, 'gaps_json', "TEXT NOT NULL DEFAULT '[]'") || changed;
+  changed = addColumnIfMissing(
+    db, 'baselines', columns, 'classification_json', "TEXT NOT NULL DEFAULT '{}'",
+  ) || changed;
+  return changed;
+}
+
+function applyChangeColumns(db) {
+  if (!tableNames(db).includes('changes')) return false;
+  const columns = columnNames(db, 'changes');
+  return addColumnIfMissing(db, 'changes', columns, 'baseline_bypass_json', 'TEXT');
+}
+
+function quoteSqlString(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function migrationBackup(db, dbPath, fromVersion, existingTables) {
+  if (existingTables.size === 0 || fromVersion === EXPECTED_VERSION) return null;
+  const parent = path.dirname(dbPath);
+  const backupDir = path.basename(parent) === '.ultra' ? path.join(parent, 'backups') : path.join(parent, 'backups');
+  fs.mkdirSync(backupDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const version = String(fromVersion || 'unknown').replace(/[^a-zA-Z0-9_.-]/g, '_');
+  const backupPath = path.join(backupDir, `state-pre-${version}-to-${EXPECTED_VERSION}-${stamp}.db`);
+  db.exec(`VACUUM INTO ${quoteSqlString(backupPath)}`);
+  return backupPath;
 }
 
 function readSchemaSql() {
@@ -256,7 +330,7 @@ function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
   return true;
 }
 
-function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db)) {
+function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { legacyState = false } = {}) {
   const runtimeChanged = upgradeRuntimeConstraints(db, fromVersion);
   db.transaction(() => {
     applyCompatibleColumns(db);
@@ -265,7 +339,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db)) {
       "SELECT 1 FROM migration_history WHERE to_version = '10.0' AND status = 'success' LIMIT 1",
     ).get();
     const needsContextMigration = Boolean(
-      fromVersion && !['10.0', EXPECTED_VERSION].includes(fromVersion) && !contextMigration,
+      fromVersion && ![CONTEXT_SCHEMA_VERSION, BASELINE_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion)
+        && !contextMigration,
     );
     if (contextChanged || needsContextMigration) {
       db.prepare(
@@ -274,30 +349,63 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db)) {
          VALUES (?, ?, 'forward', 'success', ?)`,
       ).run(
         runtimeChanged ? KIMI_SCHEMA_VERSION : (fromVersion || 'unknown'),
-        '10.0',
+        CONTEXT_SCHEMA_VERSION,
         'Add Context Spine role/gate readiness, execution contracts, breadcrumbs, and specification learning',
       );
     }
-    applyBaselineUpgrade(db, fromVersion);
+    applyBaselineUpgrade(db, { legacyState });
+    applyBaselineColumns(db);
+    applyChangeColumns(db);
     const baselineMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '11.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && fromVersion !== EXPECTED_VERSION && !baselineMigration) {
+    if (fromVersion && ![BASELINE_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion)
+      && !baselineMigration) {
       db.prepare(
         `INSERT INTO migration_history
           (from_version, to_version, direction, status, notes)
          VALUES (?, ?, 'forward', 'success', ?)`,
       ).run(
-        fromVersion === '10.0' ? fromVersion : '10.0',
-        EXPECTED_VERSION,
+        fromVersion === CONTEXT_SCHEMA_VERSION ? fromVersion : CONTEXT_SCHEMA_VERSION,
+        BASELINE_SCHEMA_VERSION,
         'Add authoritative greenfield and brownfield baseline adoption, evidence, convergence, and drift state',
       );
+    }
+    if (legacyState) {
+      db.prepare(
+        `UPDATE baselines SET status = 'adopting', approved_by = NULL, approval_note = ?,
+         converged_at = NULL, worktree_state = 'unavailable', worktree_digest = NULL,
+         worktree_files_json = '[]', worktree_accepted = 0,
+         gaps_json = CASE WHEN gaps_json IS NULL OR gaps_json = '[]' THEN ? ELSE gaps_json END,
+         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE mode = 'migrated' AND status != 'superseded'`,
+      ).run(
+        'Legacy project preserved; owner re-adoption is required',
+        JSON.stringify(MIGRATED_GAPS),
+      );
+      const adoptionMigration = db.prepare(
+        "SELECT 1 FROM migration_history WHERE to_version = '12.0' AND status = 'success' LIMIT 1",
+      ).get();
+      if (!adoptionMigration) {
+        db.prepare(
+          `INSERT INTO migration_history
+            (from_version, to_version, direction, status, notes)
+           VALUES (?, ?, 'forward', 'success', ?)`,
+        ).run(
+          BASELINE_SCHEMA_VERSION,
+          EXPECTED_VERSION,
+          'Add repository snapshots, authoritative gap ledger, incident governance, and required re-adoption',
+        );
+      }
     }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
     db.exec('CREATE INDEX IF NOT EXISTS events_change ON events(change_id, id)');
     db.prepare(
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
-    ).run(EXPECTED_VERSION, 'Greenfield and brownfield baseline adoption, convergence, and drift authority');
+    ).run(
+      EXPECTED_VERSION,
+      'Evidence-backed repository snapshots, gap ledger, safe re-adoption, and incident break-glass governance',
+    );
   })();
 }
 
@@ -317,23 +425,36 @@ function ensureSchemaVersion(db) {
 }
 
 function initStateDb(dbPath) {
-  const db = openStateDb(dbPath);
-  const existing = new Set(tableNames(db));
-  const fromVersion = latestSchemaVersion(db);
-  applyCompatibleColumns(db);
-  const missing = REQUIRED_TABLES.filter((t) => !existing.has(t));
-  if (missing.length > 0) {
-    applySchema(db);
+  let db;
+  let backupPath = null;
+  try {
+    db = openStateDb(dbPath);
+    const existing = new Set(tableNames(db));
+    const fromVersion = latestSchemaVersion(db);
+    const legacyState = existing.size > 0 && fromVersion !== EXPECTED_VERSION;
+    backupPath = migrationBackup(db, dbPath, fromVersion, existing);
+    applyCompatibleColumns(db);
+    const missing = REQUIRED_TABLES.filter((t) => !existing.has(t));
+    if (missing.length > 0) {
+      applySchema(db);
+    }
+    applyCompatibleUpgrades(db, fromVersion, { legacyState });
+    const version = ensureSchemaVersion(db);
+    return {
+      db,
+      path: dbPath,
+      schema_version: version,
+      created: missing.length > 0,
+      backup_path: backupPath,
+      tables: tableNames(db).sort(),
+    };
+  } catch (error) {
+    if (backupPath && error && typeof error === 'object') {
+      error.migration_backup_path = backupPath;
+    }
+    closeStateDb(db);
+    throw error;
   }
-  applyCompatibleUpgrades(db, fromVersion);
-  const version = ensureSchemaVersion(db);
-  return {
-    db,
-    path: dbPath,
-    schema_version: version,
-    created: missing.length > 0,
-    tables: tableNames(db).sort(),
-  };
 }
 
 function closeStateDb(db) {
@@ -355,4 +476,5 @@ module.exports = {
   closeStateDb,
   tableNames,
   runScript,
+  MIGRATED_GAPS,
 };

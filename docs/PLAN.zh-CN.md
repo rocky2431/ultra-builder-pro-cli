@@ -1,6 +1,6 @@
 # ultra-builder-pro-cli — 历史执行计划与决策日志
 
-> **2026-07-18 当前生效边界（D50-D54，覆盖下文旧 Phase 6/7 的内置图谱、memory 与 runtime 设计）**：
+> **2026-07-18 当前生效边界（D50-D55，覆盖下文旧 Phase 6/7 的内置图谱、memory 与 runtime 设计）**：
 > Ultra Builder Pro 不再拥有 `memory.*`、recall、prompt/transcript/observation/summary
 > 收集 hook 或私有 agent memory。跨会话记忆全部交给独立安装的 cloud-mem/claude-mem。
 > 插件只保留 12 个 Ultra 公共 workflow（新增 daily `ultra-change` 与诊断
@@ -10,8 +10,8 @@
 > Kimi Code 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
 > memory/hindsight 章节仅作为历史实施记录，不再是当前需求或运行时契约。
 
-**当前状态**：v0.12.1；四宿主 native plugin、36 个 live MCP tool、
-schema 11.0（17 表）、portable Skill authoring contract、双轴 review、
+**当前状态**：v0.13.0；四宿主 native plugin、36 个 live MCP tool、
+schema 12.0（17 表）、portable Skill authoring contract、双轴 review、
 Context Spine v2 / breadcrumb / spec-learning、持续 change/context/convergence/doctor、incident debug lane、
 checkpoint 恢复消费与跨宿主安装 provenance/doctor 已落地；npm 发布由
 `v*.*.*` tag 触发。以下 Phase 0-9 正文保留为 2026-04 的实施历史，不再作为
@@ -29,7 +29,7 @@ checkpoint 恢复消费与跨宿主安装 provenance/doctor 已落地；npm 发�
 - **Phase 4.6 拆 a/b**（R6 + D35）：v0.1 只跑 smoke flow，full conformance 推 v0.2
 - **Codex 第二轮结论**："小改后开工"（tl;dr）；本版已完成小改
 
-**总决策数**：D1-D53（当前边界以 D50-D53 为准）
+**总决策数**：D1-D55（当前边界以 D50-D55 为准）
 **总风险数**：R1-R32（v0.3.1 新增 R25-R32 共 8 条）
 
 ---
@@ -1643,6 +1643,7 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | **D52** | **2026-07-17** | **初始交付后进入持续变更闭环**：新增 `ultra-change` / `ultra-doctor`、change/context/artifact/trace/incident/projection/consumer 状态、delta-first spec、确定性 convergence 与 baseline reconciliation；删除内置 code-graph watcher 和通用命令代理，Memory/图谱只保留外部 provider 元数据引用 | 用户确认采用最佳组合落地；解决日常小改导致 spec/context 漂移、投影失败静默和异常无恢复证据的问题 |
 | **D53** | **2026-07-17** | **Harness 缺口一次性闭环**：`incident` 成为带五段 `diagnosis.md` 结构门禁的 canonical debug lane；compact checkpoint 由 resume 消费、校验、择新并原子恢复；三宿主安装写 normalized provenance，`ubp --doctor` 只读校验 asset hash 与 plugin/hook/MCP/runtime contract | 将 GSD 的 debug/fresh context、GStack 的 checkpoint/readiness 与 ECC 的 doctor/provenance 思路收敛为 Ultra 自有契约；Memory 与图谱继续由外部 provider 所有，且不恢复任何已退役 surface |
 | **D54** | **2026-07-18** | **老项目接入与非阻断门禁闭环**：schema 11.0 新增 greenfield/brownfield baseline authority 与 `baseline.start/record/get/converge`；`task.init_project` 自动识别新旧仓库；上下文文件数、token 和占比改为 advisory warning，active change 的 baseline 问题同样只告警，`change.converge` / delivery 恢复硬门禁 | 避免 Ultra 把既有项目当新产品，也避免必要的 IM incident 因四个大文件超预算而无法施工；限制只在损坏权威、缺少执行契约、证据陈旧和最终收敛边界阻断 |
+| **D55** | **2026-07-18** | **新项目、老项目与旧版 Ultra 接入完成统一闭环**：schema 12.0 增加 repository branch/worktree digest、classification、gap ledger 与 incident bypass authority；`ultra-init` 自动分类、resume 只补缺失 scaffold、projection-only state 走支持的备份式 import、旧 DB 备份后升级、migrated baseline 必须显式 brownfield replacement；普通新 change 要求 ready baseline，已开工 change 保持可执行，紧急 incident 只允许有审批记录的 break-glass 并在 archive 写阻断 reconciliation gap | 老项目不再被重置或伪装成 greenfield/ready；历史任务、事件与文档可恢复迁移；健康项目可直接进入日常 change，损坏权威停在明确的 restore-or-rebaseline 决策边界 |
 
 ---
 

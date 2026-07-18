@@ -11,6 +11,7 @@ const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const ops = require('./state-ops.cjs');
 const changes = require('./change-workflow.cjs');
 const baselines = require('./baseline-workflow.cjs');
+const archiveJournal = require('./archive-journal.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-change-'));
@@ -24,7 +25,7 @@ function fixture() {
   db.prepare(
     `INSERT INTO baselines
      (id, project_name, mode, status, approved_by, approval_note, converged_at)
-     VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+     VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'accepted fixture', ?)`,
   ).run(new Date().toISOString());
   return { rootDir, db };
 }
@@ -130,6 +131,163 @@ test('createChange persists a change and an inspectable external-provider contex
   }
 });
 
+test('new ordinary changes require a ready baseline while incidents require an explicit break-glass record', () => {
+  const fx = fixture();
+  try {
+    assert.throws(
+      () => changes.createChange(fx.db, {
+        id: 'chg-invalid-bypass', title: 'Ordinary work', kind: 'quick',
+        intent: 'Do not attach break-glass approval to ordinary work.',
+        baseline_bypass: { reason: 'Not applicable.', approved_by: 'owner' },
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'VALIDATION_ERROR',
+    );
+    fx.db.prepare('DELETE FROM baselines').run();
+    assert.throws(
+      () => changes.createChange(fx.db, {
+        id: 'chg-normal-without-baseline', title: 'Do ordinary work', kind: 'quick',
+        intent: 'Do not start ordinary work before adoption.',
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_NOT_READY',
+    );
+    assert.throws(
+      () => changes.createChange(fx.db, {
+        id: 'chg-incident-without-approval', title: 'Recover production', kind: 'incident',
+        intent: 'Restore the public runtime without waiting for adoption.',
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_BYPASS_REQUIRED',
+    );
+
+    const created = changes.createChange(fx.db, {
+      id: 'chg-incident-break-glass', title: 'Recover production', kind: 'incident',
+      intent: 'Restore the public runtime without waiting for adoption.',
+      baseline_bypass: {
+        reason: 'Production is unavailable and baseline adoption cannot precede recovery.',
+        approved_by: 'incident-commander',
+      },
+    }, { rootDir: fx.rootDir });
+    assert.equal(created.change.baseline_bypass.approved_by, 'incident-commander');
+    assert.equal(created.change.baseline_bypass.mode, 'incident_break_glass');
+    assert.match(created.change.baseline_bypass.recorded_at, /^\d{4}-\d{2}-\d{2}T/);
+  } finally { cleanup(fx); }
+});
+
+test('task creation authority rejects missing and terminal change ownership even with a healthy baseline', () => {
+  const fx = fixture();
+  try {
+    assert.throws(
+      () => changes.assertTaskCreationAllowed(fx.db, { change_id: 'missing-change' }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'CHANGE_NOT_FOUND',
+    );
+    for (const status of ['ready', 'archived', 'cancelled']) {
+      const id = `terminal-${status}`;
+      changes.createChange(fx.db, {
+        id, title: `Terminal ${status}`, kind: 'quick',
+        intent: 'Verify terminal changes cannot receive new tasks.',
+      }, { rootDir: fx.rootDir });
+      fx.db.prepare('UPDATE changes SET status = ? WHERE id = ?').run(status, id);
+      assert.throws(
+        () => changes.assertTaskCreationAllowed(fx.db, { change_id: id }, { rootDir: fx.rootDir }),
+        (error) => error.code === 'CHANGE_NOT_MUTABLE',
+      );
+    }
+  } finally { cleanup(fx); }
+});
+
+test('incident break-glass remains executable and archives with a mandatory baseline reconciliation gap', () => {
+  const fx = fixture();
+  try {
+    fx.db.prepare(
+      "UPDATE baselines SET mode = 'brownfield', status = 'adopting' WHERE id = 'test-baseline'",
+    ).run();
+    const created = changes.createChange(fx.db, {
+      id: 'chg-break-glass-closure', title: 'Restore the production path', kind: 'incident',
+      intent: 'Repair the urgent runtime failure before baseline adoption can finish.',
+      docs_impact: { status: 'none', files: [], rationale: 'Internal runtime recovery.' },
+      baseline_bypass: {
+        reason: 'Production recovery cannot wait for the incomplete brownfield baseline.',
+        approved_by: 'incident-commander',
+      },
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'break-glass-task', title: 'Repair urgent runtime failure', type: 'bugfix', priority: 'P0',
+      change_id: 'chg-break-glass-closure',
+    });
+    ops.updateTaskStatus(fx.db, 'break-glass-task', 'in_progress');
+    ops.updateTaskStatus(fx.db, 'break-glass-task', 'completed');
+    const compiled = changes.compileContext(fx.db, {
+      id: 'chg-break-glass-closure', ...executionContext('break-glass-task'),
+    }, { rootDir: fx.rootDir });
+    assert.equal(compiled.manifest.readiness.status, 'ready');
+    assert.ok(compiled.manifest.readiness.warnings.includes('BASELINE_NOT_READY:adopting'));
+
+    const diagnosisPath = path.join(path.dirname(created.intent_path), 'diagnosis.md');
+    fs.writeFileSync(diagnosisPath, [
+      '# Incident diagnosis: Restore the production path', '',
+      '## Reproduction', '', 'The public runtime fails on the terminal transition.', '',
+      '## Hypotheses', '', 'The transition loses its durable terminal write.', '',
+      '## Root cause', '', 'The terminal path returns before the durable write completes.', '',
+      '## Regression test', '', 'The regression test reproduces the lost write and then passes.', '',
+      '## Recovery', '', 'Replay the terminal write and verify the public runtime.', '',
+    ].join('\n'));
+
+    const converged = changes.convergeChange(fx.db, {
+      id: 'chg-break-glass-closure', evidence: incidentEvidence(),
+    }, { rootDir: fx.rootDir });
+    assert.equal(converged.ready, true);
+
+    const archived = changes.archiveChange(fx.db, {
+      id: 'chg-break-glass-closure', summary: 'Production restored with regression evidence.',
+      no_baseline_change_reason: 'Baseline adoption is tracked by the reconciliation gap.',
+    }, { rootDir: fx.rootDir });
+    assert.equal(archived.change.status, 'archived');
+    assert.equal(archived.baseline_bypass, true);
+    const baseline = baselines.readBaseline(fx.db, 'test-baseline');
+    assert.equal(baseline.status, 'adopting');
+    assert.deepEqual(
+      baseline.gaps.map((gap) => ({ id: gap.id, category: gap.category, status: gap.status, blocking: gap.blocking })),
+      [{
+        id: 'incident-chg-break-glass-closure-reconciliation',
+        category: 'baseline_blocker', status: 'open', blocking: true,
+      }],
+    );
+    assert.equal(baseline.gaps[0].owner, 'incident-commander');
+    assert.ok(baseline.gaps[0].evidence_refs.some((ref) => ref.includes('changes/archive/')));
+  } finally { cleanup(fx); }
+});
+
+test('an already-active ordinary change remains executable when baseline adoption later becomes incomplete', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, {
+      id: 'chg-grandfathered-context', title: 'Finish active work', kind: 'quick',
+      intent: 'Preserve an already-active bounded change while baseline recovery runs.',
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'grandfathered-task', title: 'Finish active work', type: 'bugfix', priority: 'P0',
+      change_id: 'chg-grandfathered-context',
+    });
+    fx.db.prepare(
+      "UPDATE baselines SET status = 'adopting', mode = 'brownfield' WHERE id = 'test-baseline'",
+    ).run();
+
+    assert.doesNotThrow(() => changes.assertTaskCreationAllowed(fx.db, {
+      change_id: 'chg-grandfathered-context',
+    }, { rootDir: fx.rootDir }));
+    assert.throws(
+      () => changes.assertTaskCreationAllowed(fx.db, {}, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_NOT_READY',
+    );
+
+    const compiled = changes.compileContext(fx.db, {
+      id: 'chg-grandfathered-context', ...executionContext('grandfathered-task'),
+    }, { rootDir: fx.rootDir });
+    assert.equal(compiled.manifest.readiness.status, 'ready');
+    assert.ok(compiled.manifest.readiness.warnings.includes('BASELINE_NOT_READY:adopting'));
+    assert.deepEqual(compiled.manifest.readiness.blockers, []);
+  } finally { cleanup(fx); }
+});
+
 test('convergeChange blocks incomplete work and marks a fully evidenced standard change ready', () => {
   const fx = fixture();
   try {
@@ -215,6 +373,27 @@ test('convergeChange requires an approved baseline after active work has remaine
 
     assert.equal(result.ready, false);
     assert.ok(result.blockers.includes('BASELINE_MISSING'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('change creation rejects a schema-migration compatibility baseline until re-adoption', () => {
+  const fx = fixture();
+  try {
+    fx.db.prepare(
+      `UPDATE baselines SET mode = 'migrated', approved_by = 'schema-migration',
+       approval_note = 'compatibility only' WHERE id = 'test-baseline'`,
+    ).run();
+    assert.throws(
+      () => changes.createChange(fx.db, {
+        id: 'chg-migrated-gate', title: 'Require owner adoption', kind: 'quick',
+        intent: 'Do not let schema migration impersonate project-owner approval.',
+        docs_impact: { status: 'none', files: [], rationale: 'Gate behavior only.' },
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_NOT_READY'
+        && error.details.blockers.includes('BASELINE_MIGRATION_REVIEW_REQUIRED'),
+    );
   } finally {
     cleanup(fx);
   }
@@ -380,6 +559,61 @@ test('archiveChange rolls back when declared reconciliation leaves a tracked spe
       "SELECT COUNT(*) AS count FROM events WHERE type = 'baseline_reconciled' AND change_id = ?",
     ).get('chg-reconcile-rollback');
     assert.equal(reconciliationEvents.count, 0);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archiveChange resumes a durable journal after the filesystem move outlives the process', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, {
+      id: 'chg-crash-resume', title: 'Resume interrupted archive', kind: 'quick',
+      intent: 'Finish an authorized archive after a process crash.',
+      docs_impact: { status: 'none', files: [], rationale: 'Recovery-only behavior.' },
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'crash-resume-task', title: 'Verify archive recovery', type: 'bugfix', priority: 'P0',
+      change_id: 'chg-crash-resume',
+    });
+    ops.updateTaskStatus(fx.db, 'crash-resume-task', 'in_progress');
+    ops.updateTaskStatus(fx.db, 'crash-resume-task', 'completed');
+    changes.compileContext(fx.db, {
+      id: 'chg-crash-resume', ...executionContext('crash-resume-task'),
+    }, { rootDir: fx.rootDir });
+    const converged = changes.convergeChange(fx.db, {
+      id: 'chg-crash-resume',
+      evidence: [
+        { category: 'diff', status: 'pass', evidence: 'recovery diff reviewed' },
+        {
+          category: 'tests', status: 'pass', evidence: 'crash recovery passed', seam: 'archive retry',
+          signal: {
+            command: 'node --test archive-journal.test.cjs',
+            expected_red: 'archive retry fails after the filesystem move',
+            observed_red: true, observed_green: true, deterministic: true, duration_ms: 10,
+          },
+        },
+        { category: 'spec', status: 'not_applicable', evidence: 'No contract change.' },
+      ],
+    }, { rootDir: fx.rootDir });
+    assert.equal(converged.ready, true);
+    const input = {
+      id: 'chg-crash-resume', summary: 'Resume the interrupted archive safely.',
+      no_baseline_change_reason: 'No baseline content changed.',
+    };
+    const change = changes.readChange(fx.db, input.id);
+    const interrupted = archiveJournal.prepareArchiveMove({
+      rootDir: fx.rootDir, change, summary: input.summary, baselineUpdates: [],
+      noBaselineChangeReason: input.no_baseline_change_reason,
+    });
+    assert.equal(changes.readChange(fx.db, input.id).status, 'ready');
+    assert.equal(fs.existsSync(interrupted.source), false);
+    assert.equal(fs.existsSync(interrupted.destination), true);
+
+    const resumed = changes.archiveChange(fx.db, input, { rootDir: fx.rootDir });
+    assert.equal(resumed.change.status, 'archived');
+    assert.equal(resumed.archive_path, interrupted.destination);
+    assert.equal(archiveJournal.listArchiveIntents(fx.rootDir).length, 0);
   } finally {
     cleanup(fx);
   }

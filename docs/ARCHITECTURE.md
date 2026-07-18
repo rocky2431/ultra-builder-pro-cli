@@ -74,7 +74,7 @@ covers seventeen tables:
 
 | Table              | Holds                                             | Phase |
 |--------------------|---------------------------------------------------|-------|
-| `baselines`        | greenfield/brownfield adoption, specs, verification, unknowns, and approval | 11 |
+| `baselines`        | repository classification, greenfield/brownfield adoption, worktree snapshot, specs, evidence, verification, gap ledger, and approval | 12 |
 | `tasks`            | task rows — id, status, deps, files_modified, …   | 2     |
 | `events`           | append-only event stream; `id` is subscription cursor (D31) | 2 |
 | `sessions`         | execution sessions, **including lease + heartbeat fields** (D32) | 4.5 |
@@ -83,7 +83,7 @@ covers seventeen tables:
 | `telemetry`        | per-session token / cost / tool-call counters     | 6     |
 | `specs_refs`       | spec change tracking → staleness propagation       | 5     |
 | `circuit_breaker`  | bounded retry and halt state for failed tasks       | 5     |
-| `changes`          | continuous feature/fix/incident lifecycle           | 8C    |
+| `changes`          | continuous feature/fix/incident lifecycle and incident baseline bypass | 12 |
 | `artifacts`        | intent/context/verification artifact registry       | 8C    |
 | `context_snapshots`| role/gate context, readiness, budget, execution seam, hashes, git head, provider refs | 10 |
 | `spec_learning_candidates` | approval-gated implementation discoveries for baseline convergence | 10 |
@@ -128,23 +128,34 @@ archive/prune command for data created by older releases.
 
 ### Project baseline adoption
 
-`task.init_project` detects an empty repository as `greenfield` and an existing
-codebase as `brownfield` unless the caller supplies an explicit mode. It creates
-the same authoritative state shape without rewriting application code.
+`task.init_project` classifies source, tests, deployment, persistence, package
+scripts, and monorepo markers. It detects `greenfield` or `brownfield`, records
+bounded classification evidence and selected repository scope, and creates the
+same authoritative state shape without rewriting application code.
+
+Projection-only v4.4 and v4.5 projects use `ultra-tools migrate` to preserve the
+entire `.ultra` tree, import tasks and events, and create a `migrated/adopting`
+compatibility row. Schema upgrades use `ultra-tools system doctor --repair` and
+produce a pre-migration backup. Compatibility state never grants baseline approval;
+`baseline.start` with `replace_migrated: true` opens the actual brownfield adoption.
 
 `baseline.start` opens adoption, `baseline.record` captures server-hashed spec
 references, bounded repository/runtime evidence, actual verification results,
-known unknowns, and metadata-only external provider references, and
+known unknowns, repository branch and worktree snapshot, the categorized gap ledger,
+and metadata-only external provider references, and
 `baseline.converge` records explicit owner approval. A ready baseline is replaced
 only by an explicit re-adoption, preserving the superseded row for recovery.
+For a selected monorepo scope, the worktree digest and dirty-file list include only
+that scope; out-of-scope changes remain visible repository context but cannot be
+accepted implicitly by `accept_dirty_worktree`.
 
-With no active change, a missing, incomplete, or stale baseline routes to
-`ultra-init`. During an already active bounded fix or incident it is an advisory
-warning so recovery work remains possible. `change.converge` requires that adoption
-has produced a `ready` baseline, but does not reject the HEAD or tracked-spec drift
-created by the change itself. `change.archive` declares baseline updates, refreshes
-the revision and digests, rechecks full baseline health inside the same transaction,
-and rolls back both state and artifacts if reconciliation remains incomplete.
+New ordinary changes require a healthy `ready` baseline. A change that was already
+active may continue with baseline drift surfaced as a warning. A new incident can
+start on an unhealthy baseline only with an explicit reason and approver stored in
+`baseline_bypass_json`. Ordinary convergence and archive reconcile HEAD, worktree,
+and tracked-spec drift atomically. Break-glass incident archive creates an open
+blocking reconciliation gap, so incident recovery can finish without falsely marking
+the project baseline healthy.
 
 ## 4. Continuous changes — the daily unit of convergence
 
@@ -204,8 +215,13 @@ evidence, and final convergence decision.
 
 Mutating MCP calls enqueue durable `projection_jobs`. Success is exposed in MCP
 response metadata; failure becomes a retryable structured incident instead of a
-swallowed warning. `system.doctor` is read-only by default and performs only
-backup-first mechanical recovery when explicitly requested.
+swallowed warning. `system.doctor` is read-only by default. Explicit repair performs
+backup-first schema upgrade, archive-journal recovery, session and projection
+recovery, and regenerated projections. It cannot approve a baseline or replace a
+corrupt SQLite file silently. `system restore` accepts only a verified SQLite backup
+inside `.ultra/backups`, quarantines the corrupt authority, and rolls back on failure.
+When no valid backup exists, confirmed `system rebaseline` preserves both corrupt
+authority and the legacy task projection before creating a new brownfield adoption.
 
 ## 5. Sessions — the execution unit
 

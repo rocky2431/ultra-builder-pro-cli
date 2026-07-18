@@ -20,7 +20,7 @@ const path = require('node:path');
 
 const VERSION = (() => {
   try {
-    const pkg = require(path.join(__dirname, '..', 'package.json'));
+    const pkg = require('../package.json');
     return pkg.version;
   } catch (_err) {
     return '0.1.0';
@@ -35,10 +35,10 @@ USAGE:
 SUBCOMMANDS:
   task      init-project
   session   close | get | list | admission | heartbeat | subscribe | reap
-  system    doctor [--repair]
+  system    doctor [--repair] | restore | rebaseline
   status    [--cost] [--since <duration>] [--json]
   db        init | checkpoint | vacuum | integrity | backup (Phase 2)
-  migrate   --from=4.4 --to=4.5 [--dry|--rollback]          (Phase 2)
+  migrate   --from=<4.4|4.5> --to=<4.5|12.0> [--dry|--rollback]
   legacy-memory inspect | archive | prune --confirm DELETE_ULTRA_LEGACY_MEMORY
 
   --help / -h      show this message
@@ -68,7 +68,11 @@ const statusCommand = require('./commands/status.cjs');
 const legacyMemoryCommand = require('./commands/legacy-memory.cjs');
 const systemCommand = require('./commands/system.cjs');
 
-// Phase 6.2 — CLI telemetry: best-effort, never blocks the subcommand.
+// Session commands run only against healthy authority and may emit best-effort
+// telemetry. Initialization, diagnosis, migration, and recovery commands must
+// never open state.db before their own evidence-preserving checks.
+const TELEMETRY_SUBCOMMANDS = new Set(['session']);
+
 function emitCliTelemetry(sub, rest) {
   try {
     const dbPath = path.resolve('.ultra', 'state.db');
@@ -112,7 +116,7 @@ function main(argv) {
   const [sub, ...rest] = args;
   const handler = SUBCOMMANDS[sub];
   if (!handler) fail(`unknown subcommand: ${sub}\n\n${USAGE}`);
-  emitCliTelemetry(sub, rest);
+  if (TELEMETRY_SUBCOMMANDS.has(sub)) emitCliTelemetry(sub, rest);
   handler(rest);
 }
 

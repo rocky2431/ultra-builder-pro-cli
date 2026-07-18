@@ -1,6 +1,6 @@
 ---
 description: Initialize a new project or adopt an existing repository into authoritative Ultra baseline state
-argument-hint: "[name] [type] [stack] [auto|greenfield|brownfield]"
+argument-hint: "[name] [type] [stack] [auto|greenfield|brownfield] [--scope <path>]"
 workflow-ref: "@skills/ultra-init/SKILL.md"
 ---
 

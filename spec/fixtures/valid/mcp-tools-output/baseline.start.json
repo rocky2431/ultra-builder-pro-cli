@@ -1,0 +1,8 @@
+{
+  "baseline": {
+    "id": "project-baseline",
+    "mode": "brownfield",
+    "status": "adopting",
+    "scope": ["packages/api"]
+  }
+}

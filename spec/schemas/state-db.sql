@@ -27,10 +27,18 @@ CREATE TABLE IF NOT EXISTS baselines (
   repository_root     TEXT NOT NULL DEFAULT '.',
   scope_json          TEXT NOT NULL DEFAULT '["."]',
   repository_revision TEXT,
+  repository_branch   TEXT,
+  worktree_state      TEXT NOT NULL DEFAULT 'unavailable'
+                        CHECK (worktree_state IN ('clean', 'dirty', 'unavailable')),
+  worktree_digest     TEXT,
+  worktree_files_json TEXT NOT NULL DEFAULT '[]',
+  worktree_accepted   INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1)),
   spec_refs_json      TEXT NOT NULL DEFAULT '[]',
   evidence_json       TEXT NOT NULL DEFAULT '[]',
   verification_json   TEXT NOT NULL DEFAULT '[]',
   unknowns_json       TEXT NOT NULL DEFAULT '[]',
+  gaps_json           TEXT NOT NULL DEFAULT '[]',
+  classification_json TEXT NOT NULL DEFAULT '{}',
   provider_refs_json  TEXT NOT NULL DEFAULT '{}',
   approved_by         TEXT,
   approval_note       TEXT,
@@ -53,6 +61,7 @@ CREATE TABLE IF NOT EXISTS changes (
   intent            TEXT NOT NULL,
   docs_impact_json  TEXT NOT NULL DEFAULT '{"status":"unknown","files":[],"rationale":null}',
   provider_refs_json TEXT NOT NULL DEFAULT '{}',
+  baseline_bypass_json TEXT,
   base_commit       TEXT,
   artifact_root     TEXT NOT NULL,
   created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -336,3 +345,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('10.0', 'Role-scoped context snapshots, deterministic breadcrumbs, and approval-gated specification learning');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('11.0', 'Greenfield and brownfield baseline adoption, convergence, and drift authority');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('12.0', 'Evidence-backed repository snapshots, gap ledger, safe re-adoption, and incident break-glass governance');

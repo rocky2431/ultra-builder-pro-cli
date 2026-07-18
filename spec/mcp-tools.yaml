@@ -3,11 +3,11 @@
 # Validated by spec/schemas/mcp-tools.schema.json (run `npm run test:spec`).
 # Trace: PLAN §7.3, decisions D12 / D29 / D31-D34.
 
-version: '1.1'
+version: '1.2'
 
 info:
   title: Ultra Builder Pro MCP tool contracts
-  phase: '1.1'
+  phase: '1.2'
   trace_to: 'PLAN docs/PLAN.zh-CN.md §7.3'
   notes: |
     This published contract contains only tools registered by the MCP server.
@@ -32,7 +32,7 @@ tools:
   # ─────────────────────────── task family ────────────────────────────────
   - name: task.create
     family: task
-    description: Create a new task in state.db. Emits task_created event. If `id` is omitted the server mints a uuid.
+    description: Create a new task in state.db. Emits task_created event. If `id` is omitted the server mints a uuid. Child tasks inherit the parent's change ownership; conflicting ownership is rejected.
     phase: '2'
     writer_role: mcp
     input_schema:
@@ -48,10 +48,10 @@ tools:
         estimated_days: { type: number, exclusiveMinimum: 0, description: 'estimated implementation effort in days' }
         deps:           { type: array, items: { type: string } }
         files_modified: { type: array, items: { type: string }, description: 'Phase 8A conflict detection' }
-        parent_id:      { type: string, description: 'Phase 8A.3 parent reference for task.expand children' }
+        parent_id:      { type: string, description: 'Phase 8A.3 parent reference; the child inherits this task change ownership' }
         tag:            { type: string, description: 'git branch tag (Phase 7.2)' }
         trace_to:       { type: string, description: 'spec anchor (e.g. spec/mcp-tools.yaml#task.create)' }
-        change_id:      { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'continuous change unit owning this task' }
+        change_id:      { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'active or blocked continuous change unit owning this task; inherited from parent_id when omitted' }
     output_schema:
       type: object
       required: [id, status, created_at]
@@ -63,6 +63,11 @@ tools:
     errors:
       - { code: VALIDATION_ERROR, description: 'input failed schema validation' }
       - { code: DUPLICATE_TASK_ID, description: 'task id already exists' }
+      - { code: TASK_NOT_FOUND, description: 'parent task does not exist' }
+      - { code: CHANGE_NOT_FOUND, description: 'assigned change does not exist' }
+      - { code: CHANGE_NOT_MUTABLE, description: 'assigned change no longer accepts tasks' }
+      - { code: TASK_CHANGE_OWNERSHIP_MISMATCH, description: 'child ownership conflicts with its parent change' }
+      - { code: BASELINE_NOT_READY, description: 'ordinary task creation requires a ready baseline or an already-authorized active change' }
       - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'non-empty v4.4 projection must be migrated before state-backed tools can run' }
       - { code: STATE_DB_LOCKED, description: 'database is locked', retriable: true }
     cli_subcommand: task create
@@ -106,6 +111,9 @@ tools:
       - { code: TASK_NOT_FOUND, description: 'no task with given id' }
       - { code: ILLEGAL_STATUS_TRANSITION, description: 'transition rejected by state machine' }
       - { code: VALIDATION_ERROR, description: 'patch failed schema validation' }
+      - { code: CHANGE_NOT_FOUND, description: 'assigned change does not exist' }
+      - { code: CHANGE_NOT_MUTABLE, description: 'assigned change no longer accepts task updates' }
+      - { code: TASK_CHANGE_OWNERSHIP_MISMATCH, description: 'task ownership conflicts with its parent or children' }
       - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'non-empty v4.4 projection must be migrated before state-backed tools can run' }
     cli_subcommand: task update
     emits_events: [task_started, task_completed, task_blocked, task_stale_marked]
@@ -246,6 +254,17 @@ tools:
           enum: [auto, greenfield, brownfield]
           default: auto
           description: auto detects whether meaningful project content already exists
+        resume:
+          type: boolean
+          default: false
+          description: preserve an existing `.ultra/`, upgrade its schema, and install only missing current scaffold files
+        scope:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, minLength: 1 }
+          default: ['.']
+          description: project-relative repository roots governed by the initial baseline
         overwrite:
           type: boolean
           default: false
@@ -255,7 +274,7 @@ tools:
           description: override path to the template root (defaults to bundled templates/.ultra/)
     output_schema:
       type: object
-      required: [created_path, state_db_path, status, mode, baseline, copied_files]
+      required: [created_path, state_db_path, status, mode, baseline, copied_files, repository_profile]
       additionalProperties: false
       properties:
         created_path:
@@ -266,28 +285,38 @@ tools:
           description: absolute path to the initialized authoritative SQLite database
         status:
           type: string
-          enum: [created, overwritten]
+          enum: [created, overwritten, resumed]
         mode:
           type: string
           enum: [greenfield, brownfield]
         baseline:
           type: object
-          required: [id, mode, status]
+          required: [id, mode, status, scope]
           additionalProperties: true
         copied_files:
           type: array
           items: { type: string }
           description: paths relative to created_path
+        repository_profile:
+          type: object
+          description: bounded classification evidence used to route greenfield or brownfield adoption
         backup_path:
           type: string
           description: set only when status=overwritten
+        migration_backup_path:
+          type: string
+          description: pre-migration database backup created while resuming an older schema
     errors:
       - { code: ULTRA_DIR_EXISTS,  description: '.ultra/ already exists and overwrite=false' }
       - { code: TEMPLATE_MISSING,  description: 'source_template path does not exist' }
       - { code: TARGET_NOT_DIR,    description: 'target_dir is not a directory' }
+      - { code: BASELINE_SCOPE_MISSING, description: 'a selected baseline scope does not exist' }
+      - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'projection-only tasks must be imported before resume' }
+      - { code: STATE_AUTHORITY_CONFLICT, description: 'projection tasks and authoritative state cannot be reconciled automatically' }
+      - { code: STATE_PROJECTION_INVALID, description: 'the existing task projection is malformed' }
       - { code: IO_ERROR,          description: 'filesystem write failed', retriable: true }
     cli_subcommand: task init-project
-    emits_events: [project_initialized]
+    emits_events: [project_initialized, project_resumed]
     trace_to: 'PLAN §6 Phase 3.1'
 
   - name: task.expand
@@ -313,6 +342,9 @@ tools:
     errors:
       - { code: TASK_NOT_FOUND, description: 'parent id missing' }
       - { code: ALREADY_EXPANDED, description: 'task is already expanded' }
+      - { code: CHANGE_NOT_FOUND, description: 'the parent task change does not exist' }
+      - { code: CHANGE_NOT_MUTABLE, description: 'the parent task change no longer accepts children' }
+      - { code: BASELINE_NOT_READY, description: 'child creation requires a ready baseline or the parent task to belong to an already-authorized active change' }
     cli_subcommand: task expand
     emits_events: [task_expanded]
     trace_to: '§7.3, D34'
@@ -329,6 +361,7 @@ tools:
         prd_path: { type: string }
         prd_text: { type: string }
         tag:      { type: string }
+        change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'continuous change unit that will own every persisted parsed task' }
         dry_run:  { type: boolean, default: false, description: 'when true, do not persist to state.db — used by ultra-plan gate to preview before approve' }
     output_schema:
       type: object
@@ -340,6 +373,9 @@ tools:
     errors:
       - { code: NO_INPUT, description: 'one of prd_path or prd_text required' }
       - { code: PARSE_FAILED, description: 'PRD could not be parsed into tasks' }
+      - { code: CHANGE_NOT_FOUND, description: 'assigned change does not exist' }
+      - { code: CHANGE_NOT_MUTABLE, description: 'assigned change no longer accepts tasks' }
+      - { code: BASELINE_NOT_READY, description: 'persisting parsed tasks requires a ready baseline or an already-authorized active change' }
     cli_subcommand: task parse-prd
     emits_events: [task_created]
     trace_to: '§7.3, D34'
@@ -652,6 +688,15 @@ tools:
       type: object
       required: [project_name, mode]
       additionalProperties: false
+      allOf:
+        - if:
+            required: [replace_ready]
+            properties: { replace_ready: { const: true } }
+          then: { required: [replacement_authorization] }
+        - if: { required: [replacement_authorization] }
+          then:
+            required: [replace_ready]
+            properties: { replace_ready: { const: true } }
       properties:
         id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$', default: project-baseline }
         project_name: { type: string, minLength: 1 }
@@ -661,6 +706,15 @@ tools:
         scope: { type: array, minItems: 1, items: { type: string, minLength: 1 }, default: ['.'] }
         repository_revision: { type: string, minLength: 1 }
         replace_ready: { type: boolean, default: false }
+        replacement_authorization:
+          type: object
+          required: [approved_by, reason]
+          additionalProperties: false
+          properties:
+            approved_by: { type: string, minLength: 1 }
+            reason: { type: string, minLength: 3 }
+        replace_migrated: { type: boolean, default: false, description: explicitly supersede a compatibility-only migrated baseline and start evidence-backed adoption }
+        classification: { type: object, description: bounded repository classification evidence; content is limited to 32 KiB }
         provider_refs:
           type: object
           additionalProperties: false
@@ -696,6 +750,9 @@ tools:
     errors:
       - { code: BASELINE_EXISTS, description: 'a ready baseline requires explicit replacement' }
       - { code: BASELINE_IN_PROGRESS, description: 'another adoption is already active' }
+      - { code: BASELINE_REPLACEMENT_AUTHORIZATION_REQUIRED, description: 'ready-baseline replacement lacks durable owner approval and rationale' }
+      - { code: BASELINE_REPLACEMENT_INVALID, description: 'replacement flags do not match the current baseline lifecycle or authorization payload' }
+      - { code: BASELINE_SCOPE_MISSING, description: 'a selected baseline scope does not exist' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
     cli_subcommand: baseline start
     emits_events: [baseline_started]
@@ -754,6 +811,22 @@ tools:
               summary: { type: string, minLength: 1 }
               blocking: { type: boolean }
               owner: { type: string, minLength: 1 }
+        gaps:
+          type: array
+          items:
+            type: object
+            required: [id, category, summary]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              category: { type: string, enum: [baseline_blocker, documentation_drift, known_defect, technical_debt, unknown, future_change] }
+              status: { type: string, enum: [open, accepted, resolved, deferred], default: open }
+              blocking: { type: boolean, default: false }
+              summary: { type: string, minLength: 1 }
+              evidence_refs: { type: array, uniqueItems: true, items: { type: string, minLength: 1 }, default: [] }
+              owner: { type: ['string', 'null'], minLength: 1 }
+              resolution: { type: string, minLength: 1 }
+        classification: { type: object, description: bounded repository classification evidence; content is limited to 32 KiB }
         provider_refs:
           type: object
           additionalProperties: false
@@ -790,6 +863,7 @@ tools:
       - { code: BASELINE_NOT_FOUND, description: 'baseline id does not exist' }
       - { code: BASELINE_NOT_MUTABLE, description: 'ready and superseded baselines are immutable' }
       - { code: BASELINE_SPEC_MISSING, description: 'a declared specification file does not exist' }
+      - { code: BASELINE_SCOPE_MISSING, description: 'a selected baseline scope does not exist' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
     cli_subcommand: baseline record
     emits_events: [baseline_recorded]
@@ -831,6 +905,7 @@ tools:
         approved_by: { type: string, minLength: 1 }
         approval_note: { type: string, minLength: 3 }
         accept_known_red: { type: boolean, default: false }
+        accept_dirty_worktree: { type: boolean, default: false, description: explicitly freeze the exact recorded dirty-worktree digest into the baseline }
     output_schema:
       type: object
       required: [ready, status, blockers, baseline]
@@ -843,6 +918,7 @@ tools:
     errors:
       - { code: BASELINE_NOT_FOUND, description: 'baseline id does not exist' }
       - { code: BASELINE_NOT_CONVERGEABLE, description: 'baseline lifecycle does not allow convergence' }
+      - { code: BASELINE_NOT_READY, description: 'baseline evidence, gaps, revision, branch, worktree, or verification still blocks convergence' }
     cli_subcommand: baseline converge
     emits_events: [baseline_blocked, baseline_converged]
 
@@ -862,6 +938,14 @@ tools:
         kind: { type: string, enum: [quick, standard, major, incident] }
         intent: { type: string, minLength: 3 }
         base_commit: { type: string, pattern: '^[0-9a-f]{7,40}$' }
+        baseline_bypass:
+          type: object
+          required: [reason, approved_by]
+          additionalProperties: false
+          properties:
+            reason: { type: string, minLength: 3 }
+            approved_by: { type: string, minLength: 1 }
+          description: incident-only break-glass approval when the project baseline is unhealthy
         docs_impact:
           type: object
           additionalProperties: false
@@ -907,6 +991,8 @@ tools:
       - { code: DUPLICATE_CHANGE_ID, description: 'change id already exists' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
       - { code: VALIDATION_ERROR, description: 'change input failed validation' }
+      - { code: BASELINE_NOT_READY, description: 'ordinary work is blocked until the project baseline is healthy' }
+      - { code: BASELINE_BYPASS_REQUIRED, description: 'an incident on an unhealthy baseline requires explicit break-glass approval' }
     cli_subcommand: change create
     emits_events: [change_created, context_updated]
 

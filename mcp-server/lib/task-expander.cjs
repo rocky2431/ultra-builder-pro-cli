@@ -10,6 +10,7 @@
 
 const Ajv = require('ajv/dist/2020');
 const ops = require('./state-ops.cjs');
+const changes = require('./change-workflow.cjs');
 const {
   buildExpandSystemPrompt,
   buildExpandUserPrompt,
@@ -51,7 +52,9 @@ class TaskExpandError extends Error {
   }
 }
 
-async function expandTask(db, { id, sub_count, strategy = 'llm', llmClient } = {}) {
+async function expandTask(db, {
+  id, sub_count, strategy = 'llm', llmClient, rootDir = process.cwd(),
+} = {}) {
   if (!id) throw new TaskExpandError('VALIDATION_ERROR', 'id required');
 
   const parent = ops.readTask(db, id);
@@ -65,6 +68,7 @@ async function expandTask(db, { id, sub_count, strategy = 'llm', llmClient } = {
   if (strategy !== 'llm') {
     throw new TaskExpandError('VALIDATION_ERROR', `unknown strategy "${strategy}"`);
   }
+  changes.assertTaskCreationAllowed(db, { change_id: parent.change_id }, { rootDir });
   if (!llmClient || typeof llmClient.completeJson !== 'function') {
     throw new TaskExpandError('NO_LLM_CLIENT', 'llmClient.completeJson is required');
   }
@@ -101,10 +105,12 @@ async function expandTask(db, { id, sub_count, strategy = 'llm', llmClient } = {
       files_modified: Array.isArray(c.files_modified) ? c.files_modified : [],
       parent_id: parent.id,
       tag: parent.tag,
+      change_id: parent.change_id,
     };
   });
 
   return ops.tx(db, () => {
+    changes.assertTaskCreationAllowed(db, { change_id: parent.change_id }, { rootDir });
     for (const child of children) {
       ops.createTask(db, child);
     }

@@ -16,11 +16,13 @@ own their payloads; Ultra stores only provider references supplied by the user o
 
 ## Workflow
 
-1. Call `baseline.get`. State integrity failure routes to `ultra-doctor`. When no
-   change is active, a missing, incomplete, or stale baseline routes to `ultra-init`.
-   An urgent or already active bounded change may proceed with that condition recorded
-   as a warning. `change.converge` requires an approved `ready` baseline; repository
-   revision and tracked-spec drift created by the change are reconciled at archive.
+1. Call `baseline.get`. State integrity failure routes to `ultra-doctor`.
+   - Create ordinary work only when the baseline is healthy and `ready`.
+   - Resume a change that was already active when baseline drift appears; record the
+     condition as a warning and restore baseline readiness before ordinary convergence.
+   - Create an `incident` on an unhealthy baseline only with an explicit
+     `baseline_bypass` containing the reason and approver.
+   - Route every other missing, migrated, incomplete, or stale baseline to `ultra-init`.
 2. Call `change.list` and `change.breadcrumb`.
    - Resume the single change that matches the requested outcome.
    - Require an explicit id when several changes could match.
@@ -30,6 +32,8 @@ own their payloads; Ultra stores only provider references supplied by the user o
 4. Classify the change as `quick`, `standard`, `major`, or `incident`. Ask only for a
    material product, risk, or recovery decision that repository evidence cannot answer.
 5. Call `change.create` with a stable kebab-case id, or `change.update` when resuming.
+   For incident break-glass, persist the approved reason in `baseline_bypass`; never
+   infer approval from urgency.
 6. Write the minimum artifact set required by the classification:
 
    ```text
@@ -69,8 +73,12 @@ verified.
 ## Completion gate
 
 Do not claim alignment while a material decision is unresolved, documentation impact
-is unknown, context is stale, or the next task is not executable. `change.converge`
-also requires a `ready` baseline, so incomplete adoption must be resolved before
-convergence. Normal HEAD or tracked-spec drift caused by the active change is not a
-convergence blocker. Declare every baseline update at archive; archive fails and rolls
-back when revision or digest health remains stale after reconciliation.
+is unknown, context is stale, or the next task is not executable. Ordinary change
+convergence requires a non-migrated `ready` baseline. Normal HEAD or tracked-spec drift
+caused by the active change is reconciled at archive.
+
+An approved break-glass incident may converge and archive while baseline adoption is
+incomplete. Its archive must add an open `baseline_blocker` reconciliation gap owned by
+the recorded approver. Report the incident as closed and the project baseline as not
+ready until that gap is resolved. Every archive declares baseline updates or an exact
+no-change reason; failed ordinary reconciliation rolls back state and artifacts.

@@ -51,11 +51,17 @@ function assertStateAuthority(db, rootDir) {
     projection_path: projection.path,
     projection_version: projection.version,
   };
-  if (projection.version === '4.4') {
+  const migrationTargets = {
+    '4.4': '4.5',
+    '4.5': '12.0',
+  };
+  const migrationTarget = migrationTargets[projection.version];
+  if (migrationTarget) {
     throw new StateAuthorityError(
       'LEGACY_STATE_MIGRATION_REQUIRED',
-      `state.db has no tasks but ${projection.path} contains ${projection.taskCount} v4.4 tasks; `
-        + 'run ultra-tools migrate --from=4.4 --to=4.5 --source-dir <project-root> before using Ultra MCP tools',
+      `state.db has no tasks but ${projection.path} contains ${projection.taskCount} v${projection.version} tasks; `
+        + `run ultra-tools migrate --from=${projection.version} --to=${migrationTarget} `
+        + '--source-dir <project-root> before using Ultra MCP tools',
       details,
     );
   }

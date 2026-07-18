@@ -70,7 +70,7 @@ Detection happens at boot: `statvfs` of `.ultra/state.db`'s mount;
 
 | Table              | Writer of record                                      |
 |--------------------|--------------------------------------------------------|
-| `baselines`        | MCP server (`baseline.start` / `baseline.record` / `baseline.converge`); initialization CLI may create the first row |
+| `baselines`        | MCP server (`baseline.start` / `baseline.record` / `baseline.converge`); initialization and legacy-projection migration may create only the first draft or compatibility row |
 | `tasks`            | MCP server (`task.create` / `task.update` / `task.delete`) |
 | `changes`          | MCP server (`change.create` / `change.update` / `change.converge` / `change.archive`) |
 | `artifacts`, `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through change lifecycle tools |
@@ -79,8 +79,8 @@ Detection happens at boot: `statvfs` of `.ultra/state.db`'s mount;
 | `sessions`         | MCP server (`session.spawn` / `session.close` / `session.heartbeat`); orchestrator may write status transitions |
 | `telemetry`        | MCP server (collected from tool-call wrappers); orchestrator may dump bulk samples |
 | `specs_refs`       | MCP server (rebuilt on `spec_changed` event); orchestrator may rebuild |
-| `migration_history`| `ultra-tools migrate` CLI only                         |
-| `schema_version`   | `ultra-tools db init` and `ultra-tools migrate` only   |
+| `migration_history`| schema initializer and `ultra-tools migrate` or doctor repair |
+| `schema_version`   | schema initializer, `ultra-tools db init`, migration, and doctor repair |
 
 ## 5. Forbidden patterns
 

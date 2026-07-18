@@ -17,8 +17,10 @@ Read `change.breadcrumb` when a change is active. Stale context, blocked readine
 unknown documentation impact, or a HEAD mismatch blocks implementation.
 Baseline-adoption and context-size warnings do not block an active slice. Address
 them when practical without dropping required evidence or arbitrarily changing a
-threshold. Approved baseline availability is enforced at convergence; revision and
-tracked-spec health are reconciled and verified at archive.
+threshold. Ordinary convergence requires approved baseline availability; revision
+and tracked-spec health are reconciled and verified at archive. An approved
+break-glass incident may finish recovery first and must leave a blocking baseline
+reconciliation gap.
 
 ## Workflow
 
@@ -40,8 +42,8 @@ tracked-spec health are reconciled and verified at archive.
    utilities, keep IO at boundaries, include required errors and recovery, and preserve
    unrelated worktree changes.
 7. If the work reveals a stable requirement or public behavior absent from the
-   baseline, call `change.learning_propose`. Do not edit the baseline silently or store
-   the discovery as private Ultra memory.
+   baseline, call `change.learning_propose`. Do not edit the baseline silently or keep
+   the discovery only in transient conversation context.
 8. Verify in this order:
    - the original feedback-loop command;
    - adjacent focused tests;

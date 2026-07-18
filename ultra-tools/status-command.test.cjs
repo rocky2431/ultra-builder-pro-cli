@@ -86,6 +86,35 @@ test('status exposes an in-progress brownfield baseline from authoritative state
   } finally { teardown(dir, db); }
 });
 
+test('status reports a legacy schema as migration-required instead of throwing SQLite errors', () => {
+  const { dir, db } = freshFixture();
+  try {
+    db.exec('DROP TABLE baselines');
+    const out = statusCmd.buildCostPanel(db, { rootDir: dir });
+    assert.equal(out.baseline.status, 'migration_required');
+    assert.deepEqual(out.baseline.blockers, ['BASELINE_SCHEMA_MIGRATION_REQUIRED']);
+    assert.match(statusCmd.renderHuman(out), /migration_required/i);
+  } finally { teardown(dir, db); }
+});
+
+test('status summarizes the authoritative baseline gap ledger', () => {
+  const { dir, db } = freshFixture();
+  try {
+    db.prepare(
+      `INSERT INTO baselines (id, project_name, mode, status, gaps_json)
+       VALUES ('adoption', 'legacy', 'brownfield', 'adopting', ?)`,
+    ).run(JSON.stringify([
+      { id: 'blocker', category: 'baseline_blocker', status: 'open', blocking: true, summary: 'Missing proof', evidence_refs: [] },
+      { id: 'debt', category: 'technical_debt', status: 'accepted', blocking: false, summary: 'Slow test', evidence_refs: [] },
+    ]));
+    const out = statusCmd.buildCostPanel(db, { rootDir: dir });
+    assert.deepEqual(out.baseline.gaps, {
+      total: 2, open: 1, blocking: 1,
+      by_category: { baseline_blocker: 1, technical_debt: 1 },
+    });
+  } finally { teardown(dir, db); }
+});
+
 test('buildCostPanel: since cutoff in future → all filtered out', () => {
   const { dir, db } = freshFixture();
   try {

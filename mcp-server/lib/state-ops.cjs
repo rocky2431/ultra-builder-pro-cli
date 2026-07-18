@@ -128,6 +128,60 @@ function listTasks(db, filter = {}) {
   }).map(rowToTask);
 }
 
+function assertChangeAcceptsTasks(db, changeId) {
+  if (changeId === null || changeId === undefined) return null;
+  const change = db.prepare('SELECT id, status FROM changes WHERE id = ?').get(changeId);
+  if (!change) throw new StateOpsError('CHANGE_NOT_FOUND', `change ${changeId} does not exist`);
+  if (!['active', 'blocked'].includes(change.status)) {
+    throw new StateOpsError('CHANGE_NOT_MUTABLE', `change ${changeId} is ${change.status}`);
+  }
+  return change;
+}
+
+function resolveTaskCreationChangeId(db, input = {}) {
+  const explicitlyAssigned = input.change_id !== undefined;
+  const requestedChangeId = explicitlyAssigned ? input.change_id : null;
+  if (!input.parent_id) {
+    assertChangeAcceptsTasks(db, requestedChangeId);
+    return requestedChangeId;
+  }
+  const parent = readTask(db, input.parent_id);
+  if (!parent) {
+    throw new StateOpsError('TASK_NOT_FOUND', `parent task ${input.parent_id} does not exist`);
+  }
+  if (explicitlyAssigned && requestedChangeId !== parent.change_id) {
+    throw new StateOpsError(
+      'TASK_CHANGE_OWNERSHIP_MISMATCH',
+      `child task change ${requestedChangeId || '(none)'} does not match parent ${parent.id} change ${parent.change_id || '(none)'}`,
+    );
+  }
+  assertChangeAcceptsTasks(db, parent.change_id);
+  return parent.change_id;
+}
+
+function assertTaskChangeAssignment(db, task, changeId) {
+  if (task.parent_id) {
+    const parent = readTask(db, task.parent_id);
+    if (!parent) throw new StateOpsError('TASK_NOT_FOUND', `parent task ${task.parent_id} does not exist`);
+    if (changeId !== parent.change_id) {
+      throw new StateOpsError(
+        'TASK_CHANGE_OWNERSHIP_MISMATCH',
+        `task ${task.id} must retain parent ${parent.id} change ${parent.change_id || '(none)'}`,
+      );
+    }
+  }
+  const mismatchedChild = db.prepare(
+    'SELECT id, change_id FROM tasks WHERE parent_id = ? AND change_id IS NOT ? LIMIT 1',
+  ).get(task.id, changeId);
+  if (mismatchedChild) {
+    throw new StateOpsError(
+      'TASK_CHANGE_OWNERSHIP_MISMATCH',
+      `task ${task.id} change must continue to match child ${mismatchedChild.id}`,
+    );
+  }
+  assertChangeAcceptsTasks(db, changeId);
+}
+
 function createTask(db, input) {
   if (!input || !input.id || !input.title || !input.type || !input.priority) {
     throw new StateOpsError('VALIDATION_ERROR', 'id, title, type, priority required');
@@ -160,9 +214,7 @@ function createTask(db, input) {
     updated_at: ts,
   };
   return tx(db, () => {
-    if (row.change_id && !db.prepare('SELECT id FROM changes WHERE id = ?').get(row.change_id)) {
-      throw new StateOpsError('CHANGE_NOT_FOUND', `change ${row.change_id} does not exist`);
-    }
+    row.change_id = resolveTaskCreationChangeId(db, input);
     try {
       db.prepare(
         `INSERT INTO tasks (${TASK_FIELDS.join(', ')})
@@ -188,6 +240,10 @@ function patchTask(db, id, patch = {}) {
   return tx(db, () => {
     const current = readTask(db, id);
     if (!current) throw new StateOpsError('TASK_NOT_FOUND', `no task ${id}`);
+    // A task owned by a change remains writable only while that change is an
+    // active execution authority. Ownership is durable once assigned: it may
+    // not be detached or moved to another change by a generic task patch.
+    assertChangeAcceptsTasks(db, current.change_id);
     const sets = [];
     const params = [];
     let nextStatus = null;
@@ -200,9 +256,14 @@ function patchTask(db, id, patch = {}) {
         throw new StateOpsError('VALIDATION_ERROR', `field ${key} is not patchable`);
       }
       let value = patch[key];
-      if (key === 'change_id' && value !== null
-        && !db.prepare('SELECT id FROM changes WHERE id = ?').get(value)) {
-        throw new StateOpsError('CHANGE_NOT_FOUND', `change ${value} does not exist`);
+      if (key === 'change_id') {
+        if (current.change_id !== null && value !== current.change_id) {
+          throw new StateOpsError(
+            'TASK_CHANGE_OWNERSHIP_MISMATCH',
+            `task ${current.id} already belongs to change ${current.change_id}`,
+          );
+        }
+        assertTaskChangeAssignment(db, current, value);
       }
       if (key === 'deps' || key === 'files_modified') {
         if (value !== null && !Array.isArray(value)) {
@@ -711,6 +772,7 @@ module.exports = {
   // tasks
   readTask,
   listTasks,
+  resolveTaskCreationChangeId,
   createTask,
   patchTask,
   updateTaskStatus,

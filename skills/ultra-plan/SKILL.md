@@ -16,8 +16,10 @@ route to `ultra-doctor`. Never read or write `.ultra/tasks/tasks.json` as a fall
 Call `baseline.get`. Initial product planning is blocked until the baseline is
 `ready` and current; route its missing, adopting, blocked, or stale state to
 `ultra-init`. Planning an already active bounded change may continue with the
-baseline condition recorded as a warning. Convergence still requires approved
-adoption, and archive atomically reconciles and verifies revision/spec drift.
+baseline condition recorded as a warning. Ordinary convergence still requires
+approved adoption, and archive atomically reconciles revision and specification
+drift. An approved break-glass incident follows its recorded recovery contract and
+creates a blocking reconciliation gap at archive.
 
 Choose one input:
 
@@ -63,11 +65,12 @@ id when applicable.
 
 ## PRD mode
 
-1. Call `task.parse_prd` with `dry_run: true`.
+1. Call `task.parse_prd` with `dry_run: true` and the active `change_id` when
+   applicable.
 2. Show the proposed slices, topology, conflict surface, and cost estimate.
 3. Require explicit approval; rejection performs no state write.
-4. On approval, repeat with `dry_run: false`, export the plan, and verify that the
-   dry-run and persisted task identities agree.
+4. On approval, repeat with `dry_run: false` and the same change ownership, export
+   the plan, and verify that the dry-run and persisted task identities agree.
 
 ## Completion gate
 

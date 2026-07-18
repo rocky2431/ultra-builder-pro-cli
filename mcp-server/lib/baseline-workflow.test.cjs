@@ -174,9 +174,20 @@ test('re-adoption requires explicit replacement and supersedes the prior ready b
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'BASELINE_EXISTS',
     );
+    assert.throws(
+      () => baselines.startBaseline(fx.db, {
+        id: 'replacement', project_name: 'fixture', mode: 'brownfield',
+        repository_revision: fx.revision, replace_ready: true,
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_REPLACEMENT_AUTHORIZATION_REQUIRED',
+    );
     const replacement = baselines.startBaseline(fx.db, {
       id: 'replacement', project_name: 'fixture', mode: 'brownfield',
       repository_revision: fx.revision, replace_ready: true,
+      replacement_authorization: {
+        approved_by: 'project-owner',
+        reason: 'The maintained system boundary changed and requires a new evidence baseline.',
+      },
     }, { rootDir: fx.rootDir });
     assert.equal(replacement.status, 'adopting');
     assert.equal(baselines.readBaseline(fx.db, 'ready-baseline').status, 'superseded');
@@ -184,6 +195,14 @@ test('re-adoption requires explicit replacement and supersedes the prior ready b
       rootDir: fx.rootDir, id: 'ready-baseline',
     });
     assert.ok(supersededHealth.blockers.includes('BASELINE_NOT_READY:superseded'));
+    const event = fx.db.prepare(
+      "SELECT payload_json FROM events WHERE type = 'baseline_started' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.deepEqual(JSON.parse(event.payload_json).replacement_authorization, {
+      approved_by: 'project-owner',
+      reason: 'The maintained system boundary changed and requires a new evidence baseline.',
+      recorded_at: replacement.started_at,
+    });
   } finally {
     cleanup(fx);
   }
@@ -222,4 +241,237 @@ test('greenfield baseline derives a stable workspace revision when Git is not in
     closeStateDb(db);
     fs.rmSync(rootDir, { recursive: true, force: true });
   }
+});
+
+test('brownfield evidence and scope must resolve to current project files', () => {
+  const fx = fixture();
+  try {
+    assert.throws(
+      () => baselines.startBaseline(fx.db, {
+        id: 'missing-scope', project_name: 'fixture', mode: 'brownfield',
+        scope: ['src/does-not-exist'], repository_revision: fx.revision,
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_SCOPE_MISSING',
+    );
+
+    baselines.startBaseline(fx.db, {
+      id: 'missing-source', project_name: 'fixture', mode: 'brownfield',
+      scope: ['src'], repository_revision: fx.revision,
+    }, { rootDir: fx.rootDir });
+    assert.throws(
+      () => baselines.recordBaseline(fx.db, {
+        id: 'missing-source', repository_revision: fx.revision,
+        spec_refs: adoptionEvidence().spec_refs,
+        evidence: [{
+          kind: 'source', ref: 'src/does-not-exist.js', summary: 'Claimed entry point.',
+        }],
+        verification: adoptionEvidence().verification,
+        unknowns: [],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_EVIDENCE_MISSING',
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('brownfield convergence rejects a dirty checkout outside Ultra state', () => {
+  const fx = fixture();
+  try {
+    baselines.startBaseline(fx.db, {
+      id: 'dirty-baseline', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision, scope: ['src'],
+    }, { rootDir: fx.rootDir });
+    baselines.recordBaseline(fx.db, {
+      id: 'dirty-baseline', repository_revision: fx.revision, ...adoptionEvidence(),
+    }, { rootDir: fx.rootDir });
+    fs.appendFileSync(path.join(fx.rootDir, 'src', 'index.js'), 'throw new Error("dirty");\n');
+
+    const result = baselines.convergeBaseline(fx.db, {
+      id: 'dirty-baseline', expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Approve only a clean checkout.',
+    }, { rootDir: fx.rootDir });
+    assert.equal(result.ready, false);
+    assert.ok(result.blockers.includes('BASELINE_WORKTREE_DIRTY'));
+    assert.ok(result.blockers.includes('BASELINE_EVIDENCE_STALE:src/index.js'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('a scoped monorepo baseline records only dirty files inside the selected scope', () => {
+  const fx = fixture();
+  try {
+    fs.mkdirSync(path.join(fx.rootDir, 'packages', 'api'), { recursive: true });
+    fs.mkdirSync(path.join(fx.rootDir, 'packages', 'web'), { recursive: true });
+    fs.writeFileSync(path.join(fx.rootDir, 'packages', 'api', 'index.js'), 'module.exports = "api";\n');
+    fs.writeFileSync(path.join(fx.rootDir, 'packages', 'web', 'index.js'), 'module.exports = "web";\n');
+    execFileSync('git', ['add', 'packages'], { cwd: fx.rootDir });
+    execFileSync('git', ['commit', '-q', '-m', 'add workspaces'], { cwd: fx.rootDir });
+    const revision = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: fx.rootDir, encoding: 'utf8',
+    }).trim();
+
+    fs.appendFileSync(path.join(fx.rootDir, 'packages', 'web', 'index.js'), '// unrelated work\n');
+    const started = baselines.startBaseline(fx.db, {
+      id: 'scoped-dirty', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: revision, scope: ['packages/api'],
+    }, { rootDir: fx.rootDir });
+    assert.equal(started.worktree_state, 'clean');
+    assert.deepEqual(started.worktree_files, []);
+
+    fs.appendFileSync(path.join(fx.rootDir, 'packages', 'api', 'index.js'), '// adopted work\n');
+    const recorded = baselines.recordBaseline(fx.db, {
+      id: started.id, repository_revision: revision,
+    }, { rootDir: fx.rootDir });
+    assert.equal(recorded.worktree_state, 'dirty');
+    assert.ok(recorded.worktree_files.some((entry) => entry.includes('packages/api/index.js')));
+    assert.equal(
+      recorded.worktree_files.some((entry) => entry.includes('packages/web/index.js')),
+      false,
+    );
+  } finally { cleanup(fx); }
+});
+
+test('ready baseline detects source evidence drift without a new commit', () => {
+  const fx = fixture();
+  try {
+    baselines.startBaseline(fx.db, {
+      id: 'source-drift', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision, scope: ['src'],
+    }, { rootDir: fx.rootDir });
+    const recorded = baselines.recordBaseline(fx.db, {
+      id: 'source-drift', repository_revision: fx.revision, ...adoptionEvidence(),
+    }, { rootDir: fx.rootDir });
+    assert.match(recorded.evidence[0].digest, /^[0-9a-f]{64}$/);
+    baselines.convergeBaseline(fx.db, {
+      id: 'source-drift', expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Approved clean source evidence.',
+    }, { rootDir: fx.rootDir });
+
+    fs.writeFileSync(path.join(fx.rootDir, 'src', 'index.js'), 'throw new Error("regression");\n');
+    const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.equal(health.status, 'fail');
+    assert.ok(health.blockers.includes('BASELINE_WORKTREE_DIRTY'));
+    assert.ok(health.blockers.includes('BASELINE_EVIDENCE_STALE:src/index.js'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('migrated compatibility baseline requires explicit brownfield re-adoption', () => {
+  const fx = fixture();
+  try {
+    fx.db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('migrated-baseline', 'legacy', 'migrated', 'ready',
+               'schema-migration', 'compatibility row', ?)`,
+    ).run(new Date().toISOString());
+    const health = baselines.inspectBaseline(fx.db, {
+      rootDir: fx.rootDir, id: 'migrated-baseline',
+    });
+    assert.equal(health.status, 'fail');
+    assert.deepEqual(health.blockers, ['BASELINE_MIGRATION_REVIEW_REQUIRED']);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('open gap-ledger blockers prevent adoption while accepted debt remains visible', () => {
+  const fx = fixture();
+  try {
+    baselines.startBaseline(fx.db, {
+      id: 'gap-baseline', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision, scope: ['src'],
+    }, { rootDir: fx.rootDir });
+    const recorded = baselines.recordBaseline(fx.db, {
+      id: 'gap-baseline', repository_revision: fx.revision, ...adoptionEvidence(),
+      gaps: [
+        {
+          id: 'missing-auth-proof', category: 'baseline_blocker', status: 'open',
+          summary: 'Authorization authority has not been verified.', blocking: true,
+          evidence_refs: ['src/index.js'], owner: 'security-owner',
+        },
+        {
+          id: 'legacy-test-debt', category: 'technical_debt', status: 'accepted',
+          summary: 'Legacy integration tests are slow.', blocking: false,
+          evidence_refs: ['npm test'], owner: 'maintainers',
+        },
+      ],
+    }, { rootDir: fx.rootDir });
+    assert.deepEqual(recorded.gaps.map((gap) => gap.id), [
+      'missing-auth-proof', 'legacy-test-debt',
+    ]);
+
+    const result = baselines.convergeBaseline(fx.db, {
+      id: 'gap-baseline', expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Reviewed the evidence ledger.',
+    }, { rootDir: fx.rootDir });
+    assert.equal(result.ready, false);
+    assert.ok(result.blockers.includes('BASELINE_GAP_BLOCKING:missing-auth-proof'));
+  } finally { cleanup(fx); }
+});
+
+test('a dirty adoption snapshot requires explicit acceptance and remains drift-detectable', () => {
+  const fx = fixture();
+  try {
+    fs.appendFileSync(path.join(fx.rootDir, 'src', 'index.js'), '// accepted local patch\n');
+    baselines.startBaseline(fx.db, {
+      id: 'dirty-accepted', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision, scope: ['src'],
+    }, { rootDir: fx.rootDir });
+    const recorded = baselines.recordBaseline(fx.db, {
+      id: 'dirty-accepted', repository_revision: fx.revision, ...adoptionEvidence(),
+    }, { rootDir: fx.rootDir });
+    assert.equal(recorded.worktree_state, 'dirty');
+    assert.match(recorded.worktree_digest, /^[0-9a-f]{64}$/);
+
+    const rejected = baselines.convergeBaseline(fx.db, {
+      id: 'dirty-accepted', expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Review dirty adoption snapshot.',
+    }, { rootDir: fx.rootDir });
+    assert.ok(rejected.blockers.includes('BASELINE_DIRTY_WORKTREE_NOT_ACCEPTED'));
+
+    const accepted = baselines.convergeBaseline(fx.db, {
+      id: 'dirty-accepted', expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Accept the recorded local patch as baseline evidence.',
+      accept_dirty_worktree: true,
+    }, { rootDir: fx.rootDir });
+    assert.equal(accepted.ready, true);
+    assert.equal(accepted.baseline.worktree_accepted, true);
+
+    fs.appendFileSync(path.join(fx.rootDir, 'src', 'index.js'), '// later drift\n');
+    const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.ok(health.blockers.includes('BASELINE_WORKTREE_STALE'));
+  } finally { cleanup(fx); }
+});
+
+test('a migrated compatibility row can only be superseded by explicit brownfield re-adoption', () => {
+  const fx = fixture();
+  try {
+    fx.db.prepare(
+      `INSERT INTO baselines (id, project_name, mode, status)
+       VALUES ('migrated-baseline', 'legacy', 'migrated', 'adopting')`,
+    ).run();
+    assert.throws(
+      () => baselines.startBaseline(fx.db, {
+        id: 'replacement', project_name: 'fixture', mode: 'brownfield', scope: ['src'],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_IN_PROGRESS',
+    );
+    assert.throws(
+      () => baselines.startBaseline(fx.db, {
+        id: 'wrong-mode', project_name: 'fixture', mode: 'greenfield', scope: ['src'],
+        replace_migrated: true,
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_REPLACEMENT_INVALID',
+    );
+    const replacement = baselines.startBaseline(fx.db, {
+      id: 'replacement', project_name: 'fixture', mode: 'brownfield', scope: ['src'],
+      replace_migrated: true,
+    }, { rootDir: fx.rootDir });
+    assert.equal(replacement.status, 'adopting');
+    assert.equal(baselines.readBaseline(fx.db, 'migrated-baseline').status, 'superseded');
+  } finally { cleanup(fx); }
 });

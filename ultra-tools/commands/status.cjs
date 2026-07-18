@@ -71,17 +71,26 @@ function buildCostPanel(db, { since = null, limit = 3, rootDir = process.cwd() }
   const total_cost_usd = by_runtime.reduce((acc, r) => acc + (r.cost_usd || 0), 0);
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
   const current = baselineHealth.baseline;
+  const baselineStatus = current?.status
+    || (baselineHealth.blockers.includes('BASELINE_SCHEMA_MIGRATION_REQUIRED')
+      ? 'migration_required' : 'missing');
+  const baseline = {
+    id: current?.id || null,
+    mode: current?.mode || null,
+    status: baselineStatus,
+    health: baselineHealth.status,
+    repository_revision: current?.repository_revision || null,
+    blockers: baselineHealth.blockers,
+    warnings: baselineHealth.warnings,
+  };
+  if (current) {
+    baseline.repository_branch = current.repository_branch || null;
+    baseline.worktree_state = current.worktree_state || 'unavailable';
+    baseline.gaps = baselines.summarizeGaps(current.gaps);
+  }
   return {
     period: { since: since || 'all-time' },
-    baseline: {
-      id: current?.id || null,
-      mode: current?.mode || null,
-      status: current?.status || 'missing',
-      health: baselineHealth.status,
-      repository_revision: current?.repository_revision || null,
-      blockers: baselineHealth.blockers,
-      warnings: baselineHealth.warnings,
-    },
+    baseline,
     by_runtime,
     top_tasks,
     total_cost_usd,

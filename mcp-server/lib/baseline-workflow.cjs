@@ -13,6 +13,11 @@ const MODES = new Set(['greenfield', 'brownfield']);
 const SPEC_KINDS = new Set(['discovery', 'product', 'architecture', 'quality', 'delivery', 'other']);
 const EVIDENCE_KINDS = new Set(['source', 'docs', 'runtime', 'test', 'deploy', 'external']);
 const VERIFICATION_STATUSES = new Set(['pass', 'known_red', 'not_run']);
+const GAP_CATEGORIES = new Set([
+  'baseline_blocker', 'documentation_drift', 'known_defect',
+  'technical_debt', 'unknown', 'future_change',
+]);
+const GAP_STATUSES = new Set(['open', 'accepted', 'resolved', 'deferred']);
 
 class BaselineWorkflowError extends Error {
   constructor(code, message, details) {
@@ -34,6 +39,70 @@ function gitHead(rootDir) {
   return result.status === 0 ? result.stdout.trim() : null;
 }
 
+function gitBranch(rootDir) {
+  const result = spawnSync('git', ['branch', '--show-current'], {
+    cwd: rootDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return result.status === 0 ? (result.stdout.trim() || null) : null;
+}
+
+function gitWorktreeSnapshot(rootDir, scope = ['.']) {
+  const head = gitHead(rootDir);
+  if (!head) {
+    return {
+      head: null, branch: null, state: 'unavailable', digest: null, files: [],
+    };
+  }
+  const selectedScope = Array.isArray(scope) && scope.length > 0 ? scope : ['.'];
+  const pathspecs = selectedScope.map((item) => (
+    item === '.' ? '.' : `:(literal)${item}`
+  ));
+  const args = ['--', ...pathspecs, ':(exclude).ultra', ':(exclude).ultra/**'];
+  const status = spawnSync(
+    'git', ['status', '--porcelain=v1', '-z', '--untracked-files=all', ...args],
+    { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
+  );
+  const diff = spawnSync(
+    'git', ['diff', '--binary', '--no-ext-diff', 'HEAD', ...args],
+    { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
+  );
+  const untracked = spawnSync(
+    'git', ['ls-files', '--others', '--exclude-standard', '-z', ...args],
+    { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
+  );
+  if (status.status !== 0 || diff.status !== 0 || untracked.status !== 0) {
+    return {
+      head, branch: gitBranch(rootDir), state: 'unavailable', digest: null, files: [],
+    };
+  }
+  const statusText = status.stdout.toString('utf8');
+  const files = statusText.split('\0').filter(Boolean);
+  const digest = crypto.createHash('sha256');
+  digest.update(head).update('\0').update(gitBranch(rootDir) || '').update('\0');
+  digest.update(status.stdout).update(diff.stdout);
+  for (const relative of untracked.stdout.toString('utf8').split('\0').filter(Boolean).sort()) {
+    digest.update(relative).update('\0');
+    const file = path.resolve(rootDir, relative);
+    if (file.startsWith(`${path.resolve(rootDir)}${path.sep}`)
+      && fs.existsSync(file) && fs.statSync(file).isFile()) {
+      digest.update(fs.readFileSync(file));
+    }
+    digest.update('\0');
+  }
+  return {
+    head,
+    branch: gitBranch(rootDir),
+    state: files.length > 0 ? 'dirty' : 'clean',
+    digest: digest.digest('hex'),
+    files,
+  };
+}
+
+function gitWorktreeChanges(rootDir, scope = ['.']) {
+  const snapshot = gitWorktreeSnapshot(rootDir, scope);
+  return snapshot.state === 'unavailable' ? null : snapshot.files;
+}
+
 function parseJson(value, field, fallback) {
   if (value == null || value === '') return fallback;
   try { return JSON.parse(value); }
@@ -51,16 +120,27 @@ function rowToBaseline(row) {
     evidence: parseJson(row.evidence_json, 'evidence_json', []),
     verification: parseJson(row.verification_json, 'verification_json', []),
     unknowns: parseJson(row.unknowns_json, 'unknowns_json', []),
+    gaps: parseJson(row.gaps_json, 'gaps_json', []),
+    classification: parseJson(row.classification_json, 'classification_json', {}),
+    worktree_files: parseJson(row.worktree_files_json, 'worktree_files_json', []),
+    worktree_accepted: Boolean(row.worktree_accepted),
     provider_refs: parseJson(row.provider_refs_json, 'provider_refs_json', {}),
   };
   for (const key of [
     'scope_json', 'spec_refs_json', 'evidence_json', 'verification_json', 'unknowns_json',
-    'provider_refs_json',
+    'gaps_json', 'classification_json', 'worktree_files_json', 'provider_refs_json',
   ]) delete baseline[key];
   return baseline;
 }
 
+function hasTable(db, table) {
+  return Boolean(db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+  ).get(table));
+}
+
 function readBaseline(db, id) {
+  if (!hasTable(db, 'baselines')) return null;
   const row = id
     ? db.prepare('SELECT * FROM baselines WHERE id = ?').get(id)
     : db.prepare(
@@ -73,6 +153,33 @@ function nonEmpty(value, field) {
   const text = typeof value === 'string' ? value.trim() : '';
   if (!text) throw new BaselineWorkflowError('VALIDATION_ERROR', `${field} must be a non-empty string`);
   return text;
+}
+
+function normalizeReplacementAuthorization(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BaselineWorkflowError(
+      'BASELINE_REPLACEMENT_AUTHORIZATION_REQUIRED',
+      'replacing a ready baseline requires approved_by and reason',
+    );
+  }
+  let approvedBy;
+  let reason;
+  try {
+    approvedBy = nonEmpty(value.approved_by, 'replacement_authorization.approved_by');
+    reason = nonEmpty(value.reason, 'replacement_authorization.reason');
+  } catch {
+    throw new BaselineWorkflowError(
+      'BASELINE_REPLACEMENT_AUTHORIZATION_REQUIRED',
+      'replacing a ready baseline requires approved_by and reason',
+    );
+  }
+  if (reason.length < 3) {
+    throw new BaselineWorkflowError(
+      'BASELINE_REPLACEMENT_AUTHORIZATION_REQUIRED',
+      'replacement_authorization.reason must explain the owner-approved replacement',
+    );
+  }
+  return { approved_by: approvedBy, reason };
 }
 
 function safeRelativePath(rootDir, candidate, field = 'path') {
@@ -94,9 +201,25 @@ function normalizeScope(value, rootDir) {
     throw new BaselineWorkflowError('VALIDATION_ERROR', 'scope must be a non-empty array');
   }
   return [...new Set(scope.map((item, index) => {
-    safeRelativePath(rootDir, item, `scope[${index}]`);
+    const resolved = safeRelativePath(rootDir, item, `scope[${index}]`);
+    if (!fs.existsSync(resolved)) {
+      throw new BaselineWorkflowError(
+        'BASELINE_SCOPE_MISSING', `baseline scope does not exist: ${String(item).trim()}`,
+      );
+    }
     return String(item).trim();
   }))];
+}
+
+function storedScopeBlockers(baseline, rootDir) {
+  const blockers = [];
+  for (const item of baseline.scope) {
+    let target;
+    try { target = safeRelativePath(rootDir, item, 'scope path'); }
+    catch { blockers.push(`BASELINE_SCOPE_INVALID:${item}`); continue; }
+    if (!fs.existsSync(target)) blockers.push(`BASELINE_SCOPE_MISSING:${item}`);
+  }
+  return blockers;
 }
 
 function digestFile(file) {
@@ -133,17 +256,27 @@ function normalizeSpecRefs(value, rootDir) {
   });
 }
 
-function normalizeEvidence(value) {
+function normalizeEvidence(value, rootDir) {
   if (!Array.isArray(value)) throw new BaselineWorkflowError('VALIDATION_ERROR', 'evidence must be an array');
   return value.map((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item) || !EVIDENCE_KINDS.has(item.kind)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid evidence[${index}]`);
     }
-    return {
+    const normalized = {
       kind: item.kind,
       ref: nonEmpty(item.ref, `evidence[${index}].ref`),
       summary: nonEmpty(item.summary, `evidence[${index}].summary`),
     };
+    if (item.kind === 'source') {
+      const file = safeRelativePath(rootDir, normalized.ref, `evidence[${index}].ref`);
+      if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+        throw new BaselineWorkflowError(
+          'BASELINE_EVIDENCE_MISSING', `baseline source evidence missing: ${normalized.ref}`,
+        );
+      }
+      normalized.digest = digestFile(file);
+    }
+    return normalized;
   });
 }
 
@@ -179,6 +312,67 @@ function normalizeUnknowns(value) {
   });
 }
 
+function normalizeGaps(value) {
+  if (!Array.isArray(value)) throw new BaselineWorkflowError('VALIDATION_ERROR', 'gaps must be an array');
+  const ids = new Set();
+  return value.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid gaps[${index}]`);
+    }
+    const id = nonEmpty(item.id, `gaps[${index}].id`);
+    if (!BASELINE_ID.test(id) || ids.has(id)) {
+      throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid or duplicate gap id: ${id}`);
+    }
+    ids.add(id);
+    if (!GAP_CATEGORIES.has(item.category)) {
+      throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid gap category: ${item.category}`);
+    }
+    const status = item.status || 'open';
+    if (!GAP_STATUSES.has(status)) {
+      throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid gap status: ${status}`);
+    }
+    const evidenceRefs = item.evidence_refs === undefined ? [] : item.evidence_refs;
+    if (!Array.isArray(evidenceRefs) || evidenceRefs.some((ref) => typeof ref !== 'string' || !ref.trim())) {
+      throw new BaselineWorkflowError('VALIDATION_ERROR', `gaps[${index}].evidence_refs must be strings`);
+    }
+    const normalized = {
+      id,
+      category: item.category,
+      status,
+      blocking: item.category === 'baseline_blocker' ? true : item.blocking === true,
+      summary: nonEmpty(item.summary, `gaps[${index}].summary`),
+      evidence_refs: [...new Set(evidenceRefs.map((ref) => ref.trim()))],
+      owner: item.owner == null ? null : nonEmpty(item.owner, `gaps[${index}].owner`),
+    };
+    if (item.resolution != null) {
+      normalized.resolution = nonEmpty(item.resolution, `gaps[${index}].resolution`);
+    }
+    return normalized;
+  });
+}
+
+function normalizeClassification(value) {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new BaselineWorkflowError('VALIDATION_ERROR', 'classification must be an object');
+  }
+  const serialized = JSON.stringify(value);
+  if (Buffer.byteLength(serialized) > 32 * 1024) {
+    throw new BaselineWorkflowError('VALIDATION_ERROR', 'classification exceeds 32 KiB');
+  }
+  return JSON.parse(serialized);
+}
+
+function summarizeGaps(gaps = []) {
+  const summary = { total: gaps.length, open: 0, blocking: 0, by_category: {} };
+  for (const gap of gaps) {
+    summary.by_category[gap.category] = (summary.by_category[gap.category] || 0) + 1;
+    if (gap.status === 'open') summary.open += 1;
+    if (gap.status === 'open' && gap.blocking) summary.blocking += 1;
+  }
+  return summary;
+}
+
 function startBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = true } = {}) {
   const id = input.id || 'project-baseline';
   if (!BASELINE_ID.test(id)) throw new BaselineWorkflowError('VALIDATION_ERROR', 'baseline id is invalid');
@@ -186,36 +380,82 @@ function startBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = tr
   if (!MODES.has(input.mode)) throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid baseline mode: ${input.mode}`);
   if (readBaseline(db, id)) throw new BaselineWorkflowError('DUPLICATE_BASELINE_ID', `baseline ${id} exists`);
   const current = readBaseline(db);
-  if (current && current.status !== 'superseded') {
-    if (current.status === 'ready' && input.replace_ready !== true) {
-      throw new BaselineWorkflowError('BASELINE_EXISTS', `ready baseline ${current.id} requires replace_ready=true`);
+  if (input.replace_migrated === true
+    && (!current || current.mode !== 'migrated' || input.mode !== 'brownfield')) {
+    throw new BaselineWorkflowError(
+      'BASELINE_REPLACEMENT_INVALID',
+      'replace_migrated requires a current migrated baseline and brownfield mode',
+    );
+  }
+  const replacingMigrated = Boolean(
+    current && current.mode === 'migrated' && current.status !== 'superseded'
+      && input.replace_migrated === true,
+  );
+  let replacementAuthorization = null;
+  if (input.replace_ready === true) {
+    if (!current || current.status !== 'ready' || replacingMigrated) {
+      throw new BaselineWorkflowError(
+        'BASELINE_REPLACEMENT_INVALID',
+        'replace_ready requires a current ready baseline',
+      );
     }
-    if (current.status !== 'ready') {
+    replacementAuthorization = normalizeReplacementAuthorization(input.replacement_authorization);
+  } else if (input.replacement_authorization !== undefined) {
+    throw new BaselineWorkflowError(
+      'BASELINE_REPLACEMENT_INVALID',
+      'replacement_authorization is valid only with replace_ready=true',
+    );
+  }
+  if (current && current.status !== 'superseded') {
+    if (replacingMigrated) {
+      // Compatibility state is never an accepted product baseline. Explicit
+      // replacement preserves its audit row while starting real adoption.
+    } else if (current.status === 'ready' && input.replace_ready !== true) {
+      throw new BaselineWorkflowError('BASELINE_EXISTS', `ready baseline ${current.id} requires replace_ready=true`);
+    } else if (current.status !== 'ready') {
       throw new BaselineWorkflowError('BASELINE_IN_PROGRESS', `baseline ${current.id} is ${current.status}`);
     }
   }
   const scope = normalizeScope(input.scope, rootDir);
   const providers = providerRefs.normalizeProviderRefs(input.provider_refs, BaselineWorkflowError);
+  const classification = normalizeClassification(input.classification);
+  const snapshot = gitWorktreeSnapshot(rootDir, scope);
+  if (snapshot.head && input.repository_revision && input.repository_revision !== snapshot.head) {
+    throw new BaselineWorkflowError(
+      'BASELINE_REVISION_MISMATCH', 'repository_revision does not match current Git HEAD',
+    );
+  }
   const status = input.mode === 'brownfield' ? 'adopting' : 'draft';
   const ts = nowIso();
   return ops.tx(db, () => {
-    if (current?.status === 'ready') {
+    if (current && (current.status === 'ready' || replacingMigrated)) {
       db.prepare("UPDATE baselines SET status = 'superseded', updated_at = ? WHERE id = ?")
         .run(ts, current.id);
     }
     db.prepare(
       `INSERT INTO baselines
        (id, project_name, project_type, stack, mode, status, repository_root, scope_json,
-        repository_revision, provider_refs_json, started_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, '.', ?, ?, ?, ?, ?)`,
+        repository_revision, repository_branch, worktree_state, worktree_digest,
+        worktree_files_json, classification_json, provider_refs_json, started_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, '.', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id, projectName, input.project_type || null, input.stack || null, input.mode, status,
-      JSON.stringify(scope), input.repository_revision || gitHead(rootDir), JSON.stringify(providers), ts, ts,
+      JSON.stringify(scope), snapshot.head || input.repository_revision || null, snapshot.branch,
+      snapshot.state, snapshot.digest, JSON.stringify(snapshot.files), JSON.stringify(classification),
+      JSON.stringify(providers), ts, ts,
     );
     if (emitEvent) {
+      const payload = {
+        baseline_id: id,
+        mode: input.mode,
+        replaced_baseline_id: current?.id || null,
+      };
+      if (replacementAuthorization) {
+        payload.replacement_authorization = { ...replacementAuthorization, recorded_at: ts };
+      }
       ops.appendEventInTx(db, {
         type: 'baseline_started',
-        payload: { baseline_id: id, mode: input.mode, replaced_baseline_id: current?.id || null },
+        payload,
       });
     }
     return readBaseline(db, id);
@@ -228,33 +468,50 @@ function recordBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = t
   if (['ready', 'superseded'].includes(current.status)) {
     throw new BaselineWorkflowError('BASELINE_NOT_MUTABLE', `baseline ${current.id} is ${current.status}`);
   }
-  const scope = input.scope === undefined ? current.scope : normalizeScope(input.scope, rootDir);
+  const scope = normalizeScope(input.scope === undefined ? current.scope : input.scope, rootDir);
   const specs = input.spec_refs === undefined ? current.spec_refs : normalizeSpecRefs(input.spec_refs, rootDir);
-  const evidence = input.evidence === undefined ? current.evidence : normalizeEvidence(input.evidence);
+  const evidence = input.evidence === undefined
+    ? current.evidence : normalizeEvidence(input.evidence, rootDir);
   const verification = input.verification === undefined
     ? current.verification : normalizeVerification(input.verification);
   const unknowns = input.unknowns === undefined ? current.unknowns : normalizeUnknowns(input.unknowns);
+  const gaps = input.gaps === undefined ? current.gaps : normalizeGaps(input.gaps);
+  const classification = input.classification === undefined
+    ? current.classification : normalizeClassification(input.classification);
   const providers = input.provider_refs === undefined
     ? current.provider_refs
     : providerRefs.normalizeProviderRefs(input.provider_refs, BaselineWorkflowError);
-  const revision = input.repository_revision === undefined
-    ? (current.repository_revision || gitHead(rootDir)
-      || workspaceRevision({ scope, specs, evidence }, rootDir))
-    : nonEmpty(input.repository_revision, 'repository_revision');
+  const snapshot = gitWorktreeSnapshot(rootDir, scope);
+  if (snapshot.head && input.repository_revision && input.repository_revision !== snapshot.head) {
+    throw new BaselineWorkflowError(
+      'BASELINE_REVISION_MISMATCH', 'repository_revision does not match current Git HEAD',
+    );
+  }
+  const revision = snapshot.head || (input.repository_revision === undefined
+    ? (current.repository_revision || workspaceRevision({ scope, specs, evidence }, rootDir))
+    : nonEmpty(input.repository_revision, 'repository_revision'));
   const status = current.mode === 'brownfield' ? 'adopting' : 'draft';
   const ts = nowIso();
   return ops.tx(db, () => {
     db.prepare(
-      `UPDATE baselines SET status = ?, scope_json = ?, repository_revision = ?, spec_refs_json = ?,
-       evidence_json = ?, verification_json = ?, unknowns_json = ?, provider_refs_json = ?,
+      `UPDATE baselines SET status = ?, scope_json = ?, repository_revision = ?,
+       repository_branch = ?, worktree_state = ?, worktree_digest = ?, worktree_files_json = ?,
+       worktree_accepted = 0, spec_refs_json = ?, evidence_json = ?, verification_json = ?,
+       unknowns_json = ?, gaps_json = ?, classification_json = ?, provider_refs_json = ?,
        approved_by = NULL, approval_note = NULL, converged_at = NULL, updated_at = ? WHERE id = ?`,
     ).run(
-      status, JSON.stringify(scope), revision, JSON.stringify(specs), JSON.stringify(evidence),
-      JSON.stringify(verification), JSON.stringify(unknowns), JSON.stringify(providers), ts, current.id,
+      status, JSON.stringify(scope), revision, snapshot.branch, snapshot.state, snapshot.digest,
+      JSON.stringify(snapshot.files), JSON.stringify(specs), JSON.stringify(evidence),
+      JSON.stringify(verification), JSON.stringify(unknowns), JSON.stringify(gaps),
+      JSON.stringify(classification), JSON.stringify(providers), ts, current.id,
     );
     if (emitEvent) {
       ops.appendEventInTx(db, {
-        type: 'baseline_recorded', payload: { baseline_id: current.id, spec_count: specs.length },
+        type: 'baseline_recorded',
+        payload: {
+          baseline_id: current.id, spec_count: specs.length,
+          gap_count: gaps.length, worktree_state: snapshot.state,
+        },
       });
     }
     return readBaseline(db, current.id);
@@ -276,18 +533,47 @@ function storedSpecBlockers(baseline, rootDir) {
   return blockers;
 }
 
+function storedEvidenceBlockers(baseline, rootDir) {
+  const blockers = [];
+  for (const item of baseline.evidence) {
+    if (item.kind !== 'source' && !item.digest) continue;
+    let file;
+    try { file = safeRelativePath(rootDir, item.ref, 'evidence ref'); }
+    catch { blockers.push(`BASELINE_EVIDENCE_INVALID:${item.ref}`); continue; }
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+      blockers.push(`BASELINE_EVIDENCE_MISSING:${item.ref}`);
+    } else if (!item.digest) {
+      blockers.push(`BASELINE_EVIDENCE_UNVERIFIED:${item.ref}`);
+    } else if (digestFile(file) !== item.digest) {
+      blockers.push(`BASELINE_EVIDENCE_STALE:${item.ref}`);
+    }
+  }
+  return blockers;
+}
+
 function convergenceBlockers(baseline, input, rootDir) {
   const blockers = new Set();
   const expected = typeof input.expected_revision === 'string' ? input.expected_revision.trim() : '';
   if (!expected) blockers.add('BASELINE_REVISION_REQUIRED');
   else if (baseline.repository_revision !== expected) blockers.add('BASELINE_REVISION_MISMATCH');
-  const head = gitHead(rootDir);
-  if (head && expected && head !== expected) blockers.add('BASELINE_HEAD_STALE');
+  const snapshot = gitWorktreeSnapshot(rootDir, baseline.scope);
+  if (snapshot.head && expected && snapshot.head !== expected) blockers.add('BASELINE_HEAD_STALE');
+  if (baseline.repository_branch && snapshot.branch
+    && baseline.repository_branch !== snapshot.branch) blockers.add('BASELINE_BRANCH_STALE');
   if (!Array.isArray(baseline.scope) || baseline.scope.length === 0) blockers.add('BASELINE_SCOPE_MISSING');
   for (const kind of ['product', 'architecture']) {
     if (!baseline.spec_refs.some((ref) => ref.kind === kind)) blockers.add(`BASELINE_SPEC_MISSING:${kind}`);
   }
   for (const blocker of storedSpecBlockers(baseline, rootDir)) blockers.add(blocker);
+  for (const blocker of storedEvidenceBlockers(baseline, rootDir)) blockers.add(blocker);
+  for (const blocker of storedScopeBlockers(baseline, rootDir)) blockers.add(blocker);
+  if (baseline.worktree_digest && snapshot.digest && baseline.worktree_digest !== snapshot.digest) {
+    blockers.add('BASELINE_WORKTREE_STALE');
+    if (snapshot.state === 'dirty') blockers.add('BASELINE_WORKTREE_DIRTY');
+  }
+  if (baseline.worktree_state === 'dirty' && input.accept_dirty_worktree !== true) {
+    blockers.add('BASELINE_DIRTY_WORKTREE_NOT_ACCEPTED');
+  }
   if (baseline.evidence.length === 0) blockers.add('BASELINE_EVIDENCE_MISSING');
   if (baseline.mode === 'brownfield' && !baseline.evidence.some((item) => item.kind === 'source')) {
     blockers.add('BASELINE_SOURCE_EVIDENCE_MISSING');
@@ -302,6 +588,9 @@ function convergenceBlockers(baseline, input, rootDir) {
   }
   for (const item of baseline.unknowns.filter((unknown) => unknown.blocking)) {
     blockers.add(`BASELINE_UNKNOWN_BLOCKING:${item.summary}`);
+  }
+  for (const gap of baseline.gaps.filter((item) => item.status === 'open' && item.blocking)) {
+    blockers.add(`BASELINE_GAP_BLOCKING:${gap.id}`);
   }
   if (!String(input.approved_by || '').trim()) blockers.add('BASELINE_APPROVER_REQUIRED');
   if (String(input.approval_note || '').trim().length < 3) blockers.add('BASELINE_APPROVAL_NOTE_REQUIRED');
@@ -331,8 +620,11 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
   ops.tx(db, () => {
     db.prepare(
       `UPDATE baselines SET status = 'ready', approved_by = ?, approval_note = ?,
-       converged_at = ?, updated_at = ? WHERE id = ?`,
-    ).run(String(input.approved_by).trim(), String(input.approval_note).trim(), ts, ts, current.id);
+       worktree_accepted = ?, converged_at = ?, updated_at = ? WHERE id = ?`,
+    ).run(
+      String(input.approved_by).trim(), String(input.approval_note).trim(),
+      input.accept_dirty_worktree === true ? 1 : 0, ts, ts, current.id,
+    );
     if (emitEvent) {
       ops.appendEventInTx(db, {
         type: 'baseline_converged', payload: { baseline_id: current.id, revision: current.repository_revision },
@@ -343,24 +635,50 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
 }
 
 function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
+  if (!hasTable(db, 'baselines')) {
+    return {
+      status: 'fail', blockers: ['BASELINE_SCHEMA_MIGRATION_REQUIRED'], warnings: [], baseline: null,
+    };
+  }
   const baseline = readBaseline(db, id);
   if (!baseline) {
     return { status: 'fail', blockers: ['BASELINE_MISSING'], warnings: [], baseline: null };
+  }
+  if (baseline.mode === 'migrated') {
+    return {
+      status: 'fail', blockers: ['BASELINE_MIGRATION_REVIEW_REQUIRED'], warnings: [], baseline,
+    };
   }
   if (baseline.status !== 'ready') {
     return {
       status: 'fail', blockers: [`BASELINE_NOT_READY:${baseline.status}`], warnings: [], baseline,
     };
   }
-  if (baseline.mode === 'migrated') {
-    return {
-      status: 'pass', blockers: [], warnings: ['BASELINE_MIGRATION_REVIEW_RECOMMENDED'], baseline,
-    };
-  }
-  const blockers = storedSpecBlockers(baseline, rootDir);
-  const head = gitHead(rootDir);
-  if (head && baseline.repository_revision && head !== baseline.repository_revision) {
+  const blockers = [
+    ...storedScopeBlockers(baseline, rootDir),
+    ...storedSpecBlockers(baseline, rootDir),
+    ...storedEvidenceBlockers(baseline, rootDir),
+  ];
+  const snapshot = gitWorktreeSnapshot(rootDir, baseline.scope);
+  if (snapshot.head && baseline.repository_revision && snapshot.head !== baseline.repository_revision) {
     blockers.push('BASELINE_HEAD_STALE');
+  } else if (!snapshot.head && baseline.repository_revision?.startsWith('workspace:')) {
+    const revision = workspaceRevision({
+      scope: baseline.scope, specs: baseline.spec_refs, evidence: baseline.evidence,
+    }, rootDir);
+    if (revision !== baseline.repository_revision) blockers.push('BASELINE_WORKSPACE_STALE');
+  }
+  if (baseline.repository_branch && snapshot.branch
+    && baseline.repository_branch !== snapshot.branch) blockers.push('BASELINE_BRANCH_STALE');
+  if (baseline.worktree_digest && snapshot.digest && baseline.worktree_digest !== snapshot.digest) {
+    blockers.push('BASELINE_WORKTREE_STALE');
+    if (snapshot.state === 'dirty') blockers.push('BASELINE_WORKTREE_DIRTY');
+  }
+  if (baseline.worktree_state === 'dirty' && !baseline.worktree_accepted) {
+    blockers.push('BASELINE_DIRTY_WORKTREE_NOT_ACCEPTED');
+  }
+  for (const gap of baseline.gaps.filter((item) => item.status === 'open' && item.blocking)) {
+    blockers.push(`BASELINE_GAP_BLOCKING:${gap.id}`);
   }
   return { status: blockers.length === 0 ? 'pass' : 'fail', blockers, warnings: [], baseline };
 }
@@ -379,19 +697,40 @@ function reconcileBaseline(db, { baseline_updates = [], change_id = null } = {},
   }
   if (current.mode === 'migrated' && current.spec_refs.length === 0) return current;
   const refs = new Map(current.spec_refs.map((ref) => [ref.path, ref]));
+  const evidence = current.evidence.map((item) => ({ ...item }));
   for (const update of baseline_updates) {
     const file = safeRelativePath(rootDir, update, 'baseline update');
     if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
       throw new BaselineWorkflowError('BASELINE_FILE_MISSING', `baseline update missing: ${update}`);
     }
-    refs.set(update, { kind: refs.get(update)?.kind || inferSpecKind(update), path: update, digest: digestFile(file) });
+    const digest = digestFile(file);
+    const existingRef = refs.get(update);
+    if (existingRef) refs.set(update, { ...existingRef, digest });
+    let evidenceMatched = false;
+    for (const item of evidence) {
+      if (item.ref !== update || (item.kind !== 'source' && !item.digest)) continue;
+      item.digest = digest;
+      evidenceMatched = true;
+    }
+    if (!existingRef && !evidenceMatched) {
+      refs.set(update, { kind: inferSpecKind(update), path: update, digest });
+    }
   }
-  const revision = gitHead(rootDir) || current.repository_revision;
+  const specs = [...refs.values()];
+  const snapshot = gitWorktreeSnapshot(rootDir, current.scope);
+  const revision = snapshot.head || workspaceRevision({
+    scope: current.scope, specs, evidence,
+  }, rootDir);
   const ts = nowIso();
   ops.tx(db, () => {
     db.prepare(
-      'UPDATE baselines SET repository_revision = ?, spec_refs_json = ?, updated_at = ? WHERE id = ?',
-    ).run(revision, JSON.stringify([...refs.values()]), ts, current.id);
+      `UPDATE baselines SET repository_revision = ?, repository_branch = ?, worktree_state = ?,
+       worktree_digest = ?, worktree_files_json = ?, worktree_accepted = 0,
+       spec_refs_json = ?, evidence_json = ?, updated_at = ? WHERE id = ?`,
+    ).run(
+      revision, snapshot.branch, snapshot.state, snapshot.digest, JSON.stringify(snapshot.files),
+      JSON.stringify(specs), JSON.stringify(evidence), ts, current.id,
+    );
     if (emitEvent) {
       ops.appendEventInTx(db, {
         type: 'baseline_reconciled',
@@ -403,6 +742,26 @@ function reconcileBaseline(db, { baseline_updates = [], change_id = null } = {},
   return readBaseline(db, current.id);
 }
 
+function appendGapInTx(db, input = {}, { emitEvent = true } = {}) {
+  const current = readBaseline(db, input.baseline_id);
+  if (!current) throw new BaselineWorkflowError('BASELINE_NOT_FOUND', 'current baseline not found');
+  const next = normalizeGaps([...current.gaps.filter((gap) => gap.id !== input.gap?.id), input.gap]);
+  const ts = nowIso();
+  db.prepare('UPDATE baselines SET gaps_json = ?, updated_at = ? WHERE id = ?')
+    .run(JSON.stringify(next), ts, current.id);
+  if (emitEvent) {
+    ops.appendEventInTx(db, {
+      type: 'baseline_gap_recorded',
+      payload: { baseline_id: current.id, gap_id: input.gap.id, category: input.gap.category },
+    });
+  }
+  return readBaseline(db, current.id);
+}
+
+function appendGap(db, input = {}, options = {}) {
+  return ops.tx(db, () => appendGapInTx(db, input, options));
+}
+
 module.exports = {
   BaselineWorkflowError,
   startBaseline,
@@ -412,4 +771,11 @@ module.exports = {
   inspectBaseline,
   reconcileBaseline,
   gitHead,
+  gitBranch,
+  gitWorktreeSnapshot,
+  gitWorktreeChanges,
+  appendGap,
+  appendGapInTx,
+  summarizeGaps,
+  normalizeGaps,
 };

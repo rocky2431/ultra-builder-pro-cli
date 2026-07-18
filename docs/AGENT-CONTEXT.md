@@ -78,9 +78,10 @@ necessary context when they do not.
 role, gate, readiness, blockers, and one next action. They must not inject intent
 bodies, transcripts, external memory, or graph payloads. Missing references,
 digest drift, HEAD drift, or a missing execution seam blocks readiness. Context
-size and an incomplete baseline are advisory during an active bounded change;
-baseline adoption becomes a hard gate at convergence; revision and tracked-spec
-integrity are reconciled and rechecked atomically at archive.
+size and baseline drift are advisory for a change that is already active. New ordinary
+work requires a healthy baseline. Only an explicitly approved incident break-glass may
+start without it; incident archive records a blocking reconciliation gap. Revision and
+tracked-spec integrity are reconciled and rechecked atomically for ordinary archive.
 
 Stable discoveries use `change.learning_propose`; they reach the baseline only
 through approve/reject/apply transitions in `change.learning_resolve`. Unresolved
