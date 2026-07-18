@@ -123,7 +123,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const legacy = openStateDb(file);
     const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
     legacy.exec(legacySchema);
-    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0')").run();
+    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0')").run();
     legacy.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
     ).run();
@@ -146,16 +146,21 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     closeStateDb(legacy);
 
     const upgraded = initStateDb(file);
-    assert.equal(upgraded.schema_version, '10.0');
+    assert.equal(upgraded.schema_version, '11.0');
     assert.equal(upgraded.db.prepare("SELECT runtime FROM sessions WHERE sid = 'session-old'").get().runtime, 'codex');
     assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM telemetry WHERE session_id = 'session-old'").get().n, 1);
     assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM incidents WHERE session_id = 'session-old'").get().n, 1);
     assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
     const migrations = upgraded.db.prepare(
-      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0') ORDER BY id",
+      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0') ORDER BY id",
     ).all();
     assert.ok(migrations.some((row) => row.to_version === '9.1' && /Kimi/.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '10.0' && /Context Spine/.test(row.notes)));
+    assert.ok(migrations.some((row) => row.to_version === '11.0' && /baseline adoption/i.test(row.notes)));
+    assert.deepEqual(
+      upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'migrated-baseline'").get(),
+      { mode: 'migrated', status: 'ready' },
+    );
 
     upgraded.db.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-kimi', 'Kimi', 'feature', 'P1')",

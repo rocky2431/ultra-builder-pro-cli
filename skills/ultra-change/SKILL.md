@@ -16,16 +16,21 @@ own their payloads; Ultra stores only provider references supplied by the user o
 
 ## Workflow
 
-1. Call `change.list` and `change.breadcrumb`.
+1. Call `baseline.get`. State integrity failure routes to `ultra-doctor`. When no
+   change is active, a missing, incomplete, or stale baseline routes to `ultra-init`.
+   An urgent or already active bounded change may proceed with that condition recorded
+   as a warning. `change.converge` requires an approved `ready` baseline; repository
+   revision and tracked-spec drift created by the change are reconciled at archive.
+2. Call `change.list` and `change.breadcrumb`.
    - Resume the single change that matches the requested outcome.
    - Require an explicit id when several changes could match.
    - Create a new change only when no existing packet represents the same outcome.
-2. Capture the observable outcome, acceptance, non-goals, affected public seam,
+3. Capture the observable outcome, acceptance, non-goals, affected public seam,
    documentation impact, and unresolved decisions.
-3. Classify the change as `quick`, `standard`, `major`, or `incident`. Ask only for a
+4. Classify the change as `quick`, `standard`, `major`, or `incident`. Ask only for a
    material product, risk, or recovery decision that repository evidence cannot answer.
-4. Call `change.create` with a stable kebab-case id, or `change.update` when resuming.
-5. Write the minimum artifact set required by the classification:
+5. Call `change.create` with a stable kebab-case id, or `change.update` when resuming.
+6. Write the minimum artifact set required by the classification:
 
    ```text
    .ultra/changes/active/<change-id>/
@@ -41,14 +46,17 @@ own their payloads; Ultra stores only provider references supplied by the user o
    Delta files describe differences from the baseline, not a second copy of it.
    Incident diagnosis records the symptom, earliest bad state, falsifiable
    hypotheses, evidence, root cause, and recovery boundary.
-6. Create the smallest executable vertical slice with `task.create`. Each task needs
+7. Create the smallest executable vertical slice with `task.create`. Each task needs
    one outcome, bounded ownership, dependencies, a live public seam, an exact
    verification command, and documentation impact.
-7. Compile `change.context` for the next role and gate. Include only required
-   references and the task execution contract. Treat missing references, digest or
-   HEAD drift, an exceeded context budget, and unknown documentation impact as
-   blockers.
-8. Call `change.breadcrumb` and return its single next action.
+8. Compile `change.context` for the next role and gate. Include only required
+   references and the task execution contract. Missing required references, digest or
+   HEAD drift, an absent public seam or verification command, and unknown
+   documentation impact are blockers. File count, token estimate, and context-share
+   thresholds are advisory warnings: narrow reads or split the slice when useful, but
+   never raise a threshold merely to make the warning disappear or refuse necessary
+   incident context.
+9. Call `change.breadcrumb` and return its single next action.
 
 ## Specification learning
 
@@ -61,5 +69,8 @@ verified.
 ## Completion gate
 
 Do not claim alignment while a material decision is unresolved, documentation impact
-is unknown, context is stale, or the next task is not executable from a bounded fresh
-context.
+is unknown, context is stale, or the next task is not executable. `change.converge`
+also requires a `ready` baseline, so incomplete adoption must be resolved before
+convergence. Normal HEAD or tracked-spec drift caused by the active change is not a
+convergence blocker. Declare every baseline update at archive; archive fails and rolls
+back when revision or digest health remains stale after reconciliation.

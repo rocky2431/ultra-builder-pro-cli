@@ -144,6 +144,12 @@ def test_resume_prefers_db_context_spine_over_stale_workflow_projection(tmp_path
     with sqlite3.connect(db_path) as conn:
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))
         conn.execute(
+            """INSERT INTO baselines
+               (id, project_name, mode, status, approved_by, approval_note, converged_at)
+               VALUES ('test-baseline', 'fixture', 'migrated', 'ready',
+                       'test', 'legacy fixture', '2026-01-01T00:00:00.000Z')"""
+        )
+        conn.execute(
             """INSERT INTO changes
                (id, title, kind, status, intent, docs_impact_json, provider_refs_json, artifact_root)
                VALUES ('daily-fix', 'Daily fix', 'quick', 'active', 'Fix drift',
@@ -161,7 +167,11 @@ def test_resume_prefers_db_context_spine_over_stale_workflow_projection(tmp_path
                 "items": [], "budget": {"max_tokens": 12000, "max_files": 12},
                 "token_estimate": 0, "file_count": 0,
             },
-            "resume": {"task_id": "daily-task", "task_status": "in_progress"}
+            "resume": {"task_id": "daily-task", "task_status": "in_progress"},
+            "baseline": {
+                "id": "test-baseline", "mode": "migrated", "status": "ready",
+                "repository_revision": None, "health": "pass", "warnings": [],
+            },
         }
         conn.execute(
             """INSERT INTO context_snapshots

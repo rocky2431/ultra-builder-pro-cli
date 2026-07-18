@@ -6,8 +6,11 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from context_spine import baseline_health
+
 
 REQUIRED_TABLES = {
+    "baselines",
     "tasks", "events", "sessions", "schema_version", "migration_history",
     "telemetry", "specs_refs", "circuit_breaker", "changes", "artifacts",
     "context_snapshots", "spec_learning_candidates", "trace_links", "incidents", "projection_jobs",
@@ -48,6 +51,7 @@ def inspect(root: Path) -> dict:
     try:
         uri = f"file:{db_path}?mode=ro"
         with sqlite3.connect(uri, uri=True, timeout=1) as conn:
+            conn.row_factory = sqlite3.Row
             quick = conn.execute("PRAGMA quick_check").fetchone()[0]
             tables = {
                 row[0] for row in conn.execute(
@@ -65,6 +69,13 @@ def inspect(root: Path) -> dict:
             if missing:
                 report["status"] = "degraded"
                 return report
+
+            baseline = baseline_health(conn, root)
+            report["checks"]["baseline"] = {
+                **baseline,
+                "readiness": baseline["status"],
+                "status": "pass" if baseline["status"] == "pass" else "warning",
+            }
 
             incidents = [
                 {"id": row[0], "code": row[1], "severity": row[2], "retryable": bool(row[3])}

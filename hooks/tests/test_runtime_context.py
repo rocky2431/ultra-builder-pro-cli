@@ -23,12 +23,19 @@ def run_hook(name: str, cwd: Path):
     return json.loads(proc.stdout), proc.stderr
 
 
-def init_db(project: Path) -> Path:
+def init_db(project: Path, baseline: str | None = "migrated") -> Path:
     ultra = project / ".ultra"
     ultra.mkdir()
     db_path = ultra / "state.db"
     with sqlite3.connect(db_path) as conn:
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))
+        if baseline == "migrated":
+            conn.execute(
+                """INSERT INTO baselines
+                   (id, project_name, mode, status, approved_by, approval_note, converged_at)
+                   VALUES ('test-baseline', 'fixture', 'migrated', 'ready',
+                           'test', 'legacy fixture', '2026-01-01T00:00:00.000Z')"""
+            )
     return db_path
 
 
@@ -46,12 +53,30 @@ def test_context_routes_healthy_baseline_to_continuous_change(tmp_path):
     assert ".ultra/state.db" in text
 
 
+def test_context_routes_incomplete_brownfield_baseline_to_adoption(tmp_path):
+    db_path = init_db(tmp_path, baseline=None)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """INSERT INTO baselines (id, project_name, mode, status)
+               VALUES ('adoption', 'legacy', 'brownfield', 'adopting')"""
+        )
+    output, _ = run_hook("workflow_context.py", tmp_path)
+    text = output["hookSpecificOutput"]["additionalContext"]
+    assert "Baseline: adoption (brownfield/adopting)" in text
+    assert "Readiness: blocked" in text
+    assert "BASELINE_NOT_READY:adopting" in text
+    assert "Route: ultra-init" in text
+
+
 def test_context_injects_active_change_without_workflow_state(tmp_path):
     db_path = init_db(tmp_path)
     artifact = tmp_path / ".ultra" / "changes" / "active" / "daily-fix"
     artifact.mkdir(parents=True)
     (artifact / "context-manifest.json").write_text("{}\n", encoding="utf-8")
     with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "UPDATE baselines SET mode = 'brownfield', status = 'adopting' WHERE id = 'test-baseline'"
+        )
         conn.execute(
             """INSERT INTO changes
                (id, title, kind, status, intent, docs_impact_json,
@@ -79,6 +104,10 @@ def test_context_injects_active_change_without_workflow_state(tmp_path):
                     "token_estimate": 0, "file_count": 0,
                 },
                 "resume": {"task_id": "daily-task", "task_status": "in_progress"},
+                "baseline": {
+                    "id": "test-baseline", "mode": "migrated", "status": "ready",
+                    "repository_revision": None, "health": "pass", "warnings": [],
+                },
         }
         conn.execute(
             """INSERT INTO context_snapshots
@@ -100,6 +129,8 @@ def test_context_injects_active_change_without_workflow_state(tmp_path):
     assert "Role: implement" in text
     assert "Gate: implementation" in text
     assert "Readiness: ready" in text
+    assert "Warnings: BASELINE_NOT_READY:adopting" in text
+    assert "Route: ultra-dev" in text
     assert "Run the exact regression test" in text
     assert "Fix daily drift" not in text
     assert "cloud-mem" not in text
@@ -121,6 +152,18 @@ def test_health_inspects_state_without_active_workflow(tmp_path):
 
 def test_health_is_silent_for_healthy_state(tmp_path):
     init_db(tmp_path)
+    output, stderr = run_hook("health_check.py", tmp_path)
+    assert output == {}
+    assert stderr == ""
+
+
+def test_health_does_not_misclassify_incomplete_baseline_as_runtime_failure(tmp_path):
+    db_path = init_db(tmp_path, baseline=None)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """INSERT INTO baselines (id, project_name, mode, status)
+               VALUES ('adoption', 'legacy', 'brownfield', 'blocked')"""
+        )
     output, stderr = run_hook("health_check.py", tmp_path)
     assert output == {}
     assert stderr == ""

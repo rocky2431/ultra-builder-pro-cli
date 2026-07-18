@@ -8,12 +8,10 @@ const { spawnSync } = require('node:child_process');
 const ops = require('./state-ops.cjs');
 const contextSpine = require('./context-spine.cjs');
 const specLearning = require('./spec-learning.cjs');
+const providerRefs = require('./provider-refs.cjs');
+const baselines = require('./baseline-workflow.cjs');
 
 const CHANGE_ID = /^[a-zA-Z0-9_-]+$/;
-const PROVIDER_KINDS = new Set(['memory', 'code_graph']);
-const PROVIDER_FIELDS = new Set([
-  'provider', 'project', 'reference', 'revision', 'indexed_head', 'status',
-]);
 const CHANGE_PATCH_FIELDS = new Set(['title', 'intent', 'status', 'docs_impact', 'provider_refs']);
 const CHANGE_TRANSITIONS = Object.freeze({
   active: new Set(['active', 'blocked', 'cancelled']),
@@ -83,29 +81,7 @@ function normalizeDocsImpact(value) {
 }
 
 function normalizeProviderRefs(value) {
-  if (value == null) return {};
-  if (typeof value !== 'object' || Array.isArray(value)) {
-    throw new ChangeWorkflowError('VALIDATION_ERROR', 'provider_refs must be an object');
-  }
-  const out = {};
-  for (const [kind, ref] of Object.entries(value)) {
-    if (!PROVIDER_KINDS.has(kind) || !ref || typeof ref !== 'object' || Array.isArray(ref)) {
-      throw new ChangeWorkflowError('VALIDATION_ERROR', `invalid external provider reference: ${kind}`);
-    }
-    for (const key of Object.keys(ref)) {
-      if (!PROVIDER_FIELDS.has(key)) {
-        throw new ChangeWorkflowError(
-          'PROVIDER_CONTENT_FORBIDDEN',
-          `provider_refs.${kind}.${key} is not metadata; provider content remains external`,
-        );
-      }
-    }
-    if (typeof ref.provider !== 'string' || !ref.provider.trim()) {
-      throw new ChangeWorkflowError('VALIDATION_ERROR', `provider_refs.${kind}.provider required`);
-    }
-    out[kind] = { ...ref };
-  }
-  return out;
+  return providerRefs.normalizeProviderRefs(value, ChangeWorkflowError);
 }
 
 function gitHead(rootDir) {
@@ -254,6 +230,7 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     readiness: spine.readiness,
     context: spine.context,
     execution_contract: spine.execution_contract,
+    baseline: spine.baseline,
     resume: spine.resume,
     providers,
     provider_boundary: 'metadata references only; memory and code graph content remain external',
@@ -504,6 +481,13 @@ function evidenceBlockers(change, evidence, tasks) {
   return blockers;
 }
 
+function baselineConvergenceBlockers(db) {
+  const baseline = baselines.readBaseline(db);
+  if (!baseline) return ['BASELINE_MISSING'];
+  if (baseline.status !== 'ready') return [`BASELINE_NOT_READY:${baseline.status}`];
+  return [];
+}
+
 function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   const change = readChange(db, input.id);
   if (!change) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${input.id} not found`);
@@ -512,6 +496,7 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   }
   const tasks = db.prepare('SELECT id, type, status, stale FROM tasks WHERE change_id = ? ORDER BY id').all(change.id);
   const blockers = new Set(evidenceBlockers(change, input.evidence, tasks));
+  for (const blocker of baselineConvergenceBlockers(db)) blockers.add(blocker);
   if (tasks.length === 0) blockers.add('NO_TASKS');
   if (tasks.some((task) => !['completed', 'expanded'].includes(task.status))) blockers.add('TASKS_INCOMPLETE');
   if (tasks.some((task) => Boolean(task.stale))) blockers.add('TASK_CONTEXT_STALE');
@@ -671,6 +656,18 @@ function archiveChange(db, input, { rootDir = process.cwd() } = {}) {
       });
       db.prepare("UPDATE artifacts SET status = 'archived', updated_at = ? WHERE change_id = ?")
         .run(nowIso(), change.id);
+      baselines.reconcileBaseline(db, {
+        baseline_updates: updates,
+        change_id: change.id,
+      }, { rootDir });
+      const baselineHealth = baselines.inspectBaseline(db, { rootDir });
+      if (baselineHealth.blockers.length > 0) {
+        throw new ChangeWorkflowError(
+          'BASELINE_RECONCILIATION_INCOMPLETE',
+          `baseline reconciliation remains incomplete: ${baselineHealth.blockers.join(', ')}`,
+          { blockers: baselineHealth.blockers },
+        );
+      }
       ops.appendEventInTx(db, {
         type: 'change_archived', change_id: change.id,
         payload: { archive_path: relative, baseline_updates: updates, no_baseline_change_reason: noChangeReason || null },

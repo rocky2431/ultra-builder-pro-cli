@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-07-18
+
+### Added
+
+- Added schema 11.0 project baselines and four `baseline.*` MCP contracts for
+  greenfield initialization, brownfield adoption, evidence recording, explicit
+  approval, re-adoption history, and archive reconciliation.
+- Added automatic new/existing repository detection, neutral baseline templates,
+  metadata-only provider references, and cross-host baseline status/doctor output.
+
+### Changed
+
+- Reclassified file count, token estimate, and context-share limits as advisory
+  attention warnings. Necessary incident context and active work are no longer
+  rejected or repaired by arbitrarily raising a threshold.
+- Made incomplete or stale baseline state advisory during an active bounded change,
+  requiring approved adoption at `change.converge` and complete revision/spec
+  reconciliation in the atomic archive transaction.
+- Changed the Stop hook from a workflow-completion denial into a lifecycle advisory;
+  direct writes to the authoritative task projection remain blocked.
+
+### Fixed
+
+- Prevented old projects from being initialized as empty greenfield products or
+  using generated `tasks.json` as project metadata authority.
+- Updated Claude Code, Codex, OpenCode, and Kimi presentation so hooks expose
+  warnings without turning them into edit, stop, or workflow refusal gates.
+- Removed the convergence deadlock where normal HEAD or tracked-spec changes made by
+  the active change were rejected before archive could reconcile them; incomplete
+  archive declarations now fail with full state and artifact rollback.
+
 ## [0.11.0] — 2026-07-18
 
 ### Added
@@ -451,7 +482,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.8.1...v0.9.0

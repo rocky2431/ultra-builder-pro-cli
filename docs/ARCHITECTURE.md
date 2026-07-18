@@ -53,7 +53,7 @@ the supported hosts share.
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
-| **MCP**      | authoritative workflow-state and Context Spine API | stdio MCP server exposing 32 live tools across task/session/change/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **MCP**      | authoritative workflow-state and Context Spine API | stdio MCP server exposing 36 live tools across baseline/task/session/change/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
 | **CLI**      | explicit initialization, recovery, diagnostics, and orchestration | `ultra-tools` / `ubp-orchestrator`; only commands listed by `--help` are executable (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
 Why three: skills give us behavior portability across runtimes; MCP gives
@@ -70,10 +70,11 @@ RPC, and host-native loaders own resolution and invocation.
 
 All durable Ultra workflow state lives in one SQLite file with WAL enabled. Schema is
 fixed in [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) and
-covers sixteen tables:
+covers seventeen tables:
 
 | Table              | Holds                                             | Phase |
 |--------------------|---------------------------------------------------|-------|
+| `baselines`        | greenfield/brownfield adoption, specs, verification, unknowns, and approval | 11 |
 | `tasks`            | task rows — id, status, deps, files_modified, …   | 2     |
 | `events`           | append-only event stream; `id` is subscription cursor (D31) | 2 |
 | `sessions`         | execution sessions, **including lease + heartbeat fields** (D32) | 4.5 |
@@ -101,7 +102,7 @@ Two rules make this work:
 
 2. **Single writer for mutable tables, multi-writer for `events`.**
    `.ultra/state.db` opens in WAL with `busy_timeout=5000`. The MCP
-   server holds the single writer connection for `tasks`, `sessions`,
+   server holds the single writer connection for `baselines`, `tasks`, `sessions`,
    `changes`, `context_snapshots`, `spec_learning_candidates`, `telemetry`,
    `specs_refs`, and `migration_history`; the CLI calls
    those tools over stdio rather than opening its own writer. The
@@ -124,6 +125,26 @@ no recall skill, and no memory-capture hook. A separately installed provider
 such as cloud-mem/claude-mem owns persistent memory and its own lifecycle. The
 only related migration surface is the explicit `ultra-tools legacy-memory`
 archive/prune command for data created by older releases.
+
+### Project baseline adoption
+
+`task.init_project` detects an empty repository as `greenfield` and an existing
+codebase as `brownfield` unless the caller supplies an explicit mode. It creates
+the same authoritative state shape without rewriting application code.
+
+`baseline.start` opens adoption, `baseline.record` captures server-hashed spec
+references, bounded repository/runtime evidence, actual verification results,
+known unknowns, and metadata-only external provider references, and
+`baseline.converge` records explicit owner approval. A ready baseline is replaced
+only by an explicit re-adoption, preserving the superseded row for recovery.
+
+With no active change, a missing, incomplete, or stale baseline routes to
+`ultra-init`. During an already active bounded fix or incident it is an advisory
+warning so recovery work remains possible. `change.converge` requires that adoption
+has produced a `ready` baseline, but does not reject the HEAD or tracked-spec drift
+created by the change itself. `change.archive` declares baseline updates, refreshes
+the revision and digests, rechecks full baseline health inside the same transaction,
+and rolls back both state and artifacts if reconciliation remains incomplete.
 
 ## 4. Continuous changes — the daily unit of convergence
 
@@ -151,8 +172,9 @@ checking, review, convergence, and recovery. Each snapshot records:
 
 - one role (`plan`, `implement`, `check`, or `review`) and lifecycle gate;
 - required context references with local digests and reasons;
-- readiness blockers for missing/stale references or budget overflow;
-- a fresh-context budget (12 files / about 12k tokens / 40% by default);
+- readiness blockers for missing/stale required references or an incomplete
+  execution contract;
+- advisory attention budgets (12 files / about 12k tokens / 40% by default);
 - an execution contract (`slice_kind`, public seam, exact verification command);
 - one deterministic next action.
 
@@ -160,6 +182,11 @@ checking, review, convergence, and recovery. Each snapshot records:
 edit, and resume hooks inject only this breadcrumb, never the intent body,
 provider content, or a conversation summary. A changed git HEAD marks the
 snapshot stale and routes back to `change.context`.
+
+File count, token estimate, and context-share overflow produce warnings, never a
+refusal. The agent may narrow reads, load files lazily, or split a slice when that
+preserves correctness; it must not raise a threshold merely to clear a gate or
+drop required incident evidence.
 
 `change.learning_propose` records a durable implementation discovery without
 silently rewriting the baseline. `change.learning_resolve` enforces approval,

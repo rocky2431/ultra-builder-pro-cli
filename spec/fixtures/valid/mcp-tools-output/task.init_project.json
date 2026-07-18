@@ -3,6 +3,13 @@
     "created_path": "/tmp/ubp-init-demo/.ultra",
     "state_db_path": "/tmp/ubp-init-demo/.ultra/state.db",
     "status": "created",
+    "mode": "greenfield",
+    "baseline": {
+      "id": "project-baseline",
+      "mode": "greenfield",
+      "status": "draft",
+      "repository_revision": null
+    },
     "copied_files": [
       "specs/discovery.md",
       "specs/product.md",
@@ -18,6 +25,13 @@
     "created_path": "/Users/demo/sandbox/.ultra",
     "state_db_path": "/Users/demo/sandbox/.ultra/state.db",
     "status": "overwritten",
+    "mode": "brownfield",
+    "baseline": {
+      "id": "project-baseline",
+      "mode": "brownfield",
+      "status": "adopting",
+      "repository_revision": "0123456789abcdef0123456789abcdef01234567"
+    },
     "copied_files": ["specs/discovery.md", "tasks/tasks.json"],
     "backup_path": "/Users/demo/sandbox/.ultra.backup.20260417-091530"
   }

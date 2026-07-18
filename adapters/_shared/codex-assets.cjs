@@ -400,7 +400,7 @@ function buildHooksManifest() {
         { hooks: [commandHook('workflow_resume.py', 10, 'Restoring Ultra workflow checkpoint')] },
       ],
       Stop: [
-        { hooks: [commandHook('pre_stop_check.py', 5, 'Checking Ultra completion gates')] },
+        { hooks: [commandHook('pre_stop_check.py', 5, 'Reporting Ultra workflow position')] },
       ],
       SubagentStart: [
         { hooks: [commandHook('subagent_tracker.py', 5, 'Tracking Ultra subagent', 'start')] },

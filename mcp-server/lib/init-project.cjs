@@ -1,8 +1,8 @@
 'use strict';
 
 // Implementation for MCP tool `task.init_project` and the CLI fallback
-// `ultra-tools init`. Copies the bundled templates/.ultra/ skeleton to the
-// target project root, injecting project metadata into tasks.json.
+// `ultra-tools task init-project`. Copies the bundled templates/.ultra/ skeleton
+// to the target project root and records project metadata in authoritative state.
 //
 // Error contract matches spec/mcp-tools.yaml#task.init_project:
 //   ULTRA_DIR_EXISTS | TEMPLATE_MISSING | TARGET_NOT_DIR | IO_ERROR
@@ -15,6 +15,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { initStateDb } = require('./state-db.cjs');
+const baselines = require('./baseline-workflow.cjs');
+const runtimeState = require('./runtime-state.cjs');
 
 const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
@@ -95,20 +97,30 @@ function copyTemplate(source, dest) {
   return files;
 }
 
-function injectTasksJson(ultraDir, { project_name, project_type, stack }) {
+function validateTasksTemplate(ultraDir) {
   const tasksFile = path.join(ultraDir, 'tasks', 'tasks.json');
   if (!fs.existsSync(tasksFile)) return;
   let data;
   try { data = JSON.parse(fs.readFileSync(tasksFile, 'utf8')); }
   catch (err) { throw new InitProjectError('IO_ERROR', `tasks.json malformed: ${err.message}`, { cause: err }); }
-  const nowIso = new Date().toISOString();
-  data.created = nowIso;
-  data.updated = nowIso;
-  data.project = data.project || {};
-  data.project.name = project_name;
-  if (project_type) data.project.type = project_type;
-  if (stack) data.project.stack = stack;
-  fs.writeFileSync(tasksFile, JSON.stringify(data, null, 2) + '\n');
+  if (!data || typeof data !== 'object' || !Array.isArray(data.tasks)) {
+    throw new InitProjectError('IO_ERROR', 'tasks.json template must contain a tasks array');
+  }
+}
+
+const IGNORED_ADOPTION_ENTRIES = new Set([
+  '.DS_Store', '.git', '.gitignore', '.ultra', 'node_modules', 'vendor', '.venv', 'venv',
+]);
+
+function detectProjectMode(absTarget, requested = 'auto') {
+  if (!['auto', 'greenfield', 'brownfield'].includes(requested)) {
+    throw new InitProjectError('VALIDATION_ERROR', `unsupported initialization mode: ${requested}`);
+  }
+  if (requested !== 'auto') return requested;
+  const meaningful = fs.readdirSync(absTarget, { withFileTypes: true })
+    .some((entry) => !IGNORED_ADOPTION_ENTRIES.has(entry.name)
+      && !entry.name.startsWith('.ultra.backup.'));
+  return meaningful ? 'brownfield' : 'greenfield';
 }
 
 function rollbackInitialization(ultraDir, backupPath) {
@@ -130,6 +142,7 @@ function initProject({
   project_name,
   project_type,
   stack,
+  mode = 'auto',
   overwrite = false,
   source_template,
 } = {}) {
@@ -139,6 +152,7 @@ function initProject({
 
   const absTarget = resolveTargetDir(target_dir);
   ensureTargetDir(absTarget);
+  const resolvedMode = detectProjectMode(absTarget, mode);
   const source = ensureTemplate(source_template);
   const ultraDir = path.join(absTarget, '.ultra');
 
@@ -155,13 +169,27 @@ function initProject({
   }
 
   let copiedFiles;
+  let baselineResult;
   try {
     fs.mkdirSync(ultraDir, { recursive: true });
     copiedFiles = copyTemplate(source, ultraDir);
-    injectTasksJson(ultraDir, { project_name, project_type, stack });
+    validateTasksTemplate(ultraDir);
     const stateDbPath = path.join(ultraDir, 'state.db');
     const { db } = initStateDb(stateDbPath);
-    db.close();
+    try {
+      baselineResult = baselines.startBaseline(db, {
+        id: 'project-baseline', project_name, project_type, stack,
+        mode: resolvedMode, repository_revision: baselines.gitHead(absTarget), scope: ['.'],
+      }, { rootDir: absTarget });
+      const job = runtimeState.enqueueProjection(db, { tool_name: 'task.init_project' });
+      const projection = runtimeState.processProjectionJobs(db, { rootDir: absTarget, limit: 1 });
+      const projected = projection.jobs.find((item) => item.id === job.id);
+      if (!projected || projected.status !== 'completed') {
+        throw new Error(projected?.error || 'initial projection did not complete');
+      }
+    } finally {
+      db.close();
+    }
   } catch (err) {
     const rollbackErrors = rollbackInitialization(ultraDir, backupPath);
     const rollbackNote = rollbackErrors.length > 0
@@ -179,10 +207,17 @@ function initProject({
     created_path: ultraDir,
     state_db_path: stateDbPath,
     status,
+    mode: resolvedMode,
+    baseline: {
+      id: baselineResult.id,
+      mode: baselineResult.mode,
+      status: baselineResult.status,
+      repository_revision: baselineResult.repository_revision,
+    },
     copied_files: copiedFiles,
   };
   if (backupPath) result.backup_path = backupPath;
   return result;
 }
 
-module.exports = { initProject, InitProjectError, DEFAULT_TEMPLATE };
+module.exports = { initProject, InitProjectError, DEFAULT_TEMPLATE, detectProjectMode };

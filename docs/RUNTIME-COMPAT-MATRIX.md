@@ -50,7 +50,7 @@ not presented as nonexistent custom agents.
 | Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | FULL, native `PreToolUse Edit|Write` deny contract |
 | Pre-compact checkpoint | FULL | FULL | FULL | FULL, native `PreCompact` |
 | Post-compact context injection | FULL | FULL, native compacting context | FULL, native `PostCompact` restore | DEGRADED; checkpoint restoration runs, but Kimi 0.26/0.27 does not reinject fire-and-forget hook text |
-| Incomplete-stop gate | FULL, native blocking `Stop` | DEGRADED, no equivalent blocking stop hook | FULL, native blocking `Stop` | FULL, native structured deny |
+| Stop lifecycle advisory | FULL, native non-blocking `Stop` | N/A, no equivalent stop event needed | FULL, native non-blocking `Stop` | FULL, native non-blocking `Stop` |
 | Subagent lifecycle evidence | FULL | DEGRADED, no equivalent packaged event | FULL | FULL, native `SubagentStart` / `SubagentStop` |
 
 Kimi's session bootstrap therefore also instructs recovery to inspect
@@ -63,20 +63,23 @@ applies at baseline, while compact/stop/subagent enforcement remains
 active-workflow scoped. No host receives prompt capture, transcript capture,
 observation journaling, session-summary memory, generic command blocking, or
 generic post-edit policy.
+Baseline-adoption and context-budget warnings are injected as advisory context;
+they do not deny edits or stop active incident work.
 
 ## 4. MCP and state
 
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
-| Live/declared contracts | 32 | 32 | 32 | 32 |
+| Live/declared contracts | 36 | 36 | 36 | 36 |
+| Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
 | Context Spine v2 / breadcrumb | FULL | FULL, DB-generated projection consumed by native JS | FULL | FULL |
 | Approval-gated spec learning | FULL | FULL | FULL | FULL |
 | Host-native review/discovery/ask | native | native | documented in `codex-capability-map.json` | native Kimi tools and workers |
 | Durable authority | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` |
 | Ultra memory API | N/A | N/A | N/A | N/A |
 
-All 32 `task.*`, `session.*`, `change.*`, `system.*`, and `plan.*` operations
+All 36 `baseline.*`, `task.*`, `session.*`, `change.*`, `system.*`, and `plan.*` operations
 registered by `mcp-server/server.cjs` are live. Review, impact discovery, skill
 loading, and user interaction remain host-native surfaces.
 
@@ -123,9 +126,9 @@ records. Uninstall refuses an unmanaged or conflicting root.
 
 | Capability | Contract |
 |---|---|
-| Current state schema | `10.0` |
+| Current state schema | `11.0` |
 | Runtime values | `claude`, `opencode`, `codex`, `kimi` |
-| Upgrade from earlier schema | preserves Kimi runtime rows, adds Context Spine columns and `spec_learning_candidates` transactionally |
+| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, then adds authoritative baseline adoption state transactionally in 11.0 |
 | Preservation gate | rows, IDs, indexes, foreign keys, telemetry, incidents, and migration history remain intact |
 | Failure behavior | rollback; no partially upgraded authority database |
 

@@ -34,6 +34,10 @@ test('renders one common contract with host-native invocation syntax', () => {
     assert.match(rendered, /ultra-doctor/);
     assert.match(rendered, /metadata references/);
     assert.match(rendered, /Context Spine boundary/);
+    assert.match(rendered, /budgets are advisory attention signals/);
+    assert.match(rendered, /blocks change convergence/);
+    assert.match(rendered, /health-checked atomically at archive/);
+    assert.match(rendered, /never traps session stop/);
     assert.match(rendered, /change\.breadcrumb/);
     assert.match(rendered, /Specification learning boundary/);
     assert.doesNotMatch(rendered, /\.ultra\/memory|memory\.retain|memory\.recall/);

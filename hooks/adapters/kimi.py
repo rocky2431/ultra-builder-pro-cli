@@ -3,7 +3,7 @@
 
 Kimi 0.26 uses snake_case JSON input compatible with the workflow hooks, but
 its output contract accepts only ``message`` plus an optional structured deny.
-This adapter preserves real projection/stop blocks, converts foreign context
+This adapter preserves explicit projection denials and optional Stop decisions, converts foreign context
 fields into Kimi messages, and fails open with diagnostic evidence.
 """
 

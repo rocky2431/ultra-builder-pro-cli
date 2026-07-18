@@ -13,6 +13,11 @@ Markdown are generated projections.
 
 Start with a state-backed MCP read. If state or schema health blocks access, stop and
 route to `ultra-doctor`. Never read or write `.ultra/tasks/tasks.json` as a fallback.
+Call `baseline.get`. Initial product planning is blocked until the baseline is
+`ready` and current; route its missing, adopting, blocked, or stale state to
+`ultra-init`. Planning an already active bounded change may continue with the
+baseline condition recorded as a warning. Convergence still requires approved
+adoption, and archive atomically reconciles and verifies revision/spec drift.
 
 Choose one input:
 
@@ -30,8 +35,10 @@ current evidence. A material unresolved assumption blocks persistence.
 2. Prefer a walking skeleton or `tracer_bullet` before horizontal layers.
 3. Give each task one outcome, bounded ownership, explicit dependencies, required
    references, and one deterministic verification command.
-4. Use the context budget returned by the current Ultra contract. Widen it only when
-   an approved slice cannot be split without losing correctness.
+4. Use the context budget as an attention signal. Prefer bounded excerpts, direct
+   reads, or a smaller slice, but keep necessary files when correctness requires them.
+   Budget overflow is a warning, never a reason to inflate a threshold or manufacture
+   a smaller but incomplete contract.
 5. Add integration checkpoints at actual boundaries, not after arbitrary task counts.
 6. Put validation, errors, recovery, documentation, and migrations in the task that
    owns the behavior.

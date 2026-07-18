@@ -10,10 +10,18 @@ const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const ops = require('./state-ops.cjs');
 const runtime = require('./runtime-state.cjs');
 const doctor = require('./doctor.cjs');
+const baselines = require('./baseline-workflow.cjs');
 
-function fixture() {
+function fixture({ migratedBaseline = true } = {}) {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-doctor-'));
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  if (migratedBaseline) {
+    db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+    ).run(new Date().toISOString());
+  }
   return { rootDir, db };
 }
 
@@ -30,6 +38,22 @@ test('doctor reports structured health for an initialized Ultra project', async 
     assert.equal(report.repair_performed, false);
     assert.equal(report.checks.state_db.status, 'pass');
     assert.equal(report.checks.external_providers.ownership, 'external');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('doctor reports incomplete brownfield adoption as advisory rather than authority failure', async () => {
+  const fx = fixture({ migratedBaseline: false });
+  try {
+    baselines.startBaseline(fx.db, {
+      id: 'adoption', project_name: 'legacy', mode: 'brownfield', scope: ['.'],
+    }, { rootDir: fx.rootDir, emitEvent: false });
+    const report = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
+    assert.equal(report.status, 'healthy');
+    assert.equal(report.checks.baseline.status, 'warning');
+    assert.equal(report.checks.baseline.mode, 'brownfield');
+    assert.ok(report.checks.baseline.blockers.includes('BASELINE_NOT_READY:adopting'));
   } finally {
     cleanup(fx);
   }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Block stop only when the active Ultra workflow itself is incomplete."""
+"""Report unfinished Ultra workflow position without trapping session stop."""
 
 import sys
 import json
@@ -12,8 +12,9 @@ def allow_stop() -> None:
     print(json.dumps({}))
 
 
-def block_stop(reason: str) -> None:
-    print(json.dumps({"decision": "block", "reason": reason}))
+def advise_stop(reason: str) -> None:
+    print(f"[Ultra stop advisory] {reason}", file=sys.stderr)
+    allow_stop()
 
 
 def main():
@@ -41,12 +42,12 @@ def main():
         if not isinstance(state, dict) or state.get("status") in TERMINAL:
             allow_stop()
             return
-        block_stop(
+        advise_stop(
             "Active Ultra workflow is incomplete: "
             f"command={state.get('command', 'unknown')}, "
             f"task={state.get('task_id', state.get('task', 'unknown'))}, "
             f"step={state.get('step', 'unknown')}, status={state.get('status', 'active')}. "
-            "Complete or explicitly cancel the Ultra workflow before stopping."
+            "Resume or explicitly cancel it in a later session; stop is allowed."
         )
         return
     allow_stop()

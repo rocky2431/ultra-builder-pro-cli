@@ -9,13 +9,14 @@ const { initProject, InitProjectError } = require('../../mcp-server/lib/init-pro
 const USAGE = `ultra-tools task <verb> [flags]
 
 VERBS:
-  init-project  Bootstrap a fresh .ultra/ skeleton (Phase 3.1)
+  init-project  Initialize or adopt a project with authoritative Ultra state
 
 FLAGS (init-project):
   --target-dir <path>       target project root (default: cwd)
   --project-name <name>     project name (required)
   --project-type <type>     web | api | cli | fullstack | other
   --stack <stack>           tech stack descriptor (comma-separated ok)
+  --mode <mode>             auto | greenfield | brownfield (default: auto)
   --overwrite               replace existing .ultra/ (backup created)
   --source-template <path>  override bundled template source
   -h, --help                show this message
@@ -34,6 +35,7 @@ function parseInitFlags(args) {
       case '--project-name':     flags.project_name     = args[++i]; break;
       case '--project-type':     flags.project_type     = args[++i]; break;
       case '--stack':            flags.stack            = args[++i]; break;
+      case '--mode':             flags.mode             = args[++i]; break;
       case '--source-template':  flags.source_template  = args[++i]; break;
       case '--overwrite':        flags.overwrite        = true; break;
       case '--no-overwrite':     flags.overwrite        = false; break;
@@ -59,6 +61,7 @@ function dispatchInitProject(rawArgs) {
     project_name: flags.project_name,
     project_type: flags.project_type,
     stack: flags.stack,
+    mode: flags.mode || 'auto',
     overwrite: !!flags.overwrite,
     source_template: flags.source_template,
   };

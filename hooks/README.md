@@ -1,8 +1,9 @@
 # Ultra Builder Pro workflow hooks
 
 These hooks observe only Ultra-owned state. Session health/context recognizes an initialized
-`.ultra/state.db` and active continuous changes; edit/compact/stop/subagent enforcement remains
-bounded to the relevant Ultra projection or a non-terminal workflow.
+`.ultra/state.db` and active continuous changes. Direct projection writes remain blocked;
+context, compact, stop, and subagent lifecycle behavior is recovery-oriented and does not turn
+advisory workflow conditions into refusal gates.
 
 | Lifecycle | Hook | Purpose |
 |---|---|---|
@@ -12,7 +13,7 @@ bounded to the relevant Ultra projection or a non-terminal workflow.
 | Before edit | `active_task_context.py` | Protect `tasks.json` and restate the same DB-derived task breadcrumb |
 | Before compact | `workflow_checkpoint.py` | Validate and atomically save a minimal workflow checkpoint |
 | After compact/resume | `workflow_resume.py` | Prefer the DB breadcrumb; restore the minimal file checkpoint only when no active change owns recovery |
-| Stop | `pre_stop_check.py` | Block once when the Ultra workflow is incomplete |
+| Stop | `pre_stop_check.py` | Report an incomplete workflow boundary and allow stop |
 | Subagent lifecycle | `subagent_tracker.py` | Append lifecycle evidence under `.ultra/runtime/` |
 
 The plugin deliberately does not capture prompts, tool observations, transcripts, summaries, or

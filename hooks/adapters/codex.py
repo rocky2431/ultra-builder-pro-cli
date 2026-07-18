@@ -175,7 +175,7 @@ def adapt_output(output: dict[str, Any], event: str) -> dict[str, Any]:
     if event == "Stop":
         if output.get("decision") == "block":
             result["decision"] = "block"
-            result["reason"] = str(output.get("reason") or "Ultra completion gate blocked stop")
+            result["reason"] = str(output.get("reason") or "Ultra hook blocked stop")
         return result
 
     if event in {"PreCompact", "PostCompact", "SubagentStop"}:

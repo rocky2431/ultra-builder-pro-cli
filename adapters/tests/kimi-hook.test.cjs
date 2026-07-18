@@ -97,7 +97,7 @@ test('Kimi subagent fields are normalized for the existing lifecycle tracker', (
   });
 });
 
-test('Kimi stop blocks and recovery context use the exact structured-output schema', () => {
+test('Kimi adapter preserves an explicit Stop deny and recovery context schema', () => {
   const script = [
     'import importlib.util, json, pathlib',
     `p = pathlib.Path(${JSON.stringify(ADAPTER)})`,

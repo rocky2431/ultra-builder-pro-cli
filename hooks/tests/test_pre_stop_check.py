@@ -43,13 +43,13 @@ def test_completed_workflow_allows_stop(tmp_path):
     assert result == {}
 
 
-def test_active_workflow_blocks_once_with_exact_boundary(tmp_path):
+def test_active_workflow_is_advisory_and_never_traps_stop(tmp_path):
     write_state(tmp_path, "review_pending")
-    result, _ = run_hook(tmp_path, {})
-    assert result["decision"] == "block"
-    assert "ultra-dev" in result["reason"]
-    assert "task-1" in result["reason"]
-    assert "4.5" in result["reason"]
+    result, stderr = run_hook(tmp_path, {})
+    assert result == {}
+    assert "ultra-dev" in stderr
+    assert "task-1" in stderr
+    assert "4.5" in stderr
 
 
 def test_retrigger_allows_stop_to_avoid_a_loop(tmp_path):

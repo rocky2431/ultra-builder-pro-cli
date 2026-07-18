@@ -37,18 +37,19 @@ native command or skill -> MCP workflow-state operation -> .ultra/state.db
 | MCP | `mcp-server/server.cjs` | Authoritative typed operations over `.ultra/state.db` |
 | CLI | `ultra-tools`, `ubp-orchestrator` | Selected initialization, backup-first recovery, automation, and diagnostics; not a change-state mirror |
 
-`.ultra/state.db` is the only durable Ultra authority for changes, tasks,
+`.ultra/state.db` is the only durable Ultra authority for baselines, changes, tasks,
 sessions, events, incidents, projection jobs/cursors, telemetry, review evidence,
 and circuit-breaker state. `tasks.json`, context Markdown, execution plans, and
 reports are projections or workflow artifacts.
 
 ## 3. Live MCP and declared contracts
 
-`spec/mcp-tools.yaml` declares and the bundled server registers 32 tools across
-five families:
+`spec/mcp-tools.yaml` declares and the bundled server registers 36 tools across
+six families:
 
 | Family | Live tools |
 |---|---|
+| `baseline.*` | start, record, get, converge |
 | `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
 | `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
 | `change.*` | create, update, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
@@ -67,14 +68,19 @@ fixtures. Do not add an ad-hoc server handler first.
 Context Manifest v2 is a DB-backed role handoff, not a static codebase summary.
 `change.context` compiles required references, digests, readiness, context budget,
 public seam, exact verification command, and one next action for `plan`,
-`implement`, `check`, or `review`. The default fresh-context contract is at most
-12 files, about 12k tokens, and 40% of the host context; wider work must use an
-explicit `expand_contract`.
+`implement`, `check`, or `review`. The default 12-file, about 12k-token, and 40%
+fresh-context values are attention guidance. Overflow produces warnings; it does
+not block work or require raising a threshold. Prefer direct reads, bounded
+excerpts, or a smaller slice when they preserve correctness, and retain all
+necessary context when they do not.
 
 `change.breadcrumb` is the only compact router. Hooks may inject its change/task,
 role, gate, readiness, blockers, and one next action. They must not inject intent
 bodies, transcripts, external memory, or graph payloads. Missing references,
-digest drift, HEAD drift, or budget overflow blocks readiness.
+digest drift, HEAD drift, or a missing execution seam blocks readiness. Context
+size and an incomplete baseline are advisory during an active bounded change;
+baseline adoption becomes a hard gate at convergence; revision and tracked-spec
+integrity are reconciled and rechecked atomically at archive.
 
 Stable discoveries use `change.learning_propose`; they reach the baseline only
 through approve/reject/apply transitions in `change.learning_resolve`. Unresolved
@@ -103,7 +109,7 @@ the shared read-only `context_spine.py` breadcrumb helper:
 - `active_task_context.py` before an edit;
 - `workflow_checkpoint.py` before compaction;
 - `workflow_resume.py` after compaction/resume;
-- `pre_stop_check.py` at stop;
+- `pre_stop_check.py` reports unfinished workflow position at stop without denial;
 - `subagent_tracker.py` for bounded worker lifecycle evidence.
 
 `workflow_context.py`, `active_task_context.py`, and `workflow_resume.py` read the
@@ -114,6 +120,8 @@ edit guidance to an active workflow. Compact/stop/subagent hooks remain
 active-workflow scoped. OpenCode natively injects baseline/change context and
 protects the projection; full health inspection is available through
 `system.doctor` rather than a session-start health hook.
+Advisory baseline or context-budget warnings are presentation only and never
+reject an edit, stop, or tool call.
 Generic command blocking, post-edit governance, and unrelated user hooks are not
 copied into Ultra Builder Pro.
 

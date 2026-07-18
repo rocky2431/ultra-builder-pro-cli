@@ -11,6 +11,21 @@ const { initStateDb } = require('./state-db.cjs');
 const { createChange } = require('./change-workflow.cjs');
 const { createTask } = require('./state-ops.cjs');
 
+test('breadcrumb routes a project without a converged baseline back to adoption', () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-spine-baseline-'));
+  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  try {
+    const breadcrumb = readBreadcrumb(db, {}, { rootDir });
+    assert.equal(breadcrumb.readiness, 'blocked');
+    assert.ok(breadcrumb.blockers.includes('BASELINE_MISSING'));
+    assert.equal(breadcrumb.recommended_workflow, 'ultra-init');
+    assert.match(breadcrumb.next_action, /baseline|adoption/i);
+  } finally {
+    db.close();
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
 test('deriveNextAction gives one state-specific action instead of a workflow dump', () => {
   const change = { id: 'context-spine', status: 'active' };
   const task = { id: 'task-1', status: 'in_progress' };

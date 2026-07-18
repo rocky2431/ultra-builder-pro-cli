@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.11.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.12.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -27,7 +27,7 @@ authoritative `.ultra/state.db`.
   Install and uninstall are symmetric on every supported host; `ubp --doctor`
   verifies the installed asset hashes and host entry points without mutation.
 - **Shares state across runtimes.** `.ultra/state.db` (SQLite + WAL) is the
-  authoritative source for changes, tasks, sessions, events, incidents,
+  authoritative source for baselines, changes, tasks, sessions, events, incidents,
   projection jobs, and telemetry. `tasks.json` and context markdown are
   generated projections, not handwritten.
 - **Keeps memory ownership explicit.** Ultra Builder Pro does not collect
@@ -37,12 +37,16 @@ authoritative `.ultra/state.db`.
   `.ultra/execution-plan.json` → parallel worktree sessions → auto-merge back.
 - **Keeps daily work convergent.** `/ultra-change` creates a bounded delta and
   Context Manifest v2; the Context Spine assigns a role/gate, verifies required
-  references and fresh-context budget, exposes one DB-derived breadcrumb, and
+  references, reports fresh-context budget pressure as advisory warnings, exposes one DB-derived breadcrumb, and
   routes a single next action. `/ultra-deliver` requires applied specification
   learning plus docs/test/two-axis review evidence before archive. `/ultra-doctor` reports incidents,
   projection lag, orphan sessions, and backup-first mechanical recovery.
   Incident changes additionally require a five-section `diagnosis.md` covering
   reproduction, hypotheses, root cause, regression test, and recovery.
+- **Adopts existing repositories without pretending they are new.** `ultra-init`
+  auto-detects greenfield versus brownfield work. Brownfield adoption records
+  current specifications, repository/runtime evidence, known-red verification,
+  unknowns, and explicit approval without rewriting application code.
 - **Keeps external context external.** Memory and code-graph providers retain
   their own content; Ultra stores only provider/project/revision/status metadata
   references in a compiled change context.
@@ -82,6 +86,14 @@ install or update.
 See [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
 for per-runtime capabilities.
 
+Start with `ultra-init` in both new and existing projects. An empty project opens
+a `draft` greenfield baseline. An existing codebase opens an `adopting`
+brownfield baseline; inspect current behavior, call `baseline.record`, then
+approve it through `baseline.converge` before normal planning or delivery. An
+urgent active fix may continue while adoption or context-size warnings are
+visible. `change.converge` requires approved adoption, while normal HEAD/spec drift
+from that change is declared and health-checked atomically by `change.archive`.
+
 ## Three-layer architecture
 
 | Layer | Purpose | When it's used |
@@ -93,7 +105,7 @@ for per-runtime capabilities.
 The layers share one `.ultra/state.db`, but the CLI is not a mirror of every MCP
 tool: continuous change mutations are MCP-only and fail closed. See
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full contract and
-[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 32 live contracts.
+[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 36 live contracts.
 Review, impact discovery, skill resolution, and user interaction stay on each
 Host's native surfaces; the generated Codex capability map documents those
 replacements without advertising non-existent MCP tools.
@@ -121,11 +133,11 @@ Full details in [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.m
 ## Typical workflow
 
 ```bash
-# 1. Initialize a project (writes .ultra/ skeleton and initializes state.db)
-ultra-tools task init-project --name myapp
+# 1. Initialize a new project or adopt an existing repository automatically
+ultra-tools task init-project --project-name myapp --mode auto
 
-# 2. Turn a PRD into a task graph + execution plan (human-gate via dry-run)
-#    (invoked by /ultra-plan skill or via MCP task.parse_prd + plan.export)
+# 2. Record and converge the greenfield/brownfield baseline, then turn accepted
+#    behavior into a task graph (normally driven by ultra-init/research/plan)
 
 # 3. Run the plan — parallel sessions, auto-merge back to main on success
 ubp-orchestrator run
@@ -138,7 +150,7 @@ ultra-tools system doctor
 ```
 
 Or let the skills drive it. In Codex, invoke
-`$ultra-builder-pro:ultra-plan` → `$ultra-builder-pro:ultra-dev` →
+`$ultra-builder-pro:ultra-init` → `$ultra-builder-pro:ultra-plan` → `$ultra-builder-pro:ultra-dev` →
 `$ultra-builder-pro:ultra-test` → `$ultra-builder-pro:ultra-review` →
 `$ultra-builder-pro:ultra-deliver`; after the baseline is delivered, daily work
 starts with `$ultra-builder-pro:ultra-change`, while

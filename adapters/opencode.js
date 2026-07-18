@@ -345,10 +345,13 @@ function findUltraContext(directory) {
           const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
           if (manifest?.change) {
             const compiledHead = manifest.git?.head ?? null;
-            const legacyContext = manifest.schema_version !== "2.0";
+            const legacyContext = manifest.schema_version !== "2.0" || !manifest.baseline;
             const headStale = Boolean(compiledHead && currentHead && compiledHead !== currentHead);
             const blockers = Array.isArray(manifest.readiness?.blockers)
               ? [...manifest.readiness.blockers]
+              : [];
+            const warnings = Array.isArray(manifest.readiness?.warnings)
+              ? [...manifest.readiness.warnings]
               : [];
             if (headStale && !blockers.includes("CONTEXT_HEAD_STALE")) blockers.push("CONTEXT_HEAD_STALE");
             if (legacyContext && !blockers.includes("CONTEXT_SNAPSHOT_UPGRADE_REQUIRED")) {
@@ -367,6 +370,8 @@ function findUltraContext(directory) {
               : (manifest.next_action ?? "Inspect Ultra status."),
             readiness: legacyContext || headStale ? "blocked" : (manifest.readiness?.status ?? "ready"),
             blockers,
+            warnings,
+            baseline: manifest.baseline ?? null,
             taskId: manifest.selected_task?.id ?? manifest.resume?.task_id ?? null,
             taskStatus: manifest.selected_task?.status ?? manifest.resume?.task_status ?? null,
             tokenEstimate: manifest.context?.token_estimate ?? 0,
@@ -411,6 +416,7 @@ function contextText(active) {
       \`Gate: \${change.gate}\`,
       \`Readiness: \${change.readiness}\`,
       ...(change.blockers.length > 0 ? [\`Blockers: \${change.blockers.join(", ")}\`] : []),
+      ...(change.warnings.length > 0 ? [\`Warnings: \${change.warnings.join(", ")}\`] : []),
       \`Next: \${change.nextAction}\`,
       \`Context manifest: \${change.manifestPath}\`,
     );
@@ -422,7 +428,7 @@ function contextText(active) {
     lines.push(
       "[Ultra baseline]",
       \`Project: \${active.root}\`,
-      "No active continuous change. Start daily work with the ultra-change workflow.",
+      "No active continuous change. Run ultra-status; resume ultra-init when the baseline is missing, incomplete, or stale, otherwise start ultra-change.",
     );
   }
   lines.push("Authority: .ultra/state.db; JSON/Markdown remain projections or evidence artifacts.");

@@ -100,6 +100,10 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `session.admission_check` | `session admission`         | 4.5   | any     |
 | `session.heartbeat`       | `session heartbeat`         | 4.5   | mcp     |
 | `session.subscribe_events`| `session subscribe`         | 4.5   | any     |
+| `baseline.start`          | `baseline start`            | 11    | mcp     |
+| `baseline.record`         | `baseline record`           | 11    | mcp     |
+| `baseline.get`            | `baseline get`              | 11    | any     |
+| `baseline.converge`       | `baseline converge`         | 11    | mcp     |
 | `change.create`           | `change create`             | 9     | mcp     |
 | `change.update`           | `change update`             | 9     | mcp     |
 | `change.get`              | `change get`                | 9     | any     |

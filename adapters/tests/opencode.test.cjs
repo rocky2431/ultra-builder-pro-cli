@@ -206,11 +206,14 @@ test('OpenCode context covers active changes and projection writes are blocked f
     fs.mkdirSync(changeRoot, { recursive: true });
     fs.writeFileSync(path.join(changeRoot, 'context-manifest.json'), JSON.stringify({
       schema_version: '2.0',
+      baseline: { id: 'project-baseline', mode: 'brownfield', status: 'ready', repository_revision: compiledHead },
       change: { id: 'daily-fix', title: 'Daily fix', kind: 'quick', status: 'active', intent: 'Fix drift' },
       role: 'implement',
       gate: 'implementation',
       next_action: 'Run the exact regression test.',
-      readiness: { status: 'ready', blockers: [] },
+      readiness: {
+        status: 'ready', blockers: [], warnings: ['CONTEXT_FILE_BUDGET_EXCEEDED'],
+      },
       git: { head: compiledHead },
       selected_task: { id: 'daily-task', status: 'in_progress' },
       context: { token_estimate: 1200, budget: { max_tokens: 8000, max_files: 8 } },
@@ -225,6 +228,7 @@ test('OpenCode context covers active changes and projection writes are blocked f
     assert.match(output.system.join('\n'), /Role: implement/);
     assert.match(output.system.join('\n'), /Gate: implementation/);
     assert.match(output.system.join('\n'), /Readiness: ready/);
+    assert.match(output.system.join('\n'), /Warnings: CONTEXT_FILE_BUDGET_EXCEEDED/);
     assert.match(output.system.join('\n'), /Run the exact regression test/);
     assert.doesNotMatch(output.system.join('\n'), /Fix drift|cloud-mem/);
 
@@ -236,6 +240,16 @@ test('OpenCode context covers active changes and projection writes are blocked f
     await plugin['experimental.chat.system.transform']({}, legacyOutput);
     assert.match(legacyOutput.system.join('\n'), /CONTEXT_SNAPSHOT_UPGRADE_REQUIRED/);
     legacyManifest.schema_version = '2.0';
+    fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
+
+    delete legacyManifest.baseline;
+    fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
+    const missingBaselineOutput = { system: [] };
+    await plugin['experimental.chat.system.transform']({}, missingBaselineOutput);
+    assert.match(missingBaselineOutput.system.join('\n'), /CONTEXT_SNAPSHOT_UPGRADE_REQUIRED/);
+    legacyManifest.baseline = {
+      id: 'project-baseline', mode: 'brownfield', status: 'ready', repository_revision: compiledHead,
+    };
     fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
 
     fs.writeFileSync(path.join(project, 'app.txt'), 'changed\n');
@@ -256,6 +270,27 @@ test('OpenCode context covers active changes and projection writes are blocked f
       ),
       /state\.db is authoritative/,
     );
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('OpenCode does not assume a project baseline is ready when no active change manifest exists', async () => {
+  const target = mkTarget();
+  const project = mkTarget();
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
+    fs.writeFileSync(path.join(project, '.ultra', 'state.db'), 'owned-by-ultra');
+    const module = await import(`${pathToFileURL(path.join(target, 'plugins', 'ultra-builder-pro.js')).href}?baseline`);
+    const plugin = await module.UltraBuilderProPlugin({ directory: project });
+    const output = { system: [] };
+    await plugin['experimental.chat.system.transform']({}, output);
+    const text = output.system.join('\n');
+    assert.match(text, /ultra-status/);
+    assert.match(text, /ultra-init/);
+    assert.doesNotMatch(text, /Start daily work with the ultra-change workflow/);
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
     fs.rmSync(project, { recursive: true, force: true });

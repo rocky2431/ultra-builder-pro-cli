@@ -8,6 +8,7 @@ const ops = require('./state-ops.cjs');
 const runtime = require('./runtime-state.cjs');
 const projector = require('./projector.cjs');
 const recovery = require('../../orchestrator/recovery.cjs');
+const baselines = require('./baseline-workflow.cjs');
 
 const SPEC_CONSUMER = 'spec-staleness';
 
@@ -48,6 +49,9 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
          WHERE status IN ('active', 'blocked', 'ready') AND artifact_root IS NOT NULL`,
       ).all().filter((row) => row.artifact_root && !fs.existsSync(path.resolve(rootDir, row.artifact_root))).length
     : 0;
+  const baseline = missing.length === 0
+    ? baselines.inspectBaseline(db, { rootDir })
+    : { status: 'fail', blockers: ['BASELINE_STATE_UNAVAILABLE'], warnings: [], baseline: null };
   const degraded = integrity !== 'ok' || missing.length > 0 || incidents.length > 0
     || pending.length > 0 || running.length > 0 || failed.length > 0 || orphanSessions > 0 || activeMissing > 0
     || eventCursor > projectedCursor;
@@ -63,6 +67,16 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
       },
       sessions: { status: orphanSessions === 0 ? 'pass' : 'fail', orphan: orphanSessions },
       change_artifacts: { status: activeMissing === 0 ? 'pass' : 'fail', missing: activeMissing },
+      baseline: {
+        status: baseline.status === 'pass' ? 'pass' : 'warning',
+        readiness: baseline.status,
+        mode: baseline.baseline?.mode || null,
+        baseline_status: baseline.baseline?.status || null,
+        id: baseline.baseline?.id || null,
+        repository_revision: baseline.baseline?.repository_revision || null,
+        blockers: baseline.blockers,
+        warnings: baseline.warnings,
+      },
       external_providers: {
         status: 'pass', ownership: 'external',
         note: 'Ultra stores provider metadata references only and never owns memory or code-graph content.',

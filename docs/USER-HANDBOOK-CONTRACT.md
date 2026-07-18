@@ -7,7 +7,7 @@ only one small managed section describing its runtime boundary.
 ## Source and render targets
 
 `adapters/_shared/handbook.cjs` is the canonical source. It renders the common
-authority, Context Spine, specification-learning, memory, hook, agent, and
+authority, baseline adoption, Context Spine, specification-learning, memory, hook, agent, and
 package boundaries with host-native command syntax:
 
 | Runtime | Default target | Main invocation form |
@@ -22,10 +22,13 @@ host receives only its native invocation and collaboration names.
 
 The managed block deliberately stays short. It says that `.ultra/state.db` is
 authoritative; `change.context` compiles role/gate readiness, bounded references,
-fresh-context budget, public seam, and exact verification; hooks inject only the
-DB-derived `change.breadcrumb`; and unresolved specification learning or either
-failed review axis blocks convergence. Detailed procedures remain in the plugin
-skills so user handbooks do not accumulate duplicated prompt sediment.
+fresh-context budget, public seam, and exact verification; size budgets and an
+incomplete baseline during active work are advisory, while an approved baseline is
+required for convergence and full baseline health is restored atomically at archive;
+hooks inject only the DB-derived
+`change.breadcrumb`; and unresolved specification learning or either failed review
+axis blocks convergence. Detailed procedures remain in the plugin skills so user
+handbooks do not accumulate duplicated prompt sediment.
 
 ## Managed-block contract
 

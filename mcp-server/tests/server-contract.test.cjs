@@ -14,10 +14,21 @@ const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SERVER = path.join(REPO_ROOT, 'mcp-server', 'server.cjs');
 const PACKAGE_VERSION = require(path.join(REPO_ROOT, 'package.json')).version;
+const { initStateDb, closeStateDb } = require('../lib/state-db.cjs');
 
 function tmpProject() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mcp-'));
   return { dir, dbPath: path.join(dir, '.ultra', 'state.db') };
+}
+
+function seedMigratedBaseline(project) {
+  const { db } = initStateDb(project.dbPath);
+  db.prepare(
+    `INSERT OR IGNORE INTO baselines
+     (id, project_name, mode, status, approved_by, approval_note, converged_at)
+     VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+  ).run(new Date().toISOString());
+  closeStateDb(db);
 }
 
 async function withClient({ dir, dbPath }, fn, extraEnv = {}) {
@@ -74,6 +85,10 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
       assert.deepEqual(names, [
+        'baseline.converge',
+        'baseline.get',
+        'baseline.record',
+        'baseline.start',
         'change.archive',
         'change.breadcrumb',
         'change.context',
@@ -118,9 +133,78 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
   }
 });
 
+test('baseline MCP tools adopt and converge an existing checkout without storing provider payloads', async () => {
+  const proj = tmpProject();
+  try {
+    fs.mkdirSync(path.join(proj.dir, '.ultra', 'specs'), { recursive: true });
+    fs.mkdirSync(path.join(proj.dir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(proj.dir, '.ultra', 'specs', 'product.md'), '# Product\n\nObserved behavior.\n');
+    fs.writeFileSync(path.join(proj.dir, '.ultra', 'specs', 'architecture.md'), '# Architecture\n\nCurrent boundary.\n');
+    fs.writeFileSync(path.join(proj.dir, 'src', 'index.js'), 'module.exports = true;\n');
+    require('node:child_process').execFileSync('git', ['init', '-q'], { cwd: proj.dir });
+    require('node:child_process').execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: proj.dir });
+    require('node:child_process').execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: proj.dir });
+    require('node:child_process').execFileSync('git', ['add', '.'], { cwd: proj.dir });
+    require('node:child_process').execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: proj.dir });
+    const revision = require('node:child_process').execFileSync(
+      'git', ['rev-parse', 'HEAD'], { cwd: proj.dir, encoding: 'utf8' },
+    ).trim();
+
+    await withClient(proj, async (client) => {
+      const started = readToolPayload(await client.callTool({
+        name: 'baseline.start',
+        arguments: {
+          id: 'mcp-baseline', project_name: 'fixture', mode: 'brownfield',
+          repository_revision: revision, scope: ['.'],
+        },
+      }));
+      assert.equal(started.baseline.status, 'adopting');
+
+      const recorded = readToolPayload(await client.callTool({
+        name: 'baseline.record',
+        arguments: {
+          id: 'mcp-baseline', repository_revision: revision,
+          spec_refs: [
+            { kind: 'product', path: '.ultra/specs/product.md' },
+            { kind: 'architecture', path: '.ultra/specs/architecture.md' },
+          ],
+          evidence: [{ kind: 'source', ref: 'src/index.js', summary: 'Current entry point.' }],
+          verification: [{
+            name: 'smoke', command: 'node -e "require(\'./src\')"', status: 'pass', evidence: 'exit 0',
+          }],
+          unknowns: [],
+          provider_refs: {
+            code_graph: { provider: 'codebase-memory-mcp', project: 'fixture', status: 'fresh' },
+          },
+        },
+      }));
+      assert.match(recorded.baseline.spec_refs[0].digest, /^[0-9a-f]{64}$/);
+
+      const converged = readToolPayload(await client.callTool({
+        name: 'baseline.converge',
+        arguments: {
+          id: 'mcp-baseline', expected_revision: revision, approved_by: 'owner',
+          approval_note: 'The baseline matches the current checkout.', accept_known_red: false,
+        },
+      }));
+      assert.equal(converged.ready, true);
+      assert.equal(converged.baseline.status, 'ready');
+
+      const got = readToolPayload(await client.callTool({
+        name: 'baseline.get', arguments: {},
+      }));
+      assert.equal(got.baseline.id, 'mcp-baseline');
+      assert.equal(JSON.stringify(got.baseline).includes('captured prompt'), false);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('change.create + change.context expose a continuous change unit with external provider references', async () => {
   const proj = tmpProject();
   try {
+    seedMigratedBaseline(proj);
     fs.writeFileSync(path.join(proj.dir, 'README.md'), '# project\n');
     await withClient(proj, async (client) => {
       const created = await client.callTool({
@@ -172,6 +256,7 @@ test('change.create + change.context expose a continuous change unit with extern
 test('spec-learning MCP tools persist an approval-gated candidate and projection', async () => {
   const proj = tmpProject();
   try {
+    seedMigratedBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'change.create',
@@ -233,6 +318,7 @@ test('spec-learning MCP tools persist an approval-gated candidate and projection
 test('system.doctor returns structured provider ownership and projection health', async () => {
   const proj = tmpProject();
   try {
+    seedMigratedBaseline(proj);
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'task.create',
@@ -515,11 +601,22 @@ test('task.init_project creates .ultra/ skeleton in a fresh target directory', a
       assert.equal(payload.status, 'created');
       assert.equal(payload.created_path, path.join(freshTarget, '.ultra'));
       assert.equal(payload.state_db_path, path.join(freshTarget, '.ultra', 'state.db'));
+      assert.equal(payload.mode, 'greenfield');
+      assert.equal(payload.baseline.status, 'draft');
       assert.ok(fs.existsSync(payload.state_db_path));
       assert.ok(payload.copied_files.includes('tasks/tasks.json'));
       const tasksJson = JSON.parse(fs.readFileSync(path.join(payload.created_path, 'tasks', 'tasks.json'), 'utf8'));
-      assert.equal(tasksJson.project.name, 'mcp-init');
-      assert.equal(tasksJson.project.type, 'cli');
+      assert.equal(tasksJson.source, '.ultra/state.db');
+      assert.deepEqual(tasksJson.tasks, []);
+      const state = new Database(payload.state_db_path, { readonly: true });
+      try {
+        assert.deepEqual(
+          state.prepare('SELECT project_name, project_type, mode FROM baselines').get(),
+          { project_name: 'mcp-init', project_type: 'cli', mode: 'greenfield' },
+        );
+      } finally {
+        state.close();
+      }
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

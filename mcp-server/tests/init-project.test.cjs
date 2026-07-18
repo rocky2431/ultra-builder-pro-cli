@@ -5,9 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const Database = require('better-sqlite3');
 
 const { initProject, InitProjectError, DEFAULT_TEMPLATE } = require('../lib/init-project.cjs');
+const { EXPECTED_VERSION } = require('../lib/state-db.cjs');
 
 function mkTempDir(prefix = 'ubp-init-test-') {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -27,6 +29,7 @@ test('initProject copies bundled template into .ultra/', () => {
       stack: 'node',
     });
     assert.equal(r.status, 'created');
+    assert.equal(r.mode, 'greenfield');
     assert.equal(r.created_path, path.join(target, '.ultra'));
     assert.ok(r.copied_files.includes('tasks/tasks.json'));
     assert.ok(r.copied_files.includes('specs/product.md'));
@@ -36,9 +39,11 @@ test('initProject copies bundled template into .ultra/', () => {
     assert.ok(fs.existsSync(r.state_db_path));
     const db = new Database(r.state_db_path, { readonly: true });
     try {
-      const version = db.prepare("SELECT version FROM schema_version WHERE version = '9.1'").get();
-      assert.equal(version.version, '9.1');
+      const version = db.prepare('SELECT version FROM schema_version WHERE version = ?').get(EXPECTED_VERSION);
+      assert.equal(version.version, EXPECTED_VERSION);
       assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name = 'changes'").get());
+      const baseline = db.prepare('SELECT mode, status, project_name FROM baselines').get();
+      assert.deepEqual(baseline, { mode: 'greenfield', status: 'draft', project_name: 'demo' });
     } finally {
       db.close();
     }
@@ -46,7 +51,42 @@ test('initProject copies bundled template into .ultra/', () => {
   } finally { cleanup(target); }
 });
 
-test('initProject injects project metadata into tasks.json', () => {
+test('initProject auto-detects existing source as brownfield and starts adoption', () => {
+  const target = mkTempDir();
+  try {
+    fs.mkdirSync(path.join(target, 'src'));
+    fs.writeFileSync(path.join(target, 'package.json'), '{"name":"legacy-app"}\n');
+    fs.writeFileSync(path.join(target, 'src', 'index.js'), 'module.exports = true;\n');
+    const result = initProject({ target_dir: target, project_name: 'legacy-app' });
+    assert.equal(result.mode, 'brownfield');
+    const db = new Database(result.state_db_path, { readonly: true });
+    try {
+      const baseline = db.prepare('SELECT mode, status, scope_json FROM baselines').get();
+      assert.equal(baseline.mode, 'brownfield');
+      assert.equal(baseline.status, 'adopting');
+      assert.deepEqual(JSON.parse(baseline.scope_json), ['.']);
+    } finally {
+      db.close();
+    }
+  } finally { cleanup(target); }
+});
+
+test('maintenance CLI forwards an explicit initialization mode', () => {
+  const target = mkTempDir();
+  try {
+    fs.writeFileSync(path.join(target, 'README.md'), '# Intentional greenfield notes\n');
+    const output = execFileSync(process.execPath, [
+      path.resolve(__dirname, '..', '..', 'ultra-tools', 'cli.cjs'),
+      'task', 'init-project', '--target-dir', target, '--project-name', 'explicit-mode',
+      '--mode', 'greenfield',
+    ], { encoding: 'utf8' });
+    const envelope = JSON.parse(output);
+    assert.equal(envelope.ok, true);
+    assert.equal(envelope.data.mode, 'greenfield');
+  } finally { cleanup(target); }
+});
+
+test('initProject keeps project metadata in authoritative baseline state and tasks.json as a projection', () => {
   const target = mkTempDir();
   try {
     initProject({
@@ -56,11 +96,17 @@ test('initProject injects project metadata into tasks.json', () => {
       stack: 'next',
     });
     const tasksJson = JSON.parse(fs.readFileSync(path.join(target, '.ultra', 'tasks', 'tasks.json'), 'utf8'));
-    assert.equal(tasksJson.project.name, 'meta-demo');
-    assert.equal(tasksJson.project.type, 'web');
-    assert.equal(tasksJson.project.stack, 'next');
-    assert.ok(tasksJson.created.length > 0);
-    assert.ok(tasksJson.updated.length > 0);
+    assert.equal(tasksJson.schema_version, '4.5');
+    assert.equal(tasksJson.source, '.ultra/state.db');
+    assert.deepEqual(tasksJson.tasks, []);
+    assert.equal('project' in tasksJson, false);
+    const db = new Database(path.join(target, '.ultra', 'state.db'), { readonly: true });
+    try {
+      const baseline = db.prepare('SELECT project_name, project_type, stack FROM baselines').get();
+      assert.deepEqual(baseline, { project_name: 'meta-demo', project_type: 'web', stack: 'next' });
+    } finally {
+      db.close();
+    }
   } finally { cleanup(target); }
 });
 

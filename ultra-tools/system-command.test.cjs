@@ -14,6 +14,11 @@ const CLI = path.join(__dirname, 'cli.cjs');
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-system-cli-'));
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  db.prepare(
+    `INSERT INTO baselines
+     (id, project_name, mode, status, approved_by, approval_note, converged_at)
+     VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+  ).run(new Date().toISOString());
   closeStateDb(db);
   return rootDir;
 }

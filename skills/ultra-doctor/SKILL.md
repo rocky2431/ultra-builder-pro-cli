@@ -17,6 +17,7 @@ Call `system.doctor` with `{ "repair": false }` and inspect:
 - failed or interrupted projection jobs;
 - orphan sessions;
 - missing active-change artifact roots;
+- missing, incomplete, or stale project baseline readiness and specification digests;
 - the boundary to separately installed memory and code-graph providers.
 
 Do not infer health from generated task JSON. Do not mutate external provider state,
@@ -31,6 +32,10 @@ delete artifacts, or collect memory during diagnosis.
 - An orphan session may be reconciled; never kill unrelated processes blindly.
 - A missing change artifact requires version-control, backup, or deliberate recreation
   evidence rather than silent regeneration.
+- Missing or incomplete baseline evidence routes to `ultra-init`. Doctor repair does
+  not approve a baseline, accept known-red verification, or invent adoption evidence.
+  Baseline readiness is an advisory workflow check, not state-database corruption and
+  not a reason for doctor repair.
 
 ## Explicit repair
 
@@ -58,8 +63,9 @@ host wiring. Neither substitutes for the other.
 
 ## Output
 
-Lead with `healthy` or `degraded`. List failing checks, incident identifiers, cursor
-lag, whether repair ran, the backup path, and each unresolved action with its owner.
+Lead with `healthy` or `degraded`. List failing authority checks separately from
+baseline warnings, incident identifiers, cursor lag, whether repair ran, the backup
+path, and each unresolved action with its owner.
 
 Do not fix application code, delete state, reset Git, close healthy sessions, or
 install and repair external providers through this workflow.

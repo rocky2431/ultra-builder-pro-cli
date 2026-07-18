@@ -63,6 +63,26 @@ test('buildCostPanel: empty db → zero totals, empty arrays', () => {
     assert.equal(out.total_cost_usd, 0);
     assert.equal(out.by_runtime.length, 0);
     assert.equal(out.top_tasks.length, 0);
+    assert.deepEqual(out.baseline, {
+      id: null, mode: null, status: 'missing', health: 'fail',
+      repository_revision: null, blockers: ['BASELINE_MISSING'], warnings: [],
+    });
+  } finally { teardown(dir, db); }
+});
+
+test('status exposes an in-progress brownfield baseline from authoritative state', () => {
+  const { dir, db } = freshFixture();
+  try {
+    db.prepare(
+      `INSERT INTO baselines (id, project_name, mode, status)
+       VALUES ('adoption', 'legacy', 'brownfield', 'adopting')`,
+    ).run();
+    const out = statusCmd.buildCostPanel(db, { rootDir: dir });
+    assert.equal(out.baseline.id, 'adoption');
+    assert.equal(out.baseline.mode, 'brownfield');
+    assert.equal(out.baseline.status, 'adopting');
+    assert.deepEqual(out.baseline.blockers, ['BASELINE_NOT_READY:adopting']);
+    assert.match(statusCmd.renderHuman(out), /Baseline: brownfield\/adopting.*blocked/i);
   } finally { teardown(dir, db); }
 });
 

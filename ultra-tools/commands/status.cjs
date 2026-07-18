@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ops = require('../../mcp-server/lib/state-ops.cjs');
+const baselines = require('../../mcp-server/lib/baseline-workflow.cjs');
 
 const USAGE = `ultra-tools status [flags]
 
@@ -64,12 +65,23 @@ function parseFlags(args) {
   return out;
 }
 
-function buildCostPanel(db, { since = null, limit = 3 } = {}) {
+function buildCostPanel(db, { since = null, limit = 3, rootDir = process.cwd() } = {}) {
   const by_runtime = ops.aggregateTelemetryByRuntime(db, { since });
   const top_tasks = ops.aggregateTelemetryByTask(db, { since, limit });
   const total_cost_usd = by_runtime.reduce((acc, r) => acc + (r.cost_usd || 0), 0);
+  const baselineHealth = baselines.inspectBaseline(db, { rootDir });
+  const current = baselineHealth.baseline;
   return {
     period: { since: since || 'all-time' },
+    baseline: {
+      id: current?.id || null,
+      mode: current?.mode || null,
+      status: current?.status || 'missing',
+      health: baselineHealth.status,
+      repository_revision: current?.repository_revision || null,
+      blockers: baselineHealth.blockers,
+      warnings: baselineHealth.warnings,
+    },
     by_runtime,
     top_tasks,
     total_cost_usd,
@@ -84,6 +96,11 @@ function formatCost(n) {
 
 function renderHuman(panel) {
   const lines = [];
+  const baseline = panel.baseline;
+  lines.push(
+    `Baseline: ${baseline.mode || 'none'}/${baseline.status} · ${baseline.health === 'pass' ? 'ready' : 'blocked'}`,
+  );
+  if (baseline.blockers.length > 0) lines.push(`Baseline blockers: ${baseline.blockers.join(', ')}`);
   lines.push(`Period: ${panel.period.since}`);
   lines.push(`Total cost: ${formatCost(panel.total_cost_usd)}`);
   lines.push('');
@@ -136,7 +153,8 @@ function dispatch(args) {
   const Database = require('better-sqlite3');
   const db = new Database(dbPath, { readonly: true });
   try {
-    const panel = buildCostPanel(db, { since, limit: flags.limit });
+    const rootDir = path.dirname(path.dirname(dbPath));
+    const panel = buildCostPanel(db, { since, limit: flags.limit, rootDir });
     if (flags.json) {
       emit({ ok: true, data: panel });
     } else {

@@ -3,28 +3,30 @@
 > Phase 2.2 contract. Trace: PLAN §6 Phase 2.2, decisions D18 / D32 / D37,
 > risks R21 / R25.
 
-`.ultra/state.db` is the only authoritative state store for tasks,
-events, sessions, telemetry, and spec references (D18). Every process
+`.ultra/state.db` is the only authoritative state store for baselines, changes,
+tasks, events, sessions, incidents, projections, telemetry, and spec references
+(D18, D52, D54). Every process
 that touches it must follow the rules below; deviations are bugs.
 
 ## 1. Three-role write matrix
 
-| Role                       | tasks | events | sessions | telemetry | specs_refs | migration_history |
-|----------------------------|:-----:|:------:|:--------:|:---------:|:----------:|:-----------------:|
-| **MCP server** (single writer for mutables) | RW | RW | RW | RW | RW | RW |
-| **CLI** (`ultra-tools …`)   | R     | RW (append-only) | R | R | R | R |
-| **Orchestrator daemon** (Phase 5+) | R | RW | RW | RW | RW | R |
+| Role | tasks | baselines | change/artifact state | events | sessions | telemetry | specs_refs | migration_history |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **MCP server** (single writer for mutables) | RW | RW | RW | RW | RW | RW | RW | RW |
+| **CLI** (`ultra-tools …`) | R | RW (init only) | R | RW (append-only) | R | R | R | RW (migration only) |
+| **Orchestrator daemon** | R | R | R | RW | RW | RW | RW | R |
 
 - **R** = read-only;
 - **RW** = read + write;
 - A `(append-only)` qualifier means the role may execute `INSERT INTO`
   but never `UPDATE` / `DELETE`.
 
-The CLI may indirectly mutate any table by spawning the MCP server over
+The CLI may indirectly mutate ordinary workflow tables by spawning the MCP server over
 stdio and calling `task.update`, `session.spawn`, etc. — but the actual
-SQLite write is performed by the MCP server's writer connection. The CLI
-never opens a writer connection on `tasks`, `sessions`, `telemetry`,
-`specs_refs`, or `migration_history`.
+SQLite write is performed by the MCP server's writer connection. The documented
+exceptions are initial schema/baseline creation, migration, and explicitly
+authorized backup-first doctor recovery. The CLI never provides a parallel raw
+write API for normal task, change, session, or baseline lifecycle updates.
 
 The append-only carve-out for `events` exists because `events.id INTEGER
 PRIMARY KEY AUTOINCREMENT` makes concurrent inserts collision-free under
@@ -68,7 +70,11 @@ Detection happens at boot: `statvfs` of `.ultra/state.db`'s mount;
 
 | Table              | Writer of record                                      |
 |--------------------|--------------------------------------------------------|
+| `baselines`        | MCP server (`baseline.start` / `baseline.record` / `baseline.converge`); initialization CLI may create the first row |
 | `tasks`            | MCP server (`task.create` / `task.update` / `task.delete`) |
+| `changes`          | MCP server (`change.create` / `change.update` / `change.converge` / `change.archive`) |
+| `artifacts`, `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through change lifecycle tools |
+| `incidents`, `projection_jobs`, `event_consumers`, `circuit_breaker` | MCP server; backup-first doctor recovery may perform only documented mechanical transitions |
 | `events`           | MCP server **and** any process via append-only INSERT  |
 | `sessions`         | MCP server (`session.spawn` / `session.close` / `session.heartbeat`); orchestrator may write status transitions |
 | `telemetry`        | MCP server (collected from tool-call wrappers); orchestrator may dump bulk samples |

@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const baselines = require('./baseline-workflow.cjs');
 
 const ROLES = new Set(['plan', 'implement', 'check', 'review']);
 const GATES = new Set([
@@ -12,6 +13,12 @@ const GATES = new Set([
 const CONTEXT_KINDS = new Set(['spec', 'source', 'test', 'docs', 'external']);
 const SLICE_KINDS = new Set(['tracer_bullet', 'expand_contract', 'integration_checkpoint']);
 const DEFAULT_BUDGET = Object.freeze({ max_tokens: 12_000, max_files: 12 });
+const ADVISORY_CONTEXT_CODES = new Set([
+  'CONTEXT_FILE_BUDGET_EXCEEDED',
+  'CONTEXT_TOKEN_BUDGET_EXCEEDED',
+  'EXECUTION_CONTEXT_BUDGET_EXCEEDED',
+  'EXECUTION_CONTEXT_BUDGET_ADVISORY',
+]);
 
 class ContextSpineError extends Error {
   constructor(code, message) {
@@ -149,8 +156,13 @@ function defaultGate(role) {
   }[role];
 }
 
-function deriveNextAction({ change, tasks, task, role, readiness, explicit }) {
-  if (readiness === 'blocked') return 'Resolve the context readiness blockers, then recompile change.context.';
+function deriveNextAction({ change, tasks, task, role, readiness, blockers = [], explicit }) {
+  if (readiness === 'blocked') {
+    if (blockers.some((blocker) => blocker.startsWith('BASELINE_'))) {
+      return 'Complete or refresh the Ultra project baseline, then recompile change.context.';
+    }
+    return 'Resolve the context readiness blockers, then recompile change.context.';
+  }
   if (explicit && String(explicit).trim()) return String(explicit).trim();
   if (change.status === 'ready') return `Run ultra-deliver for change ${change.id}.`;
   if (change.status === 'blocked') return `Resolve the blockers for change ${change.id}, then recompile context.`;
@@ -199,12 +211,19 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
     input, inherited.execution_contract, { taskId: input.task_id },
   );
   const blockers = [];
+  const warnings = [];
+  const baselineHealth = baselines.inspectBaseline(db, { rootDir });
+  // An active change must remain executable even when adoption is incomplete or
+  // the repository has moved. Approved adoption is required at convergence and
+  // full revision/spec health is required at archive; here both are recovery
+  // guidance, not a refusal.
+  warnings.push(...baselineHealth.blockers, ...baselineHealth.warnings);
   for (const item of items) {
     if (item.required && item.status === 'missing') blockers.push(`CONTEXT_REQUIRED_REF_MISSING:${item.ref}`);
     if (item.required && item.status === 'stale') blockers.push(`CONTEXT_REQUIRED_REF_STALE:${item.ref}`);
   }
-  if (fileCount > budget.max_files) blockers.push('CONTEXT_FILE_BUDGET_EXCEEDED');
-  if (tokenEstimate > budget.max_tokens) blockers.push('CONTEXT_TOKEN_BUDGET_EXCEEDED');
+  if (fileCount > budget.max_files) warnings.push('CONTEXT_FILE_BUDGET_EXCEEDED');
+  if (tokenEstimate > budget.max_tokens) warnings.push('CONTEXT_TOKEN_BUDGET_EXCEEDED');
   if (input.task_id) {
     if (!executionContract) blockers.push('EXECUTION_CONTRACT_MISSING');
     else {
@@ -212,21 +231,29 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
       if (!executionContract.verification_command) blockers.push('EXECUTION_VERIFICATION_COMMAND_MISSING');
       if (executionContract.slice_kind !== 'expand_contract'
         && executionContract.context_budget_percent > 40) {
-        blockers.push('EXECUTION_CONTEXT_BUDGET_EXCEEDED');
+        warnings.push('EXECUTION_CONTEXT_BUDGET_ADVISORY');
       }
     }
   }
   const readiness = blockers.length === 0 ? 'ready' : 'blocked';
   const nextAction = deriveNextAction({
-    change, tasks, task, role, readiness, explicit: input.next_action,
+    change, tasks, task, role, readiness, blockers, explicit: input.next_action,
   });
   return {
     role,
     gate,
     next_action: nextAction,
-    readiness: { status: readiness, blockers },
+    readiness: { status: readiness, blockers, warnings: [...new Set(warnings)] },
     context: { items, budget, token_estimate: tokenEstimate, file_count: fileCount },
     execution_contract: executionContract,
+    baseline: baselineHealth.baseline ? {
+      id: baselineHealth.baseline.id,
+      mode: baselineHealth.baseline.mode,
+      status: baselineHealth.baseline.status,
+      repository_revision: baselineHealth.baseline.repository_revision,
+      health: baselineHealth.status,
+      warnings: [...new Set([...baselineHealth.blockers, ...baselineHealth.warnings])],
+    } : null,
     selected_task: task,
     resume: {
       change_id: change.id,
@@ -250,6 +277,7 @@ function recommendedWorkflow(change, task, tasks, readiness) {
 }
 
 function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
+  const baselineHealth = baselines.inspectBaseline(db, { rootDir });
   const change = id
     ? db.prepare('SELECT * FROM changes WHERE id = ?').get(id)
     : db.prepare(
@@ -259,10 +287,32 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     throw new ContextSpineError('CHANGE_NOT_FOUND', `change ${id} not found`);
   }
   if (!change) {
+    const baseline = baselineHealth.baseline;
+    if (baselineHealth.status !== 'pass') {
+      const nextAction = baseline
+        ? `Complete ${baseline.mode} baseline adoption ${baseline.id} through ultra-init.`
+        : 'Initialize the project and start baseline adoption with ultra-init.';
+      return {
+        change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'blocked',
+        blockers: baselineHealth.blockers, warnings: baselineHealth.warnings, next_action: nextAction,
+        recommended_workflow: 'ultra-init', context_manifest_path: null,
+        context_manifest_hash: null, git_head: currentHead(rootDir),
+        baseline: baseline ? {
+          id: baseline.id, mode: baseline.mode, status: baseline.status,
+          repository_revision: baseline.repository_revision,
+        } : null,
+      };
+    }
     return {
       change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'ready',
       next_action: 'Start daily work with ultra-change.', recommended_workflow: 'ultra-change',
       context_manifest_path: null, context_manifest_hash: null, git_head: currentHead(rootDir),
+      blockers: [], warnings: baselineHealth.warnings,
+      baseline: {
+        id: baselineHealth.baseline.id, mode: baselineHealth.baseline.mode,
+        status: baselineHealth.baseline.status,
+        repository_revision: baselineHealth.baseline.repository_revision,
+      },
     };
   }
   const tasks = db.prepare('SELECT * FROM tasks WHERE change_id = ? ORDER BY created_at ASC').all(change.id);
@@ -275,18 +325,26 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   const task = tasks.find((row) => row.id === taskId) || null;
   const head = currentHead(rootDir);
   const snapshotMissing = !snapshot;
-  const legacyContext = Boolean(snapshot && (!context.resume || !context.context || !context.readiness));
+  const legacyContext = Boolean(
+    snapshot && (!context.resume || !context.context || !context.readiness || !('baseline' in context)),
+  );
   const headStale = Boolean(snapshot?.git_head && head && snapshot.git_head !== head);
   const stateChanged = context.resume?.task_status !== undefined
     && context.resume.task_status !== (task?.status || null);
   const blockers = [];
+  const warnings = [...baselineHealth.blockers, ...baselineHealth.warnings];
   if (snapshotMissing) blockers.push('CONTEXT_NOT_COMPILED');
   else {
     if (legacyContext) blockers.push('CONTEXT_SNAPSHOT_UPGRADE_REQUIRED');
     if (headStale) blockers.push('CONTEXT_HEAD_STALE');
     if (stateChanged) blockers.push('CONTEXT_TASK_STATE_STALE');
     for (const blocker of parseJson(snapshot.blockers_json, [])) {
-      if (!blockers.includes(blocker)) blockers.push(blocker);
+      if (ADVISORY_CONTEXT_CODES.has(blocker) || blocker.startsWith('BASELINE_')) {
+        if (!warnings.includes(blocker)) warnings.push(blocker);
+      } else if (!blockers.includes(blocker)) blockers.push(blocker);
+    }
+    for (const warning of context.readiness?.warnings || []) {
+      if (!warnings.includes(warning)) warnings.push(warning);
     }
   }
   const readiness = blockers.length > 0 ? 'blocked' : snapshot.readiness;
@@ -302,6 +360,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   } else {
     nextAction = deriveNextAction({
       change, tasks, task, role: snapshot?.role || 'plan', readiness,
+      blockers,
       explicit: snapshot?.next_action,
     });
   }
@@ -315,11 +374,17 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     gate: snapshot?.gate || 'alignment',
     readiness,
     blockers,
+    warnings: [...new Set(warnings)],
     next_action: nextAction,
     recommended_workflow: recommendedWorkflow(change, task, tasks, readiness),
     context_manifest_path: snapshot?.manifest_path || null,
     context_manifest_hash: snapshot?.manifest_hash || null,
     git_head: head,
+    baseline: baselineHealth.baseline ? {
+      id: baselineHealth.baseline.id, mode: baselineHealth.baseline.mode,
+      status: baselineHealth.baseline.status,
+      repository_revision: baselineHealth.baseline.repository_revision,
+    } : null,
   };
 }
 

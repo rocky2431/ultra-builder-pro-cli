@@ -10,6 +10,7 @@ const { execFileSync } = require('node:child_process');
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const ops = require('./state-ops.cjs');
 const changes = require('./change-workflow.cjs');
+const baselines = require('./baseline-workflow.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-change-'));
@@ -20,6 +21,11 @@ function fixture() {
   execFileSync('git', ['add', 'README.md'], { cwd: rootDir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: rootDir });
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  db.prepare(
+    `INSERT INTO baselines
+     (id, project_name, mode, status, approved_by, approval_note, converged_at)
+     VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+  ).run(new Date().toISOString());
   return { rootDir, db };
 }
 
@@ -179,14 +185,82 @@ test('convergeChange blocks incomplete work and marks a fully evidenced standard
   }
 });
 
+test('convergeChange requires an approved baseline after active work has remained executable', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, {
+      id: 'chg-baseline-gate', title: 'Keep runtime work moving', kind: 'quick',
+      intent: 'Defer baseline closure to convergence without losing implementation progress.',
+      docs_impact: { status: 'none', files: [], rationale: 'Internal workflow behavior only.' },
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'baseline-gate-task', title: 'Exercise convergence boundary', type: 'feature', priority: 'P0',
+      change_id: 'chg-baseline-gate',
+    });
+    ops.updateTaskStatus(fx.db, 'baseline-gate-task', 'in_progress');
+    ops.updateTaskStatus(fx.db, 'baseline-gate-task', 'completed');
+    changes.compileContext(fx.db, {
+      id: 'chg-baseline-gate', ...executionContext('baseline-gate-task'),
+    }, { rootDir: fx.rootDir });
+    fx.db.prepare('DELETE FROM baselines').run();
+
+    const result = changes.convergeChange(fx.db, {
+      id: 'chg-baseline-gate',
+      evidence: [
+        { category: 'diff', status: 'pass', evidence: 'diff reviewed' },
+        { category: 'tests', status: 'pass', evidence: 'workflow regression passed', seam: 'convergence gate' },
+        { category: 'spec', status: 'pass', evidence: 'change remains aligned' },
+      ],
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(result.ready, false);
+    assert.ok(result.blockers.includes('BASELINE_MISSING'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('archiveChange moves a ready change into immutable history and records baseline reconciliation', () => {
   const fx = fixture();
   try {
+    fs.mkdirSync(path.join(fx.rootDir, '.ultra', 'specs'), { recursive: true });
+    fs.writeFileSync(path.join(fx.rootDir, '.ultra', 'specs', 'product.md'), '# Product\n\nCurrent behavior.\n');
+    fs.writeFileSync(path.join(fx.rootDir, '.ultra', 'specs', 'architecture.md'), '# Architecture\n\nCurrent boundary.\n');
+    const fileDigest = (file) => require('node:crypto').createHash('sha256')
+      .update(fs.readFileSync(file)).digest('hex');
+    fx.db.prepare(
+      `UPDATE baselines SET mode = 'brownfield', repository_revision = ?, spec_refs_json = ?
+       WHERE id = 'test-baseline'`,
+    ).run(
+      execFileSync('git', ['rev-parse', 'HEAD'], { cwd: fx.rootDir, encoding: 'utf8' }).trim(),
+      JSON.stringify([
+        {
+          kind: 'product', path: '.ultra/specs/product.md',
+          digest: fileDigest(path.join(fx.rootDir, '.ultra', 'specs', 'product.md')),
+        },
+        {
+          kind: 'architecture', path: '.ultra/specs/architecture.md',
+          digest: fileDigest(path.join(fx.rootDir, '.ultra', 'specs', 'architecture.md')),
+        },
+      ]),
+    );
     changes.createChange(fx.db, {
       id: 'chg-archive', title: 'Archive verified change', kind: 'quick',
       intent: 'Preserve the completed change as project history.',
       docs_impact: { status: 'none', files: [], rationale: 'Internal test-only behavior.' },
     }, { rootDir: fx.rootDir });
+    fs.appendFileSync(
+      path.join(fx.rootDir, '.ultra', 'specs', 'product.md'),
+      '\nBehavior learned and approved by this change.\n',
+    );
+    execFileSync('git', ['add', '.ultra/specs/product.md'], { cwd: fx.rootDir });
+    execFileSync('git', ['commit', '-q', '-m', 'update baseline behavior'], { cwd: fx.rootDir });
+    const changedHead = execFileSync(
+      'git', ['rev-parse', 'HEAD'], { cwd: fx.rootDir, encoding: 'utf8' },
+    ).trim();
+    const drift = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.ok(drift.blockers.includes('BASELINE_HEAD_STALE'));
+    assert.ok(drift.blockers.includes('BASELINE_SPEC_STALE:.ultra/specs/product.md'));
     ops.createTask(fx.db, {
       id: 'archive-task', title: 'Complete archive path', type: 'bugfix', priority: 'P1',
       change_id: 'chg-archive',
@@ -214,7 +288,7 @@ test('archiveChange moves a ready change into immutable history and records base
 
     const archived = changes.archiveChange(fx.db, {
       id: 'chg-archive', summary: 'Verified quick fix archived.',
-      no_baseline_change_reason: 'No canonical spec changed.',
+      baseline_updates: ['.ultra/specs/product.md'],
     }, { rootDir: fx.rootDir });
     assert.equal(archived.change.status, 'archived');
     assert.ok(fs.existsSync(archived.archive_path));
@@ -228,6 +302,84 @@ test('archiveChange moves a ready change into immutable history and records base
       assert.doesNotMatch(artifact.path, /changes\/active/);
       assert.ok(fs.existsSync(path.join(fx.rootDir, artifact.path)), artifact.path);
     }
+    const reconciliation = fx.db.prepare(
+      "SELECT type, payload_json FROM events WHERE type = 'baseline_reconciled' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.equal(reconciliation.type, 'baseline_reconciled');
+    assert.deepEqual(JSON.parse(reconciliation.payload_json).baseline_updates, ['.ultra/specs/product.md']);
+    const reconciled = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.equal(reconciled.status, 'pass');
+    assert.equal(reconciled.baseline.repository_revision, changedHead);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archiveChange rolls back when declared reconciliation leaves a tracked specification stale', () => {
+  const fx = fixture();
+  try {
+    const specPath = path.join(fx.rootDir, '.ultra', 'specs', 'product.md');
+    fs.mkdirSync(path.dirname(specPath), { recursive: true });
+    fs.writeFileSync(specPath, '# Product\n\nOriginal behavior.\n');
+    const originalHead = execFileSync(
+      'git', ['rev-parse', 'HEAD'], { cwd: fx.rootDir, encoding: 'utf8' },
+    ).trim();
+    const originalDigest = require('node:crypto').createHash('sha256')
+      .update(fs.readFileSync(specPath)).digest('hex');
+    fx.db.prepare(
+      `UPDATE baselines SET mode = 'brownfield', repository_revision = ?, spec_refs_json = ?
+       WHERE id = 'test-baseline'`,
+    ).run(originalHead, JSON.stringify([
+      { kind: 'product', path: '.ultra/specs/product.md', digest: originalDigest },
+    ]));
+    changes.createChange(fx.db, {
+      id: 'chg-reconcile-rollback', title: 'Reject incomplete reconciliation', kind: 'quick',
+      intent: 'Keep the active change recoverable until every tracked specification is reconciled.',
+      docs_impact: { status: 'none', files: [], rationale: 'Workflow integrity only.' },
+    }, { rootDir: fx.rootDir });
+    fs.appendFileSync(specPath, '\nChanged behavior that must be declared.\n');
+    execFileSync('git', ['add', '.ultra/specs/product.md'], { cwd: fx.rootDir });
+    execFileSync('git', ['commit', '-q', '-m', 'change tracked product spec'], { cwd: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'reconcile-rollback-task', title: 'Exercise archive rollback', type: 'feature', priority: 'P0',
+      change_id: 'chg-reconcile-rollback',
+    });
+    ops.updateTaskStatus(fx.db, 'reconcile-rollback-task', 'in_progress');
+    ops.updateTaskStatus(fx.db, 'reconcile-rollback-task', 'completed');
+    changes.compileContext(fx.db, {
+      id: 'chg-reconcile-rollback', ...executionContext('reconcile-rollback-task'),
+    }, { rootDir: fx.rootDir });
+    const converged = changes.convergeChange(fx.db, {
+      id: 'chg-reconcile-rollback',
+      evidence: [
+        { category: 'diff', status: 'pass', evidence: 'archive diff reviewed' },
+        {
+          category: 'tests', status: 'pass', evidence: 'archive rollback regression passed',
+          seam: 'archive reconciliation boundary',
+        },
+        { category: 'spec', status: 'pass', evidence: 'tracked specification change identified' },
+      ],
+    }, { rootDir: fx.rootDir });
+    assert.equal(converged.ready, true);
+
+    assert.throws(
+      () => changes.archiveChange(fx.db, {
+        id: 'chg-reconcile-rollback', summary: 'Attempt an incomplete archive.',
+        no_baseline_change_reason: 'No baseline update declared.',
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_RECONCILIATION_INCOMPLETE'
+        && error.details.blockers.includes('BASELINE_SPEC_STALE:.ultra/specs/product.md'),
+    );
+
+    const active = changes.readChange(fx.db, 'chg-reconcile-rollback');
+    assert.equal(active.status, 'ready');
+    assert.ok(fs.existsSync(path.join(fx.rootDir, active.artifact_root)));
+    assert.equal(fs.existsSync(path.join(fx.rootDir, active.artifact_root, 'archive-summary.md')), false);
+    assert.equal(baselines.readBaseline(fx.db).repository_revision, originalHead);
+    const reconciliationEvents = fx.db.prepare(
+      "SELECT COUNT(*) AS count FROM events WHERE type = 'baseline_reconciled' AND change_id = ?",
+    ).get('chg-reconcile-rollback');
+    assert.equal(reconciliationEvents.count, 0);
   } finally {
     cleanup(fx);
   }
@@ -447,12 +599,12 @@ test('compileContext v2 persists role-scoped context, budget, execution contract
   }
 });
 
-test('compileContext blocks a required missing ref or an over-budget role packet', () => {
+test('compileContext blocks a required missing ref', () => {
   const fx = fixture();
   try {
     changes.createChange(fx.db, {
       id: 'chg-context-budget', title: 'Bound context packet', kind: 'quick',
-      intent: 'Fail closed when required context is missing or too large.',
+      intent: 'Fail closed when required context is missing while reporting size pressure.',
     }, { rootDir: fx.rootDir });
     ops.createTask(fx.db, {
       id: 'budget-task', title: 'Compile bounded packet', type: 'bugfix', priority: 'P0',
@@ -466,14 +618,58 @@ test('compileContext blocks a required missing ref or an over-budget role packet
           { ref: 'missing-contract.md', kind: 'spec', reason: 'Required contract', required: true },
           { ref: 'README.md', kind: 'source', reason: 'Current implementation', required: true },
         ],
-        budget: { max_tokens: 1, max_files: 1 },
+        budget: { max_tokens: 2_000, max_files: 4 },
       }),
     }, { rootDir: fx.rootDir });
 
     assert.equal(compiled.manifest.readiness.status, 'blocked');
     assert.ok(compiled.manifest.readiness.blockers.includes('CONTEXT_REQUIRED_REF_MISSING:missing-contract.md'));
-    assert.ok(compiled.manifest.readiness.blockers.includes('CONTEXT_FILE_BUDGET_EXCEEDED'));
-    assert.ok(compiled.manifest.readiness.blockers.includes('CONTEXT_TOKEN_BUDGET_EXCEEDED'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('an incident can proceed with four necessary large files while context budgets remain advisory', () => {
+  const fx = fixture();
+  try {
+    const refs = [];
+    for (let index = 1; index <= 4; index += 1) {
+      const ref = `incident-runtime-${index}.cjs`;
+      fs.writeFileSync(path.join(fx.rootDir, ref), 'x'.repeat(8_000));
+      refs.push({
+        ref, kind: 'source', reason: `Required incident runtime boundary ${index}`, required: true,
+      });
+    }
+    changes.createChange(fx.db, {
+      id: 'chg-incident-context', title: 'Recover IM runtime', kind: 'incident',
+      intent: 'Keep an urgent root-cause fix executable when its required files exceed guidance.',
+    }, { rootDir: fx.rootDir });
+    ops.createTask(fx.db, {
+      id: 'incident-context-task', title: 'Repair IM terminal transition', type: 'bugfix', priority: 'P0',
+      change_id: 'chg-incident-context',
+    });
+
+    const compiled = changes.compileContext(fx.db, {
+      id: 'chg-incident-context',
+      ...executionContext('incident-context-task', {
+        context_refs: refs,
+        budget: { max_tokens: 100, max_files: 2 },
+        execution_contract: {
+          slice_kind: 'tracer_bullet',
+          public_seam: 'IM terminal transition',
+          verification_command: 'node --test im-terminal.test.cjs',
+          context_budget_percent: 80,
+        },
+      }),
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(compiled.manifest.readiness.status, 'ready');
+    assert.deepEqual(compiled.manifest.readiness.blockers, []);
+    assert.ok(compiled.manifest.readiness.warnings.includes('CONTEXT_FILE_BUDGET_EXCEEDED'));
+    assert.ok(compiled.manifest.readiness.warnings.includes('CONTEXT_TOKEN_BUDGET_EXCEEDED'));
+    assert.ok(compiled.manifest.readiness.warnings.includes('EXECUTION_CONTEXT_BUDGET_ADVISORY'));
+    assert.equal(compiled.manifest.context.file_count, 4);
+    assert.ok(compiled.manifest.context.token_estimate > 100);
   } finally {
     cleanup(fx);
   }

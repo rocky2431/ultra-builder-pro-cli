@@ -9,10 +9,11 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '10.0';
+const EXPECTED_VERSION = '11.0';
 const KIMI_SCHEMA_VERSION = '9.1';
 
 const REQUIRED_TABLES = Object.freeze([
+  'baselines',
   'tasks',
   'events',
   'sessions',
@@ -30,6 +31,43 @@ const REQUIRED_TABLES = Object.freeze([
   'projection_jobs',
   'event_consumers',
 ]);
+
+function applyBaselineUpgrade(db, fromVersion) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS baselines (
+      id                  TEXT PRIMARY KEY,
+      project_name        TEXT NOT NULL,
+      project_type        TEXT,
+      stack               TEXT,
+      mode                TEXT NOT NULL CHECK (mode IN ('greenfield', 'brownfield', 'migrated')),
+      status              TEXT NOT NULL DEFAULT 'draft'
+                              CHECK (status IN ('draft', 'adopting', 'blocked', 'ready', 'superseded')),
+      repository_root     TEXT NOT NULL DEFAULT '.',
+      scope_json          TEXT NOT NULL DEFAULT '["."]',
+      repository_revision TEXT,
+      spec_refs_json      TEXT NOT NULL DEFAULT '[]',
+      evidence_json       TEXT NOT NULL DEFAULT '[]',
+      verification_json   TEXT NOT NULL DEFAULT '[]',
+      unknowns_json       TEXT NOT NULL DEFAULT '[]',
+      provider_refs_json  TEXT NOT NULL DEFAULT '{}',
+      approved_by         TEXT,
+      approval_note       TEXT,
+      started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      converged_at        TEXT
+    );
+    CREATE INDEX IF NOT EXISTS baselines_status ON baselines(status, updated_at);
+  `);
+  if (fromVersion && fromVersion !== EXPECTED_VERSION) {
+    db.prepare(
+      `INSERT OR IGNORE INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('migrated-baseline', 'Migrated Ultra project', 'migrated', 'ready',
+               'schema-migration', 'Legacy project preserved during schema 11.0 migration',
+               strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
+    ).run();
+  }
+}
 
 function readSchemaSql() {
   if (!fs.existsSync(SCHEMA_FILE)) {
@@ -223,22 +261,43 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db)) {
   db.transaction(() => {
     applyCompatibleColumns(db);
     const contextChanged = applyContextSpineUpgrade(db);
-    if (contextChanged || (fromVersion && fromVersion !== EXPECTED_VERSION)) {
+    const contextMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '10.0' AND status = 'success' LIMIT 1",
+    ).get();
+    const needsContextMigration = Boolean(
+      fromVersion && !['10.0', EXPECTED_VERSION].includes(fromVersion) && !contextMigration,
+    );
+    if (contextChanged || needsContextMigration) {
       db.prepare(
         `INSERT INTO migration_history
           (from_version, to_version, direction, status, notes)
          VALUES (?, ?, 'forward', 'success', ?)`,
       ).run(
         runtimeChanged ? KIMI_SCHEMA_VERSION : (fromVersion || 'unknown'),
-        EXPECTED_VERSION,
+        '10.0',
         'Add Context Spine role/gate readiness, execution contracts, breadcrumbs, and specification learning',
+      );
+    }
+    applyBaselineUpgrade(db, fromVersion);
+    const baselineMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '11.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && fromVersion !== EXPECTED_VERSION && !baselineMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        fromVersion === '10.0' ? fromVersion : '10.0',
+        EXPECTED_VERSION,
+        'Add authoritative greenfield and brownfield baseline adoption, evidence, convergence, and drift state',
       );
     }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
     db.exec('CREATE INDEX IF NOT EXISTS events_change ON events(change_id, id)');
     db.prepare(
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
-    ).run(EXPECTED_VERSION, 'Role-scoped context snapshots, deterministic breadcrumbs, and approval-gated specification learning');
+    ).run(EXPECTED_VERSION, 'Greenfield and brownfield baseline adoption, convergence, and drift authority');
   })();
 }
 

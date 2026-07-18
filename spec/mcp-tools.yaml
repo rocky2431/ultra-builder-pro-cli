@@ -23,6 +23,7 @@ families:
   - { name: task,    description: 'authoritative task lifecycle on state.db', phase: '2' }
   - { name: session, description: 'execution-unit lifecycle with single-active-lease admission (D33)', phase: '4.5' }
   - { name: plan,    description: 'execution-plan artifact export and query (D34)', phase: '8a' }
+  - { name: baseline, description: 'project adoption, baseline evidence, convergence, and drift authority', phase: '11' }
   - { name: change,  description: 'continuous post-delivery change lifecycle and convergence', phase: '9' }
   - { name: system,  description: 'read-only diagnostics and explicit backup-first repair', phase: '9' }
 
@@ -217,9 +218,9 @@ tools:
   - name: task.init_project
     family: task
     description: |
-      Bootstrap a fresh `.ultra/` skeleton in target_dir from the bundled
-      templates/.ultra/ source. Copies spec templates, tasks.json, context
-      template, and report stubs. Phase 3.1 entry point for /ultra-init.
+      Bootstrap `.ultra/` and start an authoritative greenfield or brownfield
+      baseline. Auto mode detects meaningful existing project content before
+      copying specification templates and creating state.db.
     phase: '3'
     writer_role: mcp
     input_schema:
@@ -240,6 +241,11 @@ tools:
         stack:
           type: string
           description: optional tech stack descriptor (comma-separated for fullstack)
+        mode:
+          type: string
+          enum: [auto, greenfield, brownfield]
+          default: auto
+          description: auto detects whether meaningful project content already exists
         overwrite:
           type: boolean
           default: false
@@ -249,7 +255,7 @@ tools:
           description: override path to the template root (defaults to bundled templates/.ultra/)
     output_schema:
       type: object
-      required: [created_path, state_db_path, status, copied_files]
+      required: [created_path, state_db_path, status, mode, baseline, copied_files]
       additionalProperties: false
       properties:
         created_path:
@@ -261,6 +267,13 @@ tools:
         status:
           type: string
           enum: [created, overwritten]
+        mode:
+          type: string
+          enum: [greenfield, brownfield]
+        baseline:
+          type: object
+          required: [id, mode, status]
+          additionalProperties: true
         copied_files:
           type: array
           items: { type: string }
@@ -628,6 +641,210 @@ tools:
     cli_subcommand: session subscribe
     emits_events: []
     trace_to: '§7.3, D31'
+
+  # ───────────────────────── baseline family ─────────────────────────────
+  - name: baseline.start
+    family: baseline
+    description: Start a greenfield baseline or brownfield adoption without overwriting a ready baseline implicitly.
+    phase: '11'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [project_name, mode]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$', default: project-baseline }
+        project_name: { type: string, minLength: 1 }
+        project_type: { type: string, enum: [web, api, cli, fullstack, other] }
+        stack: { type: string }
+        mode: { type: string, enum: [greenfield, brownfield] }
+        scope: { type: array, minItems: 1, items: { type: string, minLength: 1 }, default: ['.'] }
+        repository_revision: { type: string, minLength: 1 }
+        replace_ready: { type: boolean, default: false }
+        provider_refs:
+          type: object
+          additionalProperties: false
+          properties:
+            memory:
+              type: object
+              required: [provider]
+              additionalProperties: false
+              properties:
+                provider: { type: string }
+                project: { type: string }
+                reference: { type: string }
+                revision: { type: string }
+                indexed_head: { type: string }
+                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+            code_graph:
+              type: object
+              required: [provider]
+              additionalProperties: false
+              properties:
+                provider: { type: string }
+                project: { type: string }
+                reference: { type: string }
+                revision: { type: string }
+                indexed_head: { type: string }
+                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+    output_schema:
+      type: object
+      required: [baseline]
+      additionalProperties: false
+      properties:
+        baseline: { type: object }
+    errors:
+      - { code: BASELINE_EXISTS, description: 'a ready baseline requires explicit replacement' }
+      - { code: BASELINE_IN_PROGRESS, description: 'another adoption is already active' }
+      - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
+    cli_subcommand: baseline start
+    emits_events: [baseline_started]
+
+  - name: baseline.record
+    family: baseline
+    description: Replace the current adoption snapshot with bounded specification digests, evidence references, verification, unknowns, and provider metadata.
+    phase: '11'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        repository_revision: { type: string, minLength: 1 }
+        scope: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+        spec_refs:
+          type: array
+          items:
+            type: object
+            required: [kind, path]
+            additionalProperties: false
+            properties:
+              kind: { type: string, enum: [discovery, product, architecture, quality, delivery, other] }
+              path: { type: string, minLength: 1 }
+        evidence:
+          type: array
+          items:
+            type: object
+            required: [kind, ref, summary]
+            additionalProperties: false
+            properties:
+              kind: { type: string, enum: [source, docs, runtime, test, deploy, external] }
+              ref: { type: string, minLength: 1 }
+              summary: { type: string, minLength: 1 }
+        verification:
+          type: array
+          items:
+            type: object
+            required: [name, command, status, evidence]
+            additionalProperties: false
+            properties:
+              name: { type: string, minLength: 1 }
+              command: { type: string, minLength: 1 }
+              status: { type: string, enum: [pass, known_red, not_run] }
+              evidence: { type: string, minLength: 1 }
+              rationale: { type: string, minLength: 1 }
+        unknowns:
+          type: array
+          items:
+            type: object
+            required: [summary, blocking]
+            additionalProperties: false
+            properties:
+              summary: { type: string, minLength: 1 }
+              blocking: { type: boolean }
+              owner: { type: string, minLength: 1 }
+        provider_refs:
+          type: object
+          additionalProperties: false
+          properties:
+            memory:
+              type: object
+              required: [provider]
+              additionalProperties: false
+              properties:
+                provider: { type: string }
+                project: { type: string }
+                reference: { type: string }
+                revision: { type: string }
+                indexed_head: { type: string }
+                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+            code_graph:
+              type: object
+              required: [provider]
+              additionalProperties: false
+              properties:
+                provider: { type: string }
+                project: { type: string }
+                reference: { type: string }
+                revision: { type: string }
+                indexed_head: { type: string }
+                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+    output_schema:
+      type: object
+      required: [baseline]
+      additionalProperties: false
+      properties:
+        baseline: { type: object }
+    errors:
+      - { code: BASELINE_NOT_FOUND, description: 'baseline id does not exist' }
+      - { code: BASELINE_NOT_MUTABLE, description: 'ready and superseded baselines are immutable' }
+      - { code: BASELINE_SPEC_MISSING, description: 'a declared specification file does not exist' }
+      - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
+    cli_subcommand: baseline record
+    emits_events: [baseline_recorded]
+
+  - name: baseline.get
+    family: baseline
+    description: Read the current or named authoritative baseline with live digest and repository-revision health.
+    phase: '11'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+    output_schema:
+      type: object
+      required: [baseline, health]
+      additionalProperties: false
+      properties:
+        baseline: { type: object }
+        health: { type: object }
+    errors:
+      - { code: BASELINE_NOT_FOUND, description: 'no matching baseline exists' }
+    cli_subcommand: baseline get
+    emits_events: []
+
+  - name: baseline.converge
+    family: baseline
+    description: Approve a baseline only when its revision, specification digests, evidence, verification, and blocking unknowns satisfy deterministic gates.
+    phase: '11'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, expected_revision, approved_by, approval_note]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        expected_revision: { type: string, minLength: 1 }
+        approved_by: { type: string, minLength: 1 }
+        approval_note: { type: string, minLength: 3 }
+        accept_known_red: { type: boolean, default: false }
+    output_schema:
+      type: object
+      required: [ready, status, blockers, baseline]
+      additionalProperties: false
+      properties:
+        ready: { type: boolean }
+        status: { type: string, enum: [blocked, ready] }
+        blockers: { type: array, items: { type: string } }
+        baseline: { type: object }
+    errors:
+      - { code: BASELINE_NOT_FOUND, description: 'baseline id does not exist' }
+      - { code: BASELINE_NOT_CONVERGEABLE, description: 'baseline lifecycle does not allow convergence' }
+    cli_subcommand: baseline converge
+    emits_events: [baseline_blocked, baseline_converged]
 
   # ────────────────────────── change family ──────────────────────────────
   - name: change.create
@@ -1048,6 +1265,8 @@ tools:
     errors:
       - { code: CHANGE_NOT_READY, description: 'change has not passed convergence' }
       - { code: BASELINE_RECONCILIATION_REQUIRED, description: 'baseline update or explicit no-change reason required' }
+      - { code: BASELINE_FILE_MISSING, description: 'a declared baseline update does not exist' }
+      - { code: BASELINE_RECONCILIATION_INCOMPLETE, description: 'repository revision or tracked specification digests remain stale after reconciliation' }
       - { code: ARCHIVE_EXISTS, description: 'archive target already exists' }
     cli_subcommand: change archive
     emits_events: [change_archived]

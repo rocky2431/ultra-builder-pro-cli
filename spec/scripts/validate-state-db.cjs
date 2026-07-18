@@ -43,6 +43,7 @@ try {
 }
 
 const expectedTables = [
+  'baselines',
   'tasks', 'events', 'sessions', 'schema_version', 'migration_history',
   'telemetry', 'specs_refs', 'circuit_breaker', 'changes', 'artifacts',
   'context_snapshots', 'spec_learning_candidates', 'trace_links', 'incidents', 'projection_jobs',
@@ -61,12 +62,12 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '10.0'").get();
-if (v && v.version === '10.0') {
-  console.log('ok schema_version includes 10.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '11.0'").get();
+if (v && v.version === '11.0') {
+  console.log('ok schema_version includes 11.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 10.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 11.0: got ${JSON.stringify(v)}`);
   fail++;
 }
 

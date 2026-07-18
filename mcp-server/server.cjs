@@ -28,6 +28,7 @@ const parser = require('./lib/prd-parser.cjs');
 const expander = require('./lib/task-expander.cjs');
 const planStore = require('./lib/plan-store.cjs');
 const { initProject } = require('./lib/init-project.cjs');
+const baselines = require('./lib/baseline-workflow.cjs');
 const changes = require('./lib/change-workflow.cjs');
 const runtimeState = require('./lib/runtime-state.cjs');
 const doctor = require('./lib/doctor.cjs');
@@ -67,6 +68,13 @@ const PLAN_TOOLS = Object.freeze([
   'plan.get',
 ]);
 
+const BASELINE_TOOLS = Object.freeze([
+  'baseline.start',
+  'baseline.record',
+  'baseline.get',
+  'baseline.converge',
+]);
+
 const CHANGE_TOOLS = Object.freeze([
   'change.create',
   'change.update',
@@ -85,18 +93,20 @@ const SYSTEM_TOOLS = Object.freeze([
 ]);
 
 const REGISTERED_TOOLS = Object.freeze([
-  ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS, ...CHANGE_TOOLS, ...SYSTEM_TOOLS,
+  ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS, ...BASELINE_TOOLS, ...CHANGE_TOOLS,
+  ...SYSTEM_TOOLS,
 ]);
 
 const STATELESS_TOOLS = new Set(['task.init_project']);
 
-// init_project mutates the filesystem of an unrelated project, not state.db —
-// do NOT run the projector (it would overwrite the freshly-copied template).
+// init_project owns its target project's schema, baseline seed, and first
+// projection internally. Do not enqueue a second projection on the caller DB.
 const MUTATING_TOOLS = new Set([
   'task.create', 'task.update', 'task.delete', 'task.append_event', 'task.switch_tag',
   'task.parse_prd', 'task.expand',
   'session.spawn', 'session.close', 'session.heartbeat',
   'plan.export',
+  'baseline.start', 'baseline.record', 'baseline.converge',
   'change.create', 'change.update', 'change.context', 'change.converge', 'change.archive',
   'change.learning_propose', 'change.learning_resolve',
 ]);
@@ -352,6 +362,39 @@ async function dispatchTool(name, input, db, ctx = {}) {
       }
       return { plan: planStore.selectSection(loaded, input.section) };
     }
+    case 'baseline.start': {
+      return {
+        baseline: baselines.startBaseline(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
+    case 'baseline.record': {
+      return {
+        baseline: baselines.recordBaseline(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
+    case 'baseline.get': {
+      const baseline = baselines.readBaseline(db, input.id);
+      if (!baseline) {
+        const err = new Error(input.id ? `baseline ${input.id} not found` : 'current baseline not found');
+        err.code = 'BASELINE_NOT_FOUND';
+        throw err;
+      }
+      return {
+        baseline,
+        health: baselines.inspectBaseline(db, {
+          rootDir: ctx.rootDir || process.cwd(), id: input.id,
+        }),
+      };
+    }
+    case 'baseline.converge': {
+      return baselines.convergeBaseline(
+        db, input, { rootDir: ctx.rootDir || process.cwd() },
+      );
+    }
     case 'change.create': {
       const { randomUUID } = require('node:crypto');
       const id = input.id || `chg-${randomUUID().slice(0, 12)}`;
@@ -598,6 +641,8 @@ module.exports = {
   dispatchTool,
   TASK_TOOLS,
   SESSION_TOOLS,
+  PLAN_TOOLS,
+  BASELINE_TOOLS,
   CHANGE_TOOLS,
   SYSTEM_TOOLS,
   REGISTERED_TOOLS,

@@ -1,9 +1,9 @@
 -- Ultra Builder Pro — authoritative state schema
 -- Phase 2 builds .ultra/state.db from this file. Source of truth for all
--- task / session / event / telemetry data. tasks.json and context md status
+-- baseline / change / task / session / event / telemetry data. tasks.json and context md status
 -- header are projections (PLAN §7.1, D18, D32).
 --
--- Trace: docs/PLAN.zh-CN.md §7.1; decisions D18/D30/D31/D32/D37.
+-- Trace: docs/PLAN.zh-CN.md §7.1; decisions D18/D30/D31/D32/D37/D52/D54.
 --
 -- PRAGMAs are applied by mcp-server/lib/state-db.ts on connection open;
 -- they cannot be persisted in CREATE statements but are documented here.
@@ -11,6 +11,35 @@
 --   PRAGMA synchronous=NORMAL;      -- WAL durability vs perf
 --   PRAGMA busy_timeout=5000;       -- block up to 5s on lock (R25)
 --   PRAGMA foreign_keys=ON;         -- enforce FK constraints
+
+-- ──────────────────────────── project baseline ─────────────────────────────
+-- The baseline is the approved, repository-scoped snapshot that every change
+-- is measured against. It stores digests and evidence references, never source,
+-- prompt, transcript, memory, or code-graph payloads.
+CREATE TABLE IF NOT EXISTS baselines (
+  id                  TEXT PRIMARY KEY,
+  project_name        TEXT NOT NULL,
+  project_type        TEXT,
+  stack               TEXT,
+  mode                TEXT NOT NULL CHECK (mode IN ('greenfield', 'brownfield', 'migrated')),
+  status              TEXT NOT NULL DEFAULT 'draft'
+                        CHECK (status IN ('draft', 'adopting', 'blocked', 'ready', 'superseded')),
+  repository_root     TEXT NOT NULL DEFAULT '.',
+  scope_json          TEXT NOT NULL DEFAULT '["."]',
+  repository_revision TEXT,
+  spec_refs_json      TEXT NOT NULL DEFAULT '[]',
+  evidence_json       TEXT NOT NULL DEFAULT '[]',
+  verification_json   TEXT NOT NULL DEFAULT '[]',
+  unknowns_json       TEXT NOT NULL DEFAULT '[]',
+  provider_refs_json  TEXT NOT NULL DEFAULT '{}',
+  approved_by         TEXT,
+  approval_note       TEXT,
+  started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  converged_at        TEXT
+);
+
+CREATE INDEX IF NOT EXISTS baselines_status ON baselines(status, updated_at);
 
 -- ──────────────────────────── changes ─────────────────────────────────────
 -- A project baseline is continuous; each feature, fix, incident, or redesign
@@ -305,3 +334,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('9.1', 'Kimi runtime support in durable events and sessions');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('10.0', 'Role-scoped context snapshots, deterministic breadcrumbs, and approval-gated specification learning');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('11.0', 'Greenfield and brownfield baseline adoption, convergence, and drift authority');

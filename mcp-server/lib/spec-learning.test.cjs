@@ -20,6 +20,11 @@ function fixture() {
   execFileSync('git', ['add', 'README.md'], { cwd: rootDir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: rootDir });
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  db.prepare(
+    `INSERT INTO baselines
+     (id, project_name, mode, status, approved_by, approval_note, converged_at)
+     VALUES ('test-baseline', 'fixture', 'migrated', 'ready', 'test', 'legacy fixture', ?)`,
+  ).run(new Date().toISOString());
   changes.createChange(db, {
     id: 'learning-change', title: 'Learning change', kind: 'quick',
     intent: 'Exercise guarded specification-learning transitions.',

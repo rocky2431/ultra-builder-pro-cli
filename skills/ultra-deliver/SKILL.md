@@ -10,10 +10,12 @@ review, and delivery reports are evidence artifacts.
 
 ## Bind current evidence
 
-1. Call `change.list` and bind exactly one relevant change, or a null change id for an
-   initial baseline.
-2. Call `change.breadcrumb`. Block on stale context, incomplete linked tasks, or
-   unresolved readiness.
+1. Call `baseline.get`, then `change.list`. Bind exactly one relevant change, or the
+   current draft/adopting baseline when this is the initial delivery.
+2. Call `change.breadcrumb`. Context-size warnings are advisory, but delivery blocks
+   on incomplete baseline adoption, stale execution context, incomplete linked tasks,
+   or unresolved readiness. HEAD and tracked-spec drift caused by the current change
+   remain visible warnings until archive reconciliation.
 3. Require a passing test report for the current full HEAD and at least one declared
    public seam.
 4. Require current independent `spec_fidelity` and `engineering_standards` review
@@ -32,6 +34,10 @@ Call `change.get` for authoritative learning candidates.
 Reconcile accepted delta content and documentation impact into baseline documents.
 Record updated paths or a specific no-change reason. Unknown documentation impact,
 unresolved placeholders, and behavior that exists only in the delta block convergence.
+
+For an initial baseline without a change, call `baseline.record`, obtain explicit owner
+approval, and call `baseline.converge`. Do not simulate initial delivery through a null
+change record.
 
 ## Verify the release candidate
 
@@ -53,7 +59,11 @@ delta, documentation, both independent review axes, and incident diagnosis when
 applicable. Do not collapse review axes or replace exact signal fields with prose.
 
 Resolve named blockers, rerun invalidated gates, then call `change.archive` with the
-summary and baseline updates.
+summary and baseline updates. Archive reconciliation refreshes the authoritative
+baseline revision and digests. The archive transaction rechecks baseline health and
+rolls back the state row, artifacts, and reconciliation events if any tracked digest
+or repository revision remains stale. Verify the result with `baseline.get` before
+release.
 
 ## Optional release
 

@@ -15,6 +15,10 @@ projected status fields. If task MCP access fails, stop and route state health t
 
 Read `change.breadcrumb` when a change is active. Stale context, blocked readiness,
 unknown documentation impact, or a HEAD mismatch blocks implementation.
+Baseline-adoption and context-size warnings do not block an active slice. Address
+them when practical without dropping required evidence or arbitrarily changing a
+threshold. Approved baseline availability is enforced at convergence; revision and
+tracked-spec health are reconciled and verified at archive.
 
 ## Workflow
 

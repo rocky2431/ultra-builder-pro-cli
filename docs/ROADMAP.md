@@ -44,23 +44,25 @@ sharing one authoritative workflow store.
 | 8B    | Execution automation (dispatch / parallel worktree / merge) | ✅ done (D48, `8224159`) — **v0.3 ready** |
 | 8C    | Continuous change packets + context compiler + convergence + doctor | ✅ done (D52) |
 | 10    | Context Spine v2 + breadcrumb + fresh-context budget + spec learning + two-axis review | ✅ done |
+| 11    | Greenfield/brownfield baseline adoption + advisory context budgets + convergence gate | ✅ done |
 | 9     | Release pipeline                               | npm tag publishing live; Homebrew / pip not implemented |
 
 ## What is in the repo today
 
 ```
 spec/                       ← Phase 1 single source of truth
-├── mcp-tools.yaml          (32 live tools across 5 families)
+├── mcp-tools.yaml          (36 live tools across 6 families)
 ├── cli-protocol.md         (CLI ↔ MCP mapping table)
 ├── schemas/                (state-db.sql + 4 JSON schemas)
 ├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
 └── scripts/test-all.cjs    (npm run test:spec — 7 validation stages)
 
 mcp-server/                 ← Phase 2 authoritative state layer
-├── server.cjs              (stdio MCP server, 32 task/session/change/system/plan tools)
+├── server.cjs              (stdio MCP server, 36 baseline/task/session/change/system/plan tools)
 ├── lib/
 │   ├── state-db.cjs        (SQLite + WAL + pragmas)
 │   ├── state-ops.cjs       (full write API, status state machine)
+│   ├── baseline-workflow.cjs (project adoption + approval + reconciliation)
 │   └── projector.cjs       (state.db → tasks.json + context md)
 └── tests/                  (npm run test:state)
 
