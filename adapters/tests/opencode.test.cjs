@@ -11,6 +11,9 @@ const { pathToFileURL } = require('node:url');
 const opencode = require('../opencode.js');
 const { parse: parseFm } = require('../_shared/frontmatter.cjs');
 const { skillsForRuntime } = require('../_shared/runtime-assets.cjs');
+const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
+const changes = require('../../mcp-server/lib/change-workflow.cjs');
+const { createTask } = require('../../mcp-server/lib/state-ops.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -69,10 +72,10 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     assert.match(review, /OpenCode `task` tool/);
     assert.match(review, /scripts\/review_wait\.py/);
     assert.match(codexCollab, /OpenCode remains primary/);
-    assert.match(verify, /OpenCode writes the first analysis/);
-    assert.match(verify, /opencode-analysis\.md/);
-    assert.match(verify, /codex exec -s read-only/);
-    assert.match(verify, /--ignore-user-config/);
+    assert.match(verify, /Keep OpenCode responsible/);
+    assert.match(verify, /host-analysis\.md/);
+    assert.match(verify, /installed collaboration companion/);
+    assert.doesNotMatch(verify, /codex exec|claude --safe-mode/);
     assert.doesNotMatch(plan, /LEGACY_STATE_MIGRATION_REQUIRED|v4\.4|v4\.5/);
     assert.match(plan, /never read or\s+write .*tasks\.json/i);
     assert.doesNotMatch(plan, /ultra-tools task create/);
@@ -176,93 +179,29 @@ test('install writes a schema-safe opencode.json and keeps ownership outside hos
     assert.match(plugin, /\.ultra[\\/]tasks[\\/]tasks\.json/);
     assert.match(plugin, /throw new Error/);
     assert.match(plugin, /session\.compacted/);
+    assert.match(plugin, /breadcrumb\.cjs/);
+    assert.doesNotMatch(plugin, /workflow-state\.json|context-manifest\.json/);
     assert.doesNotMatch(plugin, /memory\.(?:retain|recall|reflect)|journal|observation|prompt[_ -]?capture/);
-    assert.match(plugin, /Ultra context spine/);
+    assert.match(plugin, /canonical breadcrumb/);
     assert.doesNotMatch(plugin, /providerMetadata|External providers/);
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
   }
 });
 
-test('OpenCode context covers active changes and projection writes are blocked for Ultra projects', async () => {
+test('OpenCode routes a missing authority to init and always protects task projections', async () => {
   const target = mkTarget();
   const project = mkTarget();
   try {
     opencode.install({ configDir: target, repoRoot: REPO_ROOT });
-    const pluginFile = path.join(target, 'plugins', 'ultra-builder-pro.js');
-    const module = await import(pathToFileURL(pluginFile).href);
-    const plugin = await module.UltraBuilderProPlugin({ directory: project });
-
     fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
-    fs.writeFileSync(path.join(project, '.ultra', 'state.db'), 'owned-by-ultra');
-    execFileSync('git', ['init'], { cwd: project, stdio: 'ignore' });
-    fs.writeFileSync(path.join(project, 'app.txt'), 'initial\n');
-    execFileSync('git', ['add', 'app.txt'], { cwd: project, stdio: 'ignore' });
-    execFileSync('git', ['-c', 'user.name=Ultra Tests', '-c', 'user.email=ultra@example.invalid', 'commit', '-m', 'initial'], {
-      cwd: project, stdio: 'ignore',
-    });
-    const compiledHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: project, encoding: 'utf8' }).trim();
-    const changeRoot = path.join(project, '.ultra', 'changes', 'active', 'daily-fix');
-    fs.mkdirSync(changeRoot, { recursive: true });
-    fs.writeFileSync(path.join(changeRoot, 'context-manifest.json'), JSON.stringify({
-      schema_version: '2.0',
-      baseline: { id: 'project-baseline', mode: 'brownfield', status: 'ready', repository_revision: compiledHead },
-      change: { id: 'daily-fix', title: 'Daily fix', kind: 'quick', status: 'active', intent: 'Fix drift' },
-      role: 'implement',
-      gate: 'implementation',
-      next_action: 'Run the exact regression test.',
-      readiness: {
-        status: 'ready', blockers: [], warnings: ['CONTEXT_FILE_BUDGET_EXCEEDED'],
-      },
-      git: { head: compiledHead },
-      selected_task: { id: 'daily-task', status: 'in_progress' },
-      context: { token_estimate: 1200, budget: { max_tokens: 8000, max_files: 8 } },
-      providers: { memory: { provider: 'cloud-mem', status: 'available' } },
-    }));
-
+    const module = await import(`${pathToFileURL(path.join(target, 'plugins', 'ultra-builder-pro.js')).href}?baseline`);
+    const plugin = await module.UltraBuilderProPlugin({ directory: project });
     const output = { system: [] };
     await plugin['experimental.chat.system.transform']({}, output);
-    assert.match(output.system.join('\n'), /Ultra context spine/);
-    assert.match(output.system.join('\n'), /daily-fix/);
-    assert.match(output.system.join('\n'), /daily-task/);
-    assert.match(output.system.join('\n'), /Role: implement/);
-    assert.match(output.system.join('\n'), /Gate: implementation/);
-    assert.match(output.system.join('\n'), /Readiness: ready/);
-    assert.match(output.system.join('\n'), /Warnings: CONTEXT_FILE_BUDGET_EXCEEDED/);
-    assert.match(output.system.join('\n'), /Run the exact regression test/);
-    assert.doesNotMatch(output.system.join('\n'), /Fix drift|cloud-mem/);
-
-    const manifestFile = path.join(changeRoot, 'context-manifest.json');
-    const legacyManifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
-    legacyManifest.schema_version = '1.0';
-    fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
-    const legacyOutput = { system: [] };
-    await plugin['experimental.chat.system.transform']({}, legacyOutput);
-    assert.match(legacyOutput.system.join('\n'), /CONTEXT_SNAPSHOT_UPGRADE_REQUIRED/);
-    legacyManifest.schema_version = '2.0';
-    fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
-
-    delete legacyManifest.baseline;
-    fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
-    const missingBaselineOutput = { system: [] };
-    await plugin['experimental.chat.system.transform']({}, missingBaselineOutput);
-    assert.match(missingBaselineOutput.system.join('\n'), /CONTEXT_SNAPSHOT_UPGRADE_REQUIRED/);
-    legacyManifest.baseline = {
-      id: 'project-baseline', mode: 'brownfield', status: 'ready', repository_revision: compiledHead,
-    };
-    fs.writeFileSync(manifestFile, JSON.stringify(legacyManifest));
-
-    fs.writeFileSync(path.join(project, 'app.txt'), 'changed\n');
-    execFileSync('git', ['add', 'app.txt'], { cwd: project, stdio: 'ignore' });
-    execFileSync('git', ['-c', 'user.name=Ultra Tests', '-c', 'user.email=ultra@example.invalid', 'commit', '-m', 'change'], {
-      cwd: project, stdio: 'ignore',
-    });
-    const staleOutput = { system: [] };
-    await plugin['experimental.chat.system.transform']({}, staleOutput);
-    assert.match(staleOutput.system.join('\n'), /Readiness: blocked/);
-    assert.match(staleOutput.system.join('\n'), /CONTEXT_HEAD_STALE/);
-    assert.match(staleOutput.system.join('\n'), /recompile change\.context/);
-
+    const text = output.system.join('\n');
+    assert.match(text, /STATE_DB_MISSING/);
+    assert.match(text, /ultra-init/);
     await assert.rejects(
       plugin['tool.execute.before'](
         { tool: 'apply_patch' },
@@ -276,22 +215,69 @@ test('OpenCode context covers active changes and projection writes are blocked f
   }
 });
 
-test('OpenCode does not assume a project baseline is ready when no active change manifest exists', async () => {
+test('OpenCode injects the DB breadcrumb and ignores conflicting workflow projections', async () => {
   const target = mkTarget();
   const project = mkTarget();
+  let state;
   try {
     opencode.install({ configDir: target, repoRoot: REPO_ROOT });
-    fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
-    fs.writeFileSync(path.join(project, '.ultra', 'state.db'), 'owned-by-ultra');
-    const module = await import(`${pathToFileURL(path.join(target, 'plugins', 'ultra-builder-pro.js')).href}?baseline`);
+    execFileSync('git', ['init'], { cwd: project, stdio: 'ignore' });
+    fs.writeFileSync(path.join(project, 'app.txt'), 'initial\n');
+    execFileSync('git', ['add', 'app.txt'], { cwd: project, stdio: 'ignore' });
+    execFileSync('git', ['-c', 'user.name=Ultra Tests', '-c', 'user.email=ultra@example.invalid', 'commit', '-m', 'initial'], {
+      cwd: project, stdio: 'ignore',
+    });
+    state = initStateDb(path.join(project, '.ultra', 'state.db'));
+    state.db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('baseline-db', 'fixture', 'greenfield', 'ready', 'test', 'fixture', ?)`,
+    ).run(new Date().toISOString());
+    const { change } = changes.createChange(state.db, {
+      id: 'db-authority-change', title: 'DB authority', kind: 'quick',
+      intent: 'Use one authoritative injected state.',
+      docs_impact: { status: 'none', rationale: 'test fixture' },
+    }, { rootDir: project });
+    const task = createTask(state.db, {
+      id: 'db-authority-task', title: 'Use DB authority', type: 'bugfix', priority: 'P0',
+      change_id: change.id,
+    });
+    changes.compileContext(state.db, {
+        id: change.id,
+        task_id: task.id,
+        role: 'implement',
+        gate: 'implementation',
+        execution_contract: {
+          slice_kind: 'tracer_bullet', public_seam: 'OpenCode injection',
+          verification_command: 'node --test adapters/tests/opencode.test.cjs',
+        },
+        next_action: 'Verify the DB-only OpenCode injection.',
+    }, { rootDir: project });
+
+    fs.writeFileSync(path.join(project, '.ultra', 'workflow-state.json'), JSON.stringify({
+      command: 'ultra-dev', task_id: 'projection-task', status: 'active', step: 'wrong',
+    }));
+    const projectionRoot = path.join(project, '.ultra', 'changes', 'active', 'projection-change');
+    fs.mkdirSync(projectionRoot, { recursive: true });
+    fs.writeFileSync(path.join(projectionRoot, 'context-manifest.json'), JSON.stringify({
+      schema_version: '2.0',
+      baseline: { id: 'projection-baseline', mode: 'brownfield', status: 'ready' },
+      change: { id: 'projection-change', kind: 'quick', status: 'active' },
+      selected_task: { id: 'projection-task', status: 'in_progress' },
+      readiness: { status: 'ready', blockers: [], warnings: [] },
+    }));
+
+    const module = await import(`${pathToFileURL(path.join(target, 'plugins', 'ultra-builder-pro.js')).href}?db-authority`);
     const plugin = await module.UltraBuilderProPlugin({ directory: project });
     const output = { system: [] };
     await plugin['experimental.chat.system.transform']({}, output);
     const text = output.system.join('\n');
-    assert.match(text, /ultra-status/);
-    assert.match(text, /ultra-init/);
-    assert.doesNotMatch(text, /Start daily work with the ultra-change workflow/);
+    assert.match(text, /Change: db-authority-change/);
+    assert.match(text, /Task: db-authority-task/);
+    assert.match(text, /Role: implement/);
+    assert.doesNotMatch(text, /projection-change|projection-task|projection-baseline/);
   } finally {
+    if (state) closeStateDb(state.db);
     fs.rmSync(target, { recursive: true, force: true });
     fs.rmSync(project, { recursive: true, force: true });
   }

@@ -85,6 +85,22 @@ test('host invocation and MCP metadata live outside source SKILL frontmatter', (
     assert.equal(policy.requiresUltraMcp, MCP_DEPENDENT_SKILLS.includes(name), name);
   }
   assert.throws(() => skillPolicy('not-packaged'), /unknown packaged Ultra skill/);
+  assert.ok(MCP_DEPENDENT_SKILLS.includes('ultra-research'));
+});
+
+test('packaged collaboration prompts use current CLI contracts and one source prompt', () => {
+  const skills = ['codex-collab', 'ultra-verify'];
+  for (const name of skills) {
+    const text = fs.readFileSync(path.join(REPO_ROOT, 'skills', name, 'SKILL.md'), 'utf8');
+    assert.doesNotMatch(text, /codex exec[^\n]*\s-a(?:\s|$)|^\s*-a\s+never/m, name);
+    assert.doesNotMatch(text, /The (?:OpenCode|Kimi Code) owns/, name);
+  }
+
+  const adapterSource = fs.readFileSync(
+    path.join(REPO_ROOT, 'adapters', '_shared', 'codex-assets.cjs'),
+    'utf8',
+  );
+  assert.doesNotMatch(adapterSource, /const (?:CC_COLLAB_BODY|ULTRA_VERIFY_BODY)\s*=/);
 });
 
 test('workflow hook allowlist contains no memory, prompt capture, or generic policy hook', () => {
@@ -128,4 +144,6 @@ test('npm publish list uses the same explicit skill boundary', () => {
   assert.ok(!pkg.files.includes('skills'));
   assert.ok(!pkg.files.includes('CLAUDE.md'));
   assert.deepEqual(publishedSkills, expected);
+  assert.equal(pkg.dependencies['@anthropic-ai/sdk'], undefined);
+  assert.equal(pkg.dependencies.openai, undefined);
 });

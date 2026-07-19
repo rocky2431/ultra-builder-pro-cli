@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.13.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.14.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -16,8 +16,6 @@ authoritative `.ultra/state.db`.
 </div>
 
 ---
-
-> *(30-second demo GIF placeholder — to be added before v1.0)*
 
 ## What it does
 
@@ -33,7 +31,8 @@ authoritative `.ultra/state.db`.
 - **Keeps memory ownership explicit.** Ultra Builder Pro does not collect
   prompts, transcripts, observations, summaries, or cross-session memory.
   Install cloud-mem/claude-mem separately if persistent memory is wanted.
-- **Runs real PRDs end-to-end.** `task.parse_prd` → `lib/topo.cjs` waves →
+- **Runs real PRDs end-to-end without a second model credential.** The current
+  host derives task objects; `task.parse_prd` validates them → `lib/topo.cjs` waves →
   `.ultra/execution-plan.json` → parallel worktree sessions → auto-merge back.
 - **Keeps daily work convergent.** `/ultra-change` creates a bounded delta and
   Context Manifest v2; the Context Spine assigns a role/gate, verifies required
@@ -228,10 +227,10 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
   `ultra-tools legacy-memory inspect`, archive with
   `ultra-tools legacy-memory archive`, then prune only with the explicit
   confirmation token printed by the command. Nothing is deleted implicitly.
-- **MCP tool errors with `ANTHROPIC_API_KEY` missing**: `task.parse_prd` and
-  `task.expand` need a real LLM key at runtime. Set `ANTHROPIC_API_KEY` or
-  `OPENAI_API_KEY` before invoking those tools; all other MCP tools work
-  without any LLM credential.
+- **MCP model credentials**: Ultra MCP does not require `ANTHROPIC_API_KEY`,
+  `OPENAI_API_KEY`, or another provider key. The active host uses its existing
+  model session to derive PRD tasks or child tasks; `task.parse_prd` and
+  `task.expand` only validate ownership, graph shape, and atomic persistence.
 
 ## Documentation
 

@@ -2,13 +2,11 @@
 """Protect Ultra projections and restate an active task boundary before edits."""
 
 import json
-import sqlite3
 import sys
 from pathlib import Path
 
-from context_spine import read_breadcrumb, render_breadcrumb
+from context_spine import ContextSpineError, find_root, read_breadcrumb, render_breadcrumb
 
-TERMINAL = {"committed", "completed", "done", "cancelled"}
 TASKS_PROJECTION = Path(".ultra/tasks/tasks.json")
 
 
@@ -34,56 +32,30 @@ def main() -> None:
     except json.JSONDecodeError as exc:
         print(f"[active_task_context] invalid hook input: {exc}", file=sys.stderr)
         data = {}
-    start = Path(data.get("cwd") or Path.cwd()).resolve()
-    for root in (start, *start.parents):
-        ultra = root / ".ultra"
-        state_file = ultra / "workflow-state.json"
-        initialized = (
-            (ultra / "state.db").is_file()
-            or state_file.is_file()
-            or (ultra / "changes" / "active").is_dir()
-        )
-        if not initialized:
-            continue
-        if targets_tasks_projection(data, root):
-            print(json.dumps({"hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    "Refusing a direct write to the .ultra/tasks/tasks.json projection. "
-                    ".ultra/state.db is authoritative; use the Ultra MCP task tools and "
-                    "run ultra-doctor when state or projection health is degraded."
-                ),
-            }}))
-            return
-        try:
-            breadcrumb = read_breadcrumb(root)
-        except (sqlite3.Error, OSError) as exc:
-            print(f"[active_task_context] cannot inspect Context Spine: {exc}", file=sys.stderr)
-            breadcrumb = None
-        if breadcrumb and breadcrumb.get("task_id"):
-            print(json.dumps({"hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "additionalContext": render_breadcrumb(root, breadcrumb),
-            }}))
-            return
-        if not state_file.is_file():
-            break
-        try:
-            state = json.loads(state_file.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            print(f"[active_task_context] cannot read {state_file}: {exc}", file=sys.stderr)
-            break
-        if not isinstance(state, dict) or state.get("status") in TERMINAL:
-            break
-        task = state.get("task_id", state.get("task", "unknown"))
-        step = state.get("step", "unknown")
+    root = find_root(Path(data.get("cwd") or Path.cwd()).resolve())
+    if root is None:
+        print(json.dumps({}))
+        return
+    if targets_tasks_projection(data, root):
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
-            "additionalContext": (
-                f"Active Ultra task {task}, step {step}. Keep this edit inside the approved "
-                "task and preserve .ultra/state.db as workflow authority."
+            "permissionDecision": "deny",
+            "permissionDecisionReason": (
+                "Refusing a direct write to the .ultra/tasks/tasks.json projection. "
+                ".ultra/state.db is authoritative; use the Ultra MCP task tools and "
+                "run ultra-doctor when state or projection health is degraded."
             ),
+        }}))
+        return
+    try:
+        breadcrumb = read_breadcrumb(root)
+    except ContextSpineError as exc:
+        print(f"[active_task_context] cannot inspect Context Spine: {exc}", file=sys.stderr)
+        breadcrumb = None
+    if breadcrumb and breadcrumb.get("change_id"):
+        print(json.dumps({"hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "additionalContext": render_breadcrumb(root, breadcrumb),
         }}))
         return
     print(json.dumps({}))

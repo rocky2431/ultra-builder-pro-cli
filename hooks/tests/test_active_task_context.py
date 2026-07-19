@@ -22,19 +22,29 @@ class ActiveTaskContextTest(unittest.TestCase):
         )
         return json.loads(result.stdout)
 
-    def test_denies_direct_projection_write_during_active_workflow(self):
+    def test_denies_direct_projection_write_for_any_ultra_project(self):
         with tempfile.TemporaryDirectory() as raw:
             project = Path(raw)
             ultra = project / ".ultra"
             ultra.mkdir()
-            (ultra / "workflow-state.json").write_text(json.dumps({
-                "command": "ultra-plan", "task_id": "plan", "step": "persist", "status": "active"
-            }))
 
             output = self.run_hook(project, {"file_path": ".ultra/tasks/tasks.json"})
             hook = output["hookSpecificOutput"]
             self.assertEqual(hook["permissionDecision"], "deny")
             self.assertIn(".ultra/state.db", hook["permissionDecisionReason"])
+
+    def test_ignores_legacy_workflow_projection_without_state_authority(self):
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw)
+            ultra = project / ".ultra"
+            ultra.mkdir()
+            (ultra / "workflow-state.json").write_text(json.dumps({
+                "command": "ultra-dev", "task_id": "projection-task",
+                "step": "wrong", "status": "active",
+            }))
+
+            output = self.run_hook(project, {"file_path": "src/example.js"})
+            self.assertEqual(output, {})
 
     def test_is_noop_without_active_workflow(self):
         with tempfile.TemporaryDirectory() as raw:

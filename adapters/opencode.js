@@ -304,135 +304,45 @@ function pluginSource() {
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const TERMINAL = new Set(["committed", "completed", "done", "cancelled"]);
 const TASKS_PROJECTION = ".ultra/tasks/tasks.json";
+const NODE_BINARY = ${JSON.stringify(process.execPath)};
+const PLUGIN_DIR = path.dirname(fileURLToPath(import.meta.url));
+const BREADCRUMB_CLI = path.resolve(
+  PLUGIN_DIR, "..", ${JSON.stringify(BUNDLE_DIR)}, "runtime", "breadcrumb.cjs",
+);
 
-function gitHead(root) {
-  try {
-    return execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return null;
-  }
-}
-
-function findUltraContext(directory) {
+function findUltraRoot(directory) {
   let current = path.resolve(directory);
   while (true) {
     const ultra = path.join(current, ".ultra");
-    const currentHead = gitHead(current);
-    const workflowFile = path.join(ultra, "workflow-state.json");
-    const statePresent = fs.existsSync(path.join(ultra, "state.db"));
-    let workflow = null;
-    if (fs.existsSync(workflowFile)) {
-      try {
-        const state = JSON.parse(fs.readFileSync(workflowFile, "utf8"));
-        workflow = state && !TERMINAL.has(state.status) ? state : null;
-      } catch (error) {
-        process.stderr.write(\`[ultra-builder-pro] cannot read \${workflowFile}: \${error.message}\\n\`);
-      }
-    }
-    const changes = [];
-    const changeRoot = path.join(ultra, "changes", "active");
-    if (fs.existsSync(changeRoot)) {
-      for (const entry of fs.readdirSync(changeRoot, { withFileTypes: true })) {
-        if (!entry.isDirectory()) continue;
-        const manifestPath = path.join(changeRoot, entry.name, "context-manifest.json");
-        if (!fs.existsSync(manifestPath)) continue;
-        try {
-          const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-          if (manifest?.change) {
-            const compiledHead = manifest.git?.head ?? null;
-            const legacyContext = manifest.schema_version !== "2.0" || !manifest.baseline;
-            const headStale = Boolean(compiledHead && currentHead && compiledHead !== currentHead);
-            const blockers = Array.isArray(manifest.readiness?.blockers)
-              ? [...manifest.readiness.blockers]
-              : [];
-            const warnings = Array.isArray(manifest.readiness?.warnings)
-              ? [...manifest.readiness.warnings]
-              : [];
-            if (headStale && !blockers.includes("CONTEXT_HEAD_STALE")) blockers.push("CONTEXT_HEAD_STALE");
-            if (legacyContext && !blockers.includes("CONTEXT_SNAPSHOT_UPGRADE_REQUIRED")) {
-              blockers.unshift("CONTEXT_SNAPSHOT_UPGRADE_REQUIRED");
-            }
-            changes.push({
-            id: manifest.change.id,
-            kind: manifest.change.kind,
-            status: manifest.change.status,
-            role: manifest.role ?? "plan",
-            gate: manifest.gate ?? "alignment",
-            nextAction: legacyContext
-              ? "Recompile change.context to upgrade this legacy context snapshot."
-              : headStale
-              ? "Git HEAD changed after context compilation; recompile change.context."
-              : (manifest.next_action ?? "Inspect Ultra status."),
-            readiness: legacyContext || headStale ? "blocked" : (manifest.readiness?.status ?? "ready"),
-            blockers,
-            warnings,
-            baseline: manifest.baseline ?? null,
-            taskId: manifest.selected_task?.id ?? manifest.resume?.task_id ?? null,
-            taskStatus: manifest.selected_task?.status ?? manifest.resume?.task_status ?? null,
-            tokenEstimate: manifest.context?.token_estimate ?? 0,
-            manifestPath: path.relative(current, manifestPath),
-          });
-          }
-        } catch (error) {
-          process.stderr.write(\`[ultra-builder-pro] cannot read \${manifestPath}: \${error.message}\\n\`);
-        }
-      }
-    }
-    if (statePresent || workflow || changes.length > 0) {
-      return { root: current, workflow, changes, statePresent };
-    }
+    if (fs.existsSync(ultra) && fs.statSync(ultra).isDirectory()) return current;
     const parent = path.dirname(current);
     if (parent === current) return null;
     current = parent;
   }
 }
 
-function contextText(active) {
-  const lines = [];
-  if (active.workflow) {
-    const state = active.workflow;
-    lines.push(
-      "[Ultra active workflow]",
-      \`Project: \${active.root}\`,
-      \`Command: \${state.command ?? "unknown"}\`,
-      \`Task: \${state.task_id ?? state.task ?? "unknown"}\`,
-      \`Step: \${state.step ?? "unknown"}\`,
-      \`Status: \${state.status ?? "active"}\`,
-    );
+function readUltraContext(directory) {
+  const root = findUltraRoot(directory);
+  if (!root) return null;
+  try {
+    const raw = execFileSync(NODE_BINARY, [BREADCRUMB_CLI, root], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 5000,
+    });
+    const value = JSON.parse(raw);
+    if (!value?.breadcrumb || typeof value.text !== "string" || !value.text) {
+      throw new Error("canonical breadcrumb response is incomplete");
+    }
+    return { root, breadcrumb: value.breadcrumb, text: value.text };
+  } catch (error) {
+    process.stderr.write(\`[ultra-builder-pro] cannot read canonical breadcrumb: \${error.message}\\n\`);
+    return { root, breadcrumb: null, text: null };
   }
-  if (active.changes.length > 0) {
-    const change = active.changes[0];
-    lines.push(
-      "[Ultra context spine]",
-      \`Project: \${active.root}\`,
-      \`Change: \${change.id} (\${change.kind ?? "unknown"}, \${change.status ?? "active"})\`,
-      \`Task: \${change.taskId ?? "none"} (\${change.taskStatus ?? "none"})\`,
-      \`Role: \${change.role}\`,
-      \`Gate: \${change.gate}\`,
-      \`Readiness: \${change.readiness}\`,
-      ...(change.blockers.length > 0 ? [\`Blockers: \${change.blockers.join(", ")}\`] : []),
-      ...(change.warnings.length > 0 ? [\`Warnings: \${change.warnings.join(", ")}\`] : []),
-      \`Next: \${change.nextAction}\`,
-      \`Context manifest: \${change.manifestPath}\`,
-    );
-    if (active.changes.length > 1) lines.push(
-      \`Active change count: \${active.changes.length}; resolve scope with change.list before mutation.\`,
-    );
-  }
-  if (!active.workflow && active.changes.length === 0) {
-    lines.push(
-      "[Ultra baseline]",
-      \`Project: \${active.root}\`,
-      "No active continuous change. Run ultra-status; resume ultra-init when the baseline is missing, incomplete, or stale, otherwise start ultra-change.",
-    );
-  }
-  lines.push("Authority: .ultra/state.db; JSON/Markdown remain projections or evidence artifacts.");
-  return lines.join("\\n");
 }
 
 function targetPaths(tool, args) {
@@ -456,19 +366,19 @@ function isTasksProjection(active, candidate) {
 
 export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
   const root = worktree || directory;
-  let active = findUltraContext(root);
-  const refresh = () => { active = findUltraContext(root); };
+  let active = readUltraContext(root);
+  const refresh = () => { active = readUltraContext(root); };
   return {
     event: async ({ event }) => {
       if (["session.created", "session.compacted", "session.idle"].includes(event?.type)) refresh();
     },
     "experimental.chat.system.transform": async (_input, output) => {
       refresh();
-      if (active) output.system.push(contextText(active));
+      if (active?.text) output.system.push(active.text);
     },
     "experimental.session.compacting": async (_input, output) => {
       refresh();
-      if (active) output.context.push(contextText(active));
+      if (active?.text) output.context.push(active.text);
     },
     "tool.execute.before": async (input, output) => {
       refresh();

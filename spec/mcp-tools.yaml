@@ -321,17 +321,30 @@ tools:
 
   - name: task.expand
     family: task
-    description: Expand a parent task into N child sub-tasks (Phase 8A).
+    description: Validate and atomically persist child tasks derived by the current host from one parent task.
     phase: '8a'
     writer_role: mcp
     input_schema:
       type: object
-      required: [id]
+      required: [id, children]
       additionalProperties: false
       properties:
-        id:        { type: string }
-        sub_count: { type: integer, minimum: 1, maximum: 16 }
-        strategy:  { type: string, enum: [llm], default: llm }
+        id: { type: string }
+        children:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [id, title, type, priority]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              title: { type: string, minLength: 3, maxLength: 200 }
+              type: { type: string, enum: [architecture, feature, bugfix] }
+              priority: { type: string, enum: [P0, P1, P2, P3] }
+              complexity: { type: integer, minimum: 1, maximum: 10 }
+              deps: { type: array, items: { type: string } }
+              files_modified: { type: array, items: { type: string } }
     output_schema:
       type: object
       required: [parent_id, children]
@@ -345,21 +358,36 @@ tools:
       - { code: CHANGE_NOT_FOUND, description: 'the parent task change does not exist' }
       - { code: CHANGE_NOT_MUTABLE, description: 'the parent task change no longer accepts children' }
       - { code: BASELINE_NOT_READY, description: 'child creation requires a ready baseline or the parent task to belong to an already-authorized active change' }
+      - { code: INVALID_OUTPUT, description: 'the host-derived child task graph is invalid' }
     cli_subcommand: task expand
     emits_events: [task_expanded]
     trace_to: '§7.3, D34'
 
   - name: task.parse_prd
     family: task
-    description: Parse a PRD document into a task graph (Phase 8A). When dry_run=true the tasks are returned without writing to state.db (supports ultra-plan human gate workflow).
+    description: Validate a host-derived PRD task graph and optionally persist it after the Ultra planning approval gate.
     phase: '8a'
     writer_role: mcp
     input_schema:
       type: object
+      required: [tasks]
       additionalProperties: false
       properties:
-        prd_path: { type: string }
-        prd_text: { type: string }
+        tasks:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [id, title, type, priority]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              title: { type: string, minLength: 3, maxLength: 200 }
+              type: { type: string, enum: [architecture, feature, bugfix] }
+              priority: { type: string, enum: [P0, P1, P2, P3] }
+              complexity: { type: integer, minimum: 1, maximum: 10 }
+              deps: { type: array, items: { type: string } }
+              files_modified: { type: array, items: { type: string } }
         tag:      { type: string }
         change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'continuous change unit that will own every persisted parsed task' }
         dry_run:  { type: boolean, default: false, description: 'when true, do not persist to state.db — used by ultra-plan gate to preview before approve' }
@@ -371,8 +399,8 @@ tools:
         tasks: { type: array, items: { type: object } }
         topo:  { type: array, items: { type: array, items: { type: string } } }
     errors:
-      - { code: NO_INPUT, description: 'one of prd_path or prd_text required' }
-      - { code: PARSE_FAILED, description: 'PRD could not be parsed into tasks' }
+      - { code: PARSE_FAILED, description: 'the host-derived PRD task graph is invalid' }
+      - { code: CYCLE_DETECTED, description: 'the proposed task graph contains a dependency cycle' }
       - { code: CHANGE_NOT_FOUND, description: 'assigned change does not exist' }
       - { code: CHANGE_NOT_MUTABLE, description: 'assigned change no longer accepts tasks' }
       - { code: BASELINE_NOT_READY, description: 'persisting parsed tasks requires a ready baseline or an already-authorized active change' }

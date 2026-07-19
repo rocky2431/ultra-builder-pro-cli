@@ -91,27 +91,15 @@ function expectError(result) {
   return JSON.parse(result.content[0].text).error;
 }
 
-function fakePrdClient(taskId) {
-  const client = {
-    calls: 0,
-    provider: 'anthropic',
-    model: 'test-model',
-    async completeJson() {
-      client.calls += 1;
-      const json = {
-        tasks: [{
-          id: taskId,
-          title: `Implement ${taskId}`,
-          type: 'feature',
-          priority: 'P1',
-          deps: [],
-          files_modified: [`src/${taskId}.js`],
-        }],
-      };
-      return { json, raw: JSON.stringify(json), usage: {}, model: client.model, provider: client.provider };
-    },
-  };
-  return client;
+function prdTasks(taskId) {
+  return [{
+    id: taskId,
+    title: `Implement ${taskId}`,
+    type: 'feature',
+    priority: 'P1',
+    deps: [],
+    files_modified: [`src/${taskId}.js`],
+  }];
 }
 
 test('listTools returns workflow tools and exposes no Ultra memory API', async () => {
@@ -550,12 +538,10 @@ test('task.parse_prd keeps dry runs read-only and blocks persistence before base
   try {
     const { db } = initStateDb(dryProject.dbPath);
     try {
-      const client = fakePrdClient('dry-run-task');
       const result = await dispatchTool('task.parse_prd', {
-        prd_text: 'Build a dry-run task.', dry_run: true,
-      }, db, { rootDir: dryProject.dir, llmClient: client });
+        tasks: prdTasks('dry-run-task'), dry_run: true,
+      }, db, { rootDir: dryProject.dir });
       assert.equal(result.tasks[0].id, 'dry-run-task');
-      assert.equal(client.calls, 1);
       assert.equal(ops.listTasks(db, {}).length, 0);
     } finally { closeStateDb(db); }
   } finally { fs.rmSync(dryProject.dir, { recursive: true, force: true }); }
@@ -570,14 +556,12 @@ test('task.parse_prd keeps dry runs read-only and blocks persistence before base
       if (baseline) seedBaseline(proj, baseline);
       const { db } = initStateDb(proj.dbPath);
       try {
-        const client = fakePrdClient(`blocked-prd-${baseline?.mode || 'missing'}`);
         await assert.rejects(
           dispatchTool('task.parse_prd', {
-            prd_text: 'Persist a task before adoption.', dry_run: false,
-          }, db, { rootDir: proj.dir, llmClient: client }),
+            tasks: prdTasks(`blocked-prd-${baseline?.mode || 'missing'}`), dry_run: false,
+          }, db, { rootDir: proj.dir }),
           (error) => error.code === 'BASELINE_NOT_READY',
         );
-        assert.equal(client.calls, 0, 'baseline gate must run before the LLM call');
         assert.equal(ops.listTasks(db, {}).length, 0);
       } finally { closeStateDb(db); }
     } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
@@ -591,8 +575,8 @@ test('task.parse_prd persists only under ready or already-authorized change owne
     const { db } = initStateDb(readyProject.dbPath);
     try {
       await dispatchTool('task.parse_prd', {
-        prd_text: 'Build a ready task.', dry_run: false,
-      }, db, { rootDir: readyProject.dir, llmClient: fakePrdClient('ready-prd-task') });
+        tasks: prdTasks('ready-prd-task'), dry_run: false,
+      }, db, { rootDir: readyProject.dir });
       assert.equal(ops.readTask(db, 'ready-prd-task').change_id, null);
     } finally { closeStateDb(db); }
   } finally { fs.rmSync(readyProject.dir, { recursive: true, force: true }); }
@@ -628,8 +612,8 @@ test('task.parse_prd persists only under ready or already-authorized change owne
         }
         const taskId = `parsed-${kind}-task`;
         await dispatchTool('task.parse_prd', {
-          prd_text: 'Build a change-owned task.', dry_run: false, change_id: changeId,
-        }, db, { rootDir: proj.dir, llmClient: fakePrdClient(taskId) });
+          tasks: prdTasks(taskId), dry_run: false, change_id: changeId,
+        }, db, { rootDir: proj.dir });
         assert.equal(ops.readTask(db, taskId).change_id, changeId);
       } finally { closeStateDb(db); }
     } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
@@ -1313,42 +1297,48 @@ test('task.dependency_topo: happy path groups tasks into correct waves', async (
   }
 });
 
-test('task.parse_prd: neither prd_path nor prd_text → NO_INPUT', async () => {
+test('task.parse_prd: missing host-derived tasks → validation error', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
       const resp = await client.callTool({ name: 'task.parse_prd', arguments: {} });
       const err = expectError(resp);
-      assert.equal(err.code, 'NO_INPUT');
+      assert.equal(err.code, 'VALIDATION_ERROR');
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
   }
 });
 
-test('task.parse_prd: missing LLM credentials → NO_LLM_CREDENTIALS', async () => {
+test('task.parse_prd works without provider credentials', async () => {
   const proj = tmpProject();
   try {
     await withClientNoLlmKey(proj, async (client) => {
       const resp = await client.callTool({
         name: 'task.parse_prd',
-        arguments: { prd_text: 'Build a login feature with email and password.', dry_run: true },
+        arguments: { tasks: prdTasks('no-key-prd'), dry_run: true },
       });
-      const err = expectError(resp);
-      assert.equal(err.code, 'NO_LLM_CREDENTIALS');
+      const data = readToolPayload(resp);
+      assert.equal(data.tasks[0].id, 'no-key-prd');
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
   }
 });
 
-test('task.expand: unknown parent → TASK_NOT_FOUND (no LLM call needed)', async () => {
+test('task.expand: unknown parent → TASK_NOT_FOUND without a provider key', async () => {
   const proj = tmpProject();
   try {
     await withClientNoLlmKey(proj, async (client) => {
       const resp = await client.callTool({
         name: 'task.expand',
-        arguments: { id: 'nonexistent-parent' },
+        arguments: {
+          id: 'nonexistent-parent',
+          children: [{
+            id: 'unused-child', title: 'Unused child task',
+            type: 'feature', priority: 'P1',
+          }],
+        },
       });
       const err = expectError(resp);
       assert.equal(err.code, 'TASK_NOT_FOUND');
@@ -1358,7 +1348,7 @@ test('task.expand: unknown parent → TASK_NOT_FOUND (no LLM call needed)', asyn
   }
 });
 
-test('task.expand: missing LLM credentials on valid parent → NO_LLM_CREDENTIALS', async () => {
+test('task.expand persists host-derived children without provider credentials', async () => {
   const proj = tmpProject();
   try {
     seedReadyBaseline(proj);
@@ -1369,10 +1359,16 @@ test('task.expand: missing LLM credentials on valid parent → NO_LLM_CREDENTIAL
       });
       const resp = await client.callTool({
         name: 'task.expand',
-        arguments: { id: 'parent-1' },
+        arguments: {
+          id: 'parent-1',
+          children: [{
+            id: 'child-no-key', title: 'Implement child without provider key',
+            type: 'feature', priority: 'P1', complexity: 4, deps: [], files_modified: [],
+          }],
+        },
       });
-      const err = expectError(resp);
-      assert.equal(err.code, 'NO_LLM_CREDENTIALS');
+      const data = readToolPayload(resp);
+      assert.equal(data.children[0].id, 'child-no-key');
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

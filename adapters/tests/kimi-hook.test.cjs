@@ -6,6 +6,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
+const { createChange } = require('../../mcp-server/lib/change-workflow.cjs');
+const { createTask } = require('../../mcp-server/lib/state-ops.cjs');
+const { compileRoleContext } = require('../../mcp-server/lib/context-spine.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const ADAPTER = path.join(REPO_ROOT, 'hooks', 'adapters', 'kimi.py');
@@ -16,6 +20,35 @@ function run(feature, payload, args = []) {
     input: JSON.stringify(payload),
     encoding: 'utf8',
   });
+}
+
+function seedContext(project, taskId = 'task-7') {
+  const state = initStateDb(path.join(project, '.ultra', 'state.db'));
+  state.db.prepare(
+    `INSERT INTO baselines
+     (id, project_name, mode, status, approved_by, approval_note, converged_at)
+     VALUES ('baseline', 'fixture', 'greenfield', 'ready', 'test', 'fixture', ?)`,
+  ).run(new Date().toISOString());
+  const { change } = createChange(state.db, {
+    id: 'hook-change', title: 'Hook change', kind: 'quick',
+    intent: 'Inject the authoritative task.',
+    docs_impact: { status: 'none', rationale: 'fixture' },
+  }, { rootDir: project });
+  const task = createTask(state.db, {
+    id: taskId, title: 'Hook task', type: 'bugfix', priority: 'P0', change_id: change.id,
+  });
+  compileRoleContext(state.db, {
+    input: {
+      task_id: task.id, role: 'implement', gate: 'implementation',
+      execution_contract: {
+        slice_kind: 'tracer_bullet', public_seam: 'hook injection',
+        verification_command: 'node --test adapters/tests/kimi-hook.test.cjs',
+      },
+      next_action: 'Continue the authoritative hook task.',
+    },
+    change, tasks: [task], rootDir: project,
+  });
+  closeStateDb(state.db);
 }
 
 test('Kimi hook adapter rejects non-workflow policy hooks without blocking the host', () => {
@@ -33,10 +66,7 @@ test('Kimi hook adapter rejects non-workflow policy hooks without blocking the h
 test('Kimi hook adapter translates active edit context to the native message field', () => {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-kimi-hook-'));
   try {
-    fs.mkdirSync(path.join(project, '.ultra'));
-    fs.writeFileSync(path.join(project, '.ultra', 'workflow-state.json'), JSON.stringify({
-      command: 'ultra-dev', task_id: 'task-7', step: '4.5', status: 'review_pending',
-    }));
+    seedContext(project);
     const result = run('active_task_context.py', {
       session_id: 'session-2',
       cwd: project,
@@ -57,9 +87,6 @@ test('Kimi hook adapter emits the native deny contract for projection writes', (
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-kimi-hook-deny-'));
   try {
     fs.mkdirSync(path.join(project, '.ultra'));
-    fs.writeFileSync(path.join(project, '.ultra', 'workflow-state.json'), JSON.stringify({
-      command: 'ultra-plan', task_id: 'plan', step: 'persist', status: 'active',
-    }));
     const result = run('active_task_context.py', {
       session_id: 'session-deny',
       cwd: project,

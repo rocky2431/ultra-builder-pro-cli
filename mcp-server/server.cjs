@@ -23,7 +23,6 @@ const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
 const telemetry = require('./lib/telemetry.cjs');
 const topo = require('./lib/topo.cjs');
-const llm = require('./lib/llm-client.cjs');
 const parser = require('./lib/prd-parser.cjs');
 const expander = require('./lib/task-expander.cjs');
 const planStore = require('./lib/plan-store.cjs');
@@ -32,6 +31,10 @@ const baselines = require('./lib/baseline-workflow.cjs');
 const changes = require('./lib/change-workflow.cjs');
 const runtimeState = require('./lib/runtime-state.cjs');
 const doctor = require('./lib/doctor.cjs');
+const {
+  readProjectBreadcrumb,
+  renderProjectBreadcrumb,
+} = require('./lib/project-breadcrumb.cjs');
 
 const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
@@ -125,22 +128,6 @@ function buildAjv() {
 function mintSessionId() {
   const { randomUUID } = require('node:crypto');
   return `sess-${randomUUID().slice(0, 8)}`;
-}
-
-function resolvePrdText(input, ctx) {
-  if (input.prd_text && String(input.prd_text).trim()) return String(input.prd_text);
-  if (input.prd_path) {
-    const abs = path.isAbsolute(input.prd_path)
-      ? input.prd_path
-      : path.join(ctx.rootDir || process.cwd(), input.prd_path);
-    return fs.readFileSync(abs, 'utf8');
-  }
-  return null;
-}
-
-function buildLlmClient(ctx) {
-  if (ctx && ctx.llmClient) return ctx.llmClient;
-  return llm.createLlmClient({});
 }
 
 async function dispatchTool(name, input, db, ctx = {}) {
@@ -283,23 +270,27 @@ async function dispatchTool(name, input, db, ctx = {}) {
       return { waves: result.waves };
     }
     case 'task.parse_prd': {
-      const prdText = resolvePrdText(input, ctx);
-      if (!prdText || !prdText.trim()) {
-        const err = new Error('one of prd_path or prd_text required');
-        err.code = 'NO_INPUT';
-        throw err;
-      }
       const dryRun = input.dry_run === true;
       const rootDir = ctx.rootDir || process.cwd();
       const creationAuthority = { change_id: input.change_id };
       if (!dryRun) changes.assertTaskCreationAllowed(db, creationAuthority, { rootDir });
-      const client = buildLlmClient(ctx);
-      const parsed = await parser.parsePrd(prdText, { llmClient: client, tag: input.tag });
+      const parsed = parser.parsePrd(input.tasks, {
+        tag: input.tag,
+        changeId: input.change_id,
+      });
       const shaped = parsed.tasks.map((t) => ({
         id: t.id, title: t.title, type: t.type, priority: t.priority,
         complexity: t.complexity, deps: t.deps, files_modified: t.files_modified,
-        tag: t.tag, change_id: input.change_id,
+        tag: t.tag, change_id: t.change_id,
       }));
+      const graph = shaped.map((t) => ({ id: t.id, deps: t.deps || [] }));
+      const topoResult = topo.computeWaves(graph);
+      if (topoResult.cycles.length > 0) {
+        const err = new Error(`parsed task graph has ${topoResult.cycles.length} cycle(s)`);
+        err.code = 'CYCLE_DETECTED';
+        err.details = { cycles: topoResult.cycles };
+        throw err;
+      }
       if (!dryRun) {
         try {
           ops.tx(db, () => {
@@ -314,13 +305,9 @@ async function dispatchTool(name, input, db, ctx = {}) {
           throw wrap;
         }
       }
-      const graph = shaped.map((t) => ({ id: t.id, deps: t.deps || [] }));
-      const topoResult = topo.computeWaves(graph);
       return { tasks: shaped, topo: topoResult.waves };
     }
     case 'task.expand': {
-      // Cheap guards before paying for LLM client construction (which would
-      // throw NO_LLM_CREDENTIALS when env keys are missing).
       const parent = ops.readTask(db, input.id);
       if (!parent) {
         const err = new Error(`no task ${input.id}`);
@@ -334,12 +321,9 @@ async function dispatchTool(name, input, db, ctx = {}) {
       }
       const rootDir = ctx.rootDir || process.cwd();
       changes.assertTaskCreationAllowed(db, { change_id: parent.change_id }, { rootDir });
-      const client = buildLlmClient(ctx);
-      const result = await expander.expandTask(db, {
+      const result = expander.expandTask(db, {
         id: input.id,
-        sub_count: input.sub_count,
-        strategy: input.strategy,
-        llmClient: client,
+        children: input.children,
         rootDir,
       });
       return { parent_id: result.parent_id, children: result.children };
@@ -659,4 +643,6 @@ module.exports = {
   REGISTERED_TOOLS,
   STATELESS_TOOLS,
   MUTATING_TOOLS,
+  readProjectBreadcrumb,
+  renderProjectBreadcrumb,
 };

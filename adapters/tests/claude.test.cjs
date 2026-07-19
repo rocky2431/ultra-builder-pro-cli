@@ -70,8 +70,9 @@ test('Claude plugin collaboration and learn workflows are safe native plugin ass
     assert.match(codexCollab, /-s read-only/);
     assert.match(codexCollab, /--ephemeral/);
     assert.match(codexCollab, /--ignore-user-config/);
-    assert.match(verify, /-s read-only/);
-    assert.match(verify, /--ephemeral/);
+    assert.match(verify, /Keep the current host responsible/);
+    assert.match(verify, /installed collaboration companion/);
+    assert.doesNotMatch(verify, /codex exec|claude --safe-mode/);
     assert.match(verify, /scripts\/verify_wait\.py/);
     assert.match(review, /Claude Code Task workers/);
     assert.match(review, /scripts\/review_wait\.py/);

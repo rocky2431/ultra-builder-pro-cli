@@ -5,8 +5,8 @@ description: Ask Claude Code for an independent read-only analysis of a bounded 
 
 # Consult Claude Code read-only
 
-Treat Claude Code as an untrusted advisor. The current host owns scope, evidence,
-decisions, edits, and final verification.
+Treat Claude Code as an untrusted advisor. Keep the current host responsible for
+scope, evidence, decisions, edits, and final verification.
 
 ## Preconditions
 

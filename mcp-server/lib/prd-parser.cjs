@@ -1,17 +1,11 @@
 'use strict';
 
-// Phase 8A.1 — PRD → task[] parser. Delegates LLM call to an injected
-// llmClient (see lib/llm-client.cjs). The parser itself is pure logic:
-// prompt assembly → schema validation → id normalization. Keeping the
-// llmClient as a parameter makes unit tests a Test Double exercise without
-// mocking network I/O.
+// Validate and normalize a task graph derived from a PRD by the current host.
+// The MCP runtime is deliberately deterministic: model judgment stays with
+// the host that already owns the user interaction, while this module owns the
+// machine contract before state.db is mutated.
 
 const Ajv = require('ajv/dist/2020');
-const {
-  buildSystemPrompt,
-  buildUserPrompt,
-} = require('../../orchestrator/planner/prd-prompt.cjs');
-
 const TASK_LIST_SCHEMA = Object.freeze({
   type: 'object',
   required: ['tasks'],
@@ -48,39 +42,22 @@ class PrdParseError extends Error {
   }
 }
 
-async function parsePrd(prdText, { llmClient, tag } = {}) {
-  if (!prdText || typeof prdText !== 'string' || !prdText.trim()) {
-    throw new PrdParseError('NO_INPUT', 'prd text is empty');
+function parsePrd(tasks, { tag, changeId } = {}) {
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    throw new PrdParseError('NO_INPUT', 'at least one host-derived task is required');
   }
-  if (!llmClient || typeof llmClient.completeJson !== 'function') {
-    throw new PrdParseError('NO_LLM_CLIENT', 'llmClient.completeJson is required');
-  }
-
-  const system = buildSystemPrompt();
-  const user = buildUserPrompt(prdText);
-
-  let reply;
-  try {
-    reply = await llmClient.completeJson({ system, user });
-  } catch (err) {
+  const input = { tasks };
+  if (!validateTaskList(input)) {
     throw new PrdParseError(
       'PARSE_FAILED',
-      `LLM call failed: ${err.message}`,
-      err,
-    );
-  }
-
-  if (!validateTaskList(reply.json)) {
-    throw new PrdParseError(
-      'PARSE_FAILED',
-      `LLM output failed schema: ${ajv.errorsText(validateTaskList.errors)}`,
+      `task graph failed schema: ${ajv.errorsText(validateTaskList.errors)}`,
     );
   }
 
   const ids = new Set();
-  const tasks = reply.json.tasks.map((t) => {
+  const normalized = tasks.map((t) => {
     if (ids.has(t.id)) {
-      throw new PrdParseError('PARSE_FAILED', `duplicate task id "${t.id}" in LLM output`);
+      throw new PrdParseError('PARSE_FAILED', `duplicate task id "${t.id}" in task graph`);
     }
     ids.add(t.id);
     return {
@@ -92,15 +69,11 @@ async function parsePrd(prdText, { llmClient, tag } = {}) {
       deps: Array.isArray(t.deps) ? t.deps : [],
       files_modified: Array.isArray(t.files_modified) ? t.files_modified : [],
       tag: tag || null,
+      change_id: changeId || null,
     };
   });
 
-  return {
-    tasks,
-    usage: reply.usage || {},
-    model: reply.model,
-    provider: reply.provider,
-  };
+  return { tasks: normalized };
 }
 
 module.exports = {

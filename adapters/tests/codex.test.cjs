@@ -128,8 +128,13 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
       assert.doesNotMatch(text, /[\u3400-\u9fff]|ultra-review-findings-v1|Context7|Exa MCP|confidence\s*>=?\s*\d+/iu);
 
       const openai = yaml.load(fs.readFileSync(path.join(skillDir, 'agents', 'openai.yaml'), 'utf8'));
+      const openaiSource = fs.readFileSync(path.join(skillDir, 'agents', 'openai.yaml'), 'utf8');
       assert.ok(openai.interface.display_name);
       assert.ok(openai.interface.short_description);
+      assert.ok(openai.interface.short_description.length >= 25, name);
+      assert.ok(openai.interface.short_description.length <= 64, name);
+      assert.match(openaiSource, /short_description:\s+['"]/);
+      assert.match(openaiSource, /default_prompt:\s+['"]/);
       assert.match(openai.interface.default_prompt, new RegExp(`\\$ultra-builder-pro:${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
       assert.equal(openai.policy.allow_implicit_invocation, false);
       if (MCP_DEPENDENT_SKILLS.includes(name)) {
@@ -148,14 +153,15 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
     assert.match(cc, /claude --safe-mode/);
 
     const verify = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-verify', 'SKILL.md'), 'utf8');
-    assert.match(verify, /Codex owns the task/);
-    assert.match(verify, /claude --safe-mode/);
-    assert.match(verify, /codex-analysis\.md/);
-    assert.doesNotMatch(verify, /codex-output\.md|Claude synthesizes|Claude-only/);
+    assert.match(verify, /Keep the current host responsible/);
+    assert.match(verify, /installed collaboration companion/);
+    assert.match(verify, /host-analysis\.md/);
+    assert.doesNotMatch(verify, /codex exec|claude --safe-mode|Claude synthesizes|Claude-only/);
 
     const waiter = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-verify', 'scripts', 'verify_wait.py'), 'utf8');
-    assert.match(waiter, /ADVISOR = "claude"/);
-    assert.match(waiter, /OUTPUT_FILE = "claude-output\.md"/);
+    assert.match(waiter, /--advisor/);
+    assert.match(waiter, /advisor-output\.md/);
+    assert.doesNotMatch(waiter, /^ADVISOR\s*=|^OUTPUT_FILE\s*=/m);
 
     const review = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-review', 'SKILL.md'), 'utf8');
     assert.match(review, /native Codex custom agents/);
@@ -231,6 +237,7 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
 
     for (const rel of [
       'runtime/index.cjs',
+      'runtime/breadcrumb.cjs',
       'runtime/launch.cjs',
       'runtime/ultra-tools.cjs',
       'runtime/build/Release/better_sqlite3.node',

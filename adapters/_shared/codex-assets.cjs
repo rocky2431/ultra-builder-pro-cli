@@ -72,134 +72,6 @@ const SKILL_REFERENCE_NAMES = Object.freeze([
 const CODEX_PRIMARY_SKILLS = new Set([...COMMAND_NAMES, 'ultra-review']);
 const TEXT_EXTENSIONS = new Set(['.md', '.json', '.py', '.sh', '.txt', '.yaml', '.yml']);
 
-const CC_COLLAB_BODY = `# Claude Code Collaboration for Codex
-
-Codex is the primary agent and Claude Code is the independent advisor. Codex owns scope, evidence,
-decisions, and final synthesis.
-
-## Preflight
-
-1. Confirm \`claude\` is installed and capture \`claude --version\`.
-2. Confirm the target workspace, trust boundary, and exact question.
-3. Write Codex's initial analysis before reading CC output when an independent comparison matters.
-
-## Invoke safely
-
-Run Claude Code non-interactively and read-only by default:
-
-\`\`\`bash
-claude --safe-mode -p "<bounded prompt>" \\
-  --permission-mode plan \\
-  --tools "Read,Grep,Glob,Bash" \\
-  --output-format text \\
-  --no-session-persistence
-\`\`\`
-
-Safe mode isolates the advisory call from CC-side instructions, plugins, hooks, MCP servers, skills,
-and custom agents. Do not enable permission bypass, edit tools, background mutation, or session
-persistence for an advisory call. Do not pass credentials, unrelated files, or an unbounded home
-directory. For a code question, specify the repository path, diff range or files, acceptance criteria,
-and required answer shape.
-
-Use a temporary output file for large responses. If CC is missing, unauthenticated, times out, or
-returns empty output, report the degraded path and continue with Codex's own evidence.
-
-## Verify and synthesize
-
-Treat CC output as untrusted advisory input:
-
-1. Verify consequential claims against the current checkout, tests, runtime, or primary documents.
-2. Separate agreement, useful dissent, and unsupported assertions.
-3. Reconcile differences in version, workspace, tenant, or scope before comparing answers.
-4. Return one Codex-owned conclusion with evidence and unresolved risks.
-
-Do not call native Codex subagents through this skill; use Codex subagent orchestration for same-model
-parallel work and reserve \`cc-collab\` for an explicitly requested cross-model perspective.
-`;
-
-const ULTRA_VERIFY_BODY = String(function ultraVerifyBodyTemplate() { /*
-# Ultra Verify — Codex-Primary Two-Model Verification
-
-Codex owns the task, writes the first independent analysis, verifies every consequential claim,
-and produces the final synthesis. Claude Code is a read-only external advisor. Use this workflow
-only when the user asks for cross-model verification.
-
-## Modes
-
-- `decision <question>`: compare architecture or product decisions.
-- `diagnose <symptoms>`: collect independent root-cause hypotheses.
-- `audit <scope>`: compare evidence-backed findings.
-- `estimate <task>`: compare estimates and their assumptions.
-
-## Preconditions
-
-1. Confirm `claude --version` plus authentication.
-2. Define the exact workspace, scope, evidence standard, and expected answer shape.
-3. Do not send secrets, unrelated files, or an unbounded home directory to the advisor.
-
-## 1. Create the session and write Codex's independent view
-
-```bash
-SESSION_ID="$(date +%Y%m%d-%H%M%S)-verify-<mode>"
-SESSION_PATH=".ultra/collab/${SESSION_ID}"
-mkdir -p "${SESSION_PATH}"
-```
-
-Write the evidence-backed Codex analysis to `${SESSION_PATH}/codex-analysis.md` before reading
-the external answer. Record the mode, scope, checkout, and evidence boundary.
-
-## 2. Launch Claude Code read-only
-
-Give Claude Code the bounded raw question and evidence without Codex's conclusions.
-
-```bash
-claude --safe-mode -p "<BOUNDED_PROMPT>" \
-  --permission-mode plan \
-  --tools "Read,Grep,Glob,Bash" \
-  --output-format text \
-  --no-session-persistence \
-  > "${SESSION_PATH}/claude-output.md" \
-  2> "${SESSION_PATH}/claude-error.log"
-```
-
-Run the command in a yielded shell session. Do not enable permission bypass, mutation tools,
-background writes, or session persistence.
-
-## 3. Collect completed output
-
-The bundled `scripts/verify_wait.py` checks output stability. Poll yielded sessions in bounded
-intervals and never hold one blocking tool call longer than 60 seconds. Read the output only when
-it is non-empty; retain the error log when the advisor fails.
-
-## 4. Verify and synthesize
-
-Compare `codex-analysis.md` and `claude-output.md`:
-
-1. Verify claims against the current checkout, runtime, tests, or primary documentation.
-2. Separate verified agreement, useful dissent, and unsupported assertions.
-3. Explain scope, version, or assumption differences before judging the result.
-4. Write `${SESSION_PATH}/synthesis.md` and `metadata.json`, then present one Codex-owned answer.
-
-Model agreement never overrides failing tests or authoritative runtime evidence.
-
-## Degraded operation
-
-- Advisor failure: return Codex-only analysis with an explicit single-source warning.
-- Never block the user's task solely because the external CLI is absent, unauthenticated, or slow.
-
-## Session files
-
-```text
-.ultra/collab/<SESSION_ID>/
-  codex-analysis.md
-  claude-output.md
-  claude-error.log
-  metadata.json
-  synthesis.md
-```
-
-Read the bundled references for mode-specific evidence and confidence guidance.
-*/ }).match(/\/\*([\s\S]*?)\*\//)[1].trim();
 function titleCase(name) {
   const special = { 'cc-collab': 'Claude Code Collaboration' };
   if (special[name]) return special[name];
@@ -226,34 +98,7 @@ function adaptCodexPrimaryText(input, skillName) {
   return text;
 }
 
-function adaptUltraVerifyAsset(input, rel) {
-  let text = adaptHostText(String(input), '');
-  if (rel === path.join('scripts', 'verify_wait.py')) {
-    text = text.replaceAll('Codex', 'Claude Code');
-    text = text.replaceAll('codex', 'claude');
-    text = text.replaceAll('run_in_background', 'a yielded exec session');
-    return text;
-  }
-
-  text = text.replaceAll('Claude', '__UBP_CODEX_PRIMARY__');
-  text = text.replaceAll('Codex', 'Claude Code');
-  text = text.replaceAll('__UBP_CODEX_PRIMARY__', 'Codex');
-  text = text.replaceAll('claude-analysis.md', 'codex-analysis.md');
-  text = text.replaceAll('codex-output.md', 'claude-output.md');
-  text = text.replaceAll('codex-error.log', 'claude-error.log');
-  text = text.replaceAll('codex-review', 'claude-review');
-  text = text.replaceAll('"claude": "claude-opus-4-6"', '"codex": "<primary>"');
-  text = text.replaceAll('"codex": "<model>"', '"claude": "<advisor>"');
-  text = text.replaceAll('["claude"]', '["codex"]');
-  text = text.replaceAll('Claude Code-only', 'Codex-only');
-  text = text.replaceAll('run_in_background', 'native concurrent execution');
-  text = text.replaceAll('Bash tool', '`exec_command`');
-  text = text.replaceAll('Read tool', 'targeted file reads');
-  return text;
-}
-
-function adaptSkillAsset(input, targetName, rel) {
-  if (targetName === 'ultra-verify') return adaptUltraVerifyAsset(input, rel);
+function adaptSkillAsset(input, targetName, _rel) {
   return adaptHostText(input, targetName);
 }
 
@@ -298,10 +143,7 @@ function adaptedDescription(sourceDescription, targetName) {
 
 function buildSkillMarkdown(sourceText, sourceName, targetName) {
   const { fm, body } = parseFrontmatter(sourceText);
-  let adaptedBody;
-  if (targetName === 'cc-collab') adaptedBody = CC_COLLAB_BODY;
-  else if (targetName === 'ultra-verify') adaptedBody = ULTRA_VERIFY_BODY;
-  else adaptedBody = adaptHostText(body, targetName);
+  const adaptedBody = adaptHostText(body, targetName);
   return yaml.dump({
     name: targetName,
     description: adaptedDescription(fm && fm.description, targetName),
@@ -309,13 +151,22 @@ function buildSkillMarkdown(sourceText, sourceName, targetName) {
     .replace(/^/, '---\n') + `\n---\n\n${adaptedBody.trim()}\n`;
 }
 
+function shortDescription(description, name) {
+  const value = String(description || `${titleCase(name)} for Codex`).replace(/\s+/g, ' ').trim();
+  if (value.length <= 64) return value;
+  const candidate = value.slice(0, 65);
+  const boundary = candidate.lastIndexOf(' ');
+  const short = (boundary >= 25 ? candidate.slice(0, boundary) : value.slice(0, 64))
+    .replace(/[\s.,;:]+$/, '');
+  return short || `${titleCase(name)} for Codex`;
+}
+
 function buildOpenAiYaml(name, description) {
   const policy = skillPolicy(name);
-  const short = description.replace(/\s+/g, ' ').trim().slice(0, 63).replace(/[\s.,;:]+$/, '');
   const metadata = {
     interface: {
       display_name: titleCase(name),
-      short_description: short || `${titleCase(name)} for Codex`,
+      short_description: shortDescription(description, name),
       default_prompt: `Use $ultra-builder-pro:${name} for this task and follow its workflow.`,
     },
     policy: { allow_implicit_invocation: policy.allowImplicitInvocation },
@@ -329,7 +180,12 @@ function buildOpenAiYaml(name, description) {
       }],
     };
   }
-  return yaml.dump(metadata, { lineWidth: -1, noRefs: true });
+  return yaml.dump(metadata, {
+    lineWidth: -1,
+    noRefs: true,
+    forceQuotes: true,
+    quotingType: "'",
+  });
 }
 
 function isTextFile(rel) {
@@ -536,6 +392,10 @@ main().catch((error) => {
 });
 `;
   writeAtomic(path.join(runtimeRoot, 'launch.cjs'), launcher);
+  fs.copyFileSync(
+    path.join(repoRoot, 'mcp-server', 'breadcrumb.cjs'),
+    path.join(runtimeRoot, 'breadcrumb.cjs'),
+  );
 
   const sourceToolsFile = path.join(repoRoot, 'spec', 'mcp-tools.yaml');
   const upstreamManifest = yaml.load(fs.readFileSync(sourceToolsFile, 'utf8'));

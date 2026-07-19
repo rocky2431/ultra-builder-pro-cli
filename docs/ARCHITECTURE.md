@@ -190,9 +190,16 @@ checking, review, convergence, and recovery. Each snapshot records:
 - one deterministic next action.
 
 `change.breadcrumb` derives the compact current position from state.db. Session,
-edit, and resume hooks inject only this breadcrumb, never the intent body,
+edit, resume, and OpenCode lifecycle hooks invoke one bundled read-only reader
+and inject only this breadcrumb, never the intent body,
 provider content, or a conversation summary. A changed git HEAD marks the
 snapshot stale and routes back to `change.context`.
+
+PRD decomposition and complex-task subdivision use the active host model. The
+MCP accepts the resulting structured tasks, validates schema, topology,
+baseline/change ownership, and transaction boundaries, then persists them. It
+does not call Anthropic, OpenAI, or another model provider and needs no separate
+model API credential.
 
 File count, token estimate, and context-share overflow produce warnings, never a
 refusal. The agent may narrow reads, load files lazily, or split a slice when that

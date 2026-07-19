@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Subagent lifecycle tracker.
 
-Logs SubagentStart/Stop events to .ultra/debug/subagent-log.jsonl (project-level)
+Logs SubagentStart/Stop events to .ultra/runtime/subagent-log.jsonl (project-level)
 for debugging and cost analysis.
 
 Protocol fields:
@@ -15,30 +15,26 @@ Usage:
 """
 
 import json
-import os
-import random
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-TERMINAL = {"committed", "completed", "done", "cancelled"}
+from context_spine import ContextSpineError, find_root, read_breadcrumb
+
 MAX_LOG_LINES = 5000
 
 
 def get_log_dir(hook_input: dict):
-    start = Path(hook_input.get("cwd") or Path.cwd()).resolve()
-    for root in (start, *start.parents):
-        state_file = root / ".ultra" / "workflow-state.json"
-        if not state_file.is_file():
-            continue
-        try:
-            state = json.loads(state_file.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            print(f"[subagent_tracker] cannot read {state_file}: {exc}", file=sys.stderr)
-            return None
-        if isinstance(state, dict) and state.get("status") not in TERMINAL:
-            return root / ".ultra" / "runtime"
+    root = find_root(Path(hook_input.get("cwd") or Path.cwd()).resolve())
+    if root is None:
         return None
+    try:
+        breadcrumb = read_breadcrumb(root)
+    except ContextSpineError as exc:
+        print(f"[subagent_tracker] cannot inspect Context Spine: {exc}", file=sys.stderr)
+        return None
+    if breadcrumb and breadcrumb.get("change_id"):
+        return root / ".ultra" / "runtime"
     return None
 
 
@@ -105,9 +101,7 @@ def main():
     except OSError as exc:
         print(f"[subagent_tracker] event write failed: {exc}", file=sys.stderr)
 
-    # Periodic log rotation (~1% of writes)
-    if random.random() < 0.01:
-        rotate_log(log_file)
+    rotate_log(log_file)
 
     print(json.dumps({}))
 

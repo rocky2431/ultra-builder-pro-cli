@@ -65,12 +65,22 @@ id when applicable.
 
 ## PRD mode
 
-1. Call `task.parse_prd` with `dry_run: true` and the active `change_id` when
-   applicable.
-2. Show the proposed slices, topology, conflict surface, and cost estimate.
-3. Require explicit approval; rejection performs no state write.
-4. On approval, repeat with `dry_run: false` and the same change ownership, export
+1. Read the approved PRD with the current host model and derive the proposed task
+   objects using the `task.parse_prd` input schema. Do not invoke a second model or
+   require a provider API key inside Ultra MCP.
+2. Call `task.parse_prd` with those `tasks`, `dry_run: true`, and the active
+   `change_id` when applicable. The MCP validates the graph but does not supply
+   product judgment.
+3. Show the proposed slices, topology, conflict surface, and cost estimate.
+4. Require explicit approval; rejection performs no state write.
+5. On approval, repeat with `dry_run: false`, the identical task objects, and the
+   same change ownership; export
    the plan, and verify that the dry-run and persisted task identities agree.
+
+When one approved task is still too broad, derive its complete child graph with the
+current host model and call `task.expand` with the parent `id` and validated
+`children`. The MCP assigns parent, tag, and change ownership atomically. Never ask
+the MCP runtime to generate child content.
 
 ## Completion gate
 

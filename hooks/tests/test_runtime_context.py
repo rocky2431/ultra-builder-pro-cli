@@ -44,6 +44,28 @@ def test_context_is_noop_outside_an_ultra_project(tmp_path):
     assert output == {}
 
 
+def test_context_routes_an_old_schema_to_init_and_ignores_legacy_projection(tmp_path):
+    ultra = tmp_path / ".ultra"
+    ultra.mkdir()
+    with sqlite3.connect(ultra / "state.db") as conn:
+        conn.execute(
+            """CREATE TABLE schema_version (
+                   version TEXT PRIMARY KEY,
+                   applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+               )"""
+        )
+        conn.execute("INSERT INTO schema_version(version) VALUES ('10.0')")
+    (ultra / "workflow-state.json").write_text(json.dumps({
+        "command": "ultra-dev", "task_id": "projection-task", "status": "active",
+    }), encoding="utf-8")
+
+    output, _ = run_hook("workflow_context.py", tmp_path)
+    text = output["hookSpecificOutput"]["additionalContext"]
+    assert "STATE_SCHEMA_MIGRATION_REQUIRED:10.0" in text
+    assert "Route: ultra-init" in text
+    assert "projection-task" not in text
+
+
 def test_context_routes_migrated_baseline_to_explicit_readoption(tmp_path):
     init_db(tmp_path)
     output, _ = run_hook("workflow_context.py", tmp_path)

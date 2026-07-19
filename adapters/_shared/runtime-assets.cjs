@@ -40,6 +40,7 @@ const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
 
 const MCP_DEPENDENT_SKILLS = Object.freeze([
   'ultra-init',
+  'ultra-research',
   'ultra-change',
   'ultra-plan',
   'ultra-dev',

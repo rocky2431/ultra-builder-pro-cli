@@ -113,8 +113,10 @@ the shared read-only `context_spine.py` breadcrumb helper:
 - `pre_stop_check.py` reports unfinished workflow position at stop without denial;
 - `subagent_tracker.py` for bounded worker lifecycle evidence.
 
-`workflow_context.py`, `active_task_context.py`, and `workflow_resume.py` read the
-same DB-derived breadcrumb through `context_spine.py`. `health_check.py` and
+`workflow_context.py`, `active_task_context.py`, `workflow_resume.py`, and the
+OpenCode plugin invoke the same bundled JavaScript `change.breadcrumb` reader
+through the thin `context_spine.py` bridge. No hook reimplements the state query.
+`health_check.py` and
 `workflow_context.py` may inspect any initialized project;
 `active_task_context.py` always protects the task projection but limits ordinary
 edit guidance to an active workflow. Compact/stop/subagent hooks remain
@@ -149,7 +151,8 @@ Archive before prune; the confirmation token is intentionally required.
 ```text
 .ultra/
 ├── state.db                 # authoritative SQLite store
-├── workflow-state.json      # active workflow/recovery checkpoint
+├── runtime/
+│   └── checkpoint.json      # advisory breadcrumb recovery projection
 ├── changes/
 │   ├── active/<id>/         # intent, delta, plan, context v2, learning, verification
 │   └── archive/             # converged packets after baseline reconciliation

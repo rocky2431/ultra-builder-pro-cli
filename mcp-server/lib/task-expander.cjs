@@ -1,21 +1,11 @@
 'use strict';
 
-// Phase 8A.3 — Expand a complex task into subtasks via injected llmClient.
-//
-// expandTask(db, { id, sub_count, strategy, llmClient }) reads the parent,
-// asks the LLM for children, and persists them atomically (children rows
-// with parent_id set, parent status → 'expanded'). The status transition
-// automatically emits task_expanded via state-ops' status→event map.
-// Strategy 'manual' is reserved for future CLI interactive flows.
+// Persist host-derived child tasks atomically. Model judgment stays with the
+// current host; this module validates ownership and the database contract.
 
 const Ajv = require('ajv/dist/2020');
 const ops = require('./state-ops.cjs');
 const changes = require('./change-workflow.cjs');
-const {
-  buildExpandSystemPrompt,
-  buildExpandUserPrompt,
-} = require('../../orchestrator/planner/expand-prompt.cjs');
-
 const CHILDREN_SHAPE = Object.freeze({
   type: 'object',
   required: ['children'],
@@ -52,8 +42,8 @@ class TaskExpandError extends Error {
   }
 }
 
-async function expandTask(db, {
-  id, sub_count, strategy = 'llm', llmClient, rootDir = process.cwd(),
+function expandTask(db, {
+  id, children, rootDir = process.cwd(),
 } = {}) {
   if (!id) throw new TaskExpandError('VALIDATION_ERROR', 'id required');
 
@@ -62,35 +52,16 @@ async function expandTask(db, {
   if (parent.status === 'expanded') {
     throw new TaskExpandError('ALREADY_EXPANDED', `task ${id} is already expanded`);
   }
-  if (strategy === 'manual') {
-    throw new TaskExpandError('NOT_IMPLEMENTED', 'strategy "manual" not implemented; use "llm"');
-  }
-  if (strategy !== 'llm') {
-    throw new TaskExpandError('VALIDATION_ERROR', `unknown strategy "${strategy}"`);
-  }
   changes.assertTaskCreationAllowed(db, { change_id: parent.change_id }, { rootDir });
-  if (!llmClient || typeof llmClient.completeJson !== 'function') {
-    throw new TaskExpandError('NO_LLM_CLIENT', 'llmClient.completeJson is required');
-  }
-
-  const system = buildExpandSystemPrompt({ sub_count });
-  const user = buildExpandUserPrompt(parent);
-
-  let reply;
-  try {
-    reply = await llmClient.completeJson({ system, user });
-  } catch (err) {
-    throw new TaskExpandError('LLM_CALL_FAILED', `LLM call failed: ${err.message}`, err);
-  }
-  if (!validateChildren(reply.json)) {
+  if (!validateChildren({ children })) {
     throw new TaskExpandError(
       'INVALID_OUTPUT',
-      `LLM output failed schema: ${ajv.errorsText(validateChildren.errors)}`,
+      `child task graph failed schema: ${ajv.errorsText(validateChildren.errors)}`,
     );
   }
 
   const seen = new Set();
-  const children = reply.json.children.map((c) => {
+  const normalized = children.map((c) => {
     if (seen.has(c.id)) {
       throw new TaskExpandError('INVALID_OUTPUT', `duplicate child id "${c.id}"`);
     }
@@ -111,13 +82,13 @@ async function expandTask(db, {
 
   return ops.tx(db, () => {
     changes.assertTaskCreationAllowed(db, { change_id: parent.change_id }, { rootDir });
-    for (const child of children) {
+    for (const child of normalized) {
       ops.createTask(db, child);
     }
     ops.patchTask(db, parent.id, { status: 'expanded' });
     return {
       parent_id: parent.id,
-      children,
+      children: normalized,
     };
   });
 }

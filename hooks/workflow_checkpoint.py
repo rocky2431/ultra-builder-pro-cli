@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write a minimal, mechanical compaction checkpoint for an active workflow."""
+"""Write a recovery projection of the canonical DB breadcrumb before compaction."""
 
 import json
 import os
@@ -8,18 +8,12 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-TERMINAL = {"committed", "completed", "done", "cancelled"}
-
-
-def valid_workflow(state: object) -> bool:
-    return (
-        isinstance(state, dict)
-        and isinstance(state.get("command"), str)
-        and bool(state["command"].strip())
-        and state.get("step") is not None
-        and isinstance(state.get("status"), str)
-        and bool(state["status"].strip())
-    )
+from context_spine import (
+    ContextSpineError,
+    find_root,
+    read_breadcrumb,
+    render_breadcrumb,
+)
 
 
 def main() -> None:
@@ -29,41 +23,39 @@ def main() -> None:
     except json.JSONDecodeError as exc:
         print(f"[workflow_checkpoint] invalid hook input: {exc}", file=sys.stderr)
         data = {}
-    start = Path(data.get("cwd") or Path.cwd()).resolve()
-    for root in (start, *start.parents):
-        state_file = root / ".ultra" / "workflow-state.json"
-        if not state_file.is_file():
-            continue
-        try:
-            state = json.loads(state_file.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            print(f"[workflow_checkpoint] cannot read {state_file}: {exc}", file=sys.stderr)
-            break
-        if not valid_workflow(state):
-            print(f"[workflow_checkpoint] invalid workflow state in {state_file}", file=sys.stderr)
-            break
-        if state.get("status") in TERMINAL:
-            break
-        runtime_dir = root / ".ultra" / "runtime"
-        runtime_dir.mkdir(parents=True, exist_ok=True)
-        checkpoint = {
-            "schema": 1,
-            "captured_at": datetime.now(timezone.utc).isoformat(),
-            "session_id": data.get("session_id", ""),
-            "workflow": state,
-        }
-        fd, temp_name = tempfile.mkstemp(prefix="checkpoint.", suffix=".json", dir=runtime_dir)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as handle:
-                json.dump(checkpoint, handle, ensure_ascii=False, indent=2)
-                handle.write("\n")
-            os.replace(temp_name, runtime_dir / "checkpoint.json")
-        finally:
-            if os.path.exists(temp_name):
-                os.unlink(temp_name)
-        print(json.dumps({"systemMessage": "Ultra workflow checkpoint saved."}))
+    root = find_root(Path(data.get("cwd") or Path.cwd()).resolve())
+    if root is None:
+        print(json.dumps({}))
         return
-    print(json.dumps({}))
+    try:
+        breadcrumb = read_breadcrumb(root)
+    except ContextSpineError as exc:
+        print(f"[workflow_checkpoint] cannot inspect Context Spine: {exc}", file=sys.stderr)
+        print(json.dumps({}))
+        return
+    if not breadcrumb or not breadcrumb.get("change_id"):
+        print(json.dumps({}))
+        return
+
+    runtime_dir = root / ".ultra" / "runtime"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint = {
+        "schema": 2,
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "session_id": data.get("session_id", ""),
+        "breadcrumb": dict(breadcrumb),
+        "rendered": render_breadcrumb(root, breadcrumb),
+    }
+    fd, temp_name = tempfile.mkstemp(prefix="checkpoint.", suffix=".json", dir=runtime_dir)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(checkpoint, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        os.replace(temp_name, runtime_dir / "checkpoint.json")
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+    print(json.dumps({"systemMessage": "Ultra workflow checkpoint saved."}))
 
 
 if __name__ == "__main__":

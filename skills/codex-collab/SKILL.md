@@ -5,8 +5,8 @@ description: Ask Codex CLI for an independent read-only analysis of a bounded ar
 
 # Consult Codex read-only
 
-Treat Codex as an untrusted advisor. The current host owns scope, evidence, edits,
-verification, and the final answer.
+Treat Codex as an untrusted advisor. Keep the current host responsible for scope,
+evidence, edits, verification, and the final answer.
 
 ## Preconditions
 
@@ -23,7 +23,6 @@ Create a session directory under `.ultra/collab/`, then run in a read-only sandb
 SESSION_PATH=".ultra/collab/$(date +%Y%m%d-%H%M%S)-codex"
 mkdir -p "${SESSION_PATH}"
 codex exec -s read-only \
-  -a never \
   --ephemeral \
   --ignore-user-config \
   --ignore-rules \

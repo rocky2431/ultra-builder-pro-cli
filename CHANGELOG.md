@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-07-19
+
+### Added
+
+- Added one read-only JavaScript Context Spine reader and renderer for the
+  authoritative `.ultra/state.db`, plus a packaged breadcrumb CLI shared by
+  Claude Code, Codex, OpenCode, Kimi Code, and the MCP server.
+- Added cross-host regression coverage proving stale JSON projections and
+  context manifests cannot override the active database change or task.
+
+### Changed
+
+- Changed `task.parse_prd` and `task.expand` to validate and atomically persist
+  task objects derived by the active host model. Ultra MCP no longer starts a
+  second model client or requires an Anthropic, OpenAI, or other provider key.
+- Reduced Python lifecycle hooks and the generated OpenCode plugin to thin
+  adapters over the canonical breadcrumb reader. Checkpoint and resume data is
+  advisory recovery evidence rather than a second workflow authority.
+- Made collaboration and verification Skills host-neutral, kept the current
+  host responsible for delivery, and generated Codex metadata from the source
+  Skill instead of maintaining duplicated prompt bodies.
+
+### Fixed
+
+- Fixed authoritative-state and injected-prompt divergence caused by hooks
+  reading `.ultra/workflow-state.json` or context manifests after
+  `.ultra/state.db` had advanced.
+- Fixed stale or incomplete state routing: missing projects route to
+  `ultra-init`, prior schemas route to migration, and corrupt current schemas
+  route to `ultra-doctor` without fabricating active workflow context.
+- Fixed installed OpenCode context injection so it reads the bundled runtime
+  with the installer-selected Node executable and remains portable outside the
+  source checkout.
+- Fixed Codex collaboration invocation and generated metadata quoting while
+  preserving the bounded read-only advisor contract.
+
+### Removed
+
+- Removed the private LLM client, planner prompt builders, and the
+  `@anthropic-ai/sdk` and `openai` runtime dependencies.
+
 ## [0.13.0] — 2026-07-18
 
 ### Added
@@ -541,7 +582,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.11.0...v0.12.0

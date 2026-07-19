@@ -46,7 +46,7 @@ not presented as nonexistent custom agents.
 
 | Lifecycle | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
-| Session context/health | FULL, DB-derived Context Spine breadcrumb on native `SessionStart` | DEGRADED, projected v2 breadcrumb; health via `system.doctor` | FULL, DB-derived breadcrumb on native `SessionStart` | FULL, DB-derived breadcrumb via session-start skill + hooks |
+| Session context/health | FULL, DB-derived Context Spine breadcrumb on native `SessionStart` | FULL, the native JS plugin invokes the same bundled DB breadcrumb reader; health via `system.doctor` | FULL, DB-derived breadcrumb on native `SessionStart` | FULL, DB-derived breadcrumb via session-start skill + hooks |
 | Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | FULL, native `PreToolUse Edit|Write` deny contract |
 | Pre-compact checkpoint | FULL | FULL | FULL | FULL, native `PreCompact` |
 | Post-compact context injection | FULL | FULL, native compacting context | FULL, native `PostCompact` restore | DEGRADED; checkpoint restoration runs, but Kimi 0.26/0.27 does not reinject fire-and-forget hook text |
@@ -73,7 +73,7 @@ they do not deny edits or stop active incident work.
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
 | Live/declared contracts | 36 | 36 | 36 | 36 |
 | Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
-| Context Spine v2 / breadcrumb | FULL | FULL, DB-generated projection consumed by native JS | FULL | FULL |
+| Context Spine v2 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
 | Approval-gated spec learning | FULL | FULL | FULL | FULL |
 | Host-native review/discovery/ask | native | native | documented in `codex-capability-map.json` | native Kimi tools and workers |
 | Durable authority | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` |
@@ -126,9 +126,9 @@ records. Uninstall refuses an unmanaged or conflicting root.
 
 | Capability | Contract |
 |---|---|
-| Current state schema | `11.0` |
+| Current state schema | `12.0` |
 | Runtime values | `claude`, `opencode`, `codex`, `kimi` |
-| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, then adds authoritative baseline adoption state transactionally in 11.0 |
+| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, then runtime constraint compatibility in 12.0 |
 | Preservation gate | rows, IDs, indexes, foreign keys, telemetry, incidents, and migration history remain intact |
 | Failure behavior | rollback; no partially upgraded authority database |
 

@@ -1,6 +1,6 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Multi-runtime installer for the Ultra Builder Pro agent engineering system — deploys commands, agents, skills, hooks, and MCP server to Claude Code, OpenCode, Codex CLI, and Kimi Code.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
@@ -98,13 +98,11 @@
     "install:all": "node bin/install.js --all --local"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.111.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@vercel/ncc": "0.38.4",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "better-sqlite3": "^11.5.0",
-    "js-yaml": "^4.1.0",
-    "openai": "^6.34.0"
+    "js-yaml": "^4.1.0"
   }
 }

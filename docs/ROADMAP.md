@@ -101,5 +101,5 @@ npm audit
 ## Out of scope for v1.0 (deferred)
 
 PLAN §13 lists Copilot / Cursor / Windsurf / 7 more runtimes, web
-dashboard / TUI, LLM provider abstraction, team-collab server, plugin
+dashboard / TUI, team-collab server, plugin
 marketplace.

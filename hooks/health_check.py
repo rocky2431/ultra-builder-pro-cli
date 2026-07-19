@@ -6,7 +6,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from context_spine import baseline_health
+from context_spine import ContextSpineError, find_root, read_breadcrumb
 
 
 REQUIRED_TABLES = {
@@ -27,24 +27,19 @@ def hook_input() -> dict:
         return {}
 
 
-def find_root(start: Path):
-    for candidate in (start, *start.parents):
-        ultra = candidate / ".ultra"
-        if (
-            (ultra / "state.db").is_file()
-            or (ultra / "workflow-state.json").is_file()
-            or (ultra / "changes" / "active").is_dir()
-        ):
-            return candidate
-    return None
-
-
 def inspect(root: Path) -> dict:
     db_path = root / ".ultra" / "state.db"
     report = {"status": "healthy", "project": str(root), "checks": {}}
     issues = []
     if not db_path.is_file():
         report["checks"]["state_db"] = {"status": "fail", "reason": "missing"}
+        report["status"] = "degraded"
+        return report
+
+    try:
+        breadcrumb = read_breadcrumb(root)
+    except ContextSpineError as exc:
+        report["checks"]["authority"] = {"status": "fail", "reason": str(exc)}
         report["status"] = "degraded"
         return report
 
@@ -70,11 +65,18 @@ def inspect(root: Path) -> dict:
                 report["status"] = "degraded"
                 return report
 
-            baseline = baseline_health(conn, root)
+            baseline_codes = [
+                code for code in [
+                    *(breadcrumb.get("blockers", []) if breadcrumb else []),
+                    *(breadcrumb.get("warnings", []) if breadcrumb else []),
+                ]
+                if str(code).startswith("BASELINE_")
+            ]
             report["checks"]["baseline"] = {
-                **baseline,
-                "readiness": baseline["status"],
-                "status": "pass" if baseline["status"] == "pass" else "warning",
+                "baseline": breadcrumb.get("baseline") if breadcrumb else None,
+                "blockers": baseline_codes,
+                "readiness": "blocked" if baseline_codes else "ready",
+                "status": "warning" if baseline_codes else "pass",
             }
 
             incidents = [

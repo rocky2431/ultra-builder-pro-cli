@@ -2,11 +2,10 @@
 """Inject one compact Ultra state position without persistent memory."""
 
 import json
-import sqlite3
 import sys
 from pathlib import Path
 
-from context_spine import find_root, read_breadcrumb, render_breadcrumb
+from context_spine import ContextSpineError, find_root, read_breadcrumb, render_breadcrumb
 
 
 def payload() -> dict:
@@ -26,18 +25,14 @@ def main() -> None:
         return
     try:
         breadcrumb = read_breadcrumb(root)
-    except (sqlite3.Error, OSError) as exc:
+    except ContextSpineError as exc:
         print(f"[workflow_context] cannot inspect Context Spine: {exc}", file=sys.stderr)
         breadcrumb = None
     if breadcrumb:
         context = render_breadcrumb(root, breadcrumb)
     else:
-        context = "\n".join([
-            "[Ultra baseline]",
-            f"Project: {root}",
-            "No active continuous change. Start daily work with the ultra-change workflow.",
-            "Authority: .ultra/state.db; JSON/Markdown remain projections or evidence artifacts.",
-        ])
+        print(json.dumps({}))
+        return
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "SessionStart",
         "additionalContext": context,
