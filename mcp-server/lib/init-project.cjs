@@ -14,11 +14,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { initStateDb } = require('./state-db.cjs');
+const { EXPECTED_VERSION, initStateDb } = require('./state-db.cjs');
 const { assertStateAuthority, inspectProjection } = require('./state-authority.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const runtimeState = require('./runtime-state.cjs');
 const ops = require('./state-ops.cjs');
+const workflows = require('./workflow-state.cjs');
 
 const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
@@ -137,13 +138,12 @@ const MANIFEST_NAMES = new Set([
   'pom.xml', 'build.gradle', 'build.gradle.kts', 'Gemfile', 'composer.json',
 ]);
 const SOURCE_EXTENSIONS = new Set([
-  '.c', '.cc', '.cpp', '.cs', '.go', '.java', '.js', '.jsx', '.kt', '.kts', '.mjs',
-  '.move', '.php', '.py', '.rb', '.rs', '.sol', '.swift', '.ts', '.tsx', '.vue',
+  '.astro', '.c', '.cc', '.cpp', '.cs', '.css', '.dart', '.ex', '.exs', '.fs', '.fsx',
+  '.go', '.graphql', '.gql', '.hcl', '.html', '.java', '.js', '.jsx', '.kt', '.kts',
+  '.less', '.lua', '.mjs', '.move', '.php', '.proto', '.py', '.r', '.R', '.rb', '.rs',
+  '.sass', '.scala', '.scss', '.sh', '.sol', '.svelte', '.swift', '.tf', '.ts', '.tsx',
+  '.vue',
 ]);
-const SOURCE_DIR_SEGMENTS = new Set([
-  'src', 'app', 'apps', 'lib', 'server', 'backend', 'frontend', 'api', 'cmd', 'internal',
-]);
-
 function scanRepositoryFiles(rootDir, { maxFiles = 5000, maxDepth = 8 } = {}) {
   const files = [];
   function walk(dir, depth) {
@@ -198,6 +198,122 @@ function packageProfile(rootDir) {
   }
 }
 
+const JAVASCRIPT_TECHNOLOGIES = Object.freeze([
+  { packages: ['next'], name: 'Next.js', capability: 'frontend' },
+  { packages: ['react'], name: 'React', capability: 'frontend' },
+  { packages: ['vue', 'nuxt'], name: 'Vue', capability: 'frontend' },
+  { packages: ['svelte', '@sveltejs/kit'], name: 'Svelte', capability: 'frontend' },
+  { packages: ['@angular/core'], name: 'Angular', capability: 'frontend' },
+  { packages: ['express'], name: 'Express', capability: 'backend' },
+  { packages: ['fastify'], name: 'Fastify', capability: 'backend' },
+  { packages: ['@nestjs/core'], name: 'NestJS', capability: 'backend' },
+  { packages: ['hono'], name: 'Hono', capability: 'backend' },
+  { packages: ['koa'], name: 'Koa', capability: 'backend' },
+  { packages: ['commander', 'yargs', 'oclif'], name: 'Node CLI', capability: 'cli' },
+  { packages: ['@prisma/client', 'prisma'], name: 'Prisma' },
+  { packages: ['typescript'], name: 'TypeScript' },
+  { packages: ['vitest'], name: 'Vitest' },
+  { packages: ['jest'], name: 'Jest' },
+  { packages: ['playwright', '@playwright/test'], name: 'Playwright' },
+]);
+
+function readTextBounded(file, maxBytes = 256 * 1024) {
+  try {
+    const stat = fs.statSync(file);
+    if (!stat.isFile() || stat.size > maxBytes) return '';
+    return fs.readFileSync(file, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function detectTechnologyProfile(rootDir, files) {
+  const technologies = new Set();
+  const capabilities = new Set();
+  const packageFiles = files.filter((file) => path.basename(file) === 'package.json').slice(0, 100);
+  for (const relative of packageFiles) {
+    let pkg;
+    try { pkg = JSON.parse(readTextBounded(path.join(rootDir, relative))); }
+    catch { continue; }
+    technologies.add('Node.js');
+    const dependencies = new Set([
+      ...Object.keys(pkg.dependencies || {}),
+      ...Object.keys(pkg.devDependencies || {}),
+      ...Object.keys(pkg.peerDependencies || {}),
+    ]);
+    if (pkg.bin && (typeof pkg.bin === 'string' || typeof pkg.bin === 'object')) {
+      capabilities.add('cli');
+    }
+    for (const technology of JAVASCRIPT_TECHNOLOGIES) {
+      if (!technology.packages.some((name) => dependencies.has(name))) continue;
+      technologies.add(technology.name);
+      if (technology.capability) capabilities.add(technology.capability);
+    }
+  }
+
+  if (files.some((file) => file === 'tsconfig.json' || /\.(ts|tsx)$/.test(file))) {
+    technologies.add('TypeScript');
+  }
+  if (files.some((file) => /(^|\/)index\.html$/.test(file))) {
+    technologies.add('HTML');
+    capabilities.add('frontend');
+  }
+  if (files.some((file) => /\.(css|scss|sass|less)$/.test(file))) technologies.add('CSS');
+
+  const pythonFiles = files.filter((file) => (
+    ['pyproject.toml', 'requirements.txt'].includes(path.basename(file)) || file.endsWith('.py')
+  ));
+  if (pythonFiles.length > 0) {
+    technologies.add('Python');
+    const declarations = pythonFiles
+      .filter((file) => ['pyproject.toml', 'requirements.txt'].includes(path.basename(file)))
+      .map((file) => readTextBounded(path.join(rootDir, file)).toLowerCase())
+      .join('\n');
+    for (const [needle, label, capability] of [
+      ['fastapi', 'FastAPI', 'backend'], ['django', 'Django', 'backend'],
+      ['flask', 'Flask', 'backend'], ['typer', 'Typer', 'cli'], ['click', 'Click', 'cli'],
+      ['pytest', 'Pytest', null],
+    ]) {
+      if (!declarations.includes(needle)) continue;
+      technologies.add(label);
+      if (capability) capabilities.add(capability);
+    }
+  }
+  if (files.some((file) => ['go.mod', 'go.work'].includes(path.basename(file)) || file.endsWith('.go'))) {
+    technologies.add('Go');
+  }
+  if (files.some((file) => path.basename(file) === 'Cargo.toml' || file.endsWith('.rs'))) {
+    technologies.add('Rust');
+    const cargo = files.filter((file) => path.basename(file) === 'Cargo.toml')
+      .map((file) => readTextBounded(path.join(rootDir, file)).toLowerCase()).join('\n');
+    if (cargo.includes('clap')) {
+      technologies.add('Clap');
+      capabilities.add('cli');
+    }
+  }
+  if (files.some((file) => ['pom.xml', 'build.gradle', 'build.gradle.kts'].includes(path.basename(file)))) {
+    technologies.add('JVM');
+  }
+  if (files.some((file) => path.basename(file) === 'Gemfile' || file.endsWith('.rb'))) {
+    technologies.add('Ruby');
+  }
+  if (files.some((file) => path.basename(file) === 'composer.json' || file.endsWith('.php'))) {
+    technologies.add('PHP');
+  }
+
+  let projectType = 'other';
+  if (capabilities.has('frontend') && capabilities.has('backend')) projectType = 'fullstack';
+  else if (capabilities.has('frontend')) projectType = 'web';
+  else if (capabilities.has('backend')) projectType = 'api';
+  else if (capabilities.has('cli')) projectType = 'cli';
+  return {
+    detected_project_type: projectType,
+    detected_stack: technologies.size > 0 ? [...technologies].join(', ') : null,
+    technology_signals: [...technologies],
+    capability_signals: [...capabilities].sort(),
+  };
+}
+
 function classifyRepository(absTarget) {
   const { files, truncated } = scanRepositoryFiles(absTarget);
   const packageData = packageProfile(absTarget);
@@ -220,12 +336,10 @@ function classifyRepository(absTarget) {
   }).slice(0, 100);
   const sourceSignals = files.filter((file) => {
     const lower = file.toLowerCase();
-    if (testSignals.includes(file) || lower.endsWith('.config.js') || lower.endsWith('.config.ts')) return false;
-    const segments = file.split('/');
+    if (testSignals.includes(file) || /(^|\/)[^/]+\.config\.(c|m)?(j|t)s$/.test(lower)) return false;
     const ext = path.extname(file);
     if (!SOURCE_EXTENSIONS.has(ext)) return false;
-    return segments.some((segment) => SOURCE_DIR_SEGMENTS.has(segment))
-      || /(^|\/)(main|index|server|app)\.[^.]+$/.test(lower);
+    return true;
   }).slice(0, 200);
   const workspaceRoots = [...new Set(packageData.workspacePatterns
     .flatMap((pattern) => expandWorkspacePattern(absTarget, pattern)))]
@@ -247,12 +361,15 @@ function classifyRepository(absTarget) {
   if (deploymentSignals.length > 0) reasons.push('DEPLOYMENT_PRESENT');
   if (databaseSignals.length > 0) reasons.push('PERSISTED_STATE_PRESENT');
   if (workspaceMarkers.length > 0 || workspaceRoots.length > 0) reasons.push('MONOREPO_PRESENT');
+  if (truncated) reasons.push('SCAN_TRUNCATED');
   if (reasons.length === 0) reasons.push('SKELETON_ONLY');
   const mode = sourceSignals.length > 0 || testSignals.length > 0
-    || deploymentSignals.length > 0 || databaseSignals.length > 0
+    || deploymentSignals.length > 0 || databaseSignals.length > 0 || truncated
     ? 'brownfield' : 'greenfield';
+  const technologyProfile = detectTechnologyProfile(absTarget, files);
   return {
     mode,
+    ...technologyProfile,
     reasons,
     repository_kind: workspaceMarkers.length > 0 || workspaceRoots.length > 0 ? 'monorepo' : 'single',
     workspace_markers: workspaceMarkers,
@@ -290,7 +407,7 @@ function rollbackInitialization(ultraDir, backupPath) {
 }
 
 function projectionMigrationError(projection) {
-  const targets = { '4.4': '4.5', '4.5': '12.0' };
+  const targets = { '4.4': '4.5', '4.5': EXPECTED_VERSION };
   const target = targets[projection.version];
   if (target) {
     return new InitProjectError(
@@ -307,6 +424,67 @@ function projectionMigrationError(projection) {
   );
 }
 
+function ensureInitializationWorkflows(db, baseline, { rootDir }) {
+  let initRun = workflows.listWorkflows(
+    db, { kind: 'init', baseline_id: baseline.id, limit: 1 }, { rootDir },
+  )[0];
+  let researchRun = workflows.listWorkflows(
+    db, { kind: 'research', baseline_id: baseline.id, limit: 1 }, { rootDir },
+  )[0];
+  if (baseline.status === 'ready') {
+    const compatibilityOnly = baseline.mode === 'migrated';
+    const provenanceComplete = !compatibilityOnly
+      && initRun?.status === 'completed'
+      && researchRun?.status === 'completed'
+      && baseline.research_run_id === researchRun.id;
+    return {
+      init_id: initRun?.id || null,
+      init_status: initRun?.status || 'missing',
+      research_id: researchRun?.id || null,
+      research_mode: researchRun?.mode || null,
+      research_status: compatibilityOnly
+        ? 'not_required' : (researchRun?.status || 'missing'),
+      provenance_status: compatibilityOnly
+        ? 'compatibility_only' : (provenanceComplete ? 'complete' : 'incomplete'),
+      next_action: compatibilityOnly
+        ? 'ultra-init' : (provenanceComplete ? 'ultra-change' : 'ultra-doctor'),
+    };
+  }
+  if (!initRun) {
+    initRun = workflows.startWorkflow(db, {
+      kind: 'init', baseline_id: baseline.id,
+      subject: `Establish the ${baseline.mode} baseline for ${baseline.project_name}.`,
+      metadata: { repository_revision: baseline.repository_revision, scope: baseline.scope },
+    }, { rootDir });
+    for (const stepId of ['inspect-authority', 'classify-repository', 'scaffold-authority']) {
+      initRun = workflows.recordWorkflowStep(db, {
+        id: initRun.id, step_id: stepId, status: 'completed',
+      }, { rootDir });
+    }
+  }
+
+  if (baseline.mode !== 'migrated') {
+    if (!researchRun) {
+      const researchMode = baseline.mode === 'brownfield' ? 'adoption' : 'full';
+      researchRun = workflows.startWorkflow(db, {
+        kind: 'research', mode: researchMode, baseline_id: baseline.id,
+        subject: baseline.mode === 'brownfield'
+          ? 'Adopt the existing system as an evidence-backed product and architecture baseline.'
+          : 'Validate the complete product and architecture baseline before planning.',
+      }, { rootDir });
+    }
+  }
+  return {
+    init_id: initRun.id,
+    init_status: initRun.status,
+    research_id: researchRun?.id || null,
+    research_mode: researchRun?.mode || null,
+    research_status: researchRun?.status || 'not_started',
+    provenance_status: 'in_progress',
+    next_action: baseline.mode === 'migrated' ? 'ultra-init' : 'ultra-research',
+  };
+}
+
 function resumeProject({
   absTarget, ultraDir, source, project_name, project_type, stack, resolvedMode,
   scope, repositoryProfile, projection,
@@ -316,6 +494,7 @@ function resumeProject({
   let initialized;
   let copiedFiles = [];
   let baselineResult;
+  let workflowResult;
   try {
     initialized = initStateDb(stateDbPath);
     const { db } = initialized;
@@ -331,6 +510,7 @@ function resumeProject({
         classification: repositoryProfile,
       }, { rootDir: absTarget });
     }
+    workflowResult = ensureInitializationWorkflows(db, baselineResult, { rootDir: absTarget });
     ops.appendEvent(db, {
       type: 'project_resumed',
       payload: {
@@ -367,16 +547,19 @@ function resumeProject({
     created_path: ultraDir,
     state_db_path: stateDbPath,
     status: 'resumed',
-    mode: resolvedMode,
+    mode: baselineResult.mode,
     baseline: {
       id: baselineResult.id,
       mode: baselineResult.mode,
       status: baselineResult.status,
+      project_type: baselineResult.project_type,
+      stack: baselineResult.stack,
       repository_revision: baselineResult.repository_revision,
       scope: baselineResult.scope,
     },
     copied_files: copiedFiles,
     repository_profile: repositoryProfile,
+    workflow: workflowResult,
   };
   if (initialized.backup_path) result.migration_backup_path = initialized.backup_path;
   return result;
@@ -404,8 +587,12 @@ function initProject({
   ensureTargetDir(absTarget);
   const repositoryProfile = classifyRepository(absTarget);
   const resolvedMode = mode === 'auto' ? repositoryProfile.mode : detectProjectMode(absTarget, mode);
+  const resolvedProjectType = project_type || repositoryProfile.detected_project_type;
+  const resolvedStack = stack || repositoryProfile.detected_stack || undefined;
   repositoryProfile.detected_mode = repositoryProfile.mode;
   repositoryProfile.mode = resolvedMode;
+  repositoryProfile.selected_project_type = resolvedProjectType;
+  repositoryProfile.selected_stack = resolvedStack || null;
   const source = ensureTemplate(source_template);
   const ultraDir = path.join(absTarget, '.ultra');
 
@@ -422,7 +609,8 @@ function initProject({
       throw projectionMigrationError(projection);
     }
     return resumeProject({
-      absTarget, ultraDir, source, project_name, project_type, stack, resolvedMode,
+      absTarget, ultraDir, source, project_name, project_type: resolvedProjectType,
+      stack: resolvedStack, resolvedMode,
       scope, repositoryProfile, projection,
     });
   }
@@ -441,6 +629,7 @@ function initProject({
 
   let copiedFiles;
   let baselineResult;
+  let workflowResult;
   try {
     fs.mkdirSync(ultraDir, { recursive: true });
     copiedFiles = copyTemplate(source, ultraDir);
@@ -449,11 +638,13 @@ function initProject({
     const { db } = initStateDb(stateDbPath);
     try {
       baselineResult = baselines.startBaseline(db, {
-        id: 'project-baseline', project_name, project_type, stack,
+        id: 'project-baseline', project_name, project_type: resolvedProjectType,
+        stack: resolvedStack,
         mode: resolvedMode, repository_revision: baselines.gitHead(absTarget),
         scope: scope === undefined ? ['.'] : scope,
         classification: repositoryProfile,
       }, { rootDir: absTarget });
+      workflowResult = ensureInitializationWorkflows(db, baselineResult, { rootDir: absTarget });
       ops.appendEvent(db, {
         type: 'project_initialized',
         payload: {
@@ -491,11 +682,14 @@ function initProject({
       id: baselineResult.id,
       mode: baselineResult.mode,
       status: baselineResult.status,
+      project_type: baselineResult.project_type,
+      stack: baselineResult.stack,
       repository_revision: baselineResult.repository_revision,
       scope: baselineResult.scope,
     },
     copied_files: copiedFiles,
     repository_profile: repositoryProfile,
+    workflow: workflowResult,
   };
   if (backupPath) result.backup_path = backupPath;
   return result;

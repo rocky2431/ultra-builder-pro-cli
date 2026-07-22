@@ -13,16 +13,14 @@ const doctor = require('./doctor.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const changes = require('./change-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
+const workflows = require('./workflow-state.cjs');
+const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
 
 function fixture({ baseline = true } = {}) {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-doctor-'));
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
   if (baseline) {
-    db.prepare(
-      `INSERT INTO baselines
-       (id, project_name, mode, status, approved_by, approval_note, converged_at)
-       VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'accepted fixture', ?)`,
-    ).run(new Date().toISOString());
+    seedReadyBaseline(db, { rootDir });
   }
   return { rootDir, db };
 }
@@ -59,6 +57,56 @@ test('doctor reports incomplete brownfield adoption as advisory rather than auth
       total: 0, open: 0, blocking: 0, by_category: {},
     });
     assert.ok(report.checks.baseline.blockers.includes('BASELINE_NOT_READY:adopting'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('doctor degrades when a ready baseline loses immutable research authority', async () => {
+  const fx = fixture();
+  try {
+    fx.db.prepare(
+      `UPDATE workflow_steps SET outputs_json = ?, updated_at = ?
+       WHERE run_id = 'test-baseline-research' AND step_id = '00-problem-validation'`,
+    ).run(JSON.stringify([{
+      path: '.ultra/docs/research/test-baseline-research/00-problem-validation.md',
+      kind: 'research-step-report', digest: '0'.repeat(64),
+    }]), new Date().toISOString());
+    const report = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
+    assert.equal(report.status, 'degraded');
+    assert.equal(report.checks.baseline.status, 'fail');
+    assert.ok(report.checks.baseline.blockers.some((item) => item.startsWith(
+      'BASELINE_RESEARCH_WORKFLOW_OUTPUT_STALE:',
+    )));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('doctor exposes blocked workflow recovery without treating an expected pause as database corruption', async () => {
+  const fx = fixture({ baseline: false });
+  try {
+    const baseline = baselines.startBaseline(fx.db, {
+      id: 'adoption', project_name: 'legacy', mode: 'brownfield', scope: ['.'],
+    }, { rootDir: fx.rootDir, emitEvent: false });
+    const run = workflows.startWorkflow(fx.db, {
+      id: 'research-adoption', kind: 'research', mode: 'adoption',
+      baseline_id: baseline.id, subject: 'Establish current system evidence.',
+    }, { rootDir: fx.rootDir });
+    workflows.recordWorkflowStep(fx.db, {
+      id: run.id, step_id: '00-problem-validation', status: 'blocked',
+      blockers: ['OWNER_EVIDENCE_REQUIRED'],
+    }, { rootDir: fx.rootDir });
+    runtime.ensureProjectionJob(fx.db, { tool_name: 'workflow.step' });
+    runtime.processProjectionJobs(fx.db, {
+      rootDir: fx.rootDir,
+      project: () => ({ projected: true }),
+    });
+
+    const report = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
+    assert.equal(report.status, 'healthy');
+    assert.equal(report.checks.workflows.status, 'warning');
+    assert.equal(report.checks.workflows.blocked, 1);
   } finally {
     cleanup(fx);
   }
@@ -120,6 +168,17 @@ test('doctor repair resumes an archive journal left after a process crash', asyn
     const activeRoot = path.join(fx.rootDir, '.ultra', 'changes', 'active', 'doctor-archive');
     fs.mkdirSync(activeRoot, { recursive: true });
     fs.writeFileSync(path.join(activeRoot, 'intent.md'), '# Authorized archive\n');
+    const reconciliationPath = '.ultra/changes/active/doctor-archive/baseline-reconciliation.json';
+    const reconciliationManifest = {
+      $schema: 'ultra-baseline-reconciliation-v1', change_id: 'doctor-archive',
+      baseline_id: 'test-baseline', baseline_updates: [], semantic_changes: [],
+      resolved_gap_ids: [], resolved_unknowns: [],
+      verification: [{ name: 'read-back', command: 'ubp status', status: 'pass', evidence: 'Verified.' }],
+      semantic_no_change_reason: 'No baseline content changed.',
+    };
+    fs.writeFileSync(
+      path.join(fx.rootDir, reconciliationPath), `${JSON.stringify(reconciliationManifest)}\n`,
+    );
     fx.db.prepare(
       `INSERT INTO changes
        (id, title, kind, status, intent, docs_impact_json, provider_refs_json, artifact_root)
@@ -131,6 +190,10 @@ test('doctor repair resumes an archive journal left after a process crash', asyn
       rootDir: fx.rootDir, change: changes.readChange(fx.db, 'doctor-archive'),
       summary: 'Resume the authorized archive.', baselineUpdates: [],
       noBaselineChangeReason: 'No baseline content changed.',
+      reconciliationPath,
+      reconciliationDigest: require('node:crypto').createHash('sha256')
+        .update(fs.readFileSync(path.join(fx.rootDir, reconciliationPath))).digest('hex'),
+      reconciliationManifest,
     });
     assert.equal(fs.existsSync(prepared.source), false);
     const before = doctor.inspectSystem(fx.db, { rootDir: fx.rootDir });
@@ -142,6 +205,36 @@ test('doctor repair resumes an archive journal left after a process crash', asyn
     assert.equal(changes.readChange(fx.db, 'doctor-archive').status, 'archived');
     assert.equal(after.checks.archive_recovery.pending, 0);
     assert.equal(fs.existsSync(path.join(prepared.destination, archiveJournal.INTENT_FILE)), false);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('doctor repair creates a blocked recovery workflow for a legacy untracked change', async () => {
+  const fx = fixture();
+  try {
+    const artifactRoot = path.join(fx.rootDir, '.ultra', 'changes', 'active', 'legacy-change');
+    fs.mkdirSync(artifactRoot, { recursive: true });
+    fx.db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+       VALUES ('legacy-change', 'Legacy active change', 'standard', 'active',
+               'Preserve and recover this pre-workflow change.',
+               '.ultra/changes/active/legacy-change')`,
+    ).run();
+    const before = doctor.inspectSystem(fx.db, { rootDir: fx.rootDir });
+    assert.equal(before.status, 'degraded');
+    assert.equal(before.checks.workflows.status, 'fail');
+    assert.deepEqual(before.checks.workflows.untracked_active_changes, ['legacy-change']);
+
+    const after = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir, repair: true });
+    assert.equal(after.repair.workflows.created, 1);
+    const recovered = workflows.listWorkflows(
+      fx.db, { kind: 'change', change_id: 'legacy-change' }, { rootDir: fx.rootDir },
+    )[0];
+    assert.equal(recovered.status, 'blocked');
+    assert.equal(recovered.current_step, 'bind-baseline');
+    assert.deepEqual(recovered.blockers, ['LEGACY_CHANGE_PROVENANCE_REQUIRED']);
+    assert.deepEqual(after.checks.workflows.untracked_active_changes, []);
   } finally {
     cleanup(fx);
   }

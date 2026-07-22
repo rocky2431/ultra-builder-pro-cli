@@ -27,6 +27,18 @@ function seedChange(db, id, status = 'active') {
   ).run(id, `Change ${id}`, status, `Intent for ${id}.`, `.ultra/changes/active/${id}`);
 }
 
+test('tx acquires the SQLite writer with an immediate transaction', () => {
+  let deferredCalls = 0;
+  let immediateCalls = 0;
+  const transaction = () => { deferredCalls += 1; return 'deferred'; };
+  transaction.immediate = () => { immediateCalls += 1; return 'immediate'; };
+  const db = { transaction: () => transaction };
+
+  assert.equal(ops.tx(db, () => 'value'), 'immediate');
+  assert.equal(immediateCalls, 1);
+  assert.equal(deferredCalls, 0);
+});
+
 test('createTask inserts a row, preserves estimated_days, defaults status=pending, emits task_created', () => {
   const { dir, db } = freshDb();
   try {
@@ -54,6 +66,38 @@ test('patchTask updates estimated_days', () => {
     assert.equal(out.estimated_days, 1.5);
     closeStateDb(db);
   } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('task execution contract is durable, structured, and reports missing planning authority', () => {
+  const { dir, db } = freshDb();
+  try {
+    const incomplete = ops.createTask(db, {
+      id: 'contract-draft', title: 'draft execution contract', type: 'feature', priority: 'P1',
+    });
+    assert.ok(ops.taskContractBlockers(incomplete).includes('TASK_OUTCOME_MISSING'));
+
+    const complete = ops.createTask(db, {
+      id: 'contract-ready', title: 'complete execution contract', type: 'feature', priority: 'P0',
+      outcome: 'Users can verify one public behavior end to end.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'CLI: ultra status --json',
+      verification_command: 'npm test -- status-contract',
+      acceptance: [{
+        id: 'status-visible', criterion: 'The command returns the durable status.',
+        verification: 'npm test -- status-contract',
+      }],
+      context_refs: [{ ref: 'spec/mcp-tools.yaml', reason: 'Defines the public tool contract.', required: true }],
+      docs_impact: { status: 'required', files: ['README.md'], rationale: 'Public behavior changes.' },
+      ownership: { owner: 'runtime-maintainer', reviewers: ['spec-reviewer'] },
+      trace_to: '.ultra/specs/product.md#status',
+    });
+    assert.deepEqual(ops.taskContractBlockers(complete), []);
+    assert.equal(complete.acceptance[0].id, 'status-visible');
+    assert.equal(complete.docs_impact.status, 'required');
+  } finally {
+    closeStateDb(db);
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

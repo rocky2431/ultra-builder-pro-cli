@@ -10,15 +10,13 @@ const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const ops = require('./state-ops.cjs');
 const changes = require('./change-workflow.cjs');
 const { expandTask, TaskExpandError } = require('./task-expander.cjs');
+const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
+const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function tmpDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-expand-'));
   const { db } = initStateDb(path.join(dir, 'state.db'));
-  db.prepare(
-    `INSERT INTO baselines
-     (id, project_name, mode, status, approved_by, approval_note, converged_at)
-     VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'fixture', ?)`,
-  ).run(new Date().toISOString());
+  seedReadyBaseline(db, { rootDir: dir });
   return { dir, db };
 }
 
@@ -49,7 +47,9 @@ test('expandTask atomically persists host-derived children without a provider cl
   const ctx = tmpDb();
   try {
     seedParent(ctx.db);
-    const result = expandTask(ctx.db, { id: 'parent-1', children: HAPPY_CHILDREN });
+    const result = expandTask(ctx.db, {
+      id: 'parent-1', children: HAPPY_CHILDREN, rootDir: ctx.dir,
+    });
     assert.equal(result.parent_id, 'parent-1');
     assert.equal(result.children.length, 3);
     assert.equal(ops.readTask(ctx.db, 'parent-1').status, 'expanded');
@@ -67,13 +67,15 @@ test('expandTask rejects missing and already expanded parents', () => {
   const ctx = tmpDb();
   try {
     assert.throws(
-      () => expandTask(ctx.db, { id: 'missing', children: HAPPY_CHILDREN }),
+      () => expandTask(ctx.db, { id: 'missing', children: HAPPY_CHILDREN, rootDir: ctx.dir }),
       (err) => err instanceof TaskExpandError && err.code === 'TASK_NOT_FOUND',
     );
     seedParent(ctx.db);
-    expandTask(ctx.db, { id: 'parent-1', children: HAPPY_CHILDREN });
+    expandTask(ctx.db, { id: 'parent-1', children: HAPPY_CHILDREN, rootDir: ctx.dir });
     assert.throws(
-      () => expandTask(ctx.db, { id: 'parent-1', children: [{ ...HAPPY_CHILDREN[0], id: 'other' }] }),
+      () => expandTask(ctx.db, {
+        id: 'parent-1', children: [{ ...HAPPY_CHILDREN[0], id: 'other' }], rootDir: ctx.dir,
+      }),
       (err) => err instanceof TaskExpandError && err.code === 'ALREADY_EXPANDED',
     );
   } finally { cleanup(ctx); }
@@ -87,7 +89,7 @@ test('expandTask requires valid host-derived children and leaves the parent unto
       id: 'child-1', title: 'x', type: 'feature', priority: 'P1',
     }]]) {
       assert.throws(
-        () => expandTask(ctx.db, { id: 'parent-1', children }),
+        () => expandTask(ctx.db, { id: 'parent-1', children, rootDir: ctx.dir }),
         (err) => err instanceof TaskExpandError && err.code === 'INVALID_OUTPUT',
       );
       assert.equal(ops.readTask(ctx.db, 'parent-1').status, 'pending');
@@ -100,7 +102,7 @@ test('expandTask rejects duplicate child ids', () => {
   try {
     seedParent(ctx.db);
     assert.throws(
-      () => expandTask(ctx.db, { id: 'parent-1', children: [
+      () => expandTask(ctx.db, { id: 'parent-1', rootDir: ctx.dir, children: [
         { id: 'same', title: 'First child', type: 'feature', priority: 'P2' },
         { id: 'same', title: 'Second child', type: 'feature', priority: 'P2' },
       ] }),
@@ -116,7 +118,9 @@ test('expandTask rolls back every child when one id collides', () => {
     ops.createTask(ctx.db, {
       id: 'child-1', title: 'Pre-existing task', type: 'bugfix', priority: 'P3',
     });
-    assert.throws(() => expandTask(ctx.db, { id: 'parent-1', children: HAPPY_CHILDREN }));
+    assert.throws(() => expandTask(ctx.db, {
+      id: 'parent-1', children: HAPPY_CHILDREN, rootDir: ctx.dir,
+    }));
     assert.equal(ops.readTask(ctx.db, 'parent-1').status, 'pending');
     assert.equal(ops.readTask(ctx.db, 'child-2'), null);
     assert.equal(ops.readTask(ctx.db, 'child-3'), null);
@@ -126,7 +130,7 @@ test('expandTask rolls back every child when one id collides', () => {
 test('expandTask children inherit parent tag and change ownership', () => {
   const ctx = tmpDb();
   try {
-    const { change } = changes.createChange(ctx.db, {
+    const { change } = changes.createChange(ctx.db, { ...completeChangeInput(),
       id: 'expand-change', title: 'Expand one task', kind: 'quick',
       intent: 'Keep child ownership inside the active change.',
       docs_impact: { status: 'none', rationale: 'test fixture' },

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultra-builder-pro.dev/schemas/baseline-reconciliation.v1.schema.json",
+  "title": "Ultra baseline reconciliation v1",
+  "type": "object",
+  "required": [
+    "$schema", "change_id", "baseline_id", "baseline_updates", "semantic_changes",
+    "resolved_gap_ids", "resolved_unknowns", "verification"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "const": "ultra-baseline-reconciliation-v1" },
+    "change_id": { "type": "string", "minLength": 1 },
+    "baseline_id": { "type": ["string", "null"] },
+    "baseline_updates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "semantic_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "action", "source_ref", "before_digest", "after_digest"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "action": { "enum": ["add", "update"] },
+          "source_ref": { "type": "string", "pattern": "^[^#]+#[^#]+$" },
+          "before_digest": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+          "after_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "resolved_gap_ids": {
+      "type": "array", "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "resolved_unknowns": {
+      "type": "array", "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "verification": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "command", "status", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "command": { "type": "string", "minLength": 1 },
+          "status": { "const": "pass" },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "semantic_no_change_reason": { "type": ["string", "null"], "minLength": 3 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "baseline_updates": { "maxItems": 0 } } },
+      "then": {
+        "required": ["semantic_no_change_reason"],
+        "properties": {
+          "semantic_changes": { "maxItems": 0 },
+          "semantic_no_change_reason": { "type": "string", "minLength": 3 }
+        }
+      },
+      "else": { "properties": { "semantic_changes": { "minItems": 1 } } }
+    }
+  ]
+}

@@ -120,6 +120,12 @@ function renderProjectBreadcrumb(rootDir, breadcrumb) {
   if (Array.isArray(breadcrumb.warnings) && breadcrumb.warnings.length > 0) {
     lines.push(`Warnings: ${breadcrumb.warnings.join(', ')}`);
   }
+  if (breadcrumb.workflow) {
+    lines.push(
+      `Workflow: ${breadcrumb.workflow.id} (${breadcrumb.workflow.kind}/${breadcrumb.workflow.status})`,
+      `Step: ${breadcrumb.workflow.current_step || 'finalize'}`,
+    );
+  }
   lines.push(
     `Next: ${breadcrumb.next_action || 'Inspect Ultra status.'}`,
     `Route: ${breadcrumb.recommended_workflow || 'ultra-doctor'}`,

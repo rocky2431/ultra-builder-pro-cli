@@ -1,0 +1,20 @@
+[
+  {
+    "$schema": "ultra-delivery-report-v1",
+    "change_id": "change-example",
+    "archive_status": "archived",
+    "baseline_id": "project-baseline",
+    "baseline_status": "ready",
+    "git_commit": "0123456789abcdef0123456789abcdef01234567",
+    "worktree_digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "context_digest": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "checks": [{ "command": "npm test", "status": "pass", "exit_code": 1, "evidence": "contradictory" }],
+    "release": {
+      "authorized": false,
+      "performed": true,
+      "unknown_field": "not part of the contract"
+    },
+    "rollback": "Restore the backup.",
+    "timestamp": "2026-07-22T00:00:00.000Z"
+  }
+]

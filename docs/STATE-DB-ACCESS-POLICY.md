@@ -4,13 +4,13 @@
 > risks R21 / R25.
 
 `.ultra/state.db` is the only authoritative state store for baselines, changes,
-tasks, events, sessions, incidents, projections, telemetry, and spec references
+tasks, workflow runs/steps, events, sessions, incidents, projections, telemetry, and spec references
 (D18, D52, D54). Every process
 that touches it must follow the rules below; deviations are bugs.
 
 ## 1. Three-role write matrix
 
-| Role | tasks | baselines | change/artifact state | events | sessions | telemetry | specs_refs | migration_history |
+| Role | tasks | baselines | change/workflow/artifact state | events | sessions | telemetry | specs_refs | migration_history |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **MCP server** (single writer for mutables) | RW | RW | RW | RW | RW | RW | RW | RW |
 | **CLI** (`ultra-tools …`) | R | RW (init only) | R | RW (append-only) | R | R | R | RW (migration only) |
@@ -31,7 +31,11 @@ write API for normal task, change, session, or baseline lifecycle updates.
 The append-only carve-out for `events` exists because `events.id INTEGER
 PRIMARY KEY AUTOINCREMENT` makes concurrent inserts collision-free under
 WAL + `busy_timeout`. This lets hooks and short-lived CLI invocations
-record audit events without paying the cost of a full MCP round trip.
+record audit observations without paying the cost of a full MCP round trip.
+It does not grant lifecycle authority: external writers and public
+`task.append_event` use the published observation allowlist, while lifecycle event
+names are emitted only inside the mutation that owns the corresponding state change.
+Consumers must verify mutable rows rather than infer success from an event name.
 
 ## 2. Connection discipline
 
@@ -40,31 +44,27 @@ Every process **must**:
 1. Open the database with WAL + `busy_timeout=5000` + `foreign_keys=ON`.
    Use `mcp-server/lib/state-db.cjs` `openStateDb` so the pragmas are
    applied uniformly.
-2. Wrap every write in `BEGIN IMMEDIATE` (use the helper `withWrite(db,
-   fn)` once Phase 2.3 lands; until then call `db.transaction(fn)()` and
-   know that better-sqlite3 promotes to IMMEDIATE on the first write).
-3. Retry up to **3 times** on `SQLITE_BUSY`, with exponential backoff
-   starting at 25 ms. Each retry must re-issue the full transaction —
-   never partially commit.
+2. Wrap every mutable state operation with `state-ops.cjs` `tx(db, fn)`. The
+   helper calls better-sqlite3's immediate transaction variant, so the writer
+   lock is acquired before user code runs and the whole operation rolls back on
+   failure.
+3. Retry the complete transaction up to **10 attempts** on `SQLITE_BUSY`, using
+   decorrelated jitter from a 50 ms base with a 2 s cap. Never retry only a
+   suffix of a failed transaction or preserve partial state.
 4. Close the connection in a `finally` block. WAL files (`-wal`,
    `-shm`) are reclaimed on the last writer's close.
 
 Reads never need explicit transactions; better-sqlite3 reads observe a
 consistent snapshot under WAL.
 
-## 3. WAL fallback
+## 3. WAL requirement
 
-WAL is **unsafe on NFS / SMB / certain Docker bind mounts** (R21). When
-`.ultra/state.db` resides on such a filesystem the orchestrator must
-either:
-
-- refuse to start (preferred — surfaces the deployment problem early), or
-- downgrade to `PRAGMA journal_mode = DELETE` and warn loudly. Concurrent
-  writers fall back to short-burst contention; throughput drops but
-  correctness holds.
-
-Detection happens at boot: `statvfs` of `.ultra/state.db`'s mount;
-`f_type` ∈ `{NFS_SUPER_MAGIC, SMB_SUPER_MAGIC}` ⇒ refuse / downgrade.
+WAL is part of the authority contract, not an optional performance setting.
+`openStateDb` asks SQLite to enable WAL and checks the actual returned mode. If
+the storage layer returns anything else, startup fails with
+`STATE_DB_WAL_UNAVAILABLE`. Ultra does not silently downgrade to a different
+concurrency model. Move `.ultra/state.db` to storage that supports SQLite WAL or
+resolve the mount/runtime constraint before retrying.
 
 ## 4. Where each table is owned
 
@@ -73,9 +73,10 @@ Detection happens at boot: `statvfs` of `.ultra/state.db`'s mount;
 | `baselines`        | MCP server (`baseline.start` / `baseline.record` / `baseline.converge`); initialization and legacy-projection migration may create only the first draft or compatibility row |
 | `tasks`            | MCP server (`task.create` / `task.update` / `task.delete`) |
 | `changes`          | MCP server (`change.create` / `change.update` / `change.converge` / `change.archive`) |
+| `workflow_runs`, `workflow_steps` | MCP server (`workflow.start` / `workflow.step` / `workflow.complete`); skills provide evidence inputs but never write rows directly |
 | `artifacts`, `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through change lifecycle tools |
 | `incidents`, `projection_jobs`, `event_consumers`, `circuit_breaker` | MCP server; backup-first doctor recovery may perform only documented mechanical transitions |
-| `events`           | MCP server **and** any process via append-only INSERT  |
+| `events`           | MCP server for lifecycle events; approved processes and `task.append_event` for allowlisted append-only observations |
 | `sessions`         | MCP server (`session.spawn` / `session.close` / `session.heartbeat`); orchestrator may write status transitions |
 | `telemetry`        | MCP server (collected from tool-call wrappers); orchestrator may dump bulk samples |
 | `specs_refs`       | MCP server (rebuilt on `spec_changed` event); orchestrator may rebuild |
@@ -110,6 +111,7 @@ The contract on this page is enforced by:
   appending to `events` simultaneously; asserts no `SQLITE_BUSY` escapes
   the retry loop and the resulting `events.id` sequence has no gaps and
   no duplicates.
-- Phase 2.3 will add `concurrency-update.test.cjs` — 20 worker threads
-  driving `task.update` against disjoint task ids, verifying serialized
-  writes through the MCP server.
+- `mcp-server/tests/state-ops.test.cjs` — immediate transactions, rollback,
+  status transitions, task contracts, and event coupling.
+- `mcp-server/lib/workflow-state.test.cjs` — ordered workflow transitions,
+  evidence/output requirements, blocking/resume, and cross-stage gates.

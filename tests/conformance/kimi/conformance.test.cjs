@@ -85,6 +85,7 @@ test('kimi conformance — MCP avoids the incompatible Kimi embedded Node ABI', 
     assert.equal(entry.cwd, undefined);
     assert.equal(entry.env, undefined);
     assert.ok(fs.existsSync(path.join(value.pluginRoot, 'runtime', 'build', 'Release', 'better_sqlite3.node')));
+    assert.ok(fs.existsSync(path.join(value.pluginRoot, 'runtime', 'hook-event.cjs')));
   } finally { cleanup(value.home); }
 });
 

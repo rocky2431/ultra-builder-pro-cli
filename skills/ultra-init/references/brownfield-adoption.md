@@ -89,5 +89,5 @@ items the owner accepted.
 Resolve returned blockers through evidence or an owner decision, record the replacement
 snapshot, and retry. Adoption is complete only when `baseline.get` is `ready` and
 current, the gap ledger has no open blocker, and project doctor has no authority
-failure. Route new work through `ultra-change`; route already accepted planned work
-through `ultra-plan`.
+failure. Route all selected work through `ultra-change`, including work described by a
+legacy plan. Import its accepted intent into a current Change Contract before planning.

@@ -1,7 +1,7 @@
-# Evidence-Based Confidence
+# Evidence Status
 
-Cross-model agreement is a signal, not an authority. Assign confidence only after checking claims
-against source code, tests, runtime output, or primary documentation.
+Cross-model agreement is a signal, not an authority. Classify the synthesis only after checking
+consequential claims against source code, tests, runtime output, or primary documentation.
 
 ## Levels
 

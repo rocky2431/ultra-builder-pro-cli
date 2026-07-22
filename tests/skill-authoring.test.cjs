@@ -12,6 +12,7 @@ const {
   SUPPORTED_RUNTIMES,
   skillsForRuntime,
 } = require('../adapters/_shared/runtime-assets.cjs');
+const { WORKFLOW_DEFINITIONS } = require('../mcp-server/lib/workflow-state.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const SKILLS_ROOT = path.join(ROOT, 'skills');
@@ -125,12 +126,36 @@ test('core and internal skills are host-neutral', () => {
   }
 });
 
-test('research uses focused references instead of a second prompt framework', () => {
+test('research preserves the complete semantic workflow through focused references', () => {
   const root = path.join(SKILLS_ROOT, 'ultra-research');
   assert.ok(fs.existsSync(path.join(root, 'references')), 'ultra-research must use references/');
   assert.ok(!fs.existsSync(path.join(root, 'steps')), 'ultra-research steps/ duplicates the main workflow');
+  assert.deepEqual(
+    fs.readdirSync(path.join(root, 'references')).sort(),
+    [
+      '00-problem-validation.md', '01-opportunity-discovery.md', '02-market-assessment.md',
+      '03-competitive-landscape.md', '04-product-strategy.md', '05-assumptions-validation.md',
+      '10-user-personas.md', '11-user-scenarios.md', '20-user-stories.md',
+      '21-features-scope.md', '22-success-metrics.md', '30-architecture-context.md',
+      '31-solution-strategy.md', '32-building-blocks.md', '40-deployment.md',
+      '41-quality-risks.md', '99-synthesis.md',
+    ],
+  );
   const skillLines = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8').split('\n').length;
   assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
+});
+
+test('workflow skills name every durable DB step they are responsible for following', () => {
+  for (const [kind, steps] of Object.entries(WORKFLOW_DEFINITIONS)) {
+    const { text } = sourceSkill(`ultra-${kind}`);
+    for (const { id } of steps) {
+      assert.match(
+        text,
+        new RegExp(`(?:^|[^a-z0-9-])${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:$|[^a-z0-9-])`, 'm'),
+        `ultra-${kind} must explain how to follow durable workflow step ${id}`,
+      );
+    }
+  }
 });
 
 test('command markdown files are English thin launchers', () => {

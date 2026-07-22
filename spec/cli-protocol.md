@@ -91,7 +91,7 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `task.expand`             | `task expand`               | 8a    | mcp     |
 | `task.parse_prd`          | `task parse-prd`            | 8a    | mcp     |
 | `task.dependency_topo`    | `task topo`                 | 8a    | mcp     |
-| `task.append_event`       | `task append-event`         | 2     | any     |
+| `task.append_event`       | `task append-event`         | 2     | any (allowlisted observations only) |
 | `task.subscribe_events`   | `task subscribe`            | 2     | any     |
 | `session.spawn`           | `session spawn`             | 4.5   | mcp     |
 | `session.close`           | `session close`             | 4.5   | mcp     |
@@ -114,6 +114,11 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `change.learning_resolve` | `change learning-resolve`   | 10    | mcp     |
 | `change.converge`         | `change converge`           | 9     | mcp     |
 | `change.archive`          | `change archive`            | 9     | mcp     |
+| `workflow.start`          | `workflow start`            | 13    | mcp     |
+| `workflow.get`            | `workflow get`              | 13    | any     |
+| `workflow.list`           | `workflow list`             | 13    | any     |
+| `workflow.step`           | `workflow step`             | 13    | mcp     |
+| `workflow.complete`       | `workflow complete`         | 13    | mcp     |
 | `system.doctor`           | `system doctor`             | 9     | mcp     |
 | `plan.export`             | `plan export`               | 8a    | mcp     |
 | `plan.get`                | `plan get`                  | 8a    | any     |
@@ -126,7 +131,7 @@ the live MCP server; `system doctor` may additionally be exposed by the
 maintenance CLI because it is the recovery path when MCP startup is degraded.
 `task init-project --resume` preserves existing `.ultra` files and installs only
 missing current scaffold assets. Projection-only state uses the supported
-`migrate --from=4.4 --to=4.5` or `--from=4.5 --to=12.0` transition before resume.
+`migrate --from=4.4 --to=4.5` or `--from=4.5 --to=15.0` transition before resume.
 `system doctor --repair` applies supported schema upgrades with a pre-migration
 backup before mechanical recovery.
 `system restore` requires the exact `REPLACE_CORRUPT_ULTRA_STATE` confirmation and a

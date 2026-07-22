@@ -16,7 +16,7 @@ const runtimeState = require('../mcp-server/lib/runtime-state.cjs');
 const projector = require('../mcp-server/lib/projector.cjs');
 const runner = require('./session-runner.cjs');
 const recovery = require('./recovery.cjs');
-const { evaluate, DEFAULT_RULES, ROUTE_PREFERENCES } = require('./dispatch-rules.cjs');
+const { evaluate, DEFAULT_RULES } = require('./dispatch-rules.cjs');
 
 // Phase 8B.1 — routeTask is now a thin wrapper over evaluate() so Phase 5.4
 // callers see identical behavior while the parallel orchestrator (8B.2) can
@@ -146,6 +146,5 @@ function runDaemon({
 module.exports = {
   runDaemon,
   routeTask,
-  ROUTE_PREFERENCES,
   maintainState,
 };

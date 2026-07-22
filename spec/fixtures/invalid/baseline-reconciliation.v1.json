@@ -1,0 +1,10 @@
+{
+  "$schema": "ultra-baseline-reconciliation-v1",
+  "change_id": "change-001",
+  "baseline_id": "baseline-001",
+  "baseline_updates": [],
+  "semantic_changes": [],
+  "resolved_gap_ids": [],
+  "resolved_unknowns": [],
+  "verification": []
+}

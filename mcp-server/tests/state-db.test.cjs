@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const stateDb = require('../lib/state-db.cjs');
+const stateOps = require('../lib/state-ops.cjs');
 
 test('initStateDb upgrades a pre-10.0 database through Context Spine into baseline authority', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-db-upgrade-'));
@@ -50,6 +51,11 @@ test('initStateDb upgrades a pre-10.0 database through Context Spine into baseli
       );
       INSERT INTO schema_version (version, applied_at, description)
       VALUES ('8A.1', '2026-01-01T00:00:00.000Z', 'legacy fixture');
+      INSERT INTO tasks
+        (id, title, type, priority, status, stale, complexity_hint, created_at, updated_at)
+      VALUES
+        ('legacy-tier', 'Legacy model-tier task', 'feature', 'P2', 'pending', 0,
+         'opus', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
     `);
     stateDb.closeStateDb(db);
 
@@ -57,9 +63,11 @@ test('initStateDb upgrades a pre-10.0 database through Context Spine into baseli
     const columns = upgraded.db.prepare('PRAGMA table_info(tasks)').all().map((row) => row.name);
     assert.ok(columns.includes('estimated_days'));
     assert.ok(columns.includes('change_id'));
+    assert.equal(upgraded.db.prepare("SELECT complexity_hint FROM tasks WHERE id = 'legacy-tier'").get().complexity_hint, 'opus');
+    assert.equal('complexity_hint' in stateOps.readTask(upgraded.db, 'legacy-tier'), false);
     const eventColumns = upgraded.db.prepare('PRAGMA table_info(events)').all().map((row) => row.name);
     assert.ok(eventColumns.includes('change_id'));
-    assert.equal(upgraded.schema_version, '12.0');
+    assert.equal(upgraded.schema_version, stateDb.EXPECTED_VERSION);
     assert.ok(upgraded.backup_path);
     assert.ok(fs.existsSync(upgraded.backup_path));
     assert.ok(upgraded.db.prepare("SELECT 1 FROM schema_version WHERE version = '10.0'").get());

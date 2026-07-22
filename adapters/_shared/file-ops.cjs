@@ -8,7 +8,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-const DEFAULT_EXCLUDES = new Set(['.DS_Store', 'Thumbs.db']);
+const DEFAULT_EXCLUDES = new Set(['.DS_Store', 'Thumbs.db', '__pycache__']);
+
+function isExcluded(name, exclude) {
+  return exclude.has(name) || name.endsWith('.pyc') || name.endsWith('.pyo');
+}
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -27,7 +31,7 @@ function listRelative(root, { exclude = DEFAULT_EXCLUDES } = {}) {
   const out = [];
   (function walk(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (exclude.has(entry.name)) continue;
+      if (isExcluded(entry.name, exclude)) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
       else if (entry.isFile()) out.push(path.relative(root, full));

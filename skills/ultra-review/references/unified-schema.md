@@ -67,8 +67,13 @@ preference as a defect. Preserve the source specialist's severity during coordin
 ```json
 {
   "$schema": "ultra-review-summary-v2",
+  "mode": "change",
   "session": "<session-id>",
+  "change_id": "<change-id>",
+  "task_ids": ["<task-id>"],
   "head": "<full-git-head>",
+  "worktree_digest": "<sha256-of-current-worktree>",
+  "context_digest": "<sha256-of-recorded-review-context>",
   "status": "complete",
   "verdict": "REQUEST_CHANGES",
   "axes": {
@@ -86,11 +91,31 @@ preference as a defect. Preserve the source specialist's severity during coordin
     "failed": [],
     "skipped": []
   },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "The specification axis is required for every review mode."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "The current diff does not change maintained comments or API documentation."
+    }
+  ],
   "findings": [],
   "positive_observations": [],
   "limitations": []
 }
 ```
+
+`findings` must contain every specialist finding unchanged. Group duplicates only in
+the human-readable summary; never delete or merge machine-readable records.
+
+`mode` is `task`, `change`, or `plan`. `worker_selection` contains every selected or
+skipped worker exactly once with a scope-specific rationale. Its selected set equals
+`workers.completed` plus `workers.failed`; its skipped set equals `workers.skipped`.
+`review-spec` is always selected and completed.
 
 The overall verdict is `APPROVE` only when both axes pass, artifacts are complete and
 current, and no P0 or P1 finding remains. Use `REQUEST_CHANGES` for a failed axis or

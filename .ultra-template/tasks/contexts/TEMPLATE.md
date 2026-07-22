@@ -1,36 +1,19 @@
-<!-- Body template only. The projector owns authoritative YAML frontmatter. -->
+<!-- The projector owns YAML frontmatter and the generated execution contract. -->
 
-# Task {id}: {title}
+# Task Notes
 
-## Outcome
+Use this body only for task-specific implementation discoveries that are not already
+authoritative task fields. Stable specification learning must follow the change
+approval workflow.
 
-[Describe the observable result this task must produce.]
+## Implementation Notes
 
-## Required context
+- [Evidence-backed note with a source reference]
 
-- `[project-relative reference]` — [why it is required]
+## Open Questions
 
-## Execution contract
+- [Question, consequence, owner, and next evidence]
 
-- Public seam: [reachable entry point or observable boundary]
-- Verification command: `[exact deterministic command]`
-- Documentation impact: [required paths or a specific no-change rationale]
+## Recovery Notes
 
-## Constraints
-
-- [Confirmed constraint with its evidence source]
-
-## Acceptance evidence
-
-- [Expected behavior and the evidence that will verify it]
-
-## Traceability
-
-- Change: [change id or initial baseline]
-- Specification: [project-relative section reference]
-
-## Completion evidence
-
-- Commit: [verified commit when applicable]
-- Tests: [command and result]
-- Summary: [delivered behavior]
+- [Current safe resume point and any external prerequisite]

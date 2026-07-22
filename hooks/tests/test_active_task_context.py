@@ -117,7 +117,10 @@ class ActiveTaskContextTest(unittest.TestCase):
             context_text = output["hookSpecificOutput"]["additionalContext"]
             self.assertIn("edit-task", context_text)
             self.assertIn("Gate: implementation", context_text)
-            self.assertIn("Next: Continue edit-task", context_text)
+            self.assertIn("BASELINE_MIGRATION_REVIEW_REQUIRED", context_text)
+            self.assertIn("CONTEXT_SNAPSHOT_UPGRADE_REQUIRED", context_text)
+            self.assertIn("Next: Complete or refresh the Ultra project baseline", context_text)
+            self.assertIn("Route: ultra-doctor", context_text)
             self.assertNotIn("Edit safely", context_text)
 
 

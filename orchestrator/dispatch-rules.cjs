@@ -8,27 +8,12 @@
 //   • defer       — leave task pending, revisit next tick (deps/wave wait)
 //   • block       — terminal: don't spawn (breaker, no runtimes, etc.)
 //
-// Phase 5.4 ROUTE_PREFERENCES lives here now. daemon.cjs's `routeTask` is a
-// thin wrapper around evaluate() so Phase 5.4 tests stay green while the
-// parallel orchestrator (8B.2) gets a richer decision surface: wave state,
-// deps readiness, and custom rule injection.
+// Runtime order is caller-owned. The orchestrator does not infer model quality,
+// price, or capability from a host name because every host can be configured
+// with different models. The parallel orchestrator supplies richer dimensions:
+// wave state, dependency readiness, and explicit custom rules.
 
 const { isSupportedRuntime } = require('../adapters/_shared/runtime-assets.cjs');
-
-const ROUTE_PREFERENCES = Object.freeze({
-  haiku:  ['opencode', 'claude', 'codex'],
-  sonnet: ['claude', 'codex', 'opencode'],
-  opus:   ['claude', 'codex'],
-});
-
-function resolveByPreference(ctx) {
-  const hint = ctx.task && ctx.task.complexity_hint;
-  const pref = hint ? ROUTE_PREFERENCES[hint] : null;
-  if (pref) {
-    for (const r of pref) if (ctx.available_runtimes.includes(r)) return r;
-  }
-  return ctx.available_runtimes[0];
-}
 
 const DEFAULT_RULES = Object.freeze([
   {
@@ -56,17 +41,7 @@ const DEFAULT_RULES = Object.freeze([
     action: 'defer',
   },
   {
-    id: 'by-preference',
-    priority: 10,
-    when: (ctx) => {
-      const hint = ctx.task && ctx.task.complexity_hint;
-      return !!(hint && ROUTE_PREFERENCES[hint]);
-    },
-    action: 'spawn_agent',
-    resolve: resolveByPreference,
-  },
-  {
-    id: 'fallback-first-available',
+    id: 'first-authorized-runtime',
     priority: 0,
     when: () => true,
     action: 'spawn_agent',
@@ -100,5 +75,4 @@ function evaluate(ctx, rules = DEFAULT_RULES) {
 module.exports = {
   evaluate,
   DEFAULT_RULES,
-  ROUTE_PREFERENCES,
 };

@@ -10,31 +10,28 @@
 //   Claude:  https://www.anthropic.com/pricing
 //   OpenAI:  https://platform.openai.com/docs/pricing
 //
-// `default` inside each runtime is the fallback when a session did not
-// record which specific model it used.
+// Pricing is exact-model only. A runtime label is not a billable model and
+// host applications can route the same runtime through different providers.
+// Missing or unknown models therefore return null instead of a fabricated
+// estimate.
 
 const PRICING = Object.freeze({
   claude: Object.freeze({
     'claude-opus-4-7':      { input: 15e-6, output: 75e-6 },
     'claude-sonnet-4-6':    { input: 3e-6,  output: 15e-6 },
     'claude-haiku-4-5':     { input: 0.8e-6, output: 4e-6 },
-    default:                { input: 3e-6,  output: 15e-6 }, // assume sonnet
   }),
   codex: Object.freeze({
     'gpt-5.4':              { input: 2e-6,  output: 10e-6 },
-    default:                { input: 2e-6,  output: 10e-6 },
   }),
-  opencode: Object.freeze({
-    // OpenCode is a frontend over whichever model the user configured;
-    // treat as sonnet-equivalent unless a model name is passed in.
-    default:                { input: 3e-6,  output: 15e-6 },
-  }),
+  opencode: Object.freeze({}),
+  kimi: Object.freeze({}),
 });
 
 function computeCost(runtime, model, tokens_input, tokens_output) {
   const r = PRICING[runtime];
   if (!r) return null;
-  const p = (model && r[model]) || r.default;
+  const p = model ? r[model] : null;
   if (!p) return null;
   const ti = Number(tokens_input) || 0;
   const to = Number(tokens_output) || 0;

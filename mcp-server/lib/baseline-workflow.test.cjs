@@ -10,6 +10,8 @@ const { execFileSync } = require('node:child_process');
 
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const baselines = require('./baseline-workflow.cjs');
+const workflows = require('./workflow-state.cjs');
+const { semanticRecordsForStep } = require('../test-support/semantic-records.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-baseline-'));
@@ -18,6 +20,7 @@ function fixture() {
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: rootDir });
   fs.mkdirSync(path.join(rootDir, '.ultra', 'specs'), { recursive: true });
   fs.mkdirSync(path.join(rootDir, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'discovery.md'), '# Discovery\n\nObserved evidence.\n');
   fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'product.md'), '# Product\n\nObserved behavior.\n');
   fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'architecture.md'), '# Architecture\n\nCurrent boundary.\n');
   fs.writeFileSync(path.join(rootDir, 'src', 'index.js'), 'module.exports = true;\n');
@@ -36,6 +39,7 @@ function cleanup(fx) {
 function adoptionEvidence() {
   return {
     spec_refs: [
+      { kind: 'discovery', path: '.ultra/specs/discovery.md' },
       { kind: 'product', path: '.ultra/specs/product.md' },
       { kind: 'architecture', path: '.ultra/specs/architecture.md' },
     ],
@@ -50,6 +54,50 @@ function adoptionEvidence() {
   };
 }
 
+function completeResearch(fx, baselineId, mode = 'adoption') {
+  let run = workflows.startWorkflow(fx.db, {
+    id: `research-${baselineId}`, kind: 'research', mode, baseline_id: baselineId,
+    subject: 'Complete the baseline research contract.',
+  }, { rootDir: fx.rootDir });
+  for (const workflowStep of run.steps.filter((item) => item.required)) {
+    let output = '.ultra/specs/architecture.md';
+    if (workflowStep.step_id.startsWith('0')) output = '.ultra/specs/discovery.md';
+    else if (workflowStep.step_id.startsWith('1') || workflowStep.step_id.startsWith('2')) {
+      output = '.ultra/specs/product.md';
+    } else if (workflowStep.step_id === '99-synthesis') {
+      output = '.ultra/specs/research-distillate.md';
+      if (!fs.existsSync(path.join(fx.rootDir, output))) fs.writeFileSync(path.join(fx.rootDir, output), '# Research Distillate\n');
+    }
+    fs.appendFileSync(path.join(fx.rootDir, output), `\n${workflowStep.step_id} complete.\n`);
+    const report = path.join(
+      '.ultra', 'docs', 'research', run.id, `${workflowStep.step_id}.md`,
+    );
+    fs.mkdirSync(path.dirname(path.join(fx.rootDir, report)), { recursive: true });
+    fs.writeFileSync(path.join(fx.rootDir, report), [
+      `# ${workflowStep.step_id} evidence`, '',
+      '## Evidence', '', 'Fixture evidence.', '',
+      '## Specification updates', '', `Updated ${output}.`, '',
+      '## Decisions and unknowns', '', 'No unresolved fixture decision.', '',
+    ].join('\n'));
+    const outputs = [{ path: report, kind: 'research-step-report' }];
+    if (workflowStep.step_id === '99-synthesis') {
+      outputs.push(
+        { path: '.ultra/specs/discovery.md', kind: 'baseline-specification' },
+        { path: '.ultra/specs/product.md', kind: 'baseline-specification' },
+        { path: '.ultra/specs/architecture.md', kind: 'baseline-specification' },
+        { path: '.ultra/specs/research-distillate.md', kind: 'research-distillate' },
+      );
+    }
+    run = workflows.recordWorkflowStep(fx.db, {
+      id: run.id, step_id: workflowStep.step_id, status: 'completed',
+      evidence: [{ kind: 'test', ref: `fixture:${workflowStep.step_id}`, summary: 'Fixture evidence.' }],
+      outputs,
+      semantic_records: semanticRecordsForStep(run.id, workflowStep.step_id),
+    }, { rootDir: fx.rootDir });
+  }
+  return workflows.completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir });
+}
+
 test('brownfield baseline converges only after current specs, source evidence, verification, and approval', () => {
   const fx = fixture();
   try {
@@ -58,6 +106,8 @@ test('brownfield baseline converges only after current specs, source evidence, v
       mode: 'brownfield', repository_revision: fx.revision, scope: ['.'],
     }, { rootDir: fx.rootDir });
     assert.equal(started.status, 'adopting');
+
+    completeResearch(fx, started.id);
 
     const recorded = baselines.recordBaseline(fx.db, {
       id: started.id, repository_revision: fx.revision, ...adoptionEvidence(),
@@ -76,6 +126,84 @@ test('brownfield baseline converges only after current specs, source evidence, v
     assert.equal(converged.ready, true);
     assert.equal(converged.baseline.status, 'ready');
     assert.equal(converged.baseline.approved_by, 'project-owner');
+    assert.equal(converged.baseline.known_red_accepted, false);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('known-red acceptance is durable authority and is revalidated after convergence', () => {
+  const fx = fixture();
+  try {
+    const baseline = baselines.startBaseline(fx.db, {
+      id: 'known-red-baseline', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision,
+    }, { rootDir: fx.rootDir });
+    completeResearch(fx, baseline.id);
+    baselines.recordBaseline(fx.db, {
+      id: baseline.id,
+      repository_revision: fx.revision,
+      ...adoptionEvidence(),
+      verification: [{
+        name: 'legacy suite', command: 'npm test', status: 'known_red',
+        evidence: 'Two stable failures predate adoption.',
+        rationale: 'Accepted as tracked baseline debt.',
+      }],
+    }, { rootDir: fx.rootDir });
+    const converged = baselines.convergeBaseline(fx.db, {
+      id: baseline.id, expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Accept the known baseline failures.',
+      accept_known_red: true,
+    }, { rootDir: fx.rootDir });
+    assert.equal(converged.ready, true);
+    assert.equal(converged.baseline.known_red_accepted, true);
+    assert.equal(baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir }).status, 'pass');
+
+    fx.db.prepare(
+      "UPDATE baselines SET known_red_accepted = 0 WHERE id = 'known-red-baseline'",
+    ).run();
+    const invalid = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.equal(invalid.status, 'fail');
+    assert.ok(invalid.blockers.includes('BASELINE_KNOWN_RED_NOT_ACCEPTED:legacy suite'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('a ready status row cannot bypass the complete baseline authority contract', () => {
+  const fx = fixture();
+  try {
+    const now = new Date().toISOString();
+    fx.db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, scope_json, approved_by, approval_note,
+        research_run_id, converged_at)
+       VALUES ('forged-ready', 'fixture', 'greenfield', 'ready', '[]', '', '',
+               'forged-research', ?)`,
+    ).run(now);
+    fx.db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, mode, subject, definition_version, status, baseline_id, completed_at)
+       VALUES ('forged-research', 'research', 'full', 'Incomplete provenance.', ?,
+               'completed', 'forged-ready', ?)`,
+    ).run(workflows.DEFINITION_VERSION, now);
+
+    const health = baselines.inspectBaseline(fx.db, {
+      rootDir: fx.rootDir, id: 'forged-ready',
+    });
+    assert.equal(health.status, 'fail');
+    for (const blocker of [
+      'BASELINE_SCOPE_MISSING',
+      'BASELINE_SPEC_MISSING:discovery',
+      'BASELINE_SPEC_MISSING:product',
+      'BASELINE_SPEC_MISSING:architecture',
+      'BASELINE_EVIDENCE_MISSING',
+      'BASELINE_VERIFICATION_MISSING',
+      'BASELINE_REVISION_MISSING',
+      'BASELINE_APPROVER_MISSING',
+      'BASELINE_APPROVAL_NOTE_MISSING',
+    ]) assert.ok(health.blockers.includes(blocker), `missing ${blocker}`);
+    assert.ok(health.blockers.includes('BASELINE_RESEARCH_WORKFLOW_STEP_MISSING:00-problem-validation'));
   } finally {
     cleanup(fx);
   }
@@ -107,6 +235,8 @@ test('baseline convergence records deterministic blockers for missing evidence a
     assert.equal(result.ready, false);
     assert.equal(result.status, 'blocked');
     assert.ok(result.blockers.includes('BASELINE_SPEC_MISSING:architecture'));
+    assert.ok(result.blockers.includes('BASELINE_SPEC_MISSING:discovery'));
+    assert.ok(result.blockers.includes('BASELINE_RESEARCH_INCOMPLETE'));
     assert.ok(result.blockers.includes('BASELINE_SOURCE_EVIDENCE_MISSING'));
     assert.ok(result.blockers.includes('BASELINE_KNOWN_RED_NOT_ACCEPTED:legacy suite'));
     assert.ok(result.blockers.includes('BASELINE_UNKNOWN_BLOCKING:Production authorization behavior is not verified.'));
@@ -129,6 +259,7 @@ test('baseline stores provider metadata only and detects specification drift aft
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'PROVIDER_CONTENT_FORBIDDEN',
     );
+    completeResearch(fx, 'provider-baseline');
     baselines.recordBaseline(fx.db, {
       id: 'provider-baseline', repository_revision: fx.revision,
       provider_refs: { memory: { provider: 'cloud-mem', reference: 'cmem://fixture', status: 'fresh' } },
@@ -211,6 +342,7 @@ test('re-adoption requires explicit replacement and supersedes the prior ready b
 test('greenfield baseline derives a stable workspace revision when Git is not initialized', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-greenfield-baseline-'));
   fs.mkdirSync(path.join(rootDir, '.ultra', 'specs'), { recursive: true });
+  fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'discovery.md'), '# Discovery\n\nAccepted evidence.\n');
   fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'product.md'), '# Product\n\nAccepted intent.\n');
   fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'architecture.md'), '# Architecture\n\nAccepted constraints.\n');
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
@@ -218,9 +350,11 @@ test('greenfield baseline derives a stable workspace revision when Git is not in
     baselines.startBaseline(db, {
       id: 'greenfield', project_name: 'new-project', mode: 'greenfield', scope: ['.'],
     }, { rootDir });
+    completeResearch({ rootDir, db }, 'greenfield', 'full');
     const recorded = baselines.recordBaseline(db, {
       id: 'greenfield',
       spec_refs: [
+        { kind: 'discovery', path: '.ultra/specs/discovery.md' },
         { kind: 'product', path: '.ultra/specs/product.md' },
         { kind: 'architecture', path: '.ultra/specs/architecture.md' },
       ],
@@ -340,6 +474,7 @@ test('ready baseline detects source evidence drift without a new commit', () => 
       id: 'source-drift', project_name: 'fixture', mode: 'brownfield',
       repository_revision: fx.revision, scope: ['src'],
     }, { rootDir: fx.rootDir });
+    completeResearch(fx, 'source-drift');
     const recorded = baselines.recordBaseline(fx.db, {
       id: 'source-drift', repository_revision: fx.revision, ...adoptionEvidence(),
     }, { rootDir: fx.rootDir });
@@ -354,6 +489,63 @@ test('ready baseline detects source evidence drift without a new commit', () => 
     assert.equal(health.status, 'fail');
     assert.ok(health.blockers.includes('BASELINE_WORKTREE_DIRTY'));
     assert.ok(health.blockers.includes('BASELINE_EVIDENCE_STALE:src/index.js'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('ready baseline without its completed research provenance is not healthy authority', () => {
+  const fx = fixture();
+  try {
+    baselines.startBaseline(fx.db, {
+      id: 'missing-provenance', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision, scope: ['src'],
+    }, { rootDir: fx.rootDir });
+    completeResearch(fx, 'missing-provenance');
+    baselines.recordBaseline(fx.db, {
+      id: 'missing-provenance', repository_revision: fx.revision, ...adoptionEvidence(),
+    }, { rootDir: fx.rootDir });
+    const converged = baselines.convergeBaseline(fx.db, {
+      id: 'missing-provenance', expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Approve the recorded baseline.',
+    }, { rootDir: fx.rootDir });
+    assert.equal(converged.ready, true);
+    fx.db.prepare("UPDATE baselines SET research_run_id = NULL WHERE id = 'missing-provenance'").run();
+
+    const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.equal(health.status, 'fail');
+    assert.ok(health.blockers.includes('BASELINE_RESEARCH_PROVENANCE_MISSING'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('ready baseline becomes unhealthy when immutable research evidence drifts', () => {
+  const fx = fixture();
+  try {
+    const baseline = baselines.startBaseline(fx.db, {
+      id: 'research-drift', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision,
+    }, { rootDir: fx.rootDir });
+    const research = completeResearch(fx, baseline.id);
+    baselines.recordBaseline(fx.db, {
+      id: baseline.id, repository_revision: fx.revision, ...adoptionEvidence(),
+    }, { rootDir: fx.rootDir });
+    const converged = baselines.convergeBaseline(fx.db, {
+      id: baseline.id, expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Approve immutable research provenance.',
+    }, { rootDir: fx.rootDir });
+    assert.equal(converged.ready, true);
+
+    const report = path.join(
+      fx.rootDir, '.ultra', 'docs', 'research', research.id, '00-problem-validation.md',
+    );
+    fs.appendFileSync(report, '\nTampered after baseline approval.\n');
+    const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.equal(health.status, 'fail');
+    assert.ok(health.blockers.some((item) => (
+      item === 'BASELINE_RESEARCH_WORKFLOW_OUTPUT_STALE:.ultra/docs/research/research-research-drift/00-problem-validation.md'
+    )));
   } finally {
     cleanup(fx);
   }
@@ -385,6 +577,7 @@ test('open gap-ledger blockers prevent adoption while accepted debt remains visi
       id: 'gap-baseline', project_name: 'fixture', mode: 'brownfield',
       repository_revision: fx.revision, scope: ['src'],
     }, { rootDir: fx.rootDir });
+    completeResearch(fx, 'gap-baseline');
     const recorded = baselines.recordBaseline(fx.db, {
       id: 'gap-baseline', repository_revision: fx.revision, ...adoptionEvidence(),
       gaps: [
@@ -421,6 +614,7 @@ test('a dirty adoption snapshot requires explicit acceptance and remains drift-d
       id: 'dirty-accepted', project_name: 'fixture', mode: 'brownfield',
       repository_revision: fx.revision, scope: ['src'],
     }, { rootDir: fx.rootDir });
+    completeResearch(fx, 'dirty-accepted');
     const recorded = baselines.recordBaseline(fx.db, {
       id: 'dirty-accepted', repository_revision: fx.revision, ...adoptionEvidence(),
     }, { rootDir: fx.rootDir });

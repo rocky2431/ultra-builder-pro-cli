@@ -98,8 +98,13 @@ test('review waiter validates the two-axis summary and derives severity counts',
   try {
     fs.writeFileSync(path.join(session, 'SUMMARY.json'), JSON.stringify({
       $schema: 'ultra-review-summary-v2',
+      mode: 'change',
       session: 'review-session',
+      change_id: 'review-change',
+      task_ids: ['review-task'],
       head: '0123456789abcdef',
+      worktree_digest: 'a'.repeat(64),
+      context_digest: 'b'.repeat(64),
       status: 'complete',
       verdict: 'REQUEST_CHANGES',
       axes: {
@@ -107,6 +112,10 @@ test('review waiter validates the two-axis summary and derives severity counts',
         engineering_standards: { verdict: 'FAIL', evidence_refs: ['review-code.json'] },
       },
       workers: { completed: ['review-spec', 'review-code'], failed: [], skipped: [] },
+      worker_selection: [
+        { worker: 'review-spec', status: 'selected', rationale: 'Required specification axis.' },
+        { worker: 'review-code', status: 'selected', rationale: 'Changed runtime code.' },
+      ],
       findings: [
         finding('engineering_standards', 'P1'),
         finding('engineering_standards', 'P2'),
@@ -119,6 +128,29 @@ test('review waiter validates the two-axis summary and derives severity counts',
     assert.match(result.stdout, /REQUEST_CHANGES/);
     assert.match(result.stdout, /P1:1/);
     assert.match(result.stdout, /total:2/);
+  } finally {
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+});
+
+test('review waiter rejects a summary without mode-bound worker selection provenance', () => {
+  const session = tempSession();
+  try {
+    fs.writeFileSync(path.join(session, 'SUMMARY.json'), JSON.stringify({
+      $schema: 'ultra-review-summary-v2',
+      session: 'review-session', change_id: 'review-change', task_ids: [],
+      head: '0123456789abcdef', worktree_digest: null, context_digest: 'b'.repeat(64),
+      status: 'complete', verdict: 'APPROVE',
+      axes: {
+        spec_fidelity: { verdict: 'PASS', evidence_refs: ['spec-fidelity.json'] },
+        engineering_standards: { verdict: 'PASS', evidence_refs: ['review-code.json'] },
+      },
+      workers: { completed: ['review-spec', 'review-code'], failed: [], skipped: [] },
+      findings: [], positive_observations: [], limitations: [],
+    }));
+    const result = run(session, 'summary');
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /mode|worker_selection/);
   } finally {
     fs.rmSync(session, { recursive: true, force: true });
   }

@@ -375,6 +375,7 @@ function install(ctx = {}) {
       plugin_manifest: { root: 'plugin', path: '.codex-plugin/plugin.json' },
       mcp_registration: { root: 'plugin', path: '.mcp.json' },
       mcp_launcher: { root: 'plugin', path: 'runtime/launch.cjs' },
+      hook_event_helper: { root: 'plugin', path: 'runtime/hook-event.cjs' },
       hooks_manifest: { root: 'plugin', path: 'hooks/hooks.json' },
       hook_adapter: { root: 'plugin', path: HOOK_ADAPTER_RELATIVE },
       runtime_manifest: { root: 'config', path: path.join(RUNTIME_MANIFEST_DIR, RUNTIME_MANIFEST_FILE) },

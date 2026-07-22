@@ -63,8 +63,8 @@ function copySkills(repoRoot, target, names) {
           adaptedBody = adaptedBody.replaceAll("current host's user skill directory", '`~/.claude/skills`');
         }
         if (name === 'ultra-review') {
-          adaptedBody = adaptedBody.replaceAll(
-            "the current host's native bounded-worker mechanism",
+          adaptedBody = adaptedBody.replace(
+            /the current host's native bounded-worker\s+mechanism/g,
             'Claude Code Task workers using the installed review agent definitions',
           );
         }
@@ -194,6 +194,7 @@ function install(ctx = {}) {
       plugin_manifest: { root: 'plugin', path: '.claude-plugin/plugin.json' },
       mcp_registration: { root: 'plugin', path: '.mcp.json' },
       mcp_launcher: { root: 'plugin', path: 'runtime/launch.cjs' },
+      hook_event_helper: { root: 'plugin', path: 'runtime/hook-event.cjs' },
       hooks_manifest: { root: 'plugin', path: 'hooks/hooks.json' },
       checkpoint_hook: { root: 'plugin', path: 'hooks/workflow_checkpoint.py' },
       resume_hook: { root: 'plugin', path: 'hooks/workflow_resume.py' },

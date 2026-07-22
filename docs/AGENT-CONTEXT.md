@@ -38,14 +38,14 @@ native command or skill -> MCP workflow-state operation -> .ultra/state.db
 | CLI | `ultra-tools`, `ubp-orchestrator` | Selected initialization, backup-first recovery, automation, and diagnostics; not a change-state mirror |
 
 `.ultra/state.db` is the only durable Ultra authority for baselines, changes, tasks,
-sessions, events, incidents, projection jobs/cursors, telemetry, review evidence,
+workflow runs/steps, sessions, events, incidents, projection jobs/cursors, telemetry, review evidence,
 and circuit-breaker state. `tasks.json`, context Markdown, execution plans, and
 reports are projections or workflow artifacts.
 
 ## 3. Live MCP and declared contracts
 
-`spec/mcp-tools.yaml` declares and the bundled server registers 36 tools across
-six families:
+`spec/mcp-tools.yaml` declares and the bundled server registers 41 tools across
+seven families:
 
 | Family | Live tools |
 |---|---|
@@ -53,6 +53,7 @@ six families:
 | `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
 | `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
 | `change.*` | create, update, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
+| `workflow.*` | start, get, list, step, complete |
 | `system.*` | doctor |
 | `plan.*` | export, get |
 
@@ -60,12 +61,15 @@ Review, repository impact discovery, skill loading, and user interaction remain
 host-native capabilities rather than fake MCP contracts. The generated Codex
 capability map documents those replacements.
 
+The complete write, transition, invalidation, and recovery contract lives in
+[`WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md).
+
 Any new MCP contract starts in `spec/mcp-tools.yaml` with valid and invalid
 fixtures. Do not add an ad-hoc server handler first.
 
 ## 4. Context Spine contract
 
-Context Manifest v2 is a DB-backed role handoff, not a static codebase summary.
+Context Manifest v2 is an immutable DB-backed role handoff, not a static codebase summary.
 `change.context` compiles required references, digests, readiness, context budget,
 public seam, exact verification command, and one next action for `plan`,
 `implement`, `check`, or `review`. The default 12-file, about 12k-token, and 40%
@@ -111,7 +115,8 @@ the shared read-only `context_spine.py` breadcrumb helper:
 - `workflow_checkpoint.py` before compaction;
 - `workflow_resume.py` after compaction/resume;
 - `pre_stop_check.py` reports unfinished workflow position at stop without denial;
-- `subagent_tracker.py` for bounded worker lifecycle evidence.
+- `subagent_tracker.py` for minimal DB event evidence containing only lifecycle ids
+  and types, never transcript paths or messages.
 
 `workflow_context.py`, `active_task_context.py`, `workflow_resume.py`, and the
 OpenCode plugin invoke the same bundled JavaScript `change.breadcrumb` reader
@@ -159,9 +164,11 @@ Archive before prune; the confirmation token is intentionally required.
 ├── tasks/                   # projections and task contexts
 ├── specs/                   # research/product/architecture artifacts
 ├── sessions/                # bounded runtime artifacts
-├── reviews/                 # review evidence
-├── test-report.json
-└── delivery-report.json
+├── reviews/                 # immutable review evidence by session id
+└── reports/
+    ├── templates/           # blank report schemas; never evidence
+    ├── tests/<workflow-id>.json
+    └── delivery/<workflow-id>.json
 ```
 
 ## 9. User handbook integration

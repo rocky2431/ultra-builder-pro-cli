@@ -14,7 +14,7 @@ REQUIRED_TABLES = {
     "tasks", "events", "sessions", "schema_version", "migration_history",
     "telemetry", "specs_refs", "circuit_breaker", "changes", "artifacts",
     "context_snapshots", "spec_learning_candidates", "trace_links", "incidents", "projection_jobs",
-    "event_consumers",
+    "event_consumers", "workflow_runs", "workflow_steps",
 }
 
 
@@ -72,12 +72,21 @@ def inspect(root: Path) -> dict:
                 ]
                 if str(code).startswith("BASELINE_")
             ]
+            baseline = breadcrumb.get("baseline") if breadcrumb else None
+            baseline_is_ready = isinstance(baseline, dict) and baseline.get("status") == "ready"
+            baseline_status = (
+                "fail" if baseline_codes and baseline_is_ready
+                else "warning" if baseline_codes
+                else "pass"
+            )
             report["checks"]["baseline"] = {
-                "baseline": breadcrumb.get("baseline") if breadcrumb else None,
+                "baseline": baseline,
                 "blockers": baseline_codes,
                 "readiness": "blocked" if baseline_codes else "ready",
-                "status": "warning" if baseline_codes else "pass",
+                "status": baseline_status,
             }
+            if baseline_status == "fail":
+                issues.append("baseline")
 
             incidents = [
                 {"id": row[0], "code": row[1], "severity": row[2], "retryable": bool(row[3])}

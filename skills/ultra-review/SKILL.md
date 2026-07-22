@@ -1,81 +1,65 @@
 ---
 name: ultra-review
-description: Run independent specification-fidelity and engineering reviews over one current diff using bounded workers and file-based evidence. Use when implementation needs a read-only review gate before task completion or delivery.
+description: Run independent specification-fidelity and engineering reviews over one current Ultra diff and persist bounded review evidence. Use when a task or change needs a read-only review gate before completion, convergence, or delivery.
 ---
 
 # Review one current diff
 
 Keep two verdict axes independent:
 
-1. `spec_fidelity`: intent, acceptance, delta, documentation impact, and public seam;
-2. `engineering_standards`: correctness, safety, maintainability, testing,
-   observability, and recovery.
+- `spec_fidelity`: accepted intent, delta, behavior, docs impact, and public seam;
+- `engineering_standards`: correctness, safety, tests, maintainability, observability,
+  integration, and recovery.
 
-One axis cannot compensate for the other. Preserve each finding's source, severity,
-file and line, and axis during coordination.
+One axis cannot compensate for the other.
 
-## Scope and context
+## Bind durable scope
 
-1. Resolve one explicit diff range and file set. Include staged and unstaged changes
-   for a default working-tree review.
-2. Bind the single matching change through `change.list` and `task.list`; require an id
-   when ambiguous.
-3. Compile `change.context` for the review role and gate with only the intent, delta,
-   acceptance, tests, diff paths, and public-seam contract needed for this review.
-4. Stop on stale HEAD, blocked readiness, empty scope, or missing acceptance evidence.
-5. Create `.ultra/reviews/<session-id>/` with the reviewed HEAD, range, change id,
-   selected workers, and a pending verdict.
+1. Read `references/review-modes.md`. Select exactly one review mode: `task` for one
+   implementation slice, `change` for aggregate delivery readiness, or `plan` for an
+   approved plan before implementation. Bind only the evidence defined by that mode.
+2. Resolve one explicit diff range, current full HEAD, change, task set, and accepted
+   evidence. Stop on an empty or ambiguous scope.
+3. Resume or start a `review` workflow. Record `bind-diff` with revision, paths, mode,
+   and task set.
+4. Compile `change.context` for `review` using only accepted intent, delta, task
+   contracts, tests, public seams, and diff paths. Record `compile-context` only when
+   ready, with the immutable context manifest as the step output.
+5. Create `.ultra/reviews/<session-id>/` with mode, change id, exact task ids, full HEAD,
+   worktree digest, diff range, scope metadata, and pending verdicts.
 
-## Run the independent fidelity axis
+## Execute independent axes
 
-Always dispatch `review-spec` with only the accepted intent, delta, acceptance criteria,
-public-seam context, current HEAD, and diff scope. Do not give it engineering findings
-or an implementation rationale that is not part of the accepted contract. It writes
-`spec-fidelity.json` with `axis: spec_fidelity`.
+Always run the bounded `review-spec` worker for specification fidelity. Select the
+smallest necessary engineering workers using the mode and risk matrix; a change review
+for delivery runs every applicable role. Record every selected and skipped role with a
+scope-specific rationale. Invoke them through the current host's native bounded-worker
+mechanism. Keep workers independent and pass only the current diff plus their role
+context.
 
-## Select engineering specialists
+Resolve `references/unified-schema.md` from this Skill directory and pass its absolute
+path as `SCHEMA_PATH`. Validate artifacts with `scripts/review_wait.py`; a missing,
+invalid, stale, or partial required artifact is not a pass.
 
-Use the smallest set that covers the diff. The delivery gate runs all five:
+Record:
 
-- `review-code`: correctness, security, and live-path reachability;
-- `review-tests`: behavioral coverage and feedback-loop evidence;
-- `review-errors`: hidden failures, recovery, and observability;
-- `review-design`: types, boundaries, complexity, and coupling;
-- `review-comments`: stale or misleading comments and documentation.
+- `review-specification` with `spec-fidelity.json` as an output;
+- `review-engineering` with every selected engineering artifact as outputs;
+- `coordinate-findings` with the coordinated summary output.
 
-Record why any engineering specialist is skipped. The independent specification
-worker is required for every change-linked review.
+The coordinator preserves every specialist finding unchanged in `SUMMARY.json`.
+Duplicate root causes may be grouped only in the human-readable summary. Review is
+read-only except for review artifacts; implementation fixes are a separate dev action.
 
-## Execute bounded workers
+## Verify and complete
 
-Use the current host's native bounded-worker mechanism. Dispatch `review-spec` and the
-selected engineering workers independently. Each worker must inspect only the supplied
-diff and role context. Resolve `references/unified-schema.md` from this
-Skill directory and pass that absolute path as `SCHEMA_PATH`; never make a worker infer
-the plugin installation root. Each worker writes `<session>/<worker>.json` following
-that contract, limits output to actionable findings, and returns only a short file
-acknowledgement to the parent context.
+Recheck reviewed HEAD, worktree digest, review-context digest, diff, acceptance, task
+set, artifact schemas, and both verdicts. Record `verify-review-gate`, then call
+`workflow.complete`. MCP
+derives each axis and the durable verdict from the specialist outputs, then requires
+`SUMMARY.json` to match their complete finding set. Prompt claims and a lossy
+coordinator summary cannot replace either axis. Any code, test, spec, or contract edit
+invalidates affected review evidence and requires a new or resumed run.
 
-Resolve bundled paths relative to this skill directory. Validate the exact expected
-artifacts before coordination:
-
-```bash
-python3 scripts/review_wait.py <session-path> agents spec-fidelity review-code review-tests
-```
-
-Pass only the engineering worker stems actually selected. Missing or invalid required
-artifacts make the corresponding axis incomplete; a partial set is never a pass.
-
-Run `review-coordinator` only after validation. It may merge duplicate root causes but
-must retain source identifiers and the highest original severity.
-Validate its summary with the same waiter.
-
-## Report and handoff
-
-Report both axis verdicts first, followed by blocking findings and artifact paths.
-Review is read-only except for review artifacts; fixes are a separate implementation
-action. Recheck only unresolved or changed scope after fixes.
-
-At the final HEAD, compile review context with one convergence action. Delivery must
-submit separate review evidence rows for `spec_fidelity` and
-`engineering_standards`; a single aggregate pass is invalid.
+Return both axis verdicts first, blocking findings, reviewed revision and paths,
+artifact digests, workflow id, skipped-role rationale, and one exact next route.

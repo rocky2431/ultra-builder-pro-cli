@@ -23,6 +23,8 @@ AXES = {"spec_fidelity", "engineering_standards"}
 SEVERITIES = {"P0", "P1", "P2", "P3"}
 AXIS_VERDICTS = {"PASS", "FAIL", "INCOMPLETE"}
 OVERALL_VERDICTS = {"APPROVE", "REQUEST_CHANGES", "INCOMPLETE"}
+REVIEW_MODES = {"task", "change", "plan"}
+SELECTION_STATUSES = {"selected", "skipped"}
 ARTIFACT_STEM = re.compile(r"^[a-z][a-z0-9-]*$")
 FINDING_FIELDS = {
     "id", "axis", "severity", "category", "title", "file", "line", "trigger",
@@ -182,9 +184,16 @@ def expected_overall_verdict(data) -> str:
 def validate_summary(data):
     if data.get("$schema") != SUMMARY_SCHEMA:
         return f"$schema must be {SUMMARY_SCHEMA}"
-    for field in ["session", "head"]:
+    if data.get("mode") not in REVIEW_MODES:
+        return "mode must be task, change, or plan"
+    for field in ["session", "change_id", "head", "context_digest"]:
         if not nonempty_string(data.get(field)):
             return f"{field} must be a non-empty string"
+    if data.get("worktree_digest") is not None and not nonempty_string(data.get("worktree_digest")):
+        return "worktree_digest must be null or a non-empty string"
+    task_ids = data.get("task_ids")
+    if not isinstance(task_ids, list) or not all(nonempty_string(item) for item in task_ids):
+        return "task_ids must be a string array"
     if data.get("status") != "complete":
         return "status must be complete"
     if data.get("verdict") not in OVERALL_VERDICTS:
@@ -203,8 +212,36 @@ def validate_summary(data):
     if not isinstance(workers, dict):
         return "workers must be an object"
     for field in ["completed", "failed", "skipped"]:
-        if not isinstance(workers.get(field), list):
-            return f"workers.{field} must be an array"
+        values = workers.get(field)
+        if not isinstance(values, list) or not all(nonempty_string(item) for item in values):
+            return f"workers.{field} must be a string array"
+        if len(values) != len(set(values)):
+            return f"workers.{field} must not contain duplicates"
+    worker_selection = data.get("worker_selection")
+    if not isinstance(worker_selection, list) or not worker_selection:
+        return "worker_selection must be a non-empty array"
+    selected = set()
+    skipped = set()
+    seen_workers = set()
+    for item in worker_selection:
+        if not isinstance(item, dict):
+            return "worker_selection items must be objects"
+        worker = item.get("worker")
+        status = item.get("status")
+        if not nonempty_string(worker) or status not in SELECTION_STATUSES:
+            return "worker_selection requires worker and selected or skipped status"
+        if worker in seen_workers:
+            return f"duplicate worker selection: {worker}"
+        if not nonempty_string(item.get("rationale")):
+            return f"worker selection rationale is required: {worker}"
+        seen_workers.add(worker)
+        (selected if status == "selected" else skipped).add(worker)
+    if selected != set(workers["completed"]) | set(workers["failed"]):
+        return "selected workers must equal completed and failed workers"
+    if skipped != set(workers["skipped"]):
+        return "skipped worker selection must match workers.skipped"
+    if "review-spec" not in selected or "review-spec" not in set(workers["completed"]):
+        return "review-spec must be selected and completed"
     findings = data.get("findings")
     if not isinstance(findings, list):
         return "findings must be an array"

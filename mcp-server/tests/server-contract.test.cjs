@@ -8,8 +8,8 @@ const path = require('node:path');
 const yaml = require('js-yaml');
 const Database = require('better-sqlite3');
 
-const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
-const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+const { Client } = require('@modelcontextprotocol/client');
+const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SERVER = path.join(REPO_ROOT, 'mcp-server', 'server.cjs');
@@ -18,6 +18,9 @@ const { initStateDb, closeStateDb } = require('../lib/state-db.cjs');
 const { dispatchTool } = require('../server.cjs');
 const changes = require('../lib/change-workflow.cjs');
 const ops = require('../lib/state-ops.cjs');
+const { seedReadyBaseline: seedCompleteBaseline } = require('../test-support/ready-baseline.cjs');
+const { semanticRecordsForStep } = require('../test-support/semantic-records.cjs');
+const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function tmpProject() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mcp-'));
@@ -26,11 +29,7 @@ function tmpProject() {
 
 function seedReadyBaseline(project) {
   const { db } = initStateDb(project.dbPath);
-  db.prepare(
-    `INSERT OR IGNORE INTO baselines
-     (id, project_name, mode, status, approved_by, approval_note, converged_at)
-     VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'test fixture', ?)`,
-  ).run(new Date().toISOString());
+  seedCompleteBaseline(db, { rootDir: project.dir });
   closeStateDb(db);
 }
 
@@ -145,6 +144,11 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
         'task.subscribe_events',
         'task.switch_tag',
         'task.update',
+        'workflow.complete',
+        'workflow.get',
+        'workflow.list',
+        'workflow.start',
+        'workflow.step',
       ]);
       assert.ok(!names.some((name) => name.startsWith('memory.')));
       for (const t of list.tools) {
@@ -157,11 +161,47 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
   }
 });
 
+test('workflow MCP tools expose durable current-step recovery state', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'workflow-change', title: 'Workflow recovery', kind: 'quick',
+          intent: 'Bind review recovery state to one durable change.',
+          docs_impact: { status: 'none', rationale: 'Test fixture only.' },
+        }),
+      });
+      const started = readToolPayload(await client.callTool({
+        name: 'workflow.start',
+        arguments: {
+          id: 'workflow-mcp', kind: 'review', change_id: 'workflow-change',
+          subject: 'Track one current review workflow.',
+        },
+      }));
+      assert.equal(started.workflow.current_step, 'bind-diff');
+      const fetched = readToolPayload(await client.callTool({
+        name: 'workflow.get', arguments: { id: 'workflow-mcp' },
+      }));
+      assert.equal(fetched.workflow.status, 'active');
+      const listed = readToolPayload(await client.callTool({
+        name: 'workflow.list', arguments: { kind: 'review' },
+      }));
+      assert.equal(listed.count, 1);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('baseline MCP tools adopt and converge an existing checkout without storing provider payloads', async () => {
   const proj = tmpProject();
   try {
     fs.mkdirSync(path.join(proj.dir, '.ultra', 'specs'), { recursive: true });
     fs.mkdirSync(path.join(proj.dir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(proj.dir, '.ultra', 'specs', 'discovery.md'), '# Discovery\n\nObserved evidence.\n');
     fs.writeFileSync(path.join(proj.dir, '.ultra', 'specs', 'product.md'), '# Product\n\nObserved behavior.\n');
     fs.writeFileSync(path.join(proj.dir, '.ultra', 'specs', 'architecture.md'), '# Architecture\n\nCurrent boundary.\n');
     fs.writeFileSync(path.join(proj.dir, 'src', 'index.js'), 'module.exports = true;\n');
@@ -184,11 +224,62 @@ test('baseline MCP tools adopt and converge an existing checkout without storing
       }));
       assert.equal(started.baseline.status, 'adopting');
 
+      let research = readToolPayload(await client.callTool({
+        name: 'workflow.start',
+        arguments: {
+          id: 'mcp-research', kind: 'research', mode: 'adoption', baseline_id: 'mcp-baseline',
+          subject: 'Establish the complete observed product and architecture baseline.',
+        },
+      })).workflow;
+      for (const step of research.steps.filter((item) => item.required)) {
+        let output = '.ultra/specs/architecture.md';
+        if (step.step_id.startsWith('0')) output = '.ultra/specs/discovery.md';
+        else if (step.step_id.startsWith('1') || step.step_id.startsWith('2')) {
+          output = '.ultra/specs/product.md';
+        } else if (step.step_id === '99-synthesis') {
+          output = '.ultra/specs/research-distillate.md';
+        }
+        fs.appendFileSync(path.join(proj.dir, output), `\n${step.step_id} evidence.\n`);
+        const report = path.join(
+          '.ultra', 'docs', 'research', research.id, `${step.step_id}.md`,
+        );
+        fs.mkdirSync(path.dirname(path.join(proj.dir, report)), { recursive: true });
+        fs.writeFileSync(path.join(proj.dir, report), [
+          `# ${step.step_id} evidence`, '',
+          '## Evidence', '', 'Current checkout evidence.', '',
+          '## Specification updates', '', `Updated ${output}.`, '',
+          '## Decisions and unknowns', '', 'No unresolved fixture decision.', '',
+        ].join('\n'));
+        const outputs = [{ path: report, kind: 'research-step-report' }];
+        if (step.step_id === '99-synthesis') {
+          outputs.push(
+            { path: '.ultra/specs/discovery.md', kind: 'baseline-specification' },
+            { path: '.ultra/specs/product.md', kind: 'baseline-specification' },
+            { path: '.ultra/specs/architecture.md', kind: 'baseline-specification' },
+            { path: '.ultra/specs/research-distillate.md', kind: 'research-distillate' },
+          );
+        }
+        research = readToolPayload(await client.callTool({
+          name: 'workflow.step',
+          arguments: {
+            id: research.id, step_id: step.step_id, status: 'completed',
+            evidence: [{ kind: 'source', ref: `fixture:${step.step_id}`, summary: 'Current checkout evidence.' }],
+            outputs,
+            semantic_records: semanticRecordsForStep(research.id, step.step_id),
+          },
+        })).workflow;
+      }
+      const researchComplete = readToolPayload(await client.callTool({
+        name: 'workflow.complete', arguments: { id: research.id },
+      }));
+      assert.equal(researchComplete.workflow.status, 'completed');
+
       const recorded = readToolPayload(await client.callTool({
         name: 'baseline.record',
         arguments: {
           id: 'mcp-baseline', repository_revision: revision,
           spec_refs: [
+            { kind: 'discovery', path: '.ultra/specs/discovery.md' },
             { kind: 'product', path: '.ultra/specs/product.md' },
             { kind: 'architecture', path: '.ultra/specs/architecture.md' },
           ],
@@ -233,7 +324,7 @@ test('change.create + change.context expose a continuous change unit with extern
     await withClient(proj, async (client) => {
       const created = await client.callTool({
         name: 'change.create',
-        arguments: {
+        arguments: completeChangeInput({
           id: 'mcp-change', title: 'Continuous maintenance', kind: 'quick',
           intent: 'Keep daily modifications synchronized after initial delivery.',
           docs_impact: { status: 'none', files: [], rationale: 'Contract-only fixture.' },
@@ -241,7 +332,7 @@ test('change.create + change.context expose a continuous change unit with extern
             memory: { provider: 'cloud-mem', status: 'available', reference: 'cmem://fixture' },
             code_graph: { provider: 'codebase-memory-mcp', status: 'stale', project: 'fixture' },
           },
-        },
+        }),
       });
       const payload = readToolPayload(created);
       assert.equal(payload.change.id, 'mcp-change');
@@ -281,14 +372,15 @@ test('spec-learning MCP tools persist an approval-gated candidate and projection
   const proj = tmpProject();
   try {
     seedReadyBaseline(proj);
+    fs.writeFileSync(path.join(proj.dir, 'README.md'), '# Fixture\n');
     await withClient(proj, async (client) => {
       await client.callTool({
         name: 'change.create',
-        arguments: {
+        arguments: completeChangeInput({
           id: 'learning-change', title: 'Learn stable contract', kind: 'quick',
           intent: 'Persist only approved specification discoveries.',
           docs_impact: { status: 'none', files: [], rationale: 'Contract fixture.' },
-        },
+        }),
       });
       await client.callTool({
         name: 'task.create',
@@ -322,11 +414,19 @@ test('spec-learning MCP tools persist an approval-gated candidate and projection
         },
       }));
       assert.equal(approved.candidate.status, 'approved');
+      const readme = path.join(proj.dir, 'README.md');
+      const beforeDigest = require('node:crypto').createHash('sha256')
+        .update(fs.readFileSync(readme)).digest('hex');
+      fs.appendFileSync(readme, '\n## Contract\n\nContext compilation fails closed on stale refs.\n');
+      const afterDigest = require('node:crypto').createHash('sha256')
+        .update(fs.readFileSync(readme)).digest('hex');
       const applied = readToolPayload(await client.callTool({
         name: 'change.learning_resolve',
         arguments: {
           change_id: 'learning-change', candidate_id: 'learning-contract', decision: 'apply',
           resolution: 'Applied to README.md#contract.',
+          applied_ref: 'README.md#contract', before_digest: beforeDigest,
+          after_digest: afterDigest, apply_evidence: ['README.md#contract'],
         },
       }));
       assert.equal(applied.candidate.status, 'applied');
@@ -432,14 +532,14 @@ test('task.create requires ready baseline authority or an already-authorized act
     await withClient(incidentProject, async (client) => {
       const change = await client.callTool({
         name: 'change.create',
-        arguments: {
+        arguments: completeChangeInput({
           id: 'incident-task-bypass', title: 'Restore production', kind: 'incident',
           intent: 'Repair the urgent production path while adoption remains incomplete.',
           baseline_bypass: {
             reason: 'Production recovery cannot wait for baseline convergence.',
             approved_by: 'incident-commander',
           },
-        },
+        }),
       });
       assert.equal(readToolPayload(change).change.id, 'incident-task-bypass');
       const task = await client.callTool({
@@ -533,7 +633,7 @@ test('task.create enforces terminal-change and parent ownership invariants at th
   } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
 });
 
-test('task.parse_prd keeps dry runs read-only and blocks persistence before baseline readiness', async () => {
+test('task.parse_prd keeps dry runs read-only and requires change ownership for persistence', async () => {
   const dryProject = tmpProject();
   try {
     const { db } = initStateDb(dryProject.dbPath);
@@ -560,7 +660,7 @@ test('task.parse_prd keeps dry runs read-only and blocks persistence before base
           dispatchTool('task.parse_prd', {
             tasks: prdTasks(`blocked-prd-${baseline?.mode || 'missing'}`), dry_run: false,
           }, db, { rootDir: proj.dir }),
-          (error) => error.code === 'BASELINE_NOT_READY',
+          (error) => error.code === 'CHANGE_REQUIRED',
         );
         assert.equal(ops.listTasks(db, {}).length, 0);
       } finally { closeStateDb(db); }
@@ -568,16 +668,19 @@ test('task.parse_prd keeps dry runs read-only and blocks persistence before base
   }
 });
 
-test('task.parse_prd persists only under ready or already-authorized change ownership', async () => {
+test('task.parse_prd persists only under approved-ready change or incident break-glass authority', async () => {
   const readyProject = tmpProject();
   try {
     seedReadyBaseline(readyProject);
     const { db } = initStateDb(readyProject.dbPath);
     try {
-      await dispatchTool('task.parse_prd', {
-        tasks: prdTasks('ready-prd-task'), dry_run: false,
-      }, db, { rootDir: readyProject.dir });
-      assert.equal(ops.readTask(db, 'ready-prd-task').change_id, null);
+      await assert.rejects(
+        dispatchTool('task.parse_prd', {
+          tasks: prdTasks('ready-prd-task'), dry_run: false,
+        }, db, { rootDir: readyProject.dir }),
+        (error) => error.code === 'CHANGE_REQUIRED',
+      );
+      assert.equal(ops.readTask(db, 'ready-prd-task'), null);
     } finally { closeStateDb(db); }
   } finally { fs.rmSync(readyProject.dir, { recursive: true, force: true }); }
 
@@ -593,7 +696,7 @@ test('task.parse_prd persists only under ready or already-authorized change owne
           ).run();
         }
         const changeId = `parsed-${kind}`;
-        changes.createChange(db, {
+        changes.createChange(db, completeChangeInput({
           id: changeId,
           title: kind === 'incident' ? 'Recover parsed incident work' : 'Continue parsed ordinary work',
           kind,
@@ -604,12 +707,7 @@ test('task.parse_prd persists only under ready or already-authorized change owne
               reason: 'Production recovery requires an approved task graph before adoption converges.',
             },
           } : {}),
-        }, { rootDir: proj.dir });
-        if (kind === 'quick') {
-          db.prepare(
-            "UPDATE baselines SET mode = 'brownfield', status = 'adopting' WHERE id = 'test-baseline'",
-          ).run();
-        }
+        }), { rootDir: proj.dir });
         const taskId = `parsed-${kind}-task`;
         await dispatchTool('task.parse_prd', {
           tasks: prdTasks(taskId), dry_run: false, change_id: changeId,
@@ -763,7 +861,7 @@ test('task.update preserves established change ownership and freezes terminal ch
   } finally { fs.rmSync(proj.dir, { recursive: true, force: true }); }
 });
 
-test('task.append_event + subscribe_events drive a monotonic cursor', async () => {
+test('task.append_event + subscribe_events drive a monotonic cursor for observations', async () => {
   const proj = tmpProject();
   try {
     seedReadyBaseline(proj);
@@ -772,11 +870,11 @@ test('task.append_event + subscribe_events drive a monotonic cursor', async () =
         name: 'task.create',
         arguments: { id: 'sub-1', title: 'subscribe target', type: 'feature', priority: 'P1' },
       });
-      // task.create already emitted event_id=1 (task_created); add 4 more.
+      // task.create already emitted event_id=1 (task_created); add 4 observations.
       for (let i = 0; i < 4; i++) {
         await client.callTool({
           name: 'task.append_event',
-          arguments: { type: 'task_started', task_id: 'sub-1', payload: { i } },
+          arguments: { type: 'cost_alert', task_id: 'sub-1', payload: { i } },
         });
       }
 
@@ -795,6 +893,24 @@ test('task.append_event + subscribe_events drive a monotonic cursor', async () =
       assert.equal(tail.events.length, 2);
       assert.equal(tail.events[0].id, 4);
       assert.equal(tail.next_since_id, 5);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('task.append_event cannot forge lifecycle authority', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      for (const type of ['task_completed', 'plan_approved', 'change_converged']) {
+        const response = await client.callTool({
+          name: 'task.append_event',
+          arguments: { type, payload: { forged: true } },
+        });
+        assert.equal(expectError(response).code, 'VALIDATION_ERROR');
+      }
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
@@ -1297,6 +1413,47 @@ test('task.dependency_topo: happy path groups tasks into correct waves', async (
   }
 });
 
+test('task.dependency_topo scopes a plan graph to one owning change and rejects an implicit all-task graph', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'topo-change', title: 'Scope dependency topology', kind: 'standard',
+          intent: 'Keep execution-plan topology isolated to its owning change.',
+          docs_impact: { status: 'none', files: [], rationale: 'Contract fixture.' },
+        }),
+      });
+      for (const [id, deps, changeId] of [
+        ['scope-a', [], 'topo-change'],
+        ['scope-b', ['scope-a'], 'topo-change'],
+        ['unrelated-task', [], null],
+      ]) {
+        await client.callTool({
+          name: 'task.create',
+          arguments: {
+            id, title: `task ${id}`, type: 'feature', priority: 'P2', deps,
+            ...(changeId ? { change_id: changeId } : {}),
+          },
+        });
+      }
+      const scoped = readToolPayload(await client.callTool({
+        name: 'task.dependency_topo', arguments: { change_id: 'topo-change' },
+      }));
+      assert.deepEqual(scoped.waves, [['scope-a'], ['scope-b']]);
+
+      const implicit = await client.callTool({
+        name: 'task.dependency_topo', arguments: {},
+      });
+      assert.equal(expectError(implicit).code, 'VALIDATION_ERROR');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('task.parse_prd: missing host-derived tasks → validation error', async () => {
   const proj = tmpProject();
   try {
@@ -1378,10 +1535,19 @@ test('task.expand persists host-derived children without provider credentials', 
 test('plan.export: no tasks → NO_TASKS', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'empty-plan-change', title: 'Empty plan change', kind: 'quick',
+          intent: 'Prove that an empty change cannot be exported.',
+          docs_impact: { status: 'none', files: [], rationale: 'Test fixture.' },
+        }),
+      });
       const resp = await client.callTool({
         name: 'plan.export',
-        arguments: { out_path: '.ultra/execution-plan.json' },
+        arguments: { change_id: 'empty-plan-change', out_path: '.ultra/execution-plan.json' },
       });
       const err = expectError(resp);
       assert.equal(err.code, 'NO_TASKS');
@@ -1396,6 +1562,14 @@ test('plan.export → plan.get round trip: artifact on disk + retrievable', asyn
   try {
     seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'plan-change', title: 'Plan one bounded change', kind: 'standard',
+          intent: 'Export only tasks owned by this change.',
+          docs_impact: { status: 'none', files: [], rationale: 'Test fixture.' },
+        }),
+      });
       for (const [id, deps, files] of [
         ['p-a', [], ['src/a.ts']],
         ['p-b', ['p-a'], ['src/b.ts']],
@@ -1403,19 +1577,32 @@ test('plan.export → plan.get round trip: artifact on disk + retrievable', asyn
       ]) {
         await client.callTool({
           name: 'task.create',
-          arguments: { id, title: `task ${id}`, type: 'feature', priority: 'P2', complexity: 3, deps, files_modified: files },
+          arguments: {
+            id, title: `task ${id}`, type: 'feature', priority: 'P2', complexity: 3,
+            deps, files_modified: files, change_id: 'plan-change',
+          },
         });
       }
       const exp = await client.callTool({
         name: 'plan.export',
-        arguments: { out_path: '.ultra/execution-plan.json', format: 'json' },
+        arguments: {
+          change_id: 'plan-change', out_path: '.ultra/execution-plan.json', format: 'json',
+        },
       });
       const expData = readToolPayload(exp);
       assert.equal(expData.wave_count, 2);
       assert.ok(fs.existsSync(expData.plan_path), 'artifact file must exist');
       assert.equal(exp._meta.ultra.projection_status, 'completed');
 
-      const got = await client.callTool({ name: 'plan.get', arguments: { section: 'topo' } });
+      const exportedEvents = readToolPayload(await client.callTool({
+        name: 'task.subscribe_events',
+        arguments: { since_id: 0, types: ['plan_exported', 'plan_approved'], limit: 100 },
+      }));
+      assert.deepEqual(exportedEvents.events.map((event) => event.type), ['plan_exported']);
+
+      const got = await client.callTool({
+        name: 'plan.get', arguments: { change_id: 'plan-change', section: 'topo' },
+      });
       const gotData = readToolPayload(got);
       assert.ok(Array.isArray(gotData.plan.waves));
       assert.equal(gotData.plan.waves.length, 2);
@@ -1429,7 +1616,9 @@ test('plan.get: no plan written yet → NO_PLAN', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
-      const resp = await client.callTool({ name: 'plan.get', arguments: {} });
+      const resp = await client.callTool({
+        name: 'plan.get', arguments: { change_id: 'missing-plan-change' },
+      });
       const err = expectError(resp);
       assert.equal(err.code, 'NO_PLAN');
     });

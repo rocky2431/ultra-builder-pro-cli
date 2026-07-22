@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.14.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.15.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -35,10 +35,13 @@ authoritative `.ultra/state.db`.
   host derives task objects; `task.parse_prd` validates them → `lib/topo.cjs` waves →
   `.ultra/execution-plan.json` → parallel worktree sessions → auto-merge back.
 - **Keeps daily work convergent.** `/ultra-change` creates a bounded delta and
-  Context Manifest v2; the Context Spine assigns a role/gate, verifies required
+  complete Change Contract, classifies risk, records whether bounded research is
+  required, and creates immutable Context Manifest v2 snapshots; the Context Spine assigns a role/gate, verifies required
   references, reports fresh-context budget pressure as advisory warnings, exposes one DB-derived breadcrumb, and
-  routes a single next action. `/ultra-deliver` requires applied specification
-  learning plus docs/test/two-axis review evidence before archive. `/ultra-doctor` reports incidents,
+  routes a single next action. Research stores typed, source-digested semantic records;
+  planning proves Change acceptance coverage; `/ultra-deliver` requires applied specification
+  learning plus docs/test/mode-bound two-axis review evidence and a schema-validated
+  baseline reconciliation manifest before archive. `/ultra-doctor` reports incidents,
   projection lag, orphan sessions, and backup-first mechanical recovery.
   Incident changes additionally require a five-section `diagnosis.md` covering
   reproduction, hypotheses, root cause, regression test, and recovery.
@@ -86,13 +89,22 @@ install or update.
 See [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
 for per-runtime capabilities.
 
-Start with `ultra-init` in both new and existing projects. An empty project opens
-a `draft` greenfield baseline. An existing codebase opens an `adopting`
-brownfield baseline; inspect current behavior, call `baseline.record`, then
-approve it through `baseline.converge` before normal planning or delivery. Existing
-active work may continue while adoption drift is visible. A new incident requires an
-explicit break-glass approver and leaves a blocking reconciliation gap at archive;
-new ordinary work always requires a healthy ready baseline.
+Start with `ultra-init` in both new and existing projects. Auto classification is
+based on delivered-system evidence: application source, tests, deployment, or
+persisted-state/schema signals make a repository brownfield; a Git repository,
+manifest, README, or starter documentation alone remains greenfield. An empty project
+opens a `draft` greenfield baseline and an existing system opens an `adopting`
+brownfield baseline. Both execute all seventeen research steps before
+`baseline.record` and explicit `baseline.converge`; initialization never treats blank
+templates as a trusted baseline and never selects an MVP. Existing active work may
+continue only when its durable change workflow was bound to a healthy ready baseline;
+the expected HEAD, worktree, spec, and source-evidence drift created by that change is
+advisory until delivery reconciliation. Loss of approved-ready status or structural
+baseline evidence blocks ordinary work. An incident requires an explicit break-glass
+approver and leaves a blocking reconciliation gap at archive; new ordinary work always
+requires a healthy ready baseline. See
+[`docs/WORKFLOW-LIFECYCLE.md`](./docs/WORKFLOW-LIFECYCLE.md) for exact write,
+transition, invalidation, and recovery semantics.
 
 ## Three-layer architecture
 
@@ -105,7 +117,7 @@ new ordinary work always requires a healthy ready baseline.
 The layers share one `.ultra/state.db`, but the CLI is not a mirror of every MCP
 tool: continuous change mutations are MCP-only and fail closed. See
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full contract and
-[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 36 live contracts.
+[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 41 live contracts.
 Review, impact discovery, skill resolution, and user interaction stay on each
 Host's native surfaces; the generated Codex capability map documents those
 replacements without advertising non-existent MCP tools.
@@ -138,10 +150,11 @@ ultra-tools task init-project --project-name myapp --mode auto
 
 # Projection-only projects from prior releases use one backup-first import:
 ultra-tools migrate --from=4.4 --to=4.5 --source-dir .
-ultra-tools migrate --from=4.5 --to=12.0 --source-dir .
+ultra-tools migrate --from=4.5 --to=15.0 --source-dir .
 
-# 2. Record and converge the greenfield/brownfield baseline, then turn accepted
-#    behavior into a task graph (normally driven by ultra-init/research/plan)
+# 2. Complete all 17 research steps, record current evidence, and obtain explicit
+#    baseline approval. Then open an initial change and persist its task contracts
+#    (normally driven by ultra-research/change/plan).
 
 # 3. Run the plan — parallel sessions, auto-merge back to main on success
 ubp-orchestrator run
@@ -154,10 +167,11 @@ ultra-tools system doctor
 ```
 
 Or let the skills drive it. In Codex, invoke
-`$ultra-builder-pro:ultra-init` → `$ultra-builder-pro:ultra-plan` → `$ultra-builder-pro:ultra-dev` →
-`$ultra-builder-pro:ultra-test` → `$ultra-builder-pro:ultra-review` →
-`$ultra-builder-pro:ultra-deliver`; after the baseline is delivered, daily work
-starts with `$ultra-builder-pro:ultra-change`, while
+`$ultra-builder-pro:ultra-init` → `$ultra-builder-pro:ultra-research` →
+`$ultra-builder-pro:ultra-change` → `$ultra-builder-pro:ultra-plan` →
+`$ultra-builder-pro:ultra-dev` → `$ultra-builder-pro:ultra-test` →
+`$ultra-builder-pro:ultra-review` → `$ultra-builder-pro:ultra-deliver`; after the
+baseline is delivered, daily work starts with `$ultra-builder-pro:ultra-change`, while
 `$ultra-builder-pro:ultra-status` reads the compact authoritative breadcrumb.
 Kimi uses the corresponding
 `/ultra-builder-pro:ultra-*` namespace. Other runtimes retain their native
@@ -239,6 +253,7 @@ Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
 | [`docs/PLAN.zh-CN.md`](./docs/PLAN.zh-CN.md) | Historical 12-phase plan and decision log with a current-boundary overlay |
 | [`docs/ROADMAP.md`](./docs/ROADMAP.md) | One-page English roadmap + phase status |
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Single-page system architecture |
+| [`docs/WORKFLOW-LIFECYCLE.md`](./docs/WORKFLOW-LIFECYCLE.md) | Baseline classification, DB writes, status machines, gates, invalidation, and recovery |
 | [`docs/AGENT-CONTEXT.md`](./docs/AGENT-CONTEXT.md) | Canonical runtime context contract |
 | [`docs/USER-HANDBOOK-CONTRACT.md`](./docs/USER-HANDBOOK-CONTRACT.md) | Shared user-handbook policy and host renderings |
 | [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md) | Per-runtime capability matrix |

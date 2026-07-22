@@ -26,6 +26,7 @@ const ACTIVE_DOCS = [
   'package.json',
   'docs/AGENT-CONTEXT.md',
   'docs/ARCHITECTURE.md',
+  'docs/WORKFLOW-LIFECYCLE.md',
   'docs/ROADMAP.md',
   'docs/RUNTIME-COMPAT-MATRIX.md',
   'docs/USER-HANDBOOK-CONTRACT.md',

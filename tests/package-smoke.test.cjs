@@ -7,8 +7,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
-const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+const { Client } = require('@modelcontextprotocol/client');
+const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PACKAGE = require(path.join(REPO_ROOT, 'package.json'));
@@ -38,7 +38,7 @@ async function verifyMcp(launcher, projectDir) {
   try {
     assert.equal(client.getServerVersion().version, PACKAGE.version);
     const tools = await client.listTools();
-    assert.equal(tools.tools.length, 36);
+    assert.equal(tools.tools.length, 41);
     assert.equal(fs.existsSync(path.join(projectDir, '.ultra', 'state.db')), false);
     const listed = await client.callTool({ name: 'task.list', arguments: {} });
     assert.notEqual(listed.isError, true, listed.content?.[0]?.text || 'task.list failed');
@@ -52,11 +52,26 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-package-smoke-'));
   try {
     const packJson = JSON.parse(run(NPM, ['pack', '--json', '--pack-destination', tempRoot]));
+    const forbiddenPayload = packJson[0].files
+      .map((entry) => entry.path)
+      .filter((file) => /(?:^|\/)(?:tests?|test-support|__pycache__)(?:\/|$)|\.(?:test\.cjs|py[co])$/.test(file));
+    assert.deepEqual(forbiddenPayload, [], 'tarball must not ship tests or generated cache files');
     const tarball = path.join(tempRoot, packJson[0].filename);
     const consumer = path.join(tempRoot, 'consumer');
     fs.mkdirSync(consumer);
     run(NPM, ['init', '-y'], { cwd: consumer });
     run(NPM, ['install', '--no-audit', '--no-fund', tarball], { cwd: consumer });
+    const consumerAudit = JSON.parse(run(
+      NPM, ['audit', '--omit=dev', '--audit-level=high', '--json'], { cwd: consumer },
+    ));
+    assert.equal(
+      consumerAudit.metadata.vulnerabilities.total,
+      0,
+      JSON.stringify(consumerAudit.vulnerabilities, null, 2),
+    );
+    assert.equal(consumerAudit.metadata.vulnerabilities.moderate, 0);
+    assert.equal(consumerAudit.metadata.vulnerabilities.high, 0);
+    assert.equal(consumerAudit.metadata.vulnerabilities.critical, 0);
 
     const packageRoot = path.join(consumer, 'node_modules', PACKAGE.name);
     const binRoot = path.join(consumer, 'node_modules', '.bin');
@@ -77,6 +92,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
 
     for (const doc of [
       'COMMIT-HASH-BACKFILL.md', 'PLAN.zh-CN.md', 'STATE-DB-ACCESS-POLICY.md',
+      'WORKFLOW-LIFECYCLE.md',
     ]) {
       assert.ok(fs.existsSync(path.join(packageRoot, 'docs', doc)), `tarball missing docs/${doc}`);
     }

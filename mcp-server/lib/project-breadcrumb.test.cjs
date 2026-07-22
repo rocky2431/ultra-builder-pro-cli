@@ -8,6 +8,8 @@ const path = require('node:path');
 const Database = require('better-sqlite3');
 
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
+const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
+const { completeChangeInput } = require('../test-support/change-contract.cjs');
 const { createChange } = require('./change-workflow.cjs');
 const { createTask } = require('./state-ops.cjs');
 const { compileRoleContext, readBreadcrumb } = require('./context-spine.cjs');
@@ -26,12 +28,8 @@ test('project reader returns the exact canonical breadcrumb from state.db', () =
   const rootDir = tmpProject('ubp-project-breadcrumb-');
   const state = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
   try {
-    state.db.prepare(
-      `INSERT INTO baselines
-       (id, project_name, mode, status, approved_by, approval_note, converged_at)
-       VALUES ('baseline-1', 'fixture', 'greenfield', 'ready', 'test', 'fixture', ?)`,
-    ).run(new Date().toISOString());
-    const { change } = createChange(state.db, {
+    seedReadyBaseline(state.db, { rootDir, id: 'baseline-1' });
+    const { change } = createChange(state.db, { ...completeChangeInput(),
       id: 'db-change', title: 'Database change', kind: 'quick',
       intent: 'Prove every host consumes one breadcrumb.',
       docs_impact: { status: 'none', rationale: 'test fixture' },
@@ -39,18 +37,24 @@ test('project reader returns the exact canonical breadcrumb from state.db', () =
     const task = createTask(state.db, {
       id: 'db-task', title: 'Use one breadcrumb', type: 'bugfix', priority: 'P0',
       change_id: change.id,
+      outcome: 'Every host renders the same authoritative breadcrumb.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'all host injections',
+      verification_command: 'npm test',
+      acceptance: [{
+        id: 'host-breadcrumb', criterion: 'All hosts use one DB-derived breadcrumb.',
+        verification: 'npm test',
+      }],
+      context_refs: [],
+      docs_impact: { status: 'none', files: [], rationale: 'Test fixture only.' },
+      ownership: { owner: 'test-owner', reviewers: [] },
+      trace_to: 'mcp-server/lib/project-breadcrumb.cjs',
     });
     compileRoleContext(state.db, {
       input: {
         task_id: task.id,
         role: 'implement',
         gate: 'implementation',
-        execution_contract: {
-          slice_kind: 'tracer_bullet',
-          public_seam: 'all host injections',
-          verification_command: 'npm test',
-        },
-        next_action: 'Run the cross-host breadcrumb regression test.',
       },
       change,
       tasks: [task],

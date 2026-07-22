@@ -56,6 +56,84 @@ test('status --json --cost returns by_runtime + top_tasks + total_cost', () => {
   } finally { teardown(dir, db); }
 });
 
+test('status includes authoritative workflow, change, task, session, and next-route summaries', () => {
+  const { dir, db } = freshFixture();
+  try {
+    seedCalls(db, dir);
+    const out = statusCmd.buildCostPanel(db, { rootDir: dir });
+    assert.deepEqual(out.tasks, {
+      pending: 2, in_progress: 0, completed: 0, blocked: 0, expanded: 0, stale: 0,
+    });
+    assert.deepEqual(out.sessions, { running: 2, completed: 0, crashed: 0, orphan: 0 });
+    assert.equal(out.workflows.active, 0);
+    assert.equal(out.changes.active, 0);
+    assert.equal(out.next.recommended_workflow, 'ultra-init');
+    assert.match(out.next.action, /initializ/i);
+  } finally { teardown(dir, db); }
+});
+
+test('status exposes the exact current workflow, owned task, and evidence gate summaries', () => {
+  const { dir, db } = freshFixture();
+  try {
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, research_run_id, converged_at)
+       VALUES ('baseline', 'fixture', 'greenfield', 'ready', 'owner', 'approved',
+               'research-baseline', ?)`,
+    ).run(now);
+    db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, mode, subject, definition_version, status, baseline_id, completed_at, updated_at)
+       VALUES ('research-baseline', 'research', 'full', 'Research', '1.1', 'completed',
+               'baseline', ?, ?)`,
+    ).run(now, now);
+    db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root, updated_at)
+       VALUES ('status-change', 'Status change', 'standard', 'blocked',
+               'Expose exact durable status.', '.ultra/changes/active/status-change', ?)`,
+    ).run(now);
+    db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, definition_version, status, current_step, baseline_id, change_id,
+        blockers_json, updated_at)
+       VALUES ('change-status', 'change', 'Current change', '1.1', 'blocked', 'plan-change',
+               'baseline', 'status-change', '["PLAN_REQUIRED"]', ?)`,
+    ).run(now);
+    ops.createTask(db, {
+      id: 'status-task', title: 'Status task', type: 'feature', priority: 'P0',
+      status: 'blocked', change_id: 'status-change',
+    });
+    db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, definition_version, status, baseline_id, change_id,
+        summary_json, completed_at, updated_at)
+       VALUES ('test-status', 'test', 'Test gate', '1.1', 'completed', 'baseline',
+               'status-change', '{"passed":true,"task_ids":["status-task"]}', ?, ?)`,
+    ).run(now, now);
+    db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, definition_version, status, baseline_id, change_id,
+        summary_json, completed_at, updated_at)
+       VALUES ('review-status', 'review', 'Review gate', '1.1', 'completed', 'baseline',
+               'status-change', '{"verdict":"APPROVE","task_ids":["status-task"]}', ?, ?)`,
+    ).run(now, now);
+
+    const out = statusCmd.buildStatusPanel(db, { rootDir: dir });
+    assert.equal(out.baseline.research.id, 'research-baseline');
+    assert.equal(out.workflows.current[0].id, 'change-status');
+    assert.equal(out.workflows.current[0].current_step, 'plan-change');
+    assert.deepEqual(out.workflows.current[0].blockers, ['PLAN_REQUIRED']);
+    assert.equal(out.current_change.id, 'status-change');
+    assert.equal(out.current_task.id, 'status-task');
+    assert.equal(out.evidence.test.status, 'pass');
+    assert.equal(out.evidence.review.status, 'APPROVE');
+    assert.equal(out.evidence.delivery.status, 'missing');
+    assert.match(statusCmd.renderHuman(out), /Workflow: change-status.*plan-change/i);
+    assert.match(statusCmd.renderHuman(out), /Evidence: test=pass.*review=APPROVE/i);
+  } finally { teardown(dir, db); }
+});
+
 test('buildCostPanel: empty db → zero totals, empty arrays', () => {
   const { dir, db } = freshFixture();
   try {
@@ -67,6 +145,29 @@ test('buildCostPanel: empty db → zero totals, empty arrays', () => {
       id: null, mode: null, status: 'missing', health: 'fail',
       repository_revision: null, blockers: ['BASELINE_MISSING'], warnings: [],
     });
+  } finally { teardown(dir, db); }
+});
+
+test('status does not report a false total when exact-model usage is unpriced', () => {
+  const { dir, db } = freshFixture();
+  try {
+    ops.createTask(db, { id: 't-unpriced', title: 'unpriced', type: 'feature', priority: 'P1' });
+    ops.createSession(db, {
+      sid: 's-unpriced', task_id: 't-unpriced', runtime: 'opencode',
+      worktree_path: `${dir}/w`, artifact_dir: `${dir}/a`,
+    });
+    telemetry.appendTelemetry(db, {
+      event_type: 'token_usage', tool_name: 'session.close', session_id: 's-unpriced',
+      runtime: 'opencode', tokens_input: 500, tokens_output: 100, rootDir: dir,
+      payload: { model: 'provider-specific-model' },
+    });
+    const out = statusCmd.buildStatusPanel(db, { rootDir: dir });
+    assert.equal(out.total_cost_usd, null);
+    assert.deepEqual(out.cost, {
+      status: 'unavailable', known_total_usd: 0,
+      priced_usage_events: 0, unpriced_usage_events: 1,
+    });
+    assert.match(statusCmd.renderHuman(out), /Total cost: unavailable.*1 unpriced/i);
   } finally { teardown(dir, db); }
 });
 
@@ -89,10 +190,13 @@ test('status exposes an in-progress brownfield baseline from authoritative state
 test('status reports a legacy schema as migration-required instead of throwing SQLite errors', () => {
   const { dir, db } = freshFixture();
   try {
-    db.exec('DROP TABLE baselines');
+    db.exec('DROP TABLE workflow_steps; DROP TABLE workflow_runs; DROP TABLE changes; DROP TABLE baselines');
     const out = statusCmd.buildCostPanel(db, { rootDir: dir });
     assert.equal(out.baseline.status, 'migration_required');
     assert.deepEqual(out.baseline.blockers, ['BASELINE_SCHEMA_MIGRATION_REQUIRED']);
+    assert.equal(out.workflows.status, 'unavailable');
+    assert.equal(out.changes.status, 'unavailable');
+    assert.equal(out.next.recommended_workflow, 'ultra-init');
     assert.match(statusCmd.renderHuman(out), /migration_required/i);
   } finally { teardown(dir, db); }
 });

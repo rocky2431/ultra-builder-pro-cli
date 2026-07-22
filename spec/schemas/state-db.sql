@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS baselines (
   worktree_digest     TEXT,
   worktree_files_json TEXT NOT NULL DEFAULT '[]',
   worktree_accepted   INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1)),
+  known_red_accepted  INTEGER NOT NULL DEFAULT 0 CHECK (known_red_accepted IN (0, 1)),
   spec_refs_json      TEXT NOT NULL DEFAULT '[]',
   evidence_json       TEXT NOT NULL DEFAULT '[]',
   verification_json   TEXT NOT NULL DEFAULT '[]',
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS baselines (
   gaps_json           TEXT NOT NULL DEFAULT '[]',
   classification_json TEXT NOT NULL DEFAULT '{}',
   provider_refs_json  TEXT NOT NULL DEFAULT '{}',
+  research_run_id     TEXT,
   approved_by         TEXT,
   approval_note       TEXT,
   started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -62,6 +64,9 @@ CREATE TABLE IF NOT EXISTS changes (
   docs_impact_json  TEXT NOT NULL DEFAULT '{"status":"unknown","files":[],"rationale":null}',
   provider_refs_json TEXT NOT NULL DEFAULT '{}',
   baseline_bypass_json TEXT,
+  contract_json     TEXT NOT NULL DEFAULT '{}',
+  classification_json TEXT NOT NULL DEFAULT '{}',
+  research_disposition_json TEXT NOT NULL DEFAULT '{}',
   base_commit       TEXT,
   artifact_root     TEXT NOT NULL,
   created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -88,9 +93,16 @@ CREATE TABLE IF NOT EXISTS tasks (
   files_modified    TEXT,                -- JSON array of paths (Phase 8B conflict detection)
   session_id        TEXT,                -- current owning session (Phase 4.5)
   stale             INTEGER NOT NULL DEFAULT 0 CHECK (stale IN (0, 1)),
-  complexity_hint   TEXT CHECK (complexity_hint IN ('haiku', 'sonnet', 'opus')),
   tag               TEXT,                -- git branch tag (Phase 7.2)
   trace_to          TEXT,                -- spec anchor reference
+  outcome           TEXT,                -- observable result owned by this task
+  slice_kind        TEXT CHECK (slice_kind IS NULL OR slice_kind IN ('tracer_bullet', 'expand_contract', 'integration_checkpoint')),
+  public_seam       TEXT,                -- externally observable seam exercised by the slice
+  verification_command TEXT,             -- exact task-level verification command
+  acceptance_json   TEXT NOT NULL DEFAULT '[]',
+  context_refs_json TEXT NOT NULL DEFAULT '[]',
+  docs_impact_json  TEXT NOT NULL DEFAULT '{"status":"unknown","files":[],"rationale":null}',
+  ownership_json    TEXT NOT NULL DEFAULT '{}',
   context_file      TEXT,                -- projection target path
   completion_commit TEXT,                -- backfilled hash (Phase 2.8)
   change_id         TEXT REFERENCES changes(id) ON DELETE SET NULL,
@@ -261,6 +273,10 @@ CREATE TABLE IF NOT EXISTS spec_learning_candidates (
   status        TEXT NOT NULL DEFAULT 'proposed'
                   CHECK (status IN ('proposed', 'approved', 'rejected', 'applied')),
   resolution    TEXT,
+  applied_ref   TEXT,
+  before_digest TEXT,
+  after_digest  TEXT,
+  apply_evidence_json TEXT NOT NULL DEFAULT '[]',
   proposed_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   resolved_at   TEXT,
   applied_at    TEXT
@@ -328,6 +344,65 @@ CREATE TABLE IF NOT EXISTS event_consumers (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- ──────────────────────────── workflow runs ───────────────────────────────
+-- Skills own judgment and artifact content. MCP owns durable transitions,
+-- evidence references, output digests, blockers, and recovery position.
+CREATE TABLE IF NOT EXISTS workflow_runs (
+  id                 TEXT PRIMARY KEY,
+  kind               TEXT NOT NULL
+                       CHECK (kind IN ('init', 'research', 'plan', 'change', 'dev', 'test', 'review', 'deliver')),
+  mode               TEXT,
+  subject            TEXT NOT NULL,
+  definition_version TEXT NOT NULL DEFAULT '1.0',
+  status             TEXT NOT NULL DEFAULT 'active'
+                       CHECK (status IN ('active', 'blocked', 'ready', 'completed', 'cancelled')),
+  current_step       TEXT,
+  baseline_id        TEXT REFERENCES baselines(id) ON DELETE SET NULL,
+  change_id          TEXT REFERENCES changes(id) ON DELETE SET NULL,
+  task_id            TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  metadata_json      TEXT NOT NULL DEFAULT '{}',
+  blockers_json      TEXT NOT NULL DEFAULT '[]',
+  approval_json      TEXT,
+  summary_json       TEXT NOT NULL DEFAULT '{}',
+  started_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  completed_at       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS workflow_runs_status
+  ON workflow_runs(status, kind, updated_at);
+CREATE INDEX IF NOT EXISTS workflow_runs_baseline
+  ON workflow_runs(baseline_id, kind, updated_at);
+CREATE INDEX IF NOT EXISTS workflow_runs_change
+  ON workflow_runs(change_id, kind, updated_at);
+CREATE INDEX IF NOT EXISTS workflow_runs_task
+  ON workflow_runs(task_id, kind, updated_at);
+
+CREATE TABLE IF NOT EXISTS workflow_steps (
+  run_id          TEXT NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
+  step_id         TEXT NOT NULL,
+  position        INTEGER NOT NULL CHECK (position >= 0),
+  title           TEXT NOT NULL,
+  required        INTEGER NOT NULL DEFAULT 1 CHECK (required IN (0, 1)),
+  status          TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'in_progress', 'completed', 'skipped', 'blocked')),
+  evidence_json   TEXT NOT NULL DEFAULT '[]',
+  outputs_json    TEXT NOT NULL DEFAULT '[]',
+  decisions_json  TEXT NOT NULL DEFAULT '[]',
+  semantic_records_json TEXT NOT NULL DEFAULT '[]',
+  blockers_json   TEXT NOT NULL DEFAULT '[]',
+  skip_reason     TEXT,
+  started_at      TEXT,
+  completed_at    TEXT,
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (run_id, step_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS workflow_steps_position
+  ON workflow_steps(run_id, position);
+CREATE INDEX IF NOT EXISTS workflow_steps_status
+  ON workflow_steps(run_id, status, position);
+
 -- ──────────────────────────── seed: schema_version ────────────────────────
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('4.5', 'Phase 2 initial — tasks/events/sessions/schema_version/migration_history/telemetry/specs_refs');
@@ -347,3 +422,9 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('11.0', 'Greenfield and brownfield baseline adoption, convergence, and drift authority');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('12.0', 'Evidence-backed repository snapshots, gap ledger, safe re-adoption, and incident break-glass governance');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('13.0', 'Durable cross-stage workflow runs, step evidence, output digests, blockers, and recovery');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('14.0', 'Continuously revalidated baseline authority and persisted known-red acceptance');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('15.0', 'Typed research semantics, complete change contracts, verified learning application, and reconciliation provenance');

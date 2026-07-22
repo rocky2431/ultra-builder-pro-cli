@@ -13,7 +13,7 @@ sharing one authoritative workflow store.
 
 **Distribution channels (v1.0)**: npm · Homebrew · pip.
 
-**Release line**: `0.11.x`; every release is gated by `npm run verify:release`.
+**Release line**: `0.14.x`; every release is gated by `npm run verify:release`.
 
 ---
 
@@ -45,24 +45,27 @@ sharing one authoritative workflow store.
 | 8C    | Continuous change packets + context compiler + convergence + doctor | ✅ done (D52) |
 | 10    | Context Spine v2 + breadcrumb + fresh-context budget + spec learning + two-axis review | ✅ done |
 | 11    | Greenfield/brownfield baseline adoption + advisory context budgets + convergence gate | ✅ done |
+| 12    | Repository evidence snapshots + gap ledger + migration re-adoption + incident governance | ✅ done |
+| 13    | Durable init-to-delivery workflows + task execution contracts + immutable stage evidence | ✅ done |
 | 9     | Release pipeline                               | npm tag publishing live; Homebrew / pip not implemented |
 
 ## What is in the repo today
 
 ```
 spec/                       ← Phase 1 single source of truth
-├── mcp-tools.yaml          (36 live tools across 6 families)
+├── mcp-tools.yaml          (41 live tools across 7 families)
 ├── cli-protocol.md         (CLI ↔ MCP mapping table)
 ├── schemas/                (state-db.sql + 4 JSON schemas)
 ├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
 └── scripts/test-all.cjs    (npm run test:spec — 7 validation stages)
 
 mcp-server/                 ← Phase 2 authoritative state layer
-├── server.cjs              (stdio MCP server, 36 baseline/task/session/change/system/plan tools)
+├── server.cjs              (stdio MCP server, 41 task/session/baseline/change/workflow/system/plan tools)
 ├── lib/
 │   ├── state-db.cjs        (SQLite + WAL + pragmas)
 │   ├── state-ops.cjs       (full write API, status state machine)
 │   ├── baseline-workflow.cjs (project adoption + approval + reconciliation)
+│   ├── workflow-state.cjs  (ordered stage runs, evidence, output digests, and gates)
 │   └── projector.cjs       (state.db → tasks.json + context md)
 └── tests/                  (npm run test:state)
 
@@ -70,7 +73,7 @@ ultra-tools/                ← CLI fallback, migration, and diagnostics
 ├── cli.cjs
 └── commands/
     ├── db.cjs              (init/checkpoint/vacuum/integrity/backup)
-    ├── migrate.cjs         (v4.4 projection → v4.5 authority; v4.5 projection → schema 12; dry/rollback)
+    ├── migrate.cjs         (v4.4 projection → v4.5 authority; v4.5 projection → current schema; dry/rollback)
     └── legacy-memory.cjs   (explicit inspect/archive/confirmed prune)
 
 bin/install.js              ← multi-runtime installer
@@ -81,6 +84,7 @@ hooks/                      ← 7 executable workflow hooks + shared Context Spi
 docs/
 ├── PLAN.zh-CN.md                historical phase plan + decision log
 ├── ARCHITECTURE.md              Phase 1 single-page entry point
+├── WORKFLOW-LIFECYCLE.md        baseline classification + DB transition contract
 ├── AGENT-CONTEXT.md             Phase 3 canonical runtime context contract
 ├── USER-HANDBOOK-CONTRACT.md    managed CLAUDE.md / AGENTS.md boundary
 ├── RUNTIME-COMPAT-MATRIX.md     Phase 4 runtime capability matrix

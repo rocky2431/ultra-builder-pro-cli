@@ -38,7 +38,7 @@ SUBCOMMANDS:
   system    doctor [--repair] | restore | rebaseline
   status    [--cost] [--since <duration>] [--json]
   db        init | checkpoint | vacuum | integrity | backup (Phase 2)
-  migrate   --from=<4.4|4.5> --to=<4.5|12.0> [--dry|--rollback]
+  migrate   --from=<4.4|4.5> --to=<4.5|15.0> [--dry|--rollback]
   legacy-memory inspect | archive | prune --confirm DELETE_ULTRA_LEGACY_MEMORY
 
   --help / -h      show this message

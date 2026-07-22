@@ -5,8 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
-const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+const { Client } = require('@modelcontextprotocol/client');
+const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 const kimi = require('../../../adapters/kimi.js');
 const { REPO_ROOT, mkTarget, cleanup, readToolPayload } = require('../_lib.cjs');
 

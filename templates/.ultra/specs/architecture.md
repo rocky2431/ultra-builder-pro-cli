@@ -1,51 +1,54 @@
 # Architecture Specification
 
-This document defines the accepted system boundaries and implementation constraints.
-Describe the architecture that evidence requires; do not impose a framework or module
-shape that the project does not use.
+Define accepted system boundaries, authority, runtime paths, operational behavior, and
+implementation constraints. Describe observed architecture before proposed changes.
 
 ## Scope
 
 - Repository or system boundary:
 - Product contracts supported:
-- Revision or environment inspected:
+- Revision and environments inspected:
 
 ## Observed
 
-Record current components, dependencies, data paths, runtime behavior, and operational
-constraints confirmed by source or runtime evidence.
-
-| Architectural fact | Evidence reference | Consumer or impact |
+| Architectural fact | Source or runtime evidence | Consumer or impact |
 |---|---|---|
 | | | |
 
 ## Decisions
 
-Record an architecture decision only when it has been accepted. Describe alternatives
-only when a real choice was evaluated and the tradeoff matters for maintenance.
-
-| Decision | Constraint or evidence | Consequence | Owner |
+| Decision | Driver and evidence | Consequence and recovery | Owner |
 |---|---|---|---|
 | | | | |
 
 ## Unknowns
 
-| Unknown | Risk if unresolved | Blocking | Owner or next check |
+| Unknown | Consequence | Blocking | Owner or next check |
 |---|---|---|---|
 | | | | |
 
-## System Boundaries
+## 30 Architecture Context
 
-| Boundary | Responsibility | Inputs and outputs | Authority | Consumers |
+| Boundary or external system | Responsibility | Inputs and outputs | Trust or authority | Consumers |
 |---|---|---|---|---|
 | | | | | |
 
-## Runtime Paths
+Record material quality goals, technical and organizational constraints, data
+sensitivity, permissions, and compliance boundaries with evidence.
 
-Trace the important behavior from a live entry point through state and side effects.
-Include failure and recovery paths when they are part of the contract.
+## 31 Solution Strategy
 
-| Path | Entry point | State or dependency | Observable result | Recovery |
+| Accepted direction | Existing pattern or constraint | Consequence | Compatibility or recovery |
+|---|---|---|---|
+| | | | |
+
+## 32 Building Blocks and Runtime Paths
+
+| Building block | Responsibility | Authority and contract | Dependencies | Consumers |
+|---|---|---|---|---|
+| | | | | |
+
+| Runtime path | Entry point | State and side effects | Observable result | Failure and recovery |
 |---|---|---|---|---|
 | | | | | |
 
@@ -55,27 +58,24 @@ Include failure and recovery paths when they are part of the contract.
 |---|---|---|---|---|
 | | | | | |
 
-## Quality and Operational Constraints
+## 40 Deployment and Operations
 
-Include only constraints that are evidenced or explicitly accepted. Give each one a
-verification method rather than an arbitrary score.
+| Environment or operation | Entry point | Configuration or migration | Observation | Rollback or recovery |
+|---|---|---|---|---|
+| | | | | |
 
-| Constraint | Source | Verification | Failure response |
-|---|---|---|---|
-| | | | |
+## 41 Quality Scenarios and Risks
 
-## Security and Permissions
+| Trigger and condition | Expected response | Measurement | Failure response | Owner |
+|---|---|---|---|---|
+| | | | | |
 
-Document trust boundaries, authorization sources, sensitive data handling, and audit
-requirements that apply to this scope.
-
-## Deployment and Recovery
-
-Record the environments and release or rollback paths that are actually used. Link to
-external operational sources instead of duplicating their live contents.
+| Risk or debt | Evidence | Consequence | Mitigation and verification | Status |
+|---|---|---|---|---|
+| | | | | |
 
 ## Product Traceability
 
-| Product behavior | Architecture path | Verification evidence |
-|---|---|---|
-| | | |
+| Product requirement | Architecture path | Public seam | Verification evidence |
+|---|---|---|---|
+| | | | |

@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultra-builder-pro.dev/schemas/test-report.v1.schema.json",
+  "title": "Ultra test report v1",
+  "type": "object",
+  "required": [
+    "$schema", "change_id", "task_ids", "git_commit", "worktree_digest",
+    "context_digest", "acceptance", "commands", "public_seams", "failures",
+    "recovery", "verification_dimensions", "regression_signal", "passed", "run_count",
+    "timestamp", "blocking_issues"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "const": "ultra-test-report-v1" },
+    "change_id": { "type": ["string", "null"] },
+    "task_ids": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "git_commit": { "type": ["string", "null"] },
+    "worktree_digest": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "context_digest": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pass", "fail"] },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command", "status", "exit_code", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pass", "fail"] },
+          "exit_code": { "type": "integer" },
+          "evidence": { "type": "string", "minLength": 1 }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "status": { "const": "pass" } } },
+            "then": { "properties": { "exit_code": { "const": 0 } } }
+          },
+          {
+            "if": { "properties": { "status": { "const": "fail" } } },
+            "then": { "properties": { "exit_code": { "not": { "const": 0 } } } }
+          }
+        ]
+      }
+    },
+    "public_seams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["seam", "status", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "seam": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pass", "fail"] },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["symptom", "status", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "symptom": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["resolved", "unresolved"] },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "recovery": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scenario", "status", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "scenario": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pass", "fail"] },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "verification_dimensions": {
+      "type": "object",
+      "required": [
+        "acceptance", "regression", "integration", "static_analysis",
+        "build", "performance", "security", "recovery"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "acceptance": { "$ref": "#/$defs/verificationDimension" },
+        "regression": { "$ref": "#/$defs/verificationDimension" },
+        "integration": { "$ref": "#/$defs/verificationDimension" },
+        "static_analysis": { "$ref": "#/$defs/verificationDimension" },
+        "build": { "$ref": "#/$defs/verificationDimension" },
+        "performance": { "$ref": "#/$defs/verificationDimension" },
+        "security": { "$ref": "#/$defs/verificationDimension" },
+        "recovery": { "$ref": "#/$defs/verificationDimension" }
+      }
+    },
+    "regression_signal": {
+      "type": ["object", "null"],
+      "required": ["command", "expected_red", "observed_red", "observed_green", "deterministic", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "expected_red": { "type": "string", "minLength": 1 },
+        "observed_red": { "type": "boolean" },
+        "observed_green": { "type": "boolean" },
+        "deterministic": { "type": "boolean" },
+        "duration_ms": { "type": "number", "minimum": 0 },
+        "evidence": { "type": "string", "minLength": 1 }
+      }
+    },
+    "passed": { "type": "boolean" },
+    "run_count": { "type": "integer", "minimum": 0 },
+    "timestamp": { "type": ["string", "null"], "format": "date-time" },
+    "blocking_issues": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "verificationDimension": {
+      "type": "object",
+      "required": ["status", "evidence", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["pass", "fail", "not_run", "not_applicable"] },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "rationale": { "type": "string", "minLength": 3 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "enum": ["pass", "fail"] } } },
+          "then": { "properties": { "evidence": { "minItems": 1 } } }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "passed": { "const": true } } },
+      "then": {
+        "properties": {
+          "change_id": { "type": "string", "minLength": 1 },
+          "context_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "acceptance": {
+            "minItems": 1,
+            "items": { "properties": { "status": { "const": "pass" } } }
+          },
+          "commands": {
+            "minItems": 1,
+            "items": { "properties": { "status": { "const": "pass" }, "exit_code": { "const": 0 } } }
+          },
+          "public_seams": {
+            "minItems": 1,
+            "items": { "properties": { "status": { "const": "pass" } } }
+          },
+          "failures": { "items": { "properties": { "status": { "const": "resolved" } } } },
+          "recovery": { "items": { "properties": { "status": { "const": "pass" } } } },
+          "verification_dimensions": {
+            "properties": {
+              "acceptance": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
+              "regression": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
+              "integration": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
+              "static_analysis": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
+              "build": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
+              "performance": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
+              "security": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
+              "recovery": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } }
+            }
+          },
+          "run_count": { "minimum": 1 },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "blocking_issues": { "maxItems": 0 }
+        }
+      }
+    }
+  ]
+}

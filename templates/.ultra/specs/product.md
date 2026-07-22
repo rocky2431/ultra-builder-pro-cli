@@ -1,26 +1,21 @@
 # Product Specification
 
-This document defines accepted product behavior and scope. It is a durable contract,
-not a research transcript or a task list.
+Define accepted product behavior and scope. Keep current behavior distinct from
+proposed behavior; this is not a transcript or task list.
 
 ## Scope
 
 - Product or repository boundary:
 - Intended outcome:
-- Explicit non-goals:
+- Explicit non-goals or constraints:
 
 ## Observed
 
-Record confirmed current behavior and externally visible constraints. For an existing
-project, cite source, test, runtime, or maintained documentation evidence.
-
-| Behavior or constraint | Evidence reference | Status |
-|---|---|---|
-| | | |
+| Current behavior or constraint | Evidence reference | Status | Affected requirement |
+|---|---|---|---|
+| | | | |
 
 ## Decisions
-
-Record accepted product decisions and the evidence or owner decision behind them.
 
 | Decision | Rationale | Acceptance impact | Owner |
 |---|---|---|---|
@@ -32,36 +27,50 @@ Record accepted product decisions and the evidence or owner decision behind them
 |---|---|---|---|
 | | | | |
 
-## Actors and Entry Points
+## 10 Actors and Jobs
 
-Include actors only when they are supported by evidence. Describe the public entry
-point through which each actor reaches the behavior.
+| Actor or system | Job and context | Entry point | Constraints | Evidence |
+|---|---|---|---|---|
+| | | | | |
 
-| Actor or system | Need | Entry point | Evidence |
-|---|---|---|---|
-| | | | |
+## 11 User Scenarios
 
-## Behavior Contracts
+| Scenario id | Actor and trigger | Flow | Observable outcome | Failure and recovery | Evidence |
+|---|---|---|---|---|---|
+| | | | | | |
 
-Give each required behavior a stable identifier. State preconditions, observable
-result, failure behavior, and recovery where relevant.
+## 20 Behavioral Requirements and Acceptance
 
-### Behavior: pending
+### Requirement: pending
 
-- Trigger:
+- Source scenario or constraint:
 - Preconditions:
+- Action:
 - Observable result:
-- Failure behavior:
-- Recovery:
-- Evidence or decision:
+- Error behavior and recovery:
+- Verification:
 
-## Acceptance
+## 21 Capability and Scope Boundary
 
-| Behavior | Acceptance evidence | Public seam | Verification |
+| Capability | Included requirements | Dependencies | Status and rationale |
 |---|---|---|---|
 | | | | |
+
+Scope status must reflect an explicit decision. Do not infer a reduced product posture.
+
+## 22 Outcomes and Measurements
+
+| Outcome or guardrail | Definition | Evidence source | Decision use | Owner |
+|---|---|---|---|---|
+| | | | | |
 
 ## Documentation Impact
 
-List maintained documents that must stay consistent with this contract, or record a
-specific reason why no documentation change is required.
+List maintained documents that must stay consistent, or record a specific no-change
+rationale.
+
+## Architecture Traceability
+
+| Requirement | Public seam | Architecture path | Verification evidence |
+|---|---|---|---|
+| | | | |

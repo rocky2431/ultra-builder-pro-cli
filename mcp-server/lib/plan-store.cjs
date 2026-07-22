@@ -18,8 +18,11 @@ function renderPlanMd(plan) {
   const lines = [];
   lines.push('# Execution Plan');
   lines.push('');
+  if (plan.change_id) lines.push(`- Change: ${plan.change_id}`);
   lines.push(`- Waves: ${plan.waves.length}`);
-  lines.push(`- Estimated cost: $${plan.estimated_cost_usd}`);
+  lines.push(plan.estimated_cost_usd === null
+    ? '- Estimated cost: unavailable (exact runtime model was not recorded)'
+    : `- Estimated cost: $${plan.estimated_cost_usd}`);
   lines.push(`- Estimated duration: ${plan.estimated_duration_min} min`);
   if (plan.conflict_surface.length > 0) {
     lines.push(`- Conflicts: ${plan.conflict_surface.length}`);

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-07-22
+
+### Added
+
+- Added schema 15 typed semantic records for all seventeen research steps, including
+  step-specific attributes, stable ids, evidence links, source anchors, stored source
+  digests, synthesis trace validation, and current-source health checks.
+- Added complete Change Contracts with executable acceptance, non-goals, public seams,
+  recovery, unresolved decisions, profile rationale/risk flags, and explicit bounded
+  research disposition.
+- Added plan acceptance coverage and traceability gates, one-task enforcement for quick
+  changes, verified specification-learning application, and a published
+  `ultra-baseline-reconciliation-v1` schema.
+- Added task/change/plan review modes and machine-validated worker selection or skip
+  provenance while preserving independent specification-fidelity and engineering axes.
+
+### Changed
+
+- Unified every greenfield, brownfield, migrated, and daily route through
+  `ultra-change` before planning. Initial planning can no longer bypass durable intent,
+  risk, research, recovery, or acceptance authority.
+- Reworked the workflow Skills into compact host-neutral execution contracts with
+  focused references for research semantics, Change profiles, planning preflight,
+  review modes, and delivery reconciliation.
+- Made context budgets advisory while keeping evidence, authority, acceptance,
+  specification freshness, review, and recovery gates deterministic and blocking.
+
+### Fixed
+
+- Fixed research completion that previously stored prose and file hashes without a
+  machine-consumable semantic index or stale-source detection.
+- Fixed planning that could complete without proving every Change acceptance criterion
+  had an executable owner or that each task traced to accepted evidence.
+- Fixed approved learning and delivery reconciliation that could record status without
+  verifying the applied target, before/after content, source anchor, and archive replay
+  provenance.
+- Fixed review artifacts that did not distinguish task, aggregate change, and plan
+  scope or preserve why each bounded worker was selected or skipped.
+- Fixed host review-prompt adaptation across intentional Markdown line wrapping and
+  excluded tests, test fixtures, and generated Python bytecode from installed and
+  published plugin payloads.
+
 ## [0.14.0] — 2026-07-19
 
 ### Added
@@ -582,7 +624,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.0...v0.12.1

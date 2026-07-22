@@ -1,64 +1,60 @@
 ---
 name: ultra-status
-description: Report authoritative Ultra health, position, readiness, evidence freshness, and one deterministic next action. Use when the user asks where an Ultra project stands or what should happen next.
+description: Report authoritative Ultra project health, baseline, workflow position, task/session progress, evidence freshness, blockers, and one deterministic next action. Use when the user asks what is complete, blocked, stale, or next in an Ultra project.
 ---
 
-# Route from authoritative status
+# Route from authoritative state
 
-Answer status questions without reconstructing state from prose. `.ultra/state.db` is
-authoritative; reports and Markdown are evidence or projections.
+This workflow is read-only. Never reconstruct status from prose or generated task
+projections.
 
 ## Read order
 
-1. Call `system.doctor` in read-only mode. If authority is unhealthy, route only to
-   `ultra-doctor` and include the blocking diagnostic.
-2. Call `baseline.get` for mode, lifecycle status, repository revision, branch,
-   worktree snapshot, specification digest health, gap ledger, and adoption blockers.
-3. Call `change.breadcrumb` for the active change, task, role, gate, readiness,
-   blockers, advisory warnings, staleness, and next action.
-4. Call `task.list` and `session.list` for progress and active execution details.
-5. Read test and delivery reports only when present, and mark a report stale when its
-   HEAD differs from the current checkout.
-6. Read Git branch, HEAD, and worktree status without mutation.
+1. Call `system.doctor` with repair disabled.
+2. Call `baseline.get` for classification, readiness, revision, worktree, spec digests,
+   research provenance, gaps, and blockers.
+3. Call `workflow.list`, then `workflow.get` for every active, blocked, or ready run.
+4. Call `change.breadcrumb`, `change.list`, `task.list`, and `session.list`.
+5. Inspect current Git branch, full HEAD, and worktree without mutation.
+6. Read test, review, and delivery artifacts only when referenced by DB workflow state;
+   compare their recorded digest and revision with current authority.
 
-If MCP task or change state is unavailable, label that panel unavailable. Never fall
-back to generated task JSON, context frontmatter, or raw SQLite.
+If state is unreadable, report that panel unavailable and route to `ultra-doctor`.
+Never fall back to generated task JSON, raw SQLite queries, or context frontmatter.
 
-## Routing
+## Choose one route
 
-Follow the breadcrumb's primary route and return one action, not a menu:
+Prefer the breadcrumb and durable workflow position:
 
-- unhealthy authority: `ultra-doctor`;
-- missing Ultra project: `ultra-init`;
-- projection-only authority conflict: run the exact supported import command from the
-  MCP error, then `ultra-init`;
-- migrated or missing baseline evidence with no active change: `ultra-init`, then
-  `ultra-research` or `ultra-plan` according to the gap;
-- baseline or context-budget warning during an active change: keep the current route
-  and surface the warning; do not turn it into a refusal;
-- blocked or stale context: the workflow named by the breadcrumb;
-- ready implementation task: `ultra-dev <task-id>`;
-- completed tasks with missing or stale test evidence: `ultra-test`;
-- incomplete review or convergence: `ultra-review` or `ultra-deliver`;
-- ready change: `ultra-deliver`;
+- state integrity, schema, projection, or installed-asset failure: `ultra-doctor`;
+- missing project or migrated compatibility authority: `ultra-init`;
+- active/blocked research: `ultra-research` at its exact `current_step`;
+- ready research with unconverged baseline: finalize research, record, approve, and
+  converge through `ultra-research`;
+- active plan/change/dev/test/review/deliver run: its matching workflow at the exact
+  step or blocker;
+- ready baseline with no change: `ultra-change` to persist the requested outcome before
+  any planning;
 - archived change with fresh evidence: report completion without inventing more work.
 
-Require an explicit change id when several active changes make the route ambiguous.
+Context-size warnings are advisory. Missing authority, stale required refs or outputs,
+incomplete task contracts, failed evidence, unresolved learning, and missing approval
+are blockers.
 
 ## Output
 
-Use a compact shape:
+Report:
 
 ```text
 Ultra: <healthy|degraded> · <branch>@<head> · worktree <clean|dirty>
-Position: change=<id|none> task=<id|none> role=<role> gate=<gate>
-Baseline: <greenfield|brownfield|migrated>/<status> revision=<revision|none> gaps=<open>/<blocking>
-Readiness: <ready|blocked|stale> — <blockers or none>
-Warnings: <advisory conditions or none>
-Progress: <completed>/<total>; sessions=<active count>
-Evidence: tests=<fresh|stale|missing>; delivery=<fresh|stale|missing>
+Baseline: <mode>/<status> · research=<run/status> · gaps=<open>/<blocking>
+Workflow: <kind/id/status> · step=<current|finalize> · outputs=<fresh|stale>
+Change: <id/status|none> · Task: <id/status|none> · Sessions: <active>
+Evidence: test=<state> · review=<two axes> · delivery=<state>
+Blockers: <specific codes or none>
+Warnings: <advisory codes or none>
 Next: <one exact action>
 ```
 
-This workflow is read-only. It does not repair state, compile context, update tasks, or
-release software.
+Separate verified facts, inferences, and unavailable evidence. Do not modify state,
+compile context, repair, or release from this Skill.

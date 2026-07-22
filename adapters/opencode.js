@@ -86,8 +86,8 @@ function openCodeTextTransform(input, assetName = '') {
     text = text.replaceAll('current host', 'OpenCode');
   }
   if (assetName === 'ultra-review') {
-    text = text.replaceAll(
-      "the current host's native bounded-worker mechanism",
+    text = text.replace(
+      /the current host's native bounded-worker\s+mechanism/g,
       'the OpenCode `task` tool using the installed bounded review agents',
     );
   }
@@ -454,6 +454,7 @@ function install(ctx = {}) {
       host_plugin: { root: 'config', path: path.join('plugins', 'ultra-builder-pro.js') },
       mcp_config: { root: 'config', path: 'opencode.json' },
       mcp_launcher: { root: 'config', path: path.join(BUNDLE_DIR, 'runtime', 'launch.cjs') },
+      hook_event_helper: { root: 'config', path: path.join(BUNDLE_DIR, 'runtime', 'hook-event.cjs') },
     },
   });
   report.provenance.file = provenanceFile;

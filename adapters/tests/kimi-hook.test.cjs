@@ -10,6 +10,8 @@ const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs
 const { createChange } = require('../../mcp-server/lib/change-workflow.cjs');
 const { createTask } = require('../../mcp-server/lib/state-ops.cjs');
 const { compileRoleContext } = require('../../mcp-server/lib/context-spine.cjs');
+const { seedReadyBaseline } = require('../../mcp-server/test-support/ready-baseline.cjs');
+const { completeChangeInput } = require('../../mcp-server/test-support/change-contract.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const ADAPTER = path.join(REPO_ROOT, 'hooks', 'adapters', 'kimi.py');
@@ -23,29 +25,29 @@ function run(feature, payload, args = []) {
 }
 
 function seedContext(project, taskId = 'task-7') {
+  fs.writeFileSync(path.join(project, 'contract.md'), '# Hook contract\n');
   const state = initStateDb(path.join(project, '.ultra', 'state.db'));
-  state.db.prepare(
-    `INSERT INTO baselines
-     (id, project_name, mode, status, approved_by, approval_note, converged_at)
-     VALUES ('baseline', 'fixture', 'greenfield', 'ready', 'test', 'fixture', ?)`,
-  ).run(new Date().toISOString());
-  const { change } = createChange(state.db, {
+  seedReadyBaseline(state.db, { rootDir: project, id: 'baseline' });
+  const { change } = createChange(state.db, completeChangeInput({
     id: 'hook-change', title: 'Hook change', kind: 'quick',
     intent: 'Inject the authoritative task.',
     docs_impact: { status: 'none', rationale: 'fixture' },
-  }, { rootDir: project });
+  }), { rootDir: project });
   const task = createTask(state.db, {
     id: taskId, title: 'Hook task', type: 'bugfix', priority: 'P0', change_id: change.id,
+    outcome: 'Expose the authoritative hook task boundary.', slice_kind: 'tracer_bullet',
+    public_seam: 'hook injection',
+    verification_command: 'node --test adapters/tests/kimi-hook.test.cjs',
+    acceptance: [{
+      id: 'hook-boundary', criterion: 'The active task is injected.',
+      verification: 'node --test adapters/tests/kimi-hook.test.cjs',
+    }],
+    context_refs: [{ ref: 'contract.md', kind: 'spec', reason: 'Hook behavior contract', required: true }],
+    docs_impact: { status: 'none', files: [], rationale: 'Internal test fixture.' },
+    ownership: { owner: 'test-owner', reviewers: [] }, trace_to: 'contract.md#hook-contract',
   });
   compileRoleContext(state.db, {
-    input: {
-      task_id: task.id, role: 'implement', gate: 'implementation',
-      execution_contract: {
-        slice_kind: 'tracer_bullet', public_seam: 'hook injection',
-        verification_command: 'node --test adapters/tests/kimi-hook.test.cjs',
-      },
-      next_action: 'Continue the authoritative hook task.',
-    },
+    input: { task_id: task.id, role: 'implement', gate: 'implementation' },
     change, tasks: [task], rootDir: project,
   });
   closeStateDb(state.db);

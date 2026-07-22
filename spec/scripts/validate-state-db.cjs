@@ -47,7 +47,7 @@ const expectedTables = [
   'tasks', 'events', 'sessions', 'schema_version', 'migration_history',
   'telemetry', 'specs_refs', 'circuit_breaker', 'changes', 'artifacts',
   'context_snapshots', 'spec_learning_candidates', 'trace_links', 'incidents', 'projection_jobs',
-  'event_consumers',
+  'event_consumers', 'workflow_runs', 'workflow_steps',
 ];
 const actualTables = db.prepare(
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
@@ -62,18 +62,18 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '12.0'").get();
-if (v && v.version === '12.0') {
-  console.log('ok schema_version includes 12.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '15.0'").get();
+if (v && v.version === '15.0') {
+  console.log('ok schema_version includes 15.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 12.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 15.0: got ${JSON.stringify(v)}`);
   fail++;
 }
 
 const requiredBaselineColumns = [
   'repository_branch', 'worktree_state', 'worktree_digest', 'worktree_files_json',
-  'worktree_accepted', 'gaps_json', 'classification_json',
+  'worktree_accepted', 'known_red_accepted', 'gaps_json', 'classification_json', 'research_run_id',
 ];
 const baselineColumns = new Set(db.prepare('PRAGMA table_info(baselines)').all().map((row) => row.name));
 for (const column of requiredBaselineColumns) {
@@ -82,6 +82,21 @@ for (const column of requiredBaselineColumns) {
     pass++;
   } else {
     console.error(`  FAIL baselines.${column} missing`);
+    fail++;
+  }
+}
+
+const requiredTaskContractColumns = [
+  'outcome', 'slice_kind', 'public_seam', 'verification_command',
+  'acceptance_json', 'context_refs_json', 'docs_impact_json', 'ownership_json',
+];
+const taskColumns = new Set(db.prepare('PRAGMA table_info(tasks)').all().map((row) => row.name));
+for (const column of requiredTaskContractColumns) {
+  if (taskColumns.has(column)) {
+    console.log(`  ok tasks.${column}`);
+    pass++;
+  } else {
+    console.error(`  FAIL tasks.${column} missing`);
     fail++;
   }
 }

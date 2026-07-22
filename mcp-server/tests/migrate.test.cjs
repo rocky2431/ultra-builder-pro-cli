@@ -11,7 +11,7 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const CLI = path.join(REPO_ROOT, 'ultra-tools', 'cli.cjs');
 const FIXTURE = path.join(REPO_ROOT, 'spec', 'fixtures', 'v4.4-project');
 
-const { openStateDb, closeStateDb } = require('../lib/state-db.cjs');
+const { EXPECTED_VERSION, openStateDb, closeStateDb } = require('../lib/state-db.cjs');
 
 function tmpProject() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mig-'));
@@ -122,7 +122,7 @@ test('migrate forward inserts tasks + events, records migration_history, creates
   }
 });
 
-test('migrate imports a v4.5 projection into schema 12 authority and requires evidence-backed re-adoption', () => {
+test('migrate imports a v4.5 projection into current authority and requires evidence-backed re-adoption', () => {
   const dir = tmpProject();
   try {
     const tasksPath = path.join(dir, '.ultra', 'tasks', 'tasks.json');
@@ -132,10 +132,10 @@ test('migrate imports a v4.5 projection into schema 12 authority and requires ev
     projection.source = '.ultra/state.db';
     fs.writeFileSync(tasksPath, `${JSON.stringify(projection, null, 2)}\n`);
 
-    const r = runCli(['migrate', '--from=4.5', '--to=12.0', '--source-dir', dir]);
+    const r = runCli(['migrate', '--from=4.5', `--to=${EXPECTED_VERSION}`, '--source-dir', dir]);
     assert.equal(r.code, 0);
     assert.equal(r.envelope.data.from, '4.5');
-    assert.equal(r.envelope.data.to, '12.0');
+    assert.equal(r.envelope.data.to, EXPECTED_VERSION);
     assert.match(path.basename(r.envelope.data.backup_dir), /^backup-v4\.5-/);
 
     const db = openStateDb(path.join(dir, '.ultra', 'state.db'));

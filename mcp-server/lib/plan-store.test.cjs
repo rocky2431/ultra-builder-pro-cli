@@ -130,3 +130,9 @@ test('renderPlanMd: reports cycles + conflicts counts when present', () => {
   assert.match(md, /Cycles: 1/);
   assert.match(md, /## Conflict Surface/);
 });
+
+test('renderPlanMd: labels a missing exact-model price as unavailable', () => {
+  const md = renderPlanMd({ ...SAMPLE_PLAN, estimated_cost_usd: null });
+  assert.match(md, /Estimated cost: unavailable/);
+  assert.doesNotMatch(md, /\$null/);
+});

@@ -13,7 +13,8 @@ rewrite a specialist's severity.
 
 ## Required input
 
-- `SESSION_PATH`, reviewed HEAD, diff range, and expected worker list;
+- `SESSION_PATH`, review mode, reviewed HEAD, diff range, and expected worker list with
+  selection or skip rationale;
 - `SCHEMA_PATH` resolved by the parent from the active review Skill;
 - one complete `spec_fidelity` artifact;
 - every selected `engineering_standards` artifact.
@@ -24,10 +25,9 @@ rewrite a specialist's severity.
 2. Parse every expected artifact. Reject stale HEAD or range, malformed JSON, wrong
    axis, duplicate finding ids, and missing required fields. Record missing or invalid
    workers as limitations instead of silently continuing as complete.
-3. Deduplicate only findings on the same axis that describe the same root cause in the
-   same path with overlapping evidence. Preserve all source ids and agents, keep the
-   highest source severity, and retain the clearest trigger, impact, evidence, and
-   remediation. Similar symptoms with different causes remain separate.
+3. Preserve every specialist finding unchanged in `SUMMARY.json`. Group duplicate
+   root causes only in the human-readable `SUMMARY.md`; never drop, merge, rewrite, or
+   renumber their machine-readable source records.
 4. Order findings by severity, path, and line. Do not use confidence scores, reviewer
    counts, or finding-count thresholds to change severity or verdict.
 5. Set each axis to `PASS` only when its required current artifacts are complete and no
@@ -36,7 +36,10 @@ rewrite a specialist's severity.
 6. Set the overall verdict to `INCOMPLETE` when either axis is incomplete,
    `REQUEST_CHANGES` when either complete axis fails, and `APPROVE` only when both
    axes pass.
-7. Write `SUMMARY.json` as `ultra-review-summary-v2` and a concise `SUMMARY.md` with
+7. Record the review mode and every selected or skipped worker with its supplied
+   scope-specific rationale. The selection must match completed, failed, and skipped
+   worker state exactly.
+8. Write `SUMMARY.json` as `ultra-review-summary-v2` and a concise `SUMMARY.md` with
    the two axis verdicts, blocking findings, limitations, positive observations, and
    artifact paths. Validate both files before acknowledging completion.
 

@@ -1,12 +1,11 @@
 [
   {
     "id": "continuous-change",
-    "evidence": []
+    "evidence": [
+      { "category": "tests", "status": "pass", "evidence": "Prompt verdict" }
+    ]
   },
   {
-    "id": "continuous-change",
-    "evidence": [
-      { "category": "tests", "status": "unknown", "evidence": "not run" }
-    ]
+    "unexpected": true
   }
 ]

@@ -7,18 +7,19 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const { initStateDb, closeStateDb } = require('../mcp-server/lib/state-db.cjs');
+const {
+  EXPECTED_VERSION,
+  initStateDb,
+  closeStateDb,
+} = require('../mcp-server/lib/state-db.cjs');
+const { seedReadyBaseline } = require('../mcp-server/test-support/ready-baseline.cjs');
 
 const CLI = path.join(__dirname, 'cli.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-system-cli-'));
   const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
-  db.prepare(
-    `INSERT INTO baselines
-     (id, project_name, mode, status, approved_by, approval_note, converged_at)
-     VALUES ('test-baseline', 'fixture', 'greenfield', 'ready', 'test', 'accepted fixture', ?)`,
-  ).run(new Date().toISOString());
+  seedReadyBaseline(db, { rootDir, id: 'test-baseline', projectName: 'fixture' });
   closeStateDb(db);
   return rootDir;
 }
@@ -63,14 +64,14 @@ test('system doctor --repair migrates an older schema only after preserving a pr
     const dbPath = path.join(rootDir, '.ultra', 'state.db');
     const Database = require('better-sqlite3');
     const db = new Database(dbPath);
-    db.prepare("DELETE FROM schema_version WHERE version = '12.0'").run();
+    db.prepare('DELETE FROM schema_version WHERE version = ?').run(EXPECTED_VERSION);
     db.close();
 
     const result = invoke(rootDir, ['doctor', '--repair']);
     assert.equal(result.status, 0, result.stderr);
     const envelope = JSON.parse(result.stdout.trim().split('\n').at(-1));
     assert.equal(envelope.ok, true);
-    assert.equal(envelope.data.schema_version, '12.0');
+    assert.equal(envelope.data.schema_version, EXPECTED_VERSION);
     assert.ok(fs.existsSync(envelope.data.schema_migration_backup_path));
     assert.ok(fs.existsSync(envelope.data.backup_path));
   } finally {
@@ -116,7 +117,7 @@ test('system restore replaces only a corrupt state database from a verified mana
     assert.equal(restored.status, 0, restored.stderr);
     const envelope = JSON.parse(restored.stdout.trim());
     assert.equal(envelope.ok, true);
-    assert.equal(envelope.data.schema_version, '12.0');
+    assert.equal(envelope.data.schema_version, EXPECTED_VERSION);
     assert.equal(envelope.data.source_backup, fs.realpathSync(sourceBackup));
     assert.ok(fs.existsSync(envelope.data.quarantined_state_path));
     assert.equal(

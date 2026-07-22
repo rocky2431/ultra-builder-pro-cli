@@ -16,8 +16,11 @@ const SCHEMA_VERSION = '4.5';
 const SOURCE_TAG = '.ultra/state.db';
 
 // Frozen SELECTs — values bind through @placeholders.
-const LIST_TASKS_FOR_PROJECTION_SQL = "SELECT id, title, type, priority, complexity, estimated_days, status, deps, files_modified, session_id, stale, complexity_hint, tag, trace_to, context_file, completion_commit, created_at, updated_at FROM tasks ORDER BY created_at ASC";
-const READ_TASK_FOR_PROJECTION_SQL = "SELECT id, title, type, priority, complexity, estimated_days, status, deps, files_modified, session_id, stale, complexity_hint, tag, trace_to, context_file, completion_commit, created_at, updated_at FROM tasks WHERE id = @id";
+const TASK_PROJECTION_COLUMNS = 'id, title, type, priority, complexity, estimated_days, status, deps, files_modified, session_id, stale, tag, trace_to, outcome, slice_kind, public_seam, verification_command, acceptance_json, context_refs_json, docs_impact_json, ownership_json, context_file, completion_commit, created_at, updated_at';
+const LIST_TASKS_FOR_PROJECTION_SQL = `SELECT ${TASK_PROJECTION_COLUMNS} FROM tasks ORDER BY created_at ASC`;
+const READ_TASK_FOR_PROJECTION_SQL = `SELECT ${TASK_PROJECTION_COLUMNS} FROM tasks WHERE id = @id`;
+const CONTRACT_START = '<!-- ultra:task-contract:start -->';
+const CONTRACT_END = '<!-- ultra:task-contract:end -->';
 
 function rowToProjection(row) {
   if (!row) return null;
@@ -27,6 +30,17 @@ function rowToProjection(row) {
       try { out[k] = JSON.parse(out[k]); } catch { out[k] = null; }
     }
     if (out[k] === null || out[k] === undefined) delete out[k];
+  }
+  const jsonFields = {
+    acceptance_json: ['acceptance', []],
+    context_refs_json: ['context_refs', []],
+    docs_impact_json: ['docs_impact', { status: 'unknown', files: [], rationale: null }],
+    ownership_json: ['ownership', {}],
+  };
+  for (const [column, [field, fallback]] of Object.entries(jsonFields)) {
+    try { out[field] = typeof out[column] === 'string' ? JSON.parse(out[column]) : fallback; }
+    catch { out[field] = fallback; }
+    delete out[column];
   }
   if (out.stale !== undefined && out.stale !== null) out.stale = Boolean(out.stale);
   for (const k of Object.keys(out)) {
@@ -94,15 +108,55 @@ function buildContextDoc(taskRow, existingBody) {
   body = body.replace(/^>\s*\*\*Status\*\*:.*(?:\r?\n|$)(?:\r?\n)?/mi, '');
   // Strip any previous STALE banner so re-projection after reset is clean.
   body = body.replace(/^> ⚠️\s*STALE[^\n]*\n(?:>[^\n]*\n)*\n?/m, '');
+  body = body.replace(
+    new RegExp(`${CONTRACT_START}[\\s\\S]*?${CONTRACT_END}\\n*`, 'm'),
+    '',
+  );
   if (taskRow.stale) {
     const banner = [
       `> ⚠️ STALE since ${taskRow.updated_at || new Date().toISOString()}`,
-      '> spec 改动可能让此 task 上下文失效；重新跑 spec 对齐后再继续。',
+      '> Specification evidence may have changed. Recompile the task context before continuing.',
       '',
     ].join('\n');
     body = banner + body;
   }
+  body = buildTaskContract(taskRow) + body;
   return headerLines.join('\n') + body;
+}
+
+function buildTaskContract(task) {
+  const acceptance = Array.isArray(task.acceptance) ? task.acceptance : [];
+  const refs = Array.isArray(task.context_refs) ? task.context_refs : [];
+  const docs = task.docs_impact || { status: 'unknown', files: [], rationale: null };
+  const ownership = task.ownership || {};
+  const lines = [
+    CONTRACT_START,
+    '## Execution Contract (generated from state.db)',
+    '',
+    `- Outcome: ${task.outcome || 'unresolved'}`,
+    `- Slice: ${task.slice_kind || 'unresolved'}`,
+    `- Public seam: ${task.public_seam || 'unresolved'}`,
+    `- Verification: ${task.verification_command || 'unresolved'}`,
+    `- Trace: ${task.trace_to || 'unresolved'}`,
+    `- Owner: ${ownership.owner || 'unresolved'}`,
+    `- Documentation: ${docs.status || 'unknown'}${docs.rationale ? ` — ${docs.rationale}` : ''}`,
+    '',
+    '### Acceptance',
+    '',
+    ...(acceptance.length > 0
+      ? acceptance.map((item) => `- ${item.id}: ${item.criterion} — verify with \`${item.verification}\``)
+      : ['- unresolved']),
+    '',
+    '### Context References',
+    '',
+    ...(refs.length > 0
+      ? refs.map((item) => `- \`${item.ref}\` — ${item.reason}`)
+      : ['- unresolved']),
+    '',
+    CONTRACT_END,
+    '',
+  ];
+  return lines.join('\n');
 }
 
 function escapeYaml(str) {

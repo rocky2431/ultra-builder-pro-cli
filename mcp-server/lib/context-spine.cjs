@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const baselines = require('./baseline-workflow.cjs');
+const workflows = require('./workflow-state.cjs');
+const ops = require('./state-ops.cjs');
 
 const ROLES = new Set(['plan', 'implement', 'check', 'review']);
 const GATES = new Set([
@@ -18,6 +20,15 @@ const ADVISORY_CONTEXT_CODES = new Set([
   'CONTEXT_TOKEN_BUDGET_EXCEEDED',
   'EXECUTION_CONTEXT_BUDGET_EXCEEDED',
   'EXECUTION_CONTEXT_BUDGET_ADVISORY',
+]);
+const ACTIVE_CHANGE_BASELINE_DRIFT = Object.freeze([
+  /^BASELINE_HEAD_STALE$/,
+  /^BASELINE_BRANCH_STALE$/,
+  /^BASELINE_WORKSPACE_STALE$/,
+  /^BASELINE_WORKTREE_STALE$/,
+  /^BASELINE_WORKTREE_DIRTY$/,
+  /^BASELINE_SPEC_STALE:/,
+  /^BASELINE_EVIDENCE_STALE:/,
 ]);
 
 class ContextSpineError extends Error {
@@ -38,6 +49,82 @@ function currentHead(rootDir) {
 function parseJson(value, fallback = {}) {
   if (typeof value !== 'string' || !value.trim()) return fallback;
   try { return JSON.parse(value); } catch { return fallback; }
+}
+
+function hasIncidentBreakGlass(change) {
+  const bypass = change?.baseline_bypass
+    || parseJson(change?.baseline_bypass_json, null);
+  return change?.kind === 'incident'
+    && bypass?.mode === 'incident_break_glass'
+    && Boolean(String(bypass.reason || '').trim())
+    && Boolean(String(bypass.approved_by || '').trim());
+}
+
+function expectedActiveChangeDrift(code) {
+  return ACTIVE_CHANGE_BASELINE_DRIFT.some((pattern) => pattern.test(code));
+}
+
+function baselineGateForChange(db, change, baselineHealth) {
+  const baseWarnings = Array.isArray(baselineHealth.warnings) ? baselineHealth.warnings : [];
+  if (baselineHealth.status === 'pass') {
+    return { blockers: [], warnings: [...new Set(baseWarnings)], mode: 'healthy' };
+  }
+  const healthBlockers = Array.isArray(baselineHealth.blockers)
+    ? baselineHealth.blockers : ['BASELINE_STATE_UNAVAILABLE'];
+  if (hasIncidentBreakGlass(change)) {
+    return {
+      blockers: [], warnings: [...new Set([...healthBlockers, ...baseWarnings])],
+      mode: 'incident_break_glass',
+    };
+  }
+  const baseline = baselineHealth.baseline;
+  if (!baseline || baseline.status !== 'ready' || baseline.mode === 'migrated') {
+    return { blockers: healthBlockers, warnings: baseWarnings, mode: 'baseline_required' };
+  }
+  const binding = db.prepare(
+    `SELECT wr.baseline_id, ws.status AS binding_status, ws.evidence_json
+     FROM workflow_runs wr
+     LEFT JOIN workflow_steps ws
+       ON ws.run_id = wr.id AND ws.step_id = 'bind-baseline'
+     WHERE wr.kind = 'change' AND wr.change_id = ?
+     ORDER BY wr.started_at DESC, wr.rowid DESC LIMIT 1`,
+  ).get(change.id);
+  let evidence = [];
+  try { evidence = JSON.parse(binding?.evidence_json || '[]'); } catch { evidence = []; }
+  const boundFromReadyAuthority = binding?.baseline_id === baseline.id
+    && binding.binding_status === 'completed'
+    && evidence.some((item) => item?.ref === baseline.id);
+  if (!boundFromReadyAuthority) {
+    return { blockers: healthBlockers, warnings: baseWarnings, mode: 'baseline_binding_required' };
+  }
+  const blockers = healthBlockers.filter((code) => !expectedActiveChangeDrift(code));
+  const driftWarnings = healthBlockers.filter(expectedActiveChangeDrift);
+  return {
+    blockers,
+    warnings: [...new Set([...driftWarnings, ...baseWarnings])],
+    mode: blockers.length === 0 ? 'active_change_drift' : 'baseline_invalid',
+  };
+}
+
+function taskStateDigest(task) {
+  if (!task) return null;
+  const payload = {
+    id: task.id,
+    change_id: task.change_id,
+    status: task.status,
+    stale: Boolean(task.stale),
+    deps: task.deps || [],
+    outcome: task.outcome,
+    slice_kind: task.slice_kind,
+    public_seam: task.public_seam,
+    verification_command: task.verification_command,
+    acceptance: task.acceptance || [],
+    context_refs: task.context_refs || [],
+    docs_impact: task.docs_impact || {},
+    ownership: task.ownership || {},
+    trace_to: task.trace_to,
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
 function nonEmpty(value, field) {
@@ -111,6 +198,27 @@ function normalizeRefs(input, role, inherited) {
   });
 }
 
+function authoritativeTaskRefs(input, role, task) {
+  if (!task) return null;
+  const dbRefs = normalizeRefs({ context_refs: task.context_refs || [] }, role, []);
+  if (input.context_refs === undefined && input.spec_refs === undefined) return dbRefs;
+  const supplied = normalizeRefs(input, role, []);
+  const comparable = (items) => items.map((item) => ({
+    ref: item.ref,
+    kind: item.kind,
+    reason: item.reason,
+    required: item.required,
+    expected_digest: item.expected_digest,
+  }));
+  if (JSON.stringify(comparable(supplied)) !== JSON.stringify(comparable(dbRefs))) {
+    throw new ContextSpineError(
+      'EXECUTION_CONTEXT_REFS_CONFLICT',
+      `context_refs conflict with task ${task.id} authority; update the task contract first`,
+    );
+  }
+  return dbRefs;
+}
+
 function inspectRef(rootDir, role, value) {
   if (value.kind === 'external' || /^[a-z][a-z0-9+.-]*:\/\//i.test(value.ref)) {
     return { ...value, role, status: 'external', digest: value.expected_digest, estimated_tokens: 0 };
@@ -128,9 +236,35 @@ function inspectRef(rootDir, role, value) {
   };
 }
 
-function normalizeExecutionContract(input, inherited, { taskId }) {
-  const source = input.execution_contract || inherited || null;
-  if (!taskId) return source;
+function normalizeExecutionContract(input, inherited, { task }) {
+  const taskContract = task
+    && task.slice_kind && task.public_seam && task.verification_command ? {
+    slice_kind: task.slice_kind,
+    public_seam: task.public_seam,
+    verification_command: task.verification_command,
+    context_budget_percent: input.execution_contract?.context_budget_percent
+      ?? inherited?.context_budget_percent
+      ?? 40,
+  } : null;
+  if (input.execution_contract) {
+    for (const field of ['slice_kind', 'public_seam', 'verification_command']) {
+      if (input.execution_contract[field] !== undefined) {
+        throw new ContextSpineError(
+          'EXECUTION_CONTRACT_CONFLICT',
+          `execution_contract.${field} is owned by the task row and cannot be supplied by Prompt input`,
+        );
+      }
+    }
+  }
+  if (!task && input.execution_contract !== undefined) {
+    throw new ContextSpineError(
+      'EXECUTION_CONTRACT_CONFLICT',
+      'execution_contract is valid only for a DB-backed task context',
+    );
+  }
+  const source = taskContract || input.execution_contract || inherited || null;
+  const taskId = task?.id || null;
+  if (!taskId) return null;
   if (!source || typeof source !== 'object' || Array.isArray(source)) return null;
   const sliceKind = source.slice_kind || 'tracer_bullet';
   if (!SLICE_KINDS.has(sliceKind)) {
@@ -156,14 +290,13 @@ function defaultGate(role) {
   }[role];
 }
 
-function deriveNextAction({ change, tasks, task, role, readiness, blockers = [], explicit }) {
+function deriveNextAction({ change, tasks, task, role, readiness, blockers = [] }) {
   if (readiness === 'blocked') {
     if (blockers.some((blocker) => blocker.startsWith('BASELINE_'))) {
       return 'Complete or refresh the Ultra project baseline, then recompile change.context.';
     }
     return 'Resolve the context readiness blockers, then recompile change.context.';
   }
-  if (explicit && String(explicit).trim()) return String(explicit).trim();
   if (change.status === 'ready') return `Run ultra-deliver for change ${change.id}.`;
   if (change.status === 'blocked') return `Resolve the blockers for change ${change.id}, then recompile context.`;
   if (!task && tasks.length === 0) return `Create the first fresh-context tracer-bullet task for change ${change.id}.`;
@@ -192,6 +325,12 @@ function latestContext(db, changeId, taskId) {
 }
 
 function compileRoleContext(db, { input, change, tasks, rootDir }) {
+  if (input.next_action !== undefined) {
+    throw new ContextSpineError(
+      'CONTEXT_NEXT_ACTION_AUTHORITY_VIOLATION',
+      'next_action is derived from authoritative workflow and task state',
+    );
+  }
   const task = input.task_id ? tasks.find((row) => row.id === input.task_id) : null;
   if (input.task_id && !task) {
     throw new ContextSpineError('TASK_NOT_FOUND', `task ${input.task_id} is not linked to change ${change.id}`);
@@ -202,22 +341,22 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
   const gate = input.gate || defaultGate(role);
   if (!GATES.has(gate)) throw new ContextSpineError('VALIDATION_ERROR', `unsupported workflow gate: ${gate}`);
 
-  const refs = normalizeRefs(input, role, inherited.context?.items);
+  const refs = authoritativeTaskRefs(input, role, task)
+    || normalizeRefs(input, role, inherited.context?.items || []);
   const items = refs.map((value) => inspectRef(rootDir, role, value));
   const budget = normalizeBudget(input.budget, inherited.context?.budget);
   const tokenEstimate = items.reduce((sum, item) => sum + item.estimated_tokens, 0);
   const fileCount = items.filter((item) => item.status !== 'external').length;
   const executionContract = normalizeExecutionContract(
-    input, inherited.execution_contract, { taskId: input.task_id },
+    input, inherited.execution_contract, { task },
   );
   const blockers = [];
   const warnings = [];
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
-  // An active change must remain executable even when adoption is incomplete or
-  // the repository has moved. Approved adoption is required at convergence and
-  // full revision/spec health is required at archive; here both are recovery
-  // guidance, not a refusal.
-  warnings.push(...baselineHealth.blockers, ...baselineHealth.warnings);
+  const checkout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
+  const baselineGate = baselineGateForChange(db, change, baselineHealth);
+  blockers.push(...baselineGate.blockers);
+  warnings.push(...baselineGate.warnings);
   for (const item of items) {
     if (item.required && item.status === 'missing') blockers.push(`CONTEXT_REQUIRED_REF_MISSING:${item.ref}`);
     if (item.required && item.status === 'stale') blockers.push(`CONTEXT_REQUIRED_REF_STALE:${item.ref}`);
@@ -237,7 +376,7 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
   }
   const readiness = blockers.length === 0 ? 'ready' : 'blocked';
   const nextAction = deriveNextAction({
-    change, tasks, task, role, readiness, blockers, explicit: input.next_action,
+    change, tasks, task, role, readiness, blockers,
   });
   return {
     role,
@@ -259,10 +398,13 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
       change_id: change.id,
       task_id: task?.id || null,
       task_status: task?.status || null,
+      task_state_digest: taskStateDigest(task),
       session_id: task?.session_id || null,
       role,
       gate,
-      git_head: currentHead(rootDir),
+      git_head: checkout.head,
+      worktree_state: checkout.state,
+      worktree_digest: checkout.digest,
     },
   };
 }
@@ -274,6 +416,40 @@ function recommendedWorkflow(change, task, tasks, readiness) {
   if (task && ['pending', 'in_progress'].includes(task.status)) return 'ultra-dev';
   if (tasks.length > 0 && tasks.every((row) => ['completed', 'expanded'].includes(row.status))) return 'ultra-test';
   return 'ultra-change';
+}
+
+function actionableBaselineWorkflow(db, baselineId, rootDir) {
+  if (!baselineId) return null;
+  const candidates = workflows.listWorkflows(db, { baseline_id: baselineId, limit: 100 }, { rootDir })
+    .filter((run) => ['active', 'blocked', 'ready'].includes(run.status));
+  return candidates.find((run) => run.kind === 'research')
+    || candidates.find((run) => run.kind === 'init')
+    || candidates[0]
+    || null;
+}
+
+function actionableChangeWorkflow(db, changeId, rootDir) {
+  const candidates = workflows.listWorkflows(db, { change_id: changeId, limit: 100 }, { rootDir })
+    .filter((run) => ['active', 'blocked', 'ready'].includes(run.status));
+  return candidates.find((run) => run.status === 'blocked') || candidates[0] || null;
+}
+
+function summarizeWorkflow(run) {
+  if (!run) return null;
+  return {
+    id: run.id, kind: run.kind, mode: run.mode, status: run.status,
+    current_step: run.current_step, blockers: run.blockers,
+  };
+}
+
+function workflowNextAction(run) {
+  if (run.status === 'blocked') {
+    return `Resolve ${run.kind} workflow blockers at ${run.current_step}: ${run.blockers.join(', ')}.`;
+  }
+  if (run.status === 'ready') {
+    return `Finalize ${run.kind} workflow ${run.id} after verifying its recorded evidence and outputs.`;
+  }
+  return `Continue ${run.kind} workflow ${run.id} at ${run.current_step}.`;
 }
 
 function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
@@ -289,13 +465,17 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   if (!change) {
     const baseline = baselineHealth.baseline;
     if (baselineHealth.status !== 'pass') {
-      const nextAction = baseline
+      const activeWorkflow = actionableBaselineWorkflow(db, baseline?.id, rootDir);
+      const nextAction = activeWorkflow
+        ? workflowNextAction(activeWorkflow)
+        : baseline
         ? `Complete ${baseline.mode} baseline adoption ${baseline.id} through ultra-init.`
         : 'Initialize the project and start baseline adoption with ultra-init.';
       return {
         change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'blocked',
         blockers: baselineHealth.blockers, warnings: baselineHealth.warnings, next_action: nextAction,
-        recommended_workflow: 'ultra-init', context_manifest_path: null,
+        recommended_workflow: activeWorkflow ? `ultra-${activeWorkflow.kind}` : 'ultra-init',
+        workflow: summarizeWorkflow(activeWorkflow), context_manifest_path: null,
         context_manifest_hash: null, git_head: currentHead(rootDir),
         baseline: baseline ? {
           id: baseline.id, mode: baseline.mode, status: baseline.status,
@@ -306,6 +486,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     return {
       change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'ready',
       next_action: 'Start daily work with ultra-change.', recommended_workflow: 'ultra-change',
+      workflow: null,
       context_manifest_path: null, context_manifest_hash: null, git_head: currentHead(rootDir),
       blockers: [], warnings: baselineHealth.warnings,
       baseline: {
@@ -315,7 +496,8 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       },
     };
   }
-  const tasks = db.prepare('SELECT * FROM tasks WHERE change_id = ? ORDER BY created_at ASC').all(change.id);
+  const tasks = db.prepare('SELECT id FROM tasks WHERE change_id = ? ORDER BY created_at ASC')
+    .all(change.id).map((row) => ops.readTask(db, row.id));
   const snapshot = db.prepare(
     'SELECT * FROM context_snapshots WHERE change_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1',
   ).get(change.id);
@@ -323,23 +505,40 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   const taskId = snapshot?.task_id || tasks.find((row) => row.status === 'in_progress')?.id
     || tasks.find((row) => row.status === 'pending')?.id || null;
   const task = tasks.find((row) => row.id === taskId) || null;
-  const head = currentHead(rootDir);
+  const checkout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
+  const head = checkout.head;
   const snapshotMissing = !snapshot;
   const legacyContext = Boolean(
-    snapshot && (!context.resume || !context.context || !context.readiness || !('baseline' in context)),
+    snapshot && (
+      !context.resume || !context.context || !context.readiness || !('baseline' in context)
+      || !Object.prototype.hasOwnProperty.call(context.resume, 'worktree_digest')
+      || !Object.prototype.hasOwnProperty.call(context.resume, 'task_state_digest')
+    ),
   );
   const headStale = Boolean(snapshot?.git_head && head && snapshot.git_head !== head);
+  const worktreeStale = Boolean(
+    context.resume && context.resume.worktree_digest && checkout.digest
+      && context.resume.worktree_digest !== checkout.digest,
+  );
   const stateChanged = context.resume?.task_status !== undefined
     && context.resume.task_status !== (task?.status || null);
+  const taskContractChanged = Boolean(
+    context.resume && context.resume.task_state_digest !== taskStateDigest(task),
+  );
   const blockers = [];
-  const warnings = [...baselineHealth.blockers, ...baselineHealth.warnings];
+  const baselineGate = baselineGateForChange(db, change, baselineHealth);
+  const warnings = [...baselineGate.warnings];
+  blockers.push(...baselineGate.blockers);
   if (snapshotMissing) blockers.push('CONTEXT_NOT_COMPILED');
   else {
     if (legacyContext) blockers.push('CONTEXT_SNAPSHOT_UPGRADE_REQUIRED');
     if (headStale) blockers.push('CONTEXT_HEAD_STALE');
+    if (worktreeStale) blockers.push('CONTEXT_WORKTREE_STALE');
     if (stateChanged) blockers.push('CONTEXT_TASK_STATE_STALE');
+    if (taskContractChanged) blockers.push('CONTEXT_TASK_CONTRACT_STALE');
     for (const blocker of parseJson(snapshot.blockers_json, [])) {
-      if (ADVISORY_CONTEXT_CODES.has(blocker) || blocker.startsWith('BASELINE_')) {
+      if (ADVISORY_CONTEXT_CODES.has(blocker)
+        || (blocker.startsWith('BASELINE_') && baselineGate.blockers.length === 0)) {
         if (!warnings.includes(blocker)) warnings.push(blocker);
       } else if (!blockers.includes(blocker)) blockers.push(blocker);
     }
@@ -348,20 +547,33 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     }
   }
   const readiness = blockers.length > 0 ? 'blocked' : snapshot.readiness;
+  const activeWorkflow = actionableChangeWorkflow(db, change.id, rootDir);
   let nextAction;
-  if (snapshotMissing) {
+  if (baselineGate.blockers.length > 0) {
+    nextAction = deriveNextAction({
+      change, tasks, task, role: snapshot?.role || 'plan', readiness: 'blocked',
+      blockers: baselineGate.blockers,
+    });
+  } else if (activeWorkflow?.status === 'blocked') {
+    nextAction = workflowNextAction(activeWorkflow);
+  } else if (snapshotMissing) {
     nextAction = `Compile change.context for change ${change.id} before continuing.`;
   } else if (legacyContext) {
     nextAction = 'Recompile change.context to upgrade this legacy context snapshot.';
   } else if (headStale) {
     nextAction = 'Git HEAD changed after context compilation; recompile change.context.';
+  } else if (worktreeStale) {
+    nextAction = 'The worktree changed after context compilation; recompile change.context.';
   } else if (stateChanged) {
     nextAction = 'Task state changed after context compilation; recompile change.context.';
+  } else if (taskContractChanged) {
+    nextAction = 'The task execution contract changed after context compilation; recompile change.context.';
+  } else if (activeWorkflow) {
+    nextAction = workflowNextAction(activeWorkflow);
   } else {
     nextAction = deriveNextAction({
       change, tasks, task, role: snapshot?.role || 'plan', readiness,
       blockers,
-      explicit: snapshot?.next_action,
     });
   }
   return {
@@ -376,7 +588,11 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     blockers,
     warnings: [...new Set(warnings)],
     next_action: nextAction,
-    recommended_workflow: recommendedWorkflow(change, task, tasks, readiness),
+    recommended_workflow: baselineGate.blockers.length > 0
+      ? (baselineHealth.baseline?.status === 'ready' ? 'ultra-doctor' : 'ultra-init')
+      : activeWorkflow
+        ? `ultra-${activeWorkflow.kind}`
+        : recommendedWorkflow(change, task, tasks, readiness),
     context_manifest_path: snapshot?.manifest_path || null,
     context_manifest_hash: snapshot?.manifest_hash || null,
     git_head: head,
@@ -385,11 +601,13 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       status: baselineHealth.baseline.status,
       repository_revision: baselineHealth.baseline.repository_revision,
     } : null,
+    workflow: summarizeWorkflow(activeWorkflow),
   };
 }
 
 module.exports = {
   ContextSpineError,
+  baselineGateForChange,
   compileRoleContext,
   deriveNextAction,
   readBreadcrumb,

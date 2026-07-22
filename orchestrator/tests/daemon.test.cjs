@@ -1,7 +1,7 @@
 'use strict';
 
 // Phase 5.4 — Orchestrator daemon:
-//   • routeTask: pure function — complexity_hint + availableRuntimes → runtime
+//   • routeTask: pure function — explicit availableRuntimes order → runtime
 //   • runDaemon: poll loop that spawns pending tasks, respects admission +
 //     circuit breaker, and shuts down gracefully via stop().
 
@@ -53,36 +53,19 @@ function cleanup(repoRoot, db, handle) {
 
 // ─── routeTask ────────────────────────────────────────────────────────────
 
-test('routeTask: haiku hint prefers cheap runtimes', () => {
+test('routeTask: respects explicit runtime order', () => {
   const runtime = daemon.routeTask(
-    { id: 't', complexity_hint: 'haiku' },
-    ['claude', 'opencode', 'codex'],
+    { id: 't' },
+    ['kimi', 'opencode', 'codex', 'claude'],
   );
-  assert.equal(runtime, 'opencode');
+  assert.equal(runtime, 'kimi');
 });
 
-test('routeTask: opus hint prefers strong runtimes', () => {
+test('routeTask: ignores legacy model-tier hints', () => {
   const runtime = daemon.routeTask(
     { id: 't', complexity_hint: 'opus' },
-    ['claude', 'opencode', 'codex'],
+    ['opencode', 'kimi', 'codex', 'claude'],
   );
-  assert.ok(['claude', 'codex'].includes(runtime), `got ${runtime}`);
-});
-
-test('routeTask: sonnet hint middle-ground', () => {
-  const runtime = daemon.routeTask(
-    { id: 't', complexity_hint: 'sonnet' },
-    ['claude', 'opencode', 'codex'],
-  );
-  assert.ok(['claude', 'codex', 'opencode'].includes(runtime));
-});
-
-test('routeTask: respects availability constraint', () => {
-  const runtime = daemon.routeTask(
-    { id: 't', complexity_hint: 'opus' },
-    ['opencode'],
-  );
-  // Prefers claude/codex but those aren't available → fall back to any.
   assert.equal(runtime, 'opencode');
 });
 
@@ -234,18 +217,18 @@ test('runDaemon branchScoped=true only spawns tasks matching cwd branch tag', as
   }
 });
 
-test('runDaemon applies complexity_hint route', async () => {
+test('runDaemon respects explicit runtime order even when a legacy hint is present', async () => {
   const repoRoot = mkRepo();
   const db = mkDb(repoRoot);
   let handle;
   try {
     ops.createTask(db, {
-      id: 'd-opus', title: 'opus task', type: 'architecture', priority: 'P0',
+      id: 'd-opus', title: 'legacy routed task', type: 'architecture', priority: 'P0',
       complexity_hint: 'opus',
     });
     handle = daemon.runDaemon({
       db, repoRoot,
-      runtimes: ['claude', 'opencode'],
+      runtimes: ['opencode', 'claude'],
       pollMs: 50,
       command: LONG_SLEEP_CMD,
       commandArgs: LONG_SLEEP_ARGS,
@@ -253,8 +236,7 @@ test('runDaemon applies complexity_hint route', async () => {
     await new Promise((r) => setTimeout(r, 300));
     const sessions = db.prepare("SELECT * FROM sessions WHERE task_id = 'd-opus'").all();
     assert.equal(sessions.length, 1);
-    // opus should prefer claude over opencode.
-    assert.equal(sessions[0].runtime, 'claude');
+    assert.equal(sessions[0].runtime, 'opencode');
   } finally {
     cleanup(repoRoot, db, handle);
   }

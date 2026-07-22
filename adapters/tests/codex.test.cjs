@@ -7,9 +7,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const yaml = require('js-yaml');
-const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
-const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+const { Client } = require('@modelcontextprotocol/client');
+const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
+const { seedReadyBaseline } = require('../../mcp-server/test-support/ready-baseline.cjs');
+const { completeChangeInput } = require('../../mcp-server/test-support/change-contract.cjs');
 
 const codex = require('../codex.js');
 const { parse: parseFrontmatter } = require('../_shared/frontmatter.cjs');
@@ -238,6 +240,7 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     for (const rel of [
       'runtime/index.cjs',
       'runtime/breadcrumb.cjs',
+      'runtime/hook-event.cjs',
       'runtime/launch.cjs',
       'runtime/ultra-tools.cjs',
       'runtime/build/Release/better_sqlite3.node',
@@ -253,8 +256,8 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const liveSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
     const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
     const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
-    assert.equal(liveSpec.tools.length, 36);
-    assert.equal(upstreamSpec.tools.length, 36);
+    assert.equal(liveSpec.tools.length, 41);
+    assert.equal(upstreamSpec.tools.length, 41);
     assert.deepEqual(upstreamSpec.tools.map((tool) => tool.name).sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);
@@ -271,12 +274,11 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
   let client;
   try {
     install(layout);
+    fs.writeFileSync(path.join(projectDir, 'contract.md'), '# Bundled runtime contract\n');
     const seededState = initStateDb(path.join(projectDir, '.ultra', 'state.db'));
-    seededState.db.prepare(
-      `INSERT INTO baselines
-       (id, project_name, mode, status, approved_by, approval_note, converged_at)
-       VALUES ('test-baseline', 'codex-bundle', 'greenfield', 'ready', 'test', 'smoke fixture', ?)`,
-    ).run(new Date().toISOString());
+    seedReadyBaseline(seededState.db, {
+      rootDir: projectDir, id: 'test-baseline', projectName: 'codex-bundle',
+    });
     closeStateDb(seededState.db);
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
     const server = mcp.mcpServers['ultra-builder-pro'];
@@ -296,11 +298,42 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
 
     const tools = await client.listTools();
     assert.ok(tools.tools.some((tool) => tool.name === 'task.create'));
+    const change = await client.callTool({
+      name: 'change.create',
+      arguments: completeChangeInput({
+        id: 'codex-bundle-change', title: 'Exercise bundled runtime', kind: 'quick',
+        intent: 'Keep task state in the Codex task working directory.',
+        docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
+      }),
+    });
+    assert.equal(change.isError, undefined);
     const created = await client.callTool({
       name: 'task.create',
-      arguments: { id: 'codex-bundle-1', title: 'bundled runtime', type: 'feature', priority: 'P1' },
+      arguments: {
+        id: 'codex-bundle-1', title: 'bundled runtime', type: 'feature', priority: 'P1',
+        change_id: 'codex-bundle-change',
+        outcome: 'The bundled MCP persists task authority in the Codex task directory.',
+        slice_kind: 'tracer_bullet',
+        public_seam: 'bundled MCP task lifecycle',
+        verification_command: 'node --test adapters/tests/codex.test.cjs',
+        acceptance: [{
+          id: 'task-cwd-authority',
+          criterion: 'Task lifecycle state is stored under the Codex task working directory.',
+          verification: 'node --test adapters/tests/codex.test.cjs',
+        }],
+        context_refs: [{
+          ref: 'contract.md', kind: 'spec', reason: 'Bundled runtime behavior contract', required: true,
+        }],
+        docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
+        ownership: { owner: 'test-owner', reviewers: [] },
+        trace_to: 'contract.md#bundled-runtime-contract',
+      },
     });
     assert.equal(created.isError, undefined);
+    const started = await client.callTool({
+      name: 'task.update', arguments: { id: 'codex-bundle-1', patch: { status: 'in_progress' } },
+    });
+    assert.equal(started.isError, undefined);
     assert.ok(fs.existsSync(path.join(projectDir, '.ultra', 'state.db')));
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, '.ultra', 'state.db')));
 
@@ -310,6 +343,26 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
     ], { cwd: projectDir, encoding: 'utf8' });
     assert.equal(status.status, 0, status.stderr);
     assert.equal(JSON.parse(status.stdout).ok, true);
+
+    const hookEvent = spawnSync(process.execPath, [
+      path.join(layout.pluginRoot, 'runtime', 'hook-event.cjs'), projectDir, 'stop',
+    ], {
+      cwd: projectDir,
+      input: JSON.stringify({
+        agent_id: 'bundle-agent', agent_type: 'review-code', session_id: 'host-session',
+        agent_transcript_path: '/private/transcript.jsonl',
+      }),
+      encoding: 'utf8',
+    });
+    assert.equal(hookEvent.status, 0, hookEvent.stderr);
+    assert.equal(JSON.parse(hookEvent.stdout).recorded, true);
+    const lifecycleRead = initStateDb(path.join(projectDir, '.ultra', 'state.db')).db;
+    const lifecycleRow = lifecycleRead.prepare(
+      "SELECT payload_json FROM events WHERE type = 'subagent_stopped' ORDER BY id DESC LIMIT 1",
+    ).get();
+    closeStateDb(lifecycleRead);
+    assert.match(lifecycleRow.payload_json, /bundle-agent/);
+    assert.doesNotMatch(lifecycleRow.payload_json, /transcript/);
 
     const freshTarget = path.join(projectDir, 'fresh-project');
     const initialized = await client.callTool({

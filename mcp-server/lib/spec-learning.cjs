@@ -33,8 +33,14 @@ function rowToCandidate(row) {
   catch (error) {
     throw new SpecLearningError('STATE_CORRUPT', `invalid spec-learning evidence: ${error.message}`);
   }
-  const candidate = { ...row, evidence };
+  let applyEvidence;
+  try { applyEvidence = JSON.parse(row.apply_evidence_json || '[]'); }
+  catch (error) {
+    throw new SpecLearningError('STATE_CORRUPT', `invalid spec-learning apply evidence: ${error.message}`);
+  }
+  const candidate = { ...row, evidence, apply_evidence: applyEvidence };
   delete candidate.evidence_json;
+  delete candidate.apply_evidence_json;
   return candidate;
 }
 
@@ -102,6 +108,66 @@ function normalizeEvidence(value) {
   return [...new Set(value.map((entry) => entry.trim()))];
 }
 
+function targetFile(rootDir, targetRef) {
+  const separator = String(targetRef || '').lastIndexOf('#');
+  if (separator <= 0 || separator === targetRef.length - 1) {
+    throw new SpecLearningError('VALIDATION_ERROR', 'target_ref must use project-relative path#anchor');
+  }
+  const relative = targetRef.slice(0, separator);
+  if (path.isAbsolute(relative)) {
+    throw new SpecLearningError('VALIDATION_ERROR', 'target_ref must be project-relative');
+  }
+  const root = path.resolve(rootDir);
+  const file = path.resolve(root, relative);
+  if (file !== root && !file.startsWith(`${root}${path.sep}`)) {
+    throw new SpecLearningError('VALIDATION_ERROR', 'target_ref escapes the project root');
+  }
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    throw new SpecLearningError('LEARNING_TARGET_MISSING', `target file does not exist: ${relative}`);
+  }
+  return { file, relative };
+}
+
+function digestFile(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+function verifyApplyEvidence(input, current, rootDir) {
+  const appliedRef = typeof input.applied_ref === 'string' ? input.applied_ref.trim() : '';
+  const beforeDigest = typeof input.before_digest === 'string' ? input.before_digest.trim() : '';
+  const afterDigest = typeof input.after_digest === 'string' ? input.after_digest.trim() : '';
+  const evidence = normalizeEvidence(input.apply_evidence);
+  if (appliedRef !== current.target_ref || !/^[0-9a-f]{64}$/.test(beforeDigest)
+    || !/^[0-9a-f]{64}$/.test(afterDigest) || beforeDigest === afterDigest
+    || evidence.length === 0) {
+    throw new SpecLearningError(
+      'LEARNING_APPLY_EVIDENCE_REQUIRED',
+      'apply requires the exact target ref, distinct before/after digests, and durable evidence refs',
+    );
+  }
+  if (current.before_digest && current.before_digest !== beforeDigest) {
+    throw new SpecLearningError(
+      'LEARNING_APPLY_EVIDENCE_MISMATCH', 'before_digest does not match the proposed target state',
+    );
+  }
+  const target = targetFile(rootDir, appliedRef);
+  if (digestFile(target.file) !== afterDigest) {
+    throw new SpecLearningError(
+      'LEARNING_APPLY_EVIDENCE_MISMATCH', 'after_digest does not match the current target file',
+    );
+  }
+  const workflows = require('./workflow-state.cjs');
+  try {
+    workflows.resolveProjectSourceRef(rootDir, appliedRef, 'applied_ref');
+    for (const ref of evidence) workflows.resolveProjectSourceRef(rootDir, ref, 'apply_evidence');
+  } catch (error) {
+    throw new SpecLearningError(
+      'LEARNING_APPLY_EVIDENCE_MISMATCH', `applied target or evidence anchor is invalid: ${error.message}`,
+    );
+  }
+  return { appliedRef, beforeDigest, afterDigest, evidence };
+}
+
 function proposeSpecLearning(db, input, { rootDir = process.cwd() } = {}) {
   const change = mutableChange(db, input.change_id);
   const id = String(input.id || `learning-${crypto.randomUUID().slice(0, 12)}`).trim();
@@ -120,6 +186,8 @@ function proposeSpecLearning(db, input, { rootDir = process.cwd() } = {}) {
     }
   }
   const evidence = normalizeEvidence(input.evidence);
+  const proposedTarget = targetFile(rootDir, targetRef);
+  const proposedDigest = digestFile(proposedTarget.file);
   const proposedAt = nowIso();
   return ops.tx(db, () => {
     try {
@@ -128,6 +196,9 @@ function proposeSpecLearning(db, input, { rootDir = process.cwd() } = {}) {
          (id, change_id, task_id, target_ref, summary, evidence_json, proposed_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
       ).run(id, change.id, input.task_id || null, targetRef, summary, JSON.stringify(evidence), proposedAt);
+      db.prepare(
+        'UPDATE spec_learning_candidates SET before_digest = ? WHERE id = ? AND change_id = ?',
+      ).run(proposedDigest, id, change.id);
     } catch (error) {
       if (String(error.message).includes('UNIQUE')) {
         throw new SpecLearningError('DUPLICATE_LEARNING_ID', `spec-learning candidate ${id} exists`);
@@ -164,13 +235,19 @@ function resolveSpecLearning(db, input, { rootDir = process.cwd() } = {}) {
     throw new SpecLearningError('VALIDATION_ERROR', `${input.decision} requires a resolution`);
   }
   const timestamp = nowIso();
+  const application = status === 'applied'
+    ? verifyApplyEvidence(input, current, rootDir)
+    : null;
   return ops.tx(db, () => {
     db.prepare(
       `UPDATE spec_learning_candidates
-       SET status = ?, resolution = ?, resolved_at = ?, applied_at = ?
+       SET status = ?, resolution = ?, resolved_at = ?, applied_at = ?, applied_ref = ?,
+       before_digest = COALESCE(?, before_digest), after_digest = ?, apply_evidence_json = ?
        WHERE id = ? AND change_id = ?`,
     ).run(
       status, resolution || null, timestamp, status === 'applied' ? timestamp : null,
+      application?.appliedRef || null, application?.beforeDigest || null,
+      application?.afterDigest || null, JSON.stringify(application?.evidence || []),
       current.id, change.id,
     );
     ops.appendEventInTx(db, {

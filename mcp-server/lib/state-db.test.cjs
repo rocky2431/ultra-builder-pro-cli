@@ -13,6 +13,7 @@ const {
   initStateDb,
   closeStateDb,
   openStateDb,
+  applyPragmas,
   tableNames,
 } = require('./state-db.cjs');
 const stateOps = require('./state-ops.cjs');
@@ -33,6 +34,8 @@ test('initStateDb creates workflow tables without an Ultra memory store', () => 
     }
     assert.ok(!init.tables.includes('memory_entries'));
     assert.ok(!init.tables.includes('memory_fts'));
+    const taskColumns = init.db.prepare('PRAGMA table_info(tasks)').all().map((row) => row.name);
+    assert.ok(!taskColumns.includes('complexity_hint'), 'fresh authority must not encode Claude model tiers');
     closeStateDb(init.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -50,6 +53,19 @@ test('initStateDb applies WAL + busy_timeout + foreign_keys pragmas', () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('applyPragmas fails closed when SQLite cannot establish WAL mode', () => {
+  const db = {
+    pragma(statement) {
+      if (statement === 'journal_mode = WAL') return 'delete';
+      return null;
+    },
+  };
+  assert.throws(
+    () => applyPragmas(db),
+    (error) => error.code === 'STATE_DB_WAL_UNAVAILABLE' && /delete/.test(error.message),
+  );
 });
 
 test('initStateDb is idempotent — second call does not duplicate seed rows', () => {
@@ -71,6 +87,41 @@ test('initStateDb is idempotent — second call does not duplicate seed rows', (
   }
 });
 
+test('schema 13 upgrades through 15 without demoting an established ready baseline', () => {
+  const { dir, file } = tmpDbPath('ubp-schema-13-upgrade');
+  try {
+    const initial = initStateDb(file);
+    initial.db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('ready-13', 'fixture', 'greenfield', 'ready', 'owner',
+               'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
+    ).run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('14.0', '15.0')").run();
+    initial.db.exec('ALTER TABLE baselines DROP COLUMN known_red_accepted');
+    closeStateDb(initial.db);
+
+    const upgraded = initStateDb(file);
+    assert.equal(upgraded.schema_version, EXPECTED_VERSION);
+    assert.ok(upgraded.backup_path);
+    assert.ok(
+      upgraded.db.prepare('PRAGMA table_info(baselines)').all()
+        .some((column) => column.name === 'known_red_accepted'),
+    );
+    assert.deepEqual(
+      upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'ready-13'").get(),
+      { mode: 'greenfield', status: 'ready' },
+    );
+    const migration = upgraded.db.prepare(
+      "SELECT notes FROM migration_history WHERE to_version = '14.0' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.match(migration.notes, /known-red|revalidate/i);
+    closeStateDb(upgraded.db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('openStateDb on an empty file produces no tables until schema is applied', () => {
   const { dir, file } = tmpDbPath();
   try {
@@ -82,7 +133,7 @@ test('openStateDb on an empty file produces no tables until schema is applied', 
   }
 });
 
-test('initStateDb upgrades an exact schema 11 project without replacing its approved baseline', () => {
+test('initStateDb preserves schema 11 evidence but requires research-backed re-adoption', () => {
   const { dir, file } = tmpDbPath('ubp-schema-11-upgrade');
   try {
     const legacy = openStateDb(file);
@@ -152,18 +203,24 @@ test('initStateDb upgrades an exact schema 11 project without replacing its appr
       assert.fail(`schema 11 upgrade failed: ${error.message}\n${error.stack || ''}`);
     }
     try {
-      assert.equal(upgraded.schema_version, '12.0');
+      assert.equal(upgraded.schema_version, EXPECTED_VERSION);
       assert.ok(fs.existsSync(upgraded.backup_path));
       const baseline = upgraded.db.prepare(
-        'SELECT id, mode, status, worktree_state, gaps_json FROM baselines',
+        'SELECT id, mode, status, worktree_state, gaps_json, classification_json, approved_by FROM baselines',
       ).get();
-      assert.deepEqual(baseline, {
-        id: 'approved-baseline', mode: 'brownfield', status: 'ready',
-        worktree_state: 'unavailable', gaps_json: '[]',
+      assert.equal(baseline.id, 'approved-baseline');
+      assert.equal(baseline.mode, 'migrated');
+      assert.equal(baseline.status, 'adopting');
+      assert.equal(baseline.worktree_state, 'unavailable');
+      assert.equal(baseline.approved_by, null);
+      assert.equal(JSON.parse(baseline.gaps_json)[0].id, 'legacy-rebaseline-required');
+      assert.deepEqual(JSON.parse(baseline.classification_json).migration, {
+        previous_mode: 'brownfield', previous_status: 'ready', from_schema: '11.0',
+        requires_research_workflow: true,
       });
       assert.equal(
         upgraded.db.prepare("SELECT COUNT(*) AS count FROM baselines WHERE mode = 'migrated'").get().count,
-        0,
+        1,
       );
       const changeColumns = upgraded.db.prepare('PRAGMA table_info(changes)').all().map((row) => row.name);
       assert.ok(changeColumns.includes('baseline_bypass_json'));
@@ -252,7 +309,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const legacy = openStateDb(file);
     const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
     legacy.exec(legacySchema);
-    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0')").run();
+    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0')").run();
     legacy.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
     ).run();
@@ -275,7 +332,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     closeStateDb(legacy);
 
     const upgraded = initStateDb(file);
-    assert.equal(upgraded.schema_version, '12.0');
+    assert.equal(upgraded.schema_version, EXPECTED_VERSION);
     assert.ok(upgraded.backup_path);
     assert.ok(fs.existsSync(upgraded.backup_path));
     assert.equal(upgraded.db.prepare("SELECT runtime FROM sessions WHERE sid = 'session-old'").get().runtime, 'codex');
@@ -283,12 +340,15 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM incidents WHERE session_id = 'session-old'").get().n, 1);
     assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
     const migrations = upgraded.db.prepare(
-      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0') ORDER BY id",
+      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0') ORDER BY id",
     ).all();
     assert.ok(migrations.some((row) => row.to_version === '9.1' && /Kimi/.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '10.0' && /Context Spine/.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '11.0' && /baseline adoption/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '12.0' && /gap ledger|re-adoption/i.test(row.notes)));
+    assert.ok(migrations.some((row) => row.to_version === '13.0' && /workflow runs/i.test(row.notes)));
+    assert.ok(migrations.some((row) => row.to_version === '14.0' && /known-red|revalidate/i.test(row.notes)));
+    assert.ok(migrations.some((row) => row.to_version === '15.0' && /typed research|reconciliation/i.test(row.notes)));
     assert.deepEqual(
       upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'migrated-baseline'").get(),
       { mode: 'migrated', status: 'adopting' },

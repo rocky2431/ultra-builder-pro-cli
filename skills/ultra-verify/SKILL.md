@@ -36,7 +36,7 @@ never recurse into the current host or treat advisor output as authority.
 7. Write `metadata.json` and `synthesis.md`, then return one host-owned conclusion.
 
 Read `references/cross-verify-modes.md` for mode-specific evidence and
-`references/confidence-system.md` when confidence language is useful. Model agreement
+`references/evidence-status.md` when the synthesis needs an evidence status. Model agreement
 never overrides failing tests or authoritative runtime evidence.
 
 Advisor failure degrades to the primary analysis with a single-source warning. It

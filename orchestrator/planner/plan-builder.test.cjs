@@ -24,7 +24,7 @@ test('buildPlan fixture 1: 5 tasks, no file overlap → 2 waves, no conflicts', 
   assert.deepEqual(new Set(plan.waves[0].tasks), new Set(['a', 'e']));
   assert.equal(plan.waves[0].parallel, true);
   assert.deepEqual(plan.cycles, []);
-  assert.ok(plan.estimated_cost_usd > 0);
+  assert.equal(plan.estimated_cost_usd, null);
   assert.ok(plan.estimated_duration_min > 0);
 });
 
@@ -34,7 +34,7 @@ test('buildPlan fixture 2: same wave, shared file → conflict_surface + paralle
     mk('b', ['a'], ['src/utils.ts']),
     mk('c', ['a'], ['src/utils.ts']),
   ];
-  const plan = buildPlan(tasks);
+  const plan = buildPlan(tasks, { runtime: 'claude', model: 'claude-sonnet-4-6' });
   assert.equal(plan.waves.length, 2);
   const w2 = plan.waves[1];
   assert.equal(w2.parallel, false);
@@ -80,7 +80,7 @@ test('buildPlan fixture 5: cost + duration math (parallel vs serial waves)', () 
     mk('b', [], ['src/b.ts'], 4),
     mk('c', ['a', 'b'], ['src/c.ts'], 6),
   ];
-  const plan = buildPlan(tasks);
+  const plan = buildPlan(tasks, { runtime: 'claude', model: 'claude-sonnet-4-6' });
   assert.equal(plan.estimated_duration_min, 50);
   // cost: 3 tasks × sum(complexity)=12 × (5000*3e-6 + 2000*15e-6) per complexity unit
   //     = 12 × (0.015 + 0.030) = 12 × 0.045 = 0.54 usd
@@ -122,12 +122,32 @@ test('buildPlan: cycle in task graph surfaced in plan.cycles', () => {
   assert.deepEqual(new Set(plan.cycles[0]), new Set(['x', 'y']));
 });
 
-test('buildPlan: missing complexity defaults to DEFAULT_COMPLEXITY for cost calc', () => {
+test('buildPlan: missing complexity defaults to DEFAULT_COMPLEXITY for duration and exact-model cost', () => {
   const tasks = [{ id: 'a', deps: [], files_modified: [] }];
-  const plan = buildPlan(tasks);
+  const plan = buildPlan(tasks, { runtime: 'claude', model: 'claude-sonnet-4-6' });
   // complexity 3 → 15k in, 6k out → cost > 0
   assert.ok(plan.estimated_cost_usd > 0);
   assert.equal(plan.estimated_duration_min, 15); // 3 * 5 (single-task wave, not parallel)
+});
+
+test('buildPlan: unknown or unrecorded model keeps estimated cost unavailable', () => {
+  const tasks = [mk('a', [], ['src/a.ts'], 2)];
+  assert.equal(buildPlan(tasks).estimated_cost_usd, null);
+  assert.equal(
+    buildPlan(tasks, { runtime: 'codex', model: 'unpriced-future-model' }).estimated_cost_usd,
+    null,
+  );
+});
+
+test('buildPlan: artifact ordering is deterministic across caller task order', () => {
+  const tasks = [
+    mk('b', ['a'], ['src/b.ts'], 3),
+    mk('a', [], ['src/a.ts'], 2),
+  ];
+  assert.deepEqual(
+    buildPlan(tasks, { changeId: 'change' }),
+    buildPlan([...tasks].reverse(), { changeId: 'change' }),
+  );
 });
 
 test('buildPlan: non-array input → TypeError', () => {

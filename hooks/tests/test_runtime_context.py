@@ -23,7 +23,7 @@ def run_hook(name: str, cwd: Path):
     return json.loads(proc.stdout), proc.stderr
 
 
-def init_db(project: Path, baseline: str | None = "migrated") -> Path:
+def init_db(project: Path, baseline: str | None = "greenfield") -> Path:
     ultra = project / ".ultra"
     ultra.mkdir()
     db_path = ultra / "state.db"
@@ -32,10 +32,27 @@ def init_db(project: Path, baseline: str | None = "migrated") -> Path:
         if baseline == "migrated":
             conn.execute(
                 """INSERT INTO baselines
-                   (id, project_name, mode, status, approved_by, approval_note, converged_at)
-                   VALUES ('test-baseline', 'fixture', 'migrated', 'ready',
-                           'test', 'legacy fixture', '2026-01-01T00:00:00.000Z')"""
+                   (id, project_name, mode, status, approved_by, approval_note,
+                    research_run_id, converged_at)
+                   VALUES ('test-baseline', 'fixture', ?, 'ready',
+                           'test', 'fixture baseline', 'research-fixture',
+                           '2026-01-01T00:00:00.000Z')""",
+                (baseline,),
             )
+    if baseline is not None and baseline != "migrated":
+        helper = HOOK_ROOT.parent / "mcp-server" / "test-support" / "ready-baseline.cjs"
+        script = (
+            "const Database=require('better-sqlite3');"
+            "const helper=require(process.argv[1]);"
+            "const db=new Database(process.argv[2]);"
+            "helper.seedReadyBaseline(db,{rootDir:process.argv[3],mode:process.argv[4]});"
+            "db.close();"
+        )
+        subprocess.run(
+            ["node", "-e", script, str(helper), str(db_path), str(project), baseline],
+            check=True,
+            cwd=HOOK_ROOT.parent,
+        )
     return db_path
 
 
@@ -67,7 +84,7 @@ def test_context_routes_an_old_schema_to_init_and_ignores_legacy_projection(tmp_
 
 
 def test_context_routes_migrated_baseline_to_explicit_readoption(tmp_path):
-    init_db(tmp_path)
+    init_db(tmp_path, baseline="migrated")
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "BASELINE_MIGRATION_REVIEW_REQUIRED" in text
@@ -169,10 +186,11 @@ def test_context_injects_active_change_without_workflow_state(tmp_path):
     assert "daily-task" in text
     assert "Role: implement" in text
     assert "Gate: implementation" in text
-    assert "Readiness: ready" in text
-    assert "Warnings: BASELINE_NOT_READY:adopting" in text
-    assert "Route: ultra-dev" in text
-    assert "Run the exact regression test" in text
+    assert "Readiness: blocked" in text
+    assert "CONTEXT_SNAPSHOT_UPGRADE_REQUIRED" in text
+    assert "Blockers: BASELINE_NOT_READY:adopting" in text
+    assert "Route: ultra-init" in text
+    assert "Complete or refresh the Ultra project baseline" in text
     assert "Fix daily drift" not in text
     assert "cloud-mem" not in text
 
@@ -208,3 +226,44 @@ def test_health_does_not_misclassify_incomplete_baseline_as_runtime_failure(tmp_
     output, stderr = run_hook("health_check.py", tmp_path)
     assert output == {}
     assert stderr == ""
+
+
+def test_health_degrades_when_a_ready_baseline_has_lost_authority(tmp_path):
+    db_path = init_db(tmp_path, baseline=None)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """INSERT INTO baselines
+               (id, project_name, mode, status, gaps_json,
+                approved_by, approval_note, converged_at)
+               VALUES ('ready-but-invalid', 'legacy', 'brownfield', 'ready', ?,
+                       'owner', 'accepted', '2026-01-01T00:00:00.000Z')""",
+            (json.dumps([{
+                "id": "missing-evidence",
+                "category": "baseline_blocker",
+                "status": "open",
+                "blocking": True,
+                "summary": "Restore baseline authority",
+                "evidence_refs": [],
+            }]),),
+        )
+
+    output, stderr = run_hook("health_check.py", tmp_path)
+
+    assert output == {}
+    assert '"status": "degraded"' in stderr
+    assert '"status": "fail"' in stderr
+    assert "BASELINE_GAP_BLOCKING:missing-evidence" in stderr
+
+
+def test_health_requires_workflow_authority_tables(tmp_path):
+    db_path = init_db(tmp_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DROP TABLE workflow_steps")
+        conn.execute("DROP TABLE workflow_runs")
+
+    output, stderr = run_hook("health_check.py", tmp_path)
+
+    assert output == {}
+    assert '"status": "degraded"' in stderr
+    assert "workflow_runs" in stderr
+    assert "workflow_steps" in stderr

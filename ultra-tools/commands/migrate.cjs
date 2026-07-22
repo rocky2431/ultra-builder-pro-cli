@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  initStateDb, openStateDb, closeStateDb, MIGRATED_GAPS,
+  EXPECTED_VERSION, initStateDb, openStateDb, closeStateDb, MIGRATED_GAPS,
 } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
 const projector = require('../../mcp-server/lib/projector.cjs');
@@ -12,7 +12,7 @@ const projector = require('../../mcp-server/lib/projector.cjs');
 const DEFAULT_FROM = '4.4';
 const SUPPORTED_TRANSITIONS = Object.freeze({
   '4.4': '4.5',
-  '4.5': '12.0',
+  '4.5': EXPECTED_VERSION,
 });
 
 // Frozen SQL — values flow through parameter bindings.
@@ -443,7 +443,7 @@ const USAGE = `ultra-tools migrate --from=<version> --to=<version> [flags]
 
 Supported transitions:
   4.4 -> 4.5   import the legacy task projection into authoritative state
-  4.5 -> 12.0  import a projection-only project into current authoritative state
+  4.5 -> ${EXPECTED_VERSION}  import a projection-only project into current authoritative state
 
 Flags:
   --source-dir <dir>   project root containing .ultra/ (default: .)

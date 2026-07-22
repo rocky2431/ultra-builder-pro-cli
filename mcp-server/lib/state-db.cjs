@@ -9,10 +9,13 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '12.0';
+const EXPECTED_VERSION = '15.0';
 const KIMI_SCHEMA_VERSION = '9.1';
 const CONTEXT_SCHEMA_VERSION = '10.0';
 const BASELINE_SCHEMA_VERSION = '11.0';
+const ADOPTION_SCHEMA_VERSION = '12.0';
+const WORKFLOW_SCHEMA_VERSION = '13.0';
+const AUTHORITY_SCHEMA_VERSION = '14.0';
 
 const MIGRATED_GAPS = Object.freeze([{
   id: 'legacy-rebaseline-required',
@@ -42,6 +45,8 @@ const REQUIRED_TABLES = Object.freeze([
   'incidents',
   'projection_jobs',
   'event_consumers',
+  'workflow_runs',
+  'workflow_steps',
 ]);
 
 function applyBaselineUpgrade(db, { legacyState = false } = {}) {
@@ -63,6 +68,7 @@ function applyBaselineUpgrade(db, { legacyState = false } = {}) {
       worktree_digest     TEXT,
       worktree_files_json TEXT NOT NULL DEFAULT '[]',
       worktree_accepted   INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1)),
+      known_red_accepted  INTEGER NOT NULL DEFAULT 0 CHECK (known_red_accepted IN (0, 1)),
       spec_refs_json      TEXT NOT NULL DEFAULT '[]',
       evidence_json       TEXT NOT NULL DEFAULT '[]',
       verification_json   TEXT NOT NULL DEFAULT '[]',
@@ -70,6 +76,7 @@ function applyBaselineUpgrade(db, { legacyState = false } = {}) {
       gaps_json           TEXT NOT NULL DEFAULT '[]',
       classification_json TEXT NOT NULL DEFAULT '{}',
       provider_refs_json  TEXT NOT NULL DEFAULT '{}',
+      research_run_id     TEXT,
       approved_by         TEXT,
       approval_note       TEXT,
       started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -114,17 +121,51 @@ function applyBaselineColumns(db) {
     db, 'baselines', columns, 'worktree_accepted',
     'INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1))',
   ) || changed;
+  changed = addColumnIfMissing(
+    db, 'baselines', columns, 'known_red_accepted',
+    'INTEGER NOT NULL DEFAULT 0 CHECK (known_red_accepted IN (0, 1))',
+  ) || changed;
   changed = addColumnIfMissing(db, 'baselines', columns, 'gaps_json', "TEXT NOT NULL DEFAULT '[]'") || changed;
   changed = addColumnIfMissing(
     db, 'baselines', columns, 'classification_json', "TEXT NOT NULL DEFAULT '{}'",
   ) || changed;
+  changed = addColumnIfMissing(db, 'baselines', columns, 'research_run_id', 'TEXT') || changed;
   return changed;
 }
 
 function applyChangeColumns(db) {
   if (!tableNames(db).includes('changes')) return false;
   const columns = columnNames(db, 'changes');
-  return addColumnIfMissing(db, 'changes', columns, 'baseline_bypass_json', 'TEXT');
+  let changed = false;
+  changed = addColumnIfMissing(db, 'changes', columns, 'baseline_bypass_json', 'TEXT') || changed;
+  changed = addColumnIfMissing(db, 'changes', columns, 'contract_json', "TEXT NOT NULL DEFAULT '{}'") || changed;
+  changed = addColumnIfMissing(db, 'changes', columns, 'classification_json', "TEXT NOT NULL DEFAULT '{}'") || changed;
+  changed = addColumnIfMissing(
+    db, 'changes', columns, 'research_disposition_json', "TEXT NOT NULL DEFAULT '{}'",
+  ) || changed;
+  return changed;
+}
+
+function applySemanticAuthorityColumns(db) {
+  let changed = false;
+  if (tableNames(db).includes('workflow_steps')) {
+    const columns = columnNames(db, 'workflow_steps');
+    changed = addColumnIfMissing(
+      db, 'workflow_steps', columns, 'semantic_records_json', "TEXT NOT NULL DEFAULT '[]'",
+    ) || changed;
+  }
+  if (tableNames(db).includes('spec_learning_candidates')) {
+    const columns = columnNames(db, 'spec_learning_candidates');
+    for (const [name, definition] of [
+      ['applied_ref', 'TEXT'],
+      ['before_digest', 'TEXT'],
+      ['after_digest', 'TEXT'],
+      ['apply_evidence_json', "TEXT NOT NULL DEFAULT '[]'"],
+    ]) {
+      changed = addColumnIfMissing(db, 'spec_learning_candidates', columns, name, definition) || changed;
+    }
+  }
+  return changed;
 }
 
 function quoteSqlString(value) {
@@ -151,7 +192,14 @@ function readSchemaSql() {
 }
 
 function applyPragmas(db) {
-  db.pragma('journal_mode = WAL');
+  const journalMode = db.pragma('journal_mode = WAL', { simple: true });
+  if (String(journalMode).toLowerCase() !== 'wal') {
+    const error = new Error(
+      `state.db requires SQLite WAL mode; storage returned ${String(journalMode || 'unknown')}`,
+    );
+    error.code = 'STATE_DB_WAL_UNAVAILABLE';
+    throw error;
+  }
   db.pragma('synchronous = NORMAL');
   db.pragma('busy_timeout = 5000');
   db.pragma('foreign_keys = ON');
@@ -201,6 +249,19 @@ function applyCompatibleColumns(db) {
   }
   if (!taskColumns.has('change_id')) {
     db.exec('ALTER TABLE tasks ADD COLUMN change_id TEXT REFERENCES changes(id) ON DELETE SET NULL');
+  }
+  const taskAdditions = [
+    ['outcome', 'TEXT'],
+    ['slice_kind', "TEXT CHECK (slice_kind IS NULL OR slice_kind IN ('tracer_bullet', 'expand_contract', 'integration_checkpoint'))"],
+    ['public_seam', 'TEXT'],
+    ['verification_command', 'TEXT'],
+    ['acceptance_json', "TEXT NOT NULL DEFAULT '[]'"],
+    ['context_refs_json', "TEXT NOT NULL DEFAULT '[]'"],
+    ['docs_impact_json', "TEXT NOT NULL DEFAULT '{\"status\":\"unknown\",\"files\":[],\"rationale\":null}'"],
+    ['ownership_json', "TEXT NOT NULL DEFAULT '{}'"],
+  ];
+  for (const [name, definition] of taskAdditions) {
+    if (!taskColumns.has(name)) db.exec(`ALTER TABLE tasks ADD COLUMN ${name} ${definition}`);
   }
   if (tables.has('events')) {
     const eventColumns = columnNames(db, 'events');
@@ -339,7 +400,10 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       "SELECT 1 FROM migration_history WHERE to_version = '10.0' AND status = 'success' LIMIT 1",
     ).get();
     const needsContextMigration = Boolean(
-      fromVersion && ![CONTEXT_SCHEMA_VERSION, BASELINE_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion)
+      fromVersion && ![
+        CONTEXT_SCHEMA_VERSION, BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION,
+        WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
+      ].includes(fromVersion)
         && !contextMigration,
     );
     if (contextChanged || needsContextMigration) {
@@ -356,10 +420,14 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     applyBaselineUpgrade(db, { legacyState });
     applyBaselineColumns(db);
     applyChangeColumns(db);
+    applySemanticAuthorityColumns(db);
     const baselineMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '11.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && ![BASELINE_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion)
+    if (fromVersion && ![
+      BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION, WORKFLOW_SCHEMA_VERSION,
+      AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
+    ].includes(fromVersion)
       && !baselineMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -372,6 +440,32 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       );
     }
     if (legacyState) {
+      const legacyBaselines = db.prepare(
+        "SELECT id, mode, status, classification_json, gaps_json FROM baselines WHERE status != 'superseded'",
+      ).all();
+      for (const baseline of legacyBaselines) {
+        let classification = {};
+        let gaps = [];
+        try { classification = JSON.parse(baseline.classification_json || '{}'); } catch { classification = {}; }
+        try { gaps = JSON.parse(baseline.gaps_json || '[]'); } catch { gaps = []; }
+        if (!gaps.some((gap) => gap?.id === MIGRATED_GAPS[0].id)) gaps.push(MIGRATED_GAPS[0]);
+        classification.migration = {
+          previous_mode: baseline.mode,
+          previous_status: baseline.status,
+          from_schema: fromVersion || 'unknown',
+          requires_research_workflow: true,
+        };
+        db.prepare(
+          `UPDATE baselines SET mode = 'migrated', status = 'adopting',
+           classification_json = ?, gaps_json = ?, approved_by = NULL, approval_note = ?,
+           converged_at = NULL, research_run_id = NULL, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+           WHERE id = ?`,
+        ).run(
+          JSON.stringify(classification), JSON.stringify(gaps),
+          'Legacy project preserved; evidence-backed brownfield re-adoption is required',
+          baseline.id,
+        );
+      }
       db.prepare(
         `UPDATE baselines SET status = 'adopting', approved_by = NULL, approval_note = ?,
          converged_at = NULL, worktree_state = 'unavailable', worktree_digest = NULL,
@@ -393,10 +487,52 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
            VALUES (?, ?, 'forward', 'success', ?)`,
         ).run(
           BASELINE_SCHEMA_VERSION,
-          EXPECTED_VERSION,
+          ADOPTION_SCHEMA_VERSION,
           'Add repository snapshots, authoritative gap ledger, incident governance, and required re-adoption',
         );
       }
+    }
+    const workflowMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '13.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && fromVersion !== EXPECTED_VERSION && !workflowMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        fromVersion === ADOPTION_SCHEMA_VERSION ? fromVersion : ADOPTION_SCHEMA_VERSION,
+        WORKFLOW_SCHEMA_VERSION,
+        'Add durable cross-stage workflow runs, step evidence, output digests, blockers, and recovery',
+      );
+    }
+    const authorityMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '14.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && fromVersion !== EXPECTED_VERSION && !authorityMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        fromVersion === WORKFLOW_SCHEMA_VERSION ? fromVersion : WORKFLOW_SCHEMA_VERSION,
+        AUTHORITY_SCHEMA_VERSION,
+        'Persist known-red acceptance and continuously revalidate ready baseline authority',
+      );
+    }
+    const semanticMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '15.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && fromVersion !== EXPECTED_VERSION && !semanticMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        fromVersion === AUTHORITY_SCHEMA_VERSION ? fromVersion : AUTHORITY_SCHEMA_VERSION,
+        EXPECTED_VERSION,
+        'Add typed research semantics, complete change contracts, verified learning application, and reconciliation provenance',
+      );
     }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
     db.exec('CREATE INDEX IF NOT EXISTS events_change ON events(change_id, id)');
@@ -404,7 +540,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
     ).run(
       EXPECTED_VERSION,
-      'Evidence-backed repository snapshots, gap ledger, safe re-adoption, and incident break-glass governance',
+      'Typed research semantics, complete change contracts, verified learning application, and reconciliation provenance',
     );
   })();
 }
@@ -431,7 +567,8 @@ function initStateDb(dbPath) {
     db = openStateDb(dbPath);
     const existing = new Set(tableNames(db));
     const fromVersion = latestSchemaVersion(db);
-    const legacyState = existing.size > 0 && fromVersion !== EXPECTED_VERSION;
+    const legacyState = existing.size > 0
+      && ![WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion);
     backupPath = migrationBackup(db, dbPath, fromVersion, existing);
     applyCompatibleColumns(db);
     const missing = REQUIRED_TABLES.filter((t) => !existing.has(t));

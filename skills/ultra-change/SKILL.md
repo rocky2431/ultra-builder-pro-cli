@@ -1,84 +1,69 @@
 ---
 name: ultra-change
-description: Open or resume a bounded continuous change and connect its intent, delta, decisions, context, and executable tasks. Use when maintaining or extending an Ultra project after its baseline exists.
+description: Open or resume one bounded post-baseline change and connect its intent, delta, task plan, fresh context, and convergence evidence. Use when handling daily feature work, fixes, redesigns, or incidents after an Ultra baseline exists.
 ---
 
-# Open or resume a continuous change
+# Maintain one continuous change
 
-Keep post-delivery work aligned through a delta, implementation, learning, and
-convergence loop.
+Use Ultra MCP for lifecycle writes. Keep external memory and code-graph content in
+their providers; Ultra stores references only.
 
-## Authority boundary
+## Bind or create
 
-Use Ultra MCP tools for change and task lifecycle writes. Do not write raw SQLite or
-mutate generated task and context projections. External memory or code-graph systems
-own their payloads; Ultra stores only provider references supplied by the user or host.
+1. Read `system.doctor`, `baseline.get`, `change.list`, and `change.breadcrumb`.
+2. Resume the change matching the requested outcome. Require an id when several could
+   match; do not create a duplicate packet.
+3. New ordinary work requires a ready baseline. An incident on unhealthy authority
+   requires an explicit `baseline_bypass` reason and approver. Never infer approval
+   from urgency.
+4. Read `references/change-contract.md`. Persist the complete outcome, executable
+   acceptance, non-goals, public seams, recovery contract, unresolved decisions,
+   documentation impact, profile rationale, material risk flags, and research
+   disposition. Do not derive these fields from a title or free-form intent later.
+5. Select `quick`, `standard`, `major`, or `incident` from current scope and risk.
+   Escalate a proposed quick change when its contract carries material risk or research.
+   Then call `change.create` or `change.update` and read the normalized record back.
+6. Resume or start the linked `change` workflow with `workflow.list`/`workflow.start`.
 
-## Workflow
+## Record the change workflow
 
-1. Call `baseline.get`. State integrity failure routes to `ultra-doctor`.
-   - Create ordinary work only when the baseline is healthy and `ready`.
-   - Resume a change that was already active when baseline drift appears; record the
-     condition as a warning and restore baseline readiness before ordinary convergence.
-   - Create an `incident` on an unhealthy baseline only with an explicit
-     `baseline_bypass` containing the reason and approver.
-   - Route every other missing, migrated, incomplete, or stale baseline to `ultra-init`.
-2. Call `change.list` and `change.breadcrumb`.
-   - Resume the single change that matches the requested outcome.
-   - Require an explicit id when several changes could match.
-   - Create a new change only when no existing packet represents the same outcome.
-3. Capture the observable outcome, acceptance, non-goals, affected public seam,
-   documentation impact, and unresolved decisions.
-4. Classify the change as `quick`, `standard`, `major`, or `incident`. Ask only for a
-   material product, risk, or recovery decision that repository evidence cannot answer.
-5. Call `change.create` with a stable kebab-case id, or `change.update` when resuming.
-   For incident break-glass, persist the approved reason in `baseline_bypass`; never
-   infer approval from urgency.
-6. Write the minimum artifact set required by the classification:
+Use `workflow.step` as evidence becomes durable:
 
-   ```text
-   .ultra/changes/active/<change-id>/
-     intent.md
-     delta/                 # standard and major
-     plan.md                # standard and major
-     diagnosis.md           # incident
-     context-manifest.json  # generated projection
-     spec-learning.json     # generated projection
-     verification.md        # generated projection
-   ```
+- `bind-baseline`: current baseline id, revision, branch, and worktree evidence;
+- `classify-change`: kind and rationale;
+- `record-intent`: intent artifact, acceptance, scope, and resolved docs impact;
+- `plan-change`: completed plan workflow and authoritative task ids;
+- `compile-context`: current task-bound `change.context` manifest and digest;
+- `verify-readiness`: ready breadcrumb with one executable next action.
 
-   Delta files describe differences from the baseline, not a second copy of it.
-   Incident diagnosis records the symptom, earliest bad state, falsifiable
-   hypotheses, evidence, root cause, and recovery boundary.
-7. Create the smallest executable vertical slice with `task.create`. Each task needs
-   one outcome, bounded ownership, dependencies, a live public seam, an exact
-   verification command, and documentation impact.
-8. Compile `change.context` for the next role and gate. Include only required
-   references and the task execution contract. Missing required references, digest or
-   HEAD drift, an absent public seam or verification command, and unknown
-   documentation impact are blockers. File count, token estimate, and context-share
-   thresholds are advisory warnings: narrow reads or split the slice when useful, but
-   never raise a threshold merely to make the warning disappear or refuse necessary
-   incident context.
-9. Call `change.breadcrumb` and return its single next action.
+Standard and major changes keep deltas under
+`.ultra/changes/active/<id>/delta/` and an evidence-linked `plan.md`. Deltas describe
+differences from the baseline; they are not a second baseline. Incidents maintain the
+structured diagnosis artifact and recovery evidence.
 
-## Specification learning
+When `research_disposition.status` is `bounded` or `required`, run `ultra-research`
+with the exact recorded mode and selected steps before planning. Planning is blocked
+until that change-bound research run is complete, current, and selection-equivalent.
+Use `none` only when the Change Contract already has sufficient evidence.
 
-When implementation uncovers a stable requirement, invariant, or public behavior
-missing from the baseline, call `change.learning_propose` with evidence and a target
-document. The proposal does not edit the baseline. It must be approved or rejected,
-and an approved item is marked applied only after the target document is updated and
-verified.
+Use `ultra-plan` to create complete DB-backed task contracts. Recompile
+`change.context` after any task, HEAD, specification, or decision change. The task's DB
+contract is authoritative; Prompt input may not override its seam or verification.
+Required missing or stale refs block. Budget warnings guide narrower context but never
+justify dropping necessary evidence or refusing legitimate work.
 
-## Completion gate
+An ordinary active change remains executable only while its durable `bind-baseline`
+evidence still names the current approved-ready baseline. HEAD, worktree, specification,
+or source-evidence drift created after that binding is advisory until delivery
+reconciliation. Adoption/migration state, missing approval or evidence, blocking gaps,
+and any other structural baseline failure block tasks, context, and later stages. Only
+the recorded incident break-glass authority can bypass that gate.
 
-Do not claim alignment while a material decision is unresolved, documentation impact
-is unknown, context is stale, or the next task is not executable. Ordinary change
-convergence requires a non-migrated `ready` baseline. Normal HEAD or tracked-spec drift
-caused by the active change is reconciled at archive.
+Call `workflow.complete` only after all change workflow steps are current. Return the
+change id, kind, task set, context digest, blockers or warnings, workflow state, and the
+breadcrumb's one route.
 
-An approved break-glass incident may converge and archive while baseline adoption is
-incomplete. Its archive must add an open `baseline_blocker` reconciliation gap owned by
-the recorded approver. Report the incident as closed and the project baseline as not
-ready until that gap is resolved. Every archive declares baseline updates or an exact
-no-change reason; failed ordinary reconciliation rolls back state and artifacts.
+When implementation reveals a stable missing invariant, use
+`change.learning_propose` and the approval/reject/apply transition. Unresolved learning
+blocks delivery. An approved application must bind the declared target anchor, its
+before and after digests, and current evidence before the proposal becomes `applied`.

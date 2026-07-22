@@ -51,6 +51,13 @@ test('computeCost: unknown runtime → null', () => {
   assert.equal(pricing.computeCost('madeup', 'model-x', 100, 100), null);
 });
 
+test('computeCost: known runtime without an exact recorded model → null', () => {
+  assert.equal(pricing.computeCost('claude', null, 100, 100), null);
+  assert.equal(pricing.computeCost('codex', 'unpriced-future-model', 100, 100), null);
+  assert.equal(pricing.computeCost('opencode', null, 100, 100), null);
+  assert.equal(pricing.computeCost('kimi', null, 100, 100), null);
+});
+
 test('computeCost: zero tokens → zero', () => {
   assert.equal(pricing.computeCost('claude', 'claude-sonnet-4-6', 0, 0), 0);
 });
@@ -172,6 +179,21 @@ test('aggregateTelemetryByRuntime: groups calls + sums tokens/cost', () => {
     assert.equal(byRuntime.claude.tokens_in, 1500);
     assert.equal(byRuntime.codex.tokens_in, 800);
     assert.ok(byRuntime.claude.cost_usd > 0);
+  } finally { teardown(dir, db); }
+});
+
+test('aggregateTelemetryByRuntime exposes token usage that has no exact model price', () => {
+  const { dir, db } = freshFixture();
+  try {
+    seedSession(db, { sid: 's-unpriced', task_id: 't-unpriced', runtime: 'opencode' });
+    telemetry.appendTelemetry(db, {
+      event_type: 'token_usage', tool_name: 'session.close', session_id: 's-unpriced',
+      runtime: 'opencode', tokens_input: 500, tokens_output: 100, rootDir: dir,
+      payload: { model: 'provider-specific-model' },
+    });
+    const row = ops.aggregateTelemetryByRuntime(db).find((item) => item.runtime === 'opencode');
+    assert.equal(row.cost_usd, 0);
+    assert.equal(row.unpriced_usage_events, 1);
   } finally { teardown(dir, db); }
 });
 

@@ -11,6 +11,7 @@ const recovery = require('../../orchestrator/recovery.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const changes = require('./change-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
+const workflows = require('./workflow-state.cjs');
 
 const SPEC_CONSUMER = 'spec-staleness';
 
@@ -56,10 +57,20 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
   const baseline = missing.length === 0
     ? baselines.inspectBaseline(db, { rootDir })
     : { status: 'fail', blockers: ['BASELINE_STATE_UNAVAILABLE'], warnings: [], baseline: null };
+  const workflowHealth = missing.length === 0
+    ? workflows.inspectWorkflowHealth(db, { rootDir })
+    : {
+      status: 'fail', active: 0, blocked: 0, ready: 0, stale_outputs: [],
+      historical_stale_outputs: [], terminal_authority_runs: [], untracked_active_changes: [],
+    };
+  const baselineCheckStatus = baseline.status === 'pass'
+    ? 'pass'
+    : (baseline.baseline?.status === 'ready' ? 'fail' : 'warning');
   const degraded = integrity !== 'ok' || missing.length > 0 || incidents.length > 0
     || pending.length > 0 || running.length > 0 || failed.length > 0 || orphanSessions > 0 || activeMissing > 0
     || archiveIntents.length > 0
-    || eventCursor > projectedCursor;
+    || eventCursor > projectedCursor || workflowHealth.status === 'fail'
+    || baselineCheckStatus === 'fail';
   return {
     status: degraded ? 'degraded' : 'healthy',
     checks: {
@@ -77,7 +88,7 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
         pending: archiveIntents.length, corrupt: corruptArchiveIntents,
       },
       baseline: {
-        status: baseline.status === 'pass' ? 'pass' : 'warning',
+        status: baselineCheckStatus,
         readiness: baseline.status,
         mode: baseline.baseline?.mode || null,
         baseline_status: baseline.baseline?.status || null,
@@ -88,6 +99,21 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
         gaps: baseline.baseline ? baselines.summarizeGaps(baseline.baseline.gaps) : null,
         blockers: baseline.blockers,
         warnings: baseline.warnings,
+      },
+      workflows: {
+        status: workflowHealth.status === 'fail'
+          ? 'fail'
+          : (workflowHealth.blocked > 0
+            || workflowHealth.historical_stale_outputs.length > 0
+            || workflowHealth.terminal_authority_runs.length > 0
+            || workflowHealth.untracked_active_changes.length > 0 ? 'warning' : 'pass'),
+        active: workflowHealth.active,
+        blocked: workflowHealth.blocked,
+        ready: workflowHealth.ready,
+        stale_outputs: workflowHealth.stale_outputs,
+        historical_stale_outputs: workflowHealth.historical_stale_outputs,
+        terminal_authority_runs: workflowHealth.terminal_authority_runs,
+        untracked_active_changes: workflowHealth.untracked_active_changes,
       },
       external_providers: {
         status: 'pass', ownership: 'external',
@@ -113,6 +139,7 @@ async function runDoctor(db, {
   if (!repair) return { ...inspectSystem(db, { rootDir }), repair_performed: false };
   const backupPath = await backupDatabase(db, rootDir);
   const archives = changes.recoverInterruptedArchives(db, { rootDir });
+  const workflowRecovery = workflows.recoverUntrackedChangeWorkflows(db, { rootDir });
   const recovered = recovery.recoverOnBoot(db);
   const cursor = runtime.readConsumerCursor(db, SPEC_CONSUMER);
   const consumed = ops.consumeSpecChangedEvents(db, { since_id: cursor, limit: 500 });
@@ -127,7 +154,10 @@ async function runDoctor(db, {
     ...inspectSystem(db, { rootDir }),
     repair_performed: true,
     backup_path: backupPath,
-    repair: { archives, recovered, consumed, interrupted, requeued, ensured, projections },
+    repair: {
+      archives, workflows: workflowRecovery, recovered, consumed,
+      interrupted, requeued, ensured, projections,
+    },
   };
 }
 

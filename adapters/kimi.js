@@ -94,8 +94,8 @@ function kimiTextTransform(input, assetName = '') {
     text = text.replaceAll('current host', 'Kimi Code');
   }
   if (assetName === 'ultra-review') {
-    text = text.replaceAll(
-      "the current host's native bounded-worker mechanism",
+    text = text.replace(
+      /the current host's native bounded-worker\s+mechanism/g,
       'Kimi `AgentSwarm` for parallel reviewers or one foreground Kimi `Agent` for a single reviewer, using the worker prompt files under `$KIMI_PLUGIN_ROOT/agents/`',
     );
   }
@@ -349,6 +349,7 @@ function writePluginProvenance(repoRoot, target) {
     contracts: {
       plugin_manifest: { root: 'plugin', path: 'kimi.plugin.json' },
       mcp_launcher: { root: 'plugin', path: path.join('runtime', 'launch.cjs') },
+      hook_event_helper: { root: 'plugin', path: path.join('runtime', 'hook-event.cjs') },
       hook_adapter: { root: 'plugin', path: path.join('hooks', 'adapters', 'kimi.py') },
       session_bootstrap: {
         root: 'plugin', path: path.join('skills', BOOTSTRAP_SKILL, 'SKILL.md'),

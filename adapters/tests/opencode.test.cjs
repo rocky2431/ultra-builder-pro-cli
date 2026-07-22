@@ -14,6 +14,8 @@ const { skillsForRuntime } = require('../_shared/runtime-assets.cjs');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const changes = require('../../mcp-server/lib/change-workflow.cjs');
 const { createTask } = require('../../mcp-server/lib/state-ops.cjs');
+const { seedReadyBaseline } = require('../../mcp-server/test-support/ready-baseline.cjs');
+const { completeChangeInput } = require('../../mcp-server/test-support/change-contract.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -228,30 +230,31 @@ test('OpenCode injects the DB breadcrumb and ignores conflicting workflow projec
       cwd: project, stdio: 'ignore',
     });
     state = initStateDb(path.join(project, '.ultra', 'state.db'));
-    state.db.prepare(
-      `INSERT INTO baselines
-       (id, project_name, mode, status, approved_by, approval_note, converged_at)
-       VALUES ('baseline-db', 'fixture', 'greenfield', 'ready', 'test', 'fixture', ?)`,
-    ).run(new Date().toISOString());
-    const { change } = changes.createChange(state.db, {
+    seedReadyBaseline(state.db, { rootDir: project, id: 'baseline-db' });
+    const { change } = changes.createChange(state.db, completeChangeInput({
       id: 'db-authority-change', title: 'DB authority', kind: 'quick',
       intent: 'Use one authoritative injected state.',
       docs_impact: { status: 'none', rationale: 'test fixture' },
-    }, { rootDir: project });
+    }), { rootDir: project });
     const task = createTask(state.db, {
       id: 'db-authority-task', title: 'Use DB authority', type: 'bugfix', priority: 'P0',
       change_id: change.id,
+      outcome: 'Inject one authoritative OpenCode task boundary.', slice_kind: 'tracer_bullet',
+      public_seam: 'OpenCode injection',
+      verification_command: 'node --test adapters/tests/opencode.test.cjs',
+      acceptance: [{
+        id: 'opencode-injection', criterion: 'The DB task is injected instead of a projection.',
+        verification: 'node --test adapters/tests/opencode.test.cjs',
+      }],
+      context_refs: [{ ref: 'app.txt', kind: 'source', reason: 'Tracked fixture seam', required: true }],
+      docs_impact: { status: 'none', files: [], rationale: 'Internal test fixture.' },
+      ownership: { owner: 'test-owner', reviewers: [] }, trace_to: 'app.txt#fixture',
     });
     changes.compileContext(state.db, {
         id: change.id,
         task_id: task.id,
         role: 'implement',
         gate: 'implementation',
-        execution_contract: {
-          slice_kind: 'tracer_bullet', public_seam: 'OpenCode injection',
-          verification_command: 'node --test adapters/tests/opencode.test.cjs',
-        },
-        next_action: 'Verify the DB-only OpenCode injection.',
     }, { rootDir: project });
 
     fs.writeFileSync(path.join(project, '.ultra', 'workflow-state.json'), JSON.stringify({

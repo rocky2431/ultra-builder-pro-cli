@@ -1,61 +1,74 @@
-# Discovery Record
+# Discovery Evidence
 
-Use this document for evidence that affects product scope or a baseline decision.
-Leave unsupported sections empty. Link to durable sources instead of copying large
-external payloads.
+Record product evidence and accepted decisions. Link to durable sources instead of
+copying provider payloads or research transcripts.
 
 ## Scope
 
-- Repository or product area:
-- Decision this research must unlock:
-- Evidence freshness boundary:
+- Repository or product boundary:
+- Baseline id and revision:
+- Decision this evidence must unlock:
+- Freshness boundary:
 
 ## Observed
 
-Record directly observed behavior, user input, repository facts, and sourced external
-facts. Identify the source and observation date.
-
-| Evidence | Source or reference | Finding | Freshness |
+| Fact or current behavior | Evidence reference | Observed at | Affected section |
 |---|---|---|---|
 | | | | |
 
 ## Decisions
 
-Record only accepted decisions. Include the reason, evidence, owner, and the contract
-or specification affected.
-
-| Decision | Reason and evidence | Owner | Affected contract |
+| Decision | Evidence and rationale | Owner | Affected contract |
 |---|---|---|---|
 | | | | |
 
 ## Unknowns
 
-Separate blocking unknowns from questions that are outside the accepted scope.
-
-| Unknown | Why it matters | Blocking | Owner or next evidence |
+| Unknown | Consequence | Blocking | Owner or next evidence |
 |---|---|---|---|
 | | | | |
 
-## Baseline Gaps
+## 00 Problem Validation
 
-Reference the authoritative gap ids recorded in `.ultra/state.db`. Use one of
-`baseline_blocker`, `documentation_drift`, `known_defect`, `technical_debt`,
-`unknown`, or `future_change`.
+- Problem and affected actor:
+- Current workaround and consequence:
+- Demand or usage evidence:
+- Accepted problem boundary:
 
-| Gap id | Category | Status | Evidence reference | Owner |
+## 01 Opportunity Discovery
+
+| Desired outcome | Opportunity | Evidence | Constraint or dependency |
+|---|---|---|---|
+| | | | |
+
+## 02 Market Assessment
+
+Record only market, regulatory, commercial, or operational facts that affect a
+decision. Include source date, segment, geography, and assumptions when applicable.
+
+## 03 Alternatives
+
+| Current alternative | Evidence | Meaningful difference | Strategy implication |
+|---|---|---|---|
+| | | | |
+
+## 04 Product Strategy
+
+- Intended actors and outcome:
+- Value delivered through observable behavior:
+- Accepted tradeoffs:
+- Explicit constraints or exclusions:
+
+## 05 Assumptions and Validation
+
+| Assumption | Current evidence | Validation signal | Decision rule | Owner |
 |---|---|---|---|---|
 | | | | | |
 
-## Current Behavior Notes
+## Baseline Gaps
 
-For an existing project, describe only behavior confirmed from source, tests, runtime,
-or maintained documentation. For a new project, record the accepted problem and
-constraints without inventing current behavior.
+Reference authoritative gap ids from `.ultra/state.db`.
 
-## Traceability
-
-Link each consequential finding to the product or architecture section it informs.
-
-| Finding | Target specification | Status |
-|---|---|---|
-| | | |
+| Gap id | Category | Status | Evidence | Owner |
+|---|---|---|---|---|
+| | | | | |

@@ -15,18 +15,22 @@ const DEFAULT_COMPLEXITY = 3;
 const TOKENS_PER_COMPLEXITY = Object.freeze({ input: 5000, output: 2000 });
 const DURATION_MIN_PER_COMPLEXITY = 5;
 
-function buildPlan(tasks, { runtime = 'claude', model = null } = {}) {
+function buildPlan(tasks, { runtime = null, model = null, changeId = null } = {}) {
   if (!Array.isArray(tasks)) {
     throw new TypeError('buildPlan: tasks must be an array');
   }
 
-  const graph = tasks.map((t) => ({
+  // Plan artifacts are durable and compared by digest. Keep their ordering
+  // independent from SQLite insertion order or caller enumeration order.
+  const orderedTasks = [...tasks].sort((left, right) => String(left.id).localeCompare(String(right.id)));
+
+  const graph = orderedTasks.map((t) => ({
     id: t.id,
     deps: Array.isArray(t.deps) ? t.deps : [],
   }));
   const { waves, cycles } = computeWaves(graph);
 
-  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const byId = new Map(orderedTasks.map((t) => [t.id, t]));
 
   const conflict_surface = [];
   const wavePayload = waves.map((waveTasks, idx) => {
@@ -52,18 +56,21 @@ function buildPlan(tasks, { runtime = 'claude', model = null } = {}) {
   });
 
   const ownership_forecast = {};
-  for (const t of tasks) {
+  for (const t of orderedTasks) {
     ownership_forecast[t.id] = Array.isArray(t.files_modified) ? t.files_modified : [];
   }
 
-  const estimated_cost_usd = round4(
-    tasks.reduce((sum, t) => {
-      const complexity = Number(t.complexity || DEFAULT_COMPLEXITY);
-      const ti = complexity * TOKENS_PER_COMPLEXITY.input;
-      const to = complexity * TOKENS_PER_COMPLEXITY.output;
-      return sum + (computeCost(runtime, model, ti, to) || 0);
-    }, 0),
-  );
+  const taskCosts = orderedTasks.map((t) => {
+    const complexity = Number(t.complexity || DEFAULT_COMPLEXITY);
+    const ti = complexity * TOKENS_PER_COMPLEXITY.input;
+    const to = complexity * TOKENS_PER_COMPLEXITY.output;
+    return computeCost(runtime, model, ti, to);
+  });
+  const estimated_cost_usd = orderedTasks.length === 0
+    ? 0
+    : (taskCosts.some((cost) => cost === null)
+      ? null
+      : round4(taskCosts.reduce((sum, cost) => sum + cost, 0)));
 
   const estimated_duration_min = wavePayload.reduce((acc, wv) => {
     const complexities = wv.tasks.map(
@@ -76,6 +83,8 @@ function buildPlan(tasks, { runtime = 'claude', model = null } = {}) {
   }, 0);
 
   return {
+    schema_version: '1.0',
+    change_id: changeId,
     waves: wavePayload,
     ownership_forecast,
     conflict_surface,

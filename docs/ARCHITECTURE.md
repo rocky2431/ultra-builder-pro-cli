@@ -53,7 +53,7 @@ the supported hosts share.
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
-| **MCP**      | authoritative workflow-state and Context Spine API | stdio MCP server exposing 36 live tools across baseline/task/session/change/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **MCP**      | authoritative workflow-state and Context Spine API | stdio MCP server exposing 41 live tools across task/session/baseline/change/workflow/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
 | **CLI**      | explicit initialization, recovery, diagnostics, and orchestration | `ultra-tools` / `ubp-orchestrator`; only commands listed by `--help` are executable (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
 Why three: skills give us behavior portability across runtimes; MCP gives
@@ -70,11 +70,11 @@ RPC, and host-native loaders own resolution and invocation.
 
 All durable Ultra workflow state lives in one SQLite file with WAL enabled. Schema is
 fixed in [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) and
-covers seventeen tables:
+covers nineteen tables:
 
 | Table              | Holds                                             | Phase |
 |--------------------|---------------------------------------------------|-------|
-| `baselines`        | repository classification, greenfield/brownfield adoption, worktree snapshot, specs, evidence, verification, gap ledger, and approval | 12 |
+| `baselines`        | repository classification, greenfield/brownfield adoption, worktree snapshot, specs, evidence, verification, gap ledger, persisted known-red acceptance, and approval | 12→14 |
 | `tasks`            | task rows — id, status, deps, files_modified, …   | 2     |
 | `events`           | append-only event stream; `id` is subscription cursor (D31) | 2 |
 | `sessions`         | execution sessions, **including lease + heartbeat fields** (D32) | 4.5 |
@@ -91,6 +91,8 @@ covers seventeen tables:
 | `incidents`        | structured runtime failures and resolutions         | 8C    |
 | `projection_jobs` | durable projection outbox/retry state                | 8C    |
 | `event_consumers` | durable monotonic consumer cursors                   | 8C    |
+| `workflow_runs`   | init/research/plan/change/dev/test/review/deliver run authority, position, blockers, approval, and derived summary | 13 |
+| `workflow_steps`  | ordered step state, evidence, decisions, immutable output paths, and recorded SHA-256 digests | 13 |
 
 Two rules make this work:
 
@@ -103,12 +105,16 @@ Two rules make this work:
 2. **Single writer for mutable tables, multi-writer for `events`.**
    `.ultra/state.db` opens in WAL with `busy_timeout=5000`. The MCP
    server holds the single writer connection for `baselines`, `tasks`, `sessions`,
-   `changes`, `context_snapshots`, `spec_learning_candidates`, `telemetry`,
+   `changes`, `workflow_runs`, `workflow_steps`, `artifacts`, `context_snapshots`,
+   `spec_learning_candidates`, `incidents`, `projection_jobs`, `telemetry`,
    `specs_refs`, and `migration_history`; the CLI calls
    those tools over stdio rather than opening its own writer. The
    `events` table is append-only and explicitly multi-writer — CLI and
    orchestrator processes append directly to it under the same WAL +
    `busy_timeout` discipline, since independent INSERTs do not conflict.
+   External writers and public `task.append_event` may append observations only;
+   lifecycle event names are emitted by the mutation that owns the corresponding
+   DB transition and no event row can substitute for that transition.
    In `spec/mcp-tools.yaml` this split is captured by `writer_role: mcp`
    (must go through the MCP server) versus `writer_role: any` (any
    process may execute). Full policy lives in
@@ -143,14 +149,22 @@ produce a pre-migration backup. Compatibility state never grants baseline approv
 references, bounded repository/runtime evidence, actual verification results,
 known unknowns, repository branch and worktree snapshot, the categorized gap ledger,
 and metadata-only external provider references, and
-`baseline.converge` records explicit owner approval. A ready baseline is replaced
-only by an explicit re-adoption, preserving the superseded row for recovery.
+`baseline.converge` records explicit owner approval, including a durable
+`known_red_accepted` decision when applicable. Read paths continuously revalidate
+ready authority: scope, three specifications, source/runtime evidence, verification,
+known-red rationale and acceptance, research provenance and output digests, repository
+revision/worktree state, blocking gaps and unknowns, approver, and convergence time.
+A row cannot become trusted merely because its stored status says `ready`. A ready
+baseline is replaced only by an explicit re-adoption, preserving the superseded row
+for recovery.
 For a selected monorepo scope, the worktree digest and dirty-file list include only
 that scope; out-of-scope changes remain visible repository context but cannot be
 accepted implicitly by `accept_dirty_worktree`.
 
-New ordinary changes require a healthy `ready` baseline. A change that was already
-active may continue with baseline drift surfaced as a warning. A new incident can
+New ordinary changes require a healthy `ready` baseline. An active ordinary change may
+continue through only the expected HEAD/worktree/spec/source drift created after its
+durable `bind-baseline` step; loss of ready approval, missing evidence, blocking gaps,
+or any other structural defect stops task/context/stage progression. A new incident can
 start on an unhealthy baseline only with an explicit reason and approver stored in
 `baseline_bypass_json`. Ordinary convergence and archive reconcile HEAD, worktree,
 and tracked-spec drift atomically. Break-glass incident archive creates an open
@@ -167,7 +181,7 @@ active -> blocked -> active -> ready -> archived
    |                              |
    ├─ intent + delta + plan       └─ verification + baseline reconciliation
    ├─ linked tasks
-   ├─ context-manifest v2 (role + gate + readiness + execution seam)
+   ├─ immutable context snapshots (role + gate + readiness + execution seam)
    └─ spec-learning candidates (proposed -> approved/rejected -> applied)
 ```
 
@@ -178,16 +192,22 @@ impact, and no open incident. Memory and graph payloads never enter Ultra;
 
 ### Context Spine
 
-Context Manifest v2 is the handoff contract between planning, implementation,
-checking, review, convergence, and recovery. Each snapshot records:
+Context Manifest v2 is the immutable handoff contract between planning,
+implementation, checking, review, convergence, and recovery. Each snapshot records:
 
 - one role (`plan`, `implement`, `check`, or `review`) and lifecycle gate;
 - required context references with local digests and reasons;
 - readiness blockers for missing/stale required references or an incomplete
   execution contract;
 - advisory attention budgets (12 files / about 12k tokens / 40% by default);
-- an execution contract (`slice_kind`, public seam, exact verification command);
+- a DB-derived execution contract (`slice_kind`, public seam, exact verification command);
 - one deterministic next action.
+
+Prompt input may identify the intended role/gate, add bounded reference candidates,
+and lower advisory budgets. It cannot supply or override the task seam, verification
+command, task context references, evidence digest, gate verdict, workflow summary, or
+next action. Critical change/dev/test/review/deliver workflow steps record the matching
+snapshot as an output; test, review, and delivery reports carry its digest forward.
 
 `change.breadcrumb` derives the compact current position from state.db. Session,
 edit, resume, and OpenCode lifecycle hooks invoke one bundled read-only reader
@@ -315,6 +335,7 @@ shippable; downstream slip never blocks an earlier release.
 | Exact SQLite schema?                               | [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) |
 | What does a tasks.json look like after projection? | [`spec/fixtures/valid/tasks.v4.5.json`](../spec/fixtures/valid/tasks.v4.5.json) |
 | Phase-by-phase work breakdown + decision log       | [`docs/PLAN.zh-CN.md`](./PLAN.zh-CN.md)             |
+| When does each workflow write, invalidate, and converge state? | [`docs/WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md) |
 
 ## 10. Verifying the architecture
 

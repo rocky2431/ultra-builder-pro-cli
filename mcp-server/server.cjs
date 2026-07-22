@@ -2,7 +2,7 @@
 
 // MCP server (stdio JSON-RPC) exposing task.* + session.* tools backed by
 // .ultra/state.db. Uses the low-level Server API from
-// @modelcontextprotocol/sdk so we can pass raw JSON Schema (Draft 2020-12)
+// @modelcontextprotocol/server so we can pass raw JSON Schema (Draft 2020-12)
 // straight from spec/mcp-tools.yaml without translating to zod.
 
 const fs = require('node:fs');
@@ -12,12 +12,13 @@ const yaml = require('js-yaml');
 const Ajv = require('ajv/dist/2020');
 const addFormats = require('ajv-formats');
 
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const { ListToolsRequestSchema, CallToolRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
+const { Server } = require('@modelcontextprotocol/server');
+const { StdioServerTransport } = require('@modelcontextprotocol/server/stdio');
 const { version: PACKAGE_VERSION } = require('../package.json');
 
-const { initStateDb, closeStateDb } = require('./lib/state-db.cjs');
+const {
+  initStateDb, closeStateDb, openStateDb, ensureSchemaVersion,
+} = require('./lib/state-db.cjs');
 const { assertStateAuthority } = require('./lib/state-authority.cjs');
 const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
@@ -30,6 +31,7 @@ const { initProject } = require('./lib/init-project.cjs');
 const baselines = require('./lib/baseline-workflow.cjs');
 const changes = require('./lib/change-workflow.cjs');
 const runtimeState = require('./lib/runtime-state.cjs');
+const workflows = require('./lib/workflow-state.cjs');
 const doctor = require('./lib/doctor.cjs');
 const {
   readProjectBreadcrumb,
@@ -91,12 +93,21 @@ const CHANGE_TOOLS = Object.freeze([
   'change.archive',
 ]);
 
+const WORKFLOW_TOOLS = Object.freeze([
+  'workflow.start',
+  'workflow.get',
+  'workflow.list',
+  'workflow.step',
+  'workflow.complete',
+]);
+
 const SYSTEM_TOOLS = Object.freeze([
   'system.doctor',
 ]);
 
 const REGISTERED_TOOLS = Object.freeze([
   ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS, ...BASELINE_TOOLS, ...CHANGE_TOOLS,
+  ...WORKFLOW_TOOLS,
   ...SYSTEM_TOOLS,
 ]);
 
@@ -112,6 +123,7 @@ const MUTATING_TOOLS = new Set([
   'baseline.start', 'baseline.record', 'baseline.converge',
   'change.create', 'change.update', 'change.context', 'change.converge', 'change.archive',
   'change.learning_propose', 'change.learning_resolve',
+  'workflow.start', 'workflow.step', 'workflow.complete',
 ]);
 
 function loadRegisteredTools() {
@@ -252,10 +264,33 @@ async function dispatchTool(name, input, db, ctx = {}) {
       return ops.switchTaskTag(db, input.id, input.tag);
     }
     case 'task.dependency_topo': {
-      const requested = Array.isArray(input && input.task_ids) ? input.task_ids : null;
-      const rows = requested
-        ? requested.map((id) => ops.readTask(db, id)).filter(Boolean)
-        : ops.listTasks(db, {});
+      const hasTaskIds = Array.isArray(input && input.task_ids);
+      const hasChangeId = typeof input?.change_id === 'string' && input.change_id.trim() !== '';
+      if (hasTaskIds === hasChangeId) {
+        const err = new Error('provide exactly one of task_ids or change_id');
+        err.code = 'VALIDATION_ERROR';
+        throw err;
+      }
+      let rows;
+      if (hasTaskIds) {
+        rows = input.task_ids.map((id) => {
+          const task = ops.readTask(db, id);
+          if (!task) {
+            const err = new Error(`task ${id} not found`);
+            err.code = 'TASK_NOT_FOUND';
+            throw err;
+          }
+          return task;
+        });
+      } else {
+        const change = changes.readChange(db, input.change_id);
+        if (!change) {
+          const err = new Error(`change ${input.change_id} not found`);
+          err.code = 'CHANGE_NOT_FOUND';
+          throw err;
+        }
+        rows = ops.listTasks(db, { change_id: change.id });
+      }
       const graph = rows.map((t) => ({
         id: t.id,
         deps: Array.isArray(t.deps) ? t.deps : [],
@@ -272,6 +307,11 @@ async function dispatchTool(name, input, db, ctx = {}) {
     case 'task.parse_prd': {
       const dryRun = input.dry_run === true;
       const rootDir = ctx.rootDir || process.cwd();
+      if (!dryRun && !String(input.change_id || '').trim()) {
+        const err = new Error('persisting a parsed task graph requires change_id');
+        err.code = 'CHANGE_REQUIRED';
+        throw err;
+      }
       const creationAuthority = { change_id: input.change_id };
       if (!dryRun) changes.assertTaskCreationAllowed(db, creationAuthority, { rootDir });
       const parsed = parser.parsePrd(input.tasks, {
@@ -330,20 +370,34 @@ async function dispatchTool(name, input, db, ctx = {}) {
     }
     case 'plan.export': {
       const rootDir = ctx.rootDir || process.cwd();
+      const change = changes.readChange(db, input.change_id);
+      if (!change) {
+        const err = new Error(`change ${input.change_id} not found`);
+        err.code = 'CHANGE_NOT_FOUND';
+        throw err;
+      }
+      if (!['active', 'blocked'].includes(change.status)) {
+        const err = new Error(`change ${change.id} is ${change.status}`);
+        err.code = 'CHANGE_NOT_MUTABLE';
+        throw err;
+      }
       const abs = path.isAbsolute(input.out_path)
         ? input.out_path
         : path.join(rootDir, input.out_path);
-      const tasks = ops.listTasks(db, { tag: input.tag });
+      const tasks = ops.listTasks(db, { tag: input.tag, change_id: change.id });
       if (tasks.length === 0) {
         const err = new Error('no tasks to plan');
         err.code = 'NO_TASKS';
         throw err;
       }
-      const plan = planStore.buildPlan(tasks, {});
+      const plan = planStore.buildPlan(tasks, { changeId: change.id });
       const { plan_path } = planStore.savePlanArtifact(plan, abs, input.format || 'json');
       ops.appendEvent(db, {
-        type: 'plan_approved',
-        payload: { plan_path, wave_count: plan.waves.length, tag: input.tag || null },
+        type: 'plan_exported',
+        change_id: change.id,
+        payload: {
+          change_id: change.id, plan_path, wave_count: plan.waves.length, tag: input.tag || null,
+        },
       });
       return { plan_path, wave_count: plan.waves.length };
     }
@@ -353,6 +407,13 @@ async function dispatchTool(name, input, db, ctx = {}) {
       if (!loaded) {
         const err = new Error('no plan has been computed yet');
         err.code = 'NO_PLAN';
+        throw err;
+      }
+      if (loaded.change_id !== input.change_id) {
+        const err = new Error(
+          `execution plan belongs to ${loaded.change_id || '(unbound)'}, not ${input.change_id}`,
+        );
+        err.code = 'PLAN_CHANGE_MISMATCH';
         throw err;
       }
       return { plan: planStore.selectSection(loaded, input.section) };
@@ -456,6 +517,44 @@ async function dispatchTool(name, input, db, ctx = {}) {
     case 'change.archive': {
       return changes.archiveChange(db, input, { rootDir: ctx.rootDir || process.cwd() });
     }
+    case 'workflow.start': {
+      return {
+        workflow: workflows.startWorkflow(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
+    case 'workflow.get': {
+      const workflow = workflows.readWorkflow(
+        db, input.id, { rootDir: ctx.rootDir || process.cwd() },
+      );
+      if (!workflow) {
+        const error = new Error(`workflow ${input.id} not found`);
+        error.code = 'WORKFLOW_NOT_FOUND';
+        throw error;
+      }
+      return { workflow };
+    }
+    case 'workflow.list': {
+      const rows = workflows.listWorkflows(
+        db, input || {}, { rootDir: ctx.rootDir || process.cwd() },
+      );
+      return { workflows: rows, count: rows.length };
+    }
+    case 'workflow.step': {
+      return {
+        workflow: workflows.recordWorkflowStep(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
+    case 'workflow.complete': {
+      return {
+        workflow: workflows.completeWorkflow(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
     case 'system.doctor': {
       return doctor.runDoctor(db, {
         rootDir: ctx.rootDir || process.cwd(),
@@ -501,7 +600,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true, project = project
     { capabilities: { tools: {} } },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  server.setRequestHandler('tools/list', async () => ({
     tools: tools.map((t) => ({
       name: t.name,
       description: t.description,
@@ -509,7 +608,7 @@ function startServer({ dbPath, rootDir, projectOnWrite = true, project = project
     })),
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler('tools/call', async (request) => {
     const { name, arguments: args = {} } = request.params;
     const toolStart = Date.now();
     let toolError = null;
@@ -623,6 +722,51 @@ async function main() {
   process.on('SIGINT', cleanup);
 }
 
+function hookMetadata(value, fallback = 'unknown', maxLength = 256) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  return (normalized || fallback).slice(0, maxLength);
+}
+
+function appendHookLifecycleEvent({ rootDir, action, hookInput = {} } = {}) {
+  if (!['start', 'stop'].includes(action)) {
+    const error = new Error('hook lifecycle action must be start or stop');
+    error.code = 'VALIDATION_ERROR';
+    throw error;
+  }
+  const root = path.resolve(rootDir || process.cwd());
+  const dbPath = path.join(root, '.ultra', 'state.db');
+  if (!fs.existsSync(dbPath)) return { recorded: false, reason: 'STATE_DB_MISSING' };
+
+  const db = openStateDb(dbPath);
+  try {
+    ensureSchemaVersion(db);
+    const change = db.prepare(
+      `SELECT id FROM changes WHERE status IN ('active', 'blocked', 'ready')
+       ORDER BY updated_at DESC, rowid DESC LIMIT 1`,
+    ).get();
+    if (!change) return { recorded: false, reason: 'NO_ACTIVE_CHANGE' };
+    const task = db.prepare(
+      `SELECT id FROM tasks WHERE change_id = ? AND status IN ('in_progress', 'pending', 'blocked')
+       ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'blocked' THEN 1 ELSE 2 END,
+                updated_at DESC, rowid DESC LIMIT 1`,
+    ).get(change.id);
+    const payload = {
+      agent_id: hookMetadata(hookInput.agent_id),
+      agent_type: hookMetadata(hookInput.agent_type),
+      host_session_id: hookMetadata(hookInput.session_id, '', 256),
+    };
+    ops.appendEvent(db, {
+      type: action === 'start' ? 'subagent_started' : 'subagent_stopped',
+      change_id: change.id,
+      task_id: task?.id || null,
+      payload,
+    });
+    return { recorded: true, change_id: change.id, task_id: task?.id || null };
+  } finally {
+    closeStateDb(db);
+  }
+}
+
 if (require.main === module) {
   main().catch((err) => {
     process.stderr.write(`mcp-server fatal: ${err.message}\n`);
@@ -639,10 +783,12 @@ module.exports = {
   PLAN_TOOLS,
   BASELINE_TOOLS,
   CHANGE_TOOLS,
+  WORKFLOW_TOOLS,
   SYSTEM_TOOLS,
   REGISTERED_TOOLS,
   STATELESS_TOOLS,
   MUTATING_TOOLS,
+  appendHookLifecycleEvent,
   readProjectBreadcrumb,
   renderProjectBreadcrumb,
 };

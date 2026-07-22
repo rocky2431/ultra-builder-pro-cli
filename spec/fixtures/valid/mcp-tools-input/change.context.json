@@ -3,7 +3,6 @@
   "task_id": "task-1",
   "role": "implement",
   "gate": "implementation",
-  "next_action": "Implement the approved vertical slice.",
   "context_refs": [
     {
       "ref": "README.md",
@@ -17,9 +16,6 @@
     "max_files": 8
   },
   "execution_contract": {
-    "slice_kind": "tracer_bullet",
-    "public_seam": "CLI command boundary",
-    "verification_command": "npm test",
     "context_budget_percent": 40
   }
 }

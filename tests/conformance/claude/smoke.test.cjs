@@ -7,6 +7,8 @@ const path = require('node:path');
 
 const claude = require('../../../adapters/claude.js');
 const { initStateDb, closeStateDb } = require('../../../mcp-server/lib/state-db.cjs');
+const { seedReadyBaseline } = require('../../../mcp-server/test-support/ready-baseline.cjs');
+const { completeChangeInput } = require('../../../mcp-server/test-support/change-contract.cjs');
 const { REPO_ROOT, mkTarget, cleanup, withMcpClient, readToolPayload } = require('../_lib.cjs');
 
 test('claude native plugin — install, MCP round-trip, and scoped uninstall', async () => {
@@ -27,11 +29,9 @@ test('claude native plugin — install, MCP round-trip, and scoped uninstall', a
 
     const statePath = path.join(serverHome, 'state.db');
     const initializedState = initStateDb(statePath);
-    initializedState.db.prepare(
-      `INSERT INTO baselines
-       (id, project_name, mode, status, approved_by, approval_note, converged_at)
-       VALUES ('test-baseline', 'claude-smoke', 'greenfield', 'ready', 'test', 'smoke fixture', ?)`,
-    ).run(new Date().toISOString());
+    seedReadyBaseline(initializedState.db, {
+      rootDir: serverHome, id: 'test-baseline', projectName: 'claude-smoke',
+    });
     closeStateDb(initializedState.db);
 
     await withMcpClient({ dbPath: statePath, rootDir: serverHome }, async (client) => {
@@ -40,9 +40,21 @@ test('claude native plugin — install, MCP round-trip, and scoped uninstall', a
         arguments: { target_dir: initTarget, project_name: 'claude-smoke' },
       });
       assert.equal(readToolPayload(initialized).status, 'created');
+      const change = await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'claude-smoke-change', title: 'Exercise Claude runtime', kind: 'quick',
+          intent: 'Verify the native plugin state round trip.',
+          docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
+        }),
+      });
+      assert.equal(readToolPayload(change).change.id, 'claude-smoke-change');
       const created = await client.callTool({
         name: 'task.create',
-        arguments: { id: 'c-1', title: 'walking skeleton', type: 'architecture', priority: 'P0' },
+        arguments: {
+          id: 'c-1', title: 'walking skeleton', type: 'architecture', priority: 'P0',
+          change_id: 'claude-smoke-change',
+        },
       });
       assert.equal(readToolPayload(created).id, 'c-1');
     });

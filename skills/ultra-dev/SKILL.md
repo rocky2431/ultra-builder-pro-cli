@@ -1,63 +1,58 @@
 ---
 name: ultra-dev
-description: Execute one authoritative Ultra task through a bounded fresh context, a red-green feedback loop, live-path verification, and review. Use when a dependency-ready planned slice is ready for implementation.
+description: Execute one authoritative Ultra task through a fresh-context, test-driven, review-backed live-path slice with resumable DB state. Use when a planned task is ready to implement, resume, or recover after a blocker or interrupted session.
 ---
 
-# Execute one vertical slice
+# Implement one executable task
 
-Drive one task from `pending` to `completed` without widening its contract silently.
+Bind exactly one task and change. Use the host for code reasoning and edits; use Ultra
+MCP for workflow state, context authority, task/session transitions, evidence, and
+recovery.
 
-## Authority and recovery
+## Start or resume
 
-Task state changes use `task.update`. Never write raw SQLite, generated task JSON, or
-projected status fields. If task MCP access fails, stop and route state health to
-`ultra-doctor`.
+1. Read `system.doctor`, `change.breadcrumb`, `task.get`, workflow state, dependencies,
+   active sessions, Git HEAD, and worktree scope.
+2. Resume an existing `dev` workflow or call `workflow.start` with `change_id` and
+   `task_id`. Startup fails when the DB-backed task execution contract is incomplete or
+   owned by another change.
+3. Record `bind-task` with task, dependency, branch, and worktree evidence.
+4. Compile `change.context` for `implement`. It derives public seam, verification, and
+   required refs from the task row. Record its immutable manifest as the
+   `compile-context` output only when ready. That starting snapshot remains historical
+   task evidence; later task commits do not invalidate it when its commit stays on the
+   current ancestry and the task contract is unchanged.
+5. Run session admission before spawning an isolated session. Do not open a second
+   active lease without the documented resume, takeover, or abandon decision.
 
-Read `change.breadcrumb` when a change is active. Stale context, blocked readiness,
-unknown documentation impact, or a HEAD mismatch blocks implementation.
-Baseline-adoption and context-size warnings do not block an active slice. Address
-them when practical without dropping required evidence or arbitrarily changing a
-threshold. Ordinary convergence requires approved baseline availability; revision
-and tracked-spec health are reconciled and verified at archive. An approved
-break-glass incident may finish recovery first and must leave a blocking baseline
-reconciliation gap.
+## Red, green, verify
 
-## Workflow
+1. Reproduce the behavior or establish a characterization signal before logic edits.
+   Record `establish-feedback-loop` with the exact failing command and observed result.
+2. Set the task `in_progress`; implement the smallest complete vertical slice through
+   the declared public seam. Preserve unrelated worktree changes.
+3. Keep application judgment and edits in the host. Do not write projections, raw DB,
+   workflow output digests, or evidence state by hand.
+4. Refactor only inside the accepted slice while the focused signal stays green.
+5. Record `implement-slice`, then run focused, adjacent, static/build, public-seam,
+   error, and recovery checks proportional to risk. Record exact evidence under
+   `verify-slice`.
+6. Run `ultra-review` at the current diff. Record both independent verdict axes under
+   `review-slice`; unresolved blocking findings return to implementation.
 
-1. Select the requested task, otherwise the first dependency-ready pending task.
-2. Call `task.get` and verify acceptance, dependencies, ownership, public seam, and
-   exact verification command.
-3. For a linked change, call `change.get`, then compile `change.context` for the
-   implementation role and gate with the smallest required references.
-4. Mark the task `in_progress` only after the context is ready.
-5. Establish the feedback-loop baseline before changing production logic:
-   - reproduce the smallest observable symptom at the declared seam;
-   - add or identify the contract or regression test;
-   - record the exact command, expected signal, and observed result.
+## Complete or recover
 
-   A feature starts with an assertion for missing behavior. A refactor starts from a
-   green characterization baseline. Documentation or configuration work may use a
-   structural validator when no logic test applies.
-6. Implement the minimum complete path from entry point to public seam. Reuse existing
-   utilities, keep IO at boundaries, include required errors and recovery, and preserve
-   unrelated worktree changes.
-7. If the work reveals a stable requirement or public behavior absent from the
-   baseline, call `change.learning_propose`. Do not edit the baseline silently or keep
-   the discovery only in transient conversation context.
-8. Verify in this order:
-   - the original feedback-loop command;
-   - adjacent focused tests;
-   - proportionate static checks and build;
-   - the live public-seam acceptance path;
-   - final diff and worktree scope.
-9. Run `ultra-review` against the current diff. Fix blocking findings, rerun invalidated
-   checks, and require independent specification-fidelity and engineering verdicts.
-10. Call `task.update` with `status=completed` and exact evidence. For a linked change,
-    recompile the verification context at the final HEAD, then call
-    `change.breadcrumb`.
+Close the admitted session with `session.close` after its final heartbeat and verify
+that no running lease remains for the task. Then update the task to `completed` only
+after acceptance, verification, documentation, and review are current. Record
+`record-completion` with commands, results, changed paths, commit when authorized, and
+context/review references; then call `workflow.complete`. The MCP refuses dev
+convergence while the task is incomplete or a session is still running.
 
-## Completion evidence
+On interruption or an external blocker, record the current step as `blocked`, update
+the task consistently, and preserve the session and evidence. Resume the same run;
+completed steps remain durable. Any code or contract change invalidates affected test,
+review, or context evidence.
 
-Report the task and change ids, changed paths, baseline signal, passing commands,
-public-seam result, review session, specification-learning candidates, and one next
-action. Leave the task in progress or blocked when required evidence is missing.
+Return the task outcome, public seam, changed paths, exact checks, review results,
+workflow id, session state, residual risks, and one next route.

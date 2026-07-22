@@ -89,8 +89,8 @@ function replaceSlashCommand(text, command, replacement) {
 function adaptCodexPrimaryText(input, skillName) {
   let text = String(input);
   if (skillName === 'ultra-review') {
-    text = text.replaceAll(
-      "the current host's native bounded-worker mechanism",
+    text = text.replace(
+      /the current host's native bounded-worker\s+mechanism/g,
       'native Codex custom agents installed for the selected review workers',
     );
   }
@@ -395,6 +395,10 @@ main().catch((error) => {
   fs.copyFileSync(
     path.join(repoRoot, 'mcp-server', 'breadcrumb.cjs'),
     path.join(runtimeRoot, 'breadcrumb.cjs'),
+  );
+  fs.copyFileSync(
+    path.join(repoRoot, 'mcp-server', 'hook-event.cjs'),
+    path.join(runtimeRoot, 'hook-event.cjs'),
   );
 
   const sourceToolsFile = path.join(repoRoot, 'spec', 'mcp-tools.yaml');

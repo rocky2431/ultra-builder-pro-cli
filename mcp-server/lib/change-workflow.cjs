@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const Ajv = require('ajv/dist/2020');
 
 const ops = require('./state-ops.cjs');
 const contextSpine = require('./context-spine.cjs');
@@ -11,9 +12,17 @@ const specLearning = require('./spec-learning.cjs');
 const providerRefs = require('./provider-refs.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
+const workflows = require('./workflow-state.cjs');
+const reconciliationSchema = require('../../spec/schemas/baseline-reconciliation.v1.schema.json');
+
+const reconciliationAjv = new Ajv({ allErrors: true, strict: false });
+const validateReconciliationSchema = reconciliationAjv.compile(reconciliationSchema);
 
 const CHANGE_ID = /^[a-zA-Z0-9_-]+$/;
-const CHANGE_PATCH_FIELDS = new Set(['title', 'intent', 'status', 'docs_impact', 'provider_refs']);
+const CHANGE_PATCH_FIELDS = new Set([
+  'title', 'intent', 'status', 'docs_impact', 'provider_refs',
+  'contract', 'classification', 'research_disposition',
+]);
 const CHANGE_TRANSITIONS = Object.freeze({
   active: new Set(['active', 'blocked', 'cancelled']),
   blocked: new Set(['active', 'blocked', 'cancelled']),
@@ -21,12 +30,14 @@ const CHANGE_TRANSITIONS = Object.freeze({
   archived: new Set(),
   cancelled: new Set(),
 });
-const REQUIRED_EVIDENCE = Object.freeze({
-  quick: ['diff', 'tests', 'spec'],
-  standard: ['diff', 'tests', 'spec', 'docs', 'review'],
-  major: ['diff', 'tests', 'spec', 'docs', 'review'],
-  incident: ['diagnosis', 'diff', 'tests'],
-});
+const CHANGE_KINDS = new Set(['quick', 'standard', 'major', 'incident']);
+const CHANGE_RISK_FLAGS = new Set([
+  'public_contract', 'schema_migration', 'data_migration', 'authorization', 'security',
+  'multi_module', 'external_integration', 'release_semantics',
+]);
+const QUICK_EXCLUSION_FLAGS = new Set(CHANGE_RISK_FLAGS);
+const RESEARCH_DISPOSITIONS = new Set(['none', 'bounded', 'required']);
+const CHANGE_RESEARCH_MODES = new Set(['product', 'feature', 'architecture', 'custom']);
 const INCIDENT_DIAGNOSIS_SECTIONS = Object.freeze([
   { heading: 'Reproduction', key: 'reproduction' },
   { heading: 'Hypotheses', key: 'hypotheses' },
@@ -63,10 +74,18 @@ function rowToChange(row) {
     provider_refs: parseJson(row.provider_refs_json, 'provider_refs_json'),
     baseline_bypass: row.baseline_bypass_json
       ? parseJson(row.baseline_bypass_json, 'baseline_bypass_json') : null,
+    contract: parseJson(row.contract_json || '{}', 'contract_json'),
+    classification: parseJson(row.classification_json || '{}', 'classification_json'),
+    research_disposition: parseJson(
+      row.research_disposition_json || '{}', 'research_disposition_json',
+    ),
   };
   delete change.docs_impact_json;
   delete change.provider_refs_json;
   delete change.baseline_bypass_json;
+  delete change.contract_json;
+  delete change.classification_json;
+  delete change.research_disposition_json;
   return change;
 }
 
@@ -86,6 +105,140 @@ function normalizeDocsImpact(value) {
 
 function normalizeProviderRefs(value) {
   return providerRefs.normalizeProviderRefs(value, ChangeWorkflowError);
+}
+
+function requiredText(value, field) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', `${field} is required`);
+  return text;
+}
+
+function stringList(value, field, { allowEmpty = false } = {}) {
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0)
+    || value.some((item) => typeof item !== 'string' || !item.trim())) {
+    throw new ChangeWorkflowError(
+      'CHANGE_CONTRACT_REQUIRED', `${field} must be ${allowEmpty ? 'an' : 'a non-empty'} array of strings`,
+    );
+  }
+  return [...new Set(value.map((item) => item.trim()))];
+}
+
+function normalizeChangeContract(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', 'contract is required');
+  }
+  if (!Array.isArray(value.acceptance) || value.acceptance.length === 0) {
+    throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', 'contract.acceptance is required');
+  }
+  const ids = new Set();
+  const acceptance = value.acceptance.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', `contract.acceptance[${index}] is invalid`);
+    }
+    const id = requiredText(item.id, `contract.acceptance[${index}].id`);
+    if (!CHANGE_ID.test(id) || ids.has(id)) {
+      throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', `acceptance id is invalid or duplicated: ${id}`);
+    }
+    ids.add(id);
+    return {
+      id,
+      criterion: requiredText(item.criterion, `contract.acceptance[${index}].criterion`),
+      verification: requiredText(item.verification, `contract.acceptance[${index}].verification`),
+    };
+  });
+  const recovery = value.recovery;
+  if (!recovery || typeof recovery !== 'object' || Array.isArray(recovery)) {
+    throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', 'contract.recovery is required');
+  }
+  if (!Array.isArray(value.unresolved_decisions)) {
+    throw new ChangeWorkflowError(
+      'CHANGE_CONTRACT_REQUIRED', 'contract.unresolved_decisions must be an explicit array',
+    );
+  }
+  const decisions = value.unresolved_decisions.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', `unresolved decision ${index} is invalid`);
+    }
+    return {
+      id: requiredText(item.id, `contract.unresolved_decisions[${index}].id`),
+      summary: requiredText(item.summary, `contract.unresolved_decisions[${index}].summary`),
+      blocking: item.blocking === true,
+      owner: item.owner == null ? null : requiredText(item.owner, `contract.unresolved_decisions[${index}].owner`),
+    };
+  });
+  return {
+    outcome: requiredText(value.outcome, 'contract.outcome'),
+    acceptance,
+    non_goals: stringList(value.non_goals, 'contract.non_goals'),
+    public_seams: stringList(value.public_seams, 'contract.public_seams'),
+    recovery: {
+      strategy: requiredText(recovery.strategy, 'contract.recovery.strategy'),
+      verification: requiredText(recovery.verification, 'contract.recovery.verification'),
+    },
+    unresolved_decisions: decisions,
+  };
+}
+
+function normalizeClassification(value, kind) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ChangeWorkflowError('CHANGE_CLASSIFICATION_REQUIRED', 'classification is required');
+  }
+  const flags = stringList(value.risk_flags, 'classification.risk_flags', { allowEmpty: true });
+  const invalid = flags.filter((flag) => !CHANGE_RISK_FLAGS.has(flag));
+  if (invalid.length > 0) {
+    throw new ChangeWorkflowError('CHANGE_CLASSIFICATION_REQUIRED', `unknown risk flags: ${invalid.join(', ')}`);
+  }
+  if (kind === 'quick') {
+    const excluded = flags.filter((flag) => QUICK_EXCLUSION_FLAGS.has(flag));
+    if (excluded.length > 0) {
+      throw new ChangeWorkflowError(
+        'CHANGE_PROFILE_ESCALATION_REQUIRED',
+        `quick changes cannot carry these risk flags: ${excluded.join(', ')}`,
+      );
+    }
+  }
+  return {
+    rationale: requiredText(value.rationale, 'classification.rationale'),
+    risk_flags: flags,
+  };
+}
+
+function normalizeResearchDisposition(value, kind) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ChangeWorkflowError('CHANGE_RESEARCH_DISPOSITION_REQUIRED', 'research_disposition is required');
+  }
+  const status = String(value.status || '').trim();
+  if (!RESEARCH_DISPOSITIONS.has(status)) {
+    throw new ChangeWorkflowError('CHANGE_RESEARCH_DISPOSITION_REQUIRED', 'research disposition status is invalid');
+  }
+  const selectedSteps = stringList(
+    value.selected_steps || [], 'research_disposition.selected_steps', { allowEmpty: true },
+  );
+  const mode = value.mode == null ? null : String(value.mode).trim();
+  if (status === 'none' && (mode !== null || selectedSteps.length > 0)) {
+    throw new ChangeWorkflowError(
+      'CHANGE_RESEARCH_DISPOSITION_REQUIRED', 'research status none cannot select a mode or steps',
+    );
+  }
+  if (status !== 'none' && !CHANGE_RESEARCH_MODES.has(mode)) {
+    throw new ChangeWorkflowError(
+      'CHANGE_RESEARCH_DISPOSITION_REQUIRED', 'bounded or required research needs a supported mode',
+    );
+  }
+  if (mode === 'custom' && selectedSteps.length === 0) {
+    throw new ChangeWorkflowError(
+      'CHANGE_RESEARCH_DISPOSITION_REQUIRED', 'custom research needs selected_steps',
+    );
+  }
+  if (kind === 'quick' && status !== 'none') {
+    throw new ChangeWorkflowError(
+      'CHANGE_PROFILE_ESCALATION_REQUIRED', 'a change that requires research cannot use the quick profile',
+    );
+  }
+  return {
+    status, mode, selected_steps: selectedSteps,
+    rationale: requiredText(value.rationale, 'research_disposition.rationale'),
+  };
 }
 
 function normalizeBaselineBypass(value) {
@@ -130,6 +283,138 @@ function safeRelativePath(rootDir, candidate) {
   return target;
 }
 
+function readReconciliationManifest(db, change, input, rootDir) {
+  const relative = typeof input.reconciliation_path === 'string'
+    ? input.reconciliation_path.trim() : '';
+  if (!relative) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_REQUIRED', 'reconciliation_path is required',
+    );
+  }
+  let file = safeRelativePath(rootDir, relative);
+  const artifactRoot = path.resolve(rootDir, change.artifact_root);
+  if (!file.startsWith(`${artifactRoot}${path.sep}`)) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_REQUIRED',
+      'reconciliation manifest must be a file inside the active change artifact root',
+    );
+  }
+  let manifest;
+  if (!fs.existsSync(file)) {
+    const pending = archiveJournal.listArchiveIntents(rootDir).find(
+      (item) => !item.error && item.intent.change_id === change.id
+        && item.intent.reconciliation_path === relative,
+    );
+    if (pending) {
+      const suffix = path.relative(pending.intent.source, relative);
+      file = path.join(pending.destination, suffix);
+      manifest = pending.intent.reconciliation_manifest;
+    }
+  }
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_REQUIRED', 'reconciliation manifest file is missing',
+    );
+  }
+  try { manifest ||= JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (error) {
+    throw new ChangeWorkflowError('BASELINE_RECONCILIATION_MANIFEST_INVALID', error.message);
+  }
+  if (!validateReconciliationSchema(manifest)) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_INVALID',
+      `reconciliation manifest does not satisfy its published schema: ${reconciliationAjv.errorsText(validateReconciliationSchema.errors)}`,
+      validateReconciliationSchema.errors,
+    );
+  }
+  const baseline = baselines.readBaseline(db);
+  const updates = Array.isArray(input.baseline_updates) ? input.baseline_updates : [];
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)
+    || manifest.$schema !== 'ultra-baseline-reconciliation-v1'
+    || manifest.change_id !== change.id || manifest.baseline_id !== (baseline?.id || null)
+    || JSON.stringify(manifest.baseline_updates) !== JSON.stringify(updates)
+    || !Array.isArray(manifest.semantic_changes)
+    || !Array.isArray(manifest.resolved_gap_ids)
+    || !Array.isArray(manifest.resolved_unknowns)
+    || !Array.isArray(manifest.verification) || manifest.verification.length === 0) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_INVALID', 'reconciliation manifest shape or authority binding is invalid',
+    );
+  }
+  if (manifest.verification.some((item) => (
+    !item || typeof item !== 'object' || item.status !== 'pass'
+    || !String(item.name || '').trim() || !String(item.command || '').trim()
+    || !String(item.evidence || '').trim()
+  ))) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_INVALID', 'every reconciliation verification must be an evidenced pass',
+    );
+  }
+  if (updates.length === 0) {
+    if (manifest.semantic_changes.length > 0
+      || String(manifest.semantic_no_change_reason || '').trim().length < 3) {
+      throw new ChangeWorkflowError(
+        'BASELINE_RECONCILIATION_MANIFEST_INVALID',
+        'no-change reconciliation requires an explicit semantic_no_change_reason and no semantic changes',
+      );
+    }
+  } else if (manifest.semantic_changes.length === 0) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_INVALID', 'baseline updates require semantic change records',
+    );
+  }
+  const specRefs = new Map((baseline?.spec_refs || []).map((ref) => [ref.path, ref]));
+  const semanticPaths = new Set();
+  for (const item of manifest.semantic_changes) {
+    if (!item || typeof item !== 'object' || !CHANGE_ID.test(String(item.id || ''))
+      || !['add', 'update'].includes(item.action)
+      || !/^[0-9a-f]{64}$/.test(String(item.after_digest || ''))) {
+      throw new ChangeWorkflowError(
+        'BASELINE_RECONCILIATION_MANIFEST_INVALID', 'semantic change record is invalid',
+      );
+    }
+    let resolved;
+    try { resolved = workflows.resolveProjectSourceRef(rootDir, item.source_ref, 'semantic_change.source_ref'); }
+    catch (error) {
+      throw new ChangeWorkflowError('BASELINE_RECONCILIATION_MANIFEST_INVALID', error.message);
+    }
+    semanticPaths.add(resolved.relative);
+    if (!updates.includes(resolved.relative) || resolved.digest !== item.after_digest) {
+      throw new ChangeWorkflowError(
+        'BASELINE_RECONCILIATION_MANIFEST_INVALID',
+        `semantic change digest or baseline update binding is invalid: ${item.source_ref}`,
+      );
+    }
+    const before = specRefs.get(resolved.relative)?.digest || null;
+    if ((item.before_digest || null) !== before || item.action !== (before ? 'update' : 'add')) {
+      throw new ChangeWorkflowError(
+        'BASELINE_RECONCILIATION_MANIFEST_INVALID',
+        `semantic change before-state is invalid: ${item.source_ref}`,
+      );
+    }
+  }
+  const missingSemanticUpdates = updates.filter((update) => !semanticPaths.has(update));
+  if (missingSemanticUpdates.length > 0) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_INVALID',
+      `baseline updates have no semantic record: ${missingSemanticUpdates.join(', ')}`,
+    );
+  }
+  const gapIds = new Set((baseline?.gaps || []).map((gap) => gap.id));
+  const unknowns = new Set((baseline?.unknowns || []).map((unknown) => unknown.summary));
+  if (manifest.resolved_gap_ids.some((id) => !gapIds.has(id))
+    || manifest.resolved_unknowns.some((summary) => !unknowns.has(summary))) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_INVALID', 'resolved gap or unknown does not exist in baseline authority',
+    );
+  }
+  const serialized = fs.readFileSync(file);
+  return {
+    manifest, relative, file,
+    digest: crypto.createHash('sha256').update(serialized).digest('hex'),
+  };
+}
+
 function readChange(db, id) {
   return rowToChange(db.prepare('SELECT * FROM changes WHERE id = ?').get(id));
 }
@@ -151,11 +436,24 @@ function writeIntent(file, change) {
     `- Kind: \`${change.kind}\``,
     `- Base commit: \`${change.base_commit || 'unavailable'}\``,
     `- Documentation impact: \`${impact.status}\``,
+    `- Research disposition: \`${change.research_disposition.status}\``,
     '',
     '## Intent',
     '',
     change.intent,
     '',
+    '## Outcome', '', change.contract.outcome, '',
+    '## Acceptance', '',
+    ...change.contract.acceptance.flatMap((item) => [
+      `### ${item.id}`, '', item.criterion, '', `Verification: \`${item.verification}\``, '',
+    ]),
+    '## Public seams', '', ...change.contract.public_seams.map((item) => `- ${item}`), '',
+    '## Non-goals', '', ...change.contract.non_goals.map((item) => `- ${item}`), '',
+    '## Recovery', '', change.contract.recovery.strategy, '',
+    `Verification: \`${change.contract.recovery.verification}\``, '',
+    '## Classification', '', change.classification.rationale, '',
+    `Risk flags: ${change.classification.risk_flags.join(', ') || 'none'}`, '',
+    '## Research routing', '', change.research_disposition.rationale, '',
   ];
   if (impact.rationale) lines.push('## Documentation rationale', '', impact.rationale, '');
   if (change.baseline_bypass) {
@@ -240,23 +538,27 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     ? change.provider_refs
     : normalizeProviderRefs(input.provider_refs);
   const tasks = db.prepare(
-    `SELECT id, title, type, status, priority, complexity, stale, trace_to,
-            context_file, files_modified, session_id, created_at, updated_at
-     FROM tasks WHERE change_id = ? ORDER BY created_at ASC`,
-  ).all(change.id).map((task) => ({ ...task, stale: Boolean(task.stale) }));
+    'SELECT id FROM tasks WHERE change_id = ? ORDER BY created_at ASC',
+  ).all(change.id).map((task) => ops.readTask(db, task.id));
   const specs = Array.isArray(input.spec_refs) ? input.spec_refs : [];
-  const allowedPaths = Array.isArray(input.allowed_paths) ? input.allowed_paths : [];
-  const head = gitHead(rootDir);
   const spine = contextSpine.compileRoleContext(db, { input, change, tasks, rootDir });
+  const snapshotId = `ctx-${crypto.randomUUID().slice(0, 12)}`;
   const manifest = {
     schema_version: '2.0',
+    snapshot_id: snapshotId,
     generated_at: nowIso(),
     change: {
       id: change.id, title: change.title, kind: change.kind, status: change.status,
       intent: change.intent, docs_impact: change.docs_impact, base_commit: change.base_commit,
       baseline_bypass: change.baseline_bypass,
+      contract: change.contract, classification: change.classification,
+      research_disposition: change.research_disposition,
     },
-    git: { head },
+    git: {
+      head: spine.resume.git_head,
+      worktree_state: spine.resume.worktree_state,
+      worktree_digest: spine.resume.worktree_digest,
+    },
     tasks,
     selected_task: spine.selected_task,
     specs,
@@ -270,11 +572,11 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     resume: spine.resume,
     providers,
     provider_boundary: 'metadata references only; memory and code graph content remain external',
-    tool_policy: { allowed_paths: allowedPaths },
   };
   const artifactDir = path.resolve(rootDir, change.artifact_root);
   fs.mkdirSync(artifactDir, { recursive: true });
-  const manifestPath = path.join(artifactDir, 'context-manifest.json');
+  const manifestPath = path.join(artifactDir, 'contexts', `${snapshotId}.json`);
+  fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
   const serialized = `${JSON.stringify(manifest, null, 2)}\n`;
   fs.writeFileSync(manifestPath, serialized);
   const hash = crypto.createHash('sha256').update(serialized).digest('hex');
@@ -288,8 +590,8 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
         token_estimate, token_budget)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
-      `ctx-${crypto.randomUUID().slice(0, 12)}`, change.id, input.task_id || null,
-      head, JSON.stringify(providers), relative, hash,
+      snapshotId, change.id, input.task_id || null,
+      spine.resume.git_head, JSON.stringify(providers), relative, hash,
       spine.role, spine.gate, spine.next_action, spine.readiness.status,
       JSON.stringify(spine.readiness.blockers), JSON.stringify(spine),
       spine.context.token_estimate, spine.context.budget.max_tokens,
@@ -298,7 +600,9 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
       change_id: change.id, task_id: input.task_id || null, kind: 'context_manifest',
       artifactPath: relative, contentHash: hash,
       metadata: {
-        git_head: head, role: spine.role, gate: spine.gate,
+        git_head: spine.resume.git_head,
+        worktree_digest: spine.resume.worktree_digest,
+        role: spine.role, gate: spine.gate,
         readiness: spine.readiness.status, token_estimate: spine.context.token_estimate,
       },
     });
@@ -314,11 +618,35 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     ops.appendEventInTx(db, {
       type: 'context_updated', change_id: change.id, task_id: input.task_id || null,
       payload: {
-        manifest_path: relative, manifest_hash: hash, git_head: head,
+        manifest_path: relative, manifest_hash: hash, git_head: spine.resume.git_head,
+        worktree_digest: spine.resume.worktree_digest,
         role: spine.role, gate: spine.gate, readiness: spine.readiness.status,
         next_action: spine.next_action,
       },
     });
+    const linkedWorkflow = db.prepare(
+      `SELECT id FROM workflow_runs
+       WHERE kind = 'change' AND change_id = ? AND current_step = 'compile-context'
+         AND status IN ('active', 'blocked')
+       ORDER BY updated_at DESC, rowid DESC LIMIT 1`,
+    ).get(change.id);
+    if (linkedWorkflow) {
+      if (spine.readiness.status === 'ready') {
+        workflows.recordWorkflowStep(db, {
+          id: linkedWorkflow.id, step_id: 'compile-context', status: 'completed',
+          evidence: [{
+            kind: 'context', ref: relative,
+            summary: `Role ${spine.role} context is ready for ${input.task_id || 'change planning'}.`,
+          }],
+          outputs: [{ path: relative, kind: 'context-manifest' }],
+        }, { rootDir });
+      } else {
+        workflows.recordWorkflowStep(db, {
+          id: linkedWorkflow.id, step_id: 'compile-context', status: 'blocked',
+          blockers: spine.readiness.blockers,
+        }, { rootDir });
+      }
+    }
   });
   return { manifest, context_manifest_path: manifestPath, manifest_hash: hash };
 }
@@ -332,7 +660,7 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
       'id plus non-blank title and intent of at least three characters are required',
     );
   }
-  if (!REQUIRED_EVIDENCE[input.kind]) {
+  if (!CHANGE_KINDS.has(input.kind)) {
     throw new ChangeWorkflowError('VALIDATION_ERROR', `invalid change kind: ${input.kind}`);
   }
   if (input.baseline_bypass !== undefined && input.kind !== 'incident') {
@@ -359,6 +687,9 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
   }
   const docsImpact = normalizeDocsImpact(input.docs_impact);
   const providers = normalizeProviderRefs(input.provider_refs);
+  const contract = normalizeChangeContract(input.contract);
+  const classification = normalizeClassification(input.classification, input.kind);
+  const researchDisposition = normalizeResearchDisposition(input.research_disposition, input.kind);
   const artifactRoot = path.join('.ultra', 'changes', 'active', input.id);
   const artifactDir = path.resolve(rootDir, artifactRoot);
   if (fs.existsSync(artifactDir)) {
@@ -368,6 +699,7 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
   const row = {
     id: input.id, title, kind: input.kind, status: 'active',
     intent, docs_impact: docsImpact, provider_refs: providers, baseline_bypass: baselineBypass,
+    contract, classification, research_disposition: researchDisposition,
     base_commit: input.base_commit || gitHead(rootDir), artifact_root: artifactRoot,
     created_at: ts, updated_at: ts,
   };
@@ -376,13 +708,15 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
       db.prepare(
         `INSERT INTO changes
          (id, title, kind, status, intent, docs_impact_json, provider_refs_json,
-          baseline_bypass_json, base_commit, artifact_root, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          baseline_bypass_json, contract_json, classification_json,
+          research_disposition_json, base_commit, artifact_root, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         row.id, row.title, row.kind, row.status, row.intent, JSON.stringify(row.docs_impact),
         JSON.stringify(row.provider_refs), row.baseline_bypass
           ? JSON.stringify(row.baseline_bypass) : null,
-        row.base_commit, row.artifact_root, ts, ts,
+        JSON.stringify(row.contract), JSON.stringify(row.classification),
+        JSON.stringify(row.research_disposition), row.base_commit, row.artifact_root, ts, ts,
       );
       fs.mkdirSync(artifactDir, { recursive: true });
       const intentPath = path.join(artifactDir, 'intent.md');
@@ -406,10 +740,41 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
         type: 'change_created', change_id: row.id,
         payload: { kind: row.kind, artifact_root: row.artifact_root },
       });
+      let workflow = workflows.startWorkflow(db, {
+        kind: 'change', baseline_id: baselineHealth.baseline?.id || null,
+        change_id: row.id, subject: `Establish executable readiness for ${row.title}.`,
+        metadata: { change_kind: row.kind, base_commit: row.base_commit },
+      }, { rootDir });
       const context = compileContext(db, { id: row.id }, { rootDir });
+      workflow = workflows.recordWorkflowStep(db, {
+        id: workflow.id, step_id: 'bind-baseline', status: 'completed',
+        evidence: [{
+          kind: 'baseline', ref: baselineHealth.baseline?.id || 'incident-break-glass',
+          summary: baselineHealth.status === 'pass'
+            ? `Bound ready baseline at ${baselineHealth.baseline.repository_revision}.`
+            : 'Bound the approved incident break-glass authority.',
+        }],
+      }, { rootDir });
+      workflow = workflows.recordWorkflowStep(db, {
+        id: workflow.id, step_id: 'classify-change', status: 'completed',
+        decisions: [{
+          kind: 'change_kind', value: row.kind,
+          rationale: row.classification.rationale, risk_flags: row.classification.risk_flags,
+        }],
+      }, { rootDir });
+      workflow = workflows.recordWorkflowStep(db, {
+        id: workflow.id, step_id: 'record-intent', status: 'completed',
+        evidence: [{ kind: 'intent', ref: path.relative(rootDir, intentPath), summary: row.intent }],
+        outputs: [{ path: path.relative(rootDir, intentPath), kind: 'change-intent' }],
+        decisions: [{
+          kind: 'change_contract', acceptance_ids: row.contract.acceptance.map((item) => item.id),
+          research_disposition: row.research_disposition,
+        }],
+      }, { rootDir });
       return {
         change: readChange(db, row.id), intent_path: intentPath,
         context_manifest_path: context.context_manifest_path,
+        workflow,
       };
     });
   } catch (error) {
@@ -428,15 +793,14 @@ function assertTaskCreationAllowed(db, input = {}, { rootDir = process.cwd() } =
   }
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
   if (baselineHealth.status === 'pass') return;
-  if (change) {
-    // The change writer gate already proved that this work either started from
-    // healthy authority or carries an approved incident break-glass record.
-    return;
-  }
+  const gate = change
+    ? contextSpine.baselineGateForChange(db, change, baselineHealth)
+    : { blockers: baselineHealth.blockers };
+  if (gate.blockers.length === 0) return;
   throw new ChangeWorkflowError(
     'BASELINE_NOT_READY',
-    `ordinary task creation requires a ready baseline or an already-authorized active change: ${baselineHealth.blockers.join(', ')}`,
-    { blockers: baselineHealth.blockers, change_id: input.change_id || null },
+    `task creation requires healthy baseline authority or an approved incident break-glass record: ${gate.blockers.join(', ')}`,
+    { blockers: gate.blockers, change_id: input.change_id || null },
   );
 }
 
@@ -451,7 +815,9 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
       throw new ChangeWorkflowError('VALIDATION_ERROR', `change field ${field} is not patchable`);
     }
   }
-  const syncIntent = ['title', 'intent', 'docs_impact'].some((field) => patch[field] !== undefined);
+  const syncIntent = [
+    'title', 'intent', 'docs_impact', 'contract', 'classification', 'research_disposition',
+  ].some((field) => patch[field] !== undefined);
   const intentPath = path.resolve(rootDir, current.artifact_root, 'intent.md');
   const previousIntent = syncIntent && fs.existsSync(intentPath)
     ? fs.readFileSync(intentPath)
@@ -475,6 +841,17 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
       }
       if (patch.provider_refs !== undefined) {
         sets.push('provider_refs_json = ?'); values.push(JSON.stringify(normalizeProviderRefs(patch.provider_refs)));
+      }
+      if (patch.contract !== undefined) {
+        sets.push('contract_json = ?'); values.push(JSON.stringify(normalizeChangeContract(patch.contract)));
+      }
+      if (patch.classification !== undefined) {
+        sets.push('classification_json = ?');
+        values.push(JSON.stringify(normalizeClassification(patch.classification, current.kind)));
+      }
+      if (patch.research_disposition !== undefined) {
+        sets.push('research_disposition_json = ?');
+        values.push(JSON.stringify(normalizeResearchDisposition(patch.research_disposition, current.kind)));
       }
       if (patch.status !== undefined) {
         const allowed = CHANGE_TRANSITIONS[current.status] || new Set();
@@ -522,65 +899,87 @@ function filesUnder(dir) {
   return out;
 }
 
-function evidenceBlockers(change, evidence, tasks) {
-  const blockers = [];
-  const rows = Array.isArray(evidence) ? evidence : [];
-  const byCategory = new Map(rows.map((row) => [row.category, row]));
-  for (const category of REQUIRED_EVIDENCE[change.kind].filter((value) => value !== 'review')) {
-    const row = byCategory.get(category);
-    if (!row) blockers.push(`EVIDENCE_MISSING:${category}`);
-    else if (!['pass', 'not_applicable'].includes(row.status)) blockers.push(`EVIDENCE_FAILED:${category}`);
-    else if (!row.evidence || String(row.evidence).trim().length < 3) blockers.push(`EVIDENCE_EMPTY:${category}`);
-  }
-  if (['standard', 'major'].includes(change.kind)) {
-    const reviews = rows.filter((row) => row.category === 'review');
-    for (const axis of ['spec_fidelity', 'engineering_standards']) {
-      const row = reviews.find((candidate) => candidate.axis === axis);
-      if (!row) blockers.push(`REVIEW_AXIS_MISSING:${axis}`);
-      else if (row.status !== 'pass') blockers.push(`REVIEW_AXIS_FAILED:${axis}`);
-      else if (!row.evidence || String(row.evidence).trim().length < 3) {
-        blockers.push(`REVIEW_AXIS_EMPTY:${axis}`);
-      }
-    }
-  }
-  const tests = byCategory.get('tests');
-  if (tests && ['standard', 'major', 'incident'].includes(change.kind)
-    && (!tests.seam || String(tests.seam).trim().length < 3)) {
-    blockers.push('TEST_SEAM_MISSING');
-  }
-  if (tests && (change.kind === 'incident' || tasks.some((task) => task.type === 'bugfix'))) {
-    const signal = tests.signal;
-    if (!signal) blockers.push('TEST_RED_SIGNAL_MISSING');
-    else {
-      if (!signal.command || String(signal.command).trim().length < 3) blockers.push('TEST_SIGNAL_COMMAND_MISSING');
-      if (!signal.expected_red || String(signal.expected_red).trim().length < 3) blockers.push('TEST_EXPECTED_RED_MISSING');
-      if (signal.observed_red !== true) blockers.push('TEST_RED_NOT_OBSERVED');
-      if (signal.observed_green !== true) blockers.push('TEST_GREEN_NOT_OBSERVED');
-      if (signal.deterministic !== true) blockers.push('TEST_SIGNAL_NOT_DETERMINISTIC');
-    }
-  }
-  return blockers;
+function baselineConvergenceBlockers(db, change, rootDir) {
+  const baselineHealth = baselines.inspectBaseline(db, { rootDir });
+  return contextSpine.baselineGateForChange(db, change, baselineHealth).blockers;
 }
 
-function baselineConvergenceBlockers(db, change, rootDir) {
-  const baseline = baselines.readBaseline(db);
-  if (baseline && baseline.status === 'ready' && baseline.mode !== 'migrated') return [];
-  if (change.kind === 'incident' && change.baseline_bypass?.mode === 'incident_break_glass') {
-    return [];
+function deriveConvergenceEvidence(db, change, tasks, workflowGate, diagnosis, rootDir) {
+  const devRuns = db.prepare(
+    `SELECT id, task_id, summary_json FROM workflow_runs
+     WHERE kind = 'dev' AND change_id = ? AND status = 'completed'
+     ORDER BY completed_at ASC, rowid ASC`,
+  ).all(change.id).map((row) => ({
+    id: row.id, task_id: row.task_id, summary: parseJson(row.summary_json, 'workflow_runs.summary_json'),
+  }));
+  const deltaPaths = filesUnder(path.join(rootDir, change.artifact_root, 'delta'))
+    .map((file) => path.relative(rootDir, file));
+  const appliedLearning = specLearning.listSpecLearning(db, change.id)
+    .filter((candidate) => candidate.status === 'applied')
+    .map((candidate) => candidate.target_ref);
+  const rows = [
+    {
+      category: 'diff', status: 'pass',
+      evidence: `Completed dev workflows: ${devRuns.map((run) => `${run.task_id}:${run.id}`).join(', ')}`,
+      refs: devRuns.map((run) => run.id),
+    },
+    {
+      category: 'tests', status: 'pass',
+      evidence: `DB-derived passing test workflow ${workflowGate.test_workflow_id}.`,
+      refs: [workflowGate.test_summary.report_path, workflowGate.test_summary.report_digest].filter(Boolean),
+      regression_signal: workflowGate.test_summary.regression_signal || null,
+    },
+    {
+      category: 'spec', status: 'pass',
+      evidence: deltaPaths.length > 0
+        ? `Current delta artifacts: ${deltaPaths.join(', ')}`
+        : `Change intent and resolved specification learning for ${change.id}.`,
+      refs: [...deltaPaths, ...appliedLearning],
+    },
+    {
+      category: 'docs', status: 'pass',
+      evidence: change.docs_impact.status === 'required'
+        ? `Declared documentation files: ${change.docs_impact.files.join(', ')}`
+        : `No documentation change: ${change.docs_impact.rationale}`,
+      refs: change.docs_impact.files,
+    },
+    ...['spec_fidelity', 'engineering_standards'].map((axis) => ({
+      category: 'review', axis, status: 'pass',
+      evidence: `DB-derived ${axis} verdict from ${workflowGate.review_workflow_id}.`,
+      refs: workflowGate.review_summary.axes?.[axis]?.evidence_refs || [],
+    })),
+  ];
+  if (diagnosis.artifact) {
+    rows.unshift({
+      category: 'diagnosis', status: 'pass',
+      evidence: `Structured incident diagnosis ${diagnosis.artifact.artifactPath}.`,
+      refs: [diagnosis.artifact.artifactPath, diagnosis.artifact.contentHash],
+    });
   }
-  if (!baseline) return ['BASELINE_MISSING'];
-  if (baseline.mode === 'migrated') return ['BASELINE_MIGRATION_REVIEW_REQUIRED'];
-  return [`BASELINE_NOT_READY:${baseline.status}`];
+  return rows;
 }
 
 function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
+  if (Object.hasOwn(input || {}, 'evidence')) {
+    throw new ChangeWorkflowError(
+      'CONVERGENCE_EVIDENCE_AUTHORITY_VIOLATION',
+      'change convergence evidence is derived from DB-backed dev, test, review, specification, and documentation authority',
+    );
+  }
   const change = readChange(db, input.id);
   if (!change) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${input.id} not found`);
   if (!['active', 'blocked'].includes(change.status)) {
     throw new ChangeWorkflowError('CHANGE_NOT_CONVERGEABLE', `change ${input.id} is ${change.status}`);
   }
-  const tasks = db.prepare('SELECT id, type, status, stale FROM tasks WHERE change_id = ? ORDER BY id').all(change.id);
-  const blockers = new Set(evidenceBlockers(change, input.evidence, tasks));
+  const tasks = db.prepare('SELECT id FROM tasks WHERE change_id = ? ORDER BY id')
+    .all(change.id).map((task) => ops.readTask(db, task.id));
+  const blockers = new Set();
+  let workflowGate = null;
+  try {
+    workflowGate = workflows.validateDeliveryPrerequisites(db, { change_id: change.id }, rootDir);
+  } catch (error) {
+    blockers.add(error.code || 'WORKFLOW_GATE_UNAVAILABLE');
+  }
   for (const blocker of baselineConvergenceBlockers(db, change, rootDir)) blockers.add(blocker);
   if (tasks.length === 0) blockers.add('NO_TASKS');
   if (tasks.some((task) => !['completed', 'expanded'].includes(task.status))) blockers.add('TASKS_INCOMPLETE');
@@ -624,11 +1023,24 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
     if (filesUnder(path.join(artifactDir, 'delta')).length === 0) blockers.add('SPEC_DELTA_MISSING');
     if (!fs.existsSync(path.join(artifactDir, 'plan.md'))) blockers.add('CHANGE_PLAN_MISSING');
   }
-  const manifestPath = path.join(artifactDir, 'context-manifest.json');
-  if (!fs.existsSync(manifestPath)) blockers.add('CONTEXT_MANIFEST_MISSING');
+  const latestContext = db.prepare(
+    `SELECT manifest_path, manifest_hash FROM context_snapshots
+     WHERE change_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+  ).get(change.id);
+  const manifestPath = latestContext?.manifest_path
+    ? safeRelativePath(rootDir, latestContext.manifest_path)
+    : null;
+  if (!manifestPath || !fs.existsSync(manifestPath)) blockers.add('CONTEXT_MANIFEST_MISSING');
   else {
     const manifest = parseJson(fs.readFileSync(manifestPath, 'utf8'), 'context-manifest.json');
+    const manifestHash = crypto.createHash('sha256').update(fs.readFileSync(manifestPath)).digest('hex');
+    if (latestContext.manifest_hash !== manifestHash) blockers.add('CONTEXT_MANIFEST_STALE');
     if (manifest.git && manifest.git.head !== gitHead(rootDir)) blockers.add('CONTEXT_HEAD_STALE');
+    const checkout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
+    if (manifest.git?.worktree_digest && checkout.digest
+      && manifest.git.worktree_digest !== checkout.digest) {
+      blockers.add('CONTEXT_WORKTREE_STALE');
+    }
     const manifestTasks = (manifest.tasks || []).map((task) => task.id).sort();
     const currentTasks = tasks.map((task) => task.id).sort();
     if (JSON.stringify(manifestTasks) !== JSON.stringify(currentTasks)) blockers.add('CONTEXT_TASK_SET_STALE');
@@ -652,10 +1064,13 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
     return { ready: false, status: 'blocked', blockers: blockerList };
   }
 
+  const derivedEvidence = deriveConvergenceEvidence(
+    db, change, tasks, workflowGate, diagnosis, rootDir,
+  );
   const verificationPath = path.join(artifactDir, 'verification.md');
   const lines = [
     `# Verification: ${change.title}`, '',
-    ...input.evidence.flatMap((row) => [
+    ...derivedEvidence.flatMap((row) => [
       `## ${row.category}${row.axis ? `:${row.axis}` : ''}`, '',
       `Status: **${row.status}**`, '', String(row.evidence).trim(), '',
     ]),
@@ -668,11 +1083,11 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
     upsertArtifact(db, {
       change_id: change.id, kind: 'verification', artifactPath: path.relative(rootDir, verificationPath),
       contentHash: crypto.createHash('sha256').update(fs.readFileSync(verificationPath)).digest('hex'),
-      metadata: { evidence: input.evidence },
+      metadata: { evidence: derivedEvidence },
     });
     ops.appendEventInTx(db, {
       type: 'change_converged', change_id: change.id,
-      payload: { evidence_categories: input.evidence.map((row) => row.category) },
+      payload: { evidence_categories: derivedEvidence.map((row) => row.category) },
     });
   });
   return { ready: true, status: 'ready', blockers: [], verification_path: verificationPath };
@@ -711,6 +1126,36 @@ function finalizeArchive(db, intent, { rootDir }) {
       db.prepare('UPDATE artifacts SET path = ?, updated_at = ? WHERE id = ?')
         .run(archivedPath, nowIso(), artifact.id);
     }
+    const workflowOutputs = db.prepare(
+      `SELECT ws.run_id, ws.step_id, ws.outputs_json
+       FROM workflow_steps ws JOIN workflow_runs wr ON wr.id = ws.run_id
+       WHERE wr.change_id = ?`,
+    ).all(change.id);
+    for (const step of workflowOutputs) {
+      const outputs = parseJson(step.outputs_json, 'workflow_steps.outputs_json');
+      let changed = false;
+      const moved = outputs.map((output) => {
+        if (output.path !== intent.source && !output.path.startsWith(prefix)) return output;
+        changed = true;
+        const suffix = path.relative(intent.source, output.path);
+        return { ...output, path: suffix ? path.join(relative, suffix) : relative };
+      });
+      if (changed) {
+        db.prepare(
+          'UPDATE workflow_steps SET outputs_json = ?, updated_at = ? WHERE run_id = ? AND step_id = ?',
+        ).run(JSON.stringify(moved), nowIso(), step.run_id, step.step_id);
+      }
+    }
+    const contextRows = db.prepare(
+      'SELECT id, manifest_path FROM context_snapshots WHERE change_id = ?',
+    ).all(change.id);
+    for (const snapshot of contextRows) {
+      if (snapshot.manifest_path !== intent.source && !snapshot.manifest_path.startsWith(prefix)) continue;
+      const suffix = path.relative(intent.source, snapshot.manifest_path);
+      const archivedPath = suffix ? path.join(relative, suffix) : relative;
+      db.prepare('UPDATE context_snapshots SET manifest_path = ? WHERE id = ?')
+        .run(archivedPath, snapshot.id);
+    }
     const archivedSummary = path.join(destination, 'archive-summary.md');
     upsertArtifact(db, {
       change_id: change.id, kind: 'archive_summary',
@@ -719,6 +1164,19 @@ function finalizeArchive(db, intent, { rootDir }) {
       metadata: {
         baseline_updates: intent.baseline_updates,
         no_baseline_change_reason: intent.no_baseline_change_reason,
+      },
+    });
+    const reconciliationSuffix = path.relative(intent.source, intent.reconciliation_path);
+    const archivedReconciliationPath = path.join(relative, reconciliationSuffix);
+    upsertArtifact(db, {
+      change_id: change.id, kind: 'baseline_reconciliation',
+      artifactPath: archivedReconciliationPath,
+      contentHash: intent.reconciliation_digest,
+      metadata: {
+        schema: intent.reconciliation_manifest.$schema,
+        semantic_changes: intent.reconciliation_manifest.semantic_changes.map((item) => item.id),
+        resolved_gap_ids: intent.reconciliation_manifest.resolved_gap_ids,
+        resolved_unknowns: intent.reconciliation_manifest.resolved_unknowns,
       },
     });
     db.prepare("UPDATE artifacts SET status = 'archived', updated_at = ? WHERE change_id = ?")
@@ -742,6 +1200,7 @@ function finalizeArchive(db, intent, { rootDir }) {
     } else {
       baselines.reconcileBaseline(db, {
         baseline_updates: intent.baseline_updates, change_id: change.id,
+        reconciliation: intent.reconciliation_manifest,
       }, { rootDir });
       const baselineHealth = baselines.inspectBaseline(db, { rootDir });
       if (baselineHealth.blockers.length > 0) {
@@ -757,6 +1216,8 @@ function finalizeArchive(db, intent, { rootDir }) {
       payload: {
         archive_path: relative, baseline_updates: intent.baseline_updates,
         no_baseline_change_reason: intent.no_baseline_change_reason,
+        reconciliation_path: archivedReconciliationPath,
+        reconciliation_digest: intent.reconciliation_digest,
         baseline_bypass: breakGlass,
       },
     });
@@ -786,9 +1247,13 @@ function archiveChange(db, input, { rootDir = process.cwd() } = {}) {
   if (!['ready', 'archived'].includes(change.status)) {
     throw new ChangeWorkflowError('CHANGE_NOT_READY', `change ${input.id} must converge before archive`);
   }
+  const reconciliation = readReconciliationManifest(db, change, input, rootDir);
   const prepared = archiveJournal.prepareArchiveMove({
     rootDir, change, summary: String(input.summary), baselineUpdates: updates,
     noBaselineChangeReason: noChangeReason || null,
+    reconciliationPath: reconciliation.relative,
+    reconciliationDigest: reconciliation.digest,
+    reconciliationManifest: reconciliation.manifest,
   });
   let result;
   try {

@@ -25,6 +25,7 @@ families:
   - { name: plan,    description: 'execution-plan artifact export and query (D34)', phase: '8a' }
   - { name: baseline, description: 'project adoption, baseline evidence, convergence, and drift authority', phase: '11' }
   - { name: change,  description: 'continuous post-delivery change lifecycle and convergence', phase: '9' }
+  - { name: workflow, description: 'durable cross-stage run position, evidence, outputs, blockers, and recovery', phase: '13' }
   - { name: system,  description: 'read-only diagnostics and explicit backup-first repair', phase: '9' }
 
 tools:
@@ -51,6 +52,48 @@ tools:
         parent_id:      { type: string, description: 'Phase 8A.3 parent reference; the child inherits this task change ownership' }
         tag:            { type: string, description: 'git branch tag (Phase 7.2)' }
         trace_to:       { type: string, description: 'spec anchor (e.g. spec/mcp-tools.yaml#task.create)' }
+        outcome:        { type: string, minLength: 1, description: 'observable result owned by this task' }
+        slice_kind:     { type: string, enum: [tracer_bullet, expand_contract, integration_checkpoint] }
+        public_seam:    { type: string, minLength: 1, description: 'public or integration seam exercised by the slice' }
+        verification_command: { type: string, minLength: 1, description: 'exact task-level verification command' }
+        acceptance:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [id, criterion, verification]
+            additionalProperties: false
+            properties:
+              id: { type: string, minLength: 1 }
+              criterion: { type: string, minLength: 1 }
+              verification: { type: string, minLength: 1 }
+        context_refs:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [ref, reason]
+            additionalProperties: false
+            properties:
+              ref: { type: string, minLength: 1 }
+              reason: { type: string, minLength: 1 }
+              kind: { type: string, enum: [spec, source, test, docs, external], default: source }
+              required: { type: boolean, default: true }
+        docs_impact:
+          type: object
+          required: [status, files, rationale]
+          additionalProperties: false
+          properties:
+            status: { type: string, enum: [unknown, required, none] }
+            files: { type: array, items: { type: string, minLength: 1 } }
+            rationale: { type: ['string', 'null'] }
+        ownership:
+          type: object
+          required: [owner]
+          additionalProperties: false
+          properties:
+            owner: { type: string, minLength: 1 }
+            reviewers: { type: array, items: { type: string, minLength: 1 }, default: [] }
         change_id:      { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'active or blocked continuous change unit owning this task; inherited from parent_id when omitted' }
     output_schema:
       type: object
@@ -98,6 +141,15 @@ tools:
             session_id:    { type: string }
             stale:         { type: boolean }
             tag:           { type: string }
+            trace_to:      { type: string }
+            outcome:       { type: string, minLength: 1 }
+            slice_kind:    { type: string, enum: [tracer_bullet, expand_contract, integration_checkpoint] }
+            public_seam:   { type: string, minLength: 1 }
+            verification_command: { type: string, minLength: 1 }
+            acceptance:    { type: array, items: { type: object } }
+            context_refs:  { type: array, items: { type: object } }
+            docs_impact:   { type: object }
+            ownership:     { type: object }
             completion_commit: { type: string, pattern: '^[0-9a-f]{7,40}$' }
             change_id:    { type: ['string', 'null'], pattern: '^[a-zA-Z0-9_\-]+$' }
     output_schema:
@@ -114,6 +166,7 @@ tools:
       - { code: CHANGE_NOT_FOUND, description: 'assigned change does not exist' }
       - { code: CHANGE_NOT_MUTABLE, description: 'assigned change no longer accepts task updates' }
       - { code: TASK_CHANGE_OWNERSHIP_MISMATCH, description: 'task ownership conflicts with its parent or children' }
+      - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'task is not executable until its outcome, seam, checks, evidence context, docs impact, ownership, and traceability are complete' }
       - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'non-empty v4.4 projection must be migrated before state-backed tools can run' }
     cli_subcommand: task update
     emits_events: [task_started, task_completed, task_blocked, task_stale_marked]
@@ -131,6 +184,7 @@ tools:
       properties:
         status: { type: string, enum: [pending, in_progress, completed, blocked, expanded, any] }
         tag:    { type: string }
+        change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
         since:  { type: string, format: date-time }
         limit:  { type: integer, minimum: 1, maximum: 1000 }
     output_schema:
@@ -274,7 +328,7 @@ tools:
           description: override path to the template root (defaults to bundled templates/.ultra/)
     output_schema:
       type: object
-      required: [created_path, state_db_path, status, mode, baseline, copied_files, repository_profile]
+      required: [created_path, state_db_path, status, mode, baseline, copied_files, repository_profile, workflow]
       additionalProperties: false
       properties:
         created_path:
@@ -300,6 +354,9 @@ tools:
         repository_profile:
           type: object
           description: bounded classification evidence used to route greenfield or brownfield adoption
+        workflow:
+          type: object
+          description: durable initialization and research run ids, states, mode, and exact next route
         backup_path:
           type: string
           description: set only when status=overwritten
@@ -401,6 +458,7 @@ tools:
     errors:
       - { code: PARSE_FAILED, description: 'the host-derived PRD task graph is invalid' }
       - { code: CYCLE_DETECTED, description: 'the proposed task graph contains a dependency cycle' }
+      - { code: CHANGE_REQUIRED, description: 'persisting a parsed task graph requires an owning change_id' }
       - { code: CHANGE_NOT_FOUND, description: 'assigned change does not exist' }
       - { code: CHANGE_NOT_MUTABLE, description: 'assigned change no longer accepts tasks' }
       - { code: BASELINE_NOT_READY, description: 'persisting parsed tasks requires a ready baseline or an already-authorized active change' }
@@ -416,8 +474,12 @@ tools:
     input_schema:
       type: object
       additionalProperties: false
+      oneOf:
+        - required: [task_ids]
+        - required: [change_id]
       properties:
-        task_ids: { type: array, items: { type: string } }
+        task_ids: { type: array, minItems: 1, uniqueItems: true, items: { type: string } }
+        change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
     output_schema:
       type: object
       required: [waves]
@@ -427,13 +489,15 @@ tools:
         cycles: { type: array, items: { type: array, items: { type: string } } }
     errors:
       - { code: CYCLE_DETECTED, description: 'dependency graph has cycles' }
+      - { code: TASK_NOT_FOUND, description: 'an explicitly requested task does not exist' }
+      - { code: CHANGE_NOT_FOUND, description: 'the requested owning change does not exist' }
     cli_subcommand: task topo
     emits_events: []
     trace_to: '§7.3, D34'
 
   - name: task.append_event
     family: task
-    description: Append a row to events table. Returns assigned id (subscribe cursor).
+    description: Append a non-authoritative observation to the event timeline. Lifecycle events are emitted only by their owning mutation tools. Returns the assigned subscribe cursor.
     phase: '2'
     writer_role: any
     input_schema:
@@ -448,35 +512,12 @@ tools:
         type:
           type: string
           enum:
-            - task_created
-            - task_started
-            - task_completed
-            - task_failed
-            - task_blocked
-            - task_expanded
-            - task_stale_marked
-            - session_spawned
-            - session_closed
-            - session_crashed
-            - session_orphaned
-            - session_heartbeat_lost
-            - spec_changed
             - context_updated
-            - plan_approved
             - commit_pushed
-            - review_verdict
             - merge_conflict
-            - auto_merged
             - cost_alert
             - token_alert
             - circuit_open
-            - change_created
-            - change_updated
-            - change_blocked
-            - change_converged
-            - change_archived
-            - spec_learning_proposed
-            - spec_learning_resolved
         payload: { type: object }
     output_schema:
       type: object
@@ -958,13 +999,71 @@ tools:
     writer_role: mcp
     input_schema:
       type: object
-      required: [id, title, kind, intent]
+      required: [id, title, kind, intent, contract, classification, research_disposition]
       additionalProperties: false
       properties:
         id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
         title: { type: string, minLength: 3 }
         kind: { type: string, enum: [quick, standard, major, incident] }
         intent: { type: string, minLength: 3 }
+        contract: &change_contract
+          type: object
+          required: [outcome, acceptance, non_goals, public_seams, recovery, unresolved_decisions]
+          additionalProperties: false
+          properties:
+            outcome: { type: string, minLength: 1 }
+            acceptance:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [id, criterion, verification]
+                additionalProperties: false
+                properties:
+                  id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+                  criterion: { type: string, minLength: 1 }
+                  verification: { type: string, minLength: 1 }
+            non_goals: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+            public_seams: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+            recovery:
+              type: object
+              required: [strategy, verification]
+              additionalProperties: false
+              properties:
+                strategy: { type: string, minLength: 1 }
+                verification: { type: string, minLength: 1 }
+            unresolved_decisions:
+              type: array
+              items:
+                type: object
+                required: [id, summary, blocking]
+                additionalProperties: false
+                properties:
+                  id: { type: string, minLength: 1 }
+                  summary: { type: string, minLength: 1 }
+                  blocking: { type: boolean }
+                  owner: { type: ['string', 'null'] }
+        classification: &change_classification
+          type: object
+          required: [rationale, risk_flags]
+          additionalProperties: false
+          properties:
+            rationale: { type: string, minLength: 1 }
+            risk_flags:
+              type: array
+              uniqueItems: true
+              items:
+                type: string
+                enum: [public_contract, schema_migration, data_migration, authorization, security, multi_module, external_integration, release_semantics]
+        research_disposition: &change_research_disposition
+          type: object
+          required: [status, mode, selected_steps, rationale]
+          additionalProperties: false
+          properties:
+            status: { type: string, enum: [none, bounded, required] }
+            mode: { type: ['string', 'null'], enum: [product, feature, architecture, custom, null] }
+            selected_steps: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+            rationale: { type: string, minLength: 1 }
         base_commit: { type: string, pattern: '^[0-9a-f]{7,40}$' }
         baseline_bypass:
           type: object
@@ -1009,20 +1108,25 @@ tools:
                 status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
     output_schema:
       type: object
-      required: [change, intent_path, context_manifest_path]
+      required: [change, intent_path, context_manifest_path, workflow]
       additionalProperties: false
       properties:
         change: { type: object }
         intent_path: { type: string }
         context_manifest_path: { type: string }
+        workflow: { type: object }
     errors:
       - { code: DUPLICATE_CHANGE_ID, description: 'change id already exists' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
       - { code: VALIDATION_ERROR, description: 'change input failed validation' }
       - { code: BASELINE_NOT_READY, description: 'ordinary work is blocked until the project baseline is healthy' }
       - { code: BASELINE_BYPASS_REQUIRED, description: 'an incident on an unhealthy baseline requires explicit break-glass approval' }
+      - { code: CHANGE_CONTRACT_REQUIRED, description: 'outcome, acceptance, seams, recovery, or decisions are incomplete' }
+      - { code: CHANGE_CLASSIFICATION_REQUIRED, description: 'classification rationale or risk flags are incomplete' }
+      - { code: CHANGE_RESEARCH_DISPOSITION_REQUIRED, description: 'research routing is incomplete or inconsistent' }
+      - { code: CHANGE_PROFILE_ESCALATION_REQUIRED, description: 'quick profile conflicts with material risk or research' }
     cli_subcommand: change create
-    emits_events: [change_created, context_updated]
+    emits_events: [change_created, context_updated, workflow_started, workflow_step_updated]
 
   - name: change.update
     family: change
@@ -1075,6 +1179,9 @@ tools:
                     revision: { type: string }
                     indexed_head: { type: string }
                     status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+            contract: *change_contract
+            classification: *change_classification
+            research_disposition: *change_research_disposition
     output_schema:
       type: object
       required: [ok, change]
@@ -1138,7 +1245,7 @@ tools:
 
   - name: change.context
     family: change
-    description: Compile a role-scoped Context Spine manifest with readiness, budget, execution seam, and next-action evidence.
+    description: Compile an immutable role-scoped Context Spine snapshot whose execution seam and next action are derived from authoritative task and workflow state.
     phase: '10'
     writer_role: mcp
     input_schema:
@@ -1150,7 +1257,6 @@ tools:
         task_id: { type: string }
         role: { type: string, enum: [plan, implement, check, review] }
         gate: { type: string, enum: [alignment, planning, implementation, verification, review, convergence, recovery] }
-        next_action: { type: string, minLength: 3 }
         spec_refs: { type: array, items: { type: object } }
         context_refs:
           type: array
@@ -1175,11 +1281,7 @@ tools:
           type: object
           additionalProperties: false
           properties:
-            slice_kind: { type: string, enum: [tracer_bullet, expand_contract, integration_checkpoint], default: tracer_bullet }
-            public_seam: { type: string }
-            verification_command: { type: string }
             context_budget_percent: { type: integer, minimum: 1, maximum: 100, default: 40 }
-        allowed_paths: { type: array, items: { type: string } }
         provider_refs:
           type: object
           additionalProperties: false
@@ -1219,6 +1321,9 @@ tools:
       - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
       - { code: CHANGE_TERMINAL, description: 'terminal change cannot compile a new context' }
       - { code: TASK_NOT_FOUND, description: 'task id is not linked to the change' }
+      - { code: EXECUTION_CONTRACT_CONFLICT, description: 'Prompt input attempted to override the DB-backed task seam or verification command' }
+      - { code: EXECUTION_CONTEXT_REFS_CONFLICT, description: 'Prompt input attempted to override DB-backed task context references' }
+      - { code: CONTEXT_NEXT_ACTION_AUTHORITY_VIOLATION, description: 'next action is derived from workflow and task state and cannot be supplied by Prompt input' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
     cli_subcommand: change context
     emits_events: [context_updated]
@@ -1291,6 +1396,10 @@ tools:
         candidate_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
         decision: { type: string, enum: [approve, reject, apply] }
         resolution: { type: string }
+        applied_ref: { type: string, minLength: 3 }
+        before_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        after_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        apply_evidence: { type: array, minItems: 1, uniqueItems: true, items: { type: string, minLength: 3 } }
     output_schema:
       type: object
       required: [candidate]
@@ -1302,6 +1411,8 @@ tools:
       - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
       - { code: LEARNING_NOT_FOUND, description: 'candidate id does not exist for the change' }
       - { code: ILLEGAL_LEARNING_TRANSITION, description: 'candidate state transition is not permitted' }
+      - { code: LEARNING_APPLY_EVIDENCE_REQUIRED, description: 'apply requires exact target, before and after digests, and evidence' }
+      - { code: LEARNING_APPLY_EVIDENCE_MISMATCH, description: 'apply evidence does not match the current target artifact' }
     cli_subcommand: change learning-resolve
     emits_events: [spec_learning_resolved]
 
@@ -1312,34 +1423,10 @@ tools:
     writer_role: mcp
     input_schema:
       type: object
-      required: [id, evidence]
+      required: [id]
       additionalProperties: false
       properties:
         id: { type: string }
-        evidence:
-          type: array
-          minItems: 1
-          items:
-            type: object
-            required: [category, status, evidence]
-            additionalProperties: false
-            properties:
-              category: { type: string, enum: [diagnosis, diff, tests, spec, docs, review] }
-              status: { type: string, enum: [pass, fail, not_applicable] }
-              evidence: { type: string, minLength: 3 }
-              axis: { type: string, enum: [spec_fidelity, engineering_standards] }
-              seam: { type: string, minLength: 3 }
-              signal:
-                type: object
-                additionalProperties: false
-                required: [command, expected_red, observed_red, observed_green, deterministic]
-                properties:
-                  command: { type: string, minLength: 3 }
-                  expected_red: { type: string, minLength: 3 }
-                  observed_red: { type: boolean }
-                  observed_green: { type: boolean }
-                  deterministic: { type: boolean }
-                  duration_ms: { type: number, minimum: 0 }
     output_schema:
       type: object
       required: [ready, status, blockers]
@@ -1352,6 +1439,7 @@ tools:
     errors:
       - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
       - { code: CHANGE_NOT_CONVERGEABLE, description: 'change lifecycle does not allow convergence' }
+      - { code: CONVERGENCE_EVIDENCE_AUTHORITY_VIOLATION, description: 'Prompt-supplied gate verdicts cannot replace DB-backed workflow evidence' }
     cli_subcommand: change converge
     emits_events: [change_blocked, change_converged]
 
@@ -1362,13 +1450,14 @@ tools:
     writer_role: mcp
     input_schema:
       type: object
-      required: [id, summary]
+      required: [id, summary, reconciliation_path]
       additionalProperties: false
       properties:
         id: { type: string }
         summary: { type: string, minLength: 3 }
         baseline_updates: { type: array, items: { type: string } }
         no_baseline_change_reason: { type: string, minLength: 3 }
+        reconciliation_path: { type: string, minLength: 3 }
     output_schema:
       type: object
       required: [change, archive_path]
@@ -1381,9 +1470,235 @@ tools:
       - { code: BASELINE_RECONCILIATION_REQUIRED, description: 'baseline update or explicit no-change reason required' }
       - { code: BASELINE_FILE_MISSING, description: 'a declared baseline update does not exist' }
       - { code: BASELINE_RECONCILIATION_INCOMPLETE, description: 'repository revision or tracked specification digests remain stale after reconciliation' }
+      - { code: BASELINE_RECONCILIATION_MANIFEST_REQUIRED, description: 'a change-bound reconciliation manifest is required' }
+      - { code: BASELINE_RECONCILIATION_MANIFEST_INVALID, description: 'semantic changes, digests, resolutions, or verification are invalid' }
       - { code: ARCHIVE_EXISTS, description: 'archive target already exists' }
     cli_subcommand: change archive
     emits_events: [change_archived]
+
+  # ────────────────────────── workflow family ────────────────────────────
+  - name: workflow.start
+    family: workflow
+    description: Start one durable Ultra workflow run from its canonical step definition. Research defaults to the complete seventeen-step flow and never infers a reduced product posture.
+    phase: '13'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [kind, subject]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        kind: { type: string, enum: [init, research, plan, change, dev, test, review, deliver] }
+        subject: { type: string, minLength: 3 }
+        mode: { type: string, enum: [full, adoption, product, feature, architecture, custom] }
+        selected_steps: { type: array, uniqueItems: true, items: { type: string } }
+        baseline_id: { type: string }
+        change_id: { type: string }
+        task_id: { type: string }
+        metadata: { type: object }
+    output_schema:
+      type: object
+      required: [workflow]
+      additionalProperties: false
+      properties:
+        workflow: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'definition, mode, selection, or linked authority is invalid' }
+      - { code: DUPLICATE_WORKFLOW_ID, description: 'workflow id already exists' }
+      - { code: WORKFLOW_IN_PROGRESS, description: 'the same authority already has an active workflow of this kind' }
+      - { code: WORKFLOW_CHANGE_NOT_FOUND, description: 'the requested change authority does not exist' }
+      - { code: WORKFLOW_CHANGE_RUN_REQUIRED, description: 'change-bound stages require the owning durable change workflow; legacy gaps route through doctor repair' }
+      - { code: WORKFLOW_BASELINE_MISMATCH, description: 'a supplied stage baseline differs from the baseline bound by the owning change workflow' }
+      - { code: WORKFLOW_BASELINE_REQUIRED, description: 'a baseline-free plan is valid only for an approved incident break-glass change' }
+      - { code: WORKFLOW_CHANGE_NOT_MUTABLE, description: 'the owning change does not accept a new workflow of this stage' }
+      - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'dev cannot start until the linked task contract is executable' }
+      - { code: TASK_CHANGE_OWNERSHIP_MISMATCH, description: 'linked task and change authority disagree' }
+    cli_subcommand: workflow start
+    emits_events: [workflow_started]
+
+  - name: workflow.get
+    family: workflow
+    description: Read one workflow run with every step, current recovery position, blockers, and output freshness.
+    phase: '13'
+    readonly: true
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+    output_schema:
+      type: object
+      required: [workflow]
+      additionalProperties: false
+      properties:
+        workflow: { type: object }
+    errors:
+      - { code: WORKFLOW_NOT_FOUND, description: 'workflow id does not exist' }
+    cli_subcommand: workflow get
+    emits_events: []
+
+  - name: workflow.list
+    family: workflow
+    description: List workflow runs by phase, state, baseline, change, or task authority.
+    phase: '13'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        kind: { type: string, enum: [init, research, plan, change, dev, test, review, deliver] }
+        status: { type: string, enum: [active, blocked, ready, completed, cancelled] }
+        baseline_id: { type: string }
+        change_id: { type: string }
+        task_id: { type: string }
+        limit: { type: integer, minimum: 1, maximum: 500, default: 100 }
+    output_schema:
+      type: object
+      required: [workflows, count]
+      additionalProperties: false
+      properties:
+        workflows: { type: array, items: { type: object } }
+        count: { type: integer, minimum: 0 }
+    errors:
+      - { code: STATE_DB_ERROR, description: 'workflow state could not be read' }
+    cli_subcommand: workflow list
+    emits_events: []
+
+  - name: workflow.step
+    family: workflow
+    description: Record one canonical workflow-step transition with bounded evidence, durable output digests, decisions, or blockers.
+    phase: '13'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, step_id, status]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        step_id: { type: string }
+        status: { type: string, enum: [in_progress, completed, skipped, blocked] }
+        evidence:
+          type: array
+          items:
+            type: object
+            required: [kind, ref, summary]
+            additionalProperties: false
+            properties:
+              kind: { type: string, minLength: 1 }
+              ref: { type: string, minLength: 1 }
+              summary: { type: string, minLength: 1 }
+        outputs:
+          type: array
+          items:
+            type: object
+            required: [path, kind]
+            additionalProperties: false
+            properties:
+              path: { type: string, minLength: 1 }
+              kind: { type: string, minLength: 1 }
+        decisions: { type: array, items: { type: object } }
+        semantic_records:
+          type: array
+          items:
+            type: object
+            required: [id, kind, status, summary, source_ref, evidence_refs, attributes, links]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              kind: { type: string, minLength: 1 }
+              status: { type: string, enum: [observed, verified, decided, accepted, unknown, not_applicable] }
+              summary: { type: string, minLength: 1 }
+              source_ref: { type: string, minLength: 3 }
+              evidence_refs: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+              attributes: { type: object }
+              links:
+                type: array
+                items:
+                  type: object
+                  required: [relation, target]
+                  additionalProperties: false
+                  properties:
+                    relation: { type: string, minLength: 1 }
+                    target: { type: string, minLength: 1 }
+        blockers: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+    output_schema:
+      type: object
+      required: [workflow]
+      additionalProperties: false
+      properties:
+        workflow: { type: object }
+    errors:
+      - { code: WORKFLOW_NOT_FOUND, description: 'workflow id does not exist' }
+      - { code: WORKFLOW_STEP_NOT_FOUND, description: 'step is not part of the canonical workflow' }
+      - { code: WORKFLOW_STEP_OUT_OF_ORDER, description: 'an earlier selected step remains incomplete' }
+      - { code: WORKFLOW_EVIDENCE_REQUIRED, description: 'the step cannot complete without evidence' }
+      - { code: WORKFLOW_OUTPUT_REQUIRED, description: 'the step cannot complete without a durable output' }
+      - { code: WORKFLOW_OUTPUT_MISSING, description: 'a declared output file is missing' }
+      - { code: WORKFLOW_RESEARCH_REPORT_REQUIRED, description: 'a research step requires its immutable workflow-and-step-bound report path' }
+      - { code: WORKFLOW_RESEARCH_REPORT_INVALID, description: 'the research report is missing its required evidence structure' }
+      - { code: WORKFLOW_RESEARCH_SYNTHESIS_INCOMPLETE, description: 'full or adoption synthesis did not bind all baseline specifications and the distillate' }
+      - { code: WORKFLOW_SEMANTIC_RECORDS_REQUIRED, description: 'a research step did not persist typed semantic results' }
+      - { code: WORKFLOW_SEMANTIC_RECORD_INVALID, description: 'a semantic record does not satisfy its step contract' }
+      - { code: WORKFLOW_SYNTHESIS_TRACE_INVALID, description: 'synthesis references missing research semantic records' }
+      - { code: WORKFLOW_BLOCKER_REQUIRED, description: 'blocked state requires a specific blocker code' }
+      - { code: WORKFLOW_CONTEXT_OUTPUT_REQUIRED, description: 'the stage requires its immutable Context Manifest v2 output' }
+      - { code: WORKFLOW_CONTEXT_MISMATCH, description: 'the context role, gate, change, task, or readiness does not match the stage' }
+      - { code: WORKFLOW_CONTEXT_AUTHORITY_MISMATCH, description: 'the context artifact does not match its DB snapshot row' }
+      - { code: WORKFLOW_CONTEXT_STALE, description: 'the context artifact no longer matches the current checkout' }
+      - { code: WORKFLOW_RELEASE_AUTHORIZATION_INVALID, description: 'release-if-authorized requires one complete durable owner decision' }
+    cli_subcommand: workflow step
+    emits_events: [workflow_step_updated, workflow_blocked]
+
+  - name: workflow.complete
+    family: workflow
+    description: Complete a ready workflow only when every selected step is complete and every recorded output digest remains current.
+    phase: '13'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        approval:
+          type: object
+          required: [approved_by, approval_note]
+          additionalProperties: false
+          properties:
+            approved_by: { type: string, minLength: 1 }
+            approval_note: { type: string, minLength: 3 }
+            approved_at: { type: string, format: date-time }
+    output_schema:
+      type: object
+      required: [workflow]
+      additionalProperties: false
+      properties:
+        workflow: { type: object }
+    errors:
+      - { code: WORKFLOW_NOT_FOUND, description: 'workflow id does not exist' }
+      - { code: WORKFLOW_NOT_READY, description: 'selected steps or blockers remain incomplete' }
+      - { code: WORKFLOW_OUTPUT_STALE, description: 'a recorded output changed or disappeared' }
+      - { code: WORKFLOW_TASKS_REQUIRED, description: 'plan completion requires a non-empty authoritative task set' }
+      - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'one or more planned tasks lack an executable contract' }
+      - { code: TASK_DEPENDENCY_MISSING, description: 'a planned dependency does not exist' }
+      - { code: TASK_DEPENDENCY_CYCLE, description: 'the planned task graph contains a cycle' }
+      - { code: WORKFLOW_TASK_NOT_COMPLETED, description: 'dev convergence requires its task to be completed' }
+      - { code: WORKFLOW_APPROVAL_REQUIRED, description: 'plan convergence requires explicit approved_by and approval_note fields' }
+      - { code: WORKFLOW_SUMMARY_AUTHORITY_VIOLATION, description: 'Prompt summary fields are not allowed to replace DB-derived gate evidence or the complete change task set' }
+      - { code: WORKFLOW_APPROVAL_AUTHORITY_VIOLATION, description: 'only the plan workflow accepts completion approval' }
+      - { code: WORKFLOW_GATE_MISSING, description: 'a required completed dev, test, or review gate is missing' }
+      - { code: WORKFLOW_GATE_STALE, description: 'a required gate no longer matches its task contract or commit ancestry' }
+      - { code: WORKFLOW_REPORT_INVALID, description: 'a required report is malformed or incomplete' }
+      - { code: WORKFLOW_REPORT_CONTEXT_MISMATCH, description: 'a report is not bound to the recorded stage context digest' }
+      - { code: WORKFLOW_REPORT_REVISION_STALE, description: 'a report does not match the current full Git HEAD' }
+      - { code: WORKFLOW_REPORT_WORKTREE_STALE, description: 'a report does not match the current worktree digest' }
+      - { code: WORKFLOW_REVIEW_NOT_APPROVED, description: 'both independent review axes must pass' }
+      - { code: WORKFLOW_TEST_NOT_PASSED, description: 'the current change-level test gate did not pass' }
+      - { code: WORKFLOW_CHANGE_NOT_ARCHIVED, description: 'delivery completion requires an archived change' }
+      - { code: WORKFLOW_RELEASE_AUTHORITY_MISMATCH, description: 'delivery release claims differ from the durable owner authorization decision' }
+    cli_subcommand: workflow complete
+    emits_events: [workflow_completed, plan_approved]
 
   # ────────────────────────── system family ──────────────────────────────
   - name: system.doctor
@@ -1420,10 +1735,11 @@ tools:
     writer_role: mcp
     input_schema:
       type: object
-      required: [out_path]
+      required: [change_id, out_path]
       additionalProperties: false
       properties:
         format:   { type: string, enum: [json, md], default: json }
+        change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
         out_path: { type: string }
         tag:      { type: string }
     output_schema:
@@ -1435,9 +1751,11 @@ tools:
         wave_count: { type: integer, minimum: 0 }
     errors:
       - { code: NO_TASKS, description: 'no tasks to plan' }
+      - { code: CHANGE_NOT_FOUND, description: 'owning change does not exist' }
+      - { code: CHANGE_NOT_MUTABLE, description: 'owning change no longer accepts planning output' }
       - { code: WRITE_FAILED, description: 'cannot write plan file' }
     cli_subcommand: plan export
-    emits_events: [plan_approved]
+    emits_events: [plan_exported]
     trace_to: '§7.3, D34'
 
   - name: plan.get
@@ -1447,8 +1765,10 @@ tools:
     readonly: true
     input_schema:
       type: object
+      required: [change_id]
       additionalProperties: false
       properties:
+        change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
         section: { type: string, enum: [tasks, topo, conflicts, all], default: all }
     output_schema:
       type: object
@@ -1458,6 +1778,7 @@ tools:
         plan: { type: object }
     errors:
       - { code: NO_PLAN, description: 'no plan has been computed yet' }
+      - { code: PLAN_CHANGE_MISMATCH, description: 'current plan artifact belongs to another change' }
     cli_subcommand: plan get
     emits_events: []
     trace_to: '§7.3, D34'

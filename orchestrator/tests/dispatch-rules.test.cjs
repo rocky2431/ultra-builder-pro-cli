@@ -3,14 +3,13 @@
 // Phase 8B.1 — Dispatch rules declarative table.
 //
 // evaluate(ctx, rules) → { rule_id, action, runtime }.
-// DEFAULT_RULES must reproduce Phase 5.4 routeTask behavior (ROUTE_PREFERENCES
-// by complexity_hint, fall back to first available) so daemon.cjs keeps green.
+// Runtime selection follows the caller's explicit supported-runtime order.
 // New dimensions: breaker_state / deps_ready / wave conflict / custom rules.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { evaluate, DEFAULT_RULES, ROUTE_PREFERENCES } = require('../dispatch-rules.cjs');
+const { evaluate, DEFAULT_RULES } = require('../dispatch-rules.cjs');
 const RETIRED_RUNTIME = ['gem', 'ini'].join('');
 
 function baseCtx(overrides = {}) {
@@ -24,39 +23,23 @@ function baseCtx(overrides = {}) {
   };
 }
 
-// ─── spawn_agent path (preference routing, 6 cases mirror routeTask) ──────
+// ─── spawn_agent path ────────────────────────────────────────────────────
 
-test('evaluate: opus hint + all available → claude (preference head)', () => {
-  const d = evaluate(baseCtx({ task: { id: 't', complexity_hint: 'opus' } }));
-  assert.equal(d.action, 'spawn_agent');
-  assert.equal(d.runtime, 'claude');
-});
-
-test('evaluate: opus hint + only codex available → codex', () => {
+test('evaluate: explicit runtime order is authoritative', () => {
   const d = evaluate(baseCtx({
-    task: { id: 't', complexity_hint: 'opus' },
-    available_runtimes: ['codex', 'opencode'],
-  }));
-  assert.equal(d.runtime, 'codex');
-});
-
-test('evaluate: opus hint + preference exhausted → first available fallback', () => {
-  const d = evaluate(baseCtx({
-    task: { id: 't', complexity_hint: 'opus' },
-    available_runtimes: ['opencode'],
+    available_runtimes: ['kimi', 'codex', 'claude', 'opencode'],
   }));
   assert.equal(d.action, 'spawn_agent');
-  assert.equal(d.runtime, 'opencode');
+  assert.equal(d.runtime, 'kimi');
 });
 
-test('evaluate: haiku hint + all available → opencode (cheapest preference)', () => {
-  const d = evaluate(baseCtx({ task: { id: 't', complexity_hint: 'haiku' } }));
-  assert.equal(d.runtime, 'opencode');
-});
-
-test('evaluate: sonnet hint + all available → claude', () => {
-  const d = evaluate(baseCtx({ task: { id: 't', complexity_hint: 'sonnet' } }));
-  assert.equal(d.runtime, 'claude');
+test('evaluate: legacy model-tier hints cannot override runtime order', () => {
+  const d = evaluate(baseCtx({
+    task: { id: 't', complexity_hint: 'opus' },
+    available_runtimes: ['kimi', 'opencode', 'codex', 'claude'],
+  }));
+  assert.equal(d.action, 'spawn_agent');
+  assert.equal(d.runtime, 'kimi');
 });
 
 test('evaluate: retired runtimes are discarded before fallback routing', () => {
@@ -109,16 +92,8 @@ test('evaluate: custom rules cannot select an unsupported runtime', () => {
       resolve: () => RETIRED_RUNTIME,
     },
   ];
-  const d = evaluate(baseCtx({ task: { id: 't', complexity_hint: 'opus' } }), customRules);
+  const d = evaluate(baseCtx(), customRules);
   assert.equal(d.action, 'block');
   assert.equal(d.runtime, null);
   assert.equal(d.rule_id, 'force-retired-runtime');
-});
-
-// ─── ROUTE_PREFERENCES shape guard (regression: don't drift from Phase 5.4) ─
-
-test('DEFAULT_RULES preserves ROUTE_PREFERENCES shape', () => {
-  assert.deepEqual(Object.keys(ROUTE_PREFERENCES).sort(), ['haiku', 'opus', 'sonnet']);
-  assert.equal(ROUTE_PREFERENCES.opus[0], 'claude');
-  assert.equal(ROUTE_PREFERENCES.haiku[0], 'opencode');
 });

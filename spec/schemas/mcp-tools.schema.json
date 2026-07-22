@@ -60,7 +60,7 @@
         },
         "family": {
           "type": "string",
-          "enum": ["task", "memory", "review", "impact", "skill", "session", "ask", "plan", "baseline", "change", "system"]
+          "enum": ["task", "memory", "review", "impact", "skill", "session", "ask", "plan", "baseline", "change", "workflow", "system"]
         },
         "description": { "type": "string", "minLength": 10 },
         "phase": {

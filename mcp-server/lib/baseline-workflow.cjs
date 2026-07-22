@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 
 const ops = require('./state-ops.cjs');
 const providerRefs = require('./provider-refs.cjs');
+const workflows = require('./workflow-state.cjs');
 
 const BASELINE_ID = /^[a-zA-Z0-9_-]+$/;
 const MODES = new Set(['greenfield', 'brownfield']);
@@ -124,6 +125,7 @@ function rowToBaseline(row) {
     classification: parseJson(row.classification_json, 'classification_json', {}),
     worktree_files: parseJson(row.worktree_files_json, 'worktree_files_json', []),
     worktree_accepted: Boolean(row.worktree_accepted),
+    known_red_accepted: Boolean(row.known_red_accepted),
     provider_refs: parseJson(row.provider_refs_json, 'provider_refs_json', {}),
   };
   for (const key of [
@@ -496,7 +498,8 @@ function recordBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = t
     db.prepare(
       `UPDATE baselines SET status = ?, scope_json = ?, repository_revision = ?,
        repository_branch = ?, worktree_state = ?, worktree_digest = ?, worktree_files_json = ?,
-       worktree_accepted = 0, spec_refs_json = ?, evidence_json = ?, verification_json = ?,
+       worktree_accepted = 0, known_red_accepted = 0,
+       spec_refs_json = ?, evidence_json = ?, verification_json = ?,
        unknowns_json = ?, gaps_json = ?, classification_json = ?, provider_refs_json = ?,
        approved_by = NULL, approval_note = NULL, converged_at = NULL, updated_at = ? WHERE id = ?`,
     ).run(
@@ -551,7 +554,114 @@ function storedEvidenceBlockers(baseline, rootDir) {
   return blockers;
 }
 
-function convergenceBlockers(baseline, input, rootDir) {
+function storedReadyInvariantBlockers(baseline) {
+  const blockers = [];
+  const arrays = ['scope', 'spec_refs', 'evidence', 'verification', 'unknowns', 'gaps'];
+  for (const field of arrays) {
+    if (!Array.isArray(baseline[field])) blockers.push(`BASELINE_STATE_INVALID:${field}`);
+  }
+  if (!Array.isArray(baseline.scope) || baseline.scope.length === 0) {
+    blockers.push('BASELINE_SCOPE_MISSING');
+  }
+  if (Array.isArray(baseline.spec_refs)) {
+    for (const kind of ['discovery', 'product', 'architecture']) {
+      if (!baseline.spec_refs.some((item) => item?.kind === kind)) {
+        blockers.push(`BASELINE_SPEC_MISSING:${kind}`);
+      }
+    }
+  }
+  if (!Array.isArray(baseline.evidence) || baseline.evidence.length === 0) {
+    blockers.push('BASELINE_EVIDENCE_MISSING');
+  } else if (baseline.mode === 'brownfield'
+    && !baseline.evidence.some((item) => item?.kind === 'source')) {
+    blockers.push('BASELINE_SOURCE_EVIDENCE_MISSING');
+  }
+  if (!Array.isArray(baseline.verification) || baseline.verification.length === 0) {
+    blockers.push('BASELINE_VERIFICATION_MISSING');
+  } else {
+    for (const item of baseline.verification) {
+      if (!item || typeof item !== 'object') {
+        blockers.push('BASELINE_STATE_INVALID:verification');
+      } else if (item.status === 'not_run') {
+        blockers.push(`BASELINE_VERIFICATION_NOT_RUN:${item.name || 'unknown'}`);
+      } else if (item.status === 'known_red') {
+        if (!String(item.rationale || '').trim()) {
+          blockers.push(`BASELINE_KNOWN_RED_RATIONALE_MISSING:${item.name || 'unknown'}`);
+        }
+        if (!baseline.known_red_accepted) {
+          blockers.push(`BASELINE_KNOWN_RED_NOT_ACCEPTED:${item.name || 'unknown'}`);
+        }
+      } else if (item.status !== 'pass') {
+        blockers.push(`BASELINE_VERIFICATION_STATUS_INVALID:${item.name || 'unknown'}`);
+      }
+    }
+  }
+  if (!String(baseline.repository_revision || '').trim()) {
+    blockers.push('BASELINE_REVISION_MISSING');
+  }
+  if (!String(baseline.approved_by || '').trim()) blockers.push('BASELINE_APPROVER_MISSING');
+  if (String(baseline.approval_note || '').trim().length < 3) {
+    blockers.push('BASELINE_APPROVAL_NOTE_MISSING');
+  }
+  if (!baseline.converged_at || Number.isNaN(Date.parse(baseline.converged_at))) {
+    blockers.push('BASELINE_CONVERGENCE_TIMESTAMP_MISSING');
+  }
+  if (Array.isArray(baseline.unknowns)) {
+    for (const item of baseline.unknowns.filter((unknown) => unknown?.blocking === true)) {
+      blockers.push(`BASELINE_UNKNOWN_BLOCKING:${item.summary || 'unknown'}`);
+    }
+  }
+  if (Array.isArray(baseline.gaps)) {
+    for (const gap of baseline.gaps.filter((item) => (
+      item?.status === 'open' && item?.blocking === true
+    ))) {
+      blockers.push(`BASELINE_GAP_BLOCKING:${gap.id || 'unknown'}`);
+    }
+  }
+  return [...new Set(blockers)];
+}
+
+function completedBaselineResearch(db, baseline, rootDir) {
+  const acceptedMode = baseline.mode === 'greenfield' ? 'full' : 'adoption';
+  const row = db.prepare(
+    `SELECT id FROM workflow_runs
+     WHERE kind = 'research' AND baseline_id = ? AND mode = ? AND status = 'completed'
+     ORDER BY completed_at DESC, rowid DESC LIMIT 1`,
+  ).get(baseline.id, acceptedMode);
+  return row ? workflows.readWorkflow(db, row.id, { rootDir }) : null;
+}
+
+function convergenceResearchBlockers(db, baseline, rootDir) {
+  const run = completedBaselineResearch(db, baseline, rootDir);
+  if (!run) return ['BASELINE_RESEARCH_INCOMPLETE'];
+  return run.artifact_health.blockers.map((item) => `BASELINE_RESEARCH_${item}`);
+}
+
+function storedResearchHealth(db, baseline, rootDir) {
+  if (!baseline.research_run_id) {
+    return { blockers: ['BASELINE_RESEARCH_PROVENANCE_MISSING'], warnings: [] };
+  }
+  const run = workflows.readWorkflow(db, baseline.research_run_id, { rootDir });
+  if (!run || run.kind !== 'research' || run.status !== 'completed') {
+    return { blockers: ['BASELINE_RESEARCH_RECORD_INVALID'], warnings: [] };
+  }
+  const livingSpecifications = new Set(
+    (Array.isArray(baseline.spec_refs) ? baseline.spec_refs : [])
+      .map((item) => item?.path).filter(Boolean),
+  );
+  const blockers = run.artifact_health.blockers.filter((item) => {
+    const separator = item.indexOf(':');
+    if (separator < 0) return true;
+    const artifactPath = item.slice(separator + 1);
+    return !livingSpecifications.has(artifactPath);
+  });
+  return {
+    blockers: blockers.map((item) => `BASELINE_RESEARCH_${item}`),
+    warnings: [],
+  };
+}
+
+function convergenceBlockers(db, baseline, input, rootDir) {
   const blockers = new Set();
   const expected = typeof input.expected_revision === 'string' ? input.expected_revision.trim() : '';
   if (!expected) blockers.add('BASELINE_REVISION_REQUIRED');
@@ -561,9 +671,10 @@ function convergenceBlockers(baseline, input, rootDir) {
   if (baseline.repository_branch && snapshot.branch
     && baseline.repository_branch !== snapshot.branch) blockers.add('BASELINE_BRANCH_STALE');
   if (!Array.isArray(baseline.scope) || baseline.scope.length === 0) blockers.add('BASELINE_SCOPE_MISSING');
-  for (const kind of ['product', 'architecture']) {
+  for (const kind of ['discovery', 'product', 'architecture']) {
     if (!baseline.spec_refs.some((ref) => ref.kind === kind)) blockers.add(`BASELINE_SPEC_MISSING:${kind}`);
   }
+  for (const blocker of convergenceResearchBlockers(db, baseline, rootDir)) blockers.add(blocker);
   for (const blocker of storedSpecBlockers(baseline, rootDir)) blockers.add(blocker);
   for (const blocker of storedEvidenceBlockers(baseline, rootDir)) blockers.add(blocker);
   for (const blocker of storedScopeBlockers(baseline, rootDir)) blockers.add(blocker);
@@ -603,7 +714,7 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
   if (!['draft', 'adopting', 'blocked'].includes(current.status)) {
     throw new BaselineWorkflowError('BASELINE_NOT_CONVERGEABLE', `baseline ${current.id} is ${current.status}`);
   }
-  const blockers = convergenceBlockers(current, input, rootDir);
+  const blockers = convergenceBlockers(db, current, input, rootDir);
   const ts = nowIso();
   if (blockers.length > 0) {
     ops.tx(db, () => {
@@ -614,22 +725,32 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
           type: 'baseline_blocked', payload: { baseline_id: current.id, blockers },
         });
       }
+      workflows.blockInitializationInTx(db, current.id, blockers);
     });
     return { ready: false, status: 'blocked', blockers, baseline: readBaseline(db, current.id) };
   }
+  const research = completedBaselineResearch(db, current, rootDir);
   ops.tx(db, () => {
     db.prepare(
       `UPDATE baselines SET status = 'ready', approved_by = ?, approval_note = ?,
-       worktree_accepted = ?, converged_at = ?, updated_at = ? WHERE id = ?`,
+       worktree_accepted = ?, known_red_accepted = ?, research_run_id = ?,
+       converged_at = ?, updated_at = ? WHERE id = ?`,
     ).run(
       String(input.approved_by).trim(), String(input.approval_note).trim(),
-      input.accept_dirty_worktree === true ? 1 : 0, ts, ts, current.id,
+      input.accept_dirty_worktree === true ? 1 : 0,
+      input.accept_known_red === true ? 1 : 0, research.id, ts, ts, current.id,
     );
     if (emitEvent) {
       ops.appendEventInTx(db, {
         type: 'baseline_converged', payload: { baseline_id: current.id, revision: current.repository_revision },
       });
     }
+    workflows.completeInitializationInTx(db, {
+      ...current,
+      approved_by: String(input.approved_by).trim(),
+      research_run_id: research.id,
+      converged_at: ts,
+    });
   });
   return { ready: true, status: 'ready', blockers: [], baseline: readBaseline(db, current.id) };
 }
@@ -654,12 +775,17 @@ function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
       status: 'fail', blockers: [`BASELINE_NOT_READY:${baseline.status}`], warnings: [], baseline,
     };
   }
+  const research = storedResearchHealth(db, baseline, rootDir);
   const blockers = [
-    ...storedScopeBlockers(baseline, rootDir),
-    ...storedSpecBlockers(baseline, rootDir),
-    ...storedEvidenceBlockers(baseline, rootDir),
+    ...storedReadyInvariantBlockers(baseline),
+    ...(Array.isArray(baseline.scope) ? storedScopeBlockers(baseline, rootDir) : []),
+    ...(Array.isArray(baseline.spec_refs) ? storedSpecBlockers(baseline, rootDir) : []),
+    ...(Array.isArray(baseline.evidence) ? storedEvidenceBlockers(baseline, rootDir) : []),
+    ...research.blockers,
   ];
-  const snapshot = gitWorktreeSnapshot(rootDir, baseline.scope);
+  const snapshot = gitWorktreeSnapshot(
+    rootDir, Array.isArray(baseline.scope) && baseline.scope.length > 0 ? baseline.scope : ['.'],
+  );
   if (snapshot.head && baseline.repository_revision && snapshot.head !== baseline.repository_revision) {
     blockers.push('BASELINE_HEAD_STALE');
   } else if (!snapshot.head && baseline.repository_revision?.startsWith('workspace:')) {
@@ -677,10 +803,10 @@ function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
   if (baseline.worktree_state === 'dirty' && !baseline.worktree_accepted) {
     blockers.push('BASELINE_DIRTY_WORKTREE_NOT_ACCEPTED');
   }
-  for (const gap of baseline.gaps.filter((item) => item.status === 'open' && item.blocking)) {
-    blockers.push(`BASELINE_GAP_BLOCKING:${gap.id}`);
-  }
-  return { status: blockers.length === 0 ? 'pass' : 'fail', blockers, warnings: [], baseline };
+  return {
+    status: blockers.length === 0 ? 'pass' : 'fail', blockers: [...new Set(blockers)].sort(),
+    warnings: research.warnings, baseline,
+  };
 }
 
 function inferSpecKind(file) {
@@ -688,7 +814,9 @@ function inferSpecKind(file) {
   return SPEC_KINDS.has(name) ? name : 'other';
 }
 
-function reconcileBaseline(db, { baseline_updates = [], change_id = null } = {}, {
+function reconcileBaseline(db, {
+  baseline_updates = [], change_id = null, reconciliation = null,
+} = {}, {
   rootDir = process.cwd(), emitEvent = true,
 } = {}) {
   const current = readBaseline(db);
@@ -717,6 +845,12 @@ function reconcileBaseline(db, { baseline_updates = [], change_id = null } = {},
     }
   }
   const specs = [...refs.values()];
+  const resolvedGapIds = new Set(reconciliation?.resolved_gap_ids || []);
+  const resolvedUnknowns = new Set(reconciliation?.resolved_unknowns || []);
+  const gaps = current.gaps.map((gap) => (
+    resolvedGapIds.has(gap.id) ? { ...gap, status: 'resolved' } : gap
+  ));
+  const unknowns = current.unknowns.filter((unknown) => !resolvedUnknowns.has(unknown.summary));
   const snapshot = gitWorktreeSnapshot(rootDir, current.scope);
   const revision = snapshot.head || workspaceRevision({
     scope: current.scope, specs, evidence,
@@ -726,16 +860,22 @@ function reconcileBaseline(db, { baseline_updates = [], change_id = null } = {},
     db.prepare(
       `UPDATE baselines SET repository_revision = ?, repository_branch = ?, worktree_state = ?,
        worktree_digest = ?, worktree_files_json = ?, worktree_accepted = 0,
-       spec_refs_json = ?, evidence_json = ?, updated_at = ? WHERE id = ?`,
+       spec_refs_json = ?, evidence_json = ?, gaps_json = ?, unknowns_json = ?,
+       updated_at = ? WHERE id = ?`,
     ).run(
       revision, snapshot.branch, snapshot.state, snapshot.digest, JSON.stringify(snapshot.files),
-      JSON.stringify(specs), JSON.stringify(evidence), ts, current.id,
+      JSON.stringify(specs), JSON.stringify(evidence), JSON.stringify(gaps),
+      JSON.stringify(unknowns), ts, current.id,
     );
     if (emitEvent) {
       ops.appendEventInTx(db, {
         type: 'baseline_reconciled',
         change_id,
-        payload: { baseline_id: current.id, baseline_updates, repository_revision: revision },
+        payload: {
+          baseline_id: current.id, baseline_updates, repository_revision: revision,
+          semantic_change_ids: (reconciliation?.semantic_changes || []).map((item) => item.id),
+          resolved_gap_ids: [...resolvedGapIds], resolved_unknowns: [...resolvedUnknowns],
+        },
       });
     }
   });

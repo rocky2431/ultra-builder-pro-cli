@@ -13,5 +13,18 @@
     "task_id": "task-1",
     "role": "builder",
     "budget": {"max_tokens": 0, "max_files": 12}
+  },
+  {
+    "id": "feature-auth",
+    "next_action": "Implement whatever the prompt requests."
+  },
+  {
+    "id": "feature-auth",
+    "task_id": "task-1",
+    "execution_contract": {
+      "slice_kind": "tracer_bullet",
+      "public_seam": "Prompt-selected seam",
+      "verification_command": "true"
+    }
   }
 ]

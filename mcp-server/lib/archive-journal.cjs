@@ -31,6 +31,9 @@ function assertIntent(intent, rootDir) {
     || intent.schema_version !== INTENT_VERSION
     || typeof intent.change_id !== 'string' || !intent.change_id
     || !Array.isArray(intent.baseline_updates)
+    || typeof intent.reconciliation_path !== 'string' || !intent.reconciliation_path
+    || !/^[0-9a-f]{64}$/.test(String(intent.reconciliation_digest || ''))
+    || !intent.reconciliation_manifest || typeof intent.reconciliation_manifest !== 'object'
     || typeof intent.summary !== 'string' || intent.summary.trim().length < 3) {
     throw new ArchiveJournalError('ARCHIVE_INTENT_INVALID', 'archive intent shape is invalid');
   }
@@ -46,6 +49,7 @@ function assertIntent(intent, rootDir) {
     throw new ArchiveJournalError('ARCHIVE_INTENT_INVALID', 'archive intent destination is not the change archive root');
   }
   for (const update of intent.baseline_updates) resolveInside(rootDir, update, 'baseline update');
+  resolveInside(rootDir, intent.reconciliation_path, 'reconciliation path');
   if (intent.previous_summary !== null && typeof intent.previous_summary !== 'string') {
     throw new ArchiveJournalError('ARCHIVE_INTENT_INVALID', 'previous_summary must be string or null');
   }
@@ -77,16 +81,21 @@ function renderSummary(change, summary, baselineUpdates, noBaselineChangeReason)
   ].join('\n');
 }
 
-function sameOperation(intent, { change, summary, baselineUpdates, noBaselineChangeReason }) {
+function sameOperation(intent, {
+  change, summary, baselineUpdates, noBaselineChangeReason, reconciliationPath, reconciliationDigest,
+}) {
   return intent.change_id === change.id
     && intent.source === change.artifact_root
     && intent.summary === summary.trim()
     && JSON.stringify(intent.baseline_updates) === JSON.stringify(baselineUpdates)
-    && (intent.no_baseline_change_reason || null) === (noBaselineChangeReason || null);
+    && (intent.no_baseline_change_reason || null) === (noBaselineChangeReason || null)
+    && intent.reconciliation_path === reconciliationPath
+    && intent.reconciliation_digest === reconciliationDigest;
 }
 
 function prepareArchiveMove({
-  rootDir, change, summary, baselineUpdates, noBaselineChangeReason, now = new Date(),
+  rootDir, change, summary, baselineUpdates, noBaselineChangeReason,
+  reconciliationPath, reconciliationDigest, reconciliationManifest, now = new Date(),
 }) {
   const date = now.toISOString().slice(0, 10);
   const source = resolveInside(rootDir, change.artifact_root, 'source');
@@ -98,7 +107,7 @@ function prepareArchiveMove({
   if (!fs.existsSync(source) && fs.existsSync(destinationIntentFile)) {
     const resumed = readIntentFile(destinationIntentFile, rootDir);
     if (!sameOperation(resumed.intent, {
-      change, summary, baselineUpdates, noBaselineChangeReason,
+      change, summary, baselineUpdates, noBaselineChangeReason, reconciliationPath, reconciliationDigest,
     })) {
       throw new ArchiveJournalError('ARCHIVE_INTENT_CONFLICT', 'existing archive intent differs from retry input');
     }
@@ -115,7 +124,7 @@ function prepareArchiveMove({
   if (fs.existsSync(sourceIntentFile)) {
     prepared = readIntentFile(sourceIntentFile, rootDir);
     if (!sameOperation(prepared.intent, {
-      change, summary, baselineUpdates, noBaselineChangeReason,
+      change, summary, baselineUpdates, noBaselineChangeReason, reconciliationPath, reconciliationDigest,
     })) {
       throw new ArchiveJournalError('ARCHIVE_INTENT_CONFLICT', 'prepared archive intent differs from retry input');
     }
@@ -130,6 +139,9 @@ function prepareArchiveMove({
       summary: summary.trim(),
       baseline_updates: baselineUpdates,
       no_baseline_change_reason: noBaselineChangeReason || null,
+      reconciliation_path: reconciliationPath,
+      reconciliation_digest: reconciliationDigest,
+      reconciliation_manifest: reconciliationManifest,
       previous_summary: previousSummary,
       created_at: now.toISOString(),
     };

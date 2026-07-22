@@ -71,7 +71,7 @@ they do not deny edits or stop active incident work.
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
-| Live/declared contracts | 36 | 36 | 36 | 36 |
+| Live/declared contracts | 41 | 41 | 41 | 41 |
 | Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
 | Context Spine v2 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
 | Approval-gated spec learning | FULL | FULL | FULL | FULL |
@@ -79,7 +79,7 @@ they do not deny edits or stop active incident work.
 | Durable authority | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` |
 | Ultra memory API | N/A | N/A | N/A | N/A |
 
-All 36 `baseline.*`, `task.*`, `session.*`, `change.*`, `system.*`, and `plan.*` operations
+All 41 `task.*`, `session.*`, `baseline.*`, `change.*`, `workflow.*`, `system.*`, and `plan.*` operations
 registered by `mcp-server/server.cjs` are live. Review, impact discovery, skill
 loading, and user interaction remain host-native surfaces.
 
@@ -126,9 +126,9 @@ records. Uninstall refuses an unmanaged or conflicting root.
 
 | Capability | Contract |
 |---|---|
-| Current state schema | `12.0` |
+| Current state schema | `15.0` |
 | Runtime values | `claude`, `opencode`, `codex`, `kimi` |
-| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, then runtime constraint compatibility in 12.0 |
+| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, repository evidence in 12.0, durable workflows in 13.0, continuous baseline revalidation in 14.0, then typed research semantics, complete Change Contracts, verified learning application, and reconciliation provenance in 15.0 |
 | Preservation gate | rows, IDs, indexes, foreign keys, telemetry, incidents, and migration history remain intact |
 | Failure behavior | rollback; no partially upgraded authority database |
 

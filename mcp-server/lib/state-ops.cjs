@@ -25,15 +25,19 @@ const STATUS_TRANSITIONS = Object.freeze({
 
 const TASK_FIELDS = Object.freeze([
   'id', 'title', 'type', 'priority', 'complexity', 'estimated_days', 'status',
-  'deps', 'files_modified', 'session_id', 'stale', 'complexity_hint',
-  'tag', 'trace_to', 'context_file', 'completion_commit', 'parent_id',
+  'deps', 'files_modified', 'session_id', 'stale',
+  'tag', 'trace_to', 'outcome', 'slice_kind', 'public_seam', 'verification_command',
+  'acceptance_json', 'context_refs_json', 'docs_impact_json', 'ownership_json',
+  'context_file', 'completion_commit', 'parent_id',
   'change_id',
   'created_at', 'updated_at',
 ]);
 
 const PATCHABLE_FIELDS = Object.freeze([
   'priority', 'complexity', 'estimated_days', 'deps', 'files_modified',
-  'session_id', 'stale', 'complexity_hint', 'tag', 'trace_to',
+  'session_id', 'stale', 'tag', 'trace_to',
+  'outcome', 'slice_kind', 'public_seam', 'verification_command',
+  'acceptance', 'context_refs', 'docs_impact', 'ownership',
   'context_file', 'completion_commit',
   'change_id',
 ]);
@@ -89,7 +93,7 @@ function withRetry(fn, { attempts = 10, baseMs = 50, capMs = 2000 } = {}) {
 }
 
 function tx(db, fn) {
-  return withRetry(() => db.transaction(fn)());
+  return withRetry(() => db.transaction(fn).immediate());
 }
 
 // ─── tasks ───────────────────────────────────────────────────────────────
@@ -97,15 +101,130 @@ function tx(db, fn) {
 function rowToTask(row) {
   if (!row) return null;
   const out = { ...row };
+  // Pre-13 databases may retain this retired Claude-specific column. It is
+  // intentionally ignored instead of leaking host/model assumptions into the
+  // current task contract or projections.
+  delete out.complexity_hint;
   for (const k of ['deps', 'files_modified']) {
     if (typeof out[k] === 'string') {
       try { out[k] = JSON.parse(out[k]); } catch { out[k] = null; }
     }
   }
+  const jsonFields = {
+    acceptance_json: ['acceptance', []],
+    context_refs_json: ['context_refs', []],
+    docs_impact_json: ['docs_impact', { status: 'unknown', files: [], rationale: null }],
+    ownership_json: ['ownership', {}],
+  };
+  for (const [column, [field, fallback]] of Object.entries(jsonFields)) {
+    try { out[field] = typeof out[column] === 'string' ? JSON.parse(out[column]) : fallback; }
+    catch { out[field] = fallback; }
+    delete out[column];
+  }
   if (out.stale !== undefined && out.stale !== null) {
     out.stale = Boolean(out.stale);
   }
   return out;
+}
+
+function normalizeObjectArray(value, field) {
+  if (!Array.isArray(value) || value.some((item) => !item || typeof item !== 'object' || Array.isArray(item))) {
+    throw new StateOpsError('VALIDATION_ERROR', `${field} must be an array of objects`);
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeAcceptance(value) {
+  const items = normalizeObjectArray(value, 'acceptance');
+  const ids = new Set();
+  return items.map((item, index) => {
+    const id = String(item.id || '').trim();
+    const criterion = String(item.criterion || '').trim();
+    const verification = String(item.verification || '').trim();
+    if (!id || !criterion || !verification || ids.has(id)) {
+      throw new StateOpsError(
+        'VALIDATION_ERROR', `acceptance[${index}] requires a unique id, criterion, and verification`,
+      );
+    }
+    ids.add(id);
+    return { id, criterion, verification };
+  });
+}
+
+function normalizeContextRefs(value) {
+  return normalizeObjectArray(value, 'context_refs').map((item, index) => {
+    const ref = String(item.ref || '').trim();
+    const reason = String(item.reason || '').trim();
+    if (!ref || !reason) {
+      throw new StateOpsError('VALIDATION_ERROR', `context_refs[${index}] requires ref and reason`);
+    }
+    return {
+      ref, reason, kind: String(item.kind || 'source').trim(), required: item.required !== false,
+    };
+  });
+}
+
+function normalizeDocsImpact(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new StateOpsError('VALIDATION_ERROR', 'docs_impact must be an object');
+  }
+  const status = String(value.status || 'unknown').trim();
+  if (!['unknown', 'required', 'none'].includes(status)) {
+    throw new StateOpsError('VALIDATION_ERROR', 'docs_impact.status must be unknown, required, or none');
+  }
+  const files = value.files === undefined ? [] : value.files;
+  if (!Array.isArray(files) || files.some((item) => typeof item !== 'string' || !item.trim())) {
+    throw new StateOpsError('VALIDATION_ERROR', 'docs_impact.files must be an array of paths');
+  }
+  return {
+    status, files: files.map((item) => item.trim()),
+    rationale: value.rationale == null ? null : String(value.rationale).trim(),
+  };
+}
+
+function normalizeOwnership(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new StateOpsError('VALIDATION_ERROR', 'ownership must be an object');
+  }
+  const reviewers = value.reviewers === undefined ? [] : value.reviewers;
+  if (!Array.isArray(reviewers) || reviewers.some((item) => typeof item !== 'string' || !item.trim())) {
+    throw new StateOpsError('VALIDATION_ERROR', 'ownership.reviewers must be an array of names');
+  }
+  return {
+    owner: value.owner == null ? null : String(value.owner).trim(),
+    reviewers: reviewers.map((item) => item.trim()),
+  };
+}
+
+function taskContractBlockers(task) {
+  const blockers = [];
+  if (!String(task?.outcome || '').trim()) blockers.push('TASK_OUTCOME_MISSING');
+  if (!['tracer_bullet', 'expand_contract', 'integration_checkpoint'].includes(task?.slice_kind)) {
+    blockers.push('TASK_SLICE_KIND_MISSING');
+  }
+  if (!String(task?.public_seam || '').trim()) blockers.push('TASK_PUBLIC_SEAM_MISSING');
+  if (!String(task?.verification_command || '').trim()) blockers.push('TASK_VERIFICATION_COMMAND_MISSING');
+  if (!Array.isArray(task?.acceptance) || task.acceptance.length === 0) blockers.push('TASK_ACCEPTANCE_MISSING');
+  if (!Array.isArray(task?.context_refs) || task.context_refs.length === 0) blockers.push('TASK_CONTEXT_REFS_MISSING');
+  if (!String(task?.trace_to || '').trim()) blockers.push('TASK_TRACEABILITY_MISSING');
+  if (!task?.docs_impact || task.docs_impact.status === 'unknown') blockers.push('TASK_DOCS_IMPACT_UNRESOLVED');
+  else if (task.docs_impact.status === 'required' && task.docs_impact.files.length === 0) {
+    blockers.push('TASK_DOCS_FILES_MISSING');
+  } else if (!String(task.docs_impact.rationale || '').trim()) blockers.push('TASK_DOCS_RATIONALE_MISSING');
+  if (!String(task?.ownership?.owner || '').trim()) blockers.push('TASK_OWNER_MISSING');
+  return blockers;
+}
+
+function assertTaskExecutionContract(task) {
+  const blockers = taskContractBlockers(task);
+  if (blockers.length > 0) {
+    throw new StateOpsError(
+      'TASK_EXECUTION_CONTRACT_INCOMPLETE',
+      `task ${task?.id || '(unknown)'} execution contract is incomplete`,
+      { details: { blockers } },
+    );
+  }
+  return task;
 }
 
 function readTask(db, id) {
@@ -116,13 +235,14 @@ function readTask(db, id) {
 // Single static SQL with named parameters and NULL-pass-through filters.
 // Every value flows through @bindings; the string is a frozen literal so no
 // concatenation / interpolation hooks can flag injection risk.
-const LIST_TASKS_SQL = "SELECT * FROM tasks WHERE (@status IS NULL OR status = @status) AND (@tag IS NULL OR tag = @tag) AND (@since IS NULL OR updated_at >= @since) ORDER BY created_at ASC LIMIT IIF(@maxn IS NULL, -1, @maxn)";
+const LIST_TASKS_SQL = "SELECT * FROM tasks WHERE (@status IS NULL OR status = @status) AND (@tag IS NULL OR tag = @tag) AND (@change_id IS NULL OR change_id = @change_id) AND (@since IS NULL OR updated_at >= @since) ORDER BY created_at ASC LIMIT IIF(@maxn IS NULL, -1, @maxn)";
 
 function listTasks(db, filter = {}) {
   const status = filter.status && filter.status !== 'any' ? filter.status : null;
   return db.prepare(LIST_TASKS_SQL).all({
     status,
     tag: filter.tag || null,
+    change_id: filter.change_id || null,
     since: filter.since || null,
     maxn: filter.limit || null,
   }).map(rowToTask);
@@ -203,9 +323,18 @@ function createTask(db, input) {
     files_modified: input.files_modified ? JSON.stringify(input.files_modified) : null,
     session_id: input.session_id ?? null,
     stale: 0,
-    complexity_hint: input.complexity_hint ?? null,
     tag: input.tag ?? derivedTag,
     trace_to: input.trace_to ?? null,
+    outcome: input.outcome ?? null,
+    slice_kind: input.slice_kind ?? null,
+    public_seam: input.public_seam ?? null,
+    verification_command: input.verification_command ?? null,
+    acceptance_json: JSON.stringify(input.acceptance === undefined ? [] : normalizeAcceptance(input.acceptance)),
+    context_refs_json: JSON.stringify(input.context_refs === undefined ? [] : normalizeContextRefs(input.context_refs)),
+    docs_impact_json: JSON.stringify(input.docs_impact === undefined
+      ? { status: 'unknown', files: [], rationale: null }
+      : normalizeDocsImpact(input.docs_impact)),
+    ownership_json: JSON.stringify(input.ownership === undefined ? {} : normalizeOwnership(input.ownership)),
     context_file: input.context_file ?? null,
     completion_commit: null,
     parent_id: input.parent_id ?? null,
@@ -270,6 +399,26 @@ function patchTask(db, id, patch = {}) {
           throw new StateOpsError('VALIDATION_ERROR', `${key} must be an array`);
         }
         value = value === null ? null : JSON.stringify(value);
+      }
+      if (key === 'acceptance') {
+        sets.push('acceptance_json = ?');
+        params.push(JSON.stringify(normalizeAcceptance(value)));
+        continue;
+      }
+      if (key === 'context_refs') {
+        sets.push('context_refs_json = ?');
+        params.push(JSON.stringify(normalizeContextRefs(value)));
+        continue;
+      }
+      if (key === 'docs_impact') {
+        sets.push('docs_impact_json = ?');
+        params.push(JSON.stringify(normalizeDocsImpact(value)));
+        continue;
+      }
+      if (key === 'ownership') {
+        sets.push('ownership_json = ?');
+        params.push(JSON.stringify(normalizeOwnership(value)));
+        continue;
       }
       if (key === 'stale') value = value ? 1 : 0;
       sets.push(`${key} = ?`);
@@ -709,11 +858,11 @@ function markTasksStaleBySpecSections(db, sections) {
 // shows up under a synthetic "unknown" runtime bucket. Writes go through
 // mcp-server/lib/telemetry.cjs — don't insert telemetry rows directly.
 
-const AGGREGATE_BY_RUNTIME_SQL = "SELECT COALESCE(s.runtime, 'unknown') AS runtime, COUNT(*) AS calls, COALESCE(SUM(t.tokens_input), 0) AS tokens_in, COALESCE(SUM(t.tokens_output), 0) AS tokens_out, COALESCE(SUM(t.cost_usd), 0.0) AS cost_usd FROM telemetry t LEFT JOIN sessions s ON t.session_id = s.sid WHERE (@since IS NULL OR t.ts >= @since) GROUP BY COALESCE(s.runtime, 'unknown') ORDER BY cost_usd DESC";
+const AGGREGATE_BY_RUNTIME_SQL = "SELECT COALESCE(s.runtime, 'unknown') AS runtime, COUNT(*) AS calls, COALESCE(SUM(t.tokens_input), 0) AS tokens_in, COALESCE(SUM(t.tokens_output), 0) AS tokens_out, COALESCE(SUM(t.cost_usd), 0.0) AS cost_usd, SUM(CASE WHEN t.event_type = 'token_usage' AND (COALESCE(t.tokens_input, 0) > 0 OR COALESCE(t.tokens_output, 0) > 0) AND t.cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced_usage_events, SUM(CASE WHEN t.event_type = 'token_usage' AND (COALESCE(t.tokens_input, 0) > 0 OR COALESCE(t.tokens_output, 0) > 0) AND t.cost_usd IS NOT NULL THEN 1 ELSE 0 END) AS priced_usage_events FROM telemetry t LEFT JOIN sessions s ON t.session_id = s.sid WHERE (@since IS NULL OR t.ts >= @since) GROUP BY COALESCE(s.runtime, 'unknown') ORDER BY cost_usd DESC";
 
-const AGGREGATE_BY_TASK_SQL = "SELECT s.task_id AS task_id, COUNT(*) AS calls, COALESCE(SUM(t.tokens_input), 0) AS tokens_in, COALESCE(SUM(t.tokens_output), 0) AS tokens_out, COALESCE(SUM(t.cost_usd), 0.0) AS cost_usd FROM telemetry t JOIN sessions s ON t.session_id = s.sid WHERE s.task_id IS NOT NULL AND (@since IS NULL OR t.ts >= @since) GROUP BY s.task_id ORDER BY cost_usd DESC LIMIT @maxn";
+const AGGREGATE_BY_TASK_SQL = "SELECT s.task_id AS task_id, COUNT(*) AS calls, COALESCE(SUM(t.tokens_input), 0) AS tokens_in, COALESCE(SUM(t.tokens_output), 0) AS tokens_out, COALESCE(SUM(t.cost_usd), 0.0) AS cost_usd, SUM(CASE WHEN t.event_type = 'token_usage' AND (COALESCE(t.tokens_input, 0) > 0 OR COALESCE(t.tokens_output, 0) > 0) AND t.cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced_usage_events, SUM(CASE WHEN t.event_type = 'token_usage' AND (COALESCE(t.tokens_input, 0) > 0 OR COALESCE(t.tokens_output, 0) > 0) AND t.cost_usd IS NOT NULL THEN 1 ELSE 0 END) AS priced_usage_events FROM telemetry t JOIN sessions s ON t.session_id = s.sid WHERE s.task_id IS NOT NULL AND (@since IS NULL OR t.ts >= @since) GROUP BY s.task_id ORDER BY cost_usd DESC LIMIT @maxn";
 
-const AGGREGATE_BY_SESSION_SQL = "SELECT @sid AS session_id, COUNT(*) AS tool_calls, COALESCE(SUM(tokens_input), 0) AS tokens_in, COALESCE(SUM(tokens_output), 0) AS tokens_out, COALESCE(SUM(cost_usd), 0.0) AS cost_usd FROM telemetry WHERE session_id = @sid";
+const AGGREGATE_BY_SESSION_SQL = "SELECT @sid AS session_id, COUNT(*) AS tool_calls, COALESCE(SUM(tokens_input), 0) AS tokens_in, COALESCE(SUM(tokens_output), 0) AS tokens_out, COALESCE(SUM(cost_usd), 0.0) AS cost_usd, SUM(CASE WHEN event_type = 'token_usage' AND (COALESCE(tokens_input, 0) > 0 OR COALESCE(tokens_output, 0) > 0) AND cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced_usage_events, SUM(CASE WHEN event_type = 'token_usage' AND (COALESCE(tokens_input, 0) > 0 OR COALESCE(tokens_output, 0) > 0) AND cost_usd IS NOT NULL THEN 1 ELSE 0 END) AS priced_usage_events FROM telemetry WHERE session_id = @sid";
 
 function aggregateTelemetryByRuntime(db, { since = null } = {}) {
   return db.prepare(AGGREGATE_BY_RUNTIME_SQL).all({ since });
@@ -765,6 +914,8 @@ module.exports = {
   StateOpsError,
   STATUS_TRANSITIONS,
   PATCHABLE_FIELDS,
+  taskContractBlockers,
+  assertTaskExecutionContract,
   SESSION_PATCHABLE,
   openStateDb,
   tx,

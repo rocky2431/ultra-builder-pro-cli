@@ -1,0 +1,27 @@
+[
+  {
+    "$schema": "ultra-delivery-report-v1",
+    "change_id": "change-example",
+    "archive_status": "archived",
+    "baseline_id": "project-baseline",
+    "baseline_status": "ready",
+    "git_commit": "0123456789abcdef0123456789abcdef01234567",
+    "worktree_digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "context_digest": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "checks": [
+      {
+        "command": "npm test",
+        "status": "pass",
+        "exit_code": 0,
+        "evidence": "The release-candidate suite passed."
+      }
+    ],
+    "release": {
+      "authorized": false,
+      "performed": false,
+      "evidence": []
+    },
+    "rollback": "Restore the recorded backup and archived change packet.",
+    "timestamp": "2026-07-22T00:00:00.000Z"
+  }
+]

@@ -46,10 +46,24 @@ test('initProject copies bundled template into .ultra/', () => {
       assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name = 'changes'").get());
       const baseline = db.prepare('SELECT mode, status, project_name FROM baselines').get();
       assert.deepEqual(baseline, { mode: 'greenfield', status: 'draft', project_name: 'demo' });
+      const runs = db.prepare(
+        'SELECT kind, mode, status, current_step FROM workflow_runs ORDER BY started_at, rowid',
+      ).all();
+      assert.deepEqual(runs, [
+        { kind: 'init', mode: null, status: 'active', current_step: 'establish-baseline' },
+        { kind: 'research', mode: 'full', status: 'active', current_step: '00-problem-validation' },
+      ]);
+      assert.equal(
+        db.prepare("SELECT COUNT(*) AS count FROM workflow_steps WHERE run_id = ?").get(r.workflow.research_id).count,
+        17,
+      );
     } finally {
       db.close();
     }
     assert.ok(!r.copied_files.some((f) => f.endsWith('.DS_Store')));
+    assert.equal(r.workflow.init_status, 'active');
+    assert.equal(r.workflow.research_mode, 'full');
+    assert.equal(r.workflow.next_action, 'ultra-research');
   } finally { cleanup(target); }
 });
 
@@ -67,9 +81,12 @@ test('initProject auto-detects existing source as brownfield and starts adoption
       assert.equal(baseline.mode, 'brownfield');
       assert.equal(baseline.status, 'adopting');
       assert.deepEqual(JSON.parse(baseline.scope_json), ['.']);
+      const research = db.prepare("SELECT mode, current_step FROM workflow_runs WHERE kind = 'research'").get();
+      assert.deepEqual(research, { mode: 'adoption', current_step: '00-problem-validation' });
     } finally {
       db.close();
     }
+    assert.equal(result.workflow.research_mode, 'adoption');
   } finally { cleanup(target); }
 });
 
@@ -89,6 +106,81 @@ test('auto classification keeps a documentation-and-manifest-only skeleton green
     assert.equal(result.mode, 'greenfield');
     assert.deepEqual(result.repository_profile.verification_commands, ['npm test']);
   } finally { cleanup(target); }
+});
+
+test('auto classification treats root-level application source as brownfield', () => {
+  const target = mkTempDir('ubp-init-root-source-');
+  try {
+    fs.writeFileSync(path.join(target, 'service.py'), 'def run():\n    return "existing"\n');
+    const profile = classifyRepository(target);
+    assert.equal(profile.mode, 'brownfield');
+    assert.ok(profile.reasons.includes('SOURCE_PRESENT'));
+    assert.deepEqual(profile.source_signals, ['service.py']);
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('auto classification treats a static web application as brownfield', () => {
+  const target = mkTempDir('ubp-init-static-web-');
+  try {
+    fs.writeFileSync(path.join(target, 'index.html'), '<main>Existing product</main>\n');
+    fs.writeFileSync(path.join(target, 'styles.css'), 'main { display: block; }\n');
+    const profile = classifyRepository(target);
+    assert.equal(profile.mode, 'brownfield');
+    assert.equal(profile.detected_project_type, 'web');
+    assert.match(profile.detected_stack, /HTML/);
+    assert.ok(profile.source_signals.includes('index.html'));
+    assert.ok(profile.source_signals.includes('styles.css'));
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('auto classification persists evidence-backed project type and stack unless the owner overrides them', () => {
+  const target = mkTempDir('ubp-init-detected-stack-');
+  try {
+    fs.mkdirSync(path.join(target, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(target, 'src', 'index.ts'), 'export const ready = true;\n');
+    fs.writeFileSync(path.join(target, 'package.json'), JSON.stringify({
+      name: 'existing-fullstack',
+      dependencies: {
+        next: '^15.0.0', react: '^19.0.0', fastify: '^5.0.0', '@prisma/client': '^6.0.0',
+      },
+      devDependencies: { typescript: '^5.0.0', vitest: '^3.0.0' },
+      scripts: { build: 'next build', test: 'vitest run', typecheck: 'tsc --noEmit' },
+    }, null, 2));
+
+    const profile = classifyRepository(target);
+    assert.equal(profile.detected_project_type, 'fullstack');
+    for (const technology of ['Node.js', 'Next.js', 'React', 'Fastify', 'Prisma', 'TypeScript', 'Vitest']) {
+      assert.ok(profile.technology_signals.includes(technology), technology);
+      assert.match(profile.detected_stack, new RegExp(technology.replace('.', '\\.')));
+    }
+
+    const result = initProject({ target_dir: target, project_name: 'existing-fullstack' });
+    assert.equal(result.baseline.project_type, 'fullstack');
+    assert.equal(result.baseline.stack, profile.detected_stack);
+    const db = new Database(result.state_db_path, { readonly: true });
+    try {
+      const baseline = db.prepare('SELECT project_type, stack FROM baselines').get();
+      assert.deepEqual(baseline, {
+        project_type: 'fullstack', stack: profile.detected_stack,
+      });
+    } finally { db.close(); }
+  } finally { cleanup(target); }
+
+  const overridden = mkTempDir('ubp-init-owner-stack-');
+  try {
+    fs.writeFileSync(path.join(overridden, 'index.html'), '<main>Existing product</main>\n');
+    const result = initProject({
+      target_dir: overridden, project_name: 'owner-classified',
+      project_type: 'other', stack: 'Owner-defined runtime boundary',
+    });
+    assert.equal(result.repository_profile.detected_project_type, 'web');
+    assert.equal(result.baseline.project_type, 'other');
+    assert.equal(result.baseline.stack, 'Owner-defined runtime boundary');
+  } finally { cleanup(overridden); }
 });
 
 test('auto classification records bounded monorepo evidence for brownfield adoption', () => {
@@ -198,8 +290,16 @@ test('initProject records the declared project_initialized lifecycle event', () 
     const db = new Database(result.state_db_path, { readonly: true });
     try {
       const events = db.prepare('SELECT type, payload_json FROM events ORDER BY id').all();
-      assert.deepEqual(events.map((row) => row.type), ['baseline_started', 'project_initialized']);
-      assert.deepEqual(JSON.parse(events[1].payload_json), {
+      assert.deepEqual(events.map((row) => row.type), [
+        'baseline_started',
+        'workflow_started',
+        'workflow_step_updated',
+        'workflow_step_updated',
+        'workflow_step_updated',
+        'workflow_started',
+        'project_initialized',
+      ]);
+      assert.deepEqual(JSON.parse(events.at(-1).payload_json), {
         project_name: 'events-fixture', mode: 'greenfield', baseline_id: 'project-baseline',
       });
     } finally {
@@ -243,11 +343,58 @@ test('initProject resume preserves existing artifacts and installs only missing 
       target_dir: target, project_name: 'existing-project', resume: true,
     });
     assert.equal(second.status, 'resumed');
+    assert.equal(second.mode, 'brownfield');
+    assert.equal(second.mode, second.baseline.mode);
     assert.deepEqual(second.copied_files, []);
     const db = new Database(result.state_db_path, { readonly: true });
     try {
       assert.equal(db.prepare('SELECT COUNT(*) AS count FROM baselines').get().count, 1);
     } finally { db.close(); }
+  } finally { cleanup(target); }
+});
+
+test('initProject resume returns the completed initialization workflow provenance for a ready baseline', () => {
+  const target = mkTempDir();
+  try {
+    const first = initProject({ target_dir: target, project_name: 'ready-project' });
+    const db = new Database(first.state_db_path);
+    try {
+      db.prepare("UPDATE workflow_runs SET status = 'completed', completed_at = CURRENT_TIMESTAMP").run();
+      db.prepare(
+        "UPDATE baselines SET status = 'ready', approved_by = 'owner', research_run_id = ?, converged_at = CURRENT_TIMESTAMP",
+      ).run(first.workflow.research_id);
+    } finally { db.close(); }
+
+    const resumed = initProject({
+      target_dir: target, project_name: 'ready-project', resume: true,
+    });
+    assert.equal(resumed.baseline.status, 'ready');
+    assert.equal(resumed.workflow.init_id, first.workflow.init_id);
+    assert.equal(resumed.workflow.research_id, first.workflow.research_id);
+    assert.equal(resumed.workflow.init_status, 'completed');
+    assert.equal(resumed.workflow.research_status, 'completed');
+    assert.equal(resumed.workflow.research_mode, 'full');
+    assert.equal(resumed.workflow.next_action, 'ultra-change');
+  } finally { cleanup(target); }
+});
+
+test('initProject resume routes a ready baseline with missing provenance to doctor', () => {
+  const target = mkTempDir();
+  try {
+    const first = initProject({ target_dir: target, project_name: 'broken-ready-project' });
+    const db = new Database(first.state_db_path);
+    try {
+      db.prepare("UPDATE workflow_runs SET status = 'completed', completed_at = CURRENT_TIMESTAMP").run();
+      db.prepare(
+        "UPDATE baselines SET status = 'ready', approved_by = 'owner', research_run_id = NULL, converged_at = CURRENT_TIMESTAMP",
+      ).run();
+    } finally { db.close(); }
+
+    const resumed = initProject({
+      target_dir: target, project_name: 'broken-ready-project', resume: true,
+    });
+    assert.equal(resumed.workflow.provenance_status, 'incomplete');
+    assert.equal(resumed.workflow.next_action, 'ultra-doctor');
   } finally { cleanup(target); }
 });
 
@@ -262,7 +409,7 @@ test('initProject resume refuses projection-only tasks until the supported impor
     assert.throws(
       () => initProject({ target_dir: target, project_name: 'legacy', resume: true }),
       (error) => error.code === 'LEGACY_STATE_MIGRATION_REQUIRED'
-        && /--from=4\.5 --to=12\.0/.test(error.message),
+        && error.message.includes(`--from=4.5 --to=${EXPECTED_VERSION}`),
     );
     assert.equal(fs.existsSync(path.join(target, '.ultra', 'state.db')), false);
     assert.equal(fs.existsSync(path.join(target, '.ultra', 'specs', 'product.md')), false);
