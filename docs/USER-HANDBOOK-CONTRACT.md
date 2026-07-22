@@ -7,8 +7,8 @@ only one small managed section describing its runtime boundary.
 ## Source and render targets
 
 `adapters/_shared/handbook.cjs` is the canonical source. It renders the common
-authority, baseline adoption, Context Spine, specification-learning, memory, hook, agent, and
-package boundaries with host-native command syntax:
+authority, baseline adoption, decision dialogue, Context Spine, specification-learning,
+memory, hook, agent, and package boundaries with host-native command syntax:
 
 | Runtime | Default target | Main invocation form |
 |---|---|---|
@@ -30,6 +30,12 @@ a blocking reconciliation gap; hooks inject only the DB-derived
 `change.breadcrumb`; and unresolved specification learning or either failed review
 axis blocks convergence. Detailed procedures remain in the plugin skills so user
 handbooks do not accumulate duplicated prompt sediment.
+
+The decision boundary is intentionally short but normative: project-bound owner
+choices use one resumable DB-backed thread; the host resolves observable facts first,
+presents only one current decision with evidence and a recommendation, and stores the
+normalized result rather than conversation text. Matching workflows remain gated until
+blocking choices are resolved and the owner-approved artifact checkpoint is current.
 
 ## Managed-block contract
 

@@ -126,6 +126,15 @@ function renderProjectBreadcrumb(rootDir, breadcrumb) {
       `Step: ${breadcrumb.workflow.current_step || 'finalize'}`,
     );
   }
+  if (breadcrumb.decision) {
+    const current = breadcrumb.decision.current;
+    lines.push(
+      `Decision thread: ${breadcrumb.decision.thread_id} (${breadcrumb.decision.status}/${breadcrumb.decision.mode})`,
+      current
+        ? `Decision: ${current.id} — ${current.question}`
+        : 'Decision: checkpoint confirmation required',
+    );
+  }
   lines.push(
     `Next: ${breadcrumb.next_action || 'Inspect Ultra status.'}`,
     `Route: ${breadcrumb.recommended_workflow || 'ultra-doctor'}`,

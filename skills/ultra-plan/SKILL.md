@@ -3,10 +3,12 @@ name: ultra-plan
 description: Convert a ready Ultra baseline or approved active-change delta into dependency-valid, DB-backed execution contracts and fresh-context vertical slices. Use when accepted requirements are ready for implementation planning or an existing plan must be resumed and verified.
 ---
 
-# Persist an executable plan
+# Review and persist an executable plan
 
 Use host reasoning for decomposition, tradeoffs, and approval. Use Ultra MCP for
-workflow position, task contracts, graph validation, projection, and recovery.
+workflow position, decision authority, task contracts, graph validation, projection,
+and recovery. Read `../ultra-think/references/decision-dialogue.md` before presenting a
+planning choice.
 
 ## Bind authority
 
@@ -21,7 +23,24 @@ workflow position, task contracts, graph validation, projection, and recovery.
 5. Resume the active `plan` workflow from `workflow.list`, or call `workflow.start`
    with its `baseline_id`, `change_id`, subject, and source refs.
 
-## Plan through the durable steps
+## Build a candidate before writing authority
+
+Inspect requirements, source, consumers, state, tests, deployment, and recovery before
+drafting slices. Build the candidate plan privately. Separate evidence-backed design
+detail from choices that change accepted scope, public behavior, compatibility, cost,
+risk, delivery semantics, or recovery.
+
+When a material planning decision remains, start or resume a decision thread bound to
+the plan workflow. Present exactly one decision with the recommendation, credible
+alternatives, and the tasks or contracts it changes, then STOP. The plan document is
+the result of this review; never use a large plan dump as a substitute for interaction.
+
+After all blocking choices are resolved, prepare one checkpoint. Present the compact
+topology, public seams, recovery, and material tradeoffs for approval. After approval,
+write the evidence-linked `plan.md`, confirm the checkpoint with its digest, and reuse
+that same approval for the durable `approve-plan` and workflow completion gates.
+
+## Record the durable steps
 
 Record each completed step with `workflow.step`:
 
@@ -37,11 +56,12 @@ Record each completed step with `workflow.step`:
    documentation, migration, observability, and recovery in the owning slice.
 6. `validate-dependencies`: validate ownership, missing dependencies, cycles, conflict
    surfaces, and meaningful integration checkpoints.
-7. `approve-plan`: persist owner approval when the plan makes a material decision.
+7. `approve-plan`: persist the already obtained checkpoint approval; do not ask again.
 
 ## Persist complete task contracts
 
-Call `task.create` for each approved task with:
+Only after the plan checkpoint is confirmed, call `task.create` for each approved task
+with:
 
 - one observable `outcome` and stable `trace_to`;
 - `slice_kind`, `public_seam`, and exact `verification_command`;

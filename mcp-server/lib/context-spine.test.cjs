@@ -13,6 +13,7 @@ const { createChange, compileContext } = require('./change-workflow.cjs');
 const { createTask, patchTask } = require('./state-ops.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const workflows = require('./workflow-state.cjs');
+const decisions = require('./decision-dialogue.cjs');
 const { seedReadyBaseline: seedCompleteBaseline } = require('../test-support/ready-baseline.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
@@ -213,6 +214,44 @@ test('active change breadcrumb follows the latest durable stage workflow', () =>
     assert.equal(breadcrumb.workflow.id, plan.id);
     assert.equal(breadcrumb.recommended_workflow, 'ultra-plan');
     assert.match(breadcrumb.next_action, /validate-baseline/);
+  } finally {
+    db.close();
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('breadcrumb prioritizes one current owner decision over downstream workflow work', () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-spine-decision-'));
+  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  try {
+    seedReadyBaseline(db, rootDir);
+    const created = createChange(db, { ...completeChangeInput(),
+      id: 'decision-route', title: 'Decision route', kind: 'standard',
+      intent: 'Route the owner to one load-bearing decision before planning.',
+      docs_impact: { status: 'none', rationale: 'Test fixture only.' },
+    }, { rootDir });
+    decisions.startDecisionThread(db, {
+      id: 'decision-route-thread', change_id: created.change.id,
+      workflow_run_id: created.workflow.id,
+      purpose: 'Resolve the API compatibility boundary.', mode: 'guided',
+    });
+    decisions.openDecision(db, {
+      id: 'decision-route-api', thread_id: 'decision-route-thread', phase: 'change-contract',
+      question: 'Should the public API remain compatible for one release?',
+      why_now: 'The answer changes rollout and recovery tasks.',
+      recommendation: 'Preserve compatibility while active consumers migrate.',
+      effects: { summary: 'Changes the API contract and rollout plan.' },
+      blocking: true,
+    });
+
+    const breadcrumb = readBreadcrumb(db, { id: created.change.id }, { rootDir });
+    assert.equal(breadcrumb.readiness, 'blocked');
+    assert.equal(breadcrumb.gate, 'alignment');
+    assert.equal(breadcrumb.decision.thread_id, 'decision-route-thread');
+    assert.equal(breadcrumb.decision.current.id, 'decision-route-api');
+    assert.equal(breadcrumb.recommended_workflow, 'ultra-think');
+    assert.match(breadcrumb.next_action, /decision-route-api/);
+    assert.match(breadcrumb.next_action, /public API/);
   } finally {
     db.close();
     fs.rmSync(rootDir, { recursive: true, force: true });

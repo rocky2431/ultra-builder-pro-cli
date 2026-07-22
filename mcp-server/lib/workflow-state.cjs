@@ -8,6 +8,7 @@ const Ajv = require('ajv/dist/2020');
 const addFormats = require('ajv-formats');
 
 const ops = require('./state-ops.cjs');
+const decisionDialogue = require('./decision-dialogue.cjs');
 const testReportSchema = require('../../spec/schemas/test-report.v1.schema.json');
 const deliveryReportSchema = require('../../spec/schemas/delivery-report.v1.schema.json');
 
@@ -946,6 +947,13 @@ function recordWorkflowStep(db, input = {}, { rootDir = process.cwd() } = {}) {
         'ILLEGAL_WORKFLOW_STEP_TRANSITION',
         `cannot transition ${id}/${stepId} from ${stepRow.status} to ${input.status}`,
       );
+    }
+    if (input.status === 'completed') {
+      decisionDialogue.assertDecisionGate(db, {
+        workflow_run_id: runRow.id,
+        change_id: runRow.change_id,
+        baseline_id: runRow.baseline_id,
+      }, { rootDir });
     }
     const firstOpen = db.prepare(
       `SELECT step_id FROM workflow_steps
@@ -1929,6 +1937,11 @@ function completeWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
     if (run.status !== 'ready') {
       throw new WorkflowStateError('WORKFLOW_NOT_READY', `workflow ${id} is ${run.status}`);
     }
+    decisionDialogue.assertDecisionGate(db, {
+      workflow_run_id: run.id,
+      change_id: run.change_id,
+      baseline_id: run.baseline_id,
+    }, { rootDir });
     if (run.artifact_health.status !== 'pass') {
       throw new WorkflowStateError('WORKFLOW_OUTPUT_STALE', 'workflow outputs are missing or stale', run.artifact_health);
     }

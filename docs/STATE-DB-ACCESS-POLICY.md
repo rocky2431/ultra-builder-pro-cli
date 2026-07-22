@@ -4,17 +4,18 @@
 > risks R21 / R25.
 
 `.ultra/state.db` is the only authoritative state store for baselines, changes,
-tasks, workflow runs/steps, events, sessions, incidents, projections, telemetry, and spec references
+decision threads/items, tasks, workflow runs/steps, events, sessions, incidents,
+projections, telemetry, and spec references
 (D18, D52, D54). Every process
 that touches it must follow the rules below; deviations are bugs.
 
 ## 1. Three-role write matrix
 
-| Role | tasks | baselines | change/workflow/artifact state | events | sessions | telemetry | specs_refs | migration_history |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **MCP server** (single writer for mutables) | RW | RW | RW | RW | RW | RW | RW | RW |
-| **CLI** (`ultra-tools …`) | R | RW (init only) | R | RW (append-only) | R | R | R | RW (migration only) |
-| **Orchestrator daemon** | R | R | R | RW | RW | RW | RW | R |
+| Role | tasks | baselines | change/workflow/artifact state | decisions | events | sessions | telemetry | specs_refs | migration_history |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **MCP server** (single writer for mutables) | RW | RW | RW | RW | RW | RW | RW | RW | RW |
+| **CLI** (`ultra-tools …`) | R | RW (init only) | R | R | RW (append-only) | R | R | R | RW (migration only) |
+| **Orchestrator daemon** | R | R | R | R | RW | RW | RW | RW | R |
 
 - **R** = read-only;
 - **RW** = read + write;
@@ -73,6 +74,7 @@ resolve the mount/runtime constraint before retrying.
 | `baselines`        | MCP server (`baseline.start` / `baseline.record` / `baseline.converge`); initialization and legacy-projection migration may create only the first draft or compatibility row |
 | `tasks`            | MCP server (`task.create` / `task.update` / `task.delete`) |
 | `changes`          | MCP server (`change.create` / `change.update` / `change.converge` / `change.archive`) |
+| `decision_threads`, `decision_items` | MCP server (`decision.thread_start` / `decision.open` / `decision.resolve` / `decision.delegate` / `decision.defer` / `decision.supersede` / `decision.checkpoint`); only normalized choices and checkpoints are stored, never prompts or transcripts |
 | `workflow_runs`, `workflow_steps` | MCP server (`workflow.start` / `workflow.step` / `workflow.complete`); skills provide evidence inputs but never write rows directly |
 | `artifacts`, `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through change lifecycle tools |
 | `incidents`, `projection_jobs`, `event_consumers`, `circuit_breaker` | MCP server; backup-first doctor recovery may perform only documented mechanical transitions |

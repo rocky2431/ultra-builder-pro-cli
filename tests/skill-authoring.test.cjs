@@ -145,6 +145,54 @@ test('research preserves the complete semantic workflow through focused referenc
   assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
 });
 
+test('human-agent alignment uses one canonical resumable decision protocol', () => {
+  const reference = path.join(SKILLS_ROOT, 'ultra-think', 'references', 'decision-dialogue.md');
+  assert.ok(fs.existsSync(reference), 'canonical decision dialogue reference is missing');
+  const protocol = fs.readFileSync(reference, 'utf8');
+  for (const tool of [
+    'decision.list', 'decision.thread_start', 'decision.open', 'decision.resolve',
+    'decision.delegate', 'decision.defer', 'decision.supersede', 'decision.checkpoint',
+  ]) {
+    assert.match(protocol, new RegExp(`\\b${tool.replace('.', '\\.')}\\b`), `${tool} is absent from the protocol`);
+  }
+  assert.match(protocol, /Ask one question only/i);
+  assert.match(protocol, /STOP is mandatory/i);
+  assert.match(protocol, /never store raw prompts or\s+transcripts/i);
+  assert.match(protocol, /fact acquisition autonomous and decision authority explicit/i);
+
+  for (const name of ['ultra-init', 'ultra-research', 'ultra-think', 'ultra-change', 'ultra-plan']) {
+    const { text } = sourceSkill(name);
+    assert.match(text, /decision-dialogue\.md/, `${name} must use the canonical decision protocol`);
+  }
+  assert.match(sourceSkill('ultra-research').text, /not a questionnaire/i);
+  assert.match(
+    sourceSkill('ultra-research').text,
+    /Reuse the final research\s+checkpoint approval[\s\S]*do not ask for an equivalent approval again/i,
+  );
+  assert.match(sourceSkill('ultra-change').text, /never means silently\s+choose an owner decision/i);
+});
+
+test('public workflow skills expose a coherent init-to-daily-change handoff graph', () => {
+  const handoffs = {
+    'ultra-init': ['ultra-research'],
+    'ultra-research': ['ultra-change'],
+    'ultra-change': ['ultra-plan', 'ultra-dev'],
+    'ultra-plan': ['ultra-dev'],
+    'ultra-dev': ['ultra-test', 'ultra-think', 'ultra-doctor'],
+    'ultra-test': ['ultra-dev', 'ultra-review', 'ultra-think'],
+    'ultra-review': ['ultra-dev', 'ultra-test', 'ultra-deliver', 'ultra-think'],
+    'ultra-deliver': ['ultra-status', 'ultra-change', 'ultra-doctor'],
+    'ultra-status': ['ultra-init', 'ultra-research', 'ultra-change', 'ultra-think', 'ultra-doctor'],
+    'ultra-doctor': ['ultra-init', 'ultra-think'],
+  };
+  for (const [source, targets] of Object.entries(handoffs)) {
+    const { text } = sourceSkill(source);
+    for (const target of targets) {
+      assert.match(text, new RegExp(`\\b${target}\\b`), `${source} does not route to ${target}`);
+    }
+  }
+});
+
 test('workflow skills name every durable DB step they are responsible for following', () => {
   for (const [kind, steps] of Object.entries(WORKFLOW_DEFINITIONS)) {
     const { text } = sourceSkill(`ultra-${kind}`);

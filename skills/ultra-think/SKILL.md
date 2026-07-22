@@ -1,18 +1,18 @@
 ---
 name: ultra-think
-description: Produce an evidence-bounded recommendation or diagnosis for a consequential technical or product question. Use when the decision has material tradeoffs, uncertainty, or failure risk that benefits from explicit stress testing.
+description: Resolve a consequential product or technical question through evidence-first analysis or a resumable one-decision-at-a-time owner dialogue. Use when tradeoffs, ambiguity, diagnosis, or failure risk require shared understanding before research, planning, or implementation proceeds.
 ---
 
-# Analyze a consequential question
+# Align on a consequential question
 
-Use the smallest reasoning structure that resolves the user's actual decision. Answer
-simple questions directly; do not turn every request into a framework exercise.
+Use the smallest reasoning structure that resolves the user's actual decision. Answer a
+simple self-contained question directly. For a project-bound or multi-turn decision,
+read `references/decision-dialogue.md` and use its durable protocol.
 
-## Workflow
+## Establish evidence
 
 1. State the decision, observed symptom, or disputed claim and the constraints that
-   could change the answer. Ask only for missing information that materially affects
-   the result.
+   could change the answer.
 2. Gather evidence from the most authoritative available source:
    - current checkout and runtime for repository claims;
    - official primary documentation for product or API behavior;
@@ -31,8 +31,19 @@ simple questions directly; do not turn every request into a framework exercise.
    - likely failure scenario and recovery;
    - load-bearing assumption;
    - meaningful second-order effect.
-7. Return the recommendation or diagnosis, evidence, uncertainty, what would change
-   the conclusion, and the smallest verification step.
+7. Decide whether the question is now answerable or still requires owner authority.
+
+## Route the result
+
+- For an answerable read-only question, return the recommendation or diagnosis,
+  decisive evidence, uncertainty, what would change the conclusion, and one smallest
+  verification step.
+- For a load-bearing owner decision, bind or resume a decision thread, open the one
+  earliest decision, present it using the shared protocol, and STOP.
+- After an answer, normalize it through `decision.resolve`, `decision.delegate`, or
+  `decision.defer`; never store the conversation transcript.
+- At a phase boundary, prepare the checkpoint, obtain approval, bind current artifact
+  digests when project-bound, and only then return control to the invoking workflow.
 
 ## Output
 
@@ -46,6 +57,9 @@ Adapt the response to the question. Include:
 Use a comparison table only when several alternatives share the same decision
 criteria. Comparisons are an analysis tool, not a required output section.
 
-This skill is read-only unless the user separately authorizes writing an analysis
-artifact. It does not update Ultra state, implement the recommendation, or replace an
-independent review.
+Unbound analysis is read-only. A project-bound dialogue may write only decision state
+and explicitly approved checkpoint artifacts. It does not implement the decision or
+replace research, planning, testing, or independent review. After a confirmed
+checkpoint, return to the exact invoking `ultra-init`, `ultra-research`, `ultra-change`,
+`ultra-plan`, `ultra-dev`, `ultra-test`, `ultra-review`, or `ultra-deliver` run and
+current step; never choose a new route from conversation history.

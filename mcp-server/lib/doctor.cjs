@@ -12,6 +12,7 @@ const baselines = require('./baseline-workflow.cjs');
 const changes = require('./change-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
 const workflows = require('./workflow-state.cjs');
+const decisions = require('./decision-dialogue.cjs');
 
 const SPEC_CONSUMER = 'spec-staleness';
 
@@ -63,6 +64,12 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
       status: 'fail', active: 0, blocked: 0, ready: 0, stale_outputs: [],
       historical_stale_outputs: [], terminal_authority_runs: [], untracked_active_changes: [],
     };
+  const decisionHealth = missing.length === 0
+    ? decisions.inspectDecisionHealth(db, { rootDir })
+    : {
+      status: 'fail', active: 0, awaiting_owner: 0, checkpoint_ready: 0,
+      deferred_blocking: 0, stale_artifacts: [], current: null, current_thread_id: null,
+    };
   const baselineCheckStatus = baseline.status === 'pass'
     ? 'pass'
     : (baseline.baseline?.status === 'ready' ? 'fail' : 'warning');
@@ -70,6 +77,7 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
     || pending.length > 0 || running.length > 0 || failed.length > 0 || orphanSessions > 0 || activeMissing > 0
     || archiveIntents.length > 0
     || eventCursor > projectedCursor || workflowHealth.status === 'fail'
+    || decisionHealth.status === 'fail'
     || baselineCheckStatus === 'fail';
   return {
     status: degraded ? 'degraded' : 'healthy',
@@ -115,6 +123,7 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
         terminal_authority_runs: workflowHealth.terminal_authority_runs,
         untracked_active_changes: workflowHealth.untracked_active_changes,
       },
+      decisions: decisionHealth,
       external_providers: {
         status: 'pass', ownership: 'external',
         note: 'Ultra stores provider metadata references only and never owns memory or code-graph content.',

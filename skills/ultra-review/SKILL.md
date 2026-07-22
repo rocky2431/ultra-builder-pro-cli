@@ -18,8 +18,9 @@ One axis cannot compensate for the other.
 1. Read `references/review-modes.md`. Select exactly one review mode: `task` for one
    implementation slice, `change` for aggregate delivery readiness, or `plan` for an
    approved plan before implementation. Bind only the evidence defined by that mode.
-2. Resolve one explicit diff range, current full HEAD, change, task set, and accepted
-   evidence. Stop on an empty or ambiguous scope.
+2. Resolve one explicit diff range, current full HEAD, change, task set, accepted
+   evidence, and decision checkpoint state. Stop on an empty or ambiguous scope or an
+   unconfirmed alignment checkpoint.
 3. Resume or start a `review` workflow. Record `bind-diff` with revision, paths, mode,
    and task set.
 4. Compile `change.context` for `review` using only accepted intent, delta, task
@@ -50,6 +51,8 @@ Record:
 The coordinator preserves every specialist finding unchanged in `SUMMARY.json`.
 Duplicate root causes may be grouped only in the human-readable summary. Review is
 read-only except for review artifacts; implementation fixes are a separate dev action.
+If a finding exposes a new owner choice, preserve it as a finding and route the primary
+agent to `ultra-think`; a review worker must not open, answer, or hide that decision.
 
 ## Verify and complete
 
@@ -62,4 +65,7 @@ coordinator summary cannot replace either axis. Any code, test, spec, or contrac
 invalidates affected review evidence and requires a new or resumed run.
 
 Return both axis verdicts first, blocking findings, reviewed revision and paths,
-artifact digests, workflow id, skipped-role rationale, and one exact next route.
+artifact digests, workflow id, skipped-role rationale, and one exact next route. A
+blocking implementation finding returns to `ultra-dev`; stale verification returns to
+`ultra-test`; a new owner choice returns to `ultra-think`; an approved current change
+review routes to `ultra-deliver`.

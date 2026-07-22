@@ -13,6 +13,7 @@ const changes = require('./change-workflow.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
 const workflows = require('./workflow-state.cjs');
+const decisions = require('./decision-dialogue.cjs');
 const planStore = require('./plan-store.cjs');
 const {
   seedReadyBaseline,
@@ -196,6 +197,105 @@ test('change creation requires a complete contract, classification rationale, an
     assert.match(created.change.classification.rationale, /smallest profile/);
     assert.equal(created.change.research_disposition.status, 'none');
     assert.match(fs.readFileSync(created.intent_path, 'utf8'), /## Acceptance/);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('change creation binds a confirmed alignment checkpoint without copying the transcript', () => {
+  const fx = fixture();
+  try {
+    decisions.startDecisionThread(fx.db, {
+      id: 'alignment-contract', baseline_id: 'test-baseline',
+      purpose: 'Align the bounded change contract.', mode: 'guided',
+    });
+    decisions.openDecision(fx.db, {
+      id: 'alignment-scope', thread_id: 'alignment-contract', phase: 'change-contract',
+      question: 'Should this change preserve the public seam?',
+      why_now: 'The answer changes acceptance and recovery.',
+      recommendation: 'Preserve the seam for one release.',
+      effects: { summary: 'Changes contract acceptance and recovery.' },
+    });
+    assert.throws(
+      () => changes.createChange(fx.db, completeChangeInput({
+        id: 'premature-change', title: 'Reject premature change', kind: 'standard',
+        intent: 'Do not create the change while baseline alignment is still open.',
+      }), { rootDir: fx.rootDir }),
+      (error) => error.code === 'CHANGE_ALIGNMENT_REQUIRED',
+    );
+    decisions.resolveDecision(fx.db, {
+      id: 'alignment-scope', decision: 'Preserve the seam for one release.',
+      rationale: 'Active consumers need a migration window.', decided_by: 'owner',
+    });
+    decisions.checkpointDecisionThread(fx.db, {
+      id: 'alignment-contract', action: 'prepare', summary: 'Preserve the public seam.',
+    }, { rootDir: fx.rootDir });
+    const alignmentPath = '.ultra/docs/alignment/alignment-contract.md';
+    fs.mkdirSync(path.dirname(path.join(fx.rootDir, alignmentPath)), { recursive: true });
+    fs.writeFileSync(
+      path.join(fx.rootDir, alignmentPath),
+      '# Change alignment\n\nPreserve the public seam for one release.\n',
+    );
+    decisions.checkpointDecisionThread(fx.db, {
+      id: 'alignment-contract', action: 'confirm', approved_by: 'owner',
+      approval_note: 'Confirmed before opening the change.',
+      artifacts: [{ path: alignmentPath, kind: 'alignment-projection' }],
+    }, { rootDir: fx.rootDir });
+
+    const created = changes.createChange(fx.db, completeChangeInput({
+      id: 'aligned-change', title: 'Bind alignment', kind: 'standard',
+      intent: 'Trace the accepted decision checkpoint into the durable change.',
+      alignment_thread_id: 'alignment-contract',
+      docs_impact: { status: 'none', rationale: 'Test fixture only.' },
+    }), { rootDir: fx.rootDir });
+    assert.equal(created.change.alignment_thread_id, 'alignment-contract');
+    assert.equal(
+      decisions.readDecisionThread(fx.db, 'alignment-contract').change_id,
+      'aligned-change',
+    );
+    const intent = fs.readFileSync(created.intent_path, 'utf8');
+    assert.match(intent, /Alignment checkpoint/);
+    assert.doesNotMatch(intent, /transcript|raw prompt/i);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('change creation rejects a confirmed alignment checkpoint without a current artifact', () => {
+  const fx = fixture();
+  try {
+    decisions.startDecisionThread(fx.db, {
+      id: 'alignment-without-artifact', baseline_id: 'test-baseline',
+      purpose: 'Prove change alignment must be artifact-bound.', mode: 'guided',
+    });
+    decisions.openDecision(fx.db, {
+      id: 'alignment-without-artifact-scope', thread_id: 'alignment-without-artifact',
+      phase: 'change-contract', question: 'Should this change preserve the public seam?',
+      why_now: 'The answer changes the Change Contract.',
+      recommendation: 'Preserve the seam for one release.',
+      effects: { summary: 'Changes acceptance and recovery.' },
+    });
+    decisions.resolveDecision(fx.db, {
+      id: 'alignment-without-artifact-scope', decision: 'Preserve the seam.',
+      rationale: 'Active consumers exist.', decided_by: 'owner',
+    });
+    decisions.checkpointDecisionThread(fx.db, {
+      id: 'alignment-without-artifact', action: 'prepare', summary: 'Preserve the seam.',
+    }, { rootDir: fx.rootDir });
+    decisions.checkpointDecisionThread(fx.db, {
+      id: 'alignment-without-artifact', action: 'confirm', approved_by: 'owner',
+      approval_note: 'Approved without a projection.',
+      no_artifact_reason: 'No artifact was written.',
+    }, { rootDir: fx.rootDir });
+
+    assert.throws(
+      () => changes.createChange(fx.db, completeChangeInput({
+        id: 'reject-unbound-alignment', title: 'Reject unbound alignment', kind: 'standard',
+        intent: 'Require a current alignment projection before creating the change.',
+        alignment_thread_id: 'alignment-without-artifact',
+      }), { rootDir: fx.rootDir }),
+      (error) => error.code === 'CHANGE_ALIGNMENT_REQUIRED',
+    );
   } finally {
     cleanup(fx);
   }

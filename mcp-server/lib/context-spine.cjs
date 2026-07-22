@@ -6,6 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const baselines = require('./baseline-workflow.cjs');
 const workflows = require('./workflow-state.cjs');
+const decisions = require('./decision-dialogue.cjs');
 const ops = require('./state-ops.cjs');
 
 const ROLES = new Set(['plan', 'implement', 'check', 'review']);
@@ -452,6 +453,38 @@ function workflowNextAction(run) {
   return `Continue ${run.kind} workflow ${run.id} at ${run.current_step}.`;
 }
 
+function summarizeDecision(gate) {
+  if (!gate?.thread) return null;
+  const current = gate.current_decision;
+  return {
+    thread_id: gate.thread.id,
+    status: gate.thread.status,
+    mode: gate.thread.mode,
+    current: current ? {
+      id: current.id,
+      phase: current.phase,
+      question: current.question,
+      why_now: current.why_now,
+      recommendation: current.recommendation,
+      options: current.options,
+      effects: current.effects,
+    } : null,
+  };
+}
+
+function decisionNextAction(gate) {
+  if (gate.blockers?.some((blocker) => blocker.startsWith('DECISION_CHECKPOINT_ARTIFACT_STALE:'))) {
+    return `Reprepare and confirm decision checkpoint ${gate.thread?.id || 'for the active alignment thread'} against the current artifact.`;
+  }
+  if (gate.current_decision) {
+    return `Answer decision ${gate.current_decision.id}: ${gate.current_decision.question}`;
+  }
+  if (gate.thread?.status === 'checkpoint_ready') {
+    return `Confirm decision checkpoint ${gate.thread.id} after reviewing its durable effects.`;
+  }
+  return `Prepare the confirmed decision checkpoint for ${gate.thread?.id || 'the active alignment thread'}.`;
+}
+
 function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
   const change = id
@@ -464,6 +497,23 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   }
   if (!change) {
     const baseline = baselineHealth.baseline;
+    const decisionGate = decisions.decisionGate(
+      db, { baseline_id: baseline?.id || null }, { rootDir },
+    );
+    if (!decisionGate.ready) {
+      return {
+        change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'blocked',
+        blockers: [...new Set([...baselineHealth.blockers, ...decisionGate.blockers])],
+        warnings: baselineHealth.warnings,
+        next_action: decisionNextAction(decisionGate), recommended_workflow: 'ultra-think',
+        workflow: null, decision: summarizeDecision(decisionGate),
+        context_manifest_path: null, context_manifest_hash: null, git_head: currentHead(rootDir),
+        baseline: baseline ? {
+          id: baseline.id, mode: baseline.mode, status: baseline.status,
+          repository_revision: baseline.repository_revision,
+        } : null,
+      };
+    }
     if (baselineHealth.status !== 'pass') {
       const activeWorkflow = actionableBaselineWorkflow(db, baseline?.id, rootDir);
       const nextAction = activeWorkflow
@@ -475,7 +525,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
         change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'blocked',
         blockers: baselineHealth.blockers, warnings: baselineHealth.warnings, next_action: nextAction,
         recommended_workflow: activeWorkflow ? `ultra-${activeWorkflow.kind}` : 'ultra-init',
-        workflow: summarizeWorkflow(activeWorkflow), context_manifest_path: null,
+        workflow: summarizeWorkflow(activeWorkflow), decision: null, context_manifest_path: null,
         context_manifest_hash: null, git_head: currentHead(rootDir),
         baseline: baseline ? {
           id: baseline.id, mode: baseline.mode, status: baseline.status,
@@ -487,6 +537,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'ready',
       next_action: 'Start daily work with ultra-change.', recommended_workflow: 'ultra-change',
       workflow: null,
+      decision: null,
       context_manifest_path: null, context_manifest_hash: null, git_head: currentHead(rootDir),
       blockers: [], warnings: baselineHealth.warnings,
       baseline: {
@@ -527,8 +578,14 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   );
   const blockers = [];
   const baselineGate = baselineGateForChange(db, change, baselineHealth);
+  const decisionGate = decisions.decisionGate(db, {
+    baseline_id: baselineHealth.baseline?.id || null,
+    change_id: change.id,
+    workflow_run_id: actionableChangeWorkflow(db, change.id, rootDir)?.id || null,
+  }, { rootDir });
   const warnings = [...baselineGate.warnings];
   blockers.push(...baselineGate.blockers);
+  blockers.push(...decisionGate.blockers);
   if (snapshotMissing) blockers.push('CONTEXT_NOT_COMPILED');
   else {
     if (legacyContext) blockers.push('CONTEXT_SNAPSHOT_UPGRADE_REQUIRED');
@@ -554,6 +611,8 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       change, tasks, task, role: snapshot?.role || 'plan', readiness: 'blocked',
       blockers: baselineGate.blockers,
     });
+  } else if (!decisionGate.ready) {
+    nextAction = decisionNextAction(decisionGate);
   } else if (activeWorkflow?.status === 'blocked') {
     nextAction = workflowNextAction(activeWorkflow);
   } else if (snapshotMissing) {
@@ -583,14 +642,16 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     task_status: task?.status || null,
     session_id: task?.session_id || null,
     role: snapshot?.role || 'plan',
-    gate: snapshot?.gate || 'alignment',
+    gate: decisionGate.ready ? (snapshot?.gate || 'alignment') : 'alignment',
     readiness,
     blockers,
     warnings: [...new Set(warnings)],
     next_action: nextAction,
     recommended_workflow: baselineGate.blockers.length > 0
       ? (baselineHealth.baseline?.status === 'ready' ? 'ultra-doctor' : 'ultra-init')
-      : activeWorkflow
+      : !decisionGate.ready
+        ? 'ultra-think'
+        : activeWorkflow
         ? `ultra-${activeWorkflow.kind}`
         : recommendedWorkflow(change, task, tasks, readiness),
     context_manifest_path: snapshot?.manifest_path || null,
@@ -602,6 +663,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       repository_revision: baselineHealth.baseline.repository_revision,
     } : null,
     workflow: summarizeWorkflow(activeWorkflow),
+    decision: summarizeDecision(decisionGate),
   };
 }
 

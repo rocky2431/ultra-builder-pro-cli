@@ -14,6 +14,7 @@ const baselines = require('./baseline-workflow.cjs');
 const changes = require('./change-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
 const workflows = require('./workflow-state.cjs');
+const decisions = require('./decision-dialogue.cjs');
 const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
 
 function fixture({ baseline = true } = {}) {
@@ -107,6 +108,35 @@ test('doctor exposes blocked workflow recovery without treating an expected paus
     assert.equal(report.status, 'healthy');
     assert.equal(report.checks.workflows.status, 'warning');
     assert.equal(report.checks.workflows.blocked, 1);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('doctor reports an awaiting owner decision as recoverable workflow state', async () => {
+  const fx = fixture();
+  try {
+    decisions.startDecisionThread(fx.db, {
+      id: 'doctor-decision', baseline_id: 'test-baseline',
+      purpose: 'Wait for one owner decision.', mode: 'guided',
+    });
+    decisions.openDecision(fx.db, {
+      id: 'doctor-api', thread_id: 'doctor-decision', phase: 'research',
+      question: 'Should the public API remain compatible?',
+      why_now: 'The answer changes the research synthesis.',
+      recommendation: 'Preserve compatibility until consumers migrate.',
+      effects: { summary: 'Changes product and architecture specifications.' },
+    });
+    runtime.ensureProjectionJob(fx.db, { tool_name: 'decision.open' });
+    runtime.processProjectionJobs(fx.db, {
+      rootDir: fx.rootDir,
+      project: () => ({ projected: true }),
+    });
+    const report = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
+    assert.equal(report.status, 'healthy');
+    assert.equal(report.checks.decisions.status, 'warning');
+    assert.equal(report.checks.decisions.awaiting_owner, 1);
+    assert.equal(report.checks.decisions.current.id, 'doctor-api');
   } finally {
     cleanup(fx);
   }

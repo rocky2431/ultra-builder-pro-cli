@@ -1,0 +1,26 @@
+{
+  "id": "public-api-compatibility",
+  "thread_id": "alignment-change-api",
+  "phase": "change-contract",
+  "question": "Should the current public API remain compatible for one release?",
+  "why_now": "The answer changes the implementation seam, rollout, and rollback plan.",
+  "recommendation": "Preserve compatibility for one release while active consumers migrate.",
+  "options": [
+    {
+      "id": "preserve",
+      "label": "Preserve compatibility",
+      "tradeoff": "Lower migration risk with temporary adapter cost."
+    },
+    {
+      "id": "replace",
+      "label": "Replace immediately",
+      "tradeoff": "Simpler implementation with coordinated consumer migration."
+    }
+  ],
+  "evidence_refs": ["src/public-api.js#exports"],
+  "effects": {
+    "artifacts": ["change-contract", "plan"],
+    "summary": "Changes the public seam and delivery sequence."
+  },
+  "blocking": true
+}

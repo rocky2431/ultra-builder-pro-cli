@@ -9,13 +9,14 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '15.0';
+const EXPECTED_VERSION = '16.0';
 const KIMI_SCHEMA_VERSION = '9.1';
 const CONTEXT_SCHEMA_VERSION = '10.0';
 const BASELINE_SCHEMA_VERSION = '11.0';
 const ADOPTION_SCHEMA_VERSION = '12.0';
 const WORKFLOW_SCHEMA_VERSION = '13.0';
 const AUTHORITY_SCHEMA_VERSION = '14.0';
+const SEMANTIC_SCHEMA_VERSION = '15.0';
 
 const MIGRATED_GAPS = Object.freeze([{
   id: 'legacy-rebaseline-required',
@@ -47,6 +48,8 @@ const REQUIRED_TABLES = Object.freeze([
   'event_consumers',
   'workflow_runs',
   'workflow_steps',
+  'decision_threads',
+  'decision_items',
 ]);
 
 function applyBaselineUpgrade(db, { legacyState = false } = {}) {
@@ -142,6 +145,10 @@ function applyChangeColumns(db) {
   changed = addColumnIfMissing(db, 'changes', columns, 'classification_json', "TEXT NOT NULL DEFAULT '{}'") || changed;
   changed = addColumnIfMissing(
     db, 'changes', columns, 'research_disposition_json', "TEXT NOT NULL DEFAULT '{}'",
+  ) || changed;
+  changed = addColumnIfMissing(
+    db, 'changes', columns, 'alignment_thread_id',
+    'TEXT REFERENCES decision_threads(id) ON DELETE SET NULL',
   ) || changed;
   return changed;
 }
@@ -402,7 +409,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const needsContextMigration = Boolean(
       fromVersion && ![
         CONTEXT_SCHEMA_VERSION, BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION,
-        WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
+        WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, EXPECTED_VERSION,
       ].includes(fromVersion)
         && !contextMigration,
     );
@@ -426,7 +433,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion && ![
       BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION, WORKFLOW_SCHEMA_VERSION,
-      AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
+      AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, EXPECTED_VERSION,
     ].includes(fromVersion)
       && !baselineMigration) {
       db.prepare(
@@ -530,8 +537,22 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
          VALUES (?, ?, 'forward', 'success', ?)`,
       ).run(
         fromVersion === AUTHORITY_SCHEMA_VERSION ? fromVersion : AUTHORITY_SCHEMA_VERSION,
-        EXPECTED_VERSION,
+        SEMANTIC_SCHEMA_VERSION,
         'Add typed research semantics, complete change contracts, verified learning application, and reconciliation provenance',
+      );
+    }
+    const dialogueMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '16.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && fromVersion !== EXPECTED_VERSION && !dialogueMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        fromVersion === SEMANTIC_SCHEMA_VERSION ? fromVersion : SEMANTIC_SCHEMA_VERSION,
+        EXPECTED_VERSION,
+        'Add durable one-question decision dialogue, owner checkpoints, and workflow alignment gates',
       );
     }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
@@ -540,7 +561,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
     ).run(
       EXPECTED_VERSION,
-      'Typed research semantics, complete change contracts, verified learning application, and reconciliation provenance',
+      'Durable one-question decision dialogue, owner checkpoints, and workflow alignment gates',
     );
   })();
 }
@@ -568,7 +589,9 @@ function initStateDb(dbPath) {
     const existing = new Set(tableNames(db));
     const fromVersion = latestSchemaVersion(db);
     const legacyState = existing.size > 0
-      && ![WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion);
+      && ![
+        WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, EXPECTED_VERSION,
+      ].includes(fromVersion);
     backupPath = migrationBackup(db, dbPath, fromVersion, existing);
     applyCompatibleColumns(db);
     const missing = REQUIRED_TABLES.filter((t) => !existing.has(t));

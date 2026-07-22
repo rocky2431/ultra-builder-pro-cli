@@ -122,6 +122,15 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
         'change.learning_resolve',
         'change.list',
         'change.update',
+        'decision.checkpoint',
+        'decision.defer',
+        'decision.delegate',
+        'decision.get',
+        'decision.list',
+        'decision.open',
+        'decision.resolve',
+        'decision.supersede',
+        'decision.thread_start',
         'plan.export',
         'plan.get',
         'session.admission_check',
@@ -155,6 +164,86 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
         assert.equal(typeof t.inputSchema, 'object');
         assert.equal(t.inputSchema.type, 'object');
       }
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('decision MCP tools preserve one-question alignment and confirmed checkpoints', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      const started = readToolPayload(await client.callTool({
+        name: 'decision.thread_start',
+        arguments: {
+          id: 'mcp-alignment', baseline_id: 'test-baseline', mode: 'guided',
+          purpose: 'Align one consequential change before planning.',
+        },
+      }));
+      assert.equal(started.thread.status, 'active');
+
+      const opened = readToolPayload(await client.callTool({
+        name: 'decision.open',
+        arguments: {
+          id: 'mcp-decision', thread_id: 'mcp-alignment', phase: 'change-contract',
+          question: 'Should the public API remain compatible for one release?',
+          why_now: 'The answer changes rollout and recovery tasks.',
+          recommendation: 'Preserve compatibility while active consumers migrate.',
+          options: [
+            { id: 'preserve', label: 'Preserve', tradeoff: 'Safer migration with temporary adapter cost.' },
+            { id: 'replace', label: 'Replace', tradeoff: 'Simpler code with coordinated consumer migration.' },
+          ],
+          evidence_refs: ['src/public-api.js#exports'],
+          effects: { summary: 'Changes the API contract and rollout plan.' },
+          blocking: true,
+        },
+      }));
+      assert.equal(opened.thread.current_decision.id, 'mcp-decision');
+
+      const duplicate = expectError(await client.callTool({
+        name: 'decision.open',
+        arguments: {
+          id: 'mcp-decision-2', thread_id: 'mcp-alignment', phase: 'change-contract',
+          question: 'Should another question open concurrently?',
+          why_now: 'This verifies cognitive-load enforcement.',
+          recommendation: 'Do not open it concurrently.',
+          effects: { summary: 'Would violate one-question presentation.' },
+        },
+      }));
+      assert.equal(duplicate.code, 'DECISION_ALREADY_OPEN');
+
+      await client.callTool({
+        name: 'decision.resolve',
+        arguments: {
+          id: 'mcp-decision', decision: 'Preserve compatibility for one release.',
+          rationale: 'Active consumers need a migration window.', decided_by: 'owner',
+        },
+      });
+      const prepared = readToolPayload(await client.callTool({
+        name: 'decision.checkpoint',
+        arguments: {
+          id: 'mcp-alignment', action: 'prepare',
+          summary: 'Compatibility remains for one release.',
+        },
+      }));
+      assert.equal(prepared.thread.status, 'checkpoint_ready');
+      const confirmed = readToolPayload(await client.callTool({
+        name: 'decision.checkpoint',
+        arguments: {
+          id: 'mcp-alignment', action: 'confirm', approved_by: 'owner',
+          approval_note: 'Confirmed after reviewing the durable effect.',
+          no_artifact_reason: 'Standalone alignment has no project artifact.',
+        },
+      }));
+      assert.equal(confirmed.thread.status, 'confirmed');
+
+      const listed = readToolPayload(await client.callTool({
+        name: 'decision.list', arguments: { baseline_id: 'test-baseline' },
+      }));
+      assert.equal(listed.count, 1);
+      assert.equal(listed.threads[0].checkpoint.approved_by, 'owner');
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

@@ -1,0 +1,25 @@
+[
+  {
+    "id": "public-api-compatibility",
+    "thread_id": "alignment-change-api",
+    "phase": "change-contract",
+    "question": "Should the public API remain compatible?",
+    "why_now": "It changes delivery.",
+    "recommendation": "Preserve compatibility."
+  },
+  {
+    "id": "public-api-compatibility",
+    "thread_id": "alignment-change-api",
+    "phase": "change-contract",
+    "question": "Should the public API remain compatible?",
+    "why_now": "It changes delivery.",
+    "recommendation": "Preserve compatibility.",
+    "effects": {"summary": "Changes delivery."},
+    "options": [
+      {"id": "a", "label": "A", "tradeoff": "A"},
+      {"id": "b", "label": "B", "tradeoff": "B"},
+      {"id": "c", "label": "C", "tradeoff": "C"},
+      {"id": "d", "label": "D", "tradeoff": "D"}
+    ]
+  }
+]

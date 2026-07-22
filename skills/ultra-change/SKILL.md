@@ -3,27 +3,43 @@ name: ultra-change
 description: Open or resume one bounded post-baseline change and connect its intent, delta, task plan, fresh context, and convergence evidence. Use when handling daily feature work, fixes, redesigns, or incidents after an Ultra baseline exists.
 ---
 
-# Maintain one continuous change
+# Align, route, and maintain one continuous change
 
 Use Ultra MCP for lifecycle writes. Keep external memory and code-graph content in
-their providers; Ultra stores references only.
+their providers; Ultra stores references only. Read
+`../ultra-think/references/decision-dialogue.md` before forming a Change Contract.
 
-## Bind or create
+## Capture and align the outcome
 
-1. Read `system.doctor`, `baseline.get`, `change.list`, and `change.breadcrumb`.
-2. Resume the change matching the requested outcome. Require an id when several could
-   match; do not create a duplicate packet.
-3. New ordinary work requires a ready baseline. An incident on unhealthy authority
+1. Read `system.doctor`, `baseline.get`, `change.list`, `change.breadcrumb`, and active
+   decision threads. Resume the matching change or alignment thread; do not duplicate
+   either authority.
+2. New ordinary work requires a ready baseline. An incident on unhealthy authority
    requires an explicit `baseline_bypass` reason and approver. Never infer approval
    from urgency.
-4. Read `references/change-contract.md`. Persist the complete outcome, executable
+3. Inspect the current checkout before questioning the owner. Convert the request into
+   a working outcome, constraints, accepted facts, unknowns, and likely risk profile.
+   Resolve repository facts yourself.
+4. Start a baseline-bound decision thread when the Change Contract contains a material
+   owner choice. Normalize explicit decisions already present in the user's request
+   without asking them to repeat themselves. Otherwise open one earliest decision,
+   present it with a recommendation and durable effect, and STOP.
+5. Read `references/change-contract.md`. After all blocking decisions are resolved,
+   prepare one compact Change Contract checkpoint containing the outcome, executable
    acceptance, non-goals, public seams, recovery contract, unresolved decisions,
    documentation impact, profile rationale, material risk flags, and research
-   disposition. Do not derive these fields from a title or free-form intent later.
-5. Select `quick`, `standard`, `major`, or `incident` from current scope and risk.
+   disposition. The owner approves the contract once; do not ask for a second equivalent
+   confirmation.
+6. Select `quick`, `standard`, `major`, or `incident` from current scope and risk.
    Escalate a proposed quick change when its contract carries material risk or research.
-   Then call `change.create` or `change.update` and read the normalized record back.
-6. Resume or start the linked `change` workflow with `workflow.list`/`workflow.start`.
+   Write the compact approved alignment projection to
+   `.ultra/docs/alignment/<thread-id>.md`, confirm the decision checkpoint with that
+   artifact digest, then call `change.create` with `alignment_thread_id`. The create
+   operation materializes the authoritative Change Contract projections. Read the
+   normalized change and linked workflow back.
+
+Do not create a decision thread for a fact the agent can inspect or a reversible
+implementation detail already delegated by the accepted contract.
 
 ## Record the change workflow
 
@@ -67,3 +83,16 @@ When implementation reveals a stable missing invariant, use
 `change.learning_propose` and the approval/reject/apply transition. Unresolved learning
 blocks delivery. An approved application must bind the declared target anchor, its
 before and after digests, and current evidence before the proposal becomes `applied`.
+
+## Automatic routing contract
+
+Automatic means route, inspect, and recover automatically; it never means silently
+choose an owner decision. The normal route is:
+
+`capture → align → Change Contract checkpoint → change authority → bounded research when
+needed → plan candidate → plan decision review → plan approval → ultra-dev → test →
+review → deliver → baseline reconciliation`.
+
+A quick change may omit research and use one task only when evidence proves the request
+has no material unresolved decision or risk. An incident routes through reproduction,
+hypothesis discrimination, recovery choice, fix, and verification before convergence.

@@ -8,6 +8,8 @@ description: Initialize a new repository, adopt an existing codebase, or migrate
 Use host reasoning to inspect repository evidence and prepare baseline content. Use
 Ultra MCP for classification records, schema migration, workflow state, evidence
 digests, approval, and convergence. Never treat generated Markdown or JSON as state.
+Read `../ultra-think/references/decision-dialogue.md` before asking about repository
+scope, replacement authority, or another load-bearing owner choice.
 
 ## Classify without guessing product scope
 
@@ -29,6 +31,8 @@ ready. Classification never chooses an MVP, reduced scope, or delivery posture.
 Report the detected project type, technology signals, verification commands, and
 monorepo roots. Pass an explicit `project_type` or `stack` only when repository evidence
 or an owner decision supports the override; MCP preserves both detection and selection.
+Inspect first and ask only one unresolved scope or replacement decision at a time. Do
+not request a complete project questionnaire during initialization.
 
 ## Resume safely
 
@@ -74,7 +78,8 @@ Continue through `ultra-research`. Research completion records output digests; t
 specs, source and runtime evidence, actual verification, unknowns, gaps,
 classification, and external provider metadata references.
 
-Call `baseline.converge` only after explicit owner approval. The MCP rejects missing
+Call `baseline.converge` only after the compact research checkpoint receives explicit
+owner approval; do not ask for the same approval twice. The MCP rejects missing
 research, missing discovery/product/architecture refs, stale evidence, revision or
 worktree drift, unaccepted known failures, blocking unknowns, and blocking gaps. A
 successful convergence atomically marks the baseline ready and completes the init run.

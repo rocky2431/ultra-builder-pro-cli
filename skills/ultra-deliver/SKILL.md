@@ -11,8 +11,9 @@ output digests.
 
 ## Bind current evidence
 
-1. Read `system.doctor`, `baseline.get`, `change.get`, `change.breadcrumb`, linked
-   tasks, and current test/review workflows and artifacts.
+1. Read `system.doctor`, `baseline.get`, `change.get`, `change.breadcrumb`, active
+   decision state, linked tasks, and current test/review workflows and artifacts. An
+   open decision, blocking deferral, or unconfirmed checkpoint prevents delivery.
 2. Resume or start a `deliver` workflow linked to the change and baseline.
 3. Require completed tasks, current context, a passing test report at full HEAD with a
    verified public seam, and current independent `spec_fidelity` and
@@ -61,6 +62,9 @@ user's request, complete it with exactly one `release_authorization` decision co
 determine compatibility impact, update version and
 changelog, rerun invalidated checks, create a non-force commit/tag, push, publish, and
 verify remote commit, tag, release, and registry version independently.
+If release authority is not already explicit, present that authorization as one compact
+question and stop. Do not bundle release permission with unrelated delivery choices or
+ask again when the current user request already grants the exact scope.
 
 Write `.ultra/reports/delivery/<workflow-id>.json` atomically using
 `ultra-delivery-report-v1`, with change/archive state, baseline id/status, full HEAD,
@@ -74,4 +78,7 @@ remote evidence agree for every authorized action. MCP derives the delivery summ
 from this report rather than a Prompt claim.
 
 Return workflow id, archive and baseline state, evidence digests, commit/release facts,
-recovery notes, residual risks, and one next route.
+recovery notes, residual risks, and one next route. Successful delivery routes to
+`ultra-status` for the final authoritative view or `ultra-change` for the next accepted
+outcome. Stale gates return to their owning workflow; a new owner choice routes to
+`ultra-think`; broken authority routes to `ultra-doctor`.

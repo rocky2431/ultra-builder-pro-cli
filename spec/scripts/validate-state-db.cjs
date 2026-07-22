@@ -47,7 +47,7 @@ const expectedTables = [
   'tasks', 'events', 'sessions', 'schema_version', 'migration_history',
   'telemetry', 'specs_refs', 'circuit_breaker', 'changes', 'artifacts',
   'context_snapshots', 'spec_learning_candidates', 'trace_links', 'incidents', 'projection_jobs',
-  'event_consumers', 'workflow_runs', 'workflow_steps',
+  'event_consumers', 'workflow_runs', 'workflow_steps', 'decision_threads', 'decision_items',
 ];
 const actualTables = db.prepare(
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
@@ -62,12 +62,12 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '15.0'").get();
-if (v && v.version === '15.0') {
-  console.log('ok schema_version includes 15.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '16.0'").get();
+if (v && v.version === '16.0') {
+  console.log('ok schema_version includes 16.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 15.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 16.0: got ${JSON.stringify(v)}`);
   fail++;
 }
 
@@ -102,11 +102,50 @@ for (const column of requiredTaskContractColumns) {
 }
 
 const changeColumns = new Set(db.prepare('PRAGMA table_info(changes)').all().map((row) => row.name));
-if (changeColumns.has('baseline_bypass_json')) {
-  console.log('  ok changes.baseline_bypass_json');
+for (const column of ['baseline_bypass_json', 'alignment_thread_id']) {
+  if (changeColumns.has(column)) {
+    console.log(`  ok changes.${column}`);
+    pass++;
+  } else {
+    console.error(`  FAIL changes.${column} missing`);
+    fail++;
+  }
+}
+
+const decisionThreadColumns = new Set(
+  db.prepare('PRAGMA table_info(decision_threads)').all().map((row) => row.name),
+);
+for (const column of ['purpose', 'mode', 'status', 'baseline_id', 'change_id', 'workflow_run_id', 'checkpoint_json']) {
+  if (decisionThreadColumns.has(column)) {
+    console.log(`  ok decision_threads.${column}`);
+    pass++;
+  } else {
+    console.error(`  FAIL decision_threads.${column} missing`);
+    fail++;
+  }
+}
+
+const decisionItemColumns = new Set(
+  db.prepare('PRAGMA table_info(decision_items)').all().map((row) => row.name),
+);
+for (const column of ['thread_id', 'sequence', 'question', 'recommendation', 'effects_json', 'blocking', 'status', 'resolution_json']) {
+  if (decisionItemColumns.has(column)) {
+    console.log(`  ok decision_items.${column}`);
+    pass++;
+  } else {
+    console.error(`  FAIL decision_items.${column} missing`);
+    fail++;
+  }
+}
+
+const openIndex = db.prepare(
+  "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'decision_items_one_open'",
+).get();
+if (openIndex?.sql && /WHERE status = 'open'/i.test(openIndex.sql)) {
+  console.log('  ok decision_items_one_open partial uniqueness');
   pass++;
 } else {
-  console.error('  FAIL changes.baseline_bypass_json missing');
+  console.error('  FAIL decision_items_one_open partial uniqueness missing');
   fail++;
 }
 

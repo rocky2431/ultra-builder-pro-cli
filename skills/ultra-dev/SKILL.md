@@ -11,8 +11,10 @@ recovery.
 
 ## Start or resume
 
-1. Read `system.doctor`, `change.breadcrumb`, `task.get`, workflow state, dependencies,
-   active sessions, Git HEAD, and worktree scope.
+1. Read `system.doctor`, `change.breadcrumb`, active decision state, `task.get`, workflow
+   state, dependencies, active sessions, Git HEAD, and worktree scope. If the
+   breadcrumb names an open decision or unconfirmed checkpoint, return to
+   `ultra-think` and do not edit code.
 2. Resume an existing `dev` workflow or call `workflow.start` with `change_id` and
    `task_id`. Startup fails when the DB-backed task execution contract is incomplete or
    owned by another change.
@@ -34,6 +36,10 @@ recovery.
 3. Keep application judgment and edits in the host. Do not write projections, raw DB,
    workflow output digests, or evidence state by hand.
 4. Refactor only inside the accepted slice while the focused signal stays green.
+   When implementation exposes a product, compatibility, security, cost, or recovery
+   choice outside the accepted task contract, preserve the evidence, open one decision
+   through the shared dialogue protocol, and stop. Do not convert implementation
+   convenience into an owner decision.
 5. Record `implement-slice`, then run focused, adjacent, static/build, public-seam,
    error, and recovery checks proportional to risk. Record exact evidence under
    `verify-slice`.
@@ -55,4 +61,6 @@ completed steps remain durable. Any code or contract change invalidates affected
 review, or context evidence.
 
 Return the task outcome, public seam, changed paths, exact checks, review results,
-workflow id, session state, residual risks, and one next route.
+workflow id, session state, residual risks, and one next route. Route another ready
+task to `ultra-dev`; route a fully implemented change to aggregate `ultra-test`;
+route a new owner choice to `ultra-think`; route broken authority to `ultra-doctor`.

@@ -3,11 +3,12 @@ name: ultra-research
 description: Establish or extend an evidence-backed Ultra product and architecture baseline through the complete semantic research workflow, with resumable step state and traceable outputs. Use when initialization routes to research, baseline evidence is incomplete, or the owner explicitly requests bounded research for an active change.
 ---
 
-# Establish research authority
+# Establish research authority without overwhelming the owner
 
-Use host reasoning for evidence gathering, product judgment, questions, and artifact
-content. Use Ultra MCP for run selection, state transitions, output digests, blockers,
-and baseline convergence. Never ask MCP to generate research content.
+Use host reasoning to discover facts and synthesize artifacts. Use Ultra MCP for run
+position, decision authority, output digests, blockers, and convergence. Read
+`../ultra-think/references/decision-dialogue.md` before asking any owner question.
+Never ask MCP to generate research content.
 
 ## Bind the run
 
@@ -25,7 +26,7 @@ Never infer an MVP, reduced product posture, skipped step, or release phase. Ful
 adoption modes execute all seventeen semantic steps. A custom run records every
 excluded step and its selection reason in DB.
 
-## Execute one recoverable step at a time
+## Preserve complete semantic coverage
 
 Read only the reference matching `workflow.next_step.step_id`:
 
@@ -49,22 +50,32 @@ Read only the reference matching `workflow.next_step.step_id`:
 | `41-quality-risks` | `references/41-quality-risks.md` |
 | `99-synthesis` | `references/99-synthesis.md` |
 
-For each selected step:
+The seventeen steps are an internal completeness contract, not a questionnaire or the
+default user interface. For each selected step:
 
-1. Inspect current repository and specification evidence before asking the owner to
-   repeat known facts. Browse only for unstable or external claims, using primary
-   sources where possible.
-2. Separate `Observed`, `Verified`, `Decided`, and `Unknown`. Ask one concise question
-   only when the answer changes scope, product intent, security, cost, or another
-   load-bearing decision.
-3. Update the relevant baseline specification or active change research artifact.
-   Preserve citations, decisions, drift, and unresolved gaps without duplicating prose.
-4. Write one immutable step report at
+1. Read only its reference and inspect repository, specification, runtime, tests, and
+   current primary-source evidence. Do not ask the owner to repeat observable facts.
+2. Separate `Observed`, `Verified`, `Decided`, and `Unknown`. Resolve evidence-answerable
+   unknowns autonomously and record evidence-backed `not_applicable` results.
+3. If a load-bearing owner decision remains, start or resume one decision thread bound
+   to this research workflow. Open the earliest dependent decision, present only that
+   question, and STOP. Do not update specifications or complete the workflow step while
+   its checkpoint is unconfirmed.
+4. After a coherent decision cluster, prepare one checkpoint. Present the compact
+   shared understanding and affected specifications, obtain approval, and apply the
+   accepted decisions.
+5. Update only the relevant baseline specification or active-change research artifact.
+   Preserve evidence, decisions, drift, and unknowns without copying conversation text.
+   Write the accepted cluster to the stable
+   `.ultra/docs/decisions/<thread-id>.md` projection and confirm its checkpoint with
+   that digest. Do not bind an intermediate shared specification that later research
+   steps are expected to extend.
+6. Write one immutable step report at
    `.ultra/docs/research/<workflow-id>/<step-id>.md`. It must have a title and the
    sections `Evidence`, `Specification updates`, and `Decisions and unknowns`. Link
    specification anchors and external sources; do not copy transcripts or provider
    payloads.
-5. Call `workflow.step` with `completed`, bounded evidence references, that step report
+7. Call `workflow.step` with `completed`, bounded evidence references, that step report
    as `research-step-report`, material decisions, and one or more `semantic_records`.
    Each record has a stable `id`, the step-specific `kind` and `attributes` named in
    its reference, a status (`observed`, `verified`, `decided`, `accepted`, `unknown`,
@@ -72,11 +83,11 @@ For each selected step:
    project-relative `source_ref` using `path#anchor`. Use the immutable step report as
    the source when later edits could change a shared specification. MCP verifies the
    anchor and stores its digest; `not_applicable` requires an evidence-backed rationale.
-6. For `99-synthesis` in `full` or `adoption` mode, also bind the current
+8. For `99-synthesis` in `full` or `adoption` mode, also bind the current
    `discovery.md`, `product.md`, `architecture.md`, and `research-distillate.md` as
    outputs. This freezes the exact researched baseline without making the reports a
    second specification authority.
-7. If evidence or owner authority is missing, call `workflow.step` with `blocked` and
+9. If evidence or owner authority is missing, call `workflow.step` with `blocked` and
    specific blocker codes. Resume that same step after resolution; never skip a
    required step to obtain a ready state.
 
@@ -92,11 +103,15 @@ and results; unknowns; the complete gap ledger; classification; and external pro
 metadata references. Do not store prompts, transcripts, memory, or graph content.
 
 Present the recorded revision, worktree snapshot, known failures, blockers, and gaps.
-Only after explicit owner approval call `baseline.converge`. Accept known-red or a
+Only after explicit owner approval call `baseline.converge`. Reuse the final research
+checkpoint approval when it names this exact recorded revision, worktree snapshot,
+known failures, blockers, and gaps; do not ask for an equivalent approval again. If
+that snapshot changed, prepare one refreshed checkpoint instead. Accept known-red or a
 dirty worktree only when that exact snapshot was approved. Convergence must verify the
 completed full/adoption research run and current output digests.
 
-Return the workflow id, all seventeen step-report paths for full/adoption research,
-the four synthesis artifacts, baseline status, open gaps, approval state, and one exact
-next route. A ready initial baseline routes to `ultra-change`; bounded change research
-returns to its change breadcrumb and then `ultra-plan` when the research gate is ready.
+Return a compact checkpoint: workflow id, completed/selected semantic coverage,
+current decision or blocker, baseline state, open gaps, approval state, and one route.
+Do not print all seventeen report paths unless requested; they remain discoverable
+through workflow state. A ready initial baseline routes to `ultra-change`; bounded
+change research returns to its breadcrumb and then `ultra-plan` when ready.

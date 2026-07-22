@@ -1,5 +1,5 @@
 ---
-description: Research unresolved product or architecture decisions and update the authoritative baseline specifications
+description: Build complete research evidence while presenting only one load-bearing owner decision at a time
 argument-hint: "[scope-or-question]"
 workflow-ref: "@skills/ultra-research/SKILL.md"
 ---

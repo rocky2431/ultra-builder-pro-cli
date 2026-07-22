@@ -87,7 +87,7 @@ test('initStateDb is idempotent — second call does not duplicate seed rows', (
   }
 });
 
-test('schema 13 upgrades through 15 without demoting an established ready baseline', () => {
+test('schema 13 upgrades through 16 without demoting an established ready baseline', () => {
   const { dir, file } = tmpDbPath('ubp-schema-13-upgrade');
   try {
     const initial = initStateDb(file);
@@ -97,7 +97,7 @@ test('schema 13 upgrades through 15 without demoting an established ready baseli
        VALUES ('ready-13', 'fixture', 'greenfield', 'ready', 'owner',
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('14.0', '15.0')").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0')").run();
     initial.db.exec('ALTER TABLE baselines DROP COLUMN known_red_accepted');
     closeStateDb(initial.db);
 
@@ -116,6 +116,39 @@ test('schema 13 upgrades through 15 without demoting an established ready baseli
       "SELECT notes FROM migration_history WHERE to_version = '14.0' ORDER BY id DESC LIMIT 1",
     ).get();
     assert.match(migration.notes, /known-red|revalidate/i);
+    closeStateDb(upgraded.db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('schema 15 adds decision dialogue authority without forcing baseline re-adoption', () => {
+  const { dir, file } = tmpDbPath('ubp-schema-15-upgrade');
+  try {
+    const initial = initStateDb(file);
+    initial.db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('ready-15', 'fixture', 'greenfield', 'ready', 'owner',
+               'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
+    ).run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version = '16.0'").run();
+    initial.db.exec('DROP TABLE decision_items; DROP TABLE decision_threads');
+    closeStateDb(initial.db);
+
+    const upgraded = initStateDb(file);
+    assert.equal(upgraded.schema_version, '16.0');
+    assert.ok(upgraded.backup_path);
+    assert.deepEqual(
+      upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'ready-15'").get(),
+      { mode: 'greenfield', status: 'ready' },
+    );
+    assert.ok(tableNames(upgraded.db).includes('decision_threads'));
+    assert.ok(tableNames(upgraded.db).includes('decision_items'));
+    const migration = upgraded.db.prepare(
+      "SELECT notes FROM migration_history WHERE to_version = '16.0' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.match(migration.notes, /decision dialogue|checkpoint/i);
     closeStateDb(upgraded.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -309,7 +342,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const legacy = openStateDb(file);
     const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
     legacy.exec(legacySchema);
-    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0')").run();
+    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0')").run();
     legacy.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
     ).run();
@@ -340,7 +373,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM incidents WHERE session_id = 'session-old'").get().n, 1);
     assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
     const migrations = upgraded.db.prepare(
-      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0') ORDER BY id",
+      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0') ORDER BY id",
     ).all();
     assert.ok(migrations.some((row) => row.to_version === '9.1' && /Kimi/.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '10.0' && /Context Spine/.test(row.notes)));
@@ -348,6 +381,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     assert.ok(migrations.some((row) => row.to_version === '12.0' && /gap ledger|re-adoption/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '13.0' && /workflow runs/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '14.0' && /known-red|revalidate/i.test(row.notes)));
+    assert.ok(migrations.some((row) => row.to_version === '16.0' && /decision dialogue|checkpoint/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '15.0' && /typed research|reconciliation/i.test(row.notes)));
     assert.deepEqual(
       upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'migrated-baseline'").get(),

@@ -114,6 +114,15 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `change.learning_resolve` | `change learning-resolve`   | 10    | mcp     |
 | `change.converge`         | `change converge`           | 9     | mcp     |
 | `change.archive`          | `change archive`            | 9     | mcp     |
+| `decision.thread_start`   | `decision thread-start`      | 16    | mcp     |
+| `decision.get`            | `decision get`               | 16    | any     |
+| `decision.list`           | `decision list`              | 16    | any     |
+| `decision.open`           | `decision open`              | 16    | mcp     |
+| `decision.resolve`        | `decision resolve`           | 16    | mcp     |
+| `decision.delegate`       | `decision delegate`          | 16    | mcp     |
+| `decision.defer`          | `decision defer`             | 16    | mcp     |
+| `decision.supersede`      | `decision supersede`         | 16    | mcp     |
+| `decision.checkpoint`     | `decision checkpoint`        | 16    | mcp     |
 | `workflow.start`          | `workflow start`            | 13    | mcp     |
 | `workflow.get`            | `workflow get`              | 13    | any     |
 | `workflow.list`           | `workflow list`             | 13    | any     |
@@ -126,12 +135,12 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 Current executable maintenance surfaces are `task init-project`,
 `session close|get|list|admission|heartbeat|subscribe|reap`, `status`, `db`,
 `migrate`, `system doctor|restore|rebaseline`, and `legacy-memory`. In particular, `task create|update|list|get`
-and all `change` lifecycle verbs are not CLI fallbacks. Change state must use
+and all `change` and `decision` lifecycle verbs are not CLI fallbacks. Change and decision state must use
 the live MCP server; `system doctor` may additionally be exposed by the
 maintenance CLI because it is the recovery path when MCP startup is degraded.
 `task init-project --resume` preserves existing `.ultra` files and installs only
 missing current scaffold assets. Projection-only state uses the supported
-`migrate --from=4.4 --to=4.5` or `--from=4.5 --to=15.0` transition before resume.
+`migrate --from=4.4 --to=4.5` or the current supported state-schema transition before resume.
 `system doctor --repair` applies supported schema upgrades with a pre-migration
 backup before mechanical recovery.
 `system restore` requires the exact `REPLACE_CORRUPT_ULTRA_STATE` confirmation and a

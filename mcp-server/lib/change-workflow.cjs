@@ -13,6 +13,7 @@ const providerRefs = require('./provider-refs.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
 const workflows = require('./workflow-state.cjs');
+const decisions = require('./decision-dialogue.cjs');
 const reconciliationSchema = require('../../spec/schemas/baseline-reconciliation.v1.schema.json');
 
 const reconciliationAjv = new Ajv({ allErrors: true, strict: false });
@@ -437,6 +438,7 @@ function writeIntent(file, change) {
     `- Base commit: \`${change.base_commit || 'unavailable'}\``,
     `- Documentation impact: \`${impact.status}\``,
     `- Research disposition: \`${change.research_disposition.status}\``,
+    `- Alignment checkpoint: \`${change.alignment_thread_id || 'not-required'}\``,
     '',
     '## Intent',
     '',
@@ -685,11 +687,46 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
       'VALIDATION_ERROR', 'baseline_bypass is not valid while the project baseline is healthy',
     );
   }
+  const alignmentGate = decisions.decisionGate(
+    db, { baseline_id: baselineHealth.baseline?.id || null }, { rootDir },
+  );
+  if (!alignmentGate.ready) {
+    throw new ChangeWorkflowError(
+      'CHANGE_ALIGNMENT_REQUIRED',
+      `resolve and confirm the active baseline alignment before creating a change: ${alignmentGate.blockers.join(', ')}`,
+      { blockers: alignmentGate.blockers, thread_id: alignmentGate.thread?.id || null },
+    );
+  }
   const docsImpact = normalizeDocsImpact(input.docs_impact);
   const providers = normalizeProviderRefs(input.provider_refs);
   const contract = normalizeChangeContract(input.contract);
   const classification = normalizeClassification(input.classification, input.kind);
   const researchDisposition = normalizeResearchDisposition(input.research_disposition, input.kind);
+  let alignmentThread = null;
+  if (input.alignment_thread_id !== undefined) {
+    try {
+      alignmentThread = decisions.assertConfirmedDecisionCheckpoint(
+        db, input.alignment_thread_id, { rootDir, requireArtifact: true },
+      );
+    } catch (error) {
+      throw new ChangeWorkflowError(
+        'CHANGE_ALIGNMENT_REQUIRED',
+        `alignment_thread_id must name a current artifact-bound checkpoint: ${error.message}`,
+      );
+    }
+    if (alignmentThread.change_id) {
+      throw new ChangeWorkflowError(
+        'CHANGE_ALIGNMENT_REQUIRED', `alignment thread already belongs to ${alignmentThread.change_id}`,
+      );
+    }
+    if (!baselineHealth.baseline?.id || alignmentThread.baseline_id !== baselineHealth.baseline.id
+      || alignmentThread.workflow_run_id) {
+      throw new ChangeWorkflowError(
+        'CHANGE_ALIGNMENT_REQUIRED',
+        'change alignment must be bound only to the current baseline before change creation',
+      );
+    }
+  }
   const artifactRoot = path.join('.ultra', 'changes', 'active', input.id);
   const artifactDir = path.resolve(rootDir, artifactRoot);
   if (fs.existsSync(artifactDir)) {
@@ -700,6 +737,7 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
     id: input.id, title, kind: input.kind, status: 'active',
     intent, docs_impact: docsImpact, provider_refs: providers, baseline_bypass: baselineBypass,
     contract, classification, research_disposition: researchDisposition,
+    alignment_thread_id: alignmentThread?.id || null,
     base_commit: input.base_commit || gitHead(rootDir), artifact_root: artifactRoot,
     created_at: ts, updated_at: ts,
   };
@@ -709,15 +747,22 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
         `INSERT INTO changes
          (id, title, kind, status, intent, docs_impact_json, provider_refs_json,
           baseline_bypass_json, contract_json, classification_json,
-          research_disposition_json, base_commit, artifact_root, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          research_disposition_json, alignment_thread_id, base_commit, artifact_root,
+          created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         row.id, row.title, row.kind, row.status, row.intent, JSON.stringify(row.docs_impact),
         JSON.stringify(row.provider_refs), row.baseline_bypass
           ? JSON.stringify(row.baseline_bypass) : null,
         JSON.stringify(row.contract), JSON.stringify(row.classification),
-        JSON.stringify(row.research_disposition), row.base_commit, row.artifact_root, ts, ts,
+        JSON.stringify(row.research_disposition), row.alignment_thread_id,
+        row.base_commit, row.artifact_root, ts, ts,
       );
+      if (row.alignment_thread_id) {
+        db.prepare(
+          'UPDATE decision_threads SET change_id = ?, updated_at = ? WHERE id = ?',
+        ).run(row.id, ts, row.alignment_thread_id);
+      }
       fs.mkdirSync(artifactDir, { recursive: true });
       const intentPath = path.join(artifactDir, 'intent.md');
       writeIntent(intentPath, row);
@@ -738,7 +783,10 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
       }
       ops.appendEventInTx(db, {
         type: 'change_created', change_id: row.id,
-        payload: { kind: row.kind, artifact_root: row.artifact_root },
+        payload: {
+          kind: row.kind, artifact_root: row.artifact_root,
+          alignment_thread_id: row.alignment_thread_id,
+        },
       });
       let workflow = workflows.startWorkflow(db, {
         kind: 'change', baseline_id: baselineHealth.baseline?.id || null,

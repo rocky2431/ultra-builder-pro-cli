@@ -3,7 +3,7 @@
 # Validated by spec/schemas/mcp-tools.schema.json (run `npm run test:spec`).
 # Trace: PLAN §7.3, decisions D12 / D29 / D31-D34.
 
-version: '1.2'
+version: '1.3'
 
 info:
   title: Ultra Builder Pro MCP tool contracts
@@ -25,6 +25,7 @@ families:
   - { name: plan,    description: 'execution-plan artifact export and query (D34)', phase: '8a' }
   - { name: baseline, description: 'project adoption, baseline evidence, convergence, and drift authority', phase: '11' }
   - { name: change,  description: 'continuous post-delivery change lifecycle and convergence', phase: '9' }
+  - { name: decision, description: 'durable owner-agent alignment, one-question presentation, and approved checkpoints', phase: '16' }
   - { name: workflow, description: 'durable cross-stage run position, evidence, outputs, blockers, and recovery', phase: '13' }
   - { name: system,  description: 'read-only diagnostics and explicit backup-first repair', phase: '9' }
 
@@ -1064,6 +1065,7 @@ tools:
             mode: { type: ['string', 'null'], enum: [product, feature, architecture, custom, null] }
             selected_steps: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
             rationale: { type: string, minLength: 1 }
+        alignment_thread_id: { type: string, description: 'confirmed decision checkpoint that produced this change contract' }
         base_commit: { type: string, pattern: '^[0-9a-f]{7,40}$' }
         baseline_bypass:
           type: object
@@ -1125,6 +1127,7 @@ tools:
       - { code: CHANGE_CLASSIFICATION_REQUIRED, description: 'classification rationale or risk flags are incomplete' }
       - { code: CHANGE_RESEARCH_DISPOSITION_REQUIRED, description: 'research routing is incomplete or inconsistent' }
       - { code: CHANGE_PROFILE_ESCALATION_REQUIRED, description: 'quick profile conflicts with material risk or research' }
+      - { code: CHANGE_ALIGNMENT_REQUIRED, description: 'declared alignment thread is missing, unconfirmed, stale, not artifact-bound, bound to another authority, or not scoped to the current baseline' }
     cli_subcommand: change create
     emits_events: [change_created, context_updated, workflow_started, workflow_step_updated]
 
@@ -1476,6 +1479,299 @@ tools:
     cli_subcommand: change archive
     emits_events: [change_archived]
 
+  # ────────────────────────── decision family ────────────────────────────
+  - name: decision.thread_start
+    family: decision
+    description: Start one durable owner-agent alignment thread bound to baseline, change, or workflow authority.
+    phase: '16'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, purpose]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        purpose: { type: string, minLength: 3 }
+        mode: { type: string, enum: [guided, fast, autonomous, diagnostic], default: guided }
+        baseline_id: { type: string }
+        change_id: { type: string }
+        workflow_run_id: { type: string }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_AUTHORITY_REQUIRED, description: 'thread has no baseline, change, or workflow authority' }
+      - { code: DECISION_AUTHORITY_MISMATCH, description: 'thread authority differs from its workflow binding' }
+      - { code: DECISION_THREAD_IN_PROGRESS, description: 'the same authority and purpose already has an active thread' }
+      - { code: DUPLICATE_DECISION_THREAD, description: 'decision thread id already exists' }
+      - { code: VALIDATION_ERROR, description: 'thread input is incomplete or invalid' }
+    cli_subcommand: decision thread-start
+    emits_events: [decision_thread_started]
+
+  - name: decision.get
+    family: decision
+    description: Read one decision thread with its current question, normalized decisions, and checkpoint authority.
+    phase: '16'
+    readonly: true
+    input_schema:
+      type: object
+      required: [id]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_THREAD_NOT_FOUND, description: 'decision thread id does not exist' }
+    cli_subcommand: decision get
+    emits_events: []
+
+  - name: decision.list
+    family: decision
+    description: List durable decision threads by authority, mode, or lifecycle state for recovery and status reporting.
+    phase: '16'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [active, checkpoint_ready, confirmed, cancelled] }
+        mode: { type: string, enum: [guided, fast, autonomous, diagnostic] }
+        baseline_id: { type: string }
+        change_id: { type: string }
+        workflow_run_id: { type: string }
+        limit: { type: integer, minimum: 1, maximum: 500, default: 100 }
+    output_schema:
+      type: object
+      required: [threads, count]
+      additionalProperties: false
+      properties:
+        threads: { type: array, items: { type: object } }
+        count: { type: integer, minimum: 0 }
+    errors:
+      - { code: STATE_DB_ERROR, description: 'decision thread state could not be read' }
+    cli_subcommand: decision list
+    emits_events: []
+
+  - name: decision.open
+    family: decision
+    description: Open the sole user-facing decision in a thread with evidence, recommendation, credible alternatives, and durable effects.
+    phase: '16'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, thread_id, phase, question, why_now, recommendation, effects]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        thread_id: { type: string }
+        phase: { type: string, minLength: 1 }
+        question: { type: string, minLength: 1 }
+        why_now: { type: string, minLength: 1 }
+        recommendation: { type: string, minLength: 1 }
+        options:
+          type: array
+          maxItems: 3
+          items: &decision_option
+            type: object
+            required: [id, label, tradeoff]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              label: { type: string, minLength: 1 }
+              tradeoff: { type: string, minLength: 1 }
+        evidence_refs: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+        dependency_ids: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+        effects: { type: object, minProperties: 1 }
+        blocking: { type: boolean, default: true }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_THREAD_NOT_FOUND, description: 'decision thread id does not exist' }
+      - { code: DECISION_ALREADY_OPEN, description: 'another decision is already awaiting an answer' }
+      - { code: DECISION_CHECKPOINT_PENDING, description: 'the prepared checkpoint must be confirmed or revised first' }
+      - { code: DECISION_DEPENDENCY_UNRESOLVED, description: 'a declared decision dependency is unresolved' }
+      - { code: DUPLICATE_DECISION_ID, description: 'decision item id already exists' }
+      - { code: VALIDATION_ERROR, description: 'question, recommendation, options, evidence, or effects are invalid' }
+    cli_subcommand: decision open
+    emits_events: [decision_opened]
+
+  - name: decision.resolve
+    family: decision
+    description: Resolve the current question as an explicit normalized owner decision without storing the conversation transcript.
+    phase: '16'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, decision, rationale, decided_by]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        decision: { type: string, minLength: 1 }
+        rationale: { type: string, minLength: 1 }
+        decided_by: { type: string, minLength: 1 }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_NOT_FOUND, description: 'decision item id does not exist' }
+      - { code: DECISION_NOT_OPEN, description: 'decision item is no longer awaiting an answer' }
+      - { code: VALIDATION_ERROR, description: 'normalized owner decision is incomplete' }
+    cli_subcommand: decision resolve
+    emits_events: [decision_resolved]
+
+  - name: decision.delegate
+    family: decision
+    description: Record explicit owner delegation for a reversible decision, including the selected result and non-negotiable guardrails.
+    phase: '16'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, delegated_to, decision, rationale, guardrails]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        delegated_to: { type: string, minLength: 1 }
+        decision: { type: string, minLength: 1 }
+        rationale: { type: string, minLength: 1 }
+        guardrails: { type: array, minItems: 1, uniqueItems: true, items: { type: string, minLength: 1 } }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_NOT_FOUND, description: 'decision item id does not exist' }
+      - { code: DECISION_NOT_OPEN, description: 'decision item is no longer awaiting an answer' }
+      - { code: VALIDATION_ERROR, description: 'delegation result or guardrails are incomplete' }
+    cli_subcommand: decision delegate
+    emits_events: [decision_resolved]
+
+  - name: decision.defer
+    family: decision
+    description: Defer the current decision with explicit consequences and a deterministic condition for revisiting it.
+    phase: '16'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, reason, consequences, revisit_condition]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        reason: { type: string, minLength: 1 }
+        consequences: { type: string, minLength: 1 }
+        revisit_condition: { type: string, minLength: 1 }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_NOT_FOUND, description: 'decision item id does not exist' }
+      - { code: DECISION_NOT_OPEN, description: 'decision item is no longer awaiting an answer' }
+      - { code: VALIDATION_ERROR, description: 'deferral consequence or revisit condition is incomplete' }
+    cli_subcommand: decision defer
+    emits_events: [decision_resolved]
+
+  - name: decision.supersede
+    family: decision
+    description: Preserve a prior resolved decision and reopen alignment with one replacement question when evidence or owner intent changes.
+    phase: '16'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, reason, replacement]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        reason: { type: string, minLength: 1 }
+        replacement:
+          type: object
+          required: [id, phase, question, why_now, recommendation, effects]
+          additionalProperties: false
+          properties:
+            id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+            phase: { type: string, minLength: 1 }
+            question: { type: string, minLength: 1 }
+            why_now: { type: string, minLength: 1 }
+            recommendation: { type: string, minLength: 1 }
+            options: { type: array, maxItems: 3, items: *decision_option }
+            evidence_refs: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+            dependency_ids: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+            effects: { type: object, minProperties: 1 }
+            blocking: { type: boolean, default: true }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_NOT_FOUND, description: 'decision item id does not exist' }
+      - { code: DECISION_NOT_SUPERSEDEABLE, description: 'decision item cannot be revised from its current state' }
+      - { code: DECISION_ALREADY_OPEN, description: 'another decision is already awaiting an answer' }
+      - { code: VALIDATION_ERROR, description: 'replacement question or revision reason is invalid' }
+    cli_subcommand: decision supersede
+    emits_events: [decision_opened]
+
+  - name: decision.checkpoint
+    family: decision
+    description: Prepare or confirm a decision checkpoint, including renewal of unchanged decisions against current artifacts; change- and workflow-bound threads require an artifact, while a standalone baseline thread may record an explicit no-artifact reason.
+    phase: '16'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, action]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        action: { type: string, enum: [prepare, confirm] }
+        summary: { type: string, minLength: 1 }
+        approved_by: { type: string, minLength: 1 }
+        approval_note: { type: string, minLength: 3 }
+        artifacts:
+          type: array
+          items:
+            type: object
+            required: [path, kind]
+            additionalProperties: false
+            properties:
+              path: { type: string, minLength: 1 }
+              kind: { type: string, minLength: 1 }
+        no_artifact_reason: { type: string, minLength: 3 }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_THREAD_NOT_FOUND, description: 'decision thread id does not exist' }
+      - { code: DECISION_THREAD_NOT_MUTABLE, description: 'cancelled decision thread cannot be checkpointed' }
+      - { code: DECISION_ALIGNMENT_BLOCKING, description: 'an open or deferred blocking decision prevents checkpointing' }
+      - { code: DECISION_CHECKPOINT_STALE, description: 'prepared decision digest no longer matches current authority' }
+      - { code: DECISION_ARTIFACT_REQUIRED, description: 'confirmation lacks required artifact bindings; no-artifact reasons are allowed only for standalone baseline thinking' }
+      - { code: DECISION_ARTIFACT_MISSING, description: 'a declared checkpoint artifact does not exist' }
+      - { code: VALIDATION_ERROR, description: 'checkpoint action, approval, or artifact input is invalid' }
+    cli_subcommand: decision checkpoint
+    emits_events: [decision_checkpoint_prepared, decision_checkpoint_confirmed]
+
   # ────────────────────────── workflow family ────────────────────────────
   - name: workflow.start
     family: workflow
@@ -1647,6 +1943,7 @@ tools:
       - { code: WORKFLOW_CONTEXT_AUTHORITY_MISMATCH, description: 'the context artifact does not match its DB snapshot row' }
       - { code: WORKFLOW_CONTEXT_STALE, description: 'the context artifact no longer matches the current checkout' }
       - { code: WORKFLOW_RELEASE_AUTHORIZATION_INVALID, description: 'release-if-authorized requires one complete durable owner decision' }
+      - { code: DECISION_ALIGNMENT_BLOCKING, description: 'matching owner decisions or artifact checkpoints are not current' }
     cli_subcommand: workflow step
     emits_events: [workflow_step_updated, workflow_blocked]
 
@@ -1697,6 +1994,7 @@ tools:
       - { code: WORKFLOW_TEST_NOT_PASSED, description: 'the current change-level test gate did not pass' }
       - { code: WORKFLOW_CHANGE_NOT_ARCHIVED, description: 'delivery completion requires an archived change' }
       - { code: WORKFLOW_RELEASE_AUTHORITY_MISMATCH, description: 'delivery release claims differ from the durable owner authorization decision' }
+      - { code: DECISION_ALIGNMENT_BLOCKING, description: 'matching owner decisions or artifact checkpoints are not current' }
     cli_subcommand: workflow complete
     emits_events: [workflow_completed, plan_approved]
 

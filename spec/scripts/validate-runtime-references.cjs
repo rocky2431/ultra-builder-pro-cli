@@ -9,7 +9,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const manifest = yaml.load(fs.readFileSync(path.join(repoRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
 const liveTools = new Set(manifest.tools.map((tool) => tool.name));
 const roots = ['commands', 'skills'].map((name) => path.join(repoRoot, name));
-const toolReference = /\b(?:task|session|plan|change|system|review|impact|skill|ask|memory)\.[a-z_]+\b/g;
+const toolReference = /\b(?:task|session|baseline|change|decision|workflow|plan|system|review|impact|skill|ask|memory)\.[a-z_]+\b/g;
 const removedCli = /\bultra-tools\s+(?:ask|skill|subagent)\b/g;
 const retiredTools = new Set([
   'review.run', 'review.verdict',
@@ -39,7 +39,9 @@ for (const root of roots) {
   for (const file of markdownFiles(root)) {
     const text = fs.readFileSync(file, 'utf8');
     for (const reference of new Set(text.match(toolReference) || [])) {
-      if (retiredTools.has(reference)) failures.push(`${path.relative(repoRoot, file)}: non-live MCP tool ${reference}`);
+      if (retiredTools.has(reference)) {
+        failures.push(`${path.relative(repoRoot, file)}: non-live MCP tool ${reference}`);
+      }
     }
     for (const reference of new Set(text.match(removedCli) || [])) {
       failures.push(`${path.relative(repoRoot, file)}: removed CLI surface ${reference}`);

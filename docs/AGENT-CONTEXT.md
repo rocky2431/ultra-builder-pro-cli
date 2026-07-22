@@ -37,15 +37,15 @@ native command or skill -> MCP workflow-state operation -> .ultra/state.db
 | MCP | `mcp-server/server.cjs` | Authoritative typed operations over `.ultra/state.db` |
 | CLI | `ultra-tools`, `ubp-orchestrator` | Selected initialization, backup-first recovery, automation, and diagnostics; not a change-state mirror |
 
-`.ultra/state.db` is the only durable Ultra authority for baselines, changes, tasks,
+`.ultra/state.db` is the only durable Ultra authority for baselines, changes, decisions, tasks,
 workflow runs/steps, sessions, events, incidents, projection jobs/cursors, telemetry, review evidence,
 and circuit-breaker state. `tasks.json`, context Markdown, execution plans, and
 reports are projections or workflow artifacts.
 
 ## 3. Live MCP and declared contracts
 
-`spec/mcp-tools.yaml` declares and the bundled server registers 41 tools across
-seven families:
+`spec/mcp-tools.yaml` declares and the bundled server registers 50 tools across
+eight families:
 
 | Family | Live tools |
 |---|---|
@@ -53,13 +53,15 @@ seven families:
 | `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
 | `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
 | `change.*` | create, update, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
+| `decision.*` | thread_start, get, list, open, resolve, delegate, defer, supersede, checkpoint |
 | `workflow.*` | start, get, list, step, complete |
 | `system.*` | doctor |
 | `plan.*` | export, get |
 
-Review, repository impact discovery, skill loading, and user interaction remain
-host-native capabilities rather than fake MCP contracts. The generated Codex
-capability map documents those replacements.
+Review, repository impact discovery, skill loading, and decision presentation remain
+host-native capabilities rather than fake MCP contracts. MCP stores only normalized
+decision authority and checkpoints; it never generates questions or retains prompts
+and transcripts. The generated Codex capability map documents host replacements.
 
 The complete write, transition, invalidation, and recovery contract lives in
 [`WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md).
@@ -67,7 +69,22 @@ The complete write, transition, invalidation, and recovery contract lives in
 Any new MCP contract starts in `spec/mcp-tools.yaml` with valid and invalid
 fixtures. Do not add an ad-hoc server handler first.
 
-## 4. Context Spine contract
+## 4. Human-agent alignment contract
+
+`skills/ultra-think/references/decision-dialogue.md` is the single reusable prompt
+contract for load-bearing owner choices. Research, change, and plan read it at their
+decision boundaries. They inspect evidence first, expose only the earliest unresolved
+choice, include a recommendation and durable effects, and stop the turn. Dev, test,
+review, and deliver route back to the same thread instead of deciding for the owner.
+
+One partial unique index permits only one open item per thread. `decision.resolve`,
+`decision.delegate`, and `decision.defer` preserve the source of authority;
+`decision.supersede` preserves history when evidence or intent changes. Prepare and
+confirm checkpointing bind the accepted cluster to current artifact digests before a
+matching workflow may advance. Status and breadcrumb return only the current question
+and one route, so recovery does not require replaying conversation history.
+
+## 5. Context Spine contract
 
 Context Manifest v2 is an immutable DB-backed role handoff, not a static codebase summary.
 `change.context` compiles required references, digests, readiness, context budget,
@@ -92,7 +109,7 @@ through approve/reject/apply transitions in `change.learning_resolve`. Unresolve
 learning blocks convergence. Review contributes two independent axes,
 `spec_fidelity` and `engineering_standards`; neither can replace the other.
 
-## 5. Native host presentation
+## 6. Native host presentation
 
 | Host | Plugin form | Workflow entry | Hook form | Collaboration companions |
 |---|---|---|---|---|
@@ -105,7 +122,7 @@ The current host remains primary. Collaboration skills call another runtime
 only when explicitly requested, use it as a read-only advisor, and return the
 evidence to the primary host for final verification.
 
-## 6. Hook boundary
+## 7. Hook boundary
 
 The canonical Python hook bundle contains seven executable workflow hooks plus
 the shared read-only `context_spine.py` breadcrumb helper:
@@ -133,7 +150,7 @@ reject an edit, stop, or tool call.
 Generic command blocking, post-edit governance, and unrelated user hooks are not
 copied into Ultra Builder Pro.
 
-## 7. Memory boundary
+## 8. Memory boundary
 
 Ultra Builder Pro has no memory MCP family, recall skill, prompt capture,
 transcript capture, observation journal, or session-summary hook. Persistent
@@ -151,7 +168,7 @@ ultra-tools legacy-memory prune --confirm DELETE_ULTRA_LEGACY_MEMORY
 
 Archive before prune; the confirmation token is intentionally required.
 
-## 8. Project state layout
+## 9. Project state layout
 
 ```text
 .ultra/
@@ -171,7 +188,7 @@ Archive before prune; the confirmation token is intentionally required.
     └── delivery/<workflow-id>.json
 ```
 
-## 9. User handbook integration
+## 10. User handbook integration
 
 General engineering doctrine remains user-owned in `CLAUDE.md` or `AGENTS.md`.
 Ultra Builder Pro contributes one managed section only. Preview or apply it with:
@@ -186,7 +203,7 @@ timestamped backup, replaces only the marked block, and can migrate the old
 Codex `## Ultra Builder Pro Runtime Contract` section without touching the next
 user section. Plugin adapters themselves do not silently overwrite handbooks.
 
-## 10. Verification
+## 11. Verification
 
 Run `npm run test:all`, `python3 -m pytest hooks/tests -q`, and `npm audit`.
 Adapter tests assert the allowlisted assets, native manifests, hook boundary,

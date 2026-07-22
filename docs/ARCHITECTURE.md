@@ -53,7 +53,7 @@ the supported hosts share.
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
-| **MCP**      | authoritative workflow-state and Context Spine API | stdio MCP server exposing 41 live tools across task/session/baseline/change/workflow/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **MCP**      | authoritative workflow-state, decision, and Context Spine API | stdio MCP server exposing 50 live tools across task/session/baseline/change/decision/workflow/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
 | **CLI**      | explicit initialization, recovery, diagnostics, and orchestration | `ultra-tools` / `ubp-orchestrator`; only commands listed by `--help` are executable (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
 Why three: skills give us behavior portability across runtimes; MCP gives
@@ -70,7 +70,7 @@ RPC, and host-native loaders own resolution and invocation.
 
 All durable Ultra workflow state lives in one SQLite file with WAL enabled. Schema is
 fixed in [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) and
-covers nineteen tables:
+covers twenty-one tables:
 
 | Table              | Holds                                             | Phase |
 |--------------------|---------------------------------------------------|-------|
@@ -83,7 +83,7 @@ covers nineteen tables:
 | `telemetry`        | per-session token / cost / tool-call counters     | 6     |
 | `specs_refs`       | spec change tracking → staleness propagation       | 5     |
 | `circuit_breaker`  | bounded retry and halt state for failed tasks       | 5     |
-| `changes`          | continuous feature/fix/incident lifecycle and incident baseline bypass | 12 |
+| `changes`          | continuous feature/fix/incident lifecycle, alignment-thread link, and incident baseline bypass | 12→16 |
 | `artifacts`        | intent/context/verification artifact registry       | 8C    |
 | `context_snapshots`| role/gate context, readiness, budget, execution seam, hashes, git head, provider refs | 10 |
 | `spec_learning_candidates` | approval-gated implementation discoveries for baseline convergence | 10 |
@@ -93,6 +93,8 @@ covers nineteen tables:
 | `event_consumers` | durable monotonic consumer cursors                   | 8C    |
 | `workflow_runs`   | init/research/plan/change/dev/test/review/deliver run authority, position, blockers, approval, and derived summary | 13 |
 | `workflow_steps`  | ordered step state, evidence, decisions, immutable output paths, and recorded SHA-256 digests | 13 |
+| `decision_threads` | baseline/change/workflow-bound owner-agent alignment, interaction mode, normalized summary, and checkpoint authority | 16 |
+| `decision_items` | one-at-a-time owner choices, evidence, recommendations, durable effects, resolutions, delegation, deferral, and supersession history | 16 |
 
 Two rules make this work:
 
@@ -105,7 +107,7 @@ Two rules make this work:
 2. **Single writer for mutable tables, multi-writer for `events`.**
    `.ultra/state.db` opens in WAL with `busy_timeout=5000`. The MCP
    server holds the single writer connection for `baselines`, `tasks`, `sessions`,
-   `changes`, `workflow_runs`, `workflow_steps`, `artifacts`, `context_snapshots`,
+   `changes`, `decision_threads`, `decision_items`, `workflow_runs`, `workflow_steps`, `artifacts`, `context_snapshots`,
    `spec_learning_candidates`, `incidents`, `projection_jobs`, `telemetry`,
    `specs_refs`, and `migration_history`; the CLI calls
    those tools over stdio rather than opening its own writer. The
@@ -170,6 +172,24 @@ start on an unhealthy baseline only with an explicit reason and approver stored 
 and tracked-spec drift atomically. Break-glass incident archive creates an open
 blocking reconciliation gap, so incident recovery can finish without falsely marking
 the project baseline healthy.
+
+### Human-agent decision authority
+
+Ultra separates autonomous evidence work from owner decision authority. The host reads
+the repository, runtime, tests, and primary sources first, then exposes only the earliest
+unresolved load-bearing choice. `decision.open` stores the recommendation, credible
+alternatives, evidence refs, and durable effects; a partial unique index guarantees one
+current question per thread. The host ends that turn and waits.
+
+The next response becomes a normalized owner decision, explicit reversible delegation,
+or consequence-bearing deferral. Prompts and transcripts are never persisted. A coherent
+cluster moves through prepare/confirm checkpointing, which binds an owner-approved
+decision digest to the current specification, Change Contract, alignment, or plan artifact.
+Matching workflow steps and completion fail closed until the checkpoint is confirmed.
+Supersession preserves prior history and reopens alignment instead of silently editing an
+old decision. The shared procedure lives in
+`skills/ultra-think/references/decision-dialogue.md`; status, breadcrumb, and doctor expose
+only the current recovery surface.
 
 ## 4. Continuous changes — the daily unit of convergence
 

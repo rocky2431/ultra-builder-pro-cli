@@ -13,10 +13,12 @@ projections.
 1. Call `system.doctor` with repair disabled.
 2. Call `baseline.get` for classification, readiness, revision, worktree, spec digests,
    research provenance, gaps, and blockers.
-3. Call `workflow.list`, then `workflow.get` for every active, blocked, or ready run.
-4. Call `change.breadcrumb`, `change.list`, `task.list`, and `session.list`.
-5. Inspect current Git branch, full HEAD, and worktree without mutation.
-6. Read test, review, and delivery artifacts only when referenced by DB workflow state;
+3. Call `decision.list`, then `decision.get` for the current active or checkpoint-ready
+   thread. Expose only its current question or checkpoint, not the hidden history.
+4. Call `workflow.list`, then `workflow.get` for every active, blocked, or ready run.
+5. Call `change.breadcrumb`, `change.list`, `task.list`, and `session.list`.
+6. Inspect current Git branch, full HEAD, and worktree without mutation.
+7. Read test, review, and delivery artifacts only when referenced by DB workflow state;
    compare their recorded digest and revision with current authority.
 
 If state is unreadable, report that panel unavailable and route to `ultra-doctor`.
@@ -27,6 +29,7 @@ Never fall back to generated task JSON, raw SQLite queries, or context frontmatt
 Prefer the breadcrumb and durable workflow position:
 
 - state integrity, schema, projection, or installed-asset failure: `ultra-doctor`;
+- open decision or checkpoint: `ultra-think` with its exact decision id;
 - missing project or migrated compatibility authority: `ultra-init`;
 - active/blocked research: `ultra-research` at its exact `current_step`;
 - ready research with unconverged baseline: finalize research, record, approve, and
@@ -49,6 +52,7 @@ Report:
 Ultra: <healthy|degraded> · <branch>@<head> · worktree <clean|dirty>
 Baseline: <mode>/<status> · research=<run/status> · gaps=<open>/<blocking>
 Workflow: <kind/id/status> · step=<current|finalize> · outputs=<fresh|stale>
+Decision: <id/phase|checkpoint|none> · thread=<id/status>
 Change: <id/status|none> · Task: <id/status|none> · Sessions: <active>
 Evidence: test=<state> · review=<two axes> · delivery=<state>
 Blockers: <specific codes or none>

@@ -15,6 +15,8 @@ const path = require('node:path');
 const { initStateDb, closeStateDb } = require('../mcp-server/lib/state-db.cjs');
 const ops = require('../mcp-server/lib/state-ops.cjs');
 const telemetry = require('../mcp-server/lib/telemetry.cjs');
+const decisions = require('../mcp-server/lib/decision-dialogue.cjs');
+const { seedReadyBaseline } = require('../mcp-server/test-support/ready-baseline.cjs');
 const statusCmd = require('./commands/status.cjs');
 
 function freshFixture() {
@@ -69,6 +71,29 @@ test('status includes authoritative workflow, change, task, session, and next-ro
     assert.equal(out.changes.active, 0);
     assert.equal(out.next.recommended_workflow, 'ultra-init');
     assert.match(out.next.action, /initializ/i);
+  } finally { teardown(dir, db); }
+});
+
+test('status exposes the current decision instead of dumping the hidden queue', () => {
+  const { dir, db } = freshFixture();
+  try {
+    seedReadyBaseline(db, { rootDir: dir });
+    decisions.startDecisionThread(db, {
+      id: 'status-alignment', baseline_id: 'test-baseline',
+      purpose: 'Expose one current decision.', mode: 'guided',
+    });
+    decisions.openDecision(db, {
+      id: 'status-api', thread_id: 'status-alignment', phase: 'change-contract',
+      question: 'Should the public API remain compatible?',
+      why_now: 'The answer changes the plan.',
+      recommendation: 'Preserve compatibility for one release.',
+      effects: { summary: 'Changes API, rollout, and recovery contracts.' },
+    });
+    const panel = statusCmd.buildStatusPanel(db, { rootDir: dir });
+    assert.equal(panel.decisions.current.id, 'status-api');
+    assert.equal(panel.decisions.awaiting_owner, 1);
+    assert.equal(panel.next.recommended_workflow, 'ultra-think');
+    assert.match(statusCmd.renderHuman(panel), /Decision: status-api/);
   } finally { teardown(dir, db); }
 });
 
@@ -190,7 +215,12 @@ test('status exposes an in-progress brownfield baseline from authoritative state
 test('status reports a legacy schema as migration-required instead of throwing SQLite errors', () => {
   const { dir, db } = freshFixture();
   try {
-    db.exec('DROP TABLE workflow_steps; DROP TABLE workflow_runs; DROP TABLE changes; DROP TABLE baselines');
+    db.pragma('foreign_keys = OFF');
+    db.exec(
+      'DROP TABLE decision_items; DROP TABLE decision_threads; DROP TABLE workflow_steps; '
+      + 'DROP TABLE workflow_runs; DROP TABLE changes; DROP TABLE baselines',
+    );
+    db.pragma('foreign_keys = ON');
     const out = statusCmd.buildCostPanel(db, { rootDir: dir });
     assert.equal(out.baseline.status, 'migration_required');
     assert.deepEqual(out.baseline.blockers, ['BASELINE_SCHEMA_MIGRATION_REQUIRED']);

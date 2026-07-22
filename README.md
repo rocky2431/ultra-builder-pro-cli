@@ -8,7 +8,7 @@ authoritative `.ultra/state.db`.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.15.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.16.0-blue)](./CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
@@ -25,9 +25,14 @@ authoritative `.ultra/state.db`.
   Install and uninstall are symmetric on every supported host; `ubp --doctor`
   verifies the installed asset hashes and host entry points without mutation.
 - **Shares state across runtimes.** `.ultra/state.db` (SQLite + WAL) is the
-  authoritative source for baselines, changes, tasks, sessions, events, incidents,
-  projection jobs, and telemetry. `tasks.json` and context markdown are
+  authoritative source for baselines, changes, decision threads, workflows, tasks,
+  sessions, events, incidents, projection jobs, and telemetry. `tasks.json` and context markdown are
   generated projections, not handwritten.
+- **Aligns the owner and agent without questionnaire overload.** The host resolves
+  observable facts first, then presents exactly one load-bearing decision with
+  evidence, a recommendation, credible alternatives, and the durable effect. The
+  normalized answer and owner-approved artifact checkpoint live in the DB; prompts
+  and transcripts do not. Matching workflows stop until that authority is current.
 - **Keeps memory ownership explicit.** Ultra Builder Pro does not collect
   prompts, transcripts, observations, summaries, or cross-session memory.
   Install cloud-mem/claude-mem separately if persistent memory is wanted.
@@ -117,10 +122,11 @@ transition, invalidation, and recovery semantics.
 The layers share one `.ultra/state.db`, but the CLI is not a mirror of every MCP
 tool: continuous change mutations are MCP-only and fail closed. See
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full contract and
-[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 41 live contracts.
-Review, impact discovery, skill resolution, and user interaction stay on each
-Host's native surfaces; the generated Codex capability map documents those
-replacements without advertising non-existent MCP tools.
+[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 50 live contracts.
+Review, impact discovery, skill resolution, and decision presentation stay on each
+host's native surfaces; MCP stores normalized decision authority but never generates
+questions. The generated Codex capability map documents those replacements without
+advertising non-existent MCP tools.
 
 The package boundary is deliberate: twelve public Ultra workflow skills, four
 internal review-rule skills, host-specific collaboration companions, and the
@@ -150,11 +156,12 @@ ultra-tools task init-project --project-name myapp --mode auto
 
 # Projection-only projects from prior releases use one backup-first import:
 ultra-tools migrate --from=4.4 --to=4.5 --source-dir .
-ultra-tools migrate --from=4.5 --to=15.0 --source-dir .
+ultra-tools migrate --from=4.5 --to=16.0 --source-dir .
 
-# 2. Complete all 17 research steps, record current evidence, and obtain explicit
-#    baseline approval. Then open an initial change and persist its task contracts
-#    (normally driven by ultra-research/change/plan).
+# 2. Complete all 17 research steps. When owner judgment is required, the host asks
+#    one evidence-backed decision at a time and checkpoints the accepted artifacts.
+#    Record current evidence, obtain explicit baseline approval, then open and align
+#    an initial change before persisting its task contracts.
 
 # 3. Run the plan — parallel sessions, auto-merge back to main on success
 ubp-orchestrator run

@@ -1,6 +1,6 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Multi-runtime installer for the Ultra Builder Pro agent engineering system — deploys commands, agents, skills, hooks, and MCP server to Claude Code, OpenCode, Codex CLI, and Kimi Code.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",

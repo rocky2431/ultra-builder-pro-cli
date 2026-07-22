@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-07-23
+
+### Added
+
+- Added schema 16 durable decision threads and items with exactly one current
+  question, normalized owner answers, explicit reversible delegation, consequence-
+  bearing deferral, supersession history, and artifact-bound checkpoints.
+- Added nine `decision.*` MCP contracts, CLI mappings, events, valid/invalid contract
+  fixtures, status/breadcrumb recovery, doctor health checks, and workflow gates.
+- Added one canonical progressive-disclosure decision protocol shared by init,
+  research, thinking, change, and planning without copying questionnaires into each
+  Skill.
+
+### Changed
+
+- Changed research to preserve all seventeen semantic steps as an internal coverage
+  contract while exposing only the current owner decision or compact checkpoint.
+- Changed change and plan formation to inspect facts autonomously, present one
+  evidence-backed choice at a time, stop for the owner, and reuse one approved
+  checkpoint instead of requesting equivalent confirmations.
+- Changed dev, test, review, deliver, status, doctor, user handbooks, and lifecycle
+  documentation to recover through the same decision authority and exact next route.
+
+### Fixed
+
+- Prevented a decision thread for one change from blocking unrelated changes on the
+  same baseline while preserving baseline-only and matching workflow gates.
+- Prevented workflow steps or completion from advancing on an open, blocking-deferred,
+  checkpoint-ready, stale, or superseded owner decision.
+- Prevented prompt transcripts, static question queues, large research dumps, and
+  repeated owner approvals from becoming project authority.
+
 ## [0.15.0] — 2026-07-22
 
 ### Added
@@ -624,7 +656,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.12.1...v0.13.0

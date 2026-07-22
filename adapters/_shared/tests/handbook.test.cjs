@@ -40,6 +40,9 @@ test('renders one common contract with host-native invocation syntax', () => {
     assert.match(rendered, /never traps session stop/);
     assert.match(rendered, /change\.breadcrumb/);
     assert.match(rendered, /Specification learning boundary/);
+    assert.match(rendered, /Decision boundary/);
+    assert.match(rendered, /presents only the earliest unresolved decision/);
+    assert.match(rendered, /cannot advance until blocking decisions are resolved/);
     assert.doesNotMatch(rendered, /\.ultra\/memory|memory\.retain|memory\.recall/);
     assert.match(rendered, new RegExp(BEGIN_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(rendered, new RegExp(END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));

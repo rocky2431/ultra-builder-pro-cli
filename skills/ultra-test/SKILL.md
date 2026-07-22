@@ -10,8 +10,10 @@ or use generated task JSON as authority.
 
 ## Bind and execute
 
-1. Read `system.doctor`, `change.breadcrumb`, authoritative tasks, completed dev runs,
-   current HEAD/diff, and prior test report freshness.
+1. Read `system.doctor`, `change.breadcrumb`, active decision state, authoritative
+   tasks, completed dev runs, current HEAD/diff, and prior test report freshness. An
+   open decision or unconfirmed checkpoint blocks testing claims and routes to
+   `ultra-think`.
 2. Resume or start a `test` workflow linked to the change and optional task. Record
    `bind-scope` with the exact revision, task set, and acceptance ids.
 3. Compile `change.context` for `check`; record `compile-context` only when required
@@ -26,6 +28,8 @@ or use generated task JSON as authority.
 Use real boundaries where practical. A test double is acceptable at a costly or
 nondeterministic external boundary only when the report explains why it preserves the
 contract. Reject tautologies, hidden skips, weakened assertions, and unconsumed code.
+When evidence reveals an unresolved product decision, report the exact consequence and
+route it to the decision dialogue; testing must not silently select the desired result.
 
 ## Report and converge
 
@@ -49,4 +53,6 @@ completion.
 
 Return the workflow id, revision, pass/fail result, exact checks, verified seams,
 blocking failures, report path/digest, and one route to fix, `ultra-review`, or
-`ultra-deliver`.
+`ultra-deliver`. A failed implementation contract returns to `ultra-dev`; a new owner
+choice returns to `ultra-think`; a passing current change without current aggregate
+review routes to `ultra-review`.

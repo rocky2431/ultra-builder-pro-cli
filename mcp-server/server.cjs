@@ -32,6 +32,7 @@ const baselines = require('./lib/baseline-workflow.cjs');
 const changes = require('./lib/change-workflow.cjs');
 const runtimeState = require('./lib/runtime-state.cjs');
 const workflows = require('./lib/workflow-state.cjs');
+const decisions = require('./lib/decision-dialogue.cjs');
 const doctor = require('./lib/doctor.cjs');
 const {
   readProjectBreadcrumb,
@@ -101,12 +102,25 @@ const WORKFLOW_TOOLS = Object.freeze([
   'workflow.complete',
 ]);
 
+const DECISION_TOOLS = Object.freeze([
+  'decision.thread_start',
+  'decision.get',
+  'decision.list',
+  'decision.open',
+  'decision.resolve',
+  'decision.delegate',
+  'decision.defer',
+  'decision.supersede',
+  'decision.checkpoint',
+]);
+
 const SYSTEM_TOOLS = Object.freeze([
   'system.doctor',
 ]);
 
 const REGISTERED_TOOLS = Object.freeze([
   ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS, ...BASELINE_TOOLS, ...CHANGE_TOOLS,
+  ...DECISION_TOOLS,
   ...WORKFLOW_TOOLS,
   ...SYSTEM_TOOLS,
 ]);
@@ -123,6 +137,8 @@ const MUTATING_TOOLS = new Set([
   'baseline.start', 'baseline.record', 'baseline.converge',
   'change.create', 'change.update', 'change.context', 'change.converge', 'change.archive',
   'change.learning_propose', 'change.learning_resolve',
+  'decision.thread_start', 'decision.open', 'decision.resolve', 'decision.delegate',
+  'decision.defer', 'decision.supersede', 'decision.checkpoint',
   'workflow.start', 'workflow.step', 'workflow.complete',
 ]);
 
@@ -516,6 +532,44 @@ async function dispatchTool(name, input, db, ctx = {}) {
     }
     case 'change.archive': {
       return changes.archiveChange(db, input, { rootDir: ctx.rootDir || process.cwd() });
+    }
+    case 'decision.thread_start': {
+      return { thread: decisions.startDecisionThread(db, input) };
+    }
+    case 'decision.get': {
+      const thread = decisions.readDecisionThread(db, input.id);
+      if (!thread) {
+        const error = new Error(`decision thread ${input.id} not found`);
+        error.code = 'DECISION_THREAD_NOT_FOUND';
+        throw error;
+      }
+      return { thread };
+    }
+    case 'decision.list': {
+      const threads = decisions.listDecisionThreads(db, input || {});
+      return { threads, count: threads.length };
+    }
+    case 'decision.open': {
+      return { thread: decisions.openDecision(db, input) };
+    }
+    case 'decision.resolve': {
+      return { thread: decisions.resolveDecision(db, input) };
+    }
+    case 'decision.delegate': {
+      return { thread: decisions.delegateDecision(db, input) };
+    }
+    case 'decision.defer': {
+      return { thread: decisions.deferDecision(db, input) };
+    }
+    case 'decision.supersede': {
+      return { thread: decisions.supersedeDecision(db, input) };
+    }
+    case 'decision.checkpoint': {
+      return {
+        thread: decisions.checkpointDecisionThread(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
     }
     case 'workflow.start': {
       return {

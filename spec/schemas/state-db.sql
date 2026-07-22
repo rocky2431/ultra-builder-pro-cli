@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS changes (
   contract_json     TEXT NOT NULL DEFAULT '{}',
   classification_json TEXT NOT NULL DEFAULT '{}',
   research_disposition_json TEXT NOT NULL DEFAULT '{}',
+  alignment_thread_id TEXT REFERENCES decision_threads(id) ON DELETE SET NULL,
   base_commit       TEXT,
   artifact_root     TEXT NOT NULL,
   created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -403,6 +404,61 @@ CREATE UNIQUE INDEX IF NOT EXISTS workflow_steps_position
 CREATE INDEX IF NOT EXISTS workflow_steps_status
   ON workflow_steps(run_id, status, position);
 
+-- ──────────────────────────── decision dialogue ─────────────────────────
+-- The host owns reasoning and normalized decision content. MCP owns one-at-a-
+-- time presentation, durable authority, checkpoints, and recovery. Raw prompts
+-- and transcripts never belong in these tables.
+CREATE TABLE IF NOT EXISTS decision_threads (
+  id                 TEXT PRIMARY KEY,
+  purpose            TEXT NOT NULL,
+  mode               TEXT NOT NULL DEFAULT 'guided'
+                       CHECK (mode IN ('guided', 'fast', 'autonomous', 'diagnostic')),
+  status             TEXT NOT NULL DEFAULT 'active'
+                       CHECK (status IN ('active', 'checkpoint_ready', 'confirmed', 'cancelled')),
+  baseline_id        TEXT REFERENCES baselines(id) ON DELETE SET NULL,
+  change_id          TEXT REFERENCES changes(id) ON DELETE CASCADE,
+  workflow_run_id    TEXT REFERENCES workflow_runs(id) ON DELETE CASCADE,
+  summary_json       TEXT NOT NULL DEFAULT '{}',
+  checkpoint_json    TEXT NOT NULL DEFAULT '{}',
+  started_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  confirmed_at       TEXT,
+  CHECK (baseline_id IS NOT NULL OR change_id IS NOT NULL OR workflow_run_id IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS decision_threads_status
+  ON decision_threads(status, updated_at);
+CREATE INDEX IF NOT EXISTS decision_threads_authority
+  ON decision_threads(baseline_id, change_id, workflow_run_id, status);
+
+CREATE TABLE IF NOT EXISTS decision_items (
+  id                 TEXT PRIMARY KEY,
+  thread_id          TEXT NOT NULL REFERENCES decision_threads(id) ON DELETE CASCADE,
+  sequence           INTEGER NOT NULL CHECK (sequence > 0),
+  phase              TEXT NOT NULL,
+  question           TEXT NOT NULL,
+  why_now            TEXT NOT NULL,
+  recommendation     TEXT NOT NULL,
+  options_json       TEXT NOT NULL DEFAULT '[]',
+  evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+  dependency_ids_json TEXT NOT NULL DEFAULT '[]',
+  effects_json       TEXT NOT NULL DEFAULT '{}',
+  blocking           INTEGER NOT NULL DEFAULT 1 CHECK (blocking IN (0, 1)),
+  status             TEXT NOT NULL DEFAULT 'open'
+                       CHECK (status IN ('open', 'answered', 'delegated', 'deferred', 'superseded')),
+  resolution_json    TEXT NOT NULL DEFAULT '{}',
+  supersedes_id      TEXT REFERENCES decision_items(id) ON DELETE SET NULL,
+  created_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  resolved_at        TEXT,
+  UNIQUE (thread_id, sequence)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS decision_items_one_open
+  ON decision_items(thread_id) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS decision_items_status
+  ON decision_items(thread_id, status, sequence);
+
 -- ──────────────────────────── seed: schema_version ────────────────────────
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('4.5', 'Phase 2 initial — tasks/events/sessions/schema_version/migration_history/telemetry/specs_refs');
@@ -428,3 +484,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('14.0', 'Continuously revalidated baseline authority and persisted known-red acceptance');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('15.0', 'Typed research semantics, complete change contracts, verified learning application, and reconciliation provenance');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('16.0', 'Durable one-question decision dialogue, owner checkpoints, and workflow alignment gates');

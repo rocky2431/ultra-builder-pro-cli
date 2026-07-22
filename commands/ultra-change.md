@@ -1,5 +1,5 @@
 ---
-description: Open or resume a bounded continuous change with linked authoritative tasks and context
+description: Align, open, and route one bounded continuous change through research, plan, and delivery
 argument-hint: "[change-id-or-title] [quick|standard|major|incident]"
 workflow-ref: "@skills/ultra-change/SKILL.md"
 ---

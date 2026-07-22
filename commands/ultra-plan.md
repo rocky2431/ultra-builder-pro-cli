@@ -1,5 +1,5 @@
 ---
-description: Convert validated requirements into dependency-valid Ultra tasks with bounded context and exact verification
+description: Interactively review and persist dependency-valid tasks with bounded context and exact verification
 argument-hint: "[scope]"
 workflow-ref: "@skills/ultra-plan/SKILL.md"
 ---

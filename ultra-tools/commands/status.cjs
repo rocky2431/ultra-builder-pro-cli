@@ -12,6 +12,7 @@ const path = require('node:path');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
 const baselines = require('../../mcp-server/lib/baseline-workflow.cjs');
 const workflowState = require('../../mcp-server/lib/workflow-state.cjs');
+const decisionDialogue = require('../../mcp-server/lib/decision-dialogue.cjs');
 const { readBreadcrumb } = require('../../mcp-server/lib/context-spine.cjs');
 
 const USAGE = `ultra-tools status [flags]
@@ -167,6 +168,12 @@ function buildStatusPanel(db, { since = null, limit = 3, rootDir = process.cwd()
     };
   }
   if (!Array.isArray(workflows.current)) workflows.current = [];
+  const decisions = tables.has('decision_threads') && tables.has('decision_items')
+    ? decisionDialogue.inspectDecisionHealth(db, { rootDir })
+    : {
+      status: 'unavailable', active: 0, awaiting_owner: 0, checkpoint_ready: 0,
+      deferred_blocking: 0, stale_artifacts: [], current: null, current_thread_id: null,
+    };
   let next;
   let breadcrumb = null;
   try {
@@ -242,6 +249,7 @@ function buildStatusPanel(db, { since = null, limit = 3, rootDir = process.cwd()
     period: { since: since || 'all-time' },
     baseline,
     workflows,
+    decisions,
     current_change: currentChange,
     current_task: currentTask,
     evidence,
@@ -286,6 +294,13 @@ function renderHuman(panel) {
     lines.push(
       `Workflow: ${current.id} (${current.kind}/${current.status}) · step=${current.current_step || 'finalize'} · outputs=${current.output_health}`,
     );
+  }
+  if (panel.decisions.current) {
+    lines.push(
+      `Decision: ${panel.decisions.current.id} (${panel.decisions.current.phase}) — ${panel.decisions.current.question}`,
+    );
+  } else if (panel.decisions.checkpoint_ready > 0) {
+    lines.push(`Decision checkpoint: ${panel.decisions.current_thread_id} awaits confirmation`);
   }
   lines.push(
     `Changes: active=${panel.changes.active} blocked=${panel.changes.blocked} ready=${panel.changes.ready} archived=${panel.changes.archived}`,
