@@ -1,303 +1,414 @@
-# ultra-builder-pro-cli
+# Ultra Builder Pro
 
-Multi-runtime plugin suite + autonomous coding factory for the Ultra Builder Pro
-agent engineering system. It ships native plugins for **Claude Code · OpenCode ·
-Codex · Kimi Code** and orchestrates PRD →
-dependency graph → resumable dependency-wave execution → convergence-gated
-integration with a single authoritative `.ultra/state.db`.
+**An adaptive delivery harness for AI coding agents.**
+
+Ultra Builder Pro helps Claude Code, Codex, OpenCode, and Kimi Code carry a
+software project from an unclear request to a verified, recoverable delivery.
+It keeps the user and the agent aligned, preserves project authority across
+sessions, and prevents specifications from quietly drifting away from the code.
+
+It is not another model and it is not a rigid step-by-step autopilot. The active
+host agent still investigates, reasons, recommends, and implements. Ultra adds
+the durable workflow state, evidence gates, recovery paths, and host-native
+tools needed to make that work dependable over time.
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-0.16.0-blue)](./CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#verification)
+[![npm](https://img.shields.io/npm/v/ultra-builder-pro-cli?label=npm)](https://www.npmjs.com/package/ultra-builder-pro-cli)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#development-and-verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-informational)](./package.json)
 
 </div>
 
----
+## Why it exists
 
-## What it does
+AI coding works well inside one conversation. Real projects last much longer.
+After several sessions, teams commonly find that:
 
-- **Builds host-native plugins from one allowlist.** Claude Code, OpenCode,
-  Codex, and Kimi Code receive their own command/skill, agent, hook, and MCP
-  representation.
-  Install and uninstall are symmetric on every supported host; `ubp --doctor`
-  verifies the installed asset hashes and host entry points without mutation.
-- **Shares state across runtimes.** `.ultra/state.db` (SQLite + WAL) is the
-  authoritative source for baselines, changes, decision threads, workflows, tasks,
-  sessions, events, incidents, projection jobs, and telemetry. `tasks.json` and context markdown are
-  generated projections, not handwritten.
-- **Aligns the owner and agent without questionnaire overload.** The host resolves
-  observable facts first, then presents exactly one load-bearing decision with
-  evidence, a recommendation, credible alternatives, and the durable effect. The
-  normalized answer and owner-approved artifact checkpoint live in the DB; prompts
-  and transcripts do not. Matching workflows stop until that authority is current.
-- **Keeps memory ownership explicit.** Ultra Builder Pro does not collect
-  prompts, transcripts, observations, summaries, or cross-session memory.
-  Install cloud-mem/claude-mem separately if persistent memory is wanted.
-- **Runs current plans without a second model credential.** The current host
-  derives task objects; `task.parse_prd` validates them → `lib/topo.cjs` waves →
-  `.ultra/execution-plan.json` → parallel worktree sessions. Execution pauses at
-  the first wave whose tasks have not converged through Ultra gates. An explicit
-  auto-merge is accepted only for a change task with a matching completion commit,
-  ready dev evidence, and a current task review; transport success alone preserves
-  the worktree.
-- **Keeps daily work convergent.** `/ultra-change` creates a bounded delta and
-  complete Change Contract, classifies risk, records whether bounded research is
-  required, and leaves planning and context compilation to their actual consumers.
-  Context Manifest v3 assigns a role/gate, verifies required references, reports
-  fresh-context budget pressure as advisory warnings, and exposes mechanically valid
-  transitions without choosing the semantic route. Research stores typed,
-  source-digested semantic records;
-  planning proves Change acceptance coverage; `/ultra-deliver` requires applied specification
-  learning plus docs/test/mode-bound two-axis review evidence and a schema-validated
-  baseline reconciliation manifest before archive. `/ultra-doctor` reports incidents,
-  projection lag, orphan sessions, and backup-first mechanical recovery.
-  Incident changes additionally require a five-section `diagnosis.md` covering
-  reproduction, hypotheses, root cause, regression test, and recovery.
-- **Adopts existing repositories without pretending they are new.** `ultra-init`
-  classifies greenfield, brownfield, and monorepo scope. Brownfield adoption records
-  current specifications, repository/runtime evidence, worktree snapshot, known-red
-  verification, categorized gaps, unknowns, and explicit approval without rewriting
-  application code. v4.4 and v4.5 projection-only projects have backup-first imports.
-- **Keeps external context external.** Memory and code-graph providers retain
-  their own content; Ultra stores only provider/project/revision/status metadata
-  references in a compiled change context.
+- the agent no longer knows which decisions are authoritative;
+- implementation changed but product and architecture documents did not;
+- a new session repeats research or asks the same questions again;
+- an existing codebase is treated like a blank new product;
+- a rigid workflow blocks reasonable work, while an unstructured workflow loses
+  traceability;
+- “tests passed” or “work completed” cannot be tied back to the exact change,
+  task, commit, and acceptance criteria.
 
-## Quickstart
+Ultra Builder Pro addresses those gaps with four ideas:
 
-```bash
-# Install into one runtime (local = current project's config dir)
-npx ultra-builder-pro-cli --claude   --local
-npx ultra-builder-pro-cli --opencode --local
-npx ultra-builder-pro-cli --codex    --local
-npx ultra-builder-pro-cli --kimi     --local
+1. **Adaptive workflow, not a fixed pipeline.** MCP exposes valid capabilities
+   and hard recovery requirements. The host model recommends the next semantic
+   action from the user's goal and current evidence.
+2. **Low-load user alignment.** The agent investigates observable facts itself
+   and asks the user only for material intent, scope, risk, or authorization
+   decisions—normally one dependent decision at a time.
+3. **Durable project authority.** `.ultra/state.db` records baselines, changes,
+   decisions, workflows, tasks, evidence digests, sessions, incidents, and
+   recovery state across hosts and sessions.
+4. **Convergent delivery.** Research, plans, implementation, tests, review, and
+   specification updates must agree before a change is archived.
 
-# Or blanket-install to every supported runtime you have
-npx ultra-builder-pro-cli --all --local
+For example, if the user asks an agent to add organization SSO to an existing
+application, Ultra helps the agent inspect the real authentication path, capture
+the intended compatibility and recovery contract, ask only the unresolved
+product decision, plan and implement against current evidence, update affected
+specifications, and preserve the exact verification and review result. A later
+session resumes from that authority instead of reconstructing it from chat.
 
-# Global (into the runtime's ~/.config-style dir)
-npx ultra-builder-pro-cli --claude --global
-npx ultra-builder-pro-cli --kimi   --global
+## The mental model
 
-# Uninstall (symmetric)
-npx ultra-builder-pro-cli --all --local --uninstall
-
-# Read-only installation provenance and drift diagnosis
-npx ultra-builder-pro-cli --all --local --doctor
-npx ultra-builder-pro-cli --all --local --doctor --json
+```mermaid
+flowchart LR
+    U["User<br/>intent and material decisions"] <--> H["Host agent<br/>reasoning and implementation"]
+    H <--> S["Ultra skills<br/>task-specific workflows"]
+    S <--> M["Ultra MCP<br/>state, evidence, freshness, recovery"]
+    M <--> D[(".ultra/state.db")]
+    H --> A["Code, specifications,<br/>tests and review artifacts"]
+    A --> M
+    K["Lifecycle hooks<br/>breadcrumb and projection protection"] --> M
 ```
 
-After install, start a new host session/task and point it at the project.
-Claude Code and OpenCode expose native command forms. Codex exposes the same workflows as namespaced plugin
-skills such as `$ultra-builder-pro:ultra-init`, `$ultra-builder-pro:ultra-plan`,
-and `$ultra-builder-pro:ultra-dev`; `command-map.json` records the eleven legacy
-command mappings (`ultra-review` remains a directly invocable skill). Kimi Code
-uses native namespaced commands such as `/ultra-builder-pro:ultra-init` and
-`/ultra-builder-pro:ultra-plan`; run `/reload` or start a new Kimi session after
-install or update.
-See [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
-for per-runtime capabilities.
+The responsibility split is deliberate:
 
-Start with `ultra-init` in both new and existing projects. Auto classification is
-based on delivered-system evidence: application source, tests, deployment, or
-persisted-state/schema signals make a repository brownfield; a Git repository,
-manifest, README, or starter documentation alone remains greenfield. An empty project
-opens a `draft` greenfield baseline and an existing system opens an `adopting`
-brownfield baseline. Initialization completes after classification, local Git setup,
-scaffold creation, and read-back verification; it never starts research implicitly.
-When `ultra-research` is explicitly invoked, the host dispositions each of seventeen
-coverage areas as `execute`, `verify_existing`, `reuse`, `not_applicable`, or accepted
-`deferred`. It performs only the necessary work before `baseline.record` and explicit
-`baseline.converge`; initialization never treats blank templates as a trusted baseline
-and never selects an MVP. Auto mode preserves existing
-Git or initializes `main` and adds a symlink-safe `.ultra` ignore rule; an unborn
-repository requires an owner-approved local checkpoint commit before the baseline can
-be recorded. It never creates a remote, tag, or push. Existing active work may
-continue only when its durable change workflow was bound to a healthy ready baseline;
-the expected HEAD, worktree, spec, and source-evidence drift created by that change is
-advisory until delivery reconciliation. Loss of approved-ready status or structural
-baseline evidence blocks ordinary work. An incident requires an explicit break-glass
-approver and leaves a blocking reconciliation gap at archive; new ordinary work always
-requires a healthy ready baseline. See
-[`docs/WORKFLOW-LIFECYCLE.md`](./docs/WORKFLOW-LIFECYCLE.md) for exact write,
-transition, invalidation, and recovery semantics.
-The semantic crosswalk to the original Claude Code harness is
-[`docs/LEGACY-CLI-CROSSWALK.md`](./docs/LEGACY-CLI-CROSSWALK.md).
+| Owner | Responsibility |
+|---|---|
+| **User** | Product intent, material scope and trade-offs, destructive actions, publishing and deployment authorization |
+| **Host model** | Fact-finding, synthesis, research coverage, route recommendation, reversible implementation decisions |
+| **Ultra MCP** | Durable state, evidence references, digests, freshness, locks, valid transitions and hard recovery |
+| **Hooks** | Fast lifecycle observation, current breadcrumb injection, and protection of generated projections |
 
-## Three-layer architecture
+The MCP does not replace the model's judgment. A hook does not decide product
+strategy. A prompt does not become durable authority merely because it appeared
+in a conversation.
 
-| Layer | Purpose | When it's used |
-|-------|---------|----------------|
-| **skill** (`skills/ultra-*/`) | Knowledge — prompts, workflows, prose | Runtime's native skill/prompt loader picks them up after install |
-| **MCP** (`mcp-server/`) | Authoritative state — reads/writes `.ultra/state.db` via stdio JSON-RPC | Primary path for task / session / event / plan operations |
-| **CLI** (`ultra-tools`, `bin/*`) | Selected initialization, recovery, diagnostics, and orchestration surfaces | `ultra-tools task init-project`, `ultra-tools system doctor`, `ubp-orchestrator execute-plan` |
+## What you get
 
-The layers share one `.ultra/state.db`, but the CLI is not a mirror of every MCP
-tool: continuous change mutations are MCP-only and fail closed. See
-[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full contract and
-[`spec/cli-protocol.md`](./spec/cli-protocol.md) for the 50 live contracts.
-Review, impact discovery, skill resolution, and decision presentation stay on each
-host's native surfaces; MCP stores normalized decision authority but never generates
-questions. The generated Codex capability map documents those replacements without
-advertising non-existent MCP tools.
+- Native plugins for **Claude Code**, **OpenCode**, **Codex**, and **Kimi Code**.
+- One workflow vocabulary across all four hosts.
+- Deterministic initialization for new, existing, monorepo, and older Ultra
+  projects.
+- Evidence-backed greenfield research and brownfield adoption.
+- A durable Change Contract for every ongoing feature, fix, refactor, or
+  incident.
+- Context compilation that detects stale plans, tasks, references, and
+  specifications.
+- Risk-selected testing and independent specification/engineering review.
+- Crash-safe sessions, worktree recovery, circuit breakers, and backup-first
+  state migration.
+- Read-only installation and project diagnostics.
+- Optional dependency-wave worker orchestration for already-approved plans.
 
-The package boundary is deliberate: twelve public Ultra workflow skills, four
-internal review-rule skills, host-specific collaboration companions, and the
-minimal host bootstrap required by Kimi. Browser, deployment, skill-discovery,
-and framework guidance belong to their original plugins.
+## When to use it
 
-## Runtime capability matrix
+Ultra Builder Pro is useful when:
 
-| Feature                      | Claude Code | OpenCode | Codex CLI | Kimi Code 0.26+ |
-|------------------------------|:-----------:|:--------:|:---------:|:---------------:|
-| Custom commands              | ✅          | ✅       | ✅        | ✅ (namespaced) |
-| Skill loader                 | ✅          | ✅       | ✅ (personal plugin) | ✅ (native plugin) |
-| MCP server (stdio)           | ✅          | ✅       | ✅ (plugin `.mcp.json`) | ✅ (`mcpServers`) |
-| Workflow hooks               | ✅ (native plugin) | ✅ (native JS plugin) | ✅ (native plugin) | ✅ with documented compact limitation |
-| Sub-agents                   | ✅          | ✅       | ✅ (9 native TOML agents) | ✅ via `Agent` / `AgentSwarm` prompt templates |
-| Session worktree isolation   | ✅ (driven by `orchestrator/session-runner.cjs`) | ✅ | ✅ | ✅ |
-| Dependency-wave dispatch + optional verified auto-merge | ✅ (`ubp-orchestrator execute-plan`) | ✅ | ✅ | ✅ |
+- a project will span multiple agent sessions;
+- more than one supported host may work on the same repository;
+- product or architecture specifications must stay synchronized with delivery;
+- an existing codebase needs a trustworthy baseline before new changes;
+- failures must be diagnosable and recoverable;
+- user decisions, agent reasoning, and mechanical enforcement need clear
+  boundaries.
 
-Full details in [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
-(10 sections, with per-runtime deviations called out).
+It is probably unnecessary for a disposable one-file experiment or a change
+that does not need durable project context.
 
-## Typical workflow
+## Install
+
+Requirements:
+
+- Node.js 22 or newer;
+- Git for the normal project workflow;
+- one or more supported coding-agent hosts.
+
+Install globally into all detected host configuration directories:
 
 ```bash
-# 1. Bootstrap deterministic authority. This completes init but not research/baseline.
-ultra-tools task init-project --project-name myapp --mode auto
+npx --yes ultra-builder-pro-cli@latest --all --global
+```
 
-# Projection-only projects from prior releases use one backup-first import:
-ultra-tools migrate --from=4.4 --to=4.5 --source-dir .
-ultra-tools migrate --from=4.5 --to=18.0 --source-dir .
+Or install only one host:
 
-# 2. Invoke ultra-research explicitly. The host dispositions each coverage area,
-#    executes/verifies/reuses only what is necessary, and asks one material decision at
-#    a time through the host-native question surface. Record evidence and obtain
-#    baseline approval only after the selected coverage converges.
+```bash
+npx --yes ultra-builder-pro-cli@latest --claude --global
+npx --yes ultra-builder-pro-cli@latest --opencode --global
+npx --yes ultra-builder-pro-cli@latest --codex --global
+npx --yes ultra-builder-pro-cli@latest --kimi --global
+```
 
-# 3. Optional worker automation. Configure a real shell-free worker first:
-# {"orchestrator":{"command":"/absolute/path/to/ultra-worker","command_args":[]}}
-# Then resume current dependency waves until the first non-converged wave.
-# A paused result is expected while dev/test/review evidence is still open.
-# Worktrees are preserved by default. Empty, cyclic, stale, duplicate-task,
-# cross-change, and stale or unverified plans fail before a session is created.
-# Each worker checkout resolves `.ultra` to the one central authority; reserved
-# UBP_DB_PATH / UBP_ROOT_DIR / UBP_AUTHORITY_ROOT bindings cannot be overridden.
+Use `--local` instead of `--global` to install into the current project's host
+configuration:
+
+```bash
+npx --yes ultra-builder-pro-cli@latest --all --local
+```
+
+Verify the installation without changing it:
+
+```bash
+npx --yes ultra-builder-pro-cli@latest --all --global --doctor
+npx --yes ultra-builder-pro-cli@latest --all --global --doctor --json
+```
+
+After installing or upgrading, start a new Claude Code, OpenCode, or Codex
+session. In Kimi Code, run `/reload` or start a new session.
+
+### Host invocation
+
+| Host | Example |
+|---|---|
+| Claude Code | `/ultra-init` |
+| OpenCode | `/ultra-init` |
+| Codex | `$ultra-builder-pro:ultra-init` |
+| Kimi Code | `/ultra-builder-pro:ultra-init` |
+
+The same naming applies to `ultra-research`, `ultra-change`, `ultra-plan`,
+`ultra-dev`, `ultra-test`, `ultra-review`, `ultra-deliver`, `ultra-status`,
+`ultra-think`, and `ultra-doctor`.
+
+See the
+[Runtime Compatibility Matrix](./docs/RUNTIME-COMPAT-MATRIX.md) for exact
+host-specific presentation and lifecycle differences.
+
+## How to use it
+
+### 1. Start a new project
+
+From the project root, invoke `ultra-init`.
+
+Initialization:
+
+- identifies the repository root and scope;
+- classifies the repository as greenfield, brownfield, or migrated;
+- initializes Git when needed;
+- creates `.ultra/` and schema 18 project authority;
+- verifies that the scaffold and database can be read back;
+- completes without silently starting research, creating a commit, adding a
+  remote, or pushing anything.
+
+Then explicitly invoke `ultra-research`. For a new product, the agent evaluates
+the complete research catalog but executes only the areas that matter. It
+resolves observable facts itself and asks for material product decisions as
+needed. Once the evidence and specifications are accurate, the user approves
+the baseline.
+
+The common path after baseline approval is:
+
+```text
+ultra-change
+  -> optional ultra-think or bounded ultra-research
+  -> ultra-plan when planning is needed
+  -> ultra-dev
+  -> risk-selected ultra-test
+  -> ultra-review
+  -> ultra-deliver
+```
+
+That diagram is a common path, not a mandatory pipeline. A small current task
+can take a shorter valid route; a high-risk or unclear change can require more
+research, planning, checking, or user alignment.
+
+### 2. Adopt an existing project
+
+Run the same `ultra-init` entry point. Ultra detects delivered-system evidence
+such as application source, APIs, persistence, tests, or deployment
+configuration and classifies the repository as brownfield.
+
+Brownfield adoption does not ask the agent to invent a new MVP or rewrite the
+product story. It builds a current-system baseline from:
+
+- observable code and runtime behavior;
+- existing product and architecture documents;
+- build, lint, type-check, and test results;
+- APIs, data, permissions, integrations, deployment, and recovery seams;
+- known failures, documentation drift, technical debt, and unresolved unknowns.
+
+During `ultra-research`, each of the seventeen coverage areas receives one
+explicit disposition:
+
+- `execute` — produce fresh evidence;
+- `verify_existing` — validate an existing artifact;
+- `reuse` — reuse evidence that is still current;
+- `not_applicable` — exclude it with evidence and rationale;
+- `deferred` — record the consequence and accepted owner.
+
+The seventeen areas are a coverage catalog, not seventeen mandatory documents
+or user interviews. Only the selected evidence work is performed.
+
+Older projection-only Ultra projects are preserved and routed through a
+backup-first migration or rebaseline. Use `ultra-doctor` when initialization
+reports migration or authority damage; do not overwrite old state manually.
+
+### 3. Make daily changes
+
+After the baseline is ready, start features, fixes, refactors, and incidents
+with `ultra-change`.
+
+`ultra-change` records the accepted outcome, scope, acceptance criteria,
+compatibility boundary, recovery strategy, documentation impact, risk profile,
+and research disposition. Capturing intent does not automatically start every
+downstream workflow.
+
+The host then recommends one valid capability:
+
+- `ultra-think` for a material unresolved decision or diagnosis;
+- bounded `ultra-research` for a real evidence gap;
+- `ultra-plan` for task decomposition and dependency planning;
+- `ultra-dev` when a current task contract is already executable;
+- `ultra-status` when the user needs the current authority and available routes;
+- `ultra-doctor` when state or installation health is degraded.
+
+Semantic changes invalidate dependent tasks and compiled context. A stale task
+cannot be revived by flipping a status flag; its complete execution contract
+must be reconciled against the current Change authority.
+
+### 4. Deliver and continue
+
+`ultra-deliver` verifies that implementation, acceptance evidence, testing,
+review findings, specification learning, and baseline reconciliation agree. It
+then archives the local Ultra change authority.
+
+Delivery does **not** grant permission to commit, push, publish, tag, deploy, or
+perform another external effect. Those actions remain separate and require the
+user's explicit request.
+
+The next piece of daily work starts with a new `ultra-change`.
+
+## Core workflows
+
+| Workflow | Purpose |
+|---|---|
+| `ultra-init` | Classify the repository and create or recover project authority |
+| `ultra-research` | Build or refresh an evidence-backed baseline with adaptive coverage |
+| `ultra-think` | Resolve one material decision or perform bounded diagnosis |
+| `ultra-change` | Capture the durable contract for one feature, fix, refactor, or incident |
+| `ultra-plan` | Create current task contracts, dependencies, acceptance coverage, and execution context |
+| `ultra-dev` | Implement one owned vertical slice and record exact evidence |
+| `ultra-test` | Run the risk-selected verification profile and persist the gate result |
+| `ultra-review` | Coordinate independent specification-fidelity and engineering review |
+| `ultra-deliver` | Reconcile specifications, close local authority, and archive the change |
+| `ultra-status` | Read the current breadcrumb, blockers, evidence, and allowed transitions |
+| `ultra-doctor` | Diagnose installation or project-state faults and expose safe recovery |
+| `learn` | Turn one approved, verified reusable procedure into a portable user skill |
+
+## What lives in `.ultra/`
+
+```text
+.ultra/
+  state.db                 # sole durable Ultra authority
+  specs/                   # current product and architecture baseline
+  changes/
+    active/                # current Change artifacts
+    archive/               # immutable delivered Change artifacts
+  docs/research/           # evidence reports for selected research areas
+  reports/                 # test, review, and delivery evidence
+  tasks/
+    tasks.json             # generated projection, never the authority
+    contexts/              # bounded role/task context artifacts
+```
+
+The host agent writes semantic specifications and evidence artifacts. MCP
+validates their references and digests, records workflow state, and rejects
+stale or illegal transitions. Generated Markdown and JSON help humans and tools
+inspect the project, but `.ultra/state.db` remains authoritative.
+
+Ultra does not store chain-of-thought, raw prompts, transcripts, cross-session
+memory, or code-graph content. Memory and graph systems remain separate
+providers; Ultra may store only bounded metadata references to them.
+
+## Optional orchestration
+
+The normal workflow can be driven interactively by the host agent. For an
+already-approved plan, `ubp-orchestrator` can dispatch dependency-ready tasks
+into isolated Git worktrees:
+
+```bash
 ubp-orchestrator execute-plan
-# Add --auto-merge only when the worker records the exact completion commit,
-# ready dev steps, and a current task review before it exits.
+```
 
-# 4. Monitor cost, progress, and runtime health
+The orchestrator is intentionally not a replacement for Ultra gates. A worker
+process exiting successfully does not complete a task. Task evidence, current
+dev state, testing, review, integration, and baseline reconciliation still have
+to converge. Worktrees with uncommitted or unintegrated work are preserved for
+recovery.
+
+See [Architecture](./docs/ARCHITECTURE.md) and
+[Workflow Lifecycle](./docs/WORKFLOW-LIFECYCLE.md) before enabling automated
+worker execution or verified auto-merge.
+
+## CLI utilities
+
+| Binary | Purpose |
+|---|---|
+| `ultra-builder-pro-cli` / `ubp` | Install, update, uninstall, and diagnose host plugins |
+| `ultra-tools` | Inspect and maintain project tasks, sessions, state, migration, and recovery |
+| `ubp-orchestrator` | Execute current dependency waves or supervise configured workers |
+| `ubp-handbook` | Preview or apply the managed Ultra block in a host user handbook |
+
+Useful read-only checks:
+
+```bash
 ultra-tools status
 ultra-tools status --cost --since 24h
 ultra-tools session list --json
 ultra-tools system doctor
 ```
 
-Or let the skills drive it. In Codex, invoke
-`$ultra-builder-pro:ultra-init` → `$ultra-builder-pro:ultra-research` →
-`$ultra-builder-pro:ultra-change` → `$ultra-builder-pro:ultra-plan` →
-`$ultra-builder-pro:ultra-dev` → `$ultra-builder-pro:ultra-test` →
-`$ultra-builder-pro:ultra-review` → `$ultra-builder-pro:ultra-deliver`; after the
-baseline is delivered, daily work starts with `$ultra-builder-pro:ultra-change`, while
-`$ultra-builder-pro:ultra-status` reads the compact authoritative breadcrumb.
-Kimi uses the corresponding
-`/ultra-builder-pro:ultra-*` namespace. Other runtimes retain their native
-command form.
+Ultra MCP does not require `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or another
+model-provider key. It validates and persists structures derived by the active
+host's existing model session.
 
-The arrows above show a common capability path, not a mandatory pipeline. After
-initialization the user or host explicitly selects research. During daily work,
-`ultra-change` may hand off to bounded research, planning, an already-current task,
-thinking, or status according to intent and evidence. MCP exposes allowed transitions
-and hard recovery requirements; the active host recommends the semantic route.
+## Troubleshooting
 
-## CLI surface
+- **Installed workflows are missing:** start a new host session. Kimi users can
+  run `/reload`.
+- **An installed Hook or MCP path is stale:** run
+  `npx --yes ultra-builder-pro-cli@latest --all --global --doctor --json`, then
+  reinstall only the degraded host.
+- **Project state is unhealthy:** invoke `ultra-doctor` or run
+  `ultra-tools system doctor`. Repairs and schema migrations are backup-first.
+- **A projection disagrees with MCP:** trust `.ultra/state.db`; do not repair
+  `tasks.json` or generated context Markdown by hand.
+- **A workflow appears blocked:** use `ultra-status` to read the exact current
+  workflow, blocker, owner decision, and mechanically valid transitions.
+- **Kimi reports a native-module ABI error:** ensure an external Node.js 22+
+  executable is available on `PATH`; the generated Kimi MCP launcher uses
+  `env node`.
 
-| Binary | Purpose |
-|--------|---------|
-| `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --kimi / --all`, `--local / --global`, `--uninstall`; read-only install checks via `--doctor [--json]` |
-| `ubp-orchestrator` | Current completed-plan runner (`execute-plan`) and optional explicit-worker daemon (`run`, `start`, `stop`, `status`) |
-| `ultra-tools` | State-layer CLI — `task`, `session`, `status`, `db`, `migrate`; explicit `legacy-memory` archive/prune migration |
-| `ubp-handbook` | Preview/apply the managed Ultra contract in `CLAUDE.md` / `AGENTS.md`, with backup |
+For exact recovery commands and invariants, see
+[Workflow Lifecycle](./docs/WORKFLOW-LIFECYCLE.md) and
+[State DB Access Policy](./docs/STATE-DB-ACCESS-POLICY.md).
 
-## Verification
+## Development and verification
 
 ```bash
 npm install
 npm run test:all
-python3 -m pytest hooks/tests -q
-npm audit
-# Or run the complete publish gate:
+npm run test:hooks
+npm audit --omit=dev --audit-level=high
+
+# Complete release gate
 npm run verify:release
 ```
 
-Individual suites: `test:state`, `test:orch`, `test:spec`, `test:rest`.
-
-## Troubleshooting
-
-- **`state.db` locked**: close any `ubp-orchestrator` daemon, then
-  `ultra-tools db integrity`. SQLite WAL tolerates readers + one writer;
-  two writers require orchestrated access (see
-  [`docs/STATE-DB-ACCESS-POLICY.md`](./docs/STATE-DB-ACCESS-POLICY.md)).
-- **`git/config.lock` contention during parallel run**: Node's single-thread
-  `execFileSync` serializes worktree creation, so this shouldn't happen —
-  but if you see it, `ubp-orchestrator status` will list stale worktrees
-  and `node -e "require('./orchestrator/worktree-manager.cjs').releaseAll(process.cwd())"`
-  cleans them up.
-- **Installed commands don't show up**: check the runtime's actual config
-  dir (`ultra-builder-pro-cli --<runtime> --local` writes to the host-specific
-  project dir such as `./.claude`, `./.opencode`, or `./.kimi-code`;
-  `--global` writes to the user-level dir). The
-  install log prints the exact target path. Restart Claude Code/OpenCode or
-  start a new Codex task after changing an installed plugin. In Kimi Code,
-  run `/reload` or start a new session.
-- **Kimi MCP reports a native-module ABI error**: Kimi 0.26/0.27 embeds a different
-  Node ABI from the package installer. The generated plugin intentionally runs
-  the MCP with `env node`; keep a Node.js `>=22` executable on `PATH` when
-  starting Kimi.
-- **Installed hook/MCP path is missing or stale**: run
-  `npx ultra-builder-pro-cli --<runtime> --local --doctor` first. It compares
-  the recorded install provenance with current asset hashes and validates the
-  host-specific hook, MCP, plugin, and runtime-manifest entry points. Reinstall
-  only after preserving the degraded report as evidence.
-- **Projection tasks exist but state.db has no tasks**: run the exact v4.4 or v4.5
-  `ultra-tools migrate` command returned by MCP, verify the backup and imported counts,
-  then run `ultra-init` to replace the compatibility row with a reviewed brownfield
-  baseline.
-- **Old or corrupt state.db**: `ultra-tools system doctor` is read-only;
-  `ultra-tools system doctor --repair` upgrades supported schemas with two backup
-  checkpoints. A corrupt database is never overwritten automatically. After explicit
-  owner approval, restore a verified managed copy with
-  `ultra-tools system restore --backup <path> --confirm REPLACE_CORRUPT_ULTRA_STATE`,
-  or preserve the corrupt DB and legacy projection before rebuilding authority with
-  `ultra-tools system rebaseline --project-name <name> --confirm REBASELINE_CORRUPT_ULTRA_STATE`.
-- **Legacy Ultra memory data remains on disk**: inspect first with
-  `ultra-tools legacy-memory inspect`, archive with
-  `ultra-tools legacy-memory archive`, then prune only with the explicit
-  confirmation token printed by the command. Nothing is deleted implicitly.
-- **MCP model credentials**: Ultra MCP does not require `ANTHROPIC_API_KEY`,
-  `OPENAI_API_KEY`, or another provider key. The active host uses its existing
-  model session to derive PRD tasks or child tasks; `task.parse_prd` and
-  `task.expand` only validate ownership, graph shape, and atomic persistence.
+Individual Node suites are available as `test:state`, `test:orch`, `test:spec`,
+and `test:rest`.
 
 ## Documentation
 
-| Doc | What's in it |
-|-----|--------------|
-| [`docs/PLAN.zh-CN.md`](./docs/PLAN.zh-CN.md) | Historical 12-phase plan and decision log with a current-boundary overlay |
-| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | One-page English roadmap + phase status |
-| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Single-page system architecture |
-| [`docs/WORKFLOW-LIFECYCLE.md`](./docs/WORKFLOW-LIFECYCLE.md) | Baseline classification, DB writes, status machines, gates, invalidation, and recovery |
-| [`docs/AGENT-CONTEXT.md`](./docs/AGENT-CONTEXT.md) | Canonical runtime context contract |
-| [`docs/USER-HANDBOOK-CONTRACT.md`](./docs/USER-HANDBOOK-CONTRACT.md) | Shared user-handbook policy and host renderings |
-| [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md) | Per-runtime capability matrix |
-| [`docs/STATE-DB-ACCESS-POLICY.md`](./docs/STATE-DB-ACCESS-POLICY.md) | Multi-process write contract |
-| [`docs/COMMIT-HASH-BACKFILL.md`](./docs/COMMIT-HASH-BACKFILL.md) | Two-commit task-completion flow |
-| [`CHANGELOG.md`](./CHANGELOG.md) | v0.1 → current release notes |
+| Document | Purpose |
+|---|---|
+| [Architecture](./docs/ARCHITECTURE.md) | Components, authority boundaries, and live integration paths |
+| [Workflow Lifecycle](./docs/WORKFLOW-LIFECYCLE.md) | Command ownership, transitions, invalidation, recovery, and convergence |
+| [Runtime Compatibility Matrix](./docs/RUNTIME-COMPAT-MATRIX.md) | Claude Code, OpenCode, Codex, and Kimi presentation details |
+| [Legacy CLI Crosswalk](./docs/LEGACY-CLI-CROSSWALK.md) | What was preserved, strengthened, or replaced from the original Ultra Builder Pro |
+| [Agent Context](./docs/AGENT-CONTEXT.md) | Context Manifest and host-agent execution contract |
+| [User Handbook Contract](./docs/USER-HANDBOOK-CONTRACT.md) | Shared user-level policy and managed host renderings |
+| [State DB Access Policy](./docs/STATE-DB-ACCESS-POLICY.md) | Multi-process authority and write rules |
+| [Roadmap](./docs/ROADMAP.md) | Current and historical delivery scope |
+| [Changelog](./CHANGELOG.md) | Release history |
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT — see [LICENSE](./LICENSE).
