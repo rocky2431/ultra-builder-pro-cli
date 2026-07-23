@@ -38,6 +38,7 @@ const {
   readProjectBreadcrumb,
   renderProjectBreadcrumb,
 } = require('./lib/project-breadcrumb.cjs');
+const sessionRunner = require('../orchestrator/session-runner.cjs');
 
 const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
@@ -153,11 +154,6 @@ function buildAjv() {
   return ajv;
 }
 
-function mintSessionId() {
-  const { randomUUID } = require('node:crypto');
-  return `sess-${randomUUID().slice(0, 8)}`;
-}
-
 async function dispatchTool(name, input, db, ctx = {}) {
   switch (name) {
     case 'task.create': {
@@ -207,40 +203,51 @@ async function dispatchTool(name, input, db, ctx = {}) {
       return ops.subscribeEventsSince(db, input || {});
     }
     case 'session.spawn': {
-      // admission + takeover logic; actual git worktree + child process is
-      // delegated to orchestrator/session-runner (Phase 4.5.1). This tool
-      // records intent in state.db and returns the paths the runner should use.
+      if (ctx.sessionId) {
+        const error = new Error(
+          `worker session ${ctx.sessionId} already owns an isolated worktree; `
+            + 'resume that session instead of recursively spawning another one',
+        );
+        error.code = 'NESTED_SESSION_FORBIDDEN';
+        throw error;
+      }
       const rootDir = ctx.rootDir || process.cwd();
-      const verdict = ops.admissionCheck(db, input.task_id);
-      if (!verdict.can_spawn && !input.takeover) {
-        const err = new Error(`active session exists for task ${input.task_id}; pass takeover=true or choose resume/abandon`);
-        err.code = 'ADMISSION_DENIED';
-        throw err;
-      }
-      if (!verdict.can_spawn && input.takeover && verdict.conflict) {
-        ops.updateSession(db, verdict.conflict.sid, { status: 'crashed' });
-      }
-      const sid = mintSessionId();
-      const worktreeBase = input.worktree_base || path.join(rootDir, '.ultra', 'worktrees');
-      const worktree_path = path.join(worktreeBase, sid);
-      const artifact_dir = path.join(rootDir, '.ultra', 'sessions', sid);
-      const session = ops.createSession(db, {
-        sid,
+      const handle = sessionRunner.spawnSession({
+        db,
+        repoRoot: rootDir,
         task_id: input.task_id,
         runtime: input.runtime,
-        worktree_path,
-        artifact_dir,
+        takeover: Boolean(input.takeover),
+        worktree_base: input.worktree_base,
       });
       return {
-        sid,
-        worktree_path,
-        artifact_dir,
-        lease_expires_at: session.lease_expires_at,
+        sid: handle.sid,
+        worktree_path: handle.worktree_path,
+        artifact_dir: handle.artifact_dir,
+        lease_expires_at: handle.lease_expires_at,
+        worktree_created: true,
       };
     }
     case 'session.close': {
-      ops.updateSession(db, input.sid, { status: input.status });
-      return { ok: true };
+      if (ctx.sessionId) {
+        const error = new Error(
+          ctx.sessionId === input.sid
+            ? `worker session ${ctx.sessionId} is supervised by its parent; save evidence and exit so the parent can settle the lease`
+            : `worker session ${ctx.sessionId} cannot close unrelated session ${input.sid}`,
+        );
+        error.code = ctx.sessionId === input.sid
+          ? 'WORKER_SESSION_PARENT_OWNED'
+          : 'SESSION_SCOPE_VIOLATION';
+        throw error;
+      }
+      const closed = sessionRunner.closeSession(
+        { db, repoRoot: ctx.rootDir || process.cwd(), sid: input.sid },
+        { status: input.status, remove_worktree: input.remove_worktree === true },
+      );
+      return {
+        ok: true,
+        worktree_preserved: closed.worktree_preserved,
+      };
     }
     case 'session.get': {
       const session = ops.readSession(db, input.sid);
@@ -252,6 +259,11 @@ async function dispatchTool(name, input, db, ctx = {}) {
       return { session };
     }
     case 'session.admission_check': {
+      sessionRunner.assertSessionTaskReady(
+        db,
+        ctx.rootDir || process.cwd(),
+        input.task_id,
+      );
       return ops.admissionCheck(db, input.task_id);
     }
     case 'session.list': {
@@ -633,7 +645,13 @@ function errorResponse(code, message, retriable = false, details = undefined) {
   };
 }
 
-function startServer({ dbPath, rootDir, projectOnWrite = true, project = projector.projectAll }) {
+function startServer({
+  dbPath,
+  rootDir,
+  sessionId = null,
+  projectOnWrite = true,
+  project = projector.projectAll,
+}) {
   let db = null;
   const getDb = () => {
     if (!db) db = initStateDb(dbPath).db;
@@ -703,7 +721,12 @@ function startServer({ dbPath, rootDir, projectOnWrite = true, project = project
     try {
       toolDb = STATELESS_TOOLS.has(name) ? null : getDb();
       if (toolDb) assertStateAuthority(toolDb, rootDir);
-      result = await dispatchTool(name, args, toolDb, { rootDir, projector: project });
+      result = await dispatchTool(
+        name,
+        args,
+        toolDb,
+        { rootDir, sessionId, projector: project },
+      );
     } catch (err) {
       const code = err.code || (err instanceof ops.StateOpsError ? err.code : 'STATE_DB_ERROR');
       toolError = code;
@@ -768,7 +791,8 @@ async function main() {
   const rootDir = process.env.UBP_ROOT_DIR
     ? path.resolve(process.env.UBP_ROOT_DIR)
     : path.resolve('.');
-  const handle = startServer({ dbPath, rootDir });
+  const sessionId = process.env.UBP_SESSION_ID || null;
+  const handle = startServer({ dbPath, rootDir, sessionId });
   const transport = new StdioServerTransport();
   await handle.server.connect(transport);
   const cleanup = () => handle.close().finally(() => process.exit(0));

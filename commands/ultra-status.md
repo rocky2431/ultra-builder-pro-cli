@@ -1,5 +1,5 @@
 ---
-description: Report authoritative Ultra health, readiness, evidence freshness, and one next action
+description: Report authoritative Ultra health, evidence freshness, and valid capability transitions
 argument-hint: "[task-or-change-id]"
 workflow-ref: "@skills/ultra-status/SKILL.md"
 ---

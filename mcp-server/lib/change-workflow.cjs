@@ -24,6 +24,10 @@ const CHANGE_PATCH_FIELDS = new Set([
   'title', 'intent', 'status', 'docs_impact', 'provider_refs',
   'contract', 'classification', 'research_disposition',
 ]);
+const SEMANTIC_AUTHORITY_FIELDS = new Set([
+  'intent', 'docs_impact', 'provider_refs', 'contract', 'classification',
+  'research_disposition',
+]);
 const CHANGE_TRANSITIONS = Object.freeze({
   active: new Set(['active', 'blocked', 'cancelled']),
   blocked: new Set(['active', 'blocked', 'cancelled']),
@@ -544,9 +548,12 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
   ).all(change.id).map((task) => ops.readTask(db, task.id));
   const specs = Array.isArray(input.spec_refs) ? input.spec_refs : [];
   const spine = contextSpine.compileRoleContext(db, { input, change, tasks, rootDir });
+  const recommendation = spine.recommendation;
+  const durableSpine = { ...spine };
+  delete durableSpine.recommendation;
   const snapshotId = `ctx-${crypto.randomUUID().slice(0, 12)}`;
   const manifest = {
-    schema_version: '2.0',
+    schema_version: '3.0',
     snapshot_id: snapshotId,
     generated_at: nowIso(),
     change: {
@@ -566,7 +573,7 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     specs,
     role: spine.role,
     gate: spine.gate,
-    next_action: spine.next_action,
+    control: spine.control,
     readiness: spine.readiness,
     context: spine.context,
     execution_contract: spine.execution_contract,
@@ -588,14 +595,16 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     db.prepare(
       `INSERT INTO context_snapshots
        (id, change_id, task_id, git_head, provider_refs_json, manifest_path, manifest_hash,
-        role, gate, next_action, readiness, blockers_json, context_json,
-        token_estimate, token_budget)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        role, gate, next_action, allowed_transitions_json, required_transition,
+        readiness, blockers_json, context_json, token_estimate, token_budget)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       snapshotId, change.id, input.task_id || null,
       spine.resume.git_head, JSON.stringify(providers), relative, hash,
-      spine.role, spine.gate, spine.next_action, spine.readiness.status,
-      JSON.stringify(spine.readiness.blockers), JSON.stringify(spine),
+      spine.role, spine.gate, '',
+      JSON.stringify(spine.control.allowed_transitions), spine.control.required_transition,
+      spine.readiness.status,
+      JSON.stringify(spine.readiness.blockers), JSON.stringify(durableSpine),
       spine.context.token_estimate, spine.context.budget.max_tokens,
     );
     upsertArtifact(db, {
@@ -623,34 +632,17 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
         manifest_path: relative, manifest_hash: hash, git_head: spine.resume.git_head,
         worktree_digest: spine.resume.worktree_digest,
         role: spine.role, gate: spine.gate, readiness: spine.readiness.status,
-        next_action: spine.next_action,
+        allowed_transitions: spine.control.allowed_transitions,
+        required_transition: spine.control.required_transition,
       },
     });
-    const linkedWorkflow = db.prepare(
-      `SELECT id FROM workflow_runs
-       WHERE kind = 'change' AND change_id = ? AND current_step = 'compile-context'
-         AND status IN ('active', 'blocked')
-       ORDER BY updated_at DESC, rowid DESC LIMIT 1`,
-    ).get(change.id);
-    if (linkedWorkflow) {
-      if (spine.readiness.status === 'ready') {
-        workflows.recordWorkflowStep(db, {
-          id: linkedWorkflow.id, step_id: 'compile-context', status: 'completed',
-          evidence: [{
-            kind: 'context', ref: relative,
-            summary: `Role ${spine.role} context is ready for ${input.task_id || 'change planning'}.`,
-          }],
-          outputs: [{ path: relative, kind: 'context-manifest' }],
-        }, { rootDir });
-      } else {
-        workflows.recordWorkflowStep(db, {
-          id: linkedWorkflow.id, step_id: 'compile-context', status: 'blocked',
-          blockers: spine.readiness.blockers,
-        }, { rootDir });
-      }
-    }
   });
-  return { manifest, context_manifest_path: manifestPath, manifest_hash: hash };
+  return {
+    manifest,
+    recommendation,
+    context_manifest_path: manifestPath,
+    manifest_hash: hash,
+  };
 }
 
 function createChange(db, input, { rootDir = process.cwd() } = {}) {
@@ -793,7 +785,6 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
         change_id: row.id, subject: `Establish executable readiness for ${row.title}.`,
         metadata: { change_kind: row.kind, base_commit: row.base_commit },
       }, { rootDir });
-      const context = compileContext(db, { id: row.id }, { rootDir });
       workflow = workflows.recordWorkflowStep(db, {
         id: workflow.id, step_id: 'bind-baseline', status: 'completed',
         evidence: [{
@@ -819,9 +810,10 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
           research_disposition: row.research_disposition,
         }],
       }, { rootDir });
+      workflow = workflows.completeWorkflow(db, { id: workflow.id }, { rootDir });
       return {
         change: readChange(db, row.id), intent_path: intentPath,
-        context_manifest_path: context.context_manifest_path,
+        context_manifest_path: null,
         workflow,
       };
     });
@@ -914,6 +906,30 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
       sets.push('updated_at = ?'); values.push(nowIso(), id);
       db.prepare(`UPDATE changes SET ${sets.join(', ')} WHERE id = ?`).run(...values);
       const updated = readChange(db, id);
+      const invalidatedTasks = [];
+      if (contextSpine.changeStateDigest(current) !== contextSpine.changeStateDigest(updated)) {
+        const tasks = db.prepare(
+          'SELECT id, stale FROM tasks WHERE change_id = ? ORDER BY created_at ASC, id ASC',
+        ).all(id);
+        const markStale = db.prepare(
+          'UPDATE tasks SET stale = 1, updated_at = ? WHERE id = ?',
+        );
+        const invalidatedAt = nowIso();
+        for (const task of tasks) {
+          if (task.stale) continue;
+          markStale.run(invalidatedAt, task.id);
+          invalidatedTasks.push(task.id);
+          ops.appendEventInTx(db, {
+            type: 'task_stale_marked',
+            task_id: task.id,
+            change_id: id,
+            payload: {
+              reason: 'change_semantic_authority_updated',
+              fields: Object.keys(patch).filter((field) => SEMANTIC_AUTHORITY_FIELDS.has(field)),
+            },
+          });
+        }
+      }
       if (syncIntent) {
         fs.mkdirSync(path.dirname(intentPath), { recursive: true });
         writeIntent(intentPath, updated);
@@ -924,7 +940,11 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
           contentHash: crypto.createHash('sha256').update(fs.readFileSync(intentPath)).digest('hex'),
         });
       }
-      ops.appendEventInTx(db, { type: 'change_updated', change_id: id, payload: { fields: Object.keys(patch) } });
+      ops.appendEventInTx(db, {
+        type: 'change_updated',
+        change_id: id,
+        payload: { fields: Object.keys(patch), invalidated_tasks: invalidatedTasks },
+      });
       return updated;
     });
   } catch (error) {

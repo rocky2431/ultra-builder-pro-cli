@@ -21,6 +21,7 @@ const {
   removeTree,
   writeAtomic,
 } = require('./file-ops.cjs');
+const { interactionContract } = require('./interaction-contract.cjs');
 
 const PLUGIN_NAME = 'ultra-builder-pro';
 const MANAGED_MARKER = 'Managed by Ultra Builder Pro Codex adapter.';
@@ -54,12 +55,12 @@ const CODEX_NATIVE_MCP_REPLACEMENTS = Object.freeze({
     replacement: 'the installed plugin skill SKILL.md and agents/openai.yaml contract',
   },
   'ask.question': {
-    surface: 'direct_user_interaction',
-    replacement: 'ask the user directly, or request_user_input when that Codex surface is available',
+    surface: 'request_user_input',
+    replacement: 'use request_user_input when available, otherwise ask one concise direct question',
   },
   'ask.menu': {
-    surface: 'direct_user_interaction',
-    replacement: 'present a concise choice directly, or request_user_input when that Codex surface is available',
+    surface: 'request_user_input',
+    replacement: 'use request_user_input when available, otherwise present one concise direct choice',
   },
 });
 const COMMAND_NAMES = Object.freeze(CORE_PUBLIC_SKILLS.filter((name) => name !== 'ultra-review'));
@@ -420,6 +421,10 @@ main().catch((error) => {
   const specRoot = path.join(pluginRoot, 'spec');
   ensureDir(specRoot);
   writeAtomic(path.join(specRoot, 'mcp-tools.yaml'), yaml.dump(liveManifest, { lineWidth: -1, noRefs: true }));
+  writeAtomic(
+    path.join(specRoot, 'interaction-contract.json'),
+    JSON.stringify(interactionContract(runtime), null, 2) + '\n',
+  );
   if (runtime === 'codex') {
     fs.copyFileSync(sourceToolsFile, path.join(specRoot, 'upstream-mcp-tools.yaml'));
     writeAtomic(path.join(specRoot, 'codex-capability-map.json'), JSON.stringify({
@@ -519,7 +524,7 @@ function buildPlugin({ repoRoot, pluginRoot }) {
       defaultPrompt: [
         'Initialize this project with the Ultra Builder Pro workflow.',
         'Run the Ultra review pipeline on my current changes.',
-        'Show the current Ultra project status and next action.',
+        'Show the current Ultra project status, valid transitions, and host recommendation.',
       ],
       brandColor: '#111827',
     },

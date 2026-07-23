@@ -17,6 +17,7 @@ const path = require('node:path');
 const { EXPECTED_VERSION, initStateDb } = require('./state-db.cjs');
 const { assertStateAuthority, inspectProjection } = require('./state-authority.cjs');
 const baselines = require('./baseline-workflow.cjs');
+const gitBootstrap = require('./git-bootstrap.cjs');
 const runtimeState = require('./runtime-state.cjs');
 const ops = require('./state-ops.cjs');
 const workflows = require('./workflow-state.cjs');
@@ -406,6 +407,80 @@ function rollbackInitialization(ultraDir, backupPath) {
   return errors;
 }
 
+function createResumeSnapshot(db, ultraDir, stateDbPath) {
+  const token = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const statePath = path.join(ultraDir, `.resume-state-${token}.db`);
+  const projectionDir = path.join(ultraDir, `.resume-projections-${token}`);
+  const projectionTargets = [
+    path.join('tasks', 'tasks.json'),
+    path.join('tasks', 'contexts'),
+  ];
+  try {
+    db.prepare('VACUUM INTO ?').run(statePath);
+    const projections = projectionTargets.map((relative) => {
+      const source = path.join(ultraDir, relative);
+      const existed = fs.existsSync(source);
+      if (existed) {
+        const destination = path.join(projectionDir, relative);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.cpSync(source, destination, { recursive: true });
+      }
+      return { relative, existed };
+    });
+    return { statePath, projectionDir, projections, stateDbPath, ultraDir };
+  } catch (error) {
+    for (const target of [statePath, projectionDir]) {
+      try { fs.rmSync(target, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
+    throw error;
+  }
+}
+
+function discardResumeSnapshot(snapshot) {
+  if (!snapshot) return [];
+  const errors = [];
+  for (const target of [snapshot.statePath, snapshot.projectionDir]) {
+    try { fs.rmSync(target, { recursive: true, force: true }); }
+    catch (error) { errors.push(`resume snapshot cleanup failed for ${target}: ${error.message}`); }
+  }
+  return errors;
+}
+
+function restoreResumeSnapshot(snapshot, { stateSourcePath = null } = {}) {
+  if (!snapshot) return [];
+  const errors = [];
+  const source = stateSourcePath && fs.existsSync(stateSourcePath)
+    ? stateSourcePath
+    : snapshot.statePath;
+  try {
+    for (const suffix of ['', '-wal', '-shm']) {
+      fs.rmSync(`${snapshot.stateDbPath}${suffix}`, { force: true });
+    }
+    if (source === snapshot.statePath) {
+      fs.renameSync(source, snapshot.stateDbPath);
+    } else {
+      fs.copyFileSync(source, snapshot.stateDbPath);
+    }
+  } catch (error) {
+    errors.push(`state.db restore failed: ${error.message}`);
+  }
+  for (const item of snapshot.projections) {
+    const target = path.join(snapshot.ultraDir, item.relative);
+    try {
+      fs.rmSync(target, { recursive: true, force: true });
+      if (item.existed) {
+        const source = path.join(snapshot.projectionDir, item.relative);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.cpSync(source, target, { recursive: true });
+      }
+    } catch (error) {
+      errors.push(`projection restore failed for ${item.relative}: ${error.message}`);
+    }
+  }
+  errors.push(...discardResumeSnapshot(snapshot));
+  return errors;
+}
+
 function projectionMigrationError(projection) {
   const targets = { '4.4': '4.5', '4.5': EXPECTED_VERSION };
   const target = targets[projection.version];
@@ -428,32 +503,13 @@ function ensureInitializationWorkflows(db, baseline, { rootDir }) {
   let initRun = workflows.listWorkflows(
     db, { kind: 'init', baseline_id: baseline.id, limit: 1 }, { rootDir },
   )[0];
-  let researchRun = workflows.listWorkflows(
+  const researchRun = workflows.listWorkflows(
     db, { kind: 'research', baseline_id: baseline.id, limit: 1 }, { rootDir },
   )[0];
-  if (baseline.status === 'ready') {
-    const compatibilityOnly = baseline.mode === 'migrated';
-    const provenanceComplete = !compatibilityOnly
-      && initRun?.status === 'completed'
-      && researchRun?.status === 'completed'
-      && baseline.research_run_id === researchRun.id;
-    return {
-      init_id: initRun?.id || null,
-      init_status: initRun?.status || 'missing',
-      research_id: researchRun?.id || null,
-      research_mode: researchRun?.mode || null,
-      research_status: compatibilityOnly
-        ? 'not_required' : (researchRun?.status || 'missing'),
-      provenance_status: compatibilityOnly
-        ? 'compatibility_only' : (provenanceComplete ? 'complete' : 'incomplete'),
-      next_action: compatibilityOnly
-        ? 'ultra-init' : (provenanceComplete ? 'ultra-change' : 'ultra-doctor'),
-    };
-  }
   if (!initRun) {
     initRun = workflows.startWorkflow(db, {
       kind: 'init', baseline_id: baseline.id,
-      subject: `Establish the ${baseline.mode} baseline for ${baseline.project_name}.`,
+      subject: `Initialize Ultra authority for ${baseline.project_name}.`,
       metadata: { repository_revision: baseline.repository_revision, scope: baseline.scope },
     }, { rootDir });
     for (const stepId of ['inspect-authority', 'classify-repository', 'scaffold-authority']) {
@@ -461,33 +517,49 @@ function ensureInitializationWorkflows(db, baseline, { rootDir }) {
         id: initRun.id, step_id: stepId, status: 'completed',
       }, { rootDir });
     }
+    initRun = workflows.recordWorkflowStep(db, {
+      id: initRun.id,
+      step_id: 'verify-initialization',
+      status: 'completed',
+      evidence: [{
+        kind: 'authority',
+        ref: '.ultra/state.db',
+        summary: 'State authority, scaffold, projection, and repository classification were verified.',
+      }],
+    }, { rootDir });
+    initRun = workflows.completeWorkflow(db, { id: initRun.id }, { rootDir });
   }
-
-  if (baseline.mode !== 'migrated') {
-    if (!researchRun) {
-      const researchMode = baseline.mode === 'brownfield' ? 'adoption' : 'full';
-      researchRun = workflows.startWorkflow(db, {
-        kind: 'research', mode: researchMode, baseline_id: baseline.id,
-        subject: baseline.mode === 'brownfield'
-          ? 'Adopt the existing system as an evidence-backed product and architecture baseline.'
-          : 'Validate the complete product and architecture baseline before planning.',
-      }, { rootDir });
-    }
-  }
+  const compatibilityOnly = baseline.mode === 'migrated';
+  const provenanceComplete = !compatibilityOnly
+    && baseline.status === 'ready'
+    && initRun.status === 'completed'
+    && researchRun?.status === 'completed'
+    && baseline.research_run_id === researchRun.id;
+  const readyWithoutProvenance = baseline.status === 'ready' && !provenanceComplete;
+  const allowedTransitions = provenanceComplete
+    ? ['ultra-change', 'ultra-research', 'ultra-status', 'ultra-doctor']
+    : (readyWithoutProvenance
+      ? ['ultra-doctor', 'ultra-research', 'ultra-status']
+      : ['ultra-research', 'ultra-status', 'ultra-doctor']);
   return {
     init_id: initRun.id,
     init_status: initRun.status,
     research_id: researchRun?.id || null,
     research_mode: researchRun?.mode || null,
     research_status: researchRun?.status || 'not_started',
-    provenance_status: 'in_progress',
-    next_action: baseline.mode === 'migrated' ? 'ultra-init' : 'ultra-research',
+    provenance_status: compatibilityOnly
+      ? 'compatibility_only'
+      : (provenanceComplete ? 'complete' : (readyWithoutProvenance ? 'incomplete' : 'pending_research')),
+    allowed_transitions: allowedTransitions,
+    required_transition: readyWithoutProvenance
+      ? 'ultra-doctor'
+      : (compatibilityOnly ? 'ultra-research' : null),
   };
 }
 
 function resumeProject({
   absTarget, ultraDir, source, project_name, project_type, stack, resolvedMode,
-  scope, repositoryProfile, projection,
+  scope, repositoryProfile, projection, git_mode,
 }) {
   const stateDbPath = path.join(ultraDir, 'state.db');
   const stateExisted = fs.existsSync(stateDbPath);
@@ -495,12 +567,19 @@ function resumeProject({
   let copiedFiles = [];
   let baselineResult;
   let workflowResult;
+  let gitSetup;
+  let resumeSnapshot;
   try {
     initialized = initStateDb(stateDbPath);
     const { db } = initialized;
+    if (stateExisted) {
+      resumeSnapshot = createResumeSnapshot(db, ultraDir, stateDbPath);
+    }
     if (projection && projection.taskCount > 0) assertStateAuthority(db, absTarget);
     copiedFiles = copyMissingTemplate(source, ultraDir);
     validateTasksTemplate(ultraDir);
+    gitSetup = gitBootstrap.bootstrapGit(absTarget, { mode: git_mode });
+    repositoryProfile.git = gitSetup.result;
     baselineResult = baselines.readBaseline(db);
     if (!baselineResult) {
       baselineResult = baselines.startBaseline(db, {
@@ -509,23 +588,42 @@ function resumeProject({
         scope: scope === undefined ? ['.'] : scope,
         classification: repositoryProfile,
       }, { rootDir: absTarget });
+    } else {
+      baselineResult = baselines.refreshInProgressBaseline(db, {
+        id: baselineResult.id,
+        project_name,
+        project_type,
+        stack,
+        classification: repositoryProfile,
+      }, { rootDir: absTarget });
     }
     workflowResult = ensureInitializationWorkflows(db, baselineResult, { rootDir: absTarget });
     ops.appendEvent(db, {
       type: 'project_resumed',
       payload: {
         project_name, mode: baselineResult.mode, baseline_id: baselineResult.id,
-        installed_missing_files: copiedFiles.length,
+        installed_missing_files: copiedFiles.length, git: gitSetup.result,
       },
     });
     const job = runtimeState.enqueueProjection(db, { tool_name: 'task.init_project' });
     const projectionResult = runtimeState.processProjectionJobs(db, { rootDir: absTarget, limit: 1 });
     const projected = projectionResult.jobs.find((item) => item.id === job.id);
     if (!projected || projected.status !== 'completed') {
-      throw new Error(projected?.error || 'resume projection did not complete');
+      throw new Error(
+        `resume projection did not complete: ${projected?.error || 'projection job missing'}`,
+      );
     }
   } catch (error) {
     if (initialized?.db?.open) initialized.db.close();
+    const stateRollbackErrors = stateExisted
+      ? restoreResumeSnapshot(resumeSnapshot, {
+        // initStateDb creates this durable snapshot before a schema migration.
+        // A later resume failure must return to the exact entry authority, not
+        // merely to the successfully migrated intermediate database.
+        stateSourcePath: initialized?.backup_path || null,
+      })
+      : [];
+    const gitRollbackErrors = gitBootstrap.rollbackGitBootstrap(absTarget, gitSetup?.internal);
     for (const rel of copiedFiles.reverse()) {
       try { fs.rmSync(path.join(ultraDir, rel), { force: true }); } catch { /* best effort */ }
     }
@@ -534,15 +632,27 @@ function resumeProject({
         try { fs.rmSync(`${stateDbPath}${suffix}`, { force: true }); } catch { /* best effort */ }
       }
     }
+    const rollbackErrors = [...stateRollbackErrors, ...gitRollbackErrors];
     if (error.code && ['LEGACY_STATE_MIGRATION_REQUIRED', 'STATE_AUTHORITY_CONFLICT', 'STATE_PROJECTION_INVALID'].includes(error.code)) {
       throw new InitProjectError(error.code, error.message, { cause: error, details: error.details });
     }
+    if (error instanceof gitBootstrap.GitBootstrapError) {
+      throw new InitProjectError(
+        error.code,
+        `${error.message}${rollbackErrors.length ? `; ${rollbackErrors.join('; ')}` : ''}`,
+        { cause: error },
+      );
+    }
     throw new InitProjectError(
-      'IO_ERROR', `project resume failed: ${error.message}; existing .ultra assets were preserved`,
+      'IO_ERROR',
+      `project resume failed: ${error.message}; `
+        + `${rollbackErrors.length ? 'resume rollback was incomplete' : 'existing authority and projections were restored'}`
+        + `${rollbackErrors.length ? `; ${rollbackErrors.join('; ')}` : ''}`,
       { retriable: true, cause: error },
     );
   }
   initialized.db.close();
+  discardResumeSnapshot(resumeSnapshot);
   const result = {
     created_path: ultraDir,
     state_db_path: stateDbPath,
@@ -552,13 +662,17 @@ function resumeProject({
       id: baselineResult.id,
       mode: baselineResult.mode,
       status: baselineResult.status,
+      project_name: baselineResult.project_name,
       project_type: baselineResult.project_type,
       stack: baselineResult.stack,
       repository_revision: baselineResult.repository_revision,
+      repository_branch: baselineResult.repository_branch,
+      worktree_state: baselineResult.worktree_state,
       scope: baselineResult.scope,
     },
     copied_files: copiedFiles,
     repository_profile: repositoryProfile,
+    git: gitSetup.result,
     workflow: workflowResult,
   };
   if (initialized.backup_path) result.migration_backup_path = initialized.backup_path;
@@ -574,6 +688,7 @@ function initProject({
   scope,
   resume = false,
   overwrite = false,
+  git_mode = 'auto',
   source_template,
 } = {}) {
   if (typeof project_name !== 'string' || project_name.length === 0) {
@@ -581,6 +696,12 @@ function initProject({
   }
   if (resume && overwrite) {
     throw new InitProjectError('VALIDATION_ERROR', 'resume and overwrite are mutually exclusive');
+  }
+  if (!gitBootstrap.GIT_MODES.has(git_mode)) {
+    throw new InitProjectError(
+      'VALIDATION_ERROR',
+      `git_mode must be one of: ${[...gitBootstrap.GIT_MODES].join(', ')}`,
+    );
   }
 
   const absTarget = resolveTargetDir(target_dir);
@@ -611,7 +732,7 @@ function initProject({
     return resumeProject({
       absTarget, ultraDir, source, project_name, project_type: resolvedProjectType,
       stack: resolvedStack, resolvedMode,
-      scope, repositoryProfile, projection,
+      scope, repositoryProfile, projection, git_mode,
     });
   }
 
@@ -630,10 +751,13 @@ function initProject({
   let copiedFiles;
   let baselineResult;
   let workflowResult;
+  let gitSetup;
   try {
     fs.mkdirSync(ultraDir, { recursive: true });
     copiedFiles = copyTemplate(source, ultraDir);
     validateTasksTemplate(ultraDir);
+    gitSetup = gitBootstrap.bootstrapGit(absTarget, { mode: git_mode });
+    repositoryProfile.git = gitSetup.result;
     const stateDbPath = path.join(ultraDir, 'state.db');
     const { db } = initStateDb(stateDbPath);
     try {
@@ -649,6 +773,7 @@ function initProject({
         type: 'project_initialized',
         payload: {
           project_name, mode: resolvedMode, baseline_id: baselineResult.id,
+          git: gitSetup.result,
         },
       });
       const job = runtimeState.enqueueProjection(db, { tool_name: 'task.init_project' });
@@ -662,9 +787,17 @@ function initProject({
     }
   } catch (err) {
     const rollbackErrors = rollbackInitialization(ultraDir, backupPath);
+    rollbackErrors.push(...gitBootstrap.rollbackGitBootstrap(absTarget, gitSetup?.internal));
     const rollbackNote = rollbackErrors.length > 0
       ? `; rollback incomplete: ${rollbackErrors.join('; ')}`
       : '; prior state restored';
+    if (err instanceof gitBootstrap.GitBootstrapError) {
+      throw new InitProjectError(
+        err.code,
+        `project initialization failed: ${err.message}${rollbackNote}`,
+        { cause: err },
+      );
+    }
     throw new InitProjectError(
       'IO_ERROR',
       `project initialization failed: ${err.message}${rollbackNote}`,
@@ -682,13 +815,17 @@ function initProject({
       id: baselineResult.id,
       mode: baselineResult.mode,
       status: baselineResult.status,
+      project_name: baselineResult.project_name,
       project_type: baselineResult.project_type,
       stack: baselineResult.stack,
       repository_revision: baselineResult.repository_revision,
+      repository_branch: baselineResult.repository_branch,
+      worktree_state: baselineResult.worktree_state,
       scope: baselineResult.scope,
     },
     copied_files: copiedFiles,
     repository_profile: repositoryProfile,
+    git: gitSetup.result,
     workflow: workflowResult,
   };
   if (backupPath) result.backup_path = backupPath;

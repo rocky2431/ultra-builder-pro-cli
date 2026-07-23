@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -19,7 +20,9 @@ const {
   seedReadyBaseline,
   seedCompletedWorkflowStructure,
 } = require('../test-support/ready-baseline.cjs');
-const { semanticRecordsForStep } = require('../test-support/semantic-records.cjs');
+const {
+  researchCoverage, semanticRecordsForStep,
+} = require('../test-support/semantic-records.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function fixture() {
@@ -43,17 +46,35 @@ function writeArtifact(fx, relative, body) {
 
 function verificationDimensions(overrides = {}) {
   const pass = (evidence) => ({ status: 'pass', evidence: [evidence], rationale: 'Required for this change.' });
-  const notApplicable = (rationale) => ({ status: 'not_applicable', evidence: [], rationale });
   return {
     acceptance: pass('Acceptance mapping and public seam were executed.'),
     regression: pass('The relevant regression suite passed.'),
     integration: pass('The live consumer path was exercised.'),
-    static_analysis: notApplicable('No repository-native static analyzer is configured.'),
-    build: notApplicable('This fixture has no separate build command.'),
-    performance: notApplicable('The bounded fixture has no material performance risk.'),
-    security: notApplicable('The bounded fixture does not change a security boundary.'),
     recovery: pass('The declared recovery path was checked.'),
     ...overrides,
+  };
+}
+
+function verificationProfile(selected = ['acceptance', 'regression', 'integration', 'recovery']) {
+  const rationale = {
+    static_analysis: 'No repository-native static analyzer is configured.',
+    build: 'This fixture has no separate build command.',
+    performance: 'The bounded fixture has no material performance risk.',
+    security: 'The bounded fixture does not change a security boundary.',
+  };
+  const all = [
+    'acceptance', 'regression', 'integration', 'static_analysis',
+    'build', 'performance', 'security', 'recovery',
+  ];
+  return {
+    rationale: 'Select checks from the actual change risks and executable project seams.',
+    selected_dimensions: selected,
+    excluded_dimensions: all.filter((dimension) => !selected.includes(dimension)).map(
+      (dimension) => ({
+        dimension,
+        rationale: rationale[dimension] || 'Covered by a selected verification dimension.',
+      }),
+    ),
   };
 }
 
@@ -95,12 +116,6 @@ function finishRequiredSteps(fx, run, outputForStep = () => null) {
     }
     if (current.kind === 'research') {
       input.semantic_records = semanticRecordsForStep(current.id, item.step_id);
-    }
-    if (current.kind === 'deliver' && item.step_id === 'release-if-authorized') {
-      input.decisions = [{
-        kind: 'release_authorization', authorized: false,
-        reason: 'This test fixture does not authorize an external release.',
-      }];
     }
     current = recordWorkflowStep(fx.db, input, { rootDir: fx.rootDir });
   }
@@ -169,39 +184,52 @@ function seedDeliveryPrerequisites(fx, changeId) {
   return task;
 }
 
-test('full research preserves all seventeen original semantic steps without an implicit MVP mode', () => {
+test('initial research dispositions cover all semantic areas without forcing all seventeen executions', () => {
   const fx = fixture();
   try {
+    const coverage = WORKFLOW_DEFINITIONS.research.map((item) => ({
+      step_id: item.id,
+      disposition: ['02-market-assessment', '03-competitive-landscape'].includes(item.id)
+        ? 'not_applicable'
+        : 'execute',
+      rationale: ['02-market-assessment', '03-competitive-landscape'].includes(item.id)
+        ? 'This internal developer tool has no market-selection decision.'
+        : 'This semantic area needs current evidence.',
+      evidence_refs: ['README.md'],
+    }));
     const run = workflows.startWorkflow(fx.db, {
       id: 'research-full', kind: 'research', mode: 'full', baseline_id: 'baseline',
       subject: 'Validate the complete product and architecture baseline.',
+      coverage,
     }, { rootDir: fx.rootDir });
 
     assert.equal(run.status, 'active');
     assert.equal(run.mode, 'full');
     assert.equal(run.steps.length, 17);
-    assert.deepEqual(run.steps.map((step) => step.step_id), [
-      '00-problem-validation',
-      '01-opportunity-discovery',
-      '02-market-assessment',
-      '03-competitive-landscape',
-      '04-product-strategy',
-      '05-assumptions-validation',
-      '10-user-personas',
-      '11-user-scenarios',
-      '20-user-stories',
-      '21-features-scope',
-      '22-success-metrics',
-      '30-architecture-context',
-      '31-solution-strategy',
-      '32-building-blocks',
-      '40-deployment',
-      '41-quality-risks',
-      '99-synthesis',
-    ]);
-    assert.equal(run.steps.every((step) => step.required), true);
+    assert.equal(run.steps.filter((step) => step.required).length, 15);
+    assert.equal(run.steps.find((step) => step.step_id === '02-market-assessment').status, 'skipped');
+    assert.match(
+      run.steps.find((step) => step.step_id === '02-market-assessment').skip_reason,
+      /not_applicable.*internal developer tool/i,
+    );
+    assert.equal(run.metadata.coverage.length, 17);
     assert.equal(JSON.stringify(run).toLowerCase().includes('mvp'), false);
     assert.equal(run.next_step.step_id, '00-problem-validation');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('full and adoption research reject an implicit coverage decision', () => {
+  const fx = fixture();
+  try {
+    assert.throws(
+      () => workflows.startWorkflow(fx.db, {
+        id: 'research-implicit', kind: 'research', mode: 'full', baseline_id: 'baseline',
+        subject: 'Do not let runtime choose semantic coverage for the model.',
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
+    );
   } finally {
     cleanup(fx);
   }
@@ -213,6 +241,7 @@ test('research records evidence and output digests, enforces order, and resumes 
     workflows.startWorkflow(fx.db, {
       id: 'research-resume', kind: 'research', mode: 'full', baseline_id: 'baseline',
       subject: 'Research fixture.',
+      coverage: researchCoverage(),
     }, { rootDir: fx.rootDir });
 
     assert.throws(
@@ -282,6 +311,7 @@ test('research health detects a stale semantic source even when the immutable st
     workflows.startWorkflow(fx.db, {
       id: 'research-semantic-freshness', kind: 'research', mode: 'full', baseline_id: 'baseline',
       subject: 'Bind semantic provenance to current source content.',
+      coverage: researchCoverage(),
     }, { rootDir: fx.rootDir });
     const report = writeArtifact(
       fx,
@@ -570,6 +600,69 @@ test('delivery-stage workflows persist blockers and recover without losing compl
   }
 });
 
+test('current workflows reject a legacy Context Manifest v2 output', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'legacy-context-change');
+    completedTask(fx, changeId, 'legacy-context-task');
+    let run = startWorkflow(fx.db, {
+      id: 'legacy-context-test', kind: 'test', change_id: changeId,
+      subject: 'Reject a context snapshot without current change-authority provenance.',
+    }, { rootDir: fx.rootDir });
+    run = recordWorkflowStep(fx.db, {
+      id: run.id, step_id: 'bind-scope', status: 'completed',
+      evidence: [{ kind: 'task-set', ref: changeId, summary: 'Current task set is bound.' }],
+    }, { rootDir: fx.rootDir });
+    const compiled = changes.compileContext(fx.db, {
+      id: changeId, role: 'check', gate: 'verification',
+    }, { rootDir: fx.rootDir });
+    const contextPath = path.relative(fx.rootDir, compiled.context_manifest_path);
+    const contextFile = path.join(fx.rootDir, contextPath);
+    const legacy = JSON.parse(fs.readFileSync(contextFile, 'utf8'));
+    legacy.schema_version = '2.0';
+    fs.writeFileSync(contextFile, `${JSON.stringify(legacy, null, 2)}\n`);
+    const legacyDigest = crypto.createHash('sha256').update(fs.readFileSync(contextFile)).digest('hex');
+    fx.db.prepare('UPDATE context_snapshots SET manifest_hash = ? WHERE id = ?')
+      .run(legacyDigest, compiled.manifest.snapshot_id);
+    fx.db.prepare('UPDATE artifacts SET content_hash = ? WHERE path = ?')
+      .run(legacyDigest, contextPath);
+
+    assert.throws(
+      () => recordWorkflowStep(fx.db, {
+        id: run.id, step_id: 'compile-context', status: 'completed',
+        evidence: [{ kind: 'context', ref: contextPath, summary: 'Legacy context supplied.' }],
+        outputs: [{ path: contextPath, kind: 'context-manifest' }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_CONTEXT_OUTPUT_REQUIRED',
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('task-scoped testing does not wait for unrelated change tasks', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'task-scoped-test-change');
+    const completed = completedTask(fx, changeId, 'task-scoped-complete');
+    ops.createTask(fx.db, {
+      id: 'task-scoped-pending', title: 'Later independent task', type: 'feature',
+      priority: 'P1', change_id: changeId,
+    });
+    let run = startWorkflow(fx.db, {
+      id: 'task-scoped-test-run', kind: 'test', change_id: changeId,
+      task_id: completed.id, subject: 'Verify only the completed task slice.',
+    }, { rootDir: fx.rootDir });
+    run = recordWorkflowStep(fx.db, {
+      id: run.id, step_id: 'bind-scope', status: 'completed',
+      evidence: [{ kind: 'task', ref: completed.id, summary: 'Completed task is bound.' }],
+    }, { rootDir: fx.rootDir });
+    assert.equal(run.current_step, 'compile-context');
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('test completion validates its bound report and derives the durable gate result', () => {
   const fx = fixture();
   try {
@@ -596,6 +689,7 @@ test('test completion validates its bound report and derives the durable gate re
       public_seams: [{ seam: 'workflow.complete', status: 'pass', evidence: 'Observed result.' }],
       failures: [],
       recovery: [],
+      verification_profile: verificationProfile(),
       verification_dimensions: verificationDimensions(),
       regression_signal: null,
       passed: true,
@@ -644,6 +738,9 @@ test('test completion validates its bound report and derives the durable gate re
       status: 'not_run', evidence: [],
       rationale: 'Security applicability has not yet been resolved.',
     };
+    report.verification_profile = verificationProfile([
+      'acceptance', 'regression', 'integration', 'security', 'recovery',
+    ]);
     fs.writeFileSync(path.join(fx.rootDir, reportPath), JSON.stringify(report, null, 2));
     run = recordWorkflowStep(fx.db, {
       id: run.id, step_id: 'write-report', status: 'completed',
@@ -655,8 +752,8 @@ test('test completion validates its bound report and derives the durable gate re
       (error) => error.code === 'WORKFLOW_REPORT_INVALID',
     );
     report.verification_dimensions.security = {
-      status: 'not_applicable', evidence: [],
-      rationale: 'The fixture changes no input, authorization, secret, or trust boundary.',
+      status: 'pass', evidence: ['The changed seam does not alter authorization or trust boundaries.'],
+      rationale: 'The bugfix risk profile explicitly checked the adjacent security boundary.',
     };
     fs.writeFileSync(path.join(fx.rootDir, reportPath), JSON.stringify(report, null, 2));
     run = recordWorkflowStep(fx.db, {
@@ -775,6 +872,44 @@ test('review completion derives both verdict axes from the coordinated artifact'
       'review-engineering': engineering,
       'coordinate-findings': summary,
     })[stepId]);
+    assert.throws(
+      () => completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_REVIEW_EVIDENCE_MISMATCH',
+    );
+    const completeSummary = JSON.parse(fs.readFileSync(path.join(fx.rootDir, summary), 'utf8'));
+    completeSummary.workers.completed.push('review-tests');
+    completeSummary.workers.skipped = ['review-errors', 'review-design', 'review-comments'];
+    completeSummary.worker_selection.push(
+      { worker: 'review-tests', status: 'selected', rationale: 'Claimed test review without an artifact.' },
+      { worker: 'review-errors', status: 'skipped', rationale: 'No failure path changed in this fixture.' },
+      { worker: 'review-design', status: 'skipped', rationale: 'No design boundary changed in this fixture.' },
+      { worker: 'review-comments', status: 'skipped', rationale: 'No maintained comments changed in this fixture.' },
+    );
+    fs.writeFileSync(path.join(fx.rootDir, summary), JSON.stringify(completeSummary, null, 2));
+    run = recordWorkflowStep(fx.db, {
+      id: run.id, step_id: 'coordinate-findings', status: 'completed',
+      evidence: [{ kind: 'review', ref: summary, summary: 'Complete worker roster disposition.' }],
+      outputs: [{ path: summary, kind: 'review-summary' }],
+    }, { rootDir: fx.rootDir });
+    assert.throws(
+      () => completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_REVIEW_EVIDENCE_MISMATCH',
+    );
+    completeSummary.workers.completed = ['review-spec', 'review-code'];
+    completeSummary.workers.skipped = [
+      'review-tests', 'review-errors', 'review-design', 'review-comments',
+    ];
+    const reviewTestsSelection = completeSummary.worker_selection.find(
+      (item) => item.worker === 'review-tests',
+    );
+    reviewTestsSelection.status = 'skipped';
+    reviewTestsSelection.rationale = 'No test artifact changed in this fixture.';
+    fs.writeFileSync(path.join(fx.rootDir, summary), JSON.stringify(completeSummary, null, 2));
+    run = recordWorkflowStep(fx.db, {
+      id: run.id, step_id: 'coordinate-findings', status: 'completed',
+      evidence: [{ kind: 'review', ref: summary, summary: 'Worker artifacts and dispositions agree.' }],
+      outputs: [{ path: summary, kind: 'review-summary' }],
+    }, { rootDir: fx.rootDir });
     const completed = completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir });
     assert.equal(completed.summary.verdict, 'APPROVE');
     assert.equal(completed.summary.axes.spec_fidelity.verdict, 'PASS');
@@ -823,10 +958,18 @@ test('review completion rejects a coordinated summary that drops a blocking spec
         spec_fidelity: { verdict: 'PASS', evidence_refs: [spec] },
         engineering_standards: { verdict: 'PASS', evidence_refs: [engineering] },
       },
-      workers: { completed: ['review-spec', 'review-code'], failed: [], skipped: [] },
+      workers: {
+        completed: ['review-spec', 'review-code'],
+        failed: [],
+        skipped: ['review-tests', 'review-errors', 'review-design', 'review-comments'],
+      },
       worker_selection: [
         { worker: 'review-spec', status: 'selected', rationale: 'Required specification axis.' },
         { worker: 'review-code', status: 'selected', rationale: 'Current runtime diff.' },
+        { worker: 'review-tests', status: 'skipped', rationale: 'No test artifact changed.' },
+        { worker: 'review-errors', status: 'skipped', rationale: 'No failure path changed.' },
+        { worker: 'review-design', status: 'skipped', rationale: 'No design boundary changed.' },
+        { worker: 'review-comments', status: 'skipped', rationale: 'No maintained comments changed.' },
       ],
       findings: [], positive_observations: [], limitations: [],
     }, null, 2));
@@ -846,7 +989,7 @@ test('review completion rejects a coordinated summary that drops a blocking spec
   }
 });
 
-test('delivery completion is bound to an archived change and a truthful release report', () => {
+test('delivery completion archives local authority without manufacturing a release decision', () => {
   const fx = fixture();
   try {
     const changeId = insertChange(fx, 'delivery-report-change');
@@ -867,7 +1010,6 @@ test('delivery completion is bound to an archived change and a truthful release 
       git_commit: null, worktree_digest: null,
       context_digest: compiled.manifest_hash,
       checks: [{ command: 'node --test', status: 'pass', exit_code: 0, evidence: 'All checks passed.' }],
-      release: { authorized: false, performed: false, evidence: [] },
       rollback: 'Restore the archived change packet and authoritative DB backup.',
       timestamp: new Date().toISOString(),
     }, null, 2));
@@ -880,33 +1022,33 @@ test('delivery completion is bound to an archived change and a truthful release 
     );
     fx.db.prepare("UPDATE changes SET status = 'archived' WHERE id = ?").run(changeId);
     const reportFile = path.join(fx.rootDir, reportPath);
-    const conflictingReport = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
-    conflictingReport.release = {
+    const unauthorizedRelease = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
+    unauthorizedRelease.release = {
       authorized: true, performed: true,
       evidence: [{
         kind: 'release', reference: 'fixture-release', status: 'pass',
-        evidence: 'A fabricated release must not override the recorded owner decision.',
+        evidence: 'A fabricated release must not create its own authority.',
       }],
     };
-    fs.writeFileSync(reportFile, JSON.stringify(conflictingReport, null, 2));
+    fs.writeFileSync(reportFile, JSON.stringify(unauthorizedRelease, null, 2));
     run = recordWorkflowStep(fx.db, {
       id: run.id, step_id: 'verify-delivery', status: 'completed',
-      evidence: [{ kind: 'delivery', ref: reportPath, summary: 'Conflicting release claim.' }],
+      evidence: [{ kind: 'delivery', ref: reportPath, summary: 'Unauthorized release claim.' }],
       outputs: [{ path: reportPath, kind: 'delivery-report' }],
     }, { rootDir: fx.rootDir });
     assert.throws(
       () => completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir }),
       (error) => error.code === 'WORKFLOW_RELEASE_AUTHORITY_MISMATCH',
     );
-    conflictingReport.release = { authorized: false, performed: false, evidence: [] };
-    fs.writeFileSync(reportFile, JSON.stringify(conflictingReport, null, 2));
+    delete unauthorizedRelease.release;
+    fs.writeFileSync(reportFile, JSON.stringify(unauthorizedRelease, null, 2));
     run = recordWorkflowStep(fx.db, {
       id: run.id, step_id: 'verify-delivery', status: 'completed',
-      evidence: [{ kind: 'delivery', ref: reportPath, summary: 'Release claim matches owner decision.' }],
+      evidence: [{ kind: 'delivery', ref: reportPath, summary: 'Local delivery has no release claim.' }],
       outputs: [{ path: reportPath, kind: 'delivery-report' }],
     }, { rootDir: fx.rootDir });
     const completed = completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir });
-    assert.equal(completed.summary.release.authorized, false);
+    assert.equal(completed.summary.release, undefined);
     assert.equal(completed.summary.archive_status, 'archived');
   } finally {
     cleanup(fx);
@@ -1002,10 +1144,26 @@ test('plan completion and dev startup require a complete DB-backed task executio
       evidence: [{ kind: 'test', ref: 'fixture:verify-plan', summary: 'Planning evidence.' }],
       outputs: [{ path: '.ultra/execution-plan.json', kind: 'execution-plan' }],
     }, { rootDir: fx.rootDir });
+    ops.patchTask(fx.db, omitted.id, { stale: true });
     assert.throws(
       () => completeWorkflow(fx.db, { id: plan.id }, { rootDir: fx.rootDir }),
-      (error) => error.code === 'WORKFLOW_APPROVAL_REQUIRED',
+      (error) => error.code === 'WORKFLOW_PLAN_TASK_CONTRACT_STALE',
     );
+    const staleTask = ops.readTask(fx.db, omitted.id);
+    ops.patchTask(fx.db, omitted.id, {
+      stale: false,
+      deps: staleTask.deps || [],
+      files_modified: staleTask.files_modified || [],
+      trace_to: staleTask.trace_to,
+      outcome: staleTask.outcome,
+      slice_kind: staleTask.slice_kind,
+      public_seam: staleTask.public_seam,
+      verification_command: staleTask.verification_command,
+      acceptance: staleTask.acceptance,
+      context_refs: staleTask.context_refs,
+      docs_impact: staleTask.docs_impact,
+      ownership: staleTask.ownership,
+    });
     assert.throws(
       () => completeWorkflow(fx.db, {
         id: plan.id,
@@ -1014,20 +1172,15 @@ test('plan completion and dev startup require a complete DB-backed task executio
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'WORKFLOW_SUMMARY_AUTHORITY_VIOLATION',
     );
-    const completedPlan = completeWorkflow(fx.db, {
-      id: plan.id,
-      approval: { approved_by: 'product-owner', approval_note: 'Approved complete scope and slices.' },
-    }, { rootDir: fx.rootDir });
+    const completedPlan = completeWorkflow(fx.db, { id: plan.id }, { rootDir: fx.rootDir });
     assert.equal(completedPlan.status, 'completed');
     assert.deepEqual(completedPlan.summary.task_ids, ['omitted-task', 'planned-task']);
+    assert.equal(completedPlan.summary.authority_basis, 'accepted_change_contract');
     assert.match(completedPlan.summary.task_contract_digests['planned-task'], /^[0-9a-f]{64}$/);
     const approvalEvents = ops.subscribeEventsSince(fx.db, {
       since_id: 0, types: ['plan_approved'], limit: 100,
     });
-    assert.equal(approvalEvents.events.length, 1);
-    assert.equal(approvalEvents.events[0].change_id, 'change');
-    assert.equal(approvalEvents.events[0].payload.workflow_id, completedPlan.id);
-    assert.equal(approvalEvents.events[0].payload.approved_by, 'product-owner');
+    assert.equal(approvalEvents.events.length, 0);
     ops.patchTask(fx.db, draft.id, { public_seam: 'A changed seam without renewed plan approval' });
     assert.throws(
       () => startWorkflow(fx.db, {

@@ -14,6 +14,7 @@ const baselines = require('./baseline-workflow.cjs');
 const changes = require('./change-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
 const workflows = require('./workflow-state.cjs');
+const { researchCoverage } = require('../test-support/semantic-records.cjs');
 const decisions = require('./decision-dialogue.cjs');
 const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
 
@@ -93,6 +94,7 @@ test('doctor exposes blocked workflow recovery without treating an expected paus
     const run = workflows.startWorkflow(fx.db, {
       id: 'research-adoption', kind: 'research', mode: 'adoption',
       baseline_id: baseline.id, subject: 'Establish current system evidence.',
+      coverage: researchCoverage(),
     }, { rootDir: fx.rootDir });
     workflows.recordWorkflowStep(fx.db, {
       id: run.id, step_id: '00-problem-validation', status: 'blocked',

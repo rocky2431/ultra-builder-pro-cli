@@ -7,6 +7,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-07-24
+
+### Added
+
+- Added deterministic Git bootstrap for initialization and resume, including
+  explicit `auto`, `initialize`, and `skip` modes, persisted unborn-HEAD state,
+  and an owner-authorized first-checkpoint gate.
+- Added a source-backed compatibility crosswalk against the original
+  `rocky2431/ultra-builder-pro` workflow and a shell-free `execute-plan`
+  consumer for current completed-plan dependency waves.
+- Added schema 18 adaptive transition state, migration of active legacy
+  init/change/plan/deliver runs, Context Manifest v3 Change-authority digests,
+  and one host-specific interaction contract for every supported runtime.
+- Added research coverage dispositions (`execute`, `verify_existing`, `reuse`,
+  `not_applicable`, and accepted `deferred`) and risk-selected verification
+  profiles with rationale for every excluded dimension.
+
+### Changed
+
+- Changed plan execution into a resumable wave state machine. A wave pauses
+  until its DB tasks converge, later dependencies remain pending, and reruns
+  skip completed work.
+- Changed MCP session spawning to create the single authoritative Git worktree
+  and session record. Session close now preserves work by default, and
+  change-owned auto-merge requires current dev and review evidence.
+- Changed session worktrees to bind their ignored `.ultra` entry to the central
+  authority and pass non-overridable DB, checkout, and authority-root paths to
+  explicit workers.
+- Changed initialization to complete after classification, local Git/scaffold
+  setup, and read-back verification. It never starts research implicitly;
+  baseline research begins only through an explicit invocation.
+- Changed the workflow from a canonical next-action pipeline to an adaptive
+  capability graph. MCP exposes valid alternatives and unique hard-recovery
+  transitions; the active host owns semantic recommendations and native user
+  interaction.
+- Changed change capture to end after the accepted intent contract, made plan
+  approval conditional on a material owner decision, selected test/review work
+  by risk, and limited Ultra delivery to local convergence and archive.
+
+### Fixed
+
+- Fixed process exit zero, worker spawn errors, and daemon failures bypassing
+  task gates or losing session-linked failure and circuit-breaker evidence.
+- Fixed daemon dispatch of stale tasks, unresolved dependencies, or overlapping
+  declared files, and made explicit takeover terminate the prior worker before
+  replacing its lease.
+- Fixed initialization resume leaving corrected metadata or projections behind
+  after a late failure; DB state, generated projections, and newly bootstrapped
+  Git now roll back together.
+- Fixed cleanup paths that could remove uncommitted or unintegrated worktrees,
+  and fixed dependency waves that could start before prior task convergence.
+- Fixed change-owned auto-merge trusting task status alone; integration now
+  requires the exact completion commit, ready dev evidence, and current task review.
+- Fixed `execute-plan` accepting empty, cyclic, duplicate-task, stale, or
+  incomplete change plans. Change-owned execution now requires the exact healthy
+  completed plan workflow and current DB task graph.
+- Fixed direct MCP and daemon session creation bypassing the plan workflow.
+  Admission and spawn now share the same current task-contract, dependency, and
+  staleness gate before takeover or worktree mutation.
+- Fixed plan-authority drift between wave selection and spawn being counted as a
+  worker failure, and fixed isolated workers creating a second project DB.
+- Fixed an isolated worker recursively spawning, taking over, or prematurely
+  closing its parent-owned session; the supervising process now remains the only
+  transport-settlement authority.
+- Fixed late resume failure after a schema upgrade restoring the migrated
+  intermediate DB instead of the exact pre-migration backup.
+- Fixed the directory-only `.ultra/` Git ignore form failing to protect an
+  authority symlink from `git add -A`; fresh initialization uses the symlink-safe
+  `.ultra` rule, while legacy repositories receive a repository-local
+  `info/exclude` rule without changing their tracked baseline.
+- Fixed semantic `change.update` operations leaving derived tasks and compiled
+  contexts apparently current. A changed intent contract now marks tasks stale,
+  invalidates Context v3, and records the exact invalidation evidence.
+- Fixed stale tasks remaining usable through plan completion, dev startup,
+  verification, delivery, or orchestrator admission after semantic invalidation.
+- Fixed marker-only task reconciliation bypassing semantic invalidation. Clearing
+  `stale` now requires a complete execution-contract rebind and records the current
+  Change authority digest.
+- Fixed review convergence accepting incomplete or fabricated worker provenance;
+  every specialist is now selected or skipped with rationale, and completed workers
+  must exactly match persisted specialist artifacts.
+- Fixed MCP workflow contracts omitting public freshness, recovery, review, testing,
+  and delivery failure codes needed by host adapters.
+- Fixed runtime specification templates and workflow prompts retaining rigid-route
+  wording or omitting durable step and decision-tool handoffs.
+
 ## [0.16.0] — 2026-07-23
 
 ### Added

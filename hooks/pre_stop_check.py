@@ -35,13 +35,14 @@ def main() -> None:
         allow_stop()
         return
     if breadcrumb and breadcrumb.get("change_id"):
+        allowed = ", ".join(breadcrumb.get("allowed_transitions") or []) or "none"
+        required = breadcrumb.get("required_transition") or "none"
         print(
             "[Ultra stop advisory] Active Ultra change remains open: "
             f"change={breadcrumb['change_id']}, "
             f"task={breadcrumb.get('task_id') or 'none'}, "
             f"gate={breadcrumb.get('gate') or 'alignment'}, "
-            f"route={breadcrumb.get('recommended_workflow') or 'ultra-status'}. "
-            f"Next: {breadcrumb.get('next_action') or 'Inspect Ultra status.'} "
+            f"allowed_transitions={allowed}, required_transition={required}. "
             "Stop is allowed; resume or explicitly archive the change later.",
             file=sys.stderr,
         )

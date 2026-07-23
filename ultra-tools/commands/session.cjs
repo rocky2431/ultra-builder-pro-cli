@@ -9,6 +9,7 @@
 const path = require('node:path');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
+const sessionRunner = require('../../orchestrator/session-runner.cjs');
 
 const DEFAULT_DB_PATH = path.join('.ultra', 'state.db');
 
@@ -20,11 +21,12 @@ VERBS:
   reap        [--grace-seconds <n>]                      orphan sweeper (Phase 4.5.6)
   get         --sid <sid>
   heartbeat   --sid <sid>
-  close       --sid <sid> --status completed|crashed|orphan
+  close       --sid <sid> --status completed|crashed|orphan [--remove-worktree]
   subscribe   --since-id <n> [--sid <sid>] [--limit <n>]
 
 GLOBAL FLAGS:
   --db <path>  path to state.db (default: .ultra/state.db)
+  --repo-root <path> repository root for verified worktree cleanup (default: cwd)
   -h, --help   show this message
 `;
 
@@ -44,6 +46,8 @@ function parseFlags(args) {
       case '--limit':           flags.limit = Number(args[++i]); break;
       case '--since-id':        flags.since_id = Number(args[++i]); break;
       case '--grace-seconds':   flags.grace_seconds = Number(args[++i]); break;
+      case '--repo-root':       flags.repo_root = args[++i]; break;
+      case '--remove-worktree': flags.remove_worktree = true; break;
       case '-h': case '--help': flags.help = true; break;
       default:                  flags._.push(a);
     }
@@ -127,8 +131,11 @@ function cmdClose(flags) {
   if (!flags.sid || !flags.status) { emit({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'missing --sid or --status' } }); return 1; }
   return withDb(flags, (db) => {
     try {
-      ops.updateSession(db, flags.sid, { status: flags.status });
-      emit({ ok: true, data: { sid: flags.sid, status: flags.status } });
+      const result = sessionRunner.closeSession(
+        { db, repoRoot: path.resolve(flags.repo_root || process.cwd()), sid: flags.sid },
+        { status: flags.status, remove_worktree: flags.remove_worktree === true },
+      );
+      emit({ ok: true, data: result });
       return 0;
     } catch (err) {
       emit({ ok: false, error: { code: err.code || 'STATE_DB_ERROR', message: err.message } });

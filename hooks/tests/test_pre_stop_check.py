@@ -68,7 +68,8 @@ def test_active_change_with_invalid_ready_baseline_is_advisory_and_routes_to_doc
     assert "change-1" in stderr
     assert "task-1" in stderr
     assert "ultra-doctor" in stderr
-    assert "Complete or refresh the Ultra project baseline" in stderr
+    assert "allowed_transitions=" in stderr
+    assert "required_transition=none" in stderr
 
 
 def test_retrigger_allows_stop_to_avoid_a_loop(tmp_path):

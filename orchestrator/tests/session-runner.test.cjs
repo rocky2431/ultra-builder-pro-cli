@@ -21,6 +21,7 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'README.md'), '# test\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
   return dir;
@@ -35,6 +36,40 @@ function mkDb(repoRoot) {
 function seedTask(db, id = 't-1') {
   ops.createTask(db, { id, title: 'runner target', type: 'feature', priority: 'P1' });
   return id;
+}
+
+function seedChangeTask(db, id = 'change-task') {
+  const changeId = `${id}-change`;
+  db.prepare(
+    `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+     VALUES (?, ?, 'standard', 'active', ?, ?)`,
+  ).run(
+    changeId,
+    `Change for ${id}`,
+    'Exercise the approved execution path.',
+    `.ultra/changes/active/${changeId}`,
+  );
+  ops.createTask(db, {
+    id,
+    title: 'change-owned runner target',
+    type: 'feature',
+    priority: 'P1',
+    change_id: changeId,
+    outcome: 'The approved task executes in one isolated worktree.',
+    slice_kind: 'tracer_bullet',
+    public_seam: 'session worktree',
+    verification_command: 'node --test orchestrator/tests/session-runner.test.cjs',
+    acceptance: [{
+      id: 'session-ready',
+      criterion: 'Unapproved work never spawns.',
+      verification: 'node --test orchestrator/tests/session-runner.test.cjs',
+    }],
+    context_refs: [{ ref: 'spec/mcp-tools.yaml', reason: 'Session contract.', required: true }],
+    docs_impact: { status: 'none', files: [], rationale: 'No user-facing documentation.' },
+    ownership: { owner: 'test-owner', reviewers: [] },
+    trace_to: 'spec/mcp-tools.yaml#session-family',
+  });
+  return { id, changeId };
 }
 
 function cleanup(repoRoot, db) {
@@ -74,7 +109,161 @@ test('spawnSession creates worktree, child process, and sessions row', () => {
   }
 });
 
-test('closeSession kills child, marks completed, removes worktree', async () => {
+test('spawnSession gives an automated worker one central Ultra authority', async () => {
+  const repoRoot = mkRepo();
+  const { db, dbPath } = mkDb(repoRoot);
+  let handle;
+  try {
+    seedTask(db, 'r-authority');
+    handle = runner.spawnSession({
+      db, repoRoot,
+      task_id: 'r-authority', runtime: 'codex',
+      command: process.execPath,
+      args: ['-e', `
+        const fs = require('node:fs');
+        const path = require('node:path');
+        fs.writeFileSync(
+          path.join(process.env.UBP_ARTIFACT_DIR, 'worker-env.json'),
+          JSON.stringify({
+            db: process.env.UBP_DB_PATH,
+            root: process.env.UBP_ROOT_DIR,
+            authority: process.env.UBP_AUTHORITY_ROOT,
+            task: process.env.UBP_TASK_ID
+          })
+        );
+      `],
+      env: {
+        UBP_DB_PATH: '/tmp/forged-state.db',
+        UBP_ROOT_DIR: '/tmp/forged-root',
+        UBP_AUTHORITY_ROOT: '/tmp/forged-authority',
+        UBP_TASK_ID: 'forged-task',
+      },
+    });
+    await new Promise((resolve, reject) => {
+      if (handle.process.exitCode !== null) {
+        resolve();
+        return;
+      }
+      handle.process.once('exit', (code) => (
+        code === 0 ? resolve() : reject(new Error(`worker exited ${code}`))
+      ));
+      handle.process.once('error', reject);
+    });
+
+    const authorityLink = path.join(handle.worktree_path, '.ultra');
+    assert.equal(fs.lstatSync(authorityLink).isSymbolicLink(), true);
+    assert.equal(
+      fs.realpathSync(path.join(authorityLink, 'state.db')),
+      fs.realpathSync(dbPath),
+    );
+    assert.equal(
+      execFileSync('git', ['status', '--porcelain=v1'], {
+        cwd: handle.worktree_path,
+        encoding: 'utf8',
+      }).trim(),
+      '',
+      'the authority link must never become a task change',
+    );
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(path.join(handle.artifact_dir, 'worker-env.json'), 'utf8')),
+      {
+        db: dbPath,
+        root: handle.worktree_path,
+        authority: repoRoot,
+        task: 'r-authority',
+      },
+    );
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('spawnSession protects the authority link locally without changing tracked files', () => {
+  const repoRoot = mkRepo();
+  execFileSync('git', ['rm', '-q', '.gitignore'], { cwd: repoRoot });
+  execFileSync('git', ['commit', '-q', '-m', 'remove Ultra ignore'], { cwd: repoRoot });
+  const { db } = mkDb(repoRoot);
+  let handle;
+  try {
+    seedTask(db, 'r-unignored-authority');
+    handle = runner.spawnSession({
+      db, repoRoot,
+      task_id: 'r-unignored-authority', runtime: 'codex',
+    });
+    assert.equal(fs.lstatSync(path.join(handle.worktree_path, '.ultra')).isSymbolicLink(), true);
+    assert.equal(execFileSync('git', ['status', '--porcelain=v1'], {
+      cwd: handle.worktree_path,
+      encoding: 'utf8',
+    }).trim(), '');
+    assert.equal(fs.existsSync(path.join(repoRoot, '.gitignore')), false);
+    const excludePath = execFileSync('git', ['rev-parse', '--git-path', 'info/exclude'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    }).trim();
+    assert.match(
+      fs.readFileSync(path.resolve(repoRoot, excludePath), 'utf8'),
+      /^\.ultra$/m,
+    );
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('spawnSession rejects an unsafe local exclude path without modifying its target', () => {
+  const repoRoot = mkRepo();
+  execFileSync('git', ['rm', '-q', '.gitignore'], { cwd: repoRoot });
+  execFileSync('git', ['commit', '-q', '-m', 'remove Ultra ignore'], { cwd: repoRoot });
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-exclude-target-'));
+  const outsideTarget = path.join(outsideDir, 'sentinel');
+  const sentinel = 'do not modify\n';
+  fs.writeFileSync(outsideTarget, sentinel);
+  const excludePath = path.join(repoRoot, '.git', 'info', 'exclude');
+  fs.rmSync(excludePath, { force: true });
+  fs.symlinkSync(outsideTarget, excludePath);
+  const { db } = mkDb(repoRoot);
+  try {
+    seedTask(db, 'r-unsafe-exclude');
+    assert.throws(
+      () => runner.spawnSession({
+        db, repoRoot,
+        task_id: 'r-unsafe-exclude', runtime: 'codex',
+      }),
+      (error) => error instanceof runner.SessionRunnerError
+        && error.code === 'WORKTREE_AUTHORITY_NOT_IGNORED',
+    );
+    assert.equal(fs.readFileSync(outsideTarget, 'utf8'), sentinel);
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+    const worktrees = execFileSync('git', ['worktree', 'list', '--porcelain'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    }).split('\n').filter((line) => line.startsWith('worktree '));
+    assert.equal(worktrees.length, 1, 'the provisional worktree must be removed');
+  } finally {
+    cleanup(repoRoot, db);
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('spawnSession rejects a change-owned task without a current completed plan', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  try {
+    const task = seedChangeTask(db, 'r-unapproved');
+    assert.throws(
+      () => runner.spawnSession({
+        db, repoRoot,
+        task_id: task.id, runtime: 'claude',
+      }),
+      (error) => error.code === 'WORKFLOW_PLAN_NOT_COMPLETED',
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+    assert.equal(fs.existsSync(path.join(repoRoot, '.ultra', 'worktrees')), false);
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('closeSession kills child, releases the lease, and preserves the worktree by default', async () => {
   const repoRoot = mkRepo();
   const { db } = mkDb(repoRoot);
   let handle;
@@ -86,7 +275,7 @@ test('closeSession kills child, marks completed, removes worktree', async () => 
       command: LONG_SLEEP_CMD, args: LONG_SLEEP_ARGS,
     });
     const wt = handle.worktree_path;
-    runner.closeSession(
+    const result = runner.closeSession(
       { db, repoRoot, sid: handle.sid },
       { status: 'completed', kill_signal: 'SIGKILL' },
     );
@@ -96,7 +285,35 @@ test('closeSession kills child, marks completed, removes worktree', async () => 
     // give the kernel a tick to reap the SIGKILL
     await new Promise((r) => setTimeout(r, 50));
     assert.ok(!isProcessAlive(handle.pid), `pid ${handle.pid} should be dead`);
-    assert.ok(!fs.existsSync(wt));
+    assert.ok(fs.existsSync(wt));
+    assert.equal(result.worktree_preserved, true);
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('closeSession refuses to remove uncommitted or unintegrated worktree changes', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  let handle;
+  try {
+    seedTask(db, 'r-unsafe-remove');
+    handle = runner.spawnSession({
+      db, repoRoot,
+      task_id: 'r-unsafe-remove', runtime: 'claude',
+    });
+    fs.writeFileSync(path.join(handle.worktree_path, 'uncommitted.txt'), 'preserve me\n');
+
+    assert.throws(
+      () => runner.closeSession(
+        { db, repoRoot, sid: handle.sid },
+        { status: 'completed', remove_worktree: true },
+      ),
+      (error) => error instanceof runner.SessionRunnerError
+        && error.code === 'WORKTREE_NOT_INTEGRATED',
+    );
+    assert.ok(fs.existsSync(handle.worktree_path));
+    assert.equal(ops.readSession(db, handle.sid).status, 'running');
   } finally {
     cleanup(repoRoot, db);
   }
@@ -127,7 +344,7 @@ test('spawnSession refuses second session without takeover (ADMISSION_DENIED)', 
   }
 });
 
-test('takeover=true crashes old session and spawns new one', () => {
+test('takeover=true terminates the owned process, crashes its lease, and spawns new one', async () => {
   const repoRoot = mkRepo();
   const { db } = mkDb(repoRoot);
   let first, second;
@@ -138,6 +355,7 @@ test('takeover=true crashes old session and spawns new one', () => {
       task_id: 'r-take', runtime: 'claude',
       command: LONG_SLEEP_CMD, args: LONG_SLEEP_ARGS,
     });
+    const firstExit = new Promise((resolve) => first.process.once('exit', resolve));
     second = runner.spawnSession({
       db, repoRoot,
       task_id: 'r-take', runtime: 'codex',
@@ -151,10 +369,37 @@ test('takeover=true crashes old session and spawns new one', () => {
     const secondRow = ops.readSession(db, second.sid);
     assert.equal(secondRow.status, 'running');
     assert.equal(secondRow.runtime, 'codex');
+    await Promise.race([
+      firstExit,
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error('takeover did not terminate the prior worker')),
+        1000,
+      )),
+    ]);
   } finally {
     for (const h of [first, second]) {
       if (h && h.pid) { try { process.kill(h.pid, 'SIGKILL'); } catch (_) { /* ignore */ } }
     }
+    cleanup(repoRoot, db);
+  }
+});
+
+test('spawnSession rejects a worktree base outside the managed project boundary', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  try {
+    seedTask(db, 'r-scope');
+    assert.throws(
+      () => runner.spawnSession({
+        db, repoRoot,
+        task_id: 'r-scope', runtime: 'codex',
+        worktree_base: path.join(os.tmpdir(), 'outside-ultra-worktrees'),
+      }),
+      (error) => error instanceof runner.SessionRunnerError
+        && error.code === 'WORKTREE_SCOPE_INVALID',
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+  } finally {
     cleanup(repoRoot, db);
   }
 });

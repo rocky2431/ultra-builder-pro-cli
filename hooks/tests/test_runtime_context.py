@@ -79,7 +79,7 @@ def test_context_routes_an_old_schema_to_init_and_ignores_legacy_projection(tmp_
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "STATE_SCHEMA_MIGRATION_REQUIRED:10.0" in text
-    assert "Route: ultra-init" in text
+    assert "Required transition: ultra-init" in text
     assert "projection-task" not in text
 
 
@@ -88,7 +88,8 @@ def test_context_routes_migrated_baseline_to_explicit_readoption(tmp_path):
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "BASELINE_MIGRATION_REVIEW_REQUIRED" in text
-    assert "Route: ultra-init" in text
+    assert "Allowed transitions: ultra-research, ultra-status, ultra-doctor" in text
+    assert "Required transition:" not in text
     assert ".ultra/state.db" in text
 
 
@@ -104,7 +105,7 @@ def test_context_routes_incomplete_brownfield_baseline_to_adoption(tmp_path):
     assert "Baseline: adoption (brownfield/adopting)" in text
     assert "Readiness: blocked" in text
     assert "BASELINE_NOT_READY:adopting" in text
-    assert "Route: ultra-init" in text
+    assert "Allowed transitions: ultra-research, ultra-status, ultra-doctor" in text
 
 
 def test_context_routes_a_ready_baseline_with_an_open_blocking_gap_to_adoption(tmp_path):
@@ -123,7 +124,7 @@ def test_context_routes_a_ready_baseline_with_an_open_blocking_gap_to_adoption(t
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "BASELINE_GAP_BLOCKING:incident-reconciliation" in text
-    assert "Route: ultra-init" in text
+    assert "Allowed transitions: ultra-research, ultra-status, ultra-doctor" in text
 
 
 def test_context_injects_active_change_without_workflow_state(tmp_path):
@@ -189,8 +190,8 @@ def test_context_injects_active_change_without_workflow_state(tmp_path):
     assert "Readiness: blocked" in text
     assert "CONTEXT_SNAPSHOT_UPGRADE_REQUIRED" in text
     assert "Blockers: BASELINE_NOT_READY:adopting" in text
-    assert "Route: ultra-init" in text
-    assert "Complete or refresh the Ultra project baseline" in text
+    assert "Allowed transitions:" in text
+    assert "Required transition:" not in text
     assert "Fix daily drift" not in text
     assert "cloud-mem" not in text
 

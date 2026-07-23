@@ -40,6 +40,25 @@ function autoMerge({ repoRoot, worktreePath, baseBranch = 'main', sid, task_id =
   if (!repoRoot) throw new Error('autoMerge: repoRoot required');
   if (!worktreePath) throw new Error('autoMerge: worktreePath required');
 
+  try {
+    const status = runGit(['status', '--porcelain=v1'], { cwd: worktreePath });
+    if (status) {
+      return {
+        merged: false,
+        reason: 'uncommitted_changes',
+        session_sha: null,
+        base_sha: null,
+      };
+    }
+  } catch (err) {
+    return {
+      merged: false,
+      reason: 'worktree_status_failed',
+      session_sha: null,
+      base_sha: null,
+    };
+  }
+
   let sessionSha;
   let baseSha;
   try {

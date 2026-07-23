@@ -74,7 +74,7 @@ covers twenty-one tables:
 
 | Table              | Holds                                             | Phase |
 |--------------------|---------------------------------------------------|-------|
-| `baselines`        | repository classification, greenfield/brownfield adoption, worktree snapshot, specs, evidence, verification, gap ledger, persisted known-red acceptance, and approval | 12→14 |
+| `baselines`        | repository classification, greenfield/brownfield adoption, explicit unborn/clean/dirty Git snapshot, specs, evidence, verification, gap ledger, persisted known-red acceptance, and approval | 12→17 |
 | `tasks`            | task rows — id, status, deps, files_modified, …   | 2     |
 | `events`           | append-only event stream; `id` is subscription cursor (D31) | 2 |
 | `sessions`         | execution sessions, **including lease + heartbeat fields** (D32) | 4.5 |
@@ -140,6 +140,19 @@ archive/prune command for data created by older releases.
 scripts, and monorepo markers. It detects `greenfield` or `brownfield`, records
 bounded classification evidence and selected repository scope, and creates the
 same authoritative state shape without rewriting application code.
+
+Initialization completes after local authority, classification, Git/scaffold setup,
+and read-back verification. It does not start or complete research. An explicit
+`ultra-research` invocation then records a disposition for each of the seventeen
+coverage areas and executes, verifies, or reuses only the evidence needed to converge
+the baseline.
+
+Auto initialization preserves an existing Git repository and HEAD. When Git is absent,
+it initializes `main`, adds the symlink-safe `.ultra` rule to `.gitignore`, and persists
+the resulting `unborn` snapshot. Existing repositories keep their tracked ignore file
+unchanged. It never creates a commit, remote, tag, or push. An initialized
+repository cannot use a non-Git workspace hash: research must obtain approval for a
+local checkpoint commit before `baseline.record`.
 
 Projection-only v4.4 and v4.5 projects use `ultra-tools migrate` to preserve the
 entire `.ultra` tree, import tasks and events, and create a `migrated/adopting`
@@ -212,7 +225,7 @@ impact, and no open incident. Memory and graph payloads never enter Ultra;
 
 ### Context Spine
 
-Context Manifest v2 is the immutable handoff contract between planning,
+Context Manifest v3 is the immutable handoff contract between planning,
 implementation, checking, review, convergence, and recovery. Each snapshot records:
 
 - one role (`plan`, `implement`, `check`, or `review`) and lifecycle gate;
@@ -221,19 +234,24 @@ implementation, checking, review, convergence, and recovery. Each snapshot recor
   execution contract;
 - advisory attention budgets (12 files / about 12k tokens / 40% by default);
 - a DB-derived execution contract (`slice_kind`, public seam, exact verification command);
-- one deterministic next action.
+- mechanically valid `allowed_transitions` and a `required_transition` only when a
+  hard invariant leaves one recovery route;
+- a digest of the accepted Change authority so semantic updates invalidate the
+  snapshot.
 
 Prompt input may identify the intended role/gate, add bounded reference candidates,
 and lower advisory budgets. It cannot supply or override the task seam, verification
 command, task context references, evidence digest, gate verdict, workflow summary, or
-next action. Critical change/dev/test/review/deliver workflow steps record the matching
+machine transitions. A host may attach a clearly non-authoritative recommendation.
+Critical dev/test/review/deliver workflow steps record the matching
 snapshot as an output; test, review, and delivery reports carry its digest forward.
 
 `change.breadcrumb` derives the compact current position from state.db. Session,
 edit, resume, and OpenCode lifecycle hooks invoke one bundled read-only reader
 and inject only this breadcrumb, never the intent body,
-provider content, or a conversation summary. A changed git HEAD marks the
-snapshot stale and routes back to `change.context`.
+provider content, or a conversation summary. A changed Git HEAD, task contract, or
+Change semantic authority marks the snapshot stale and permits recompilation through
+`change.context`.
 
 PRD decomposition and complex-task subdivision use the active host model. The
 MCP accepts the resulting structured tasks, validates schema, topology,
@@ -275,10 +293,13 @@ authority and the legacy task projection before creating a new brownfield adopti
 A **session** is the standard unit of execution across all four runtimes
 (D20). One session =
 
-- a fresh OS process for the runtime,
-- an isolated `git worktree`,
+- one authoritative task/runtime lease;
+- an isolated `git worktree` created by `session.spawn`,
+- an ignored `.ultra` link from that checkout to the one central authority,
 - a lease + heartbeat row in `sessions` (D32),
-- an `artifact_dir` under `.ultra/sessions/<sid>/` for logs and scratch.
+- an `artifact_dir` under `.ultra/sessions/<sid>/` for logs and scratch;
+- either the active host operating in that exact worktree or an explicitly configured
+  worker process.
 
 Spawning a new session for a task is gated by `session.admission_check`
 (D33). If another session already owns an active lease on the same task,
@@ -291,6 +312,43 @@ the caller must pick one of three strategies before proceeding:
 This admission gate is the smallest piece that prevents two agents from
 silently double-writing the same task — it is part of the v0.1 minimum
 execution layer, not deferred to Phase 5.
+
+Process status is not task status. Exit zero closes transport evidence but leaves the
+task `in_progress` until workflow gates pass; failure blocks the task and records
+circuit evidence. `session.close` preserves its worktree by default. Explicit cleanup
+is allowed only when the worktree is clean and its commit is an ancestor of the
+current checkout.
+
+The optional `ubp-orchestrator` daemon requires both `auto_dispatch: true` and an
+explicit executable plus argument array. It refuses to create a session when no real
+worker can consume it. Before launch, the runner verifies that Git ignores the
+symlink itself. When a legacy repository has only the directory-specific `.ultra/`
+rule, the runner adds `.ultra` to the repository-local `info/exclude` file without
+changing a tracked file. It then binds the checkout to the central `.ultra` and rolls
+the worktree back if the ignore rule or binding cannot be established safely. The
+executable is launched without a shell and receives
+the session, task, runtime, worktree, artifact, central DB, checkout root, and
+authority-root paths through reserved `UBP_*` environment variables that caller
+configuration cannot override.
+Pending tasks are skipped while stale, dependency-blocked, circuit-broken, leased, or
+overlapping the declared files of an active task.
+
+`execute-plan` is a resumable dispatcher, not a second workflow authority. It runs
+only the exact current DB task graph whose change-bound `plan` workflow is completed,
+healthy, and current. Empty, cyclic, duplicate-task, cross-change, stale, and merely
+exported plans fail before session creation. Owner approval is present only when a
+material planning choice required it. The dispatcher then runs only pending tasks whose
+dependencies are DB-terminal and re-reads task state. If a
+worker exits before the task converges, the current wave and plan become `paused`;
+later waves remain pending. Re-running the command skips completed waves and resumes
+the first unfinished one. `wave_completed` and `plan_completed` therefore describe
+Ultra task convergence, while `wave_paused` and `plan_paused` preserve unfinished
+gate state. Even with explicit auto-merge, integration is attempted only when the
+change task is `completed`, its completion commit matches the session HEAD, its dev
+workflow is ready, and its task review is current; process exit zero is insufficient.
+If task or plan authority changes after wave selection but before worktree creation,
+dispatch reports an authority pause without recording a worker failure or incrementing
+the circuit breaker.
 
 ## 6. Compaction recovery — checkpoint as a validated consumer
 

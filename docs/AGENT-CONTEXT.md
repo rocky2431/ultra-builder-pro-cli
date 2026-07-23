@@ -80,23 +80,26 @@ review, and deliver route back to the same thread instead of deciding for the ow
 One partial unique index permits only one open item per thread. `decision.resolve`,
 `decision.delegate`, and `decision.defer` preserve the source of authority;
 `decision.supersede` preserves history when evidence or intent changes. Prepare and
-confirm checkpointing bind the accepted cluster to current artifact digests before a
-matching workflow may advance. Status and breadcrumb return only the current question
-and one route, so recovery does not require replaying conversation history.
+confirm checkpointing bind a material accepted cluster to current artifact digests
+when interruption recovery needs that boundary. Status and breadcrumb return only the
+current question plus allowed and mechanically required transitions, so recovery does
+not require replaying conversation history.
 
 ## 5. Context Spine contract
 
-Context Manifest v2 is an immutable DB-backed role handoff, not a static codebase summary.
+Context Manifest v3 is an immutable DB-backed role handoff, not a static codebase summary.
 `change.context` compiles required references, digests, readiness, context budget,
-public seam, exact verification command, and one next action for `plan`,
-`implement`, `check`, or `review`. The default 12-file, about 12k-token, and 40%
+public seam, exact verification command, Change/task authority digests, and valid
+transitions for `plan`, `implement`, `check`, or `review`. The default 12-file,
+about 12k-token, and 40%
 fresh-context values are attention guidance. Overflow produces warnings; it does
 not block work or require raising a threshold. Prefer direct reads, bounded
 excerpts, or a smaller slice when they preserve correctness, and retain all
 necessary context when they do not.
 
 `change.breadcrumb` is the only compact router. Hooks may inject its change/task,
-role, gate, readiness, blockers, and one next action. They must not inject intent
+role, gate, readiness, blockers, `allowed_transitions`, and `required_transition`.
+They must not inject intent
 bodies, transcripts, external memory, or graph payloads. Missing references,
 digest drift, HEAD drift, or a missing execution seam blocks readiness. Context
 size and baseline drift are advisory for a change that is already active. New ordinary
@@ -176,7 +179,7 @@ Archive before prune; the confirmation token is intentionally required.
 ├── runtime/
 │   └── checkpoint.json      # advisory breadcrumb recovery projection
 ├── changes/
-│   ├── active/<id>/         # intent, delta, plan, context v2, learning, verification
+│   ├── active/<id>/         # intent, delta, plan, context v3, learning, verification
 │   └── archive/             # converged packets after baseline reconciliation
 ├── tasks/                   # projections and task contexts
 ├── specs/                   # research/product/architecture artifacts

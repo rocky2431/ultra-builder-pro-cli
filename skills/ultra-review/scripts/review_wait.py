@@ -25,6 +25,14 @@ AXIS_VERDICTS = {"PASS", "FAIL", "INCOMPLETE"}
 OVERALL_VERDICTS = {"APPROVE", "REQUEST_CHANGES", "INCOMPLETE"}
 REVIEW_MODES = {"task", "change", "plan"}
 SELECTION_STATUSES = {"selected", "skipped"}
+REVIEW_WORKERS = {
+    "review-spec",
+    "review-code",
+    "review-tests",
+    "review-errors",
+    "review-design",
+    "review-comments",
+}
 ARTIFACT_STEM = re.compile(r"^[a-z][a-z0-9-]*$")
 FINDING_FIELDS = {
     "id", "axis", "severity", "category", "title", "file", "line", "trigger",
@@ -240,6 +248,10 @@ def validate_summary(data):
         return "selected workers must equal completed and failed workers"
     if skipped != set(workers["skipped"]):
         return "skipped worker selection must match workers.skipped"
+    if seen_workers != REVIEW_WORKERS:
+        missing = sorted(REVIEW_WORKERS - seen_workers)
+        extra = sorted(seen_workers - REVIEW_WORKERS)
+        return f"worker_selection must disposition the complete roster; missing={missing}, extra={extra}"
     if "review-spec" not in selected or "review-spec" not in set(workers["completed"]):
         return "review-spec must be selected and completed"
     findings = data.get("findings")

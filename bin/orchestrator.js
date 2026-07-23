@@ -4,6 +4,7 @@
  * ubp-orchestrator — Phase 5.4 daemon CLI.
  *
  * Subcommands:
+ *   execute-plan  resume the current plan through the first unfinished dependency wave.
  *   run     foreground daemon (debug / test).
  *   start   detached background daemon, writes .ultra/orchestrator.pid.
  *   stop    reads pidfile, SIGTERM the process, deletes pidfile.
@@ -12,9 +13,8 @@
  * Opt-in gate: `start` and `run` require settings.json
  * `orchestrator.auto_dispatch: true` — default off per PLAN Phase 5.4 AC.
  *
- * The daemon never launches real runtime children in this phase — session
- * rows + git worktrees are created, external adapters (Phase 4) attach to
- * the worktree out-of-band. command/args can be passed via env for testing.
+ * Dispatch requires both explicit opt-in and an explicit executable command.
+ * A daemon may never reserve a session/worktree without a real worker process.
  */
 
 'use strict';
@@ -56,6 +56,124 @@ function parseRuntimes() {
   return runtimes;
 }
 
+function commandConfigError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function resolveDispatchCommand(settings, env = process.env) {
+  const configured = settings?.orchestrator || {};
+  const fromEnvironment = typeof env.UBP_ORCH_COMMAND === 'string'
+    && env.UBP_ORCH_COMMAND.trim() !== '';
+  const command = fromEnvironment
+    ? env.UBP_ORCH_COMMAND.trim()
+    : (typeof configured.command === 'string' ? configured.command.trim() : '');
+  if (!command) {
+    throw commandConfigError(
+      'ORCHESTRATOR_COMMAND_REQUIRED',
+      'orchestrator dispatch requires orchestrator.command or UBP_ORCH_COMMAND',
+    );
+  }
+  if (/\s/.test(command) && !fs.existsSync(command)) {
+    throw commandConfigError(
+      'ORCHESTRATOR_COMMAND_INVALID',
+      'orchestrator.command must contain only the executable; put arguments in command_args',
+    );
+  }
+
+  let commandArgs;
+  if (fromEnvironment && env.UBP_ORCH_ARGS_JSON !== undefined) {
+    try {
+      commandArgs = JSON.parse(env.UBP_ORCH_ARGS_JSON);
+    } catch (error) {
+      throw commandConfigError(
+        'ORCHESTRATOR_COMMAND_INVALID',
+        `UBP_ORCH_ARGS_JSON must be a JSON array: ${error.message}`,
+      );
+    }
+  } else {
+    commandArgs = configured.command_args === undefined ? [] : configured.command_args;
+  }
+  if (!Array.isArray(commandArgs) || commandArgs.some((arg) => typeof arg !== 'string')) {
+    throw commandConfigError(
+      'ORCHESTRATOR_COMMAND_INVALID',
+      'orchestrator command arguments must be an array of strings',
+    );
+  }
+  return {
+    command,
+    commandArgs: commandArgs.slice(),
+    source: fromEnvironment ? 'environment' : 'settings',
+  };
+}
+
+function parseExecutePlanArgs(argv = []) {
+  const options = {
+    planPath: null,
+    autoMerge: false,
+    mergeBaseBranch: 'main',
+  };
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--auto-merge') {
+      options.autoMerge = true;
+      continue;
+    }
+    if (arg === '--plan' || arg === '--base-branch') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('--')) {
+        throw commandConfigError(
+          'ORCHESTRATOR_ARGUMENT_INVALID',
+          `${arg} requires a value`,
+        );
+      }
+      if (arg === '--plan') options.planPath = value;
+      else options.mergeBaseBranch = value;
+      index += 1;
+      continue;
+    }
+    throw commandConfigError(
+      'ORCHESTRATOR_ARGUMENT_INVALID',
+      `unknown execute-plan option: ${arg}`,
+    );
+  }
+  return options;
+}
+
+async function cmdExecutePlan(argv = []) {
+  const settings = readSettings();
+  const dispatch = resolveDispatchCommand(settings);
+  const options = parseExecutePlanArgs(argv);
+  const { initStateDb, closeStateDb } = require('../mcp-server/lib/state-db.cjs');
+  const parallelOrchestrator = require('../orchestrator/parallel-orchestrator.cjs');
+  const { db } = initStateDb(path.join(REPO_ROOT, '.ultra', 'state.db'));
+  try {
+    const result = await parallelOrchestrator.runPlan({
+      db,
+      repoRoot: REPO_ROOT,
+      planPath: options.planPath ? path.resolve(REPO_ROOT, options.planPath) : undefined,
+      runtimes: parseRuntimes(),
+      command: dispatch.command,
+      commandArgs: dispatch.commandArgs,
+      autoMerge: options.autoMerge,
+      mergeBaseBranch: options.mergeBaseBranch,
+      onError: (error) => process.stderr.write(`orchestrator error: ${error.message}\n`),
+    });
+    process.stdout.write(`${JSON.stringify({
+      ok: true,
+      data: {
+        ...result,
+        auto_merge: options.autoMerge,
+        merge_base_branch: options.mergeBaseBranch,
+      },
+    })}\n`);
+    return result;
+  } finally {
+    closeStateDb(db);
+  }
+}
+
 function cmdRun(opts = {}) {
   const settings = readSettings();
   if (!opts.skipOptIn && !optInAllowed(settings)) {
@@ -68,11 +186,14 @@ function cmdRun(opts = {}) {
   const { initStateDb } = require('../mcp-server/lib/state-db.cjs');
   const { runDaemon } = require('../orchestrator/daemon.cjs');
   const runtimes = parseRuntimes();
+  const dispatch = resolveDispatchCommand(settings);
   const { db } = initStateDb(path.join(REPO_ROOT, '.ultra', 'state.db'));
   const handle = runDaemon({
     db,
     repoRoot: REPO_ROOT,
     runtimes,
+    command: dispatch.command,
+    commandArgs: dispatch.commandArgs,
     pollMs: Number(process.env.UBP_ORCH_POLL_MS || 1000),
     onError: (err) => process.stderr.write(`orchestrator error: ${err.message}\n`),
   });
@@ -85,7 +206,10 @@ function cmdRun(opts = {}) {
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-  process.stderr.write(`orchestrator running (pollMs=${Number(process.env.UBP_ORCH_POLL_MS || 1000)}, runtimes=${runtimes.join(',')})\n`);
+  process.stderr.write(
+    `orchestrator running (pollMs=${Number(process.env.UBP_ORCH_POLL_MS || 1000)}, ` +
+    `runtimes=${runtimes.join(',')}, worker=${dispatch.command}, source=${dispatch.source})\n`,
+  );
   // Keep process alive while the setInterval is unref'd.
   setInterval(() => {}, 60000);
 }
@@ -96,6 +220,7 @@ function cmdStart() {
     process.stderr.write('orchestrator.auto_dispatch is not enabled; refusing to start.\n');
     process.exit(2);
   }
+  resolveDispatchCommand(settings);
   if (fs.existsSync(PIDFILE)) {
     const existing = Number(fs.readFileSync(PIDFILE, 'utf8'));
     try { process.kill(existing, 0); }
@@ -170,8 +295,9 @@ function cmdStatus() {
 
 function usage() {
   process.stderr.write(
-    'usage: ubp-orchestrator <run|start|stop|status>\n' +
+    'usage: ubp-orchestrator <execute-plan|run|start|stop|status>\n' +
     '\n' +
+    '  execute-plan  resume the first unfinished dependency wave [--plan <path>] [--auto-merge] [--base-branch <name>]\n' +
     '  run     foreground daemon (requires opt-in)\n' +
     '  start   detached background daemon (requires opt-in)\n' +
     '  stop    terminate running daemon\n' +
@@ -179,18 +305,48 @@ function usage() {
   );
 }
 
-const argv = process.argv.slice(2);
-const subcommand = argv[0];
-switch (subcommand) {
-  case 'run':    cmdRun();        break;
-  case 'start':  cmdStart();      break;
-  case 'stop':   cmdStop();       break;
-  case 'status': cmdStatus();     break;
-  case '-h':
-  case '--help':
-  case 'help':
-    usage(); process.exit(0);
-    break;
-  default:
-    usage(); process.exit(1);
+async function main(argv = process.argv.slice(2)) {
+  const subcommand = argv[0];
+  try {
+    switch (subcommand) {
+      case 'execute-plan': await cmdExecutePlan(argv.slice(1)); break;
+      case 'run':    cmdRun();        break;
+      case 'start':  cmdStart();      break;
+      case 'stop':   cmdStop();       break;
+      case 'status': cmdStatus();     break;
+      case '-h':
+      case '--help':
+      case 'help':
+        usage(); process.exit(0);
+        break;
+      default:
+        usage(); process.exit(1);
+    }
+  } catch (error) {
+    process.stderr.write(
+      `orchestrator configuration error${error.code ? ` [${error.code}]` : ''}: ${error.message}\n`,
+    );
+    process.exit(2);
+  }
 }
+
+if (require.main === module) {
+  main().catch((error) => {
+    process.stderr.write(`orchestrator fatal error: ${error.message}\n`);
+    process.exit(2);
+  });
+}
+
+module.exports = {
+  readSettings,
+  optInAllowed,
+  parseRuntimes,
+  parseExecutePlanArgs,
+  resolveDispatchCommand,
+  cmdExecutePlan,
+  cmdRun,
+  cmdStart,
+  cmdStop,
+  cmdStatus,
+  main,
+};

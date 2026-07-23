@@ -11,7 +11,9 @@ const { execFileSync } = require('node:child_process');
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const workflows = require('./workflow-state.cjs');
-const { semanticRecordsForStep } = require('../test-support/semantic-records.cjs');
+const {
+  researchCoverage, semanticRecordsForStep,
+} = require('../test-support/semantic-records.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-baseline-'));
@@ -58,6 +60,7 @@ function completeResearch(fx, baselineId, mode = 'adoption') {
   let run = workflows.startWorkflow(fx.db, {
     id: `research-${baselineId}`, kind: 'research', mode, baseline_id: baselineId,
     subject: 'Complete the baseline research contract.',
+    coverage: researchCoverage(),
   }, { rootDir: fx.rootDir });
   for (const workflowStep of run.steps.filter((item) => item.required)) {
     let output = '.ultra/specs/architecture.md';
@@ -371,6 +374,78 @@ test('greenfield baseline derives a stable workspace revision when Git is not in
       approved_by: 'owner', approval_note: 'Approved before planning.',
     }, { rootDir });
     assert.equal(result.ready, true);
+  } finally {
+    closeStateDb(db);
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('an initialized but unborn Git repository must receive an owner-authorized checkpoint commit before baseline recording', () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-unborn-baseline-'));
+  fs.mkdirSync(path.join(rootDir, '.ultra', 'specs'), { recursive: true });
+  fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'discovery.md'), '# Discovery\n\nAccepted evidence.\n');
+  fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'product.md'), '# Product\n\nAccepted intent.\n');
+  fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'architecture.md'), '# Architecture\n\nAccepted constraints.\n');
+  fs.writeFileSync(path.join(rootDir, '.gitignore'), '.ultra/\n');
+  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: rootDir });
+  execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: rootDir });
+  execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: rootDir });
+  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  try {
+    const snapshot = baselines.gitWorktreeSnapshot(rootDir, ['.']);
+    assert.equal(snapshot.state, 'unborn');
+    assert.equal(snapshot.head, null);
+    assert.equal(snapshot.branch, 'main');
+    assert.ok(snapshot.files.some((item) => item.includes('.gitignore')));
+
+    baselines.startBaseline(db, {
+      id: 'unborn', project_name: 'new-project', mode: 'greenfield', scope: ['.'],
+    }, { rootDir });
+    completeResearch({ rootDir, db }, 'unborn', 'full');
+    assert.throws(
+      () => baselines.recordBaseline(db, {
+        id: 'unborn',
+        spec_refs: [
+          { kind: 'discovery', path: '.ultra/specs/discovery.md' },
+          { kind: 'product', path: '.ultra/specs/product.md' },
+          { kind: 'architecture', path: '.ultra/specs/architecture.md' },
+        ],
+        evidence: [{
+          kind: 'docs', ref: '.ultra/specs/product.md', summary: 'Owner-approved product intent.',
+        }],
+        verification: [{
+          name: 'spec review', command: 'review baseline specifications', status: 'pass',
+          evidence: 'Product and architecture contracts agree.',
+        }],
+        unknowns: [],
+      }, { rootDir }),
+      (error) => error.code === 'BASELINE_GIT_HEAD_REQUIRED',
+    );
+
+    execFileSync('git', ['add', '.gitignore'], { cwd: rootDir });
+    execFileSync('git', ['commit', '-q', '-m', 'chore: establish project repository'], { cwd: rootDir });
+    const revision = execFileSync(
+      'git', ['rev-parse', 'HEAD'], { cwd: rootDir, encoding: 'utf8',
+      },
+    ).trim();
+    const recorded = baselines.recordBaseline(db, {
+      id: 'unborn', repository_revision: revision,
+      spec_refs: [
+        { kind: 'discovery', path: '.ultra/specs/discovery.md' },
+        { kind: 'product', path: '.ultra/specs/product.md' },
+        { kind: 'architecture', path: '.ultra/specs/architecture.md' },
+      ],
+      evidence: [{
+        kind: 'docs', ref: '.ultra/specs/product.md', summary: 'Owner-approved product intent.',
+      }],
+      verification: [{
+        name: 'spec review', command: 'review baseline specifications', status: 'pass',
+        evidence: 'Product and architecture contracts agree.',
+      }],
+      unknowns: [],
+    }, { rootDir });
+    assert.equal(recorded.repository_revision, revision);
+    assert.equal(recorded.worktree_state, 'clean');
   } finally {
     closeStateDb(db);
     fs.rmSync(rootDir, { recursive: true, force: true });

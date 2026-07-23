@@ -40,20 +40,33 @@ function gitHead(rootDir) {
   return result.status === 0 ? result.stdout.trim() : null;
 }
 
-function gitBranch(rootDir) {
-  const result = spawnSync('git', ['branch', '--show-current'], {
+function gitRepositoryRoot(rootDir) {
+  const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
     cwd: rootDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
+function gitBranch(rootDir) {
+  let result = spawnSync('git', ['symbolic-ref', '--quiet', '--short', 'HEAD'], {
+    cwd: rootDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (result.status !== 0) {
+    result = spawnSync('git', ['branch', '--show-current'], {
+      cwd: rootDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  }
   return result.status === 0 ? (result.stdout.trim() || null) : null;
 }
 
 function gitWorktreeSnapshot(rootDir, scope = ['.']) {
-  const head = gitHead(rootDir);
-  if (!head) {
+  const repositoryRoot = gitRepositoryRoot(rootDir);
+  if (!repositoryRoot) {
     return {
       head: null, branch: null, state: 'unavailable', digest: null, files: [],
     };
   }
+  const head = gitHead(rootDir);
   const selectedScope = Array.isArray(scope) && scope.length > 0 ? scope : ['.'];
   const pathspecs = selectedScope.map((item) => (
     item === '.' ? '.' : `:(literal)${item}`
@@ -63,10 +76,12 @@ function gitWorktreeSnapshot(rootDir, scope = ['.']) {
     'git', ['status', '--porcelain=v1', '-z', '--untracked-files=all', ...args],
     { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
   );
-  const diff = spawnSync(
-    'git', ['diff', '--binary', '--no-ext-diff', 'HEAD', ...args],
-    { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
-  );
+  const diff = head
+    ? spawnSync(
+      'git', ['diff', '--binary', '--no-ext-diff', 'HEAD', ...args],
+      { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
+    )
+    : { status: 0, stdout: Buffer.alloc(0) };
   const untracked = spawnSync(
     'git', ['ls-files', '--others', '--exclude-standard', '-z', ...args],
     { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
@@ -79,7 +94,7 @@ function gitWorktreeSnapshot(rootDir, scope = ['.']) {
   const statusText = status.stdout.toString('utf8');
   const files = statusText.split('\0').filter(Boolean);
   const digest = crypto.createHash('sha256');
-  digest.update(head).update('\0').update(gitBranch(rootDir) || '').update('\0');
+  digest.update(head || 'unborn').update('\0').update(gitBranch(rootDir) || '').update('\0');
   digest.update(status.stdout).update(diff.stdout);
   for (const relative of untracked.stdout.toString('utf8').split('\0').filter(Boolean).sort()) {
     digest.update(relative).update('\0');
@@ -93,7 +108,7 @@ function gitWorktreeSnapshot(rootDir, scope = ['.']) {
   return {
     head,
     branch: gitBranch(rootDir),
-    state: files.length > 0 ? 'dirty' : 'clean',
+    state: head ? (files.length > 0 ? 'dirty' : 'clean') : 'unborn',
     digest: digest.digest('hex'),
     files,
   };
@@ -464,6 +479,55 @@ function startBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = tr
   });
 }
 
+function refreshInProgressBaseline(db, input = {}, {
+  rootDir = process.cwd(), emitEvent = true,
+} = {}) {
+  const current = readBaseline(db, input.id);
+  if (!current) {
+    throw new BaselineWorkflowError('BASELINE_NOT_FOUND', `baseline ${input.id || '(current)'} not found`);
+  }
+  if (!['draft', 'adopting', 'blocked'].includes(current.status)) return current;
+  const projectName = input.project_name === undefined
+    ? current.project_name
+    : nonEmpty(input.project_name, 'project_name');
+  const projectType = input.project_type === undefined ? current.project_type : input.project_type;
+  const stack = input.stack === undefined ? current.stack : input.stack;
+  const classification = input.classification === undefined
+    ? current.classification
+    : normalizeClassification(input.classification);
+  const snapshot = gitWorktreeSnapshot(rootDir, current.scope);
+  const repositoryRevision = snapshot.head
+    || (snapshot.state === 'unborn' ? null : current.repository_revision);
+  const ts = nowIso();
+  return ops.tx(db, () => {
+    db.prepare(
+      `UPDATE baselines SET project_name = ?, project_type = ?, stack = ?,
+       repository_revision = ?, repository_branch = ?, worktree_state = ?,
+       worktree_digest = ?, worktree_files_json = ?, classification_json = ?,
+       updated_at = ? WHERE id = ?`,
+    ).run(
+      projectName, projectType || null, stack || null,
+      repositoryRevision, snapshot.branch, snapshot.state, snapshot.digest,
+      JSON.stringify(snapshot.files), JSON.stringify(classification), ts, current.id,
+    );
+    if (emitEvent) {
+      ops.appendEventInTx(db, {
+        type: 'baseline_metadata_refreshed',
+        payload: {
+          baseline_id: current.id,
+          project_name: projectName,
+          project_type: projectType || null,
+          stack: stack || null,
+          repository_revision: repositoryRevision,
+          repository_branch: snapshot.branch,
+          worktree_state: snapshot.state,
+        },
+      });
+    }
+    return readBaseline(db, current.id);
+  });
+}
+
 function recordBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = true } = {}) {
   const current = readBaseline(db, input.id);
   if (!current) throw new BaselineWorkflowError('BASELINE_NOT_FOUND', `baseline ${input.id} not found`);
@@ -484,6 +548,12 @@ function recordBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = t
     ? current.provider_refs
     : providerRefs.normalizeProviderRefs(input.provider_refs, BaselineWorkflowError);
   const snapshot = gitWorktreeSnapshot(rootDir, scope);
+  if (snapshot.state === 'unborn') {
+    throw new BaselineWorkflowError(
+      'BASELINE_GIT_HEAD_REQUIRED',
+      'Git is initialized but has no commit; create an owner-authorized local checkpoint commit before recording the baseline',
+    );
+  }
   if (snapshot.head && input.repository_revision && input.repository_revision !== snapshot.head) {
     throw new BaselineWorkflowError(
       'BASELINE_REVISION_MISMATCH', 'repository_revision does not match current Git HEAD',
@@ -667,6 +737,7 @@ function convergenceBlockers(db, baseline, input, rootDir) {
   if (!expected) blockers.add('BASELINE_REVISION_REQUIRED');
   else if (baseline.repository_revision !== expected) blockers.add('BASELINE_REVISION_MISMATCH');
   const snapshot = gitWorktreeSnapshot(rootDir, baseline.scope);
+  if (snapshot.state === 'unborn') blockers.add('BASELINE_GIT_HEAD_REQUIRED');
   if (snapshot.head && expected && snapshot.head !== expected) blockers.add('BASELINE_HEAD_STALE');
   if (baseline.repository_branch && snapshot.branch
     && baseline.repository_branch !== snapshot.branch) blockers.add('BASELINE_BRANCH_STALE');
@@ -725,7 +796,6 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
           type: 'baseline_blocked', payload: { baseline_id: current.id, blockers },
         });
       }
-      workflows.blockInitializationInTx(db, current.id, blockers);
     });
     return { ready: false, status: 'blocked', blockers, baseline: readBaseline(db, current.id) };
   }
@@ -745,12 +815,6 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
         type: 'baseline_converged', payload: { baseline_id: current.id, revision: current.repository_revision },
       });
     }
-    workflows.completeInitializationInTx(db, {
-      ...current,
-      approved_by: String(input.approved_by).trim(),
-      research_run_id: research.id,
-      converged_at: ts,
-    });
   });
   return { ready: true, status: 'ready', blockers: [], baseline: readBaseline(db, current.id) };
 }
@@ -786,6 +850,9 @@ function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
   const snapshot = gitWorktreeSnapshot(
     rootDir, Array.isArray(baseline.scope) && baseline.scope.length > 0 ? baseline.scope : ['.'],
   );
+  if (snapshot.state === 'unborn') {
+    blockers.push('BASELINE_GIT_HEAD_REQUIRED');
+  }
   if (snapshot.head && baseline.repository_revision && snapshot.head !== baseline.repository_revision) {
     blockers.push('BASELINE_HEAD_STALE');
   } else if (!snapshot.head && baseline.repository_revision?.startsWith('workspace:')) {
@@ -905,6 +972,7 @@ function appendGap(db, input = {}, options = {}) {
 module.exports = {
   BaselineWorkflowError,
   startBaseline,
+  refreshInProgressBaseline,
   recordBaseline,
   convergeBaseline,
   readBaseline,

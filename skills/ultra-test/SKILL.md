@@ -1,58 +1,65 @@
 ---
 name: ultra-test
-description: Verify completed Ultra tasks and one current change through independent acceptance, regression, build, public-seam, failure, and recovery evidence. Use when implementation needs a current test gate before review, convergence, or delivery.
+description: Independently verify an Ultra task set or change with an evidence-backed, risk-selected test profile. Use when implementation or current acceptance and recovery evidence needs independent verification.
 ---
 
-# Verify the current change
+# Verify current behavior
 
-Testing is independent checking. Do not reuse the implementer's conclusions as proof
-or use generated task JSON as authority.
+Testing is independent checking. Do not reuse implementation conclusions or generated
+projections as proof.
 
-## Bind and execute
+## Bind scope
 
-1. Read `system.doctor`, `change.breadcrumb`, active decision state, authoritative
-   tasks, completed dev runs, current HEAD/diff, and prior test report freshness. An
-   open decision or unconfirmed checkpoint blocks testing claims and routes to
-   `ultra-think`.
-2. Resume or start a `test` workflow linked to the change and optional task. Record
-   `bind-scope` with the exact revision, task set, and acceptance ids.
-3. Compile `change.context` for `check`; record `compile-context` only when required
-   refs and DB-backed execution contracts are ready, with the immutable context
-   manifest as the step output.
-4. Map each accepted claim to an executable command or a specific bounded manual
-   observation. Record `map-acceptance`.
-5. Run repository-native focused and regression tests, applicable type/lint/build
-   checks, public-seam acceptance, and material error/recovery/security checks. Record
-   `execute-checks` and `verify-public-seam` with commands and observed results.
+1. Read doctor, change, breadcrumb, decisions, task and dev evidence, current checkout,
+   and prior report freshness.
+2. Resume or start a test workflow bound to the exact change and optional task.
+3. Record `bind-scope`, then compile `change.context` for `check` and record its
+   immutable manifest under `compile-context`.
+4. Record `map-acceptance` after mapping every accepted claim to an executable check
+   or bounded observable seam.
 
-Use real boundaries where practical. A test double is acceptable at a costly or
-nondeterministic external boundary only when the report explains why it preserves the
-contract. Reject tautologies, hidden skips, weakened assertions, and unconsumed code.
-When evidence reveals an unresolved product decision, report the exact consequence and
-route it to the decision dialogue; testing must not silently select the desired result.
+## Select verification by risk
 
-## Report and converge
+The model selects from:
 
-Write `.ultra/reports/tests/<workflow-id>.json` atomically using
-`ultra-test-report-v1`: bind the full HEAD and worktree digest, change and exact task
-ids, the recorded checking-context digest, acceptance
-mapping, exact command results, public seams, failures, recovery evidence, run count,
-timestamp, and blocking issues. Populate every `verification_dimensions` entry:
-acceptance, regression, integration, static analysis, build, performance, security,
-and recovery. Use `not_applicable` only with a concrete rationale; `not_run` cannot
-support a passing gate. For an incident or any bugfix task, also record one
-deterministic `regression_signal` with the exact command, expected red symptom,
-observed red and green results, duration when known, and evidence. `passed` is true only when every recorded command and
-required public seam passes with no blocking issue at that exact checkout.
+- acceptance;
+- regression;
+- integration;
+- static analysis;
+- build;
+- performance;
+- security;
+- recovery.
 
-Record `write-report` with the report output so MCP stores its digest. Re-read the file,
-HEAD, task set, and breadcrumb; record `verify-test-gate`, then call
-`workflow.complete`. MCP derives the durable test summary from the report rather than
-trusting a Prompt claim. A malformed, mismatched, changed, or stale report blocks
-completion.
+Acceptance is always selected. Select other dimensions when the change, repository, or
+failure mode makes them material. Record excluded dimensions and concrete rationales in
+`verification_profile`; omission without a rationale is invalid. A selected dimension
+must be `pass`, `fail`, or `not_run`; `not_run` cannot support a passing gate.
 
-Return the workflow id, revision, pass/fail result, exact checks, verified seams,
-blocking failures, report path/digest, and one route to fix, `ultra-review`, or
-`ultra-deliver`. A failed implementation contract returns to `ultra-dev`; a new owner
-choice returns to `ultra-think`; a passing current change without current aggregate
-review routes to `ultra-review`.
+Run repository-native commands and real boundaries where practical. Test doubles are
+acceptable only at costly or nondeterministic external boundaries when the report
+explains the preserved contract. Do not weaken assertions, hide skips, or validate
+unconsumed code.
+
+For an incident or bugfix, record one deterministic red-to-green `regression_signal`.
+When evidence reveals a material product or recovery choice, use the host's native
+question UI and decision protocol; testing must not choose the desired outcome.
+
+## Report
+
+Write `.ultra/reports/tests/<workflow-id>.json` with
+`ultra-test-report-v1`, binding:
+
+- change, exact task ids, HEAD, worktree digest, and checking-context digest;
+- acceptance mapping, commands, public seams, failures, and recovery evidence;
+- `verification_profile` and the selected `verification_dimensions`;
+- regression signal when required;
+- run count, timestamp, blockers, and evidence-derived `passed`.
+
+Record `execute-checks`, `verify-public-seam`, and `write-report`, then re-read the
+report and current checkout before `verify-test-gate`. `workflow.complete` derives its
+summary from the report and rejects stale, malformed, or contradictory evidence.
+
+Return the profile, exact results, verified seams, blockers, report digest, workflow
+state, and allowed transitions. The host decides whether a broader review, more
+implementation, or delivery is appropriate.

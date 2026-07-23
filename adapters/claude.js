@@ -28,7 +28,7 @@ const PLUGIN_NAME = 'ultra-builder-pro';
 const MCP_SERVER_NAME = PLUGIN_NAME;
 const SOURCE_TAG = 'ubp';
 const SENTINEL_KEY = '_ubp_manifest';
-const COMMAND_NAMES = CORE_PUBLIC_SKILLS.filter((name) => name !== 'ultra-review');
+const COMMAND_NAMES = CORE_PUBLIC_SKILLS;
 const PROVENANCE_FILE = 'provenance.json';
 
 function resolveTarget(ctx = {}) {

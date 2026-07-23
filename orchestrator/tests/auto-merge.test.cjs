@@ -19,7 +19,9 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
+const baselines = require('../../mcp-server/lib/baseline-workflow.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
+const workflows = require('../../mcp-server/lib/workflow-state.cjs');
 const wtmgr = require('../worktree-manager.cjs');
 const autoMerge = require('../auto-merge.cjs');
 const runner = require('../session-runner.cjs');
@@ -32,7 +34,7 @@ function mkRepo() {
   fs.writeFileSync(path.join(dir, 'seed.md'), '# seed\n');
   // The DB and worktree dirs live under .ultra/ — keep them out of git so
   // `git status` in conflict tests isn't polluted by untracked test artifacts.
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
   return dir;
@@ -52,6 +54,42 @@ function commitInWorktree(wtPath, filename, content, msg = 'session change') {
     'commit', '-q', '-m', msg], { cwd: wtPath });
   return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: wtPath, stdio: ['ignore', 'pipe', 'pipe'] })
     .toString().trim();
+}
+
+function completeTask(db, taskId, completionCommit = null) {
+  ops.updateTaskStatus(db, taskId, 'in_progress');
+  if (completionCommit) ops.patchTask(db, taskId, { completion_commit: completionCommit });
+  ops.updateTaskStatus(db, taskId, 'completed');
+}
+
+function seedWorkflowState(db, {
+  id, kind, changeId, taskId, status, summary = {},
+}) {
+  const definition = workflows.WORKFLOW_DEFINITIONS[kind];
+  db.prepare(
+    `INSERT INTO workflow_runs
+       (id, kind, subject, definition_version, status, current_step,
+        change_id, task_id, summary_json, completed_at)
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    kind,
+    `${kind} fixture`,
+    workflows.DEFINITION_VERSION,
+    status,
+    changeId,
+    taskId,
+    JSON.stringify(summary),
+    status === 'completed' ? new Date().toISOString() : null,
+  );
+  const insertStep = db.prepare(
+    `INSERT INTO workflow_steps
+       (run_id, step_id, position, title, required, status, evidence_json)
+     VALUES (?, ?, ?, ?, 1, 'completed', '[]')`,
+  );
+  definition.forEach((step, position) => {
+    insertStep.run(id, step.id, position, step.title);
+  });
 }
 
 function cleanup(repoRoot, db) {
@@ -139,7 +177,137 @@ test('autoMerge: 2 slices on same file → first merges, second conflict + event
 
 // ─── closeSession integration ─────────────────────────────────────────────
 
-test('closeSession autoMerge=true + clean merge → worktree removed', () => {
+test('closeSession autoMerge=true preserves work before task convergence', () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    ops.createTask(db, { id: 'cs-not-ready', title: 'x', type: 'feature', priority: 'P2' });
+    const handle = runner.spawnSession({
+      db, repoRoot: repo,
+      task_id: 'cs-not-ready', runtime: 'claude',
+      command: process.execPath, args: ['-e', 'process.exit(0)'],
+    });
+    commitInWorktree(handle.worktree_path, 'not-ready.txt', 'hi\n');
+
+    const result = runner.closeSession(
+      { db, repoRoot: repo, sid: handle.sid },
+      { autoMerge: true, mergeBaseBranch: 'main' },
+    );
+    assert.equal(result.merge.merged, false);
+    assert.equal(result.merge.reason, 'task_not_completed');
+    assert.equal(result.worktree_preserved, true);
+    assert.equal(fs.existsSync(path.join(repo, 'not-ready.txt')), false);
+  } finally { cleanup(repo, db); }
+});
+
+test('closeSession does not auto-merge a change task with open dev workflow gates', () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+       VALUES ('merge-gated-change', 'Merge gated change', 'standard', 'active',
+               'Require workflow evidence before integration.',
+               '.ultra/changes/active/merge-gated-change')`,
+    ).run();
+    ops.createTask(db, {
+      id: 'cs-change-gated',
+      title: 'change-owned merge target',
+      type: 'feature',
+      priority: 'P1',
+      change_id: 'merge-gated-change',
+    });
+    const { worktree_path: worktreePath } = wtmgr.allocate({
+      repoRoot: repo, sid: 'cs-change-gated',
+    });
+    const completionCommit = commitInWorktree(worktreePath, 'gated.txt', 'gated\n');
+    completeTask(db, 'cs-change-gated', completionCommit);
+    ops.createSession(db, {
+      sid: 'sess-change-gated',
+      task_id: 'cs-change-gated',
+      runtime: 'codex',
+      worktree_path: worktreePath,
+      artifact_dir: path.join(repo, '.ultra', 'sessions', 'sess-change-gated'),
+    });
+
+    const result = runner.closeSession(
+      { db, repoRoot: repo, sid: 'sess-change-gated' },
+      { autoMerge: true, mergeBaseBranch: 'main' },
+    );
+    assert.equal(result.merge.merged, false);
+    assert.equal(result.merge.reason, 'workflow_gates_open');
+    assert.equal(result.merge.blocker, 'DEV_WORKFLOW_NOT_READY');
+    assert.equal(result.worktree_preserved, true);
+    assert.equal(fs.existsSync(path.join(repo, 'gated.txt')), false);
+  } finally { cleanup(repo, db); }
+});
+
+test('closeSession auto-merges a change task only after current dev and review evidence', () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+       VALUES ('merge-ready-change', 'Merge ready change', 'standard', 'active',
+               'Integrate only current reviewed work.',
+               '.ultra/changes/active/merge-ready-change')`,
+    ).run();
+    ops.createTask(db, {
+      id: 'cs-change-ready',
+      title: 'reviewed merge target',
+      type: 'feature',
+      priority: 'P1',
+      change_id: 'merge-ready-change',
+    });
+    const { worktree_path: worktreePath } = wtmgr.allocate({
+      repoRoot: repo, sid: 'cs-change-ready',
+    });
+    const completionCommit = commitInWorktree(worktreePath, 'ready.txt', 'ready\n');
+    completeTask(db, 'cs-change-ready', completionCommit);
+    const snapshot = baselines.gitWorktreeSnapshot(worktreePath, ['.']);
+    seedWorkflowState(db, {
+      id: 'dev-change-ready',
+      kind: 'dev',
+      changeId: 'merge-ready-change',
+      taskId: 'cs-change-ready',
+      status: 'ready',
+    });
+    seedWorkflowState(db, {
+      id: 'review-change-ready',
+      kind: 'review',
+      changeId: 'merge-ready-change',
+      taskId: 'cs-change-ready',
+      status: 'completed',
+      summary: {
+        mode: 'task',
+        verdict: 'APPROVE',
+        axes: {
+          spec_fidelity: { verdict: 'PASS' },
+          engineering_standards: { verdict: 'PASS' },
+        },
+        git_commit: snapshot.head,
+        worktree_digest: snapshot.digest,
+      },
+    });
+    ops.createSession(db, {
+      sid: 'sess-change-ready',
+      task_id: 'cs-change-ready',
+      runtime: 'codex',
+      worktree_path: worktreePath,
+      artifact_dir: path.join(repo, '.ultra', 'sessions', 'sess-change-ready'),
+    });
+
+    const result = runner.closeSession(
+      { db, repoRoot: repo, sid: 'sess-change-ready' },
+      { autoMerge: true, mergeBaseBranch: 'main' },
+    );
+    assert.equal(result.merge.merged, true);
+    assert.equal(result.worktree_preserved, false);
+    assert.equal(fs.readFileSync(path.join(repo, 'ready.txt'), 'utf8'), 'ready\n');
+  } finally { cleanup(repo, db); }
+});
+
+test('closeSession autoMerge=true + completed task + clean merge → worktree removed', () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
@@ -150,7 +318,8 @@ test('closeSession autoMerge=true + clean merge → worktree removed', () => {
       command: process.execPath, args: ['-e', 'process.exit(0)'],
     });
     // Simulate agent commit inside worktree
-    commitInWorktree(handle.worktree_path, 'new.txt', 'hi\n');
+    const completionCommit = commitInWorktree(handle.worktree_path, 'new.txt', 'hi\n');
+    completeTask(db, 'cs-clean', completionCommit);
     // Wait for child to exit so closeSession can kill cleanly (it already did)
     if (handle.process) { try { handle.process.kill('SIGTERM'); } catch (_) { /* noop */ } }
 
@@ -163,7 +332,7 @@ test('closeSession autoMerge=true + clean merge → worktree removed', () => {
   } finally { cleanup(repo, db); }
 });
 
-test('closeSession autoMerge=true + conflict → worktree kept', () => {
+test('closeSession autoMerge=true + completed task + conflict → worktree kept', () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
@@ -180,7 +349,12 @@ test('closeSession autoMerge=true + conflict → worktree kept', () => {
     execFileSync('git', ['add', '-A'], { cwd: repo });
     execFileSync('git', ['commit', '-q', '-m', 'main change'], { cwd: repo });
     // Session worktree forks off seed and writes its own version of the same file.
-    commitInWorktree(handle.worktree_path, 'shared.txt', 'session-version\n');
+    const completionCommit = commitInWorktree(
+      handle.worktree_path,
+      'shared.txt',
+      'session-version\n',
+    );
+    completeTask(db, 'cs-cflict', completionCommit);
 
     const result = runner.closeSession(
       { db, repoRoot: repo, sid: handle.sid },
@@ -192,7 +366,7 @@ test('closeSession autoMerge=true + conflict → worktree kept', () => {
   } finally { cleanup(repo, db); }
 });
 
-test('closeSession autoMerge=false (default) → no merge, legacy behavior', () => {
+test('closeSession autoMerge=false preserves committed but unintegrated work', () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
@@ -209,8 +383,35 @@ test('closeSession autoMerge=false (default) → no merge, legacy behavior', () 
       {}, // autoMerge not set
     );
     assert.equal(result.merge, undefined, 'no merge when opt-in disabled');
-    assert.equal(fs.existsSync(handle.worktree_path), false, 'worktree removed normally');
+    assert.equal(result.worktree_preserved, true);
+    assert.equal(fs.existsSync(handle.worktree_path), true, 'unintegrated worktree must remain recoverable');
     // main must still be at seed (no merge happened)
     assert.equal(fs.existsSync(path.join(repo, 'n.txt')), false);
+  } finally { cleanup(repo, db); }
+});
+
+test('closeSession autoMerge=true preserves uncommitted changes instead of reporting no changes', () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    ops.createTask(db, { id: 'cs-dirty', title: 'x', type: 'feature', priority: 'P2' });
+    const handle = runner.spawnSession({
+      db, repoRoot: repo,
+      task_id: 'cs-dirty', runtime: 'claude',
+      command: process.execPath, args: ['-e', 'process.exit(0)'],
+    });
+    fs.writeFileSync(path.join(handle.worktree_path, 'dirty.txt'), 'uncommitted\n');
+    completeTask(db, 'cs-dirty');
+
+    const result = runner.closeSession(
+      { db, repoRoot: repo, sid: handle.sid },
+      { autoMerge: true, mergeBaseBranch: 'main' },
+    );
+
+    assert.equal(result.merge.merged, false);
+    assert.equal(result.merge.reason, 'uncommitted_changes');
+    assert.equal(result.worktree_preserved, true);
+    assert.ok(fs.existsSync(handle.worktree_path));
+    assert.equal(fs.existsSync(path.join(repo, 'dirty.txt')), false);
   } finally { cleanup(repo, db); }
 });

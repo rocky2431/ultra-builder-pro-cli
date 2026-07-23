@@ -102,6 +102,66 @@ test('task execution contract is durable, structured, and reports missing planni
   }
 });
 
+test('a stale task requires a complete contract rebind and records Change authority provenance', () => {
+  const { dir, db } = freshDb();
+  try {
+    seedChange(db, 'reconcile-change');
+    ops.createTask(db, {
+      id: 'reconcile-task',
+      title: 'reconcile execution contract',
+      type: 'feature',
+      priority: 'P1',
+      change_id: 'reconcile-change',
+      deps: [],
+      files_modified: ['src/reconcile.js'],
+      outcome: 'The reconciled behavior remains observable.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'CLI reconcile output',
+      verification_command: 'npm test -- reconcile',
+      acceptance: [{
+        id: 'reconciled',
+        criterion: 'The current Change intent is implemented.',
+        verification: 'npm test -- reconcile',
+      }],
+      context_refs: [{ ref: 'src/reconcile.js', reason: 'Live behavior.', required: true }],
+      docs_impact: { status: 'none', files: [], rationale: 'No public documentation change.' },
+      ownership: { owner: 'runtime-maintainer', reviewers: [] },
+      trace_to: '.ultra/specs/product.md#reconciled',
+    });
+    ops.patchTask(db, 'reconcile-task', { stale: true });
+    assert.throws(
+      () => ops.patchTask(db, 'reconcile-task', { stale: false }),
+      (error) => error.code === 'TASK_STALE_RECONCILIATION_REQUIRED'
+        && error.details.missing_fields.includes('outcome'),
+    );
+
+    const current = ops.readTask(db, 'reconcile-task');
+    const reconciled = ops.patchTask(db, current.id, {
+      stale: false,
+      deps: current.deps,
+      files_modified: current.files_modified,
+      trace_to: current.trace_to,
+      outcome: current.outcome,
+      slice_kind: current.slice_kind,
+      public_seam: current.public_seam,
+      verification_command: current.verification_command,
+      acceptance: current.acceptance,
+      context_refs: current.context_refs,
+      docs_impact: current.docs_impact,
+      ownership: current.ownership,
+    });
+    assert.equal(reconciled.stale, false);
+    const events = ops.subscribeEventsSince(db, { since_id: 0 }).events;
+    const event = events.find((item) => item.type === 'task_contract_reconciled');
+    assert.equal(event.task_id, current.id);
+    assert.match(event.payload.change_authority_digest, /^[0-9a-f]{64}$/);
+    assert.ok(event.payload.fields.includes('verification_command'));
+  } finally {
+    closeStateDb(db);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('createTask rejects duplicates with DUPLICATE_TASK_ID', () => {
   const { dir, db } = freshDb();
   try {
@@ -257,7 +317,7 @@ test('patchTask updates JSON arrays + flags + status atomically', () => {
     assert.equal(out.status, 'in_progress');
 
     const types = db.prepare('SELECT type FROM events ORDER BY id').all().map((r) => r.type);
-    assert.deepEqual(types, ['task_created', 'task_started']);
+    assert.deepEqual(types, ['task_created', 'task_started', 'task_contract_updated']);
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

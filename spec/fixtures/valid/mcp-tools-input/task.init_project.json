@@ -4,6 +4,7 @@
     "project_name": "demo",
     "project_type": "cli",
     "stack": "node",
+    "git_mode": "auto",
     "overwrite": false
   },
   {
@@ -11,6 +12,7 @@
     "project_name": "fs-app",
     "project_type": "fullstack",
     "stack": "next,postgres",
+    "git_mode": "initialize",
     "scope": ["apps/web", "apps/api"],
     "overwrite": true
   },

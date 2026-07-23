@@ -8,7 +8,7 @@ specifications' prose.
 - Baseline or change id:
 - Research workflow id and mode:
 - Repository revision:
-- Completed step set:
+- Coverage dispositions and selected evidence work:
 
 ## Observed
 
@@ -24,7 +24,7 @@ specifications' prose.
 
 ## Unknowns
 
-| Unknown or gap id | Blocking | Owner or next action |
+| Unknown or gap id | Blocking | Owner and revisit condition |
 |---|---|---|
 | | | |
 
@@ -45,4 +45,5 @@ specifications' prose.
 - Accepted scope and posture:
 - Required references:
 - Blocking gaps:
-- Exact next route:
+- Allowed transitions:
+- Host recommendation and rationale:

@@ -17,6 +17,7 @@ FLAGS (init-project):
   --project-type <type>     web | api | cli | fullstack | other
   --stack <stack>           tech stack descriptor (comma-separated ok)
   --mode <mode>             auto | greenfield | brownfield (default: auto)
+  --git-mode <mode>         auto | initialize | skip (default: auto)
   --scope <path>            baseline scope; repeat for multiple paths (default: .)
   --resume                  preserve existing .ultra/ and install only missing assets
   --overwrite               replace existing .ultra/ (backup created)
@@ -38,6 +39,7 @@ function parseInitFlags(args) {
       case '--project-type':     flags.project_type     = args[++i]; break;
       case '--stack':            flags.stack            = args[++i]; break;
       case '--mode':             flags.mode             = args[++i]; break;
+      case '--git-mode':         flags.git_mode         = args[++i]; break;
       case '--scope':            flags.scope.push(args[++i]); break;
       case '--resume':           flags.resume            = true; break;
       case '--source-template':  flags.source_template  = args[++i]; break;
@@ -66,6 +68,7 @@ function dispatchInitProject(rawArgs) {
     project_type: flags.project_type,
     stack: flags.stack,
     mode: flags.mode || 'auto',
+    git_mode: flags.git_mode || 'auto',
     scope: flags.scope.length > 0 ? flags.scope : undefined,
     resume: !!flags.resume,
     overwrite: !!flags.overwrite,

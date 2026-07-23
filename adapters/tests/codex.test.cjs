@@ -247,6 +247,7 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
       'spec/mcp-tools.yaml',
       'spec/upstream-mcp-tools.yaml',
       'spec/codex-capability-map.json',
+      'spec/interaction-contract.json',
       'spec/schemas/state-db.sql',
       'templates/.ultra/tasks/tasks.json',
     ]) {
@@ -256,13 +257,17 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const liveSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
     const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
     const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
+    const interaction = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'interaction-contract.json'), 'utf8'));
     assert.equal(liveSpec.tools.length, 50);
     assert.equal(upstreamSpec.tools.length, 50);
     assert.deepEqual(upstreamSpec.tools.map((tool) => tool.name).sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);
     assert.equal(capabilityMap.codex_native_replacements['review.run'].surface, 'native_custom_agents');
-    assert.equal(capabilityMap.codex_native_replacements['ask.question'].surface, 'direct_user_interaction');
+    assert.equal(capabilityMap.codex_native_replacements['ask.question'].surface, 'request_user_input');
+    assert.equal(interaction.runtime, 'codex');
+    assert.equal(interaction.interaction.question_surface.primary, 'request_user_input');
+    assert.equal(interaction.routing.durable_recommendation_authority, false);
   } finally {
     cleanup(layout);
   }

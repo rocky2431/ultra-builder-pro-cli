@@ -87,7 +87,7 @@ test('initStateDb is idempotent — second call does not duplicate seed rows', (
   }
 });
 
-test('schema 13 upgrades through 16 without demoting an established ready baseline', () => {
+test('schema 13 upgrades through the current authority without demoting an established ready baseline', () => {
   const { dir, file } = tmpDbPath('ubp-schema-13-upgrade');
   try {
     const initial = initStateDb(file);
@@ -97,7 +97,7 @@ test('schema 13 upgrades through 16 without demoting an established ready baseli
        VALUES ('ready-13', 'fixture', 'greenfield', 'ready', 'owner',
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0')").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0')").run();
     initial.db.exec('ALTER TABLE baselines DROP COLUMN known_red_accepted');
     closeStateDb(initial.db);
 
@@ -132,12 +132,12 @@ test('schema 15 adds decision dialogue authority without forcing baseline re-ado
        VALUES ('ready-15', 'fixture', 'greenfield', 'ready', 'owner',
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version = '16.0'").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0')").run();
     initial.db.exec('DROP TABLE decision_items; DROP TABLE decision_threads');
     closeStateDb(initial.db);
 
     const upgraded = initStateDb(file);
-    assert.equal(upgraded.schema_version, '16.0');
+    assert.equal(upgraded.schema_version, EXPECTED_VERSION);
     assert.ok(upgraded.backup_path);
     assert.deepEqual(
       upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'ready-15'").get(),
@@ -149,6 +149,178 @@ test('schema 15 adds decision dialogue authority without forcing baseline re-ado
       "SELECT notes FROM migration_history WHERE to_version = '16.0' ORDER BY id DESC LIMIT 1",
     ).get();
     assert.match(migration.notes, /decision dialogue|checkpoint/i);
+    closeStateDb(upgraded.db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('schema 17 adds the unborn Git baseline state without losing established authority', () => {
+  const { dir, file } = tmpDbPath('ubp-schema-16-git-upgrade');
+  try {
+    const initial = initStateDb(file);
+    initial.db.prepare(
+      `INSERT INTO baselines
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('ready-16', 'fixture', 'greenfield', 'ready', 'owner',
+               'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
+    ).run();
+    // Reproduce the exact v16 table constraint. Editing sqlite_schema is
+    // restricted to this disposable fixture and is validated on reopen.
+    initial.db.unsafeMode(true);
+    initial.db.pragma('writable_schema = ON');
+    const baselineSql = initial.db.prepare(
+      "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'baselines'",
+    ).get().sql;
+    initial.db.prepare(
+      "UPDATE sqlite_schema SET sql = ? WHERE type = 'table' AND name = 'baselines'",
+    ).run(baselineSql.replace(", 'unborn'", ''));
+    initial.db.pragma('writable_schema = OFF');
+    initial.db.unsafeMode(false);
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('17.0', '18.0')").run();
+    closeStateDb(initial.db);
+
+    const legacy = openStateDb(file);
+    assert.equal(
+      legacy.prepare(
+        "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'baselines'",
+      ).get().sql.includes("'unborn'"),
+      false,
+    );
+    assert.throws(
+      () => legacy.prepare(
+        "UPDATE baselines SET worktree_state = 'unborn' WHERE id = 'ready-16'",
+      ).run(),
+      /CHECK constraint failed/,
+    );
+    closeStateDb(legacy);
+
+    const upgraded = initStateDb(file);
+    assert.equal(upgraded.schema_version, EXPECTED_VERSION);
+    assert.ok(upgraded.backup_path);
+    assert.deepEqual(
+      upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'ready-16'").get(),
+      { mode: 'greenfield', status: 'ready' },
+    );
+    assert.doesNotThrow(() => {
+      upgraded.db.prepare(
+        "UPDATE baselines SET worktree_state = 'unborn' WHERE id = 'ready-16'",
+      ).run();
+    });
+    const migration = upgraded.db.prepare(
+      "SELECT notes FROM migration_history WHERE to_version = '17.0' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.match(migration.notes, /unborn Git|checkpoint/i);
+    closeStateDb(upgraded.db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('schema 18 migrates active rigid workflows into recoverable adaptive capability state', () => {
+  const { dir, file } = tmpDbPath('ubp-schema-17-adaptive-upgrade');
+  try {
+    const initial = initStateDb(file);
+    initial.db.prepare(
+      `INSERT INTO baselines (id, project_name, mode, status)
+       VALUES ('adaptive-baseline', 'fixture', 'greenfield', 'draft')`,
+    ).run();
+    initial.db.prepare(
+      `INSERT INTO changes
+       (id, title, kind, status, intent, contract_json, classification_json,
+        research_disposition_json, artifact_root)
+       VALUES ('adaptive-change', 'Adaptive migration', 'standard', 'active',
+               'Preserve accepted change intent while removing rigid routing.',
+               '{"outcome":"preserve intent","acceptance":[{"id":"a1","criterion":"state survives","verification":"read state"}],"non_goals":["release"],"public_seams":["state.db"],"recovery":{"strategy":"restore backup","verification":"reopen database"},"unresolved_decisions":[]}',
+               '{"rationale":"standard state migration","risk_flags":[]}',
+               '{"status":"none","mode":null,"selected_steps":[],"rationale":"no semantic gap"}',
+               '.ultra/changes/active/adaptive-change')`,
+    ).run();
+    const insertRun = initial.db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, definition_version, status, baseline_id, change_id, current_step)
+       VALUES (?, ?, ?, '1.1', 'active', 'adaptive-baseline', ?, ?)`,
+    );
+    insertRun.run('legacy-init', 'init', 'Legacy initialization.', null, 'establish-baseline');
+    insertRun.run('legacy-change', 'change', 'Legacy change capture.', 'adaptive-change', 'plan-change');
+    insertRun.run('legacy-plan', 'plan', 'Legacy plan.', 'adaptive-change', 'approve-plan');
+    insertRun.run('legacy-deliver', 'deliver', 'Legacy delivery.', 'adaptive-change', 'release-if-authorized');
+    const insertStep = initial.db.prepare(
+      `INSERT INTO workflow_steps
+       (run_id, step_id, position, title, required, status, evidence_json,
+        outputs_json, decisions_json, blockers_json)
+       VALUES (?, ?, ?, ?, 1, ?, '[]', '[]', '[]', '[]')`,
+    );
+    for (const [position, stepId] of [
+      [0, 'inspect-authority'], [1, 'classify-repository'], [2, 'scaffold-authority'],
+    ]) insertStep.run('legacy-init', stepId, position, stepId, 'completed');
+    insertStep.run('legacy-init', 'establish-baseline', 3, 'establish-baseline', 'pending');
+    insertStep.run('legacy-init', 'verify-initialization', 4, 'verify-initialization', 'pending');
+    for (const [position, stepId] of [
+      [0, 'bind-baseline'], [1, 'classify-change'], [2, 'record-intent'],
+    ]) insertStep.run('legacy-change', stepId, position, stepId, 'completed');
+    for (const [position, stepId] of [
+      [3, 'plan-change'], [4, 'compile-context'], [5, 'verify-readiness'],
+    ]) insertStep.run('legacy-change', stepId, position, stepId, 'pending');
+    insertStep.run('legacy-plan', 'approve-plan', 6, 'approve-plan', 'pending');
+    insertStep.run('legacy-deliver', 'release-if-authorized', 5, 'release-if-authorized', 'pending');
+    initial.db.prepare(
+      `INSERT INTO context_snapshots
+       (id, change_id, manifest_path, manifest_hash, next_action)
+       VALUES ('legacy-context', 'adaptive-change', '.ultra/context.json', 'legacy-hash',
+               'Run a model-selected workflow.')`,
+    ).run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version = '18.0'").run();
+    initial.db.prepare("DELETE FROM migration_history WHERE to_version = '18.0'").run();
+    closeStateDb(initial.db);
+
+    const upgraded = initStateDb(file);
+    assert.equal(upgraded.schema_version, '18.0');
+    assert.ok(upgraded.backup_path);
+    const contextColumns = new Set(
+      upgraded.db.prepare('PRAGMA table_info(context_snapshots)').all().map((row) => row.name),
+    );
+    assert.ok(contextColumns.has('allowed_transitions_json'));
+    assert.ok(contextColumns.has('required_transition'));
+    assert.deepEqual(
+      upgraded.db.prepare(
+        "SELECT status, current_step, definition_version FROM workflow_runs WHERE id = 'legacy-init'",
+      ).get(),
+      { status: 'completed', current_step: null, definition_version: '2.0' },
+    );
+    assert.deepEqual(
+      upgraded.db.prepare(
+        "SELECT status, current_step, definition_version FROM workflow_runs WHERE id = 'legacy-change'",
+      ).get(),
+      { status: 'completed', current_step: null, definition_version: '2.0' },
+    );
+    for (const [runId, stepId] of [
+      ['legacy-init', 'establish-baseline'],
+      ['legacy-change', 'plan-change'],
+      ['legacy-change', 'compile-context'],
+      ['legacy-change', 'verify-readiness'],
+      ['legacy-plan', 'approve-plan'],
+      ['legacy-deliver', 'release-if-authorized'],
+    ]) {
+      assert.deepEqual(
+        upgraded.db.prepare(
+          'SELECT required, status FROM workflow_steps WHERE run_id = ? AND step_id = ?',
+        ).get(runId, stepId),
+        { required: 0, status: 'skipped' },
+      );
+    }
+    const migratedContext = upgraded.db.prepare(
+      `SELECT allowed_transitions_json, required_transition
+       FROM context_snapshots WHERE id = 'legacy-context'`,
+    ).get();
+    assert.deepEqual(JSON.parse(migratedContext.allowed_transitions_json), []);
+    assert.equal(migratedContext.required_transition, null);
+    assert.match(
+      upgraded.db.prepare(
+        "SELECT notes FROM migration_history WHERE to_version = '18.0' ORDER BY id DESC LIMIT 1",
+      ).get().notes,
+      /adaptive|capability|transition/i,
+    );
     closeStateDb(upgraded.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -342,7 +514,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const legacy = openStateDb(file);
     const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
     legacy.exec(legacySchema);
-    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0')").run();
+    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0')").run();
     legacy.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
     ).run();
@@ -373,7 +545,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM incidents WHERE session_id = 'session-old'").get().n, 1);
     assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
     const migrations = upgraded.db.prepare(
-      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0') ORDER BY id",
+      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0') ORDER BY id",
     ).all();
     assert.ok(migrations.some((row) => row.to_version === '9.1' && /Kimi/.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '10.0' && /Context Spine/.test(row.notes)));
@@ -382,6 +554,8 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     assert.ok(migrations.some((row) => row.to_version === '13.0' && /workflow runs/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '14.0' && /known-red|revalidate/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '16.0' && /decision dialogue|checkpoint/i.test(row.notes)));
+    assert.ok(migrations.some((row) => row.to_version === '17.0' && /unborn Git|checkpoint/i.test(row.notes)));
+    assert.ok(migrations.some((row) => row.to_version === '18.0' && /adaptive|capability/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '15.0' && /typed research|reconciliation/i.test(row.notes)));
     assert.deepEqual(
       upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'migrated-baseline'").get(),

@@ -1,64 +1,54 @@
 ---
 name: ultra-status
-description: Report authoritative Ultra project health, baseline, workflow position, task/session progress, evidence freshness, blockers, and one deterministic next action. Use when the user asks what is complete, blocked, stale, or next in an Ultra project.
+description: Read authoritative Ultra health, workflows, decisions, changes, tasks, evidence freshness, and valid transitions. Use when the user asks what is complete, blocked, stale, or currently possible.
 ---
 
-# Route from authoritative state
+# Report authoritative state
 
-This workflow is read-only. Never reconstruct status from prose or generated task
-projections.
+This Skill is read-only. Never fall back to generated task JSON, prose, or context
+frontmatter when DB authority is missing or degraded.
 
-## Read order
+## Read
 
-1. Call `system.doctor` with repair disabled.
-2. Call `baseline.get` for classification, readiness, revision, worktree, spec digests,
-   research provenance, gaps, and blockers.
-3. Call `decision.list`, then `decision.get` for the current active or checkpoint-ready
-   thread. Expose only its current question or checkpoint, not the hidden history.
-4. Call `workflow.list`, then `workflow.get` for every active, blocked, or ready run.
-5. Call `change.breadcrumb`, `change.list`, `task.list`, and `session.list`.
-6. Inspect current Git branch, full HEAD, and worktree without mutation.
-7. Read test, review, and delivery artifacts only when referenced by DB workflow state;
-   compare their recorded digest and revision with current authority.
+1. Run `system.doctor` without repair.
+2. Read baseline classification, revision, worktree, research provenance, gaps, and
+   health.
+3. Read current decision state without exposing hidden future questions.
+4. Read active, blocked, and ready workflows and their current steps.
+5. Read breadcrumb, changes, tasks, sessions, and current Git state.
+6. Read test, review, and delivery artifacts only through DB references and verify
+   their digests and revisions.
 
-If state is unreadable, report that panel unavailable and route to `ultra-doctor`.
-Never fall back to generated task JSON, raw SQLite queries, or context frontmatter.
+If authority is unreadable, report the unavailable panel and the required doctor or
+init transition. Do not mutate, compile context, repair, or release.
 
-## Choose one route
+## Interpret transitions
 
-Prefer the breadcrumb and durable workflow position:
+MCP reports:
 
-- state integrity, schema, projection, or installed-asset failure: `ultra-doctor`;
-- open decision or checkpoint: `ultra-think` with its exact decision id;
-- missing project or migrated compatibility authority: `ultra-init`;
-- active/blocked research: `ultra-research` at its exact `current_step`;
-- ready research with unconverged baseline: finalize research, record, approve, and
-  converge through `ultra-research`;
-- active plan/change/dev/test/review/deliver run: its matching workflow at the exact
-  step or blocker;
-- ready baseline with no change: `ultra-change` to persist the requested outcome before
-  any planning;
-- archived change with fresh evidence: report completion without inventing more work.
+- `allowed_transitions`: mechanically valid capabilities;
+- `required_transition`: the sole recovery route only when a hard invariant permits no
+  safe alternative.
 
-Context-size warnings are advisory. Missing authority, stale required refs or outputs,
-incomplete task contracts, failed evidence, unresolved learning, and missing approval
-are blockers.
-
-## Output
+The host model recommends among allowed transitions using the user's current goal,
+workflow evidence, and cost of interruption. Do not present the recommendation as DB
+authority. A healthy project may validly allow research, change, thinking, or status at
+the same time.
 
 Report:
 
 ```text
-Ultra: <healthy|degraded> · <branch>@<head> · worktree <clean|dirty>
+Ultra: <healthy|degraded> · <branch>@<head|unborn|non-git> · worktree <state>
 Baseline: <mode>/<status> · research=<run/status> · gaps=<open>/<blocking>
-Workflow: <kind/id/status> · step=<current|finalize> · outputs=<fresh|stale>
-Decision: <id/phase|checkpoint|none> · thread=<id/status>
+Workflow: <kind/id/status> · step=<current|complete> · outputs=<fresh|stale>
+Decision: <current|checkpoint|none>
 Change: <id/status|none> · Task: <id/status|none> · Sessions: <active>
-Evidence: test=<state> · review=<two axes> · delivery=<state>
-Blockers: <specific codes or none>
-Warnings: <advisory codes or none>
-Next: <one exact action>
+Evidence: test=<state> · review=<axes> · delivery=<state>
+Blockers: <codes or none>
+Warnings: <codes or none>
+Allowed transitions: <capabilities>
+Required transition: <capability or none>
+Host recommendation: <capability and concise rationale>
 ```
 
-Separate verified facts, inferences, and unavailable evidence. Do not modify state,
-compile context, repair, or release from this Skill.
+Separate verified facts, host inference, and unavailable evidence.

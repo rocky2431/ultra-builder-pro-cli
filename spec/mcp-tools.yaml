@@ -168,9 +168,10 @@ tools:
       - { code: CHANGE_NOT_MUTABLE, description: 'assigned change no longer accepts task updates' }
       - { code: TASK_CHANGE_OWNERSHIP_MISMATCH, description: 'task ownership conflicts with its parent or children' }
       - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'task is not executable until its outcome, seam, checks, evidence context, docs impact, ownership, and traceability are complete' }
+      - { code: TASK_STALE_RECONCILIATION_REQUIRED, description: 'stale can clear only while rebinding and validating the complete task execution contract' }
       - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'non-empty v4.4 projection must be migrated before state-backed tools can run' }
     cli_subcommand: task update
-    emits_events: [task_started, task_completed, task_blocked, task_stale_marked]
+    emits_events: [task_started, task_completed, task_blocked, task_stale_marked, task_contract_updated, task_contract_reconciled]
     trace_to: '§7.3, §7.2'
 
   - name: task.list
@@ -281,9 +282,9 @@ tools:
   - name: task.init_project
     family: task
     description: |
-      Bootstrap `.ultra/` and start an authoritative greenfield or brownfield
-      baseline. Auto mode detects meaningful existing project content before
-      copying specification templates and creating state.db.
+      Bootstrap `.ultra/`, classify the repository, initialize or preserve local
+      Git authority, and complete the initialization workflow. It creates no
+      research run; research begins only through an explicit workflow.start.
     phase: '3'
     writer_role: mcp
     input_schema:
@@ -309,6 +310,11 @@ tools:
           enum: [auto, greenfield, brownfield]
           default: auto
           description: auto detects whether meaningful project content already exists
+        git_mode:
+          type: string
+          enum: [auto, initialize, skip]
+          default: auto
+          description: preserve an existing repository, initialize a missing local repository by default, or explicitly keep a non-Git workspace
         resume:
           type: boolean
           default: false
@@ -329,7 +335,7 @@ tools:
           description: override path to the template root (defaults to bundled templates/.ultra/)
     output_schema:
       type: object
-      required: [created_path, state_db_path, status, mode, baseline, copied_files, repository_profile, workflow]
+      required: [created_path, state_db_path, status, mode, baseline, copied_files, repository_profile, git, workflow]
       additionalProperties: false
       properties:
         created_path:
@@ -355,9 +361,22 @@ tools:
         repository_profile:
           type: object
           description: bounded classification evidence used to route greenfield or brownfield adoption
+        git:
+          type: object
+          required: [requested_mode, status, repository_root, branch, head, gitignore_path, gitignore_changed, initial_commit_required]
+          additionalProperties: false
+          properties:
+            requested_mode: { type: string, enum: [auto, initialize, skip] }
+            status: { type: string, enum: [initialized, existing, skipped] }
+            repository_root: { type: ['string', 'null'] }
+            branch: { type: ['string', 'null'] }
+            head: { type: ['string', 'null'] }
+            gitignore_path: { type: ['string', 'null'] }
+            gitignore_changed: { type: boolean }
+            initial_commit_required: { type: boolean }
         workflow:
           type: object
-          description: durable initialization and research run ids, states, mode, and exact next route
+          description: completed initialization provenance, research status, and the allowed or required transitions
         backup_path:
           type: string
           description: set only when status=overwritten
@@ -372,6 +391,9 @@ tools:
       - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'projection-only tasks must be imported before resume' }
       - { code: STATE_AUTHORITY_CONFLICT, description: 'projection tasks and authoritative state cannot be reconciled automatically' }
       - { code: STATE_PROJECTION_INVALID, description: 'the existing task projection is malformed' }
+      - { code: GIT_INIT_FAILED, description: 'the local Git repository or Ultra ignore rule could not be initialized' }
+      - { code: GITIGNORE_UNSAFE, description: 'root .gitignore is a symlink or non-file and cannot be updated safely' }
+      - { code: GITIGNORE_INEFFECTIVE, description: 'the effective Git rules still expose the `.ultra` authority' }
       - { code: IO_ERROR,          description: 'filesystem write failed', retriable: true }
     cli_subcommand: task init-project
     emits_events: [project_initialized, project_resumed]
@@ -423,7 +445,7 @@ tools:
 
   - name: task.parse_prd
     family: task
-    description: Validate a host-derived PRD task graph and optionally persist it after the Ultra planning approval gate.
+    description: Validate a host-derived PRD task graph and optionally persist it inside the current plan workflow.
     phase: '8a'
     writer_role: mcp
     input_schema:
@@ -448,7 +470,7 @@ tools:
               files_modified: { type: array, items: { type: string } }
         tag:      { type: string }
         change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$', description: 'continuous change unit that will own every persisted parsed task' }
-        dry_run:  { type: boolean, default: false, description: 'when true, do not persist to state.db — used by ultra-plan gate to preview before approve' }
+        dry_run:  { type: boolean, default: false, description: 'when true, validate and preview without persisting to state.db' }
     output_schema:
       type: object
       required: [tasks, topo]
@@ -564,7 +586,7 @@ tools:
   # ────────────────────────── session family ──────────────────────────────
   - name: session.spawn
     family: session
-    description: Register execution-session intent, lease, and proposed worktree/artifact paths. The orchestrator creates the process and worktree after this admission step.
+    description: Admit a plan-authorized execution session, create its isolated Git worktree and artifact directory, and register the lease. Change-owned tasks must retain their complete accepted contract, current completed plan, dependency readiness, and non-stale executable status. The current host launches its bounded worker inside the returned worktree.
     phase: '4.5'
     writer_role: mcp
     input_schema:
@@ -575,26 +597,43 @@ tools:
         task_id:  { type: string }
         runtime:  { type: string, enum: [claude, opencode, codex, kimi] }
         takeover: { type: boolean, default: false, description: 'override active lease (D33 takeover strategy)' }
-        worktree_base: { type: string }
+        worktree_base:
+          type: string
+          description: optional path resolving inside the repository `.ultra/worktrees` boundary; outside paths are rejected
     output_schema:
       type: object
-      required: [sid, worktree_path, artifact_dir, lease_expires_at]
+      required: [sid, worktree_path, artifact_dir, lease_expires_at, worktree_created]
       additionalProperties: false
       properties:
         sid:               { type: string }
         worktree_path:     { type: string }
         artifact_dir:      { type: string }
         lease_expires_at:  { type: string, format: date-time }
+        worktree_created:  { type: boolean }
     errors:
       - { code: TASK_NOT_FOUND, description: 'task id missing' }
       - { code: ADMISSION_DENIED, description: 'active lease exists; choose takeover/resume/abandon' }
+      - { code: NESTED_SESSION_FORBIDDEN, description: 'an active worker must resume its assigned session instead of recursively spawning another one' }
+      - { code: TAKEOVER_FAILED, description: 'prior owned worker could not be terminated safely' }
+      - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'change-owned task contract is incomplete' }
+      - { code: WORKFLOW_TASK_NOT_EXECUTABLE, description: 'task status or staleness blocks execution' }
+      - { code: TASK_DEPENDENCIES_INCOMPLETE, description: 'one or more task dependencies have not converged' }
+      - { code: WORKFLOW_PLAN_NOT_COMPLETED, description: 'owning change has no healthy completed plan workflow' }
+      - { code: WORKFLOW_PLAN_TASK_SET_STALE, description: 'change task set differs from the current converged plan' }
+      - { code: WORKFLOW_PLAN_TASK_CONTRACT_STALE, description: 'task contract differs from the current converged plan' }
+      - { code: WORKTREE_SCOPE_INVALID, description: 'requested worktree base escapes the managed project boundary' }
+      - { code: WORKTREE_FAILED, description: 'Git worktree creation failed or the repository has no usable HEAD' }
+      - { code: WORKTREE_AUTHORITY_MISSING, description: 'central `.ultra/state.db` disappeared before worktree binding' }
+      - { code: WORKTREE_AUTHORITY_NOT_IGNORED, description: 'a safe local ignore rule for the `.ultra` authority link could not be established' }
+      - { code: WORKTREE_AUTHORITY_CONFLICT, description: 'the isolated checkout already contains a conflicting `.ultra` entry' }
+      - { code: WORKTREE_AUTHORITY_LINK_FAILED, description: 'the isolated checkout could not be linked to central Ultra authority' }
     cli_subcommand: session spawn
     emits_events: [session_spawned]
     trace_to: '§7.3, D20, D33'
 
   - name: session.close
     family: session
-    description: Close a session and release its lease.
+    description: Close a session and release its lease. Preserve the worktree by default; explicit cleanup succeeds only after Git proves it is clean and integrated.
     phase: '4.5'
     writer_role: mcp
     input_schema:
@@ -604,14 +643,19 @@ tools:
       properties:
         sid:    { type: string }
         status: { type: string, enum: [completed, crashed, orphan] }
+        remove_worktree: { type: boolean, default: false }
     output_schema:
       type: object
-      required: [ok]
+      required: [ok, worktree_preserved]
       additionalProperties: false
       properties:
         ok: { type: boolean }
+        worktree_preserved: { type: boolean }
     errors:
       - { code: SESSION_NOT_FOUND, description: 'sid unknown' }
+      - { code: WORKER_SESSION_PARENT_OWNED, description: 'an active worker must exit and let its supervising parent settle the lease' }
+      - { code: SESSION_SCOPE_VIOLATION, description: 'an active worker attempted to close a session it does not own' }
+      - { code: WORKTREE_NOT_INTEGRATED, description: 'Explicit cleanup refused because work is uncommitted, unverified, or not integrated into the current checkout' }
     cli_subcommand: session close
     emits_events: [session_closed, session_crashed, session_orphaned]
     trace_to: '§7.3, D32'
@@ -666,7 +710,7 @@ tools:
 
   - name: session.admission_check
     family: session
-    description: Check whether spawning a new session for task_id is allowed (D33). Returns recommended action.
+    description: Check the same task, dependency, current-plan, staleness, breaker, and lease gates enforced by session.spawn. Returns a recommended lease action only after workflow authority is executable.
     phase: '4.5'
     readonly: true
     input_schema:
@@ -693,6 +737,12 @@ tools:
           enum: [spawn, takeover, resume, abandon, blocked_by_breaker]
     errors:
       - { code: TASK_NOT_FOUND, description: 'task id missing' }
+      - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'change-owned task contract is incomplete' }
+      - { code: WORKFLOW_TASK_NOT_EXECUTABLE, description: 'task status or staleness blocks execution' }
+      - { code: TASK_DEPENDENCIES_INCOMPLETE, description: 'one or more task dependencies have not converged' }
+      - { code: WORKFLOW_PLAN_NOT_COMPLETED, description: 'owning change has no healthy completed plan workflow' }
+      - { code: WORKFLOW_PLAN_TASK_SET_STALE, description: 'change task set differs from the current converged plan' }
+      - { code: WORKFLOW_PLAN_TASK_CONTRACT_STALE, description: 'task contract differs from the current converged plan' }
     cli_subcommand: session admission
     emits_events: []
     trace_to: '§7.3, D33'
@@ -932,6 +982,7 @@ tools:
     errors:
       - { code: BASELINE_NOT_FOUND, description: 'baseline id does not exist' }
       - { code: BASELINE_NOT_MUTABLE, description: 'ready and superseded baselines are immutable' }
+      - { code: BASELINE_GIT_HEAD_REQUIRED, description: 'Git is initialized but the owner-authorized initial checkpoint commit does not exist' }
       - { code: BASELINE_SPEC_MISSING, description: 'a declared specification file does not exist' }
       - { code: BASELINE_SCOPE_MISSING, description: 'a selected baseline scope does not exist' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
@@ -995,7 +1046,7 @@ tools:
   # ────────────────────────── change family ──────────────────────────────
   - name: change.create
     family: change
-    description: Create a continuous feature, fix, redesign, or incident change unit and its initial context manifest; incidents also register a five-section diagnosis artifact.
+    description: Capture a continuous feature, fix, redesign, or incident change contract; incidents also register a five-section diagnosis artifact. Planning context is compiled separately.
     phase: '9'
     writer_role: mcp
     input_schema:
@@ -1115,7 +1166,7 @@ tools:
       properties:
         change: { type: object }
         intent_path: { type: string }
-        context_manifest_path: { type: string }
+        context_manifest_path: { type: ['string', 'null'] }
         workflow: { type: object }
     errors:
       - { code: DUPLICATE_CHANGE_ID, description: 'change id already exists' }
@@ -1129,11 +1180,11 @@ tools:
       - { code: CHANGE_PROFILE_ESCALATION_REQUIRED, description: 'quick profile conflicts with material risk or research' }
       - { code: CHANGE_ALIGNMENT_REQUIRED, description: 'declared alignment thread is missing, unconfirmed, stale, not artifact-bound, bound to another authority, or not scoped to the current baseline' }
     cli_subcommand: change create
-    emits_events: [change_created, context_updated, workflow_started, workflow_step_updated]
+    emits_events: [change_created, workflow_started, workflow_step_updated, workflow_completed]
 
   - name: change.update
     family: change
-    description: Update change intent, documentation impact, external provider metadata, or active status.
+    description: Update mutable change authority. Semantic changes invalidate every derived task and compiled context so they must be reconciled before execution.
     phase: '9'
     writer_role: mcp
     input_schema:
@@ -1198,7 +1249,7 @@ tools:
       - { code: ILLEGAL_CHANGE_TRANSITION, description: 'change transition is not permitted' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
     cli_subcommand: change update
-    emits_events: [change_updated]
+    emits_events: [task_stale_marked, change_updated]
 
   - name: change.get
     family: change
@@ -1248,7 +1299,7 @@ tools:
 
   - name: change.context
     family: change
-    description: Compile an immutable role-scoped Context Spine snapshot whose execution seam and next action are derived from authoritative task and workflow state.
+    description: Compile an immutable role-scoped Context Spine snapshot with authoritative readiness and allowed or required transitions. A host may attach a clearly non-authoritative recommendation.
     phase: '10'
     writer_role: mcp
     input_schema:
@@ -1300,6 +1351,13 @@ tools:
                 revision: { type: string }
                 indexed_head: { type: string }
                 status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
+        recommendation:
+          type: object
+          required: [workflow, rationale]
+          additionalProperties: false
+          properties:
+            workflow: { type: string, minLength: 1 }
+            rationale: { type: string, minLength: 3 }
             code_graph:
               type: object
               required: [provider]
@@ -1326,14 +1384,14 @@ tools:
       - { code: TASK_NOT_FOUND, description: 'task id is not linked to the change' }
       - { code: EXECUTION_CONTRACT_CONFLICT, description: 'Prompt input attempted to override the DB-backed task seam or verification command' }
       - { code: EXECUTION_CONTEXT_REFS_CONFLICT, description: 'Prompt input attempted to override DB-backed task context references' }
-      - { code: CONTEXT_NEXT_ACTION_AUTHORITY_VIOLATION, description: 'next action is derived from workflow and task state and cannot be supplied by Prompt input' }
+      - { code: CONTEXT_LEGACY_NEXT_ACTION_UNSUPPORTED, description: 'a canonical next action is not an MCP authority field; use a non-authoritative host recommendation' }
       - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
     cli_subcommand: change context
     emits_events: [context_updated]
 
   - name: change.breadcrumb
     family: change
-    description: Read the compact DB-derived Context Spine position, readiness, and single recommended next action.
+    description: Read the compact DB-derived Context Spine position, readiness, allowed transitions, and any mechanically required recovery transition.
     phase: '10'
     readonly: true
     writer_role: any
@@ -1775,7 +1833,7 @@ tools:
   # ────────────────────────── workflow family ────────────────────────────
   - name: workflow.start
     family: workflow
-    description: Start one durable Ultra workflow run from its canonical step definition. Research defaults to the complete seventeen-step flow and never infers a reduced product posture.
+    description: Start one durable Ultra workflow run. For full or adoption research, the host model must disposition every semantic coverage area without being forced to execute every area.
     phase: '13'
     writer_role: mcp
     input_schema:
@@ -1788,6 +1846,20 @@ tools:
         subject: { type: string, minLength: 3 }
         mode: { type: string, enum: [full, adoption, product, feature, architecture, custom] }
         selected_steps: { type: array, uniqueItems: true, items: { type: string } }
+        coverage:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [step_id, disposition, rationale]
+            additionalProperties: false
+            properties:
+              step_id: { type: string, minLength: 1 }
+              disposition: { type: string, enum: [execute, verify_existing, reuse, not_applicable, deferred] }
+              rationale: { type: string, minLength: 3 }
+              evidence_refs: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+              accepted_by: { type: string, minLength: 1 }
+              consequence: { type: string, minLength: 3 }
         baseline_id: { type: string }
         change_id: { type: string }
         task_id: { type: string }
@@ -1805,10 +1877,24 @@ tools:
       - { code: WORKFLOW_CHANGE_NOT_FOUND, description: 'the requested change authority does not exist' }
       - { code: WORKFLOW_CHANGE_RUN_REQUIRED, description: 'change-bound stages require the owning durable change workflow; legacy gaps route through doctor repair' }
       - { code: WORKFLOW_BASELINE_MISMATCH, description: 'a supplied stage baseline differs from the baseline bound by the owning change workflow' }
+      - { code: WORKFLOW_BASELINE_NOT_READY, description: 'the baseline bound to the change is no longer ready' }
       - { code: WORKFLOW_BASELINE_REQUIRED, description: 'a baseline-free plan is valid only for an approved incident break-glass change' }
       - { code: WORKFLOW_CHANGE_NOT_MUTABLE, description: 'the owning change does not accept a new workflow of this stage' }
+      - { code: WORKFLOW_AUTHORITY_REQUIRED, description: 'the workflow is missing its required baseline, change, or task authority' }
+      - { code: WORKFLOW_CHANGE_DECISION_BLOCKING, description: 'the change contains unresolved material owner decisions' }
+      - { code: WORKFLOW_CHANGE_RESEARCH_INCOMPLETE, description: 'the change-bound research disposition is not current and complete' }
+      - { code: WORKFLOW_RESEARCH_COVERAGE_REQUIRED, description: 'full and adoption research require a disposition for every semantic area' }
+      - { code: WORKFLOW_RESEARCH_COVERAGE_EVIDENCE_REQUIRED, description: 'reuse, verification, and not-applicable dispositions require evidence references' }
+      - { code: WORKFLOW_RESEARCH_SYNTHESIS_REQUIRED, description: 'research synthesis must execute, verify, or reuse durable evidence' }
+      - { code: WORKFLOW_RESEARCH_MODE_MISMATCH, description: 'the selected research mode does not match its authority or baseline mode' }
+      - { code: WORKFLOW_SELECTION_REASON_REQUIRED, description: 'bounded research requires an explicit owner-selected scope reason' }
       - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'dev cannot start until the linked task contract is executable' }
       - { code: TASK_CHANGE_OWNERSHIP_MISMATCH, description: 'linked task and change authority disagree' }
+      - { code: TASK_DEPENDENCIES_INCOMPLETE, description: 'dev cannot start while a task dependency remains incomplete' }
+      - { code: WORKFLOW_TASK_NOT_EXECUTABLE, description: 'the linked task status or stale marker forbids execution' }
+      - { code: WORKFLOW_PLAN_NOT_COMPLETED, description: 'dev requires a completed current change plan' }
+      - { code: WORKFLOW_PLAN_TASK_SET_STALE, description: 'the authoritative task set changed after plan convergence' }
+      - { code: WORKFLOW_PLAN_TASK_CONTRACT_STALE, description: 'a task contract was invalidated or changed after plan convergence' }
     cli_subcommand: workflow start
     emits_events: [workflow_started]
 
@@ -1926,8 +2012,11 @@ tools:
         workflow: { type: object }
     errors:
       - { code: WORKFLOW_NOT_FOUND, description: 'workflow id does not exist' }
+      - { code: WORKFLOW_NOT_MUTABLE, description: 'completed and cancelled workflows cannot accept step updates' }
       - { code: WORKFLOW_STEP_NOT_FOUND, description: 'step is not part of the canonical workflow' }
+      - { code: ILLEGAL_WORKFLOW_STEP_TRANSITION, description: 'the requested step-state transition is not permitted' }
       - { code: WORKFLOW_STEP_OUT_OF_ORDER, description: 'an earlier selected step remains incomplete' }
+      - { code: VALIDATION_ERROR, description: 'step evidence, output, decision, semantic, or blocker input is malformed' }
       - { code: WORKFLOW_EVIDENCE_REQUIRED, description: 'the step cannot complete without evidence' }
       - { code: WORKFLOW_OUTPUT_REQUIRED, description: 'the step cannot complete without a durable output' }
       - { code: WORKFLOW_OUTPUT_MISSING, description: 'a declared output file is missing' }
@@ -1936,20 +2025,27 @@ tools:
       - { code: WORKFLOW_RESEARCH_SYNTHESIS_INCOMPLETE, description: 'full or adoption synthesis did not bind all baseline specifications and the distillate' }
       - { code: WORKFLOW_SEMANTIC_RECORDS_REQUIRED, description: 'a research step did not persist typed semantic results' }
       - { code: WORKFLOW_SEMANTIC_RECORD_INVALID, description: 'a semantic record does not satisfy its step contract' }
+      - { code: WORKFLOW_SEMANTIC_SOURCE_INVALID, description: 'a semantic record source is missing, outside the project, or lacks an anchor' }
       - { code: WORKFLOW_SYNTHESIS_TRACE_INVALID, description: 'synthesis references missing research semantic records' }
       - { code: WORKFLOW_BLOCKER_REQUIRED, description: 'blocked state requires a specific blocker code' }
-      - { code: WORKFLOW_CONTEXT_OUTPUT_REQUIRED, description: 'the stage requires its immutable Context Manifest v2 output' }
+      - { code: WORKFLOW_CONTEXT_OUTPUT_REQUIRED, description: 'the stage requires its immutable Context Manifest v3 output' }
       - { code: WORKFLOW_CONTEXT_MISMATCH, description: 'the context role, gate, change, task, or readiness does not match the stage' }
       - { code: WORKFLOW_CONTEXT_AUTHORITY_MISMATCH, description: 'the context artifact does not match its DB snapshot row' }
       - { code: WORKFLOW_CONTEXT_STALE, description: 'the context artifact no longer matches the current checkout' }
-      - { code: WORKFLOW_RELEASE_AUTHORIZATION_INVALID, description: 'release-if-authorized requires one complete durable owner decision' }
+      - { code: WORKFLOW_TASKS_REQUIRED, description: 'the stage requires at least one task bound to the change' }
+      - { code: WORKFLOW_TASK_NOT_COMPLETED, description: 'the required task development state has not converged' }
+      - { code: WORKFLOW_GATE_MISSING, description: 'a required completed dev, test, or review gate is missing' }
+      - { code: WORKFLOW_GATE_STALE, description: 'a required task or gate no longer matches current authority or checkout state' }
+      - { code: WORKFLOW_REVIEW_NOT_APPROVED, description: 'the required independent review axes have not passed' }
+      - { code: WORKFLOW_TEST_NOT_PASSED, description: 'the required current test gate has not passed' }
+      - { code: WORKFLOW_SESSION_ACTIVE, description: 'delivery is blocked while a bound execution session remains active' }
       - { code: DECISION_ALIGNMENT_BLOCKING, description: 'matching owner decisions or artifact checkpoints are not current' }
     cli_subcommand: workflow step
     emits_events: [workflow_step_updated, workflow_blocked]
 
   - name: workflow.complete
     family: workflow
-    description: Complete a ready workflow only when every selected step is complete and every recorded output digest remains current.
+    description: Complete a ready workflow only when every selected step is complete and every recorded output digest remains current. Plan approval is optional unless the host identified a material owner decision.
     phase: '13'
     writer_role: mcp
     input_schema:
@@ -1976,12 +2072,21 @@ tools:
       - { code: WORKFLOW_NOT_FOUND, description: 'workflow id does not exist' }
       - { code: WORKFLOW_NOT_READY, description: 'selected steps or blockers remain incomplete' }
       - { code: WORKFLOW_OUTPUT_STALE, description: 'a recorded output changed or disappeared' }
+      - { code: VALIDATION_ERROR, description: 'approval or completion input is malformed' }
       - { code: WORKFLOW_TASKS_REQUIRED, description: 'plan completion requires a non-empty authoritative task set' }
+      - { code: TASK_NOT_FOUND, description: 'a task referenced by the authoritative plan no longer exists' }
       - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'one or more planned tasks lack an executable contract' }
+      - { code: TASK_CHANGE_OWNERSHIP_MISMATCH, description: 'a planned task is not owned by the workflow change' }
       - { code: TASK_DEPENDENCY_MISSING, description: 'a planned dependency does not exist' }
       - { code: TASK_DEPENDENCY_CYCLE, description: 'the planned task graph contains a cycle' }
+      - { code: WORKFLOW_PLAN_ARTIFACT_INVALID, description: 'the plan workflow did not produce exactly one valid JSON execution plan' }
+      - { code: WORKFLOW_PLAN_ARTIFACT_STALE, description: 'the execution-plan artifact differs from current DB task authority' }
+      - { code: WORKFLOW_PLAN_COVERAGE_INCOMPLETE, description: 'one or more accepted change outcomes have no executable task coverage' }
+      - { code: WORKFLOW_PLAN_ORPHAN_TASK, description: 'a task trace does not resolve to accepted change or research authority' }
+      - { code: WORKFLOW_PLAN_TASK_CONTRACT_STALE, description: 'a task was invalidated or changed before plan convergence' }
+      - { code: WORKFLOW_QUICK_PLAN_TOO_LARGE, description: 'a quick change contains more than one executable task' }
       - { code: WORKFLOW_TASK_NOT_COMPLETED, description: 'dev convergence requires its task to be completed' }
-      - { code: WORKFLOW_APPROVAL_REQUIRED, description: 'plan convergence requires explicit approved_by and approval_note fields' }
+      - { code: WORKFLOW_APPROVAL_REQUIRED, description: 'when optional plan approval is supplied it requires approved_by and approval_note fields' }
       - { code: WORKFLOW_SUMMARY_AUTHORITY_VIOLATION, description: 'Prompt summary fields are not allowed to replace DB-derived gate evidence or the complete change task set' }
       - { code: WORKFLOW_APPROVAL_AUTHORITY_VIOLATION, description: 'only the plan workflow accepts completion approval' }
       - { code: WORKFLOW_GATE_MISSING, description: 'a required completed dev, test, or review gate is missing' }
@@ -1990,10 +2095,22 @@ tools:
       - { code: WORKFLOW_REPORT_CONTEXT_MISMATCH, description: 'a report is not bound to the recorded stage context digest' }
       - { code: WORKFLOW_REPORT_REVISION_STALE, description: 'a report does not match the current full Git HEAD' }
       - { code: WORKFLOW_REPORT_WORKTREE_STALE, description: 'a report does not match the current worktree digest' }
+      - { code: WORKFLOW_REPORT_TASK_SET_STALE, description: 'a report task set no longer matches the authoritative execution scope' }
+      - { code: WORKFLOW_REPORT_BASELINE_MISMATCH, description: 'a report no longer matches current baseline authority' }
+      - { code: WORKFLOW_REPORT_CHANGE_MISMATCH, description: 'a report is bound to a different change' }
+      - { code: WORKFLOW_REPORT_VERDICT_CONFLICT, description: 'the declared verdict conflicts with failures or blocking evidence' }
+      - { code: WORKFLOW_VERIFICATION_PROFILE_INVALID, description: 'the selected verification dimensions or exclusion rationale are invalid' }
+      - { code: WORKFLOW_REGRESSION_SIGNAL_MISSING, description: 'a reported regression fix lacks a failing-before signal' }
+      - { code: WORKFLOW_REVIEW_MODE_MISMATCH, description: 'the review summary scope differs from the workflow scope' }
+      - { code: WORKFLOW_REVIEW_EVIDENCE_MISMATCH, description: 'the review worker roster differs from persisted specialist artifacts' }
+      - { code: WORKFLOW_REVIEW_FINDINGS_MISMATCH, description: 'the unified review findings differ from specialist evidence' }
       - { code: WORKFLOW_REVIEW_NOT_APPROVED, description: 'both independent review axes must pass' }
       - { code: WORKFLOW_TEST_NOT_PASSED, description: 'the current change-level test gate did not pass' }
+      - { code: WORKFLOW_SESSION_ACTIVE, description: 'delivery cannot converge while an execution session remains active' }
+      - { code: WORKFLOW_CONTEXT_NOT_READY, description: 'delivery evidence lacks a current ready context manifest' }
+      - { code: WORKFLOW_DELIVERY_CHECK_FAILED, description: 'one or more local delivery checks did not pass' }
       - { code: WORKFLOW_CHANGE_NOT_ARCHIVED, description: 'delivery completion requires an archived change' }
-      - { code: WORKFLOW_RELEASE_AUTHORITY_MISMATCH, description: 'delivery release claims differ from the durable owner authorization decision' }
+      - { code: WORKFLOW_RELEASE_AUTHORITY_MISMATCH, description: 'a local delivery report attempted to claim external release authority' }
       - { code: DECISION_ALIGNMENT_BLOCKING, description: 'matching owner decisions or artifact checkpoints are not current' }
     cli_subcommand: workflow complete
     emits_events: [workflow_completed, plan_approved]

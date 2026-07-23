@@ -12,7 +12,7 @@ const decisionDialogue = require('./decision-dialogue.cjs');
 const testReportSchema = require('../../spec/schemas/test-report.v1.schema.json');
 const deliveryReportSchema = require('../../spec/schemas/delivery-report.v1.schema.json');
 
-const DEFINITION_VERSION = '1.1';
+const DEFINITION_VERSION = '2.0';
 const RUN_KINDS = new Set(['init', 'research', 'plan', 'change', 'dev', 'test', 'review', 'deliver']);
 const RUN_STATUSES = new Set(['active', 'blocked', 'ready', 'completed', 'cancelled']);
 const STEP_STATUSES = new Set(['pending', 'in_progress', 'completed', 'skipped', 'blocked']);
@@ -33,8 +33,7 @@ const WORKFLOW_DEFINITIONS = Object.freeze({
     step('inspect-authority', 'Inspect repository and existing Ultra authority'),
     step('classify-repository', 'Classify greenfield, brownfield, or migrated state'),
     step('scaffold-authority', 'Create or resume the authoritative state and scaffold'),
-    step('establish-baseline', 'Record evidence and establish the project baseline', { evidence_required: true }),
-    step('verify-initialization', 'Verify authority, projections, and the next route', { evidence_required: true }),
+    step('verify-initialization', 'Verify authority, projections, and the initialization result', { evidence_required: true }),
   ]),
   research: Object.freeze([
     step('00-problem-validation', 'Validate the problem and demand evidence', { evidence_required: true, output_required: true }),
@@ -57,12 +56,10 @@ const WORKFLOW_DEFINITIONS = Object.freeze({
   ]),
   plan: Object.freeze([
     step('validate-baseline', 'Validate baseline and research coverage', { evidence_required: true }),
-    step('select-posture', 'Record the owner-selected planning posture', { evidence_required: true }),
     step('analyze-requirements', 'Trace requirements and acceptance'),
     step('analyze-codebase', 'Inspect current codebase patterns and boundaries', { evidence_required: true }),
     step('design-slices', 'Design walking skeleton and vertical slices'),
     step('validate-dependencies', 'Validate ownership, dependencies, and parallel waves', { evidence_required: true }),
-    step('approve-plan', 'Obtain explicit plan approval', { evidence_required: true }),
     step('persist-task-contracts', 'Persist tasks and complete execution contracts', { evidence_required: true }),
     step('verify-plan', 'Read back and verify the authoritative plan', {
       evidence_required: true, output_required: true,
@@ -72,9 +69,6 @@ const WORKFLOW_DEFINITIONS = Object.freeze({
     step('bind-baseline', 'Bind current baseline and repository revision', { evidence_required: true }),
     step('classify-change', 'Classify quick, standard, major, or incident'),
     step('record-intent', 'Record intent, scope, acceptance, and documentation impact', { evidence_required: true }),
-    step('plan-change', 'Create or validate change tasks'),
-    step('compile-context', 'Compile bounded role context', { evidence_required: true, output_required: true }),
-    step('verify-readiness', 'Verify one executable next action', { evidence_required: true }),
   ]),
   dev: Object.freeze([
     step('bind-task', 'Bind the authoritative task and dependencies', { evidence_required: true }),
@@ -89,10 +83,10 @@ const WORKFLOW_DEFINITIONS = Object.freeze({
     step('bind-scope', 'Bind completed tasks and current revision', { evidence_required: true }),
     step('compile-context', 'Compile independent checking context', { evidence_required: true, output_required: true }),
     step('map-acceptance', 'Map acceptance claims to executable checks'),
-    step('execute-checks', 'Execute focused, regression, static, build, and recovery checks', { evidence_required: true }),
+    step('execute-checks', 'Execute the risk-selected verification profile', { evidence_required: true }),
     step('verify-public-seam', 'Verify the declared public seam', { evidence_required: true }),
     step('write-report', 'Write the current test evidence report', { evidence_required: true, output_required: true }),
-    step('verify-test-gate', 'Verify report freshness and route the next action', { evidence_required: true }),
+    step('verify-test-gate', 'Verify report freshness and expose valid transitions', { evidence_required: true }),
   ]),
   review: Object.freeze([
     step('bind-diff', 'Bind one current diff and acceptance scope', { evidence_required: true }),
@@ -105,13 +99,16 @@ const WORKFLOW_DEFINITIONS = Object.freeze({
   deliver: Object.freeze([
     step('bind-evidence', 'Bind current test, review, task, and revision evidence', { evidence_required: true }),
     step('reconcile-specifications', 'Resolve learning and reconcile specifications', { evidence_required: true }),
-    step('verify-candidate', 'Verify the release candidate and recovery path', { evidence_required: true, output_required: true }),
+    step('verify-candidate', 'Verify the local delivery candidate and recovery path', { evidence_required: true, output_required: true }),
     step('converge-authority', 'Converge baseline or change authority', { evidence_required: true }),
     step('archive-change', 'Archive the converged change when applicable', { evidence_required: true }),
-    step('release-if-authorized', 'Release only when explicitly authorized'),
-    step('verify-delivery', 'Verify local and remote delivery evidence', { evidence_required: true, output_required: true }),
+    step('verify-delivery', 'Verify local delivery and recovery evidence', { evidence_required: true, output_required: true }),
   ]),
 });
+
+const RESEARCH_DISPOSITIONS = new Set([
+  'execute', 'verify_existing', 'reuse', 'not_applicable', 'deferred',
+]);
 
 const RESEARCH_MODES = Object.freeze({
   full: WORKFLOW_DEFINITIONS.research.map((item) => item.id),
@@ -380,32 +377,6 @@ function validateSynthesisTrace(db, runRow, semanticRecords) {
   }
 }
 
-function validateReleaseAuthorizationDecision(decisions) {
-  if (!Array.isArray(decisions) || decisions.length !== 1) {
-    throw new WorkflowStateError(
-      'WORKFLOW_RELEASE_AUTHORIZATION_INVALID',
-      'release-if-authorized requires exactly one release_authorization decision',
-    );
-  }
-  const decision = decisions[0];
-  if (decision?.kind !== 'release_authorization'
-    || typeof decision.authorized !== 'boolean'
-    || !String(decision.reason || '').trim()) {
-    throw new WorkflowStateError(
-      'WORKFLOW_RELEASE_AUTHORIZATION_INVALID',
-      'release authorization requires kind, authorized, and reason',
-    );
-  }
-  if (decision.authorized === true
-    && (!String(decision.approved_by || '').trim() || !String(decision.scope || '').trim())) {
-    throw new WorkflowStateError(
-      'WORKFLOW_RELEASE_AUTHORIZATION_INVALID',
-      'an authorized release requires approved_by and an explicit release scope',
-    );
-  }
-  return decision;
-}
-
 function validateResearchStepReport(run, stepId, outputs, rootDir) {
   const expected = path.join(
     '.ultra', 'docs', 'research', run.id, `${stepId}.md`,
@@ -602,7 +573,95 @@ function listWorkflows(db, filter = {}, { rootDir = process.cwd() } = {}) {
   return rows.map((row) => decorateRun(db, row, rootDir));
 }
 
-function selectedResearchSteps(mode, selectedSteps) {
+function normalizeResearchCoverage(mode, coverage, selectedSteps, metadata = {}) {
+  const knownSteps = WORKFLOW_DEFINITIONS.research.map((item) => item.id);
+  const known = new Set(knownSteps);
+  if (coverage !== undefined) {
+    if (!Array.isArray(coverage) || coverage.length === 0) {
+      throw new WorkflowStateError(
+        'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
+        'research coverage must be a non-empty array of semantic dispositions',
+      );
+    }
+    const seen = new Set();
+    const normalized = coverage.map((item) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        throw new WorkflowStateError('VALIDATION_ERROR', 'research coverage entries must be objects');
+      }
+      const stepId = String(item.step_id || '').trim();
+      const disposition = String(item.disposition || '').trim();
+      const rationale = String(item.rationale || '').trim();
+      const evidenceRefs = Array.isArray(item.evidence_refs)
+        ? [...new Set(item.evidence_refs.map((ref) => String(ref).trim()).filter(Boolean))]
+        : [];
+      if (!known.has(stepId)) {
+        throw new WorkflowStateError('VALIDATION_ERROR', `unknown research step: ${stepId || '(missing)'}`);
+      }
+      if (seen.has(stepId)) {
+        throw new WorkflowStateError('VALIDATION_ERROR', `duplicate research coverage: ${stepId}`);
+      }
+      if (!RESEARCH_DISPOSITIONS.has(disposition)) {
+        throw new WorkflowStateError(
+          'VALIDATION_ERROR',
+          `unsupported research disposition for ${stepId}: ${disposition || '(missing)'}`,
+        );
+      }
+      if (rationale.length < 3) {
+        throw new WorkflowStateError(
+          'VALIDATION_ERROR', `research coverage ${stepId} requires a rationale`,
+        );
+      }
+      if (['verify_existing', 'reuse', 'not_applicable'].includes(disposition)
+        && evidenceRefs.length === 0) {
+        throw new WorkflowStateError(
+          'WORKFLOW_RESEARCH_COVERAGE_EVIDENCE_REQUIRED',
+          `${stepId} ${disposition} requires at least one evidence reference`,
+        );
+      }
+      const acceptedBy = item.accepted_by === undefined ? null : String(item.accepted_by).trim();
+      const consequence = item.consequence === undefined ? null : String(item.consequence).trim();
+      if (disposition === 'deferred' && (!consequence || consequence.length < 3)) {
+        throw new WorkflowStateError(
+          'VALIDATION_ERROR', `${stepId} deferred coverage requires a consequence`,
+        );
+      }
+      seen.add(stepId);
+      return {
+        step_id: stepId,
+        disposition,
+        rationale,
+        evidence_refs: evidenceRefs,
+        ...(acceptedBy ? { accepted_by: acceptedBy } : {}),
+        ...(consequence ? { consequence } : {}),
+      };
+    });
+    if (['full', 'adoption'].includes(mode)) {
+      const missing = knownSteps.filter((stepId) => !seen.has(stepId));
+      if (missing.length > 0) {
+        throw new WorkflowStateError(
+          'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
+          `${mode} research must disposition every semantic area: ${missing.join(', ')}`,
+        );
+      }
+      const synthesis = normalized.find((item) => item.step_id === '99-synthesis');
+      if (!synthesis || !['execute', 'verify_existing', 'reuse'].includes(synthesis.disposition)) {
+        throw new WorkflowStateError(
+          'WORKFLOW_RESEARCH_SYNTHESIS_REQUIRED',
+          `${mode} research requires an executable or reusable 99-synthesis disposition`,
+        );
+      }
+    }
+    return normalized.sort(
+      (left, right) => knownSteps.indexOf(left.step_id) - knownSteps.indexOf(right.step_id),
+    );
+  }
+
+  if (['full', 'adoption'].includes(mode)) {
+    throw new WorkflowStateError(
+      'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
+      `${mode} research requires model-selected coverage dispositions`,
+    );
+  }
   if (mode === 'custom') {
     if (!Array.isArray(selectedSteps) || selectedSteps.length === 0) {
       throw new WorkflowStateError('VALIDATION_ERROR', 'custom research requires selected_steps');
@@ -610,11 +669,21 @@ function selectedResearchSteps(mode, selectedSteps) {
     const known = new Set(WORKFLOW_DEFINITIONS.research.map((item) => item.id));
     const invalid = selectedSteps.find((item) => !known.has(item));
     if (invalid) throw new WorkflowStateError('VALIDATION_ERROR', `unknown research step: ${invalid}`);
-    return [...new Set([...selectedSteps, '99-synthesis'])];
+    return [...new Set([...selectedSteps, '99-synthesis'])].map((stepId) => ({
+      step_id: stepId,
+      disposition: 'execute',
+      rationale: String(metadata.selection_reason || 'Explicit bounded research selection.').trim(),
+      evidence_refs: [],
+    }));
   }
   const selected = RESEARCH_MODES[mode];
   if (!selected) throw new WorkflowStateError('VALIDATION_ERROR', `unsupported research mode: ${mode}`);
-  return selected;
+  return selected.map((stepId) => ({
+    step_id: stepId,
+    disposition: 'execute',
+    rationale: String(metadata.selection_reason || `${mode} research profile selected by the host model.`).trim(),
+    evidence_refs: [],
+  }));
 }
 
 function assertReference(db, table, id, field) {
@@ -632,9 +701,10 @@ function assertWorkflowAuthority(db, input, mode) {
       );
     }
   };
-  if (input.kind !== 'research' && (input.mode !== undefined || input.selected_steps !== undefined)) {
+  if (input.kind !== 'research'
+    && (input.mode !== undefined || input.selected_steps !== undefined || input.coverage !== undefined)) {
     throw new WorkflowStateError(
-      'VALIDATION_ERROR', 'mode and selected_steps are valid only for research workflows',
+      'VALIDATION_ERROR', 'mode, selected_steps, and coverage are valid only for research workflows',
     );
   }
   if (input.kind === 'init') requireField('baseline_id');
@@ -732,9 +802,10 @@ function assertPlanWorkflowAuthority(db, input) {
        ORDER BY completed_at DESC, rowid DESC LIMIT 1`,
     ).get(change.id, disposition.mode);
     const research = row ? readWorkflow(db, row.id, { rootDir: input.root_dir || process.cwd() }) : null;
-    const expectedSteps = new Set(selectedResearchSteps(
-      disposition.mode, disposition.selected_steps,
-    ));
+    const expectedSteps = new Set([
+      ...(Array.isArray(disposition.selected_steps) ? disposition.selected_steps : []),
+      '99-synthesis',
+    ]);
     const actualSteps = new Set(
       (research?.steps || []).filter((item) => item.required).map((item) => item.step_id),
     );
@@ -827,6 +898,15 @@ function insertWorkflowInTx(db, input = {}, { rootDir = process.cwd() } = {}) {
   assertReference(db, 'baselines', input.baseline_id, 'baseline_id');
   assertReference(db, 'changes', input.change_id, 'change_id');
   assertReference(db, 'tasks', input.task_id, 'task_id');
+  if (input.task_id && input.change_id) {
+    const taskOwner = db.prepare('SELECT change_id FROM tasks WHERE id = ?').get(input.task_id);
+    if (taskOwner?.change_id !== input.change_id) {
+      throw new WorkflowStateError(
+        'TASK_CHANGE_OWNERSHIP_MISMATCH',
+        `task ${input.task_id} belongs to ${taskOwner?.change_id || '(none)'}, not ${input.change_id}`,
+      );
+    }
+  }
   if (input.kind === 'plan') assertPlanWorkflowAuthority(db, { ...input, root_dir: rootDir });
   if (input.kind === 'dev') {
     if (!input.task_id) {
@@ -873,11 +953,22 @@ function insertWorkflowInTx(db, input = {}, { rootDir = process.cwd() } = {}) {
     throw new WorkflowStateError('WORKFLOW_IN_PROGRESS', `workflow ${active.id} is already active`);
   }
 
+  const researchCoverage = input.kind === 'research'
+    ? normalizeResearchCoverage(mode, input.coverage, input.selected_steps, input.metadata)
+    : null;
+  const coverageByStep = new Map((researchCoverage || []).map((item) => [item.step_id, item]));
   const selected = new Set(input.kind === 'research'
-    ? selectedResearchSteps(mode, input.selected_steps)
+    ? researchCoverage
+      .filter((item) => ['execute', 'verify_existing', 'reuse'].includes(item.disposition)
+        || (item.disposition === 'deferred' && !item.accepted_by))
+      .map((item) => item.step_id)
     : definition.map((item) => item.id));
   let metadata = input.kind === 'research'
-    ? { ...(input.metadata || {}), selected_steps: [...selected] }
+    ? {
+      ...(input.metadata || {}),
+      selected_steps: [...selected],
+      coverage: researchCoverage,
+    }
     : (input.metadata || {});
   if (input.kind === 'plan') {
     const profile = db.prepare('SELECT kind FROM changes WHERE id = ?').get(input.change_id)?.kind;
@@ -902,11 +993,31 @@ function insertWorkflowInTx(db, input = {}, { rootDir = process.cwd() } = {}) {
   );
   definition.forEach((item, position) => {
     const required = selected.has(item.id);
+    const coverage = coverageByStep.get(item.id);
+    const disposition = coverage?.disposition || null;
+    const deferred = disposition === 'deferred' && !coverage.accepted_by;
+    const skippedReason = coverage && !required
+      ? `${disposition}: ${coverage.rationale}${coverage.accepted_by ? ` (accepted by ${coverage.accepted_by})` : ''}`
+      : (required ? null : `Excluded by ${mode} mode.`);
     insertStep.run(
       id, item.id, position, item.title, required ? 1 : 0,
-      required ? 'pending' : 'skipped', required ? null : `Excluded by ${mode} mode.`, ts,
+      deferred ? 'blocked' : (required ? 'pending' : 'skipped'), skippedReason, ts,
     );
   });
+  if (researchCoverage?.some((item) => item.disposition === 'deferred' && !item.accepted_by)) {
+    const blockers = researchCoverage
+      .filter((item) => item.disposition === 'deferred' && !item.accepted_by)
+      .map((item) => `RESEARCH_DEFERRED:${item.step_id}`);
+    db.prepare(
+      "UPDATE workflow_runs SET status = 'blocked', blockers_json = ? WHERE id = ?",
+    ).run(JSON.stringify(blockers), id);
+    for (const blocker of blockers) {
+      const stepId = blocker.split(':')[1];
+      db.prepare(
+        'UPDATE workflow_steps SET blockers_json = ? WHERE run_id = ? AND step_id = ?',
+      ).run(JSON.stringify([blocker]), id, stepId);
+    }
+  }
   ops.appendEventInTx(db, {
     type: 'workflow_started', task_id: input.task_id, change_id: input.change_id,
     payload: { workflow_id: id, kind: input.kind, mode, baseline_id: input.baseline_id || null },
@@ -1008,7 +1119,7 @@ function recordWorkflowStep(db, input = {}, { rootDir = process.cwd() } = {}) {
       throw new WorkflowStateError('WORKFLOW_BLOCKER_REQUIRED', `${stepId} requires a blocker code`);
     }
     if (input.status === 'completed' && runRow.kind === 'test' && stepId === 'bind-scope') {
-      assertDevelopmentComplete(db, runRow.change_id, rootDir);
+      assertDevelopmentComplete(db, runRow.change_id, rootDir, runRow.task_id);
     }
     if (input.status === 'completed' && runRow.kind === 'dev' && stepId === 'review-slice') {
       assertApprovedReview(db, runRow.change_id, runRow.task_id, rootDir);
@@ -1016,11 +1127,6 @@ function recordWorkflowStep(db, input = {}, { rootDir = process.cwd() } = {}) {
     if (input.status === 'completed' && runRow.kind === 'deliver' && stepId === 'bind-evidence') {
       validateDeliveryPrerequisites(db, { change_id: runRow.change_id }, rootDir);
     }
-    if (input.status === 'completed' && runRow.kind === 'deliver'
-      && stepId === 'release-if-authorized') {
-      validateReleaseAuthorizationDecision(decisions);
-    }
-
     const ts = nowIso();
     const startedAt = stepRow.started_at || ts;
     const completedAt = input.status === 'completed' ? ts : null;
@@ -1123,7 +1229,7 @@ function validateContextManifestOutput(db, run, outputs, rootDir, { current = tr
     let value;
     try { value = JSON.parse(fs.readFileSync(resolved.file, 'utf8')); }
     catch { continue; }
-    if (value?.schema_version === '2.0' && value?.snapshot_id) {
+    if (value?.schema_version === '3.0' && value?.snapshot_id) {
       candidate = output;
       manifest = value;
       break;
@@ -1131,7 +1237,7 @@ function validateContextManifestOutput(db, run, outputs, rootDir, { current = tr
   }
   if (!candidate) {
     throw new WorkflowStateError(
-      'WORKFLOW_CONTEXT_OUTPUT_REQUIRED', `${run.kind} requires a Context Manifest v2 output`,
+      'WORKFLOW_CONTEXT_OUTPUT_REQUIRED', `${run.kind} requires a current Context Manifest output`,
     );
   }
   if (manifest.change?.id !== run.change_id
@@ -1239,16 +1345,22 @@ function assertCurrentPlan(db, changeId, rootDir) {
       'WORKFLOW_PLAN_TASK_SET_STALE', `change ${changeId} task set changed after planning`,
     );
   }
-  const approvedDigests = plan.summary.task_contract_digests;
-  if (!approvedDigests || typeof approvedDigests !== 'object' || Array.isArray(approvedDigests)) {
+  const plannedDigests = plan.summary.task_contract_digests;
+  if (!plannedDigests || typeof plannedDigests !== 'object' || Array.isArray(plannedDigests)) {
     throw new WorkflowStateError(
       'WORKFLOW_PLAN_TASK_CONTRACT_STALE', `change ${changeId} plan has no task-contract provenance`,
     );
   }
   for (const task of tasks) {
-    if (approvedDigests[task.id] !== taskPlanDigest(task)) {
+    if (task.stale) {
       throw new WorkflowStateError(
-        'WORKFLOW_PLAN_TASK_CONTRACT_STALE', `task ${task.id} changed after plan approval`,
+        'WORKFLOW_PLAN_TASK_CONTRACT_STALE',
+        `task ${task.id} was invalidated by newer change authority and must be reconciled`,
+      );
+    }
+    if (plannedDigests[task.id] !== taskPlanDigest(task)) {
+      throw new WorkflowStateError(
+        'WORKFLOW_PLAN_TASK_CONTRACT_STALE', `task ${task.id} changed after plan convergence`,
       );
     }
   }
@@ -1308,12 +1420,23 @@ function assertCompletedDevelopmentEvidence(run, task, rootDir) {
   return run;
 }
 
-function assertDevelopmentComplete(db, changeId, rootDir) {
-  const tasks = changeTasks(db, changeId);
+function assertDevelopmentComplete(db, changeId, rootDir, taskId = null) {
+  const tasks = taskId
+    ? [ops.readTask(db, taskId)].filter((task) => task?.change_id === changeId)
+    : changeTasks(db, changeId);
   if (tasks.length === 0) {
-    throw new WorkflowStateError('WORKFLOW_TASKS_REQUIRED', `change ${changeId} has no tasks`);
+    throw new WorkflowStateError(
+      'WORKFLOW_TASKS_REQUIRED',
+      taskId ? `task ${taskId} is not owned by change ${changeId}` : `change ${changeId} has no tasks`,
+    );
   }
   for (const task of tasks) {
+    if (task.stale) {
+      throw new WorkflowStateError(
+        'WORKFLOW_GATE_STALE',
+        `task ${task.id} was invalidated by newer change authority and must be replanned`,
+      );
+    }
     if (!['completed', 'expanded'].includes(task.status)) {
       throw new WorkflowStateError(
         'WORKFLOW_TASK_NOT_COMPLETED', `task ${task.id} is ${task.status}`,
@@ -1388,8 +1511,30 @@ function validateDevCompletion(db, run, rootDir) {
 }
 
 function validateChangeCompletion(db, run, rootDir) {
-  const { plan, taskIds } = assertCurrentPlan(db, run.change_id, rootDir);
-  return { plan_workflow_id: plan.id, task_ids: taskIds };
+  const change = db.prepare(
+    `SELECT id, kind, intent, contract_json, classification_json, research_disposition_json
+     FROM changes WHERE id = ?`,
+  ).get(run.change_id);
+  if (!change) {
+    throw new WorkflowStateError(
+      'WORKFLOW_CHANGE_NOT_FOUND', `change ${run.change_id || '(missing)'} does not exist`,
+    );
+  }
+  const contract = parseJson(change.contract_json, 'changes.contract_json', {});
+  const classification = parseJson(change.classification_json, 'changes.classification_json', {});
+  const researchDisposition = parseJson(
+    change.research_disposition_json, 'changes.research_disposition_json', {},
+  );
+  return {
+    change_id: change.id,
+    change_kind: change.kind,
+    acceptance_ids: Array.isArray(contract.acceptance)
+      ? contract.acceptance.map((item) => item.id)
+      : [],
+    classification,
+    research_disposition: researchDisposition,
+    authority_basis: 'accepted_change_contract',
+  };
 }
 
 function validateDeliveryPrerequisites(db, run, rootDir) {
@@ -1452,13 +1597,56 @@ function assertCurrentCheckout(report, rootDir) {
   return checkout;
 }
 
+const VERIFICATION_DIMENSIONS = Object.freeze([
+  'acceptance',
+  'regression',
+  'integration',
+  'static_analysis',
+  'build',
+  'performance',
+  'security',
+  'recovery',
+]);
+
+function validateVerificationProfile(report) {
+  const profile = report.verification_profile;
+  const selected = new Set(profile?.selected_dimensions || []);
+  const dimensions = new Set(Object.keys(report.verification_dimensions || {}));
+  const excludedItems = Array.isArray(profile?.excluded_dimensions)
+    ? profile.excluded_dimensions : [];
+  const excluded = new Set(excludedItems.map((item) => item.dimension));
+  const known = new Set(VERIFICATION_DIMENSIONS);
+  const sameSet = (left, right) => left.size === right.size
+    && [...left].every((item) => right.has(item));
+  const invalid = [...selected, ...dimensions, ...excluded].some((item) => !known.has(item));
+  const overlap = [...selected].some((item) => excluded.has(item));
+  const duplicateExclusion = excluded.size !== excludedItems.length;
+  const completeDisposition = VERIFICATION_DIMENSIONS.every(
+    (dimension) => selected.has(dimension) || excluded.has(dimension),
+  );
+  if (!profile || typeof profile.rationale !== 'string' || profile.rationale.trim().length < 3
+    || !selected.has('acceptance') || !sameSet(selected, dimensions) || invalid || overlap
+    || duplicateExclusion || !completeDisposition) {
+    throw new WorkflowStateError(
+      'WORKFLOW_VERIFICATION_PROFILE_INVALID',
+      'verification profile must select exactly the recorded dimensions, include acceptance, and explain every excluded dimension',
+    );
+  }
+  return {
+    rationale: profile.rationale.trim(),
+    selected_dimensions: [...selected],
+    excluded_dimensions: excludedItems,
+  };
+}
+
 function validateTestCompletion(db, run, rootDir) {
-  assertDevelopmentComplete(db, run.change_id, rootDir);
+  assertDevelopmentComplete(db, run.change_id, rootDir, run.task_id);
   const context = recordedContext(db, run, rootDir, { current: true });
   const { value: report, output } = readOutputJson(
     run, 'write-report', rootDir, 'ultra-test-report-v1',
   );
   assertReportSchema(report, 'test');
+  const verificationProfile = validateVerificationProfile(report);
   if (report.change_id !== run.change_id) {
     throw new WorkflowStateError('WORKFLOW_REPORT_CHANGE_MISMATCH', 'test report change_id is not bound to the workflow');
   }
@@ -1505,9 +1693,7 @@ function validateTestCompletion(db, run, rootDir) {
     && report.public_seams.every((item) => item?.status === 'pass')
     && report.failures.every((item) => item.status === 'resolved')
     && report.recovery.every((item) => item.status === 'pass')
-    && Object.values(report.verification_dimensions || {}).every(
-      (item) => ['pass', 'not_applicable'].includes(item?.status),
-    )
+    && Object.values(report.verification_dimensions || {}).every((item) => item?.status === 'pass')
     && report.blocking_issues.length === 0;
   if (typeof report.passed !== 'boolean' || report.passed !== claimedPass) {
     throw new WorkflowStateError(
@@ -1525,12 +1711,21 @@ function validateTestCompletion(db, run, rootDir) {
     context_path: context.output.path,
     context_digest: context.output.digest,
     regression_signal: report.regression_signal,
+    verification_profile: verificationProfile,
     verification_dimensions: report.verification_dimensions,
     blocking_issues: report.blocking_issues,
   };
 }
 
 const REVIEW_AXES = new Set(['spec_fidelity', 'engineering_standards']);
+const REVIEW_WORKERS = new Set([
+  'review-spec',
+  'review-code',
+  'review-tests',
+  'review-errors',
+  'review-design',
+  'review-comments',
+]);
 const REVIEW_SEVERITIES = new Set(['P0', 'P1', 'P2', 'P3']);
 const REVIEW_FINDING_FIELDS = [
   'id', 'axis', 'severity', 'category', 'title', 'file', 'line',
@@ -1574,6 +1769,7 @@ function readReviewSpecialists(run, rootDir) {
   const checkout = currentCheckout(rootDir);
   const expectedHead = checkout.head || 'workspace';
   const seenIds = new Set();
+  const seenAgents = new Set();
   const artifacts = [];
   for (const [stepId, expectedAxis] of axes) {
     const outputs = run.steps.find((item) => item.step_id === stepId)?.outputs || [];
@@ -1603,6 +1799,13 @@ function readReviewSpecialists(run, rootDir) {
           'WORKFLOW_REPORT_INVALID', `${output.path} is not a complete ${expectedAxis} artifact`,
         );
       }
+      if (!REVIEW_WORKERS.has(artifact.agent) || seenAgents.has(artifact.agent)) {
+        throw new WorkflowStateError(
+          'WORKFLOW_REPORT_INVALID',
+          `${output.path} uses an unknown or duplicate review worker: ${artifact.agent}`,
+        );
+      }
+      seenAgents.add(artifact.agent);
       for (const finding of artifact.findings) {
         validateReviewFinding(finding, expectedAxis, seenIds, output.path);
       }
@@ -1613,6 +1816,8 @@ function readReviewSpecialists(run, rootDir) {
 }
 
 function assertCoordinatedReviewEvidence(report, specialists) {
+  const sameSet = (left, right) => left.size === right.size
+    && [...left].every((item) => right.has(item));
   const artifactPathsByAxis = Object.fromEntries([...REVIEW_AXES].map((axis) => [
     axis,
     specialists.artifacts.filter((artifact) => artifact.axis === axis).map((artifact) => artifact.path).sort(),
@@ -1633,15 +1838,12 @@ function assertCoordinatedReviewEvidence(report, specialists) {
     );
   }
   const completed = new Set(report.workers?.completed || []);
-  if (specialists.artifacts.some((artifact) => !completed.has(artifact.agent))
+  const artifactAgents = new Set(specialists.artifacts.map((artifact) => artifact.agent));
+  if (!sameSet(completed, artifactAgents)
     || (report.workers?.failed || []).length > 0) {
     throw new WorkflowStateError(
-      'WORKFLOW_REVIEW_EVIDENCE_MISMATCH', 'review worker completion does not match specialist artifacts',
-    );
-  }
-  if ((report.workers?.skipped || []).length > 0 && (report.limitations || []).length === 0) {
-    throw new WorkflowStateError(
-      'WORKFLOW_REVIEW_EVIDENCE_MISMATCH', 'skipped review workers require a recorded limitation',
+      'WORKFLOW_REVIEW_EVIDENCE_MISMATCH',
+      'completed review workers must match specialist artifacts exactly',
     );
   }
   const selection = Array.isArray(report.worker_selection) ? report.worker_selection : [];
@@ -1664,13 +1866,13 @@ function assertCoordinatedReviewEvidence(report, specialists) {
     ...(report.workers?.completed || []), ...(report.workers?.failed || []),
   ]);
   const expectedSkipped = new Set(report.workers?.skipped || []);
-  const sameSet = (left, right) => left.size === right.size && [...left].every((item) => right.has(item));
-  if (selection.length === 0 || !sameSet(selected, expectedSelected)
+  if (!sameSet(seenWorkers, REVIEW_WORKERS)
+    || !sameSet(selected, expectedSelected)
     || !sameSet(skipped, expectedSkipped)
     || !selected.has('review-spec') || !completed.has('review-spec')) {
     throw new WorkflowStateError(
       'WORKFLOW_REVIEW_EVIDENCE_MISMATCH',
-      'review worker selection must match completed, failed, and skipped worker state',
+      'review worker selection must disposition the complete worker roster and match completed, failed, and skipped state',
     );
   }
 
@@ -1799,6 +2001,12 @@ function validateDeliveryCompletion(db, run, rootDir) {
   const { value: report, output } = readOutputJson(
     run, 'verify-delivery', rootDir, 'ultra-delivery-report-v1',
   );
+  if (report.release !== undefined) {
+    throw new WorkflowStateError(
+      'WORKFLOW_RELEASE_AUTHORITY_MISMATCH',
+      'delivery reports cannot create release authority; record external effects through the host after explicit authorization',
+    );
+  }
   assertReportSchema(report, 'delivery');
   if (report.change_id !== run.change_id || report.archive_status !== 'archived') {
     throw new WorkflowStateError(
@@ -1817,24 +2025,6 @@ function validateDeliveryCompletion(db, run, rootDir) {
     || report.checks.some((item) => item?.status !== 'pass')) {
     throw new WorkflowStateError('WORKFLOW_DELIVERY_CHECK_FAILED', 'delivery checks must all pass');
   }
-  if (!report.release || typeof report.release !== 'object'
-    || typeof report.release.authorized !== 'boolean'
-    || typeof report.release.performed !== 'boolean') {
-    throw new WorkflowStateError('WORKFLOW_REPORT_INVALID', 'delivery report release decision is incomplete');
-  }
-  if (report.release.authorized !== report.release.performed) {
-    throw new WorkflowStateError(
-      'WORKFLOW_RELEASE_INCOMPLETE', 'an authorized release must complete; an unauthorized release must not run',
-    );
-  }
-  const releaseStep = run.steps.find((item) => item.step_id === 'release-if-authorized');
-  const releaseDecision = validateReleaseAuthorizationDecision(releaseStep?.decisions || []);
-  if (report.release.authorized !== releaseDecision.authorized) {
-    throw new WorkflowStateError(
-      'WORKFLOW_RELEASE_AUTHORITY_MISMATCH',
-      'delivery report release claim does not match the recorded owner authorization decision',
-    );
-  }
   if (!String(report.rollback || '').trim()) {
     throw new WorkflowStateError('WORKFLOW_REPORT_INVALID', 'delivery report rollback guidance is required');
   }
@@ -1850,7 +2040,6 @@ function validateDeliveryCompletion(db, run, rootDir) {
     baseline_status: baseline.status,
     git_commit: checkout.head,
     worktree_digest: checkout.digest,
-    release: report.release,
     report_path: output.path,
     report_digest: output.digest,
     context_path: context.output.path,
@@ -1910,24 +2099,6 @@ function validatePlanArtifact(db, run, rootDir) {
   };
 }
 
-function advanceLinkedChangeAfterPlan(db, run, rootDir) {
-  if (run.kind !== 'plan' || !run.change_id) return;
-  const linked = db.prepare(
-    `SELECT id FROM workflow_runs
-     WHERE kind = 'change' AND change_id = ? AND current_step = 'plan-change'
-       AND status IN ('active', 'blocked')
-     ORDER BY updated_at DESC, rowid DESC LIMIT 1`,
-  ).get(run.change_id);
-  if (!linked) return;
-  recordWorkflowStep(db, {
-    id: linked.id, step_id: 'plan-change', status: 'completed',
-    evidence: [{
-      kind: 'workflow', ref: run.id,
-      summary: `Plan workflow ${run.id} completed with authoritative task contracts.`,
-    }],
-  }, { rootDir });
-}
-
 function completeWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
   const id = nonEmpty(input.id, 'id');
   return ops.tx(db, () => {
@@ -1974,8 +2145,9 @@ function completeWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
         task_contract_digests: contract.task_contract_digests,
         profile: contract.profile,
         coverage: contract.coverage,
+        authority_basis: 'accepted_change_contract',
       };
-      validatePlanApproval(approval);
+      if (approval !== null) validatePlanApproval(approval);
     }
     if (run.kind === 'dev' && ops.readTask(db, run.task_id)?.status !== 'completed') {
       throw new WorkflowStateError(
@@ -1992,7 +2164,7 @@ function completeWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
       type: 'workflow_completed', task_id: run.task_id, change_id: run.change_id,
       payload: { workflow_id: id, kind: run.kind, baseline_id: run.baseline_id },
     });
-    if (run.kind === 'plan') {
+    if (run.kind === 'plan' && approval !== null) {
       ops.appendEventInTx(db, {
         type: 'plan_approved', change_id: run.change_id,
         payload: {
@@ -2005,7 +2177,6 @@ function completeWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
         },
       });
     }
-    advanceLinkedChangeAfterPlan(db, run, rootDir);
     return readWorkflow(db, id, { rootDir });
   });
 }
@@ -2064,6 +2235,12 @@ function validatePlanContract(db, run, rootDir = process.cwd()) {
       );
     }
     ops.assertTaskExecutionContract(task);
+    if (task.stale) {
+      throw new WorkflowStateError(
+        'WORKFLOW_PLAN_TASK_CONTRACT_STALE',
+        `task ${id} was invalidated by newer change authority and must be reconciled`,
+      );
+    }
     return task;
   });
   const changeRow = db.prepare(
@@ -2126,88 +2303,6 @@ function validatePlanContract(db, run, rootDir = process.cwd()) {
       tasks.map((task) => [task.id, taskPlanDigest(task)]),
     ),
   };
-}
-
-function activeInitializationRun(db, baselineId) {
-  return db.prepare(
-    `SELECT * FROM workflow_runs
-     WHERE kind = 'init' AND baseline_id = ? AND status IN ('active', 'blocked', 'ready')
-     ORDER BY updated_at DESC, rowid DESC LIMIT 1`,
-  ).get(baselineId);
-}
-
-function blockInitializationInTx(db, baselineId, blockers = []) {
-  const run = activeInitializationRun(db, baselineId);
-  if (!run) return null;
-  const normalized = [...new Set(blockers.map((item) => String(item).trim()).filter(Boolean))];
-  const ts = nowIso();
-  db.prepare(
-    `UPDATE workflow_steps SET status = 'blocked', blockers_json = ?,
-     started_at = COALESCE(started_at, ?), completed_at = NULL, updated_at = ?
-     WHERE run_id = ? AND step_id = 'establish-baseline'`,
-  ).run(JSON.stringify(normalized), ts, ts, run.id);
-  db.prepare(
-    `UPDATE workflow_runs SET status = 'blocked', current_step = 'establish-baseline',
-     blockers_json = ?, updated_at = ? WHERE id = ?`,
-  ).run(JSON.stringify(normalized), ts, run.id);
-  ops.appendEventInTx(db, {
-    type: 'workflow_blocked',
-    payload: {
-      workflow_id: run.id, kind: 'init', step_id: 'establish-baseline',
-      status: 'blocked', blockers: normalized,
-    },
-  });
-  return run.id;
-}
-
-function completeInitializationInTx(db, baseline) {
-  const run = activeInitializationRun(db, baseline.id);
-  if (!run) return null;
-  const ts = nowIso();
-  const steps = [
-    {
-      id: 'establish-baseline',
-      evidence: [{
-        kind: 'baseline', ref: baseline.id,
-        summary: `Baseline ${baseline.id} converged at revision ${baseline.repository_revision}.`,
-      }],
-    },
-    {
-      id: 'verify-initialization',
-      evidence: [{
-        kind: 'state', ref: '.ultra/state.db',
-        summary: 'Baseline authority, workflow state, and the post-initialization route are ready.',
-      }],
-    },
-  ];
-  for (const item of steps) {
-    db.prepare(
-      `UPDATE workflow_steps SET status = 'completed', evidence_json = ?, blockers_json = '[]',
-       started_at = COALESCE(started_at, ?), completed_at = ?, updated_at = ?
-       WHERE run_id = ? AND step_id = ?`,
-    ).run(JSON.stringify(item.evidence), ts, ts, ts, run.id, item.id);
-    ops.appendEventInTx(db, {
-      type: 'workflow_step_updated',
-      payload: { workflow_id: run.id, kind: 'init', step_id: item.id, status: 'completed' },
-    });
-  }
-  db.prepare(
-    `UPDATE workflow_runs SET status = 'completed', current_step = NULL, blockers_json = '[]',
-     approval_json = ?, summary_json = ?, completed_at = ?, updated_at = ? WHERE id = ?`,
-  ).run(
-    JSON.stringify({ approved_by: baseline.approved_by, approved_at: baseline.converged_at }),
-    JSON.stringify({
-      baseline_id: baseline.id,
-      repository_revision: baseline.repository_revision,
-      research_run_id: baseline.research_run_id,
-    }),
-    ts, ts, run.id,
-  );
-  ops.appendEventInTx(db, {
-    type: 'workflow_completed',
-    payload: { workflow_id: run.id, kind: 'init', baseline_id: baseline.id },
-  });
-  return run.id;
 }
 
 function inspectWorkflowHealth(db, { rootDir = process.cwd() } = {}) {
@@ -2295,11 +2390,11 @@ module.exports = {
   listWorkflows,
   recordWorkflowStep,
   completeWorkflow,
-  blockInitializationInTx,
-  completeInitializationInTx,
   inspectWorkflowHealth,
   recoverUntrackedChangeWorkflows,
   validateDeliveryPrerequisites,
   validatePlanContract,
+  assertCurrentPlan,
+  assertApprovedReview,
   resolveProjectSourceRef: sourceRefFile,
 };

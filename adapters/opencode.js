@@ -36,7 +36,7 @@ const BUNDLE_DIR = '.ultra-builder-pro';
 const MANAGED_TEXT_MARKER = '<!-- ultra-builder-pro:managed -->';
 const PLUGIN_MARKER = '// Managed by Ultra Builder Pro.';
 const PROVENANCE_FILE = 'provenance.json';
-const COMMAND_NAMES = CORE_PUBLIC_SKILLS.filter((name) => name !== 'ultra-review');
+const COMMAND_NAMES = CORE_PUBLIC_SKILLS;
 
 function resolveTarget(ctx = {}) {
   if (ctx.configDir) return ctx.configDir;

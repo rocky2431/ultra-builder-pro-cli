@@ -164,33 +164,35 @@ test('human-agent alignment uses one canonical resumable decision protocol', () 
     const { text } = sourceSkill(name);
     assert.match(text, /decision-dialogue\.md/, `${name} must use the canonical decision protocol`);
   }
-  assert.match(sourceSkill('ultra-research').text, /not a questionnaire/i);
+  assert.match(sourceSkill('ultra-research').text, /not (?:a )?(?:mandatory )?questionnaire/i);
   assert.match(
     sourceSkill('ultra-research').text,
-    /Reuse the final research\s+checkpoint approval[\s\S]*do not ask for an equivalent approval again/i,
+    /Reuse the final research\s+checkpoint approval[\s\S]*do not ask\s+for an equivalent approval again/i,
   );
-  assert.match(sourceSkill('ultra-change').text, /never means silently\s+choose an owner decision/i);
+  assert.match(sourceSkill('ultra-change').text, /Ask only when a choice changes accepted product intent/i);
+  assert.match(sourceSkill('ultra-change').text, /model owns reversible implementation detail/i);
 });
 
-test('public workflow skills expose a coherent init-to-daily-change handoff graph', () => {
-  const handoffs = {
-    'ultra-init': ['ultra-research'],
-    'ultra-research': ['ultra-change'],
-    'ultra-change': ['ultra-plan', 'ultra-dev'],
-    'ultra-plan': ['ultra-dev'],
-    'ultra-dev': ['ultra-test', 'ultra-think', 'ultra-doctor'],
-    'ultra-test': ['ultra-dev', 'ultra-review', 'ultra-think'],
-    'ultra-review': ['ultra-dev', 'ultra-test', 'ultra-deliver', 'ultra-think'],
-    'ultra-deliver': ['ultra-status', 'ultra-change', 'ultra-doctor'],
-    'ultra-status': ['ultra-init', 'ultra-research', 'ultra-change', 'ultra-think', 'ultra-doctor'],
-    'ultra-doctor': ['ultra-init', 'ultra-think'],
-  };
-  for (const [source, targets] of Object.entries(handoffs)) {
-    const { text } = sourceSkill(source);
-    for (const target of targets) {
-      assert.match(text, new RegExp(`\\b${target}\\b`), `${source} does not route to ${target}`);
-    }
+test('public workflow skills return control to the adaptive capability graph', () => {
+  const graphSkills = [
+    'ultra-init', 'ultra-research', 'ultra-change', 'ultra-plan', 'ultra-dev',
+    'ultra-test', 'ultra-review', 'ultra-deliver', 'ultra-status', 'ultra-think',
+    'ultra-doctor',
+  ];
+  for (const name of graphSkills) {
+    const { text } = sourceSkill(name);
+    assert.match(text, /allowed[_ ]transitions/i, `${name} does not return MCP capability choices`);
+    assert.doesNotMatch(
+      text,
+      /^\s*(?:canonical|exact) next (?:action|route)\s*:/im,
+      `${name} exposes a retired semantic-route field`,
+    );
   }
+  assert.match(sourceSkill('ultra-init').text, /does not perform product research/i);
+  assert.match(sourceSkill('ultra-research').text, /\bultra-change\b/);
+  assert.match(sourceSkill('ultra-change').text, /research, plan, context, dev, test,\s*review, and deliver(?:y)? remain (?:independent|separate)/i);
+  assert.match(sourceSkill('ultra-dev').text, /do not replace aggregate\s*change testing or review/i);
+  assert.match(sourceSkill('ultra-deliver').text, /host-owned effect after Ultra delivery/i);
 });
 
 test('workflow skills name every durable DB step they are responsible for following', () => {

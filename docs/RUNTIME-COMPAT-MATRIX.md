@@ -126,9 +126,9 @@ records. Uninstall refuses an unmanaged or conflicting root.
 
 | Capability | Contract |
 |---|---|
-| Current state schema | `16.0` |
+| Current state schema | `18.0` |
 | Runtime values | `claude`, `opencode`, `codex`, `kimi` |
-| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, repository evidence in 12.0, durable workflows in 13.0, continuous baseline revalidation in 14.0, typed research semantics and verified reconciliation in 15.0, then resumable owner-agent decision threads, artifact checkpoints, and workflow alignment gates in 16.0 |
+| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, repository evidence in 12.0, durable workflows in 13.0, continuous baseline revalidation in 14.0, typed research semantics and verified reconciliation in 15.0, resumable owner-agent decision threads and workflow alignment gates in 16.0, explicit unborn-Git authority in 17.0, then adaptive transitions and legacy workflow normalization in 18.0 |
 | Preservation gate | rows, IDs, indexes, foreign keys, telemetry, incidents, and migration history remain intact |
 | Failure behavior | rollback; no partially upgraded authority database |
 

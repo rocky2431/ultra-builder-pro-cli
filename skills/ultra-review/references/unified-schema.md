@@ -87,15 +87,35 @@ preference as a defect. Preserve the source specialist's severity during coordin
     }
   },
   "workers": {
-    "completed": ["review-code", "review-tests"],
+    "completed": ["review-spec", "review-code", "review-tests"],
     "failed": [],
-    "skipped": []
+    "skipped": ["review-errors", "review-design", "review-comments"]
   },
   "worker_selection": [
     {
       "worker": "review-spec",
       "status": "selected",
       "rationale": "The specification axis is required for every review mode."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "The runtime diff changes executable behavior."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "The accepted behavior depends on changed test evidence."
+    },
+    {
+      "worker": "review-errors",
+      "status": "skipped",
+      "rationale": "The diff does not change an error, fallback, or recovery path."
+    },
+    {
+      "worker": "review-design",
+      "status": "skipped",
+      "rationale": "The bounded change does not alter module or data-flow boundaries."
     },
     {
       "worker": "review-comments",
@@ -112,10 +132,10 @@ preference as a defect. Preserve the source specialist's severity during coordin
 `findings` must contain every specialist finding unchanged. Group duplicates only in
 the human-readable summary; never delete or merge machine-readable records.
 
-`mode` is `task`, `change`, or `plan`. `worker_selection` contains every selected or
-skipped worker exactly once with a scope-specific rationale. Its selected set equals
-`workers.completed` plus `workers.failed`; its skipped set equals `workers.skipped`.
-`review-spec` is always selected and completed.
+`mode` is `task`, `change`, or `plan`. `worker_selection` contains each member of the
+six-worker roster exactly once with a scope-specific selected or skipped rationale.
+Its selected set equals `workers.completed` plus `workers.failed`; its skipped set
+equals `workers.skipped`. `review-spec` is always selected and completed.
 
 The overall verdict is `APPROVE` only when both axes pass, artifacts are complete and
 current, and no P0 or P1 finding remains. Use `REQUEST_CHANGES` for a failed axis or

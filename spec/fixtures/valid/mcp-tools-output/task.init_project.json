@@ -27,13 +27,25 @@
       "reasons": ["SKELETON_ONLY"],
       "repository_kind": "single"
     },
+    "git": {
+      "requested_mode": "auto",
+      "status": "initialized",
+      "repository_root": "/tmp/ubp-init-demo",
+      "branch": "main",
+      "head": null,
+      "gitignore_path": ".gitignore",
+      "gitignore_changed": true,
+      "initial_commit_required": true
+    },
     "workflow": {
       "init_id": "wf-init-a1b2c3d4",
-      "init_status": "active",
-      "research_id": "wf-research-a1b2c3d4",
-      "research_mode": "full",
-      "research_status": "active",
-      "next_action": "ultra-research"
+      "init_status": "completed",
+      "research_id": null,
+      "research_mode": null,
+      "research_status": "not_started",
+      "provenance_status": "pending_research",
+      "allowed_transitions": ["ultra-research", "ultra-status", "ultra-doctor"],
+      "required_transition": null
     }
   },
   {
@@ -56,13 +68,25 @@
       "repository_kind": "monorepo",
       "workspace_roots": ["apps/web", "apps/api"]
     },
+    "git": {
+      "requested_mode": "initialize",
+      "status": "existing",
+      "repository_root": "/Users/demo/sandbox",
+      "branch": "main",
+      "head": "0123456789abcdef0123456789abcdef01234567",
+      "gitignore_path": ".gitignore",
+      "gitignore_changed": false,
+      "initial_commit_required": false
+    },
     "workflow": {
       "init_id": "wf-init-e5f6g7h8",
-      "init_status": "active",
-      "research_id": "wf-research-e5f6g7h8",
-      "research_mode": "adoption",
-      "research_status": "active",
-      "next_action": "ultra-research"
+      "init_status": "completed",
+      "research_id": null,
+      "research_mode": null,
+      "research_status": "not_started",
+      "provenance_status": "pending_research",
+      "allowed_transitions": ["ultra-research", "ultra-status", "ultra-doctor"],
+      "required_transition": null
     },
     "backup_path": "/Users/demo/sandbox/.ultra.backup.20260417-091530"
   }

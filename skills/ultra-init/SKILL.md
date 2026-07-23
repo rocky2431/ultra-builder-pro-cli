@@ -1,109 +1,82 @@
 ---
 name: ultra-init
-description: Initialize a new repository, adopt an existing codebase, or migrate prior Ultra authority into a verified project baseline. Use when `.ultra` is absent, initialization is incomplete, baseline readiness is blocked, or a legacy Ultra project must be resumed.
+description: Create or recover Ultra project authority for a new repository, an existing codebase, or an older Ultra installation. Use when `.ultra` is absent, initialization is incomplete, or doctor reports a migration or initialization fault.
 ---
 
-# Establish project authority
+# Initialize project authority
 
-Use host reasoning to inspect repository evidence and prepare baseline content. Use
-Ultra MCP for classification records, schema migration, workflow state, evidence
-digests, approval, and convergence. Never treat generated Markdown or JSON as state.
-Read `../ultra-think/references/decision-dialogue.md` before asking about repository
-scope, replacement authority, or another load-bearing owner choice.
+Initialization is a bounded setup capability. It creates or repairs the repository and
+Ultra authority; it does not perform product research, approve a baseline, or choose
+the next semantic workflow.
 
-## Classify without guessing product scope
+## Inspect before mutation
 
-Run `system.doctor` read-only when `.ultra/state.db` exists. Otherwise call
-`task.init_project` with `mode: "auto"`, the repository root, project name, and an
-owner-selected monorepo scope when applicable.
+1. Identify the repository root, existing `.ultra` state, Git state, meaningful source,
+   monorepo boundaries, and current owner request.
+2. If `.ultra/state.db` exists, run `system.doctor` read-only and resume with
+   `task.init_project` only when its report permits it.
+3. Otherwise call `task.init_project` with `mode: "auto"`, the project name, and an
+   explicit scope only when the repository contains multiple plausible roots.
+4. Leave `git_mode` as `auto` unless the user explicitly requires a non-Git workspace.
 
-Interpret classification independently from readiness:
+Use repository evidence to classify:
 
-- `greenfield`: no meaningful delivered application behavior exists outside docs,
-  generated output, or a starter skeleton;
-- `brownfield`: source, runtime, deployment, API, schema, or test evidence shows an
-  existing maintained system;
-- `migrated`: older DB or projection-only authority was preserved and must be
-  replaced by an evidence-backed brownfield baseline.
+- `greenfield`: no meaningful delivered application behavior is present;
+- `brownfield`: source, runtime, API, data, deployment, or tests describe an existing
+  maintained system;
+- `migrated`: older Ultra authority was preserved but is not a trusted baseline.
 
-The presence of `.ultra/`, a manifest, or a Git repository does not make a baseline
-ready. Classification never chooses an MVP, reduced scope, or delivery posture.
-Report the detected project type, technology signals, verification commands, and
-monorepo roots. Pass an explicit `project_type` or `stack` only when repository evidence
-or an owner decision supports the override; MCP preserves both detection and selection.
-Inspect first and ask only one unresolved scope or replacement decision at a time. Do
-not request a complete project questionnaire during initialization.
+The model may override an automatic classification only with evidence or an explicit
+user decision. Classification must not infer product scope, an MVP, or a release plan.
 
-## Resume safely
+## Interaction boundary
 
-When `.ultra/` exists, call `task.init_project` with `resume: true`. It must preserve
-existing artifacts, create a pre-migration backup when needed, upgrade the schema,
-install only missing assets, and return the durable workflow ids and exact route.
+Read `../ultra-think/references/decision-dialogue.md` before asking a material question.
+Inspect observable facts yourself. Use the host's native question UI when available and
+plain direct interaction otherwise. Ask only when repository scope, replacement of
+healthy authority, destructive recovery, or another material owner decision is truly
+unresolved. Normalize clear intent already present in the request without asking again.
 
-For projection-only state, execute only the backup-first migration command returned by
-the structured error. For a `migrated` compatibility row, call `baseline.start` with a
-new brownfield id and `replace_migrated: true`; never treat migration as owner approval.
+## Deterministic initialization contract
 
-Replacing a healthy baseline requires a new id plus `replace_ready: true` and explicit
-`replacement_authorization`. Preserve corrupt DB, WAL, SHM, and backups; use the
-documented restore or rebaseline command only after the owner selects that destructive
-recovery path.
+`task.init_project` owns these steps:
 
-## Follow durable initialization state
+1. `inspect-authority`
+2. `classify-repository`
+3. `scaffold-authority`
+4. `verify-initialization`
 
-Read the returned init and research runs with `workflow.get`.
+The operation must:
 
-- `inspect-authority`: `task.init_project` records the bounded repository and existing
-  Ultra evidence it inspected.
-- `classify-repository`: `task.init_project` records classification, detected signals,
-  selected scope, and supported overrides.
-- `scaffold-authority`: `task.init_project` creates or resumes DB authority and installs
-  only missing scaffold assets.
-- `establish-baseline`: research completion, `baseline.record`, and owner-approved
-  `baseline.converge` establish the evidence-backed authority.
-- `verify-initialization`: convergence re-reads baseline, init, research, repository,
-  verification, and output health before completing initialization.
+- create or migrate `.ultra/state.db` with a backup before schema migration;
+- install only missing scaffold assets on resume;
+- preserve existing artifacts and unrelated work;
+- preserve an existing Git repository and HEAD;
+- initialize Git and a safe `.gitignore` entry when Git is absent;
+- report an unborn repository as `initial_commit_required` without manufacturing a
+  commit, remote, tag, or push;
+- read back the created DB, classification, projection, and Git result before
+  completing the init workflow.
 
-The first three steps are deterministic writes owned by `task.init_project`; the final
-two are completed atomically by successful baseline convergence. Do not mark or emulate
-these transitions in Prompt text or projection files.
+Projection-only projects must use the exact backup-first migration command returned by
+the runtime. A migrated compatibility baseline requires a new brownfield adoption with
+`replace_migrated: true`. Replacing a healthy baseline requires explicit replacement
+authority. Corrupt DB, WAL, SHM, and backups must be preserved until the user chooses a
+documented recovery operation.
 
-- Greenfield starts a `full` research run.
-- Brownfield starts an `adoption` research run.
-- Both modes require all seventeen research steps before baseline convergence.
-- A migrated project remains routed to re-adoption before research can authorize work.
+## Completion and handoff
 
-Continue through `ultra-research`. Research completion records output digests; then
-`baseline.record` captures current scope, revision, discovery/product/architecture
-specs, source and runtime evidence, actual verification, unknowns, gaps,
-classification, and external provider metadata references.
+Initialization is complete when the init workflow is `completed`, the current schema is
+healthy, the scaffold is readable, and repository classification and Git state are
+durable. Research status may still be `not_started`; that is not incomplete init.
 
-Call `baseline.converge` only after the compact research checkpoint receives explicit
-owner approval; do not ask for the same approval twice. The MCP rejects missing
-research, missing discovery/product/architecture refs, stale evidence, revision or
-worktree drift, unaccepted known failures, blocking unknowns, and blocking gaps. A
-successful convergence atomically marks the baseline ready and completes the init run.
+Read the returned `allowed_transitions` and `required_transition`:
 
-## Recovery
+- a required transition represents a hard recovery invariant and must be followed;
+- otherwise the host model recommends among the allowed capabilities using the user's
+  goal and current evidence;
+- start `ultra-research` only when the user invoked it or the host selects it after init.
 
-- Record deterministic blockers on the current workflow; never create a parallel run.
-- Use `system.doctor` repair only for supported schema, projection, session, incident,
-  archive, or legacy workflow-provenance recovery. A recovered legacy change workflow
-  remains blocked for real baseline evidence; repair cannot invent research or approve
-  a baseline.
-- Treat context budgets as advisory. Missing authority, evidence, output, or approval
-  is blocking.
-- Store only references to external memory and code-graph providers.
-
-## Completion
-
-Read `baseline.get`, `workflow.get`, and `system.doctor` after convergence. Report
-classification evidence, scope, revision, worktree snapshot, migration backups,
-research run and output health, verification, gaps, approval, and one route.
-
-Initialization is complete only when the baseline is `ready`, the init workflow is
-`completed`, the research workflow is `completed`, and
-`baseline.research_run_id` names that exact research run with healthy outputs. Route
-every newly converged or already initialized baseline through `ultra-change`; planning
-starts only after that command persists a complete Change Contract, profile, and
-research disposition. Otherwise return the exact current workflow step or blocker.
+Report classification, scope, schema and backup result, Git state, init workflow id,
+baseline state, and allowed transitions. Do not claim that a baseline is ready until a
+separate research/adoption workflow has recorded and converged it.

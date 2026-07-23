@@ -22,6 +22,8 @@ may be skipped with a concrete rationale.
 
 ## Selection record
 
-For every available worker, record `selected` or `skipped` and a rationale tied to the
-mode, changed paths, public seam, and risk flags. A role is applicable when its evidence
-could change either verdict axis. Tool availability alone is not a selection reason.
+Disposition the complete specialist roster: `review-spec`, `review-code`,
+`review-tests`, `review-errors`, `review-design`, and `review-comments`. Record each as
+`selected` or `skipped` with a rationale tied to the mode, changed paths, public seam,
+and risk flags. A role is applicable when its evidence could change either verdict
+axis. Tool availability alone is not a selection reason.

@@ -1,6 +1,6 @@
 # ultra-builder-pro-cli — 历史执行计划与决策日志
 
-> **2026-07-18 当前生效边界（D50-D55，覆盖下文旧 Phase 6/7 的内置图谱、memory 与 runtime 设计）**：
+> **2026-07-24 当前生效边界（D50-D60，覆盖下文旧 Phase 6/7 的内置图谱、memory 与 runtime 设计）**：
 > Ultra Builder Pro 不再拥有 `memory.*`、recall、prompt/transcript/observation/summary
 > 收集 hook 或私有 agent memory。跨会话记忆全部交给独立安装的 cloud-mem/claude-mem。
 > 插件只保留 12 个 Ultra 公共 workflow（新增 daily `ultra-change` 与诊断
@@ -10,11 +10,11 @@
 > Kimi Code 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
 > memory/hindsight 章节仅作为历史实施记录，不再是当前需求或运行时契约。
 
-**当前状态**：v0.16.0；四宿主 native plugin、50 个 live MCP tool、
-schema 16.0（21 表）、one-question owner-agent decision dialogue、artifact checkpoint、
-workflow alignment gate、typed research semantics、complete Change Contract、
-acceptance coverage、mode-bound 双轴 review、verified learning/reconciliation provenance、
-Context Spine v2 / breadcrumb / spec-learning、持续 change/context/convergence/doctor、incident debug lane、
+**当前状态**：v0.16.0 工作树；四宿主 native plugin、50 个 live MCP tool、
+schema 18.0（21 表）、host-native adaptive decision dialogue、material artifact checkpoint、
+adaptive capability graph、typed research coverage、complete Change Contract、
+acceptance coverage、risk-selected test/review、verified learning/reconciliation provenance、
+Context Spine v3 / transition breadcrumb / spec-learning、持续 change/context/convergence/doctor、incident debug lane、
 checkpoint 恢复消费与跨宿主安装 provenance/doctor 已落地；npm 发布由
 `v*.*.*` tag 触发。以下 Phase 0-9 正文保留为 2026-04 的实施历史，不再作为
 当前 runtime 或发布状态的事实来源。
@@ -31,7 +31,7 @@ checkpoint 恢复消费与跨宿主安装 provenance/doctor 已落地；npm 发�
 - **Phase 4.6 拆 a/b**（R6 + D35）：v0.1 只跑 smoke flow，full conformance 推 v0.2
 - **Codex 第二轮结论**："小改后开工"（tl;dr）；本版已完成小改
 
-**总决策数**：D1-D55（当前边界以 D50-D55 为准）
+**总决策数**：D1-D60（当前边界以 D50-D60 为准）
 **总风险数**：R1-R32（v0.3.1 新增 R25-R32 共 8 条）
 
 ---
@@ -347,7 +347,7 @@ ultra-builder-pro-cli/
 | A2 | MCP server stdio 而非 HTTP | 4 runtime 全支持 stdio MCP；零端口、零防火墙问题 |
 | A3 | 单源 schema（spec/）驱动三层 | 避免 "skill 说的 tool" 与 "MCP 实际的 tool" 不一致 |
 | **A4** | **权威状态层 = SQLite + WAL**（`.ultra/state.db`）；tasks.json / context md / activity-log.json / workflow-state 全部降级为投影 | Codex Q1：多文件多主写入最易炸；SQLite 提供事务 + 并发读；D18 |
-| **A5** | **Session 标准单元 = 新进程 + 独立 worktree + lease/heartbeat + artifact dir**；`ctx.newSession()` 仅作 Claude/GSD-2 适配优化 | Codex Q7：跨 4 runtime 通用；systemd/launchd 过重；D20 |
+| **A5** | **Session 标准单元 = task/runtime lease + 真实独立 worktree + heartbeat + artifact dir**；由当前 host 或显式 worker 消费，process exit 不等于 task completion | D20 建立隔离单元，D56 修正空 worker 与退出即完成断点 |
 | A6 | 事件流 = state-db `events` 表（append-only）+ MCP subscribe | 取代 activity-log.json 文件；state-db 统一权威源（D18） |
 | A7 | Python hooks 沿用，Node shell out | 15 hook 重写 Node 要 2-3 周纯折腾；零价值 |
 | A8 | orchestrator 是可选的常驻 Node daemon | 规则层可不依赖执行层独立跑；半自动 → 全自动平滑升级 |
@@ -1646,6 +1646,11 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | **D53** | **2026-07-17** | **Harness 缺口一次性闭环**：`incident` 成为带五段 `diagnosis.md` 结构门禁的 canonical debug lane；compact checkpoint 由 resume 消费、校验、择新并原子恢复；三宿主安装写 normalized provenance，`ubp --doctor` 只读校验 asset hash 与 plugin/hook/MCP/runtime contract | 将 GSD 的 debug/fresh context、GStack 的 checkpoint/readiness 与 ECC 的 doctor/provenance 思路收敛为 Ultra 自有契约；Memory 与图谱继续由外部 provider 所有，且不恢复任何已退役 surface |
 | **D54** | **2026-07-18** | **老项目接入与非阻断门禁闭环**：schema 11.0 新增 greenfield/brownfield baseline authority 与 `baseline.start/record/get/converge`；`task.init_project` 自动识别新旧仓库；上下文文件数、token 和占比改为 advisory warning，active change 的 baseline 问题同样只告警，`change.converge` / delivery 恢复硬门禁 | 避免 Ultra 把既有项目当新产品，也避免必要的 IM incident 因四个大文件超预算而无法施工；限制只在损坏权威、缺少执行契约、证据陈旧和最终收敛边界阻断 |
 | **D55** | **2026-07-18** | **新项目、老项目与旧版 Ultra 接入完成统一闭环**：schema 12.0 增加 repository branch/worktree digest、classification、gap ledger 与 incident bypass authority；`ultra-init` 自动分类、resume 只补缺失 scaffold、projection-only state 走支持的备份式 import、旧 DB 备份后升级、migrated baseline 必须显式 brownfield replacement；普通新 change 要求 ready baseline，已开工 change 保持可执行，紧急 incident 只允许有审批记录的 break-glass 并在 archive 写阻断 reconciliation gap | 老项目不再被重置或伪装成 greenfield/ready；历史任务、事件与文档可恢复迁移；健康项目可直接进入日常 change，损坏权威停在明确的 restore-or-rebaseline 决策边界 |
+| **D56** | **2026-07-24** | **以原始 `rocky2431/ultra-builder-pro` 为语义基线闭合 Git 与执行管线（覆盖 D48 的退出即完成语义）**：schema 17.0 增加 `unborn` Git authority；`task.init_project` 默认保留或建立 Git，resume 以 DB+projection snapshot 原子刷新进行中元数据；`session.spawn` 创建真实 worktree；进程成功不再越过 dev/test/review；spawn/exit 失败写 session-linked failure evidence；dependency wave 在首个未收敛任务处 pause，后续波次不启动；change-owned auto-merge 要求 exact completion commit、ready dev evidence 与 current task review；close 默认保留且仅在 clean+integrated 时删除；daemon 必须配置真实 worker | 原始 init/research/plan/dev/test/deliver 语义与 CLI 原创 DB/MCP/change/recovery 能力形成可恢复的单一管线；消除 scaffold 伪完成、无 HEAD baseline、双 session、空 worker、退出即完成、提前依赖推进、提前合并和 worktree 数据丢失 |
+| **D57** | **2026-07-24** | **当前宿主边界恢复为 Claude Code、OpenCode、Codex、Kimi Code（仅覆盖 D51 的宿主数量）**：四宿主均使用各自 native plugin/command/skill/MCP/hook 表示；Kimi 的 compact 动态注入限制保持显式 DEGRADED；已退役的模型 runtime、prompt 和模型路由保持删除 | 当前安装器、runtime assets、能力矩阵与 conformance tests 一致，不把 Kimi 支持误写成其他模型依赖，也不恢复任何已删除的外部 Skill、Memory 或命令代理 |
+| **D58** | **2026-07-24** | **所有 session 入口只能消费已批准且仍然 current 的 change plan**：`execute-plan` 校验 plan 结构、cycle、重复 task、change ownership、当前 DB task graph、已完成 plan workflow 及 artifact health；MCP admission/spawn 与 daemon 复用同一 task contract、dependency、staleness 和 plan-digest gate；所有检查都发生在 takeover 或 worktree mutation 之前 | 关闭 plan export、直接 MCP spawn 与 daemon 到实际执行之间的 authority 断点，保证 MCP/DB 的计划批准不能被手写 JSON、旧 artifact 或旁路入口绕过 |
+| **D59** | **2026-07-24** | **隔离 worktree 与中央 authority 分离但不分叉**：每个 session checkout 用 symlink-safe `.ultra` ignore 连接唯一中央 `.ultra`；旧仓库仅追加 repository-local `info/exclude`，不修改 tracked baseline；worker 获得不可覆盖的 DB/checkout/authority-root 环境；链接失败原子回滚；plan 在 wave admission 与 spawn 间漂移只 pause、不计 worker failure；旧 schema 的 late-resume 失败恢复迁移前备份 | 关闭自动 worker 在 worktree 中误建第二个 state.db、authority 链接被 Git 提交、竞态误触发 circuit breaker，以及旧版项目失败回滚停在半迁移状态的断点 |
+| **D60** | **2026-07-24** | **从硬管线升级为自适应能力图**：init 在分类、Git/scaffold 与 read-back 后独立完成且不隐式启动 research；17 项 research 改为 execute/verify/reuse/not-applicable/deferred coverage disposition；change 只捕获意图合同；plan approval 仅在 material decision 时需要；test/review 按风险选 profile；deliver 只做本地收敛归档，外部发布独立授权；MCP 只给 allowed/required transitions，宿主负责语义建议与 native question UI；Change 语义变更自动使任务与 Context v3 失效；schema 18 迁移旧 workflow state | 保留原始 Harness 的 research/plan/dev/test/review/deliver 能力与人机同步核心，同时消除 init/research 混合、固定 17 步执行、重复审批、唯一 next action、Hook 阻塞和新意图复用旧证据等机械化断点 |
 
 ---
 
@@ -1664,13 +1669,14 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
   + event subscribe + 活跃会话可见；Phase 4.5 / D19。
 - **execution-plan.json**：8A 产出的可审计规划 artifact（waves + ownership
   + conflict），驱动 8B 分派；D34。
-- **Orchestrator**：Phase 5+ 引入的 Node daemon，负责 session 生命周期 +
-  事件循环 + 分派。
+- **Orchestrator**：Phase 5+ 引入的显式 worker 执行层；`execute-plan` 消费
+  dependency waves，daemon 仅在 opt-in 且配置真实 executable 时轮询分派。
 - **规则层 / 执行层**：§4.2；Phase 1-4 / Phase 4.5-8。
-- **Session**：GSD-2 模式升级版（D20）：新进程 + 独立 worktree + lease/
-  heartbeat（存 sessions 表） + artifact dir；Phase 4.5 实装。
+- **Session**：GSD-2 模式升级版（D20/D56）：真实独立 worktree + lease/
+  heartbeat（存 sessions 表） + artifact dir；由当前 host 或显式 worker
+  消费，进程退出不等于 task 完成。
 - **state.db**：`.ultra/state.db` SQLite + WAL 数据库，所有 Ultra workflow
-  状态的权威源；当前 17 表，包含 baselines、changes、artifacts、
+  状态的权威源；当前 21 表，包含 baselines、changes、artifacts、
   context_snapshots、spec_learning_candidates、trace_links、incidents、
   projection_jobs 与 event_consumers；Phase 2 建立，D52-D54 扩展。
 - **三层架构**：§4.1；skill（知识，只读发现）+ MCP（状态操作主路径）+

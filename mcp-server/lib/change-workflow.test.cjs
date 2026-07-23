@@ -321,7 +321,7 @@ test('change convergence rejects Prompt-supplied gate verdicts', () => {
   }
 });
 
-test('createChange persists a change and an inspectable external-provider context manifest', () => {
+test('createChange completes intent capture without starting plan or compiling execution context', () => {
   const fx = fixture();
   try {
     const created = changes.createChange(fx.db, { ...completeChangeInput(),
@@ -343,23 +343,21 @@ test('createChange persists a change and an inspectable external-provider contex
     assert.equal(created.change.kind, 'standard');
     assert.equal(created.workflow.kind, 'change');
     assert.equal(created.workflow.change_id, created.change.id);
-    assert.equal(created.workflow.current_step, 'plan-change');
+    assert.equal(created.workflow.status, 'completed');
+    assert.equal(created.workflow.current_step, null);
     assert.ok(fs.existsSync(created.intent_path));
-    assert.ok(fs.existsSync(created.context_manifest_path));
-
-    const manifest = JSON.parse(fs.readFileSync(created.context_manifest_path, 'utf8'));
-    assert.equal(manifest.change.id, 'chg-context');
-    assert.equal(manifest.providers.memory.provider, 'cloud-mem');
-    assert.equal(manifest.providers.code_graph.provider, 'codebase-memory-mcp');
-    assert.equal(manifest.providers.code_graph.status, 'fresh');
-    assert.equal(JSON.stringify(manifest).includes('prompt'), false);
-    assert.equal(JSON.stringify(manifest).includes('transcript'), false);
+    assert.equal(created.context_manifest_path, null);
+    assert.deepEqual(created.workflow.summary.acceptance_ids, created.change.contract.acceptance.map((item) => item.id));
+    assert.equal(
+      fx.db.prepare("SELECT COUNT(*) AS count FROM context_snapshots WHERE change_id = ?").get(created.change.id).count,
+      0,
+    );
   } finally {
     cleanup(fx);
   }
 });
 
-test('plan convergence and task context advance the linked change workflow automatically', () => {
+test('plan and task context remain separate workflows after change intent capture', () => {
   const fx = fixture();
   try {
     const created = changes.createChange(fx.db, { ...completeChangeInput(),
@@ -395,28 +393,19 @@ test('plan convergence and task context advance the linked change workflow autom
         } : {}),
       }, { rootDir: fx.rootDir });
     }
-    workflows.completeWorkflow(fx.db, {
-      id: plan.id,
-      approval: { approved_by: 'product-owner', approval_note: 'Approved full accepted scope.' },
-    }, { rootDir: fx.rootDir });
+    workflows.completeWorkflow(fx.db, { id: plan.id }, { rootDir: fx.rootDir });
     let changeRun = workflows.readWorkflow(fx.db, created.workflow.id, { rootDir: fx.rootDir });
-    assert.equal(changeRun.current_step, 'compile-context');
+    assert.equal(changeRun.status, 'completed');
+    assert.equal(changeRun.current_step, null);
 
     changes.compileContext(fx.db, {
       id: created.change.id, task_id: task.id, role: 'implement',
     }, { rootDir: fx.rootDir });
     changeRun = workflows.readWorkflow(fx.db, created.workflow.id, { rootDir: fx.rootDir });
-    assert.equal(changeRun.current_step, 'verify-readiness');
-    assert.equal(changeRun.steps.find((item) => item.step_id === 'compile-context').outputs.length, 1);
-
-    changeRun = workflows.recordWorkflowStep(fx.db, {
-      id: changeRun.id, step_id: 'verify-readiness', status: 'completed',
-      evidence: [{ kind: 'breadcrumb', ref: created.change.id, summary: 'One executable task is ready.' }],
-    }, { rootDir: fx.rootDir });
-    assert.equal(changeRun.status, 'ready');
+    assert.equal(changeRun.status, 'completed');
     assert.equal(
-      workflows.completeWorkflow(fx.db, { id: changeRun.id }, { rootDir: fx.rootDir }).status,
-      'completed',
+      fx.db.prepare("SELECT COUNT(*) AS count FROM context_snapshots WHERE change_id = ?").get(created.change.id).count,
+      1,
     );
   } finally {
     cleanup(fx);
@@ -1019,6 +1008,45 @@ test('updateChange keeps intent.md synchronized with authoritative change metada
   }
 });
 
+test('updateChange invalidates derived tasks and compiled context when semantic authority changes', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, { ...completeChangeInput(),
+      id: 'chg-update-authority', title: 'Original authority', kind: 'standard',
+      intent: 'Deliver the original accepted behavior.',
+    }, { rootDir: fx.rootDir });
+    createExecutableTask(fx.db, {
+      id: 'authority-task', title: 'Implement original authority', type: 'feature', priority: 'P0',
+      change_id: 'chg-update-authority',
+    });
+    changes.compileContext(fx.db, {
+      id: 'chg-update-authority',
+      ...executionContext('authority-task'),
+    }, { rootDir: fx.rootDir });
+
+    const original = completeChangeInput({ id: 'chg-update-authority' }).contract;
+    changes.updateChange(fx.db, 'chg-update-authority', {
+      contract: {
+        ...original,
+        outcome: 'Deliver the revised accepted behavior.',
+      },
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(ops.readTask(fx.db, 'authority-task').stale, true);
+    const breadcrumb = changes.readBreadcrumb(
+      fx.db, { id: 'chg-update-authority' }, { rootDir: fx.rootDir },
+    );
+    assert.equal(breadcrumb.readiness, 'blocked');
+    assert.ok(breadcrumb.blockers.includes('CONTEXT_CHANGE_CONTRACT_STALE'));
+    const event = fx.db.prepare(
+      "SELECT payload_json FROM events WHERE type = 'change_updated' AND change_id = ? ORDER BY id DESC LIMIT 1",
+    ).get('chg-update-authority');
+    assert.deepEqual(JSON.parse(event.payload_json).invalidated_tasks, ['authority-task']);
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('updateChange rejects whitespace-only title or intent outside the MCP boundary', () => {
   const fx = fixture();
   try {
@@ -1121,7 +1149,7 @@ test('incident convergence requires every structured diagnosis section and refre
   }
 });
 
-test('compileContext v2 persists role-scoped context, budget, execution contract, and breadcrumb in state.db', () => {
+test('compileContext v3 persists role-scoped context and control transitions without a canonical recommendation', () => {
   const fx = fixture();
   try {
     changes.createChange(fx.db, { ...completeChangeInput(),
@@ -1138,7 +1166,7 @@ test('compileContext v2 persists role-scoped context, budget, execution contract
       ...executionContext('context-v2-task'),
     }, { rootDir: fx.rootDir });
 
-    assert.equal(compiled.manifest.schema_version, '2.0');
+    assert.equal(compiled.manifest.schema_version, '3.0');
     assert.equal(compiled.manifest.role, 'implement');
     assert.equal(compiled.manifest.gate, 'implementation');
     assert.equal(compiled.manifest.readiness.status, 'ready');
@@ -1146,13 +1174,16 @@ test('compileContext v2 persists role-scoped context, budget, execution contract
     assert.match(compiled.manifest.context.items[0].digest, /^[0-9a-f]{64}$/);
     assert.equal(compiled.manifest.execution_contract.slice_kind, 'tracer_bullet');
     assert.equal(compiled.manifest.resume.task_id, 'context-v2-task');
-    assert.equal(compiled.manifest.next_action, 'Start task context-v2-task through ultra-dev.');
+    assert.equal(compiled.manifest.next_action, undefined);
+    assert.ok(compiled.manifest.control.allowed_transitions.includes('ultra-dev'));
+    assert.equal(compiled.manifest.control.required_transition, null);
 
     const snapshot = fx.db.prepare(
       'SELECT role, gate, next_action, readiness, context_json, token_budget FROM context_snapshots ORDER BY created_at DESC LIMIT 1',
     ).get();
     assert.equal(snapshot.role, 'implement');
     assert.equal(snapshot.gate, 'implementation');
+    assert.equal(snapshot.next_action, '');
     assert.equal(snapshot.readiness, 'ready');
     assert.equal(snapshot.token_budget, 2_000);
     assert.equal(JSON.parse(snapshot.context_json).execution_contract.public_seam, 'public seam for context-v2-task');

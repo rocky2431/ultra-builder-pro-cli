@@ -32,6 +32,26 @@ function routeTask(task, availableRuntimes) {
   return d.action === 'spawn_agent' ? d.runtime : null;
 }
 
+function taskDependenciesReady(db, task) {
+  return (task.deps || []).every((dependencyId) => {
+    const dependency = ops.readTask(db, dependencyId);
+    return Boolean(dependency && ['completed', 'expanded'].includes(dependency.status));
+  });
+}
+
+function hasActiveFileConflict(db, task) {
+  const declared = new Set(task.files_modified || []);
+  if (declared.size === 0) return false;
+  return ops.listActiveSessions(db).some((session) => {
+    if (!session.task_id || session.task_id === task.id) return false;
+    const activeTask = ops.readTask(db, session.task_id);
+    return Boolean(
+      activeTask
+      && (activeTask.files_modified || []).some((file) => declared.has(file)),
+    );
+  });
+}
+
 function maintainState({ db, repoRoot, project = projector.projectAll } = {}) {
   if (!db) throw new Error('maintainState: db required');
   if (!repoRoot) throw new Error('maintainState: repoRoot required');
@@ -60,6 +80,18 @@ function runDaemon({
   if (!Array.isArray(runtimes) || runtimes.length === 0) {
     throw new Error('runDaemon: runtimes array required');
   }
+  if (typeof command !== 'string' || command.trim() === '') {
+    const error = new Error(
+      'runDaemon: an explicit executable command is required; refusing to reserve empty sessions',
+    );
+    error.code = 'ORCHESTRATOR_COMMAND_REQUIRED';
+    throw error;
+  }
+  if (!Array.isArray(commandArgs)) {
+    const error = new Error('runDaemon: commandArgs must be an array');
+    error.code = 'ORCHESTRATOR_COMMAND_INVALID';
+    throw error;
+  }
 
   let stopped = false;
   const children = [];
@@ -73,6 +105,54 @@ function runDaemon({
     });
     if (onError) onError(error); else throw error;
     bootRecovery = { recovered: [], count: 0, error: error.message };
+  }
+
+  function settleExecution(handle, task) {
+    let settled = false;
+    const stopHeartbeat = runner.attachHeartbeat(db, handle.sid);
+    const settle = (rawCode, signal, spawnError = null) => {
+      if (settled) return;
+      settled = true;
+      stopHeartbeat();
+      const code = rawCode === null ? -1 : rawCode;
+      const success = code === 0;
+      // A caller may intentionally close the DB while leaving child processes
+      // alive during shutdown. The next boot recovery owns those stale leases.
+      if (!db.open) return;
+      const liveSession = ops.readSession(db, handle.sid);
+      // Takeover or an explicit close already owns the terminal transition.
+      // The late child exit must not block the replacement task/session.
+      if (!liveSession || liveSession.status !== 'running') return;
+      try {
+        if (!success) {
+          try { ops.patchTask(db, task.id, { status: 'blocked' }); }
+          catch (error) {
+            runtimeState.recordIncident(db, {
+              code: 'ORCHESTRATOR_TASK_BLOCK_FAILED', severity: 'error', retryable: true,
+              message: error.message, source_kind: 'task', source_id: task.id,
+            });
+          }
+          ops.recordTaskFailure(db, task.id, {
+            reason: spawnError
+              ? `worker spawn or runtime error: ${spawnError.message}`
+              : `runtime process exited with code ${code}${signal ? ` (${signal})` : ''}`,
+            session_id: handle.sid,
+          });
+        }
+        runner.closeSession(
+          { db, repoRoot, sid: handle.sid },
+          { status: success ? 'completed' : 'crashed', remove_worktree: false },
+        );
+      } catch (error) {
+        if (onError) onError(error);
+        else process.stderr.write(`orchestrator settle error: ${error.message}\n`);
+      }
+    };
+    handle.process.once('exit', settle);
+    handle.process.once('error', (error) => settle(-1, null, error));
+    if (handle.process.exitCode !== null && handle.process.exitCode !== undefined) {
+      setImmediate(() => settle(handle.process.exitCode, handle.process.signalCode || null));
+    }
   }
 
   function tick() {
@@ -101,6 +181,17 @@ function runDaemon({
     }
     for (const task of pending) {
       if (stopped) return;
+      if (task.stale) continue;
+      if (!taskDependenciesReady(db, task)) continue;
+      if (hasActiveFileConflict(db, task)) continue;
+      try {
+        runner.assertSessionTaskReady(db, repoRoot, task.id);
+      } catch (error) {
+        // A normal workflow gate is a durable pending state, not a daemon
+        // failure and not an error to repeat on every poll.
+        if (!runner.isExpectedExecutionGate(error) && onError) onError(error);
+        continue;
+      }
       // admissionCheck catches both live-session conflicts and tripped breakers.
       let verdict;
       try { verdict = ops.admissionCheck(db, task.id); }
@@ -118,6 +209,17 @@ function runDaemon({
           command,
           args: commandArgs,
         });
+        handle.task_id = task.id;
+        try {
+          ops.patchTask(db, task.id, { status: 'in_progress' });
+        } catch (error) {
+          runner.closeSession(
+            { db, repoRoot, sid: handle.sid },
+            { status: 'crashed', remove_worktree: false },
+          );
+          throw error;
+        }
+        settleExecution(handle, task);
         children.push(handle);
       } catch (err) {
         if (onError) onError(err);
@@ -147,4 +249,6 @@ module.exports = {
   runDaemon,
   routeTask,
   maintainState,
+  taskDependenciesReady,
+  hasActiveFileConflict,
 };

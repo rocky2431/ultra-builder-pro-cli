@@ -6,7 +6,7 @@
   "required": [
     "$schema", "change_id", "task_ids", "git_commit", "worktree_digest",
     "context_digest", "acceptance", "commands", "public_seams", "failures",
-    "recovery", "verification_dimensions", "regression_signal", "passed", "run_count",
+    "recovery", "verification_profile", "verification_dimensions", "regression_signal", "passed", "run_count",
     "timestamp", "blocking_issues"
   ],
   "additionalProperties": false,
@@ -93,12 +93,36 @@
         }
       }
     },
+    "verification_profile": {
+      "type": "object",
+      "required": ["rationale", "selected_dimensions", "excluded_dimensions"],
+      "additionalProperties": false,
+      "properties": {
+        "rationale": { "type": "string", "minLength": 3 },
+        "selected_dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "acceptance" },
+          "items": { "$ref": "#/$defs/verificationDimensionName" }
+        },
+        "excluded_dimensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["dimension", "rationale"],
+            "additionalProperties": false,
+            "properties": {
+              "dimension": { "$ref": "#/$defs/verificationDimensionName" },
+              "rationale": { "type": "string", "minLength": 3 }
+            }
+          }
+        }
+      }
+    },
     "verification_dimensions": {
       "type": "object",
-      "required": [
-        "acceptance", "regression", "integration", "static_analysis",
-        "build", "performance", "security", "recovery"
-      ],
+      "required": ["acceptance"],
       "additionalProperties": false,
       "properties": {
         "acceptance": { "$ref": "#/$defs/verificationDimension" },
@@ -131,12 +155,19 @@
     "blocking_issues": { "type": "array", "items": { "type": "string" } }
   },
   "$defs": {
+    "verificationDimensionName": {
+      "type": "string",
+      "enum": [
+        "acceptance", "regression", "integration", "static_analysis",
+        "build", "performance", "security", "recovery"
+      ]
+    },
     "verificationDimension": {
       "type": "object",
       "required": ["status", "evidence", "rationale"],
       "additionalProperties": false,
       "properties": {
-        "status": { "enum": ["pass", "fail", "not_run", "not_applicable"] },
+        "status": { "enum": ["pass", "fail", "not_run"] },
         "evidence": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
@@ -174,14 +205,14 @@
           "recovery": { "items": { "properties": { "status": { "const": "pass" } } } },
           "verification_dimensions": {
             "properties": {
-              "acceptance": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
-              "regression": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
-              "integration": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
-              "static_analysis": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
-              "build": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
-              "performance": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
-              "security": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } },
-              "recovery": { "properties": { "status": { "enum": ["pass", "not_applicable"] } } }
+              "acceptance": { "properties": { "status": { "const": "pass" } } },
+              "regression": { "properties": { "status": { "const": "pass" } } },
+              "integration": { "properties": { "status": { "const": "pass" } } },
+              "static_analysis": { "properties": { "status": { "const": "pass" } } },
+              "build": { "properties": { "status": { "const": "pass" } } },
+              "performance": { "properties": { "status": { "const": "pass" } } },
+              "security": { "properties": { "status": { "const": "pass" } } },
+              "recovery": { "properties": { "status": { "const": "pass" } } }
             }
           },
           "run_count": { "minimum": 1 },

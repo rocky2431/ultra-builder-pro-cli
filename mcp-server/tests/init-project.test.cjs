@@ -21,6 +21,23 @@ function cleanup(dir) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* best effort */ }
 }
 
+function git(rootDir, args) {
+  return execFileSync('git', args, {
+    cwd: rootDir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+function hasGitHead(rootDir) {
+  try {
+    git(rootDir, ['rev-parse', '--verify', 'HEAD']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 test('initProject copies bundled template into .ultra/', () => {
   const target = mkTempDir();
   try {
@@ -50,24 +67,133 @@ test('initProject copies bundled template into .ultra/', () => {
         'SELECT kind, mode, status, current_step FROM workflow_runs ORDER BY started_at, rowid',
       ).all();
       assert.deepEqual(runs, [
-        { kind: 'init', mode: null, status: 'active', current_step: 'establish-baseline' },
-        { kind: 'research', mode: 'full', status: 'active', current_step: '00-problem-validation' },
+        { kind: 'init', mode: null, status: 'completed', current_step: null },
       ]);
-      assert.equal(
-        db.prepare("SELECT COUNT(*) AS count FROM workflow_steps WHERE run_id = ?").get(r.workflow.research_id).count,
-        17,
-      );
+      assert.equal(db.prepare("SELECT COUNT(*) AS count FROM workflow_runs WHERE kind = 'research'").get().count, 0);
     } finally {
       db.close();
     }
     assert.ok(!r.copied_files.some((f) => f.endsWith('.DS_Store')));
-    assert.equal(r.workflow.init_status, 'active');
-    assert.equal(r.workflow.research_mode, 'full');
-    assert.equal(r.workflow.next_action, 'ultra-research');
+    assert.equal(r.workflow.init_status, 'completed');
+    assert.equal(r.workflow.research_status, 'not_started');
+    assert.equal(r.workflow.research_id, null);
+    assert.deepEqual(r.workflow.allowed_transitions, ['ultra-research', 'ultra-status', 'ultra-doctor']);
+    assert.equal(r.workflow.required_transition, null);
+    assert.equal(r.git.status, 'initialized');
+    assert.equal(r.git.branch, 'main');
+    assert.equal(r.git.head, null);
+    assert.equal(r.git.initial_commit_required, true);
+    assert.ok(fs.existsSync(path.join(target, '.git')));
+    assert.match(fs.readFileSync(path.join(target, '.gitignore'), 'utf8'), /^\.ultra$/m);
+    assert.equal(hasGitHead(target), false);
   } finally { cleanup(target); }
 });
 
-test('initProject auto-detects existing source as brownfield and starts adoption', () => {
+test('initProject preserves an existing Git repository and its current HEAD', () => {
+  const target = mkTempDir('ubp-init-existing-git-');
+  try {
+    git(target, ['init', '-q', '-b', 'trunk']);
+    git(target, ['config', 'user.email', 'test@ubp.dev']);
+    git(target, ['config', 'user.name', 'ubp-test']);
+    fs.writeFileSync(path.join(target, 'README.md'), '# Existing repository\n');
+    git(target, ['add', 'README.md']);
+    git(target, ['commit', '-q', '-m', 'seed']);
+    const before = git(target, ['rev-parse', 'HEAD']);
+
+    const result = initProject({
+      target_dir: target, project_name: 'existing-repository', git_mode: 'auto',
+    });
+
+    assert.equal(result.git.status, 'existing');
+    assert.equal(result.git.repository_root, fs.realpathSync(target));
+    assert.equal(result.git.branch, 'trunk');
+    assert.equal(result.git.head, before);
+    assert.equal(result.git.initial_commit_required, false);
+    assert.equal(git(target, ['rev-parse', 'HEAD']), before);
+    assert.match(fs.readFileSync(path.join(target, '.gitignore'), 'utf8'), /^\.ultra$/m);
+  } finally {
+    cleanup(target);
+  }
+});
+
+test('initProject preserves an existing directory-only Ultra ignore rule without baseline drift', () => {
+  const target = mkTempDir('ubp-init-existing-gitignore-');
+  try {
+    git(target, ['init', '-q', '-b', 'main']);
+    git(target, ['config', 'user.email', 'test@ubp.dev']);
+    git(target, ['config', 'user.name', 'ubp-test']);
+    fs.writeFileSync(path.join(target, '.gitignore'), '.ultra/\nnode_modules/\n');
+    git(target, ['add', '.gitignore']);
+    git(target, ['commit', '-q', '-m', 'seed old ignore rule']);
+
+    const result = initProject({
+      target_dir: target, project_name: 'existing-ignore', git_mode: 'auto',
+    });
+    const lines = fs.readFileSync(path.join(target, '.gitignore'), 'utf8')
+      .split(/\r?\n/).filter(Boolean);
+    assert.ok(lines.includes('.ultra/'), 'preserve the existing directory rule');
+    assert.equal(lines.includes('.ultra'), false, 'do not rewrite a tracked legacy rule');
+    assert.equal(result.git.gitignore_changed, false);
+  } finally {
+    cleanup(target);
+  }
+});
+
+test('initProject preserves an effective custom Ultra ignore pattern', () => {
+  const target = mkTempDir('ubp-init-existing-custom-ignore-');
+  try {
+    git(target, ['init', '-q', '-b', 'main']);
+    git(target, ['config', 'user.email', 'test@ubp.dev']);
+    git(target, ['config', 'user.name', 'ubp-test']);
+    const gitignore = '.ultra*\nnode_modules/\n';
+    fs.writeFileSync(path.join(target, '.gitignore'), gitignore);
+    git(target, ['add', '.gitignore']);
+    git(target, ['commit', '-q', '-m', 'seed custom ignore rule']);
+
+    const result = initProject({
+      target_dir: target, project_name: 'custom-ignore', git_mode: 'auto',
+    });
+    assert.equal(result.git.gitignore_changed, false);
+    assert.equal(fs.readFileSync(path.join(target, '.gitignore'), 'utf8'), gitignore);
+  } finally {
+    cleanup(target);
+  }
+});
+
+test('initProject adds a symlink-safe ignore when bootstrapping a repository', () => {
+  const target = mkTempDir('ubp-init-new-gitignore-');
+  try {
+    fs.writeFileSync(path.join(target, '.gitignore'), '.ultra/\n');
+    const result = initProject({
+      target_dir: target, project_name: 'new-ignore', git_mode: 'auto',
+    });
+    assert.equal(result.git.status, 'initialized');
+    assert.equal(result.git.gitignore_changed, true);
+    assert.match(fs.readFileSync(path.join(target, '.gitignore'), 'utf8'), /^\.ultra$/m);
+  } finally {
+    cleanup(target);
+  }
+});
+
+test('initProject supports an explicit non-Git workspace without creating Git files', () => {
+  const target = mkTempDir('ubp-init-no-git-');
+  try {
+    const result = initProject({
+      target_dir: target, project_name: 'non-git-workspace', git_mode: 'skip',
+    });
+
+    assert.equal(result.git.status, 'skipped');
+    assert.equal(result.git.repository_root, null);
+    assert.equal(result.git.initial_commit_required, false);
+    assert.equal(fs.existsSync(path.join(target, '.git')), false);
+    assert.equal(fs.existsSync(path.join(target, '.gitignore')), false);
+    assert.equal(result.baseline.worktree_state, 'unavailable');
+  } finally {
+    cleanup(target);
+  }
+});
+
+test('initProject auto-detects existing source as brownfield without auto-starting adoption research', () => {
   const target = mkTempDir();
   try {
     fs.mkdirSync(path.join(target, 'src'));
@@ -82,11 +208,13 @@ test('initProject auto-detects existing source as brownfield and starts adoption
       assert.equal(baseline.status, 'adopting');
       assert.deepEqual(JSON.parse(baseline.scope_json), ['.']);
       const research = db.prepare("SELECT mode, current_step FROM workflow_runs WHERE kind = 'research'").get();
-      assert.deepEqual(research, { mode: 'adoption', current_step: '00-problem-validation' });
+      assert.equal(research, undefined);
     } finally {
       db.close();
     }
-    assert.equal(result.workflow.research_mode, 'adoption');
+    assert.equal(result.workflow.research_mode, null);
+    assert.equal(result.workflow.research_status, 'not_started');
+    assert.deepEqual(result.workflow.allowed_transitions, ['ultra-research', 'ultra-status', 'ultra-doctor']);
   } finally { cleanup(target); }
 });
 
@@ -211,8 +339,8 @@ test('auto classification records bounded monorepo evidence for brownfield adopt
       const row = db.prepare(
         'SELECT repository_branch, worktree_state, classification_json FROM baselines',
       ).get();
-      assert.equal(row.repository_branch, null);
-      assert.equal(row.worktree_state, 'unavailable');
+      assert.equal(row.repository_branch, 'main');
+      assert.equal(row.worktree_state, 'unborn');
       assert.equal(JSON.parse(row.classification_json).repository_kind, 'monorepo');
     } finally { db.close(); }
   } finally { cleanup(target); }
@@ -296,12 +424,27 @@ test('initProject records the declared project_initialized lifecycle event', () 
         'workflow_step_updated',
         'workflow_step_updated',
         'workflow_step_updated',
-        'workflow_started',
+        'workflow_step_updated',
+        'workflow_completed',
         'project_initialized',
       ]);
-      assert.deepEqual(JSON.parse(events.at(-1).payload_json), {
-        project_name: 'events-fixture', mode: 'greenfield', baseline_id: 'project-baseline',
-      });
+      const payload = JSON.parse(events.at(-1).payload_json);
+      assert.deepEqual(
+        {
+          project_name: payload.project_name,
+          mode: payload.mode,
+          baseline_id: payload.baseline_id,
+          git_status: payload.git.status,
+          initial_commit_required: payload.git.initial_commit_required,
+        },
+        {
+          project_name: 'events-fixture',
+          mode: 'greenfield',
+          baseline_id: 'project-baseline',
+          git_status: 'initialized',
+          initial_commit_required: true,
+        },
+      );
     } finally {
       db.close();
     }
@@ -353,16 +496,220 @@ test('initProject resume preserves existing artifacts and installs only missing 
   } finally { cleanup(target); }
 });
 
+test('initProject resume repairs a pre-Git draft and refreshes corrected project metadata', () => {
+  const target = mkTempDir('ubp-init-resume-git-');
+  try {
+    const first = initProject({
+      target_dir: target,
+      project_name: 'Incorrect Name',
+      project_type: 'other',
+      stack: 'Unknown',
+      git_mode: 'skip',
+    });
+    assert.equal(first.git.status, 'skipped');
+    assert.equal(fs.existsSync(path.join(target, '.git')), false);
+
+    const resumed = initProject({
+      target_dir: target,
+      project_name: 'Correct Name',
+      project_type: 'cli',
+      stack: 'Rust',
+      git_mode: 'auto',
+      resume: true,
+    });
+
+    assert.equal(resumed.status, 'resumed');
+    assert.equal(resumed.git.status, 'initialized');
+    assert.equal(resumed.git.initial_commit_required, true);
+    assert.equal(resumed.baseline.project_name, 'Correct Name');
+    assert.equal(resumed.baseline.project_type, 'cli');
+    assert.equal(resumed.baseline.stack, 'Rust');
+    assert.equal(resumed.baseline.repository_revision, null);
+    assert.equal(resumed.baseline.worktree_state, 'unborn');
+    const db = new Database(resumed.state_db_path, { readonly: true });
+    try {
+      assert.deepEqual(
+        db.prepare(
+          'SELECT project_name, project_type, stack, repository_revision, worktree_state FROM baselines',
+        ).get(),
+        {
+          project_name: 'Correct Name',
+          project_type: 'cli',
+          stack: 'Rust',
+          repository_revision: null,
+          worktree_state: 'unborn',
+        },
+      );
+      const event = db.prepare(
+        "SELECT payload_json FROM events WHERE type = 'baseline_metadata_refreshed' ORDER BY id DESC LIMIT 1",
+      ).get();
+      assert.ok(event);
+      assert.equal(JSON.parse(event.payload_json).project_name, 'Correct Name');
+    } finally {
+      db.close();
+    }
+  } finally {
+    cleanup(target);
+  }
+});
+
+test('initProject resume rolls back Git and authoritative metadata when a late projection fails', () => {
+  const target = mkTempDir('ubp-init-resume-atomic-');
+  const originalDateNow = Date.now;
+  const fixedNow = 1777777777777;
+  let projectionTrap;
+  try {
+    const first = initProject({
+      target_dir: target,
+      project_name: 'Original Name',
+      project_type: 'other',
+      stack: 'Original Stack',
+      git_mode: 'skip',
+    });
+    const beforeDb = new Database(first.state_db_path, { readonly: true });
+    const before = beforeDb.prepare(
+      'SELECT project_name, project_type, stack, worktree_state FROM baselines',
+    ).get();
+    const beforeEvents = beforeDb.prepare('SELECT COUNT(*) AS count FROM events').get().count;
+    beforeDb.close();
+
+    Date.now = () => fixedNow;
+    projectionTrap = path.join(
+      target,
+      '.ultra',
+      'tasks',
+      `tasks.json.tmp-${process.pid}-${fixedNow}`,
+    );
+    fs.mkdirSync(projectionTrap);
+
+    assert.throws(
+      () => initProject({
+        target_dir: target,
+        project_name: 'Must Roll Back',
+        project_type: 'cli',
+        stack: 'Rust',
+        git_mode: 'auto',
+        resume: true,
+      }),
+      (error) => error instanceof InitProjectError
+        && error.code === 'IO_ERROR'
+        && /projection/i.test(error.message),
+    );
+    assert.equal(fs.existsSync(path.join(target, '.git')), false);
+    assert.equal(fs.existsSync(path.join(target, '.gitignore')), false);
+
+    const afterDb = new Database(first.state_db_path, { readonly: true });
+    try {
+      assert.deepEqual(
+        afterDb.prepare(
+          'SELECT project_name, project_type, stack, worktree_state FROM baselines',
+        ).get(),
+        before,
+      );
+      assert.equal(
+        afterDb.prepare('SELECT COUNT(*) AS count FROM events').get().count,
+        beforeEvents,
+      );
+    } finally {
+      afterDb.close();
+    }
+  } finally {
+    Date.now = originalDateNow;
+    if (projectionTrap) fs.rmSync(projectionTrap, { recursive: true, force: true });
+    cleanup(target);
+  }
+});
+
+test('initProject resume restores the pre-migration authority when a late projection fails', () => {
+  const target = mkTempDir('ubp-init-resume-migration-atomic-');
+  const originalDateNow = Date.now;
+  const fixedNow = 1777777777788;
+  let projectionTrap;
+  try {
+    const first = initProject({
+      target_dir: target,
+      project_name: 'Pre-migration Name',
+      project_type: 'other',
+      stack: 'Pre-migration Stack',
+      git_mode: 'skip',
+    });
+    const legacyDb = new Database(first.state_db_path);
+    legacyDb.prepare("DELETE FROM schema_version WHERE version = '18.0'").run();
+    legacyDb.prepare("DELETE FROM migration_history WHERE to_version = '18.0'").run();
+    const beforeVersions = legacyDb.prepare(
+      'SELECT version FROM schema_version ORDER BY rowid',
+    ).all().map((row) => row.version);
+    legacyDb.close();
+
+    Date.now = () => fixedNow;
+    projectionTrap = path.join(
+      target,
+      '.ultra',
+      'tasks',
+      `tasks.json.tmp-${process.pid}-${fixedNow}`,
+    );
+    fs.mkdirSync(projectionTrap);
+
+    assert.throws(
+      () => initProject({
+        target_dir: target,
+        project_name: 'Must Not Survive',
+        project_type: 'cli',
+        stack: 'Rust',
+        git_mode: 'skip',
+        resume: true,
+      }),
+      (error) => error instanceof InitProjectError
+        && error.code === 'IO_ERROR'
+        && /projection/i.test(error.message),
+    );
+
+    const restoredDb = new Database(first.state_db_path, { readonly: true });
+    try {
+      assert.deepEqual(
+        restoredDb.prepare('SELECT version FROM schema_version ORDER BY rowid')
+          .all().map((row) => row.version),
+        beforeVersions,
+      );
+      assert.equal(
+        restoredDb.prepare("SELECT COUNT(*) AS count FROM schema_version WHERE version = '18.0'")
+          .get().count,
+        0,
+      );
+      assert.deepEqual(
+        restoredDb.prepare('SELECT project_name, project_type, stack FROM baselines').get(),
+        {
+          project_name: 'Pre-migration Name',
+          project_type: 'other',
+          stack: 'Pre-migration Stack',
+        },
+      );
+    } finally {
+      restoredDb.close();
+    }
+  } finally {
+    Date.now = originalDateNow;
+    if (projectionTrap) fs.rmSync(projectionTrap, { recursive: true, force: true });
+    cleanup(target);
+  }
+});
+
 test('initProject resume returns the completed initialization workflow provenance for a ready baseline', () => {
   const target = mkTempDir();
   try {
     const first = initProject({ target_dir: target, project_name: 'ready-project' });
     const db = new Database(first.state_db_path);
     try {
-      db.prepare("UPDATE workflow_runs SET status = 'completed', completed_at = CURRENT_TIMESTAMP").run();
+      const researchId = 'research-ready-project';
+      db.prepare(
+        `INSERT INTO workflow_runs
+         (id, kind, mode, subject, definition_version, status, baseline_id,
+          metadata_json, summary_json, completed_at)
+         VALUES (?, 'research', 'full', ?, '2.0', 'completed', ?, '{}', '{}', CURRENT_TIMESTAMP)`,
+      ).run(researchId, 'Completed baseline research provenance.', first.baseline.id);
       db.prepare(
         "UPDATE baselines SET status = 'ready', approved_by = 'owner', research_run_id = ?, converged_at = CURRENT_TIMESTAMP",
-      ).run(first.workflow.research_id);
+      ).run(researchId);
     } finally { db.close(); }
 
     const resumed = initProject({
@@ -370,11 +717,12 @@ test('initProject resume returns the completed initialization workflow provenanc
     });
     assert.equal(resumed.baseline.status, 'ready');
     assert.equal(resumed.workflow.init_id, first.workflow.init_id);
-    assert.equal(resumed.workflow.research_id, first.workflow.research_id);
+    assert.equal(resumed.workflow.research_id, 'research-ready-project');
     assert.equal(resumed.workflow.init_status, 'completed');
     assert.equal(resumed.workflow.research_status, 'completed');
     assert.equal(resumed.workflow.research_mode, 'full');
-    assert.equal(resumed.workflow.next_action, 'ultra-change');
+    assert.ok(resumed.workflow.allowed_transitions.includes('ultra-change'));
+    assert.equal(resumed.workflow.required_transition, null);
   } finally { cleanup(target); }
 });
 
@@ -394,7 +742,7 @@ test('initProject resume routes a ready baseline with missing provenance to doct
       target_dir: target, project_name: 'broken-ready-project', resume: true,
     });
     assert.equal(resumed.workflow.provenance_status, 'incomplete');
-    assert.equal(resumed.workflow.next_action, 'ultra-doctor');
+    assert.equal(resumed.workflow.required_transition, 'ultra-doctor');
   } finally { cleanup(target); }
 });
 
@@ -480,6 +828,81 @@ test('initProject restores the prior .ultra when overwrite initialization fails'
   }
 });
 
+test('initProject rolls back Git bootstrap when authoritative initialization fails after git init', () => {
+  const target = mkTempDir('ubp-init-git-rollback-');
+  const badTemplate = mkTempDir('ubp-init-git-rollback-template-');
+  try {
+    fs.cpSync(DEFAULT_TEMPLATE, badTemplate, { recursive: true });
+    fs.writeFileSync(path.join(badTemplate, 'state.db'), 'not a sqlite database\n');
+
+    assert.throws(
+      () => initProject({
+        target_dir: target,
+        project_name: 'broken-after-git',
+        source_template: badTemplate,
+      }),
+      (error) => error instanceof InitProjectError && error.code === 'IO_ERROR',
+    );
+    assert.equal(fs.existsSync(path.join(target, '.ultra')), false);
+    assert.equal(fs.existsSync(path.join(target, '.git')), false);
+    assert.equal(fs.existsSync(path.join(target, '.gitignore')), false);
+  } finally {
+    cleanup(target);
+    cleanup(badTemplate);
+  }
+});
+
+test('initProject refuses a symlinked root .gitignore without modifying its target', () => {
+  const target = mkTempDir('ubp-init-gitignore-symlink-');
+  const externalDir = mkTempDir('ubp-init-gitignore-target-');
+  const external = path.join(externalDir, 'sentinel.txt');
+  try {
+    fs.writeFileSync(external, 'preserve-me\n');
+    fs.symlinkSync(external, path.join(target, '.gitignore'));
+    assert.throws(
+      () => initProject({
+        target_dir: target,
+        project_name: 'unsafe-gitignore',
+      }),
+      (error) => error instanceof InitProjectError
+        && error.code === 'GITIGNORE_UNSAFE',
+    );
+    assert.equal(fs.readFileSync(external, 'utf8'), 'preserve-me\n');
+    assert.equal(fs.existsSync(path.join(target, '.git')), false);
+    assert.equal(fs.existsSync(path.join(target, '.ultra')), false);
+  } finally {
+    cleanup(target);
+    cleanup(externalDir);
+  }
+});
+
+test('initProject rolls back when Git rules re-include the Ultra authority', () => {
+  const target = mkTempDir('ubp-init-gitignore-negation-');
+  try {
+    git(target, ['init', '-q', '-b', 'main']);
+    git(target, ['config', 'user.email', 'test@ubp.dev']);
+    git(target, ['config', 'user.name', 'ubp-test']);
+    const gitignore = '.ultra/\n!.ultra/\n';
+    fs.writeFileSync(path.join(target, '.gitignore'), gitignore);
+    git(target, ['add', '.gitignore']);
+    git(target, ['commit', '-q', '-m', 'seed conflicting ignore']);
+    const before = git(target, ['rev-parse', 'HEAD']);
+
+    assert.throws(
+      () => initProject({
+        target_dir: target, project_name: 'unsafe-ignore', git_mode: 'auto',
+      }),
+      (error) => error instanceof InitProjectError
+        && error.code === 'GITIGNORE_INEFFECTIVE',
+    );
+    assert.equal(fs.readFileSync(path.join(target, '.gitignore'), 'utf8'), gitignore);
+    assert.equal(git(target, ['rev-parse', 'HEAD']), before);
+    assert.equal(fs.existsSync(path.join(target, '.ultra')), false);
+  } finally {
+    cleanup(target);
+  }
+});
+
 test('initProject rejects empty project_name', () => {
   const target = mkTempDir();
   try {
@@ -488,6 +911,24 @@ test('initProject rejects empty project_name', () => {
       (err) => err instanceof InitProjectError && err.code === 'VALIDATION_ERROR',
     );
   } finally { cleanup(target); }
+});
+
+test('initProject rejects an unsupported git_mode before mutating the target', () => {
+  const target = mkTempDir('ubp-init-invalid-git-mode-');
+  try {
+    assert.throws(
+      () => initProject({
+        target_dir: target, project_name: 'demo', git_mode: 'reinitialize',
+      }),
+      (error) => error instanceof InitProjectError
+        && error.code === 'VALIDATION_ERROR'
+        && /git_mode/.test(error.message),
+    );
+    assert.equal(fs.existsSync(path.join(target, '.git')), false);
+    assert.equal(fs.existsSync(path.join(target, '.ultra')), false);
+  } finally {
+    cleanup(target);
+  }
 });
 
 test('initProject rejects missing source_template', () => {

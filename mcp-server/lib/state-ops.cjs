@@ -8,6 +8,7 @@
 // here apply the BEGIN IMMEDIATE / retry / status-machine guards specified
 // in PLAN §6 Phase 2.3 + docs/STATE-DB-ACCESS-POLICY.md.
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -40,6 +41,17 @@ const PATCHABLE_FIELDS = Object.freeze([
   'acceptance', 'context_refs', 'docs_impact', 'ownership',
   'context_file', 'completion_commit',
   'change_id',
+]);
+
+const STALE_RECONCILIATION_FIELDS = Object.freeze([
+  'deps', 'files_modified', 'trace_to', 'outcome', 'slice_kind', 'public_seam',
+  'verification_command', 'acceptance', 'context_refs', 'docs_impact', 'ownership',
+]);
+
+const TASK_CONTRACT_PATCH_FIELDS = new Set([
+  'priority', 'complexity', 'estimated_days', 'deps', 'files_modified', 'tag',
+  'trace_to', 'outcome', 'slice_kind', 'public_seam', 'verification_command',
+  'acceptance', 'context_refs', 'docs_impact', 'ownership',
 ]);
 
 const SESSION_PATCHABLE = Object.freeze([
@@ -227,6 +239,30 @@ function assertTaskExecutionContract(task) {
   return task;
 }
 
+function currentChangeAuthorityDigest(db, changeId) {
+  if (!changeId) return null;
+  const row = db.prepare(
+    `SELECT id, kind, intent, docs_impact_json, provider_refs_json, contract_json,
+     classification_json, research_disposition_json
+     FROM changes WHERE id = ?`,
+  ).get(changeId);
+  if (!row) return null;
+  const parse = (value) => {
+    try { return JSON.parse(value || '{}'); } catch { return {}; }
+  };
+  const payload = {
+    id: row.id,
+    kind: row.kind,
+    intent: row.intent,
+    docs_impact: parse(row.docs_impact_json),
+    provider_refs: parse(row.provider_refs_json),
+    contract: parse(row.contract_json),
+    classification: parse(row.classification_json),
+    research_disposition: parse(row.research_disposition_json),
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+}
+
 function readTask(db, id) {
   const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
   return rowToTask(row);
@@ -373,6 +409,19 @@ function patchTask(db, id, patch = {}) {
     // active execution authority. Ownership is durable once assigned: it may
     // not be detached or moved to another change by a generic task patch.
     assertChangeAcceptsTasks(db, current.change_id);
+    const clearingStale = current.stale === true && patch.stale === false;
+    if (clearingStale) {
+      const missing = STALE_RECONCILIATION_FIELDS.filter(
+        (field) => !Object.prototype.hasOwnProperty.call(patch, field),
+      );
+      if (missing.length > 0) {
+        throw new StateOpsError(
+          'TASK_STALE_RECONCILIATION_REQUIRED',
+          `task ${id} can clear stale only while rebinding its complete execution contract`,
+          { details: { missing_fields: missing } },
+        );
+      }
+    }
     const sets = [];
     const params = [];
     let nextStatus = null;
@@ -440,6 +489,8 @@ function patchTask(db, id, patch = {}) {
     params.push(nowIso());
     params.push(id);
     db.prepare(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+    const updated = readTask(db, id);
+    if (clearingStale) assertTaskExecutionContract(updated);
 
     if (nextStatus && nextStatus !== current.status) {
       appendEventInTx(db, {
@@ -449,7 +500,19 @@ function patchTask(db, id, patch = {}) {
         payload: { from: current.status, to: nextStatus },
       });
     }
-    return readTask(db, id);
+    const contractFields = Object.keys(patch).filter((field) => TASK_CONTRACT_PATCH_FIELDS.has(field));
+    if (contractFields.length > 0) {
+      appendEventInTx(db, {
+        type: clearingStale ? 'task_contract_reconciled' : 'task_contract_updated',
+        task_id: id,
+        change_id: updated.change_id,
+        payload: {
+          fields: contractFields.sort(),
+          change_authority_digest: currentChangeAuthorityDigest(db, updated.change_id),
+        },
+      });
+    }
+    return updated;
   });
 }
 

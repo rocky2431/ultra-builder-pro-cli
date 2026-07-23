@@ -1,103 +1,82 @@
 ---
 name: ultra-plan
-description: Convert a ready Ultra baseline or approved active-change delta into dependency-valid, DB-backed execution contracts and fresh-context vertical slices. Use when accepted requirements are ready for implementation planning or an existing plan must be resumed and verified.
+description: Turn an accepted Ultra Change Contract into dependency-valid, DB-backed vertical task contracts. Use when research obligations are resolved and implementation needs an executable plan.
 ---
 
-# Review and persist an executable plan
+# Build an executable plan
 
-Use host reasoning for decomposition, tradeoffs, and approval. Use Ultra MCP for
-workflow position, decision authority, task contracts, graph validation, projection,
-and recovery. Read `../ultra-think/references/decision-dialogue.md` before presenting a
-planning choice.
+The model owns decomposition and technical design. MCP owns plan state, task contracts,
+dependency integrity, output digests, and recovery. Planning must stay inside the
+accepted Change Contract without adding ceremonial approval.
 
-## Bind authority
+## Bind current authority
 
-1. Call `system.doctor`, `baseline.get`, `change.list`, and `change.breadcrumb`.
-2. Require a current ready baseline for new ordinary work. Resume an already-authorized
-   active change when appropriate; an incident uses only its recorded break-glass
-   authority.
-3. Ensure exactly one active change owns the plan. For initial implementation, open a
-   standard or major change from the accepted baseline before creating tasks.
-4. Read `references/semantic-preflight.md`. Resolve every blocking Change decision and
-   complete the exact recorded bounded research selection before starting the plan.
-5. Resume the active `plan` workflow from `workflow.list`, or call `workflow.start`
-   with its `baseline_id`, `change_id`, subject, and source refs.
+1. Read doctor, baseline, change, decisions, existing plan runs, tasks, and current
+   checkout.
+2. Require one mutable change with a healthy baseline or recorded incident bypass.
+3. Complete the exact change-bound research disposition before planning.
+4. Resume the matching plan run or start one bound to the change and baseline.
 
-## Build a candidate before writing authority
+Read `references/semantic-preflight.md` and inspect requirements, real consumers,
+state, tests, deployment, and recovery paths.
 
-Inspect requirements, source, consumers, state, tests, deployment, and recovery before
-drafting slices. Build the candidate plan privately. Separate evidence-backed design
-detail from choices that change accepted scope, public behavior, compatibility, cost,
-risk, delivery semantics, or recovery.
+## Design with model autonomy
 
-When a material planning decision remains, start or resume a decision thread bound to
-the plan workflow. Present exactly one decision with the recommendation, credible
-alternatives, and the tasks or contracts it changes, then STOP. The plan document is
-the result of this review; never use a large plan dump as a substitute for interaction.
+Build a candidate plan privately. Ask the user only if the plan would change accepted
+scope, public behavior, compatibility, security, material cost, external effects, or
+recovery. Use the host's native question UI when available and the interaction protocol
+in `../ultra-think/references/decision-dialogue.md`.
 
-After all blocking choices are resolved, prepare one checkpoint. Present the compact
-topology, public seams, recovery, and material tradeoffs for approval. After approval,
-write the evidence-linked `plan.md`, confirm the checkpoint with its digest, and reuse
-that same approval for the durable `approve-plan` and workflow completion gates.
+When the candidate remains inside the accepted Change Contract, proceed without a
+second approval. A user may still request a plan review before persistence; that is an
+interaction preference, not a runtime invariant.
 
-## Record the durable steps
+Record:
 
-Record each completed step with `workflow.step`:
+1. `validate-baseline`
+2. `analyze-requirements`
+3. `analyze-codebase`
+4. `design-slices`
+5. `validate-dependencies`
+6. `persist-task-contracts`
+7. `verify-plan`
 
-1. `validate-baseline`: verify baseline and completed research provenance.
-2. `select-posture`: preserve the owner-approved scope and delivery posture. Never
-   infer an MVP, reduction, phase, or exclusion. Ask only when a proposed plan changes
-   accepted scope, cost, risk, compatibility, or delivery semantics.
-3. `analyze-requirements`: trace stable requirement ids to acceptance and public seams.
-4. `analyze-codebase`: inspect current entry points, consumers, patterns, state
-   authority, tests, deployment, and recovery paths before designing new structure.
-5. `design-slices`: design a walking skeleton and subsequent vertical slices. Every
-   slice must reach a real consumer; include validation, side effects, errors,
-   documentation, migration, observability, and recovery in the owning slice.
-6. `validate-dependencies`: validate ownership, missing dependencies, cycles, conflict
-   surfaces, and meaningful integration checkpoints.
-7. `approve-plan`: persist the already obtained checkpoint approval; do not ask again.
+Design a walking skeleton and subsequent vertical slices. Every slice reaches a real
+consumer and owns its validation, side effects, errors, documentation, migration,
+observability, and recovery obligations. Avoid unconsumed horizontal scaffolding.
 
-## Persist complete task contracts
+## Persist task contracts
 
-Only after the plan checkpoint is confirmed, call `task.create` for each approved task
-with:
+Create each task with:
 
-- one observable `outcome` and stable `trace_to`;
-- `slice_kind`, `public_seam`, and exact `verification_command`;
-- structured `acceptance` items with their verification;
-- bounded `context_refs` with reasons;
-- resolved `docs_impact` and durable `ownership`;
-- dependencies, affected files when known, estimates only when evidence supports them,
-  and the owning `change_id`.
+- observable outcome and stable trace;
+- `slice_kind`, public seam, and exact verification command;
+- structured acceptance mapped to Change acceptance ids;
+- bounded context refs and reasons;
+- documentation impact, ownership, dependencies, and affected files when known.
 
-Copy each Change acceptance id into at least one task acceptance item without changing
-its meaning. Set `trace_to` to that accepted id, a current research semantic id, or a
-real project-relative Markdown `path#anchor`. A quick profile has exactly one task.
-The MCP derives the coverage matrix and rejects uncovered acceptance, orphan tasks,
-stale research, and oversized quick plans.
+Use estimates only when evidence supports them. A quick change has exactly one task.
+Read every task back from DB. Never read or write `.ultra/tasks/tasks.json` directly;
+it is a generated projection, not authority.
 
-Never read or write `.ultra/tasks.json` or generated context Markdown as authority.
-The DB owns the task contract and the projector regenerates both views.
-`persist-task-contracts` completes only after `task.get` reads every field back without
-a contract blocker.
+If a semantic `change.update` invalidated existing tasks, reconcile every affected
+task contract against the current intent, acceptance, decisions, and research
+evidence. Rebind the complete execution contract while clearing `stale` through
+`task.update`; MCP rejects a marker-only clear, validates the read-back, and records
+the current Change authority digest. Never clear staleness merely to pass a gate.
 
-Call `task.dependency_topo` with the current `change_id`, then call
-`plan.export` with `change_id`, `format: "json"`, and
-`out_path: ".ultra/execution-plan.json"`. Export records `plan_exported`; it does
-not approve the plan. Read the same change back with `plan.get`.
-The exported artifact is change-bound and may not include tasks from another active
-or historical change. Recompile `change.context`
-for the first task; it derives its execution contract and context refs from DB and
-rejects a conflicting prompt override. Missing required refs block readiness; context
-size is advisory.
+Validate the change-scoped graph with `task.dependency_topo`. Export
+`.ultra/execution-plan.json` with `plan.export`, read it through `plan.get`, and record
+it as the `verify-plan` output.
 
-Record `verify-plan` with `.ultra/execution-plan.json` as its sole output, then call
-`workflow.complete` with
-`approval.approved_by` and `approval.approval_note`. Do not send a task summary: MCP
-derives the complete task set from every task owned by the change. Completion
-revalidates every task contract, change ownership, dependency existence, graph cycles,
-the exact exported topology, approval, and current output digests; it also advances
-the linked change workflow to context compilation.
-Return the persisted topology, first task/public seam,
-approval evidence, plan workflow id, and one `ultra-dev` route.
+Call `workflow.complete`. `approval` is optional: include it only when a material plan
+decision actually required and received user approval. MCP derives task coverage and
+topology from DB and must reject incomplete contracts, uncovered acceptance, cycles,
+cross-change tasks, stale research, or a mismatched export.
+
+Do not advance or complete the Change workflow; change capture is already complete.
+Compile task context later for the consumer that needs it.
+
+Return topology, first executable slices, public seams, verification commands, plan
+workflow id, and allowed transitions. The host may recommend parallel or sequential
+execution based on dependency and conflict evidence.

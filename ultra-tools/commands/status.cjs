@@ -17,7 +17,7 @@ const { readBreadcrumb } = require('../../mcp-server/lib/context-spine.cjs');
 
 const USAGE = `ultra-tools status [flags]
 
-Reads .ultra/state.db and prints baseline, workflow, task, session, route, and
+Reads .ultra/state.db and prints baseline, workflow, task, session, valid transitions, and
 cost-observability status.
 
 FLAGS:
@@ -174,20 +174,19 @@ function buildStatusPanel(db, { since = null, limit = 3, rootDir = process.cwd()
       status: 'unavailable', active: 0, awaiting_owner: 0, checkpoint_ready: 0,
       deferred_blocking: 0, stale_artifacts: [], current: null, current_thread_id: null,
     };
-  let next;
+  let transitions;
   let breadcrumb = null;
   try {
     if (!tables.has('baselines')) {
-      next = {
-        action: 'Resume project initialization to migrate and establish baseline authority.',
-        recommended_workflow: 'ultra-init', readiness: 'blocked',
+      transitions = {
+        allowed: ['ultra-init', 'ultra-status'], required: 'ultra-init', readiness: 'blocked',
         blockers: ['BASELINE_SCHEMA_MIGRATION_REQUIRED'], warnings: [],
       };
     } else {
     breadcrumb = readBreadcrumb(db, {}, { rootDir });
-    next = {
-      action: breadcrumb.next_action,
-      recommended_workflow: breadcrumb.recommended_workflow,
+    transitions = {
+      allowed: breadcrumb.allowed_transitions,
+      required: breadcrumb.required_transition,
       readiness: breadcrumb.readiness,
       blockers: breadcrumb.blockers,
       warnings: breadcrumb.warnings,
@@ -197,9 +196,8 @@ function buildStatusPanel(db, { since = null, limit = 3, rootDir = process.cwd()
     };
     }
   } catch (error) {
-    next = {
-      action: 'Run ultra-doctor to inspect authoritative state.',
-      recommended_workflow: 'ultra-doctor', readiness: 'blocked',
+    transitions = {
+      allowed: ['ultra-doctor', 'ultra-status'], required: 'ultra-doctor', readiness: 'blocked',
       blockers: [`STATUS_AUTHORITY_UNAVAILABLE:${error.code || 'unknown'}`], warnings: [],
     };
   }
@@ -256,7 +254,7 @@ function buildStatusPanel(db, { since = null, limit = 3, rootDir = process.cwd()
     changes,
     tasks: taskCounts,
     sessions,
-    next,
+    transitions,
     by_runtime,
     top_tasks,
     total_cost_usd,
@@ -315,7 +313,8 @@ function renderHuman(panel) {
   lines.push(
     `Sessions: running=${panel.sessions.running} crashed=${panel.sessions.crashed} orphan=${panel.sessions.orphan}`,
   );
-  lines.push(`Next: ${panel.next.action} (${panel.next.recommended_workflow})`);
+  lines.push(`Allowed transitions: ${panel.transitions.allowed.join(', ') || 'none'}`);
+  if (panel.transitions.required) lines.push(`Required transition: ${panel.transitions.required}`);
   lines.push(
     `Evidence: test=${panel.evidence.test.status} review=${panel.evidence.review.status} delivery=${panel.evidence.delivery.status}`,
   );
@@ -360,6 +359,11 @@ function resolveDbPath() {
   return path.resolve('.ultra', 'state.db');
 }
 
+function resolveRootDir(dbPath) {
+  if (process.env.UBP_ROOT_DIR) return path.resolve(process.env.UBP_ROOT_DIR);
+  return path.dirname(path.dirname(dbPath));
+}
+
 function dispatch(args) {
   let flags;
   try { flags = parseFlags(args); } catch (err) { return fail('USAGE_ERROR', err.message); }
@@ -377,7 +381,7 @@ function dispatch(args) {
   const Database = require('better-sqlite3');
   const db = new Database(dbPath, { readonly: true });
   try {
-    const rootDir = path.dirname(path.dirname(dbPath));
+    const rootDir = resolveRootDir(dbPath);
     const panel = buildStatusPanel(db, { since, limit: flags.limit, rootDir });
     if (flags.json) {
       emit({ ok: true, data: panel });
@@ -398,4 +402,5 @@ module.exports = {
   renderHuman,
   parseSince,
   parseFlags,
+  resolveRootDir,
 };

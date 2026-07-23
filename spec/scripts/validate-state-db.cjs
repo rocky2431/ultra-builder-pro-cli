@@ -62,12 +62,12 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '16.0'").get();
-if (v && v.version === '16.0') {
-  console.log('ok schema_version includes 16.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '18.0'").get();
+if (v && v.version === '18.0') {
+  console.log('ok schema_version includes 18.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 16.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 18.0: got ${JSON.stringify(v)}`);
   fail++;
 }
 
@@ -90,6 +90,18 @@ const requiredTaskContractColumns = [
   'outcome', 'slice_kind', 'public_seam', 'verification_command',
   'acceptance_json', 'context_refs_json', 'docs_impact_json', 'ownership_json',
 ];
+const contextColumns = new Set(
+  db.prepare('PRAGMA table_info(context_snapshots)').all().map((row) => row.name),
+);
+for (const column of ['allowed_transitions_json', 'required_transition']) {
+  if (contextColumns.has(column)) {
+    console.log(`  ok context_snapshots.${column}`);
+    pass++;
+  } else {
+    console.error(`  FAIL context_snapshots.${column} missing`);
+    fail++;
+  }
+}
 const taskColumns = new Set(db.prepare('PRAGMA table_info(tasks)').all().map((row) => row.name));
 for (const column of requiredTaskContractColumns) {
   if (taskColumns.has(column)) {

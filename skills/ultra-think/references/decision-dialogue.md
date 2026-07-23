@@ -1,130 +1,106 @@
-# Decision dialogue protocol
+# User-agent interaction contract
 
-Use this protocol when an Ultra workflow reaches a load-bearing owner decision. Keep
-fact acquisition autonomous and decision authority explicit. Do not use it for facts
-that repository, runtime, tests, or primary sources can answer.
+Use this protocol only when evidence and accepted intent do not resolve a material
+choice. The goal is shared understanding with low cognitive load, not a mandatory
+interview.
 
-## Select the interaction depth
+## Authority split
 
-- `guided`: ask every unresolved decision that changes accepted product intent, scope,
-  public behavior, security, material cost, compatibility, delivery semantics, or
-  recovery. Use for initial research and major changes.
-- `fast`: ask only unresolved one-way-door or materially expensive decisions. Decide
-  reversible implementation detail inside accepted constraints. Use for bounded daily
-  work.
-- `autonomous`: use only after the owner explicitly delegates reversible decisions.
-  Preserve the delegation, selected result, rationale, and guardrails.
-- `diagnostic`: acquire evidence and distinguish falsifiable hypotheses before asking
-  for a recovery or product decision.
+The user owns:
 
-Do not ask a meta-question about mode when the user's request or current change profile
-already determines the appropriate depth.
+- product intent and accepted outcomes;
+- material scope, compatibility, security, cost, and recovery tradeoffs;
+- authorization for destructive or external effects.
 
-## Separate evidence from decisions
+The model owns:
+
+- fact finding and synthesis;
+- reversible implementation detail inside accepted constraints;
+- research coverage and risk-profile recommendations;
+- technical decomposition, verification selection, and route recommendation.
+
+MCP owns durable state, evidence references, digests, freshness, locks, valid
+transitions, and hard invariants. It does not choose semantic intent.
+
+## Decide whether to ask
 
 Before asking:
 
-1. Inspect current authority, repository, runtime, tests, and relevant primary sources.
-2. Resolve factual unknowns yourself when evidence is obtainable.
-3. Separate `Observed`, `Verified`, `Decided`, and `Unknown`.
-4. Identify the earliest unresolved decision on which later decisions depend.
-5. Form a private candidate queue, but expose only its current item. Do not dump the
-   backlog, a questionnaire, or every research step.
+1. Inspect repository authority, source, runtime, tests, and relevant primary sources.
+2. Separate `Observed`, `Verified`, `Decided`, `Delegated`, and `Unknown`.
+3. Resolve evidence-answerable unknowns autonomously.
+4. Normalize clear decisions already present in the user's current request.
+5. Ask only if the remaining choice changes accepted intent, public behavior,
+   compatibility, security, material cost, external effects, or recovery.
 
-If more evidence can resolve the current uncertainty, perform that research first. If
-the user says they do not know, convert the gap into a bounded validation action rather
-than pressuring them to guess.
+Do not ask about a reversible implementation detail already delegated by the contract.
+If the user does not know, recommend a bounded validation action instead of forcing a
+guess.
 
-## Bind durable authority
+## Choose interaction depth
 
-For a project-bound dialogue:
+- `guided`: material initial product or major-change choices;
+- `fast`: only one-way-door or costly choices in routine work;
+- `autonomous`: reversible choices explicitly delegated by the user;
+- `diagnostic`: gather discriminating evidence before asking about recovery.
 
-1. Call `decision.list` and resume the matching `active` or `checkpoint_ready` thread.
-2. Otherwise call `decision.thread_start` with one baseline, change, or workflow
-   binding, a concise purpose, and the selected mode. Never store raw prompts or
-   transcripts.
-3. Call `decision.open` for exactly one decision. Include:
-   - why it must be decided now;
-   - the evidence-backed recommendation;
-   - zero to three credible alternatives with their net tradeoff;
-   - evidence references;
-   - the contract, artifact, gate, or task effects;
-   - whether deferral blocks progress.
+Infer the depth from the request and risk. Do not ask a meta-question about mode unless
+that choice itself changes the outcome.
 
-Do not encode future questions as open decisions. Re-evaluate the next candidate after
-each answer so the dialogue adapts instead of following a static questionnaire.
+## Present questions
 
-## Present one decision and stop
+Use the host-native structured question surface declared by the installed interaction
+contract when it exists. If that surface is unavailable in the current mode, ask one
+concise direct question instead of inventing a tool or foreign-host syntax.
 
-Use a compact shape adapted to the user's language:
+Ask one question only for a dependent decision. STOP is mandatory after presenting
+that question: do not perform writes whose meaning depends on an unanswered choice.
+
+For one dependent decision, present:
 
 ```text
-Decision <position when known>: <question>
-Why now: <one sentence>
-Recommendation: <choice or next validation> — <reason>
-Options: <only credible alternatives and their net tradeoff>
-Effect: <what this answer changes>
+Decision: <question>
+Why now: <decision effect>
+Recommendation: <choice> — <decisive reason>
+Alternatives: <only credible alternatives and their net tradeoff>
 ```
 
-Ask one question only. Do not combine dependent questions, append a second request, or
-continue into analysis, planning, edits, or another workflow step. End the turn and
-wait. This STOP is mandatory even when the likely answer seems obvious.
+Ask dependent decisions one at a time. A host may group up to three independent,
+low-cognitive-load facts when seeing them together improves consistency. Never dump a
+questionnaire, hidden queue, or every research area.
 
-## Normalize the answer
+The question tool or direct question ends the current interaction naturally.
 
-On the next turn:
+## Persist only when recovery needs it
 
-- When the answer is unambiguous, briefly reflect the normalized decision and its
-  durable effect, then call `decision.resolve` with the decision, rationale, and owner.
-- When the user says "you decide", select the reversible result within stated bounds
-  and call `decision.delegate` with the explicit delegation, result, rationale, and
-  guardrails. Never represent delegation as a direct owner decision.
-- When the user defers, call `decision.defer` with the reason, consequence, and revisit
-  condition. A blocking deferral remains a gate.
-- When the answer is ambiguous, ask one clarification for the same decision; do not
-  infer a product choice from tone or partial wording.
-- When evidence or owner intent changes a resolved decision, call
-  `decision.supersede`. Preserve the prior record and open one replacement question.
+For a project-bound material decision:
 
-Do not require a redundant confirmation after a clear answer. The owner can correct
-the compact reflection; phase checkpoint approval is the durable confirmation.
+1. Call `decision.list` and resume a matching active decision thread, or use
+   `decision.thread_start` for one new baseline-, change-, or workflow-bound thread.
+2. Use `decision.open` for only the current decision with evidence refs, recommendation, credible
+   alternatives, effects, and blocking consequence.
+3. After the answer:
+   - `decision.resolve` for a direct user choice;
+   - `decision.delegate` for explicit model delegation;
+   - `decision.defer` with consequence and revisit condition;
+   - `decision.supersede` when accepted intent actually changed.
+4. Use `decision.checkpoint` only for the digest-bound recovery boundary described
+   below.
 
-## Checkpoint before projection
+Keep fact acquisition autonomous and decision authority explicit.
+Never store raw prompts or transcripts; store normalized decisions, not internal
+chain of thought.
+Do not require a redundant confirmation after an unambiguous answer.
 
-After a coherent cluster of decisions or a phase boundary:
+Use a checkpoint only when a coherent decision cluster changes a durable contract or
+artifact and interruption recovery requires a digest-bound boundary. Present the
+compact effect once, obtain any missing approval, update the artifact, and confirm its
+digest. Do not create ceremonial checkpoints for routine implementation detail or an
+already explicit current instruction.
 
-1. Call `decision.checkpoint` with `action: "prepare"` and a compact shared
-   understanding. Open or blocking-deferred decisions must prevent preparation.
-2. Present only accepted decisions, unresolved consequences, and the artifacts that
-   will change. Ask for one checkpoint approval and STOP.
-3. After approval, update the target specification, Change Contract, delta, or plan
-   from normalized decisions. Do not write conversation transcripts.
-4. Call `decision.checkpoint` with `action: "confirm"`, owner approval, and the current
-   artifact paths. MCP binds their digests. A change- or workflow-bound thread must
-   bind at least one artifact. When a shared specification will continue evolving,
-   bind a stable decision projection under `.ultra/docs/decisions/<thread-id>.md`
-   instead of a mutable draft that would immediately become stale. Only a standalone
-   baseline thinking thread may use an explicit no-artifact reason.
-5. Re-read the confirmed thread. Only then may the linked workflow complete the gated
-   step or move to another phase.
+## Return to the capability graph
 
-If a bound artifact changes while the normalized decisions remain valid, prepare the
-same thread again, show the changed effect, obtain one new checkpoint approval, and
-confirm the current digest. Do not invent a replacement decision merely to refresh an
-artifact. If the decision itself changed, use supersession instead.
-
-Start a new thread for a new decision cluster. Supersede an old item only when the old
-decision itself changed.
-
-## Keep the user surface small
-
-At each turn show only:
-
-- the current decision or checkpoint;
-- the decisive evidence and recommendation;
-- the effect of the answer;
-- optionally the number of already resolved decisions.
-
-Provide the hidden evidence inventory, all semantic steps, or full report paths only
-when requested. Context and token budgets are advisory; they never justify omitting
-load-bearing evidence or refusing legitimate work.
+After alignment, re-read the invoking workflow and breadcrumb. A
+`required_transition` is authoritative only for a hard invariant. Otherwise the host
+model recommends among `allowed_transitions` based on the user's goal and current
+evidence. Do not persist that semantic recommendation as MCP authority.

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { initStateDb, closeStateDb, EXPECTED_VERSION } = require('./state-db.cjs');
+const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const decisions = require('./decision-dialogue.cjs');
 const changes = require('./change-workflow.cjs');
 const workflows = require('./workflow-state.cjs');
@@ -57,10 +57,13 @@ function createAlignedChange(fx, id = 'decision-change') {
   }), { rootDir: fx.rootDir });
 }
 
-test('schema 16 creates durable decision dialogue tables', () => {
+test('current schema retains the durable schema 16 decision dialogue authority', () => {
   const fx = fixture();
   try {
-    assert.equal(EXPECTED_VERSION, '16.0');
+    assert.deepEqual(
+      fx.db.prepare('SELECT version FROM schema_version WHERE version = ?').get('16.0'),
+      { version: '16.0' },
+    );
     const tables = new Set(fx.db.prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table'",
     ).all().map((row) => row.name));
@@ -109,19 +112,25 @@ test('blocking decisions stop workflow advancement until an approved checkpoint 
   const fx = fixture();
   try {
     const created = createAlignedChange(fx);
+    const plan = workflows.startWorkflow(fx.db, {
+      id: 'plan-after-capture',
+      kind: 'plan',
+      change_id: created.change.id,
+      subject: 'Plan only after the remaining material decision is aligned.',
+    }, { rootDir: fx.rootDir });
     decisions.startDecisionThread(fx.db, {
       id: 'thread-change-alignment',
       baseline_id: 'test-baseline',
       change_id: created.change.id,
-      workflow_run_id: created.workflow.id,
-      purpose: 'Resolve the remaining change-contract authority.',
+      workflow_run_id: plan.id,
+      purpose: 'Resolve material authority before downstream planning advances.',
       mode: 'guided',
     });
     decisions.openDecision(fx.db, question());
 
     assert.throws(
       () => workflows.recordWorkflowStep(fx.db, {
-        id: created.workflow.id, step_id: 'plan-change', status: 'completed',
+        id: plan.id, step_id: 'validate-baseline', status: 'completed',
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'DECISION_ALIGNMENT_BLOCKING',
     );
@@ -138,7 +147,7 @@ test('blocking decisions stop workflow advancement until an approved checkpoint 
     assert.equal(prepared.status, 'checkpoint_ready');
     assert.throws(
       () => workflows.recordWorkflowStep(fx.db, {
-        id: created.workflow.id, step_id: 'plan-change', status: 'completed',
+        id: plan.id, step_id: 'validate-baseline', status: 'completed',
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'DECISION_ALIGNMENT_BLOCKING',
     );
@@ -168,7 +177,7 @@ test('blocking decisions stop workflow advancement until an approved checkpoint 
     assert.equal(staleHealth.current_thread_id, 'thread-change-alignment');
     assert.throws(
       () => workflows.recordWorkflowStep(fx.db, {
-        id: created.workflow.id, step_id: 'plan-change', status: 'completed',
+        id: plan.id, step_id: 'validate-baseline', status: 'completed',
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'DECISION_ALIGNMENT_BLOCKING'
         && error.details.blockers.includes('DECISION_CHECKPOINT_ARTIFACT_STALE:thread-change-alignment'),
@@ -185,9 +194,14 @@ test('blocking decisions stop workflow advancement until an approved checkpoint 
     assert.equal(decisions.inspectDecisionHealth(fx.db, { rootDir: fx.rootDir }).status, 'pass');
 
     const advanced = workflows.recordWorkflowStep(fx.db, {
-      id: created.workflow.id, step_id: 'plan-change', status: 'completed',
+      id: plan.id, step_id: 'validate-baseline', status: 'completed',
+      evidence: [{
+        kind: 'baseline',
+        ref: 'test-baseline',
+        summary: 'The current baseline and owner checkpoint are ready for planning.',
+      }],
     }, { rootDir: fx.rootDir });
-    assert.equal(advanced.current_step, 'compile-context');
+    assert.equal(advanced.current_step, 'analyze-requirements');
   } finally {
     cleanup(fx);
   }

@@ -1,65 +1,51 @@
 ---
 name: ultra-think
-description: Resolve a consequential product or technical question through evidence-first analysis or a resumable one-decision-at-a-time owner dialogue. Use when tradeoffs, ambiguity, diagnosis, or failure risk require shared understanding before research, planning, or implementation proceeds.
+description: Resolve a consequential product, architecture, or recovery question through evidence-first reasoning and adaptive user alignment. Use when a material decision cannot be derived safely from accepted intent and current evidence.
 ---
 
-# Align on a consequential question
+# Align without suppressing model judgment
 
-Use the smallest reasoning structure that resolves the user's actual decision. Answer a
-simple self-contained question directly. For a project-bound or multi-turn decision,
-read `references/decision-dialogue.md` and use its durable protocol.
+Thinking is an optional reasoning capability, not a mandatory stage. Answer
+self-contained questions directly. Use durable decision state only when a
+project-bound choice must survive interruption or gate later work.
 
-## Establish evidence
+## Reason first
 
-1. State the decision, observed symptom, or disputed claim and the constraints that
-   could change the answer.
-2. Gather evidence from the most authoritative available source:
-   - current checkout and runtime for repository claims;
-   - official primary documentation for product or API behavior;
-   - current web sources for unstable external facts.
-3. Separate verified facts, evidence-backed inferences, and unresolved assumptions.
-   Cite the supporting file, command, runtime result, or source near each consequential
-   claim.
-4. For a decision, compare only credible alternatives. Do not invent a fixed number of
-   options or assign arbitrary numeric scores. Name the criteria that actually drive
-   the choice and explain the tradeoffs.
-5. For a diagnosis, form falsifiable hypotheses and identify the smallest observation
-   that distinguishes them. Do not recommend implementation before the earliest
-   incorrect state is supported by evidence.
-6. Stress-test the leading conclusion with the techniques that fit the problem:
-   - strongest counterargument;
-   - likely failure scenario and recovery;
-   - load-bearing assumption;
-   - meaningful second-order effect.
-7. Decide whether the question is now answerable or still requires owner authority.
+1. Define the actual decision or disputed claim and the constraints that can change
+   its answer.
+2. Inspect current authority, source, runtime, tests, and primary documentation before
+   asking the user for facts.
+3. Separate verified fact, evidence-backed inference, accepted intent, delegated
+   implementation judgment, and unresolved owner choice.
+4. Form credible alternatives only when alternatives materially help the decision.
+   Evaluate them against the real constraints; do not impose a fixed option count,
+   scoring system, or confidence percentage.
+5. Stress-test the leading answer with its strongest counterexample, likely failure
+   path, recovery, and load-bearing assumption.
 
-## Route the result
+## Interact adaptively
 
-- For an answerable read-only question, return the recommendation or diagnosis,
-  decisive evidence, uncertainty, what would change the conclusion, and one smallest
-  verification step.
-- For a load-bearing owner decision, bind or resume a decision thread, open the one
-  earliest decision, present it using the shared protocol, and STOP.
-- After an answer, normalize it through `decision.resolve`, `decision.delegate`, or
-  `decision.defer`; never store the conversation transcript.
-- At a phase boundary, prepare the checkpoint, obtain approval, bind current artifact
-  digests when project-bound, and only then return control to the invoking workflow.
+Read `references/decision-dialogue.md`. If the user already gave a clear decision,
+normalize and use it without asking for confirmation. If the decision is reversible
+and delegated by the accepted contract, decide it and explain the reasoning.
 
-## Output
+When owner authority is required, use the host's native question UI when available.
+Ask the earliest dependent decision with a recommendation, decisive evidence, and the
+effect of the answer. Keep cognitive load small; group only independent, simple facts.
+Do not expose the hidden decision queue.
 
-Adapt the response to the question. Include:
+For durable project decisions, use `decision.thread_start`, `decision.open`, and the
+appropriate resolve, delegate, defer, or supersede transition. Store normalized
+decisions and artifact references, never transcripts or internal reasoning.
 
-- the conclusion first;
-- the decisive evidence and tradeoffs;
-- unresolved uncertainty without false precision;
-- one concrete verification or follow-up action.
+Prepare and confirm a checkpoint only when the decision changes a durable contract or
+artifact and a checkpoint is needed for recovery. Do not add a ceremonial approval
+gate to an already explicit user instruction or a reversible implementation detail.
 
-Use a comparison table only when several alternatives share the same decision
-criteria. Comparisons are an analysis tool, not a required output section.
+## Return control
 
-Unbound analysis is read-only. A project-bound dialogue may write only decision state
-and explicitly approved checkpoint artifacts. It does not implement the decision or
-replace research, planning, testing, or independent review. After a confirmed
-checkpoint, return to the exact invoking `ultra-init`, `ultra-research`, `ultra-change`,
-`ultra-plan`, `ultra-dev`, `ultra-test`, `ultra-review`, or `ultra-deliver` run and
-current step; never choose a new route from conversation history.
+Return the conclusion, decisive evidence, material uncertainty, and affected
+contracts. Re-read the invoking workflow or breadcrumb and recommend one of its
+`allowed_transitions`; follow `required_transition` only when a hard invariant leaves
+no alternative. Thinking does not implement code, mutate unrelated state, or invent a
+canonical next action.

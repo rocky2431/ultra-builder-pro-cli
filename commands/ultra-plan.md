@@ -1,5 +1,5 @@
 ---
-description: Interactively review and persist dependency-valid tasks with bounded context and exact verification
+description: Persist dependency-valid vertical task contracts from an accepted Change Contract
 argument-hint: "[scope]"
 workflow-ref: "@skills/ultra-plan/SKILL.md"
 ---

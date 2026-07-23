@@ -103,4 +103,14 @@ function semanticRecordsForStep(runId, stepId) {
   }];
 }
 
-module.exports = { semanticRecordsForStep };
+function researchCoverage(overrides = {}) {
+  return Object.keys(RECORDS).map((stepId) => ({
+    step_id: stepId,
+    disposition: 'execute',
+    rationale: 'Fresh semantic evidence is required for this fixture.',
+    evidence_refs: [],
+    ...(overrides[stepId] || {}),
+  }));
+}
+
+module.exports = { researchCoverage, semanticRecordsForStep };

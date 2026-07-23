@@ -9,7 +9,7 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '16.0';
+const EXPECTED_VERSION = '18.0';
 const KIMI_SCHEMA_VERSION = '9.1';
 const CONTEXT_SCHEMA_VERSION = '10.0';
 const BASELINE_SCHEMA_VERSION = '11.0';
@@ -17,6 +17,8 @@ const ADOPTION_SCHEMA_VERSION = '12.0';
 const WORKFLOW_SCHEMA_VERSION = '13.0';
 const AUTHORITY_SCHEMA_VERSION = '14.0';
 const SEMANTIC_SCHEMA_VERSION = '15.0';
+const DIALOGUE_SCHEMA_VERSION = '16.0';
+const GIT_AUTHORITY_SCHEMA_VERSION = '17.0';
 
 const MIGRATED_GAPS = Object.freeze([{
   id: 'legacy-rebaseline-required',
@@ -67,7 +69,7 @@ function applyBaselineUpgrade(db, { legacyState = false } = {}) {
       repository_revision TEXT,
       repository_branch   TEXT,
       worktree_state      TEXT NOT NULL DEFAULT 'unavailable'
-                              CHECK (worktree_state IN ('clean', 'dirty', 'unavailable')),
+                              CHECK (worktree_state IN ('clean', 'dirty', 'unborn', 'unavailable')),
       worktree_digest     TEXT,
       worktree_files_json TEXT NOT NULL DEFAULT '[]',
       worktree_accepted   INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1)),
@@ -114,7 +116,7 @@ function applyBaselineColumns(db) {
   changed = addColumnIfMissing(db, 'baselines', columns, 'repository_branch', 'TEXT') || changed;
   changed = addColumnIfMissing(
     db, 'baselines', columns, 'worktree_state',
-    "TEXT NOT NULL DEFAULT 'unavailable' CHECK (worktree_state IN ('clean', 'dirty', 'unavailable'))",
+    "TEXT NOT NULL DEFAULT 'unavailable' CHECK (worktree_state IN ('clean', 'dirty', 'unborn', 'unavailable'))",
   ) || changed;
   changed = addColumnIfMissing(db, 'baselines', columns, 'worktree_digest', 'TEXT') || changed;
   changed = addColumnIfMissing(
@@ -284,7 +286,9 @@ function applyContextSpineUpgrade(db) {
   const additions = [
     ['role', "TEXT NOT NULL DEFAULT 'plan' CHECK (role IN ('plan', 'implement', 'check', 'review'))"],
     ['gate', "TEXT NOT NULL DEFAULT 'alignment' CHECK (gate IN ('alignment', 'planning', 'implementation', 'verification', 'review', 'convergence', 'recovery'))"],
-    ['next_action', "TEXT NOT NULL DEFAULT 'Resolve the next Ultra workflow action.'"],
+    ['next_action', "TEXT NOT NULL DEFAULT ''"],
+    ['allowed_transitions_json', "TEXT NOT NULL DEFAULT '[]'"],
+    ['required_transition', 'TEXT'],
     ['readiness', "TEXT NOT NULL DEFAULT 'ready' CHECK (readiness IN ('ready', 'blocked'))"],
     ['blockers_json', "TEXT NOT NULL DEFAULT '[]'"],
     ['context_json', "TEXT NOT NULL DEFAULT '{}'"],
@@ -318,11 +322,211 @@ function applyContextSpineUpgrade(db) {
   return changed;
 }
 
+function migrateAdaptiveWorkflowRuns(db, fromVersion = latestSchemaVersion(db)) {
+  const tables = new Set(tableNames(db));
+  if (!tables.has('workflow_runs') || !tables.has('workflow_steps')) return false;
+  const existing = db.prepare(
+    "SELECT 1 FROM migration_history WHERE to_version = '18.0' AND status = 'success' LIMIT 1",
+  ).get();
+  if (fromVersion === EXPECTED_VERSION || existing) return false;
+
+  const obsoleteSteps = Object.freeze({
+    init: ['establish-baseline'],
+    change: ['plan-change', 'compile-context', 'verify-readiness'],
+    plan: ['select-posture', 'approve-plan'],
+    deliver: ['release-if-authorized'],
+  });
+  const activeRuns = db.prepare(
+    `SELECT id, kind, status FROM workflow_runs
+     WHERE status IN ('active', 'blocked', 'ready')`,
+  ).all();
+  const isCompleted = db.prepare(
+    "SELECT status FROM workflow_steps WHERE run_id = ? AND step_id = ?",
+  );
+  const currentRequired = db.prepare(
+    `SELECT step_id FROM workflow_steps
+     WHERE run_id = ? AND required = 1 AND status NOT IN ('completed', 'skipped')
+     ORDER BY position ASC LIMIT 1`,
+  );
+  const skipObsolete = db.prepare(
+    `UPDATE workflow_steps
+     SET required = 0,
+         status = CASE WHEN status IN ('pending', 'in_progress', 'blocked') THEN 'skipped' ELSE status END,
+         blockers_json = CASE WHEN status IN ('pending', 'in_progress', 'blocked') THEN '[]' ELSE blockers_json END,
+         skip_reason = CASE
+           WHEN status IN ('pending', 'in_progress', 'blocked')
+           THEN 'Removed by schema 18 adaptive workflow migration; durable evidence is preserved.'
+           ELSE skip_reason
+         END,
+         completed_at = CASE
+           WHEN status IN ('pending', 'in_progress', 'blocked')
+           THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+           ELSE completed_at
+         END,
+         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+     WHERE run_id = ? AND step_id = ?`,
+  );
+  const completeRun = db.prepare(
+    `UPDATE workflow_runs
+     SET status = 'completed', current_step = NULL, blockers_json = '[]',
+         definition_version = '2.0', summary_json = ?,
+         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+         completed_at = COALESCE(completed_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+     WHERE id = ?`,
+  );
+  for (const run of activeRuns) {
+    for (const stepId of obsoleteSteps[run.kind] || []) skipObsolete.run(run.id, stepId);
+
+    if (run.kind === 'init') {
+      const scaffoldReady = ['inspect-authority', 'classify-repository', 'scaffold-authority']
+        .every((stepId) => isCompleted.get(run.id, stepId)?.status === 'completed');
+      if (scaffoldReady) {
+        db.prepare(
+          `UPDATE workflow_steps
+           SET status = 'completed',
+               evidence_json = CASE WHEN evidence_json = '[]' THEN ? ELSE evidence_json END,
+               blockers_json = '[]',
+               started_at = COALESCE(started_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+               completed_at = COALESCE(completed_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+               updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+           WHERE run_id = ? AND step_id = 'verify-initialization'
+             AND status IN ('pending', 'in_progress', 'blocked')`,
+        ).run(JSON.stringify([{
+          kind: 'migration',
+          ref: 'schema:18.0',
+          summary: 'Existing scaffold and durable authority were preserved during adaptive migration.',
+        }]), run.id);
+        if (!currentRequired.get(run.id)) {
+          completeRun.run(JSON.stringify({
+            migrated: true,
+            authority_basis: 'initialized_scaffold',
+            research_started: false,
+          }), run.id);
+          continue;
+        }
+      }
+    }
+
+    if (run.kind === 'change') {
+      const contractCaptured = ['bind-baseline', 'classify-change', 'record-intent']
+        .every((stepId) => isCompleted.get(run.id, stepId)?.status === 'completed');
+      if (contractCaptured && !currentRequired.get(run.id)) {
+        completeRun.run(JSON.stringify({
+          migrated: true,
+          authority_basis: 'accepted_change_contract',
+        }), run.id);
+        continue;
+      }
+    }
+
+    const next = currentRequired.get(run.id)?.step_id || null;
+    db.prepare(
+      `UPDATE workflow_runs
+       SET definition_version = '2.0', current_step = ?, blockers_json = '[]',
+           status = CASE
+             WHEN ? IS NULL AND status IN ('active', 'blocked') THEN 'ready'
+             WHEN ? IS NOT NULL AND status = 'blocked' THEN 'active'
+             ELSE status
+           END,
+           updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+       WHERE id = ?`,
+    ).run(next, next, next, run.id);
+  }
+  db.prepare(
+    `UPDATE context_snapshots
+     SET allowed_transitions_json = COALESCE(allowed_transitions_json, '[]'),
+         required_transition = NULL
+     WHERE allowed_transitions_json IS NULL OR required_transition IS NOT NULL`,
+  ).run();
+  return true;
+}
+
 function tableSupportsKimi(db, table) {
   const row = db.prepare(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
   ).get(table);
   return typeof row?.sql === 'string' && row.sql.includes("'kimi'");
+}
+
+function baselineSupportsUnbornGit(db) {
+  const row = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'baselines'",
+  ).get();
+  return typeof row?.sql === 'string' && row.sql.includes("'unborn'");
+}
+
+function upgradeBaselineWorktreeConstraint(db, fromVersion = latestSchemaVersion(db)) {
+  if (!tableNames(db).includes('baselines') || baselineSupportsUnbornGit(db)) return false;
+  const previousVersion = fromVersion || 'unknown';
+  const foreignKeys = db.pragma('foreign_keys', { simple: true });
+  db.pragma('foreign_keys = OFF');
+  try {
+    db.transaction(() => {
+      db.exec(`
+        DROP TABLE IF EXISTS baselines_git_upgrade;
+        CREATE TABLE baselines_git_upgrade (
+          id                  TEXT PRIMARY KEY,
+          project_name        TEXT NOT NULL,
+          project_type        TEXT,
+          stack               TEXT,
+          mode                TEXT NOT NULL CHECK (mode IN ('greenfield', 'brownfield', 'migrated')),
+          status              TEXT NOT NULL DEFAULT 'draft'
+                                  CHECK (status IN ('draft', 'adopting', 'blocked', 'ready', 'superseded')),
+          repository_root     TEXT NOT NULL DEFAULT '.',
+          scope_json          TEXT NOT NULL DEFAULT '["."]',
+          repository_revision TEXT,
+          repository_branch   TEXT,
+          worktree_state      TEXT NOT NULL DEFAULT 'unavailable'
+                                  CHECK (worktree_state IN ('clean', 'dirty', 'unborn', 'unavailable')),
+          worktree_digest     TEXT,
+          worktree_files_json TEXT NOT NULL DEFAULT '[]',
+          worktree_accepted   INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1)),
+          known_red_accepted  INTEGER NOT NULL DEFAULT 0 CHECK (known_red_accepted IN (0, 1)),
+          spec_refs_json      TEXT NOT NULL DEFAULT '[]',
+          evidence_json       TEXT NOT NULL DEFAULT '[]',
+          verification_json   TEXT NOT NULL DEFAULT '[]',
+          unknowns_json       TEXT NOT NULL DEFAULT '[]',
+          gaps_json           TEXT NOT NULL DEFAULT '[]',
+          classification_json TEXT NOT NULL DEFAULT '{}',
+          provider_refs_json  TEXT NOT NULL DEFAULT '{}',
+          research_run_id     TEXT,
+          approved_by         TEXT,
+          approval_note       TEXT,
+          started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          converged_at        TEXT
+        );
+        INSERT INTO baselines_git_upgrade (
+          id, project_name, project_type, stack, mode, status, repository_root, scope_json,
+          repository_revision, repository_branch, worktree_state, worktree_digest,
+          worktree_files_json, worktree_accepted, known_red_accepted, spec_refs_json,
+          evidence_json, verification_json, unknowns_json, gaps_json, classification_json,
+          provider_refs_json, research_run_id, approved_by, approval_note, started_at,
+          updated_at, converged_at
+        )
+        SELECT
+          id, project_name, project_type, stack, mode, status, repository_root, scope_json,
+          repository_revision, repository_branch, worktree_state, worktree_digest,
+          worktree_files_json, worktree_accepted, known_red_accepted, spec_refs_json,
+          evidence_json, verification_json, unknowns_json, gaps_json, classification_json,
+          provider_refs_json, research_run_id, approved_by, approval_note, started_at,
+          updated_at, converged_at
+        FROM baselines;
+        DROP TABLE baselines;
+        ALTER TABLE baselines_git_upgrade RENAME TO baselines;
+        CREATE INDEX baselines_status ON baselines(status, updated_at);
+      `);
+      const violations = db.pragma('foreign_key_check');
+      if (violations.length > 0) {
+        throw new Error(
+          `baseline Git-state migration produced ${violations.length} foreign key violation(s)`,
+        );
+      }
+    })();
+  } finally {
+    db.pragma(`foreign_keys = ${foreignKeys ? 'ON' : 'OFF'}`);
+  }
+  return previousVersion;
 }
 
 function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
@@ -400,6 +604,13 @@ function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
 
 function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { legacyState = false } = {}) {
   const runtimeChanged = upgradeRuntimeConstraints(db, fromVersion);
+  if (tableNames(db).includes('baselines') && !baselineSupportsUnbornGit(db)) {
+    db.transaction(() => {
+      applyBaselineUpgrade(db, { legacyState });
+      applyBaselineColumns(db);
+    })();
+  }
+  const gitStateChangedFrom = upgradeBaselineWorktreeConstraint(db, fromVersion);
   db.transaction(() => {
     applyCompatibleColumns(db);
     const contextChanged = applyContextSpineUpgrade(db);
@@ -409,7 +620,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const needsContextMigration = Boolean(
       fromVersion && ![
         CONTEXT_SCHEMA_VERSION, BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION,
-        WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, EXPECTED_VERSION,
+        WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
+        DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
       ].includes(fromVersion)
         && !contextMigration,
     );
@@ -433,7 +645,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion && ![
       BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION, WORKFLOW_SCHEMA_VERSION,
-      AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, EXPECTED_VERSION,
+      AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION,
+      GIT_AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
     ].includes(fromVersion)
       && !baselineMigration) {
       db.prepare(
@@ -544,15 +757,48 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const dialogueMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '16.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && fromVersion !== EXPECTED_VERSION && !dialogueMigration) {
+    if (fromVersion && ![DIALOGUE_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion)
+      && !dialogueMigration) {
       db.prepare(
         `INSERT INTO migration_history
           (from_version, to_version, direction, status, notes)
          VALUES (?, ?, 'forward', 'success', ?)`,
       ).run(
         fromVersion === SEMANTIC_SCHEMA_VERSION ? fromVersion : SEMANTIC_SCHEMA_VERSION,
-        EXPECTED_VERSION,
+        DIALOGUE_SCHEMA_VERSION,
         'Add durable one-question decision dialogue, owner checkpoints, and workflow alignment gates',
+      );
+    }
+    const gitStateMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '17.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && ![GIT_AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion)
+      && !gitStateMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        gitStateChangedFrom || DIALOGUE_SCHEMA_VERSION,
+        GIT_AUTHORITY_SCHEMA_VERSION,
+        'Add explicit unborn Git authority and require an owner-authorized checkpoint before baseline recording',
+      );
+    }
+    const adaptiveChanged = migrateAdaptiveWorkflowRuns(db, fromVersion);
+    const adaptiveMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '18.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && fromVersion !== EXPECTED_VERSION && !adaptiveMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        fromVersion === GIT_AUTHORITY_SCHEMA_VERSION ? fromVersion : GIT_AUTHORITY_SCHEMA_VERSION,
+        EXPECTED_VERSION,
+        adaptiveChanged
+          ? 'Migrate active rigid workflows to adaptive capability transitions and independent initialization'
+          : 'Add adaptive capability transitions and independent initialization authority',
       );
     }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
@@ -561,7 +807,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
     ).run(
       EXPECTED_VERSION,
-      'Durable one-question decision dialogue, owner checkpoints, and workflow alignment gates',
+      'Adaptive capability transitions, independent initialization, and recoverable workflow migration',
     );
   })();
 }
@@ -590,7 +836,8 @@ function initStateDb(dbPath) {
     const fromVersion = latestSchemaVersion(db);
     const legacyState = existing.size > 0
       && ![
-        WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, EXPECTED_VERSION,
+        WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
+        DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
       ].includes(fromVersion);
     backupPath = migrationBackup(db, dbPath, fromVersion, existing);
     applyCompatibleColumns(db);

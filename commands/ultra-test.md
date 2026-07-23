@@ -1,5 +1,5 @@
 ---
-description: Run the independent pre-delivery verification gate and record current acceptance evidence
+description: Run independent, risk-selected verification and record current acceptance evidence
 argument-hint: "[scope]"
 workflow-ref: "@skills/ultra-test/SKILL.md"
 ---

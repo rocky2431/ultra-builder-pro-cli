@@ -1,65 +1,50 @@
 ---
 name: ultra-doctor
-description: Diagnose and recover Ultra DB schema, workflow outputs, projections, sessions, incidents, change artifacts, archives, hooks, and installed host assets. Use when authority is degraded, workflow state disagrees with prompts, outputs are stale, hooks fail, or MCP operations cannot proceed.
+description: Diagnose and mechanically recover Ultra schema, workflow, projection, session, archive, hook, and installed-asset faults. Use when authority is degraded, stale, contradictory, or unavailable.
 ---
 
 # Diagnose before repair
 
-Default to read-only diagnosis. Call `system.doctor` with repair disabled and inspect:
+Doctor owns deterministic health and supported recovery. It cannot decide product
+scope, invent evidence, approve a baseline, answer a user decision, or mark semantic
+work complete.
 
-- SQLite integrity, schema version, required tables, and migration provenance;
-- baseline classification/readiness, research provenance, spec/evidence digests, gaps,
-  and revision/worktree drift;
-- active, blocked, and ready workflow runs, current steps, blockers, and output health;
-- active decision threads, the sole current question, blocking deferrals, checkpoint
-  state, and current checkpoint artifact digests;
-- event/projection cursor lag and failed or interrupted projection jobs;
-- sessions, incidents, circuit state, active-change artifacts, and archive journals;
-- external provider ownership boundaries.
+## Read-only diagnosis
 
-An expected blocked workflow is a workflow warning, not DB corruption. A stale or
-missing recorded output is an authority failure for that run. Doctor cannot invent
-evidence, complete a step, accept a failure, approve a baseline, or change product
-scope.
-An awaiting owner decision is also a recoverable warning, not corruption. A missing or
-changed artifact bound to a current confirmed checkpoint is an authority failure;
-doctor may report it but cannot reconstruct the decision or approval.
+Run `system.doctor` without repair and inspect:
 
-## Route failures
+- SQLite integrity, schema 18 migration, required tables, and backups;
+- baseline and research provenance, gaps, digests, and Git/worktree drift;
+- workflow status, obsolete-step migration, blockers, and output freshness;
+- decisions and checkpoint artifact freshness;
+- projection jobs and event cursors;
+- sessions, preserved worktrees, incidents, circuit state, and archive journals;
+- external provider boundaries.
 
-- Missing or migrated baseline evidence: `ultra-init` and the exact research step.
-- Stale workflow output: restore or regenerate the artifact from accepted evidence,
-  then record the affected step again and re-run completion.
-- Projection lag with healthy authority: eligible for mechanical regeneration.
-- Orphan session: reconcile the recorded lease; do not kill unrelated processes.
-- Missing change artifact: recover from version control, backup, or explicit owner
-  decision rather than silently recreating it.
-- Open decision: resume its exact question through `ultra-think`; checkpoint-ready
-  state requires owner confirmation, not mechanical repair.
-- Stale decision artifact: restore or update the artifact from accepted authority,
-  then reprepare and reconfirm the same checkpoint through `ultra-think`; do not
-  rewrite the owner decision or mark the failure healthy mechanically.
-- Corrupt SQLite: preserve DB/WAL/SHM and obtain a restore-or-rebaseline decision.
+An expected workflow pause or awaiting user decision is a warning, not corruption.
+Missing or changed required evidence is an authority failure but cannot be reconstructed
+by doctor.
 
-## Explicit project repair
+## Recovery boundary
 
-After authorization, call `system.doctor` with repair enabled. Repair is limited to
-supported schema upgrades, backup-first archive recovery, orphan reconciliation,
-staleness consumption, projection requeue, and projection regeneration. Verify the
-pre-migration and repair backup paths and rerun the read-only report. A completed repair
-action does not imply healthy workflow evidence.
+With explicit repair authorization, `system.doctor` may:
 
-When integrity prevents opening the DB, use only the documented restore or rebaseline
-command with its explicit confirmation token. Both must quarantine or back up prior
-authority and roll back on failure.
+- apply backup-first supported schema migrations;
+- migrate active pre-18 rigid workflows into recoverable adaptive state;
+- requeue or regenerate projections from healthy DB authority;
+- reconcile orphan sessions without deleting unrelated or dirty worktrees;
+- resume supported archive journals;
+- recover missing workflow provenance as a blocked run requiring real evidence.
 
-## Installed host failures
+It may not create a Git checkpoint, replace a healthy baseline, accept known failures,
+resolve decisions, regenerate semantic content, or edit application code.
 
-For a missing hook adapter or stale plugin path, capture the manifest and missing
-target, run `ubp --doctor` for the actual host, reinstall through the adapter rather
-than patching cache contents, and verify provenance, hashes, entry points, MCP startup,
-and a hook smoke test. Project doctor and installer doctor are separate authorities.
+Corrupt SQLite requires preservation of DB, WAL, and SHM followed by an explicit
+restore-or-rebaseline choice. Missing hook adapters or stale cache paths require
+`ubp --doctor` and adapter reinstall; never patch plugin cache contents by hand.
 
-Return health first, failing authority checks, workflow warnings, backup/recovery
-paths, whether repair ran, unresolved owners, and one exact next action. Do not edit
-application code or external memory/graph providers through this Skill.
+After repair, rerun doctor read-only and verify backup paths, schema, installed hashes,
+entry points, MCP startup, and hook smoke tests as applicable.
+
+Return health first, failed checks, mechanical repairs performed, preserved recovery
+paths, unresolved owners, and allowed transitions plus any unique required transition.

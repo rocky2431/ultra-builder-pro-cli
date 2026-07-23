@@ -67,7 +67,8 @@ test('project reader returns the exact canonical breadcrumb from state.db', () =
     const rendered = renderProjectBreadcrumb(rootDir, actual);
     assert.match(rendered, /Change: db-change/);
     assert.match(rendered, /Task: db-task/);
-    assert.ok(rendered.includes(actual.next_action));
+    assert.match(rendered, /Allowed transitions:/);
+    assert.equal(actual.next_action, undefined);
     assert.match(rendered, /Authority: \.ultra\/state\.db/);
   } finally {
     closeStateDb(state.db);
@@ -81,7 +82,8 @@ test('project reader routes a missing authority to ultra-init', () => {
     const breadcrumb = readProjectBreadcrumb(rootDir);
     assert.equal(breadcrumb.readiness, 'blocked');
     assert.deepEqual(breadcrumb.blockers, ['STATE_DB_MISSING']);
-    assert.equal(breadcrumb.recommended_workflow, 'ultra-init');
+    assert.deepEqual(breadcrumb.allowed_transitions, ['ultra-init', 'ultra-status']);
+    assert.equal(breadcrumb.required_transition, 'ultra-init');
   } finally {
     fs.rmSync(rootDir, { recursive: true, force: true });
   }
@@ -108,7 +110,8 @@ test('project reader routes an old schema to ultra-init without consulting proje
     const breadcrumb = readProjectBreadcrumb(rootDir);
     assert.equal(breadcrumb.readiness, 'blocked');
     assert.ok(breadcrumb.blockers.includes('STATE_SCHEMA_MIGRATION_REQUIRED:10.0'));
-    assert.equal(breadcrumb.recommended_workflow, 'ultra-init');
+    assert.deepEqual(breadcrumb.allowed_transitions, ['ultra-init', 'ultra-status']);
+    assert.equal(breadcrumb.required_transition, 'ultra-init');
     assert.doesNotMatch(JSON.stringify(breadcrumb), /projection-task|ultra-dev/);
   } finally {
     fs.rmSync(rootDir, { recursive: true, force: true });

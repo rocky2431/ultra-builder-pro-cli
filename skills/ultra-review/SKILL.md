@@ -1,71 +1,56 @@
 ---
 name: ultra-review
-description: Run independent specification-fidelity and engineering reviews over one current Ultra diff and persist bounded review evidence. Use when a task or change needs a read-only review gate before completion, convergence, or delivery.
+description: Independently review one current Ultra plan, task diff, or aggregate change on specification fidelity and engineering standards. Use when current evidence needs a review gate or focused risk analysis.
 ---
 
-# Review one current diff
+# Review one bounded scope
 
-Keep two verdict axes independent:
+Keep two independent verdict axes:
 
-- `spec_fidelity`: accepted intent, delta, behavior, docs impact, and public seam;
-- `engineering_standards`: correctness, safety, tests, maintainability, observability,
-  integration, and recovery.
+- `spec_fidelity`: accepted intent, behavior, documentation impact, and public seams;
+- `engineering_standards`: correctness, safety, tests, integration, maintainability,
+  observability, and recovery.
 
-One axis cannot compensate for the other.
+Neither axis can compensate for the other.
 
-## Bind durable scope
+## Bind evidence
 
-1. Read `references/review-modes.md`. Select exactly one review mode: `task` for one
-   implementation slice, `change` for aggregate delivery readiness, or `plan` for an
-   approved plan before implementation. Bind only the evidence defined by that mode.
-2. Resolve one explicit diff range, current full HEAD, change, task set, accepted
-   evidence, and decision checkpoint state. Stop on an empty or ambiguous scope or an
-   unconfirmed alignment checkpoint.
-3. Resume or start a `review` workflow. Record `bind-diff` with revision, paths, mode,
-   and task set.
-4. Compile `change.context` for `review` using only accepted intent, delta, task
-   contracts, tests, public seams, and diff paths. Record `compile-context` only when
-   ready, with the immutable context manifest as the step output.
-5. Create `.ultra/reviews/<session-id>/` with mode, change id, exact task ids, full HEAD,
-   worktree digest, diff range, scope metadata, and pending verdicts.
+1. Read `references/review-modes.md` and select `plan`, `task`, or `change` from the
+   actual review request.
+2. Bind one explicit diff or plan artifact, full HEAD, worktree digest, task set,
+   acceptance, and current decision state.
+3. Resume or start the review workflow and record `bind-diff`.
+4. Compile `change.context` for `review` and record the immutable manifest under
+   `compile-context`.
 
-## Execute independent axes
+An empty, ambiguous, or stale scope cannot pass.
 
-Always run the bounded `review-spec` worker for specification fidelity. Select the
-smallest necessary engineering workers using the mode and risk matrix; a change review
-for delivery runs every applicable role. Record every selected and skipped role with a
-scope-specific rationale. Invoke them through the current host's native bounded-worker
-mechanism. Keep workers independent and pass only the current diff plus their role
-context.
+## Select workers by risk
+
+Always run `review-spec`. Select the smallest engineering worker set that covers the
+actual diff and risk. Record every selected and excluded worker with a specific
+rationale; do not run every specialist ceremonially.
+
+Invoke workers through the current host's native bounded-worker mechanism and pass
+only their role, current scope, and relevant evidence. Workers are read-only and may
+not decide owner choices or edit source.
 
 Resolve `references/unified-schema.md` from this Skill directory and pass its absolute
-path as `SCHEMA_PATH`. Validate artifacts with `scripts/review_wait.py`; a missing,
-invalid, stale, or partial required artifact is not a pass.
+path as `SCHEMA_PATH`. Validate specialist artifacts with
+`scripts/review_wait.py`. Record outputs under `review-specification`,
+`review-engineering`, and `coordinate-findings`.
 
-Record:
+The coordinator preserves every finding unchanged in `SUMMARY.json`; it may group
+duplicate root causes only in the human summary. A new material owner choice remains a
+finding and routes to the interaction protocol.
 
-- `review-specification` with `spec-fidelity.json` as an output;
-- `review-engineering` with every selected engineering artifact as outputs;
-- `coordinate-findings` with the coordinated summary output.
+## Complete
 
-The coordinator preserves every specialist finding unchanged in `SUMMARY.json`.
-Duplicate root causes may be grouped only in the human-readable summary. Review is
-read-only except for review artifacts; implementation fixes are a separate dev action.
-If a finding exposes a new owner choice, preserve it as a finding and route the primary
-agent to `ultra-think`; a review worker must not open, answer, or hide that decision.
+Recheck HEAD, worktree, context digest, diff, task set, acceptance, artifact schemas,
+and both axes. Record `verify-review-gate`, then call `workflow.complete`. MCP derives
+the durable verdict and rejects missing specialists, lossy coordination, stale
+artifacts, or prompt-supplied conclusions.
 
-## Verify and complete
-
-Recheck reviewed HEAD, worktree digest, review-context digest, diff, acceptance, task
-set, artifact schemas, and both verdicts. Record `verify-review-gate`, then call
-`workflow.complete`. MCP
-derives each axis and the durable verdict from the specialist outputs, then requires
-`SUMMARY.json` to match their complete finding set. Prompt claims and a lossy
-coordinator summary cannot replace either axis. Any code, test, spec, or contract edit
-invalidates affected review evidence and requires a new or resumed run.
-
-Return both axis verdicts first, blocking findings, reviewed revision and paths,
-artifact digests, workflow id, skipped-role rationale, and one exact next route. A
-blocking implementation finding returns to `ultra-dev`; stale verification returns to
-`ultra-test`; a new owner choice returns to `ultra-think`; an approved current change
-review routes to `ultra-deliver`.
+Any relevant code, test, specification, or contract edit invalidates the affected
+review evidence. Return both verdict axes, blocking findings, reviewed scope, worker
+selection rationale, artifact digests, and allowed transitions.

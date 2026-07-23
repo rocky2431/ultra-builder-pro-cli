@@ -2,6 +2,7 @@
   "breadcrumb": {
     "change_id": "context-spine",
     "readiness": "ready",
-    "next_action": "Implement the approved vertical slice."
+    "allowed_transitions": ["ultra-dev", "ultra-plan", "ultra-status"],
+    "required_transition": null
   }
 }

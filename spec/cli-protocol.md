@@ -141,6 +141,9 @@ maintenance CLI because it is the recovery path when MCP startup is degraded.
 `task init-project --resume` preserves existing `.ultra` files and installs only
 missing current scaffold assets. Projection-only state uses the supported
 `migrate --from=4.4 --to=4.5` or the current supported state-schema transition before resume.
+`session close` preserves the worktree by default. `--remove-worktree` delegates to
+the same Git ancestry and dirty-state verifier as MCP and fails with
+`WORKTREE_NOT_INTEGRATED` instead of deleting uncommitted or unintegrated work.
 `system doctor --repair` applies supported schema upgrades with a pre-migration
 backup before mechanical recovery.
 `system restore` requires the exact `REPLACE_CORRUPT_ULTRA_STATE` confirmation and a
@@ -157,3 +160,35 @@ The CLI follows the `version` field of `spec/mcp-tools.yaml`. Adding a new
 flag is a minor bump; renaming or removing a flag, or changing exit-code
 semantics, is a major bump. Major bumps require an entry in
 `docs/PLAN.zh-CN.md §14 Decision log`.
+
+## 7. `ubp-orchestrator`
+
+`ubp-orchestrator execute-plan` consumes the completed and current
+`.ultra/execution-plan.json` and resumes from the first unfinished dependency wave.
+Before creating a session it rejects an empty, malformed, cyclic, duplicate-task, or
+cross-change plan. For change-owned tasks, the plan must exactly match the current DB
+task graph and a healthy completed `plan` workflow; an exported but incomplete or
+stale artifact is not executable. A separate owner approval is present only when a
+material planning decision required it.
+It returns `status: "paused"` when that wave still has non-terminal Ultra tasks and
+does not dispatch later waves. Worktrees are preserved unless `--auto-merge` is
+explicitly supplied and the corresponding change task has an exact completion commit,
+ready dev workflow, and current task review. `run` and `start` are optional queue daemons and additionally require
+`orchestrator.auto_dispatch: true`.
+
+Every execution mode requires a shell-free worker contract:
+
+```json
+{
+  "orchestrator": {
+    "command": "/absolute/path/to/ultra-worker",
+    "command_args": []
+  }
+}
+```
+
+`UBP_ORCH_COMMAND` and a JSON-array `UBP_ORCH_ARGS_JSON` may override that contract.
+The daemon refuses startup without a real executable. Worker exit zero is execution
+evidence only and leaves the Ultra task `in_progress`; failure blocks the task and
+records session-linked circuit-breaker evidence. Worker spawn errors follow the same
+failure path instead of leaving a running lease.

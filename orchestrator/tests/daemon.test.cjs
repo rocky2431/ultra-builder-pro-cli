@@ -15,6 +15,7 @@ const { execFileSync } = require('node:child_process');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
 const daemon = require('../daemon.cjs');
+const sessionRunner = require('../session-runner.cjs');
 const RETIRED_RUNTIME = ['gem', 'ini'].join('');
 
 const LONG_SLEEP_CMD = process.execPath;
@@ -26,6 +27,7 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'README.md'), '# test\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
   return dir;
@@ -34,6 +36,39 @@ function mkRepo() {
 function mkDb(repoRoot) {
   const { db } = initStateDb(path.join(repoRoot, '.ultra', 'state.db'));
   return db;
+}
+
+function seedUnapprovedChangeTask(db, id) {
+  const changeId = `${id}-change`;
+  db.prepare(
+    `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+     VALUES (?, ?, 'standard', 'active', ?, ?)`,
+  ).run(
+    changeId,
+    `Change for ${id}`,
+    'Keep daemon execution behind plan authority.',
+    `.ultra/changes/active/${changeId}`,
+  );
+  ops.createTask(db, {
+    id,
+    title: 'unapproved daemon task',
+    type: 'feature',
+    priority: 'P1',
+    change_id: changeId,
+    outcome: 'Daemon waits for plan approval.',
+    slice_kind: 'tracer_bullet',
+    public_seam: 'daemon admission',
+    verification_command: 'node --test orchestrator/tests/daemon.test.cjs',
+    acceptance: [{
+      id: 'daemon-plan-gate',
+      criterion: 'Unapproved work does not dispatch.',
+      verification: 'node --test orchestrator/tests/daemon.test.cjs',
+    }],
+    context_refs: [{ ref: 'spec/mcp-tools.yaml', reason: 'Daemon contract.', required: true }],
+    docs_impact: { status: 'none', files: [], rationale: 'No user-facing documentation.' },
+    ownership: { owner: 'test-owner', reviewers: [] },
+    trace_to: 'spec/mcp-tools.yaml#session-family',
+  });
 }
 
 function cleanup(repoRoot, db, handle) {
@@ -49,6 +84,16 @@ function cleanup(repoRoot, db, handle) {
   } catch (_) { /* ignore */ }
   try { closeStateDb(db); } catch (_) { /* ignore */ }
   try { fs.rmSync(repoRoot, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+}
+
+async function waitFor(read, predicate, timeoutMs = 1000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const value = read();
+    if (predicate(value)) return value;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  return read();
 }
 
 // ─── routeTask ────────────────────────────────────────────────────────────
@@ -79,6 +124,109 @@ test('routeTask: no runtimes available → null', () => {
 });
 
 // ─── runDaemon ────────────────────────────────────────────────────────────
+
+test('runDaemon refuses dispatch without an explicit executable command', () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  try {
+    ops.createTask(db, {
+      id: 'd-no-command', title: 'must not reserve an empty worker', type: 'feature', priority: 'P1',
+    });
+    assert.throws(
+      () => daemon.runDaemon({ db, repoRoot, runtimes: ['claude'], command: null }),
+      (error) => error.code === 'ORCHESTRATOR_COMMAND_REQUIRED',
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n, 0);
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('runDaemon treats process success as execution evidence, not task completion', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    ops.createTask(db, {
+      id: 'd-success', title: 'await workflow gates', type: 'feature', priority: 'P1',
+    });
+    handle = daemon.runDaemon({
+      db, repoRoot, runtimes: ['codex'], pollMs: 25,
+      command: process.execPath, commandArgs: ['-e', 'process.exit(0)'],
+    });
+    const session = await waitFor(
+      () => db.prepare("SELECT * FROM sessions WHERE task_id = 'd-success'").get(),
+      (row) => row?.status === 'completed',
+    );
+    assert.equal(session.status, 'completed');
+    assert.equal(ops.readTask(db, 'd-success').status, 'in_progress');
+    assert.equal(fs.existsSync(session.worktree_path), true);
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
+test('runDaemon blocks failed executions and records circuit-breaker evidence', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    ops.createTask(db, {
+      id: 'd-failure', title: 'recover explicitly', type: 'bugfix', priority: 'P0',
+    });
+    handle = daemon.runDaemon({
+      db, repoRoot, runtimes: ['opencode'], pollMs: 25,
+      command: process.execPath, commandArgs: ['-e', 'process.exit(7)'],
+    });
+    const session = await waitFor(
+      () => db.prepare("SELECT * FROM sessions WHERE task_id = 'd-failure'").get(),
+      (row) => row?.status === 'crashed',
+    );
+    assert.equal(session.status, 'crashed');
+    assert.equal(ops.readTask(db, 'd-failure').status, 'blocked');
+    assert.equal(
+      db.prepare("SELECT failure_count FROM circuit_breaker WHERE task_id = 'd-failure'").get()
+        .failure_count,
+      1,
+    );
+    const failure = db.prepare(
+      "SELECT session_id, payload_json FROM events WHERE type = 'task_failure' AND task_id = 'd-failure'",
+    ).get();
+    assert.equal(failure.session_id, session.sid);
+    assert.match(JSON.parse(failure.payload_json).reason, /code 7/);
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
+test('runDaemon settles a worker spawn error instead of leaving a running session', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    ops.createTask(db, {
+      id: 'd-spawn-error', title: 'missing executable', type: 'bugfix', priority: 'P0',
+    });
+    handle = daemon.runDaemon({
+      db, repoRoot, runtimes: ['codex'], pollMs: 25,
+      command: path.join(os.tmpdir(), `ubp-missing-daemon-${process.pid}-${Date.now()}`),
+      commandArgs: [],
+    });
+    const session = await waitFor(
+      () => db.prepare("SELECT * FROM sessions WHERE task_id = 'd-spawn-error'").get(),
+      (row) => row?.status === 'crashed',
+    );
+    assert.equal(session.status, 'crashed');
+    assert.equal(ops.readTask(db, 'd-spawn-error').status, 'blocked');
+    const failure = db.prepare(
+      "SELECT session_id, payload_json FROM events WHERE type = 'task_failure' AND task_id = 'd-spawn-error'",
+    ).get();
+    assert.equal(failure.session_id, session.sid);
+    assert.match(JSON.parse(failure.payload_json).reason, /spawn|ENOENT/i);
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
 
 test('runDaemon spawns pending task within pollMs window', async () => {
   const repoRoot = mkRepo();
@@ -129,6 +277,121 @@ test('runDaemon skips tripped tasks', async () => {
     await new Promise((r) => setTimeout(r, 300));
     const sessions = db.prepare("SELECT * FROM sessions WHERE task_id = 'd-trip'").all();
     assert.equal(sessions.length, 0, 'tripped task must not be spawned');
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
+test('runDaemon does not dispatch a stale pending task', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    ops.createTask(db, {
+      id: 'd-stale', title: 'refresh context first', type: 'feature', priority: 'P1',
+    });
+    ops.patchTask(db, 'd-stale', { stale: true });
+    handle = daemon.runDaemon({
+      db, repoRoot,
+      runtimes: ['claude'],
+      pollMs: 25,
+      command: LONG_SLEEP_CMD,
+      commandArgs: LONG_SLEEP_ARGS,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE task_id = 'd-stale'").get().count,
+      0,
+    );
+    assert.equal(ops.readTask(db, 'd-stale').status, 'pending');
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
+test('runDaemon quietly leaves a change task without a completed plan pending', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  const errors = [];
+  let handle;
+  try {
+    seedUnapprovedChangeTask(db, 'd-unapproved');
+    handle = daemon.runDaemon({
+      db, repoRoot,
+      runtimes: ['claude'],
+      pollMs: 25,
+      command: LONG_SLEEP_CMD,
+      commandArgs: LONG_SLEEP_ARGS,
+      onError: (error) => errors.push(error),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE task_id = 'd-unapproved'").get().count,
+      0,
+    );
+    assert.equal(ops.readTask(db, 'd-unapproved').status, 'pending');
+    assert.deepEqual(errors, []);
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
+test('runDaemon waits until every task dependency is DB-terminal', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    ops.createTask(db, {
+      id: 'd-parent', title: 'dependency', type: 'feature', priority: 'P1',
+    });
+    ops.createTask(db, {
+      id: 'd-child', title: 'dependent', type: 'feature', priority: 'P1',
+      deps: ['d-parent'],
+    });
+    handle = daemon.runDaemon({
+      db, repoRoot,
+      runtimes: ['claude'],
+      pollMs: 25,
+      command: LONG_SLEEP_CMD,
+      commandArgs: LONG_SLEEP_ARGS,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE task_id = 'd-child'").get().count,
+      0,
+    );
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
+test('runDaemon serializes pending tasks with overlapping declared files', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    ops.createTask(db, {
+      id: 'd-file-a', title: 'first writer', type: 'feature', priority: 'P1',
+      files_modified: ['shared.txt'],
+    });
+    ops.createTask(db, {
+      id: 'd-file-b', title: 'second writer', type: 'feature', priority: 'P1',
+      files_modified: ['shared.txt'],
+    });
+    handle = daemon.runDaemon({
+      db, repoRoot,
+      runtimes: ['claude'],
+      pollMs: 25,
+      command: LONG_SLEEP_CMD,
+      commandArgs: LONG_SLEEP_ARGS,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM sessions WHERE task_id IN ('d-file-a', 'd-file-b')",
+      ).get().count,
+      1,
+    );
   } finally {
     cleanup(repoRoot, db, handle);
   }
@@ -185,6 +448,81 @@ test('runDaemon.stop() halts polling; existing children stay alive', async () =>
       assert.fail(`child ${childPid} should still be alive after daemon stop: ${err.message}`);
     }
   } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
+test('runDaemon.stop() stops polling but keeps supervising an existing child to settlement', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  try {
+    ops.createTask(db, {
+      id: 'd-stop-supervision', title: 'settle after stop', type: 'feature', priority: 'P1',
+    });
+    handle = daemon.runDaemon({
+      db, repoRoot, runtimes: ['claude'], pollMs: 25,
+      command: process.execPath,
+      commandArgs: ['-e', 'setTimeout(() => process.exit(0), 150)'],
+    });
+    const running = await waitFor(
+      () => db.prepare("SELECT * FROM sessions WHERE task_id = 'd-stop-supervision'").get(),
+      (row) => row?.status === 'running',
+    );
+    assert.equal(running.status, 'running');
+    handle.stop();
+    const settled = await waitFor(
+      () => db.prepare("SELECT * FROM sessions WHERE task_id = 'd-stop-supervision'").get(),
+      (row) => row?.status === 'completed',
+    );
+    assert.equal(settled.status, 'completed');
+    assert.equal(ops.readTask(db, 'd-stop-supervision').status, 'in_progress');
+  } finally {
+    cleanup(repoRoot, db, handle);
+  }
+});
+
+test('runDaemon ignores the late exit of a session replaced by explicit takeover', async () => {
+  const repoRoot = mkRepo();
+  const db = mkDb(repoRoot);
+  let handle;
+  let replacement;
+  try {
+    ops.createTask(db, {
+      id: 'd-takeover', title: 'replace worker', type: 'feature', priority: 'P1',
+    });
+    handle = daemon.runDaemon({
+      db, repoRoot, runtimes: ['claude'], pollMs: 25,
+      command: LONG_SLEEP_CMD, commandArgs: LONG_SLEEP_ARGS,
+    });
+    const original = await waitFor(
+      () => db.prepare("SELECT * FROM sessions WHERE task_id = 'd-takeover'").get(),
+      (row) => row?.status === 'running',
+    );
+    replacement = sessionRunner.spawnSession({
+      db,
+      repoRoot,
+      task_id: 'd-takeover',
+      runtime: 'codex',
+      command: LONG_SLEEP_CMD,
+      args: LONG_SLEEP_ARGS,
+      takeover: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    assert.equal(ops.readSession(db, original.sid).status, 'crashed');
+    assert.equal(ops.readSession(db, replacement.sid).status, 'running');
+    assert.equal(ops.readTask(db, 'd-takeover').status, 'in_progress');
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM events WHERE type = 'task_failure' AND session_id = ?",
+      ).get(original.sid).count,
+      0,
+    );
+  } finally {
+    if (replacement?.pid) {
+      try { process.kill(replacement.pid, 'SIGKILL'); } catch (_) { /* ignore */ }
+    }
     cleanup(repoRoot, db, handle);
   }
 });

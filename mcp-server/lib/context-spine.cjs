@@ -52,6 +52,10 @@ function parseJson(value, fallback = {}) {
   try { return JSON.parse(value); } catch { return fallback; }
 }
 
+function uniqueStrings(values) {
+  return [...new Set(values.filter((value) => typeof value === 'string' && value.length > 0))];
+}
+
 function hasIncidentBreakGlass(change) {
   const bypass = change?.baseline_bypass
     || parseJson(change?.baseline_bypass_json, null);
@@ -124,6 +128,22 @@ function taskStateDigest(task) {
     docs_impact: task.docs_impact || {},
     ownership: task.ownership || {},
     trace_to: task.trace_to,
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+}
+
+function changeStateDigest(change) {
+  if (!change) return null;
+  const payload = {
+    id: change.id,
+    kind: change.kind,
+    intent: change.intent,
+    docs_impact: change.docs_impact || parseJson(change.docs_impact_json, {}),
+    provider_refs: change.provider_refs || parseJson(change.provider_refs_json, {}),
+    contract: change.contract || parseJson(change.contract_json, {}),
+    classification: change.classification || parseJson(change.classification_json, {}),
+    research_disposition: change.research_disposition
+      || parseJson(change.research_disposition_json, {}),
   };
   return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
@@ -291,27 +311,106 @@ function defaultGate(role) {
   }[role];
 }
 
-function deriveNextAction({ change, tasks, task, role, readiness, blockers = [] }) {
+function deriveTransitions({
+  change,
+  tasks = [],
+  task,
+  role,
+  readiness,
+  blockers = [],
+  activeWorkflow = null,
+  deliveryReady = false,
+}) {
+  const unique = (values) => [...new Set(values.filter(Boolean))];
+  const has = (prefix) => blockers.some((blocker) => blocker === prefix || blocker.startsWith(`${prefix}:`));
+  if (has('STATE_DB_UNREADABLE') || has('STATE_SCHEMA_INCOMPLETE') || has('STATE_AUTHORITY_CONFLICT')) {
+    return {
+      allowed_transitions: ['ultra-doctor', 'ultra-status'],
+      required_transition: 'ultra-doctor',
+    };
+  }
+  if (has('STATE_DB_MISSING') || has('BASELINE_MISSING')) {
+    return {
+      allowed_transitions: ['ultra-init', 'ultra-status'],
+      required_transition: 'ultra-init',
+    };
+  }
+  if (blockers.some((blocker) => blocker.startsWith('DECISION_'))) {
+    return {
+      allowed_transitions: ['ultra-think', 'ultra-status'],
+      required_transition: 'ultra-think',
+    };
+  }
+  if (blockers.some((blocker) => blocker.startsWith('BASELINE_SCHEMA_')
+    || blocker.startsWith('STATE_SCHEMA_MIGRATION_'))) {
+    return {
+      allowed_transitions: ['ultra-doctor', 'ultra-init', 'ultra-status'],
+      required_transition: 'ultra-doctor',
+    };
+  }
+
+  const transitions = [];
+  if (activeWorkflow) transitions.push(`ultra-${activeWorkflow.kind}`);
+  if (!change) {
+    transitions.push('ultra-research', 'ultra-change', 'ultra-think', 'ultra-status', 'ultra-doctor');
+    return { allowed_transitions: unique(transitions), required_transition: null };
+  }
   if (readiness === 'blocked') {
-    if (blockers.some((blocker) => blocker.startsWith('BASELINE_'))) {
-      return 'Complete or refresh the Ultra project baseline, then recompile change.context.';
+    if (blockers.some((blocker) => blocker.startsWith('CONTEXT_')
+      || blocker.startsWith('EXECUTION_'))) {
+      transitions.push('change.context');
     }
-    return 'Resolve the context readiness blockers, then recompile change.context.';
+    if (blockers.some((blocker) => blocker.startsWith('BASELINE_'))) {
+      transitions.push('ultra-research', 'ultra-doctor');
+    }
+    transitions.push('ultra-change', 'ultra-think', 'ultra-status');
+    return { allowed_transitions: unique(transitions), required_transition: null };
   }
-  if (change.status === 'ready') return `Run ultra-deliver for change ${change.id}.`;
-  if (change.status === 'blocked') return `Resolve the blockers for change ${change.id}, then recompile context.`;
-  if (!task && tasks.length === 0) return `Create the first fresh-context tracer-bullet task for change ${change.id}.`;
-  if (task?.status === 'pending') return `Start task ${task.id} through ultra-dev.`;
-  if (task?.status === 'in_progress') {
-    if (role === 'check') return `Run the exact verification command for task ${task.id}.`;
-    if (role === 'review') return `Complete independent spec-fidelity and engineering-standards review for task ${task.id}.`;
-    return `Continue the approved vertical slice for task ${task.id}.`;
+  if (change.status === 'ready') {
+    transitions.push('ultra-deliver', 'ultra-review', 'ultra-test');
+  } else if (change.status === 'blocked') {
+    transitions.push('ultra-think', 'ultra-change');
+  } else if (!task && tasks.length === 0) {
+    transitions.push('ultra-plan', 'ultra-research', 'ultra-change');
+  } else if (task?.status === 'pending' || task?.status === 'in_progress') {
+    transitions.push('ultra-dev', 'ultra-plan');
+    if (role === 'review') transitions.push('ultra-review');
+  } else if (tasks.length > 0 && tasks.every((row) => ['completed', 'expanded'].includes(row.status))) {
+    transitions.push('ultra-test', 'ultra-review');
+    if (deliveryReady) transitions.push('ultra-deliver');
+  } else {
+    transitions.push('ultra-plan', 'ultra-change');
   }
-  if (tasks.length > 0 && tasks.every((row) => ['completed', 'expanded'].includes(row.status))) {
-    return `Run ultra-test for change ${change.id}.`;
+  transitions.push('ultra-think', 'ultra-status');
+  return { allowed_transitions: unique(transitions), required_transition: null };
+}
+
+function normalizeRecommendation(value) {
+  if (value === undefined || value === null) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ContextSpineError('VALIDATION_ERROR', 'recommendation must be an object');
   }
-  const pending = tasks.find((row) => row.status === 'pending');
-  return pending ? `Compile implement context for task ${pending.id}.` : `Inspect blockers for change ${change.id}.`;
+  const workflow = String(value.workflow || '').trim();
+  const rationale = String(value.rationale || '').trim();
+  if (!workflow || rationale.length < 3) {
+    throw new ContextSpineError(
+      'VALIDATION_ERROR', 'recommendation requires workflow and rationale',
+    );
+  }
+  return { workflow, rationale, authoritative: false };
+}
+
+function deliveryCapabilityReady(db, change, tasks, rootDir) {
+  if (!change || !Array.isArray(tasks) || tasks.length === 0
+    || !tasks.every((row) => ['completed', 'expanded'].includes(row.status))) {
+    return false;
+  }
+  try {
+    workflows.validateDeliveryPrerequisites(db, { change_id: change.id }, rootDir);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function latestContext(db, changeId, taskId) {
@@ -328,8 +427,8 @@ function latestContext(db, changeId, taskId) {
 function compileRoleContext(db, { input, change, tasks, rootDir }) {
   if (input.next_action !== undefined) {
     throw new ContextSpineError(
-      'CONTEXT_NEXT_ACTION_AUTHORITY_VIOLATION',
-      'next_action is derived from authoritative workflow and task state',
+      'CONTEXT_LEGACY_NEXT_ACTION_UNSUPPORTED',
+      'next_action is not an authority field; provide a non-authoritative recommendation instead',
     );
   }
   const task = input.task_id ? tasks.find((row) => row.id === input.task_id) : null;
@@ -376,13 +475,20 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
     }
   }
   const readiness = blockers.length === 0 ? 'ready' : 'blocked';
-  const nextAction = deriveNextAction({
-    change, tasks, task, role, readiness, blockers,
+  const control = deriveTransitions({
+    change,
+    tasks,
+    task,
+    role,
+    readiness,
+    blockers,
+    deliveryReady: deliveryCapabilityReady(db, change, tasks, rootDir),
   });
   return {
     role,
     gate,
-    next_action: nextAction,
+    control,
+    recommendation: normalizeRecommendation(input.recommendation),
     readiness: { status: readiness, blockers, warnings: [...new Set(warnings)] },
     context: { items, budget, token_estimate: tokenEstimate, file_count: fileCount },
     execution_contract: executionContract,
@@ -397,6 +503,7 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
     selected_task: task,
     resume: {
       change_id: change.id,
+      change_state_digest: changeStateDigest(change),
       task_id: task?.id || null,
       task_status: task?.status || null,
       task_state_digest: taskStateDigest(task),
@@ -408,15 +515,6 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
       worktree_digest: checkout.digest,
     },
   };
-}
-
-function recommendedWorkflow(change, task, tasks, readiness) {
-  if (!change) return 'ultra-change';
-  if (readiness !== 'ready' || change.status === 'blocked') return 'ultra-change';
-  if (change.status === 'ready') return 'ultra-deliver';
-  if (task && ['pending', 'in_progress'].includes(task.status)) return 'ultra-dev';
-  if (tasks.length > 0 && tasks.every((row) => ['completed', 'expanded'].includes(row.status))) return 'ultra-test';
-  return 'ultra-change';
 }
 
 function actionableBaselineWorkflow(db, baselineId, rootDir) {
@@ -443,16 +541,6 @@ function summarizeWorkflow(run) {
   };
 }
 
-function workflowNextAction(run) {
-  if (run.status === 'blocked') {
-    return `Resolve ${run.kind} workflow blockers at ${run.current_step}: ${run.blockers.join(', ')}.`;
-  }
-  if (run.status === 'ready') {
-    return `Finalize ${run.kind} workflow ${run.id} after verifying its recorded evidence and outputs.`;
-  }
-  return `Continue ${run.kind} workflow ${run.id} at ${run.current_step}.`;
-}
-
 function summarizeDecision(gate) {
   if (!gate?.thread) return null;
   const current = gate.current_decision;
@@ -470,19 +558,6 @@ function summarizeDecision(gate) {
       effects: current.effects,
     } : null,
   };
-}
-
-function decisionNextAction(gate) {
-  if (gate.blockers?.some((blocker) => blocker.startsWith('DECISION_CHECKPOINT_ARTIFACT_STALE:'))) {
-    return `Reprepare and confirm decision checkpoint ${gate.thread?.id || 'for the active alignment thread'} against the current artifact.`;
-  }
-  if (gate.current_decision) {
-    return `Answer decision ${gate.current_decision.id}: ${gate.current_decision.question}`;
-  }
-  if (gate.thread?.status === 'checkpoint_ready') {
-    return `Confirm decision checkpoint ${gate.thread.id} after reviewing its durable effects.`;
-  }
-  return `Prepare the confirmed decision checkpoint for ${gate.thread?.id || 'the active alignment thread'}.`;
 }
 
 function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
@@ -505,7 +580,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
         change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'blocked',
         blockers: [...new Set([...baselineHealth.blockers, ...decisionGate.blockers])],
         warnings: baselineHealth.warnings,
-        next_action: decisionNextAction(decisionGate), recommended_workflow: 'ultra-think',
+        allowed_transitions: ['ultra-think', 'ultra-status'], required_transition: 'ultra-think',
         workflow: null, decision: summarizeDecision(decisionGate),
         context_manifest_path: null, context_manifest_hash: null, git_head: currentHead(rootDir),
         baseline: baseline ? {
@@ -516,15 +591,24 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     }
     if (baselineHealth.status !== 'pass') {
       const activeWorkflow = actionableBaselineWorkflow(db, baseline?.id, rootDir);
-      const nextAction = activeWorkflow
-        ? workflowNextAction(activeWorkflow)
-        : baseline
-        ? `Complete ${baseline.mode} baseline adoption ${baseline.id} through ultra-init.`
-        : 'Initialize the project and start baseline adoption with ultra-init.';
+      const control = baseline
+        ? {
+          allowed_transitions: uniqueStrings([
+            activeWorkflow ? `ultra-${activeWorkflow.kind}` : 'ultra-research',
+            'ultra-status',
+            'ultra-doctor',
+          ]),
+          required_transition: null,
+        }
+        : {
+          allowed_transitions: ['ultra-init', 'ultra-status'],
+          required_transition: 'ultra-init',
+        };
       return {
         change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'blocked',
-        blockers: baselineHealth.blockers, warnings: baselineHealth.warnings, next_action: nextAction,
-        recommended_workflow: activeWorkflow ? `ultra-${activeWorkflow.kind}` : 'ultra-init',
+        blockers: baselineHealth.blockers, warnings: baselineHealth.warnings,
+        allowed_transitions: control.allowed_transitions,
+        required_transition: control.required_transition,
         workflow: summarizeWorkflow(activeWorkflow), decision: null, context_manifest_path: null,
         context_manifest_hash: null, git_head: currentHead(rootDir),
         baseline: baseline ? {
@@ -535,7 +619,8 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     }
     return {
       change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'ready',
-      next_action: 'Start daily work with ultra-change.', recommended_workflow: 'ultra-change',
+      allowed_transitions: ['ultra-change', 'ultra-research', 'ultra-think', 'ultra-status'],
+      required_transition: null,
       workflow: null,
       decision: null,
       context_manifest_path: null, context_manifest_hash: null, git_head: currentHead(rootDir),
@@ -564,6 +649,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       !context.resume || !context.context || !context.readiness || !('baseline' in context)
       || !Object.prototype.hasOwnProperty.call(context.resume, 'worktree_digest')
       || !Object.prototype.hasOwnProperty.call(context.resume, 'task_state_digest')
+      || !Object.prototype.hasOwnProperty.call(context.resume, 'change_state_digest')
     ),
   );
   const headStale = Boolean(snapshot?.git_head && head && snapshot.git_head !== head);
@@ -576,6 +662,9 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   const taskContractChanged = Boolean(
     context.resume && context.resume.task_state_digest !== taskStateDigest(task),
   );
+  const changeContractChanged = Boolean(
+    context.resume && context.resume.change_state_digest !== changeStateDigest(change),
+  );
   const blockers = [];
   const baselineGate = baselineGateForChange(db, change, baselineHealth);
   const decisionGate = decisions.decisionGate(db, {
@@ -586,13 +675,15 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   const warnings = [...baselineGate.warnings];
   blockers.push(...baselineGate.blockers);
   blockers.push(...decisionGate.blockers);
-  if (snapshotMissing) blockers.push('CONTEXT_NOT_COMPILED');
+  if (snapshotMissing && tasks.length > 0) blockers.push('CONTEXT_NOT_COMPILED');
+  else if (snapshotMissing) warnings.push('CONTEXT_NOT_COMPILED');
   else {
     if (legacyContext) blockers.push('CONTEXT_SNAPSHOT_UPGRADE_REQUIRED');
     if (headStale) blockers.push('CONTEXT_HEAD_STALE');
     if (worktreeStale) blockers.push('CONTEXT_WORKTREE_STALE');
     if (stateChanged) blockers.push('CONTEXT_TASK_STATE_STALE');
     if (taskContractChanged) blockers.push('CONTEXT_TASK_CONTRACT_STALE');
+    if (changeContractChanged) blockers.push('CONTEXT_CHANGE_CONTRACT_STALE');
     for (const blocker of parseJson(snapshot.blockers_json, [])) {
       if (ADVISORY_CONTEXT_CODES.has(blocker)
         || (blocker.startsWith('BASELINE_') && baselineGate.blockers.length === 0)) {
@@ -603,38 +694,18 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       if (!warnings.includes(warning)) warnings.push(warning);
     }
   }
-  const readiness = blockers.length > 0 ? 'blocked' : snapshot.readiness;
+  const readiness = blockers.length > 0 ? 'blocked' : (snapshot?.readiness || 'ready');
   const activeWorkflow = actionableChangeWorkflow(db, change.id, rootDir);
-  let nextAction;
-  if (baselineGate.blockers.length > 0) {
-    nextAction = deriveNextAction({
-      change, tasks, task, role: snapshot?.role || 'plan', readiness: 'blocked',
-      blockers: baselineGate.blockers,
-    });
-  } else if (!decisionGate.ready) {
-    nextAction = decisionNextAction(decisionGate);
-  } else if (activeWorkflow?.status === 'blocked') {
-    nextAction = workflowNextAction(activeWorkflow);
-  } else if (snapshotMissing) {
-    nextAction = `Compile change.context for change ${change.id} before continuing.`;
-  } else if (legacyContext) {
-    nextAction = 'Recompile change.context to upgrade this legacy context snapshot.';
-  } else if (headStale) {
-    nextAction = 'Git HEAD changed after context compilation; recompile change.context.';
-  } else if (worktreeStale) {
-    nextAction = 'The worktree changed after context compilation; recompile change.context.';
-  } else if (stateChanged) {
-    nextAction = 'Task state changed after context compilation; recompile change.context.';
-  } else if (taskContractChanged) {
-    nextAction = 'The task execution contract changed after context compilation; recompile change.context.';
-  } else if (activeWorkflow) {
-    nextAction = workflowNextAction(activeWorkflow);
-  } else {
-    nextAction = deriveNextAction({
-      change, tasks, task, role: snapshot?.role || 'plan', readiness,
-      blockers,
-    });
-  }
+  const control = deriveTransitions({
+    change,
+    tasks,
+    task,
+    role: snapshot?.role || 'plan',
+    readiness,
+    blockers,
+    activeWorkflow,
+    deliveryReady: deliveryCapabilityReady(db, change, tasks, rootDir),
+  });
   return {
     change_id: change.id,
     change_status: change.status,
@@ -646,14 +717,8 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     readiness,
     blockers,
     warnings: [...new Set(warnings)],
-    next_action: nextAction,
-    recommended_workflow: baselineGate.blockers.length > 0
-      ? (baselineHealth.baseline?.status === 'ready' ? 'ultra-doctor' : 'ultra-init')
-      : !decisionGate.ready
-        ? 'ultra-think'
-        : activeWorkflow
-        ? `ultra-${activeWorkflow.kind}`
-        : recommendedWorkflow(change, task, tasks, readiness),
+    allowed_transitions: control.allowed_transitions,
+    required_transition: control.required_transition,
     context_manifest_path: snapshot?.manifest_path || null,
     context_manifest_hash: snapshot?.manifest_hash || null,
     git_head: head,
@@ -670,7 +735,8 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
 module.exports = {
   ContextSpineError,
   baselineGateForChange,
+  changeStateDigest,
   compileRoleContext,
-  deriveNextAction,
+  deriveTransitions,
   readBreadcrumb,
 };

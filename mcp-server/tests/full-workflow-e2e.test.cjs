@@ -14,7 +14,9 @@ const changes = require('../lib/change-workflow.cjs');
 const workflows = require('../lib/workflow-state.cjs');
 const ops = require('../lib/state-ops.cjs');
 const planStore = require('../lib/plan-store.cjs');
-const { semanticRecordsForStep } = require('../test-support/semantic-records.cjs');
+const {
+  researchCoverage, semanticRecordsForStep,
+} = require('../test-support/semantic-records.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function git(rootDir, args) {
@@ -75,10 +77,18 @@ function reviewArtifacts(rootDir, {
       spec_fidelity: { verdict: 'PASS', evidence_refs: [spec] },
       engineering_standards: { verdict: 'PASS', evidence_refs: [engineering] },
     },
-    workers: { completed: ['review-spec', 'review-code'], failed: [], skipped: [] },
+    workers: {
+      completed: ['review-spec', 'review-code'],
+      failed: [],
+      skipped: ['review-tests', 'review-errors', 'review-design', 'review-comments'],
+    },
     worker_selection: [
       { worker: 'review-spec', status: 'selected', rationale: 'Required specification axis.' },
       { worker: 'review-code', status: 'selected', rationale: 'Current runtime diff.' },
+      { worker: 'review-tests', status: 'skipped', rationale: 'No test artifact changed.' },
+      { worker: 'review-errors', status: 'skipped', rationale: 'No failure path changed.' },
+      { worker: 'review-design', status: 'skipped', rationale: 'No design boundary changed.' },
+      { worker: 'review-comments', status: 'skipped', rationale: 'No maintained comments changed.' },
     ],
     findings: [], positive_observations: [], limitations: [],
   }, null, 2)}\n`);
@@ -119,24 +129,34 @@ for (const scenario of [
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-full-e2e-'));
   let db;
   try {
-    git(rootDir, ['init', '-q']);
-    git(rootDir, ['config', 'user.email', 'test@ubp.dev']);
-    git(rootDir, ['config', 'user.name', 'ubp-test']);
     write(rootDir, 'README.md', '# Full workflow fixture\n');
     if (scenario.mode === 'brownfield') {
       write(rootDir, 'src/legacy.js', "'use strict';\nexports.existingBehavior = () => true;\n");
     }
-    git(rootDir, ['add', '.']);
-    git(rootDir, ['commit', '-q', '-m', 'seed project']);
 
     const initialized = initProject({
       target_dir: rootDir, project_name: 'full-workflow', mode: 'auto',
     });
     assert.equal(initialized.mode, scenario.mode);
-    assert.equal(initialized.workflow.research_mode, scenario.researchMode);
+    assert.equal(initialized.workflow.research_status, 'not_started');
+    assert.equal(initialized.workflow.research_mode, null);
+    assert.equal(initialized.git.status, 'initialized');
+    assert.equal(initialized.git.initial_commit_required, true);
+    git(rootDir, ['config', 'user.email', 'test@ubp.dev']);
+    git(rootDir, ['config', 'user.name', 'ubp-test']);
+    git(rootDir, ['add', '.gitignore', 'README.md']);
+    if (scenario.mode === 'brownfield') git(rootDir, ['add', 'src/legacy.js']);
+    git(rootDir, ['commit', '-q', '-m', 'chore: establish project repository']);
     db = openStateDb(path.join(rootDir, '.ultra', 'state.db'));
 
-    let research = workflows.readWorkflow(db, initialized.workflow.research_id, { rootDir });
+    let research = workflows.startWorkflow(db, {
+      id: `research-${scenario.mode}`,
+      kind: 'research',
+      mode: scenario.researchMode,
+      baseline_id: initialized.baseline.id,
+      subject: 'Establish the complete product and architecture baseline.',
+      coverage: researchCoverage(),
+    }, { rootDir });
     for (const workflowStep of research.steps.filter((item) => item.required)) {
       let output = '.ultra/specs/architecture.md';
       if (workflowStep.step_id.startsWith('0')) output = '.ultra/specs/discovery.md';
@@ -254,12 +274,9 @@ for (const scenario of [
       id: created.change.id, task_id: task.id, role: 'implement',
     }, { rootDir });
     let changeRun = workflows.readWorkflow(db, created.workflow.id, { rootDir });
-    assert.equal(changeRun.current_step, 'verify-readiness');
-    changeRun = workflows.recordWorkflowStep(db, {
-      id: changeRun.id, step_id: 'verify-readiness', status: 'completed',
-      evidence: [{ kind: 'context', ref: plannedContext.context_manifest_path, summary: 'First task is executable.' }],
-    }, { rootDir });
-    workflows.completeWorkflow(db, { id: changeRun.id }, { rootDir });
+    assert.equal(changeRun.status, 'completed');
+    assert.equal(changeRun.current_step, null);
+    assert.ok(plannedContext.manifest.control.allowed_transitions.includes('ultra-dev'));
 
     let dev = workflows.startWorkflow(db, {
       id: 'dev-status-task', kind: 'dev', change_id: created.change.id, task_id: task.id,
@@ -330,14 +347,20 @@ for (const scenario of [
       commands: [{ command: 'node --test test/status.test.js', status: 'pass', exit_code: 0, evidence: '1 passed.' }],
       public_seams: [{ seam: 'src/status.js#getStatus', status: 'pass', evidence: 'Returned ready.' }],
       failures: [], recovery: [],
+      verification_profile: {
+        rationale: 'Exercise behavior, regression, integration, and recovery for this bounded runtime change.',
+        selected_dimensions: ['acceptance', 'regression', 'integration', 'recovery'],
+        excluded_dimensions: [
+          { dimension: 'static_analysis', rationale: 'The fixture has no repository-native static analyzer.' },
+          { dimension: 'build', rationale: 'The fixture has no separate build product.' },
+          { dimension: 'performance', rationale: 'The bounded status seam has no material performance risk.' },
+          { dimension: 'security', rationale: 'The fixture changes no trust or authorization boundary.' },
+        ],
+      },
       verification_dimensions: {
         acceptance: { status: 'pass', evidence: ['Status acceptance passed.'], rationale: 'Required.' },
         regression: { status: 'pass', evidence: ['Node test suite passed.'], rationale: 'Required.' },
         integration: { status: 'pass', evidence: ['Exported status seam executed.'], rationale: 'Required.' },
-        static_analysis: { status: 'not_applicable', evidence: [], rationale: 'No static analyzer configured.' },
-        build: { status: 'not_applicable', evidence: [], rationale: 'No separate build command.' },
-        performance: { status: 'not_applicable', evidence: [], rationale: 'No material performance boundary changed.' },
-        security: { status: 'not_applicable', evidence: [], rationale: 'No trust boundary changed.' },
         recovery: { status: 'pass', evidence: ['Status recovery route checked.'], rationale: 'Required.' },
       },
       regression_signal: null, passed: true, run_count: 1,
@@ -406,13 +429,6 @@ for (const scenario of [
       id: deliver.id, step_id: 'archive-change', status: 'completed',
       evidence: [{ kind: 'archive', ref: path.relative(rootDir, archived.archive_path), summary: 'Change packet archived.' }],
     }, { rootDir });
-    deliver = workflows.recordWorkflowStep(db, {
-      id: deliver.id, step_id: 'release-if-authorized', status: 'completed',
-      decisions: [{
-        kind: 'release_authorization', authorized: false,
-        reason: 'Publication was not requested.',
-      }],
-    }, { rootDir });
     const deliveryCheckout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
     const deliveryReport = write(rootDir, `.ultra/reports/delivery/${deliver.id}.json`, `${JSON.stringify({
       $schema: 'ultra-delivery-report-v1', change_id: created.change.id,
@@ -420,7 +436,6 @@ for (const scenario of [
       git_commit: deliveryCheckout.head, worktree_digest: deliveryCheckout.digest,
       context_digest: convergenceContext.manifest_hash,
       checks: [{ command: 'node --test test/status.test.js', status: 'pass', exit_code: 0, evidence: '1 passed.' }],
-      release: { authorized: false, performed: false, evidence: [] },
       rollback: 'Restore the managed state backup and archived packet.',
       timestamp: new Date().toISOString(),
     }, null, 2)}\n`);
@@ -432,7 +447,7 @@ for (const scenario of [
     deliver = workflows.completeWorkflow(db, { id: deliver.id }, { rootDir });
 
     assert.equal(deliver.status, 'completed');
-    assert.equal(deliver.summary.release.authorized, false);
+    assert.equal(deliver.summary.release, undefined);
     assert.equal(changes.readChange(db, created.change.id).status, 'archived');
     assert.equal(baselines.inspectBaseline(db, { rootDir }).status, 'pass');
     const workflowHealth = workflows.inspectWorkflowHealth(db, { rootDir });

@@ -2,7 +2,7 @@
 
 // Phase 8B gate — end-to-end integration verifying the three PLAN gate clauses:
 //
-//   1. "10-task PRD run → auto-completion rate ≥ 80%"
+//   1. Successful worker transport does not bypass Ultra completion gates
 //   2. "5-slice worktree stress → no .git/config.lock contention"
 //   3. "merge-back conflicts correctly identified"
 //
@@ -23,7 +23,10 @@ const parallelOrch = require('../parallel-orchestrator.cjs');
 const wtmgr = require('../worktree-manager.cjs');
 
 const NODE = process.execPath;
-function commitScript(filename, content) {
+const STATE_DB_MODULE = require.resolve('../../mcp-server/lib/state-db.cjs');
+const STATE_OPS_MODULE = require.resolve('../../mcp-server/lib/state-ops.cjs');
+
+function commitScript(filename, content, { completeTask = false } = {}) {
   // Create a file (with parent dirs) in the session's CWD and commit it —
   // simulates an agent's session work.
   return [
@@ -38,6 +41,21 @@ fs.writeFileSync(f, ${JSON.stringify(content)});
 execFileSync('git', ['add', '-A']);
 execFileSync('git', ['-c', 'user.email=agent@ubp.dev', '-c', 'user.name=agent',
                      'commit', '-q', '-m', 'agent change ' + f]);
+if (${JSON.stringify(completeTask)}) {
+  const stateDb = require(${JSON.stringify(STATE_DB_MODULE)});
+  const ops = require(${JSON.stringify(STATE_OPS_MODULE)});
+  const dbPath = path.resolve(process.env.UBP_ARTIFACT_DIR, '..', '..', 'state.db');
+  const { db } = stateDb.initStateDb(dbPath);
+  try {
+    const task = ops.readTask(db, process.env.UBP_TASK_ID);
+    if (task.status === 'pending') ops.updateTaskStatus(db, task.id, 'in_progress');
+    const completionCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    ops.patchTask(db, task.id, { completion_commit: completionCommit });
+    ops.updateTaskStatus(db, task.id, 'completed');
+  } finally {
+    stateDb.closeStateDb(db);
+  }
+}
 process.exit(0);
 `,
   ];
@@ -49,7 +67,7 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'seed.md'), '# seed\n');
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
   return dir;
@@ -67,9 +85,9 @@ function cleanup(repoRoot, db) {
   try { fs.rmSync(repoRoot, { recursive: true, force: true }); } catch (_) { /* best-effort */ }
 }
 
-// ─── Gate clause 1 — 10-task end-to-end, auto-completion ≥ 80% ────────────
+// ─── Gate clause 1 — transport success cannot bypass workflow gates ───────
 
-test('gate 1: 10-task plan with independent files → completion ≥ 80%', async () => {
+test('gate 1: 10-task transport success preserves work until task gates converge', async () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
@@ -98,21 +116,19 @@ test('gate 1: 10-task plan with independent files → completion ≥ 80%', async
       mergeBaseBranch: 'main',
     });
 
-    const completed = results.filter((r) => r.status === 'completed').length;
-    const completionRate = completed / tasks.length;
-    assert.ok(completionRate >= 0.8, `completion rate ${completionRate} below 0.8`);
+    assert.equal(results.length, tasks.length);
+    assert.equal(results.every((result) => result.status === 'completed'), true);
+    assert.equal(results.every((result) => result.task_status === 'in_progress'), true);
+    assert.equal(tasks.every((task) => ops.readTask(db, task.id).status === 'in_progress'), true);
 
-    // Independent files → all merges clean → main HEAD reflects each file.
+    // Even explicit autoMerge cannot integrate work before task completion.
     const merged = results.filter((r) => r.merge && r.merge.merged).length;
-    assert.ok(merged >= 8, `expected ≥8 clean merges, got ${merged}`);
+    assert.equal(merged, 0);
+    assert.equal(results.every((result) => result.worktree_preserved === true), true);
     for (let i = 1; i <= 10; i++) {
       const id = `T${String(i).padStart(2, '0')}`;
       const file = path.join(repo, 'feat', `${id}.txt`);
-      if (fs.existsSync(file)) {
-        // if merged, the file must be present on main
-        const content = fs.readFileSync(file, 'utf8');
-        assert.equal(content, `${id}\n`);
-      }
+      assert.equal(fs.existsSync(file), false, `${id} must not be merged before workflow gates`);
     }
   } finally { cleanup(repo, db); }
 });
@@ -168,7 +184,11 @@ test('gate 3: 2 parallel tasks on same file → 1 merged, 1 conflict event captu
       db, repoRoot: repo, plan: manualPlan,
       runtimes: ['claude'],
       command: NODE,
-      commandArgsFor: (task) => commitScript('battle.txt', `${task.id}-version\n`),
+      commandArgsFor: (task) => commitScript(
+        'battle.txt',
+        `${task.id}-version\n`,
+        { completeTask: true },
+      ),
       autoMerge: true,
       mergeBaseBranch: 'main',
     });

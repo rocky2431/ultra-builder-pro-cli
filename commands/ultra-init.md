@@ -1,5 +1,5 @@
 ---
-description: Initialize a new project or adopt an existing repository into authoritative Ultra baseline state
+description: Create or recover Ultra project authority without implicitly starting research
 argument-hint: "[name] [type] [stack] [auto|greenfield|brownfield] [--scope <path>]"
 workflow-ref: "@skills/ultra-init/SKILL.md"
 ---

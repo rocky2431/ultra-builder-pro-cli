@@ -119,8 +119,10 @@ class ActiveTaskContextTest(unittest.TestCase):
             self.assertIn("Gate: implementation", context_text)
             self.assertIn("BASELINE_MIGRATION_REVIEW_REQUIRED", context_text)
             self.assertIn("CONTEXT_SNAPSHOT_UPGRADE_REQUIRED", context_text)
-            self.assertIn("Next: Complete or refresh the Ultra project baseline", context_text)
-            self.assertIn("Route: ultra-doctor", context_text)
+            self.assertIn("Allowed transitions:", context_text)
+            self.assertIn("change.context", context_text)
+            self.assertIn("ultra-doctor", context_text)
+            self.assertNotIn("Required transition:", context_text)
             self.assertNotIn("Edit safely", context_text)
 
 

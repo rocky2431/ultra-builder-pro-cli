@@ -213,7 +213,7 @@ async function dispatchRestore(args) {
         quarantined_state_path: path.join(recoveryDir, 'state.db'),
         schema_version: initialized.schema_version,
         schema_migration_backup_path: initialized.backup_path || null,
-        next_action: 'Run ultra-tools system doctor, then ultra-init to inspect baseline readiness.',
+        recovery_guidance: 'Run ultra-tools system doctor, then ultra-init to inspect baseline readiness.',
       },
     });
     return 0;
@@ -284,7 +284,7 @@ async function dispatchRebaseline(args) {
           : null,
         baseline: initialized.baseline,
         copied_files: initialized.copied_files,
-        next_action: 'Inspect the preserved evidence, record the brownfield baseline, and obtain owner approval before convergence.',
+        recovery_guidance: 'Inspect the preserved evidence, run explicit adoption research, record the brownfield baseline, and obtain owner approval before convergence.',
       },
     });
     return 0;

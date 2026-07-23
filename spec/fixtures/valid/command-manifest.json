@@ -5,7 +5,7 @@
     "workflow-ref": "@skills/ultra-init/SKILL.md"
   },
   {
-    "description": "Report current Ultra state and one evidence-backed next action",
+    "description": "Report current Ultra state, blockers, and valid transitions",
     "workflow-ref": "@skills/ultra-status/SKILL.md"
   }
 ]

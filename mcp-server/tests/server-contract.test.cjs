@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync, spawn } = require('node:child_process');
 const yaml = require('js-yaml');
 const Database = require('better-sqlite3');
 
@@ -19,12 +20,23 @@ const { dispatchTool } = require('../server.cjs');
 const changes = require('../lib/change-workflow.cjs');
 const ops = require('../lib/state-ops.cjs');
 const { seedReadyBaseline: seedCompleteBaseline } = require('../test-support/ready-baseline.cjs');
-const { semanticRecordsForStep } = require('../test-support/semantic-records.cjs');
+const {
+  researchCoverage, semanticRecordsForStep,
+} = require('../test-support/semantic-records.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function tmpProject() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mcp-'));
   return { dir, dbPath: path.join(dir, '.ultra', 'state.db') };
+}
+
+function ensureGitProject(project) {
+  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: project.dir });
+  execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: project.dir });
+  execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: project.dir });
+  fs.writeFileSync(path.join(project.dir, '.gitignore'), '.ultra\n');
+  execFileSync('git', ['add', '.gitignore'], { cwd: project.dir });
+  execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: project.dir });
 }
 
 function seedReadyBaseline(project) {
@@ -318,6 +330,7 @@ test('baseline MCP tools adopt and converge an existing checkout without storing
         arguments: {
           id: 'mcp-research', kind: 'research', mode: 'adoption', baseline_id: 'mcp-baseline',
           subject: 'Establish the complete observed product and architecture baseline.',
+          coverage: researchCoverage(),
         },
       })).workflow;
       for (const step of research.steps.filter((item) => item.required)) {
@@ -433,9 +446,11 @@ test('change.create + change.context expose a continuous change unit with extern
         name: 'change.context', arguments: { id: 'mcp-change' },
       }));
       assert.equal(context.manifest.change.id, 'mcp-change');
-      assert.equal(context.manifest.schema_version, '2.0');
+      assert.equal(context.manifest.schema_version, '3.0');
       assert.equal(context.manifest.role, 'plan');
       assert.equal(context.manifest.readiness.status, 'ready');
+      assert.ok(context.manifest.control.allowed_transitions.includes('ultra-plan'));
+      assert.equal(context.manifest.control.required_transition, null);
       assert.equal(context.manifest.providers.memory.provider, 'cloud-mem');
       assert.equal(context.manifest.provider_boundary.includes('content remain external'), true);
 
@@ -443,7 +458,8 @@ test('change.create + change.context expose a continuous change unit with extern
         name: 'change.breadcrumb', arguments: { id: 'mcp-change' },
       }));
       assert.equal(breadcrumb.breadcrumb.change_id, 'mcp-change');
-      assert.equal(breadcrumb.breadcrumb.recommended_workflow, 'ultra-change');
+      assert.ok(breadcrumb.breadcrumb.allowed_transitions.includes('ultra-plan'));
+      assert.equal(breadcrumb.breadcrumb.required_transition, null);
       assert.match(breadcrumb.breadcrumb.context_manifest_hash, /^[0-9a-f]{64}$/);
 
       const listed = readToolPayload(await client.callTool({
@@ -567,6 +583,50 @@ test('published MCP contract contains exactly the live server tools', () => {
   const declared = manifest.tools.map((tool) => tool.name).sort();
   const { REGISTERED_TOOLS } = require(SERVER);
   assert.deepEqual(declared, [...REGISTERED_TOOLS].sort());
+});
+
+test('workflow MCP contracts publish adaptive recovery and freshness failures', () => {
+  const manifest = yaml.load(fs.readFileSync(path.join(REPO_ROOT, 'spec', 'mcp-tools.yaml'), 'utf8'));
+  const errorCodes = (name) => new Set(
+    manifest.tools.find((tool) => tool.name === name).errors.map((error) => error.code),
+  );
+  const expected = {
+    'workflow.start': [
+      'WORKFLOW_AUTHORITY_REQUIRED',
+      'WORKFLOW_BASELINE_NOT_READY',
+      'WORKFLOW_CHANGE_RESEARCH_INCOMPLETE',
+      'WORKFLOW_TASK_NOT_EXECUTABLE',
+      'WORKFLOW_PLAN_NOT_COMPLETED',
+      'WORKFLOW_PLAN_TASK_SET_STALE',
+      'WORKFLOW_PLAN_TASK_CONTRACT_STALE',
+    ],
+    'workflow.step': [
+      'WORKFLOW_NOT_MUTABLE',
+      'ILLEGAL_WORKFLOW_STEP_TRANSITION',
+      'WORKFLOW_SEMANTIC_SOURCE_INVALID',
+      'WORKFLOW_CONTEXT_AUTHORITY_MISMATCH',
+      'WORKFLOW_GATE_STALE',
+      'WORKFLOW_SESSION_ACTIVE',
+    ],
+    'workflow.complete': [
+      'WORKFLOW_PLAN_ARTIFACT_STALE',
+      'WORKFLOW_PLAN_COVERAGE_INCOMPLETE',
+      'WORKFLOW_PLAN_TASK_CONTRACT_STALE',
+      'WORKFLOW_REPORT_TASK_SET_STALE',
+      'WORKFLOW_VERIFICATION_PROFILE_INVALID',
+      'WORKFLOW_REVIEW_EVIDENCE_MISMATCH',
+      'WORKFLOW_REVIEW_FINDINGS_MISMATCH',
+      'WORKFLOW_DELIVERY_CHECK_FAILED',
+    ],
+  };
+  for (const [tool, required] of Object.entries(expected)) {
+    const actual = errorCodes(tool);
+    assert.deepEqual(
+      required.filter((code) => !actual.has(code)),
+      [],
+      `${tool} omits public recovery errors`,
+    );
+  }
 });
 
 test('task.create + task.get round trip via MCP', async () => {
@@ -1213,6 +1273,7 @@ async function seedTask(client, id = 's-1') {
 test('session.admission_check + session.spawn: happy path returns sid and paths', async () => {
   const proj = tmpProject();
   try {
+    ensureGitProject(proj);
     seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-happy');
@@ -1234,8 +1295,137 @@ test('session.admission_check + session.spawn: happy path returns sid and paths'
       assert.ok(session.worktree_path.includes(session.sid));
       assert.ok(session.artifact_dir.endsWith(path.join('.ultra', 'sessions', session.sid)));
       assert.ok(session.lease_expires_at);
+      assert.equal(session.worktree_created, true);
+      assert.ok(fs.existsSync(session.worktree_path));
+      assert.ok(fs.existsSync(session.artifact_dir));
+      assert.equal(
+        execFileSync('git', ['rev-parse', 'HEAD'], {
+          cwd: session.worktree_path, encoding: 'utf8',
+        }).trim(),
+        execFileSync('git', ['rev-parse', 'HEAD'], {
+          cwd: proj.dir, encoding: 'utf8',
+        }).trim(),
+      );
     });
   } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('session.admission_check reports the same plan gate enforced by session.spawn', async () => {
+  const proj = tmpProject();
+  const { db } = initStateDb(proj.dbPath);
+  try {
+    ensureGitProject(proj);
+    db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+       VALUES ('session-gate-change', 'Session gate', 'standard', 'active',
+               'Require approved plan authority before session creation.',
+               '.ultra/changes/active/session-gate-change')`,
+    ).run();
+    ops.createTask(db, {
+      id: 'session-gate-task',
+      title: 'Reject unapproved session work',
+      type: 'feature',
+      priority: 'P1',
+      change_id: 'session-gate-change',
+      outcome: 'Admission and spawn share one plan gate.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'session admission',
+      verification_command: 'npm run test:state',
+      acceptance: [{
+        id: 'same-gate',
+        criterion: 'Unapproved change work is not admitted.',
+        verification: 'npm run test:state',
+      }],
+      context_refs: [{ ref: 'spec/mcp-tools.yaml', reason: 'Session contract.', required: true }],
+      docs_impact: { status: 'none', files: [], rationale: 'No user-facing docs.' },
+      ownership: { owner: 'test-owner', reviewers: [] },
+      trace_to: 'spec/mcp-tools.yaml#session-family',
+    });
+    await assert.rejects(
+      dispatchTool(
+        'session.admission_check',
+        { task_id: 'session-gate-task' },
+        db,
+        { rootDir: proj.dir },
+      ),
+      (error) => error.code === 'WORKFLOW_PLAN_NOT_COMPLETED',
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+  } finally {
+    closeStateDb(db);
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('an active worker cannot recursively spawn a nested Ultra session', async () => {
+  const proj = tmpProject();
+  try {
+    ensureGitProject(proj);
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-nested');
+      const result = await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-nested', runtime: 'codex', takeover: true },
+      });
+      assert.equal(expectError(result).code, 'NESTED_SESSION_FORBIDDEN');
+      const { db } = initStateDb(proj.dbPath);
+      try {
+        assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+      } finally {
+        closeStateDb(db);
+      }
+    }, { UBP_SESSION_ID: 'sess-current-worker' });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('an active worker cannot close its parent-owned lease before process settlement', async () => {
+  const proj = tmpProject();
+  const child = spawn(
+    process.execPath,
+    ['-e', 'setInterval(() => {}, 60000);'],
+    { stdio: 'ignore' },
+  );
+  try {
+    ensureGitProject(proj);
+    seedReadyBaseline(proj);
+    const { db } = initStateDb(proj.dbPath);
+    try {
+      ops.createTask(db, {
+        id: 's-self-close', title: 'self close', type: 'feature', priority: 'P1',
+      });
+      ops.createSession(db, {
+        sid: 'sess-self-close',
+        task_id: 's-self-close',
+        runtime: 'codex',
+        pid: child.pid,
+        worktree_path: proj.dir,
+        artifact_dir: path.join(proj.dir, '.ultra', 'sessions', 'sess-self-close'),
+      });
+    } finally {
+      closeStateDb(db);
+    }
+
+    await withClient(proj, async (client) => {
+      const result = await client.callTool({
+        name: 'session.close',
+        arguments: { sid: 'sess-self-close', status: 'completed' },
+      });
+      assert.equal(expectError(result).code, 'WORKER_SESSION_PARENT_OWNED');
+      assert.doesNotThrow(() => process.kill(child.pid, 0));
+      const { db } = initStateDb(proj.dbPath);
+      try {
+        assert.equal(ops.readSession(db, 'sess-self-close').status, 'running');
+      } finally {
+        closeStateDb(db);
+      }
+    }, { UBP_SESSION_ID: 'sess-self-close' });
+  } finally {
+    try { process.kill(child.pid, 'SIGKILL'); } catch { /* already stopped */ }
     fs.rmSync(proj.dir, { recursive: true, force: true });
   }
 });
@@ -1260,6 +1450,7 @@ test('session.spawn rejects a retired runtime at the MCP schema boundary', async
 test('session.spawn refuses second session for same task without takeover (ADMISSION_DENIED)', async () => {
   const proj = tmpProject();
   try {
+    ensureGitProject(proj);
     seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-conflict');
@@ -1291,6 +1482,7 @@ test('session.spawn refuses second session for same task without takeover (ADMIS
 test('session.spawn with takeover=true crashes the old session and succeeds', async () => {
   const proj = tmpProject();
   try {
+    ensureGitProject(proj);
     seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-takeover');
@@ -1318,6 +1510,7 @@ test('session.spawn with takeover=true crashes the old session and succeeds', as
 test('session.subscribe_events sees task events with ≤1s latency (D31 id cursor)', async () => {
   const proj = tmpProject();
   try {
+    ensureGitProject(proj);
     seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-sub');
@@ -1354,6 +1547,7 @@ test('session.subscribe_events sees task events with ≤1s latency (D31 id curso
 test('session.subscribe_events filters events by sid', async () => {
   const proj = tmpProject();
   try {
+    ensureGitProject(proj);
     seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-filter-a');
@@ -1395,6 +1589,7 @@ test('session.subscribe_events filters events by sid', async () => {
 test('MCP rejects declared inputs that have no runtime behavior', async () => {
   const proj = tmpProject();
   try {
+    ensureGitProject(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 'unused-inputs');
       const session = readToolPayload(await client.callTool({
@@ -1428,6 +1623,7 @@ test('MCP rejects declared inputs that have no runtime behavior', async () => {
 test('session.heartbeat refreshes lease; session.close marks completed', async () => {
   const proj = tmpProject();
   try {
+    ensureGitProject(proj);
     seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
       await seedTask(client, 's-heart');
@@ -1451,11 +1647,71 @@ test('session.heartbeat refreshes lease; session.close marks completed', async (
         arguments: { sid: spawn.sid, status: 'completed' },
       }));
       assert.equal(closed.ok, true);
+      assert.equal(closed.worktree_preserved, true);
+      assert.ok(fs.existsSync(spawn.worktree_path));
 
       const got = readToolPayload(await client.callTool({
         name: 'session.get', arguments: { sid: spawn.sid },
       }));
       assert.equal(got.session.status, 'completed');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('session.close removes only a clean worktree whose commit is integrated', async () => {
+  const proj = tmpProject();
+  try {
+    ensureGitProject(proj);
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-cleanup');
+      const spawned = readToolPayload(await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-cleanup', runtime: 'codex' },
+      }));
+
+      const closed = readToolPayload(await client.callTool({
+        name: 'session.close',
+        arguments: {
+          sid: spawned.sid,
+          status: 'completed',
+          remove_worktree: true,
+        },
+      }));
+      assert.equal(closed.ok, true);
+      assert.equal(closed.worktree_preserved, false);
+      assert.equal(fs.existsSync(spawned.worktree_path), false);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('session.close refuses to delete uncommitted work', async () => {
+  const proj = tmpProject();
+  try {
+    ensureGitProject(proj);
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      await seedTask(client, 's-unsafe-cleanup');
+      const spawned = readToolPayload(await client.callTool({
+        name: 'session.spawn',
+        arguments: { task_id: 's-unsafe-cleanup', runtime: 'opencode' },
+      }));
+      fs.writeFileSync(path.join(spawned.worktree_path, 'preserve.txt'), 'uncommitted\n');
+
+      const result = await client.callTool({
+        name: 'session.close',
+        arguments: {
+          sid: spawned.sid,
+          status: 'completed',
+          remove_worktree: true,
+        },
+      });
+      assert.equal(expectError(result).code, 'WORKTREE_NOT_INTEGRATED');
+      assert.equal(fs.existsSync(spawned.worktree_path), true);
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });

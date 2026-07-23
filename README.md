@@ -3,8 +3,8 @@
 Multi-runtime plugin suite + autonomous coding factory for the Ultra Builder Pro
 agent engineering system. It ships native plugins for **Claude Code · OpenCode ·
 Codex · Kimi Code** and orchestrates PRD →
-dependency graph → parallel session execution → auto-merge with a single
-authoritative `.ultra/state.db`.
+dependency graph → resumable dependency-wave execution → convergence-gated
+integration with a single authoritative `.ultra/state.db`.
 
 <div align="center">
 
@@ -36,14 +36,20 @@ authoritative `.ultra/state.db`.
 - **Keeps memory ownership explicit.** Ultra Builder Pro does not collect
   prompts, transcripts, observations, summaries, or cross-session memory.
   Install cloud-mem/claude-mem separately if persistent memory is wanted.
-- **Runs real PRDs end-to-end without a second model credential.** The current
-  host derives task objects; `task.parse_prd` validates them → `lib/topo.cjs` waves →
-  `.ultra/execution-plan.json` → parallel worktree sessions → auto-merge back.
+- **Runs current plans without a second model credential.** The current host
+  derives task objects; `task.parse_prd` validates them → `lib/topo.cjs` waves →
+  `.ultra/execution-plan.json` → parallel worktree sessions. Execution pauses at
+  the first wave whose tasks have not converged through Ultra gates. An explicit
+  auto-merge is accepted only for a change task with a matching completion commit,
+  ready dev evidence, and a current task review; transport success alone preserves
+  the worktree.
 - **Keeps daily work convergent.** `/ultra-change` creates a bounded delta and
   complete Change Contract, classifies risk, records whether bounded research is
-  required, and creates immutable Context Manifest v2 snapshots; the Context Spine assigns a role/gate, verifies required
-  references, reports fresh-context budget pressure as advisory warnings, exposes one DB-derived breadcrumb, and
-  routes a single next action. Research stores typed, source-digested semantic records;
+  required, and leaves planning and context compilation to their actual consumers.
+  Context Manifest v3 assigns a role/gate, verifies required references, reports
+  fresh-context budget pressure as advisory warnings, and exposes mechanically valid
+  transitions without choosing the semantic route. Research stores typed,
+  source-digested semantic records;
   planning proves Change acceptance coverage; `/ultra-deliver` requires applied specification
   learning plus docs/test/mode-bound two-axis review evidence and a schema-validated
   baseline reconciliation manifest before archive. `/ultra-doctor` reports incidents,
@@ -99,9 +105,16 @@ based on delivered-system evidence: application source, tests, deployment, or
 persisted-state/schema signals make a repository brownfield; a Git repository,
 manifest, README, or starter documentation alone remains greenfield. An empty project
 opens a `draft` greenfield baseline and an existing system opens an `adopting`
-brownfield baseline. Both execute all seventeen research steps before
-`baseline.record` and explicit `baseline.converge`; initialization never treats blank
-templates as a trusted baseline and never selects an MVP. Existing active work may
+brownfield baseline. Initialization completes after classification, local Git setup,
+scaffold creation, and read-back verification; it never starts research implicitly.
+When `ultra-research` is explicitly invoked, the host dispositions each of seventeen
+coverage areas as `execute`, `verify_existing`, `reuse`, `not_applicable`, or accepted
+`deferred`. It performs only the necessary work before `baseline.record` and explicit
+`baseline.converge`; initialization never treats blank templates as a trusted baseline
+and never selects an MVP. Auto mode preserves existing
+Git or initializes `main` and adds a symlink-safe `.ultra` ignore rule; an unborn
+repository requires an owner-approved local checkpoint commit before the baseline can
+be recorded. It never creates a remote, tag, or push. Existing active work may
 continue only when its durable change workflow was bound to a healthy ready baseline;
 the expected HEAD, worktree, spec, and source-evidence drift created by that change is
 advisory until delivery reconciliation. Loss of approved-ready status or structural
@@ -110,6 +123,8 @@ approver and leaves a blocking reconciliation gap at archive; new ordinary work 
 requires a healthy ready baseline. See
 [`docs/WORKFLOW-LIFECYCLE.md`](./docs/WORKFLOW-LIFECYCLE.md) for exact write,
 transition, invalidation, and recovery semantics.
+The semantic crosswalk to the original Claude Code harness is
+[`docs/LEGACY-CLI-CROSSWALK.md`](./docs/LEGACY-CLI-CROSSWALK.md).
 
 ## Three-layer architecture
 
@@ -117,7 +132,7 @@ transition, invalidation, and recovery semantics.
 |-------|---------|----------------|
 | **skill** (`skills/ultra-*/`) | Knowledge — prompts, workflows, prose | Runtime's native skill/prompt loader picks them up after install |
 | **MCP** (`mcp-server/`) | Authoritative state — reads/writes `.ultra/state.db` via stdio JSON-RPC | Primary path for task / session / event / plan operations |
-| **CLI** (`ultra-tools`, `bin/*`) | Selected initialization, recovery, diagnostics, and orchestration surfaces | `ultra-tools task init-project`, `ultra-tools system doctor`, `ubp-orchestrator run` |
+| **CLI** (`ultra-tools`, `bin/*`) | Selected initialization, recovery, diagnostics, and orchestration surfaces | `ultra-tools task init-project`, `ultra-tools system doctor`, `ubp-orchestrator execute-plan` |
 
 The layers share one `.ultra/state.db`, but the CLI is not a mirror of every MCP
 tool: continuous change mutations are MCP-only and fail closed. See
@@ -143,7 +158,7 @@ and framework guidance belong to their original plugins.
 | Workflow hooks               | ✅ (native plugin) | ✅ (native JS plugin) | ✅ (native plugin) | ✅ with documented compact limitation |
 | Sub-agents                   | ✅          | ✅       | ✅ (9 native TOML agents) | ✅ via `Agent` / `AgentSwarm` prompt templates |
 | Session worktree isolation   | ✅ (driven by `orchestrator/session-runner.cjs`) | ✅ | ✅ | ✅ |
-| Parallel dispatch + auto-merge | ✅ (`ubp-orchestrator run`) | ✅ | ✅ | ✅ |
+| Dependency-wave dispatch + optional verified auto-merge | ✅ (`ubp-orchestrator execute-plan`) | ✅ | ✅ | ✅ |
 
 Full details in [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.md)
 (10 sections, with per-runtime deviations called out).
@@ -151,20 +166,29 @@ Full details in [`docs/RUNTIME-COMPAT-MATRIX.md`](./docs/RUNTIME-COMPAT-MATRIX.m
 ## Typical workflow
 
 ```bash
-# 1. Bootstrap project state (the ultra-init skill completes adoption and approval)
+# 1. Bootstrap deterministic authority. This completes init but not research/baseline.
 ultra-tools task init-project --project-name myapp --mode auto
 
 # Projection-only projects from prior releases use one backup-first import:
 ultra-tools migrate --from=4.4 --to=4.5 --source-dir .
-ultra-tools migrate --from=4.5 --to=16.0 --source-dir .
+ultra-tools migrate --from=4.5 --to=18.0 --source-dir .
 
-# 2. Complete all 17 research steps. When owner judgment is required, the host asks
-#    one evidence-backed decision at a time and checkpoints the accepted artifacts.
-#    Record current evidence, obtain explicit baseline approval, then open and align
-#    an initial change before persisting its task contracts.
+# 2. Invoke ultra-research explicitly. The host dispositions each coverage area,
+#    executes/verifies/reuses only what is necessary, and asks one material decision at
+#    a time through the host-native question surface. Record evidence and obtain
+#    baseline approval only after the selected coverage converges.
 
-# 3. Run the plan — parallel sessions, auto-merge back to main on success
-ubp-orchestrator run
+# 3. Optional worker automation. Configure a real shell-free worker first:
+# {"orchestrator":{"command":"/absolute/path/to/ultra-worker","command_args":[]}}
+# Then resume current dependency waves until the first non-converged wave.
+# A paused result is expected while dev/test/review evidence is still open.
+# Worktrees are preserved by default. Empty, cyclic, stale, duplicate-task,
+# cross-change, and stale or unverified plans fail before a session is created.
+# Each worker checkout resolves `.ultra` to the one central authority; reserved
+# UBP_DB_PATH / UBP_ROOT_DIR / UBP_AUTHORITY_ROOT bindings cannot be overridden.
+ubp-orchestrator execute-plan
+# Add --auto-merge only when the worker records the exact completion commit,
+# ready dev steps, and a current task review before it exits.
 
 # 4. Monitor cost, progress, and runtime health
 ultra-tools status
@@ -184,12 +208,18 @@ Kimi uses the corresponding
 `/ultra-builder-pro:ultra-*` namespace. Other runtimes retain their native
 command form.
 
+The arrows above show a common capability path, not a mandatory pipeline. After
+initialization the user or host explicitly selects research. During daily work,
+`ultra-change` may hand off to bounded research, planning, an already-current task,
+thinking, or status according to intent and evidence. MCP exposes allowed transitions
+and hard recovery requirements; the active host recommends the semantic route.
+
 ## CLI surface
 
 | Binary | Purpose |
 |--------|---------|
 | `ultra-builder-pro-cli` / `ubp` | Installer — `--claude / --opencode / --codex / --kimi / --all`, `--local / --global`, `--uninstall`; read-only install checks via `--doctor [--json]` |
-| `ubp-orchestrator` | Session dispatch daemon — `run`, `start`, `stop`, `status` |
+| `ubp-orchestrator` | Current completed-plan runner (`execute-plan`) and optional explicit-worker daemon (`run`, `start`, `stop`, `status`) |
 | `ultra-tools` | State-layer CLI — `task`, `session`, `status`, `db`, `migrate`; explicit `legacy-memory` archive/prune migration |
 | `ubp-handbook` | Preview/apply the managed Ultra contract in `CLAUDE.md` / `AGENTS.md`, with backup |
 

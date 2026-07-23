@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS baselines (
   repository_revision TEXT,
   repository_branch   TEXT,
   worktree_state      TEXT NOT NULL DEFAULT 'unavailable'
-                        CHECK (worktree_state IN ('clean', 'dirty', 'unavailable')),
+                        CHECK (worktree_state IN ('clean', 'dirty', 'unborn', 'unavailable')),
   worktree_digest     TEXT,
   worktree_files_json TEXT NOT NULL DEFAULT '[]',
   worktree_accepted   INTEGER NOT NULL DEFAULT 0 CHECK (worktree_accepted IN (0, 1)),
@@ -252,7 +252,9 @@ CREATE TABLE IF NOT EXISTS context_snapshots (
                        CHECK (role IN ('plan', 'implement', 'check', 'review')),
   gate               TEXT NOT NULL DEFAULT 'alignment'
                        CHECK (gate IN ('alignment', 'planning', 'implementation', 'verification', 'review', 'convergence', 'recovery')),
-  next_action        TEXT NOT NULL DEFAULT 'Resolve the next Ultra workflow action.',
+  next_action        TEXT NOT NULL DEFAULT '',
+  allowed_transitions_json TEXT NOT NULL DEFAULT '[]',
+  required_transition TEXT,
   readiness          TEXT NOT NULL DEFAULT 'ready'
                        CHECK (readiness IN ('ready', 'blocked')),
   blockers_json      TEXT NOT NULL DEFAULT '[]',
@@ -486,3 +488,7 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('15.0', 'Typed research semantics, complete change contracts, verified learning application, and reconciliation provenance');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('16.0', 'Durable one-question decision dialogue, owner checkpoints, and workflow alignment gates');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('17.0', 'Explicit unborn Git authority and owner-authorized baseline checkpoints');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('18.0', 'Adaptive capability transitions, independent initialization, and recoverable workflow migration');

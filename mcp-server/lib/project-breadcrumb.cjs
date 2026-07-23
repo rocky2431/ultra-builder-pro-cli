@@ -9,8 +9,8 @@ const { EXPECTED_VERSION, REQUIRED_TABLES } = require('./state-db.cjs');
 const { readBreadcrumb } = require('./context-spine.cjs');
 
 function blockedBreadcrumb(code, {
-  nextAction,
-  workflow,
+  allowedTransitions = [],
+  requiredTransition = null,
 } = {}) {
   return {
     change_id: null,
@@ -20,8 +20,8 @@ function blockedBreadcrumb(code, {
     readiness: 'blocked',
     blockers: [code],
     warnings: [],
-    next_action: nextAction,
-    recommended_workflow: workflow,
+    allowed_transitions: allowedTransitions,
+    required_transition: requiredTransition,
     context_manifest_path: null,
     context_manifest_hash: null,
     git_head: null,
@@ -31,15 +31,15 @@ function blockedBreadcrumb(code, {
 
 function migrationBreadcrumb(code) {
   return blockedBreadcrumb(code, {
-    nextAction: 'Resume project initialization to migrate and re-establish the Ultra baseline.',
-    workflow: 'ultra-init',
+    allowedTransitions: ['ultra-init', 'ultra-status'],
+    requiredTransition: 'ultra-init',
   });
 }
 
 function doctorBreadcrumb(code) {
   return blockedBreadcrumb(code, {
-    nextAction: 'Run ultra-doctor to inspect and recover the authoritative Ultra state database.',
-    workflow: 'ultra-doctor',
+    allowedTransitions: ['ultra-doctor', 'ultra-status'],
+    requiredTransition: 'ultra-doctor',
   });
 }
 
@@ -62,8 +62,8 @@ function readProjectBreadcrumb(rootDir) {
   const dbPath = path.join(ultraDir, 'state.db');
   if (!fs.existsSync(dbPath)) {
     return blockedBreadcrumb('STATE_DB_MISSING', {
-      nextAction: 'Initialize or resume this Ultra project through ultra-init.',
-      workflow: 'ultra-init',
+      allowedTransitions: ['ultra-init', 'ultra-status'],
+      requiredTransition: 'ultra-init',
     });
   }
 
@@ -135,10 +135,10 @@ function renderProjectBreadcrumb(rootDir, breadcrumb) {
         : 'Decision: checkpoint confirmation required',
     );
   }
-  lines.push(
-    `Next: ${breadcrumb.next_action || 'Inspect Ultra status.'}`,
-    `Route: ${breadcrumb.recommended_workflow || 'ultra-doctor'}`,
-  );
+  lines.push(`Allowed transitions: ${(breadcrumb.allowed_transitions || []).join(', ') || 'none'}`);
+  if (breadcrumb.required_transition) {
+    lines.push(`Required transition: ${breadcrumb.required_transition}`);
+  }
   if (breadcrumb.context_manifest_path) {
     lines.push(
       `Context: ${breadcrumb.context_manifest_path} sha256=${breadcrumb.context_manifest_hash || 'unknown'}`,

@@ -58,7 +58,7 @@ test('status --json --cost returns by_runtime + top_tasks + total_cost', () => {
   } finally { teardown(dir, db); }
 });
 
-test('status includes authoritative workflow, change, task, session, and next-route summaries', () => {
+test('status includes authoritative workflow, change, task, session, and valid transition summaries', () => {
   const { dir, db } = freshFixture();
   try {
     seedCalls(db, dir);
@@ -69,8 +69,8 @@ test('status includes authoritative workflow, change, task, session, and next-ro
     assert.deepEqual(out.sessions, { running: 2, completed: 0, crashed: 0, orphan: 0 });
     assert.equal(out.workflows.active, 0);
     assert.equal(out.changes.active, 0);
-    assert.equal(out.next.recommended_workflow, 'ultra-init');
-    assert.match(out.next.action, /initializ/i);
+    assert.equal(out.transitions.required, 'ultra-init');
+    assert.ok(out.transitions.allowed.includes('ultra-init'));
   } finally { teardown(dir, db); }
 });
 
@@ -92,7 +92,7 @@ test('status exposes the current decision instead of dumping the hidden queue', 
     const panel = statusCmd.buildStatusPanel(db, { rootDir: dir });
     assert.equal(panel.decisions.current.id, 'status-api');
     assert.equal(panel.decisions.awaiting_owner, 1);
-    assert.equal(panel.next.recommended_workflow, 'ultra-think');
+    assert.equal(panel.transitions.required, 'ultra-think');
     assert.match(statusCmd.renderHuman(panel), /Decision: status-api/);
   } finally { teardown(dir, db); }
 });
@@ -226,7 +226,7 @@ test('status reports a legacy schema as migration-required instead of throwing S
     assert.deepEqual(out.baseline.blockers, ['BASELINE_SCHEMA_MIGRATION_REQUIRED']);
     assert.equal(out.workflows.status, 'unavailable');
     assert.equal(out.changes.status, 'unavailable');
-    assert.equal(out.next.recommended_workflow, 'ultra-init');
+    assert.equal(out.transitions.required, 'ultra-init');
     assert.match(statusCmd.renderHuman(out), /migration_required/i);
   } finally { teardown(dir, db); }
 });
@@ -311,5 +311,19 @@ test('dispatch: --json echoes buildCostPanel output shape', () => {
     assert.ok(parsed.data.top_tasks);
   } finally {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+  }
+});
+
+test('status keeps a worker checkout separate from its central DB path', () => {
+  const rootBackup = process.env.UBP_ROOT_DIR;
+  try {
+    process.env.UBP_ROOT_DIR = '/tmp/ultra-worker-checkout';
+    assert.equal(
+      statusCmd.resolveRootDir('/tmp/ultra-authority/.ultra/state.db'),
+      path.resolve('/tmp/ultra-worker-checkout'),
+    );
+  } finally {
+    if (rootBackup === undefined) delete process.env.UBP_ROOT_DIR;
+    else process.env.UBP_ROOT_DIR = rootBackup;
   }
 });

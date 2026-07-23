@@ -5,7 +5,7 @@
   "type": "object",
   "required": [
     "$schema", "change_id", "archive_status", "baseline_id", "baseline_status",
-    "git_commit", "worktree_digest", "context_digest", "checks", "release", "rollback", "timestamp"
+    "git_commit", "worktree_digest", "context_digest", "checks", "rollback", "timestamp"
   ],
   "additionalProperties": false,
   "properties": {
@@ -40,51 +40,6 @@
           }
         ]
       }
-    },
-    "release": {
-      "type": "object",
-      "required": ["authorized", "performed", "evidence"],
-      "additionalProperties": false,
-      "properties": {
-        "authorized": { "type": "boolean" },
-        "performed": { "type": "boolean" },
-        "evidence": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["kind", "reference", "status", "evidence"],
-            "additionalProperties": false,
-            "properties": {
-              "kind": { "enum": ["commit", "push", "tag", "registry", "deploy", "release", "other"] },
-              "reference": { "type": "string", "minLength": 1 },
-              "status": { "const": "pass" },
-              "evidence": { "type": "string", "minLength": 1 }
-            }
-          }
-        },
-        "version": { "type": "string" },
-        "tag": { "type": "string" },
-        "commit": { "type": "string" },
-        "registry": { "type": "string" },
-        "remote": { "type": "string" }
-      },
-      "allOf": [
-        {
-          "if": { "properties": { "authorized": { "const": true } } },
-          "then": {
-            "properties": {
-              "performed": { "const": true },
-              "evidence": { "minItems": 1 }
-            }
-          },
-          "else": {
-            "properties": {
-              "performed": { "const": false },
-              "evidence": { "maxItems": 0 }
-            }
-          }
-        }
-      ]
     },
     "rollback": { "type": ["string", "null"] },
     "timestamp": { "type": ["string", "null"], "format": "date-time" }
