@@ -92,6 +92,9 @@ lib/
 templates/
 !/templates/
 !/templates/**
+!/.ultra-template/reports/
+!/.ultra-template/reports/templates/
+!/.ultra-template/reports/templates/**
 
 # npm / build artifacts
 node_modules/

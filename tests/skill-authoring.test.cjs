@@ -2,6 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -108,6 +109,23 @@ test('project specification templates are neutral evidence records for greenfiel
       fs.readFileSync(path.join(TEMPLATE_ROOTS[1], rel), 'utf8'),
       fs.readFileSync(path.join(TEMPLATE_ROOTS[0], rel), 'utf8'),
       `${rel} differs between source and runtime templates`,
+    );
+  }
+});
+
+test('every published Ultra project template is tracked by Git', () => {
+  const runtimeFiles = walk(TEMPLATE_ROOTS[1])
+    .map((file) => path.relative(TEMPLATE_ROOTS[1], file))
+    .sort();
+  for (const rel of runtimeFiles) {
+    const publishedPath = path.relative(ROOT, path.join(TEMPLATE_ROOTS[0], rel));
+    assert.doesNotThrow(
+      () => execFileSync(
+        'git',
+        ['ls-files', '--error-unmatch', '--', publishedPath],
+        { cwd: ROOT, stdio: 'pipe' },
+      ),
+      `${publishedPath} is present locally but missing from a clean npm package`,
     );
   }
 });

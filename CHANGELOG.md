@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] — 2026-07-24
+
+### Fixed
+
+- Fixed the broad `templates/` ignore rule excluding the two generated-project
+  report templates from clean npm packages. Both templates are now tracked
+  explicitly, and the release suite rejects any locally present project
+  template that is absent from Git.
+
 ## [0.17.0] — 2026-07-24
 
 ### Added
