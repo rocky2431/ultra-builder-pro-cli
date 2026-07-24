@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-07-25
+
+### Added
+
+- Added explicit `ubp-handbook --full` preview and apply modes that render one
+  complete engineering contract with native Claude Code, Codex, OpenCode, and
+  Kimi semantics, preserve supported provider-managed marker blocks, require a
+  content-bound preview confirmation, and back up every replaced user handbook.
+
+### Changed
+
+- Replaced the duplicated legacy root prompts with concise host-native
+  repository guides. General engineering doctrine now has one renderer, while
+  workflow detail remains in portable Skills and host wiring remains in adapters.
+- Changed research coverage from a catalog-wide checklist to a model-selected
+  evidence set. MCP persists only selected or explicitly recorded exclusions
+  while retaining synthesis and evidence invariants.
+- Codex hook manifests now call the stable managed plugin adapter, so new tasks
+  do not retain an evictable cache-version path.
+- Corrected Claude Code namespaced invocation, OpenCode Skill loading, and
+  installation-doctor syntax in every rendered handbook.
+- Full handbook convergence now preserves repeated and nested external provider
+  regions, normalizes duplicate Ultra regions, follows dotfile symlinks, and
+  retains the target POSIX mode.
+- Extended prompt conformance checks so external Skill declarations cannot enter
+  packaged Ultra Skills or worker prompts.
+- Source installations now record dirty state and a deterministic worktree
+  digest without inheriting an enclosing consumer repository.
+- The npm package now ships a current decision contract and excludes the
+  repository-only historical implementation plan.
+
+### Removed
+
+- Removed stale external graph declarations, foreign interaction-tool, old context-budget,
+  outdated version, and invalid path instructions from the active repository
+  handbooks. External graph and memory capabilities remain separately owned.
+
 ## [0.17.1] — 2026-07-24
 
 ### Fixed
@@ -138,7 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added schema 15 typed semantic records for all seventeen research steps, including
+- Added schema 15 typed semantic records for selected research areas, including
   step-specific attributes, stable ids, evidence links, source anchors, stored source
   digests, synthesis trace validation, and current-source health checks.
 - Added complete Change Contracts with executable acceptance, non-goals, public seams,
@@ -538,7 +575,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parent agent, while persistent memory remains owned by a separately installed
   host provider.
 - Added a release regression guard that rejects private memory ownership,
-  `.ultra/memory`, and retired `/recall` instructions from every bundled agent.
+  retired internal memory paths, and obsolete recall instructions from every
+  bundled agent.
 
 ## [0.5.2] — 2026-07-16
 
@@ -619,8 +657,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed Ultra's memory MCP tools, store, wrapper, recall skill, memory-capture
   and summary hooks, and private agent-memory declarations. Persistent memory is
   now solely the responsibility of a separate cloud-mem/claude-mem plugin.
-- Removed bundled copies of `agent-browser`, `find-skills`, `use-railway`, the
-  three Vercel skill packs, and all Impeccable-derived assets from Ultra output.
+- Removed bundled external browser, discovery, deployment, framework, and
+  inherited design-skill assets from Ultra output.
 - Removed generic dangerous-command and post-edit governance hooks from the
   Ultra plugin; unrelated user/repository hooks remain outside this package.
 
@@ -655,7 +693,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Phase 8B — executor line** (D48, `8224159`): parallel session orchestrator
   that consumes `.ultra/execution-plan.json` waves, spawns sessions per
-  `dispatch-rules.cjs` (declarative priority-sorted rule table, GSD-2 pattern),
+  `dispatch-rules.cjs` (declarative priority-sorted rule table),
   manages N concurrent git worktrees via `worktree-manager.cjs`, and auto-merges
   session branches back to `main` with conflict detection via `auto-merge.cjs`.
   Events: `wave_started` / `wave_completed` / `plan_completed` / `merged_back` /
@@ -751,7 +789,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.17.1...v0.18.0
+[0.17.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.17.0...v0.17.1
+[0.17.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.13.0...v0.14.0

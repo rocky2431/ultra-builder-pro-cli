@@ -35,12 +35,13 @@ authority, and no new stage may start on an archived or cancelled change. Doctor
 recovers a legacy change without this link into an explicitly blocked workflow;
 it does not fabricate the missing provenance.
 
-Ultra does not select an MVP. Product scope and material delivery posture are owner
-decisions. The seventeen research areas are a coverage catalog, not a forced
-questionnaire. Initial greenfield and brownfield research must disposition every area
-as `execute`, `verify_existing`, `reuse`, `not_applicable`, or accepted `deferred`;
-only selected necessary work executes. Bounded change research records the same
-selection rationale over its smaller scope.
+Ultra does not select product scope or material delivery posture; those remain user
+decisions. Research references form an optional catalog, not a forced questionnaire.
+The host model selects only evidence-relevant areas and records one coverage rationale.
+MCP validates identifiers, dispositions, evidence requirements, synthesis, and at
+least one applicable semantic area. Omitted areas create no workflow step. An explicit
+`not_applicable` or accepted `deferred` row is retained only when its exclusion is
+material.
 
 ## 2. How `ultra-init` classifies a repository
 
@@ -325,7 +326,7 @@ current gate evidence do block.
 
 ```text
 ultra-init -> Git/scaffold/authority verification -> init completed
--> explicit ultra-research -> disposition 17 coverage areas -> selected evidence work
+-> explicit ultra-research -> model-selected coverage -> selected evidence work
 -> local checkpoint when Git is unborn -> baseline approval
 -> ultra-change -> optional bounded research/plan -> dev -> risk-selected test/review
 -> local deliver/archive
@@ -335,7 +336,7 @@ ultra-init -> Git/scaffold/authority verification -> init completed
 
 ```text
 ultra-init -> preserve Git/classify brownfield -> init completed
--> explicit adoption research -> disposition 17 coverage areas
+-> explicit adoption research -> model-selected coverage
 -> selected characterization/known-red evidence -> gap ledger -> owner approval
 -> first ultra-change -> optional bounded research/plan -> dev -> test/review -> deliver
 ```
@@ -389,8 +390,9 @@ parallel workflow or substitutes a Prompt summary for DB state.
 
 ## 9. Recovery and diagnosis
 
-Use `system.doctor` for project authority and `ubp --doctor` for installed host
-assets. Both are read-only unless an explicit project repair command is chosen.
+Use `system.doctor` for project authority and
+`ubp --all --global --doctor` for installed host assets. Both are read-only
+unless an explicit project repair command is chosen.
 
 During an explicit repair, a legacy active change that predates durable workflows gets
 one blocked change run at `bind-baseline` with

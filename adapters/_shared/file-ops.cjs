@@ -18,13 +18,50 @@ function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+function resolveAtomicTarget(file) {
+  try {
+    const stat = fs.lstatSync(file);
+    if (!stat.isSymbolicLink()) return file;
+    try {
+      return fs.realpathSync(file);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        throw new Error(`refusing to replace dangling symlink: ${file}`);
+      }
+      throw error;
+    }
+  } catch (error) {
+    if (error.code === 'ENOENT') return file;
+    throw error;
+  }
+}
+
 function writeAtomic(file, content) {
   ensureDir(path.dirname(file));
+  // Rename over the resolved target rather than over a user-managed symlink.
+  // This keeps dotfile-manager links intact while retaining atomic replacement.
+  const target = resolveAtomicTarget(file);
+  ensureDir(path.dirname(target));
+  let mode = null;
+  try {
+    mode = fs.statSync(target).mode & 0o7777;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
   // randomUUID defeats predictable tmp-name attacks and PID+ms collisions
   // when two writers hit the same path inside one millisecond.
-  const tmp = `${file}.tmp-${crypto.randomUUID()}`;
-  fs.writeFileSync(tmp, content);
-  fs.renameSync(tmp, file);
+  const tmp = `${target}.tmp-${crypto.randomUUID()}`;
+  try {
+    fs.writeFileSync(tmp, content, mode === null ? undefined : { mode });
+    if (mode !== null) fs.chmodSync(tmp, mode);
+    fs.renameSync(tmp, target);
+  } finally {
+    try {
+      fs.unlinkSync(tmp);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
 }
 
 function listRelative(root, { exclude = DEFAULT_EXCLUDES } = {}) {

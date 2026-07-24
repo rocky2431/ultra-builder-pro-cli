@@ -127,7 +127,7 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
         /~\/\.claude|CLAUDE\.md|AskUserQuestion|(^|[\s`(>])\/(?:ultra-[a-z-]+|recall|learn|codex-collab)(?=$|[\s`,.;):])/m,
       );
       assert.doesNotMatch(text, /TaskCreate|TaskUpdate|TaskList|TaskOutput|run_in_background|~\/\.codex\/skills|mcp__claude/);
-      assert.doesNotMatch(text, /[\u3400-\u9fff]|ultra-review-findings-v1|Context7|Exa MCP|confidence\s*>=?\s*\d+/iu);
+      assert.doesNotMatch(text, /[\u3400-\u9fff]|ultra-review-findings-v1|Context7|Exa MCP|graphify|confidence\s*>=?\s*\d+/iu);
 
       const openai = yaml.load(fs.readFileSync(path.join(skillDir, 'agents', 'openai.yaml'), 'utf8'));
       const openaiSource = fs.readFileSync(path.join(skillDir, 'agents', 'openai.yaml'), 'utf8');
@@ -183,7 +183,7 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
     assert.doesNotMatch(coreWorkflowText, /Phase (?:3\.7|5|7) placeholder|not yet implemented|UNKNOWN_TOOL/);
     assert.doesNotMatch(coreWorkflowText, /session\.checkpoint|review\.run|ultra-tools subagent/);
     assert.doesNotMatch(coreWorkflowText, /ask\.question|ultra-tools task (?:create|update|list|get)/);
-    assert.doesNotMatch(coreWorkflowText, /Context7 MCP|mcp__context7|Exa MCP|mcp__exa|Playwright via Bash/);
+    assert.doesNotMatch(coreWorkflowText, /Context7 MCP|mcp__context7|Exa MCP|mcp__exa|graphify|Playwright via Bash/i);
     assert.doesNotMatch(coreWorkflowText, /`\/{command}`/);
   } finally {
     cleanup(layout);
@@ -225,7 +225,16 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     }
     assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'hooks', 'context_spine.py')));
     assert.doesNotMatch(serializedHooks, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
-    assert.match(serializedHooks, /\$PLUGIN_ROOT\/hooks\/adapters\/codex\.py/);
+    assert.match(
+      serializedHooks,
+      new RegExp(path.join(layout.pluginRoot, 'hooks', 'adapters', 'codex.py')
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    );
+    assert.doesNotMatch(
+      serializedHooks,
+      /\$PLUGIN_ROOT/,
+      'new Codex tasks must use the stable managed plugin adapter, not an evictable cache path',
+    );
     assert.match(serializedHooks, /apply_patch/);
 
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));

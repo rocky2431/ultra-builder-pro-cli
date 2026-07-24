@@ -90,13 +90,74 @@ function digestEntries(entries) {
   return hash.digest('hex');
 }
 
+function runGit(repoRoot, args, encoding = 'utf8') {
+  const result = spawnSync('git', args, {
+    cwd: repoRoot,
+    encoding,
+    stdio: ['ignore', 'pipe', 'ignore'],
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return result.status === 0 ? result.stdout : null;
+}
+
 function sourceCommit(repoRoot) {
   if (!fs.existsSync(path.join(repoRoot, '.git'))) return null;
-  const result = spawnSync('git', ['rev-parse', 'HEAD'], {
-    cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  const value = result.status === 0 ? result.stdout.trim() : '';
+  const result = runGit(repoRoot, ['rev-parse', 'HEAD']);
+  const value = typeof result === 'string' ? result.trim() : '';
   return /^[0-9a-f]{40,64}$/i.test(value) ? value : null;
+}
+
+function sourceWorktreeState(repoRoot, commit) {
+  if (!fs.existsSync(path.join(repoRoot, '.git'))) {
+    return { sourceDirty: null, sourceWorktreeDigest: null };
+  }
+  const status = runGit(
+    repoRoot, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', '.'], null,
+  );
+  if (!Buffer.isBuffer(status)) {
+    return { sourceDirty: null, sourceWorktreeDigest: null };
+  }
+  const trackedDiff = commit
+    ? runGit(repoRoot, ['diff', '--binary', 'HEAD', '--', '.'], null)
+    : runGit(repoRoot, ['diff', '--binary', '--cached', '--', '.'], null);
+  const unstagedDiff = commit
+    ? Buffer.alloc(0)
+    : runGit(repoRoot, ['diff', '--binary', '--', '.'], null);
+  const untrackedOutput = runGit(
+    repoRoot, ['ls-files', '--others', '--exclude-standard', '-z', '--', '.'],
+  );
+  if (!Buffer.isBuffer(trackedDiff) || !Buffer.isBuffer(unstagedDiff)
+    || typeof untrackedOutput !== 'string') {
+    return { sourceDirty: null, sourceWorktreeDigest: null };
+  }
+
+  const hash = crypto.createHash(DIGEST_ALGORITHM);
+  hash.update('ultra-source-worktree-v1\0');
+  hash.update(commit || 'unborn');
+  hash.update('\0');
+  hash.update(status);
+  hash.update('\0');
+  hash.update(trackedDiff);
+  hash.update('\0');
+  hash.update(unstagedDiff);
+  hash.update('\0');
+  const untrackedPaths = untrackedOutput.split('\0').filter(Boolean).sort();
+  for (const relative of untrackedPaths) {
+    const target = path.resolve(repoRoot, relative);
+    if (target !== repoRoot && !target.startsWith(`${path.resolve(repoRoot)}${path.sep}`)) {
+      return { sourceDirty: null, sourceWorktreeDigest: null };
+    }
+    const stat = fs.lstatSync(target);
+    hash.update(relative);
+    hash.update('\0');
+    if (stat.isSymbolicLink()) hash.update(fs.readlinkSync(target));
+    else if (stat.isFile()) hash.update(fs.readFileSync(target));
+    hash.update('\0');
+  }
+  return {
+    sourceDirty: status.length > 0,
+    sourceWorktreeDigest: hash.digest('hex'),
+  };
 }
 
 function repositoryUrl(pkg) {
@@ -107,10 +168,12 @@ function repositoryUrl(pkg) {
 
 function packageSource(repoRoot) {
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+  const commit = sourceCommit(repoRoot);
   return {
     packageInfo: { name: pkg.name, version: pkg.version },
     repository: repositoryUrl(pkg),
-    sourceCommit: sourceCommit(repoRoot),
+    sourceCommit: commit,
+    ...sourceWorktreeState(repoRoot, commit),
   };
 }
 
@@ -123,10 +186,17 @@ function assetRefsForTree(rootName, root, { exclude = [] } = {}) {
 
 function writeProvenance({
   file, adapter, packageInfo, repository, sourceCommit: commit = null,
+  sourceDirty: dirty = null, sourceWorktreeDigest: worktreeDigest = null,
   roots: inputRoots, assets: inputAssets, contracts: inputContracts = {},
 }) {
   if (!file || !adapter || !packageInfo?.name || !packageInfo?.version || !repository) {
     throw new Error('provenance file, adapter, package, version, and repository are required');
+  }
+  if (dirty !== null && typeof dirty !== 'boolean') {
+    throw new Error('provenance source dirty state must be a boolean or null');
+  }
+  if (worktreeDigest !== null && !/^[0-9a-f]{64}$/i.test(worktreeDigest)) {
+    throw new Error('provenance source worktree digest must be a SHA-256 digest or null');
   }
   const roots = normalizeRoots(inputRoots);
   const refs = normalizeAssetRefs(inputAssets, roots);
@@ -145,7 +215,12 @@ function writeProvenance({
     schema_version: SCHEMA_VERSION,
     adapter,
     package: { name: packageInfo.name, version: packageInfo.version },
-    source: { repository, commit: commit || null },
+    source: {
+      repository,
+      commit: commit || null,
+      dirty,
+      worktree_digest: worktreeDigest,
+    },
     installed_at: new Date().toISOString(),
     roots,
     content: { algorithm: DIGEST_ALGORITHM, digest: digestEntries(assets) },
@@ -187,6 +262,15 @@ function inspectProvenance({ file, expectedAdapter = null, expectedPackageVersio
     if (manifest.schema_version !== SCHEMA_VERSION) throw new Error(`unsupported schema ${manifest.schema_version}`);
     if (!manifest.package?.name || !manifest.package?.version || !manifest.source?.repository) {
       throw new Error('package and source metadata required');
+    }
+    if (manifest.source.dirty !== undefined && manifest.source.dirty !== null
+      && typeof manifest.source.dirty !== 'boolean') {
+      throw new Error('source dirty state must be a boolean or null');
+    }
+    if (manifest.source.worktree_digest !== undefined
+      && manifest.source.worktree_digest !== null
+      && !/^[0-9a-f]{64}$/i.test(manifest.source.worktree_digest)) {
+      throw new Error('source worktree digest must be a SHA-256 digest or null');
     }
   } catch (error) {
     return invalidReport(

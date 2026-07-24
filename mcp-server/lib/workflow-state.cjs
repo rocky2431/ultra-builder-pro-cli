@@ -110,15 +110,9 @@ const RESEARCH_DISPOSITIONS = new Set([
   'execute', 'verify_existing', 'reuse', 'not_applicable', 'deferred',
 ]);
 
-const RESEARCH_MODES = Object.freeze({
-  full: WORKFLOW_DEFINITIONS.research.map((item) => item.id),
-  adoption: WORKFLOW_DEFINITIONS.research.map((item) => item.id),
-  product: WORKFLOW_DEFINITIONS.research
-    .filter((item) => Number.parseInt(item.id, 10) < 30 || item.id === '99-synthesis')
-    .map((item) => item.id),
-  feature: ['10-user-personas', '11-user-scenarios', '20-user-stories', '21-features-scope', '22-success-metrics', '99-synthesis'],
-  architecture: ['30-architecture-context', '31-solution-strategy', '32-building-blocks', '40-deployment', '41-quality-risks', '99-synthesis'],
-});
+const RESEARCH_MODE_NAMES = new Set([
+  'full', 'adoption', 'product', 'feature', 'architecture', 'custom',
+]);
 
 const RESEARCH_SEMANTIC_CONTRACTS = Object.freeze({
   '00-problem-validation': ['problem', ['actor', 'current_workaround', 'consequence', 'evidence_status']],
@@ -459,9 +453,20 @@ function decorateRun(db, row, rootDir) {
   return value;
 }
 
+function definitionForRun(run) {
+  const definition = WORKFLOW_DEFINITIONS[run.kind] || [];
+  if (run.kind !== 'research') return definition;
+  const metadata = parseJson(run.metadata_json, 'workflow_runs.metadata_json', {});
+  if (!Array.isArray(metadata.coverage) || metadata.coverage.length === 0) {
+    return definition;
+  }
+  const covered = new Set(metadata.coverage.map((item) => item?.step_id).filter(Boolean));
+  return definition.filter((item) => covered.has(item.id));
+}
+
 function inspectRunHealth(run, steps, rootDir) {
   const blockers = [...inspectOutputHealth(steps, rootDir).blockers];
-  const definition = WORKFLOW_DEFINITIONS[run.kind] || [];
+  const definition = definitionForRun(run);
   const expectedIds = new Set(definition.map((item) => item.id));
   const actualIds = new Set(steps.map((item) => item.step_id));
   if (run.definition_version !== DEFINITION_VERSION) {
@@ -576,6 +581,9 @@ function listWorkflows(db, filter = {}, { rootDir = process.cwd() } = {}) {
 function normalizeResearchCoverage(mode, coverage, selectedSteps, metadata = {}) {
   const knownSteps = WORKFLOW_DEFINITIONS.research.map((item) => item.id);
   const known = new Set(knownSteps);
+  if (!RESEARCH_MODE_NAMES.has(mode)) {
+    throw new WorkflowStateError('VALIDATION_ERROR', `unsupported research mode: ${mode}`);
+  }
   if (coverage !== undefined) {
     if (!Array.isArray(coverage) || coverage.length === 0) {
       throw new WorkflowStateError(
@@ -635,55 +643,66 @@ function normalizeResearchCoverage(mode, coverage, selectedSteps, metadata = {})
         ...(consequence ? { consequence } : {}),
       };
     });
-    if (['full', 'adoption'].includes(mode)) {
-      const missing = knownSteps.filter((stepId) => !seen.has(stepId));
-      if (missing.length > 0) {
-        throw new WorkflowStateError(
-          'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
-          `${mode} research must disposition every semantic area: ${missing.join(', ')}`,
-        );
-      }
-      const synthesis = normalized.find((item) => item.step_id === '99-synthesis');
-      if (!synthesis || !['execute', 'verify_existing', 'reuse'].includes(synthesis.disposition)) {
-        throw new WorkflowStateError(
-          'WORKFLOW_RESEARCH_SYNTHESIS_REQUIRED',
-          `${mode} research requires an executable or reusable 99-synthesis disposition`,
-        );
-      }
+    const selectionReason = String(metadata.selection_reason || '').trim();
+    if (selectionReason.length < 3) {
+      throw new WorkflowStateError(
+        'WORKFLOW_SELECTION_REASON_REQUIRED',
+        `${mode} research requires the model's evidence-based coverage rationale`,
+      );
+    }
+    const synthesis = normalized.find((item) => item.step_id === '99-synthesis');
+    if (!synthesis || !['execute', 'verify_existing', 'reuse'].includes(synthesis.disposition)) {
+      throw new WorkflowStateError(
+        'WORKFLOW_RESEARCH_SYNTHESIS_REQUIRED',
+        `${mode} research requires an executable or reusable 99-synthesis disposition`,
+      );
+    }
+    const selectedSemanticArea = normalized.some((item) => (
+      item.step_id !== '99-synthesis'
+      && (
+        ['execute', 'verify_existing', 'reuse'].includes(item.disposition)
+        || (item.disposition === 'deferred' && !item.accepted_by)
+      )
+    ));
+    if (!selectedSemanticArea) {
+      throw new WorkflowStateError(
+        'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
+        `${mode} research requires at least one applicable semantic area besides synthesis`,
+      );
     }
     return normalized.sort(
       (left, right) => knownSteps.indexOf(left.step_id) - knownSteps.indexOf(right.step_id),
     );
   }
 
-  if (['full', 'adoption'].includes(mode)) {
-    throw new WorkflowStateError(
-      'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
-      `${mode} research requires model-selected coverage dispositions`,
-    );
-  }
   if (mode === 'custom') {
     if (!Array.isArray(selectedSteps) || selectedSteps.length === 0) {
-      throw new WorkflowStateError('VALIDATION_ERROR', 'custom research requires selected_steps');
+      throw new WorkflowStateError(
+        'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
+        'custom research requires model-selected coverage or selected_steps',
+      );
     }
-    const known = new Set(WORKFLOW_DEFINITIONS.research.map((item) => item.id));
     const invalid = selectedSteps.find((item) => !known.has(item));
     if (invalid) throw new WorkflowStateError('VALIDATION_ERROR', `unknown research step: ${invalid}`);
-    return [...new Set([...selectedSteps, '99-synthesis'])].map((stepId) => ({
+    const selectionReason = String(metadata.selection_reason || '').trim();
+    if (selectionReason.length < 3) {
+      throw new WorkflowStateError(
+        'WORKFLOW_SELECTION_REASON_REQUIRED',
+        'custom research requires the model\'s evidence-based coverage rationale',
+      );
+    }
+    const explicitCoverage = [...new Set([...selectedSteps, '99-synthesis'])].map((stepId) => ({
       step_id: stepId,
       disposition: 'execute',
-      rationale: String(metadata.selection_reason || 'Explicit bounded research selection.').trim(),
+      rationale: selectionReason,
       evidence_refs: [],
     }));
+    return normalizeResearchCoverage(mode, explicitCoverage, undefined, metadata);
   }
-  const selected = RESEARCH_MODES[mode];
-  if (!selected) throw new WorkflowStateError('VALIDATION_ERROR', `unsupported research mode: ${mode}`);
-  return selected.map((stepId) => ({
-    step_id: stepId,
-    disposition: 'execute',
-    rationale: String(metadata.selection_reason || `${mode} research profile selected by the host model.`).trim(),
-    evidence_refs: [],
-  }));
+  throw new WorkflowStateError(
+    'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
+    `${mode} research requires model-selected coverage dispositions`,
+  );
 }
 
 function assertReference(db, table, id, field) {
@@ -722,15 +741,7 @@ function assertWorkflowAuthority(db, input, mode) {
         'WORKFLOW_AUTHORITY_REQUIRED', 'research workflow requires baseline_id or change_id',
       );
     }
-    if (['product', 'feature', 'architecture', 'custom'].includes(mode)) {
-      requireField('change_id');
-      if (!String(input.metadata?.selection_reason || '').trim()) {
-        throw new WorkflowStateError(
-          'WORKFLOW_SELECTION_REASON_REQUIRED',
-          `${mode} research requires an explicit owner-selected scope reason`,
-        );
-      }
-    }
+    if (['product', 'feature', 'architecture', 'custom'].includes(mode)) requireField('change_id');
     if (input.baseline_id && !input.change_id) {
       const baseline = db.prepare('SELECT mode FROM baselines WHERE id = ?').get(input.baseline_id);
       const expectedMode = baseline?.mode === 'brownfield' ? 'adoption' : 'full';
@@ -887,7 +898,7 @@ function insertWorkflowInTx(db, input = {}, { rootDir = process.cwd() } = {}) {
     throw new WorkflowStateError('VALIDATION_ERROR', `unsupported workflow kind: ${input.kind}`);
   }
   input = bindChangeWorkflowAuthority(db, input);
-  const definition = WORKFLOW_DEFINITIONS[input.kind];
+  const catalogDefinition = WORKFLOW_DEFINITIONS[input.kind];
   const mode = input.kind === 'research' ? (input.mode || 'full') : null;
   assertWorkflowAuthority(db, input, mode);
   const id = input.id || `wf-${input.kind}-${crypto.randomUUID().slice(0, 12)}`;
@@ -957,6 +968,9 @@ function insertWorkflowInTx(db, input = {}, { rootDir = process.cwd() } = {}) {
     ? normalizeResearchCoverage(mode, input.coverage, input.selected_steps, input.metadata)
     : null;
   const coverageByStep = new Map((researchCoverage || []).map((item) => [item.step_id, item]));
+  const definition = input.kind === 'research'
+    ? catalogDefinition.filter((item) => coverageByStep.has(item.id))
+    : catalogDefinition;
   const selected = new Set(input.kind === 'research'
     ? researchCoverage
       .filter((item) => ['execute', 'verify_existing', 'reuse'].includes(item.disposition)
@@ -2380,7 +2394,6 @@ function recoverUntrackedChangeWorkflows(db, { rootDir = process.cwd() } = {}) {
 module.exports = {
   DEFINITION_VERSION,
   WORKFLOW_DEFINITIONS,
-  RESEARCH_MODES,
   RUN_KINDS,
   RUN_STATUSES,
   WorkflowStateError,

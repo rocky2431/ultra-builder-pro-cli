@@ -1,14 +1,14 @@
 # Ultra Builder Pro — MCP tool contracts
 # Single source for tool name, schema, errors, and CLI mapping.
 # Validated by spec/schemas/mcp-tools.schema.json (run `npm run test:spec`).
-# Trace: PLAN §7.3, decisions D12 / D29 / D31-D34.
+# Current authority boundary: docs/DECISIONS.md.
 
 version: '1.3'
 
 info:
   title: Ultra Builder Pro MCP tool contracts
   phase: '1.2'
-  trace_to: 'PLAN docs/PLAN.zh-CN.md §7.3'
+  trace_to: 'docs/DECISIONS.md and mcp-server/server.cjs'
   notes: |
     This published contract contains only tools registered by the MCP server.
     Host-native review, impact, skill discovery, and human-interaction capabilities
@@ -397,7 +397,7 @@ tools:
       - { code: IO_ERROR,          description: 'filesystem write failed', retriable: true }
     cli_subcommand: task init-project
     emits_events: [project_initialized, project_resumed]
-    trace_to: 'PLAN §6 Phase 3.1'
+    trace_to: 'mcp-server/lib/init-project.cjs'
 
   - name: task.expand
     family: task
@@ -1833,7 +1833,7 @@ tools:
   # ────────────────────────── workflow family ────────────────────────────
   - name: workflow.start
     family: workflow
-    description: Start one durable Ultra workflow run. For full or adoption research, the host model must disposition every semantic coverage area without being forced to execute every area.
+    description: Start one durable Ultra workflow run. For research, the host model supplies only evidence-relevant semantic coverage; MCP records and validates the selection without choosing it.
     phase: '13'
     writer_role: mcp
     input_schema:
@@ -1883,11 +1883,11 @@ tools:
       - { code: WORKFLOW_AUTHORITY_REQUIRED, description: 'the workflow is missing its required baseline, change, or task authority' }
       - { code: WORKFLOW_CHANGE_DECISION_BLOCKING, description: 'the change contains unresolved material owner decisions' }
       - { code: WORKFLOW_CHANGE_RESEARCH_INCOMPLETE, description: 'the change-bound research disposition is not current and complete' }
-      - { code: WORKFLOW_RESEARCH_COVERAGE_REQUIRED, description: 'full and adoption research require a disposition for every semantic area' }
+      - { code: WORKFLOW_RESEARCH_COVERAGE_REQUIRED, description: 'research requires model-selected coverage with at least one applicable semantic area beyond synthesis' }
       - { code: WORKFLOW_RESEARCH_COVERAGE_EVIDENCE_REQUIRED, description: 'reuse, verification, and not-applicable dispositions require evidence references' }
       - { code: WORKFLOW_RESEARCH_SYNTHESIS_REQUIRED, description: 'research synthesis must execute, verify, or reuse durable evidence' }
       - { code: WORKFLOW_RESEARCH_MODE_MISMATCH, description: 'the selected research mode does not match its authority or baseline mode' }
-      - { code: WORKFLOW_SELECTION_REASON_REQUIRED, description: 'bounded research requires an explicit owner-selected scope reason' }
+      - { code: WORKFLOW_SELECTION_REASON_REQUIRED, description: 'research requires the model evidence rationale for its selected coverage' }
       - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'dev cannot start until the linked task contract is executable' }
       - { code: TASK_CHANGE_OWNERSHIP_MISMATCH, description: 'linked task and change authority disagree' }
       - { code: TASK_DEPENDENCIES_INCOMPLETE, description: 'dev cannot start while a task dependency remains incomplete' }

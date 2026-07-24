@@ -51,6 +51,7 @@ test('breadcrumb routes an adopting baseline to the exact durable workflow step'
         step_id: item.id, disposition: 'execute',
         rationale: 'Current brownfield evidence must be inspected.', evidence_refs: [],
       })),
+      metadata: { selection_reason: 'The model selected the applicable brownfield evidence areas.' },
     }, { rootDir });
 
     const breadcrumb = readBreadcrumb(db, {}, { rootDir });

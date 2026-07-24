@@ -1,4 +1,8 @@
-# ultra-builder-pro-cli — 历史执行计划与决策日志
+# ultra-builder-pro-cli — 仓库内历史执行记录
+
+> 本文件只保留早期实现过程，既不随 npm 包发布，也不是当前 Prompt、Skill、
+> 工作流或发布状态的权威来源。当前边界见 `docs/DECISIONS.md`，当前版本见
+> `package.json`，可执行合同见 `spec/` 与源代码。
 
 > **2026-07-24 当前生效边界（D50-D60，覆盖下文旧 Phase 6/7 的内置图谱、memory 与 runtime 设计）**：
 > Ultra Builder Pro 不再拥有 `memory.*`、recall、prompt/transcript/observation/summary
@@ -10,7 +14,7 @@
 > Kimi Code 采用各自 native plugin 呈现，其他旧 runtime adapter 已退役。下文所有与此冲突的
 > memory/hindsight 章节仅作为历史实施记录，不再是当前需求或运行时契约。
 
-**当前状态**：v0.16.0 工作树；四宿主 native plugin、50 个 live MCP tool、
+**历史快照状态**：当时的四宿主 native plugin、50 个 live MCP tool、
 schema 18.0（21 表）、host-native adaptive decision dialogue、material artifact checkpoint、
 adaptive capability graph、typed research coverage、complete Change Contract、
 acceptance coverage、risk-selected test/review、verified learning/reconciliation provenance、

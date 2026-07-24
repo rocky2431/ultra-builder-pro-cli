@@ -7,8 +7,8 @@ description: Build or refresh an evidence-backed product and architecture baseli
 
 The host model owns investigation, synthesis, and coverage judgment. Ultra MCP owns the
 run, evidence references, semantic records, artifact digests, freshness, and
-convergence. The seventeen areas are a coverage catalog, not a mandatory questionnaire
-or a fixed sequence of user conversations.
+convergence. The reference areas are an optional coverage catalog, not a mandatory
+questionnaire or a fixed sequence of user conversations.
 
 Read `../ultra-think/references/decision-dialogue.md` before asking a material question.
 
@@ -21,16 +21,19 @@ Read `../ultra-think/references/decision-dialogue.md` before asking a material q
    - `adoption` for a brownfield baseline;
    - a bounded mode only for a recorded active-change research disposition.
 4. Before `workflow.start`, inspect current code, docs, tests, runtime, and prior
-   artifacts. Provide one disposition for every catalog area in `full` or `adoption`:
+   artifacts. Select the smallest sufficient set of applicable catalog areas. Include
+   only areas that need work or whose exclusion must remain auditable:
    - `execute`: produce fresh evidence;
    - `verify_existing`: verify a current artifact against its source;
    - `reuse`: reuse evidence that is still current;
    - `not_applicable`: exclude with an evidence reference and rationale;
    - `deferred`: record the consequence and owner acceptance when deferral changes the
      accepted scope or leaves material risk.
+5. Pass the evidence-based coverage rationale as `metadata.selection_reason`. Omitted
+   catalog areas create no DB step and need no ceremonial disposition.
 
 `99-synthesis` must execute, verify, or reuse. A missing disposition is a coverage
-error; a non-executed area with evidence is not an incomplete workflow.
+error only for an included area; a recorded exclusion with evidence is not incomplete.
 
 ## Coverage catalog
 

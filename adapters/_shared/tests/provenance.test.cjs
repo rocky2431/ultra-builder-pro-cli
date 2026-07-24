@@ -22,6 +22,8 @@ function fixture() {
     packageInfo: { name: 'ultra-builder-pro-cli', version: '1.2.3' },
     repository: 'https://example.test/ultra-builder-pro',
     sourceCommit: '0123456789abcdef0123456789abcdef01234567',
+    sourceDirty: true,
+    sourceWorktreeDigest: 'a'.repeat(64),
     roots: { plugin: root },
     assets: [
       { root: 'plugin', path: 'hooks/hooks.json' },
@@ -43,6 +45,8 @@ test('writeProvenance + inspectProvenance produce a normalized healthy report', 
     assert.equal(manifest.adapter, 'claude');
     assert.equal(manifest.package.version, '1.2.3');
     assert.equal(manifest.source.repository, 'https://example.test/ultra-builder-pro');
+    assert.equal(manifest.source.dirty, true);
+    assert.equal(manifest.source.worktree_digest, 'a'.repeat(64));
     assert.match(manifest.content.digest, /^[0-9a-f]{64}$/);
     assert.deepEqual(manifest.assets.map((asset) => asset.path), [
       'hooks/hooks.json', 'runtime/launch.cjs',
@@ -127,6 +131,42 @@ test('packageSource never attributes an enclosing consumer repository commit to 
 
     const source = provenance.packageSource(packageRoot);
     assert.equal(source.sourceCommit, null);
+    assert.equal(source.sourceDirty, null);
+    assert.equal(source.sourceWorktreeDigest, null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('packageSource records clean and dirty local source provenance deterministically', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-provenance-dirty-'));
+  try {
+    execFileSync('git', ['init', '-q'], { cwd: root });
+    execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: root });
+    execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: root });
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({
+      name: 'ultra-builder-pro-cli',
+      version: '1.2.3',
+      repository: { url: 'https://example.test/ultra-builder-pro' },
+    }));
+    fs.writeFileSync(path.join(root, 'source.txt'), 'clean\n');
+    execFileSync('git', ['add', 'package.json', 'source.txt'], { cwd: root });
+    execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: root });
+
+    const clean = provenance.packageSource(root);
+    assert.equal(clean.sourceDirty, false);
+    assert.match(clean.sourceWorktreeDigest, /^[0-9a-f]{64}$/);
+
+    fs.appendFileSync(path.join(root, 'source.txt'), 'changed\n');
+    fs.writeFileSync(path.join(root, 'untracked.txt'), 'new\n');
+    const dirty = provenance.packageSource(root);
+    assert.equal(dirty.sourceCommit, clean.sourceCommit);
+    assert.equal(dirty.sourceDirty, true);
+    assert.match(dirty.sourceWorktreeDigest, /^[0-9a-f]{64}$/);
+    assert.notEqual(dirty.sourceWorktreeDigest, clean.sourceWorktreeDigest);
+
+    const repeated = provenance.packageSource(root);
+    assert.equal(repeated.sourceWorktreeDigest, dirty.sourceWorktreeDigest);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

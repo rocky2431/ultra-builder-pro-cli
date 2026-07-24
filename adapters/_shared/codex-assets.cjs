@@ -223,47 +223,52 @@ function buildCommandMap() {
   return Object.fromEntries(COMMAND_NAMES.map((name) => [`/${name}`, `$ultra-builder-pro:${name}`]));
 }
 
-function hookCommand(feature, ...args) {
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
+}
+
+function hookCommand(pluginRoot, feature, ...args) {
+  const adapter = path.join(path.resolve(pluginRoot), 'hooks', 'adapters', 'codex.py');
   return [
-    'python3 "$PLUGIN_ROOT/hooks/adapters/codex.py"',
-    JSON.stringify(feature),
-    ...args.map((arg) => JSON.stringify(arg)),
+    `python3 ${shellQuote(adapter)}`,
+    shellQuote(feature),
+    ...args.map((arg) => shellQuote(arg)),
   ].join(' ');
 }
 
-function commandHook(feature, timeout, statusMessage, ...args) {
+function commandHook(pluginRoot, feature, timeout, statusMessage, ...args) {
   return {
     type: 'command',
-    command: hookCommand(feature, ...args),
+    command: hookCommand(pluginRoot, feature, ...args),
     timeout,
     statusMessage,
   };
 }
 
-function buildHooksManifest() {
+function buildHooksManifest(pluginRoot) {
   return {
     hooks: {
       SessionStart: [
-        { hooks: [commandHook('health_check.py', 5, 'Checking Ultra runtime')] },
-        { hooks: [commandHook('workflow_context.py', 10, 'Loading active Ultra workflow')] },
+        { hooks: [commandHook(pluginRoot, 'health_check.py', 5, 'Checking Ultra runtime')] },
+        { hooks: [commandHook(pluginRoot, 'workflow_context.py', 10, 'Loading active Ultra workflow')] },
       ],
       PreToolUse: [
-        { matcher: 'Edit|Write|apply_patch', hooks: [commandHook('active_task_context.py', 3, 'Checking active Ultra task')] },
+        { matcher: 'Edit|Write|apply_patch', hooks: [commandHook(pluginRoot, 'active_task_context.py', 3, 'Checking active Ultra task')] },
       ],
       PreCompact: [
-        { matcher: 'manual|auto', hooks: [commandHook('workflow_checkpoint.py', 10, 'Saving Ultra workflow checkpoint')] },
+        { matcher: 'manual|auto', hooks: [commandHook(pluginRoot, 'workflow_checkpoint.py', 10, 'Saving Ultra workflow checkpoint')] },
       ],
       PostCompact: [
-        { hooks: [commandHook('workflow_resume.py', 10, 'Restoring Ultra workflow checkpoint')] },
+        { hooks: [commandHook(pluginRoot, 'workflow_resume.py', 10, 'Restoring Ultra workflow checkpoint')] },
       ],
       Stop: [
-        { hooks: [commandHook('pre_stop_check.py', 5, 'Reporting Ultra workflow position')] },
+        { hooks: [commandHook(pluginRoot, 'pre_stop_check.py', 5, 'Reporting Ultra workflow position')] },
       ],
       SubagentStart: [
-        { hooks: [commandHook('subagent_tracker.py', 5, 'Tracking Ultra subagent', 'start')] },
+        { hooks: [commandHook(pluginRoot, 'subagent_tracker.py', 5, 'Tracking Ultra subagent', 'start')] },
       ],
       SubagentStop: [
-        { hooks: [commandHook('subagent_tracker.py', 5, 'Tracking Ultra subagent', 'stop')] },
+        { hooks: [commandHook(pluginRoot, 'subagent_tracker.py', 5, 'Tracking Ultra subagent', 'stop')] },
       ],
     },
   };
@@ -281,7 +286,10 @@ function copyHooks(repoRoot, pluginRoot) {
     path.join(sourceRoot, 'adapters', 'codex.py'),
     path.join(targetRoot, 'adapters', 'codex.py'),
   );
-  writeAtomic(path.join(targetRoot, 'hooks.json'), JSON.stringify(buildHooksManifest(), null, 2) + '\n');
+  writeAtomic(
+    path.join(targetRoot, 'hooks.json'),
+    JSON.stringify(buildHooksManifest(pluginRoot), null, 2) + '\n',
+  );
 }
 
 function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {

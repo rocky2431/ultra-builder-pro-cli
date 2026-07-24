@@ -24,7 +24,7 @@ contract and adds stronger authority, recovery, or portability.
 | Original capability | Current implementation | Compatibility result |
 |---|---|---|
 | Init gathers project facts, creates Ultra files, and establishes Git | `task.init_project` performs deterministic classification, scaffold, schema, Git bootstrap, read-back verification, and then stops | Preserved and strengthened. Init has its own completion boundary and never starts research implicitly. |
-| Complete product and architecture research | `ultra-research` retains the 17 semantic areas as a coverage catalog with execute/verify/reuse/not-applicable/deferred dispositions | Preserved without questionnaire overload. Necessary reports, typed semantic records, source digests, and material decision checkpoints add durable evidence. |
+| Complete product and architecture research | `ultra-research` retains the semantic reference catalog while the model selects only applicable areas and records execute/verify/reuse/not-applicable/deferred dispositions as needed | Preserved without questionnaire overload. Necessary reports, typed semantic records, source digests, and material decision checkpoints add durable evidence. |
 | Planning converts accepted research into executable work with dependencies | `ultra-plan` persists complete change-owned task contracts and an exact dependency graph | Preserved and strengthened with topology, acceptance coverage, public seams, verification commands, and plan digests. |
 | Development uses isolated Git work, TDD, verification, review, commit, and integration | `ultra-dev`, `session.*`, and the session runner create real worktrees and retain task/review/commit evidence | Preserved and strengthened. Process exit cannot complete a task; uncommitted or unintegrated worktrees cannot be deleted. |
 | Test checks wiring, acceptance, regression, build, performance, security, and failures | `ultra-test` emits a change-bound immutable report covering each applicable dimension | Preserved and strengthened with HEAD, context, task-set, and report-digest validation. |
@@ -83,7 +83,7 @@ task.init_project
   -> greenfield classification
   -> Git bootstrap when absent
   -> init read-back and completion
-  -> explicit full research with 17 coverage dispositions
+  -> explicit full research with model-selected coverage
   -> selected execute/verify/reuse work and synthesis
   -> owner-authorized local checkpoint commit when Git is unborn
   -> baseline.record
@@ -99,7 +99,7 @@ task.init_project
   -> brownfield classification and selected scope
   -> preserve current Git HEAD and dirty-state evidence
   -> init read-back and completion
-  -> explicit adoption research with 17 coverage dispositions
+  -> explicit adoption research with model-selected coverage
   -> characterization verification + known-red/gap ledger
   -> baseline.record + owner approval
   -> baseline.converge

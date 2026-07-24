@@ -1,9 +1,9 @@
 -- Ultra Builder Pro — authoritative state schema
--- Phase 2 builds .ultra/state.db from this file. Source of truth for all
+-- This file builds .ultra/state.db, the source of truth for all
 -- baseline / change / task / session / event / telemetry data. tasks.json and context md status
--- header are projections (PLAN §7.1, D18, D32).
+-- headers are projections.
 --
--- Trace: docs/PLAN.zh-CN.md §7.1; decisions D18/D30/D31/D32/D37/D52/D54.
+-- Authority boundary: docs/DECISIONS.md.
 --
 -- PRAGMAs are applied by mcp-server/lib/state-db.ts on connection open;
 -- they cannot be persisted in CREATE statements but are documented here.

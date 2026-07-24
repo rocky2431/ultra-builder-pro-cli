@@ -51,6 +51,26 @@ test('writeAtomic never leaves a torn write — tmp file is renamed', () => {
   }
 });
 
+test('writeAtomic preserves a symlink and the target POSIX mode', () => {
+  const dir = mk();
+  try {
+    const target = path.join(dir, 'managed', 'file.txt');
+    const link = path.join(dir, 'file.txt');
+    fs.mkdirSync(path.dirname(target));
+    fs.writeFileSync(target, 'before', { mode: 0o640 });
+    fs.symlinkSync(path.relative(dir, target), link);
+
+    writeAtomic(link, 'after');
+
+    assert.equal(fs.lstatSync(link).isSymbolicLink(), true);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'after');
+    assert.equal(fs.statSync(target).mode & 0o777, 0o640);
+    assert.deepEqual(fs.readdirSync(path.dirname(target)), ['file.txt']);
+  } finally {
+    removeTree(dir);
+  }
+});
+
 test('removeTree refuses to wipe filesystem root without allowRoot', () => {
   assert.throws(
     () => removeTree('/', { allowRoot: false }),

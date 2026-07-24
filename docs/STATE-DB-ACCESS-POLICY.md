@@ -1,7 +1,7 @@
 # `.ultra/state.db` access policy
 
-> Phase 2.2 contract. Trace: PLAN §6 Phase 2.2, decisions D18 / D32 / D37,
-> risks R21 / R25.
+> Multi-process access contract. Current authority is defined by
+> [`DECISIONS.md`](./DECISIONS.md) and the live database schema.
 
 `.ultra/state.db` is the only authoritative state store for baselines, changes,
 decision threads/items, tasks, workflow runs/steps, events, sessions, incidents,

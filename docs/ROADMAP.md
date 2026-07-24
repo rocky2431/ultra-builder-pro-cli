@@ -1,9 +1,9 @@
 # ultra-builder-pro-cli — Roadmap
 
-> **Current roadmap**. [`PLAN.zh-CN.md`](./PLAN.zh-CN.md) preserves the original
-> phase plan and decision history. Current executable contracts live in
-> `spec/`, `AGENT-CONTEXT.md`, and `RUNTIME-COMPAT-MATRIX.md`; those sources win
-> when historical plan text differs.
+> **Current roadmap**. [`DECISIONS.md`](./DECISIONS.md) defines the current
+> authority and package boundaries. Executable contracts live in `spec/`,
+> `AGENT-CONTEXT.md`, and `RUNTIME-COMPAT-MATRIX.md`; source and contract tests
+> win when roadmap text drifts.
 
 **Goal**: distribute the Ultra Builder Pro engineering loop as native Claude
 Code, OpenCode, Codex, and Kimi Code plugins, and run it with isolated sessions
@@ -13,7 +13,8 @@ sharing one authoritative workflow store.
 
 **Distribution channels (v1.0)**: npm · Homebrew · pip.
 
-**Release line**: `0.16.x`; every release is gated by `npm run verify:release`.
+**Release line**: the `package.json` version; every release is gated by
+`npm run verify:release`.
 
 ---
 
@@ -39,11 +40,11 @@ sharing one authoritative workflow store.
 | 5     | Recovery + staleness + auto-routing            | ✅ done (D43) → v0.2 |
 | 6     | Monitoring + telemetry                          | ✅ done (D44) → v0.2 |
 | 4.6b  | Full conformance suite                         | ✅ done (D45) — 20 conformance + 21 resolveTarget tests |
-| 7     | tagged tasks + skill mining; retired Ultra memory handed to cloud-mem/claude-mem | ✅ superseded by D50 boundary cleanup |
+| 7     | tagged tasks + skill mining; retired Ultra memory delegated to external providers | ✅ superseded by the package-boundary cleanup |
 | 8A    | Plan automation (parse / topo / expand + artifact + human gate) | ✅ done (D47, `a932cb8`) → v0.3 |
 | 8B    | Execution automation (dispatch / parallel worktree / merge) | ✅ done (D48, `8224159`) — **v0.3 ready** |
 | 8C    | Continuous change packets + context compiler + convergence + doctor | ✅ done (D52) |
-| 10    | Context Spine v2 + breadcrumb + fresh-context budget + spec learning + two-axis review | ✅ done |
+| 10    | Context Manifest v3 + breadcrumb + fresh-context budget + spec learning + two-axis review | ✅ done |
 | 11    | Greenfield/brownfield baseline adoption + advisory context budgets + convergence gate | ✅ done |
 | 12    | Repository evidence snapshots + gap ledger + migration re-adoption + incident governance | ✅ done |
 | 13    | Durable init-to-delivery workflows + task execution contracts + immutable stage evidence | ✅ done |
@@ -79,16 +80,16 @@ ultra-tools/                ← CLI fallback, migration, and diagnostics
     └── legacy-memory.cjs   (explicit inspect/archive/confirmed prune)
 
 bin/install.js              ← multi-runtime installer
-bin/handbook.js             ← explicit managed user-handbook sync
+bin/handbook.js             ← explicit bounded or full host-native handbook sync
 adapters/                   ← native Claude/OpenCode/Codex plugin builders
 skills/                     ← allowlisted Ultra workflows, internal rules, and collab companions
 hooks/                      ← 7 executable workflow hooks + shared Context Spine helper; OpenCode uses native JavaScript hooks
 docs/
-├── PLAN.zh-CN.md                historical phase plan + decision log
+├── DECISIONS.md                 current authority and package boundaries
 ├── ARCHITECTURE.md              Phase 1 single-page entry point
 ├── WORKFLOW-LIFECYCLE.md        baseline classification + DB transition contract
 ├── AGENT-CONTEXT.md             Phase 3 canonical runtime context contract
-├── USER-HANDBOOK-CONTRACT.md    managed CLAUDE.md / AGENTS.md boundary
+├── USER-HANDBOOK-CONTRACT.md    bounded/full CLAUDE.md / AGENTS.md contract
 ├── RUNTIME-COMPAT-MATRIX.md     Phase 4 runtime capability matrix
 ├── STATE-DB-ACCESS-POLICY.md    Phase 2 multi-process write contract
 ├── COMMIT-HASH-BACKFILL.md      Phase 2.8 two-commit completion flow
@@ -106,6 +107,6 @@ npm audit
 
 ## Out of scope for v1.0 (deferred)
 
-PLAN §13 lists Copilot / Cursor / Windsurf / 7 more runtimes, web
-dashboard / TUI, team-collab server, plugin
-marketplace.
+Additional runtimes, a web dashboard or TUI, a team-collaboration server, and
+an independent plugin marketplace remain deferred until a current product
+decision brings them into scope.

@@ -152,7 +152,7 @@ test('Kimi assets are allowlisted and adapted to native tools and paths', () => 
       const text = fs.readFileSync(file, 'utf8');
       assert.doesNotMatch(text, foreign, file);
       assert.doesNotMatch(text, /(^|[\s`("'])\/ultra-(?!builder-pro:)[a-z]/m, file);
-      assert.doesNotMatch(text, /[\u3400-\u9fff]|ultra-review-findings-v1|Context7|Exa MCP|confidence\s*>=?\s*\d+/iu, file);
+      assert.doesNotMatch(text, /[\u3400-\u9fff]|ultra-review-findings-v1|Context7|Exa MCP|graphify|confidence\s*>=?\s*\d+/iu, file);
     }
   } finally {
     fs.rmSync(home, { recursive: true, force: true });

@@ -13,6 +13,7 @@ const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PACKAGE = require(path.join(REPO_ROOT, 'package.json'));
 const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const RETIRED_DISTRIBUTION_REFERENCES = /\b(?:Gemini|RTK|graphify|Impeccable|Context7|GSD-2|GStack|OpenSpec|Spec Kit|Trellis|ECC)\b|Exa MCP|agent-browser|find-skills|\.ultra\/memory|memory\.(?:retain|recall|reflect)/iu;
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -91,16 +92,30 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     assert.ok(fs.existsSync(path.join(cliProject, '.ultra', 'state.db')));
 
     for (const doc of [
-      'COMMIT-HASH-BACKFILL.md', 'PLAN.zh-CN.md', 'STATE-DB-ACCESS-POLICY.md',
+      'COMMIT-HASH-BACKFILL.md', 'DECISIONS.md', 'STATE-DB-ACCESS-POLICY.md',
       'WORKFLOW-LIFECYCLE.md',
     ]) {
       assert.ok(fs.existsSync(path.join(packageRoot, 'docs', doc)), `tarball missing docs/${doc}`);
     }
     assert.equal(
+      fs.existsSync(path.join(packageRoot, 'docs', 'PLAN.zh-CN.md')),
+      false,
+      'historical implementation plans must not ship in the npm tarball',
+    );
+    assert.equal(
       fs.existsSync(path.join(packageRoot, 'docs', 'LEGACY-HERMES.md')),
       false,
       'retired Hermes documentation must not ship in the npm tarball',
     );
+    for (const entry of packJson[0].files) {
+      if (!/\.(?:cjs|js|json|md|py|toml|ya?ml)$/.test(entry.path)) continue;
+      const text = fs.readFileSync(path.join(packageRoot, entry.path), 'utf8');
+      assert.doesNotMatch(
+        text,
+        RETIRED_DISTRIBUTION_REFERENCES,
+        `tarball contains a retired distribution reference in ${entry.path}`,
+      );
+    }
 
     const configRoot = path.join(tempRoot, 'hosts');
     for (const runtime of ['claude', 'opencode', 'codex', 'kimi']) {

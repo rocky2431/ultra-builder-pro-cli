@@ -95,6 +95,7 @@ test('doctor exposes blocked workflow recovery without treating an expected paus
       id: 'research-adoption', kind: 'research', mode: 'adoption',
       baseline_id: baseline.id, subject: 'Establish current system evidence.',
       coverage: researchCoverage(),
+      metadata: { selection_reason: 'The model selected the applicable adoption evidence areas.' },
     }, { rootDir: fx.rootDir });
     workflows.recordWorkflowStep(fx.db, {
       id: run.id, step_id: '00-problem-validation', status: 'blocked',

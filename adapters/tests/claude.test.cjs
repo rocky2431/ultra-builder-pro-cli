@@ -82,8 +82,10 @@ test('Claude plugin collaboration and learn workflows are safe native plugin ass
     assert.doesNotMatch(plan, /ultra-tools task create/);
 
     for (const name of skillsForRuntime('claude')) {
-      const { fm } = parseFrontmatter(read(name));
+      const contents = read(name);
+      const { fm } = parseFrontmatter(contents);
       assert.equal(fm['user-invocable'], !INTERNAL_AGENT_SKILLS.includes(name), name);
+      assert.doesNotMatch(contents, /\bgraphify\b/i, `${name} contains an external Skill binding`);
     }
 
     for (const [name, contents] of Object.entries({ codexCollab, verify })) {

@@ -331,6 +331,7 @@ test('baseline MCP tools adopt and converge an existing checkout without storing
           id: 'mcp-research', kind: 'research', mode: 'adoption', baseline_id: 'mcp-baseline',
           subject: 'Establish the complete observed product and architecture baseline.',
           coverage: researchCoverage(),
+          metadata: { selection_reason: 'The model selected the applicable adoption evidence areas.' },
         },
       })).workflow;
       for (const step of research.steps.filter((item) => item.required)) {

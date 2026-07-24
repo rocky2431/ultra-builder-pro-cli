@@ -6,17 +6,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
+const runtimeAssets = require('../runtime-assets.cjs');
 const {
   CORE_PUBLIC_SKILLS,
   INTERNAL_AGENT_SKILLS,
   SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
   MCP_DEPENDENT_SKILLS,
-  RETIRED_SKILLS,
   WORKFLOW_HOOK_FILES,
   skillPolicy,
   skillsForRuntime,
-} = require('../runtime-assets.cjs');
+} = runtimeAssets;
 
 const CORE = [
   'learn',
@@ -40,20 +40,14 @@ const INTERNAL = [
   'testing-rules',
 ];
 
-const RETIRED = [
-  'agent-browser',
-  'find-skills',
-  'recall',
-  'use-railway',
-  'vercel-composition-patterns',
-  'vercel-react-best-practices',
-  'vercel-react-native-skills',
-];
-
 test('runtime asset manifest exposes only Ultra-owned core and internal skills', () => {
   assert.deepEqual(CORE_PUBLIC_SKILLS, CORE);
   assert.deepEqual(INTERNAL_AGENT_SKILLS, INTERNAL);
-  assert.deepEqual(RETIRED_SKILLS, RETIRED);
+  assert.equal(
+    Object.hasOwn(runtimeAssets, 'RETIRED_SKILLS'),
+    false,
+    'published runtime code must not carry a retired-skill name registry',
+  );
 
   assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.claude, [
     'codex-collab', 'ultra-verify',
@@ -71,8 +65,11 @@ test('runtime asset manifest exposes only Ultra-owned core and internal skills',
 
   for (const runtime of SUPPORTED_RUNTIMES) {
     const names = skillsForRuntime(runtime);
-    for (const retired of RETIRED) assert.ok(!names.includes(retired));
-    assert.ok(!names.some((name) => /impeccable/i.test(name)));
+    assert.ok(names.every((name) => (
+      CORE.includes(name)
+      || INTERNAL.includes(name)
+      || COLLAB_SKILLS_BY_RUNTIME[runtime].includes(name)
+    )));
   }
 });
 
@@ -143,6 +140,8 @@ test('npm publish list uses the same explicit skill boundary', () => {
 
   assert.ok(!pkg.files.includes('skills'));
   assert.ok(!pkg.files.includes('CLAUDE.md'));
+  assert.ok(!pkg.files.includes('AGENTS.md'));
+  assert.ok(!publishedSkills.includes('graphify'));
   assert.deepEqual(publishedSkills, expected);
   assert.equal(pkg.dependencies['@anthropic-ai/sdk'], undefined);
   assert.equal(pkg.dependencies.openai, undefined);

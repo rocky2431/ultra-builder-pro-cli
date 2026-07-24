@@ -1,6 +1,6 @@
 'use strict';
 
-// Phase 8B.1 — Declarative dispatch rules (GSD-2 pattern).
+// Declarative dispatch rules for deterministic priority matching.
 //
 // evaluate(ctx, rules) walks a priority-sorted rule array and returns the
 // first matching { rule_id, action, runtime }. Actions:

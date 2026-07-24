@@ -76,6 +76,7 @@ The responsibility split is deliberate:
 | **User** | Product intent, material scope and trade-offs, destructive actions, publishing and deployment authorization |
 | **Host model** | Fact-finding, synthesis, research coverage, route recommendation, reversible implementation decisions |
 | **Ultra MCP** | Durable state, evidence references, digests, freshness, locks, valid transitions and hard recovery |
+| **Host adapter** | Native Skill discovery, user questions, tool invocation, installation, and runtime wiring |
 | **Hooks** | Fast lifecycle observation, current breadcrumb injection, and protection of generated projections |
 
 The MCP does not replace the model's judgment. A hook does not decide product
@@ -154,11 +155,30 @@ npx --yes ultra-builder-pro-cli@latest --all --global --doctor --json
 After installing or upgrading, start a new Claude Code, OpenCode, or Codex
 session. In Kimi Code, run `/reload` or start a new session.
 
+Plugin installation does not mutate durable user instructions. To preview and
+explicitly converge a legacy handbook into the complete host-native engineering
+contract, use full mode:
+
+```bash
+npx --yes --package ultra-builder-pro-cli@latest \
+  ubp-handbook preview --runtime codex --full > /tmp/ubp-codex-handbook.md
+# Inspect the preview, then copy the confirmation token printed to the terminal.
+npx --yes --package ultra-builder-pro-cli@latest \
+  ubp-handbook apply --runtime codex --full \
+  --confirm "PASTE_64_CHARACTER_TOKEN_HERE"
+```
+
+Replace `codex` with `claude`, `opencode`, or `kimi` for the other hosts. The
+apply command rejects a missing or stale preview token, creates a timestamped
+backup, follows user-managed handbook symlinks, and preserves supported
+marker-delimited content owned by other providers. Without `--full`, only the
+small Ultra runtime block is merged.
+
 ### Host invocation
 
 | Host | Example |
 |---|---|
-| Claude Code | `/ultra-init` |
+| Claude Code | `/ultra-builder-pro:ultra-init` |
 | OpenCode | `/ultra-init` |
 | Codex | `$ultra-builder-pro:ultra-init` |
 | Kimi Code | `/ultra-builder-pro:ultra-init` |
@@ -224,8 +244,9 @@ product story. It builds a current-system baseline from:
 - APIs, data, permissions, integrations, deployment, and recovery seams;
 - known failures, documentation drift, technical debt, and unresolved unknowns.
 
-During `ultra-research`, each of the seventeen coverage areas receives one
-explicit disposition:
+During `ultra-research`, the host model selects the smallest evidence-backed set
+of applicable catalog areas. Every included area receives one explicit
+disposition:
 
 - `execute` — produce fresh evidence;
 - `verify_existing` — validate an existing artifact;
@@ -233,8 +254,9 @@ explicit disposition:
 - `not_applicable` — exclude it with evidence and rationale;
 - `deferred` — record the consequence and accepted owner.
 
-The seventeen areas are a coverage catalog, not seventeen mandatory documents
-or user interviews. Only the selected evidence work is performed.
+The catalog is not a mandatory document set or questionnaire. Omitted areas
+create no workflow rows; an explicit exclusion is recorded only when retaining
+that rationale is useful.
 
 Older projection-only Ultra projects are preserved and routed through a
 backup-first migration or rebaseline. Use `ultra-doctor` when initialization
@@ -344,7 +366,7 @@ worker execution or verified auto-merge.
 | `ultra-builder-pro-cli` / `ubp` | Install, update, uninstall, and diagnose host plugins |
 | `ultra-tools` | Inspect and maintain project tasks, sessions, state, migration, and recovery |
 | `ubp-orchestrator` | Execute current dependency waves or supervise configured workers |
-| `ubp-handbook` | Preview or apply the managed Ultra block in a host user handbook |
+| `ubp-handbook` | Preview or apply either the bounded Ultra block or the explicit full host-native handbook |
 
 Useful read-only checks:
 

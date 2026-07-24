@@ -1,10 +1,8 @@
 # Ultra Builder Pro CLI — Architecture
 
-> Single-page entry point for reviewers and contributors. The detailed
-> roadmap and decision log live in [`docs/PLAN.zh-CN.md`](./PLAN.zh-CN.md);
-> this file freezes the architectural shape that the PLAN drives toward.
->
-> Trace: PLAN §4, decisions D12 / D13 / D18 / D20 / D29 / D32 / D33.
+> Single-page entry point for reviewers and contributors. Current authority and
+> package boundaries live in [`docs/DECISIONS.md`](./DECISIONS.md); executable
+> behavior remains defined by source, schemas, and tests.
 
 ## 1. One sentence
 
@@ -143,9 +141,9 @@ same authoritative state shape without rewriting application code.
 
 Initialization completes after local authority, classification, Git/scaffold setup,
 and read-back verification. It does not start or complete research. An explicit
-`ultra-research` invocation then records a disposition for each of the seventeen
-coverage areas and executes, verifies, or reuses only the evidence needed to converge
-the baseline.
+`ultra-research` invocation then records the model-selected semantic coverage and
+executes, verifies, or reuses only the evidence needed to converge the baseline.
+Omitted catalog areas create no workflow row.
 
 Auto initialization preserves an existing Git repository and HEAD. When Git is absent,
 it initializes `main`, adds the symlink-safe `.ultra` rule to `.gitignore`, and persists
@@ -370,11 +368,12 @@ host-specific plugin, MCP, hook, launcher, and runtime contracts expected at
 that install scope. It never attributes a package to an enclosing consumer
 repository commit.
 
-`ubp --doctor [--json]` is read-only: it recomputes hashes and validates those
-entry points, returning a non-zero degraded result for missing/corrupt
-provenance, content drift, or broken host wiring. This is separate from
-`system.doctor`, which diagnoses project state, projection, incidents, sessions,
-and backup-first workflow recovery.
+`ubp --all --global --doctor [--json]` is read-only: it recomputes hashes and
+validates those entry points, returning a non-zero degraded result for
+missing/corrupt provenance, content drift, or broken host wiring. A single host
+can be selected instead of `--all`. This is separate from `system.doctor`, which
+diagnoses project state, projection, incidents, sessions, and backup-first
+workflow recovery.
 
 ## 8. Two timelines — rule layer vs execution layer
 
@@ -412,7 +411,7 @@ shippable; downstream slip never blocks an earlier release.
 | How do CLI subcommands map to MCP tools?           | [`spec/cli-protocol.md`](../spec/cli-protocol.md)   |
 | Exact SQLite schema?                               | [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) |
 | What does a tasks.json look like after projection? | [`spec/fixtures/valid/tasks.v4.5.json`](../spec/fixtures/valid/tasks.v4.5.json) |
-| Phase-by-phase work breakdown + decision log       | [`docs/PLAN.zh-CN.md`](./PLAN.zh-CN.md)             |
+| Current authority and package decisions            | [`docs/DECISIONS.md`](./DECISIONS.md)               |
 | When does each workflow write, invalidate, and converge state? | [`docs/WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md) |
 
 ## 10. Verifying the architecture

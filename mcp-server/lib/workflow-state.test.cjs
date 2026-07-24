@@ -184,35 +184,61 @@ function seedDeliveryPrerequisites(fx, changeId) {
   return task;
 }
 
-test('initial research dispositions cover all semantic areas without forcing all seventeen executions', () => {
+test('full research persists only model-selected semantic coverage without expanding the catalog', () => {
   const fx = fixture();
   try {
-    const coverage = WORKFLOW_DEFINITIONS.research.map((item) => ({
-      step_id: item.id,
-      disposition: ['02-market-assessment', '03-competitive-landscape'].includes(item.id)
-        ? 'not_applicable'
-        : 'execute',
-      rationale: ['02-market-assessment', '03-competitive-landscape'].includes(item.id)
-        ? 'This internal developer tool has no market-selection decision.'
-        : 'This semantic area needs current evidence.',
-      evidence_refs: ['README.md'],
-    }));
+    const coverage = [
+      {
+        step_id: '00-problem-validation',
+        disposition: 'execute',
+        rationale: 'The baseline needs current problem evidence.',
+        evidence_refs: [],
+      },
+      {
+        step_id: '02-market-assessment',
+        disposition: 'not_applicable',
+        rationale: 'This internal developer tool has no market-selection decision.',
+        evidence_refs: ['README.md'],
+      },
+      {
+        step_id: '41-quality-risks',
+        disposition: 'execute',
+        rationale: 'The baseline needs current recovery evidence.',
+        evidence_refs: [],
+      },
+      {
+        step_id: '99-synthesis',
+        disposition: 'execute',
+        rationale: 'Selected evidence must converge into one traceable baseline.',
+        evidence_refs: [],
+      },
+    ];
     const run = workflows.startWorkflow(fx.db, {
       id: 'research-full', kind: 'research', mode: 'full', baseline_id: 'baseline',
       subject: 'Validate the complete product and architecture baseline.',
       coverage,
+      metadata: {
+        selection_reason: 'The host model selected the smallest evidence set for this repository.',
+      },
     }, { rootDir: fx.rootDir });
 
     assert.equal(run.status, 'active');
     assert.equal(run.mode, 'full');
-    assert.equal(run.steps.length, 17);
-    assert.equal(run.steps.filter((step) => step.required).length, 15);
+    assert.deepEqual(run.steps.map((step) => step.step_id), [
+      '00-problem-validation',
+      '02-market-assessment',
+      '41-quality-risks',
+      '99-synthesis',
+    ]);
+    assert.equal(run.steps.filter((step) => step.required).length, 3);
     assert.equal(run.steps.find((step) => step.step_id === '02-market-assessment').status, 'skipped');
     assert.match(
       run.steps.find((step) => step.step_id === '02-market-assessment').skip_reason,
       /not_applicable.*internal developer tool/i,
     );
-    assert.equal(run.metadata.coverage.length, 17);
+    assert.equal(run.steps.some((step) => step.step_id === '03-competitive-landscape'), false);
+    assert.equal(run.metadata.coverage.length, 4);
+    assert.equal(run.artifact_health.status, 'pass');
     assert.equal(JSON.stringify(run).toLowerCase().includes('mvp'), false);
     assert.equal(run.next_step.step_id, '00-problem-validation');
   } finally {
@@ -242,6 +268,7 @@ test('research records evidence and output digests, enforces order, and resumes 
       id: 'research-resume', kind: 'research', mode: 'full', baseline_id: 'baseline',
       subject: 'Research fixture.',
       coverage: researchCoverage(),
+      metadata: { selection_reason: 'The model selected the applicable fixture evidence areas.' },
     }, { rootDir: fx.rootDir });
 
     assert.throws(
@@ -312,6 +339,7 @@ test('research health detects a stale semantic source even when the immutable st
       id: 'research-semantic-freshness', kind: 'research', mode: 'full', baseline_id: 'baseline',
       subject: 'Bind semantic provenance to current source content.',
       coverage: researchCoverage(),
+      metadata: { selection_reason: 'The model selected the semantic provenance evidence area.' },
     }, { rootDir: fx.rootDir });
     const report = writeArtifact(
       fx,
@@ -355,15 +383,14 @@ test('custom research excludes steps only through explicit selection and records
       id: 'research-custom', kind: 'research', mode: 'custom', baseline_id: 'baseline',
       change_id: changeId,
       selected_steps: ['20-user-stories', '21-features-scope'],
-      metadata: { selection_reason: 'The owner requested only this active-change feature boundary.' },
+      metadata: { selection_reason: 'The model found only this active-change feature boundary relevant.' },
       subject: 'Resolve a bounded feature-definition gap.',
     }, { rootDir: fx.rootDir });
 
     const selected = run.steps.filter((step) => step.required).map((step) => step.step_id);
     assert.deepEqual(selected, ['20-user-stories', '21-features-scope', '99-synthesis']);
-    const excluded = run.steps.find((step) => step.step_id === '02-market-assessment');
-    assert.equal(excluded.status, 'skipped');
-    assert.match(excluded.skip_reason, /custom mode/i);
+    assert.deepEqual(run.steps.map((step) => step.step_id), selected);
+    assert.equal(run.steps.some((step) => step.step_id === '02-market-assessment'), false);
   } finally {
     cleanup(fx);
   }
@@ -385,7 +412,17 @@ test('workflow authority rejects orphan stages and implicit reduced research', (
         baseline_id: 'baseline', change_id: changeId,
         subject: 'Silently reduce the research scope.',
       }, { rootDir: fx.rootDir }),
-      (error) => error.code === 'WORKFLOW_SELECTION_REASON_REQUIRED',
+      (error) => error.code === 'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
+    );
+    assert.throws(
+      () => startWorkflow(fx.db, {
+        id: 'synthesis-only-research', kind: 'research', mode: 'custom',
+        baseline_id: 'baseline', change_id: changeId,
+        selected_steps: ['99-synthesis'],
+        metadata: { selection_reason: 'No applicable semantic area was selected.' },
+        subject: 'Reject a synthesis-only research run.',
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
     );
   } finally {
     cleanup(fx);

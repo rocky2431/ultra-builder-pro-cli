@@ -1,8 +1,8 @@
-# Ultra Builder Pro Repository Engineering Guide — Claude Code
+# Ultra Builder Pro Repository Engineering Guide — Codex
 
 This file contains repository-specific guidance for developing Ultra Builder Pro with
-Claude Code. General user engineering policy belongs in `~/.claude/CLAUDE.md`; do not
-duplicate the complete user handbook here.
+Codex. General user engineering policy belongs in `~/.codex/AGENTS.md`; do not duplicate
+the complete user handbook here.
 
 ## Product boundary
 
@@ -21,7 +21,7 @@ in separately installed owner packages.
 - `mcp-server/lib/workflow-state.cjs`: workflow state transitions and durable gates.
 - `spec/mcp-tools.yaml`: public MCP contract.
 - `skills/*/SKILL.md`: reusable workflow prompts.
-- `commands/*.md`: thin Claude Code launchers; do not duplicate workflow logic.
+- Codex plugin Skills: native `$ultra-builder-pro:<skill>` entry points.
 - `.ultra/state.db`: project workflow authority at runtime.
 
 Generated Markdown and JSON are projections or evidence artifacts, not parallel
@@ -29,18 +29,19 @@ authorities.
 
 ## Host adaptation
 
-Adapt semantics, not names. Claude Code commands, interaction surfaces, workers, hooks,
-settings, and plugin paths must remain Claude-native. Never make a foreign prompt
+Adapt semantics, not names. Codex Skills, plans, subagents, hooks, `config.toml`, plugin
+manifests, and MCP wiring must remain Codex-native. Never make a foreign prompt
 “compatible” through path or product-name substitution alone.
 
 Shared Skills must remain host-neutral. Put host-specific invocation and wiring in the
-adapter. Keep public launchers thin and keep external capabilities out of the package.
+adapter. Do not recreate deprecated prompt or user-Skill projections outside the native
+plugin boundary.
 
 The complete user handbook is installed only through explicit:
 
 ```bash
-ubp-handbook preview --runtime claude --full > /tmp/ubp-claude-handbook.md
-ubp-handbook apply --runtime claude --full \
+ubp-handbook preview --runtime codex --full > /tmp/ubp-codex-handbook.md
+ubp-handbook apply --runtime codex --full \
   --confirm "PASTE_64_CHARACTER_TOKEN_HERE"
 ```
 

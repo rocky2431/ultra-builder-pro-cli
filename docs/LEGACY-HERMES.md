@@ -505,10 +505,7 @@ Automated enforcement via Python hooks in `hooks/`. **Hooks are deterministic â€
 
 - Follow project branch naming conventions
 - Conventional Commits format
-- Include Co-author for AI commits:
-  ```
-  Co-Authored-By: Claude <noreply@anthropic.com>
-  ```
+- Do not add AI co-author trailers; the configured Git user remains the sole commit author.
 
 ### Project Structure
 
@@ -842,7 +839,7 @@ Multi-step tasks use the Task system:
 
 **Audit Fixes**:
 - `pre_compact_context.py`: Added `mkdir -p` before writing snapshot (prevents silent failure when `.ultra/` doesn't exist)
-- `settings.json`: Co-Authored-By removed hardcoded model version (aligned with CLAUDE.md)
+- `settings.json`: removed the hardcoded model version (aligned with CLAUDE.md)
 - `settings.json`: Version comments updated to 5.6.1, removed redundant `mcp__pencil` permission
 
 ### v5.6.0 (2026-02-14) - System Integration Dimension

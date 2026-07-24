@@ -73,7 +73,7 @@ they do not deny edits or stop active incident work.
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
 | Live/declared contracts | 50 | 50 | 50 | 50 |
 | Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
-| Context Spine v2 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
+| Context Manifest v3 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
 | Approval-gated spec learning | FULL | FULL | FULL | FULL |
 | Host-native review/discovery/ask | native | native | documented in `codex-capability-map.json` | native Kimi tools and workers |
 | Durable authority | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` |
@@ -95,12 +95,14 @@ cannot be established. On POSIX it intentionally uses `env node` because Kimi
 |---|---|---|---|---|
 | Durable user file | `~/.claude/CLAUDE.md` | `~/.config/opencode/AGENTS.md` | `~/.codex/AGENTS.md` | `~/.kimi-code/AGENTS.md` |
 | Automatic overwrite by plugin install | no | no | no | no |
-| Explicit managed-block sync | `ubp-handbook --runtime claude` | `ubp-handbook --runtime opencode` | `ubp-handbook --runtime codex` | `ubp-handbook --runtime kimi` |
+| Explicit managed-block sync | `ubp-handbook apply --runtime claude` | `ubp-handbook apply --runtime opencode` | `ubp-handbook apply --runtime codex` | `ubp-handbook apply --runtime kimi` |
+| Explicit complete-handbook convergence | `--full --confirm TOKEN` | `--full --confirm TOKEN` | `--full --confirm TOKEN` | `--full --confirm TOKEN` |
 | Backup before change | FULL | FULL | FULL | FULL |
 
 The Kimi plugin installer does not edit `~/.kimi-code/config.toml`. Handbook
 sync remains a separate, previewable action so user policy and plugin mechanics
-do not become one irreversible mutation.
+do not become one irreversible mutation. Full mode is a semantic host rendering,
+not a product-name or path substitution.
 
 ## 6. Install, update, and uninstall
 
@@ -113,8 +115,14 @@ do not become one irreversible mutation.
 | Preserves unrelated config | FULL | FULL | FULL | FULL, including `config.toml` and unrelated registry records |
 | Uninstall ownership guard | managed plugin root | sentinels + owned MCP entry | managed root/manifest/agent headers | managed root + exact registry record |
 | Normalized install provenance | FULL | FULL | FULL | FULL |
-| Read-only `ubp --doctor` | FULL | FULL | FULL | FULL |
+| Local-source dirty state and worktree digest | FULL | FULL | FULL | FULL |
+| Read-only `ubp --all --global --doctor` | FULL | FULL | FULL | FULL |
 | Asset-content and host-contract drift detection | FULL | FULL | FULL | FULL |
+
+Package-local Git provenance never falls through to an enclosing consumer
+repository. Source installs record commit, dirty state, and a deterministic
+worktree digest; registry installs record unavailable checkout fields as
+`null`.
 
 Kimi's global managed root is
 `~/.kimi-code/plugins/managed/ultra-builder-pro`; its only registry mutation is
@@ -143,8 +151,8 @@ records. Uninstall refuses an unmanaged or conflicting root.
   skills and generic/memory hooks from re-entering a package.
 - `tests/retired-runtime.test.cjs` prevents retired runtime code or prompt text
   from re-entering active product surfaces.
-- `adapters/_shared/tests/handbook.test.cjs` verifies host rendering, backup,
-  migration, and idempotency.
+- `adapters/_shared/tests/handbook.test.cjs` verifies bounded and full host
+  rendering, external-provider block preservation, backup, migration, and idempotency.
 - `adapters/_shared/tests/provenance.test.cjs` verifies normalized manifests,
   content hashes, source attribution, corruption handling, and contract drift.
 - `tests/install.test.cjs` verifies healthy four-host doctor output and

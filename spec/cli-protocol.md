@@ -1,11 +1,11 @@
 # `ultra-tools` CLI protocol
 
-`ultra-tools` is the maintenance CLI around the live MCP runtime (PLAN §4,
-D12). The mapping registry below reserves stable command names for MCP tools;
+`ultra-tools` is the maintenance CLI around the live MCP runtime. The mapping
+registry below reserves stable command names for MCP tools;
 it does not mean every mapping is executable. Task lifecycle workflows must use
 the live MCP server and fail closed when it is unavailable.
 
-Trace: PLAN §6 Phase 1.4, decisions D12 / D29 / D33 / D37.
+Authority boundary: [`docs/DECISIONS.md`](../docs/DECISIONS.md).
 
 ## 1. Invocation
 
@@ -159,7 +159,7 @@ The full access policy lives in
 The CLI follows the `version` field of `spec/mcp-tools.yaml`. Adding a new
 flag is a minor bump; renaming or removing a flag, or changing exit-code
 semantics, is a major bump. Major bumps require an entry in
-`docs/PLAN.zh-CN.md §14 Decision log`.
+[`docs/DECISIONS.md`](../docs/DECISIONS.md) and the changelog.
 
 ## 7. `ubp-orchestrator`
 

@@ -23,7 +23,7 @@ const neutralSkills = new Set([...CORE_PUBLIC_SKILLS, ...INTERNAL_AGENT_SKILLS])
 const forbiddenPromptPatterns = [
   [/\p{Script=Han}/u, 'Han-script instruction text'],
   [/\bpre-Phase\b|\bPhase\s+\d+\.\d+\b|\bv4\.4\b|\bv4\.5\b/i, 'release or migration history'],
-  [/\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa/i, 'external tool binding'],
+  [/\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bgraphify\b/i, 'external tool binding'],
   [/\b90%\+?\s+confidence\b|\b80%\s+overall\b|\b100%\s+Functional Core\b/i, 'unsupported global threshold'],
   [/\bFlag as\s+(?:an?\s+)?(?:P[0-3]|orphan|horizontal)|\bRequired Test\b|\/\/\s*(?:Bad|Good):/i, 'mechanical pattern-to-verdict teaching'],
   [/\bFunction\s*>\s*\d+\s+lines\b|\bNesting depth\s*>\s*\d+|\baggregate score\b/i, 'arbitrary design threshold'],

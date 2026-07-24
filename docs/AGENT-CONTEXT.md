@@ -193,18 +193,29 @@ Archive before prune; the confirmation token is intentionally required.
 
 ## 10. User handbook integration
 
-General engineering doctrine remains user-owned in `CLAUDE.md` or `AGENTS.md`.
-Ultra Builder Pro contributes one managed section only. Preview or apply it with:
+General engineering doctrine lives in the host's durable `CLAUDE.md` or `AGENTS.md`.
+Ultra Builder Pro supports two explicit operations. Default mode updates only the
+bounded runtime contract:
 
 ```bash
 ubp-handbook preview --runtime codex
 ubp-handbook apply --runtime codex
 ```
 
-Supported runtime names are `claude`, `codex`, `opencode`, and `kimi`. Apply creates a
-timestamped backup, replaces only the marked block, and can migrate the old
-Codex `## Ultra Builder Pro Runtime Contract` section without touching the next
-user section. Plugin adapters themselves do not silently overwrite handbooks.
+Full mode replaces legacy unmarked prompt content with one complete host-native
+engineering handbook:
+
+```bash
+ubp-handbook preview --runtime codex --full > /tmp/ubp-codex-handbook.md
+ubp-handbook apply --runtime codex --full \
+  --confirm "PASTE_64_CHARACTER_TOKEN_HERE"
+```
+
+Supported runtime names are `claude`, `codex`, `opencode`, and `kimi`. The full
+preview prints its content-bound confirmation token to stderr. Both apply modes
+create a timestamped backup. Full mode preserves supported marker-delimited blocks
+owned by other providers, follows handbook symlinks, and rejects missing or stale
+confirmation. Plugin adapters never overwrite handbooks implicitly.
 
 ## 11. Verification
 

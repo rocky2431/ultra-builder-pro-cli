@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ultra-builder-pro.dev/spec/mcp-tools.schema.json",
   "title": "MCP tools manifest",
-  "description": "Meta-schema describing the shape of spec/mcp-tools.yaml. The manifest itself is the single source for MCP tool contracts (PLAN R19).",
+  "description": "Meta-schema describing the shape of spec/mcp-tools.yaml. The manifest is the single source for published MCP tool contracts.",
   "type": "object",
   "required": ["version", "info", "tools"],
   "additionalProperties": false,
@@ -56,7 +56,7 @@
         "name": {
           "type": "string",
           "pattern": "^[a-z][a-z_]*\\.[a-z][a-z_]*$",
-          "description": "family.verb naming convention (PLAN §7.3)"
+          "description": "family.verb naming convention"
         },
         "family": {
           "type": "string",
@@ -103,7 +103,7 @@
         },
         "trace_to": {
           "type": "string",
-          "description": "PLAN section/decision id (e.g. §7.3, D33)"
+          "description": "current source or decision reference"
         }
       }
     },

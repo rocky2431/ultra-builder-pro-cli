@@ -51,16 +51,6 @@ const MCP_DEPENDENT_SKILLS = Object.freeze([
   'ultra-doctor',
 ]);
 
-const RETIRED_SKILLS = Object.freeze([
-  'agent-browser',
-  'find-skills',
-  'recall',
-  'use-railway',
-  'vercel-composition-patterns',
-  'vercel-react-best-practices',
-  'vercel-react-native-skills',
-]);
-
 const WORKFLOW_HOOK_FILES = Object.freeze([
   'active_task_context.py',
   'context_spine.py',
@@ -98,7 +88,6 @@ module.exports = {
   SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
   MCP_DEPENDENT_SKILLS,
-  RETIRED_SKILLS,
   WORKFLOW_HOOK_FILES,
   isSupportedRuntime,
   skillPolicy,

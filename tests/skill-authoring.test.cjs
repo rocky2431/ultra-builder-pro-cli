@@ -63,7 +63,7 @@ test('packaged skill markdown is English and free of release-history prompt resi
   const forbidden = [
     { pattern: /[\u3400-\u9fff]/u, label: 'Han-script instruction text' },
     { pattern: /\bpre-Phase\b|\bPhase\s+\d+\.\d+\b|\bv4\.4\b|\bv4\.5\b/i, label: 'release or migration history' },
-    { pattern: /\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bGemini\b|\bRTK\b/i, label: 'retired or external tool binding' },
+    { pattern: /\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bGemini\b|\bRTK\b|\bgraphify\b/i, label: 'retired or external tool binding' },
     { pattern: /\b90%\+?\s+confidence\b|\b80%\s+overall\b|\b100%\s+Functional Core\b/i, label: 'unsupported global quality threshold' },
     { pattern: /\bFlag as\s+(?:an?\s+)?(?:P[0-3]|orphan|horizontal)|\bRequired Test\b|\/\/\s*(?:Bad|Good):/i, label: 'mechanical pattern-to-verdict teaching' },
     { pattern: /\bFunction\s*>\s*\d+\s+lines\b|\bNesting depth\s*>\s*\d+|\baggregate score\b/i, label: 'arbitrary design threshold' },
@@ -159,7 +159,12 @@ test('research preserves the complete semantic workflow through focused referenc
       '41-quality-risks.md', '99-synthesis.md',
     ],
   );
-  const skillLines = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8').split('\n').length;
+  const skillText = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8');
+  assert.match(skillText, /Select the smallest sufficient set of applicable catalog areas/i);
+  assert.match(skillText, /Omitted\s+catalog areas create no DB step/i);
+  assert.match(skillText, /metadata\.selection_reason/i);
+  assert.doesNotMatch(skillText, /disposition for every catalog area/i);
+  const skillLines = skillText.split('\n').length;
   assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
 });
 
@@ -182,7 +187,7 @@ test('human-agent alignment uses one canonical resumable decision protocol', () 
     const { text } = sourceSkill(name);
     assert.match(text, /decision-dialogue\.md/, `${name} must use the canonical decision protocol`);
   }
-  assert.match(sourceSkill('ultra-research').text, /not (?:a )?(?:mandatory )?questionnaire/i);
+  assert.match(sourceSkill('ultra-research').text, /not\s+(?:a\s+)?(?:mandatory\s+)?questionnaire/i);
   assert.match(
     sourceSkill('ultra-research').text,
     /Reuse the final research\s+checkpoint approval[\s\S]*do not ask\s+for an equivalent approval again/i,
@@ -249,7 +254,7 @@ test('agent prompts use the current evidence-based review contract', () => {
     { pattern: /[\u3400-\u9fff]/u, label: 'Han-script instruction text' },
     { pattern: /\bultra-review-findings-v1\b/i, label: 'retired review schema' },
     { pattern: /\bCLAUDE\.md\b/, label: 'host-specific handbook binding' },
-    { pattern: /\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bGemini\b|\bRTK\b/i, label: 'retired or external tool binding' },
+    { pattern: /\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bGemini\b|\bRTK\b|\bgraphify\b/i, label: 'retired or external tool binding' },
     { pattern: /\babsolute P0\b|\bnon-negotiable P0\b|\bP1 count\s*>\s*\d+|\bconfidence\s*>=?\s*\d+/i, label: 'mechanical severity or verdict threshold' },
     { pattern: /\bforbidden mock patterns?\b|\bmock violations?\b/i, label: 'blanket test-double ban' },
     { pattern: /\bFour-Dimension Scoring\b|\baggregate score\b/i, label: 'unsupported design score' },
