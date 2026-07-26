@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] — 2026-07-26
+
+### Fixed
+
+- Made the four-host handbook-isolation release test hermetic so a clean CI
+  runner does not require the Codex CLI merely to prove that installation and
+  uninstallation preserve user-owned instruction files byte for byte.
+
 ## [0.19.0] — 2026-07-26
 
 ### Changed
@@ -809,7 +817,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.17.1...v0.18.0
 [0.17.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.17.0...v0.17.1

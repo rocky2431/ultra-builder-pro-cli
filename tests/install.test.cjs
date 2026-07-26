@@ -130,6 +130,12 @@ test('install and uninstall never mutate host user handbooks', () => {
     path.join(home, '.codex', 'AGENTS.md'),
     path.join(home, '.kimi-code', 'AGENTS.md'),
   ];
+  const configDirs = {
+    claude: path.join(home, '.claude'),
+    opencode: path.join(home, '.config', 'opencode'),
+    codex: path.join(home, '.codex'),
+    kimi: path.join(home, '.kimi-code'),
+  };
   try {
     for (const [index, file] of handbooks.entries()) {
       fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -137,12 +143,27 @@ test('install and uninstall never mutate host user handbooks', () => {
     }
     const before = handbooks.map((file) => fs.readFileSync(file));
 
-    const installed = runCli(['--all', '--global'], { homeDir: home });
-    assert.equal(installed.status, 0, installed.stderr);
+    for (const runtime of RUNTIMES) {
+      const installed = runCli([
+        runtime.flag,
+        '--global',
+        '--config-dir',
+        configDirs[runtime.name],
+      ], { homeDir: home });
+      assert.equal(installed.status, 0, `${runtime.name}: ${installed.stderr}`);
+    }
     handbooks.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
 
-    const uninstalled = runCli(['--all', '--global', '--uninstall'], { homeDir: home });
-    assert.equal(uninstalled.status, 0, uninstalled.stderr);
+    for (const runtime of [...RUNTIMES].reverse()) {
+      const uninstalled = runCli([
+        runtime.flag,
+        '--global',
+        '--config-dir',
+        configDirs[runtime.name],
+        '--uninstall',
+      ], { homeDir: home });
+      assert.equal(uninstalled.status, 0, `${runtime.name}: ${uninstalled.stderr}`);
+    }
     handbooks.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
   } finally {
     cleanup(home);
