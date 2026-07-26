@@ -33,6 +33,9 @@ function cleanup(dir) {
 
 test('package exports every documented CLI entrypoint', () => {
   assert.equal(PACKAGE.bin['ultra-tools'], 'ultra-tools/cli.cjs');
+  assert.equal(PACKAGE.bin['ubp-handbook'], undefined);
+  assert.ok(!PACKAGE.files.includes('docs/USER-HANDBOOK-CONTRACT.md'));
+  assert.ok(PACKAGE.files.includes('docs/PLUGIN-ISOLATION-CONTRACT.md'));
   assert.deepEqual(Object.keys(ULTRA_TOOLS.SUBCOMMANDS).sort(), [
     'db', 'legacy-memory', 'migrate', 'session', 'status', 'system', 'task',
   ]);
@@ -116,6 +119,33 @@ test('install.js — --all fans out to every supported runtime', () => {
     }
   } finally {
     cleanup(target);
+  }
+});
+
+test('install and uninstall never mutate host user handbooks', () => {
+  const home = mkTarget('handbook-isolation');
+  const handbooks = [
+    path.join(home, '.claude', 'CLAUDE.md'),
+    path.join(home, '.config', 'opencode', 'AGENTS.md'),
+    path.join(home, '.codex', 'AGENTS.md'),
+    path.join(home, '.kimi-code', 'AGENTS.md'),
+  ];
+  try {
+    for (const [index, file] of handbooks.entries()) {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, `USER-OWNED-HANDBOOK-${index}\n`);
+    }
+    const before = handbooks.map((file) => fs.readFileSync(file));
+
+    const installed = runCli(['--all', '--global'], { homeDir: home });
+    assert.equal(installed.status, 0, installed.stderr);
+    handbooks.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
+
+    const uninstalled = runCli(['--all', '--global', '--uninstall'], { homeDir: home });
+    assert.equal(uninstalled.status, 0, uninstalled.stderr);
+    handbooks.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
+  } finally {
+    cleanup(home);
   }
 });
 

@@ -52,7 +52,7 @@ def main() -> None:
     except ContextSpineError as exc:
         print(f"[active_task_context] cannot inspect Context Spine: {exc}", file=sys.stderr)
         breadcrumb = None
-    if breadcrumb and breadcrumb.get("change_id"):
+    if breadcrumb and breadcrumb.get("workflow"):
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "additionalContext": render_breadcrumb(root, breadcrumb),

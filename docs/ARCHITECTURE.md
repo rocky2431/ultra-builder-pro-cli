@@ -246,7 +246,8 @@ snapshot as an output; test, review, and delivery reports carry its digest forwa
 
 `change.breadcrumb` derives the compact current position from state.db. Session,
 edit, resume, and OpenCode lifecycle hooks invoke one bundled read-only reader
-and inject only this breadcrumb, never the intent body,
+and inject it only while state.db proves an active, blocked, or ready workflow,
+never the intent body,
 provider content, or a conversation summary. A changed Git HEAD, task contract, or
 Change semantic authority marks the snapshot stale and permits recompilation through
 `change.context`.
@@ -256,6 +257,14 @@ MCP accepts the resulting structured tasks, validates schema, topology,
 baseline/change ownership, and transaction boundaries, then persists them. It
 does not call Anthropic, OpenAI, or another model provider and needs no separate
 model API credential.
+
+Plugin installation does not activate a semantic workflow and never edits the
+user's `CLAUDE.md`, `AGENTS.md`, or equivalent durable instructions. Public
+workflows require explicit user invocation. A completed workflow returns
+mechanically allowed transitions and a host-owned recommendation, then stops;
+it never launches the next public workflow. OpenCode realizes this boundary
+with explicit commands backed by private plugin workflow assets, while Claude,
+Codex, and Kimi use their native implicit-invocation controls.
 
 File count, token estimate, and context-share overflow produce warnings, never a
 refusal. The agent may narrow reads, load files lazily, or split a slice when that

@@ -48,6 +48,13 @@ def write_active_change(root: Path, status: str = "active"):
                (id, title, type, priority, status, change_id)
                VALUES ('task-1', 'Continue task', 'bugfix', 'P0', 'in_progress', 'change-1')"""
         )
+        if status == "active":
+            conn.execute(
+                """INSERT INTO workflow_runs
+                   (id, kind, subject, status, current_step, change_id, task_id)
+                   VALUES ('wf-stop', 'dev', 'Stop advisory', 'active', 'implement',
+                           'change-1', 'task-1')"""
+            )
 
 
 def test_no_ultra_workflow_is_a_no_op(tmp_path):

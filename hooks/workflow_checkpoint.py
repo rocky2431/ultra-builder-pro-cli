@@ -33,7 +33,7 @@ def main() -> None:
         print(f"[workflow_checkpoint] cannot inspect Context Spine: {exc}", file=sys.stderr)
         print(json.dumps({}))
         return
-    if not breadcrumb or not breadcrumb.get("change_id"):
+    if not breadcrumb or not breadcrumb.get("workflow"):
         print(json.dumps({}))
         return
 

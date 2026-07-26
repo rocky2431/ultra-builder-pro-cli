@@ -34,7 +34,7 @@ def main() -> None:
         print(f"[pre_stop_check] cannot inspect Context Spine: {exc}", file=sys.stderr)
         allow_stop()
         return
-    if breadcrumb and breadcrumb.get("change_id"):
+    if breadcrumb and breadcrumb.get("workflow"):
         allowed = ", ".join(breadcrumb.get("allowed_transitions") or []) or "none"
         required = breadcrumb.get("required_transition") or "none"
         print(

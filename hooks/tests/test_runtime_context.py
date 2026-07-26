@@ -56,12 +56,38 @@ def init_db(project: Path, baseline: str | None = "greenfield") -> Path:
     return db_path
 
 
+def seed_workflow(
+    db_path: Path,
+    *,
+    kind: str = "research",
+    baseline_id: str | None = None,
+    change_id: str | None = None,
+    task_id: str | None = None,
+) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """INSERT INTO workflow_runs
+               (id, kind, subject, status, current_step, baseline_id, change_id, task_id)
+               VALUES (?, ?, 'Explicit hook fixture', 'active', 'fixture-step', ?, ?, ?)""",
+            (f"wf-{kind}", kind, baseline_id, change_id, task_id),
+        )
+
+
 def test_context_is_noop_outside_an_ultra_project(tmp_path):
-    output, _ = run_hook("workflow_context.py", tmp_path)
+    output, stderr = run_hook("workflow_context.py", tmp_path)
     assert output == {}
+    assert stderr == ""
 
 
-def test_context_routes_an_old_schema_to_init_and_ignores_legacy_projection(tmp_path):
+def test_all_session_hooks_are_silent_for_an_uninitialized_ultra_directory(tmp_path):
+    (tmp_path / ".ultra").mkdir()
+    for name in ["workflow_context.py", "workflow_resume.py", "health_check.py"]:
+        output, stderr = run_hook(name, tmp_path)
+        assert output == {}, name
+        assert stderr == "", name
+
+
+def test_context_does_not_route_an_old_schema_until_ultra_is_explicitly_invoked(tmp_path):
     ultra = tmp_path / ".ultra"
     ultra.mkdir()
     with sqlite3.connect(ultra / "state.db") as conn:
@@ -76,30 +102,26 @@ def test_context_routes_an_old_schema_to_init_and_ignores_legacy_projection(tmp_
         "command": "ultra-dev", "task_id": "projection-task", "status": "active",
     }), encoding="utf-8")
 
-    output, _ = run_hook("workflow_context.py", tmp_path)
-    text = output["hookSpecificOutput"]["additionalContext"]
-    assert "STATE_SCHEMA_MIGRATION_REQUIRED:10.0" in text
-    assert "Required transition: ultra-init" in text
-    assert "projection-task" not in text
+    output, stderr = run_hook("workflow_context.py", tmp_path)
+    assert output == {}
+    assert stderr == ""
 
 
-def test_context_routes_migrated_baseline_to_explicit_readoption(tmp_path):
+def test_context_is_silent_for_an_idle_migrated_baseline(tmp_path):
     init_db(tmp_path, baseline="migrated")
-    output, _ = run_hook("workflow_context.py", tmp_path)
-    text = output["hookSpecificOutput"]["additionalContext"]
-    assert "BASELINE_MIGRATION_REVIEW_REQUIRED" in text
-    assert "Allowed transitions: ultra-research, ultra-status, ultra-doctor" in text
-    assert "Required transition:" not in text
-    assert ".ultra/state.db" in text
+    output, stderr = run_hook("workflow_context.py", tmp_path)
+    assert output == {}
+    assert stderr == ""
 
 
-def test_context_routes_incomplete_brownfield_baseline_to_adoption(tmp_path):
+def test_context_routes_an_explicit_active_brownfield_research_workflow(tmp_path):
     db_path = init_db(tmp_path, baseline=None)
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             """INSERT INTO baselines (id, project_name, mode, status)
                VALUES ('adoption', 'legacy', 'brownfield', 'adopting')"""
         )
+    seed_workflow(db_path, baseline_id="adoption")
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "Baseline: adoption (brownfield/adopting)" in text
@@ -121,6 +143,7 @@ def test_context_routes_a_ready_baseline_with_an_open_blocking_gap_to_adoption(t
                 "evidence_refs": [],
             }]),),
         )
+    seed_workflow(db_path, baseline_id="gap-baseline")
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "BASELINE_GAP_BLOCKING:incident-reconciliation" in text
@@ -180,6 +203,12 @@ def test_context_injects_active_change_without_workflow_state(tmp_path):
                 "ready", "[]", json.dumps(context),
             ),
         )
+        conn.execute(
+            """INSERT INTO workflow_runs
+               (id, kind, subject, status, current_step, baseline_id, change_id, task_id)
+               VALUES ('wf-dev', 'dev', 'Explicit dev', 'active', 'implement',
+                       'test-baseline', 'daily-fix', 'daily-task')"""
+        )
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "Ultra context spine" in text
@@ -196,7 +225,7 @@ def test_context_injects_active_change_without_workflow_state(tmp_path):
     assert "cloud-mem" not in text
 
 
-def test_health_inspects_state_without_active_workflow(tmp_path):
+def test_health_inspects_state_only_during_an_active_workflow(tmp_path):
     db_path = init_db(tmp_path)
     with sqlite3.connect(db_path) as conn:
         conn.execute(
@@ -204,6 +233,7 @@ def test_health_inspects_state_without_active_workflow(tmp_path):
                (id, code, severity, retryable, message)
                VALUES ('inc-1', 'PROJECTION_FAILED', 'error', 1, 'projection failed')"""
         )
+    seed_workflow(db_path, baseline_id="test-baseline")
     output, stderr = run_hook("health_check.py", tmp_path)
     assert output == {}
     assert "PROJECTION_FAILED" in stderr
@@ -229,7 +259,7 @@ def test_health_does_not_misclassify_incomplete_baseline_as_runtime_failure(tmp_
     assert stderr == ""
 
 
-def test_health_degrades_when_a_ready_baseline_has_lost_authority(tmp_path):
+def test_health_degrades_when_an_active_workflow_has_lost_baseline_authority(tmp_path):
     db_path = init_db(tmp_path, baseline=None)
     with sqlite3.connect(db_path) as conn:
         conn.execute(
@@ -247,6 +277,7 @@ def test_health_degrades_when_a_ready_baseline_has_lost_authority(tmp_path):
                 "evidence_refs": [],
             }]),),
         )
+    seed_workflow(db_path, baseline_id="ready-but-invalid")
 
     output, stderr = run_hook("health_check.py", tmp_path)
 
@@ -256,7 +287,7 @@ def test_health_degrades_when_a_ready_baseline_has_lost_authority(tmp_path):
     assert "BASELINE_GAP_BLOCKING:missing-evidence" in stderr
 
 
-def test_health_requires_workflow_authority_tables(tmp_path):
+def test_health_is_silent_when_workflow_authority_cannot_be_proven(tmp_path):
     db_path = init_db(tmp_path)
     with sqlite3.connect(db_path) as conn:
         conn.execute("DROP TABLE workflow_steps")
@@ -265,6 +296,4 @@ def test_health_requires_workflow_authority_tables(tmp_path):
     output, stderr = run_hook("health_check.py", tmp_path)
 
     assert output == {}
-    assert '"status": "degraded"' in stderr
-    assert "workflow_runs" in stderr
-    assert "workflow_steps" in stderr
+    assert stderr == ""

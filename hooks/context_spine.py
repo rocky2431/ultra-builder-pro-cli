@@ -22,7 +22,7 @@ class Breadcrumb(dict):
 
 def find_root(start: Path):
     for root in (start, *start.parents):
-        if (root / ".ultra").is_dir():
+        if (root / ".ultra" / "state.db").is_file():
             return root
     return None
 

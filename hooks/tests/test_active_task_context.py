@@ -22,16 +22,14 @@ class ActiveTaskContextTest(unittest.TestCase):
         )
         return json.loads(result.stdout)
 
-    def test_denies_direct_projection_write_for_any_ultra_project(self):
+    def test_is_silent_for_projection_path_when_state_authority_is_absent(self):
         with tempfile.TemporaryDirectory() as raw:
             project = Path(raw)
             ultra = project / ".ultra"
             ultra.mkdir()
 
             output = self.run_hook(project, {"file_path": ".ultra/tasks/tasks.json"})
-            hook = output["hookSpecificOutput"]
-            self.assertEqual(hook["permissionDecision"], "deny")
-            self.assertIn(".ultra/state.db", hook["permissionDecisionReason"])
+            self.assertEqual(output, {})
 
     def test_ignores_legacy_workflow_projection_without_state_authority(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -111,6 +109,13 @@ class ActiveTaskContextTest(unittest.TestCase):
                                'implement', 'implementation', 'Continue edit-task.',
                                'ready', '[]', ?)""",
                     ("b" * 64, json.dumps(context)),
+                )
+                conn.execute(
+                    """INSERT INTO workflow_runs
+                       (id, kind, subject, status, current_step, baseline_id,
+                        change_id, task_id)
+                       VALUES ('wf-edit', 'dev', 'Edit task', 'active', 'implement',
+                               'test-baseline', 'edit-change', 'edit-task')"""
                 )
 
             output = self.run_hook(project, {"file_path": "src/example.js"})

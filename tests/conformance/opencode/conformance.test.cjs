@@ -19,7 +19,7 @@ function buildCfg() {
     // OpenCode gets .md commands with lowercased frontmatter keys
     expectCommands: ['ultra-init.md', 'ultra-dev.md', 'ultra-plan.md'],
     commandFrontmatterPatterns: [/^---/m, /description:/i],
-    expectSkills: ['ultra-init', 'ultra-dev', 'ultra-status'],
+    expectSkills: ['code-review-expert', 'testing-rules', 'cc-collab'],
     hookCheck: (target) => {
       const cfg = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
       assert.equal('_ubp_manifest' in cfg, false, 'OpenCode rejects unknown top-level config keys');

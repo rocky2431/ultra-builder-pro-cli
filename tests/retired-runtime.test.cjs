@@ -29,7 +29,7 @@ const ACTIVE_DOCS = [
   'docs/WORKFLOW-LIFECYCLE.md',
   'docs/ROADMAP.md',
   'docs/RUNTIME-COMPAT-MATRIX.md',
-  'docs/USER-HANDBOOK-CONTRACT.md',
+  'docs/PLUGIN-ISOLATION-CONTRACT.md',
 ];
 
 function activeFiles(root) {

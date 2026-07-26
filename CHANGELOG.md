@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-07-26
+
+### Changed
+
+- Made every public Ultra workflow explicitly activated. Claude Code and Kimi
+  Code disable model invocation, Codex keeps implicit invocation disabled, and
+  OpenCode commands load private plugin workflow assets instead of exposing
+  public workflows through its model skill catalog.
+- Limited lifecycle context, health, checkpoint, stop, and subagent hooks to
+  DB-authoritative active workflows. Initialized idle projects retain only
+  generated-projection protection.
+- Changed workflow handoff to return allowed transitions and a host-owned
+  recommendation without launching another public workflow.
+
+### Removed
+
+- Removed `ubp-handbook`, the shared handbook renderer, Kimi session bootstrap,
+  and every package path capable of creating or rewriting user-level
+  `CLAUDE.md` or `AGENTS.md` files.
+
 ## [0.18.0] — 2026-07-25
 
 ### Added
@@ -789,7 +809,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.17.1...v0.18.0
 [0.17.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.16.0...v0.17.0

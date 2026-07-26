@@ -261,8 +261,8 @@ v0.2 加执行层进阶（recovery + 监控 + 实时图谱）→ 半自动 → v
     │                                         │
     │                                         ▼ ctx.newSession() + worktree
     │                                         │
-    │ /ultra-dev 1 (可手动；也可 orch 自动)   ▼ executor
-    ├────────── or automatic ──▶ Skill: ultra-dev/SKILL.md
+    │ /ultra-dev 1（用户显式调用；orch 需单独授权）▼ executor
+    ├──────────────────────────▶ Skill: ultra-dev/SKILL.md
     │                   │
     │                   ▼ TDD RED/GREEN/REFACTOR (调 impact.radius + memory.recall)
     │                   ▼ review: MCP review.run → 5 个 subagent 并行
@@ -1655,6 +1655,7 @@ Week 18      buffer（ship 中任何 Phase 的 25% 滑动吃掉）
 | **D58** | **2026-07-24** | **所有 session 入口只能消费已批准且仍然 current 的 change plan**：`execute-plan` 校验 plan 结构、cycle、重复 task、change ownership、当前 DB task graph、已完成 plan workflow 及 artifact health；MCP admission/spawn 与 daemon 复用同一 task contract、dependency、staleness 和 plan-digest gate；所有检查都发生在 takeover 或 worktree mutation 之前 | 关闭 plan export、直接 MCP spawn 与 daemon 到实际执行之间的 authority 断点，保证 MCP/DB 的计划批准不能被手写 JSON、旧 artifact 或旁路入口绕过 |
 | **D59** | **2026-07-24** | **隔离 worktree 与中央 authority 分离但不分叉**：每个 session checkout 用 symlink-safe `.ultra` ignore 连接唯一中央 `.ultra`；旧仓库仅追加 repository-local `info/exclude`，不修改 tracked baseline；worker 获得不可覆盖的 DB/checkout/authority-root 环境；链接失败原子回滚；plan 在 wave admission 与 spawn 间漂移只 pause、不计 worker failure；旧 schema 的 late-resume 失败恢复迁移前备份 | 关闭自动 worker 在 worktree 中误建第二个 state.db、authority 链接被 Git 提交、竞态误触发 circuit breaker，以及旧版项目失败回滚停在半迁移状态的断点 |
 | **D60** | **2026-07-24** | **从硬管线升级为自适应能力图**：init 在分类、Git/scaffold 与 read-back 后独立完成且不隐式启动 research；17 项 research 改为 execute/verify/reuse/not-applicable/deferred coverage disposition；change 只捕获意图合同；plan approval 仅在 material decision 时需要；test/review 按风险选 profile；deliver 只做本地收敛归档，外部发布独立授权；MCP 只给 allowed/required transitions，宿主负责语义建议与 native question UI；Change 语义变更自动使任务与 Context v3 失效；schema 18 迁移旧 workflow state | 保留原始 Harness 的 research/plan/dev/test/review/deliver 能力与人机同步核心，同时消除 init/research 混合、固定 17 步执行、重复审批、唯一 next action、Hook 阻塞和新意图复用旧证据等机械化断点 |
+| **D61** | **2026-07-26** | **Ultra 成为完全可插拔、显式激活的宿主插件（覆盖 D50 的 handbook 同步方案）**：删除用户 handbook writer 和任何 session bootstrap；安装、更新、doctor、卸载均不写 `CLAUDE.md` / `AGENTS.md`；Claude/Kimi 用 native model-invocation disable，Codex 用 implicit-invocation policy，OpenCode 用显式 command 指向私有 workflow asset；公共 workflow 完成后只返回 allowed transitions 与建议，不自动启动下一流程；Hook 仅在 `state.db` 证明 active workflow 时注入，初始化项目空闲时只保留投影写保护 | 用户长期偏好与宿主 Harness 独立演进；Ultra 的全部语义保留在插件内部，未调用时不占用上下文、不污染用户根目录、不干扰普通开发；安装/卸载 byte-preservation、四宿主 adapter conformance、idle/active hook 回归共同锁定边界 |
 
 ---
 

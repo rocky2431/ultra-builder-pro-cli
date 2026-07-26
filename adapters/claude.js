@@ -68,10 +68,12 @@ function copySkills(repoRoot, target, names) {
             'Claude Code Task workers using the installed review agent definitions',
           );
         }
+        const policy = skillPolicy(name);
         return Buffer.from(serializeFrontmatter({
           name,
           description: fm.description,
-          'user-invocable': skillPolicy(name).userInvocable,
+          'user-invocable': policy.userInvocable,
+          ...(policy.userInvocable ? { 'disable-model-invocation': true } : {}),
         }, adaptedBody));
       },
     });

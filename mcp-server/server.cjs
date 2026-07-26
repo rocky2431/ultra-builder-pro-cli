@@ -818,16 +818,28 @@ function appendHookLifecycleEvent({ rootDir, action, hookInput = {} } = {}) {
   const db = openStateDb(dbPath);
   try {
     ensureSchemaVersion(db);
-    const change = db.prepare(
-      `SELECT id FROM changes WHERE status IN ('active', 'blocked', 'ready')
+    const workflow = db.prepare(
+      `SELECT change_id, task_id FROM workflow_runs
+       WHERE status IN ('active', 'blocked', 'ready') AND change_id IS NOT NULL
        ORDER BY updated_at DESC, rowid DESC LIMIT 1`,
     ).get();
+    if (!workflow) return { recorded: false, reason: 'NO_ACTIVE_WORKFLOW' };
+    const change = db.prepare(
+      `SELECT id FROM changes
+       WHERE id = ? AND status IN ('active', 'blocked', 'ready')`,
+    ).get(workflow.change_id);
     if (!change) return { recorded: false, reason: 'NO_ACTIVE_CHANGE' };
-    const task = db.prepare(
-      `SELECT id FROM tasks WHERE change_id = ? AND status IN ('in_progress', 'pending', 'blocked')
-       ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'blocked' THEN 1 ELSE 2 END,
-                updated_at DESC, rowid DESC LIMIT 1`,
-    ).get(change.id);
+    const task = workflow.task_id
+      ? db.prepare(
+        `SELECT id FROM tasks
+         WHERE id = ? AND change_id = ?
+           AND status IN ('in_progress', 'pending', 'blocked')`,
+      ).get(workflow.task_id, change.id)
+      : db.prepare(
+        `SELECT id FROM tasks WHERE change_id = ? AND status IN ('in_progress', 'pending', 'blocked')
+         ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'blocked' THEN 1 ELSE 2 END,
+                  updated_at DESC, rowid DESC LIMIT 1`,
+      ).get(change.id);
     const payload = {
       agent_id: hookMetadata(hookInput.agent_id),
       agent_type: hookMetadata(hookInput.agent_type),

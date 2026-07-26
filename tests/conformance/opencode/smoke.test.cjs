@@ -31,7 +31,10 @@ test('opencode v0.1 smoke — install + lowercased frontmatter + mcp round-trip 
     assert.ok(fs.existsSync(path.join(target, 'plugins', 'ultra-builder-pro.js')));
 
     // skill frontmatter is lowercased in-transit — pick one and verify keys
-    const skillText = fs.readFileSync(path.join(target, 'skills', 'ultra-init', 'SKILL.md'), 'utf8');
+    const skillText = fs.readFileSync(
+      path.join(target, opencode.BUNDLE_DIR, 'workflows', 'ultra-init', 'SKILL.md'),
+      'utf8',
+    );
     const { fm } = parseFm(skillText);
     for (const key of Object.keys(fm)) {
       assert.equal(key, key.toLowerCase(), `skill fm key ${key} should be lowercased`);

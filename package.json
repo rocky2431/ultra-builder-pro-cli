@@ -1,11 +1,10 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.18.0",
-  "description": "Multi-runtime installer for the Ultra Builder Pro agent engineering system — deploys commands, agents, skills, hooks, and MCP server to Claude Code, OpenCode, Codex CLI, and Kimi Code.",
+  "version": "0.19.0",
+  "description": "Explicitly invoked Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, and Kimi Code, with project-local MCP authority and lifecycle recovery.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
     "ubp": "bin/install.js",
-    "ubp-handbook": "bin/handbook.js",
     "ubp-orchestrator": "bin/orchestrator.js",
     "ultra-tools": "ultra-tools/cli.cjs"
   },
@@ -56,7 +55,7 @@
     "docs/COMMIT-HASH-BACKFILL.md",
     "docs/DECISIONS.md",
     "docs/STATE-DB-ACCESS-POLICY.md",
-    "docs/USER-HANDBOOK-CONTRACT.md",
+    "docs/PLUGIN-ISOLATION-CONTRACT.md",
     "docs/RUNTIME-COMPAT-MATRIX.md",
     "!**/__pycache__/**",
     "!**/*.pyc",

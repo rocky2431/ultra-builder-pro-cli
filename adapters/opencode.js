@@ -38,6 +38,11 @@ const PLUGIN_MARKER = '// Managed by Ultra Builder Pro.';
 const PROVENANCE_FILE = 'provenance.json';
 const COMMAND_NAMES = CORE_PUBLIC_SKILLS;
 
+function discoverableSkillNames() {
+  return skillsForRuntime('opencode')
+    .filter((name) => !CORE_PUBLIC_SKILLS.includes(name));
+}
+
 function resolveTarget(ctx = {}) {
   if (ctx.configDir) return ctx.configDir;
   if (ctx.scope === 'global') {
@@ -97,16 +102,26 @@ function openCodeTextTransform(input, assetName = '') {
   return text;
 }
 
-function openCodeCommandTransform(buf, relPath, commandName) {
+function openCodeCommandTransform(buf, relPath, commandName, workflowFile) {
   if (!relPath.endsWith('.md')) return buf;
-  const { fm, body } = parseFm(buf.toString('utf8'));
-  if (!fm) return Buffer.from(openCodeTextTransform(buf.toString('utf8'), commandName), 'utf8');
+  const { fm } = parseFm(buf.toString('utf8'));
+  if (!fm) throw new Error(`missing frontmatter in OpenCode command: ${commandName}`);
   const nativeFm = {
     description: openCodeTextTransform(fm.description || `${commandName} workflow`, commandName)
       .replace(/\s+/g, ' ')
       .trim(),
   };
-  return Buffer.from(serializeFm(nativeFm, openCodeTextTransform(body, commandName)), 'utf8');
+  const body = [
+    `# Run ${commandName}`,
+    '',
+    `Read and follow \`${workflowFile}\` as the only workflow definition.`,
+    'This explicit command is the activation boundary; do not substitute a model-discovered',
+    'public skill or start another public Ultra workflow automatically.',
+    '',
+    'Arguments: $ARGUMENTS',
+    '',
+  ].join('\n');
+  return Buffer.from(serializeFm(nativeFm, body), 'utf8');
 }
 
 function openCodeSkillAssetTransform(buf, relPath, skillName) {
@@ -229,7 +244,10 @@ function copyCommands(repoRoot, target) {
     const file = `${name}.md`;
     const source = path.join(repoRoot, 'commands', file);
     if (!fs.existsSync(source)) throw new Error(`missing allowlisted OpenCode command: ${file}`);
-    const transformed = withManagedMarker(openCodeCommandTransform(fs.readFileSync(source), file, name));
+    const workflowFile = path.join(target, BUNDLE_DIR, 'workflows', name, 'SKILL.md');
+    const transformed = withManagedMarker(
+      openCodeCommandTransform(fs.readFileSync(source), file, name, workflowFile),
+    );
     writeAtomic(path.join(output, file), transformed);
     copied.push(file);
   }
@@ -238,7 +256,7 @@ function copyCommands(repoRoot, target) {
 
 function copySkills(repoRoot, target) {
   const copied = [];
-  const names = skillsForRuntime('opencode');
+  const names = discoverableSkillNames();
   const skillsRoot = path.join(target, 'skills');
   ensureDir(skillsRoot);
   for (const entry of fs.readdirSync(skillsRoot, { withFileTypes: true })) {
@@ -262,6 +280,22 @@ function copySkills(repoRoot, target) {
   return copied;
 }
 
+function copyPrivateWorkflows(repoRoot, bundleRoot) {
+  const copied = [];
+  const workflowsRoot = path.join(bundleRoot, 'workflows');
+  for (const name of CORE_PUBLIC_SKILLS) {
+    const source = path.join(repoRoot, 'skills', name);
+    if (!fs.existsSync(path.join(source, 'SKILL.md'))) {
+      throw new Error(`missing allowlisted OpenCode workflow: ${name}`);
+    }
+    const files = copyTree(source, path.join(workflowsRoot, name), {
+      transform: (buf, relPath) => openCodeSkillAssetTransform(buf, relPath, name),
+    });
+    copied.push(...files.map((rel) => path.join('workflows', name, rel)));
+  }
+  return copied;
+}
+
 function copyAgents(repoRoot, target) {
   const sourceRoot = path.join(repoRoot, 'agents');
   const output = path.join(target, 'agents');
@@ -279,7 +313,7 @@ function preflightAssets(repoRoot, target) {
   for (const name of COMMAND_NAMES) {
     assertManagedTextTarget(path.join(target, 'commands', `${name}.md`), 'command');
   }
-  for (const name of skillsForRuntime('opencode')) {
+  for (const name of discoverableSkillNames()) {
     const destination = path.join(target, 'skills', name);
     if (fs.existsSync(destination) && !isManaged(destination)) {
       throw new Error(`refusing to replace unmanaged OpenCode skill: ${destination}`);
@@ -316,8 +350,8 @@ const BREADCRUMB_CLI = path.resolve(
 function findUltraRoot(directory) {
   let current = path.resolve(directory);
   while (true) {
-    const ultra = path.join(current, ".ultra");
-    if (fs.existsSync(ultra) && fs.statSync(ultra).isDirectory()) return current;
+    const stateDb = path.join(current, ".ultra", "state.db");
+    if (fs.existsSync(stateDb) && fs.statSync(stateDb).isFile()) return current;
     const parent = path.dirname(current);
     if (parent === current) return null;
     current = parent;
@@ -335,12 +369,13 @@ function readUltraContext(directory) {
       timeout: 5000,
     });
     const value = JSON.parse(raw);
-    if (!value?.breadcrumb || typeof value.text !== "string" || !value.text) {
-      throw new Error("canonical breadcrumb response is incomplete");
+    // A canonical breadcrumb is injectable only while DB authority proves an active workflow.
+    if (!value?.breadcrumb || !value.breadcrumb.workflow
+        || typeof value.text !== "string" || !value.text) {
+      return { root, breadcrumb: null, text: null };
     }
     return { root, breadcrumb: value.breadcrumb, text: value.text };
-  } catch (error) {
-    process.stderr.write(\`[ultra-builder-pro] cannot read canonical breadcrumb: \${error.message}\\n\`);
+  } catch {
     return { root, breadcrumb: null, text: null };
   }
 }
@@ -415,6 +450,7 @@ function install(ctx = {}) {
   const bundleRoot = path.join(target, BUNDLE_DIR);
   if (fs.existsSync(bundleRoot)) removeTree(bundleRoot);
   ensureDir(bundleRoot);
+  report.copied.workflows = copyPrivateWorkflows(repoRoot, bundleRoot);
   const runtime = buildMcpRuntime(repoRoot, bundleRoot, { runtime: 'opencode' });
   markManaged(bundleRoot, { adapter: 'opencode', asset: 'runtime-bundle' });
   const configFile = path.join(target, 'opencode.json');
@@ -433,7 +469,7 @@ function install(ctx = {}) {
   const bundleAssets = provenance.assetRefsForTree('config', bundleRoot, {
     exclude: [PROVENANCE_FILE],
   }).map((asset) => ({ ...asset, path: path.join(BUNDLE_DIR, asset.path) }));
-  const skillMarkers = skillsForRuntime('opencode').map((name) => ({
+  const skillMarkers = discoverableSkillNames().map((name) => ({
     root: 'config', path: path.join('skills', name, '.ubp-managed'),
   }));
   const provenanceFile = path.join(bundleRoot, PROVENANCE_FILE);

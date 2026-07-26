@@ -51,6 +51,12 @@ function seedContext(project, taskId = 'task-7') {
     input: { task_id: task.id, role: 'implement', gate: 'implementation' },
     change, tasks: [task], rootDir: project,
   });
+  state.db.prepare(
+    `INSERT INTO workflow_runs
+     (id, kind, subject, status, current_step, baseline_id, change_id, task_id)
+     VALUES ('wf-hook-dev', 'dev', 'Explicit hook dev', 'active', 'implement-slice',
+             'baseline', 'hook-change', ?)`,
+  ).run(task.id);
   closeStateDb(state.db);
 }
 
@@ -106,10 +112,11 @@ test('Codex hook adapter maps apply_patch payloads to Edit-compatible file input
   assert.ok(outputs.every((entry) => entry.tool_name === 'Edit'));
 });
 
-test('Codex hook adapter denies apply_patch writes to tasks.json during an active Ultra workflow', () => {
+test('Codex hook adapter denies apply_patch writes to tasks.json after Ultra initialization', () => {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-codex-hook-deny-'));
   try {
-    fs.mkdirSync(path.join(project, '.ultra'));
+    const state = initStateDb(path.join(project, '.ultra', 'state.db'));
+    closeStateDb(state.db);
     const result = run('active_task_context.py', {
       session_id: 'session-deny',
       cwd: project,

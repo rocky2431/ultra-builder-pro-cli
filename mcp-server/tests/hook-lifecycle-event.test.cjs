@@ -24,6 +24,12 @@ test('subagent hook writes minimal lifecycle metadata only to authoritative even
        VALUES ('active-task', 'Active task', 'feature', 'P1', 'in_progress', 0,
                'active-change', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
     ).run();
+    db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, status, current_step, change_id, task_id)
+       VALUES ('wf-hook-event', 'review', 'Review lifecycle', 'active', 'run-review',
+               'active-change', 'active-task')`,
+    ).run();
   } finally {
     closeStateDb(db);
   }
@@ -72,7 +78,28 @@ test('subagent hook is a no-op when no active change owns lifecycle evidence', (
   closeStateDb(init.db);
   try {
     const result = appendHookLifecycleEvent({ rootDir, action: 'start', hookInput: {} });
-    assert.deepEqual(result, { recorded: false, reason: 'NO_ACTIVE_CHANGE' });
+    assert.deepEqual(result, { recorded: false, reason: 'NO_ACTIVE_WORKFLOW' });
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('subagent hook is a no-op when an active change has no active workflow', () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-hook-event-no-workflow-'));
+  fs.mkdirSync(path.join(rootDir, '.ultra'), { recursive: true });
+  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  try {
+    db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+       VALUES ('idle-change', 'Idle change', 'quick', 'active', 'Wait for invocation.',
+               '.ultra/changes/active/idle-change')`,
+    ).run();
+  } finally {
+    closeStateDb(db);
+  }
+  try {
+    const result = appendHookLifecycleEvent({ rootDir, action: 'start', hookInput: {} });
+    assert.deepEqual(result, { recorded: false, reason: 'NO_ACTIVE_WORKFLOW' });
   } finally {
     fs.rmSync(rootDir, { recursive: true, force: true });
   }

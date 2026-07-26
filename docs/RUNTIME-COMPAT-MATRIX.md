@@ -15,10 +15,10 @@ not installed.
 |---|---|---|---|---|
 | Package form | `.claude-plugin` native plugin | native config bundle + JS plugin | personal `.codex-plugin` | managed `kimi.plugin.json` plugin |
 | Public entry | `/ultra-*`, `/learn` | `/ultra-*`, `/learn` | `$ultra-builder-pro:<skill>` | `/ultra-builder-pro:<command>` |
-| Public Ultra workflows | 12 | 12 | 12 | 12 |
+| Public Ultra workflows | 12, model invocation disabled | 12 commands backed by private workflow assets | 12, implicit invocation disabled | 12, model invocation disabled |
 | Internal agent-rule skills | 4, non-user-facing | 4, non-user-facing | 4 with implicit invocation disabled | 4, consumed by review workers |
 | Collaboration companions | `codex-collab`, `ultra-verify` | `cc-collab`, `codex-collab`, `ultra-verify` | `cc-collab`, `ultra-verify` | `cc-collab`, `codex-collab`, `ultra-verify` |
-| Host bootstrap | native plugin context | native plugin context | native plugin context | `using-ultra-builder-pro` session-start skill |
+| Automatic workflow bootstrap | N/A | N/A | N/A | N/A |
 | External browser/deploy/framework skills | N/A | N/A | N/A | N/A |
 
 Codex converts workflows into namespaced skills and records eleven legacy
@@ -46,21 +46,17 @@ not presented as nonexistent custom agents.
 
 | Lifecycle | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
-| Session context/health | FULL, DB-derived Context Spine breadcrumb on native `SessionStart` | FULL, the native JS plugin invokes the same bundled DB breadcrumb reader; health via `system.doctor` | FULL, DB-derived breadcrumb on native `SessionStart` | FULL, DB-derived breadcrumb via session-start skill + hooks |
+| Session context/health | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, native JS plugin injects only an active-workflow breadcrumb; health via `system.doctor` | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, active-workflow breadcrumb via native hooks |
 | Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | FULL, native `PreToolUse Edit|Write` deny contract |
 | Pre-compact checkpoint | FULL | FULL | FULL | FULL, native `PreCompact` |
 | Post-compact context injection | FULL | FULL, native compacting context | FULL, native `PostCompact` restore | DEGRADED; checkpoint restoration runs, but Kimi 0.26/0.27 does not reinject fire-and-forget hook text |
 | Stop lifecycle advisory | FULL, native non-blocking `Stop` | N/A, no equivalent stop event needed | FULL, native non-blocking `Stop` | FULL, native non-blocking `Stop` |
 | Subagent lifecycle evidence | FULL | DEGRADED, no equivalent packaged event | FULL | FULL, native `SubagentStart` / `SubagentStop` |
 
-Kimi's session bootstrap therefore also instructs recovery to inspect
-`.ultra/runtime/checkpoint.json` and call Ultra status/doctor after compaction.
-This keeps durable recovery intact without claiming dynamic context injection
-that the host does not guarantee.
-
-Health/context hooks inspect initialized projects; projection protection also
-applies at baseline, while compact/stop/subagent enforcement remains
-active-workflow scoped. No host receives prompt capture, transcript capture,
+Health/context, compact, stop, and subagent hooks remain silent unless
+`.ultra/state.db` proves an active, blocked, or ready workflow. Projection
+protection applies to every initialized project because generated projections
+must never become a second authority. No host receives prompt capture, transcript capture,
 observation journaling, session-summary memory, generic command blocking, or
 generic post-edit policy.
 Baseline-adoption and context-budget warnings are injected as advisory context;
@@ -89,20 +85,19 @@ generated launcher recovers the project from the inherited `PWD`, sets
 cannot be established. On POSIX it intentionally uses `env node` because Kimi
 0.26/0.27's embedded Node ABI differs from the ABI used to install `better-sqlite3`.
 
-## 5. User handbook presentation
+## 5. User instruction isolation
 
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | Durable user file | `~/.claude/CLAUDE.md` | `~/.config/opencode/AGENTS.md` | `~/.codex/AGENTS.md` | `~/.kimi-code/AGENTS.md` |
 | Automatic overwrite by plugin install | no | no | no | no |
-| Explicit managed-block sync | `ubp-handbook apply --runtime claude` | `ubp-handbook apply --runtime opencode` | `ubp-handbook apply --runtime codex` | `ubp-handbook apply --runtime kimi` |
-| Explicit complete-handbook convergence | `--full --confirm TOKEN` | `--full --confirm TOKEN` | `--full --confirm TOKEN` | `--full --confirm TOKEN` |
-| Backup before change | FULL | FULL | FULL | FULL |
+| Writer shipped by Ultra | N/A | N/A | N/A | N/A |
+| Uninstall removes user instructions | no | no | no | no |
 
-The Kimi plugin installer does not edit `~/.kimi-code/config.toml`. Handbook
-sync remains a separate, previewable action so user policy and plugin mechanics
-do not become one irreversible mutation. Full mode is a semantic host rendering,
-not a product-name or path substitution.
+The Kimi plugin installer also does not edit `~/.kimi-code/config.toml`. Durable
+user preferences belong to each host and remain outside Ultra's ownership.
+Legacy Ultra handbook text is not proof of plugin ownership and is never
+silently rewritten or removed.
 
 ## 6. Install, update, and uninstall
 
@@ -151,8 +146,8 @@ records. Uninstall refuses an unmanaged or conflicting root.
   skills and generic/memory hooks from re-entering a package.
 - `tests/retired-runtime.test.cjs` prevents retired runtime code or prompt text
   from re-entering active product surfaces.
-- `adapters/_shared/tests/handbook.test.cjs` verifies bounded and full host
-  rendering, external-provider block preservation, backup, migration, and idempotency.
+- `adapters/_shared/tests/plugin-isolation.test.cjs` and `tests/install.test.cjs`
+  verify the absence of a handbook writer and byte-preservation of all user instruction files.
 - `adapters/_shared/tests/provenance.test.cjs` verifies normalized manifests,
   content hashes, source attribution, corruption handling, and contract drift.
 - `tests/install.test.cjs` verifies healthy four-host doctor output and

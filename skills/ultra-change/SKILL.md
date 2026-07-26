@@ -60,9 +60,10 @@ meaning is coupled. Downstream task, context, test, or review evidence affected 
 change must become stale and be regenerated; never keep old evidence green by prompt
 assertion.
 
-If research is required, invoke `ultra-research` with the recorded disposition. If the
-contract is sufficiently evidenced, the host may recommend `ultra-plan`. `change.context`
-is compiled only for an actual plan, implementation, test, or review consumer.
+If research is required, recommend `ultra-research` with the recorded disposition. If
+the contract is sufficiently evidenced, recommend `ultra-plan`. Return and wait for an
+explicit user invocation; do not start either workflow. `change.context` is compiled
+only for an actual plan, implementation, test, or review consumer.
 
 Stable implementation discoveries use the approval-gated specification-learning
 transitions. External memory and graph providers retain their own content; Ultra stores

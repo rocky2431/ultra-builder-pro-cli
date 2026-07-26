@@ -12,8 +12,8 @@ Ultra Builder Pro owns only:
   `ultra-think`, plus the daily `ultra-change` and diagnostic `ultra-doctor`;
 - four internal agent-only rule skills: `code-review-expert`, `security-rules`,
   `integration-rules`, and `testing-rules`;
-- the host-specific collaboration companions, `ultra-verify`, and the minimal
-  Kimi session bootstrap required to establish the shared runtime boundary;
+- the host-specific collaboration companions, `ultra-verify`, and host-native
+  explicit command or skill entry points;
 - bounded review/debug agents, workflow-only hooks, MCP task state, and the
   portable CLI/orchestrator.
 
@@ -191,31 +191,17 @@ Archive before prune; the confirmation token is intentionally required.
     └── delivery/<workflow-id>.json
 ```
 
-## 10. User handbook integration
+## 10. Plugin and user-instruction isolation
 
-General engineering doctrine lives in the host's durable `CLAUDE.md` or `AGENTS.md`.
-Ultra Builder Pro supports two explicit operations. Default mode updates only the
-bounded runtime contract:
+General engineering doctrine and long-term personal preferences live in each
+host's durable `CLAUDE.md` or `AGENTS.md`. Ultra never writes those files. Its
+workflow doctrine remains in plugin-owned skills and is loaded only through an
+explicit public invocation.
 
-```bash
-ubp-handbook preview --runtime codex
-ubp-handbook apply --runtime codex
-```
-
-Full mode replaces legacy unmarked prompt content with one complete host-native
-engineering handbook:
-
-```bash
-ubp-handbook preview --runtime codex --full > /tmp/ubp-codex-handbook.md
-ubp-handbook apply --runtime codex --full \
-  --confirm "PASTE_64_CHARACTER_TOKEN_HERE"
-```
-
-Supported runtime names are `claude`, `codex`, `opencode`, and `kimi`. The full
-preview prints its content-bound confirmation token to stderr. Both apply modes
-create a timestamped backup. Full mode preserves supported marker-delimited blocks
-owned by other providers, follows handbook symlinks, and rejects missing or stale
-confirmation. Plugin adapters never overwrite handbooks implicitly.
+Installation and uninstall own only adapter-declared commands, skills, workers,
+hooks, runtime assets, provenance, and host registration. Project authority is
+created only by an explicit `ultra-init`, and uninstall never deletes `.ultra/`.
+See [`PLUGIN-ISOLATION-CONTRACT.md`](./PLUGIN-ISOLATION-CONTRACT.md).
 
 ## 11. Verification
 

@@ -69,6 +69,12 @@ def seed_active_context(project: Path) -> Path:
                        'ready', '[]', ?)""",
             ("a" * 64, json.dumps(context)),
         )
+        conn.execute(
+            """INSERT INTO workflow_runs
+               (id, kind, subject, status, current_step, baseline_id, change_id, task_id)
+               VALUES ('wf-checkpoint', 'dev', 'Checkpoint task', 'active', 'implement',
+                       'baseline', 'change-checkpoint', 'task-checkpoint')"""
+        )
     return db_path
 
 
@@ -85,7 +91,7 @@ def test_checkpoint_captures_only_the_db_breadcrumb(tmp_path):
     assert checkpoint["session_id"] == "session-checkpoint"
     assert checkpoint["breadcrumb"]["change_id"] == "change-checkpoint"
     assert checkpoint["breadcrumb"]["task_id"] == "task-checkpoint"
-    assert "workflow" not in checkpoint
+    assert checkpoint["breadcrumb"]["workflow"]["id"] == "wf-checkpoint"
 
 
 def test_resume_uses_live_db_and_ignores_conflicting_legacy_projection(tmp_path):

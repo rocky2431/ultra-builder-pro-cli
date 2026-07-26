@@ -85,6 +85,11 @@ test('Claude plugin collaboration and learn workflows are safe native plugin ass
       const contents = read(name);
       const { fm } = parseFrontmatter(contents);
       assert.equal(fm['user-invocable'], !INTERNAL_AGENT_SKILLS.includes(name), name);
+      assert.equal(
+        fm['disable-model-invocation'],
+        INTERNAL_AGENT_SKILLS.includes(name) ? undefined : true,
+        `${name} invocation ownership`,
+      );
       assert.doesNotMatch(contents, /\bgraphify\b/i, `${name} contains an external Skill binding`);
     }
 

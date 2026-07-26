@@ -75,7 +75,8 @@ Read the returned `allowed_transitions` and `required_transition`:
 - a required transition represents a hard recovery invariant and must be followed;
 - otherwise the host model recommends among the allowed capabilities using the user's
   goal and current evidence;
-- start `ultra-research` only when the user invoked it or the host selects it after init.
+- never invoke another public Ultra workflow automatically; recommend the best allowed
+  capability and wait for an explicit user invocation.
 
 Report classification, scope, schema and backup result, Git state, init workflow id,
 baseline state, and allowed transitions. Do not claim that a baseline is ready until a

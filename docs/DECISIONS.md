@@ -70,6 +70,6 @@ release, deployment, or destructive effect.
 - Runtime architecture: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - Workflow state and invalidation: [`WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md)
 - Host compatibility: [`RUNTIME-COMPAT-MATRIX.md`](./RUNTIME-COMPAT-MATRIX.md)
-- User handbook projection: [`USER-HANDBOOK-CONTRACT.md`](./USER-HANDBOOK-CONTRACT.md)
+- Plugin and user-instruction boundary: [`PLUGIN-ISOLATION-CONTRACT.md`](./PLUGIN-ISOLATION-CONTRACT.md)
 - MCP interface: [`../spec/mcp-tools.yaml`](../spec/mcp-tools.yaml)
 - Database contract: [`../spec/schemas/state-db.sql`](../spec/schemas/state-db.sql)

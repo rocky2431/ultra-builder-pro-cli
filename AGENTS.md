@@ -1,8 +1,8 @@
 # Ultra Builder Pro Repository Engineering Guide — Codex
 
 This file contains repository-specific guidance for developing Ultra Builder Pro with
-Codex. General user engineering policy belongs in `~/.codex/AGENTS.md`; do not duplicate
-the complete user handbook here.
+Codex. General user engineering policy belongs in `~/.codex/AGENTS.md`; the plugin must
+not create or rewrite that file.
 
 ## Product boundary
 
@@ -17,7 +17,7 @@ in separately installed owner packages.
 ## Sources of truth
 
 - `adapters/_shared/runtime-assets.cjs`: packaged Skill, hook, and collaboration allowlists.
-- `adapters/_shared/handbook.cjs`: bounded and full user-handbook renderers.
+- `docs/PLUGIN-ISOLATION-CONTRACT.md`: installation, activation, idle, and ownership boundaries.
 - `mcp-server/lib/workflow-state.cjs`: workflow state transitions and durable gates.
 - `spec/mcp-tools.yaml`: public MCP contract.
 - `skills/*/SKILL.md`: reusable workflow prompts.
@@ -34,18 +34,9 @@ manifests, and MCP wiring must remain Codex-native. Never make a foreign prompt
 “compatible” through path or product-name substitution alone.
 
 Shared Skills must remain host-neutral. Put host-specific invocation and wiring in the
-adapter. Do not recreate deprecated prompt or user-Skill projections outside the native
-plugin boundary.
-
-The complete user handbook is installed only through explicit:
-
-```bash
-ubp-handbook preview --runtime codex --full > /tmp/ubp-codex-handbook.md
-ubp-handbook apply --runtime codex --full \
-  --confirm "PASTE_64_CHARACTER_TOKEN_HERE"
-```
-
-Plugin installation must never mutate the user handbook implicitly.
+adapter. Do not recreate deprecated prompt, user-Skill, or user-handbook projections
+outside the native plugin boundary. Public workflows require explicit owner invocation;
+one workflow may recommend but must not launch another.
 
 ## Development workflow
 
@@ -77,6 +68,6 @@ changes.
 Use Conventional Commits and include only authorized paths. Do not add AI co-author
 trailers; the configured Git user remains the sole commit author.
 
-Commit, push, tag, npm publication, GitHub Release, handbook application, and host
-installation are separate effects. Perform only the effects explicitly authorized by
-the user and verify each one independently.
+Commit, push, tag, npm publication, GitHub Release, and host installation are separate
+effects. Perform only the effects explicitly authorized by the user and verify each one
+independently.

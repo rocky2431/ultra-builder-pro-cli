@@ -10,7 +10,7 @@ const { pathToFileURL } = require('node:url');
 
 const opencode = require('../opencode.js');
 const { parse: parseFm } = require('../_shared/frontmatter.cjs');
-const { skillsForRuntime } = require('../_shared/runtime-assets.cjs');
+const { CORE_PUBLIC_SKILLS, skillsForRuntime } = require('../_shared/runtime-assets.cjs');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const changes = require('../../mcp-server/lib/change-workflow.cjs');
 const { createTask } = require('../../mcp-server/lib/state-ops.cjs');
@@ -23,12 +23,12 @@ function mkTarget() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-opencode-'));
 }
 
-test('install builds a native OpenCode plugin and copies only allowlisted skills', () => {
+test('install builds explicit OpenCode commands without exposing public workflows as model skills', () => {
   const target = mkTarget();
   try {
     const r = opencode.install({ configDir: target, repoRoot: REPO_ROOT });
     assert.ok(r.copied.commands.includes('ultra-init.md'));
-    assert.ok(r.copied.skills.some((p) => p.includes('ultra-init/SKILL.md')));
+    assert.ok(!r.copied.skills.some((p) => p.includes('ultra-init/SKILL.md')));
     assert.ok(r.copied.plugins.includes('ultra-builder-pro.js'));
     assert.ok(fs.existsSync(path.join(target, 'plugins', 'ultra-builder-pro.js')));
     assert.deepEqual(
@@ -36,13 +36,17 @@ test('install builds a native OpenCode plugin and copies only allowlisted skills
         .filter((entry) => entry.isDirectory())
         .map((entry) => entry.name)
         .sort(),
-      skillsForRuntime('opencode').sort(),
+      skillsForRuntime('opencode')
+        .filter((name) => !CORE_PUBLIC_SKILLS.includes(name))
+        .sort(),
     );
 
     // OpenCode commands expose only fields accepted by the native command contract.
     const dst = fs.readFileSync(path.join(target, 'commands', 'ultra-init.md'), 'utf8');
     const { fm: dstFm } = parseFm(dst);
     assert.deepEqual(Object.keys(dstFm), ['description']);
+    assert.match(dst, /\.ultra-builder-pro[\\/]workflows[\\/]ultra-init[\\/]SKILL\.md/);
+    assert.doesNotMatch(dst, /@skills\/ultra-init\/SKILL\.md|Use the registered `ultra-init` skill/);
 
     // forge an upper-case key to prove the transform works
     const hack = path.join(target, 'commands', 'upper.md');
@@ -62,13 +66,19 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
   try {
     opencode.install({ configDir: target, repoRoot: REPO_ROOT });
 
-    const plan = fs.readFileSync(path.join(target, 'skills', 'ultra-plan', 'SKILL.md'), 'utf8');
-    const learn = fs.readFileSync(path.join(target, 'skills', 'learn', 'SKILL.md'), 'utf8');
-    const review = fs.readFileSync(path.join(target, 'skills', 'ultra-review', 'SKILL.md'), 'utf8');
+    const workflow = (name) => fs.readFileSync(
+      path.join(target, opencode.BUNDLE_DIR, 'workflows', name, 'SKILL.md'),
+      'utf8',
+    );
+    const plan = workflow('ultra-plan');
+    const learn = workflow('learn');
+    const review = workflow('ultra-review');
     const codexCollab = fs.readFileSync(path.join(target, 'skills', 'codex-collab', 'SKILL.md'), 'utf8');
     const verify = fs.readFileSync(path.join(target, 'skills', 'ultra-verify', 'SKILL.md'), 'utf8');
 
-    assert.deepEqual(Object.keys(parseFm(plan).fm), ['name', 'description']);
+    assert.deepEqual(Object.keys(parseFm(
+      fs.readFileSync(path.join(target, 'commands', 'ultra-plan.md'), 'utf8'),
+    ).fm), ['description']);
     assert.match(learn, /`~\/.config\/opencode\/skills`/);
     assert.doesNotMatch(learn, /_unverified|learned-[^\s/]*-unverified/i);
     assert.match(review, /OpenCode `task` tool/);
@@ -83,7 +93,7 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     assert.doesNotMatch(plan, /ultra-tools task create/);
 
     const markdown = [];
-    for (const root of ['commands', 'skills', 'agents']) {
+    for (const root of ['commands', 'skills', 'agents', path.join(opencode.BUNDLE_DIR, 'workflows')]) {
       const pending = [path.join(target, root)];
       while (pending.length) {
         const current = pending.pop();
@@ -191,7 +201,7 @@ test('install writes a schema-safe opencode.json and keeps ownership outside hos
   }
 });
 
-test('OpenCode routes a missing authority to init and always protects task projections', async () => {
+test('OpenCode is silent before initialization and protects projections only after state authority exists', async () => {
   const target = mkTarget();
   const project = mkTarget();
   try {
@@ -201,9 +211,15 @@ test('OpenCode routes a missing authority to init and always protects task proje
     const plugin = await module.UltraBuilderProPlugin({ directory: project });
     const output = { system: [] };
     await plugin['experimental.chat.system.transform']({}, output);
-    const text = output.system.join('\n');
-    assert.match(text, /STATE_DB_MISSING/);
-    assert.match(text, /ultra-init/);
+    assert.deepEqual(output.system, []);
+    await assert.doesNotReject(
+      plugin['tool.execute.before'](
+        { tool: 'apply_patch' },
+        { args: { patch: '*** Begin Patch\n*** Update File: .ultra/tasks/tasks.json\n*** End Patch' } },
+      ),
+    );
+    const state = initStateDb(path.join(project, '.ultra', 'state.db'));
+    closeStateDb(state.db);
     await assert.rejects(
       plugin['tool.execute.before'](
         { tool: 'apply_patch' },
@@ -256,6 +272,12 @@ test('OpenCode injects the DB breadcrumb and ignores conflicting workflow projec
         role: 'implement',
         gate: 'implementation',
     }, { rootDir: project });
+    state.db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, status, current_step, baseline_id, change_id, task_id)
+       VALUES ('wf-opencode-dev', 'dev', 'Explicit OpenCode dev', 'active', 'implement',
+               'baseline-db', 'db-authority-change', 'db-authority-task')`,
+    ).run();
 
     fs.writeFileSync(path.join(project, '.ultra', 'workflow-state.json'), JSON.stringify({
       command: 'ultra-dev', task_id: 'projection-task', status: 'active', step: 'wrong',
@@ -345,7 +367,7 @@ test('shared OpenCode asset roots keep unrelated user commands, skills, agents, 
 
 test('install refuses to overwrite an unmanaged OpenCode asset with the same name', () => {
   const target = mkTarget();
-  const conflict = path.join(target, 'skills', 'ultra-init', 'SKILL.md');
+  const conflict = path.join(target, 'skills', 'code-review-expert', 'SKILL.md');
   try {
     fs.mkdirSync(path.dirname(conflict), { recursive: true });
     fs.writeFileSync(conflict, 'user-owned');

@@ -7,8 +7,10 @@ const os = require('node:os');
 const path = require('node:path');
 
 const kimi = require('../kimi.js');
+const { parse: parseFm } = require('../_shared/frontmatter.cjs');
 const {
   CORE_PUBLIC_SKILLS,
+  INTERNAL_AGENT_SKILLS,
   WORKFLOW_HOOK_FILES,
   skillsForRuntime,
 } = require('../_shared/runtime-assets.cjs');
@@ -62,7 +64,7 @@ test('install builds and registers one Kimi-native plugin without changing confi
   }
 });
 
-test('Kimi manifest exposes native skills, commands, hooks, session bootstrap, and MCP', () => {
+test('Kimi manifest exposes explicit native skills, commands, hooks, and MCP without session bootstrap', () => {
   const home = mkTarget();
   const { pluginRoot } = layout(home);
   try {
@@ -72,7 +74,7 @@ test('Kimi manifest exposes native skills, commands, hooks, session bootstrap, a
     assert.equal(manifest.name, PLUGIN_ID);
     assert.deepEqual(manifest.skills, ['./skills']);
     assert.deepEqual(manifest.commands, ['./commands']);
-    assert.deepEqual(manifest.sessionStart, { skill: 'using-ultra-builder-pro' });
+    assert.equal(manifest.sessionStart, undefined);
     assert.equal(manifest.agents, undefined, 'Kimi 0.26/0.27 has no custom-agent manifest field');
     assert.deepEqual(manifest.mcpServers[PLUGIN_ID], {
       transport: 'stdio',
@@ -101,7 +103,7 @@ test('Kimi manifest exposes native skills, commands, hooks, session bootstrap, a
   }
 });
 
-test('Kimi assets are allowlisted and adapted to native tools and paths', () => {
+test('Kimi assets are allowlisted, explicit-only, and adapted to native tools and paths', () => {
   const home = mkTarget();
   const { pluginRoot } = layout(home);
   try {
@@ -112,15 +114,11 @@ test('Kimi assets are allowlisted and adapted to native tools and paths', () => 
         && fs.existsSync(path.join(pluginRoot, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    assert.deepEqual(skills, [...skillsForRuntime('kimi'), 'using-ultra-builder-pro'].sort());
+    assert.deepEqual(skills, skillsForRuntime('kimi').sort());
 
     const learn = fs.readFileSync(path.join(pluginRoot, 'skills', 'learn', 'SKILL.md'), 'utf8');
     const review = fs.readFileSync(path.join(pluginRoot, 'skills', 'ultra-review', 'SKILL.md'), 'utf8');
     const init = fs.readFileSync(path.join(pluginRoot, 'skills', 'ultra-init', 'SKILL.md'), 'utf8');
-    const bootstrap = fs.readFileSync(
-      path.join(pluginRoot, 'skills', 'using-ultra-builder-pro', 'SKILL.md'),
-      'utf8',
-    );
     assert.match(learn, /`~\/.kimi-code\/skills`/);
     assert.doesNotMatch(learn, /_unverified|learned-[^\s/]*-unverified/i);
     assert.match(review, /Kimi `AgentSwarm`/);
@@ -131,9 +129,16 @@ test('Kimi assets are allowlisted and adapted to native tools and paths', () => 
     assert.doesNotMatch(review, /background mode|run_in_background/);
     assert.match(init, /task\.init_project/);
     assert.doesNotMatch(init, /Claude Code|OpenCode|Codex/);
-    assert.match(bootstrap, /\.ultra\/state\.db/);
-    assert.match(bootstrap, /external providers/);
     assert.match(fs.readFileSync(path.join(pluginRoot, 'skills', 'codex-collab', 'SKILL.md'), 'utf8'), /--ephemeral/);
+    for (const name of skillsForRuntime('kimi')) {
+      const contents = fs.readFileSync(path.join(pluginRoot, 'skills', name, 'SKILL.md'), 'utf8');
+      const { fm } = parseFm(contents);
+      assert.equal(
+        fm.disableModelInvocation,
+        INTERNAL_AGENT_SKILLS.includes(name) ? undefined : true,
+        `${name} invocation ownership`,
+      );
+    }
 
     const allPromptAssets = [];
     for (const root of ['commands', 'skills', 'agents']) {

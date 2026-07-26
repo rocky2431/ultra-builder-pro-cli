@@ -80,7 +80,6 @@ ultra-tools/                ← CLI fallback, migration, and diagnostics
     └── legacy-memory.cjs   (explicit inspect/archive/confirmed prune)
 
 bin/install.js              ← multi-runtime installer
-bin/handbook.js             ← explicit bounded or full host-native handbook sync
 adapters/                   ← native Claude/OpenCode/Codex plugin builders
 skills/                     ← allowlisted Ultra workflows, internal rules, and collab companions
 hooks/                      ← 7 executable workflow hooks + shared Context Spine helper; OpenCode uses native JavaScript hooks
@@ -89,7 +88,7 @@ docs/
 ├── ARCHITECTURE.md              Phase 1 single-page entry point
 ├── WORKFLOW-LIFECYCLE.md        baseline classification + DB transition contract
 ├── AGENT-CONTEXT.md             Phase 3 canonical runtime context contract
-├── USER-HANDBOOK-CONTRACT.md    bounded/full CLAUDE.md / AGENTS.md contract
+├── PLUGIN-ISOLATION-CONTRACT.md install, activation, idle, and ownership contract
 ├── RUNTIME-COMPAT-MATRIX.md     Phase 4 runtime capability matrix
 ├── STATE-DB-ACCESS-POLICY.md    Phase 2 multi-process write contract
 ├── COMMIT-HASH-BACKFILL.md      Phase 2.8 two-commit completion flow

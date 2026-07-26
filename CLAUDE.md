@@ -1,8 +1,8 @@
 # Ultra Builder Pro Repository Engineering Guide — Claude Code
 
 This file contains repository-specific guidance for developing Ultra Builder Pro with
-Claude Code. General user engineering policy belongs in `~/.claude/CLAUDE.md`; do not
-duplicate the complete user handbook here.
+Claude Code. General user engineering policy belongs in `~/.claude/CLAUDE.md`; the plugin
+must not create or rewrite that file.
 
 ## Product boundary
 
@@ -17,7 +17,7 @@ in separately installed owner packages.
 ## Sources of truth
 
 - `adapters/_shared/runtime-assets.cjs`: packaged Skill, hook, and collaboration allowlists.
-- `adapters/_shared/handbook.cjs`: bounded and full user-handbook renderers.
+- `docs/PLUGIN-ISOLATION-CONTRACT.md`: installation, activation, idle, and ownership boundaries.
 - `mcp-server/lib/workflow-state.cjs`: workflow state transitions and durable gates.
 - `spec/mcp-tools.yaml`: public MCP contract.
 - `skills/*/SKILL.md`: reusable workflow prompts.
@@ -34,17 +34,9 @@ settings, and plugin paths must remain Claude-native. Never make a foreign promp
 “compatible” through path or product-name substitution alone.
 
 Shared Skills must remain host-neutral. Put host-specific invocation and wiring in the
-adapter. Keep public launchers thin and keep external capabilities out of the package.
-
-The complete user handbook is installed only through explicit:
-
-```bash
-ubp-handbook preview --runtime claude --full > /tmp/ubp-claude-handbook.md
-ubp-handbook apply --runtime claude --full \
-  --confirm "PASTE_64_CHARACTER_TOKEN_HERE"
-```
-
-Plugin installation must never mutate the user handbook implicitly.
+adapter. Keep public launchers thin, require explicit owner invocation, and keep external
+capabilities and user-handbook policy out of the package. One workflow may recommend but
+must not launch another.
 
 ## Development workflow
 
@@ -76,6 +68,6 @@ changes.
 Use Conventional Commits and include only authorized paths. Do not add AI co-author
 trailers; the configured Git user remains the sole commit author.
 
-Commit, push, tag, npm publication, GitHub Release, handbook application, and host
-installation are separate effects. Perform only the effects explicitly authorized by
-the user and verify each one independently.
+Commit, push, tag, npm publication, GitHub Release, and host installation are separate
+effects. Perform only the effects explicitly authorized by the user and verify each one
+independently.

@@ -20,6 +20,7 @@ const provenance = require('./_shared/provenance.cjs');
 const {
   CORE_PUBLIC_SKILLS,
   WORKFLOW_HOOK_FILES,
+  skillPolicy,
   skillsForRuntime,
 } = require('./_shared/runtime-assets.cjs');
 
@@ -28,7 +29,6 @@ const MCP_SERVER_NAME = PLUGIN_ID;
 const PROVENANCE_FILE = 'provenance.json';
 const REGISTRY_RELATIVE = path.join('plugins', 'installed.json');
 const MANAGED_RELATIVE = path.join('plugins', 'managed', PLUGIN_ID);
-const BOOTSTRAP_SKILL = 'using-ultra-builder-pro';
 
 function resolveTarget(ctx = {}) {
   if (ctx.configDir) return path.resolve(ctx.configDir);
@@ -127,11 +127,13 @@ function transformSkill(buf, relPath, skillName) {
   if (!relPath.endsWith('.md')) return buf;
   const { fm, body } = parseFm(source);
   if (!fm) return Buffer.from(kimiTextTransform(source, skillName), 'utf8');
+  const policy = skillPolicy(skillName);
   const nativeFm = {
     name: String(fm.name || skillName),
     description: kimiTextTransform(fm.description || `${skillName} workflow`, skillName)
       .replace(/\s+/g, ' ')
       .trim(),
+    ...(policy.userInvocable ? { disableModelInvocation: true } : {}),
   };
   return Buffer.from(serializeFm(nativeFm, kimiTextTransform(body, skillName)), 'utf8');
 }
@@ -162,29 +164,6 @@ function copySkills(repoRoot, pluginRoot) {
     });
     installed.push(name);
   }
-  const bootstrapRoot = path.join(pluginRoot, 'skills', BOOTSTRAP_SKILL);
-  ensureDir(bootstrapRoot);
-  writeAtomic(path.join(bootstrapRoot, 'SKILL.md'), `---
-name: ${BOOTSTRAP_SKILL}
-description: Bootstrap the Kimi-native Ultra Builder Pro runtime contract at session start.
----
-
-# Ultra Builder Pro for Kimi Code
-
-Kimi Code is the primary host and owns all edits, evidence, and final verification. Use the
-namespaced \`/ultra-builder-pro:ultra-*\` commands or invoke the registered Ultra skills directly.
-
-- \`.ultra/state.db\` is the only durable Ultra authority. JSON and Markdown under \`.ultra/\` are
-  projections or workflow artifacts and must never replace MCP state writes.
-- Memory and code graph data belong to separately installed external providers. Ultra stores only
-  provider metadata references and never captures prompts, transcripts, or cross-session memory.
-- Use Kimi \`TodoList\` for session coordination and Kimi \`Agent\` / \`AgentSwarm\` for bounded
-  workers. Bundled files under \`$KIMI_PLUGIN_ROOT/agents/\` are worker prompt templates.
-- Before compaction, Ultra saves its workflow checkpoint. After compaction or recovery, inspect
-  \`.ultra/runtime/checkpoint.json\` and call the Ultra status/doctor MCP tools before continuing.
-- If no Ultra workflow is active, the lifecycle hooks remain advisory except projection protection.
-`);
-  installed.push(BOOTSTRAP_SKILL);
   return installed;
 }
 
@@ -280,7 +259,6 @@ function writeManifest(repoRoot, pluginRoot) {
     homepage: pkg.homepage,
     license: pkg.license || 'MIT',
     skills: ['./skills'],
-    sessionStart: { skill: BOOTSTRAP_SKILL },
     mcpServers: { [MCP_SERVER_NAME]: mcpManifest() },
     hooks: buildHooksManifest(),
     commands: ['./commands'],
@@ -351,9 +329,6 @@ function writePluginProvenance(repoRoot, target) {
       mcp_launcher: { root: 'plugin', path: path.join('runtime', 'launch.cjs') },
       hook_event_helper: { root: 'plugin', path: path.join('runtime', 'hook-event.cjs') },
       hook_adapter: { root: 'plugin', path: path.join('hooks', 'adapters', 'kimi.py') },
-      session_bootstrap: {
-        root: 'plugin', path: path.join('skills', BOOTSTRAP_SKILL, 'SKILL.md'),
-      },
     },
   });
   return { file, manifest };
@@ -444,7 +419,7 @@ function doctor(ctx = {}) {
       && manifest.skills.includes('./skills')
       && Array.isArray(manifest.commands)
       && manifest.commands.includes('./commands')
-      && manifest.sessionStart?.skill === BOOTSTRAP_SKILL;
+      && manifest.sessionStart === undefined;
     const mcp = manifest.mcpServers?.[MCP_SERVER_NAME];
     const expected = mcpManifest();
     mcpOk = !!mcp
@@ -508,7 +483,6 @@ module.exports = {
   name: 'kimi',
   PLUGIN_ID,
   MCP_SERVER_NAME,
-  BOOTSTRAP_SKILL,
   buildHooksManifest,
   kimiTextTransform,
   resolveTarget,

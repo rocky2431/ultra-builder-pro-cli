@@ -351,6 +351,15 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
     assert.ok(fs.existsSync(path.join(projectDir, '.ultra', 'state.db')));
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, '.ultra', 'state.db')));
 
+    const lifecycleSeed = initStateDb(path.join(projectDir, '.ultra', 'state.db')).db;
+    lifecycleSeed.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, status, current_step, baseline_id, change_id, task_id)
+       VALUES ('wf-bundle-hook', 'review', 'Explicit bundled hook fixture', 'active',
+               'bind-diff', 'test-baseline', 'codex-bundle-change', 'codex-bundle-1')`,
+    ).run();
+    closeStateDb(lifecycleSeed);
+
     const status = spawnSync(process.execPath, [
       path.join(layout.pluginRoot, 'runtime', 'ultra-tools.cjs'),
       'status', '--cost', '--json',

@@ -27,6 +27,12 @@ def seed_active_change(root: Path):
                VALUES ('hook-task', 'Hook task', 'feature', 'P1', 'in_progress',
                        'hook-change')"""
         )
+        conn.execute(
+            """INSERT INTO workflow_runs
+               (id, kind, subject, status, current_step, change_id, task_id)
+               VALUES ('wf-hook', 'review', 'Track worker lifecycle', 'active',
+                       'run-review', 'hook-change', 'hook-task')"""
+        )
 
 
 def run_hook(root: Path, action: str, payload: dict):
@@ -77,6 +83,26 @@ def test_idle_project_is_a_no_op(tmp_path):
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))
     output, _ = run_hook(tmp_path, "start", {"agent_id": "idle"})
     assert output == {}
+    with sqlite3.connect(ultra / "state.db") as conn:
+        assert conn.execute(
+            "SELECT COUNT(*) FROM events WHERE type LIKE 'subagent_%'"
+        ).fetchone()[0] == 0
+
+
+def test_active_change_without_active_workflow_is_a_no_op(tmp_path):
+    ultra = tmp_path / ".ultra"
+    ultra.mkdir()
+    with sqlite3.connect(ultra / "state.db") as conn:
+        conn.executescript(SCHEMA.read_text(encoding="utf-8"))
+        conn.execute(
+            """INSERT INTO changes
+               (id, title, kind, status, intent, artifact_root)
+               VALUES ('idle-change', 'Idle change', 'quick', 'active',
+                       'Wait for invocation.', '.ultra/changes/active/idle-change')"""
+        )
+    output, stderr = run_hook(tmp_path, "start", {"agent_id": "idle-change-agent"})
+    assert output == {}
+    assert stderr == ""
     with sqlite3.connect(ultra / "state.db") as conn:
         assert conn.execute(
             "SELECT COUNT(*) FROM events WHERE type LIKE 'subagent_%'"

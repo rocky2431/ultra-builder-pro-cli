@@ -32,7 +32,7 @@ test('kimi conformance — native manifest exposes all twelve workflow commands'
       fs.readdirSync(path.join(value.pluginRoot, 'commands')).sort(),
       CORE_PUBLIC_SKILLS.map((name) => `${name}.md`).sort(),
     );
-    assert.deepEqual(manifest.sessionStart, { skill: 'using-ultra-builder-pro' });
+    assert.equal(manifest.sessionStart, undefined);
   } finally { cleanup(value.home); }
 });
 
@@ -45,8 +45,8 @@ test('kimi conformance — complete skills plus functional worker templates', ()
         && fs.existsSync(path.join(value.pluginRoot, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    assert.deepEqual(skills, [...skillsForRuntime('kimi'), 'using-ultra-builder-pro'].sort());
-    assert.equal(skills.length, 20);
+    assert.deepEqual(skills, skillsForRuntime('kimi').sort());
+    assert.equal(skills.length, 19);
     assert.equal(
       fs.readdirSync(path.join(value.pluginRoot, 'agents')).filter((name) => name.endsWith('.md')).length,
       10,

@@ -64,7 +64,7 @@ def main() -> None:
     text = None
     try:
         breadcrumb = read_breadcrumb(root)
-        if breadcrumb:
+        if breadcrumb and breadcrumb.get("workflow"):
             text = render_breadcrumb(root, breadcrumb)
     except ContextSpineError as exc:
         print(f"[workflow_resume] cannot inspect Context Spine: {exc}", file=sys.stderr)

@@ -155,24 +155,11 @@ npx --yes ultra-builder-pro-cli@latest --all --global --doctor --json
 After installing or upgrading, start a new Claude Code, OpenCode, or Codex
 session. In Kimi Code, run `/reload` or start a new session.
 
-Plugin installation does not mutate durable user instructions. To preview and
-explicitly converge a legacy handbook into the complete host-native engineering
-contract, use full mode:
-
-```bash
-npx --yes --package ultra-builder-pro-cli@latest \
-  ubp-handbook preview --runtime codex --full > /tmp/ubp-codex-handbook.md
-# Inspect the preview, then copy the confirmation token printed to the terminal.
-npx --yes --package ultra-builder-pro-cli@latest \
-  ubp-handbook apply --runtime codex --full \
-  --confirm "PASTE_64_CHARACTER_TOKEN_HERE"
-```
-
-Replace `codex` with `claude`, `opencode`, or `kimi` for the other hosts. The
-apply command rejects a missing or stale preview token, creates a timestamped
-backup, follows user-managed handbook symlinks, and preserves supported
-marker-delimited content owned by other providers. Without `--full`, only the
-small Ultra runtime block is merged.
+Plugin installation, update, doctor, and uninstall never mutate durable user
+instructions such as `CLAUDE.md` or `AGENTS.md`. Ultra policy stays in the plugin
+and becomes active only after an explicit workflow invocation. Existing legacy
+Ultra marker blocks in a user handbook are left untouched for the owner to review;
+the plugin neither claims nor silently deletes user-authored content.
 
 ### Host invocation
 
@@ -366,7 +353,6 @@ worker execution or verified auto-merge.
 | `ultra-builder-pro-cli` / `ubp` | Install, update, uninstall, and diagnose host plugins |
 | `ultra-tools` | Inspect and maintain project tasks, sessions, state, migration, and recovery |
 | `ubp-orchestrator` | Execute current dependency waves or supervise configured workers |
-| `ubp-handbook` | Preview or apply either the bounded Ultra block or the explicit full host-native handbook |
 
 Useful read-only checks:
 
@@ -426,7 +412,7 @@ and `test:rest`.
 | [Runtime Compatibility Matrix](./docs/RUNTIME-COMPAT-MATRIX.md) | Claude Code, OpenCode, Codex, and Kimi presentation details |
 | [Legacy CLI Crosswalk](./docs/LEGACY-CLI-CROSSWALK.md) | What was preserved, strengthened, or replaced from the original Ultra Builder Pro |
 | [Agent Context](./docs/AGENT-CONTEXT.md) | Context Manifest and host-agent execution contract |
-| [User Handbook Contract](./docs/USER-HANDBOOK-CONTRACT.md) | Shared user-level policy and managed host renderings |
+| [Plugin Isolation Contract](./docs/PLUGIN-ISOLATION-CONTRACT.md) | Plugin ownership, explicit activation, idle behavior, and user-instruction isolation |
 | [State DB Access Policy](./docs/STATE-DB-ACCESS-POLICY.md) | Multi-process authority and write rules |
 | [Roadmap](./docs/ROADMAP.md) | Current and historical delivery scope |
 | [Changelog](./CHANGELOG.md) | Release history |

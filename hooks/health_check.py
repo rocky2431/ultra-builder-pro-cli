@@ -27,6 +27,22 @@ def hook_input() -> dict:
         return {}
 
 
+def has_active_workflow(db_path: Path) -> bool:
+    if not db_path.is_file():
+        return False
+    try:
+        uri = f"file:{db_path}?mode=ro"
+        with sqlite3.connect(uri, uri=True, timeout=1) as conn:
+            row = conn.execute(
+                """SELECT 1 FROM workflow_runs
+                   WHERE status IN ('active', 'blocked', 'ready')
+                   LIMIT 1"""
+            ).fetchone()
+            return row is not None
+    except sqlite3.Error:
+        return False
+
+
 def inspect(root: Path) -> dict:
     db_path = root / ".ultra" / "state.db"
     report = {"status": "healthy", "project": str(root), "checks": {}}
@@ -169,6 +185,9 @@ def main() -> None:
     start = Path(data.get("cwd") or Path.cwd()).resolve()
     root = find_root(start)
     if root is None:
+        print(json.dumps({}))
+        return
+    if not has_active_workflow(root / ".ultra" / "state.db"):
         print(json.dumps({}))
         return
     report = inspect(root)
