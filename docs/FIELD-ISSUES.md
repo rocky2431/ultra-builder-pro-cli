@@ -343,10 +343,13 @@ context panel at all (`skills/ultra-status/SKILL.md:40-52`).
   host, on the grounds that context management is not Ultra's boundary. (c) is a
   defensible reading of the product boundary and should be decided explicitly rather than
   by omission.
-- **Relates to**: F-004 — context thrash is one reason six hours produced no demo.
+- **Relates to**: F-004 — context thrash is one reason six hours produced no demo. F-008 —
+  the author's recommended practice (a new host session per `ultra-dev` task) is the
+  working answer to this entry, and the fact that it reaches operators by word of mouth
+  rather than through the package is itself the gap.
 - **Resolution**: _unresolved_
 
-### F-006 — `ultra-deliver` blocked by baseline blockers that ordinary development creates
+### F-006 — `ultra-deliver` dead end that the status output cannot explain
 
 - **Reported**: 2026-07-27
 - **Surface**: `ultra-deliver` · `change.converge` · `baselineGateForChange`
@@ -356,12 +359,60 @@ context panel at all (`skills/ultra-status/SKILL.md:40-52`).
 - **Expected**: delivery reconciles the baseline it was built against; making the change
   should not disqualify the change from being delivered.
 - **Observed**: baseline blockers persist and delivery cannot proceed.
-- **Status**: reported (mechanism identified in source; the reporter's exact blocker codes
-  are not yet captured — see below)
-- **Disposition**: unset pending the exact codes; candidate `defect` on the
-  `_MISSING`/`_STALE` asymmetry
+- **Status**: reproduced — actual cause captured 2026-07-28 from the reporting project
+- **Disposition**: `defect`, on diagnosability rather than on the gate itself
 
-**The tolerance design is sound.** `inspectBaseline`
+**Actual cause, from the project.** `ultra-tools status` and `system doctor` in
+`game_theory_simulator`:
+
+```
+Baseline: greenfield/blocked · blocked
+Baseline blockers: BASELINE_NOT_READY:blocked
+Workflows: active=2 blocked=1 ready=0 health=fail
+Changes: active=0 blocked=0 ready=0 archived=0
+Allowed transitions: ultra-research, ultra-status, ultra-doctor
+```
+
+```json
+"baseline": { "id": "gts-baseline-v2", "baseline_status": "blocked",
+  "gaps": { "total": 9, "open": 3, "blocking": 0 },
+  "blockers": ["BASELINE_NOT_READY:blocked"] },
+"terminal_authority_runs": [
+  { "id": "wf-test-7800e726-cc3",    "kind": "test",    "status": "active",
+    "change_id": "chg-equilibrium-core", "change_status": "cancelled" },
+  { "id": "wf-deliver-edcd7c7f-59e", "kind": "deliver", "status": "blocked",
+    "change_id": "chg-equilibrium-core", "change_status": "cancelled" }]
+```
+
+Two independent dead ends, neither of them drift:
+
+1. The baseline never reached `ready`. `inspectBaseline` returns
+   `BASELINE_NOT_READY:blocked` at `mcp-server/lib/baseline-workflow.cjs:837` — an early
+   return *before* any drift analysis — and `baselineGateForChange` refuses tolerance for
+   any non-`ready` baseline (`mcp-server/lib/context-spine.cjs:86`). No drift code was ever
+   evaluated. Notably `blocking` gaps are **0**, so nothing substantive is wrong; the
+   baseline is simply stuck mid-convergence.
+2. The deliver workflow is bound to a **cancelled** change. `chg-equilibrium-core` is
+   cancelled while `wf-deliver-edcd7c7f-59e` remains `blocked` and
+   `wf-test-7800e726-cc3` remains `active` against it. With `Changes: active=0` there is
+   nothing left to deliver, so `ultra-deliver` cannot succeed under any baseline state.
+
+**The real defect is that none of this was visible.** `system doctor` names the condition
+precisely — it has a dedicated `terminal_authority_runs` field for exactly this — but the
+human-readable `status` output renders it as `Workflows: active=2 blocked=1 health=fail`.
+An operator is told a count and a health verdict, never that their deliver workflow is
+bound to a cancelled change. The diagnosis exists in the runtime and is withheld from the
+surface the operator reads. `Allowed transitions` did correctly exclude `ultra-deliver`,
+but nothing connected that omission to a reason.
+
+**Correction to the first triage of this entry.** Before these codes were captured, three
+mechanisms were proposed from source reading: the `_MISSING`/`_STALE` asymmetry, a stale
+baseline binding, and unborn-Git. None is what happened here. They remain real latent
+issues in the code — the asymmetry below is verified and still worth fixing — but they did
+not cause this report. Recorded as a caution: source-plausible mechanisms are not evidence,
+and this entry should not have been triaged before the codes were in hand.
+
+**Latent issue found while diagnosing (not the cause here).** `inspectBaseline`
 (`mcp-server/lib/baseline-workflow.cjs:822`) compares the recorded baseline against the
 live checkout, so ordinary development necessarily makes it fail — you moved HEAD, you
 dirtied the worktree. `baselineGateForChange` (`mcp-server/lib/context-spine.cjs:72`)
@@ -404,19 +455,24 @@ delivery gate that actually refused.
 **Common shape with F-001 and F-002.** The escape hatch exists and is well designed; it is
 reachable only on a precondition the owner cannot see and was never told about.
 
-- **Evidence**: `mcp-server/lib/baseline-workflow.cjs:822-877` and `:599-621`;
-  `mcp-server/lib/context-spine.cjs:25-33` and `:72-112`;
+- **Evidence**: live capture from `game_theory_simulator` on 2026-07-28 via
+  `ultra-tools status` and `ultra-tools system doctor`, quoted above. Source:
+  `mcp-server/lib/baseline-workflow.cjs:837` and `:599-621`;
+  `mcp-server/lib/context-spine.cjs:25-33`, `:86`, `:72-112`;
   `mcp-server/lib/change-workflow.cjs:784-796` and `:971-973`. All on `1d63892`.
-- **Needed to finish triage**: the exact blocker codes from the reporting project, via
-  `/ultra-status` (Blockers line) or `system.doctor`. The three mechanisms above have
-  different fixes and cannot be distinguished without them.
-- **Open question for triage**: (a) treat `_MISSING` as tolerated drift when the missing
-  path is inside the active change's declared scope — targets mechanism 1 directly;
-  (b) report `baseline_binding_required` as its own named blocker instead of re-raising
-  drift codes, so mechanism 2 is legible; (c) have `ultra-status` print the gate *mode*
-  (`healthy` / `active_change_drift` / `baseline_binding_required` / `baseline_invalid`)
-  rather than raw codes — cheap, and it makes all three self-diagnosing.
-- **Resolution**: _unresolved_
+- **Open question for triage**: (a) surface `terminal_authority_runs` in the
+  human-readable `status` output — the doctor already computes it, so this is a rendering
+  change and it would have made this report self-diagnosing; (b) name the reason a
+  transition is unavailable, not just the allowed set, so an absent `ultra-deliver` says
+  why; (c) treat `_MISSING` as tolerated drift when the missing path is inside the active
+  change's declared scope, fixing the latent asymmetry above; (d) have `ultra-status`
+  print the gate *mode* (`healthy` / `active_change_drift` / `baseline_binding_required` /
+  `baseline_invalid`) rather than raw codes. (a) is the cheapest and highest value.
+- **Resolution**: _unresolved_. For the reporting project specifically: the baseline is
+  stuck mid-convergence with zero blocking gaps, and the change it was working toward is
+  cancelled — so delivery is unreachable by design, not by defect. Recovering it means
+  converging `gts-baseline-v2` and opening a new change, or declining to use Ultra for
+  delivery on that project.
 
 ### F-007 — a blocked baseline also disables the review gate that would justify unblocking it
 
@@ -472,6 +528,65 @@ recorded gate, and nothing tells the owner this fallback exists.
   fix; (c) is worth doing regardless.
 - **Relates to**: F-006 (same tolerance mechanism), F-004 (both are process cost with no
   gate objecting).
+- **Resolution**: _unresolved_
+
+### F-008 — the recommended operating mode is undocumented, and "session" names two different things
+
+- **Reported**: 2026-07-28
+- **Surface**: `ultra-dev` · `docs/ARCHITECTURE.md` · session family
+- **Host**: Claude Code
+- **Project state**: n/a — guidance gap, reported after the author advised starting a new
+  session for every `ultra-dev` invocation to conserve context
+- **Expected**: the intended way to operate the workflow is written down where the
+  operator will find it.
+- **Observed**: the maintainer's recommended practice appears nowhere in the package, and
+  the one Skill that mentions sessions advises the opposite emphasis.
+- **Status**: reported
+- **Disposition**: `doc-gap`
+
+**Two different things are both called a session.**
+
+| Sense | Definition | Where documented | What it costs |
+|---|---|---|---|
+| Ultra session | Task lease + isolated `git worktree` + heartbeat row + `artifact_dir`; "one session = one authoritative task/runtime lease" (D20) | `docs/ARCHITECTURE.md:298-311` | Concurrency safety; guarded by `session.admission_check` |
+| Host session | One Claude Code conversation and its context window | nowhere in the package | Tokens, compaction, re-derivation |
+
+The author's advice — start a new one for every `ultra-dev` task — is about the **host**
+sense. Every written definition in the package is the **Ultra** sense. An operator reading
+`docs/ARCHITECTURE.md` learns that sessions are leases and worktrees, which says nothing
+about when to end a conversation.
+
+**The one operational mention points the other way.** `skills/ultra-dev/SKILL.md:20`
+instructs: *"Reuse an existing valid session. Otherwise pass admission and call
+`session.spawn`."* That is correct for the Ultra sense — do not spawn redundant leases —
+but an operator applying it to their conversation reads it as *keep working in the session
+you have*, which is precisely the behavior that produced F-005. The Skill's own
+description already promises a *"fresh-context"* live path, so the intent is present; the
+instruction that would deliver it is missing.
+
+Nothing in `README.md`, the Skills, or the docs tells an operator to start a new
+conversation per task. `README.md:31` names the adjacent pain — *"a new session repeats
+research or asks the same questions again"* — as a problem Ultra solves, which if anything
+reads as an argument against restarting.
+
+**Ultra is unusually well positioned to make this cheap**, which is why documenting it is
+worth more here than in most tools: `.ultra/state.db` is the authority, `change.breadcrumb`
+is the compact router, and `hooks/workflow_resume.py` re-injects live authority at session
+start. A new conversation resumes with full state and an empty window. That property is
+built and working; it is simply never recommended.
+
+- **Evidence**: `docs/ARCHITECTURE.md:298-311`; `skills/ultra-dev/SKILL.md:3` and `:20`;
+  `README.md:31`; absence of any per-conversation guidance across `README.md`, `docs/`,
+  and `skills/`. On `1d63892`.
+- **Open question for triage**: (a) add the operating recommendation to
+  `skills/ultra-dev/SKILL.md` and `README.md` — one sentence each, and it closes the
+  reported gap; (b) disambiguate the term, e.g. "Ultra session (lease)" vs "host session
+  (conversation)", wherever both could be read — larger edit, prevents the misreading
+  recurring; (c) pair with F-005(a) so the advice also appears at the moment it matters,
+  in the post-compaction resume text.
+- **Relates to**: F-005 — this is the maintainer's answer to it, which raises the question
+  of why the product does not say so itself. Also F-004: a six-hour single-session build is
+  exactly what this practice prevents.
 - **Resolution**: _unresolved_
 
 ## Cross-cutting themes
