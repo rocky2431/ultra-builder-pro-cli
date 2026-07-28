@@ -634,8 +634,8 @@ test('initProject resume restores the pre-migration authority when a late projec
       git_mode: 'skip',
     });
     const legacyDb = new Database(first.state_db_path);
-    legacyDb.prepare("DELETE FROM schema_version WHERE version = '18.0'").run();
-    legacyDb.prepare("DELETE FROM migration_history WHERE to_version = '18.0'").run();
+    legacyDb.prepare("DELETE FROM schema_version WHERE version = '19.0'").run();
+    legacyDb.prepare("DELETE FROM migration_history WHERE to_version = '19.0'").run();
     const beforeVersions = legacyDb.prepare(
       'SELECT version FROM schema_version ORDER BY rowid',
     ).all().map((row) => row.version);
@@ -672,7 +672,7 @@ test('initProject resume restores the pre-migration authority when a late projec
         beforeVersions,
       );
       assert.equal(
-        restoredDb.prepare("SELECT COUNT(*) AS count FROM schema_version WHERE version = '18.0'")
+        restoredDb.prepare("SELECT COUNT(*) AS count FROM schema_version WHERE version = '19.0'")
           .get().count,
         0,
       );

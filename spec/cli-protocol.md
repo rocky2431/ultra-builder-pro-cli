@@ -122,6 +122,7 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `decision.delegate`       | `decision delegate`          | 16    | mcp     |
 | `decision.defer`          | `decision defer`             | 16    | mcp     |
 | `decision.supersede`      | `decision supersede`         | 16    | mcp     |
+| `decision.complete`       | `decision complete`          | 19    | mcp     |
 | `decision.checkpoint`     | `decision checkpoint`        | 16    | mcp     |
 | `workflow.start`          | `workflow start`            | 13    | mcp     |
 | `workflow.get`            | `workflow get`              | 13    | any     |

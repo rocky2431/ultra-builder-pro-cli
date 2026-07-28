@@ -24,14 +24,14 @@ contract and adds stronger authority, recovery, or portability.
 | Original capability | Current implementation | Compatibility result |
 |---|---|---|
 | Init gathers project facts, creates Ultra files, and establishes Git | `task.init_project` performs deterministic classification, scaffold, schema, Git bootstrap, read-back verification, and then stops | Preserved and strengthened. Init has its own completion boundary and never starts research implicitly. |
-| Complete product and architecture research | `ultra-research` retains the semantic reference catalog while the model selects only applicable areas and records execute/verify/reuse/not-applicable/deferred dispositions as needed | Preserved without questionnaire overload. Necessary reports, typed semantic records, source digests, and material decision checkpoints add durable evidence. |
+| Complete product and architecture research | `ultra-research` retains the semantic reference catalog while the model recommends evidence-relevant coverage and the owner selects, modifies, delegates, or defers the route | Preserved without questionnaire overload. Accepted dispositions, necessary reports, typed semantic records, source digests, and optional material decision checkpoints add durable evidence. |
 | Planning converts accepted research into executable work with dependencies | `ultra-plan` persists complete change-owned task contracts and an exact dependency graph | Preserved and strengthened with topology, acceptance coverage, public seams, verification commands, and plan digests. |
 | Development uses isolated Git work, TDD, verification, review, commit, and integration | `ultra-dev`, `session.*`, and the session runner create real worktrees and retain task/review/commit evidence | Preserved and strengthened. Process exit cannot complete a task; uncommitted or unintegrated worktrees cannot be deleted. |
 | Test checks wiring, acceptance, regression, build, performance, security, and failures | `ultra-test` emits a change-bound immutable report covering each applicable dimension | Preserved and strengthened with HEAD, context, task-set, and report-digest validation. |
 | Review challenges specification fidelity and engineering quality | `ultra-review` is a first-class stage with independent specification and engineering axes | Strengthened. A coordinated summary cannot replace either complete axis. |
 | Delivery verifies clean readiness, documentation, build, and evidence | `ultra-deliver` requires current tasks, test, review, learning resolution, reconciliation, a local archive, and an immutable report | Preserved and strengthened. Publish, deploy, push, and other external effects remain separate explicitly authorized operations. |
 | Status restores the current workflow position | `ultra-status` reads DB authority, Git, sessions, artifacts, decisions, allowed transitions, and any hard recovery requirement | Strengthened. The host recommends the semantic route; projections and Prompt prose cannot override state. |
-| Thinking synchronizes owner and Agent intent | `ultra-think` plus `decision.*` persists one-question dialogue and artifact checkpoints | Strengthened. Observable facts are resolved first; only load-bearing owner choices block. |
+| Thinking synchronizes owner and Agent intent | `ultra-think` plus `decision.*` persists one-question dialogue, non-ceremonial completion, and optional artifact checkpoints | Strengthened. Observable facts are resolved first; only load-bearing owner choices block. |
 
 ## CLI-original capabilities
 
@@ -73,8 +73,9 @@ metadata references.
 ## Reference capability paths and gates
 
 These paths show common capability order and hard prerequisites. They are not a
-single mandatory pipeline: the host selects among MCP-reported allowed transitions,
-while MCP requires one route only for a unique mechanical recovery invariant.
+single mandatory pipeline: the model recommends among MCP-reported allowed
+transitions, while the owner selects or delegates the semantic route. MCP requires one
+route only for a unique mechanical recovery invariant.
 
 ### New repository
 
@@ -83,7 +84,7 @@ task.init_project
   -> greenfield classification
   -> Git bootstrap when absent
   -> init read-back and completion
-  -> explicit full research with model-selected coverage
+  -> explicit full research with a model-recommended, owner-selected route
   -> selected execute/verify/reuse work and synthesis
   -> owner-authorized local checkpoint commit when Git is unborn
   -> baseline.record
@@ -99,7 +100,7 @@ task.init_project
   -> brownfield classification and selected scope
   -> preserve current Git HEAD and dirty-state evidence
   -> init read-back and completion
-  -> explicit adoption research with model-selected coverage
+  -> explicit adoption research with a model-recommended, owner-selected route
   -> characterization verification + known-red/gap ledger
   -> baseline.record + owner approval
   -> baseline.converge
@@ -122,7 +123,8 @@ doctor/migrate with backup
 status
   -> change intent capture
   -> material alignment only when unresolved
-  -> host-selected bounded research, plan, current dev work, think, or status
+  -> model-recommended, owner-selected or delegated bounded research, plan,
+     current dev work, think, or status
   -> session.spawn creates the real task worktree
   -> red/green/verify/review
   -> local task commit and verified integration

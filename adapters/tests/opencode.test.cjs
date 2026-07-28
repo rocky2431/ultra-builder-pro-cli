@@ -183,6 +183,16 @@ test('install writes a schema-safe opencode.json and keeps ownership outside hos
     assert.ok(Array.isArray(config.mcp[opencode.MCP_SERVER_NAME].command));
     assert.equal('_ubp_manifest' in config, false);
     assert.ok(fs.existsSync(path.join(target, opencode.BUNDLE_DIR, '.ubp-managed')));
+    const interaction = JSON.parse(fs.readFileSync(
+      path.join(target, opencode.BUNDLE_DIR, 'spec', 'interaction-contract.json'),
+      'utf8',
+    ));
+    assert.equal(interaction.interaction.question_surface.primary, 'question');
+    assert.equal(
+      interaction.interaction.question_surface.availability,
+      'question_permission_not_denied',
+    );
+    assert.equal(interaction.persistence.user_interaction_proof, 'not_required');
 
     const plugin = fs.readFileSync(path.join(target, 'plugins', 'ultra-builder-pro.js'), 'utf8');
     assert.match(plugin, /experimental\.chat\.system\.transform/);

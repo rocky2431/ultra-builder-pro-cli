@@ -51,7 +51,7 @@ test('breadcrumb routes an adopting baseline to the exact durable workflow step'
         step_id: item.id, disposition: 'execute',
         rationale: 'Current brownfield evidence must be inspected.', evidence_refs: [],
       })),
-      metadata: { selection_reason: 'The model selected the applicable brownfield evidence areas.' },
+      metadata: { selection_reason: 'The owner accepted the applicable brownfield evidence areas.' },
     }, { rootDir });
 
     const breadcrumb = readBreadcrumb(db, {}, { rootDir });
@@ -287,6 +287,49 @@ test('breadcrumb prioritizes one current owner decision over downstream workflow
     assert.deepEqual(breadcrumb.allowed_transitions, ['ultra-think', 'ultra-status']);
     assert.equal(breadcrumb.required_transition, 'ultra-think');
     assert.equal(breadcrumb.next_action, undefined);
+  } finally {
+    db.close();
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('breadcrumb keeps a non-blocking question visible without forcing ultra-think', () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-spine-advisory-decision-'));
+  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  try {
+    seedReadyBaseline(db, rootDir);
+    const created = createChange(db, {
+      ...completeChangeInput(),
+      id: 'advisory-decision-route',
+      title: 'Advisory decision route',
+      kind: 'standard',
+      intent: 'Keep an optional documentation follow-up visible without blocking planning.',
+      docs_impact: { status: 'none', rationale: 'Test fixture only.' },
+    }, { rootDir });
+    decisions.startDecisionThread(db, {
+      id: 'advisory-decision-thread',
+      change_id: created.change.id,
+      workflow_run_id: created.workflow.id,
+      purpose: 'Retain one optional documentation follow-up.',
+      mode: 'fast',
+    });
+    decisions.openDecision(db, {
+      id: 'advisory-release-note',
+      thread_id: 'advisory-decision-thread',
+      phase: 'delivery-docs',
+      question: 'Should a later release note include a migration example?',
+      why_now: 'The answer affects only a later documentation enhancement.',
+      recommendation: 'Defer the example until release documentation begins.',
+      effects: { summary: 'May add one later documentation task.' },
+      blocking: false,
+    });
+
+    const breadcrumb = readBreadcrumb(db, { id: created.change.id }, { rootDir });
+    assert.equal(breadcrumb.readiness, 'ready');
+    assert.equal(breadcrumb.required_transition, null);
+    assert.ok(!breadcrumb.blockers.some((code) => code.startsWith('DECISION_')));
+    assert.equal(breadcrumb.decision.current.id, 'advisory-release-note');
+    assert.ok(breadcrumb.allowed_transitions.some((route) => route !== 'ultra-think'));
   } finally {
     db.close();
     fs.rmSync(rootDir, { recursive: true, force: true });

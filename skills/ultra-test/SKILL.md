@@ -61,5 +61,8 @@ report and current checkout before `verify-test-gate`. `workflow.complete` deriv
 summary from the report and rejects stale, malformed, or contradictory evidence.
 
 Return the profile, exact results, verified seams, blockers, report digest, workflow
-state, and allowed transitions. The host decides whether a broader review, more
-implementation, or delivery is appropriate.
+state, and allowed transitions. Recommend broader review, more implementation, or
+delivery from those transitions. If current intent does not already select the
+semantic next action, use
+`../ultra-think/references/decision-dialogue.md` and wait for the user to select,
+modify, delegate, or defer it.

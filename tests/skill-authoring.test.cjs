@@ -160,9 +160,17 @@ test('research preserves the complete semantic workflow through focused referenc
     ],
   );
   const skillText = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8');
-  assert.match(skillText, /Select the smallest sufficient set of applicable catalog areas/i);
+  assert.match(skillText, /recommend the smallest sufficient set of applicable catalog areas/i);
+  assert.match(skillText, /user (?:selects|chooses), modifies, delegates, or defers/i);
+  assert.match(skillText, /host(?:'s)? native (?:structured )?question/i);
+  assert.match(skillText, /persist the accepted coverage/i);
+  assert.match(
+    skillText,
+    /focused baseline coverage[\s\S]*full.*adoption[\s\S]*custom[\s\S]*change-bound/i,
+  );
   assert.match(skillText, /Omitted\s+catalog areas create no DB step/i);
   assert.match(skillText, /metadata\.selection_reason/i);
+  assert.doesNotMatch(skillText, /host model owns investigation, synthesis, and coverage judgment/i);
   assert.doesNotMatch(skillText, /disposition for every catalog area/i);
   const skillLines = skillText.split('\n').length;
   assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
@@ -174,7 +182,8 @@ test('human-agent alignment uses one canonical resumable decision protocol', () 
   const protocol = fs.readFileSync(reference, 'utf8');
   for (const tool of [
     'decision.list', 'decision.thread_start', 'decision.open', 'decision.resolve',
-    'decision.delegate', 'decision.defer', 'decision.supersede', 'decision.checkpoint',
+    'decision.delegate', 'decision.defer', 'decision.supersede', 'decision.complete',
+    'decision.checkpoint',
   ]) {
     assert.match(protocol, new RegExp(`\\b${tool.replace('.', '\\.')}\\b`), `${tool} is absent from the protocol`);
   }
@@ -182,6 +191,9 @@ test('human-agent alignment uses one canonical resumable decision protocol', () 
   assert.match(protocol, /STOP is mandatory/i);
   assert.match(protocol, /never store raw prompts or\s+transcripts/i);
   assert.match(protocol, /fact acquisition autonomous and decision authority explicit/i);
+  assert.match(protocol, /inspect[\s\S]*suggest[\s\S]*ask[\s\S]*normalize[\s\S]*persist/i);
+  assert.match(protocol, /DB treats (?:the )?normalized intent as current authority/i);
+  assert.match(protocol, /does not prove that the user\s+selected it/i);
 
   for (const name of ['ultra-init', 'ultra-research', 'ultra-think', 'ultra-change', 'ultra-plan']) {
     const { text } = sourceSkill(name);
@@ -190,10 +202,17 @@ test('human-agent alignment uses one canonical resumable decision protocol', () 
   assert.match(sourceSkill('ultra-research').text, /not\s+(?:a\s+)?(?:mandatory\s+)?questionnaire/i);
   assert.match(
     sourceSkill('ultra-research').text,
-    /Reuse the final research\s+checkpoint approval[\s\S]*do not ask\s+for an equivalent approval again/i,
+    /Reuse the final research acceptance or current artifact checkpoint[\s\S]*do not ask\s+for an equivalent approval again/i,
   );
   assert.match(sourceSkill('ultra-change').text, /Ask only when a choice changes accepted product intent/i);
-  assert.match(sourceSkill('ultra-change').text, /model owns reversible implementation detail/i);
+  assert.match(sourceSkill('ultra-change').text, /model owns reversible\s+implementation detail/i);
+  assert.match(sourceSkill('ultra-think').text, /decision\.complete[\s\S]*not another owner approval/i);
+  assert.match(sourceSkill('ultra-plan').text, /EXPAND[\s\S]*SELECTIVE[\s\S]*HOLD[\s\S]*REDUCE/i);
+  assert.match(sourceSkill('ultra-plan').text, /recommend[\s\S]*host(?:'s)? native question/i);
+  assert.match(
+    sourceSkill('ultra-test').text,
+    /recommend[\s\S]*user to select,\s*modify, delegate, or defer/i,
+  );
 });
 
 test('public workflow skills return control to the adaptive capability graph', () => {

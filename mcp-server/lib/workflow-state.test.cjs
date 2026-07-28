@@ -184,7 +184,7 @@ function seedDeliveryPrerequisites(fx, changeId) {
   return task;
 }
 
-test('full research persists only model-selected semantic coverage without expanding the catalog', () => {
+test('full research persists accepted semantic coverage without expanding the catalog', () => {
   const fx = fixture();
   try {
     const coverage = [
@@ -218,7 +218,7 @@ test('full research persists only model-selected semantic coverage without expan
       subject: 'Validate the complete product and architecture baseline.',
       coverage,
       metadata: {
-        selection_reason: 'The host model selected the smallest evidence set for this repository.',
+        selection_reason: 'The owner accepted the recommended smallest evidence set for this repository.',
       },
     }, { rootDir: fx.rootDir });
 
@@ -252,7 +252,7 @@ test('full and adoption research reject an implicit coverage decision', () => {
     assert.throws(
       () => workflows.startWorkflow(fx.db, {
         id: 'research-implicit', kind: 'research', mode: 'full', baseline_id: 'baseline',
-        subject: 'Do not let runtime choose semantic coverage for the model.',
+        subject: 'Do not let runtime choose semantic coverage for the owner and model.',
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
     );
@@ -268,7 +268,7 @@ test('research records evidence and output digests, enforces order, and resumes 
       id: 'research-resume', kind: 'research', mode: 'full', baseline_id: 'baseline',
       subject: 'Research fixture.',
       coverage: researchCoverage(),
-      metadata: { selection_reason: 'The model selected the applicable fixture evidence areas.' },
+      metadata: { selection_reason: 'The owner accepted the applicable fixture evidence areas.' },
     }, { rootDir: fx.rootDir });
 
     assert.throws(
@@ -339,7 +339,7 @@ test('research health detects a stale semantic source even when the immutable st
       id: 'research-semantic-freshness', kind: 'research', mode: 'full', baseline_id: 'baseline',
       subject: 'Bind semantic provenance to current source content.',
       coverage: researchCoverage(),
-      metadata: { selection_reason: 'The model selected the semantic provenance evidence area.' },
+      metadata: { selection_reason: 'The owner accepted the semantic provenance evidence area.' },
     }, { rootDir: fx.rootDir });
     const report = writeArtifact(
       fx,
@@ -383,7 +383,7 @@ test('custom research excludes steps only through explicit selection and records
       id: 'research-custom', kind: 'research', mode: 'custom', baseline_id: 'baseline',
       change_id: changeId,
       selected_steps: ['20-user-stories', '21-features-scope'],
-      metadata: { selection_reason: 'The model found only this active-change feature boundary relevant.' },
+      metadata: { selection_reason: 'The owner accepted the recommended active-change feature boundary.' },
       subject: 'Resolve a bounded feature-definition gap.',
     }, { rootDir: fx.rootDir });
 

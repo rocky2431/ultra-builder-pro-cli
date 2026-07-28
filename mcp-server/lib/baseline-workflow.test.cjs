@@ -61,7 +61,7 @@ function completeResearch(fx, baselineId, mode = 'adoption') {
     id: `research-${baselineId}`, kind: 'research', mode, baseline_id: baselineId,
     subject: 'Complete the baseline research contract.',
     coverage: researchCoverage(),
-    metadata: { selection_reason: 'The model selected the applicable baseline evidence areas.' },
+    metadata: { selection_reason: 'The owner accepted the applicable baseline evidence areas.' },
   }, { rootDir: fx.rootDir });
   for (const workflowStep of run.steps.filter((item) => item.required)) {
     let output = '.ultra/specs/architecture.md';

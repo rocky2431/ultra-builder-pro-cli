@@ -15,17 +15,34 @@ accepted Change Contract without adding ceremonial approval.
    checkout.
 2. Require one mutable change with a healthy baseline or recorded incident bypass.
 3. Complete the exact change-bound research disposition before planning.
-4. Resume the matching plan run or start one bound to the change and baseline.
+4. Resume the matching plan run. Do not start a new run until planning posture is
+   accepted.
 
 Read `references/semantic-preflight.md` and inspect requirements, real consumers,
 state, tests, deployment, and recovery paths.
+
+## Align planning posture
+
+Use the interaction protocol in `../ultra-think/references/decision-dialogue.md`.
+Normalize a posture already explicit in current intent. Otherwise recommend one based
+on the Change Contract, explain its scope effect, and use the host's native question
+surface:
+
+- `EXPAND`: surface evidence-backed opportunities beyond accepted scope;
+- `SELECTIVE`: hold accepted scope and offer optional expansions individually;
+- `HOLD`: preserve scope and strengthen completeness, failure handling, and recovery;
+- `REDUCE`: propose the smallest outcome that still satisfies revised acceptance.
+
+The user may select, modify, delegate, or defer the posture. Stop on an unanswered
+choice. Start `workflow.start` only after alignment and store `planning_posture` plus
+its rationale in workflow metadata. This is a scope boundary, not approval of the
+eventual technical design.
 
 ## Design with model autonomy
 
 Build a candidate plan privately. Ask the user only if the plan would change accepted
 scope, public behavior, compatibility, security, material cost, external effects, or
-recovery. Use the host's native question UI when available and the interaction protocol
-in `../ultra-think/references/decision-dialogue.md`.
+recovery. Use the same host-native interaction protocol.
 
 When the candidate remains inside the accepted Change Contract, proceed without a
 second approval. A user may still request a plan review before persistence; that is an

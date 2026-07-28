@@ -36,6 +36,15 @@ test('initStateDb creates workflow tables without an Ultra memory store', () => 
     assert.ok(!init.tables.includes('memory_fts'));
     const taskColumns = init.db.prepare('PRAGMA table_info(tasks)').all().map((row) => row.name);
     assert.ok(!taskColumns.includes('complexity_hint'), 'fresh authority must not encode Claude model tiers');
+    const decisionThreadColumns = init.db.prepare('PRAGMA table_info(decision_threads)').all()
+      .map((row) => row.name);
+    assert.ok(decisionThreadColumns.includes('completed_at'));
+    assert.match(
+      init.db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'decision_threads'",
+      ).get().sql,
+      /'completed'/,
+    );
     closeStateDb(init.db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -97,7 +106,9 @@ test('schema 13 upgrades through the current authority without demoting an estab
        VALUES ('ready-13', 'fixture', 'greenfield', 'ready', 'owner',
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0')").run();
+    initial.db.prepare(
+      "DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0', '19.0')",
+    ).run();
     initial.db.exec('ALTER TABLE baselines DROP COLUMN known_red_accepted');
     closeStateDb(initial.db);
 
@@ -132,7 +143,9 @@ test('schema 15 adds decision dialogue authority without forcing baseline re-ado
        VALUES ('ready-15', 'fixture', 'greenfield', 'ready', 'owner',
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0')").run();
+    initial.db.prepare(
+      "DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0', '19.0')",
+    ).run();
     initial.db.exec('DROP TABLE decision_items; DROP TABLE decision_threads');
     closeStateDb(initial.db);
 
@@ -177,7 +190,9 @@ test('schema 17 adds the unborn Git baseline state without losing established au
     ).run(baselineSql.replace(", 'unborn'", ''));
     initial.db.pragma('writable_schema = OFF');
     initial.db.unsafeMode(false);
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('17.0', '18.0')").run();
+    initial.db.prepare(
+      "DELETE FROM schema_version WHERE version IN ('17.0', '18.0', '19.0')",
+    ).run();
     closeStateDb(initial.db);
 
     const legacy = openStateDb(file);
@@ -268,14 +283,14 @@ test('schema 18 migrates active rigid workflows into recoverable adaptive capabi
       `INSERT INTO context_snapshots
        (id, change_id, manifest_path, manifest_hash, next_action)
        VALUES ('legacy-context', 'adaptive-change', '.ultra/context.json', 'legacy-hash',
-               'Run a model-selected workflow.')`,
+               'Run an owner-selected workflow.')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version = '18.0'").run();
-    initial.db.prepare("DELETE FROM migration_history WHERE to_version = '18.0'").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('18.0', '19.0')").run();
+    initial.db.prepare("DELETE FROM migration_history WHERE to_version IN ('18.0', '19.0')").run();
     closeStateDb(initial.db);
 
     const upgraded = initStateDb(file);
-    assert.equal(upgraded.schema_version, '18.0');
+    assert.equal(upgraded.schema_version, EXPECTED_VERSION);
     assert.ok(upgraded.backup_path);
     const contextColumns = new Set(
       upgraded.db.prepare('PRAGMA table_info(context_snapshots)').all().map((row) => row.name),
@@ -320,6 +335,198 @@ test('schema 18 migrates active rigid workflows into recoverable adaptive capabi
         "SELECT notes FROM migration_history WHERE to_version = '18.0' ORDER BY id DESC LIMIT 1",
       ).get().notes,
       /adaptive|capability|transition/i,
+    );
+    closeStateDb(upgraded.db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('schema 19 completes settled decision threads without fabricating approval evidence', () => {
+  const { dir, file } = tmpDbPath('ubp-schema-18-decision-completion');
+  try {
+    const initial = initStateDb(file);
+    initial.db.prepare(
+      `INSERT INTO baselines (id, project_name, mode, status)
+       VALUES ('decision-baseline', 'fixture', 'greenfield', 'draft')`,
+    ).run();
+    initial.db.prepare(
+      `INSERT INTO decision_threads
+       (id, purpose, mode, status, baseline_id)
+       VALUES ('settled-thread', 'Preserve normalized intent.', 'fast', 'active',
+               'decision-baseline')`,
+    ).run();
+    initial.db.prepare(
+      `INSERT INTO decision_items
+       (id, thread_id, sequence, phase, question, why_now, recommendation,
+        effects_json, blocking, status, resolution_json)
+       VALUES ('settled-item', 'settled-thread', 1, 'planning-posture',
+               'Should planning hold scope?', 'The answer fixes scope.',
+               'Hold accepted scope.', '{"summary":"Fix planning scope."}', 1,
+               'answered',
+               '{"authority":"owner","decision":"Hold scope.","rationale":"Accepted scope is complete."}')`,
+    ).run();
+    initial.db.exec(`
+      INSERT INTO decision_threads
+        (id, purpose, mode, status, baseline_id, confirmed_at)
+      VALUES
+        ('open-thread', 'Preserve an unanswered choice.', 'guided', 'active',
+         'decision-baseline', NULL),
+        ('deferred-thread', 'Preserve a blocking deferral.', 'guided', 'active',
+         'decision-baseline', NULL),
+        ('confirmed-thread', 'Preserve confirmed checkpoint authority.', 'guided',
+         'confirmed', 'decision-baseline', '2026-07-28T00:00:00.000Z');
+
+      INSERT INTO decision_items
+        (id, thread_id, sequence, phase, question, why_now, recommendation,
+         effects_json, blocking, status, resolution_json)
+      VALUES
+        ('open-item', 'open-thread', 1, 'research-route',
+         'Which research route should run?', 'The route is unresolved.',
+         'Use focused coverage.', '{"summary":"Research scope remains pending."}', 1,
+         'open', '{}'),
+        ('deferred-item', 'deferred-thread', 1, 'delivery-risk',
+         'Should the blocking delivery risk be accepted?', 'Delivery cannot continue.',
+         'Resolve the risk first.', '{"summary":"Delivery remains blocked."}', 1,
+         'deferred',
+         '{"authority":"owner","decision":"Defer.","consequence":"Delivery remains blocked."}'),
+        ('confirmed-item', 'confirmed-thread', 1, 'baseline-scope',
+         'Is the baseline scope accepted?', 'The checkpoint binds the baseline.',
+         'Accept current scope.', '{"summary":"Baseline scope is current."}', 1,
+         'answered',
+         '{"authority":"owner","decision":"Accept scope.","rationale":"Evidence is current."}');
+    `);
+    initial.db.pragma('foreign_keys = OFF');
+    initial.db.exec(`
+      CREATE TABLE decision_threads_schema18 (
+        id                 TEXT PRIMARY KEY,
+        purpose            TEXT NOT NULL,
+        mode               TEXT NOT NULL DEFAULT 'guided'
+                             CHECK (mode IN ('guided', 'fast', 'autonomous', 'diagnostic')),
+        status             TEXT NOT NULL DEFAULT 'active'
+                             CHECK (status IN ('active', 'checkpoint_ready', 'confirmed', 'cancelled')),
+        baseline_id        TEXT REFERENCES baselines(id) ON DELETE SET NULL,
+        change_id          TEXT REFERENCES changes(id) ON DELETE CASCADE,
+        workflow_run_id    TEXT REFERENCES workflow_runs(id) ON DELETE CASCADE,
+        summary_json       TEXT NOT NULL DEFAULT '{}',
+        checkpoint_json    TEXT NOT NULL DEFAULT '{}',
+        started_at         TEXT NOT NULL,
+        updated_at         TEXT NOT NULL,
+        confirmed_at       TEXT,
+        CHECK (baseline_id IS NOT NULL OR change_id IS NOT NULL OR workflow_run_id IS NOT NULL)
+      );
+      INSERT INTO decision_threads_schema18 (
+        id, purpose, mode, status, baseline_id, change_id, workflow_run_id,
+        summary_json, checkpoint_json, started_at, updated_at, confirmed_at
+      )
+      SELECT
+        id, purpose, mode, status, baseline_id, change_id, workflow_run_id,
+        summary_json, checkpoint_json, started_at, updated_at, confirmed_at
+      FROM decision_threads;
+      DROP TABLE decision_threads;
+      ALTER TABLE decision_threads_schema18 RENAME TO decision_threads;
+      CREATE INDEX decision_threads_status ON decision_threads(status, updated_at);
+      CREATE INDEX decision_threads_authority
+        ON decision_threads(baseline_id, change_id, workflow_run_id, status);
+    `);
+    initial.db.pragma('foreign_keys = ON');
+    initial.db.prepare("DELETE FROM schema_version WHERE version = '19.0'").run();
+    initial.db.prepare("DELETE FROM migration_history WHERE to_version = '19.0'").run();
+    closeStateDb(initial.db);
+
+    const upgraded = initStateDb(file);
+    assert.equal(upgraded.schema_version, EXPECTED_VERSION);
+    assert.ok(upgraded.backup_path);
+    assert.deepEqual(
+      upgraded.db.prepare(
+        "SELECT status, completed_at, confirmed_at FROM decision_threads WHERE id = 'settled-thread'",
+      ).get(),
+      {
+        status: 'completed',
+        completed_at: upgraded.db.prepare(
+          "SELECT updated_at FROM decision_threads WHERE id = 'settled-thread'",
+        ).get().updated_at,
+        confirmed_at: null,
+      },
+    );
+    const summary = JSON.parse(upgraded.db.prepare(
+      "SELECT summary_json FROM decision_threads WHERE id = 'settled-thread'",
+    ).get().summary_json);
+    assert.equal(summary.completion_kind, 'migrated_settled_thread');
+    assert.deepEqual(
+      JSON.parse(upgraded.db.prepare(
+        "SELECT resolution_json FROM decision_items WHERE id = 'settled-item'",
+      ).get().resolution_json),
+      {
+        authority: 'owner',
+        decision: 'Hold scope.',
+        rationale: 'Accepted scope is complete.',
+      },
+    );
+    assert.deepEqual(
+      upgraded.db.prepare(
+        `SELECT id, status, completed_at, confirmed_at
+         FROM decision_threads
+         WHERE id IN ('open-thread', 'deferred-thread', 'confirmed-thread')
+         ORDER BY id`,
+      ).all(),
+      [
+        {
+          id: 'confirmed-thread',
+          status: 'confirmed',
+          completed_at: null,
+          confirmed_at: '2026-07-28T00:00:00.000Z',
+        },
+        {
+          id: 'deferred-thread',
+          status: 'active',
+          completed_at: null,
+          confirmed_at: null,
+        },
+        {
+          id: 'open-thread',
+          status: 'active',
+          completed_at: null,
+          confirmed_at: null,
+        },
+      ],
+    );
+    assert.deepEqual(
+      upgraded.db.prepare(
+        `SELECT id, status, resolution_json
+         FROM decision_items
+         WHERE id IN ('open-item', 'deferred-item', 'confirmed-item')
+         ORDER BY id`,
+      ).all().map((row) => ({ ...row, resolution: JSON.parse(row.resolution_json) }))
+        .map(({ resolution_json, ...row }) => row),
+      [
+        {
+          id: 'confirmed-item',
+          status: 'answered',
+          resolution: {
+            authority: 'owner',
+            decision: 'Accept scope.',
+            rationale: 'Evidence is current.',
+          },
+        },
+        {
+          id: 'deferred-item',
+          status: 'deferred',
+          resolution: {
+            authority: 'owner',
+            decision: 'Defer.',
+            consequence: 'Delivery remains blocked.',
+          },
+        },
+        { id: 'open-item', status: 'open', resolution: {} },
+      ],
+    );
+    assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
+    assert.match(
+      upgraded.db.prepare(
+        "SELECT notes FROM migration_history WHERE to_version = '19.0' ORDER BY id DESC LIMIT 1",
+      ).get().notes,
+      /decision completion|settled active threads/i,
     );
     closeStateDb(upgraded.db);
   } finally {
@@ -514,7 +721,9 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const legacy = openStateDb(file);
     const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
     legacy.exec(legacySchema);
-    legacy.prepare("DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0')").run();
+    legacy.prepare(
+      "DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0')",
+    ).run();
     legacy.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
     ).run();
@@ -545,7 +754,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM incidents WHERE session_id = 'session-old'").get().n, 1);
     assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
     const migrations = upgraded.db.prepare(
-      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0') ORDER BY id",
+      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0') ORDER BY id",
     ).all();
     assert.ok(migrations.some((row) => row.to_version === '9.1' && /Kimi/.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '10.0' && /Context Spine/.test(row.notes)));

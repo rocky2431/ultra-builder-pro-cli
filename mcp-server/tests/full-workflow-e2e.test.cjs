@@ -156,7 +156,7 @@ for (const scenario of [
       baseline_id: initialized.baseline.id,
       subject: 'Establish the complete product and architecture baseline.',
       coverage: researchCoverage(),
-      metadata: { selection_reason: 'The model selected the applicable baseline evidence areas.' },
+      metadata: { selection_reason: 'The owner accepted the applicable baseline evidence areas.' },
     }, { rootDir });
     for (const workflowStep of research.steps.filter((item) => item.required)) {
       let output = '.ultra/specs/architecture.md';

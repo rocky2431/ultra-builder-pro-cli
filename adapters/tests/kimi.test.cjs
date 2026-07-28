@@ -92,6 +92,9 @@ test('Kimi manifest exposes explicit native skills, commands, hooks, and MCP wit
     }
     assert.ok(fs.existsSync(path.join(pluginRoot, 'hooks', 'context_spine.py')));
     assert.doesNotMatch(hookText, /memory|recall|journal|prompt[_ -]?capture|block_dangerous|post_edit_guard/i);
+    const interaction = readJson(path.join(pluginRoot, 'spec', 'interaction-contract.json'));
+    assert.equal(interaction.interaction.question_surface.primary, 'AskUserQuestion');
+    assert.equal(interaction.interaction.question_surface.availability, 'interactive_non_auto_mode');
 
     const commands = fs.readdirSync(path.join(pluginRoot, 'commands')).sort();
     assert.deepEqual(commands, CORE_PUBLIC_SKILLS.map((name) => `${name}.md`).sort());

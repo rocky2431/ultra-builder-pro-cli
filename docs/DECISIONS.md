@@ -9,8 +9,8 @@ release-version authority.
 
 | Layer | Owns | Must not own |
 |---|---|---|
-| User intent | Goals, acceptance, non-goals, material product trade-offs, risk acceptance, and authorization for irreversible or external effects | Facts that the current checkout or runtime can establish directly |
-| Host model | Classification, investigation, research coverage, solution design, task decomposition, context, test and review strategy, documentation impact, and next-action recommendations | Fabricated evidence, bypassed authorization, or durable lifecycle state |
+| User intent | Goals, acceptance, non-goals, semantic route selection, material product trade-offs, risk acceptance, and authorization for irreversible or external effects | Facts that the current checkout or runtime can establish directly |
+| Host model | Classification and route recommendations, investigation, solution design, task decomposition, context, test and review strategy, documentation impact, intent normalization, and next-action recommendations | Fabricated evidence, bypassed authorization, or durable lifecycle state |
 | Ultra MCP | IDs, state, digests, provenance, freshness, locks, leases, transactions, recovery, and legal state transitions | Product direction, a fixed research route, technology selection, or business decisions |
 | Host adapter | Native Skill discovery, user-question surfaces, tool invocation, installation, and runtime wiring | A second project-state authority |
 | Hook | Lifecycle observation, compact DB-derived context, recovery hints, and generated-projection protection | Ordinary development blocking or semantic route selection |
@@ -22,15 +22,19 @@ external memory, and code-graph payloads are not Ultra authority.
 ## Research coverage
 
 The research references form an optional semantic catalog. The host model
-selects only the areas justified by the current goal and evidence, records an
-evidence-based selection reason, and always includes synthesis. Omitted catalog
-areas create no workflow rows. An explicit `not_applicable` or accepted
-`deferred` entry is recorded only when preserving that exclusion is useful.
+inspects current evidence and recommends the smallest sufficient route. The
+owner selects, modifies, delegates, or defers that route through the current
+host's native question surface unless current intent already resolves it. The
+host then normalizes and records the accepted coverage with an evidence-based
+rationale and synthesis. Omitted catalog areas create no workflow rows. An
+explicit `not_applicable` or accepted `deferred` entry is recorded only when
+preserving that exclusion is useful.
 
 MCP validates generic invariants: selected identifiers must exist, dispositions
 must be legal, reused or excluded evidence must be referenced, synthesis must be
 active, and at least one non-synthesis area must be applicable. MCP does not
-choose the coverage set.
+choose the coverage set or prove how the owner answered. Once normalized intent
+is written, `.ultra/state.db` treats it as current cross-session authority.
 
 ## Lifecycle boundaries
 

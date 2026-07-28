@@ -67,7 +67,8 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
   const decisionHealth = missing.length === 0
     ? decisions.inspectDecisionHealth(db, { rootDir })
     : {
-      status: 'fail', active: 0, awaiting_owner: 0, checkpoint_ready: 0,
+      status: 'fail', active: 0, completed: 0, awaiting_owner: 0, awaiting_blocking: 0,
+      checkpoint_ready: 0,
       deferred_blocking: 0, stale_artifacts: [], current: null, current_thread_id: null,
     };
   const baselineCheckStatus = baseline.status === 'pass'

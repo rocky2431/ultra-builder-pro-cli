@@ -1,5 +1,5 @@
 ---
-description: Build evidence with model-selected semantic coverage and adaptive user alignment
+description: Build evidence with recommended, owner-selected semantic coverage and adaptive alignment
 argument-hint: "[scope-or-question]"
 workflow-ref: "@skills/ultra-research/SKILL.md"
 ---

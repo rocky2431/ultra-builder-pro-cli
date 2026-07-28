@@ -29,13 +29,18 @@ Read `../ultra-think/references/decision-dialogue.md` before asking a material q
    - change kind and evidence-backed risk flags;
    - research disposition.
 
-Select `quick`, `standard`, `major`, or `incident` from actual scope and risk. A quick
-change may have no material risk, research obligation, or more than one task.
+Recommend `quick`, `standard`, `major`, or `incident` from actual scope and risk,
+together with the research disposition. A quick change may have no material risk,
+research obligation, or more than one task. MCP may reject a profile that contradicts
+hard risk invariants; it does not choose a replacement.
 
 Ask only when a choice changes accepted product intent, scope, public behavior,
 compatibility, security, material cost, external effects, or recovery. Use the host's
 native question UI when available. Normalize clear choices already in the user's
-request. The model owns reversible implementation detail inside the accepted contract.
+request. When profile or research posture remains unresolved, present the recommended
+route and credible alternatives through that same UI, then stop. The user selects,
+modifies, delegates, or defers the semantic route. The model owns reversible
+implementation detail inside the accepted contract.
 
 ## Persist the contract
 
@@ -70,5 +75,7 @@ transitions. External memory and graph providers retain their own content; Ultra
 metadata references only.
 
 Return the normalized contract, change id and kind, research disposition, blockers,
-and `allowed_transitions`. The host selects a recommendation from those transitions;
-MCP does not encode a semantic next action.
+and `allowed_transitions`. Recommend a semantic next action from those transitions.
+If current intent does not already select it, present the recommendation and credible
+alternatives through the interaction protocol, then wait. MCP does not encode a
+semantic next action.

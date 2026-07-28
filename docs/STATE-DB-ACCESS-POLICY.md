@@ -74,7 +74,7 @@ resolve the mount/runtime constraint before retrying.
 | `baselines`        | MCP server (`baseline.start` / `baseline.record` / `baseline.converge`); initialization and legacy-projection migration may create only the first draft or compatibility row |
 | `tasks`            | MCP server (`task.create` / `task.update` / `task.delete`) |
 | `changes`          | MCP server (`change.create` / `change.update` / `change.converge` / `change.archive`) |
-| `decision_threads`, `decision_items` | MCP server (`decision.thread_start` / `decision.open` / `decision.resolve` / `decision.delegate` / `decision.defer` / `decision.supersede` / `decision.checkpoint`); only normalized choices and checkpoints are stored, never prompts or transcripts |
+| `decision_threads`, `decision_items` | MCP server (`decision.thread_start` / `decision.open` / `decision.resolve` / `decision.delegate` / `decision.defer` / `decision.supersede` / `decision.complete` / `decision.checkpoint`); only pending questions needed for recovery, normalized choices, lifecycle completion, and optional artifact checkpoints are stored, never prompts or transcripts |
 | `workflow_runs`, `workflow_steps` | MCP server (`workflow.start` / `workflow.step` / `workflow.complete`); skills provide evidence inputs but never write rows directly |
 | `artifacts`, `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through change lifecycle tools |
 | `incidents`, `projection_jobs`, `event_consumers`, `circuit_breaker` | MCP server; backup-first doctor recovery may perform only documented mechanical transitions |

@@ -1,14 +1,15 @@
 ---
 name: ultra-research
-description: Build or refresh an evidence-backed product and architecture baseline with model-selected semantic coverage and low-load user alignment. Use when initialization, brownfield adoption, or an active change has a real evidence gap.
+description: Build or refresh an evidence-backed product and architecture baseline through recommended, user-selected semantic coverage and low-load alignment. Use when initialization, brownfield adoption, or an active change has a real evidence gap.
 ---
 
 # Research with adaptive coverage
 
-The host model owns investigation, synthesis, and coverage judgment. Ultra MCP owns the
-run, evidence references, semantic records, artifact digests, freshness, and
-convergence. The reference areas are an optional coverage catalog, not a mandatory
-questionnaire or a fixed sequence of user conversations.
+The model owns investigation, synthesis, and coverage recommendations. The user owns
+the accepted semantic route and material deferrals. Ultra MCP owns the run, evidence
+references, semantic records, artifact digests, freshness, and convergence. The
+reference areas are an optional catalog, not a mandatory questionnaire or fixed
+sequence of user conversations.
 
 Read `../ultra-think/references/decision-dialogue.md` before asking a material question.
 
@@ -16,20 +17,27 @@ Read `../ultra-think/references/decision-dialogue.md` before asking a material q
 
 1. Read `system.doctor`, `baseline.get`, active decisions, and existing research runs.
 2. Resume the matching active, blocked, or ready run. Do not create parallel authority.
-3. If none exists, select:
+3. If none exists, determine the authority-bound mode:
    - `full` for a greenfield baseline;
    - `adoption` for a brownfield baseline;
    - a bounded mode only for a recorded active-change research disposition.
+   Focused baseline coverage retains `full` or `adoption`; `custom` is only
+   change-bound and narrows coverage inside an active Change.
 4. Before `workflow.start`, inspect current code, docs, tests, runtime, and prior
-   artifacts. Select the smallest sufficient set of applicable catalog areas. Include
-   only areas that need work or whose exclusion must remain auditable:
+   artifacts. Recommend the smallest sufficient set of applicable catalog areas.
+   Explain the net effect without dumping all 17 areas. Offer at most three credible
+   routes: the recommended adaptive set, the full catalog, and a focused or custom set.
+5. If current user intent does not already select a route, use the host's native
+   structured question surface. The user selects, modifies, delegates, or defers.
+   Treat a dismissal as unanswered, stop, and perform no route-dependent write.
+6. Normalize the answer and persist the accepted coverage through `workflow.start`:
    - `execute`: produce fresh evidence;
    - `verify_existing`: verify a current artifact against its source;
    - `reuse`: reuse evidence that is still current;
    - `not_applicable`: exclude with an evidence reference and rationale;
    - `deferred`: record the consequence and owner acceptance when deferral changes the
      accepted scope or leaves material risk.
-5. Pass the evidence-based coverage rationale as `metadata.selection_reason`. Omitted
+7. Pass the evidence-based coverage rationale as `metadata.selection_reason`. Omitted
    catalog areas create no DB step and need no ceremonial disposition.
 
 `99-synthesis` must execute, verify, or reuse. A missing disposition is a coverage
@@ -96,11 +104,13 @@ known failures, blocking gaps, and scope. Reuse an unambiguous current approval;
 ask twice. MCP must reject stale research, drift, missing evidence, and unaccepted
 failures.
 
-Reuse the final research checkpoint approval during baseline convergence; do not ask
-for an equivalent approval again. After initial or adoption convergence,
-`ultra-change` becomes an available transition. Bounded change research returns to
-its owning Change authority.
+Reuse the final research acceptance or current artifact checkpoint during baseline
+convergence; do not ask for an equivalent approval again. After initial or adoption
+convergence, `ultra-change` becomes an available transition. Bounded change research
+returns to its owning Change authority.
 
 Return a compact coverage summary by disposition, current evidence or decision
-blocker, baseline state, gaps, and allowed transitions. The host chooses the semantic
-recommendation; MCP supplies only valid and required transitions.
+blocker, baseline state, gaps, and allowed transitions. Recommend a semantic next
+action from those transitions. If current intent does not already select it, present
+the recommendation and credible alternatives through the interaction protocol, then
+wait. MCP supplies only valid and required transitions.

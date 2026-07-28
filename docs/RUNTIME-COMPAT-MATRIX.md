@@ -67,7 +67,8 @@ they do not deny edits or stop active incident work.
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
-| Live/declared contracts | 50 | 50 | 50 | 50 |
+| Live/declared contracts | 51 | 51 | 51 | 51 |
+| Structured user alignment | `AskUserQuestion` in interactive sessions | `question` when permission is not denied | `request_user_input` when the current mode exposes it | `AskUserQuestion` outside auto mode |
 | Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
 | Context Manifest v3 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
 | Approval-gated spec learning | FULL | FULL | FULL | FULL |
@@ -75,9 +76,14 @@ they do not deny edits or stop active incident work.
 | Durable authority | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` |
 | Ultra memory API | N/A | N/A | N/A | N/A |
 
-All 50 `task.*`, `session.*`, `baseline.*`, `change.*`, `decision.*`, `workflow.*`, `system.*`, and `plan.*` operations
+All 51 `task.*`, `session.*`, `baseline.*`, `change.*`, `decision.*`, `workflow.*`, `system.*`, and `plan.*` operations
 registered by `mcp-server/server.cjs` are live. Review, impact discovery, skill
 loading, and user interaction remain host-native surfaces.
+
+When a native structured question surface is unavailable, the shared interaction
+contract permits one concise direct question only if ordinary conversation is still
+available. A host mode that forbids interaction leaves the choice unanswered; Ultra
+does not infer consent or silently delegate the semantic route.
 
 Kimi starts plugin MCP processes with the managed plugin root as `cwd`. The
 generated launcher recovers the project from the inherited `PWD`, sets
@@ -129,9 +135,9 @@ records. Uninstall refuses an unmanaged or conflicting root.
 
 | Capability | Contract |
 |---|---|
-| Current state schema | `18.0` |
+| Current state schema | `19.0` |
 | Runtime values | `claude`, `opencode`, `codex`, `kimi` |
-| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, repository evidence in 12.0, durable workflows in 13.0, continuous baseline revalidation in 14.0, typed research semantics and verified reconciliation in 15.0, resumable owner-agent decision threads and workflow alignment gates in 16.0, explicit unborn-Git authority in 17.0, then adaptive transitions and legacy workflow normalization in 18.0 |
+| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, repository evidence in 12.0, durable workflows in 13.0, continuous baseline revalidation in 14.0, typed research semantics and verified reconciliation in 15.0, resumable owner-agent decision threads and workflow alignment gates in 16.0, explicit unborn-Git authority in 17.0, adaptive transitions and legacy workflow normalization in 18.0, then non-ceremonial decision completion in 19.0 |
 | Preservation gate | rows, IDs, indexes, foreign keys, telemetry, incidents, and migration history remain intact |
 | Failure behavior | rollback; no partially upgraded authority database |
 

@@ -73,8 +73,8 @@ The responsibility split is deliberate:
 
 | Owner | Responsibility |
 |---|---|
-| **User** | Product intent, material scope and trade-offs, destructive actions, publishing and deployment authorization |
-| **Host model** | Fact-finding, synthesis, research coverage, route recommendation, reversible implementation decisions |
+| **User** | Product intent, semantic route selection, material scope and trade-offs, risk acceptance, destructive actions, publishing and deployment authorization |
+| **Host model** | Fact-finding, synthesis, research-coverage and route recommendations, reversible implementation decisions |
 | **Ultra MCP** | Durable state, evidence references, digests, freshness, locks, valid transitions and hard recovery |
 | **Host adapter** | Native Skill discovery, user questions, tool invocation, installation, and runtime wiring |
 | **Hooks** | Fast lifecycle observation, current breadcrumb injection, and protection of generated projections |
@@ -189,7 +189,7 @@ Initialization:
 - identifies the repository root and scope;
 - classifies the repository as greenfield, brownfield, or migrated;
 - initializes Git when needed;
-- creates `.ultra/` and schema 18 project authority;
+- creates `.ultra/` and schema 19 project authority;
 - verifies that the scaffold and database can be read back;
 - completes without silently starting research, creating a commit, adding a
   remote, or pushing anything.
@@ -231,9 +231,11 @@ product story. It builds a current-system baseline from:
 - APIs, data, permissions, integrations, deployment, and recovery seams;
 - known failures, documentation drift, technical debt, and unresolved unknowns.
 
-During `ultra-research`, the host model selects the smallest evidence-backed set
-of applicable catalog areas. Every included area receives one explicit
-disposition:
+During `ultra-research`, the host model inspects current evidence and recommends
+the smallest sufficient route. The owner selects, modifies, delegates, or
+defers it through the host-native question surface unless the current request
+already resolves the route. The normalized accepted coverage is then stored in
+`.ultra/state.db`. Every included area receives one explicit disposition:
 
 - `execute` — produce fresh evidence;
 - `verify_existing` — validate an existing artifact;
@@ -243,7 +245,8 @@ disposition:
 
 The catalog is not a mandatory document set or questionnaire. Omitted areas
 create no workflow rows; an explicit exclusion is recorded only when retaining
-that rationale is useful.
+that rationale is useful. MCP validates state, evidence, and transitions; it
+does not store or prove the preceding UI interaction.
 
 Older projection-only Ultra projects are preserved and routed through a
 backup-first migration or rebaseline. Use `ultra-doctor` when initialization

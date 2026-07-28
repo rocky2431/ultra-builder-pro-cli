@@ -51,7 +51,7 @@ the supported hosts share.
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
-| **MCP**      | authoritative workflow-state, decision, and Context Spine API | stdio MCP server exposing 50 live tools across task/session/baseline/change/decision/workflow/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **MCP**      | authoritative workflow-state, decision, and Context Spine API | stdio MCP server exposing 51 live tools across task/session/baseline/change/decision/workflow/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
 | **CLI**      | explicit initialization, recovery, diagnostics, and orchestration | `ultra-tools` / `ubp-orchestrator`; only commands listed by `--help` are executable (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
 Why three: skills give us behavior portability across runtimes; MCP gives
@@ -91,7 +91,7 @@ covers twenty-one tables:
 | `event_consumers` | durable monotonic consumer cursors                   | 8C    |
 | `workflow_runs`   | init/research/plan/change/dev/test/review/deliver run authority, position, blockers, approval, and derived summary | 13 |
 | `workflow_steps`  | ordered step state, evidence, decisions, immutable output paths, and recorded SHA-256 digests | 13 |
-| `decision_threads` | baseline/change/workflow-bound owner-agent alignment, interaction mode, normalized summary, and checkpoint authority | 16 |
+| `decision_threads` | baseline/change/workflow-bound owner-agent alignment, interaction mode, normalized completion, and optional checkpoint authority | 16/19 |
 | `decision_items` | one-at-a-time owner choices, evidence, recommendations, durable effects, resolutions, delegation, deferral, and supersession history | 16 |
 
 Two rules make this work:
@@ -141,9 +141,13 @@ same authoritative state shape without rewriting application code.
 
 Initialization completes after local authority, classification, Git/scaffold setup,
 and read-back verification. It does not start or complete research. An explicit
-`ultra-research` invocation then records the model-selected semantic coverage and
-executes, verifies, or reuses only the evidence needed to converge the baseline.
-Omitted catalog areas create no workflow row.
+`ultra-research` invocation lets the model inspect evidence and recommend a semantic
+route. The owner selects, modifies, delegates, or defers through the host-native
+question surface unless current intent already resolves the route. The normalized
+accepted coverage is then recorded, and research executes, verifies, or reuses only
+the evidence needed to converge the baseline. Omitted catalog areas create no
+workflow row. MCP validates the stored state and evidence, not the preceding user
+interaction.
 
 Auto initialization preserves an existing Git repository and HEAD. When Git is absent,
 it initializes `main`, adds the symlink-safe `.ultra` rule to `.gitignore`, and persists
@@ -193,12 +197,13 @@ alternatives, evidence refs, and durable effects; a partial unique index guarant
 current question per thread. The host ends that turn and waits.
 
 The next response becomes a normalized owner decision, explicit reversible delegation,
-or consequence-bearing deferral. Prompts and transcripts are never persisted. A coherent
-cluster moves through prepare/confirm checkpointing, which binds an owner-approved
-decision digest to the current specification, Change Contract, alignment, or plan artifact.
-Matching workflow steps and completion fail closed until the checkpoint is confirmed.
-Supersession preserves prior history and reopens alignment instead of silently editing an
-old decision. The shared procedure lives in
+or consequence-bearing deferral. Prompts and transcripts are never persisted. Routine
+settled state closes through `decision.complete`, which is lifecycle completion rather
+than another approval. Only a coherent cluster that needs an artifact-bound recovery
+boundary moves through prepare/confirm checkpointing. Matching workflow steps fail
+closed while a blocking question, blocking deferral, prepared checkpoint, or stale
+checkpoint artifact remains. Supersession preserves prior history and reopens alignment
+instead of silently editing an old decision. The shared procedure lives in
 `skills/ultra-think/references/decision-dialogue.md`; status, breadcrumb, and doctor expose
 only the current recovery surface.
 

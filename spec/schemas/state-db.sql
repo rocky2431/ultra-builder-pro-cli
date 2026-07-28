@@ -407,16 +407,16 @@ CREATE INDEX IF NOT EXISTS workflow_steps_status
   ON workflow_steps(run_id, status, position);
 
 -- ──────────────────────────── decision dialogue ─────────────────────────
--- The host owns reasoning and normalized decision content. MCP owns one-at-a-
--- time presentation, durable authority, checkpoints, and recovery. Raw prompts
--- and transcripts never belong in these tables.
+-- The host owns reasoning, presentation, and normalized decision content. MCP
+-- owns the one-open-item invariant, pending recovery state, durable authority,
+-- checkpoints, and recovery. Raw prompts and transcripts never belong here.
 CREATE TABLE IF NOT EXISTS decision_threads (
   id                 TEXT PRIMARY KEY,
   purpose            TEXT NOT NULL,
   mode               TEXT NOT NULL DEFAULT 'guided'
                        CHECK (mode IN ('guided', 'fast', 'autonomous', 'diagnostic')),
   status             TEXT NOT NULL DEFAULT 'active'
-                       CHECK (status IN ('active', 'checkpoint_ready', 'confirmed', 'cancelled')),
+                       CHECK (status IN ('active', 'checkpoint_ready', 'completed', 'confirmed', 'cancelled')),
   baseline_id        TEXT REFERENCES baselines(id) ON DELETE SET NULL,
   change_id          TEXT REFERENCES changes(id) ON DELETE CASCADE,
   workflow_run_id    TEXT REFERENCES workflow_runs(id) ON DELETE CASCADE,
@@ -424,6 +424,7 @@ CREATE TABLE IF NOT EXISTS decision_threads (
   checkpoint_json    TEXT NOT NULL DEFAULT '{}',
   started_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  completed_at       TEXT,
   confirmed_at       TEXT,
   CHECK (baseline_id IS NOT NULL OR change_id IS NOT NULL OR workflow_run_id IS NOT NULL)
 );
@@ -492,3 +493,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('17.0', 'Explicit unborn Git authority and owner-authorized baseline checkpoints');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('18.0', 'Adaptive capability transitions, independent initialization, and recoverable workflow migration');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('19.0', 'Non-ceremonial decision completion and host-neutral intent persistence');

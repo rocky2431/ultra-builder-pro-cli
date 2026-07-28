@@ -37,6 +37,8 @@ Do not expose the hidden decision queue.
 For durable project decisions, use `decision.thread_start`, `decision.open`, and the
 appropriate resolve, delegate, defer, or supersede transition. Store normalized
 decisions and artifact references, never transcripts or internal reasoning.
+Call `decision.complete` when normalized state is settled and no artifact-bound
+checkpoint is needed; completion is not another owner approval.
 
 Prepare and confirm a checkpoint only when the decision changes a durable contract or
 artifact and a checkpoint is needed for recovery. Do not add a ceremonial approval

@@ -1600,7 +1600,7 @@ tools:
       type: object
       additionalProperties: false
       properties:
-        status: { type: string, enum: [active, checkpoint_ready, confirmed, cancelled] }
+        status: { type: string, enum: [active, checkpoint_ready, completed, confirmed, cancelled] }
         mode: { type: string, enum: [guided, fast, autonomous, diagnostic] }
         baseline_id: { type: string }
         change_id: { type: string }
@@ -1788,6 +1788,33 @@ tools:
     cli_subcommand: decision supersede
     emits_events: [decision_opened]
 
+  - name: decision.complete
+    family: decision
+    description: Complete a decision thread after its normalized state is settled, without creating an approval receipt or artifact checkpoint.
+    phase: '19'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, summary]
+      additionalProperties: false
+      properties:
+        id: { type: string, minLength: 1 }
+        summary: { type: string, minLength: 1 }
+    output_schema:
+      type: object
+      required: [thread]
+      additionalProperties: false
+      properties:
+        thread: { type: object }
+    errors:
+      - { code: DECISION_THREAD_NOT_FOUND, description: 'decision thread id does not exist' }
+      - { code: DECISION_THREAD_NOT_MUTABLE, description: 'the decision thread is already terminal' }
+      - { code: DECISION_CHECKPOINT_PENDING, description: 'a prepared artifact checkpoint must be confirmed or revised first' }
+      - { code: DECISION_ALIGNMENT_BLOCKING, description: 'an unanswered question or blocking deferral prevents completion' }
+      - { code: VALIDATION_ERROR, description: 'the completion summary is missing' }
+    cli_subcommand: decision complete
+    emits_events: [decision_thread_completed]
+
   - name: decision.checkpoint
     family: decision
     description: Prepare or confirm a decision checkpoint, including renewal of unchanged decisions against current artifacts; change- and workflow-bound threads require an artifact, while a standalone baseline thread may record an explicit no-artifact reason.
@@ -1833,7 +1860,7 @@ tools:
   # ────────────────────────── workflow family ────────────────────────────
   - name: workflow.start
     family: workflow
-    description: Start one durable Ultra workflow run. For research, the host model supplies only evidence-relevant semantic coverage; MCP records and validates the selection without choosing it.
+    description: Start one durable Ultra workflow run. For research, the host supplies normalized accepted semantic coverage after user-model alignment; MCP records and validates the state without choosing or proving user intent.
     phase: '13'
     writer_role: mcp
     input_schema:
@@ -1883,7 +1910,7 @@ tools:
       - { code: WORKFLOW_AUTHORITY_REQUIRED, description: 'the workflow is missing its required baseline, change, or task authority' }
       - { code: WORKFLOW_CHANGE_DECISION_BLOCKING, description: 'the change contains unresolved material owner decisions' }
       - { code: WORKFLOW_CHANGE_RESEARCH_INCOMPLETE, description: 'the change-bound research disposition is not current and complete' }
-      - { code: WORKFLOW_RESEARCH_COVERAGE_REQUIRED, description: 'research requires model-selected coverage with at least one applicable semantic area beyond synthesis' }
+      - { code: WORKFLOW_RESEARCH_COVERAGE_REQUIRED, description: 'research requires accepted coverage with at least one applicable semantic area beyond synthesis' }
       - { code: WORKFLOW_RESEARCH_COVERAGE_EVIDENCE_REQUIRED, description: 'reuse, verification, and not-applicable dispositions require evidence references' }
       - { code: WORKFLOW_RESEARCH_SYNTHESIS_REQUIRED, description: 'research synthesis must execute, verify, or reuse durable evidence' }
       - { code: WORKFLOW_RESEARCH_MODE_MISMATCH, description: 'the selected research mode does not match its authority or baseline mode' }

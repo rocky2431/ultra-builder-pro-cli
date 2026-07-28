@@ -120,6 +120,7 @@ function readDecisionThread(db, id) {
     items,
     started_at: row.started_at,
     updated_at: row.updated_at,
+    completed_at: row.completed_at,
     confirmed_at: row.confirmed_at,
   };
 }
@@ -384,6 +385,56 @@ function deferDecision(db, input = {}) {
   });
 }
 
+function completeDecisionThread(db, input = {}) {
+  const id = requiredText(input.id, 'id');
+  const summary = requiredText(input.summary, 'summary');
+  return ops.tx(db, () => {
+    const thread = readDecisionThread(db, id);
+    if (!thread) {
+      throw new DecisionDialogueError('DECISION_THREAD_NOT_FOUND', `decision thread ${id} not found`);
+    }
+    if (thread.status === 'checkpoint_ready') {
+      throw new DecisionDialogueError(
+        'DECISION_CHECKPOINT_PENDING', `confirm or revise checkpoint ${id} before completing the thread`,
+      );
+    }
+    if (thread.status !== 'active') {
+      throw new DecisionDialogueError(
+        'DECISION_THREAD_NOT_MUTABLE', `decision thread ${id} is ${thread.status}`,
+      );
+    }
+    const open = thread.items.find((item) => item.status === 'open');
+    const deferredBlocking = thread.items.filter((item) => item.blocking && item.status === 'deferred');
+    if (open || deferredBlocking.length > 0) {
+      const blockers = [
+        ...(open ? [`DECISION_AWAITING_OWNER:${open.id}`] : []),
+        ...deferredBlocking.map((item) => `DECISION_DEFERRED_BLOCKING:${item.id}`),
+      ];
+      throw new DecisionDialogueError(
+        'DECISION_ALIGNMENT_BLOCKING',
+        `decision thread ${id} still contains unresolved blocking state`,
+        { blockers },
+      );
+    }
+    const ts = nowIso();
+    db.prepare(
+      `UPDATE decision_threads
+       SET status = 'completed', summary_json = ?, completed_at = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(JSON.stringify({
+      text: summary,
+      completion_kind: 'normalized_state',
+      completed_at: ts,
+    }), ts, ts, id);
+    ops.appendEventInTx(db, {
+      type: 'decision_thread_completed',
+      change_id: thread.change_id,
+      payload: { thread_id: id, item_count: thread.items.length },
+    });
+    return readDecisionThread(db, id);
+  });
+}
+
 function supersedeDecision(db, input = {}) {
   return ops.tx(db, () => {
     const id = requiredText(input.id, 'id');
@@ -410,6 +461,15 @@ function supersedeDecision(db, input = {}) {
         `UPDATE decision_threads SET status = 'active', confirmed_at = NULL,
          checkpoint_json = json_set(checkpoint_json, '$.invalidated', json('true'),
            '$.invalidated_at', ?, '$.invalidation_reason', ?), updated_at = ? WHERE id = ?`,
+      ).run(ts, reason, ts, thread.id);
+    } else if (thread.status === 'completed') {
+      db.prepare(
+        `UPDATE decision_threads
+         SET status = 'active', completed_at = NULL,
+             summary_json = json_set(summary_json, '$.invalidated', json('true'),
+               '$.invalidated_at', ?, '$.invalidation_reason', ?),
+             updated_at = ?
+         WHERE id = ?`,
       ).run(ts, reason, ts, thread.id);
     }
     insertQuestionInTx(db, readDecisionThread(db, thread.id), replacement, id);
@@ -515,8 +575,10 @@ function checkpointDecisionThread(db, input = {}, { rootDir = process.cwd() } = 
     if (!thread) {
       throw new DecisionDialogueError('DECISION_THREAD_NOT_FOUND', `decision thread ${id} not found`);
     }
-    if (thread.status === 'cancelled') {
-      throw new DecisionDialogueError('DECISION_THREAD_NOT_MUTABLE', `decision thread ${id} is cancelled`);
+    if (['completed', 'cancelled'].includes(thread.status)) {
+      throw new DecisionDialogueError(
+        'DECISION_THREAD_NOT_MUTABLE', `decision thread ${id} is ${thread.status}`,
+      );
     }
     const open = thread.items.find((item) => item.status === 'open');
     const deferredBlocking = thread.items.filter((item) => item.blocking && item.status === 'deferred');
@@ -612,6 +674,7 @@ function decisionGate(db, bindings = {}, { rootDir = process.cwd() } = {}) {
   ).all(params);
   const blockers = [];
   let selected = null;
+  let fallback = null;
   for (const row of rows) {
     const thread = readDecisionThread(db, row.id);
     if (thread.status === 'confirmed') {
@@ -622,23 +685,25 @@ function decisionGate(db, bindings = {}, { rootDir = process.cwd() } = {}) {
       }
       continue;
     }
-    selected ||= thread;
-    if (thread.current_decision) blockers.push(`DECISION_AWAITING_OWNER:${thread.current_decision.id}`);
+    fallback ||= thread;
+    const priorBlockerCount = blockers.length;
+    if (thread.current_decision?.blocking) {
+      blockers.push(`DECISION_AWAITING_OWNER:${thread.current_decision.id}`);
+    }
     for (const item of thread.items) {
       if (item.blocking && item.status === 'deferred') {
         blockers.push(`DECISION_DEFERRED_BLOCKING:${item.id}`);
       }
     }
     if (thread.status === 'checkpoint_ready') blockers.push(`DECISION_CHECKPOINT_CONFIRMATION_REQUIRED:${thread.id}`);
-    else if (!thread.current_decision && !thread.items.some((item) => item.blocking && item.status === 'deferred')) {
-      blockers.push(`DECISION_CHECKPOINT_REQUIRED:${thread.id}`);
-    }
+    if (blockers.length > priorBlockerCount) selected ||= thread;
   }
+  const reported = selected || fallback;
   return {
     ready: blockers.length === 0,
     blockers: [...new Set(blockers)],
-    thread: selected,
-    current_decision: selected?.current_decision || null,
+    thread: reported,
+    current_decision: reported?.current_decision || null,
   };
 }
 
@@ -656,8 +721,10 @@ function assertDecisionGate(db, bindings = {}, options = {}) {
 function inspectDecisionHealth(db, { rootDir = process.cwd() } = {}) {
   const threads = listDecisionThreads(db, { limit: 500 });
   const active = threads.filter((thread) => thread.status === 'active');
+  const completed = threads.filter((thread) => thread.status === 'completed');
   const checkpointReady = threads.filter((thread) => thread.status === 'checkpoint_ready');
   const awaiting = active.filter((thread) => thread.current_decision);
+  const awaitingBlocking = awaiting.filter((thread) => thread.current_decision.blocking);
   const deferredBlocking = threads.flatMap((thread) => thread.items.filter(
     (item) => item.blocking && item.status === 'deferred',
   ));
@@ -678,15 +745,20 @@ function inspectDecisionHealth(db, { rootDir = process.cwd() } = {}) {
       }
     }
   }
-  const currentThread = awaiting[0] || checkpointReady[0] || active[0] || null;
-  const currentThreadId = currentThread?.id || staleArtifacts[0]?.thread_id || null;
+  let currentThread = awaitingBlocking[0] || checkpointReady[0] || awaiting[0] || active[0] || null;
+  if (staleArtifacts.length > 0) {
+    currentThread = threads.find((thread) => thread.id === staleArtifacts[0].thread_id) || currentThread;
+  }
+  const currentThreadId = staleArtifacts[0]?.thread_id || currentThread?.id || null;
   const status = staleArtifacts.length > 0
     ? 'fail'
     : (active.length > 0 || checkpointReady.length > 0 || deferredBlocking.length > 0 ? 'warning' : 'pass');
   return {
     status,
     active: active.length,
+    completed: completed.length,
     awaiting_owner: awaiting.length,
+    awaiting_blocking: awaitingBlocking.length,
     checkpoint_ready: checkpointReady.length,
     deferred_blocking: deferredBlocking.length,
     stale_artifacts: staleArtifacts,
@@ -704,6 +776,7 @@ module.exports = {
   resolveDecision,
   delegateDecision,
   deferDecision,
+  completeDecisionThread,
   supersedeDecision,
   checkpointDecisionThread,
   decisionGate,

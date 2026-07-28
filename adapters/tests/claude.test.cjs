@@ -38,6 +38,12 @@ test('install builds the Claude-native plugin from the explicit Ultra allowlist'
     assert.ok(fs.existsSync(path.join(target, 'hooks', 'hooks.json')));
     assert.ok(fs.existsSync(path.join(target, '.mcp.json')));
     assert.ok(fs.existsSync(path.join(target, 'agents', 'code-reviewer.md')));
+    const interaction = JSON.parse(
+      fs.readFileSync(path.join(target, 'spec', 'interaction-contract.json'), 'utf8'),
+    );
+    assert.equal(interaction.interaction.question_surface.primary, 'AskUserQuestion');
+    assert.equal(interaction.interaction.question_surface.availability, 'interactive_session');
+    assert.equal(interaction.persistence.user_interaction_proof, 'not_required');
 
     const hooks = JSON.parse(fs.readFileSync(path.join(target, 'hooks', 'hooks.json'), 'utf8'));
     const serialized = JSON.stringify(hooks);

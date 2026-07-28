@@ -171,7 +171,8 @@ function buildStatusPanel(db, { since = null, limit = 3, rootDir = process.cwd()
   const decisions = tables.has('decision_threads') && tables.has('decision_items')
     ? decisionDialogue.inspectDecisionHealth(db, { rootDir })
     : {
-      status: 'unavailable', active: 0, awaiting_owner: 0, checkpoint_ready: 0,
+      status: 'unavailable', active: 0, completed: 0, awaiting_owner: 0,
+      awaiting_blocking: 0, checkpoint_ready: 0,
       deferred_blocking: 0, stale_artifacts: [], current: null, current_thread_id: null,
     };
   let transitions;

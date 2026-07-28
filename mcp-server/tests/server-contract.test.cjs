@@ -135,6 +135,7 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
         'change.list',
         'change.update',
         'decision.checkpoint',
+        'decision.complete',
         'decision.defer',
         'decision.delegate',
         'decision.get',
@@ -256,6 +257,41 @@ test('decision MCP tools preserve one-question alignment and confirmed checkpoin
       }));
       assert.equal(listed.count, 1);
       assert.equal(listed.threads[0].checkpoint.approved_by, 'owner');
+
+      await client.callTool({
+        name: 'decision.thread_start',
+        arguments: {
+          id: 'mcp-routine-alignment', baseline_id: 'test-baseline', mode: 'fast',
+          purpose: 'Close one normalized routine decision without an approval checkpoint.',
+        },
+      });
+      await client.callTool({
+        name: 'decision.open',
+        arguments: {
+          id: 'mcp-routine-decision', thread_id: 'mcp-routine-alignment',
+          phase: 'planning-posture',
+          question: 'Should planning hold the accepted scope?',
+          why_now: 'The answer fixes the planning posture.',
+          recommendation: 'Hold the accepted scope.',
+          effects: { summary: 'Records the accepted planning posture.' },
+        },
+      });
+      await client.callTool({
+        name: 'decision.resolve',
+        arguments: {
+          id: 'mcp-routine-decision', decision: 'Hold the accepted scope.',
+          rationale: 'The current acceptance is already complete.', decided_by: 'owner',
+        },
+      });
+      const completed = readToolPayload(await client.callTool({
+        name: 'decision.complete',
+        arguments: {
+          id: 'mcp-routine-alignment',
+          summary: 'Planning posture is normalized; no artifact checkpoint is required.',
+        },
+      }));
+      assert.equal(completed.thread.status, 'completed');
+      assert.equal(completed.thread.checkpoint.decision_digest, undefined);
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
@@ -331,7 +367,7 @@ test('baseline MCP tools adopt and converge an existing checkout without storing
           id: 'mcp-research', kind: 'research', mode: 'adoption', baseline_id: 'mcp-baseline',
           subject: 'Establish the complete observed product and architecture baseline.',
           coverage: researchCoverage(),
-          metadata: { selection_reason: 'The model selected the applicable adoption evidence areas.' },
+          metadata: { selection_reason: 'The owner accepted the applicable adoption evidence areas.' },
         },
       })).workflow;
       for (const step of research.steps.filter((item) => item.required)) {

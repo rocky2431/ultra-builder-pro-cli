@@ -44,7 +44,7 @@ reports are projections or workflow artifacts.
 
 ## 3. Live MCP and declared contracts
 
-`spec/mcp-tools.yaml` declares and the bundled server registers 50 tools across
+`spec/mcp-tools.yaml` declares and the bundled server registers 51 tools across
 eight families:
 
 | Family | Live tools |
@@ -53,15 +53,16 @@ eight families:
 | `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
 | `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
 | `change.*` | create, update, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
-| `decision.*` | thread_start, get, list, open, resolve, delegate, defer, supersede, checkpoint |
+| `decision.*` | thread_start, get, list, open, resolve, delegate, defer, supersede, complete, checkpoint |
 | `workflow.*` | start, get, list, step, complete |
 | `system.*` | doctor |
 | `plan.*` | export, get |
 
 Review, repository impact discovery, skill loading, and decision presentation remain
 host-native capabilities rather than fake MCP contracts. MCP stores only normalized
-decision authority and checkpoints; it never generates questions or retains prompts
-and transcripts. The generated Codex capability map documents host replacements.
+decision authority, pending-question recovery state, lifecycle completion, and optional
+checkpoints; it never generates questions or retains prompts and transcripts. The
+generated Codex capability map documents host replacements.
 
 The complete write, transition, invalidation, and recovery contract lives in
 [`WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md).
@@ -79,11 +80,13 @@ review, and deliver route back to the same thread instead of deciding for the ow
 
 One partial unique index permits only one open item per thread. `decision.resolve`,
 `decision.delegate`, and `decision.defer` preserve the source of authority;
-`decision.supersede` preserves history when evidence or intent changes. Prepare and
-confirm checkpointing bind a material accepted cluster to current artifact digests
-when interruption recovery needs that boundary. Status and breadcrumb return only the
-current question plus allowed and mechanically required transitions, so recovery does
-not require replaying conversation history.
+`decision.supersede` preserves history when evidence or intent changes.
+`decision.complete` closes settled normalized state without manufacturing an approval
+receipt. Prepare and confirm checkpointing remain optional and bind only a material
+accepted cluster to current artifact digests when interruption recovery needs that
+boundary. Status and breadcrumb return only the current question plus allowed and
+mechanically required transitions, so recovery does not require replaying conversation
+history.
 
 ## 5. Context Spine contract
 

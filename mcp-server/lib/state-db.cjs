@@ -9,7 +9,7 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '18.0';
+const EXPECTED_VERSION = '19.0';
 const KIMI_SCHEMA_VERSION = '9.1';
 const CONTEXT_SCHEMA_VERSION = '10.0';
 const BASELINE_SCHEMA_VERSION = '11.0';
@@ -19,6 +19,8 @@ const AUTHORITY_SCHEMA_VERSION = '14.0';
 const SEMANTIC_SCHEMA_VERSION = '15.0';
 const DIALOGUE_SCHEMA_VERSION = '16.0';
 const GIT_AUTHORITY_SCHEMA_VERSION = '17.0';
+const ADAPTIVE_SCHEMA_VERSION = '18.0';
+const DECISION_COMPLETION_SCHEMA_VERSION = '19.0';
 
 const MIGRATED_GAPS = Object.freeze([{
   id: 'legacy-rebaseline-required',
@@ -328,7 +330,9 @@ function migrateAdaptiveWorkflowRuns(db, fromVersion = latestSchemaVersion(db)) 
   const existing = db.prepare(
     "SELECT 1 FROM migration_history WHERE to_version = '18.0' AND status = 'success' LIMIT 1",
   ).get();
-  if (fromVersion === EXPECTED_VERSION || existing) return false;
+  if ([ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION].includes(fromVersion) || existing) {
+    return false;
+  }
 
   const obsoleteSteps = Object.freeze({
     init: ['establish-baseline'],
@@ -453,6 +457,95 @@ function baselineSupportsUnbornGit(db) {
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'baselines'",
   ).get();
   return typeof row?.sql === 'string' && row.sql.includes("'unborn'");
+}
+
+function decisionThreadsSupportCompletion(db) {
+  const row = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'decision_threads'",
+  ).get();
+  if (typeof row?.sql !== 'string' || !row.sql.includes("'completed'")) return false;
+  return columnNames(db, 'decision_threads').has('completed_at');
+}
+
+function upgradeDecisionThreadLifecycle(db) {
+  if (!tableNames(db).includes('decision_threads') || decisionThreadsSupportCompletion(db)) {
+    return false;
+  }
+  const foreignKeys = db.pragma('foreign_keys', { simple: true });
+  db.pragma('foreign_keys = OFF');
+  try {
+    db.transaction(() => {
+      db.exec(`
+        DROP TABLE IF EXISTS decision_threads_completion_upgrade;
+        CREATE TABLE decision_threads_completion_upgrade (
+          id                 TEXT PRIMARY KEY,
+          purpose            TEXT NOT NULL,
+          mode               TEXT NOT NULL DEFAULT 'guided'
+                               CHECK (mode IN ('guided', 'fast', 'autonomous', 'diagnostic')),
+          status             TEXT NOT NULL DEFAULT 'active'
+                               CHECK (status IN ('active', 'checkpoint_ready', 'completed', 'confirmed', 'cancelled')),
+          baseline_id        TEXT REFERENCES baselines(id) ON DELETE SET NULL,
+          change_id          TEXT REFERENCES changes(id) ON DELETE CASCADE,
+          workflow_run_id    TEXT REFERENCES workflow_runs(id) ON DELETE CASCADE,
+          summary_json       TEXT NOT NULL DEFAULT '{}',
+          checkpoint_json    TEXT NOT NULL DEFAULT '{}',
+          started_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          completed_at       TEXT,
+          confirmed_at       TEXT,
+          CHECK (baseline_id IS NOT NULL OR change_id IS NOT NULL OR workflow_run_id IS NOT NULL)
+        );
+        INSERT INTO decision_threads_completion_upgrade (
+          id, purpose, mode, status, baseline_id, change_id, workflow_run_id,
+          summary_json, checkpoint_json, started_at, updated_at, completed_at, confirmed_at
+        )
+        SELECT
+          id, purpose, mode, status, baseline_id, change_id, workflow_run_id,
+          summary_json, checkpoint_json, started_at, updated_at, NULL, confirmed_at
+        FROM decision_threads;
+        DROP TABLE decision_threads;
+        ALTER TABLE decision_threads_completion_upgrade RENAME TO decision_threads;
+        CREATE INDEX decision_threads_status
+          ON decision_threads(status, updated_at);
+        CREATE INDEX decision_threads_authority
+          ON decision_threads(baseline_id, change_id, workflow_run_id, status);
+      `);
+      db.prepare(
+        `UPDATE decision_threads
+         SET status = 'completed',
+             summary_json = CASE
+               WHEN summary_json = '{}' THEN ?
+               ELSE json_set(summary_json, '$.completion_kind', 'migrated_settled_thread')
+             END,
+             completed_at = updated_at
+         WHERE status = 'active'
+           AND EXISTS (
+             SELECT 1 FROM decision_items WHERE decision_items.thread_id = decision_threads.id
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM decision_items
+             WHERE decision_items.thread_id = decision_threads.id AND status = 'open'
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM decision_items
+             WHERE decision_items.thread_id = decision_threads.id
+               AND blocking = 1 AND status = 'deferred'
+           )`,
+      ).run(JSON.stringify({
+        text: 'Existing normalized decision state was completed during schema migration.',
+        completion_kind: 'migrated_settled_thread',
+      }));
+      const violations = db.pragma('foreign_key_check');
+      if (violations.length > 0) {
+        throw new Error(
+          `decision completion migration produced ${violations.length} foreign key violation(s)`,
+        );
+      }
+    })();
+  } finally {
+    db.pragma(`foreign_keys = ${foreignKeys ? 'ON' : 'OFF'}`);
+  }
+  return true;
 }
 
 function upgradeBaselineWorktreeConstraint(db, fromVersion = latestSchemaVersion(db)) {
@@ -611,6 +704,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     })();
   }
   const gitStateChangedFrom = upgradeBaselineWorktreeConstraint(db, fromVersion);
+  const decisionCompletionChanged = upgradeDecisionThreadLifecycle(db);
   db.transaction(() => {
     applyCompatibleColumns(db);
     const contextChanged = applyContextSpineUpgrade(db);
@@ -621,7 +715,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       fromVersion && ![
         CONTEXT_SCHEMA_VERSION, BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION,
         WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
-        DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
+        DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
+        DECISION_COMPLETION_SCHEMA_VERSION,
       ].includes(fromVersion)
         && !contextMigration,
     );
@@ -646,7 +741,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION, WORKFLOW_SCHEMA_VERSION,
       AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION,
-      GIT_AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
+      GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
+      DECISION_COMPLETION_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !baselineMigration) {
       db.prepare(
@@ -715,7 +811,11 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const workflowMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '13.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && fromVersion !== EXPECTED_VERSION && !workflowMigration) {
+    if (fromVersion && ![
+      WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
+      DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
+      DECISION_COMPLETION_SCHEMA_VERSION,
+    ].includes(fromVersion) && !workflowMigration) {
       db.prepare(
         `INSERT INTO migration_history
           (from_version, to_version, direction, status, notes)
@@ -729,7 +829,10 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const authorityMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '14.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && fromVersion !== EXPECTED_VERSION && !authorityMigration) {
+    if (fromVersion && ![
+      AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION,
+      GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+    ].includes(fromVersion) && !authorityMigration) {
       db.prepare(
         `INSERT INTO migration_history
           (from_version, to_version, direction, status, notes)
@@ -743,7 +846,10 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const semanticMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '15.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && fromVersion !== EXPECTED_VERSION && !semanticMigration) {
+    if (fromVersion && ![
+      SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION,
+      ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+    ].includes(fromVersion) && !semanticMigration) {
       db.prepare(
         `INSERT INTO migration_history
           (from_version, to_version, direction, status, notes)
@@ -757,7 +863,10 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const dialogueMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '16.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && ![DIALOGUE_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion)
+    if (fromVersion && ![
+      DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
+      DECISION_COMPLETION_SCHEMA_VERSION,
+    ].includes(fromVersion)
       && !dialogueMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -772,7 +881,9 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const gitStateMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '17.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && ![GIT_AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION].includes(fromVersion)
+    if (fromVersion && ![
+      GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+    ].includes(fromVersion)
       && !gitStateMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -788,17 +899,35 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const adaptiveMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '18.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && fromVersion !== EXPECTED_VERSION && !adaptiveMigration) {
+    if (fromVersion && ![
+      ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+    ].includes(fromVersion) && !adaptiveMigration) {
       db.prepare(
         `INSERT INTO migration_history
           (from_version, to_version, direction, status, notes)
          VALUES (?, ?, 'forward', 'success', ?)`,
       ).run(
         fromVersion === GIT_AUTHORITY_SCHEMA_VERSION ? fromVersion : GIT_AUTHORITY_SCHEMA_VERSION,
-        EXPECTED_VERSION,
+        ADAPTIVE_SCHEMA_VERSION,
         adaptiveChanged
           ? 'Migrate active rigid workflows to adaptive capability transitions and independent initialization'
           : 'Add adaptive capability transitions and independent initialization authority',
+      );
+    }
+    const completionMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '19.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && fromVersion !== DECISION_COMPLETION_SCHEMA_VERSION && !completionMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        ADAPTIVE_SCHEMA_VERSION,
+        DECISION_COMPLETION_SCHEMA_VERSION,
+        decisionCompletionChanged
+          ? 'Add non-ceremonial decision completion and migrate settled active threads'
+          : 'Add non-ceremonial decision completion authority',
       );
     }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
@@ -807,7 +936,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
     ).run(
       EXPECTED_VERSION,
-      'Adaptive capability transitions, independent initialization, and recoverable workflow migration',
+      'Non-ceremonial decision completion and host-neutral intent persistence',
     );
   })();
 }
@@ -837,7 +966,8 @@ function initStateDb(dbPath) {
     const legacyState = existing.size > 0
       && ![
         WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
-        DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, EXPECTED_VERSION,
+        DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
+        DECISION_COMPLETION_SCHEMA_VERSION,
       ].includes(fromVersion);
     backupPath = migrationBackup(db, dbPath, fromVersion, existing);
     applyCompatibleColumns(db);

@@ -49,25 +49,26 @@ sharing one authoritative workflow store.
 | 12    | Repository evidence snapshots + gap ledger + migration re-adoption + incident governance | ✅ done |
 | 13    | Durable init-to-delivery workflows + task execution contracts + immutable stage evidence | ✅ done |
 | 16    | Resumable one-question owner-agent decisions + artifact checkpoints + workflow gates | ✅ done |
+| 19    | Non-ceremonial decision completion + four-host semantic-selection contract | ✅ done |
 | 9     | Release pipeline                               | npm tag publishing live; Homebrew / pip not implemented |
 
 ## What is in the repo today
 
 ```
 spec/                       ← Phase 1 single source of truth
-├── mcp-tools.yaml          (50 live tools across 8 families)
+├── mcp-tools.yaml          (51 live tools across 8 families)
 ├── cli-protocol.md         (CLI ↔ MCP mapping table)
 ├── schemas/                (state-db.sql + 4 JSON schemas)
 ├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
 └── scripts/test-all.cjs    (npm run test:spec — 7 validation stages)
 
 mcp-server/                 ← Phase 2 authoritative state layer
-├── server.cjs              (stdio MCP server, 50 task/session/baseline/change/decision/workflow/system/plan tools)
+├── server.cjs              (stdio MCP server, 51 task/session/baseline/change/decision/workflow/system/plan tools)
 ├── lib/
 │   ├── state-db.cjs        (SQLite + WAL + pragmas)
 │   ├── state-ops.cjs       (full write API, status state machine)
 │   ├── baseline-workflow.cjs (project adoption + approval + reconciliation)
-│   ├── decision-dialogue.cjs (one-question authority + checkpoint gates)
+│   ├── decision-dialogue.cjs (one-question authority + completion/checkpoint gates)
 │   ├── workflow-state.cjs  (ordered stage runs, evidence, output digests, and gates)
 │   └── projector.cjs       (state.db → tasks.json + context md)
 └── tests/                  (npm run test:state)

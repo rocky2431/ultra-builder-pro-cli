@@ -94,6 +94,22 @@ test('status exposes the current decision instead of dumping the hidden queue', 
     assert.equal(panel.decisions.awaiting_owner, 1);
     assert.equal(panel.transitions.required, 'ultra-think');
     assert.match(statusCmd.renderHuman(panel), /Decision: status-api/);
+
+    decisions.resolveDecision(db, {
+      id: 'status-api',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Active consumers need a migration window.',
+      decided_by: 'owner',
+    });
+    decisions.completeDecisionThread(db, {
+      id: 'status-alignment',
+      summary: 'Compatibility intent is normalized without an artifact checkpoint.',
+    });
+    const settled = statusCmd.buildStatusPanel(db, { rootDir: dir });
+    assert.equal(settled.decisions.status, 'pass');
+    assert.equal(settled.decisions.active, 0);
+    assert.equal(settled.decisions.completed, 1);
+    assert.equal(settled.decisions.current, null);
   } finally { teardown(dir, db); }
 });
 

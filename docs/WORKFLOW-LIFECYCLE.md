@@ -25,9 +25,10 @@ as MCP authority.
 
 Load-bearing owner choices are normalized through `decision.*`; Prompt prose is not
 durable authority. The host acquires observable facts autonomously, exposes one
-current question, and stops. A workflow cannot advance while a matching decision
-thread is active, waiting for checkpoint confirmation, or carrying a blocking
-deferral.
+current question, and stops. A workflow cannot advance while a matching decision has
+an unanswered blocking question, a blocking deferral, a prepared checkpoint awaiting
+confirmation, or a stale confirmed artifact. A normalized answer alone does not require
+a ceremonial checkpoint.
 
 Every change-bound research, plan, dev, test, review, and deliver run inherits
 the baseline id from the owning change workflow. A Prompt cannot switch that
@@ -37,11 +38,13 @@ it does not fabricate the missing provenance.
 
 Ultra does not select product scope or material delivery posture; those remain user
 decisions. Research references form an optional catalog, not a forced questionnaire.
-The host model selects only evidence-relevant areas and records one coverage rationale.
-MCP validates identifiers, dispositions, evidence requirements, synthesis, and at
-least one applicable semantic area. Omitted areas create no workflow step. An explicit
-`not_applicable` or accepted `deferred` row is retained only when its exclusion is
-material.
+The host model inspects evidence and recommends only relevant areas. The owner selects,
+modifies, delegates, or defers that route through the native question surface unless
+current intent already resolves it. The host records the normalized accepted coverage
+and rationale. MCP validates identifiers, dispositions, evidence requirements,
+synthesis, and at least one applicable semantic area; it does not prove the preceding
+interaction. Omitted areas create no workflow step. An explicit `not_applicable` or
+accepted `deferred` row is retained only when its exclusion is material.
 
 ## 2. How `ultra-init` classifies a repository
 
@@ -195,29 +198,33 @@ making it `completed`.
 ### Decision thread and item
 
 ```text
-thread: active -> checkpoint_ready -> confirmed
-           ^              |
-           |--------------+  revision/supersession
+thread: active -> completed
+           |
+           +----> checkpoint_ready -> confirmed
+           ^              |              |
+           |--------------+--------------+  revision/supersession
 
 item: open -> answered | delegated | deferred | superseded
 ```
 
 A thread is bound to baseline, change, or workflow authority. A partial unique index
 allows only one `open` item per thread. Resolved items remain immutable history;
-changed evidence or intent uses `decision.supersede` and reopens the checkpoint.
-`decision.checkpoint` first freezes a normalized decision digest, then binds explicit
-owner approval to current artifact digests or a justified standalone no-artifact
-case. It never stores the conversation transcript.
+changed evidence or intent uses `decision.supersede` and reopens alignment.
+`decision.complete` closes settled normalized state without adding an approval claim.
+When an artifact-bound recovery boundary is actually needed, `decision.checkpoint`
+instead freezes a normalized decision digest and binds explicit owner approval to
+current artifact digests or a justified standalone no-artifact case. Neither path
+stores the conversation transcript.
 
 ## 4. Write and verification lifecycle
 
 | Stage | Authoritative writes | Completion verification | Available continuation |
 |---|---|---|---|
 | `init` | Baseline classification/scope, Git bootstrap state, completed init run, initialization event, projection job | DB/schema opens, scaffold/projection and read-back succeed; existing Git is preserved or missing local Git is initialized | Explicitly chosen `research`, `status`, or `doctor`; an already-ready project may also enter `change` |
-| `research` | Coverage dispositions, selected step evidence, material decision checkpoints, typed semantic records with source digests, immutable reports, output paths and SHA-256 digests | Every coverage area is dispositioned; only executed/verified/reused areas require work evidence; synthesis binds current specifications and distillate; all material decisions and digests are current | Baseline record/convergence for initial research; bounded change research returns to its owning change |
+| `research` | Accepted coverage dispositions, selected step evidence, normalized material decisions, optional artifact checkpoints, typed semantic records with source digests, immutable reports, output paths and SHA-256 digests | Every included coverage area is dispositioned; only executed/verified/reused areas require work evidence; synthesis binds current specifications and distillate; all material decisions and digests are current | Baseline record/convergence for initial research; bounded change research returns to its owning change |
 | baseline convergence | Spec/source/runtime refs, verification results, known failures, unknowns, gaps, branch/HEAD/worktree, approval | Full/adoption research complete; required discovery/product/architecture refs current; revision/worktree exact; blocking gaps resolved or explicitly accepted where allowed | `change` for every initial or daily outcome |
-| `change` | Complete Change Contract, profile/risk rationale, research disposition, intent/delta artifacts, and a completed capture run; a decision thread only when material intent remains unresolved | Intent, acceptance, recovery, classification, and research disposition are complete and bound to the baseline | Host selects among bounded `research`, `plan`, current `dev`, `think`, or `status` using allowed transitions |
-| `plan` | Selected planning evidence, complete change-owned task rows, acceptance coverage matrix, and change-bound `.ultra/execution-plan.json`; approval only for a material owner decision | Every Change acceptance id is owned by a task; trace targets, ownership, dependencies, topology, task contracts, and exported digest match current authority | Any dependency-ready task may enter `dev` |
+| `change` | Complete Change Contract, profile/risk rationale, research disposition, intent/delta artifacts, and a completed capture run; a decision thread only when material intent remains unresolved | Intent, acceptance, recovery, classification, and research disposition are complete and bound to the baseline | Model recommends; owner selects or delegates bounded `research`, `plan`, current `dev`, `think`, or `status` from allowed transitions |
+| `plan` | Accepted planning posture, selected planning evidence, complete change-owned task rows, acceptance coverage matrix, and change-bound `.ultra/execution-plan.json`; approval only for a material owner decision | Every Change acceptance id is owned by a task; trace targets, ownership, dependencies, topology, task contracts, and exported digest match current authority | Any dependency-ready task may enter `dev` |
 | `dev` | Task/session transitions, real worktree, step evidence, immutable implementation context, completion/review references | Task completed; no live session; task contract unchanged; starting context and review artifacts valid; completion commits are integrated and remain ancestors of current HEAD | Next task, then aggregate `test` |
 | `test` | Immutable checking context, an explicit risk-selected verification profile, and `.ultra/reports/tests/<workflow-id>.json` | Selected dimensions and acceptance pass; every excluded dimension has a rationale; report change/task set, HEAD, worktree, context, commands, blockers, and digests agree | `review` when passing, otherwise resume `dev`/`test` |
 | `review` | Immutable review context, `task`/`change`/`plan` mode, risk-selected worker provenance, two mandatory specialist axes, and coordinated summary | Current diff/HEAD and context match; the complete worker roster is selected or skipped with rationale; completed workers match specialist artifacts; both axes complete; findings and axis verdicts derive the final verdict | `deliver` only from a passing `change` review, otherwise resume implementation or checking |
@@ -249,8 +256,19 @@ thread only for a new material decision cluster. Before asking, it must:
 6. normalize the owner response with `decision.resolve`, explicit reversible
    delegation with `decision.delegate`, or a consequence-bearing deferral with
    `decision.defer`;
-7. prepare a compact checkpoint only when a material decision cluster changes a
-   durable contract and interruption recovery needs an artifact-bound boundary.
+7. call `decision.complete` when normalized state is settled, or prepare a compact
+   checkpoint only when a material decision cluster changes a durable contract and
+   interruption recovery needs an artifact-bound boundary.
+
+The shared semantic flow is `inspect -> suggest -> ask if unresolved -> normalize ->
+persist`. Claude Code and Kimi Code use `AskUserQuestion`, Codex uses
+`request_user_input` when its current mode exposes it, and OpenCode uses `question`
+when permitted. Every host falls back to one concise direct question when normal
+conversation is still allowed. If the current host mode forbids interaction entirely,
+the choice remains unanswered and route-dependent writes stop. A dismissed question
+also remains unanswered. The DB trusts a normalized persisted result as current
+authority across sessions; it does not store or verify a UI receipt, raw prompt, or
+transcript.
 
 `ultra-think` owns this interaction protocol. `ultra-research`, `ultra-change`, and
 `ultra-plan` invoke it at their decision boundaries. `ultra-dev`, `ultra-test`,
@@ -326,7 +344,8 @@ current gate evidence do block.
 
 ```text
 ultra-init -> Git/scaffold/authority verification -> init completed
--> explicit ultra-research -> model-selected coverage -> selected evidence work
+-> explicit ultra-research -> suggested route -> owner-selected accepted coverage
+-> selected evidence work
 -> local checkpoint when Git is unborn -> baseline approval
 -> ultra-change -> optional bounded research/plan -> dev -> risk-selected test/review
 -> local deliver/archive
@@ -336,7 +355,7 @@ ultra-init -> Git/scaffold/authority verification -> init completed
 
 ```text
 ultra-init -> preserve Git/classify brownfield -> init completed
--> explicit adoption research -> model-selected coverage
+-> explicit adoption research -> suggested route -> owner-selected accepted coverage
 -> selected characterization/known-red evidence -> gap ledger -> owner approval
 -> first ultra-change -> optional bounded research/plan -> dev -> test/review -> deliver
 ```
@@ -358,7 +377,8 @@ Migration preserves prior files and rows but never carries old approval forward.
 
 ```text
 ultra-status -> ultra-change intent capture
--> host chooses bounded research, plan, current task, think, or status
+-> model recommends; owner selects or delegates bounded research, plan, current task,
+   think, or status
 -> dev -> risk-selected test -> review -> deliver -> reconciled baseline
 ```
 
@@ -374,13 +394,13 @@ evidence rather than bypassing them.
 | `ultra-init` | classification, scope, Git/scaffold bootstrap, and init verification | stops completed; exposes research/status/doctor and any already-valid change capability |
 | `ultra-research` | coverage disposition, selected evidence acquisition, synthesis, and material research decisions | baseline convergence or return to the owning change |
 | `ultra-think` | one material owner decision or read-only diagnosis | returns to the invoking capability after any needed checkpoint |
-| `ultra-change` | outcome capture, Change Contract, risk/research routing | host selects research, plan, current dev work, think, or status |
+| `ultra-change` | outcome capture, Change Contract, risk/research routing | model recommends; owner selects or delegates research, plan, current dev work, think, or status |
 | `ultra-plan` | task contracts, dependencies, acceptance coverage, optional material approval | any dependency-ready task through `ultra-dev` |
 | `ultra-dev` | one task/session vertical slice and focused review | next `ultra-dev` task or aggregate `ultra-test` |
 | `ultra-test` | risk-selected change acceptance and verification profile | `ultra-review` on pass, `ultra-dev`/`ultra-test` on failure |
 | `ultra-review` | independent specification and engineering axes plus risk-selected workers | `ultra-deliver` on approval; otherwise implementation or checking |
 | `ultra-deliver` | convergence, reconciliation, local archive, and delivery evidence | `ultra-status` or the next `ultra-change`; external release is separate |
-| `ultra-status` | read-only authority and transition set | host recommendation among allowed transitions |
+| `ultra-status` | read-only authority and transition set | model recommendation; owner selection or delegation among allowed transitions |
 | `ultra-doctor` | read-only diagnosis and authorized mechanical recovery | required recovery only when unique; otherwise safe alternatives |
 
 Every row permits `ultra-think` when material owner authority is missing and permits

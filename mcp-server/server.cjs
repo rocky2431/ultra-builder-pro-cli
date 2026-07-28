@@ -112,6 +112,7 @@ const DECISION_TOOLS = Object.freeze([
   'decision.delegate',
   'decision.defer',
   'decision.supersede',
+  'decision.complete',
   'decision.checkpoint',
 ]);
 
@@ -139,7 +140,7 @@ const MUTATING_TOOLS = new Set([
   'change.create', 'change.update', 'change.context', 'change.converge', 'change.archive',
   'change.learning_propose', 'change.learning_resolve',
   'decision.thread_start', 'decision.open', 'decision.resolve', 'decision.delegate',
-  'decision.defer', 'decision.supersede', 'decision.checkpoint',
+  'decision.defer', 'decision.supersede', 'decision.complete', 'decision.checkpoint',
   'workflow.start', 'workflow.step', 'workflow.complete',
 ]);
 
@@ -575,6 +576,9 @@ async function dispatchTool(name, input, db, ctx = {}) {
     }
     case 'decision.supersede': {
       return { thread: decisions.supersedeDecision(db, input) };
+    }
+    case 'decision.complete': {
+      return { thread: decisions.completeDecisionThread(db, input) };
     }
     case 'decision.checkpoint': {
       return {

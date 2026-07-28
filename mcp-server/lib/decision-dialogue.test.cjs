@@ -108,7 +108,7 @@ test('one decision thread exposes only one current question and resumes from DB'
   }
 });
 
-test('blocking decisions stop workflow advancement until an approved checkpoint binds artifacts', () => {
+test('an open owner decision blocks advancement while resolved accepted intent needs no ceremonial checkpoint', () => {
   const fx = fixture();
   try {
     const created = createAlignedChange(fx);
@@ -140,31 +140,142 @@ test('blocking decisions stop workflow advancement until an approved checkpoint 
       rationale: 'Two active consumers need a safe migration window.',
       decided_by: 'owner',
     });
+    const advanced = workflows.recordWorkflowStep(fx.db, {
+      id: plan.id, step_id: 'validate-baseline', status: 'completed',
+      evidence: [{
+        kind: 'baseline',
+        ref: 'test-baseline',
+        summary: 'The current baseline and normalized owner decision are ready for planning.',
+      }],
+    }, { rootDir: fx.rootDir });
+    assert.equal(advanced.current_step, 'analyze-requirements');
+
+    const completed = decisions.completeDecisionThread(fx.db, {
+      id: 'thread-change-alignment',
+      summary: 'Compatibility intent is normalized and no artifact checkpoint is required.',
+    });
+    assert.equal(completed.status, 'completed');
+    assert.equal(completed.completed_at !== null, true);
+    assert.equal(decisions.inspectDecisionHealth(fx.db, { rootDir: fx.rootDir }).status, 'pass');
+
+    const next = decisions.startDecisionThread(fx.db, {
+      id: 'thread-follow-up-alignment',
+      baseline_id: 'test-baseline',
+      change_id: created.change.id,
+      workflow_run_id: plan.id,
+      purpose: 'Allow a later material question after the prior dialogue completed.',
+      mode: 'fast',
+    });
+    assert.equal(next.status, 'active');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('an open non-blocking question does not become a global workflow gate', () => {
+  const fx = fixture();
+  try {
+    const created = createAlignedChange(fx);
+    const plan = workflows.startWorkflow(fx.db, {
+      id: 'plan-with-non-blocking-question',
+      kind: 'plan',
+      change_id: created.change.id,
+      subject: 'Advance work that does not depend on an optional follow-up.',
+    }, { rootDir: fx.rootDir });
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-non-blocking-follow-up',
+      baseline_id: 'test-baseline',
+      change_id: created.change.id,
+      workflow_run_id: plan.id,
+      purpose: 'Retain an optional follow-up without blocking unrelated work.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-optional-release-note',
+      thread_id: 'thread-non-blocking-follow-up',
+      question: 'Should the later release note include a migration example?',
+      blocking: false,
+    }));
+    assert.throws(
+      () => decisions.completeDecisionThread(fx.db, {
+        id: 'thread-non-blocking-follow-up',
+        summary: 'The optional question was not answered.',
+      }),
+      (error) => error.code === 'DECISION_ALIGNMENT_BLOCKING'
+        && error.details.blockers.includes('DECISION_AWAITING_OWNER:decision-optional-release-note'),
+    );
+
+    const gate = decisions.decisionGate(fx.db, {
+      baseline_id: 'test-baseline',
+      change_id: created.change.id,
+      workflow_run_id: plan.id,
+    });
+    assert.equal(gate.ready, true);
+    assert.deepEqual(gate.blockers, []);
+    assert.equal(gate.current_decision.id, 'decision-optional-release-note');
+
+    const advanced = workflows.recordWorkflowStep(fx.db, {
+      id: plan.id, step_id: 'validate-baseline', status: 'completed',
+      evidence: [{
+        kind: 'baseline',
+        ref: 'test-baseline',
+        summary: 'The optional release-note question does not affect baseline validity.',
+      }],
+    }, { rootDir: fx.rootDir });
+    assert.equal(advanced.current_step, 'analyze-requirements');
+
+    decisions.deferDecision(fx.db, {
+      id: 'decision-optional-release-note',
+      reason: 'The release note is outside the current implementation boundary.',
+      consequences: 'A later documentation change may add the example.',
+      revisit_condition: 'Revisit when release documentation begins.',
+    });
+    assert.equal(decisions.completeDecisionThread(fx.db, {
+      id: 'thread-non-blocking-follow-up',
+      summary: 'The optional follow-up is durably deferred without blocking implementation.',
+    }).status, 'completed');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('an explicitly prepared artifact checkpoint remains a freshness gate', () => {
+  const fx = fixture();
+  try {
+    const created = createAlignedChange(fx);
+    const plan = workflows.startWorkflow(fx.db, {
+      id: 'plan-with-artifact-checkpoint',
+      kind: 'plan',
+      change_id: created.change.id,
+      subject: 'Keep an explicitly checkpointed alignment artifact current.',
+    }, { rootDir: fx.rootDir });
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-artifact-alignment',
+      baseline_id: 'test-baseline',
+      change_id: created.change.id,
+      workflow_run_id: plan.id,
+      purpose: 'Bind a material decision cluster to a durable artifact.',
+      mode: 'guided',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-artifact-compatibility',
+      thread_id: 'thread-artifact-alignment',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-artifact-compatibility',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Two active consumers need a safe migration window.',
+      decided_by: 'owner',
+    });
+    const alignmentPath = path.join(created.change.artifact_root, 'alignment.md');
+    fs.writeFileSync(path.join(fx.rootDir, alignmentPath), '# Alignment\n\nCompatibility is preserved.\n');
     const prepared = decisions.checkpointDecisionThread(fx.db, {
-      id: 'thread-change-alignment', action: 'prepare',
+      id: 'thread-artifact-alignment', action: 'prepare',
       summary: 'The change contract preserves compatibility for one release.',
     }, { rootDir: fx.rootDir });
     assert.equal(prepared.status, 'checkpoint_ready');
-    assert.throws(
-      () => workflows.recordWorkflowStep(fx.db, {
-        id: plan.id, step_id: 'validate-baseline', status: 'completed',
-      }, { rootDir: fx.rootDir }),
-      (error) => error.code === 'DECISION_ALIGNMENT_BLOCKING',
-    );
-
-    assert.throws(
-      () => decisions.checkpointDecisionThread(fx.db, {
-        id: 'thread-change-alignment', action: 'confirm',
-        approved_by: 'owner', approval_note: 'Attempted confirmation without evidence.',
-        no_artifact_reason: 'The workflow has not written its required projection.',
-      }, { rootDir: fx.rootDir }),
-      (error) => error.code === 'DECISION_ARTIFACT_REQUIRED',
-    );
-
-    const alignmentPath = path.join(created.change.artifact_root, 'alignment.md');
-    fs.writeFileSync(path.join(fx.rootDir, alignmentPath), '# Alignment\n\nCompatibility is preserved.\n');
     const confirmed = decisions.checkpointDecisionThread(fx.db, {
-      id: 'thread-change-alignment', action: 'confirm',
+      id: 'thread-artifact-alignment', action: 'confirm',
       approved_by: 'owner', approval_note: 'Confirmed after reviewing the durable effect.',
       artifacts: [{ path: alignmentPath, kind: 'alignment-projection' }],
     }, { rootDir: fx.rootDir });
@@ -174,20 +285,20 @@ test('blocking decisions stop workflow advancement until an approved checkpoint 
     fs.writeFileSync(path.join(fx.rootDir, alignmentPath), '# Alignment\n\nCompatibility changed after approval.\n');
     const staleHealth = decisions.inspectDecisionHealth(fx.db, { rootDir: fx.rootDir });
     assert.equal(staleHealth.status, 'fail');
-    assert.equal(staleHealth.current_thread_id, 'thread-change-alignment');
+    assert.equal(staleHealth.current_thread_id, 'thread-artifact-alignment');
     assert.throws(
       () => workflows.recordWorkflowStep(fx.db, {
         id: plan.id, step_id: 'validate-baseline', status: 'completed',
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'DECISION_ALIGNMENT_BLOCKING'
-        && error.details.blockers.includes('DECISION_CHECKPOINT_ARTIFACT_STALE:thread-change-alignment'),
+        && error.details.blockers.includes('DECISION_CHECKPOINT_ARTIFACT_STALE:thread-artifact-alignment'),
     );
     decisions.checkpointDecisionThread(fx.db, {
-      id: 'thread-change-alignment', action: 'prepare',
+      id: 'thread-artifact-alignment', action: 'prepare',
       summary: 'The same compatibility decision now binds the corrected alignment artifact.',
     }, { rootDir: fx.rootDir });
     decisions.checkpointDecisionThread(fx.db, {
-      id: 'thread-change-alignment', action: 'confirm',
+      id: 'thread-artifact-alignment', action: 'confirm',
       approved_by: 'owner', approval_note: 'Reconfirmed after reviewing the corrected artifact.',
       artifacts: [{ path: alignmentPath, kind: 'alignment-projection' }],
     }, { rootDir: fx.rootDir });
@@ -340,6 +451,55 @@ test('a change-bound dialogue does not block an unrelated change on the same bas
 
     assert.equal(firstGate.ready, false);
     assert.equal(secondGate.ready, true);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('decision gate reports the blocking thread instead of an older advisory thread', () => {
+  const fx = fixture();
+  try {
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-baseline-advisory',
+      baseline_id: 'test-baseline',
+      purpose: 'Retain one advisory baseline follow-up.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-baseline-advisory',
+      thread_id: 'thread-baseline-advisory',
+      question: 'Should a later guide include another example?',
+      blocking: false,
+    }));
+
+    const created = createAlignedChange(fx, 'decision-change-blocking');
+    const plan = workflows.startWorkflow(fx.db, {
+      id: 'plan-with-blocking-thread',
+      kind: 'plan',
+      change_id: created.change.id,
+      subject: 'Expose the actual blocking decision.',
+    }, { rootDir: fx.rootDir });
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-change-blocking',
+      baseline_id: 'test-baseline',
+      change_id: created.change.id,
+      workflow_run_id: plan.id,
+      purpose: 'Resolve the blocking change decision.',
+      mode: 'guided',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-change-blocking',
+      thread_id: 'thread-change-blocking',
+    }));
+
+    const gate = decisions.decisionGate(fx.db, {
+      baseline_id: 'test-baseline',
+      change_id: created.change.id,
+      workflow_run_id: plan.id,
+    });
+    assert.equal(gate.ready, false);
+    assert.equal(gate.thread.id, 'thread-change-blocking');
+    assert.equal(gate.current_decision.id, 'decision-change-blocking');
   } finally {
     cleanup(fx);
   }

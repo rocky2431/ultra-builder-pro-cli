@@ -647,7 +647,7 @@ function normalizeResearchCoverage(mode, coverage, selectedSteps, metadata = {})
     if (selectionReason.length < 3) {
       throw new WorkflowStateError(
         'WORKFLOW_SELECTION_REASON_REQUIRED',
-        `${mode} research requires the model's evidence-based coverage rationale`,
+        `${mode} research requires an evidence-based rationale for the accepted coverage`,
       );
     }
     const synthesis = normalized.find((item) => item.step_id === '99-synthesis');
@@ -679,7 +679,7 @@ function normalizeResearchCoverage(mode, coverage, selectedSteps, metadata = {})
     if (!Array.isArray(selectedSteps) || selectedSteps.length === 0) {
       throw new WorkflowStateError(
         'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
-        'custom research requires model-selected coverage or selected_steps',
+        'custom research requires accepted coverage or selected_steps',
       );
     }
     const invalid = selectedSteps.find((item) => !known.has(item));
@@ -688,7 +688,7 @@ function normalizeResearchCoverage(mode, coverage, selectedSteps, metadata = {})
     if (selectionReason.length < 3) {
       throw new WorkflowStateError(
         'WORKFLOW_SELECTION_REASON_REQUIRED',
-        'custom research requires the model\'s evidence-based coverage rationale',
+        'custom research requires an evidence-based rationale for the accepted coverage',
       );
     }
     const explicitCoverage = [...new Set([...selectedSteps, '99-synthesis'])].map((stepId) => ({
@@ -701,7 +701,7 @@ function normalizeResearchCoverage(mode, coverage, selectedSteps, metadata = {})
   }
   throw new WorkflowStateError(
     'WORKFLOW_RESEARCH_COVERAGE_REQUIRED',
-    `${mode} research requires model-selected coverage dispositions`,
+    `${mode} research requires accepted coverage dispositions`,
   );
 }
 

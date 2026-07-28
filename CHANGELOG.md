@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-07-28
+
+### Added
+
+- Added schema 19 and `decision.complete` so settled normalized intent reaches a
+  terminal lifecycle state without fabricating a second user approval or an
+  artifact checkpoint. Existing settled schema-18 threads migrate safely.
+
+### Changed
+
+- Unified semantic selection across Claude Code, Codex, OpenCode, and Kimi Code
+  as `inspect -> suggest -> ask if unresolved -> normalize -> persist`, using
+  each host's native structured question surface with a direct-question
+  fallback.
+- Made research coverage and planning posture owner-selected after model
+  recommendation while preserving autonomous fact finding, synthesis,
+  decomposition, and reversible implementation judgment.
+- Stopped requiring a ceremonial decision checkpoint after every normalized
+  answer. Artifact checkpoints remain explicit digest-bound freshness gates.
+- Made unanswered non-blocking follow-ups advisory instead of global workflow
+  gates; unanswered blocking choices and blocking deferrals still fail closed.
+
 ## [0.19.1] — 2026-07-26
 
 ### Fixed
@@ -817,7 +839,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.1...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.17.1...v0.18.0

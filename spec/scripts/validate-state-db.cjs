@@ -62,12 +62,12 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '18.0'").get();
-if (v && v.version === '18.0') {
-  console.log('ok schema_version includes 18.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '19.0'").get();
+if (v && v.version === '19.0') {
+  console.log('ok schema_version includes 19.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 18.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 19.0: got ${JSON.stringify(v)}`);
   fail++;
 }
 
@@ -127,7 +127,10 @@ for (const column of ['baseline_bypass_json', 'alignment_thread_id']) {
 const decisionThreadColumns = new Set(
   db.prepare('PRAGMA table_info(decision_threads)').all().map((row) => row.name),
 );
-for (const column of ['purpose', 'mode', 'status', 'baseline_id', 'change_id', 'workflow_run_id', 'checkpoint_json']) {
+for (const column of [
+  'purpose', 'mode', 'status', 'baseline_id', 'change_id', 'workflow_run_id',
+  'checkpoint_json', 'completed_at',
+]) {
   if (decisionThreadColumns.has(column)) {
     console.log(`  ok decision_threads.${column}`);
     pass++;
