@@ -44,7 +44,10 @@ test('opencode v0.1 smoke — install + lowercased frontmatter + mcp round-trip 
     const serverHome = mkTarget('opencode-server');
     const initTarget = mkTarget('opencode-init');
     fs.rmSync(initTarget, { recursive: true, force: true });
-    await withMcpClient({ dbPath: path.join(serverHome, 'state.db'), rootDir: serverHome }, async (client) => {
+    await withMcpClient({
+      dbPath: path.join(serverHome, '.ultra', '.runtime', 'state.db'),
+      rootDir: serverHome,
+    }, async (client) => {
       const init = await client.callTool({
         name: 'task.init_project',
         arguments: { target_dir: initTarget, project_name: 'opencode-smoke' },

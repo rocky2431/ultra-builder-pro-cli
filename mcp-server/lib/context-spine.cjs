@@ -16,6 +16,13 @@ const GATES = new Set([
 const CONTEXT_KINDS = new Set(['spec', 'source', 'test', 'docs', 'external']);
 const SLICE_KINDS = new Set(['tracer_bullet', 'expand_contract', 'integration_checkpoint']);
 const DEFAULT_BUDGET = Object.freeze({ max_tokens: 12_000, max_files: 12 });
+const MAX_CONTEXT_REFS = 64;
+const MAX_REF_LENGTH = 2_048;
+const MAX_REASON_LENGTH = 2_048;
+const MAX_LOCATOR_LENGTH = 512;
+const SPEC_REF_FIELDS = new Set([
+  'ref', 'reason', 'required', 'expected_digest', 'anchor', 'scope', 'freshness_policy',
+]);
 const ADVISORY_CONTEXT_CODES = new Set([
   'CONTEXT_FILE_BUDGET_EXCEEDED',
   'CONTEXT_TOKEN_BUDGET_EXCEEDED',
@@ -132,6 +139,26 @@ function taskStateDigest(task) {
   return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
+function taskContractDigest(task) {
+  if (!task) return null;
+  const payload = {
+    id: task.id,
+    change_id: task.change_id,
+    deps: task.deps || [],
+    files_modified: task.files_modified || [],
+    outcome: task.outcome,
+    slice_kind: task.slice_kind,
+    public_seam: task.public_seam,
+    verification_command: task.verification_command,
+    acceptance: task.acceptance || [],
+    context_refs: task.context_refs || [],
+    docs_impact: task.docs_impact || {},
+    ownership: task.ownership || {},
+    trace_to: task.trace_to,
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+}
+
 function changeStateDigest(change) {
   if (!change) return null;
   const payload = {
@@ -154,9 +181,20 @@ function nonEmpty(value, field) {
   return text;
 }
 
+function boundedText(value, field, maxLength) {
+  const text = nonEmpty(value, field);
+  if (text.length > maxLength) {
+    throw new ContextSpineError(
+      'VALIDATION_ERROR', `${field} must be at most ${maxLength} characters`,
+    );
+  }
+  return text;
+}
+
 function localPath(rootDir, ref) {
   const candidate = ref.split('#', 1)[0];
-  if (!candidate || path.isAbsolute(candidate)) {
+  if (!candidate || path.isAbsolute(candidate)
+    || /^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
     throw new ContextSpineError('VALIDATION_ERROR', `context ref must be project-relative: ${ref}`);
   }
   const root = path.resolve(rootDir);
@@ -165,6 +203,102 @@ function localPath(rootDir, ref) {
     throw new ContextSpineError('VALIDATION_ERROR', `context ref escapes project root: ${ref}`);
   }
   return resolved;
+}
+
+function contextPathUnsafe(ref, message) {
+  return new ContextSpineError(
+    'CONTEXT_REF_UNSAFE',
+    `${message}: ${ref}`,
+  );
+}
+
+function lstatOrNull(candidate) {
+  try { return fs.lstatSync(candidate); } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function sameEntry(left, right) {
+  return Boolean(left && right
+    && String(left.dev) === String(right.dev)
+    && String(left.ino) === String(right.ino));
+}
+
+function physicallyContained(root, candidate) {
+  return candidate === root || candidate.startsWith(`${root}${path.sep}`);
+}
+
+function readProjectFile(rootDir, ref) {
+  const file = localPath(rootDir, ref);
+  const root = path.resolve(rootDir);
+  const rootStat = lstatOrNull(root);
+  if (!rootStat || !rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+    throw contextPathUnsafe(ref, 'project root must be a real directory');
+  }
+  const physicalRoot = fs.realpathSync(root);
+  const identities = [{ file: root, stat: rootStat, directory: true }];
+  let current = root;
+  const segments = path.relative(root, file).split(path.sep).filter(Boolean);
+  for (const [index, segment] of segments.entries()) {
+    current = path.join(current, segment);
+    const stat = lstatOrNull(current);
+    if (!stat) return null;
+    const final = index === segments.length - 1;
+    if (stat.isSymbolicLink()) {
+      throw contextPathUnsafe(ref, 'local Context refs cannot traverse symbolic links');
+    }
+    if ((!final && !stat.isDirectory()) || (final && !stat.isFile())) {
+      throw contextPathUnsafe(
+        ref,
+        final
+          ? 'local Context ref must be a regular file'
+          : 'local Context ref ancestor must be a directory',
+      );
+    }
+    identities.push({ file: current, stat, directory: !final });
+  }
+  let physicalFile;
+  try { physicalFile = fs.realpathSync(file); } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  if (!physicallyContained(physicalRoot, physicalFile)) {
+    throw contextPathUnsafe(ref, 'local Context ref escapes the physical project root');
+  }
+  const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0);
+  let fd;
+  try {
+    try { fd = fs.openSync(file, flags); } catch (error) {
+      if (error?.code === 'ENOENT') return null;
+      if (['ELOOP', 'EMLINK'].includes(error?.code)) {
+        throw contextPathUnsafe(ref, 'local Context ref changed to a symbolic link');
+      }
+      throw error;
+    }
+    const opened = fs.fstatSync(fd);
+    const finalIdentity = identities[identities.length - 1]?.stat;
+    if (!opened.isFile() || !sameEntry(opened, finalIdentity)) {
+      throw contextPathUnsafe(ref, 'local Context ref changed while opening');
+    }
+    for (const identity of identities) {
+      const currentStat = lstatOrNull(identity.file);
+      if (!currentStat || currentStat.isSymbolicLink()
+        || !sameEntry(currentStat, identity.stat)
+        || (identity.directory ? !currentStat.isDirectory() : !currentStat.isFile())) {
+        throw contextPathUnsafe(ref, 'local Context ref path changed while opening');
+      }
+    }
+    const currentPhysicalRoot = fs.realpathSync(root);
+    const currentPhysicalFile = fs.realpathSync(file);
+    if (currentPhysicalRoot !== physicalRoot
+      || !physicallyContained(physicalRoot, currentPhysicalFile)) {
+      throw contextPathUnsafe(ref, 'local Context ref physical path changed while opening');
+    }
+    return { file, bytes: fs.readFileSync(fd) };
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
 }
 
 function normalizeBudget(value, inherited) {
@@ -178,44 +312,110 @@ function normalizeBudget(value, inherited) {
 }
 
 function specRefToContextRef(value, role) {
-  const ref = typeof value === 'string'
-    ? value
-    : value && (value.ref || value.path || value.reference);
-  if (!ref) throw new ContextSpineError('VALIDATION_ERROR', 'spec_refs entries require path/ref/reference');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ContextSpineError('VALIDATION_ERROR', 'spec_refs entries must be objects');
+  }
+  const unknown = Object.keys(value).filter((field) => !SPEC_REF_FIELDS.has(field));
+  if (unknown.length > 0) {
+    throw new ContextSpineError(
+      'VALIDATION_ERROR', `spec_refs entry has unsupported fields: ${unknown.join(', ')}`,
+    );
+  }
+  if (value.required !== undefined && typeof value.required !== 'boolean') {
+    throw new ContextSpineError(
+      'VALIDATION_ERROR', 'spec_refs[].required must be a boolean',
+    );
+  }
+  const ref = boundedText(value.ref, 'spec_refs[].ref', MAX_REF_LENGTH);
   return {
     ref,
     kind: 'spec',
-    reason: (value && value.reason) || `Specification evidence for ${role}`,
-    required: value?.required !== false,
-    digest: value && value.digest,
+    reason: value.reason === undefined
+      ? `Specification evidence for ${role}`
+      : boundedText(value.reason, 'spec_refs[].reason', MAX_REASON_LENGTH),
+    required: value.required !== false,
+    expected_digest: value.expected_digest,
+    anchor: value.anchor,
+    scope: value.scope,
+    freshness_policy: value.freshness_policy,
   };
 }
 
 function normalizeRefs(input, role, inherited) {
+  if (input.context_refs !== undefined && input.spec_refs !== undefined) {
+    throw new ContextSpineError(
+      'VALIDATION_ERROR',
+      'context_refs and spec_refs are mutually exclusive; provide exactly one reference format',
+    );
+  }
   let refs;
   if (input.context_refs !== undefined) refs = input.context_refs;
-  else if (input.spec_refs !== undefined) refs = input.spec_refs.map((value) => specRefToContextRef(value, role));
+  else if (input.spec_refs !== undefined) {
+    if (!Array.isArray(input.spec_refs)) {
+      throw new ContextSpineError('VALIDATION_ERROR', 'spec_refs must be an array');
+    }
+    if (input.spec_refs.length > MAX_CONTEXT_REFS) {
+      throw new ContextSpineError(
+        'VALIDATION_ERROR', `spec_refs must contain at most ${MAX_CONTEXT_REFS} entries`,
+      );
+    }
+    refs = input.spec_refs.map((value) => specRefToContextRef(value, role));
+  }
   else refs = inherited || [];
   if (!Array.isArray(refs)) {
     throw new ContextSpineError('VALIDATION_ERROR', 'context_refs must be an array');
+  }
+  if (refs.length > MAX_CONTEXT_REFS) {
+    throw new ContextSpineError(
+      'VALIDATION_ERROR', `context_refs must contain at most ${MAX_CONTEXT_REFS} entries`,
+    );
   }
   return refs.map((value, index) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       throw new ContextSpineError('VALIDATION_ERROR', `context_refs[${index}] must be an object`);
     }
-    const ref = nonEmpty(value.ref || value.path || value.reference, `context_refs[${index}].ref`);
+    const ref = boundedText(
+      value.ref || value.path || value.reference,
+      `context_refs[${index}].ref`,
+      MAX_REF_LENGTH,
+    );
     const kind = value.kind || 'source';
     if (!CONTEXT_KINDS.has(kind)) {
       throw new ContextSpineError('VALIDATION_ERROR', `unsupported context kind: ${kind}`);
     }
-    const reason = nonEmpty(value.reason, `context_refs[${index}].reason`);
-    if (value.digest !== undefined && !/^[0-9a-f]{64}$/.test(value.digest)) {
-      throw new ContextSpineError('VALIDATION_ERROR', `context_refs[${index}].digest must be sha256`);
+    const reason = boundedText(
+      value.reason, `context_refs[${index}].reason`, MAX_REASON_LENGTH,
+    );
+    const expectedDigest = value.expected_digest ?? value.digest ?? null;
+    if (expectedDigest !== null && !/^[0-9a-f]{64}$/.test(expectedDigest)) {
+      throw new ContextSpineError(
+        'VALIDATION_ERROR', `context_refs[${index}].expected_digest must be sha256`,
+      );
     }
-    return {
+    const freshnessPolicy = value.freshness_policy
+      || (expectedDigest ? 'digest' : 'existence');
+    if (!['digest', 'existence', 'advisory'].includes(freshnessPolicy)) {
+      throw new ContextSpineError(
+        'VALIDATION_ERROR',
+        `context_refs[${index}].freshness_policy must be digest, existence, or advisory`,
+      );
+    }
+    const normalized = {
       ref, kind, reason, required: value.required !== false,
-      expected_digest: value.digest || null,
+      expected_digest: expectedDigest,
+      freshness_policy: freshnessPolicy,
     };
+    if (value.anchor !== undefined) {
+      normalized.anchor = boundedText(
+        value.anchor, `context_refs[${index}].anchor`, MAX_LOCATOR_LENGTH,
+      );
+    }
+    if (value.scope !== undefined) {
+      normalized.scope = boundedText(
+        value.scope, `context_refs[${index}].scope`, MAX_LOCATOR_LENGTH,
+      );
+    }
+    return normalized;
   });
 }
 
@@ -230,6 +430,9 @@ function authoritativeTaskRefs(input, role, task) {
     reason: item.reason,
     required: item.required,
     expected_digest: item.expected_digest,
+    anchor: item.anchor,
+    scope: item.scope,
+    freshness_policy: item.freshness_policy,
   }));
   if (JSON.stringify(comparable(supplied)) !== JSON.stringify(comparable(dbRefs))) {
     throw new ContextSpineError(
@@ -241,20 +444,73 @@ function authoritativeTaskRefs(input, role, task) {
 }
 
 function inspectRef(rootDir, role, value) {
-  if (value.kind === 'external' || /^[a-z][a-z0-9+.-]*:\/\//i.test(value.ref)) {
+  if (value.kind === 'external') {
     return { ...value, role, status: 'external', digest: value.expected_digest, estimated_tokens: 0 };
   }
-  const file = localPath(rootDir, value.ref);
-  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+  const read = readProjectFile(rootDir, value.ref);
+  if (!read) {
     return { ...value, role, status: 'missing', digest: null, estimated_tokens: 0 };
   }
-  const content = fs.readFileSync(file);
+  const content = read.bytes;
   const digest = crypto.createHash('sha256').update(content).digest('hex');
-  const status = value.expected_digest && value.expected_digest !== digest ? 'stale' : 'current';
+  const status = value.freshness_policy !== 'existence'
+    && value.expected_digest && value.expected_digest !== digest ? 'stale' : 'current';
   return {
     ...value, role, status, digest,
     estimated_tokens: Math.max(1, Math.ceil(content.byteLength / 4)),
   };
+}
+
+function taskNeighborhood(tasks, task, role) {
+  if (!task || role !== 'implement') return tasks;
+  const selected = new Set([task.id, ...(task.deps || [])]);
+  for (const candidate of tasks) {
+    const dependencies = candidate.deps || [];
+    if (dependencies.includes(task.id)) selected.add(candidate.id);
+    if (candidate.slice_kind === 'integration_checkpoint'
+      && dependencies.some((dependency) => selected.has(dependency))) {
+      selected.add(candidate.id);
+    }
+  }
+  return tasks.filter((candidate) => selected.has(candidate.id));
+}
+
+function taskContextContract(change, task) {
+  if (!task) return null;
+  const contract = change.contract || parseJson(change.contract_json, {});
+  return {
+    purpose: task.outcome,
+    why: task.trace_to,
+    constraints: contract.constraints || [],
+    non_goals: contract.non_goals || [],
+    target: {
+      public_seams: [task.public_seam].filter(Boolean),
+      files: task.files_modified || [],
+    },
+    pattern_refs: (task.context_refs || []).map((item) => ({
+      ref: item.ref,
+      reason: item.reason,
+      anchor: item.anchor || null,
+      scope: item.scope || null,
+    })),
+    acceptance: task.acceptance || [],
+    documentation_impact: task.docs_impact || {},
+    recovery: contract.recovery || null,
+    definition_of_drift: {
+      change_state_digest: changeStateDigest(change),
+      task_contract_digest: taskContractDigest(task),
+      required_context_freshness: (task.context_refs || []).map((item) => ({
+        ref: item.ref,
+        expected_digest: item.expected_digest || item.digest || null,
+        freshness_policy: item.freshness_policy
+          || ((item.expected_digest || item.digest) ? 'digest' : 'existence'),
+      })),
+    },
+  };
+}
+
+function estimateInlineTokens(value) {
+  return Math.max(1, Math.ceil(Buffer.byteLength(JSON.stringify(value), 'utf8') / 4));
 }
 
 function normalizeExecutionContract(input, inherited, { task }) {
@@ -413,15 +669,137 @@ function deliveryCapabilityReady(db, change, tasks, rootDir) {
   }
 }
 
-function latestContext(db, changeId, taskId) {
-  const row = taskId
-    ? db.prepare(
-      'SELECT context_json FROM context_snapshots WHERE change_id = ? AND task_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1',
-    ).get(changeId, taskId)
-    : db.prepare(
-      'SELECT context_json FROM context_snapshots WHERE change_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1',
-    ).get(changeId);
+function latestContextSnapshot(db, {
+  change_id: changeId,
+  task_id: taskId = null,
+  role,
+  gate,
+} = {}) {
+  if (!changeId || !role || !gate) return null;
+  return db.prepare(
+    `SELECT * FROM context_snapshots
+     WHERE change_id = ? AND task_id IS ? AND role = ? AND gate = ?
+     ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+  ).get(changeId, taskId, role, gate) || null;
+}
+
+function latestContext(db, binding) {
+  const row = latestContextSnapshot(db, binding);
   return parseJson(row?.context_json, {});
+}
+
+function validateContextSnapshot(db, binding, {
+  rootDir = process.cwd(),
+  require_current_checkout = false,
+} = {}) {
+  const snapshot = latestContextSnapshot(db, binding);
+  if (!snapshot) {
+    return {
+      snapshot: null,
+      manifest: null,
+      blockers: ['CONTEXT_SNAPSHOT_MISSING'],
+      warnings: [],
+    };
+  }
+  const blockers = [];
+  const warnings = [];
+  let manifest = null;
+  let manifestFile = null;
+  try {
+    const read = readProjectFile(rootDir, snapshot.manifest_path);
+    manifestFile = read?.file || localPath(rootDir, snapshot.manifest_path);
+    if (!read) {
+      blockers.push('CONTEXT_MANIFEST_MISSING');
+    } else {
+      const bytes = read.bytes;
+      const digest = crypto.createHash('sha256').update(bytes).digest('hex');
+      if (digest !== snapshot.manifest_hash) blockers.push('CONTEXT_MANIFEST_STALE');
+      manifest = JSON.parse(bytes.toString('utf8'));
+    }
+  } catch {
+    blockers.push('CONTEXT_MANIFEST_INVALID');
+  }
+  if (!manifest) {
+    return {
+      snapshot,
+      manifest: null,
+      blockers: [...new Set(blockers)],
+      warnings: [],
+    };
+  }
+  if (manifest.snapshot_id !== snapshot.id
+    || manifest.change?.id !== binding.change_id
+    || (manifest.resume?.task_id || null) !== (binding.task_id || null)
+    || manifest.role !== binding.role
+    || manifest.gate !== binding.gate
+    || snapshot.role !== binding.role
+    || snapshot.gate !== binding.gate) {
+    blockers.push('CONTEXT_BINDING_MISMATCH');
+  }
+  if (snapshot.readiness !== 'ready' || manifest.readiness?.status !== 'ready') {
+    blockers.push('CONTEXT_NOT_READY');
+  }
+  const change = db.prepare('SELECT * FROM changes WHERE id = ?').get(binding.change_id);
+  if (!change || manifest.resume?.change_state_digest !== changeStateDigest(change)) {
+    blockers.push('CONTEXT_CHANGE_CONTRACT_STALE');
+  }
+  if (binding.task_id) {
+    const task = ops.readTask(db, binding.task_id);
+    if (!task || manifest.resume?.task_contract_digest !== taskContractDigest(task)) {
+      blockers.push('CONTEXT_TASK_CONTRACT_STALE');
+    }
+  }
+  for (const item of manifest.context?.items || []) {
+    if (item.kind === 'external') continue;
+    let read;
+    try { read = readProjectFile(rootDir, item.ref); }
+    catch (error) {
+      blockers.push(
+        error?.code === 'CONTEXT_REF_UNSAFE'
+          ? `CONTEXT_REF_UNSAFE:${item.ref}`
+          : `CONTEXT_REF_INVALID:${item.ref}`,
+      );
+      continue;
+    }
+    if (!read) {
+      item.freshness_status = 'missing';
+      item.current_digest = null;
+      if (item.required) blockers.push(`CONTEXT_REQUIRED_REF_MISSING:${item.ref}`);
+      else warnings.push(`CONTEXT_OPTIONAL_REF_MISSING:${item.ref}`);
+      continue;
+    }
+    if (['digest', 'advisory'].includes(item.freshness_policy)) {
+      const currentDigest = crypto.createHash('sha256').update(read.bytes).digest('hex');
+      const expectedDigest = item.expected_digest || item.digest;
+      item.current_digest = currentDigest;
+      item.freshness_status = currentDigest === expectedDigest ? 'current' : 'stale';
+      if (currentDigest !== expectedDigest) {
+        if (item.freshness_policy === 'advisory') {
+          warnings.push(`CONTEXT_REF_STALE_ADVISORY:${item.ref}`);
+        } else if (item.required) {
+          blockers.push(`CONTEXT_REQUIRED_REF_STALE:${item.ref}`);
+        } else {
+          warnings.push(`CONTEXT_OPTIONAL_REF_STALE:${item.ref}`);
+        }
+      }
+    } else {
+      item.current_digest = item.digest || null;
+      item.freshness_status = 'current';
+    }
+  }
+  if (require_current_checkout) {
+    const checkout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
+    if (checkout.head && manifest.git?.head !== checkout.head) blockers.push('CONTEXT_HEAD_STALE');
+    if (checkout.digest && manifest.git?.worktree_digest !== checkout.digest) {
+      blockers.push('CONTEXT_WORKTREE_STALE');
+    }
+  }
+  return {
+    snapshot,
+    manifest,
+    blockers: [...new Set(blockers)],
+    warnings: [...new Set(warnings)],
+  };
 }
 
 function compileRoleContext(db, { input, change, tasks, rootDir }) {
@@ -435,21 +813,51 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
   if (input.task_id && !task) {
     throw new ContextSpineError('TASK_NOT_FOUND', `task ${input.task_id} is not linked to change ${change.id}`);
   }
-  const inherited = latestContext(db, change.id, input.task_id || null);
   const role = input.role || (input.task_id ? 'implement' : 'plan');
   if (!ROLES.has(role)) throw new ContextSpineError('VALIDATION_ERROR', `unsupported context role: ${role}`);
   const gate = input.gate || defaultGate(role);
   if (!GATES.has(gate)) throw new ContextSpineError('VALIDATION_ERROR', `unsupported workflow gate: ${gate}`);
+  const inherited = latestContext(db, {
+    change_id: change.id,
+    task_id: input.task_id || null,
+    role,
+    gate,
+  });
 
   const refs = authoritativeTaskRefs(input, role, task)
     || normalizeRefs(input, role, inherited.context?.items || []);
   const items = refs.map((value) => inspectRef(rootDir, role, value));
   const budget = normalizeBudget(input.budget, inherited.context?.budget);
-  const tokenEstimate = items.reduce((sum, item) => sum + item.estimated_tokens, 0);
-  const fileCount = items.filter((item) => item.status !== 'external').length;
+  const scopedTasks = taskNeighborhood(tasks, task, role);
   const executionContract = normalizeExecutionContract(
     input, inherited.execution_contract, { task },
   );
+  const taskContract = taskContextContract(change, task);
+  const fileTokenEstimate = items.reduce((sum, item) => sum + item.estimated_tokens, 0);
+  const inlineTokenEstimate = estimateInlineTokens({
+    change: {
+      id: change.id,
+      kind: change.kind,
+      intent: change.intent,
+      contract: change.contract || parseJson(change.contract_json, {}),
+      docs_impact: change.docs_impact || parseJson(change.docs_impact_json, {}),
+    },
+    tasks: scopedTasks,
+    execution_contract: executionContract,
+    task_context_contract: taskContract,
+    context_refs: items.map((item) => ({
+      ref: item.ref,
+      kind: item.kind,
+      reason: item.reason,
+      required: item.required,
+      expected_digest: item.expected_digest,
+      anchor: item.anchor,
+      scope: item.scope,
+      freshness_policy: item.freshness_policy,
+    })),
+  });
+  const tokenEstimate = fileTokenEstimate + inlineTokenEstimate;
+  const fileCount = items.filter((item) => item.status !== 'external').length;
   const blockers = [];
   const warnings = [];
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
@@ -459,7 +867,18 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
   warnings.push(...baselineGate.warnings);
   for (const item of items) {
     if (item.required && item.status === 'missing') blockers.push(`CONTEXT_REQUIRED_REF_MISSING:${item.ref}`);
-    if (item.required && item.status === 'stale') blockers.push(`CONTEXT_REQUIRED_REF_STALE:${item.ref}`);
+    if (!item.required && item.status === 'missing') {
+      warnings.push(`CONTEXT_OPTIONAL_REF_MISSING:${item.ref}`);
+    }
+    if (item.status === 'stale') {
+      if (item.freshness_policy === 'advisory') {
+        warnings.push(`CONTEXT_REF_STALE_ADVISORY:${item.ref}`);
+      } else if (item.required) {
+        blockers.push(`CONTEXT_REQUIRED_REF_STALE:${item.ref}`);
+      } else {
+        warnings.push(`CONTEXT_OPTIONAL_REF_STALE:${item.ref}`);
+      }
+    }
   }
   if (fileCount > budget.max_files) warnings.push('CONTEXT_FILE_BUDGET_EXCEEDED');
   if (tokenEstimate > budget.max_tokens) warnings.push('CONTEXT_TOKEN_BUDGET_EXCEEDED');
@@ -490,8 +909,18 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
     control,
     recommendation: normalizeRecommendation(input.recommendation),
     readiness: { status: readiness, blockers, warnings: [...new Set(warnings)] },
-    context: { items, budget, token_estimate: tokenEstimate, file_count: fileCount },
+    context: {
+      items,
+      budget,
+      token_estimate: tokenEstimate,
+      file_token_estimate: fileTokenEstimate,
+      inline_token_estimate: inlineTokenEstimate,
+      file_count: fileCount,
+      lazy_file_refs: true,
+    },
     execution_contract: executionContract,
+    task_context_contract: taskContract,
+    task_scope: scopedTasks,
     baseline: baselineHealth.baseline ? {
       id: baselineHealth.baseline.id,
       mode: baselineHealth.baseline.mode,
@@ -507,6 +936,7 @@ function compileRoleContext(db, { input, change, tasks, rootDir }) {
       task_id: task?.id || null,
       task_status: task?.status || null,
       task_state_digest: taskStateDigest(task),
+      task_contract_digest: taskContractDigest(task),
       session_id: task?.session_id || null,
       role,
       gate,
@@ -572,16 +1002,26 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   }
   if (!change) {
     const baseline = baselineHealth.baseline;
+    const activeWorkflow = actionableBaselineWorkflow(db, baseline?.id, rootDir);
     const decisionGate = decisions.decisionGate(
-      db, { baseline_id: baseline?.id || null }, { rootDir },
+      db, {
+        baseline_id: baseline?.id || null,
+        workflow_run_id: activeWorkflow?.id || null,
+      }, { rootDir },
     );
+    const acceptedIntent = decisions.acceptedIntent(db, {
+      baseline_id: baseline?.id || null,
+      workflow_run_id: activeWorkflow?.id || null,
+    });
     if (!decisionGate.ready) {
       return {
         change_id: null, task_id: null, role: 'plan', gate: 'alignment', readiness: 'blocked',
         blockers: [...new Set([...baselineHealth.blockers, ...decisionGate.blockers])],
         warnings: baselineHealth.warnings,
         allowed_transitions: ['ultra-think', 'ultra-status'], required_transition: 'ultra-think',
-        workflow: null, decision: summarizeDecision(decisionGate),
+        workflow: summarizeWorkflow(activeWorkflow),
+        decision: summarizeDecision(decisionGate),
+        accepted_intent: acceptedIntent,
         context_manifest_path: null, context_manifest_hash: null, git_head: currentHead(rootDir),
         baseline: baseline ? {
           id: baseline.id, mode: baseline.mode, status: baseline.status,
@@ -590,7 +1030,6 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       };
     }
     if (baselineHealth.status !== 'pass') {
-      const activeWorkflow = actionableBaselineWorkflow(db, baseline?.id, rootDir);
       const control = baseline
         ? {
           allowed_transitions: uniqueStrings([
@@ -609,7 +1048,10 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
         blockers: baselineHealth.blockers, warnings: baselineHealth.warnings,
         allowed_transitions: control.allowed_transitions,
         required_transition: control.required_transition,
-        workflow: summarizeWorkflow(activeWorkflow), decision: null, context_manifest_path: null,
+        workflow: summarizeWorkflow(activeWorkflow),
+        decision: null,
+        accepted_intent: acceptedIntent,
+        context_manifest_path: null,
         context_manifest_hash: null, git_head: currentHead(rootDir),
         baseline: baseline ? {
           id: baseline.id, mode: baseline.mode, status: baseline.status,
@@ -623,6 +1065,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
       required_transition: null,
       workflow: null,
       decision: null,
+      accepted_intent: acceptedIntent,
       context_manifest_path: null, context_manifest_hash: null, git_head: currentHead(rootDir),
       blockers: [], warnings: baselineHealth.warnings,
       baseline: {
@@ -634,13 +1077,24 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   }
   const tasks = db.prepare('SELECT id FROM tasks WHERE change_id = ? ORDER BY created_at ASC')
     .all(change.id).map((row) => ops.readTask(db, row.id));
-  const snapshot = db.prepare(
-    'SELECT * FROM context_snapshots WHERE change_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1',
-  ).get(change.id);
-  const context = parseJson(snapshot?.context_json, {});
-  const taskId = snapshot?.task_id || tasks.find((row) => row.status === 'in_progress')?.id
+  const activeWorkflow = actionableChangeWorkflow(db, change.id, rootDir);
+  const taskId = activeWorkflow?.task_id || tasks.find((row) => row.status === 'in_progress')?.id
     || tasks.find((row) => row.status === 'pending')?.id || null;
   const task = tasks.find((row) => row.id === taskId) || null;
+  const expectedBinding = {
+    plan: ['plan', 'planning'],
+    dev: ['implement', 'implementation'],
+    test: ['check', 'verification'],
+    review: ['review', 'review'],
+    deliver: ['check', 'convergence'],
+  }[activeWorkflow?.kind] || (task ? ['implement', 'implementation'] : ['plan', 'planning']);
+  const snapshot = latestContextSnapshot(db, {
+    change_id: change.id,
+    task_id: expectedBinding[0] === 'implement' ? taskId : null,
+    role: expectedBinding[0],
+    gate: expectedBinding[1],
+  });
+  const context = parseJson(snapshot?.context_json, {});
   const checkout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
   const head = checkout.head;
   const snapshotMissing = !snapshot;
@@ -660,7 +1114,11 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   const stateChanged = context.resume?.task_status !== undefined
     && context.resume.task_status !== (task?.status || null);
   const taskContractChanged = Boolean(
-    context.resume && context.resume.task_state_digest !== taskStateDigest(task),
+    context.resume && (
+      context.resume.task_contract_digest
+        ? context.resume.task_contract_digest !== taskContractDigest(task)
+        : context.resume.task_state_digest !== taskStateDigest(task)
+    ),
   );
   const changeContractChanged = Boolean(
     context.resume && context.resume.change_state_digest !== changeStateDigest(change),
@@ -670,8 +1128,13 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
   const decisionGate = decisions.decisionGate(db, {
     baseline_id: baselineHealth.baseline?.id || null,
     change_id: change.id,
-    workflow_run_id: actionableChangeWorkflow(db, change.id, rootDir)?.id || null,
+    workflow_run_id: activeWorkflow?.id || null,
   }, { rootDir });
+  const acceptedIntent = decisions.acceptedIntent(db, {
+    baseline_id: baselineHealth.baseline?.id || null,
+    change_id: change.id,
+    workflow_run_id: activeWorkflow?.id || null,
+  });
   const warnings = [...baselineGate.warnings];
   blockers.push(...baselineGate.blockers);
   blockers.push(...decisionGate.blockers);
@@ -695,7 +1158,6 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     }
   }
   const readiness = blockers.length > 0 ? 'blocked' : (snapshot?.readiness || 'ready');
-  const activeWorkflow = actionableChangeWorkflow(db, change.id, rootDir);
   const control = deriveTransitions({
     change,
     tasks,
@@ -729,6 +1191,7 @@ function readBreadcrumb(db, { id } = {}, { rootDir = process.cwd() } = {}) {
     } : null,
     workflow: summarizeWorkflow(activeWorkflow),
     decision: summarizeDecision(decisionGate),
+    accepted_intent: acceptedIntent,
   };
 }
 
@@ -738,5 +1201,8 @@ module.exports = {
   changeStateDigest,
   compileRoleContext,
   deriveTransitions,
+  latestContextSnapshot,
   readBreadcrumb,
+  taskContractDigest,
+  validateContextSnapshot,
 };

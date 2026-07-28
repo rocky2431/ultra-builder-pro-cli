@@ -106,6 +106,8 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `baseline.converge`       | `baseline converge`         | 11    | mcp     |
 | `change.create`           | `change create`             | 9     | mcp     |
 | `change.update`           | `change update`             | 9     | mcp     |
+| `change.delta`            | `change delta`              | 21    | mcp     |
+| `change.documentation_reconcile` | `change documentation-reconcile` | 21 | mcp |
 | `change.get`              | `change get`                | 9     | any     |
 | `change.list`             | `change list`               | 9     | any     |
 | `change.context`          | `change context`            | 9     | mcp     |
@@ -128,7 +130,11 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `workflow.get`            | `workflow get`              | 13    | any     |
 | `workflow.list`           | `workflow list`             | 13    | any     |
 | `workflow.step`           | `workflow step`             | 13    | mcp     |
+| `workflow.revise`         | `workflow revise`           | 21    | mcp     |
+| `workflow.supersede`      | `workflow supersede`        | 21    | mcp     |
 | `workflow.complete`       | `workflow complete`         | 13    | mcp     |
+| `artifact.record`         | `artifact record`           | 20    | mcp     |
+| `artifact.get`            | `artifact get`              | 20    | any     |
 | `system.doctor`           | `system doctor`             | 9     | mcp     |
 | `plan.export`             | `plan export`               | 8a    | mcp     |
 | `plan.get`                | `plan get`                  | 8a    | any     |
@@ -136,7 +142,7 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 Current executable maintenance surfaces are `task init-project`,
 `session close|get|list|admission|heartbeat|subscribe|reap`, `status`, `db`,
 `migrate`, `system doctor|restore|rebaseline`, and `legacy-memory`. In particular, `task create|update|list|get`
-and all `change` and `decision` lifecycle verbs are not CLI fallbacks. Change and decision state must use
+and all `change`, `decision`, and `artifact` lifecycle verbs are not CLI fallbacks. Their state must use
 the live MCP server; `system doctor` may additionally be exposed by the
 maintenance CLI because it is the recovery path when MCP startup is degraded.
 `task init-project --resume` preserves existing `.ultra` files and installs only
@@ -148,7 +154,7 @@ the same Git ancestry and dirty-state verifier as MCP and fails with
 `system doctor --repair` applies supported schema upgrades with a pre-migration
 backup before mechanical recovery.
 `system restore` requires the exact `REPLACE_CORRUPT_ULTRA_STATE` confirmation and a
-verified database inside `.ultra/backups`; it quarantines the corrupt state before
+verified database inside `.ultra/.runtime/backups`; it quarantines the corrupt state before
 atomic replacement. `system rebaseline` requires the exact
 `REBASELINE_CORRUPT_ULTRA_STATE` confirmation and preserves corrupt state plus the
 legacy task projection before starting a new brownfield adoption.
@@ -164,13 +170,18 @@ semantics, is a major bump. Major bumps require an entry in
 
 ## 7. `ubp-orchestrator`
 
-`ubp-orchestrator execute-plan` consumes the completed and current
-`.ultra/execution-plan.json` and resumes from the first unfinished dependency wave.
+`ubp-orchestrator execute-plan` resolves the completed current plan from the active
+Change's DB row and `<artifact_root>/plan.json`, then resumes from the first unfinished
+dependency wave. Use `--change <id>` when more than one active Change has a completed
+plan. The legacy global `.ultra/execution-plan.json` is never selected implicitly;
+`--plan <path>` is explicit read-only migration compatibility for an unbound legacy
+plan and cannot be combined with `--change`.
 Before creating a session it rejects an empty, malformed, cyclic, duplicate-task, or
 cross-change plan. For change-owned tasks, the plan must exactly match the current DB
-task graph and a healthy completed `plan` workflow; an exported but incomplete or
-stale artifact is not executable. A separate owner approval is present only when a
-material planning decision required it.
+task graph, planning-context digest, canonical Change artifact paths, and a healthy
+completed `plan` workflow; an exported but incomplete, displaced, or stale artifact is
+not executable. A separate owner approval is present only when a material planning
+decision required it.
 It returns `status: "paused"` when that wave still has non-terminal Ultra tasks and
 does not dispatch later waves. Worktrees are preserved unless `--auto-merge` is
 explicitly supplied and the corresponding change task has an exact completion commit,

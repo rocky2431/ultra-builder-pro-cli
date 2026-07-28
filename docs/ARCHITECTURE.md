@@ -10,10 +10,11 @@
 Ultra Builder Pro engineering loop (skills + commands + workflow hooks) as
 native Claude Code, OpenCode, Codex, and Kimi Code plugins, and
 **runs** that loop with isolated sessions sharing one authoritative state
-store (`.ultra/state.db`).
+store (`.ultra/.runtime/state.db`).
 
-It is not an agent and it is not a memory provider. It is the workflow substrate
-the supported hosts share.
+It is not an agent or a general conversational-memory provider. It is the workflow
+substrate the supported hosts share, including project-local cross-session workflow
+memory under `.ultra/`.
 
 ## 2. Three layers
 
@@ -38,20 +39,20 @@ the supported hosts share.
                └────────────┬───────┴──────────────────┘
                             ▼
                   ┌─────────────────────┐
-                  │   .ultra/state.db   │
-                  │  (SQLite + WAL)     │  ← single authoritative store
+                  │   .ultra/.runtime/state.db   │
+                  │  (SQLite + WAL)     │  ← lifecycle + index authority
                   └──────────┬──────────┘
                              │ projector (Phase 2.6)
                              ▼
               .ultra/tasks/tasks.json     (read-only view)
-              .ultra/tasks/contexts/*.md  (read-only header)
+              .ultra/tasks/contexts/*.md  (fully generated read-only view)
               .ultra/activity-log.json    (optional dump)
 ```
 
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
-| **MCP**      | authoritative workflow-state, decision, and Context Spine API | stdio MCP server exposing 51 live tools across task/session/baseline/change/decision/workflow/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **MCP**      | authoritative workflow-state, decision, artifact, and Context Spine API | stdio MCP server exposing 57 live tools across task/session/baseline/change/decision/workflow/artifact/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
 | **CLI**      | explicit initialization, recovery, diagnostics, and orchestration | `ultra-tools` / `ubp-orchestrator`; only commands listed by `--help` are executable (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
 Why three: skills give us behavior portability across runtimes; MCP gives
@@ -64,10 +65,19 @@ The skill layer is **read-only by design** (D29) and is discovered directly by
 each host. Ultra exposes no `skill.*` MCP family: skills are documentation, not
 RPC, and host-native loaders own resolution and invocation.
 
-## 3. Authoritative state — `.ultra/state.db`
+## 3. Workflow memory and authoritative state
 
-All durable Ultra workflow state lives in one SQLite file with WAL enabled. Schema is
-fixed in [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) and
+Together, `.ultra/` retains project-local cross-session workflow memory:
+normalized intent, progress, tasks, bounded context, specifications, evidence,
+provenance, and recovery. `.ultra/.runtime/state.db` is the sole authority for lifecycle,
+indexing, transitions, freshness, and coordination. Registered digest-bound files
+carry semantic and evidence bodies. Generated projections and working scratch do
+not become authority merely because they live under `.ultra/`. The complete
+classification and promotion contract is
+[`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
+
+All durable Ultra lifecycle and index state lives in one SQLite file with WAL enabled.
+Schema is fixed in [`spec/schemas/state-db.sql`](../spec/schemas/state-db.sql) and
 covers twenty-one tables:
 
 | Table              | Holds                                             | Phase |
@@ -82,7 +92,8 @@ covers twenty-one tables:
 | `specs_refs`       | spec change tracking → staleness propagation       | 5     |
 | `circuit_breaker`  | bounded retry and halt state for failed tasks       | 5     |
 | `changes`          | continuous feature/fix/incident lifecycle, alignment-thread link, and incident baseline bypass | 12→16 |
-| `artifacts`        | intent/context/verification artifact registry       | 8C    |
+| `artifacts`        | typed semantic/evidence ownership, digest, status, and provenance | 8C→20 |
+| `artifact_edges`  | normalized source and consumer dependency graph      | 20    |
 | `context_snapshots`| role/gate context, readiness, budget, execution seam, hashes, git head, provider refs | 10 |
 | `spec_learning_candidates` | approval-gated implementation discoveries for baseline convergence | 10 |
 | `trace_links`      | task/spec/change traceability                        | 8C    |
@@ -98,14 +109,15 @@ Two rules make this work:
 
 1. **No double source (D32).** lease/heartbeat live only in `sessions`,
    not in a `lease.json` file. Activity log lives only in `events`, not
-   in JSON files. `tasks.json` and the status header in
-   `contexts/task-*.md` are **projections** generated by the projector;
+   in JSON files. `tasks.json` and the complete
+   `contexts/task-*.md` files are **projections** generated by the projector;
    manual edits are overwritten on the next state.db change.
 
 2. **Single writer for mutable tables, multi-writer for `events`.**
-   `.ultra/state.db` opens in WAL with `busy_timeout=5000`. The MCP
+   `.ultra/.runtime/state.db` opens in WAL with `busy_timeout=5000`. The MCP
    server holds the single writer connection for `baselines`, `tasks`, `sessions`,
-   `changes`, `decision_threads`, `decision_items`, `workflow_runs`, `workflow_steps`, `artifacts`, `context_snapshots`,
+   `changes`, `decision_threads`, `decision_items`, `workflow_runs`, `workflow_steps`,
+   `artifacts`, `artifact_edges`, `context_snapshots`,
    `spec_learning_candidates`, `incidents`, `projection_jobs`, `telemetry`,
    `specs_refs`, and `migration_history`; the CLI calls
    those tools over stdio rather than opening its own writer. The
@@ -123,14 +135,18 @@ Two rules make this work:
 Subscribers always pull `events.id > since_id` rather than `max(ts)`,
 because two events may share the same millisecond timestamp (D31).
 
-### Memory ownership is outside Ultra Builder Pro
+### General memory and graph ownership remain outside Ultra Builder Pro
 
 Ultra Builder Pro does not retain prompts, transcripts, tool observations,
-session summaries, or cross-session memory. It ships no `memory.*` MCP family,
-no recall skill, and no memory-capture hook. A separately installed provider
-such as cloud-mem/claude-mem owns persistent memory and its own lifecycle. The
-only related migration surface is the explicit `ultra-tools legacy-memory`
-archive/prune command for data created by older releases.
+session summaries, general conversational memory, or code-graph payloads. It ships
+no `memory.*` MCP family, general recall skill, or memory-capture hook. A separately
+installed provider such as cloud-mem/claude-mem owns general persistent memory and
+its own lifecycle. Ultra stores only bounded provider metadata references needed by
+workflow context. The only related migration surface is the explicit
+`ultra-tools legacy-memory` inspect/archive/confirmed-prune command for general memory
+data created by older releases. It is never called by a hook, MCP operation, or
+session lifecycle; it does not collect, recall, reflect, or remove Ultra workflow
+authority.
 
 ### Project baseline adoption
 
@@ -197,9 +213,12 @@ alternatives, evidence refs, and durable effects; a partial unique index guarant
 current question per thread. The host ends that turn and waits.
 
 The next response becomes a normalized owner decision, explicit reversible delegation,
-or consequence-bearing deferral. Prompts and transcripts are never persisted. Routine
-settled state closes through `decision.complete`, which is lifecycle completion rather
-than another approval. Only a coherent cluster that needs an artifact-bound recovery
+or consequence-bearing deferral. Prompts and transcripts are never persisted. The host
+applies accepted intent through the owning MCP operation or digest-bound artifact,
+reads it back, and records typed `applied_refs` when another authority changed. Routine
+settled state then closes through `decision.complete`, which is lifecycle completion
+rather than another approval. The breadcrumb recalls normalized accepted intent after
+the thread closes. Only a coherent cluster that needs an artifact-bound recovery
 boundary moves through prepare/confirm checkpointing. Matching workflow steps fail
 closed while a blocking question, blocking deferral, prepared checkpoint, or stale
 checkpoint artifact remains. Supersession preserves prior history and reopens alignment
@@ -215,16 +234,29 @@ is represented by a `changes` row and an inspectable packet:
 ```text
 active -> blocked -> active -> ready -> archived
    |                              |
-   ├─ intent + delta + plan       └─ verification + baseline reconciliation
-   ├─ linked tasks
-   ├─ immutable context snapshots (role + gate + readiness + execution seam)
-   └─ spec-learning candidates (proposed -> approved/rejected -> applied)
+   ├─ intent + adaptive research + findings
+   ├─ typed delta + documentation reconciliation + deterministic progress
+   ├─ plan + linked tasks + immutable contexts
+   ├─ Change-scoped test/review/delivery evidence
+   └─ atomic baseline apply + self-contained archive
 ```
 
 `quick`, `standard`, `major`, and `incident` kinds require different evidence,
 but all require completed linked tasks, current context, declared documentation
 impact, and no open incident. Memory and graph payloads never enter Ultra;
 `context_snapshots.provider_refs_json` stores metadata references only.
+
+Baseline files are immutable while a Change is active. `change.delta` registers
+overlay payloads against exact baseline revision and specification digests.
+`change.documentation_reconcile` records exact document before/after evidence and
+consumer trace. Standard and major convergence requires both current authorities.
+`change.archive` preflights the whole write set and uses a recoverable transaction;
+only after all writes and baseline reconciliation succeed does it rebind the complete
+Change root into the archive.
+
+Workflow revisions preserve prior accepted runs. A candidate becomes current only
+through `workflow.supersede`; the artifact graph then invalidates the prior run's true
+transitive consumers without staling unrelated tasks.
 
 ### Context Spine
 
@@ -296,7 +328,7 @@ swallowed warning. `system.doctor` is read-only by default. Explicit repair perf
 backup-first schema upgrade, archive-journal recovery, session and projection
 recovery, and regenerated projections. It cannot approve a baseline or replace a
 corrupt SQLite file silently. `system restore` accepts only a verified SQLite backup
-inside `.ultra/backups`, quarantines the corrupt authority, and rolls back on failure.
+inside `.ultra/.runtime/backups`, quarantines the corrupt authority, and rolls back on failure.
 When no valid backup exists, confirmed `system rebaseline` preserves both corrupt
 authority and the legacy task projection before creating a new brownfield adoption.
 
@@ -309,7 +341,7 @@ A **session** is the standard unit of execution across all four runtimes
 - an isolated `git worktree` created by `session.spawn`,
 - an ignored `.ultra` link from that checkout to the one central authority,
 - a lease + heartbeat row in `sessions` (D32),
-- an `artifact_dir` under `.ultra/sessions/<sid>/` for logs and scratch;
+- an `artifact_dir` under `.ultra/.runtime/sessions/<sid>/` for logs and scratch;
 - either the active host operating in that exact worktree or an explicitly configured
   worker process.
 
@@ -371,7 +403,7 @@ rejects corrupt, non-object, schema-mismatched, or terminal candidates, and
 selects the newest valid state. A newer live state wins; a newer checkpoint can
 atomically restore a missing or older live state before context is re-injected.
 The checkpoint is therefore a recovery artifact and consumer, never a second
-durable authority alongside `.ultra/state.db`.
+durable authority alongside `.ultra/.runtime/state.db`.
 
 ## 7. Installation provenance — read-only cross-host diagnosis
 

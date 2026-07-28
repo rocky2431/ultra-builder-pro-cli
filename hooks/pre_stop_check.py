@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from context_spine import ContextSpineError, find_root, read_breadcrumb
+from context_spine import ContextSpineError, find_root_for_hook, read_breadcrumb
 
 
 def allow_stop() -> None:
@@ -24,7 +24,10 @@ def main() -> None:
     if hook_data.get("stop_hook_active", False):
         allow_stop()
         return
-    root = find_root(Path(hook_data.get("cwd") or Path.cwd()).resolve())
+    root = find_root_for_hook(
+        Path(hook_data.get("cwd") or Path.cwd()).resolve(),
+        "pre_stop_check",
+    )
     if root is None:
         allow_stop()
         return

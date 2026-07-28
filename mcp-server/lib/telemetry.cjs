@@ -3,7 +3,7 @@
 // Phase 6.2 — Telemetry collector.
 //
 // Double-write model: state.db.telemetry (table, queryable via state-ops
-// aggregations) + .ultra/telemetry/{YYYY-MM-DD}.jsonl (full payload, easy
+// aggregations) + .ultra/.runtime/telemetry/{YYYY-MM-DD}.jsonl (full payload, easy
 // grep, no schema constraint). The table is the authoritative source for
 // cost panel queries; the jsonl is for human ops + audit trails + future
 // Phase 6.5 SDK-usage correlation.
@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { computeCost } = require('./pricing.cjs');
+const runtimePaths = require('./runtime-paths.cjs');
 const { isSupportedRuntime } = require('../../adapters/_shared/runtime-assets.cjs');
 
 function todayStamp() {
@@ -19,7 +20,10 @@ function todayStamp() {
 }
 
 function telemetryJsonlPath(rootDir) {
-  return path.join(rootDir || '.', '.ultra', 'telemetry', `${todayStamp()}.jsonl`);
+  return path.join(
+    runtimePaths.pathsFor(rootDir || '.').telemetryDir,
+    `${todayStamp()}.jsonl`,
+  );
 }
 
 function appendTelemetry(db, {
@@ -38,6 +42,11 @@ function appendTelemetry(db, {
     throw new Error(`unsupported runtime: ${runtime}`);
   }
   if (!event_type) throw new Error('appendTelemetry: event_type required');
+  const layout = runtimePaths.validateProjectLayout(rootDir, {
+    env: process.env,
+    allowConfiguredRuntimeLink: true,
+    validateRuntimeTree: true,
+  });
 
   // Auto-derive cost when tokens + runtime known and caller didn't supply one.
   let effectiveCost = cost_usd;
@@ -50,7 +59,7 @@ function appendTelemetry(db, {
     'INSERT INTO telemetry (session_id, event_type, tokens_input, tokens_output, tool_name, cost_usd, ts) VALUES (?, ?, ?, ?, ?, ?, ?)',
   ).run(session_id, event_type, tokens_input, tokens_output, tool_name, effectiveCost, now);
 
-  const jsonl = telemetryJsonlPath(rootDir);
+  const jsonl = path.join(layout.telemetryDir, `${todayStamp()}.jsonl`);
   fs.mkdirSync(path.dirname(jsonl), { recursive: true });
   fs.appendFileSync(jsonl, JSON.stringify({
     id: Number(result.lastInsertRowid),

@@ -18,7 +18,7 @@ Neither axis can compensate for the other.
 1. Read `references/review-modes.md` and select `plan`, `task`, or `change` from the
    actual review request.
 2. Bind one explicit diff or plan artifact, full HEAD, worktree digest, task set,
-   acceptance, and current decision state.
+   acceptance, breadcrumb `accepted_intent`, and current decision state.
 3. Resume or start the review workflow and record `bind-diff`.
 4. Compile `change.context` for `review` and record the immutable manifest under
    `compile-context`.
@@ -37,8 +37,9 @@ not decide owner choices or edit source.
 
 Resolve `references/unified-schema.md` from this Skill directory and pass its absolute
 path as `SCHEMA_PATH`. Validate specialist artifacts with
-`scripts/review_wait.py`. Record outputs under `review-specification`,
-`review-engineering`, and `coordinate-findings`.
+`scripts/review_wait.py`. Store all specialist artifacts and `SUMMARY.json` below
+`.ultra/changes/active/<change-id>/review/<workflow-id>/`. Record outputs under
+`review-specification`, `review-engineering`, and `coordinate-findings`.
 
 The coordinator preserves every finding unchanged in `SUMMARY.json`; it may group
 duplicate root causes only in the human summary. A new material owner choice remains a
@@ -52,5 +53,8 @@ the durable verdict and rejects missing specialists, lossy coordination, stale
 artifacts, or prompt-supplied conclusions.
 
 Any relevant code, test, specification, or contract edit invalidates the affected
-review evidence. Return both verdict axes, blocking findings, reviewed scope, worker
-selection rationale, artifact digests, and allowed transitions.
+review evidence through registered provenance edges; unrelated evidence remains
+current. Return both verdict axes, blocking findings, reviewed scope, worker selection
+rationale, artifact digests, and allowed transitions.
+
+Never invoke the recommended capability here; wait for an explicit user invocation.

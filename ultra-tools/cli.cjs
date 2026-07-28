@@ -17,6 +17,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const runtimePaths = require('../mcp-server/lib/runtime-paths.cjs');
 
 const VERSION = (() => {
   try {
@@ -38,7 +39,7 @@ SUBCOMMANDS:
   system    doctor [--repair] | restore | rebaseline
   status    [--cost] [--since <duration>] [--json]
   db        init | checkpoint | vacuum | integrity | backup (Phase 2)
-  migrate   --from=<4.4|4.5> --to=<4.5|19.0> [--dry|--rollback]
+  migrate   --from=<4.4|4.5> --to=<4.5|20.0> [--dry|--rollback]
   legacy-memory inspect | archive | prune --confirm DELETE_ULTRA_LEGACY_MEMORY
 
   --help / -h      show this message
@@ -75,7 +76,7 @@ const TELEMETRY_SUBCOMMANDS = new Set(['session']);
 
 function emitCliTelemetry(sub, rest) {
   try {
-    const dbPath = path.resolve('.ultra', 'state.db');
+    const dbPath = runtimePaths.locateStateDb(process.cwd());
     if (!fs.existsSync(dbPath)) return;
     const Database = require('better-sqlite3');
     const db = new Database(dbPath);

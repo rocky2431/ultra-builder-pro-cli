@@ -5,10 +5,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ops = require('./state-ops.cjs');
+const artifactRegistry = require('./artifact-registry.cjs');
+const { readStableProjectFile } = require('./safe-project-file.cjs');
 
 const ID = /^[a-zA-Z0-9_-]+$/;
 const MODES = new Set(['guided', 'fast', 'autonomous', 'diagnostic']);
 const ACTIVE_STATUSES = new Set(['active', 'checkpoint_ready']);
+const APPLIED_REF_KINDS = new Set([
+  'baseline', 'change', 'workflow', 'task', 'spec', 'artifact',
+]);
 
 class DecisionDialogueError extends Error {
   constructor(code, message, details) {
@@ -51,6 +56,281 @@ function plainObject(value, field, { allowEmpty = true } = {}) {
     throw new DecisionDialogueError('VALIDATION_ERROR', `${field} must be an object`);
   }
   return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeAppliedRefs(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 20) {
+    throw new DecisionDialogueError(
+      'VALIDATION_ERROR', 'applied_refs must contain at most twenty authority references',
+    );
+  }
+  const seen = new Set();
+  return value.map((item, index) => {
+    const ref = plainObject(item, `applied_refs[${index}]`, { allowEmpty: false });
+    const kind = requiredText(ref.kind, `applied_refs[${index}].kind`);
+    if (!APPLIED_REF_KINDS.has(kind)) {
+      throw new DecisionDialogueError(
+        'VALIDATION_ERROR', `unsupported applied authority kind: ${kind}`,
+      );
+    }
+    const target = requiredText(ref.ref, `applied_refs[${index}].ref`);
+    const field = ref.field === undefined
+      ? undefined
+      : requiredText(ref.field, `applied_refs[${index}].field`);
+    const digest = ref.digest === undefined
+      ? undefined
+      : requiredText(ref.digest, `applied_refs[${index}].digest`);
+    const hasValue = Object.hasOwn(ref, 'value');
+    const expectedValue = hasValue ? JSON.parse(JSON.stringify(ref.value)) : undefined;
+    if (digest !== undefined && !/^[0-9a-f]{64}$/.test(digest)) {
+      throw new DecisionDialogueError(
+        'VALIDATION_ERROR', `applied_refs[${index}].digest must be a SHA-256 digest`,
+      );
+    }
+    const key = `${kind}\0${target}\0${field || ''}`;
+    if (seen.has(key)) {
+      throw new DecisionDialogueError('VALIDATION_ERROR', `duplicate applied authority ref: ${kind}:${target}`);
+    }
+    seen.add(key);
+    return {
+      kind,
+      ref: target,
+      ...(field === undefined ? {} : { field }),
+      ...(hasValue ? { value: expectedValue } : {}),
+      ...(digest === undefined ? {} : { digest }),
+    };
+  });
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map(
+      (key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`,
+    ).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function valueDigest(value) {
+  return crypto.createHash('sha256').update(canonicalJson(value)).digest('hex');
+}
+
+function valueAtField(value, field) {
+  const segments = field.split('.').map((item) => item.trim());
+  if (segments.some((item) => !item || ['__proto__', 'prototype', 'constructor'].includes(item))) {
+    throw new DecisionDialogueError('VALIDATION_ERROR', `invalid applied authority field: ${field}`);
+  }
+  let current = value;
+  for (const segment of segments) {
+    if (current === null || current === undefined || typeof current !== 'object'
+      || !Object.hasOwn(current, segment)) {
+      throw new DecisionDialogueError(
+        'DECISION_APPLIED_REF_FIELD_NOT_FOUND',
+        `applied authority field does not exist: ${field}`,
+      );
+    }
+    current = current[segment];
+  }
+  return current;
+}
+
+const ROW_FIELD_ALIASES = Object.freeze({
+  baseline: {
+    scope: 'scope_json',
+    worktree_files: 'worktree_files_json',
+    spec_refs: 'spec_refs_json',
+    evidence: 'evidence_json',
+    verification: 'verification_json',
+    unknowns: 'unknowns_json',
+    gaps: 'gaps_json',
+    classification: 'classification_json',
+    provider_refs: 'provider_refs_json',
+  },
+  change: {
+    docs_impact: 'docs_impact_json',
+    provider_refs: 'provider_refs_json',
+    baseline_bypass: 'baseline_bypass_json',
+    contract: 'contract_json',
+    classification: 'classification_json',
+    research_disposition: 'research_disposition_json',
+  },
+  workflow: {
+    metadata: 'metadata_json',
+    blockers: 'blockers_json',
+    approval: 'approval_json',
+    summary: 'summary_json',
+  },
+  task: {
+    acceptance: 'acceptance_json',
+    context_refs: 'context_refs_json',
+    docs_impact: 'docs_impact_json',
+    ownership: 'ownership_json',
+  },
+});
+
+function rowFieldValue(row, kind, field) {
+  const [head, ...tail] = field.split('.');
+  const column = ROW_FIELD_ALIASES[kind]?.[head] || head;
+  if (!Object.hasOwn(row, column)) {
+    throw new DecisionDialogueError(
+      'DECISION_APPLIED_REF_FIELD_NOT_FOUND',
+      `applied ${kind} authority field does not exist: ${field}`,
+    );
+  }
+  let value = row[column];
+  if (column.endsWith('_json') && typeof value === 'string') {
+    try { value = JSON.parse(value); }
+    catch (error) {
+      throw new DecisionDialogueError(
+        'STATE_CORRUPT', `invalid ${kind}.${column}: ${error.message}`,
+      );
+    }
+  }
+  return tail.length === 0 ? value : valueAtField(value, tail.join('.'));
+}
+
+function verifyAppliedValue(applied, actual) {
+  if (!Object.hasOwn(applied, 'value')) {
+    throw new DecisionDialogueError(
+      'VALIDATION_ERROR',
+      `applied ${applied.kind} references require the exact field value`,
+    );
+  }
+  if (canonicalJson(actual) !== canonicalJson(applied.value)) {
+    throw new DecisionDialogueError(
+      'DECISION_APPLIED_REF_VALUE_MISMATCH',
+      `applied ${applied.kind} field value does not match current authority: ${applied.ref}#${applied.field}`,
+      { expected: applied.value, actual },
+    );
+  }
+  if (applied.digest && applied.digest !== valueDigest(actual)) {
+    throw new DecisionDialogueError(
+      'DECISION_APPLIED_REF_STALE',
+      `applied ${applied.kind} field digest is stale: ${applied.ref}#${applied.field}`,
+      { expected: applied.digest, actual: valueDigest(actual) },
+    );
+  }
+}
+
+function projectFile(rootDir, relative, field) {
+  if (path.isAbsolute(relative)) {
+    throw new DecisionDialogueError('VALIDATION_ERROR', `${field} must be project-relative`);
+  }
+  const root = path.resolve(rootDir);
+  const file = path.resolve(root, relative);
+  if (file !== root && !file.startsWith(`${root}${path.sep}`)) {
+    throw new DecisionDialogueError('VALIDATION_ERROR', `${field} escapes project root`);
+  }
+  return file;
+}
+
+function readAppliedProjectFile(rootDir, relative, label) {
+  try {
+    return readStableProjectFile(rootDir, relative);
+  } catch (error) {
+    if (error?.code === 'PROJECT_FILE_MISSING') {
+      throw new DecisionDialogueError(
+        'DECISION_APPLIED_REF_NOT_FOUND',
+        `${label} is missing: ${relative}`,
+      );
+    }
+    throw new DecisionDialogueError(
+      'DECISION_APPLIED_REF_UNSAFE',
+      `${label} cannot be read as physical project authority: ${relative}`,
+      { cause: error.code || error.message },
+    );
+  }
+}
+
+function registeredArtifactForRef(db, ref) {
+  const byId = db.prepare('SELECT id FROM artifacts WHERE id = ?').get(ref);
+  if (byId) return artifactRegistry.getArtifact(db, { id: byId.id });
+  try {
+    return artifactRegistry.getArtifact(db, { path: ref });
+  } catch (error) {
+    if (error?.code === 'ARTIFACT_NOT_FOUND') return null;
+    throw new DecisionDialogueError(
+      'DECISION_APPLIED_REF_AUTHORITY_CONFLICT',
+      `applied artifact authority is ambiguous or invalid: ${ref}`,
+      { cause: error.code || error.message },
+    );
+  }
+}
+
+function verifyAppliedFileDigest(applied, read, registered = null) {
+  if (!applied.digest) {
+    throw new DecisionDialogueError(
+      'VALIDATION_ERROR',
+      `applied ${applied.kind} references require the exact content digest`,
+    );
+  }
+  if (registered?.status === 'stale'
+    || (registered?.digest && registered.digest !== read.digest)
+    || applied.digest !== read.digest) {
+    throw new DecisionDialogueError(
+      'DECISION_APPLIED_REF_STALE',
+      `applied ${applied.kind} digest is stale: ${registered?.path || applied.ref}`,
+      {
+        registered_digest: registered?.digest || null,
+        expected: applied.digest,
+        actual: read.digest,
+      },
+    );
+  }
+}
+
+function validateAppliedRefs(db, refs, { rootDir = process.cwd() } = {}) {
+  const tableByKind = {
+    baseline: 'baselines',
+    change: 'changes',
+    workflow: 'workflow_runs',
+    task: 'tasks',
+  };
+  for (const applied of refs) {
+    const table = tableByKind[applied.kind];
+    if (table) {
+      if (!applied.field) {
+        throw new DecisionDialogueError(
+          'VALIDATION_ERROR',
+          `applied ${applied.kind} references require an exact field`,
+        );
+      }
+      const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(applied.ref);
+      if (!row) {
+        throw new DecisionDialogueError(
+          'DECISION_APPLIED_REF_NOT_FOUND',
+          `applied ${applied.kind} authority does not exist: ${applied.ref}`,
+        );
+      }
+      verifyAppliedValue(applied, rowFieldValue(row, applied.kind, applied.field));
+      continue;
+    }
+
+    if (applied.kind === 'artifact') {
+      const artifact = registeredArtifactForRef(db, applied.ref);
+      if (!artifact) {
+        throw new DecisionDialogueError(
+          'DECISION_APPLIED_REF_NOT_FOUND',
+          `applied artifact authority is not registered: ${applied.ref}`,
+        );
+      }
+      const read = readAppliedProjectFile(
+        rootDir, artifact.path, 'applied artifact file',
+      );
+      verifyAppliedFileDigest(applied, read, artifact);
+      continue;
+    }
+
+    const registered = registeredArtifactForRef(db, applied.ref);
+    const read = readAppliedProjectFile(
+      rootDir,
+      registered?.path || applied.ref,
+      'applied specification file',
+    );
+    verifyAppliedFileDigest(applied, read, registered);
+  }
 }
 
 function normalizeOptions(value) {
@@ -385,9 +665,10 @@ function deferDecision(db, input = {}) {
   });
 }
 
-function completeDecisionThread(db, input = {}) {
+function completeDecisionThread(db, input = {}, options = {}) {
   const id = requiredText(input.id, 'id');
   const summary = requiredText(input.summary, 'summary');
+  const appliedRefs = normalizeAppliedRefs(input.applied_refs);
   return ops.tx(db, () => {
     const thread = readDecisionThread(db, id);
     if (!thread) {
@@ -416,6 +697,7 @@ function completeDecisionThread(db, input = {}) {
         { blockers },
       );
     }
+    validateAppliedRefs(db, appliedRefs, options);
     const ts = nowIso();
     db.prepare(
       `UPDATE decision_threads
@@ -424,15 +706,74 @@ function completeDecisionThread(db, input = {}) {
     ).run(JSON.stringify({
       text: summary,
       completion_kind: 'normalized_state',
+      applied_refs: appliedRefs,
       completed_at: ts,
     }), ts, ts, id);
     ops.appendEventInTx(db, {
       type: 'decision_thread_completed',
       change_id: thread.change_id,
-      payload: { thread_id: id, item_count: thread.items.length },
+      payload: {
+        thread_id: id,
+        item_count: thread.items.length,
+        applied_ref_count: appliedRefs.length,
+      },
     });
     return readDecisionThread(db, id);
   });
+}
+
+function acceptedIntent(db, bindings = {}, { limit = 10 } = {}) {
+  const clauses = [];
+  const params = {};
+  if (bindings.workflow_run_id) {
+    clauses.push('workflow_run_id = @workflow_run_id');
+    params.workflow_run_id = bindings.workflow_run_id;
+  }
+  if (bindings.change_id) {
+    clauses.push('change_id = @change_id');
+    params.change_id = bindings.change_id;
+  }
+  if (bindings.baseline_id) {
+    clauses.push('(baseline_id = @baseline_id AND change_id IS NULL)');
+    params.baseline_id = bindings.baseline_id;
+  }
+  if (clauses.length === 0) return [];
+  const threadRows = db.prepare(
+    `SELECT id FROM decision_threads
+     WHERE status IN ('completed', 'confirmed')
+       AND (${clauses.join(' OR ')})
+     ORDER BY updated_at DESC, rowid DESC
+     LIMIT 100`,
+  ).all(params);
+  const items = [];
+  for (const row of threadRows) {
+    const thread = readDecisionThread(db, row.id);
+    const appliedRefs = Array.isArray(thread.summary.applied_refs)
+      ? thread.summary.applied_refs
+      : [];
+    for (const item of thread.items) {
+      if (!['answered', 'delegated', 'deferred'].includes(item.status)) continue;
+      const resolution = item.resolution || {};
+      items.push({
+        thread_id: thread.id,
+        decision_id: item.id,
+        status: item.status,
+        authority: resolution.authority || null,
+        decision: resolution.decision || null,
+        rationale: resolution.rationale || null,
+        decided_by: resolution.decided_by || null,
+        delegated_to: resolution.delegated_to || null,
+        consequences: resolution.consequences || null,
+        revisit_condition: resolution.revisit_condition || null,
+        effects: item.effects,
+        applied_refs: appliedRefs,
+        resolved_at: item.resolved_at,
+      });
+    }
+  }
+  return items
+    .sort((left, right) => String(right.resolved_at || '').localeCompare(String(left.resolved_at || '')))
+    .slice(0, Math.min(Math.max(Number(limit) || 10, 1), 20));
 }
 
 function supersedeDecision(db, input = {}) {
@@ -663,7 +1004,7 @@ function decisionGate(db, bindings = {}, { rootDir = process.cwd() } = {}) {
     params.change_id = bindings.change_id;
   }
   if (bindings.baseline_id) {
-    clauses.push('(baseline_id = @baseline_id AND change_id IS NULL AND workflow_run_id IS NULL)');
+    clauses.push('(baseline_id = @baseline_id AND change_id IS NULL)');
     params.baseline_id = bindings.baseline_id;
   }
   if (clauses.length === 0) return { ready: true, blockers: [], thread: null, current_decision: null };
@@ -779,6 +1120,7 @@ module.exports = {
   completeDecisionThread,
   supersedeDecision,
   checkpointDecisionThread,
+  acceptedIntent,
   decisionGate,
   assertDecisionGate,
   assertConfirmedDecisionCheckpoint,

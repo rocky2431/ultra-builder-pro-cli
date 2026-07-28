@@ -13,8 +13,9 @@ const workflows = require('./workflow-state.cjs');
 const ops = require('./state-ops.cjs');
 const changes = require('./change-workflow.cjs');
 const planStore = require('./plan-store.cjs');
+const artifactRegistry = require('./artifact-registry.cjs');
 const {
-  WORKFLOW_DEFINITIONS, startWorkflow, recordWorkflowStep, completeWorkflow,
+  WORKFLOW_DEFINITIONS, startWorkflow, completeWorkflow,
 } = workflows;
 const {
   seedReadyBaseline,
@@ -27,7 +28,9 @@ const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-workflow-'));
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   seedReadyBaseline(db, { rootDir, id: 'baseline' });
   return { rootDir, db };
 }
@@ -42,6 +45,114 @@ function writeArtifact(fx, relative, body) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body);
   return relative;
+}
+
+function registerFixtureArtifact(db, {
+  rootDir, owner_type, owner_id, kind, artifactPath,
+}) {
+  const existing = db.prepare(
+    `SELECT id FROM artifacts
+     WHERE owner_type = ? AND owner_id = ? AND kind = ? AND path = ?`,
+  ).get(owner_type, owner_id, kind, artifactPath);
+  artifactRegistry.recordArtifact(db, {
+    id: existing?.id,
+    owner_type,
+    owner_id,
+    kind,
+    path: artifactPath,
+    provenance: { writer: 'workflow-state-test-fixture' },
+    source_refs: [],
+    consumer_refs: [],
+    metadata: { terminal_role: true },
+  }, { rootDir });
+}
+
+function registerFixtureWorkflowOutputs(db, input, { rootDir }) {
+  const run = db.prepare(
+    'SELECT id, kind, change_id FROM workflow_runs WHERE id = ?',
+  ).get(input.id);
+  if (!run || !Array.isArray(input.outputs) || input.outputs.length === 0) return;
+  const kind = {
+    'test:write-report': 'test_report',
+    'review:review-specification': 'review_findings',
+    'review:review-engineering': 'review_findings',
+    'review:coordinate-findings': 'review_summary',
+    'deliver:verify-delivery': 'delivery_report',
+  }[`${run.kind}:${input.step_id}`];
+  if (kind) {
+    for (const output of input.outputs) {
+      registerFixtureArtifact(db, {
+        rootDir,
+        owner_type: 'workflow',
+        owner_id: run.id,
+        kind,
+        artifactPath: output.path,
+      });
+    }
+  }
+  if (run.kind === 'plan' && input.step_id === 'verify-plan') {
+    for (const output of input.outputs) {
+      registerFixtureArtifact(db, {
+        rootDir,
+        owner_type: 'change',
+        owner_id: run.change_id,
+        kind: 'execution_plan',
+        artifactPath: output.path,
+      });
+      const change = db.prepare(
+        'SELECT id, artifact_root FROM changes WHERE id = ?',
+      ).get(run.change_id);
+      const markdown = planStore.changePlanPaths(rootDir, change).md;
+      if (fs.existsSync(markdown)) {
+        registerFixtureArtifact(db, {
+          rootDir,
+          owner_type: 'change',
+          owner_id: run.change_id,
+          kind: 'execution_plan_markdown',
+          artifactPath: path.relative(rootDir, markdown).split(path.sep).join('/'),
+        });
+      }
+    }
+  }
+}
+
+function recordWorkflowStep(db, input, options = {}) {
+  registerFixtureWorkflowOutputs(db, input, options);
+  return workflows.recordWorkflowStep(db, input, options);
+}
+
+function optionalDigestReference(fx, label) {
+  const ref = writeArtifact(
+    fx,
+    `.ultra/specs/${label}.md`,
+    `# ${label}\n\nOptional supporting context.\n`,
+  );
+  const expectedDigest = crypto.createHash('sha256')
+    .update(fs.readFileSync(path.join(fx.rootDir, ref)))
+    .digest('hex');
+  return {
+    ref,
+    input: {
+      ref,
+      reason: 'Useful supporting context that is not completion authority.',
+      required: false,
+      expected_digest: expectedDigest,
+      freshness_policy: 'digest',
+    },
+    drift() {
+      fs.writeFileSync(
+        path.join(fx.rootDir, ref),
+        `# ${label}\n\nOptional supporting context changed after compilation.\n`,
+      );
+    },
+  };
+}
+
+function assertOptionalContextWarning(summary, optional) {
+  assert.ok(
+    summary.context_warnings?.includes(`CONTEXT_OPTIONAL_REF_STALE:${optional.ref}`),
+    `completion did not surface optional reference drift for ${optional.ref}`,
+  );
 }
 
 function verificationDimensions(overrides = {}) {
@@ -111,7 +222,13 @@ function finishRequiredSteps(fx, run, outputForStep = () => null) {
       }];
     }
     if (definition.output_required) {
-      const output = outputForStep(item.step_id);
+      let output = outputForStep(item.step_id);
+      if (!output && current.kind === 'plan' && item.step_id === 'compile-context') {
+        const compiled = changes.compileContext(fx.db, {
+          id: current.change_id, role: 'plan', gate: 'planning',
+        }, { rootDir: fx.rootDir });
+        output = path.relative(fx.rootDir, compiled.context_manifest_path);
+      }
       input.outputs = [{ path: output, kind: `${current.kind}-evidence` }];
     }
     if (current.kind === 'research') {
@@ -121,6 +238,17 @@ function finishRequiredSteps(fx, run, outputForStep = () => null) {
   }
   return current;
 }
+
+test('plan workflow compiles a planning Context Manifest before task design', () => {
+  const ids = workflows.WORKFLOW_DEFINITIONS.plan.map((item) => item.id);
+  assert.equal(ids[0], 'validate-baseline');
+  assert.equal(ids[1], 'compile-context');
+  assert.equal(
+    workflows.WORKFLOW_DEFINITIONS.plan.find((item) => item.id === 'compile-context').output_required,
+    true,
+  );
+  assert.equal(ids.at(-1), 'verify-plan');
+});
 
 function insertCompletedRun(fx, {
   id, kind, changeId, taskId = null, summary = {}, baselineId = 'baseline',
@@ -165,11 +293,44 @@ function completedTask(fx, changeId, id) {
   return ops.readTask(fx.db, id);
 }
 
+function planDigestForTest(task) {
+  const contract = {
+    id: task.id,
+    change_id: task.change_id,
+    parent_id: task.parent_id,
+    title: task.title,
+    type: task.type,
+    priority: task.priority,
+    complexity: task.complexity,
+    estimated_days: task.estimated_days,
+    deps: task.deps || [],
+    files_modified: task.files_modified || [],
+    tag: task.tag,
+    trace_to: task.trace_to,
+    outcome: task.outcome,
+    slice_kind: task.slice_kind,
+    public_seam: task.public_seam,
+    verification_command: task.verification_command,
+    acceptance: task.acceptance || [],
+    context_refs: task.context_refs || [],
+    docs_impact: task.docs_impact || {},
+    ownership: task.ownership || {},
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(contract)).digest('hex');
+}
+
 function seedDeliveryPrerequisites(fx, changeId) {
   const task = completedTask(fx, changeId, `${changeId}-task`);
+  const contract = completeChangeInput({ id: changeId }).contract;
   insertCompletedRun(fx, {
     id: `test-${changeId}`, kind: 'test', changeId,
-    summary: { passed: true, task_ids: [task.id], git_commit: null, worktree_digest: null },
+    summary: {
+      passed: true,
+      task_ids: [task.id],
+      acceptance_ids: contract.acceptance.map((item) => item.id).sort(),
+      git_commit: null,
+      worktree_digest: null,
+    },
   });
   insertCompletedRun(fx, {
     id: `review-${changeId}`, kind: 'review', changeId,
@@ -332,6 +493,61 @@ test('research records evidence and output digests, enforces order, and resumes 
   }
 });
 
+test('workflow evidence reads reject an ancestor swap before reading external bytes', () => {
+  const fx = fixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-workflow-outside-'));
+  const evidence = path.join(fx.rootDir, '.ultra', 'evidence');
+  const owned = path.join(fx.rootDir, '.ultra', 'evidence-owned');
+  const relative = '.ultra/evidence/report.md';
+  const target = path.join(fs.realpathSync(fx.rootDir), ...relative.split('/'));
+  const realOpen = fs.openSync;
+  const realRead = fs.readFileSync;
+  let swapped = false;
+  let readAfterSwap = false;
+  try {
+    writeArtifact(fx, relative, '# project evidence\n');
+    fs.writeFileSync(path.join(outside, 'report.md'), '# external evidence\n');
+    const run = startWorkflow(fx.db, {
+      id: 'safe-evidence-run',
+      kind: 'init',
+      baseline_id: 'baseline',
+      subject: 'Reject unsafe workflow evidence.',
+    }, { rootDir: fx.rootDir });
+    fs.openSync = (file, ...args) => {
+      if (!swapped && typeof file === 'string' && path.resolve(file) === path.resolve(target)) {
+        fs.renameSync(evidence, owned);
+        fs.symlinkSync(outside, evidence, 'dir');
+        swapped = true;
+      }
+      return realOpen(file, ...args);
+    };
+    fs.readFileSync = (file, ...args) => {
+      if (swapped && typeof file === 'number') readAfterSwap = true;
+      return realRead(file, ...args);
+    };
+
+    assert.throws(
+      () => workflows.recordWorkflowStep(fx.db, {
+        id: run.id,
+        step_id: 'inspect-authority',
+        status: 'completed',
+        outputs: [{ path: relative, kind: 'evidence' }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'VALIDATION_ERROR',
+    );
+    assert.equal(readAfterSwap, false);
+  } finally {
+    fs.openSync = realOpen;
+    fs.readFileSync = realRead;
+    if (swapped) {
+      fs.rmSync(evidence, { force: true });
+      fs.renameSync(owned, evidence);
+    }
+    cleanup(fx);
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 test('research health detects a stale semantic source even when the immutable step report is current', () => {
   const fx = fixture();
   try {
@@ -391,6 +607,96 @@ test('custom research excludes steps only through explicit selection and records
     assert.deepEqual(selected, ['20-user-stories', '21-features-scope', '99-synthesis']);
     assert.deepEqual(run.steps.map((step) => step.step_id), selected);
     assert.equal(run.steps.some((step) => step.step_id === '02-market-assessment'), false);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('Change-scoped research writes and registers immutable reports only under its overlay root', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'overlay-research-change');
+    const run = workflows.startWorkflow(fx.db, {
+      id: 'overlay-research',
+      kind: 'research',
+      mode: 'custom',
+      baseline_id: 'baseline',
+      change_id: changeId,
+      selected_steps: ['20-user-stories'],
+      metadata: {
+        selection_reason: 'The owner accepted one bounded requirements research slice.',
+      },
+      subject: 'Research one Change-owned requirement delta.',
+    }, { rootDir: fx.rootDir });
+    const reportBody = [
+      '# User stories',
+      '',
+      '## Evidence',
+      '',
+      'The current seam was inspected.',
+      '',
+      '## Specification updates',
+      '',
+      'The accepted requirement belongs to the Change overlay.',
+      '',
+      '## Decisions and unknowns',
+      '',
+      'No unresolved blocking decision remains.',
+      '',
+    ].join('\n');
+    const globalReport = writeArtifact(
+      fx,
+      '.ultra/docs/research/overlay-research/20-user-stories.md',
+      reportBody,
+    );
+    const globalSemantic = semanticRecordsForStep(
+      run.id, '20-user-stories',
+    );
+    assert.throws(
+      () => workflows.recordWorkflowStep(fx.db, {
+        id: run.id,
+        step_id: '20-user-stories',
+        status: 'completed',
+        evidence: [{
+          kind: 'source',
+          ref: 'fixture:overlay-research',
+          summary: 'Bounded Change research evidence.',
+        }],
+        outputs: [{ path: globalReport, kind: 'research-step-report' }],
+        semantic_records: globalSemantic,
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_RESEARCH_REPORT_REQUIRED',
+    );
+
+    const overlayReport = writeArtifact(
+      fx,
+      `.ultra/changes/active/${changeId}/research/${run.id}/20-user-stories.md`,
+      reportBody,
+    );
+    const overlaySemantic = semanticRecordsForStep(
+      run.id, '20-user-stories',
+    ).map((record) => ({
+      ...record,
+      source_ref: `${overlayReport}#evidence`,
+    }));
+    const advanced = workflows.recordWorkflowStep(fx.db, {
+      id: run.id,
+      step_id: '20-user-stories',
+      status: 'completed',
+      evidence: [{
+        kind: 'source',
+        ref: 'fixture:overlay-research',
+        summary: 'Bounded Change research evidence.',
+      }],
+      outputs: [{ path: overlayReport, kind: 'research-step-report' }],
+      semantic_records: overlaySemantic,
+    }, { rootDir: fx.rootDir });
+    assert.equal(advanced.current_step, '99-synthesis');
+    const artifact = artifactRegistry.getArtifact(fx.db, { path: overlayReport });
+    assert.equal(artifact.owner_type, 'workflow');
+    assert.equal(artifact.owner_id, run.id);
+    assert.equal(artifact.kind, 'research_step_report');
+    assert.equal(artifact.status, 'current');
   } finally {
     cleanup(fx);
   }
@@ -609,12 +915,31 @@ test('delivery-stage workflows persist blockers and recover without losing compl
   const fx = fixture();
   try {
     const changeId = insertChange(fx, 'delivery-recovery');
+    fx.db.prepare("UPDATE changes SET kind = 'quick' WHERE id = ?").run(changeId);
     seedDeliveryPrerequisites(fx, changeId);
     fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = ?").run(changeId);
     workflows.startWorkflow(fx.db, {
       id: 'deliver-run', kind: 'deliver', change_id: changeId,
       subject: 'Deliver the reviewed change.',
     }, { rootDir: fx.rootDir });
+    const testRun = fx.db.prepare(
+      "SELECT id, summary_json FROM workflow_runs WHERE kind = 'test' AND change_id = ?",
+    ).get(changeId);
+    const staleSummary = JSON.parse(testRun.summary_json);
+    staleSummary.acceptance_ids = ['stale-acceptance'];
+    fx.db.prepare('UPDATE workflow_runs SET summary_json = ? WHERE id = ?')
+      .run(JSON.stringify(staleSummary), testRun.id);
+    assert.throws(
+      () => workflows.recordWorkflowStep(fx.db, {
+        id: 'deliver-run', step_id: 'bind-evidence', status: 'completed',
+        evidence: [{ kind: 'test', ref: 'test:delivery-recovery', summary: 'Stale acceptance.' }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_ACCEPTANCE_EVIDENCE_STALE',
+    );
+    staleSummary.acceptance_ids = completeChangeInput({ id: changeId }).contract.acceptance
+      .map((item) => item.id);
+    fx.db.prepare('UPDATE workflow_runs SET summary_json = ? WHERE id = ?')
+      .run(JSON.stringify(staleSummary), testRun.id);
     workflows.recordWorkflowStep(fx.db, {
       id: 'deliver-run', step_id: 'bind-evidence', status: 'completed',
       evidence: [{ kind: 'test', ref: 'test:delivery-recovery', summary: 'Current report bound.' }],
@@ -677,6 +1002,466 @@ test('current workflows reject a legacy Context Manifest v2 output', () => {
   }
 });
 
+test('change-wide test, review, and deliver workflows reject task-scoped Context Manifests', () => {
+  for (const fixtureCase of [
+    {
+      kind: 'test',
+      role: 'check',
+      gate: 'verification',
+      contextStep: 'compile-context',
+      priorSteps: ['bind-scope'],
+    },
+    {
+      kind: 'review',
+      role: 'review',
+      gate: 'review',
+      contextStep: 'compile-context',
+      priorSteps: ['bind-diff'],
+    },
+    {
+      kind: 'deliver',
+      role: 'check',
+      gate: 'convergence',
+      contextStep: 'verify-candidate',
+      priorSteps: ['bind-evidence', 'reconcile-specifications'],
+    },
+  ]) {
+    const fx = fixture();
+    try {
+      const changeId = insertChange(fx, `scope-${fixtureCase.kind}`);
+      if (fixtureCase.kind === 'deliver') {
+        fx.db.prepare("UPDATE changes SET kind = 'quick' WHERE id = ?").run(changeId);
+      }
+      const task = fixtureCase.kind === 'deliver'
+        ? seedDeliveryPrerequisites(fx, changeId)
+        : completedTask(fx, changeId, `scope-${fixtureCase.kind}-task`);
+      if (fixtureCase.kind === 'deliver') {
+        fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = ?").run(changeId);
+      }
+      let run = startWorkflow(fx.db, {
+        id: `scope-${fixtureCase.kind}-run`,
+        kind: fixtureCase.kind,
+        change_id: changeId,
+        subject: `Reject a task-scoped manifest for change-wide ${fixtureCase.kind}.`,
+      }, { rootDir: fx.rootDir });
+      for (const stepId of fixtureCase.priorSteps) {
+        run = recordWorkflowStep(fx.db, {
+          id: run.id,
+          step_id: stepId,
+          status: 'completed',
+          evidence: [{
+            kind: 'fixture',
+            ref: `${fixtureCase.kind}:${stepId}`,
+            summary: `Evidence for ${stepId}.`,
+          }],
+        }, { rootDir: fx.rootDir });
+      }
+      const compiled = changes.compileContext(fx.db, {
+        id: changeId,
+        task_id: task.id,
+        role: fixtureCase.role,
+        gate: fixtureCase.gate,
+      }, { rootDir: fx.rootDir });
+      const contextPath = path.relative(fx.rootDir, compiled.context_manifest_path);
+      assert.throws(
+        () => recordWorkflowStep(fx.db, {
+          id: run.id,
+          step_id: fixtureCase.contextStep,
+          status: 'completed',
+          evidence: [{
+            kind: 'context',
+            ref: contextPath,
+            summary: 'A task-scoped manifest must not satisfy a change-wide run.',
+          }],
+          outputs: [{ path: contextPath, kind: 'context-manifest' }],
+        }, { rootDir: fx.rootDir }),
+        (error) => error.code === 'WORKFLOW_CONTEXT_MISMATCH',
+        `${fixtureCase.kind} accepted task-scoped Context authority`,
+      );
+    } finally {
+      cleanup(fx);
+    }
+  }
+});
+
+test('workflow start enforces the exact kind scope matrix before creating durable authority', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'workflow-scope-matrix');
+    const task = completedTask(fx, changeId, 'workflow-scope-task');
+    const invalid = [
+      { kind: 'init', baseline_id: 'baseline' },
+      { kind: 'research', change_id: changeId, mode: 'product' },
+      { kind: 'change', change_id: changeId },
+      { kind: 'plan', change_id: changeId },
+      { kind: 'deliver', change_id: changeId },
+    ];
+    for (const item of invalid) {
+      assert.throws(
+        () => startWorkflow(fx.db, {
+          id: `invalid-${item.kind}-task-scope`,
+          subject: `${item.kind} must reject task scope.`,
+          task_id: task.id,
+          ...item,
+        }, { rootDir: fx.rootDir }),
+        (error) => error.code === 'WORKFLOW_SCOPE_INVALID',
+        `${item.kind} accepted task_id`,
+      );
+    }
+    for (const kind of ['test', 'review']) {
+      const run = startWorkflow(fx.db, {
+        id: `valid-${kind}-task-scope`,
+        kind,
+        change_id: changeId,
+        task_id: task.id,
+        subject: `${kind} may bind one task slice.`,
+      }, { rootDir: fx.rootDir });
+      assert.equal(run.task_id, task.id);
+    }
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('dev completion rejects every task-contract field changed after implementation context compile', () => {
+  const mutations = {
+    acceptance: (task) => ({
+      acceptance: [...task.acceptance, {
+        id: 'late-acceptance',
+        criterion: 'A newly accepted behavior is now required.',
+        verification: 'node --test late.test.cjs',
+      }],
+    }),
+    outcome: () => ({ outcome: 'A different observable outcome is now required.' }),
+    files_modified: (task) => ({
+      files_modified: [...task.files_modified, 'src/late-boundary.ts'],
+    }),
+    context_refs: (task) => ({
+      context_refs: [...task.context_refs, {
+        ref: '.ultra/specs/architecture.md',
+        reason: 'A newly required architecture contract.',
+        required: true,
+      }],
+    }),
+    deps: (_task, dependency) => ({ deps: [dependency.id] }),
+    docs_impact: () => ({
+      docs_impact: {
+        status: 'required',
+        files: ['README.md'],
+        rationale: 'The new public behavior must be documented.',
+      },
+    }),
+    ownership: () => ({
+      ownership: { owner: 'new-owner', reviewers: ['architecture-reviewer'] },
+    }),
+  };
+
+  for (const [field, mutate] of Object.entries(mutations)) {
+    const fx = fixture();
+    try {
+      const changeId = insertChange(fx, `dev-context-${field}`);
+      const dependency = ops.createTask(fx.db, {
+        id: `dev-context-${field}-dependency`,
+        title: 'Stable dependency',
+        type: 'feature',
+        priority: 'P2',
+        change_id: changeId,
+        outcome: 'The dependency remains stable.',
+        slice_kind: 'tracer_bullet',
+        public_seam: 'dependency seam',
+        verification_command: 'node --test dependency.test.cjs',
+        acceptance: [{
+          id: 'dependency-acceptance',
+          criterion: 'The dependency seam works.',
+          verification: 'node --test dependency.test.cjs',
+        }],
+        context_refs: [{
+          ref: '.ultra/specs/product.md',
+          reason: 'Accepted dependency behavior.',
+          required: true,
+        }],
+        docs_impact: {
+          status: 'none',
+          files: [],
+          rationale: 'No public documentation change.',
+        },
+        ownership: { owner: 'dependency-owner', reviewers: [] },
+        trace_to: '.ultra/specs/product.md#fixture',
+      });
+      const task = ops.createTask(fx.db, {
+        id: `dev-context-${field}-task`,
+        title: 'Implement the bound task contract',
+        type: 'feature',
+        priority: 'P0',
+        change_id: changeId,
+        files_modified: ['src/current-boundary.ts'],
+        outcome: 'The originally accepted outcome is observable.',
+        slice_kind: 'tracer_bullet',
+        public_seam: 'current public seam',
+        verification_command: 'node --test current.test.cjs',
+        acceptance: [{
+          id: 'current-acceptance',
+          criterion: 'The current seam works.',
+          verification: 'node --test current.test.cjs',
+        }],
+        context_refs: [{
+          ref: '.ultra/specs/product.md',
+          reason: 'Accepted current behavior.',
+          required: true,
+        }],
+        docs_impact: {
+          status: 'none',
+          files: [],
+          rationale: 'No public documentation change.',
+        },
+        ownership: { owner: 'current-owner', reviewers: [] },
+        trace_to: '.ultra/specs/product.md#fixture',
+      });
+      const plannedTasks = [dependency, task].sort((left, right) => left.id.localeCompare(right.id));
+      insertCompletedRun(fx, {
+        id: `dev-context-${field}-plan`,
+        kind: 'plan',
+        changeId,
+        summary: {
+          task_ids: plannedTasks.map((item) => item.id),
+          task_contract_digests: Object.fromEntries(
+            plannedTasks.map((item) => [item.id, planDigestForTest(item)]),
+          ),
+        },
+      });
+
+      let run = startWorkflow(fx.db, {
+        id: `dev-context-${field}-run`,
+        kind: 'dev',
+        change_id: changeId,
+        task_id: task.id,
+        subject: `Reject a late ${field} change.`,
+      }, { rootDir: fx.rootDir });
+      const compiled = changes.compileContext(fx.db, {
+        id: changeId,
+        task_id: task.id,
+        role: 'implement',
+        gate: 'implementation',
+      }, { rootDir: fx.rootDir });
+      const contextPath = path.relative(fx.rootDir, compiled.context_manifest_path);
+      ops.updateTaskStatus(fx.db, task.id, 'in_progress');
+      ops.updateTaskStatus(fx.db, task.id, 'completed');
+      insertCompletedRun(fx, {
+        id: `dev-context-${field}-review`,
+        kind: 'review',
+        changeId,
+        taskId: task.id,
+        summary: {
+          mode: 'task',
+          verdict: 'APPROVE',
+          task_ids: [task.id],
+          git_commit: null,
+          worktree_digest: null,
+          axes: {
+            spec_fidelity: { verdict: 'PASS', evidence_refs: ['spec.json'] },
+            engineering_standards: { verdict: 'PASS', evidence_refs: ['code.json'] },
+          },
+        },
+      });
+      run = finishRequiredSteps(fx, run, (stepId) => (
+        stepId === 'compile-context' ? contextPath : null
+      ));
+      const current = ops.readTask(fx.db, task.id);
+      ops.patchTask(fx.db, task.id, mutate(current, dependency));
+
+      assert.throws(
+        () => completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir }),
+        (error) => error.code === 'WORKFLOW_CONTEXT_STALE'
+          && error.details?.blockers?.some(
+            (blocker) => blocker === 'CONTEXT_TASK_CONTRACT_STALE',
+          ),
+        `dev completion accepted stale ${field} authority`,
+      );
+    } finally {
+      cleanup(fx);
+    }
+  }
+});
+
+test('dev completion preserves optional reference drift as a visible warning', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'dev-optional-context-change');
+    const optional = optionalDigestReference(fx, 'dev-optional-context');
+    const task = ops.createTask(fx.db, {
+      id: 'dev-optional-context-task',
+      title: 'Complete a task with optional supporting context',
+      type: 'feature',
+      priority: 'P0',
+      change_id: changeId,
+      files_modified: ['src/optional-context.ts'],
+      outcome: 'The accepted task outcome remains observable.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'optional context completion seam',
+      verification_command: 'node --test optional-context.test.cjs',
+      acceptance: [{
+        id: 'optional-context-acceptance',
+        criterion: 'The task completes without promoting optional context to authority.',
+        verification: 'node --test optional-context.test.cjs',
+      }],
+      context_refs: [optional.input],
+      docs_impact: {
+        status: 'none',
+        files: [],
+        rationale: 'No public documentation change.',
+      },
+      ownership: { owner: 'runtime-maintainer', reviewers: [] },
+      trace_to: '.ultra/specs/product.md#fixture',
+    });
+    insertCompletedRun(fx, {
+      id: 'dev-optional-context-plan',
+      kind: 'plan',
+      changeId,
+      summary: {
+        task_ids: [task.id],
+        task_contract_digests: { [task.id]: planDigestForTest(task) },
+      },
+    });
+    let run = startWorkflow(fx.db, {
+      id: 'dev-optional-context-run',
+      kind: 'dev',
+      change_id: changeId,
+      task_id: task.id,
+      subject: 'Complete the accepted task while retaining advisory drift.',
+    }, { rootDir: fx.rootDir });
+    optional.drift();
+    const compiled = changes.compileContext(fx.db, {
+      id: changeId,
+      task_id: task.id,
+      role: 'implement',
+      gate: 'implementation',
+    }, { rootDir: fx.rootDir });
+    const contextPath = path.relative(fx.rootDir, compiled.context_manifest_path);
+    ops.updateTaskStatus(fx.db, task.id, 'in_progress');
+    ops.updateTaskStatus(fx.db, task.id, 'completed');
+    insertCompletedRun(fx, {
+      id: 'dev-optional-context-review',
+      kind: 'review',
+      changeId,
+      taskId: task.id,
+      summary: {
+        mode: 'task',
+        verdict: 'APPROVE',
+        task_ids: [task.id],
+        git_commit: null,
+        worktree_digest: null,
+        axes: {
+          spec_fidelity: { verdict: 'PASS', evidence_refs: ['spec.json'] },
+          engineering_standards: { verdict: 'PASS', evidence_refs: ['code.json'] },
+        },
+      },
+    });
+    run = finishRequiredSteps(fx, run, (stepId) => (
+      stepId === 'compile-context' ? contextPath : null
+    ));
+
+    const completed = completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir });
+    assert.equal(completed.status, 'completed');
+    assertOptionalContextWarning(completed.summary, optional);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('plan completion rejects a digest-bound context reference changed after compile', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'plan-ref-drift');
+    const refPath = writeArtifact(
+      fx,
+      '.ultra/specs/plan-ref-drift.md',
+      '# Planning authority\n\nCurrent accepted boundary.\n',
+    );
+    const expectedDigest = crypto.createHash('sha256')
+      .update(fs.readFileSync(path.join(fx.rootDir, refPath)))
+      .digest('hex');
+    ops.createTask(fx.db, {
+      id: 'plan-ref-drift-task',
+      title: 'Implement the current planning authority',
+      type: 'feature',
+      priority: 'P0',
+      change_id: changeId,
+      files_modified: ['src/planned-boundary.ts'],
+      outcome: 'The current planning boundary is observable.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'planned public seam',
+      verification_command: 'node --test planned.test.cjs',
+      acceptance: [{
+        id: 'plan-ref-drift-acceptance',
+        criterion: 'The planned seam works.',
+        verification: 'node --test planned.test.cjs',
+      }],
+      context_refs: [{
+        ref: refPath,
+        reason: 'Current accepted planning authority.',
+        required: true,
+        expected_digest: expectedDigest,
+        freshness_policy: 'digest',
+      }],
+      docs_impact: {
+        status: 'none',
+        files: [],
+        rationale: 'No public documentation change.',
+      },
+      ownership: { owner: 'plan-owner', reviewers: [] },
+      trace_to: `${refPath}#planning-authority`,
+    });
+    let run = startWorkflow(fx.db, {
+      id: 'plan-ref-drift-run',
+      kind: 'plan',
+      change_id: changeId,
+      subject: 'Reject drift in the planning evidence.',
+    }, { rootDir: fx.rootDir });
+    const compiled = changes.compileContext(fx.db, {
+      id: changeId,
+      role: 'plan',
+      gate: 'planning',
+      spec_refs: [{
+        ref: refPath,
+        reason: 'Current accepted planning authority.',
+        required: true,
+        expected_digest: expectedDigest,
+        freshness_policy: 'digest',
+      }],
+    }, { rootDir: fx.rootDir });
+    const tasks = ops.listTasks(fx.db, { change_id: changeId });
+    const saved = planStore.saveChangePlanArtifacts(
+      planStore.buildPlan(tasks, { changeId }),
+      {
+        rootDir: fx.rootDir,
+        change: changes.readChange(fx.db, changeId),
+        tasks,
+        context: {
+          snapshot_id: compiled.manifest.snapshot_id,
+          manifest_path: path.relative(fx.rootDir, compiled.context_manifest_path),
+          manifest_digest: compiled.manifest_hash,
+        },
+      },
+    );
+    run = finishRequiredSteps(fx, run, (stepId) => ({
+      'compile-context': path.relative(fx.rootDir, compiled.context_manifest_path),
+      'verify-plan': path.relative(fx.rootDir, saved.plan_path),
+    })[stepId]);
+    fs.writeFileSync(
+      path.join(fx.rootDir, refPath),
+      '# Planning authority\n\nA changed boundary that was never recompiled.\n',
+    );
+
+    assert.throws(
+      () => completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_CONTEXT_STALE'
+        && error.details?.blockers?.includes(`CONTEXT_REQUIRED_REF_STALE:${refPath}`),
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('task-scoped testing does not wait for unrelated change tasks', () => {
   const fx = fixture();
   try {
@@ -706,12 +1491,14 @@ test('test completion validates its bound report and derives the durable gate re
     const changeId = insertChange(fx, 'test-report-change');
     const task = completedTask(fx, changeId, 'test-report-task');
     fx.db.prepare("UPDATE tasks SET type = 'bugfix' WHERE id = ?").run(task.id);
+    const optional = optionalDigestReference(fx, 'test-optional-context');
     let run = startWorkflow(fx.db, {
       id: 'test-report-run', kind: 'test', change_id: changeId,
       subject: 'Verify one current change.',
     }, { rootDir: fx.rootDir });
     const compiled = changes.compileContext(fx.db, {
       id: changeId, role: 'check', gate: 'verification',
+      spec_refs: [optional.input],
     }, { rootDir: fx.rootDir });
     const contextPath = path.relative(fx.rootDir, compiled.context_manifest_path);
     const report = {
@@ -735,11 +1522,27 @@ test('test completion validates its bound report and derives the durable gate re
       blocking_issues: [],
     };
     const reportPath = writeArtifact(
-      fx, '.ultra/reports/tests/test-report-run.json', JSON.stringify(report, null, 2),
+      fx,
+      '.ultra/changes/active/test-report-change/test/test-report-run/report.json',
+      JSON.stringify(report, null, 2),
+    );
+    const outsideReportPath = writeArtifact(
+      fx,
+      '.ultra/reports/tests/test-report-run.json',
+      JSON.stringify(report, null, 2),
     );
     run = finishRequiredSteps(fx, run, (stepId) => {
-      return stepId === 'compile-context' ? contextPath : reportPath;
+      return stepId === 'compile-context' ? contextPath : outsideReportPath;
     });
+    assert.throws(
+      () => completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_ARTIFACT_SCOPE_INVALID',
+    );
+    run = recordWorkflowStep(fx.db, {
+      id: run.id, step_id: 'write-report', status: 'completed',
+      evidence: [{ kind: 'test', ref: reportPath, summary: 'Change-scoped report evidence.' }],
+      outputs: [{ path: reportPath, kind: 'test-evidence' }],
+    }, { rootDir: fx.rootDir });
     assert.throws(
       () => completeWorkflow(fx.db, {
         id: run.id, summary: { passed: false, prompt_claim: 'must not become authority' },
@@ -798,11 +1601,30 @@ test('test completion validates its bound report and derives the durable gate re
       evidence: [{ kind: 'test', ref: reportPath, summary: 'All verification dimensions resolved.' }],
       outputs: [{ path: reportPath, kind: 'test-evidence' }],
     }, { rootDir: fx.rootDir });
+    const reportFile = path.join(fx.rootDir, reportPath);
+    fs.appendFileSync(reportFile, '\n');
+    run = workflows.recordWorkflowStep(fx.db, {
+      id: run.id, step_id: 'write-report', status: 'completed',
+      evidence: [{ kind: 'test', ref: reportPath, summary: 'Forged unregistered bytes.' }],
+      outputs: [{ path: reportPath, kind: 'test-evidence' }],
+    }, { rootDir: fx.rootDir });
+    assert.throws(
+      () => completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_REPORT_INVALID'
+        && /Artifact Registry authority/.test(error.message),
+    );
+    run = recordWorkflowStep(fx.db, {
+      id: run.id, step_id: 'write-report', status: 'completed',
+      evidence: [{ kind: 'test', ref: reportPath, summary: 'Registered current report bytes.' }],
+      outputs: [{ path: reportPath, kind: 'test-evidence' }],
+    }, { rootDir: fx.rootDir });
+    optional.drift();
     const completed = completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir });
     assert.equal(completed.summary.passed, true);
     assert.equal(completed.summary.change_id, changeId);
     assert.equal(completed.summary.report_path, reportPath);
     assert.equal(Object.hasOwn(completed.summary, 'prompt_claim'), false);
+    assertOptionalContextWarning(completed.summary, optional);
 
     fs.writeFileSync(path.join(fx.rootDir, reportPath), '{}');
     assert.equal(
@@ -869,16 +1691,20 @@ test('review completion derives both verdict axes from the coordinated artifact'
   const fx = fixture();
   try {
     const changeId = insertChange(fx, 'review-report-change');
+    const optional = optionalDigestReference(fx, 'review-optional-context');
     let run = startWorkflow(fx.db, {
       id: 'review-report-run', kind: 'review', change_id: changeId,
       subject: 'Review one current change.',
     }, { rootDir: fx.rootDir });
     const compiled = changes.compileContext(fx.db, {
       id: changeId, role: 'review', gate: 'review',
+      spec_refs: [optional.input],
     }, { rootDir: fx.rootDir });
     const contextPath = path.relative(fx.rootDir, compiled.context_manifest_path);
     const specialist = (name, agent, axis) => writeArtifact(
-      fx, `.ultra/reviews/review-report-change/${name}.json`, JSON.stringify({
+      fx,
+      `.ultra/changes/active/review-report-change/review/review-report-run/${name}.json`,
+      JSON.stringify({
         $schema: 'ultra-review-findings-v2', agent, axis,
         session: 'review-report-change', timestamp: new Date().toISOString(),
         scope: { head: 'workspace', range: 'working-tree', files_analyzed: ['src/index.js'], diff_only: true },
@@ -887,7 +1713,10 @@ test('review completion derives both verdict axes from the coordinated artifact'
     );
     const spec = specialist('spec-fidelity', 'review-spec', 'spec_fidelity');
     const engineering = specialist('review-code', 'review-code', 'engineering_standards');
-    const summary = writeArtifact(fx, '.ultra/reviews/review-report-change/SUMMARY.json', JSON.stringify({
+    const summary = writeArtifact(
+      fx,
+      '.ultra/changes/active/review-report-change/review/review-report-run/SUMMARY.json',
+      JSON.stringify({
       $schema: 'ultra-review-summary-v2', mode: 'change', session: 'review-report-change',
       change_id: changeId, task_ids: [], head: 'workspace', worktree_digest: null,
       context_digest: compiled.manifest_hash,
@@ -947,10 +1776,12 @@ test('review completion derives both verdict axes from the coordinated artifact'
       evidence: [{ kind: 'review', ref: summary, summary: 'Worker artifacts and dispositions agree.' }],
       outputs: [{ path: summary, kind: 'review-summary' }],
     }, { rootDir: fx.rootDir });
+    optional.drift();
     const completed = completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir });
     assert.equal(completed.summary.verdict, 'APPROVE');
     assert.equal(completed.summary.axes.spec_fidelity.verdict, 'PASS');
     assert.equal(completed.summary.axes.engineering_standards.verdict, 'PASS');
+    assertOptionalContextWarning(completed.summary, optional);
   } finally {
     cleanup(fx);
   }
@@ -969,7 +1800,9 @@ test('review completion rejects a coordinated summary that drops a blocking spec
     }, { rootDir: fx.rootDir });
     const contextPath = path.relative(fx.rootDir, compiled.context_manifest_path);
     const specialist = (name, agent, axis, findings = []) => writeArtifact(
-      fx, `.ultra/reviews/review-omission-change/${name}.json`, JSON.stringify({
+      fx,
+      `.ultra/changes/active/review-omission-change/review/review-omission-run/${name}.json`,
+      JSON.stringify({
         $schema: 'ultra-review-findings-v2', agent, axis,
         session: 'review-omission-change', timestamp: new Date().toISOString(),
         scope: { head: 'workspace', range: 'working-tree', files_analyzed: ['src/index.js'], diff_only: true },
@@ -986,7 +1819,10 @@ test('review completion rejects a coordinated summary that drops a blocking spec
       evidence: 'The current branch returns before executing recovery.',
       suggestion: 'Route invalid input through the accepted recovery branch.',
     }]);
-    const summary = writeArtifact(fx, '.ultra/reviews/review-omission-change/SUMMARY.json', JSON.stringify({
+    const summary = writeArtifact(
+      fx,
+      '.ultra/changes/active/review-omission-change/review/review-omission-run/SUMMARY.json',
+      JSON.stringify({
       $schema: 'ultra-review-summary-v2', mode: 'change', session: 'review-omission-change',
       change_id: changeId, task_ids: [], head: 'workspace', worktree_digest: null,
       context_digest: compiled.manifest_hash,
@@ -1030,18 +1866,24 @@ test('delivery completion archives local authority without manufacturing a relea
   const fx = fixture();
   try {
     const changeId = insertChange(fx, 'delivery-report-change');
+    fx.db.prepare("UPDATE changes SET kind = 'quick' WHERE id = ?").run(changeId);
     fx.db.prepare("UPDATE baselines SET status = 'ready' WHERE id = 'baseline'").run();
     seedDeliveryPrerequisites(fx, changeId);
     fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = ?").run(changeId);
+    const optional = optionalDigestReference(fx, 'delivery-optional-context');
     let run = startWorkflow(fx.db, {
       id: 'delivery-report-run', kind: 'deliver', change_id: changeId,
       subject: 'Archive without an unauthorized release.',
     }, { rootDir: fx.rootDir });
     const compiled = changes.compileContext(fx.db, {
       id: changeId, role: 'check', gate: 'convergence',
+      spec_refs: [optional.input],
     }, { rootDir: fx.rootDir });
     const contextPath = path.relative(fx.rootDir, compiled.context_manifest_path);
-    const reportPath = writeArtifact(fx, '.ultra/reports/delivery/delivery-report-run.json', JSON.stringify({
+    const reportPath = writeArtifact(
+      fx,
+      '.ultra/changes/active/delivery-report-change/delivery/delivery-report-run/report.json',
+      JSON.stringify({
       $schema: 'ultra-delivery-report-v1', change_id: changeId,
       archive_status: 'archived', baseline_id: 'baseline', baseline_status: 'ready',
       git_commit: null, worktree_digest: null,
@@ -1058,6 +1900,11 @@ test('delivery completion archives local authority without manufacturing a relea
       (error) => error.code === 'WORKFLOW_CHANGE_NOT_ARCHIVED',
     );
     fx.db.prepare("UPDATE changes SET status = 'archived' WHERE id = ?").run(changeId);
+    fx.db.prepare(
+      `UPDATE artifacts SET status = 'archived'
+       WHERE owner_type = 'change' AND owner_id = ?
+         AND kind = 'context_manifest' AND path = ?`,
+    ).run(changeId, contextPath);
     const reportFile = path.join(fx.rootDir, reportPath);
     const unauthorizedRelease = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
     unauthorizedRelease.release = {
@@ -1084,9 +1931,246 @@ test('delivery completion archives local authority without manufacturing a relea
       evidence: [{ kind: 'delivery', ref: reportPath, summary: 'Local delivery has no release claim.' }],
       outputs: [{ path: reportPath, kind: 'delivery-report' }],
     }, { rootDir: fx.rootDir });
+    optional.drift();
     const completed = completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir });
     assert.equal(completed.summary.release, undefined);
     assert.equal(completed.summary.archive_status, 'archived');
+    assertOptionalContextWarning(completed.summary, optional);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('workflow.revise creates a candidate revision without erasing the accepted run', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'revision-candidate-change');
+    const previousId = `change-authority-${changeId}`;
+    const revised = workflows.reviseWorkflow(fx.db, {
+      id: previousId,
+      replacement_id: 'change-authority-revision-2',
+      subject: 'Revise the accepted Change authority after new evidence.',
+      reason: 'New evidence changes the bounded acceptance contract.',
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(revised.id, 'change-authority-revision-2');
+    assert.equal(revised.status, 'active');
+    assert.equal(revised.metadata.revision.revision_of, previousId);
+    assert.equal(revised.metadata.revision.generation, 2);
+    assert.equal(workflows.readWorkflow(
+      fx.db, previousId, { rootDir: fx.rootDir },
+    ).status, 'completed');
+    assert.equal(
+      workflows.readWorkflow(fx.db, previousId, { rootDir: fx.rootDir })
+        .metadata.revision?.superseded_by,
+      undefined,
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('a completed candidate revision remains non-consumable until explicit supersession', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'candidate-plan-authority-change');
+    const task = ops.createTask(fx.db, {
+      id: 'candidate-plan-authority-task',
+      title: 'Keep the accepted plan authoritative',
+      type: 'feature',
+      priority: 'P0',
+      change_id: changeId,
+      outcome: 'A completed candidate cannot silently replace the accepted plan.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'current workflow authority selector',
+      verification_command: 'node --test mcp-server/lib/workflow-state.test.cjs',
+      acceptance: [{
+        id: 'candidate-plan-authority-acceptance',
+        criterion: 'The accepted plan remains current until workflow.supersede.',
+        verification: 'node --test mcp-server/lib/workflow-state.test.cjs',
+      }],
+      context_refs: [{
+        ref: '.ultra/specs/product.md',
+        reason: 'Accepted product authority.',
+        required: true,
+      }],
+      docs_impact: { status: 'none', files: [], rationale: 'Authority-only regression.' },
+      ownership: { owner: 'test-owner', reviewers: [] },
+      trace_to: '.ultra/specs/product.md#product',
+    });
+    const summary = {
+      task_ids: [task.id],
+      task_contract_digests: { [task.id]: planDigestForTest(task) },
+    };
+    insertCompletedRun(fx, {
+      id: 'accepted-plan-authority-v1',
+      kind: 'plan',
+      changeId,
+      summary,
+    });
+    insertCompletedRun(fx, {
+      id: 'candidate-plan-authority-v2',
+      kind: 'plan',
+      changeId,
+      summary,
+    });
+    fx.db.prepare(
+      'UPDATE workflow_runs SET metadata_json = ? WHERE id = ?',
+    ).run(JSON.stringify({
+      revision: {
+        revision_of: 'accepted-plan-authority-v1',
+        generation: 2,
+        reason: 'New evidence is still awaiting explicit acceptance.',
+        authority_status: 'candidate',
+      },
+    }), 'candidate-plan-authority-v2');
+
+    const current = workflows.assertCurrentPlan(fx.db, changeId, fx.rootDir);
+
+    assert.equal(current.plan.id, 'accepted-plan-authority-v1');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('workflow.supersede preserves history and invalidates only transitive graph consumers', () => {
+  const fx = fixture();
+  try {
+    const changeId = insertChange(fx, 'exact-supersession-change');
+    ops.createTask(fx.db, {
+      id: 'superseded-consumer-task',
+      title: 'Consume the revised plan',
+      type: 'feature',
+      priority: 'P0',
+      change_id: changeId,
+      outcome: 'The plan consumer is invalidated.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'revised plan consumer',
+      verification_command: 'node --test revised-plan.test.cjs',
+      acceptance: [{
+        id: 'revision-acceptance',
+        criterion: 'The revised plan is consumed.',
+        verification: 'node --test revised-plan.test.cjs',
+      }],
+      context_refs: [{
+        ref: '.ultra/specs/product.md',
+        reason: 'Baseline product authority.',
+        required: true,
+      }],
+      docs_impact: { status: 'none', files: [], rationale: 'Fixture only.' },
+      ownership: { owner: 'test-owner', reviewers: [] },
+      trace_to: '.ultra/specs/product.md#product',
+    });
+    ops.createTask(fx.db, {
+      id: 'unrelated-task',
+      title: 'Remain current',
+      type: 'feature',
+      priority: 'P1',
+      change_id: changeId,
+      outcome: 'An unrelated task remains current.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'unrelated plan consumer',
+      verification_command: 'node --test unrelated.test.cjs',
+      acceptance: [{
+        id: 'unrelated-acceptance',
+        criterion: 'The unrelated task remains current.',
+        verification: 'node --test unrelated.test.cjs',
+      }],
+      context_refs: [{
+        ref: '.ultra/specs/product.md',
+        reason: 'Baseline product authority.',
+        required: true,
+      }],
+      docs_impact: { status: 'none', files: [], rationale: 'Fixture only.' },
+      ownership: { owner: 'test-owner', reviewers: [] },
+      trace_to: '.ultra/specs/product.md#product',
+    });
+    insertCompletedRun(fx, {
+      id: 'accepted-plan-v1',
+      kind: 'plan',
+      changeId,
+      summary: { task_ids: ['superseded-consumer-task'] },
+    });
+    insertCompletedRun(fx, {
+      id: 'accepted-plan-v2',
+      kind: 'plan',
+      changeId,
+      summary: { task_ids: ['superseded-consumer-task'] },
+    });
+    fx.db.prepare('UPDATE workflow_runs SET metadata_json = ? WHERE id = ?').run(
+      JSON.stringify({
+        revision: {
+          revision_of: 'accepted-plan-v1',
+          generation: 2,
+          reason: 'The task boundary changed after owner-aligned evidence.',
+        },
+      }),
+      'accepted-plan-v2',
+    );
+    insertCompletedRun(fx, {
+      id: 'downstream-test-v1',
+      kind: 'test',
+      changeId,
+      summary: { task_ids: ['superseded-consumer-task'], passed: true },
+    });
+
+    const planPath = writeArtifact(
+      fx,
+      `.ultra/changes/active/${changeId}/plan-v1.md`,
+      '# Accepted plan v1\n',
+    );
+    const planArtifact = artifactRegistry.recordArtifact(fx.db, {
+      id: 'artifact-plan-v1',
+      owner_type: 'workflow',
+      owner_id: 'accepted-plan-v1',
+      kind: 'execution_plan',
+      path: planPath,
+      source_refs: [{
+        type: 'workflow', id: 'accepted-plan-v1', relation: 'produced_by',
+      }],
+      consumer_refs: [{
+        type: 'task', id: 'superseded-consumer-task', relation: 'consumed_by',
+      }],
+      provenance: { writer: 'workflow-supersession-test' },
+      metadata: {},
+    }, { rootDir: fx.rootDir }).artifact;
+    const contextPath = writeArtifact(
+      fx,
+      `.ultra/changes/active/${changeId}/context-v1.json`,
+      '{"context":"v1"}\n',
+    );
+    const contextArtifact = artifactRegistry.recordArtifact(fx.db, {
+      id: 'artifact-context-v1',
+      owner_type: 'task',
+      owner_id: 'superseded-consumer-task',
+      kind: 'context_manifest',
+      path: contextPath,
+      source_refs: [{
+        type: 'task', id: 'superseded-consumer-task', relation: 'compiled_from',
+      }],
+      consumer_refs: [{
+        type: 'workflow', id: 'downstream-test-v1', relation: 'verified_by',
+      }],
+      provenance: { writer: 'workflow-supersession-test' },
+      metadata: {},
+    }, { rootDir: fx.rootDir }).artifact;
+
+    const result = workflows.supersedeWorkflow(fx.db, {
+      id: 'accepted-plan-v1',
+      replacement_id: 'accepted-plan-v2',
+      reason: 'The completed revision now owns accepted planning authority.',
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(result.workflow.id, 'accepted-plan-v2');
+    assert.equal(result.superseded.id, 'accepted-plan-v1');
+    assert.equal(result.superseded.metadata.revision.superseded_by, 'accepted-plan-v2');
+    assert.equal(ops.readTask(fx.db, 'superseded-consumer-task').stale, true);
+    assert.equal(ops.readTask(fx.db, 'unrelated-task').stale, false);
+    assert.equal(artifactRegistry.getArtifact(fx.db, { id: planArtifact.id }).status, 'stale');
+    assert.equal(artifactRegistry.getArtifact(fx.db, { id: contextArtifact.id }).status, 'stale');
+    assert.ok(workflows.readWorkflow(
+      fx.db, 'downstream-test-v1', { rootDir: fx.rootDir },
+    ).artifact_health.blockers.includes('WORKFLOW_AUTHORITY_STALE'));
   } finally {
     cleanup(fx);
   }
@@ -1120,13 +2204,23 @@ test('plan completion and dev startup require a complete DB-backed task executio
       id: 'plan-contract', kind: 'plan', baseline_id: 'baseline', change_id: 'change',
       subject: 'Create an executable delivery plan.', metadata: { task_ids: [draft.id] },
     }, { rootDir: fx.rootDir });
+    const optional = optionalDigestReference(fx, 'plan-optional-context');
+    const planningContext = changes.compileContext(fx.db, {
+      id: 'change', role: 'plan', gate: 'planning',
+      spec_refs: [optional.input],
+    }, { rootDir: fx.rootDir });
     for (const item of plan.steps.filter((candidate) => candidate.required)) {
       const input = { id: plan.id, step_id: item.step_id, status: 'completed' };
       if (WORKFLOW_DEFINITIONS.plan.find((definition) => definition.id === item.step_id).evidence_required) {
         input.evidence = [{ kind: 'test', ref: `fixture:${item.step_id}`, summary: 'Planning evidence.' }];
       }
       if (WORKFLOW_DEFINITIONS.plan.find((definition) => definition.id === item.step_id).output_required) {
-        input.outputs = [{ path: writeArtifact(fx, `.ultra/${item.step_id}.md`, item.step_id), kind: 'plan' }];
+        input.outputs = [{
+          path: item.step_id === 'compile-context'
+            ? path.relative(fx.rootDir, planningContext.context_manifest_path)
+            : writeArtifact(fx, `.ultra/${item.step_id}.md`, item.step_id),
+          kind: item.step_id === 'compile-context' ? 'context-manifest' : 'plan',
+        }];
       }
       plan = recordWorkflowStep(fx.db, input, { rootDir: fx.rootDir });
     }
@@ -1167,19 +2261,54 @@ test('plan completion and dev startup require a complete DB-backed task executio
       ownership: { owner: 'runtime-maintainer', reviewers: [] },
       trace_to: '.ultra/specs/product.md#product',
     });
-    const planPath = path.join(fx.rootDir, '.ultra', 'execution-plan.json');
-    planStore.savePlanArtifact(
+    const savedPlan = planStore.saveChangePlanArtifacts(
       planStore.buildPlan(
         ops.listTasks(fx.db, { change_id: 'change' }),
         { changeId: 'change' },
       ),
-      planPath,
-      'json',
+      {
+        rootDir: fx.rootDir,
+        change: changes.readChange(fx.db, 'change'),
+        tasks: ops.listTasks(fx.db, { change_id: 'change' }),
+        context: {
+          snapshot_id: planningContext.manifest.snapshot_id,
+          manifest_path: path.relative(fx.rootDir, planningContext.context_manifest_path),
+          manifest_digest: planningContext.manifest_hash,
+        },
+      },
     );
+    const planRelative = path.relative(fx.rootDir, savedPlan.plan_path).split(path.sep).join('/');
+    const planMdRelative = path.relative(fx.rootDir, savedPlan.plan_md_path).split(path.sep).join('/');
+    registerFixtureArtifact(fx.db, {
+      rootDir: fx.rootDir,
+      owner_type: 'change',
+      owner_id: 'change',
+      kind: 'execution_plan',
+      artifactPath: planRelative,
+    });
+    registerFixtureArtifact(fx.db, {
+      rootDir: fx.rootDir,
+      owner_type: 'change',
+      owner_id: 'change',
+      kind: 'execution_plan_markdown',
+      artifactPath: planMdRelative,
+    });
+    const canonicalPlanBytes = fs.readFileSync(savedPlan.plan_path);
+    fs.appendFileSync(savedPlan.plan_path, '\n');
+    plan = workflows.recordWorkflowStep(fx.db, {
+      id: plan.id, step_id: 'verify-plan', status: 'completed',
+      evidence: [{ kind: 'test', ref: 'fixture:verify-plan', summary: 'Forged plan bytes.' }],
+      outputs: [{ path: planRelative, kind: 'execution-plan' }],
+    }, { rootDir: fx.rootDir });
+    assert.throws(
+      () => completeWorkflow(fx.db, { id: plan.id }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'WORKFLOW_PLAN_ARTIFACT_INVALID',
+    );
+    fs.writeFileSync(savedPlan.plan_path, canonicalPlanBytes);
     plan = recordWorkflowStep(fx.db, {
       id: plan.id, step_id: 'verify-plan', status: 'completed',
       evidence: [{ kind: 'test', ref: 'fixture:verify-plan', summary: 'Planning evidence.' }],
-      outputs: [{ path: '.ultra/execution-plan.json', kind: 'execution-plan' }],
+      outputs: [{ path: planRelative, kind: 'execution-plan' }],
     }, { rootDir: fx.rootDir });
     ops.patchTask(fx.db, omitted.id, { stale: true });
     assert.throws(
@@ -1209,11 +2338,14 @@ test('plan completion and dev startup require a complete DB-backed task executio
       }, { rootDir: fx.rootDir }),
       (error) => error.code === 'WORKFLOW_SUMMARY_AUTHORITY_VIOLATION',
     );
+    optional.drift();
     const completedPlan = completeWorkflow(fx.db, { id: plan.id }, { rootDir: fx.rootDir });
     assert.equal(completedPlan.status, 'completed');
     assert.deepEqual(completedPlan.summary.task_ids, ['omitted-task', 'planned-task']);
     assert.equal(completedPlan.summary.authority_basis, 'accepted_change_contract');
     assert.match(completedPlan.summary.task_contract_digests['planned-task'], /^[0-9a-f]{64}$/);
+    assert.equal(completedPlan.summary.plan_context_digest, planningContext.manifest_hash);
+    assertOptionalContextWarning(completedPlan.summary, optional);
     const approvalEvents = ops.subscribeEventsSince(fx.db, {
       since_id: 0, types: ['plan_approved'], limit: 100,
     });

@@ -8,7 +8,7 @@
  *   skills/**           -> ~/plugins/ultra-builder-pro/skills/**
  *   agents/*.md         -> ~/.codex/agents/*.toml
  *   hooks/*.py          -> plugin hooks with a Codex wire adapter
- *   mcp-server          -> plugin .mcp.json (project cwd owns .ultra/state.db)
+ *   mcp-server          -> plugin .mcp.json (project cwd owns .ultra/.runtime/state.db)
  *   plugin marketplace  -> ~/.agents/plugins/marketplace.json
  *
  * Deprecated ~/.codex/prompts and ~/.codex/skills projection is intentionally

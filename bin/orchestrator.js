@@ -6,7 +6,7 @@
  * Subcommands:
  *   execute-plan  resume the current plan through the first unfinished dependency wave.
  *   run     foreground daemon (debug / test).
- *   start   detached background daemon, writes .ultra/orchestrator.pid.
+ *   start   detached background daemon, writes .ultra/.runtime/orchestrator.pid.
  *   stop    reads pidfile, SIGTERM the process, deletes pidfile.
  *   status  prints pidfile + running session summary.
  *
@@ -23,10 +23,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { isSupportedRuntime } = require('../adapters/_shared/runtime-assets.cjs');
+const runtimePaths = require('../mcp-server/lib/runtime-paths.cjs');
 
 const REPO_ROOT = process.env.UBP_REPO_ROOT || process.cwd();
-const PIDFILE = path.join(REPO_ROOT, '.ultra', 'orchestrator.pid');
-const LOGFILE = path.join(REPO_ROOT, '.ultra', 'orchestrator.log');
+const RUNTIME_PATHS = runtimePaths.pathsFor(REPO_ROOT);
+const PIDFILE = RUNTIME_PATHS.orchestratorPidPath;
+const LOGFILE = RUNTIME_PATHS.orchestratorLogPath;
 const SETTINGS_FILES = [
   path.join(REPO_ROOT, 'settings.json'),
   path.join(REPO_ROOT, '.claude', 'settings.json'),
@@ -111,6 +113,7 @@ function resolveDispatchCommand(settings, env = process.env) {
 function parseExecutePlanArgs(argv = []) {
   const options = {
     planPath: null,
+    changeId: null,
     autoMerge: false,
     mergeBaseBranch: 'main',
   };
@@ -120,7 +123,7 @@ function parseExecutePlanArgs(argv = []) {
       options.autoMerge = true;
       continue;
     }
-    if (arg === '--plan' || arg === '--base-branch') {
+    if (arg === '--plan' || arg === '--change' || arg === '--base-branch') {
       const value = argv[index + 1];
       if (!value || value.startsWith('--')) {
         throw commandConfigError(
@@ -129,6 +132,7 @@ function parseExecutePlanArgs(argv = []) {
         );
       }
       if (arg === '--plan') options.planPath = value;
+      else if (arg === '--change') options.changeId = value;
       else options.mergeBaseBranch = value;
       index += 1;
       continue;
@@ -138,7 +142,28 @@ function parseExecutePlanArgs(argv = []) {
       `unknown execute-plan option: ${arg}`,
     );
   }
+  if (options.planPath && options.changeId) {
+    throw commandConfigError(
+      'ORCHESTRATOR_ARGUMENT_INVALID',
+      '--plan is explicit legacy compatibility and cannot be combined with --change',
+    );
+  }
   return options;
+}
+
+function validateOrchestratorRuntime(rootDir = REPO_ROOT, {
+  forMutation = false,
+} = {}) {
+  return runtimePaths.validateProjectLayout(rootDir, {
+    env: {},
+    forMutation,
+    validateRuntimeTree: true,
+  });
+}
+
+function openNoFollow(file, flags) {
+  const noFollow = fs.constants.O_NOFOLLOW || 0;
+  return fs.openSync(file, flags | noFollow, 0o600);
 }
 
 async function cmdExecutePlan(argv = []) {
@@ -147,12 +172,13 @@ async function cmdExecutePlan(argv = []) {
   const options = parseExecutePlanArgs(argv);
   const { initStateDb, closeStateDb } = require('../mcp-server/lib/state-db.cjs');
   const parallelOrchestrator = require('../orchestrator/parallel-orchestrator.cjs');
-  const { db } = initStateDb(path.join(REPO_ROOT, '.ultra', 'state.db'));
+  const { db } = initStateDb(runtimePaths.ensureRuntimeState(REPO_ROOT).stateDbPath);
   try {
     const result = await parallelOrchestrator.runPlan({
       db,
       repoRoot: REPO_ROOT,
       planPath: options.planPath ? path.resolve(REPO_ROOT, options.planPath) : undefined,
+      changeId: options.changeId,
       runtimes: parseRuntimes(),
       command: dispatch.command,
       commandArgs: dispatch.commandArgs,
@@ -187,7 +213,7 @@ function cmdRun(opts = {}) {
   const { runDaemon } = require('../orchestrator/daemon.cjs');
   const runtimes = parseRuntimes();
   const dispatch = resolveDispatchCommand(settings);
-  const { db } = initStateDb(path.join(REPO_ROOT, '.ultra', 'state.db'));
+  const { db } = initStateDb(runtimePaths.ensureRuntimeState(REPO_ROOT).stateDbPath);
   const handle = runDaemon({
     db,
     repoRoot: REPO_ROOT,
@@ -221,39 +247,51 @@ function cmdStart() {
     process.exit(2);
   }
   resolveDispatchCommand(settings);
-  if (fs.existsSync(PIDFILE)) {
-    const existing = Number(fs.readFileSync(PIDFILE, 'utf8'));
+  const layout = validateOrchestratorRuntime(REPO_ROOT, { forMutation: true });
+  const pidfile = layout.orchestratorPidPath;
+  const logfile = layout.orchestratorLogPath;
+  if (fs.existsSync(pidfile)) {
+    const existing = Number(fs.readFileSync(pidfile, 'utf8'));
     try { process.kill(existing, 0); }
-    catch (_) { fs.unlinkSync(PIDFILE); }
-    if (fs.existsSync(PIDFILE)) {
+    catch (_) { fs.unlinkSync(pidfile); }
+    if (fs.existsSync(pidfile)) {
       process.stderr.write(`orchestrator already running (pid=${existing}).\n`);
       process.exit(1);
     }
   }
-  fs.mkdirSync(path.dirname(PIDFILE), { recursive: true });
-  const out = fs.openSync(LOGFILE, 'a');
-  const err = fs.openSync(LOGFILE, 'a');
+  fs.mkdirSync(layout.orchestratorDir, { recursive: true });
+  const appendFlags = fs.constants.O_APPEND | fs.constants.O_CREAT | fs.constants.O_WRONLY;
+  const out = openNoFollow(logfile, appendFlags);
+  const err = openNoFollow(logfile, appendFlags);
   const child = spawn(process.execPath, [__filename, 'run'], {
     detached: true,
     stdio: ['ignore', out, err],
     env: { ...process.env, UBP_REPO_ROOT: REPO_ROOT },
   });
   child.unref();
-  fs.writeFileSync(PIDFILE, String(child.pid));
-  process.stdout.write(`orchestrator started (pid=${child.pid}, log=${LOGFILE})\n`);
+  const pidFd = openNoFollow(
+    pidfile,
+    fs.constants.O_CREAT | fs.constants.O_TRUNC | fs.constants.O_WRONLY,
+  );
+  try { fs.writeFileSync(pidFd, String(child.pid)); }
+  finally { fs.closeSync(pidFd); }
+  process.stdout.write(`orchestrator started (pid=${child.pid}, log=${logfile})\n`);
 }
 
 function cmdStop() {
-  if (!fs.existsSync(PIDFILE)) {
+  const { orchestratorPidPath: pidfile } = validateOrchestratorRuntime(REPO_ROOT, {
+    forMutation: true,
+  });
+  if (!fs.existsSync(pidfile)) {
     process.stderr.write('no pidfile found; orchestrator not running.\n');
     process.exit(1);
   }
-  const pid = Number(fs.readFileSync(PIDFILE, 'utf8'));
+  const pid = Number(fs.readFileSync(pidfile, 'utf8'));
   try { process.kill(pid, 'SIGTERM'); }
   catch (err) {
     if (err.code === 'ESRCH') {
       process.stderr.write(`pid ${pid} already dead; cleaning pidfile.\n`);
-      fs.unlinkSync(PIDFILE);
+      fs.unlinkSync(pidfile);
       return;
     }
     throw err;
@@ -262,22 +300,23 @@ function cmdStop() {
   setTimeout(() => {
     try { process.kill(pid, 0); }
     catch (_) { /* dead; good */ }
-    if (fs.existsSync(PIDFILE)) fs.unlinkSync(PIDFILE);
+    if (fs.existsSync(pidfile)) fs.unlinkSync(pidfile);
     process.stdout.write(`orchestrator stopped (pid=${pid})\n`);
   }, 200);
 }
 
 function cmdStatus() {
-  const out = { pidfile: PIDFILE, running: false };
-  if (fs.existsSync(PIDFILE)) {
-    const pid = Number(fs.readFileSync(PIDFILE, 'utf8'));
+  const { orchestratorPidPath: pidfile } = validateOrchestratorRuntime(REPO_ROOT);
+  const out = { pidfile, running: false };
+  if (fs.existsSync(pidfile)) {
+    const pid = Number(fs.readFileSync(pidfile, 'utf8'));
     try { process.kill(pid, 0); out.pid = pid; out.running = true; }
     catch (_) { out.pid = pid; out.running = false; out.note = 'pidfile stale'; }
   }
   // Session summary.
   try {
     const Database = require('better-sqlite3');
-    const dbPath = path.join(REPO_ROOT, '.ultra', 'state.db');
+    const dbPath = runtimePaths.locateStateDb(REPO_ROOT);
     if (fs.existsSync(dbPath)) {
       const db = new Database(dbPath, { readonly: true });
       const counts = db.prepare(
@@ -297,7 +336,7 @@ function usage() {
   process.stderr.write(
     'usage: ubp-orchestrator <execute-plan|run|start|stop|status>\n' +
     '\n' +
-    '  execute-plan  resume the first unfinished dependency wave [--plan <path>] [--auto-merge] [--base-branch <name>]\n' +
+    '  execute-plan  resume the first unfinished dependency wave [--change <id>] [--plan <legacy-path>] [--auto-merge] [--base-branch <name>]\n' +
     '  run     foreground daemon (requires opt-in)\n' +
     '  start   detached background daemon (requires opt-in)\n' +
     '  stop    terminate running daemon\n' +
@@ -343,6 +382,7 @@ module.exports = {
   parseRuntimes,
   parseExecutePlanArgs,
   resolveDispatchCommand,
+  validateOrchestratorRuntime,
   cmdExecutePlan,
   cmdRun,
   cmdStart,

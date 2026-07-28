@@ -26,7 +26,9 @@ def run_hook(name: str, cwd: Path, payload: dict | None = None):
 def seed_active_context(project: Path) -> Path:
     ultra = project / ".ultra"
     ultra.mkdir()
-    db_path = ultra / "state.db"
+    runtime = ultra / ".runtime"
+    runtime.mkdir()
+    db_path = runtime / "state.db"
     with sqlite3.connect(db_path) as conn:
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))
         conn.execute(
@@ -85,7 +87,7 @@ def test_checkpoint_captures_only_the_db_breadcrumb(tmp_path):
     )
     assert stderr == ""
     assert output["systemMessage"] == "Ultra workflow checkpoint saved."
-    checkpoint_file = tmp_path / ".ultra" / "runtime" / "checkpoint.json"
+    checkpoint_file = tmp_path / ".ultra" / ".runtime" / "checkpoint.json"
     checkpoint = json.loads(checkpoint_file.read_text(encoding="utf-8"))
     assert checkpoint["schema"] == 2
     assert checkpoint["session_id"] == "session-checkpoint"

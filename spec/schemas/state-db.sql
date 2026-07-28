@@ -1,5 +1,5 @@
 -- Ultra Builder Pro — authoritative state schema
--- This file builds .ultra/state.db, the source of truth for all
+-- This file builds .ultra/.runtime/state.db, the source of truth for all
 -- baseline / change / task / session / event / telemetry data. tasks.json and context md status
 -- headers are projections.
 --
@@ -15,7 +15,7 @@
 -- ──────────────────────────── project baseline ─────────────────────────────
 -- The baseline is the approved, repository-scoped snapshot that every change
 -- is measured against. It stores digests and evidence references, never source,
--- prompt, transcript, memory, or code-graph payloads.
+-- prompt, transcript, general memory-provider, or code-graph payloads.
 CREATE TABLE IF NOT EXISTS baselines (
   id                  TEXT PRIMARY KEY,
   project_name        TEXT NOT NULL,
@@ -159,6 +159,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS sessions_active ON sessions(status, task_id);
 CREATE INDEX IF NOT EXISTS sessions_lease  ON sessions(lease_expires_at) WHERE status = 'running';
+CREATE UNIQUE INDEX IF NOT EXISTS sessions_one_active_task
+  ON sessions(task_id) WHERE status = 'running';
 
 -- ──────────────────────────── schema_version ──────────────────────────────
 -- Cross-version misread guard (D30, R27). Single row per applied version.
@@ -225,20 +227,51 @@ CREATE INDEX IF NOT EXISTS circuit_breaker_tripped ON circuit_breaker(tripped_at
 
 -- ──────────────────────────── change artifacts ────────────────────────────
 CREATE TABLE IF NOT EXISTS artifacts (
-  id            TEXT PRIMARY KEY,
-  change_id     TEXT NOT NULL REFERENCES changes(id) ON DELETE CASCADE,
-  task_id       TEXT REFERENCES tasks(id) ON DELETE SET NULL,
-  kind          TEXT NOT NULL,
-  path          TEXT NOT NULL,
-  content_hash  TEXT,
-  metadata_json TEXT,
-  status        TEXT NOT NULL DEFAULT 'current' CHECK (status IN ('current', 'archived')),
-  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  UNIQUE(change_id, kind, path)
+  id              TEXT PRIMARY KEY,
+  owner_type      TEXT NOT NULL
+                    CHECK (owner_type IN ('project', 'baseline', 'change', 'task', 'workflow')),
+  owner_id        TEXT NOT NULL,
+  change_id       TEXT REFERENCES changes(id) ON DELETE SET NULL,
+  task_id         TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  kind            TEXT NOT NULL,
+  path            TEXT NOT NULL,
+  digest          TEXT,
+  content_hash    TEXT,
+  before_digest   TEXT,
+  after_digest    TEXT,
+  provenance_json TEXT NOT NULL DEFAULT '{}',
+  metadata_json   TEXT,
+  managed         INTEGER NOT NULL DEFAULT 0 CHECK (managed IN (0, 1)),
+  status          TEXT NOT NULL DEFAULT 'current'
+                    CHECK (status IN ('current', 'stale', 'terminal', 'archived')),
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE(owner_type, owner_id, kind, path)
 );
 
 CREATE INDEX IF NOT EXISTS artifacts_change ON artifacts(change_id, kind);
+CREATE INDEX IF NOT EXISTS artifacts_owner ON artifacts(owner_type, owner_id, status);
+CREATE INDEX IF NOT EXISTS artifacts_path ON artifacts(path, status);
+CREATE UNIQUE INDEX IF NOT EXISTS artifacts_one_active_path
+  ON artifacts(path) WHERE status <> 'archived';
+
+CREATE TABLE IF NOT EXISTS artifact_edges (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_type TEXT NOT NULL
+                CHECK (source_type IN ('artifact', 'project', 'baseline', 'change', 'task', 'workflow', 'external')),
+  source_id   TEXT NOT NULL,
+  target_type TEXT NOT NULL
+                CHECK (target_type IN ('artifact', 'project', 'baseline', 'change', 'task', 'workflow', 'external')),
+  target_id   TEXT NOT NULL,
+  relation    TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE(source_type, source_id, target_type, target_id, relation)
+);
+
+CREATE INDEX IF NOT EXISTS artifact_edges_source
+  ON artifact_edges(source_type, source_id);
+CREATE INDEX IF NOT EXISTS artifact_edges_target
+  ON artifact_edges(target_type, target_id);
 
 CREATE TABLE IF NOT EXISTS context_snapshots (
   id                 TEXT PRIMARY KEY,
@@ -265,6 +298,8 @@ CREATE TABLE IF NOT EXISTS context_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS context_snapshots_change ON context_snapshots(change_id, created_at);
+CREATE INDEX IF NOT EXISTS context_snapshots_binding
+  ON context_snapshots(change_id, task_id, role, gate, created_at);
 
 CREATE TABLE IF NOT EXISTS spec_learning_candidates (
   id            TEXT PRIMARY KEY,
@@ -495,3 +530,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('18.0', 'Adaptive capability transitions, independent initialization, and recoverable workflow migration');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('19.0', 'Non-ceremonial decision completion and host-neutral intent persistence');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('20.0', 'Typed artifact registry, normalized dependency edges, and orphan diagnostics');

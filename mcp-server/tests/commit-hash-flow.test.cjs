@@ -31,14 +31,14 @@ function tmpRepo() {
   gitRun(dir, ['init', '-q', '-b', 'main']);
   gitRun(dir, ['config', 'commit.gpgsign', 'false']);
   // Ignore the SQLite WAL/SHM sidecars so they don't appear as modifications.
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/state.db-shm\n.ultra/state.db-wal\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/.runtime/state.db-shm\n.ultra/.runtime/state.db-wal\n');
   return dir;
 }
 
 test('two-commit flow lands feat then chore with the right SHA in context md', () => {
   const dir = tmpRepo();
   try {
-    const dbPath = path.join(dir, '.ultra', 'state.db');
+    const dbPath = path.join(dir, '.ultra', '.runtime', 'state.db');
     const init = initStateDb(dbPath);
     const db = init.db;
 
@@ -85,7 +85,7 @@ test('two-commit flow lands feat then chore with the right SHA in context md', (
 test('rerunning steps 4–5 against the same SHA produces an empty chore commit attempt', () => {
   const dir = tmpRepo();
   try {
-    const dbPath = path.join(dir, '.ultra', 'state.db');
+    const dbPath = path.join(dir, '.ultra', '.runtime', 'state.db');
     const init = initStateDb(dbPath);
     const db = init.db;
     ops.createTask(db, { id: 'task-h2', title: 'idempotent', type: 'feature', priority: 'P1' });

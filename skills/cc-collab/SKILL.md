@@ -27,9 +27,12 @@ claude --safe-mode -p "<bounded prompt>" \
   --no-session-persistence
 ```
 
-Store large output under `.ultra/collab/<session-id>/claude-output.md`. A missing CLI,
+Store large output under `.ultra/.runtime/collab/<session-id>/claude-output.md`. A missing CLI,
 failed authentication, timeout, or empty response degrades to host-only analysis and
 never blocks the underlying task.
+
+Treat `.ultra/.runtime/collab/` as working scratch, not Ultra authority. Promote only verified
+conclusions into the invoking DB-bound workflow artifact or report.
 
 ## Synthesis
 

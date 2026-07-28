@@ -5,17 +5,19 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const decisions = require('./decision-dialogue.cjs');
 const changes = require('./change-workflow.cjs');
 const workflows = require('./workflow-state.cjs');
+const artifacts = require('./artifact-registry.cjs');
 const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-decisions-'));
-  const dbPath = path.join(rootDir, '.ultra', 'state.db');
+  const dbPath = path.join(rootDir, '.ultra', '.runtime', 'state.db');
   const initialized = initStateDb(dbPath);
   seedReadyBaseline(initialized.db, { rootDir });
   return { rootDir, dbPath, db: initialized.db };
@@ -148,7 +150,7 @@ test('an open owner decision blocks advancement while resolved accepted intent n
         summary: 'The current baseline and normalized owner decision are ready for planning.',
       }],
     }, { rootDir: fx.rootDir });
-    assert.equal(advanced.current_step, 'analyze-requirements');
+    assert.equal(advanced.current_step, 'compile-context');
 
     const completed = decisions.completeDecisionThread(fx.db, {
       id: 'thread-change-alignment',
@@ -167,6 +169,408 @@ test('an open owner decision blocks advancement while resolved accepted intent n
       mode: 'fast',
     });
     assert.equal(next.status, 'active');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('decision completion rejects applied authority references that cannot be read back', () => {
+  const fx = fixture();
+  try {
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-invalid-applied-ref',
+      baseline_id: 'test-baseline',
+      purpose: 'Record only application evidence that resolves to current authority.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-invalid-applied-ref',
+      thread_id: 'thread-invalid-applied-ref',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-invalid-applied-ref',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Current consumers still require the public seam.',
+      decided_by: 'owner',
+    });
+
+    assert.throws(
+      () => decisions.completeDecisionThread(fx.db, {
+        id: 'thread-invalid-applied-ref',
+        summary: 'The accepted intent was not actually applied.',
+        applied_refs: [{ kind: 'change', ref: 'missing-change', field: 'contract' }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'DECISION_APPLIED_REF_NOT_FOUND',
+    );
+    assert.throws(
+      () => decisions.completeDecisionThread(fx.db, {
+        id: 'thread-invalid-applied-ref',
+        summary: 'A row authority cannot claim an unverifiable file digest.',
+        applied_refs: [{
+          kind: 'baseline',
+          ref: 'test-baseline',
+          digest: 'a'.repeat(64),
+        }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'VALIDATION_ERROR',
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('decision completion rejects registered artifact bytes that escape through a final symlink', () => {
+  const fx = fixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-decision-external-'));
+  try {
+    const relative = '.ultra/specs/applied-authority.md';
+    const file = path.join(fx.rootDir, relative);
+    const external = path.join(outside, 'authority.md');
+    const bytes = '# Applied authority\n\nProject-owned bytes only.\n';
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, bytes);
+    fs.writeFileSync(external, bytes);
+    const recorded = artifacts.recordArtifact(fx.db, {
+      id: 'decision-applied-artifact',
+      owner_type: 'baseline',
+      owner_id: 'test-baseline',
+      kind: 'product_specification',
+      path: relative,
+      source_refs: [],
+      consumer_refs: [],
+      provenance: { writer: 'decision-dialogue-test' },
+      metadata: { semantic: true },
+    }, { rootDir: fx.rootDir }).artifact;
+    fs.rmSync(file);
+    fs.symlinkSync(external, file);
+
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-symlinked-applied-artifact',
+      baseline_id: 'test-baseline',
+      purpose: 'Never accept external bytes as project authority.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-symlinked-applied-artifact',
+      thread_id: 'thread-symlinked-applied-artifact',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-symlinked-applied-artifact',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Current consumers still require the public seam.',
+      decided_by: 'owner',
+    });
+
+    assert.throws(
+      () => decisions.completeDecisionThread(fx.db, {
+        id: 'thread-symlinked-applied-artifact',
+        summary: 'The artifact must be read from physical project authority.',
+        applied_refs: [{
+          kind: 'artifact',
+          ref: recorded.id,
+          digest: crypto.createHash('sha256').update(bytes).digest('hex'),
+        }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'DECISION_APPLIED_REF_UNSAFE',
+    );
+    assert.equal(
+      decisions.readDecisionThread(fx.db, 'thread-symlinked-applied-artifact').status,
+      'active',
+    );
+  } finally {
+    cleanup(fx);
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('decision completion defers to registered semantic authority for specification digests', () => {
+  const fx = fixture();
+  try {
+    const relative = '.ultra/specs/registered-semantic.md';
+    const file = path.join(fx.rootDir, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, '# Semantic authority\n\nOriginal.\n');
+    artifacts.recordArtifact(fx.db, {
+      id: 'registered-semantic-spec',
+      owner_type: 'baseline',
+      owner_id: 'test-baseline',
+      kind: 'product_specification',
+      path: relative,
+      source_refs: [],
+      consumer_refs: [],
+      provenance: { writer: 'decision-dialogue-test' },
+      metadata: { semantic: true },
+    }, { rootDir: fx.rootDir });
+    fs.writeFileSync(file, '# Semantic authority\n\nUnregistered mutation.\n');
+    const currentDigest = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-stale-registered-spec',
+      baseline_id: 'test-baseline',
+      purpose: 'Require the Artifact Registry when semantic authority is registered.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-stale-registered-spec',
+      thread_id: 'thread-stale-registered-spec',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-stale-registered-spec',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Current consumers still require the public seam.',
+      decided_by: 'owner',
+    });
+
+    assert.throws(
+      () => decisions.completeDecisionThread(fx.db, {
+        id: 'thread-stale-registered-spec',
+        summary: 'A current file digest cannot override stale registered authority.',
+        applied_refs: [{ kind: 'spec', ref: relative, digest: currentDigest }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'DECISION_APPLIED_REF_STALE',
+    );
+    assert.equal(
+      decisions.readDecisionThread(fx.db, 'thread-stale-registered-spec').status,
+      'active',
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('decision completion rejects an applied specification ancestor swap before external read', () => {
+  const fx = fixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-decision-swap-'));
+  const specs = path.join(fx.rootDir, '.ultra', 'specs');
+  const owned = path.join(fx.rootDir, '.ultra', 'specs-owned');
+  const relative = '.ultra/specs/swap-authority.md';
+  const target = path.join(fs.realpathSync(fx.rootDir), ...relative.split('/'));
+  const bytes = '# Project authority\n';
+  const originalOpen = fs.openSync;
+  let swapped = false;
+  try {
+    fs.mkdirSync(specs, { recursive: true });
+    fs.writeFileSync(path.join(fx.rootDir, relative), bytes);
+    fs.writeFileSync(path.join(outside, 'swap-authority.md'), bytes);
+    artifacts.recordArtifact(fx.db, {
+      id: 'decision-swap-spec',
+      owner_type: 'baseline',
+      owner_id: 'test-baseline',
+      kind: 'product_specification',
+      path: relative,
+      source_refs: [],
+      consumer_refs: [],
+      provenance: { writer: 'decision-dialogue-test' },
+      metadata: { semantic: true },
+    }, { rootDir: fx.rootDir });
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-swapped-applied-spec',
+      baseline_id: 'test-baseline',
+      purpose: 'Reject a physical authority swap at read time.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-swapped-applied-spec',
+      thread_id: 'thread-swapped-applied-spec',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-swapped-applied-spec',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Current consumers still require the public seam.',
+      decided_by: 'owner',
+    });
+    fs.openSync = (file, ...args) => {
+      if (!swapped && typeof file === 'string'
+        && path.resolve(file) === path.resolve(target)) {
+        fs.renameSync(specs, owned);
+        fs.symlinkSync(outside, specs, 'dir');
+        swapped = true;
+      }
+      return originalOpen(file, ...args);
+    };
+
+    assert.throws(
+      () => decisions.completeDecisionThread(fx.db, {
+        id: 'thread-swapped-applied-spec',
+        summary: 'The project inode chain must remain stable through read-back.',
+        applied_refs: [{
+          kind: 'spec',
+          ref: relative,
+          digest: crypto.createHash('sha256').update(bytes).digest('hex'),
+        }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'DECISION_APPLIED_REF_UNSAFE',
+    );
+    assert.equal(
+      decisions.readDecisionThread(fx.db, 'thread-swapped-applied-spec').status,
+      'active',
+    );
+  } finally {
+    fs.openSync = originalOpen;
+    if (swapped) {
+      fs.rmSync(specs, { force: true });
+      fs.renameSync(owned, specs);
+    }
+    cleanup(fx);
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('decision completion verifies the referenced field value and canonical value digest', () => {
+  const fx = fixture();
+  try {
+    const change = createAlignedChange(fx, 'decision-field-value-change').change;
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-field-value-application',
+      baseline_id: 'test-baseline',
+      change_id: change.id,
+      purpose: 'Bind accepted intent to the exact normalized Change field that was written.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-field-value-application',
+      thread_id: 'thread-field-value-application',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-field-value-application',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Current consumers still require the public seam.',
+      decided_by: 'owner',
+    });
+    const valueDigest = require('node:crypto').createHash('sha256')
+      .update(JSON.stringify(change.intent)).digest('hex');
+
+    assert.throws(
+      () => decisions.completeDecisionThread(fx.db, {
+        id: 'thread-field-value-application',
+        summary: 'Reject a claimed application whose stored value differs.',
+        applied_refs: [{
+          kind: 'change',
+          ref: change.id,
+          field: 'intent',
+          value: 'A different intent that was never written.',
+          digest: valueDigest,
+        }],
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'DECISION_APPLIED_REF_VALUE_MISMATCH',
+    );
+
+    const completed = decisions.completeDecisionThread(fx.db, {
+      id: 'thread-field-value-application',
+      summary: 'The exact normalized Change intent was read back.',
+      applied_refs: [{
+        kind: 'change',
+        ref: change.id,
+        field: 'intent',
+        value: change.intent,
+        digest: valueDigest,
+      }],
+    }, { rootDir: fx.rootDir });
+    assert.deepEqual(completed.summary.applied_refs[0], {
+      kind: 'change',
+      ref: change.id,
+      field: 'intent',
+      value: change.intent,
+      digest: valueDigest,
+    });
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('accepted intent excludes a resolved proposal until its thread is completed or confirmed', () => {
+  const fx = fixture();
+  try {
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-active-resolved-proposal',
+      baseline_id: 'test-baseline',
+      purpose: 'Keep a resolved proposal outside cross-session accepted intent until application closes.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-active-resolved-proposal',
+      thread_id: 'thread-active-resolved-proposal',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-active-resolved-proposal',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'The answer is normalized but has not yet been applied.',
+      decided_by: 'owner',
+    });
+
+    assert.deepEqual(
+      decisions.acceptedIntent(fx.db, { baseline_id: 'test-baseline' })
+        .filter((item) => item.decision_id === 'decision-active-resolved-proposal'),
+      [],
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('baseline recall retains accepted intent from a completed baseline workflow', () => {
+  const fx = fixture();
+  try {
+    fx.db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, status, baseline_id, summary_json, completed_at)
+       VALUES (?, 'init', ?, 'completed', ?, '{}', ?)`,
+    ).run(
+      'completed-baseline-workflow',
+      'Initialize local project authority.',
+      'test-baseline',
+      new Date().toISOString(),
+    );
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-completed-baseline-workflow',
+      baseline_id: 'test-baseline',
+      workflow_run_id: 'completed-baseline-workflow',
+      purpose: 'Retain normalized initialization intent after the workflow closes.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-completed-baseline-workflow',
+      thread_id: 'thread-completed-baseline-workflow',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-completed-baseline-workflow',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Current consumers still require the public seam.',
+      decided_by: 'owner',
+    });
+    decisions.completeDecisionThread(fx.db, {
+      id: 'thread-completed-baseline-workflow',
+      summary: 'The baseline-bound intent remains current after workflow completion.',
+      applied_refs: [{
+        kind: 'baseline', ref: 'test-baseline', field: 'status', value: 'ready',
+      }],
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(
+      decisions.acceptedIntent(fx.db, { baseline_id: 'test-baseline' })[0]?.decision_id,
+      'decision-completed-baseline-workflow',
+    );
+
+    decisions.startDecisionThread(fx.db, {
+      id: 'thread-unfinished-baseline-application',
+      baseline_id: 'test-baseline',
+      workflow_run_id: 'completed-baseline-workflow',
+      purpose: 'Keep an interrupted application/read-back boundary visible.',
+      mode: 'fast',
+    });
+    decisions.openDecision(fx.db, question({
+      id: 'decision-unfinished-baseline-application',
+      thread_id: 'thread-unfinished-baseline-application',
+    }));
+    decisions.resolveDecision(fx.db, {
+      id: 'decision-unfinished-baseline-application',
+      decision: 'Preserve compatibility for one release.',
+      rationale: 'Current consumers still require the public seam.',
+      decided_by: 'owner',
+    });
+    const interrupted = decisions.decisionGate(fx.db, { baseline_id: 'test-baseline' });
+    assert.equal(interrupted.ready, true);
+    assert.equal(interrupted.thread?.id, 'thread-unfinished-baseline-application');
   } finally {
     cleanup(fx);
   }
@@ -222,7 +626,7 @@ test('an open non-blocking question does not become a global workflow gate', () 
         summary: 'The optional release-note question does not affect baseline validity.',
       }],
     }, { rootDir: fx.rootDir });
-    assert.equal(advanced.current_step, 'analyze-requirements');
+    assert.equal(advanced.current_step, 'compile-context');
 
     decisions.deferDecision(fx.db, {
       id: 'decision-optional-release-note',
@@ -312,7 +716,7 @@ test('an explicitly prepared artifact checkpoint remains a freshness gate', () =
         summary: 'The current baseline and owner checkpoint are ready for planning.',
       }],
     }, { rootDir: fx.rootDir });
-    assert.equal(advanced.current_step, 'analyze-requirements');
+    assert.equal(advanced.current_step, 'compile-context');
   } finally {
     cleanup(fx);
   }

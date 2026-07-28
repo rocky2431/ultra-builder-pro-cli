@@ -9,7 +9,7 @@
   "properties": {
     "schema_version": { "const": "4.5" },
     "generated_at":   { "type": "string", "format": "date-time" },
-    "source":         { "const": ".ultra/state.db", "description": "authoritative source (D32)" },
+    "source":         { "const": ".ultra/.runtime/state.db", "description": "authoritative source (D32)" },
     "tasks": {
       "type": "array",
       "items": { "$ref": "#/$defs/task" }

@@ -8,6 +8,8 @@ const { spawnSync } = require('node:child_process');
 const yaml = require('js-yaml');
 const {
   CORE_PUBLIC_SKILLS,
+  RUNTIME_SUPPORT_FILES,
+  RUNTIME_WORKER_FILES,
   WORKFLOW_HOOK_FILES,
   skillPolicy,
   skillsForRuntime,
@@ -21,7 +23,10 @@ const {
   removeTree,
   writeAtomic,
 } = require('./file-ops.cjs');
-const { interactionContract } = require('./interaction-contract.cjs');
+const {
+  adaptInteractionGuidance,
+  interactionContract,
+} = require('./interaction-contract.cjs');
 
 const PLUGIN_NAME = 'ultra-builder-pro';
 const MANAGED_MARKER = 'Managed by Ultra Builder Pro Codex adapter.';
@@ -104,7 +109,7 @@ function adaptSkillAsset(input, targetName, _rel) {
 }
 
 function adaptHostText(input, skillName = '') {
-  let text = String(input);
+  let text = adaptInteractionGuidance(input, 'codex');
   text = text.replaceAll('codex-collab', 'cc-collab');
   text = text.replaceAll('CLAUDE.md', 'AGENTS.md');
   text = text.replaceAll('$CLAUDE_PLUGIN_ROOT/skills', '~/plugins/ultra-builder-pro/skills');
@@ -122,11 +127,6 @@ function adaptHostText(input, skillName = '') {
     text = adaptCodexPrimaryText(text, skillName);
   }
 
-  if (skillName === 'learn') {
-    text = text.replaceAll("current host's user skill directory", '`~/.agents/skills`');
-    text += `\n\n## Codex packaging requirement\n\nEach learned pattern must be a valid skill directory, not a loose Markdown file. The generated\n\`SKILL.md\` must start with only \`name\` and \`description\` frontmatter. Also create\n\`agents/openai.yaml\` with \`policy.allow_implicit_invocation: false\`. A new Codex task is required\nbefore the learned skill appears in discovery.\n`;
-  }
-
   return text;
 }
 
@@ -135,7 +135,6 @@ function adaptedDescription(sourceDescription, targetName) {
     'cc-collab': 'Ask Claude Code for an independent read-only analysis while Codex owns verification and synthesis. Use only when the user explicitly requests CC or Claude Code collaboration.',
     'ultra-verify': 'Run Codex-primary cross-model verification with a read-only Claude Code advisor. Use only when the user explicitly requests independent model verification.',
     'ultra-dev': 'Execute one authoritative Ultra task with Codex-native implementation, verification, and review. Use when a dependency-ready slice is ready for development.',
-    'learn': 'Extract one verified reusable workflow from the current Codex task into a portable user skill. Use when the user explicitly asks to preserve the method.',
   };
   return special[targetName] || adaptHostText(String(sourceDescription || `${titleCase(targetName)} workflow for Codex.`), targetName)
     .replace(/\s+/g, ' ')
@@ -295,6 +294,16 @@ function copyHooks(repoRoot, pluginRoot) {
 function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {
   const source = path.join(repoRoot, 'mcp-server', 'server.cjs');
   const cliSource = path.join(repoRoot, 'adapters', '_shared', 'codex-ultra-tools-entry.cjs');
+  const runtimeWorkerSources = new Map([
+    [
+      'session-close-journal-worker.cjs',
+      path.join(repoRoot, 'orchestrator', 'session-close-journal-worker.cjs'),
+    ],
+    [
+      'doctor-backup-worker.cjs',
+      path.join(repoRoot, 'mcp-server', 'lib', 'doctor-backup-worker.cjs'),
+    ],
+  ]);
   const runtimeRoot = path.join(pluginRoot, 'runtime');
   const buildRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-codex-mcp-build-'));
   let nccCli;
@@ -359,6 +368,54 @@ function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {
     removeTree(cliBuildRoot);
   }
 
+  for (const workerFile of RUNTIME_WORKER_FILES) {
+    const workerSource = runtimeWorkerSources.get(workerFile);
+    if (!workerSource) {
+      throw new Error(`Ultra runtime worker source is not registered: ${workerFile}`);
+    }
+    const workerBuildRoot = fs.mkdtempSync(path.join(
+      os.tmpdir(),
+      `ubp-${path.basename(workerFile, '.cjs')}-build-`,
+    ));
+    try {
+      const bundled = spawnSync(process.execPath, [
+        nccCli,
+        'build',
+        workerSource,
+        '-o',
+        workerBuildRoot,
+        '--no-cache',
+        '--quiet',
+      ], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024,
+      });
+      if (bundled.error) throw bundled.error;
+      if (bundled.status !== 0) {
+        const detail = (bundled.stderr || bundled.stdout || '').trim();
+        throw new Error(
+          `ncc failed to bundle Ultra runtime worker ${workerFile}${detail ? `: ${detail}` : ''}`,
+        );
+      }
+      const workerOutput = path.join(workerBuildRoot, 'index.cjs');
+      if (!fs.existsSync(workerOutput)) {
+        throw new Error(`ncc did not emit Ultra runtime worker ${workerFile}`);
+      }
+      fs.copyFileSync(workerOutput, path.join(runtimeRoot, workerFile));
+    } finally {
+      removeTree(workerBuildRoot);
+    }
+  }
+
+  for (const supportFile of RUNTIME_SUPPORT_FILES) {
+    const sourceFile = path.join(repoRoot, 'mcp-server', 'lib', supportFile);
+    if (!fs.existsSync(sourceFile) || !fs.statSync(sourceFile).isFile()) {
+      throw new Error(`Ultra runtime support asset is missing: ${supportFile}`);
+    }
+    fs.copyFileSync(sourceFile, path.join(runtimeRoot, supportFile));
+  }
+
   const runtimeBootstrap = runtime === 'kimi' ? `
 const fs = require('node:fs');
 const pluginRoot = path.resolve(__dirname, '..');
@@ -380,9 +437,6 @@ if (!process.env.UBP_ROOT_DIR) {
     throw new Error('Kimi Ultra MCP could not resolve the active project root; start Kimi from the project directory');
   }
   process.env.UBP_ROOT_DIR = rootDir;
-}
-if (!process.env.UBP_DB_PATH) {
-  process.env.UBP_DB_PATH = path.join(process.env.UBP_ROOT_DIR, '.ultra', 'state.db');
 }
 ` : '';
 
@@ -408,6 +462,10 @@ main().catch((error) => {
   fs.copyFileSync(
     path.join(repoRoot, 'mcp-server', 'hook-event.cjs'),
     path.join(runtimeRoot, 'hook-event.cjs'),
+  );
+  fs.copyFileSync(
+    path.join(repoRoot, 'mcp-server', 'lib', 'plan-publication-worker.cjs'),
+    path.join(runtimeRoot, 'plan-publication-worker.cjs'),
   );
 
   const sourceToolsFile = path.join(repoRoot, 'spec', 'mcp-tools.yaml');

@@ -13,7 +13,7 @@ the next semantic workflow.
 
 1. Identify the repository root, existing `.ultra` state, Git state, meaningful source,
    monorepo boundaries, and current owner request.
-2. If `.ultra/state.db` exists, run `system.doctor` read-only and resume with
+2. If `.ultra/.runtime/state.db` exists, run `system.doctor` read-only and resume with
    `task.init_project` only when its report permits it.
 3. Otherwise call `task.init_project` with `mode: "auto"`, the project name, and an
    explicit scope only when the repository contains multiple plausible roots.
@@ -48,7 +48,7 @@ unresolved. Normalize clear intent already present in the request without asking
 
 The operation must:
 
-- create or migrate `.ultra/state.db` with a backup before schema migration;
+- create or migrate `.ultra/.runtime/state.db` with a backup before schema migration;
 - install only missing scaffold assets on resume;
 - preserve existing artifacts and unrelated work;
 - preserve an existing Git repository and HEAD;
@@ -81,3 +81,5 @@ Read the returned `allowed_transitions` and `required_transition`:
 Report classification, scope, schema and backup result, Git state, init workflow id,
 baseline state, and allowed transitions. Do not claim that a baseline is ready until a
 separate research/adoption workflow has recorded and converged it.
+
+Never invoke the recommended capability here; wait for an explicit user invocation.

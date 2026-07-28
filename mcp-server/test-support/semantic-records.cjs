@@ -49,13 +49,13 @@ const RECORDS = Object.freeze({
     rationale: 'required for the accepted workflow',
   }],
   '22-success-metrics': ['metric', {
-    definition: 'accepted changes with complete provenance', source: '.ultra/state.db',
+    definition: 'accepted changes with complete provenance', source: '.ultra/.runtime/state.db',
     window: 'per change', owner: 'fixture-owner',
     decision_use: 'block delivery when provenance is incomplete',
   }],
   '30-architecture-context': ['architecture_context', {
     boundary: 'host skill to MCP authority', inputs_outputs: 'typed records and digests',
-    trust_authority: '.ultra/state.db', consumers: ['workflow gates'],
+    trust_authority: '.ultra/.runtime/state.db', consumers: ['workflow gates'],
   }],
   '31-solution-strategy': ['architecture_decision', {
     drivers: ['recoverability', 'host portability'], direction: 'model-free MCP transactions',

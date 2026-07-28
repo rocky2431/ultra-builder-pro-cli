@@ -11,11 +11,19 @@ accepted Change Contract without adding ceremonial approval.
 
 ## Bind current authority
 
-1. Read doctor, baseline, change, decisions, existing plan runs, tasks, and current
-   checkout.
+1. Read doctor, baseline, change, breadcrumb `accepted_intent`, decisions, existing plan
+   runs, tasks, and current checkout.
 2. Require one mutable change with a healthy baseline or recorded incident bypass.
+   For the first delivery of a greenfield project, an accepted ready baseline may
+   already contain the complete delivery outcome. When no matching Change exists,
+   materialize one `change.create` contract from that accepted intent and read it back
+   without asking the owner to repeat the same choice. Do not invent scope, expand an
+   incomplete baseline, or use this shortcut for a later change.
 3. Complete the exact change-bound research disposition before planning.
-4. Resume the matching plan run. Do not start a new run until planning posture is
+4. For a standard or major Change, read the current registered `change.delta` and
+   verify its baseline anchors and digest. A Direct Build route supplies the delta
+   directly from accepted intent; it skips Research, not this authority boundary.
+5. Resume the matching plan run. Do not start a new run until planning posture is
    accepted.
 
 Read `references/semantic-preflight.md` and inspect requirements, real consumers,
@@ -40,7 +48,8 @@ eventual technical design.
 
 ## Design with model autonomy
 
-Build a candidate plan privately. Ask the user only if the plan would change accepted
+Build a candidate plan from the Change Contract, current typed delta, and any selected
+research. Ask the user only if the plan would change accepted
 scope, public behavior, compatibility, security, material cost, external effects, or
 recovery. Use the same host-native interaction protocol.
 
@@ -51,26 +60,42 @@ interaction preference, not a runtime invariant.
 Record:
 
 1. `validate-baseline`
-2. `analyze-requirements`
-3. `analyze-codebase`
-4. `design-slices`
-5. `validate-dependencies`
-6. `persist-task-contracts`
-7. `verify-plan`
+2. `compile-context`
+3. `analyze-requirements`
+4. `analyze-codebase`
+5. `design-slices`
+6. `validate-dependencies`
+7. `persist-task-contracts`
+8. `verify-plan`
 
 Design a walking skeleton and subsequent vertical slices. Every slice reaches a real
 consumer and owns its validation, side effects, errors, documentation, migration,
 observability, and recovery obligations. Avoid unconsumed horizontal scaffolding.
 
+After starting or resuming the workflow, compile `change.context` with `role: plan`
+and `gate: planning`. Record its immutable manifest as the `compile-context` output.
+The packet is the accepted planning input, not a mutable plan draft. `change.context`
+must not update Change provider references; persist new provider metadata with
+`change.update` before recompiling.
+
 ## Persist task contracts
 
 Create each task with:
 
-- observable outcome and stable trace;
+- observable outcome (`purpose`) and stable trace (`why`);
 - `slice_kind`, public seam, and exact verification command;
 - structured acceptance mapped to Change acceptance ids;
-- bounded context refs and reasons;
-- documentation impact, ownership, dependencies, and affected files when known.
+- target seams and affected files when known;
+- bounded pattern/context refs with a reason, optional anchor and scope, and an
+  explicit freshness policy;
+- documentation impact, ownership, and dependencies.
+
+Use `digest` freshness with `expected_digest` for accepted inputs that must remain
+byte-current. Use `existence` for source targets expected to change during
+implementation. Use `advisory` only when drift should be visible but non-blocking.
+The compiled task context restores constraints and non-goals from the Change Contract,
+plus acceptance, recovery, documentation impact, and the definition of drift. Keep
+large referenced files lazy; do not paste their bodies into the plan packet.
 
 Use estimates only when evidence supports them. A quick change has exactly one task.
 Read every task back from DB. Never read or write `.ultra/tasks/tasks.json` directly;
@@ -83,8 +108,13 @@ evidence. Rebind the complete execution contract while clearing `stale` through
 the current Change authority digest. Never clear staleness merely to pass a gate.
 
 Validate the change-scoped graph with `task.dependency_topo`. Export
-`.ultra/execution-plan.json` with `plan.export`, read it through `plan.get`, and record
-it as the `verify-plan` output.
+the deterministic `<artifact_root>/plan.json` and `<artifact_root>/plan.md` pair with
+`plan.export { change_id }`. The JSON binds the exact planning context snapshot and
+manifest digest; the Markdown is a deterministic human view of the same task graph.
+Read the JSON through `plan.get` and record it as the `verify-plan` output. Do not
+choose an arbitrary output path or overwrite another Change's plan. A legacy global
+`.ultra/execution-plan.json` may be read for migration diagnosis only and is never a
+current write target.
 
 Call `workflow.complete`. `approval` is optional: include it only when a material plan
 decision actually required and received user approval. MCP derives task coverage and
@@ -92,8 +122,11 @@ topology from DB and must reject incomplete contracts, uncovered acceptance, cyc
 cross-change tasks, stale research, or a mismatched export.
 
 Do not advance or complete the Change workflow; change capture is already complete.
-Compile task context later for the consumer that needs it.
+Compile a separate task context later for each consumer that needs it. Planning,
+implementation, testing, review, and convergence snapshots are not interchangeable.
 
 Return topology, first executable slices, public seams, verification commands, plan
 workflow id, and allowed transitions. The host may recommend parallel or sequential
 execution based on dependency and conflict evidence.
+
+Never invoke the recommended capability here; wait for an explicit user invocation.

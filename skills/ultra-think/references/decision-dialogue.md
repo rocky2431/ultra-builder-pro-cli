@@ -34,6 +34,10 @@ transitions, and hard invariants. It does not choose semantic intent.
    dismissed question as unanswered.
 5. **Persist** the normalized result through MCP, then trust the DB record as current
    authority across sessions.
+6. **Apply** the result to its owning baseline, change, workflow, task, specification,
+   or artifact when that authority has a corresponding field or content boundary.
+7. **Read back** the normalized decision and every changed owning authority before
+   continuing.
 
 The DB treats normalized intent as current authority. It does not prove that the user
 selected it, store a host interaction receipt, or judge whether the choice was wise.
@@ -97,12 +101,13 @@ questionnaire, hidden queue, or every research area.
 The question tool or direct question ends the current interaction naturally.
 A dismissed or unavailable response is not acceptance of the recommendation.
 
-## Persist only when recovery needs it
+## Persist normalized authority
 
 For a project-bound material decision:
 
-1. Call `decision.list` and resume a matching active decision thread, or use
-   `decision.thread_start` for one new baseline-, change-, or workflow-bound thread.
+1. Read breadcrumb `accepted_intent`, call `decision.list`, and resume a matching active
+   decision thread, or use `decision.thread_start` for one new baseline-, change-, or
+   workflow-bound thread.
 2. Use `decision.open` before presenting only the current decision, with evidence refs,
    recommendation, credible alternatives, effects, and its real blocking consequence.
    A non-blocking follow-up must not become a global workflow gate.
@@ -111,9 +116,15 @@ For a project-bound material decision:
    - `decision.delegate` for explicit model delegation;
    - `decision.defer` with consequence and revisit condition;
    - `decision.supersede` when accepted intent actually changed.
-4. Call `decision.complete` when normalized state is settled and no artifact checkpoint
-   is needed. This closes lifecycle state; it is not another user approval.
-5. Use `decision.checkpoint` instead only for the digest-bound recovery boundary
+4. Apply the normalized result through the owning MCP operation or update the smallest
+   relevant semantic artifact. Do not leave a material answer only in conversation.
+5. Read back the owning baseline, change, workflow, task, specification digest, or
+   artifact record. If another authority changed, pass its typed reference in
+   `decision.complete.applied_refs`.
+6. Call `decision.complete` only after that read-back. This closes lifecycle state; it
+   is not another user approval. If the decision record itself is the complete durable
+   authority, `applied_refs` may remain empty.
+7. Use `decision.checkpoint` instead only for the digest-bound recovery boundary
    described below.
 
 Keep fact acquisition autonomous and decision authority explicit.

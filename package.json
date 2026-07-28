@@ -1,6 +1,6 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "description": "Explicitly invoked Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, and Kimi Code, with project-local MCP authority and lifecycle recovery.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
@@ -16,7 +16,6 @@
     "orchestrator",
     "commands",
     "agents",
-    "skills/learn",
     "skills/ultra-init",
     "skills/ultra-research",
     "skills/ultra-plan",
@@ -38,7 +37,6 @@
     "hooks/*.py",
     "hooks/adapters/*.py",
     "hooks/README.md",
-    "output-styles",
     "spec/mcp-tools.yaml",
     "spec/cli-protocol.md",
     "spec/schemas",
@@ -48,6 +46,7 @@
     ".ultra-template",
     "docs/ROADMAP.md",
     "docs/ARCHITECTURE.md",
+    "docs/ARTIFACT-AUTHORITY.md",
     "docs/WORKFLOW-LIFECYCLE.md",
     "docs/LEGACY-CLI-CROSSWALK.md",
     "docs/AGENT-CONTEXT.md",

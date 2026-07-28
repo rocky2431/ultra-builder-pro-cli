@@ -10,8 +10,8 @@ projections as proof.
 
 ## Bind scope
 
-1. Read doctor, change, breadcrumb, decisions, task and dev evidence, current checkout,
-   and prior report freshness.
+1. Read doctor, change, breadcrumb `accepted_intent`, decisions, task and dev evidence,
+   current checkout, and prior report freshness.
 2. Resume or start a test workflow bound to the exact change and optional task.
 3. Record `bind-scope`, then compile `change.context` for `check` and record its
    immutable manifest under `compile-context`.
@@ -47,10 +47,12 @@ question UI and decision protocol; testing must not choose the desired outcome.
 
 ## Report
 
-Write `.ultra/reports/tests/<workflow-id>.json` with
+Write
+`.ultra/changes/active/<change-id>/test/<workflow-id>/report.json` with
 `ultra-test-report-v1`, binding:
 
-- change, exact task ids, HEAD, worktree digest, and checking-context digest;
+- change, exact task ids, current Change acceptance ids, HEAD, worktree digest, and
+  checking-context digest;
 - acceptance mapping, commands, public seams, failures, and recovery evidence;
 - `verification_profile` and the selected `verification_dimensions`;
 - regression signal when required;
@@ -58,7 +60,8 @@ Write `.ultra/reports/tests/<workflow-id>.json` with
 
 Record `execute-checks`, `verify-public-seam`, and `write-report`, then re-read the
 report and current checkout before `verify-test-gate`. `workflow.complete` derives its
-summary from the report and rejects stale, malformed, or contradictory evidence.
+summary from the report and rejects stale, malformed, contradictory, out-of-Change,
+or acceptance-incomplete evidence.
 
 Return the profile, exact results, verified seams, blockers, report digest, workflow
 state, and allowed transitions. Recommend broader review, more implementation, or
@@ -66,3 +69,5 @@ delivery from those transitions. If current intent does not already select the
 semantic next action, use
 `../ultra-think/references/decision-dialogue.md` and wait for the user to select,
 modify, delegate, or defer it.
+
+Never invoke the recommended capability here; wait for an explicit user invocation.

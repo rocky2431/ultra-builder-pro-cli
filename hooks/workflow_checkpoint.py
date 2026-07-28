@@ -10,10 +10,11 @@ from pathlib import Path
 
 from context_spine import (
     ContextSpineError,
-    find_root,
+    find_root_for_hook,
     read_breadcrumb,
     render_breadcrumb,
 )
+from runtime_paths import RuntimePathError, validate_project_layout
 
 
 def main() -> None:
@@ -23,7 +24,10 @@ def main() -> None:
     except json.JSONDecodeError as exc:
         print(f"[workflow_checkpoint] invalid hook input: {exc}", file=sys.stderr)
         data = {}
-    root = find_root(Path(data.get("cwd") or Path.cwd()).resolve())
+    root = find_root_for_hook(
+        Path(data.get("cwd") or Path.cwd()).resolve(),
+        "workflow_checkpoint",
+    )
     if root is None:
         print(json.dumps({}))
         return
@@ -37,7 +41,16 @@ def main() -> None:
         print(json.dumps({}))
         return
 
-    runtime_dir = root / ".ultra" / "runtime"
+    try:
+        validate_project_layout(root, validate_runtime_tree=True)
+    except RuntimePathError as exc:
+        print(
+            f"[workflow_checkpoint] unsafe Ultra runtime: {exc}",
+            file=sys.stderr,
+        )
+        print(json.dumps({}))
+        return
+    runtime_dir = root / ".ultra" / ".runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = {
         "schema": 2,

@@ -29,7 +29,9 @@ function fixture() {
   execFileSync('git', ['add', '.'], { cwd: rootDir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: rootDir });
   const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: rootDir, encoding: 'utf8' }).trim();
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   return { rootDir, db, revision };
 }
 
@@ -349,7 +351,9 @@ test('greenfield baseline derives a stable workspace revision when Git is not in
   fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'discovery.md'), '# Discovery\n\nAccepted evidence.\n');
   fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'product.md'), '# Product\n\nAccepted intent.\n');
   fs.writeFileSync(path.join(rootDir, '.ultra', 'specs', 'architecture.md'), '# Architecture\n\nAccepted constraints.\n');
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   try {
     baselines.startBaseline(db, {
       id: 'greenfield', project_name: 'new-project', mode: 'greenfield', scope: ['.'],
@@ -391,7 +395,9 @@ test('an initialized but unborn Git repository must receive an owner-authorized 
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: rootDir });
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: rootDir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: rootDir });
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   try {
     const snapshot = baselines.gitWorktreeSnapshot(rootDir, ['.']);
     assert.equal(snapshot.state, 'unborn');

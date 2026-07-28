@@ -3,12 +3,33 @@
 Store durable research evidence here only when it is too detailed for the baseline
 specification. Baseline decisions and accepted behavior remain in `.ultra/specs/`.
 
-## Required step reports
+## Initialization modes
 
-Every selected `ultra-research` step writes one immutable report at
-`.ultra/docs/research/<workflow-id>/<step-id>.md`. Full and adoption research therefore
-produce seventeen reports. The shared specifications are updated during research but
-do not replace these per-step evidence records.
+`ultra-init` creates the scaffold and records classification; it never runs research
+or approves a baseline. A later explicit `ultra-research` invocation handles:
+
+- greenfield baseline evidence with adaptive product and architecture coverage;
+- brownfield adoption of observed product, runtime, quality, operations, known
+  failures, and documentation drift;
+- migrated or damaged authority only after backup-first `ultra-doctor` recovery,
+  followed by evidence-backed brownfield adoption.
+
+Blank templates are never baseline evidence. Existing authority is preserved rather
+than replaced by this scaffold.
+
+## Included-area reports
+
+Every included research area that executes, verifies, or reuses evidence writes one
+immutable report at `.ultra/docs/research/<workflow-id>/<step-id>.md`. The accepted
+coverage determines the report set; `full` and `adoption` describe baseline purpose,
+not a requirement to execute all seventeen catalog areas. Omitted areas create no
+report. The shared specifications are updated during research but do not replace these
+per-area evidence records.
+
+This directory is only for baseline establishment and adoption. Active Change research
+writes below
+`.ultra/changes/active/<change-id>/research/<workflow-id>/<step-id>.md`; it updates the
+Change overlay and never edits accepted baseline specifications.
 
 ## Report contract
 

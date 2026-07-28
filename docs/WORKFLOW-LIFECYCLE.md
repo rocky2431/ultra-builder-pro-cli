@@ -11,10 +11,15 @@ host and project owner. It is the operational companion to
 |---|---|---|
 | Active host and owner | Product judgment, research content, implementation, review findings, and authorization for destructive or external effects | Durable workflow status or fabricated evidence digests |
 | Skill | One reusable procedure and its evidence requirements | Project state, static product doctrine, host-specific tool fiction |
-| MCP | IDs, valid transitions, hard recovery requirements, task contracts, evidence references, output hashes, and gate verdicts | Semantic route selection, research prose, code generation, memory, or model calls |
-| `.ultra/state.db` | Baseline, change, decision, task, workflow, session, event, incident, projection, and evidence authority | Prompts, transcripts, external memory, or code-graph payloads |
-| Generated JSON and Markdown | Read-only projections and durable artifacts | Independent lifecycle authority |
+| MCP | IDs, valid transitions, hard recovery requirements, task contracts, evidence references, output hashes, and gate verdicts | Semantic route selection, research prose, code generation, general memory-provider payloads, or model calls |
+| `.ultra/.runtime/state.db` | Lifecycle, index, transition, freshness, and coordination authority for baseline, change, decision, task, workflow, session, event, incident, projection, and evidence references | Prompts, transcripts, general external-memory payloads, semantic prose, or code-graph payloads |
+| Digest-bound artifacts | Registered specification, research, Change, context, test, review, delivery, and verification bodies | Independent lifecycle state or content whose digest no longer matches |
+| Generated projections and scratch | Human-readable views and temporary working material | Lifecycle, semantic, or evidence authority before supported promotion |
 | Hook | Compact DB-derived lifecycle observation, minimal event metadata, and projection protection | Generic engineering judgment, prompt/transcript capture, parallel lifecycle logs, or arbitrary edit blocking |
+
+Together, `.ultra/` is project-local cross-session workflow memory. The detailed
+artifact classes and promotion rules live in
+[`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
 
 Prompt input can supply facts, content paths, reasons, owner decisions, and
 evidence references. MCP reads the current repository and DB, validates those
@@ -71,7 +76,7 @@ signals. In a monorepo, the owner selects the repository scope; baseline
 worktree digests and accepted dirty files are restricted to that scope.
 
 Classification and readiness are separate. Initialization immediately creates
-or resumes `.ultra/state.db`, installs only the required scaffold, records the
+or resumes `.ultra/.runtime/state.db`, installs only the required scaffold, records the
 classification, and completes an `init` workflow after read-back verification. It
 does not create a research run. A later explicit `ultra-research` invocation selects
 `full` for greenfield or `adoption` for brownfield, records coverage dispositions, and
@@ -144,11 +149,12 @@ traceability, slice kind, public seam, exact verification command, acceptance
 checks, context references, resolved documentation impact, owner, and valid
 dependencies.
 
-A semantic Change update marks all derived tasks stale. Clearing that marker requires
-one complete execution-contract rebind through `task.update`; a marker-only clear is
-rejected. MCP validates the resulting contract and appends
-`task_contract_reconciled` with the current Change authority digest before a new plan
-may converge.
+A semantic Change update traverses registered provenance and consumer edges and marks
+only reachable task, workflow, and artifact consumers stale. Unrelated tasks remain
+current. Clearing a task marker requires one complete execution-contract rebind through
+`task.update`; a marker-only clear is rejected. MCP validates the resulting contract
+and appends `task_contract_reconciled` with the current Change authority digest before
+a new plan may converge.
 
 A session process and a task have different status machines. Process exit zero closes
 the execution transport but leaves the task `in_progress` until development,
@@ -221,14 +227,14 @@ stores the conversation transcript.
 | Stage | Authoritative writes | Completion verification | Available continuation |
 |---|---|---|---|
 | `init` | Baseline classification/scope, Git bootstrap state, completed init run, initialization event, projection job | DB/schema opens, scaffold/projection and read-back succeed; existing Git is preserved or missing local Git is initialized | Explicitly chosen `research`, `status`, or `doctor`; an already-ready project may also enter `change` |
-| `research` | Accepted coverage dispositions, selected step evidence, normalized material decisions, optional artifact checkpoints, typed semantic records with source digests, immutable reports, output paths and SHA-256 digests | Every included coverage area is dispositioned; only executed/verified/reused areas require work evidence; synthesis binds current specifications and distillate; all material decisions and digests are current | Baseline record/convergence for initial research; bounded change research returns to its owning change |
+| `research` | Accepted coverage dispositions, selected step evidence, normalized material decisions, optional artifact checkpoints, typed semantic records with source digests, immutable reports, output paths and SHA-256 digests | Every included coverage area is dispositioned; only executed/verified/reused areas require work evidence; baseline synthesis binds current specifications and distillate, while Change synthesis stays in its overlay; all material decisions and digests are current | Baseline record/convergence for initial research; bounded Change research records its delta and returns to plan |
 | baseline convergence | Spec/source/runtime refs, verification results, known failures, unknowns, gaps, branch/HEAD/worktree, approval | Full/adoption research complete; required discovery/product/architecture refs current; revision/worktree exact; blocking gaps resolved or explicitly accepted where allowed | `change` for every initial or daily outcome |
-| `change` | Complete Change Contract, profile/risk rationale, research disposition, intent/delta artifacts, and a completed capture run; a decision thread only when material intent remains unresolved | Intent, acceptance, recovery, classification, and research disposition are complete and bound to the baseline | Model recommends; owner selects or delegates bounded `research`, `plan`, current `dev`, `think`, or `status` from allowed transitions |
-| `plan` | Accepted planning posture, selected planning evidence, complete change-owned task rows, acceptance coverage matrix, and change-bound `.ultra/execution-plan.json`; approval only for a material owner decision | Every Change acceptance id is owned by a task; trace targets, ownership, dependencies, topology, task contracts, and exported digest match current authority | Any dependency-ready task may enter `dev` |
+| `change` | Complete Change Contract, profile/risk rationale, research disposition, isolated Change root, typed delta, and a completed capture run; a decision thread only when material intent remains unresolved | Intent, acceptance, recovery, classification, research disposition, and exact baseline anchors are current | Model recommends; owner selects bounded `research` or direct `plan`; both routes converge on plan before development |
+| `plan` | Accepted planning posture, immutable `plan/planning` context, selected planning evidence, complete change-owned task rows, acceptance coverage matrix, and deterministic `<artifact_root>/plan.json` plus `plan.md`; approval only for a material owner decision | Every Change acceptance id is owned by a task; trace targets, ownership, dependencies, topology, task contracts, planning-context binding, and exported digests match current authority | Any dependency-ready task may enter `dev` |
 | `dev` | Task/session transitions, real worktree, step evidence, immutable implementation context, completion/review references | Task completed; no live session; task contract unchanged; starting context and review artifacts valid; completion commits are integrated and remain ancestors of current HEAD | Next task, then aggregate `test` |
-| `test` | Immutable checking context, an explicit risk-selected verification profile, and `.ultra/reports/tests/<workflow-id>.json` | Selected dimensions and acceptance pass; every excluded dimension has a rationale; report change/task set, HEAD, worktree, context, commands, blockers, and digests agree | `review` when passing, otherwise resume `dev`/`test` |
-| `review` | Immutable review context, `task`/`change`/`plan` mode, risk-selected worker provenance, two mandatory specialist axes, and coordinated summary | Current diff/HEAD and context match; the complete worker roster is selected or skipped with rationale; completed workers match specialist artifacts; both axes complete; findings and axis verdicts derive the final verdict | `deliver` only from a passing `change` review, otherwise resume implementation or checking |
-| `deliver` | Convergence context, verified learning resolutions, semantic reconciliation manifest, local change archive, and immutable delivery report | Tasks/test/change-review are current; baseline semantic updates are anchored; archive and baseline transaction agree; the report contains no release action | Report local completion or start the next `change`; publish/deploy/push are separate explicitly authorized operations |
+| `test` | Immutable checking context, an explicit risk-selected verification profile, and `<artifact_root>/test/<workflow-id>/report.json` | Selected dimensions and exact Change acceptance ids pass; every excluded dimension has a rationale; report change/task set, HEAD, worktree, context, commands, blockers, and digests agree | `review` when passing, otherwise resume `dev`/`test` |
+| `review` | Immutable review context plus risk-selected specialist and summary artifacts below `<artifact_root>/review/<workflow-id>/` | Current diff/HEAD and context match; the complete worker roster is selected or skipped with rationale; completed workers match specialist artifacts; both axes complete; findings and axis verdicts derive the final verdict | `deliver` only from a passing `change` review, otherwise resume implementation or checking |
+| `deliver` | Convergence context, typed delta, documentation reconciliation, recoverable overlay transaction, self-contained archive, and immutable delivery report | Tasks/test/change-review and acceptance are current; every before/after digest and baseline anchor is current; the archive transaction is complete; the report contains no release action | Report local completion or start the next `change`; publish/deploy/push are separate explicitly authorized operations |
 | `status` | None | Reads doctor, baseline, workflows, breadcrumb, tasks, sessions, Git, and DB-referenced reports | Shows allowed transitions, any hard required transition, and a host-owned recommendation |
 | `doctor` | None by default; explicit repair writes only mechanical recovery state | Re-runs integrity, schema, workflow-output, projection, session, incident, archive, and install checks | Mechanically required recovery when unique; otherwise a set of safe recovery capabilities |
 
@@ -256,26 +262,31 @@ thread only for a new material decision cluster. Before asking, it must:
 6. normalize the owner response with `decision.resolve`, explicit reversible
    delegation with `decision.delegate`, or a consequence-bearing deferral with
    `decision.defer`;
-7. call `decision.complete` when normalized state is settled, or prepare a compact
+7. apply accepted intent through the owning MCP operation or digest-bound artifact;
+8. read the resulting authority back and record typed `applied_refs` when another
+   authority changed;
+9. call `decision.complete` when normalized state is settled, or prepare a compact
    checkpoint only when a material decision cluster changes a durable contract and
    interruption recovery needs an artifact-bound boundary.
 
-The shared semantic flow is `inspect -> suggest -> ask if unresolved -> normalize ->
-persist`. Claude Code and Kimi Code use `AskUserQuestion`, Codex uses
+The shared semantic flow is `inspect -> suggest -> host-native ask -> normalize ->
+persist -> apply -> read back`. The ask is skipped only when current explicit intent
+already resolves the material choice. Claude Code and Kimi Code use `AskUserQuestion`, Codex uses
 `request_user_input` when its current mode exposes it, and OpenCode uses `question`
 when permitted. Every host falls back to one concise direct question when normal
 conversation is still allowed. If the current host mode forbids interaction entirely,
 the choice remains unanswered and route-dependent writes stop. A dismissed question
 also remains unanswered. The DB trusts a normalized persisted result as current
 authority across sessions; it does not store or verify a UI receipt, raw prompt, or
-transcript.
+transcript. Breadcrumb and decision reads recall completed normalized intent, so a new
+host session can continue without replaying the dialogue.
 
 `ultra-think` owns this interaction protocol. `ultra-research`, `ultra-change`, and
 `ultra-plan` invoke it at their decision boundaries. `ultra-dev`, `ultra-test`,
 `ultra-review`, and `ultra-deliver` stop and route back to the same thread when new
 owner authority is required; they never answer on the owner's behalf. `ultra-status`
-shows only the current decision and transition set, while `ultra-doctor` diagnoses
-stale checkpoint artifacts and recovery state.
+shows current unresolved decisions, relevant accepted intent, and the transition set,
+while `ultra-doctor` diagnoses stale checkpoint artifacts and recovery state.
 
 When only a bound artifact changes, the same resolved thread is prepared and approved
 again against the current digest; this is checkpoint renewal, not a fabricated decision
@@ -289,37 +300,54 @@ opens one replacement.
 - the bound baseline/change/task identity;
 - a role and lifecycle gate;
 - DB-backed task outcome, public seam, verification command, and required refs;
+- the selected task's bounded dependency/integration neighborhood rather than every
+  unrelated task;
+- the task-context contract: purpose, why, constraints, non-goals, target seams/files,
+  pattern refs, acceptance, documentation impact, recovery, and drift definition;
 - local file hashes, current HEAD, branch, and worktree digest;
 - optional metadata-only external memory or graph references;
-- advisory file/token/context-share budgets;
+- advisory file/token/context-share budgets, including inline Change/task authority;
 - the current Change and task authority digests;
 - readiness blockers, `allowed_transitions`, and a `required_transition` only for a
   unique hard-recovery path.
+
+Compilation is pure with respect to accepted Change authority. Provider references are
+updated only through `change.update`; they cannot be smuggled into `change.context`.
+Context references retain `expected_digest`, `anchor`, `scope`, and
+`freshness_policy`. `digest` requires byte-current content, `existence` allows an
+implementation target to change while remaining present, and `advisory` reports drift
+without blocking.
 
 Critical stage workflows bind a matching snapshot as a durable output:
 
 | Workflow | Required role | Required gate |
 |---|---|---|
+| `plan` | `plan` | `planning` |
 | `dev` | `implement` | `implementation` |
 | `test` | `check` | `verification` |
 | `review` | `review` | `review` |
 | `deliver` | `check` | `convergence` |
 
-The snapshot path and digest are then carried into test, review, and delivery
-reports. This prevents a later Prompt from claiming evidence gathered under a
-different context. File and token budgets warn; they do not block legitimate
-work. Missing authority, required refs, task contracts, outputs, required owner
-decisions, or
-current gate evidence do block.
+Every lookup is exact on `change_id + task_id + role + gate`. The snapshot path and
+digest are carried into plan, test, review, and delivery artifacts. `plan.export`
+writes only the owning Change's `plan.json` and deterministic `plan.md`, and binds the
+exact planning snapshot and digest to both the artifact registry and `verify-plan`.
+The legacy global `.ultra/execution-plan.json` is read-only migration compatibility,
+not current authority. These rules prevent a later Prompt or a different role packet
+from claiming evidence gathered under another context. Referenced file content remains
+lazy; only metadata and bounded task authority are inline. File and token budgets warn;
+they do not block legitimate work. Missing authority, required refs, stale
+digest-bound refs, task contracts, outputs, required owner decisions, or current gate
+evidence do block.
 
 ## 7. Invalidation rules
 
 - Changing a task contract invalidates contexts and gates that depended on the
   former contract.
 - Changing accepted Change intent, contract, classification, research disposition,
-  provider evidence, or documentation impact marks all derived tasks stale and
-  invalidates compiled contexts. Planning or task reconciliation must explicitly
-  clear staleness before execution.
+  provider evidence, or documentation impact invalidates only transitive registered
+  consumers. Planning or task reconciliation must explicitly refresh affected
+  authority before execution.
 - Changing required source/spec content invalidates the recorded output or
   context digest.
 - Changing a research semantic source invalidates that workflow even when its immutable
@@ -333,10 +361,13 @@ current gate evidence do block.
   overwrite historical evidence.
 - `.ultra` workflow artifacts are excluded from application-worktree drift, but
   their own recorded SHA-256 digests are still authoritative.
-- Generated `tasks.json` and task-context headers are projections. Manual edits
+- Generated `tasks.json` and complete task-context files are projections. Manual edits
   are overwritten and never repair DB authority.
 - A changed checkpoint artifact digest or superseded decision invalidates the linked
   decision checkpoint and blocks matching workflow advancement until reconfirmed.
+- `workflow.revise` creates a candidate without deleting the completed prior run.
+  `workflow.supersede` promotes only a completed matching candidate, preserves both
+  histories, and invalidates only the prior run's transitive registered consumers.
 
 ## 8. Entry flows
 
@@ -347,7 +378,7 @@ ultra-init -> Git/scaffold/authority verification -> init completed
 -> explicit ultra-research -> suggested route -> owner-selected accepted coverage
 -> selected evidence work
 -> local checkpoint when Git is unborn -> baseline approval
--> ultra-change -> optional bounded research/plan -> dev -> risk-selected test/review
+-> ultra-change -> optional bounded research -> typed delta -> plan -> dev -> risk-selected test/review
 -> local deliver/archive
 ```
 
@@ -357,7 +388,7 @@ ultra-init -> Git/scaffold/authority verification -> init completed
 ultra-init -> preserve Git/classify brownfield -> init completed
 -> explicit adoption research -> suggested route -> owner-selected accepted coverage
 -> selected characterization/known-red evidence -> gap ledger -> owner approval
--> first ultra-change -> optional bounded research/plan -> dev -> test/review -> deliver
+-> first ultra-change -> optional bounded research -> typed delta -> plan -> dev -> test/review -> deliver
 ```
 
 Adoption records the system that exists. It does not force the owner to recreate
@@ -377,9 +408,9 @@ Migration preserves prior files and rows but never carries old approval forward.
 
 ```text
 ultra-status -> ultra-change intent capture
--> model recommends; owner selects or delegates bounded research, plan, current task,
-   think, or status
--> dev -> risk-selected test -> review -> deliver -> reconciled baseline
+-> model recommends; owner selects bounded research or direct plan
+-> typed delta -> plan -> dev -> risk-selected test -> review
+-> documentation reconciliation -> atomic deliver -> reconciled baseline
 ```
 
 Quick changes shorten the artifact burden only where the machine contract allows;
@@ -392,9 +423,9 @@ evidence rather than bypassing them.
 | Entry | Owns | Normal handoff |
 |---|---|---|
 | `ultra-init` | classification, scope, Git/scaffold bootstrap, and init verification | stops completed; exposes research/status/doctor and any already-valid change capability |
-| `ultra-research` | coverage disposition, selected evidence acquisition, synthesis, and material research decisions | baseline convergence or return to the owning change |
+| `ultra-research` | coverage disposition, selected evidence acquisition, synthesis, and material research decisions | baseline convergence or Change delta then plan |
 | `ultra-think` | one material owner decision or read-only diagnosis | returns to the invoking capability after any needed checkpoint |
-| `ultra-change` | outcome capture, Change Contract, risk/research routing | model recommends; owner selects or delegates research, plan, current dev work, think, or status |
+| `ultra-change` | outcome capture, Change Contract, isolated overlay, typed delta, and risk/research routing | model recommends; owner selects research or direct plan; development is never a direct handoff |
 | `ultra-plan` | task contracts, dependencies, acceptance coverage, optional material approval | any dependency-ready task through `ultra-dev` |
 | `ultra-dev` | one task/session vertical slice and focused review | next `ultra-dev` task or aggregate `ultra-test` |
 | `ultra-test` | risk-selected change acceptance and verification profile | `ultra-review` on pass, `ultra-dev`/`ultra-test` on failure |

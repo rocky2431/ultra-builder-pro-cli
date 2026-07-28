@@ -6,7 +6,7 @@
 // estimated_cost_usd, estimated_duration_min, cycles }.
 // Composes topo.computeWaves + pricing.computeCost with a file-overlap
 // conflict detector. Downstream 8A.4b writes this object to
-// .ultra/execution-plan.json.
+// the owning Change's deterministic plan.json and plan.md artifacts.
 
 const { computeWaves } = require('../../mcp-server/lib/topo.cjs');
 const { computeCost } = require('../../mcp-server/lib/pricing.cjs');

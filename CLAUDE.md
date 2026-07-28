@@ -10,9 +10,11 @@ Ultra Builder Pro is a host-adapted workflow plugin for Claude Code, Codex, Open
 and Kimi Code. It owns workflow authority, evidence, recovery, host adapters, and the
 minimal prompts required to operate them.
 
-It does not own persistent memory, code-graph content, general browsing, deployment
-providers, framework guidance, or unrelated productivity skills. Keep those capabilities
-in separately installed owner packages.
+It owns project-local cross-session workflow memory under `.ultra/`: normalized intent,
+progress, tasks, bounded context, specifications, evidence, provenance, and recovery.
+It does not own general conversational or episodic memory, code-graph payloads, general
+browsing, deployment providers, framework guidance, or unrelated productivity skills.
+Keep those capabilities in separately installed owner packages.
 
 ## Sources of truth
 
@@ -22,10 +24,14 @@ in separately installed owner packages.
 - `spec/mcp-tools.yaml`: public MCP contract.
 - `skills/*/SKILL.md`: reusable workflow prompts.
 - `commands/*.md`: thin Claude Code launchers; do not duplicate workflow logic.
-- `.ultra/state.db`: project workflow authority at runtime.
+- `.ultra/.runtime/state.db`: lifecycle, index, transition, freshness, and coordination authority
+  at runtime.
+- `docs/ARTIFACT-AUTHORITY.md`: authority and promotion rules for every `.ultra/`
+  artifact class.
 
-Generated Markdown and JSON are projections or evidence artifacts, not parallel
-authorities.
+Digest-bound specifications and evidence files carry semantic content; generated
+projections and working scratch do not become authority merely because they are under
+`.ultra/`.
 
 ## Host adaptation
 

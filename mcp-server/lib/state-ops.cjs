@@ -1,6 +1,6 @@
 'use strict';
 
-// State-operations layer over .ultra/state.db.
+// State-operations layer over .ultra/.runtime/state.db.
 //
 // Every mutation in the Ultra Builder Pro runtime goes through this module.
 // Callers (MCP server tool handlers, the migration CLI, the orchestrator)
@@ -57,6 +57,14 @@ const TASK_CONTRACT_PATCH_FIELDS = new Set([
 const SESSION_PATCHABLE = Object.freeze([
   'pid', 'status', 'lease_expires_at', 'heartbeat_at', 'worktree_path', 'artifact_dir',
 ]);
+const SESSION_STATUSES = new Set(['running', 'completed', 'crashed', 'orphan']);
+const SESSION_TERMINAL_STATUSES = new Set(['completed', 'crashed']);
+const SESSION_STATUS_TRANSITIONS = Object.freeze({
+  running: new Set(['completed', 'crashed', 'orphan']),
+  orphan: new Set(['completed', 'crashed']),
+  completed: new Set(),
+  crashed: new Set(),
+});
 
 class StateOpsError extends Error {
   constructor(code, message, { retriable = false, details } = {}) {
@@ -170,9 +178,44 @@ function normalizeContextRefs(value) {
     if (!ref || !reason) {
       throw new StateOpsError('VALIDATION_ERROR', `context_refs[${index}] requires ref and reason`);
     }
-    return {
-      ref, reason, kind: String(item.kind || 'source').trim(), required: item.required !== false,
+    const kind = String(item.kind || 'source').trim();
+    if (!['spec', 'source', 'test', 'docs', 'external'].includes(kind)) {
+      throw new StateOpsError('VALIDATION_ERROR', `context_refs[${index}].kind is unsupported`);
+    }
+    const expectedDigest = item.expected_digest ?? item.digest ?? null;
+    if (expectedDigest !== null && !/^[0-9a-f]{64}$/.test(String(expectedDigest))) {
+      throw new StateOpsError(
+        'VALIDATION_ERROR', `context_refs[${index}].expected_digest must be sha256`,
+      );
+    }
+    const freshnessPolicy = String(
+      item.freshness_policy || (expectedDigest ? 'digest' : 'existence'),
+    ).trim();
+    if (!['digest', 'existence', 'advisory'].includes(freshnessPolicy)) {
+      throw new StateOpsError(
+        'VALIDATION_ERROR',
+        `context_refs[${index}].freshness_policy must be digest, existence, or advisory`,
+      );
+    }
+    const normalized = {
+      ref,
+      reason,
+      kind,
+      required: item.required !== false,
+      freshness_policy: freshnessPolicy,
     };
+    if (expectedDigest !== null) normalized.expected_digest = String(expectedDigest);
+    if (item.anchor !== undefined) {
+      const anchor = String(item.anchor).trim();
+      if (!anchor) throw new StateOpsError('VALIDATION_ERROR', `context_refs[${index}].anchor cannot be empty`);
+      normalized.anchor = anchor;
+    }
+    if (item.scope !== undefined) {
+      const scope = String(item.scope).trim();
+      if (!scope) throw new StateOpsError('VALIDATION_ERROR', `context_refs[${index}].scope cannot be empty`);
+      normalized.scope = scope;
+    }
+    return normalized;
   });
 }
 
@@ -609,10 +652,32 @@ function createSession(db, { sid, task_id, runtime, pid = null, worktree_path, a
     if (!readTask(db, task_id)) {
       throw new StateOpsError('TASK_NOT_FOUND', `task ${task_id} does not exist`);
     }
-    db.prepare(
-      `INSERT INTO sessions (sid, task_id, runtime, pid, worktree_path, artifact_dir, status, lease_expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'running', ?)`,
-    ).run(sid, task_id, runtime, pid, worktree_path, artifact_dir, lease);
+    try {
+      db.prepare(
+        `INSERT INTO sessions (sid, task_id, runtime, pid, worktree_path, artifact_dir, status, lease_expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'running', ?)`,
+      ).run(sid, task_id, runtime, pid, worktree_path, artifact_dir, lease);
+    } catch (error) {
+      if (String(error?.code || '').startsWith('SQLITE_CONSTRAINT')) {
+        const conflict = db.prepare(
+          "SELECT sid, status FROM sessions WHERE task_id = ? AND status = 'running' LIMIT 1",
+        ).get(task_id);
+        if (conflict) {
+          throw new StateOpsError(
+            'ADMISSION_DENIED',
+            `active session exists for task ${task_id} (${conflict.sid})`,
+            {
+              details: {
+                task_id,
+                conflict_sid: conflict.sid,
+                conflict_status: conflict.status,
+              },
+            },
+          );
+        }
+      }
+      throw error;
+    }
     appendEventInTx(db, {
       type: 'session_spawned',
       task_id,
@@ -628,29 +693,104 @@ function updateSession(db, sid, patch = {}) {
   return tx(db, () => {
     const cur = db.prepare('SELECT * FROM sessions WHERE sid = ?').get(sid);
     if (!cur) throw new StateOpsError('SESSION_NOT_FOUND', `no session ${sid}`);
+    const requestedStatus = patch.status;
+    if (requestedStatus !== undefined && !SESSION_STATUSES.has(requestedStatus)) {
+      throw new StateOpsError(
+        'VALIDATION_ERROR',
+        `unsupported session status: ${String(requestedStatus)}`,
+      );
+    }
+    if (requestedStatus !== undefined && requestedStatus !== cur.status) {
+      if (SESSION_TERMINAL_STATUSES.has(cur.status)) {
+        throw new StateOpsError(
+          'SESSION_TERMINAL_CONFLICT',
+          `session ${sid} is already ${cur.status} and cannot transition to ${requestedStatus}`,
+          {
+            details: {
+              sid,
+              current_status: cur.status,
+              requested_status: requestedStatus,
+            },
+          },
+        );
+      }
+      if (!SESSION_STATUS_TRANSITIONS[cur.status]?.has(requestedStatus)) {
+        throw new StateOpsError(
+          'SESSION_STATUS_TRANSITION_INVALID',
+          `session ${sid} cannot transition from ${cur.status} to ${requestedStatus}`,
+          {
+            details: {
+              sid,
+              current_status: cur.status,
+              requested_status: requestedStatus,
+            },
+          },
+        );
+      }
+    }
+    const normalizedPatch = (
+      SESSION_TERMINAL_STATUSES.has(requestedStatus)
+    )
+      ? { ...patch, pid: null }
+      : patch;
     const sets = [];
     const params = [];
-    for (const key of Object.keys(patch)) {
+    for (const key of Object.keys(normalizedPatch)) {
       if (!SESSION_PATCHABLE.includes(key)) {
         throw new StateOpsError('VALIDATION_ERROR', `session field ${key} is not patchable`);
       }
       sets.push(`${key} = ?`);
-      params.push(patch[key]);
+      params.push(normalizedPatch[key]);
     }
     if (sets.length === 0) return cur;
-    params.push(sid);
-    db.prepare(`UPDATE sessions SET ${sets.join(', ')} WHERE sid = ?`).run(...params);
-    if (patch.status && patch.status !== cur.status) {
-      const eventType = patch.status === 'completed' ? 'session_closed'
-        : patch.status === 'crashed' ? 'session_crashed'
-        : patch.status === 'orphan' ? 'session_orphaned'
+    params.push(sid, cur.status);
+    const result = db.prepare(
+      `UPDATE sessions SET ${sets.join(', ')} WHERE sid = ? AND status = ?`,
+    ).run(...params);
+    if (result.changes !== 1) {
+      const latest = db.prepare('SELECT status FROM sessions WHERE sid = ?').get(sid);
+      if (latest && SESSION_TERMINAL_STATUSES.has(latest.status)
+          && requestedStatus !== undefined && latest.status !== requestedStatus) {
+        throw new StateOpsError(
+          'SESSION_TERMINAL_CONFLICT',
+          `session ${sid} is already ${latest.status} and cannot transition to ${requestedStatus}`,
+          {
+            details: {
+              sid,
+              current_status: latest.status,
+              requested_status: requestedStatus,
+            },
+          },
+        );
+      }
+      throw new StateOpsError(
+        'SESSION_STATUS_CONFLICT',
+        `session ${sid} changed while applying an update`,
+        {
+          retriable: true,
+          details: {
+            sid,
+            expected_status: cur.status,
+            actual_status: latest?.status || null,
+          },
+        },
+      );
+    }
+    if (requestedStatus && requestedStatus !== cur.status) {
+      const eventType = requestedStatus === 'completed' ? 'session_closed'
+        : requestedStatus === 'crashed' ? 'session_crashed'
+        : requestedStatus === 'orphan' ? 'session_orphaned'
         : 'session_closed';
       appendEventInTx(db, {
         type: eventType,
         task_id: cur.task_id,
         session_id: sid,
         runtime: cur.runtime,
-        payload: { from: cur.status, to: patch.status },
+        payload: {
+          from: cur.status,
+          to: requestedStatus,
+          worker_pid: cur.pid,
+        },
       });
     }
     return db.prepare('SELECT * FROM sessions WHERE sid = ?').get(sid);
@@ -782,11 +922,15 @@ function admissionCheck(db, task_id, { freshnessSeconds = 120 } = {}) {
   };
 }
 
-function reapOrphanSessions(db, { graceSeconds = 300 } = {}) {
+function reapOrphanSessions(db, {
+  graceSeconds = 300,
+  exclude_session_ids = [],
+} = {}) {
   const cutoff = new Date(Date.now() - graceSeconds * 1000).toISOString();
+  const excluded = new Set(exclude_session_ids);
   const candidates = db.prepare(
     "SELECT * FROM sessions WHERE status = 'running' AND (lease_expires_at < ? OR heartbeat_at < ?)",
-  ).all(cutoff, cutoff);
+  ).all(cutoff, cutoff).filter((session) => !excluded.has(session.sid));
   const reaped = [];
   for (const s of candidates) {
     updateSession(db, s.sid, { status: 'orphan' });
@@ -810,49 +954,103 @@ function readCircuitBreakerRow(db, task_id) {
   return db.prepare('SELECT * FROM circuit_breaker WHERE task_id = ?').get(task_id) || null;
 }
 
-function recordTaskFailure(db, task_id, {
+function recordTaskFailureInTx(db, task_id, {
   reason = 'unknown',
   session_id = null,
   fail_threshold = DEFAULT_FAIL_THRESHOLD,
 } = {}) {
   if (!task_id) throw new StateOpsError('VALIDATION_ERROR', 'task_id required');
-  return tx(db, () => {
-    const now = nowIso();
-    const existing = readCircuitBreakerRow(db, task_id);
-    const wasTripped = !!(existing && existing.tripped_at);
-    const newCount = (existing ? existing.failure_count : 0) + 1;
-    const crossesThreshold = !wasTripped && newCount >= fail_threshold;
-    const trippedAt = wasTripped
-      ? existing.tripped_at
-      : (crossesThreshold ? now : null);
+  const now = nowIso();
+  const existing = readCircuitBreakerRow(db, task_id);
+  const wasTripped = !!(existing && existing.tripped_at);
+  const newCount = (existing ? existing.failure_count : 0) + 1;
+  const crossesThreshold = !wasTripped && newCount >= fail_threshold;
+  const trippedAt = wasTripped
+    ? existing.tripped_at
+    : (crossesThreshold ? now : null);
 
-    if (existing) {
-      db.prepare(
-        'UPDATE circuit_breaker SET failure_count = ?, tripped_at = ?, last_failure_at = ?, last_failure_reason = ? WHERE task_id = ?',
-      ).run(newCount, trippedAt, now, reason, task_id);
-    } else {
-      db.prepare(
-        'INSERT INTO circuit_breaker (task_id, failure_count, tripped_at, last_failure_at, last_failure_reason) VALUES (?, ?, ?, ?, ?)',
-      ).run(task_id, newCount, trippedAt, now, reason);
-    }
+  if (existing) {
+    db.prepare(
+      'UPDATE circuit_breaker SET failure_count = ?, tripped_at = ?, last_failure_at = ?, last_failure_reason = ? WHERE task_id = ?',
+    ).run(newCount, trippedAt, now, reason, task_id);
+  } else {
+    db.prepare(
+      'INSERT INTO circuit_breaker (task_id, failure_count, tripped_at, last_failure_at, last_failure_reason) VALUES (?, ?, ?, ?, ?)',
+    ).run(task_id, newCount, trippedAt, now, reason);
+  }
 
+  appendEventInTx(db, {
+    type: 'task_failure',
+    task_id,
+    session_id,
+    payload: { reason, failure_count: newCount },
+  });
+
+  if (crossesThreshold) {
     appendEventInTx(db, {
-      type: 'task_failure',
+      type: 'task_circuit_broken',
       task_id,
       session_id,
-      payload: { reason, failure_count: newCount },
+      payload: { failure_count: newCount, threshold: fail_threshold },
     });
+  }
 
-    if (crossesThreshold) {
-      appendEventInTx(db, {
-        type: 'task_circuit_broken',
-        task_id,
-        session_id,
-        payload: { failure_count: newCount, threshold: fail_threshold },
-      });
+  return { failure_count: newCount, tripped: crossesThreshold || wasTripped };
+}
+
+function recordTaskFailure(db, task_id, options = {}) {
+  return tx(db, () => recordTaskFailureInTx(db, task_id, options));
+}
+
+function crashOrphanSession(db, sid, {
+  reason = 'session_crashed_on_boot',
+  fail_threshold = DEFAULT_FAIL_THRESHOLD,
+} = {}) {
+  if (!sid) throw new StateOpsError('VALIDATION_ERROR', 'sid required');
+  return tx(db, () => {
+    const session = db.prepare('SELECT * FROM sessions WHERE sid = ?').get(sid);
+    if (!session) {
+      throw new StateOpsError('SESSION_NOT_FOUND', `no session ${sid}`);
     }
-
-    return { failure_count: newCount, tripped: crossesThreshold || wasTripped };
+    if (session.status !== 'orphan') {
+      return {
+        changed: false,
+        status: session.status,
+        failure_recorded: false,
+      };
+    }
+    const result = db.prepare(
+      "UPDATE sessions SET status = 'crashed', pid = NULL WHERE sid = ? AND status = 'orphan'",
+    ).run(sid);
+    if (result.changes !== 1) {
+      return {
+        changed: false,
+        status: db.prepare('SELECT status FROM sessions WHERE sid = ?').get(sid)?.status || null,
+        failure_recorded: false,
+      };
+    }
+    appendEventInTx(db, {
+      type: 'session_crashed',
+      task_id: session.task_id,
+      session_id: sid,
+      runtime: session.runtime,
+      payload: {
+        from: 'orphan',
+        to: 'crashed',
+        worker_pid: session.pid,
+      },
+    });
+    const failure = recordTaskFailureInTx(db, session.task_id, {
+      reason,
+      session_id: sid,
+      fail_threshold,
+    });
+    return {
+      changed: true,
+      status: 'crashed',
+      failure_recorded: true,
+      failure,
+    };
   });
 }
 
@@ -1004,6 +1202,7 @@ module.exports = {
   heartbeatSession,
   admissionCheck,
   reapOrphanSessions,
+  crashOrphanSession,
   // circuit breaker
   recordTaskFailure,
   resetCircuitBreaker,

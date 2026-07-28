@@ -1,7 +1,6 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const Ajv = require('ajv/dist/2020');
@@ -9,6 +8,8 @@ const addFormats = require('ajv-formats');
 
 const ops = require('./state-ops.cjs');
 const decisionDialogue = require('./decision-dialogue.cjs');
+const artifactRegistry = require('./artifact-registry.cjs');
+const { readStableProjectFile } = require('./safe-project-file.cjs');
 const testReportSchema = require('../../spec/schemas/test-report.v1.schema.json');
 const deliveryReportSchema = require('../../spec/schemas/delivery-report.v1.schema.json');
 
@@ -56,6 +57,9 @@ const WORKFLOW_DEFINITIONS = Object.freeze({
   ]),
   plan: Object.freeze([
     step('validate-baseline', 'Validate baseline and research coverage', { evidence_required: true }),
+    step('compile-context', 'Compile the accepted planning context', {
+      evidence_required: true, output_required: true,
+    }),
     step('analyze-requirements', 'Trace requirements and acceptance'),
     step('analyze-codebase', 'Inspect current codebase patterns and boundaries', { evidence_required: true }),
     step('design-slices', 'Design walking skeleton and vertical slices'),
@@ -195,18 +199,89 @@ function nonEmpty(value, field) {
 
 function safeProjectFile(rootDir, candidate, field) {
   const relative = nonEmpty(candidate, field);
-  if (path.isAbsolute(relative)) {
-    throw new WorkflowStateError('VALIDATION_ERROR', `${field} must be project-relative`);
+  try {
+    return readStableProjectFile(rootDir, relative, { encoding: 'utf8' });
+  } catch (error) {
+    if (error?.code === 'PROJECT_FILE_MISSING') {
+      throw new WorkflowStateError(
+        'WORKFLOW_OUTPUT_MISSING',
+        `workflow output does not exist: ${relative}`,
+      );
+    }
+    throw new WorkflowStateError(
+      'VALIDATION_ERROR',
+      `${field} is not a safe project-relative regular file: ${error.message}`,
+    );
   }
-  const root = path.resolve(rootDir);
-  const file = path.resolve(root, relative);
-  if (file !== root && !file.startsWith(`${root}${path.sep}`)) {
-    throw new WorkflowStateError('VALIDATION_ERROR', `${field} escapes project root`);
+}
+
+function requireManagedArtifact(db, {
+  owner_type, owner_id, kind, artifactPath, digest, error_code, field,
+  statuses = ['current'],
+}) {
+  let relative;
+  try {
+    relative = artifactRegistry.normalizeRelativePath(artifactPath);
+  } catch (error) {
+    throw new WorkflowStateError(
+      error_code,
+      `${field} has an invalid registry path: ${error.message}`,
+    );
   }
-  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
-    throw new WorkflowStateError('WORKFLOW_OUTPUT_MISSING', `workflow output does not exist: ${relative}`);
+  const rows = db.prepare(
+    `SELECT id, owner_type, owner_id, kind, path, digest, content_hash, managed, status
+     FROM artifacts
+     WHERE path = ?
+     ORDER BY updated_at DESC, rowid DESC`,
+  ).all(relative);
+  const eligible = rows.filter((item) => statuses.includes(item.status));
+  const row = eligible.length === 1 ? eligible[0] : null;
+  const expectedDigest = row?.digest || row?.content_hash || null;
+  if (!row || row.owner_type !== owner_type || row.owner_id !== owner_id
+    || row.kind !== kind || row.path !== relative || row.managed !== 1
+    || !statuses.includes(row.status) || !expectedDigest || expectedDigest !== digest) {
+    throw new WorkflowStateError(
+      error_code,
+      `${field} does not match one exact active managed Artifact Registry authority`,
+      {
+        path: relative,
+        expected: {
+          owner_type, owner_id, kind, digest, statuses,
+        },
+        actual: rows.map((item) => ({
+          id: item.id,
+          owner_type: item.owner_type,
+          owner_id: item.owner_id,
+          kind: item.kind,
+          digest: item.digest || item.content_hash || null,
+          managed: Boolean(item.managed),
+          status: item.status,
+        })),
+      },
+    );
   }
-  return { relative, file };
+  return row;
+}
+
+function assertChangeArtifactPath(db, run, artifactPath, field) {
+  if (!run.change_id) return artifactRegistry.normalizeRelativePath(artifactPath);
+  const change = db.prepare(
+    'SELECT artifact_root FROM changes WHERE id = ?',
+  ).get(run.change_id);
+  if (!change) {
+    throw new WorkflowStateError(
+      'WORKFLOW_CHANGE_NOT_FOUND', `change ${run.change_id} does not exist`,
+    );
+  }
+  const relative = artifactRegistry.normalizeRelativePath(artifactPath);
+  const root = artifactRegistry.normalizeRelativePath(change.artifact_root);
+  if (relative !== root && !relative.startsWith(`${root}/`)) {
+    throw new WorkflowStateError(
+      'WORKFLOW_ARTIFACT_SCOPE_INVALID',
+      `${field} must stay inside the owning Change root ${root}: ${relative}`,
+    );
+  }
+  return relative;
 }
 
 function normalizeObjects(value, field) {
@@ -233,7 +308,7 @@ function normalizeOutputs(value, rootDir) {
     return {
       path: resolved.relative,
       kind: nonEmpty(item.kind, `outputs[${index}].kind`),
-      digest: crypto.createHash('sha256').update(fs.readFileSync(resolved.file)).digest('hex'),
+      digest: resolved.digest,
     };
   });
 }
@@ -255,7 +330,7 @@ function sourceRefFile(rootDir, sourceRef, field) {
   const relative = ref.slice(0, separator);
   const anchor = ref.slice(separator + 1).trim().toLowerCase();
   const resolved = safeProjectFile(rootDir, relative, field);
-  const content = fs.readFileSync(resolved.file, 'utf8');
+  const content = resolved.text;
   const anchors = new Set();
   for (const match of content.matchAll(/^#{1,6}\s+(.+?)\s*#*\s*$/gm)) anchors.add(markdownSlug(match[1]));
   for (const match of content.matchAll(/<a\s+(?:name|id)=["']([^"']+)["'][^>]*>/gi)) {
@@ -268,7 +343,7 @@ function sourceRefFile(rootDir, sourceRef, field) {
   }
   return {
     ref, relative, anchor,
-    digest: crypto.createHash('sha256').update(content).digest('hex'),
+    digest: resolved.digest,
   };
 }
 
@@ -371,10 +446,15 @@ function validateSynthesisTrace(db, runRow, semanticRecords) {
   }
 }
 
-function validateResearchStepReport(run, stepId, outputs, rootDir) {
-  const expected = path.join(
-    '.ultra', 'docs', 'research', run.id, `${stepId}.md`,
-  );
+function validateResearchStepReport(db, run, stepId, outputs, rootDir) {
+  const change = run.change_id
+    ? db.prepare('SELECT artifact_root FROM changes WHERE id = ?').get(run.change_id)
+    : null;
+  const expected = change
+    ? path.join(
+      change.artifact_root, 'research', run.id, `${stepId}.md`,
+    )
+    : path.join('.ultra', 'docs', 'research', run.id, `${stepId}.md`);
   const report = outputs.find((output) => path.normalize(output.path) === path.normalize(expected));
   if (!report) {
     throw new WorkflowStateError(
@@ -383,7 +463,7 @@ function validateResearchStepReport(run, stepId, outputs, rootDir) {
     );
   }
   const resolved = safeProjectFile(rootDir, report.path, `${stepId}.research_report`);
-  const content = fs.readFileSync(resolved.file, 'utf8');
+  const content = resolved.text;
   const requiredSections = ['Evidence', 'Specification updates', 'Decisions and unknowns'];
   const missing = requiredSections.filter(
     (heading) => !new RegExp(`^##\\s+${heading}\\s*$`, 'im').test(content),
@@ -410,6 +490,56 @@ function validateResearchStepReport(run, stepId, outputs, rootDir) {
       );
     }
   }
+}
+
+function registerChangeResearchOutputsInTx(db, run, stepId, outputs, rootDir) {
+  if (!run.change_id) return [];
+  const change = db.prepare(
+    'SELECT artifact_root FROM changes WHERE id = ?',
+  ).get(run.change_id);
+  if (!change) {
+    throw new WorkflowStateError(
+      'WORKFLOW_CHANGE_NOT_FOUND',
+      `research change ${run.change_id} does not exist`,
+    );
+  }
+  const prefix = artifactRegistry.normalizeRelativePath(change.artifact_root);
+  return outputs.map((output) => {
+    const relative = artifactRegistry.normalizeRelativePath(output.path);
+    if (relative !== prefix && !relative.startsWith(`${prefix}/`)) {
+      throw new WorkflowStateError(
+        'WORKFLOW_RESEARCH_REPORT_REQUIRED',
+        `Change research output must stay inside ${prefix}: ${relative}`,
+      );
+    }
+    const kind = relative.endsWith(`/research/${run.id}/${stepId}.md`)
+      ? 'research_step_report'
+      : String(output.kind || 'research_semantic_artifact')
+        .trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    return artifactRegistry.recordArtifactInTx(db, {
+      id: `workflow-${run.id}-${stepId}-${crypto.createHash('sha256')
+        .update(relative).digest('hex').slice(0, 12)}`,
+      owner_type: 'workflow',
+      owner_id: run.id,
+      kind,
+      path: relative,
+      content_digest: output.digest,
+      source_refs: [
+        { type: 'workflow', id: run.id, relation: 'produced_by' },
+        { type: 'change', id: run.change_id, relation: 'researched_for' },
+        ...(run.baseline_id
+          ? [{ type: 'baseline', id: run.baseline_id, relation: 'deltas_from' }]
+          : []),
+      ],
+      consumer_refs: [],
+      provenance: {
+        writer: 'workflow.step',
+        workflow_run_id: run.id,
+        step_id: stepId,
+      },
+      metadata: { terminal_role: true, semantic: true },
+    }, { rootDir }).artifact;
+  });
 }
 
 function rowToStep(row) {
@@ -466,6 +596,10 @@ function definitionForRun(run) {
 
 function inspectRunHealth(run, steps, rootDir) {
   const blockers = [...inspectOutputHealth(steps, rootDir).blockers];
+  const runMetadata = parseJson(run.metadata_json, 'workflow_runs.metadata_json', {});
+  if (runMetadata.authority_invalidation?.invalidated === true) {
+    blockers.push('WORKFLOW_AUTHORITY_STALE');
+  }
   const definition = definitionForRun(run);
   const expectedIds = new Set(definition.map((item) => item.id));
   const actualIds = new Set(steps.map((item) => item.step_id));
@@ -544,8 +678,7 @@ function inspectOutputHealth(steps, rootDir) {
   for (const output of latestByPath.values()) {
     try {
       const resolved = safeProjectFile(rootDir, output.path, 'output.path');
-      const current = crypto.createHash('sha256').update(fs.readFileSync(resolved.file)).digest('hex');
-      if (current !== output.digest) blockers.push(`WORKFLOW_OUTPUT_STALE:${output.path}`);
+      if (resolved.digest !== output.digest) blockers.push(`WORKFLOW_OUTPUT_STALE:${output.path}`);
     } catch (error) {
       blockers.push(error.code === 'WORKFLOW_OUTPUT_MISSING'
         ? `WORKFLOW_OUTPUT_MISSING:${output.path}`
@@ -720,6 +853,19 @@ function assertWorkflowAuthority(db, input, mode) {
       );
     }
   };
+  const changeWideKinds = new Set(['research', 'change', 'plan', 'deliver']);
+  if ((input.kind === 'init' || changeWideKinds.has(input.kind)) && input.task_id) {
+    throw new WorkflowStateError(
+      'WORKFLOW_SCOPE_INVALID',
+      `${input.kind} workflow is not task-scoped and must not provide task_id`,
+    );
+  }
+  if (input.kind === 'init' && input.change_id) {
+    throw new WorkflowStateError(
+      'WORKFLOW_SCOPE_INVALID',
+      'init workflow is baseline-scoped and must not provide change_id',
+    );
+  }
   if (input.kind !== 'research'
     && (input.mode !== undefined || input.selected_steps !== undefined || input.coverage !== undefined)) {
     throw new WorkflowStateError(
@@ -807,11 +953,17 @@ function assertPlanWorkflowAuthority(db, input) {
     change.research_disposition_json || '{}', 'changes.research_disposition_json', {},
   );
   if (['bounded', 'required'].includes(disposition.status)) {
-    const row = db.prepare(
+    const rows = db.prepare(
       `SELECT id FROM workflow_runs
        WHERE kind = 'research' AND change_id = ? AND mode = ? AND status = 'completed'
-       ORDER BY completed_at DESC, rowid DESC LIMIT 1`,
-    ).get(change.id, disposition.mode);
+       ORDER BY completed_at DESC, rowid DESC`,
+    ).all(change.id, disposition.mode);
+    const row = rows.find((candidate) => {
+      const run = readWorkflow(db, candidate.id, {
+        rootDir: input.root_dir || process.cwd(),
+      });
+      return isConsumableWorkflowAuthority(run);
+    });
     const research = row ? readWorkflow(db, row.id, { rootDir: input.root_dir || process.cwd() }) : null;
     const expectedSteps = new Set([
       ...(Array.isArray(disposition.selected_steps) ? disposition.selected_steps : []),
@@ -1044,6 +1196,188 @@ function startWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
   return readWorkflow(db, id, { rootDir });
 }
 
+function reviseWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
+  const id = nonEmpty(input.id, 'id');
+  const replacementId = nonEmpty(input.replacement_id, 'replacement_id');
+  const reason = nonEmpty(input.reason, 'reason');
+  const subject = nonEmpty(input.subject, 'subject');
+  return ops.tx(db, () => {
+    const current = readWorkflow(db, id, { rootDir });
+    if (!current) throw new WorkflowStateError('WORKFLOW_NOT_FOUND', `workflow ${id} not found`);
+    if (current.status !== 'completed') {
+      throw new WorkflowStateError(
+        'WORKFLOW_REVISION_SOURCE_NOT_ACCEPTED',
+        `workflow ${id} must be completed before a revision can be proposed`,
+      );
+    }
+    if (current.metadata.revision?.superseded_by) {
+      throw new WorkflowStateError(
+        'WORKFLOW_ALREADY_SUPERSEDED',
+        `workflow ${id} was superseded by ${current.metadata.revision.superseded_by}`,
+      );
+    }
+    const generation = Number(current.metadata.revision?.generation || 1) + 1;
+    const metadata = {
+      ...current.metadata,
+      revision: {
+        revision_of: current.id,
+        generation,
+        reason,
+        candidate_created_at: nowIso(),
+        authority_status: 'candidate',
+      },
+    };
+    delete metadata.authority_invalidation;
+    const nextInput = {
+      id: replacementId,
+      kind: current.kind,
+      mode: current.kind === 'research' ? current.mode : undefined,
+      subject,
+      baseline_id: current.baseline_id,
+      change_id: current.change_id,
+      task_id: current.task_id,
+      metadata,
+      ...(current.kind === 'research'
+        ? { coverage: current.metadata.coverage }
+        : {}),
+    };
+    const inserted = insertWorkflowInTx(db, nextInput, { rootDir });
+    ops.appendEventInTx(db, {
+      type: 'workflow_revision_started',
+      task_id: current.task_id,
+      change_id: current.change_id,
+      payload: {
+        workflow_id: inserted,
+        revision_of: current.id,
+        generation,
+        reason,
+      },
+    });
+    return readWorkflow(db, inserted, { rootDir });
+  });
+}
+
+function sameWorkflowAuthority(left, right) {
+  return left.kind === right.kind
+    && (left.baseline_id || null) === (right.baseline_id || null)
+    && (left.change_id || null) === (right.change_id || null)
+    && (left.task_id || null) === (right.task_id || null);
+}
+
+function isConsumableWorkflowAuthority(run) {
+  const metadata = run?.metadata || {};
+  const authorityStatus = metadata.revision?.authority_status;
+  return !metadata.revision?.superseded_by
+    && metadata.authority_invalidation?.invalidated !== true
+    && !['candidate', 'superseded'].includes(authorityStatus);
+}
+
+function supersedeWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
+  const id = nonEmpty(input.id, 'id');
+  const replacementId = nonEmpty(input.replacement_id, 'replacement_id');
+  const reason = nonEmpty(input.reason, 'reason');
+  if (id === replacementId) {
+    throw new WorkflowStateError('VALIDATION_ERROR', 'a workflow cannot supersede itself');
+  }
+  return ops.tx(db, () => {
+    const prior = readWorkflow(db, id, { rootDir });
+    const replacement = readWorkflow(db, replacementId, { rootDir });
+    if (!prior) throw new WorkflowStateError('WORKFLOW_NOT_FOUND', `workflow ${id} not found`);
+    if (!replacement) {
+      throw new WorkflowStateError('WORKFLOW_NOT_FOUND', `workflow ${replacementId} not found`);
+    }
+    if (prior.status !== 'completed' || replacement.status !== 'completed') {
+      throw new WorkflowStateError(
+        'WORKFLOW_SUPERSESSION_NOT_ACCEPTED',
+        'both the prior workflow and its replacement must be completed',
+      );
+    }
+    if (!sameWorkflowAuthority(prior, replacement)) {
+      throw new WorkflowStateError(
+        'WORKFLOW_SUPERSESSION_AUTHORITY_MISMATCH',
+        'replacement workflow kind and authority bindings must match the prior workflow',
+      );
+    }
+    if (replacement.metadata.revision?.revision_of !== prior.id) {
+      throw new WorkflowStateError(
+        'WORKFLOW_SUPERSESSION_AUTHORITY_MISMATCH',
+        `replacement ${replacement.id} is not a revision of ${prior.id}`,
+      );
+    }
+    if (replacement.artifact_health.status !== 'pass') {
+      throw new WorkflowStateError(
+        'WORKFLOW_OUTPUT_STALE',
+        `replacement workflow ${replacement.id} is not current`,
+        replacement.artifact_health,
+      );
+    }
+    if (prior.metadata.revision?.superseded_by) {
+      if (prior.metadata.revision.superseded_by === replacement.id) {
+        return {
+          superseded: prior,
+          workflow: replacement,
+          invalidated: [],
+          idempotent: true,
+        };
+      }
+      throw new WorkflowStateError(
+        'WORKFLOW_ALREADY_SUPERSEDED',
+        `workflow ${prior.id} was superseded by ${prior.metadata.revision.superseded_by}`,
+      );
+    }
+    const ts = nowIso();
+    const priorMetadata = {
+      ...prior.metadata,
+      revision: {
+        ...(prior.metadata.revision || { generation: 1 }),
+        superseded_by: replacement.id,
+        superseded_at: ts,
+        supersession_reason: reason,
+        authority_status: 'superseded',
+      },
+    };
+    const replacementMetadata = {
+      ...replacement.metadata,
+      revision: {
+        ...replacement.metadata.revision,
+        authority_status: 'current',
+        accepted_at: ts,
+      },
+    };
+    db.prepare(
+      'UPDATE workflow_runs SET metadata_json = ?, updated_at = ? WHERE id = ?',
+    ).run(JSON.stringify(priorMetadata), ts, prior.id);
+    db.prepare(
+      'UPDATE workflow_runs SET metadata_json = ?, updated_at = ? WHERE id = ?',
+    ).run(JSON.stringify(replacementMetadata), ts, replacement.id);
+    const invalidated = artifactRegistry.invalidateConsumersFromEndpointInTx(
+      db,
+      { type: 'workflow', id: prior.id },
+      {
+        reason: 'workflow_superseded',
+        exclude: [{ type: 'workflow', id: replacement.id }],
+      },
+    );
+    ops.appendEventInTx(db, {
+      type: 'workflow_superseded',
+      task_id: prior.task_id,
+      change_id: prior.change_id,
+      payload: {
+        workflow_id: prior.id,
+        replacement_id: replacement.id,
+        reason,
+        invalidated,
+      },
+    });
+    return {
+      superseded: readWorkflow(db, prior.id, { rootDir }),
+      workflow: readWorkflow(db, replacement.id, { rootDir }),
+      invalidated,
+      idempotent: false,
+    };
+  });
+}
+
 function allowedStepTransition(from, to, required) {
   if (from === to) return true;
   if (from === 'pending') return ['in_progress', 'completed', 'blocked'].includes(to)
@@ -1064,6 +1398,13 @@ function recordWorkflowStep(db, input = {}, { rootDir = process.cwd() } = {}) {
     if (!runRow) throw new WorkflowStateError('WORKFLOW_NOT_FOUND', `workflow ${id} not found`);
     if (['completed', 'cancelled'].includes(runRow.status)) {
       throw new WorkflowStateError('WORKFLOW_NOT_MUTABLE', `workflow ${id} is ${runRow.status}`);
+    }
+    const runMetadata = parseJson(runRow.metadata_json, 'workflow_runs.metadata_json', {});
+    if (runMetadata.authority_invalidation?.invalidated === true
+      || runMetadata.revision?.superseded_by) {
+      throw new WorkflowStateError(
+        'WORKFLOW_NOT_MUTABLE', `workflow ${id} no longer owns current authority`,
+      );
     }
     const stepRow = db.prepare('SELECT * FROM workflow_steps WHERE run_id = ? AND step_id = ?').get(id, stepId);
     if (!stepRow) throw new WorkflowStateError('WORKFLOW_STEP_NOT_FOUND', `workflow step ${stepId} not found`);
@@ -1118,7 +1459,7 @@ function recordWorkflowStep(db, input = {}, { rootDir = process.cwd() } = {}) {
       throw new WorkflowStateError('WORKFLOW_OUTPUT_REQUIRED', `${stepId} requires a durable output`);
     }
     if (input.status === 'completed' && runRow.kind === 'research') {
-      validateResearchStepReport(runRow, stepId, outputs, rootDir);
+      validateResearchStepReport(db, runRow, stepId, outputs, rootDir);
       if (semanticRecords.length === 0) {
         throw new WorkflowStateError(
           'WORKFLOW_SEMANTIC_RECORDS_REQUIRED', `${stepId} requires at least one typed semantic record`,
@@ -1154,6 +1495,9 @@ function recordWorkflowStep(db, input = {}, { rootDir = process.cwd() } = {}) {
       JSON.stringify(semanticRecords), JSON.stringify(blockers),
       startedAt, completedAt, ts, id, stepId,
     );
+    if (input.status === 'completed' && runRow.kind === 'research') {
+      registerChangeResearchOutputsInTx(db, runRow, stepId, outputs, rootDir);
+    }
 
     const next = db.prepare(
       `SELECT step_id FROM workflow_steps
@@ -1192,19 +1536,44 @@ function assertIsoTimestamp(value, field) {
   }
 }
 
-function readOutputJson(run, stepId, rootDir, schema) {
+function readOutputJson(db, run, stepId, rootDir, schema) {
   const workflowStep = run.steps.find((item) => item.step_id === stepId);
   const candidates = workflowStep?.outputs || [];
+  const authorityKind = {
+    'ultra-test-report-v1': 'test_report',
+    'ultra-review-summary-v2': 'review_summary',
+    'ultra-delivery-report-v1': 'delivery_report',
+  }[schema];
   for (const output of candidates) {
+    if (authorityKind) {
+      assertChangeArtifactPath(db, run, output.path, `${stepId}.output`);
+    }
     const resolved = safeProjectFile(rootDir, output.path, `${stepId}.output`);
     let value;
-    try { value = JSON.parse(fs.readFileSync(resolved.file, 'utf8')); }
+    try { value = JSON.parse(resolved.text); }
     catch (error) {
       throw new WorkflowStateError(
         'WORKFLOW_REPORT_INVALID', `${output.path} is not valid JSON: ${error.message}`,
       );
     }
     if (value && typeof value === 'object' && !Array.isArray(value) && value.$schema === schema) {
+      if (resolved.digest !== output.digest) {
+        throw new WorkflowStateError(
+          'WORKFLOW_REPORT_INVALID',
+          `${output.path} no longer matches its workflow output digest`,
+        );
+      }
+      if (authorityKind) {
+        requireManagedArtifact(db, {
+          owner_type: 'workflow',
+          owner_id: run.id,
+          kind: authorityKind,
+          artifactPath: output.path,
+          digest: resolved.digest,
+          error_code: 'WORKFLOW_REPORT_INVALID',
+          field: `${stepId}.output`,
+        });
+      }
       return { value, output };
     }
   }
@@ -1215,6 +1584,7 @@ function readOutputJson(run, stepId, rootDir, schema) {
 
 function contextStepForKind(kind) {
   return {
+    plan: 'compile-context',
     change: 'compile-context',
     dev: 'compile-context',
     test: 'compile-context',
@@ -1225,6 +1595,7 @@ function contextStepForKind(kind) {
 
 function contextExpectation(kind) {
   return {
+    plan: { roles: ['plan'], gates: ['planning'] },
     change: { roles: ['plan', 'implement'], gates: ['planning', 'implementation'] },
     dev: { roles: ['implement'], gates: ['implementation'] },
     test: { roles: ['check'], gates: ['verification'] },
@@ -1238,14 +1609,16 @@ function validateContextManifestOutput(db, run, outputs, rootDir, { current = tr
   if (!expectation) return null;
   let candidate = null;
   let manifest = null;
+  let candidateDigest = null;
   for (const output of outputs || []) {
     const resolved = safeProjectFile(rootDir, output.path, 'context output');
     let value;
-    try { value = JSON.parse(fs.readFileSync(resolved.file, 'utf8')); }
+    try { value = JSON.parse(resolved.text); }
     catch { continue; }
     if (value?.schema_version === '3.0' && value?.snapshot_id) {
       candidate = output;
       manifest = value;
+      candidateDigest = resolved.digest;
       break;
     }
   }
@@ -1262,9 +1635,13 @@ function validateContextManifestOutput(db, run, outputs, rootDir, { current = tr
       'WORKFLOW_CONTEXT_MISMATCH', `${run.kind} context is not bound to the expected change, role, gate, or readiness`,
     );
   }
-  if (run.task_id && manifest.resume?.task_id !== run.task_id) {
+  const expectedTaskId = run.task_id || null;
+  if ((manifest.resume?.task_id || null) !== expectedTaskId) {
     throw new WorkflowStateError(
-      'WORKFLOW_CONTEXT_MISMATCH', `${run.kind} context is not bound to task ${run.task_id}`,
+      'WORKFLOW_CONTEXT_MISMATCH',
+      expectedTaskId
+        ? `${run.kind} context is not bound to task ${expectedTaskId}`
+        : `${run.kind} change-wide context must not be task-scoped`,
     );
   }
   const stored = db.prepare(
@@ -1272,23 +1649,52 @@ function validateContextManifestOutput(db, run, outputs, rootDir, { current = tr
      FROM context_snapshots WHERE id = ?`,
   ).get(manifest.snapshot_id);
   if (!stored || stored.manifest_path !== candidate.path || stored.manifest_hash !== candidate.digest
+    || candidateDigest !== candidate.digest
     || stored.change_id !== run.change_id || stored.role !== manifest.role
     || stored.gate !== manifest.gate || stored.readiness !== 'ready'
-    || (run.task_id && stored.task_id !== run.task_id)) {
+    || (stored.task_id || null) !== expectedTaskId) {
     throw new WorkflowStateError(
       'WORKFLOW_CONTEXT_AUTHORITY_MISMATCH', 'context output does not match its authoritative snapshot row',
     );
   }
-  if (current) {
-    const checkout = currentCheckout(rootDir);
-    if ((checkout.head && manifest.git?.head !== checkout.head)
-      || (checkout.digest && manifest.git?.worktree_digest !== checkout.digest)) {
-      throw new WorkflowStateError(
-        'WORKFLOW_CONTEXT_STALE', `${run.kind} context does not match the current checkout`,
-      );
-    }
+  requireManagedArtifact(db, {
+    owner_type: expectedTaskId ? 'task' : 'change',
+    owner_id: expectedTaskId || run.change_id,
+    kind: 'context_manifest',
+    artifactPath: candidate.path,
+    digest: candidateDigest,
+    error_code: 'WORKFLOW_CONTEXT_AUTHORITY_MISMATCH',
+    field: 'context output',
+    statuses: run.kind === 'deliver'
+      && db.prepare('SELECT status FROM changes WHERE id = ?').get(run.change_id)?.status === 'archived'
+      ? ['archived']
+      : ['current'],
+  });
+  const validation = require('./context-spine.cjs').validateContextSnapshot(db, {
+    change_id: run.change_id,
+    task_id: expectedTaskId,
+    role: manifest.role,
+    gate: manifest.gate,
+  }, {
+    rootDir,
+    require_current_checkout: current,
+  });
+  const blockers = [...validation.blockers];
+  if (validation.snapshot?.id !== manifest.snapshot_id) {
+    blockers.push('CONTEXT_SNAPSHOT_SUPERSEDED');
   }
-  return { manifest, output: candidate };
+  if (blockers.length > 0) {
+    throw new WorkflowStateError(
+      'WORKFLOW_CONTEXT_STALE',
+      `${run.kind} context no longer matches current task, change, reference, or checkout authority`,
+      { blockers: [...new Set(blockers)] },
+    );
+  }
+  return {
+    manifest,
+    output: candidate,
+    warnings: validation.warnings || [],
+  };
 }
 
 function recordedContext(db, run, rootDir, options) {
@@ -1335,11 +1741,15 @@ function taskPlanDigest(task) {
 }
 
 function latestCompletedWorkflow(db, { kind, changeId, taskId = null }, rootDir) {
-  const row = db.prepare(
+  const rows = db.prepare(
     `SELECT id FROM workflow_runs
      WHERE kind = ? AND change_id = ? AND task_id IS ? AND status = 'completed'
-     ORDER BY completed_at DESC, rowid DESC LIMIT 1`,
-  ).get(kind, changeId, taskId);
+     ORDER BY completed_at DESC, rowid DESC`,
+  ).all(kind, changeId, taskId);
+  const row = rows.find((candidate) => {
+    const run = readWorkflow(db, candidate.id, { rootDir });
+    return isConsumableWorkflowAuthority(run);
+  });
   return row ? readWorkflow(db, row.id, { rootDir }) : null;
 }
 
@@ -1518,6 +1928,7 @@ function validateDevCompletion(db, run, rootDir) {
     verification_command: task.verification_command,
     context_path: context.output.path,
     context_digest: context.output.digest,
+    context_warnings: context.warnings,
     git_commit: checkout.head,
     worktree_digest: checkout.digest,
     review_workflow_id: review.id,
@@ -1554,6 +1965,14 @@ function validateChangeCompletion(db, run, rootDir) {
 function validateDeliveryPrerequisites(db, run, rootDir) {
   const tasks = assertDevelopmentComplete(db, run.change_id, rootDir);
   const taskIds = tasks.map((task) => task.id).sort();
+  const change = db.prepare(
+    'SELECT id, kind, contract_json FROM changes WHERE id = ?',
+  ).get(run.change_id);
+  if (!change) {
+    throw new WorkflowStateError(
+      'WORKFLOW_CHANGE_NOT_FOUND', `change ${run.change_id || '(missing)'} does not exist`,
+    );
+  }
   const test = latestCompletedWorkflow(
     db, { kind: 'test', changeId: run.change_id, taskId: null }, rootDir,
   );
@@ -1565,6 +1984,38 @@ function validateDeliveryPrerequisites(db, run, rootDir) {
     throw new WorkflowStateError(
       'WORKFLOW_GATE_STALE', `test gate for ${run.change_id} does not cover the current task set`,
     );
+  }
+  const contract = parseJson(change.contract_json, 'changes.contract_json', {});
+  const acceptanceIds = (contract.acceptance || []).map((item) => item.id).sort();
+  if (JSON.stringify([...(test.summary.acceptance_ids || [])].sort())
+    !== JSON.stringify(acceptanceIds)) {
+    throw new WorkflowStateError(
+      'WORKFLOW_ACCEPTANCE_EVIDENCE_STALE',
+      `test gate for ${run.change_id} does not cover the current accepted intent`,
+    );
+  }
+  if (['standard', 'major'].includes(change.kind)) {
+    try {
+      // Lazy loading avoids the baseline-workflow <-> workflow-state module
+      // cycle while keeping packet validation on the live Deliver boundary.
+      const changePacket = require('./change-packet.cjs');
+      changePacket.deliveryEntries(db, {
+        ...change,
+        contract,
+        docs_impact: parseJson(
+          db.prepare('SELECT docs_impact_json FROM changes WHERE id = ?').get(run.change_id)
+            .docs_impact_json,
+          'changes.docs_impact_json',
+          {},
+        ),
+      }, { rootDir });
+    } catch (error) {
+      throw new WorkflowStateError(
+        error.code || 'CHANGE_PACKET_INVALID',
+        `delivery packet for ${run.change_id} is not current: ${error.message}`,
+        error.details,
+      );
+    }
   }
   const review = assertApprovedReview(db, run.change_id, null, rootDir);
   if (JSON.stringify([...(review.summary.task_ids || [])].sort()) !== JSON.stringify(taskIds)) {
@@ -1578,6 +2029,7 @@ function validateDeliveryPrerequisites(db, run, rootDir) {
     review_workflow_id: review.id,
     test_summary: test.summary,
     review_summary: review.summary,
+    acceptance_ids: acceptanceIds,
   };
 }
 
@@ -1657,7 +2109,7 @@ function validateTestCompletion(db, run, rootDir) {
   assertDevelopmentComplete(db, run.change_id, rootDir, run.task_id);
   const context = recordedContext(db, run, rootDir, { current: true });
   const { value: report, output } = readOutputJson(
-    run, 'write-report', rootDir, 'ultra-test-report-v1',
+    db, run, 'write-report', rootDir, 'ultra-test-report-v1',
   );
   assertReportSchema(report, 'test');
   const verificationProfile = validateVerificationProfile(report);
@@ -1717,6 +2169,7 @@ function validateTestCompletion(db, run, rootDir) {
   return {
     change_id: run.change_id,
     task_ids: report.task_ids,
+    acceptance_ids: report.acceptance.map((item) => item.id).sort(),
     passed: report.passed,
     git_commit: checkout.head,
     worktree_digest: checkout.digest,
@@ -1724,6 +2177,7 @@ function validateTestCompletion(db, run, rootDir) {
     report_digest: output.digest,
     context_path: context.output.path,
     context_digest: context.output.digest,
+    context_warnings: context.warnings,
     regression_signal: report.regression_signal,
     verification_profile: verificationProfile,
     verification_dimensions: report.verification_dimensions,
@@ -1775,7 +2229,7 @@ function validateReviewFinding(finding, axis, seenIds, label) {
   seenIds.add(finding.id);
 }
 
-function readReviewSpecialists(run, rootDir) {
+function readReviewSpecialists(db, run, rootDir) {
   const axes = [
     ['review-specification', 'spec_fidelity'],
     ['review-engineering', 'engineering_standards'],
@@ -1791,12 +2245,28 @@ function readReviewSpecialists(run, rootDir) {
       throw new WorkflowStateError('WORKFLOW_REPORT_INVALID', `${stepId} has no specialist artifact`);
     }
     for (const output of outputs) {
+      assertChangeArtifactPath(db, run, output.path, `${stepId}.output`);
       const resolved = safeProjectFile(rootDir, output.path, `${stepId}.output`);
       let artifact;
-      try { artifact = JSON.parse(fs.readFileSync(resolved.file, 'utf8')); }
+      try { artifact = JSON.parse(resolved.text); }
       catch (error) {
         throw new WorkflowStateError('WORKFLOW_REPORT_INVALID', `${output.path} is not valid JSON: ${error.message}`);
       }
+      if (resolved.digest !== output.digest) {
+        throw new WorkflowStateError(
+          'WORKFLOW_REPORT_INVALID',
+          `${output.path} no longer matches its workflow output digest`,
+        );
+      }
+      requireManagedArtifact(db, {
+        owner_type: 'workflow',
+        owner_id: run.id,
+        kind: 'review_findings',
+        artifactPath: output.path,
+        digest: resolved.digest,
+        error_code: 'WORKFLOW_REPORT_INVALID',
+        field: `${stepId}.output`,
+      });
       if (artifact?.$schema !== 'ultra-review-findings-v2'
         || artifact.axis !== expectedAxis || artifact.status !== 'complete'
         || !String(artifact.agent || '').trim() || !String(artifact.session || '').trim()
@@ -1925,9 +2395,9 @@ function assertCoordinatedReviewEvidence(report, specialists) {
 
 function validateReviewCompletion(db, run, rootDir) {
   const context = recordedContext(db, run, rootDir, { current: true });
-  const specialists = readReviewSpecialists(run, rootDir);
+  const specialists = readReviewSpecialists(db, run, rootDir);
   const { value: report, output } = readOutputJson(
-    run, 'coordinate-findings', rootDir, 'ultra-review-summary-v2',
+    db, run, 'coordinate-findings', rootDir, 'ultra-review-summary-v2',
   );
   if (report.change_id !== run.change_id) {
     throw new WorkflowStateError('WORKFLOW_REPORT_CHANGE_MISMATCH', 'review summary change_id is not bound to the workflow');
@@ -2000,6 +2470,7 @@ function validateReviewCompletion(db, run, rootDir) {
     report_digest: output.digest,
     context_path: context.output.path,
     context_digest: context.output.digest,
+    context_warnings: context.warnings,
   };
 }
 
@@ -2013,7 +2484,7 @@ function validateDeliveryCompletion(db, run, rootDir) {
     );
   }
   const { value: report, output } = readOutputJson(
-    run, 'verify-delivery', rootDir, 'ultra-delivery-report-v1',
+    db, run, 'verify-delivery', rootDir, 'ultra-delivery-report-v1',
   );
   if (report.release !== undefined) {
     throw new WorkflowStateError(
@@ -2058,6 +2529,7 @@ function validateDeliveryCompletion(db, run, rootDir) {
     report_digest: output.digest,
     context_path: context.output.path,
     context_digest: context.output.digest,
+    context_warnings: context.warnings,
     ...gates,
   };
 }
@@ -2073,6 +2545,7 @@ function validateStageCompletion(db, run, rootDir) {
 }
 
 function validatePlanArtifact(db, run, rootDir) {
+  const context = recordedContext(db, run, rootDir, { current: false });
   const workflowStep = run.steps.find((item) => item.step_id === 'verify-plan');
   const outputs = workflowStep?.outputs || [];
   if (outputs.length !== 1) {
@@ -2082,19 +2555,39 @@ function validatePlanArtifact(db, run, rootDir) {
     );
   }
   const output = outputs[0];
-  const resolved = safeProjectFile(rootDir, output.path, 'verify-plan.output');
+  const change = db.prepare('SELECT id, artifact_root FROM changes WHERE id = ?').get(run.change_id);
+  const planStore = require('./plan-store.cjs');
   let actual;
-  try { actual = JSON.parse(fs.readFileSync(resolved.file, 'utf8')); }
+  try {
+    actual = planStore.loadChangePlanArtifact(rootDir, change, { db, strict: true });
+  }
   catch (error) {
     throw new WorkflowStateError(
       'WORKFLOW_PLAN_ARTIFACT_INVALID',
-      `${output.path} is not valid JSON: ${error.message}`,
+      `${output.path} is not a current canonical Change plan: ${error.message}`,
     );
   }
+  const expectedPaths = planStore.changePlanPaths(rootDir, change);
+  const expectedJsonRelative = path.relative(rootDir, expectedPaths.json).split(path.sep).join('/');
+  if (output.path !== expectedJsonRelative) {
+    throw new WorkflowStateError(
+      'WORKFLOW_PLAN_ARTIFACT_INVALID',
+      `verify-plan must use the owning Change artifact ${expectedJsonRelative}`,
+    );
+  }
+  requireManagedArtifact(db, {
+    owner_type: 'change',
+    owner_id: run.change_id,
+    kind: 'execution_plan',
+    artifactPath: output.path,
+    digest: output.digest,
+    error_code: 'WORKFLOW_PLAN_ARTIFACT_INVALID',
+    field: 'verify-plan.output',
+  });
   const tasks = changeTasks(db, run.change_id);
-  const planStore = require('./plan-store.cjs');
   const expected = planStore.buildPlan(tasks, { changeId: run.change_id });
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+  const { context: actualContext, ...actualPlan } = actual || {};
+  if (JSON.stringify(actualPlan) !== JSON.stringify(expected)) {
     throw new WorkflowStateError(
       'WORKFLOW_PLAN_ARTIFACT_STALE',
       'execution-plan artifact does not match the current change task graph and contracts',
@@ -2105,9 +2598,51 @@ function validatePlanArtifact(db, run, rootDir) {
       },
     );
   }
+  if (!actualContext
+    || actualContext.snapshot_id !== context.manifest.snapshot_id
+    || actualContext.manifest_path !== context.output.path
+    || actualContext.manifest_digest !== context.output.digest) {
+    throw new WorkflowStateError(
+      'WORKFLOW_PLAN_CONTEXT_MISMATCH',
+      'execution-plan artifact is not bound to the compile-context output',
+    );
+  }
+  const expectedMdRelative = path.relative(rootDir, expectedPaths.md).split(path.sep).join('/');
+  let planMd;
+  try {
+    planMd = safeProjectFile(rootDir, expectedMdRelative, 'verify-plan.markdown');
+    requireManagedArtifact(db, {
+      owner_type: 'change',
+      owner_id: run.change_id,
+      kind: 'execution_plan_markdown',
+      artifactPath: expectedMdRelative,
+      digest: planMd.digest,
+      error_code: 'WORKFLOW_PLAN_ARTIFACT_INVALID',
+      field: 'verify-plan.markdown',
+    });
+  } catch (error) {
+    if (error instanceof WorkflowStateError && error.code === 'WORKFLOW_PLAN_ARTIFACT_INVALID') {
+      throw error;
+    }
+    throw new WorkflowStateError(
+      'WORKFLOW_PLAN_ARTIFACT_STALE',
+      `change-scoped plan.md is missing or unsafe: ${error.message}`,
+    );
+  }
+  if (planMd.text !== planStore.renderPlanMd(actual, { tasks })) {
+    throw new WorkflowStateError(
+      'WORKFLOW_PLAN_ARTIFACT_STALE',
+      'change-scoped plan.md is missing or does not match plan.json and current task contracts',
+    );
+  }
   return {
     plan_path: output.path,
     plan_digest: output.digest,
+    plan_md_path: expectedMdRelative,
+    plan_context_path: context.output.path,
+    plan_context_digest: context.output.digest,
+    context_warnings: context.warnings,
+    plan_context_snapshot_id: context.manifest.snapshot_id,
     plan_schema_version: actual.schema_version,
     plan_wave_count: actual.waves.length,
   };
@@ -2121,6 +2656,12 @@ function completeWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
     if (run.status === 'completed') return run;
     if (run.status !== 'ready') {
       throw new WorkflowStateError('WORKFLOW_NOT_READY', `workflow ${id} is ${run.status}`);
+    }
+    if (run.metadata.authority_invalidation?.invalidated === true
+      || run.metadata.revision?.superseded_by) {
+      throw new WorkflowStateError(
+        'WORKFLOW_NOT_MUTABLE', `workflow ${id} no longer owns current authority`,
+      );
     }
     decisionDialogue.assertDecisionGate(db, {
       workflow_run_id: run.id,
@@ -2211,12 +2752,20 @@ function validatePlanApproval(approval) {
 }
 
 function completedResearchSemantics(db, changeId) {
+  const runs = db.prepare(
+    `SELECT id, metadata_json FROM workflow_runs
+     WHERE kind = 'research' AND change_id = ? AND status = 'completed'
+     ORDER BY completed_at DESC, rowid DESC`,
+  ).all(changeId).filter((row) => {
+    const metadata = parseJson(row.metadata_json, 'workflow_runs.metadata_json', {});
+    return isConsumableWorkflowAuthority({ metadata });
+  });
+  if (runs.length === 0) return [];
+  const placeholders = runs.map(() => '?').join(', ');
   return db.prepare(
-    `SELECT ws.semantic_records_json
-     FROM workflow_steps ws JOIN workflow_runs wr ON wr.id = ws.run_id
-     WHERE wr.kind = 'research' AND wr.change_id = ? AND wr.status = 'completed'
-       AND ws.required = 1 AND ws.status = 'completed'`,
-  ).all(changeId).flatMap((row) => (
+    `SELECT semantic_records_json FROM workflow_steps
+     WHERE run_id IN (${placeholders}) AND required = 1 AND status = 'completed'`,
+  ).all(...runs.map((row) => row.id)).flatMap((row) => (
     parseJson(row.semantic_records_json, 'workflow_steps.semantic_records_json', [])
   ));
 }
@@ -2402,6 +2951,8 @@ module.exports = {
   readWorkflow,
   listWorkflows,
   recordWorkflowStep,
+  reviseWorkflow,
+  supersedeWorkflow,
   completeWorkflow,
   inspectWorkflowHealth,
   recoverUntrackedChangeWorkflows,
@@ -2409,5 +2960,6 @@ module.exports = {
   validatePlanContract,
   assertCurrentPlan,
   assertApprovedReview,
+  isConsumableWorkflowAuthority,
   resolveProjectSourceRef: sourceRefFile,
 };

@@ -693,11 +693,14 @@ function storedReadyInvariantBlockers(baseline) {
 
 function completedBaselineResearch(db, baseline, rootDir) {
   const acceptedMode = baseline.mode === 'greenfield' ? 'full' : 'adoption';
-  const row = db.prepare(
+  const rows = db.prepare(
     `SELECT id FROM workflow_runs
      WHERE kind = 'research' AND baseline_id = ? AND mode = ? AND status = 'completed'
-     ORDER BY completed_at DESC, rowid DESC LIMIT 1`,
-  ).get(baseline.id, acceptedMode);
+     ORDER BY completed_at DESC, rowid DESC`,
+  ).all(baseline.id, acceptedMode);
+  const row = rows.find((candidate) => workflows.isConsumableWorkflowAuthority(
+    workflows.readWorkflow(db, candidate.id, { rootDir }),
+  ));
   return row ? workflows.readWorkflow(db, row.id, { rootDir }) : null;
 }
 
@@ -883,6 +886,7 @@ function inferSpecKind(file) {
 
 function reconcileBaseline(db, {
   baseline_updates = [], change_id = null, reconciliation = null,
+  accept_delivery_worktree = false,
 } = {}, {
   rootDir = process.cwd(), emitEvent = true,
 } = {}) {
@@ -926,11 +930,12 @@ function reconcileBaseline(db, {
   ops.tx(db, () => {
     db.prepare(
       `UPDATE baselines SET repository_revision = ?, repository_branch = ?, worktree_state = ?,
-       worktree_digest = ?, worktree_files_json = ?, worktree_accepted = 0,
+       worktree_digest = ?, worktree_files_json = ?, worktree_accepted = ?,
        spec_refs_json = ?, evidence_json = ?, gaps_json = ?, unknowns_json = ?,
        updated_at = ? WHERE id = ?`,
     ).run(
       revision, snapshot.branch, snapshot.state, snapshot.digest, JSON.stringify(snapshot.files),
+      accept_delivery_worktree && snapshot.state === 'dirty' ? 1 : 0,
       JSON.stringify(specs), JSON.stringify(evidence), JSON.stringify(gaps),
       JSON.stringify(unknowns), ts, current.id,
     );

@@ -15,6 +15,7 @@ const {
   writeAtomic,
 } = require('./_shared/file-ops.cjs');
 const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
+const { adaptInteractionGuidance } = require('./_shared/interaction-contract.cjs');
 const provenance = require('./_shared/provenance.cjs');
 const {
   CORE_PUBLIC_SKILLS,
@@ -67,7 +68,7 @@ function lowercaseFrontmatterTransform(buf, relPath) {
 }
 
 function openCodeTextTransform(input, assetName = '') {
-  let text = String(input);
+  let text = adaptInteractionGuidance(input, 'opencode');
   text = text.replaceAll('$CLAUDE_PLUGIN_ROOT/skills', '~/.config/opencode/skills');
   text = text.replaceAll('~/.claude/skills', '~/.config/opencode/skills');
   text = text.replaceAll('~/.claude/hooks', '~/.config/opencode/.ultra-builder-pro/hooks');
@@ -95,9 +96,6 @@ function openCodeTextTransform(input, assetName = '') {
       /the current host's native bounded-worker\s+mechanism/g,
       'the OpenCode `task` tool using the installed bounded review agents',
     );
-  }
-  if (assetName === 'learn') {
-    text = text.replaceAll("current host's user skill directory", '`~/.config/opencode/skills`');
   }
   return text;
 }
@@ -335,7 +333,6 @@ function preflightAssets(repoRoot, target) {
 
 function pluginSource() {
   return `// Managed by Ultra Builder Pro. Rebuild through the adapter; do not edit in place.
-import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -347,36 +344,29 @@ const BREADCRUMB_CLI = path.resolve(
   PLUGIN_DIR, "..", ${JSON.stringify(BUNDLE_DIR)}, "runtime", "breadcrumb.cjs",
 );
 
-function findUltraRoot(directory) {
-  let current = path.resolve(directory);
-  while (true) {
-    const stateDb = path.join(current, ".ultra", "state.db");
-    if (fs.existsSync(stateDb) && fs.statSync(stateDb).isFile()) return current;
-    const parent = path.dirname(current);
-    if (parent === current) return null;
-    current = parent;
-  }
-}
-
 function readUltraContext(directory) {
-  const root = findUltraRoot(directory);
-  if (!root) return null;
   try {
-    const raw = execFileSync(NODE_BINARY, [BREADCRUMB_CLI, root], {
-      cwd: root,
+    const raw = execFileSync(NODE_BINARY, [BREADCRUMB_CLI, "--discover", directory], {
+      cwd: directory,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 5000,
     });
     const value = JSON.parse(raw);
+    const root = value?.root;
+    if (typeof root !== "string" || !root) return null;
     // A canonical breadcrumb is injectable only while DB authority proves an active workflow.
     if (!value?.breadcrumb || !value.breadcrumb.workflow
         || typeof value.text !== "string" || !value.text) {
       return { root, breadcrumb: null, text: null };
     }
     return { root, breadcrumb: value.breadcrumb, text: value.text };
-  } catch {
-    return { root, breadcrumb: null, text: null };
+  } catch (error) {
+    const detail = String(error?.stderr || error?.message || error);
+    if (/RUNTIME_(?:STATE_CONFLICT|PATH_UNSAFE|ORPHAN_SIDECAR|ROOT_INVALID|AUTHORITY_MISMATCH)|both legacy .*runtime.*state\\.db/i.test(detail)) {
+      throw new Error(detail.trim());
+    }
+    return null;
   }
 }
 
@@ -392,11 +382,22 @@ function targetPaths(tool, args) {
   return [...new Set(paths)];
 }
 
-function isTasksProjection(active, candidate) {
+function projectionRootForTarget(baseRoot, candidate) {
   const target = path.isAbsolute(candidate)
     ? path.resolve(candidate)
-    : path.resolve(active.root, candidate);
-  return target === path.resolve(active.root, TASKS_PROJECTION);
+    : path.resolve(baseRoot, candidate);
+  if (path.basename(target) !== "tasks.json"
+      || path.basename(path.dirname(target)) !== "tasks"
+      || path.basename(path.dirname(path.dirname(target))) !== ".ultra") {
+    return null;
+  }
+  return path.dirname(path.dirname(path.dirname(target)));
+}
+
+function protectsTasksProjection(baseRoot, candidate) {
+  const targetRoot = projectionRootForTarget(baseRoot, candidate);
+  if (!targetRoot) return false;
+  return Boolean(readUltraContext(targetRoot));
 }
 
 export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
@@ -417,13 +418,14 @@ export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
     },
     "tool.execute.before": async (input, output) => {
       refresh();
-      if (!active) return;
       const tool = String(input?.tool ?? "").toLowerCase();
       if (!["write", "edit", "apply_patch"].includes(tool)) return;
-      if (targetPaths(tool, output?.args).some((candidate) => isTasksProjection(active, candidate))) {
+      if (targetPaths(tool, output?.args).some(
+        (candidate) => protectsTasksProjection(root, candidate),
+      )) {
         throw new Error(
           "Ultra Builder Pro refused a direct write to .ultra/tasks/tasks.json. " +
-          ".ultra/state.db is authoritative; use MCP task tools and run ultra-doctor when state or projection health is degraded."
+          ".ultra/.runtime/state.db is authoritative; use MCP task tools and run ultra-doctor when state or projection health is degraded."
         );
       }
     },

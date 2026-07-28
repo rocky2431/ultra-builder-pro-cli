@@ -26,7 +26,7 @@ function run(feature, payload, args = []) {
 
 function seedContext(project, taskId = 'task-7') {
   fs.writeFileSync(path.join(project, 'contract.md'), '# Hook contract\n');
-  const state = initStateDb(path.join(project, '.ultra', 'state.db'));
+  const state = initStateDb(path.join(project, '.ultra', '.runtime', 'state.db'));
   seedReadyBaseline(state.db, { rootDir: project, id: 'baseline' });
   const { change } = createChange(state.db, completeChangeInput({
     id: 'hook-change', title: 'Hook change', kind: 'quick',
@@ -94,7 +94,7 @@ test('Kimi hook adapter translates active edit context to the native message fie
 test('Kimi hook adapter emits the native deny contract after Ultra initialization', () => {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-kimi-hook-deny-'));
   try {
-    const state = initStateDb(path.join(project, '.ultra', 'state.db'));
+    const state = initStateDb(path.join(project, '.ultra', '.runtime', 'state.db'));
     closeStateDb(state.db);
     const result = run('active_task_context.py', {
       session_id: 'session-deny',
@@ -106,7 +106,10 @@ test('Kimi hook adapter emits the native deny contract after Ultra initializatio
     assert.equal(result.status, 0, result.stderr);
     const output = JSON.parse(result.stdout);
     assert.equal(output.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(output.hookSpecificOutput.permissionDecisionReason, /\.ultra\/state\.db/);
+    assert.match(
+      output.hookSpecificOutput.permissionDecisionReason,
+      /\.ultra\/\.runtime\/state\.db/,
+    );
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
   }

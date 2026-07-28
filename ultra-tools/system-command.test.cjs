@@ -18,7 +18,7 @@ const CLI = path.join(__dirname, 'cli.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-system-cli-'));
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(path.join(rootDir, '.ultra', '.runtime', 'state.db'));
   seedReadyBaseline(db, { rootDir, id: 'test-baseline', projectName: 'fixture' });
   closeStateDb(db);
   return rootDir;
@@ -61,7 +61,7 @@ test('system doctor --repair creates a backup before recovery', () => {
 test('system doctor --repair migrates an older schema only after preserving a pre-migration backup', () => {
   const rootDir = fixture();
   try {
-    const dbPath = path.join(rootDir, '.ultra', 'state.db');
+    const dbPath = path.join(rootDir, '.ultra', '.runtime', 'state.db');
     const Database = require('better-sqlite3');
     const db = new Database(dbPath);
     db.prepare('DELETE FROM schema_version WHERE version = ?').run(EXPECTED_VERSION);
@@ -82,8 +82,11 @@ test('system doctor --repair migrates an older schema only after preserving a pr
 test('system doctor reports a corrupt database as structured recovery guidance', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-system-corrupt-'));
   try {
-    fs.mkdirSync(path.join(rootDir, '.ultra'), { recursive: true });
-    fs.writeFileSync(path.join(rootDir, '.ultra', 'state.db'), 'not a sqlite database');
+    fs.mkdirSync(path.join(rootDir, '.ultra', '.runtime'), { recursive: true });
+    fs.writeFileSync(
+      path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+      'not a sqlite database',
+    );
     const result = invoke(rootDir, ['doctor']);
     assert.equal(result.status, 2);
     const envelope = JSON.parse(result.stdout.trim().split('\n').at(-1));
@@ -98,8 +101,8 @@ test('system doctor reports a corrupt database as structured recovery guidance',
 test('system restore replaces only a corrupt state database from a verified managed backup', () => {
   const rootDir = fixture();
   try {
-    const dbPath = path.join(rootDir, '.ultra', 'state.db');
-    const backupsDir = path.join(rootDir, '.ultra', 'backups');
+    const dbPath = path.join(rootDir, '.ultra', '.runtime', 'state.db');
+    const backupsDir = path.join(rootDir, '.ultra', '.runtime', 'backups');
     fs.mkdirSync(backupsDir, { recursive: true });
     const sourceBackup = path.join(backupsDir, 'verified.db');
     fs.copyFileSync(dbPath, sourceBackup);
@@ -133,16 +136,93 @@ test('system restore replaces only a corrupt state database from a verified mana
   }
 });
 
+test('system restore preserves committed data that exists only in a managed WAL snapshot', () => {
+  const rootDir = fixture();
+  try {
+    const Database = require('better-sqlite3');
+    const statePath = path.join(rootDir, '.ultra', '.runtime', 'state.db');
+    const backupsDir = path.join(rootDir, '.ultra', '.runtime', 'backups');
+    const sourcePath = path.join(rootDir, 'wal-source.db');
+    fs.mkdirSync(backupsDir, { recursive: true });
+
+    const initialized = initStateDb(sourcePath);
+    const sourceDb = initialized.db;
+    sourceDb.pragma('journal_mode = WAL');
+    sourceDb.pragma('wal_autocheckpoint = 0');
+    sourceDb.prepare(
+      "INSERT INTO events(type, payload_json) VALUES ('wal-only-proof', '{\"preserved\":true}')",
+    ).run();
+    assert.ok(fs.existsSync(`${sourcePath}-wal`));
+    assert.ok(fs.statSync(`${sourcePath}-wal`).size > 0);
+
+    const sourceBackup = path.join(backupsDir, 'wal-snapshot.db');
+    for (const suffix of ['', '-wal', '-shm']) {
+      if (fs.existsSync(`${sourcePath}${suffix}`)) {
+        fs.copyFileSync(`${sourcePath}${suffix}`, `${sourceBackup}${suffix}`);
+      }
+    }
+    closeStateDb(sourceDb);
+    fs.writeFileSync(statePath, 'not a sqlite database');
+
+    const restored = invoke(rootDir, [
+      'restore', '--backup', sourceBackup,
+      '--confirm', 'REPLACE_CORRUPT_ULTRA_STATE',
+    ]);
+    assert.equal(restored.status, 0, restored.stderr || restored.stdout);
+
+    const restoredDb = new Database(statePath, { readonly: true, fileMustExist: true });
+    try {
+      assert.equal(
+        restoredDb.prepare("SELECT COUNT(*) AS count FROM events WHERE type = 'wal-only-proof'").get().count,
+        1,
+      );
+    } finally {
+      restoredDb.close();
+    }
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('system restore follows a legacy managed backup path through runtime migration', () => {
+  const rootDir = fixture();
+  try {
+    const statePath = path.join(rootDir, '.ultra', '.runtime', 'state.db');
+    const legacyBackup = path.join( // runtime-path-compatibility fixture
+      rootDir, '.ultra', 'backups', 'legacy.db',
+    );
+    fs.mkdirSync(path.dirname(legacyBackup), { recursive: true });
+    fs.copyFileSync(statePath, legacyBackup);
+    fs.writeFileSync(statePath, 'not a sqlite database');
+
+    const restored = invoke(rootDir, [
+      'restore', '--backup', legacyBackup,
+      '--confirm', 'REPLACE_CORRUPT_ULTRA_STATE',
+    ]);
+
+    assert.equal(restored.status, 0, restored.stderr || restored.stdout);
+    const envelope = JSON.parse(restored.stdout);
+    assert.match(envelope.data.source_backup, /\.ultra\/\.runtime\/backups\/legacy\.db$/);
+    assert.equal(fs.existsSync(legacyBackup), false);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
 test('system rebaseline preserves corrupt authority and legacy projection before starting brownfield adoption', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-system-rebaseline-'));
   try {
     fs.mkdirSync(path.join(rootDir, 'src'), { recursive: true });
     fs.mkdirSync(path.join(rootDir, '.ultra', 'tasks', 'contexts'), { recursive: true });
     fs.writeFileSync(path.join(rootDir, 'src', 'index.js'), 'module.exports = true;\n');
-    fs.writeFileSync(path.join(rootDir, '.ultra', 'state.db'), 'broken authority');
+    fs.mkdirSync(path.join(rootDir, '.ultra', '.runtime'), { recursive: true });
+    fs.writeFileSync(
+      path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+      'broken authority',
+    );
     const tasksPath = path.join(rootDir, '.ultra', 'tasks', 'tasks.json');
     fs.writeFileSync(tasksPath, `${JSON.stringify({
-      schema_version: '4.5', source: '.ultra/state.db',
+      schema_version: '4.5', source: '.ultra/.runtime/state.db',
       tasks: [{ id: 'legacy-task', title: 'Preserved task', type: 'feature', priority: 'P1', status: 'pending' }],
     }, null, 2)}\n`);
     fs.writeFileSync(
@@ -182,9 +262,10 @@ test('system restore rolls back the corrupt database and sidecars when replaceme
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-system-restore-rollback-'));
   try {
     const ultraDir = path.join(rootDir, '.ultra');
-    const backupsDir = path.join(ultraDir, 'backups');
+    const runtimeDir = path.join(ultraDir, '.runtime');
+    const backupsDir = path.join(runtimeDir, 'backups');
     fs.mkdirSync(backupsDir, { recursive: true });
-    const statePath = path.join(ultraDir, 'state.db');
+    const statePath = path.join(runtimeDir, 'state.db');
     const originals = {
       '': Buffer.from('broken authority'),
       '-wal': Buffer.from('broken wal'),
@@ -223,7 +304,8 @@ test('system rebaseline rolls back authority, sidecars, and the full task projec
     fs.mkdirSync(path.join(tasksDir, 'contexts'), { recursive: true });
     fs.mkdirSync(path.join(rootDir, 'src'), { recursive: true });
     fs.writeFileSync(path.join(rootDir, 'src', 'index.js'), 'module.exports = true;\n');
-    const statePath = path.join(ultraDir, 'state.db');
+    const statePath = path.join(ultraDir, '.runtime', 'state.db');
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
     const originals = {
       '': Buffer.from('broken authority'),
       '-wal': Buffer.from('broken wal'),
@@ -234,7 +316,7 @@ test('system rebaseline rolls back authority, sidecars, and the full task projec
     }
     const tasksPath = path.join(tasksDir, 'tasks.json');
     const contextPath = path.join(tasksDir, 'contexts', 'legacy.md');
-    const tasksContent = Buffer.from('{"schema_version":"4.5","source":".ultra/state.db","tasks":[]}\n');
+    const tasksContent = Buffer.from('{"schema_version":"4.5","source":".ultra/.runtime/state.db","tasks":[]}\n');
     const contextContent = Buffer.from('# Legacy context\n');
     fs.writeFileSync(tasksPath, tasksContent);
     fs.writeFileSync(contextPath, contextContent);
@@ -261,9 +343,11 @@ test('system restore rejects backups outside the managed project backup director
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-system-external-backup-'));
   const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-external-backup-'));
   try {
-    fs.mkdirSync(path.join(rootDir, '.ultra'), { recursive: true });
-    fs.mkdirSync(path.join(rootDir, '.ultra', 'backups'), { recursive: true });
-    fs.writeFileSync(path.join(rootDir, '.ultra', 'state.db'), 'broken authority');
+    fs.mkdirSync(path.join(rootDir, '.ultra', '.runtime', 'backups'), { recursive: true });
+    fs.writeFileSync(
+      path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+      'broken authority',
+    );
     const external = path.join(externalDir, 'state.db');
     fs.writeFileSync(external, 'not trusted');
     const result = invoke(rootDir, [
@@ -281,10 +365,10 @@ test('system restore rejects backups outside the managed project backup director
 test('system corrupt-state recovery commands refuse to replace readable authority', () => {
   const rootDir = fixture();
   try {
-    const backupsDir = path.join(rootDir, '.ultra', 'backups');
+    const backupsDir = path.join(rootDir, '.ultra', '.runtime', 'backups');
     fs.mkdirSync(backupsDir, { recursive: true });
     const backup = path.join(backupsDir, 'healthy.db');
-    fs.copyFileSync(path.join(rootDir, '.ultra', 'state.db'), backup);
+    fs.copyFileSync(path.join(rootDir, '.ultra', '.runtime', 'state.db'), backup);
 
     const restore = invoke(rootDir, [
       'restore', '--backup', backup,
@@ -300,7 +384,10 @@ test('system corrupt-state recovery commands refuse to replace readable authorit
     assert.equal(rebaseline.status, 2);
     assert.equal(JSON.parse(rebaseline.stdout.trim()).error.code, 'STATE_DB_NOT_CORRUPT');
 
-    const db = require('better-sqlite3')(path.join(rootDir, '.ultra', 'state.db'), { readonly: true });
+    const db = require('better-sqlite3')(
+      path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+      { readonly: true },
+    );
     try {
       assert.equal(db.prepare('SELECT COUNT(*) AS count FROM baselines').get().count, 1);
     } finally { db.close(); }

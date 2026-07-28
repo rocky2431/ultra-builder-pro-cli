@@ -2,13 +2,13 @@
 
 // Phase 8B.2 — Parallel orchestrator.
 //
-// Consumes an execution-plan.json (built by Phase 8A.4a plan-builder) and
+// Consumes the current Change-scoped plan.json (built by the plan workflow) and
 // drives resumable per-wave session spawning. Each wave is either parallel
 // (batch Promise.all on proc exit) or serial (await per task) based on the
 // file-overlap detection already done by plan-builder.
 //
 // Responsibilities:
-//   • load plan (object or path)
+//   • resolve the canonical Change plan (or an explicit legacy object/path)
 //   • for each ready wave: evaluate dispatch-rules per task → spawn sessions
 //     via session-runner → wait for transport exit → preserve task-gate state
 //   • stop at the first non-converged wave and resume safely on the next call
@@ -21,9 +21,11 @@
 //   • merge back (Phase 8B.4 layers on top of closeSession)
 
 const fs = require('node:fs');
+const path = require('node:path');
 const { isDeepStrictEqual } = require('node:util');
 
 const planStore = require('../mcp-server/lib/plan-store.cjs');
+const contextSpine = require('../mcp-server/lib/context-spine.cjs');
 const ops = require('../mcp-server/lib/state-ops.cjs');
 const workflows = require('../mcp-server/lib/workflow-state.cjs');
 const runner = require('./session-runner.cjs');
@@ -31,12 +33,53 @@ const dispatchRules = require('./dispatch-rules.cjs');
 
 const TERMINAL_TASK_STATUSES = new Set(['completed', 'expanded']);
 
-function resolvePlan({ plan, planPath, repoRoot }) {
+function resolvePlan({ db, plan, planPath, repoRoot, changeId = null }) {
   if (plan) return plan;
-  if (planPath) return JSON.parse(fs.readFileSync(planPath, 'utf8'));
-  const loaded = planStore.loadPlanArtifact(repoRoot);
+  if (planPath) {
+    const legacy = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+    if (legacy?.change_id) {
+      throw planError(
+        'PLAN_CHANGE_SCOPED_REQUIRED',
+        'change-bound plans must be resolved from their canonical Change artifact root',
+      );
+    }
+    return legacy;
+  }
+  let candidates;
+  if (changeId) {
+    candidates = db.prepare(
+      `SELECT id, artifact_root, status
+       FROM changes
+       WHERE id = ? AND status IN ('active', 'blocked')`,
+    ).all(changeId);
+  } else {
+    candidates = db.prepare(
+      `SELECT c.id, c.artifact_root, c.status, MAX(w.completed_at) AS planned_at
+       FROM changes c
+       JOIN workflow_runs w ON w.change_id = c.id
+       WHERE c.status IN ('active', 'blocked')
+         AND w.kind = 'plan' AND w.status = 'completed'
+       GROUP BY c.id, c.artifact_root, c.status
+       ORDER BY planned_at DESC, c.id ASC`,
+    ).all();
+  }
+  if (candidates.length > 1) {
+    throw planError(
+      'PLAN_CHANGE_REQUIRED',
+      'more than one current Change has an executable plan; provide changeId',
+      { change_ids: candidates.map((candidate) => candidate.id).sort() },
+    );
+  }
+  const change = candidates[0] || null;
+  const loaded = change
+    ? planStore.loadChangePlanArtifact(repoRoot, change, { db, strict: true })
+    : null;
   if (!loaded) {
-    const err = new Error('runPlan: no plan found (pass plan or planPath, or pre-write artifact)');
+    const err = new Error(
+      changeId
+        ? `runPlan: no current scoped plan found for change ${changeId}`
+        : 'runPlan: no current Change-scoped plan found; pass an explicit legacy planPath only for migration compatibility',
+    );
     err.code = 'PLAN_NOT_FOUND';
     throw err;
   }
@@ -154,14 +197,77 @@ function assertPlanAuthority(db, repoRoot, plan) {
       { authority_code: error.code || null },
     );
   }
+  const currentContext = contextSpine.validateContextSnapshot(db, {
+    change_id: plan.change_id,
+    task_id: null,
+    role: 'plan',
+    gate: 'planning',
+  }, {
+    rootDir: repoRoot,
+    require_current_checkout: true,
+  });
+  if (!currentContext.snapshot
+    || currentContext.snapshot.id !== currentPlan.plan.summary.plan_context_snapshot_id) {
+    throw planError(
+      'PLAN_STALE',
+      `execution plan for ${plan.change_id} was superseded by another planning context`,
+      { authority_code: 'WORKFLOW_PLAN_CONTEXT_MISMATCH' },
+    );
+  }
+  if (currentContext.blockers.length > 0) {
+    throw planError(
+      'PLAN_STALE',
+      `execution plan for ${plan.change_id} has stale planning context`,
+      {
+        authority_code: 'WORKFLOW_PLAN_CONTEXT_STALE',
+        blockers: currentContext.blockers,
+      },
+    );
+  }
   const expected = planStore.buildPlan(
     currentPlan.tasks,
     { changeId: plan.change_id },
   );
-  if (!isDeepStrictEqual(plan, expected)) {
+  const { context, ...planCore } = plan;
+  if (!isDeepStrictEqual(planCore, expected)) {
     throw planError(
       'PLAN_STALE',
       `execution plan for ${plan.change_id} does not match the current DB task graph`,
+    );
+  }
+  if (!context
+    || context.snapshot_id !== currentPlan.plan.summary.plan_context_snapshot_id
+    || context.manifest_path !== currentPlan.plan.summary.plan_context_path
+    || context.manifest_digest !== currentPlan.plan.summary.plan_context_digest) {
+    throw planError(
+      'PLAN_STALE',
+      `execution plan for ${plan.change_id} does not match its planning context`,
+      { authority_code: 'WORKFLOW_PLAN_CONTEXT_MISMATCH' },
+    );
+  }
+  const change = db.prepare(
+    'SELECT id, artifact_root FROM changes WHERE id = ?',
+  ).get(plan.change_id);
+  const canonicalPaths = planStore.changePlanPaths(repoRoot, change);
+  const expectedPlanPath = path.relative(repoRoot, canonicalPaths.json);
+  const expectedPlanMdPath = path.relative(repoRoot, canonicalPaths.md);
+  if (currentPlan.plan.summary.plan_path !== expectedPlanPath
+    || currentPlan.plan.summary.plan_md_path !== expectedPlanMdPath) {
+    throw planError(
+      'PLAN_STALE',
+      `completed plan workflow for ${plan.change_id} is not bound to its canonical artifacts`,
+      { authority_code: 'WORKFLOW_PLAN_ARTIFACT_INVALID' },
+    );
+  }
+  const canonicalPlan = planStore.loadChangePlanArtifact(
+    repoRoot,
+    change,
+    { db, strict: true },
+  );
+  if (!canonicalPlan || !isDeepStrictEqual(canonicalPlan, plan)) {
+    throw planError(
+      'PLAN_STALE',
+      `execution plan for ${plan.change_id} differs from its canonical Change artifact`,
     );
   }
   return { mode: 'current-change', workflow_id: currentPlan.plan.id };
@@ -200,6 +306,27 @@ function failureReason(execution) {
   if (execution.error) return `worker spawn or runtime error: ${execution.error.message}`;
   return `runtime process exited with code ${execution.code}`
     + `${execution.signal ? ` (${execution.signal})` : ''}`;
+}
+
+function authorityBlockedResult(error, taskId, {
+  sid = null,
+  reservationFailed = false,
+} = {}) {
+  const gate = runner.findExpectedExecutionGate(error);
+  if (!gate) return null;
+  return {
+    sid,
+    task_id: taskId,
+    code: -4,
+    status: 'authority_blocked',
+    retryable: true,
+    authority_code: gate.code,
+    error: error.message,
+    ...(Array.isArray(gate.details?.blockers)
+      ? { blockers: gate.details.blockers }
+      : {}),
+    ...(reservationFailed ? { _reservationFailed: true } : {}),
+  };
 }
 
 function recordExecutionFailure(db, taskId, {
@@ -290,7 +417,7 @@ function finalizeSession(db, handle, execution, ctx = {}) {
   };
 }
 
-async function runTask(db, repoRoot, task, wave, ctx) {
+function prepareTaskDispatch(task, wave, ctx) {
   const { runtimes, command, commandArgs, commandArgsFor, onError } = ctx;
   const decision = dispatchRules.evaluate({
     task,
@@ -301,64 +428,119 @@ async function runTask(db, repoRoot, task, wave, ctx) {
   });
   if (decision.action !== 'spawn_agent') {
     if (onError) onError(new Error(`task ${task.id}: deferred/blocked by rule ${decision.rule_id}`));
-    return { sid: null, task_id: task.id, code: -2, status: decision.action };
+    return {
+      task,
+      result: { sid: null, task_id: task.id, code: -2, status: decision.action },
+    };
   }
 
   const args = commandArgsFor ? commandArgsFor(task) : commandArgs;
+  if (!Array.isArray(args)) {
+    throw planError(
+      'ORCHESTRATOR_COMMAND_INVALID',
+      `task ${task.id} command arguments must be an array`,
+    );
+  }
+  return { task, decision, command, args };
+}
+
+function reservePreparedTask(db, repoRoot, prepared, ctx) {
+  if (prepared.result) return prepared.result;
+  const {
+    task, decision, command, args,
+  } = prepared;
+  const { onError } = ctx;
   let handle;
   try {
     handle = runner.spawnSession({
       db, repoRoot,
       task_id: task.id,
       runtime: decision.runtime,
-      command, args,
+      command: ctx.deferStart ? null : command,
+      args: ctx.deferStart ? [] : args,
+      mark_task_started: true,
     });
     handle.task_id = task.id;
   } catch (err) {
-    if (runner.isExpectedExecutionGate(err)) {
-      return {
-        sid: null,
-        task_id: task.id,
-        code: -4,
-        status: 'authority_blocked',
-        authority_code: err.code,
-        error: err.message,
-      };
-    }
+    const authorityBlocked = authorityBlockedResult(err, task.id, {
+      reservationFailed: true,
+    });
+    if (authorityBlocked) return authorityBlocked;
     if (onError) onError(err);
     recordExecutionFailure(db, task.id, {
       reason: `worker session could not be created: ${err.message}`,
     });
-    return { sid: null, task_id: task.id, code: -3, status: 'spawn_failed' };
+    return {
+      sid: null,
+      task_id: task.id,
+      code: -3,
+      status: 'spawn_failed',
+      error: err.message,
+      _reservationFailed: true,
+    };
   }
 
-  // The worker may converge very quickly, so re-read before transitioning and
-  // never downgrade a task that already reached a terminal state.
-  try {
-    if (ops.readTask(db, task.id)?.status === 'pending') {
-      ops.patchTask(db, task.id, { status: 'in_progress' });
-    }
-  }
-  catch (err) {
-    const latest = ops.readTask(db, task.id);
-    if (!latest || !TERMINAL_TASK_STATUSES.has(latest.status)) {
-      try { if (handle.process && !handle.process.killed) handle.process.kill('SIGTERM'); }
-      catch (_) { /* best effort */ }
-      recordExecutionFailure(db, task.id, {
-        sessionId: handle.sid,
-        reason: `task could not enter in_progress: ${err.message}`,
-      });
-      return finalizeSession(
-        db,
-        handle,
-        { code: -1, signal: 'SIGTERM', error: err },
-        { ...ctx, repoRoot },
-      );
-    }
-  }
+  return {
+    _pendingStart: true,
+    handle,
+    command,
+    args,
+  };
+}
 
+async function runTask(db, repoRoot, task, wave, ctx) {
+  const prepared = ctx.prepared || prepareTaskDispatch(task, wave, ctx);
+  const reservation = reservePreparedTask(db, repoRoot, prepared, ctx);
+  if (!reservation?._pendingStart) return reservation;
+  const { handle } = reservation;
+  if (!handle.process) {
+    handle.process = runner.startSessionProcess({
+      db,
+      repoRoot,
+      sid: handle.sid,
+      command: reservation.command,
+      args: reservation.args,
+    });
+    handle.pid = handle.process.pid;
+  }
   const execution = await awaitExit(handle.process);
+  if (ctx.deferFinalize) {
+    return { _pendingFinalize: true, handle, execution };
+  }
   return finalizeSession(db, handle, execution, { ...ctx, repoRoot });
+}
+
+function unwindReservations(db, repoRoot, reservations, ctx) {
+  const errors = [];
+  for (const reservation of [...reservations].reverse()) {
+    if (!reservation?._pendingStart) continue;
+    const { handle } = reservation;
+    try {
+      runner.closeSession(
+        { db, repoRoot, sid: handle.sid },
+        { status: 'crashed', remove_worktree: true },
+      );
+    } catch (error) {
+      errors.push(error);
+      if (ctx.onError) ctx.onError(error);
+      continue;
+    }
+    const task = ops.readTask(db, handle.task_id);
+    if (task?.status === 'in_progress') {
+      try {
+        ops.updateTaskStatus(db, handle.task_id, 'pending');
+      } catch (error) {
+        errors.push(error);
+        if (ctx.onError) ctx.onError(error);
+      }
+    }
+  }
+  if (errors.length > 0) {
+    throw planError(
+      'WAVE_RESERVATION_ROLLBACK_FAILED',
+      `parallel wave reservation rollback failed: ${errors.map((error) => error.message).join('; ')}`,
+    );
+  }
 }
 
 function taskDependenciesReady(db, task) {
@@ -384,8 +566,11 @@ async function runWave(db, repoRoot, wave, ctx) {
     && !task.stale
     && taskDependenciesReady(db, task)
   ));
+  // Pure preparation must finish for the whole wave before any reservation
+  // mutates tasks, sessions, or worktrees.
+  const prepared = runnable.map((task) => prepareTaskDispatch(task, wave, ctx));
 
-  if (runnable.length > 0) {
+  if (prepared.length > 0) {
     ops.appendEvent(db, {
       type: 'wave_started',
       payload: {
@@ -398,11 +583,85 @@ async function runWave(db, repoRoot, wave, ctx) {
 
   let results;
   if (wave.parallel && runnable.length > 1) {
-    results = await Promise.all(runnable.map((task) => runTask(db, repoRoot, task, wave, ctx)));
+    const reservations = [];
+    let reservationFailure = null;
+    for (const item of prepared) {
+      const reservation = reservePreparedTask(db, repoRoot, item, {
+        ...ctx,
+        deferStart: true,
+        deferFinalize: true,
+      });
+      reservations.push(reservation);
+      if (reservation?._reservationFailed) {
+        reservationFailure = reservation;
+        break;
+      }
+    }
+    if (reservationFailure) {
+      unwindReservations(db, repoRoot, reservations, ctx);
+      results = reservations.map((reservation) => (
+        reservation?._pendingStart
+          ? {
+            sid: reservation.handle.sid,
+            task_id: reservation.handle.task_id,
+            code: -5,
+            status: 'reservation_cancelled',
+          }
+          : reservation
+      ));
+    } else {
+      const executions = await Promise.all(reservations.map(async (reservation) => {
+        if (!reservation?._pendingStart) return reservation;
+        const { handle } = reservation;
+        try {
+          handle.process = runner.startSessionProcess({
+            db,
+            repoRoot,
+            sid: handle.sid,
+            command: reservation.command,
+            args: reservation.args,
+          });
+          handle.pid = handle.process.pid;
+          const execution = await awaitExit(handle.process);
+          return { _pendingFinalize: true, handle, execution };
+        } catch (error) {
+          const authorityBlocked = authorityBlockedResult(
+            error,
+            handle.task_id,
+            { sid: handle.sid },
+          );
+          if (authorityBlocked) {
+            unwindReservations(db, repoRoot, [reservation], ctx);
+            return authorityBlocked;
+          }
+          if (ctx.onError) ctx.onError(error);
+          recordExecutionFailure(db, handle.task_id, {
+            sessionId: handle.sid,
+            reason: `worker process could not be started: ${error.message}`,
+          });
+          return finalizeSession(
+            db,
+            handle,
+            { code: -1, signal: null, error },
+            { ...ctx, repoRoot },
+          );
+        }
+      }));
+      // Parallel execution completes in parallel; settlement is serialized
+      // only after every worker exit has been observed.
+      results = executions.map((result) => (
+        result?._pendingFinalize
+          ? finalizeSession(db, result.handle, result.execution, { ...ctx, repoRoot })
+          : result
+      ));
+    }
   } else {
     results = [];
-    for (const task of runnable) {
-      results.push(await runTask(db, repoRoot, task, wave, ctx));
+    for (const item of prepared) {
+      results.push(await runTask(db, repoRoot, item.task, wave, {
+        ...ctx,
+        prepared: item,
+      }));
     }
   }
 
@@ -428,7 +687,7 @@ async function runWave(db, repoRoot, wave, ctx) {
 }
 
 async function runPlan({
-  db, repoRoot, plan, planPath,
+  db, repoRoot, plan, planPath, changeId = null,
   runtimes,
   command = null, commandArgs = [], commandArgsFor = null,
   autoMerge = false, mergeBaseBranch = 'main',
@@ -451,7 +710,9 @@ async function runPlan({
     error.code = 'ORCHESTRATOR_COMMAND_INVALID';
     throw error;
   }
-  const resolved = validatePlanShape(resolvePlan({ plan, planPath, repoRoot }));
+  const resolved = validatePlanShape(resolvePlan({
+    db, plan, planPath, repoRoot, changeId,
+  }));
   const planAuthority = assertPlanAuthority(db, repoRoot, resolved);
 
   const ctx = {
@@ -513,5 +774,8 @@ module.exports = {
     finalizeSession,
     taskDependenciesReady,
     recordExecutionFailure,
+    prepareTaskDispatch,
+    reservePreparedTask,
+    unwindReservations,
   },
 };

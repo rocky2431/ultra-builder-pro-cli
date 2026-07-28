@@ -5,8 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 
-const { initStateDb, closeStateDb } = require('../lib/state-db.cjs');
+const { initStateDb, openStateDb, closeStateDb } = require('../lib/state-db.cjs');
 const ops = require('../lib/state-ops.cjs');
 
 function tmpDb() {
@@ -88,7 +89,16 @@ test('task execution contract is durable, structured, and reports missing planni
         id: 'status-visible', criterion: 'The command returns the durable status.',
         verification: 'npm test -- status-contract',
       }],
-      context_refs: [{ ref: 'spec/mcp-tools.yaml', reason: 'Defines the public tool contract.', required: true }],
+      context_refs: [{
+        ref: 'spec/mcp-tools.yaml',
+        reason: 'Defines the public tool contract.',
+        kind: 'spec',
+        required: true,
+        expected_digest: 'a'.repeat(64),
+        anchor: 'task.create',
+        scope: 'public-tool-contract',
+        freshness_policy: 'digest',
+      }],
       docs_impact: { status: 'required', files: ['README.md'], rationale: 'Public behavior changes.' },
       ownership: { owner: 'runtime-maintainer', reviewers: ['spec-reviewer'] },
       trace_to: '.ultra/specs/product.md#status',
@@ -96,6 +106,16 @@ test('task execution contract is durable, structured, and reports missing planni
     assert.deepEqual(ops.taskContractBlockers(complete), []);
     assert.equal(complete.acceptance[0].id, 'status-visible');
     assert.equal(complete.docs_impact.status, 'required');
+    assert.deepEqual(complete.context_refs[0], {
+      ref: 'spec/mcp-tools.yaml',
+      reason: 'Defines the public tool contract.',
+      kind: 'spec',
+      required: true,
+      expected_digest: 'a'.repeat(64),
+      anchor: 'task.create',
+      scope: 'public-tool-contract',
+      freshness_policy: 'digest',
+    });
   } finally {
     closeStateDb(db);
     fs.rmSync(dir, { recursive: true, force: true });
@@ -454,14 +474,145 @@ test('updateSession status=completed emits session_closed', () => {
     ops.createTask(db, { id: 'k', title: 'k', type: 'feature', priority: 'P1' });
     ops.createSession(db, {
       sid: 'sx', task_id: 'k', runtime: 'codex',
-      worktree_path: '/tmp/wt', artifact_dir: '/tmp/art',
+      pid: 4242, worktree_path: '/tmp/wt', artifact_dir: '/tmp/art',
     });
     const out = ops.updateSession(db, 'sx', { status: 'completed' });
     assert.equal(out.status, 'completed');
+    assert.equal(out.pid, null);
     const types = db.prepare(`SELECT type FROM events WHERE session_id = 'sx' ORDER BY id`).all().map((r) => r.type);
     assert.deepEqual(types, ['session_spawned', 'session_closed']);
+    const terminal = db.prepare(
+      "SELECT payload_json FROM events WHERE session_id = 'sx' AND type = 'session_closed'",
+    ).get();
+    assert.equal(JSON.parse(terminal.payload_json).worker_pid, 4242);
     closeStateDb(db);
   } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('updateSession makes a terminal status single-assignment and idempotent', () => {
+  const { dir, db } = freshDb();
+  try {
+    ops.createTask(db, {
+      id: 'terminal-once', title: 'terminal once', type: 'feature', priority: 'P1',
+    });
+    ops.createSession(db, {
+      sid: 'terminal-once-session',
+      task_id: 'terminal-once',
+      runtime: 'codex',
+      pid: 4343,
+      worktree_path: '/tmp/terminal-once',
+      artifact_dir: '/tmp/terminal-once-artifacts',
+    });
+
+    const first = ops.updateSession(db, 'terminal-once-session', { status: 'completed' });
+    const second = ops.updateSession(db, 'terminal-once-session', { status: 'completed' });
+    assert.equal(first.status, 'completed');
+    assert.equal(second.status, 'completed');
+    assert.throws(
+      () => ops.updateSession(db, 'terminal-once-session', { status: 'crashed' }),
+      (error) => error.code === 'SESSION_TERMINAL_CONFLICT',
+    );
+    assert.equal(ops.readSession(db, 'terminal-once-session').status, 'completed');
+    assert.equal(
+      db.prepare(
+        `SELECT COUNT(*) AS count FROM events
+         WHERE session_id = 'terminal-once-session'
+           AND type IN ('session_closed', 'session_crashed')`,
+      ).get().count,
+      1,
+    );
+  } finally {
+    closeStateDb(db);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('racing terminal session writers commit exactly one terminal authority and event', async () => {
+  const { dir, file, db } = freshDb();
+  const children = [];
+  try {
+    ops.createTask(db, {
+      id: 'terminal-race', title: 'terminal race', type: 'feature', priority: 'P0',
+    });
+    ops.createSession(db, {
+      sid: 'terminal-race-session',
+      task_id: 'terminal-race',
+      runtime: 'codex',
+      pid: 4545,
+      worktree_path: '/tmp/terminal-race',
+      artifact_dir: '/tmp/terminal-race-artifacts',
+    });
+    closeStateDb(db);
+    const start = path.join(dir, 'terminal-start');
+    const moduleDir = path.resolve(__dirname, '..', 'lib');
+    const childScript = [
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      'const stateDb = require(path.join(process.argv[1], "state-db.cjs"));',
+      'const ops = require(path.join(process.argv[1], "state-ops.cjs"));',
+      'const db = stateDb.openStateDb(process.argv[2]);',
+      'while (!fs.existsSync(process.argv[3])) {',
+      '  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);',
+      '}',
+      'try {',
+      '  const session = ops.updateSession(db, "terminal-race-session", {',
+      '    status: process.argv[4],',
+      '  });',
+      '  process.stdout.write(JSON.stringify({ ok: true, status: session.status }));',
+      '} catch (error) {',
+      '  process.stdout.write(JSON.stringify({ ok: false, code: error.code, message: error.message }));',
+      '} finally { db.close(); }',
+    ].join('\n');
+    const collect = (child) => new Promise((resolve, reject) => {
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (chunk) => { stdout += chunk; });
+      child.stderr.on('data', (chunk) => { stderr += chunk; });
+      child.once('error', reject);
+      child.once('exit', (code) => {
+        if (code !== 0) reject(new Error(`terminal child exited ${code}: ${stderr}`));
+        else resolve(JSON.parse(stdout));
+      });
+    });
+    for (const status of ['completed', 'crashed']) {
+      const child = spawn(
+        process.execPath,
+        ['-e', childScript, moduleDir, file, start, status],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+      children.push(child);
+    }
+    const outcomes = children.map(collect);
+    fs.writeFileSync(start, 'go');
+    const results = await Promise.all(outcomes);
+    assert.equal(results.filter((result) => result.ok).length, 1);
+    assert.equal(
+      results.filter((result) => result.code === 'SESSION_TERMINAL_CONFLICT').length,
+      1,
+    );
+
+    const reopened = openStateDb(file);
+    try {
+      const session = ops.readSession(reopened, 'terminal-race-session');
+      assert.ok(['completed', 'crashed'].includes(session.status));
+      assert.equal(session.pid, null);
+      assert.equal(
+        reopened.prepare(
+          `SELECT COUNT(*) AS count FROM events
+           WHERE session_id = 'terminal-race-session'
+             AND type IN ('session_closed', 'session_crashed')`,
+        ).get().count,
+        1,
+      );
+    } finally {
+      closeStateDb(reopened);
+    }
+  } finally {
+    for (const child of children) {
+      if (child.exitCode === null) child.kill('SIGKILL');
+    }
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -471,13 +622,86 @@ test('listActiveSessions returns only running rows for a task', () => {
   try {
     ops.createTask(db, { id: 'm', title: 'm', type: 'feature', priority: 'P1' });
     ops.createSession(db, { sid: 'a', task_id: 'm', runtime: 'claude', worktree_path: '/tmp/a', artifact_dir: '/tmp/a' });
-    ops.createSession(db, { sid: 'b', task_id: 'm', runtime: 'codex',  worktree_path: '/tmp/b', artifact_dir: '/tmp/b' });
     ops.updateSession(db, 'a', { status: 'completed' });
+    ops.createSession(db, { sid: 'b', task_id: 'm', runtime: 'codex',  worktree_path: '/tmp/b', artifact_dir: '/tmp/b' });
     const active = ops.listActiveSessions(db, { task_id: 'm' });
     assert.equal(active.length, 1);
     assert.equal(active[0].sid, 'b');
     closeStateDb(db);
   } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('one active task lease is enforced across racing processes', async () => {
+  const { dir, file, db } = freshDb();
+  const children = [];
+  try {
+    ops.createTask(db, { id: 'lease-race', title: 'lease race', type: 'feature', priority: 'P0' });
+    closeStateDb(db);
+    const start = path.join(dir, 'start');
+    const moduleDir = path.resolve(__dirname, '..', 'lib');
+    const childScript = [
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      'const stateDb = require(path.join(process.argv[1], "state-db.cjs"));',
+      'const ops = require(path.join(process.argv[1], "state-ops.cjs"));',
+      'const db = stateDb.openStateDb(process.argv[2]);',
+      'while (!fs.existsSync(process.argv[3])) {',
+      '  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);',
+      '}',
+      'try {',
+      '  const session = ops.createSession(db, {',
+      '    sid: process.argv[4], task_id: "lease-race", runtime: "codex",',
+      '    worktree_path: `/tmp/${process.argv[4]}`,',
+      '    artifact_dir: `/tmp/${process.argv[4]}-artifacts`,',
+      '  });',
+      '  process.stdout.write(JSON.stringify({ ok: true, sid: session.sid }));',
+      '} catch (error) {',
+      '  process.stdout.write(JSON.stringify({ ok: false, code: error.code, message: error.message }));',
+      '} finally { db.close(); }',
+    ].join('\n');
+    const collect = (child) => new Promise((resolve, reject) => {
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (chunk) => { stdout += chunk; });
+      child.stderr.on('data', (chunk) => { stderr += chunk; });
+      child.once('error', reject);
+      child.once('exit', (code) => {
+        if (code !== 0) reject(new Error(`lease child exited ${code}: ${stderr}`));
+        else resolve(JSON.parse(stdout));
+      });
+    });
+    for (const sid of ['lease-a', 'lease-b']) {
+      const child = spawn(
+        process.execPath,
+        ['-e', childScript, moduleDir, file, start, sid],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+      children.push(child);
+    }
+    const outcomes = children.map(collect);
+    fs.writeFileSync(start, 'go');
+    const results = await Promise.all(outcomes);
+    assert.equal(results.filter((result) => result.ok).length, 1);
+    const denied = results.find((result) => !result.ok);
+    assert.equal(denied.code, 'ADMISSION_DENIED');
+
+    const reopened = openStateDb(file);
+    try {
+      assert.equal(
+        reopened.prepare(
+          "SELECT COUNT(*) AS count FROM sessions WHERE task_id = 'lease-race' AND status = 'running'",
+        ).get().count,
+        1,
+      );
+    } finally {
+      closeStateDb(reopened);
+    }
+  } finally {
+    for (const child of children) {
+      if (child.exitCode === null) child.kill('SIGKILL');
+    }
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

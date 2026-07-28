@@ -13,7 +13,9 @@ SCHEMA = Path(__file__).parents[2] / "spec" / "schemas" / "state-db.sql"
 def seed_active_change(root: Path):
     ultra = root / ".ultra"
     ultra.mkdir()
-    with sqlite3.connect(ultra / "state.db") as conn:
+    runtime = ultra / ".runtime"
+    runtime.mkdir()
+    with sqlite3.connect(runtime / "state.db") as conn:
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))
         conn.execute(
             """INSERT INTO changes
@@ -58,7 +60,7 @@ def test_lifecycle_event_uses_state_db_and_excludes_transcript_metadata(tmp_path
     })
     assert output == {}
     assert stderr == ""
-    with sqlite3.connect(tmp_path / ".ultra" / "state.db") as conn:
+    with sqlite3.connect(tmp_path / ".ultra" / ".runtime" / "state.db") as conn:
         event_type, change_id, task_id, raw = conn.execute(
             """SELECT type, change_id, task_id, payload_json FROM events
                WHERE type = 'subagent_stopped'"""
@@ -73,17 +75,19 @@ def test_lifecycle_event_uses_state_db_and_excludes_transcript_metadata(tmp_path
     }
     assert "transcript" not in raw
     assert "private message" not in raw
-    assert not (tmp_path / ".ultra" / "runtime" / "subagent-log.jsonl").exists()
+    assert not (tmp_path / ".ultra" / ".runtime" / "subagent-log.jsonl").exists()
 
 
 def test_idle_project_is_a_no_op(tmp_path):
     ultra = tmp_path / ".ultra"
     ultra.mkdir()
-    with sqlite3.connect(ultra / "state.db") as conn:
+    runtime = ultra / ".runtime"
+    runtime.mkdir()
+    with sqlite3.connect(runtime / "state.db") as conn:
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))
     output, _ = run_hook(tmp_path, "start", {"agent_id": "idle"})
     assert output == {}
-    with sqlite3.connect(ultra / "state.db") as conn:
+    with sqlite3.connect(runtime / "state.db") as conn:
         assert conn.execute(
             "SELECT COUNT(*) FROM events WHERE type LIKE 'subagent_%'"
         ).fetchone()[0] == 0

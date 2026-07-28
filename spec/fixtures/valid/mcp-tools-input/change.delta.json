@@ -1,0 +1,32 @@
+{
+  "id": "feature-auth",
+  "baseline_anchor": {
+    "baseline_id": "project-baseline",
+    "repository_revision": "abc123",
+    "specs": [
+      {
+        "path": ".ultra/specs/product.md",
+        "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ]
+  },
+  "decisions": [],
+  "non_goals": [
+    "Unrelated behavior."
+  ],
+  "acceptance": [
+    {
+      "id": "acceptance-1",
+      "criterion": "The accepted behavior remains observable.",
+      "verification": "npm test"
+    }
+  ],
+  "documentation_impact": {
+    "status": "none",
+    "files": [],
+    "rationale": "No documentation behavior changes."
+  },
+  "unknowns": [],
+  "no_semantic_change_reason": "This Change records a verified no-op delta.",
+  "mutations": []
+}

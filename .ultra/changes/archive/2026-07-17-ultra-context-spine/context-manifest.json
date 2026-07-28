@@ -1,0 +1,191 @@
+{
+  "schema_version": "2.0",
+  "generated_at": "2026-07-17T19:42:20.197Z",
+  "change": {
+    "id": "ultra-context-spine",
+    "title": "Ultra Context Spine",
+    "kind": "major",
+    "status": "active",
+    "intent": "Make daily Ultra work feel lightweight and recoverable by adding DB-derived role-specific context, a single next-action breadcrumb, one-question decision alignment, fresh-context tracer-bullet task contracts, explicit red-signal evidence, independent specification/engineering review axes, and approval-gated specification learning. Preserve .ultra/.runtime/state.db authority, external memory/code-graph ownership, the existing twelve-workflow package boundary, and Claude/Codex/OpenCode/Kimi host semantics. Exclude Gemini, RTK, internal memory/journals, new public third-party skills, and direct Trellis code reuse.",
+    "docs_impact": {
+      "status": "required",
+      "files": [
+        "README.md",
+        "CHANGELOG.md",
+        "docs/ARCHITECTURE.md",
+        "docs/USER-HANDBOOK-CONTRACT.md",
+        "docs/RUNTIME-COMPAT-MATRIX.md",
+        "spec/mcp-tools.yaml",
+        "spec/schemas/state-db.sql"
+      ],
+      "rationale": "This changes the public context, workflow, hook, review, and convergence contracts across all supported hosts."
+    },
+    "base_commit": "825012d2a76f3a5741e9b549a72aaa17d1ac8849"
+  },
+  "git": {
+    "head": "0f6f925969101194edef2aefef4249c9f15a6c23"
+  },
+  "tasks": [
+    {
+      "id": "context-spine-contract",
+      "title": "Define Context Spine state and MCP contracts end-to-end",
+      "type": "architecture",
+      "status": "completed",
+      "priority": "P0",
+      "complexity": 6,
+      "stale": false,
+      "trace_to": "spec/mcp-tools.yaml#change.context",
+      "context_file": null,
+      "files_modified": "[\"mcp-server/lib/context-spine.cjs\",\"mcp-server/lib/spec-learning.cjs\",\"mcp-server/lib/state-db.cjs\",\"mcp-server/server.cjs\",\"spec/mcp-tools.yaml\",\"spec/schemas/state-db.sql\"]",
+      "session_id": null,
+      "created_at": "2026-07-17T19:02:59.630Z",
+      "updated_at": "2026-07-17T19:42:20.031Z"
+    },
+    {
+      "id": "context-spine-hooks",
+      "title": "Inject DB-derived workflow breadcrumbs across lifecycle hooks",
+      "type": "feature",
+      "status": "completed",
+      "priority": "P0",
+      "complexity": 5,
+      "stale": false,
+      "trace_to": "docs/ARCHITECTURE.md#context-spine",
+      "context_file": null,
+      "files_modified": "[\"hooks/context_spine.py\",\"hooks/workflow_context.py\",\"hooks/active_task_context.py\",\"hooks/workflow_resume.py\"]",
+      "session_id": null,
+      "created_at": "2026-07-17T19:02:59.633Z",
+      "updated_at": "2026-07-17T19:42:20.042Z"
+    },
+    {
+      "id": "context-spine-workflows",
+      "title": "Make Ultra workflows role-scoped, fresh-context, evidence-first, and convergence-aware",
+      "type": "feature",
+      "status": "completed",
+      "priority": "P0",
+      "complexity": 6,
+      "stale": false,
+      "trace_to": "docs/USER-HANDBOOK-CONTRACT.md#context-spine",
+      "context_file": null,
+      "files_modified": "[\"skills/ultra-status/SKILL.md\",\"skills/ultra-change/SKILL.md\",\"skills/ultra-plan/SKILL.md\",\"skills/ultra-dev/SKILL.md\",\"skills/ultra-test/SKILL.md\",\"skills/ultra-review/SKILL.md\",\"skills/ultra-deliver/SKILL.md\",\"spec/scripts/validate-skills.cjs\"]",
+      "session_id": null,
+      "created_at": "2026-07-17T19:02:59.636Z",
+      "updated_at": "2026-07-17T19:42:20.049Z"
+    },
+    {
+      "id": "context-spine-hosts",
+      "title": "Render one Context Spine contract natively on all four hosts",
+      "type": "feature",
+      "status": "completed",
+      "priority": "P1",
+      "complexity": 5,
+      "stale": false,
+      "trace_to": "docs/RUNTIME-COMPAT-MATRIX.md#context-spine",
+      "context_file": null,
+      "files_modified": "[\"adapters/_shared/codex-assets.cjs\",\"adapters/_shared/runtime-assets.cjs\",\"adapters/kimi.js\",\"adapters/opencode.js\",\"adapters/tests/claude.test.cjs\",\"adapters/tests/codex.test.cjs\",\"adapters/tests/kimi.test.cjs\",\"adapters/tests/opencode.test.cjs\"]",
+      "session_id": null,
+      "created_at": "2026-07-17T19:02:59.638Z",
+      "updated_at": "2026-07-17T19:42:20.056Z"
+    },
+    {
+      "id": "context-spine-release",
+      "title": "Verify, document, package, and publish Ultra Context Spine",
+      "type": "feature",
+      "status": "completed",
+      "priority": "P1",
+      "complexity": 4,
+      "stale": false,
+      "trace_to": "README.md#continuous-change",
+      "context_file": null,
+      "files_modified": "[\"README.md\",\"CHANGELOG.md\",\"package.json\",\"package-lock.json\"]",
+      "session_id": null,
+      "created_at": "2026-07-17T19:02:59.641Z",
+      "updated_at": "2026-07-17T19:42:20.062Z"
+    }
+  ],
+  "selected_task": {
+    "id": "context-spine-release",
+    "title": "Verify, document, package, and publish Ultra Context Spine",
+    "type": "feature",
+    "status": "completed",
+    "priority": "P1",
+    "complexity": 4,
+    "stale": false,
+    "trace_to": "README.md#continuous-change",
+    "context_file": null,
+    "files_modified": "[\"README.md\",\"CHANGELOG.md\",\"package.json\",\"package-lock.json\"]",
+    "session_id": null,
+    "created_at": "2026-07-17T19:02:59.641Z",
+    "updated_at": "2026-07-17T19:42:20.062Z"
+  },
+  "specs": [],
+  "role": "review",
+  "gate": "convergence",
+  "next_action": "Converge and publish v0.10.0 after all evidence passes.",
+  "readiness": {
+    "status": "ready",
+    "blockers": []
+  },
+  "context": {
+    "items": [
+      {
+        "ref": "README.md",
+        "kind": "docs",
+        "reason": "Public install and daily workflow contract",
+        "required": true,
+        "expected_digest": null,
+        "role": "review",
+        "status": "current",
+        "digest": "c21e304ebcbf4747a26aeaaf70309b3f5407849c4134e37b1a5a00fd8d61f6f4",
+        "estimated_tokens": 2925
+      },
+      {
+        "ref": "CHANGELOG.md",
+        "kind": "docs",
+        "reason": "0.10.0 release scope and rollback record",
+        "required": true,
+        "expected_digest": null,
+        "role": "review",
+        "status": "current",
+        "digest": "d2cfdff3a11f6d595819efc06e0f1ab5d447f21cf18ad6d231275253b8603a24",
+        "estimated_tokens": 5457
+      },
+      {
+        "ref": "package.json",
+        "kind": "source",
+        "reason": "Published package identity and release gate",
+        "required": true,
+        "expected_digest": null,
+        "role": "review",
+        "status": "current",
+        "digest": "8f5b7027df7fcb2e78e00db6fa0a45fe4b87d05526d104c3b42160de902e603f",
+        "estimated_tokens": 854
+      }
+    ],
+    "budget": {
+      "max_tokens": 12000,
+      "max_files": 12
+    },
+    "token_estimate": 9236,
+    "file_count": 3
+  },
+  "execution_contract": {
+    "slice_kind": "integration_checkpoint",
+    "public_seam": "v0.10.0 tag -> GitHub release workflow -> npm package -> four host installers",
+    "verification_command": "npm run verify:release",
+    "context_budget_percent": 40
+  },
+  "resume": {
+    "change_id": "ultra-context-spine",
+    "task_id": "context-spine-release",
+    "task_status": "completed",
+    "session_id": null,
+    "role": "review",
+    "gate": "convergence",
+    "git_head": "0f6f925969101194edef2aefef4249c9f15a6c23"
+  },
+  "providers": {},
+  "provider_boundary": "metadata references only; memory and code graph content remain external",
+  "tool_policy": {
+    "allowed_paths": []
+  }
+}

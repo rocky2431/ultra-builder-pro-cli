@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "source": ".ultra/.runtime/state.db",
+  "change_id": "ultra-context-spine",
+  "generated_at": "2026-07-17T19:40:56.195Z",
+  "candidates": [
+    {
+      "id": "legacy-context-recompile",
+      "change_id": "ultra-context-spine",
+      "task_id": "context-spine-contract",
+      "target_ref": "docs/ARCHITECTURE.md#context-spine",
+      "summary": "Legacy context snapshots without a complete v2 execution contract must block until they are explicitly recompiled.",
+      "status": "applied",
+      "resolution": "Applied to docs/ARCHITECTURE.md#context-spine and covered by mcp-server/lib/context-spine.test.cjs, mcp-server/lib/change-workflow.test.cjs.",
+      "proposed_at": "2026-07-17T19:40:56.160Z",
+      "resolved_at": "2026-07-17T19:40:56.173Z",
+      "applied_at": "2026-07-17T19:40:56.173Z",
+      "evidence": [
+        "mcp-server/lib/context-spine.test.cjs",
+        "mcp-server/lib/change-workflow.test.cjs"
+      ]
+    },
+    {
+      "id": "opencode-head-freshness",
+      "change_id": "ultra-context-spine",
+      "task_id": "context-spine-hosts",
+      "target_ref": "docs/RUNTIME-COMPAT-MATRIX.md#workflow-hooks",
+      "summary": "Projection-only hosts must compare the compiled manifest HEAD with the live checkout HEAD before admitting workflow work.",
+      "status": "applied",
+      "resolution": "Applied to docs/RUNTIME-COMPAT-MATRIX.md#workflow-hooks and covered by adapters/opencode.js, adapters/tests/opencode.test.cjs.",
+      "proposed_at": "2026-07-17T19:40:56.177Z",
+      "resolved_at": "2026-07-17T19:40:56.184Z",
+      "applied_at": "2026-07-17T19:40:56.184Z",
+      "evidence": [
+        "adapters/opencode.js",
+        "adapters/tests/opencode.test.cjs"
+      ]
+    },
+    {
+      "id": "public-skill-prompt-budget",
+      "change_id": "ultra-context-spine",
+      "task_id": "context-spine-workflows",
+      "target_ref": "docs/USER-HANDBOOK-CONTRACT.md#ultra-builder-pro-runtime-contract",
+      "summary": "Public Ultra workflows must stay directly invocable and within the enforced prompt line budget; internal review rules remain hidden.",
+      "status": "applied",
+      "resolution": "Applied to docs/USER-HANDBOOK-CONTRACT.md#ultra-builder-pro-runtime-contract and covered by spec/scripts/validate-skills.cjs, skills/ultra-status/SKILL.md, skills/ultra-review/SKILL.md.",
+      "proposed_at": "2026-07-17T19:40:56.188Z",
+      "resolved_at": "2026-07-17T19:40:56.195Z",
+      "applied_at": "2026-07-17T19:40:56.195Z",
+      "evidence": [
+        "spec/scripts/validate-skills.cjs",
+        "skills/ultra-status/SKILL.md",
+        "skills/ultra-review/SKILL.md"
+      ]
+    }
+  ]
+}

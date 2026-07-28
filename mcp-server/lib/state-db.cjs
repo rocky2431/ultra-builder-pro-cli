@@ -9,7 +9,7 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '19.0';
+const EXPECTED_VERSION = '20.0';
 const KIMI_SCHEMA_VERSION = '9.1';
 const CONTEXT_SCHEMA_VERSION = '10.0';
 const BASELINE_SCHEMA_VERSION = '11.0';
@@ -21,6 +21,7 @@ const DIALOGUE_SCHEMA_VERSION = '16.0';
 const GIT_AUTHORITY_SCHEMA_VERSION = '17.0';
 const ADAPTIVE_SCHEMA_VERSION = '18.0';
 const DECISION_COMPLETION_SCHEMA_VERSION = '19.0';
+const ARTIFACT_REGISTRY_SCHEMA_VERSION = '20.0';
 
 const MIGRATED_GAPS = Object.freeze([{
   id: 'legacy-rebaseline-required',
@@ -44,6 +45,7 @@ const REQUIRED_TABLES = Object.freeze([
   'circuit_breaker',
   'changes',
   'artifacts',
+  'artifact_edges',
   'context_snapshots',
   'spec_learning_candidates',
   'trace_links',
@@ -55,6 +57,93 @@ const REQUIRED_TABLES = Object.freeze([
   'decision_threads',
   'decision_items',
 ]);
+
+class ActiveSessionLeaseConflictError extends Error {
+  constructor(conflicts) {
+    super(
+      'state.db has duplicate active task leases; resolve the conflicting sessions before upgrade: '
+      + conflicts.map((row) => `${row.task_id}=[${row.session_ids.join(',')}]`).join('; '),
+    );
+    this.name = 'ActiveSessionLeaseConflictError';
+    this.code = 'ACTIVE_SESSION_LEASE_CONFLICT';
+    this.details = { conflicts };
+  }
+}
+
+class ArtifactAuthorityConflictError extends Error {
+  constructor(conflicts) {
+    super(
+      'state.db has duplicate active artifact authority for canonical paths: '
+      + conflicts.map((row) => `${row.path}=[${row.artifact_ids.join(',')}]`).join('; '),
+    );
+    this.name = 'ArtifactAuthorityConflictError';
+    this.code = 'ARTIFACT_AUTHORITY_CONFLICT';
+    this.details = { conflicts };
+  }
+}
+
+function canonicalArtifactPath(value) {
+  const raw = String(value || '').trim().replaceAll('\\', '/');
+  if (!raw || path.posix.isAbsolute(raw)) {
+    throw new ArtifactAuthorityConflictError([{
+      path: raw || '(empty)',
+      artifact_ids: [],
+      reason: 'invalid_path',
+    }]);
+  }
+  const normalized = path.posix.normalize(raw).replace(/^\.\//, '');
+  if (normalized === '..' || normalized.startsWith('../') || normalized.includes('/../')) {
+    throw new ArtifactAuthorityConflictError([{
+      path: raw,
+      artifact_ids: [],
+      reason: 'path_escape',
+    }]);
+  }
+  return normalized;
+}
+
+function activeArtifactPathConflicts(db) {
+  if (!tableNames(db).includes('artifacts')) return [];
+  const columns = columnNames(db, 'artifacts');
+  if (!columns.has('id') || !columns.has('path')) return [];
+  const hasStatus = columns.has('status');
+  const rows = db.prepare(
+    `SELECT id, path FROM artifacts${hasStatus ? " WHERE status <> 'archived'" : ''}
+     ORDER BY id`,
+  ).all();
+  const grouped = new Map();
+  for (const row of rows) {
+    const canonical = canonicalArtifactPath(row.path);
+    const ids = grouped.get(canonical) || [];
+    ids.push(row.id);
+    grouped.set(canonical, ids);
+  }
+  return [...grouped.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([artifactPath, ids]) => ({ path: artifactPath, artifact_ids: ids }));
+}
+
+function assertNoDuplicateActiveArtifactPaths(db) {
+  const conflicts = activeArtifactPathConflicts(db);
+  if (conflicts.length > 0) throw new ArtifactAuthorityConflictError(conflicts);
+  return true;
+}
+
+function normalizeStoredArtifactPaths(db) {
+  if (!tableNames(db).includes('artifacts')) return false;
+  assertNoDuplicateActiveArtifactPaths(db);
+  const rows = db.prepare('SELECT id, path FROM artifacts ORDER BY id').all();
+  let changed = false;
+  const update = db.prepare('UPDATE artifacts SET path = ? WHERE id = ?');
+  for (const row of rows) {
+    const canonical = canonicalArtifactPath(row.path);
+    if (canonical !== row.path) {
+      update.run(canonical, row.id);
+      changed = true;
+    }
+  }
+  return changed;
+}
 
 function applyBaselineUpgrade(db, { legacyState = false } = {}) {
   db.exec(`
@@ -237,6 +326,7 @@ function tableNames(db) {
 }
 
 function applySchema(db) {
+  assertNoDuplicateActiveSessionLeases(db);
   runScript(db, readSchemaSql());
 }
 
@@ -330,7 +420,10 @@ function migrateAdaptiveWorkflowRuns(db, fromVersion = latestSchemaVersion(db)) 
   const existing = db.prepare(
     "SELECT 1 FROM migration_history WHERE to_version = '18.0' AND status = 'success' LIMIT 1",
   ).get();
-  if ([ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION].includes(fromVersion) || existing) {
+  if ([
+    ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+    ARTIFACT_REGISTRY_SCHEMA_VERSION,
+  ].includes(fromVersion) || existing) {
     return false;
   }
 
@@ -623,6 +716,7 @@ function upgradeBaselineWorktreeConstraint(db, fromVersion = latestSchemaVersion
 }
 
 function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
+  assertNoDuplicateActiveSessionLeases(db);
   if (tableSupportsKimi(db, 'events') && tableSupportsKimi(db, 'sessions')) return false;
   const previousVersion = fromVersion || 'unknown';
   const foreignKeys = db.pragma('foreign_keys', { simple: true });
@@ -674,6 +768,8 @@ function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
         ALTER TABLE sessions_runtime_upgrade RENAME TO sessions;
         CREATE INDEX sessions_active ON sessions(status, task_id);
         CREATE INDEX sessions_lease ON sessions(lease_expires_at) WHERE status = 'running';
+        CREATE UNIQUE INDEX sessions_one_active_task
+          ON sessions(task_id) WHERE status = 'running';
       `);
       db.prepare(
         `INSERT INTO migration_history
@@ -695,7 +791,129 @@ function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
   return true;
 }
 
+function activeSessionLeaseConflicts(db) {
+  if (!tableNames(db).includes('sessions')) return [];
+  const columns = columnNames(db, 'sessions');
+  if (!['sid', 'task_id', 'status'].every((name) => columns.has(name))) return [];
+  const rows = db.prepare(
+    `SELECT task_id, sid
+     FROM sessions
+     WHERE status = 'running'
+     ORDER BY task_id, sid`,
+  ).all();
+  const byTask = new Map();
+  for (const row of rows) {
+    const ids = byTask.get(row.task_id) || [];
+    ids.push(row.sid);
+    byTask.set(row.task_id, ids);
+  }
+  return [...byTask.entries()]
+    .filter(([, sessionIds]) => sessionIds.length > 1)
+    .map(([taskId, sessionIds]) => ({
+      task_id: taskId,
+      lease_count: sessionIds.length,
+      session_ids: sessionIds,
+    }));
+}
+
+function assertNoDuplicateActiveSessionLeases(db) {
+  const conflicts = activeSessionLeaseConflicts(db);
+  if (conflicts.length > 0) throw new ActiveSessionLeaseConflictError(conflicts);
+  return true;
+}
+
+function ensureActiveSessionLeaseIndex(db) {
+  if (!tableNames(db).includes('sessions')) return false;
+  assertNoDuplicateActiveSessionLeases(db);
+  const existing = db.prepare(
+    "SELECT 1 AS present FROM sqlite_master WHERE type = 'index' AND name = 'sessions_one_active_task'",
+  ).get();
+  if (existing) return false;
+  db.exec(
+    `CREATE UNIQUE INDEX sessions_one_active_task
+     ON sessions(task_id) WHERE status = 'running'`,
+  );
+  return true;
+}
+
+function applyArtifactRegistryUpgrade(db) {
+  if (!tableNames(db).includes('artifacts')) return false;
+  assertNoDuplicateActiveArtifactPaths(db);
+  const columns = columnNames(db, 'artifacts');
+  let changed = false;
+  if (![
+    'owner_type', 'owner_id', 'digest', 'before_digest', 'after_digest',
+    'provenance_json', 'managed',
+  ].every((column) => columns.has(column))) {
+    db.exec(`
+      DROP TABLE IF EXISTS artifacts_registry_upgrade;
+      CREATE TABLE artifacts_registry_upgrade (
+        id              TEXT PRIMARY KEY,
+        owner_type      TEXT NOT NULL
+                          CHECK (owner_type IN ('project', 'baseline', 'change', 'task', 'workflow')),
+        owner_id        TEXT NOT NULL,
+        change_id       TEXT REFERENCES changes(id) ON DELETE SET NULL,
+        task_id         TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+        kind            TEXT NOT NULL,
+        path            TEXT NOT NULL,
+        digest          TEXT,
+        content_hash    TEXT,
+        before_digest   TEXT,
+        after_digest    TEXT,
+        provenance_json TEXT NOT NULL DEFAULT '{}',
+        metadata_json   TEXT,
+        managed         INTEGER NOT NULL DEFAULT 0 CHECK (managed IN (0, 1)),
+        status          TEXT NOT NULL DEFAULT 'current'
+                          CHECK (status IN ('current', 'stale', 'terminal', 'archived')),
+        created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        UNIQUE(owner_type, owner_id, kind, path)
+      );
+      INSERT INTO artifacts_registry_upgrade
+        (id, owner_type, owner_id, change_id, task_id, kind, path, digest,
+         content_hash, before_digest, after_digest, provenance_json,
+         metadata_json, managed, status, created_at, updated_at)
+      SELECT id,
+             CASE WHEN task_id IS NOT NULL THEN 'task' ELSE 'change' END,
+             CASE WHEN task_id IS NOT NULL THEN task_id ELSE change_id END,
+             change_id, task_id, kind, path, content_hash, content_hash,
+             NULL, content_hash, '{"migration":"schema-20.0"}',
+             metadata_json, 0, status, created_at, updated_at
+      FROM artifacts;
+      DROP TABLE artifacts;
+      ALTER TABLE artifacts_registry_upgrade RENAME TO artifacts;
+    `);
+    changed = true;
+  }
+  if (normalizeStoredArtifactPaths(db)) changed = true;
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS artifacts_change ON artifacts(change_id, kind);
+    CREATE INDEX IF NOT EXISTS artifacts_owner ON artifacts(owner_type, owner_id, status);
+    CREATE INDEX IF NOT EXISTS artifacts_path ON artifacts(path, status);
+    CREATE UNIQUE INDEX IF NOT EXISTS artifacts_one_active_path
+      ON artifacts(path) WHERE status <> 'archived';
+    CREATE TABLE IF NOT EXISTS artifact_edges (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_type TEXT NOT NULL
+                    CHECK (source_type IN ('artifact', 'project', 'baseline', 'change', 'task', 'workflow', 'external')),
+      source_id   TEXT NOT NULL,
+      target_type TEXT NOT NULL
+                    CHECK (target_type IN ('artifact', 'project', 'baseline', 'change', 'task', 'workflow', 'external')),
+      target_id   TEXT NOT NULL,
+      relation    TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      UNIQUE(source_type, source_id, target_type, target_id, relation)
+    );
+    CREATE INDEX IF NOT EXISTS artifact_edges_source
+      ON artifact_edges(source_type, source_id);
+    CREATE INDEX IF NOT EXISTS artifact_edges_target
+      ON artifact_edges(target_type, target_id);
+  `);
+  return changed;
+}
+
 function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { legacyState = false } = {}) {
+  assertNoDuplicateActiveSessionLeases(db);
   const runtimeChanged = upgradeRuntimeConstraints(db, fromVersion);
   if (tableNames(db).includes('baselines') && !baselineSupportsUnbornGit(db)) {
     db.transaction(() => {
@@ -716,7 +934,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
         CONTEXT_SCHEMA_VERSION, BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION,
         WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
         DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
-        DECISION_COMPLETION_SCHEMA_VERSION,
+        DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
       ].includes(fromVersion)
         && !contextMigration,
     );
@@ -735,6 +953,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     applyBaselineColumns(db);
     applyChangeColumns(db);
     applySemanticAuthorityColumns(db);
+    const artifactRegistryChanged = applyArtifactRegistryUpgrade(db);
     const baselineMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '11.0' AND status = 'success' LIMIT 1",
     ).get();
@@ -742,7 +961,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       BASELINE_SCHEMA_VERSION, ADOPTION_SCHEMA_VERSION, WORKFLOW_SCHEMA_VERSION,
       AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION,
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
-      DECISION_COMPLETION_SCHEMA_VERSION,
+      DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !baselineMigration) {
       db.prepare(
@@ -814,7 +1033,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
       DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
-      DECISION_COMPLETION_SCHEMA_VERSION,
+      DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
     ].includes(fromVersion) && !workflowMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -832,6 +1051,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION,
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+      ARTIFACT_REGISTRY_SCHEMA_VERSION,
     ].includes(fromVersion) && !authorityMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -849,6 +1069,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION,
       ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+      ARTIFACT_REGISTRY_SCHEMA_VERSION,
     ].includes(fromVersion) && !semanticMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -865,7 +1086,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion && ![
       DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
-      DECISION_COMPLETION_SCHEMA_VERSION,
+      DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !dialogueMigration) {
       db.prepare(
@@ -883,6 +1104,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion && ![
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+      ARTIFACT_REGISTRY_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !gitStateMigration) {
       db.prepare(
@@ -901,6 +1123,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion && ![
       ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
+      ARTIFACT_REGISTRY_SCHEMA_VERSION,
     ].includes(fromVersion) && !adaptiveMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -917,7 +1140,9 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     const completionMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '19.0' AND status = 'success' LIMIT 1",
     ).get();
-    if (fromVersion && fromVersion !== DECISION_COMPLETION_SCHEMA_VERSION && !completionMigration) {
+    if (fromVersion && ![
+      DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
+    ].includes(fromVersion) && !completionMigration) {
       db.prepare(
         `INSERT INTO migration_history
           (from_version, to_version, direction, status, notes)
@@ -930,13 +1155,31 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
           : 'Add non-ceremonial decision completion authority',
       );
     }
+    const artifactRegistryMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '20.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion && fromVersion !== ARTIFACT_REGISTRY_SCHEMA_VERSION
+      && !artifactRegistryMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        DECISION_COMPLETION_SCHEMA_VERSION,
+        ARTIFACT_REGISTRY_SCHEMA_VERSION,
+        artifactRegistryChanged
+          ? 'Migrate legacy change artifacts into the typed artifact registry and dependency graph'
+          : 'Add the typed artifact registry, dependency graph, and orphan diagnostics',
+      );
+    }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
     db.exec('CREATE INDEX IF NOT EXISTS events_change ON events(change_id, id)');
+    ensureActiveSessionLeaseIndex(db);
     db.prepare(
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
     ).run(
       EXPECTED_VERSION,
-      'Non-ceremonial decision completion and host-neutral intent persistence',
+      'Typed artifact registry, normalized dependency edges, and orphan diagnostics',
     );
   })();
 }
@@ -963,14 +1206,22 @@ function initStateDb(dbPath) {
     db = openStateDb(dbPath);
     const existing = new Set(tableNames(db));
     const fromVersion = latestSchemaVersion(db);
+    assertNoDuplicateActiveArtifactPaths(db);
     const legacyState = existing.size > 0
       && ![
         WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
         DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
-        DECISION_COMPLETION_SCHEMA_VERSION,
+        DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
       ].includes(fromVersion);
     backupPath = migrationBackup(db, dbPath, fromVersion, existing);
+    // This must precede every ALTER, table rebuild, or index creation. Runtime
+    // constraint upgrades rebuild sessions and would otherwise surface a
+    // generic SQLITE_CONSTRAINT instead of the complete authority conflict.
+    assertNoDuplicateActiveSessionLeases(db);
     applyCompatibleColumns(db);
+    if (existing.has('artifacts')) {
+      db.transaction(() => applyArtifactRegistryUpgrade(db))();
+    }
     const missing = REQUIRED_TABLES.filter((t) => !existing.has(t));
     if (missing.length > 0) {
       applySchema(db);
@@ -1014,4 +1265,7 @@ module.exports = {
   tableNames,
   runScript,
   MIGRATED_GAPS,
+  ActiveSessionLeaseConflictError,
+  activeSessionLeaseConflicts,
+  assertNoDuplicateActiveSessionLeases,
 };

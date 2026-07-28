@@ -1,17 +1,28 @@
 """Session-start hooks cover baseline, active change, and degraded runtime state."""
 
 import json
+import os
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 HOOK_ROOT = Path(__file__).parent.parent
 SCHEMA = HOOK_ROOT.parent / "spec" / "schemas" / "state-db.sql"
+sys.path.insert(0, str(HOOK_ROOT))
+from context_spine import ContextSpineError, find_root  # noqa: E402
+from runtime_paths import RuntimePathError, state_db_path  # noqa: E402
 
 
-def run_hook(name: str, cwd: Path):
+def run_hook(name: str, cwd: Path, env: dict[str, str] | None = None):
+    hook_env = os.environ.copy()
+    hook_env.pop("UBP_DB_PATH", None)
+    hook_env.pop("UBP_ROOT_DIR", None)
+    if env:
+        hook_env.update(env)
     proc = subprocess.run(
         [sys.executable, str(HOOK_ROOT / name)],
         input=json.dumps({"cwd": str(cwd)}),
@@ -19,14 +30,15 @@ def run_hook(name: str, cwd: Path):
         capture_output=True,
         check=True,
         cwd=cwd,
+        env=hook_env,
     )
     return json.loads(proc.stdout), proc.stderr
 
 
 def init_db(project: Path, baseline: str | None = "greenfield") -> Path:
-    ultra = project / ".ultra"
-    ultra.mkdir()
-    db_path = ultra / "state.db"
+    runtime = project / ".ultra" / ".runtime"
+    runtime.mkdir(parents=True)
+    db_path = runtime / "state.db"
     with sqlite3.connect(db_path) as conn:
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))
         if baseline == "migrated":
@@ -73,10 +85,273 @@ def seed_workflow(
         )
 
 
+def registered_worktree(authority: Path, sid: str = "sess-hook") -> tuple[Path, Path]:
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=authority, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "hook@example.invalid"],
+        cwd=authority,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Hook Test"],
+        cwd=authority,
+        check=True,
+    )
+    (authority / ".gitignore").write_text(".ultra/.runtime\n", encoding="utf-8")
+    specs = authority / ".ultra" / "specs"
+    specs.mkdir(parents=True)
+    (specs / "product.md").write_text("# Product\n", encoding="utf-8")
+    (authority / "README.md").write_text("# Authority\n", encoding="utf-8")
+    if os.name != "nt":
+        (authority / "README.link").symlink_to("README.md")
+    subprocess.run(["git", "add", "-A"], cwd=authority, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "seed"], cwd=authority, check=True
+    )
+    db_path = init_db(authority)
+    worktree = authority / ".ultra" / ".runtime" / "worktrees" / sid
+    worktree.parent.mkdir(parents=True)
+    subprocess.run(
+        ["git", "worktree", "add", "--detach", str(worktree), "HEAD"],
+        cwd=authority,
+        check=True,
+    )
+    (worktree / ".ultra" / ".runtime").symlink_to(
+        db_path.parent, target_is_directory=True
+    )
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """INSERT INTO tasks (id, title, type, priority, status)
+               VALUES ('hook-task', 'Hook task', 'feature', 'P1', 'pending')"""
+        )
+        connection.execute(
+            """INSERT INTO sessions
+               (sid, task_id, runtime, worktree_path, artifact_dir, status,
+                lease_expires_at)
+               VALUES (?, 'hook-task', 'codex', ?, ?, 'running', ?)""",
+            (
+                sid,
+                str(worktree),
+                str(db_path.parent / "sessions" / sid),
+                "2099-01-01T00:00:00.000Z",
+            ),
+        )
+    return worktree, db_path
+
+
 def test_context_is_noop_outside_an_ultra_project(tmp_path):
     output, stderr = run_hook("workflow_context.py", tmp_path)
     assert output == {}
     assert stderr == ""
+
+
+def test_configured_db_does_not_turn_an_unrelated_cwd_into_the_project_root(tmp_path):
+    authority = tmp_path / "authority"
+    unrelated = tmp_path / "unrelated"
+    authority.mkdir()
+    unrelated.mkdir()
+    db_path = init_db(authority)
+    seed_workflow(db_path, baseline_id="test-baseline")
+
+    output, stderr = run_hook(
+        "workflow_context.py",
+        unrelated,
+        {"UBP_DB_PATH": str(db_path)},
+    )
+
+    assert output == {}
+    assert "does not name this project's canonical or task-linked authority" in stderr
+
+
+def test_explicit_root_allows_a_worktree_to_use_external_authority(tmp_path):
+    authority = tmp_path / "authority"
+    authority.mkdir()
+    worktree, db_path = registered_worktree(authority)
+    nested = worktree / "src" / "feature"
+    nested.mkdir(parents=True)
+    seed_workflow(db_path, baseline_id="test-baseline")
+
+    output, stderr = run_hook(
+        "workflow_context.py",
+        nested,
+        {
+            "UBP_ROOT_DIR": str(worktree),
+            "UBP_DB_PATH": str(db_path),
+        },
+    )
+
+    assert stderr == ""
+    text = output["hookSpecificOutput"]["additionalContext"]
+    assert "[Ultra baseline]" in text
+    assert "Workflow: wf-research" in text
+
+
+def test_explicit_root_rejects_an_unlinked_external_authority(tmp_path, monkeypatch):
+    authority = tmp_path / "authority"
+    project = tmp_path / "project"
+    authority.mkdir()
+    project.mkdir()
+    db_path = init_db(authority)
+    monkeypatch.setenv("UBP_ROOT_DIR", str(project))
+    monkeypatch.setenv("UBP_DB_PATH", str(db_path))
+
+    with pytest.raises(RuntimePathError, match="authority|project"):
+        state_db_path(project)
+
+
+def test_python_read_paths_refuse_competing_legacy_and_runtime_databases(tmp_path, monkeypatch):
+    runtime = tmp_path / ".ultra" / ".runtime"
+    runtime.mkdir(parents=True)
+    legacy = tmp_path / ".ultra" / "state.db"  # runtime-path-compatibility fixture
+    current = runtime / "state.db"
+    legacy.write_text("legacy", encoding="utf-8")
+    current.write_text("runtime", encoding="utf-8")
+    monkeypatch.delenv("UBP_DB_PATH", raising=False)
+    monkeypatch.delenv("UBP_ROOT_DIR", raising=False)
+
+    with pytest.raises(RuntimePathError, match="both legacy"):
+        state_db_path(tmp_path)
+    with pytest.raises(ContextSpineError, match="both legacy"):
+        find_root(tmp_path)
+    output, stderr = run_hook("workflow_context.py", tmp_path)
+    assert output == {}
+    assert "both legacy" in stderr
+
+
+def test_python_read_paths_accept_the_managed_legacy_migration_tombstone(
+    tmp_path, monkeypatch
+):
+    runtime = tmp_path / ".ultra" / ".runtime"
+    runtime.mkdir(parents=True)
+    current = runtime / "state.db"
+    current.write_text("runtime", encoding="utf-8")
+    tombstone = tmp_path / ".ultra" / "state.db"  # runtime-path-compatibility
+    tombstone.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "kind": "ultra-state-migration-tombstone",
+                "canonical_state_db": ".runtime/state.db",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("UBP_DB_PATH", raising=False)
+    monkeypatch.delenv("UBP_ROOT_DIR", raising=False)
+
+    assert state_db_path(tmp_path) == current
+    assert find_root(tmp_path) == tmp_path
+
+
+def test_python_read_paths_reject_symlinked_ultra_and_unapproved_runtime_links(
+    tmp_path, monkeypatch
+):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    full_link_root = tmp_path / "full-link"
+    full_link_root.mkdir()
+    (full_link_root / ".ultra").symlink_to(outside, target_is_directory=True)
+    monkeypatch.delenv("UBP_DB_PATH", raising=False)
+    monkeypatch.delenv("UBP_ROOT_DIR", raising=False)
+
+    with pytest.raises(RuntimePathError, match="may not be a symlink"):
+        state_db_path(full_link_root)
+
+    authority = tmp_path / "authority"
+    worktree = tmp_path / "worktree"
+    authority.mkdir()
+    (worktree / ".ultra").mkdir(parents=True)
+    db_path = init_db(authority)
+    (worktree / ".ultra" / ".runtime").symlink_to(
+        db_path.parent, target_is_directory=True
+    )
+    with pytest.raises(RuntimePathError, match="may not be a symlink"):
+        state_db_path(worktree)
+
+    monkeypatch.setenv("UBP_DB_PATH", str(db_path))
+    with pytest.raises(RuntimePathError, match="bound|registered|managed"):
+        state_db_path(worktree)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="tracked symlink fixture is POSIX-only")
+def test_python_runtime_validation_keeps_registered_worktree_contents_opaque(tmp_path):
+    authority = tmp_path / "authority"
+    authority.mkdir()
+    registered_worktree(authority)
+    from runtime_paths import validate_project_layout
+
+    validate_project_layout(authority, validate_runtime_tree=True)
+
+
+@pytest.mark.parametrize(
+    ("entry", "kind", "message"),
+    [
+        ("main", "symlink", "regular file"),
+        ("main", "directory", "regular file"),
+        ("-wal", "orphan", "without state.db"),
+        ("-wal", "symlink", "regular file"),
+        ("-shm", "directory", "regular file"),
+    ],
+)
+def test_python_configured_authority_validates_main_and_sidecars_before_resolution(
+    tmp_path, monkeypatch, entry, kind, message
+):
+    project = tmp_path / "project"
+    authority = tmp_path / "authority"
+    project.mkdir()
+    authority.mkdir()
+    configured = authority / "state.db"
+    candidate = configured if entry == "main" else Path(f"{configured}{entry}")
+    outside = authority / "outside"
+
+    if entry != "main" and kind != "orphan":
+        configured.write_text("main", encoding="utf-8")
+    if kind == "symlink":
+        outside.write_text("outside", encoding="utf-8")
+        candidate.symlink_to(outside)
+    elif kind == "directory":
+        candidate.mkdir()
+    elif kind == "orphan":
+        candidate.write_text("orphan", encoding="utf-8")
+
+    monkeypatch.setenv("UBP_DB_PATH", str(configured))
+    monkeypatch.delenv("UBP_ROOT_DIR", raising=False)
+    with pytest.raises(RuntimePathError, match=message):
+        state_db_path(project)
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "telemetry/events.jsonl",
+        "sessions/session/metadata.json",
+        "collab/review.json",
+        "worktrees/session/marker",
+        "backups/state.db",
+        "debug/trace.jsonl",
+        "checkpoint.json",
+        "orchestrator/orchestrator.pid",
+        "orchestrator/orchestrator.log",
+    ],
+)
+def test_python_mutation_preflight_rejects_unsafe_runtime_entries(
+    tmp_path, monkeypatch, relative
+):
+    project = tmp_path / "project"
+    outside = tmp_path / "outside"
+    runtime = project / ".ultra" / ".runtime"
+    candidate = runtime / relative
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+    outside.write_text("outside", encoding="utf-8")
+    candidate.symlink_to(outside)
+    monkeypatch.delenv("UBP_DB_PATH", raising=False)
+    monkeypatch.delenv("UBP_ROOT_DIR", raising=False)
+
+    from runtime_paths import validate_project_layout
+
+    with pytest.raises(RuntimePathError, match="symlink|regular"):
+        validate_project_layout(project, validate_runtime_tree=True)
+    assert outside.read_text(encoding="utf-8") == "outside"
 
 
 def test_all_session_hooks_are_silent_for_an_uninitialized_ultra_directory(tmp_path):

@@ -31,6 +31,24 @@ test('install builds explicit OpenCode commands without exposing public workflow
     assert.ok(!r.copied.skills.some((p) => p.includes('ultra-init/SKILL.md')));
     assert.ok(r.copied.plugins.includes('ultra-builder-pro.js'));
     assert.ok(fs.existsSync(path.join(target, 'plugins', 'ultra-builder-pro.js')));
+    assert.ok(fs.existsSync(path.join(
+      target,
+      opencode.BUNDLE_DIR,
+      'runtime',
+      'session-close-journal-worker.cjs',
+    )));
+    assert.ok(fs.existsSync(path.join(
+      target,
+      opencode.BUNDLE_DIR,
+      'runtime',
+      'doctor-backup-worker.cjs',
+    )));
+    assert.ok(fs.existsSync(path.join(
+      target,
+      opencode.BUNDLE_DIR,
+      'runtime',
+      'archive-mutation-worker.py',
+    )));
     assert.deepEqual(
       fs.readdirSync(path.join(target, 'skills'), { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
@@ -71,18 +89,28 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
       'utf8',
     );
     const plan = workflow('ultra-plan');
-    const learn = workflow('learn');
     const review = workflow('ultra-review');
+    const dialogue = fs.readFileSync(
+      path.join(
+        target,
+        opencode.BUNDLE_DIR,
+        'workflows',
+        'ultra-think',
+        'references',
+        'decision-dialogue.md',
+      ),
+      'utf8',
+    );
     const codexCollab = fs.readFileSync(path.join(target, 'skills', 'codex-collab', 'SKILL.md'), 'utf8');
     const verify = fs.readFileSync(path.join(target, 'skills', 'ultra-verify', 'SKILL.md'), 'utf8');
 
     assert.deepEqual(Object.keys(parseFm(
       fs.readFileSync(path.join(target, 'commands', 'ultra-plan.md'), 'utf8'),
     ).fm), ['description']);
-    assert.match(learn, /`~\/.config\/opencode\/skills`/);
-    assert.doesNotMatch(learn, /_unverified|learned-[^\s/]*-unverified/i);
     assert.match(review, /OpenCode `task` tool/);
     assert.match(review, /scripts\/review_wait\.py/);
+    assert.match(dialogue, /`question`/);
+    assert.doesNotMatch(dialogue, /host-native structured question surface declared/);
     assert.match(codexCollab, /OpenCode remains primary/);
     assert.match(verify, /Keep OpenCode responsible/);
     assert.match(verify, /host-analysis\.md/);
@@ -202,6 +230,8 @@ test('install writes a schema-safe opencode.json and keeps ownership outside hos
     assert.match(plugin, /throw new Error/);
     assert.match(plugin, /session\.compacted/);
     assert.match(plugin, /breadcrumb\.cjs/);
+    assert.match(plugin, /--discover/);
+    assert.doesNotMatch(plugin, /path\.join\(current,\s*["']\.ultra["']/);
     assert.doesNotMatch(plugin, /workflow-state\.json|context-manifest\.json/);
     assert.doesNotMatch(plugin, /memory\.(?:retain|recall|reflect)|journal|observation|prompt[_ -]?capture/);
     assert.match(plugin, /canonical breadcrumb/);
@@ -228,7 +258,7 @@ test('OpenCode is silent before initialization and protects projections only aft
         { args: { patch: '*** Begin Patch\n*** Update File: .ultra/tasks/tasks.json\n*** End Patch' } },
       ),
     );
-    const state = initStateDb(path.join(project, '.ultra', 'state.db'));
+    const state = initStateDb(path.join(project, '.ultra', '.runtime', 'state.db'));
     closeStateDb(state.db);
     await assert.rejects(
       plugin['tool.execute.before'](
@@ -240,6 +270,137 @@ test('OpenCode is silent before initialization and protects projections only aft
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
     fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('installed OpenCode plugin derives and validates each cross-project target root', async () => {
+  const target = mkTarget();
+  const projectA = mkTarget();
+  const projectB = mkTarget();
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    const stateA = initStateDb(path.join(projectA, '.ultra', '.runtime', 'state.db'));
+    const stateB = initStateDb(path.join(projectB, '.ultra', '.runtime', 'state.db'));
+    closeStateDb(stateA.db);
+    closeStateDb(stateB.db);
+    const module = await import(
+      `${pathToFileURL(path.join(target, 'plugins', 'ultra-builder-pro.js')).href}?cross-project`,
+    );
+    const plugin = await module.UltraBuilderProPlugin({ directory: projectA });
+    const targetB = path.join(projectB, '.ultra', 'tasks', 'tasks.json');
+
+    await assert.rejects(
+      plugin['tool.execute.before'](
+        { tool: 'write' },
+        { args: { file_path: targetB } },
+      ),
+      /state\.db is authoritative/,
+    );
+    await assert.rejects(
+      plugin['tool.execute.before'](
+        { tool: 'edit' },
+        { args: { file_path: path.relative(projectA, targetB) } },
+      ),
+      /state\.db is authoritative/,
+    );
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(projectA, { recursive: true, force: true });
+    fs.rmSync(projectB, { recursive: true, force: true });
+  }
+});
+
+test('OpenCode refuses competing legacy and runtime DB authorities', async () => {
+  const target = mkTarget();
+  const project = mkTarget();
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    const runtime = initStateDb(path.join(project, '.ultra', '.runtime', 'state.db'));
+    closeStateDb(runtime.db);
+    const legacy = initStateDb(path.join( // runtime-path-compatibility fixture
+      project, '.ultra', 'state.db',
+    ));
+    closeStateDb(legacy.db);
+
+    const module = await import(
+      `${pathToFileURL(path.join(target, 'plugins', 'ultra-builder-pro.js')).href}?conflict`,
+    );
+    await assert.rejects(
+      module.UltraBuilderProPlugin({ directory: project }),
+      /RUNTIME_STATE_CONFLICT|both legacy .*runtime.*state\.db/i,
+    );
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('OpenCode fails closed on an unsafe configured SQLite sidecar', async () => {
+  const target = mkTarget();
+  const project = mkTarget();
+  const authority = mkTarget();
+  const priorRoot = process.env.UBP_ROOT_DIR;
+  const priorDb = process.env.UBP_DB_PATH;
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
+    const configuredDb = path.join(authority, 'state.db');
+    const initialized = initStateDb(configuredDb);
+    closeStateDb(initialized.db);
+    const outside = path.join(authority, 'outside-wal');
+    fs.writeFileSync(outside, 'outside');
+    fs.symlinkSync(outside, `${configuredDb}-wal`);
+    process.env.UBP_ROOT_DIR = project;
+    process.env.UBP_DB_PATH = configuredDb;
+
+    const module = await import(
+      `${pathToFileURL(path.join(target, 'plugins', 'ultra-builder-pro.js')).href}?unsafe-sidecar`,
+    );
+    await assert.rejects(
+      module.UltraBuilderProPlugin({ directory: project }),
+      /RUNTIME_PATH_UNSAFE|regular file|symlink/i,
+    );
+  } finally {
+    if (priorRoot === undefined) delete process.env.UBP_ROOT_DIR;
+    else process.env.UBP_ROOT_DIR = priorRoot;
+    if (priorDb === undefined) delete process.env.UBP_DB_PATH;
+    else process.env.UBP_DB_PATH = priorDb;
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(project, { recursive: true, force: true });
+    fs.rmSync(authority, { recursive: true, force: true });
+  }
+});
+
+test('OpenCode rejects a valid but unrelated configured DB authority', async () => {
+  const target = mkTarget();
+  const project = mkTarget();
+  const authority = mkTarget();
+  const priorRoot = process.env.UBP_ROOT_DIR;
+  const priorDb = process.env.UBP_DB_PATH;
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
+    const configuredDb = path.join(authority, 'state.db');
+    const initialized = initStateDb(configuredDb);
+    closeStateDb(initialized.db);
+    process.env.UBP_ROOT_DIR = project;
+    process.env.UBP_DB_PATH = configuredDb;
+
+    const module = await import(
+      `${pathToFileURL(path.join(target, 'plugins', 'ultra-builder-pro.js')).href}?authority-mismatch`,
+    );
+    await assert.rejects(
+      module.UltraBuilderProPlugin({ directory: project }),
+      /RUNTIME_AUTHORITY_MISMATCH|canonical or task-linked authority/i,
+    );
+  } finally {
+    if (priorRoot === undefined) delete process.env.UBP_ROOT_DIR;
+    else process.env.UBP_ROOT_DIR = priorRoot;
+    if (priorDb === undefined) delete process.env.UBP_DB_PATH;
+    else process.env.UBP_DB_PATH = priorDb;
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(project, { recursive: true, force: true });
+    fs.rmSync(authority, { recursive: true, force: true });
   }
 });
 
@@ -255,7 +416,7 @@ test('OpenCode injects the DB breadcrumb and ignores conflicting workflow projec
     execFileSync('git', ['-c', 'user.name=Ultra Tests', '-c', 'user.email=ultra@example.invalid', 'commit', '-m', 'initial'], {
       cwd: project, stdio: 'ignore',
     });
-    state = initStateDb(path.join(project, '.ultra', 'state.db'));
+    state = initStateDb(path.join(project, '.ultra', '.runtime', 'state.db'));
     seedReadyBaseline(state.db, { rootDir: project, id: 'baseline-db' });
     const { change } = changes.createChange(state.db, completeChangeInput({
       id: 'db-authority-change', title: 'DB authority', kind: 'quick',

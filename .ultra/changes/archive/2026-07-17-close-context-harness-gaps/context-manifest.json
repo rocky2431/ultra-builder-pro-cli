@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-17T12:14:32.923Z",
+  "change": {
+    "id": "close-context-harness-gaps",
+    "title": "Close context and harness lifecycle gaps",
+    "kind": "major",
+    "status": "active",
+    "intent": "Complete the remaining Ultra-native debug lane, make workflow checkpoints recoverable through a real consumer, and add cross-host installation provenance diagnostics for Claude Code, OpenCode, and Codex without importing external memory or graph ownership.",
+    "docs_impact": {
+      "status": "required",
+      "files": [
+        "README.md",
+        "CHANGELOG.md",
+        "docs/ARCHITECTURE.md",
+        "docs/RUNTIME-COMPAT-MATRIX.md",
+        "docs/PLAN.zh-CN.md"
+      ],
+      "rationale": "The public runtime, recovery, and installation contracts change."
+    },
+    "base_commit": "f140f839781eeb50048a13d4f8e335691c088f8b"
+  },
+  "git": {
+    "head": "5d2285428188038c4f1c6664ad4860b35c29cd48"
+  },
+  "tasks": [
+    {
+      "id": "closure-debug-lane",
+      "title": "Make incident debugging a first-class durable lane",
+      "status": "completed",
+      "priority": "P0",
+      "stale": false,
+      "trace_to": "skills/ultra-change/SKILL.md#classify-the-change",
+      "context_file": null
+    },
+    {
+      "id": "closure-checkpoint-recovery",
+      "title": "Consume and validate workflow checkpoints during recovery",
+      "status": "completed",
+      "priority": "P0",
+      "stale": false,
+      "trace_to": "hooks/workflow_checkpoint.py",
+      "context_file": null
+    },
+    {
+      "id": "closure-install-provenance",
+      "title": "Add cross-host installation provenance doctor",
+      "status": "completed",
+      "priority": "P0",
+      "stale": false,
+      "trace_to": "adapters",
+      "context_file": null
+    }
+  ],
+  "specs": [
+    {
+      "path": ".ultra/changes/active/close-context-harness-gaps/delta/harness-closure.md",
+      "role": "accepted-delta"
+    },
+    {
+      "path": "spec/mcp-tools.yaml",
+      "role": "live-mcp-contract"
+    },
+    {
+      "path": "docs/RUNTIME-COMPAT-MATRIX.md",
+      "role": "host-contract"
+    }
+  ],
+  "providers": {},
+  "provider_boundary": "metadata references only; memory and code graph content remain external",
+  "tool_policy": {
+    "allowed_paths": [
+      "mcp-server",
+      "hooks",
+      "adapters",
+      "bin",
+      "tests",
+      "skills",
+      "commands",
+      "agents",
+      "spec",
+      "docs",
+      "README.md",
+      "CHANGELOG.md",
+      "package.json"
+    ]
+  }
+}

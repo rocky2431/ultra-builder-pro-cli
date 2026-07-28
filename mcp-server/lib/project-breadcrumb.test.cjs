@@ -26,7 +26,9 @@ function tmpProject(prefix) {
 
 test('project reader returns the exact canonical breadcrumb from state.db', () => {
   const rootDir = tmpProject('ubp-project-breadcrumb-');
-  const state = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const state = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   try {
     seedReadyBaseline(state.db, { rootDir, id: 'baseline-1' });
     const { change } = createChange(state.db, { ...completeChangeInput(),
@@ -69,11 +71,49 @@ test('project reader returns the exact canonical breadcrumb from state.db', () =
     assert.match(rendered, /Task: db-task/);
     assert.match(rendered, /Allowed transitions:/);
     assert.equal(actual.next_action, undefined);
-    assert.match(rendered, /Authority: \.ultra\/state\.db/);
+    assert.match(rendered, /Lifecycle authority: \.ultra\/\.runtime\/state\.db/);
   } finally {
     closeStateDb(state.db);
     fs.rmSync(rootDir, { recursive: true, force: true });
   }
+});
+
+test('project renderer includes compact accepted intent without manufacturing interaction proof', () => {
+  const rendered = renderProjectBreadcrumb('/tmp/accepted-intent', {
+    change_id: 'change-1',
+    change_status: 'active',
+    task_id: null,
+    task_status: null,
+    role: 'plan',
+    gate: 'alignment',
+    readiness: 'ready',
+    blockers: [],
+    warnings: [],
+    allowed_transitions: ['ultra-plan', 'ultra-status'],
+    required_transition: null,
+    baseline: { id: 'baseline-1', mode: 'brownfield', status: 'ready' },
+    decision: {
+      thread_id: 'thread-settled',
+      status: 'active',
+      mode: 'fast',
+      current: null,
+    },
+    accepted_intent: [{
+      decision_id: 'decision-1',
+      authority: 'owner',
+      decision: 'Preserve compatibility for one release.',
+    }, {
+      decision_id: 'decision-long',
+      authority: 'owner',
+      decision: `${'bounded context '.repeat(30)}SHOULD_NOT_SURVIVE`,
+    }],
+  });
+  assert.match(rendered, /Accepted intent: decision-1 \[owner\] Preserve compatibility for one release\./);
+  assert.match(rendered, /Decision: normalized intent recorded; application and read-back remain/);
+  assert.doesNotMatch(rendered, /checkpoint confirmation required/);
+  assert.doesNotMatch(rendered, /SHOULD_NOT_SURVIVE/);
+  assert.doesNotMatch(rendered, /receipt|transcript/i);
+  assert.match(rendered, /Lifecycle authority: \.ultra\/\.runtime\/state\.db/);
 });
 
 test('project reader routes a missing authority to ultra-init', () => {
@@ -91,7 +131,9 @@ test('project reader routes a missing authority to ultra-init', () => {
 
 test('project reader routes an old schema to ultra-init without consulting projections', () => {
   const rootDir = tmpProject('ubp-project-old-schema-');
-  const db = new Database(path.join(rootDir, '.ultra', 'state.db'));
+  const db = new Database(path.join( // runtime-path-compatibility fixture
+    rootDir, '.ultra', 'state.db',
+  ));
   try {
     db.exec(`
       CREATE TABLE schema_version (

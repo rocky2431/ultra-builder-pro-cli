@@ -15,6 +15,7 @@ const {
   openStateDb,
   applyPragmas,
   tableNames,
+  ActiveSessionLeaseConflictError,
 } = require('./state-db.cjs');
 const stateOps = require('./state-ops.cjs');
 
@@ -23,7 +24,7 @@ function tmpDbPath(prefix = 'ubp-state') {
   return { dir, file: path.join(dir, 'state.db') };
 }
 
-test('initStateDb creates workflow tables without an Ultra memory store', () => {
+test('initStateDb creates workflow-memory tables without a general memory-provider store', () => {
   const { dir, file } = tmpDbPath();
   try {
     const init = initStateDb(file);
@@ -107,7 +108,7 @@ test('schema 13 upgrades through the current authority without demoting an estab
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0', '19.0')",
+      "DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0')",
     ).run();
     initial.db.exec('ALTER TABLE baselines DROP COLUMN known_red_accepted');
     closeStateDb(initial.db);
@@ -144,7 +145,7 @@ test('schema 15 adds decision dialogue authority without forcing baseline re-ado
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0', '19.0')",
+      "DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0', '19.0', '20.0')",
     ).run();
     initial.db.exec('DROP TABLE decision_items; DROP TABLE decision_threads');
     closeStateDb(initial.db);
@@ -191,7 +192,7 @@ test('schema 17 adds the unborn Git baseline state without losing established au
     initial.db.pragma('writable_schema = OFF');
     initial.db.unsafeMode(false);
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('17.0', '18.0', '19.0')",
+      "DELETE FROM schema_version WHERE version IN ('17.0', '18.0', '19.0', '20.0')",
     ).run();
     closeStateDb(initial.db);
 
@@ -285,8 +286,8 @@ test('schema 18 migrates active rigid workflows into recoverable adaptive capabi
        VALUES ('legacy-context', 'adaptive-change', '.ultra/context.json', 'legacy-hash',
                'Run an owner-selected workflow.')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('18.0', '19.0')").run();
-    initial.db.prepare("DELETE FROM migration_history WHERE to_version IN ('18.0', '19.0')").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('18.0', '19.0', '20.0')").run();
+    initial.db.prepare("DELETE FROM migration_history WHERE to_version IN ('18.0', '19.0', '20.0')").run();
     closeStateDb(initial.db);
 
     const upgraded = initStateDb(file);
@@ -430,8 +431,8 @@ test('schema 19 completes settled decision threads without fabricating approval 
         ON decision_threads(baseline_id, change_id, workflow_run_id, status);
     `);
     initial.db.pragma('foreign_keys = ON');
-    initial.db.prepare("DELETE FROM schema_version WHERE version = '19.0'").run();
-    initial.db.prepare("DELETE FROM migration_history WHERE to_version = '19.0'").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('19.0', '20.0')").run();
+    initial.db.prepare("DELETE FROM migration_history WHERE to_version IN ('19.0', '20.0')").run();
     closeStateDb(initial.db);
 
     const upgraded = initStateDb(file);
@@ -722,7 +723,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
     legacy.exec(legacySchema);
     legacy.prepare(
-      "DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0')",
+      "DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0')",
     ).run();
     legacy.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
@@ -754,7 +755,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     assert.equal(upgraded.db.prepare("SELECT COUNT(*) AS n FROM incidents WHERE session_id = 'session-old'").get().n, 1);
     assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
     const migrations = upgraded.db.prepare(
-      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0') ORDER BY id",
+      "SELECT to_version, notes FROM migration_history WHERE to_version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0') ORDER BY id",
     ).all();
     assert.ok(migrations.some((row) => row.to_version === '9.1' && /Kimi/.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '10.0' && /Context Spine/.test(row.notes)));
@@ -766,6 +767,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     assert.ok(migrations.some((row) => row.to_version === '17.0' && /unborn Git|checkpoint/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '18.0' && /adaptive|capability/i.test(row.notes)));
     assert.ok(migrations.some((row) => row.to_version === '15.0' && /typed research|reconciliation/i.test(row.notes)));
+    assert.ok(migrations.some((row) => row.to_version === '20.0' && /artifact registry|dependency/i.test(row.notes)));
     assert.deepEqual(
       upgraded.db.prepare("SELECT mode, status FROM baselines WHERE id = 'migrated-baseline'").get(),
       { mode: 'migrated', status: 'adopting' },
@@ -785,6 +787,332 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const event = stateOps.appendEvent(upgraded.db, { type: 'kimi-ready', runtime: 'kimi' });
     assert.ok(event.event_id > 0);
     closeStateDb(upgraded.db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('active lease index upgrade fails safely and reports every duplicate task lease', () => {
+  const { dir, file } = tmpDbPath('ubp-active-lease-upgrade');
+  try {
+    const initialized = initStateDb(file);
+    initialized.db.exec('DROP INDEX sessions_one_active_task');
+    initialized.db.prepare(
+      "INSERT INTO tasks (id, title, type, priority) VALUES ('duplicate-task', 'Duplicate', 'feature', 'P0')",
+    ).run();
+    const insert = initialized.db.prepare(
+      `INSERT INTO sessions
+       (sid, task_id, runtime, worktree_path, artifact_dir, status, lease_expires_at)
+       VALUES (?, 'duplicate-task', 'codex', ?, ?, 'running', '2099-01-01T00:00:00.000Z')`,
+    );
+    insert.run('duplicate-a', '/tmp/duplicate-a', '/tmp/duplicate-a-artifacts');
+    insert.run('duplicate-b', '/tmp/duplicate-b', '/tmp/duplicate-b-artifacts');
+    initialized.db.prepare(
+      'DELETE FROM schema_version WHERE version = ?',
+    ).run(EXPECTED_VERSION);
+    closeStateDb(initialized.db);
+
+    let failure;
+    assert.throws(
+      () => initStateDb(file),
+      (error) => {
+        failure = error;
+        return error.code === 'ACTIVE_SESSION_LEASE_CONFLICT'
+          && error.message.includes('duplicate-task=[duplicate-a,duplicate-b]');
+      },
+    );
+    assert.ok(failure.migration_backup_path);
+    assert.ok(fs.existsSync(failure.migration_backup_path));
+
+    const preserved = openStateDb(file);
+    try {
+      assert.deepEqual(
+        preserved.prepare(
+          "SELECT sid FROM sessions WHERE task_id = 'duplicate-task' ORDER BY sid",
+        ).all(),
+        [{ sid: 'duplicate-a' }, { sid: 'duplicate-b' }],
+      );
+      assert.equal(
+        preserved.prepare(
+          "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'sessions_one_active_task'",
+        ).get().count,
+        0,
+      );
+    } finally {
+      closeStateDb(preserved);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('old runtime schema reports all duplicate leases before rebuilding sessions', () => {
+  const { dir, file } = tmpDbPath('ubp-old-runtime-active-lease-upgrade');
+  try {
+    const initialized = initStateDb(file);
+    const db = initialized.db;
+    db.pragma('foreign_keys = OFF');
+    db.exec(`
+      DROP INDEX sessions_one_active_task;
+      DROP INDEX sessions_active;
+      DROP INDEX sessions_lease;
+      ALTER TABLE sessions RENAME TO sessions_current;
+      CREATE TABLE sessions (
+        sid               TEXT PRIMARY KEY,
+        task_id           TEXT NOT NULL REFERENCES tasks(id),
+        runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex')),
+        pid               INTEGER,
+        worktree_path     TEXT NOT NULL,
+        artifact_dir      TEXT NOT NULL,
+        status            TEXT NOT NULL DEFAULT 'running'
+                            CHECK (status IN ('running', 'completed', 'crashed', 'orphan')),
+        lease_expires_at  TEXT NOT NULL,
+        heartbeat_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        started_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+      DROP TABLE sessions_current;
+      CREATE INDEX sessions_active ON sessions(status, task_id);
+      CREATE INDEX sessions_lease ON sessions(lease_expires_at) WHERE status = 'running';
+      DELETE FROM schema_version;
+      INSERT INTO schema_version (version, description)
+      VALUES ('9.0', 'pre-Kimi runtime constraints');
+      INSERT INTO tasks (id, title, type, priority) VALUES
+        ('duplicate-a-task', 'Duplicate A', 'feature', 'P0'),
+        ('duplicate-b-task', 'Duplicate B', 'feature', 'P0');
+      INSERT INTO sessions
+        (sid, task_id, runtime, worktree_path, artifact_dir, status, lease_expires_at)
+      VALUES
+        ('a-claude', 'duplicate-a-task', 'claude', '/tmp/a-claude', '/tmp/a-claude-art', 'running', '2099-01-01T00:00:00.000Z'),
+        ('a-codex', 'duplicate-a-task', 'codex', '/tmp/a-codex', '/tmp/a-codex-art', 'running', '2099-01-01T00:00:00.000Z'),
+        ('b-claude', 'duplicate-b-task', 'claude', '/tmp/b-claude', '/tmp/b-claude-art', 'running', '2099-01-01T00:00:00.000Z'),
+        ('b-opencode', 'duplicate-b-task', 'opencode', '/tmp/b-opencode', '/tmp/b-opencode-art', 'running', '2099-01-01T00:00:00.000Z');
+    `);
+    const originalSessionSql = db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sessions'",
+    ).get().sql;
+    db.pragma('foreign_keys = ON');
+    closeStateDb(db);
+
+    let failure;
+    assert.throws(
+      () => initStateDb(file),
+      (error) => {
+        failure = error;
+        return error instanceof ActiveSessionLeaseConflictError
+          && error.code === 'ACTIVE_SESSION_LEASE_CONFLICT';
+      },
+    );
+    assert.ok(failure.migration_backup_path);
+    assert.ok(fs.existsSync(failure.migration_backup_path));
+    assert.deepEqual(failure.details.conflicts, [
+      {
+        task_id: 'duplicate-a-task',
+        lease_count: 2,
+        session_ids: ['a-claude', 'a-codex'],
+      },
+      {
+        task_id: 'duplicate-b-task',
+        lease_count: 2,
+        session_ids: ['b-claude', 'b-opencode'],
+      },
+    ]);
+
+    const preserved = openStateDb(file);
+    try {
+      assert.equal(
+        preserved.prepare(
+          "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sessions'",
+        ).get().sql,
+        originalSessionSql,
+      );
+      assert.equal(
+        preserved.prepare(
+          "SELECT COUNT(*) AS count FROM sqlite_master WHERE name IN ('sessions_runtime_upgrade', 'events_runtime_upgrade')",
+        ).get().count,
+        0,
+      );
+      assert.deepEqual(
+        preserved.prepare(
+          "SELECT sid FROM sessions WHERE status = 'running' ORDER BY sid",
+        ).all(),
+        [
+          { sid: 'a-claude' },
+          { sid: 'a-codex' },
+          { sid: 'b-claude' },
+          { sid: 'b-opencode' },
+        ],
+      );
+    } finally {
+      closeStateDb(preserved);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('schema 19 artifact rows migrate losslessly into the typed registry with a recovery backup', () => {
+  const { dir, file } = tmpDbPath('ubp-schema-19-artifact-upgrade');
+  try {
+    const initialized = initStateDb(file);
+    const db = initialized.db;
+    db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+       VALUES ('legacy-change', 'Legacy artifact', 'quick', 'active',
+               'Preserve the registered file.', '.ultra/changes/active/legacy-change')`,
+    ).run();
+    db.pragma('foreign_keys = OFF');
+    db.exec(`
+      DROP TABLE IF EXISTS artifact_edges;
+      DROP INDEX IF EXISTS artifacts_change;
+      ALTER TABLE artifacts RENAME TO artifacts_current;
+      CREATE TABLE artifacts (
+        id            TEXT PRIMARY KEY,
+        change_id     TEXT NOT NULL REFERENCES changes(id) ON DELETE CASCADE,
+        task_id       TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+        kind          TEXT NOT NULL,
+        path          TEXT NOT NULL,
+        content_hash  TEXT,
+        metadata_json TEXT,
+        status        TEXT NOT NULL DEFAULT 'current'
+                        CHECK (status IN ('current', 'archived')),
+        created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        UNIQUE(change_id, kind, path)
+      );
+      INSERT INTO artifacts
+        (id, change_id, kind, path, content_hash, metadata_json, status)
+      VALUES
+        ('legacy-artifact', 'legacy-change', 'intent',
+         '.ultra/changes/active/legacy-change/intent.md',
+         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+         '{"legacy":true}', 'current');
+      DROP TABLE artifacts_current;
+      CREATE INDEX artifacts_change ON artifacts(change_id, kind);
+      DELETE FROM schema_version WHERE version = '20.0';
+    `);
+    db.pragma('foreign_keys = ON');
+    closeStateDb(db);
+
+    const upgraded = initStateDb(file);
+    assert.equal(upgraded.schema_version, EXPECTED_VERSION);
+    assert.ok(upgraded.backup_path);
+    assert.ok(fs.existsSync(upgraded.backup_path));
+    const columns = new Set(
+      upgraded.db.prepare('PRAGMA table_info(artifacts)').all().map((row) => row.name),
+    );
+    for (const column of [
+      'owner_type', 'owner_id', 'digest', 'before_digest', 'after_digest',
+      'provenance_json', 'managed',
+    ]) {
+      assert.ok(columns.has(column), `missing artifacts.${column}`);
+    }
+    assert.ok(tableNames(upgraded.db).includes('artifact_edges'));
+    assert.deepEqual(
+      upgraded.db.prepare(
+        `SELECT id, owner_type, owner_id, digest, after_digest, managed
+         FROM artifacts WHERE id = 'legacy-artifact'`,
+      ).get(),
+      {
+        id: 'legacy-artifact',
+        owner_type: 'change',
+        owner_id: 'legacy-change',
+        digest: 'a'.repeat(64),
+        after_digest: 'a'.repeat(64),
+        managed: 0,
+      },
+    );
+    const migration = upgraded.db.prepare(
+      "SELECT notes FROM migration_history WHERE to_version = '20.0' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.match(migration.notes, /artifact registry|dependency/i);
+    closeStateDb(upgraded.db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('artifact migration preflight reports canonical duplicate authority without changing legacy rows', () => {
+  const { dir, file } = tmpDbPath('ubp-schema-19-artifact-duplicate');
+  try {
+    const initialized = initStateDb(file);
+    const db = initialized.db;
+    db.exec(`
+      INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+      VALUES
+        ('duplicate-change-a', 'Duplicate A', 'quick', 'active', 'A',
+         '.ultra/changes/active/duplicate-change-a'),
+        ('duplicate-change-b', 'Duplicate B', 'quick', 'active', 'B',
+         '.ultra/changes/active/duplicate-change-b');
+    `);
+    db.pragma('foreign_keys = OFF');
+    db.exec(`
+      DROP TABLE IF EXISTS artifact_edges;
+      DROP INDEX IF EXISTS artifacts_change;
+      DROP INDEX IF EXISTS artifacts_owner;
+      DROP INDEX IF EXISTS artifacts_path;
+      ALTER TABLE artifacts RENAME TO artifacts_current;
+      CREATE TABLE artifacts (
+        id            TEXT PRIMARY KEY,
+        change_id     TEXT NOT NULL REFERENCES changes(id) ON DELETE CASCADE,
+        task_id       TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+        kind          TEXT NOT NULL,
+        path          TEXT NOT NULL,
+        content_hash  TEXT,
+        metadata_json TEXT,
+        status        TEXT NOT NULL DEFAULT 'current'
+                        CHECK (status IN ('current', 'archived')),
+        created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        UNIQUE(change_id, kind, path)
+      );
+      INSERT INTO artifacts
+        (id, change_id, kind, path, content_hash, status)
+      VALUES
+        ('duplicate-artifact-a', 'duplicate-change-a', 'intent',
+         './.ultra/specs/shared.md',
+         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+         'current'),
+        ('duplicate-artifact-b', 'duplicate-change-b', 'evidence',
+         '.ultra/specs/shared.md',
+         'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+         'current');
+      DROP TABLE artifacts_current;
+      CREATE INDEX artifacts_change ON artifacts(change_id, kind);
+      DELETE FROM schema_version WHERE version = '20.0';
+    `);
+    db.pragma('foreign_keys = ON');
+    closeStateDb(db);
+
+    let failure;
+    try {
+      initStateDb(file);
+    } catch (error) {
+      failure = error;
+    }
+    assert.equal(failure?.code, 'ARTIFACT_AUTHORITY_CONFLICT');
+    assert.deepEqual(
+      failure?.details?.conflicts?.[0]?.artifact_ids,
+      ['duplicate-artifact-a', 'duplicate-artifact-b'],
+    );
+
+    const preserved = openStateDb(file);
+    try {
+      assert.deepEqual(
+        preserved.prepare('SELECT id, path FROM artifacts ORDER BY id').all(),
+        [
+          { id: 'duplicate-artifact-a', path: './.ultra/specs/shared.md' },
+          { id: 'duplicate-artifact-b', path: '.ultra/specs/shared.md' },
+        ],
+      );
+      assert.equal(
+        preserved.prepare(
+          "SELECT COUNT(*) AS count FROM pragma_table_info('artifacts') WHERE name = 'owner_type'",
+        ).get().count,
+        0,
+      );
+    } finally {
+      closeStateDb(preserved);
+    }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

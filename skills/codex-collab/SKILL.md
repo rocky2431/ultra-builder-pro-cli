@@ -17,10 +17,10 @@ evidence, edits, verification, and the final answer.
 
 ## Invocation
 
-Create a session directory under `.ultra/collab/`, then run in a read-only sandbox:
+Create a session directory under `.ultra/.runtime/collab/`, then run in a read-only sandbox:
 
 ```bash
-SESSION_PATH=".ultra/collab/$(date +%Y%m%d-%H%M%S)-codex"
+SESSION_PATH=".ultra/.runtime/collab/$(date +%Y%m%d-%H%M%S)-codex"
 mkdir -p "${SESSION_PATH}"
 codex exec -s read-only \
   --ephemeral \
@@ -34,6 +34,9 @@ codex exec -s read-only \
 Do not enable write-capable automation or permission bypass. The isolation flags keep
 the advisory run independent from the user's Codex runtime configuration and rules;
 the normal Codex authentication store remains available.
+
+Treat `.ultra/.runtime/collab/` as working scratch, not Ultra authority. Promote only verified
+conclusions into the invoking DB-bound workflow artifact or report.
 
 ## Synthesis
 

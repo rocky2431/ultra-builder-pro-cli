@@ -1,0 +1,338 @@
+{
+  "schema_version": "4.5",
+  "generated_at": "2026-07-28T02:33:45.136Z",
+  "source": ".ultra/.runtime/state.db",
+  "tasks": [
+    {
+      "id": "closure-debug-lane",
+      "title": "Make incident debugging a first-class durable lane",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 6,
+      "estimated_days": 1,
+      "status": "completed",
+      "files_modified": [
+        "mcp-server/lib/change-workflow.cjs",
+        "skills/ultra-change/SKILL.md",
+        "agents/debugger.md"
+      ],
+      "stale": false,
+      "trace_to": "skills/ultra-change/SKILL.md#classify-the-change",
+      "completion_commit": "5d2285428188038c4f1c6664ad4860b35c29cd48",
+      "created_at": "2026-07-17T11:41:48.917Z",
+      "updated_at": "2026-07-17T12:14:32.904Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "closure-checkpoint-recovery",
+      "title": "Consume and validate workflow checkpoints during recovery",
+      "type": "bugfix",
+      "priority": "P0",
+      "complexity": 5,
+      "estimated_days": 0.5,
+      "status": "completed",
+      "files_modified": [
+        "hooks/workflow_checkpoint.py",
+        "hooks/workflow_resume.py",
+        "hooks/tests"
+      ],
+      "stale": false,
+      "trace_to": "hooks/workflow_checkpoint.py",
+      "completion_commit": "5d2285428188038c4f1c6664ad4860b35c29cd48",
+      "created_at": "2026-07-17T11:41:48.920Z",
+      "updated_at": "2026-07-17T12:14:32.908Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "closure-install-provenance",
+      "title": "Add cross-host installation provenance doctor",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 8,
+      "estimated_days": 1.5,
+      "status": "completed",
+      "files_modified": [
+        "bin/install.js",
+        "adapters",
+        "tests/install.test.cjs",
+        "docs/RUNTIME-COMPAT-MATRIX.md"
+      ],
+      "stale": false,
+      "trace_to": "adapters",
+      "completion_commit": "5d2285428188038c4f1c6664ad4860b35c29cd48",
+      "created_at": "2026-07-17T11:41:48.921Z",
+      "updated_at": "2026-07-17T12:14:32.910Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "fix-retired-reference-release",
+      "title": "Remove retired reference and republish patch release",
+      "type": "bugfix",
+      "priority": "P0",
+      "complexity": 2,
+      "estimated_days": 0.1,
+      "status": "completed",
+      "files_modified": [
+        "docs/PLAN.zh-CN.md",
+        "README.md",
+        "CHANGELOG.md",
+        "package.json",
+        "package-lock.json"
+      ],
+      "stale": false,
+      "trace_to": "tests/retired-runtime.test.cjs",
+      "completion_commit": "72e1aa38738bf5506c68478abc4984602719b752",
+      "created_at": "2026-07-17T12:22:34.119Z",
+      "updated_at": "2026-07-17T12:28:31.238Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "kimi-native-runtime-support-impl",
+      "title": "Implement and verify native Kimi runtime",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 8,
+      "estimated_days": 2,
+      "status": "completed",
+      "files_modified": [
+        "adapters/kimi.js",
+        "hooks/adapters/kimi.py",
+        "spec/schemas/state-db.sql",
+        "README.md",
+        "docs/RUNTIME-COMPAT-MATRIX.md"
+      ],
+      "stale": false,
+      "created_at": "2026-07-17T14:21:12.841Z",
+      "updated_at": "2026-07-17T14:21:12.843Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "release-kimi-v0-9-0-publish",
+      "title": "Publish and verify v0.9.0",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 5,
+      "estimated_days": 1,
+      "status": "completed",
+      "files_modified": [
+        "package.json",
+        "package-lock.json",
+        "CHANGELOG.md",
+        "README.md",
+        "docs/ROADMAP.md",
+        "docs/PLAN.zh-CN.md"
+      ],
+      "stale": false,
+      "completion_commit": "825012d2a76f3a5741e9b549a72aaa17d1ac8849",
+      "created_at": "2026-07-17T15:11:43.563Z",
+      "updated_at": "2026-07-17T15:23:58.578Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "context-spine-contract",
+      "title": "Define Context Spine state and MCP contracts end-to-end",
+      "type": "architecture",
+      "priority": "P0",
+      "complexity": 6,
+      "estimated_days": 1.5,
+      "status": "completed",
+      "deps": [],
+      "files_modified": [
+        "mcp-server/lib/context-spine.cjs",
+        "mcp-server/lib/spec-learning.cjs",
+        "mcp-server/lib/state-db.cjs",
+        "mcp-server/server.cjs",
+        "spec/mcp-tools.yaml",
+        "spec/schemas/state-db.sql"
+      ],
+      "stale": false,
+      "trace_to": "spec/mcp-tools.yaml#change.context",
+      "completion_commit": "0f6f925969101194edef2aefef4249c9f15a6c23",
+      "created_at": "2026-07-17T19:02:59.630Z",
+      "updated_at": "2026-07-17T19:42:20.031Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "context-spine-hooks",
+      "title": "Inject DB-derived workflow breadcrumbs across lifecycle hooks",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 5,
+      "estimated_days": 1,
+      "status": "completed",
+      "deps": [
+        "context-spine-contract"
+      ],
+      "files_modified": [
+        "hooks/context_spine.py",
+        "hooks/workflow_context.py",
+        "hooks/active_task_context.py",
+        "hooks/workflow_resume.py"
+      ],
+      "stale": false,
+      "trace_to": "docs/ARCHITECTURE.md#context-spine",
+      "completion_commit": "0f6f925969101194edef2aefef4249c9f15a6c23",
+      "created_at": "2026-07-17T19:02:59.633Z",
+      "updated_at": "2026-07-17T19:42:20.042Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "context-spine-workflows",
+      "title": "Make Ultra workflows role-scoped, fresh-context, evidence-first, and convergence-aware",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 6,
+      "estimated_days": 1.5,
+      "status": "completed",
+      "deps": [
+        "context-spine-contract"
+      ],
+      "files_modified": [
+        "skills/ultra-status/SKILL.md",
+        "skills/ultra-change/SKILL.md",
+        "skills/ultra-plan/SKILL.md",
+        "skills/ultra-dev/SKILL.md",
+        "skills/ultra-test/SKILL.md",
+        "skills/ultra-review/SKILL.md",
+        "skills/ultra-deliver/SKILL.md",
+        "spec/scripts/validate-skills.cjs"
+      ],
+      "stale": false,
+      "trace_to": "docs/USER-HANDBOOK-CONTRACT.md#context-spine",
+      "completion_commit": "0f6f925969101194edef2aefef4249c9f15a6c23",
+      "created_at": "2026-07-17T19:02:59.636Z",
+      "updated_at": "2026-07-17T19:42:20.049Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "context-spine-hosts",
+      "title": "Render one Context Spine contract natively on all four hosts",
+      "type": "feature",
+      "priority": "P1",
+      "complexity": 5,
+      "estimated_days": 1,
+      "status": "completed",
+      "deps": [
+        "context-spine-hooks",
+        "context-spine-workflows"
+      ],
+      "files_modified": [
+        "adapters/_shared/codex-assets.cjs",
+        "adapters/_shared/runtime-assets.cjs",
+        "adapters/kimi.js",
+        "adapters/opencode.js",
+        "adapters/tests/claude.test.cjs",
+        "adapters/tests/codex.test.cjs",
+        "adapters/tests/kimi.test.cjs",
+        "adapters/tests/opencode.test.cjs"
+      ],
+      "stale": false,
+      "trace_to": "docs/RUNTIME-COMPAT-MATRIX.md#context-spine",
+      "completion_commit": "0f6f925969101194edef2aefef4249c9f15a6c23",
+      "created_at": "2026-07-17T19:02:59.638Z",
+      "updated_at": "2026-07-17T19:42:20.056Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    },
+    {
+      "id": "context-spine-release",
+      "title": "Verify, document, package, and publish Ultra Context Spine",
+      "type": "feature",
+      "priority": "P1",
+      "complexity": 4,
+      "estimated_days": 1,
+      "status": "completed",
+      "deps": [
+        "context-spine-hosts"
+      ],
+      "files_modified": [
+        "README.md",
+        "CHANGELOG.md",
+        "package.json",
+        "package-lock.json"
+      ],
+      "stale": false,
+      "trace_to": "README.md#continuous-change",
+      "completion_commit": "0f6f925969101194edef2aefef4249c9f15a6c23",
+      "created_at": "2026-07-17T19:02:59.641Z",
+      "updated_at": "2026-07-17T19:42:20.062Z",
+      "acceptance": [],
+      "context_refs": [],
+      "docs_impact": {
+        "status": "unknown",
+        "files": [],
+        "rationale": null
+      },
+      "ownership": {}
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 'use strict';
 
-// Phase 8B.2 — Parallel orchestrator: consumes execution-plan.json waves,
+// Phase 8B.2 — Parallel orchestrator: consumes current Change-scoped plan waves,
 // spawns sessions via session-runner, respects parallel vs serial per wave,
 // and emits wave/plan events.
 //
@@ -21,8 +21,13 @@ const { execFileSync } = require('node:child_process');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
 const workflows = require('../../mcp-server/lib/workflow-state.cjs');
+const planStore = require('../../mcp-server/lib/plan-store.cjs');
+const contextSpine = require('../../mcp-server/lib/context-spine.cjs');
+const baselines = require('../../mcp-server/lib/baseline-workflow.cjs');
+const artifactRegistry = require('../../mcp-server/lib/artifact-registry.cjs');
 const { buildPlan } = require('../planner/plan-builder.cjs');
 const parallelOrch = require('../parallel-orchestrator.cjs');
+const sessionRunner = require('../session-runner.cjs');
 
 // Test-Double rationale: we don't invoke real LLM runtimes; a short-lived
 // Node subprocess is enough to exercise spawn → exit → session.close flow.
@@ -39,17 +44,28 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'seed.md'), '# seed\n');
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '!.ultra/\n!.ultra/**\n.ultra/.runtime\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
   return dir;
 }
 
 function mkDb(repoRoot) {
-  const dbPath = path.join(repoRoot, '.ultra', 'state.db');
+  const dbPath = path.join(repoRoot, '.ultra', '.runtime', 'state.db');
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const { db } = initStateDb(dbPath);
   return db;
+}
+
+function writeLiveMigrationGate(repoRoot) {
+  const gatePath = path.join(repoRoot, '.ultra', '.runtime', 'state-migration.lock');
+  fs.writeFileSync(gatePath, `${JSON.stringify({
+    version: 2,
+    pid: process.pid,
+    owner_started_at: null,
+    token: `parallel-orchestrator-${process.pid}`,
+  })}\n`, { mode: 0o600 });
+  return gatePath;
 }
 
 function seedTask(db, id, files_modified = [], deps = []) {
@@ -59,7 +75,9 @@ function seedTask(db, id, files_modified = [], deps = []) {
   });
 }
 
-function seedExecutableChangeTask(db, changeId, taskId) {
+function seedExecutableChangeTask(db, changeId, taskId, {
+  contextRef = 'spec/mcp-tools.yaml',
+} = {}) {
   db.prepare(
     `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
      VALUES (?, ?, 'standard', 'active', ?, ?)`,
@@ -85,7 +103,13 @@ function seedExecutableChangeTask(db, changeId, taskId) {
       criterion: 'Only the approved task graph dispatches.',
       verification: 'node --test orchestrator/tests/parallel-orchestrator.test.cjs',
     }],
-    context_refs: [{ ref: 'spec/mcp-tools.yaml', reason: 'Execution contract.', required: true }],
+    context_refs: [{
+      ref: contextRef,
+      reason: 'Execution contract.',
+      required: true,
+      expected_digest: crypto.createHash('sha256').update('# MCP contract\n').digest('hex'),
+      freshness_policy: 'digest',
+    }],
     docs_impact: { status: 'none', files: [], rationale: 'No user-facing documentation.' },
     ownership: { owner: 'test-owner', reviewers: [] },
     trace_to: 'spec/mcp-tools.yaml#session-family',
@@ -101,12 +125,168 @@ function cleanup(repoRoot, db) {
   try { fs.rmSync(repoRoot, { recursive: true, force: true }); } catch (_) { /* best-effort */ }
 }
 
-function seedCompletedPlanWorkflow(db, repoRoot, plan) {
-  const relativePath = '.ultra/execution-plan.json';
-  const absolutePath = path.join(repoRoot, relativePath);
-  const contents = JSON.stringify(plan, null, 2);
-  fs.writeFileSync(absolutePath, contents);
-  const digest = crypto.createHash('sha256').update(contents).digest('hex');
+function seedCompletedPlanWorkflow(db, repoRoot, plan, {
+  implementationContexts = true,
+} = {}) {
+  const references = [...new Set(
+    ops.listTasks(db, { change_id: plan.change_id })
+      .flatMap((task) => (task.context_refs || []).map((item) => item.ref)),
+  )];
+  const createdTracked = [];
+  for (const reference of references) {
+    const referencePath = path.join(repoRoot, reference);
+    if (fs.existsSync(referencePath)) continue;
+    fs.mkdirSync(path.dirname(referencePath), { recursive: true });
+    fs.writeFileSync(referencePath, '# MCP contract\n');
+    if (!reference.startsWith('.ultra/')) createdTracked.push(reference);
+  }
+  if (createdTracked.length > 0) {
+    execFileSync('git', ['add', ...createdTracked], { cwd: repoRoot });
+    execFileSync('git', ['commit', '-q', '-m', 'add execution contract'], { cwd: repoRoot });
+  }
+  const checkout = baselines.gitWorktreeSnapshot(repoRoot, ['.']);
+  const change = db.prepare('SELECT id, artifact_root FROM changes WHERE id = ?').get(plan.change_id);
+  const contextRelativePath = path.join(
+    change.artifact_root, 'contexts', 'plan-planning-test.json',
+  );
+  const contextAbsolutePath = path.join(repoRoot, contextRelativePath);
+  fs.mkdirSync(path.dirname(contextAbsolutePath), { recursive: true });
+  const contextManifest = {
+    schema_version: '3.0',
+    snapshot_id: `plan-context-${plan.change_id}`,
+    role: 'plan',
+    gate: 'planning',
+    git: {
+      head: checkout.head,
+      worktree_digest: checkout.digest,
+    },
+    change: { id: plan.change_id },
+    readiness: { status: 'ready', blockers: [], warnings: [] },
+    context: { items: [] },
+    resume: {
+      task_id: null,
+      change_state_digest: contextSpine.changeStateDigest(
+        db.prepare('SELECT * FROM changes WHERE id = ?').get(plan.change_id),
+      ),
+    },
+  };
+  fs.writeFileSync(contextAbsolutePath, `${JSON.stringify(contextManifest, null, 2)}\n`);
+  const contextDigest = crypto.createHash('sha256')
+    .update(fs.readFileSync(contextAbsolutePath)).digest('hex');
+  db.prepare(
+    `INSERT INTO context_snapshots
+     (id, change_id, task_id, manifest_path, manifest_hash, role, gate, readiness,
+      blockers_json, context_json, token_estimate, token_budget)
+     VALUES (?, ?, NULL, ?, ?, 'plan', 'planning', 'ready', '[]', ?, 0, 12000)`,
+  ).run(
+    contextManifest.snapshot_id,
+    plan.change_id,
+    contextRelativePath,
+    contextDigest,
+    JSON.stringify(contextManifest),
+  );
+  plan.context = {
+    snapshot_id: contextManifest.snapshot_id,
+    manifest_path: contextRelativePath,
+    manifest_digest: contextDigest,
+  };
+  const planPaths = planStore.changePlanPaths(repoRoot, change);
+  planStore.savePlanArtifact(plan, planPaths.json, 'json');
+  planStore.savePlanArtifact(plan, planPaths.md, 'md', {
+    tasks: ops.listTasks(db, { change_id: plan.change_id }),
+  });
+  for (const [id, kind, file] of [
+    [`plan-json-${plan.change_id}`, 'execution_plan', planPaths.json],
+    [`plan-md-${plan.change_id}`, 'execution_plan_markdown', planPaths.md],
+  ]) {
+    artifactRegistry.recordArtifact(db, {
+      id,
+      owner_type: 'change',
+      owner_id: plan.change_id,
+      kind,
+      path: path.relative(repoRoot, file),
+      source_refs: [
+        { type: 'change', id: plan.change_id, relation: 'planned_for' },
+        ...ops.listTasks(db, { change_id: plan.change_id }).map((task) => ({
+          type: 'task',
+          id: task.id,
+          relation: 'compiled_from_task_contract',
+        })),
+      ],
+      consumer_refs: [],
+      metadata: { terminal_role: true },
+      provenance: { writer: 'test-plan-fixture' },
+    }, { rootDir: repoRoot });
+  }
+  if (implementationContexts) {
+    for (const task of ops.listTasks(db, { change_id: plan.change_id })) {
+      const snapshotId = `implementation-context-${plan.change_id}-${task.id}`;
+      const relative = path.join(
+        change.artifact_root,
+        'contexts',
+        `${snapshotId}.json`,
+      );
+      const absolute = path.join(repoRoot, relative);
+      const items = (task.context_refs || []).map((item) => {
+        const file = path.join(repoRoot, item.ref);
+        const digest = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+        return {
+          ...item,
+          kind: item.kind || 'source',
+          role: 'implement',
+          status: 'current',
+          digest,
+          estimated_tokens: 1,
+        };
+      });
+      const manifest = {
+        schema_version: '3.0',
+        snapshot_id: snapshotId,
+        role: 'implement',
+        gate: 'implementation',
+        change: { id: plan.change_id },
+        git: {
+          head: checkout.head,
+          worktree_digest: checkout.digest,
+        },
+        readiness: { status: 'ready', blockers: [], warnings: [] },
+        context: { items },
+        execution_contract: {
+          slice_kind: task.slice_kind,
+          public_seam: task.public_seam,
+          verification_command: task.verification_command,
+          context_budget_percent: 40,
+        },
+        resume: {
+          task_id: task.id,
+          task_contract_digest: contextSpine.taskContractDigest(task),
+          change_state_digest: contextSpine.changeStateDigest(
+            db.prepare('SELECT * FROM changes WHERE id = ?').get(plan.change_id),
+          ),
+        },
+      };
+      fs.mkdirSync(path.dirname(absolute), { recursive: true });
+      fs.writeFileSync(absolute, `${JSON.stringify(manifest, null, 2)}\n`);
+      const digest = crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex');
+      db.prepare(
+        `INSERT INTO context_snapshots
+         (id, change_id, task_id, git_head, manifest_path, manifest_hash, role, gate,
+          readiness, blockers_json, context_json, token_estimate, token_budget)
+         VALUES (?, ?, ?, ?, ?, ?, 'implement', 'implementation', 'ready', '[]', ?, 0, 12000)`,
+      ).run(
+        snapshotId,
+        plan.change_id,
+        task.id,
+        checkout.head,
+        relative,
+        digest,
+        JSON.stringify(manifest),
+      );
+    }
+  }
+  const relativePath = path.relative(repoRoot, planPaths.json);
+  const relativeMdPath = path.relative(repoRoot, planPaths.md);
+  const digest = crypto.createHash('sha256').update(fs.readFileSync(planPaths.json)).digest('hex');
   const taskContractDigests = Object.fromEntries(
     ops.listTasks(db, { change_id: plan.change_id }).map((task) => {
       const contract = {
@@ -153,6 +333,10 @@ function seedCompletedPlanWorkflow(db, repoRoot, plan) {
     JSON.stringify({
       plan_path: relativePath,
       plan_digest: digest,
+      plan_md_path: relativeMdPath,
+      plan_context_path: contextRelativePath,
+      plan_context_digest: contextDigest,
+      plan_context_snapshot_id: contextManifest.snapshot_id,
       task_ids: plan.waves.flatMap((wave) => wave.tasks).sort(),
       task_contract_digests: taskContractDigests,
     }),
@@ -168,9 +352,11 @@ function seedCompletedPlanWorkflow(db, repoRoot, plan) {
      ) VALUES (?, ?, ?, ?, 1, 'completed', '[]', ?, '[]', '[]', '[]', ?, ?)`,
   );
   workflows.WORKFLOW_DEFINITIONS.plan.forEach((definition, position) => {
-    const outputs = definition.id === 'verify-plan'
-      ? [{ path: relativePath, kind: 'execution-plan', digest }]
-      : [];
+    const outputs = definition.id === 'compile-context'
+      ? [{ path: contextRelativePath, kind: 'context-manifest', digest: contextDigest }]
+      : (definition.id === 'verify-plan'
+        ? [{ path: relativePath, kind: 'execution-plan', digest }]
+        : []);
     insertStep.run(
       workflowId,
       definition.id,
@@ -207,6 +393,162 @@ test('runPlan: successful execution leaves task in_progress for Ultra dev/test/r
     assert.equal(types.includes('wave_completed'), false);
     assert.equal(types.includes('plan_completed'), false);
   } finally { cleanup(repo, db); }
+});
+
+test('parallel wave reserves all tasks before start and observes all exits before settlement', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  const order = [];
+  const originalSpawn = sessionRunner.spawnSession;
+  const originalStart = sessionRunner.startSessionProcess;
+  const originalClose = sessionRunner.closeSession;
+  try {
+    for (const id of ['ordered-a', 'ordered-b', 'ordered-c']) {
+      seedTask(db, id, [`${id}.js`]);
+    }
+    const plan = buildPlan([
+      { id: 'ordered-a', deps: [], files_modified: ['ordered-a.js'] },
+      { id: 'ordered-b', deps: [], files_modified: ['ordered-b.js'] },
+      { id: 'ordered-c', deps: [], files_modified: ['ordered-c.js'] },
+    ]);
+    sessionRunner.spawnSession = (options) => {
+      const result = originalSpawn(options);
+      order.push(`reserve:${options.task_id}`);
+      return result;
+    };
+    sessionRunner.startSessionProcess = (options) => {
+      order.push(`start:${options.sid}`);
+      const proc = originalStart(options);
+      proc.once('exit', () => order.push(`exit:${options.sid}`));
+      return proc;
+    };
+    sessionRunner.closeSession = (...args) => {
+      order.push(`settle:${args[0].sid}`);
+      return originalClose(...args);
+    };
+
+    await parallelOrch.runPlan({
+      db,
+      repoRoot: repo,
+      plan,
+      runtimes: ['claude'],
+      command: NODE,
+      commandArgs: exitOk(40),
+    });
+
+    const lastReserve = Math.max(...order.map((entry, index) => (
+      entry.startsWith('reserve:') ? index : -1
+    )));
+    const firstStart = order.findIndex((entry) => entry.startsWith('start:'));
+    const lastExit = Math.max(...order.map((entry, index) => (
+      entry.startsWith('exit:') ? index : -1
+    )));
+    const firstSettle = order.findIndex((entry) => entry.startsWith('settle:'));
+    assert.ok(lastReserve < firstStart, JSON.stringify(order));
+    assert.ok(lastExit < firstSettle, JSON.stringify(order));
+  } finally {
+    sessionRunner.spawnSession = originalSpawn;
+    sessionRunner.startSessionProcess = originalStart;
+    sessionRunner.closeSession = originalClose;
+    cleanup(repo, db);
+  }
+});
+
+test('parallel wave command preparation failure leaves no leases, worktrees, or task mutations', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    for (const id of ['prepare-a', 'prepare-b', 'prepare-c']) {
+      seedTask(db, id, [`${id}.js`]);
+    }
+    const plan = buildPlan([
+      { id: 'prepare-a', deps: [], files_modified: ['prepare-a.js'] },
+      { id: 'prepare-b', deps: [], files_modified: ['prepare-b.js'] },
+      { id: 'prepare-c', deps: [], files_modified: ['prepare-c.js'] },
+    ]);
+    await assert.rejects(
+      parallelOrch.runPlan({
+        db,
+        repoRoot: repo,
+        plan,
+        runtimes: ['claude'],
+        command: NODE,
+        commandArgsFor(task) {
+          if (task.id === 'prepare-b') throw new Error('injected argument failure');
+          return exitOk();
+        },
+      }),
+      /injected argument failure/,
+    );
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE status = 'running'").get().count,
+      0,
+    );
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM tasks WHERE status = 'in_progress'").get().count,
+      0,
+    );
+    assert.equal(
+      execFileSync('git', ['worktree', 'list', '--porcelain'], {
+        cwd: repo,
+        encoding: 'utf8',
+      }).split(/\r?\n/).filter((line) => line.startsWith('worktree ')).length,
+      1,
+    );
+  } finally {
+    cleanup(repo, db);
+  }
+});
+
+test('parallel wave reservation failure unwinds every earlier reservation', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  const originalSpawn = sessionRunner.spawnSession;
+  let reservations = 0;
+  try {
+    for (const id of ['reserve-a', 'reserve-b', 'reserve-c']) {
+      seedTask(db, id, [`${id}.js`]);
+    }
+    const plan = buildPlan([
+      { id: 'reserve-a', deps: [], files_modified: ['reserve-a.js'] },
+      { id: 'reserve-b', deps: [], files_modified: ['reserve-b.js'] },
+      { id: 'reserve-c', deps: [], files_modified: ['reserve-c.js'] },
+    ]);
+    sessionRunner.spawnSession = (options) => {
+      reservations += 1;
+      if (reservations === 2) throw new Error('injected reservation failure');
+      return originalSpawn(options);
+    };
+
+    await parallelOrch.runPlan({
+      db,
+      repoRoot: repo,
+      plan,
+      runtimes: ['claude'],
+      command: NODE,
+      commandArgs: exitOk(),
+    });
+
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE status = 'running'").get().count,
+      0,
+    );
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM tasks WHERE status = 'in_progress'").get().count,
+      0,
+    );
+    assert.equal(ops.readTask(db, 'reserve-a').status, 'pending');
+    assert.equal(
+      execFileSync('git', ['worktree', 'list', '--porcelain'], {
+        cwd: repo,
+        encoding: 'utf8',
+      }).split(/\r?\n/).filter((line) => line.startsWith('worktree ')).length,
+      1,
+    );
+  } finally {
+    sessionRunner.spawnSession = originalSpawn;
+    cleanup(repo, db);
+  }
 });
 
 test('runPlan: rejects empty, cyclic, and duplicate-task plans before dispatch', async () => {
@@ -280,13 +622,188 @@ test('runPlan: dispatches the exact current plan after its workflow is completed
     const plan = seedExecutableChangeTask(db, 'approved-change', 'approved-task');
     const workflowId = seedCompletedPlanWorkflow(db, repo, plan);
     const result = await parallelOrch.runPlan({
-      db, repoRoot: repo, plan,
+      db, repoRoot: repo,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(),
     });
     assert.equal(result.status, 'paused');
     assert.equal(result.plan_workflow_id, workflowId);
     assert.equal(ops.readTask(db, 'approved-task').status, 'in_progress');
+  } finally { cleanup(repo, db); }
+});
+
+test('runPlan: refuses to reserve a task without its exact ready implementation Context', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    const plan = seedExecutableChangeTask(db, 'missing-implementation-context', 'missing-context-task');
+    seedCompletedPlanWorkflow(db, repo, plan, { implementationContexts: false });
+    const result = await parallelOrch.runPlan({
+      db, repoRoot: repo, plan,
+      runtimes: ['claude'],
+      command: NODE, commandArgs: exitOk(),
+    });
+    assert.equal(result.status, 'paused');
+    assert.equal(result.results[0].status, 'authority_blocked');
+    assert.equal(result.results[0].authority_code, 'WORKFLOW_IMPLEMENTATION_CONTEXT_REQUIRED');
+    assert.equal(ops.readTask(db, 'missing-context-task').status, 'pending');
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+  } finally { cleanup(repo, db); }
+});
+
+test('runPlan: rejects tracked checkout drift after Plan completion before task reservation', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    const plan = seedExecutableChangeTask(db, 'checkout-drift-change', 'checkout-drift-task');
+    seedCompletedPlanWorkflow(db, repo, plan);
+    fs.writeFileSync(path.join(repo, 'seed.md'), '# changed after planning\n');
+    await assert.rejects(
+      parallelOrch.runPlan({
+        db, repoRoot: repo, plan,
+        runtimes: ['claude'],
+        command: NODE, commandArgs: exitOk(),
+      }),
+      (error) => error.code === 'PLAN_STALE'
+        && error.details?.blockers?.includes('CONTEXT_WORKTREE_STALE'),
+    );
+    assert.equal(ops.readTask(db, 'checkout-drift-task').status, 'pending');
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+  } finally { cleanup(repo, db); }
+});
+
+test('runPlan: revalidates required task references from implementation Context before spawn', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    const plan = seedExecutableChangeTask(
+      db,
+      'implementation-ref-drift',
+      'implementation-ref-task',
+      { contextRef: '.ultra/specs/implementation-ref.md' },
+    );
+    seedCompletedPlanWorkflow(db, repo, plan);
+    fs.writeFileSync(
+      path.join(repo, '.ultra', 'specs', 'implementation-ref.md'),
+      '# changed after implementation context compile\n',
+    );
+    const result = await parallelOrch.runPlan({
+      db, repoRoot: repo, plan,
+      runtimes: ['claude'],
+      command: NODE, commandArgs: exitOk(),
+    });
+    assert.equal(result.status, 'paused');
+    assert.equal(result.results[0].status, 'authority_blocked');
+    assert.equal(result.results[0].authority_code, 'WORKFLOW_IMPLEMENTATION_CONTEXT_STALE');
+    assert.ok(result.results[0].blockers.includes(
+      'CONTEXT_REQUIRED_REF_STALE:.ultra/specs/implementation-ref.md',
+    ));
+    assert.equal(ops.readTask(db, 'implementation-ref-task').status, 'pending');
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+  } finally { cleanup(repo, db); }
+});
+
+test('runPlan: rejects a completed plan when a newer planning context supersedes its binding', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    const plan = seedExecutableChangeTask(db, 'replanned-change', 'replanned-task');
+    seedCompletedPlanWorkflow(db, repo, plan);
+    const change = db.prepare('SELECT * FROM changes WHERE id = ?').get('replanned-change');
+    const manifest = {
+      schema_version: '3.0',
+      snapshot_id: 'plan-context-replanned-change-newer',
+      role: 'plan',
+      gate: 'planning',
+      change: { id: 'replanned-change' },
+      readiness: { status: 'ready', blockers: [], warnings: [] },
+      context: { items: [] },
+      resume: {
+        task_id: null,
+        change_state_digest: contextSpine.changeStateDigest(change),
+      },
+    };
+    const relative = path.join(change.artifact_root, 'contexts', 'plan-planning-newer.json');
+    const absolute = path.join(repo, relative);
+    fs.writeFileSync(absolute, `${JSON.stringify(manifest, null, 2)}\n`);
+    const digest = crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex');
+    db.prepare(
+      `INSERT INTO context_snapshots
+       (id, change_id, task_id, manifest_path, manifest_hash, role, gate, readiness,
+        blockers_json, context_json, token_estimate, token_budget, created_at)
+       VALUES (?, ?, NULL, ?, ?, 'plan', 'planning', 'ready', '[]', ?, 0, 12000,
+               '9999-12-31T23:59:59.999Z')`,
+    ).run(manifest.snapshot_id, change.id, relative, digest, JSON.stringify(manifest));
+
+    await assert.rejects(
+      parallelOrch.runPlan({
+        db, repoRoot: repo, changeId: change.id,
+        runtimes: ['claude'],
+        command: NODE, commandArgs: exitOk(),
+      }),
+      (error) => error.code === 'PLAN_STALE'
+        && error.details.authority_code === 'WORKFLOW_PLAN_CONTEXT_MISMATCH',
+    );
+    assert.equal(ops.readTask(db, 'replanned-task').status, 'pending');
+  } finally { cleanup(repo, db); }
+});
+
+test('runPlan: does not treat the legacy global plan as current authority without explicit compatibility input', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    seedTask(db, 'legacy-task');
+    const legacyPlan = buildPlan([{ id: 'legacy-task', deps: [], complexity: 2 }]);
+    fs.mkdirSync(path.join(repo, '.ultra'), { recursive: true });
+    const legacyPath = path.join(repo, '.ultra', 'execution-plan.json');
+    fs.writeFileSync(legacyPath, `${JSON.stringify(legacyPlan, null, 2)}\n`);
+
+    await assert.rejects(
+      parallelOrch.runPlan({
+        db, repoRoot: repo,
+        runtimes: ['claude'],
+        command: NODE, commandArgs: exitOk(),
+      }),
+      (error) => error.code === 'PLAN_NOT_FOUND',
+    );
+    assert.equal(ops.readTask(db, 'legacy-task').status, 'pending');
+
+    const result = await parallelOrch.runPlan({
+      db, repoRoot: repo, planPath: legacyPath,
+      runtimes: ['claude'],
+      command: NODE, commandArgs: exitOk(),
+    });
+    assert.equal(result.status, 'paused');
+    assert.equal(ops.readTask(db, 'legacy-task').status, 'in_progress');
+  } finally { cleanup(repo, db); }
+});
+
+test('runPlan: requires a change id when more than one current scoped plan is executable', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    const first = seedExecutableChangeTask(db, 'first-change', 'first-task');
+    const second = seedExecutableChangeTask(db, 'second-change', 'second-task');
+    seedCompletedPlanWorkflow(db, repo, first);
+    seedCompletedPlanWorkflow(db, repo, second);
+
+    await assert.rejects(
+      parallelOrch.runPlan({
+        db, repoRoot: repo,
+        runtimes: ['claude'],
+        command: NODE, commandArgs: exitOk(),
+      }),
+      (error) => error.code === 'PLAN_CHANGE_REQUIRED',
+    );
+
+    const result = await parallelOrch.runPlan({
+      db, repoRoot: repo, changeId: 'first-change',
+      runtimes: ['claude'],
+      command: NODE, commandArgs: exitOk(),
+    });
+    assert.equal(result.status, 'paused');
+    assert.equal(ops.readTask(db, 'first-task').status, 'in_progress');
+    assert.equal(ops.readTask(db, 'second-task').status, 'pending');
   } finally { cleanup(repo, db); }
 });
 
@@ -344,6 +861,206 @@ test('runPlan: authority drift between wave admission and spawn is not a worker 
     assert.equal(events.some((event) => event.type === 'task_failure'), false);
     assert.equal(errors.length, 0);
   } finally { cleanup(repo, db); }
+});
+
+test('runPlan treats a public session lease as retryable authority, not a task failure', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  let publicSession;
+  try {
+    seedTask(db, 'public-lease-task');
+    const plan = buildPlan([
+      { id: 'public-lease-task', deps: [], complexity: 1, files_modified: ['lease.js'] },
+    ]);
+    publicSession = sessionRunner.spawnSession({
+      db,
+      repoRoot: repo,
+      task_id: 'public-lease-task',
+      runtime: 'codex',
+    });
+
+    const errors = [];
+    const result = await parallelOrch.runPlan({
+      db,
+      repoRoot: repo,
+      plan,
+      runtimes: ['claude'],
+      command: NODE,
+      commandArgs: exitOk(),
+      onError: (error) => errors.push(error),
+    });
+
+    assert.equal(result.status, 'paused');
+    assert.equal(result.results.length, 1);
+    assert.equal(result.results[0].status, 'authority_blocked');
+    assert.equal(result.results[0].retryable, true);
+    assert.equal(result.results[0].authority_code, 'ADMISSION_DENIED');
+    assert.equal(ops.readTask(db, 'public-lease-task').status, 'pending');
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE status = 'running'").get().count,
+      1,
+    );
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM events WHERE type = 'task_failure' AND task_id = 'public-lease-task'",
+      ).get().count,
+      0,
+    );
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM circuit_breaker WHERE task_id = 'public-lease-task'",
+      ).get().count,
+      0,
+    );
+    assert.deepEqual(errors, []);
+  } finally {
+    if (publicSession && ops.readSession(db, publicSession.sid)?.status === 'running') {
+      sessionRunner.closeSession(
+        { db, repoRoot: repo, sid: publicSession.sid },
+        { status: 'crashed', remove_worktree: true },
+      );
+    }
+    cleanup(repo, db);
+  }
+});
+
+test('runPlan unwraps a real migration quiescence gate without counting a worker failure', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    seedTask(db, 'wrapped-quiescence');
+    const plan = buildPlan([
+      {
+        id: 'wrapped-quiescence',
+        deps: [],
+        complexity: 1,
+        files_modified: ['quiescence.js'],
+      },
+    ]);
+    writeLiveMigrationGate(repo);
+
+    let wrapped;
+    try {
+      sessionRunner.spawnSession({
+        db,
+        repoRoot: repo,
+        task_id: 'wrapped-quiescence',
+        runtime: 'codex',
+      });
+    } catch (error) {
+      wrapped = error;
+    }
+    assert.equal(wrapped?.code, 'WORKTREE_AUTHORITY_NOT_IGNORED');
+    assert.equal(wrapped?.cause?.code, 'RUNTIME_STATE_NOT_QUIESCENT');
+
+    const errors = [];
+    const result = await parallelOrch.runPlan({
+      db,
+      repoRoot: repo,
+      plan,
+      runtimes: ['claude'],
+      command: NODE,
+      commandArgs: exitOk(),
+      onError: (error) => errors.push(error),
+    });
+
+    assert.equal(result.status, 'paused');
+    assert.equal(result.results.length, 1);
+    assert.equal(result.results[0].status, 'authority_blocked');
+    assert.equal(result.results[0].retryable, true);
+    assert.equal(result.results[0].authority_code, 'RUNTIME_STATE_NOT_QUIESCENT');
+    assert.equal(ops.readTask(db, 'wrapped-quiescence').status, 'pending');
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM events WHERE type = 'task_failure' AND task_id = 'wrapped-quiescence'",
+      ).get().count,
+      0,
+    );
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM circuit_breaker WHERE task_id = 'wrapped-quiescence'",
+      ).get().count,
+      0,
+    );
+    assert.deepEqual(errors, []);
+  } finally { cleanup(repo, db); }
+});
+
+test('parallel deferred-start authority gates unwind leases without task failure state', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  const originalStart = sessionRunner.startSessionProcess;
+  let gateWritten = false;
+  try {
+    for (const id of ['deferred-gate-a', 'deferred-gate-b']) {
+      seedTask(db, id, [`${id}.js`]);
+    }
+    const plan = buildPlan([
+      {
+        id: 'deferred-gate-a',
+        deps: [],
+        complexity: 1,
+        files_modified: ['deferred-gate-a.js'],
+      },
+      {
+        id: 'deferred-gate-b',
+        deps: [],
+        complexity: 1,
+        files_modified: ['deferred-gate-b.js'],
+      },
+    ]);
+    assert.equal(plan.waves[0].parallel, true);
+    sessionRunner.startSessionProcess = (options) => {
+      if (!gateWritten) {
+        writeLiveMigrationGate(repo);
+        gateWritten = true;
+      }
+      return originalStart(options);
+    };
+
+    const errors = [];
+    const result = await parallelOrch.runPlan({
+      db,
+      repoRoot: repo,
+      plan,
+      runtimes: ['claude'],
+      command: NODE,
+      commandArgs: exitOk(),
+      onError: (error) => errors.push(error),
+    });
+
+    assert.equal(result.status, 'paused');
+    assert.equal(result.results.length, 2);
+    for (const execution of result.results) {
+      assert.equal(execution.status, 'authority_blocked');
+      assert.equal(execution.retryable, true);
+      assert.equal(execution.authority_code, 'RUNTIME_STATE_NOT_QUIESCENT');
+    }
+    for (const id of ['deferred-gate-a', 'deferred-gate-b']) {
+      assert.equal(ops.readTask(db, id).status, 'pending');
+      assert.equal(
+        db.prepare(
+          "SELECT COUNT(*) AS count FROM events WHERE type = 'task_failure' AND task_id = ?",
+        ).get(id).count,
+        0,
+      );
+      assert.equal(
+        db.prepare(
+          'SELECT COUNT(*) AS count FROM circuit_breaker WHERE task_id = ?',
+        ).get(id).count,
+        0,
+      );
+    }
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE status = 'running'").get().count,
+      0,
+    );
+    assert.deepEqual(errors, []);
+  } finally {
+    sessionRunner.startSessionProcess = originalStart;
+    cleanup(repo, db);
+  }
 });
 
 test('runPlan: a later dependency wave stays pending until the prior Ultra tasks complete', async () => {

@@ -106,4 +106,37 @@ test('memory and code graph stay external to the Ultra runtime', () => {
 
   const installer = fs.readFileSync(path.join(REPO_ROOT, 'bin', 'orchestrator.js'), 'utf8');
   assert.doesNotMatch(installer, /code-graph-watcher|graph_watcher|code-graph-events/i);
+
+  assert.equal(
+    fs.existsSync(path.join(REPO_ROOT, 'orchestrator', 'skill-miner.cjs')),
+    false,
+    'Ultra must not generate reusable user skills from session events',
+  );
+  assert.equal(
+    fs.existsSync(path.join(REPO_ROOT, 'orchestrator', 'tests', 'skill-miner.test.cjs')),
+    false,
+    'retired skill-mining tests must not keep the runtime surface alive',
+  );
+  const sessionRunner = fs.readFileSync(
+    path.join(REPO_ROOT, 'orchestrator', 'session-runner.cjs'),
+    'utf8',
+  );
+  assert.doesNotMatch(
+    sessionRunner,
+    /skill-miner|mineSkill|skillsRoot|skills\/learned/i,
+    'session close must not mine or write user skills',
+  );
+});
+
+test('global communication personas are outside the Ultra plugin boundary', () => {
+  assert.equal(
+    fs.existsSync(path.join(REPO_ROOT, 'output-styles')),
+    false,
+    'Ultra must not ship or own a global output-style surface',
+  );
+  const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
+  assert.equal(
+    pkg.files.some((entry) => entry === 'output-styles' || entry.startsWith('output-styles/')),
+    false,
+  );
 });

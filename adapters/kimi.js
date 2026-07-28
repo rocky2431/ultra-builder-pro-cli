@@ -16,6 +16,7 @@ const {
 } = require('./_shared/file-ops.cjs');
 const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
 const { parse: parseFm, serialize: serializeFm } = require('./_shared/frontmatter.cjs');
+const { adaptInteractionGuidance } = require('./_shared/interaction-contract.cjs');
 const provenance = require('./_shared/provenance.cjs');
 const {
   CORE_PUBLIC_SKILLS,
@@ -66,7 +67,7 @@ function loadRegistry(file) {
 }
 
 function kimiTextTransform(input, assetName = '') {
-  let text = String(input);
+  let text = adaptInteractionGuidance(input, 'kimi');
   text = text.replaceAll('$CLAUDE_PLUGIN_ROOT', '$KIMI_PLUGIN_ROOT');
   text = text.replaceAll('~/.claude/skills', '~/.kimi-code/skills');
   text = text.replaceAll('~/.claude/hooks', '~/.kimi-code/hooks');
@@ -99,16 +100,9 @@ function kimiTextTransform(input, assetName = '') {
       'Kimi `AgentSwarm` for parallel reviewers or one foreground Kimi `Agent` for a single reviewer, using the worker prompt files under `$KIMI_PLUGIN_ROOT/agents/`',
     );
   }
-  if (assetName === 'learn') {
-    text = text.replaceAll("current host's user skill directory", '`~/.kimi-code/skills`');
-  }
   text = text.replace(
     /(^|[\s`("'])\/ultra-(?!builder-pro:)([a-z][a-z0-9-]*)/gm,
     '$1/ultra-builder-pro:ultra-$2',
-  );
-  text = text.replace(
-    /(^|[\s`("'])\/learn(?=$|[\s`),.;:])/gm,
-    '$1/ultra-builder-pro:learn',
   );
   text = text.replace(
     /(^|[\s`("'])\/clear(?=$|[\s`),.;:])/gm,

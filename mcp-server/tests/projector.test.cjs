@@ -22,7 +22,7 @@ const validateTasksJson = ajv.compile(JSON.parse(fs.readFileSync(TASKS_SCHEMA, '
 
 function tmpProject() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-proj-'));
-  const dbPath = path.join(dir, '.ultra', 'state.db');
+  const dbPath = path.join(dir, '.ultra', '.runtime', 'state.db');
   const init = initStateDb(dbPath);
   return { dir, dbPath, db: init.db };
 }
@@ -43,7 +43,7 @@ test('projectTasks emits a v4.5-conformant tasks.json', () => {
 
     const projection = readJson(out.path);
     assert.equal(projection.schema_version, '4.5');
-    assert.equal(projection.source, '.ultra/state.db');
+    assert.equal(projection.source, '.ultra/.runtime/state.db');
     assert.equal(projection.tasks.length, 2);
     assert.ok(validateTasksJson(projection), `ajv failed: ${ajv.errorsText(validateTasksJson.errors)}`);
 
@@ -56,13 +56,13 @@ test('projectTasks emits a v4.5-conformant tasks.json', () => {
   }
 });
 
-test('projectContext rebuilds header but preserves the body', () => {
+test('projectContext fully regenerates the read-only file and removes arbitrary body edits', () => {
   const { dir, db } = tmpProject();
   try {
     ops.createTask(db, { id: 'cx-1', title: 'context test', type: 'feature', priority: 'P1' });
     const ctxFile = path.join(dir, '.ultra', 'tasks', 'contexts', 'task-cx-1.md');
     fs.mkdirSync(path.dirname(ctxFile), { recursive: true });
-    fs.writeFileSync(ctxFile, '---\nstale: header\n---\n\n# body that must survive\n\nUser notes go here.\n');
+    fs.writeFileSync(ctxFile, '---\nstale: header\n---\n\n# body that must be removed\n\nUser notes go here.\n');
 
     ops.updateTaskStatus(db, 'cx-1', 'in_progress');
     projector.projectContext(db, 'cx-1', {}, { rootDir: dir });
@@ -71,15 +71,16 @@ test('projectContext rebuilds header but preserves the body', () => {
     assert.match(text, /^---\n/, 'must start with frontmatter');
     assert.match(text, /status: in_progress/);
     assert.match(text, /schema_version: 4\.5/);
-    assert.match(text, /# body that must survive/);
-    assert.match(text, /User notes go here\./);
+    assert.match(text, /## Execution Contract \(generated from state\.db\)/);
+    assert.doesNotMatch(text, /# body that must be removed/);
+    assert.doesNotMatch(text, /User notes go here\./);
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('projectContext removes the legacy body status banner while preserving task content', () => {
+test('projectContext replaces legacy authored context with the generated contract', () => {
   const { dir, db } = tmpProject();
   try {
     ops.createTask(db, {
@@ -98,12 +99,171 @@ test('projectContext removes the legacy body status banner while preserving task
       '',
     ].join('\n'));
 
+    const legacyBytes = fs.readFileSync(ctxFile);
     projector.projectContext(db, 'legacy-body', {}, { rootDir: dir });
     const text = fs.readFileSync(ctxFile, 'utf8');
+    assert.match(text, /generated_by: ultra-projector/);
     assert.match(text, /status: pending/);
     assert.doesNotMatch(text, /> \*\*Status\*\*:/);
-    assert.match(text, /# Task legacy-body/);
-    assert.match(text, /Keep this body\./);
+    assert.match(text, /## Execution Contract \(generated from state\.db\)/);
+    assert.doesNotMatch(text, /# Task legacy-body/);
+    assert.doesNotMatch(text, /Keep this body\./);
+    const promoted = db.prepare(
+      `SELECT * FROM artifacts
+       WHERE owner_type = 'task' AND owner_id = 'legacy-body'
+         AND kind = 'legacy_context_findings'`,
+    ).get();
+    assert.ok(promoted, 'authored legacy context must be promoted before replacement');
+    assert.equal(promoted.managed, 1);
+    assert.equal(
+      fs.readFileSync(path.join(dir, promoted.path), 'utf8'),
+      legacyBytes.toString('utf8'),
+    );
+    assert.equal(
+      promoted.digest,
+      require('node:crypto').createHash('sha256').update(legacyBytes).digest('hex'),
+    );
+    assert.deepEqual(
+      db.prepare(
+        `SELECT target_type, target_id FROM artifact_edges
+         WHERE source_type = 'artifact' AND source_id = ?`,
+      ).all(promoted.id),
+      [{ target_type: 'task', target_id: 'legacy-body' }],
+    );
+    projector.projectContext(db, 'legacy-body', {}, { rootDir: dir });
+    assert.equal(
+      db.prepare(
+        `SELECT COUNT(*) AS count FROM artifacts
+         WHERE owner_type = 'task' AND owner_id = 'legacy-body'
+           AND kind = 'legacy_context_findings'`,
+      ).get().count,
+      1,
+      'reprojection must not duplicate the one-time promotion',
+    );
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('projectContext promotes authored prose preserved after a legacy generated contract', () => {
+  const { dir, db } = tmpProject();
+  try {
+    ops.createTask(db, {
+      id: 'mixed-legacy', title: 'mixed legacy context', type: 'feature', priority: 'P1',
+      context_file: '.ultra/tasks/contexts/task-mixed-legacy.md',
+    });
+    const ctxFile = path.join(dir, '.ultra', 'tasks', 'contexts', 'task-mixed-legacy.md');
+    fs.mkdirSync(path.dirname(ctxFile), { recursive: true });
+    const authoredBody = 'KEEP THIS LEGACY FINDING\nSecond exact line.\n';
+    fs.writeFileSync(ctxFile, [
+      '---',
+      'task_id: mixed-legacy',
+      'status: pending',
+      'schema_version: 4.5',
+      '---',
+      '<!-- ultra:task-contract:start -->',
+      '## Execution Contract (generated from state.db)',
+      '',
+      '- Outcome: unresolved',
+      '<!-- ultra:task-contract:end -->',
+      authoredBody,
+    ].join('\n'));
+
+    projector.projectContext(db, 'mixed-legacy', {}, { rootDir: dir });
+
+    const projection = fs.readFileSync(ctxFile, 'utf8');
+    assert.match(projection, /generated_by: ultra-projector/);
+    assert.doesNotMatch(projection, /KEEP THIS LEGACY FINDING/);
+    assert.equal(
+      projection.match(/<!-- ultra:task-contract:start -->/g).length,
+      1,
+      'the target must remain a pure single-contract projection',
+    );
+    const promoted = db.prepare(
+      `SELECT * FROM artifacts
+       WHERE owner_type = 'task' AND owner_id = 'mixed-legacy'
+         AND kind = 'legacy_context_findings'`,
+    ).get();
+    assert.ok(promoted, 'mixed legacy context must retain its authored body');
+    assert.equal(promoted.managed, 1);
+    assert.equal(fs.readFileSync(path.join(dir, promoted.path), 'utf8'), authoredBody);
+    assert.equal(
+      promoted.digest,
+      require('node:crypto').createHash('sha256').update(authoredBody).digest('hex'),
+    );
+    const artifactEvents = db.prepare(
+      `SELECT COUNT(*) AS count FROM events
+       WHERE type = 'artifact_recorded' AND task_id = 'mixed-legacy'`,
+    ).get().count;
+    projector.projectContext(db, 'mixed-legacy', {}, { rootDir: dir });
+    assert.equal(
+      db.prepare(
+        `SELECT COUNT(*) AS count FROM events
+         WHERE type = 'artifact_recorded' AND task_id = 'mixed-legacy'`,
+      ).get().count,
+      artifactEvents,
+      'a pure generated reprojection must not manufacture another promotion',
+    );
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('projectContext rejects traversal and symlink ancestors outside the context projection root', () => {
+  const { dir, db } = tmpProject();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-proj-outside-'));
+  try {
+    ops.createTask(db, {
+      id: 'escape', title: 'escape', type: 'feature', priority: 'P1',
+      context_file: '.ultra/tasks/contexts/../../../escaped.md',
+    });
+    assert.throws(
+      () => projector.projectContext(db, 'escape', {}, { rootDir: dir }),
+      (error) => error.code === 'CONTEXT_PATH_INVALID',
+    );
+    assert.equal(fs.existsSync(path.join(dir, 'escaped.md')), false);
+
+    const contexts = path.join(dir, '.ultra', 'tasks', 'contexts');
+    fs.mkdirSync(path.dirname(contexts), { recursive: true });
+    fs.symlinkSync(outside, contexts);
+    ops.createTask(db, {
+      id: 'symlink', title: 'symlink', type: 'feature', priority: 'P1',
+      context_file: '.ultra/tasks/contexts/task-symlink.md',
+    });
+    assert.throws(
+      () => projector.projectContext(db, 'symlink', {}, { rootDir: dir }),
+      (error) => error.code === 'CONTEXT_PATH_INVALID',
+    );
+    assert.equal(fs.existsSync(path.join(outside, 'task-symlink.md')), false);
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('projectAll prunes only generated ghost contexts and records the recovery evidence', () => {
+  const { dir, db } = tmpProject();
+  try {
+    const contexts = path.join(dir, '.ultra', 'tasks', 'contexts');
+    fs.mkdirSync(contexts, { recursive: true });
+    const generatedGhost = path.join(contexts, 'task-deleted.md');
+    const authoredGhost = path.join(contexts, 'notes.md');
+    fs.writeFileSync(generatedGhost, [
+      '---', 'task_id: deleted', 'generated_by: ultra-projector', '---', '',
+    ].join('\n'));
+    fs.writeFileSync(authoredGhost, '# Keep this authored note\n');
+
+    const result = projector.projectAll(db, { rootDir: dir });
+    assert.deepEqual(result.pruned, ['.ultra/tasks/contexts/task-deleted.md']);
+    assert.equal(fs.existsSync(generatedGhost), false);
+    assert.equal(fs.existsSync(authoredGhost), true);
+    const event = db.prepare(
+      "SELECT payload_json FROM events WHERE type = 'projection_pruned' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.equal(JSON.parse(event.payload_json).path, '.ultra/tasks/contexts/task-deleted.md');
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

@@ -21,7 +21,7 @@ const statusCmd = require('./commands/status.cjs');
 
 function freshFixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-status-'));
-  const file = path.join(dir, '.ultra', 'state.db');
+  const file = path.join(dir, '.ultra', '.runtime', 'state.db');
   const init = initStateDb(file);
   return { dir, db: init.db };
 }
@@ -69,8 +69,39 @@ test('status includes authoritative workflow, change, task, session, and valid t
     assert.deepEqual(out.sessions, { running: 2, completed: 0, crashed: 0, orphan: 0 });
     assert.equal(out.workflows.active, 0);
     assert.equal(out.changes.active, 0);
+    assert.equal(out.artifacts.status, 'pass');
+    assert.equal(out.artifacts.registered, 0);
+    assert.equal(out.artifacts.managed, 0);
+    assert.equal(out.artifacts.unmanaged, 0);
     assert.equal(out.transitions.required, 'ultra-init');
     assert.ok(out.transitions.allowed.includes('ultra-init'));
+  } finally { teardown(dir, db); }
+});
+
+test('status separates managed and legacy artifact authority and fails compatibility health', () => {
+  const { dir, db } = freshFixture();
+  try {
+    const relative = '.ultra/specs/legacy-status.md';
+    const file = path.join(dir, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, '# Legacy status authority\n');
+    const digest = require('node:crypto').createHash('sha256')
+      .update(fs.readFileSync(file)).digest('hex');
+    db.prepare(
+      `INSERT INTO artifacts
+       (id, owner_type, owner_id, kind, path, digest, content_hash, after_digest,
+        status, provenance_json, managed)
+       VALUES ('legacy-status', 'project', 'project', 'spec', ?, ?, ?, ?,
+               'terminal', '{}', 0)`,
+    ).run(relative, digest, digest, digest);
+
+    const out = statusCmd.buildStatusPanel(db, { rootDir: dir });
+    assert.equal(out.artifacts.status, 'fail');
+    assert.equal(out.artifacts.registered, 1);
+    assert.equal(out.artifacts.managed, 0);
+    assert.equal(out.artifacts.unmanaged, 1);
+    assert.equal(out.artifacts.counts.ARTIFACT_COMPATIBILITY_UNMANAGED, 1);
+    assert.match(statusCmd.renderHuman(out), /managed=0 unmanaged=1 health=fail/);
   } finally { teardown(dir, db); }
 });
 
@@ -312,13 +343,17 @@ test('dispatch: --json echoes buildCostPanel output shape', () => {
     const origWrite = process.stdout.write.bind(process.stdout);
     process.stdout.write = (chunk) => { captured.push(String(chunk)); return true; };
     const envBackup = process.env.UBP_DB_PATH;
-    process.env.UBP_DB_PATH = path.join(dir, '.ultra', 'state.db');
+    const rootBackup = process.env.UBP_ROOT_DIR;
+    process.env.UBP_DB_PATH = path.join(dir, '.ultra', '.runtime', 'state.db');
+    process.env.UBP_ROOT_DIR = dir;
     try {
       const code = statusCmd.dispatch(['--cost', '--json']);
       assert.equal(code, 0);
     } finally {
       process.stdout.write = origWrite;
       if (envBackup === undefined) delete process.env.UBP_DB_PATH; else process.env.UBP_DB_PATH = envBackup;
+      if (rootBackup === undefined) delete process.env.UBP_ROOT_DIR;
+      else process.env.UBP_ROOT_DIR = rootBackup;
     }
     const joined = captured.join('');
     const parsed = JSON.parse(joined);
@@ -335,11 +370,58 @@ test('status keeps a worker checkout separate from its central DB path', () => {
   try {
     process.env.UBP_ROOT_DIR = '/tmp/ultra-worker-checkout';
     assert.equal(
-      statusCmd.resolveRootDir('/tmp/ultra-authority/.ultra/state.db'),
+      statusCmd.resolveRootDir('/tmp/ultra-authority/.ultra/.runtime/state.db'),
       path.resolve('/tmp/ultra-worker-checkout'),
     );
   } finally {
     if (rootBackup === undefined) delete process.env.UBP_ROOT_DIR;
     else process.env.UBP_ROOT_DIR = rootBackup;
+  }
+});
+
+test('status rejects competing project DBs before honoring a configured third DB', () => {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-status-conflict-'));
+  const third = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-status-third-'));
+  try {
+    const legacy = path.join(project, '.ultra', 'state.db'); // runtime-path-compatibility fixture
+    const runtime = path.join(project, '.ultra', '.runtime', 'state.db');
+    const external = path.join(third, 'state.db');
+    for (const file of [legacy, runtime, external]) {
+      const initialized = initStateDb(file);
+      closeStateDb(initialized.db);
+    }
+
+    assert.throws(
+      () => statusCmd.resolveDbPath(project, {
+        UBP_ROOT_DIR: project,
+        UBP_DB_PATH: external,
+      }),
+      (error) => error.code === 'RUNTIME_STATE_CONFLICT',
+    );
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+    fs.rmSync(third, { recursive: true, force: true });
+  }
+});
+
+test('status rejects a valid but unrelated configured DB authority', () => {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-status-project-'));
+  const authority = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-status-authority-'));
+  try {
+    fs.mkdirSync(path.join(project, '.ultra'), { recursive: true });
+    const external = path.join(authority, 'state.db');
+    const initialized = initStateDb(external);
+    closeStateDb(initialized.db);
+
+    assert.throws(
+      () => statusCmd.resolveDbPath(project, {
+        UBP_ROOT_DIR: project,
+        UBP_DB_PATH: external,
+      }),
+      (error) => error.code === 'RUNTIME_AUTHORITY_MISMATCH',
+    );
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+    fs.rmSync(authority, { recursive: true, force: true });
   }
 });

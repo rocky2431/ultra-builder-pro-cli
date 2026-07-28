@@ -102,9 +102,6 @@ dist/
 *.tgz
 *.tar.gz
 
-# Context archives (developer-local, not shared across team)
-.ultra/context-archive/
-
 # Phase delivery reports (optional - commit if needed for documentation)
 # PHASE_*_DELIVERY_REPORT.md
 hooks/node_modules/
@@ -130,9 +127,6 @@ tasks/
 # Security warnings state (session-specific)
 security_warnings_state_*.json
 
-# Ultra working directories (local — entire .ultra/ is per-project state,
-# only .ultra-template/ is shipped as a scaffold)
-.ultra/
 !spec/fixtures/**/.ultra/
 !/templates/.ultra/
 !/templates/.ultra/**
@@ -179,3 +173,11 @@ image-cache/
 __pycache__/
 *.pyc
 *.pyo
+
+# Ultra Builder Pro semantic artifacts are trackable; runtime state is local
+!.ultra/
+!.ultra/**
+.ultra/.runtime
+/.ultra/[s]tate.db
+/.ultra/[s]tate.db-wal
+/.ultra/[s]tate.db-shm

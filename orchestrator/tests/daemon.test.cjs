@@ -27,14 +27,16 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'README.md'), '# test\n');
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '!.ultra/\n!.ultra/**\n.ultra/.runtime\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
   return dir;
 }
 
 function mkDb(repoRoot) {
-  const { db } = initStateDb(path.join(repoRoot, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(repoRoot, '.ultra', '.runtime', 'state.db'),
+  );
   return db;
 }
 

@@ -27,7 +27,7 @@ test('claude native plugin — install, MCP round-trip, and scoped uninstall', a
     assert.equal(mcp.command, process.execPath);
     assert.equal(mcp.args[0], path.join(pluginRoot, 'runtime', 'launch.cjs'));
 
-    const statePath = path.join(serverHome, 'state.db');
+    const statePath = path.join(serverHome, '.ultra', '.runtime', 'state.db');
     const initializedState = initStateDb(statePath);
     seedReadyBaseline(initializedState.db, {
       rootDir: serverHome, id: 'test-baseline', projectName: 'claude-smoke',

@@ -27,7 +27,7 @@ function run(feature, payload) {
 
 function seedContext(project, taskId = 'task-7') {
   fs.writeFileSync(path.join(project, 'contract.md'), '# Hook contract\n');
-  const state = initStateDb(path.join(project, '.ultra', 'state.db'));
+  const state = initStateDb(path.join(project, '.ultra', '.runtime', 'state.db'));
   seedReadyBaseline(state.db, { rootDir: project, id: 'baseline' });
   const { change } = createChange(state.db, completeChangeInput({
     id: 'hook-change', title: 'Hook change', kind: 'quick',
@@ -115,7 +115,7 @@ test('Codex hook adapter maps apply_patch payloads to Edit-compatible file input
 test('Codex hook adapter denies apply_patch writes to tasks.json after Ultra initialization', () => {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-codex-hook-deny-'));
   try {
-    const state = initStateDb(path.join(project, '.ultra', 'state.db'));
+    const state = initStateDb(path.join(project, '.ultra', '.runtime', 'state.db'));
     closeStateDb(state.db);
     const result = run('active_task_context.py', {
       session_id: 'session-deny',
@@ -129,7 +129,10 @@ test('Codex hook adapter denies apply_patch writes to tasks.json after Ultra ini
     assert.equal(result.status, 0, result.stderr);
     const output = JSON.parse(result.stdout);
     assert.equal(output.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(output.hookSpecificOutput.permissionDecisionReason, /\.ultra\/state\.db/);
+    assert.match(
+      output.hookSpecificOutput.permissionDecisionReason,
+      /\.ultra\/\.runtime\/state\.db/,
+    );
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
   }

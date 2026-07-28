@@ -37,8 +37,11 @@ test('kimi smoke — native plugin registration launches the bundled MCP from pr
     try {
       const listed = await client.callTool({ name: 'task.list', arguments: {} });
       assert.deepEqual(readToolPayload(listed).tasks, []);
-      assert.ok(fs.existsSync(path.join(project, '.ultra', 'state.db')));
-      assert.equal(fs.existsSync(path.join(report.target, '.ultra', 'state.db')), false);
+      assert.ok(fs.existsSync(path.join(project, '.ultra', '.runtime', 'state.db')));
+      assert.equal(
+        fs.existsSync(path.join(report.target, '.ultra', '.runtime', 'state.db')),
+        false,
+      );
     } finally {
       await client.close();
     }

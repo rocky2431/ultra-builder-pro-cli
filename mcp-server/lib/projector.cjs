@@ -1,9 +1,10 @@
 'use strict';
 
-// Projector: regenerates the read-only file views from .ultra/state.db.
+// Projector: regenerates the read-only file views from .ultra/.runtime/state.db.
 //
-// state.db is the only authority (D32). tasks.json and contexts/task-*.md
-// are projections — humans may read them, never write them. The projector
+// state.db owns lifecycle and artifact bindings (D32); registered digest-bound
+// files own semantic/evidence bodies. tasks.json and contexts/task-*.md are
+// complete projections — humans may read them, never write them. The projector
 // is trigger-based: state-ops calls projectAll() after each successful
 // write transaction. Projection output passes the v4.5 schemas under
 // spec/schemas/ — see mcp-server/tests/projector.test.cjs for the
@@ -11,9 +12,14 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
+
+const ops = require('./state-ops.cjs');
+const artifacts = require('./artifact-registry.cjs');
+const contextPaths = require('./context-paths.cjs');
 
 const SCHEMA_VERSION = '4.5';
-const SOURCE_TAG = '.ultra/state.db';
+const SOURCE_TAG = '.ultra/.runtime/state.db';
 
 // Frozen SELECTs — values bind through @placeholders.
 const TASK_PROJECTION_COLUMNS = 'id, title, type, priority, complexity, estimated_days, status, deps, files_modified, session_id, stale, tag, trace_to, outcome, slice_kind, public_seam, verification_command, acceptance_json, context_refs_json, docs_impact_json, ownership_json, context_file, completion_commit, created_at, updated_at';
@@ -84,7 +90,7 @@ function projectTasks(db, { tasksJson } = {}, opts = {}) {
   return { path: target, count: rows.length };
 }
 
-function buildContextDoc(taskRow, existingBody) {
+function buildContextDoc(taskRow) {
   const headerLines = [
     '---',
     `task_id: ${taskRow.id}`,
@@ -97,31 +103,20 @@ function buildContextDoc(taskRow, existingBody) {
   if (taskRow.completion_commit) headerLines.push(`completion_commit: ${taskRow.completion_commit}`);
   if (taskRow.stale) headerLines.push('stale: true');
   headerLines.push(`schema_version: ${SCHEMA_VERSION}`);
+  headerLines.push(`generated_by: ${contextPaths.GENERATED_BY}`);
   headerLines.push(`generated_at: ${taskRow.updated_at || new Date().toISOString()}`);
   headerLines.push('---', '');
 
-  let body = existingBody || '';
-  // v4.4 contexts carried a second generated status banner in the Markdown
-  // body. Once frontmatter is authoritative, retaining that line creates two
-  // state surfaces that can disagree. Remove only the legacy generated line;
-  // all task-authored body content remains intact.
-  body = body.replace(/^>\s*\*\*Status\*\*:.*(?:\r?\n|$)(?:\r?\n)?/mi, '');
-  // Strip any previous STALE banner so re-projection after reset is clean.
-  body = body.replace(/^> ⚠️\s*STALE[^\n]*\n(?:>[^\n]*\n)*\n?/m, '');
-  body = body.replace(
-    new RegExp(`${CONTRACT_START}[\\s\\S]*?${CONTRACT_END}\\n*`, 'm'),
-    '',
-  );
+  const body = [];
   if (taskRow.stale) {
-    const banner = [
+    body.push([
       `> ⚠️ STALE since ${taskRow.updated_at || new Date().toISOString()}`,
       '> Specification evidence may have changed. Recompile the task context before continuing.',
       '',
-    ].join('\n');
-    body = banner + body;
+    ].join('\n'));
   }
-  body = buildTaskContract(taskRow) + body;
-  return headerLines.join('\n') + body;
+  body.push(buildTaskContract(taskRow));
+  return headerLines.join('\n') + body.join('');
 }
 
 function buildTaskContract(task) {
@@ -167,43 +162,180 @@ function escapeYaml(str) {
   return str;
 }
 
-function extractBodyFromExistingFile(file) {
-  if (!fs.existsSync(file)) return '';
-  const text = fs.readFileSync(file, 'utf8');
-  if (!text.startsWith('---')) return text;
-  const end = text.indexOf('\n---', 3);
-  if (end === -1) return text;
-  return text.slice(end + 4).replace(/^\n/, '');
+function legacyContextParseError(message) {
+  const error = new Error(message);
+  error.code = 'LEGACY_CONTEXT_PARSE_ERROR';
+  return error;
+}
+
+function extractAuthoredContextBytes(contents) {
+  const original = Buffer.isBuffer(contents) ? contents : Buffer.from(contents);
+  let body = original.toString('utf8');
+  const frontmatter = /^(?:\uFEFF)?---(?:\r\n|\n)[\s\S]*?(?:\r\n|\n)---(?:(?:\r\n|\n)|$)/.exec(body);
+  if (frontmatter) body = body.slice(frontmatter[0].length);
+  const staleBanner = /^> ⚠️ STALE[^\r\n]*(?:(?:\r\n|\n)>[^\r\n]*)*(?:(?:\r\n|\n){1,2}|$)/.exec(body);
+  if (staleBanner) body = body.slice(staleBanner[0].length);
+
+  let cursor = 0;
+  while (true) {
+    const start = body.indexOf(CONTRACT_START, cursor);
+    if (start === -1) break;
+    const markerEnd = body.indexOf(CONTRACT_END, start + CONTRACT_START.length);
+    if (markerEnd === -1) {
+      throw legacyContextParseError(
+        'legacy task context has an unterminated generated execution contract',
+      );
+    }
+    let end = markerEnd + CONTRACT_END.length;
+    if (body.startsWith('\r\n', end)) end += 2;
+    else if (body.startsWith('\n', end)) end += 1;
+    const removeFrom = body.slice(0, start).trim() === '' ? 0 : start;
+    body = body.slice(0, removeFrom) + body.slice(end);
+    cursor = removeFrom;
+  }
+  return body.trim() === '' ? null : Buffer.from(body, 'utf8');
+}
+
+function promoteAuthoredContext(db, taskId, target, rootDir) {
+  if (!fs.existsSync(target.file)) return null;
+  const stat = fs.lstatSync(target.file);
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    throw new contextPaths.ContextPathError(
+      `task context must be a regular file: ${target.relative}`,
+    );
+  }
+  const sourceBytes = fs.readFileSync(target.file);
+  const bytes = extractAuthoredContextBytes(sourceBytes);
+  if (!bytes) return null;
+  const digest = crypto.createHash('sha256').update(bytes).digest('hex');
+  const sourceDigest = crypto.createHash('sha256').update(sourceBytes).digest('hex');
+  const safeTaskId = String(taskId).replace(/[^a-zA-Z0-9_-]+/g, '-');
+  const relative = `.ultra/docs/migration/legacy-context/${safeTaskId}-${digest.slice(0, 12)}.md`;
+  const file = path.resolve(rootDir, ...relative.split('/'));
+  const existed = fs.existsSync(file);
+  if (existed) {
+    const existingDigest = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+    if (existingDigest !== digest) {
+      throw new Error(`legacy context promotion digest conflict: ${relative}`);
+    }
+  } else {
+    writeAtomic(file, bytes);
+  }
+  try {
+    const recorded = artifacts.recordArtifact(db, {
+      owner_type: 'task',
+      owner_id: taskId,
+      kind: 'legacy_context_findings',
+      path: relative,
+      content_digest: digest,
+      source_refs: [{
+        type: 'external',
+        id: `legacy-context:${target.relative}`,
+        relation: 'imported_from',
+      }],
+      consumer_refs: [{ type: 'task', id: taskId, relation: 'consumed_by' }],
+      provenance: {
+        writer: 'ultra-projector',
+        operation: 'legacy-context-promotion',
+      },
+      metadata: {
+        original_path: target.relative,
+        original_digest: sourceDigest,
+        authored_body_digest: digest,
+      },
+    }, { rootDir });
+    return { path: relative, digest, artifact_id: recorded.artifact.id };
+  } catch (error) {
+    if (!existed) fs.rmSync(file, { force: true });
+    throw error;
+  }
 }
 
 function projectContext(db, taskId, { contextsDir } = {}, opts = {}) {
   const row = db.prepare(READ_TASK_FOR_PROJECTION_SQL).get({ id: taskId });
   if (!row) return null;
   const projection = rowToProjection(row);
-  const dir = contextsDir || defaultPaths(opts.rootDir || '.').contextsDir;
-  const target = projection.context_file
-    ? path.resolve(opts.rootDir || '.', projection.context_file)
-    : path.join(dir, `task-${taskId}.md`);
-  const body = extractBodyFromExistingFile(target);
-  const next = buildContextDoc(projection, body);
-  writeAtomic(target, next);
-  return { path: target, task_id: taskId };
+  const rootDir = path.resolve(opts.rootDir || '.');
+  if (contextsDir) {
+    const supplied = path.resolve(contextsDir);
+    const canonical = defaultPaths(rootDir).contextsDir;
+    if (supplied !== canonical) {
+      throw new contextPaths.ContextPathError(
+        `custom context projection roots are not allowed: ${contextsDir}`,
+      );
+    }
+  }
+  const target = contextPaths.resolveContextPath(rootDir, projection.context_file, { taskId });
+  const promoted = promoteAuthoredContext(db, taskId, target, rootDir);
+  const next = buildContextDoc(projection);
+  writeAtomic(target.file, next);
+  return { path: target.file, task_id: taskId, promoted };
+}
+
+function listContextFiles(directory) {
+  if (!fs.existsSync(directory)) return [];
+  const output = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isDirectory()) output.push(...listContextFiles(file));
+    else if (entry.isFile()) output.push(file);
+  }
+  return output;
+}
+
+function pruneGeneratedGhosts(db, rootDir, expected) {
+  const contextsDir = defaultPaths(rootDir).contextsDir;
+  const pruned = [];
+  for (const file of listContextFiles(contextsDir)) {
+    const relative = path.relative(rootDir, file).split(path.sep).join('/');
+    if (expected.has(relative) || path.basename(file) === 'TEMPLATE.md') continue;
+    const contents = fs.readFileSync(file);
+    if (!contextPaths.isGeneratedContextContents(contents)) continue;
+    const staged = `${file}.prune-${process.pid}-${Date.now()}`;
+    fs.renameSync(file, staged);
+    try {
+      ops.appendEvent(db, {
+        type: 'projection_pruned',
+        payload: { path: relative, reason: 'task_missing' },
+      });
+      fs.rmSync(staged, { force: true });
+      pruned.push(relative);
+    } catch (error) {
+      fs.renameSync(staged, file);
+      throw error;
+    }
+  }
+  return pruned.sort();
 }
 
 function projectAll(db, { rootDir = '.', tasksJson, contextsDir } = {}) {
-  const paths = defaultPaths(rootDir);
+  const resolvedRoot = path.resolve(rootDir);
+  const paths = defaultPaths(resolvedRoot);
   const tasksTarget = tasksJson || paths.tasksJson;
   const contextsTarget = contextsDir || paths.contextsDir;
+  if (path.resolve(contextsTarget) !== paths.contextsDir) {
+    throw new contextPaths.ContextPathError(
+      `custom context projection roots are not allowed: ${contextsTarget}`,
+    );
+  }
 
+  const rows = db.prepare("SELECT id, context_file FROM tasks").all();
+  const expected = new Set(rows.map((row) => (
+    contextPaths.resolveContextPath(resolvedRoot, row.context_file, { taskId: row.id }).relative
+  )));
   const tasksResult = projectTasks(db, { tasksJson: tasksTarget });
   const contextResults = [];
-  const rows = db.prepare("SELECT id FROM tasks").all();
   for (const r of rows) {
-    contextResults.push(projectContext(db, r.id, { contextsDir: contextsTarget }, { rootDir }));
+    contextResults.push(projectContext(
+      db, r.id, { contextsDir: contextsTarget }, { rootDir: resolvedRoot },
+    ));
   }
+  const pruned = pruneGeneratedGhosts(db, resolvedRoot, expected);
   return {
     tasks_json: tasksResult,
     contexts: contextResults.filter(Boolean),
+    pruned,
   };
 }
 
@@ -214,4 +346,6 @@ module.exports = {
   projectContext,
   projectAll,
   rowToProjection,
+  extractAuthoredContextBytes,
+  promoteAuthoredContext,
 };

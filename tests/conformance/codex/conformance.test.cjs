@@ -13,7 +13,7 @@ const codex = require('../../../adapters/codex.js');
 const { REPO_ROOT, mkTarget, cleanup } = require('../_lib.cjs');
 
 const COMMANDS = [
-  'learn', 'ultra-change', 'ultra-deliver', 'ultra-dev', 'ultra-doctor', 'ultra-init', 'ultra-plan',
+  'ultra-change', 'ultra-deliver', 'ultra-dev', 'ultra-doctor', 'ultra-init', 'ultra-plan',
   'ultra-research', 'ultra-status', 'ultra-test', 'ultra-think',
 ];
 const AGENTS = [
@@ -41,7 +41,7 @@ function install(layout) {
   });
 }
 
-test('codex conformance — eleven command workflows are explicit plugin skills', () => {
+test('codex conformance — ten compatibility mappings plus review are explicit plugin skills', () => {
   const layout = mkLayout('codex-cap-cmd');
   try {
     install(layout);
@@ -51,6 +51,7 @@ test('codex conformance — eleven command workflows are explicit plugin skills'
       assert.equal(commandMap[`/${command}`], `$ultra-builder-pro:${command}`);
       assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'skills', command, 'SKILL.md')));
     }
+    assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'skills', 'ultra-review', 'SKILL.md')));
     assert.ok(!fs.existsSync(path.join(layout.configDir, 'prompts')));
   } finally { cleanup(layout.homeDir); }
 });
@@ -63,7 +64,7 @@ test('codex conformance — complete skill and native agent packaging', () => {
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(layout.pluginRoot, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    assert.equal(skills.length, 18);
+    assert.equal(skills.length, 17);
     assert.ok(skills.includes('cc-collab'));
     assert.ok(!skills.includes('codex-collab'));
     assert.ok(!skills.includes('learned'));
@@ -99,7 +100,7 @@ test('codex conformance — plugin MCP has no global state override', () => {
     assert.equal(entry.args[0], path.join(layout.pluginRoot, 'runtime', 'launch.cjs'));
     assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'runtime', 'index.cjs')));
     assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'runtime', 'build', 'Release', 'better_sqlite3.node')));
-    assert.ok(!entry.env, 'the current task cwd must own .ultra/state.db');
+    assert.ok(!entry.env, 'the current task cwd must own .ultra/.runtime/state.db');
   } finally { cleanup(layout.homeDir); }
 });
 

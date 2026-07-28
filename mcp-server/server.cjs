@@ -1,7 +1,7 @@
 'use strict';
 
 // MCP server (stdio JSON-RPC) exposing task.* + session.* tools backed by
-// .ultra/state.db. Uses the low-level Server API from
+// .ultra/.runtime/state.db. Uses the low-level Server API from
 // @modelcontextprotocol/server so we can pass raw JSON Schema (Draft 2020-12)
 // straight from spec/mcp-tools.yaml without translating to zod.
 
@@ -30,10 +30,14 @@ const planStore = require('./lib/plan-store.cjs');
 const { initProject } = require('./lib/init-project.cjs');
 const baselines = require('./lib/baseline-workflow.cjs');
 const changes = require('./lib/change-workflow.cjs');
+const contextSpine = require('./lib/context-spine.cjs');
 const runtimeState = require('./lib/runtime-state.cjs');
+const runtimePaths = require('./lib/runtime-paths.cjs');
+const gitBootstrap = require('./lib/git-bootstrap.cjs');
 const workflows = require('./lib/workflow-state.cjs');
 const decisions = require('./lib/decision-dialogue.cjs');
 const doctor = require('./lib/doctor.cjs');
+const artifactRegistry = require('./lib/artifact-registry.cjs');
 const {
   readProjectBreadcrumb,
   renderProjectBreadcrumb,
@@ -85,6 +89,8 @@ const BASELINE_TOOLS = Object.freeze([
 const CHANGE_TOOLS = Object.freeze([
   'change.create',
   'change.update',
+  'change.delta',
+  'change.documentation_reconcile',
   'change.get',
   'change.list',
   'change.context',
@@ -100,6 +106,8 @@ const WORKFLOW_TOOLS = Object.freeze([
   'workflow.get',
   'workflow.list',
   'workflow.step',
+  'workflow.revise',
+  'workflow.supersede',
   'workflow.complete',
 ]);
 
@@ -120,10 +128,16 @@ const SYSTEM_TOOLS = Object.freeze([
   'system.doctor',
 ]);
 
+const ARTIFACT_TOOLS = Object.freeze([
+  'artifact.record',
+  'artifact.get',
+]);
+
 const REGISTERED_TOOLS = Object.freeze([
   ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS, ...BASELINE_TOOLS, ...CHANGE_TOOLS,
   ...DECISION_TOOLS,
   ...WORKFLOW_TOOLS,
+  ...ARTIFACT_TOOLS,
   ...SYSTEM_TOOLS,
 ]);
 
@@ -137,11 +151,14 @@ const MUTATING_TOOLS = new Set([
   'session.spawn', 'session.close', 'session.heartbeat',
   'plan.export',
   'baseline.start', 'baseline.record', 'baseline.converge',
-  'change.create', 'change.update', 'change.context', 'change.converge', 'change.archive',
+  'change.create', 'change.update', 'change.delta', 'change.documentation_reconcile',
+  'change.context', 'change.converge', 'change.archive',
   'change.learning_propose', 'change.learning_resolve',
   'decision.thread_start', 'decision.open', 'decision.resolve', 'decision.delegate',
   'decision.defer', 'decision.supersede', 'decision.complete', 'decision.checkpoint',
-  'workflow.start', 'workflow.step', 'workflow.complete',
+  'workflow.start', 'workflow.step', 'workflow.revise', 'workflow.supersede',
+  'workflow.complete',
+  'artifact.record',
 ]);
 
 function loadRegisteredTools() {
@@ -260,12 +277,11 @@ async function dispatchTool(name, input, db, ctx = {}) {
       return { session };
     }
     case 'session.admission_check': {
-      sessionRunner.assertSessionTaskReady(
+      return sessionRunner.admissionCheck(
         db,
         ctx.rootDir || process.cwd(),
         input.task_id,
       );
-      return ops.admissionCheck(db, input.task_id);
     }
     case 'session.list': {
       const sessions = ops.listActiveSessions(db, { task_id: input.task_id });
@@ -410,39 +426,173 @@ async function dispatchTool(name, input, db, ctx = {}) {
         err.code = 'CHANGE_NOT_MUTABLE';
         throw err;
       }
-      const abs = path.isAbsolute(input.out_path)
-        ? input.out_path
-        : path.join(rootDir, input.out_path);
-      const tasks = ops.listTasks(db, { tag: input.tag, change_id: change.id });
+      const tasks = ops.listTasks(db, { change_id: change.id });
       if (tasks.length === 0) {
         const err = new Error('no tasks to plan');
         err.code = 'NO_TASKS';
         throw err;
       }
-      const plan = planStore.buildPlan(tasks, { changeId: change.id });
-      const { plan_path } = planStore.savePlanArtifact(plan, abs, input.format || 'json');
-      ops.appendEvent(db, {
-        type: 'plan_exported',
+      const context = contextSpine.validateContextSnapshot(db, {
         change_id: change.id,
-        payload: {
-          change_id: change.id, plan_path, wave_count: plan.waves.length, tag: input.tag || null,
+        task_id: null,
+        role: 'plan',
+        gate: 'planning',
+      }, { rootDir });
+      if (!context.snapshot || context.blockers.length > 0) {
+        const err = new Error('plan export requires a current planning Context Manifest');
+        err.code = context.snapshot ? 'PLAN_CONTEXT_STALE' : 'PLAN_CONTEXT_REQUIRED';
+        err.details = { blockers: context.blockers };
+        throw err;
+      }
+      const plan = planStore.buildPlan(tasks, { changeId: change.id });
+      const planRun = db.prepare(
+        `SELECT id FROM workflow_runs
+         WHERE kind = 'plan' AND change_id = ? AND task_id IS NULL
+           AND status IN ('active', 'blocked', 'ready')
+         ORDER BY started_at DESC, rowid DESC LIMIT 1`,
+      ).get(change.id);
+      const owner = { type: 'change', id: change.id };
+      const contextArtifact = db.prepare(
+        `SELECT id FROM artifacts
+         WHERE path = ? AND status <> 'archived'
+         ORDER BY updated_at DESC, rowid DESC LIMIT 1`,
+      ).get(context.snapshot.manifest_path);
+      const publication = planStore.prepareChangePlanPublication(plan, {
+        rootDir,
+        change,
+        tasks,
+        context: {
+          snapshot_id: context.snapshot.id,
+          manifest_path: context.snapshot.manifest_path,
+          manifest_digest: context.snapshot.manifest_hash,
         },
       });
-      return { plan_path, wave_count: plan.waves.length };
+      const artifactInputs = publication.artifacts.map(({ kind, path: file, digest }) => ({
+        kind,
+        file,
+        digest,
+        input: {
+          owner_type: owner.type,
+          owner_id: owner.id,
+          kind,
+          path: path.relative(rootDir, file),
+          source_refs: [
+            { type: 'change', id: change.id, relation: 'planned_for' },
+            ...(contextArtifact
+              ? [{ type: 'artifact', id: contextArtifact.id, relation: 'compiled_from' }]
+              : []),
+            ...tasks.map((task) => ({
+              type: 'task', id: task.id, relation: 'compiled_from_task_contract',
+            })),
+          ],
+          consumer_refs: planRun
+            ? [{ type: 'workflow', id: planRun.id, relation: 'verified_by' }]
+            : [],
+          provenance: {
+            writer: 'plan.export',
+            workflow_run_id: planRun?.id || null,
+            publication_transaction_id: publication.transaction_id,
+          },
+          metadata: {
+            context_snapshot_id: context.snapshot.id,
+            context_digest: context.snapshot.manifest_hash,
+            terminal_role: !planRun,
+          },
+        },
+      }));
+      try {
+        ops.tx(db, () => {
+          const preflight = artifactInputs.map((artifact) => (
+            artifactRegistry.preflightArtifactPublication(
+              db, artifact.input, { rootDir },
+            )
+          ));
+          publication.publish();
+          const recorded = artifactInputs.map((artifact, index) => (
+            artifactRegistry.recordArtifactInTx(db, {
+              ...artifact.input,
+              id: preflight[index].artifact_id || undefined,
+              expected_before_digest: preflight[index].expected_before_digest,
+              content_digest: artifact.digest,
+            }, { rootDir })
+          ));
+          ops.appendEventInTx(db, {
+            type: 'plan_exported',
+            change_id: change.id,
+            payload: {
+              change_id: change.id,
+              plan_path: publication.plan_path,
+              plan_md_path: publication.plan_md_path,
+              publication_transaction_id: publication.transaction_id,
+              wave_count: plan.waves.length,
+            },
+          });
+          return recorded;
+        });
+      } catch (error) {
+        const rollback = publication.rollback();
+        const failure = rollback?.rolled_back === false
+          ? planStore.planRecoveryRequiredError(
+            error,
+            rollback,
+            publication.transaction_id,
+          )
+          : error;
+        if (failure.code === 'PLAN_RECOVERY_REQUIRED') {
+          const issue = failure.details?.rollback_issue
+            || failure.details?.issue
+            || {
+              code: failure.cause?.code || 'PLAN_RECOVERY_FAILED',
+              message: failure.cause?.message || failure.message,
+            };
+          ctx.markPlanRecoveryRequired?.({
+            recovered: 0,
+            finalized: 0,
+            pending: 1,
+            issues: [issue],
+          });
+        }
+        throw failure;
+      }
+      try {
+        publication.commit();
+      } catch (error) {
+        const issue = error.details?.issue || {
+          code: error.cause?.code || 'PLAN_RECOVERY_FAILED',
+          message: error.cause?.message || error.message,
+        };
+        ctx.markPlanRecoveryRequired?.({
+          recovered: 0,
+          finalized: 0,
+          pending: 1,
+          issues: [issue],
+        });
+        // The registry and target bytes committed atomically before cleanup.
+        // The remaining journal is still authoritative recovery work, so the
+        // caller must see a typed failure and later mutations must stop.
+        throw error;
+      }
+      return {
+        plan_path: publication.plan_path,
+        plan_md_path: publication.plan_md_path,
+        wave_count: plan.waves.length,
+      };
     }
     case 'plan.get': {
       const rootDir = ctx.rootDir || process.cwd();
-      const loaded = planStore.loadPlanArtifact(rootDir);
+      const change = changes.readChange(db, input.change_id);
+      if (!change) {
+        const err = new Error(`change ${input.change_id} not found`);
+        err.code = 'CHANGE_NOT_FOUND';
+        throw err;
+      }
+      const loaded = planStore.loadChangePlanArtifact(rootDir, change, {
+        db,
+        strict: true,
+      });
       if (!loaded) {
         const err = new Error('no plan has been computed yet');
         err.code = 'NO_PLAN';
-        throw err;
-      }
-      if (loaded.change_id !== input.change_id) {
-        const err = new Error(
-          `execution plan belongs to ${loaded.change_id || '(unbound)'}, not ${input.change_id}`,
-        );
-        err.code = 'PLAN_CHANGE_MISMATCH';
         throw err;
       }
       return { plan: planStore.selectSection(loaded, input.section) };
@@ -546,6 +696,14 @@ async function dispatchTool(name, input, db, ctx = {}) {
     case 'change.archive': {
       return changes.archiveChange(db, input, { rootDir: ctx.rootDir || process.cwd() });
     }
+    case 'change.delta': {
+      return changes.recordDelta(db, input, { rootDir: ctx.rootDir || process.cwd() });
+    }
+    case 'change.documentation_reconcile': {
+      return changes.recordDocumentationReconciliation(
+        db, input, { rootDir: ctx.rootDir || process.cwd() },
+      );
+    }
     case 'decision.thread_start': {
       return { thread: decisions.startDecisionThread(db, input) };
     }
@@ -578,7 +736,11 @@ async function dispatchTool(name, input, db, ctx = {}) {
       return { thread: decisions.supersedeDecision(db, input) };
     }
     case 'decision.complete': {
-      return { thread: decisions.completeDecisionThread(db, input) };
+      return {
+        thread: decisions.completeDecisionThread(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
     }
     case 'decision.checkpoint': {
       return {
@@ -618,12 +780,32 @@ async function dispatchTool(name, input, db, ctx = {}) {
         ),
       };
     }
+    case 'workflow.revise': {
+      return {
+        workflow: workflows.reviseWorkflow(
+          db, input, { rootDir: ctx.rootDir || process.cwd() },
+        ),
+      };
+    }
+    case 'workflow.supersede': {
+      return workflows.supersedeWorkflow(
+        db, input, { rootDir: ctx.rootDir || process.cwd() },
+      );
+    }
     case 'workflow.complete': {
       return {
         workflow: workflows.completeWorkflow(
           db, input, { rootDir: ctx.rootDir || process.cwd() },
         ),
       };
+    }
+    case 'artifact.record': {
+      return artifactRegistry.recordArtifact(
+        db, input, { rootDir: ctx.rootDir || process.cwd() },
+      );
+    }
+    case 'artifact.get': {
+      return { artifact: artifactRegistry.getArtifact(db, input) };
     }
     case 'system.doctor': {
       return doctor.runDoctor(db, {
@@ -657,8 +839,55 @@ function startServer({
   project = projector.projectAll,
 }) {
   let db = null;
-  const getDb = () => {
-    if (!db) db = initStateDb(dbPath).db;
+  let planRecovery = null;
+  let authorityDbPath = path.resolve(dbPath);
+  const markPlanRecoveryRequired = (details) => {
+    planRecovery = {
+      recovered: Number(details?.recovered || 0),
+      finalized: Number(details?.finalized || 0),
+      pending: Math.max(1, Number(details?.pending || 0)),
+      issues: Array.isArray(details?.issues) ? details.issues : [],
+    };
+  };
+  const getDb = (toolName = null) => {
+    if (!db) {
+      const projectPaths = runtimePaths.pathsFor(rootDir);
+      if ([projectPaths.legacyStateDbPath, projectPaths.stateDbPath].includes(authorityDbPath)) {
+        // The packaged launcher has no explicit DB override. Its default path
+        // is the future canonical runtime location, which can legitimately be
+        // absent while a legacy project still owns its project-level DB. Admit and
+        // migrate that project before applying configured-authority binding.
+        authorityDbPath = runtimePaths.ensureRuntimeState(rootDir, {
+          admitStorageBoundary: () => gitBootstrap.ensureExistingProjectStorageBoundary(rootDir),
+        }).stateDbPath;
+      } else {
+        // Only a real external/task-linked override reaches binding
+        // validation. It may never invent or borrow project authority.
+        runtimePaths.locateStateDb(rootDir, {
+          env: { UBP_DB_PATH: authorityDbPath },
+        });
+        runtimePaths.ensureRuntimeState(rootDir, {
+          env: { UBP_DB_PATH: authorityDbPath },
+          allowConfiguredRuntimeLink: true,
+          migrateState: false,
+          admitStorageBoundary: () => gitBootstrap.ensureExistingProjectStorageBoundary(rootDir),
+        });
+      }
+      db = initStateDb(authorityDbPath).db;
+      planRecovery = planStore.recoverPlanPublications(db, { rootDir });
+    }
+    if (toolName !== 'system.doctor'
+      && (planRecovery?.pending > 0 || planRecovery?.issues?.length > 0)) {
+      planRecovery = planStore.recoverPlanPublications(db, { rootDir });
+      if (planRecovery.pending > 0 || planRecovery.issues.length > 0) {
+        const error = new Error(
+          'plan publication recovery is incomplete; run system.doctor with repair=true',
+        );
+        error.code = 'PLAN_RECOVERY_REQUIRED';
+        error.details = planRecovery;
+        throw error;
+      }
+    }
     return db;
   };
 
@@ -723,14 +952,22 @@ function startServer({
     let result;
     let toolDb = null;
     try {
-      toolDb = STATELESS_TOOLS.has(name) ? null : getDb();
+      toolDb = STATELESS_TOOLS.has(name) ? null : getDb(name);
       if (toolDb) assertStateAuthority(toolDb, rootDir);
       result = await dispatchTool(
         name,
         args,
         toolDb,
-        { rootDir, sessionId, projector: project },
+        {
+          rootDir,
+          sessionId,
+          projector: project,
+          markPlanRecoveryRequired,
+        },
       );
+      if (name === 'system.doctor' && args.repair === true) {
+        planRecovery = result.repair?.plan_publications || null;
+      }
     } catch (err) {
       const code = err.code || (err instanceof ops.StateOpsError ? err.code : 'STATE_DB_ERROR');
       toolError = code;
@@ -789,12 +1026,18 @@ function startServer({
 }
 
 async function main() {
-  const dbPath = process.env.UBP_DB_PATH
-    ? path.resolve(process.env.UBP_DB_PATH)
-    : path.resolve('.ultra', 'state.db');
   const rootDir = process.env.UBP_ROOT_DIR
     ? path.resolve(process.env.UBP_ROOT_DIR)
     : path.resolve('.');
+  // Keep tools/list side-effect free. Root/layout validation happens inside the
+  // first state-backed tool call so clients receive a typed MCP error instead
+  // of a transport-level startup failure.
+  const configuredDb = typeof process.env.UBP_DB_PATH === 'string'
+    ? process.env.UBP_DB_PATH.trim()
+    : '';
+  const dbPath = configuredDb
+    ? path.resolve(configuredDb)
+    : runtimePaths.pathsFor(rootDir).stateDbPath;
   const sessionId = process.env.UBP_SESSION_ID || null;
   const handle = startServer({ dbPath, rootDir, sessionId });
   const transport = new StdioServerTransport();
@@ -816,7 +1059,7 @@ function appendHookLifecycleEvent({ rootDir, action, hookInput = {} } = {}) {
     throw error;
   }
   const root = path.resolve(rootDir || process.cwd());
-  const dbPath = path.join(root, '.ultra', 'state.db');
+  const dbPath = runtimePaths.locateStateDb(root);
   if (!fs.existsSync(dbPath)) return { recorded: false, reason: 'STATE_DB_MISSING' };
 
   const db = openStateDb(dbPath);
@@ -878,11 +1121,13 @@ module.exports = {
   BASELINE_TOOLS,
   CHANGE_TOOLS,
   WORKFLOW_TOOLS,
+  ARTIFACT_TOOLS,
   SYSTEM_TOOLS,
   REGISTERED_TOOLS,
   STATELESS_TOOLS,
   MUTATING_TOOLS,
   appendHookLifecycleEvent,
+  findProjectRoot: runtimePaths.findProjectRoot,
   readProjectBreadcrumb,
   renderProjectBreadcrumb,
 };

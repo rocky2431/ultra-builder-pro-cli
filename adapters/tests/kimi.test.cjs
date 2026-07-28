@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const kimi = require('../kimi.js');
 const { parse: parseFm } = require('../_shared/frontmatter.cjs');
@@ -46,6 +47,21 @@ test('install builds and registers one Kimi-native plugin without changing confi
     assert.equal(fs.readFileSync(configFile, 'utf8'), userConfig);
     assert.ok(fs.existsSync(path.join(pluginRoot, '.ubp-managed')));
     assert.ok(fs.existsSync(path.join(pluginRoot, 'provenance.json')));
+    assert.ok(fs.existsSync(path.join(
+      pluginRoot,
+      'runtime',
+      'session-close-journal-worker.cjs',
+    )));
+    assert.ok(fs.existsSync(path.join(
+      pluginRoot,
+      'runtime',
+      'doctor-backup-worker.cjs',
+    )));
+    assert.ok(fs.existsSync(path.join(
+      pluginRoot,
+      'runtime',
+      'archive-mutation-worker.py',
+    )));
 
     const registry = readJson(registryFile);
     assert.equal(registry.version, 1);
@@ -87,14 +103,36 @@ test('Kimi manifest exposes explicit native skills, commands, hooks, and MCP wit
 
     const hookText = JSON.stringify(manifest.hooks);
     assert.match(hookText, /hooks\/adapters\/kimi\.py/);
-    for (const hook of WORKFLOW_HOOK_FILES.filter((value) => value !== 'context_spine.py')) {
+    for (const hook of WORKFLOW_HOOK_FILES.filter(
+      (value) => !['context_spine.py', 'runtime_paths.py'].includes(value),
+    )) {
       assert.match(hookText, new RegExp(hook.replace('.', '\\.')));
     }
     assert.ok(fs.existsSync(path.join(pluginRoot, 'hooks', 'context_spine.py')));
     assert.doesNotMatch(hookText, /memory|recall|journal|prompt[_ -]?capture|block_dangerous|post_edit_guard/i);
+    const launched = spawnSync(
+      'python3',
+      [
+        path.join(pluginRoot, 'hooks', 'adapters', 'kimi.py'),
+        'health_check.py',
+      ],
+      {
+        cwd: home,
+        input: JSON.stringify({ cwd: home, hook_event_name: 'SessionStart' }),
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(launched.status, 0, launched.stderr);
+    assert.deepEqual(JSON.parse(launched.stdout), {});
     const interaction = readJson(path.join(pluginRoot, 'spec', 'interaction-contract.json'));
     assert.equal(interaction.interaction.question_surface.primary, 'AskUserQuestion');
     assert.equal(interaction.interaction.question_surface.availability, 'interactive_non_auto_mode');
+    const dialogue = fs.readFileSync(
+      path.join(pluginRoot, 'skills', 'ultra-think', 'references', 'decision-dialogue.md'),
+      'utf8',
+    );
+    assert.match(dialogue, /AskUserQuestion/);
+    assert.doesNotMatch(dialogue, /host-native structured question surface declared/);
 
     const commands = fs.readdirSync(path.join(pluginRoot, 'commands')).sort();
     assert.deepEqual(commands, CORE_PUBLIC_SKILLS.map((name) => `${name}.md`).sort());
@@ -119,11 +157,8 @@ test('Kimi assets are allowlisted, explicit-only, and adapted to native tools an
       .sort();
     assert.deepEqual(skills, skillsForRuntime('kimi').sort());
 
-    const learn = fs.readFileSync(path.join(pluginRoot, 'skills', 'learn', 'SKILL.md'), 'utf8');
     const review = fs.readFileSync(path.join(pluginRoot, 'skills', 'ultra-review', 'SKILL.md'), 'utf8');
     const init = fs.readFileSync(path.join(pluginRoot, 'skills', 'ultra-init', 'SKILL.md'), 'utf8');
-    assert.match(learn, /`~\/.kimi-code\/skills`/);
-    assert.doesNotMatch(learn, /_unverified|learned-[^\s/]*-unverified/i);
     assert.match(review, /Kimi `AgentSwarm`/);
     assert.match(review, /\$KIMI_PLUGIN_ROOT\/agents\//);
     assert.match(review, /scripts\/review_wait\.py/);
@@ -155,7 +190,7 @@ test('Kimi assets are allowlisted, explicit-only, and adapted to native tools an
         }
       }
     }
-    const foreign = /~\/.claude|~\/.codex|~\/.config\/opencode|CLAUDE\.md|TaskCreate|TaskUpdate|TaskList|AskUserQuestion|run_in_background:\s*true|\$CLAUDE_PLUGIN_ROOT|Kimi `Shell`/;
+    const foreign = /~\/.claude|~\/.codex|~\/.config\/opencode|CLAUDE\.md|TaskCreate|TaskUpdate|TaskList|run_in_background:\s*true|\$CLAUDE_PLUGIN_ROOT|Kimi `Shell`/;
     for (const file of allPromptAssets) {
       const text = fs.readFileSync(file, 'utf8');
       assert.doesNotMatch(text, foreign, file);

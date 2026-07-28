@@ -1,0 +1,15 @@
+[
+  {
+    "id": "feature-auth",
+    "delta_artifact_id": "change-feature-auth-delta",
+    "delta_digest": "short",
+    "documents": []
+  },
+  {
+    "id": "feature-auth",
+    "delta_artifact_id": "change-feature-auth-delta",
+    "delta_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "documents": [],
+    "unexpected": true
+  }
+]

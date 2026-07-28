@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-17T12:28:31.266Z",
+  "change": {
+    "id": "fix-release-retired-reference",
+    "title": "Fix retired-surface release gate regression",
+    "kind": "incident",
+    "status": "active",
+    "intent": "Remove the retired command-proxy reference introduced in D53, preserve the no-residue contract, and publish the already completed harness closure through a new immutable patch version.",
+    "docs_impact": {
+      "status": "required",
+      "files": [
+        "README.md",
+        "CHANGELOG.md",
+        "docs/PLAN.zh-CN.md"
+      ],
+      "rationale": "The package version and release history must accurately record the failed 0.8.0 gate and 0.8.1 recovery."
+    },
+    "base_commit": "5d2285428188038c4f1c6664ad4860b35c29cd48"
+  },
+  "git": {
+    "head": "72e1aa38738bf5506c68478abc4984602719b752"
+  },
+  "tasks": [
+    {
+      "id": "fix-retired-reference-release",
+      "title": "Remove retired reference and republish patch release",
+      "status": "completed",
+      "priority": "P0",
+      "stale": false,
+      "trace_to": "tests/retired-runtime.test.cjs",
+      "context_file": null
+    }
+  ],
+  "specs": [
+    {
+      "path": "tests/retired-runtime.test.cjs",
+      "role": "release-regression-contract"
+    }
+  ],
+  "providers": {},
+  "provider_boundary": "metadata references only; memory and code graph content remain external",
+  "tool_policy": {
+    "allowed_paths": [
+      "docs/PLAN.zh-CN.md",
+      "README.md",
+      "CHANGELOG.md",
+      "package.json",
+      "package-lock.json"
+    ]
+  }
+}

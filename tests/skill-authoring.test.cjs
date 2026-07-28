@@ -47,6 +47,16 @@ test('skills directory contains only deliberately packaged skill roots', () => {
   assert.deepEqual(roots, [...PACKAGED_SKILLS].sort());
 });
 
+test('commands expose exactly the eleven Ultra-owned public capabilities', () => {
+  const commands = fs.readdirSync(COMMANDS_ROOT)
+    .filter((name) => name.endsWith('.md'))
+    .map((name) => name.slice(0, -3))
+    .sort();
+  assert.deepEqual(commands, [...CORE_PUBLIC_SKILLS].sort());
+  assert.equal(commands.length, 11);
+  assert.ok(!commands.includes('learn'));
+});
+
 test('source SKILL.md files use portable Agent Skills frontmatter', () => {
   for (const name of [...PACKAGED_SKILLS].sort()) {
     const { text } = sourceSkill(name);
@@ -67,6 +77,7 @@ test('packaged skill markdown is English and free of release-history prompt resi
     { pattern: /\b90%\+?\s+confidence\b|\b80%\s+overall\b|\b100%\s+Functional Core\b/i, label: 'unsupported global quality threshold' },
     { pattern: /\bFlag as\s+(?:an?\s+)?(?:P[0-3]|orphan|horizontal)|\bRequired Test\b|\/\/\s*(?:Bad|Good):/i, label: 'mechanical pattern-to-verdict teaching' },
     { pattern: /\bFunction\s*>\s*\d+\s+lines\b|\bNesting depth\s*>\s*\d+|\baggregate score\b/i, label: 'arbitrary design threshold' },
+    { pattern: /\b(?:better|worse|smarter|faster)\s+than\s+(?:Claude|Codex|OpenCode|Kimi|another model|other tools?)\b|\b(?:old|bad)\s*(?:vs\.?|versus)\s*(?:new|good)\b/i, label: 'tutorial or host comparison' },
   ];
 
   for (const name of [...PACKAGED_SKILLS].sort()) {
@@ -110,6 +121,15 @@ test('project specification templates are neutral evidence records for greenfiel
       fs.readFileSync(path.join(TEMPLATE_ROOTS[0], rel), 'utf8'),
       `${rel} differs between source and runtime templates`,
     );
+  }
+});
+
+test('research templates describe accepted adaptive coverage instead of a fixed seventeen-report route', () => {
+  for (const root of TEMPLATE_ROOTS) {
+    const text = fs.readFileSync(path.join(root, 'docs', 'research', 'README.md'), 'utf8');
+    assert.match(text, /included.*research (?:area|step)/i);
+    assert.match(text, /accepted\s+coverage/i);
+    assert.doesNotMatch(text, /full and adoption research therefore produce seventeen reports/i);
   }
 });
 
@@ -216,14 +236,20 @@ test('human-agent alignment uses one canonical resumable decision protocol', () 
 });
 
 test('public workflow skills return control to the adaptive capability graph', () => {
-  const graphSkills = [
-    'ultra-init', 'ultra-research', 'ultra-change', 'ultra-plan', 'ultra-dev',
-    'ultra-test', 'ultra-review', 'ultra-deliver', 'ultra-status', 'ultra-think',
-    'ultra-doctor',
-  ];
+  const graphSkills = [...CORE_PUBLIC_SKILLS];
   for (const name of graphSkills) {
     const { text } = sourceSkill(name);
     assert.match(text, /allowed[_ ]transitions/i, `${name} does not return MCP capability choices`);
+    assert.match(
+      text,
+      /explicit (?:user |owner )?(?:command|skill )?invocation|explicitly invok/i,
+      `${name} does not preserve explicit-only handoff`,
+    );
+    assert.doesNotMatch(
+      text,
+      /(?:automatically|immediately|directly)\s+(?:start|invoke|run|enter|continue to)\s+`?ultra-/i,
+      `${name} automatically invokes another public capability`,
+    );
     assert.doesNotMatch(
       text,
       /^\s*(?:canonical|exact) next (?:action|route)\s*:/im,

@@ -7,9 +7,9 @@ and Kimi Code plugins.
 
 Ultra Builder Pro owns only:
 
-- twelve public workflows: `learn`, `ultra-init`, `ultra-research`, `ultra-plan`,
-  `ultra-dev`, `ultra-test`, `ultra-review`, `ultra-deliver`, `ultra-status`, and
-  `ultra-think`, plus the daily `ultra-change` and diagnostic `ultra-doctor`;
+- eleven public capabilities: `ultra-init`, `ultra-research`, `ultra-plan`,
+  `ultra-dev`, `ultra-test`, `ultra-review`, `ultra-deliver`, `ultra-status`,
+  `ultra-think`, `ultra-change`, and `ultra-doctor`;
 - four internal agent-only rule skills: `code-review-expert`, `security-rules`,
   `integration-rules`, and `testing-rules`;
 - the host-specific collaboration companions, `ultra-verify`, and host-native
@@ -25,7 +25,7 @@ not put it in a plugin until that allowlist classifies it.
 ## 2. Three-layer architecture
 
 ```text
-native command or skill -> MCP workflow-state operation -> .ultra/state.db
+native command or skill -> MCP workflow-state operation -> .ultra/.runtime/state.db
                                       ^
                                       |
               selected CLI init / doctor / diagnostics / orchestration
@@ -34,27 +34,33 @@ native command or skill -> MCP workflow-state operation -> .ultra/state.db
 | Layer | Artifact | Contract |
 |---|---|---|
 | Skill/command | `skills/*/SKILL.md`, `commands/*.md` | Model-facing workflow and host-native entry point |
-| MCP | `mcp-server/server.cjs` | Authoritative typed operations over `.ultra/state.db` |
+| MCP | `mcp-server/server.cjs` | Authoritative typed operations over `.ultra/.runtime/state.db` |
 | CLI | `ultra-tools`, `ubp-orchestrator` | Selected initialization, backup-first recovery, automation, and diagnostics; not a change-state mirror |
 
-`.ultra/state.db` is the only durable Ultra authority for baselines, changes, decisions, tasks,
-workflow runs/steps, sessions, events, incidents, projection jobs/cursors, telemetry, review evidence,
-and circuit-breaker state. `tasks.json`, context Markdown, execution plans, and
-reports are projections or workflow artifacts.
+`.ultra/` is project-local cross-session workflow memory for normalized intent,
+progress, tasks, bounded context, specifications, evidence, provenance, and recovery.
+`.ultra/.runtime/state.db` is the only lifecycle, index, transition, freshness, and
+coordination authority for baselines, changes, decisions, tasks, workflow runs/steps,
+sessions, events, incidents, projection jobs/cursors, telemetry, review evidence, and
+circuit-breaker state. Registered digest-bound specifications and reports carry
+semantic or evidence bodies. `tasks.json`, generated task-context files, runtime
+checkpoints, and collaboration scratch are not independent authority. See
+[`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
 
 ## 3. Live MCP and declared contracts
 
-`spec/mcp-tools.yaml` declares and the bundled server registers 51 tools across
-eight families:
+`spec/mcp-tools.yaml` declares and the bundled server registers 57 tools across
+nine families:
 
 | Family | Live tools |
 |---|---|
 | `baseline.*` | start, record, get, converge |
 | `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
 | `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
-| `change.*` | create, update, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
+| `change.*` | create, update, delta, documentation_reconcile, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
 | `decision.*` | thread_start, get, list, open, resolve, delegate, defer, supersede, complete, checkpoint |
-| `workflow.*` | start, get, list, step, complete |
+| `workflow.*` | start, get, list, step, revise, supersede, complete |
+| `artifact.*` | record, get |
 | `system.*` | doctor |
 | `plan.*` | export, get |
 
@@ -81,34 +87,54 @@ review, and deliver route back to the same thread instead of deciding for the ow
 One partial unique index permits only one open item per thread. `decision.resolve`,
 `decision.delegate`, and `decision.defer` preserve the source of authority;
 `decision.supersede` preserves history when evidence or intent changes.
-`decision.complete` closes settled normalized state without manufacturing an approval
-receipt. Prepare and confirm checkpointing remain optional and bind only a material
-accepted cluster to current artifact digests when interruption recovery needs that
-boundary. Status and breadcrumb return only the current question plus allowed and
-mechanically required transitions, so recovery does not require replaying conversation
-history.
+After normalization, the host applies accepted intent through the owning MCP operation
+or digest-bound artifact, reads it back, and records typed `applied_refs` when another
+authority changed. Row-backed references require the exact field and canonical value;
+specification and artifact references require the exact file digest. Active proposals
+are never recalled as accepted intent. `decision.complete` then closes settled state without manufacturing
+an approval receipt. Prepare and confirm checkpointing remain optional and bind only a
+material accepted cluster to current artifact digests when interruption recovery needs
+that boundary. Status and breadcrumb return the current unresolved question, accepted
+intent relevant to the active authority, and allowed or mechanically required
+transitions, so recovery does not require replaying conversation history.
 
 ## 5. Context Spine contract
 
 Context Manifest v3 is an immutable DB-backed role handoff, not a static codebase summary.
 `change.context` compiles required references, digests, readiness, context budget,
 public seam, exact verification command, Change/task authority digests, and valid
-transitions for `plan`, `implement`, `check`, or `review`. The default 12-file,
-about 12k-token, and 40%
+transitions for `plan`, `implement`, `check`, or `review`. Compilation never updates
+Change or provider authority; provider metadata changes through `change.update`.
+Snapshots are selected exactly by `change_id`, nullable `task_id`, `role`, and `gate`,
+so a review packet cannot satisfy implementation or planning evidence.
+
+Implementation packets inline only the selected task, direct dependency/integration
+neighborhood, and the restored task-context contract. Referenced file bodies remain
+lazy. The token estimate includes inline Change/task authority plus referenced-file
+estimates. Context refs preserve `expected_digest`, `anchor`, `scope`, and one of
+`digest`, `existence`, or `advisory` freshness. Current consumers revalidate these
+policies instead of trusting an old manifest.
+
+The default 12-file, about 12k-token, and 40%
 fresh-context values are attention guidance. Overflow produces warnings; it does
 not block work or require raising a threshold. Prefer direct reads, bounded
 excerpts, or a smaller slice when they preserve correctness, and retain all
 necessary context when they do not.
 
 `change.breadcrumb` is the only compact router. Hooks may inject its change/task,
-role, gate, readiness, blockers, `allowed_transitions`, and `required_transition`.
-They must not inject intent
-bodies, transcripts, external memory, or graph payloads. Missing references,
-digest drift, HEAD drift, or a missing execution seam blocks readiness. Context
+role, gate, readiness, blockers, bounded normalized accepted intent,
+`allowed_transitions`, and `required_transition`. They must not inject raw prompts,
+interaction transcripts, external-memory payloads, or graph payloads. Missing references,
+required digest drift, HEAD drift, or a missing execution seam blocks readiness. Context
 size and baseline drift are advisory for a change that is already active. New ordinary
 work requires a healthy baseline. Only an explicitly approved incident break-glass may
 start without it; incident archive records a blocking reconciliation gap. Revision and
 tracked-spec integrity are reconciled and rechecked atomically for ordinary archive.
+
+The plan workflow records a `plan/planning` manifest before design and exports only
+`<artifact_root>/plan.json` plus deterministic `plan.md`. Both bind the planning
+snapshot digest. The global `.ultra/execution-plan.json` is legacy read-only
+compatibility and must not receive new plan writes.
 
 Stable discoveries use `change.learning_propose`; they reach the baseline only
 through approve/reject/apply transitions in `change.learning_resolve`. Unresolved
@@ -119,10 +145,14 @@ learning blocks convergence. Review contributes two independent axes,
 
 | Host | Plugin form | Workflow entry | Hook form | Collaboration companions |
 |---|---|---|---|---|
-| Claude Code | `.claude-plugin/plugin.json`, native commands/skills/agents, `.mcp.json` | `/ultra-*`, `/learn` | native `hooks/hooks.json` | `codex-collab`, `ultra-verify` |
-| Codex | personal plugin with `.codex-plugin/plugin.json`, namespaced skills, TOML agents, `.mcp.json` | `$ultra-builder-pro:ultra-*`, `$ultra-builder-pro:learn` | native `hooks/hooks.json` through the Codex wire adapter | `cc-collab`, `ultra-verify` |
-| OpenCode | config bundle plus native JavaScript plugin | `/ultra-*`, `/learn` | `event`, system transform, compaction, and tool lifecycle handlers | `cc-collab`, `codex-collab`, `ultra-verify` |
-| Kimi Code 0.26+ | managed `kimi.plugin.json` plugin with commands, skills, hooks, and MCP | `/ultra-builder-pro:ultra-*`, `/ultra-builder-pro:learn` | native hooks through the Kimi wire adapter | `cc-collab`, `codex-collab`, `ultra-verify` |
+| Claude Code | `.claude-plugin/plugin.json`, native commands/skills/agents, `.mcp.json` | `/ultra-builder-pro:ultra-*` | native `hooks/hooks.json` | `codex-collab`, `ultra-verify` |
+| Codex | personal plugin with `.codex-plugin/plugin.json`, namespaced skills, TOML agents, `.mcp.json` | `$ultra-builder-pro:ultra-*` | native `hooks/hooks.json` through the Codex wire adapter | `cc-collab`, `ultra-verify` |
+| OpenCode | config bundle plus native JavaScript plugin | `/ultra-*` | `event`, system transform, compaction, and tool lifecycle handlers | `cc-collab`, `codex-collab`, `ultra-verify` |
+| Kimi Code 0.26+ | managed `kimi.plugin.json` plugin with commands, skills, hooks, and MCP | `/ultra-builder-pro:ultra-*` | native hooks through the Kimi wire adapter | `cc-collab`, `codex-collab`, `ultra-verify` |
+
+`spec/interaction-contract.json` carries the same exact public-capability graph for
+every host. Adapters translate the question and invocation surfaces; they never own
+semantic selection or durable state.
 
 The current host remains primary. Collaboration skills call another runtime
 only when explicitly requested, use it as a read-only advisor, and return the
@@ -156,12 +186,13 @@ reject an edit, stop, or tool call.
 Generic command blocking, post-edit governance, and unrelated user hooks are not
 copied into Ultra Builder Pro.
 
-## 8. Memory boundary
+## 8. Workflow-memory boundary
 
-Ultra Builder Pro has no memory MCP family, recall skill, prompt capture,
-transcript capture, observation journal, or session-summary hook. Persistent
-cross-session memory belongs to a separately installed provider such as
-cloud-mem/claude-mem. Code graph content is equally external. A change context
+Ultra Builder Pro has no general memory MCP family, general recall skill, prompt
+capture, transcript capture, observation journal, or session-summary hook. It does
+retain its own project-local cross-session workflow memory under `.ultra/`.
+General conversational or episodic memory belongs to a separately installed provider
+such as cloud-mem/claude-mem. Code-graph content is equally external. A change context
 may contain only provider metadata references, never provider payload content.
 
 Old Ultra data is never deleted during install. The explicit migration path is:
@@ -173,25 +204,25 @@ ultra-tools legacy-memory prune --confirm DELETE_ULTRA_LEGACY_MEMORY
 ```
 
 Archive before prune; the confirmation token is intentionally required.
+This CLI is an operator-invoked migration cleanup surface only. Hooks, MCP, and
+sessions never call it, and it cannot collect, recall, or reflect memory.
 
 ## 9. Project state layout
 
 ```text
 .ultra/
-├── state.db                 # authoritative SQLite store
-├── runtime/
+├── .runtime/
+│   ├── state.db             # authoritative SQLite lifecycle/index store
 │   └── checkpoint.json      # advisory breadcrumb recovery projection
 ├── changes/
-│   ├── active/<id>/         # intent, delta, plan, context v3, learning, verification
+│   ├── active/<id>/         # all Change semantics and evidence
+│   │   ├── intent.md, findings.md, progress.md
+│   │   ├── research/, delta/, documentation/, plan.json, plan.md
+│   │   └── contexts/, test/, review/, delivery/
 │   └── archive/             # converged packets after baseline reconciliation
 ├── tasks/                   # projections and task contexts
 ├── specs/                   # research/product/architecture artifacts
-├── sessions/                # bounded runtime artifacts
-├── reviews/                 # immutable review evidence by session id
-└── reports/
-    ├── templates/           # blank report schemas; never evidence
-    ├── tests/<workflow-id>.json
-    └── delivery/<workflow-id>.json
+└── reports/templates/      # blank report schemas; never evidence
 ```
 
 ## 10. Plugin and user-instruction isolation

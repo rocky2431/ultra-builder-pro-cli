@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from context_spine import find_root
+from context_spine import find_root_for_hook
 
 
 def helper_path() -> Path:
@@ -71,7 +71,10 @@ def main() -> None:
         print(f"[subagent_tracker] invalid hook input: {exc}", file=sys.stderr)
         hook_input = {}
 
-    root = find_root(Path(hook_input.get("cwd") or Path.cwd()).resolve())
+    root = find_root_for_hook(
+        Path(hook_input.get("cwd") or Path.cwd()).resolve(),
+        "subagent_tracker",
+    )
     if root is not None:
         try:
             append_event(root, action, hook_input)

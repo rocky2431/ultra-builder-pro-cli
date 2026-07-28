@@ -13,11 +13,13 @@ const ops = require('../../mcp-server/lib/state-ops.cjs');
 const baselines = require('../../mcp-server/lib/baseline-workflow.cjs');
 const workflowState = require('../../mcp-server/lib/workflow-state.cjs');
 const decisionDialogue = require('../../mcp-server/lib/decision-dialogue.cjs');
+const artifactRegistry = require('../../mcp-server/lib/artifact-registry.cjs');
 const { readBreadcrumb } = require('../../mcp-server/lib/context-spine.cjs');
+const runtimePaths = require('../../mcp-server/lib/runtime-paths.cjs');
 
 const USAGE = `ultra-tools status [flags]
 
-Reads .ultra/state.db and prints baseline, workflow, task, session, valid transitions, and
+Reads .ultra/.runtime/state.db and prints baseline, workflow, task, session, valid transitions, and
 cost-observability status.
 
 FLAGS:
@@ -175,6 +177,16 @@ function buildStatusPanel(db, { since = null, limit = 3, rootDir = process.cwd()
       awaiting_blocking: 0, checkpoint_ready: 0,
       deferred_blocking: 0, stale_artifacts: [], current: null, current_thread_id: null,
     };
+  const artifactTables = [
+    'artifacts', 'artifact_edges', 'baselines', 'workflow_steps',
+    'decision_threads', 'context_snapshots',
+  ];
+  const artifacts = artifactTables.every((table) => tables.has(table))
+    ? artifactRegistry.inspectArtifactHealth(db, { rootDir })
+    : {
+      status: 'unavailable', registered: 0, managed: 0, unmanaged: 0,
+      issues: [], counts: {},
+    };
   let transitions;
   let breadcrumb = null;
   try {
@@ -249,6 +261,7 @@ function buildStatusPanel(db, { since = null, limit = 3, rootDir = process.cwd()
     baseline,
     workflows,
     decisions,
+    artifacts,
     current_change: currentChange,
     current_task: currentTask,
     evidence,
@@ -301,6 +314,11 @@ function renderHuman(panel) {
   } else if (panel.decisions.checkpoint_ready > 0) {
     lines.push(`Decision checkpoint: ${panel.decisions.current_thread_id} awaits confirmation`);
   }
+  lines.push(
+    `Artifacts: registered=${panel.artifacts.registered} managed=${panel.artifacts.managed}`
+      + ` unmanaged=${panel.artifacts.unmanaged} health=${panel.artifacts.status}`
+      + (panel.artifacts.issues.length > 0 ? ` issues=${panel.artifacts.issues.length}` : ''),
+  );
   lines.push(
     `Changes: active=${panel.changes.active} blocked=${panel.changes.blocked} ready=${panel.changes.ready} archived=${panel.changes.archived}`,
   );
@@ -355,14 +373,13 @@ function renderHuman(panel) {
   return lines.join('\n') + '\n';
 }
 
-function resolveDbPath() {
-  if (process.env.UBP_DB_PATH) return path.resolve(process.env.UBP_DB_PATH);
-  return path.resolve('.ultra', 'state.db');
+function resolveDbPath(rootDir = process.cwd(), env = process.env) {
+  return runtimePaths.locateStateDb(rootDir, { env });
 }
 
 function resolveRootDir(dbPath) {
   if (process.env.UBP_ROOT_DIR) return path.resolve(process.env.UBP_ROOT_DIR);
-  return path.dirname(path.dirname(dbPath));
+  return runtimePaths.projectRootFromStateDbPath(dbPath);
 }
 
 function dispatch(args) {
@@ -372,7 +389,15 @@ function dispatch(args) {
     process.stdout.write(USAGE);
     return 0;
   }
-  const dbPath = resolveDbPath();
+  const discoveryRoot = process.env.UBP_ROOT_DIR
+    ? path.resolve(process.env.UBP_ROOT_DIR)
+    : process.cwd();
+  let dbPath;
+  try {
+    dbPath = resolveDbPath(discoveryRoot, process.env);
+  } catch (error) {
+    return fail(error.code || 'STATE_DB_PATH_INVALID', error.message);
+  }
   if (!fs.existsSync(dbPath)) {
     return fail('STATE_DB_MISSING', `state.db not found at ${dbPath}`);
   }
@@ -403,5 +428,6 @@ module.exports = {
   renderHuman,
   parseSince,
   parseFlags,
+  resolveDbPath,
   resolveRootDir,
 };

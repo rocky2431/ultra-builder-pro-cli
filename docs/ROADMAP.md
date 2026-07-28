@@ -40,7 +40,7 @@ sharing one authoritative workflow store.
 | 5     | Recovery + staleness + auto-routing            | ✅ done (D43) → v0.2 |
 | 6     | Monitoring + telemetry                          | ✅ done (D44) → v0.2 |
 | 4.6b  | Full conformance suite                         | ✅ done (D45) — 20 conformance + 21 resolveTarget tests |
-| 7     | tagged tasks + skill mining; retired Ultra memory delegated to external providers | ✅ superseded by the package-boundary cleanup |
+| 7     | tagged tasks; non-core generation and retention surfaces removed from the plugin | ✅ superseded by the package-boundary cleanup |
 | 8A    | Plan automation (parse / topo / expand + artifact + human gate) | ✅ done (D47, `a932cb8`) → v0.3 |
 | 8B    | Execution automation (dispatch / parallel worktree / merge) | ✅ done (D48, `8224159`) — **v0.3 ready** |
 | 8C    | Continuous change packets + context compiler + convergence + doctor | ✅ done (D52) |
@@ -50,20 +50,21 @@ sharing one authoritative workflow store.
 | 13    | Durable init-to-delivery workflows + task execution contracts + immutable stage evidence | ✅ done |
 | 16    | Resumable one-question owner-agent decisions + artifact checkpoints + workflow gates | ✅ done |
 | 19    | Non-ceremonial decision completion + four-host semantic-selection contract | ✅ done |
+| 20    | Typed artifact registry + normalized dependency graph + orphan diagnostics | ✅ done |
 | 9     | Release pipeline                               | npm tag publishing live; Homebrew / pip not implemented |
 
 ## What is in the repo today
 
 ```
 spec/                       ← Phase 1 single source of truth
-├── mcp-tools.yaml          (51 live tools across 8 families)
+├── mcp-tools.yaml          (57 live tools across 9 families)
 ├── cli-protocol.md         (CLI ↔ MCP mapping table)
 ├── schemas/                (state-db.sql + 4 JSON schemas)
 ├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
 └── scripts/test-all.cjs    (npm run test:spec — 7 validation stages)
 
 mcp-server/                 ← Phase 2 authoritative state layer
-├── server.cjs              (stdio MCP server, 51 task/session/baseline/change/decision/workflow/system/plan tools)
+├── server.cjs              (stdio MCP server, 57 task/session/baseline/change/decision/workflow/artifact/system/plan tools)
 ├── lib/
 │   ├── state-db.cjs        (SQLite + WAL + pragmas)
 │   ├── state-ops.cjs       (full write API, status state machine)
@@ -81,9 +82,22 @@ ultra-tools/                ← CLI fallback, migration, and diagnostics
     └── legacy-memory.cjs   (explicit inspect/archive/confirmed prune)
 
 bin/install.js              ← multi-runtime installer
-adapters/                   ← native Claude/OpenCode/Codex plugin builders
+adapters/                   ← native host plugin builders
+├── claude.js
+├── opencode.js
+├── codex.js
+└── kimi.js
 skills/                     ← allowlisted Ultra workflows, internal rules, and collab companions
-hooks/                      ← 7 executable workflow hooks + shared Context Spine helper; OpenCode uses native JavaScript hooks
+hooks/                      ← allowlisted workflow hooks; OpenCode uses native JavaScript hooks
+├── active_task_context.py
+├── context_spine.py
+├── health_check.py
+├── pre_stop_check.py
+├── runtime_paths.py
+├── subagent_tracker.py
+├── workflow_checkpoint.py
+├── workflow_context.py
+└── workflow_resume.py
 docs/
 ├── DECISIONS.md                 current authority and package boundaries
 ├── ARCHITECTURE.md              Phase 1 single-page entry point

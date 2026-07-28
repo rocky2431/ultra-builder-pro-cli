@@ -37,8 +37,9 @@ contract and adds stronger authority, recovery, or portability.
 
 The following are deliberate extensions built on the original spine:
 
-1. `.ultra/state.db` as the only lifecycle authority; Markdown and JSON are artifacts
-   or projections.
+1. `.ultra/.runtime/state.db` as the only lifecycle and index authority; registered
+   digest-bound Markdown and JSON carry semantic or evidence bodies, while generated
+   views remain projections.
 2. Typed MCP transitions for baseline, change, decision, workflow, task, session,
    incident, projection, and evidence state.
 3. Greenfield, brownfield, monorepo-scope, migrated, restore, and rebaseline paths.
@@ -57,7 +58,8 @@ The following are deliberate extensions built on the original spine:
 
 These items are not compatibility losses:
 
-- embedded prompt, transcript, observation, summary, or cross-session memory;
+- embedded prompt, transcript, observation journal, session summary, or general
+  conversational cross-session memory;
 - an internal code graph or memory store;
 - retired model runtimes and their prompts;
 - retired command-proxy integrations;
@@ -146,7 +148,7 @@ status
 | Dependency waves advanced after transport exit | The plan pauses at the first non-terminal wave and resumes only after its DB tasks converge. |
 | A crafted or merely exported plan could bypass current plan authority | Change-owned dispatch requires a healthy completed plan workflow and the exact current DB graph; malformed, cyclic, stale, duplicate-task, or cross-change plans fail before session creation. |
 | Direct session or daemon spawn bypassed the current plan | Every change-owned admission and spawn revalidates current task-contract digests, task set, dependencies, and staleness before takeover or worktree creation. |
-| A worker launched inside a worktree could create a second `.ultra/state.db` | Every session checkout links its ignored `.ultra` entry to central authority and receives non-overridable DB/root bindings; legacy repositories get a local `info/exclude` rule without tracked drift, while unsafe ignore or link state rolls back before worker launch. |
+| A worker launched inside a worktree could create a second `.ultra/.runtime/state.db` | Every session checkout links its ignored `.ultra` entry to central authority and receives non-overridable DB/root bindings; legacy repositories get a local `info/exclude` rule without tracked drift, while unsafe ignore or link state rolls back before worker launch. |
 | Plan authority could drift between wave admission and actual spawn | The spawn-time gate converts this race into an authority pause without task-failure or circuit-breaker evidence. |
 | Explicit auto-merge could integrate before workflow gates | A change-owned auto-merge requires the exact completion commit, ready dev evidence, a current task review, and clean committed Git work; otherwise the worktree is preserved. |
 | Session close or auto-merge could delete uncommitted work | Close preserves by default; explicit cleanup verifies clean and integrated Git ancestry. |

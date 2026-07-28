@@ -8,7 +8,7 @@ from pathlib import Path
 
 from context_spine import (
     ContextSpineError,
-    find_root,
+    find_root_for_hook,
     read_breadcrumb,
     render_breadcrumb,
 )
@@ -24,7 +24,7 @@ def _hook_output(event: str, text: str) -> dict:
 
 
 def _checkpoint_advisory(root: Path):
-    file = root / ".ultra" / "runtime" / "checkpoint.json"
+    file = root / ".ultra" / ".runtime" / "checkpoint.json"
     if not file.is_file():
         return None
     try:
@@ -44,7 +44,7 @@ def _checkpoint_advisory(root: Path):
         return None
     return "\n".join([
         "[Ultra checkpoint advisory]",
-        "Live .ultra/state.db could not be read; this checkpoint is not authority.",
+        "Live .ultra/.runtime/state.db could not be read; this checkpoint is not authority.",
         value["rendered"],
         "Run ultra-doctor before mutation.",
     ])
@@ -57,7 +57,10 @@ def main() -> None:
     except json.JSONDecodeError as exc:
         print(f"[workflow_resume] invalid hook input: {exc}", file=sys.stderr)
         data = {}
-    root = find_root(Path(data.get("cwd") or Path.cwd()).resolve())
+    root = find_root_for_hook(
+        Path(data.get("cwd") or Path.cwd()).resolve(),
+        "workflow_resume",
+    )
     if root is None:
         print(json.dumps({}))
         return

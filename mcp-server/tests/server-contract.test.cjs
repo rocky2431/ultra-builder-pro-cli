@@ -9,16 +9,18 @@ const { execFileSync, spawn } = require('node:child_process');
 const yaml = require('js-yaml');
 const Database = require('better-sqlite3');
 
-const { Client } = require('@modelcontextprotocol/client');
+const { Client, InMemoryTransport } = require('@modelcontextprotocol/client');
 const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SERVER = path.join(REPO_ROOT, 'mcp-server', 'server.cjs');
 const PACKAGE_VERSION = require(path.join(REPO_ROOT, 'package.json')).version;
 const { initStateDb, closeStateDb } = require('../lib/state-db.cjs');
-const { dispatchTool } = require('../server.cjs');
+const { dispatchTool, startServer } = require('../server.cjs');
 const changes = require('../lib/change-workflow.cjs');
 const ops = require('../lib/state-ops.cjs');
+const artifactRegistry = require('../lib/artifact-registry.cjs');
+const planStore = require('../lib/plan-store.cjs');
 const { seedReadyBaseline: seedCompleteBaseline } = require('../test-support/ready-baseline.cjs');
 const {
   researchCoverage, semanticRecordsForStep,
@@ -27,14 +29,18 @@ const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function tmpProject() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mcp-'));
-  return { dir, dbPath: path.join(dir, '.ultra', 'state.db') };
+  return { dir, dbPath: path.join(dir, '.ultra', '.runtime', 'state.db') };
 }
 
 function ensureGitProject(project) {
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: project.dir });
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: project.dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: project.dir });
-  fs.writeFileSync(path.join(project.dir, '.gitignore'), '.ultra\n');
+  fs.writeFileSync(
+    path.join(project.dir, '.gitignore'),
+    '!.ultra/\n!.ultra/**\n.ultra/.runtime\n'
+      + '.ultra/[s]tate.db\n.ultra/[s]tate.db-wal\n.ultra/[s]tate.db-shm\n',
+  );
   execFileSync('git', ['add', '.gitignore'], { cwd: project.dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: project.dir });
 }
@@ -76,6 +82,20 @@ async function withClient({ dir, dbPath }, fn, extraEnv = {}) {
   }
 }
 
+async function withDefaultAuthorityClient({ dir }, fn) {
+  const env = { ...process.env, UBP_ROOT_DIR: dir };
+  delete env.UBP_DB_PATH;
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [SERVER],
+    env,
+    stderr: 'pipe',
+  });
+  const client = new Client({ name: 'ubp-default-authority', version: '0.0.0' }, { capabilities: {} });
+  await client.connect(transport);
+  try { await fn(client); } finally { await client.close(); }
+}
+
 async function withClientNoLlmKey({ dir, dbPath }, fn) {
   const env = { ...process.env, UBP_DB_PATH: dbPath, UBP_ROOT_DIR: dir };
   delete env.ANTHROPIC_API_KEY;
@@ -89,6 +109,27 @@ async function withClientNoLlmKey({ dir, dbPath }, fn) {
   const client = new Client({ name: 'ubp-test', version: '0.0.0' }, { capabilities: {} });
   await client.connect(transport);
   try { await fn(client); } finally { await client.close(); }
+}
+
+async function withInProcessClient({ dir, dbPath }, fn) {
+  const handle = startServer({
+    dbPath,
+    rootDir: dir,
+    projectOnWrite: false,
+  });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client(
+    { name: 'ubp-in-process-test', version: '0.0.0' },
+    { capabilities: {} },
+  );
+  await handle.server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    await fn(client);
+  } finally {
+    await client.close();
+    await handle.close();
+  }
 }
 
 function readToolPayload(result) {
@@ -113,13 +154,15 @@ function prdTasks(taskId) {
   }];
 }
 
-test('listTools returns workflow tools and exposes no Ultra memory API', async () => {
+test('listTools returns workflow tools and exposes no general memory-provider API', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
       assert.deepEqual(names, [
+        'artifact.get',
+        'artifact.record',
         'baseline.converge',
         'baseline.get',
         'baseline.record',
@@ -129,6 +172,8 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
         'change.context',
         'change.converge',
         'change.create',
+        'change.delta',
+        'change.documentation_reconcile',
         'change.get',
         'change.learning_propose',
         'change.learning_resolve',
@@ -169,8 +214,10 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
         'workflow.complete',
         'workflow.get',
         'workflow.list',
+        'workflow.revise',
         'workflow.start',
         'workflow.step',
+        'workflow.supersede',
       ]);
       assert.ok(!names.some((name) => name.startsWith('memory.')));
       for (const t of list.tools) {
@@ -180,6 +227,174 @@ test('listTools returns workflow tools and exposes no Ultra memory API', async (
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('artifact.record and artifact.get expose the live typed registry through MCP', async () => {
+  const proj = tmpProject();
+  try {
+    const relative = '.ultra/specs/mcp-artifact.md';
+    const file = path.join(proj.dir, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, '# MCP artifact\n');
+
+    await withClient(proj, async (client) => {
+      const recorded = await client.callTool({
+        name: 'artifact.record',
+        arguments: {
+          id: 'artifact-mcp',
+          owner_type: 'project',
+          owner_id: 'project',
+          kind: 'spec',
+          path: relative,
+          status: 'terminal',
+          provenance: { actor: 'model', host: 'codex' },
+          source_refs: [],
+          consumer_refs: [],
+        },
+      });
+      assert.equal(recorded.isError, undefined);
+      const recordPayload = readToolPayload(recorded);
+      assert.equal(recordPayload.artifact.id, 'artifact-mcp');
+      assert.equal(recordPayload.artifact.managed, true);
+      assert.match(recordPayload.artifact.digest, /^[a-f0-9]{64}$/);
+
+      const fetched = await client.callTool({
+        name: 'artifact.get',
+        arguments: { path: relative },
+      });
+      assert.equal(fetched.isError, undefined);
+      const getPayload = readToolPayload(fetched);
+      assert.equal(getPayload.artifact.id, 'artifact-mcp');
+      assert.equal(getPayload.artifact.managed, true);
+      assert.deepEqual(getPayload.artifact.provenance, {
+        actor: 'model', host: 'codex',
+      });
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('the first state-backed MCP call admits an existing project and repairs legacy runtime exposure', async () => {
+  const proj = tmpProject();
+  try {
+    ensureGitProject(proj);
+    fs.writeFileSync(path.join(proj.dir, '.gitignore'), '.ultra\n');
+    execFileSync('git', ['add', '.gitignore'], { cwd: proj.dir });
+    execFileSync('git', ['commit', '-q', '-m', 'legacy broad ignore'], { cwd: proj.dir });
+    seedReadyBaseline(proj);
+    const legacySession = path.join( // runtime-path-compatibility fixture
+      proj.dir,
+      '.ultra',
+      'sessions',
+      'legacy.json',
+    );
+    fs.mkdirSync(path.dirname(legacySession), { recursive: true });
+    fs.writeFileSync(legacySession, '{"legacy":true}\n');
+
+    await withClient(proj, async (client) => {
+      const listed = await client.callTool({ name: 'task.list', arguments: {} });
+      assert.equal(listed.isError, undefined);
+    });
+
+    const migratedSession = path.join(
+      proj.dir,
+      '.ultra',
+      '.runtime',
+      'sessions',
+      'legacy.json',
+    );
+    assert.equal(fs.readFileSync(migratedSession, 'utf8'), '{"legacy":true}\n');
+    assert.equal(fs.existsSync(legacySession), false);
+    const gitignore = fs.readFileSync(path.join(proj.dir, '.gitignore'), 'utf8');
+    assert.match(gitignore, /^!\.ultra\/$/m);
+    assert.match(gitignore, /^!\.ultra\/\*\*$/m);
+    assert.match(gitignore, /^\.ultra\/\.runtime$/m);
+    assert.doesNotThrow(() => execFileSync(
+      'git',
+      ['check-ignore', '--quiet', '--no-index', '--', '.ultra/.runtime/state.db'],
+      { cwd: proj.dir },
+    ));
+    assert.throws(() => execFileSync(
+      'git',
+      ['check-ignore', '--quiet', '--no-index', '--', '.ultra/specs/product.md'],
+      { cwd: proj.dir },
+    ));
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('the default stdio MCP authority migrates a legacy project before binding validation', async () => {
+  const proj = tmpProject();
+  const legacyDb = path.join(proj.dir, '.ultra', 'state.db'); // runtime-path-compatibility
+  try {
+    const { db } = initStateDb(legacyDb);
+    ops.createTask(db, {
+      id: 'legacy-default-task',
+      title: 'Legacy default task',
+      type: 'feature',
+      priority: 'P1',
+    });
+    closeStateDb(db);
+
+    await withDefaultAuthorityClient(proj, async (client) => {
+      const listed = await client.callTool({ name: 'task.list', arguments: {} });
+      assert.equal(listed.isError, undefined, listed.content?.[0]?.text);
+      assert.deepEqual(
+        readToolPayload(listed).tasks.map((task) => task.id),
+        ['legacy-default-task'],
+      );
+    });
+
+    assert.equal(fs.lstatSync(legacyDb).isFile(), true);
+    assert.equal(fs.existsSync(proj.dbPath), true);
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('a typo UBP_ROOT_DIR fails closed before the MCP creates project state', async () => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mcp-invalid-root-'));
+  const typoRoot = path.join(parent, 'does-not-exist');
+  const project = {
+    dir: typoRoot,
+    dbPath: path.join(typoRoot, '.ultra', '.runtime', 'state.db'),
+  };
+  try {
+    await withClient(project, async (client) => {
+      const result = await client.callTool({ name: 'task.list', arguments: {} });
+      assert.equal(expectError(result).code, 'RUNTIME_ROOT_INVALID');
+    });
+    assert.equal(fs.existsSync(typoRoot), false);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('MCP rejects an unrelated configured DB without mutating either authority', async () => {
+  const project = tmpProject();
+  const authority = tmpProject();
+  try {
+    fs.mkdirSync(path.join(project.dir, '.ultra'), { recursive: true });
+    const initialized = initStateDb(authority.dbPath);
+    closeStateDb(initialized.db);
+    const before = fs.readFileSync(authority.dbPath);
+
+    await withClient(
+      { dir: project.dir, dbPath: authority.dbPath },
+      async (client) => {
+        const result = await client.callTool({ name: 'task.list', arguments: {} });
+        assert.equal(expectError(result).code, 'RUNTIME_AUTHORITY_MISMATCH');
+      },
+    );
+
+    assert.deepEqual(fs.readFileSync(authority.dbPath), before);
+    assert.equal(fs.existsSync(project.dbPath), false);
+  } finally {
+    fs.rmSync(project.dir, { recursive: true, force: true });
+    fs.rmSync(authority.dir, { recursive: true, force: true });
   }
 });
 
@@ -288,10 +503,22 @@ test('decision MCP tools preserve one-question alignment and confirmed checkpoin
         arguments: {
           id: 'mcp-routine-alignment',
           summary: 'Planning posture is normalized; no artifact checkpoint is required.',
+          applied_refs: [{
+            kind: 'baseline',
+            ref: 'test-baseline',
+            field: 'status',
+            value: 'ready',
+          }],
         },
       }));
       assert.equal(completed.thread.status, 'completed');
       assert.equal(completed.thread.checkpoint.decision_digest, undefined);
+      assert.deepEqual(completed.thread.summary.applied_refs, [{
+        kind: 'baseline',
+        ref: 'test-baseline',
+        field: 'status',
+        value: 'ready',
+      }]);
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
@@ -333,6 +560,86 @@ test('workflow MCP tools expose durable current-step recovery state', async () =
   }
 });
 
+test('workflow.revise and workflow.supersede preserve accepted history through MCP', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      const created = readToolPayload(await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'workflow-revision-change',
+          title: 'Preserve workflow revision history',
+          kind: 'quick',
+          intent: 'Replace accepted workflow authority without rewriting its history.',
+          docs_impact: { status: 'none', files: [], rationale: 'Contract-only fixture.' },
+        }),
+      }));
+      const priorId = created.workflow.id;
+      assert.equal(created.workflow.status, 'completed');
+
+      const replacementId = 'workflow-revision-candidate';
+      let replacement = readToolPayload(await client.callTool({
+        name: 'workflow.revise',
+        arguments: {
+          id: priorId,
+          replacement_id: replacementId,
+          subject: 'Re-confirm the current Change contract.',
+          reason: 'New evidence requires a fresh accepted workflow run.',
+        },
+      })).workflow;
+      assert.equal(replacement.metadata.revision.revision_of, priorId);
+      assert.equal(replacement.metadata.revision.authority_status, 'candidate');
+
+      const evidence = [{
+        kind: 'state',
+        ref: 'change:workflow-revision-change',
+        summary: 'Current Change authority was read from durable state.',
+      }];
+      for (const step of replacement.steps.filter((item) => item.required)) {
+        replacement = readToolPayload(await client.callTool({
+          name: 'workflow.step',
+          arguments: {
+            id: replacementId,
+            step_id: step.step_id,
+            status: 'completed',
+            ...(step.step_id === 'classify-change' ? {} : { evidence }),
+          },
+        })).workflow;
+      }
+      replacement = readToolPayload(await client.callTool({
+        name: 'workflow.complete',
+        arguments: { id: replacementId },
+      })).workflow;
+      assert.equal(replacement.status, 'completed');
+
+      const promoted = readToolPayload(await client.callTool({
+        name: 'workflow.supersede',
+        arguments: {
+          id: priorId,
+          replacement_id: replacementId,
+          reason: 'The completed revision now owns current authority.',
+        },
+      }));
+      assert.equal(promoted.idempotent, false);
+      assert.equal(promoted.workflow.metadata.revision.authority_status, 'current');
+      assert.equal(promoted.superseded.metadata.revision.superseded_by, replacementId);
+
+      const repeated = readToolPayload(await client.callTool({
+        name: 'workflow.supersede',
+        arguments: {
+          id: priorId,
+          replacement_id: replacementId,
+          reason: 'The completed revision now owns current authority.',
+        },
+      }));
+      assert.equal(repeated.idempotent, true);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('baseline MCP tools adopt and converge an existing checkout without storing provider payloads', async () => {
   const proj = tmpProject();
   try {
@@ -342,6 +649,11 @@ test('baseline MCP tools adopt and converge an existing checkout without storing
     fs.writeFileSync(path.join(proj.dir, '.ultra', 'specs', 'product.md'), '# Product\n\nObserved behavior.\n');
     fs.writeFileSync(path.join(proj.dir, '.ultra', 'specs', 'architecture.md'), '# Architecture\n\nCurrent boundary.\n');
     fs.writeFileSync(path.join(proj.dir, 'src', 'index.js'), 'module.exports = true;\n');
+    fs.writeFileSync(
+      path.join(proj.dir, '.gitignore'),
+      '!.ultra/\n!.ultra/**\n.ultra/.runtime\n'
+        + '.ultra/[s]tate.db\n.ultra/[s]tate.db-wal\n.ultra/[s]tate.db-shm\n',
+    );
     require('node:child_process').execFileSync('git', ['init', '-q'], { cwd: proj.dir });
     require('node:child_process').execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: proj.dir });
     require('node:child_process').execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: proj.dir });
@@ -441,7 +753,7 @@ test('baseline MCP tools adopt and converge an existing checkout without storing
           approval_note: 'The baseline matches the current checkout.', accept_known_red: false,
         },
       }));
-      assert.equal(converged.ready, true);
+      assert.equal(converged.ready, true, JSON.stringify(converged));
       assert.equal(converged.baseline.status, 'ready');
 
       const got = readToolPayload(await client.callTool({
@@ -478,6 +790,49 @@ test('change.create + change.context expose a continuous change unit with extern
       assert.equal(payload.change.status, 'active');
       assert.equal(created._meta.ultra.state_commit, 'committed');
       assert.equal(created._meta.ultra.projection_status, 'completed');
+
+      const baseline = readToolPayload(await client.callTool({
+        name: 'baseline.get', arguments: {},
+      })).baseline;
+      const delta = readToolPayload(await client.callTool({
+        name: 'change.delta',
+        arguments: {
+          id: payload.change.id,
+          baseline_anchor: {
+            baseline_id: baseline.id,
+            repository_revision: baseline.repository_revision,
+            specs: baseline.spec_refs.map((item) => ({
+              path: item.path,
+              digest: item.digest,
+            })),
+          },
+          decisions: [],
+          non_goals: payload.change.contract.non_goals,
+          acceptance: payload.change.contract.acceptance,
+          documentation_impact: payload.change.docs_impact,
+          unknowns: [],
+          no_semantic_change_reason: 'This contract-only fixture has no baseline mutation.',
+          mutations: [],
+        },
+      }));
+      assert.equal(delta.artifact.kind, 'change_delta');
+      assert.equal(delta.artifact.owner_id, payload.change.id);
+
+      const reconciliation = readToolPayload(await client.callTool({
+        name: 'change.documentation_reconcile',
+        arguments: {
+          id: payload.change.id,
+          delta_artifact_id: delta.artifact.id,
+          delta_digest: delta.artifact.digest,
+          no_change_reason: 'This contract-only fixture has no documentation change.',
+          documents: [],
+        },
+      }));
+      assert.equal(reconciliation.artifact.kind, 'documentation_reconciliation');
+      assert.equal(reconciliation.artifact.owner_id, payload.change.id);
+      assert.ok(fs.existsSync(path.join(
+        proj.dir, payload.change.artifact_root, 'progress.md',
+      )));
 
       const context = readToolPayload(await client.callTool({
         name: 'change.context', arguments: { id: 'mcp-change' },
@@ -602,13 +957,58 @@ test('system.doctor returns structured provider ownership and projection health'
   }
 });
 
+test('MCP startup fails closed when a reserved plan publication sidecar is unsafe', async () => {
+  const proj = tmpProject();
+  const externalRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-mcp-plan-sidecar-'));
+  try {
+    const { db } = initStateDb(proj.dbPath);
+    const changeId = 'unsafe-plan-sidecar';
+    const artifactRoot = `.ultra/changes/active/${changeId}`;
+    db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+       VALUES (?, 'Unsafe plan sidecar', 'quick', 'active',
+               'Fail closed before any state tool proceeds.', ?)`,
+    ).run(changeId, artifactRoot);
+    closeStateDb(db);
+    const directory = path.join(proj.dir, artifactRoot);
+    fs.mkdirSync(directory, { recursive: true });
+    const external = path.join(externalRoot, 'sentinel.json');
+    fs.writeFileSync(external, '{"external":"sentinel"}\n');
+    fs.symlinkSync(
+      external,
+      path.join(
+        directory,
+        '.plan-publish-11111111-1111-4111-8111-111111111111.journal.json',
+      ),
+    );
+
+    await withClient(proj, async (client) => {
+      const blocked = await client.callTool({ name: 'task.list', arguments: {} });
+      assert.equal(expectError(blocked).code, 'PLAN_RECOVERY_REQUIRED');
+
+      const report = readToolPayload(await client.callTool({
+        name: 'system.doctor',
+        arguments: { repair: false },
+      }));
+      assert.equal(report.checks.plan_publications.status, 'fail');
+      assert.ok(report.checks.plan_publications.issues.some((issue) => (
+        issue.code === 'PLAN_ARTIFACT_PATH_UNSAFE'
+      )));
+      assert.equal(fs.readFileSync(external, 'utf8'), '{"external":"sentinel"}\n');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+    fs.rmSync(externalRoot, { recursive: true, force: true });
+  }
+});
+
 test('MCP metadata matches the package and tools/list does not create project state', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
       assert.equal(client.getServerVersion().version, PACKAGE_VERSION);
       await client.listTools();
-      assert.equal(fs.existsSync(proj.dbPath), false, 'tool discovery must not create .ultra/state.db');
+      assert.equal(fs.existsSync(proj.dbPath), false, 'tool discovery must not create .ultra/.runtime/state.db');
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
@@ -942,7 +1342,7 @@ test('state-backed MCP tools return the supported v4.5 projection migration comm
     const tasksDir = path.join(proj.dir, '.ultra', 'tasks');
     fs.mkdirSync(tasksDir, { recursive: true });
     fs.writeFileSync(path.join(tasksDir, 'tasks.json'), JSON.stringify({
-      schema_version: '4.5', source: '.ultra/state.db',
+      schema_version: '4.5', source: '.ultra/.runtime/state.db',
       tasks: [{
         id: 'projection-only', title: 'projection-only task', type: 'feature', priority: 'P1',
         status: 'pending', deps: [], estimated_days: 1,
@@ -1145,6 +1545,52 @@ test('task.create rejects bad input via the JSON Schema validator', async () => 
   }
 });
 
+test('change.context publishes bounded exact spec_refs and rejects an inline blob at the MCP boundary', async () => {
+  const proj = tmpProject();
+  try {
+    await withClient(proj, async (client) => {
+      const listed = await client.listTools();
+      const contextTool = listed.tools.find((tool) => tool.name === 'change.context');
+      const specRefs = contextTool.inputSchema.properties.spec_refs;
+      assert.equal(specRefs.maxItems, 64);
+      assert.equal(specRefs.items.additionalProperties, false);
+      assert.deepEqual(specRefs.items.required, ['ref']);
+      assert.equal(specRefs.items.properties.reason.maxLength, 2_048);
+      assert.deepEqual(
+        contextTool.inputSchema.not,
+        { required: ['context_refs', 'spec_refs'] },
+      );
+
+      const invalid = await client.callTool({
+        name: 'change.context',
+        arguments: {
+          id: 'schema-only',
+          spec_refs: [{
+            ref: '.ultra/specs/product.md',
+            reason: 'Current product authority.',
+            inline_blob: 'x'.repeat(200_000),
+          }],
+        },
+      });
+      assert.equal(expectError(invalid).code, 'VALIDATION_ERROR');
+      const ambiguous = await client.callTool({
+        name: 'change.context',
+        arguments: {
+          id: 'schema-only',
+          context_refs: [],
+          spec_refs: [{
+            ref: '.ultra/specs/product.md',
+            reason: 'Must not be silently discarded.',
+          }],
+        },
+      });
+      assert.equal(expectError(ambiguous).code, 'VALIDATION_ERROR');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
 test('mutating tools trigger the projector — tasks.json appears under .ultra/', async () => {
   const proj = tmpProject();
   try {
@@ -1226,13 +1672,16 @@ test('task.init_project creates .ultra/ skeleton in a fresh target directory', a
       const payload = readToolPayload(res);
       assert.equal(payload.status, 'created');
       assert.equal(payload.created_path, path.join(freshTarget, '.ultra'));
-      assert.equal(payload.state_db_path, path.join(freshTarget, '.ultra', 'state.db'));
+      assert.equal(
+        payload.state_db_path,
+        path.join(freshTarget, '.ultra', '.runtime', 'state.db'),
+      );
       assert.equal(payload.mode, 'greenfield');
       assert.equal(payload.baseline.status, 'draft');
       assert.ok(fs.existsSync(payload.state_db_path));
       assert.ok(payload.copied_files.includes('tasks/tasks.json'));
       const tasksJson = JSON.parse(fs.readFileSync(path.join(payload.created_path, 'tasks', 'tasks.json'), 'utf8'));
-      assert.equal(tasksJson.source, '.ultra/state.db');
+      assert.equal(tasksJson.source, '.ultra/.runtime/state.db');
       assert.deepEqual(tasksJson.tasks, []);
       const state = new Database(payload.state_db_path, { readonly: true });
       try {
@@ -1320,7 +1769,7 @@ test('session.admission_check + session.spawn: happy path returns sid and paths'
         arguments: { task_id: 's-happy' },
       });
       const verdict = readToolPayload(admission);
-      assert.equal(verdict.can_spawn, true);
+      assert.equal(verdict.can_spawn, true, JSON.stringify(verdict));
       assert.equal(verdict.recommended_action, 'spawn');
 
       const spawn = await client.callTool({
@@ -1330,7 +1779,11 @@ test('session.admission_check + session.spawn: happy path returns sid and paths'
       const session = readToolPayload(spawn);
       assert.match(session.sid, /^sess-/);
       assert.ok(session.worktree_path.includes(session.sid));
-      assert.ok(session.artifact_dir.endsWith(path.join('.ultra', 'sessions', session.sid)));
+      assert.ok(
+        session.artifact_dir.endsWith(
+          path.join('.ultra', '.runtime', 'sessions', session.sid),
+        ),
+      );
       assert.ok(session.lease_expires_at);
       assert.equal(session.worktree_created, true);
       assert.ok(fs.existsSync(session.worktree_path));
@@ -1441,7 +1894,13 @@ test('an active worker cannot close its parent-owned lease before process settle
         runtime: 'codex',
         pid: child.pid,
         worktree_path: proj.dir,
-        artifact_dir: path.join(proj.dir, '.ultra', 'sessions', 'sess-self-close'),
+        artifact_dir: path.join(
+          proj.dir,
+          '.ultra',
+          '.runtime',
+          'sessions',
+          'sess-self-close',
+        ),
       });
     } finally {
       closeStateDb(db);
@@ -1929,7 +2388,7 @@ test('plan.export: no tasks → NO_TASKS', async () => {
       });
       const resp = await client.callTool({
         name: 'plan.export',
-        arguments: { change_id: 'empty-plan-change', out_path: '.ultra/execution-plan.json' },
+        arguments: { change_id: 'empty-plan-change' },
       });
       const err = expectError(resp);
       assert.equal(err.code, 'NO_TASKS');
@@ -1965,22 +2424,44 @@ test('plan.export → plan.get round trip: artifact on disk + retrievable', asyn
           },
         });
       }
+      const context = readToolPayload(await client.callTool({
+        name: 'change.context',
+        arguments: { id: 'plan-change', role: 'plan', gate: 'planning' },
+      }));
+      assert.equal(context.manifest.readiness.status, 'ready');
       const exp = await client.callTool({
         name: 'plan.export',
-        arguments: {
-          change_id: 'plan-change', out_path: '.ultra/execution-plan.json', format: 'json',
-        },
+        arguments: { change_id: 'plan-change' },
       });
       const expData = readToolPayload(exp);
       assert.equal(expData.wave_count, 2);
       assert.ok(fs.existsSync(expData.plan_path), 'artifact file must exist');
+      assert.ok(fs.existsSync(expData.plan_md_path), 'human-readable plan must exist');
+      assert.match(
+        expData.plan_path,
+        /\.ultra\/changes\/active\/plan-change\/plan\.json$/,
+      );
       assert.equal(exp._meta.ultra.projection_status, 'completed');
+      const planArtifact = readToolPayload(await client.callTool({
+        name: 'artifact.get',
+        arguments: { path: path.relative(proj.dir, expData.plan_path) },
+      })).artifact;
+      assert.equal(planArtifact.metadata.context_snapshot_id, context.manifest.snapshot_id);
+      assert.equal(planArtifact.metadata.context_digest, context.manifest_hash);
+      assert.match(
+        planArtifact.provenance.publication_transaction_id,
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
 
       const exportedEvents = readToolPayload(await client.callTool({
         name: 'task.subscribe_events',
         arguments: { since_id: 0, types: ['plan_exported', 'plan_approved'], limit: 100 },
       }));
       assert.deepEqual(exportedEvents.events.map((event) => event.type), ['plan_exported']);
+      assert.equal(
+        exportedEvents.events[0].payload.publication_transaction_id,
+        planArtifact.provenance.publication_transaction_id,
+      );
 
       const got = await client.callTool({
         name: 'plan.get', arguments: { change_id: 'plan-change', section: 'topo' },
@@ -1988,6 +2469,415 @@ test('plan.export → plan.get round trip: artifact on disk + retrievable', asyn
       const gotData = readToolPayload(got);
       assert.ok(Array.isArray(gotData.plan.waves));
       assert.equal(gotData.plan.waves.length, 2);
+
+      const forged = path.join(proj.dir, 'forged-plan.json');
+      fs.writeFileSync(forged, `${JSON.stringify({
+        ...gotData.plan,
+        change_id: 'plan-change',
+        waves: [{ id: 1, tasks: ['forged-task'], parallel: false }],
+      })}\n`);
+      fs.rmSync(expData.plan_path);
+      fs.symlinkSync(forged, expData.plan_path);
+      const rejected = await client.callTool({
+        name: 'plan.get', arguments: { change_id: 'plan-change' },
+      });
+      assert.equal(expectError(rejected).code, 'PLAN_ARTIFACT_INVALID');
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('plan.export surfaces commit cleanup residue and marks in-process recovery dirty', async () => {
+  const proj = tmpProject();
+  const { db } = initStateDb(proj.dbPath);
+  const originalRecord = artifactRegistry.recordArtifactInTx;
+  let marked = null;
+  try {
+    seedCompleteBaseline(db, { rootDir: proj.dir });
+    await dispatchTool('change.create', completeChangeInput({
+      id: 'plan-cleanup-fault',
+      title: 'Surface plan cleanup residue',
+      kind: 'standard',
+      intent: 'Never acknowledge a plan export while publication cleanup is incomplete.',
+      docs_impact: { status: 'none', files: [], rationale: 'Test fixture.' },
+    }), db, { rootDir: proj.dir });
+    await dispatchTool('task.create', {
+      id: 'plan-cleanup-task',
+      title: 'Publish a recoverable plan',
+      type: 'feature',
+      priority: 'P1',
+      complexity: 3,
+      deps: [],
+      files_modified: ['src/plan-cleanup.ts'],
+      change_id: 'plan-cleanup-fault',
+    }, db, { rootDir: proj.dir });
+    await dispatchTool('change.context', {
+      id: 'plan-cleanup-fault',
+      role: 'plan',
+      gate: 'planning',
+    }, db, { rootDir: proj.dir });
+    await dispatchTool('plan.export', {
+      change_id: 'plan-cleanup-fault',
+    }, db, { rootDir: proj.dir });
+    await dispatchTool('task.update', {
+      id: 'plan-cleanup-task',
+      patch: { complexity: 4 },
+    }, db, { rootDir: proj.dir });
+    await dispatchTool('change.context', {
+      id: 'plan-cleanup-fault',
+      role: 'plan',
+      gate: 'planning',
+    }, db, { rootDir: proj.dir });
+
+    let injected = false;
+    artifactRegistry.recordArtifactInTx = (...args) => {
+      const recorded = originalRecord(...args);
+      if (!injected) {
+        injected = true;
+        const directory = path.join(
+          proj.dir,
+          '.ultra',
+          'changes',
+          'active',
+          'plan-cleanup-fault',
+        );
+        const journalPath = path.join(
+          directory,
+          fs.readdirSync(directory).find((name) => name.endsWith('.journal.json')),
+        );
+        const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
+        const backup = path.join(directory, journal.entries[0].backup);
+        fs.rmSync(backup);
+        fs.mkdirSync(backup);
+      }
+      return recorded;
+    };
+
+    await assert.rejects(
+      dispatchTool('plan.export', {
+        change_id: 'plan-cleanup-fault',
+      }, db, {
+        rootDir: proj.dir,
+        markPlanRecoveryRequired(details) {
+          marked = details;
+        },
+      }),
+      (error) => error.code === 'PLAN_RECOVERY_REQUIRED',
+    );
+    assert.equal(marked.pending, 1);
+    assert.equal(marked.issues[0].code, 'PLAN_ARTIFACT_PATH_UNSAFE');
+    const pending = planStore.inspectPlanPublications(db, { rootDir: proj.dir });
+    assert.ok(pending.pending >= 1);
+    assert.equal(pending.status, 'fail');
+  } finally {
+    artifactRegistry.recordArtifactInTx = originalRecord;
+    closeStateDb(db);
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('plan.export rollback residue blocks the next mutation in the same MCP process', async () => {
+  const proj = tmpProject();
+  const { db } = initStateDb(proj.dbPath);
+  const originalRecord = artifactRegistry.recordArtifactInTx;
+  try {
+    seedCompleteBaseline(db, { rootDir: proj.dir });
+    await dispatchTool('change.create', completeChangeInput({
+      id: 'plan-rollback-residue',
+      title: 'Keep rollback residue authoritative',
+      kind: 'standard',
+      intent: 'Block all later mutations until failed Plan publication recovery is clean.',
+      docs_impact: { status: 'none', files: [], rationale: 'Test fixture.' },
+    }), db, { rootDir: proj.dir });
+    await dispatchTool('task.create', {
+      id: 'plan-rollback-residue-task',
+      title: 'Fail Plan publication rollback',
+      type: 'feature',
+      priority: 'P1',
+      complexity: 3,
+      deps: [],
+      files_modified: ['src/plan-rollback-residue.ts'],
+      change_id: 'plan-rollback-residue',
+    }, db, { rootDir: proj.dir });
+    await dispatchTool('change.context', {
+      id: 'plan-rollback-residue',
+      role: 'plan',
+      gate: 'planning',
+    }, db, { rootDir: proj.dir });
+    closeStateDb(db);
+
+    let injected = false;
+    artifactRegistry.recordArtifactInTx = (...args) => {
+      const recorded = originalRecord(...args);
+      if (!injected) {
+        injected = true;
+        const target = path.join(
+          proj.dir,
+          '.ultra',
+          'changes',
+          'active',
+          'plan-rollback-residue',
+          'plan.json',
+        );
+        fs.rmSync(target);
+        fs.mkdirSync(target);
+        const error = new Error('injected registry transaction failure');
+        error.code = 'REGISTRY_WRITE_FAILED';
+        throw error;
+      }
+      return recorded;
+    };
+
+    await withInProcessClient(proj, async (client) => {
+      const failed = await client.callTool({
+        name: 'plan.export',
+        arguments: { change_id: 'plan-rollback-residue' },
+      });
+      const failure = expectError(failed);
+      assert.equal(failure.code, 'PLAN_RECOVERY_REQUIRED');
+      assert.equal(failure.details.original_error.code, 'REGISTRY_WRITE_FAILED');
+      assert.equal(failure.details.rollback_issue.code, 'PLAN_ARTIFACT_PATH_UNSAFE');
+
+      const blocked = await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'must-not-mutate-after-plan-residue',
+          title: 'Must remain blocked',
+          type: 'feature',
+          priority: 'P1',
+        },
+      });
+      assert.equal(expectError(blocked).code, 'PLAN_RECOVERY_REQUIRED');
+    });
+
+    const verification = initStateDb(proj.dbPath).db;
+    try {
+      assert.equal(
+        verification.prepare(
+          "SELECT COUNT(*) AS count FROM tasks WHERE id = 'must-not-mutate-after-plan-residue'",
+        ).get().count,
+        0,
+      );
+      assert.equal(
+        planStore.inspectPlanPublications(verification, { rootDir: proj.dir }).status,
+        'fail',
+      );
+    } finally {
+      closeStateDb(verification);
+    }
+  } finally {
+    artifactRegistry.recordArtifactInTx = originalRecord;
+    try { closeStateDb(db); } catch {}
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('canonical plan remains Change-owned across exports outside and inside distinct Plan workflows', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'stable-plan-owner',
+          title: 'Keep canonical plan authority stable',
+          kind: 'standard',
+          intent: 'Plan workflows update one Change-owned canonical execution plan.',
+          docs_impact: { status: 'none', files: [], rationale: 'Test fixture.' },
+        }),
+      });
+      await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'stable-plan-task',
+          title: 'Generate one stable plan',
+          type: 'feature',
+          priority: 'P1',
+          complexity: 3,
+          deps: [],
+          files_modified: ['src/stable-plan.ts'],
+          change_id: 'stable-plan-owner',
+        },
+      });
+      await client.callTool({
+        name: 'change.context',
+        arguments: { id: 'stable-plan-owner', role: 'plan', gate: 'planning' },
+      });
+      const firstExport = readToolPayload(await client.callTool({
+        name: 'plan.export',
+        arguments: { change_id: 'stable-plan-owner' },
+      }));
+      const relativePlan = path.relative(proj.dir, firstExport.plan_path);
+      const firstArtifact = readToolPayload(await client.callTool({
+        name: 'artifact.get',
+        arguments: { path: relativePlan },
+      })).artifact;
+      assert.equal(firstArtifact.owner_type, 'change');
+      assert.equal(firstArtifact.owner_id, 'stable-plan-owner');
+      assert.equal(firstArtifact.provenance.workflow_run_id, null);
+
+      const direct = new Database(proj.dbPath);
+      try {
+        direct.prepare(
+          `INSERT INTO workflow_runs
+           (id, kind, subject, definition_version, status, change_id)
+           VALUES (?, 'plan', ?, 'test', 'active', ?)`,
+        ).run('stable-plan-workflow-1', 'First plan workflow.', 'stable-plan-owner');
+      } finally {
+        direct.close();
+      }
+      await client.callTool({
+        name: 'plan.export',
+        arguments: { change_id: 'stable-plan-owner' },
+      });
+      const withinFirst = readToolPayload(await client.callTool({
+        name: 'artifact.get',
+        arguments: { path: relativePlan },
+      })).artifact;
+      assert.equal(withinFirst.id, firstArtifact.id);
+      assert.equal(withinFirst.owner_type, 'change');
+      assert.equal(withinFirst.owner_id, 'stable-plan-owner');
+      assert.equal(withinFirst.provenance.workflow_run_id, 'stable-plan-workflow-1');
+
+      const secondDirect = new Database(proj.dbPath);
+      try {
+        secondDirect.prepare(
+          `UPDATE workflow_runs
+           SET status = 'completed', completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+           WHERE id = 'stable-plan-workflow-1'`,
+        ).run();
+        secondDirect.prepare(
+          `INSERT INTO workflow_runs
+           (id, kind, subject, definition_version, status, change_id)
+           VALUES (?, 'plan', ?, 'test', 'active', ?)`,
+        ).run('stable-plan-workflow-2', 'Second plan workflow.', 'stable-plan-owner');
+      } finally {
+        secondDirect.close();
+      }
+      await client.callTool({
+        name: 'task.update',
+        arguments: {
+          id: 'stable-plan-task',
+          patch: { title: 'Generate the refreshed stable plan' },
+        },
+      });
+      await client.callTool({
+        name: 'change.context',
+        arguments: { id: 'stable-plan-owner', role: 'plan', gate: 'planning' },
+      });
+      const secondResponse = await client.callTool({
+        name: 'plan.export',
+        arguments: { change_id: 'stable-plan-owner' },
+      });
+      assert.equal(secondResponse.isError, undefined, JSON.stringify(secondResponse));
+      const withinSecond = readToolPayload(await client.callTool({
+        name: 'artifact.get',
+        arguments: { path: relativePlan },
+      })).artifact;
+      assert.equal(withinSecond.id, firstArtifact.id);
+      assert.equal(withinSecond.owner_type, 'change');
+      assert.equal(withinSecond.owner_id, 'stable-plan-owner');
+      assert.equal(withinSecond.provenance.workflow_run_id, 'stable-plan-workflow-2');
+      assert.ok(withinSecond.source_refs.some(
+        (ref) => ref.type === 'task' && ref.id === 'stable-plan-task',
+      ));
+      assert.equal(withinSecond.consumer_refs.some((ref) => ref.type === 'task'), false);
+      const task = readToolPayload(await client.callTool({
+        name: 'task.get',
+        arguments: { id: 'stable-plan-task' },
+      })).task;
+      assert.equal(task.stale, false);
+    });
+  } finally {
+    fs.rmSync(proj.dir, { recursive: true, force: true });
+  }
+});
+
+test('plan.export preflights both authorities and leaves files and registry unchanged on conflict', async () => {
+  const proj = tmpProject();
+  try {
+    seedReadyBaseline(proj);
+    await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'plan-atomic-conflict',
+          title: 'Keep plan publication atomic',
+          kind: 'standard',
+          intent: 'Reject a conflicting plan authority without publishing either plan artifact.',
+          docs_impact: { status: 'none', files: [], rationale: 'Test fixture.' },
+        }),
+      });
+      await client.callTool({
+        name: 'task.create',
+        arguments: {
+          id: 'plan-atomic-task',
+          title: 'Publish one plan',
+          type: 'feature',
+          priority: 'P1',
+          complexity: 3,
+          deps: [],
+          files_modified: ['src/plan-atomic.ts'],
+          change_id: 'plan-atomic-conflict',
+        },
+      });
+      const context = readToolPayload(await client.callTool({
+        name: 'change.context',
+        arguments: { id: 'plan-atomic-conflict', role: 'plan', gate: 'planning' },
+      }));
+      assert.equal(context.manifest.readiness.status, 'ready');
+
+      const artifactRoot = path.join(
+        proj.dir, '.ultra', 'changes', 'active', 'plan-atomic-conflict',
+      );
+      const planJson = path.join(artifactRoot, 'plan.json');
+      const planMd = path.join(artifactRoot, 'plan.md');
+      fs.mkdirSync(artifactRoot, { recursive: true });
+      fs.writeFileSync(planJson, '{"prior":"json-authority"}\n');
+      fs.writeFileSync(planMd, '# Prior markdown authority\n');
+      const conflictResponse = await client.callTool({
+        name: 'artifact.record',
+        arguments: {
+          id: 'plan-md-conflict',
+          owner_type: 'change',
+          owner_id: 'plan-atomic-conflict',
+          kind: 'manual_plan',
+          path: path.relative(proj.dir, planMd),
+          provenance: { actor: 'fixture', purpose: 'authority-conflict' },
+          source_refs: [],
+          consumer_refs: [],
+        },
+      });
+      assert.equal(
+        conflictResponse.isError,
+        undefined,
+        JSON.stringify(conflictResponse),
+      );
+      const conflict = readToolPayload(conflictResponse).artifact;
+      const priorJson = fs.readFileSync(planJson);
+      const priorMd = fs.readFileSync(planMd);
+
+      const response = await client.callTool({
+        name: 'plan.export',
+        arguments: { change_id: 'plan-atomic-conflict' },
+      });
+      assert.equal(expectError(response).code, 'ARTIFACT_AUTHORITY_CONFLICT');
+      assert.deepEqual(fs.readFileSync(planJson), priorJson);
+      assert.deepEqual(fs.readFileSync(planMd), priorMd);
+
+      const afterConflict = readToolPayload(await client.callTool({
+        name: 'artifact.get',
+        arguments: { path: path.relative(proj.dir, planMd) },
+      })).artifact;
+      assert.equal(afterConflict.id, conflict.id);
+      assert.equal(afterConflict.digest, conflict.digest);
+      const exported = readToolPayload(await client.callTool({
+        name: 'task.subscribe_events',
+        arguments: { since_id: 0, types: ['plan_exported'], limit: 100 },
+      }));
+      assert.deepEqual(exported.events, []);
     });
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
@@ -1997,7 +2887,16 @@ test('plan.export → plan.get round trip: artifact on disk + retrievable', asyn
 test('plan.get: no plan written yet → NO_PLAN', async () => {
   const proj = tmpProject();
   try {
+    seedReadyBaseline(proj);
     await withClient(proj, async (client) => {
+      await client.callTool({
+        name: 'change.create',
+        arguments: completeChangeInput({
+          id: 'missing-plan-change', title: 'No persisted plan', kind: 'quick',
+          intent: 'Read a real Change that has no plan artifact yet.',
+          docs_impact: { status: 'none', files: [], rationale: 'Test fixture.' },
+        }),
+      });
       const resp = await client.callTool({
         name: 'plan.get', arguments: { change_id: 'missing-plan-change' },
       });

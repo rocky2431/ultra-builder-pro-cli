@@ -9,17 +9,19 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const runtimeAssets = require('../runtime-assets.cjs');
 const {
   CORE_PUBLIC_SKILLS,
+  PUBLIC_CAPABILITY_GRAPH,
   INTERNAL_AGENT_SKILLS,
   SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
   MCP_DEPENDENT_SKILLS,
+  RUNTIME_SUPPORT_FILES,
+  RUNTIME_WORKER_FILES,
   WORKFLOW_HOOK_FILES,
   skillPolicy,
   skillsForRuntime,
 } = runtimeAssets;
 
 const CORE = [
-  'learn',
   'ultra-init',
   'ultra-research',
   'ultra-plan',
@@ -32,6 +34,20 @@ const CORE = [
   'ultra-change',
   'ultra-doctor',
 ];
+
+const GRAPH_MODES = {
+  'ultra-init': 'setup',
+  'ultra-research': 'workflow',
+  'ultra-plan': 'workflow',
+  'ultra-dev': 'workflow',
+  'ultra-test': 'workflow',
+  'ultra-review': 'workflow',
+  'ultra-deliver': 'workflow',
+  'ultra-status': 'read_only',
+  'ultra-think': 'reasoning',
+  'ultra-change': 'workflow',
+  'ultra-doctor': 'diagnostic',
+};
 
 const INTERNAL = [
   'code-review-expert',
@@ -62,6 +78,13 @@ test('runtime asset manifest exposes only Ultra-owned core and internal skills',
     'cc-collab', 'codex-collab', 'ultra-verify',
   ]);
   assert.deepEqual(SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex', 'kimi']);
+  assert.deepEqual(RUNTIME_WORKER_FILES, [
+    'session-close-journal-worker.cjs',
+    'doctor-backup-worker.cjs',
+  ]);
+  assert.deepEqual(RUNTIME_SUPPORT_FILES, [
+    'archive-mutation-worker.py',
+  ]);
 
   for (const runtime of SUPPORTED_RUNTIMES) {
     const names = skillsForRuntime(runtime);
@@ -70,6 +93,21 @@ test('runtime asset manifest exposes only Ultra-owned core and internal skills',
       || INTERNAL.includes(name)
       || COLLAB_SKILLS_BY_RUNTIME[runtime].includes(name)
     )));
+  }
+});
+
+test('the public capability graph is exact and every handoff remains explicit', () => {
+  assert.deepEqual(Object.keys(PUBLIC_CAPABILITY_GRAPH), CORE);
+  assert.equal(Object.keys(PUBLIC_CAPABILITY_GRAPH).length, 11);
+  for (const name of CORE) {
+    assert.deepEqual(PUBLIC_CAPABILITY_GRAPH[name], {
+      mode: GRAPH_MODES[name],
+      activation: 'explicit_only',
+      next_capability_source: 'mcp_allowed_transitions',
+      recommendation_owner: 'host_model',
+      selection_owner: 'user',
+      automatic_invocation: false,
+    }, name);
   }
 });
 
@@ -106,6 +144,7 @@ test('workflow hook allowlist contains no memory, prompt capture, or generic pol
     'context_spine.py',
     'health_check.py',
     'pre_stop_check.py',
+    'runtime_paths.py',
     'subagent_tracker.py',
     'workflow_checkpoint.py',
     'workflow_context.py',
@@ -126,6 +165,49 @@ test('bundled agents never instruct workers to own persistent memory', () => {
   assert.doesNotMatch(agentText, /\.ultra\/memory|\/recall(?:\s|`|$)/m);
 });
 
+test('runtime documentation matches the canonical host, hook, and agent assets', () => {
+  const compatibilityMatrix = fs.readFileSync(
+    path.join(REPO_ROOT, 'docs', 'RUNTIME-COMPAT-MATRIX.md'),
+    'utf8',
+  );
+  const workerRow = compatibilityMatrix
+    .split('\n')
+    .find((line) => line.startsWith('| Bundled review/debug workers |'));
+  const workerCells = workerRow?.split('|').slice(1, -1).map((cell) => cell.trim()) || [];
+  const bundledAgentCount = fs.readdirSync(path.join(REPO_ROOT, 'agents'))
+    .filter((name) => name.endsWith('.md'))
+    .length;
+
+  assert.equal(workerCells.length, 5, 'runtime matrix worker row is missing or malformed');
+  assert.match(workerCells[3], new RegExp(`\\b${bundledAgentCount}\\b managed TOML agents\\b`));
+  assert.match(workerCells[4], new RegExp(`\\b${bundledAgentCount}\\b prompt templates\\b`));
+
+  const roadmap = fs.readFileSync(path.join(REPO_ROOT, 'docs', 'ROADMAP.md'), 'utf8');
+  const adapterInventory = roadmap.slice(
+    roadmap.indexOf('adapters/'),
+    roadmap.indexOf('skills/'),
+  );
+  const hookInventory = roadmap.slice(
+    roadmap.indexOf('hooks/'),
+    roadmap.indexOf('docs/'),
+  );
+
+  for (const runtime of SUPPORTED_RUNTIMES) {
+    assert.match(
+      adapterInventory,
+      new RegExp(`(?:├──|└──) ${runtime}\\.js\\b`),
+      `ROADMAP adapter inventory missing adapters/${runtime}.js`,
+    );
+  }
+  for (const hook of WORKFLOW_HOOK_FILES) {
+    assert.match(
+      hookInventory,
+      new RegExp(`(?:├──|└──) ${hook.replace('.', '\\.')}\\b`),
+      `ROADMAP hook inventory missing hooks/${hook}`,
+    );
+  }
+});
+
 test('npm publish list uses the same explicit skill boundary', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
   const publishedSkills = pkg.files
@@ -141,6 +223,10 @@ test('npm publish list uses the same explicit skill boundary', () => {
   assert.ok(!pkg.files.includes('skills'));
   assert.ok(!pkg.files.includes('CLAUDE.md'));
   assert.ok(!pkg.files.includes('AGENTS.md'));
+  assert.ok(!pkg.files.includes('skills/learn'));
+  assert.ok(!pkg.files.some(
+    (entry) => entry === 'output-styles' || entry.startsWith('output-styles/'),
+  ));
   assert.ok(!publishedSkills.includes('graphify'));
   assert.deepEqual(publishedSkills, expected);
   assert.equal(pkg.dependencies['@anthropic-ai/sdk'], undefined);

@@ -14,29 +14,29 @@ not installed.
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | Package form | `.claude-plugin` native plugin | native config bundle + JS plugin | personal `.codex-plugin` | managed `kimi.plugin.json` plugin |
-| Public entry | `/ultra-*`, `/learn` | `/ultra-*`, `/learn` | `$ultra-builder-pro:<skill>` | `/ultra-builder-pro:<command>` |
-| Public Ultra workflows | 12, model invocation disabled | 12 commands backed by private workflow assets | 12, implicit invocation disabled | 12, model invocation disabled |
+| Public entry | `/ultra-builder-pro:ultra-*` | `/ultra-*` | `$ultra-builder-pro:ultra-*` | `/ultra-builder-pro:ultra-*` |
+| Public Ultra capabilities | 11, model invocation disabled | 11 commands backed by private workflow assets | 11, implicit invocation disabled | 11, model invocation disabled |
 | Internal agent-rule skills | 4, non-user-facing | 4, non-user-facing | 4 with implicit invocation disabled | 4, consumed by review workers |
 | Collaboration companions | `codex-collab`, `ultra-verify` | `cc-collab`, `codex-collab`, `ultra-verify` | `cc-collab`, `ultra-verify` | `cc-collab`, `codex-collab`, `ultra-verify` |
 | Automatic workflow bootstrap | N/A | N/A | N/A | N/A |
 | External browser/deploy/framework skills | N/A | N/A | N/A | N/A |
 
-Codex converts workflows into namespaced skills and records eleven legacy
+Codex converts workflows into namespaced skills and records ten compatibility
 command mappings in `command-map.json`; `ultra-review` remains directly
-invocable as a skill. Kimi registers all twelve commands through its native
+invocable as a skill. Kimi registers all eleven commands through its native
 plugin command directory and exposes the allowlisted skills independently.
 
 ## 2. Agents and collaboration
 
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
-| Bundled review/debug workers | FULL, native Markdown agents | FULL, native agent frontmatter | FULL, nine managed TOML agents | FUNCTIONAL, nine prompt templates consumed by `Agent` / `AgentSwarm` |
+| Bundled review/debug workers | FULL, native Markdown agents | FULL, native agent frontmatter | FULL, 10 managed TOML agents | FUNCTIONAL, 10 prompt templates consumed by `Agent` / `AgentSwarm` |
 | Plugin custom-agent registration | FULL | FULL | FULL | N/A; the 0.26 manifest has no custom-agent field |
 | Native bounded delegation | native agent surface | native agent surface | native Codex subagents | native `Agent` / `AgentSwarm` |
 | Cross-host advisor | explicit and read-only | explicit and read-only | explicit and read-only | explicit and read-only |
 | Primary-agent ownership | FULL | FULL | FULL | FULL |
 
-No bundled worker owns private persistent memory. It receives current-checkout
+No bundled worker owns private conversational memory. It receives current-checkout
 evidence and bounded context from the primary host, then returns a result for
 primary verification. On Kimi, the review workflow reads the bundled worker
 template before creating the corresponding `AgentSwarm` item; the templates are
@@ -54,7 +54,7 @@ not presented as nonexistent custom agents.
 | Subagent lifecycle evidence | FULL | DEGRADED, no equivalent packaged event | FULL | FULL, native `SubagentStart` / `SubagentStop` |
 
 Health/context, compact, stop, and subagent hooks remain silent unless
-`.ultra/state.db` proves an active, blocked, or ready workflow. Projection
+`.ultra/.runtime/state.db` proves an active, blocked, or ready workflow. Projection
 protection applies to every initialized project because generated projections
 must never become a second authority. No host receives prompt capture, transcript capture,
 observation journaling, session-summary memory, generic command blocking, or
@@ -67,16 +67,18 @@ they do not deny edits or stop active incident work.
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
-| Live/declared contracts | 51 | 51 | 51 | 51 |
+| Live/declared contracts | 57 | 57 | 57 | 57 |
 | Structured user alignment | `AskUserQuestion` in interactive sessions | `question` when permission is not denied | `request_user_input` when the current mode exposes it | `AskUserQuestion` outside auto mode |
 | Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
 | Context Manifest v3 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
 | Approval-gated spec learning | FULL | FULL | FULL | FULL |
 | Host-native review/discovery/ask | native | native | documented in `codex-capability-map.json` | native Kimi tools and workers |
-| Durable authority | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` | project `.ultra/state.db` |
-| Ultra memory API | N/A | N/A | N/A | N/A |
+| Workflow-memory envelope | project `.ultra/` | project `.ultra/` | project `.ultra/` | project `.ultra/` |
+| Lifecycle/index authority | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` |
+| General memory-provider API | N/A | N/A | N/A | N/A |
 
-All 51 `task.*`, `session.*`, `baseline.*`, `change.*`, `decision.*`, `workflow.*`, `system.*`, and `plan.*` operations
+All 57 `task.*`, `session.*`, `baseline.*`, `change.*`, `decision.*`,
+`workflow.*`, `artifact.*`, `system.*`, and `plan.*` operations
 registered by `mcp-server/server.cjs` are live. Review, impact discovery, skill
 loading, and user interaction remain host-native surfaces.
 
@@ -90,6 +92,15 @@ generated launcher recovers the project from the inherited `PWD`, sets
 `UBP_ROOT_DIR` and `UBP_DB_PATH`, and refuses to start if that project boundary
 cannot be established. On POSIX it intentionally uses `env node` because Kimi
 0.26/0.27's embedded Node ABI differs from the ABI used to install `better-sqlite3`.
+
+Archive finalization and archive-journal recovery use an adjacent, explicitly
+packaged Python 3 worker. The worker accepts only bounded, basename-only
+operations and performs mutations relative to inherited, identity-checked
+directory descriptors. This boundary requires a POSIX Python runtime with
+`dir_fd`, no-follow `stat`, and `O_NOFOLLOW` support. If that prerequisite is
+missing, archive operations fail closed with `ARCHIVE_RUNTIME_UNAVAILABLE`;
+Ultra never falls back to ancestor-sensitive pathname mutation. Other MCP
+operations remain available.
 
 ## 5. User instruction isolation
 
@@ -135,9 +146,9 @@ records. Uninstall refuses an unmanaged or conflicting root.
 
 | Capability | Contract |
 |---|---|
-| Current state schema | `19.0` |
+| Current state schema | `20.0` |
 | Runtime values | `claude`, `opencode`, `codex`, `kimi` |
-| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, repository evidence in 12.0, durable workflows in 13.0, continuous baseline revalidation in 14.0, typed research semantics and verified reconciliation in 15.0, resumable owner-agent decision threads and workflow alignment gates in 16.0, explicit unborn-Git authority in 17.0, adaptive transitions and legacy workflow normalization in 18.0, then non-ceremonial decision completion in 19.0 |
+| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, repository evidence in 12.0, durable workflows in 13.0, continuous baseline revalidation in 14.0, typed research semantics and verified reconciliation in 15.0, resumable owner-agent decision threads and workflow alignment gates in 16.0, explicit unborn-Git authority in 17.0, adaptive transitions and legacy workflow normalization in 18.0, non-ceremonial decision completion in 19.0, then typed artifact ownership and normalized dependency edges in 20.0 |
 | Preservation gate | rows, IDs, indexes, foreign keys, telemetry, incidents, and migration history remain intact |
 | Failure behavior | rollback; no partially upgraded authority database |
 

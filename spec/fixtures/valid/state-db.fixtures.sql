@@ -9,8 +9,8 @@ INSERT INTO tasks (id, title, type, priority, status)
 VALUES ('task-002', 'Phase 2 — state.db', 'architecture', 'P0', 'pending');
 
 INSERT INTO sessions (sid, task_id, runtime, pid, worktree_path, artifact_dir, lease_expires_at)
-VALUES ('ses_test_001', 'task-001', 'claude', 12345, '.ultra/worktrees/task-001',
-        '.ultra/sessions/ses_test_001', '2099-01-01T00:00:00.000Z');
+VALUES ('ses_test_001', 'task-001', 'claude', 12345, '.ultra/.runtime/worktrees/task-001',
+        '.ultra/.runtime/sessions/ses_test_001', '2099-01-01T00:00:00.000Z');
 
 INSERT INTO events (type, task_id, session_id, runtime, payload_json)
 VALUES ('task_started', 'task-001', 'ses_test_001', 'claude', '{"by":"user"}');

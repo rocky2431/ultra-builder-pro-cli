@@ -7,11 +7,19 @@ const { spawnSync } = require('node:child_process');
 const Ajv = require('ajv/dist/2020');
 
 const ops = require('./state-ops.cjs');
+const artifacts = require('./artifact-registry.cjs');
 const contextSpine = require('./context-spine.cjs');
 const specLearning = require('./spec-learning.cjs');
 const providerRefs = require('./provider-refs.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
+const changePacket = require('./change-packet.cjs');
+const deliveryTransaction = require('./delivery-transaction.cjs');
+const {
+  openStableProjectRead,
+  readStableProjectFile,
+  walkStableProjectTree,
+} = require('./safe-project-file.cjs');
 const workflows = require('./workflow-state.cjs');
 const decisions = require('./decision-dialogue.cjs');
 const reconciliationSchema = require('../../spec/schemas/baseline-reconciliation.v1.schema.json');
@@ -288,12 +296,70 @@ function safeRelativePath(rootDir, candidate) {
   return target;
 }
 
+function rebindRegistryPath(candidate, source, destination) {
+  const current = artifacts.normalizeRelativePath(candidate);
+  const from = artifacts.normalizeRelativePath(source);
+  const to = artifacts.normalizeRelativePath(destination);
+  if (current !== from && !current.startsWith(`${from}/`)) return null;
+  const suffix = current === from ? '' : path.posix.relative(from, current);
+  return suffix ? path.posix.join(to, suffix) : to;
+}
+
+function assertReconciliationAuthority(db, change, relative, digest) {
+  const rows = db.prepare(
+    "SELECT * FROM artifacts WHERE status <> 'archived' ORDER BY id",
+  ).all().filter((item) => {
+    try { return artifacts.normalizeRelativePath(item.path) === relative; }
+    catch { return false; }
+  });
+  const row = rows.length === 1 ? rows[0] : null;
+  const authorityDigest = row?.digest || row?.content_hash || null;
+  if (!row || row.managed !== 1 || row.owner_type !== 'change'
+    || row.owner_id !== change.id || row.change_id !== change.id
+    || row.kind !== 'baseline_reconciliation' || row.status !== 'current'
+    || authorityDigest !== digest) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_AUTHORITY_INVALID',
+      'reconciliation manifest must match one current managed Change artifact authority',
+      {
+        path: relative,
+        artifact_ids: rows.map((item) => item.id),
+        expected_owner: `change:${change.id}`,
+        expected_kind: 'baseline_reconciliation',
+        expected_digest: digest,
+        actual_digest: authorityDigest,
+      },
+    );
+  }
+  return row;
+}
+
+function openReconciliationReader(rootDir, relative) {
+  try {
+    return openStableProjectRead(rootDir, relative);
+  } catch (error) {
+    if (error?.code === 'PROJECT_FILE_MISSING') return null;
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_UNSAFE',
+      `reconciliation manifest cannot be read safely: ${relative}`,
+      { cause: error.code || error.message },
+    );
+  }
+}
+
 function readReconciliationManifest(db, change, input, rootDir) {
-  const relative = typeof input.reconciliation_path === 'string'
+  const requested = typeof input.reconciliation_path === 'string'
     ? input.reconciliation_path.trim() : '';
-  if (!relative) {
+  if (!requested) {
     throw new ChangeWorkflowError(
       'BASELINE_RECONCILIATION_MANIFEST_REQUIRED', 'reconciliation_path is required',
+    );
+  }
+  let relative;
+  try { relative = artifacts.normalizeRelativePath(requested); }
+  catch (error) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_REQUIRED', error.message,
     );
   }
   let file = safeRelativePath(rootDir, relative);
@@ -304,26 +370,75 @@ function readReconciliationManifest(db, change, input, rootDir) {
       'reconciliation manifest must be a file inside the active change artifact root',
     );
   }
+  let reader = openReconciliationReader(rootDir, relative);
   let manifest;
-  if (!fs.existsSync(file)) {
+  let digest;
+  let expectedDigest = null;
+  let authorityDigest = null;
+  let journalIntent = null;
+  if (!reader) {
     const pending = archiveJournal.listArchiveIntents(rootDir).find(
       (item) => !item.error && item.intent.change_id === change.id
         && item.intent.reconciliation_path === relative,
     );
     if (pending) {
-      const suffix = path.relative(pending.intent.source, relative);
-      file = path.join(pending.destination, suffix);
-      manifest = pending.intent.reconciliation_manifest;
+      journalIntent = pending.intent;
+      const suffix = path.posix.relative(pending.intent.source, relative);
+      const archivedRelative = path.posix.join(pending.intent.destination, suffix);
+      file = safeRelativePath(rootDir, archivedRelative);
+      reader = openReconciliationReader(rootDir, archivedRelative);
+      expectedDigest = pending.intent.reconciliation_digest;
+      authorityDigest = pending.intent.reconciliation_digest;
+      const rebind = archiveJournal.readArchiveRebind(rootDir, pending.intent);
+      const rebound = rebind?.entries.find(
+        (entry) => entry.relative_path
+          === path.posix.relative(pending.intent.destination, archivedRelative),
+      );
+      if (rebound) {
+        if (rebound.before_digest !== pending.intent.reconciliation_digest) {
+          throw new ChangeWorkflowError(
+            'BASELINE_RECONCILIATION_AUTHORITY_INVALID',
+            'archive rebind journal does not begin from the prepared reconciliation authority',
+            {
+              expected_digest: pending.intent.reconciliation_digest,
+              actual_digest: rebound.before_digest,
+            },
+          );
+        }
+        expectedDigest = rebound.after_digest;
+        authorityDigest = rebound.before_digest;
+      }
     }
   }
-  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+  if (!reader) {
     throw new ChangeWorkflowError(
       'BASELINE_RECONCILIATION_MANIFEST_REQUIRED', 'reconciliation manifest file is missing',
     );
   }
-  try { manifest ||= JSON.parse(fs.readFileSync(file, 'utf8')); }
-  catch (error) {
+  try {
+    digest = reader.digest;
+    if (expectedDigest && digest !== expectedDigest) {
+      throw new ChangeWorkflowError(
+        'BASELINE_RECONCILIATION_AUTHORITY_INVALID',
+        'archived reconciliation bytes do not match the prepared journal digest',
+        { expected_digest: expectedDigest, actual_digest: digest },
+      );
+    }
+    assertReconciliationAuthority(db, change, relative, authorityDigest || digest);
+    manifest = JSON.parse(reader.bytes.toString('utf8'));
+    reader.verify();
+  } catch (error) {
+    if (error instanceof ChangeWorkflowError) throw error;
+    if (error?.code === 'PROJECT_FILE_CHANGED' || error?.code === 'PROJECT_FILE_UNSAFE') {
+      throw new ChangeWorkflowError(
+        'BASELINE_RECONCILIATION_MANIFEST_UNSAFE',
+        `reconciliation manifest changed while it was read: ${relative}`,
+        { cause: error.code },
+      );
+    }
     throw new ChangeWorkflowError('BASELINE_RECONCILIATION_MANIFEST_INVALID', error.message);
+  } finally {
+    reader.close();
   }
   if (!validateReconciliationSchema(manifest)) {
     throw new ChangeWorkflowError(
@@ -413,10 +528,10 @@ function readReconciliationManifest(db, change, input, rootDir) {
       'BASELINE_RECONCILIATION_MANIFEST_INVALID', 'resolved gap or unknown does not exist in baseline authority',
     );
   }
-  const serialized = fs.readFileSync(file);
   return {
     manifest, relative, file,
-    digest: crypto.createHash('sha256').update(serialized).digest('hex'),
+    digest,
+    journal_intent: journalIntent,
   };
 }
 
@@ -520,18 +635,50 @@ function inspectIncidentDiagnosis(change, artifactDir, rootDir) {
   };
 }
 
-function upsertArtifact(db, { change_id, task_id = null, kind, artifactPath, contentHash, metadata }) {
-  const id = `art-${crypto.randomUUID().slice(0, 12)}`;
-  db.prepare(
-    `INSERT INTO artifacts (id, change_id, task_id, kind, path, content_hash, metadata_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(change_id, kind, path) DO UPDATE SET
-       task_id = excluded.task_id, content_hash = excluded.content_hash,
-       metadata_json = excluded.metadata_json, updated_at = excluded.updated_at`,
-  ).run(
-    id, change_id, task_id, kind, artifactPath, contentHash || null,
-    metadata === undefined ? null : JSON.stringify(metadata),
-  );
+function latestWorkflowConsumer(db, changeId) {
+  const workflow = db.prepare(
+    `SELECT id FROM workflow_runs WHERE change_id = ?
+     ORDER BY started_at DESC, rowid DESC LIMIT 1`,
+  ).get(changeId);
+  if (!workflow) {
+    throw new ChangeWorkflowError(
+      'ARTIFACT_CONSUMER_MISSING',
+      `change ${changeId} has no workflow consumer for its durable artifacts`,
+    );
+  }
+  return { type: 'workflow', id: workflow.id, relation: 'consumed_by' };
+}
+
+function upsertArtifact(
+  db,
+  {
+    change_id, task_id = null, kind, artifactPath, contentHash, metadata,
+    workflow_id = null, terminal = false, rootDir = process.cwd(),
+  },
+) {
+  const ownerType = task_id ? 'task' : 'change';
+  const ownerId = task_id || change_id;
+  const consumer = terminal
+    ? null
+    : task_id
+    ? { type: 'task', id: task_id, relation: 'consumed_by' }
+    : workflow_id
+      ? { type: 'workflow', id: workflow_id, relation: 'consumed_by' }
+      : latestWorkflowConsumer(db, change_id);
+  return artifacts.recordArtifactInTx(db, {
+    owner_type: ownerType,
+    owner_id: ownerId,
+    kind,
+    path: artifactPath,
+    content_digest: contentHash || undefined,
+    source_refs: [{ type: 'change', id: change_id, relation: 'produced_for' }],
+    consumer_refs: consumer ? [consumer] : [],
+    provenance: {
+      writer: 'change-workflow',
+      workflow_run_id: consumer?.type === 'workflow' ? consumer.id : null,
+    },
+    metadata: { ...(metadata || {}), ...(terminal ? { terminal_role: true } : {}) },
+  }, { rootDir });
 }
 
 function compileContext(db, input, { rootDir = process.cwd() } = {}) {
@@ -540,9 +687,13 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
   if (['archived', 'cancelled'].includes(change.status)) {
     throw new ChangeWorkflowError('CHANGE_TERMINAL', `change ${input.id} is ${change.status}`);
   }
-  const providers = input.provider_refs === undefined
-    ? change.provider_refs
-    : normalizeProviderRefs(input.provider_refs);
+  if (Object.hasOwn(input, 'provider_refs')) {
+    throw new ChangeWorkflowError(
+      'CONTEXT_PROVIDER_REFS_MUTATION_UNSUPPORTED',
+      'provider refs are Change authority; update them through change.update before compiling context',
+    );
+  }
+  const providers = change.provider_refs;
   const tasks = db.prepare(
     'SELECT id FROM tasks WHERE change_id = ? ORDER BY created_at ASC',
   ).all(change.id).map((task) => ops.readTask(db, task.id));
@@ -568,7 +719,7 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
       worktree_state: spine.resume.worktree_state,
       worktree_digest: spine.resume.worktree_digest,
     },
-    tasks,
+    tasks: spine.task_scope,
     selected_task: spine.selected_task,
     specs,
     role: spine.role,
@@ -577,6 +728,7 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     readiness: spine.readiness,
     context: spine.context,
     execution_contract: spine.execution_contract,
+    task_context_contract: spine.task_context_contract,
     baseline: spine.baseline,
     resume: spine.resume,
     providers,
@@ -610,6 +762,7 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     upsertArtifact(db, {
       change_id: change.id, task_id: input.task_id || null, kind: 'context_manifest',
       artifactPath: relative, contentHash: hash,
+      rootDir,
       metadata: {
         git_head: spine.resume.git_head,
         worktree_digest: spine.resume.worktree_digest,
@@ -624,8 +777,6 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
          (change_id, task_id, source_ref, target_ref, relation) VALUES (?, ?, ?, ?, ?)`,
       ).run(change.id, task.id, task.trace_to, `task:${task.id}`, 'specified_by');
     }
-    db.prepare('UPDATE changes SET provider_refs_json = ?, updated_at = ? WHERE id = ?')
-      .run(JSON.stringify(providers), nowIso(), change.id);
     ops.appendEventInTx(db, {
       type: 'context_updated', change_id: change.id, task_id: input.task_id || null,
       payload: {
@@ -758,20 +909,9 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
       fs.mkdirSync(artifactDir, { recursive: true });
       const intentPath = path.join(artifactDir, 'intent.md');
       writeIntent(intentPath, row);
-      upsertArtifact(db, {
-        change_id: row.id, kind: 'intent', artifactPath: path.relative(rootDir, intentPath),
-        contentHash: crypto.createHash('sha256').update(fs.readFileSync(intentPath)).digest('hex'),
-      });
       if (row.kind === 'incident') {
         const diagnosisPath = path.join(artifactDir, 'diagnosis.md');
         writeIncidentDiagnosis(diagnosisPath, row);
-        upsertArtifact(db, {
-          change_id: row.id,
-          kind: 'diagnosis',
-          artifactPath: path.relative(rootDir, diagnosisPath),
-          contentHash: crypto.createHash('sha256').update(fs.readFileSync(diagnosisPath)).digest('hex'),
-          metadata: { required_sections: INCIDENT_DIAGNOSIS_SECTIONS.map(({ key }) => key) },
-        });
       }
       ops.appendEventInTx(db, {
         type: 'change_created', change_id: row.id,
@@ -785,6 +925,24 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
         change_id: row.id, subject: `Establish executable readiness for ${row.title}.`,
         metadata: { change_kind: row.kind, base_commit: row.base_commit },
       }, { rootDir });
+      upsertArtifact(db, {
+        change_id: row.id, kind: 'intent', artifactPath: path.relative(rootDir, intentPath),
+        contentHash: crypto.createHash('sha256').update(fs.readFileSync(intentPath)).digest('hex'),
+        workflow_id: workflow.id,
+        rootDir,
+      });
+      if (row.kind === 'incident') {
+        const diagnosisPath = path.join(artifactDir, 'diagnosis.md');
+        upsertArtifact(db, {
+          change_id: row.id,
+          kind: 'diagnosis',
+          artifactPath: path.relative(rootDir, diagnosisPath),
+          contentHash: crypto.createHash('sha256').update(fs.readFileSync(diagnosisPath)).digest('hex'),
+          metadata: { required_sections: INCIDENT_DIAGNOSIS_SECTIONS.map(({ key }) => key) },
+          workflow_id: workflow.id,
+          rootDir,
+        });
+      }
       workflow = workflows.recordWorkflowStep(db, {
         id: workflow.id, step_id: 'bind-baseline', status: 'completed',
         evidence: [{
@@ -906,44 +1064,45 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
       sets.push('updated_at = ?'); values.push(nowIso(), id);
       db.prepare(`UPDATE changes SET ${sets.join(', ')} WHERE id = ?`).run(...values);
       const updated = readChange(db, id);
-      const invalidatedTasks = [];
-      if (contextSpine.changeStateDigest(current) !== contextSpine.changeStateDigest(updated)) {
-        const tasks = db.prepare(
-          'SELECT id, stale FROM tasks WHERE change_id = ? ORDER BY created_at ASC, id ASC',
-        ).all(id);
-        const markStale = db.prepare(
-          'UPDATE tasks SET stale = 1, updated_at = ? WHERE id = ?',
-        );
-        const invalidatedAt = nowIso();
-        for (const task of tasks) {
-          if (task.stale) continue;
-          markStale.run(invalidatedAt, task.id);
-          invalidatedTasks.push(task.id);
-          ops.appendEventInTx(db, {
-            type: 'task_stale_marked',
-            task_id: task.id,
-            change_id: id,
-            payload: {
-              reason: 'change_semantic_authority_updated',
-              fields: Object.keys(patch).filter((field) => SEMANTIC_AUTHORITY_FIELDS.has(field)),
-            },
-          });
-        }
-      }
+      const invalidated = [];
+      let intentArtifactId = null;
       if (syncIntent) {
         fs.mkdirSync(path.dirname(intentPath), { recursive: true });
         writeIntent(intentPath, updated);
-        upsertArtifact(db, {
+        const recorded = upsertArtifact(db, {
           change_id: id,
           kind: 'intent',
           artifactPath: path.relative(rootDir, intentPath),
           contentHash: crypto.createHash('sha256').update(fs.readFileSync(intentPath)).digest('hex'),
+          rootDir,
         });
+        intentArtifactId = recorded.artifact.id;
+        invalidated.push(...recorded.invalidated);
       }
+      const semanticFields = Object.keys(patch)
+        .filter((field) => SEMANTIC_AUTHORITY_FIELDS.has(field));
+      if (semanticFields.length > 0
+        && contextSpine.changeStateDigest(current) !== contextSpine.changeStateDigest(updated)) {
+        invalidated.push(...artifacts.invalidateConsumersFromEndpointInTx(
+          db,
+          { type: 'change', id },
+          {
+            reason: 'change_semantic_authority_updated',
+            exclude: intentArtifactId ? [{ type: 'artifact', id: intentArtifactId }] : [],
+          },
+        ));
+      }
+      const invalidatedTasks = [...new Set(
+        invalidated.filter((item) => item.type === 'task').map((item) => item.id),
+      )].sort();
       ops.appendEventInTx(db, {
         type: 'change_updated',
         change_id: id,
-        payload: { fields: Object.keys(patch), invalidated_tasks: invalidatedTasks },
+        payload: {
+          fields: Object.keys(patch),
+          invalidated_tasks: invalidatedTasks,
+          invalidated_authorities: invalidated,
+        },
       });
       return updated;
     });
@@ -954,6 +1113,35 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
     }
     throw error;
   }
+}
+
+function recordDelta(db, input, { rootDir = process.cwd() } = {}) {
+  const change = readChange(db, input?.id);
+  if (!change) {
+    throw new ChangeWorkflowError(
+      'CHANGE_NOT_FOUND', `change ${input?.id || '(missing)'} not found`,
+    );
+  }
+  return changePacket.recordDelta(db, change, input, { rootDir });
+}
+
+function recordDocumentationReconciliation(
+  db,
+  input,
+  { rootDir = process.cwd() } = {},
+) {
+  const change = readChange(db, input?.id);
+  if (!change) {
+    throw new ChangeWorkflowError(
+      'CHANGE_NOT_FOUND', `change ${input?.id || '(missing)'} not found`,
+    );
+  }
+  return changePacket.recordDocumentationReconciliation(
+    db,
+    change,
+    input,
+    { rootDir },
+  );
 }
 
 function filesUnder(dir) {
@@ -967,6 +1155,95 @@ function filesUnder(dir) {
   return out;
 }
 
+function markdownAnchor(text, fallback) {
+  const heading = String(text).match(/^#{1,6}\s+(.+?)\s*#*\s*$/m)?.[1] || fallback;
+  return String(heading || 'change')
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function generatePacketReconciliation(db, change, packet, rootDir) {
+  const baseline = baselines.readBaseline(db);
+  const semanticChanges = packet.delta.value.mutations.map((mutation) => {
+    const overlay = safeRelativePath(rootDir, mutation.overlay_path);
+    const anchor = markdownAnchor(
+      fs.readFileSync(overlay, 'utf8'),
+      path.basename(mutation.target_path, path.extname(mutation.target_path)),
+    );
+    return {
+      id: `delta-${mutation.id}`,
+      action: mutation.action,
+      source_ref: `${mutation.target_path}#${anchor}`,
+      before_digest: mutation.before_digest,
+      after_digest: mutation.after_digest,
+    };
+  });
+  const verification = [{
+    name: 'typed Change packet read-back',
+    command: 'change.delta',
+    status: 'pass',
+    evidence: `Change delta ${packet.delta.artifact.id} @ ${packet.delta.artifact.digest} and documentation reconciliation ${packet.documentation?.artifact.id || 'none-required'} were read back before Deliver.`,
+  }];
+  const manifest = {
+    $schema: 'ultra-baseline-reconciliation-v1',
+    change_id: change.id,
+    baseline_id: baseline?.id || null,
+    baseline_updates: packet.baseline_updates,
+    semantic_changes: semanticChanges,
+    resolved_gap_ids: [],
+    resolved_unknowns: [],
+    verification,
+    ...(semanticChanges.length === 0
+      ? {
+        semantic_no_change_reason: packet.delta.value.no_semantic_change_reason
+          || 'The accepted Change has no baseline specification mutation.',
+      }
+      : {}),
+  };
+  const relative = `${change.artifact_root}/baseline-reconciliation.json`;
+  const file = safeRelativePath(rootDir, relative);
+  const previous = fs.existsSync(file) ? fs.readFileSync(file) : null;
+  const serialized = `${JSON.stringify(manifest, null, 2)}\n`;
+  fs.writeFileSync(file, serialized);
+  try {
+    const recorded = artifacts.recordArtifact(db, {
+      id: `${change.id}-baseline-reconciliation`,
+      owner_type: 'change',
+      owner_id: change.id,
+      kind: 'baseline_reconciliation',
+      path: relative,
+      content_digest: crypto.createHash('sha256').update(serialized).digest('hex'),
+      source_refs: [
+        { type: 'artifact', id: packet.delta.artifact.id, relation: 'reconciles' },
+        ...(packet.documentation
+          ? [{
+            type: 'artifact',
+            id: packet.documentation.artifact.id,
+            relation: 'reconciles_documentation',
+          }]
+          : []),
+      ],
+      consumer_refs: [],
+      provenance: { writer: 'change.deliver', generated: true },
+      metadata: { terminal_role: true, schema: manifest.$schema },
+    }, { rootDir }).artifact;
+    return {
+      manifest,
+      relative,
+      file,
+      digest: recorded.digest,
+      artifact: recorded,
+    };
+  } catch (error) {
+    if (previous === null) fs.rmSync(file, { force: true });
+    else fs.writeFileSync(file, previous);
+    throw error;
+  }
+}
+
 function baselineConvergenceBlockers(db, change, rootDir) {
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
   return contextSpine.baselineGateForChange(db, change, baselineHealth).blockers;
@@ -974,14 +1251,21 @@ function baselineConvergenceBlockers(db, change, rootDir) {
 
 function deriveConvergenceEvidence(db, change, tasks, workflowGate, diagnosis, rootDir) {
   const devRuns = db.prepare(
-    `SELECT id, task_id, summary_json FROM workflow_runs
+    `SELECT id, task_id, summary_json, metadata_json FROM workflow_runs
      WHERE kind = 'dev' AND change_id = ? AND status = 'completed'
      ORDER BY completed_at ASC, rowid ASC`,
-  ).all(change.id).map((row) => ({
-    id: row.id, task_id: row.task_id, summary: parseJson(row.summary_json, 'workflow_runs.summary_json'),
-  }));
-  const deltaPaths = filesUnder(path.join(rootDir, change.artifact_root, 'delta'))
-    .map((file) => path.relative(rootDir, file));
+  ).all(change.id)
+    .filter((row) => workflows.isConsumableWorkflowAuthority({
+      metadata: parseJson(row.metadata_json, 'workflow_runs.metadata_json'),
+    }))
+    .map((row) => ({
+      id: row.id, task_id: row.task_id,
+      summary: parseJson(row.summary_json, 'workflow_runs.summary_json'),
+    }));
+  const deltaAuthority = changePacket.readDeltaAuthority(db, change.id);
+  const deltaPaths = deltaAuthority
+    ? [deltaAuthority.path, deltaAuthority.digest]
+    : [];
   const appliedLearning = specLearning.listSpecLearning(db, change.id)
     .filter((candidate) => candidate.status === 'applied')
     .map((candidate) => candidate.target_ref);
@@ -1052,20 +1336,26 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   if (tasks.length === 0) blockers.add('NO_TASKS');
   if (tasks.some((task) => !['completed', 'expanded'].includes(task.status))) blockers.add('TASKS_INCOMPLETE');
   if (tasks.some((task) => Boolean(task.stale))) blockers.add('TASK_CONTEXT_STALE');
-  for (const task of tasks) {
-    const snapshot = db.prepare(
-      `SELECT readiness, context_json FROM context_snapshots
-       WHERE change_id = ? AND task_id = ?
-       ORDER BY created_at DESC, rowid DESC LIMIT 1`,
-    ).get(change.id, task.id);
-    if (!snapshot) {
+  for (const task of tasks.filter((item) => item.status !== 'expanded')) {
+    const validation = contextSpine.validateContextSnapshot(db, {
+      change_id: change.id,
+      task_id: task.id,
+      role: 'implement',
+      gate: 'implementation',
+    }, { rootDir });
+    if (!validation.snapshot) {
       blockers.add(`TASK_CONTEXT_MISSING:${task.id}`);
       continue;
     }
-    const context = parseJson(snapshot.context_json, 'context_snapshots.context_json');
-    if (snapshot.readiness !== 'ready') blockers.add(`TASK_CONTEXT_NOT_READY:${task.id}`);
-    if (!context.execution_contract?.public_seam) blockers.add(`TASK_SEAM_MISSING:${task.id}`);
-    if (!context.execution_contract?.verification_command) blockers.add(`TASK_VERIFICATION_MISSING:${task.id}`);
+    for (const blocker of validation.blockers) {
+      blockers.add(`TASK_CONTEXT_INVALID:${task.id}:${blocker}`);
+    }
+    if (!validation.manifest?.execution_contract?.public_seam) {
+      blockers.add(`TASK_SEAM_MISSING:${task.id}`);
+    }
+    if (!validation.manifest?.execution_contract?.verification_command) {
+      blockers.add(`TASK_VERIFICATION_MISSING:${task.id}`);
+    }
   }
 
   for (const candidate of specLearning.listSpecLearning(db, change.id)) {
@@ -1088,30 +1378,32 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   const diagnosis = inspectIncidentDiagnosis(change, artifactDir, rootDir);
   for (const blocker of diagnosis.blockers) blockers.add(blocker);
   if (['standard', 'major'].includes(change.kind)) {
-    if (filesUnder(path.join(artifactDir, 'delta')).length === 0) blockers.add('SPEC_DELTA_MISSING');
-    if (!fs.existsSync(path.join(artifactDir, 'plan.md'))) blockers.add('CHANGE_PLAN_MISSING');
-  }
-  const latestContext = db.prepare(
-    `SELECT manifest_path, manifest_hash FROM context_snapshots
-     WHERE change_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1`,
-  ).get(change.id);
-  const manifestPath = latestContext?.manifest_path
-    ? safeRelativePath(rootDir, latestContext.manifest_path)
-    : null;
-  if (!manifestPath || !fs.existsSync(manifestPath)) blockers.add('CONTEXT_MANIFEST_MISSING');
-  else {
-    const manifest = parseJson(fs.readFileSync(manifestPath, 'utf8'), 'context-manifest.json');
-    const manifestHash = crypto.createHash('sha256').update(fs.readFileSync(manifestPath)).digest('hex');
-    if (latestContext.manifest_hash !== manifestHash) blockers.add('CONTEXT_MANIFEST_STALE');
-    if (manifest.git && manifest.git.head !== gitHead(rootDir)) blockers.add('CONTEXT_HEAD_STALE');
-    const checkout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
-    if (manifest.git?.worktree_digest && checkout.digest
-      && manifest.git.worktree_digest !== checkout.digest) {
-      blockers.add('CONTEXT_WORKTREE_STALE');
+    let delta = null;
+    try {
+      delta = changePacket.loadDelta(db, change.id, { rootDir });
+    } catch (error) {
+      blockers.add(error.code || 'CHANGE_DELTA_AUTHORITY_MISSING');
     }
-    const manifestTasks = (manifest.tasks || []).map((task) => task.id).sort();
-    const currentTasks = tasks.map((task) => task.id).sort();
-    if (JSON.stringify(manifestTasks) !== JSON.stringify(currentTasks)) blockers.add('CONTEXT_TASK_SET_STALE');
+    if (delta) {
+      try {
+        const documentation = changePacket.loadDocumentationReconciliation(
+          db, change.id, { rootDir },
+        );
+        if (documentation.value.delta_artifact_id !== delta.artifact.id
+          || documentation.value.delta_digest !== delta.artifact.digest) {
+          blockers.add('DOCUMENTATION_DELTA_AUTHORITY_INVALID');
+        }
+      } catch (error) {
+        blockers.add(error.code || 'DOCUMENTATION_RECONCILIATION_MISSING');
+      }
+    }
+    const planArtifact = db.prepare(
+      `SELECT id FROM artifacts
+       WHERE owner_type = 'change' AND owner_id = ? AND kind = 'execution_plan'
+         AND status = 'current'
+       ORDER BY updated_at DESC, rowid DESC`,
+    ).all(change.id);
+    if (planArtifact.length !== 1) blockers.add('CHANGE_PLAN_AUTHORITY_MISSING');
   }
   const openIncidents = db.prepare(
     `SELECT COUNT(*) AS count FROM incidents WHERE status = 'open'
@@ -1124,7 +1416,7 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
     ops.tx(db, () => {
       db.prepare("UPDATE changes SET status = 'blocked', updated_at = ? WHERE id = ?")
         .run(nowIso(), change.id);
-      if (diagnosis.artifact) upsertArtifact(db, diagnosis.artifact);
+      if (diagnosis.artifact) upsertArtifact(db, { ...diagnosis.artifact, rootDir });
       ops.appendEventInTx(db, {
         type: 'change_blocked', change_id: change.id, payload: { blockers: blockerList },
       });
@@ -1147,11 +1439,12 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   ops.tx(db, () => {
     db.prepare("UPDATE changes SET status = 'ready', updated_at = ? WHERE id = ?")
       .run(nowIso(), change.id);
-    if (diagnosis.artifact) upsertArtifact(db, diagnosis.artifact);
+    if (diagnosis.artifact) upsertArtifact(db, { ...diagnosis.artifact, rootDir });
     upsertArtifact(db, {
       change_id: change.id, kind: 'verification', artifactPath: path.relative(rootDir, verificationPath),
       contentHash: crypto.createHash('sha256').update(fs.readFileSync(verificationPath)).digest('hex'),
       metadata: { evidence: derivedEvidence },
+      rootDir,
     });
     ops.appendEventInTx(db, {
       type: 'change_converged', change_id: change.id,
@@ -1161,19 +1454,240 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   return { ready: true, status: 'ready', blockers: [], verification_path: verificationPath };
 }
 
-function finalizeArchive(db, intent, { rootDir }) {
+function replaceArchiveAuthorityText(
+  text,
+  source,
+  destination,
+  digestMap = new Map(),
+  { normalizePath = false } = {},
+) {
+  const original = String(text);
+  const windowsSource = source.replaceAll('/', '\\');
+  let result = original
+    .replaceAll(source, destination)
+    .replaceAll(windowsSource, destination);
+  if (normalizePath && original.includes(windowsSource)) {
+    result = result.replaceAll('\\', '/');
+  }
+  for (const [before, after] of digestMap) {
+    if (before !== after) result = result.replaceAll(before, after);
+  }
+  return result;
+}
+
+function archiveRebindAuthorityValue(value, source, destination, digestMap) {
+  if (typeof value === 'string') {
+    return replaceArchiveAuthorityText(
+      value, source, destination, digestMap, { normalizePath: true },
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map(
+      (item) => archiveRebindAuthorityValue(item, source, destination, digestMap),
+    );
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+      key,
+      archiveRebindAuthorityValue(item, source, destination, digestMap),
+    ]));
+  }
+  return value;
+}
+
+function buildArchiveRebindEntries(db, intent, rootDir) {
+  const tree = walkStableProjectTree(rootDir, intent.destination, {
+    ignore: (relative) => (
+      relative === `${intent.destination}/${archiveJournal.INTENT_FILE}`
+      || relative === `${intent.destination}/${archiveJournal.REBIND_FILE}`
+    ),
+  });
+  if (tree.unsafe.length > 0) {
+    throw new ChangeWorkflowError(
+      'ARCHIVE_PATH_UNSAFE',
+      `archive packet contains unsafe entries: ${tree.unsafe.map((item) => item.path).join(', ')}`,
+      { unsafe: tree.unsafe },
+    );
+  }
+  const originalByPath = new Map();
+  for (const artifact of db.prepare(
+    'SELECT path, digest, content_hash FROM artifacts WHERE change_id = ?',
+  ).all(intent.change_id)) {
+    const archivedPath = rebindRegistryPath(
+      artifact.path, intent.source, intent.destination,
+    );
+    const digest = artifact.digest || artifact.content_hash;
+    if (archivedPath && digest) originalByPath.set(archivedPath, digest);
+  }
+  const contextPaths = new Set();
+  for (const snapshot of db.prepare(
+    'SELECT manifest_path, manifest_hash FROM context_snapshots WHERE change_id = ?',
+  ).all(intent.change_id)) {
+    const archivedPath = rebindRegistryPath(
+      snapshot.manifest_path, intent.source, intent.destination,
+    );
+    if (archivedPath) {
+      contextPaths.add(archivedPath);
+      originalByPath.set(archivedPath, snapshot.manifest_hash);
+    }
+  }
+  const original = new Map();
+  const pathRebound = new Map();
+  for (const relative of tree.files) {
+    const read = readStableProjectFile(rootDir, relative);
+    original.set(relative, read.bytes);
+    const text = read.bytes.toString('utf8');
+    if (!Buffer.from(text, 'utf8').equals(read.bytes)) {
+      if (read.bytes.includes(Buffer.from(intent.source))) {
+        throw new ChangeWorkflowError(
+          'ARCHIVE_REBIND_UNSUPPORTED',
+          `archive packet contains a binary active-root reference: ${relative}`,
+        );
+      }
+      pathRebound.set(relative, read.bytes);
+      continue;
+    }
+    let next = replaceArchiveAuthorityText(
+      text, intent.source, intent.destination,
+    );
+    if (contextPaths.has(relative)) {
+      let manifest;
+      try { manifest = JSON.parse(next); } catch (error) {
+        throw new ChangeWorkflowError(
+          'ARCHIVE_CONTEXT_INVALID',
+          `archived Context Manifest cannot be parsed: ${relative}: ${error.message}`,
+        );
+      }
+      if (manifest.change?.id !== intent.change_id) {
+        throw new ChangeWorkflowError(
+          'ARCHIVE_CONTEXT_INVALID',
+          `archived Context Manifest belongs to another change: ${relative}`,
+        );
+      }
+      manifest.change.status = 'archived';
+      next = `${JSON.stringify(manifest, null, 2)}\n`;
+    }
+    pathRebound.set(relative, Buffer.from(next));
+  }
+
+  let current = new Map(pathRebound);
+  for (let iteration = 0; iteration < 20; iteration += 1) {
+    const digestMap = new Map();
+    for (const [relative, beforeDigest] of originalByPath) {
+      const bytes = current.get(relative);
+      if (bytes) {
+        digestMap.set(
+          beforeDigest,
+          crypto.createHash('sha256').update(bytes).digest('hex'),
+        );
+      }
+    }
+    const next = new Map();
+    let changed = false;
+    for (const [relative, baseBytes] of pathRebound) {
+      const text = baseBytes.toString('utf8');
+      if (!Buffer.from(text, 'utf8').equals(baseBytes)) {
+        next.set(relative, baseBytes);
+        continue;
+      }
+      const bytes = Buffer.from(
+        replaceArchiveAuthorityText(
+          text, intent.source, intent.destination, digestMap,
+        ),
+      );
+      next.set(relative, bytes);
+      if (!bytes.equals(current.get(relative))) changed = true;
+    }
+    current = next;
+    if (!changed) break;
+    if (iteration === 19) {
+      throw new ChangeWorkflowError(
+        'ARCHIVE_REBIND_CYCLE',
+        'archive packet digest references did not converge',
+      );
+    }
+  }
+  return [...original.entries()].flatMap(([relative, before]) => {
+    const after = current.get(relative);
+    if (after.equals(before)) return [];
+    return [{
+      relative_path: path.posix.relative(intent.destination, relative),
+      before_digest: crypto.createHash('sha256').update(before).digest('hex'),
+      after_digest: crypto.createHash('sha256').update(after).digest('hex'),
+      before_base64: before.toString('base64'),
+      after_base64: after.toString('base64'),
+    }];
+  }).sort((left, right) => left.relative_path.localeCompare(right.relative_path));
+}
+
+function archiveRebindState(db, intent, rootDir) {
+  const existing = archiveJournal.readArchiveRebind(rootDir, intent);
+  const entries = existing?.entries || buildArchiveRebindEntries(db, intent, rootDir);
+  const journal = archiveJournal.prepareArchiveRebind(
+    rootDir, intent, existing ? null : entries,
+  );
+  const byPath = new Map(journal.entries.map((entry) => [
+    `${intent.destination}/${entry.relative_path}`,
+    entry,
+  ]));
+  const digestMap = new Map(journal.entries.map(
+    (entry) => [entry.before_digest, entry.after_digest],
+  ));
+  return { journal, byPath, digestMap };
+}
+
+function finalizeArchive(db, intent, { rootDir, journalIntent = intent }) {
   const change = readChange(db, intent.change_id);
   if (!change) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${intent.change_id} not found`);
-  const destination = safeRelativePath(rootDir, intent.destination);
-  const relative = path.relative(rootDir, destination);
-  if (change.status === 'archived' && change.artifact_root === relative) {
+  try {
+    archiveJournal.verifyArchiveIntent(rootDir, journalIntent, { location: 'destination' });
+  } catch (error) {
+    throw new ChangeWorkflowError(
+      'ARCHIVE_PATH_UNSAFE',
+      `archive transition cannot trust its physical destination: ${error.message}`,
+      { cause: error.code || error.message },
+    );
+  }
+  const relative = artifacts.normalizeRelativePath(intent.destination);
+  const destination = safeRelativePath(rootDir, relative);
+  if (change.status === 'archived'
+    && artifacts.normalizeRelativePath(change.artifact_root) === relative) {
     return { change, archive_path: destination };
   }
   if (change.status !== 'ready') {
     throw new ChangeWorkflowError('CHANGE_NOT_READY', `change ${change.id} must be ready to finish archive`);
   }
-  if (!fs.existsSync(destination)) {
-    throw new ChangeWorkflowError('ARCHIVE_DESTINATION_MISSING', `archive destination missing: ${relative}`);
+  const rebind = archiveRebindState(db, journalIntent, rootDir);
+  const archivedReconciliationPath = rebindRegistryPath(
+    intent.reconciliation_path, intent.source, relative,
+  );
+  const reconciliationRead = readStableProjectFile(
+    rootDir, archivedReconciliationPath, { encoding: 'utf8' },
+  );
+  let reconciliationManifest;
+  try { reconciliationManifest = JSON.parse(reconciliationRead.text); } catch (error) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_INVALID',
+      `archived reconciliation manifest is invalid JSON: ${error.message}`,
+    );
+  }
+  if (!validateReconciliationSchema(reconciliationManifest)
+    || reconciliationManifest.change_id !== change.id) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_MANIFEST_INVALID',
+      'archived reconciliation manifest no longer matches its accepted schema and Change',
+      { errors: validateReconciliationSchema.errors || [] },
+    );
+  }
+  const reconciliationDigest = reconciliationRead.digest;
+  let summaryReader;
+  try {
+    summaryReader = openStableProjectRead(rootDir, `${relative}/archive-summary.md`);
+  } catch (error) {
+    throw new ChangeWorkflowError(
+      'ARCHIVE_PATH_UNSAFE', 'archive summary cannot be read safely',
+      { cause: error.code || error.message },
+    );
   }
   const baselineHealthBefore = baselines.inspectBaseline(db, { rootDir });
   const breakGlass = Boolean(
@@ -1181,74 +1695,176 @@ function finalizeArchive(db, intent, { rootDir }) {
       && change.kind === 'incident'
       && change.baseline_bypass?.mode === 'incident_break_glass',
   );
+  try {
   ops.tx(db, () => {
     db.prepare(
       "UPDATE changes SET status = 'archived', artifact_root = ?, updated_at = ?, closed_at = ? WHERE id = ?",
     ).run(relative, nowIso(), nowIso(), change.id);
-    const prefix = `${intent.source}${path.sep}`;
-    const artifactRows = db.prepare('SELECT id, path FROM artifacts WHERE change_id = ?').all(change.id);
+    const artifactRows = db.prepare(
+      `SELECT id, path, digest, content_hash, before_digest, metadata_json, provenance_json
+       FROM artifacts WHERE change_id = ?`,
+    ).all(change.id);
     for (const artifact of artifactRows) {
-      if (artifact.path !== intent.source && !artifact.path.startsWith(prefix)) continue;
-      const suffix = path.relative(intent.source, artifact.path);
-      const archivedPath = suffix ? path.join(relative, suffix) : relative;
-      db.prepare('UPDATE artifacts SET path = ?, updated_at = ? WHERE id = ?')
-        .run(archivedPath, nowIso(), artifact.id);
+      const archivedPath = rebindRegistryPath(
+        artifact.path, intent.source, relative,
+      );
+      if (!archivedPath) continue;
+      const rebound = rebind.byPath.get(archivedPath);
+      if (rebound) {
+        db.prepare(
+          `UPDATE artifacts
+           SET digest = ?, content_hash = ?, before_digest = COALESCE(before_digest, ?),
+               after_digest = ?, metadata_json = ?, provenance_json = ?
+           WHERE id = ?`,
+        ).run(
+          rebound.after_digest,
+          rebound.after_digest,
+          artifact.digest || artifact.content_hash || rebound.before_digest,
+          rebound.after_digest,
+          JSON.stringify(archiveRebindAuthorityValue(
+            parseJson(artifact.metadata_json || '{}', 'artifacts.metadata_json'),
+            intent.source,
+            relative,
+            rebind.digestMap,
+          )),
+          JSON.stringify(archiveRebindAuthorityValue(
+            parseJson(artifact.provenance_json || '{}', 'artifacts.provenance_json'),
+            intent.source,
+            relative,
+            rebind.digestMap,
+          )),
+          artifact.id,
+        );
+      }
+      artifacts.moveArtifactInTx(db, artifact.id, archivedPath, { rootDir });
     }
     const workflowOutputs = db.prepare(
-      `SELECT ws.run_id, ws.step_id, ws.outputs_json
+      `SELECT ws.run_id, ws.step_id, ws.outputs_json, ws.evidence_json,
+              ws.decisions_json, ws.semantic_records_json, ws.blockers_json
        FROM workflow_steps ws JOIN workflow_runs wr ON wr.id = ws.run_id
        WHERE wr.change_id = ?`,
     ).all(change.id);
     for (const step of workflowOutputs) {
-      const outputs = parseJson(step.outputs_json, 'workflow_steps.outputs_json');
-      let changed = false;
-      const moved = outputs.map((output) => {
-        if (output.path !== intent.source && !output.path.startsWith(prefix)) return output;
-        changed = true;
-        const suffix = path.relative(intent.source, output.path);
-        return { ...output, path: suffix ? path.join(relative, suffix) : relative };
-      });
-      if (changed) {
-        db.prepare(
-          'UPDATE workflow_steps SET outputs_json = ?, updated_at = ? WHERE run_id = ? AND step_id = ?',
-        ).run(JSON.stringify(moved), nowIso(), step.run_id, step.step_id);
-      }
+      const rebound = Object.fromEntries([
+        ['outputs_json', parseJson(step.outputs_json, 'workflow_steps.outputs_json')],
+        ['evidence_json', parseJson(step.evidence_json, 'workflow_steps.evidence_json')],
+        ['decisions_json', parseJson(step.decisions_json, 'workflow_steps.decisions_json')],
+        ['semantic_records_json', parseJson(
+          step.semantic_records_json, 'workflow_steps.semantic_records_json',
+        )],
+        ['blockers_json', parseJson(step.blockers_json, 'workflow_steps.blockers_json')],
+      ].map(([field, value]) => [
+        field,
+        JSON.stringify(archiveRebindAuthorityValue(
+          value, intent.source, relative, rebind.digestMap,
+        )),
+      ]));
+      db.prepare(
+        `UPDATE workflow_steps
+         SET outputs_json = ?, evidence_json = ?, decisions_json = ?,
+             semantic_records_json = ?, blockers_json = ?, updated_at = ?
+         WHERE run_id = ? AND step_id = ?`,
+      ).run(
+        rebound.outputs_json,
+        rebound.evidence_json,
+        rebound.decisions_json,
+        rebound.semantic_records_json,
+        rebound.blockers_json,
+        nowIso(),
+        step.run_id,
+        step.step_id,
+      );
     }
     const contextRows = db.prepare(
-      'SELECT id, manifest_path FROM context_snapshots WHERE change_id = ?',
+      `SELECT id, manifest_path, manifest_hash, context_json
+       FROM context_snapshots WHERE change_id = ?`,
     ).all(change.id);
     for (const snapshot of contextRows) {
-      if (snapshot.manifest_path !== intent.source && !snapshot.manifest_path.startsWith(prefix)) continue;
-      const suffix = path.relative(intent.source, snapshot.manifest_path);
-      const archivedPath = suffix ? path.join(relative, suffix) : relative;
-      db.prepare('UPDATE context_snapshots SET manifest_path = ? WHERE id = ?')
-        .run(archivedPath, snapshot.id);
+      const archivedPath = rebindRegistryPath(
+        snapshot.manifest_path, intent.source, relative,
+      );
+      if (!archivedPath) continue;
+      const rebound = rebind.byPath.get(archivedPath);
+      db.prepare(
+        `UPDATE context_snapshots
+         SET manifest_path = ?, manifest_hash = ?, context_json = ? WHERE id = ?`,
+      ).run(
+        archivedPath,
+        rebound?.after_digest || snapshot.manifest_hash,
+        JSON.stringify(archiveRebindAuthorityValue(
+          parseJson(snapshot.context_json || '{}', 'context_snapshots.context_json'),
+          intent.source,
+          relative,
+          rebind.digestMap,
+        )),
+        snapshot.id,
+      );
     }
-    const archivedSummary = path.join(destination, 'archive-summary.md');
+    for (const run of db.prepare(
+      `SELECT id, metadata_json, blockers_json, summary_json, approval_json
+       FROM workflow_runs WHERE change_id = ?`,
+    ).all(change.id)) {
+      db.prepare(
+        `UPDATE workflow_runs
+         SET metadata_json = ?, blockers_json = ?, summary_json = ?, approval_json = ?
+         WHERE id = ?`,
+      ).run(
+        JSON.stringify(archiveRebindAuthorityValue(
+          parseJson(run.metadata_json || '{}', 'workflow_runs.metadata_json'),
+          intent.source, relative, rebind.digestMap,
+        )),
+        JSON.stringify(archiveRebindAuthorityValue(
+          parseJson(run.blockers_json || '[]', 'workflow_runs.blockers_json'),
+          intent.source, relative, rebind.digestMap,
+        )),
+        JSON.stringify(archiveRebindAuthorityValue(
+          parseJson(run.summary_json || '{}', 'workflow_runs.summary_json'),
+          intent.source, relative, rebind.digestMap,
+        )),
+        run.approval_json === null
+          ? null
+          : JSON.stringify(archiveRebindAuthorityValue(
+            parseJson(run.approval_json, 'workflow_runs.approval_json'),
+            intent.source, relative, rebind.digestMap,
+          )),
+        run.id,
+      );
+    }
+    db.prepare(
+      `UPDATE trace_links
+       SET source_ref = REPLACE(source_ref, ?, ?),
+           target_ref = REPLACE(target_ref, ?, ?)
+       WHERE change_id = ?`,
+    ).run(intent.source, relative, intent.source, relative, change.id);
     upsertArtifact(db, {
       change_id: change.id, kind: 'archive_summary',
-      artifactPath: path.relative(rootDir, archivedSummary),
-      contentHash: crypto.createHash('sha256').update(fs.readFileSync(archivedSummary)).digest('hex'),
+      artifactPath: `${relative}/archive-summary.md`,
+      contentHash: summaryReader.digest,
       metadata: {
         baseline_updates: intent.baseline_updates,
         no_baseline_change_reason: intent.no_baseline_change_reason,
       },
+      terminal: true,
+      rootDir,
     });
-    const reconciliationSuffix = path.relative(intent.source, intent.reconciliation_path);
-    const archivedReconciliationPath = path.join(relative, reconciliationSuffix);
     upsertArtifact(db, {
       change_id: change.id, kind: 'baseline_reconciliation',
       artifactPath: archivedReconciliationPath,
-      contentHash: intent.reconciliation_digest,
+      contentHash: reconciliationDigest,
       metadata: {
-        schema: intent.reconciliation_manifest.$schema,
-        semantic_changes: intent.reconciliation_manifest.semantic_changes.map((item) => item.id),
-        resolved_gap_ids: intent.reconciliation_manifest.resolved_gap_ids,
-        resolved_unknowns: intent.reconciliation_manifest.resolved_unknowns,
+        schema: reconciliationManifest.$schema,
+        semantic_changes: reconciliationManifest.semantic_changes.map((item) => item.id),
+        resolved_gap_ids: reconciliationManifest.resolved_gap_ids,
+        resolved_unknowns: reconciliationManifest.resolved_unknowns,
       },
+      terminal: true,
+      rootDir,
     });
-    db.prepare("UPDATE artifacts SET status = 'archived', updated_at = ? WHERE change_id = ?")
-      .run(nowIso(), change.id);
+    for (const artifact of db.prepare(
+      'SELECT id FROM artifacts WHERE change_id = ? ORDER BY id',
+    ).all(change.id)) {
+      artifacts.setArtifactStatusInTx(db, artifact.id, 'archived');
+    }
     if (breakGlass) {
       const currentBaseline = baselines.readBaseline(db);
       if (currentBaseline) {
@@ -1268,7 +1884,8 @@ function finalizeArchive(db, intent, { rootDir }) {
     } else {
       baselines.reconcileBaseline(db, {
         baseline_updates: intent.baseline_updates, change_id: change.id,
-        reconciliation: intent.reconciliation_manifest,
+        reconciliation: reconciliationManifest,
+        accept_delivery_worktree: true,
       }, { rootDir });
       const baselineHealth = baselines.inspectBaseline(db, { rootDir });
       if (baselineHealth.blockers.length > 0) {
@@ -1285,11 +1902,26 @@ function finalizeArchive(db, intent, { rootDir }) {
         archive_path: relative, baseline_updates: intent.baseline_updates,
         no_baseline_change_reason: intent.no_baseline_change_reason,
         reconciliation_path: archivedReconciliationPath,
-        reconciliation_digest: intent.reconciliation_digest,
+        reconciliation_digest: reconciliationDigest,
         baseline_bypass: breakGlass,
       },
     });
+    summaryReader.verify();
+    try {
+      archiveJournal.verifyArchiveIntent(
+        rootDir, journalIntent, { location: 'destination' },
+      );
+    } catch (error) {
+      throw new ChangeWorkflowError(
+        'ARCHIVE_PATH_UNSAFE',
+        `archive transition changed physical identity before commit: ${error.message}`,
+        { cause: error.code || error.message },
+      );
+    }
   });
+  } finally {
+    summaryReader.close();
+  }
   return {
     change: readChange(db, change.id), archive_path: destination,
     baseline_bypass: breakGlass,
@@ -1302,30 +1934,107 @@ function archiveChange(db, input, { rootDir = process.cwd() } = {}) {
   if (!input.summary || String(input.summary).trim().length < 3) {
     throw new ChangeWorkflowError('VALIDATION_ERROR', 'archive summary required');
   }
-  const updates = Array.isArray(input.baseline_updates) ? input.baseline_updates : [];
-  const noChangeReason = input.no_baseline_change_reason && String(input.no_baseline_change_reason).trim();
-  if (updates.length === 0 && !noChangeReason) {
-    throw new ChangeWorkflowError('BASELINE_RECONCILIATION_REQUIRED', 'baseline updates or no-change reason required');
-  }
-  for (const file of updates) {
-    if (!fs.existsSync(safeRelativePath(rootDir, file))) {
-      throw new ChangeWorkflowError('BASELINE_FILE_MISSING', `baseline update missing: ${file}`);
-    }
-  }
   if (!['ready', 'archived'].includes(change.status)) {
     throw new ChangeWorkflowError('CHANGE_NOT_READY', `change ${input.id} must converge before archive`);
   }
-  const reconciliation = readReconciliationManifest(db, change, input, rootDir);
-  const prepared = archiveJournal.prepareArchiveMove({
-    rootDir, change, summary: String(input.summary), baselineUpdates: updates,
-    noBaselineChangeReason: noChangeReason || null,
-    reconciliationPath: reconciliation.relative,
-    reconciliationDigest: reconciliation.digest,
-    reconciliationManifest: reconciliation.manifest,
-  });
+  if (change.status === 'archived') {
+    deliveryTransaction.completeDeliveryTransaction({
+      rootDir,
+      changeId: change.id,
+    });
+    return {
+      change,
+      archive_path: safeRelativePath(rootDir, change.artifact_root),
+      idempotent: true,
+    };
+  }
+
+  let packet = null;
+  if (changePacket.readDeltaAuthority(db, change.id)) {
+    workflows.validateDeliveryPrerequisites(db, { change_id: change.id }, rootDir);
+    packet = changePacket.deliveryEntries(db, change, { rootDir });
+  }
+  const requestedUpdates = Array.isArray(input.baseline_updates)
+    ? input.baseline_updates.map((item) => artifacts.normalizeRelativePath(item))
+    : null;
+  const updates = packet
+    ? packet.baseline_updates
+    : (requestedUpdates || []);
+  if (packet && requestedUpdates
+    && JSON.stringify([...requestedUpdates].sort()) !== JSON.stringify([...updates].sort())) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_CONFLICT',
+      'baseline_updates must match the typed Change delta exactly',
+    );
+  }
+  const requestedNoChange = input.no_baseline_change_reason
+    && String(input.no_baseline_change_reason).trim();
+  const noChangeReason = packet
+    ? (packet.delta.value.no_semantic_change_reason || requestedNoChange || null)
+    : requestedNoChange;
+  if (updates.length === 0 && !noChangeReason) {
+    throw new ChangeWorkflowError(
+      'BASELINE_RECONCILIATION_REQUIRED',
+      'baseline updates or no-change reason required',
+    );
+  }
+
+  const reconciliation = packet
+    ? generatePacketReconciliation(db, change, packet, rootDir)
+    : readReconciliationManifest(db, change, input, rootDir);
+  let delivery = null;
+  let prepared = null;
+  try {
+    if (packet) {
+      delivery = deliveryTransaction.beginDeliveryTransaction({
+        rootDir,
+        changeId: change.id,
+        entries: packet.entries,
+      });
+    }
+    for (const file of updates) {
+      if (!fs.existsSync(safeRelativePath(rootDir, file))) {
+        throw new ChangeWorkflowError(
+          'BASELINE_FILE_MISSING', `baseline update missing: ${file}`,
+        );
+      }
+    }
+    prepared = archiveJournal.prepareArchiveMove({
+      rootDir, change, summary: String(input.summary), baselineUpdates: updates,
+      noBaselineChangeReason: noChangeReason || null,
+      reconciliationPath: reconciliation.relative,
+      reconciliationDigest: reconciliation.journal_intent?.reconciliation_digest
+        || reconciliation.digest,
+      reconciliationManifest: reconciliation.journal_intent?.reconciliation_manifest
+        || reconciliation.manifest,
+    });
+  } catch (error) {
+    if (delivery) {
+      try {
+        deliveryTransaction.rollbackDeliveryTransaction({
+          rootDir,
+          changeId: change.id,
+        });
+      } catch (rollbackError) {
+        throw new ChangeWorkflowError('DELIVERY_RECOVERY_REQUIRED', error.message, {
+          cause: error.code || error.message,
+          rollback: rollbackError.code || rollbackError.message,
+        });
+      }
+    }
+    throw error;
+  }
+  const authoritativeIntent = {
+    ...prepared.intent,
+    reconciliation_digest: reconciliation.digest,
+    reconciliation_manifest: reconciliation.manifest,
+  };
   let result;
   try {
-    result = finalizeArchive(db, prepared.intent, { rootDir });
+    result = finalizeArchive(db, authoritativeIntent, {
+      rootDir,
+      journalIntent: prepared.intent,
+    });
   } catch (error) {
     try { archiveJournal.rollbackArchiveIntent(rootDir, prepared.intent); }
     catch (rollbackError) {
@@ -1333,10 +2042,36 @@ function archiveChange(db, input, { rootDir = process.cwd() } = {}) {
         cause: error.code || error.message, rollback: rollbackError.code || rollbackError.message,
       });
     }
+    if (delivery) {
+      try {
+        deliveryTransaction.rollbackDeliveryTransaction({
+          rootDir,
+          changeId: change.id,
+        });
+      } catch (rollbackError) {
+        throw new ChangeWorkflowError('DELIVERY_RECOVERY_REQUIRED', error.message, {
+          cause: error.code || error.message,
+          rollback: rollbackError.code || rollbackError.message,
+        });
+      }
+    }
     throw error;
   }
   try { archiveJournal.completeArchiveIntent(rootDir, prepared.intent); }
   catch (error) { result.recovery_warning = `ARCHIVE_JOURNAL_CLEANUP_PENDING:${error.message}`; }
+  if (delivery) {
+    try {
+      deliveryTransaction.completeDeliveryTransaction({
+        rootDir,
+        changeId: change.id,
+      });
+    } catch (error) {
+      result.recovery_warning = [
+        result.recovery_warning,
+        `DELIVERY_JOURNAL_CLEANUP_PENDING:${error.message}`,
+      ].filter(Boolean).join(';');
+    }
+  }
   return result;
 }
 
@@ -1355,9 +2090,20 @@ function recoverInterruptedArchives(db, { rootDir = process.cwd() } = {}) {
         archiveJournal.completeArchiveIntent(rootDir, record.intent);
         result.cleaned += 1;
         result.items.push({ change_id: change.id, status: 'cleaned' });
-      } else if (change?.status === 'ready' && fs.existsSync(record.destination)
-        && !fs.existsSync(record.source)) {
-        finalizeArchive(db, record.intent, { rootDir });
+      } else if (change?.status === 'ready' && record.location === 'destination') {
+        const reconciliation = readReconciliationManifest(db, change, {
+          reconciliation_path: record.intent.reconciliation_path,
+          baseline_updates: record.intent.baseline_updates,
+        }, rootDir);
+        const authoritativeIntent = {
+          ...record.intent,
+          reconciliation_digest: reconciliation.digest,
+          reconciliation_manifest: reconciliation.manifest,
+        };
+        finalizeArchive(db, authoritativeIntent, {
+          rootDir,
+          journalIntent: record.intent,
+        });
         archiveJournal.completeArchiveIntent(rootDir, record.intent);
         result.resumed += 1;
         result.items.push({ change_id: change.id, status: 'resumed' });
@@ -1383,6 +2129,14 @@ function recoverInterruptedArchives(db, { rootDir = process.cwd() } = {}) {
       }
     }
   }
+  const archivedChangeIds = new Set(
+    db.prepare("SELECT id FROM changes WHERE status = 'archived'").all().map((row) => row.id),
+  );
+  result.delivery = deliveryTransaction.recoverDeliveryTransactions({
+    rootDir,
+    archivedChangeIds,
+  });
+  result.failed += result.delivery.failed;
   return result;
 }
 
@@ -1392,6 +2146,8 @@ module.exports = {
   readChange,
   listChanges,
   updateChange,
+  recordDelta,
+  recordDocumentationReconciliation,
   compileContext,
   readBreadcrumb: contextSpine.readBreadcrumb,
   proposeSpecLearning: specLearning.proposeSpecLearning,

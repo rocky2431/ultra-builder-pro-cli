@@ -15,6 +15,8 @@ const archiveJournal = require('./archive-journal.cjs');
 const workflows = require('./workflow-state.cjs');
 const decisions = require('./decision-dialogue.cjs');
 const planStore = require('./plan-store.cjs');
+const artifactRegistry = require('./artifact-registry.cjs');
+const contextSpine = require('./context-spine.cjs');
 const {
   seedReadyBaseline,
   seedCompletedWorkflowStructure,
@@ -29,7 +31,9 @@ function fixture() {
   fs.writeFileSync(path.join(rootDir, 'README.md'), '# Fixture\n');
   execFileSync('git', ['add', 'README.md'], { cwd: rootDir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: rootDir });
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   seedReadyBaseline(db, { rootDir });
   return { rootDir, db };
 }
@@ -82,6 +86,7 @@ function createExecutableTask(db, input) {
 
 function writeReconciliation(fx, {
   changeId, updates = [], noChangeReason = null, resolvedGapIds = [], resolvedUnknowns = [],
+  verificationEvidence = 'The reconciled specification and baseline state were read back.',
 } = {}) {
   const baseline = baselines.readBaseline(fx.db);
   const semanticChanges = updates.map((relative) => {
@@ -109,11 +114,60 @@ function writeReconciliation(fx, {
     resolved_unknowns: resolvedUnknowns,
     verification: [{
       name: 'reconciliation read-back', command: 'ubp status', status: 'pass',
-      evidence: 'The reconciled specification and baseline state were read back.',
+      evidence: verificationEvidence,
     }],
     semantic_no_change_reason: updates.length === 0 ? noChangeReason : null,
   }, null, 2)}\n`);
+  artifactRegistry.recordArtifact(fx.db, {
+    id: `${changeId}-baseline-reconciliation`,
+    owner_type: 'change',
+    owner_id: changeId,
+    kind: 'baseline_reconciliation',
+    path: relative,
+    source_refs: [{ type: 'change', id: changeId, relation: 'produced_for' }],
+    consumer_refs: [],
+    provenance: { writer: 'change-workflow-test' },
+    metadata: { terminal_role: true },
+  }, { rootDir: fx.rootDir });
   return relative;
+}
+
+function publishReboundReconciliationWithoutDbCommit(fx, input) {
+  const change = changes.readChange(fx.db, input.id);
+  const activeFile = path.join(fx.rootDir, input.reconciliation_path);
+  const before = fs.readFileSync(activeFile);
+  const interrupted = archiveJournal.prepareArchiveMove({
+    rootDir: fx.rootDir,
+    change,
+    summary: input.summary,
+    baselineUpdates: input.baseline_updates || [],
+    noBaselineChangeReason: input.no_baseline_change_reason || null,
+    reconciliationPath: input.reconciliation_path,
+    reconciliationDigest: require('node:crypto').createHash('sha256')
+      .update(before).digest('hex'),
+    reconciliationManifest: JSON.parse(before.toString('utf8')),
+  });
+  const archivedRelative = path.posix.join(
+    interrupted.intent.destination,
+    path.posix.relative(interrupted.intent.source, input.reconciliation_path),
+  );
+  const archivedFile = path.join(fx.rootDir, archivedRelative);
+  const after = Buffer.from(
+    fs.readFileSync(archivedFile, 'utf8')
+      .replaceAll(interrupted.intent.source, interrupted.intent.destination),
+  );
+  archiveJournal.prepareArchiveRebind(fx.rootDir, interrupted.intent, [{
+    relative_path: path.posix.relative(interrupted.intent.destination, archivedRelative),
+    before_digest: require('node:crypto').createHash('sha256').update(before).digest('hex'),
+    after_digest: require('node:crypto').createHash('sha256').update(after).digest('hex'),
+    before_base64: before.toString('base64'),
+    after_base64: after.toString('base64'),
+  }]);
+  return {
+    interrupted,
+    archivedRelative,
+    afterDigest: require('node:crypto').createHash('sha256').update(after).digest('hex'),
+  };
 }
 
 function seedGateWorkflows(fx, changeId) {
@@ -156,6 +210,8 @@ function seedGateWorkflows(fx, changeId) {
     workflows.DEFINITION_VERSION, changeId, null,
     JSON.stringify({
       change_id: changeId, task_ids: taskIds, passed: true,
+      acceptance_ids: changes.readChange(fx.db, changeId).contract.acceptance
+        .map((item) => item.id).sort(),
       git_commit: checkout.head, worktree_digest: checkout.digest,
       report_path: `.ultra/reports/tests/gate-test-${changeId}.json`,
       report_digest: 'fixture-test-report', regression_signal: regressionSignal,
@@ -177,6 +233,95 @@ function seedGateWorkflows(fx, changeId) {
     }), ts, ts, ts,
   );
   seedCompletedWorkflowStructure(fx.db, `gate-review-${changeId}`, 'review', ts);
+}
+
+function seedNoopPacketAndPlan(fx, changeId) {
+  const change = changes.readChange(fx.db, changeId);
+  const baseline = baselines.readBaseline(fx.db);
+  const tasks = fx.db.prepare('SELECT id FROM tasks WHERE change_id = ? ORDER BY id')
+    .all(changeId).map((row) => ops.readTask(fx.db, row.id));
+  const planningContext = changes.compileContext(fx.db, {
+    id: changeId,
+    role: 'plan',
+    gate: 'planning',
+  }, { rootDir: fx.rootDir });
+  const savedPlan = planStore.saveChangePlanArtifacts(
+    planStore.buildPlan(tasks, { changeId }),
+    {
+      rootDir: fx.rootDir,
+      change,
+      tasks,
+      context: {
+        snapshot_id: planningContext.manifest.snapshot_id,
+        manifest_path: path.relative(fx.rootDir, planningContext.context_manifest_path),
+        manifest_digest: planningContext.manifest_hash,
+      },
+    },
+  );
+  for (const [id, kind, file] of [
+    [`${changeId}-plan-json`, 'execution_plan', savedPlan.plan_path],
+    [`${changeId}-plan-md`, 'execution_plan_markdown', savedPlan.plan_md_path],
+  ]) {
+    artifactRegistry.recordArtifact(fx.db, {
+      id,
+      owner_type: 'change',
+      owner_id: changeId,
+      kind,
+      path: path.relative(fx.rootDir, file).split(path.sep).join('/'),
+      provenance: { writer: 'change-workflow-test-fixture' },
+      source_refs: [{ type: 'change', id: changeId, relation: 'planned_from' }],
+      consumer_refs: [],
+      metadata: { terminal_role: true },
+    }, { rootDir: fx.rootDir });
+  }
+  const delta = changes.recordDelta(fx.db, {
+    id: changeId,
+    baseline_anchor: {
+      baseline_id: baseline.id,
+      repository_revision: baseline.repository_revision,
+      specs: baseline.spec_refs.map((item) => ({ path: item.path, digest: item.digest })),
+    },
+    decisions: [],
+    non_goals: change.contract.non_goals,
+    acceptance: change.contract.acceptance,
+    documentation_impact: change.docs_impact,
+    unknowns: [],
+    no_semantic_change_reason: 'This fixture changes runtime behavior without baseline spec mutations.',
+    mutations: [],
+  }, { rootDir: fx.rootDir });
+  changes.recordDocumentationReconciliation(fx.db, {
+    id: changeId,
+    delta_artifact_id: delta.artifact.id,
+    delta_digest: delta.artifact.digest,
+    no_change_reason: 'The accepted Change has no documentation mutation.',
+    documents: [],
+  }, { rootDir: fx.rootDir });
+}
+
+function prepareReadyArchiveChange(fx, changeId) {
+  changes.createChange(fx.db, { ...completeChangeInput(),
+    id: changeId,
+    title: `Archive ${changeId}`,
+    kind: 'quick',
+    intent: `Archive ${changeId} without weakening artifact authority.`,
+    docs_impact: { status: 'none', files: [], rationale: 'Workflow integrity only.' },
+  }, { rootDir: fx.rootDir });
+  const taskId = `${changeId}-task`;
+  createExecutableTask(fx.db, {
+    id: taskId, title: `Complete ${changeId}`, type: 'bugfix', priority: 'P0',
+    change_id: changeId,
+  });
+  ops.updateTaskStatus(fx.db, taskId, 'in_progress');
+  ops.updateTaskStatus(fx.db, taskId, 'completed');
+  changes.compileContext(fx.db, {
+    id: changeId, ...executionContext(taskId),
+  }, { rootDir: fx.rootDir });
+  seedGateWorkflows(fx, changeId);
+  const converged = changes.convergeChange(
+    fx.db, { id: changeId }, { rootDir: fx.rootDir },
+  );
+  assert.equal(converged.ready, true);
+  return changes.readChange(fx.db, changeId);
 }
 
 test('change creation requires a complete contract, classification rationale, and research disposition', () => {
@@ -374,12 +519,38 @@ test('plan and task context remain separate workflows after change intent captur
       change_id: created.change.id, subject: 'Plan one executable stage.',
       metadata: { task_ids: [task.id] },
     }, { rootDir: fx.rootDir });
-    const planPath = path.join(fx.rootDir, '.ultra', 'execution-plan.json');
-    planStore.savePlanArtifact(
+    const planningContext = changes.compileContext(fx.db, {
+      id: created.change.id, role: 'plan', gate: 'planning',
+    }, { rootDir: fx.rootDir });
+    const savedPlan = planStore.saveChangePlanArtifacts(
       planStore.buildPlan([ops.readTask(fx.db, task.id)], { changeId: created.change.id }),
-      planPath,
-      'json',
+      {
+        rootDir: fx.rootDir,
+        change: created.change,
+        tasks: [ops.readTask(fx.db, task.id)],
+        context: {
+          snapshot_id: planningContext.manifest.snapshot_id,
+          manifest_path: path.relative(fx.rootDir, planningContext.context_manifest_path),
+          manifest_digest: planningContext.manifest_hash,
+        },
+      },
     );
+    for (const [id, kind, file] of [
+      ['auto-stage-plan-json', 'execution_plan', savedPlan.plan_path],
+      ['auto-stage-plan-md', 'execution_plan_markdown', savedPlan.plan_md_path],
+    ]) {
+      artifactRegistry.recordArtifact(fx.db, {
+        id,
+        owner_type: 'change',
+        owner_id: created.change.id,
+        kind,
+        path: path.relative(fx.rootDir, file).split(path.sep).join('/'),
+        provenance: { writer: 'change-workflow-test-fixture' },
+        source_refs: [],
+        consumer_refs: [],
+        metadata: { terminal_role: true },
+      }, { rootDir: fx.rootDir });
+    }
     for (const step of plan.steps.filter((item) => item.required)) {
       const definition = workflows.WORKFLOW_DEFINITIONS.plan
         .find((item) => item.id === step.step_id);
@@ -389,7 +560,12 @@ test('plan and task context remain separate workflows after change intent captur
           evidence: [{ kind: 'plan', ref: `fixture:${step.step_id}`, summary: 'Current plan evidence.' }],
         } : {}),
         ...(definition.output_required ? {
-          outputs: [{ path: '.ultra/execution-plan.json', kind: 'execution-plan' }],
+          outputs: [{
+            path: step.step_id === 'compile-context'
+              ? path.relative(fx.rootDir, planningContext.context_manifest_path)
+              : path.relative(fx.rootDir, savedPlan.plan_path),
+            kind: step.step_id === 'compile-context' ? 'context-manifest' : 'execution-plan',
+          }],
         } : {}),
       }, { rootDir: fx.rootDir });
     }
@@ -405,7 +581,7 @@ test('plan and task context remain separate workflows after change intent captur
     assert.equal(changeRun.status, 'completed');
     assert.equal(
       fx.db.prepare("SELECT COUNT(*) AS count FROM context_snapshots WHERE change_id = ?").get(created.change.id).count,
-      1,
+      2,
     );
   } finally {
     cleanup(fx);
@@ -621,25 +797,27 @@ test('convergeChange blocks incomplete work and marks a fully evidenced standard
     assert.equal(blocked.ready, false);
     assert.ok(blocked.blockers.includes('NO_TASKS'));
     assert.ok(blocked.blockers.includes('DOCS_IMPACT_UNKNOWN'));
-    assert.ok(blocked.blockers.includes('SPEC_DELTA_MISSING'));
+    assert.ok(blocked.blockers.includes('CHANGE_DELTA_AUTHORITY_MISSING'));
+    assert.ok(blocked.blockers.includes('CHANGE_PLAN_AUTHORITY_MISSING'));
     const blockedEvent = fx.db.prepare(
       "SELECT type, change_id FROM events WHERE change_id = ? ORDER BY id DESC LIMIT 1",
     ).get('chg-converge');
     assert.deepEqual(blockedEvent, { type: 'change_blocked', change_id: 'chg-converge' });
 
-    fs.mkdirSync(path.join(fx.rootDir, 'docs'), { recursive: true });
-    fs.writeFileSync(path.join(fx.rootDir, 'docs', 'feature.md'), '# Continuous changes\n');
-    const deltaDir = path.join(fx.rootDir, '.ultra', 'changes', 'active', 'chg-converge', 'delta');
-    fs.mkdirSync(deltaDir, { recursive: true });
-    fs.writeFileSync(path.join(deltaDir, 'product.md'), '# Delta\n\nDaily changes remain traceable.\n');
-    fs.writeFileSync(
-      path.join(fx.rootDir, '.ultra', 'changes', 'active', 'chg-converge', 'plan.md'),
-      '# Plan\n\nImplement and verify the continuous change contract.\n',
-    );
-
     changes.updateChange(fx.db, 'chg-converge', {
-      docs_impact: { status: 'required', files: ['docs/feature.md'], rationale: 'User-facing workflow changed.' },
-    });
+      docs_impact: {
+        status: 'none',
+        files: [],
+        rationale: 'This fixture changes runtime authority without public documentation.',
+      },
+    }, { rootDir: fx.rootDir });
+    assert.match(
+      fs.readFileSync(
+        path.join(fx.rootDir, '.ultra', 'changes', 'active', 'chg-converge', 'intent.md'),
+        'utf8',
+      ),
+      /This fixture changes runtime authority without public documentation\./,
+    );
     createExecutableTask(fx.db, {
       id: 'change-task', title: 'Implement change lifecycle', type: 'feature', priority: 'P0',
       change_id: 'chg-converge',
@@ -650,6 +828,7 @@ test('convergeChange blocks incomplete work and marks a fully evidenced standard
       id: 'chg-converge', ...executionContext('change-task'),
     }, { rootDir: fx.rootDir });
 
+    seedNoopPacketAndPlan(fx, 'chg-converge');
     seedGateWorkflows(fx, 'chg-converge');
     const ready = changes.convergeChange(
       fx.db, { id: 'chg-converge' }, { rootDir: fx.rootDir },
@@ -658,6 +837,53 @@ test('convergeChange blocks incomplete work and marks a fully evidenced standard
     assert.equal(ready.status, 'ready');
     assert.deepEqual(ready.blockers, []);
     assert.ok(fs.existsSync(ready.verification_path));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('change convergence requires the exact fresh implementation context for every executable task', () => {
+  const fx = fixture();
+  try {
+    const readmeDigest = require('node:crypto').createHash('sha256')
+      .update(fs.readFileSync(path.join(fx.rootDir, 'README.md'))).digest('hex');
+    changes.createChange(fx.db, { ...completeChangeInput(),
+      id: 'chg-exact-context', title: 'Require exact task context', kind: 'quick',
+      intent: 'Do not let a review packet stand in for the implementation contract.',
+      docs_impact: { status: 'none', files: [], rationale: 'Internal authority contract.' },
+    }, { rootDir: fx.rootDir });
+    createExecutableTask(fx.db, {
+      id: 'exact-context-task', title: 'Bind implementation context', type: 'feature', priority: 'P0',
+      change_id: 'chg-exact-context',
+      context_refs: [{
+        ref: 'README.md', kind: 'spec', reason: 'Accepted fixture contract', required: true,
+        expected_digest: readmeDigest, freshness_policy: 'digest',
+      }],
+    });
+    ops.updateTaskStatus(fx.db, 'exact-context-task', 'in_progress');
+    ops.updateTaskStatus(fx.db, 'exact-context-task', 'completed');
+    changes.compileContext(fx.db, {
+      id: 'chg-exact-context', task_id: 'exact-context-task', role: 'review', gate: 'review',
+    }, { rootDir: fx.rootDir });
+    seedGateWorkflows(fx, 'chg-exact-context');
+
+    const missingImplementation = changes.convergeChange(
+      fx.db, { id: 'chg-exact-context' }, { rootDir: fx.rootDir },
+    );
+    assert.ok(missingImplementation.blockers.includes('TASK_CONTEXT_MISSING:exact-context-task'));
+
+    changes.compileContext(fx.db, {
+      id: 'chg-exact-context', task_id: 'exact-context-task',
+      role: 'implement', gate: 'implementation',
+    }, { rootDir: fx.rootDir });
+    fs.appendFileSync(path.join(fx.rootDir, 'README.md'), '\nContext drift.\n');
+
+    const staleImplementation = changes.convergeChange(
+      fx.db, { id: 'chg-exact-context' }, { rootDir: fx.rootDir },
+    );
+    assert.ok(staleImplementation.blockers.includes(
+      'TASK_CONTEXT_INVALID:exact-context-task:CONTEXT_REQUIRED_REF_STALE:README.md',
+    ));
   } finally {
     cleanup(fx);
   }
@@ -711,6 +937,71 @@ test('change creation rejects a schema-migration compatibility baseline until re
     );
   } finally {
     cleanup(fx);
+  }
+});
+
+test('archiveChange requires an exact current managed reconciliation authority before parsing', () => {
+  const fx = fixture();
+  try {
+    const change = prepareReadyArchiveChange(fx, 'chg-reconciliation-authority');
+    const reconciliationPath = writeReconciliation(fx, {
+      changeId: change.id,
+      noChangeReason: 'No baseline content changed.',
+    });
+    fx.db.prepare(
+      "UPDATE artifacts SET managed = 0 WHERE id = 'chg-reconciliation-authority-baseline-reconciliation'",
+    ).run();
+
+    assert.throws(
+      () => changes.archiveChange(fx.db, {
+        id: change.id,
+        summary: 'Reject unmanaged reconciliation authority.',
+        no_baseline_change_reason: 'No baseline content changed.',
+        reconciliation_path: reconciliationPath,
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_RECONCILIATION_AUTHORITY_INVALID',
+    );
+    assert.ok(fs.existsSync(path.join(fx.rootDir, change.artifact_root)));
+    const archiveRoot = path.join(fx.rootDir, '.ultra', 'changes', 'archive');
+    assert.equal(
+      fs.existsSync(archiveRoot)
+        && fs.readdirSync(archiveRoot).some((entry) => entry.endsWith(`-${change.id}`)),
+      false,
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archiveChange rejects a reconciliation symlink without parsing or moving external bytes', () => {
+  const fx = fixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-reconciliation-external-'));
+  try {
+    const change = prepareReadyArchiveChange(fx, 'chg-reconciliation-symlink');
+    const reconciliationPath = writeReconciliation(fx, {
+      changeId: change.id,
+      noChangeReason: 'No baseline content changed.',
+    });
+    const file = path.join(fx.rootDir, reconciliationPath);
+    const external = path.join(outside, 'external.json');
+    fs.writeFileSync(external, '{"external":"must-not-be-consumed"}\n');
+    fs.rmSync(file);
+    fs.symlinkSync(external, file);
+
+    assert.throws(
+      () => changes.archiveChange(fx.db, {
+        id: change.id,
+        summary: 'Reject external reconciliation bytes.',
+        no_baseline_change_reason: 'No baseline content changed.',
+        reconciliation_path: reconciliationPath,
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_RECONCILIATION_MANIFEST_UNSAFE',
+    );
+    assert.ok(fs.existsSync(path.join(fx.rootDir, change.artifact_root)));
+    assert.equal(fs.readFileSync(external, 'utf8'), '{"external":"must-not-be-consumed"}\n');
+  } finally {
+    cleanup(fx);
+    fs.rmSync(outside, { recursive: true, force: true });
   }
 });
 
@@ -776,6 +1067,34 @@ test('archiveChange moves a ready change into immutable history and records base
     const reconciliationPath = writeReconciliation(fx, {
       changeId: 'chg-archive', updates: ['.ultra/specs/product.md'],
     });
+    const sourcePrefix = '.ultra/changes/active/chg-archive/';
+    for (const artifact of fx.db.prepare(
+      'SELECT id, path FROM artifacts WHERE change_id = ?',
+    ).all('chg-archive')) {
+      if (artifact.path.startsWith(sourcePrefix)) {
+        fx.db.prepare('UPDATE artifacts SET path = ? WHERE id = ?')
+          .run(artifact.path.replaceAll('/', '\\'), artifact.id);
+      }
+    }
+    for (const step of fx.db.prepare(
+      `SELECT ws.run_id, ws.step_id, ws.outputs_json
+       FROM workflow_steps ws JOIN workflow_runs wr ON wr.id = ws.run_id
+       WHERE wr.change_id = ?`,
+    ).all('chg-archive')) {
+      const outputs = JSON.parse(step.outputs_json || '[]').map((output) => (
+        output.path?.startsWith(sourcePrefix)
+          ? { ...output, path: output.path.replaceAll('/', '\\') }
+          : output
+      ));
+      fx.db.prepare(
+        'UPDATE workflow_steps SET outputs_json = ? WHERE run_id = ? AND step_id = ?',
+      ).run(JSON.stringify(outputs), step.run_id, step.step_id);
+    }
+    fx.db.prepare(
+      `UPDATE context_snapshots
+       SET manifest_path = REPLACE(manifest_path, '/', '\\')
+       WHERE change_id = ? AND manifest_path LIKE ?`,
+    ).run('chg-archive', `${sourcePrefix}%`);
 
     const archived = changes.archiveChange(fx.db, {
       id: 'chg-archive', summary: 'Verified quick fix archived.',
@@ -793,6 +1112,7 @@ test('archiveChange moves a ready change into immutable history and records base
     for (const artifact of artifacts) {
       assert.equal(artifact.status, 'archived');
       assert.doesNotMatch(artifact.path, /changes\/active/);
+      assert.doesNotMatch(artifact.path, /\\/);
       assert.ok(fs.existsSync(path.join(fx.rootDir, artifact.path)), artifact.path);
     }
     const changeRun = workflows.listWorkflows(
@@ -800,6 +1120,7 @@ test('archiveChange moves a ready change into immutable history and records base
     )[0];
     for (const output of changeRun.steps.flatMap((step) => step.outputs)) {
       assert.doesNotMatch(output.path, /changes\/active/);
+      assert.doesNotMatch(output.path, /\\/);
       assert.ok(fs.existsSync(path.join(fx.rootDir, output.path)), output.path);
     }
     assert.equal(changeRun.artifact_health.status, 'pass');
@@ -807,7 +1128,15 @@ test('archiveChange moves a ready change into immutable history and records base
       'SELECT manifest_path FROM context_snapshots WHERE change_id = ? ORDER BY created_at DESC LIMIT 1',
     ).get('chg-archive');
     assert.doesNotMatch(archivedContext.manifest_path, /changes\/active/);
+    assert.doesNotMatch(archivedContext.manifest_path, /\\/);
     assert.ok(fs.existsSync(path.join(fx.rootDir, archivedContext.manifest_path)));
+    const archivedContextBytes = fs.readFileSync(
+      path.join(fx.rootDir, archivedContext.manifest_path),
+    );
+    assert.doesNotMatch(
+      archivedContextBytes.toString('utf8'),
+      /\.ultra\/changes\/active\/chg-archive(?:\/|")/,
+    );
     const reconciliation = fx.db.prepare(
       "SELECT type, payload_json FROM events WHERE type = 'baseline_reconciled' ORDER BY id DESC LIMIT 1",
     ).get();
@@ -816,6 +1145,159 @@ test('archiveChange moves a ready change into immutable history and records base
     const reconciled = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
     assert.equal(reconciled.status, 'pass');
     assert.equal(reconciled.baseline.repository_revision, changedHead);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archive crash-resume rebinds Context authority into a self-contained immutable packet', () => {
+  const fx = fixture();
+  try {
+    const changeId = 'chg-context-rebind';
+    const created = changes.createChange(fx.db, { ...completeChangeInput(),
+      id: changeId,
+      title: 'Rebind archived Context authority',
+      kind: 'quick',
+      intent: 'Keep archived Context manifests replayable without active-root references.',
+      docs_impact: { status: 'none', files: [], rationale: 'Authority-only regression.' },
+    }, { rootDir: fx.rootDir });
+    const activeEvidence = `${created.change.artifact_root}/implementation-evidence.md`;
+    fs.writeFileSync(
+      path.join(fx.rootDir, activeEvidence),
+      '# Implementation evidence\n\nChange-owned evidence.\n',
+    );
+    const taskId = `${changeId}-task`;
+    const taskRefs = [{
+      ref: activeEvidence,
+      kind: 'source',
+      reason: 'Change-owned implementation evidence.',
+      required: true,
+    }];
+    createExecutableTask(fx.db, {
+      id: taskId,
+      title: 'Compile a Change-owned Context reference',
+      type: 'bugfix',
+      priority: 'P0',
+      change_id: changeId,
+      context_refs: taskRefs,
+      trace_to: `${activeEvidence}#implementation-evidence`,
+    });
+    ops.updateTaskStatus(fx.db, taskId, 'in_progress');
+    ops.updateTaskStatus(fx.db, taskId, 'completed');
+    const compiled = changes.compileContext(fx.db, {
+      id: changeId,
+      ...executionContext(taskId, { context_refs: taskRefs }),
+    }, { rootDir: fx.rootDir });
+    const activeManifest = path.relative(fx.rootDir, compiled.context_manifest_path)
+      .split(path.sep).join('/');
+    seedGateWorkflows(fx, changeId);
+    const devRunId = `gate-dev-${taskId}`;
+    fx.db.prepare(
+      `UPDATE workflow_steps
+       SET outputs_json = ?, evidence_json = ?
+       WHERE run_id = ? AND step_id = 'compile-context'`,
+    ).run(
+      JSON.stringify([{
+        path: activeManifest,
+        kind: 'context-manifest',
+        digest: compiled.manifest_hash,
+      }]),
+      JSON.stringify([{
+        kind: 'context',
+        ref: activeManifest,
+        digest: compiled.manifest_hash,
+        summary: 'Compiled Context authority.',
+      }]),
+      devRunId,
+    );
+    const converged = changes.convergeChange(
+      fx.db, { id: changeId }, { rootDir: fx.rootDir },
+    );
+    assert.equal(converged.ready, true);
+    const input = {
+      id: changeId,
+      summary: 'Archive the replayable Context packet.',
+      no_baseline_change_reason: 'No baseline content changed.',
+      reconciliation_path: writeReconciliation(fx, {
+        changeId,
+        noChangeReason: 'No baseline content changed.',
+      }),
+    };
+    const reconciliationBytes = fs.readFileSync(
+      path.join(fx.rootDir, input.reconciliation_path),
+    );
+    const interrupted = archiveJournal.prepareArchiveMove({
+      rootDir: fx.rootDir,
+      change: changes.readChange(fx.db, changeId),
+      summary: input.summary,
+      baselineUpdates: [],
+      noBaselineChangeReason: input.no_baseline_change_reason,
+      reconciliationPath: input.reconciliation_path,
+      reconciliationDigest: require('node:crypto').createHash('sha256')
+        .update(reconciliationBytes).digest('hex'),
+      reconciliationManifest: JSON.parse(reconciliationBytes.toString('utf8')),
+    });
+    assert.equal(interrupted.location, 'destination');
+
+    const archived = changes.archiveChange(fx.db, input, { rootDir: fx.rootDir });
+    const retried = changes.archiveChange(fx.db, input, { rootDir: fx.rootDir });
+    assert.equal(retried.idempotent, true);
+    const archivedRoot = path.relative(fx.rootDir, archived.archive_path)
+      .split(path.sep).join('/');
+    const snapshot = fx.db.prepare(
+      `SELECT id, manifest_path, manifest_hash, role, gate
+       FROM context_snapshots WHERE change_id = ? ORDER BY created_at DESC LIMIT 1`,
+    ).get(changeId);
+    const manifestBytes = fs.readFileSync(path.join(fx.rootDir, snapshot.manifest_path));
+    const manifestDigest = require('node:crypto').createHash('sha256')
+      .update(manifestBytes).digest('hex');
+    assert.equal(snapshot.manifest_hash, manifestDigest);
+    assert.match(manifestBytes.toString('utf8'), new RegExp(archivedRoot));
+    assert.doesNotMatch(
+      manifestBytes.toString('utf8'),
+      new RegExp(`\\.ultra/changes/active/${changeId}(?:/|")`),
+    );
+    const contextArtifact = fx.db.prepare(
+      `SELECT path, digest, content_hash FROM artifacts
+       WHERE change_id = ? AND kind = 'context_manifest'`,
+    ).get(changeId);
+    assert.equal(contextArtifact.path, snapshot.manifest_path);
+    assert.equal(contextArtifact.digest, manifestDigest);
+    assert.equal(contextArtifact.content_hash, manifestDigest);
+    const devContextStep = fx.db.prepare(
+      `SELECT outputs_json, evidence_json FROM workflow_steps
+       WHERE run_id = ? AND step_id = 'compile-context'`,
+    ).get(devRunId);
+    const [output] = JSON.parse(devContextStep.outputs_json);
+    const [evidence] = JSON.parse(devContextStep.evidence_json);
+    assert.equal(output.path, snapshot.manifest_path);
+    assert.equal(output.digest, manifestDigest);
+    assert.equal(evidence.ref, snapshot.manifest_path);
+    assert.equal(evidence.digest, manifestDigest);
+    const replay = contextSpine.validateContextSnapshot(fx.db, {
+      change_id: changeId,
+      task_id: taskId,
+      role: snapshot.role,
+      gate: snapshot.gate,
+    }, { rootDir: fx.rootDir });
+    assert.equal(replay.blockers.includes('CONTEXT_MANIFEST_STALE'), false);
+    assert.equal(replay.blockers.some((item) => item.includes('CONTEXT_REF_')), false);
+
+    const stack = [archived.archive_path];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const child = path.join(current, entry.name);
+        if (entry.isDirectory()) stack.push(child);
+        else if (entry.isFile()) {
+          assert.equal(
+            fs.readFileSync(child).includes(Buffer.from(`.ultra/changes/active/${changeId}`)),
+            false,
+            child,
+          );
+        }
+      }
+    }
   } finally {
     cleanup(fx);
   }
@@ -942,6 +1424,253 @@ test('archiveChange resumes a durable journal after the filesystem move outlives
   }
 });
 
+test('archiveChange resumes after the reconciliation rebind is published before DB commit', () => {
+  const fx = fixture();
+  try {
+    const changeId = 'chg-rebind-before-db-retry';
+    const created = changes.createChange(fx.db, { ...completeChangeInput(),
+      id: changeId,
+      title: 'Retry a published reconciliation rebind',
+      kind: 'quick',
+      intent: 'Resume the committed filesystem authority without rolling it back.',
+      docs_impact: { status: 'none', files: [], rationale: 'Recovery-only behavior.' },
+    }, { rootDir: fx.rootDir });
+    fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = ?").run(changeId);
+    const input = {
+      id: changeId,
+      summary: 'Resume the rebound reconciliation safely.',
+      no_baseline_change_reason: 'No baseline content changed.',
+      reconciliation_path: writeReconciliation(fx, {
+        changeId,
+        noChangeReason: 'No baseline content changed.',
+        verificationEvidence: `${created.change.artifact_root}/verification.log`,
+      }),
+    };
+    const crash = publishReboundReconciliationWithoutDbCommit(fx, input);
+
+    const resumed = changes.archiveChange(fx.db, input, { rootDir: fx.rootDir });
+
+    assert.equal(resumed.change.status, 'archived');
+    assert.equal(resumed.archive_path, crash.interrupted.destination);
+    assert.equal(fs.existsSync(crash.interrupted.source), false);
+    assert.equal(fs.existsSync(crash.interrupted.destination), true);
+    assert.equal(archiveJournal.listArchiveIntents(fx.rootDir).length, 0);
+    const reconciliation = fx.db.prepare(
+      "SELECT path, digest FROM artifacts WHERE change_id = ? AND kind = 'baseline_reconciliation'",
+    ).get(changeId);
+    assert.equal(reconciliation.path, crash.archivedRelative);
+    assert.equal(reconciliation.digest, crash.afterDigest);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archive recovery resumes a published reconciliation rebind instead of rolling it back', () => {
+  const fx = fixture();
+  try {
+    const changeId = 'chg-rebind-before-db-recover';
+    const created = changes.createChange(fx.db, { ...completeChangeInput(),
+      id: changeId,
+      title: 'Recover a published reconciliation rebind',
+      kind: 'quick',
+      intent: 'Let Doctor retain and commit the already published archive bytes.',
+      docs_impact: { status: 'none', files: [], rationale: 'Recovery-only behavior.' },
+    }, { rootDir: fx.rootDir });
+    fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = ?").run(changeId);
+    const input = {
+      id: changeId,
+      summary: 'Recover the rebound reconciliation safely.',
+      no_baseline_change_reason: 'No baseline content changed.',
+      reconciliation_path: writeReconciliation(fx, {
+        changeId,
+        noChangeReason: 'No baseline content changed.',
+        verificationEvidence: `${created.change.artifact_root}/verification.log`,
+      }),
+    };
+    const crash = publishReboundReconciliationWithoutDbCommit(fx, input);
+
+    const recovered = changes.recoverInterruptedArchives(fx.db, { rootDir: fx.rootDir });
+
+    assert.equal(recovered.resumed, 1);
+    assert.equal(recovered.rolled_back, 0);
+    assert.equal(recovered.failed, 0);
+    assert.equal(changes.readChange(fx.db, changeId).status, 'archived');
+    assert.equal(fs.existsSync(crash.interrupted.source), false);
+    assert.equal(fs.existsSync(crash.interrupted.destination), true);
+    assert.equal(archiveJournal.listArchiveIntents(fx.rootDir).length, 0);
+    const reconciliation = fx.db.prepare(
+      "SELECT path, digest FROM artifacts WHERE change_id = ? AND kind = 'baseline_reconciliation'",
+    ).get(changeId);
+    assert.equal(reconciliation.path, crash.archivedRelative);
+    assert.equal(reconciliation.digest, crash.afterDigest);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archiveChange rejects tampered reconciliation bytes after a published rebind', () => {
+  const fx = fixture();
+  try {
+    const changeId = 'chg-rebind-tamper-retry';
+    const created = changes.createChange(fx.db, { ...completeChangeInput(),
+      id: changeId,
+      title: 'Reject a tampered reconciliation retry',
+      kind: 'quick',
+      intent: 'Keep unknown archived bytes outside durable baseline authority.',
+      docs_impact: { status: 'none', files: [], rationale: 'Recovery-only behavior.' },
+    }, { rootDir: fx.rootDir });
+    fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = ?").run(changeId);
+    const input = {
+      id: changeId,
+      summary: 'Reject the tampered rebound reconciliation.',
+      no_baseline_change_reason: 'No baseline content changed.',
+      reconciliation_path: writeReconciliation(fx, {
+        changeId,
+        noChangeReason: 'No baseline content changed.',
+        verificationEvidence: `${created.change.artifact_root}/verification.log`,
+      }),
+    };
+    const crash = publishReboundReconciliationWithoutDbCommit(fx, input);
+    fs.appendFileSync(
+      path.join(fx.rootDir, crash.archivedRelative),
+      '\nTAMPERED AFTER REBIND\n',
+    );
+
+    assert.throws(
+      () => changes.archiveChange(fx.db, input, { rootDir: fx.rootDir }),
+      (error) => error.code === 'BASELINE_RECONCILIATION_AUTHORITY_INVALID',
+    );
+    assert.equal(changes.readChange(fx.db, changeId).status, 'ready');
+    assert.equal(fs.existsSync(crash.interrupted.source), false);
+    assert.equal(fs.existsSync(crash.interrupted.destination), true);
+    assert.equal(
+      fs.existsSync(path.join(crash.interrupted.destination, archiveJournal.INTENT_FILE)),
+      true,
+    );
+    assert.equal(
+      fs.existsSync(path.join(crash.interrupted.destination, archiveJournal.REBIND_FILE)),
+      true,
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archive recovery preserves tampered rebound bytes and journals for explicit repair', () => {
+  const fx = fixture();
+  try {
+    const changeId = 'chg-rebind-tamper-recover';
+    const created = changes.createChange(fx.db, { ...completeChangeInput(),
+      id: changeId,
+      title: 'Preserve a tampered reconciliation recovery',
+      kind: 'quick',
+      intent: 'Fail closed without committing or rolling back unknown archive bytes.',
+      docs_impact: { status: 'none', files: [], rationale: 'Recovery-only behavior.' },
+    }, { rootDir: fx.rootDir });
+    fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = ?").run(changeId);
+    const input = {
+      id: changeId,
+      summary: 'Preserve the tampered rebound reconciliation.',
+      no_baseline_change_reason: 'No baseline content changed.',
+      reconciliation_path: writeReconciliation(fx, {
+        changeId,
+        noChangeReason: 'No baseline content changed.',
+        verificationEvidence: `${created.change.artifact_root}/verification.log`,
+      }),
+    };
+    const crash = publishReboundReconciliationWithoutDbCommit(fx, input);
+    fs.appendFileSync(
+      path.join(fx.rootDir, crash.archivedRelative),
+      '\nTAMPERED BEFORE RECOVERY\n',
+    );
+
+    const recovered = changes.recoverInterruptedArchives(fx.db, { rootDir: fx.rootDir });
+
+    assert.equal(recovered.resumed, 0);
+    assert.equal(recovered.rolled_back, 0);
+    assert.equal(recovered.failed, 1);
+    assert.equal(recovered.items[0].status, 'failed');
+    assert.match(recovered.items[0].error, /ARCHIVE_REBIND_CONFLICT/);
+    assert.equal(changes.readChange(fx.db, changeId).status, 'ready');
+    assert.equal(fs.existsSync(crash.interrupted.source), false);
+    assert.equal(fs.existsSync(crash.interrupted.destination), true);
+    assert.equal(
+      fs.existsSync(path.join(crash.interrupted.destination, archiveJournal.INTENT_FILE)),
+      true,
+    );
+    assert.equal(
+      fs.existsSync(path.join(crash.interrupted.destination, archiveJournal.REBIND_FILE)),
+      true,
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archive crash resume uses reconciliation file truth instead of embedded journal semantics', () => {
+  const fx = fixture();
+  try {
+    const change = prepareReadyArchiveChange(fx, 'chg-journal-semantic-copy');
+    baselines.appendGap(fx.db, {
+      baseline_id: 'test-baseline',
+      gap: {
+        id: 'journal-only-gap',
+        category: 'known_defect',
+        status: 'open',
+        blocking: false,
+        summary: 'Only a verified reconciliation file may resolve this gap.',
+        evidence_refs: ['README.md'],
+        owner: 'test-owner',
+      },
+    });
+    const input = {
+      id: change.id,
+      summary: 'Resume from authoritative reconciliation bytes.',
+      no_baseline_change_reason: 'No baseline content changed.',
+      reconciliation_path: writeReconciliation(fx, {
+        changeId: change.id,
+        noChangeReason: 'No baseline content changed.',
+      }),
+    };
+    const manifestFile = path.join(fx.rootDir, input.reconciliation_path);
+    const manifestBytes = fs.readFileSync(manifestFile);
+    const interrupted = archiveJournal.prepareArchiveMove({
+      rootDir: fx.rootDir,
+      change,
+      summary: input.summary,
+      baselineUpdates: [],
+      noBaselineChangeReason: input.no_baseline_change_reason,
+      reconciliationPath: input.reconciliation_path,
+      reconciliationDigest: require('node:crypto').createHash('sha256')
+        .update(manifestBytes).digest('hex'),
+      reconciliationManifest: JSON.parse(manifestBytes.toString('utf8')),
+    });
+    const journalPath = path.join(interrupted.destination, archiveJournal.INTENT_FILE);
+    const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
+    journal.reconciliation_manifest.resolved_gap_ids = ['journal-only-gap'];
+    fs.writeFileSync(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
+
+    const resumed = changes.archiveChange(fx.db, input, { rootDir: fx.rootDir });
+
+    assert.equal(resumed.change.status, 'archived');
+    const baseline = baselines.readBaseline(fx.db, 'test-baseline');
+    assert.equal(
+      baseline.gaps.find((gap) => gap.id === 'journal-only-gap').status,
+      'open',
+    );
+    const event = fx.db.prepare(
+      "SELECT payload_json FROM events WHERE type = 'baseline_reconciled' ORDER BY id DESC LIMIT 1",
+    ).get();
+    assert.deepEqual(JSON.parse(event.payload_json).resolved_gap_ids, []);
+    const artifact = fx.db.prepare(
+      "SELECT metadata_json FROM artifacts WHERE change_id = ? AND kind = 'baseline_reconciliation'",
+    ).get(change.id);
+    assert.deepEqual(JSON.parse(artifact.metadata_json).resolved_gap_ids, []);
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('provider references reject embedded memory or graph payloads', () => {
   const fx = fixture();
   try {
@@ -1000,15 +1729,52 @@ test('updateChange keeps intent.md synchronized with authoritative change metada
     assert.match(text, /Updated intent with current acceptance behavior\./);
     assert.match(text, /Documentation impact: `required`/);
     const artifact = fx.db.prepare(
-      "SELECT content_hash FROM artifacts WHERE change_id = ? AND kind = 'intent'",
+      `SELECT id, content_hash, before_digest, managed, provenance_json
+       FROM artifacts WHERE change_id = ? AND kind = 'intent'`,
     ).get('chg-update-intent');
     assert.match(artifact.content_hash, /^[0-9a-f]{64}$/);
+    assert.match(artifact.before_digest, /^[0-9a-f]{64}$/);
+    assert.equal(artifact.managed, 1);
+    assert.equal(JSON.parse(artifact.provenance_json).writer, 'change-workflow');
+    assert.deepEqual(
+      fx.db.prepare(
+        `SELECT source_type, source_id, target_type, target_id
+         FROM artifact_edges
+         WHERE (source_type = 'artifact' AND source_id = ?)
+            OR (target_type = 'artifact' AND target_id = ?)
+         ORDER BY source_type, target_type`,
+      ).all(artifact.id, artifact.id).map((edge) => ({
+        source_type: edge.source_type,
+        source_id: edge.source_id,
+        target_type: edge.target_type,
+        target_id: edge.target_id,
+      })),
+      [
+        {
+          source_type: 'artifact', source_id: artifact.id,
+          target_type: 'workflow',
+          target_id: fx.db.prepare(
+            "SELECT id FROM workflow_runs WHERE change_id = 'chg-update-intent'",
+          ).get().id,
+        },
+        {
+          source_type: 'change', source_id: 'chg-update-intent',
+          target_type: 'artifact', target_id: artifact.id,
+        },
+      ],
+    );
+    assert.equal(
+      fx.db.prepare(
+        "SELECT COUNT(*) AS count FROM events WHERE type = 'spec_changed' AND change_id = ?",
+      ).get('chg-update-intent').count,
+      1,
+    );
   } finally {
     cleanup(fx);
   }
 });
 
-test('updateChange invalidates derived tasks and compiled context when semantic authority changes', () => {
+test('updateChange invalidates only registered consumers while compiled context detects semantic drift', () => {
   const fx = fixture();
   try {
     changes.createChange(fx.db, { ...completeChangeInput(),
@@ -1017,6 +1783,13 @@ test('updateChange invalidates derived tasks and compiled context when semantic 
     }, { rootDir: fx.rootDir });
     createExecutableTask(fx.db, {
       id: 'authority-task', title: 'Implement original authority', type: 'feature', priority: 'P0',
+      change_id: 'chg-update-authority',
+    });
+    createExecutableTask(fx.db, {
+      id: 'unrelated-authority-task',
+      title: 'Remain independent of the compiled context',
+      type: 'feature',
+      priority: 'P1',
       change_id: 'chg-update-authority',
     });
     changes.compileContext(fx.db, {
@@ -1033,11 +1806,15 @@ test('updateChange invalidates derived tasks and compiled context when semantic 
     }, { rootDir: fx.rootDir });
 
     assert.equal(ops.readTask(fx.db, 'authority-task').stale, true);
+    assert.equal(ops.readTask(fx.db, 'unrelated-authority-task').stale, false);
     const breadcrumb = changes.readBreadcrumb(
       fx.db, { id: 'chg-update-authority' }, { rootDir: fx.rootDir },
     );
     assert.equal(breadcrumb.readiness, 'blocked');
-    assert.ok(breadcrumb.blockers.includes('CONTEXT_CHANGE_CONTRACT_STALE'));
+    assert.ok(
+      breadcrumb.blockers.includes('CONTEXT_CHANGE_CONTRACT_STALE'),
+      JSON.stringify(breadcrumb),
+    );
     const event = fx.db.prepare(
       "SELECT payload_json FROM events WHERE type = 'change_updated' AND change_id = ? ORDER BY id DESC LIMIT 1",
     ).get('chg-update-authority');
@@ -1179,8 +1956,11 @@ test('compileContext v3 persists role-scoped context and control transitions wit
     assert.equal(compiled.manifest.control.required_transition, null);
 
     const snapshot = fx.db.prepare(
-      'SELECT role, gate, next_action, readiness, context_json, token_budget FROM context_snapshots ORDER BY created_at DESC LIMIT 1',
-    ).get();
+      `SELECT role, gate, next_action, readiness, context_json, token_budget
+       FROM context_snapshots
+       WHERE change_id = ? AND task_id = ? AND role = 'implement' AND gate = 'implementation'
+       ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+    ).get('chg-context-v2', 'context-v2-task');
     assert.equal(snapshot.role, 'implement');
     assert.equal(snapshot.gate, 'implementation');
     assert.equal(snapshot.next_action, '');
@@ -1194,6 +1974,88 @@ test('compileContext v3 persists role-scoped context and control transitions wit
     assert.equal(breadcrumb.role, 'implement');
     assert.equal(breadcrumb.readiness, 'ready');
     assert.match(breadcrumb.context_manifest_hash, /^[0-9a-f]{64}$/);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('compileContext is pure with respect to Change provider authority', () => {
+  const fx = fixture();
+  try {
+    const created = changes.createChange(fx.db, { ...completeChangeInput(),
+      id: 'chg-context-pure', title: 'Compile without mutation', kind: 'quick',
+      intent: 'Context compilation must not rewrite accepted Change authority.',
+      provider_refs: {
+        memory: { provider: 'cloud-mem', reference: 'cmem://accepted', status: 'fresh' },
+      },
+    }, { rootDir: fx.rootDir });
+    const before = changes.readChange(fx.db, created.change.id);
+    const compiled = changes.compileContext(fx.db, {
+      id: created.change.id, role: 'plan', gate: 'planning',
+    }, { rootDir: fx.rootDir });
+    const after = changes.readChange(fx.db, created.change.id);
+
+    assert.deepEqual(after.provider_refs, before.provider_refs);
+    assert.equal(after.updated_at, before.updated_at);
+    assert.deepEqual(compiled.manifest.providers, before.provider_refs);
+    assert.throws(
+      () => changes.compileContext(fx.db, {
+        id: created.change.id,
+        provider_refs: {
+          memory: { provider: 'cloud-mem', reference: 'cmem://override', status: 'fresh' },
+        },
+      }, { rootDir: fx.rootDir }),
+      (error) => error.code === 'CONTEXT_PROVIDER_REFS_MUTATION_UNSUPPORTED',
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('implementation context embeds one bounded task neighborhood and counts inline authority bytes', () => {
+  const fx = fixture();
+  try {
+    const created = changes.createChange(fx.db, { ...completeChangeInput(),
+      id: 'chg-context-scope', title: 'Bound implementation task scope', kind: 'standard',
+      intent: `Keep implementation context bounded.${' accepted context'.repeat(100)}`,
+    }, { rootDir: fx.rootDir });
+    createExecutableTask(fx.db, {
+      id: 'scope-dependency', title: 'Dependency', type: 'feature', priority: 'P0',
+      change_id: created.change.id,
+    });
+    createExecutableTask(fx.db, {
+      id: 'scope-selected', title: 'Selected', type: 'feature', priority: 'P0',
+      change_id: created.change.id, deps: ['scope-dependency'],
+    });
+    createExecutableTask(fx.db, {
+      id: 'scope-integration', title: 'Integration', type: 'feature', priority: 'P1',
+      change_id: created.change.id, deps: ['scope-selected'], slice_kind: 'integration_checkpoint',
+    });
+    createExecutableTask(fx.db, {
+      id: 'scope-unrelated', title: 'Unrelated', type: 'feature', priority: 'P2',
+      change_id: created.change.id,
+    });
+
+    const compiled = changes.compileContext(fx.db, {
+      id: created.change.id, task_id: 'scope-selected', role: 'implement',
+      gate: 'implementation', budget: { max_tokens: 10, max_files: 10 },
+    }, { rootDir: fx.rootDir });
+    assert.deepEqual(
+      compiled.manifest.tasks.map((task) => task.id).sort(),
+      ['scope-dependency', 'scope-integration', 'scope-selected'],
+    );
+    assert.equal(compiled.manifest.tasks.some((task) => task.id === 'scope-unrelated'), false);
+    assert.ok(compiled.manifest.context.inline_token_estimate > 10);
+    assert.equal(
+      compiled.manifest.context.token_estimate,
+      compiled.manifest.context.file_token_estimate
+        + compiled.manifest.context.inline_token_estimate,
+    );
+    assert.ok(compiled.manifest.readiness.warnings.includes('CONTEXT_TOKEN_BUDGET_EXCEEDED'));
+    assert.equal(compiled.manifest.task_context_contract.purpose.includes('scope-selected'), true);
+    assert.deepEqual(compiled.manifest.task_context_contract.constraints, created.change.contract.constraints || []);
+    assert.deepEqual(compiled.manifest.task_context_contract.non_goals, created.change.contract.non_goals || []);
+    assert.deepEqual(compiled.manifest.task_context_contract.recovery, created.change.contract.recovery);
   } finally {
     cleanup(fx);
   }
@@ -1331,7 +2193,7 @@ test('spec-learning candidates are approval-gated and unresolved candidates bloc
       path.join(fx.rootDir, '.ultra', 'changes', 'active', 'chg-learning', 'spec-learning.json'),
       'utf8',
     ));
-    assert.equal(projection.source, '.ultra/state.db');
+    assert.equal(projection.source, '.ultra/.runtime/state.db');
     assert.equal(projection.candidates[0].status, 'applied');
   } finally {
     cleanup(fx);

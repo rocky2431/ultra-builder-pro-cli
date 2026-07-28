@@ -43,7 +43,7 @@ Ultra Builder Pro addresses those gaps with four ideas:
 2. **Low-load user alignment.** The agent investigates observable facts itself
    and asks the user only for material intent, scope, risk, or authorization
    decisions—normally one dependent decision at a time.
-3. **Durable project authority.** `.ultra/state.db` records baselines, changes,
+3. **Durable project authority.** `.ultra/.runtime/state.db` records baselines, changes,
    decisions, workflows, tasks, evidence digests, sessions, incidents, and
    recovery state across hosts and sessions.
 4. **Convergent delivery.** Research, plans, implementation, tests, review, and
@@ -63,7 +63,7 @@ flowchart LR
     U["User<br/>intent and material decisions"] <--> H["Host agent<br/>reasoning and implementation"]
     H <--> S["Ultra skills<br/>task-specific workflows"]
     S <--> M["Ultra MCP<br/>state, evidence, freshness, recovery"]
-    M <--> D[(".ultra/state.db")]
+    M <--> D[(".ultra/.runtime/state.db")]
     H --> A["Code, specifications,<br/>tests and review artifacts"]
     A --> M
     K["Lifecycle hooks<br/>breadcrumb and projection protection"] --> M
@@ -121,6 +121,8 @@ Requirements:
 
 - Node.js 22 or newer;
 - Git for the normal project workflow;
+- Python 3 on a POSIX platform with `dir_fd` filesystem operations for
+  inode-pinned archive finalization and recovery;
 - one or more supported coding-agent hosts.
 
 Install globally into all detected host configuration directories:
@@ -189,7 +191,7 @@ Initialization:
 - identifies the repository root and scope;
 - classifies the repository as greenfield, brownfield, or migrated;
 - initializes Git when needed;
-- creates `.ultra/` and schema 19 project authority;
+- creates `.ultra/` and schema 20 project authority;
 - verifies that the scaffold and database can be read back;
 - completes without silently starting research, creating a commit, adding a
   remote, or pushing anything.
@@ -205,16 +207,18 @@ The common path after baseline approval is:
 ```text
 ultra-change
   -> optional ultra-think or bounded ultra-research
-  -> ultra-plan when planning is needed
+  -> ultra-plan
   -> ultra-dev
   -> risk-selected ultra-test
   -> ultra-review
   -> ultra-deliver
 ```
 
-That diagram is a common path, not a mandatory pipeline. A small current task
-can take a shorter valid route; a high-risk or unclear change can require more
-research, planning, checking, or user alignment.
+Each public workflow is explicitly invoked rather than auto-chained. Thinking and
+research coverage are adaptive, and verification depth is risk-selected, but every
+Change reaches a current plan, DB-backed task contract, and role-scoped context before
+development. “Direct Build” skips Research only; it does not bypass Plan, Task, or
+Context authority.
 
 ### 2. Adopt an existing project
 
@@ -235,7 +239,7 @@ During `ultra-research`, the host model inspects current evidence and recommends
 the smallest sufficient route. The owner selects, modifies, delegates, or
 defers it through the host-native question surface unless the current request
 already resolves the route. The normalized accepted coverage is then stored in
-`.ultra/state.db`. Every included area receives one explicit disposition:
+`.ultra/.runtime/state.db`. Every included area receives one explicit disposition:
 
 - `execute` — produce fresh evidence;
 - `verify_existing` — validate an existing artifact;
@@ -266,8 +270,8 @@ The host then recommends one valid capability:
 
 - `ultra-think` for a material unresolved decision or diagnosis;
 - bounded `ultra-research` for a real evidence gap;
-- `ultra-plan` for task decomposition and dependency planning;
-- `ultra-dev` when a current task contract is already executable;
+- `ultra-plan` for the required task decomposition and dependency planning boundary;
+- `ultra-dev` after the current plan has produced an executable task contract;
 - `ultra-status` when the user needs the current authority and available routes;
 - `ultra-doctor` when state or installation health is degraded.
 
@@ -302,32 +306,58 @@ The next piece of daily work starts with a new `ultra-change`.
 | `ultra-deliver` | Reconcile specifications, close local authority, and archive the change |
 | `ultra-status` | Read the current breadcrumb, blockers, evidence, and allowed transitions |
 | `ultra-doctor` | Diagnose installation or project-state faults and expose safe recovery |
-| `learn` | Turn one approved, verified reusable procedure into a portable user skill |
+
+These eleven capabilities are the complete public Ultra command graph. Each capability
+returns current `allowed_transitions`; the host may recommend one, but another public
+capability starts only after an explicit user command or skill invocation.
 
 ## What lives in `.ultra/`
 
 ```text
 .ultra/
-  state.db                 # sole durable Ultra authority
-  specs/                   # current product and architecture baseline
+  .runtime/                # local mutable state; ignored by Git
+    state.db               # lifecycle, index, transition, and freshness authority
+    checkpoint.json        # advisory recovery projection
+    backups/               # verified migration and recovery snapshots
+    collab/                # local collaboration scratch
+    sessions/              # local leases and session runtime
+    worktrees/             # registered local Git worktrees
+    telemetry/             # local operational telemetry
+  specs/                   # digest-bound product and architecture baseline
   changes/
-    active/                # current Change artifacts
+    active/<id>/           # all current Change semantics and evidence
+      research/            # Change-only findings and research reports
+      delta/               # typed baseline overlay and semantic payloads
+      documentation/       # documentation overlay and reconciliation evidence
+      contexts/            # immutable role/task context snapshots
+      test/                # Change-scoped test reports
+      review/              # Change-scoped review workers and summary
+      delivery/            # Change-scoped delivery evidence
     archive/               # immutable delivered Change artifacts
-  docs/research/           # evidence reports for selected research areas
-  reports/                 # test, review, and delivery evidence
+  docs/research/           # baseline-only research evidence
+  reports/templates/       # blank report schemas; never delivery evidence
   tasks/
     tasks.json             # generated projection, never the authority
     contexts/              # bounded role/task context artifacts
 ```
 
-The host agent writes semantic specifications and evidence artifacts. MCP
-validates their references and digests, records workflow state, and rejects
-stale or illegal transitions. Generated Markdown and JSON help humans and tools
-inspect the project, but `.ultra/state.db` remains authoritative.
+Together, `.ultra/` is Ultra's project-local cross-session workflow memory. The
+host model writes semantic specifications and evidence through the active
+workflow. MCP records lifecycle state, references, digests, provenance, and
+accepted intent, then rejects stale or illegal transitions. The DB is the
+lifecycle and index authority; registered digest-bound files carry the semantic
+or evidence bodies that the DB references. Generated projections and working
+scratch are not authority.
 
-Ultra does not store chain-of-thought, raw prompts, transcripts, cross-session
-memory, or code-graph content. Memory and graph systems remain separate
-providers; Ultra may store only bounded metadata references to them.
+Ultra does not store chain-of-thought, raw prompts, transcripts, general
+conversational or episodic memory, or code-graph payloads. External memory and
+graph systems remain separate providers; Ultra may store bounded metadata
+references to them as workflow context. Only `.ultra/.runtime/` is ignored by
+Git: semantic and evidence artifacts can travel with the repository, while
+SQLite, leases, telemetry, and recovery scratch remain checkout-local.
+
+See [Artifact authority](./docs/ARTIFACT-AUTHORITY.md) for the promotion and
+evidence rules.
 
 ## Optional orchestration
 
@@ -379,7 +409,7 @@ host's existing model session.
   reinstall only the degraded host.
 - **Project state is unhealthy:** invoke `ultra-doctor` or run
   `ultra-tools system doctor`. Repairs and schema migrations are backup-first.
-- **A projection disagrees with MCP:** trust `.ultra/state.db`; do not repair
+- **A projection disagrees with MCP:** trust `.ultra/.runtime/state.db`; do not repair
   `tasks.json` or generated context Markdown by hand.
 - **A workflow appears blocked:** use `ultra-status` to read the exact current
   workflow, blocker, owner decision, and mechanically valid transitions.

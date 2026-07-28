@@ -13,8 +13,8 @@ Read `../ultra-think/references/decision-dialogue.md` before asking a material q
 
 ## Inspect and align
 
-1. Read `system.doctor`, `baseline.get`, active changes, decisions, and
-   `change.breadcrumb`.
+1. Read `system.doctor`, `baseline.get`, active changes, breadcrumb `accepted_intent`,
+   decisions, and `change.breadcrumb`.
 2. Resume an existing change that matches the request. Do not duplicate authority.
 3. Ordinary work requires a healthy ready baseline. An incident may use only an
    explicit `baseline_bypass` reason and approver; urgency is not approval.
@@ -33,6 +33,10 @@ Recommend `quick`, `standard`, `major`, or `incident` from actual scope and risk
 together with the research disposition. A quick change may have no material risk,
 research obligation, or more than one task. MCP may reject a profile that contradicts
 hard risk invariants; it does not choose a replacement.
+
+After `change.create` or `change.update`, read back the complete Change Contract. When
+that write applies a durable decision, complete the decision thread with the change
+reference in `applied_refs`.
 
 Ask only when a choice changes accepted product intent, scope, public behavior,
 compatibility, security, material cost, external effects, or recovery. Use the host's
@@ -55,9 +59,19 @@ Call `change.create`. It records and completes exactly:
 3. `record-intent`
 
 The returned change workflow must be `completed`; research, plan, context, dev, test,
-review, and deliver remain independent capabilities. Standard and major changes may
-store delta artifacts under `.ultra/changes/active/<id>/delta/`. Incidents maintain
-the structured diagnosis artifact.
+review, and deliver remain independent capabilities. Keep every Change-owned semantic
+artifact, finding, plan, context, test result, review result, documentation update,
+and progress projection below `.ultra/changes/active/<id>/`. Incidents maintain the
+structured diagnosis artifact there as well.
+
+Before planning a standard or major change, write the accepted specification updates
+to the Change overlay and call `change.delta` with exact baseline id, repository
+revision, specification digests, decisions, non-goals, acceptance, documentation
+impact, unknowns, and mutation before/after digests. If accepted behavior truly does
+not change baseline semantics, record an empty typed delta with a specific
+`no_semantic_change_reason`; do not manufacture a mutation. Read back the registered
+delta and deterministic `progress.md`. This records proposed authority only and must
+not edit baseline specifications.
 
 Use `change.update` when accepted intent or evidence changes. Update the Change
 Contract, classification, research disposition, and docs impact together when their
@@ -66,9 +80,11 @@ change must become stale and be regenerated; never keep old evidence green by pr
 assertion.
 
 If research is required, recommend `ultra-research` with the recorded disposition. If
-the contract is sufficiently evidenced, recommend `ultra-plan`. Return and wait for an
-explicit user invocation; do not start either workflow. `change.context` is compiled
-only for an actual plan, implementation, test, or review consumer.
+the contract is sufficiently evidenced, finish the typed delta and recommend
+`ultra-plan`. Direct Build skips Research only; it never skips Plan, DB-backed task
+contracts, or fresh task context. Return and wait for an explicit user invocation; do
+not start another workflow. `change.context` is compiled only for an actual plan,
+implementation, test, or review consumer.
 
 Stable implementation discoveries use the approval-gated specification-learning
 transitions. External memory and graph providers retain their own content; Ultra stores
@@ -79,3 +95,5 @@ and `allowed_transitions`. Recommend a semantic next action from those transitio
 If current intent does not already select it, present the recommendation and credible
 alternatives through the interaction protocol, then wait. MCP does not encode a
 semantic next action.
+
+Never invoke the recommended capability here; wait for an explicit user invocation.

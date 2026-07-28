@@ -9,9 +9,10 @@
 const path = require('node:path');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
+const runtimePaths = require('../../mcp-server/lib/runtime-paths.cjs');
 const sessionRunner = require('../../orchestrator/session-runner.cjs');
 
-const DEFAULT_DB_PATH = path.join('.ultra', 'state.db');
+const DEFAULT_DB_PATH = runtimePaths.STATE_DB_RELATIVE_PATH;
 
 const USAGE = `ultra-tools session <verb> [flags]
 
@@ -21,11 +22,11 @@ VERBS:
   reap        [--grace-seconds <n>]                      orphan sweeper (Phase 4.5.6)
   get         --sid <sid>
   heartbeat   --sid <sid>
-  close       --sid <sid> --status completed|crashed|orphan [--remove-worktree]
+  close       --sid <sid> --status completed|crashed        [--remove-worktree]
   subscribe   --since-id <n> [--sid <sid>] [--limit <n>]
 
 GLOBAL FLAGS:
-  --db <path>  path to state.db (default: .ultra/state.db)
+  --db <path>  path to state.db (default: .ultra/.runtime/state.db)
   --repo-root <path> repository root for verified worktree cleanup (default: cwd)
   -h, --help   show this message
 `;
@@ -56,10 +57,31 @@ function parseFlags(args) {
 }
 
 function withDb(flags, fn) {
-  const dbPath = path.resolve(flags.db || DEFAULT_DB_PATH);
-  const { db } = initStateDb(dbPath);
-  try { return fn(db); }
-  finally { try { closeStateDb(db); } catch (_) { /* ignore */ } }
+  let db;
+  try {
+    const rootDir = path.resolve(flags.repo_root || process.cwd());
+    const env = flags.db
+      ? { UBP_DB_PATH: path.resolve(flags.db) }
+      : process.env;
+    const dbPath = runtimePaths.resolveConfiguredStateDb(rootDir, {
+      env,
+      migrateLegacy: true,
+    }).stateDbPath;
+    ({ db } = initStateDb(dbPath));
+    return fn(db);
+  } catch (error) {
+    emit({
+      ok: false,
+      error: {
+        code: error.code || 'STATE_DB_ERROR',
+        message: error.message,
+        retriable: false,
+      },
+    });
+    return 2;
+  } finally {
+    try { closeStateDb(db); } catch (_) { /* ignore */ }
+  }
 }
 
 function cmdList(flags) {
@@ -84,7 +106,11 @@ function cmdAdmission(flags) {
   if (!flags.task_id) { emit({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'missing --task-id' } }); return 1; }
   return withDb(flags, (db) => {
     try {
-      const v = ops.admissionCheck(db, flags.task_id);
+      const v = sessionRunner.admissionCheck(
+        db,
+        path.resolve(flags.repo_root || process.cwd()),
+        flags.task_id,
+      );
       emit({ ok: true, data: v });
       return 0;
     } catch (err) {

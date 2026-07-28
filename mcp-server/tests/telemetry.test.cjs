@@ -1,7 +1,7 @@
 'use strict';
 
 // Phase 6.2 — Telemetry collectors:
-//   • appendTelemetry writes to state.db.telemetry AND .ultra/telemetry/
+//   • appendTelemetry writes to state.db.telemetry AND .ultra/.runtime/telemetry/
 //     {YYYY-MM-DD}.jsonl (double-write; jsonl keeps full payload the table
 //     can't hold).
 //   • computeCost(runtime, model, ti, to) returns USD from 2026-04 pricing.
@@ -20,7 +20,7 @@ const pricing = require('../lib/pricing.cjs');
 
 function freshFixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-tele-'));
-  const file = path.join(dir, '.ultra', 'state.db');
+  const file = path.join(dir, '.ultra', '.runtime', 'state.db');
   const init = initStateDb(file);
   return { dir, db: init.db };
 }
@@ -82,7 +82,7 @@ test('appendTelemetry writes to telemetry table', () => {
   } finally { teardown(dir, db); }
 });
 
-test('appendTelemetry writes a jsonl line under .ultra/telemetry/YYYY-MM-DD.jsonl', () => {
+test('appendTelemetry writes a jsonl line under .ultra/.runtime/telemetry/YYYY-MM-DD.jsonl', () => {
   const { dir, db } = freshFixture();
   try {
     seedSession(db, { sid: 's-t2' });
@@ -94,7 +94,7 @@ test('appendTelemetry writes a jsonl line under .ultra/telemetry/YYYY-MM-DD.json
       payload: { duration_ms: 42 },
     });
     const today = new Date().toISOString().slice(0, 10);
-    const jsonl = path.join(dir, '.ultra', 'telemetry', `${today}.jsonl`);
+    const jsonl = path.join(dir, '.ultra', '.runtime', 'telemetry', `${today}.jsonl`);
     assert.ok(fs.existsSync(jsonl), `expected jsonl at ${jsonl}`);
     const lines = fs.readFileSync(jsonl, 'utf8').trim().split('\n');
     assert.equal(lines.length, 1);
@@ -102,6 +102,31 @@ test('appendTelemetry writes a jsonl line under .ultra/telemetry/YYYY-MM-DD.json
     assert.equal(parsed.tool_name, 'task.create');
     assert.equal(parsed.payload.duration_ms, 42);
   } finally { teardown(dir, db); }
+});
+
+test('appendTelemetry rejects an unsafe runtime target before writing DB evidence', () => {
+  const { dir, db } = freshFixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-tele-outside-'));
+  try {
+    const telemetryDir = path.join(dir, '.ultra', '.runtime', 'telemetry');
+    fs.mkdirSync(path.dirname(telemetryDir), { recursive: true });
+    fs.writeFileSync(path.join(outside, 'sentinel'), 'outside');
+    fs.symlinkSync(outside, telemetryDir, 'dir');
+
+    assert.throws(
+      () => telemetry.appendTelemetry(db, {
+        event_type: 'tool_call',
+        tool_name: 'task.list',
+        rootDir: dir,
+      }),
+      /RUNTIME_PATH_UNSAFE|symlink|runtime/i,
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM telemetry').get().count, 0);
+    assert.equal(fs.readFileSync(path.join(outside, 'sentinel'), 'utf8'), 'outside');
+  } finally {
+    teardown(dir, db);
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
 });
 
 test('appendTelemetry auto-computes cost_usd when runtime + tokens supplied', () => {

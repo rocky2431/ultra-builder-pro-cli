@@ -32,7 +32,7 @@ spec/
 ```
 
 The versioned task and context schemas describe compatibility projections. They do not
-make those projections authoritative; `.ultra/state.db` remains the state source.
+make those projections authoritative; `.ultra/.runtime/state.db` remains the state source.
 
 ## Validation
 

@@ -26,7 +26,9 @@ function fixture() {
   fs.writeFileSync(path.join(rootDir, 'README.md'), '# Fixture\n');
   execFileSync('git', ['add', 'README.md'], { cwd: rootDir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: rootDir });
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   seedReadyBaseline(db, { rootDir });
   changes.createChange(db, completeChangeInput({
     id: 'learning-change', title: 'Learning change', kind: 'quick',
@@ -42,6 +44,18 @@ test('spec learning cannot skip approval or mutate after apply', () => {
       id: 'candidate-1', change_id: 'learning-change', target_ref: 'README.md#fixture',
       summary: 'A stable public contract was discovered.',
     }, { rootDir: fx.rootDir });
+    const firstProjection = fx.db.prepare(
+      "SELECT id, digest, managed, provenance_json FROM artifacts WHERE kind = 'spec_learning'",
+    ).get();
+    assert.equal(firstProjection.managed, 1);
+    assert.equal(JSON.parse(firstProjection.provenance_json).writer, 'spec-learning');
+    assert.deepEqual(
+      fx.db.prepare(
+        `SELECT target_type FROM artifact_edges
+         WHERE source_type = 'artifact' AND source_id = ?`,
+      ).all(firstProjection.id).map((edge) => edge.target_type),
+      ['workflow'],
+    );
     assert.throws(
       () => learning.resolveSpecLearning(fx.db, {
         change_id: 'learning-change', candidate_id: 'candidate-1', decision: 'apply',
@@ -52,6 +66,12 @@ test('spec learning cannot skip approval or mutate after apply', () => {
     learning.resolveSpecLearning(fx.db, {
       change_id: 'learning-change', candidate_id: 'candidate-1', decision: 'approve',
     }, { rootDir: fx.rootDir });
+    assert.equal(
+      fx.db.prepare(
+        "SELECT COUNT(*) AS count FROM events WHERE type = 'spec_changed' AND change_id = ?",
+      ).get('learning-change').count,
+      1,
+    );
     assert.throws(
       () => learning.resolveSpecLearning(fx.db, {
         change_id: 'learning-change', candidate_id: 'candidate-1', decision: 'apply',

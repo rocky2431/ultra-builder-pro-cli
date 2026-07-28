@@ -1,0 +1,40 @@
+[
+  {
+    "id": "feature-auth",
+    "baseline_anchor": {
+      "baseline_id": "project-baseline",
+      "repository_revision": "abc123",
+      "specs": [
+        {
+          "path": ".ultra/specs/product.md",
+          "digest": "not-a-sha256"
+        }
+      ]
+    },
+    "decisions": [],
+    "non_goals": [],
+    "acceptance": [],
+    "documentation_impact": {},
+    "unknowns": [],
+    "mutations": []
+  },
+  {
+    "id": "feature-auth",
+    "baseline_anchor": {
+      "baseline_id": "project-baseline",
+      "repository_revision": null,
+      "specs": []
+    },
+    "decisions": [],
+    "non_goals": [],
+    "acceptance": [
+      {
+        "id": "acceptance-1"
+      }
+    ],
+    "documentation_impact": {},
+    "unknowns": [],
+    "mutations": [],
+    "unexpected": true
+  }
+]

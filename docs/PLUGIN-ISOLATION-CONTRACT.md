@@ -12,7 +12,8 @@ An adapter may write only:
 - the plugin's own provenance and managed-file markers.
 
 The first command allowed to create project authority is `ultra-init`. Once invoked,
-Ultra owns only the repository-local `.ultra/` authority and its generated projections.
+Ultra owns only the repository-local `.ultra/` workflow-memory envelope and its
+generated projections.
 
 ## Surfaces Ultra does not own
 
@@ -21,7 +22,7 @@ Install, update, doctor, and uninstall must not create, rewrite, trim, merge, or
 - user-level `CLAUDE.md`, `AGENTS.md`, or equivalent instruction files;
 - repository-level instruction files;
 - project source, Git history, remotes, or `.ultra/` data;
-- memory or code-graph provider data.
+- general memory or code-graph provider data.
 
 Existing Ultra marker blocks in a user handbook are legacy user content after this
 contract takes effect. They are not silently removed because the plugin cannot prove
@@ -44,7 +45,7 @@ Internal review-rule skills remain available only to their bounded workers.
 
 ## Idle behavior
 
-Outside a repository containing `.ultra/state.db`, all Ultra hooks are silent. Inside
+Outside a repository containing `.ultra/.runtime/state.db`, all Ultra hooks are silent. Inside
 an initialized repository they remain silent unless a DB-authoritative workflow is
 active, blocked, or ready. The sole idle-time enforcement is protection against direct
 writes to generated Ultra projections; the DB remains authoritative.

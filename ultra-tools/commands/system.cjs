@@ -7,6 +7,7 @@ const Database = require('better-sqlite3');
 const { initStateDb, openStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const { initProject } = require('../../mcp-server/lib/init-project.cjs');
 const doctor = require('../../mcp-server/lib/doctor.cjs');
+const runtimePaths = require('../../mcp-server/lib/runtime-paths.cjs');
 
 const RESTORE_CONFIRMATION = 'REPLACE_CORRUPT_ULTRA_STATE';
 const REBASELINE_CONFIRMATION = 'REBASELINE_CORRUPT_ULTRA_STATE';
@@ -14,7 +15,7 @@ const USAGE = `ultra-tools system <verb> [options]
 
 VERBS:
   doctor [--repair]
-  restore --backup <.ultra/backups/...db> --confirm ${RESTORE_CONFIRMATION}
+  restore --backup <.ultra/.runtime/backups/...db> --confirm ${RESTORE_CONFIRMATION}
   rebaseline --project-name <name> [--scope <path>] --confirm ${REBASELINE_CONFIRMATION}
 `;
 
@@ -96,9 +97,15 @@ function inspectSqliteSnapshot(file) {
 }
 
 function ensureCorruptState(rootDir) {
-  const statePath = path.join(rootDir, '.ultra', 'state.db');
+  const statePath = runtimePaths.ensureRuntimeState(rootDir).stateDbPath;
   const state = inspectSqliteSnapshot(statePath);
-  if (!state.exists) throw new SystemCommandError('STATE_DB_MISSING', `.ultra/state.db not found under ${rootDir}`, 2);
+  if (!state.exists) {
+    throw new SystemCommandError(
+      'STATE_DB_MISSING',
+      `.ultra/.runtime/state.db not found under ${rootDir}`,
+      2,
+    );
+  }
   if (!state.corrupt) {
     throw new SystemCommandError(
       'STATE_DB_NOT_CORRUPT',
@@ -109,44 +116,84 @@ function ensureCorruptState(rootDir) {
   return statePath;
 }
 
+function resolveThroughExistingAncestor(candidate) {
+  const missing = [];
+  let current = path.resolve(candidate);
+  while (!fs.existsSync(current)) {
+    const parent = path.dirname(current);
+    if (parent === current) return path.resolve(candidate);
+    missing.unshift(path.basename(current));
+    current = parent;
+  }
+  return path.join(fs.realpathSync(current), ...missing);
+}
+
 function managedBackup(rootDir, candidate) {
   if (!candidate) throw new SystemCommandError('VALIDATION_ERROR', '--backup is required');
-  const backupRoot = path.join(rootDir, '.ultra', 'backups');
-  if (!fs.existsSync(backupRoot)) {
-    throw new SystemCommandError('BACKUP_NOT_FOUND', `managed backup directory does not exist: ${backupRoot}`);
+  const runtimeBackupRoot = runtimePaths.pathsFor(rootDir).backupsDir;
+  const legacyBackupRoot = path.join(rootDir, '.ultra', 'backups');
+  const backupRoots = [runtimeBackupRoot, legacyBackupRoot].filter((entry) => fs.existsSync(entry));
+  if (backupRoots.length === 0) {
+    throw new SystemCommandError(
+      'BACKUP_NOT_FOUND',
+      `managed backup directory does not exist: ${runtimeBackupRoot}`,
+    );
   }
-  const resolvedRoot = fs.realpathSync(backupRoot);
-  const requested = path.isAbsolute(candidate) ? candidate : path.resolve(rootDir, candidate);
+  let requested = resolveThroughExistingAncestor(
+    path.isAbsolute(candidate) ? candidate : path.resolve(rootDir, candidate),
+  );
+  const legacyPrefix = `${resolveThroughExistingAncestor(legacyBackupRoot)}${path.sep}`;
+  if (!fs.existsSync(requested) && requested.startsWith(legacyPrefix)) {
+    requested = path.join(runtimeBackupRoot, path.relative(legacyBackupRoot, requested));
+  }
   let resolved;
   try { resolved = fs.realpathSync(requested); }
   catch {
     throw new SystemCommandError('BACKUP_NOT_FOUND', `backup does not exist: ${requested}`);
   }
-  if (!resolved.startsWith(`${resolvedRoot}${path.sep}`)) {
+  const managed = backupRoots.some((entry) => {
+    const resolvedRoot = fs.realpathSync(entry);
+    return resolved.startsWith(`${resolvedRoot}${path.sep}`);
+  });
+  if (!managed) {
     throw new SystemCommandError(
       'BACKUP_OUTSIDE_MANAGED_ROOT',
-      `backup must be inside ${backupRoot}`,
+      `backup must be inside ${runtimeBackupRoot}`,
     );
   }
   if (!fs.statSync(resolved).isFile()) {
     throw new SystemCommandError('BACKUP_NOT_FOUND', `backup is not a file: ${resolved}`);
   }
-  const inspection = inspectSqlite(resolved);
+  for (const suffix of ['', '-wal', '-shm']) {
+    const member = `${resolved}${suffix}`;
+    if (!fs.existsSync(member)) continue;
+    const stat = fs.lstatSync(member);
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+      throw new SystemCommandError(
+        'BACKUP_INVALID',
+        `backup snapshot member must be a regular file: ${member}`,
+      );
+    }
+  }
+  const inspection = inspectSqliteSnapshot(resolved);
   if (!inspection.valid) {
-    throw new SystemCommandError('BACKUP_INVALID', `backup is not a verified Ultra SQLite database: ${resolved}`);
+    throw new SystemCommandError(
+      'BACKUP_INVALID',
+      `backup is not a verified Ultra SQLite snapshot: ${resolved}`,
+    );
   }
   return resolved;
 }
 
 function createRecoveryDir(rootDir, prefix) {
-  const dir = path.join(rootDir, '.ultra', 'backups', `${prefix}-${stamp()}`);
+  const dir = path.join(runtimePaths.pathsFor(rootDir).backupsDir, `${prefix}-${stamp()}`);
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   fs.mkdirSync(dir, { recursive: false });
   return dir;
 }
 
 function moveStateFiles(statePath, recoveryDir, moved = []) {
-  for (const suffix of ['', '-wal', '-shm']) {
+  for (const suffix of ['-wal', '-shm', '']) {
     const source = `${statePath}${suffix}`;
     if (!fs.existsSync(source)) continue;
     const target = path.join(recoveryDir, `state.db${suffix}`);
@@ -175,6 +222,52 @@ function restoreMovedFiles(moved) {
   return errors;
 }
 
+function copySnapshot(source, target) {
+  const copied = [];
+  try {
+    for (const suffix of ['', '-wal', '-shm']) {
+      const member = `${source}${suffix}`;
+      if (!fs.existsSync(member)) continue;
+      const staged = `${target}${suffix}`;
+      fs.copyFileSync(member, staged, fs.constants.COPYFILE_EXCL);
+      copied.push(staged);
+    }
+    const inspection = inspectSqlite(target);
+    if (!inspection.valid) {
+      throw new SystemCommandError(
+        'BACKUP_INVALID',
+        `staged backup is not a verified Ultra SQLite snapshot: ${source}`,
+      );
+    }
+    return copied;
+  } catch (error) {
+    for (const file of copied) {
+      try { fs.rmSync(file, { force: true }); } catch { /* best effort */ }
+    }
+    throw error;
+  }
+}
+
+function installSnapshot(staging, activeState) {
+  const installed = [];
+  try {
+    // The main DB is the authority completion marker, so publish it last.
+    for (const suffix of ['-wal', '-shm', '']) {
+      const source = `${staging}${suffix}`;
+      if (!fs.existsSync(source)) continue;
+      const target = `${activeState}${suffix}`;
+      fs.renameSync(source, target);
+      installed.push(target);
+    }
+    return installed;
+  } catch (error) {
+    for (const target of installed.reverse()) {
+      try { fs.rmSync(target, { force: true }); } catch { /* rollback continues */ }
+    }
+    throw error;
+  }
+}
+
 async function dispatchRestore(args) {
   let options;
   try { options = parseOptions(args, new Set(['backup', 'confirm'])); }
@@ -194,14 +287,15 @@ async function dispatchRestore(args) {
   let moved = [];
   let activeState;
   let staging;
+  let installed = [];
   try {
     activeState = ensureCorruptState(rootDir);
     const sourceBackup = managedBackup(rootDir, options.backup);
     const recoveryDir = createRecoveryDir(rootDir, 'restore');
-    staging = path.join(rootDir, '.ultra', `.state.restore-${stamp()}.db`);
-    fs.copyFileSync(sourceBackup, staging, fs.constants.COPYFILE_EXCL);
+    staging = path.join(runtimePaths.pathsFor(rootDir).runtimeDir, `.state.restore-${stamp()}.db`);
+    copySnapshot(sourceBackup, staging);
     moveStateFiles(activeState, recoveryDir, moved);
-    fs.renameSync(staging, activeState);
+    installed = installSnapshot(staging, activeState);
     const initialized = initStateDb(activeState);
     closeStateDb(initialized.db);
     emit({
@@ -219,7 +313,12 @@ async function dispatchRestore(args) {
     return 0;
   } catch (error) {
     if (staging) {
-      try { fs.rmSync(staging, { force: true }); } catch { /* rollback continues */ }
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { fs.rmSync(`${staging}${suffix}`, { force: true }); } catch { /* rollback continues */ }
+      }
+    }
+    for (const target of installed.reverse()) {
+      try { fs.rmSync(target, { force: true }); } catch { /* rollback continues */ }
     }
     const rollbackErrors = activeState ? restoreMovedFiles(moved) : [];
     emit({
@@ -291,7 +390,7 @@ async function dispatchRebaseline(args) {
   } catch (error) {
     const rollbackErrors = [];
     if (moved.length > 0) {
-      const generatedState = activeState || path.join(rootDir, '.ultra', 'state.db');
+      const generatedState = activeState || runtimePaths.pathsFor(rootDir).stateDbPath;
       for (const suffix of ['', '-wal', '-shm']) {
         try { fs.rmSync(`${generatedState}${suffix}`, { force: true }); }
         catch (rollbackError) { rollbackErrors.push(`generated state cleanup failed: ${rollbackError.message}`); }
@@ -330,14 +429,22 @@ async function dispatchDoctor(args) {
     return 1;
   }
   const rootDir = process.cwd();
-  const dbPath = path.join(rootDir, '.ultra', 'state.db');
+  const repair = args.includes('--repair');
+  const dbPath = repair
+    ? runtimePaths.ensureRuntimeState(rootDir).stateDbPath
+    : runtimePaths.locateStateDb(rootDir);
   if (!fs.existsSync(dbPath)) {
-    emit({ ok: false, error: { code: 'STATE_DB_MISSING', message: `.ultra/state.db not found under ${rootDir}` } });
+    emit({
+      ok: false,
+      error: {
+        code: 'STATE_DB_MISSING',
+        message: `.ultra/.runtime/state.db not found under ${rootDir}`,
+      },
+    });
     return 2;
   }
   let db;
   try {
-    const repair = args.includes('--repair');
     const initialized = repair ? initStateDb(dbPath) : null;
     db = initialized ? initialized.db : openStateDb(dbPath);
     const data = await doctor.runDoctor(db, { rootDir, repair: args.includes('--repair') });

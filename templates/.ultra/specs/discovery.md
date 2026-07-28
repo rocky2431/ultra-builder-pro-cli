@@ -67,7 +67,7 @@ decision. Include source date, segment, geography, and assumptions when applicab
 
 ## Baseline Gaps
 
-Reference authoritative gap ids from `.ultra/state.db`.
+Reference authoritative gap ids from `.ultra/.runtime/state.db`.
 
 | Gap id | Category | Status | Evidence | Owner |
 |---|---|---|---|---|

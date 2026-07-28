@@ -12,7 +12,9 @@ const { appendHookLifecycleEvent } = require('../server.cjs');
 test('subagent hook writes minimal lifecycle metadata only to authoritative events', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-hook-event-'));
   fs.mkdirSync(path.join(rootDir, '.ultra'), { recursive: true });
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   try {
     db.prepare(
       `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
@@ -50,7 +52,9 @@ test('subagent hook writes minimal lifecycle metadata only to authoritative even
     assert.equal(result.change_id, 'active-change');
     assert.equal(result.task_id, 'active-task');
 
-    const reopened = initStateDb(path.join(rootDir, '.ultra', 'state.db')).db;
+    const reopened = initStateDb(
+      path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+    ).db;
     try {
       const row = reopened.prepare(
         "SELECT type, change_id, task_id, payload_json FROM events WHERE type = 'subagent_stopped'",
@@ -65,7 +69,10 @@ test('subagent hook writes minimal lifecycle metadata only to authoritative even
     } finally {
       closeStateDb(reopened);
     }
-    assert.equal(fs.existsSync(path.join(rootDir, '.ultra', 'runtime', 'subagent-log.jsonl')), false);
+    assert.equal(
+      fs.existsSync(path.join(rootDir, '.ultra', '.runtime', 'subagent-log.jsonl')),
+      false,
+    );
   } finally {
     fs.rmSync(rootDir, { recursive: true, force: true });
   }
@@ -74,7 +81,9 @@ test('subagent hook writes minimal lifecycle metadata only to authoritative even
 test('subagent hook is a no-op when no active change owns lifecycle evidence', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-hook-event-idle-'));
   fs.mkdirSync(path.join(rootDir, '.ultra'), { recursive: true });
-  const init = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const init = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   closeStateDb(init.db);
   try {
     const result = appendHookLifecycleEvent({ rootDir, action: 'start', hookInput: {} });
@@ -87,7 +96,9 @@ test('subagent hook is a no-op when no active change owns lifecycle evidence', (
 test('subagent hook is a no-op when an active change has no active workflow', () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-hook-event-no-workflow-'));
   fs.mkdirSync(path.join(rootDir, '.ultra'), { recursive: true });
-  const { db } = initStateDb(path.join(rootDir, '.ultra', 'state.db'));
+  const { db } = initStateDb(
+    path.join(rootDir, '.ultra', '.runtime', 'state.db'),
+  );
   try {
     db.prepare(
       `INSERT INTO changes (id, title, kind, status, intent, artifact_root)

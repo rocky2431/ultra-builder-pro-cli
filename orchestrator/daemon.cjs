@@ -97,7 +97,7 @@ function runDaemon({
   const children = [];
   let bootRecovery;
   try {
-    bootRecovery = recovery.recoverOnBoot(db);
+    bootRecovery = recovery.recoverOnBoot(db, { repoRoot });
   } catch (error) {
     runtimeState.recordIncident(db, {
       code: 'BOOT_RECOVERY_FAILED', severity: 'critical', retryable: true,
@@ -208,17 +208,9 @@ function runDaemon({
           runtime,
           command,
           args: commandArgs,
+          mark_task_started: true,
         });
         handle.task_id = task.id;
-        try {
-          ops.patchTask(db, task.id, { status: 'in_progress' });
-        } catch (error) {
-          runner.closeSession(
-            { db, repoRoot, sid: handle.sid },
-            { status: 'crashed', remove_worktree: false },
-          );
-          throw error;
-        }
         settleExecution(handle, task);
         children.push(handle);
       } catch (err) {

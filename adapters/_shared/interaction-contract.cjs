@@ -1,5 +1,7 @@
 'use strict';
 
+const { PUBLIC_CAPABILITY_GRAPH } = require('./runtime-assets.cjs');
+
 const SURFACES = Object.freeze({
   claude: Object.freeze({
     primary: 'AskUserQuestion',
@@ -23,12 +25,16 @@ const SURFACES = Object.freeze({
   }),
 });
 
+const GENERIC_QUESTION_GUIDANCE =
+  /Use the host-native structured question surface declared by the installed interaction\s+contract(?: when it exists)?\./g;
+
 function interactionContract(runtime) {
   const question = SURFACES[runtime];
   if (!question) throw new Error(`unsupported interaction runtime: ${runtime}`);
   return {
-    schema_version: '1.1',
+    schema_version: '1.2',
     runtime,
+    public_capability_graph: PUBLIC_CAPABILITY_GRAPH,
     authority: {
       user: [
         'product_intent',
@@ -54,10 +60,13 @@ function interactionContract(runtime) {
       semantic_selection_flow: [
         'inspect',
         'suggest',
-        'ask_if_unresolved',
+        'host_native_ask',
         'normalize',
         'persist',
+        'apply',
+        'read_back',
       ],
+      adapter_authority: 'none',
       dependent_decisions: 'one_at_a_time',
       independent_low_load_questions: { maximum: 3 },
       explicit_current_intent: 'normalize_without_reconfirmation',
@@ -67,9 +76,11 @@ function interactionContract(runtime) {
     },
     persistence: {
       accepted_intent: 'trust_as_current_authority',
+      accepted_intent_recall: 'breadcrumb_and_decision_list',
       user_interaction_proof: 'not_required',
       raw_prompt_or_transcript: 'never_store',
       pending_question: 'store_only_when_recovery_requires_it',
+      application_evidence: 'record_applied_refs_when_another_authority_changes',
     },
     routing: {
       semantic_recommendation_owner: 'host_model',
@@ -80,4 +91,26 @@ function interactionContract(runtime) {
   };
 }
 
-module.exports = { SURFACES, interactionContract };
+function interactionPrompt(runtime) {
+  const contract = interactionContract(runtime);
+  const surface = contract.interaction.question_surface;
+  const host = {
+    claude: 'Claude Code',
+    codex: 'Codex',
+    opencode: 'OpenCode',
+    kimi: 'Kimi Code',
+  }[runtime];
+  const primary = runtime === 'opencode' ? `\`${surface.primary}\`` : surface.primary;
+  return `Use ${host} ${primary} when ${surface.availability.replaceAll('_', ' ')} permits it.`;
+}
+
+function adaptInteractionGuidance(input, runtime) {
+  return String(input).replace(GENERIC_QUESTION_GUIDANCE, interactionPrompt(runtime));
+}
+
+module.exports = {
+  SURFACES,
+  adaptInteractionGuidance,
+  interactionContract,
+  interactionPrompt,
+};

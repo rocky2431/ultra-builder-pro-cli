@@ -6,7 +6,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from context_spine import ContextSpineError, find_root, read_breadcrumb
+from context_spine import ContextSpineError, find_root_for_hook, read_breadcrumb
+from runtime_paths import state_db_path
 
 
 REQUIRED_TABLES = {
@@ -44,7 +45,7 @@ def has_active_workflow(db_path: Path) -> bool:
 
 
 def inspect(root: Path) -> dict:
-    db_path = root / ".ultra" / "state.db"
+    db_path = state_db_path(root)
     report = {"status": "healthy", "project": str(root), "checks": {}}
     issues = []
     if not db_path.is_file():
@@ -183,11 +184,11 @@ def inspect(root: Path) -> dict:
 def main() -> None:
     data = hook_input()
     start = Path(data.get("cwd") or Path.cwd()).resolve()
-    root = find_root(start)
+    root = find_root_for_hook(start, "health_check")
     if root is None:
         print(json.dumps({}))
         return
-    if not has_active_workflow(root / ".ultra" / "state.db"):
+    if not has_active_workflow(state_db_path(root)):
         print(json.dumps({}))
         return
     report = inspect(root)

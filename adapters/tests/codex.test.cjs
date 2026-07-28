@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const Database = require('better-sqlite3');
 const yaml = require('js-yaml');
 const { Client } = require('@modelcontextprotocol/client');
 const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
@@ -24,7 +25,6 @@ const {
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const COMMANDS = [
-  'learn',
   'ultra-change',
   'ultra-deliver',
   'ultra-dev',
@@ -96,7 +96,7 @@ test('install builds one Codex-native plugin with complete skill and command cov
 
     const expectedSkills = skillsForRuntime('codex').sort();
     assert.deepEqual(skillNames(layout.pluginRoot), expectedSkills);
-    assert.equal(expectedSkills.length, 18);
+    assert.equal(expectedSkills.length, 17);
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'codex-collab')));
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'learned')));
 
@@ -106,6 +106,12 @@ test('install builds one Codex-native plugin with complete skill and command cov
       assert.equal(commandMap[`/${command}`], `$ultra-builder-pro:${command}`);
       assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'skills', command, 'SKILL.md')));
     }
+    const dialogue = fs.readFileSync(
+      path.join(layout.pluginRoot, 'skills', 'ultra-think', 'references', 'decision-dialogue.md'),
+      'utf8',
+    );
+    assert.match(dialogue, /request_user_input/);
+    assert.doesNotMatch(dialogue, /host-native structured question surface declared/);
     assert.ok(!fs.existsSync(path.join(layout.configDir, 'prompts')), 'deprecated Codex prompts must not be installed');
   } finally {
     cleanup(layout);
@@ -220,7 +226,9 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
       'SubagentStart', 'SubagentStop',
     ].sort());
     const serializedHooks = JSON.stringify(hooks);
-    for (const feature of WORKFLOW_HOOK_FILES.filter((value) => value !== 'context_spine.py')) {
+    for (const feature of WORKFLOW_HOOK_FILES.filter(
+      (value) => !['context_spine.py', 'runtime_paths.py'].includes(value),
+    )) {
       assert.match(serializedHooks, new RegExp(feature.replace('.', '\\.')));
     }
     assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'hooks', 'context_spine.py')));
@@ -237,6 +245,24 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     );
     assert.match(serializedHooks, /apply_patch/);
 
+    const launched = spawnSync(
+      'python3',
+      [
+        path.join(layout.pluginRoot, 'hooks', 'adapters', 'codex.py'),
+        'health_check.py',
+      ],
+      {
+        cwd: layout.homeDir,
+        input: JSON.stringify({
+          cwd: layout.homeDir,
+          hook_event_name: 'SessionStart',
+        }),
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(launched.status, 0, launched.stderr);
+    assert.deepEqual(JSON.parse(launched.stdout), {});
+
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
     const server = mcp.mcpServers['ultra-builder-pro'];
     assert.equal(server.type, 'stdio');
@@ -244,13 +270,17 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     assert.ok(path.isAbsolute(server.args[0]));
     assert.equal(server.args[0], path.join(layout.pluginRoot, 'runtime', 'launch.cjs'));
     assert.doesNotMatch(server.args[0], new RegExp(REPO_ROOT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-    assert.ok(!server.env, 'MCP must use each Codex task cwd so .ultra/state.db stays project-local');
+    assert.ok(!server.env, 'MCP must use each Codex task cwd so .ultra/.runtime/state.db stays project-local');
 
     for (const rel of [
       'runtime/index.cjs',
       'runtime/breadcrumb.cjs',
       'runtime/hook-event.cjs',
       'runtime/launch.cjs',
+      'runtime/plan-publication-worker.cjs',
+      'runtime/session-close-journal-worker.cjs',
+      'runtime/doctor-backup-worker.cjs',
+      'runtime/archive-mutation-worker.py',
       'runtime/ultra-tools.cjs',
       'runtime/build/Release/better_sqlite3.node',
       'spec/mcp-tools.yaml',
@@ -267,8 +297,8 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
     const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
     const interaction = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'interaction-contract.json'), 'utf8'));
-    assert.equal(liveSpec.tools.length, 51);
-    assert.equal(upstreamSpec.tools.length, 51);
+    assert.equal(liveSpec.tools.length, 57);
+    assert.equal(upstreamSpec.tools.length, 57);
     assert.deepEqual(upstreamSpec.tools.map((tool) => tool.name).sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);
@@ -289,7 +319,9 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
   try {
     install(layout);
     fs.writeFileSync(path.join(projectDir, 'contract.md'), '# Bundled runtime contract\n');
-    const seededState = initStateDb(path.join(projectDir, '.ultra', 'state.db'));
+    const seededState = initStateDb(
+      path.join(projectDir, '.ultra', '.runtime', 'state.db'),
+    );
     seedReadyBaseline(seededState.db, {
       rootDir: projectDir, id: 'test-baseline', projectName: 'codex-bundle',
     });
@@ -348,10 +380,35 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
       name: 'task.update', arguments: { id: 'codex-bundle-1', patch: { status: 'in_progress' } },
     });
     assert.equal(started.isError, undefined);
-    assert.ok(fs.existsSync(path.join(projectDir, '.ultra', 'state.db')));
-    assert.ok(!fs.existsSync(path.join(layout.pluginRoot, '.ultra', 'state.db')));
+    const repaired = await client.callTool({
+      name: 'system.doctor',
+      arguments: { repair: true },
+    });
+    assert.equal(repaired.isError, undefined, repaired.content?.[0]?.text);
+    const repairReport = repaired.structuredContent
+      || JSON.parse(repaired.content[0].text);
+    assert.ok(fs.existsSync(repairReport.backup_path));
+    const bundledBackup = new Database(repairReport.backup_path, {
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      assert.equal(bundledBackup.pragma('quick_check', { simple: true }), 'ok');
+      assert.equal(
+        bundledBackup.prepare(
+          "SELECT COUNT(*) AS count FROM tasks WHERE id = 'codex-bundle-1'",
+        ).get().count,
+        1,
+      );
+    } finally {
+      bundledBackup.close();
+    }
+    assert.ok(fs.existsSync(path.join(projectDir, '.ultra', '.runtime', 'state.db')));
+    assert.ok(!fs.existsSync(path.join(layout.pluginRoot, '.ultra', '.runtime', 'state.db')));
 
-    const lifecycleSeed = initStateDb(path.join(projectDir, '.ultra', 'state.db')).db;
+    const lifecycleSeed = initStateDb(
+      path.join(projectDir, '.ultra', '.runtime', 'state.db'),
+    ).db;
     lifecycleSeed.prepare(
       `INSERT INTO workflow_runs
        (id, kind, subject, status, current_step, baseline_id, change_id, task_id)
@@ -379,7 +436,9 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
     });
     assert.equal(hookEvent.status, 0, hookEvent.stderr);
     assert.equal(JSON.parse(hookEvent.stdout).recorded, true);
-    const lifecycleRead = initStateDb(path.join(projectDir, '.ultra', 'state.db')).db;
+    const lifecycleRead = initStateDb(
+      path.join(projectDir, '.ultra', '.runtime', 'state.db'),
+    ).db;
     const lifecycleRow = lifecycleRead.prepare(
       "SELECT payload_json FROM events WHERE type = 'subagent_stopped' ORDER BY id DESC LIMIT 1",
     ).get();

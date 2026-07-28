@@ -44,8 +44,8 @@ execFileSync('git', ['-c', 'user.email=agent@ubp.dev', '-c', 'user.name=agent',
 if (${JSON.stringify(completeTask)}) {
   const stateDb = require(${JSON.stringify(STATE_DB_MODULE)});
   const ops = require(${JSON.stringify(STATE_OPS_MODULE)});
-  const dbPath = path.resolve(process.env.UBP_ARTIFACT_DIR, '..', '..', 'state.db');
-  const { db } = stateDb.initStateDb(dbPath);
+  const dbPath = process.env.UBP_DB_PATH;
+  const db = stateDb.openStateDb(dbPath);
   try {
     const task = ops.readTask(db, process.env.UBP_TASK_ID);
     if (task.status === 'pending') ops.updateTaskStatus(db, task.id, 'in_progress');
@@ -67,14 +67,17 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'seed.md'), '# seed\n');
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/.runtime\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
+  closeStateDb(initStateDb(
+    path.join(dir, '.ultra', '.runtime', 'state.db'),
+  ).db);
   return dir;
 }
 
 function mkDb(repoRoot) {
-  const dbPath = path.join(repoRoot, '.ultra', 'state.db');
+  const dbPath = path.join(repoRoot, '.ultra', '.runtime', 'state.db');
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const { db } = initStateDb(dbPath);
   return db;

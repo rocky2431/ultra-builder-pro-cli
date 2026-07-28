@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-17T15:23:58.592Z",
+  "change": {
+    "id": "release-kimi-v0-9-0",
+    "title": "Release Ultra Builder Pro v0.9.0",
+    "kind": "quick",
+    "status": "active",
+    "intent": "Version, publish, and externally verify the completed native Kimi Code runtime release without including user-owned workspace files.",
+    "docs_impact": {
+      "status": "required",
+      "files": [
+        "package.json",
+        "package-lock.json",
+        "CHANGELOG.md",
+        "README.md",
+        "docs/ROADMAP.md",
+        "docs/PLAN.zh-CN.md"
+      ],
+      "rationale": "The public package version, release history, badges, roadmap, and current-status documentation must identify the Kimi runtime release."
+    },
+    "base_commit": "72e1aa38738bf5506c68478abc4984602719b752"
+  },
+  "git": {
+    "head": "825012d2a76f3a5741e9b549a72aaa17d1ac8849"
+  },
+  "tasks": [
+    {
+      "id": "release-kimi-v0-9-0-publish",
+      "title": "Publish and verify v0.9.0",
+      "status": "completed",
+      "priority": "P0",
+      "stale": false,
+      "trace_to": null,
+      "context_file": null
+    }
+  ],
+  "specs": [],
+  "providers": {},
+  "provider_boundary": "metadata references only; memory and code graph content remain external",
+  "tool_policy": {
+    "allowed_paths": [
+      "package.json",
+      "package-lock.json",
+      "CHANGELOG.md",
+      "README.md",
+      "docs/ROADMAP.md",
+      "docs/PLAN.zh-CN.md"
+    ]
+  }
+}

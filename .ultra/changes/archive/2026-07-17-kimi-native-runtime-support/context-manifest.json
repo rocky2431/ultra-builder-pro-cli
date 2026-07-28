@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-17T14:21:12.854Z",
+  "change": {
+    "id": "kimi-native-runtime-support",
+    "title": "Add native Kimi Code runtime support",
+    "kind": "major",
+    "status": "active",
+    "intent": "Adapt Ultra Builder Pro as a native Kimi Code plugin and verify a safe local global installation on Kimi Code 0.27.0.",
+    "docs_impact": {
+      "status": "required",
+      "files": [
+        "README.md",
+        "CHANGELOG.md",
+        "docs/RUNTIME-COMPAT-MATRIX.md",
+        "docs/AGENT-CONTEXT.md",
+        "docs/ARCHITECTURE.md",
+        "docs/USER-HANDBOOK-CONTRACT.md"
+      ],
+      "rationale": "Kimi becomes a fourth supported runtime and changes public install, lifecycle, schema, and handbook contracts."
+    },
+    "base_commit": "72e1aa38738bf5506c68478abc4984602719b752"
+  },
+  "git": {
+    "head": "72e1aa38738bf5506c68478abc4984602719b752"
+  },
+  "tasks": [
+    {
+      "id": "kimi-native-runtime-support-impl",
+      "title": "Implement and verify native Kimi runtime",
+      "status": "completed",
+      "priority": "P0",
+      "stale": false,
+      "trace_to": null,
+      "context_file": null
+    }
+  ],
+  "specs": [
+    {
+      "file": "README.md",
+      "role": "public install contract"
+    },
+    {
+      "file": "docs/RUNTIME-COMPAT-MATRIX.md",
+      "role": "four-host compatibility contract"
+    },
+    {
+      "file": "spec/schemas/state-db.sql",
+      "role": "schema 9.1 runtime contract"
+    },
+    {
+      "file": "spec/mcp-tools.yaml",
+      "role": "29-tool Kimi runtime enum contract"
+    }
+  ],
+  "providers": {
+    "code_graph": {
+      "provider": "codebase-memory-mcp",
+      "project": "Users-rocky243-testing-project-ultra-builder-pro",
+      "indexed_head": "72e1aa38738bf5506c68478abc4984602719b752",
+      "status": "stale",
+      "reference": "Base HEAD indexed; current Kimi implementation is an uncommitted verified worktree delta."
+    },
+    "memory": {
+      "provider": "codex-memory",
+      "project": "ultra-builder-pro",
+      "reference": "MEMORY.md:71,78-79",
+      "status": "available"
+    }
+  },
+  "provider_boundary": "metadata references only; memory and code graph content remain external",
+  "tool_policy": {
+    "allowed_paths": [
+      "/Users/rocky243/testing-project/ultra-builder-pro",
+      "/Users/rocky243/.kimi-code/plugins/managed/ultra-builder-pro",
+      "/Users/rocky243/.kimi-code/plugins/installed.json",
+      "/Users/rocky243/.kimi-code/AGENTS.md"
+    ]
+  }
+}

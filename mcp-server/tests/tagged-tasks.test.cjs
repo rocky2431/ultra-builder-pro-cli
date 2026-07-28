@@ -31,7 +31,7 @@ function checkout(repoRoot, branch) {
 }
 
 function freshDb(repoRoot) {
-  const dbPath = path.join(repoRoot, '.ultra', 'state.db');
+  const dbPath = path.join(repoRoot, '.ultra', '.runtime', 'state.db');
   const init = initStateDb(dbPath);
   return init.db;
 }

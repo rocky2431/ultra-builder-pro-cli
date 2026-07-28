@@ -5,7 +5,10 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
+
+from runtime_paths import RuntimePathError, find_project_root
 
 
 class ContextSpineError(RuntimeError):
@@ -21,10 +24,19 @@ class Breadcrumb(dict):
 
 
 def find_root(start: Path):
-    for root in (start, *start.parents):
-        if (root / ".ultra" / "state.db").is_file():
-            return root
-    return None
+    try:
+        return find_project_root(start)
+    except RuntimePathError as exc:
+        raise ContextSpineError(str(exc)) from exc
+
+
+def find_root_for_hook(start: Path, hook_name: str):
+    """Fail open at a hook boundary while preserving path-conflict evidence."""
+    try:
+        return find_root(start)
+    except ContextSpineError as exc:
+        print(f"[{hook_name}] cannot resolve Ultra root: {exc}", file=sys.stderr)
+        return None
 
 
 def _helper_path() -> Path:

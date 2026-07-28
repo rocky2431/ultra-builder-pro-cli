@@ -46,6 +46,7 @@ const expectedTables = [
   'baselines',
   'tasks', 'events', 'sessions', 'schema_version', 'migration_history',
   'telemetry', 'specs_refs', 'circuit_breaker', 'changes', 'artifacts',
+  'artifact_edges',
   'context_snapshots', 'spec_learning_candidates', 'trace_links', 'incidents', 'projection_jobs',
   'event_consumers', 'workflow_runs', 'workflow_steps', 'decision_threads', 'decision_items',
 ];
@@ -62,13 +63,29 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '19.0'").get();
-if (v && v.version === '19.0') {
-  console.log('ok schema_version includes 19.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '20.0'").get();
+if (v && v.version === '20.0') {
+  console.log('ok schema_version includes 20.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 19.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 20.0: got ${JSON.stringify(v)}`);
   fail++;
+}
+
+const artifactColumns = new Set(
+  db.prepare('PRAGMA table_info(artifacts)').all().map((row) => row.name),
+);
+for (const column of [
+  'owner_type', 'owner_id', 'digest', 'before_digest', 'after_digest',
+  'provenance_json', 'managed',
+]) {
+  if (artifactColumns.has(column)) {
+    console.log(`  ok artifacts.${column}`);
+    pass++;
+  } else {
+    console.error(`  FAIL artifacts.${column} missing`);
+    fail++;
+  }
 }
 
 const requiredBaselineColumns = [

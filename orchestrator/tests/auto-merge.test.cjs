@@ -32,16 +32,19 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'seed.md'), '# seed\n');
-  // The DB and worktree dirs live under .ultra/ — keep them out of git so
+  // Mutable DB and worktree state lives under .ultra/.runtime — keep it out of git so
   // `git status` in conflict tests isn't polluted by untracked test artifacts.
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/.runtime\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
+  closeStateDb(initStateDb(
+    path.join(dir, '.ultra', '.runtime', 'state.db'),
+  ).db);
   return dir;
 }
 
 function mkDb(repoRoot) {
-  const dbPath = path.join(repoRoot, '.ultra', 'state.db');
+  const dbPath = path.join(repoRoot, '.ultra', '.runtime', 'state.db');
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const { db } = initStateDb(dbPath);
   return db;
@@ -218,7 +221,7 @@ test('closeSession does not auto-merge a change task with open dev workflow gate
       change_id: 'merge-gated-change',
     });
     const { worktree_path: worktreePath } = wtmgr.allocate({
-      repoRoot: repo, sid: 'cs-change-gated',
+      repoRoot: repo, sid: 'sess-change-gated',
     });
     const completionCommit = commitInWorktree(worktreePath, 'gated.txt', 'gated\n');
     completeTask(db, 'cs-change-gated', completionCommit);
@@ -227,7 +230,13 @@ test('closeSession does not auto-merge a change task with open dev workflow gate
       task_id: 'cs-change-gated',
       runtime: 'codex',
       worktree_path: worktreePath,
-      artifact_dir: path.join(repo, '.ultra', 'sessions', 'sess-change-gated'),
+      artifact_dir: path.join(
+        repo,
+        '.ultra',
+        '.runtime',
+        'sessions',
+        'sess-change-gated',
+      ),
     });
 
     const result = runner.closeSession(
@@ -260,7 +269,7 @@ test('closeSession auto-merges a change task only after current dev and review e
       change_id: 'merge-ready-change',
     });
     const { worktree_path: worktreePath } = wtmgr.allocate({
-      repoRoot: repo, sid: 'cs-change-ready',
+      repoRoot: repo, sid: 'sess-change-ready',
     });
     const completionCommit = commitInWorktree(worktreePath, 'ready.txt', 'ready\n');
     completeTask(db, 'cs-change-ready', completionCommit);
@@ -294,7 +303,13 @@ test('closeSession auto-merges a change task only after current dev and review e
       task_id: 'cs-change-ready',
       runtime: 'codex',
       worktree_path: worktreePath,
-      artifact_dir: path.join(repo, '.ultra', 'sessions', 'sess-change-ready'),
+      artifact_dir: path.join(
+        repo,
+        '.ultra',
+        '.runtime',
+        'sessions',
+        'sess-change-ready',
+      ),
     });
 
     const result = runner.closeSession(

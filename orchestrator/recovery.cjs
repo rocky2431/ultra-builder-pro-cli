@@ -14,6 +14,10 @@
 // whether the task should be tripped.
 
 const ops = require('../mcp-server/lib/state-ops.cjs');
+const fs = require('node:fs');
+const path = require('node:path');
+const closeJournal = require('./session-close-journal.cjs');
+const runner = require('./session-runner.cjs');
 
 function isPidAlive(pid) {
   if (!pid || pid <= 0) return false;
@@ -33,11 +37,115 @@ function listOrphanSessions(db) {
   return db.prepare("SELECT * FROM sessions WHERE status = 'orphan'").all();
 }
 
-function recoverOnBoot(db, { graceSeconds = 300 } = {}) {
+function reconcileCloseWorktree(repoRoot, intent) {
+  runner._internal.assertManagedWorktreePath(
+    repoRoot,
+    intent.worktree_path,
+    { sid: intent.sid, validateRuntimeTree: false },
+  );
+  if (fs.existsSync(intent.worktree_path)) {
+    const blocker = runner._internal.worktreeRemovalBlocker(
+      repoRoot,
+      intent.worktree_path,
+    );
+    if (blocker) throw new Error(blocker);
+  }
+  runner._internal.reconcileRemovedWorktree(
+    repoRoot,
+    intent.worktree_path,
+    { sid: intent.sid },
+  );
+}
+
+function closeIntentMatchesSession(intent, session) {
+  return Boolean(
+    intent
+      && session
+      && intent.sid === session.sid
+      && intent.task_id === session.task_id
+      && typeof intent.worktree_path === 'string'
+      && typeof session.worktree_path === 'string'
+      && path.resolve(intent.worktree_path) === path.resolve(session.worktree_path),
+  );
+}
+
+function recoverCloseIntents(db, repoRoot) {
+  if (!repoRoot) return { recovered: [], pending: [] };
+  const recovered = [];
+  const pending = [];
+  for (const intent of closeJournal.list(repoRoot)) {
+    const session = ops.readSession(db, intent.sid);
+    if (!session) {
+      pending.push({ sid: intent.sid, reason: 'session_missing' });
+      continue;
+    }
+    if (!closeIntentMatchesSession(intent, session)) {
+      pending.push({ sid: intent.sid, reason: 'journal_identity_mismatch' });
+      continue;
+    }
+    if (session.status === intent.requested_status) {
+      try {
+        reconcileCloseWorktree(repoRoot, intent);
+        closeJournal.discard(repoRoot, intent.sid);
+        recovered.push({
+          sid: intent.sid,
+          status: session.status,
+          reconciled: 'already_terminal',
+        });
+      } catch (error) {
+        closeJournal.update(repoRoot, intent.sid, {
+          phase: 'recovery_failed',
+          error: error.message,
+        });
+        pending.push({ sid: intent.sid, reason: error.message });
+      }
+      continue;
+    }
+    if (['completed', 'crashed'].includes(session.status)) {
+      pending.push({
+        sid: intent.sid,
+        reason: `terminal_status_conflict:${session.status}`,
+      });
+      continue;
+    }
+    if (isPidAlive(session.pid)) {
+      pending.push({ sid: intent.sid, reason: 'worker_still_alive' });
+      continue;
+    }
+    try {
+      reconcileCloseWorktree(repoRoot, intent);
+      closeJournal.update(repoRoot, intent.sid, {
+        phase: 'worktree_removed',
+        error: null,
+      });
+      ops.updateSession(db, intent.sid, { status: intent.requested_status });
+      closeJournal.discard(repoRoot, intent.sid);
+      recovered.push({
+        sid: intent.sid,
+        status: intent.requested_status,
+        reconciled: 'close_intent',
+      });
+    } catch (error) {
+      closeJournal.update(repoRoot, intent.sid, {
+        phase: 'recovery_failed',
+        error: error.message,
+      });
+      pending.push({ sid: intent.sid, reason: error.message });
+    }
+  }
+  return { recovered, pending };
+}
+
+function recoverOnBoot(db, { graceSeconds = 300, repoRoot = null } = {}) {
   if (!db) throw new Error('recoverOnBoot: db handle required');
 
+  const closeRecovery = recoverCloseIntents(db, repoRoot);
+
   // Step 1 — promote stale running sessions to orphan (Phase 4.5 logic).
-  ops.reapOrphanSessions(db, { graceSeconds });
+  ops.reapOrphanSessions(db, {
+    graceSeconds,
+    exclude_session_ids: closeRecovery.pending.map((entry) => entry.sid),
+  });
 
   // Step 2 — for every orphan, decide crashed vs. keep-watching.
   const orphans = listOrphanSessions(db);
@@ -46,11 +154,10 @@ function recoverOnBoot(db, { graceSeconds = 300 } = {}) {
     const alive = isPidAlive(s.pid);
     if (alive) continue;
 
-    ops.updateSession(db, s.sid, { status: 'crashed' });
-    ops.recordTaskFailure(db, s.task_id, {
+    const resolution = ops.crashOrphanSession(db, s.sid, {
       reason: 'session_crashed_on_boot',
-      session_id: s.sid,
     });
+    if (!resolution.changed) continue;
     recovered.push({
       sid: s.sid,
       task_id: s.task_id,
@@ -60,11 +167,22 @@ function recoverOnBoot(db, { graceSeconds = 300 } = {}) {
     });
   }
 
-  return { recovered, count: recovered.length };
+  return {
+    recovered,
+    count: recovered.length,
+    closed: closeRecovery.recovered,
+    close_pending: closeRecovery.pending,
+  };
 }
 
 module.exports = {
   recoverOnBoot,
   // exposed for tests
-  _internal: { isPidAlive, listOrphanSessions },
+  _internal: {
+    isPidAlive,
+    listOrphanSessions,
+    closeIntentMatchesSession,
+    reconcileCloseWorktree,
+    recoverCloseIntents,
+  },
 };

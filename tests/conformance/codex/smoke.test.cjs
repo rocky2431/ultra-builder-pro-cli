@@ -59,13 +59,16 @@ test('codex smoke — plugin install + MCP round-trip + scoped uninstall', async
   try {
     fs.rmSync(initTarget, { recursive: true, force: true });
     const report = install(layout);
-    assert.equal(report.plugin.skills.length, 18);
+    assert.equal(report.plugin.skills.length, 17);
     assert.equal(report.agents.installed.length, 10);
     assert.ok(report.agents.installed.includes('review-spec.toml'));
 
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
     assert.ok(mcp.mcpServers['ultra-builder-pro']);
-    await withMcpClient({ dbPath: path.join(serverHome, 'state.db'), rootDir: serverHome }, async (client) => {
+    await withMcpClient({
+      dbPath: path.join(serverHome, '.ultra', '.runtime', 'state.db'),
+      rootDir: serverHome,
+    }, async (client) => {
       const init = await client.callTool({
         name: 'task.init_project',
         arguments: { target_dir: initTarget, project_name: 'codex-smoke' },

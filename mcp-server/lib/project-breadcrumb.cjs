@@ -7,6 +7,7 @@ const Database = require('better-sqlite3');
 
 const { EXPECTED_VERSION, REQUIRED_TABLES } = require('./state-db.cjs');
 const { readBreadcrumb } = require('./context-spine.cjs');
+const runtimePaths = require('./runtime-paths.cjs');
 
 function blockedBreadcrumb(code, {
   allowedTransitions = [],
@@ -26,6 +27,7 @@ function blockedBreadcrumb(code, {
     context_manifest_hash: null,
     git_head: null,
     baseline: null,
+    accepted_intent: [],
   };
 }
 
@@ -41,6 +43,12 @@ function doctorBreadcrumb(code) {
     allowedTransitions: ['ultra-doctor', 'ultra-status'],
     requiredTransition: 'ultra-doctor',
   });
+}
+
+function compactText(value, maximum = 240) {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maximum) return normalized;
+  return `${normalized.slice(0, maximum - 3).trimEnd()}...`;
 }
 
 function latestSchemaVersion(db) {
@@ -59,7 +67,7 @@ function readProjectBreadcrumb(rootDir) {
   const root = path.resolve(rootDir || process.cwd());
   const ultraDir = path.join(root, '.ultra');
   if (!fs.existsSync(ultraDir)) return null;
-  const dbPath = path.join(ultraDir, 'state.db');
+  const dbPath = runtimePaths.locateStateDb(root);
   if (!fs.existsSync(dbPath)) {
     return blockedBreadcrumb('STATE_DB_MISSING', {
       allowedTransitions: ['ultra-init', 'ultra-status'],
@@ -131,8 +139,17 @@ function renderProjectBreadcrumb(rootDir, breadcrumb) {
     lines.push(
       `Decision thread: ${breadcrumb.decision.thread_id} (${breadcrumb.decision.status}/${breadcrumb.decision.mode})`,
       current
-        ? `Decision: ${current.id} — ${current.question}`
-        : 'Decision: checkpoint confirmation required',
+        ? `Decision: ${current.id} — ${compactText(current.question)}`
+        : (breadcrumb.decision.status === 'checkpoint_ready'
+          ? 'Decision: checkpoint confirmation required'
+          : 'Decision: normalized intent recorded; application and read-back remain'),
+    );
+  }
+  for (const accepted of (breadcrumb.accepted_intent || []).slice(0, 3)) {
+    const value = accepted.decision
+      || (accepted.consequences ? `Deferred: ${accepted.consequences}` : 'Normalized state recorded');
+    lines.push(
+      `Accepted intent: ${accepted.decision_id} [${accepted.authority || accepted.status}] ${compactText(value)}`,
     );
   }
   lines.push(`Allowed transitions: ${(breadcrumb.allowed_transitions || []).join(', ') || 'none'}`);
@@ -144,7 +161,9 @@ function renderProjectBreadcrumb(rootDir, breadcrumb) {
       `Context: ${breadcrumb.context_manifest_path} sha256=${breadcrumb.context_manifest_hash || 'unknown'}`,
     );
   }
-  lines.push('Authority: .ultra/state.db; JSON/Markdown remain projections or evidence artifacts.');
+  lines.push(
+    'Lifecycle authority: .ultra/.runtime/state.db; digest-bound files carry semantic and evidence content; projections remain non-authoritative.',
+  );
   return lines.join('\n');
 }
 

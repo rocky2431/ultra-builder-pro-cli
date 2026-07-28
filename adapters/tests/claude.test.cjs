@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const claude = require('../claude.js');
 const { parse: parseFrontmatter } = require('../_shared/frontmatter.cjs');
@@ -37,6 +38,15 @@ test('install builds the Claude-native plugin from the explicit Ultra allowlist'
     assert.ok(fs.existsSync(path.join(target, '.claude-plugin', 'plugin.json')));
     assert.ok(fs.existsSync(path.join(target, 'hooks', 'hooks.json')));
     assert.ok(fs.existsSync(path.join(target, '.mcp.json')));
+    assert.ok(fs.existsSync(
+      path.join(target, 'runtime', 'session-close-journal-worker.cjs'),
+    ));
+    assert.ok(fs.existsSync(
+      path.join(target, 'runtime', 'doctor-backup-worker.cjs'),
+    ));
+    assert.ok(fs.existsSync(
+      path.join(target, 'runtime', 'archive-mutation-worker.py'),
+    ));
     assert.ok(fs.existsSync(path.join(target, 'agents', 'code-reviewer.md')));
     const interaction = JSON.parse(
       fs.readFileSync(path.join(target, 'spec', 'interaction-contract.json'), 'utf8'),
@@ -44,35 +54,48 @@ test('install builds the Claude-native plugin from the explicit Ultra allowlist'
     assert.equal(interaction.interaction.question_surface.primary, 'AskUserQuestion');
     assert.equal(interaction.interaction.question_surface.availability, 'interactive_session');
     assert.equal(interaction.persistence.user_interaction_proof, 'not_required');
+    const dialogue = fs.readFileSync(
+      path.join(target, 'skills', 'ultra-think', 'references', 'decision-dialogue.md'),
+      'utf8',
+    );
+    assert.match(dialogue, /AskUserQuestion/);
+    assert.doesNotMatch(dialogue, /host-native structured question surface declared/);
 
     const hooks = JSON.parse(fs.readFileSync(path.join(target, 'hooks', 'hooks.json'), 'utf8'));
     const serialized = JSON.stringify(hooks);
-    for (const name of WORKFLOW_HOOK_FILES.filter((value) => value !== 'context_spine.py')) {
+    for (const name of WORKFLOW_HOOK_FILES.filter(
+      (value) => !['context_spine.py', 'runtime_paths.py'].includes(value),
+    )) {
       assert.match(serialized, new RegExp(name.replace('.', '\\.')));
     }
     assert.ok(fs.existsSync(path.join(target, 'hooks', 'context_spine.py')));
     assert.doesNotMatch(serialized, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
     assert.match(serialized, /\$\{CLAUDE_PLUGIN_ROOT\}/);
+
+    const launched = spawnSync('python3', [path.join(target, 'hooks', 'health_check.py')], {
+      cwd: parent,
+      input: JSON.stringify({ cwd: parent, hook_event_name: 'SessionStart' }),
+      encoding: 'utf8',
+    });
+    assert.equal(launched.status, 0, launched.stderr);
+    assert.deepEqual(JSON.parse(launched.stdout), {});
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
 
-test('Claude plugin collaboration and learn workflows are safe native plugin assets', () => {
+test('Claude plugin collaboration workflows are safe native plugin assets', () => {
   const parent = mkTarget();
   const target = path.join(parent, 'skills', 'ultra-builder-pro');
   try {
     claude.install({ configDir: parent, repoRoot: REPO_ROOT });
     const read = (name) => fs.readFileSync(path.join(target, 'skills', name, 'SKILL.md'), 'utf8');
-    const learn = read('learn');
     const codexCollab = read('codex-collab');
     const verify = read('ultra-verify');
     const review = read('ultra-review');
     const plan = read('ultra-plan');
     const status = read('ultra-status');
 
-    assert.match(learn, /`~\/.claude\/skills`/);
-    assert.doesNotMatch(learn, /_unverified|learned-[^\s/]*-unverified/i);
     assert.match(codexCollab, /-s read-only/);
     assert.match(codexCollab, /--ephemeral/);
     assert.match(codexCollab, /--ignore-user-config/);

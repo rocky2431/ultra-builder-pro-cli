@@ -10,6 +10,7 @@ const { execFileSync } = require('node:child_process');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
 const runner = require('../session-runner.cjs');
+const recovery = require('../recovery.cjs');
 
 // Short-lived child: keep the process alive until killed.
 const LONG_SLEEP_CMD = process.execPath;
@@ -21,14 +22,16 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'README.md'), '# test\n');
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra\n');
+  fs.mkdirSync(path.join(dir, '.ultra', 'specs'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.ultra', 'specs', 'product.md'), '# Product baseline\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/.runtime\n');
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
   return dir;
 }
 
 function mkDb(repoRoot) {
-  const dbPath = path.join(repoRoot, '.ultra', 'state.db');
+  const dbPath = path.join(repoRoot, '.ultra', '.runtime', 'state.db');
   const { db } = initStateDb(dbPath);
   return { db, dbPath };
 }
@@ -37,6 +40,17 @@ function seedTask(db, id = 't-1') {
   ops.createTask(db, { id, title: 'runner target', type: 'feature', priority: 'P1' });
   return id;
 }
+
+test('session close CAS conflicts remain expected recoverable execution gates', () => {
+  assert.equal(
+    runner.isExpectedExecutionGate({ code: 'SESSION_CLOSE_CONFLICT' }),
+    true,
+  );
+  assert.equal(
+    runner.isExpectedExecutionGate({ code: 'SESSION_CLOSE_JOURNAL_CONFLICT' }),
+    true,
+  );
+});
 
 function seedChangeTask(db, id = 'change-task') {
   const changeId = `${id}-change`;
@@ -80,6 +94,14 @@ function cleanup(repoRoot, db) {
 function isProcessAlive(pid) {
   try { process.kill(pid, 0); return true; }
   catch (_) { return false; }
+}
+
+async function waitForPath(candidate, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!fs.existsSync(candidate)) {
+    if (Date.now() >= deadline) throw new Error(`timed out waiting for ${candidate}`);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
 }
 
 test('spawnSession creates worktree, child process, and sessions row', () => {
@@ -150,10 +172,16 @@ test('spawnSession gives an automated worker one central Ultra authority', async
       handle.process.once('error', reject);
     });
 
-    const authorityLink = path.join(handle.worktree_path, '.ultra');
-    assert.equal(fs.lstatSync(authorityLink).isSymbolicLink(), true);
+    const authorityRoot = path.join(handle.worktree_path, '.ultra');
+    const runtimeLink = path.join(authorityRoot, '.runtime');
+    assert.equal(fs.lstatSync(authorityRoot).isDirectory(), true);
+    assert.equal(fs.lstatSync(runtimeLink).isSymbolicLink(), true);
     assert.equal(
-      fs.realpathSync(path.join(authorityLink, 'state.db')),
+      fs.readFileSync(path.join(authorityRoot, 'specs', 'product.md'), 'utf8'),
+      '# Product baseline\n',
+    );
+    assert.equal(
+      fs.realpathSync(path.join(runtimeLink, 'state.db')),
       fs.realpathSync(dbPath),
     );
     assert.equal(
@@ -190,7 +218,11 @@ test('spawnSession protects the authority link locally without changing tracked 
       db, repoRoot,
       task_id: 'r-unignored-authority', runtime: 'codex',
     });
-    assert.equal(fs.lstatSync(path.join(handle.worktree_path, '.ultra')).isSymbolicLink(), true);
+    assert.equal(fs.lstatSync(path.join(handle.worktree_path, '.ultra')).isDirectory(), true);
+    assert.equal(
+      fs.lstatSync(path.join(handle.worktree_path, '.ultra', '.runtime')).isSymbolicLink(),
+      true,
+    );
     assert.equal(execFileSync('git', ['status', '--porcelain=v1'], {
       cwd: handle.worktree_path,
       encoding: 'utf8',
@@ -202,7 +234,36 @@ test('spawnSession protects the authority link locally without changing tracked 
     }).trim();
     assert.match(
       fs.readFileSync(path.resolve(repoRoot, excludePath), 'utf8'),
-      /^\.ultra$/m,
+      /^\/\.ultra\/\.runtime$/m,
+    );
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('spawnSession blocks when the selected HEAD still broad-ignores semantic Ultra artifacts', () => {
+  const repoRoot = mkRepo();
+  fs.writeFileSync(path.join(repoRoot, '.gitignore'), '.ultra/\n');
+  execFileSync('git', ['add', '.gitignore'], { cwd: repoRoot });
+  execFileSync('git', ['commit', '-q', '-m', 'legacy broad ignore'], { cwd: repoRoot });
+  const { db } = mkDb(repoRoot);
+  try {
+    seedTask(db, 'r-stale-storage-boundary');
+    assert.throws(
+      () => runner.spawnSession({
+        db, repoRoot,
+        task_id: 'r-stale-storage-boundary', runtime: 'codex',
+      }),
+      (error) => error instanceof runner.SessionRunnerError
+        && error.code === 'WORKTREE_STORAGE_BOUNDARY_STALE',
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+    assert.deepEqual(
+      execFileSync('git', ['worktree', 'list', '--porcelain'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      }).split(/\r?\n/).filter((line) => line.startsWith('worktree ')).length,
+      1,
     );
   } finally {
     cleanup(repoRoot, db);
@@ -257,7 +318,7 @@ test('spawnSession rejects a change-owned task without a current completed plan'
       (error) => error.code === 'WORKFLOW_PLAN_NOT_COMPLETED',
     );
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
-    assert.equal(fs.existsSync(path.join(repoRoot, '.ultra', 'worktrees')), false);
+    assert.equal(fs.existsSync(path.join(repoRoot, '.ultra', '.runtime', 'worktrees')), false);
   } finally {
     cleanup(repoRoot, db);
   }
@@ -292,6 +353,250 @@ test('closeSession kills child, releases the lease, and preserves the worktree b
   }
 });
 
+test('closeSession waits for delayed SIGTERM shutdown before publishing terminal state', async () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  let handle;
+  try {
+    seedTask(db, 'r-delayed-close');
+    const ready = path.join(repoRoot, '.ultra', '.runtime', 'delayed-close-ready');
+    handle = runner.spawnSession({
+      db,
+      repoRoot,
+      task_id: 'r-delayed-close',
+      runtime: 'codex',
+      command: process.execPath,
+      args: [
+        '-e',
+        [
+          "const fs = require('node:fs');",
+          'const Database = require(process.argv[1]);',
+          'const db = new Database(process.env.UBP_DB_PATH);',
+          'process.on("SIGTERM", () => {',
+          '  setTimeout(() => {',
+          "    db.prepare(\"INSERT INTO events(type, session_id, payload_json) VALUES ('worker-shutdown-proof', ?, '{}')\").run(process.env.UBP_SESSION_ID);",
+          '    db.close();',
+          '    process.exit(0);',
+          '  }, 200);',
+          '});',
+          "fs.writeFileSync(process.argv[2], 'ready');",
+          'setInterval(() => {}, 60000);',
+        ].join('\n'),
+        require.resolve('better-sqlite3'),
+        ready,
+      ],
+    });
+    await waitForPath(ready);
+    const started = Date.now();
+    runner.closeSession(
+      { db, repoRoot, sid: handle.sid },
+      { status: 'completed', kill_timeout_ms: 2000, kill_poll_ms: 10 },
+    );
+    assert.ok(Date.now() - started >= 150);
+    assert.equal(ops.readSession(db, handle.sid).status, 'completed');
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM events WHERE type = 'worker-shutdown-proof' AND session_id = ?",
+      ).get(handle.sid).count,
+      1,
+    );
+    const terminalEventCount = db.prepare('SELECT COUNT(*) AS count FROM events').get().count;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM events').get().count, terminalEventCount);
+  } finally {
+    if (handle?.pid && isProcessAlive(handle.pid)) {
+      try { process.kill(handle.pid, 'SIGKILL'); } catch { /* best effort */ }
+      if (handle.process?.exitCode === null) {
+        await new Promise((resolve) => handle.process.once('exit', resolve));
+      }
+    }
+    cleanup(repoRoot, db);
+  }
+});
+
+test('terminal close never signals a reused PID and reconciles its journal idempotently', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  const realKill = process.kill;
+  let handle;
+  const signals = [];
+  try {
+    seedTask(db, 'r-terminal-idempotent');
+    handle = runner.spawnSession({
+      db,
+      repoRoot,
+      task_id: 'r-terminal-idempotent',
+      runtime: 'codex',
+    });
+    runner._internal.closeJournal.prepare(repoRoot, {
+      sid: handle.sid,
+      task_id: 'r-terminal-idempotent',
+      requested_status: 'completed',
+      worktree_path: handle.worktree_path,
+    });
+    // Model a legacy terminal row whose uncleared PID now belongs to an
+    // unrelated process.
+    db.prepare("UPDATE sessions SET status = 'completed', pid = ? WHERE sid = ?")
+      .run(process.pid, handle.sid);
+    process.kill = (pid, signal) => {
+      signals.push({ pid, signal });
+      throw new Error('terminal close attempted to signal a reused PID');
+    };
+
+    const first = runner.closeSession(
+      { db, repoRoot, sid: handle.sid },
+      { status: 'completed' },
+    );
+    assert.equal(first.worktree_preserved, false);
+    assert.equal(fs.existsSync(handle.worktree_path), false);
+    assert.equal(runner._internal.closeJournal.read(repoRoot, handle.sid), null);
+    assert.equal(ops.readSession(db, handle.sid).pid, null);
+
+    const second = runner.closeSession(
+      { db, repoRoot, sid: handle.sid },
+      { status: 'completed' },
+    );
+    assert.equal(second.worktree_preserved, false);
+    assert.throws(
+      () => runner.closeSession(
+        { db, repoRoot, sid: handle.sid },
+        { status: 'crashed' },
+      ),
+      (error) => error?.code === 'SESSION_TERMINAL_CONFLICT',
+    );
+    assert.deepEqual(signals, []);
+  } finally {
+    process.kill = realKill;
+    cleanup(repoRoot, db);
+  }
+});
+
+test('closeSession cannot overwrite a terminal result committed after its initial read', () => {
+  const repoRoot = mkRepo();
+  const { db, dbPath } = mkDb(repoRoot);
+  const competingDb = require('../../mcp-server/lib/state-db.cjs').openStateDb(dbPath);
+  const originalReadSession = ops.readSession;
+  let handle;
+  let injected = false;
+  try {
+    seedTask(db, 'r-terminal-cas');
+    handle = runner.spawnSession({
+      db,
+      repoRoot,
+      task_id: 'r-terminal-cas',
+      runtime: 'codex',
+    });
+    ops.readSession = (candidateDb, sid) => {
+      const row = originalReadSession(candidateDb, sid);
+      if (!injected && candidateDb === db && sid === handle.sid) {
+        injected = true;
+        ops.updateSession(competingDb, sid, { status: 'crashed' });
+      }
+      return row;
+    };
+
+    assert.throws(
+      () => runner.closeSession(
+        { db, repoRoot, sid: handle.sid },
+        { status: 'completed' },
+      ),
+      (error) => error?.code === 'SESSION_TERMINAL_CONFLICT',
+    );
+    assert.equal(originalReadSession(db, handle.sid).status, 'crashed');
+    assert.equal(
+      db.prepare(
+        `SELECT COUNT(*) AS count FROM events
+         WHERE session_id = ?
+           AND type IN ('session_closed', 'session_crashed')`,
+      ).get(handle.sid).count,
+      1,
+    );
+  } finally {
+    ops.readSession = originalReadSession;
+    competingDb.close();
+    cleanup(repoRoot, db);
+  }
+});
+
+test('closeSession fails closed when a worker ignores the termination signal', async () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  let handle;
+  try {
+    seedTask(db, 'r-stubborn-close');
+    const ready = path.join(repoRoot, '.ultra', '.runtime', 'stubborn-close-ready');
+    handle = runner.spawnSession({
+      db,
+      repoRoot,
+      task_id: 'r-stubborn-close',
+      runtime: 'codex',
+      command: process.execPath,
+      args: [
+        '-e',
+        [
+          "const fs = require('node:fs');",
+          'process.on("SIGTERM", () => {});',
+          "fs.writeFileSync(process.argv[1], 'ready');",
+          'setInterval(() => {}, 60000);',
+        ].join('\n'),
+        ready,
+      ],
+    });
+    await waitForPath(ready);
+
+    assert.throws(
+      () => runner.closeSession(
+        { db, repoRoot, sid: handle.sid },
+        {
+          status: 'crashed',
+          remove_worktree: true,
+          kill_timeout_ms: 100,
+          kill_poll_ms: 10,
+        },
+      ),
+      (error) => error?.code === 'SESSION_TERMINATION_TIMEOUT',
+    );
+    assert.equal(ops.readSession(db, handle.sid).status, 'running');
+    assert.equal(fs.existsSync(handle.worktree_path), true);
+    assert.equal(
+      runner._internal.closeJournal.read(repoRoot, handle.sid).phase,
+      'worker_running',
+    );
+  } finally {
+    if (handle?.pid && isProcessAlive(handle.pid)) {
+      try { process.kill(handle.pid, 'SIGKILL'); } catch { /* best effort */ }
+      if (handle.process?.exitCode === null) {
+        await new Promise((resolve) => handle.process.once('exit', resolve));
+      }
+    }
+    cleanup(repoRoot, db);
+  }
+});
+
+test('closeSession rejects a nonterminal requested outcome before changing the lease', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  try {
+    seedTask(db, 'r-close-running');
+    const handle = runner.spawnSession({
+      db, repoRoot,
+      task_id: 'r-close-running', runtime: 'codex',
+    });
+    const before = ops.readSession(db, handle.sid);
+    assert.throws(
+      () => runner.closeSession(
+        { db, repoRoot, sid: handle.sid },
+        { status: 'running', remove_worktree: true },
+      ),
+      (error) => error?.code === 'VALIDATION_ERROR',
+    );
+    assert.deepEqual(ops.readSession(db, handle.sid), before);
+    assert.equal(fs.existsSync(handle.worktree_path), true);
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
 test('closeSession refuses to remove uncommitted or unintegrated worktree changes', () => {
   const repoRoot = mkRepo();
   const { db } = mkDb(repoRoot);
@@ -314,6 +619,161 @@ test('closeSession refuses to remove uncommitted or unintegrated worktree change
     );
     assert.ok(fs.existsSync(handle.worktree_path));
     assert.equal(ops.readSession(db, handle.sid).status, 'running');
+  } finally {
+    cleanup(repoRoot, db);
+  }
+});
+
+test('closeSession journals removal before Git mutation and recovery resumes it', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  let handle;
+  try {
+    seedTask(db, 'r-remove-failure');
+    handle = runner.spawnSession({
+      db, repoRoot,
+      task_id: 'r-remove-failure', runtime: 'codex',
+    });
+    execFileSync('git', ['worktree', 'lock', handle.worktree_path], { cwd: repoRoot });
+    assert.throws(
+      () => runner.closeSession(
+        { db, repoRoot, sid: handle.sid },
+        { status: 'completed', remove_worktree: true },
+      ),
+      (error) => error instanceof runner.SessionRunnerError
+        && error.code === 'WORKTREE_FAILED',
+    );
+    assert.equal(ops.readSession(db, handle.sid).status, 'running');
+    assert.equal(fs.existsSync(handle.worktree_path), true);
+    const journal = path.join(
+      repoRoot,
+      '.ultra',
+      '.runtime',
+      'recovery',
+      'session-close',
+      `${handle.sid}.json`,
+    );
+    assert.equal(fs.existsSync(journal), true);
+    assert.deepEqual(
+      runner.admissionCheck(db, repoRoot, 'r-remove-failure'),
+      {
+        can_spawn: false,
+        conflict: {
+          sid: handle.sid,
+          status: 'closing',
+          heartbeat_age_ms: 0,
+        },
+        recommended_action: 'recover_close',
+      },
+    );
+    assert.throws(
+      () => runner.spawnSession({
+        db,
+        repoRoot,
+        task_id: 'r-remove-failure',
+        runtime: 'claude',
+        takeover: true,
+      }),
+      (error) => error instanceof runner.SessionRunnerError
+        && error.code === 'SESSION_CLOSE_PENDING',
+    );
+    assert.equal(ops.readSession(db, handle.sid).status, 'running');
+    assert.equal(
+      db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count,
+      1,
+    );
+
+    execFileSync('git', ['worktree', 'unlock', handle.worktree_path], { cwd: repoRoot });
+    const recovered = recovery.recoverOnBoot(db, { repoRoot });
+    assert.ok(recovered.closed.some((entry) => entry.sid === handle.sid));
+    assert.equal(ops.readSession(db, handle.sid).status, 'completed');
+    assert.equal(fs.existsSync(handle.worktree_path), false);
+    assert.equal(fs.existsSync(journal), false);
+  } finally {
+    if (handle?.worktree_path && fs.existsSync(handle.worktree_path)) {
+      try { execFileSync('git', ['worktree', 'unlock', handle.worktree_path], { cwd: repoRoot }); }
+      catch { /* best effort */ }
+    }
+    cleanup(repoRoot, db);
+  }
+});
+
+test('closeSession rejects an externally forged worktree path without deleting it', () => {
+  const repoRoot = mkRepo();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-session-external-'));
+  const { db } = mkDb(repoRoot);
+  try {
+    seedTask(db, 'r-forged-path');
+    const sentinel = path.join(outside, 'sentinel.txt');
+    fs.writeFileSync(sentinel, 'preserve');
+    ops.createSession(db, {
+      sid: 'sess-forged',
+      task_id: 'r-forged-path',
+      runtime: 'codex',
+      worktree_path: outside,
+      artifact_dir: path.join(
+        repoRoot, '.ultra', '.runtime', 'sessions', 'sess-forged',
+      ),
+    });
+
+    assert.throws(
+      () => runner.closeSession(
+        { db, repoRoot, sid: 'sess-forged' },
+        { status: 'completed', remove_worktree: true },
+      ),
+      (error) => error instanceof runner.SessionRunnerError
+        && error.code === 'WORKTREE_SCOPE_INVALID',
+    );
+    assert.equal(fs.readFileSync(sentinel, 'utf8'), 'preserve');
+    assert.equal(ops.readSession(db, 'sess-forged').status, 'running');
+  } finally {
+    cleanup(repoRoot, db);
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('closeSession requires its DB sid to name the exact managed direct child', () => {
+  const repoRoot = mkRepo();
+  const { db } = mkDb(repoRoot);
+  try {
+    const managed = path.join(repoRoot, '.ultra', '.runtime', 'worktrees');
+    const fixtures = [
+      {
+        sid: 'sess-expected',
+        worktree: path.join(managed, 'sess-other'),
+      },
+      {
+        sid: 'sess-nested',
+        worktree: path.join(managed, 'parent', 'sess-nested'),
+      },
+    ];
+    for (const fixture of fixtures) {
+      seedTask(db, `task-${fixture.sid}`);
+      fs.mkdirSync(fixture.worktree, { recursive: true });
+      const sentinel = path.join(fixture.worktree, 'sentinel');
+      fs.writeFileSync(sentinel, 'preserve');
+      ops.createSession(db, {
+        sid: fixture.sid,
+        task_id: `task-${fixture.sid}`,
+        runtime: 'codex',
+        worktree_path: fixture.worktree,
+        artifact_dir: path.join(
+          repoRoot, '.ultra', '.runtime', 'sessions', fixture.sid,
+        ),
+      });
+
+      assert.throws(
+        () => runner.closeSession(
+          { db, repoRoot, sid: fixture.sid },
+          { status: 'completed', remove_worktree: true },
+        ),
+        (error) => error instanceof runner.SessionRunnerError
+          && error.code === 'WORKTREE_SCOPE_INVALID',
+        fixture.sid,
+      );
+      assert.equal(fs.readFileSync(sentinel, 'utf8'), 'preserve');
+      assert.equal(ops.readSession(db, fixture.sid).status, 'running');
+    }
   } finally {
     cleanup(repoRoot, db);
   }
@@ -401,6 +861,26 @@ test('spawnSession rejects a worktree base outside the managed project boundary'
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
   } finally {
     cleanup(repoRoot, db);
+  }
+});
+
+test('worktree base containment follows real paths and rejects an in-scope symlink escape', () => {
+  const repoRoot = mkRepo();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-worktree-escape-'));
+  try {
+    const managedBase = path.join(repoRoot, '.ultra', '.runtime', 'worktrees');
+    fs.mkdirSync(managedBase, { recursive: true });
+    const escape = path.join(managedBase, 'escape');
+    fs.symlinkSync(outside, escape, 'dir');
+
+    assert.throws(
+      () => runner._internal.resolveWorktreeBase(repoRoot, escape),
+      (error) => error instanceof runner.SessionRunnerError
+        && error.code === 'WORKTREE_SCOPE_INVALID',
+    );
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
   }
 });
 

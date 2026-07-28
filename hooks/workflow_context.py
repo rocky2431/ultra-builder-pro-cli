@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Inject one compact Ultra state position without persistent memory."""
+"""Inject one compact Ultra workflow-memory position without provider payloads."""
 
 import json
 import sys
 from pathlib import Path
 
-from context_spine import ContextSpineError, find_root, read_breadcrumb, render_breadcrumb
+from context_spine import (
+    ContextSpineError,
+    find_root_for_hook,
+    read_breadcrumb,
+    render_breadcrumb,
+)
 
 
 def payload() -> dict:
@@ -19,7 +24,10 @@ def payload() -> dict:
 
 def main() -> None:
     data = payload()
-    root = find_root(Path(data.get("cwd") or Path.cwd()).resolve())
+    root = find_root_for_hook(
+        Path(data.get("cwd") or Path.cwd()).resolve(),
+        "workflow_context",
+    )
     if root is None:
         print(json.dumps({}))
         return

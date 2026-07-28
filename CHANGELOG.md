@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-07-29
+
+### Added
+
+- Added a trackable semantic artifact registry with digest, provenance,
+  ownership, freshness, and orphan detection while keeping mutable SQLite,
+  leases, telemetry, backups, and worktrees under the ignored
+  `.ultra/.runtime/` boundary.
+- Added typed Change deltas, documentation reconciliation records, immutable
+  task and role context snapshots, transactional plan publication, and
+  self-contained delivery archives with crash-safe recovery journals.
+- Added workflow revision and supersession contracts so accepted intent can
+  evolve without rewriting history or leaving active documents detached from
+  their owning workflow.
+- Added schema 20 migration and backup-first recovery for legacy
+  `.ultra/state.db` projects, including safe runtime relocation and inode-pinned
+  archive finalization on supported POSIX platforms.
+
+### Changed
+
+- Published one exact eleven-capability graph across all four host interaction
+  contracts. Every adapter now presents the same
+  `inspect -> suggest -> host-native ask -> normalize -> persist -> apply -> read back`
+  flow, owns no semantic authority, and waits for explicit invocation before another
+  public capability starts.
+- Updated current workflow, authority, runtime, and project templates for the separate
+  greenfield, brownfield-adoption, and migrated-authority paths.
+- Made every Change converge through a current plan, DB-backed task contract,
+  bounded context, risk-selected verification, review, documentation
+  reconciliation, and local delivery archive. Research remains adaptive and
+  may be omitted when current evidence is sufficient.
+- Defined `.ultra/` as project-local cross-session workflow memory: registered
+  specifications and evidence carry semantic bodies, while MCP and SQLite own
+  lifecycle state, references, digests, legal transitions, and recovery.
+- Extended packed-package conformance to cover prompt hygiene, native interaction
+  parity, exact public capabilities, user-handbook byte preservation, and project
+  inertness before `ultra-init`.
+
+### Fixed
+
+- Fixed archive, plan, session-close, worktree, and migration mutations so
+  partial failures recover the prior files and state instead of reporting false
+  success or leaving split authority.
+- Fixed context and delivery gates accepting stale, cross-project, symlinked,
+  malformed, unowned, or digest-mismatched artifacts.
+- Fixed draft baselines exempting arbitrary files under `.ultra/specs/`; only
+  the four reserved baseline scaffold files are provisional before baseline
+  readiness, and every additional spec is diagnosed as an orphan immediately.
+- Fixed host hooks and adapters resolving legacy state paths or becoming a
+  second semantic authority. Hooks now observe active workflow state, protect
+  projections, and surface recovery without forcing a semantic route.
+
+### Removed
+
+- Removed the non-Ultra `learn` command and Skill, automatic session-to-Skill mining,
+  and both global output-style personas from source, host adapters, and npm
+  distribution. Ultra no longer creates user Skills or controls communication style.
+
 ## [0.20.0] — 2026-07-28
 
 ### Added

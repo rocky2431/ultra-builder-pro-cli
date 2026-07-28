@@ -22,7 +22,7 @@ function install(value) {
   return kimi.install({ configDir: value.home, repoRoot: REPO_ROOT });
 }
 
-test('kimi conformance — native manifest exposes all twelve workflow commands', () => {
+test('kimi conformance — native manifest exposes all eleven workflow commands', () => {
   const value = layout('kimi-cap-command');
   try {
     install(value);
@@ -46,7 +46,7 @@ test('kimi conformance — complete skills plus functional worker templates', ()
       .map((entry) => entry.name)
       .sort();
     assert.deepEqual(skills, skillsForRuntime('kimi').sort());
-    assert.equal(skills.length, 19);
+    assert.equal(skills.length, 18);
     assert.equal(
       fs.readdirSync(path.join(value.pluginRoot, 'agents')).filter((name) => name.endsWith('.md')).length,
       10,

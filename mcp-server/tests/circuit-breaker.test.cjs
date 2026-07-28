@@ -123,3 +123,53 @@ test('custom threshold: fail_threshold=2 trips on 2nd failure', () => {
     assert.equal(ops.isCircuitTripped(db, 'cb-7'), true);
   } finally { teardown(dir, db); }
 });
+
+test('crashOrphanSession atomically records one terminal transition and one failure', () => {
+  const { dir, db } = freshDb();
+  try {
+    seedTask(db, 'cb-orphan');
+    ops.createSession(db, {
+      sid: 'cb-orphan-session',
+      task_id: 'cb-orphan',
+      runtime: 'codex',
+      pid: 2147483646,
+      worktree_path: '/tmp/cb-orphan-session',
+      artifact_dir: '/tmp/cb-orphan-artifacts',
+    });
+    ops.updateSession(db, 'cb-orphan-session', { status: 'orphan' });
+
+    const first = ops.crashOrphanSession(db, 'cb-orphan-session');
+    const second = ops.crashOrphanSession(db, 'cb-orphan-session');
+
+    assert.equal(first.changed, true);
+    assert.equal(first.failure_recorded, true);
+    assert.deepEqual(second, {
+      changed: false,
+      status: 'crashed',
+      failure_recorded: false,
+    });
+    assert.equal(ops.readSession(db, 'cb-orphan-session').status, 'crashed');
+    assert.equal(
+      db.prepare(
+        `SELECT COUNT(*) AS count FROM events
+         WHERE session_id = ?
+           AND type = 'session_crashed'`,
+      ).get('cb-orphan-session').count,
+      1,
+    );
+    assert.equal(
+      db.prepare(
+        `SELECT COUNT(*) AS count FROM events
+         WHERE session_id = ?
+           AND type = 'task_failure'`,
+      ).get('cb-orphan-session').count,
+      1,
+    );
+    assert.equal(
+      db.prepare(
+        'SELECT failure_count FROM circuit_breaker WHERE task_id = ?',
+      ).get('cb-orphan').failure_count,
+      1,
+    );
+  } finally { teardown(dir, db); }
+});

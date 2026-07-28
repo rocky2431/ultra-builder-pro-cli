@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ops = require('./state-ops.cjs');
+const artifacts = require('./artifact-registry.cjs');
 
 const CANDIDATE_ID = /^[a-zA-Z0-9_-]+$/;
 const TRANSITIONS = Object.freeze({
@@ -66,7 +67,7 @@ function upsertProjectionArtifact(db, change, rootDir, candidates) {
   ), '1970-01-01T00:00:00.000Z');
   const payload = {
     schema_version: '1.0',
-    source: '.ultra/state.db',
+    source: '.ultra/.runtime/state.db',
     change_id: change.id,
     generated_at: generatedAt,
     candidates,
@@ -75,17 +76,32 @@ function upsertProjectionArtifact(db, change, rootDir, candidates) {
   writeAtomic(file, serialized);
   const relative = path.relative(rootDir, file);
   const hash = crypto.createHash('sha256').update(serialized).digest('hex');
-  db.prepare(
-    `INSERT INTO artifacts (id, change_id, kind, path, content_hash, metadata_json)
-     VALUES (?, ?, 'spec_learning', ?, ?, ?)
-     ON CONFLICT(change_id, kind, path) DO UPDATE SET
-       content_hash = excluded.content_hash,
-       metadata_json = excluded.metadata_json,
-       updated_at = excluded.updated_at`,
-  ).run(
-    `art-${crypto.randomUUID().slice(0, 12)}`, change.id, relative, hash,
-    JSON.stringify({ candidates: candidates.length }),
-  );
+  const workflow = db.prepare(
+    `SELECT id FROM workflow_runs WHERE change_id = ?
+     ORDER BY started_at DESC, rowid DESC LIMIT 1`,
+  ).get(change.id);
+  if (!workflow) {
+    throw new SpecLearningError(
+      'ARTIFACT_CONSUMER_MISSING',
+      `change ${change.id} has no workflow consumer for spec learning`,
+    );
+  }
+  const taskConsumers = [...new Set(candidates.map((candidate) => candidate.task_id).filter(Boolean))]
+    .map((taskId) => ({ type: 'task', id: taskId, relation: 'consumed_by' }));
+  artifacts.recordArtifactInTx(db, {
+    owner_type: 'change',
+    owner_id: change.id,
+    kind: 'spec_learning',
+    path: relative,
+    content_digest: hash,
+    source_refs: [{ type: 'change', id: change.id, relation: 'produced_for' }],
+    consumer_refs: [
+      { type: 'workflow', id: workflow.id, relation: 'consumed_by' },
+      ...taskConsumers,
+    ],
+    provenance: { writer: 'spec-learning', workflow_run_id: workflow.id },
+    metadata: { candidates: candidates.length },
+  }, { rootDir });
   return { path: file, hash };
 }
 

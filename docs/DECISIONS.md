@@ -15,9 +15,12 @@ release-version authority.
 | Host adapter | Native Skill discovery, user-question surfaces, tool invocation, installation, and runtime wiring | A second project-state authority |
 | Hook | Lifecycle observation, compact DB-derived context, recovery hints, and generated-projection protection | Ordinary development blocking or semantic route selection |
 
-`.ultra/state.db` is the only durable Ultra lifecycle authority. Generated JSON
-and Markdown are projections or evidence artifacts. Prompt text, chat history,
-external memory, and code-graph payloads are not Ultra authority.
+`.ultra/` is project-local cross-session workflow memory. `.ultra/.runtime/state.db` is
+the only lifecycle, index, transition, freshness, and coordination authority.
+Registered digest-bound files carry semantic or evidence bodies; generated
+projections and working scratch are not authority. Prompt text, chat history,
+general external-memory payloads, and code-graph payloads are not Ultra
+authority. See [`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
 
 ## Research coverage
 
@@ -34,7 +37,10 @@ MCP validates generic invariants: selected identifiers must exist, dispositions
 must be legal, reused or excluded evidence must be referenced, synthesis must be
 active, and at least one non-synthesis area must be applicable. MCP does not
 choose the coverage set or prove how the owner answered. Once normalized intent
-is written, `.ultra/state.db` treats it as current cross-session authority.
+is written, `.ultra/.runtime/state.db` treats it as current cross-session authority. If
+that intent changes another Ultra authority, the host applies the change,
+reads it back, and records typed applied references when completing the
+decision thread.
 
 ## Lifecycle boundaries
 

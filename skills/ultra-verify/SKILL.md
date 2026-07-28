@@ -20,8 +20,9 @@ never recurse into the current host or treat advisor output as authority.
 
 1. Define the workspace, question, evidence standard, and response shape. Confirm the
    selected advisor CLI and authentication. Exclude secrets and unrelated files.
-2. Create `.ultra/collab/<session-id>/` and write the current host's independent,
+2. Create `.ultra/.runtime/collab/<session-id>/` and write the current host's independent,
    evidence-backed analysis to `host-analysis.md` before reading advisor output.
+   Treat the directory as working scratch, not Ultra authority.
 3. Follow the installed collaboration companion's read-only invocation contract. Give
    the advisor the same bounded question and evidence, without the primary conclusion
    when independence matters. Store its result as `advisor-output.md` and diagnostics
@@ -34,6 +35,8 @@ never recurse into the current host or treat advisor output as authority.
    primary documentation. Explain scope, version, evidence, and assumption differences
    before resolving disagreement.
 7. Write `metadata.json` and `synthesis.md`, then return one host-owned conclusion.
+   Promote only verified conclusions into the invoking DB-bound workflow artifact or
+   report; files under `.ultra/.runtime/collab/` remain non-authoritative.
 
 Read `references/cross-verify-modes.md` for mode-specific evidence and
 `references/evidence-status.md` when the synthesis needs an evidence status. Model agreement

@@ -2,11 +2,14 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
+const Database = require('better-sqlite3');
 
 const { initStateDb, openStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
+const runtimePaths = require('../../mcp-server/lib/runtime-paths.cjs');
 
-const DEFAULT_DB_PATH = path.join('.ultra', 'state.db');
-const DEFAULT_BACKUP_DIR = path.join('.ultra', 'backups');
+const DEFAULT_DB_PATH = runtimePaths.STATE_DB_RELATIVE_PATH;
+const DEFAULT_BACKUP_DIR = path.join(runtimePaths.RUNTIME_RELATIVE_DIR, 'backups');
 
 function parseFlags(args) {
   const flags = { _: [] };
@@ -50,9 +53,19 @@ function dispatch(args) {
   }
 }
 
+function resolveAuthorityPath(flags, { migrateLegacy = true } = {}) {
+  const env = flags.path
+    ? { UBP_DB_PATH: path.resolve(flags.path) }
+    : process.env;
+  return runtimePaths.resolveConfiguredStateDb(process.cwd(), {
+    env,
+    migrateLegacy,
+  }).stateDbPath;
+}
+
 function cmdInit(flags) {
-  const dbPath = path.resolve(flags.path || DEFAULT_DB_PATH);
   try {
+    const dbPath = resolveAuthorityPath(flags, { migrateLegacy: true });
     const { db, schema_version, created, tables, path: actualPath } = initStateDb(dbPath);
     closeStateDb(db);
     emit({
@@ -80,13 +93,13 @@ function cmdInit(flags) {
 }
 
 function withOpenDb(flags, fn, errorCode) {
-  const dbPath = path.resolve(flags.path || DEFAULT_DB_PATH);
-  if (!fs.existsSync(dbPath)) {
-    emit({ ok: false, error: { code: 'DB_NOT_FOUND', message: `state.db missing at ${dbPath}; run 'db init' first` } });
-    return 2;
-  }
   let db;
   try {
+    const dbPath = resolveAuthorityPath(flags, { migrateLegacy: true });
+    if (!fs.existsSync(dbPath)) {
+      emit({ ok: false, error: { code: 'DB_NOT_FOUND', message: `state.db missing at ${dbPath}; run 'db init' first` } });
+      return 2;
+    }
     db = openStateDb(dbPath);
     const data = fn(db, dbPath);
     emit({ ok: true, data: { path: dbPath, ...data } });
@@ -131,24 +144,54 @@ function defaultBackupPath() {
   return path.join(DEFAULT_BACKUP_DIR, `state-db-${ts}.db`);
 }
 
-function cmdBackup(flags) {
-  const dbPath = path.resolve(flags.path || DEFAULT_DB_PATH);
-  const targetPath = path.resolve(flags.to || defaultBackupPath());
-  if (!fs.existsSync(dbPath)) {
-    emit({ ok: false, error: { code: 'DB_NOT_FOUND', message: `state.db missing at ${dbPath}` } });
-    return 2;
+function quoteSqlString(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function createOnlineBackup(db, targetPath, {
+  beforeSnapshot = null,
+} = {}) {
+  const stage = path.join(
+    path.dirname(targetPath),
+    `.${path.basename(targetPath)}.snapshot-${process.pid}-${randomUUID()}`,
+  );
+  try {
+    if (beforeSnapshot) beforeSnapshot();
+    // VACUUM INTO is SQLite's synchronous, transactionally consistent
+    // snapshot primitive. It reads committed pages through SQLite rather than
+    // copying a main file that may lag committed WAL frames.
+    db.exec(`VACUUM INTO ${quoteSqlString(stage)}`);
+    const snapshot = new Database(stage, { readonly: true, fileMustExist: true });
+    try {
+      const integrity = snapshot.pragma('integrity_check');
+      if (integrity.length !== 1 || integrity[0].integrity_check !== 'ok') {
+        throw new Error('SQLite backup snapshot failed integrity_check');
+      }
+    } finally {
+      snapshot.close();
+    }
+    fs.renameSync(stage, targetPath);
+    return fs.statSync(targetPath).size;
+  } finally {
+    fs.rmSync(stage, { force: true });
   }
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+}
+
+function cmdBackup(flags) {
   let db;
   try {
-    // Flush WAL into the main file so a plain copy captures all committed
-    // writes; fall back to copy-only on a fresh file with no WAL.
+    const dbPath = resolveAuthorityPath(flags, { migrateLegacy: true });
+    const targetPath = runtimePaths.assertManagedBackupDestination(
+      process.cwd(),
+      flags.to || defaultBackupPath(),
+    ).targetPath;
+    if (!fs.existsSync(dbPath)) {
+      emit({ ok: false, error: { code: 'DB_NOT_FOUND', message: `state.db missing at ${dbPath}` } });
+      return 2;
+    }
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     db = openStateDb(dbPath);
-    db.pragma('wal_checkpoint(TRUNCATE)');
-    closeStateDb(db);
-    db = null;
-    fs.copyFileSync(dbPath, targetPath);
-    const size = fs.statSync(targetPath).size;
+    const size = createOnlineBackup(db, targetPath);
     emit({ ok: true, data: { source: dbPath, target: targetPath, size_bytes: size } });
     return 0;
   } catch (err) {
@@ -168,8 +211,16 @@ Verbs (Phase 2):
   integrity  [--path <db>]              run PRAGMA integrity_check
   backup     [--path <db>] [--to <out>] online .backup() to a file
 
-Default db: .ultra/state.db
-Default backup: .ultra/backups/state-db-{iso}.db
+Default db: .ultra/.runtime/state.db
+Default backup: .ultra/.runtime/backups/state-db-{iso}.db
 `;
 
-module.exports = { dispatch, USAGE, DEFAULT_DB_PATH, DEFAULT_BACKUP_DIR };
+module.exports = {
+  dispatch,
+  USAGE,
+  DEFAULT_DB_PATH,
+  DEFAULT_BACKUP_DIR,
+  _internal: {
+    createOnlineBackup,
+  },
+};

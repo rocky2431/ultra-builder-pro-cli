@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 import subprocess
 import tempfile
@@ -61,6 +62,81 @@ class ActiveTaskContextTest(unittest.TestCase):
             hook = output["hookSpecificOutput"]
             self.assertEqual(hook["permissionDecision"], "deny")
             self.assertIn("projection", hook["permissionDecisionReason"])
+
+    def test_authority_conflict_denies_projection_write_but_keeps_context_injection_fail_open(self):
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw)
+            runtime = project / ".ultra" / ".runtime"
+            runtime.mkdir(parents=True)
+            (runtime / "state.db").touch()
+            (project / ".ultra" / "state.db").touch()  # runtime-path-compatibility
+
+            denied = self.run_hook(
+                project, {"file_path": ".ultra/tasks/tasks.json"}
+            )
+            hook = denied["hookSpecificOutput"]
+            self.assertEqual(hook["permissionDecision"], "deny")
+            self.assertIn("authority", hook["permissionDecisionReason"].lower())
+
+            ordinary = self.run_hook(project, {"file_path": "src/example.py"})
+            self.assertEqual(ordinary, {})
+
+    def test_absolute_projection_target_is_protected_when_cwd_is_outside_project(self):
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            project = base / "project"
+            external = base / "external"
+            runtime = project / ".ultra" / ".runtime"
+            runtime.mkdir(parents=True)
+            external.mkdir()
+            (runtime / "state.db").touch()
+            (project / ".ultra" / "state.db").touch()  # runtime-path-compatibility
+            target = project / ".ultra" / "tasks" / "tasks.json"
+
+            result = subprocess.run(
+                ["python3", str(HOOK)],
+                cwd=external,
+                input=json.dumps({
+                    "cwd": str(external),
+                    "tool_input": {"file_path": str(target)},
+                }),
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            output = json.loads(result.stdout)
+            hook = output["hookSpecificOutput"]
+            self.assertEqual(hook["permissionDecision"], "deny")
+            self.assertIn("authority", hook["permissionDecisionReason"].lower())
+
+    def test_relative_projection_target_is_protected_when_cwd_is_outside_project(self):
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            project = base / "project"
+            external = base / "external"
+            runtime = project / ".ultra" / ".runtime"
+            runtime.mkdir(parents=True)
+            external.mkdir()
+            (runtime / "state.db").touch()
+            target = project / ".ultra" / "tasks" / "tasks.json"
+
+            result = subprocess.run(
+                ["python3", str(HOOK)],
+                cwd=external,
+                input=json.dumps({
+                    "cwd": str(external),
+                    "tool_input": {
+                        "file_path": os.path.relpath(target, external),
+                    },
+                }),
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            output = json.loads(result.stdout)
+            hook = output["hookSpecificOutput"]
+            self.assertEqual(hook["permissionDecision"], "deny")
+            self.assertIn("projection", hook["permissionDecisionReason"].lower())
 
     def test_injects_compact_db_breadcrumb_before_an_edit(self):
         with tempfile.TemporaryDirectory() as raw:

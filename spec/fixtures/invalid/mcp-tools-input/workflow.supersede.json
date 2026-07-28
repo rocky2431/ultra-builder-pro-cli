@@ -1,0 +1,12 @@
+[
+  {
+    "id": "accepted-research",
+    "reason": "The replacement id is required."
+  },
+  {
+    "id": "accepted-research",
+    "replacement_id": "revised-research",
+    "reason": "Accepted.",
+    "invalidate_everything": true
+  }
+]

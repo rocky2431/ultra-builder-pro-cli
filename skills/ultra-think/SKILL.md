@@ -37,8 +37,10 @@ Do not expose the hidden decision queue.
 For durable project decisions, use `decision.thread_start`, `decision.open`, and the
 appropriate resolve, delegate, defer, or supersede transition. Store normalized
 decisions and artifact references, never transcripts or internal reasoning.
-Call `decision.complete` when normalized state is settled and no artifact-bound
-checkpoint is needed; completion is not another owner approval.
+Apply any resulting change through its owning baseline, change, workflow, task, or
+semantic artifact operation, read it back, and pass typed `applied_refs` to
+`decision.complete`. If the decision record itself is the complete durable authority,
+the list may be empty. Completion is not another owner approval.
 
 Prepare and confirm a checkpoint only when the decision changes a durable contract or
 artifact and a checkpoint is needed for recovery. Do not add a ceremonial approval
@@ -51,3 +53,5 @@ contracts. Re-read the invoking workflow or breadcrumb and recommend one of its
 `allowed_transitions`; follow `required_transition` only when a hard invariant leaves
 no alternative. Thinking does not implement code, mutate unrelated state, or invent a
 canonical next action.
+
+Never invoke the recommended capability here; wait for an explicit user invocation.

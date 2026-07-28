@@ -5,24 +5,20 @@ description: Build or refresh an evidence-backed product and architecture baseli
 
 # Research with adaptive coverage
 
-The model owns investigation, synthesis, and coverage recommendations. The user owns
-the accepted semantic route and material deferrals. Ultra MCP owns the run, evidence
-references, semantic records, artifact digests, freshness, and convergence. The
-reference areas are an optional catalog, not a mandatory questionnaire or fixed
-sequence of user conversations.
+The model owns investigation, synthesis, and coverage recommendations; the user owns
+the accepted semantic route and material deferrals. MCP owns run state, evidence,
+semantic records, digests, freshness, and convergence, not a questionnaire.
 
 Read `../ultra-think/references/decision-dialogue.md` before asking a material question.
 
 ## Bind authority
 
-1. Read `system.doctor`, `baseline.get`, active decisions, and existing research runs.
+1. Read `system.doctor`, `baseline.get`, breadcrumb `accepted_intent`, active decisions,
+   and existing research runs.
 2. Resume the matching active, blocked, or ready run. Do not create parallel authority.
-3. If none exists, determine the authority-bound mode:
-   - `full` for a greenfield baseline;
-   - `adoption` for a brownfield baseline;
-   - a bounded mode only for a recorded active-change research disposition.
-   Focused baseline coverage retains `full` or `adoption`; `custom` is only
-   change-bound and narrows coverage inside an active Change.
+3. If none exists, use `full` for greenfield, `adoption` for brownfield, or a bounded
+   mode only for a recorded active-Change disposition. Focused baseline coverage
+   remains `full` or `adoption`; `custom` is Change-bound only.
 4. Before `workflow.start`, inspect current code, docs, tests, runtime, and prior
    artifacts. Recommend the smallest sufficient set of applicable catalog areas.
    Explain the net effect without dumping all 17 areas. Offer at most three credible
@@ -30,15 +26,14 @@ Read `../ultra-think/references/decision-dialogue.md` before asking a material q
 5. If current user intent does not already select a route, use the host's native
    structured question surface. The user selects, modifies, delegates, or defers.
    Treat a dismissal as unanswered, stop, and perform no route-dependent write.
-6. Normalize the answer and persist the accepted coverage through `workflow.start`:
-   - `execute`: produce fresh evidence;
-   - `verify_existing`: verify a current artifact against its source;
-   - `reuse`: reuse evidence that is still current;
-   - `not_applicable`: exclude with an evidence reference and rationale;
-   - `deferred`: record the consequence and owner acceptance when deferral changes the
-     accepted scope or leaves material risk.
+6. Normalize the answer and persist the accepted coverage through `workflow.start`.
+   Use `execute` for fresh evidence, `verify_existing` for source validation, `reuse`
+   for current evidence, `not_applicable` with evidence and rationale, or `deferred`
+   with consequence and owner acceptance when scope or material risk changes.
 7. Pass the evidence-based coverage rationale as `metadata.selection_reason`. Omitted
    catalog areas create no DB step and need no ceremonial disposition.
+8. Read back the created workflow and accepted coverage. When a durable decision thread
+   recorded the route, complete it with the workflow reference in `applied_refs`.
 
 `99-synthesis` must execute, verify, or reuse. A missing disposition is a coverage
 error only for an included area; a recorded exclusion with evidence is not incomplete.
@@ -77,15 +72,20 @@ For each active area:
    artifact. Do not copy prompts, transcripts, provider payloads, or internal chain of
    thought.
 
-For every required workflow step, write
-`.ultra/docs/research/<workflow-id>/<step-id>.md` with `Evidence`,
-`Specification updates`, and `Decisions and unknowns`. Call `workflow.step` with
-bounded evidence, the report output, and typed semantic records. Reused or verified
-evidence must still produce a current report and digest. Block the same step when
-required evidence or owner authority is missing.
+Every required step writes `Evidence`, `Specification updates`, and `Decisions and
+unknowns` to `.ultra/docs/research/<workflow-id>/<step-id>.md` for a baseline, or
+`<change-root>/research/<workflow-id>/<step-id>.md` for an active Change.
+
+Call `workflow.step` with bounded evidence, the report output, and typed semantic
+records. Reused or verified evidence must still produce a current report and digest.
+Block the same step when required evidence or owner authority is missing. For Change
+research, keep `findings.md` and every semantic output inside the same Change root and
+register them through workflow outputs; do not write baseline specifications.
 
 At synthesis, bind the current `discovery.md`, `product.md`, `architecture.md`, and
-`research-distillate.md` for initial/adoption research.
+`research-distillate.md` only for initial/adoption research. Change-bound synthesis
+updates the Change findings and specification overlay, then records or refreshes
+`change.delta`. It never mutates the accepted baseline.
 
 ## Baseline convergence
 
@@ -107,10 +107,13 @@ failures.
 Reuse the final research acceptance or current artifact checkpoint during baseline
 convergence; do not ask for an equivalent approval again. After initial or adoption
 convergence, `ultra-change` becomes an available transition. Bounded change research
-returns to its owning Change authority.
+returns to its owning Change authority; the next route is still `ultra-plan`, never
+direct implementation.
 
 Return a compact coverage summary by disposition, current evidence or decision
 blocker, baseline state, gaps, and allowed transitions. Recommend a semantic next
 action from those transitions. If current intent does not already select it, present
 the recommendation and credible alternatives through the interaction protocol, then
 wait. MCP supplies only valid and required transitions.
+
+Never invoke the recommended capability here; wait for an explicit user invocation.

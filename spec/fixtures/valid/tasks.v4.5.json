@@ -1,7 +1,7 @@
 {
   "schema_version": "4.5",
   "generated_at": "2026-04-17T07:10:00Z",
-  "source": ".ultra/state.db",
+  "source": ".ultra/.runtime/state.db",
   "tasks": [
     {
       "id": "task-001",

@@ -1,7 +1,7 @@
 [
   {
     "created_path": "/tmp/ubp-init-demo/.ultra",
-    "state_db_path": "/tmp/ubp-init-demo/.ultra/state.db",
+    "state_db_path": "/tmp/ubp-init-demo/.ultra/.runtime/state.db",
     "status": "created",
     "mode": "greenfield",
     "baseline": {
@@ -50,7 +50,7 @@
   },
   {
     "created_path": "/Users/demo/sandbox/.ultra",
-    "state_db_path": "/Users/demo/sandbox/.ultra/state.db",
+    "state_db_path": "/Users/demo/sandbox/.ultra/.runtime/state.db",
     "status": "overwritten",
     "mode": "brownfield",
     "baseline": {

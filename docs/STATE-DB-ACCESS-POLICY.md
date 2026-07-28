@@ -1,12 +1,13 @@
-# `.ultra/state.db` access policy
+# `.ultra/.runtime/state.db` access policy
 
 > Multi-process access contract. Current authority is defined by
 > [`DECISIONS.md`](./DECISIONS.md) and the live database schema.
 
-`.ultra/state.db` is the only authoritative state store for baselines, changes,
-decision threads/items, tasks, workflow runs/steps, events, sessions, incidents,
-projections, telemetry, and spec references
-(D18, D52, D54). Every process
+`.ultra/.runtime/state.db` is the only lifecycle, index, transition, freshness, and
+coordination authority for baselines, changes, decision threads/items, tasks,
+workflow runs/steps, events, sessions, incidents, projections, telemetry, and spec
+references (D18, D52, D54). Registered digest-bound files carry semantic and evidence
+bodies; the DB owns their references and current digests. Every process
 that touches it must follow the rules below; deviations are bugs.
 
 ## 1. Three-role write matrix
@@ -64,7 +65,7 @@ WAL is part of the authority contract, not an optional performance setting.
 `openStateDb` asks SQLite to enable WAL and checks the actual returned mode. If
 the storage layer returns anything else, startup fails with
 `STATE_DB_WAL_UNAVAILABLE`. Ultra does not silently downgrade to a different
-concurrency model. Move `.ultra/state.db` to storage that supports SQLite WAL or
+concurrency model. Move `.ultra/.runtime/state.db` to storage that supports SQLite WAL or
 resolve the mount/runtime constraint before retrying.
 
 ## 4. Where each table is owned
@@ -74,9 +75,10 @@ resolve the mount/runtime constraint before retrying.
 | `baselines`        | MCP server (`baseline.start` / `baseline.record` / `baseline.converge`); initialization and legacy-projection migration may create only the first draft or compatibility row |
 | `tasks`            | MCP server (`task.create` / `task.update` / `task.delete`) |
 | `changes`          | MCP server (`change.create` / `change.update` / `change.converge` / `change.archive`) |
-| `decision_threads`, `decision_items` | MCP server (`decision.thread_start` / `decision.open` / `decision.resolve` / `decision.delegate` / `decision.defer` / `decision.supersede` / `decision.complete` / `decision.checkpoint`); only pending questions needed for recovery, normalized choices, lifecycle completion, and optional artifact checkpoints are stored, never prompts or transcripts |
+| `decision_threads`, `decision_items` | MCP server (`decision.thread_start` / `decision.open` / `decision.resolve` / `decision.delegate` / `decision.defer` / `decision.supersede` / `decision.complete` / `decision.checkpoint`); pending recovery state, normalized accepted intent, durable effects, typed applied references, lifecycle completion, and optional artifact checkpoints are stored, never UI receipts, prompts, or transcripts |
 | `workflow_runs`, `workflow_steps` | MCP server (`workflow.start` / `workflow.step` / `workflow.complete`); skills provide evidence inputs but never write rows directly |
-| `artifacts`, `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through change lifecycle tools |
+| `artifacts`, `artifact_edges` | MCP server (`artifact.record`); workflow-owned registration may use the same internal registry transaction |
+| `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through change lifecycle tools |
 | `incidents`, `projection_jobs`, `event_consumers`, `circuit_breaker` | MCP server; backup-first doctor recovery may perform only documented mechanical transitions |
 | `events`           | MCP server for lifecycle events; approved processes and `task.append_event` for allowlisted append-only observations |
 | `sessions`         | MCP server (`session.spawn` / `session.close` / `session.heartbeat`); orchestrator may write status transitions |
@@ -87,7 +89,7 @@ resolve the mount/runtime constraint before retrying.
 
 ## 5. Forbidden patterns
 
-- **No file copies for state.** Don't `cp .ultra/state.db
+- **No file copies for state.** Don't `cp .ultra/.runtime/state.db
   somewhere/state.db` and edit; use `ultra-tools db backup`.
 - **No long-held writer connections** outside the MCP server. Pop a
   short transaction, finish, close.

@@ -27,6 +27,7 @@ families:
   - { name: change,  description: 'continuous post-delivery change lifecycle and convergence', phase: '9' }
   - { name: decision, description: 'durable owner-agent alignment, one-question presentation, and approved checkpoints', phase: '16' }
   - { name: workflow, description: 'durable cross-stage run position, evidence, outputs, blockers, and recovery', phase: '13' }
+  - { name: artifact, description: 'typed semantic and evidence artifact ownership, digest, provenance, and dependency graph', phase: '20' }
   - { name: system,  description: 'read-only diagnostics and explicit backup-first repair', phase: '9' }
 
 tools:
@@ -80,6 +81,11 @@ tools:
               reason: { type: string, minLength: 1 }
               kind: { type: string, enum: [spec, source, test, docs, external], default: source }
               required: { type: boolean, default: true }
+              expected_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+              digest: { type: string, pattern: '^[0-9a-f]{64}$', description: 'legacy alias for expected_digest' }
+              anchor: { type: string, minLength: 1 }
+              scope: { type: string, minLength: 1 }
+              freshness_policy: { type: string, enum: [digest, existence, advisory] }
         docs_impact:
           type: object
           required: [status, files, rationale]
@@ -599,7 +605,7 @@ tools:
         takeover: { type: boolean, default: false, description: 'override active lease (D33 takeover strategy)' }
         worktree_base:
           type: string
-          description: optional path resolving inside the repository `.ultra/worktrees` boundary; outside paths are rejected
+          description: optional path resolving inside the repository `.ultra/.runtime/worktrees` boundary; outside paths are rejected
     output_schema:
       type: object
       required: [sid, worktree_path, artifact_dir, lease_expires_at, worktree_created]
@@ -613,6 +619,7 @@ tools:
     errors:
       - { code: TASK_NOT_FOUND, description: 'task id missing' }
       - { code: ADMISSION_DENIED, description: 'active lease exists; choose takeover/resume/abandon' }
+      - { code: SESSION_CLOSE_PENDING, description: 'an unfinished durable close intent must recover before spawn or takeover' }
       - { code: NESTED_SESSION_FORBIDDEN, description: 'an active worker must resume its assigned session instead of recursively spawning another one' }
       - { code: TAKEOVER_FAILED, description: 'prior owned worker could not be terminated safely' }
       - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'change-owned task contract is incomplete' }
@@ -621,9 +628,12 @@ tools:
       - { code: WORKFLOW_PLAN_NOT_COMPLETED, description: 'owning change has no healthy completed plan workflow' }
       - { code: WORKFLOW_PLAN_TASK_SET_STALE, description: 'change task set differs from the current converged plan' }
       - { code: WORKFLOW_PLAN_TASK_CONTRACT_STALE, description: 'task contract differs from the current converged plan' }
+      - { code: WORKFLOW_PLAN_CONTEXT_STALE, description: 'the planning Context no longer matches the current checkout or required references' }
+      - { code: WORKFLOW_IMPLEMENTATION_CONTEXT_REQUIRED, description: 'the task has no exact ready implementation Context' }
+      - { code: WORKFLOW_IMPLEMENTATION_CONTEXT_STALE, description: 'the task implementation Context is stale, blocked, or bound to different authority' }
       - { code: WORKTREE_SCOPE_INVALID, description: 'requested worktree base escapes the managed project boundary' }
       - { code: WORKTREE_FAILED, description: 'Git worktree creation failed or the repository has no usable HEAD' }
-      - { code: WORKTREE_AUTHORITY_MISSING, description: 'central `.ultra/state.db` disappeared before worktree binding' }
+      - { code: WORKTREE_AUTHORITY_MISSING, description: 'central `.ultra/.runtime/state.db` disappeared before worktree binding' }
       - { code: WORKTREE_AUTHORITY_NOT_IGNORED, description: 'a safe local ignore rule for the `.ultra` authority link could not be established' }
       - { code: WORKTREE_AUTHORITY_CONFLICT, description: 'the isolated checkout already contains a conflicting `.ultra` entry' }
       - { code: WORKTREE_AUTHORITY_LINK_FAILED, description: 'the isolated checkout could not be linked to central Ultra authority' }
@@ -642,7 +652,7 @@ tools:
       additionalProperties: false
       properties:
         sid:    { type: string }
-        status: { type: string, enum: [completed, crashed, orphan] }
+        status: { type: string, enum: [completed, crashed] }
         remove_worktree: { type: boolean, default: false }
     output_schema:
       type: object
@@ -657,7 +667,7 @@ tools:
       - { code: SESSION_SCOPE_VIOLATION, description: 'an active worker attempted to close a session it does not own' }
       - { code: WORKTREE_NOT_INTEGRATED, description: 'Explicit cleanup refused because work is uncommitted, unverified, or not integrated into the current checkout' }
     cli_subcommand: session close
-    emits_events: [session_closed, session_crashed, session_orphaned]
+    emits_events: [session_closed, session_crashed]
     trace_to: '§7.3, D32'
 
   - name: session.get
@@ -734,7 +744,7 @@ tools:
             heartbeat_age_ms: { type: integer, minimum: 0 }
         recommended_action:
           type: string
-          enum: [spawn, takeover, resume, abandon, blocked_by_breaker]
+          enum: [spawn, takeover, resume, abandon, recover_close, blocked_by_breaker]
     errors:
       - { code: TASK_NOT_FOUND, description: 'task id missing' }
       - { code: TASK_EXECUTION_CONTRACT_INCOMPLETE, description: 'change-owned task contract is incomplete' }
@@ -743,6 +753,9 @@ tools:
       - { code: WORKFLOW_PLAN_NOT_COMPLETED, description: 'owning change has no healthy completed plan workflow' }
       - { code: WORKFLOW_PLAN_TASK_SET_STALE, description: 'change task set differs from the current converged plan' }
       - { code: WORKFLOW_PLAN_TASK_CONTRACT_STALE, description: 'task contract differs from the current converged plan' }
+      - { code: WORKFLOW_PLAN_CONTEXT_STALE, description: 'the planning Context no longer matches the current checkout or required references' }
+      - { code: WORKFLOW_IMPLEMENTATION_CONTEXT_REQUIRED, description: 'the task has no exact ready implementation Context' }
+      - { code: WORKFLOW_IMPLEMENTATION_CONTEXT_STALE, description: 'the task implementation Context is stale, blocked, or bound to different authority' }
     cli_subcommand: session admission
     emits_events: []
     trace_to: '§7.3, D33'
@@ -1184,7 +1197,7 @@ tools:
 
   - name: change.update
     family: change
-    description: Update mutable change authority. Semantic changes invalidate every derived task and compiled context so they must be reconciled before execution.
+    description: Update mutable change authority. Semantic changes invalidate only registered transitive consumers so affected tasks and contexts must be reconciled before execution.
     phase: '9'
     writer_role: mcp
     input_schema:
@@ -1251,6 +1264,197 @@ tools:
     cli_subcommand: change update
     emits_events: [task_stale_marked, change_updated]
 
+  - name: change.delta
+    family: change
+    description: Record the typed Change-owned delta overlay against exact baseline anchors without mutating baseline specifications.
+    phase: '21'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required:
+        [id, baseline_anchor, decisions, non_goals, acceptance, documentation_impact, unknowns, mutations]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        baseline_anchor:
+          type: object
+          required: [baseline_id, repository_revision, specs]
+          additionalProperties: false
+          properties:
+            baseline_id: { type: string, minLength: 1 }
+            repository_revision: { type: ['string', 'null'] }
+            specs:
+              type: array
+              items:
+                type: object
+                required: [path, digest]
+                additionalProperties: false
+                properties:
+                  path: { type: string, minLength: 1 }
+                  digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        decisions:
+          type: array
+          items:
+            type: object
+            required: [id, summary]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              summary: { type: string, minLength: 1 }
+              rationale: { type: string, minLength: 1 }
+        non_goals: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+        acceptance:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [id, criterion, verification]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              criterion: { type: string, minLength: 1 }
+              verification: { type: string, minLength: 1 }
+        documentation_impact:
+          type: object
+          required: [status, files, rationale]
+          additionalProperties: false
+          properties:
+            status: { type: string, enum: [none, required] }
+            files: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+            rationale: { type: string, minLength: 3 }
+        unknowns:
+          type: array
+          items:
+            type: object
+            required: [id, summary, blocking]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              summary: { type: string, minLength: 1 }
+              blocking: { type: boolean }
+        no_semantic_change_reason: { type: string, minLength: 3 }
+        mutations:
+          type: array
+          items:
+            type: object
+            required:
+              [id, action, target_path, overlay_path, before_digest, after_digest, acceptance_refs, documentation_refs]
+            additionalProperties: false
+            properties:
+              id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+              action: { type: string, enum: [add, update] }
+              target_path: { type: string, minLength: 1 }
+              overlay_path: { type: string, minLength: 1 }
+              before_digest: { type: ['string', 'null'], pattern: '^[0-9a-f]{64}$' }
+              after_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+              acceptance_refs: { type: array, minItems: 1, uniqueItems: true, items: { type: string, minLength: 1 } }
+              documentation_refs: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+      allOf:
+        - if:
+            properties:
+              mutations: { maxItems: 0 }
+          then:
+            required: [no_semantic_change_reason]
+    output_schema:
+      type: object
+      required: [delta, artifact, payload_artifacts, progress_artifact]
+      additionalProperties: false
+      properties:
+        delta: { type: object }
+        artifact: { type: object }
+        payload_artifacts: { type: array, items: { type: object } }
+        progress_artifact: { type: object }
+    errors:
+      - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
+      - { code: CHANGE_NOT_MUTABLE, description: 'terminal Change authority cannot accept a delta' }
+      - { code: CHANGE_DELTA_INVALID, description: 'delta shape or typed mutation contract is invalid' }
+      - { code: CHANGE_DELTA_CONTRACT_MISMATCH, description: 'delta does not match accepted Change non-goals, acceptance, or documentation impact' }
+      - { code: CHANGE_DELTA_BASELINE_CONFLICT, description: 'baseline id, revision, specification digest, or target bytes changed' }
+      - { code: CHANGE_DELTA_PAYLOAD_MISSING, description: 'a declared Change overlay file is missing' }
+      - { code: CHANGE_DELTA_PAYLOAD_STALE, description: 'a declared Change overlay digest is stale' }
+    cli_subcommand: change delta
+    emits_events: [artifact_recorded, spec_changed, change_delta_recorded]
+
+  - name: change.documentation_reconcile
+    family: change
+    description: Record Change-owned documentation before/after digests, delta and acceptance trace, verification, and explicit consumer or no-consumer evidence.
+    phase: '21'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, delta_artifact_id, delta_digest, documents]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        delta_artifact_id: { type: string, minLength: 1 }
+        delta_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        no_change_reason: { type: string, minLength: 3 }
+        documents:
+          type: array
+          items:
+            type: object
+            required:
+              [path, action, overlay_path, before_digest, after_digest, delta_refs, acceptance_refs, verification, consumers]
+            additionalProperties: false
+            properties:
+              path: { type: string, minLength: 1 }
+              action: { type: string, enum: [add, update] }
+              overlay_path: { type: string, minLength: 1 }
+              before_digest: { type: ['string', 'null'], pattern: '^[0-9a-f]{64}$' }
+              after_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+              delta_refs: { type: array, minItems: 1, uniqueItems: true, items: { type: string } }
+              acceptance_refs: { type: array, minItems: 1, uniqueItems: true, items: { type: string } }
+              verification:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [command, status, evidence_refs]
+                  additionalProperties: false
+                  properties:
+                    command: { type: string, minLength: 1 }
+                    status: { type: string, const: pass }
+                    evidence_refs:
+                      type: array
+                      minItems: 1
+                      uniqueItems: true
+                      items: { type: string, minLength: 1 }
+              consumers:
+                type: array
+                items:
+                  type: object
+                  required: [type, id, relation]
+                  additionalProperties: false
+                  properties:
+                    type: { type: string, enum: [artifact, project, baseline, change, task, workflow, external] }
+                    id: { type: string, minLength: 1 }
+                    relation: { type: string, minLength: 1 }
+              no_consumer_reason: { type: string, minLength: 3 }
+      allOf:
+        - if:
+            properties:
+              documents: { maxItems: 0 }
+          then:
+            required: [no_change_reason]
+    output_schema:
+      type: object
+      required: [reconciliation, artifact, payload_artifacts, progress_artifact]
+      additionalProperties: false
+      properties:
+        reconciliation: { type: object }
+        artifact: { type: object }
+        payload_artifacts: { type: array, items: { type: object } }
+        progress_artifact: { type: object }
+    errors:
+      - { code: CHANGE_NOT_FOUND, description: 'change id does not exist' }
+      - { code: DOCUMENTATION_DELTA_AUTHORITY_INVALID, description: 'documentation is not bound to the current Change delta' }
+      - { code: DOCUMENTATION_RECONCILIATION_INCOMPLETE, description: 'declared documentation impact is not covered exactly' }
+      - { code: DOCUMENTATION_ORPHAN_UNRESOLVED, description: 'a changed document lacks a consumer or explicit no-consumer reason' }
+      - { code: DOCUMENTATION_BASELINE_CONFLICT, description: 'a documentation target changed after its before digest was recorded' }
+      - { code: DOCUMENTATION_EVIDENCE_STALE, description: 'documentation overlay bytes do not match the recorded after digest' }
+    cli_subcommand: change documentation-reconcile
+    emits_events: [artifact_recorded, spec_changed, documentation_reconciliation_recorded]
+
   - name: change.get
     family: change
     description: Read one continuous change unit and its specification-learning candidates from authoritative state.
@@ -1306,12 +1510,28 @@ tools:
       type: object
       required: [id]
       additionalProperties: false
+      not:
+        required: [context_refs, spec_refs]
       properties:
         id: { type: string }
         task_id: { type: string }
         role: { type: string, enum: [plan, implement, check, review] }
         gate: { type: string, enum: [alignment, planning, implementation, verification, review, convergence, recovery] }
-        spec_refs: { type: array, items: { type: object } }
+        spec_refs:
+          type: array
+          maxItems: 64
+          items:
+            type: object
+            required: [ref]
+            additionalProperties: false
+            properties:
+              ref: { type: string, minLength: 1, maxLength: 2048 }
+              reason: { type: string, minLength: 1, maxLength: 2048 }
+              required: { type: boolean, default: true }
+              expected_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+              anchor: { type: string, minLength: 1, maxLength: 512 }
+              scope: { type: string, minLength: 1, maxLength: 512 }
+              freshness_policy: { type: string, enum: [digest, existence, advisory] }
         context_refs:
           type: array
           maxItems: 64
@@ -1320,11 +1540,15 @@ tools:
             required: [ref, reason]
             additionalProperties: false
             properties:
-              ref: { type: string, minLength: 1 }
+              ref: { type: string, minLength: 1, maxLength: 2048 }
               kind: { type: string, enum: [spec, source, test, docs, external], default: source }
-              reason: { type: string, minLength: 3 }
+              reason: { type: string, minLength: 3, maxLength: 2048 }
               required: { type: boolean, default: true }
               digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+              expected_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+              anchor: { type: string, minLength: 1, maxLength: 512 }
+              scope: { type: string, minLength: 1, maxLength: 512 }
+              freshness_policy: { type: string, enum: [digest, existence, advisory] }
         budget:
           type: object
           additionalProperties: false
@@ -1336,21 +1560,6 @@ tools:
           additionalProperties: false
           properties:
             context_budget_percent: { type: integer, minimum: 1, maximum: 100, default: 40 }
-        provider_refs:
-          type: object
-          additionalProperties: false
-          properties:
-            memory:
-              type: object
-              required: [provider]
-              additionalProperties: false
-              properties:
-                provider: { type: string }
-                project: { type: string }
-                reference: { type: string }
-                revision: { type: string }
-                indexed_head: { type: string }
-                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
         recommendation:
           type: object
           required: [workflow, rationale]
@@ -1358,17 +1567,6 @@ tools:
           properties:
             workflow: { type: string, minLength: 1 }
             rationale: { type: string, minLength: 3 }
-            code_graph:
-              type: object
-              required: [provider]
-              additionalProperties: false
-              properties:
-                provider: { type: string }
-                project: { type: string }
-                reference: { type: string }
-                revision: { type: string }
-                indexed_head: { type: string }
-                status: { type: string, enum: [available, unavailable, fresh, stale, unknown] }
     output_schema:
       type: object
       required: [manifest_path, manifest_hash, manifest]
@@ -1385,7 +1583,7 @@ tools:
       - { code: EXECUTION_CONTRACT_CONFLICT, description: 'Prompt input attempted to override the DB-backed task seam or verification command' }
       - { code: EXECUTION_CONTEXT_REFS_CONFLICT, description: 'Prompt input attempted to override DB-backed task context references' }
       - { code: CONTEXT_LEGACY_NEXT_ACTION_UNSUPPORTED, description: 'a canonical next action is not an MCP authority field; use a non-authoritative host recommendation' }
-      - { code: PROVIDER_CONTENT_FORBIDDEN, description: 'provider payload content must remain external' }
+      - { code: CONTEXT_PROVIDER_REFS_MUTATION_UNSUPPORTED, description: 'provider references must be updated through change.update before context compilation' }
     cli_subcommand: change context
     emits_events: [context_updated]
 
@@ -1800,6 +1998,36 @@ tools:
       properties:
         id: { type: string, minLength: 1 }
         summary: { type: string, minLength: 1 }
+        applied_refs:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [kind, ref]
+            additionalProperties: false
+            allOf:
+              - if:
+                  properties:
+                    kind: { enum: [baseline, change, workflow, task] }
+                  required: [kind]
+                then:
+                  required: [field, value]
+              - if:
+                  properties:
+                    kind: { enum: [spec, artifact] }
+                  required: [kind]
+                then:
+                  required: [digest]
+                  not:
+                    anyOf:
+                      - { required: [field] }
+                      - { required: [value] }
+            properties:
+              kind: { type: string, enum: [baseline, change, workflow, task, spec, artifact] }
+              ref: { type: string, minLength: 1 }
+              field: { type: string, minLength: 1 }
+              value: {}
+              digest: { type: string, pattern: '^[0-9a-f]{64}$' }
     output_schema:
       type: object
       required: [thread]
@@ -1811,7 +2039,11 @@ tools:
       - { code: DECISION_THREAD_NOT_MUTABLE, description: 'the decision thread is already terminal' }
       - { code: DECISION_CHECKPOINT_PENDING, description: 'a prepared artifact checkpoint must be confirmed or revised first' }
       - { code: DECISION_ALIGNMENT_BLOCKING, description: 'an unanswered question or blocking deferral prevents completion' }
-      - { code: VALIDATION_ERROR, description: 'the completion summary is missing' }
+      - { code: DECISION_APPLIED_REF_NOT_FOUND, description: 'an applied authority reference cannot be read back from the current project state' }
+      - { code: DECISION_APPLIED_REF_FIELD_NOT_FOUND, description: 'a row-backed applied authority field does not exist' }
+      - { code: DECISION_APPLIED_REF_VALUE_MISMATCH, description: 'a row-backed applied authority value does not match current state' }
+      - { code: DECISION_APPLIED_REF_STALE, description: 'an applied field, specification, or artifact digest does not match current content' }
+      - { code: VALIDATION_ERROR, description: 'the completion summary or applied authority references are invalid' }
     cli_subcommand: decision complete
     emits_events: [decision_thread_completed]
 
@@ -1902,6 +2134,7 @@ tools:
       - { code: DUPLICATE_WORKFLOW_ID, description: 'workflow id already exists' }
       - { code: WORKFLOW_IN_PROGRESS, description: 'the same authority already has an active workflow of this kind' }
       - { code: WORKFLOW_CHANGE_NOT_FOUND, description: 'the requested change authority does not exist' }
+      - { code: WORKFLOW_SCOPE_INVALID, description: 'the workflow kind received a task or change scope that it does not own' }
       - { code: WORKFLOW_CHANGE_RUN_REQUIRED, description: 'change-bound stages require the owning durable change workflow; legacy gaps route through doctor repair' }
       - { code: WORKFLOW_BASELINE_MISMATCH, description: 'a supplied stage baseline differs from the baseline bound by the owning change workflow' }
       - { code: WORKFLOW_BASELINE_NOT_READY, description: 'the baseline bound to the change is no longer ready' }
@@ -2047,6 +2280,7 @@ tools:
       - { code: WORKFLOW_EVIDENCE_REQUIRED, description: 'the step cannot complete without evidence' }
       - { code: WORKFLOW_OUTPUT_REQUIRED, description: 'the step cannot complete without a durable output' }
       - { code: WORKFLOW_OUTPUT_MISSING, description: 'a declared output file is missing' }
+      - { code: WORKFLOW_ARTIFACT_SCOPE_INVALID, description: 'a Change-bound semantic or evidence artifact escaped its owning Change root' }
       - { code: WORKFLOW_RESEARCH_REPORT_REQUIRED, description: 'a research step requires its immutable workflow-and-step-bound report path' }
       - { code: WORKFLOW_RESEARCH_REPORT_INVALID, description: 'the research report is missing its required evidence structure' }
       - { code: WORKFLOW_RESEARCH_SYNTHESIS_INCOMPLETE, description: 'full or adoption synthesis did not bind all baseline specifications and the distillate' }
@@ -2069,6 +2303,65 @@ tools:
       - { code: DECISION_ALIGNMENT_BLOCKING, description: 'matching owner decisions or artifact checkpoints are not current' }
     cli_subcommand: workflow step
     emits_events: [workflow_step_updated, workflow_blocked]
+
+  - name: workflow.revise
+    family: workflow
+    description: Create a candidate revision of a completed workflow while preserving the accepted run and its provenance.
+    phase: '21'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, replacement_id, subject, reason]
+      additionalProperties: false
+      properties:
+        id: { type: string, minLength: 1 }
+        replacement_id: { type: string, minLength: 1 }
+        subject: { type: string, minLength: 1 }
+        reason: { type: string, minLength: 3 }
+    output_schema:
+      type: object
+      required: [workflow]
+      additionalProperties: false
+      properties:
+        workflow: { type: object }
+    errors:
+      - { code: WORKFLOW_NOT_FOUND, description: 'prior workflow id does not exist' }
+      - { code: WORKFLOW_REVISION_SOURCE_NOT_ACCEPTED, description: 'only a completed workflow can be revised' }
+      - { code: WORKFLOW_ALREADY_SUPERSEDED, description: 'the prior workflow already has a replacement authority' }
+      - { code: WORKFLOW_IN_PROGRESS, description: 'a competing active workflow owns the same scope' }
+    cli_subcommand: workflow revise
+    emits_events: [workflow_started, workflow_revision_started]
+
+  - name: workflow.supersede
+    family: workflow
+    description: Promote a completed candidate revision to current authority and invalidate only its transitive registry consumers.
+    phase: '21'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [id, replacement_id, reason]
+      additionalProperties: false
+      properties:
+        id: { type: string, minLength: 1 }
+        replacement_id: { type: string, minLength: 1 }
+        reason: { type: string, minLength: 3 }
+    output_schema:
+      type: object
+      required: [superseded, workflow, invalidated, idempotent]
+      additionalProperties: false
+      properties:
+        superseded: { type: object }
+        workflow: { type: object }
+        invalidated: { type: array, items: { type: object } }
+        idempotent: { type: boolean }
+    errors:
+      - { code: WORKFLOW_NOT_FOUND, description: 'prior or replacement workflow id does not exist' }
+      - { code: WORKFLOW_SUPERSESSION_NOT_ACCEPTED, description: 'both workflow revisions must be completed' }
+      - { code: WORKFLOW_SUPERSESSION_AUTHORITY_MISMATCH, description: 'replacement binding or revision provenance differs' }
+      - { code: WORKFLOW_OUTPUT_STALE, description: 'replacement output authority is stale' }
+      - { code: WORKFLOW_ALREADY_SUPERSEDED, description: 'another replacement already owns authority' }
+    cli_subcommand: workflow supersede
+    emits_events: [workflow_superseded, workflow_invalidated, task_stale_marked]
 
   - name: workflow.complete
     family: workflow
@@ -2135,12 +2428,169 @@ tools:
       - { code: WORKFLOW_TEST_NOT_PASSED, description: 'the current change-level test gate did not pass' }
       - { code: WORKFLOW_SESSION_ACTIVE, description: 'delivery cannot converge while an execution session remains active' }
       - { code: WORKFLOW_CONTEXT_NOT_READY, description: 'delivery evidence lacks a current ready context manifest' }
+      - { code: WORKFLOW_CONTEXT_STALE, description: 'a required Context reference or bound task/change authority changed after compilation; optional drift remains a summary warning' }
       - { code: WORKFLOW_DELIVERY_CHECK_FAILED, description: 'one or more local delivery checks did not pass' }
       - { code: WORKFLOW_CHANGE_NOT_ARCHIVED, description: 'delivery completion requires an archived change' }
       - { code: WORKFLOW_RELEASE_AUTHORITY_MISMATCH, description: 'a local delivery report attempted to claim external release authority' }
       - { code: DECISION_ALIGNMENT_BLOCKING, description: 'matching owner decisions or artifact checkpoints are not current' }
     cli_subcommand: workflow complete
     emits_events: [workflow_completed, plan_approved]
+
+  # ───────────────────────── artifact family ─────────────────────────────
+  - name: artifact.record
+    family: artifact
+    description: Register the current bytes of one semantic or evidence file, replace its dependency edges transactionally, and invalidate exact downstream consumers when its digest changes.
+    phase: '20'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [owner_type, owner_id, kind, path, provenance, source_refs, consumer_refs]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
+        owner_type: { type: string, enum: [project, baseline, change, task, workflow] }
+        owner_id: { type: string, minLength: 1 }
+        kind: { type: string, minLength: 1 }
+        path: { type: string, minLength: 1 }
+        status: { type: string, enum: [current, stale, terminal, archived], default: current }
+        expected_before_digest:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{64}$'
+        provenance: { type: object, additionalProperties: true }
+        metadata: { type: object, additionalProperties: true }
+        source_refs:
+          type: array
+          items:
+            type: object
+            required: [type, id, relation]
+            additionalProperties: false
+            properties:
+              type: { type: string, enum: [artifact, project, baseline, change, task, workflow, external] }
+              id: { type: string, minLength: 1 }
+              relation: { type: string, minLength: 1 }
+        consumer_refs:
+          type: array
+          items:
+            type: object
+            required: [type, id, relation]
+            additionalProperties: false
+            properties:
+              type: { type: string, enum: [artifact, project, baseline, change, task, workflow, external] }
+              id: { type: string, minLength: 1 }
+              relation: { type: string, minLength: 1 }
+    output_schema:
+      type: object
+      required: [artifact, changed, invalidated]
+      additionalProperties: false
+      properties:
+        artifact:
+          type: object
+          required: [id, owner_type, owner_id, kind, path, digest, before_digest, after_digest, managed, status, provenance, metadata, source_refs, consumer_refs, created_at, updated_at]
+          additionalProperties: false
+          properties:
+            id: { type: string }
+            owner_type: { type: string, enum: [project, baseline, change, task, workflow] }
+            owner_id: { type: string }
+            kind: { type: string }
+            path: { type: string }
+            digest: { type: [string, 'null'] }
+            before_digest: { type: [string, 'null'] }
+            after_digest: { type: [string, 'null'] }
+            managed: { type: boolean }
+            status: { type: string, enum: [current, stale, terminal, archived] }
+            provenance: { type: object }
+            metadata: { type: object }
+            source_refs:
+              type: array
+              items:
+                type: object
+                required: [type, id, relation]
+                additionalProperties: false
+                properties:
+                  type: { type: string }
+                  id: { type: string }
+                  relation: { type: string }
+            consumer_refs:
+              type: array
+              items:
+                type: object
+                required: [type, id, relation]
+                additionalProperties: false
+                properties:
+                  type: { type: string }
+                  id: { type: string }
+                  relation: { type: string }
+            created_at: { type: string }
+            updated_at: { type: string }
+        changed: { type: boolean }
+        invalidated:
+          type: array
+          items:
+            type: object
+            required: [type, id]
+            additionalProperties: false
+            properties:
+              type: { type: string }
+              id: { type: string }
+    errors:
+      - { code: ARTIFACT_FILE_MISSING, description: 'declared artifact file does not exist' }
+      - { code: ARTIFACT_PATH_INVALID, description: 'artifact path escapes the project or is not a regular file' }
+      - { code: ARTIFACT_PATH_EXEMPT, description: 'runtime, scratch, or generated projection path cannot become semantic authority' }
+      - { code: ARTIFACT_OWNER_MISSING, description: 'typed artifact owner does not exist' }
+      - { code: ARTIFACT_ENDPOINT_MISSING, description: 'a dependency endpoint does not exist' }
+      - { code: ARTIFACT_DIGEST_CONFLICT, description: 'expected prior digest does not match current registry authority' }
+      - { code: ARTIFACT_AUTHORITY_CONFLICT, description: 'artifact id is bound to another authority or the canonical path already has an active authority' }
+      - { code: ARTIFACT_GRAPH_SELF_EDGE, description: 'an artifact cannot directly depend on itself' }
+      - { code: ARTIFACT_GRAPH_CYCLE, description: 'replacement edges would create a dependency cycle' }
+    cli_subcommand: artifact record
+    emits_events: [artifact_recorded, spec_changed, task_stale_marked]
+
+  - name: artifact.get
+    family: artifact
+    description: Read one registered artifact together with its typed ownership, provenance, and normalized source and consumer edges.
+    phase: '20'
+    readonly: true
+    input_schema:
+      type: object
+      additionalProperties: false
+      oneOf:
+        - required: [id]
+        - required: [path]
+      properties:
+        id: { type: string, minLength: 1 }
+        path: { type: string, minLength: 1 }
+    output_schema:
+      type: object
+      required: [artifact]
+      additionalProperties: false
+      properties:
+        artifact:
+          type: object
+          required: [id, owner_type, owner_id, kind, path, digest, before_digest, after_digest, managed, status, provenance, metadata, source_refs, consumer_refs, created_at, updated_at]
+          additionalProperties: false
+          properties:
+            id: { type: string }
+            owner_type: { type: string, enum: [project, baseline, change, task, workflow] }
+            owner_id: { type: string }
+            kind: { type: string }
+            path: { type: string }
+            digest: { type: [string, 'null'] }
+            before_digest: { type: [string, 'null'] }
+            after_digest: { type: [string, 'null'] }
+            managed: { type: boolean }
+            status: { type: string, enum: [current, stale, terminal, archived] }
+            provenance: { type: object }
+            metadata: { type: object }
+            source_refs: { type: array, items: { type: object } }
+            consumer_refs: { type: array, items: { type: object } }
+            created_at: { type: string }
+            updated_at: { type: string }
+    errors:
+      - { code: ARTIFACT_NOT_FOUND, description: 'artifact id or path is not registered' }
+      - { code: ARTIFACT_DUPLICATE_AUTHORITY, description: 'path lookup resolves to multiple active authorities and requires an id' }
+      - { code: VALIDATION_ERROR, description: 'exactly one lookup key is required' }
+    cli_subcommand: artifact get
+    emits_events: []
 
   # ────────────────────────── system family ──────────────────────────────
   - name: system.doctor
@@ -2172,29 +2622,35 @@ tools:
   # ────────────────────────── plan family (D34) ───────────────────────────
   - name: plan.export
     family: plan
-    description: Render the current execution-plan artifact to disk (waves + ownership + conflict surface).
+    description: Render deterministic plan.json and plan.md under the owning Change artifact root from the current planning Context Manifest.
     phase: '8a'
     writer_role: mcp
     input_schema:
       type: object
-      required: [change_id, out_path]
+      required: [change_id]
       additionalProperties: false
       properties:
-        format:   { type: string, enum: [json, md], default: json }
         change_id: { type: string, pattern: '^[a-zA-Z0-9_\-]+$' }
-        out_path: { type: string }
-        tag:      { type: string }
     output_schema:
       type: object
-      required: [plan_path, wave_count]
+      required: [plan_path, plan_md_path, wave_count]
       additionalProperties: false
       properties:
         plan_path:  { type: string }
+        plan_md_path: { type: string }
         wave_count: { type: integer, minimum: 0 }
     errors:
       - { code: NO_TASKS, description: 'no tasks to plan' }
       - { code: CHANGE_NOT_FOUND, description: 'owning change does not exist' }
       - { code: CHANGE_NOT_MUTABLE, description: 'owning change no longer accepts planning output' }
+      - { code: PLAN_CONTEXT_REQUIRED, description: 'the owning Change has no plan/planning Context Manifest' }
+      - { code: PLAN_CONTEXT_STALE, description: 'the plan/planning Context Manifest is stale or blocked' }
+      - { code: PLAN_ARTIFACT_PATH_UNSAFE, description: 'the Change artifact root, an ancestor, or a plan target is a symlink or escapes the physical project root' }
+      - { code: PLAN_PUBLISH_CONFLICT, description: 'plan.json or plan.md changed after publication preparation; concurrent bytes are preserved' }
+      - { code: PLAN_PUBLISH_FAILED, description: 'the journaled plan.json and plan.md publication could not complete and was rolled back' }
+      - { code: PLAN_RECOVERY_REQUIRED, description: 'an interrupted plan publication must be recovered before state mutation continues' }
+      - { code: ARTIFACT_AUTHORITY_CONFLICT, description: 'plan.json or plan.md already has another active registry authority' }
+      - { code: ARTIFACT_DIGEST_CONFLICT, description: 'the registered plan authority changed before publication' }
       - { code: WRITE_FAILED, description: 'cannot write plan file' }
     cli_subcommand: plan export
     emits_events: [plan_exported]
@@ -2202,7 +2658,7 @@ tools:
 
   - name: plan.get
     family: plan
-    description: Read a section of the current project's persisted .ultra/execution-plan.json artifact.
+    description: Read a section of the owning Change's persisted plan.json artifact.
     phase: '8a'
     readonly: true
     input_schema:
@@ -2220,7 +2676,9 @@ tools:
         plan: { type: object }
     errors:
       - { code: NO_PLAN, description: 'no plan has been computed yet' }
+      - { code: CHANGE_NOT_FOUND, description: 'owning change does not exist' }
       - { code: PLAN_CHANGE_MISMATCH, description: 'current plan artifact belongs to another change' }
+      - { code: PLAN_ARTIFACT_INVALID, description: 'plan.json is unsafe, malformed, stale, or does not match the current Change-owned registry authority' }
     cli_subcommand: plan get
     emits_events: []
     trace_to: '§7.3, D34'

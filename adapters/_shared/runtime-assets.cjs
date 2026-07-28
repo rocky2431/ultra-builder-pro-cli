@@ -8,7 +8,6 @@
  */
 
 const CORE_PUBLIC_SKILLS = Object.freeze([
-  'learn',
   'ultra-init',
   'ultra-research',
   'ultra-plan',
@@ -21,6 +20,34 @@ const CORE_PUBLIC_SKILLS = Object.freeze([
   'ultra-change',
   'ultra-doctor',
 ]);
+
+const PUBLIC_CAPABILITY_MODES = Object.freeze({
+  'ultra-init': 'setup',
+  'ultra-research': 'workflow',
+  'ultra-plan': 'workflow',
+  'ultra-dev': 'workflow',
+  'ultra-test': 'workflow',
+  'ultra-review': 'workflow',
+  'ultra-deliver': 'workflow',
+  'ultra-status': 'read_only',
+  'ultra-think': 'reasoning',
+  'ultra-change': 'workflow',
+  'ultra-doctor': 'diagnostic',
+});
+
+const PUBLIC_CAPABILITY_GRAPH = Object.freeze(Object.fromEntries(
+  CORE_PUBLIC_SKILLS.map((name) => [
+    name,
+    Object.freeze({
+      mode: PUBLIC_CAPABILITY_MODES[name],
+      activation: 'explicit_only',
+      next_capability_source: 'mcp_allowed_transitions',
+      recommendation_owner: 'host_model',
+      selection_owner: 'user',
+      automatic_invocation: false,
+    }),
+  ]),
+));
 
 const INTERNAL_AGENT_SKILLS = Object.freeze([
   'code-review-expert',
@@ -56,10 +83,20 @@ const WORKFLOW_HOOK_FILES = Object.freeze([
   'context_spine.py',
   'health_check.py',
   'pre_stop_check.py',
+  'runtime_paths.py',
   'subagent_tracker.py',
   'workflow_checkpoint.py',
   'workflow_context.py',
   'workflow_resume.py',
+]);
+
+const RUNTIME_WORKER_FILES = Object.freeze([
+  'session-close-journal-worker.cjs',
+  'doctor-backup-worker.cjs',
+]);
+
+const RUNTIME_SUPPORT_FILES = Object.freeze([
+  'archive-mutation-worker.py',
 ]);
 
 function skillsForRuntime(runtime) {
@@ -84,11 +121,14 @@ function skillPolicy(name) {
 
 module.exports = {
   CORE_PUBLIC_SKILLS,
+  PUBLIC_CAPABILITY_GRAPH,
   INTERNAL_AGENT_SKILLS,
   SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
   MCP_DEPENDENT_SKILLS,
+  RUNTIME_SUPPORT_FILES,
   WORKFLOW_HOOK_FILES,
+  RUNTIME_WORKER_FILES,
   isSupportedRuntime,
   skillPolicy,
   skillsForRuntime,

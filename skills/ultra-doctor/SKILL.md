@@ -13,7 +13,9 @@ work complete.
 
 Run `system.doctor` without repair and inspect:
 
-- SQLite integrity, schema 18 migration, required tables, and backups;
+- SQLite integrity, schema 20 migration, required tables, and backups;
+- artifact registration, ownership, digest freshness, dependency edges, consumers,
+  and orphan or duplicate authority;
 - baseline and research provenance, gaps, digests, and Git/worktree drift;
 - workflow status, obsolete-step migration, blockers, and output freshness;
 - decisions and checkpoint artifact freshness;
@@ -30,7 +32,7 @@ by doctor.
 With explicit repair authorization, `system.doctor` may:
 
 - apply backup-first supported schema migrations;
-- migrate active pre-18 rigid workflows into recoverable adaptive state;
+- migrate incompatible rigid workflows into recoverable adaptive state;
 - requeue or regenerate projections from healthy DB authority;
 - reconcile orphan sessions without deleting unrelated or dirty worktrees;
 - resume supported archive journals;
@@ -48,3 +50,5 @@ entry points, MCP startup, and hook smoke tests as applicable.
 
 Return health first, failed checks, mechanical repairs performed, preserved recovery
 paths, unresolved owners, and allowed transitions plus any unique required transition.
+
+Never invoke the recommended capability here; wait for an explicit user invocation.

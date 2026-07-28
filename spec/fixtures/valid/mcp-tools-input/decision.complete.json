@@ -1,4 +1,12 @@
 {
   "id": "alignment-change-api",
-  "summary": "The normalized route is settled and needs no artifact checkpoint."
+  "summary": "The normalized route is settled and needs no artifact checkpoint.",
+  "applied_refs": [
+    {
+      "kind": "change",
+      "ref": "feature-auth",
+      "field": "contract.outcome",
+      "value": "Authentication is verifiably compatible."
+    }
+  ]
 }

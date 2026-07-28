@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultra-builder-pro.dev/schemas/change-delta.v1.schema.json",
+  "title": "Ultra Change delta v1",
+  "type": "object",
+  "required": [
+    "$schema",
+    "change_id",
+    "baseline_anchor",
+    "decisions",
+    "non_goals",
+    "acceptance",
+    "documentation_impact",
+    "unknowns",
+    "mutations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "const": "ultra-change-delta-v1" },
+    "change_id": { "type": "string", "minLength": 1 },
+    "baseline_anchor": {
+      "type": "object",
+      "required": ["baseline_id", "repository_revision", "specs"],
+      "additionalProperties": false,
+      "properties": {
+        "baseline_id": { "type": "string", "minLength": 1 },
+        "repository_revision": { "type": ["string", "null"] },
+        "specs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "required": ["path", "digest"],
+            "additionalProperties": false,
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            }
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "summary"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+          "summary": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "non_goals": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "criterion", "verification"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+          "criterion": { "type": "string", "minLength": 1 },
+          "verification": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "documentation_impact": {
+      "type": "object",
+      "required": ["status", "files", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["none", "required"] },
+        "files": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "rationale": { "type": "string", "minLength": 3 }
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "summary", "blocking"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+          "summary": { "type": "string", "minLength": 1 },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "no_semantic_change_reason": { "type": "string", "minLength": 3 },
+    "mutations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "target_path",
+          "overlay_path",
+          "before_digest",
+          "after_digest",
+          "acceptance_refs",
+          "documentation_refs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+          "action": { "enum": ["add", "update"] },
+          "target_path": { "type": "string", "minLength": 1 },
+          "overlay_path": { "type": "string", "minLength": 1 },
+          "before_digest": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "after_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "acceptance_refs": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "documentation_refs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mutations": { "maxItems": 0 }
+        }
+      },
+      "then": { "required": ["no_semantic_change_reason"] }
+    }
+  ]
+}

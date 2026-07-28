@@ -2,10 +2,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const {
   parseExecutePlanArgs,
   resolveDispatchCommand,
+  validateOrchestratorRuntime,
 } = require('../../bin/orchestrator.js');
 
 test('resolveDispatchCommand requires an explicit executable', () => {
@@ -66,21 +70,29 @@ test('resolveDispatchCommand rejects shell strings and malformed argument payloa
 test('parseExecutePlanArgs keeps merge disabled unless explicitly requested', () => {
   assert.deepEqual(parseExecutePlanArgs([]), {
     planPath: null,
+    changeId: null,
     autoMerge: false,
     mergeBaseBranch: 'main',
   });
   assert.deepEqual(
     parseExecutePlanArgs([
-      '--plan', '.ultra/custom-plan.json',
+      '--change', 'current-change',
       '--auto-merge',
       '--base-branch', 'trunk',
     ]),
     {
-      planPath: '.ultra/custom-plan.json',
+      planPath: null,
+      changeId: 'current-change',
       autoMerge: true,
       mergeBaseBranch: 'trunk',
     },
   );
+  assert.deepEqual(parseExecutePlanArgs(['--plan', '.ultra/execution-plan.json']), {
+    planPath: '.ultra/execution-plan.json',
+    changeId: null,
+    autoMerge: false,
+    mergeBaseBranch: 'main',
+  });
 });
 
 test('parseExecutePlanArgs rejects unknown or incomplete options', () => {
@@ -92,4 +104,35 @@ test('parseExecutePlanArgs rejects unknown or incomplete options', () => {
     () => parseExecutePlanArgs(['--shell-command', 'node worker.js']),
     (error) => error.code === 'ORCHESTRATOR_ARGUMENT_INVALID',
   );
+  assert.throws(
+    () => parseExecutePlanArgs(['--change', 'current-change', '--plan', '.ultra/execution-plan.json']),
+    (error) => error.code === 'ORCHESTRATOR_ARGUMENT_INVALID',
+  );
+});
+
+test('orchestrator pid and log paths are validated before direct writes', () => {
+  assert.equal(typeof validateOrchestratorRuntime, 'function');
+  for (const relative of [
+    path.join('orchestrator', 'orchestrator.pid'),
+    path.join('orchestrator', 'orchestrator.log'),
+  ]) {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-orch-path-'));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-orch-outside-'));
+    try {
+      const candidate = path.join(rootDir, '.ultra', '.runtime', relative);
+      fs.mkdirSync(path.dirname(candidate), { recursive: true });
+      const sentinel = path.join(outside, 'sentinel');
+      fs.writeFileSync(sentinel, 'outside');
+      fs.symlinkSync(sentinel, candidate);
+
+      assert.throws(
+        () => validateOrchestratorRuntime(rootDir, { forMutation: true }),
+        /RUNTIME_PATH_UNSAFE|symlink|runtime/i,
+      );
+      assert.equal(fs.readFileSync(sentinel, 'utf8'), 'outside');
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  }
 });

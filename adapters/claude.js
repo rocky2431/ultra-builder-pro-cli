@@ -16,6 +16,7 @@ const {
 } = require('./_shared/file-ops.cjs');
 const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
 const { parse: parseFrontmatter, serialize: serializeFrontmatter } = require('./_shared/frontmatter.cjs');
+const { adaptInteractionGuidance } = require('./_shared/interaction-contract.cjs');
 const provenance = require('./_shared/provenance.cjs');
 const {
   CORE_PUBLIC_SKILLS,
@@ -55,13 +56,14 @@ function copySkills(repoRoot, target, names) {
     if (!fs.existsSync(source)) throw new Error(`missing allowlisted Claude skill: ${name}`);
     const files = copyTree(source, path.join(target, 'skills', name), {
       transform(buf, rel) {
-        if (rel !== 'SKILL.md') return buf;
+        if (rel !== 'SKILL.md') {
+          return rel.endsWith('.md')
+            ? Buffer.from(adaptInteractionGuidance(buf.toString('utf8'), 'claude'))
+            : buf;
+        }
         const { fm, body } = parseFrontmatter(buf.toString('utf8'));
         if (!fm) throw new Error(`missing frontmatter in Claude skill: ${name}`);
-        let adaptedBody = body;
-        if (name === 'learn') {
-          adaptedBody = adaptedBody.replaceAll("current host's user skill directory", '`~/.claude/skills`');
-        }
+        let adaptedBody = adaptInteractionGuidance(body, 'claude');
         if (name === 'ultra-review') {
           adaptedBody = adaptedBody.replace(
             /the current host's native bounded-worker\s+mechanism/g,

@@ -170,6 +170,36 @@ test('install and uninstall never mutate host user handbooks', () => {
   }
 });
 
+test('installation is project-inert before explicit ultra-init', () => {
+  const home = mkTarget('project-inert');
+  const project = path.join(home, 'project');
+  const configRoot = path.join(home, 'host-config');
+  const projectAgents = path.join(project, 'AGENTS.md');
+  const projectClaude = path.join(project, 'CLAUDE.md');
+  try {
+    fs.mkdirSync(project, { recursive: true });
+    fs.writeFileSync(projectAgents, 'PROJECT-OWNED-AGENTS\n');
+    fs.writeFileSync(projectClaude, 'PROJECT-OWNED-CLAUDE\n');
+    const beforeAgents = fs.readFileSync(projectAgents);
+    const beforeClaude = fs.readFileSync(projectClaude);
+
+    for (const runtime of RUNTIMES) {
+      const configDir = path.join(configRoot, runtime.name);
+      const installed = runCli([
+        runtime.flag,
+        '--config-dir',
+        configDir,
+      ], { cwd: project, homeDir: home });
+      assert.equal(installed.status, 0, `${runtime.name}: ${installed.stderr}`);
+      assert.equal(fs.existsSync(path.join(project, '.ultra')), false, runtime.name);
+      assert.deepEqual(fs.readFileSync(projectAgents), beforeAgents, runtime.name);
+      assert.deepEqual(fs.readFileSync(projectClaude), beforeClaude, runtime.name);
+    }
+  } finally {
+    cleanup(home);
+  }
+});
+
 test('install.js — idempotent: two installs produce equal asset counts', () => {
   const target = mkTarget('idempotent');
   try {

@@ -14,6 +14,7 @@ const changes = require('../lib/change-workflow.cjs');
 const workflows = require('../lib/workflow-state.cjs');
 const ops = require('../lib/state-ops.cjs');
 const planStore = require('../lib/plan-store.cjs');
+const artifactRegistry = require('../lib/artifact-registry.cjs');
 const {
   researchCoverage, semanticRecordsForStep,
 } = require('../test-support/semantic-records.cjs');
@@ -40,6 +41,39 @@ function evidence(stepId) {
   return [{ kind: 'e2e', ref: `e2e:${stepId}`, summary: `Verified ${stepId} in the full workflow.` }];
 }
 
+function registerWorkflowOutputFixture(db, rootDir, run, stepId, artifactPath) {
+  const kind = {
+    'test:write-report': 'test_report',
+    'review:review-specification': 'review_findings',
+    'review:review-engineering': 'review_findings',
+    'review:coordinate-findings': 'review_summary',
+    'deliver:verify-delivery': 'delivery_report',
+  }[`${run.kind}:${stepId}`];
+  const record = (ownerType, ownerId, artifactKind, relative) => {
+    artifactRegistry.recordArtifact(db, {
+      owner_type: ownerType,
+      owner_id: ownerId,
+      kind: artifactKind,
+      path: relative.split(path.sep).join('/'),
+      provenance: { writer: 'full-workflow-e2e-fixture' },
+      source_refs: [],
+      consumer_refs: [],
+      metadata: { terminal_role: true },
+    }, { rootDir });
+  };
+  if (kind) record('workflow', run.id, kind, artifactPath);
+  if (run.kind === 'plan' && stepId === 'verify-plan') {
+    record('change', run.change_id, 'execution_plan', artifactPath);
+    const change = changes.readChange(db, run.change_id);
+    record(
+      'change',
+      run.change_id,
+      'execution_plan_markdown',
+      path.relative(rootDir, planStore.changePlanPaths(rootDir, change).md),
+    );
+  }
+}
+
 function finishSimpleSteps(db, rootDir, run, outputs = {}) {
   let current = run;
   for (const workflowStep of current.steps.filter((item) => item.required)) {
@@ -51,6 +85,9 @@ function finishSimpleSteps(db, rootDir, run, outputs = {}) {
     if (definition.evidence_required) input.evidence = evidence(workflowStep.step_id);
     if (definition.output_required) {
       input.outputs = [{ path: outputs[workflowStep.step_id], kind: `${current.kind}-artifact` }];
+      registerWorkflowOutputFixture(
+        db, rootDir, current, workflowStep.step_id, outputs[workflowStep.step_id],
+      );
     }
     current = workflows.recordWorkflowStep(db, input, { rootDir });
   }
@@ -60,7 +97,7 @@ function finishSimpleSteps(db, rootDir, run, outputs = {}) {
 function reviewArtifacts(rootDir, {
   session, mode, changeId, taskIds, head, worktreeDigest, contextDigest,
 }) {
-  const directory = `.ultra/reviews/${session}`;
+  const directory = `.ultra/changes/active/${changeId}/review/${session}`;
   const specialist = (file, agent, axis) => write(rootDir, `${directory}/${file}`, `${JSON.stringify({
     $schema: 'ultra-review-findings-v2', agent, axis, session,
     timestamp: new Date().toISOString(),
@@ -144,10 +181,10 @@ for (const scenario of [
     assert.equal(initialized.git.initial_commit_required, true);
     git(rootDir, ['config', 'user.email', 'test@ubp.dev']);
     git(rootDir, ['config', 'user.name', 'ubp-test']);
-    git(rootDir, ['add', '.gitignore', 'README.md']);
+    git(rootDir, ['add', '.gitignore', '.ultra', 'README.md']);
     if (scenario.mode === 'brownfield') git(rootDir, ['add', 'src/legacy.js']);
     git(rootDir, ['commit', '-q', '-m', 'chore: establish project repository']);
-    db = openStateDb(path.join(rootDir, '.ultra', 'state.db'));
+    db = openStateDb(path.join(rootDir, '.ultra', '.runtime', 'state.db'));
 
     let research = workflows.startWorkflow(db, {
       id: `research-${scenario.mode}`,
@@ -252,19 +289,30 @@ for (const scenario of [
       ownership: { owner: 'runtime-maintainer', reviewers: ['product-owner'] },
       trace_to: '.ultra/specs/product.md#20-user-stories',
     });
-    write(rootDir, '.ultra/changes/active/daily-status/plan.md', '# Plan\n\nImplement and verify one seam.\n');
     let plan = workflows.startWorkflow(db, {
       id: 'plan-daily-status', kind: 'plan', baseline_id: baselineId,
       change_id: created.change.id, subject: 'Plan the complete accepted status seam.',
       metadata: { task_ids: [task.id] },
     }, { rootDir });
-    planStore.savePlanArtifact(
+    const planningContext = changes.compileContext(db, {
+      id: created.change.id, role: 'plan', gate: 'planning',
+    }, { rootDir });
+    const savedPlan = planStore.saveChangePlanArtifacts(
       planStore.buildPlan([ops.readTask(db, task.id)], { changeId: created.change.id }),
-      path.join(rootDir, '.ultra', 'execution-plan.json'),
-      'json',
+      {
+        rootDir,
+        change: created.change,
+        tasks: [ops.readTask(db, task.id)],
+        context: {
+          snapshot_id: planningContext.manifest.snapshot_id,
+          manifest_path: path.relative(rootDir, planningContext.context_manifest_path),
+          manifest_digest: planningContext.manifest_hash,
+        },
+      },
     );
     plan = finishSimpleSteps(db, rootDir, plan, {
-      'verify-plan': '.ultra/execution-plan.json',
+      'compile-context': path.relative(rootDir, planningContext.context_manifest_path),
+      'verify-plan': path.relative(rootDir, savedPlan.plan_path),
     });
     workflows.completeWorkflow(db, {
       id: plan.id,
@@ -337,10 +385,13 @@ for (const scenario of [
       subject: 'Verify the complete current status change.',
     }, { rootDir });
     const checkedContext = changes.compileContext(db, {
-      id: created.change.id, task_id: task.id, role: 'check',
+      id: created.change.id, role: 'check', gate: 'verification',
     }, { rootDir });
     const testCheckout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
-    const testReport = write(rootDir, `.ultra/reports/tests/${testRun.id}.json`, `${JSON.stringify({
+    const testReport = write(
+      rootDir,
+      `.ultra/changes/active/${created.change.id}/test/${testRun.id}/report.json`,
+      `${JSON.stringify({
       $schema: 'ultra-test-report-v1', change_id: created.change.id, task_ids: [task.id],
       git_commit: testCheckout.head, worktree_digest: testCheckout.digest,
       context_digest: checkedContext.manifest_hash,
@@ -366,7 +417,8 @@ for (const scenario of [
       },
       regression_signal: null, passed: true, run_count: 1,
       timestamp: new Date().toISOString(), blocking_issues: [],
-    }, null, 2)}\n`);
+      }, null, 2)}\n`,
+    );
     testRun = finishSimpleSteps(db, rootDir, testRun, {
       'compile-context': path.relative(rootDir, checkedContext.context_manifest_path),
       'write-report': testReport,
@@ -421,6 +473,19 @@ for (const scenario of [
         semantic_no_change_reason: 'The accepted baseline behavior did not change.',
       }, null, 2)}\n`,
     );
+    artifactRegistry.recordArtifact(db, {
+      id: 'daily-status-baseline-reconciliation',
+      owner_type: 'change',
+      owner_id: created.change.id,
+      kind: 'baseline_reconciliation',
+      path: reconciliationPath,
+      provenance: { writer: 'full-workflow-e2e-fixture' },
+      source_refs: [{
+        type: 'change', id: created.change.id, relation: 'produced_for',
+      }],
+      consumer_refs: [],
+      metadata: { terminal_role: true },
+    }, { rootDir });
     const archived = changes.archiveChange(db, {
       id: created.change.id, summary: 'Status seam verified and archived.',
       no_baseline_change_reason: 'The accepted baseline behavior did not change.',
@@ -431,15 +496,23 @@ for (const scenario of [
       evidence: [{ kind: 'archive', ref: path.relative(rootDir, archived.archive_path), summary: 'Change packet archived.' }],
     }, { rootDir });
     const deliveryCheckout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
-    const deliveryReport = write(rootDir, `.ultra/reports/delivery/${deliver.id}.json`, `${JSON.stringify({
+    const archivedRoot = changes.readChange(db, created.change.id).artifact_root;
+    const archivedContext = db.prepare(
+      `SELECT manifest_hash FROM context_snapshots
+       WHERE id = ?`,
+    ).get(convergenceContext.manifest.snapshot_id);
+    const deliveryReport = write(rootDir, `${archivedRoot}/delivery/${deliver.id}/report.json`, `${JSON.stringify({
       $schema: 'ultra-delivery-report-v1', change_id: created.change.id,
       archive_status: 'archived', baseline_id: baselineId, baseline_status: 'ready',
       git_commit: deliveryCheckout.head, worktree_digest: deliveryCheckout.digest,
-      context_digest: convergenceContext.manifest_hash,
+      context_digest: archivedContext.manifest_hash,
       checks: [{ command: 'node --test test/status.test.js', status: 'pass', exit_code: 0, evidence: '1 passed.' }],
       rollback: 'Restore the managed state backup and archived packet.',
       timestamp: new Date().toISOString(),
     }, null, 2)}\n`);
+    registerWorkflowOutputFixture(
+      db, rootDir, deliver, 'verify-delivery', deliveryReport,
+    );
     deliver = workflows.recordWorkflowStep(db, {
       id: deliver.id, step_id: 'verify-delivery', status: 'completed',
       evidence: [{ kind: 'delivery', ref: deliveryReport, summary: 'Local delivery evidence agrees.' }],
