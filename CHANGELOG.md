@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.1] — 2026-07-29
+
+### Fixed
+
+- Increased the packed four-host integration-test timeout to preserve the same
+  release gate on slower clean Linux runners instead of cancelling a healthy
+  tarball installation and MCP round-trip near the previous limit.
+
 ## [0.21.0] — 2026-07-29
 
 ### Added

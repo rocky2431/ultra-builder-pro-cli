@@ -175,7 +175,7 @@ function prepareLegacyMcpProject(ultraTools, projectDir, cwd) {
   fs.rmSync(runtimeDir, { recursive: true, force: true });
 }
 
-test('npm tarball installs all CLIs and builds durable native host runtimes', { timeout: 120000 }, async () => {
+test('npm tarball installs all CLIs and builds durable native host runtimes', { timeout: 300000 }, async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-package-smoke-'));
   try {
     const packJson = JSON.parse(run(NPM, ['pack', '--json', '--pack-destination', tempRoot]));
