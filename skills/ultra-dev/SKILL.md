@@ -10,8 +10,10 @@ fresh context contract, session lease, evidence references, and recovery.
 
 ## Bind and resume
 
-1. Read doctor, breadcrumb `accepted_intent`, active decisions, task contract,
-   dependencies, dev runs, sessions, HEAD, and worktree.
+1. Read doctor, `task.ledger_get`, breadcrumb `accepted_intent`, active decisions, task
+   contract, dependencies, dev runs, sessions, HEAD, and worktree. Import a newer
+   descendant team checkpoint before taking a lease. Stop on a typed baseline, Change,
+   task, ancestry, or active-session conflict; do not merge authority by editing JSON.
 2. Resume the matching dev run or start one with `change_id` and `task_id`.
 3. Record `bind-task` with current authority and dependency evidence.
 4. Compile `change.context` with `role: implement` and `gate: implementation`. The
@@ -47,8 +49,18 @@ evidence, never task completion.
 5. Run a task-scoped independent review on specification fidelity and relevant
    engineering risks. Record `review-slice`. Fix blocking findings and refresh affected
    evidence.
-6. Create the authorized local task commit. Do not push, publish, tag, or deploy unless
-   the user separately authorized that external effect.
+6. In direct mode, update the task to `completed` only after verification and review
+   are current. This publishes the durable team ledger checkpoint. Create one
+   authorized local task commit containing code, semantic artifacts, and that
+   checkpoint. Read the resulting `HEAD`, then record it as `completion_commit`;
+   that hash remains checkout-local and must not create another Git commit. Do not
+   push, publish, tag, or deploy unless the user separately authorized that external
+   effect.
+
+The tracked team checkpoint contains durable task status and contract evidence, not
+live ownership. `in_progress`, `session_id`, leases, worktrees, telemetry, and
+`completion_commit` remain checkout-local. The local generated task view lives under
+`.ultra/.runtime/projections/` and is never committed.
 
 Treat the compiled task-context contract as the handoff boundary: purpose, why,
 constraints, non-goals, target seams/files, pattern refs, acceptance, documentation
@@ -69,8 +81,11 @@ those capabilities.
 ## Complete or recover
 
 In direct mode, integrate the task commit through the repository's accepted path,
-verify ancestry and the public seam, close the session, update the task to `completed`,
-record `record-completion`, and complete the dev workflow.
+verify ancestry and the public seam, close the session, record `record-completion`,
+and complete the dev workflow. If commit creation fails after the pre-commit
+completion checkpoint, move the still-session-owned task to `blocked`, preserve the
+worktree, and record the failure. A completion with a recorded commit remains
+terminal.
 
 Change convergence revalidates the exact latest
 `change_id + task_id + implement + implementation` snapshot for every executable

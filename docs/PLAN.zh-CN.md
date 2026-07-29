@@ -78,10 +78,11 @@ checkpoint 恢复消费与跨宿主安装 provenance/doctor 已落地；npm 发�
 
 ### 1.1 起点
 
-Hermes（Ultra Builder Pro）是一套成熟的 agent 工程系统：
+Hermes（Ultra Builder Pro）是一套成熟的 agent 工程系统。其旧版起点是：
 `init → research → plan → dev → test → deliver` 六命令 + `tasks.json` 任务
-注册表 + `tasks/contexts/task-{id}.md` 独立上下文。它在 Claude Code 上跑得
-很顺。
+注册表 + 旧路径 `tasks/contexts/task-{id}.md` 独立上下文。当前实现已将 live
+projection 移到 `.ultra/.runtime/projections/`，并把 tracked `tasks.json`
+升级为团队 checkpoint。旧版在 Claude Code 上跑得很顺。
 
 ### 1.2 三重痛
 
@@ -234,7 +235,7 @@ v0.2 加执行层进阶（recovery + 监控 + 实时图谱）→ 半自动 → v
     │               MCP: task.init_project
     │                   │
     │                   ▼ 写 .ultra/specs/*.md (空模板)
-    │                   ▼ 写 .ultra/tasks/tasks.json (空)
+    │                   ▼ 写 .ultra/tasks/tasks.json (空 team checkpoint)
     │                   ▼ append state.db events 表（type: project_init）
     │
     │ /ultra-research "市场、架构、产品"
@@ -382,7 +383,7 @@ ultra-builder-pro-cli/
 | P8 | 无 task 间事件通知 | 整个体系 | state-db `events` 表 append-only + MCP subscribe | **4.5** |
 | P9 | status 字段 tasks.json 与 context 重复 | plan + dev 都要求同步 | 同 P3（schema v4.5 过渡） | **2** |
 | P10 | 无项目级事件流 | 仅 workflow-state.json 单点 | 同 P8 | **4.5** |
-| P11 | commit hash 回填 amend 链非原子 | ultra-dev.md Step 6.3 | 先 commit → 读 hash → 写 context → 第二次 commit（不 amend） | 3 |
+| P11 | commit hash 回填曾形成自引用提交链 | ultra-dev.md Step 6.3 | durable task checkpoint 进入任务提交；commit hash 仅回填本地 runtime DB | 3 |
 | P12 | ultra-test/deliver 顺序假设 | 命令本身结构 | DISPATCH_RULES + parallel-orch（GSD-2） | **8B** |
 
 ### 5.2 能力升级（非痛点，来自参考项目）→ Phase
@@ -615,10 +616,12 @@ workflow-state 全部降级为**投影（projection）**或**导出视图**。�
 - **AC**：四个子命令都能跑；备份文件可单独 sqlite3 打开
 
 **2.6 投影器（projection）**（1 天）
-- 每次 state.db 变更 trigger 重写 **投影文件**：
-  - `.ultra/tasks/tasks.json` — 从 `tasks` 表再生成
-  - `.ultra/tasks/contexts/task-*.md` 的 status header — 从 `tasks.status`
-    派生；context md 的其它 body 部分不动
+- 每次 state.db 变更 trigger 重写 checkout-local **投影文件**：
+  - `.ultra/.runtime/projections/tasks.json`
+  - `.ultra/.runtime/projections/contexts/task-*.md`
+- `.ultra/tasks/tasks.json` 是 MCP 在 plan 接受、durable task 状态变化与
+  Change 收敛点发布的低频团队 ledger；不包含 session、lease、`in_progress`
+  ownership 或 `completion_commit`
 - 投影是**只读视图**：Phase 3+ 代码禁止手写（读走 state-db API；写走
   MCP task.* tool）
 - **AC**：改 state.db 后 ≤1s 内投影同步；手改投影 → 下次 state-db 写入
@@ -633,12 +636,10 @@ workflow-state 全部降级为**投影（projection）**或**导出视图**。�
 
 **2.8 Commit hash 回填重构**（0.5 天）
 - 旧：commit → read hash → edit context → `git commit --amend`（非原子）
-- 新：commit（空 hash context）→ read hash → update state-db tasks
-  `completion_commit` → 投影器更新 context → **第二次 commit** "chore:
-  record task-N completion hash"
+- 新：先发布 durable completion ledger → 创建单个 task commit → read hash →
+  update 本地 state-db `completion_commit`；runtime projection 不进入 Git
 - 修改 `skills/ultra-dev/SKILL.md` Step 6 描述；Phase 3 落地
-- **AC**：`git log --oneline` 看到 "feat: …" + "chore: record hash" 两
-  commit 并列
+- **AC**：hash 回填后 Git clean，且不生成第二个 metadata commit
 
 #### Phase 2 gate
 
@@ -1260,7 +1261,7 @@ CREATE TABLE tasks (
   tag TEXT,                        -- Phase 7.2 分支分区
   trace_to TEXT,                   -- spec 引用
   context_file TEXT,               -- 投影文件路径
-  completion_commit TEXT,          -- Phase 2.6 hash 回填
+  completion_commit TEXT,          -- checkout-local integrated commit evidence
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
@@ -1338,13 +1339,15 @@ PRAGMA busy_timeout=5000;         -- 多进程访问容忍（R4.1）
 ```
 
 **投影（projection）**：
-- `.ultra/tasks/tasks.json` 由 `tasks` 表再生成（v4.5 过渡保留；Codex 第二
-  轮 R1 指出：v4.5 是过渡期名称，不是 v5）
-- `.ultra/tasks/contexts/task-*.md` 的 Status header 由 `tasks.status` 派生
+- `.ultra/.runtime/projections/tasks.json` 由 `tasks` 表再生成
+- `.ultra/.runtime/projections/contexts/task-*.md` 由任务 contract 派生
+- `.ultra/tasks/tasks.json` 是 Git-facing durable team ledger，不是 live
+  projection
 - `.ultra/activity-log.json`（可选 JSONL 导出）由 `events` 表 dump
 
-**权威路径**：所有读写走 MCP `task.*` / `session.*` / `memory.*` tool →
-state-db。手工改 JSON/MD **不生效**（投影覆盖）。
+**权威路径**：所有运行态读写走 MCP `task.*` / `session.*` / workflow
+tools → state-db；团队 ledger 仅由 MCP 发布和导入，runtime projection
+由 projector 覆盖。
 
 **无双源原则（D32）**：
 - lease / heartbeat **只在 `sessions` 表**（不再有 `lease.json` 文件）

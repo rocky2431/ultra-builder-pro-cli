@@ -60,14 +60,21 @@ test('projectContext fully regenerates the read-only file and removes arbitrary 
   const { dir, db } = tmpProject();
   try {
     ops.createTask(db, { id: 'cx-1', title: 'context test', type: 'feature', priority: 'P1' });
-    const ctxFile = path.join(dir, '.ultra', 'tasks', 'contexts', 'task-cx-1.md');
-    fs.mkdirSync(path.dirname(ctxFile), { recursive: true });
-    fs.writeFileSync(ctxFile, '---\nstale: header\n---\n\n# body that must be removed\n\nUser notes go here.\n');
+    const legacyFile = path.join(dir, '.ultra', 'tasks', 'contexts', 'task-cx-1.md');
+    const ctxFile = path.join(
+      dir, '.ultra', '.runtime', 'projections', 'contexts', 'task-cx-1.md',
+    );
+    fs.mkdirSync(path.dirname(legacyFile), { recursive: true });
+    fs.writeFileSync(
+      legacyFile,
+      '---\nstale: header\n---\n\n# body that must be removed\n\nUser notes go here.\n',
+    );
 
     ops.updateTaskStatus(db, 'cx-1', 'in_progress');
     projector.projectContext(db, 'cx-1', {}, { rootDir: dir });
 
     const text = fs.readFileSync(ctxFile, 'utf8');
+    assert.equal(fs.existsSync(legacyFile), false);
     assert.match(text, /^---\n/, 'must start with frontmatter');
     assert.match(text, /status: in_progress/);
     assert.match(text, /schema_version: 4\.5/);
@@ -87,9 +94,14 @@ test('projectContext replaces legacy authored context with the generated contrac
       id: 'legacy-body', title: 'legacy context body', type: 'feature', priority: 'P1',
       context_file: '.ultra/tasks/contexts/task-legacy-body.md',
     });
-    const ctxFile = path.join(dir, '.ultra', 'tasks', 'contexts', 'task-legacy-body.md');
-    fs.mkdirSync(path.dirname(ctxFile), { recursive: true });
-    fs.writeFileSync(ctxFile, [
+    const legacyFile = path.join(
+      dir, '.ultra', 'tasks', 'contexts', 'task-legacy-body.md',
+    );
+    const ctxFile = path.join(
+      dir, '.ultra', '.runtime', 'projections', 'contexts', 'task-legacy-body.md',
+    );
+    fs.mkdirSync(path.dirname(legacyFile), { recursive: true });
+    fs.writeFileSync(legacyFile, [
       '# Task legacy-body',
       '',
       '> **Status**: pending | **Priority**: P1 | **Complexity**: 4',
@@ -99,9 +111,10 @@ test('projectContext replaces legacy authored context with the generated contrac
       '',
     ].join('\n'));
 
-    const legacyBytes = fs.readFileSync(ctxFile);
+    const legacyBytes = fs.readFileSync(legacyFile);
     projector.projectContext(db, 'legacy-body', {}, { rootDir: dir });
     const text = fs.readFileSync(ctxFile, 'utf8');
+    assert.equal(fs.existsSync(legacyFile), false);
     assert.match(text, /generated_by: ultra-projector/);
     assert.match(text, /status: pending/);
     assert.doesNotMatch(text, /> \*\*Status\*\*:/);
@@ -153,10 +166,15 @@ test('projectContext promotes authored prose preserved after a legacy generated 
       id: 'mixed-legacy', title: 'mixed legacy context', type: 'feature', priority: 'P1',
       context_file: '.ultra/tasks/contexts/task-mixed-legacy.md',
     });
-    const ctxFile = path.join(dir, '.ultra', 'tasks', 'contexts', 'task-mixed-legacy.md');
-    fs.mkdirSync(path.dirname(ctxFile), { recursive: true });
+    const legacyFile = path.join(
+      dir, '.ultra', 'tasks', 'contexts', 'task-mixed-legacy.md',
+    );
+    const ctxFile = path.join(
+      dir, '.ultra', '.runtime', 'projections', 'contexts', 'task-mixed-legacy.md',
+    );
+    fs.mkdirSync(path.dirname(legacyFile), { recursive: true });
     const authoredBody = 'KEEP THIS LEGACY FINDING\nSecond exact line.\n';
-    fs.writeFileSync(ctxFile, [
+    fs.writeFileSync(legacyFile, [
       '---',
       'task_id: mixed-legacy',
       'status: pending',
@@ -173,6 +191,7 @@ test('projectContext promotes authored prose preserved after a legacy generated 
     projector.projectContext(db, 'mixed-legacy', {}, { rootDir: dir });
 
     const projection = fs.readFileSync(ctxFile, 'utf8');
+    assert.equal(fs.existsSync(legacyFile), false);
     assert.match(projection, /generated_by: ultra-projector/);
     assert.doesNotMatch(projection, /KEEP THIS LEGACY FINDING/);
     assert.equal(
@@ -247,7 +266,9 @@ test('projectContext rejects traversal and symlink ancestors outside the context
 test('projectAll prunes only generated ghost contexts and records the recovery evidence', () => {
   const { dir, db } = tmpProject();
   try {
-    const contexts = path.join(dir, '.ultra', 'tasks', 'contexts');
+    const contexts = path.join(
+      dir, '.ultra', '.runtime', 'projections', 'contexts',
+    );
     fs.mkdirSync(contexts, { recursive: true });
     const generatedGhost = path.join(contexts, 'task-deleted.md');
     const authoredGhost = path.join(contexts, 'notes.md');
@@ -257,26 +278,34 @@ test('projectAll prunes only generated ghost contexts and records the recovery e
     fs.writeFileSync(authoredGhost, '# Keep this authored note\n');
 
     const result = projector.projectAll(db, { rootDir: dir });
-    assert.deepEqual(result.pruned, ['.ultra/tasks/contexts/task-deleted.md']);
+    assert.deepEqual(
+      result.pruned,
+      ['.ultra/.runtime/projections/contexts/task-deleted.md'],
+    );
     assert.equal(fs.existsSync(generatedGhost), false);
     assert.equal(fs.existsSync(authoredGhost), true);
     const event = db.prepare(
       "SELECT payload_json FROM events WHERE type = 'projection_pruned' ORDER BY id DESC LIMIT 1",
     ).get();
-    assert.equal(JSON.parse(event.payload_json).path, '.ultra/tasks/contexts/task-deleted.md');
+    assert.equal(
+      JSON.parse(event.payload_json).path,
+      '.ultra/.runtime/projections/contexts/task-deleted.md',
+    );
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('manual edits to tasks.json are overwritten on the next projectAll', () => {
+test('manual edits to the live task projection are overwritten on the next projectAll', () => {
   const { dir, db } = tmpProject();
   try {
     ops.createTask(db, { id: 'ow-1', title: 'overwrite', type: 'feature', priority: 'P0' });
     projector.projectAll(db, { rootDir: dir });
 
-    const tasksJson = path.join(dir, '.ultra', 'tasks', 'tasks.json');
+    const tasksJson = path.join(
+      dir, '.ultra', '.runtime', 'projections', 'tasks.json',
+    );
     fs.writeFileSync(tasksJson, JSON.stringify({ tampered: true }));
     assert.deepEqual(readJson(tasksJson), { tampered: true });
 

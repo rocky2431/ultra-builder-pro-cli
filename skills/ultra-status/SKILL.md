@@ -5,20 +5,23 @@ description: Read authoritative Ultra health, workflows, decisions, changes, tas
 
 # Report authoritative state
 
-This Skill is read-only. Never fall back to generated task JSON, prose, or context
-frontmatter when DB authority is missing or degraded.
+This Skill is read-only. Never fall back to the Git team checkpoint, generated task
+JSON, prose, or context frontmatter when checkout-local DB authority is missing or
+degraded.
 
 ## Read
 
 1. Run `system.doctor` without repair.
-2. Read baseline classification, revision, worktree, research provenance, gaps, and
+2. Run `task.ledger_get`. Report `current`, `drifted`, `revalidation_required`,
+   `missing`, or a typed invalid/conflict state; do not import or publish from status.
+3. Read baseline classification, revision, worktree, research provenance, gaps, and
    health.
-3. Read current decision state and breadcrumb `accepted_intent` without exposing hidden
+4. Read current decision state and breadcrumb `accepted_intent` without exposing hidden
    future questions.
-4. Read active, blocked, and ready workflows and their current steps.
-5. Read the active Change root, typed delta, plan, deterministic progress projection,
+5. Read active, blocked, and ready workflows and their current steps.
+6. Read the active Change root, typed delta, plan, deterministic progress projection,
    documentation reconciliation, findings, tasks, sessions, and current Git state.
-6. Read test, review, and delivery artifacts only through DB references and verify
+7. Read test, review, and delivery artifacts only through DB references and verify
    their digests and revisions.
 
 If authority is unreadable, report the unavailable panel and the required doctor or
@@ -47,6 +50,7 @@ Decision: <current|checkpoint|none>
 Change: <id/status|none> · delta=<fresh|stale|missing> · docs=<fresh|stale|missing>
 Task: <id/status|none> · Sessions: <active>
 Evidence: plan=<state> · test=<state> · review=<axes> · delivery=<state>
+Team checkpoint: <current|drifted|revalidation_required|missing|invalid> · generation=<n>
 Blockers: <codes or none>
 Warnings: <codes or none>
 Allowed transitions: <capabilities>

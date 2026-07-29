@@ -265,7 +265,7 @@ test('OpenCode is silent before initialization and protects projections only aft
         { tool: 'apply_patch' },
         { args: { patch: '*** Begin Patch\n*** Update File: .ultra/tasks/tasks.json\n*** End Patch' } },
       ),
-      /state\.db is authoritative/,
+      /MCP-published team checkpoint/,
     );
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
@@ -294,14 +294,14 @@ test('installed OpenCode plugin derives and validates each cross-project target 
         { tool: 'write' },
         { args: { file_path: targetB } },
       ),
-      /state\.db is authoritative/,
+      /MCP-published team checkpoint/,
     );
     await assert.rejects(
       plugin['tool.execute.before'](
         { tool: 'edit' },
         { args: { file_path: path.relative(projectA, targetB) } },
       ),
-      /state\.db is authoritative/,
+      /MCP-published team checkpoint/,
     );
   } finally {
     fs.rmSync(target, { recursive: true, force: true });

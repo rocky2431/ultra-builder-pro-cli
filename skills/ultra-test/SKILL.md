@@ -10,8 +10,9 @@ projections as proof.
 
 ## Bind scope
 
-1. Read doctor, change, breadcrumb `accepted_intent`, decisions, task and dev evidence,
-   current checkout, and prior report freshness.
+1. Read doctor, `task.ledger_get`, change, breadcrumb `accepted_intent`, decisions,
+   task and dev evidence, current checkout, and prior report freshness. Import a newer
+   descendant checkpoint before binding the task set; stop on a typed merge conflict.
 2. Resume or start a test workflow bound to the exact change and optional task.
 3. Record `bind-scope`, then compile `change.context` for `check` and record its
    immutable manifest under `compile-context`.

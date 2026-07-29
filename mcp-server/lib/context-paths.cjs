@@ -3,7 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const CONTEXT_ROOT_RELATIVE = '.ultra/tasks/contexts';
+const CONTEXT_ROOT_RELATIVE = '.ultra/.runtime/projections/contexts';
+const LEGACY_CONTEXT_ROOT_RELATIVE = '.ultra/tasks/contexts';
 const GENERATED_BY = 'ultra-projector';
 
 class ContextPathError extends Error {
@@ -77,9 +78,12 @@ function resolveContextPath(rootDir, value, {
   if (raw.split('/').includes('..')) invalid(original, 'parent traversal is not allowed');
 
   if (allowLegacyAliases && raw.startsWith('contexts/')) {
-    raw = `.ultra/tasks/${raw}`;
+    raw = `${LEGACY_CONTEXT_ROOT_RELATIVE}/${raw.slice('contexts/'.length)}`;
   } else if (allowLegacyAliases && !raw.includes('/')) {
-    raw = `${CONTEXT_ROOT_RELATIVE}/${raw}`;
+    raw = `${LEGACY_CONTEXT_ROOT_RELATIVE}/${raw}`;
+  }
+  if (raw.startsWith(`${LEGACY_CONTEXT_ROOT_RELATIVE}/`)) {
+    raw = `${CONTEXT_ROOT_RELATIVE}/${raw.slice(LEGACY_CONTEXT_ROOT_RELATIVE.length + 1)}`;
   }
 
   const relative = path.posix.normalize(raw);
@@ -98,14 +102,41 @@ function resolveContextPath(rootDir, value, {
   return { root, contextRoot, relative, file };
 }
 
+function resolveLegacyContextPath(rootDir, value, { taskId } = {}) {
+  const root = path.resolve(rootDir || '.');
+  const original = value || `${LEGACY_CONTEXT_ROOT_RELATIVE}/task-${taskId}.md`;
+  if (typeof original !== 'string' || original.trim() === '' || original.includes('\0')) {
+    invalid(original, 'a non-empty legacy path is required');
+  }
+  if (path.isAbsolute(original)) invalid(original, 'legacy paths must be project-relative');
+  const raw = original.trim().replaceAll('\\', '/').replace(/^\.\//, '');
+  if (raw.split('/').includes('..')) invalid(original, 'parent traversal is not allowed');
+  const relative = path.posix.normalize(raw);
+  if (!relative.startsWith(`${LEGACY_CONTEXT_ROOT_RELATIVE}/`)
+      || relative === `${LEGACY_CONTEXT_ROOT_RELATIVE}/`
+      || relative.endsWith('/')) {
+    invalid(original, `legacy path must be a file below ${LEGACY_CONTEXT_ROOT_RELATIVE}`);
+  }
+  const file = path.resolve(root, ...relative.split('/'));
+  const contextRoot = path.resolve(root, ...LEGACY_CONTEXT_ROOT_RELATIVE.split('/'));
+  if (!file.startsWith(`${contextRoot}${path.sep}`)) {
+    invalid(original, `legacy path escapes ${LEGACY_CONTEXT_ROOT_RELATIVE}`);
+  }
+  assertNoSymlinkAncestors(root, relative, original);
+  assertRealContainment(root, file, original);
+  return { root, contextRoot, relative, file };
+}
+
 function isGeneratedContextContents(contents) {
   return new RegExp(`^generated_by:\\s*${GENERATED_BY}\\s*$`, 'm').test(String(contents));
 }
 
 module.exports = {
   CONTEXT_ROOT_RELATIVE,
+  LEGACY_CONTEXT_ROOT_RELATIVE,
   GENERATED_BY,
   ContextPathError,
   isGeneratedContextContents,
   resolveContextPath,
+  resolveLegacyContextPath,
 };

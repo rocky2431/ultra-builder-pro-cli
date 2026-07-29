@@ -15,23 +15,28 @@ payloads.
 Semantic and evidence artifacts under `.ultra/` are trackable so reviewed intent and
 verification can travel with the repository. `.ultra/.runtime/` is always ignored:
 the SQLite authority, leases, worktrees, local telemetry, and recovery snapshots remain
-checkout-local unless a team uses an explicit synchronization or artifact handoff.
+checkout-local. `.ultra/tasks/tasks.json` is the narrow MCP-owned Git handoff for
+portable baseline, Change, and durable task records; it is not a copy of live runtime
+state.
 
 ## Artifact classes
 
 | Class | Examples | Authority |
 |---|---|---|
-| Lifecycle and index | `.ultra/.runtime/state.db` | Sole authority for identifiers, normalized accepted intent, status, legal transitions, references, digests, freshness, provenance, locks, leases, transactions, recovery, and coordination |
+| Checkout-local lifecycle and index | `.ultra/.runtime/state.db` | Operational authority for identifiers, normalized accepted intent, status, legal transitions, references, digests, freshness, provenance, locks, leases, transactions, recovery, and coordination in one checkout |
+| Git team checkpoint | `.ultra/tasks/tasks.json` | MCP-published, digest-chained handoff of portable baseline, Change, task-contract, dependency, and durable status records; never live session or lease authority |
 | Digest-bound semantic artifacts | specifications, research reports, Change intent/delta/plan, context manifests | Authoritative semantic bodies only while registered by the owning DB row or workflow step and matching its recorded digest |
 | Digest-bound evidence artifacts | test, review, delivery, and verification reports | Authoritative evidence bodies only while registered, immutable where required, and matching the recorded digest and scope |
-| Generated projections | `tasks/tasks.json`, generated task-status headers, activity exports | Read-only views derived from DB authority; manual edits are overwritten and never become authority |
+| Generated projections | `.ultra/.runtime/projections/tasks.json`, generated task contexts, activity exports | Checkout-local read-only views derived from DB authority; manual edits are overwritten and never become authority |
 | Advisory recovery | `.ultra/.runtime/checkpoint.json` | Compact recovery hint derived from DB authority; stale or missing content never overrides the DB |
 | Working scratch | `.ultra/.runtime/collab/`, temporary session output, incomplete drafts | Non-authoritative working material until verified and promoted through a supported workflow write |
 | External provider references | memory or code-graph provider name, scope, version, stable reference, freshness metadata | Metadata-only context stored by Ultra; the provider remains authority for its payload |
 
-The DB is not expected to contain every semantic paragraph. It owns the lifecycle and
-the binding between a fact and its current content. A digest-bound file owns the
-registered semantic or evidence body. Neither surface is a parallel lifecycle source.
+The DB is not expected to contain every semantic paragraph. It owns checkout-local
+lifecycle and the binding between a fact and its current content. A digest-bound file
+owns the registered semantic or evidence body. The team checkpoint moves a reviewed
+portable subset through Git and is merged into the receiving DB through MCP. None of
+these surfaces independently owns all three roles.
 
 ## Human, model, and mechanical responsibilities
 
@@ -39,9 +44,9 @@ registered semantic or evidence body. Neither surface is a parallel lifecycle so
 |---|---|---|
 | Owner | Goals, acceptance, non-goals, material choices, risk acceptance, and authorization for irreversible or external effects | Supply facts the checkout or runtime can establish directly |
 | Host model | Inspect evidence, recommend a route, ask only for unresolved owner choices, normalize the answer, call the owning write, update semantic artifacts, read back the result, and present the next recommendation | Fabricate evidence, infer owner authorization, or bypass legal transitions |
-| Ultra MCP | Persist normalized inputs, validate structure and current digests, record lifecycle and provenance, enforce legal transitions, project views, and expose recovery | Choose product direction, prove a UI click, force a semantic route, or replace model judgment |
+| Ultra MCP | Persist normalized inputs, validate structure and current digests, record lifecycle and provenance, enforce legal transitions, project local views, publish/import the Git checkpoint, and expose recovery | Choose product direction, prove a UI click, force a semantic route, or replace model judgment |
 | Host adapter | Render the shared interaction contract through the host-native question and tool surfaces | Become a second workflow authority |
-| Hook | Observe lifecycle, inject compact DB-derived recovery context, and protect generated projections | Select a semantic route or block ordinary development |
+| Hook | Observe lifecycle, inject compact DB-derived recovery context, and protect MCP-owned checkpoint and generated projection paths | Select a semantic route or block ordinary development |
 
 ## Intent persistence
 
@@ -169,8 +174,8 @@ rejected without changing prior authority. A caller can provide
 `artifact.get` reads by unique ID or unambiguous path. It fails closed when a path
 has multiple active authorities and reports whether the row satisfies the managed
 registry contract. A canonical path can have only one non-archived authority across
-all owners and kinds. Runtime, scratch, `tasks.json`, and generated task contexts
-cannot be promoted through this API.
+all owners and kinds. Runtime, scratch, the MCP-owned team checkpoint, and generated
+task contexts cannot be promoted through this API.
 
 Owning internal writers use the same transaction contract. Change intent, delta and
 documentation packets, contexts, adaptive research, findings, incident diagnosis,
@@ -196,11 +201,13 @@ tables. It reports:
 - graph cycles that cannot become consumer evidence;
 - more than one active authority for the same canonical path;
 - legacy compatibility rows that remain unmanaged;
-- generated task contexts whose task no longer exists.
+- legacy generated task contexts left outside the runtime projection root.
 
 `.ultra/.runtime/**`, `.ultra/scratch/**`, and fixed scaffold support files are outside
-orphan diagnosis. Current generated projections are recognized from the DB task set,
-not from a blanket directory exemption. Before a baseline is ready, only the reserved
+orphan diagnosis. Current generated projections are local runtime files and are not
+semantic artifacts. A retired `.ultra/tasks/contexts/**` entry is diagnosed and any
+generated marker is reported as a ghost projection. Before a baseline is ready, only
+the reserved
 `discovery.md`, `product.md`, `architecture.md`, and `research-distillate.md` scaffold
 paths under `.ultra/specs/` are provisional; every additional specification is subject
 to orphan diagnosis immediately. Completion cannot be manufactured by registering
@@ -208,25 +215,58 @@ empty templates. Doctor and status expose registered, managed, and unmanaged cou
 and compatibility remains unhealthy until every retained row is deliberately promoted
 or retired.
 
+## Team checkpoint
+
+`.ultra/tasks/tasks.json` has kind `ultra-team-task-ledger` and a versioned schema. It
+contains:
+
+- one portable baseline record, when present;
+- every Change summary, including a Change that has not yet produced tasks;
+- durable task contracts, dependencies, acceptance mappings, and statuses;
+- per-record revisions, parent digests, the checkpoint state digest, and bounded
+  checkpoint ancestry.
+
+It excludes `in_progress` ownership, session ids, leases, worktrees, telemetry,
+projection jobs, recovery scratch, and `completion_commit`. Those fields are meaningful
+only in the checkout that owns the active process or Git object.
+
+MCP publishes a new generation at semantic handoff points: baseline convergence,
+Change creation or update, plan acceptance, durable task-contract or status change,
+task expansion or deletion, and Change convergence or archive. A direct edit is
+rejected by host hooks and fails digest validation even without hooks.
+
+`task.ledger_import` validates schema, full and per-record digests, bounded ancestry,
+Change ownership, task parents, and local active sessions. A clean record fast-forwards.
+A record changed on both sides, a non-descendant checkpoint, or a remote update to a
+locally active task stops with a typed conflict. Re-importing the same checkpoint
+performs no DB write. A ready imported baseline becomes `draft` or `adopting` with a
+blocking checkout-local revalidation gap; Git cannot prove the receiving checkout's
+HEAD, scope bytes, verification, or accepted dirty state. Publication remains blocked
+until that local baseline converges, preventing one unvalidated checkout from
+downgrading team authority.
+
+Legacy v4.4/v4.5 projections are replaced only through `task.ledger_publish`. The
+publisher first compares every available durable field with SQLite, writes the exact
+legacy bytes to `.ultra/.runtime/backups/task-ledger/`, and refuses any mismatch.
+Doctor diagnoses this state but never performs the semantic replacement.
+
 ## Task-context projection
 
-`.ultra/tasks/contexts/<task-id>.md` is fully generated from current DB authority.
-The projector replaces the whole file, including its execution contract and stale
-banner, and marks it with `generated_by: ultra-projector`. It never preserves arbitrary
-prose inserted into an earlier projection.
+`.ultra/.runtime/projections/contexts/<task-id>.md` is fully generated from current DB
+authority. The projector replaces the whole file, including its execution contract and
+stale banner, and marks it with `generated_by: ultra-projector`. It never preserves
+arbitrary prose inserted into an earlier projection.
 
-Before replacing an existing authored context, the projector promotes the exact legacy
-body bytes once into a digest-bound `legacy_context_findings` artifact owned and
-consumed by the task. Legacy frontmatter, stale banners, and generated contract marker
-regions are removed first; any remaining authored body is retained exactly, even when
-an older projector had preserved it after a generated contract. Replacement is skipped
-without promotion only when no authored content remains. If promotion cannot be
-registered, projection fails without deleting the authored body. A context target must
-remain lexically and physically below
-`.ultra/tasks/contexts/`; traversal and symlink ancestors are rejected by projection and
-migration. When a task disappears, only an orphan carrying the generated marker may be
-pruned, and the removal emits `projection_pruned`; unknown authored files are retained
-for diagnosis.
+Before retiring an existing `.ultra/tasks/contexts/<task-id>.md`, the projector
+promotes its exact authored body bytes once into a digest-bound
+`legacy_context_findings` artifact owned and consumed by the task. Legacy frontmatter,
+stale banners, and generated contract marker regions are removed first; any remaining
+authored body is retained exactly, even when an older projector had preserved it after
+a generated contract. Migration fails without deleting the authored body if promotion
+cannot be registered. Both legacy reads and runtime projection writes reject traversal,
+symlink ancestors, and path escape. When a task disappears, only a runtime projection
+carrying the generated marker may be pruned, and the removal emits
+`projection_pruned`.
 
 Model findings, decisions, or evidence discovered during development must be written
 below the owning Change root and registered through the workflow or `artifact.record`.

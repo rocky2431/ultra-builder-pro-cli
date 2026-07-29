@@ -59,6 +59,49 @@ function gitBranch(rootDir) {
   return result.status === 0 ? (result.stdout.trim() || null) : null;
 }
 
+function gitCommitIsAncestor(rootDir, ancestor, descendant) {
+  if (!ancestor || !descendant) return false;
+  const result = spawnSync(
+    'git', ['merge-base', '--is-ancestor', ancestor, descendant],
+    { cwd: rootDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  return result.status === 0;
+}
+
+function hashScopedWorkingTree(rootDir, relativePaths) {
+  const root = path.resolve(rootDir);
+  const digest = crypto.createHash('sha256');
+  for (const relative of [...new Set(relativePaths)].sort()) {
+    const file = path.resolve(root, relative);
+    if (file !== root && !file.startsWith(`${root}${path.sep}`)) {
+      throw new BaselineWorkflowError(
+        'BASELINE_SCOPE_INVALID',
+        `Git returned a path outside the repository: ${relative}`,
+      );
+    }
+    digest.update(relative).update('\0');
+    const stat = fs.lstatSync(file, { throwIfNoEntry: false });
+    if (!stat) {
+      digest.update('missing\0');
+    } else if (stat.isSymbolicLink()) {
+      digest.update('symlink\0').update(fs.readlinkSync(file)).update('\0');
+    } else if (stat.isFile()) {
+      digest.update(stat.mode & 0o111 ? 'file+x\0' : 'file\0');
+      digest.update(fs.readFileSync(file)).update('\0');
+    } else if (stat.isDirectory()) {
+      const submoduleHead = spawnSync('git', ['-C', file, 'rev-parse', 'HEAD'], {
+        cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      digest.update('directory\0');
+      if (submoduleHead.status === 0) digest.update(submoduleHead.stdout.trim());
+      digest.update('\0');
+    } else {
+      digest.update(`special:${stat.mode}\0`);
+    }
+  }
+  return digest.digest('hex');
+}
+
 function gitWorktreeSnapshot(rootDir, scope = ['.']) {
   const repositoryRoot = gitRepositoryRoot(rootDir);
   if (!repositoryRoot) {
@@ -76,40 +119,24 @@ function gitWorktreeSnapshot(rootDir, scope = ['.']) {
     'git', ['status', '--porcelain=v1', '-z', '--untracked-files=all', ...args],
     { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
   );
-  const diff = head
-    ? spawnSync(
-      'git', ['diff', '--binary', '--no-ext-diff', 'HEAD', ...args],
-      { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
-    )
-    : { status: 0, stdout: Buffer.alloc(0) };
-  const untracked = spawnSync(
-    'git', ['ls-files', '--others', '--exclude-standard', '-z', ...args],
+  const inventory = spawnSync(
+    'git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z',
+      '--', ...pathspecs, ':(exclude).ultra', ':(exclude).ultra/**'],
     { cwd: rootDir, encoding: 'buffer', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 },
   );
-  if (status.status !== 0 || diff.status !== 0 || untracked.status !== 0) {
+  if (status.status !== 0 || inventory.status !== 0) {
     return {
       head, branch: gitBranch(rootDir), state: 'unavailable', digest: null, files: [],
     };
   }
   const statusText = status.stdout.toString('utf8');
   const files = statusText.split('\0').filter(Boolean);
-  const digest = crypto.createHash('sha256');
-  digest.update(head || 'unborn').update('\0').update(gitBranch(rootDir) || '').update('\0');
-  digest.update(status.stdout).update(diff.stdout);
-  for (const relative of untracked.stdout.toString('utf8').split('\0').filter(Boolean).sort()) {
-    digest.update(relative).update('\0');
-    const file = path.resolve(rootDir, relative);
-    if (file.startsWith(`${path.resolve(rootDir)}${path.sep}`)
-      && fs.existsSync(file) && fs.statSync(file).isFile()) {
-      digest.update(fs.readFileSync(file));
-    }
-    digest.update('\0');
-  }
+  const scopedFiles = inventory.stdout.toString('utf8').split('\0').filter(Boolean);
   return {
     head,
     branch: gitBranch(rootDir),
     state: head ? (files.length > 0 ? 'dirty' : 'clean') : 'unborn',
-    digest: digest.digest('hex'),
+    digest: hashScopedWorkingTree(rootDir, scopedFiles),
     files,
   };
 }
@@ -741,7 +768,12 @@ function convergenceBlockers(db, baseline, input, rootDir) {
   else if (baseline.repository_revision !== expected) blockers.add('BASELINE_REVISION_MISMATCH');
   const snapshot = gitWorktreeSnapshot(rootDir, baseline.scope);
   if (snapshot.state === 'unborn') blockers.add('BASELINE_GIT_HEAD_REQUIRED');
-  if (snapshot.head && expected && snapshot.head !== expected) blockers.add('BASELINE_HEAD_STALE');
+  if (snapshot.head && expected && snapshot.head !== expected
+      && (!gitCommitIsAncestor(rootDir, expected, snapshot.head)
+        || (baseline.worktree_digest && snapshot.digest
+          && baseline.worktree_digest !== snapshot.digest))) {
+    blockers.add('BASELINE_HEAD_STALE');
+  }
   if (baseline.repository_branch && snapshot.branch
     && baseline.repository_branch !== snapshot.branch) blockers.add('BASELINE_BRANCH_STALE');
   if (!Array.isArray(baseline.scope) || baseline.scope.length === 0) blockers.add('BASELINE_SCOPE_MISSING');
@@ -857,7 +889,11 @@ function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
     blockers.push('BASELINE_GIT_HEAD_REQUIRED');
   }
   if (snapshot.head && baseline.repository_revision && snapshot.head !== baseline.repository_revision) {
-    blockers.push('BASELINE_HEAD_STALE');
+    if (!gitCommitIsAncestor(rootDir, baseline.repository_revision, snapshot.head)
+        || (baseline.worktree_digest && snapshot.digest
+          && baseline.worktree_digest !== snapshot.digest)) {
+      blockers.push('BASELINE_HEAD_STALE');
+    }
   } else if (!snapshot.head && baseline.repository_revision?.startsWith('workspace:')) {
     const revision = workspaceRevision({
       scope: baseline.scope, specs: baseline.spec_refs, evidence: baseline.evidence,

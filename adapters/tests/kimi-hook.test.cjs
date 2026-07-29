@@ -106,10 +106,7 @@ test('Kimi hook adapter emits the native deny contract after Ultra initializatio
     assert.equal(result.status, 0, result.stderr);
     const output = JSON.parse(result.stdout);
     assert.equal(output.hookSpecificOutput.permissionDecision, 'deny');
-    assert.match(
-      output.hookSpecificOutput.permissionDecisionReason,
-      /\.ultra\/\.runtime\/state\.db/,
-    );
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /team checkpoint/);
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
   }

@@ -337,7 +337,8 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const TASKS_PROJECTION = ".ultra/tasks/tasks.json";
+const TEAM_TASK_LEDGER = ".ultra/tasks/tasks.json";
+const LIVE_TASK_PROJECTION = ".ultra/.runtime/projections/tasks.json";
 const NODE_BINARY = ${JSON.stringify(process.execPath)};
 const PLUGIN_DIR = path.dirname(fileURLToPath(import.meta.url));
 const BREADCRUMB_CLI = path.resolve(
@@ -382,20 +383,28 @@ function targetPaths(tool, args) {
   return [...new Set(paths)];
 }
 
-function projectionRootForTarget(baseRoot, candidate) {
+function managedTaskRootForTarget(baseRoot, candidate) {
   const target = path.isAbsolute(candidate)
     ? path.resolve(candidate)
     : path.resolve(baseRoot, candidate);
-  if (path.basename(target) !== "tasks.json"
-      || path.basename(path.dirname(target)) !== "tasks"
-      || path.basename(path.dirname(path.dirname(target))) !== ".ultra") {
-    return null;
+  if (target === path.resolve(baseRoot, TEAM_TASK_LEDGER)
+      || target === path.resolve(baseRoot, LIVE_TASK_PROJECTION)) return baseRoot;
+  if (path.basename(target) !== "tasks.json") return null;
+  const parent = path.dirname(target);
+  if (path.basename(parent) === "tasks"
+      && path.basename(path.dirname(parent)) === ".ultra") {
+    return path.dirname(path.dirname(parent));
   }
-  return path.dirname(path.dirname(path.dirname(target)));
+  if (path.basename(parent) === "projections"
+      && path.basename(path.dirname(parent)) === ".runtime"
+      && path.basename(path.dirname(path.dirname(parent))) === ".ultra") {
+    return path.dirname(path.dirname(path.dirname(parent)));
+  }
+  return null;
 }
 
-function protectsTasksProjection(baseRoot, candidate) {
-  const targetRoot = projectionRootForTarget(baseRoot, candidate);
+function protectsManagedTaskFile(baseRoot, candidate) {
+  const targetRoot = managedTaskRootForTarget(baseRoot, candidate);
   if (!targetRoot) return false;
   return Boolean(readUltraContext(targetRoot));
 }
@@ -421,11 +430,13 @@ export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
       const tool = String(input?.tool ?? "").toLowerCase();
       if (!["write", "edit", "apply_patch"].includes(tool)) return;
       if (targetPaths(tool, output?.args).some(
-        (candidate) => protectsTasksProjection(root, candidate),
+        (candidate) => protectsManagedTaskFile(root, candidate),
       )) {
         throw new Error(
-          "Ultra Builder Pro refused a direct write to .ultra/tasks/tasks.json. " +
-          ".ultra/.runtime/state.db is authoritative; use MCP task tools and run ultra-doctor when state or projection health is degraded."
+          "Ultra Builder Pro refused a direct write to an MCP-managed task file. " +
+          ".ultra/tasks/tasks.json is the MCP-published team checkpoint and " +
+          ".ultra/.runtime/projections/tasks.json is the checkout-local DB view. " +
+          "Use the Ultra MCP task or task.ledger tools."
         );
       }
     },

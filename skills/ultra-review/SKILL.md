@@ -17,10 +17,12 @@ Neither axis can compensate for the other.
 
 1. Read `references/review-modes.md` and select `plan`, `task`, or `change` from the
    actual review request.
-2. Bind one explicit diff or plan artifact, full HEAD, worktree digest, task set,
+2. Read doctor and `task.ledger_get`. Import a newer descendant checkpoint before
+   binding the review scope; stop on a typed merge conflict.
+3. Bind one explicit diff or plan artifact, full HEAD, worktree digest, task set,
    acceptance, breadcrumb `accepted_intent`, and current decision state.
-3. Resume or start the review workflow and record `bind-diff`.
-4. Compile `change.context` for `review` and record the immutable manifest under
+4. Resume or start the review workflow and record `bind-diff`.
+5. Compile `change.context` for `review` and record the immutable manifest under
    `compile-context`.
 
 An empty, ambiguous, or stale scope cannot pass.

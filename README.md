@@ -43,9 +43,11 @@ Ultra Builder Pro addresses those gaps with four ideas:
 2. **Low-load user alignment.** The agent investigates observable facts itself
    and asks the user only for material intent, scope, risk, or authorization
    decisions—normally one dependent decision at a time.
-3. **Durable project authority.** `.ultra/.runtime/state.db` records baselines, changes,
-   decisions, workflows, tasks, evidence digests, sessions, incidents, and
-   recovery state across hosts and sessions.
+3. **Durable project authority.** `.ultra/.runtime/state.db` records checkout-local
+   lifecycle, decisions, workflows, evidence digests, sessions, incidents, and
+   recovery state across host sessions. Tracked semantic artifacts plus the
+   MCP-published `.ultra/tasks/tasks.json` checkpoint carry reviewed project intent
+   across Git checkouts without committing SQLite, leases, or telemetry.
 4. **Convergent delivery.** Research, plans, implementation, tests, review, and
    specification updates must agree before a change is archived.
 
@@ -69,10 +71,12 @@ flowchart TB
     end
 
     SKILLS["Eleven explicit Ultra Skills<br/>init / research / think / change / plan / dev<br/>test / review / deliver / status / doctor"]
-    MCP["Ultra MCP<br/>57 typed tools across nine families"]
+    MCP["Ultra MCP<br/>60 typed tools across nine families"]
     DB[(".ultra/.runtime/state.db<br/>SQLite lifecycle and index authority")]
+    LEDGER[".ultra/tasks/tasks.json<br/>Git team checkpoint for portable baseline, Change, and task state"]
+    VIEWS[".ultra/.runtime/projections<br/>checkout-local generated views"]
     FILES["Digest-bound .ultra artifacts<br/>specification / research / change / plan / context<br/>test / review / delivery"]
-    HOOKS["Lifecycle hooks<br/>health, breadcrumbs, recovery hints, and projection protection"]
+    HOOKS["Lifecycle hooks<br/>health, breadcrumbs, recovery hints, and managed-file protection"]
     OPS["Operational tools<br/>ubp / ultra-tools / optional orchestrator"]
     EXTERNAL["External memory and graph providers"]
 
@@ -83,6 +87,8 @@ flowchart TB
     MODEL -->|"explicit invocation"| SKILLS
     SKILLS -->|"typed operations"| MCP
     MCP <--> DB
+    MCP -->|"publish / validate / import"| LEDGER
+    MCP -->|"regenerate"| VIEWS
     MODEL -->|"writes semantic and evidence bodies"| FILES
     MCP <-->|"registers owner, digest, provenance, and freshness"| FILES
     HOOKS -->|"observes and records lifecycle events"| MCP
@@ -97,9 +103,9 @@ The responsibility split is deliberate:
 |---|---|
 | **User** | Product intent, semantic route selection, material scope and trade-offs, risk acceptance, destructive actions, publishing and deployment authorization |
 | **Host model** | Fact-finding, synthesis, research-coverage and route recommendations, reversible implementation decisions |
-| **Ultra MCP** | Durable state, evidence references, digests, freshness, locks, valid transitions and hard recovery |
+| **Ultra MCP** | Checkout-local state, evidence references, digests, freshness, locks, valid transitions, hard recovery, and Git checkpoint publish/import |
 | **Host adapter** | Native Skill discovery, user questions, tool invocation, installation, and runtime wiring |
-| **Hooks** | Fast lifecycle observation, current breadcrumb injection, and protection of generated projections |
+| **Hooks** | Fast lifecycle observation, current breadcrumb injection, and protection of MCP-owned checkpoint and generated projection paths |
 
 The MCP does not replace the model's judgment. A hook does not decide product
 strategy. A prompt does not become durable authority merely because it appeared
@@ -298,8 +304,11 @@ that rationale is useful. MCP validates state, evidence, and transitions; it
 does not store or prove the preceding UI interaction.
 
 Older projection-only Ultra projects are preserved and routed through a
-backup-first migration or rebaseline. Use `ultra-doctor` when initialization
-reports migration or authority damage; do not overwrite old state manually.
+backup-first migration or rebaseline. The first supported checkpoint publication
+replaces a v4.4/v4.5 task projection only when its ids and durable fields match
+SQLite, after copying its exact bytes to `.ultra/.runtime/backups/task-ledger/`.
+Use `ultra-doctor` when initialization reports migration, mismatch, or authority
+damage; do not overwrite old state manually.
 
 ### 3. Make daily changes
 
@@ -418,6 +427,7 @@ health without selecting product intent.
   .runtime/                # local mutable state; ignored by Git
     state.db               # lifecycle, index, transition, and freshness authority
     checkpoint.json        # advisory recovery projection
+    projections/           # generated local task and task-context views
     backups/               # verified migration and recovery snapshots
     collab/                # local collaboration scratch
     sessions/              # local leases and session runtime
@@ -442,17 +452,20 @@ health without selecting product intent.
   docs/research/           # baseline-only research evidence
   reports/templates/       # blank report schemas; never delivery evidence
   tasks/
-    tasks.json             # generated projection, never the authority
-    contexts/              # bounded role/task context artifacts
+    tasks.json             # MCP-published Git team checkpoint; never hand-edited
+  templates/
+    task-context.md        # authored template, not a generated task context
 ```
 
 Together, `.ultra/` is Ultra's project-local cross-session workflow memory. The
 host model writes semantic specifications and evidence through the active
 workflow. MCP records lifecycle state, references, digests, provenance, and
 accepted intent, then rejects stale or illegal transitions. The DB is the
-lifecycle and index authority; registered digest-bound files carry the semantic
-or evidence bodies that the DB references. Generated projections and working
-scratch are not authority.
+lifecycle and index authority for one checkout; registered digest-bound files carry
+the semantic or evidence bodies that the DB references. The Git checkpoint is a
+portable, digest-chained handoff of baseline, Change, and durable task records. It is
+not a second live session authority. Generated projections and working scratch are
+not authority.
 
 Ultra does not store chain-of-thought, raw prompts, transcripts, general
 conversational or episodic memory, or code-graph payloads. External memory and
@@ -460,6 +473,29 @@ graph systems remain separate providers; Ultra may store bounded metadata
 references to them as workflow context. Only `.ultra/.runtime/` is ignored by
 Git: semantic and evidence artifacts can travel with the repository, while
 SQLite, leases, telemetry, and recovery scratch remain checkout-local.
+
+### Team checkpoint protocol
+
+MCP publishes `.ultra/tasks/tasks.json` at durable boundaries: baseline convergence,
+Change creation or revision, accepted plan export, durable task-contract or status
+changes, task expansion or deletion, and Change convergence or archive. The file
+contains per-record revisions and digests plus checkpoint ancestry. It excludes
+`in_progress` ownership, session ids, leases, worktrees, telemetry, and
+`completion_commit`.
+
+After a pull or on a fresh checkout, MCP validates and imports the checkpoint. Clean
+records fast-forward independently. A baseline imported as `ready` is downgraded to
+checkout-local revalidation until its scope, files, verification, and HEAD are proven
+again. Concurrent edits to the same baseline, Change, or task, a non-descendant
+checkpoint, or remote modification of an active local task fail with a typed conflict;
+Ultra never silently picks a side. Re-importing the same checkpoint is read-only, and
+an imported ready baseline cannot publish another checkpoint until local revalidation
+converges.
+
+Baseline freshness does not use the checkpoint commit as a self-referential marker.
+It combines Git ancestry with a scoped content digest that excludes `.ultra/`.
+Consequently, a commit containing only Ultra metadata does not make the baseline stale,
+while a descendant commit that changes scoped application content does.
 
 See [Artifact authority](./docs/ARTIFACT-AUTHORITY.md) for the promotion and
 evidence rules.
@@ -514,8 +550,11 @@ host's existing model session.
   reinstall only the degraded host.
 - **Project state is unhealthy:** invoke `ultra-doctor` or run
   `ultra-tools system doctor`. Repairs and schema migrations are backup-first.
-- **A projection disagrees with MCP:** trust `.ultra/.runtime/state.db`; do not repair
-  `tasks.json` or generated context Markdown by hand.
+- **The team checkpoint disagrees with local state:** run `ultra-status`, inspect the
+  typed ledger condition, then use the recommended `task.ledger_import` or
+  `task.ledger_publish` path. Never edit `.ultra/tasks/tasks.json` by hand.
+- **A generated view disagrees with MCP:** trust `.ultra/.runtime/state.db`; never edit
+  `.ultra/.runtime/projections/` by hand.
 - **A workflow appears blocked:** use `ultra-status` to read the exact current
   workflow, blocker, owner decision, and mechanically valid transitions.
 - **Kimi reports a native-module ABI error:** ensure an external Node.js 22+

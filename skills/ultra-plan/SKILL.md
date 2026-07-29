@@ -11,8 +11,11 @@ accepted Change Contract without adding ceremonial approval.
 
 ## Bind current authority
 
-1. Read doctor, baseline, change, breadcrumb `accepted_intent`, decisions, existing plan
-   runs, tasks, and current checkout.
+1. Read doctor, `task.ledger_get`, baseline, change, breadcrumb `accepted_intent`,
+   decisions, existing plan runs, tasks, and current checkout. If a new Git checkpoint
+   arrived after this MCP process started, call `task.ledger_import` before planning.
+   Stop on a typed baseline, Change, task, ancestry, or active-session conflict; never
+   choose one side by editing the ledger.
 2. Require one mutable change with a healthy baseline or recorded incident bypass.
    For the first delivery of a greenfield project, an accepted ready baseline may
    already contain the complete delivery outcome. When no matching Change exists,
@@ -98,8 +101,9 @@ plus acceptance, recovery, documentation impact, and the definition of drift. Ke
 large referenced files lazy; do not paste their bodies into the plan packet.
 
 Use estimates only when evidence supports them. A quick change has exactly one task.
-Read every task back from DB. Never read or write `.ultra/tasks/tasks.json` directly;
-it is a generated projection, not authority.
+Read every task back from DB. Never read or write `.ultra/tasks/tasks.json` directly.
+It is the MCP-published Git team checkpoint, while
+`.ultra/.runtime/projections/tasks.json` is the generated checkout-local view.
 
 If a semantic `change.update` invalidated existing tasks, reconcile every affected
 task contract against the current intent, acceptance, decisions, and research
@@ -111,6 +115,9 @@ Validate the change-scoped graph with `task.dependency_topo`. Export
 the deterministic `<artifact_root>/plan.json` and `<artifact_root>/plan.md` pair with
 `plan.export { change_id }`. The JSON binds the exact planning context snapshot and
 manifest digest; the Markdown is a deterministic human view of the same task graph.
+An accepted export also publishes the portable baseline, Change, task contracts,
+dependencies, and durable statuses to the team checkpoint. Local sessions, leases,
+`in_progress` ownership, telemetry, and completion hashes remain in `.ultra/.runtime`.
 Read the JSON through `plan.get` and record it as the `verify-plan` output. Do not
 choose an arbitrary output path or overwrite another Change's plan. A legacy global
 `.ultra/execution-plan.json` may be read for migration diagnosis only and is never a

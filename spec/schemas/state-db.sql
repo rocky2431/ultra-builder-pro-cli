@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   docs_impact_json  TEXT NOT NULL DEFAULT '{"status":"unknown","files":[],"rationale":null}',
   ownership_json    TEXT NOT NULL DEFAULT '{}',
   context_file      TEXT,                -- projection target path
-  completion_commit TEXT,                -- backfilled hash (Phase 2.8)
+  completion_commit TEXT,                -- checkout-local integrated commit evidence
   change_id         TEXT REFERENCES changes(id) ON DELETE SET NULL,
   parent_id         TEXT REFERENCES tasks(id) ON DELETE SET NULL,  -- Phase 8A.1: task.expand subtask→parent
   created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

@@ -86,7 +86,10 @@ test('migrate forward inserts tasks + events, records migration_history, creates
     ).all();
     assert.deepEqual(JSON.parse(migrated[1].deps), ['task-1']);
     assert.equal(migrated[1].estimated_days, 1.5);
-    assert.equal(migrated[1].context_file, '.ultra/tasks/contexts/task-2.md');
+    assert.equal(
+      migrated[1].context_file,
+      '.ultra/.runtime/projections/contexts/task-2.md',
+    );
     for (const task of migrated) {
       assert.match(task.created_at, /^2026-04-15T00:00:00\.000Z$/);
       assert.match(task.updated_at, /^2026-04-16T00:00:00\.000Z$/);
@@ -130,7 +133,7 @@ test('migrate forward inserts tasks + events, records migration_history, creates
     closeStateDb(db);
 
     const projected = JSON.parse(fs.readFileSync(
-      path.join(dir, '.ultra', 'tasks', 'tasks.json'),
+      path.join(dir, '.ultra', '.runtime', 'projections', 'tasks.json'),
       'utf8',
     ));
     assert.equal(projected.schema_version, '4.5');
@@ -139,7 +142,7 @@ test('migrate forward inserts tasks + events, records migration_history, creates
     assert.equal(projected.tasks[1].estimated_days, 1.5);
     assert.deepEqual(projected.tasks[1].deps, ['task-1']);
     const migratedContext = fs.readFileSync(
-      path.join(dir, '.ultra', 'tasks', 'contexts', 'task-2.md'),
+      path.join(dir, '.ultra', '.runtime', 'projections', 'contexts', 'task-2.md'),
       'utf8',
     );
     assert.match(migratedContext, /## Execution Contract \(generated from state\.db\)/);
@@ -149,7 +152,7 @@ test('migrate forward inserts tasks + events, records migration_history, creates
       'legacy arbitrary prose must not survive inside a read-only projection',
     );
     const contextTemplate = fs.readFileSync(
-      path.join(dir, '.ultra', 'tasks', 'contexts', 'TEMPLATE.md'),
+      path.join(dir, '.ultra', 'templates', 'task-context.md'),
       'utf8',
     );
     assert.doesNotMatch(contextTemplate, /> \*\*Status\*\*:/);

@@ -233,6 +233,106 @@ tools:
     emits_events: []
     trace_to: '§7.3'
 
+  - name: task.ledger_get
+    family: task
+    description: Read the Git-facing durable baseline, Change, and task checkpoint ledger and compare it with local SQLite authority.
+    phase: '21'
+    readonly: true
+    writer_role: any
+    input_schema:
+      type: object
+      additionalProperties: false
+    output_schema:
+      type: object
+      required: [ledger, health]
+      additionalProperties: false
+      properties:
+        ledger: { type: ['object', 'null'] }
+        health: { type: object }
+    errors:
+      - { code: TASK_LEDGER_INVALID, description: 'the Git ledger is malformed' }
+      - { code: TASK_LEDGER_DIGEST_MISMATCH, description: 'ledger content does not match its digest' }
+      - { code: TASK_LEDGER_UNSAFE, description: 'ledger path is a symlink or non-regular file' }
+    cli_subcommand: task ledger-get
+    emits_events: []
+    trace_to: 'docs/ARTIFACT-AUTHORITY.md#team-task-ledger'
+
+  - name: task.ledger_publish
+    family: task
+    description: Publish a low-frequency Git-facing baseline, Change, and task checkpoint from local SQLite authority.
+    phase: '21'
+    writer_role: mcp
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          default: manual_checkpoint
+    output_schema:
+      type: object
+      required: [changed, path, generation, state_digest]
+      additionalProperties: false
+      properties:
+        changed: { type: boolean }
+        path: { type: string }
+        generation: { type: integer, minimum: 0 }
+        state_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        migrated_legacy_projection: { type: boolean }
+        legacy_backup_path: { type: string }
+    errors:
+      - { code: TASK_LEDGER_INVALID, description: 'the prior Git ledger is malformed' }
+      - { code: TASK_LEDGER_DIGEST_MISMATCH, description: 'prior ledger content does not match its digest' }
+      - { code: TASK_LEDGER_UNSAFE, description: 'ledger path is a symlink or non-regular file' }
+      - { code: TASK_LEDGER_CHANGE_MISSING, description: 'a task has no portable owning Change' }
+      - { code: TASK_LEDGER_LEGACY_CONFLICT, description: 'the legacy task projection differs from SQLite authority and cannot be replaced automatically' }
+      - { code: TASK_LEDGER_REVALIDATION_REQUIRED, description: 'an imported ready baseline must converge in this checkout before publication' }
+    cli_subcommand: task ledger-publish
+    emits_events: [task_ledger_published]
+    trace_to: 'docs/ARTIFACT-AUTHORITY.md#team-task-ledger'
+
+  - name: task.ledger_import
+    family: task
+    description: Import a validated Git checkpoint into local SQLite authority with per-baseline, per-Change, and per-task conflict checks.
+    phase: '21'
+    writer_role: mcp
+    input_schema:
+      type: object
+      additionalProperties: false
+    output_schema:
+      type: object
+      required: [imported, preserved, deleted, imported_changes, preserved_changes, imported_baseline, preserved_baseline, generation, state_digest, requires_plan_revalidation, requires_baseline_revalidation, already_current]
+      additionalProperties: false
+      properties:
+        imported: { type: integer, minimum: 0 }
+        preserved: { type: integer, minimum: 0 }
+        deleted: { type: integer, minimum: 0 }
+        imported_changes: { type: integer, minimum: 0 }
+        preserved_changes: { type: integer, minimum: 0 }
+        imported_baseline: { type: boolean }
+        preserved_baseline: { type: boolean }
+        generation: { type: integer, minimum: 0 }
+        state_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        requires_plan_revalidation: { type: boolean }
+        requires_baseline_revalidation: { type: boolean }
+        already_current: { type: boolean }
+    errors:
+      - { code: TASK_LEDGER_INVALID, description: 'the Git ledger is malformed' }
+      - { code: TASK_LEDGER_DIGEST_MISMATCH, description: 'ledger content does not match its digest' }
+      - { code: TASK_LEDGER_UNSAFE, description: 'ledger path is a symlink or non-regular file' }
+      - { code: TASK_LEDGER_CONFLICT, description: 'the same task changed locally and in Git' }
+      - { code: TASK_LEDGER_ACTIVE_TASK_CONFLICT, description: 'Git changed a task with an active local session' }
+      - { code: TASK_LEDGER_STALE, description: 'the Git ledger is older than the last local checkpoint' }
+      - { code: TASK_LEDGER_HISTORY_CONFLICT, description: 'the Git ledger does not descend from the last local checkpoint' }
+      - { code: TASK_LEDGER_CHANGE_MISSING, description: 'a task references an unavailable Change' }
+      - { code: TASK_LEDGER_PARENT_MISSING, description: 'a task references an unavailable parent task' }
+      - { code: TASK_LEDGER_CHANGE_CONFLICT, description: 'the same Change changed locally and in Git' }
+      - { code: TASK_LEDGER_BASELINE_CONFLICT, description: 'the same baseline changed locally and in Git' }
+    cli_subcommand: task ledger-import
+    emits_events: [task_ledger_imported]
+    trace_to: 'docs/ARTIFACT-AUTHORITY.md#team-task-ledger'
+
   - name: task.switch_tag
     family: task
     description: Change a task's tag (branch-scoped context partition, Phase 7.2). Emits task_tag_changed.
@@ -389,6 +489,32 @@ tools:
         migration_backup_path:
           type: string
           description: pre-migration database backup created while resuming an older schema
+        runtime_migration_backup_path:
+          type: string
+          description: verified backup of a legacy runtime layout moved into `.ultra/.runtime/`
+        team_checkpoint:
+          type: object
+          additionalProperties: false
+          required: [generation, state_digest, imported_tasks, deleted_tasks, imported_changes, imported_baseline, requires_plan_revalidation, requires_baseline_revalidation, already_current]
+          properties:
+            generation: { type: integer, minimum: 0 }
+            state_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+            imported_tasks: { type: integer, minimum: 0 }
+            deleted_tasks: { type: integer, minimum: 0 }
+            imported_changes: { type: integer, minimum: 0 }
+            imported_baseline: { type: boolean }
+            requires_plan_revalidation: { type: boolean }
+            requires_baseline_revalidation: { type: boolean }
+            already_current: { type: boolean }
+            published:
+              type: boolean
+              description: true when resume replaced a matching legacy task projection with a new team checkpoint
+            migrated_legacy_projection:
+              type: boolean
+              description: true when the prior tracked file used the supported legacy projection format
+            legacy_backup_path:
+              type: string
+              description: exact-byte backup of the replaced legacy task projection
     errors:
       - { code: ULTRA_DIR_EXISTS,  description: '.ultra/ already exists and overwrite=false' }
       - { code: TEMPLATE_MISSING,  description: 'source_template path does not exist' }
@@ -397,6 +523,7 @@ tools:
       - { code: LEGACY_STATE_MIGRATION_REQUIRED, description: 'projection-only tasks must be imported before resume' }
       - { code: STATE_AUTHORITY_CONFLICT, description: 'projection tasks and authoritative state cannot be reconciled automatically' }
       - { code: STATE_PROJECTION_INVALID, description: 'the existing task projection is malformed' }
+      - { code: TASK_LEDGER_LEGACY_CONFLICT, description: 'the legacy task projection differs from SQLite authority and cannot be upgraded automatically' }
       - { code: GIT_INIT_FAILED, description: 'the local Git repository or Ultra ignore rule could not be initialized' }
       - { code: GITIGNORE_UNSAFE, description: 'root .gitignore is a symlink or non-file and cannot be updated safely' }
       - { code: GITIGNORE_INEFFECTIVE, description: 'the effective Git rules still expose the `.ultra` authority' }

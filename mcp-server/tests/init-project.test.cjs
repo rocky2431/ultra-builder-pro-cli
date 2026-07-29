@@ -12,6 +12,8 @@ const {
   initProject, InitProjectError, DEFAULT_TEMPLATE, classifyRepository, _internal,
 } = require('../lib/init-project.cjs');
 const { EXPECTED_VERSION } = require('../lib/state-db.cjs');
+const ops = require('../lib/state-ops.cjs');
+const taskLedger = require('../lib/task-ledger.cjs');
 
 function mkTempDir(prefix = 'ubp-init-test-') {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -457,7 +459,7 @@ test('maintenance CLI forwards an explicit initialization mode', () => {
   } finally { cleanup(target); }
 });
 
-test('initProject keeps project metadata in authoritative baseline state and tasks.json as a projection', () => {
+test('initProject keeps project metadata in DB authority and seeds an empty team ledger', () => {
   const target = mkTempDir();
   try {
     initProject({
@@ -467,10 +469,11 @@ test('initProject keeps project metadata in authoritative baseline state and tas
       stack: 'next',
     });
     const tasksJson = JSON.parse(fs.readFileSync(path.join(target, '.ultra', 'tasks', 'tasks.json'), 'utf8'));
-    assert.equal(tasksJson.schema_version, '4.5');
-    assert.equal(tasksJson.source, '.ultra/.runtime/state.db');
+    assert.equal(tasksJson.kind, 'ultra-team-task-ledger');
+    assert.equal(tasksJson.schema_version, '1.0');
+    assert.equal(tasksJson.generation, 0);
     assert.deepEqual(tasksJson.tasks, []);
-    assert.equal('project' in tasksJson, false);
+    assert.equal(tasksJson.baseline, null);
     const db = new Database(
       path.join(target, '.ultra', '.runtime', 'state.db'),
       { readonly: true },
@@ -611,6 +614,80 @@ test('initProject resume preserves existing artifacts and installs only missing 
   } finally { cleanup(target); }
 });
 
+test('initProject resume imports a cloned team checkpoint and routes to baseline revalidation', () => {
+  const source = mkTempDir('ubp-init-team-source-');
+  const target = mkTempDir('ubp-init-team-target-');
+  try {
+    const initialized = initProject({
+      target_dir: source,
+      project_name: 'Shared project',
+      mode: 'brownfield',
+      git_mode: 'skip',
+    });
+    const sourceDb = new Database(initialized.state_db_path);
+    try {
+      sourceDb.prepare(
+        `UPDATE baselines SET status = 'ready', approved_by = 'owner',
+         approval_note = 'Accepted source baseline.', converged_at = ?`,
+      ).run(new Date().toISOString());
+      ops.createTask(sourceDb, {
+        id: 'shared-task',
+        title: 'Shared task',
+        type: 'feature',
+        priority: 'P1',
+      });
+      taskLedger.publishTaskLedger(sourceDb, {
+        rootDir: source,
+        reason: 'plan_accepted',
+      });
+    } finally {
+      sourceDb.close();
+    }
+
+    fs.cpSync(path.join(source, '.ultra'), path.join(target, '.ultra'), {
+      recursive: true,
+    });
+    fs.rmSync(path.join(target, '.ultra', '.runtime'), {
+      recursive: true,
+      force: true,
+    });
+
+    const resumed = initProject({
+      target_dir: target,
+      project_name: 'Shared project',
+      mode: 'brownfield',
+      resume: true,
+    });
+    assert.equal(resumed.status, 'resumed');
+    assert.equal(resumed.baseline.status, 'adopting');
+    assert.equal(resumed.workflow.provenance_status, 'pending_research');
+    assert.equal(resumed.team_checkpoint.imported_tasks, 1);
+    assert.equal(resumed.team_checkpoint.imported_baseline, true);
+    assert.equal(resumed.team_checkpoint.requires_plan_revalidation, true);
+    assert.equal(resumed.team_checkpoint.requires_baseline_revalidation, true);
+    assert.equal(resumed.team_checkpoint.already_current, false);
+    assert.ok(resumed.workflow.allowed_transitions.includes('ultra-research'));
+    assert.equal(
+      fs.existsSync(path.join(
+        target, '.ultra', '.runtime', 'projections', 'tasks.json',
+      )),
+      true,
+    );
+    const targetDb = new Database(resumed.state_db_path, { readonly: true });
+    try {
+      assert.equal(
+        targetDb.prepare("SELECT status FROM tasks WHERE id = 'shared-task'").get().status,
+        'pending',
+      );
+    } finally {
+      targetDb.close();
+    }
+  } finally {
+    cleanup(source);
+    cleanup(target);
+  }
+});
+
 test('initProject resume repairs a pre-Git draft and refreshes corrected project metadata', () => {
   const target = mkTempDir('ubp-init-resume-git-');
   try {
@@ -692,9 +769,11 @@ test('initProject resume rolls back Git and authoritative metadata when a late p
     projectionTrap = path.join(
       target,
       '.ultra',
-      'tasks',
+      '.runtime',
+      'projections',
       `tasks.json.tmp-${process.pid}-${fixedNow}`,
     );
+    fs.mkdirSync(path.dirname(projectionTrap), { recursive: true });
     fs.mkdirSync(projectionTrap);
 
     assert.throws(
@@ -760,9 +839,11 @@ test('initProject resume restores the pre-migration authority when a late projec
     projectionTrap = path.join(
       target,
       '.ultra',
-      'tasks',
+      '.runtime',
+      'projections',
       `tasks.json.tmp-${process.pid}-${fixedNow}`,
     );
+    fs.mkdirSync(path.dirname(projectionTrap), { recursive: true });
     fs.mkdirSync(projectionTrap);
 
     assert.throws(
@@ -848,9 +929,11 @@ test('initProject resume restores the complete legacy runtime layout after a lat
     projectionTrap = path.join(
       target,
       '.ultra',
-      'tasks',
+      '.runtime',
+      'projections',
       `tasks.json.tmp-${process.pid}-${fixedNow}`,
     );
+    fs.mkdirSync(path.dirname(projectionTrap), { recursive: true });
     fs.mkdirSync(projectionTrap);
 
     assert.throws(
@@ -1043,6 +1126,117 @@ test('initProject resume routes a ready baseline with missing provenance to doct
     });
     assert.equal(resumed.workflow.provenance_status, 'incomplete');
     assert.equal(resumed.workflow.required_transition, 'ultra-doctor');
+  } finally { cleanup(target); }
+});
+
+test('initProject resume upgrades a matching legacy task projection into the team ledger', () => {
+  const target = mkTempDir();
+  try {
+    const first = initProject({
+      target_dir: target,
+      project_name: 'legacy-ledger-upgrade',
+      git_mode: 'skip',
+    });
+    const db = new Database(first.state_db_path);
+    try {
+      ops.createTask(db, {
+        id: 'legacy-task',
+        title: 'Legacy task',
+        type: 'feature',
+        priority: 'P1',
+      });
+    } finally {
+      db.close();
+    }
+    const legacyDocument = {
+      schema_version: '4.5',
+      source: '.ultra/state.db',
+      tasks: [{
+        id: 'legacy-task',
+        title: 'Legacy task',
+        type: 'feature',
+        priority: 'P1',
+        status: 'pending',
+      }],
+    };
+    const legacyBytes = Buffer.from(`${JSON.stringify(legacyDocument, null, 2)}\n`);
+    const ledgerFile = path.join(target, '.ultra', 'tasks', 'tasks.json');
+    fs.writeFileSync(ledgerFile, legacyBytes);
+
+    const resumed = initProject({
+      target_dir: target,
+      project_name: 'legacy-ledger-upgrade',
+      git_mode: 'skip',
+      resume: true,
+    });
+
+    const ledger = JSON.parse(fs.readFileSync(ledgerFile, 'utf8'));
+    assert.equal(ledger.kind, taskLedger.LEDGER_KIND);
+    assert.equal(ledger.tasks.length, 1);
+    assert.equal(ledger.tasks[0].id, 'legacy-task');
+    assert.equal(resumed.team_checkpoint.migrated_legacy_projection, true);
+    assert.equal(resumed.team_checkpoint.imported_tasks, 0);
+    assert.equal(resumed.team_checkpoint.already_current, true);
+    assert.ok(fs.existsSync(resumed.team_checkpoint.legacy_backup_path));
+    assert.deepEqual(
+      fs.readFileSync(resumed.team_checkpoint.legacy_backup_path),
+      legacyBytes,
+    );
+  } finally { cleanup(target); }
+});
+
+test('initProject resume rejects and rolls back a divergent legacy task projection', () => {
+  const target = mkTempDir();
+  try {
+    const first = initProject({
+      target_dir: target,
+      project_name: 'legacy-ledger-conflict',
+      git_mode: 'skip',
+    });
+    const db = new Database(first.state_db_path);
+    try {
+      ops.createTask(db, {
+        id: 'legacy-task',
+        title: 'SQLite title',
+        type: 'feature',
+        priority: 'P1',
+      });
+    } finally {
+      db.close();
+    }
+    const legacyBytes = Buffer.from(`${JSON.stringify({
+      schema_version: '4.5',
+      source: '.ultra/state.db',
+      tasks: [{
+        id: 'legacy-task',
+        title: 'Divergent projection title',
+        type: 'feature',
+        priority: 'P1',
+        status: 'pending',
+      }],
+    }, null, 2)}\n`);
+    const ledgerFile = path.join(target, '.ultra', 'tasks', 'tasks.json');
+    fs.writeFileSync(ledgerFile, legacyBytes);
+
+    assert.throws(
+      () => initProject({
+        target_dir: target,
+        project_name: 'legacy-ledger-conflict',
+        git_mode: 'skip',
+        resume: true,
+      }),
+      (error) => error.code === 'TASK_LEDGER_LEGACY_CONFLICT',
+    );
+    assert.deepEqual(fs.readFileSync(ledgerFile), legacyBytes);
+    const restored = new Database(first.state_db_path, { readonly: true });
+    try {
+      assert.equal(
+        restored.prepare("SELECT title FROM tasks WHERE id = 'legacy-task'").get().title,
+        'SQLite title',
+      );
+    } finally {
+      restored.close();
+    }
   } finally { cleanup(target); }
 });
 

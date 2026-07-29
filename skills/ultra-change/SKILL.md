@@ -13,8 +13,10 @@ Read `../ultra-think/references/decision-dialogue.md` before asking a material q
 
 ## Inspect and align
 
-1. Read `system.doctor`, `baseline.get`, active changes, breadcrumb `accepted_intent`,
-   decisions, and `change.breadcrumb`.
+1. Read `system.doctor`, `task.ledger_get`, `baseline.get`, active changes, breadcrumb
+   `accepted_intent`, decisions, and `change.breadcrumb`. Import a newer descendant
+   checkpoint before capturing intent. Stop on a typed baseline, Change, task,
+   ancestry, or active-session conflict.
 2. Resume an existing change that matches the request. Do not duplicate authority.
 3. Ordinary work requires a healthy ready baseline. An incident may use only an
    explicit `baseline_bypass` reason and approver; urgency is not approval.
@@ -63,6 +65,12 @@ review, and deliver remain independent capabilities. Keep every Change-owned sem
 artifact, finding, plan, context, test result, review result, documentation update,
 and progress projection below `.ultra/changes/active/<id>/`. Incidents maintain the
 structured diagnosis artifact there as well.
+
+`change.create` and `change.update` publish the portable Change Contract to
+`.ultra/tasks/tasks.json`, even before the Change owns tasks. The tracked Change
+artifacts carry semantic bodies; the checkpoint carries normalized baseline, Change,
+and task records with digest ancestry. Never edit either generated checkpoint or
+checkout-local projection directly.
 
 Before planning a standard or major change, write the accepted specification updates
 to the Change overlay and call `change.delta` with exact baseline id, repository

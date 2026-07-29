@@ -3,8 +3,8 @@
 // Projector: regenerates the read-only file views from .ultra/.runtime/state.db.
 //
 // state.db owns lifecycle and artifact bindings (D32); registered digest-bound
-// files own semantic/evidence bodies. tasks.json and contexts/task-*.md are
-// complete projections — humans may read them, never write them. The projector
+// files own semantic/evidence bodies. Live tasks.json and contexts/task-*.md are
+// checkout-local projections — humans may read them, never write them. The projector
 // is trigger-based: state-ops calls projectAll() after each successful
 // write transaction. Projection output passes the v4.5 schemas under
 // spec/schemas/ — see mcp-server/tests/projector.test.cjs for the
@@ -57,8 +57,8 @@ function rowToProjection(row) {
 
 function defaultPaths(rootDir) {
   return {
-    tasksJson: path.join(rootDir, '.ultra', 'tasks', 'tasks.json'),
-    contextsDir: path.join(rootDir, '.ultra', 'tasks', 'contexts'),
+    tasksJson: path.join(rootDir, '.ultra', '.runtime', 'projections', 'tasks.json'),
+    contextsDir: path.join(rootDir, '.ultra', '.runtime', 'projections', 'contexts'),
   };
 }
 
@@ -266,7 +266,27 @@ function projectContext(db, taskId, { contextsDir } = {}, opts = {}) {
     }
   }
   const target = contextPaths.resolveContextPath(rootDir, projection.context_file, { taskId });
-  const promoted = promoteAuthoredContext(db, taskId, target, rootDir);
+  const legacyValue = String(projection.context_file || '')
+    .replaceAll('\\', '/')
+    .replace(/^\.\//, '');
+  const legacyDefault = `${contextPaths.LEGACY_CONTEXT_ROOT_RELATIVE}/${
+    path.posix.basename(target.relative)
+  }`;
+  const legacyTarget = contextPaths.resolveLegacyContextPath(
+    rootDir,
+    legacyValue.startsWith(`${contextPaths.LEGACY_CONTEXT_ROOT_RELATIVE}/`)
+      ? legacyValue
+      : legacyDefault,
+    { taskId },
+  );
+  const legacyPromoted = promoteAuthoredContext(db, taskId, legacyTarget, rootDir);
+  if (fs.existsSync(legacyTarget.file)
+      && contextPaths.isGeneratedContextContents(fs.readFileSync(legacyTarget.file, 'utf8'))) {
+    fs.rmSync(legacyTarget.file, { force: true });
+  } else if (legacyPromoted) {
+    fs.rmSync(legacyTarget.file, { force: true });
+  }
+  const promoted = promoteAuthoredContext(db, taskId, target, rootDir) || legacyPromoted;
   const next = buildContextDoc(projection);
   writeAtomic(target.file, next);
   return { path: target.file, task_id: taskId, promoted };
@@ -284,8 +304,7 @@ function listContextFiles(directory) {
   return output;
 }
 
-function pruneGeneratedGhosts(db, rootDir, expected) {
-  const contextsDir = defaultPaths(rootDir).contextsDir;
+function pruneGeneratedGhostsIn(db, rootDir, contextsDir, expected) {
   const pruned = [];
   for (const file of listContextFiles(contextsDir)) {
     const relative = path.relative(rootDir, file).split(path.sep).join('/');
@@ -306,7 +325,23 @@ function pruneGeneratedGhosts(db, rootDir, expected) {
       throw error;
     }
   }
-  return pruned.sort();
+  return pruned;
+}
+
+function pruneGeneratedGhosts(db, rootDir, expected) {
+  const runtime = pruneGeneratedGhostsIn(
+    db,
+    rootDir,
+    defaultPaths(rootDir).contextsDir,
+    expected,
+  );
+  const legacy = pruneGeneratedGhostsIn(
+    db,
+    rootDir,
+    path.join(rootDir, ...contextPaths.LEGACY_CONTEXT_ROOT_RELATIVE.split('/')),
+    new Set(),
+  );
+  return [...runtime, ...legacy].sort();
 }
 
 function projectAll(db, { rootDir = '.', tasksJson, contextsDir } = {}) {

@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-07-30
+
+### Added
+
+- Added a versioned, digest-chained Git team checkpoint at
+  `.ultra/tasks/tasks.json` for portable baseline, Change, task-contract,
+  dependency, and durable task-status handoff.
+- Added `task.ledger_get`, `task.ledger_publish`, and `task.ledger_import` with
+  per-record revisions, bounded ancestry, transactional fast-forward imports,
+  and typed baseline, Change, task, deletion, and active-session conflicts.
+- Added exact-byte backup and deterministic upgrade of matching legacy v4.4
+  and v4.5 task projections during project resume.
+
+### Changed
+
+- Moved generated task and context views under
+  `.ultra/.runtime/projections/`; SQLite remains checkout-local operational
+  authority while the Git checkpoint is the narrow team handoff.
+- Updated all public workflow Skills, project templates, hooks, adapters, and
+  documentation to inspect and synchronize the team checkpoint without
+  turning hooks or host adapters into semantic authorities.
+- Made imported ready baselines require checkout-local revalidation before
+  they may publish a descendant checkpoint.
+
+### Fixed
+
+- Fixed tracked task projections creating a self-referential
+  `BASELINE_HEAD_STALE` treadmill after every Ultra operation or metadata-only
+  commit. Baseline freshness now uses scoped source content plus Git ancestry
+  while continuing to detect specification and source drift.
+- Fixed task completion requiring a second bookkeeping commit. The completion
+  SHA is now backfilled only into local SQLite and generated views after the
+  single real completion commit.
+- Fixed resume, doctor, status, and four-host install paths disagreeing about
+  legacy task projections, team checkpoints, generated views, and protected
+  files.
+- Replaced the daemon's machine-speed-dependent 500ms release assertion with a
+  bounded observable-session wait while preserving the immediate-poll
+  behavior requirement.
+
 ## [0.21.1] — 2026-07-29
 
 ### Fixed

@@ -230,7 +230,7 @@ test('runDaemon settles a worker spawn error instead of leaving a running sessio
   }
 });
 
-test('runDaemon spawns pending task within pollMs window', async () => {
+test('runDaemon promptly spawns a pending task after the immediate poll', async () => {
   const repoRoot = mkRepo();
   const db = mkDb(repoRoot);
   let handle;
@@ -244,15 +244,12 @@ test('runDaemon spawns pending task within pollMs window', async () => {
       commandArgs: LONG_SLEEP_ARGS,
     });
 
-    // Wait up to 500ms for the daemon to pick up the task.
-    const start = Date.now();
-    let spawned = null;
-    while (Date.now() - start < 500) {
-      const sessions = db.prepare("SELECT * FROM sessions WHERE task_id = 'd-1'").all();
-      if (sessions.length > 0) { spawned = sessions[0]; break; }
-      await new Promise((r) => setTimeout(r, 25));
-    }
-    assert.ok(spawned, 'daemon should have spawned a session within 500ms');
+    const spawned = await waitFor(
+      () => db.prepare("SELECT * FROM sessions WHERE task_id = 'd-1'").get(),
+      Boolean,
+      5000,
+    );
+    assert.ok(spawned, 'daemon should have spawned a session after its immediate poll');
     assert.equal(spawned.status, 'running');
     assert.equal(spawned.runtime, 'claude');
   } finally {

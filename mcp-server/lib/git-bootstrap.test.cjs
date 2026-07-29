@@ -89,7 +89,6 @@ test('storage admission checks every runtime and semantic artifact class', () =>
     const semanticProbes = [
       '.ultra/specs/product.md',
       '.ultra/tasks/tasks.json',
-      '.ultra/tasks/contexts/task.md',
       '.ultra/reports/templates/test-report.json',
       '.ultra/reports/test-report.json',
       '.ultra/docs/research/report.md',
@@ -103,6 +102,19 @@ test('storage admission checks every runtime and semantic artifact class', () =>
           { cwd: rootDir },
         ),
         (error) => error.status === 1,
+        probe,
+      );
+    }
+    const projectionProbes = [
+      '.ultra/.runtime/projections/tasks.json',
+      '.ultra/.runtime/projections/contexts/task.md',
+    ];
+    for (const probe of projectionProbes) {
+      assert.doesNotThrow(
+        () => execFileSync(
+          'git', ['check-ignore', '--quiet', '--no-index', '--', probe],
+          { cwd: rootDir },
+        ),
         probe,
       );
     }

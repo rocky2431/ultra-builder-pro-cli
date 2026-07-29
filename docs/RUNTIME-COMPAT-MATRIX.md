@@ -47,16 +47,17 @@ not presented as nonexistent custom agents.
 | Lifecycle | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | Session context/health | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, native JS plugin injects only an active-workflow breadcrumb; health via `system.doctor` | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, active-workflow breadcrumb via native hooks |
-| Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | FULL, native `PreToolUse Edit|Write` deny contract |
+| Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects managed checkpoint/projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | FULL, native `PreToolUse Edit|Write` deny contract |
 | Pre-compact checkpoint | FULL | FULL | FULL | FULL, native `PreCompact` |
 | Post-compact context injection | FULL | FULL, native compacting context | FULL, native `PostCompact` restore | DEGRADED; checkpoint restoration runs, but Kimi 0.26/0.27 does not reinject fire-and-forget hook text |
 | Stop lifecycle advisory | FULL, native non-blocking `Stop` | N/A, no equivalent stop event needed | FULL, native non-blocking `Stop` | FULL, native non-blocking `Stop` |
 | Subagent lifecycle evidence | FULL | DEGRADED, no equivalent packaged event | FULL | FULL, native `SubagentStart` / `SubagentStop` |
 
 Health/context, compact, stop, and subagent hooks remain silent unless
-`.ultra/.runtime/state.db` proves an active, blocked, or ready workflow. Projection
-protection applies to every initialized project because generated projections
-must never become a second authority. No host receives prompt capture, transcript capture,
+`.ultra/.runtime/state.db` proves an active, blocked, or ready workflow. Managed-file
+protection applies to every initialized project because neither a hand-edited team
+checkpoint nor generated local projection may become a second authority. No host
+receives prompt capture, transcript capture,
 observation journaling, session-summary memory, generic command blocking, or
 generic post-edit policy.
 Baseline-adoption and context-budget warnings are injected as advisory context;
@@ -67,7 +68,7 @@ they do not deny edits or stop active incident work.
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
-| Live/declared contracts | 57 | 57 | 57 | 57 |
+| Live/declared contracts | 60 | 60 | 60 | 60 |
 | Structured user alignment | `AskUserQuestion` in interactive sessions | `question` when permission is not denied | `request_user_input` when the current mode exposes it | `AskUserQuestion` outside auto mode |
 | Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
 | Context Manifest v3 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
@@ -75,9 +76,10 @@ they do not deny edits or stop active incident work.
 | Host-native review/discovery/ask | native | native | documented in `codex-capability-map.json` | native Kimi tools and workers |
 | Workflow-memory envelope | project `.ultra/` | project `.ultra/` | project `.ultra/` | project `.ultra/` |
 | Lifecycle/index authority | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` |
+| Git team checkpoint | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` |
 | General memory-provider API | N/A | N/A | N/A | N/A |
 
-All 57 `task.*`, `session.*`, `baseline.*`, `change.*`, `decision.*`,
+All 60 `task.*`, `session.*`, `baseline.*`, `change.*`, `decision.*`,
 `workflow.*`, `artifact.*`, `system.*`, and `plan.*` operations
 registered by `mcp-server/server.cjs` are live. Review, impact discovery, skill
 loading, and user interaction remain host-native surfaces.

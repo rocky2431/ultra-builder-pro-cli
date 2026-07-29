@@ -3,12 +3,14 @@
 > Multi-process access contract. Current authority is defined by
 > [`DECISIONS.md`](./DECISIONS.md) and the live database schema.
 
-`.ultra/.runtime/state.db` is the only lifecycle, index, transition, freshness, and
-coordination authority for baselines, changes, decision threads/items, tasks,
+`.ultra/.runtime/state.db` is the checkout-local lifecycle, index, transition,
+freshness, and coordination authority for baselines, changes, decision threads/items, tasks,
 workflow runs/steps, events, sessions, incidents, projections, telemetry, and spec
 references (D18, D52, D54). Registered digest-bound files carry semantic and evidence
-bodies; the DB owns their references and current digests. Every process
-that touches it must follow the rules below; deviations are bugs.
+bodies; the DB owns their references and current digests. The tracked
+`.ultra/tasks/tasks.json` is an MCP-published handoff checkpoint, not a parallel live
+writer. Every process that touches the DB must follow the rules below; deviations are
+bugs.
 
 ## 1. Three-role write matrix
 
@@ -87,10 +89,33 @@ resolve the mount/runtime constraint before retrying.
 | `migration_history`| schema initializer and `ultra-tools migrate` or doctor repair |
 | `schema_version`   | schema initializer, `ultra-tools db init`, migration, and doctor repair |
 
-## 5. Forbidden patterns
+## 5. Git team checkpoint
+
+Only `task.ledger_publish` may derive `.ultra/tasks/tasks.json` from SQLite, and only
+`task.ledger_import` may merge it into SQLite. Server startup performs one import after
+opening project authority; later pulls in a long-running process require an explicit
+import. The same checkpoint is idempotent and must not append an event again.
+
+The checkpoint carries portable baseline, Change, and durable task records with
+per-record revisions and digests. It excludes local `in_progress` ownership, sessions,
+leases, worktrees, telemetry, and completion commit hashes. Import validates document
+ancestry plus record-level common bases. It fast-forwards clean records and fails
+before commit on same-record concurrency, parent/owner gaps, non-descendant history, or
+an active-task collision. A Git-ready baseline is downgraded to checkout-local
+revalidation rather than trusted as execution authority.
+
+Legacy v4.4/v4.5 task projections are backed up and replaced only when every available
+durable field matches current SQLite. Doctor reports checkpoint condition but never
+performs semantic import, publication, or conflict selection.
+
+## 6. Forbidden patterns
 
 - **No file copies for state.** Don't `cp .ultra/.runtime/state.db
   somewhere/state.db` and edit; use `ultra-tools db backup`.
+- **No direct checkpoint edits.** Don't merge or repair
+  `.ultra/tasks/tasks.json` by hand; use the typed import/publish conflict path.
+- **No committed live projections.** `.ultra/.runtime/projections/**` remains ignored
+  checkout-local output.
 - **No long-held writer connections** outside the MCP server. Pop a
   short transaction, finish, close.
 - **No `PRAGMA journal_mode` toggling at runtime** by any process other
@@ -100,14 +125,14 @@ resolve the mount/runtime constraint before retrying.
 - **No `vacuum` / `wal_checkpoint(TRUNCATE)` from inside a transaction.**
   Maintenance subcommands open their own connection.
 
-## 6. Maintenance windows
+## 7. Maintenance windows
 
 `ultra-tools db checkpoint` and `ultra-tools db vacuum` are safe to run
 while the MCP server is up (they take their own connection and obey the
 busy timeout). `db backup` uses better-sqlite3's online `.backup` API
 and produces a consistent snapshot without blocking writers.
 
-## 7. Verification
+## 8. Verification
 
 The contract on this page is enforced by:
 
@@ -119,3 +144,6 @@ The contract on this page is enforced by:
   status transitions, task contracts, and event coupling.
 - `mcp-server/lib/workflow-state.test.cjs` — ordered workflow transitions,
   evidence/output requirements, blocking/resume, and cross-stage gates.
+- `mcp-server/lib/task-ledger.test.cjs` — portable-field filtering, digest ancestry,
+  idempotent import, baseline/Change/task fast-forward and conflict behavior, legacy
+  backup, and active-session protection.

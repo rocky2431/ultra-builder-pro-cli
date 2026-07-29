@@ -30,12 +30,11 @@ function tmpRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-hash-flow-'));
   gitRun(dir, ['init', '-q', '-b', 'main']);
   gitRun(dir, ['config', 'commit.gpgsign', 'false']);
-  // Ignore the SQLite WAL/SHM sidecars so they don't appear as modifications.
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/.runtime/state.db-shm\n.ultra/.runtime/state.db-wal\n');
+  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/.runtime\n');
   return dir;
 }
 
-test('two-commit flow lands feat then chore with the right SHA in context md', () => {
+test('completion hash backfill remains local and does not create a second commit', () => {
   const dir = tmpRepo();
   try {
     const dbPath = path.join(dir, '.ultra', '.runtime', 'state.db');
@@ -53,36 +52,32 @@ test('two-commit flow lands feat then chore with the right SHA in context md', (
 
     const featSha = gitRun(dir, ['rev-parse', 'HEAD']).stdout;
 
-    // Step 3 — update state.db with the new SHA.
+    // Backfill the commit into checkout-local runtime authority.
     ops.patchTask(db, 'task-h1', { completion_commit: featSha });
-
-    // Step 4 — re-project the context so its YAML carries the hash.
     projector.projectContext(db, 'task-h1', {}, { rootDir: dir });
 
-    // Step 5 — chore commit captures the projection update.
-    gitRun(dir, ['add', '-A']);
-    gitRun(dir, ['commit', '-q', '-m', 'chore: record task-h1 completion hash']);
+    const log = gitRun(dir, ['log', '--oneline']).stdout.split('\n');
+    assert.equal(log.length, 1);
+    assert.match(log[0], /feat: task-h1 — commit hash flow/);
+    assert.equal(gitRun(dir, ['status', '--porcelain']).stdout, '');
 
-    const log = gitRun(dir, ['log', '--oneline', '-2']).stdout.split('\n');
-    assert.match(log[0], /chore: record task-h1 completion hash/);
-    assert.match(log[1], /feat: task-h1 — commit hash flow/);
-
-    const ctxFile = path.join(dir, '.ultra', 'tasks', 'contexts', 'task-task-h1.md');
+    const ctxFile = path.join(
+      dir, '.ultra', '.runtime', 'projections', 'contexts', 'task-task-h1.md',
+    );
     const ctxText = fs.readFileSync(ctxFile, 'utf8');
-    // The chore commit's working tree must reflect the recorded SHA.
     const dbRow = db.prepare("SELECT completion_commit FROM tasks WHERE id = 'task-h1'").get();
     assert.equal(dbRow.completion_commit, featSha);
-    // Header is regenerated; ensure projector wrote v4.5 + the right task_id.
     assert.match(ctxText, /^---/);
     assert.match(ctxText, /schema_version: 4\.5/);
     assert.match(ctxText, /task_id: task-h1/);
+    assert.match(ctxText, new RegExp(`completion_commit: ${featSha}`));
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('rerunning steps 4–5 against the same SHA produces an empty chore commit attempt', () => {
+test('rerunning local completion projection is byte-idempotent and Git-clean', () => {
   const dir = tmpRepo();
   try {
     const dbPath = path.join(dir, '.ultra', '.runtime', 'state.db');
@@ -97,19 +92,15 @@ test('rerunning steps 4–5 against the same SHA produces an empty chore commit 
     const sha = gitRun(dir, ['rev-parse', 'HEAD']).stdout;
     ops.patchTask(db, 'task-h2', { completion_commit: sha });
     projector.projectContext(db, 'task-h2', {}, { rootDir: dir });
-    gitRun(dir, ['add', '-A']);
-    gitRun(dir, ['commit', '-q', '-m', 'chore: record task-h2 completion hash']);
+    const contextFile = path.join(
+      dir, '.ultra', '.runtime', 'projections', 'contexts', 'task-task-h2.md',
+    );
+    const before = fs.readFileSync(contextFile);
 
-    // Idempotency: re-projecting the same db state must produce byte-identical
-    // context md (generated_at is derived from tasks.updated_at, not now()).
     projector.projectContext(db, 'task-h2', {}, { rootDir: dir });
-    gitRun(dir, ['add', '-A']);
+    assert.deepEqual(fs.readFileSync(contextFile), before);
     const status = gitRun(dir, ['status', '--porcelain']).stdout;
     assert.equal(status, '', 're-projection of unchanged state must leave nothing to commit');
-
-    // A retry chore commit on an empty diff must be refused by git.
-    const r = gitRun(dir, ['commit', '-q', '-m', 'chore: idempotent retry'], { allowFail: true });
-    assert.notEqual(r.code, 0, 'a follow-up empty chore commit must fail');
     closeStateDb(db);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

@@ -51,7 +51,7 @@ class ActiveTaskContextTest(unittest.TestCase):
             output = self.run_hook(project, {"file_path": ".ultra/tasks/tasks.json"})
             self.assertEqual(output, {})
 
-    def test_denies_projection_write_for_initialized_ultra_project_without_workflow(self):
+    def test_denies_team_ledger_write_for_initialized_ultra_project_without_workflow(self):
         with tempfile.TemporaryDirectory() as raw:
             project = Path(raw)
             ultra = project / ".ultra"
@@ -61,7 +61,22 @@ class ActiveTaskContextTest(unittest.TestCase):
             output = self.run_hook(project, {"file_path": ".ultra/tasks/tasks.json"})
             hook = output["hookSpecificOutput"]
             self.assertEqual(hook["permissionDecision"], "deny")
-            self.assertIn("projection", hook["permissionDecisionReason"])
+            self.assertIn("team checkpoint", hook["permissionDecisionReason"])
+
+    def test_denies_checkout_local_task_projection_write(self):
+        with tempfile.TemporaryDirectory() as raw:
+            project = Path(raw)
+            runtime = project / ".ultra" / ".runtime"
+            runtime.mkdir(parents=True)
+            (runtime / "state.db").touch()
+
+            output = self.run_hook(
+                project,
+                {"file_path": ".ultra/.runtime/projections/tasks.json"},
+            )
+            hook = output["hookSpecificOutput"]
+            self.assertEqual(hook["permissionDecision"], "deny")
+            self.assertIn("checkout-local DB view", hook["permissionDecisionReason"])
 
     def test_authority_conflict_denies_projection_write_but_keeps_context_injection_fail_open(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -136,7 +151,7 @@ class ActiveTaskContextTest(unittest.TestCase):
             output = json.loads(result.stdout)
             hook = output["hookSpecificOutput"]
             self.assertEqual(hook["permissionDecision"], "deny")
-            self.assertIn("projection", hook["permissionDecisionReason"].lower())
+            self.assertIn("managed", hook["permissionDecisionReason"].lower())
 
     def test_injects_compact_db_breadcrumb_before_an_edit(self):
         with tempfile.TemporaryDirectory() as raw:

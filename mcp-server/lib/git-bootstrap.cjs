@@ -62,7 +62,6 @@ const ULTRA_GIT_ARTIFACT_CLASSES = Object.freeze({
       '.ultra/tasks/tasks.json',
       '.ultra/tasks/plan.md',
       '.ultra/tasks/plan.json',
-      '.ultra/tasks/contexts/example.md',
     ]),
     research: Object.freeze([
       '.ultra/docs/research/README.md',

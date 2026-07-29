@@ -246,8 +246,11 @@ function sanitizeLegacyContextTemplate(sourceDir) {
       /Read by mid_workflow_recall\.py and session_context\.py and injected into agent context\./g,
       'Used as task-local acceptance criteria by the active Ultra workflow.',
     );
-  if (next === current) return false;
-  fs.writeFileSync(file, next);
+  const target = path.join(sourceDir, '.ultra', 'templates', 'task-context.md');
+  if (fs.existsSync(target)) return false;
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, next);
+  fs.rmSync(file);
   return true;
 }
 

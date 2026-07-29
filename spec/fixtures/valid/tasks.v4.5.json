@@ -17,7 +17,7 @@
       "stale": false,
       "tag": "main",
       "trace_to": "spec/mcp-tools.yaml#task.create",
-      "context_file": ".ultra/tasks/contexts/task-001.md",
+      "context_file": ".ultra/.runtime/projections/contexts/task-001.md",
       "created_at": "2026-04-17T07:00:00Z",
       "updated_at": "2026-04-17T07:05:00Z"
     },

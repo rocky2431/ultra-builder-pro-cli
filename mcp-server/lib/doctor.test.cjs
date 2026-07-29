@@ -21,6 +21,7 @@ const { researchCoverage } = require('../test-support/semantic-records.cjs');
 const decisions = require('./decision-dialogue.cjs');
 const artifactRegistry = require('./artifact-registry.cjs');
 const planStore = require('./plan-store.cjs');
+const taskLedger = require('./task-ledger.cjs');
 const recovery = require('../../orchestrator/recovery.cjs');
 const closeJournal = require('../../orchestrator/session-close-journal.cjs');
 const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
@@ -48,7 +49,44 @@ test('doctor reports structured health for an initialized Ultra project', async 
     assert.equal(report.status, 'healthy');
     assert.equal(report.repair_performed, false);
     assert.equal(report.checks.state_db.status, 'pass');
+    assert.equal(report.checks.task_ledger.status, 'warning');
+    assert.equal(report.checks.task_ledger.condition, 'missing');
     assert.equal(report.checks.external_providers.ownership, 'external');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('doctor reports current, drifted, and invalid team checkpoint states without semantic repair', async () => {
+  const fx = fixture();
+  try {
+    taskLedger.publishTaskLedger(fx.db, {
+      rootDir: fx.rootDir,
+      reason: 'baseline_converged',
+    });
+    const current = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
+    assert.equal(current.checks.task_ledger.status, 'pass');
+    assert.equal(current.checks.task_ledger.condition, 'current');
+
+    fx.db.prepare(
+      "UPDATE baselines SET project_type = 'locally-drifted' WHERE status = 'ready'",
+    ).run();
+    const drifted = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
+    assert.equal(drifted.checks.task_ledger.status, 'warning');
+    assert.equal(drifted.checks.task_ledger.condition, 'drifted');
+
+    const ledgerPath = taskLedger.ledgerPath(fx.rootDir);
+    fs.writeFileSync(ledgerPath, '{"kind":"ultra-team-task-ledger"}\n');
+    const invalid = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
+    assert.equal(invalid.status, 'degraded');
+    assert.equal(invalid.checks.task_ledger.status, 'fail');
+    assert.equal(invalid.checks.task_ledger.condition, 'invalid');
+    assert.equal(invalid.checks.task_ledger.code, 'TASK_LEDGER_INVALID');
+    assert.equal(
+      fs.readFileSync(ledgerPath, 'utf8'),
+      '{"kind":"ultra-team-task-ledger"}\n',
+      'read-only doctor must never regenerate semantic team authority',
+    );
   } finally {
     cleanup(fx);
   }

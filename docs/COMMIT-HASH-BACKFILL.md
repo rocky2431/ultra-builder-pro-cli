@@ -1,101 +1,44 @@
-# Commit-hash backfill — two-commit completion flow
+# Commit-hash backfill
 
-> Phase 2.8 contract. Replaces the v4.4 `git commit --amend` step with an
-> append-only flow that survives the SQLite authority model.
-> Hook wiring lives in Phase 3 (`skills/ultra-dev/SKILL.md` Step 6).
+`tasks.completion_commit` is checkout-local integration evidence. It lives in
+`.ultra/.runtime/state.db` and may appear in checkout-local projections, but it is
+deliberately absent from the Git-facing team ledger.
 
-## Why we changed
+This removes the old self-referential two-commit loop. Recording a commit hash no
+longer changes any tracked file.
 
-In v4.4 the per-task `context md` carried a `completion_commit` field
-in its frontmatter. The legacy flow was:
+## Direct task completion
 
-1. `git commit -m "feat: …"` to land the implementation
-2. read the freshly-created commit hash
-3. edit `contexts/task-N.md` to write the hash into the header
-4. `git commit --amend --no-edit` to fold the edit into the same commit
+After implementation, verification, and review are current:
 
-That last step makes the commit non-atomic (the second write produces
-a new SHA, invalidating the value we just stamped). It also fights the
-v4.5 authority rule (D32) — the projector is the only writer to
-`contexts/task-N.md`, so any handwritten edit gets stomped.
+1. Update the task to `completed`. The MCP publishes its durable status and contract to
+   `.ultra/tasks/tasks.json`.
+2. Create one local task commit containing the implementation, semantic Ultra
+   artifacts, and the team ledger checkpoint.
+3. Read the resulting `HEAD` and update only `completion_commit` through `task.update`.
+4. Verify the task worktree `HEAD`, integration ancestry, review evidence, and public
+   seam; then close the session and complete the dev workflow.
 
-## The new flow
+The third step changes only ignored runtime state. Repeating it with the same hash is
+byte-idempotent and leaves Git clean.
 
-```
-┌──────────────────────────────────┐
-│ 1. feat commit                   │  context md still has empty
-│    git add … && git commit       │  completion_commit (projector
-│    -m "feat: task-N — title"     │  emitted it from a NULL row)
-└──────────────────┬───────────────┘
-                   ▼
-┌──────────────────────────────────┐
-│ 2. read the new SHA              │  hash = `git rev-parse HEAD`
-└──────────────────┬───────────────┘
-                   ▼
-┌──────────────────────────────────┐
-│ 3. update state.db               │  ops.patchTask(db, id,
-│                                  │    { completion_commit: hash })
-└──────────────────┬───────────────┘
-                   ▼
-┌──────────────────────────────────┐
-│ 4. projector regenerates the     │  projector.projectContext(db, id)
-│    context md header with the    │  writes a new contexts/task-N.md
-│    completion_commit value       │  whose YAML now contains the hash
-└──────────────────┬───────────────┘
-                   ▼
-┌──────────────────────────────────┐
-│ 5. chore commit                  │  git add contexts/task-N.md
-│                                  │  git commit -m
-│                                  │    "chore: record task-N hash"
-└──────────────────────────────────┘
-```
+If the commit fails after step 1, transition the still-session-owned task from
+`completed` to `blocked`, preserve the worktree, and record the failure. This recovery
+transition is accepted only while `completion_commit` is absent. A task with a recorded
+completion commit remains terminal.
 
-The result in `git log --oneline`:
+## Parent-supervised workers
 
-```
-2222222 chore: record task-N completion hash
-1111111 feat: task-N — <title>
-```
+A worker records evidence and exits without finalizing the parent-owned task. The
+primary host verifies and integrates the worker commit, publishes the task completion
+checkpoint, records the integrated commit hash locally, and settles the lease.
 
-Both commits are immutable. The chore commit is small (only the
-projection file changed) and is trivial to revert if the wrong task is
-recorded.
+## Why the hash is local
 
-## Why two commits, not amend
-
-- **Atomic history.** Each SHA is final the moment it is written.
-- **Idempotent.** Re-running the chore commit on the same hash is a
-  no-op (projector emits the same bytes).
-- **Survives the projector contract.** The projection is the only
-  writer to `contexts/task-N.md`; this flow keeps that promise.
-- **Audit trail.** Reviewers can see the implementation diff (commit 1)
-  separately from the bookkeeping diff (commit 2).
-
-## Hook integration (Phase 3)
-
-The post-commit hook installed by `skills/ultra-dev/` will invoke this
-flow as soon as a feat commit lands on a task branch:
-
-```
-post-commit workflow → if commit message starts with "feat:" and the
-                   working tree contains contexts/task-N.md →
-                   MCP task.update {id: task-N,
-                       patch: {completion_commit: $(git rev-parse HEAD)}} &&
-                   git add contexts/task-N.md &&
-                   git commit -m "chore: record task-N completion hash"
-```
-
-Until that hook lands, contributors run the two commits manually. The
-contract above is what the hook will codify.
-
-## Verification
-
-`mcp-server/tests/commit-hash-flow.test.cjs` builds a throwaway git
-repo, walks the five steps in-process, and asserts:
-
-- `git log --oneline -2` shows `chore: record task-N completion hash`
-  on top of `feat: task-N — …`.
-- The post-projection `contexts/task-N.md` frontmatter contains the
-  exact SHA produced by the feat commit.
-- Re-running step 4 + step 5 against the same SHA is a no-op (the
-  chore commit is empty and skipped).
+- A Git file cannot contain the hash of the commit that contains that same file.
+- Runtime integration evidence is checkout-specific and does not belong in a shared
+  semantic merge surface.
+- The team ledger needs the durable task outcome and status, not a self-referential
+  commit identifier.
+- Baseline freshness uses scoped content plus Git ancestry, so a metadata-only Ultra
+  checkpoint commit does not invalidate an otherwise unchanged baseline.

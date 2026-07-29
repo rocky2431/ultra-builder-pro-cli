@@ -145,7 +145,7 @@ async function verifyMcp(launcher, projectDir) {
   try {
     assert.equal(client.getServerVersion().version, PACKAGE.version);
     const tools = await client.listTools();
-    assert.equal(tools.tools.length, 57);
+    assert.equal(tools.tools.length, 60);
     assert.equal(
       fs.existsSync(path.join(projectDir, '.ultra', '.runtime', 'state.db')),
       false,

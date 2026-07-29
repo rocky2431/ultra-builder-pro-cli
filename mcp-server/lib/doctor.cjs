@@ -18,6 +18,7 @@ const decisions = require('./decision-dialogue.cjs');
 const runtimePaths = require('./runtime-paths.cjs');
 const artifactRegistry = require('./artifact-registry.cjs');
 const planStore = require('./plan-store.cjs');
+const taskLedger = require('./task-ledger.cjs');
 const closeJournal = require('../../orchestrator/session-close-journal.cjs');
 
 const SPEC_CONSUMER = 'spec-staleness';
@@ -84,6 +85,28 @@ function inspectSessionCloses(db, {
   };
 }
 
+function inspectTeamTaskLedger(db, rootDir) {
+  try {
+    const health = taskLedger.inspectTaskLedger(db, { rootDir });
+    const taskCount = db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count;
+    let status = 'warning';
+    if (health.status === 'current') status = 'pass';
+    return {
+      ...health,
+      condition: health.status,
+      status,
+      task_count: taskCount,
+    };
+  } catch (error) {
+    return {
+      status: 'fail',
+      condition: 'invalid',
+      code: error.code || 'TASK_LEDGER_INVALID',
+      message: error.message,
+    };
+  }
+}
+
 function inspectSystem(db, { rootDir = process.cwd() } = {}) {
   const tables = new Set(tableNames(db));
   const missing = REQUIRED_TABLES.filter((name) => !tables.has(name));
@@ -137,6 +160,9 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
   const planPublications = missing.length === 0
     ? planStore.inspectPlanPublications(db, { rootDir })
     : { status: 'fail', pending: 0, transactions: [], issues: [] };
+  const taskLedgerHealth = missing.length === 0
+    ? inspectTeamTaskLedger(db, rootDir)
+    : { status: 'fail', condition: 'state_unavailable', code: 'STATE_DB_UNAVAILABLE' };
   const baselineCheckStatus = baseline.status === 'pass'
     ? 'pass'
     : (baseline.baseline?.status === 'ready' ? 'fail' : 'warning');
@@ -148,6 +174,7 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
     || decisionHealth.status === 'fail'
     || artifactHealth.status === 'fail'
     || planPublications.status === 'fail'
+    || taskLedgerHealth.status === 'fail'
     || baselineCheckStatus === 'fail';
   return {
     status: degraded ? 'degraded' : 'healthy',
@@ -167,6 +194,7 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
       },
       change_artifacts: { status: activeMissing === 0 ? 'pass' : 'fail', missing: activeMissing },
       artifacts: artifactHealth,
+      task_ledger: taskLedgerHealth,
       plan_publications: planPublications,
       archive_recovery: {
         status: archiveIntents.length === 0 ? 'pass' : 'fail',

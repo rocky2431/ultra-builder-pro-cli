@@ -321,6 +321,35 @@ test('updateTaskStatus enforces the legal transition graph', () => {
   }
 });
 
+test('an uncommitted task completion can recover while a committed completion remains terminal', () => {
+  const { dir, db } = freshDb();
+  try {
+    ops.createTask(db, { id: 'recoverable', title: 'recoverable', type: 'feature', priority: 'P0' });
+    ops.patchTask(db, 'recoverable', {
+      status: 'in_progress',
+      session_id: 'local-session',
+    });
+    ops.updateTaskStatus(db, 'recoverable', 'completed');
+    assert.equal(
+      ops.updateTaskStatus(db, 'recoverable', 'blocked').status,
+      'blocked',
+    );
+
+    ops.updateTaskStatus(db, 'recoverable', 'in_progress');
+    ops.updateTaskStatus(db, 'recoverable', 'completed');
+    ops.patchTask(db, 'recoverable', {
+      completion_commit: '0123456789012345678901234567890123456789',
+    });
+    assert.throws(
+      () => ops.updateTaskStatus(db, 'recoverable', 'blocked'),
+      (error) => error.code === 'ILLEGAL_STATUS_TRANSITION',
+    );
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('patchTask updates JSON arrays + flags + status atomically', () => {
   const { dir, db } = freshDb();
   try {

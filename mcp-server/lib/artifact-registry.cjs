@@ -27,7 +27,7 @@ const STATIC_EXEMPT_PATHS = new Set([
   '.ultra/docs/research/README.md',
   '.ultra/reports/templates/delivery-report.json',
   '.ultra/reports/templates/test-report.json',
-  '.ultra/tasks/contexts/TEMPLATE.md',
+  '.ultra/templates/task-context.md',
   '.ultra/tasks/tasks.json',
   '.ultra/changes/active/.gitkeep',
   '.ultra/changes/archive/.gitkeep',
@@ -81,9 +81,10 @@ function isExemptArtifactPath(value) {
 
 function isGeneratedProjectionPath(value) {
   const relative = normalizeRelativePath(value);
-  return relative === '.ultra/tasks/contexts'
-    || relative.startsWith('.ultra/tasks/contexts/')
-    || relative === '.ultra/tasks/tasks.json';
+  return relative === '.ultra/.runtime/projections'
+    || relative.startsWith('.ultra/.runtime/projections/')
+    || relative === '.ultra/tasks/contexts'
+    || relative.startsWith('.ultra/tasks/contexts/');
 }
 
 function artifactPathError(message, details = undefined) {
@@ -950,7 +951,7 @@ function knownArtifactPaths(db) {
   }
   for (const row of db.prepare('SELECT id, context_file FROM tasks').all()) {
     known.add(normalizeRelativePath(
-      row.context_file || `.ultra/tasks/contexts/task-${row.id}.md`,
+      contextPaths.resolveContextPath('.', row.context_file, { taskId: row.id }).relative,
     ));
   }
   return known;
@@ -1078,7 +1079,7 @@ function inspectArtifactHealth(db, { rootDir = process.cwd() } = {}) {
   for (const relative of tree.files) {
     if (isExemptArtifactPath(relative) || known.has(relative)) continue;
     if (!readyBaseline && PROVISIONAL_BASELINE_SPEC_PATHS.has(relative)) continue;
-    if (relative.startsWith(`${contextPaths.CONTEXT_ROOT_RELATIVE}/`)) {
+    if (relative.startsWith(`${contextPaths.LEGACY_CONTEXT_ROOT_RELATIVE}/`)) {
       let contents;
       try {
         contents = readStableProjectFile(rootDir, relative).bytes;

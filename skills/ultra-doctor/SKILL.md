@@ -19,6 +19,8 @@ Run `system.doctor` without repair and inspect:
 - baseline and research provenance, gaps, digests, and Git/worktree drift;
 - workflow status, obsolete-step migration, blockers, and output freshness;
 - decisions and checkpoint artifact freshness;
+- Git team-checkpoint schema, ancestry, per-baseline, per-Change, and per-task drift,
+  plus checkout-local baseline revalidation requirements;
 - projection jobs and event cursors;
 - sessions, preserved worktrees, incidents, circuit state, and archive journals;
 - external provider boundaries.
@@ -39,11 +41,18 @@ With explicit repair authorization, `system.doctor` may:
 - recover missing workflow provenance as a blocked run requiring real evidence.
 
 It may not create a Git checkpoint, replace a healthy baseline, accept known failures,
-resolve decisions, regenerate semantic content, or edit application code.
+resolve decisions, regenerate semantic content, import or publish the team checkpoint,
+or edit application code. A missing or drifted valid checkpoint is a warning; invalid
+content or conflicting ancestry is degraded authority. Resolve semantic checkpoint
+state explicitly with `task.ledger_import` or `task.ledger_publish` after reviewing
+the typed conflict.
 
 Corrupt SQLite requires preservation of DB, WAL, and SHM followed by an explicit
 restore-or-rebaseline choice. Missing hook adapters or stale cache paths require
 `ubp --doctor` and adapter reinstall; never patch plugin cache contents by hand.
+A legacy task projection is never rewritten by doctor. The supported publication path
+first proves its durable task fields match SQLite and preserves its original bytes in
+the local runtime backup directory.
 
 After repair, rerun doctor read-only and verify backup paths, schema, installed hashes,
 entry points, MCP startup, and hook smoke tests as applicable.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Protect Ultra projections and restate an active task boundary before edits."""
+"""Protect Ultra managed task files and restate the active workflow boundary."""
 
 import json
 import sys
@@ -12,7 +12,9 @@ from context_spine import (
     render_breadcrumb,
 )
 
-TASKS_PROJECTION = Path(".ultra/tasks/tasks.json")
+TEAM_TASK_LEDGER = Path(".ultra/tasks/tasks.json")
+LIVE_TASK_PROJECTION = Path(".ultra/.runtime/projections/tasks.json")
+PROTECTED_TASK_FILES = (TEAM_TASK_LEDGER, LIVE_TASK_PROJECTION)
 
 
 def tool_paths(data: dict, start: Path):
@@ -28,25 +30,24 @@ def tool_paths(data: dict, start: Path):
         yield candidate.resolve() if candidate.is_absolute() else (start / candidate).resolve()
 
 
-def projection_root_for_target(target: Path) -> Path | None:
-    """Return the project root only for the exact generated tasks projection."""
-    if (
-        target.name == "tasks.json"
-        and target.parent.name == "tasks"
-        and target.parent.parent.name == ".ultra"
-    ):
-        return target.parent.parent.parent
+def protected_root_for_target(target: Path) -> Path | None:
+    """Return the project root for an exact MCP-managed task file."""
+    parts = target.parts
+    for relative in PROTECTED_TASK_FILES:
+        suffix = relative.parts
+        if len(parts) >= len(suffix) and parts[-len(suffix):] == suffix:
+            return Path(*parts[:-len(suffix)])
     return None
 
 
-def targets_tasks_projection(data: dict, root: Path) -> bool:
+def targets_managed_task_file(data: dict, root: Path) -> bool:
     for resolved in tool_paths(data, root):
-        if resolved == (root / TASKS_PROJECTION).resolve():
+        if any(resolved == (root / relative).resolve() for relative in PROTECTED_TASK_FILES):
             return True
     return False
 
 
-def projection_denial(reason: str) -> dict:
+def managed_file_denial(reason: str) -> dict:
     return {"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
@@ -54,19 +55,19 @@ def projection_denial(reason: str) -> dict:
     }}
 
 
-def conflicted_projection_root(data: dict, start: Path) -> Path | None:
+def conflicted_managed_root(data: dict, start: Path) -> Path | None:
     for candidate in (start, *start.parents):
         if not (candidate / ".ultra").exists():
             continue
-        if targets_tasks_projection(data, candidate):
+        if targets_managed_task_file(data, candidate):
             return candidate
     return None
 
 
-def projection_roots(data: dict, start: Path):
+def managed_roots(data: dict, start: Path):
     """Yield initialized project roots derived from every resolved tool target."""
     for target in tool_paths(data, start):
-        root = projection_root_for_target(target)
+        root = protected_root_for_target(target)
         if root is not None and (root / ".ultra").exists():
             yield root
 
@@ -82,23 +83,24 @@ def main() -> None:
     # An absolute tool target carries its own project boundary. Resolve and
     # protect that authority before consulting cwd, because hooks may run from
     # a host-owned temporary directory or another repository.
-    for target_root in projection_roots(data, start):
+    for target_root in managed_roots(data, start):
         try:
             target_authority = find_root(target_root)
         except ContextSpineError as exc:
-            print(json.dumps(projection_denial(
-                "Refusing a direct write to an Ultra projection while the "
+            print(json.dumps(managed_file_denial(
+                "Refusing a direct write to an MCP-managed Ultra task file while the "
                 f"runtime authority is conflicted: {exc}. Resolve the "
-                "state.db conflict with ultra-doctor before editing generated "
-                "project artifacts."
+                "state.db conflict with ultra-doctor before retrying the owning "
+                "MCP operation."
             )))
             return
         if target_authority is None:
             continue
-        print(json.dumps(projection_denial(
-            "Refusing a direct write to the .ultra/tasks/tasks.json projection. "
-            ".ultra/.runtime/state.db is authoritative; use the Ultra MCP task tools and "
-            "run ultra-doctor when state or projection health is degraded."
+        print(json.dumps(managed_file_denial(
+            "Refusing a direct write to an MCP-managed Ultra task file. "
+            ".ultra/tasks/tasks.json is the MCP-published team checkpoint and "
+            ".ultra/.runtime/projections/tasks.json is the checkout-local DB view. "
+            "Use the Ultra MCP task or task.ledger tools."
         )))
         return
 
@@ -110,26 +112,26 @@ def main() -> None:
             file=sys.stderr,
         )
         # Ordinary context injection remains fail-open. A direct write to a
-        # known generated projection is different: an authority conflict
-        # means the hook cannot prove which DB would regenerate that file, so
-        # allowing the write would destroy the projection boundary.
-        if conflicted_projection_root(data, start) is not None:
-            print(json.dumps(projection_denial(
-                "Refusing a direct write to an Ultra projection while the "
+        # known managed task file is different: an authority conflict means the
+        # hook cannot prove which DB owns the publish or projection operation.
+        if conflicted_managed_root(data, start) is not None:
+            print(json.dumps(managed_file_denial(
+                "Refusing a direct write to an MCP-managed Ultra task file while the "
                 f"runtime authority is conflicted: {exc}. Resolve the "
-                "state.db conflict with ultra-doctor before editing generated "
-                "project artifacts."
+                "state.db conflict with ultra-doctor before retrying the owning "
+                "MCP operation."
             )))
             return
         root = None
     if root is None:
         print(json.dumps({}))
         return
-    if targets_tasks_projection(data, root):
-        print(json.dumps(projection_denial(
-                "Refusing a direct write to the .ultra/tasks/tasks.json projection. "
-                ".ultra/.runtime/state.db is authoritative; use the Ultra MCP task tools and "
-                "run ultra-doctor when state or projection health is degraded."
+    if targets_managed_task_file(data, root):
+        print(json.dumps(managed_file_denial(
+                "Refusing a direct write to an MCP-managed Ultra task file. "
+                ".ultra/tasks/tasks.json is the MCP-published team checkpoint and "
+                ".ultra/.runtime/projections/tasks.json is the checkout-local DB view. "
+                "Use the Ultra MCP task or task.ledger tools."
         )))
         return
     try:

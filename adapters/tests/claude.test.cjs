@@ -107,7 +107,10 @@ test('Claude plugin collaboration workflows are safe native plugin assets', () =
     assert.match(review, /scripts\/review_wait\.py/);
     assert.doesNotMatch(plan, /LEGACY_STATE_MIGRATION_REQUIRED|v4\.4|v4\.5/);
     assert.match(plan, /Never read or\s+write .*tasks\.json/i);
-    assert.match(status, /Never fall\s+back to generated task JSON/i);
+    assert.match(
+      status,
+      /Never fall\s+back to the Git team checkpoint,\s+generated task\s+JSON/i,
+    );
     assert.doesNotMatch(plan, /ultra-tools task create/);
 
     for (const name of skillsForRuntime('claude')) {

@@ -57,14 +57,14 @@ sharing one authoritative workflow store.
 
 ```
 spec/                       ← Phase 1 single source of truth
-├── mcp-tools.yaml          (57 live tools across 9 families)
+├── mcp-tools.yaml          (60 live tools across 9 families)
 ├── cli-protocol.md         (CLI ↔ MCP mapping table)
 ├── schemas/                (state-db.sql + 4 JSON schemas)
 ├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
 └── scripts/test-all.cjs    (npm run test:spec — 7 validation stages)
 
 mcp-server/                 ← Phase 2 authoritative state layer
-├── server.cjs              (stdio MCP server, 57 task/session/baseline/change/decision/workflow/artifact/system/plan tools)
+├── server.cjs              (stdio MCP server, 60 task/session/baseline/change/decision/workflow/artifact/system/plan tools)
 ├── lib/
 │   ├── state-db.cjs        (SQLite + WAL + pragmas)
 │   ├── state-ops.cjs       (full write API, status state machine)
@@ -106,7 +106,7 @@ docs/
 ├── PLUGIN-ISOLATION-CONTRACT.md install, activation, idle, and ownership contract
 ├── RUNTIME-COMPAT-MATRIX.md     Phase 4 runtime capability matrix
 ├── STATE-DB-ACCESS-POLICY.md    Phase 2 multi-process write contract
-├── COMMIT-HASH-BACKFILL.md      Phase 2.8 two-commit completion flow
+├── COMMIT-HASH-BACKFILL.md      Checkout-local completion commit evidence
 └── ROADMAP.md                   this file
 ```
 

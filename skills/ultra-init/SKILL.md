@@ -15,9 +15,11 @@ the next semantic workflow.
    monorepo boundaries, and current owner request.
 2. If `.ultra/.runtime/state.db` exists, run `system.doctor` read-only and resume with
    `task.init_project` only when its report permits it.
-3. Otherwise call `task.init_project` with `mode: "auto"`, the project name, and an
+3. Read the Git-facing team checkpoint when present. Never parse a legacy
+   `.ultra/tasks/tasks.json` as current authority or edit it directly.
+4. Otherwise call `task.init_project` with `mode: "auto"`, the project name, and an
    explicit scope only when the repository contains multiple plausible roots.
-4. Leave `git_mode` as `auto` unless the user explicitly requires a non-Git workspace.
+5. Leave `git_mode` as `auto` unless the user explicitly requires a non-Git workspace.
 
 Use repository evidence to classify:
 
@@ -50,19 +52,25 @@ The operation must:
 
 - create or migrate `.ultra/.runtime/state.db` with a backup before schema migration;
 - install only missing scaffold assets on resume;
+- create an empty `.ultra/tasks/tasks.json` team checkpoint for a new project;
+- import a validated team checkpoint on clone or resume, while requiring
+  checkout-local revalidation before an imported ready baseline can authorize work;
 - preserve existing artifacts and unrelated work;
 - preserve an existing Git repository and HEAD;
 - initialize Git and a safe `.gitignore` entry when Git is absent;
 - report an unborn repository as `initial_commit_required` without manufacturing a
   commit, remote, tag, or push;
-- read back the created DB, classification, projection, and Git result before
-  completing the init workflow.
+- read back the created DB, classification, local runtime projection, team checkpoint,
+  and Git result before completing the init workflow.
 
 Projection-only projects must use the exact backup-first migration command returned by
-the runtime. A migrated compatibility baseline requires a new brownfield adoption with
+the runtime. On the first supported team-checkpoint publication, a matching legacy
+task projection is copied byte-for-byte into `.ultra/.runtime/backups/task-ledger/`
+before replacement; any task-id or durable-field mismatch stops with a typed conflict.
+A migrated compatibility baseline requires a new brownfield adoption with
 `replace_migrated: true`. Replacing a healthy baseline requires explicit replacement
-authority. Corrupt DB, WAL, SHM, and backups must be preserved until the user chooses a
-documented recovery operation.
+authority. Corrupt DB, WAL, SHM, and backups must be preserved until the user chooses
+a documented recovery operation.
 
 ## Completion and handoff
 
@@ -79,7 +87,8 @@ Read the returned `allowed_transitions` and `required_transition`:
   capability and wait for an explicit user invocation.
 
 Report classification, scope, schema and backup result, Git state, init workflow id,
-baseline state, and allowed transitions. Do not claim that a baseline is ready until a
-separate research/adoption workflow has recorded and converged it.
+team-checkpoint import or revalidation state, baseline state, and allowed transitions.
+Do not claim that a baseline is ready until a separate research/adoption workflow has
+recorded and converged it in the current checkout.
 
 Never invoke the recommended capability here; wait for an explicit user invocation.

@@ -12,10 +12,11 @@ host and project owner. It is the operational companion to
 | Active host and owner | Product judgment, research content, implementation, review findings, and authorization for destructive or external effects | Durable workflow status or fabricated evidence digests |
 | Skill | One reusable procedure and its evidence requirements | Project state, static product doctrine, host-specific tool fiction |
 | MCP | IDs, valid transitions, hard recovery requirements, task contracts, evidence references, output hashes, and gate verdicts | Semantic route selection, research prose, code generation, general memory-provider payloads, or model calls |
-| `.ultra/.runtime/state.db` | Lifecycle, index, transition, freshness, and coordination authority for baseline, change, decision, task, workflow, session, event, incident, projection, and evidence references | Prompts, transcripts, general external-memory payloads, semantic prose, or code-graph payloads |
+| `.ultra/.runtime/state.db` | Checkout-local lifecycle, index, transition, freshness, and coordination authority for baseline, change, decision, task, workflow, session, event, incident, projection, and evidence references | Prompts, transcripts, general external-memory payloads, semantic prose, or code-graph payloads |
+| `.ultra/tasks/tasks.json` | MCP-published Git checkpoint for portable baseline, Change, task-contract, dependency, and durable status records | Live sessions, leases, `in_progress` ownership, completion hashes, or a parallel write API |
 | Digest-bound artifacts | Registered specification, research, Change, context, test, review, delivery, and verification bodies | Independent lifecycle state or content whose digest no longer matches |
-| Generated projections and scratch | Human-readable views and temporary working material | Lifecycle, semantic, or evidence authority before supported promotion |
-| Hook | Compact DB-derived lifecycle observation, minimal event metadata, and projection protection | Generic engineering judgment, prompt/transcript capture, parallel lifecycle logs, or arbitrary edit blocking |
+| Generated projections and scratch | Checkout-local views below `.ultra/.runtime/` and temporary working material | Lifecycle, semantic, or evidence authority before supported promotion |
+| Hook | Compact DB-derived lifecycle observation, minimal event metadata, and protection of MCP-owned checkpoint/projection paths | Generic engineering judgment, prompt/transcript capture, parallel lifecycle logs, or arbitrary edit blocking |
 
 Together, `.ultra/` is project-local cross-session workflow memory. The detailed
 artifact classes and promotion rules live in
@@ -76,8 +77,10 @@ signals. In a monorepo, the owner selects the repository scope; baseline
 worktree digests and accepted dirty files are restricted to that scope.
 
 Classification and readiness are separate. Initialization immediately creates
-or resumes `.ultra/.runtime/state.db`, installs only the required scaffold, records the
-classification, and completes an `init` workflow after read-back verification. It
+or resumes `.ultra/.runtime/state.db`, creates or imports the Git team checkpoint,
+installs only the required scaffold, records the classification, and completes an
+`init` workflow after read-back verification. A ready checkpoint baseline is held for
+checkout-local revalidation. Init
 does not create a research run. A later explicit `ultra-research` invocation selects
 `full` for greenfield or `adoption` for brownfield, records coverage dispositions, and
 works toward baseline readiness. Empty templates are not an approved baseline.
@@ -226,23 +229,40 @@ stores the conversation transcript.
 
 | Stage | Authoritative writes | Completion verification | Available continuation |
 |---|---|---|---|
-| `init` | Baseline classification/scope, Git bootstrap state, completed init run, initialization event, projection job | DB/schema opens, scaffold/projection and read-back succeed; existing Git is preserved or missing local Git is initialized | Explicitly chosen `research`, `status`, or `doctor`; an already-ready project may also enter `change` |
+| `init` | Baseline classification/scope, Git bootstrap state, completed init run, initialization event, empty or imported team checkpoint, projection job | DB/schema opens, scaffold/local projection/checkpoint and read-back succeed; existing Git is preserved or missing local Git is initialized; imported ready baseline is not trusted before local revalidation | Explicitly chosen `research`, `status`, or `doctor`; an already-ready project may also enter `change` |
 | `research` | Accepted coverage dispositions, selected step evidence, normalized material decisions, optional artifact checkpoints, typed semantic records with source digests, immutable reports, output paths and SHA-256 digests | Every included coverage area is dispositioned; only executed/verified/reused areas require work evidence; baseline synthesis binds current specifications and distillate, while Change synthesis stays in its overlay; all material decisions and digests are current | Baseline record/convergence for initial research; bounded Change research records its delta and returns to plan |
-| baseline convergence | Spec/source/runtime refs, verification results, known failures, unknowns, gaps, branch/HEAD/worktree, approval | Full/adoption research complete; required discovery/product/architecture refs current; revision/worktree exact; blocking gaps resolved or explicitly accepted where allowed | `change` for every initial or daily outcome |
-| `change` | Complete Change Contract, profile/risk rationale, research disposition, isolated Change root, typed delta, and a completed capture run; a decision thread only when material intent remains unresolved | Intent, acceptance, recovery, classification, research disposition, and exact baseline anchors are current | Model recommends; owner selects bounded `research` or direct `plan`; both routes converge on plan before development |
-| `plan` | Accepted planning posture, immutable `plan/planning` context, selected planning evidence, complete change-owned task rows, acceptance coverage matrix, and deterministic `<artifact_root>/plan.json` plus `plan.md`; approval only for a material owner decision | Every Change acceptance id is owned by a task; trace targets, ownership, dependencies, topology, task contracts, planning-context binding, and exported digests match current authority | Any dependency-ready task may enter `dev` |
-| `dev` | Task/session transitions, real worktree, step evidence, immutable implementation context, completion/review references | Task completed; no live session; task contract unchanged; starting context and review artifacts valid; completion commits are integrated and remain ancestors of current HEAD | Next task, then aggregate `test` |
+| baseline convergence | Spec/source/runtime refs, verification results, known failures, unknowns, gaps, branch/HEAD/worktree, approval, and a published team checkpoint | Full/adoption research complete; required discovery/product/architecture refs current; revision/worktree exact; blocking gaps resolved or explicitly accepted where allowed | `change` for every initial or daily outcome |
+| `change` | Complete Change Contract, profile/risk rationale, research disposition, isolated Change root, typed delta, completed capture run, and portable Change checkpoint; a decision thread only when material intent remains unresolved | Intent, acceptance, recovery, classification, research disposition, exact baseline anchors, and checkpoint digest are current | Model recommends; owner selects bounded `research` or direct `plan`; both routes converge on plan before development |
+| `plan` | Accepted planning posture, immutable `plan/planning` context, selected planning evidence, complete change-owned task rows, acceptance coverage matrix, deterministic `<artifact_root>/plan.json` plus `plan.md`, and published task contracts; approval only for a material owner decision | Every Change acceptance id is owned by a task; trace targets, ownership, dependencies, topology, task contracts, planning-context binding, exported digests, and checkpoint generation match current authority | Any dependency-ready task may enter `dev` |
+| `dev` | Task/session transitions, real worktree, step evidence, immutable implementation context, completion/review references, and published durable task transitions | Task completed; no live session; task contract unchanged; starting context and review artifacts valid; the single completion commit is integrated and remains an ancestor of current HEAD; its hash is backfilled locally without another commit | Next task, then aggregate `test` |
 | `test` | Immutable checking context, an explicit risk-selected verification profile, and `<artifact_root>/test/<workflow-id>/report.json` | Selected dimensions and exact Change acceptance ids pass; every excluded dimension has a rationale; report change/task set, HEAD, worktree, context, commands, blockers, and digests agree | `review` when passing, otherwise resume `dev`/`test` |
 | `review` | Immutable review context plus risk-selected specialist and summary artifacts below `<artifact_root>/review/<workflow-id>/` | Current diff/HEAD and context match; the complete worker roster is selected or skipped with rationale; completed workers match specialist artifacts; both axes complete; findings and axis verdicts derive the final verdict | `deliver` only from a passing `change` review, otherwise resume implementation or checking |
 | `deliver` | Convergence context, typed delta, documentation reconciliation, recoverable overlay transaction, self-contained archive, and immutable delivery report | Tasks/test/change-review and acceptance are current; every before/after digest and baseline anchor is current; the archive transaction is complete; the report contains no release action | Report local completion or start the next `change`; publish/deploy/push are separate explicitly authorized operations |
-| `status` | None | Reads doctor, baseline, workflows, breadcrumb, tasks, sessions, Git, and DB-referenced reports | Shows allowed transitions, any hard required transition, and a host-owned recommendation |
-| `doctor` | None by default; explicit repair writes only mechanical recovery state | Re-runs integrity, schema, workflow-output, projection, session, incident, archive, and install checks | Mechanically required recovery when unique; otherwise a set of safe recovery capabilities |
+| `status` | None | Reads doctor, team-checkpoint condition, baseline, workflows, breadcrumb, tasks, sessions, Git, and DB-referenced reports | Shows allowed transitions, any hard required transition, and a host-owned recommendation |
+| `doctor` | None by default; explicit repair writes only mechanical recovery state | Re-runs integrity, schema, workflow-output, local projection, team-checkpoint, session, incident, archive, and install checks without choosing import/publish conflict resolution | Mechanically required recovery when unique; otherwise a set of safe recovery capabilities |
 
-Every mutating MCP operation appends an event and enqueues projection work when
-the corresponding read-only view can change. Projection failure is recorded as
+Every mutating MCP operation appends an event and enqueues local projection work when
+the corresponding checkout-local read-only view can change. Projection failure is recorded as
 a retryable incident; it does not silently convert a failed write into success.
+Semantic handoff operations separately publish the Git team checkpoint.
 `task.append_event` accepts only non-authoritative observations. Lifecycle events are
 emitted by their owning DB mutation and never act as a substitute state transition.
+
+### Team handoff checkpoint
+
+The Git checkpoint is intentionally lower-frequency than SQLite. It publishes accepted
+baseline, Change, plan, task-contract, and durable task-status boundaries; it does not
+mirror heartbeats, leases, active processes, telemetry, or provisional completion
+hashes. On MCP startup or explicit post-pull import, the receiving checkout validates
+checkpoint ancestry and record digests. Clean baseline, Change, and task records
+fast-forward independently. Concurrent edits to the same record or a remote edit to a
+locally active task stop without partial import.
+
+A checkpoint can restore portable project intent after clone, but cannot establish
+checkout truth by itself. An imported ready baseline becomes a local adoption/draft
+with `team-ledger-revalidation-required`; current scope content, HEAD, verification,
+known failures, and approval must converge again. Because baseline content hashing
+excludes `.ultra/`, committing the checkpoint cannot make its own baseline stale.
 
 ## 5. Human-agent alignment lifecycle
 
@@ -361,8 +381,12 @@ evidence do block.
   overwrite historical evidence.
 - `.ultra` workflow artifacts are excluded from application-worktree drift, but
   their own recorded SHA-256 digests are still authoritative.
-- Generated `tasks.json` and complete task-context files are projections. Manual edits
-  are overwritten and never repair DB authority.
+- Generated `.ultra/.runtime/projections/tasks.json` and complete runtime task-context
+  files are local projections. Manual edits are overwritten and never repair DB
+  authority.
+- `.ultra/tasks/tasks.json` is a tracked MCP checkpoint, not a local projection.
+  Its full and per-record digests reject manual edits; publish/import performs typed
+  fast-forward or conflict handling.
 - A changed checkpoint artifact digest or superseded decision invalidates the linked
   decision checkpoint and blocks matching workflow advancement until reconfirmed.
 - `workflow.revise` creates a candidate without deleting the completed prior run.

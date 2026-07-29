@@ -16,7 +16,7 @@
       "specs/product.md",
       "specs/architecture.md",
       "tasks/tasks.json",
-      "tasks/contexts/TEMPLATE.md",
+      "templates/task-context.md",
       "docs/research/README.md",
       "reports/templates/test-report.json",
       "reports/templates/delivery-report.json"

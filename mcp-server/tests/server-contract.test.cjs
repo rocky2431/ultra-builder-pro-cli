@@ -206,6 +206,9 @@ test('listTools returns workflow tools and exposes no general memory-provider AP
         'task.expand',
         'task.get',
         'task.init_project',
+        'task.ledger_get',
+        'task.ledger_import',
+        'task.ledger_publish',
         'task.list',
         'task.parse_prd',
         'task.subscribe_events',
@@ -1591,7 +1594,7 @@ test('change.context publishes bounded exact spec_refs and rejects an inline blo
   }
 });
 
-test('mutating tools trigger the projector — tasks.json appears under .ultra/', async () => {
+test('mutating tools trigger the checkout-local task projection', async () => {
   const proj = tmpProject();
   try {
     seedReadyBaseline(proj);
@@ -1601,7 +1604,9 @@ test('mutating tools trigger the projector — tasks.json appears under .ultra/'
         arguments: { id: 'pj-1', title: 'projection wired', type: 'feature', priority: 'P1' },
       });
     });
-    const tasksJson = path.join(proj.dir, '.ultra', 'tasks', 'tasks.json');
+    const tasksJson = path.join(
+      proj.dir, '.ultra', '.runtime', 'projections', 'tasks.json',
+    );
     assert.ok(fs.existsSync(tasksJson), 'projector should have written tasks.json');
     const data = JSON.parse(fs.readFileSync(tasksJson, 'utf8'));
     assert.equal(data.schema_version, '4.5');
@@ -1654,7 +1659,9 @@ test('output schema drift cannot strand a committed mutation without a projectio
     } finally {
       db.close();
     }
-    assert.ok(fs.existsSync(path.join(proj.dir, '.ultra', 'tasks', 'tasks.json')));
+    assert.ok(fs.existsSync(path.join(
+      proj.dir, '.ultra', '.runtime', 'projections', 'tasks.json',
+    )));
   } finally {
     fs.rmSync(proj.dir, { recursive: true, force: true });
   }
@@ -1681,7 +1688,8 @@ test('task.init_project creates .ultra/ skeleton in a fresh target directory', a
       assert.ok(fs.existsSync(payload.state_db_path));
       assert.ok(payload.copied_files.includes('tasks/tasks.json'));
       const tasksJson = JSON.parse(fs.readFileSync(path.join(payload.created_path, 'tasks', 'tasks.json'), 'utf8'));
-      assert.equal(tasksJson.source, '.ultra/.runtime/state.db');
+      assert.equal(tasksJson.kind, 'ultra-team-task-ledger');
+      assert.equal(tasksJson.generation, 0);
       assert.deepEqual(tasksJson.tasks, []);
       const state = new Database(payload.state_db_path, { readonly: true });
       try {

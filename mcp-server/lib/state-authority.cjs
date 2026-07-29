@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const taskLedger = require('./task-ledger.cjs');
 
 class StateAuthorityError extends Error {
   constructor(code, message, details) {
@@ -32,24 +33,39 @@ function inspectProjection(rootDir) {
       { projection_path: projectionPath },
     );
   }
+  if (projection.kind === taskLedger.LEDGER_KIND) {
+    const ledger = taskLedger.validateLedger(projection, projectionPath);
+    return {
+      path: projectionPath,
+      version: ledger.schema_version,
+      kind: ledger.kind,
+      taskCount: ledger.tasks.length,
+    };
+  }
   return {
     path: projectionPath,
     version: String(projection.version || projection.schema_version || 'unknown'),
+    kind: 'legacy-task-projection',
     taskCount: projection.tasks.length,
   };
 }
 
-function assertStateAuthority(db, rootDir) {
+function assertStateAuthority(db, rootDir, { importTeamLedger = false } = {}) {
   const authoritativeCount = db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count;
-  if (authoritativeCount > 0) return;
   const projection = inspectProjection(rootDir);
-  if (!projection || projection.taskCount === 0) return;
+  if (projection?.kind === taskLedger.LEDGER_KIND) {
+    return importTeamLedger
+      ? taskLedger.syncTaskLedger(db, { rootDir })
+      : taskLedger.inspectTaskLedger(db, { rootDir });
+  }
+  if (authoritativeCount > 0 || !projection || projection.taskCount === 0) return null;
 
   const details = {
     authoritative_task_count: authoritativeCount,
     legacy_task_count: projection.taskCount,
     projection_path: projection.path,
     projection_version: projection.version,
+    projection_kind: projection.kind,
   };
   const migrationTargets = {
     '4.4': '4.5',

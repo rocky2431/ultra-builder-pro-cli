@@ -1,16 +1,17 @@
 # Ultra Builder Pro workflow hooks
 
 These hooks observe only Ultra-owned state. Session health/context recognizes an initialized
-`.ultra/.runtime/state.db` and active continuous changes. Direct projection writes remain blocked;
-context, compact, stop, and subagent lifecycle behavior is recovery-oriented and does not turn
-advisory workflow conditions into refusal gates.
+`.ultra/.runtime/state.db` and active continuous changes. Direct writes to the MCP-owned Git
+checkpoint and checkout-local projections remain blocked; context, compact, stop, and subagent
+lifecycle behavior is recovery-oriented and does not turn advisory workflow conditions into
+refusal gates.
 
 | Lifecycle | Hook | Purpose |
 |---|---|---|
 | Session start | `health_check.py` | Read-only integrity, incident, projection, session, and change-artifact checks |
 | Shared helper | `context_spine.py` | Read the latest role/gate/readiness snapshot from state.db and derive one compact breadcrumb |
 | Session start | `workflow_context.py` | Inject the DB-derived breadcrumb with bounded normalized accepted intent, never raw interaction or provider payloads |
-| Before edit | `active_task_context.py` | Protect `tasks.json` and restate the same DB-derived task breadcrumb |
+| Before edit | `active_task_context.py` | Protect `.ultra/tasks/tasks.json` (Git team checkpoint) and `.ultra/.runtime/projections/tasks.json` (local view), then restate the same DB-derived task breadcrumb |
 | Before compact | `workflow_checkpoint.py` | Validate and atomically save a minimal workflow checkpoint |
 | After compact/resume | `workflow_resume.py` | Prefer the DB breadcrumb; restore the minimal file checkpoint only when no active change owns recovery |
 | Stop | `pre_stop_check.py` | Report an incomplete workflow boundary and allow stop |

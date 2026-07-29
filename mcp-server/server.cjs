@@ -22,6 +22,7 @@ const {
 const { assertStateAuthority } = require('./lib/state-authority.cjs');
 const ops = require('./lib/state-ops.cjs');
 const projector = require('./lib/projector.cjs');
+const taskLedger = require('./lib/task-ledger.cjs');
 const telemetry = require('./lib/telemetry.cjs');
 const topo = require('./lib/topo.cjs');
 const parser = require('./lib/prd-parser.cjs');
@@ -62,6 +63,9 @@ const TASK_TOOLS = Object.freeze([
   'task.dependency_topo',
   'task.parse_prd',
   'task.expand',
+  'task.ledger_get',
+  'task.ledger_publish',
+  'task.ledger_import',
 ]);
 
 const SESSION_TOOLS = Object.freeze([
@@ -148,6 +152,7 @@ const STATELESS_TOOLS = new Set(['task.init_project']);
 const MUTATING_TOOLS = new Set([
   'task.create', 'task.update', 'task.delete', 'task.append_event', 'task.switch_tag',
   'task.parse_prd', 'task.expand',
+  'task.ledger_import',
   'session.spawn', 'session.close', 'session.heartbeat',
   'plan.export',
   'baseline.start', 'baseline.record', 'baseline.converge',
@@ -159,6 +164,14 @@ const MUTATING_TOOLS = new Set([
   'workflow.start', 'workflow.step', 'workflow.revise', 'workflow.supersede',
   'workflow.complete',
   'artifact.record',
+]);
+
+const TEAM_LEDGER_SYNC_TOOLS = new Set([
+  'task.create', 'task.update', 'task.delete', 'task.parse_prd', 'task.expand',
+  'plan.export',
+  'baseline.start', 'baseline.record', 'baseline.converge',
+  'change.create', 'change.update', 'change.delta', 'change.documentation_reconcile',
+  'change.converge', 'change.archive',
 ]);
 
 function loadRegisteredTools() {
@@ -184,7 +197,18 @@ async function dispatchTool(name, input, db, ctx = {}) {
       return { id: task.id, status: task.status, created_at: task.created_at };
     }
     case 'task.update': {
+      const before = ops.readTask(db, input.id);
       const task = ops.patchTask(db, input.id, input.patch || {});
+      const durableChanged = before
+        && taskLedger.durableTask(before).digest !== taskLedger.durableTask(task).digest;
+      if (durableChanged) {
+        taskLedger.publishTaskLedger(db, {
+          rootDir: ctx.rootDir || process.cwd(),
+          reason: before.status !== task.status
+            ? `task_${task.status}`
+            : 'task_contract_updated',
+        });
+      }
       return { ok: true, task };
     }
     case 'task.list': {
@@ -201,7 +225,12 @@ async function dispatchTool(name, input, db, ctx = {}) {
       return { task };
     }
     case 'task.delete': {
-      return ops.deleteTask(db, input.id, { force: !!input.force });
+      const result = ops.deleteTask(db, input.id, { force: !!input.force });
+      taskLedger.publishTaskLedger(db, {
+        rootDir: ctx.rootDir || process.cwd(),
+        reason: 'task_deleted',
+      });
+      return result;
     }
     case 'task.init_project': {
       return initProject(input);
@@ -411,7 +440,57 @@ async function dispatchTool(name, input, db, ctx = {}) {
         children: input.children,
         rootDir,
       });
+      taskLedger.publishTaskLedger(db, {
+        rootDir,
+        reason: 'task_expanded',
+      });
       return { parent_id: result.parent_id, children: result.children };
+    }
+    case 'task.ledger_get': {
+      const rootDir = ctx.rootDir || process.cwd();
+      return {
+        ledger: taskLedger.readTaskLedger(rootDir),
+        health: taskLedger.inspectTaskLedger(db, { rootDir }),
+      };
+    }
+    case 'task.ledger_publish': {
+      const result = taskLedger.publishTaskLedger(db, {
+        rootDir: ctx.rootDir || process.cwd(),
+        reason: input.reason || 'manual_checkpoint',
+      });
+      const output = {
+        changed: result.changed,
+        path: path.relative(ctx.rootDir || process.cwd(), result.path),
+        generation: result.ledger.generation,
+        state_digest: result.ledger.state_digest,
+      };
+      if (result.migrated_legacy_projection) {
+        output.migrated_legacy_projection = true;
+        output.legacy_backup_path = path.relative(
+          ctx.rootDir || process.cwd(),
+          result.legacy_backup_path,
+        );
+      }
+      return output;
+    }
+    case 'task.ledger_import': {
+      const result = taskLedger.importTaskLedger(db, {
+        rootDir: ctx.rootDir || process.cwd(),
+      });
+      return {
+        imported: result.imported,
+        preserved: result.preserved,
+        deleted: result.deleted,
+        imported_changes: result.imported_changes,
+        preserved_changes: result.preserved_changes,
+        imported_baseline: result.imported_baseline,
+        preserved_baseline: result.preserved_baseline,
+        generation: result.generation,
+        state_digest: result.state_digest,
+        requires_plan_revalidation: result.requires_plan_revalidation,
+        requires_baseline_revalidation: result.requires_baseline_revalidation,
+        already_current: result.already_current,
+      };
     }
     case 'plan.export': {
       const rootDir = ctx.rootDir || process.cwd();
@@ -572,6 +651,10 @@ async function dispatchTool(name, input, db, ctx = {}) {
         // caller must see a typed failure and later mutations must stop.
         throw error;
       }
+      taskLedger.publishTaskLedger(db, {
+        rootDir,
+        reason: 'plan_accepted',
+      });
       return {
         plan_path: publication.plan_path,
         plan_md_path: publication.plan_md_path,
@@ -626,21 +709,42 @@ async function dispatchTool(name, input, db, ctx = {}) {
       };
     }
     case 'baseline.converge': {
-      return baselines.convergeBaseline(
+      const result = baselines.convergeBaseline(
         db, input, { rootDir: ctx.rootDir || process.cwd() },
       );
+      if (result.ready) {
+        taskLedger.publishTaskLedger(db, {
+          rootDir: ctx.rootDir || process.cwd(),
+          reason: 'baseline_converged',
+        });
+      }
+      return result;
     }
     case 'change.create': {
       const { randomUUID } = require('node:crypto');
       const id = input.id || `chg-${randomUUID().slice(0, 12)}`;
-      return changes.createChange(db, { ...input, id }, { rootDir: ctx.rootDir || process.cwd() });
+      const result = changes.createChange(
+        db,
+        { ...input, id },
+        { rootDir: ctx.rootDir || process.cwd() },
+      );
+      taskLedger.publishTaskLedger(db, {
+        rootDir: ctx.rootDir || process.cwd(),
+        reason: 'change_created',
+      });
+      return result;
     }
     case 'change.update': {
+      const change = changes.updateChange(
+        db, input.id, input.patch || {}, { rootDir: ctx.rootDir || process.cwd() },
+      );
+      taskLedger.publishTaskLedger(db, {
+        rootDir: ctx.rootDir || process.cwd(),
+        reason: 'change_updated',
+      });
       return {
         ok: true,
-        change: changes.updateChange(
-          db, input.id, input.patch || {}, { rootDir: ctx.rootDir || process.cwd() },
-        ),
+        change,
       };
     }
     case 'change.get': {
@@ -691,10 +795,24 @@ async function dispatchTool(name, input, db, ctx = {}) {
       };
     }
     case 'change.converge': {
-      return changes.convergeChange(db, input, { rootDir: ctx.rootDir || process.cwd() });
+      const result = changes.convergeChange(
+        db, input, { rootDir: ctx.rootDir || process.cwd() },
+      );
+      taskLedger.publishTaskLedger(db, {
+        rootDir: ctx.rootDir || process.cwd(),
+        reason: 'change_converged',
+      });
+      return result;
     }
     case 'change.archive': {
-      return changes.archiveChange(db, input, { rootDir: ctx.rootDir || process.cwd() });
+      const result = changes.archiveChange(
+        db, input, { rootDir: ctx.rootDir || process.cwd() },
+      );
+      taskLedger.publishTaskLedger(db, {
+        rootDir: ctx.rootDir || process.cwd(),
+        reason: 'change_archived',
+      });
+      return result;
     }
     case 'change.delta': {
       return changes.recordDelta(db, input, { rootDir: ctx.rootDir || process.cwd() });
@@ -874,6 +992,17 @@ function startServer({
         });
       }
       db = initStateDb(authorityDbPath).db;
+      const teamSync = assertStateAuthority(db, rootDir, { importTeamLedger: true });
+      if (teamSync?.status === 'imported') {
+        runtimeState.enqueueProjection(db, {
+          tool_name: 'task.ledger_import',
+        });
+        runtimeState.processProjectionJobs(db, {
+          rootDir,
+          project,
+          limit: 500,
+        });
+      }
       planRecovery = planStore.recoverPlanPublications(db, { rootDir });
     }
     if (toolName !== 'system.doctor'
@@ -954,6 +1083,9 @@ function startServer({
     try {
       toolDb = STATELESS_TOOLS.has(name) ? null : getDb(name);
       if (toolDb) assertStateAuthority(toolDb, rootDir);
+      if (toolDb && TEAM_LEDGER_SYNC_TOOLS.has(name)) {
+        taskLedger.syncTaskLedger(toolDb, { rootDir });
+      }
       result = await dispatchTool(
         name,
         args,
@@ -976,7 +1108,11 @@ function startServer({
     }
 
     let runtimeMeta = null;
-    if (toolDb && projectOnWrite && MUTATING_TOOLS.has(name)) {
+    const shouldProject = toolDb
+      && projectOnWrite
+      && MUTATING_TOOLS.has(name)
+      && !(name === 'task.ledger_import' && result.already_current === true);
+    if (shouldProject) {
       const job = runtimeState.enqueueProjection(toolDb, { tool_name: name });
       const processed = runtimeState.processProjectionJobs(toolDb, { rootDir, project, limit: 500 });
       const own = processed.jobs.find((item) => item.id === job.id);

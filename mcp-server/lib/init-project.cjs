@@ -17,6 +17,7 @@ const Database = require('better-sqlite3');
 
 const { EXPECTED_VERSION, initStateDb } = require('./state-db.cjs');
 const { assertStateAuthority, inspectProjection } = require('./state-authority.cjs');
+const taskLedger = require('./task-ledger.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const gitBootstrap = require('./git-bootstrap.cjs');
 const runtimePaths = require('./runtime-paths.cjs');
@@ -417,6 +418,8 @@ function createResumeSnapshot(ultraDir, stateDbPath) {
   const projectionTargets = [
     path.join('tasks', 'tasks.json'),
     path.join('tasks', 'contexts'),
+    path.join('.runtime', 'projections'),
+    path.join('.runtime', 'backups', 'task-ledger'),
   ];
   let db;
   try {
@@ -621,6 +624,7 @@ function resumeProject({
   let copiedFiles = [];
   let baselineResult;
   let workflowResult;
+  let teamCheckpoint;
   let resumeSnapshot;
   const completeResume = () => {
     try {
@@ -631,7 +635,11 @@ function resumeProject({
       }
       initialized = initStateDb(stateDbPath);
       const { db } = initialized;
-      if (projection && projection.taskCount > 0) assertStateAuthority(db, absTarget);
+      if (projection && (
+        projection.taskCount > 0 || projection.kind === taskLedger.LEDGER_KIND
+      )) {
+        teamCheckpoint = assertStateAuthority(db, absTarget, { importTeamLedger: true });
+      }
       copiedFiles = copyMissingTemplate(source, ultraDir);
       validateTasksTemplate(ultraDir);
       repositoryProfile.git = gitSetup.result;
@@ -653,6 +661,26 @@ function resumeProject({
         }, { rootDir: absTarget });
       }
       workflowResult = ensureInitializationWorkflows(db, baselineResult, { rootDir: absTarget });
+      if (projection?.kind === 'legacy-task-projection') {
+        const publication = taskLedger.publishTaskLedger(db, {
+          rootDir: absTarget,
+          reason: 'legacy_projection_upgraded',
+        });
+        teamCheckpoint = {
+          generation: publication.ledger.generation,
+          state_digest: publication.ledger.state_digest,
+          imported: 0,
+          deleted: 0,
+          imported_changes: 0,
+          imported_baseline: false,
+          requires_plan_revalidation: false,
+          requires_baseline_revalidation: false,
+          already_current: true,
+          published: publication.changed,
+          migrated_legacy_projection: Boolean(publication.migrated_legacy_projection),
+          legacy_backup_path: publication.legacy_backup_path || null,
+        };
+      }
       ops.appendEvent(db, {
         type: 'project_resumed',
         payload: {
@@ -687,7 +715,12 @@ function resumeProject({
         }
       }
       const rollbackErrors = [...stateRollbackErrors, ...gitRollbackErrors];
-      if (error.code && ['LEGACY_STATE_MIGRATION_REQUIRED', 'STATE_AUTHORITY_CONFLICT', 'STATE_PROJECTION_INVALID'].includes(error.code)) {
+      if (error instanceof taskLedger.TaskLedgerError
+          || (error.code && [
+            'LEGACY_STATE_MIGRATION_REQUIRED',
+            'STATE_AUTHORITY_CONFLICT',
+            'STATE_PROJECTION_INVALID',
+          ].includes(error.code))) {
         throw new InitProjectError(
           error.code,
           error.message,
@@ -751,6 +784,22 @@ function resumeProject({
     git: gitSetup.result,
     workflow: workflowResult,
   };
+  if (teamCheckpoint) {
+    result.team_checkpoint = {
+      generation: teamCheckpoint.generation,
+      state_digest: teamCheckpoint.state_digest,
+      imported_tasks: teamCheckpoint.imported,
+      deleted_tasks: teamCheckpoint.deleted,
+      imported_changes: teamCheckpoint.imported_changes,
+      imported_baseline: teamCheckpoint.imported_baseline,
+      requires_plan_revalidation: teamCheckpoint.requires_plan_revalidation,
+      requires_baseline_revalidation: teamCheckpoint.requires_baseline_revalidation,
+      already_current: teamCheckpoint.already_current,
+      published: Boolean(teamCheckpoint.published),
+      migrated_legacy_projection: Boolean(teamCheckpoint.migrated_legacy_projection),
+      legacy_backup_path: teamCheckpoint.legacy_backup_path || undefined,
+    };
+  }
   if (initialized.backup_path) result.migration_backup_path = initialized.backup_path;
   if (runtimeLayout.backupPath) {
     result.runtime_migration_backup_path = runtimeLayout.backupPath;
@@ -815,6 +864,7 @@ function initProject({
       );
     }
     if (projection && projection.taskCount > 0
+      && projection.kind !== taskLedger.LEDGER_KIND
       && !fs.existsSync(locatedStatePath)) {
       throw projectionMigrationError(projection);
     }

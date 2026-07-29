@@ -11,16 +11,18 @@ release-version authority.
 |---|---|---|
 | User intent | Goals, acceptance, non-goals, semantic route selection, material product trade-offs, risk acceptance, and authorization for irreversible or external effects | Facts that the current checkout or runtime can establish directly |
 | Host model | Classification and route recommendations, investigation, solution design, task decomposition, context, test and review strategy, documentation impact, intent normalization, and next-action recommendations | Fabricated evidence, bypassed authorization, or durable lifecycle state |
-| Ultra MCP | IDs, state, digests, provenance, freshness, locks, leases, transactions, recovery, and legal state transitions | Product direction, a fixed research route, technology selection, or business decisions |
+| Ultra MCP | IDs, checkout-local state, digests, provenance, freshness, locks, leases, transactions, recovery, legal state transitions, and Git checkpoint publish/import | Product direction, a fixed research route, technology selection, or business decisions |
 | Host adapter | Native Skill discovery, user-question surfaces, tool invocation, installation, and runtime wiring | A second project-state authority |
-| Hook | Lifecycle observation, compact DB-derived context, recovery hints, and generated-projection protection | Ordinary development blocking or semantic route selection |
+| Hook | Lifecycle observation, compact DB-derived context, recovery hints, and protection of MCP-owned checkpoint/projection paths | Ordinary development blocking or semantic route selection |
 
 `.ultra/` is project-local cross-session workflow memory. `.ultra/.runtime/state.db` is
-the only lifecycle, index, transition, freshness, and coordination authority.
-Registered digest-bound files carry semantic or evidence bodies; generated
-projections and working scratch are not authority. Prompt text, chat history,
-general external-memory payloads, and code-graph payloads are not Ultra
-authority. See [`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
+checkout-local lifecycle, index, transition, freshness, and coordination authority.
+Registered digest-bound files carry semantic or evidence bodies.
+`.ultra/tasks/tasks.json` is the MCP-published Git handoff for portable baseline,
+Change, and durable task records, never live session state. Generated projections and
+working scratch are not authority. Prompt text, chat history, general external-memory
+payloads, and code-graph payloads are not Ultra authority. See
+[`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
 
 ## Research coverage
 

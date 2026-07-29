@@ -53,6 +53,9 @@ The following are deliberate extensions built on the original spine:
 9. Native adapters for Claude Code, OpenCode, Codex, and Kimi Code.
 10. Explicit worktree admission, leases, heartbeats, crash evidence, circuit breaking,
     dependency waves, and optional verified cleanup.
+11. A digest-chained Git team checkpoint that keeps the original shareable task-ledger
+    benefit without committing SQLite, leases, sessions, or live `in_progress`
+    ownership.
 
 ## Intentionally retired original baggage
 
@@ -85,6 +88,7 @@ route only for a unique mechanical recovery invariant.
 task.init_project
   -> greenfield classification
   -> Git bootstrap when absent
+  -> empty or imported team checkpoint
   -> init read-back and completion
   -> explicit full research with a model-recommended, owner-selected route
   -> selected execute/verify/reuse work and synthesis
@@ -101,6 +105,7 @@ task.init_project
 task.init_project
   -> brownfield classification and selected scope
   -> preserve current Git HEAD and dirty-state evidence
+  -> import portable team state and require local baseline revalidation when cloned
   -> init read-back and completion
   -> explicit adoption research with a model-recommended, owner-selected route
   -> characterization verification + known-red/gap ledger
@@ -123,13 +128,13 @@ doctor/migrate with backup
 
 ```text
 status
-  -> change intent capture
+  -> checkpoint condition + change intent capture
   -> material alignment only when unresolved
   -> model-recommended, owner-selected or delegated bounded research, plan,
      current dev work, think, or status
   -> session.spawn creates the real task worktree
   -> red/green/verify/review
-  -> local task commit and verified integration
+  -> durable task checkpoint + one local task commit + local hash backfill
   -> safe session close
   -> aggregate test -> review -> deliver
   -> atomic baseline reconciliation
@@ -156,6 +161,9 @@ status
 | Failure returned a task to pending without recovery evidence | Exit and spawn failures become `blocked` and record session-linked circuit-breaker evidence. |
 | A late resume failure could leave refreshed DB metadata behind | Resume snapshots DB authority and generated projections, then restores both together with Git rollback. |
 | A legacy schema migrated before a later resume failure | Resume restores the pre-migration backup, not the partially completed upgraded intermediate state. |
+| Tracked `tasks.json` made every Ultra write dirty and every metadata commit stale the baseline | Live projections moved below ignored `.ultra/.runtime/projections/`; the tracked file became a low-frequency MCP checkpoint, and baseline freshness excludes `.ultra` while still checking scoped source bytes plus Git ancestry. |
+| A local SQLite DB could not hand baseline, Change, and task authority to another checkout | The Git checkpoint carries portable records with per-record digests and ancestry; import fast-forwards clean records, rejects concurrency, and revalidates every ready baseline locally. |
+| A completed task needed a second commit to record its own commit hash | Durable task outcome enters the same task commit; the resulting hash is backfilled only into local SQLite/projections, so no self-referential metadata commit is created. |
 
 ## Advancement rule
 

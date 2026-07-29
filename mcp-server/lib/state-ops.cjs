@@ -518,7 +518,12 @@ function patchTask(db, id, patch = {}) {
     }
     if (nextStatus !== null) {
       const allowed = STATUS_TRANSITIONS[current.status] || new Set();
-      if (!allowed.has(nextStatus) && nextStatus !== current.status) {
+      const recoveringUncommittedCompletion = current.status === 'completed'
+        && nextStatus === 'blocked'
+        && !current.completion_commit
+        && Boolean(current.session_id);
+      if (!allowed.has(nextStatus) && nextStatus !== current.status
+          && !recoveringUncommittedCompletion) {
         throw new StateOpsError(
           'ILLEGAL_STATUS_TRANSITION',
           `cannot transition task ${id} from ${current.status} to ${nextStatus}`,

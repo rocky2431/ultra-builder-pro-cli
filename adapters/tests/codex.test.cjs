@@ -180,7 +180,10 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
     const status = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-status', 'SKILL.md'), 'utf8');
     assert.doesNotMatch(plan, /LEGACY_STATE_MIGRATION_REQUIRED|v4\.4|v4\.5/);
     assert.match(plan, /Never read or\s+write .*tasks\.json/i);
-    assert.match(status, /Never fall\s+back to generated task JSON/i);
+    assert.match(
+      status,
+      /Never fall\s+back to the Git team checkpoint,\s+generated task\s+JSON/i,
+    );
 
     const coreWorkflowText = [
       ...COMMANDS,
@@ -297,8 +300,8 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
     const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
     const interaction = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'interaction-contract.json'), 'utf8'));
-    assert.equal(liveSpec.tools.length, 57);
-    assert.equal(upstreamSpec.tools.length, 57);
+    assert.equal(liveSpec.tools.length, 60);
+    assert.equal(upstreamSpec.tools.length, 60);
     assert.deepEqual(upstreamSpec.tools.map((tool) => tool.name).sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
     assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);

@@ -26,8 +26,10 @@ not put it in a plugin until that allowlist classifies it.
 
 ```text
 native command or skill -> MCP workflow-state operation -> .ultra/.runtime/state.db
+                                      | \
+                                      |  -> .ultra/tasks/tasks.json (Git checkpoint)
+                                      |  -> .ultra/.runtime/projections/ (local views)
                                       ^
-                                      |
               selected CLI init / doctor / diagnostics / orchestration
 ```
 
@@ -39,23 +41,25 @@ native command or skill -> MCP workflow-state operation -> .ultra/.runtime/state
 
 `.ultra/` is project-local cross-session workflow memory for normalized intent,
 progress, tasks, bounded context, specifications, evidence, provenance, and recovery.
-`.ultra/.runtime/state.db` is the only lifecycle, index, transition, freshness, and
-coordination authority for baselines, changes, decisions, tasks, workflow runs/steps,
-sessions, events, incidents, projection jobs/cursors, telemetry, review evidence, and
-circuit-breaker state. Registered digest-bound specifications and reports carry
-semantic or evidence bodies. `tasks.json`, generated task-context files, runtime
-checkpoints, and collaboration scratch are not independent authority. See
+`.ultra/.runtime/state.db` is checkout-local lifecycle, index, transition, freshness,
+and coordination authority for baselines, changes, decisions, tasks, workflow
+runs/steps, sessions, events, incidents, projection jobs/cursors, telemetry, review
+evidence, and circuit-breaker state. Registered digest-bound specifications and
+reports carry semantic or evidence bodies. `.ultra/tasks/tasks.json` is the
+MCP-published portable baseline/Change/task checkpoint; it is not live lease or session
+authority. Generated task views, runtime checkpoints, and collaboration scratch are
+not independent authority. See
 [`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
 
 ## 3. Live MCP and declared contracts
 
-`spec/mcp-tools.yaml` declares and the bundled server registers 57 tools across
+`spec/mcp-tools.yaml` declares and the bundled server registers 60 tools across
 nine families:
 
 | Family | Live tools |
 |---|---|
 | `baseline.*` | start, record, get, converge |
-| `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events |
+| `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events, ledger_get, ledger_publish, ledger_import |
 | `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
 | `change.*` | create, update, delta, documentation_reconcile, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
 | `decision.*` | thread_start, get, list, open, resolve, delegate, defer, supersede, complete, checkpoint |
@@ -176,10 +180,11 @@ OpenCode plugin invoke the same bundled JavaScript `change.breadcrumb` reader
 through the thin `context_spine.py` bridge. No hook reimplements the state query.
 `health_check.py` and
 `workflow_context.py` may inspect any initialized project;
-`active_task_context.py` always protects the task projection but limits ordinary
+`active_task_context.py` protects both the MCP-owned Git checkpoint and local task
+projection but limits ordinary
 edit guidance to an active workflow. Compact/stop/subagent hooks remain
 active-workflow scoped. OpenCode natively injects baseline/change context and
-protects the projection; full health inspection is available through
+protects both managed task paths; full health inspection is available through
 `system.doctor` rather than a session-start health hook.
 Advisory baseline or context-budget warnings are presentation only and never
 reject an edit, stop, or tool call.
@@ -213,14 +218,18 @@ sessions never call it, and it cannot collect, recall, or reflect memory.
 .ultra/
 ├── .runtime/
 │   ├── state.db             # authoritative SQLite lifecycle/index store
-│   └── checkpoint.json      # advisory breadcrumb recovery projection
+│   ├── checkpoint.json      # advisory breadcrumb recovery projection
+│   └── projections/         # generated checkout-local task views
 ├── changes/
 │   ├── active/<id>/         # all Change semantics and evidence
 │   │   ├── intent.md, findings.md, progress.md
 │   │   ├── research/, delta/, documentation/, plan.json, plan.md
 │   │   └── contexts/, test/, review/, delivery/
 │   └── archive/             # converged packets after baseline reconciliation
-├── tasks/                   # projections and task contexts
+├── tasks/
+│   └── tasks.json           # MCP-published Git team checkpoint
+├── templates/
+│   └── task-context.md      # authored task-context template
 ├── specs/                   # research/product/architecture artifacts
 └── reports/templates/      # blank report schemas; never evidence
 ```

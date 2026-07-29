@@ -13,7 +13,7 @@ An adapter may write only:
 
 The first command allowed to create project authority is `ultra-init`. Once invoked,
 Ultra owns only the repository-local `.ultra/` workflow-memory envelope and its
-generated projections.
+MCP-published checkpoint plus generated local projections.
 
 ## Surfaces Ultra does not own
 
@@ -48,7 +48,8 @@ Internal review-rule skills remain available only to their bounded workers.
 Outside a repository containing `.ultra/.runtime/state.db`, all Ultra hooks are silent. Inside
 an initialized repository they remain silent unless a DB-authoritative workflow is
 active, blocked, or ready. The sole idle-time enforcement is protection against direct
-writes to generated Ultra projections; the DB remains authoritative.
+writes to the MCP-owned team checkpoint or generated Ultra projections; the DB remains
+checkout-local operational authority.
 
 Installation tests preserve byte-for-byte snapshots of all supported user handbook
 paths. Runtime tests cover explicit activation, idle silence, active recovery, and

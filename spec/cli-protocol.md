@@ -91,6 +91,9 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `task.expand`             | `task expand`               | 8a    | mcp     |
 | `task.parse_prd`          | `task parse-prd`            | 8a    | mcp     |
 | `task.dependency_topo`    | `task topo`                 | 8a    | mcp     |
+| `task.ledger_get`         | `task ledger-get`           | 21    | any     |
+| `task.ledger_publish`     | `task ledger-publish`       | 21    | mcp     |
+| `task.ledger_import`      | `task ledger-import`        | 21    | mcp     |
 | `task.append_event`       | `task append-event`         | 2     | any (allowlisted observations only) |
 | `task.subscribe_events`   | `task subscribe`            | 2     | any     |
 | `session.spawn`           | `session spawn`             | 4.5   | mcp     |

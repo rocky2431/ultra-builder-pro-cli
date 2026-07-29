@@ -5,16 +5,16 @@ description: Build or refresh an evidence-backed product and architecture baseli
 
 # Research with adaptive coverage
 
-The model owns investigation, synthesis, and coverage recommendations; the user owns
-the accepted semantic route and material deferrals. MCP owns run state, evidence,
-semantic records, digests, freshness, and convergence, not a questionnaire.
+The model owns investigation, synthesis, and coverage recommendations; the user owns the accepted semantic route and material deferrals.
+MCP owns run state, evidence, semantic records, digests, freshness, and convergence, not a questionnaire.
 
 Read `../ultra-think/references/decision-dialogue.md` before asking a material question.
 
 ## Bind authority
 
-1. Read `system.doctor`, `baseline.get`, breadcrumb `accepted_intent`, active decisions,
-   and existing research runs.
+1. Read `system.doctor`, `task.ledger_get`, `baseline.get`, breadcrumb
+   `accepted_intent`, active decisions, and existing research runs. Import a newer
+   descendant team checkpoint before binding coverage; stop on a typed merge conflict.
 2. Resume the matching active, blocked, or ready run. Do not create parallel authority.
 3. If none exists, use `full` for greenfield, `adoption` for brownfield, or a bounded
    mode only for a recorded active-Change disposition. Focused baseline coverage
@@ -35,8 +35,7 @@ Read `../ultra-think/references/decision-dialogue.md` before asking a material q
 8. Read back the created workflow and accepted coverage. When a durable decision thread
    recorded the route, complete it with the workflow reference in `applied_refs`.
 
-`99-synthesis` must execute, verify, or reuse. A missing disposition is a coverage
-error only for an included area; a recorded exclusion with evidence is not incomplete.
+`99-synthesis` must execute, verify, or reuse. A missing disposition is a coverage error only for an included area; a recorded exclusion with evidence is not incomplete.
 
 ## Coverage catalog
 
@@ -102,7 +101,9 @@ run as blocked with `BASELINE_GIT_HEAD_REQUIRED`.
 Call `baseline.converge` only when the user has accepted the exact baseline snapshot,
 known failures, blocking gaps, and scope. Reuse an unambiguous current approval; do not
 ask twice. MCP must reject stale research, drift, missing evidence, and unaccepted
-failures.
+failures. Successful convergence publishes the portable baseline, Changes, and tasks
+to the Git team checkpoint; the receiving checkout must still revalidate a ready
+baseline against its own HEAD and files.
 
 Reuse the final research acceptance or current artifact checkpoint during baseline
 convergence; do not ask for an equivalent approval again. After initial or adoption
@@ -110,10 +111,8 @@ convergence, `ultra-change` becomes an available transition. Bounded change rese
 returns to its owning Change authority; the next route is still `ultra-plan`, never
 direct implementation.
 
-Return a compact coverage summary by disposition, current evidence or decision
-blocker, baseline state, gaps, and allowed transitions. Recommend a semantic next
-action from those transitions. If current intent does not already select it, present
-the recommendation and credible alternatives through the interaction protocol, then
-wait. MCP supplies only valid and required transitions.
+Return a compact coverage summary by disposition, current evidence or decision blocker, baseline state, gaps, and allowed transitions.
+Recommend a semantic next action from those transitions. If current intent does not already select it, present the recommendation
+and credible alternatives through the interaction protocol, then wait. MCP supplies only valid and required transitions.
 
 Never invoke the recommended capability here; wait for an explicit user invocation.

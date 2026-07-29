@@ -576,6 +576,94 @@ test('ready baseline detects source evidence drift without a new commit', () => 
   }
 });
 
+test('ready baseline accepts descendant commits that only publish Ultra task metadata', () => {
+  const fx = fixture();
+  try {
+    baselines.startBaseline(fx.db, {
+      id: 'metadata-only', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision, scope: ['.'],
+    }, { rootDir: fx.rootDir });
+    completeResearch(fx, 'metadata-only');
+    baselines.recordBaseline(fx.db, {
+      id: 'metadata-only', repository_revision: fx.revision, ...adoptionEvidence(),
+    }, { rootDir: fx.rootDir });
+    baselines.convergeBaseline(fx.db, {
+      id: 'metadata-only', expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Approve source and specification evidence.',
+    }, { rootDir: fx.rootDir });
+
+    fs.mkdirSync(path.join(fx.rootDir, '.ultra', 'tasks'), { recursive: true });
+    fs.writeFileSync(
+      path.join(fx.rootDir, '.ultra', 'tasks', 'tasks.json'),
+      '{"kind":"ultra-team-task-ledger","tasks":[]}\n',
+    );
+    execFileSync('git', ['add', '.ultra/tasks/tasks.json'], { cwd: fx.rootDir });
+    execFileSync('git', ['commit', '-q', '-m', 'chore: publish Ultra task ledger'], {
+      cwd: fx.rootDir,
+    });
+
+    const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.equal(health.status, 'pass');
+    assert.equal(health.blockers.includes('BASELINE_HEAD_STALE'), false);
+    assert.equal(health.blockers.includes('BASELINE_WORKTREE_STALE'), false);
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('ready baseline rejects a descendant commit that changes scoped source', () => {
+  const fx = fixture();
+  try {
+    baselines.startBaseline(fx.db, {
+      id: 'source-commit', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision, scope: ['src'],
+    }, { rootDir: fx.rootDir });
+    completeResearch(fx, 'source-commit');
+    baselines.recordBaseline(fx.db, {
+      id: 'source-commit', repository_revision: fx.revision, ...adoptionEvidence(),
+    }, { rootDir: fx.rootDir });
+    baselines.convergeBaseline(fx.db, {
+      id: 'source-commit', expected_revision: fx.revision,
+      approved_by: 'project-owner', approval_note: 'Approve current source evidence.',
+    }, { rootDir: fx.rootDir });
+
+    fs.appendFileSync(path.join(fx.rootDir, 'src', 'index.js'), '// committed drift\n');
+    execFileSync('git', ['add', 'src/index.js'], { cwd: fx.rootDir });
+    execFileSync('git', ['commit', '-q', '-m', 'feat: change scoped source'], {
+      cwd: fx.rootDir,
+    });
+
+    const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.equal(health.status, 'fail');
+    assert.ok(health.blockers.includes('BASELINE_HEAD_STALE'));
+    assert.ok(health.blockers.includes('BASELINE_EVIDENCE_STALE:src/index.js'));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('scoped content digest is stable across unstaged, staged, and committed representations', () => {
+  const fx = fixture();
+  try {
+    fs.appendFileSync(path.join(fx.rootDir, 'src', 'index.js'), '// same bytes\n');
+    const unstaged = baselines.gitWorktreeSnapshot(fx.rootDir, ['src']);
+    execFileSync('git', ['add', 'src/index.js'], { cwd: fx.rootDir });
+    const staged = baselines.gitWorktreeSnapshot(fx.rootDir, ['src']);
+    execFileSync('git', ['commit', '-q', '-m', 'test: preserve content bytes'], {
+      cwd: fx.rootDir,
+    });
+    const committed = baselines.gitWorktreeSnapshot(fx.rootDir, ['src']);
+
+    assert.equal(staged.digest, unstaged.digest);
+    assert.equal(committed.digest, unstaged.digest);
+    assert.equal(unstaged.state, 'dirty');
+    assert.equal(staged.state, 'dirty');
+    assert.equal(committed.state, 'clean');
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('ready baseline without its completed research provenance is not healthy authority', () => {
   const fx = fixture();
   try {

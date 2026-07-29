@@ -1040,7 +1040,7 @@ test('archiveChange moves a ready change into immutable history and records base
       'git', ['rev-parse', 'HEAD'], { cwd: fx.rootDir, encoding: 'utf8' },
     ).trim();
     const drift = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
-    assert.ok(drift.blockers.includes('BASELINE_HEAD_STALE'));
+    assert.equal(drift.blockers.includes('BASELINE_HEAD_STALE'), false);
     assert.ok(drift.blockers.includes('BASELINE_SPEC_STALE:.ultra/specs/product.md'));
     createExecutableTask(fx.db, {
       id: 'archive-task', title: 'Complete archive path', type: 'bugfix', priority: 'P1',

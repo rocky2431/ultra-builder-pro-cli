@@ -10,8 +10,9 @@ push, tag, registry publication, deployment, or another external effect.
 
 ## Bind current evidence
 
-1. Read doctor, baseline, change, breadcrumb `accepted_intent`, decisions, tasks, test,
-   review, learning, and current checkout.
+1. Read doctor, `task.ledger_get`, baseline, change, breadcrumb `accepted_intent`,
+   decisions, tasks, test, review, learning, and current checkout. Import a newer
+   descendant checkpoint before convergence; stop on any typed merge conflict.
 2. Resume or start a deliver workflow bound to the change and baseline.
 3. Require complete task evidence, a current test report, both review axes, current
    context, and resolved material decisions. Record `bind-evidence`.
@@ -39,6 +40,7 @@ and recovery sanity. Record the immutable context under `verify-candidate`.
 
 Call `change.converge`; MCP derives readiness from durable dev, test, review,
 typed delta, documentation reconciliation, diagnosis, and current checkout evidence.
+Successful convergence publishes the current portable team checkpoint.
 Record
 `converge-authority` only when ready.
 
@@ -46,7 +48,8 @@ Call `change.archive` with the summary. MCP preflights all target before states 
 overlay digests, applies the complete packet atomically, refreshes baseline authority,
 rebinds every registered artifact into the self-contained archive, and rolls back or
 resumes from its transaction journal after interruption. A partial success is not
-delivery. Verify the refreshed baseline and archived packet, then record
+delivery. Archive publication refreshes the checkpoint with the archived Change and
+new baseline summary. Verify the refreshed baseline and archived packet, then record
 `archive-change`.
 
 Write `<archived-change-root>/delivery/<workflow-id>/report.json` with

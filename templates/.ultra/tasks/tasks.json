@@ -1,6 +1,13 @@
 {
-  "schema_version": "4.5",
-  "generated_at": "1970-01-01T00:00:00.000Z",
-  "source": ".ultra/.runtime/state.db",
+  "kind": "ultra-team-task-ledger",
+  "schema_version": "1.0",
+  "generation": 0,
+  "parent_digest": null,
+  "ancestors": [],
+  "state_digest": "5bf27fb3627b711c97abf72f0aad150ba693d35bcebdd57c2d80e325f495de6d",
+  "published_at": null,
+  "reason": "scaffold",
+  "baseline": null,
+  "changes": [],
   "tasks": []
 }
