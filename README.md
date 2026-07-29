@@ -59,14 +59,36 @@ session resumes from that authority instead of reconstructing it from chat.
 ## The mental model
 
 ```mermaid
-flowchart LR
-    U["User<br/>intent and material decisions"] <--> H["Host agent<br/>reasoning and implementation"]
-    H <--> S["Ultra skills<br/>task-specific workflows"]
-    S <--> M["Ultra MCP<br/>state, evidence, freshness, recovery"]
-    M <--> D[(".ultra/.runtime/state.db")]
-    H --> A["Code, specifications,<br/>tests and review artifacts"]
-    A --> M
-    K["Lifecycle hooks<br/>breadcrumb and projection protection"] --> M
+flowchart TB
+    U["User<br/>goals, acceptance, trade-offs, risk, and external authorization"]
+
+    subgraph HOST["Supported coding host"]
+        UI["Host-native interaction<br/>Claude Code / Codex / OpenCode / Kimi Code"]
+        MODEL["Host agent<br/>inspect, recommend, implement, test, and review"]
+        ADAPTER["Host adapter<br/>native questions, commands, tools, and lifecycle wiring"]
+    end
+
+    SKILLS["Eleven explicit Ultra Skills<br/>init / research / think / change / plan / dev<br/>test / review / deliver / status / doctor"]
+    MCP["Ultra MCP<br/>57 typed tools across nine families"]
+    DB[(".ultra/.runtime/state.db<br/>SQLite lifecycle and index authority")]
+    FILES["Digest-bound .ultra artifacts<br/>specification / research / change / plan / context<br/>test / review / delivery"]
+    HOOKS["Lifecycle hooks<br/>health, breadcrumbs, recovery hints, and projection protection"]
+    OPS["Operational tools<br/>ubp / ultra-tools / optional orchestrator"]
+    EXTERNAL["External memory and graph providers"]
+
+    U <-->|"intent, recommendation, and owner choice"| UI
+    UI <--> MODEL
+    ADAPTER --> UI
+    ADAPTER -.->|"discovers and presents"| SKILLS
+    MODEL -->|"explicit invocation"| SKILLS
+    SKILLS -->|"typed operations"| MCP
+    MCP <--> DB
+    MODEL -->|"writes semantic and evidence bodies"| FILES
+    MCP <-->|"registers owner, digest, provenance, and freshness"| FILES
+    HOOKS -->|"observes and records lifecycle events"| MCP
+    OPS -->|"installation"| ADAPTER
+    OPS -->|"diagnosis, recovery, and approved dispatch"| MCP
+    EXTERNAL -.->|"bounded provider references only"| DB
 ```
 
 The responsibility split is deliberate:
@@ -82,6 +104,29 @@ The responsibility split is deliberate:
 The MCP does not replace the model's judgment. A hook does not decide product
 strategy. A prompt does not become durable authority merely because it appeared
 in a conversation.
+
+### How owner intent becomes durable authority
+
+```mermaid
+flowchart TD
+    CURRENT["Current Ultra workflow"] --> INSPECT["Host model inspects code, documents, and current authority"]
+    INSPECT --> SUGGEST["Model recommends a route and explains its consequences"]
+    SUGGEST --> CLEAR{"Is current owner intent already explicit?"}
+    CLEAR -->|"Yes"| NORMALIZE["Normalize the accepted intent"]
+    CLEAR -->|"No: a material choice remains"| ASK["Ask one dependent question through the host-native question tool"]
+    ASK --> NORMALIZE
+    NORMALIZE --> DECISION["Persist the normalized result through decision.*"]
+    DECISION --> APPLY["Apply it through the owning MCP operation or digest-bound artifact"]
+    APPLY --> AUTHORITY["Bind state, artifact digest, provenance, and downstream effects"]
+    AUTHORITY --> READBACK["Read back the authoritative result"]
+    READBACK --> RESUME["Resume the exact workflow step and recommend the next explicit capability"]
+```
+
+The interaction before the write establishes owner intent. Once the host model
+normalizes and persists that intent, MCP treats the stored result as current
+authority; it does not try to prove that the owner clicked a particular UI
+control. Ultra stores the accepted result and its scope, evidence, provenance,
+and effects—not chain-of-thought, raw prompts, transcripts, or UI receipts.
 
 ## What you get
 
@@ -311,6 +356,61 @@ These eleven capabilities are the complete public Ultra command graph. Each capa
 returns current `allowed_transitions`; the host may recommend one, but another public
 capability starts only after an explicit user command or skill invocation.
 
+### Command interaction graph
+
+Every solid handoff below means: the current capability returns
+`allowed_transitions`, the model recommends a route, and the owner explicitly
+invokes the next public capability. It does not mean that one public command
+silently launches another.
+
+```mermaid
+flowchart TD
+    START["Project entry"] --> INIT["ultra-init"]
+    INIT --> CLASSIFY{"Repository classification"}
+
+    CLASSIFY -->|"Greenfield"| GREEN["Create scaffold<br/>verify Git and project authority"]
+    CLASSIFY -->|"Brownfield"| BROWN["Preserve the delivered system<br/>bootstrap adoption authority"]
+    CLASSIFY -->|"Legacy or damaged authority"| REPAIR["ultra-doctor<br/>migrate, recover, or rebaseline"]
+    REPAIR --> BROWN
+
+    GREEN --> RESEARCH["Explicit ultra-research"]
+    BROWN --> RESEARCH
+    RESEARCH --> BASELINE{"Has the baseline converged?"}
+    BASELINE -->|"Material decision gap"| THINK_BASE["ultra-think"]
+    THINK_BASE --> RESEARCH
+    BASELINE -->|"Evidence gap"| RESEARCH
+    BASELINE -->|"Approved and current"| CHANGE["Explicit ultra-change"]
+
+    CHANGE --> ROUTE{"Model recommends a route<br/>owner selects or modifies it"}
+    ROUTE -->|"Material intent remains unresolved"| THINK_CHANGE["ultra-think"]
+    THINK_CHANGE --> ROUTE
+    ROUTE -->|"Real evidence gap"| CHANGE_RESEARCH["Bounded ultra-research<br/>owned by the active Change"]
+    CHANGE_RESEARCH --> PLAN["ultra-plan"]
+    ROUTE -->|"Evidence is sufficient: Direct Build"| PLAN
+
+    PLAN --> DEV["ultra-dev<br/>one dependency-ready vertical task"]
+    DEV --> TASKS{"More executable tasks?"}
+    TASKS -->|"Yes"| DEV
+    TASKS -->|"No"| TEST["ultra-test<br/>risk-selected formal verification"]
+    TEST -->|"Failed or incomplete"| DEV
+    TEST -->|"Passing"| REVIEW["ultra-review<br/>specification fidelity and engineering quality"]
+    REVIEW -->|"Changes required"| DEV
+    REVIEW -->|"Approved"| DELIVER["ultra-deliver"]
+    DELIVER --> ARCHIVE["Reconcile specifications<br/>apply the Change overlay and archive evidence"]
+    ARCHIVE --> NEXT{"Continue"}
+    NEXT -->|"Next outcome"| CHANGE
+    NEXT -->|"Inspect current authority"| STATUS["ultra-status"]
+
+    ANY["Any active stage"] -.->|"read-only routing"| STATUS
+    ANY -.->|"mechanical health fault"| DOCTOR["ultra-doctor"]
+```
+
+“Direct Build” skips additional Research only. It still requires
+`ultra-plan`, current DB-backed task contracts, dependency ownership, and an
+immutable role-scoped Context Manifest before `ultra-dev`. `ultra-status` is a
+read-only side route, while `ultra-doctor` diagnoses and repairs mechanical
+health without selecting product intent.
+
 ## What lives in `.ultra/`
 
 ```text
@@ -326,9 +426,14 @@ capability starts only after an explicit user command or skill invocation.
   specs/                   # digest-bound product and architecture baseline
   changes/
     active/<id>/           # all current Change semantics and evidence
+      intent.md            # accepted Change Contract
+      findings.md          # durable Change findings
+      progress.md          # generated human-readable projection
       research/            # Change-only findings and research reports
       delta/               # typed baseline overlay and semantic payloads
       documentation/       # documentation overlay and reconciliation evidence
+      plan.json            # machine-readable task topology
+      plan.md              # deterministic human plan projection
       contexts/            # immutable role/task context snapshots
       test/                # Change-scoped test reports
       review/              # Change-scoped review workers and summary
