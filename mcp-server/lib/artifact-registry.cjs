@@ -505,10 +505,34 @@ function invalidateConsumersFromEndpointInTx(db, start, {
     }
     if (endpoint.type === 'workflow') {
       const row = db.prepare(
-        'SELECT metadata_json, change_id, task_id FROM workflow_runs WHERE id = ?',
+        'SELECT status, metadata_json, change_id, task_id FROM workflow_runs WHERE id = ?',
       ).get(endpoint.id);
       if (row) {
         const metadata = parseJson(row.metadata_json, {});
+        if (['active', 'blocked', 'ready'].includes(row.status)) {
+          delete metadata.authority_invalidation;
+          metadata.draft_dirty = true;
+          db.prepare(
+            `UPDATE workflow_runs
+             SET status = CASE WHEN status = 'ready' THEN 'active' ELSE status END,
+                 metadata_json = ?,
+                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+             WHERE id = ?`,
+          ).run(JSON.stringify(metadata), endpoint.id);
+          ops.appendEventInTx(db, {
+            type: 'workflow_draft_changed',
+            change_id: row.change_id,
+            task_id: row.task_id,
+            payload: {
+              workflow_id: endpoint.id,
+              source_type: start.type,
+              source_id: start.id,
+              reason,
+            },
+          });
+          queue.push(...outgoingEdges(db, endpoint));
+          continue;
+        }
         if (metadata.authority_invalidation?.invalidated !== true) {
           metadata.authority_invalidation = {
             invalidated: true,

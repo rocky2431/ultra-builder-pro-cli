@@ -8,6 +8,9 @@ const yaml = require('js-yaml');
 const repoRoot = path.resolve(__dirname, '..', '..');
 const manifest = yaml.load(fs.readFileSync(path.join(repoRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
 const liveTools = new Set(manifest.tools.map((tool) => tool.name));
+const publicTools = new Set(manifest.tools
+  .filter((tool) => tool.family === 'ultra')
+  .map((tool) => tool.name));
 const roots = ['commands', 'skills'].map((name) => path.join(repoRoot, name));
 const toolReference = /\b(?:task|session|baseline|change|decision|workflow|plan|system|review|impact|skill|ask|memory)\.[a-z_]+\b/g;
 const removedCli = /\bultra-tools\s+(?:ask|skill|subagent)\b/g;
@@ -54,4 +57,7 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-process.stdout.write(`runtime references: ${liveTools.size} live MCP tools, no retired surfaces\n`);
+process.stdout.write(
+  `runtime references: ${publicTools.size} public MCP tools, `
+    + `${liveTools.size - publicTools.size} hidden compatibility operations, no retired surfaces\n`,
+);

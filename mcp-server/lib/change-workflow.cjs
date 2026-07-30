@@ -39,7 +39,7 @@ const SEMANTIC_AUTHORITY_FIELDS = new Set([
 const CHANGE_TRANSITIONS = Object.freeze({
   active: new Set(['active', 'blocked', 'cancelled']),
   blocked: new Set(['active', 'blocked', 'cancelled']),
-  ready: new Set(['ready']),
+  ready: new Set(['active', 'ready', 'cancelled']),
   archived: new Set(),
   cancelled: new Set(),
 });
@@ -702,11 +702,8 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
   const recommendation = spine.recommendation;
   const durableSpine = { ...spine };
   delete durableSpine.recommendation;
-  const snapshotId = `ctx-${crypto.randomUUID().slice(0, 12)}`;
-  const manifest = {
+  const semanticManifest = {
     schema_version: '3.0',
-    snapshot_id: snapshotId,
-    generated_at: nowIso(),
     change: {
       id: change.id, title: change.title, kind: change.kind, status: change.status,
       intent: change.intent, docs_impact: change.docs_impact, base_commit: change.base_commit,
@@ -733,6 +730,43 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     resume: spine.resume,
     providers,
     provider_boundary: 'metadata references only; memory and code graph content remain external',
+  };
+  const identityHash = crypto.createHash('sha256')
+    .update(JSON.stringify(semanticManifest))
+    .digest('hex');
+  const snapshotId = `ctx-${identityHash.slice(0, 12)}`;
+  const existing = db.prepare(
+    `SELECT manifest_path, manifest_hash
+     FROM context_snapshots WHERE id = ?`,
+  ).get(snapshotId);
+  if (existing) {
+    const existingPath = path.resolve(rootDir, existing.manifest_path);
+    if (!fs.existsSync(existingPath)) {
+      throw new ChangeWorkflowError(
+        'CONTEXT_SNAPSHOT_CORRUPT',
+        `content-addressed Context snapshot is missing: ${existing.manifest_path}`,
+      );
+    }
+    const bytes = fs.readFileSync(existingPath);
+    const existingHash = crypto.createHash('sha256').update(bytes).digest('hex');
+    if (existingHash !== existing.manifest_hash) {
+      throw new ChangeWorkflowError(
+        'CONTEXT_SNAPSHOT_CORRUPT',
+        `content-addressed Context snapshot digest changed: ${existing.manifest_path}`,
+      );
+    }
+    return {
+      manifest: JSON.parse(bytes.toString('utf8')),
+      recommendation,
+      context_manifest_path: existingPath,
+      manifest_hash: existingHash,
+    };
+  }
+  const manifest = {
+    schema_version: semanticManifest.schema_version,
+    snapshot_id: snapshotId,
+    generated_at: nowIso(),
+    ...Object.fromEntries(Object.entries(semanticManifest).filter(([key]) => key !== 'schema_version')),
   };
   const artifactDir = path.resolve(rootDir, change.artifact_root);
   fs.mkdirSync(artifactDir, { recursive: true });
@@ -1005,7 +1039,7 @@ function assertTaskCreationAllowed(db, input = {}, { rootDir = process.cwd() } =
 function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
   const current = readChange(db, id);
   if (!current) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${id} not found`);
-  if (['ready', 'archived', 'cancelled'].includes(current.status)) {
+  if (['archived', 'cancelled'].includes(current.status)) {
     throw new ChangeWorkflowError('CHANGE_NOT_MUTABLE', `change ${id} is ${current.status}`);
   }
   for (const field of Object.keys(patch)) {
@@ -1059,6 +1093,8 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
           );
         }
         sets.push('status = ?'); values.push(patch.status);
+      } else if (current.status === 'ready' && Object.keys(patch).length > 0) {
+        sets.push('status = ?'); values.push('active');
       }
       if (sets.length === 0) return current;
       sets.push('updated_at = ?'); values.push(nowIso(), id);

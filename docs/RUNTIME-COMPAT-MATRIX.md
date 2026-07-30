@@ -46,7 +46,7 @@ not presented as nonexistent custom agents.
 
 | Lifecycle | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
-| Session context/health | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, native JS plugin injects only an active-workflow breadcrumb; health via `system.doctor` | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, active-workflow breadcrumb via native hooks |
+| Session context/health | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, native JS plugin injects only an active-workflow breadcrumb; health via `ultra.doctor` | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, active-workflow breadcrumb via native hooks |
 | Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects managed checkpoint/projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | FULL, native `PreToolUse Edit|Write` deny contract |
 | Pre-compact checkpoint | FULL | FULL | FULL | FULL, native `PreCompact` |
 | Post-compact context injection | FULL | FULL, native compacting context | FULL, native `PostCompact` restore | DEGRADED; checkpoint restoration runs, but Kimi 0.26/0.27 does not reinject fire-and-forget hook text |
@@ -68,7 +68,8 @@ they do not deny edits or stop active incident work.
 | Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
 |---|---|---|---|---|
 | stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
-| Live/declared contracts | 60 | 60 | 60 | 60 |
+| Public discovered MCP tools | 7 | 7 | 7 | 7 |
+| Hidden 0.22 compatibility operations | 60 | 60 | 60 | 60 |
 | Structured user alignment | `AskUserQuestion` in interactive sessions | `question` when permission is not denied | `request_user_input` when the current mode exposes it | `AskUserQuestion` outside auto mode |
 | Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
 | Context Manifest v3 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
@@ -79,10 +80,10 @@ they do not deny edits or stop active incident work.
 | Git team checkpoint | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` |
 | General memory-provider API | N/A | N/A | N/A | N/A |
 
-All 60 `task.*`, `session.*`, `baseline.*`, `change.*`, `decision.*`,
-`workflow.*`, `artifact.*`, `system.*`, and `plan.*` operations
-registered by `mcp-server/server.cjs` are live. Review, impact discovery, skill
-loading, and user interaction remain host-native surfaces.
+All hosts discover the seven `ultra.*` persistence and safety tools. The sixty
+fine-grained 0.22 operations remain callable but undiscoverable for one compatibility
+release; new Skills do not call them. Review, impact discovery, skill loading, model
+reasoning, and user interaction remain host-native surfaces.
 
 When a native structured question surface is unavailable, the shared interaction
 contract permits one concise direct question only if ordinary conversation is still

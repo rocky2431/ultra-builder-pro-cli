@@ -154,73 +154,20 @@ function prdTasks(taskId) {
   }];
 }
 
-test('listTools returns workflow tools and exposes no general memory-provider API', async () => {
+test('listTools returns only the narrow public Ultra kernel', async () => {
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name).sort();
       assert.deepEqual(names, [
-        'artifact.get',
-        'artifact.record',
-        'baseline.converge',
-        'baseline.get',
-        'baseline.record',
-        'baseline.start',
-        'change.archive',
-        'change.breadcrumb',
-        'change.context',
-        'change.converge',
-        'change.create',
-        'change.delta',
-        'change.documentation_reconcile',
-        'change.get',
-        'change.learning_propose',
-        'change.learning_resolve',
-        'change.list',
-        'change.update',
-        'decision.checkpoint',
-        'decision.complete',
-        'decision.defer',
-        'decision.delegate',
-        'decision.get',
-        'decision.list',
-        'decision.open',
-        'decision.resolve',
-        'decision.supersede',
-        'decision.thread_start',
-        'plan.export',
-        'plan.get',
-        'session.admission_check',
-        'session.close',
-        'session.get',
-        'session.heartbeat',
-        'session.list',
-        'session.spawn',
-        'session.subscribe_events',
-        'system.doctor',
-        'task.append_event',
-        'task.create',
-        'task.delete',
-        'task.dependency_topo',
-        'task.expand',
-        'task.get',
-        'task.init_project',
-        'task.ledger_get',
-        'task.ledger_import',
-        'task.ledger_publish',
-        'task.list',
-        'task.parse_prd',
-        'task.subscribe_events',
-        'task.switch_tag',
-        'task.update',
-        'workflow.complete',
-        'workflow.get',
-        'workflow.list',
-        'workflow.revise',
-        'workflow.start',
-        'workflow.step',
-        'workflow.supersede',
+        'ultra.archive',
+        'ultra.checkpoint',
+        'ultra.context',
+        'ultra.doctor',
+        'ultra.record',
+        'ultra.session',
+        'ultra.sync',
       ]);
       assert.ok(!names.some((name) => name.startsWith('memory.')));
       for (const t of list.tools) {
@@ -1552,15 +1499,17 @@ test('change.context publishes bounded exact spec_refs and rejects an inline blo
   const proj = tmpProject();
   try {
     await withClient(proj, async (client) => {
-      const listed = await client.listTools();
-      const contextTool = listed.tools.find((tool) => tool.name === 'change.context');
-      const specRefs = contextTool.inputSchema.properties.spec_refs;
+      const manifest = yaml.load(
+        fs.readFileSync(path.join(REPO_ROOT, 'spec', 'mcp-tools.yaml'), 'utf8'),
+      );
+      const contextTool = manifest.tools.find((tool) => tool.name === 'change.context');
+      const specRefs = contextTool.input_schema.properties.spec_refs;
       assert.equal(specRefs.maxItems, 64);
       assert.equal(specRefs.items.additionalProperties, false);
       assert.deepEqual(specRefs.items.required, ['ref']);
       assert.equal(specRefs.items.properties.reason.maxLength, 2_048);
       assert.deepEqual(
-        contextTool.inputSchema.not,
+        contextTool.input_schema.not,
         { required: ['context_refs', 'spec_refs'] },
       );
 

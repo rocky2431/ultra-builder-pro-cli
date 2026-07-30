@@ -39,6 +39,7 @@ const workflows = require('./lib/workflow-state.cjs');
 const decisions = require('./lib/decision-dialogue.cjs');
 const doctor = require('./lib/doctor.cjs');
 const artifactRegistry = require('./lib/artifact-registry.cjs');
+const ultraFacade = require('./lib/ultra-facade.cjs');
 const {
   readProjectBreadcrumb,
   renderProjectBreadcrumb,
@@ -137,19 +138,29 @@ const ARTIFACT_TOOLS = Object.freeze([
   'artifact.get',
 ]);
 
-const REGISTERED_TOOLS = Object.freeze([
+const LEGACY_TOOLS = Object.freeze([
   ...TASK_TOOLS, ...SESSION_TOOLS, ...PLAN_TOOLS, ...BASELINE_TOOLS, ...CHANGE_TOOLS,
   ...DECISION_TOOLS,
   ...WORKFLOW_TOOLS,
   ...ARTIFACT_TOOLS,
   ...SYSTEM_TOOLS,
 ]);
+const PUBLIC_TOOLS = ultraFacade.PUBLIC_TOOLS;
+const REGISTERED_TOOLS = Object.freeze([...PUBLIC_TOOLS, ...LEGACY_TOOLS]);
 
 const STATELESS_TOOLS = new Set(['task.init_project']);
+
+function isStatelessPublicCall(name, input = {}) {
+  return name === 'ultra.record'
+    && Array.isArray(input.entries)
+    && input.entries.length === 1
+    && input.entries[0]?.operation === 'task.init_project';
+}
 
 // init_project owns its target project's schema, baseline seed, and first
 // projection internally. Do not enqueue a second projection on the caller DB.
 const MUTATING_TOOLS = new Set([
+  'ultra.record', 'ultra.checkpoint', 'ultra.sync', 'ultra.session', 'ultra.archive',
   'task.create', 'task.update', 'task.delete', 'task.append_event', 'task.switch_tag',
   'task.parse_prd', 'task.expand',
   'task.ledger_import',
@@ -167,6 +178,7 @@ const MUTATING_TOOLS = new Set([
 ]);
 
 const TEAM_LEDGER_SYNC_TOOLS = new Set([
+  'ultra.record', 'ultra.checkpoint', 'ultra.archive',
   'task.create', 'task.update', 'task.delete', 'task.parse_prd', 'task.expand',
   'plan.export',
   'baseline.start', 'baseline.record', 'baseline.converge',
@@ -651,10 +663,6 @@ async function dispatchTool(name, input, db, ctx = {}) {
         // caller must see a typed failure and later mutations must stop.
         throw error;
       }
-      taskLedger.publishTaskLedger(db, {
-        rootDir,
-        reason: 'plan_accepted',
-      });
       return {
         plan_path: publication.plan_path,
         plan_md_path: publication.plan_md_path,
@@ -969,6 +977,19 @@ function startServer({
   };
   const getDb = (toolName = null) => {
     if (!db) {
+      if (toolName === 'ultra.context') {
+        if (!fs.existsSync(authorityDbPath)) {
+          const error = new Error(
+            'Ultra authority is not initialized; invoke ultra-init before reading project context',
+          );
+          error.code = 'STATE_DB_MISSING';
+          throw error;
+        }
+        db = openStateDb(authorityDbPath);
+        ensureSchemaVersion(db);
+        assertStateAuthority(db, rootDir, { importTeamLedger: false });
+        return db;
+      }
       const projectPaths = runtimePaths.pathsFor(rootDir);
       if ([projectPaths.legacyStateDbPath, projectPaths.stateDbPath].includes(authorityDbPath)) {
         // The packaged launcher has no explicit DB override. Its default path
@@ -1005,7 +1026,7 @@ function startServer({
       }
       planRecovery = planStore.recoverPlanPublications(db, { rootDir });
     }
-    if (toolName !== 'system.doctor'
+      if (!['system.doctor', 'ultra.doctor'].includes(toolName)
       && (planRecovery?.pending > 0 || planRecovery?.issues?.length > 0)) {
       planRecovery = planStore.recoverPlanPublications(db, { rootDir });
       if (planRecovery.pending > 0 || planRecovery.issues.length > 0) {
@@ -1021,6 +1042,7 @@ function startServer({
   };
 
   const tools = loadRegisteredTools();
+  const publicTools = tools.filter((tool) => PUBLIC_TOOLS.includes(tool.name));
   const ajv = buildAjv();
   const inputValidators = new Map();
   const outputValidators = new Map();
@@ -1035,7 +1057,7 @@ function startServer({
   );
 
   server.setRequestHandler('tools/list', async () => ({
-    tools: tools.map((t) => ({
+    tools: publicTools.map((t) => ({
       name: t.name,
       description: t.description,
       inputSchema: t.input_schema,
@@ -1081,23 +1103,51 @@ function startServer({
     let result;
     let toolDb = null;
     try {
-      toolDb = STATELESS_TOOLS.has(name) ? null : getDb(name);
+      toolDb = (STATELESS_TOOLS.has(name) || isStatelessPublicCall(name, args))
+        ? null
+        : getDb(name);
       if (toolDb) assertStateAuthority(toolDb, rootDir);
       if (toolDb && TEAM_LEDGER_SYNC_TOOLS.has(name)) {
         taskLedger.syncTaskLedger(toolDb, { rootDir });
       }
-      result = await dispatchTool(
-        name,
-        args,
-        toolDb,
-        {
-          rootDir,
-          sessionId,
-          projector: project,
-          markPlanRecoveryRequired,
-        },
-      );
-      if (name === 'system.doctor' && args.repair === true) {
+      const callContext = {
+        rootDir,
+        sessionId,
+        projector: project,
+        markPlanRecoveryRequired,
+      };
+      const callLegacy = async (legacyName, legacyArgs = {}) => {
+        if (!LEGACY_TOOLS.includes(legacyName)) {
+          const error = new Error(`legacy operation ${legacyName} is not supported`);
+          error.code = 'ULTRA_RECORD_OPERATION_UNSUPPORTED';
+          throw error;
+        }
+        const validateLegacyInput = inputValidators.get(legacyName);
+        if (!validateLegacyInput(legacyArgs)) {
+          const error = new Error(ajv.errorsText(validateLegacyInput.errors));
+          error.code = 'VALIDATION_ERROR';
+          error.details = validateLegacyInput.errors;
+          throw error;
+        }
+        const legacyResult = await dispatchTool(
+          legacyName,
+          legacyArgs,
+          toolDb,
+          callContext,
+        );
+        const validateLegacyOutput = outputValidators.get(legacyName);
+        if (!validateLegacyOutput(legacyResult)) {
+          const error = new Error(ajv.errorsText(validateLegacyOutput.errors));
+          error.code = 'OUTPUT_SCHEMA_DRIFT';
+          error.details = validateLegacyOutput.errors;
+          throw error;
+        }
+        return legacyResult;
+      };
+      result = PUBLIC_TOOLS.includes(name)
+        ? await ultraFacade.dispatch(name, args, toolDb, { ...callContext, callLegacy })
+        : await dispatchTool(name, args, toolDb, callContext);
+      if (['system.doctor', 'ultra.doctor'].includes(name) && args.repair === true) {
         planRecovery = result.repair?.plan_publications || null;
       }
     } catch (err) {
@@ -1122,7 +1172,7 @@ function startServer({
         projection_job_id: job.id,
       };
       if (own && own.incident_id) runtimeMeta.incident_id = own.incident_id;
-    } else if (toolDb && name === 'system.doctor' && args.repair === true) {
+    } else if (toolDb && ['system.doctor', 'ultra.doctor'].includes(name) && args.repair === true) {
       runtimeMeta = {
         state_commit: 'committed',
         projection_status: result.checks.projections.status === 'pass' ? 'completed' : 'failed',
@@ -1260,6 +1310,8 @@ module.exports = {
   ARTIFACT_TOOLS,
   SYSTEM_TOOLS,
   REGISTERED_TOOLS,
+  LEGACY_TOOLS,
+  PUBLIC_TOOLS,
   STATELESS_TOOLS,
   MUTATING_TOOLS,
   appendHookLifecycleEvent,

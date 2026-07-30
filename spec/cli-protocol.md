@@ -81,6 +81,13 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 
 | MCP tool                  | CLI subcommand              | Phase | Writer  |
 |---------------------------|-----------------------------|------:|---------|
+| `ultra.context`           | `ultra context`             | 23    | mcp     |
+| `ultra.record`            | `ultra record`              | 23    | mcp     |
+| `ultra.checkpoint`        | `ultra checkpoint`          | 23    | mcp     |
+| `ultra.sync`              | `ultra sync`                | 23    | mcp     |
+| `ultra.session`           | `ultra session`             | 23    | mcp     |
+| `ultra.archive`           | `ultra archive`             | 23    | mcp     |
+| `ultra.doctor`            | `ultra doctor`              | 23    | mcp     |
 | `task.create`             | `task create`               | 2     | mcp     |
 | `task.update`             | `task update`               | 2     | mcp     |
 | `task.list`               | `task list`                 | 2     | any     |
@@ -141,6 +148,11 @@ as a fallback unless `ultra-tools <family> --help` lists it.
 | `system.doctor`           | `system doctor`             | 9     | mcp     |
 | `plan.export`             | `plan export`               | 8a    | mcp     |
 | `plan.get`                | `plan get`                  | 8a    | any     |
+
+The seven `ultra.*` rows are the public model-facing MCP surface. The remaining
+rows are one-release compatibility operations and CLI naming reservations; they
+are callable by an already-running 0.22 session but are not returned by
+`tools/list`.
 
 Current executable maintenance surfaces are `task init-project`,
 `session close|get|list|admission|heartbeat|subscribe|reap`, `status`, `db`,

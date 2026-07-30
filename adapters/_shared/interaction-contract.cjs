@@ -32,7 +32,7 @@ function interactionContract(runtime) {
   const question = SURFACES[runtime];
   if (!question) throw new Error(`unsupported interaction runtime: ${runtime}`);
   return {
-    schema_version: '1.2',
+    schema_version: '1.3',
     runtime,
     public_capability_graph: PUBLIC_CAPABILITY_GRAPH,
     authority: {
@@ -50,9 +50,9 @@ function interactionContract(runtime) {
         'accepted_intent_normalization',
       ],
       ultra_mcp: [
-        'durable_state_and_evidence_refs',
-        'digests_freshness_locks_and_recovery',
-        'allowed_and_required_transitions',
+        'durable_checkpoints_and_evidence_refs',
+        'digests_freshness_leases_archives_and_recovery',
+        'mutable_semantic_diagnostics',
       ],
     },
     interaction: {
@@ -85,8 +85,15 @@ function interactionContract(runtime) {
     routing: {
       semantic_recommendation_owner: 'host_model',
       durable_recommendation_authority: false,
-      hard_invariant_field: 'required_transition',
-      valid_capabilities_field: 'allowed_transitions',
+      current_context_tool: 'ultra.context',
+      checkpoint_diagnostic_fields: ['warnings', 'blockers'],
+      hard_blocker_boundary: [
+        'corruption',
+        'unsafe_path',
+        'concurrency_conflict',
+        'permission',
+        'irreversible_external_effect',
+      ],
     },
   };
 }

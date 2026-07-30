@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-07-30
+
+### Added
+
+- Added a seven-tool public MCP kernel: `ultra.context`, `ultra.record`,
+  `ultra.checkpoint`, `ultra.sync`, `ultra.session`, `ultra.archive`, and
+  `ultra.doctor`.
+- Added idempotent batched recording, content-addressed Context snapshots, and
+  semantic checkpoints that commit accepted workflow authority in one model
+  round trip.
+- Added mutable diagnostic envelopes for rejected draft checkpoints and
+  archive preflights so the host model can correct or abandon the same draft.
+
+### Changed
+
+- Moved workflow sequencing and semantic judgment back into the eleven public
+  Skills. MCP now owns persistence, schema, transaction, concurrency, path,
+  recovery, and irreversible-effect boundaries instead of directing the model.
+- Reduced the unconditional `tools/list` surface from 60 fine-grained tools to
+  seven high-level tools. The 0.22 fine-grained contracts remain callable but
+  hidden for one compatibility release.
+- Made draft Changes and nonterminal workflows reversible while keeping
+  accepted revisions immutable and replaceable through a new draft.
+- Updated Claude Code, Codex, OpenCode, and Kimi assets to use the same narrow
+  capability graph while preserving each host's native question and bounded
+  worker surfaces.
+
+### Fixed
+
+- Fixed Plan drafts becoming permanently self-locked when a task or exported
+  artifact changed after validation.
+- Fixed semantic validation failures surfacing as MCP transport errors and
+  forcing models into repeated repair calls.
+- Fixed duplicate Context compilation creating competing snapshots for the
+  same semantic inputs.
+- Fixed `ultra.context` creating `.ultra` state merely by inspecting an
+  uninitialized project.
+
 ## [0.22.0] — 2026-07-30
 
 ### Added

@@ -11,7 +11,7 @@ host and project owner. It is the operational companion to
 |---|---|---|
 | Active host and owner | Product judgment, research content, implementation, review findings, and authorization for destructive or external effects | Durable workflow status or fabricated evidence digests |
 | Skill | One reusable procedure and its evidence requirements | Project state, static product doctrine, host-specific tool fiction |
-| MCP | IDs, valid transitions, hard recovery requirements, task contracts, evidence references, output hashes, and gate verdicts | Semantic route selection, research prose, code generation, general memory-provider payloads, or model calls |
+| MCP | Durable checkpoints, task contracts, evidence references, output hashes, team sync, leases, archives, and mechanical recovery | Semantic route selection, research prose, code generation, general memory-provider payloads, or model calls |
 | `.ultra/.runtime/state.db` | Checkout-local lifecycle, index, transition, freshness, and coordination authority for baseline, change, decision, task, workflow, session, event, incident, projection, and evidence references | Prompts, transcripts, general external-memory payloads, semantic prose, or code-graph payloads |
 | `.ultra/tasks/tasks.json` | MCP-published Git checkpoint for portable baseline, Change, task-contract, dependency, and durable status records | Live sessions, leases, `in_progress` ownership, completion hashes, or a parallel write API |
 | Digest-bound artifacts | Registered specification, research, Change, context, test, review, delivery, and verification bodies | Independent lifecycle state or content whose digest no longer matches |
@@ -22,19 +22,22 @@ Together, `.ultra/` is project-local cross-session workflow memory. The detailed
 artifact classes and promotion rules live in
 [`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
 
-Prompt input can supply facts, content paths, reasons, owner decisions, and
-evidence references. MCP reads the current repository and DB, validates those
-inputs, hashes outputs, and derives status. Prompt input cannot override a task's
-public seam, verification command, context references, workflow summary, gate
-verdict, output digest, or transition validity. A host recommendation is never stored
-as MCP authority.
+Model input can supply facts, content paths, reasons, owner decisions, and evidence
+references. `ultra.record` stores mutable typed drafts and `ultra.checkpoint` attempts
+one durable semantic commit. A semantic rejection returns diagnostics and keeps the
+draft editable. Model input cannot override a task's public seam, evidence digest, or
+accepted checkpoint. A host recommendation is never stored as MCP authority.
 
-Load-bearing owner choices are normalized through `decision.*`; Prompt prose is not
-durable authority. The host acquires observable facts autonomously, exposes one
-current question, and stops. A workflow cannot advance while a matching decision has
-an unanswered blocking question, a blocking deferral, a prepared checkpoint awaiting
-confirmation, or a stale confirmed artifact. A normalized answer alone does not require
-a ceremonial checkpoint.
+Load-bearing owner choices are normalized through `ultra.record`; prompt prose is not
+durable authority. The host acquires observable facts autonomously, exposes one current
+question, and stops. Unanswered material choices remain warnings or checkpoint
+diagnostics until a capability truly needs their result. A normalized answer alone
+does not require a ceremonial checkpoint.
+
+Every host discovers seven public MCP tools: `ultra.context`, `ultra.record`,
+`ultra.checkpoint`, `ultra.sync`, `ultra.session`, `ultra.archive`, and
+`ultra.doctor`. The 0.22 fine-grained operations documented below remain hidden
+compatibility internals for one release. Skills must not drive them one call at a time.
 
 Every change-bound research, plan, dev, test, review, and deliver run inherits
 the baseline id from the owning change workflow. A Prompt cannot switch that
@@ -190,8 +193,10 @@ execution failure.
 ### Workflow run and step
 
 ```text
-run:  active <-> blocked -> ready -> completed
-                              \----> cancelled
+draft: active <-> blocked <-> ready
+          |          |         |
+          +----------+---------+----> cancelled
+                              \----> completed (accepted, immutable)
 
 step: pending -> in_progress -> completed
          |            |
@@ -199,10 +204,10 @@ step: pending -> in_progress -> completed
        blocked ------> in_progress/completed
 ```
 
-Required steps execute in definition order. A step that requires evidence or an
-output cannot complete without it. When the final required step completes, the
-run becomes `ready`; `workflow.complete` revalidates the entire stage before
-making it `completed`.
+Fine-grained steps are internal evidence bookkeeping. `ultra.checkpoint` records and
+validates them in one public call. A missing output returns mutable diagnostics. Draft
+artifact changes reopen `ready` to `active`; only an accepted `completed` revision is
+immutable.
 
 ### Decision thread and item
 
@@ -315,7 +320,8 @@ opens one replacement.
 
 ## 6. Context and prompt follow-through
 
-`change.context` compiles an immutable Context Manifest v3 snapshot. It combines:
+The Context compiler used internally by `ultra.checkpoint` creates an immutable
+Context Manifest v3 snapshot. It combines:
 
 - the bound baseline/change/task identity;
 - a role and lifecycle gate;
@@ -328,11 +334,10 @@ opens one replacement.
 - optional metadata-only external memory or graph references;
 - advisory file/token/context-share budgets, including inline Change/task authority;
 - the current Change and task authority digests;
-- readiness blockers, `allowed_transitions`, and a `required_transition` only for a
-  unique hard-recovery path.
+- readiness warnings and hard mechanical blockers without a semantic route command.
 
 Compilation is pure with respect to accepted Change authority. Provider references are
-updated only through `change.update`; they cannot be smuggled into `change.context`.
+recorded through `ultra.record`; they cannot be smuggled into a checkpoint context.
 Context references retain `expected_digest`, `anchor`, `scope`, and
 `freshness_policy`. `digest` requires byte-current content, `existence` allows an
 implementation target to change while remaining present, and `advisory` reports drift
@@ -349,9 +354,9 @@ Critical stage workflows bind a matching snapshot as a durable output:
 | `deliver` | `check` | `convergence` |
 
 Every lookup is exact on `change_id + task_id + role + gate`. The snapshot path and
-digest are carried into plan, test, review, and delivery artifacts. `plan.export`
-writes only the owning Change's `plan.json` and deterministic `plan.md`, and binds the
-exact planning snapshot and digest to both the artifact registry and `verify-plan`.
+digest are carried into plan, test, review, and delivery artifacts. The Plan
+`ultra.checkpoint` writes the owning Change's `plan.json` and deterministic `plan.md`
+once, and binds the exact planning snapshot and digest to the artifact registry.
 The legacy global `.ultra/execution-plan.json` is read-only migration compatibility,
 not current authority. These rules prevent a later Prompt or a different role packet
 from claiming evidence gathered under another context. Referenced file content remains
@@ -389,9 +394,9 @@ evidence do block.
   fast-forward or conflict handling.
 - A changed checkpoint artifact digest or superseded decision invalidates the linked
   decision checkpoint and blocks matching workflow advancement until reconfirmed.
-- `workflow.revise` creates a candidate without deleting the completed prior run.
-  `workflow.supersede` promotes only a completed matching candidate, preserves both
-  histories, and invalidates only the prior run's transitive registered consumers.
+- A rejected draft is repaired in place or explicitly abandoned. A new accepted
+  revision preserves prior accepted history and invalidates only true transitive
+  registered consumers.
 
 ## 8. Entry flows
 
@@ -459,13 +464,14 @@ evidence rather than bypassing them.
 | `ultra-doctor` | read-only diagnosis and authorized mechanical recovery | required recovery only when unique; otherwise safe alternatives |
 
 Every row permits `ultra-think` when material owner authority is missing and permits
-`ultra-doctor` when state or installed-runtime authority is unhealthy. MCP makes one
-of them required only when no safe alternative exists. Neither capability creates a
-parallel workflow or substitutes a Prompt summary for DB state.
+`ultra-doctor` when state or installed-runtime authority is unhealthy. The host model
+recommends either from current evidence; hard MCP blockers remain limited to the
+mechanical safety boundary. Neither capability creates a parallel workflow or
+substitutes a prompt summary for DB state.
 
 ## 9. Recovery and diagnosis
 
-Use `system.doctor` for project authority and
+Use `ultra.doctor` for project authority and
 `ubp --all --global --doctor` for installed host assets. Both are read-only
 unless an explicit project repair command is chosen.
 

@@ -1,71 +1,48 @@
 ---
 name: ultra-deliver
-description: Converge a verified Ultra change, reconcile baseline specifications, and archive it with recoverable local evidence. Use when implementation, testing, and review are current.
+description: Converge a verified Ultra Change, reconcile baseline specifications, and archive it with recoverable local evidence. Use when implementation, testing, and review are current.
 ---
 
 # Converge and archive local authority
 
-Delivery closes Ultra's local change authority. It does not grant or perform commit,
-push, tag, registry publication, deployment, or another external effect.
+Delivery closes local Ultra authority. It never grants commit, push, tag, registry
+publication, deployment, or another external effect.
 
-## Bind current evidence
+## Prepare the packet
 
-1. Read doctor, `task.ledger_get`, baseline, change, breadcrumb `accepted_intent`,
-   decisions, tasks, test, review, learning, and current checkout. Import a newer
-   descendant checkpoint before convergence; stop on any typed merge conflict.
-2. Resume or start a deliver workflow bound to the change and baseline.
-3. Require complete task evidence, a current test report, both review axes, current
-   context, and resolved material decisions. Record `bind-evidence`.
+1. Call `ultra.context { stage: deliver, scope: { change_id }, detail: full }`.
+2. Import a newer team checkpoint with `ultra.sync`; stop on a real conflict.
+3. Require current task outcomes, test report, both review axes, accepted decisions,
+   typed delta, documentation reconciliation, and current checkout evidence.
+4. Resolve every specification-learning candidate. Keep updates inside the Change
+   overlay until archive.
+5. Write and register documentation reconciliation and an
+   `ultra-delivery-report-v1` report. The report binds Change, baseline, HEAD,
+   worktree/context digests, local checks, rollback guidance, and timestamp; it contains
+   no release decision.
 
-Evidence from another revision, task set, or change is invalid.
+Use one `ultra.record` batch for the reconciliation, report artifact, learning
+resolutions, and other durable facts.
 
-## Reconcile specifications
+## Archive once
 
-Resolve every specification-learning candidate. Apply approved learning to its target
-inside the Change overlay; preserve rejection reasons. Read the current registered
-`change.delta` and verify every baseline anchor, payload digest, acceptance reference,
-and unknown.
+Call `ultra.archive` once with the Change id, stable idempotency key, archive summary,
+reconciliation fields, delivery evidence steps, and report output. The operation
+internally:
 
-Write documentation updates below
-`.ultra/changes/active/<change-id>/documentation/`. Call
-`change.documentation_reconcile` for every Change: bind the current delta id and
-digest, exact before/after document digests, delta and acceptance references,
-verification, and each verified consumer. When no documentation changes, record an
-empty reconciliation with a specific `no_change_reason`. An unexplained orphan
-document is blocking. Record `reconcile-specifications`.
+- compiles or reuses convergence context;
+- checks the deliver draft;
+- derives convergence from current dev, test, review, delta, docs, and checkout;
+- applies the overlay and archive through the recoverable filesystem/DB transaction;
+- rebinds registered artifacts into a self-contained archive;
+- completes the durable delivery checkpoint;
+- publishes the updated team checkpoint.
 
-Compile final convergence context and run the risk-selected candidate checks, install
-or doctor smoke when this change modifies distributed assets, public-seam verification,
-and recovery sanity. Record the immutable context under `verify-candidate`.
+A semantic rejection returns mutable blockers. Repair the same packet and retry. A
+hard corruption, path, concurrency, or recovery error remains fail-closed and routes to
+`ultra-doctor`.
 
-Call `change.converge`; MCP derives readiness from durable dev, test, review,
-typed delta, documentation reconciliation, diagnosis, and current checkout evidence.
-Successful convergence publishes the current portable team checkpoint.
-Record
-`converge-authority` only when ready.
-
-Call `change.archive` with the summary. MCP preflights all target before states and
-overlay digests, applies the complete packet atomically, refreshes baseline authority,
-rebinds every registered artifact into the self-contained archive, and rolls back or
-resumes from its transaction journal after interruption. A partial success is not
-delivery. Archive publication refreshes the checkpoint with the archived Change and
-new baseline summary. Verify the refreshed baseline and archived packet, then record
-`archive-change`.
-
-Write `<archived-change-root>/delivery/<workflow-id>/report.json` with
-`ultra-delivery-report-v1`: archived change, baseline, HEAD, worktree and context
-digests, local checks, rollback notes, and timestamp. The report must not contain a
-release decision. Record it under `verify-delivery` and complete the workflow.
-
-## External effects
-
-If the user separately requests commit, push, tag, publish, or deploy, handle that as a
-host-owned effect after Ultra delivery. Confirm only missing material authority, run
-the repository's release checks, and report remote evidence separately. Never infer an
-external effect from `ultra-deliver`, and never encode it as completed Ultra delivery
-state.
-
-Return archive and baseline state, evidence digests, recovery notes, residual risks,
-and allowed transitions.
-
-Never invoke the recommended capability here; wait for an explicit user invocation.
+Verify the archived packet, baseline, checkpoint, and rollback state. Handle any
+separately authorized Git or release effect only after local delivery and report it as
+external evidence, not Ultra delivery authority. Do not invoke another capability
+automatically.

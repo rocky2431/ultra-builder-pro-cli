@@ -13,8 +13,6 @@ const {
   SUPPORTED_RUNTIMES,
   skillsForRuntime,
 } = require('../adapters/_shared/runtime-assets.cjs');
-const { WORKFLOW_DEFINITIONS } = require('../mcp-server/lib/workflow-state.cjs');
-
 const ROOT = path.resolve(__dirname, '..');
 const SKILLS_ROOT = path.join(ROOT, 'skills');
 const COMMANDS_ROOT = path.join(ROOT, 'commands');
@@ -180,17 +178,10 @@ test('research preserves the complete semantic workflow through focused referenc
     ],
   );
   const skillText = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8');
-  assert.match(skillText, /recommend the smallest sufficient set of applicable catalog areas/i);
-  assert.match(skillText, /user (?:selects|chooses), modifies, delegates, or defers/i);
-  assert.match(skillText, /host(?:'s)? native (?:structured )?question/i);
-  assert.match(skillText, /persist the accepted coverage/i);
-  assert.match(
-    skillText,
-    /focused baseline coverage[\s\S]*full.*adoption[\s\S]*custom[\s\S]*change-bound/i,
-  );
-  assert.match(skillText, /Omitted\s+catalog areas create no DB step/i);
-  assert.match(skillText, /metadata\.selection_reason/i);
-  assert.doesNotMatch(skillText, /host model owns investigation, synthesis, and coverage judgment/i);
+  assert.match(skillText, /recommend the smallest sufficient coverage/i);
+  assert.match(skillText, /host-native question/i);
+  assert.match(skillText, /one `ultra\.checkpoint`/i);
+  assert.match(skillText, /Synthesis\s+must always be present/i);
   assert.doesNotMatch(skillText, /disposition for every catalog area/i);
   const skillLines = skillText.split('\n').length;
   assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
@@ -219,30 +210,25 @@ test('human-agent alignment uses one canonical resumable decision protocol', () 
     const { text } = sourceSkill(name);
     assert.match(text, /decision-dialogue\.md/, `${name} must use the canonical decision protocol`);
   }
-  assert.match(sourceSkill('ultra-research').text, /not\s+(?:a\s+)?(?:mandatory\s+)?questionnaire/i);
-  assert.match(
-    sourceSkill('ultra-research').text,
-    /Reuse the final research acceptance or current artifact checkpoint[\s\S]*do not ask\s+for an equivalent approval again/i,
-  );
-  assert.match(sourceSkill('ultra-change').text, /Ask only when a choice changes accepted product intent/i);
-  assert.match(sourceSkill('ultra-change').text, /model owns reversible\s+implementation detail/i);
-  assert.match(sourceSkill('ultra-think').text, /decision\.complete[\s\S]*not another owner approval/i);
+  assert.match(sourceSkill('ultra-research').text, /not a questionnaire/i);
+  assert.match(sourceSkill('ultra-change').text, /Ask only when\s+a choice changes accepted product intent/i);
+  assert.match(sourceSkill('ultra-think').text, /Reuse a clear decision/i);
   assert.match(sourceSkill('ultra-plan').text, /EXPAND[\s\S]*SELECTIVE[\s\S]*HOLD[\s\S]*REDUCE/i);
-  assert.match(sourceSkill('ultra-plan').text, /recommend[\s\S]*host(?:'s)? native question/i);
-  assert.match(
-    sourceSkill('ultra-test').text,
-    /recommend[\s\S]*user to select,\s*modify, delegate, or defer/i,
-  );
+  assert.match(sourceSkill('ultra-plan').text, /host-native UI/i);
 });
 
-test('public workflow skills return control to the adaptive capability graph', () => {
+test('public workflow skills use the narrow MCP kernel and return semantic control to the host model', () => {
   const graphSkills = [...CORE_PUBLIC_SKILLS];
   for (const name of graphSkills) {
     const { text } = sourceSkill(name);
-    assert.match(text, /allowed[_ ]transitions/i, `${name} does not return MCP capability choices`);
     assert.match(
       text,
-      /explicit (?:user |owner )?(?:command|skill )?invocation|explicitly invok/i,
+      /ultra\.(?:context|record|checkpoint|sync|session|archive|doctor)/,
+      `${name} does not use the public MCP kernel`,
+    );
+    assert.match(
+      text,
+      /do not invoke|never invoke|not invoke/i,
       `${name} does not preserve explicit-only handoff`,
     );
     assert.doesNotMatch(
@@ -252,27 +238,26 @@ test('public workflow skills return control to the adaptive capability graph', (
     );
     assert.doesNotMatch(
       text,
-      /^\s*(?:canonical|exact) next (?:action|route)\s*:/im,
-      `${name} exposes a retired semantic-route field`,
+      /\b(?:workflow\.(?:start|step|complete|revise|supersede)|allowed_transitions|required_transition)\b/,
+      `${name} exposes a hidden state-machine route`,
     );
   }
-  assert.match(sourceSkill('ultra-init').text, /does not perform product research/i);
+  assert.match(sourceSkill('ultra-init').text, /does not perform\s+research/i);
   assert.match(sourceSkill('ultra-research').text, /\bultra-change\b/);
-  assert.match(sourceSkill('ultra-change').text, /research, plan, context, dev, test,\s*review, and deliver(?:y)? remain (?:independent|separate)/i);
-  assert.match(sourceSkill('ultra-dev').text, /do not replace aggregate\s*change testing or review/i);
-  assert.match(sourceSkill('ultra-deliver').text, /host-owned effect after Ultra delivery/i);
+  assert.match(sourceSkill('ultra-change').text, /draft stays editable/i);
+  assert.match(sourceSkill('ultra-dev').text, /one authorized local task commit/i);
+  assert.match(sourceSkill('ultra-deliver').text, /never grants commit, push, tag/i);
 });
 
-test('workflow skills name every durable DB step they are responsible for following', () => {
-  for (const [kind, steps] of Object.entries(WORKFLOW_DEFINITIONS)) {
-    const { text } = sourceSkill(`ultra-${kind}`);
-    for (const { id } of steps) {
-      assert.match(
-        text,
-        new RegExp(`(?:^|[^a-z0-9-])${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:$|[^a-z0-9-])`, 'm'),
-        `ultra-${kind} must explain how to follow durable workflow step ${id}`,
-      );
-    }
+test('model-facing skills do not directly call fine-grained compatibility tools', () => {
+  const directFineGrainedCall = /\b(?:call|run|invoke)\s+`(?:task|change|baseline|decision|workflow|artifact|system|session|plan)\.[a-z_]+`/i;
+  for (const name of CORE_PUBLIC_SKILLS) {
+    const { text } = sourceSkill(name);
+    assert.doesNotMatch(
+      text,
+      directFineGrainedCall,
+      `${name} directly calls a hidden compatibility tool`,
+    );
   }
 });
 

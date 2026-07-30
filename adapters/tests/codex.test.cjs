@@ -179,11 +179,9 @@ test('every generated skill is Codex-valid, UI-visible, and free of Claude host 
     const plan = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-plan', 'SKILL.md'), 'utf8');
     const status = fs.readFileSync(path.join(layout.pluginRoot, 'skills', 'ultra-status', 'SKILL.md'), 'utf8');
     assert.doesNotMatch(plan, /LEGACY_STATE_MIGRATION_REQUIRED|v4\.4|v4\.5/);
-    assert.match(plan, /Never read or\s+write .*tasks\.json/i);
-    assert.match(
-      status,
-      /Never fall\s+back to the Git team checkpoint,\s+generated task\s+JSON/i,
-    );
+    assert.match(plan, /Never read or write .*tasks\.json/i);
+    assert.match(plan, /use `ultra\.sync` for the Git team\s+checkpoint/i);
+    assert.match(status, /This Skill is read-only/i);
 
     const coreWorkflowText = [
       ...COMMANDS,
@@ -300,10 +298,15 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
     const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
     const interaction = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'interaction-contract.json'), 'utf8'));
-    assert.equal(liveSpec.tools.length, 60);
-    assert.equal(upstreamSpec.tools.length, 60);
-    assert.deepEqual(upstreamSpec.tools.map((tool) => tool.name).sort(), liveSpec.tools.map((tool) => tool.name).sort());
-    assert.deepEqual(capabilityMap.live_mcp_tools.sort(), liveSpec.tools.map((tool) => tool.name).sort());
+    assert.equal(liveSpec.tools.length, 67);
+    assert.equal(upstreamSpec.tools.length, 67);
+    assert.deepEqual(
+      upstreamSpec.tools.map((tool) => tool.name).sort(),
+      liveSpec.tools.map((tool) => tool.name).sort(),
+    );
+    assert.equal(capabilityMap.live_mcp_tools.length, 7);
+    assert.ok(capabilityMap.live_mcp_tools.every((tool) => tool.startsWith('ultra.')));
+    assert.equal(capabilityMap.compatibility_mcp_tools.length, 60);
     assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);
     assert.equal(capabilityMap.codex_native_replacements['review.run'].surface, 'native_custom_agents');
     assert.equal(capabilityMap.codex_native_replacements['ask.question'].surface, 'request_user_input');
@@ -346,7 +349,18 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
     await client.connect(transport);
 
     const tools = await client.listTools();
-    assert.ok(tools.tools.some((tool) => tool.name === 'task.create'));
+    assert.deepEqual(
+      tools.tools.map((tool) => tool.name).sort(),
+      [
+        'ultra.archive',
+        'ultra.checkpoint',
+        'ultra.context',
+        'ultra.doctor',
+        'ultra.record',
+        'ultra.session',
+        'ultra.sync',
+      ],
+    );
     const change = await client.callTool({
       name: 'change.create',
       arguments: completeChangeInput({

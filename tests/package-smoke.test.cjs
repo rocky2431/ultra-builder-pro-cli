@@ -145,7 +145,7 @@ async function verifyMcp(launcher, projectDir) {
   try {
     assert.equal(client.getServerVersion().version, PACKAGE.version);
     const tools = await client.listTools();
-    assert.equal(tools.tools.length, 60);
+    assert.equal(tools.tools.length, 7);
     assert.equal(
       fs.existsSync(path.join(projectDir, '.ultra', '.runtime', 'state.db')),
       false,
@@ -296,7 +296,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
         path.join(root, 'spec', 'interaction-contract.json'),
         'utf8',
       ));
-      assert.equal(contract.schema_version, '1.2', runtime);
+      assert.equal(contract.schema_version, '1.3', runtime);
       assert.deepEqual(contract.interaction.semantic_selection_flow, EXPECTED_INTERACTION_FLOW);
       assert.equal(contract.interaction.adapter_authority, 'none');
       assert.equal(contract.routing.semantic_recommendation_owner, 'host_model');
@@ -308,7 +308,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
       );
       for (const capability of Object.values(contract.public_capability_graph)) {
         assert.equal(capability.activation, 'explicit_only', runtime);
-        assert.equal(capability.next_capability_source, 'mcp_allowed_transitions', runtime);
+        assert.equal(capability.next_capability_source, 'host_model_from_ultra_context', runtime);
         assert.equal(capability.recommendation_owner, 'host_model', runtime);
         assert.equal(capability.selection_owner, 'user', runtime);
         assert.equal(capability.automatic_invocation, false, runtime);

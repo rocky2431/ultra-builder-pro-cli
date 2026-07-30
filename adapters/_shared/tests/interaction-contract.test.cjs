@@ -22,7 +22,7 @@ test('every supported host receives the same authority split with a native quest
   };
   for (const runtime of ['claude', 'codex', 'opencode', 'kimi']) {
     const contract = interactionContract(runtime);
-    assert.equal(contract.schema_version, '1.2');
+    assert.equal(contract.schema_version, '1.3');
     assert.equal(contract.runtime, runtime);
     assert.equal(contract.interaction.question_surface.primary, expectedSurfaces[runtime]);
     assert.equal(contract.interaction.question_surface.primary, SURFACES[runtime].primary);
@@ -51,7 +51,9 @@ test('every supported host receives the same authority split with a native quest
     assert.ok(!contract.authority.host_model.includes('semantic_route_selection'));
     assert.equal(contract.routing.semantic_recommendation_owner, 'host_model');
     assert.equal(contract.routing.durable_recommendation_authority, false);
-    assert.equal(contract.routing.hard_invariant_field, 'required_transition');
+    assert.equal(contract.routing.current_context_tool, 'ultra.context');
+    assert.deepEqual(contract.routing.checkpoint_diagnostic_fields, ['warnings', 'blockers']);
+    assert.ok(contract.routing.hard_blocker_boundary.includes('concurrency_conflict'));
   }
 });
 

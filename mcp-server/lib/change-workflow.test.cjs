@@ -347,6 +347,67 @@ test('change creation requires a complete contract, classification rationale, an
   }
 });
 
+test('a ready Change reopens when accepted semantic intent is revised', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, completeChangeInput({
+      id: 'ready-reopen',
+      title: 'Ready draft',
+      kind: 'standard',
+      intent: 'The first accepted intent.',
+    }), { rootDir: fx.rootDir });
+    fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = 'ready-reopen'").run();
+
+    const updated = changes.updateChange(fx.db, 'ready-reopen', {
+      intent: 'The corrected accepted intent.',
+    }, { rootDir: fx.rootDir });
+
+    assert.equal(updated.status, 'active');
+    assert.equal(updated.intent, 'The corrected accepted intent.');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('compiling identical context twice reuses one content-addressed snapshot', () => {
+  const fx = fixture();
+  try {
+    changes.createChange(fx.db, completeChangeInput({
+      id: 'context-idempotent',
+      title: 'Idempotent context',
+      kind: 'standard',
+      intent: 'The same semantic inputs produce the same Context snapshot.',
+    }), { rootDir: fx.rootDir });
+
+    const input = {
+      id: 'context-idempotent',
+      role: 'plan',
+      gate: 'planning',
+      context_refs: [{
+        ref: 'README.md',
+        kind: 'spec',
+        reason: 'Current fixture boundary.',
+        required: true,
+      }],
+      budget: { max_tokens: 2_000, max_files: 4 },
+    };
+    const first = changes.compileContext(fx.db, input, { rootDir: fx.rootDir });
+    const second = changes.compileContext(fx.db, input, { rootDir: fx.rootDir });
+
+    assert.equal(second.manifest.snapshot_id, first.manifest.snapshot_id);
+    assert.equal(second.manifest_hash, first.manifest_hash);
+    assert.equal(second.context_manifest_path, first.context_manifest_path);
+    assert.equal(
+      fx.db.prepare(
+        "SELECT COUNT(*) AS count FROM context_snapshots WHERE change_id = 'context-idempotent'",
+      ).get().count,
+      1,
+    );
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('change creation binds a confirmed alignment checkpoint without copying the transcript', () => {
   const fx = fixture();
   try {

@@ -422,6 +422,65 @@ test('full and adoption research reject an implicit coverage decision', () => {
   }
 });
 
+test('every nonterminal workflow can be abandoned before a clean retry', () => {
+  const fx = fixture();
+  try {
+    const run = workflows.startWorkflow(fx.db, {
+      id: 'abandon-ready',
+      kind: 'init',
+      baseline_id: 'baseline',
+      subject: 'An advisory draft that must remain escapable.',
+    }, { rootDir: fx.rootDir });
+    fx.db.prepare(
+      "UPDATE workflow_runs SET status = 'ready' WHERE id = ?",
+    ).run(run.id);
+
+    const abandoned = workflows.abandonWorkflow(fx.db, {
+      id: run.id,
+      reason: 'The draft needs a clean retry.',
+    }, { rootDir: fx.rootDir });
+    assert.equal(abandoned.status, 'cancelled');
+
+    const retried = workflows.startWorkflow(fx.db, {
+      id: 'abandon-ready-retry',
+      kind: 'init',
+      baseline_id: 'baseline',
+      subject: 'The replacement draft.',
+    }, { rootDir: fx.rootDir });
+    assert.equal(retried.status, 'active');
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('a dirty draft with no remaining mechanical step is advisory health, not corruption', () => {
+  const fx = fixture();
+  try {
+    const run = workflows.startWorkflow(fx.db, {
+      id: 'dirty-draft-health',
+      kind: 'init',
+      baseline_id: 'baseline',
+      subject: 'A semantic draft changed after its prior checklist was recorded.',
+    }, { rootDir: fx.rootDir });
+    fx.db.prepare(
+      `UPDATE workflow_steps
+       SET status = 'completed', started_at = CURRENT_TIMESTAMP,
+           completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE run_id = ?`,
+    ).run(run.id);
+    fx.db.prepare(
+      `UPDATE workflow_runs
+       SET status = 'active', current_step = NULL, metadata_json = '{"draft_dirty":true}'
+       WHERE id = ?`,
+    ).run(run.id);
+
+    const health = workflows.inspectWorkflowHealth(fx.db, { rootDir: fx.rootDir });
+    assert.equal(health.status, 'pass', JSON.stringify(health, null, 2));
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('research records evidence and output digests, enforces order, and resumes at the next step', () => {
   const fx = fixture();
   try {

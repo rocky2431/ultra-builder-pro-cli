@@ -66,7 +66,7 @@ function copySkills(repoRoot, target, names) {
         let adaptedBody = adaptInteractionGuidance(body, 'claude');
         if (name === 'ultra-review') {
           adaptedBody = adaptedBody.replace(
-            /the current host's native bounded-worker\s+mechanism/g,
+            /(?:the current host's native|the host-native) bounded-worker\s+mechanism/g,
             'Claude Code Task workers using the installed review agent definitions',
           );
         }

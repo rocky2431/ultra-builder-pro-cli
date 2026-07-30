@@ -55,14 +55,14 @@ memory under `.ultra/`.
 | Layer        | Role                                         | Form                                                  |
 |--------------|----------------------------------------------|-------------------------------------------------------|
 | **skill**    | knowledge carrier; tells the runtime *what to do* | `skills/<name>/SKILL.md` discovered natively by all supported runtimes |
-| **MCP**      | authoritative workflow-state, decision, artifact, and Context Spine API | stdio MCP server exposing 60 live tools across task/session/baseline/change/decision/workflow/artifact/system/plan families in [`spec/mcp-tools.yaml`](../spec/mcp-tools.yaml) |
+| **MCP**      | persistence and safety kernel for checkpoints, evidence, sync, leases, archive, and recovery | stdio MCP server exposing seven public `ultra.*` tools; sixty 0.22 fine-grained operations remain hidden for one compatibility release |
 | **CLI**      | explicit initialization, recovery, diagnostics, and orchestration | `ultra-tools` / `ubp-orchestrator`; only commands listed by `--help` are executable (see [`spec/cli-protocol.md`](../spec/cli-protocol.md)) |
 
-Why three: skills give us behavior portability across runtimes; MCP gives
-us a strongly-typed contract so we can refactor implementations without
-rewriting prompts; the CLI supplies bounded maintenance and recovery paths when
-the MCP cannot start. It is deliberately not a second change-state API:
-continuous change mutations remain MCP-only and fail closed (D12).
+Why three: skills preserve adaptable model behavior across runtimes; MCP gives durable
+checkpoint and safety primitives without supervising every reasoning step; the CLI
+supplies bounded maintenance and recovery when MCP cannot start. Semantic draft
+diagnostics are report-first. Corruption, unsafe paths, real concurrency, permissions,
+and irreversible effects remain fail-closed.
 
 The skill layer is **read-only by design** (D29) and is discovered directly by
 each host. Ultra exposes no `skill.*` MCP family: skills are documentation, not
@@ -222,15 +222,11 @@ current question per thread. The host ends that turn and waits.
 
 The next response becomes a normalized owner decision, explicit reversible delegation,
 or consequence-bearing deferral. Prompts and transcripts are never persisted. The host
-applies accepted intent through the owning MCP operation or digest-bound artifact,
-reads it back, and records typed `applied_refs` when another authority changed. Routine
-settled state then closes through `decision.complete`, which is lifecycle completion
-rather than another approval. The breadcrumb recalls normalized accepted intent after
-the thread closes. Only a coherent cluster that needs an artifact-bound recovery
-boundary moves through prepare/confirm checkpointing. Matching workflow steps fail
-closed while a blocking question, blocking deferral, prepared checkpoint, or stale
-checkpoint artifact remains. Supersession preserves prior history and reopens alignment
-instead of silently editing an old decision. The shared procedure lives in
+batches the normalized result and owning mutation through `ultra.record`, reads it back
+through `ultra.context`, and attempts a semantic checkpoint only when durable authority
+is ready. Failed semantic checks leave the draft editable. Accepted revisions remain
+immutable; a changed decision opens a replacement draft while preserving history. The
+shared procedure lives in
 `skills/ultra-think/references/decision-dialogue.md`; status, breadcrumb, and doctor expose
 only the current recovery surface.
 
@@ -262,9 +258,10 @@ consumer trace. Standard and major convergence requires both current authorities
 only after all writes and baseline reconciliation succeed does it rebind the complete
 Change root into the archive.
 
-Workflow revisions preserve prior accepted runs. A candidate becomes current only
-through `workflow.supersede`; the artifact graph then invalidates the prior run's true
-transitive consumers without staling unrelated tasks.
+Draft revisions remain editable and recoverable. A failed checkpoint can be repaired
+and retried in place or intentionally abandoned. Accepted runs are immutable; a later
+candidate supersedes them only after its own accepted checkpoint, and the artifact graph
+invalidates only true transitive consumers.
 
 ### Context Spine
 
@@ -277,25 +274,24 @@ implementation, checking, review, convergence, and recovery. Each snapshot recor
   execution contract;
 - advisory attention budgets (12 files / about 12k tokens / 40% by default);
 - a DB-derived execution contract (`slice_kind`, public seam, exact verification command);
-- mechanically valid `allowed_transitions` and a `required_transition` only when a
-  hard invariant leaves one recovery route;
+- warnings and hard mechanical blockers without a semantic next-action command;
 - a digest of the accepted Change authority so semantic updates invalidate the
   snapshot.
 
-Prompt input may identify the intended role/gate, add bounded reference candidates,
+Checkpoint input may identify the intended role/gate, add bounded reference candidates,
 and lower advisory budgets. It cannot supply or override the task seam, verification
 command, task context references, evidence digest, gate verdict, workflow summary, or
 machine transitions. A host may attach a clearly non-authoritative recommendation.
 Critical dev/test/review/deliver workflow steps record the matching
 snapshot as an output; test, review, and delivery reports carry its digest forward.
 
-`change.breadcrumb` derives the compact current position from state.db. Session,
+The hook-only breadcrumb derives the compact current position from state.db. Session,
 edit, resume, and OpenCode lifecycle hooks invoke one bundled read-only reader
 and inject it only while state.db proves an active, blocked, or ready workflow,
 never the intent body,
 provider content, or a conversation summary. A changed Git HEAD, task contract, or
-Change semantic authority marks the snapshot stale and permits recompilation through
-`change.context`.
+Change semantic authority marks the snapshot stale and permits content-addressed
+recompilation through the next `ultra.checkpoint`.
 
 PRD decomposition and complex-task subdivision use the active host model. The
 MCP accepts the resulting structured tasks, validates schema, topology,
@@ -305,9 +301,9 @@ model API credential.
 
 Plugin installation does not activate a semantic workflow and never edits the
 user's `CLAUDE.md`, `AGENTS.md`, or equivalent durable instructions. Public
-workflows require explicit user invocation. A completed workflow returns
-mechanically allowed transitions and a host-owned recommendation, then stops;
-it never launches the next public workflow. OpenCode realizes this boundary
+workflows require explicit user invocation. The host reads `ultra.context`, recommends
+the next capability from evidence and owner intent, then stops; SQLite never launches
+or semantically selects the next public workflow. OpenCode realizes this boundary
 with explicit commands backed by private plugin workflow assets, while Claude,
 Codex, and Kimi use their native implicit-invocation controls.
 
@@ -334,8 +330,8 @@ Mutating MCP calls enqueue durable `projection_jobs`. Success is exposed in MCP
 response metadata; failure becomes a retryable structured incident instead of a
 swallowed warning. These jobs regenerate only checkout-local views below
 `.ultra/.runtime/projections/`; they never rewrite the Git team checkpoint. Durable
-semantic operations publish the checkpoint directly at baseline, Change, plan, and
-task handoff boundaries. `system.doctor` is read-only by default. Explicit repair
+semantic checkpoints publish team state at baseline, Change, plan, and task handoff
+boundaries. `ultra.doctor` is read-only by default. Explicit repair
 performs backup-first schema upgrade, archive-journal recovery, session and local
 projection recovery, and regenerated local views. It cannot import or publish semantic
 team state, approve a baseline, or replace a corrupt SQLite file silently. `system
@@ -346,14 +342,14 @@ authority and the legacy task projection before creating a new brownfield adopti
 
 ### Git team checkpoint and checkout merge
 
-`task.ledger_publish` serializes the current portable baseline, all Change summaries,
-and durable task contracts to `.ultra/tasks/tasks.json`. Per-record digests and
+`ultra.sync { action: publish }` serializes the current portable baseline, all Change
+summaries, and durable task contracts to `.ultra/tasks/tasks.json`. Per-record digests and
 revisions make independent fast-forward possible; the document state digest, parent
 digest, and bounded ancestor list reject stale or unrelated histories. Local process
 ownership fields are deliberately absent.
 
 The MCP server imports the checkpoint once when it opens project authority. A
-long-running host explicitly calls `task.ledger_import` after receiving a newer Git
+long-running host explicitly calls `ultra.sync { action: import }` after receiving a newer Git
 version. Import is transactional: it validates every record first, preserves local-only
 fields, fast-forwards clean records, and rejects same-record concurrency or an active
 task collision. Re-reading an already imported checkpoint performs no write. A ready
@@ -451,7 +447,7 @@ repository commit.
 `ubp --all --global --doctor [--json]` is read-only: it recomputes hashes and
 validates those entry points, returning a non-zero degraded result for
 missing/corrupt provenance, content drift, or broken host wiring. A single host
-can be selected instead of `--all`. This is separate from `system.doctor`, which
+can be selected instead of `--all`. This is separate from `ultra.doctor`, which
 diagnoses project state, projection, incidents, sessions, and backup-first
 workflow recovery.
 

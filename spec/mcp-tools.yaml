@@ -20,6 +20,7 @@ info:
     fixture to spec/fixtures/{valid,invalid}/, (c) `npm run test:spec` green.
 
 families:
+  - { name: ultra,   description: 'narrow model-facing persistence and safety kernel', phase: '23' }
   - { name: task,    description: 'authoritative task lifecycle on state.db', phase: '2' }
   - { name: session, description: 'execution-unit lifecycle with single-active-lease admission (D33)', phase: '4.5' }
   - { name: plan,    description: 'execution-plan artifact export and query (D34)', phase: '8a' }
@@ -31,6 +32,164 @@ families:
   - { name: system,  description: 'read-only diagnostics and explicit backup-first repair', phase: '9' }
 
 tools:
+
+  # ───────────────────── public model-facing kernel ─────────────────────
+  - name: ultra.context
+    family: ultra
+    description: Read the complete current Ultra spine and optionally compile one stage-scoped Context Manifest. This tool reports warnings and blockers without choosing the next semantic action.
+    phase: '23'
+    readonly: true
+    writer_role: mcp
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        stage: { type: string, enum: [project, research, plan, dev, test, review, deliver] }
+        scope:
+          type: object
+          additionalProperties: false
+          properties:
+            change_id: { type: string, minLength: 1 }
+            task_id: { type: string, minLength: 1 }
+        detail: { type: string, enum: [summary, full] }
+    output_schema: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
+      - { code: STATE_CORRUPT, description: 'local authority cannot be read safely' }
+    cli_subcommand: 'ultra context'
+
+  - name: ultra.record
+    family: ultra
+    description: Record one or more typed draft facts or actions with per-entry idempotency. Semantic rejections are returned as mutable diagnostics rather than transport errors.
+    phase: '23'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [entries]
+      additionalProperties: false
+      properties:
+        entries:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [operation, data, idempotency_key]
+            additionalProperties: false
+            properties:
+              operation: { type: string, minLength: 3 }
+              data: { type: object }
+              idempotency_key: { type: string, minLength: 3 }
+    output_schema: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
+      - { code: STATE_CORRUPT, description: 'local authority cannot be updated safely' }
+      - { code: PATH_AUTHORITY_VIOLATION, description: 'a requested write escapes managed authority' }
+    cli_subcommand: 'ultra record'
+    emits_events: [ultra_facade_call]
+
+  - name: ultra.checkpoint
+    family: ultra
+    description: Attempt one semantic stage checkpoint. Failed semantic checks return blockers and leave the draft mutable; accepted checkpoints commit durable authority once.
+    phase: '23'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [stage, scope, payload, idempotency_key]
+      additionalProperties: false
+      properties:
+        stage: { type: string, enum: [research, plan, dev, test, review, deliver] }
+        scope:
+          type: object
+          additionalProperties: false
+          properties:
+            change_id: { type: string, minLength: 1 }
+            task_id: { type: string, minLength: 1 }
+        payload: { type: object }
+        idempotency_key: { type: string, minLength: 3 }
+    output_schema: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
+      - { code: STATE_CORRUPT, description: 'local authority cannot be checkpointed safely' }
+      - { code: PATH_AUTHORITY_VIOLATION, description: 'checkpoint evidence escapes managed authority' }
+    cli_subcommand: 'ultra checkpoint'
+    emits_events: [ultra_checkpoint_accepted, ultra_checkpoint_rejected]
+
+  - name: ultra.sync
+    family: ultra
+    description: Inspect, import, or publish the Git team checkpoint while preserving local sessions and rejecting real concurrent team-state conflicts.
+    phase: '23'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [action]
+      additionalProperties: false
+      properties:
+        action: { type: string, enum: [inspect, import, publish] }
+        reason: { type: string }
+        idempotency_key: { type: string }
+    output_schema: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
+      - { code: TASK_LEDGER_HISTORY_CONFLICT, description: 'team checkpoint histories conflict' }
+      - { code: TASK_LEDGER_TASK_CONFLICT, description: 'the same durable task changed concurrently' }
+    cli_subcommand: 'ultra sync'
+
+  - name: ultra.session
+    family: ultra
+    description: Acquire, inspect, heartbeat, or release the small execution lease that requires transactional concurrency control.
+    phase: '23'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [action]
+      additionalProperties: false
+      properties:
+        action: { type: string, enum: [admission, acquire, get, list, heartbeat, release] }
+        scope: { type: object }
+        payload: { type: object }
+        idempotency_key: { type: string }
+    output_schema: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
+      - { code: SESSION_STATUS_CONFLICT, description: 'a concurrent session transition won' }
+      - { code: LEASE_EXPIRED, description: 'the execution lease already expired' }
+    cli_subcommand: 'ultra session'
+
+  - name: ultra.archive
+    family: ultra
+    description: Converge and archive one accepted Change through the recoverable filesystem and database transaction boundary.
+    phase: '23'
+    writer_role: mcp
+    input_schema:
+      type: object
+      required: [change_id, payload, idempotency_key]
+      additionalProperties: false
+      properties:
+        change_id: { type: string, minLength: 1 }
+        payload: { type: object }
+        idempotency_key: { type: string, minLength: 3 }
+    output_schema: { type: object }
+    errors:
+      - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
+      - { code: STATE_CORRUPT, description: 'archive authority cannot be trusted' }
+      - { code: ARCHIVE_RUNTIME_UNAVAILABLE, description: 'safe archive primitives are unavailable' }
+    cli_subcommand: 'ultra archive'
+
+  - name: ultra.doctor
+    family: ultra
+    description: Inspect mechanical health and optionally apply only backup-first deterministic repairs. Semantic choices remain with the model and owner.
+    phase: '23'
+    writer_role: mcp
+    input_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        repair: { type: boolean }
+    output_schema: { type: object }
+    errors:
+      - { code: STATE_CORRUPT, description: 'the state database cannot be inspected safely' }
+      - { code: BACKUP_FAILED, description: 'a required recovery backup could not be created' }
+    cli_subcommand: 'ultra doctor'
 
   # ─────────────────────────── task family ────────────────────────────────
   - name: task.create

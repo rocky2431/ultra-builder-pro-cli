@@ -26,7 +26,7 @@ bugs.
   but never `UPDATE` / `DELETE`.
 
 The CLI may indirectly mutate ordinary workflow tables by spawning the MCP server over
-stdio and calling `task.update`, `session.spawn`, etc. — but the actual
+stdio and calling the public `ultra.*` kernel — but the actual
 SQLite write is performed by the MCP server's writer connection. The documented
 exceptions are initial schema/baseline creation, migration, and explicitly
 authorized backup-first doctor recovery. The CLI never provides a parallel raw
@@ -36,8 +36,8 @@ The append-only carve-out for `events` exists because `events.id INTEGER
 PRIMARY KEY AUTOINCREMENT` makes concurrent inserts collision-free under
 WAL + `busy_timeout`. This lets hooks and short-lived CLI invocations
 record audit observations without paying the cost of a full MCP round trip.
-It does not grant lifecycle authority: external writers and public
-`task.append_event` use the published observation allowlist, while lifecycle event
+It does not grant lifecycle authority: external writers use the published observation
+allowlist, while lifecycle event
 names are emitted only inside the mutation that owns the corresponding state change.
 Consumers must verify mutable rows rather than infer success from an event name.
 
@@ -74,16 +74,16 @@ resolve the mount/runtime constraint before retrying.
 
 | Table              | Writer of record                                      |
 |--------------------|--------------------------------------------------------|
-| `baselines`        | MCP server (`baseline.start` / `baseline.record` / `baseline.converge`); initialization and legacy-projection migration may create only the first draft or compatibility row |
-| `tasks`            | MCP server (`task.create` / `task.update` / `task.delete`) |
-| `changes`          | MCP server (`change.create` / `change.update` / `change.converge` / `change.archive`) |
-| `decision_threads`, `decision_items` | MCP server (`decision.thread_start` / `decision.open` / `decision.resolve` / `decision.delegate` / `decision.defer` / `decision.supersede` / `decision.complete` / `decision.checkpoint`); pending recovery state, normalized accepted intent, durable effects, typed applied references, lifecycle completion, and optional artifact checkpoints are stored, never UI receipts, prompts, or transcripts |
-| `workflow_runs`, `workflow_steps` | MCP server (`workflow.start` / `workflow.step` / `workflow.complete`); skills provide evidence inputs but never write rows directly |
-| `artifacts`, `artifact_edges` | MCP server (`artifact.record`); workflow-owned registration may use the same internal registry transaction |
-| `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through change lifecycle tools |
+| `baselines`        | MCP server through `ultra.record`, `ultra.checkpoint`, and `ultra.archive`; initialization and legacy migration may create only the first draft or compatibility row |
+| `tasks`            | MCP server through `ultra.record`, `ultra.checkpoint`, and `ultra.sync` |
+| `changes`          | MCP server through `ultra.record`, `ultra.checkpoint`, and `ultra.archive` |
+| `decision_threads`, `decision_items` | MCP server through `ultra.record`; normalized accepted intent and applied references are stored, never UI receipts, prompts, or transcripts |
+| `workflow_runs`, `workflow_steps` | MCP server internally through `ultra.checkpoint`; Skills supply semantic evidence but never drive individual rows |
+| `artifacts`, `artifact_edges` | MCP server through `ultra.record` and checkpoint-owned registration |
+| `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through `ultra.record` and `ultra.checkpoint` |
 | `incidents`, `projection_jobs`, `event_consumers`, `circuit_breaker` | MCP server; backup-first doctor recovery may perform only documented mechanical transitions |
-| `events`           | MCP server for lifecycle events; approved processes and `task.append_event` for allowlisted append-only observations |
-| `sessions`         | MCP server (`session.spawn` / `session.close` / `session.heartbeat`); orchestrator may write status transitions |
+| `events`           | MCP server for lifecycle events; approved processes and `ultra.record` for allowlisted append-only observations |
+| `sessions`         | MCP server through `ultra.session`; orchestrator may write status transitions |
 | `telemetry`        | MCP server (collected from tool-call wrappers); orchestrator may dump bulk samples |
 | `specs_refs`       | MCP server (rebuilt on `spec_changed` event); orchestrator may rebuild |
 | `migration_history`| schema initializer and `ultra-tools migrate` or doctor repair |
@@ -91,8 +91,8 @@ resolve the mount/runtime constraint before retrying.
 
 ## 5. Git team checkpoint
 
-Only `task.ledger_publish` may derive `.ultra/tasks/tasks.json` from SQLite, and only
-`task.ledger_import` may merge it into SQLite. Server startup performs one import after
+Only `ultra.sync { action: publish }` may derive `.ultra/tasks/tasks.json` from SQLite,
+and only `ultra.sync { action: import }` may merge it into SQLite. Server startup performs one import after
 opening project authority; later pulls in a long-running process require an explicit
 import. The same checkpoint is idempotent and must not append an event again.
 

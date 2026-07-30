@@ -71,7 +71,7 @@ flowchart TB
     end
 
     SKILLS["Eleven explicit Ultra Skills<br/>init / research / think / change / plan / dev<br/>test / review / deliver / status / doctor"]
-    MCP["Ultra MCP<br/>60 typed tools across nine families"]
+    MCP["Ultra MCP safety kernel<br/>7 public tools; 60 hidden compatibility operations"]
     DB[(".ultra/.runtime/state.db<br/>SQLite lifecycle and index authority")]
     LEDGER[".ultra/tasks/tasks.json<br/>Git team checkpoint for portable baseline, Change, and task state"]
     VIEWS[".ultra/.runtime/projections<br/>checkout-local generated views"]
@@ -103,13 +103,42 @@ The responsibility split is deliberate:
 |---|---|
 | **User** | Product intent, semantic route selection, material scope and trade-offs, risk acceptance, destructive actions, publishing and deployment authorization |
 | **Host model** | Fact-finding, synthesis, research-coverage and route recommendations, reversible implementation decisions |
-| **Ultra MCP** | Checkout-local state, evidence references, digests, freshness, locks, valid transitions, hard recovery, and Git checkpoint publish/import |
+| **Ultra MCP** | Durable checkpoints, evidence references, digests, team sync, leases, archive transactions, and mechanical recovery |
 | **Host adapter** | Native Skill discovery, user questions, tool invocation, installation, and runtime wiring |
 | **Hooks** | Fast lifecycle observation, current breadcrumb injection, and protection of MCP-owned checkpoint and generated projection paths |
 
-The MCP does not replace the model's judgment. A hook does not decide product
-strategy. A prompt does not become durable authority merely because it appeared
-in a conversation.
+The MCP does not replace the model's judgment or pre-authorize a semantic route. It
+reports draft diagnostics and commits accepted checkpoints. A hook does not decide
+product strategy. A prompt does not become durable authority merely because it
+appeared in a conversation.
+
+### The seven-tool MCP kernel
+
+The public model-facing surface is intentionally small:
+
+| Tool | Responsibility |
+|---|---|
+| `ultra.context` | Read the complete current spine without side effects |
+| `ultra.record` | Batch typed draft facts and events with idempotency |
+| `ultra.checkpoint` | Attempt one semantic stage checkpoint; rejection leaves the draft editable |
+| `ultra.sync` | Inspect, import, or publish the Git team checkpoint |
+| `ultra.session` | Own the transactional execution lease |
+| `ultra.archive` | Converge and archive through the recoverable filesystem/DB boundary |
+| `ultra.doctor` | Inspect or repair mechanical health, backup first |
+
+The 0.22 fine-grained tools remain callable but undiscoverable for one compatibility
+release. Skills and new sessions use only the seven tools above. Workflow prose stays
+in Skills, model judgment stays with the host, and SQLite records what happened rather
+than deciding what the model is allowed to think next.
+
+The enforcement gradient is:
+
+```text
+exploration and iteration: advisory
+durable semantic checkpoint: validated and recoverable
+corruption / unsafe path / real concurrency / permission: fail closed
+irreversible external effect: explicit owner authority plus fail closed
+```
 
 ### How owner intent becomes durable authority
 
@@ -121,9 +150,9 @@ flowchart TD
     CLEAR -->|"Yes"| NORMALIZE["Normalize the accepted intent"]
     CLEAR -->|"No: a material choice remains"| ASK["Ask one dependent question through the host-native question tool"]
     ASK --> NORMALIZE
-    NORMALIZE --> DECISION["Persist the normalized result through decision.*"]
-    DECISION --> APPLY["Apply it through the owning MCP operation or digest-bound artifact"]
-    APPLY --> AUTHORITY["Bind state, artifact digest, provenance, and downstream effects"]
+    NORMALIZE --> RECORD["Batch the normalized result through ultra.record"]
+    RECORD --> CHECKPOINT["Attempt the owning ultra.checkpoint when authority is ready"]
+    CHECKPOINT --> AUTHORITY["Bind state, artifact digest, provenance, and downstream effects"]
     AUTHORITY --> READBACK["Read back the authoritative result"]
     READBACK --> RESUME["Resume the exact workflow step and recommend the next explicit capability"]
 ```
@@ -299,9 +328,9 @@ already resolves the route. The normalized accepted coverage is then stored in
 - `deferred` — record the consequence and accepted owner.
 
 The catalog is not a mandatory document set or questionnaire. Omitted areas
-create no workflow rows; an explicit exclusion is recorded only when retaining
-that rationale is useful. MCP validates state, evidence, and transitions; it
-does not store or prove the preceding UI interaction.
+   create no workflow rows; an explicit exclusion is recorded only when retaining
+   that rationale is useful. MCP validates accepted checkpoints and mechanical
+   integrity; it does not store or prove the preceding UI interaction.
 
 Older projection-only Ultra projects are preserved and routed through a
 backup-first migration or rebaseline. The first supported checkpoint publication
@@ -358,19 +387,19 @@ The next piece of daily work starts with a new `ultra-change`.
 | `ultra-test` | Run the risk-selected verification profile and persist the gate result |
 | `ultra-review` | Coordinate independent specification-fidelity and engineering review |
 | `ultra-deliver` | Reconcile specifications, close local authority, and archive the change |
-| `ultra-status` | Read the current breadcrumb, blockers, evidence, and allowed transitions |
+| `ultra-status` | Read the current context, warnings, blockers, and evidence |
 | `ultra-doctor` | Diagnose installation or project-state faults and expose safe recovery |
 
-These eleven capabilities are the complete public Ultra command graph. Each capability
-returns current `allowed_transitions`; the host may recommend one, but another public
-capability starts only after an explicit user command or skill invocation.
+These eleven capabilities are the complete public Ultra command graph. The host model
+recommends the next capability from current context and owner intent; SQLite does not
+encode the semantic route. Another public capability starts only after an explicit
+user command or skill invocation.
 
 ### Command interaction graph
 
-Every solid handoff below means: the current capability returns
-`allowed_transitions`, the model recommends a route, and the owner explicitly
-invokes the next public capability. It does not mean that one public command
-silently launches another.
+Every solid handoff below means: the current capability returns context and checkpoint
+diagnostics, the model recommends a route, and the owner explicitly invokes the next
+public capability. It does not mean that one public command silently launches another.
 
 ```mermaid
 flowchart TD
@@ -459,8 +488,8 @@ health without selecting product intent.
 
 Together, `.ultra/` is Ultra's project-local cross-session workflow memory. The
 host model writes semantic specifications and evidence through the active
-workflow. MCP records lifecycle state, references, digests, provenance, and
-accepted intent, then rejects stale or illegal transitions. The DB is the
+capability. MCP records lifecycle state, references, digests, provenance, and
+accepted intent, then validates durable checkpoints and mechanical integrity. The DB is the
 lifecycle and index authority for one checkout; registered digest-bound files carry
 the semantic or evidence bodies that the DB references. The Git checkpoint is a
 portable, digest-chained handoff of baseline, Change, and durable task records. It is
@@ -551,12 +580,13 @@ host's existing model session.
 - **Project state is unhealthy:** invoke `ultra-doctor` or run
   `ultra-tools system doctor`. Repairs and schema migrations are backup-first.
 - **The team checkpoint disagrees with local state:** run `ultra-status`, inspect the
-  typed ledger condition, then use the recommended `task.ledger_import` or
-  `task.ledger_publish` path. Never edit `.ultra/tasks/tasks.json` by hand.
+  typed ledger condition, then use `ultra.sync` to import or publish after reviewing
+  any real conflict. Never edit `.ultra/tasks/tasks.json` by hand.
 - **A generated view disagrees with MCP:** trust `.ultra/.runtime/state.db`; never edit
   `.ultra/.runtime/projections/` by hand.
-- **A workflow appears blocked:** use `ultra-status` to read the exact current
-  workflow, blocker, owner decision, and mechanically valid transitions.
+- **A draft checkpoint is rejected:** use `ultra-status` to read the exact warnings
+  and blockers, fix the same mutable draft, and retry. Use `workflow.abandon` through
+  `ultra.record` only when intentionally cancelling the attempt.
 - **Kimi reports a native-module ABI error:** ensure an external Node.js 22+
   executable is available on `PATH`; the generated Kimi MCP launcher uses
   `env node`.

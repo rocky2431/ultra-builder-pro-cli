@@ -7,8 +7,10 @@ not create or rewrite that file.
 ## Product boundary
 
 Ultra Builder Pro is a host-adapted workflow plugin for Claude Code, Codex, OpenCode,
-and Kimi Code. It owns workflow authority, evidence, recovery, host adapters, and the
-minimal prompts required to operate them.
+and Kimi Code. It owns durable project checkpoints, evidence, recovery, host adapters,
+and the minimal prompts required to operate them. The host model owns semantic
+reasoning and route selection; MCP is a persistence and safety kernel, not a
+fine-grained workflow supervisor.
 
 It owns project-local cross-session workflow memory under `.ultra/`: normalized intent,
 progress, tasks, bounded context, specifications, evidence, provenance, and recovery.
@@ -20,8 +22,11 @@ Keep those capabilities in separately installed owner packages.
 
 - `adapters/_shared/runtime-assets.cjs`: packaged Skill, hook, and collaboration allowlists.
 - `docs/PLUGIN-ISOLATION-CONTRACT.md`: installation, activation, idle, and ownership boundaries.
-- `mcp-server/lib/workflow-state.cjs`: workflow state transitions and durable gates.
-- `spec/mcp-tools.yaml`: public MCP contract.
+- `mcp-server/lib/ultra-facade.cjs`: seven-tool model-facing MCP kernel.
+- `mcp-server/lib/workflow-state.cjs`: hidden compatibility bookkeeping and durable
+  checkpoint validation.
+- `spec/mcp-tools.yaml`: seven public contracts plus one-release hidden compatibility
+  contracts.
 - `skills/*/SKILL.md`: reusable workflow prompts.
 - Codex plugin Skills: native `$ultra-builder-pro:<skill>` entry points.
 - `.ultra/.runtime/state.db`: lifecycle, index, transition, freshness, and coordination authority
@@ -52,8 +57,10 @@ one workflow may recommend but must not launch another.
 4. Run the narrow test first, then the relevant package suite.
 5. Inspect the final diff and packaged artifact.
 
-Do not weaken gates merely to make tests pass. Context-size guidance is advisory;
-authority, security, irreversible effects, and evidence integrity may block.
+Do not turn semantic advice, incomplete exploration, or an editable draft into a hard
+MCP failure. Failed checkpoints report mutable diagnostics. Corruption, unsafe paths,
+true concurrency conflicts, permissions, irreversible effects, and accepted evidence
+integrity remain fail-closed. Context-size guidance is advisory.
 
 ## Verification
 

@@ -59,14 +59,12 @@ inspect -> suggest -> host-native ask -> normalize -> persist -> apply -> read b
 The host-native ask is conditional. An explicit owner instruction can already resolve
 a choice, so the model must not ask
 again merely to manufacture proof. When interaction is needed, the adapter uses the
-host-native question surface. Once the model writes the normalized result through
-`decision.resolve`, `decision.delegate`, or `decision.defer`, the DB treats that result
-as current cross-session intent authority. It does not store or verify a UI receipt,
-raw prompt, or transcript.
+host-native question surface. Once the model batches the normalized result through
+`ultra.record`, the DB treats that result as current cross-session intent authority. It
+does not store or verify a UI receipt, raw prompt, or transcript.
 
 If the accepted decision changes another Ultra authority, the model applies that change
-through its owning MCP tool or digest-bound artifact, reads the result back, and passes
-typed `applied_refs` to `decision.complete`. A decision whose normalized record is
+through `ultra.record` or a digest-bound artifact and reads the result back. A decision whose normalized record is
 itself the complete authority may have no applied reference. Breadcrumb and decision
 read paths recall accepted intent only after the dialogue thread is completed or
 confirmed. A row-backed applied reference names an exact field and canonical value,
@@ -77,7 +75,7 @@ the exact file digest. Row existence alone never proves that intent was applied.
 
 Working material becomes durable only when all applicable conditions hold:
 
-1. the active workflow permits the write;
+1. the current Change and owner authority permit the write;
 2. consequential claims are verified against the checkout, runtime, test result, or
    primary source;
 3. the model writes through the owning MCP operation or immutable artifact path;
@@ -122,9 +120,9 @@ as delivered.
 
 ## Context and plan authority
 
-`change.context` is a pure compiler. It reads accepted Change, task, baseline, checkout,
-and provider-reference authority and writes one immutable manifest plus its DB snapshot
-row. It never updates provider references or semantic Change fields. Each snapshot is
+The Context compiler used by `ultra.checkpoint` reads accepted Change, task, baseline,
+checkout, and provider-reference authority and writes one immutable manifest plus its
+DB snapshot row. It never updates provider references or semantic Change fields. Each snapshot is
 identified exactly by `change_id`, nullable `task_id`, `role`, and `gate`; consumers
 must not substitute a newer snapshot from a different tuple.
 
@@ -141,8 +139,8 @@ A current plan is a Change-owned pair:
 - `<artifact_root>/plan.md` is the deterministic human projection of the same plan and
   task contracts.
 
-`plan.export` selects both paths from the owning Change and accepts no arbitrary output
-path. `verify-plan` binds the JSON digest and the preceding `plan/planning` snapshot;
+The Plan checkpoint selects both paths from the owning Change and accepts no arbitrary
+output path. It binds the JSON digest and the preceding `plan/planning` snapshot;
 the artifact registry records both plan files with that context provenance. Publication
 preflights both path authorities and prior digests, rejects symlinked ancestors or
 targets, and journals the two file replacements so a registry or event failure restores
@@ -152,7 +150,7 @@ never current write or dispatch authority.
 
 ## Registry contract
 
-`artifact.record` is the public writer for a semantic or evidence file that is not
+`ultra.record` is the public writer for a semantic or evidence file that is not
 already registered by its owning workflow operation. Every managed registry row has:
 
 - a typed `owner_type` and `owner_id`;
@@ -190,7 +188,7 @@ pretending that an old row satisfies the current registry contract.
 
 ## Dependency and orphan diagnosis
 
-`system.doctor` compares the registry, dependency graph, filesystem, and owner
+`ultra.doctor` compares the registry, dependency graph, filesystem, and owner
 tables. It reports:
 
 - unregistered semantic or evidence files;
@@ -235,7 +233,7 @@ Change creation or update, plan acceptance, durable task-contract or status chan
 task expansion or deletion, and Change convergence or archive. A direct edit is
 rejected by host hooks and fails digest validation even without hooks.
 
-`task.ledger_import` validates schema, full and per-record digests, bounded ancestry,
+`ultra.sync { action: import }` validates schema, full and per-record digests, bounded ancestry,
 Change ownership, task parents, and local active sessions. A clean record fast-forwards.
 A record changed on both sides, a non-descendant checkpoint, or a remote update to a
 locally active task stops with a typed conflict. Re-importing the same checkpoint
@@ -245,7 +243,8 @@ HEAD, scope bytes, verification, or accepted dirty state. Publication remains bl
 until that local baseline converges, preventing one unvalidated checkout from
 downgrading team authority.
 
-Legacy v4.4/v4.5 projections are replaced only through `task.ledger_publish`. The
+Legacy v4.4/v4.5 projections are replaced only through
+`ultra.sync { action: publish }`. The
 publisher first compares every available durable field with SQLite, writes the exact
 legacy bytes to `.ultra/.runtime/backups/task-ledger/`, and refuses any mismatch.
 Doctor diagnoses this state but never performs the semantic replacement.

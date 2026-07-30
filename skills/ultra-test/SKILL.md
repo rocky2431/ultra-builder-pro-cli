@@ -1,74 +1,38 @@
 ---
 name: ultra-test
-description: Independently verify an Ultra task set or change with an evidence-backed, risk-selected test profile. Use when implementation or current acceptance and recovery evidence needs independent verification.
+description: Independently verify an Ultra task set or Change with an evidence-backed, risk-selected test profile. Use when implementation or current acceptance and recovery evidence needs independent verification.
 ---
 
 # Verify current behavior
 
-Testing is independent checking. Do not reuse implementation conclusions or generated
-projections as proof.
+Testing independently checks the current checkout. Implementation conclusions and
+generated projections are not evidence.
 
-## Bind scope
+## Bind and execute
 
-1. Read doctor, `task.ledger_get`, change, breadcrumb `accepted_intent`, decisions,
-   task and dev evidence, current checkout, and prior report freshness. Import a newer
-   descendant checkpoint before binding the task set; stop on a typed merge conflict.
-2. Resume or start a test workflow bound to the exact change and optional task.
-3. Record `bind-scope`, then compile `change.context` for `check` and record its
-   immutable manifest under `compile-context`.
-4. Record `map-acceptance` after mapping every accepted claim to an executable check
-   or bounded observable seam.
+1. Call `ultra.context { stage: test, scope: { change_id, task_id? }, detail: full }`.
+2. Import a newer team checkpoint with `ultra.sync`; stop on a real conflict.
+3. Bind exact acceptance, task set, HEAD, worktree, decisions, dev evidence, and public
+   seams.
+4. Select a risk-based profile from acceptance, regression, integration, static
+   analysis, build, performance, security, and recovery. Acceptance is mandatory;
+   explain every material exclusion.
+5. Run repository-native commands and real boundaries. A bug or incident needs one
+   deterministic red-to-green regression signal.
 
-## Select verification by risk
+Write an `ultra-test-report-v1` report below the owning Change. Bind exact acceptance
+ids, task ids, HEAD, worktree/context digests, commands, seams, failures, recovery,
+profile, timestamp, blockers, and evidence-derived verdict. Register it with
+`ultra.record` using `artifact.record`.
 
-The model selects from:
+## Checkpoint
 
-- acceptance;
-- regression;
-- integration;
-- static analysis;
-- build;
-- performance;
-- security;
-- recovery.
+Call `ultra.checkpoint` once with `stage: test`, exact scope, evidence, and an output
+for the report (`kind: test-report`). The checkpoint compiles or reuses checking
+context and derives the verdict from the registered report.
 
-Acceptance is always selected. Select other dimensions when the change, repository, or
-failure mode makes them material. Record excluded dimensions and concrete rationales in
-`verification_profile`; omission without a rationale is invalid. A selected dimension
-must be `pass`, `fail`, or `not_run`; `not_run` cannot support a passing gate.
+If rejected, keep the same draft, repair evidence, and retry. Never weaken an
+assertion, hide a skip, or turn a warning into proof.
 
-Run repository-native commands and real boundaries where practical. Test doubles are
-acceptable only at costly or nondeterministic external boundaries when the report
-explains the preserved contract. Do not weaken assertions, hide skips, or validate
-unconsumed code.
-
-For an incident or bugfix, record one deterministic red-to-green `regression_signal`.
-When evidence reveals a material product or recovery choice, use the host's native
-question UI and decision protocol; testing must not choose the desired outcome.
-
-## Report
-
-Write
-`.ultra/changes/active/<change-id>/test/<workflow-id>/report.json` with
-`ultra-test-report-v1`, binding:
-
-- change, exact task ids, current Change acceptance ids, HEAD, worktree digest, and
-  checking-context digest;
-- acceptance mapping, commands, public seams, failures, and recovery evidence;
-- `verification_profile` and the selected `verification_dimensions`;
-- regression signal when required;
-- run count, timestamp, blockers, and evidence-derived `passed`.
-
-Record `execute-checks`, `verify-public-seam`, and `write-report`, then re-read the
-report and current checkout before `verify-test-gate`. `workflow.complete` derives its
-summary from the report and rejects stale, malformed, contradictory, out-of-Change,
-or acceptance-incomplete evidence.
-
-Return the profile, exact results, verified seams, blockers, report digest, workflow
-state, and allowed transitions. Recommend broader review, more implementation, or
-delivery from those transitions. If current intent does not already select the
-semantic next action, use
-`../ultra-think/references/decision-dialogue.md` and wait for the user to select,
-modify, delegate, or defer it.
-
-Never invoke the recommended capability here; wait for an explicit user invocation.
+Return the profile, exact results, verified seams, blockers, report digest, and the
+model's recommended next explicit capability. Do not invoke it automatically.

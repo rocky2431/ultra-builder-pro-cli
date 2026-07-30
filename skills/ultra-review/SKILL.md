@@ -1,62 +1,41 @@
 ---
 name: ultra-review
-description: Independently review one current Ultra plan, task diff, or aggregate change on specification fidelity and engineering standards. Use when current evidence needs a review gate or focused risk analysis.
+description: Independently review one current Ultra plan, task diff, or aggregate Change on specification fidelity and engineering standards. Use when current evidence needs review or focused risk analysis.
 ---
 
 # Review one bounded scope
 
 Keep two independent verdict axes:
 
-- `spec_fidelity`: accepted intent, behavior, documentation impact, and public seams;
-- `engineering_standards`: correctness, safety, tests, integration, maintainability,
-  observability, and recovery.
+- `spec_fidelity`: accepted intent, behavior, docs, and public seams;
+- `engineering_standards`: correctness, safety, tests, integration,
+  maintainability, observability, and recovery.
 
-Neither axis can compensate for the other.
+## Bind and review
 
-## Bind evidence
+1. Read `references/review-modes.md`.
+2. Call `ultra.context { stage: review, scope: { change_id, task_id? }, detail: full }`.
+3. Import a newer team checkpoint with `ultra.sync`; stop on a real conflict.
+4. Bind one explicit diff or Plan, full HEAD, worktree digest, task set, acceptance,
+   decisions, and current evidence. Empty or stale scope cannot pass.
+5. Always run `review-spec`. Select the smallest engineering worker set that covers
+   actual risk; record selected and excluded roles with rationale.
 
-1. Read `references/review-modes.md` and select `plan`, `task`, or `change` from the
-   actual review request.
-2. Read doctor and `task.ledger_get`. Import a newer descendant checkpoint before
-   binding the review scope; stop on a typed merge conflict.
-3. Bind one explicit diff or plan artifact, full HEAD, worktree digest, task set,
-   acceptance, breadcrumb `accepted_intent`, and current decision state.
-4. Resume or start the review workflow and record `bind-diff`.
-5. Compile `change.context` for `review` and record the immutable manifest under
-   `compile-context`.
+Workers are read-only and use the host-native bounded-worker mechanism. Validate their
+artifacts with `scripts/review_wait.py` and
+`references/unified-schema.md`. Preserve every finding unchanged in `SUMMARY.json`;
+group duplicates only in the human summary.
 
-An empty, ambiguous, or stale scope cannot pass.
+Register specialist and summary artifacts through one `ultra.record` batch.
 
-## Select workers by risk
+## Checkpoint
 
-Always run `review-spec`. Select the smallest engineering worker set that covers the
-actual diff and risk. Record every selected and excluded worker with a specific
-rationale; do not run every specialist ceremonially.
+Call `ultra.checkpoint` once with `stage: review`, exact scope, evidence, and outputs
+tagged `spec_review`, `engineering_review`, or summary. The checkpoint compiles or
+reuses review context and derives both axes from registered artifacts.
 
-Invoke workers through the current host's native bounded-worker mechanism and pass
-only their role, current scope, and relevant evidence. Workers are read-only and may
-not decide owner choices or edit source.
+A rejected checkpoint leaves the draft mutable. Fix stale scope or evidence and retry;
+do not open a replacement run or suppress a finding.
 
-Resolve `references/unified-schema.md` from this Skill directory and pass its absolute
-path as `SCHEMA_PATH`. Validate specialist artifacts with
-`scripts/review_wait.py`. Store all specialist artifacts and `SUMMARY.json` below
-`.ultra/changes/active/<change-id>/review/<workflow-id>/`. Record outputs under
-`review-specification`, `review-engineering`, and `coordinate-findings`.
-
-The coordinator preserves every finding unchanged in `SUMMARY.json`; it may group
-duplicate root causes only in the human summary. A new material owner choice remains a
-finding and routes to the interaction protocol.
-
-## Complete
-
-Recheck HEAD, worktree, context digest, diff, task set, acceptance, artifact schemas,
-and both axes. Record `verify-review-gate`, then call `workflow.complete`. MCP derives
-the durable verdict and rejects missing specialists, lossy coordination, stale
-artifacts, or prompt-supplied conclusions.
-
-Any relevant code, test, specification, or contract edit invalidates the affected
-review evidence through registered provenance edges; unrelated evidence remains
-current. Return both verdict axes, blocking findings, reviewed scope, worker selection
-rationale, artifact digests, and allowed transitions.
-
-Never invoke the recommended capability here; wait for an explicit user invocation.
+Return both axes, findings, reviewed scope, worker rationale, digests, and the model's
+recommended next explicit capability. Do not invoke it automatically.

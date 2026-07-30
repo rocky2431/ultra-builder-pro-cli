@@ -41,7 +41,7 @@ const PUBLIC_CAPABILITY_GRAPH = Object.freeze(Object.fromEntries(
     Object.freeze({
       mode: PUBLIC_CAPABILITY_MODES[name],
       activation: 'explicit_only',
-      next_capability_source: 'mcp_allowed_transitions',
+      next_capability_source: 'host_model_from_ultra_context',
       recommendation_owner: 'host_model',
       selection_owner: 'user',
       automatic_invocation: false,

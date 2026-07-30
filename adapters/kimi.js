@@ -96,7 +96,7 @@ function kimiTextTransform(input, assetName = '') {
   }
   if (assetName === 'ultra-review') {
     text = text.replace(
-      /the current host's native bounded-worker\s+mechanism/g,
+      /(?:the current host's native|the host-native) bounded-worker\s+mechanism/g,
       'Kimi `AgentSwarm` for parallel reviewers or one foreground Kimi `Agent` for a single reviewer, using the worker prompt files under `$KIMI_PLUGIN_ROOT/agents/`',
     );
   }

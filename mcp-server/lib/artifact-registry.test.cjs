@@ -195,6 +195,51 @@ test('artifact.record replaces edges transactionally and invalidates only exact 
   }
 });
 
+test('updating an active draft artifact reopens its workflow instead of self-invalidating it', () => {
+  const fx = fixture();
+  try {
+    fx.db.prepare(
+      `INSERT INTO workflow_runs
+       (id, kind, subject, definition_version, status, metadata_json, blockers_json, summary_json)
+       VALUES ('draft-workflow', 'plan', 'Mutable plan draft', '20.0', 'ready', '{}', '[]', '{}')`,
+    ).run();
+    write(fx.rootDir, '.ultra/changes/active/draft/plan.md', '# Plan v1\n');
+    const first = artifacts.recordArtifact(fx.db, {
+      id: 'draft-plan',
+      owner_type: 'workflow',
+      owner_id: 'draft-workflow',
+      kind: 'execution_plan_markdown',
+      path: '.ultra/changes/active/draft/plan.md',
+      provenance: { actor: 'model' },
+      source_refs: [],
+      consumer_refs: [endpoint('workflow', 'draft-workflow', 'verified_by')],
+    }, { rootDir: fx.rootDir });
+
+    write(fx.rootDir, '.ultra/changes/active/draft/plan.md', '# Plan v2\n');
+    artifacts.recordArtifact(fx.db, {
+      id: 'draft-plan',
+      owner_type: 'workflow',
+      owner_id: 'draft-workflow',
+      kind: 'execution_plan_markdown',
+      path: '.ultra/changes/active/draft/plan.md',
+      expected_before_digest: first.artifact.digest,
+      provenance: { actor: 'model' },
+      source_refs: [],
+      consumer_refs: [endpoint('workflow', 'draft-workflow', 'verified_by')],
+    }, { rootDir: fx.rootDir });
+
+    const row = fx.db.prepare(
+      "SELECT status, metadata_json FROM workflow_runs WHERE id = 'draft-workflow'",
+    ).get();
+    const metadata = JSON.parse(row.metadata_json);
+    assert.equal(row.status, 'active');
+    assert.equal(metadata.draft_dirty, true);
+    assert.equal(metadata.authority_invalidation, undefined);
+  } finally {
+    cleanup(fx);
+  }
+});
+
 test('artifact.record rejects an invalid replacement without changing the prior row or edges', () => {
   const fx = fixture();
   try {

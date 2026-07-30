@@ -147,7 +147,9 @@ exists; that exception does not create interaction proof.
 
 ## Return to the capability graph
 
-After alignment, re-read the invoking workflow and breadcrumb. A
-`required_transition` is authoritative only for a hard invariant. Otherwise the host
-model recommends among `allowed_transitions` based on the user's goal and current
-evidence. Do not persist that semantic recommendation as MCP authority.
+After alignment, re-read `ultra.context` for the invoking scope. The host model
+recommends the next explicit capability from the user's goal, accepted intent,
+evidence, recovery cost, and current warnings or blockers. MCP diagnostics describe
+mechanical facts; they do not encode a semantic route or persist the recommendation
+as authority. Only corruption, unsafe paths, true concurrency conflicts, permissions,
+or irreversible external effects are hard blockers.

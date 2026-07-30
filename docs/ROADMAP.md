@@ -57,14 +57,14 @@ sharing one authoritative workflow store.
 
 ```
 spec/                       ← Phase 1 single source of truth
-├── mcp-tools.yaml          (60 live tools across 9 families)
+├── mcp-tools.yaml          (7 public kernel tools + 60 hidden compatibility operations)
 ├── cli-protocol.md         (CLI ↔ MCP mapping table)
 ├── schemas/                (state-db.sql + 4 JSON schemas)
 ├── fixtures/{valid,invalid}/  (+ v4.4-project for migration)
 └── scripts/test-all.cjs    (npm run test:spec — 7 validation stages)
 
 mcp-server/                 ← Phase 2 authoritative state layer
-├── server.cjs              (stdio MCP server, 60 task/session/baseline/change/decision/workflow/artifact/system/plan tools)
+├── server.cjs              (stdio MCP server with a 7-tool public façade)
 ├── lib/
 │   ├── state-db.cjs        (SQLite + WAL + pragmas)
 │   ├── state-ops.cjs       (full write API, status state machine)

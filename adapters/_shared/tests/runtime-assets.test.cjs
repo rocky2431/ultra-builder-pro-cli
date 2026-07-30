@@ -103,7 +103,7 @@ test('the public capability graph is exact and every handoff remains explicit', 
     assert.deepEqual(PUBLIC_CAPABILITY_GRAPH[name], {
       mode: GRAPH_MODES[name],
       activation: 'explicit_only',
-      next_capability_source: 'mcp_allowed_transitions',
+      next_capability_source: 'host_model_from_ultra_context',
       recommendation_owner: 'host_model',
       selection_owner: 'user',
       automatic_invocation: false,

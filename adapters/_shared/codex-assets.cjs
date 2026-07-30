@@ -96,7 +96,7 @@ function adaptCodexPrimaryText(input, skillName) {
   let text = String(input);
   if (skillName === 'ultra-review') {
     text = text.replace(
-      /the current host's native bounded-worker\s+mechanism/g,
+      /(?:the current host's native|the host-native) bounded-worker\s+mechanism/g,
       'native Codex custom agents installed for the selected review workers',
     );
   }
@@ -470,7 +470,11 @@ main().catch((error) => {
 
   const sourceToolsFile = path.join(repoRoot, 'spec', 'mcp-tools.yaml');
   const upstreamManifest = yaml.load(fs.readFileSync(sourceToolsFile, 'utf8'));
-  const { REGISTERED_TOOLS } = require(path.join(repoRoot, 'mcp-server', 'server.cjs'));
+  const {
+    LEGACY_TOOLS,
+    PUBLIC_TOOLS,
+    REGISTERED_TOOLS,
+  } = require(path.join(repoRoot, 'mcp-server', 'server.cjs'));
   const registered = new Set(REGISTERED_TOOLS);
   const liveFamilies = new Set(
     upstreamManifest.tools.filter((tool) => registered.has(tool.name)).map((tool) => tool.family),
@@ -495,7 +499,8 @@ main().catch((error) => {
     fs.copyFileSync(sourceToolsFile, path.join(specRoot, 'upstream-mcp-tools.yaml'));
     writeAtomic(path.join(specRoot, 'codex-capability-map.json'), JSON.stringify({
       runtime: 'codex',
-      live_mcp_tools: REGISTERED_TOOLS,
+      live_mcp_tools: PUBLIC_TOOLS,
+      compatibility_mcp_tools: LEGACY_TOOLS,
       codex_native_replacements: CODEX_NATIVE_MCP_REPLACEMENTS,
     }, null, 2) + '\n');
   }

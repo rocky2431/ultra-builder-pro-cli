@@ -25,18 +25,18 @@ not put it in a plugin until that allowlist classifies it.
 ## 2. Three-layer architecture
 
 ```text
-native command or skill -> MCP workflow-state operation -> .ultra/.runtime/state.db
+native command or skill -> 7-tool MCP safety kernel -> .ultra/.runtime/state.db
                                       | \
                                       |  -> .ultra/tasks/tasks.json (Git checkpoint)
                                       |  -> .ultra/.runtime/projections/ (local views)
                                       ^
-              selected CLI init / doctor / diagnostics / orchestration
+                         CLI diagnostics / orchestration
 ```
 
 | Layer | Artifact | Contract |
 |---|---|---|
 | Skill/command | `skills/*/SKILL.md`, `commands/*.md` | Model-facing workflow and host-native entry point |
-| MCP | `mcp-server/server.cjs` | Authoritative typed operations over `.ultra/.runtime/state.db` |
+| MCP | `mcp-server/server.cjs` | Persistence, semantic checkpoints, team sync, leases, archive transactions, and mechanical recovery |
 | CLI | `ultra-tools`, `ubp-orchestrator` | Selected initialization, backup-first recovery, automation, and diagnostics; not a change-state mirror |
 
 `.ultra/` is project-local cross-session workflow memory for normalized intent,
@@ -51,28 +51,29 @@ authority. Generated task views, runtime checkpoints, and collaboration scratch 
 not independent authority. See
 [`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
 
-## 3. Live MCP and declared contracts
+## 3. Public MCP kernel and compatibility layer
 
-`spec/mcp-tools.yaml` declares and the bundled server registers 60 tools across
-nine families:
+Every host discovers the same seven model-facing tools:
 
-| Family | Live tools |
+| Public tool | Contract |
 |---|---|
-| `baseline.*` | start, record, get, converge |
-| `task.*` | create, update, list, get, switch_tag, delete, init_project, expand, parse_prd, dependency_topo, append_event, subscribe_events, ledger_get, ledger_publish, ledger_import |
-| `session.*` | spawn, close, get, list, admission_check, heartbeat, subscribe_events |
-| `change.*` | create, update, delta, documentation_reconcile, get, list, context, breadcrumb, learning_propose, learning_resolve, converge, archive |
-| `decision.*` | thread_start, get, list, open, resolve, delegate, defer, supersede, complete, checkpoint |
-| `workflow.*` | start, get, list, step, revise, supersede, complete |
-| `artifact.*` | record, get |
-| `system.*` | doctor |
-| `plan.*` | export, get |
+| `ultra.context` | side-effect-free current authority and evidence spine |
+| `ultra.record` | idempotent batch recording of typed draft facts and events |
+| `ultra.checkpoint` | one semantic stage commit; rejection keeps the draft mutable |
+| `ultra.sync` | Git team-checkpoint inspect/import/publish |
+| `ultra.session` | transactional execution lease |
+| `ultra.archive` | recoverable convergence and archive boundary |
+| `ultra.doctor` | mechanical diagnosis and backup-first repair |
 
-Review, repository impact discovery, skill loading, and decision presentation remain
-host-native capabilities rather than fake MCP contracts. MCP stores only normalized
-decision authority, pending-question recovery state, lifecycle completion, and optional
-checkpoints; it never generates questions or retains prompts and transcripts. The
-generated Codex capability map documents host replacements.
+The public schemas stay below a 12KB discovery budget. The sixty 0.22 fine-grained
+task/session/baseline/change/decision/workflow/artifact/system/plan tools remain
+callable but undiscoverable for one compatibility release. They are implementation
+operations, not a second public API, and Skills must not call them directly.
+
+Semantic rejections return `accepted: false`, `mutable: true`, and diagnostics. Hard
+MCP errors are reserved for corruption, unsafe paths, real concurrency conflicts,
+permissions, or irreversible effects. Review, repository discovery, model reasoning,
+and owner interaction remain host-native.
 
 The complete write, transition, invalidation, and recovery contract lives in
 [`WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md).
@@ -91,23 +92,20 @@ review, and deliver route back to the same thread instead of deciding for the ow
 One partial unique index permits only one open item per thread. `decision.resolve`,
 `decision.delegate`, and `decision.defer` preserve the source of authority;
 `decision.supersede` preserves history when evidence or intent changes.
-After normalization, the host applies accepted intent through the owning MCP operation
-or digest-bound artifact, reads it back, and records typed `applied_refs` when another
-authority changed. Row-backed references require the exact field and canonical value;
-specification and artifact references require the exact file digest. Active proposals
-are never recalled as accepted intent. `decision.complete` then closes settled state without manufacturing
-an approval receipt. Prepare and confirm checkpointing remain optional and bind only a
-material accepted cluster to current artifact digests when interruption recovery needs
-that boundary. Status and breadcrumb return the current unresolved question, accepted
-intent relevant to the active authority, and allowed or mechanically required
-transitions, so recovery does not require replaying conversation history.
+After normalization, the host records accepted intent in one `ultra.record` batch,
+reads it back through `ultra.context`, and attempts an owning `ultra.checkpoint` only
+when durable authority is ready. Active proposals are never recalled as accepted
+intent. Status returns the current unresolved question, accepted intent, evidence,
+warnings, and hard blockers so recovery does not require replaying conversation
+history. The host model, not SQLite, recommends the next capability.
 
 ## 5. Context Spine contract
 
 Context Manifest v3 is an immutable DB-backed role handoff, not a static codebase summary.
-`change.context` compiles required references, digests, readiness, context budget,
-public seam, exact verification command, Change/task authority digests, and valid
-transitions for `plan`, `implement`, `check`, or `review`. Compilation never updates
+`ultra.checkpoint` compiles or reuses a content-addressed Context Manifest containing
+required references, digests, readiness, context budget, public seam, exact verification
+command, and Change/task authority digests for `plan`, `implement`, `check`, or
+`review`. Compilation never updates
 Change or provider authority; provider metadata changes through `change.update`.
 Snapshots are selected exactly by `change_id`, nullable `task_id`, `role`, and `gate`,
 so a review packet cannot satisfy implementation or planning evidence.
@@ -125,9 +123,9 @@ not block work or require raising a threshold. Prefer direct reads, bounded
 excerpts, or a smaller slice when they preserve correctness, and retain all
 necessary context when they do not.
 
-`change.breadcrumb` is the only compact router. Hooks may inject its change/task,
-role, gate, readiness, blockers, bounded normalized accepted intent,
-`allowed_transitions`, and `required_transition`. They must not inject raw prompts,
+The compact breadcrumb is a hook-only compatibility reader. Hooks may inject its
+change/task, role, gate, readiness, blockers, and bounded normalized accepted intent.
+They must not inject raw prompts,
 interaction transcripts, external-memory payloads, or graph payloads. Missing references,
 required digest drift, HEAD drift, or a missing execution seam blocks readiness. Context
 size and baseline drift are advisory for a change that is already active. New ordinary
@@ -176,7 +174,7 @@ the shared read-only `context_spine.py` breadcrumb helper:
   and types, never transcript paths or messages.
 
 `workflow_context.py`, `active_task_context.py`, `workflow_resume.py`, and the
-OpenCode plugin invoke the same bundled JavaScript `change.breadcrumb` reader
+OpenCode plugin invoke the same bundled JavaScript hook-only breadcrumb reader
 through the thin `context_spine.py` bridge. No hook reimplements the state query.
 `health_check.py` and
 `workflow_context.py` may inspect any initialized project;
@@ -185,7 +183,7 @@ projection but limits ordinary
 edit guidance to an active workflow. Compact/stop/subagent hooks remain
 active-workflow scoped. OpenCode natively injects baseline/change context and
 protects both managed task paths; full health inspection is available through
-`system.doctor` rather than a session-start health hook.
+`ultra.doctor` rather than a session-start health hook.
 Advisory baseline or context-budget warnings are presentation only and never
 reject an edit, stop, or tool call.
 Generic command blocking, post-edit governance, and unrelated user hooks are not

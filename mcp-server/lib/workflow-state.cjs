@@ -657,8 +657,9 @@ function inspectRunHealth(run, steps, rootDir) {
     const firstOpen = steps.find(
       (item) => item.required && !['completed', 'skipped'].includes(item.status),
     );
-    if (!firstOpen) blockers.push('WORKFLOW_ACTIVE_WITHOUT_OPEN_STEP');
-    else if (run.current_step !== firstOpen.step_id) {
+    if (!firstOpen) {
+      if (runMetadata.draft_dirty !== true) blockers.push('WORKFLOW_ACTIVE_WITHOUT_OPEN_STEP');
+    } else if (run.current_step !== firstOpen.step_id) {
       blockers.push(`WORKFLOW_CURRENT_STEP_INVALID:${run.current_step || 'missing'}`);
     }
   }
@@ -1194,6 +1195,166 @@ function insertWorkflowInTx(db, input = {}, { rootDir = process.cwd() } = {}) {
 function startWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
   const id = ops.tx(db, () => insertWorkflowInTx(db, input, { rootDir }));
   return readWorkflow(db, id, { rootDir });
+}
+
+function abandonWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
+  const id = nonEmpty(input.id, 'id');
+  const reason = nonEmpty(input.reason, 'reason');
+  return ops.tx(db, () => {
+    const run = readWorkflow(db, id, { rootDir });
+    if (!run) throw new WorkflowStateError('WORKFLOW_NOT_FOUND', `workflow ${id} not found`);
+    if (run.status === 'cancelled') return run;
+    if (run.status === 'completed') {
+      throw new WorkflowStateError(
+        'WORKFLOW_NOT_MUTABLE',
+        `accepted workflow ${id} is immutable; create a new draft revision instead`,
+      );
+    }
+    const metadata = {
+      ...run.metadata,
+      abandoned: {
+        reason,
+        abandoned_at: nowIso(),
+      },
+    };
+    delete metadata.authority_invalidation;
+    const ts = nowIso();
+    db.prepare(
+      `UPDATE workflow_runs
+       SET status = 'cancelled', current_step = NULL, blockers_json = '[]',
+           metadata_json = ?, completed_at = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(JSON.stringify(metadata), ts, ts, id);
+    ops.appendEventInTx(db, {
+      type: 'workflow_abandoned',
+      task_id: run.task_id,
+      change_id: run.change_id,
+      payload: { workflow_id: id, kind: run.kind, reason },
+    });
+    return readWorkflow(db, id, { rootDir });
+  });
+}
+
+function prepareWorkflowCheckpoint(db, input = {}, { rootDir = process.cwd() } = {}) {
+  const id = nonEmpty(input.id, 'id');
+  const suppliedSteps = new Map(
+    (Array.isArray(input.steps) ? input.steps : []).map((item) => [
+      nonEmpty(item.step_id, 'steps.step_id'),
+      item,
+    ]),
+  );
+  const defaultEvidence = Array.isArray(input.evidence) && input.evidence.length > 0
+    ? normalizeEvidence(input.evidence)
+    : [{
+      kind: 'checkpoint',
+      ref: `workflow:${id}`,
+      summary: 'The model recorded this semantic stage in one checkpoint.',
+    }];
+  return ops.tx(db, () => {
+    const run = readWorkflow(db, id, { rootDir });
+    if (!run) throw new WorkflowStateError('WORKFLOW_NOT_FOUND', `workflow ${id} not found`);
+    if (run.status === 'completed') return { workflow: run, blockers: [], ready: true };
+    if (run.status === 'cancelled') {
+      throw new WorkflowStateError('WORKFLOW_NOT_MUTABLE', `workflow ${id} is cancelled`);
+    }
+    const blockers = [];
+    const ts = nowIso();
+    for (const workflowStep of run.steps) {
+      if (!workflowStep.required) continue;
+      const supplied = suppliedSteps.get(workflowStep.step_id) || {};
+      const definition = WORKFLOW_DEFINITIONS[run.kind]
+        .find((item) => item.id === workflowStep.step_id);
+      const outputs = supplied.outputs === undefined
+        ? workflowStep.outputs
+        : normalizeOutputs(supplied.outputs, rootDir);
+      const evidence = supplied.evidence === undefined
+        ? (workflowStep.evidence.length > 0 ? workflowStep.evidence : defaultEvidence)
+        : normalizeEvidence(supplied.evidence);
+      const semanticRecords = supplied.semantic_records === undefined
+        ? workflowStep.semantic_records
+        : (run.kind === 'research'
+          ? normalizeSemanticRecords(supplied.semantic_records, workflowStep.step_id, rootDir)
+          : normalizeObjects(supplied.semantic_records, 'semantic_records'));
+      if (definition.output_required && outputs.length === 0) {
+        blockers.push(`WORKFLOW_OUTPUT_REQUIRED:${workflowStep.step_id}`);
+        continue;
+      }
+      if (definition.evidence_required && evidence.length === 0) {
+        blockers.push(`WORKFLOW_EVIDENCE_REQUIRED:${workflowStep.step_id}`);
+        continue;
+      }
+      if (run.kind === 'research' && semanticRecords.length === 0) {
+        blockers.push(`WORKFLOW_SEMANTIC_RECORDS_REQUIRED:${workflowStep.step_id}`);
+        continue;
+      }
+      db.prepare(
+        `UPDATE workflow_steps
+         SET status = 'completed', evidence_json = ?, outputs_json = ?,
+             decisions_json = ?, semantic_records_json = ?, blockers_json = '[]',
+             started_at = COALESCE(started_at, ?), completed_at = ?, updated_at = ?
+         WHERE run_id = ? AND step_id = ?`,
+      ).run(
+        JSON.stringify(evidence),
+        JSON.stringify(outputs),
+        JSON.stringify(supplied.decisions === undefined
+          ? workflowStep.decisions
+          : normalizeObjects(supplied.decisions, 'decisions')),
+        JSON.stringify(semanticRecords),
+        ts,
+        ts,
+        ts,
+        id,
+        workflowStep.step_id,
+      );
+    }
+    const metadata = { ...run.metadata };
+    delete metadata.authority_invalidation;
+    metadata.draft_dirty = blockers.length > 0;
+    db.prepare(
+      `UPDATE workflow_runs
+       SET status = ?, current_step = NULL, blockers_json = ?, metadata_json = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(
+      blockers.length > 0 ? 'active' : 'ready',
+      JSON.stringify(blockers),
+      JSON.stringify(metadata),
+      ts,
+      id,
+    );
+    ops.appendEventInTx(db, {
+      type: blockers.length > 0 ? 'workflow_checkpoint_rejected' : 'workflow_checkpoint_prepared',
+      task_id: run.task_id,
+      change_id: run.change_id,
+      payload: { workflow_id: id, kind: run.kind, blockers },
+    });
+    return {
+      workflow: readWorkflow(db, id, { rootDir }),
+      blockers,
+      ready: blockers.length === 0,
+    };
+  });
+}
+
+function reopenWorkflowDraft(db, input = {}, { rootDir = process.cwd() } = {}) {
+  const id = nonEmpty(input.id, 'id');
+  const blocker = typeof input.blocker === 'string' && input.blocker.trim()
+    ? input.blocker.trim()
+    : 'CHECKPOINT_REJECTED';
+  return ops.tx(db, () => {
+    const run = readWorkflow(db, id, { rootDir });
+    if (!run) throw new WorkflowStateError('WORKFLOW_NOT_FOUND', `workflow ${id} not found`);
+    if (run.status === 'completed' || run.status === 'cancelled') return run;
+    const metadata = { ...run.metadata, draft_dirty: true };
+    delete metadata.authority_invalidation;
+    const blockers = [...new Set([...(run.blockers || []), blocker])];
+    db.prepare(
+      `UPDATE workflow_runs
+       SET status = 'active', blockers_json = ?, metadata_json = ?,
+           updated_at = ?
+       WHERE id = ?`,
+    ).run(JSON.stringify(blockers), JSON.stringify(metadata), nowIso(), id);
+    return readWorkflow(db, id, { rootDir });
+  });
 }
 
 function reviseWorkflow(db, input = {}, { rootDir = process.cwd() } = {}) {
@@ -2948,6 +3109,9 @@ module.exports = {
   WorkflowStateError,
   insertWorkflowInTx,
   startWorkflow,
+  abandonWorkflow,
+  prepareWorkflowCheckpoint,
+  reopenWorkflowDraft,
   readWorkflow,
   listWorkflows,
   recordWorkflowStep,

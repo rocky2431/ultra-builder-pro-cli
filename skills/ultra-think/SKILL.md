@@ -3,55 +3,36 @@ name: ultra-think
 description: Resolve a consequential product, architecture, or recovery question through evidence-first reasoning and adaptive user alignment. Use when a material decision cannot be derived safely from accepted intent and current evidence.
 ---
 
-# Align without suppressing model judgment
+# Align without suppressing judgment
 
-Thinking is an optional reasoning capability, not a mandatory stage. Answer
-self-contained questions directly. Use durable decision state only when a
-project-bound choice must survive interruption or gate later work.
+Thinking is optional. Answer self-contained questions directly. Persist only a
+project-bound decision that must survive interruption or control later work.
 
-## Reason first
+## Reason and interact
 
-1. Define the actual decision or disputed claim and the constraints that can change
-   its answer.
-2. Inspect current authority, source, runtime, tests, and primary documentation before
-   asking the user for facts.
-3. Separate verified fact, evidence-backed inference, accepted intent, delegated
+1. Call `ultra.context` for the relevant project or Change scope.
+2. Define the real decision and the constraints that can change its answer.
+3. Inspect source, runtime, tests, accepted artifacts, and primary documentation
+   before asking the owner for facts.
+4. Separate verified fact, evidence-backed inference, accepted intent, delegated
    implementation judgment, and unresolved owner choice.
-4. Form credible alternatives only when alternatives materially help the decision.
-   Evaluate them against the real constraints; do not impose a fixed option count,
-   scoring system, or confidence percentage.
-5. Stress-test the leading answer with its strongest counterexample, likely failure
-   path, recovery, and load-bearing assumption.
+5. Stress-test the leading answer with its strongest failure path and recovery.
 
-## Interact adaptively
+Read `references/decision-dialogue.md`. Reuse a clear decision already present in the
+request. Decide reversible delegated implementation details yourself. When owner
+authority is necessary, ask one dependent decision through the host-native question
+surface with a recommendation, decisive evidence, and the effect of the answer.
 
-Read `references/decision-dialogue.md`. If the user already gave a clear decision,
-normalize and use it without asking for confirmation. If the decision is reversible
-and delegated by the accepted contract, decide it and explain the reasoning.
+## Persist only the normalized result
 
-When owner authority is required, use the host's native question UI when available.
-Ask the earliest dependent decision with a recommendation, decisive evidence, and the
-effect of the answer. Keep cognitive load small; group only independent, simple facts.
-Do not expose the hidden decision queue.
+Use one `ultra.record` batch for `decision.thread_start`, `decision.open`, the
+appropriate resolve/delegate/defer/supersede operation, the owning artifact mutation,
+and `decision.complete` when they are all known. Store normalized decisions and
+artifact references, never transcripts or internal reasoning.
 
-For durable project decisions, use `decision.thread_start`, `decision.open`, and the
-appropriate resolve, delegate, defer, or supersede transition. Store normalized
-decisions and artifact references, never transcripts or internal reasoning.
-Apply any resulting change through its owning baseline, change, workflow, task, or
-semantic artifact operation, read it back, and pass typed `applied_refs` to
-`decision.complete`. If the decision record itself is the complete durable authority,
-the list may be empty. Completion is not another owner approval.
+A semantic rejection remains a mutable diagnostic. Correct the record or intentionally
+abandon the draft; do not invent a new decision merely to satisfy a state machine.
 
-Prepare and confirm a checkpoint only when the decision changes a durable contract or
-artifact and a checkpoint is needed for recovery. Do not add a ceremonial approval
-gate to an already explicit user instruction or a reversible implementation detail.
-
-## Return control
-
-Return the conclusion, decisive evidence, material uncertainty, and affected
-contracts. Re-read the invoking workflow or breadcrumb and recommend one of its
-`allowed_transitions`; follow `required_transition` only when a hard invariant leaves
-no alternative. Thinking does not implement code, mutate unrelated state, or invent a
-canonical next action.
-
-Never invoke the recommended capability here; wait for an explicit user invocation.
+Return the conclusion, decisive evidence, uncertainty, affected authority, and the
+model's recommended next explicit capability. Thinking never performs unrelated
+implementation or an external effect. Do not invoke the next capability automatically.
