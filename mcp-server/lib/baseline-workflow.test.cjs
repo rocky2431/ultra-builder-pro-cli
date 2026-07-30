@@ -174,22 +174,24 @@ test('a ready status row cannot bypass the complete baseline authority contract'
     assert.equal(health.status, 'fail');
     for (const blocker of [
       'BASELINE_SCOPE_MISSING',
-      'BASELINE_SPEC_MISSING:discovery',
-      'BASELINE_SPEC_MISSING:product',
-      'BASELINE_SPEC_MISSING:architecture',
-      'BASELINE_EVIDENCE_MISSING',
-      'BASELINE_VERIFICATION_MISSING',
       'BASELINE_REVISION_MISSING',
       'BASELINE_APPROVER_MISSING',
       'BASELINE_APPROVAL_NOTE_MISSING',
     ]) assert.ok(health.blockers.includes(blocker), `missing ${blocker}`);
     assert.ok(health.blockers.includes('BASELINE_RESEARCH_RECORD_INVALID'));
+    for (const warning of [
+      'BASELINE_SPEC_MISSING:discovery',
+      'BASELINE_SPEC_MISSING:product',
+      'BASELINE_SPEC_MISSING:architecture',
+      'BASELINE_EVIDENCE_MISSING',
+      'BASELINE_VERIFICATION_MISSING',
+    ]) assert.ok(health.warnings.includes(warning), `missing warning ${warning}`);
   } finally {
     cleanup(fx);
   }
 });
 
-test('baseline convergence records deterministic blockers for missing evidence and unaccepted known-red verification', () => {
+test('baseline convergence records semantic gaps as advisories while structural authority remains valid', () => {
   const fx = fixture();
   try {
     baselines.startBaseline(fx.db, {
@@ -210,16 +212,21 @@ test('baseline convergence records deterministic blockers for missing evidence a
 
     const result = baselines.convergeBaseline(fx.db, {
       id: 'blocked-baseline', expected_revision: fx.revision,
-      approved_by: 'project-owner', approval_note: 'Review attempted.', accept_known_red: false,
+      approved_by: 'project-owner', approval_note: 'Accept the current observed baseline.',
+      accept_known_red: true,
     }, { rootDir: fx.rootDir });
-    assert.equal(result.ready, false);
-    assert.equal(result.status, 'blocked');
-    assert.ok(result.blockers.includes('BASELINE_SPEC_MISSING:architecture'));
-    assert.ok(result.blockers.includes('BASELINE_SPEC_MISSING:discovery'));
-    assert.ok(result.blockers.includes('BASELINE_RESEARCH_INCOMPLETE'));
-    assert.ok(result.blockers.includes('BASELINE_SOURCE_EVIDENCE_MISSING'));
-    assert.ok(result.blockers.includes('BASELINE_KNOWN_RED_NOT_ACCEPTED:legacy suite'));
-    assert.ok(result.blockers.includes('BASELINE_UNKNOWN_BLOCKING:Production authorization behavior is not verified.'));
+    assert.equal(result.ready, true);
+    assert.equal(result.status, 'ready');
+    assert.deepEqual(result.blockers, []);
+    for (const code of [
+      'BASELINE_SPEC_MISSING:architecture',
+      'BASELINE_SPEC_MISSING:discovery',
+      'BASELINE_RESEARCH_INCOMPLETE',
+      'BASELINE_SOURCE_EVIDENCE_MISSING',
+      'BASELINE_UNKNOWN_RECORDED:Production authorization behavior is not verified.',
+    ]) {
+      assert.ok(result.warnings.includes(code), `missing advisory ${code}`);
+    }
   } finally {
     cleanup(fx);
   }
@@ -638,7 +645,7 @@ test('scoped content digest is stable across unstaged, staged, and committed rep
   }
 });
 
-test('ready baseline without its completed research provenance is not healthy authority', () => {
+test('ready baseline reports missing research provenance without invalidating structural authority', () => {
   const fx = fixture();
   try {
     baselines.startBaseline(fx.db, {
@@ -661,14 +668,15 @@ test('ready baseline without its completed research provenance is not healthy au
     ).run();
 
     const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
-    assert.equal(health.status, 'fail');
-    assert.ok(health.blockers.includes('BASELINE_RESEARCH_PROVENANCE_MISSING'));
+    assert.equal(health.status, 'pass');
+    assert.deepEqual(health.blockers, []);
+    assert.ok(health.warnings.includes('BASELINE_RESEARCH_PROVENANCE_MISSING'));
   } finally {
     cleanup(fx);
   }
 });
 
-test('ready baseline becomes unhealthy when its accepted research checkpoint is superseded', () => {
+test('ready baseline reports superseded research without invalidating structural authority', () => {
   const fx = fixture();
   try {
     const baseline = baselines.startBaseline(fx.db, {
@@ -698,8 +706,9 @@ test('ready baseline becomes unhealthy when its accepted research checkpoint is 
       idempotency_key: 'research-drift:revision-2:accept',
     });
     const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
-    assert.equal(health.status, 'fail');
-    assert.ok(health.blockers.includes('BASELINE_RESEARCH_RECORD_INVALID'));
+    assert.equal(health.status, 'pass');
+    assert.deepEqual(health.blockers, []);
+    assert.ok(health.warnings.includes('BASELINE_RESEARCH_SUPERSEDED'));
   } finally {
     cleanup(fx);
   }
@@ -724,7 +733,7 @@ test('migrated compatibility baseline requires explicit brownfield re-adoption',
   }
 });
 
-test('open gap-ledger blockers prevent adoption while accepted debt remains visible', () => {
+test('open semantic gaps remain visible without preventing owner-authorized adoption', () => {
   const fx = fixture();
   try {
     baselines.startBaseline(fx.db, {
@@ -755,9 +764,52 @@ test('open gap-ledger blockers prevent adoption while accepted debt remains visi
       id: 'gap-baseline', expected_revision: fx.revision,
       approved_by: 'project-owner', approval_note: 'Reviewed the evidence ledger.',
     }, { rootDir: fx.rootDir });
-    assert.equal(result.ready, false);
-    assert.ok(result.blockers.includes('BASELINE_GAP_BLOCKING:missing-auth-proof'));
+    assert.equal(result.ready, true);
+    assert.deepEqual(result.blockers, []);
+    assert.ok(result.warnings.includes('BASELINE_GAP_RECORDED:missing-auth-proof'));
   } finally { cleanup(fx); }
+});
+
+test('not-run verification remains a visible advisory after baseline acceptance', () => {
+  const fx = fixture();
+  try {
+    baselines.startBaseline(fx.db, {
+      id: 'not-run-baseline', project_name: 'fixture', mode: 'brownfield',
+      repository_revision: fx.revision, scope: ['src'],
+    }, { rootDir: fx.rootDir });
+    completeResearch(fx, 'not-run-baseline');
+    baselines.recordBaseline(fx.db, {
+      id: 'not-run-baseline',
+      repository_revision: fx.revision,
+      ...adoptionEvidence(),
+      verification: [{
+        name: 'optional deployment smoke',
+        command: 'npm run deploy:smoke',
+        status: 'not_run',
+        evidence: 'No deployment environment is available in this checkout.',
+      }],
+    }, { rootDir: fx.rootDir });
+
+    const accepted = baselines.convergeBaseline(fx.db, {
+      id: 'not-run-baseline',
+      expected_revision: fx.revision,
+      approved_by: 'project-owner',
+      approval_note: 'Accept the observed baseline with the visible verification omission.',
+    }, { rootDir: fx.rootDir });
+    assert.equal(accepted.ready, true);
+    assert.ok(accepted.warnings.includes(
+      'BASELINE_VERIFICATION_NOT_RUN:optional deployment smoke',
+    ));
+
+    const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
+    assert.equal(health.status, 'pass');
+    assert.deepEqual(health.blockers, []);
+    assert.ok(health.warnings.includes(
+      'BASELINE_VERIFICATION_NOT_RUN:optional deployment smoke',
+    ));
+  } finally {
+    cleanup(fx);
+  }
 });
 
 test('a dirty adoption snapshot requires explicit acceptance and remains drift-detectable', () => {

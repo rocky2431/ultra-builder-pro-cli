@@ -19,8 +19,8 @@ Call `ultra.doctor { repair: false }` and inspect:
 - projection jobs, sessions, leases, worktrees, and recovery journals;
 - installed plugin assets, MCP startup, and hook paths.
 
-An expected workflow pause, editable draft, failed semantic checkpoint, or awaiting
-owner decision is a warning, not corruption.
+An expected workflow pause, editable draft, semantic warning, or awaiting owner
+decision is not corruption.
 
 ## Repair
 

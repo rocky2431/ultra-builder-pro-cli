@@ -408,23 +408,22 @@ def test_context_routes_an_explicit_active_brownfield_research_workflow(tmp_path
     assert "Use ultra.context" in text
 
 
-def test_context_routes_a_ready_baseline_with_an_open_blocking_gap_to_adoption(tmp_path):
-    db_path = init_db(tmp_path, baseline=None)
+def test_context_reports_an_open_semantic_gap_without_routing_the_workflow(tmp_path):
+    db_path = init_db(tmp_path)
     with sqlite3.connect(db_path) as conn:
         conn.execute(
-            """INSERT INTO baselines
-               (id, project_name, mode, status, gaps_json, approved_by, approval_note)
-               VALUES ('gap-baseline', 'legacy', 'brownfield', 'ready', ?, 'owner', 'accepted')""",
+            "UPDATE baselines SET gaps_json = ? WHERE id = 'test-baseline'",
             (json.dumps([{
                 "id": "incident-reconciliation", "category": "baseline_blocker",
                 "status": "open", "blocking": True, "summary": "Reconcile incident",
                 "evidence_refs": [],
             }]),),
         )
-    seed_workflow(db_path, baseline_id="gap-baseline")
+    seed_workflow(db_path, baseline_id="test-baseline")
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
-    assert "BASELINE_GAP_BLOCKING:incident-reconciliation" in text
+    assert "Warnings: BASELINE_GAP_RECORDED:incident-reconciliation" in text
+    assert "BASELINE_GAP_BLOCKING" not in text
     assert "Use ultra.context" in text
 
 
@@ -532,15 +531,11 @@ def test_health_does_not_misclassify_incomplete_baseline_as_runtime_failure(tmp_
     assert stderr == ""
 
 
-def test_health_degrades_when_an_active_workflow_has_lost_baseline_authority(tmp_path):
-    db_path = init_db(tmp_path, baseline=None)
+def test_health_does_not_degrade_for_an_accepted_baseline_semantic_gap(tmp_path):
+    db_path = init_db(tmp_path)
     with sqlite3.connect(db_path) as conn:
         conn.execute(
-            """INSERT INTO baselines
-               (id, project_name, mode, status, gaps_json,
-                approved_by, approval_note, converged_at)
-               VALUES ('ready-but-invalid', 'legacy', 'brownfield', 'ready', ?,
-                       'owner', 'accepted', '2026-01-01T00:00:00.000Z')""",
+            "UPDATE baselines SET gaps_json = ? WHERE id = 'test-baseline'",
             (json.dumps([{
                 "id": "missing-evidence",
                 "category": "baseline_blocker",
@@ -550,14 +545,28 @@ def test_health_degrades_when_an_active_workflow_has_lost_baseline_authority(tmp
                 "evidence_refs": [],
             }]),),
         )
-    seed_workflow(db_path, baseline_id="ready-but-invalid")
+    seed_workflow(db_path, baseline_id="test-baseline")
+
+    output, stderr = run_hook("health_check.py", tmp_path)
+
+    assert output == {}
+    assert stderr == ""
+
+
+def test_health_degrades_when_an_active_workflow_loses_structural_baseline_authority(tmp_path):
+    db_path = init_db(tmp_path)
+    seed_workflow(db_path, baseline_id="test-baseline")
+    (tmp_path / ".ultra" / "specs" / "product.md").write_text(
+        "# product\n\nDrifted after acceptance.\n",
+        encoding="utf-8",
+    )
 
     output, stderr = run_hook("health_check.py", tmp_path)
 
     assert output == {}
     assert '"status": "degraded"' in stderr
     assert '"status": "fail"' in stderr
-    assert "BASELINE_GAP_BLOCKING:missing-evidence" in stderr
+    assert "BASELINE_SPEC_STALE:.ultra/specs/product.md" in stderr
 
 
 def test_health_is_silent_when_workflow_authority_cannot_be_proven(tmp_path):

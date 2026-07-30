@@ -48,8 +48,10 @@ Ultra Builder Pro addresses those gaps with four ideas:
    recovery state across host sessions. Tracked semantic artifacts plus the
    MCP-published `.ultra/tasks/tasks.json` checkpoint carry reviewed project intent
    across Git checkouts without committing SQLite, leases, or telemetry.
-4. **Convergent delivery.** Research, plans, implementation, tests, review, and
-   specification updates must agree before a change is archived.
+4. **Adaptive delivery.** The host model evaluates the evidence produced by the
+   actual Change route, explicitly records any omitted capability and its rationale,
+   and asks the owner to accept the local handoff. MCP validates current managed
+   authority and archive integrity rather than requiring a fixed stage sequence.
 
 For example, if the user asks an agent to add organization SSO to an existing
 application, Ultra helps the agent inspect the real authentication path, capture
@@ -103,14 +105,14 @@ The responsibility split is deliberate:
 |---|---|
 | **User** | Product intent, semantic route selection, material scope and trade-offs, risk acceptance, destructive actions, publishing and deployment authorization |
 | **Host model** | Fact-finding, synthesis, research-coverage and route recommendations, reversible implementation decisions |
-| **Ultra MCP** | Structure validation, durable checkpoints, evidence references, digests, team sync, leases, archive transactions, and mechanical recovery; never semantic route selection |
+| **Ultra MCP** | Structure/current-byte validation, caller-declared checkpoints, evidence references, digests, team sync, leases, archive transactions, and mechanical recovery; never semantic completeness or route selection |
 | **Host adapter** | Native Skill discovery, user questions, tool invocation, installation, and runtime wiring |
 | **Hooks** | Fast lifecycle observation, current breadcrumb injection, and protection of MCP-owned checkpoint and generated projection paths |
 
-The MCP does not replace the model's judgment or pre-authorize a semantic route. It
-reports draft diagnostics and commits accepted checkpoints. A hook does not decide
-product strategy. A prompt does not become durable authority merely because it
-appeared in a conversation.
+The MCP does not replace the model's judgment, judge completion, or pre-authorize a
+semantic route. It reports diagnostics and safely commits the model's explicit
+checkpoint/archive handoff. A hook does not decide product strategy. A prompt does not
+become durable authority merely because it appeared in a conversation.
 
 ### The seven-tool MCP kernel
 
@@ -120,10 +122,10 @@ The public model-facing surface is intentionally small:
 |---|---|
 | `ultra.context` | Read the complete current spine without side effects |
 | `ultra.record` | Batch typed draft facts and events with idempotency |
-| `ultra.checkpoint` | Attempt one semantic stage checkpoint; rejection leaves the draft editable |
+| `ultra.checkpoint` | Commit one caller-declared stage checkpoint after structural, byte, digest, and publication validation |
 | `ultra.sync` | Inspect, import, or publish the Git team checkpoint |
 | `ultra.session` | Own the transactional execution lease |
-| `ultra.archive` | Converge and archive through the recoverable filesystem/DB boundary |
+| `ultra.archive` | Persist one explicit local delivery handoff through the recoverable filesystem/DB boundary |
 | `ultra.doctor` | Inspect or repair mechanical health, backup first |
 
 Retired fine-grained operation names are neither discoverable nor callable. Workflow
@@ -283,7 +285,7 @@ resolves observable facts itself and asks for material product decisions as
 needed. Once the evidence and specifications are accurate, the user approves
 the baseline.
 
-The common path after baseline approval is:
+One common full-depth path after baseline approval is:
 
 ```text
 ultra-change
@@ -295,11 +297,14 @@ ultra-change
   -> ultra-deliver
 ```
 
-Each public workflow is explicitly invoked rather than auto-chained. Thinking and
-research coverage are adaptive, and verification depth is risk-selected, but every
-Change reaches a current plan, DB-backed task contract, and role-scoped context before
-development. “Direct Build” skips Research only; it does not bypass Plan, Task, or
-Context authority.
+Each public workflow is explicitly invoked rather than auto-chained. The example is a
+recommended route for a normal implementation Change, not an archive state machine.
+Thinking and research coverage are adaptive, verification depth is risk-selected, and
+the host may omit or repeat a capability when the actual Change makes that appropriate,
+provided the delivery handoff names the omission and its rationale. Any implementation
+task still requires a current plan, DB-backed task contract, and role-scoped context.
+“Direct Build” skips Research only; it does not bypass Plan, Task, or Context authority
+when development is performed.
 
 ### 2. Adopt an existing project
 
@@ -365,9 +370,12 @@ must be reconciled against the current Change authority.
 
 ### 4. Deliver and continue
 
-`ultra-deliver` verifies that implementation, acceptance evidence, testing,
-review findings, specification learning, and baseline reconciliation agree. It
-then archives the local Ultra change authority.
+`ultra-deliver` asks the host model to assess the current managed evidence for the
+route the Change actually took. The handoff explicitly records any omitted capability
+and its evidence-based rationale; the owner decides whether that semantic packet is
+sufficient. MCP then validates paths, digests, reconciliation structure, idempotency,
+and recoverability before archiving the local Ultra change authority. It does not
+require every Change to pass through a fixed Research/Plan/Dev/Test/Review sequence.
 
 Delivery does **not** grant permission to commit, push, publish, tag, deploy, or
 perform another external effect. Those actions remain separate and require the
@@ -430,11 +438,16 @@ flowchart TD
     PLAN --> DEV["ultra-dev<br/>one dependency-ready vertical task"]
     DEV --> TASKS{"More executable tasks?"}
     TASKS -->|"Yes"| DEV
-    TASKS -->|"No"| TEST["ultra-test<br/>risk-selected formal verification"]
+    TASKS -->|"No"| ASSESS{"What evidence does this Change still need?"}
+    ROUTE -->|"Accepted handoff already has sufficient evidence"| DELIVER["ultra-deliver"]
+    ASSESS -->|"Risk-selected verification"| TEST["ultra-test<br/>risk-selected formal verification"]
+    ASSESS -->|"Independent review"| REVIEW["ultra-review<br/>specification fidelity and engineering quality"]
+    ASSESS -->|"Caller accepts current evidence and explicit omissions"| DELIVER
     TEST -->|"Failed or incomplete"| DEV
-    TEST -->|"Passing"| REVIEW["ultra-review<br/>specification fidelity and engineering quality"]
+    TEST -->|"Review is warranted"| REVIEW
+    TEST -->|"Caller accepts current evidence and explicit omissions"| DELIVER
     REVIEW -->|"Changes required"| DEV
-    REVIEW -->|"Approved"| DELIVER["ultra-deliver"]
+    REVIEW -->|"Approved"| DELIVER
     DELIVER --> ARCHIVE["Reconcile specifications<br/>apply the Change overlay and archive evidence"]
     ARCHIVE --> NEXT{"Continue"}
     NEXT -->|"Next outcome"| CHANGE
@@ -586,10 +599,10 @@ host's existing model session.
   any real conflict. Never edit `.ultra/tasks/tasks.json` by hand.
 - **A generated view disagrees with MCP:** trust `.ultra/.runtime/state.db`; never edit
   `.ultra/.runtime/projections/` by hand.
-- **A draft checkpoint is rejected:** use `ultra-status` to read the exact warnings
-  and blockers, fix the same mutable draft, and retry. If the attempt is no longer
-  relevant, leave it as history and open a new draft revision; no hidden workflow
-  state must be cancelled first.
+- **A draft checkpoint reports warnings:** the model keeps them visible and decides
+  whether to investigate, revise, defer with rationale, or accept. If a checkpoint is
+  rejected for a structural, digest, path, publication, or concurrency conflict, fix
+  the same mutable draft and retry; no hidden workflow state must be cancelled first.
 - **Kimi reports a native-module ABI error:** ensure an external Node.js 22+
   executable is available on `PATH`; the generated Kimi MCP launcher uses
   `env node`.

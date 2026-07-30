@@ -660,27 +660,10 @@ function storedReadyInvariantBlockers(baseline) {
   if (!Array.isArray(baseline.scope) || baseline.scope.length === 0) {
     blockers.push('BASELINE_SCOPE_MISSING');
   }
-  if (Array.isArray(baseline.spec_refs)) {
-    for (const kind of ['discovery', 'product', 'architecture']) {
-      if (!baseline.spec_refs.some((item) => item?.kind === kind)) {
-        blockers.push(`BASELINE_SPEC_MISSING:${kind}`);
-      }
-    }
-  }
-  if (!Array.isArray(baseline.evidence) || baseline.evidence.length === 0) {
-    blockers.push('BASELINE_EVIDENCE_MISSING');
-  } else if (baseline.mode === 'brownfield'
-    && !baseline.evidence.some((item) => item?.kind === 'source')) {
-    blockers.push('BASELINE_SOURCE_EVIDENCE_MISSING');
-  }
-  if (!Array.isArray(baseline.verification) || baseline.verification.length === 0) {
-    blockers.push('BASELINE_VERIFICATION_MISSING');
-  } else {
+  if (Array.isArray(baseline.verification)) {
     for (const item of baseline.verification) {
       if (!item || typeof item !== 'object') {
         blockers.push('BASELINE_STATE_INVALID:verification');
-      } else if (item.status === 'not_run') {
-        blockers.push(`BASELINE_VERIFICATION_NOT_RUN:${item.name || 'unknown'}`);
       } else if (item.status === 'known_red') {
         if (!String(item.rationale || '').trim()) {
           blockers.push(`BASELINE_KNOWN_RED_RATIONALE_MISSING:${item.name || 'unknown'}`);
@@ -688,7 +671,7 @@ function storedReadyInvariantBlockers(baseline) {
         if (!baseline.known_red_accepted) {
           blockers.push(`BASELINE_KNOWN_RED_NOT_ACCEPTED:${item.name || 'unknown'}`);
         }
-      } else if (item.status !== 'pass') {
+      } else if (!['pass', 'not_run'].includes(item.status)) {
         blockers.push(`BASELINE_VERIFICATION_STATUS_INVALID:${item.name || 'unknown'}`);
       }
     }
@@ -697,25 +680,54 @@ function storedReadyInvariantBlockers(baseline) {
     blockers.push('BASELINE_REVISION_MISSING');
   }
   if (!String(baseline.approved_by || '').trim()) blockers.push('BASELINE_APPROVER_MISSING');
-  if (String(baseline.approval_note || '').trim().length < 3) {
+  if (!String(baseline.approval_note || '').trim()) {
     blockers.push('BASELINE_APPROVAL_NOTE_MISSING');
   }
   if (!baseline.converged_at || Number.isNaN(Date.parse(baseline.converged_at))) {
     blockers.push('BASELINE_CONVERGENCE_TIMESTAMP_MISSING');
   }
+  return [...new Set(blockers)];
+}
+
+function storedReadySemanticWarnings(baseline) {
+  const warnings = [];
+  if (Array.isArray(baseline.spec_refs)) {
+    for (const kind of ['discovery', 'product', 'architecture']) {
+      if (!baseline.spec_refs.some((item) => item?.kind === kind)) {
+        warnings.push(`BASELINE_SPEC_MISSING:${kind}`);
+      }
+    }
+  }
+  if (Array.isArray(baseline.evidence) && baseline.evidence.length === 0) {
+    warnings.push('BASELINE_EVIDENCE_MISSING');
+  }
+  if (baseline.mode === 'brownfield'
+    && Array.isArray(baseline.evidence)
+    && !baseline.evidence.some((item) => item?.kind === 'source')) {
+    warnings.push('BASELINE_SOURCE_EVIDENCE_MISSING');
+  }
+  if (Array.isArray(baseline.verification) && baseline.verification.length === 0) {
+    warnings.push('BASELINE_VERIFICATION_MISSING');
+  } else if (Array.isArray(baseline.verification)) {
+    for (const item of baseline.verification) {
+      if (item?.status === 'not_run') {
+        warnings.push(`BASELINE_VERIFICATION_NOT_RUN:${item.name || 'unknown'}`);
+      }
+    }
+  }
   if (Array.isArray(baseline.unknowns)) {
     for (const item of baseline.unknowns.filter((unknown) => unknown?.blocking === true)) {
-      blockers.push(`BASELINE_UNKNOWN_BLOCKING:${item.summary || 'unknown'}`);
+      warnings.push(`BASELINE_UNKNOWN_RECORDED:${item.summary || 'unknown'}`);
     }
   }
   if (Array.isArray(baseline.gaps)) {
     for (const gap of baseline.gaps.filter((item) => (
       item?.status === 'open' && item?.blocking === true
     ))) {
-      blockers.push(`BASELINE_GAP_BLOCKING:${gap.id || 'unknown'}`);
+      warnings.push(`BASELINE_GAP_RECORDED:${gap.id || 'unknown'}`);
     }
   }
-  return [...new Set(blockers)];
+  return [...new Set(warnings)];
 }
 
 function acceptedBaselineResearch(db, baseline) {
@@ -736,7 +748,7 @@ function convergenceResearchBlockers(db, baseline) {
 function storedResearchHealth(db, baseline) {
   const checkpointId = baseline.research_checkpoint_id || baseline.research_run_id;
   if (!checkpointId) {
-    return { blockers: ['BASELINE_RESEARCH_PROVENANCE_MISSING'], warnings: [] };
+    return { blockers: [], warnings: ['BASELINE_RESEARCH_PROVENANCE_MISSING'] };
   }
   let checkpoint;
   try {
@@ -751,9 +763,18 @@ function storedResearchHealth(db, baseline) {
       || checkpoint.stage !== 'research'
       || checkpoint.scope_type !== 'baseline'
       || checkpoint.scope_id !== baseline.id
-      || checkpoint.status !== 'accepted'
       || checkpoints.checkpointDigest(checkpoint) !== checkpoint.digest) {
     return { blockers: ['BASELINE_RESEARCH_RECORD_INVALID'], warnings: [] };
+  }
+  if (checkpoint.status !== 'accepted') {
+    return {
+      blockers: [],
+      warnings: [
+        checkpoint.status === 'superseded'
+          ? 'BASELINE_RESEARCH_SUPERSEDED'
+          : `BASELINE_RESEARCH_NOT_ACCEPTED:${checkpoint.status}`,
+      ],
+    };
   }
   return { blockers: [], warnings: checkpoint.diagnostics || [] };
 }
@@ -774,10 +795,6 @@ function convergenceBlockers(db, baseline, input, rootDir) {
   if (baseline.repository_branch && snapshot.branch
     && baseline.repository_branch !== snapshot.branch) blockers.add('BASELINE_BRANCH_STALE');
   if (!Array.isArray(baseline.scope) || baseline.scope.length === 0) blockers.add('BASELINE_SCOPE_MISSING');
-  for (const kind of ['discovery', 'product', 'architecture']) {
-    if (!baseline.spec_refs.some((ref) => ref.kind === kind)) blockers.add(`BASELINE_SPEC_MISSING:${kind}`);
-  }
-  for (const blocker of convergenceResearchBlockers(db, baseline)) blockers.add(blocker);
   for (const blocker of storedSpecBlockers(baseline, rootDir)) blockers.add(blocker);
   for (const blocker of storedEvidenceBlockers(baseline, rootDir)) blockers.add(blocker);
   for (const blocker of storedScopeBlockers(baseline, rootDir)) blockers.add(blocker);
@@ -788,27 +805,21 @@ function convergenceBlockers(db, baseline, input, rootDir) {
   if (baseline.worktree_state === 'dirty' && input.accept_dirty_worktree !== true) {
     blockers.add('BASELINE_DIRTY_WORKTREE_NOT_ACCEPTED');
   }
-  if (baseline.evidence.length === 0) blockers.add('BASELINE_EVIDENCE_MISSING');
-  if (baseline.mode === 'brownfield' && !baseline.evidence.some((item) => item.kind === 'source')) {
-    blockers.add('BASELINE_SOURCE_EVIDENCE_MISSING');
-  }
-  if (baseline.verification.length === 0) blockers.add('BASELINE_VERIFICATION_MISSING');
   for (const item of baseline.verification) {
-    if (item.status === 'not_run') blockers.add(`BASELINE_VERIFICATION_NOT_RUN:${item.name}`);
     if (item.status === 'known_red') {
       if (input.accept_known_red !== true) blockers.add(`BASELINE_KNOWN_RED_NOT_ACCEPTED:${item.name}`);
       if (!item.rationale) blockers.add(`BASELINE_KNOWN_RED_RATIONALE_MISSING:${item.name}`);
     }
   }
-  for (const item of baseline.unknowns.filter((unknown) => unknown.blocking)) {
-    blockers.add(`BASELINE_UNKNOWN_BLOCKING:${item.summary}`);
-  }
-  for (const gap of baseline.gaps.filter((item) => item.status === 'open' && item.blocking)) {
-    blockers.add(`BASELINE_GAP_BLOCKING:${gap.id}`);
-  }
   if (!String(input.approved_by || '').trim()) blockers.add('BASELINE_APPROVER_REQUIRED');
-  if (String(input.approval_note || '').trim().length < 3) blockers.add('BASELINE_APPROVAL_NOTE_REQUIRED');
+  if (!String(input.approval_note || '').trim()) blockers.add('BASELINE_APPROVAL_NOTE_REQUIRED');
   return [...blockers].sort();
+}
+
+function convergenceWarnings(db, baseline) {
+  const warnings = new Set(storedReadySemanticWarnings(baseline));
+  for (const warning of convergenceResearchBlockers(db, baseline)) warnings.add(warning);
+  return [...warnings].sort();
 }
 
 function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = true } = {}) {
@@ -818,6 +829,7 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
     throw new BaselineWorkflowError('BASELINE_NOT_CONVERGEABLE', `baseline ${current.id} is ${current.status}`);
   }
   const blockers = convergenceBlockers(db, current, input, rootDir);
+  const warnings = convergenceWarnings(db, current);
   const ts = nowIso();
   if (blockers.length > 0) {
     ops.tx(db, () => {
@@ -829,7 +841,13 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
         });
       }
     });
-    return { ready: false, status: 'blocked', blockers, baseline: readBaseline(db, current.id) };
+    return {
+      ready: false,
+      status: 'blocked',
+      blockers,
+      warnings,
+      baseline: readBaseline(db, current.id),
+    };
   }
   const research = acceptedBaselineResearch(db, current);
   ops.tx(db, () => {
@@ -841,7 +859,7 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
     ).run(
       String(input.approved_by).trim(), String(input.approval_note).trim(),
       input.accept_dirty_worktree === true ? 1 : 0,
-      input.accept_known_red === true ? 1 : 0, research.id, ts, ts, current.id,
+      input.accept_known_red === true ? 1 : 0, research?.id || null, ts, ts, current.id,
     );
     if (emitEvent) {
       ops.appendEventInTx(db, {
@@ -849,7 +867,13 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
       });
     }
   });
-  return { ready: true, status: 'ready', blockers: [], baseline: readBaseline(db, current.id) };
+  return {
+    ready: true,
+    status: 'ready',
+    blockers: [],
+    warnings,
+    baseline: readBaseline(db, current.id),
+  };
 }
 
 function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
@@ -880,6 +904,10 @@ function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
     ...(Array.isArray(baseline.evidence) ? storedEvidenceBlockers(baseline, rootDir) : []),
     ...research.blockers,
   ];
+  const warnings = [
+    ...storedReadySemanticWarnings(baseline),
+    ...research.warnings,
+  ];
   const snapshot = gitWorktreeSnapshot(
     rootDir, Array.isArray(baseline.scope) && baseline.scope.length > 0 ? baseline.scope : ['.'],
   );
@@ -909,7 +937,7 @@ function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
   }
   return {
     status: blockers.length === 0 ? 'pass' : 'fail', blockers: [...new Set(blockers)].sort(),
-    warnings: research.warnings, baseline,
+    warnings: [...new Set(warnings)], baseline,
   };
 }
 

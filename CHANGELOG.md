@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1] — 2026-07-31
+
+### Changed
+
+- Kept semantic completeness, route selection, baseline sufficiency, and delivery
+  acceptance in Skills and the host model. The MCP kernel now records those conclusions
+  as advisory diagnostics while retaining hard failures only for structural authority,
+  current bytes, digests, scope ownership, concurrency, permissions, and recovery.
+- Made local delivery follow the evidence required by the actual Change route. Explicit
+  omissions and their rationale are preserved without imposing a fixed
+  Plan/Dev/Test/Review sequence on every archive.
+- Made completed Tasks explicitly reopenable without erasing their prior completion
+  commit or accepted history.
+
+### Fixed
+
+- Fixed nonexistent or mismatched Task/Change checkpoint scopes creating ghost
+  checkpoint authority; invalid scopes now fail before any Context or checkpoint write.
+- Fixed shallow or contradictory evidence declarations being accepted without checking
+  current managed artifact authority and stable file bytes.
+- Fixed baseline semantic gaps, missing optional research, and `not_run` verification
+  being misrepresented as mechanical authority failures.
+- Fixed installed Change revision paths depending on source-only semantic supervisor
+  modules excluded from the npm package.
+- Fixed Hooks, Skills, templates, and packaged documentation disagreeing about advisory
+  diagnostics, adaptive delivery, and the persistence/safety-kernel boundary.
+
 ## [0.24.0] — 2026-07-30
 
 ### Added

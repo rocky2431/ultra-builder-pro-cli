@@ -30,11 +30,13 @@ profile, timestamp, blockers, and evidence-derived verdict. Register it with
 ## Checkpoint
 
 Call `ultra.checkpoint` once with `stage: test`, exact scope, evidence, and an output
-for the report (`kind: test-report`). The checkpoint compiles or reuses checking
-context and derives the verdict from the registered report.
+for the report (`kind: test-report`). The model owns the evidence-derived verdict and
+material exclusions. The checkpoint compiles or reuses checking context, verifies the
+declared report authority and digest, and records that verdict without re-judging it.
 
-If rejected, keep the same draft, repair evidence, and retry. Never weaken an
-assertion, hide a skip, or turn a warning into proof.
+If rejected, keep the same draft and repair the structural, digest, path, or
+concurrency fault. Never weaken an assertion, hide a skip, or turn a warning into
+proof.
 
 Return the profile, exact results, verified seams, blockers, report digest, and the
 model's recommended next explicit capability. Do not invoke it automatically.

@@ -59,10 +59,10 @@ Every host discovers exactly seven tools:
 |---|---|
 | `ultra.context` | Side-effect-free, bounded Context Envelope read |
 | `ultra.record` | Typed, idempotent recording of facts, decisions, artifacts, tasks, outcomes, and observations |
-| `ultra.checkpoint` | Reversible draft validation and immutable accepted Stage Checkpoint |
+| `ultra.checkpoint` | Caller-declared Stage Checkpoint with structural, scope, byte, digest, and publication validation |
 | `ultra.sync` | Inspect, migrate, import, or publish the Git team checkpoint |
 | `ultra.session` | Lease/worktree acquisition plus immutable Worker Packet handoff |
-| `ultra.archive` | Crash-safe delivery convergence and immutable archive |
+| `ultra.archive` | Crash-safe caller-declared local handoff and immutable archive |
 | `ultra.doctor` | Mechanical diagnosis and backup-first repair |
 
 Retired fine-grained tool names are not registered and return `UNKNOWN_TOOL`. The
@@ -119,8 +119,10 @@ draft N -> accepted N -> superseded by accepted N+1
 ```
 
 There is no fixed step authorization table. Skills decide which evidence is relevant
-to the actual work. Checkpoint validation verifies declared facts, files, digests, and
-scope; an incomplete draft remains mutable.
+and whether the actual work is semantically sufficient. Checkpoint validation verifies
+declared facts, files, digests, scope, idempotency, and safe publication. Semantic
+warnings remain recorded but do not prevent an explicit caller acceptance; a hard
+authority conflict leaves the draft mutable.
 
 ### Worker Packets
 

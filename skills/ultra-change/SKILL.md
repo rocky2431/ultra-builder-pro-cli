@@ -39,7 +39,8 @@ manufacturing a mutation.
 
 Changing accepted intent creates a new accepted checkpoint revision and makes only
 genuinely dependent evidence stale. Readiness is derived, not a stored absorbing
-state. A semantic rejection returns diagnostics; repair and retry the same draft.
+state. Semantic diagnostics remain advisory; structural, digest, path, or concurrency
+conflicts require repair and retry of the same draft.
 Use `change_contract / cancel` only when the owner intentionally abandons the Change.
 
 Publish the durable Change contract with `ultra.sync { action: publish }` when it is a

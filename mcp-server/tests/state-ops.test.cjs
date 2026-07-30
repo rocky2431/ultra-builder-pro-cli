@@ -297,7 +297,7 @@ test('patchTask keeps established ownership immutable and rejects terminal-chang
   }
 });
 
-test('updateTaskStatus enforces the legal transition graph', () => {
+test('updateTaskStatus preserves history while reopening a completed local task', () => {
   const { dir, db } = freshDb();
   try {
     ops.createTask(db, { id: 't', title: 'x', type: 'feature', priority: 'P0' });
@@ -310,10 +310,25 @@ test('updateTaskStatus enforces the legal transition graph', () => {
     const t2 = ops.updateTaskStatus(db, 't', 'completed');
     assert.equal(t2.status, 'completed');
 
-    // completed → pending forbidden
     assert.throws(
       () => ops.updateTaskStatus(db, 't', 'pending'),
-      (e) => e.code === 'ILLEGAL_STATUS_TRANSITION',
+      (error) => error.code === 'ILLEGAL_STATUS_TRANSITION',
+    );
+    ops.patchTask(db, 't', {
+      completion_commit: '0123456789012345678901234567890123456789',
+      session_id: 'completed-session',
+    });
+    const reopened = ops.updateTaskStatus(db, 't', 'in_progress');
+    assert.equal(reopened.status, 'in_progress');
+    assert.equal(reopened.completion_commit, null);
+    assert.equal(reopened.session_id, null);
+    const event = db.prepare(
+      "SELECT payload_json FROM events WHERE task_id = 't' AND type = 'task_reopened'",
+    ).get();
+    assert.ok(event);
+    assert.equal(
+      JSON.parse(event.payload_json).previous_completion_commit,
+      '0123456789012345678901234567890123456789',
     );
     closeStateDb(db);
   } finally {

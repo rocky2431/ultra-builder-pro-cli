@@ -73,26 +73,31 @@ def inspect(root: Path) -> dict:
 
             envelope = context.get("envelope", {}) if context else {}
             diagnostics = envelope.get("diagnostics", {})
-            baseline_codes = [
+            baseline_blockers = [
                 str(item.get("code"))
                 for item in [
                     *diagnostics.get("needs_attention", []),
-                    *diagnostics.get("warnings", []),
                     *diagnostics.get("hard_conflicts", []),
                 ]
+                if str(item.get("code", "")).startswith("BASELINE_")
+            ]
+            baseline_warnings = [
+                str(item.get("code"))
+                for item in diagnostics.get("warnings", [])
                 if str(item.get("code", "")).startswith("BASELINE_")
             ]
             baseline = envelope.get("baseline")
             baseline_is_ready = isinstance(baseline, dict) and baseline.get("status") == "ready"
             baseline_status = (
-                "fail" if baseline_codes and baseline_is_ready
-                else "warning" if baseline_codes
+                "fail" if baseline_blockers and baseline_is_ready
+                else "warning" if baseline_blockers or baseline_warnings
                 else "pass"
             )
             report["checks"]["baseline"] = {
                 "baseline": baseline,
-                "blockers": baseline_codes,
-                "readiness": "blocked" if baseline_codes else "ready",
+                "blockers": baseline_blockers,
+                "warnings": baseline_warnings,
+                "readiness": "blocked" if baseline_blockers else "ready",
                 "status": baseline_status,
             }
             if baseline_status == "fail":

@@ -30,8 +30,9 @@ Use one `ultra.record` batch with `decision / accept` and, when required,
 `supersedes_id`; accepted records remain immutable history. Store normalized decisions
 and artifact references, never transcripts or internal reasoning.
 
-A semantic rejection remains a mutable diagnostic. Correct the record; do not invent a
-new decision merely to satisfy a state machine.
+A structural or authority rejection remains a mutable diagnostic. Correct the record;
+do not invent a new decision merely to satisfy a state machine. Semantic disagreement
+belongs in the recommendation and visible decision record, not a kernel error.
 
 Return the conclusion, decisive evidence, uncertainty, affected authority, and the
 model's recommended next explicit capability. Thinking never performs unrelated

@@ -160,17 +160,7 @@ async function verifyMcp(launcher, projectDir, { migrateLegacy = false } = {}) {
         true,
         inspection.content?.[0]?.text || 'ultra.sync inspect failed',
       );
-      assert.equal(inspection.structuredContent.status, 'migration_required');
-      const migrated = await client.callTool({
-        name: 'ultra.sync',
-        arguments: { action: 'migrate' },
-      });
-      assert.notEqual(
-        migrated.isError,
-        true,
-        migrated.content?.[0]?.text || 'ultra.sync migrate failed',
-      );
-      assert.equal(migrated.structuredContent.migrated, true);
+      assert.equal(inspection.structuredContent.status, 'drifted');
     }
     const initialized = await client.callTool({
       name: 'ultra.record',
@@ -201,6 +191,89 @@ async function verifyMcp(launcher, projectDir, { migrateLegacy = false } = {}) {
     assert.ok(
       fs.existsSync(path.join(projectDir, '.ultra', '.runtime', 'state.db')),
       `ultra.record initialize did not create canonical state for ${launcher}`,
+    );
+    const published = await client.callTool({
+      name: 'ultra.sync',
+      arguments: {
+        action: 'publish',
+        reason: 'package_runtime_initialized',
+        idempotency_key: `package-smoke-${path.basename(projectDir)}:publish`,
+      },
+    });
+    assert.notEqual(
+      published.isError,
+      true,
+      published.content?.[0]?.text || 'ultra.sync publish failed',
+    );
+
+    const changeId = `packaged-revise-${path.basename(projectDir)}`;
+    const opened = await client.callTool({
+      name: 'ultra.record',
+      arguments: {
+        entries: [{
+          kind: 'change_contract',
+          action: 'open',
+          data: {
+            id: changeId,
+            title: 'Exercise packaged Change revision',
+            kind: 'quick',
+            intent: 'The installed runtime can revise semantic Change authority.',
+            contract: {
+              outcome: 'The installed Change contract is revised.',
+              acceptance: [{
+                id: `${changeId}-acceptance`,
+                criterion: 'The revised intent is readable.',
+                verification: 'ultra.context returns the revised Change.',
+              }],
+              non_goals: ['Unrelated package behavior.'],
+              public_seams: ['ultra.record change_contract/revise'],
+              recovery: {
+                strategy: 'Restore the prior intent revision.',
+                verification: 'Read the Change contract.',
+              },
+              unresolved_decisions: [],
+            },
+            classification: {
+              rationale: 'A local packaged-runtime smoke has no elevated risk.',
+              risk_flags: [],
+            },
+            research_disposition: {
+              status: 'none',
+              mode: null,
+              selected_steps: [],
+              rationale: 'The package seam is directly verifiable.',
+            },
+          },
+          idempotency_key: `${changeId}:open`,
+        }],
+      },
+    });
+    assert.notEqual(opened.isError, true, opened.content?.[0]?.text);
+    assert.equal(
+      opened.structuredContent.accepted,
+      true,
+      `${launcher}: ${JSON.stringify(opened.structuredContent)}`,
+    );
+    const revised = await client.callTool({
+      name: 'ultra.record',
+      arguments: {
+        entries: [{
+          kind: 'change_contract',
+          action: 'revise',
+          data: {
+            id: changeId,
+            patch: {
+              intent: 'The installed runtime revises semantic Change authority without legacy modules.',
+            },
+          },
+          idempotency_key: `${changeId}:revise`,
+        }],
+      },
+    });
+    assert.equal(
+      revised.structuredContent.accepted,
+      true,
+      `${launcher}: ${JSON.stringify(revised.structuredContent)}`,
     );
   } finally {
     await client.close();
@@ -251,6 +324,17 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
 
     const packageRoot = path.join(consumer, 'node_modules', PACKAGE.name);
     const packedPaths = packJson[0].files.map((entry) => entry.path);
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(
+        path.join(packageRoot, '.ultra-template', 'tasks', 'tasks.json'),
+        'utf8',
+      )),
+      JSON.parse(fs.readFileSync(
+        path.join(REPO_ROOT, 'templates', '.ultra', 'tasks', 'tasks.json'),
+        'utf8',
+      )),
+      'packaged and source project scaffolds must expose the same team-ledger schema',
+    );
     assert.equal(packedPaths.some((file) => file === 'skills/learn/SKILL.md'), false);
     assert.equal(packedPaths.some((file) => file === 'commands/learn.md'), false);
     assert.equal(packedPaths.some((file) => file.startsWith('output-styles/')), false);

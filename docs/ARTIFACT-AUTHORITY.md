@@ -44,7 +44,7 @@ these surfaces independently owns all three roles.
 |---|---|---|
 | Owner | Goals, acceptance, non-goals, material choices, risk acceptance, and authorization for irreversible or external effects | Supply facts the checkout or runtime can establish directly |
 | Host model | Inspect evidence, recommend a route, ask only for unresolved owner choices, normalize the answer, call the owning write, update semantic artifacts, read back the result, and present the next recommendation | Fabricate evidence, infer owner authorization, or bypass mechanical safety |
-| Ultra MCP | Persist normalized inputs, validate structure and current digests, record facts and provenance, commit Stage Checkpoints, project local views, publish/import the Git checkpoint, and expose recovery | Choose product direction, prove a UI click, pre-authorize reasoning steps, force a semantic route, or replace model judgment |
+| Ultra MCP | Persist normalized inputs, validate structure/current bytes/digests, record facts and provenance, commit caller-declared Stage Checkpoints, project local views, publish/import the Git checkpoint, and expose recovery | Judge semantic completeness, choose product direction, prove a UI click, pre-authorize reasoning steps, force a semantic route, or replace model judgment |
 | Host adapter | Render the shared interaction contract through the host-native question and tool surfaces | Become a second workflow authority |
 | Hook | Observe lifecycle, inject compact DB-derived recovery context, and protect MCP-owned checkpoint and generated projection paths | Select a semantic route or block ordinary development |
 
@@ -112,11 +112,13 @@ document's before/after digest, delta and acceptance references, verification, a
 verified consumer or explicit no-consumer reason. Standard and major delivery require
 one current reconciliation even when its document set is empty.
 
-`change.archive` preflights the complete target set before writing, applies overlay
-bytes through a recoverable local transaction, refreshes baseline digests, moves the
-complete Change root to its archive location, and rebinds registry paths. A conflict,
-crash, or DB failure must roll back or resume the whole packet; no subset is reported
-as delivered.
+The Deliver Skill owns the evidence-based semantic handoff and records any deliberate
+stage omission. `change.archive` does not infer completeness or require a fixed
+Plan/Dev/Test/Review/Deliver sequence. It preflights the caller-declared target set
+before writing, validates reconciliation structure, applies overlay bytes through a
+recoverable local transaction, refreshes baseline digests, moves the complete Change
+root to its archive location, and rebinds registry paths. A conflict, crash, or DB
+failure must roll back or resume the whole packet; no subset is reported as delivered.
 
 ## Context and plan authority
 
@@ -141,7 +143,8 @@ A current plan is a Change-owned pair:
   task contracts.
 
 The Plan checkpoint selects both paths from the owning Change and accepts no arbitrary
-output path. It binds the JSON digest and the preceding `plan/planning` snapshot;
+output path. The model owns decomposition and semantic coverage. MCP binds the JSON
+digest and the preceding `plan/planning` snapshot;
 the artifact registry records both plan files with that context provenance. Publication
 preflights both path authorities and prior digests, rejects symlinked ancestors or
 targets, and journals the two file replacements so a registry or event failure restores

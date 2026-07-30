@@ -95,15 +95,17 @@ If the host mode forbids interaction, leave the decision unresolved.
 
 ## Stage Checkpoints
 
-Skills describe adaptive evidence expectations; SQLite does not authorize a fixed
-step sequence. A stage has a mutable draft and immutable accepted revisions:
+Skills describe adaptive evidence expectations and decide semantic sufficiency;
+SQLite does not authorize a fixed step sequence or reinterpret the supplied verdict.
+A stage has a mutable draft and immutable accepted revisions:
 
 ```text
 draft N -> accepted N -> superseded by accepted N+1
 ```
 
-Warnings and semantic gaps do not lock a draft. An accepted revision can be replaced
-by a later accepted revision without rewriting history.
+Warnings and semantic gaps do not reject explicit acceptance. Structural, digest,
+path, publication, and concurrency conflicts leave the draft mutable. An accepted
+revision can be replaced by a later accepted revision without rewriting history.
 
 ## Worker handoff
 

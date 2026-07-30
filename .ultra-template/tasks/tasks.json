@@ -1,13 +1,15 @@
 {
   "kind": "ultra-team-task-ledger",
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "generation": 0,
   "parent_digest": null,
   "ancestors": [],
-  "state_digest": "5bf27fb3627b711c97abf72f0aad150ba693d35bcebdd57c2d80e325f495de6d",
+  "state_digest": "88098433d797125bb0f87068a01205cf378494169ca93ee2a9dcf15c1c83dd63",
   "published_at": null,
   "reason": "scaffold",
   "baseline": null,
   "changes": [],
+  "decisions": [],
+  "checkpoints": [],
   "tasks": []
 }

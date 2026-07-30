@@ -34,11 +34,13 @@ Register specialist and summary artifacts through one `ultra.record` batch using
 ## Checkpoint
 
 Call `ultra.checkpoint` once with `stage: review`, exact scope, evidence, and outputs
-tagged `spec_review`, `engineering_review`, or summary. The checkpoint compiles or
-reuses review context and derives both axes from registered artifacts.
+tagged `spec_review`, `engineering_review`, or summary. The model and bounded review
+agents own both evidence-derived axes. The checkpoint compiles or reuses review
+context, verifies declared artifact bytes and digests, and records the supplied axes
+without overriding findings.
 
-A rejected checkpoint leaves the draft mutable. Fix stale scope or evidence and retry;
-do not open a replacement run or suppress a finding.
+A rejected checkpoint leaves the draft mutable. Fix the structural, digest, path, or
+concurrency fault and retry; do not open a replacement run or suppress a finding.
 
 Return both axes, findings, reviewed scope, worker rationale, digests, and the model's
 recommended next explicit capability. Do not invoke it automatically.

@@ -15,19 +15,24 @@ flowchart TD
     RESEARCH --> THINK["ultra-think when a material decision remains"]
     THINK --> RESEARCH
     RESEARCH --> CHANGE["ultra-change"]
-    CHANGE --> ROUTE{"Evidence sufficient?"}
-    ROUTE -->|"No"| CR["bounded ultra-research"]
-    CR --> PLAN["ultra-plan"]
-    ROUTE -->|"Yes"| PLAN
+    CHANGE --> ROUTE{"What does this Change actually need?"}
+    ROUTE -->|"Evidence gap"| CR["bounded ultra-research"]
+    CR --> ROUTE
+    ROUTE -->|"Implementation"| PLAN["ultra-plan"]
     PLAN --> DEV["ultra-dev for one owned Task"]
     DEV --> MORE{"More executable Tasks?"}
     MORE -->|"Yes"| DEV
-    MORE -->|"No"| TEST["ultra-test"]
+    MORE -->|"No"| ASSESS{"What evidence is still warranted?"}
+    ROUTE -->|"No implementation; current evidence is sufficient"| ASSESS
+    ASSESS -->|"Risk-selected verification"| TEST["ultra-test"]
+    ASSESS -->|"Independent review"| REVIEW["ultra-review"]
+    ASSESS -->|"Caller accepts current packet and explicit omissions"| DELIVER["ultra-deliver"]
     TEST -->|"implementation gap"| DEV
-    TEST -->|"evidence accepted"| REVIEW["ultra-review"]
+    TEST -->|"review warranted"| REVIEW
+    TEST -->|"caller accepts evidence"| DELIVER
     REVIEW -->|"implementation issue"| DEV
     REVIEW -->|"contract issue"| PLAN
-    REVIEW -->|"accepted"| DELIVER["ultra-deliver"]
+    REVIEW -->|"accepted"| DELIVER
     DELIVER --> CHANGE
     STATUS["ultra-status"] -.-> INIT
     STATUS -.-> CHANGE
@@ -35,10 +40,12 @@ flowchart TD
     DOCTOR -.-> CHANGE
 ```
 
-The graph is guidance, not database authorization. A quick, well-understood Change may
-skip extra research, but it still needs an explicit Plan, Task contract, Context,
-verification, review, and delivery evidence. `ultra-status` is read-only.
-`ultra-doctor` repairs mechanical authority only.
+The graph is guidance, not database authorization. The host model selects the evidence
+needed by the actual Change route and records every deliberate omission in the delivery
+handoff. When implementation occurs, its Plan, Task contract, and Context remain
+mandatory execution authority; Research, Test, and Review are used according to the
+actual evidence and risk rather than as universal archive gates. `ultra-status` is
+read-only. `ultra-doctor` repairs mechanical authority only.
 
 ## Shared command contract
 
@@ -99,10 +106,12 @@ draft revision N
   -> accepted revision N+1 supersedes N
 ```
 
-A failed acceptance returns diagnostics and keeps the same draft mutable. Plan export
-is part of Plan checkpoint publication, so changing a Task contract before acceptance
-cannot invalidate an already-recorded “export step.” There is no locked intermediate
-run to cancel or manually repair.
+Semantic diagnostics remain recorded but do not reject the model's explicit
+checkpoint conclusion. A structural, digest, path, publication, or concurrency
+conflict keeps the same draft mutable. Plan export is part of Plan checkpoint
+publication, so changing a Task contract before acceptance cannot invalidate an
+already-recorded “export step.” There is no locked intermediate run to cancel or
+manually repair.
 
 Accepted checkpoints are immutable evidence. New facts create a replacement draft.
 Only archive history is terminal; subsequent product work opens a new Change.
@@ -118,9 +127,11 @@ active -> archived
 ```
 
 `blocked`, `ready`, and `needs_attention` are derived diagnostics, not absorbing Change
-states. An active Change may be revised. Archive requires complete current Task,
-Context, test, review, documentation, and delivery checkpoints, then performs a
-recoverable filesystem/DB transaction. Archived bytes remain immutable.
+states. An active Change may be revised. The Deliver Skill inspects the relevant Task,
+Context, test, review, documentation, and delivery evidence, decides semantic
+sufficiency, and records deliberate omissions. Archive validates the explicit handoff,
+current authority, reconciliation structure, and safe recoverable filesystem/DB
+transaction without enforcing a fixed stage sequence. Archived bytes remain immutable.
 
 Older `ready` or `blocked` rows are readable migration history. They do not authorize
 new work until migration/revalidation derives current checkpoint authority.
@@ -130,14 +141,18 @@ new work until migration/revalidation derives current checkpoint authority.
 Task durable outcomes remain portable:
 
 ```text
-pending -> completed
-   |
+pending -> in_progress -> completed
+   |          |              |
+   |          -> blocked     -> in_progress (explicit reopen)
    -> blocked
    -> cancelled
 ```
 
 `in_progress`, Worker ownership, leases, PIDs, heartbeats, worktrees, and completion
 commit backfill are checkout-local. They are not published to Git.
+Reopening a completed Task clears the local completion/session fields, preserves the
+prior completion commit in an append-only `task_reopened` event, and requires a new
+durable outcome before it can be completed again.
 
 `ultra.session acquire` atomically:
 
@@ -210,6 +225,6 @@ Only these classes fail the tool call:
 - permission failure;
 - archive/publish/deploy or another irreversible external-effect failure.
 
-Evidence gaps, incomplete exploration, stale optional context, missing reports, or a
-checkpoint that is not yet ready are structured diagnostics. The model remains free to
-investigate, revise, and retry.
+Evidence gaps, incomplete exploration, stale optional context, missing reports, or
+other semantic insufficiency are structured diagnostics. The model remains responsible
+for investigating, revising, accepting, or explicitly recording an omission.

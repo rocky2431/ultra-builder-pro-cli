@@ -21,7 +21,7 @@ const STATUS_TRANSITIONS = Object.freeze({
   in_progress: new Set(['completed', 'blocked', 'pending']),
   blocked:     new Set(['pending', 'in_progress']),
   expanded:    new Set(['completed']),
-  completed:   new Set(),
+  completed:   new Set(['in_progress']),
 });
 
 const TASK_FIELDS = Object.freeze([
@@ -529,6 +529,16 @@ function patchTask(db, id, patch = {}) {
           `cannot transition task ${id} from ${current.status} to ${nextStatus}`,
         );
       }
+      if (current.status === 'completed' && nextStatus === 'in_progress') {
+        if (!Object.prototype.hasOwnProperty.call(patch, 'completion_commit')) {
+          sets.push('completion_commit = ?');
+          params.push(null);
+        }
+        if (!Object.prototype.hasOwnProperty.call(patch, 'session_id')) {
+          sets.push('session_id = ?');
+          params.push(null);
+        }
+      }
       sets.push('status = ?');
       params.push(nextStatus);
     }
@@ -542,10 +552,18 @@ function patchTask(db, id, patch = {}) {
 
     if (nextStatus && nextStatus !== current.status) {
       appendEventInTx(db, {
-        type: statusEventType(nextStatus),
+        type: current.status === 'completed' && nextStatus === 'in_progress'
+          ? 'task_reopened'
+          : statusEventType(nextStatus),
         task_id: id,
         change_id: patch.change_id !== undefined ? patch.change_id : current.change_id,
-        payload: { from: current.status, to: nextStatus },
+        payload: {
+          from: current.status,
+          to: nextStatus,
+          ...(current.status === 'completed' && nextStatus === 'in_progress'
+            ? { previous_completion_commit: current.completion_commit }
+            : {}),
+        },
       });
     }
     const contractFields = Object.keys(patch).filter((field) => TASK_CONTRACT_PATCH_FIELDS.has(field));

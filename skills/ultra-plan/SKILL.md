@@ -48,14 +48,16 @@ payload: planning posture, optional approval already obtained, context budget/re
 idempotency_key: stable semantic Plan checkpoint id
 ```
 
-The checkpoint compiles or reuses the content-addressed Context Envelope, derives
-coverage diagnostics, exports `plan.json` and `plan.md` inside the same recoverable
-publication, accepts one Plan revision, and publishes the team checkpoint. Do not
-export separately.
+The model decides whether decomposition, acceptance coverage, and context are
+sufficient and records any deliberate omission. The checkpoint compiles or reuses the
+content-addressed Context Envelope, reports advisory coverage diagnostics, exports
+`plan.json` and `plan.md` inside the same recoverable publication, accepts one Plan
+revision, and publishes the team checkpoint. Do not export separately.
 
-If rejected, the same Plan draft stays mutable. Fix task contracts or evidence and
-retry. To replace an accepted Plan, submit a new checkpoint revision; never edit
-SQLite or open a parallel run to escape a diagnostic.
+If rejected, the same Plan draft stays mutable. Fix only the reported structural,
+digest, path, or concurrency conflict and retry. To replace an accepted Plan, submit a
+new checkpoint revision; never edit SQLite or open a parallel run to escape a
+diagnostic.
 
 Return topology, executable slices, public seams, exact checks, checkpoint result, and
 the model's recommended execution order. Do not invoke `ultra-dev` automatically.

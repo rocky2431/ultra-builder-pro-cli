@@ -8,6 +8,7 @@ const baselines = require('./baseline-workflow.cjs');
 const workflows = require('./workflow-state.cjs');
 const decisions = require('./decision-dialogue.cjs');
 const ops = require('./state-ops.cjs');
+const changeAuthority = require('./change-authority.cjs');
 
 const ROLES = new Set(['plan', 'implement', 'check', 'review']);
 const GATES = new Set([
@@ -159,21 +160,7 @@ function taskContractDigest(task) {
   return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
-function changeStateDigest(change) {
-  if (!change) return null;
-  const payload = {
-    id: change.id,
-    kind: change.kind,
-    intent: change.intent,
-    docs_impact: change.docs_impact || parseJson(change.docs_impact_json, {}),
-    provider_refs: change.provider_refs || parseJson(change.provider_refs_json, {}),
-    contract: change.contract || parseJson(change.contract_json, {}),
-    classification: change.classification || parseJson(change.classification_json, {}),
-    research_disposition: change.research_disposition
-      || parseJson(change.research_disposition_json, {}),
-  };
-  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
-}
+const { changeStateDigest } = changeAuthority;
 
 function nonEmpty(value, field) {
   const text = typeof value === 'string' ? value.trim() : '';

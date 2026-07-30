@@ -100,7 +100,7 @@ tools:
 
   - name: ultra.checkpoint
     family: ultra
-    description: Attempt one semantic stage checkpoint. Failed semantic checks return blockers and leave the draft mutable; accepted checkpoints commit durable authority once.
+    description: Commit one caller-declared stage checkpoint after validating scope, structure, idempotency, current file bytes, digests, and transactional publication. Semantic completeness remains a Skill/model judgment and is returned only as advisory diagnostics.
     phase: '24'
     writer_role: mcp
     input_schema:
@@ -122,6 +122,10 @@ tools:
       - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
       - { code: STATE_CORRUPT, description: 'local authority cannot be checkpointed safely' }
       - { code: PATH_AUTHORITY_VIOLATION, description: 'checkpoint evidence escapes managed authority' }
+      - { code: CHECKPOINT_EVIDENCE_AUTHORITY_MISSING, description: 'declared checkpoint evidence is not current managed authority' }
+      - { code: CHECKPOINT_EVIDENCE_DIGEST_MISMATCH, description: 'declared checkpoint evidence bytes changed' }
+      - { code: CHECKPOINT_SCOPE_NOT_FOUND, description: 'the explicit Task or Change scope does not exist' }
+      - { code: CHECKPOINT_SCOPE_MISMATCH, description: 'the explicit Task does not belong to the supplied Change scope' }
     cli_subcommand: 'ultra checkpoint'
     emits_events: [ultra_checkpoint_accepted, ultra_checkpoint_rejected]
 
@@ -168,7 +172,7 @@ tools:
 
   - name: ultra.archive
     family: ultra
-    description: Converge and archive one accepted Change through the recoverable filesystem and database transaction boundary.
+    description: Archive one caller-declared local Change handoff through a recoverable filesystem and database transaction. The kernel validates authority, paths, digests, reconciliation structure, and recovery safety without requiring a fixed semantic stage sequence.
     phase: '24'
     writer_role: mcp
     input_schema:

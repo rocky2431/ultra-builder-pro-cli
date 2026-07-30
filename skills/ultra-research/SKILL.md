@@ -41,8 +41,9 @@ Use one `ultra.record` batch for typed durable facts:
 - `baseline / observe` or `baseline / accept` for baseline authority;
 - `change_contract / revise` for Change-bound findings.
 
-Every entry needs a stable idempotency key. A semantic rejection is a mutable
-diagnostic: correct the same draft and retry.
+Every entry needs a stable idempotency key. Structural or authority conflicts require
+repair; semantic warnings remain visible but do not decide whether the research is
+sufficient.
 
 ## Commit one research checkpoint
 
@@ -56,8 +57,11 @@ entries, then publish the team checkpoint with `ultra.sync { action: publish }`.
 For Change-bound research, keep all findings and delta artifacts below the Change
 root and never edit accepted baseline specs directly.
 
-If the checkpoint returns `accepted: false`, keep the same draft mutable, repair the
-reported evidence, and retry. Do not manufacture evidence or open a replacement run.
+The model decides whether the selected coverage and synthesis are sufficient, and
+states omissions or deferred areas in the payload. MCP validates declared evidence
+bytes and records that conclusion; its semantic diagnostics are advisory. If it
+returns `accepted: false`, repair the reported structural, digest, path, or concurrency
+conflict and retry the same draft.
 
 Return coverage, decisive evidence, remaining gaps, durable artifact paths, and a
 model recommendation for the next explicit capability, such as `ultra-change` after a

@@ -9,6 +9,7 @@ const Ajv = require('ajv/dist/2020');
 const ops = require('./state-ops.cjs');
 const artifacts = require('./artifact-registry.cjs');
 const canonical = require('./canonical-json.cjs');
+const changeAuthority = require('./change-authority.cjs');
 const { writeManagedFile } = require('./managed-file-write.cjs');
 const providerRefs = require('./provider-refs.cjs');
 const baselines = require('./baseline-workflow.cjs');
@@ -30,10 +31,6 @@ function loadLegacyModule(filename) {
   return module.require(path.join(__dirname, filename));
 }
 
-function legacyContextSpine() {
-  return loadLegacyModule('context-spine.cjs');
-}
-
 function legacySpecLearning() {
   return loadLegacyModule('spec-learning.cjs');
 }
@@ -44,6 +41,10 @@ function legacyWorkflows() {
 
 function legacyDecisions() {
   return loadLegacyModule('decision-dialogue.cjs');
+}
+
+function legacyContextSpine() {
+  return loadLegacyModule('context-spine.cjs');
 }
 
 const CHANGE_ID = /^[a-zA-Z0-9_-]+$/;
@@ -1191,8 +1192,8 @@ function updateChange(db, id, patch = {}, {
       const semanticFields = Object.keys(patch)
         .filter((field) => SEMANTIC_AUTHORITY_FIELDS.has(field));
       if (semanticFields.length > 0
-        && legacyContextSpine().changeStateDigest(current)
-          !== legacyContextSpine().changeStateDigest(updated)) {
+        && changeAuthority.changeStateDigest(current)
+          !== changeAuthority.changeStateDigest(updated)) {
         invalidated.push(...artifacts.invalidateConsumersFromEndpointInTx(
           db,
           { type: 'change', id },
@@ -1339,6 +1340,60 @@ function generatePacketReconciliation(db, change, packet, rootDir) {
       consumer_refs: [],
       provenance: { writer: 'change.deliver', generated: true },
       metadata: { terminal_role: true, schema: manifest.$schema },
+    }, { rootDir }).artifact;
+    return {
+      manifest,
+      relative,
+      file,
+      digest: recorded.digest,
+      artifact: recorded,
+    };
+  } catch (error) {
+    if (previous === null) fs.rmSync(file, { force: true });
+    else fs.writeFileSync(file, previous);
+    throw error;
+  }
+}
+
+function generateCallerNoChangeReconciliation(db, change, input, rootDir) {
+  const baseline = baselines.readBaseline(db);
+  const manifest = {
+    $schema: 'ultra-baseline-reconciliation-v1',
+    change_id: change.id,
+    baseline_id: baseline?.id || null,
+    baseline_updates: [],
+    semantic_changes: [],
+    semantic_no_change_reason: String(input.no_baseline_change_reason).trim(),
+    resolved_gap_ids: [],
+    resolved_unknowns: [],
+    verification: [{
+      name: 'explicit archive handoff',
+      command: 'ultra.archive',
+      status: 'pass',
+      evidence: String(input.summary).trim(),
+    }],
+  };
+  const relative = `${change.artifact_root}/baseline-reconciliation.json`;
+  const serialized = `${JSON.stringify(manifest, null, 2)}\n`;
+  const file = safeRelativePath(rootDir, relative);
+  const previous = fs.existsSync(file) ? fs.readFileSync(file) : null;
+  const published = writeManagedFile(rootDir, relative, Buffer.from(serialized));
+  try {
+    const recorded = artifacts.recordArtifact(db, {
+      id: `${change.id}-baseline-reconciliation`,
+      owner_type: 'change',
+      owner_id: change.id,
+      kind: 'baseline_reconciliation',
+      path: relative,
+      content_digest: published.digest,
+      source_refs: [],
+      consumer_refs: [],
+      provenance: { writer: 'ultra.archive', generated: true },
+      metadata: {
+        terminal_role: true,
+        schema: manifest.$schema,
+        caller_declared: true,
+      },
     }, { rootDir }).artifact;
     return {
       manifest,
@@ -2487,35 +2542,6 @@ function archiveChange(db, input, {
   }
 
   let packet = null;
-  if (kernelMode) {
-    const requiredStages = ['plan', 'test', 'review', 'deliver'];
-    const missing = requiredStages.filter((stage) => !stageCheckpoints.currentCheckpoint(
-      db,
-      stage,
-      { change_id: change.id },
-      { includeDraft: false },
-    ));
-    const tasks = ops.listTasks(db, { change_id: change.id });
-    if (tasks.length === 0) missing.push('tasks');
-    for (const task of tasks.filter((item) => item.status !== 'expanded')) {
-      if (task.status !== 'completed') missing.push(`task:${task.id}:completed`);
-      if (!stageCheckpoints.currentCheckpoint(
-        db,
-        'dev',
-        { task_id: task.id },
-        { includeDraft: false },
-      )) {
-        missing.push(`task:${task.id}:dev`);
-      }
-    }
-    if (missing.length > 0) {
-      throw new ChangeWorkflowError(
-        'CHANGE_EVIDENCE_INCOMPLETE',
-        `change ${change.id} lacks accepted delivery checkpoints`,
-        { missing },
-      );
-    }
-  }
   if (changePacket.readDeltaAuthority(db, change.id)) {
     if (!kernelMode) {
       legacyWorkflows().validateDeliveryPrerequisites(
@@ -2553,7 +2579,14 @@ function archiveChange(db, input, {
 
   const reconciliation = packet
     ? generatePacketReconciliation(db, change, packet, rootDir)
-    : readReconciliationManifest(db, change, input, rootDir);
+    : (
+      kernelMode && updates.length === 0 && !String(input.reconciliation_path || '').trim()
+        ? generateCallerNoChangeReconciliation(db, change, {
+          summary: input.summary,
+          no_baseline_change_reason: noChangeReason,
+        }, rootDir)
+        : readReconciliationManifest(db, change, input, rootDir)
+    );
   if (kernelMode) {
     materializeKernelArchiveAuthority(db, change, rootDir);
   }

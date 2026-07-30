@@ -52,17 +52,20 @@ baseline is ready.
 Record every adoption gap with a stable id, evidence references, owner, blocking flag,
 and one category:
 
-- `baseline_blocker`: prevents trustworthy adoption;
+- `baseline_blocker`: the model should recommend against adoption until resolved or
+  the owner explicitly accepts the recorded risk;
 - `documentation_drift`: maintained prose conflicts with observed behavior;
 - `known_defect`: reproducible incorrect behavior;
 - `technical_debt`: accepted maintainability or quality cost;
 - `unknown`: evidence is insufficient;
 - `future_change`: desired behavior outside the current baseline.
 
-Use `open` for unresolved gaps, `accepted` for owner-accepted non-blocking debt,
+Use `open` for unresolved gaps, `accepted` for owner-accepted debt,
 `resolved` when evidence closes the gap, and `deferred` for explicitly postponed
-non-blocking work. Every open `baseline_blocker` remains blocking. Do not convert the
-ledger into hundreds of application tasks.
+work. Keep every open `baseline_blocker` visible as a semantic warning. It does not
+become a SQLite hard gate: the model explains the risk, recommends resolution, and may
+record owner-authorized adoption without erasing the gap. Do not convert the ledger
+into hundreds of application tasks.
 
 ## Record authority
 
@@ -88,9 +91,9 @@ worktree state, and material decisions to the owner. Use `ultra.record` with
 `accept_known_red` and `accept_dirty_worktree` only for the exact items the owner
 accepted.
 
-Resolve returned blockers through evidence or an owner decision, record the replacement
-snapshot, and retry. Adoption is complete only when `ultra.context` reports a current
-accepted baseline, the gap ledger has no open blocker, and project doctor has no
-authority failure. Route all selected work through `ultra-change`, including work
-described by a legacy plan. Import its accepted intent into a current Change Contract
-before planning.
+Resolve hard authority blockers, then present semantic warnings for evidence or an
+owner decision. Adoption is complete when `ultra.context` reports a current accepted
+baseline, every material open gap is visible with its owner/risk and any acceptance is
+explicit in the approval note, and project doctor has no mechanical authority failure.
+Route all selected work through `ultra-change`, including work described by a legacy
+plan. Import its accepted intent into a current Change Contract before planning.

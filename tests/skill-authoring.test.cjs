@@ -251,6 +251,43 @@ test('public workflow skills use the narrow MCP kernel and return semantic contr
   assert.match(sourceSkill('ultra-deliver').text, /never grants commit, push, tag/i);
 });
 
+test('delivery guidance preserves an adaptive caller-owned semantic handoff', () => {
+  const delivery = sourceSkill('ultra-deliver').text;
+  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const lifecycle = fs.readFileSync(
+    path.join(ROOT, 'docs', 'WORKFLOW-LIFECYCLE.md'),
+    'utf8',
+  );
+  const crosswalk = fs.readFileSync(
+    path.join(ROOT, 'docs', 'LEGACY-CLI-CROSSWALK.md'),
+    'utf8',
+  );
+  assert.doesNotMatch(
+    delivery,
+    /Use when implementation, testing, and review are current/i,
+    'ultra-deliver activation must not require a fixed implementation/test/review sequence',
+  );
+  assert.doesNotMatch(
+    readme,
+    /Research, plans, implementation, tests, review, and specification updates must agree/i,
+    'README must not present every semantic stage as a fixed archive precondition',
+  );
+  assert.match(delivery, /explicitly record any omitted stage/i);
+  assert.match(readme, /explicitly records any omitted capability/i);
+  assert.doesNotMatch(
+    lifecycle,
+    /still needs an explicit Plan, Task contract, Context,\s+verification, review, and delivery evidence/i,
+    'workflow lifecycle must not turn the illustrative full-depth route into a universal gate',
+  );
+  assert.doesNotMatch(
+    crosswalk,
+    /ultra-deliver` requires current tasks, test, review/i,
+    'legacy crosswalk must describe the current adaptive delivery boundary accurately',
+  );
+  assert.match(lifecycle, /actual Change route/i);
+  assert.match(crosswalk, /explicitly accepted evidence packet/i);
+});
+
 test('model-facing skills do not directly call fine-grained compatibility tools', () => {
   const directFineGrainedCall = /\b(?:call|run|invoke)\s+`(?:task|change|baseline|decision|workflow|artifact|system|session|plan)\.[a-z_]+`/i;
   for (const name of CORE_PUBLIC_SKILLS) {

@@ -45,6 +45,10 @@ const HARD_ERROR_CODES = new Set([
   'ARCHIVE_RUNTIME_UNAVAILABLE',
   'BACKUP_FAILED',
   'CHECKPOINT_DIGEST_MISMATCH',
+  'CHECKPOINT_EVIDENCE_AUTHORITY_MISSING',
+  'CHECKPOINT_EVIDENCE_DIGEST_MISMATCH',
+  'CHECKPOINT_SCOPE_MISMATCH',
+  'CHECKPOINT_SCOPE_NOT_FOUND',
   'CONTEXT_ENVELOPE_LIMIT_EXCEEDED',
   'CONTEXT_ENVELOPE_DIGEST_MISMATCH',
   'CONTEXT_ENVELOPE_FILE_DRIFT',
@@ -142,15 +146,49 @@ function diagnostic(error, severity = 'needs_attention') {
 
 function selectedScope(db, input = {}) {
   const scope = input.scope || {};
-  if (scope.task_id) {
-    const task = ops.readTask(db, scope.task_id);
-    if (!task) return { task_id: scope.task_id };
+  const task = scope.task_id ? ops.readTask(db, scope.task_id) : null;
+  if (scope.task_id && !task) {
+    throw Object.assign(
+      new Error(`checkpoint task scope does not exist: ${scope.task_id}`),
+      {
+        code: 'CHECKPOINT_SCOPE_NOT_FOUND',
+        details: { scope_type: 'task', scope_id: scope.task_id },
+      },
+    );
+  }
+  const changeId = scope.change_id || task?.change_id || null;
+  const change = changeId ? changes.readChange(db, changeId) : null;
+  if (changeId && !change) {
+    throw Object.assign(
+      new Error(`checkpoint Change scope does not exist: ${changeId}`),
+      {
+        code: 'CHECKPOINT_SCOPE_NOT_FOUND',
+        details: { scope_type: 'change', scope_id: changeId },
+      },
+    );
+  }
+  if (task && scope.change_id && task.change_id !== scope.change_id) {
+    throw Object.assign(
+      new Error(
+        `checkpoint task ${task.id} belongs to Change ${task.change_id || '(none)'}, not ${scope.change_id}`,
+      ),
+      {
+        code: 'CHECKPOINT_SCOPE_MISMATCH',
+        details: {
+          task_id: task.id,
+          task_change_id: task.change_id || null,
+          requested_change_id: scope.change_id,
+        },
+      },
+    );
+  }
+  if (task) {
     return {
-      change_id: scope.change_id || task.change_id || undefined,
+      ...(changeId ? { change_id: changeId } : {}),
       task_id: task.id,
     };
   }
-  if (scope.change_id) return { change_id: scope.change_id };
+  if (change) return { change_id: change.id };
   const baseline = baselines.readBaseline(db);
   return baseline ? { baseline_id: baseline.id } : { project_id: 'project' };
 }
@@ -184,12 +222,16 @@ function baselineRecord(db, action, data, rootDir) {
     const result = baselines.convergeBaseline(db, data, { rootDir });
     return {
       ...result,
-      diagnostics: result.ready
-        ? []
-        : (result.blockers || []).map((code) => ({
+      diagnostics: [
+        ...(result.blockers || []).map((code) => ({
           code,
           severity: 'needs_attention',
         })),
+        ...(result.warnings || []).map((code) => ({
+          code,
+          severity: 'warning',
+        })),
+      ],
     };
   }
   throw Object.assign(new Error(`unsupported baseline action: ${action}`), {
@@ -423,14 +465,17 @@ function checkpointDiagnostics(input, context) {
     }));
 }
 
-function stageReadinessDiagnostics(db, input, scope) {
+function stageAdvisoryDiagnostics(db, input, scope) {
   const payload = input.payload || {};
   const evidence = Array.isArray(payload.evidence) ? payload.evidence : [];
-  const needs = (code, message) => ({ code, severity: 'needs_attention', message });
+  const warning = (code, message) => ({ code, severity: 'warning', message });
   if (input.stage === 'research') {
     return evidence.length > 0
       ? []
-      : [needs('RESEARCH_EVIDENCE_REQUIRED', 'Research checkpoint requires at least one evidence reference.')];
+      : [warning(
+        'RESEARCH_EVIDENCE_MISSING',
+        'No research evidence was declared; the caller remains responsible for semantic sufficiency.',
+      )];
   }
   if (input.stage === 'dev') {
     const task = scope.task_id ? ops.readTask(db, scope.task_id) : null;
@@ -442,14 +487,14 @@ function stageReadinessDiagnostics(db, input, scope) {
       ).get(task.id)
       : null;
     const diagnostics = [];
-    if (!task) diagnostics.push(needs('TASK_NOT_FOUND', 'Dev checkpoint requires a task scope.'));
+    if (!task) diagnostics.push(warning('TASK_NOT_FOUND', 'No task scope was found for this Dev checkpoint.'));
     else if (task.status !== 'completed') {
-      diagnostics.push(needs('TASK_OUTCOME_INCOMPLETE', `Task ${task.id} is not completed.`));
+      diagnostics.push(warning('TASK_OUTCOME_INCOMPLETE', `Task ${task.id} is not completed.`));
     }
     if (task && !outcome) {
-      diagnostics.push(needs(
-        'WORKER_OUTCOME_REQUIRED',
-        `Task ${task.id} requires an artifact bound to its exact Worker Packet.`,
+      diagnostics.push(warning(
+        'WORKER_OUTCOME_MISSING',
+        `Task ${task.id} has no current Worker Packet outcome artifact.`,
       ));
     }
     return diagnostics;
@@ -457,22 +502,32 @@ function stageReadinessDiagnostics(db, input, scope) {
   if (input.stage === 'test') {
     const result = String(payload.result || '').toLowerCase();
     const diagnostics = [];
-    if (!['pass', 'known_red'].includes(result)) {
-      diagnostics.push(needs('TEST_RESULT_REQUIRED', 'Test checkpoint requires result=pass or known_red.'));
+    if (!result) {
+      diagnostics.push(warning('TEST_RESULT_MISSING', 'No test result was declared.'));
+    } else if (!['pass', 'known_red'].includes(result)) {
+      diagnostics.push(warning(
+        'TEST_RESULT_RECORDED',
+        `The caller recorded test result ${result}; MCP does not reinterpret it.`,
+      ));
     }
     if (evidence.length === 0) {
-      diagnostics.push(needs('TEST_EVIDENCE_REQUIRED', 'Test checkpoint requires evidence.'));
+      diagnostics.push(warning('TEST_EVIDENCE_MISSING', 'No test evidence was declared.'));
     }
     return diagnostics;
   }
   if (input.stage === 'review') {
     const verdict = String(payload.verdict || '').toLowerCase();
     const diagnostics = [];
-    if (!['approve', 'pass'].includes(verdict)) {
-      diagnostics.push(needs('REVIEW_VERDICT_REQUIRED', 'Review checkpoint requires an approved verdict.'));
+    if (!verdict) {
+      diagnostics.push(warning('REVIEW_VERDICT_MISSING', 'No review verdict was declared.'));
+    } else if (!['approve', 'pass'].includes(verdict)) {
+      diagnostics.push(warning(
+        'REVIEW_VERDICT_RECORDED',
+        `The caller recorded review verdict ${verdict}; MCP does not reinterpret it.`,
+      ));
     }
     if (evidence.length === 0) {
-      diagnostics.push(needs('REVIEW_EVIDENCE_REQUIRED', 'Review checkpoint requires evidence.'));
+      diagnostics.push(warning('REVIEW_EVIDENCE_MISSING', 'No review evidence was declared.'));
     }
     return diagnostics;
   }
@@ -485,21 +540,85 @@ function stageReadinessDiagnostics(db, input, scope) {
         { change_id: scope.change_id },
         { includeDraft: false },
       )) {
-        diagnostics.push(needs(
-          `${stage.toUpperCase()}_CHECKPOINT_REQUIRED`,
-          `Deliver checkpoint requires an accepted ${stage} checkpoint.`,
+        diagnostics.push(warning(
+          `${stage.toUpperCase()}_CHECKPOINT_MISSING`,
+          `No accepted ${stage} checkpoint was found; the caller owns the delivery decision.`,
         ));
       }
     }
     if (String(payload.summary || '').trim().length < 3) {
-      diagnostics.push(needs('DELIVERY_SUMMARY_REQUIRED', 'Deliver checkpoint requires a summary.'));
+      diagnostics.push(warning('DELIVERY_SUMMARY_MISSING', 'No durable delivery summary was declared.'));
     }
     if (evidence.length === 0) {
-      diagnostics.push(needs('DELIVERY_EVIDENCE_REQUIRED', 'Deliver checkpoint requires evidence.'));
+      diagnostics.push(warning('DELIVERY_EVIDENCE_MISSING', 'No delivery evidence was declared.'));
     }
     return diagnostics;
   }
   return [];
+}
+
+function normalizeCheckpointEvidence(db, input, rootDir) {
+  const evidence = Array.isArray(input.payload?.evidence) ? input.payload.evidence : [];
+  return evidence.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      const error = new Error(`checkpoint evidence[${index}] must be an object`);
+      error.code = 'VALIDATION_ERROR';
+      throw error;
+    }
+    const normalized = { ...item };
+    let relative = typeof item.ref === 'string' ? item.ref.trim() : '';
+    let artifact = null;
+    if (item.artifact_id) {
+      try {
+        artifact = artifactRegistry.getArtifact(db, { id: String(item.artifact_id) });
+      } catch (error) {
+        if (error?.code !== 'ARTIFACT_NOT_FOUND') throw error;
+      }
+      if (!artifact || artifact.status !== 'current') {
+        const error = new Error(`checkpoint evidence artifact is not current: ${item.artifact_id}`);
+        error.code = 'CHECKPOINT_EVIDENCE_AUTHORITY_MISSING';
+        throw error;
+      }
+      if (relative && artifact.path !== relative) {
+        const error = new Error(`checkpoint evidence path does not match artifact ${item.artifact_id}`);
+        error.code = 'CHECKPOINT_EVIDENCE_AUTHORITY_MISSING';
+        throw error;
+      }
+      relative = artifact.path;
+      normalized.artifact_id = artifact.id;
+      if (item.digest && String(item.digest) !== artifact.digest) {
+        const error = new Error(
+          `checkpoint evidence digest contradicts artifact ${item.artifact_id}`,
+        );
+        error.code = 'CHECKPOINT_EVIDENCE_DIGEST_MISMATCH';
+        error.details = {
+          path: relative,
+          expected: artifact.digest,
+          actual: String(item.digest),
+        };
+        throw error;
+      }
+    }
+    if (!item.digest && !item.artifact_id) return normalized;
+    if (!relative) {
+      const error = new Error(`checkpoint evidence[${index}] requires ref when digest is supplied`);
+      error.code = 'VALIDATION_ERROR';
+      throw error;
+    }
+    const read = readStableProjectFile(rootDir, relative);
+    const expected = item.artifact_id
+      ? artifact.digest
+      : String(item.digest);
+    if (read.digest !== expected) {
+      const error = new Error(`checkpoint evidence digest mismatch: ${relative}`);
+      error.code = 'CHECKPOINT_EVIDENCE_DIGEST_MISMATCH';
+      error.details = { path: relative, expected, actual: read.digest };
+      throw error;
+    }
+    normalized.ref = relative;
+    normalized.digest = read.digest;
+    return normalized;
+  });
 }
 
 async function checkpoint(db, input = {}, {
@@ -517,14 +636,22 @@ async function checkpoint(db, input = {}, {
     scope,
     detail: 'summary',
   }, { rootDir, runtime });
+  const evidence = normalizeCheckpointEvidence(db, input, rootDir);
   const diagnostics = [
     ...checkpointDiagnostics(input, view),
-    ...stageReadinessDiagnostics(db, input, scope),
+    ...stageAdvisoryDiagnostics(db, input, scope),
+    ...evidence
+      .filter((item) => !item.digest && !item.artifact_id)
+      .map((item, index) => ({
+        code: 'CHECKPOINT_EVIDENCE_UNBOUND',
+        severity: 'warning',
+        message: `Evidence declaration ${item.ref || item.kind || index} has no current digest or managed artifact binding.`,
+      })),
   ];
   let result = null;
 
   if (input.stage === 'plan'
-      && !diagnostics.some((item) => item.severity !== 'warning')) {
+      && !diagnostics.some((item) => item.severity === 'hard_conflict')) {
     try {
       result = planCheckpoint.publishPlan(db, {
         change_id: scope.change_id,
@@ -532,7 +659,7 @@ async function checkpoint(db, input = {}, {
       }, { rootDir, markRecoveryRequired: markPlanRecoveryRequired });
     } catch (error) {
       if (isHardError(error)) throw error;
-      diagnostics.push(diagnostic(error));
+      diagnostics.push(diagnostic(error, 'hard_conflict'));
     }
   }
 
@@ -548,12 +675,12 @@ async function checkpoint(db, input = {}, {
     payload: input.stage === 'plan' && result
       ? { ...(input.payload || {}), plan: result }
       : (input.payload || {}),
-    evidence: Array.isArray(input.payload?.evidence) ? input.payload.evidence : [],
+    evidence,
     diagnostics,
     context_envelope_id: context.id,
     idempotency_key: `${input.idempotency_key}:draft`,
   });
-  if (diagnostics.some((item) => item.severity !== 'warning')) {
+  if (diagnostics.some((item) => item.severity === 'hard_conflict')) {
     return {
       accepted: false,
       mutable: true,

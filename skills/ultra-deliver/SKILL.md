@@ -1,6 +1,6 @@
 ---
 name: ultra-deliver
-description: Converge a verified Ultra Change, reconcile baseline specifications, and archive it with recoverable local evidence. Use when implementation, testing, and review are current.
+description: Reconcile and archive an explicitly accepted Ultra Change with recoverable local evidence. Use when the caller is ready to make a local delivery handoff with current managed evidence and an explicit rationale for any omitted capability.
 ---
 
 # Converge and archive local authority
@@ -12,8 +12,10 @@ publication, deployment, or another external effect.
 
 1. Call `ultra.context { stage: deliver, scope: { change_id }, detail: full }`.
 2. Import a newer team checkpoint with `ultra.sync`; stop on a real conflict.
-3. Require current task outcomes, test report, both review axes, accepted decisions,
-   typed delta, documentation reconciliation, and current checkout evidence.
+3. Inspect current task outcomes, tests, both review axes, accepted decisions, typed
+   delta, documentation reconciliation, and checkout evidence. Decide whether the
+   actual Change is sufficiently complete; explicitly record any omitted stage and its
+   evidence-based rationale instead of inventing a fixed recipe.
 4. Resolve every specification-learning candidate. Keep updates inside the Change
    overlay until archive.
 5. Write and register documentation reconciliation and an
@@ -27,20 +29,16 @@ Use one typed `ultra.record` batch for `artifact / bind`, any normalized
 ## Archive once
 
 Call `ultra.archive` once with the Change id, stable idempotency key, archive summary,
-reconciliation fields, delivery evidence steps, and report output. The operation
-internally:
+reconciliation fields, delivery evidence steps, explicit omissions, and report output.
+The model's report is the semantic handoff. MCP validates its current registered
+authority, paths, digests, reconciliation structure, and idempotency; applies the
+overlay and archive through the recoverable filesystem/DB transaction; rebinds
+registered artifacts into a self-contained archive; and publishes the updated team
+checkpoint. It does not require a hard-coded Plan/Dev/Test/Review/Deliver sequence.
 
-- compiles or reuses convergence context;
-- checks the deliver draft;
-- derives convergence from current dev, test, review, delta, docs, and checkout;
-- applies the overlay and archive through the recoverable filesystem/DB transaction;
-- rebinds registered artifacts into a self-contained archive;
-- accepts one immutable delivery checkpoint revision;
-- publishes the updated team checkpoint.
-
-A semantic rejection returns mutable blockers. Repair the same packet and retry. A
-hard corruption, path, concurrency, or recovery error remains fail-closed and routes to
-`ultra-doctor`.
+Semantic warnings remain in the archive history but do not reject an explicit local
+handoff. Corruption, unsafe paths, digest/CAS conflicts, permissions, or recovery
+failure remain fail-closed and route to `ultra-doctor`.
 
 Verify the archived packet, baseline, checkpoint, and rollback state. Handle any
 separately authorized Git or release effect only after local delivery and report it as

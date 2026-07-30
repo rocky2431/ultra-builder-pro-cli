@@ -45,7 +45,9 @@ Fix blocking findings and refresh affected evidence.
 
 Call `ultra.checkpoint` once with `stage: dev`, the exact Change/Task scope, evidence,
 and stable idempotency key. It binds the exact Context Envelope and Worker Packet and
-reports outcome diagnostics. A rejection leaves the draft mutable.
+reports outcome diagnostics. The model decides whether the implemented slice satisfies
+the Task; semantic warnings remain visible. A rejection means the declared authority,
+path, digest, or concurrency boundary was unsafe and leaves the draft mutable.
 
 After acceptance, mark the task durably completed, publish with `ultra.sync`, and
 create at most one authorized local task commit containing code and semantic

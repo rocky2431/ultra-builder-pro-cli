@@ -12,6 +12,7 @@ const { Client } = require('@modelcontextprotocol/client');
 const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 
 const { initStateDb, closeStateDb } = require('../lib/state-db.cjs');
+const ops = require('../lib/state-ops.cjs');
 const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
 const facade = require('../lib/ultra-facade.cjs');
@@ -191,7 +192,7 @@ test('the public façade does not import the retired workflow authorization engi
   );
 });
 
-test('a failed semantic checkpoint reports blockers and leaves the draft mutable', async () => {
+test('semantic checkpoint diagnostics remain advisory and do not reject caller acceptance', async () => {
   const fx = fixture();
   try {
     await withClient(fx, async (client) => {
@@ -214,17 +215,374 @@ test('a failed semantic checkpoint reports blockers and leaves the draft mutable
       const result = await client.callTool({
         name: 'ultra.checkpoint',
         arguments: {
-          stage: 'plan',
+          stage: 'review',
           scope: { change_id: 'checkpoint-draft' },
-          payload: {},
-          idempotency_key: 'checkpoint-draft-plan-1',
+          payload: { verdict: 'request_changes' },
+          idempotency_key: 'checkpoint-draft-review-1',
         },
       });
       assert.equal(result.isError, undefined);
-      assert.equal(result.structuredContent.accepted, false);
-      assert.equal(result.structuredContent.mutable, true);
-      assert.ok(result.structuredContent.blockers.length > 0);
+      assert.equal(result.structuredContent.accepted, true);
+      assert.equal(result.structuredContent.mutable, false);
+      assert.deepEqual(result.structuredContent.blockers, []);
+      assert.deepEqual(
+        result.structuredContent.diagnostics.map((item) => [item.code, item.severity]),
+        [
+          ['REVIEW_VERDICT_RECORDED', 'warning'],
+          ['REVIEW_EVIDENCE_MISSING', 'warning'],
+        ],
+      );
     });
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint rejects explicit task and Change scopes that do not exist', async () => {
+  const fx = fixture();
+  try {
+    const beforeDb = initStateDb(fx.dbPath).db;
+    const before = {
+      checkpoints: beforeDb.prepare('SELECT COUNT(*) AS count FROM stage_checkpoints').get().count,
+      contexts: beforeDb.prepare('SELECT COUNT(*) AS count FROM context_envelopes').get().count,
+    };
+    closeStateDb(beforeDb);
+    await withClient(fx, async (client) => {
+      const missingTask = await client.callTool({
+        name: 'ultra.checkpoint',
+        arguments: {
+          stage: 'dev',
+          scope: { task_id: 'missing-task' },
+          payload: { summary: 'This scope must not create ghost authority.' },
+          idempotency_key: 'missing-task-checkpoint',
+        },
+      });
+      assert.equal(missingTask.isError, true);
+      assert.match(missingTask.content[0].text, /CHECKPOINT_SCOPE_NOT_FOUND/);
+
+      const missingChange = await client.callTool({
+        name: 'ultra.checkpoint',
+        arguments: {
+          stage: 'review',
+          scope: { change_id: 'missing-change' },
+          payload: { verdict: 'approve' },
+          idempotency_key: 'missing-change-checkpoint',
+        },
+      });
+      assert.equal(missingChange.isError, true);
+      assert.match(missingChange.content[0].text, /CHECKPOINT_SCOPE_NOT_FOUND/);
+    });
+    const afterDb = initStateDb(fx.dbPath).db;
+    assert.equal(
+      afterDb.prepare('SELECT COUNT(*) AS count FROM stage_checkpoints').get().count,
+      before.checkpoints,
+    );
+    assert.equal(
+      afterDb.prepare('SELECT COUNT(*) AS count FROM context_envelopes').get().count,
+      before.contexts,
+    );
+    closeStateDb(afterDb);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint rejects a Task scope paired with a different Change authority', async () => {
+  const fx = fixture();
+  try {
+    const beforeDb = initStateDb(fx.dbPath).db;
+    const before = {
+      checkpoints: beforeDb.prepare('SELECT COUNT(*) AS count FROM stage_checkpoints').get().count,
+      contexts: beforeDb.prepare('SELECT COUNT(*) AS count FROM context_envelopes').get().count,
+    };
+    closeStateDb(beforeDb);
+    await withClient(fx, async (client) => {
+      const firstChangeId = 'checkpoint-scope-owner';
+      const secondChangeId = 'checkpoint-scope-other';
+      const taskId = `${firstChangeId}-task`;
+      const recorded = await client.callTool({
+        name: 'ultra.record',
+        arguments: {
+          entries: [{
+            kind: 'change_contract',
+            action: 'open',
+            data: completeChangeInput({
+              id: firstChangeId,
+              title: 'Own the checkpoint task',
+              kind: 'quick',
+              intent: 'The Task checkpoint must retain its durable Change owner.',
+            }),
+            idempotency_key: `${firstChangeId}:open`,
+          }, {
+            kind: 'change_contract',
+            action: 'open',
+            data: completeChangeInput({
+              id: secondChangeId,
+              title: 'Remain a separate checkpoint scope',
+              kind: 'quick',
+              intent: 'A separate Change must not claim another Change task.',
+            }),
+            idempotency_key: `${secondChangeId}:open`,
+          }, {
+            kind: 'task_contract',
+            action: 'define',
+            data: {
+              id: taskId,
+              title: 'Retain checkpoint scope ownership',
+              type: 'feature',
+              priority: 'P1',
+              change_id: firstChangeId,
+            },
+            idempotency_key: `${taskId}:define`,
+          }],
+        },
+      });
+      assert.equal(recorded.structuredContent.accepted, true);
+
+      const result = await client.callTool({
+        name: 'ultra.checkpoint',
+        arguments: {
+          stage: 'dev',
+          scope: { task_id: taskId, change_id: secondChangeId },
+          payload: { summary: 'A mismatched scope must not be persisted.' },
+          idempotency_key: `${taskId}:mismatched-checkpoint`,
+        },
+      });
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, /CHECKPOINT_SCOPE_MISMATCH/);
+    });
+    const afterDb = initStateDb(fx.dbPath).db;
+    assert.equal(
+      afterDb.prepare('SELECT COUNT(*) AS count FROM stage_checkpoints').get().count,
+      before.checkpoints,
+    );
+    assert.equal(
+      afterDb.prepare('SELECT COUNT(*) AS count FROM context_envelopes').get().count,
+      before.contexts,
+    );
+    closeStateDb(afterDb);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint evidence rejects local byte drift instead of judging the semantic verdict', async () => {
+  const fx = fixture();
+  try {
+    const report = path.join(fx.rootDir, '.ultra', 'changes', 'review-report.json');
+    fs.mkdirSync(path.dirname(report), { recursive: true });
+    fs.writeFileSync(report, '{"verdict":"request_changes"}\n');
+    await withClient(fx, async (client) => {
+      const result = await client.callTool({
+        name: 'ultra.checkpoint',
+        arguments: {
+          stage: 'review',
+          scope: {},
+          payload: {
+            verdict: 'request_changes',
+            evidence: [{
+              kind: 'review_report',
+              ref: '.ultra/changes/review-report.json',
+              digest: '0'.repeat(64),
+            }],
+          },
+          idempotency_key: 'checkpoint-review-drift-1',
+        },
+      });
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, /CHECKPOINT_EVIDENCE_DIGEST_MISMATCH/);
+    });
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint evidence rejects an explicit digest that contradicts managed artifact authority', async () => {
+  const fx = fixture();
+  try {
+    const changeId = 'checkpoint-managed-evidence';
+    const relative = `.ultra/changes/active/${changeId}/review/summary.json`;
+    const report = path.join(fx.rootDir, relative);
+    await withClient(fx, async (client) => {
+      const opened = await client.callTool({
+        name: 'ultra.record',
+        arguments: { entries: [{
+          kind: 'change_contract',
+          action: 'open',
+          data: completeChangeInput({
+            id: changeId,
+            title: 'Bind managed checkpoint evidence',
+            kind: 'quick',
+            intent: 'Managed evidence must not silently override a contradictory caller digest.',
+          }),
+          idempotency_key: `${changeId}:open`,
+        }] },
+      });
+      assert.equal(opened.structuredContent.accepted, true);
+      fs.mkdirSync(path.dirname(report), { recursive: true });
+      fs.writeFileSync(report, '{"verdict":"request_changes"}\n');
+
+      const recorded = await client.callTool({
+        name: 'ultra.record',
+        arguments: { entries: [{
+          kind: 'artifact',
+          action: 'bind',
+          data: {
+            id: `${changeId}-review`,
+            owner_type: 'change',
+            owner_id: changeId,
+            change_id: changeId,
+            kind: 'review_report',
+            path: relative,
+            source_refs: [{
+              type: 'change',
+              id: changeId,
+              relation: 'produced_for',
+            }],
+            consumer_refs: [],
+            provenance: { writer: 'public-facade-test' },
+            metadata: { terminal_role: true },
+          },
+          idempotency_key: `${changeId}:artifact`,
+        }] },
+      });
+      assert.equal(recorded.structuredContent.accepted, true);
+
+      const result = await client.callTool({
+        name: 'ultra.checkpoint',
+        arguments: {
+          stage: 'review',
+          scope: { change_id: changeId },
+          payload: {
+            verdict: 'request_changes',
+            evidence: [{
+              kind: 'review_report',
+              artifact_id: `${changeId}-review`,
+              ref: relative,
+              digest: '0'.repeat(64),
+            }],
+          },
+          idempotency_key: `${changeId}:checkpoint`,
+        },
+      });
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, /CHECKPOINT_EVIDENCE_DIGEST_MISMATCH/);
+    });
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint evidence reports a missing managed artifact through the public authority error', async () => {
+  const fx = fixture();
+  try {
+    await withClient(fx, async (client) => {
+      const result = await client.callTool({
+        name: 'ultra.checkpoint',
+        arguments: {
+          stage: 'review',
+          scope: {},
+          payload: {
+            verdict: 'request_changes',
+            evidence: [{
+              kind: 'review_report',
+              artifact_id: 'missing-review-artifact',
+            }],
+          },
+          idempotency_key: 'checkpoint-review-missing-artifact',
+        },
+      });
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, /CHECKPOINT_EVIDENCE_AUTHORITY_MISSING/);
+    });
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint keeps undigested evidence visible as an advisory declaration', async () => {
+  const fx = fixture();
+  try {
+    fs.mkdirSync(path.join(fx.rootDir, '.ultra', 'changes'), { recursive: true });
+    fs.writeFileSync(
+      path.join(fx.rootDir, '.ultra', 'changes', 'declared-review.md'),
+      '# Review declaration\n',
+    );
+    await withClient(fx, async (client) => {
+      const result = await client.callTool({
+        name: 'ultra.checkpoint',
+        arguments: {
+          stage: 'review',
+          scope: {},
+          payload: {
+            verdict: 'approve',
+            evidence: [{
+              kind: 'review_report',
+              ref: '.ultra/changes/declared-review.md',
+            }],
+          },
+          idempotency_key: 'checkpoint-review-undigested-1',
+        },
+      });
+      assert.equal(result.isError, undefined);
+      assert.equal(result.structuredContent.accepted, true);
+      assert.ok(result.structuredContent.diagnostics.some((item) => (
+        item.code === 'CHECKPOINT_EVIDENCE_UNBOUND' && item.severity === 'warning'
+      )));
+    });
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('the public task outcome action can reopen a completed task without erasing history', async () => {
+  const fx = fixture();
+  try {
+    const { db } = initStateDb(fx.dbPath);
+    ops.createTask(db, {
+      id: 'reopen-public-task',
+      title: 'Reopen completed public task',
+      type: 'feature',
+      priority: 'P1',
+    });
+    ops.updateTaskStatus(db, 'reopen-public-task', 'in_progress');
+    ops.updateTaskStatus(db, 'reopen-public-task', 'completed');
+    ops.patchTask(db, 'reopen-public-task', {
+      completion_commit: '0123456789012345678901234567890123456789',
+      session_id: 'prior-session',
+    });
+    closeStateDb(db);
+
+    await withClient(fx, async (client) => {
+      const result = await client.callTool({
+        name: 'ultra.record',
+        arguments: {
+          entries: [{
+            kind: 'task_outcome',
+            action: 'reopen',
+            data: { id: 'reopen-public-task' },
+            idempotency_key: 'reopen-public-task:reopen',
+          }],
+        },
+      });
+      assert.equal(result.isError, undefined);
+      assert.equal(result.structuredContent.accepted, true);
+      const task = result.structuredContent.results[0].result.task;
+      assert.equal(task.status, 'in_progress');
+      assert.equal(task.completion_commit, null);
+      assert.equal(task.session_id, null);
+    });
+
+    const reopened = initStateDb(fx.dbPath).db;
+    const event = reopened.prepare(
+      `SELECT payload_json FROM events
+       WHERE task_id = 'reopen-public-task' AND type = 'task_reopened'`,
+    ).get();
+    assert.equal(
+      JSON.parse(event.payload_json).previous_completion_commit,
+      '0123456789012345678901234567890123456789',
+    );
+    closeStateDb(reopened);
   } finally {
     fs.rmSync(fx.rootDir, { recursive: true, force: true });
   }
@@ -246,6 +604,52 @@ test('a failed archive preflight reports diagnostics instead of a transport erro
       assert.equal(result.structuredContent.accepted, false);
       assert.equal(result.structuredContent.mutable, true);
       assert.deepEqual(result.structuredContent.blockers, ['CHANGE_NOT_FOUND']);
+    });
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('archive trusts the explicit caller handoff instead of requiring a fixed semantic stage sequence', async () => {
+  const fx = fixture();
+  try {
+    await withClient(fx, async (client) => {
+      const changeId = 'adaptive-archive';
+      const created = await client.callTool({
+        name: 'ultra.record',
+        arguments: { entries: [{
+          kind: 'change_contract',
+          action: 'open',
+          data: completeChangeInput({
+            id: changeId,
+            title: 'Archive an intentionally bounded documentation Change',
+            kind: 'quick',
+            intent: 'Archive an explicitly accepted Change without a fixed stage recipe.',
+          }),
+          idempotency_key: `${changeId}:open`,
+        }] },
+      });
+      assert.equal(created.structuredContent.accepted, true);
+
+      const archived = await client.callTool({
+        name: 'ultra.archive',
+        arguments: {
+          change_id: changeId,
+          payload: {
+            summary: 'The caller accepts the bounded Change for local archive.',
+            baseline_updates: [],
+            no_baseline_change_reason: 'This fixture changes no baseline semantic file.',
+          },
+          idempotency_key: `${changeId}:archive`,
+        },
+      });
+      assert.equal(archived.isError, undefined);
+      assert.equal(
+        archived.structuredContent.accepted,
+        true,
+        JSON.stringify(archived.structuredContent),
+      );
+      assert.equal(archived.structuredContent.result.change.status, 'archived');
     });
   } finally {
     fs.rmSync(fx.rootDir, { recursive: true, force: true });
