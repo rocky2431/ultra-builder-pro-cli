@@ -12,8 +12,10 @@ Write findings to the assigned JSON file and return only a file acknowledgement.
 
 ## Workflow
 
-1. Validate `SESSION_PATH`, `OUTPUT_FILE`, `SCHEMA_PATH`, `DIFF_RANGE`, `DIFF_FILES`,
-   HEAD, and the supplied architecture and acceptance context.
+1. Validate the immutable `WORKER_PACKET`, exact `PACKET_DIGEST`, `SESSION_PATH`,
+   `OUTPUT_FILE`, `SCHEMA_PATH`, `DIFF_RANGE`, `DIFF_FILES`, HEAD, and the supplied
+   architecture and acceptance context. Stop incomplete when any value differs from
+   the packet.
 2. Trace changed types and modules through their real constructors, callers, state,
    side effects, and consumers.
 3. Check whether important invariants can be bypassed, ownership is ambiguous, an
@@ -24,7 +26,8 @@ Write findings to the assigned JSON file and return only a file acknowledgement.
 5. Prefer a focused before/after remediation when simplification is supported by the
    current use cases. Do not propose speculative frameworks or abstractions.
 6. Calibrate severity to the reachable impact and write
-   `ultra-review-findings-v2` following `SCHEMA_PATH`.
+   `ultra-review-findings-v2` following `SCHEMA_PATH`, including the exact
+   `packet_digest`.
 
 Use `axis: engineering_standards` and the narrowest applicable category, such as
 `architecture`, `type-design`, or `complexity`. After valid output, return exactly:
@@ -33,4 +36,5 @@ Use `axis: engineering_standards` and the narrowest applicable category, such as
 Wrote N findings (P0:X P1:X P2:X P3:X) to <filepath>
 ```
 
-Do not modify source, task state, or projections.
+Do not modify source, call Ultra MCP write tools, change task state, or edit another
+worker's artifact.

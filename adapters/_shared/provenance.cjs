@@ -187,7 +187,8 @@ function assetRefsForTree(rootName, root, { exclude = [] } = {}) {
 function writeProvenance({
   file, adapter, packageInfo, repository, sourceCommit: commit = null,
   sourceDirty: dirty = null, sourceWorktreeDigest: worktreeDigest = null,
-  roots: inputRoots, assets: inputAssets, contracts: inputContracts = {},
+  roots: inputRoots, assetRoots: inputAssetRoots = inputRoots,
+  assets: inputAssets, contracts: inputContracts = {},
 }) {
   if (!file || !adapter || !packageInfo?.name || !packageInfo?.version || !repository) {
     throw new Error('provenance file, adapter, package, version, and repository are required');
@@ -199,9 +200,13 @@ function writeProvenance({
     throw new Error('provenance source worktree digest must be a SHA-256 digest or null');
   }
   const roots = normalizeRoots(inputRoots);
+  const assetRoots = normalizeRoots(inputAssetRoots);
+  for (const root of Object.keys(roots)) {
+    if (!assetRoots[root]) throw new Error(`missing provenance asset root: ${root}`);
+  }
   const refs = normalizeAssetRefs(inputAssets, roots);
   const assets = refs.map((ref) => {
-    const { target } = resolveRef(roots, ref);
+    const { target } = resolveRef(assetRoots, ref);
     const stat = fs.statSync(target);
     if (!stat.isFile()) throw new Error(`provenance asset is not a file: ${target}`);
     return { ...ref, size_bytes: stat.size, sha256: hashFile(target) };

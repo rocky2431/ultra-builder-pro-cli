@@ -34,8 +34,13 @@ function buildCfg() {
     },
     expectNoEnv: true,
     identityCheck: (entry, target) => {
-      assert.equal(entry.command, process.execPath);
-      assert.equal(entry.args[0], path.join(pluginRoot(target), 'runtime', 'launch.cjs'));
+      assert.equal(entry.command, process.platform === 'win32' ? 'node.exe' : '/usr/bin/env');
+      assert.deepEqual(
+        entry.args,
+        process.platform === 'win32'
+          ? [path.join(pluginRoot(target), 'runtime', 'launch.cjs')]
+          : ['node', path.join(pluginRoot(target), 'runtime', 'launch.cjs')],
+      );
     },
     readIdempotencyArtifact: (target) => fs.readFileSync(path.join(pluginRoot(target), '.claude-plugin', 'plugin.json'), 'utf8'),
   };

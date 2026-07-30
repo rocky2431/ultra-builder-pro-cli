@@ -35,10 +35,12 @@ function buildCfg() {
     expectNoEnv: true,
     identityCheck: (entry, target) => {
       assert.equal(entry.type, 'local');
-      assert.deepEqual(entry.command, [
-        process.execPath,
-        path.join(target, opencode.BUNDLE_DIR, 'runtime', 'launch.cjs'),
-      ]);
+      assert.deepEqual(
+        entry.command,
+        process.platform === 'win32'
+          ? ['node.exe', path.join(target, opencode.BUNDLE_DIR, 'runtime', 'launch.cjs')]
+          : ['/usr/bin/env', 'node', path.join(target, opencode.BUNDLE_DIR, 'runtime', 'launch.cjs')],
+      );
     },
     readIdempotencyArtifact: (target) => fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'),
   };

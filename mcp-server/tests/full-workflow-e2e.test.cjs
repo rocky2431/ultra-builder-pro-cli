@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -9,526 +10,604 @@ const { execFileSync } = require('node:child_process');
 
 const { initProject } = require('../lib/init-project.cjs');
 const { openStateDb, closeStateDb } = require('../lib/state-db.cjs');
-const baselines = require('../lib/baseline-workflow.cjs');
-const changes = require('../lib/change-workflow.cjs');
-const workflows = require('../lib/workflow-state.cjs');
-const ops = require('../lib/state-ops.cjs');
-const planStore = require('../lib/plan-store.cjs');
-const artifactRegistry = require('../lib/artifact-registry.cjs');
-const {
-  researchCoverage, semanticRecordsForStep,
-} = require('../test-support/semantic-records.cjs');
+const facade = require('../lib/ultra-facade.cjs');
+const contextEnvelopes = require('../lib/context-envelope.cjs');
+const workerPackets = require('../lib/worker-packet.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
 
 function git(rootDir, args) {
-  return execFileSync('git', args, { cwd: rootDir, encoding: 'utf8' }).trim();
-}
-
-function runNodeTest(rootDir, file) {
-  const env = { ...process.env };
-  delete env.NODE_TEST_CONTEXT;
-  execFileSync(process.execPath, ['--test', file], { cwd: rootDir, env });
+  return execFileSync('git', args, {
+    cwd: rootDir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
 }
 
 function write(rootDir, relative, body) {
   const file = path.join(rootDir, relative);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body);
-  return relative;
+  return relative.split(path.sep).join('/');
 }
 
-function evidence(stepId) {
-  return [{ kind: 'e2e', ref: `e2e:${stepId}`, summary: `Verified ${stepId} in the full workflow.` }];
+function writeJson(rootDir, relative, value) {
+  return write(rootDir, relative, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-function registerWorkflowOutputFixture(db, rootDir, run, stepId, artifactPath) {
-  const kind = {
-    'test:write-report': 'test_report',
-    'review:review-specification': 'review_findings',
-    'review:review-engineering': 'review_findings',
-    'review:coordinate-findings': 'review_summary',
-    'deliver:verify-delivery': 'delivery_report',
-  }[`${run.kind}:${stepId}`];
-  const record = (ownerType, ownerId, artifactKind, relative) => {
-    artifactRegistry.recordArtifact(db, {
-      owner_type: ownerType,
-      owner_id: ownerId,
-      kind: artifactKind,
-      path: relative.split(path.sep).join('/'),
-      provenance: { writer: 'full-workflow-e2e-fixture' },
-      source_refs: [],
-      consumer_refs: [],
-      metadata: { terminal_role: true },
-    }, { rootDir });
-  };
-  if (kind) record('workflow', run.id, kind, artifactPath);
-  if (run.kind === 'plan' && stepId === 'verify-plan') {
-    record('change', run.change_id, 'execution_plan', artifactPath);
-    const change = changes.readChange(db, run.change_id);
-    record(
-      'change',
-      run.change_id,
-      'execution_plan_markdown',
-      path.relative(rootDir, planStore.changePlanPaths(rootDir, change).md),
-    );
-  }
+function digest(rootDir, relative) {
+  return crypto.createHash('sha256').update(
+    fs.readFileSync(path.join(rootDir, relative)),
+  ).digest('hex');
 }
 
-function finishSimpleSteps(db, rootDir, run, outputs = {}) {
-  let current = run;
-  for (const workflowStep of current.steps.filter((item) => item.required)) {
-    const definition = workflows.WORKFLOW_DEFINITIONS[current.kind]
-      .find((item) => item.id === workflowStep.step_id);
-    const input = {
-      id: current.id, step_id: workflowStep.step_id, status: 'completed',
-    };
-    if (definition.evidence_required) input.evidence = evidence(workflowStep.step_id);
-    if (definition.output_required) {
-      input.outputs = [{ path: outputs[workflowStep.step_id], kind: `${current.kind}-artifact` }];
-      registerWorkflowOutputFixture(
-        db, rootDir, current, workflowStep.step_id, outputs[workflowStep.step_id],
-      );
-    }
-    current = workflows.recordWorkflowStep(db, input, { rootDir });
-  }
-  return current;
+function commitAll(rootDir, message) {
+  git(rootDir, ['add', '-A']);
+  git(rootDir, ['commit', '-q', '-m', message]);
+  return git(rootDir, ['rev-parse', 'HEAD']);
 }
 
-function reviewArtifacts(rootDir, {
-  session, mode, changeId, taskIds, head, worktreeDigest, contextDigest,
+async function record(db, rootDir, entries) {
+  return facade.dispatch('ultra.record', { entries }, db, {
+    rootDir,
+    runtime: 'test',
+  });
+}
+
+async function checkpoint(db, rootDir, input) {
+  return facade.dispatch('ultra.checkpoint', input, db, {
+    rootDir,
+    runtime: 'test',
+  });
+}
+
+function artifactEntry({
+  id,
+  changeId,
+  taskId = null,
+  kind,
+  artifactPath,
+  consumer,
 }) {
-  const directory = `.ultra/changes/active/${changeId}/review/${session}`;
-  const specialist = (file, agent, axis) => write(rootDir, `${directory}/${file}`, `${JSON.stringify({
-    $schema: 'ultra-review-findings-v2', agent, axis, session,
-    timestamp: new Date().toISOString(),
-    scope: { head, range: `${head}^..${head}`, files_analyzed: ['src/status.js'], diff_only: true },
-    status: 'complete', findings: [], positive_observations: [], limitations: [],
-  }, null, 2)}\n`);
-  const spec = specialist('spec-fidelity.json', 'review-spec', 'spec_fidelity');
-  const engineering = specialist('review-code.json', 'review-code', 'engineering_standards');
-  const summary = write(rootDir, `${directory}/SUMMARY.json`, `${JSON.stringify({
-    $schema: 'ultra-review-summary-v2', mode, session, change_id: changeId, task_ids: taskIds,
-    head, worktree_digest: worktreeDigest, context_digest: contextDigest,
-    status: 'complete', verdict: 'APPROVE',
-    axes: {
-      spec_fidelity: { verdict: 'PASS', evidence_refs: [spec] },
-      engineering_standards: { verdict: 'PASS', evidence_refs: [engineering] },
+  return {
+    kind: 'artifact',
+    action: 'bind',
+    data: {
+      id,
+      owner_type: taskId ? 'task' : 'change',
+      owner_id: taskId || changeId,
+      change_id: changeId,
+      task_id: taskId,
+      kind,
+      path: artifactPath,
+      source_refs: [{
+        type: taskId ? 'task' : 'change',
+        id: taskId || changeId,
+        relation: 'produced_for',
+      }],
+      consumer_refs: consumer ? [{
+        type: 'external',
+        id: consumer,
+        relation: 'consumed_by',
+      }] : [],
+      provenance: { writer: 'v0.24-public-e2e' },
+      metadata: consumer ? {} : { terminal_role: true },
     },
-    workers: {
-      completed: ['review-spec', 'review-code'],
-      failed: [],
-      skipped: ['review-tests', 'review-errors', 'review-design', 'review-comments'],
-    },
-    worker_selection: [
-      { worker: 'review-spec', status: 'selected', rationale: 'Required specification axis.' },
-      { worker: 'review-code', status: 'selected', rationale: 'Current runtime diff.' },
-      { worker: 'review-tests', status: 'skipped', rationale: 'No test artifact changed.' },
-      { worker: 'review-errors', status: 'skipped', rationale: 'No failure path changed.' },
-      { worker: 'review-design', status: 'skipped', rationale: 'No design boundary changed.' },
-      { worker: 'review-comments', status: 'skipped', rationale: 'No maintained comments changed.' },
-    ],
-    findings: [], positive_observations: [], limitations: [],
-  }, null, 2)}\n`);
-  return { spec, engineering, summary };
+    idempotency_key: `artifact:${id}`,
+  };
 }
 
-function completeReview(db, rootDir, { id, changeId, taskId = null }) {
-  const checkout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
-  const taskIds = taskId
-    ? [taskId]
-    : ops.listTasks(db, {}).filter((task) => task.change_id === changeId).map((task) => task.id).sort();
-  let run = workflows.startWorkflow(db, {
-    id, kind: 'review', change_id: changeId, task_id: taskId,
-    subject: `Review ${taskId || changeId} on both independent axes.`,
-  }, { rootDir });
-  const context = changes.compileContext(db, {
-    id: changeId, task_id: taskId || undefined, role: 'review', gate: 'review',
-  }, { rootDir });
-  const contextPath = path.relative(rootDir, context.context_manifest_path);
-  const artifacts = reviewArtifacts(rootDir, {
-    session: id, mode: taskId ? 'task' : 'change', changeId, taskIds,
-    head: checkout.head, worktreeDigest: checkout.digest,
-    contextDigest: context.manifest_hash,
+function createProject(mode) {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), `ubp-v024-${mode}-`));
+  write(rootDir, 'README.md', '# v0.24 public workflow fixture\n');
+  if (mode === 'brownfield') {
+    write(rootDir, 'src/legacy.js', "'use strict';\nexports.legacy = true;\n");
+  }
+  const initialized = initProject({
+    target_dir: rootDir,
+    project_name: `v024-${mode}`,
+    mode: 'auto',
   });
-  run = finishSimpleSteps(db, rootDir, run, {
-    'compile-context': contextPath,
-    'review-specification': artifacts.spec,
-    'review-engineering': artifacts.engineering,
-    'coordinate-findings': artifacts.summary,
-  });
-  return workflows.completeWorkflow(db, { id: run.id }, { rootDir });
+  assert.equal(initialized.mode, mode);
+  assert.equal(initialized.checkpoint.init.status, 'accepted');
+  assert.equal(initialized.checkpoint.research, null);
+  git(rootDir, ['config', 'user.email', 'test@ubp.dev']);
+  git(rootDir, ['config', 'user.name', 'ubp-test']);
+  for (const [name, body] of Object.entries({
+    discovery: '# Discovery\n\nThe owner needs a visible status seam.\n',
+    product: '# Product\n\nThe status seam returns ready.\n',
+    architecture: '# Architecture\n\nThe seam is a small CommonJS module.\n',
+  })) {
+    write(rootDir, `.ultra/specs/${name}.md`, body);
+  }
+  write(
+    rootDir,
+    '.ultra/docs/research/project-baseline/summary.md',
+    '# Research summary\n\nRepository evidence and intended behavior were inspected.\n',
+  );
+  const revision = commitAll(rootDir, 'chore: establish v0.24 fixture authority');
+  const db = openStateDb(path.join(rootDir, '.ultra', '.runtime', 'state.db'));
+  return { rootDir, db, initialized, revision };
 }
 
-for (const scenario of [
-  { mode: 'greenfield', researchMode: 'full' },
-  { mode: 'brownfield', researchMode: 'adoption' },
-]) test(`${scenario.mode} initialization converges through research, plan, dev, test, review, and delivery`, () => {
-  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-full-e2e-'));
-  let db;
-  try {
-    write(rootDir, 'README.md', '# Full workflow fixture\n');
-    if (scenario.mode === 'brownfield') {
-      write(rootDir, 'src/legacy.js', "'use strict';\nexports.existingBehavior = () => true;\n");
-    }
-
-    const initialized = initProject({
-      target_dir: rootDir, project_name: 'full-workflow', mode: 'auto',
-    });
-    assert.equal(initialized.mode, scenario.mode);
-    assert.equal(initialized.workflow.research_status, 'not_started');
-    assert.equal(initialized.workflow.research_mode, null);
-    assert.equal(initialized.git.status, 'initialized');
-    assert.equal(initialized.git.initial_commit_required, true);
-    git(rootDir, ['config', 'user.email', 'test@ubp.dev']);
-    git(rootDir, ['config', 'user.name', 'ubp-test']);
-    git(rootDir, ['add', '.gitignore', '.ultra', 'README.md']);
-    if (scenario.mode === 'brownfield') git(rootDir, ['add', 'src/legacy.js']);
-    git(rootDir, ['commit', '-q', '-m', 'chore: establish project repository']);
-    db = openStateDb(path.join(rootDir, '.ultra', '.runtime', 'state.db'));
-
-    let research = workflows.startWorkflow(db, {
-      id: `research-${scenario.mode}`,
-      kind: 'research',
-      mode: scenario.researchMode,
-      baseline_id: initialized.baseline.id,
-      subject: 'Establish the complete product and architecture baseline.',
-      coverage: researchCoverage(),
-      metadata: { selection_reason: 'The owner accepted the applicable baseline evidence areas.' },
-    }, { rootDir });
-    for (const workflowStep of research.steps.filter((item) => item.required)) {
-      let output = '.ultra/specs/architecture.md';
-      if (workflowStep.step_id.startsWith('0')) output = '.ultra/specs/discovery.md';
-      else if (workflowStep.step_id.startsWith('1') || workflowStep.step_id.startsWith('2')) {
-        output = '.ultra/specs/product.md';
-      } else if (workflowStep.step_id === '99-synthesis') {
-        output = '.ultra/specs/research-distillate.md';
-      }
-      fs.appendFileSync(path.join(rootDir, output), `\n## ${workflowStep.step_id}\n\nVerified E2E evidence.\n`);
-      const report = write(
-        rootDir,
-        `.ultra/docs/research/${research.id}/${workflowStep.step_id}.md`,
-        [
-          `# ${workflowStep.step_id} evidence`, '',
-          '## Evidence', '', 'Verified E2E evidence.', '',
-          '## Specification updates', '', `Updated ${output}.`, '',
-          '## Decisions and unknowns', '', 'No unresolved E2E fixture decision.', '',
-        ].join('\n'),
-      );
-      const outputs = [{ path: report, kind: 'research-step-report' }];
-      if (workflowStep.step_id === '99-synthesis') {
-        outputs.push(
-          { path: '.ultra/specs/discovery.md', kind: 'baseline-specification' },
-          { path: '.ultra/specs/product.md', kind: 'baseline-specification' },
-          { path: '.ultra/specs/architecture.md', kind: 'baseline-specification' },
-          { path: '.ultra/specs/research-distillate.md', kind: 'research-distillate' },
-        );
-      }
-      research = workflows.recordWorkflowStep(db, {
-        id: research.id, step_id: workflowStep.step_id, status: 'completed',
-        evidence: evidence(workflowStep.step_id),
-        outputs,
-        semantic_records: semanticRecordsForStep(research.id, workflowStep.step_id),
-      }, { rootDir });
-    }
-    research = workflows.completeWorkflow(db, { id: research.id }, { rootDir });
-    assert.equal(research.status, 'completed');
-
-    const baselineId = initialized.baseline.id;
-    const revision = git(rootDir, ['rev-parse', 'HEAD']);
-    baselines.recordBaseline(db, {
-      id: baselineId, repository_revision: revision, scope: ['.'],
+async function convergeBaseline(fx, mode) {
+  const baselineId = fx.initialized.baseline.id;
+  const evidence = mode === 'brownfield'
+    ? [{
+      kind: 'source',
+      ref: 'src/legacy.js',
+      summary: 'Existing brownfield behavior was inspected.',
+    }]
+    : [{
+      kind: 'docs',
+      ref: 'README.md',
+      summary: 'Greenfield intent was recorded.',
+    }];
+  const observed = await record(fx.db, fx.rootDir, [{
+    kind: 'baseline',
+    action: 'observe',
+    data: {
+      id: baselineId,
+      repository_revision: fx.revision,
+      scope: ['.'],
       spec_refs: [
         { kind: 'discovery', path: '.ultra/specs/discovery.md' },
         { kind: 'product', path: '.ultra/specs/product.md' },
         { kind: 'architecture', path: '.ultra/specs/architecture.md' },
       ],
-      evidence: scenario.mode === 'brownfield'
-        ? [{ kind: 'source', ref: 'src/legacy.js', summary: 'Existing runtime behavior is observed.' }]
-        : [{ kind: 'docs', ref: 'README.md', summary: 'Repository intent is documented.' }],
-      verification: [{ name: 'fixture', command: 'node --version', status: 'pass', evidence: 'Runtime available.' }],
-      unknowns: [], gaps: [], classification: initialized.repository_profile,
-    }, { rootDir });
-    const convergedBaseline = baselines.convergeBaseline(db, {
-      id: baselineId, expected_revision: revision,
-      approved_by: 'product-owner', approval_note: 'Approved the complete product and architecture baseline.',
-    }, { rootDir });
-    assert.equal(convergedBaseline.ready, true);
+      evidence,
+      verification: [{
+        name: 'runtime available',
+        command: 'node --version',
+        status: 'pass',
+        evidence: process.version,
+      }],
+      unknowns: [],
+      gaps: [],
+      classification: fx.initialized.repository_profile,
+    },
+    idempotency_key: `${mode}:baseline-observe`,
+  }]);
+  assert.equal(observed.accepted, true);
+  const research = await checkpoint(fx.db, fx.rootDir, {
+    stage: 'research',
+    scope: {},
+    payload: {
+      mode: mode === 'brownfield' ? 'adoption' : 'full',
+      evidence: [{
+        kind: 'docs',
+        ref: '.ultra/docs/research/project-baseline/summary.md',
+        summary: 'Research synthesis was read back.',
+      }],
+    },
+    idempotency_key: `${mode}:research-checkpoint`,
+  });
+  assert.equal(research.accepted, true);
+  const accepted = await record(fx.db, fx.rootDir, [{
+    kind: 'baseline',
+    action: 'accept',
+    data: {
+      id: baselineId,
+      expected_revision: fx.revision,
+      approved_by: 'fixture-owner',
+      approval_note: 'The recorded specifications and evidence match the checkout.',
+    },
+    idempotency_key: `${mode}:baseline-accept`,
+  }]);
+  assert.equal(accepted.accepted, true);
+  assert.equal(accepted.results[0].result.ready, true);
+  const sync = await facade.dispatch('ultra.sync', {
+    action: 'publish',
+    reason: 'baseline_accepted',
+    idempotency_key: `${mode}:baseline-ledger`,
+  }, fx.db, { rootDir: fx.rootDir });
+  assert.equal(sync.ledger.schema_version, '2.0');
+  commitAll(fx.rootDir, 'docs: publish accepted baseline');
+}
 
-    const created = changes.createChange(db, completeChangeInput({
-      id: 'daily-status', title: 'Add daily status seam', kind: 'quick',
-      intent: 'Expose one verified status function through the maintained runtime.',
-      docs_impact: { status: 'none', files: [], rationale: 'Internal fixture API only.' },
+async function executeChange(fx, mode) {
+  const changeId = `status-${mode}`;
+  const taskId = `${changeId}-task`;
+  const acceptanceId = `${changeId}-ready`;
+  const opened = await record(fx.db, fx.rootDir, [{
+    kind: 'change_contract',
+    action: 'open',
+    data: completeChangeInput({
+      id: changeId,
+      title: `Add ${mode} status seam`,
+      kind: 'quick',
+      intent: 'Expose one verified ready status through the maintained runtime.',
+      docs_impact: {
+        status: 'none',
+        files: [],
+        rationale: 'The fixture adds only an internal module.',
+      },
       contract: {
-        outcome: 'The maintained runtime exposes a verified ready status.',
+        outcome: 'The runtime exposes a verified ready status.',
         acceptance: [{
-          id: 'status-ready', criterion: 'getStatus returns ready.',
+          id: acceptanceId,
+          criterion: 'getStatus returns ready.',
           verification: 'node --test test/status.test.js',
         }],
         non_goals: ['Unrelated runtime behavior.'],
         public_seams: ['src/status.js#getStatus'],
         recovery: {
           strategy: 'Remove the bounded status seam.',
-          verification: 'Run the pre-change runtime test suite.',
+          verification: 'Run the pre-change test command.',
         },
         unresolved_decisions: [],
       },
-    }), { rootDir });
-    const task = ops.createTask(db, {
-      id: 'status-task', title: 'Implement status seam', type: 'feature', priority: 'P0',
-      change_id: created.change.id, outcome: 'The status seam returns ready.',
-      slice_kind: 'tracer_bullet', public_seam: 'src/status.js#getStatus',
+    }),
+    idempotency_key: `${changeId}:open`,
+  }, {
+    kind: 'decision',
+    action: 'accept',
+    data: {
+      id: `${changeId}-decision`,
+      scope: { change_id: changeId },
+      question: 'Which public status value should the seam return?',
+      recommendation: 'Return ready because it is the accepted product behavior.',
+      selection: 'ready',
+      effects: { return_value: 'ready' },
+      non_goals: ['No health probing is added.'],
+      owner: 'fixture-owner',
+      source: 'explicit_owner_instruction',
+      provenance: { host: 'test' },
+      applied_refs: [{
+        ref: `.ultra/changes/active/${changeId}/intent.md`,
+      }],
+    },
+    idempotency_key: `${changeId}:decision`,
+  }, {
+    kind: 'task_contract',
+    action: 'define',
+    data: {
+      id: taskId,
+      title: 'Implement the ready status seam',
+      type: 'feature',
+      priority: 'P0',
+      change_id: changeId,
+      outcome: 'getStatus returns ready and the test passes.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'src/status.js#getStatus',
       verification_command: 'node --test test/status.test.js',
       acceptance: [{
-        id: 'status-ready', criterion: 'getStatus returns ready.',
+        id: acceptanceId,
+        criterion: 'getStatus returns ready.',
         verification: 'node --test test/status.test.js',
       }],
       context_refs: [{
-        ref: '.ultra/specs/product.md', kind: 'spec', reason: 'Accepted product behavior.', required: true,
+        ref: '.ultra/specs/product.md',
+        kind: 'spec',
+        reason: 'Accepted product behavior.',
+        required: true,
       }],
-      docs_impact: { status: 'none', files: [], rationale: 'Internal fixture API only.' },
-      ownership: { owner: 'runtime-maintainer', reviewers: ['product-owner'] },
-      trace_to: '.ultra/specs/product.md#20-user-stories',
-    });
-    let plan = workflows.startWorkflow(db, {
-      id: 'plan-daily-status', kind: 'plan', baseline_id: baselineId,
-      change_id: created.change.id, subject: 'Plan the complete accepted status seam.',
-      metadata: { task_ids: [task.id] },
-    }, { rootDir });
-    const planningContext = changes.compileContext(db, {
-      id: created.change.id, role: 'plan', gate: 'planning',
-    }, { rootDir });
-    const savedPlan = planStore.saveChangePlanArtifacts(
-      planStore.buildPlan([ops.readTask(db, task.id)], { changeId: created.change.id }),
-      {
-        rootDir,
-        change: created.change,
-        tasks: [ops.readTask(db, task.id)],
-        context: {
-          snapshot_id: planningContext.manifest.snapshot_id,
-          manifest_path: path.relative(rootDir, planningContext.context_manifest_path),
-          manifest_digest: planningContext.manifest_hash,
+      docs_impact: {
+        status: 'none',
+        files: [],
+        rationale: 'No public documentation changes are required.',
+      },
+      ownership: { owner: 'runtime-maintainer', reviewers: ['fixture-owner'] },
+      trace_to: acceptanceId,
+    },
+    idempotency_key: `${taskId}:define`,
+  }]);
+  assert.equal(opened.accepted, true);
+
+  const planned = await checkpoint(fx.db, fx.rootDir, {
+    stage: 'plan',
+    scope: { change_id: changeId },
+    payload: {
+      summary: 'One tracer-bullet task implements and verifies the accepted seam.',
+    },
+    idempotency_key: `${changeId}:plan`,
+  });
+  assert.equal(planned.accepted, true);
+  assert.equal(planned.result.team_checkpoint.ledger.tasks.length, 1);
+  commitAll(fx.rootDir, 'plan: publish status change');
+
+  const acquired = await facade.dispatch('ultra.session', {
+    action: 'acquire',
+    scope: { task_id: taskId },
+    payload: {
+      runtime: 'codex',
+      role: 'implement',
+      output_path: `.ultra/changes/active/${changeId}/delivery/${taskId}-outcome.json`,
+      output_schema: {
+        type: 'object',
+        required: ['packet_digest', 'summary', 'verification'],
+        additionalProperties: false,
+        properties: {
+          packet_digest: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+          summary: { type: 'string', minLength: 3 },
+          verification: { type: 'string', minLength: 3 },
         },
       },
-    );
-    plan = finishSimpleSteps(db, rootDir, plan, {
-      'compile-context': path.relative(rootDir, planningContext.context_manifest_path),
-      'verify-plan': path.relative(rootDir, savedPlan.plan_path),
-    });
-    workflows.completeWorkflow(db, {
-      id: plan.id,
-      approval: { approved_by: 'product-owner', approval_note: 'Approved the complete status scope.' },
-    }, { rootDir });
+    },
+    idempotency_key: `${taskId}:acquire`,
+  }, fx.db, { rootDir: fx.rootDir, runtime: 'codex' });
+  assert.equal(acquired.accepted, true, JSON.stringify(acquired, null, 2));
+  assert.ok(fs.existsSync(path.join(acquired.worktree_path, acquired.packet.packet_path)));
 
-    const plannedContext = changes.compileContext(db, {
-      id: created.change.id, task_id: task.id, role: 'implement',
-    }, { rootDir });
-    let changeRun = workflows.readWorkflow(db, created.workflow.id, { rootDir });
-    assert.equal(changeRun.status, 'completed');
-    assert.equal(changeRun.current_step, null);
-    assert.ok(plannedContext.manifest.control.allowed_transitions.includes('ultra-dev'));
-
-    let dev = workflows.startWorkflow(db, {
-      id: 'dev-status-task', kind: 'dev', change_id: created.change.id, task_id: task.id,
-      subject: 'Implement the status task through its public seam.',
-    }, { rootDir });
-    for (const stepId of ['bind-task', 'compile-context', 'establish-feedback-loop']) {
-      const stepInput = {
-        id: dev.id, step_id: stepId, status: 'completed', evidence: evidence(stepId),
-      };
-      if (stepId === 'compile-context') {
-        stepInput.outputs = [{
-          path: path.relative(rootDir, plannedContext.context_manifest_path),
-          kind: 'context-manifest',
-        }];
-      }
-      dev = workflows.recordWorkflowStep(db, stepInput, { rootDir });
-    }
-    ops.updateTaskStatus(db, task.id, 'in_progress');
-    write(rootDir, 'src/status.js', "'use strict';\nexports.getStatus = () => 'ready';\n");
-    write(rootDir, 'test/status.test.js', [
+  write(
+    acquired.worktree_path,
+    'src/status.js',
+    "'use strict';\nexports.getStatus = () => 'ready';\n",
+  );
+  write(
+    acquired.worktree_path,
+    'test/status.test.js',
+    [
       "'use strict';",
       "const test = require('node:test');",
       "const assert = require('node:assert/strict');",
       "const { getStatus } = require('../src/status.js');",
       "test('status is ready', () => assert.equal(getStatus(), 'ready'));",
       '',
-    ].join('\n'));
-    runNodeTest(rootDir, 'test/status.test.js');
-    git(rootDir, ['add', 'src/status.js', 'test/status.test.js']);
-    git(rootDir, ['commit', '-q', '-m', 'feat: add status seam']);
-    const implementationHead = git(rootDir, ['rev-parse', 'HEAD']);
-    ops.patchTask(db, task.id, { completion_commit: implementationHead });
-    dev = workflows.recordWorkflowStep(db, {
-      id: dev.id, step_id: 'implement-slice', status: 'completed',
-    }, { rootDir });
-    dev = workflows.recordWorkflowStep(db, {
-      id: dev.id, step_id: 'verify-slice', status: 'completed',
-      evidence: [{ kind: 'test', ref: 'node --test test/status.test.js', summary: 'Status seam passed.' }],
-    }, { rootDir });
-    completeReview(db, rootDir, {
-      id: 'review-status-task', changeId: created.change.id, taskId: task.id,
-    });
-    dev = workflows.recordWorkflowStep(db, {
-      id: dev.id, step_id: 'review-slice', status: 'completed',
-      evidence: [{ kind: 'review', ref: 'review-status-task', summary: 'Both review axes passed.' }],
-    }, { rootDir });
-    ops.updateTaskStatus(db, task.id, 'completed');
-    dev = workflows.recordWorkflowStep(db, {
-      id: dev.id, step_id: 'record-completion', status: 'completed',
-      evidence: [{ kind: 'commit', ref: implementationHead, summary: 'Task completion is committed.' }],
-    }, { rootDir });
-    dev = workflows.completeWorkflow(db, { id: dev.id }, { rootDir });
-    assert.equal(dev.summary.review_workflow_id, 'review-status-task');
+    ].join('\n'),
+  );
+  writeJson(
+    acquired.worktree_path,
+    acquired.packet.output.path,
+    {
+      packet_digest: acquired.packet.packet_digest,
+      summary: 'Implemented the accepted ready status seam.',
+      verification: 'node --test test/status.test.js',
+    },
+  );
+  execFileSync(process.execPath, ['--test', 'test/status.test.js'], {
+    cwd: acquired.worktree_path,
+    stdio: 'pipe',
+  });
+  const workerHead = commitAll(acquired.worktree_path, 'feat: implement ready status seam');
+  git(fx.rootDir, ['merge', '--ff-only', workerHead]);
 
-    let testRun = workflows.startWorkflow(db, {
-      id: 'test-daily-status', kind: 'test', change_id: created.change.id,
-      subject: 'Verify the complete current status change.',
-    }, { rootDir });
-    const checkedContext = changes.compileContext(db, {
-      id: created.change.id, role: 'check', gate: 'verification',
-    }, { rootDir });
-    const testCheckout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
-    const testReport = write(
-      rootDir,
-      `.ultra/changes/active/${created.change.id}/test/${testRun.id}/report.json`,
-      `${JSON.stringify({
-      $schema: 'ultra-test-report-v1', change_id: created.change.id, task_ids: [task.id],
-      git_commit: testCheckout.head, worktree_digest: testCheckout.digest,
-      context_digest: checkedContext.manifest_hash,
-      acceptance: [{ id: 'status-ready', status: 'pass', evidence: 'Observed ready.' }],
-      commands: [{ command: 'node --test test/status.test.js', status: 'pass', exit_code: 0, evidence: '1 passed.' }],
-      public_seams: [{ seam: 'src/status.js#getStatus', status: 'pass', evidence: 'Returned ready.' }],
-      failures: [], recovery: [],
-      verification_profile: {
-        rationale: 'Exercise behavior, regression, integration, and recovery for this bounded runtime change.',
-        selected_dimensions: ['acceptance', 'regression', 'integration', 'recovery'],
-        excluded_dimensions: [
-          { dimension: 'static_analysis', rationale: 'The fixture has no repository-native static analyzer.' },
-          { dimension: 'build', rationale: 'The fixture has no separate build product.' },
-          { dimension: 'performance', rationale: 'The bounded status seam has no material performance risk.' },
-          { dimension: 'security', rationale: 'The fixture changes no trust or authorization boundary.' },
-        ],
-      },
-      verification_dimensions: {
-        acceptance: { status: 'pass', evidence: ['Status acceptance passed.'], rationale: 'Required.' },
-        regression: { status: 'pass', evidence: ['Node test suite passed.'], rationale: 'Required.' },
-        integration: { status: 'pass', evidence: ['Exported status seam executed.'], rationale: 'Required.' },
-        recovery: { status: 'pass', evidence: ['Status recovery route checked.'], rationale: 'Required.' },
-      },
-      regression_signal: null, passed: true, run_count: 1,
-      timestamp: new Date().toISOString(), blocking_issues: [],
-      }, null, 2)}\n`,
-    );
-    testRun = finishSimpleSteps(db, rootDir, testRun, {
-      'compile-context': path.relative(rootDir, checkedContext.context_manifest_path),
-      'write-report': testReport,
-    });
-    testRun = workflows.completeWorkflow(db, { id: testRun.id }, { rootDir });
-    assert.equal(testRun.summary.passed, true);
+  const completed = await record(fx.db, fx.rootDir, [{
+    kind: 'task_outcome',
+    action: 'complete',
+    data: {
+      id: taskId,
+      packet_digest: acquired.packet.packet_digest,
+      patch: { completion_commit: workerHead },
+    },
+    idempotency_key: `${taskId}:complete`,
+  }]);
+  assert.equal(completed.accepted, true, JSON.stringify(completed, null, 2));
+  const released = await facade.dispatch('ultra.session', {
+    action: 'release',
+    scope: { sid: acquired.sid },
+    payload: { status: 'completed', remove_worktree: true },
+    idempotency_key: `${taskId}:release`,
+  }, fx.db, { rootDir: fx.rootDir, runtime: 'codex' });
+  assert.equal(released.status, 'completed');
+  assert.equal(released.worktree_preserved, false);
 
-    const changeReview = completeReview(db, rootDir, {
-      id: 'review-daily-status', changeId: created.change.id,
-    });
-    assert.equal(changeReview.summary.verdict, 'APPROVE');
-
-    const convergedChange = changes.convergeChange(
-      db, { id: created.change.id }, { rootDir },
-    );
-    assert.equal(convergedChange.ready, true);
-
-    let deliver = workflows.startWorkflow(db, {
-      id: 'deliver-daily-status', kind: 'deliver', baseline_id: baselineId,
-      change_id: created.change.id, subject: 'Archive the verified status change without publishing.',
-    }, { rootDir });
-    const convergenceContext = changes.compileContext(db, {
-      id: created.change.id, role: 'check', gate: 'convergence',
-    }, { rootDir });
-    for (const stepId of ['bind-evidence', 'reconcile-specifications', 'verify-candidate', 'converge-authority']) {
-      const stepInput = {
-        id: deliver.id, step_id: stepId, status: 'completed', evidence: evidence(stepId),
-      };
-      if (stepId === 'verify-candidate') {
-        stepInput.outputs = [{
-          path: path.relative(rootDir, convergenceContext.context_manifest_path),
-          kind: 'context-manifest',
-        }];
-      }
-      deliver = workflows.recordWorkflowStep(db, stepInput, { rootDir });
-    }
-    const reconciliationPath = write(
-      rootDir,
-      '.ultra/changes/active/daily-status/baseline-reconciliation.json',
-      `${JSON.stringify({
-        $schema: 'ultra-baseline-reconciliation-v1',
-        change_id: created.change.id,
-        baseline_id: baselineId,
-        baseline_updates: [],
-        semantic_changes: [],
-        resolved_gap_ids: [],
-        resolved_unknowns: [],
-        verification: [{
-          name: 'delivery read-back', command: 'node --test test/status.test.js', status: 'pass',
-          evidence: 'The accepted behavior passed without changing baseline specifications.',
-        }],
-        semantic_no_change_reason: 'The accepted baseline behavior did not change.',
-      }, null, 2)}\n`,
-    );
-    artifactRegistry.recordArtifact(db, {
-      id: 'daily-status-baseline-reconciliation',
-      owner_type: 'change',
-      owner_id: created.change.id,
-      kind: 'baseline_reconciliation',
-      path: reconciliationPath,
-      provenance: { writer: 'full-workflow-e2e-fixture' },
-      source_refs: [{
-        type: 'change', id: created.change.id, relation: 'produced_for',
+  const dev = await checkpoint(fx.db, fx.rootDir, {
+    stage: 'dev',
+    scope: { task_id: taskId },
+    payload: {
+      evidence: [{
+        kind: 'artifact',
+        ref: acquired.packet.output.path,
+        summary: 'Worker result is bound to the assigned packet.',
       }],
-      consumer_refs: [],
-      metadata: { terminal_role: true },
-    }, { rootDir });
-    const archived = changes.archiveChange(db, {
-      id: created.change.id, summary: 'Status seam verified and archived.',
-      no_baseline_change_reason: 'The accepted baseline behavior did not change.',
-      reconciliation_path: reconciliationPath,
-    }, { rootDir });
-    deliver = workflows.recordWorkflowStep(db, {
-      id: deliver.id, step_id: 'archive-change', status: 'completed',
-      evidence: [{ kind: 'archive', ref: path.relative(rootDir, archived.archive_path), summary: 'Change packet archived.' }],
-    }, { rootDir });
-    const deliveryCheckout = baselines.gitWorktreeSnapshot(rootDir, ['.']);
-    const archivedRoot = changes.readChange(db, created.change.id).artifact_root;
-    const archivedContext = db.prepare(
-      `SELECT manifest_hash FROM context_snapshots
-       WHERE id = ?`,
-    ).get(convergenceContext.manifest.snapshot_id);
-    const deliveryReport = write(rootDir, `${archivedRoot}/delivery/${deliver.id}/report.json`, `${JSON.stringify({
-      $schema: 'ultra-delivery-report-v1', change_id: created.change.id,
-      archive_status: 'archived', baseline_id: baselineId, baseline_status: 'ready',
-      git_commit: deliveryCheckout.head, worktree_digest: deliveryCheckout.digest,
-      context_digest: archivedContext.manifest_hash,
-      checks: [{ command: 'node --test test/status.test.js', status: 'pass', exit_code: 0, evidence: '1 passed.' }],
-      rollback: 'Restore the managed state backup and archived packet.',
-      timestamp: new Date().toISOString(),
-    }, null, 2)}\n`);
-    registerWorkflowOutputFixture(
-      db, rootDir, deliver, 'verify-delivery', deliveryReport,
-    );
-    deliver = workflows.recordWorkflowStep(db, {
-      id: deliver.id, step_id: 'verify-delivery', status: 'completed',
-      evidence: [{ kind: 'delivery', ref: deliveryReport, summary: 'Local delivery evidence agrees.' }],
-      outputs: [{ path: deliveryReport, kind: 'delivery-report' }],
-    }, { rootDir });
-    deliver = workflows.completeWorkflow(db, { id: deliver.id }, { rootDir });
+    },
+    idempotency_key: `${taskId}:dev`,
+  });
+  assert.equal(dev.accepted, true);
 
-    assert.equal(deliver.status, 'completed');
-    assert.equal(deliver.summary.release, undefined);
-    assert.equal(changes.readChange(db, created.change.id).status, 'archived');
-    assert.equal(baselines.inspectBaseline(db, { rootDir }).status, 'pass');
-    const workflowHealth = workflows.inspectWorkflowHealth(db, { rootDir });
-    assert.equal(workflowHealth.status, 'pass');
-    assert.equal(workflowHealth.active, 0);
-  } finally {
-    if (db) closeStateDb(db);
-    fs.rmSync(rootDir, { recursive: true, force: true });
+  const testReport = writeJson(
+    fx.rootDir,
+    `.ultra/changes/active/${changeId}/test/report.json`,
+    {
+      result: 'pass',
+      command: 'node --test test/status.test.js',
+      head: git(fx.rootDir, ['rev-parse', 'HEAD']),
+    },
+  );
+  const reviewReport = writeJson(
+    fx.rootDir,
+    `.ultra/changes/active/${changeId}/review/summary.json`,
+    {
+      verdict: 'approve',
+      axes: {
+        spec_fidelity: 'pass',
+        engineering_quality: 'pass',
+      },
+    },
+  );
+  const reconciliationPath = writeJson(
+    fx.rootDir,
+    `.ultra/changes/active/${changeId}/baseline-reconciliation.json`,
+    {
+      $schema: 'ultra-baseline-reconciliation-v1',
+      change_id: changeId,
+      baseline_id: fx.initialized.baseline.id,
+      baseline_updates: [],
+      semantic_changes: [],
+      resolved_gap_ids: [],
+      resolved_unknowns: [],
+      verification: [{
+        name: 'no-change reconciliation',
+        command: 'node --test test/status.test.js',
+        status: 'pass',
+        evidence: 'The Change adds runtime behavior without altering accepted baseline semantics.',
+      }],
+      semantic_no_change_reason: 'The accepted baseline already specifies the ready status behavior.',
+    },
+  );
+  const deliveryReport = writeJson(
+    fx.rootDir,
+    `.ultra/changes/active/${changeId}/delivery/report.json`,
+    {
+      summary: 'Implementation, tests, review, and documentation reconciliation are complete.',
+      head: git(fx.rootDir, ['rev-parse', 'HEAD']),
+    },
+  );
+  const bound = await record(fx.db, fx.rootDir, [
+    artifactEntry({
+      id: `${changeId}-test-report`,
+      changeId,
+      kind: 'test_report',
+      artifactPath: testReport,
+      consumer: 'ultra-review',
+    }),
+    artifactEntry({
+      id: `${changeId}-review-summary`,
+      changeId,
+      kind: 'review_summary',
+      artifactPath: reviewReport,
+      consumer: 'ultra-deliver',
+    }),
+    artifactEntry({
+      id: `${changeId}-baseline-reconciliation`,
+      changeId,
+      kind: 'baseline_reconciliation',
+      artifactPath: reconciliationPath,
+      consumer: null,
+    }),
+    artifactEntry({
+      id: `${changeId}-delivery-report`,
+      changeId,
+      kind: 'delivery_report',
+      artifactPath: deliveryReport,
+      consumer: 'ultra-archive',
+    }),
+  ]);
+  assert.equal(bound.accepted, true);
+
+  const tested = await checkpoint(fx.db, fx.rootDir, {
+    stage: 'test',
+    scope: { change_id: changeId },
+    payload: {
+      result: 'pass',
+      evidence: [{
+        kind: 'test_report',
+        ref: testReport,
+        digest: digest(fx.rootDir, testReport),
+      }],
+    },
+    idempotency_key: `${changeId}:test`,
+  });
+  assert.equal(tested.accepted, true);
+  const reviewed = await checkpoint(fx.db, fx.rootDir, {
+    stage: 'review',
+    scope: { change_id: changeId },
+    payload: {
+      verdict: 'approve',
+      evidence: [{
+        kind: 'review_summary',
+        ref: reviewReport,
+        digest: digest(fx.rootDir, reviewReport),
+      }],
+    },
+    idempotency_key: `${changeId}:review`,
+  });
+  assert.equal(reviewed.accepted, true);
+  const delivered = await checkpoint(fx.db, fx.rootDir, {
+    stage: 'deliver',
+    scope: { change_id: changeId },
+    payload: {
+      summary: 'The bounded Change is ready for local archive.',
+      evidence: [{
+        kind: 'delivery_report',
+        ref: deliveryReport,
+        digest: digest(fx.rootDir, deliveryReport),
+      }],
+    },
+    idempotency_key: `${changeId}:deliver`,
+  });
+  assert.equal(delivered.accepted, true);
+
+  const archived = await facade.dispatch('ultra.archive', {
+    change_id: changeId,
+    payload: {
+      summary: 'Delivered the verified ready status seam.',
+      baseline_updates: [],
+      no_baseline_change_reason: 'The baseline already specifies ready status behavior.',
+      reconciliation_path: reconciliationPath,
+    },
+    idempotency_key: `${changeId}:archive`,
+  }, fx.db, { rootDir: fx.rootDir, runtime: 'test' });
+  assert.equal(archived.accepted, true);
+  assert.equal(archived.result.change.status, 'archived');
+  assert.ok(fs.existsSync(archived.result.archive_path));
+  assert.equal(archived.team_checkpoint.ledger.changes[0].status, 'archived');
+  const activeRoot = `.ultra/changes/active/${changeId}`;
+  const archiveFiles = [];
+  for (const entry of fs.readdirSync(archived.result.archive_path, {
+    recursive: true,
+    withFileTypes: true,
+  })) {
+    if (entry.isFile()) archiveFiles.push(path.join(entry.parentPath, entry.name));
   }
-});
+  for (const file of archiveFiles) {
+    const bytes = fs.readFileSync(file);
+    if (bytes.toString('utf8') === bytes.toString()) {
+      assert.doesNotMatch(
+        bytes.toString('utf8'),
+        new RegExp(activeRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+        `archived file still points at the active Change root: ${file}`,
+      );
+    }
+  }
+  const authorityRows = {
+    decisions: fx.db.prepare(
+      `SELECT artifact_path, applied_refs_json, provenance_json
+       FROM decision_records WHERE scope_type = 'change' AND scope_id = ?`,
+    ).all(changeId),
+    contexts: fx.db.prepare(
+      `SELECT id, artifact_path, payload_json
+       FROM context_envelopes
+       WHERE (scope_type = 'change' AND scope_id = ?)
+          OR (scope_type = 'task' AND scope_id = ?)`,
+    ).all(changeId, taskId),
+    packets: fx.db.prepare(
+      `SELECT id, packet_path, output_path
+       FROM worker_packets WHERE scope_type = 'task' AND scope_id = ?`,
+    ).all(taskId),
+    checkpoints: fx.db.prepare(
+      `SELECT payload_json, evidence_json, diagnostics_json
+       FROM stage_checkpoints
+       WHERE (scope_type = 'change' AND scope_id = ?)
+          OR (scope_type = 'task' AND scope_id = ?)`,
+    ).all(changeId, taskId),
+    artifacts: fx.db.prepare(
+      'SELECT path, metadata_json, provenance_json FROM artifacts WHERE change_id = ?',
+    ).all(changeId),
+  };
+  assert.doesNotMatch(JSON.stringify(authorityRows), new RegExp(
+    activeRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+  ));
+  for (const row of authorityRows.contexts) {
+    contextEnvelopes.readEnvelope(fx.db, row.id, { rootDir: fx.rootDir });
+  }
+  for (const row of authorityRows.packets) {
+    workerPackets.readWorkerPacket(fx.db, row.id, { rootDir: fx.rootDir });
+  }
+
+  const context = await facade.dispatch('ultra.context', {
+    stage: 'deliver',
+    scope: { change_id: changeId },
+    detail: 'summary',
+  }, fx.db, { rootDir: fx.rootDir, runtime: 'test' });
+  assert.ok(context.envelope.decisions.some((item) => item.id === `${changeId}-decision`));
+  assert.ok(context.envelope.checkpoints.some((item) => item.stage === 'deliver'));
+  assert.equal(
+    fx.db.prepare('SELECT COUNT(*) AS count FROM workflow_runs').get().count,
+    0,
+    'the public v0.24 path must not create legacy workflow authority',
+  );
+}
+
+for (const mode of ['greenfield', 'brownfield']) {
+  test(`${mode} project completes the v0.24 public kernel without workflow supervision`, async () => {
+    const fx = createProject(mode);
+    try {
+      await convergeBaseline(fx, mode);
+      await executeChange(fx, mode);
+    } finally {
+      closeStateDb(fx.db);
+      fs.rmSync(fx.rootDir, { recursive: true, force: true });
+    }
+  });
+}

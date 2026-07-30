@@ -10,10 +10,7 @@ const { execFileSync } = require('node:child_process');
 
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const baselines = require('./baseline-workflow.cjs');
-const workflows = require('./workflow-state.cjs');
-const {
-  researchCoverage, semanticRecordsForStep,
-} = require('../test-support/semantic-records.cjs');
+const checkpoints = require('./stage-checkpoints.cjs');
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-baseline-'));
@@ -59,49 +56,33 @@ function adoptionEvidence() {
 }
 
 function completeResearch(fx, baselineId, mode = 'adoption') {
-  let run = workflows.startWorkflow(fx.db, {
-    id: `research-${baselineId}`, kind: 'research', mode, baseline_id: baselineId,
-    subject: 'Complete the baseline research contract.',
-    coverage: researchCoverage(),
-    metadata: { selection_reason: 'The owner accepted the applicable baseline evidence areas.' },
-  }, { rootDir: fx.rootDir });
-  for (const workflowStep of run.steps.filter((item) => item.required)) {
-    let output = '.ultra/specs/architecture.md';
-    if (workflowStep.step_id.startsWith('0')) output = '.ultra/specs/discovery.md';
-    else if (workflowStep.step_id.startsWith('1') || workflowStep.step_id.startsWith('2')) {
-      output = '.ultra/specs/product.md';
-    } else if (workflowStep.step_id === '99-synthesis') {
-      output = '.ultra/specs/research-distillate.md';
-      if (!fs.existsSync(path.join(fx.rootDir, output))) fs.writeFileSync(path.join(fx.rootDir, output), '# Research Distillate\n');
-    }
-    fs.appendFileSync(path.join(fx.rootDir, output), `\n${workflowStep.step_id} complete.\n`);
-    const report = path.join(
-      '.ultra', 'docs', 'research', run.id, `${workflowStep.step_id}.md`,
-    );
-    fs.mkdirSync(path.dirname(path.join(fx.rootDir, report)), { recursive: true });
-    fs.writeFileSync(path.join(fx.rootDir, report), [
-      `# ${workflowStep.step_id} evidence`, '',
-      '## Evidence', '', 'Fixture evidence.', '',
-      '## Specification updates', '', `Updated ${output}.`, '',
-      '## Decisions and unknowns', '', 'No unresolved fixture decision.', '',
-    ].join('\n'));
-    const outputs = [{ path: report, kind: 'research-step-report' }];
-    if (workflowStep.step_id === '99-synthesis') {
-      outputs.push(
-        { path: '.ultra/specs/discovery.md', kind: 'baseline-specification' },
-        { path: '.ultra/specs/product.md', kind: 'baseline-specification' },
-        { path: '.ultra/specs/architecture.md', kind: 'baseline-specification' },
-        { path: '.ultra/specs/research-distillate.md', kind: 'research-distillate' },
-      );
-    }
-    run = workflows.recordWorkflowStep(fx.db, {
-      id: run.id, step_id: workflowStep.step_id, status: 'completed',
-      evidence: [{ kind: 'test', ref: `fixture:${workflowStep.step_id}`, summary: 'Fixture evidence.' }],
-      outputs,
-      semantic_records: semanticRecordsForStep(run.id, workflowStep.step_id),
-    }, { rootDir: fx.rootDir });
-  }
-  return workflows.completeWorkflow(fx.db, { id: run.id }, { rootDir: fx.rootDir });
+  const report = path.join('.ultra', 'docs', 'research', baselineId, 'summary.md');
+  fs.mkdirSync(path.dirname(path.join(fx.rootDir, report)), { recursive: true });
+  fs.writeFileSync(path.join(fx.rootDir, report), [
+    '# Research checkpoint evidence',
+    '',
+    'The fixture specifications and source evidence have been inspected.',
+    '',
+  ].join('\n'));
+  const draft = checkpoints.saveDraft(fx.db, {
+    stage: 'research',
+    scope: { baseline_id: baselineId },
+    payload: {
+      mode,
+      summary: 'Complete the baseline research contract.',
+    },
+    evidence: [{
+      kind: 'docs',
+      ref: report,
+      summary: 'Fixture research synthesis.',
+    }],
+    diagnostics: [],
+    idempotency_key: `research-${baselineId}:draft`,
+  });
+  return checkpoints.acceptDraft(fx.db, {
+    id: draft.id,
+    idempotency_key: `research-${baselineId}:accept`,
+  });
 }
 
 test('brownfield baseline converges only after current specs, source evidence, verification, and approval', () => {
@@ -187,13 +168,6 @@ test('a ready status row cannot bypass the complete baseline authority contract'
        VALUES ('forged-ready', 'fixture', 'greenfield', 'ready', '[]', '', '',
                'forged-research', ?)`,
     ).run(now);
-    fx.db.prepare(
-      `INSERT INTO workflow_runs
-       (id, kind, mode, subject, definition_version, status, baseline_id, completed_at)
-       VALUES ('forged-research', 'research', 'full', 'Incomplete provenance.', ?,
-               'completed', 'forged-ready', ?)`,
-    ).run(workflows.DEFINITION_VERSION, now);
-
     const health = baselines.inspectBaseline(fx.db, {
       rootDir: fx.rootDir, id: 'forged-ready',
     });
@@ -209,7 +183,7 @@ test('a ready status row cannot bypass the complete baseline authority contract'
       'BASELINE_APPROVER_MISSING',
       'BASELINE_APPROVAL_NOTE_MISSING',
     ]) assert.ok(health.blockers.includes(blocker), `missing ${blocker}`);
-    assert.ok(health.blockers.includes('BASELINE_RESEARCH_WORKFLOW_STEP_MISSING:00-problem-validation'));
+    assert.ok(health.blockers.includes('BASELINE_RESEARCH_RECORD_INVALID'));
   } finally {
     cleanup(fx);
   }
@@ -680,7 +654,11 @@ test('ready baseline without its completed research provenance is not healthy au
       approved_by: 'project-owner', approval_note: 'Approve the recorded baseline.',
     }, { rootDir: fx.rootDir });
     assert.equal(converged.ready, true);
-    fx.db.prepare("UPDATE baselines SET research_run_id = NULL WHERE id = 'missing-provenance'").run();
+    fx.db.prepare(
+      `UPDATE baselines
+       SET research_run_id = NULL, research_checkpoint_id = NULL
+       WHERE id = 'missing-provenance'`,
+    ).run();
 
     const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
     assert.equal(health.status, 'fail');
@@ -690,7 +668,7 @@ test('ready baseline without its completed research provenance is not healthy au
   }
 });
 
-test('ready baseline becomes unhealthy when immutable research evidence drifts', () => {
+test('ready baseline becomes unhealthy when its accepted research checkpoint is superseded', () => {
   const fx = fixture();
   try {
     const baseline = baselines.startBaseline(fx.db, {
@@ -707,15 +685,21 @@ test('ready baseline becomes unhealthy when immutable research evidence drifts',
     }, { rootDir: fx.rootDir });
     assert.equal(converged.ready, true);
 
-    const report = path.join(
-      fx.rootDir, '.ultra', 'docs', 'research', research.id, '00-problem-validation.md',
-    );
-    fs.appendFileSync(report, '\nTampered after baseline approval.\n');
+    const revised = checkpoints.saveDraft(fx.db, {
+      stage: 'research',
+      scope: { baseline_id: baseline.id },
+      payload: { mode: 'adoption', summary: 'Revised research after baseline approval.' },
+      evidence: research.evidence,
+      diagnostics: [],
+      idempotency_key: 'research-drift:revision-2',
+    });
+    checkpoints.acceptDraft(fx.db, {
+      id: revised.id,
+      idempotency_key: 'research-drift:revision-2:accept',
+    });
     const health = baselines.inspectBaseline(fx.db, { rootDir: fx.rootDir });
     assert.equal(health.status, 'fail');
-    assert.ok(health.blockers.some((item) => (
-      item === 'BASELINE_RESEARCH_WORKFLOW_OUTPUT_STALE:.ultra/docs/research/research-research-drift/00-problem-validation.md'
-    )));
+    assert.ok(health.blockers.includes('BASELINE_RESEARCH_RECORD_INVALID'));
   } finally {
     cleanup(fx);
   }

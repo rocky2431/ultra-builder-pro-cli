@@ -315,7 +315,7 @@ test('spawnSession rejects a change-owned task without a current completed plan'
         db, repoRoot,
         task_id: task.id, runtime: 'claude',
       }),
-      (error) => error.code === 'WORKFLOW_PLAN_NOT_COMPLETED',
+      (error) => error.code === 'PLAN_CHECKPOINT_REQUIRED',
     );
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
     assert.equal(fs.existsSync(path.join(repoRoot, '.ultra', '.runtime', 'worktrees')), false);

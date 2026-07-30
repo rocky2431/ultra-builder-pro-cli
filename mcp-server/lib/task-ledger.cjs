@@ -5,10 +5,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const util = require('node:util');
 
+const canonical = require('./canonical-json.cjs');
+const decisionRecords = require('./decision-records.cjs');
 const ops = require('./state-ops.cjs');
+const { readStableProjectFile } = require('./safe-project-file.cjs');
+const stageCheckpoints = require('./stage-checkpoints.cjs');
 
 const LEDGER_KIND = 'ultra-team-task-ledger';
-const LEDGER_SCHEMA_VERSION = '1.0';
+const LEDGER_SCHEMA_VERSION = '2.0';
+const LEGACY_LEDGER_SCHEMA_VERSION = '1.0';
 const LEDGER_RELATIVE_PATH = '.ultra/tasks/tasks.json';
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
 const MAX_ANCESTORS = 64;
@@ -33,11 +38,16 @@ const DURABLE_BASELINE_FIELDS = Object.freeze([
   'gaps',
   'classification',
   'provider_refs',
-  'research_run_id',
+  'research_checkpoint_id',
   'approved_by',
   'approval_note',
   'converged_at',
 ]);
+const LEGACY_DURABLE_BASELINE_FIELDS = Object.freeze(
+  DURABLE_BASELINE_FIELDS.map((field) => (
+    field === 'research_checkpoint_id' ? 'research_run_id' : field
+  )),
+);
 const DURABLE_TASK_FIELDS = Object.freeze([
   'id',
   'title',
@@ -76,6 +86,27 @@ const DURABLE_CHANGE_FIELDS = Object.freeze([
   'base_commit',
   'artifact_root',
   'closed_at',
+]);
+const DURABLE_DECISION_FIELDS = Object.freeze([
+  'id',
+  'scope_type',
+  'scope_id',
+  'selection',
+  'effects',
+  'status',
+  'artifact_path',
+  'artifact_digest',
+  'supersedes_id',
+]);
+const DURABLE_CHECKPOINT_FIELDS = Object.freeze([
+  'stage',
+  'scope_type',
+  'scope_id',
+  'revision',
+  'payload',
+  'evidence',
+  'diagnostics',
+  'status',
 ]);
 
 class TaskLedgerError extends Error {
@@ -166,7 +197,7 @@ function portableBaseline(row) {
       ? row.classification : parseJson(row.classification_json, {})],
     ['provider_refs', row.provider_refs && typeof row.provider_refs === 'object'
       ? row.provider_refs : parseJson(row.provider_refs_json, {})],
-    ['research_run_id', row.research_run_id],
+    ['research_checkpoint_id', row.research_checkpoint_id || row.research_run_id],
     ['approved_by', row.approved_by],
     ['approval_note', row.approval_note],
     ['converged_at', row.converged_at],
@@ -201,7 +232,7 @@ function portableChange(row) {
     ['id', row.id],
     ['title', row.title],
     ['kind', row.kind],
-    ['status', row.status],
+    ['status', ['blocked', 'ready'].includes(row.status) ? 'active' : row.status],
     ['intent', row.intent],
     ['docs_impact', parseJson(row.docs_impact_json, {})],
     ['provider_refs', parseJson(row.provider_refs_json, {})],
@@ -241,6 +272,57 @@ function readChangesForLedger(db, taskRows, previousChanges = new Map()) {
     }
   }
   return rows.map((row) => durableChange(row, previousChanges.get(row.id)));
+}
+
+function durableDecision(row) {
+  const value = compactObject([
+    ['id', row.id],
+    ['scope_type', row.scope_type],
+    ['scope_id', row.scope_id],
+    ['selection', row.selection],
+    ['effects', parseJson(row.effects_json, {})],
+    ['status', row.status],
+    ['artifact_path', row.artifact_path],
+    ['artifact_digest', row.digest],
+    ['supersedes_id', row.supersedes_id],
+  ]);
+  return {
+    ...value,
+    digest: sha256(value),
+  };
+}
+
+function readDecisionsForLedger(db) {
+  return db.prepare(
+    `SELECT * FROM decision_records
+     WHERE status IN ('accepted', 'superseded')
+     ORDER BY scope_type, scope_id, created_at, id`,
+  ).all().map(durableDecision);
+}
+
+function durableCheckpoint(row) {
+  const value = compactObject([
+    ['stage', row.stage],
+    ['scope_type', row.scope_type],
+    ['scope_id', row.scope_id],
+    ['revision', row.revision],
+    ['payload', parseJson(row.payload_json, {})],
+    ['evidence', parseJson(row.evidence_json, [])],
+    ['diagnostics', parseJson(row.diagnostics_json, [])],
+    ['status', row.status],
+  ]);
+  return {
+    ...value,
+    digest: sha256(value),
+  };
+}
+
+function readCheckpointsForLedger(db) {
+  return db.prepare(
+    `SELECT * FROM stage_checkpoints
+     WHERE status = 'accepted'
+     ORDER BY stage, scope_type, scope_id, revision`,
+  ).all().map(durableCheckpoint);
 }
 
 function durableStatus(task, previous) {
@@ -283,10 +365,18 @@ function durableTask(task, previous = null) {
   };
 }
 
-function statePayload({ baseline, changes, tasks }) {
+function statePayload({
+  baseline,
+  changes,
+  decisions,
+  checkpoints,
+  tasks,
+}) {
   return {
     baseline: baseline || null,
     changes: Array.isArray(changes) ? changes : [],
+    decisions: Array.isArray(decisions) ? decisions : [],
+    checkpoints: Array.isArray(checkpoints) ? checkpoints : [],
     tasks: Array.isArray(tasks) ? tasks : [],
   };
 }
@@ -353,6 +443,38 @@ function validateBaseline(entry) {
   }
 }
 
+function validateLegacyBaseline(entry) {
+  if (entry == null) return;
+  if (typeof entry !== 'object' || Array.isArray(entry)) {
+    throw new TaskLedgerError('TASK_LEDGER_INVALID', 'baseline ledger entry must be an object');
+  }
+  for (const field of [
+    'id', 'project_name', 'mode', 'status', 'scope', 'revision', 'digest',
+  ]) {
+    if (entry[field] === undefined || entry[field] === null || entry[field] === '') {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_INVALID',
+        `baseline ledger entry ${entry.id || '(unknown)'} is missing ${field}`,
+      );
+    }
+  }
+  const value = Object.fromEntries(LEGACY_DURABLE_BASELINE_FIELDS
+    .filter((field) => entry[field] !== undefined)
+    .map((field) => [field, entry[field]]));
+  if (!HASH_PATTERN.test(entry.digest) || entry.digest !== sha256(value)) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_DIGEST_MISMATCH',
+      `baseline ledger entry ${entry.id} does not match its v1 digest`,
+    );
+  }
+  if (entry.parent_digest != null && !HASH_PATTERN.test(entry.parent_digest)) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_INVALID',
+      `baseline ledger entry ${entry.id} has an invalid parent_digest`,
+    );
+  }
+}
+
 function validateChange(entry) {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
     throw new TaskLedgerError('TASK_LEDGER_INVALID', 'every Change ledger entry must be an object');
@@ -384,7 +506,100 @@ function validateChange(entry) {
   }
 }
 
+function validateDecision(entry) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+    throw new TaskLedgerError('TASK_LEDGER_INVALID', 'every decision entry must be an object');
+  }
+  for (const field of [
+    'id', 'scope_type', 'scope_id', 'selection', 'status',
+    'artifact_path', 'artifact_digest', 'digest',
+  ]) {
+    if (entry[field] === undefined || entry[field] === null || entry[field] === '') {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_INVALID',
+        `decision entry ${entry.id || '(unknown)'} is missing ${field}`,
+      );
+    }
+  }
+  const value = Object.fromEntries(DURABLE_DECISION_FIELDS
+    .filter((field) => entry[field] !== undefined)
+    .map((field) => [field, entry[field]]));
+  if (!HASH_PATTERN.test(entry.artifact_digest)
+      || !HASH_PATTERN.test(entry.digest)
+      || entry.digest !== sha256(value)) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_DIGEST_MISMATCH',
+      `decision entry ${entry.id} does not match its digest`,
+    );
+  }
+}
+
+function validateCheckpoint(entry) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+    throw new TaskLedgerError('TASK_LEDGER_INVALID', 'every checkpoint entry must be an object');
+  }
+  for (const field of [
+    'stage', 'scope_type', 'scope_id', 'revision', 'payload',
+    'evidence', 'diagnostics', 'status', 'digest',
+  ]) {
+    if (entry[field] === undefined || entry[field] === null) {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_INVALID',
+        `checkpoint entry ${entry.stage || '(unknown)'} is missing ${field}`,
+      );
+    }
+  }
+  const value = Object.fromEntries(DURABLE_CHECKPOINT_FIELDS
+    .filter((field) => entry[field] !== undefined)
+    .map((field) => [field, entry[field]]));
+  if (entry.status !== 'accepted'
+      || !HASH_PATTERN.test(entry.digest)
+      || entry.digest !== sha256(value)) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_DIGEST_MISMATCH',
+      `checkpoint ${entry.stage}:${entry.scope_type}:${entry.scope_id} is invalid`,
+    );
+  }
+}
+
+function validateLegacyLedger(document, file) {
+  if (!document || document.kind !== LEDGER_KIND
+      || document.schema_version !== LEGACY_LEDGER_SCHEMA_VERSION
+      || !Array.isArray(document.tasks)
+      || !Array.isArray(document.changes)
+      || !Array.isArray(document.ancestors)) {
+    return false;
+  }
+  validateLegacyBaseline(document.baseline);
+  document.tasks.forEach(validateTask);
+  document.changes.forEach(validateChange);
+  const expected = sha256({
+    baseline: document.baseline || null,
+    changes: document.changes,
+    tasks: document.tasks,
+  });
+  if (!HASH_PATTERN.test(document.state_digest || '')
+      || document.state_digest !== expected) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_DIGEST_MISMATCH',
+      `${file} legacy state_digest does not match its durable payload`,
+    );
+  }
+  return true;
+}
+
 function validateLedger(document, file = '(memory)') {
+  if (document?.schema_version === LEGACY_LEDGER_SCHEMA_VERSION
+      && validateLegacyLedger(document, file)) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_SCHEMA_MIGRATION_REQUIRED',
+      `${file} is a valid v${LEGACY_LEDGER_SCHEMA_VERSION} ledger and must migrate to v${LEDGER_SCHEMA_VERSION}`,
+      {
+        from: LEGACY_LEDGER_SCHEMA_VERSION,
+        to: LEDGER_SCHEMA_VERSION,
+      },
+    );
+  }
   if (!document || typeof document !== 'object' || Array.isArray(document)
       || document.kind !== LEDGER_KIND
       || document.schema_version !== LEDGER_SCHEMA_VERSION
@@ -392,7 +607,9 @@ function validateLedger(document, file = '(memory)') {
       || document.generation < 0
       || !Array.isArray(document.ancestors)
       || !Array.isArray(document.tasks)
-      || !Array.isArray(document.changes)) {
+      || !Array.isArray(document.changes)
+      || !Array.isArray(document.decisions)
+      || !Array.isArray(document.checkpoints)) {
     throw new TaskLedgerError(
       'TASK_LEDGER_INVALID',
       `${file} is not an Ultra team task ledger v${LEDGER_SCHEMA_VERSION}`,
@@ -424,6 +641,29 @@ function validateLedger(document, file = '(memory)') {
       );
     }
     seenChanges.add(change.id);
+  }
+  const seenDecisions = new Set();
+  for (const decision of document.decisions) {
+    validateDecision(decision);
+    if (seenDecisions.has(decision.id)) {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_INVALID',
+        `${file} contains duplicate decision ${decision.id}`,
+      );
+    }
+    seenDecisions.add(decision.id);
+  }
+  const seenCheckpoints = new Set();
+  for (const checkpoint of document.checkpoints) {
+    validateCheckpoint(checkpoint);
+    const key = `${checkpoint.stage}:${checkpoint.scope_type}:${checkpoint.scope_id}`;
+    if (seenCheckpoints.has(key)) {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_INVALID',
+        `${file} contains multiple accepted checkpoints for ${key}`,
+      );
+    }
+    seenCheckpoints.add(key);
   }
   const expected = sha256(statePayload(document));
   if (!HASH_PATTERN.test(document.state_digest || '') || document.state_digest !== expected) {
@@ -556,10 +796,56 @@ function migrateLegacyProjection(db, rootDir, originalError) {
   return { previous: null, migrated: true, backup };
 }
 
+function migrateLegacyTeamLedger(rootDir, originalError) {
+  const file = ledgerPath(rootDir);
+  let bytes;
+  let document;
+  try {
+    bytes = fs.readFileSync(file);
+    document = JSON.parse(bytes.toString('utf8'));
+    if (!validateLegacyLedger(document, file)) throw originalError;
+  } catch (error) {
+    if (error instanceof TaskLedgerError) throw error;
+    throw originalError;
+  }
+  const digest = sha256(bytes);
+  const backupDir = safeDirectoryChain(
+    rootDir,
+    ['.ultra', '.runtime', 'backups', 'task-ledger'],
+    { create: true },
+  );
+  const backup = path.join(backupDir, `team-ledger-v1-${digest.slice(0, 16)}.json`);
+  if (fs.existsSync(backup)) {
+    const stat = fs.lstatSync(backup);
+    if (stat.isSymbolicLink() || !stat.isFile()
+        || !fs.readFileSync(backup).equals(bytes)) {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_UNSAFE',
+        `legacy team ledger backup is unsafe or conflicting: ${backup}`,
+      );
+    }
+  } else {
+    fs.writeFileSync(backup, bytes, { flag: 'wx' });
+  }
+  return {
+    previous: {
+      ...document,
+      decisions: [],
+      checkpoints: [],
+    },
+    migrated: true,
+    backup,
+    migration_kind: 'team-ledger-v1',
+  };
+}
+
 function priorLedgerForPublish(db, rootDir) {
   try {
     return { previous: readTaskLedger(rootDir), migrated: false, backup: null };
   } catch (error) {
+    if (error.code === 'TASK_LEDGER_SCHEMA_MIGRATION_REQUIRED') {
+      return migrateLegacyTeamLedger(rootDir, error);
+    }
     if (!['TASK_LEDGER_INVALID', 'TASK_LEDGER_DIGEST_MISMATCH'].includes(error.code)) {
       throw error;
     }
@@ -572,6 +858,9 @@ function syncTaskLedger(db, { rootDir = '.' } = {}) {
   try {
     document = readTaskLedger(rootDir);
   } catch (error) {
+    if (error.code === 'TASK_LEDGER_SCHEMA_MIGRATION_REQUIRED') {
+      return { status: 'legacy', imported: 0, already_current: false };
+    }
     if (!['TASK_LEDGER_INVALID', 'TASK_LEDGER_DIGEST_MISMATCH'].includes(error.code)) {
       throw error;
     }
@@ -598,6 +887,10 @@ function syncTaskLedger(db, { rootDir = '.' } = {}) {
       deleted: 0,
       imported_changes: 0,
       preserved_changes: document.changes.length,
+      imported_decisions: 0,
+      preserved_decisions: document.decisions.length,
+      imported_checkpoints: 0,
+      preserved_checkpoints: document.checkpoints.length,
       imported_baseline: false,
       preserved_baseline: Boolean(document.baseline),
       generation: document.generation,
@@ -617,6 +910,13 @@ function taskDigestMap(tasks) {
   return Object.fromEntries(tasks.map((task) => [task.id, task.digest]));
 }
 
+function checkpointDigestMap(checkpoints) {
+  return Object.fromEntries(checkpoints.map((checkpoint) => [
+    `${checkpoint.stage}:${checkpoint.scope_type}:${checkpoint.scope_id}`,
+    checkpoint.digest,
+  ]));
+}
+
 function recordLedgerEvent(db, type, ledger, extra = {}) {
   ops.appendEvent(db, {
     type,
@@ -627,6 +927,8 @@ function recordLedgerEvent(db, type, ledger, extra = {}) {
       baseline_checkpoint: ledger.baseline || null,
       task_digests: taskDigestMap(ledger.tasks),
       change_digests: taskDigestMap(ledger.changes),
+      decision_digests: taskDigestMap(ledger.decisions || []),
+      checkpoint_digests: checkpointDigestMap(ledger.checkpoints || []),
       ...extra,
     },
   });
@@ -662,7 +964,15 @@ function publishTaskLedger(db, {
     );
   }
   const changes = readChangesForLedger(db, rows, priorChanges);
-  const digest = sha256(statePayload({ baseline, changes, tasks }));
+  const decisions = readDecisionsForLedger(db);
+  const checkpoints = readCheckpointsForLedger(db);
+  const digest = sha256(statePayload({
+    baseline,
+    changes,
+    decisions,
+    checkpoints,
+    tasks,
+  }));
   if (previous?.state_digest === digest) {
     return {
       changed: false,
@@ -683,6 +993,8 @@ function publishTaskLedger(db, {
     reason,
     baseline,
     changes,
+    decisions,
+    checkpoints,
     tasks,
   };
   validateLedger(document);
@@ -717,6 +1029,13 @@ function latestImportedCheckpoint(db) {
     change_digests: payload.change_digests && typeof payload.change_digests === 'object'
       ? payload.change_digests
       : {},
+    decision_digests: payload.decision_digests && typeof payload.decision_digests === 'object'
+      ? payload.decision_digests
+      : {},
+    checkpoint_digests: payload.checkpoint_digests
+      && typeof payload.checkpoint_digests === 'object'
+      ? payload.checkpoint_digests
+      : {},
     baseline_digest: HASH_PATTERN.test(payload.baseline_digest || '')
       ? payload.baseline_digest
       : null,
@@ -750,7 +1069,7 @@ function baselineForLocalCheckout(baseline) {
       worktree_accepted: false,
       known_red_accepted: false,
       gaps,
-      research_run_id: undefined,
+      research_checkpoint_id: undefined,
       approved_by: undefined,
       approval_note: undefined,
       converged_at: undefined,
@@ -770,7 +1089,8 @@ function writeBaseline(db, baseline, { update = false } = {}) {
          worktree_state = ?, worktree_digest = ?, worktree_accepted = ?,
          known_red_accepted = ?, spec_refs_json = ?, evidence_json = ?,
          verification_json = ?, unknowns_json = ?, gaps_json = ?,
-         classification_json = ?, provider_refs_json = ?, research_run_id = ?,
+         classification_json = ?, provider_refs_json = ?,
+         research_checkpoint_id = ?, research_run_id = NULL,
          approved_by = ?, approval_note = ?, converged_at = ?, updated_at = ?
        WHERE id = ?`,
     ).run(
@@ -793,7 +1113,7 @@ function writeBaseline(db, baseline, { update = false } = {}) {
       JSON.stringify(value.gaps || []),
       JSON.stringify(value.classification || {}),
       JSON.stringify(value.provider_refs || {}),
-      value.research_run_id || null,
+      value.research_checkpoint_id || null,
       value.approved_by || null,
       value.approval_note || null,
       value.converged_at || null,
@@ -808,8 +1128,9 @@ function writeBaseline(db, baseline, { update = false } = {}) {
       repository_revision, repository_branch, worktree_state, worktree_digest,
       worktree_accepted, known_red_accepted, spec_refs_json, evidence_json,
       verification_json, unknowns_json, gaps_json, classification_json,
-      provider_refs_json, research_run_id, approved_by, approval_note, converged_at)
-     VALUES (?, ?, ?, ?, ?, ?, '.', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      provider_refs_json, research_checkpoint_id, research_run_id,
+      approved_by, approval_note, converged_at)
+     VALUES (?, ?, ?, ?, ?, ?, '.', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
   ).run(
     value.id,
     value.project_name,
@@ -831,7 +1152,7 @@ function writeBaseline(db, baseline, { update = false } = {}) {
     JSON.stringify(value.gaps || []),
     JSON.stringify(value.classification || {}),
     JSON.stringify(value.provider_refs || {}),
-    value.research_run_id || null,
+    value.research_checkpoint_id || null,
     value.approved_by || null,
     value.approval_note || null,
     value.converged_at || null,
@@ -1034,6 +1355,166 @@ function updateTaskFromLedger(db, task) {
   );
 }
 
+function decisionDocument(rootDir, entry) {
+  const read = readStableProjectFile(rootDir, entry.artifact_path, { encoding: 'utf8' });
+  let document;
+  try { document = JSON.parse(read.text); }
+  catch (error) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_DECISION_INVALID',
+      `decision artifact ${entry.artifact_path} is invalid JSON: ${error.message}`,
+    );
+  }
+  const { digest, ...value } = document;
+  if (digest !== entry.artifact_digest || canonical.digest(value) !== digest) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_DECISION_CONFLICT',
+      `decision artifact ${entry.artifact_path} does not match the team ledger`,
+      {
+        decision_id: entry.id,
+        ledger_digest: entry.artifact_digest,
+        artifact_digest: digest || null,
+      },
+    );
+  }
+  return document;
+}
+
+function importDecisionEntry(db, rootDir, entry) {
+  const existing = decisionRecords.readDecision(db, entry.id);
+  if (existing) {
+    if (existing.digest !== entry.artifact_digest) {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_DECISION_CONFLICT',
+        `decision ${entry.id} changed both locally and in the team ledger`,
+      );
+    }
+    return false;
+  }
+  const document = decisionDocument(rootDir, entry);
+  const accepted = decisionRecords.acceptDecision(db, {
+    id: document.id,
+    scope: document.scope.type === 'baseline'
+      ? { baseline_id: document.scope.id }
+      : { change_id: document.scope.id },
+    question: document.question,
+    recommendation: document.recommendation,
+    selection: document.selection,
+    effects: document.effects,
+    non_goals: document.non_goals,
+    owner: document.owner,
+    source: document.source,
+    provenance: document.provenance,
+    applied_refs: document.applied_refs,
+    supersedes_id: document.supersedes_id || undefined,
+  }, { rootDir });
+  if (accepted.digest !== entry.artifact_digest) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_DECISION_CONFLICT',
+      `decision ${entry.id} changed while it was imported`,
+    );
+  }
+  return true;
+}
+
+function mergeTeamDecisions(db, rootDir, entries) {
+  const pending = new Map(entries.map((entry) => [entry.id, entry]));
+  let imported = 0;
+  while (pending.size > 0) {
+    let progressed = false;
+    for (const [id, entry] of pending) {
+      if (entry.supersedes_id
+          && pending.has(entry.supersedes_id)
+          && !decisionRecords.readDecision(db, entry.supersedes_id)) {
+        continue;
+      }
+      if (importDecisionEntry(db, rootDir, entry)) imported += 1;
+      pending.delete(id);
+      progressed = true;
+    }
+    if (!progressed) {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_DECISION_CONFLICT',
+        'decision supersession graph cannot be imported deterministically',
+        { decision_ids: [...pending.keys()].sort() },
+      );
+    }
+  }
+  return imported;
+}
+
+function checkpointKey(entry) {
+  return `${entry.stage}:${entry.scope_type}:${entry.scope_id}`;
+}
+
+function mergeTeamCheckpoints(db, entries, lastDigests = {}) {
+  let imported = 0;
+  for (const entry of entries) {
+    const current = db.prepare(
+      `SELECT * FROM stage_checkpoints
+       WHERE stage = ? AND scope_type = ? AND scope_id = ? AND status = 'accepted'
+       ORDER BY revision DESC LIMIT 1`,
+    ).get(entry.stage, entry.scope_type, entry.scope_id);
+    const currentDurable = current ? durableCheckpoint(current) : null;
+    if (currentDurable?.digest === entry.digest) continue;
+    const key = checkpointKey(entry);
+    const last = lastDigests[key] || null;
+    if (currentDurable && (!last || currentDurable.digest !== last)) {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_CHECKPOINT_CONFLICT',
+        `checkpoint ${key} changed both locally and in the team ledger`,
+        {
+          checkpoint: key,
+          local_digest: currentDurable.digest,
+          incoming_digest: entry.digest,
+          last_digest: last,
+        },
+      );
+    }
+    if (current) {
+      db.prepare(
+        `UPDATE stage_checkpoints SET status = 'superseded',
+         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ?`,
+      ).run(current.id);
+    }
+    const importedId = `checkpoint-team-${entry.digest.slice(0, 24)}`;
+    const importedDigest = stageCheckpoints.checkpointDigest({
+      stage: entry.stage,
+      scope_type: entry.scope_type,
+      scope_id: entry.scope_id,
+      revision: entry.revision,
+      payload: entry.payload,
+      evidence: entry.evidence,
+      diagnostics: entry.diagnostics,
+      context_envelope_id: null,
+      supersedes_id: current?.id || null,
+    });
+    db.prepare(
+      `INSERT INTO stage_checkpoints
+       (id, stage, scope_type, scope_id, revision, status, payload_json,
+        evidence_json, diagnostics_json, context_envelope_id, digest,
+        supersedes_id, idempotency_key, accepted_at)
+       VALUES (?, ?, ?, ?, ?, 'accepted', ?, ?, ?, NULL, ?, ?, ?,
+               strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
+    ).run(
+      importedId,
+      entry.stage,
+      entry.scope_type,
+      entry.scope_id,
+      entry.revision,
+      JSON.stringify(entry.payload),
+      JSON.stringify(entry.evidence),
+      JSON.stringify(entry.diagnostics),
+      importedDigest,
+      current?.id || null,
+      `team-import:${entry.digest}`,
+    );
+    imported += 1;
+  }
+  return imported;
+}
+
 function importTaskLedger(db, {
   rootDir = '.',
 } = {}) {
@@ -1073,6 +1554,10 @@ function importTaskLedger(db, {
       deleted: 0,
       imported_changes: 0,
       preserved_changes: document.changes.length,
+      imported_decisions: 0,
+      preserved_decisions: document.decisions.length,
+      imported_checkpoints: 0,
+      preserved_checkpoints: document.checkpoints.length,
       imported_baseline: false,
       preserved_baseline: Boolean(document.baseline),
       generation: document.generation,
@@ -1089,6 +1574,8 @@ function importTaskLedger(db, {
   let deleted = 0;
   let importedChanges = 0;
   let preservedChanges = 0;
+  let importedDecisions = 0;
+  let importedCheckpoints = 0;
   let baselineImport = {
     imported: false,
     preserved: false,
@@ -1242,12 +1729,20 @@ function importTaskLedger(db, {
       }
       db.prepare('UPDATE tasks SET parent_id = ? WHERE id = ?').run(parentId, id);
     }
+    importedDecisions = mergeTeamDecisions(db, rootDir, document.decisions);
+    importedCheckpoints = mergeTeamCheckpoints(
+      db,
+      document.checkpoints,
+      checkpoint.checkpoint_digests,
+    );
     recordLedgerEvent(db, 'task_ledger_imported', document, {
       imported,
       preserved,
       deleted,
       imported_changes: importedChanges,
       preserved_changes: preservedChanges,
+      imported_decisions: importedDecisions,
+      imported_checkpoints: importedCheckpoints,
     });
   });
   return {
@@ -1256,6 +1751,10 @@ function importTaskLedger(db, {
     deleted,
     imported_changes: importedChanges,
     preserved_changes: preservedChanges,
+    imported_decisions: importedDecisions,
+    preserved_decisions: document.decisions.length - importedDecisions,
+    imported_checkpoints: importedCheckpoints,
+    preserved_checkpoints: document.checkpoints.length - importedCheckpoints,
     imported_baseline: baselineImport.imported,
     preserved_baseline: baselineImport.preserved,
     generation: document.generation,
@@ -1289,10 +1788,14 @@ function inspectTaskLedger(db, { rootDir = '.' } = {}) {
     localTasks,
     new Map(document.changes.map((change) => [change.id, change])),
   );
+  const localDecisions = readDecisionsForLedger(db);
+  const localCheckpoints = readCheckpointsForLedger(db);
   const localBaseline = readBaselineForLedger(db, document.baseline || null);
   const localDigest = sha256(statePayload({
     baseline: localBaseline,
     changes: localChanges,
+    decisions: localDecisions,
+    checkpoints: localCheckpoints,
     tasks: local,
   }));
   const baselineRequiresRevalidation = Array.isArray(localBaseline?.gaps)
@@ -1303,6 +1806,8 @@ function inspectTaskLedger(db, { rootDir = '.' } = {}) {
     ? sha256(statePayload({
       baseline: document.baseline,
       changes: localChanges,
+      decisions: localDecisions,
+      checkpoints: localCheckpoints,
       tasks: local,
     }))
     : null;
@@ -1324,12 +1829,16 @@ function inspectTaskLedger(db, { rootDir = '.' } = {}) {
 module.exports = {
   DURABLE_BASELINE_FIELDS,
   DURABLE_CHANGE_FIELDS,
+  DURABLE_CHECKPOINT_FIELDS,
+  DURABLE_DECISION_FIELDS,
   DURABLE_TASK_FIELDS,
   LEDGER_KIND,
   LEDGER_RELATIVE_PATH,
   LEDGER_SCHEMA_VERSION,
   TaskLedgerError,
   durableChange,
+  durableCheckpoint,
+  durableDecision,
   durableBaseline,
   durableTask,
   importTaskLedger,

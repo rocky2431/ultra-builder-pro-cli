@@ -15,7 +15,8 @@ const path = require('node:path');
 const { initStateDb, closeStateDb } = require('../mcp-server/lib/state-db.cjs');
 const ops = require('../mcp-server/lib/state-ops.cjs');
 const telemetry = require('../mcp-server/lib/telemetry.cjs');
-const decisions = require('../mcp-server/lib/decision-dialogue.cjs');
+const decisions = require('../mcp-server/lib/decision-records.cjs');
+const checkpoints = require('../mcp-server/lib/stage-checkpoints.cjs');
 const { seedReadyBaseline } = require('../mcp-server/test-support/ready-baseline.cjs');
 const statusCmd = require('./commands/status.cjs');
 
@@ -41,6 +42,15 @@ function seedCalls(db, dir) {
   telemetry.appendTelemetry(db, { event_type: 'tool_call', tool_name: 'task.list', session_id: null, rootDir: dir });
 }
 
+test('status consumes the v0.24 Context Envelope instead of retired semantic supervisors', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, 'commands', 'status.cjs'),
+    'utf8',
+  );
+  assert.doesNotMatch(source, /workflow-state|decision-dialogue|context-spine/);
+  assert.match(source, /context-envelope/);
+});
+
 test('status --json --cost returns by_runtime + top_tasks + total_cost', () => {
   const { dir, db } = freshFixture();
   try {
@@ -58,7 +68,7 @@ test('status --json --cost returns by_runtime + top_tasks + total_cost', () => {
   } finally { teardown(dir, db); }
 });
 
-test('status includes authoritative workflow, change, task, session, and valid transition summaries', () => {
+test('status includes the canonical Context Envelope and leaves route selection to the host', () => {
   const { dir, db } = freshFixture();
   try {
     seedCalls(db, dir);
@@ -67,14 +77,17 @@ test('status includes authoritative workflow, change, task, session, and valid t
       pending: 2, in_progress: 0, completed: 0, blocked: 0, expanded: 0, stale: 0,
     });
     assert.deepEqual(out.sessions, { running: 2, completed: 0, crashed: 0, orphan: 0 });
-    assert.equal(out.workflows.active, 0);
+    assert.equal(out.checkpoints.accepted, 0);
     assert.equal(out.changes.active, 0);
     assert.equal(out.artifacts.status, 'pass');
     assert.equal(out.artifacts.registered, 0);
     assert.equal(out.artifacts.managed, 0);
     assert.equal(out.artifacts.unmanaged, 0);
-    assert.equal(out.transitions.required, 'ultra-init');
-    assert.ok(out.transitions.allowed.includes('ultra-init'));
+    assert.ok(out.context_envelope);
+    assert.equal(out.context_envelope.envelope.execution.stage, 'status');
+    assert.equal(out.guidance.recommendation_owner, 'host_model');
+    assert.equal(out.guidance.selection_owner, 'user');
+    assert.equal(out.guidance.automatic_invocation, false);
   } finally { teardown(dir, db); }
 });
 
@@ -105,103 +118,76 @@ test('status separates managed and legacy artifact authority and fails compatibi
   } finally { teardown(dir, db); }
 });
 
-test('status exposes the current decision instead of dumping the hidden queue', () => {
+test('status exposes accepted Decision Records without recreating a hidden dialogue queue', () => {
   const { dir, db } = freshFixture();
   try {
     seedReadyBaseline(db, { rootDir: dir });
-    decisions.startDecisionThread(db, {
-      id: 'status-alignment', baseline_id: 'test-baseline',
-      purpose: 'Expose one current decision.', mode: 'guided',
-    });
-    decisions.openDecision(db, {
-      id: 'status-api', thread_id: 'status-alignment', phase: 'change-contract',
-      question: 'Should the public API remain compatible?',
-      why_now: 'The answer changes the plan.',
-      recommendation: 'Preserve compatibility for one release.',
-      effects: { summary: 'Changes API, rollout, and recovery contracts.' },
-    });
-    const panel = statusCmd.buildStatusPanel(db, { rootDir: dir });
-    assert.equal(panel.decisions.current.id, 'status-api');
-    assert.equal(panel.decisions.awaiting_owner, 1);
-    assert.equal(panel.transitions.required, 'ultra-think');
-    assert.match(statusCmd.renderHuman(panel), /Decision: status-api/);
-
-    decisions.resolveDecision(db, {
+    decisions.acceptDecision(db, {
       id: 'status-api',
-      decision: 'Preserve compatibility for one release.',
-      rationale: 'Active consumers need a migration window.',
-      decided_by: 'owner',
-    });
-    decisions.completeDecisionThread(db, {
-      id: 'status-alignment',
-      summary: 'Compatibility intent is normalized without an artifact checkpoint.',
-    });
-    const settled = statusCmd.buildStatusPanel(db, { rootDir: dir });
-    assert.equal(settled.decisions.status, 'pass');
-    assert.equal(settled.decisions.active, 0);
-    assert.equal(settled.decisions.completed, 1);
-    assert.equal(settled.decisions.current, null);
+      scope: { baseline_id: 'test-baseline' },
+      question: 'Should the public API remain compatible?',
+      recommendation: 'Preserve compatibility for one release.',
+      selection: 'Preserve compatibility for one release.',
+      effects: { summary: 'Changes API, rollout, and recovery contracts.' },
+      non_goals: [],
+      owner: 'project-owner',
+      source: 'explicit-owner-intent',
+      provenance: { runtime: 'cli' },
+      applied_refs: [],
+    }, { rootDir: dir });
+    const panel = statusCmd.buildStatusPanel(db, { rootDir: dir });
+    assert.equal(panel.decisions.current[0].id, 'status-api');
+    assert.equal(panel.decisions.accepted, 1);
+    assert.match(statusCmd.renderHuman(panel), /Decision: status-api/);
   } finally { teardown(dir, db); }
 });
 
-test('status exposes the exact current workflow, owned task, and evidence gate summaries', () => {
+test('status exposes current Stage Checkpoints, owned task, and evidence summaries', () => {
   const { dir, db } = freshFixture();
   try {
     const now = new Date().toISOString();
     db.prepare(
       `INSERT INTO baselines
-       (id, project_name, mode, status, approved_by, approval_note, research_run_id, converged_at)
-       VALUES ('baseline', 'fixture', 'greenfield', 'ready', 'owner', 'approved',
-               'research-baseline', ?)`,
+       (id, project_name, mode, status, approved_by, approval_note, converged_at)
+       VALUES ('baseline', 'fixture', 'greenfield', 'ready', 'owner', 'approved', ?)`,
     ).run(now);
-    db.prepare(
-      `INSERT INTO workflow_runs
-       (id, kind, mode, subject, definition_version, status, baseline_id, completed_at, updated_at)
-       VALUES ('research-baseline', 'research', 'full', 'Research', '1.1', 'completed',
-               'baseline', ?, ?)`,
-    ).run(now, now);
     db.prepare(
       `INSERT INTO changes (id, title, kind, status, intent, artifact_root, updated_at)
-       VALUES ('status-change', 'Status change', 'standard', 'blocked',
+       VALUES ('status-change', 'Status change', 'standard', 'active',
                'Expose exact durable status.', '.ultra/changes/active/status-change', ?)`,
-    ).run(now);
-    db.prepare(
-      `INSERT INTO workflow_runs
-       (id, kind, subject, definition_version, status, current_step, baseline_id, change_id,
-        blockers_json, updated_at)
-       VALUES ('change-status', 'change', 'Current change', '1.1', 'blocked', 'plan-change',
-               'baseline', 'status-change', '["PLAN_REQUIRED"]', ?)`,
     ).run(now);
     ops.createTask(db, {
       id: 'status-task', title: 'Status task', type: 'feature', priority: 'P0',
       status: 'blocked', change_id: 'status-change',
     });
-    db.prepare(
-      `INSERT INTO workflow_runs
-       (id, kind, subject, definition_version, status, baseline_id, change_id,
-        summary_json, completed_at, updated_at)
-       VALUES ('test-status', 'test', 'Test gate', '1.1', 'completed', 'baseline',
-               'status-change', '{"passed":true,"task_ids":["status-task"]}', ?, ?)`,
-    ).run(now, now);
-    db.prepare(
-      `INSERT INTO workflow_runs
-       (id, kind, subject, definition_version, status, baseline_id, change_id,
-        summary_json, completed_at, updated_at)
-       VALUES ('review-status', 'review', 'Review gate', '1.1', 'completed', 'baseline',
-               'status-change', '{"verdict":"APPROVE","task_ids":["status-task"]}', ?, ?)`,
-    ).run(now, now);
+    for (const [stage, payload] of [
+      ['plan', { summary: 'Plan accepted.' }],
+      ['test', { passed: true, report_path: '.ultra/changes/active/status-change/test/report.json' }],
+      ['review', { verdict: 'APPROVE', report_path: '.ultra/changes/active/status-change/review/report.json' }],
+    ]) {
+      const draft = checkpoints.saveDraft(db, {
+        stage,
+        scope: { change_id: 'status-change' },
+        payload,
+        evidence: [],
+        diagnostics: [],
+        idempotency_key: `status-${stage}-draft`,
+      });
+      checkpoints.acceptDraft(db, {
+        id: draft.id,
+        idempotency_key: `status-${stage}-accept`,
+      });
+    }
 
     const out = statusCmd.buildStatusPanel(db, { rootDir: dir });
-    assert.equal(out.baseline.research.id, 'research-baseline');
-    assert.equal(out.workflows.current[0].id, 'change-status');
-    assert.equal(out.workflows.current[0].current_step, 'plan-change');
-    assert.deepEqual(out.workflows.current[0].blockers, ['PLAN_REQUIRED']);
+    assert.equal(out.checkpoints.accepted, 3);
+    assert.equal(out.checkpoints.current.find((item) => item.stage === 'plan').status, 'accepted');
     assert.equal(out.current_change.id, 'status-change');
     assert.equal(out.current_task.id, 'status-task');
     assert.equal(out.evidence.test.status, 'pass');
     assert.equal(out.evidence.review.status, 'APPROVE');
     assert.equal(out.evidence.delivery.status, 'missing');
-    assert.match(statusCmd.renderHuman(out), /Workflow: change-status.*plan-change/i);
+    assert.match(statusCmd.renderHuman(out), /Checkpoints:.*accepted=3/i);
     assert.match(statusCmd.renderHuman(out), /Evidence: test=pass.*review=APPROVE/i);
   } finally { teardown(dir, db); }
 });
@@ -255,7 +241,7 @@ test('status exposes an in-progress brownfield baseline from authoritative state
     assert.equal(out.baseline.mode, 'brownfield');
     assert.equal(out.baseline.status, 'adopting');
     assert.deepEqual(out.baseline.blockers, ['BASELINE_NOT_READY:adopting']);
-    assert.match(statusCmd.renderHuman(out), /Baseline: brownfield\/adopting.*blocked/i);
+    assert.match(statusCmd.renderHuman(out), /Baseline: brownfield\/adopting.*needs attention/i);
   } finally { teardown(dir, db); }
 });
 
@@ -271,9 +257,9 @@ test('status reports a legacy schema as migration-required instead of throwing S
     const out = statusCmd.buildCostPanel(db, { rootDir: dir });
     assert.equal(out.baseline.status, 'migration_required');
     assert.deepEqual(out.baseline.blockers, ['BASELINE_SCHEMA_MIGRATION_REQUIRED']);
-    assert.equal(out.workflows.status, 'unavailable');
+    assert.equal(out.checkpoints.status, 'pass');
     assert.equal(out.changes.status, 'unavailable');
-    assert.equal(out.transitions.required, 'ultra-init');
+    assert.equal(out.context_error.code, 'CONTEXT_SCHEMA_MIGRATION_REQUIRED');
     assert.match(statusCmd.renderHuman(out), /migration_required/i);
   } finally { teardown(dir, db); }
 });

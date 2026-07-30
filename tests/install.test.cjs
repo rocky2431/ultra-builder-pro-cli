@@ -80,6 +80,19 @@ const RUNTIMES = [
       'plugins/installed.json',
     ],
   },
+  {
+    flag: '--grok',
+    name: 'grok',
+    expectRelPaths: [
+      'plugins/ultra-builder-pro/plugin.json',
+      'plugins/ultra-builder-pro/commands',
+      'plugins/ultra-builder-pro/skills',
+      'plugins/ultra-builder-pro/agents',
+      'plugins/ultra-builder-pro/hooks/adapters/grok.py',
+      'plugins/ultra-builder-pro/runtime/launch.cjs',
+      'plugins/ultra-builder-pro/provenance.json',
+    ],
+  },
 ];
 
 for (const rt of RUNTIMES) {
@@ -107,7 +120,9 @@ for (const rt of RUNTIMES) {
 
 test('install.js — --all fans out to every supported runtime', () => {
   const target = mkTarget('all');
-  const localRoots = { claude: '.claude', opencode: '.opencode', codex: '', kimi: '.kimi-code' };
+  const localRoots = {
+    claude: '.claude', opencode: '.opencode', codex: '', kimi: '.kimi-code', grok: '.grok',
+  };
   try {
     const installed = runCli(['--all', '--local'], { cwd: target, homeDir: target });
     assert.equal(installed.status, 0, `--all install stderr:\n${installed.stderr}`);
@@ -129,12 +144,14 @@ test('install and uninstall never mutate host user handbooks', () => {
     path.join(home, '.config', 'opencode', 'AGENTS.md'),
     path.join(home, '.codex', 'AGENTS.md'),
     path.join(home, '.kimi-code', 'AGENTS.md'),
+    path.join(home, '.grok', 'AGENTS.md'),
   ];
   const configDirs = {
     claude: path.join(home, '.claude'),
     opencode: path.join(home, '.config', 'opencode'),
     codex: path.join(home, '.codex'),
     kimi: path.join(home, '.kimi-code'),
+    grok: path.join(home, '.grok'),
   };
   try {
     for (const [index, file] of handbooks.entries()) {
@@ -235,7 +252,13 @@ test('install.js — doctor verifies all host provenance and reports managed-ass
     assert.equal(healthyReport.status, 'healthy');
     assert.deepEqual(
       healthyReport.reports.map((report) => [report.adapter, report.status]),
-      [['claude', 'healthy'], ['opencode', 'healthy'], ['codex', 'healthy'], ['kimi', 'healthy']],
+      [
+        ['claude', 'healthy'],
+        ['opencode', 'healthy'],
+        ['codex', 'healthy'],
+        ['kimi', 'healthy'],
+        ['grok', 'healthy'],
+      ],
     );
 
     const managedHook = path.join(

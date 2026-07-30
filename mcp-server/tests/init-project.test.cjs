@@ -65,22 +65,21 @@ test('initProject copies bundled template into .ultra/', () => {
       assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name = 'changes'").get());
       const baseline = db.prepare('SELECT mode, status, project_name FROM baselines').get();
       assert.deepEqual(baseline, { mode: 'greenfield', status: 'draft', project_name: 'demo' });
-      const runs = db.prepare(
-        'SELECT kind, mode, status, current_step FROM workflow_runs ORDER BY started_at, rowid',
-      ).all();
-      assert.deepEqual(runs, [
-        { kind: 'init', mode: null, status: 'completed', current_step: null },
-      ]);
+      const runs = db.prepare('SELECT kind FROM workflow_runs ORDER BY rowid').all();
+      assert.deepEqual(runs, []);
+      const checkpoint = db.prepare(
+        "SELECT stage, status, revision FROM stage_checkpoints WHERE stage = 'init'",
+      ).get();
+      assert.deepEqual(checkpoint, { stage: 'init', status: 'accepted', revision: 1 });
       assert.equal(db.prepare("SELECT COUNT(*) AS count FROM workflow_runs WHERE kind = 'research'").get().count, 0);
     } finally {
       db.close();
     }
     assert.ok(!r.copied_files.some((f) => f.endsWith('.DS_Store')));
-    assert.equal(r.workflow.init_status, 'completed');
-    assert.equal(r.workflow.research_status, 'not_started');
-    assert.equal(r.workflow.research_id, null);
-    assert.deepEqual(r.workflow.allowed_transitions, ['ultra-research', 'ultra-status', 'ultra-doctor']);
-    assert.equal(r.workflow.required_transition, null);
+    assert.equal(r.checkpoint.init.status, 'accepted');
+    assert.equal(r.checkpoint.research, null);
+    assert.deepEqual(r.checkpoint.allowed_transitions, ['ultra-research', 'ultra-status', 'ultra-doctor']);
+    assert.equal(r.checkpoint.required_transition, null);
     assert.equal(r.git.status, 'initialized');
     assert.equal(r.git.branch, 'main');
     assert.equal(r.git.head, null);
@@ -284,9 +283,8 @@ test('initProject auto-detects existing source as brownfield without auto-starti
     } finally {
       db.close();
     }
-    assert.equal(result.workflow.research_mode, null);
-    assert.equal(result.workflow.research_status, 'not_started');
-    assert.deepEqual(result.workflow.allowed_transitions, ['ultra-research', 'ultra-status', 'ultra-doctor']);
+    assert.equal(result.checkpoint.research, null);
+    assert.deepEqual(result.checkpoint.allowed_transitions, ['ultra-research', 'ultra-status', 'ultra-doctor']);
   } finally { cleanup(target); }
 });
 
@@ -470,9 +468,11 @@ test('initProject keeps project metadata in DB authority and seeds an empty team
     });
     const tasksJson = JSON.parse(fs.readFileSync(path.join(target, '.ultra', 'tasks', 'tasks.json'), 'utf8'));
     assert.equal(tasksJson.kind, 'ultra-team-task-ledger');
-    assert.equal(tasksJson.schema_version, '1.0');
+    assert.equal(tasksJson.schema_version, '2.0');
     assert.equal(tasksJson.generation, 0);
     assert.deepEqual(tasksJson.tasks, []);
+    assert.deepEqual(tasksJson.decisions, []);
+    assert.deepEqual(tasksJson.checkpoints, []);
     assert.equal(tasksJson.baseline, null);
     const db = new Database(
       path.join(target, '.ultra', '.runtime', 'state.db'),
@@ -496,12 +496,7 @@ test('initProject records the declared project_initialized lifecycle event', () 
       const events = db.prepare('SELECT type, payload_json FROM events ORDER BY id').all();
       assert.deepEqual(events.map((row) => row.type), [
         'baseline_started',
-        'workflow_started',
-        'workflow_step_updated',
-        'workflow_step_updated',
-        'workflow_step_updated',
-        'workflow_step_updated',
-        'workflow_completed',
+        'ultra_checkpoint_accepted',
         'project_initialized',
       ]);
       const payload = JSON.parse(events.at(-1).payload_json);
@@ -660,13 +655,13 @@ test('initProject resume imports a cloned team checkpoint and routes to baseline
     });
     assert.equal(resumed.status, 'resumed');
     assert.equal(resumed.baseline.status, 'adopting');
-    assert.equal(resumed.workflow.provenance_status, 'pending_research');
+    assert.equal(resumed.checkpoint.provenance_status, 'pending_research');
     assert.equal(resumed.team_checkpoint.imported_tasks, 1);
     assert.equal(resumed.team_checkpoint.imported_baseline, true);
     assert.equal(resumed.team_checkpoint.requires_plan_revalidation, true);
     assert.equal(resumed.team_checkpoint.requires_baseline_revalidation, true);
     assert.equal(resumed.team_checkpoint.already_current, false);
-    assert.ok(resumed.workflow.allowed_transitions.includes('ultra-research'));
+    assert.ok(resumed.checkpoint.allowed_transitions.includes('ultra-research'));
     assert.equal(
       fs.existsSync(path.join(
         target, '.ultra', '.runtime', 'projections', 'tasks.json',
@@ -1099,13 +1094,11 @@ test('initProject resume returns the completed initialization workflow provenanc
       target_dir: target, project_name: 'ready-project', resume: true,
     });
     assert.equal(resumed.baseline.status, 'ready');
-    assert.equal(resumed.workflow.init_id, first.workflow.init_id);
-    assert.equal(resumed.workflow.research_id, 'research-ready-project');
-    assert.equal(resumed.workflow.init_status, 'completed');
-    assert.equal(resumed.workflow.research_status, 'completed');
-    assert.equal(resumed.workflow.research_mode, 'full');
-    assert.ok(resumed.workflow.allowed_transitions.includes('ultra-change'));
-    assert.equal(resumed.workflow.required_transition, null);
+    assert.equal(resumed.checkpoint.init.id, first.checkpoint.init.id);
+    assert.equal(resumed.checkpoint.research.status, 'accepted');
+    assert.equal(resumed.checkpoint.research.mode, 'full');
+    assert.ok(resumed.checkpoint.allowed_transitions.includes('ultra-change'));
+    assert.equal(resumed.checkpoint.required_transition, null);
   } finally { cleanup(target); }
 });
 
@@ -1124,8 +1117,8 @@ test('initProject resume routes a ready baseline with missing provenance to doct
     const resumed = initProject({
       target_dir: target, project_name: 'broken-ready-project', resume: true,
     });
-    assert.equal(resumed.workflow.provenance_status, 'incomplete');
-    assert.equal(resumed.workflow.required_transition, 'ultra-doctor');
+    assert.equal(resumed.checkpoint.provenance_status, 'incomplete');
+    assert.equal(resumed.checkpoint.required_transition, 'ultra-doctor');
   } finally { cleanup(target); }
 });
 

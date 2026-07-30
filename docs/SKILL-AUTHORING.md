@@ -37,8 +37,8 @@ only from the main workflow or one directly relevant reference.
 ## Language
 
 The standards do not prohibit Chinese. Ultra source prompts use English as a project
-policy because one source is transformed for Claude Code, Codex, OpenCode, and Kimi
-Code. The host or user instruction controls the response language; a workflow must not
+policy because one source is transformed for Claude Code, Codex, OpenCode, Kimi Code,
+and Grok Build. The host or user instruction controls the response language; a workflow must not
 hard-code the user's output language unless language is itself part of the task.
 
 Maintainer documentation may use the language appropriate for its audience. English
@@ -72,4 +72,4 @@ against delivered behavior, or independent analyses against authoritative eviden
 5. Are judgments evidence-based rather than threshold-based?
 6. Are commands thin and agents bounded?
 7. Do positive and negative trigger evals cover accidental activation?
-8. Do source, four generated runtimes, and package contents pass validation?
+8. Do source, five generated runtimes, and package contents pass validation?

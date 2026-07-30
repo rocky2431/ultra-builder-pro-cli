@@ -49,6 +49,7 @@ const expectedTables = [
   'artifact_edges',
   'context_snapshots', 'spec_learning_candidates', 'trace_links', 'incidents', 'projection_jobs',
   'event_consumers', 'workflow_runs', 'workflow_steps', 'decision_threads', 'decision_items',
+  'stage_checkpoints', 'decision_records', 'context_envelopes', 'worker_packets',
 ];
 const actualTables = db.prepare(
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
@@ -63,12 +64,12 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '20.0'").get();
-if (v && v.version === '20.0') {
-  console.log('ok schema_version includes 20.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '22.0'").get();
+if (v && v.version === '22.0') {
+  console.log('ok schema_version includes 22.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 20.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 22.0: got ${JSON.stringify(v)}`);
   fail++;
 }
 
@@ -90,7 +91,8 @@ for (const column of [
 
 const requiredBaselineColumns = [
   'repository_branch', 'worktree_state', 'worktree_digest', 'worktree_files_json',
-  'worktree_accepted', 'known_red_accepted', 'gaps_json', 'classification_json', 'research_run_id',
+  'worktree_accepted', 'known_red_accepted', 'gaps_json', 'classification_json',
+  'research_run_id', 'research_checkpoint_id',
 ];
 const baselineColumns = new Set(db.prepare('PRAGMA table_info(baselines)').all().map((row) => row.name));
 for (const column of requiredBaselineColumns) {
@@ -180,6 +182,42 @@ if (openIndex?.sql && /WHERE status = 'open'/i.test(openIndex.sql)) {
   console.error('  FAIL decision_items_one_open partial uniqueness missing');
   fail++;
 }
+
+function requireColumns(table, columns) {
+  const actual = new Set(
+    db.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name),
+  );
+  for (const column of columns) {
+    if (actual.has(column)) {
+      console.log(`  ok ${table}.${column}`);
+      pass++;
+    } else {
+      console.error(`  FAIL ${table}.${column} missing`);
+      fail++;
+    }
+  }
+}
+
+requireColumns('stage_checkpoints', [
+  'id', 'stage', 'scope_type', 'scope_id', 'revision', 'status',
+  'payload_json', 'evidence_json', 'diagnostics_json', 'context_envelope_id',
+  'digest', 'supersedes_id', 'idempotency_key',
+]);
+requireColumns('decision_records', [
+  'id', 'scope_type', 'scope_id', 'question', 'recommendation', 'selection',
+  'effects_json', 'non_goals_json', 'owner', 'source', 'provenance_json',
+  'applied_refs_json', 'status', 'digest', 'artifact_path', 'supersedes_id',
+]);
+requireColumns('context_envelopes', [
+  'id', 'stage', 'scope_type', 'scope_id', 'digest', 'file_digest',
+  'payload_json', 'artifact_path',
+]);
+requireColumns('worker_packets', [
+  'id', 'role', 'scope_type', 'scope_id', 'context_envelope_id',
+  'context_digest', 'task_digest', 'decision_digest', 'packet_digest',
+  'file_digest', 'status', 'packet_path', 'output_path', 'assigned_at',
+  'abandoned_at', 'abandon_reason',
+]);
 
 if (fs.existsSync(validFixture)) {
   const validSql = fs.readFileSync(validFixture, 'utf8');

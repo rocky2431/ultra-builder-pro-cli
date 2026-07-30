@@ -1,7 +1,7 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.23.0",
-  "description": "Explicitly invoked Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, and Kimi Code, with project-local MCP authority and lifecycle recovery.",
+  "version": "0.24.0",
+  "description": "Explicitly invoked Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, Kimi Code, and Grok Build, with a project-local MCP persistence and safety kernel.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
     "ubp": "bin/install.js",
@@ -61,13 +61,19 @@
     "!**/*.pyo",
     "!**/*.test.cjs",
     "!**/tests/**",
-    "!mcp-server/test-support/**"
+    "!mcp-server/test-support/**",
+    "!mcp-server/lib/workflow-state.cjs",
+    "!mcp-server/lib/decision-dialogue.cjs",
+    "!mcp-server/lib/context-spine.cjs",
+    "!mcp-server/lib/project-breadcrumb.cjs",
+    "!mcp-server/lib/spec-learning.cjs"
   ],
   "keywords": [
     "claude-code",
     "opencode",
     "codex",
     "kimi-code",
+    "grok-build",
     "agent",
     "cli",
     "multi-runtime",
@@ -101,6 +107,7 @@
     "prepublishOnly": "npm run verify:release",
     "install:claude": "node bin/install.js --claude --local",
     "install:kimi": "node bin/install.js --kimi --local",
+    "install:grok": "node bin/install.js --grok --local",
     "install:all": "node bin/install.js --all --local"
   },
   "dependencies": {

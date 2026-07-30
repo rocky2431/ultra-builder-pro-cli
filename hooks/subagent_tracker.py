@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from context_spine import find_root_for_hook
+from context_envelope import find_root_for_hook
 
 
 def helper_path() -> Path:

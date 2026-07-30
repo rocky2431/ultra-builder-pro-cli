@@ -30,6 +30,7 @@ const {
 const {
   PLUGIN_NAME,
   MANAGED_MARKER,
+  applyNativeDoctor,
   buildPlugin,
   installAgents,
 } = require('./_shared/codex-assets.cjs');
@@ -145,13 +146,18 @@ function marketplaceEntry() {
 }
 
 function upsertMarketplace(file) {
+  const payload = mergedMarketplace(file);
+  writeAtomic(file, JSON.stringify(payload, null, 2) + '\n');
+  return { file, name: payload.name, entry: marketplaceEntry() };
+}
+
+function mergedMarketplace(file) {
   const payload = loadMarketplace(file);
   const entry = marketplaceEntry();
   const index = payload.plugins.findIndex((plugin) => plugin && plugin.name === PLUGIN_NAME);
   if (index === -1) payload.plugins.push(entry);
   else payload.plugins[index] = entry;
-  writeAtomic(file, JSON.stringify(payload, null, 2) + '\n');
-  return { file, name: payload.name, entry };
+  return payload;
 }
 
 function removeMarketplaceEntry(file) {
@@ -300,6 +306,54 @@ function writeRuntimeManifest(configDir, data) {
   return file;
 }
 
+function captureFiles(files) {
+  return [...new Set(files)].map((file) => {
+    try {
+      const stat = fs.statSync(file);
+      return { file, exists: true, contents: fs.readFileSync(file), mode: stat.mode & 0o7777 };
+    } catch (error) {
+      if (error.code === 'ENOENT') return { file, exists: false };
+      throw error;
+    }
+  });
+}
+
+function restoreFiles(snapshots) {
+  for (const snapshot of snapshots) {
+    if (!snapshot.exists) {
+      try {
+        fs.unlinkSync(snapshot.file);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      continue;
+    }
+    writeAtomic(snapshot.file, snapshot.contents);
+    fs.chmodSync(snapshot.file, snapshot.mode);
+  }
+}
+
+function publishStagedAgents(staged, configDir) {
+  const targetRoot = path.join(configDir, 'agents');
+  ensureDir(targetRoot);
+  for (const file of staged.installed) {
+    const target = path.join(targetRoot, file);
+    if (fs.existsSync(target)) {
+      const existing = fs.readFileSync(target, 'utf8');
+      if (!existing.startsWith(`# ${MANAGED_MARKER}`)) {
+        throw new Error(`refusing to overwrite unmanaged Codex agent: ${target}`);
+      }
+    }
+  }
+  for (const file of staged.installed) {
+    writeAtomic(
+      path.join(targetRoot, file),
+      fs.readFileSync(path.join(staged.root, file)),
+    );
+  }
+  return { root: targetRoot, installed: staged.installed };
+}
+
 function install(ctx = {}) {
   const configDir = resolveTarget(ctx);
   const repoRoot = resolveRepoRoot(ctx);
@@ -308,93 +362,137 @@ function install(ctx = {}) {
   ensureDir(configDir);
 
   const previousManifest = readRuntimeManifest(configDir);
-  const legacy = cleanupLegacyConfig(configDir);
-  const plugin = buildPlugin({ repoRoot, pluginRoot });
-  const agents = installAgents({ repoRoot, configDir });
-  const marketplace = upsertMarketplace(marketplaceFile);
-  const previousVersions = listKnownHookCacheVersions(
-    configDir,
-    marketplace.name,
-    previousManifest,
-  );
-
+  if (fs.existsSync(pluginRoot) && !isManaged(pluginRoot)) {
+    throw new Error(`refusing to replace unmanaged plugin directory: ${pluginRoot}`);
+  }
+  ensureDir(path.dirname(pluginRoot));
+  const stagingRoot = fs.mkdtempSync(path.join(path.dirname(pluginRoot), `.${PLUGIN_NAME}-staging-`));
+  const backupRoot = `${stagingRoot}-previous`;
+  const agentStagingConfig = fs.mkdtempSync(path.join(configDir, `.${PLUGIN_NAME}-agents-`));
+  let plugin = null;
+  let stagedAgents = null;
+  let agents = null;
+  let marketplace = null;
+  let previousVersions = [];
+  let previousAdapters = [];
+  let snapshots = [];
+  let movedPrevious = false;
+  let published = false;
   let registration = null;
   let hookCompatibility = null;
-  if (shouldRunPluginCli(ctx)) {
-    const previousAdapters = hookAdaptersForVersions(
+  let legacy = { configUpdated: false, removed: [] };
+  try {
+    plugin = buildPlugin({ repoRoot, pluginRoot: stagingRoot, publishedRoot: pluginRoot });
+    stagedAgents = installAgents({ repoRoot, configDir: agentStagingConfig });
+    const marketplacePayload = mergedMarketplace(marketplaceFile);
+    marketplace = {
+      file: marketplaceFile,
+      name: marketplacePayload.name,
+      entry: marketplaceEntry(),
+    };
+    previousVersions = listKnownHookCacheVersions(
+      configDir,
+      marketplace.name,
+      previousManifest,
+    );
+    previousAdapters = hookAdaptersForVersions(
       configDir,
       marketplace.name,
       previousVersions,
     );
-    try {
-      registration = runPluginCli('add', marketplace.name, ctx);
-    } catch (registrationError) {
-      try {
-        hookCompatibility = restoreCachedHookAdapters(
-          previousAdapters,
-          currentHookAdapter(configDir, marketplace.name, plugin),
-        );
-      } catch (recoveryError) {
-        throw new AggregateError(
-          [registrationError, recoveryError],
-          `codex plugin add and hook cache recovery both failed`,
-        );
-      }
-      throw registrationError;
-    }
-    hookCompatibility = restoreCachedHookAdapters(
-      previousAdapters,
-      currentHookAdapter(configDir, marketplace.name, plugin),
-    );
-  }
-  const hookCacheVersions = normalizeHookCacheVersions([
-    ...previousVersions,
-    plugin.version,
-  ]);
-  const manifestFile = writeRuntimeManifest(configDir, {
-    plugin: { root: plugin.root, version: plugin.version },
-    marketplace: { file: marketplace.file, name: marketplace.name },
-    agents: agents.installed,
-    hookCacheVersions,
-  });
-  const source = provenance.packageSource(repoRoot);
-  const provenanceFile = path.join(configDir, RUNTIME_MANIFEST_DIR, PROVENANCE_FILE);
-  const provenanceManifest = provenance.writeProvenance({
-    file: provenanceFile,
-    adapter: 'codex',
-    ...source,
-    roots: { plugin: pluginRoot, config: configDir },
-    assets: [
-      ...provenance.assetRefsForTree('plugin', pluginRoot, {
-        exclude: ['.ubp-managed'],
-      }),
-      ...agents.installed.map((file) => ({ root: 'config', path: path.join('agents', file) })),
-      { root: 'config', path: path.join(RUNTIME_MANIFEST_DIR, RUNTIME_MANIFEST_FILE) },
-    ],
-    contracts: {
-      plugin_manifest: { root: 'plugin', path: '.codex-plugin/plugin.json' },
-      mcp_registration: { root: 'plugin', path: '.mcp.json' },
-      mcp_launcher: { root: 'plugin', path: 'runtime/launch.cjs' },
-      hook_event_helper: { root: 'plugin', path: 'runtime/hook-event.cjs' },
-      hooks_manifest: { root: 'plugin', path: 'hooks/hooks.json' },
-      hook_adapter: { root: 'plugin', path: HOOK_ADAPTER_RELATIVE },
-      runtime_manifest: { root: 'config', path: path.join(RUNTIME_MANIFEST_DIR, RUNTIME_MANIFEST_FILE) },
-    },
-  });
-  provenanceManifest.file = provenanceFile;
+    snapshots = captureFiles([
+      marketplaceFile,
+      runtimeManifestFile(configDir),
+      path.join(configDir, RUNTIME_MANIFEST_DIR, PROVENANCE_FILE),
+      ...stagedAgents.installed.map((file) => path.join(configDir, 'agents', file)),
+      ...previousAdapters,
+    ]);
 
-  return {
-    target: configDir,
-    plugin,
-    agents,
-    marketplace,
-    registration,
-    hookCompatibility,
-    legacy,
-    manifestFile,
-    provenance: provenanceManifest,
-    config: { updated: legacy.configUpdated },
-  };
+    if (fs.existsSync(pluginRoot)) {
+      fs.renameSync(pluginRoot, backupRoot);
+      movedPrevious = true;
+    }
+    fs.renameSync(stagingRoot, pluginRoot);
+    published = true;
+    agents = publishStagedAgents(stagedAgents, configDir);
+    writeAtomic(marketplaceFile, JSON.stringify(marketplacePayload, null, 2) + '\n');
+
+    if (shouldRunPluginCli(ctx)) {
+      registration = runPluginCli('add', marketplace.name, ctx);
+      hookCompatibility = restoreCachedHookAdapters(
+        previousAdapters,
+        currentHookAdapter(configDir, marketplace.name, plugin),
+      );
+    }
+    const hookCacheVersions = normalizeHookCacheVersions([
+      ...previousVersions,
+      plugin.version,
+    ]);
+    const manifestFile = writeRuntimeManifest(configDir, {
+      plugin: { root: plugin.root, version: plugin.version },
+      marketplace: { file: marketplace.file, name: marketplace.name },
+      agents: agents.installed,
+      hookCacheVersions,
+    });
+    const source = provenance.packageSource(repoRoot);
+    const provenanceFile = path.join(configDir, RUNTIME_MANIFEST_DIR, PROVENANCE_FILE);
+    const provenanceManifest = provenance.writeProvenance({
+      file: provenanceFile,
+      adapter: 'codex',
+      ...source,
+      roots: { plugin: pluginRoot, config: configDir },
+      assets: [
+        ...provenance.assetRefsForTree('plugin', pluginRoot, {
+          exclude: ['.ubp-managed'],
+        }),
+        ...agents.installed.map((file) => ({ root: 'config', path: path.join('agents', file) })),
+        { root: 'config', path: path.join(RUNTIME_MANIFEST_DIR, RUNTIME_MANIFEST_FILE) },
+      ],
+      contracts: {
+        plugin_manifest: { root: 'plugin', path: '.codex-plugin/plugin.json' },
+        mcp_registration: { root: 'plugin', path: '.mcp.json' },
+        mcp_launcher: { root: 'plugin', path: 'runtime/launch.cjs' },
+        native_runtime: { root: 'plugin', path: 'runtime/native-runtime.json' },
+        context_envelope_helper: { root: 'plugin', path: 'runtime/hook-context.cjs' },
+        hook_event_helper: { root: 'plugin', path: 'runtime/hook-event.cjs' },
+        hooks_manifest: { root: 'plugin', path: 'hooks/hooks.json' },
+        hook_adapter: { root: 'plugin', path: HOOK_ADAPTER_RELATIVE },
+        runtime_manifest: { root: 'config', path: path.join(RUNTIME_MANIFEST_DIR, RUNTIME_MANIFEST_FILE) },
+      },
+    });
+    provenanceManifest.file = provenanceFile;
+    legacy = cleanupLegacyConfig(configDir);
+    if (movedPrevious) removeTree(backupRoot);
+    removeTree(agentStagingConfig);
+    return {
+      target: configDir,
+      plugin,
+      agents,
+      marketplace,
+      registration,
+      hookCompatibility,
+      legacy,
+      manifestFile,
+      provenance: provenanceManifest,
+      config: { updated: legacy.configUpdated },
+    };
+  } catch (error) {
+    if (published && fs.existsSync(pluginRoot)) removeTree(pluginRoot);
+    else if (fs.existsSync(stagingRoot)) removeTree(stagingRoot);
+    if (movedPrevious && fs.existsSync(backupRoot)) fs.renameSync(backupRoot, pluginRoot);
+    try {
+      restoreFiles(snapshots);
+      const currentCache = marketplace && plugin
+        ? path.join(pluginCacheRoot(configDir, marketplace.name), plugin.version)
+        : null;
+      if (currentCache && !previousVersions.includes(plugin.version) && fs.existsSync(currentCache)) {
+        removeTree(currentCache);
+      }
+    } finally {
+      if (fs.existsSync(agentStagingConfig)) removeTree(agentStagingConfig);
+    }
+    throw error;
+  }
 }
 
 function doctor(ctx = {}) {
@@ -452,8 +550,7 @@ function doctor(ctx = {}) {
     }
   }
   report.checks.hook_targets = { status: hookTargetsOk ? 'pass' : 'fail' };
-  if (report.status !== 'missing') report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
-  return report;
+  return applyNativeDoctor(report, path.join(pluginRoot, 'runtime'));
 }
 
 function removeManagedAgents(configDir, manifest) {

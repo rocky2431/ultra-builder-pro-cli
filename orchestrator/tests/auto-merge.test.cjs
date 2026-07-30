@@ -21,7 +21,7 @@ const { execFileSync } = require('node:child_process');
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const baselines = require('../../mcp-server/lib/baseline-workflow.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
-const workflows = require('../../mcp-server/lib/workflow-state.cjs');
+const checkpoints = require('../../mcp-server/lib/stage-checkpoints.cjs');
 const wtmgr = require('../worktree-manager.cjs');
 const autoMerge = require('../auto-merge.cjs');
 const runner = require('../session-runner.cjs');
@@ -65,33 +65,20 @@ function completeTask(db, taskId, completionCommit = null) {
   ops.updateTaskStatus(db, taskId, 'completed');
 }
 
-function seedWorkflowState(db, {
-  id, kind, changeId, taskId, status, summary = {},
+function seedCheckpoint(db, {
+  id, stage, taskId, payload = {},
 }) {
-  const definition = workflows.WORKFLOW_DEFINITIONS[kind];
-  db.prepare(
-    `INSERT INTO workflow_runs
-       (id, kind, subject, definition_version, status, current_step,
-        change_id, task_id, summary_json, completed_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    kind,
-    `${kind} fixture`,
-    workflows.DEFINITION_VERSION,
-    status,
-    changeId,
-    taskId,
-    JSON.stringify(summary),
-    status === 'completed' ? new Date().toISOString() : null,
-  );
-  const insertStep = db.prepare(
-    `INSERT INTO workflow_steps
-       (run_id, step_id, position, title, required, status, evidence_json)
-     VALUES (?, ?, ?, ?, 1, 'completed', '[]')`,
-  );
-  definition.forEach((step, position) => {
-    insertStep.run(id, step.id, position, step.title);
+  const draft = checkpoints.saveDraft(db, {
+    stage,
+    scope: { task_id: taskId },
+    payload,
+    evidence: [],
+    diagnostics: [],
+    idempotency_key: `${id}:draft`,
+  });
+  return checkpoints.acceptDraft(db, {
+    id: draft.id,
+    idempotency_key: `${id}:accept`,
   });
 }
 
@@ -245,7 +232,7 @@ test('closeSession does not auto-merge a change task with open dev workflow gate
     );
     assert.equal(result.merge.merged, false);
     assert.equal(result.merge.reason, 'workflow_gates_open');
-    assert.equal(result.merge.blocker, 'DEV_WORKFLOW_NOT_READY');
+    assert.equal(result.merge.blocker, 'DEV_CHECKPOINT_NOT_ACCEPTED');
     assert.equal(result.worktree_preserved, true);
     assert.equal(fs.existsSync(path.join(repo, 'gated.txt')), false);
   } finally { cleanup(repo, db); }
@@ -274,20 +261,16 @@ test('closeSession auto-merges a change task only after current dev and review e
     const completionCommit = commitInWorktree(worktreePath, 'ready.txt', 'ready\n');
     completeTask(db, 'cs-change-ready', completionCommit);
     const snapshot = baselines.gitWorktreeSnapshot(worktreePath, ['.']);
-    seedWorkflowState(db, {
+    seedCheckpoint(db, {
       id: 'dev-change-ready',
-      kind: 'dev',
-      changeId: 'merge-ready-change',
+      stage: 'dev',
       taskId: 'cs-change-ready',
-      status: 'ready',
     });
-    seedWorkflowState(db, {
+    seedCheckpoint(db, {
       id: 'review-change-ready',
-      kind: 'review',
-      changeId: 'merge-ready-change',
+      stage: 'review',
       taskId: 'cs-change-ready',
-      status: 'completed',
-      summary: {
+      payload: {
         mode: 'task',
         verdict: 'APPROVE',
         axes: {

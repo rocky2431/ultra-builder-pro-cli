@@ -18,15 +18,16 @@ const { execFileSync } = require('node:child_process');
 
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
-const { buildPlan } = require('../planner/plan-builder.cjs');
+const facade = require('../../mcp-server/lib/ultra-facade.cjs');
+const { seedReadyBaseline } = require('../../mcp-server/test-support/ready-baseline.cjs');
+const { completeChangeInput } = require('../../mcp-server/test-support/change-contract.cjs');
+const autoMerge = require('../auto-merge.cjs');
 const parallelOrch = require('../parallel-orchestrator.cjs');
 const wtmgr = require('../worktree-manager.cjs');
 
 const NODE = process.execPath;
-const STATE_DB_MODULE = require.resolve('../../mcp-server/lib/state-db.cjs');
-const STATE_OPS_MODULE = require.resolve('../../mcp-server/lib/state-ops.cjs');
 
-function commitScript(filename, content, { completeTask = false } = {}) {
+function commitScript(filename, content) {
   // Create a file (with parent dirs) in the session's CWD and commit it —
   // simulates an agent's session work.
   return [
@@ -41,21 +42,6 @@ fs.writeFileSync(f, ${JSON.stringify(content)});
 execFileSync('git', ['add', '-A']);
 execFileSync('git', ['-c', 'user.email=agent@ubp.dev', '-c', 'user.name=agent',
                      'commit', '-q', '-m', 'agent change ' + f]);
-if (${JSON.stringify(completeTask)}) {
-  const stateDb = require(${JSON.stringify(STATE_DB_MODULE)});
-  const ops = require(${JSON.stringify(STATE_OPS_MODULE)});
-  const dbPath = process.env.UBP_DB_PATH;
-  const db = stateDb.openStateDb(dbPath);
-  try {
-    const task = ops.readTask(db, process.env.UBP_TASK_ID);
-    if (task.status === 'pending') ops.updateTaskStatus(db, task.id, 'in_progress');
-    const completionCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    ops.patchTask(db, task.id, { completion_commit: completionCommit });
-    ops.updateTaskStatus(db, task.id, 'completed');
-  } finally {
-    stateDb.closeStateDb(db);
-  }
-}
 process.exit(0);
 `,
   ];
@@ -67,12 +53,20 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'seed.md'), '# seed\n');
-  fs.writeFileSync(path.join(dir, '.gitignore'), '.ultra/.runtime\n');
+  fs.writeFileSync(
+    path.join(dir, '.gitignore'),
+    '!.ultra/\n'
+      + '!.ultra/**\n'
+      + '.ultra/.runtime\n'
+      + '.ultra/[s]tate.db\n'
+      + '.ultra/[s]tate.db-wal\n'
+      + '.ultra/[s]tate.db-shm\n',
+  );
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
-  closeStateDb(initStateDb(
-    path.join(dir, '.ultra', '.runtime', 'state.db'),
-  ).db);
+  const { db } = initStateDb(path.join(dir, '.ultra', '.runtime', 'state.db'));
+  seedReadyBaseline(db, { rootDir: dir });
+  closeStateDb(db);
   return dir;
 }
 
@@ -88,6 +82,68 @@ function cleanup(repoRoot, db) {
   try { fs.rmSync(repoRoot, { recursive: true, force: true }); } catch (_) { /* best-effort */ }
 }
 
+async function authorizeChangePlan(db, repoRoot, tasks, changeId) {
+  const acceptanceId = `${changeId}-acceptance`;
+  const entries = [{
+    kind: 'change_contract',
+    action: 'open',
+    data: completeChangeInput({
+      id: changeId,
+      title: `Accepted ${changeId} plan`,
+      kind: 'standard',
+      intent: 'Exercise orchestrator transport through the v0.24 persistence kernel.',
+    }),
+    idempotency_key: `${changeId}:open`,
+  }, ...tasks.map((task) => ({
+    kind: 'task_contract',
+    action: 'define',
+    data: {
+      ...task,
+      title: task.title || `Execute ${task.id}`,
+      type: 'feature',
+      priority: 'P2',
+      complexity: task.complexity || 2,
+      change_id: changeId,
+      outcome: `${task.id} produces isolated Git work without writing Ultra authority.`,
+      slice_kind: 'tracer_bullet',
+      public_seam: `orchestrator:${task.id}`,
+      verification_command: 'node --test orchestrator/tests/phase-8b-gate.test.cjs',
+      acceptance: [{
+        id: `${task.id}-acceptance`,
+        criterion: `${task.id} executes from an accepted Plan and Worker Packet.`,
+        verification: 'node --test orchestrator/tests/phase-8b-gate.test.cjs',
+      }],
+      context_refs: [{
+        ref: 'seed.md',
+        reason: 'Stable orchestrator fixture Context.',
+        required: true,
+        freshness_policy: 'existence',
+      }],
+      docs_impact: { status: 'none', files: [], rationale: 'No public documentation.' },
+      ownership: { owner: 'test-owner', reviewers: [] },
+      trace_to: acceptanceId,
+    },
+    idempotency_key: `${changeId}:${task.id}:define`,
+  }))];
+  const recorded = await facade.record(
+    db,
+    { entries },
+    { rootDir: repoRoot, runtime: 'test' },
+  );
+  assert.equal(recorded.accepted, true);
+  const checkpoint = await facade.checkpoint(db, {
+    stage: 'plan',
+    scope: { change_id: changeId },
+    payload: { summary: `Accept ${changeId} execution plan.` },
+    idempotency_key: `${changeId}:plan`,
+  }, { rootDir: repoRoot, runtime: 'test' });
+  assert.equal(checkpoint.accepted, true);
+  return JSON.parse(fs.readFileSync(
+    path.join(repoRoot, checkpoint.result.plan_path),
+    'utf8',
+  ));
+}
+
 // ─── Gate clause 1 — transport success cannot bypass workflow gates ───────
 
 test('gate 1: 10-task transport success preserves work until task gates converge', async () => {
@@ -98,14 +154,9 @@ test('gate 1: 10-task transport success preserves work until task gates converge
     for (let i = 1; i <= 10; i++) {
       const id = `T${String(i).padStart(2, '0')}`;
       const file = `feat/${id}.txt`;
-      ops.createTask(db, {
-        id, title: `feature ${i}`,
-        type: 'feature', priority: 'P2',
-        complexity: 2, files_modified: [file],
-      });
       tasks.push({ id, deps: [], complexity: 2, files_modified: [file] });
     }
-    const plan = buildPlan(tasks);
+    const plan = await authorizeChangePlan(db, repo, tasks, 'gate-1-change');
     // All files independent → single parallel wave.
     assert.equal(plan.waves.length, 1);
     assert.equal(plan.waves[0].parallel, true);
@@ -156,45 +207,39 @@ test('gate 2: 5 rapid worktree allocations → no git lock errors, all tracked',
 
 // ─── Gate clause 3 — merge-back conflict identification ───────────────────
 
-test('gate 3: 2 parallel tasks on same file → 1 merged, 1 conflict event captured', async () => {
+test('gate 3: explicit integration detects conflicting preserved worker commits', async () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
-    ops.createTask(db, {
-      id: 'X1', title: 'conflict A', type: 'feature', priority: 'P2',
-      files_modified: ['battle.txt'],
-    });
-    ops.createTask(db, {
-      id: 'X2', title: 'conflict B', type: 'feature', priority: 'P2',
-      files_modified: ['battle.txt'],
-    });
-    // Force concurrent execution so both worktrees fork from the SAME base
-    // commit. (plan-builder normally serializes these, which would cause X2
-    // to fork from X1's merged HEAD and fast-forward cleanly.)
-    const manualPlan = {
-      waves: [{
-        id: 1, tasks: ['X1', 'X2'], parallel: true,
-        reason: 'forced concurrent for conflict repro',
-      }],
-      ownership_forecast: { X1: ['battle.txt'], X2: ['battle.txt'] },
-      conflict_surface: [{ files: ['battle.txt'], tasks: ['X1', 'X2'], recommend: 'sequentialize' }],
-      estimated_cost_usd: 0,
-      estimated_duration_min: 0,
-      cycles: [],
-    };
-
-    await parallelOrch.runPlan({
-      db, repoRoot: repo, plan: manualPlan,
+    const tasks = [
+      { id: 'X1', deps: [], files_modified: ['declared/X1.txt'] },
+      { id: 'X2', deps: [], files_modified: ['declared/X2.txt'] },
+    ];
+    const plan = await authorizeChangePlan(db, repo, tasks, 'gate-3-change');
+    assert.equal(plan.waves[0].parallel, true);
+    const execution = await parallelOrch.runPlan({
+      db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE,
       commandArgsFor: (task) => commitScript(
         'battle.txt',
         `${task.id}-version\n`,
-        { completeTask: true },
       ),
-      autoMerge: true,
-      mergeBaseBranch: 'main',
     });
+    assert.equal(execution.results.every((item) => item.worktree_preserved), true);
+    const integrations = execution.results.map((item) => {
+      const session = ops.readSession(db, item.sid);
+      return autoMerge.autoMerge({
+        repoRoot: repo,
+        worktreePath: session.worktree_path,
+        baseBranch: 'main',
+        sid: item.sid,
+        task_id: item.task_id,
+        db,
+      });
+    });
+    assert.equal(integrations.filter((item) => item.merged).length, 1);
+    assert.equal(integrations.filter((item) => item.reason === 'conflict').length, 1);
 
     const { events } = ops.subscribeEventsSince(db, 0);
     const merged = events.filter((e) => e.type === 'merged_back');

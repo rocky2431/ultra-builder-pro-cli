@@ -20,10 +20,12 @@ generated projections are not evidence.
 5. Run repository-native commands and real boundaries. A bug or incident needs one
    deterministic red-to-green regression signal.
 
-Write an `ultra-test-report-v1` report below the owning Change. Bind exact acceptance
+When delegated, use the immutable Worker Packet supplied by the parent and echo its
+`packet_digest` in the report. Write an `ultra-test-report-v1` report below the owning
+Change. Bind exact acceptance
 ids, task ids, HEAD, worktree/context digests, commands, seams, failures, recovery,
 profile, timestamp, blockers, and evidence-derived verdict. Register it with
-`ultra.record` using `artifact.record`.
+`ultra.record` using `artifact / bind`.
 
 ## Checkpoint
 

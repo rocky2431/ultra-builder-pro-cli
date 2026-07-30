@@ -7,8 +7,9 @@ must not create or rewrite that file.
 ## Product boundary
 
 Ultra Builder Pro is a host-adapted workflow plugin for Claude Code, Codex, OpenCode,
-and Kimi Code. It owns workflow authority, evidence, recovery, host adapters, and the
-minimal prompts required to operate them.
+Kimi Code, and Grok Build. It owns durable project checkpoints, evidence, recovery,
+host adapters, and the minimal prompts required to operate them. The host model owns
+semantic reasoning and route selection.
 
 It owns project-local cross-session workflow memory under `.ultra/`: normalized intent,
 progress, tasks, bounded context, specifications, evidence, provenance, and recovery.
@@ -20,11 +21,16 @@ Keep those capabilities in separately installed owner packages.
 
 - `adapters/_shared/runtime-assets.cjs`: packaged Skill, hook, and collaboration allowlists.
 - `docs/PLUGIN-ISOLATION-CONTRACT.md`: installation, activation, idle, and ownership boundaries.
-- `mcp-server/lib/workflow-state.cjs`: workflow state transitions and durable gates.
-- `spec/mcp-tools.yaml`: public MCP contract.
+- `mcp-server/lib/ultra-facade.cjs`: the complete seven-tool persistence and safety kernel.
+- `mcp-server/lib/stage-checkpoints.cjs`: reversible draft and immutable accepted
+  checkpoint history.
+- `mcp-server/lib/context-envelope.cjs`: the single Context Envelope generator used by
+  Skills, Hooks, Sessions, and Workers.
+- `spec/mcp-tools.yaml`: exactly seven public MCP contracts.
 - `skills/*/SKILL.md`: reusable workflow prompts.
 - `commands/*.md`: thin Claude Code launchers; do not duplicate workflow logic.
-- `.ultra/.runtime/state.db`: lifecycle, index, transition, freshness, and coordination authority
+- `.ultra/.runtime/state.db`: checkout-local facts, index, freshness, leases, CAS,
+  journals, and coordination authority
   at runtime.
 - `docs/ARTIFACT-AUTHORITY.md`: authority and promotion rules for every `.ultra/`
   artifact class.
@@ -52,8 +58,9 @@ must not launch another.
 4. Run the narrow test first, then the relevant package suite.
 5. Inspect the final diff and packaged artifact.
 
-Do not weaken gates merely to make tests pass. Context-size guidance is advisory;
-authority, security, irreversible effects, and evidence integrity may block.
+Semantic incompleteness, evidence gaps, and context-size guidance are diagnostics, not
+transport failures. Corruption, unsafe paths, real concurrency conflicts, permissions,
+irreversible effects, and accepted evidence integrity remain fail-closed.
 
 ## Verification
 

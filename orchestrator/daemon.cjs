@@ -14,6 +14,7 @@
 const ops = require('../mcp-server/lib/state-ops.cjs');
 const runtimeState = require('../mcp-server/lib/runtime-state.cjs');
 const projector = require('../mcp-server/lib/projector.cjs');
+const workerPackets = require('../mcp-server/lib/worker-packet.cjs');
 const runner = require('./session-runner.cjs');
 const recovery = require('./recovery.cjs');
 const { evaluate, DEFAULT_RULES } = require('./dispatch-rules.cjs');
@@ -184,14 +185,10 @@ function runDaemon({
       if (task.stale) continue;
       if (!taskDependenciesReady(db, task)) continue;
       if (hasActiveFileConflict(db, task)) continue;
-      try {
-        runner.assertSessionTaskReady(db, repoRoot, task.id);
-      } catch (error) {
-        // A normal workflow gate is a durable pending state, not a daemon
-        // failure and not an error to repeat on every poll.
-        if (!runner.isExpectedExecutionGate(error) && onError) onError(error);
-        continue;
-      }
+      // v0.24 workers are always bound to an active Change and receive one
+      // immutable Worker Packet. Legacy unbound tasks remain readable but are
+      // never dispatched by the daemon.
+      if (!task.change_id) continue;
       // admissionCheck catches both live-session conflicts and tripped breakers.
       let verdict;
       try { verdict = ops.admissionCheck(db, task.id); }
@@ -201,7 +198,21 @@ function runDaemon({
       const runtime = routeTask(task, runtimes);
       if (!runtime) continue;
 
+      let packet = null;
       try {
+        packet = workerPackets.createWorkerPacket(db, {
+          role: 'implement',
+          task_id: task.id,
+          runtime,
+          output_path: `.ultra/changes/active/${task.change_id}/delivery/${task.id}-outcome.json`,
+          output_schema: {
+            type: 'object',
+            required: ['packet_digest'],
+            properties: {
+              packet_digest: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+            },
+          },
+        }, { rootDir: repoRoot });
         const handle = runner.spawnSession({
           db, repoRoot,
           task_id: task.id,
@@ -209,12 +220,19 @@ function runDaemon({
           command,
           args: commandArgs,
           mark_task_started: true,
+          kernel_mode: true,
+          packet_digest: packet.packet_digest,
         });
         handle.task_id = task.id;
+        handle.packet = packet;
+        workerPackets.markWorkerPacketAssigned(db, packet.id);
         settleExecution(handle, task);
         children.push(handle);
       } catch (err) {
-        if (onError) onError(err);
+        if (packet?.id) {
+          workerPackets.abandonWorkerPacket(db, packet.id, err.code || err.message);
+        }
+        if (!runner.isExpectedExecutionGate(err) && onError) onError(err);
         // Don't throw — one bad task shouldn't stop the loop.
       }
     }

@@ -14,8 +14,10 @@ Write findings to the assigned JSON file and return only a file acknowledgement.
 
 ## Workflow
 
-1. Validate `SESSION_PATH`, `OUTPUT_FILE`, `SCHEMA_PATH`, `DIFF_RANGE`, `DIFF_FILES`,
-   HEAD, and the supplied runtime and acceptance context.
+1. Validate the immutable `WORKER_PACKET`, exact `PACKET_DIGEST`, `SESSION_PATH`,
+   `OUTPUT_FILE`, `SCHEMA_PATH`, `DIFF_RANGE`, `DIFF_FILES`, HEAD, and the supplied
+   runtime and acceptance context. Stop incomplete when any value differs from the
+   packet.
 2. Trace changed exceptions, error results, retries, fallbacks, optional values,
    cancellation, timeouts, and asynchronous work from trigger to caller-visible state.
 3. Identify handlers that swallow a required failure, report false success, lose
@@ -27,7 +29,8 @@ Write findings to the assigned JSON file and return only a file acknowledgement.
    generic messages as investigation signals. Severity follows reachable impact, not
    the surface pattern.
 6. Check the corresponding recovery and observability path, then write
-   `ultra-review-findings-v2` following `SCHEMA_PATH`.
+   `ultra-review-findings-v2` following `SCHEMA_PATH`, including the exact
+   `packet_digest`.
 
 Use `axis: engineering_standards` and category `error-handling` or `security`. After
 valid output, return exactly:
@@ -36,4 +39,5 @@ valid output, return exactly:
 Wrote N findings (P0:X P1:X P2:X P3:X) to <filepath>
 ```
 
-Do not modify source, task state, or projections.
+Do not modify source, call Ultra MCP write tools, change task state, or edit another
+worker's artifact.

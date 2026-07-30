@@ -21,8 +21,8 @@ publication, deployment, or another external effect.
    worktree/context digests, local checks, rollback guidance, and timestamp; it contains
    no release decision.
 
-Use one `ultra.record` batch for the reconciliation, report artifact, learning
-resolutions, and other durable facts.
+Use one typed `ultra.record` batch for `artifact / bind`, any normalized
+`decision / accept`, and bounded `event / append` facts.
 
 ## Archive once
 
@@ -35,7 +35,7 @@ internally:
 - derives convergence from current dev, test, review, delta, docs, and checkout;
 - applies the overlay and archive through the recoverable filesystem/DB transaction;
 - rebinds registered artifacts into a self-contained archive;
-- completes the durable delivery checkpoint;
+- accepts one immutable delivery checkpoint revision;
 - publishes the updated team checkpoint.
 
 A semantic rejection returns mutable blockers. Repair the same packet and retry. A

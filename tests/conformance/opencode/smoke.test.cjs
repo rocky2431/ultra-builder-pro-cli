@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const opencode = require('../../../adapters/opencode.js');
-const { REPO_ROOT, mkTarget, cleanup, withMcpClient, readToolPayload } = require('../_lib.cjs');
+const { REPO_ROOT, mkTarget, cleanup, withMcpClient, initializeProject } = require('../_lib.cjs');
 const { parse: parseFm } = require('../../../adapters/_shared/frontmatter.cjs');
 
 // Flow 1: install adapter → confirm opencode.json wiring → round-trip via the same MCP
@@ -22,10 +22,12 @@ test('opencode v0.1 smoke — install + lowercased frontmatter + mcp round-trip 
     const config = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
     const mcp = config.mcp[opencode.MCP_SERVER_NAME];
     assert.ok(mcp);
-    assert.deepEqual(mcp.command, [
-      process.execPath,
-      path.join(target, opencode.BUNDLE_DIR, 'runtime', 'launch.cjs'),
-    ]);
+    assert.deepEqual(
+      mcp.command,
+      process.platform === 'win32'
+        ? ['node.exe', path.join(target, opencode.BUNDLE_DIR, 'runtime', 'launch.cjs')]
+        : ['/usr/bin/env', 'node', path.join(target, opencode.BUNDLE_DIR, 'runtime', 'launch.cjs')],
+    );
     assert.equal('_ubp_manifest' in config, false);
     assert.ok(fs.existsSync(path.join(target, opencode.BUNDLE_DIR, '.ubp-managed')));
     assert.ok(fs.existsSync(path.join(target, 'plugins', 'ultra-builder-pro.js')));
@@ -48,11 +50,7 @@ test('opencode v0.1 smoke — install + lowercased frontmatter + mcp round-trip 
       dbPath: path.join(serverHome, '.ultra', '.runtime', 'state.db'),
       rootDir: serverHome,
     }, async (client) => {
-      const init = await client.callTool({
-        name: 'task.init_project',
-        arguments: { target_dir: initTarget, project_name: 'opencode-smoke' },
-      });
-      assert.equal(readToolPayload(init).status, 'created');
+      assert.equal((await initializeProject(client, initTarget, 'opencode-smoke')).status, 'created');
     });
     cleanup(initTarget);
 

@@ -28,13 +28,14 @@ Large sources stay lazy. Use digest freshness for accepted inputs that must rema
 byte-current, existence for expected implementation targets, and advisory only when
 drift must be visible without blocking.
 
-Read `../ultra-think/references/decision-dialogue.md` before asking a material
+Read `../ultra-think/references/interaction-boundary.md` before asking a material
 question.
 
 ## Record and checkpoint
 
-Use one `ultra.record` batch for all `task.create` and necessary `task.update`
-operations. Read back the draft with `ultra.context`.
+Use one `ultra.record` batch with `task_contract / define` for new tasks and
+`task_contract / revise` for corrected contracts. Read back the draft with
+`ultra.context`.
 Never read or write `.ultra/tasks/tasks.json`; use `ultra.sync` for the Git team
 checkpoint, and never edit the local runtime projection directly.
 
@@ -47,13 +48,14 @@ payload: planning posture, optional approval already obtained, context budget/re
 idempotency_key: stable semantic Plan checkpoint id
 ```
 
-The checkpoint compiles or reuses the content-addressed Context Manifest, validates
-task coverage and dependencies, exports `plan.json` and `plan.md` once, completes the
-durable Plan, and publishes the team checkpoint. Do not export again after validation.
+The checkpoint compiles or reuses the content-addressed Context Envelope, derives
+coverage diagnostics, exports `plan.json` and `plan.md` inside the same recoverable
+publication, accepts one Plan revision, and publishes the team checkpoint. Do not
+export separately.
 
 If rejected, the same Plan draft stays mutable. Fix task contracts or evidence and
-retry. To discard it, record `workflow.abandon`; never edit SQLite or open a parallel
-run to escape a blocker.
+retry. To replace an accepted Plan, submit a new checkpoint revision; never edit
+SQLite or open a parallel run to escape a diagnostic.
 
 Return topology, executable slices, public seams, exact checks, checkpoint result, and
 the model's recommended execution order. Do not invoke `ultra-dev` automatically.

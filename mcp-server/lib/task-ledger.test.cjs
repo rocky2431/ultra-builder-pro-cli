@@ -1,13 +1,16 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
 const { closeStateDb, initStateDb } = require('./state-db.cjs');
+const decisions = require('./decision-records.cjs');
 const ops = require('./state-ops.cjs');
+const checkpoints = require('./stage-checkpoints.cjs');
 const ledger = require('./task-ledger.cjs');
 
 function fixture() {
@@ -118,6 +121,145 @@ test('published ledger is durable while in-progress session state remains local'
     assert.equal(completed.ledger.tasks[0].status, 'completed');
     assert.match(completed.ledger.parent_digest, /^[0-9a-f]{64}$/);
     assert.match(completed.ledger.state_digest, /^[0-9a-f]{64}$/);
+  } finally {
+    fx.cleanup();
+  }
+});
+
+test('v0.22 and v0.23 team ledger v1 migrates byte-for-byte backup-first to v2', () => {
+  for (const release of ['0.22.0', '0.23.0']) {
+    const fx = fixture();
+    try {
+      readyBaseline(fx.db, {
+        id: `baseline-${release}`,
+        approvalNote: `Accepted by Ultra Builder Pro ${release}.`,
+      });
+      sharedChange(fx.db, `change-${release}`, `Preserve ${release} authority.`);
+      executableTask(fx.db, `task-${release}`, {
+        change_id: `change-${release}`,
+      });
+      const current = ledger.publishTaskLedger(fx.db, {
+        rootDir: fx.rootDir,
+        reason: 'legacy_fixture',
+      }).ledger;
+      const legacy = {
+        ...current,
+        schema_version: '1.0',
+        baseline: current.baseline
+          ? Object.fromEntries(
+            Object.entries(current.baseline)
+              .filter(([key]) => key !== 'research_checkpoint_id'),
+          )
+          : null,
+      };
+      delete legacy.decisions;
+      delete legacy.checkpoints;
+      legacy.state_digest = crypto.createHash('sha256')
+        .update(JSON.stringify({
+          baseline: legacy.baseline,
+          changes: legacy.changes,
+          tasks: legacy.tasks,
+        }))
+        .digest('hex');
+      const legacyBytes = Buffer.from(`${JSON.stringify(legacy, null, 2)}\n`);
+      fs.writeFileSync(ledger.ledgerPath(fx.rootDir), legacyBytes);
+
+      const migrated = ledger.publishTaskLedger(fx.db, {
+        rootDir: fx.rootDir,
+        reason: `migrate_${release}`,
+      });
+
+      assert.equal(migrated.changed, true);
+      assert.equal(migrated.ledger.schema_version, '2.0');
+      assert.equal(migrated.ledger.parent_digest, legacy.state_digest);
+      assert.ok(migrated.legacy_backup_path);
+      assert.deepEqual(
+        fs.readFileSync(migrated.legacy_backup_path),
+        legacyBytes,
+      );
+      assert.equal(ledger.readTaskLedger(fx.rootDir).schema_version, '2.0');
+    } finally {
+      fx.cleanup();
+    }
+  }
+});
+
+test('v0.23 ledger with research_run_id validates under its original digest contract', () => {
+  const fx = fixture();
+  try {
+    readyBaseline(fx.db, {
+      id: 'baseline-v0.23-research',
+      approvalNote: 'Accepted by Ultra Builder Pro 0.23.0.',
+    });
+    fx.db.prepare(
+      "UPDATE baselines SET research_checkpoint_id = 'research-run-v0.23' WHERE id = ?",
+    ).run('baseline-v0.23-research');
+    const current = ledger.publishTaskLedger(fx.db, {
+      rootDir: fx.rootDir,
+      reason: 'legacy_fixture',
+    }).ledger;
+    const legacyBaseline = {
+      ...current.baseline,
+      research_run_id: current.baseline.research_checkpoint_id,
+    };
+    delete legacyBaseline.research_checkpoint_id;
+    legacyBaseline.digest = crypto.createHash('sha256')
+      .update(JSON.stringify(Object.fromEntries([
+        'id',
+        'project_name',
+        'project_type',
+        'stack',
+        'mode',
+        'status',
+        'scope',
+        'repository_revision',
+        'repository_branch',
+        'worktree_state',
+        'worktree_digest',
+        'worktree_accepted',
+        'known_red_accepted',
+        'spec_refs',
+        'evidence',
+        'verification',
+        'unknowns',
+        'gaps',
+        'classification',
+        'provider_refs',
+        'research_run_id',
+        'approved_by',
+        'approval_note',
+        'converged_at',
+      ].filter((field) => legacyBaseline[field] !== undefined)
+        .map((field) => [field, legacyBaseline[field]]))))
+      .digest('hex');
+    const legacy = {
+      ...current,
+      schema_version: '1.0',
+      baseline: legacyBaseline,
+    };
+    delete legacy.decisions;
+    delete legacy.checkpoints;
+    legacy.state_digest = crypto.createHash('sha256')
+      .update(JSON.stringify({
+        baseline: legacy.baseline,
+        changes: legacy.changes,
+        tasks: legacy.tasks,
+      }))
+      .digest('hex');
+    const legacyBytes = Buffer.from(`${JSON.stringify(legacy, null, 2)}\n`);
+    fs.writeFileSync(ledger.ledgerPath(fx.rootDir), legacyBytes);
+
+    const migrated = ledger.publishTaskLedger(fx.db, {
+      rootDir: fx.rootDir,
+      reason: 'migrate_v0.23_research',
+    });
+
+    assert.equal(migrated.ledger.schema_version, '2.0');
+    assert.equal(
+      migrated.ledger.baseline.research_checkpoint_id,
+      'research-run-v0.23',
+    );
+    assert.deepEqual(fs.readFileSync(migrated.legacy_backup_path), legacyBytes);
   } finally {
     fx.cleanup();
   }
@@ -237,7 +379,7 @@ test('imported ready baseline requires checkout-local revalidation', () => {
 
     const result = ledger.importTaskLedger(target.db, { rootDir: target.rootDir });
     const imported = target.db.prepare(
-      `SELECT status, worktree_accepted, known_red_accepted, research_run_id,
+      `SELECT status, worktree_accepted, known_red_accepted, research_checkpoint_id,
               approved_by, approval_note, converged_at, gaps_json
        FROM baselines WHERE id = 'shared-baseline'`,
     ).get();
@@ -245,7 +387,7 @@ test('imported ready baseline requires checkout-local revalidation', () => {
     assert.equal(imported.status, 'adopting');
     assert.equal(imported.worktree_accepted, 0);
     assert.equal(imported.known_red_accepted, 0);
-    assert.equal(imported.research_run_id, null);
+    assert.equal(imported.research_checkpoint_id, null);
     assert.equal(imported.approved_by, null);
     assert.equal(imported.approval_note, null);
     assert.equal(imported.converged_at, null);
@@ -633,5 +775,84 @@ test('live task projection cannot overwrite the Git-facing ledger', () => {
     assert.equal(fs.readFileSync(ledger.ledgerPath(fx.rootDir), 'utf8'), before);
   } finally {
     fx.cleanup();
+  }
+});
+
+test('team ledger recreates accepted decisions and Stage Checkpoints on a clean clone', () => {
+  const source = fixture();
+  const target = fixture();
+  try {
+    readyBaseline(source.db);
+    sharedChange(source.db, 'change-shared-context', 'Share accepted intent and checkpoints.');
+    executableTask(source.db, 'task-shared-context', {
+      change_id: 'change-shared-context',
+    });
+    const decision = decisions.acceptDecision(source.db, {
+      id: 'decision-shared-context',
+      scope: { change_id: 'change-shared-context' },
+      question: 'Which component owns semantic judgment?',
+      recommendation: 'Keep semantic judgment in the host model.',
+      selection: 'Use MCP only as persistence and safety kernel.',
+      effects: { workflow: 'adaptive' },
+      non_goals: ['Do not persist raw transcripts.'],
+      owner: 'project-owner',
+      source: 'explicit-owner-intent',
+      provenance: { runtime: 'codex' },
+      applied_refs: [],
+    }, { rootDir: source.rootDir });
+    const draft = checkpoints.saveDraft(source.db, {
+      stage: 'plan',
+      scope: { change_id: 'change-shared-context' },
+      payload: { summary: 'One accepted team Plan checkpoint.' },
+      evidence: [{ ref: '.ultra/changes/active/change-shared-context/intent.md' }],
+      diagnostics: [],
+      idempotency_key: 'shared-plan-draft',
+    });
+    checkpoints.acceptDraft(source.db, {
+      id: draft.id,
+      idempotency_key: 'shared-plan-accept',
+    });
+    const published = ledger.publishTaskLedger(source.db, {
+      rootDir: source.rootDir,
+      reason: 'share_context_authority',
+    });
+    assert.equal(published.ledger.schema_version, '2.0');
+    assert.equal(published.ledger.decisions[0].artifact_digest, decision.digest);
+    assert.equal(published.ledger.checkpoints[0].stage, 'plan');
+
+    fs.mkdirSync(path.join(target.rootDir, '.ultra', 'tasks'), { recursive: true });
+    fs.mkdirSync(
+      path.join(target.rootDir, '.ultra', 'changes', 'active', 'change-shared-context'),
+      { recursive: true },
+    );
+    fs.copyFileSync(
+      ledger.ledgerPath(source.rootDir),
+      ledger.ledgerPath(target.rootDir),
+    );
+    fs.cpSync(
+      path.join(source.rootDir, '.ultra', 'changes', 'active', 'change-shared-context'),
+      path.join(target.rootDir, '.ultra', 'changes', 'active', 'change-shared-context'),
+      { recursive: true },
+    );
+
+    const imported = ledger.importTaskLedger(target.db, { rootDir: target.rootDir });
+    assert.equal(imported.imported_decisions, 1);
+    assert.equal(imported.imported_checkpoints, 1);
+    assert.equal(
+      decisions.readDecision(target.db, decision.id).selection,
+      'Use MCP only as persistence and safety kernel.',
+    );
+    assert.equal(
+      checkpoints.currentCheckpoint(
+        target.db,
+        'plan',
+        { change_id: 'change-shared-context' },
+        { includeDraft: false },
+      ).status,
+      'accepted',
+    );
+  } finally {
+    source.cleanup();
+    target.cleanup();
   }
 });

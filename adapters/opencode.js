@@ -3,6 +3,7 @@
 /** Build a native OpenCode Ultra Builder Pro plugin. */
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -14,7 +15,11 @@ const {
   removeTree,
   writeAtomic,
 } = require('./_shared/file-ops.cjs');
-const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
+const {
+  applyNativeDoctor,
+  buildMcpRuntime,
+  mcpCommand,
+} = require('./_shared/codex-assets.cjs');
 const { adaptInteractionGuidance } = require('./_shared/interaction-contract.cjs');
 const provenance = require('./_shared/provenance.cjs');
 const {
@@ -233,7 +238,7 @@ function removeEmptyDir(dir) {
   if (fs.readdirSync(dir).length === 0) fs.rmdirSync(dir);
 }
 
-function copyCommands(repoRoot, target) {
+function copyCommands(repoRoot, target, publishedTarget = target) {
   const output = path.join(target, 'commands');
   ensureDir(output);
   removeStaleManagedFiles(output, COMMAND_NAMES.map((name) => `${name}.md`));
@@ -242,7 +247,7 @@ function copyCommands(repoRoot, target) {
     const file = `${name}.md`;
     const source = path.join(repoRoot, 'commands', file);
     if (!fs.existsSync(source)) throw new Error(`missing allowlisted OpenCode command: ${file}`);
-    const workflowFile = path.join(target, BUNDLE_DIR, 'workflows', name, 'SKILL.md');
+    const workflowFile = path.join(publishedTarget, BUNDLE_DIR, 'workflows', name, 'SKILL.md');
     const transformed = withManagedMarker(
       openCodeCommandTransform(fs.readFileSync(source), file, name, workflowFile),
     );
@@ -341,13 +346,13 @@ const TEAM_TASK_LEDGER = ".ultra/tasks/tasks.json";
 const LIVE_TASK_PROJECTION = ".ultra/.runtime/projections/tasks.json";
 const NODE_BINARY = ${JSON.stringify(process.execPath)};
 const PLUGIN_DIR = path.dirname(fileURLToPath(import.meta.url));
-const BREADCRUMB_CLI = path.resolve(
-  PLUGIN_DIR, "..", ${JSON.stringify(BUNDLE_DIR)}, "runtime", "breadcrumb.cjs",
+const CONTEXT_CLI = path.resolve(
+  PLUGIN_DIR, "..", ${JSON.stringify(BUNDLE_DIR)}, "runtime", "hook-context.cjs",
 );
 
 function readUltraContext(directory) {
   try {
-    const raw = execFileSync(NODE_BINARY, [BREADCRUMB_CLI, "--discover", directory], {
+    const raw = execFileSync(NODE_BINARY, [CONTEXT_CLI, "--discover", directory], {
       cwd: directory,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
@@ -356,12 +361,10 @@ function readUltraContext(directory) {
     const value = JSON.parse(raw);
     const root = value?.root;
     if (typeof root !== "string" || !root) return null;
-    // A canonical breadcrumb is injectable only while DB authority proves an active workflow.
-    if (!value?.breadcrumb || !value.breadcrumb.workflow
-        || typeof value.text !== "string" || !value.text) {
-      return { root, breadcrumb: null, text: null };
+    if (!value?.context || typeof value.text !== "string" || !value.text) {
+      return { root, context: null, text: null };
     }
-    return { root, breadcrumb: value.breadcrumb, text: value.text };
+    return { root, context: value.context, text: value.text };
   } catch (error) {
     const detail = String(error?.stderr || error?.message || error);
     if (/RUNTIME_(?:STATE_CONFLICT|PATH_UNSAFE|ORPHAN_SIDECAR|ROOT_INVALID|AUTHORITY_MISMATCH)|both legacy .*runtime.*state\\.db/i.test(detail)) {
@@ -446,37 +449,116 @@ export const UltraBuilderProPlugin = async ({ directory, worktree }) => {
 `;
 }
 
-function install(ctx = {}) {
-  const target = resolveTarget(ctx);
-  const repoRoot = resolveRepoRoot(ctx);
-  ensureDir(target);
-  const report = { target, copied: {}, config: { updated: false } };
-  preflightAssets(repoRoot, target);
-  report.copied.commands = copyCommands(repoRoot, target);
-  report.copied.skills = copySkills(repoRoot, target);
-  report.copied.agents = copyAgents(repoRoot, target);
+function createInstallTransaction() {
+  const changes = [];
+  const backups = [];
+  const backupPath = (target) => path.join(
+    path.dirname(target),
+    `.${path.basename(target)}.ubp-backup-${crypto.randomUUID()}`,
+  );
+  return {
+    replaceFile(source, target) {
+      let previous = null;
+      try {
+        const stat = fs.statSync(target);
+        previous = { contents: fs.readFileSync(target), mode: stat.mode & 0o7777 };
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      writeAtomic(target, fs.readFileSync(source));
+      changes.push({ type: 'file', target, previous });
+    },
+    replaceTree(source, target) {
+      ensureDir(path.dirname(target));
+      let backup = null;
+      if (fs.existsSync(target)) {
+        backup = backupPath(target);
+        fs.renameSync(target, backup);
+        backups.push(backup);
+      }
+      try {
+        fs.renameSync(source, target);
+      } catch (error) {
+        if (backup && fs.existsSync(backup)) fs.renameSync(backup, target);
+        throw error;
+      }
+      changes.push({ type: 'tree', target, backup });
+    },
+    removeFile(target) {
+      if (!fs.existsSync(target)) return;
+      const stat = fs.statSync(target);
+      const previous = { contents: fs.readFileSync(target), mode: stat.mode & 0o7777 };
+      fs.unlinkSync(target);
+      changes.push({ type: 'file', target, previous });
+    },
+    removeTree(target) {
+      if (!fs.existsSync(target)) return;
+      const backup = backupPath(target);
+      fs.renameSync(target, backup);
+      backups.push(backup);
+      changes.push({ type: 'tree', target, backup, removed: true });
+    },
+    commit() {
+      for (const backup of backups) {
+        if (fs.existsSync(backup)) removeTree(backup);
+      }
+      changes.length = 0;
+      backups.length = 0;
+    },
+    rollback() {
+      const errors = [];
+      for (const change of changes.reverse()) {
+        try {
+          if (change.type === 'file') {
+            if (change.previous) {
+              writeAtomic(change.target, change.previous.contents);
+              fs.chmodSync(change.target, change.previous.mode);
+            } else if (fs.existsSync(change.target)) {
+              fs.unlinkSync(change.target);
+            }
+          } else {
+            if (!change.removed && fs.existsSync(change.target)) removeTree(change.target);
+            if (change.backup && fs.existsSync(change.backup)) {
+              fs.renameSync(change.backup, change.target);
+            }
+          }
+        } catch (error) {
+          errors.push(error);
+        }
+      }
+      if (errors.length > 0) {
+        throw new AggregateError(errors, 'OpenCode install rollback failed');
+      }
+    },
+  };
+}
 
-  ensureDir(path.join(target, 'plugins'));
-  writeAtomic(path.join(target, 'plugins', 'ultra-builder-pro.js'), pluginSource());
+function buildStaging(repoRoot, staging, target) {
+  const report = { target, copied: {}, config: { updated: false } };
+  report.copied.commands = copyCommands(repoRoot, staging, target);
+  report.copied.skills = copySkills(repoRoot, staging);
+  report.copied.agents = copyAgents(repoRoot, staging);
+  ensureDir(path.join(staging, 'plugins'));
+  writeAtomic(path.join(staging, 'plugins', 'ultra-builder-pro.js'), pluginSource());
   report.copied.plugins = ['ultra-builder-pro.js'];
 
-  const bundleRoot = path.join(target, BUNDLE_DIR);
-  if (fs.existsSync(bundleRoot)) removeTree(bundleRoot);
+  const bundleRoot = path.join(staging, BUNDLE_DIR);
   ensureDir(bundleRoot);
   report.copied.workflows = copyPrivateWorkflows(repoRoot, bundleRoot);
-  const runtime = buildMcpRuntime(repoRoot, bundleRoot, { runtime: 'opencode' });
+  buildMcpRuntime(repoRoot, bundleRoot, { runtime: 'opencode' });
   markManaged(bundleRoot, { adapter: 'opencode', asset: 'runtime-bundle' });
   const configFile = path.join(target, 'opencode.json');
   const existing = readJsonSafe(configFile, { rescue: true });
   const mcp = { ...(existing.mcp || {}) };
+  const command = mcpCommand(path.join(target, BUNDLE_DIR, 'runtime', 'launch.cjs'));
   mcp[MCP_SERVER_NAME] = {
     type: 'local',
     enabled: true,
-    command: [process.execPath, runtime.launcher],
+    command: [command.command, ...command.args],
   };
   const next = { ...existing, mcp };
   delete next[LEGACY_SENTINEL_KEY];
-  writeAtomic(configFile, JSON.stringify(next, null, 2) + '\n');
+  writeAtomic(path.join(staging, 'opencode.json'), JSON.stringify(next, null, 2) + '\n');
   report.config.updated = true;
   const source = provenance.packageSource(repoRoot);
   const bundleAssets = provenance.assetRefsForTree('config', bundleRoot, {
@@ -491,6 +573,7 @@ function install(ctx = {}) {
     adapter: 'opencode',
     ...source,
     roots: { config: target },
+    assetRoots: { config: staging },
     assets: [
       ...report.copied.commands.map((file) => ({ root: 'config', path: path.join('commands', file) })),
       ...report.copied.skills.map((file) => ({ root: 'config', path: path.join('skills', file) })),
@@ -503,11 +586,104 @@ function install(ctx = {}) {
       host_plugin: { root: 'config', path: path.join('plugins', 'ultra-builder-pro.js') },
       mcp_config: { root: 'config', path: 'opencode.json' },
       mcp_launcher: { root: 'config', path: path.join(BUNDLE_DIR, 'runtime', 'launch.cjs') },
+      native_runtime: { root: 'config', path: path.join(BUNDLE_DIR, 'runtime', 'native-runtime.json') },
+      context_envelope_helper: { root: 'config', path: path.join(BUNDLE_DIR, 'runtime', 'hook-context.cjs') },
       hook_event_helper: { root: 'config', path: path.join(BUNDLE_DIR, 'runtime', 'hook-event.cjs') },
     },
   });
-  report.provenance.file = provenanceFile;
+  report.provenance.file = path.join(target, BUNDLE_DIR, PROVENANCE_FILE);
   return report;
+}
+
+function managedTextFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && isManagedTextFile(path.join(dir, entry.name)))
+    .map((entry) => entry.name);
+}
+
+function managedSkillDirs(root) {
+  if (!fs.existsSync(root)) return [];
+  return fs.readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && isManaged(path.join(root, entry.name)))
+    .map((entry) => entry.name);
+}
+
+function publishStaging(staging, target, report) {
+  const transaction = createInstallTransaction();
+  const commandNames = report.copied.commands;
+  const agentNames = report.copied.agents;
+  const skillNames = discoverableSkillNames();
+  try {
+    for (const file of commandNames) {
+      transaction.replaceFile(
+        path.join(staging, 'commands', file),
+        path.join(target, 'commands', file),
+      );
+    }
+    for (const stale of managedTextFiles(path.join(target, 'commands'))) {
+      if (!commandNames.includes(stale)) {
+        transaction.removeFile(path.join(target, 'commands', stale));
+      }
+    }
+    for (const name of skillNames) {
+      transaction.replaceTree(
+        path.join(staging, 'skills', name),
+        path.join(target, 'skills', name),
+      );
+    }
+    for (const stale of managedSkillDirs(path.join(target, 'skills'))) {
+      if (!skillNames.includes(stale)) {
+        transaction.removeTree(path.join(target, 'skills', stale));
+      }
+    }
+    for (const file of agentNames) {
+      transaction.replaceFile(
+        path.join(staging, 'agents', file),
+        path.join(target, 'agents', file),
+      );
+    }
+    for (const stale of managedTextFiles(path.join(target, 'agents'))) {
+      if (!agentNames.includes(stale)) {
+        transaction.removeFile(path.join(target, 'agents', stale));
+      }
+    }
+    transaction.replaceFile(
+      path.join(staging, 'plugins', 'ultra-builder-pro.js'),
+      path.join(target, 'plugins', 'ultra-builder-pro.js'),
+    );
+    transaction.replaceTree(
+      path.join(staging, BUNDLE_DIR),
+      path.join(target, BUNDLE_DIR),
+    );
+    transaction.replaceFile(
+      path.join(staging, 'opencode.json'),
+      path.join(target, 'opencode.json'),
+    );
+    transaction.commit();
+  } catch (error) {
+    try {
+      transaction.rollback();
+    } catch (rollbackError) {
+      throw new AggregateError([error, rollbackError], 'OpenCode install and rollback both failed');
+    }
+    throw error;
+  }
+}
+
+function install(ctx = {}) {
+  const target = resolveTarget(ctx);
+  const repoRoot = resolveRepoRoot(ctx);
+  ensureDir(target);
+  preflightAssets(repoRoot, target);
+  const staging = fs.mkdtempSync(path.join(path.dirname(target), '.ubp-opencode-staging-'));
+  try {
+    const report = buildStaging(repoRoot, staging, target);
+    publishStaging(staging, target, report);
+    return report;
+  } finally {
+    if (fs.existsSync(staging)) removeTree(staging);
+  }
 }
 
 function doctor(ctx = {}) {
@@ -525,11 +701,14 @@ function doctor(ctx = {}) {
   try {
     const config = readJsonSafe(configFile);
     const entry = config.mcp && config.mcp[MCP_SERVER_NAME];
+    const command = mcpCommand(expectedLauncher);
     registrationOk = entry?.type === 'local'
       && entry.enabled === true
       && Array.isArray(entry.command)
-      && entry.command[0] === process.execPath
-      && entry.command[1] === expectedLauncher;
+      && JSON.stringify(entry.command) === JSON.stringify([
+        command.command,
+        ...command.args,
+      ]);
   } catch (error) {
     report.issues.push({ code: 'MCP_REGISTRATION_INVALID', message: error.message });
   }
@@ -541,8 +720,7 @@ function doctor(ctx = {}) {
     });
   }
   report.checks.registration = { status: registrationOk ? 'pass' : 'fail' };
-  if (report.status !== 'missing') report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
-  return report;
+  return applyNativeDoctor(report, path.join(target, BUNDLE_DIR, 'runtime'));
 }
 
 function uninstall(ctx = {}) {

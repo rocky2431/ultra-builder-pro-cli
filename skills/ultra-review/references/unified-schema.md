@@ -10,6 +10,7 @@ return only a one-line acknowledgement to the parent.
   "$schema": "ultra-review-findings-v2",
   "agent": "review-code",
   "axis": "engineering_standards",
+  "packet_digest": "<sha256-of-exact-worker-packet>",
   "session": "<session-id>",
   "timestamp": "<ISO-8601>",
   "scope": {
@@ -74,6 +75,7 @@ preference as a defect. Preserve the source specialist's severity during coordin
   "head": "<full-git-head>",
   "worktree_digest": "<sha256-of-current-worktree>",
   "context_digest": "<sha256-of-recorded-review-context>",
+  "packet_digest": "<sha256-of-coordinator-worker-packet>",
   "status": "complete",
   "verdict": "REQUEST_CHANGES",
   "axes": {

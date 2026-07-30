@@ -21,7 +21,7 @@ not a questionnaire or a step-by-step supervisor.
 5. Use the host-native question surface only for a material unresolved route. Reuse an
    explicit owner choice without asking again.
 
-Read `../ultra-think/references/decision-dialogue.md` before asking. Load only the
+Read `../ultra-think/references/interaction-boundary.md` before asking. Load only the
 reference files for research areas that actually apply.
 
 ## Investigate
@@ -34,10 +34,15 @@ For each selected area:
 - never store transcripts, hidden reasoning, raw provider payloads, or copied prompts;
 - record evidence, specification updates, decisions, deferrals, and consequences.
 
-Use one `ultra.record` batch for durable facts such as `artifact.record`,
-`decision.*`, `baseline.*`, `change.update`, or `change.delta`. Every entry needs a
-stable idempotency key. A rejected entry is a mutable diagnostic: fix the draft and
-retry; use `workflow.abandon` only when intentionally discarding that attempt.
+Use one `ultra.record` batch for typed durable facts:
+
+- `artifact / bind` for a managed research or specification artifact;
+- `decision / accept` for normalized owner intent;
+- `baseline / observe` or `baseline / accept` for baseline authority;
+- `change_contract / revise` for Change-bound findings.
+
+Every entry needs a stable idempotency key. A semantic rejection is a mutable
+diagnostic: correct the same draft and retry.
 
 ## Commit one research checkpoint
 
@@ -46,8 +51,8 @@ and their report outputs in `payload.steps`; include only work actually performe
 verified, reused, deferred with owner authority, or proved not applicable. Synthesis
 must always be present.
 
-For baseline research, record and converge the accepted baseline through
-`ultra.record`, then publish the team checkpoint with `ultra.sync { action: publish }`.
+For baseline research, update and accept the baseline through typed `ultra.record`
+entries, then publish the team checkpoint with `ultra.sync { action: publish }`.
 For Change-bound research, keep all findings and delta artifacts below the Change
 root and never edit accepted baseline specs directly.
 

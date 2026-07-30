@@ -13,14 +13,16 @@ test('every supported host receives the same authority split with a native quest
     codex: 'request_user_input',
     opencode: 'question',
     kimi: 'AskUserQuestion',
+    grok: 'AskUserQuestion',
   };
   const expectedAvailability = {
     claude: 'interactive_session',
     codex: 'current_mode_exposes_tool',
     opencode: 'question_permission_not_denied',
     kimi: 'interactive_non_auto_mode',
+    grok: 'interactive_session',
   };
-  for (const runtime of ['claude', 'codex', 'opencode', 'kimi']) {
+  for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok']) {
     const contract = interactionContract(runtime);
     assert.equal(contract.schema_version, '1.3');
     assert.equal(contract.runtime, runtime);
@@ -65,16 +67,20 @@ test('unknown hosts fail closed instead of inventing an interaction tool', () =>
 });
 
 test('installed prompt guidance is rendered from the same native question-surface contract', () => {
-  const source = 'Use the host-native structured question surface declared by the installed interaction contract.';
+  const source = [
+    'Use the host-native question surface declared by the installed interaction contract;',
+    'prefer its structured form when the host exposes one.',
+  ].join('\n');
   const expected = {
     claude: 'AskUserQuestion',
     codex: 'request_user_input',
     opencode: '`question`',
     kimi: 'AskUserQuestion',
+    grok: 'AskUserQuestion',
   };
   for (const [runtime, surface] of Object.entries(expected)) {
     const rendered = adaptInteractionGuidance(source, runtime);
     assert.match(rendered, new RegExp(surface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-    assert.doesNotMatch(rendered, /host-native structured question surface declared/);
+    assert.doesNotMatch(rendered, /host-native (?:structured )?question surface declared/);
   }
 });

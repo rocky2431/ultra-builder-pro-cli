@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const codex = require('../../../adapters/codex.js');
-const { REPO_ROOT, mkTarget, cleanup, withMcpClient, readToolPayload } = require('../_lib.cjs');
+const { REPO_ROOT, mkTarget, cleanup, withMcpClient, initializeProject } = require('../_lib.cjs');
 
 function mkLayout(prefix) {
   const homeDir = mkTarget(prefix);
@@ -69,11 +69,7 @@ test('codex smoke — plugin install + MCP round-trip + scoped uninstall', async
       dbPath: path.join(serverHome, '.ultra', '.runtime', 'state.db'),
       rootDir: serverHome,
     }, async (client) => {
-      const init = await client.callTool({
-        name: 'task.init_project',
-        arguments: { target_dir: initTarget, project_name: 'codex-smoke' },
-      });
-      assert.equal(readToolPayload(init).status, 'created');
+      assert.equal((await initializeProject(client, initTarget, 'codex-smoke')).status, 'created');
     });
 
     codex.uninstall({
@@ -303,9 +299,9 @@ test('codex smoke — failed plugin refresh restores live hook cache paths', () 
     }), /simulated plugin add failure/);
 
     const sourceAdapter = path.join(layout.pluginRoot, 'hooks', 'adapters', 'codex.py');
-    assert.ok(fs.existsSync(sourceAdapter));
+    assert.equal(fs.existsSync(sourceAdapter), false);
     assert.ok(fs.existsSync(oldAdapter));
-    assert.match(fs.readFileSync(oldAdapter, 'utf8'), /runpy\.run_path/);
+    assert.equal(fs.readFileSync(oldAdapter, 'utf8'), '# previous adapter\n');
   } finally { cleanup(layout.homeDir); }
 });
 

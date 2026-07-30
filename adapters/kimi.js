@@ -14,7 +14,10 @@ const {
   removeTree,
   writeAtomic,
 } = require('./_shared/file-ops.cjs');
-const { buildMcpRuntime } = require('./_shared/codex-assets.cjs');
+const {
+  applyNativeDoctor,
+  buildMcpRuntime,
+} = require('./_shared/codex-assets.cjs');
 const { parse: parseFm, serialize: serializeFm } = require('./_shared/frontmatter.cjs');
 const { adaptInteractionGuidance } = require('./_shared/interaction-contract.cjs');
 const provenance = require('./_shared/provenance.cjs');
@@ -321,6 +324,8 @@ function writePluginProvenance(repoRoot, target) {
     contracts: {
       plugin_manifest: { root: 'plugin', path: 'kimi.plugin.json' },
       mcp_launcher: { root: 'plugin', path: path.join('runtime', 'launch.cjs') },
+      native_runtime: { root: 'plugin', path: path.join('runtime', 'native-runtime.json') },
+      context_envelope_helper: { root: 'plugin', path: path.join('runtime', 'hook-context.cjs') },
       hook_event_helper: { root: 'plugin', path: path.join('runtime', 'hook-event.cjs') },
       hook_adapter: { root: 'plugin', path: path.join('hooks', 'adapters', 'kimi.py') },
     },
@@ -442,8 +447,7 @@ function doctor(ctx = {}) {
   report.checks.plugin_manifest = { status: manifestOk ? 'pass' : 'fail' };
   report.checks.mcp_registration = { status: mcpOk ? 'pass' : 'fail' };
   report.checks.hook_registration = { status: hooksOk ? 'pass' : 'fail' };
-  if (report.status !== 'missing') report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
-  return report;
+  return applyNativeDoctor(report, path.join(target, 'runtime'));
 }
 
 function uninstall(ctx = {}) {

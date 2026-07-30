@@ -30,8 +30,8 @@ journals, reconcile orphan sessions, and repair installed mechanical assets.
 
 It may not manufacture semantic evidence, import or publish a team checkpoint, replace
 a healthy baseline, resolve decisions, edit application code, or force a draft to
-accepted. Use `ultra.sync` for reviewed checkpoint import/publish and
-`workflow.abandon` through `ultra.record` for intentional draft cancellation.
+accepted. Use `ultra.sync` for reviewed checkpoint import/publish. Doctor never changes
+semantic checkpoint acceptance or Change intent.
 
 Preserve corrupt DB/WAL/SHM and dirty worktrees. Never patch plugin cache files by
 hand; reinstall through `ubp` and verify the installed manifest and hook targets.

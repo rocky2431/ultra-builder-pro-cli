@@ -23,7 +23,7 @@ const gitBootstrap = require('./git-bootstrap.cjs');
 const runtimePaths = require('./runtime-paths.cjs');
 const runtimeState = require('./runtime-state.cjs');
 const ops = require('./state-ops.cjs');
-const workflows = require('./workflow-state.cjs');
+const stageCheckpoints = require('./stage-checkpoints.cjs');
 
 const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
@@ -544,42 +544,73 @@ function projectionMigrationError(projection) {
   );
 }
 
-function ensureInitializationWorkflows(db, baseline, { rootDir }) {
-  let initRun = workflows.listWorkflows(
-    db, { kind: 'init', baseline_id: baseline.id, limit: 1 }, { rootDir },
-  )[0];
-  const researchRun = workflows.listWorkflows(
-    db, { kind: 'research', baseline_id: baseline.id, limit: 1 }, { rootDir },
-  )[0];
-  if (!initRun) {
-    initRun = workflows.startWorkflow(db, {
-      kind: 'init', baseline_id: baseline.id,
-      subject: `Initialize Ultra authority for ${baseline.project_name}.`,
-      metadata: { repository_revision: baseline.repository_revision, scope: baseline.scope },
-    }, { rootDir });
-    for (const stepId of ['inspect-authority', 'classify-repository', 'scaffold-authority']) {
-      initRun = workflows.recordWorkflowStep(db, {
-        id: initRun.id, step_id: stepId, status: 'completed',
-      }, { rootDir });
-    }
-    initRun = workflows.recordWorkflowStep(db, {
-      id: initRun.id,
-      step_id: 'verify-initialization',
-      status: 'completed',
+function ensureInitializationCheckpoint(db, baseline) {
+  let initCheckpoint = stageCheckpoints.currentCheckpoint(
+    db,
+    'init',
+    { baseline_id: baseline.id },
+    { includeDraft: false },
+  );
+  if (!initCheckpoint) {
+    const draft = stageCheckpoints.saveDraft(db, {
+      stage: 'init',
+      scope: { baseline_id: baseline.id },
+      payload: {
+        project_name: baseline.project_name,
+        repository_revision: baseline.repository_revision,
+        scope: baseline.scope,
+      },
       evidence: [{
         kind: 'authority',
         ref: '.ultra/.runtime/state.db',
         summary: 'State authority, scaffold, projection, and repository classification were verified.',
       }],
-    }, { rootDir });
-    initRun = workflows.completeWorkflow(db, { id: initRun.id }, { rootDir });
+      diagnostics: [],
+      idempotency_key: `init:${baseline.id}:draft`,
+    });
+    initCheckpoint = stageCheckpoints.acceptDraft(db, {
+      id: draft.id,
+      idempotency_key: `init:${baseline.id}:accept`,
+    });
+  }
+  let researchCheckpoint = stageCheckpoints.currentCheckpoint(
+    db,
+    'research',
+    { baseline_id: baseline.id },
+    { includeDraft: false },
+  );
+  const legacyResearch = db.prepare(
+    `SELECT id, mode, status FROM workflow_runs
+     WHERE kind = 'research' AND baseline_id = ?
+     ORDER BY started_at DESC, rowid DESC LIMIT 1`,
+  ).get(baseline.id);
+  if (!researchCheckpoint && legacyResearch?.status === 'completed') {
+    const draft = stageCheckpoints.saveDraft(db, {
+      stage: 'research',
+      scope: { baseline_id: baseline.id },
+      payload: {
+        migration_source: 'workflow_runs',
+        legacy_run_id: legacyResearch.id,
+        mode: legacyResearch.mode,
+      },
+      evidence: [{
+        kind: 'legacy_workflow',
+        ref: legacyResearch.id,
+        summary: 'Completed legacy research provenance migrated during project resume.',
+      }],
+      diagnostics: [],
+      idempotency_key: `research:${baseline.id}:legacy:${legacyResearch.id}:draft`,
+    });
+    researchCheckpoint = stageCheckpoints.acceptDraft(db, {
+      id: draft.id,
+      idempotency_key: `research:${baseline.id}:legacy:${legacyResearch.id}:accept`,
+    });
   }
   const compatibilityOnly = baseline.mode === 'migrated';
   const provenanceComplete = !compatibilityOnly
     && baseline.status === 'ready'
-    && initRun.status === 'completed'
-    && researchRun?.status === 'completed'
-    && baseline.research_run_id === researchRun.id;
+    && initCheckpoint.status === 'accepted'
+    && researchCheckpoint?.status === 'accepted';
   const readyWithoutProvenance = baseline.status === 'ready' && !provenanceComplete;
   const allowedTransitions = provenanceComplete
     ? ['ultra-change', 'ultra-research', 'ultra-status', 'ultra-doctor']
@@ -587,11 +618,19 @@ function ensureInitializationWorkflows(db, baseline, { rootDir }) {
       ? ['ultra-doctor', 'ultra-research', 'ultra-status']
       : ['ultra-research', 'ultra-status', 'ultra-doctor']);
   return {
-    init_id: initRun.id,
-    init_status: initRun.status,
-    research_id: researchRun?.id || null,
-    research_mode: researchRun?.mode || null,
-    research_status: researchRun?.status || 'not_started',
+    init: {
+      id: initCheckpoint.id,
+      status: initCheckpoint.status,
+      revision: initCheckpoint.revision,
+      digest: initCheckpoint.digest,
+    },
+    research: researchCheckpoint ? {
+      id: researchCheckpoint.id,
+      status: researchCheckpoint.status,
+      revision: researchCheckpoint.revision,
+      digest: researchCheckpoint.digest,
+      mode: researchCheckpoint.payload?.mode || null,
+    } : null,
     provenance_status: compatibilityOnly
       ? 'compatibility_only'
       : (provenanceComplete ? 'complete' : (readyWithoutProvenance ? 'incomplete' : 'pending_research')),
@@ -623,7 +662,7 @@ function resumeProject({
   let initialized;
   let copiedFiles = [];
   let baselineResult;
-  let workflowResult;
+  let checkpointResult;
   let teamCheckpoint;
   let resumeSnapshot;
   const completeResume = () => {
@@ -660,7 +699,7 @@ function resumeProject({
           classification: repositoryProfile,
         }, { rootDir: absTarget });
       }
-      workflowResult = ensureInitializationWorkflows(db, baselineResult, { rootDir: absTarget });
+      checkpointResult = ensureInitializationCheckpoint(db, baselineResult);
       if (projection?.kind === 'legacy-task-projection') {
         const publication = taskLedger.publishTaskLedger(db, {
           rootDir: absTarget,
@@ -782,7 +821,7 @@ function resumeProject({
     copied_files: copiedFiles,
     repository_profile: repositoryProfile,
     git: gitSetup.result,
-    workflow: workflowResult,
+    checkpoint: checkpointResult,
   };
   if (teamCheckpoint) {
     result.team_checkpoint = {
@@ -889,7 +928,7 @@ function initProject({
 
   let copiedFiles;
   let baselineResult;
-  let workflowResult;
+  let checkpointResult;
   let gitSetup;
   try {
     fs.mkdirSync(ultraDir, { recursive: true });
@@ -908,7 +947,7 @@ function initProject({
         scope: scope === undefined ? ['.'] : scope,
         classification: repositoryProfile,
       }, { rootDir: absTarget });
-      workflowResult = ensureInitializationWorkflows(db, baselineResult, { rootDir: absTarget });
+      checkpointResult = ensureInitializationCheckpoint(db, baselineResult);
       ops.appendEvent(db, {
         type: 'project_initialized',
         payload: {
@@ -966,7 +1005,7 @@ function initProject({
     copied_files: copiedFiles,
     repository_profile: repositoryProfile,
     git: gitSetup.result,
-    workflow: workflowResult,
+    checkpoint: checkpointResult,
   };
   if (backupPath) result.backup_path = backupPath;
   return result;

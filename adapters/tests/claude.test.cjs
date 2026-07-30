@@ -21,6 +21,25 @@ function mkTarget() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-claude-'));
 }
 
+function treeDigest(root) {
+  const entries = [];
+  const pending = [root];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const file = path.join(current, entry.name);
+      if (entry.isDirectory()) pending.push(file);
+      else if (entry.isFile()) {
+        entries.push([
+          path.relative(root, file),
+          fs.readFileSync(file).toString('base64'),
+        ]);
+      }
+    }
+  }
+  return JSON.stringify(entries.sort(([left], [right]) => left.localeCompare(right)));
+}
+
 function skillNames(root) {
   return fs.readdirSync(path.join(root, 'skills'), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(root, 'skills', entry.name, 'SKILL.md')))
@@ -54,21 +73,21 @@ test('install builds the Claude-native plugin from the explicit Ultra allowlist'
     assert.equal(interaction.interaction.question_surface.primary, 'AskUserQuestion');
     assert.equal(interaction.interaction.question_surface.availability, 'interactive_session');
     assert.equal(interaction.persistence.user_interaction_proof, 'not_required');
-    const dialogue = fs.readFileSync(
-      path.join(target, 'skills', 'ultra-think', 'references', 'decision-dialogue.md'),
+    const interactionBoundary = fs.readFileSync(
+      path.join(target, 'skills', 'ultra-think', 'references', 'interaction-boundary.md'),
       'utf8',
     );
-    assert.match(dialogue, /AskUserQuestion/);
-    assert.doesNotMatch(dialogue, /host-native structured question surface declared/);
+    assert.match(interactionBoundary, /AskUserQuestion/);
+    assert.doesNotMatch(interactionBoundary, /host-native structured question surface declared/);
 
     const hooks = JSON.parse(fs.readFileSync(path.join(target, 'hooks', 'hooks.json'), 'utf8'));
     const serialized = JSON.stringify(hooks);
     for (const name of WORKFLOW_HOOK_FILES.filter(
-      (value) => !['context_spine.py', 'runtime_paths.py'].includes(value),
+      (value) => !['context_envelope.py', 'runtime_paths.py'].includes(value),
     )) {
       assert.match(serialized, new RegExp(name.replace('.', '\\.')));
     }
-    assert.ok(fs.existsSync(path.join(target, 'hooks', 'context_spine.py')));
+    assert.ok(fs.existsSync(path.join(target, 'hooks', 'context_envelope.py')));
     assert.doesNotMatch(serialized, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
     assert.match(serialized, /\$\{CLAUDE_PLUGIN_ROOT\}/);
 
@@ -173,5 +192,29 @@ test('install refuses to replace an unmanaged directory', () => {
     );
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('failed Claude rebuild preserves the complete previous managed plugin', () => {
+  const parent = mkTarget();
+  const brokenRepo = mkTarget();
+  const target = path.join(parent, 'skills', 'ultra-builder-pro');
+  try {
+    claude.install({ configDir: parent, repoRoot: REPO_ROOT });
+    const before = treeDigest(target);
+    fs.mkdirSync(path.join(brokenRepo, 'commands'), { recursive: true });
+    fs.copyFileSync(
+      path.join(REPO_ROOT, 'commands', 'ultra-init.md'),
+      path.join(brokenRepo, 'commands', 'ultra-init.md'),
+    );
+
+    assert.throws(
+      () => claude.install({ configDir: parent, repoRoot: brokenRepo }),
+      /missing allowlisted Claude command/,
+    );
+    assert.equal(treeDigest(target), before);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+    fs.rmSync(brokenRepo, { recursive: true, force: true });
   }
 });

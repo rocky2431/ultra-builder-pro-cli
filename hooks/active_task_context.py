@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Protect Ultra managed task files and restate the active workflow boundary."""
+"""Protect managed task files and restate the live Ultra Context Envelope."""
 
 import json
 import sys
 from pathlib import Path
 
-from context_spine import (
-    ContextSpineError,
+from context_envelope import (
+    ContextEnvelopeError,
     find_root,
-    read_breadcrumb,
-    render_breadcrumb,
+    read_context_envelope,
+    render_context_envelope,
 )
 
 TEAM_TASK_LEDGER = Path(".ultra/tasks/tasks.json")
@@ -86,7 +86,7 @@ def main() -> None:
     for target_root in managed_roots(data, start):
         try:
             target_authority = find_root(target_root)
-        except ContextSpineError as exc:
+        except ContextEnvelopeError as exc:
             print(json.dumps(managed_file_denial(
                 "Refusing a direct write to an MCP-managed Ultra task file while the "
                 f"runtime authority is conflicted: {exc}. Resolve the "
@@ -100,13 +100,13 @@ def main() -> None:
             "Refusing a direct write to an MCP-managed Ultra task file. "
             ".ultra/tasks/tasks.json is the MCP-published team checkpoint and "
             ".ultra/.runtime/projections/tasks.json is the checkout-local DB view. "
-            "Use the Ultra MCP task or task.ledger tools."
+            "Use ultra.record for task contracts/outcomes and ultra.sync for the team checkpoint."
         )))
         return
 
     try:
         root = find_root(start)
-    except ContextSpineError as exc:
+    except ContextEnvelopeError as exc:
         print(
             f"[active_task_context] cannot resolve Ultra root: {exc}",
             file=sys.stderr,
@@ -119,7 +119,7 @@ def main() -> None:
                 "Refusing a direct write to an MCP-managed Ultra task file while the "
                 f"runtime authority is conflicted: {exc}. Resolve the "
                 "state.db conflict with ultra-doctor before retrying the owning "
-                "MCP operation."
+                "public Ultra operation."
             )))
             return
         root = None
@@ -131,18 +131,18 @@ def main() -> None:
                 "Refusing a direct write to an MCP-managed Ultra task file. "
                 ".ultra/tasks/tasks.json is the MCP-published team checkpoint and "
                 ".ultra/.runtime/projections/tasks.json is the checkout-local DB view. "
-                "Use the Ultra MCP task or task.ledger tools."
+                "Use ultra.record for task contracts/outcomes and ultra.sync for the team checkpoint."
         )))
         return
     try:
-        breadcrumb = read_breadcrumb(root)
-    except ContextSpineError as exc:
-        print(f"[active_task_context] cannot inspect Context Spine: {exc}", file=sys.stderr)
-        breadcrumb = None
-    if breadcrumb and breadcrumb.get("workflow"):
+        envelope = read_context_envelope(root)
+    except ContextEnvelopeError as exc:
+        print(f"[active_task_context] cannot inspect Context Envelope: {exc}", file=sys.stderr)
+        envelope = None
+    if envelope:
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
-            "additionalContext": render_breadcrumb(root, breadcrumb),
+            "additionalContext": render_context_envelope(root, envelope),
         }}))
         return
     print(json.dumps({}))

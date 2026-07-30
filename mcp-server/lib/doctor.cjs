@@ -13,8 +13,7 @@ const recovery = require('../../orchestrator/recovery.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const changes = require('./change-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
-const workflows = require('./workflow-state.cjs');
-const decisions = require('./decision-dialogue.cjs');
+const stageCheckpoints = require('./stage-checkpoints.cjs');
 const runtimePaths = require('./runtime-paths.cjs');
 const artifactRegistry = require('./artifact-registry.cjs');
 const planStore = require('./plan-store.cjs');
@@ -107,6 +106,76 @@ function inspectTeamTaskLedger(db, rootDir) {
   }
 }
 
+function inspectStageCheckpoints(db) {
+  const rows = db.prepare(
+    `SELECT id, stage, scope_type, scope_id, revision, status, payload_json,
+            evidence_json, diagnostics_json, context_envelope_id, digest,
+            supersedes_id
+     FROM stage_checkpoints ORDER BY stage, scope_type, scope_id, revision`,
+  ).all();
+  const counts = { draft: 0, accepted: 0, superseded: 0 };
+  const issues = [];
+  for (const row of rows) {
+    counts[row.status] = Number(counts[row.status] || 0) + 1;
+    let payload;
+    let evidence;
+    let diagnostics;
+    try {
+      payload = JSON.parse(row.payload_json);
+      evidence = JSON.parse(row.evidence_json);
+      diagnostics = JSON.parse(row.diagnostics_json);
+    } catch {
+      issues.push({ code: 'CHECKPOINT_JSON_INVALID', checkpoint_id: row.id });
+      continue;
+    }
+    const expected = stageCheckpoints.checkpointDigest({
+      stage: row.stage,
+      scope_type: row.scope_type,
+      scope_id: row.scope_id,
+      revision: row.revision,
+      payload,
+      evidence,
+      diagnostics,
+      context_envelope_id: row.context_envelope_id,
+      supersedes_id: row.supersedes_id,
+    });
+    if (expected !== row.digest) {
+      issues.push({ code: 'CHECKPOINT_DIGEST_MISMATCH', checkpoint_id: row.id });
+    }
+  }
+  return {
+    status: issues.length === 0 ? 'pass' : 'fail',
+    total: rows.length,
+    ...counts,
+    issues,
+  };
+}
+
+function inspectDecisionRecords(db) {
+  const rows = db.prepare(
+    `SELECT id, status, digest, artifact_path
+     FROM decision_records ORDER BY created_at, id`,
+  ).all();
+  return {
+    status: 'pass',
+    total: rows.length,
+    accepted: rows.filter((row) => row.status === 'accepted').length,
+    superseded: rows.filter((row) => row.status === 'superseded').length,
+  };
+}
+
+function inspectLegacyHistory(db) {
+  const count = (table) => db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count;
+  return {
+    status: 'informational',
+    workflow_runs: count('workflow_runs'),
+    workflow_steps: count('workflow_steps'),
+    decision_threads: count('decision_threads'),
+    decision_items: count('decision_items'),
+    authority: false,
+  };
+}
+
 function inspectSystem(db, { rootDir = process.cwd() } = {}) {
   const tables = new Set(tableNames(db));
   const missing = REQUIRED_TABLES.filter((name) => !tables.has(name));
@@ -141,18 +210,21 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
   const baseline = missing.length === 0
     ? baselines.inspectBaseline(db, { rootDir })
     : { status: 'fail', blockers: ['BASELINE_STATE_UNAVAILABLE'], warnings: [], baseline: null };
-  const workflowHealth = missing.length === 0
-    ? workflows.inspectWorkflowHealth(db, { rootDir })
-    : {
-      status: 'fail', active: 0, blocked: 0, ready: 0, stale_outputs: [],
-      historical_stale_outputs: [], terminal_authority_runs: [], untracked_active_changes: [],
-    };
+  const checkpointHealth = missing.length === 0
+    ? inspectStageCheckpoints(db)
+    : { status: 'fail', total: 0, issues: [{ code: 'STATE_DB_UNAVAILABLE' }] };
   const decisionHealth = missing.length === 0
-    ? decisions.inspectDecisionHealth(db, { rootDir })
+    ? inspectDecisionRecords(db)
+    : { status: 'fail', total: 0, accepted: 0, superseded: 0 };
+  const legacyHistory = missing.length === 0
+    ? inspectLegacyHistory(db)
     : {
-      status: 'fail', active: 0, completed: 0, awaiting_owner: 0, awaiting_blocking: 0,
-      checkpoint_ready: 0,
-      deferred_blocking: 0, stale_artifacts: [], current: null, current_thread_id: null,
+      status: 'informational',
+      workflow_runs: 0,
+      workflow_steps: 0,
+      decision_threads: 0,
+      decision_items: 0,
+      authority: false,
     };
   const artifactHealth = missing.length === 0
     ? artifactRegistry.inspectArtifactHealth(db, { rootDir })
@@ -170,7 +242,7 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
     || pending.length > 0 || running.length > 0 || failed.length > 0 || orphanSessions > 0 || activeMissing > 0
     || sessionCloses.status === 'fail'
     || archiveIntents.length > 0
-    || eventCursor > projectedCursor || workflowHealth.status === 'fail'
+    || eventCursor > projectedCursor || checkpointHealth.status === 'fail'
     || decisionHealth.status === 'fail'
     || artifactHealth.status === 'fail'
     || planPublications.status === 'fail'
@@ -213,22 +285,9 @@ function inspectSystem(db, { rootDir = process.cwd() } = {}) {
         blockers: baseline.blockers,
         warnings: baseline.warnings,
       },
-      workflows: {
-        status: workflowHealth.status === 'fail'
-          ? 'fail'
-          : (workflowHealth.blocked > 0
-            || workflowHealth.historical_stale_outputs.length > 0
-            || workflowHealth.terminal_authority_runs.length > 0
-            || workflowHealth.untracked_active_changes.length > 0 ? 'warning' : 'pass'),
-        active: workflowHealth.active,
-        blocked: workflowHealth.blocked,
-        ready: workflowHealth.ready,
-        stale_outputs: workflowHealth.stale_outputs,
-        historical_stale_outputs: workflowHealth.historical_stale_outputs,
-        terminal_authority_runs: workflowHealth.terminal_authority_runs,
-        untracked_active_changes: workflowHealth.untracked_active_changes,
-      },
+      checkpoints: checkpointHealth,
       decisions: decisionHealth,
+      legacy_history: legacyHistory,
       external_providers: {
         status: 'pass', ownership: 'external',
         note: 'Ultra stores provider metadata references only and never owns memory or code-graph content.',
@@ -469,7 +528,7 @@ async function runDoctor(db, {
         recovered,
         plan_publications: deferred,
         archives: deferred,
-        workflows: deferred,
+        legacy_history: deferred,
       },
     };
   }
@@ -496,7 +555,7 @@ async function runDoctor(db, {
         recovered,
         plan_publications: planGate,
         archives: deferred,
-        workflows: deferred,
+        legacy_history: deferred,
         spec_events: deferred,
         interrupted: deferred,
         requeued: deferred,
@@ -529,7 +588,7 @@ async function runDoctor(db, {
         recovered,
         plan_publications: planPublications,
         archives: archiveGate,
-        workflows: deferred,
+        legacy_history: deferred,
         spec_events: deferred,
         interrupted: deferred,
         requeued: deferred,
@@ -538,7 +597,6 @@ async function runDoctor(db, {
       },
     };
   }
-  const workflowRecovery = workflows.recoverUntrackedChangeWorkflows(db, { rootDir });
   const cursor = runtime.readConsumerCursor(db, SPEC_CONSUMER);
   const consumed = ops.consumeSpecChangedEvents(db, { since_id: cursor, limit: 500 });
   runtime.writeConsumerCursor(db, SPEC_CONSUMER, consumed.next_since_id);
@@ -555,7 +613,7 @@ async function runDoctor(db, {
     repair: {
       close_intents: recovered,
       plan_publications: planPublications,
-      archives, workflows: workflowRecovery, recovered, consumed,
+      archives, recovered, consumed,
       interrupted, requeued, ensured, projections,
     },
   };

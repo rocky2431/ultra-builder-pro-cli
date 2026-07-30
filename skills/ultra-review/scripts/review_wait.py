@@ -66,6 +66,10 @@ def nonempty_string(value) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+def digest_string(value) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+
+
 def validate_finding(finding, artifact_axis: str, seen_ids):
     if not isinstance(finding, dict):
         return "finding must be an object"
@@ -97,6 +101,8 @@ def validate_specialist(data):
         return f"$schema must be {FINDINGS_SCHEMA}"
     if not nonempty_string(data.get("agent")):
         return "agent must be a non-empty string"
+    if not digest_string(data.get("packet_digest")):
+        return "packet_digest must be a lowercase SHA-256 digest"
     axis = data.get("axis")
     if axis not in AXES:
         return "axis must be spec_fidelity or engineering_standards"
@@ -197,6 +203,8 @@ def validate_summary(data):
     for field in ["session", "change_id", "head", "context_digest"]:
         if not nonempty_string(data.get(field)):
             return f"{field} must be a non-empty string"
+    if not digest_string(data.get("packet_digest")):
+        return "packet_digest must be a lowercase SHA-256 digest"
     if data.get("worktree_digest") is not None and not nonempty_string(data.get("worktree_digest")):
         return "worktree_digest must be null or a non-empty string"
     task_ids = data.get("task_ids")

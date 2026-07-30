@@ -68,15 +68,14 @@ def test_completed_change_allows_stop(tmp_path):
     assert result == {}
 
 
-def test_active_change_with_invalid_ready_baseline_is_advisory_and_routes_to_doctor(tmp_path):
+def test_active_change_with_invalid_ready_baseline_is_advisory_and_points_to_context(tmp_path):
     write_active_change(tmp_path)
     result, stderr = run_hook(tmp_path, {})
     assert result == {}
     assert "change-1" in stderr
     assert "task-1" in stderr
-    assert "ultra-doctor" in stderr
-    assert "allowed_transitions=" in stderr
-    assert "required_transition=none" in stderr
+    assert "ultra.context" in stderr
+    assert "diagnostics=" in stderr
 
 
 def test_retrigger_allows_stop_to_avoid_a_loop(tmp_path):

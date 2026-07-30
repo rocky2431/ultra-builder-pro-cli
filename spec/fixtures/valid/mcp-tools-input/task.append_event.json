@@ -1,7 +1,0 @@
-{
-  "task_id": "task-001",
-  "session_id": "ses_2026_04_17_a1b2c3",
-  "runtime": "claude",
-  "type": "cost_alert",
-  "payload": { "by": "user", "note": "Phase 1 kicked off" }
-}

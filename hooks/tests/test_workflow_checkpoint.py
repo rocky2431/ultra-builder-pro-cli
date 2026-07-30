@@ -1,4 +1,4 @@
-"""Compaction recovery is a read-only projection of the canonical DB breadcrumb."""
+"""Compaction recovery is an advisory copy of the canonical Context Envelope."""
 
 import json
 import sqlite3
@@ -86,14 +86,15 @@ def test_checkpoint_captures_only_the_db_breadcrumb(tmp_path):
         "workflow_checkpoint.py", tmp_path, {"session_id": "session-checkpoint"}
     )
     assert stderr == ""
-    assert output["systemMessage"] == "Ultra workflow checkpoint saved."
+    assert output["systemMessage"] == "Ultra Context Envelope checkpoint saved."
     checkpoint_file = tmp_path / ".ultra" / ".runtime" / "checkpoint.json"
     checkpoint = json.loads(checkpoint_file.read_text(encoding="utf-8"))
-    assert checkpoint["schema"] == 2
+    assert checkpoint["schema"] == 3
     assert checkpoint["session_id"] == "session-checkpoint"
-    assert checkpoint["breadcrumb"]["change_id"] == "change-checkpoint"
-    assert checkpoint["breadcrumb"]["task_id"] == "task-checkpoint"
-    assert checkpoint["breadcrumb"]["workflow"]["id"] == "wf-checkpoint"
+    assert checkpoint["context_digest"] == checkpoint["context"]["digest"]
+    envelope = checkpoint["context"]["envelope"]
+    assert envelope["change"]["id"] == "change-checkpoint"
+    assert envelope["task"]["id"] == "task-checkpoint"
 
 
 def test_resume_uses_live_db_and_ignores_conflicting_legacy_projection(tmp_path):

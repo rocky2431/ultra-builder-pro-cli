@@ -7,7 +7,7 @@ not create or rewrite that file.
 ## Product boundary
 
 Ultra Builder Pro is a host-adapted workflow plugin for Claude Code, Codex, OpenCode,
-and Kimi Code. It owns durable project checkpoints, evidence, recovery, host adapters,
+Kimi Code, and Grok Build. It owns durable project checkpoints, evidence, recovery, host adapters,
 and the minimal prompts required to operate them. The host model owns semantic
 reasoning and route selection; MCP is a persistence and safety kernel, not a
 fine-grained workflow supervisor.
@@ -22,14 +22,16 @@ Keep those capabilities in separately installed owner packages.
 
 - `adapters/_shared/runtime-assets.cjs`: packaged Skill, hook, and collaboration allowlists.
 - `docs/PLUGIN-ISOLATION-CONTRACT.md`: installation, activation, idle, and ownership boundaries.
-- `mcp-server/lib/ultra-facade.cjs`: seven-tool model-facing MCP kernel.
-- `mcp-server/lib/workflow-state.cjs`: hidden compatibility bookkeeping and durable
-  checkpoint validation.
-- `spec/mcp-tools.yaml`: seven public contracts plus one-release hidden compatibility
-  contracts.
+- `mcp-server/lib/ultra-facade.cjs`: the complete seven-tool persistence and safety kernel.
+- `mcp-server/lib/stage-checkpoints.cjs`: reversible draft and immutable accepted
+  checkpoint history.
+- `mcp-server/lib/context-envelope.cjs`: the single Context Envelope generator used by
+  Skills, Hooks, Sessions, and Workers.
+- `spec/mcp-tools.yaml`: exactly seven public contracts.
 - `skills/*/SKILL.md`: reusable workflow prompts.
 - Codex plugin Skills: native `$ultra-builder-pro:<skill>` entry points.
-- `.ultra/.runtime/state.db`: lifecycle, index, transition, freshness, and coordination authority
+- `.ultra/.runtime/state.db`: checkout-local facts, index, freshness, leases, CAS,
+  journals, and coordination authority
   at runtime.
 - `docs/ARTIFACT-AUTHORITY.md`: authority and promotion rules for every `.ultra/`
   artifact class.

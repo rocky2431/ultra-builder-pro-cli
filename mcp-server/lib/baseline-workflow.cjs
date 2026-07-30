@@ -7,7 +7,7 @@ const { spawnSync } = require('node:child_process');
 
 const ops = require('./state-ops.cjs');
 const providerRefs = require('./provider-refs.cjs');
-const workflows = require('./workflow-state.cjs');
+const checkpoints = require('./stage-checkpoints.cjs');
 
 const BASELINE_ID = /^[a-zA-Z0-9_-]+$/;
 const MODES = new Set(['greenfield', 'brownfield']);
@@ -718,47 +718,44 @@ function storedReadyInvariantBlockers(baseline) {
   return [...new Set(blockers)];
 }
 
-function completedBaselineResearch(db, baseline, rootDir) {
-  const acceptedMode = baseline.mode === 'greenfield' ? 'full' : 'adoption';
-  const rows = db.prepare(
-    `SELECT id FROM workflow_runs
-     WHERE kind = 'research' AND baseline_id = ? AND mode = ? AND status = 'completed'
-     ORDER BY completed_at DESC, rowid DESC`,
-  ).all(baseline.id, acceptedMode);
-  const row = rows.find((candidate) => workflows.isConsumableWorkflowAuthority(
-    workflows.readWorkflow(db, candidate.id, { rootDir }),
-  ));
-  return row ? workflows.readWorkflow(db, row.id, { rootDir }) : null;
+function acceptedBaselineResearch(db, baseline) {
+  return checkpoints.currentCheckpoint(
+    db,
+    'research',
+    { baseline_id: baseline.id },
+    { includeDraft: false },
+  );
 }
 
-function convergenceResearchBlockers(db, baseline, rootDir) {
-  const run = completedBaselineResearch(db, baseline, rootDir);
-  if (!run) return ['BASELINE_RESEARCH_INCOMPLETE'];
-  return run.artifact_health.blockers.map((item) => `BASELINE_RESEARCH_${item}`);
+function convergenceResearchBlockers(db, baseline) {
+  const checkpoint = acceptedBaselineResearch(db, baseline);
+  if (!checkpoint) return ['BASELINE_RESEARCH_INCOMPLETE'];
+  return [];
 }
 
-function storedResearchHealth(db, baseline, rootDir) {
-  if (!baseline.research_run_id) {
+function storedResearchHealth(db, baseline) {
+  const checkpointId = baseline.research_checkpoint_id || baseline.research_run_id;
+  if (!checkpointId) {
     return { blockers: ['BASELINE_RESEARCH_PROVENANCE_MISSING'], warnings: [] };
   }
-  const run = workflows.readWorkflow(db, baseline.research_run_id, { rootDir });
-  if (!run || run.kind !== 'research' || run.status !== 'completed') {
+  let checkpoint;
+  try {
+    checkpoint = checkpoints.readCheckpoint(db, checkpointId);
+  } catch (error) {
+    if (error?.code === 'CHECKPOINT_DIGEST_MISMATCH') {
+      return { blockers: ['BASELINE_RESEARCH_RECORD_INVALID'], warnings: [] };
+    }
+    throw error;
+  }
+  if (!checkpoint
+      || checkpoint.stage !== 'research'
+      || checkpoint.scope_type !== 'baseline'
+      || checkpoint.scope_id !== baseline.id
+      || checkpoint.status !== 'accepted'
+      || checkpoints.checkpointDigest(checkpoint) !== checkpoint.digest) {
     return { blockers: ['BASELINE_RESEARCH_RECORD_INVALID'], warnings: [] };
   }
-  const livingSpecifications = new Set(
-    (Array.isArray(baseline.spec_refs) ? baseline.spec_refs : [])
-      .map((item) => item?.path).filter(Boolean),
-  );
-  const blockers = run.artifact_health.blockers.filter((item) => {
-    const separator = item.indexOf(':');
-    if (separator < 0) return true;
-    const artifactPath = item.slice(separator + 1);
-    return !livingSpecifications.has(artifactPath);
-  });
-  return {
-    blockers: blockers.map((item) => `BASELINE_RESEARCH_${item}`),
-    warnings: [],
-  };
+  return { blockers: [], warnings: checkpoint.diagnostics || [] };
 }
 
 function convergenceBlockers(db, baseline, input, rootDir) {
@@ -780,7 +777,7 @@ function convergenceBlockers(db, baseline, input, rootDir) {
   for (const kind of ['discovery', 'product', 'architecture']) {
     if (!baseline.spec_refs.some((ref) => ref.kind === kind)) blockers.add(`BASELINE_SPEC_MISSING:${kind}`);
   }
-  for (const blocker of convergenceResearchBlockers(db, baseline, rootDir)) blockers.add(blocker);
+  for (const blocker of convergenceResearchBlockers(db, baseline)) blockers.add(blocker);
   for (const blocker of storedSpecBlockers(baseline, rootDir)) blockers.add(blocker);
   for (const blocker of storedEvidenceBlockers(baseline, rootDir)) blockers.add(blocker);
   for (const blocker of storedScopeBlockers(baseline, rootDir)) blockers.add(blocker);
@@ -834,11 +831,12 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
     });
     return { ready: false, status: 'blocked', blockers, baseline: readBaseline(db, current.id) };
   }
-  const research = completedBaselineResearch(db, current, rootDir);
+  const research = acceptedBaselineResearch(db, current);
   ops.tx(db, () => {
     db.prepare(
       `UPDATE baselines SET status = 'ready', approved_by = ?, approval_note = ?,
-       worktree_accepted = ?, known_red_accepted = ?, research_run_id = ?,
+       worktree_accepted = ?, known_red_accepted = ?, research_checkpoint_id = ?,
+       research_run_id = NULL,
        converged_at = ?, updated_at = ? WHERE id = ?`,
     ).run(
       String(input.approved_by).trim(), String(input.approval_note).trim(),
@@ -874,7 +872,7 @@ function inspectBaseline(db, { rootDir = process.cwd(), id } = {}) {
       status: 'fail', blockers: [`BASELINE_NOT_READY:${baseline.status}`], warnings: [], baseline,
     };
   }
-  const research = storedResearchHealth(db, baseline, rootDir);
+  const research = storedResearchHealth(db, baseline);
   const blockers = [
     ...storedReadyInvariantBlockers(baseline),
     ...(Array.isArray(baseline.scope) ? storedScopeBlockers(baseline, rootDir) : []),

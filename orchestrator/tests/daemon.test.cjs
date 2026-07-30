@@ -14,6 +14,8 @@ const { execFileSync } = require('node:child_process');
 
 const { initStateDb, closeStateDb } = require('../../mcp-server/lib/state-db.cjs');
 const ops = require('../../mcp-server/lib/state-ops.cjs');
+const checkpoints = require('../../mcp-server/lib/stage-checkpoints.cjs');
+const taskLedger = require('../../mcp-server/lib/task-ledger.cjs');
 const daemon = require('../daemon.cjs');
 const sessionRunner = require('../session-runner.cjs');
 const RETIRED_RUNTIME = ['gem', 'ini'].join('');
@@ -71,6 +73,66 @@ function seedUnapprovedChangeTask(db, id) {
     ownership: { owner: 'test-owner', reviewers: [] },
     trace_to: 'spec/mcp-tools.yaml#session-family',
   });
+}
+
+function seedRunnableChangeTask(db, id, overrides = {}) {
+  const changeId = `${id}-change`;
+  db.prepare(
+    `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+     VALUES (?, ?, 'standard', 'active', ?, ?)`,
+  ).run(
+    changeId,
+    `Change for ${id}`,
+    `Execute ${id} through one immutable Worker Packet.`,
+    `.ultra/changes/active/${changeId}`,
+  );
+  const task = ops.createTask(db, {
+    id,
+    title: `Runnable ${id}`,
+    type: 'feature',
+    priority: 'P1',
+    change_id: changeId,
+    outcome: `${id} produces observable execution evidence.`,
+    slice_kind: 'tracer_bullet',
+    public_seam: `daemon:${id}`,
+    verification_command: 'node --test orchestrator/tests/daemon.test.cjs',
+    acceptance: [{
+      id: `${id}-acceptance`,
+      criterion: `${id} is dispatched with an immutable Worker Packet.`,
+      verification: 'node --test orchestrator/tests/daemon.test.cjs',
+    }],
+    context_refs: [{
+      ref: 'README.md',
+      reason: 'Stable daemon fixture context.',
+      required: true,
+      freshness: 'existence',
+    }],
+    docs_impact: { status: 'none', files: [], rationale: 'No public documentation change.' },
+    ownership: { owner: 'test-owner', reviewers: [] },
+    trace_to: 'README.md#ultra-builder-pro',
+    ...overrides,
+  });
+  const draft = checkpoints.saveDraft(db, {
+    stage: 'plan',
+    scope: { change_id: changeId },
+    payload: {
+      summary: `Accepted Plan for ${id}.`,
+      plan: {
+        task_ids: [id],
+        task_contract_digests: {
+          [id]: taskLedger.durableTask(task).digest,
+        },
+      },
+    },
+    evidence: [],
+    diagnostics: [],
+    idempotency_key: `${id}-plan-draft`,
+  });
+  checkpoints.acceptDraft(db, {
+    id: draft.id,
+    idempotency_key: `${id}-plan-accept`,
+  });
+  return task;
 }
 
 function cleanup(repoRoot, db, handle) {
@@ -149,9 +211,7 @@ test('runDaemon treats process success as execution evidence, not task completio
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, {
-      id: 'd-success', title: 'await workflow gates', type: 'feature', priority: 'P1',
-    });
+    seedRunnableChangeTask(db, 'd-success', { title: 'await checkpoint evidence' });
     handle = daemon.runDaemon({
       db, repoRoot, runtimes: ['codex'], pollMs: 25,
       command: process.execPath, commandArgs: ['-e', 'process.exit(0)'],
@@ -173,8 +233,8 @@ test('runDaemon blocks failed executions and records circuit-breaker evidence', 
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, {
-      id: 'd-failure', title: 'recover explicitly', type: 'bugfix', priority: 'P0',
+    seedRunnableChangeTask(db, 'd-failure', {
+      title: 'recover explicitly', type: 'bugfix', priority: 'P0',
     });
     handle = daemon.runDaemon({
       db, repoRoot, runtimes: ['opencode'], pollMs: 25,
@@ -206,8 +266,8 @@ test('runDaemon settles a worker spawn error instead of leaving a running sessio
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, {
-      id: 'd-spawn-error', title: 'missing executable', type: 'bugfix', priority: 'P0',
+    seedRunnableChangeTask(db, 'd-spawn-error', {
+      title: 'missing executable', type: 'bugfix', priority: 'P0',
     });
     handle = daemon.runDaemon({
       db, repoRoot, runtimes: ['codex'], pollMs: 25,
@@ -235,7 +295,7 @@ test('runDaemon promptly spawns a pending task after the immediate poll', async 
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, { id: 'd-1', title: 'pending target', type: 'feature', priority: 'P1' });
+    seedRunnableChangeTask(db, 'd-1', { title: 'pending target' });
     handle = daemon.runDaemon({
       db, repoRoot,
       runtimes: ['claude'],
@@ -369,13 +429,11 @@ test('runDaemon serializes pending tasks with overlapping declared files', async
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, {
-      id: 'd-file-a', title: 'first writer', type: 'feature', priority: 'P1',
-      files_modified: ['shared.txt'],
+    seedRunnableChangeTask(db, 'd-file-a', {
+      title: 'first writer', files_modified: ['shared.txt'],
     });
-    ops.createTask(db, {
-      id: 'd-file-b', title: 'second writer', type: 'feature', priority: 'P1',
-      files_modified: ['shared.txt'],
+    seedRunnableChangeTask(db, 'd-file-b', {
+      title: 'second writer', files_modified: ['shared.txt'],
     });
     handle = daemon.runDaemon({
       db, repoRoot,
@@ -401,7 +459,7 @@ test('runDaemon does not double-spawn same task', async () => {
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, { id: 'd-once', title: 'single', type: 'feature', priority: 'P1' });
+    seedRunnableChangeTask(db, 'd-once', { title: 'single' });
     handle = daemon.runDaemon({
       db, repoRoot,
       runtimes: ['claude'],
@@ -422,7 +480,7 @@ test('runDaemon.stop() halts polling; existing children stay alive', async () =>
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, { id: 'd-stop', title: 'stop test', type: 'feature', priority: 'P1' });
+    seedRunnableChangeTask(db, 'd-stop', { title: 'stop test' });
     handle = daemon.runDaemon({
       db, repoRoot,
       runtimes: ['claude'],
@@ -456,9 +514,7 @@ test('runDaemon.stop() stops polling but keeps supervising an existing child to 
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, {
-      id: 'd-stop-supervision', title: 'settle after stop', type: 'feature', priority: 'P1',
-    });
+    seedRunnableChangeTask(db, 'd-stop-supervision', { title: 'settle after stop' });
     handle = daemon.runDaemon({
       db, repoRoot, runtimes: ['claude'], pollMs: 25,
       command: process.execPath,
@@ -487,9 +543,7 @@ test('runDaemon ignores the late exit of a session replaced by explicit takeover
   let handle;
   let replacement;
   try {
-    ops.createTask(db, {
-      id: 'd-takeover', title: 'replace worker', type: 'feature', priority: 'P1',
-    });
+    seedRunnableChangeTask(db, 'd-takeover', { title: 'replace worker' });
     handle = daemon.runDaemon({
       db, repoRoot, runtimes: ['claude'], pollMs: 25,
       command: LONG_SLEEP_CMD, commandArgs: LONG_SLEEP_ARGS,
@@ -498,6 +552,16 @@ test('runDaemon ignores the late exit of a session replaced by explicit takeover
       () => db.prepare("SELECT * FROM sessions WHERE task_id = 'd-takeover'").get(),
       (row) => row?.status === 'running',
     );
+    const packet = db.prepare(
+      `SELECT packet_digest
+         FROM worker_packets
+        WHERE scope_type = 'task'
+          AND scope_id = 'd-takeover'
+          AND status = 'assigned'
+        ORDER BY created_at DESC
+        LIMIT 1`,
+    ).get();
+    assert.match(packet.packet_digest, /^[0-9a-f]{64}$/);
     replacement = sessionRunner.spawnSession({
       db,
       repoRoot,
@@ -506,6 +570,8 @@ test('runDaemon ignores the late exit of a session replaced by explicit takeover
       command: LONG_SLEEP_CMD,
       args: LONG_SLEEP_ARGS,
       takeover: true,
+      kernel_mode: true,
+      packet_digest: packet.packet_digest,
     });
     await new Promise((resolve) => setTimeout(resolve, 150));
 
@@ -534,8 +600,8 @@ test('runDaemon branchScoped=true only spawns tasks matching cwd branch tag', as
     // Normalize to a known branch name so the test doesn't depend on
     // the dev machine's git init.defaultBranch config.
     execFileSync('git', ['checkout', '-q', '-B', 'main'], { cwd: repoRoot });
-    ops.createTask(db, { id: 'd-branch-match', title: 'main task', type: 'feature', priority: 'P1', tag: 'main' });
-    ops.createTask(db, { id: 'd-branch-other', title: 'other task', type: 'feature', priority: 'P1', tag: 'feat-other' });
+    seedRunnableChangeTask(db, 'd-branch-match', { title: 'main task', tag: 'main' });
+    seedRunnableChangeTask(db, 'd-branch-other', { title: 'other task', tag: 'feat-other' });
     handle = daemon.runDaemon({
       db, repoRoot,
       runtimes: ['claude'],
@@ -559,8 +625,10 @@ test('runDaemon respects explicit runtime order even when a legacy hint is prese
   const db = mkDb(repoRoot);
   let handle;
   try {
-    ops.createTask(db, {
-      id: 'd-opus', title: 'legacy routed task', type: 'architecture', priority: 'P0',
+    seedRunnableChangeTask(db, 'd-opus', {
+      title: 'legacy routed task',
+      type: 'architecture',
+      priority: 'P0',
       complexity_hint: 'opus',
     });
     handle = daemon.runDaemon({

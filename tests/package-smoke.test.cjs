@@ -132,7 +132,7 @@ function writeDeadOwnerLock(projectDir, sid) {
   return lockPath;
 }
 
-async function verifyMcp(launcher, projectDir) {
+async function verifyMcp(launcher, projectDir, { migrateLegacy = false } = {}) {
   fs.mkdirSync(projectDir, { recursive: true });
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -150,9 +150,58 @@ async function verifyMcp(launcher, projectDir) {
       fs.existsSync(path.join(projectDir, '.ultra', '.runtime', 'state.db')),
       false,
     );
-    const listed = await client.callTool({ name: 'task.list', arguments: {} });
-    assert.notEqual(listed.isError, true, listed.content?.[0]?.text || 'task.list failed');
-    assert.ok(fs.existsSync(path.join(projectDir, '.ultra', '.runtime', 'state.db')));
+    if (migrateLegacy) {
+      const inspection = await client.callTool({
+        name: 'ultra.sync',
+        arguments: { action: 'inspect' },
+      });
+      assert.notEqual(
+        inspection.isError,
+        true,
+        inspection.content?.[0]?.text || 'ultra.sync inspect failed',
+      );
+      assert.equal(inspection.structuredContent.status, 'migration_required');
+      const migrated = await client.callTool({
+        name: 'ultra.sync',
+        arguments: { action: 'migrate' },
+      });
+      assert.notEqual(
+        migrated.isError,
+        true,
+        migrated.content?.[0]?.text || 'ultra.sync migrate failed',
+      );
+      assert.equal(migrated.structuredContent.migrated, true);
+    }
+    const initialized = await client.callTool({
+      name: 'ultra.record',
+      arguments: {
+        entries: [{
+          kind: 'baseline',
+          action: 'initialize',
+          data: {
+            target_dir: projectDir,
+            project_name: 'package-smoke',
+            mode: 'greenfield',
+            git_mode: 'initialize',
+          },
+          idempotency_key: `package-smoke-${path.basename(projectDir)}`,
+        }],
+      },
+    });
+    assert.notEqual(
+      initialized.isError,
+      true,
+      initialized.content?.[0]?.text || 'ultra.record initialize failed',
+    );
+    assert.equal(
+      initialized.structuredContent.accepted,
+      true,
+      `${launcher}: ${JSON.stringify(initialized.structuredContent)}`,
+    );
+    assert.ok(
+      fs.existsSync(path.join(projectDir, '.ultra', '.runtime', 'state.db')),
+      `ultra.record initialize did not create canonical state for ${launcher}`,
+    );
   } finally {
     await client.close();
   }
@@ -205,6 +254,19 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     assert.equal(packedPaths.some((file) => file === 'skills/learn/SKILL.md'), false);
     assert.equal(packedPaths.some((file) => file === 'commands/learn.md'), false);
     assert.equal(packedPaths.some((file) => file.startsWith('output-styles/')), false);
+    for (const legacyModule of [
+      'workflow-state.cjs',
+      'decision-dialogue.cjs',
+      'context-spine.cjs',
+      'project-breadcrumb.cjs',
+      'spec-learning.cjs',
+    ]) {
+      assert.equal(
+        packedPaths.includes(`mcp-server/lib/${legacyModule}`),
+        false,
+        `tarball must not ship retired semantic supervisor ${legacyModule}`,
+      );
+    }
     assert.ok(
       fs.existsSync(path.join(
         packageRoot,
@@ -270,7 +332,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     }
 
     const configRoot = path.join(tempRoot, 'hosts');
-    for (const runtime of ['claude', 'opencode', 'codex', 'kimi']) {
+    for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok']) {
       const hostRoot = path.join(configRoot, runtime);
       const env = runtime === 'codex' ? { HOME: hostRoot } : {};
       run(ubp, [`--${runtime}`, '--config-dir', hostRoot], {
@@ -290,6 +352,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
       opencode: path.join(configRoot, 'opencode', '.ultra-builder-pro'),
       codex: path.join(configRoot, 'codex', 'plugins', 'ultra-builder-pro'),
       kimi: path.join(configRoot, 'kimi', 'plugins', 'managed', 'ultra-builder-pro'),
+      grok: path.join(configRoot, 'grok', 'plugins', 'ultra-builder-pro'),
     };
     for (const [runtime, root] of Object.entries(installedRoots)) {
       const contract = JSON.parse(fs.readFileSync(
@@ -319,6 +382,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
       opencode: path.join(configRoot, 'opencode', '.ultra-builder-pro', 'runtime', 'launch.cjs'),
       codex: path.join(configRoot, 'codex', 'plugins', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
       kimi: path.join(configRoot, 'kimi', 'plugins', 'managed', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
+      grok: path.join(configRoot, 'grok', 'plugins', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
     };
     for (const [runtime, launcher] of Object.entries(launchers)) {
       assert.ok(fs.existsSync(launcher), `${runtime} launcher missing`);
@@ -342,10 +406,19 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
         fs.existsSync(archiveMutationWorker),
         `${runtime} archive mutation worker missing`,
       );
+      const runtimeSource = fs.readFileSync(
+        path.join(path.dirname(launcher), 'index.cjs'),
+        'utf8',
+      );
       assert.match(
-        fs.readFileSync(path.join(path.dirname(launcher), 'index.cjs'), 'utf8'),
+        runtimeSource,
         /archive-mutation-worker\.py/,
         `${runtime} bundled MCP does not resolve the installed archive worker`,
+      );
+      assert.doesNotMatch(
+        runtimeSource,
+        /const WORKFLOW_DEFINITIONS|function startWorkflow\(/,
+        `${runtime} bundled MCP contains the retired semantic supervisor`,
       );
       invokeArchiveMutationWorker(
         archiveMutationWorker,
@@ -360,7 +433,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
       if (runtime === 'codex') {
         prepareLegacyMcpProject(ultraTools, projectDir, consumer);
       }
-      await verifyMcp(launcher, projectDir);
+      await verifyMcp(launcher, projectDir, { migrateLegacy: runtime === 'codex' });
       const journalSid = `package-${runtime}`;
       const worktreePath = path.join(
         projectDir,

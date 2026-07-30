@@ -1,251 +1,163 @@
-# Ultra Builder Pro — Agent Context
+# Ultra Builder Pro agent context contract
 
-Current shared runtime contract for the native Claude Code, OpenCode, Codex,
-and Kimi Code plugins.
+This is the shared runtime contract for Claude Code, Codex, OpenCode, Kimi Code,
+and Grok Build.
 
-## 1. Ownership boundary
+## Ownership
 
-Ultra Builder Pro owns only:
+Ultra owns:
 
-- eleven public capabilities: `ultra-init`, `ultra-research`, `ultra-plan`,
-  `ultra-dev`, `ultra-test`, `ultra-review`, `ultra-deliver`, `ultra-status`,
-  `ultra-think`, `ultra-change`, and `ultra-doctor`;
-- four internal agent-only rule skills: `code-review-expert`, `security-rules`,
-  `integration-rules`, and `testing-rules`;
-- the host-specific collaboration companions, `ultra-verify`, and host-native
-  explicit command or skill entry points;
-- bounded review/debug agents, workflow-only hooks, MCP task state, and the
-  portable CLI/orchestrator.
+- eleven explicit workflow Skills: `ultra-init`, `ultra-research`, `ultra-think`,
+  `ultra-change`, `ultra-plan`, `ultra-dev`, `ultra-test`, `ultra-review`,
+  `ultra-deliver`, `ultra-status`, and `ultra-doctor`;
+- four internal worker-rule Skills;
+- bounded review/debug workers;
+- deterministic workflow Hooks;
+- exactly seven public MCP tools;
+- `.ultra` project authority, team sync, recovery, and the portable installer.
 
-Browser automation, deployment helpers, skill discovery, Vercel guidance, and
-other framework skills are external packages. Adapters build exclusively from
-`adapters/_shared/runtime-assets.cjs`; adding a directory under `skills/` does
-not put it in a plugin until that allowlist classifies it.
+Ultra does not own general memory, code graphs, browser or deployment providers,
+framework guidance, global user instructions, or unrelated Skills.
 
-## 2. Three-layer architecture
+## Runtime model
 
 ```text
-native command or skill -> 7-tool MCP safety kernel -> .ultra/.runtime/state.db
-                                      | \
-                                      |  -> .ultra/tasks/tasks.json (Git checkpoint)
-                                      |  -> .ultra/.runtime/projections/ (local views)
-                                      ^
-                         CLI diagnostics / orchestration
+explicit Skill
+  -> canonical Context Envelope
+  -> host model reasoning and owner interaction
+  -> typed ultra.record
+  -> mutable Stage Checkpoint draft
+  -> accepted immutable revision
+  -> evidence / team sync / archive
 ```
 
-| Layer | Artifact | Contract |
-|---|---|---|
-| Skill/command | `skills/*/SKILL.md`, `commands/*.md` | Model-facing workflow and host-native entry point |
-| MCP | `mcp-server/server.cjs` | Persistence, semantic checkpoints, team sync, leases, archive transactions, and mechanical recovery |
-| CLI | `ultra-tools`, `ubp-orchestrator` | Selected initialization, backup-first recovery, automation, and diagnostics; not a change-state mirror |
+The host model recommends semantic routes. The user selects material intent and
+external effects. MCP persists facts and enforces mechanical safety. A Hook may
+observe or inject context, but cannot create a decision or accept a checkpoint.
 
-`.ultra/` is project-local cross-session workflow memory for normalized intent,
-progress, tasks, bounded context, specifications, evidence, provenance, and recovery.
-`.ultra/.runtime/state.db` is checkout-local lifecycle, index, transition, freshness,
-and coordination authority for baselines, changes, decisions, tasks, workflow
-runs/steps, sessions, events, incidents, projection jobs/cursors, telemetry, review
-evidence, and circuit-breaker state. Registered digest-bound specifications and
-reports carry semantic or evidence bodies. `.ultra/tasks/tasks.json` is the
-MCP-published portable baseline/Change/task checkpoint; it is not live lease or session
-authority. Generated task views, runtime checkpoints, and collaboration scratch are
-not independent authority. See
-[`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
+## Seven public tools
 
-## 3. Public MCP kernel and compatibility layer
-
-Every host discovers the same seven model-facing tools:
-
-| Public tool | Contract |
+| Tool | Use |
 |---|---|
-| `ultra.context` | side-effect-free current authority and evidence spine |
-| `ultra.record` | idempotent batch recording of typed draft facts and events |
-| `ultra.checkpoint` | one semantic stage commit; rejection keeps the draft mutable |
-| `ultra.sync` | Git team-checkpoint inspect/import/publish |
-| `ultra.session` | transactional execution lease |
-| `ultra.archive` | recoverable convergence and archive boundary |
-| `ultra.doctor` | mechanical diagnosis and backup-first repair |
+| `ultra.context` | Read bounded current authority without mutation |
+| `ultra.record` | Persist typed facts, decisions, tasks, artifacts, outcomes, and observations |
+| `ultra.checkpoint` | Save or accept a stage-level revision |
+| `ultra.sync` | Inspect, migrate, import, or publish the Git checkpoint |
+| `ultra.session` | Acquire/release execution authority and create a Worker Packet |
+| `ultra.archive` | Perform recoverable local delivery convergence |
+| `ultra.doctor` | Diagnose or backup-first repair mechanical health |
 
-The public schemas stay below a 12KB discovery budget. The sixty 0.22 fine-grained
-task/session/baseline/change/decision/workflow/artifact/system/plan tools remain
-callable but undiscoverable for one compatibility release. They are implementation
-operations, not a second public API, and Skills must not call them directly.
+Retired operation names are not callable. Semantic incompleteness is returned as
+diagnostics and leaves the draft editable. Hard errors are limited to corruption,
+unsafe paths, digest/CAS/lease conflicts, missing runtime prerequisites, permissions,
+and irreversible external effects.
 
-Semantic rejections return `accepted: false`, `mutable: true`, and diagnostics. Hard
-MCP errors are reserved for corruption, unsafe paths, real concurrency conflicts,
-permissions, or irreversible effects. Review, repository discovery, model reasoning,
-and owner interaction remain host-native.
+## Context Envelope
 
-The complete write, transition, invalidation, and recovery contract lives in
-[`WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md).
+Every Skill begins by reading `ultra.context` for the relevant stage and scope. The
+same content-addressed generator supplies Hook breadcrumbs, compact recovery, Session
+handoff, and Worker Packets. It includes:
 
-Any new MCP contract starts in `spec/mcp-tools.yaml` with valid and invalid
-fixtures. Do not add an ad-hoc server handler first.
+- project/host identity and health;
+- Git head, scope digest, and drift classification;
+- accepted baseline and evidence references;
+- current Change and Task contracts;
+- accepted normalized Decision Records;
+- typed evidence references and freshness;
+- current execution lease/worktree/packet;
+- warnings, `needs_attention`, and hard conflicts.
 
-## 4. Human-agent alignment contract
+Summary output stays within 16 KiB. Selected full output stays within 64 KiB. Large
+file bodies remain lazy references. Identical authority must reuse one digest and
+snapshot.
 
-`skills/ultra-think/references/decision-dialogue.md` is the single reusable prompt
-contract for load-bearing owner choices. Research, change, and plan read it at their
-decision boundaries. They inspect evidence first, expose only the earliest unresolved
-choice, include a recommendation and durable effects, and stop the turn. Dev, test,
-review, and deliver route back to the same thread instead of deciding for the owner.
-
-One partial unique index permits only one open item per thread. `decision.resolve`,
-`decision.delegate`, and `decision.defer` preserve the source of authority;
-`decision.supersede` preserves history when evidence or intent changes.
-After normalization, the host records accepted intent in one `ultra.record` batch,
-reads it back through `ultra.context`, and attempts an owning `ultra.checkpoint` only
-when durable authority is ready. Active proposals are never recalled as accepted
-intent. Status returns the current unresolved question, accepted intent, evidence,
-warnings, and hard blockers so recovery does not require replaying conversation
-history. The host model, not SQLite, recommends the next capability.
-
-## 5. Context Spine contract
-
-Context Manifest v3 is an immutable DB-backed role handoff, not a static codebase summary.
-`ultra.checkpoint` compiles or reuses a content-addressed Context Manifest containing
-required references, digests, readiness, context budget, public seam, exact verification
-command, and Change/task authority digests for `plan`, `implement`, `check`, or
-`review`. Compilation never updates
-Change or provider authority; provider metadata changes through `change.update`.
-Snapshots are selected exactly by `change_id`, nullable `task_id`, `role`, and `gate`,
-so a review packet cannot satisfy implementation or planning evidence.
-
-Implementation packets inline only the selected task, direct dependency/integration
-neighborhood, and the restored task-context contract. Referenced file bodies remain
-lazy. The token estimate includes inline Change/task authority plus referenced-file
-estimates. Context refs preserve `expected_digest`, `anchor`, `scope`, and one of
-`digest`, `existence`, or `advisory` freshness. Current consumers revalidate these
-policies instead of trusting an old manifest.
-
-The default 12-file, about 12k-token, and 40%
-fresh-context values are attention guidance. Overflow produces warnings; it does
-not block work or require raising a threshold. Prefer direct reads, bounded
-excerpts, or a smaller slice when they preserve correctness, and retain all
-necessary context when they do not.
-
-The compact breadcrumb is a hook-only compatibility reader. Hooks may inject its
-change/task, role, gate, readiness, blockers, and bounded normalized accepted intent.
-They must not inject raw prompts,
-interaction transcripts, external-memory payloads, or graph payloads. Missing references,
-required digest drift, HEAD drift, or a missing execution seam blocks readiness. Context
-size and baseline drift are advisory for a change that is already active. New ordinary
-work requires a healthy baseline. Only an explicitly approved incident break-glass may
-start without it; incident archive records a blocking reconciliation gap. Revision and
-tracked-spec integrity are reconciled and rechecked atomically for ordinary archive.
-
-The plan workflow records a `plan/planning` manifest before design and exports only
-`<artifact_root>/plan.json` plus deterministic `plan.md`. Both bind the planning
-snapshot digest. The global `.ultra/execution-plan.json` is legacy read-only
-compatibility and must not receive new plan writes.
-
-Stable discoveries use `change.learning_propose`; they reach the baseline only
-through approve/reject/apply transitions in `change.learning_resolve`. Unresolved
-learning blocks convergence. Review contributes two independent axes,
-`spec_fidelity` and `engineering_standards`; neither can replace the other.
-
-## 6. Native host presentation
-
-| Host | Plugin form | Workflow entry | Hook form | Collaboration companions |
-|---|---|---|---|---|
-| Claude Code | `.claude-plugin/plugin.json`, native commands/skills/agents, `.mcp.json` | `/ultra-builder-pro:ultra-*` | native `hooks/hooks.json` | `codex-collab`, `ultra-verify` |
-| Codex | personal plugin with `.codex-plugin/plugin.json`, namespaced skills, TOML agents, `.mcp.json` | `$ultra-builder-pro:ultra-*` | native `hooks/hooks.json` through the Codex wire adapter | `cc-collab`, `ultra-verify` |
-| OpenCode | config bundle plus native JavaScript plugin | `/ultra-*` | `event`, system transform, compaction, and tool lifecycle handlers | `cc-collab`, `codex-collab`, `ultra-verify` |
-| Kimi Code 0.26+ | managed `kimi.plugin.json` plugin with commands, skills, hooks, and MCP | `/ultra-builder-pro:ultra-*` | native hooks through the Kimi wire adapter | `cc-collab`, `codex-collab`, `ultra-verify` |
-
-`spec/interaction-contract.json` carries the same exact public-capability graph for
-every host. Adapters translate the question and invocation surfaces; they never own
-semantic selection or durable state.
-
-The current host remains primary. Collaboration skills call another runtime
-only when explicitly requested, use it as a read-only advisor, and return the
-evidence to the primary host for final verification.
-
-## 7. Hook boundary
-
-The canonical Python hook bundle contains seven executable workflow hooks plus
-the shared read-only `context_spine.py` breadcrumb helper:
-
-- `health_check.py` and `workflow_context.py` on session start;
-- `active_task_context.py` before an edit;
-- `workflow_checkpoint.py` before compaction;
-- `workflow_resume.py` after compaction/resume;
-- `pre_stop_check.py` reports unfinished workflow position at stop without denial;
-- `subagent_tracker.py` for minimal DB event evidence containing only lifecycle ids
-  and types, never transcript paths or messages.
-
-`workflow_context.py`, `active_task_context.py`, `workflow_resume.py`, and the
-OpenCode plugin invoke the same bundled JavaScript hook-only breadcrumb reader
-through the thin `context_spine.py` bridge. No hook reimplements the state query.
-`health_check.py` and
-`workflow_context.py` may inspect any initialized project;
-`active_task_context.py` protects both the MCP-owned Git checkpoint and local task
-projection but limits ordinary
-edit guidance to an active workflow. Compact/stop/subagent hooks remain
-active-workflow scoped. OpenCode natively injects baseline/change context and
-protects both managed task paths; full health inspection is available through
-`ultra.doctor` rather than a session-start health hook.
-Advisory baseline or context-budget warnings are presentation only and never
-reject an edit, stop, or tool call.
-Generic command blocking, post-edit governance, and unrelated user hooks are not
-copied into Ultra Builder Pro.
-
-## 8. Workflow-memory boundary
-
-Ultra Builder Pro has no general memory MCP family, general recall skill, prompt
-capture, transcript capture, observation journal, or session-summary hook. It does
-retain its own project-local cross-session workflow memory under `.ultra/`.
-General conversational or episodic memory belongs to a separately installed provider
-such as cloud-mem/claude-mem. Code-graph content is equally external. A change context
-may contain only provider metadata references, never provider payload content.
-
-Old Ultra data is never deleted during install. The explicit migration path is:
-
-```bash
-ultra-tools legacy-memory inspect
-ultra-tools legacy-memory archive
-ultra-tools legacy-memory prune --confirm DELETE_ULTRA_LEGACY_MEMORY
-```
-
-Archive before prune; the confirmation token is intentionally required.
-This CLI is an operator-invoked migration cleanup surface only. Hooks, MCP, and
-sessions never call it, and it cannot collect, recall, or reflect memory.
-
-## 9. Project state layout
+## Interaction
 
 ```text
-.ultra/
-├── .runtime/
-│   ├── state.db             # authoritative SQLite lifecycle/index store
-│   ├── checkpoint.json      # advisory breadcrumb recovery projection
-│   └── projections/         # generated checkout-local task views
-├── changes/
-│   ├── active/<id>/         # all Change semantics and evidence
-│   │   ├── intent.md, findings.md, progress.md
-│   │   ├── research/, delta/, documentation/, plan.json, plan.md
-│   │   └── contexts/, test/, review/, delivery/
-│   └── archive/             # converged packets after baseline reconciliation
-├── tasks/
-│   └── tasks.json           # MCP-published Git team checkpoint
-├── templates/
-│   └── task-context.md      # authored task-context template
-├── specs/                   # research/product/architecture artifacts
-└── reports/templates/      # blank report schemas; never evidence
+inspect -> suggest -> host-native ask when needed -> normalize
+       -> persist -> apply -> read back
 ```
 
-## 10. Plugin and user-instruction isolation
+Do not ask again when the current user message already resolves the decision. Persist
+only the normalized question, recommendation, selection, effects, non-goals,
+provenance, applied references, status, digest, and supersession. Never persist raw
+conversation, chain-of-thought, full prompts, or UI receipts.
 
-General engineering doctrine and long-term personal preferences live in each
-host's durable `CLAUDE.md` or `AGENTS.md`. Ultra never writes those files. Its
-workflow doctrine remains in plugin-owned skills and is loaded only through an
-explicit public invocation.
+Host question surfaces:
 
-Installation and uninstall own only adapter-declared commands, skills, workers,
-hooks, runtime assets, provenance, and host registration. Project authority is
-created only by an explicit `ultra-init`, and uninstall never deletes `.ultra/`.
-See [`PLUGIN-ISOLATION-CONTRACT.md`](./PLUGIN-ISOLATION-CONTRACT.md).
+- Claude Code and Kimi Code: `AskUserQuestion`;
+- Codex: `request_user_input` when available;
+- OpenCode: `question`;
+- Grok Build: its native structured question surface when available, otherwise one
+  concise conversational question.
 
-## 11. Verification
+If the host mode forbids interaction, leave the decision unresolved.
 
-Run `npm run test:all`, `python3 -m pytest hooks/tests -q`, and `npm audit`.
-Adapter tests assert the allowlisted assets, native manifests, hook boundary,
-MCP visibility, and host-specific skill rendering.
+## Stage Checkpoints
+
+Skills describe adaptive evidence expectations; SQLite does not authorize a fixed
+step sequence. A stage has a mutable draft and immutable accepted revisions:
+
+```text
+draft N -> accepted N -> superseded by accepted N+1
+```
+
+Warnings and semantic gaps do not lock a draft. An accepted revision can be replaced
+by a later accepted revision without rewriting history.
+
+## Worker handoff
+
+Every worker must receive one immutable Worker Packet generated from current authority.
+The packet binds:
+
+- role, runtime, Change/Task scope, and output schema;
+- Context Envelope path/digest;
+- accepted Decision Records and digest;
+- Git head/diff/changed files;
+- Task contract, acceptance, and digest;
+- evidence references;
+- exact output path;
+- `packet_digest`.
+
+Workers may inspect and write only the declared output. They do not write SQLite,
+accept checkpoints, modify another worker's result, or decide final delivery. Output
+must echo `packet_digest`; the primary host verifies and records it.
+
+## Hook boundary
+
+The canonical Hook bundle uses `context_envelope.py`, not a parallel context reader.
+Hooks may:
+
+- report health and inject a compact envelope;
+- protect MCP-owned team checkpoints and generated projections;
+- save/restore minimal compact recovery state;
+- append minimal lifecycle identifiers;
+- report an advisory Stop summary.
+
+Hooks may not select a route, manufacture a semantic record, capture prompts or
+transcripts, block ordinary work for semantic incompleteness, or claim an ignored
+stdout channel was injected. Every Skill still reads authoritative Context at entry.
+
+## Five host presentations
+
+| Host | Entry | Worker surface | Context behavior |
+|---|---|---|---|
+| Claude Code | `/ultra-builder-pro:ultra-*` | native agents | SessionStart compact + Skill full |
+| Codex | `$ultra-builder-pro:ultra-*` | managed TOML agents | session/prompt compact + Skill full |
+| OpenCode | `/ultra-*` | native agents | system transform + Skill full |
+| Kimi Code | `/ultra-builder-pro:ultra-*` | Agent/AgentSwarm templates | native compact where supported + Skill full |
+| Grok Build | native Ultra commands/Skills | plugin agent templates | Skill full is authoritative; Hook stdout limitations are explicit |
+
+Adapters own only translation and wiring. The active host remains primary; optional
+cross-host collaboration is explicit and read-only.
+
+## Storage
+
+Tracked `.ultra` files carry inspectable intent, specifications, plans, Decision
+Records, test/review/delivery evidence, and archives. `.ultra/tasks/tasks.json` is a
+digest-chained team checkpoint. `.ultra/.runtime/` is ignored and contains SQLite,
+generated projections, Sessions, worktrees, recovery, backups, telemetry, and debug
+state.
+
+Every semantic file must have one writer, owner, consumer, digest, promotion gate, and
+archive rule as defined in `ARTIFACT-AUTHORITY.md`.

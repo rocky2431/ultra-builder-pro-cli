@@ -69,7 +69,6 @@ test('resolveDispatchCommand rejects shell strings and malformed argument payloa
 
 test('parseExecutePlanArgs keeps merge disabled unless explicitly requested', () => {
   assert.deepEqual(parseExecutePlanArgs([]), {
-    planPath: null,
     changeId: null,
     autoMerge: false,
     mergeBaseBranch: 'main',
@@ -81,31 +80,20 @@ test('parseExecutePlanArgs keeps merge disabled unless explicitly requested', ()
       '--base-branch', 'trunk',
     ]),
     {
-      planPath: null,
       changeId: 'current-change',
       autoMerge: true,
       mergeBaseBranch: 'trunk',
     },
   );
-  assert.deepEqual(parseExecutePlanArgs(['--plan', '.ultra/execution-plan.json']), {
-    planPath: '.ultra/execution-plan.json',
-    changeId: null,
-    autoMerge: false,
-    mergeBaseBranch: 'main',
-  });
 });
 
 test('parseExecutePlanArgs rejects unknown or incomplete options', () => {
   assert.throws(
-    () => parseExecutePlanArgs(['--plan']),
+    () => parseExecutePlanArgs(['--plan', '.ultra/execution-plan.json']),
     (error) => error.code === 'ORCHESTRATOR_ARGUMENT_INVALID',
   );
   assert.throws(
     () => parseExecutePlanArgs(['--shell-command', 'node worker.js']),
-    (error) => error.code === 'ORCHESTRATOR_ARGUMENT_INVALID',
-  );
-  assert.throws(
-    () => parseExecutePlanArgs(['--change', 'current-change', '--plan', '.ultra/execution-plan.json']),
     (error) => error.code === 'ORCHESTRATOR_ARGUMENT_INVALID',
   );
 });

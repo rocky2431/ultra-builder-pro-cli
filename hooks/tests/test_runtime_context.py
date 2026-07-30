@@ -13,7 +13,7 @@ import pytest
 HOOK_ROOT = Path(__file__).parent.parent
 SCHEMA = HOOK_ROOT.parent / "spec" / "schemas" / "state-db.sql"
 sys.path.insert(0, str(HOOK_ROOT))
-from context_spine import ContextSpineError, find_root  # noqa: E402
+from context_envelope import ContextEnvelopeError, find_root  # noqa: E402
 from runtime_paths import RuntimePathError, state_db_path  # noqa: E402
 
 
@@ -182,8 +182,8 @@ def test_explicit_root_allows_a_worktree_to_use_external_authority(tmp_path):
 
     assert stderr == ""
     text = output["hookSpecificOutput"]["additionalContext"]
-    assert "[Ultra baseline]" in text
-    assert "Workflow: wf-research" in text
+    assert "[Ultra Context Envelope]" in text
+    assert "Baseline: test-baseline (greenfield/ready)" in text
 
 
 def test_explicit_root_rejects_an_unlinked_external_authority(tmp_path, monkeypatch):
@@ -211,7 +211,7 @@ def test_python_read_paths_refuse_competing_legacy_and_runtime_databases(tmp_pat
 
     with pytest.raises(RuntimePathError, match="both legacy"):
         state_db_path(tmp_path)
-    with pytest.raises(ContextSpineError, match="both legacy"):
+    with pytest.raises(ContextEnvelopeError, match="both legacy"):
         find_root(tmp_path)
     output, stderr = run_hook("workflow_context.py", tmp_path)
     assert output == {}
@@ -362,7 +362,7 @@ def test_all_session_hooks_are_silent_for_an_uninitialized_ultra_directory(tmp_p
         assert stderr == "", name
 
 
-def test_context_does_not_route_an_old_schema_until_ultra_is_explicitly_invoked(tmp_path):
+def test_context_surfaces_old_schema_as_advisory_without_using_legacy_projection(tmp_path):
     ultra = tmp_path / ".ultra"
     ultra.mkdir()
     with sqlite3.connect(ultra / "state.db") as conn:
@@ -378,14 +378,18 @@ def test_context_does_not_route_an_old_schema_until_ultra_is_explicitly_invoked(
     }), encoding="utf-8")
 
     output, stderr = run_hook("workflow_context.py", tmp_path)
-    assert output == {}
+    text = output["hookSpecificOutput"]["additionalContext"]
+    assert "STATE_SCHEMA_MIGRATION_REQUIRED" in text
+    assert "projection-task" not in text
     assert stderr == ""
 
 
-def test_context_is_silent_for_an_idle_migrated_baseline(tmp_path):
+def test_context_injects_idle_baseline_authority(tmp_path):
     init_db(tmp_path, baseline="migrated")
     output, stderr = run_hook("workflow_context.py", tmp_path)
-    assert output == {}
+    text = output["hookSpecificOutput"]["additionalContext"]
+    assert "[Ultra Context Envelope]" in text
+    assert "Baseline: test-baseline (migrated/ready)" in text
     assert stderr == ""
 
 
@@ -400,9 +404,8 @@ def test_context_routes_an_explicit_active_brownfield_research_workflow(tmp_path
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "Baseline: adoption (brownfield/adopting)" in text
-    assert "Readiness: blocked" in text
     assert "BASELINE_NOT_READY:adopting" in text
-    assert "Allowed transitions: ultra-research, ultra-status, ultra-doctor" in text
+    assert "Use ultra.context" in text
 
 
 def test_context_routes_a_ready_baseline_with_an_open_blocking_gap_to_adoption(tmp_path):
@@ -422,7 +425,7 @@ def test_context_routes_a_ready_baseline_with_an_open_blocking_gap_to_adoption(t
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
     assert "BASELINE_GAP_BLOCKING:incident-reconciliation" in text
-    assert "Allowed transitions: ultra-research, ultra-status, ultra-doctor" in text
+    assert "Use ultra.context" in text
 
 
 def test_context_injects_active_change_without_workflow_state(tmp_path):
@@ -486,16 +489,11 @@ def test_context_injects_active_change_without_workflow_state(tmp_path):
         )
     output, _ = run_hook("workflow_context.py", tmp_path)
     text = output["hookSpecificOutput"]["additionalContext"]
-    assert "Ultra context spine" in text
+    assert "Ultra Context Envelope" in text
     assert "daily-fix" in text
     assert "daily-task" in text
-    assert "Role: implement" in text
-    assert "Gate: implementation" in text
-    assert "Readiness: blocked" in text
-    assert "CONTEXT_SNAPSHOT_UPGRADE_REQUIRED" in text
-    assert "Blockers: BASELINE_NOT_READY:adopting" in text
-    assert "Allowed transitions:" in text
-    assert "Required transition:" not in text
+    assert "BASELINE_NOT_READY:adopting" in text
+    assert "Use ultra.context" in text
     assert "Fix daily drift" not in text
     assert "cloud-mem" not in text
 

@@ -1,7 +1,8 @@
 -- Ultra Builder Pro — authoritative state schema
 -- This file builds .ultra/.runtime/state.db, the source of truth for all
--- baseline / change / task / session / event / telemetry data. tasks.json and context md status
--- headers are projections.
+-- baseline / change / task / session / event / telemetry data. The Git-facing
+-- tasks.json is a durable team checkpoint; live task and Context views under
+-- .ultra/.runtime/projections are generated projections.
 --
 -- Authority boundary: docs/DECISIONS.md.
 --
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS baselines (
   classification_json TEXT NOT NULL DEFAULT '{}',
   provider_refs_json  TEXT NOT NULL DEFAULT '{}',
   research_run_id     TEXT,
+  research_checkpoint_id TEXT,
   approved_by         TEXT,
   approval_note       TEXT,
   started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -130,7 +132,7 @@ CREATE TABLE IF NOT EXISTS events (
   task_id       TEXT,
   change_id     TEXT,
   session_id    TEXT,
-  runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex', 'kimi')),
+  runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex', 'kimi', 'grok')),
   payload_json  TEXT
 );
 
@@ -146,7 +148,7 @@ CREATE INDEX IF NOT EXISTS events_change  ON events(change_id, id);
 CREATE TABLE IF NOT EXISTS sessions (
   sid               TEXT PRIMARY KEY,
   task_id           TEXT NOT NULL REFERENCES tasks(id),
-  runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex', 'kimi')),
+  runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex', 'kimi', 'grok')),
   pid               INTEGER,
   worktree_path     TEXT NOT NULL,
   artifact_dir      TEXT NOT NULL,
@@ -497,6 +499,103 @@ CREATE UNIQUE INDEX IF NOT EXISTS decision_items_one_open
 CREATE INDEX IF NOT EXISTS decision_items_status
   ON decision_items(thread_id, status, sequence);
 
+-- ──────────────────────────── public kernel checkpoints ─────────────────
+-- These rows record what the model actually checkpointed. They do not
+-- authorize a fixed workflow sequence. Drafts remain editable; an accepted
+-- revision is immutable and can only be superseded by a later revision.
+CREATE TABLE IF NOT EXISTS stage_checkpoints (
+  id                  TEXT PRIMARY KEY,
+  stage               TEXT NOT NULL
+                        CHECK (stage IN ('init', 'research', 'change', 'plan', 'dev', 'test', 'review', 'deliver')),
+  scope_type          TEXT NOT NULL CHECK (scope_type IN ('project', 'baseline', 'change', 'task')),
+  scope_id            TEXT NOT NULL,
+  revision            INTEGER NOT NULL CHECK (revision > 0),
+  status              TEXT NOT NULL DEFAULT 'draft'
+                        CHECK (status IN ('draft', 'accepted', 'superseded')),
+  payload_json        TEXT NOT NULL DEFAULT '{}',
+  evidence_json       TEXT NOT NULL DEFAULT '[]',
+  diagnostics_json    TEXT NOT NULL DEFAULT '[]',
+  context_envelope_id TEXT,
+  digest              TEXT NOT NULL,
+  supersedes_id       TEXT REFERENCES stage_checkpoints(id) ON DELETE SET NULL,
+  idempotency_key     TEXT NOT NULL UNIQUE,
+  created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  accepted_at         TEXT,
+  UNIQUE(stage, scope_type, scope_id, revision)
+);
+
+CREATE INDEX IF NOT EXISTS stage_checkpoints_scope
+  ON stage_checkpoints(stage, scope_type, scope_id, revision);
+CREATE UNIQUE INDEX IF NOT EXISTS stage_checkpoints_one_draft
+  ON stage_checkpoints(stage, scope_type, scope_id) WHERE status = 'draft';
+CREATE UNIQUE INDEX IF NOT EXISTS stage_checkpoints_one_accepted
+  ON stage_checkpoints(stage, scope_type, scope_id) WHERE status = 'accepted';
+
+CREATE TABLE IF NOT EXISTS decision_records (
+  id                TEXT PRIMARY KEY,
+  scope_type        TEXT NOT NULL CHECK (scope_type IN ('baseline', 'change')),
+  scope_id          TEXT NOT NULL,
+  question          TEXT NOT NULL,
+  recommendation    TEXT NOT NULL,
+  selection         TEXT NOT NULL,
+  effects_json      TEXT NOT NULL DEFAULT '{}',
+  non_goals_json    TEXT NOT NULL DEFAULT '[]',
+  owner             TEXT NOT NULL,
+  source            TEXT NOT NULL,
+  provenance_json   TEXT NOT NULL DEFAULT '{}',
+  applied_refs_json TEXT NOT NULL DEFAULT '[]',
+  status            TEXT NOT NULL DEFAULT 'accepted'
+                      CHECK (status IN ('accepted', 'superseded', 'cancelled')),
+  digest            TEXT NOT NULL,
+  artifact_path     TEXT NOT NULL,
+  supersedes_id     TEXT REFERENCES decision_records(id) ON DELETE SET NULL,
+  created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS decision_records_scope
+  ON decision_records(scope_type, scope_id, status, updated_at);
+
+CREATE TABLE IF NOT EXISTS context_envelopes (
+  id            TEXT PRIMARY KEY,
+  stage         TEXT NOT NULL,
+  scope_type    TEXT NOT NULL CHECK (scope_type IN ('project', 'baseline', 'change', 'task')),
+  scope_id      TEXT NOT NULL,
+  digest        TEXT NOT NULL UNIQUE,
+  file_digest   TEXT NOT NULL,
+  payload_json  TEXT NOT NULL,
+  artifact_path TEXT,
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS context_envelopes_scope
+  ON context_envelopes(stage, scope_type, scope_id, created_at);
+
+CREATE TABLE IF NOT EXISTS worker_packets (
+  id                  TEXT PRIMARY KEY,
+  role                TEXT NOT NULL,
+  scope_type          TEXT NOT NULL CHECK (scope_type IN ('change', 'task')),
+  scope_id            TEXT NOT NULL,
+  context_envelope_id TEXT NOT NULL REFERENCES context_envelopes(id),
+  context_digest      TEXT NOT NULL,
+  task_digest         TEXT,
+  decision_digest     TEXT,
+  packet_digest       TEXT NOT NULL UNIQUE,
+  file_digest         TEXT NOT NULL,
+  status              TEXT NOT NULL DEFAULT 'pending'
+                        CHECK (status IN ('pending', 'assigned', 'abandoned')),
+  packet_path         TEXT NOT NULL,
+  output_path         TEXT NOT NULL,
+  assigned_at         TEXT,
+  abandoned_at        TEXT,
+  abandon_reason      TEXT,
+  created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS worker_packets_scope
+  ON worker_packets(role, scope_type, scope_id, created_at);
+
 -- ──────────────────────────── seed: schema_version ────────────────────────
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('4.5', 'Phase 2 initial — tasks/events/sessions/schema_version/migration_history/telemetry/specs_refs');
@@ -532,3 +631,7 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('19.0', 'Non-ceremonial decision completion and host-neutral intent persistence');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('20.0', 'Typed artifact registry, normalized dependency edges, and orphan diagnostics');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('21.0', 'Seven-tool persistence kernel, reversible stage checkpoints, canonical context envelopes, normalized decisions, and worker packets');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('22.0', 'Checkpoint-native baseline authority plus byte-bound Context Envelopes and Worker Packets');

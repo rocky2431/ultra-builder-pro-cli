@@ -56,13 +56,14 @@ const INTERNAL_AGENT_SKILLS = Object.freeze([
   'testing-rules',
 ]);
 
-const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi']);
+const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok']);
 
 const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
   claude: Object.freeze(['codex-collab', 'ultra-verify']),
   codex: Object.freeze(['cc-collab', 'ultra-verify']),
   opencode: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
   kimi: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
+  grok: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
 });
 
 const MCP_DEPENDENT_SKILLS = Object.freeze([
@@ -80,7 +81,7 @@ const MCP_DEPENDENT_SKILLS = Object.freeze([
 
 const WORKFLOW_HOOK_FILES = Object.freeze([
   'active_task_context.py',
-  'context_spine.py',
+  'context_envelope.py',
   'health_check.py',
   'pre_stop_check.py',
   'runtime_paths.py',

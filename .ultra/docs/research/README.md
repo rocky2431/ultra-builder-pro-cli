@@ -30,7 +30,7 @@ copying memory, code-graph payloads, or large source material into Ultra.
 
 ## Completion
 
-Update the affected baseline specification, record the report through `workflow.step`,
-include it in `baseline.record` evidence when material, and record unresolved work in
-the authoritative gap ledger. The final synthesis also binds the three specifications
-and research distillate. Do not create a condensed duplicate of the baseline.
+Update the affected baseline specification, register the report through typed
+`ultra.record`, reference it from the Research Stage Checkpoint, and record unresolved
+work in the authoritative gap ledger. The final synthesis also binds the baseline
+specifications and research distillate. Do not create a condensed duplicate.

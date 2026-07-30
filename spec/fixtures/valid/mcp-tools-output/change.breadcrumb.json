@@ -1,8 +1,0 @@
-{
-  "breadcrumb": {
-    "change_id": "context-spine",
-    "readiness": "ready",
-    "allowed_transitions": ["ultra-dev", "ultra-plan", "ultra-status"],
-    "required_transition": null
-  }
-}

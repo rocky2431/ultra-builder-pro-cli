@@ -212,13 +212,8 @@ class ActiveTaskContextTest(unittest.TestCase):
             output = self.run_hook(project, {"file_path": "src/example.js"})
             context_text = output["hookSpecificOutput"]["additionalContext"]
             self.assertIn("edit-task", context_text)
-            self.assertIn("Gate: implementation", context_text)
             self.assertIn("BASELINE_MIGRATION_REVIEW_REQUIRED", context_text)
-            self.assertIn("CONTEXT_SNAPSHOT_UPGRADE_REQUIRED", context_text)
-            self.assertIn("Allowed transitions:", context_text)
-            self.assertIn("change.context", context_text)
-            self.assertIn("ultra-doctor", context_text)
-            self.assertNotIn("Required transition:", context_text)
+            self.assertIn("Use ultra.context", context_text)
             self.assertNotIn("Edit safely", context_text)
 
 

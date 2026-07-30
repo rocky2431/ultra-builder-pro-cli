@@ -3,10 +3,10 @@
 > Multi-process access contract. Current authority is defined by
 > [`DECISIONS.md`](./DECISIONS.md) and the live database schema.
 
-`.ultra/.runtime/state.db` is the checkout-local lifecycle, index, transition,
-freshness, and coordination authority for baselines, changes, decision threads/items, tasks,
-workflow runs/steps, events, sessions, incidents, projections, telemetry, and spec
-references (D18, D52, D54). Registered digest-bound files carry semantic and evidence
+`.ultra/.runtime/state.db` is the checkout-local persistence and safety authority for
+baselines, Changes, normalized Decision Records, Stage Checkpoints, Context Envelopes,
+Worker Packets, Tasks, events, Sessions, incidents, projections, telemetry, and spec
+references. Registered digest-bound files carry semantic and evidence
 bodies; the DB owns their references and current digests. The tracked
 `.ultra/tasks/tasks.json` is an MCP-published handoff checkpoint, not a parallel live
 writer. Every process that touches the DB must follow the rules below; deviations are
@@ -77,8 +77,10 @@ resolve the mount/runtime constraint before retrying.
 | `baselines`        | MCP server through `ultra.record`, `ultra.checkpoint`, and `ultra.archive`; initialization and legacy migration may create only the first draft or compatibility row |
 | `tasks`            | MCP server through `ultra.record`, `ultra.checkpoint`, and `ultra.sync` |
 | `changes`          | MCP server through `ultra.record`, `ultra.checkpoint`, and `ultra.archive` |
-| `decision_threads`, `decision_items` | MCP server through `ultra.record`; normalized accepted intent and applied references are stored, never UI receipts, prompts, or transcripts |
-| `workflow_runs`, `workflow_steps` | MCP server internally through `ultra.checkpoint`; Skills supply semantic evidence but never drive individual rows |
+| `decision_records` | MCP server through `ultra.record`; normalized accepted intent and applied references are stored, never UI receipts, prompts, or transcripts |
+| `stage_checkpoints` | MCP server through `ultra.checkpoint`; mutable drafts and immutable accepted/superseded revisions, never fixed reasoning steps |
+| `context_envelopes`, `worker_packets` | MCP server through `ultra.context`, `ultra.checkpoint`, and `ultra.session`; exact digest-bound handoff authority |
+| `decision_threads`, `decision_items`, `workflow_runs`, `workflow_steps` | legacy history retained for migration and audit; no current public writer or authorization role |
 | `artifacts`, `artifact_edges` | MCP server through `ultra.record` and checkpoint-owned registration |
 | `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through `ultra.record` and `ultra.checkpoint` |
 | `incidents`, `projection_jobs`, `event_consumers`, `circuit_breaker` | MCP server; backup-first doctor recovery may perform only documented mechanical transitions |
@@ -142,8 +144,11 @@ The contract on this page is enforced by:
   no duplicates.
 - `mcp-server/tests/state-ops.test.cjs` — immediate transactions, rollback,
   status transitions, task contracts, and event coupling.
-- `mcp-server/lib/workflow-state.test.cjs` — ordered workflow transitions,
-  evidence/output requirements, blocking/resume, and cross-stage gates.
+- `mcp-server/lib/stage-checkpoints.test.cjs` — mutable drafts, immutable accepted
+  revisions, supersession, and report-first diagnostics.
+- `mcp-server/lib/context-envelope.test.cjs` and
+  `mcp-server/lib/worker-packet.test.cjs` — content-addressed Context and immutable
+  delegated handoff.
 - `mcp-server/lib/task-ledger.test.cjs` — portable-field filtering, digest ancestry,
   idempotent import, baseline/Change/task fast-forward and conflict behavior, legacy
   backup, and active-session protection.

@@ -39,6 +39,34 @@ function readToolPayload(result) {
   return JSON.parse(result.content[0].text);
 }
 
+async function initializeProject(client, targetDir, projectName) {
+  const result = await client.callTool({
+    name: 'ultra.record',
+    arguments: {
+      entries: [{
+        kind: 'baseline',
+        action: 'initialize',
+        data: {
+          target_dir: targetDir,
+          project_name: projectName,
+          mode: 'greenfield',
+          git_mode: 'initialize',
+        },
+        idempotency_key: `init-${projectName}`,
+      }],
+    },
+  });
+  const payload = readToolPayload(result);
+  assertPublicSuccess(result, payload);
+  return payload.results[0].result;
+}
+
+function assertPublicSuccess(result, payload = readToolPayload(result)) {
+  if (result.isError === true || payload.accepted === false) {
+    throw new Error(result.content?.[0]?.text || JSON.stringify(payload));
+  }
+}
+
 module.exports = {
   REPO_ROOT,
   SERVER,
@@ -46,4 +74,6 @@ module.exports = {
   cleanup,
   withMcpClient,
   readToolPayload,
+  initializeProject,
+  assertPublicSuccess,
 };

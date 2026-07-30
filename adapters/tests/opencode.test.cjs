@@ -23,6 +23,25 @@ function mkTarget() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-opencode-'));
 }
 
+function treeDigest(root) {
+  const entries = [];
+  const pending = [root];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const file = path.join(current, entry.name);
+      if (entry.isDirectory()) pending.push(file);
+      else if (entry.isFile()) {
+        entries.push([
+          path.relative(root, file),
+          fs.readFileSync(file).toString('base64'),
+        ]);
+      }
+    }
+  }
+  return JSON.stringify(entries.sort(([left], [right]) => left.localeCompare(right)));
+}
+
 test('install builds explicit OpenCode commands without exposing public workflows as model skills', () => {
   const target = mkTarget();
   try {
@@ -90,14 +109,14 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     );
     const plan = workflow('ultra-plan');
     const review = workflow('ultra-review');
-    const dialogue = fs.readFileSync(
+    const interactionBoundary = fs.readFileSync(
       path.join(
         target,
         opencode.BUNDLE_DIR,
         'workflows',
         'ultra-think',
         'references',
-        'decision-dialogue.md',
+        'interaction-boundary.md',
       ),
       'utf8',
     );
@@ -109,8 +128,8 @@ test('install performs content-level OpenCode adaptation for commands, skills, r
     ).fm), ['description']);
     assert.match(review, /OpenCode `task` tool/);
     assert.match(review, /scripts\/review_wait\.py/);
-    assert.match(dialogue, /`question`/);
-    assert.doesNotMatch(dialogue, /host-native structured question surface declared/);
+    assert.match(interactionBoundary, /`question`/);
+    assert.doesNotMatch(interactionBoundary, /host-native structured question surface declared/);
     assert.match(codexCollab, /OpenCode remains primary/);
     assert.match(verify, /Keep OpenCode responsible/);
     assert.match(verify, /host-analysis\.md/);
@@ -229,12 +248,12 @@ test('install writes a schema-safe opencode.json and keeps ownership outside hos
     assert.match(plugin, /\.ultra[\\/]tasks[\\/]tasks\.json/);
     assert.match(plugin, /throw new Error/);
     assert.match(plugin, /session\.compacted/);
-    assert.match(plugin, /breadcrumb\.cjs/);
+    assert.match(plugin, /hook-context\.cjs/);
     assert.match(plugin, /--discover/);
     assert.doesNotMatch(plugin, /path\.join\(current,\s*["']\.ultra["']/);
     assert.doesNotMatch(plugin, /workflow-state\.json|context-manifest\.json/);
     assert.doesNotMatch(plugin, /memory\.(?:retain|recall|reflect)|journal|observation|prompt[_ -]?capture/);
-    assert.match(plugin, /canonical breadcrumb/);
+    assert.match(plugin, /readUltraContext/);
     assert.doesNotMatch(plugin, /providerMetadata|External providers/);
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
@@ -404,7 +423,7 @@ test('OpenCode rejects a valid but unrelated configured DB authority', async () 
   }
 });
 
-test('OpenCode injects the DB breadcrumb and ignores conflicting workflow projections', async () => {
+test('OpenCode injects the Context Envelope and ignores conflicting workflow projections', async () => {
   const target = mkTarget();
   const project = mkTarget();
   let state;
@@ -470,7 +489,7 @@ test('OpenCode injects the DB breadcrumb and ignores conflicting workflow projec
     const text = output.system.join('\n');
     assert.match(text, /Change: db-authority-change/);
     assert.match(text, /Task: db-authority-task/);
-    assert.match(text, /Role: implement/);
+    assert.match(text, /Stage: project/);
     assert.doesNotMatch(text, /projection-change|projection-task|projection-baseline/);
   } finally {
     if (state) closeStateDb(state.db);
@@ -549,5 +568,30 @@ test('install refuses to overwrite an unmanaged OpenCode asset with the same nam
     assert.equal(fs.readFileSync(conflict, 'utf8'), 'user-owned');
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('failed OpenCode rebuild leaves the previous managed surface byte-identical', () => {
+  const target = mkTarget();
+  const brokenRepo = mkTarget();
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    const before = treeDigest(target);
+    fs.mkdirSync(path.join(brokenRepo, 'commands'), { recursive: true });
+    fs.mkdirSync(path.join(brokenRepo, 'agents'), { recursive: true });
+    fs.copyFileSync(
+      path.join(REPO_ROOT, 'commands', 'ultra-init.md'),
+      path.join(brokenRepo, 'commands', 'ultra-init.md'),
+    );
+    fs.appendFileSync(path.join(brokenRepo, 'commands', 'ultra-init.md'), '\nBroken staging probe.\n');
+
+    assert.throws(
+      () => opencode.install({ configDir: target, repoRoot: brokenRepo }),
+      /missing allowlisted OpenCode command/,
+    );
+    assert.equal(treeDigest(target), before);
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.rmSync(brokenRepo, { recursive: true, force: true });
   }
 });

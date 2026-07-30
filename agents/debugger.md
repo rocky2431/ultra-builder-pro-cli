@@ -15,6 +15,8 @@ that violates the intended contract.
 
 1. Read the complete error and reproduce the smallest observable symptom with the exact
    command or action.
+   For an Ultra delegation, validate the immutable Worker Packet before investigation
+   and echo its exact `packet_digest` in the assigned output.
 2. Inspect the relevant recent diff, configuration, dependency, and runtime boundaries.
 3. Trace the bad value or state backward through callers and side effects. Compare a
    nearby working path only when it exercises the same contract.
@@ -34,4 +36,5 @@ from another checkout as evidence.
 If three distinct fix attempts expose different underlying failures, stop patching and
 return the evidence as an architectural boundary problem. For an Ultra incident, also
 provide the reproduction, tested hypotheses, earliest bad state, regression signal,
-and recovery path needed by the durable diagnosis artifact.
+and recovery path needed by the durable diagnosis artifact. Do not call Ultra MCP
+write tools; the parent model owns registration.

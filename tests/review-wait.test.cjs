@@ -29,6 +29,7 @@ function specialist(agent, axis) {
     $schema: 'ultra-review-findings-v2',
     agent,
     axis,
+    packet_digest: 'c'.repeat(64),
     session: 'review-session',
     timestamp: '2026-07-18T00:00:00Z',
     scope: {
@@ -93,6 +94,20 @@ test('review waiter rejects a present artifact using the retired schema', () => 
   }
 });
 
+test('review waiter rejects a specialist artifact without its Worker Packet digest', () => {
+  const session = tempSession();
+  try {
+    const artifact = specialist('review-code', 'engineering_standards');
+    delete artifact.packet_digest;
+    fs.writeFileSync(path.join(session, 'review-code.json'), JSON.stringify(artifact));
+    const result = run(session, 'agents', 'review-code');
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /packet_digest/);
+  } finally {
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+});
+
 test('review waiter validates the two-axis summary and derives severity counts', () => {
   const session = tempSession();
   try {
@@ -105,6 +120,7 @@ test('review waiter validates the two-axis summary and derives severity counts',
       head: '0123456789abcdef',
       worktree_digest: 'a'.repeat(64),
       context_digest: 'b'.repeat(64),
+      packet_digest: 'c'.repeat(64),
       status: 'complete',
       verdict: 'REQUEST_CHANGES',
       axes: {
@@ -148,6 +164,7 @@ test('review waiter rejects a summary without mode-bound worker selection proven
       $schema: 'ultra-review-summary-v2',
       session: 'review-session', change_id: 'review-change', task_ids: [],
       head: '0123456789abcdef', worktree_digest: null, context_digest: 'b'.repeat(64),
+      packet_digest: 'c'.repeat(64),
       status: 'complete', verdict: 'APPROVE',
       axes: {
         spec_fidelity: { verdict: 'PASS', evidence_refs: ['spec-fidelity.json'] },

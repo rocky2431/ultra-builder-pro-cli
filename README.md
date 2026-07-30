@@ -2,8 +2,8 @@
 
 **An adaptive delivery harness for AI coding agents.**
 
-Ultra Builder Pro helps Claude Code, Codex, OpenCode, and Kimi Code carry a
-software project from an unclear request to a verified, recoverable delivery.
+Ultra Builder Pro helps Claude Code, Codex, OpenCode, Kimi Code, and Grok Build
+carry a software project from an unclear request to a verified, recoverable delivery.
 It keeps the user and the agent aligned, preserves project authority across
 sessions, and prevents specifications from quietly drifting away from the code.
 
@@ -44,7 +44,7 @@ Ultra Builder Pro addresses those gaps with four ideas:
    and asks the user only for material intent, scope, risk, or authorization
    decisions—normally one dependent decision at a time.
 3. **Durable project authority.** `.ultra/.runtime/state.db` records checkout-local
-   lifecycle, decisions, workflows, evidence digests, sessions, incidents, and
+   lifecycle facts, decisions, checkpoints, evidence digests, sessions, incidents, and
    recovery state across host sessions. Tracked semantic artifacts plus the
    MCP-published `.ultra/tasks/tasks.json` checkpoint carry reviewed project intent
    across Git checkouts without committing SQLite, leases, or telemetry.
@@ -65,13 +65,13 @@ flowchart TB
     U["User<br/>goals, acceptance, trade-offs, risk, and external authorization"]
 
     subgraph HOST["Supported coding host"]
-        UI["Host-native interaction<br/>Claude Code / Codex / OpenCode / Kimi Code"]
+        UI["Host-native interaction<br/>Claude Code / Codex / OpenCode / Kimi Code / Grok Build"]
         MODEL["Host agent<br/>inspect, recommend, implement, test, and review"]
         ADAPTER["Host adapter<br/>native questions, commands, tools, and lifecycle wiring"]
     end
 
     SKILLS["Eleven explicit Ultra Skills<br/>init / research / think / change / plan / dev<br/>test / review / deliver / status / doctor"]
-    MCP["Ultra MCP safety kernel<br/>7 public tools; 60 hidden compatibility operations"]
+    MCP["Ultra MCP safety kernel<br/>exactly 7 public tools"]
     DB[(".ultra/.runtime/state.db<br/>SQLite lifecycle and index authority")]
     LEDGER[".ultra/tasks/tasks.json<br/>Git team checkpoint for portable baseline, Change, and task state"]
     VIEWS[".ultra/.runtime/projections<br/>checkout-local generated views"]
@@ -103,7 +103,7 @@ The responsibility split is deliberate:
 |---|---|
 | **User** | Product intent, semantic route selection, material scope and trade-offs, risk acceptance, destructive actions, publishing and deployment authorization |
 | **Host model** | Fact-finding, synthesis, research-coverage and route recommendations, reversible implementation decisions |
-| **Ultra MCP** | Durable checkpoints, evidence references, digests, team sync, leases, archive transactions, and mechanical recovery |
+| **Ultra MCP** | Structure validation, durable checkpoints, evidence references, digests, team sync, leases, archive transactions, and mechanical recovery; never semantic route selection |
 | **Host adapter** | Native Skill discovery, user questions, tool invocation, installation, and runtime wiring |
 | **Hooks** | Fast lifecycle observation, current breadcrumb injection, and protection of MCP-owned checkpoint and generated projection paths |
 
@@ -126,10 +126,9 @@ The public model-facing surface is intentionally small:
 | `ultra.archive` | Converge and archive through the recoverable filesystem/DB boundary |
 | `ultra.doctor` | Inspect or repair mechanical health, backup first |
 
-The 0.22 fine-grained tools remain callable but undiscoverable for one compatibility
-release. Skills and new sessions use only the seven tools above. Workflow prose stays
-in Skills, model judgment stays with the host, and SQLite records what happened rather
-than deciding what the model is allowed to think next.
+Retired fine-grained operation names are neither discoverable nor callable. Workflow
+prose stays in Skills, model judgment stays with the host, and SQLite records what
+happened rather than deciding what the model is allowed to think next.
 
 The enforcement gradient is:
 
@@ -165,8 +164,9 @@ and effects—not chain-of-thought, raw prompts, transcripts, or UI receipts.
 
 ## What you get
 
-- Native plugins for **Claude Code**, **OpenCode**, **Codex**, and **Kimi Code**.
-- One workflow vocabulary across all four hosts.
+- Native plugins for **Claude Code**, **OpenCode**, **Codex**, **Kimi Code**, and
+  **Grok Build**.
+- One workflow vocabulary across all five hosts.
 - Deterministic initialization for new, existing, monorepo, and older Ultra
   projects.
 - Evidence-backed greenfield research and brownfield adoption.
@@ -218,6 +218,7 @@ npx --yes ultra-builder-pro-cli@latest --claude --global
 npx --yes ultra-builder-pro-cli@latest --opencode --global
 npx --yes ultra-builder-pro-cli@latest --codex --global
 npx --yes ultra-builder-pro-cli@latest --kimi --global
+npx --yes ultra-builder-pro-cli@latest --grok --global
 ```
 
 Use `--local` instead of `--global` to install into the current project's host
@@ -454,7 +455,7 @@ health without selecting product intent.
 ```text
 .ultra/
   .runtime/                # local mutable state; ignored by Git
-    state.db               # lifecycle, index, transition, and freshness authority
+    state.db               # facts, indexes, checkpoints, leases, CAS, and recovery
     checkpoint.json        # advisory recovery projection
     projections/           # generated local task and task-context views
     backups/               # verified migration and recovery snapshots
@@ -463,17 +464,18 @@ health without selecting product intent.
     worktrees/             # registered local Git worktrees
     telemetry/             # local operational telemetry
   specs/                   # digest-bound product and architecture baseline
+  decisions/baseline/      # normalized accepted baseline decisions
   changes/
     active/<id>/           # all current Change semantics and evidence
       intent.md            # accepted Change Contract
-      findings.md          # durable Change findings
+      decisions/           # normalized accepted Change decisions
       progress.md          # generated human-readable projection
       research/            # Change-only findings and research reports
       delta/               # typed baseline overlay and semantic payloads
       documentation/       # documentation overlay and reconciliation evidence
       plan.json            # machine-readable task topology
       plan.md              # deterministic human plan projection
-      contexts/            # immutable role/task context snapshots
+      contexts/            # immutable canonical Context Envelopes
       test/                # Change-scoped test reports
       review/              # Change-scoped review workers and summary
       delivery/            # Change-scoped delivery evidence
@@ -585,8 +587,9 @@ host's existing model session.
 - **A generated view disagrees with MCP:** trust `.ultra/.runtime/state.db`; never edit
   `.ultra/.runtime/projections/` by hand.
 - **A draft checkpoint is rejected:** use `ultra-status` to read the exact warnings
-  and blockers, fix the same mutable draft, and retry. Use `workflow.abandon` through
-  `ultra.record` only when intentionally cancelling the attempt.
+  and blockers, fix the same mutable draft, and retry. If the attempt is no longer
+  relevant, leave it as history and open a new draft revision; no hidden workflow
+  state must be cancelled first.
 - **Kimi reports a native-module ABI error:** ensure an external Node.js 22+
   executable is available on `PATH`; the generated Kimi MCP launcher uses
   `env node`.
@@ -616,7 +619,7 @@ and `test:rest`.
 |---|---|
 | [Architecture](./docs/ARCHITECTURE.md) | Components, authority boundaries, and live integration paths |
 | [Workflow Lifecycle](./docs/WORKFLOW-LIFECYCLE.md) | Command ownership, transitions, invalidation, recovery, and convergence |
-| [Runtime Compatibility Matrix](./docs/RUNTIME-COMPAT-MATRIX.md) | Claude Code, OpenCode, Codex, and Kimi presentation details |
+| [Runtime Compatibility Matrix](./docs/RUNTIME-COMPAT-MATRIX.md) | Claude Code, OpenCode, Codex, Kimi Code, and Grok Build presentation details |
 | [Legacy CLI Crosswalk](./docs/LEGACY-CLI-CROSSWALK.md) | What was preserved, strengthened, or replaced from the original Ultra Builder Pro |
 | [Agent Context](./docs/AGENT-CONTEXT.md) | Context Manifest and host-agent execution contract |
 | [Plugin Isolation Contract](./docs/PLUGIN-ISOLATION-CONTRACT.md) | Plugin ownership, explicit activation, idle behavior, and user-instruction isolation |

@@ -12,8 +12,9 @@ Write findings to the assigned JSON file and return only a file acknowledgement.
 
 ## Workflow
 
-1. Validate `SESSION_PATH`, `OUTPUT_FILE`, `SCHEMA_PATH`, `DIFF_RANGE`, `DIFF_FILES`,
-   HEAD, and the supplied public-contract context.
+1. Validate the immutable `WORKER_PACKET`, exact `PACKET_DIGEST`, `SESSION_PATH`,
+   `OUTPUT_FILE`, `SCHEMA_PATH`, `DIFF_RANGE`, `DIFF_FILES`, HEAD, and the supplied
+   public-contract context. Stop incomplete when any value differs from the packet.
 2. Inspect comments, docstrings, examples, annotations, and API documentation changed
    by the diff. Read the associated implementation and contract before judging them.
 3. Report factual contradictions, stale names or behavior, unsafe operational advice,
@@ -23,7 +24,8 @@ Write findings to the assigned JSON file and return only a file acknowledgement.
    to investigate, not automatic defects. Calibrate severity to the reachable impact.
 5. Ignore wording preferences and harmless redundancy. Keep line ranges tight and
    propose the smallest correction that restores an accurate contract.
-6. Write `ultra-review-findings-v2` following `SCHEMA_PATH`.
+6. Write `ultra-review-findings-v2` following `SCHEMA_PATH`, including the exact
+   `packet_digest`.
 
 Use `axis: engineering_standards` and category `comments`. After valid output, return
 exactly:
@@ -32,4 +34,5 @@ exactly:
 Wrote N findings (P0:X P1:X P2:X P3:X) to <filepath>
 ```
 
-Do not modify source, task state, or projections.
+Do not modify source, call Ultra MCP write tools, change task state, or edit another
+worker's artifact.

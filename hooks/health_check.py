@@ -6,7 +6,11 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from context_spine import ContextSpineError, find_root_for_hook, read_breadcrumb
+from context_envelope import (
+    ContextEnvelopeError,
+    find_root_for_hook,
+    read_context_envelope,
+)
 from runtime_paths import state_db_path
 
 
@@ -14,8 +18,9 @@ REQUIRED_TABLES = {
     "baselines",
     "tasks", "events", "sessions", "schema_version", "migration_history",
     "telemetry", "specs_refs", "circuit_breaker", "changes", "artifacts",
-    "context_snapshots", "spec_learning_candidates", "trace_links", "incidents", "projection_jobs",
-    "event_consumers", "workflow_runs", "workflow_steps",
+    "artifact_edges", "context_snapshots", "spec_learning_candidates", "trace_links",
+    "incidents", "projection_jobs", "event_consumers", "stage_checkpoints",
+    "decision_records", "context_envelopes", "worker_packets",
 }
 
 
@@ -28,22 +33,6 @@ def hook_input() -> dict:
         return {}
 
 
-def has_active_workflow(db_path: Path) -> bool:
-    if not db_path.is_file():
-        return False
-    try:
-        uri = f"file:{db_path}?mode=ro"
-        with sqlite3.connect(uri, uri=True, timeout=1) as conn:
-            row = conn.execute(
-                """SELECT 1 FROM workflow_runs
-                   WHERE status IN ('active', 'blocked', 'ready')
-                   LIMIT 1"""
-            ).fetchone()
-            return row is not None
-    except sqlite3.Error:
-        return False
-
-
 def inspect(root: Path) -> dict:
     db_path = state_db_path(root)
     report = {"status": "healthy", "project": str(root), "checks": {}}
@@ -54,8 +43,8 @@ def inspect(root: Path) -> dict:
         return report
 
     try:
-        breadcrumb = read_breadcrumb(root)
-    except ContextSpineError as exc:
+        context = read_context_envelope(root)
+    except ContextEnvelopeError as exc:
         report["checks"]["authority"] = {"status": "fail", "reason": str(exc)}
         report["status"] = "degraded"
         return report
@@ -82,14 +71,18 @@ def inspect(root: Path) -> dict:
                 report["status"] = "degraded"
                 return report
 
+            envelope = context.get("envelope", {}) if context else {}
+            diagnostics = envelope.get("diagnostics", {})
             baseline_codes = [
-                code for code in [
-                    *(breadcrumb.get("blockers", []) if breadcrumb else []),
-                    *(breadcrumb.get("warnings", []) if breadcrumb else []),
+                str(item.get("code"))
+                for item in [
+                    *diagnostics.get("needs_attention", []),
+                    *diagnostics.get("warnings", []),
+                    *diagnostics.get("hard_conflicts", []),
                 ]
-                if str(code).startswith("BASELINE_")
+                if str(item.get("code", "")).startswith("BASELINE_")
             ]
-            baseline = breadcrumb.get("baseline") if breadcrumb else None
+            baseline = envelope.get("baseline")
             baseline_is_ready = isinstance(baseline, dict) and baseline.get("status") == "ready"
             baseline_status = (
                 "fail" if baseline_codes and baseline_is_ready
@@ -186,9 +179,6 @@ def main() -> None:
     start = Path(data.get("cwd") or Path.cwd()).resolve()
     root = find_root_for_hook(start, "health_check")
     if root is None:
-        print(json.dumps({}))
-        return
-    if not has_active_workflow(state_db_path(root)):
         print(json.dumps({}))
         return
     report = inspect(root)

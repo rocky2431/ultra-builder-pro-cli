@@ -97,6 +97,97 @@ test('initStateDb is idempotent — second call does not duplicate seed rows', (
   }
 });
 
+test('v0.22 and v0.23 schema 20 authority upgrades backup-first to the v0.24 kernel', () => {
+  for (const release of ['0.22.0', '0.23.0']) {
+    const { dir, file } = tmpDbPath(`ubp-${release}-upgrade`);
+    try {
+      const initialized = initStateDb(file);
+      initialized.db.prepare(
+        "INSERT INTO tasks (id, title, type, priority) VALUES (?, ?, 'feature', 'P1')",
+      ).run(`task-${release}`, `Preserve ${release} task`);
+      initialized.db.prepare(
+        `INSERT INTO sessions
+         (sid, task_id, runtime, worktree_path, artifact_dir, lease_expires_at)
+         VALUES (?, ?, 'codex', '/tmp/worktree', '/tmp/artifacts',
+                 '2099-01-01T00:00:00.000Z')`,
+      ).run(`session-${release}`, `task-${release}`);
+      initialized.db.prepare(
+        "INSERT INTO events (type, task_id, runtime) VALUES ('legacy-event', ?, 'codex')",
+      ).run(`task-${release}`);
+      initialized.db.pragma('foreign_keys = OFF');
+      initialized.db.exec(`
+        DROP TABLE worker_packets;
+        DROP TABLE stage_checkpoints;
+        DROP TABLE decision_records;
+        DROP TABLE context_envelopes;
+        ALTER TABLE baselines DROP COLUMN research_checkpoint_id;
+        DELETE FROM schema_version WHERE version IN ('21.0', '22.0');
+      `);
+      initialized.db.unsafeMode(true);
+      initialized.db.pragma('writable_schema = ON');
+      initialized.db.prepare(
+        `UPDATE sqlite_schema
+         SET sql = replace(sql, ?, '')
+         WHERE type = 'table' AND name IN ('events', 'sessions')`,
+      ).run(", 'grok'");
+      initialized.db.pragma('writable_schema = OFF');
+      initialized.db.unsafeMode(false);
+      closeStateDb(initialized.db);
+
+      const legacy = openStateDb(file);
+      assert.equal(tableNames(legacy).includes('stage_checkpoints'), false);
+      assert.equal(
+        legacy.prepare('PRAGMA table_info(baselines)').all()
+          .some((column) => column.name === 'research_checkpoint_id'),
+        false,
+      );
+      assert.throws(
+        () => legacy.prepare(
+          "INSERT INTO events (type, runtime) VALUES ('grok-before-upgrade', 'grok')",
+        ).run(),
+        /CHECK constraint failed/,
+      );
+      closeStateDb(legacy);
+
+      const upgraded = initStateDb(file);
+      assert.equal(upgraded.schema_version, EXPECTED_VERSION);
+      assert.ok(upgraded.backup_path);
+      assert.ok(fs.existsSync(upgraded.backup_path));
+      for (const table of [
+        'stage_checkpoints', 'decision_records', 'context_envelopes', 'worker_packets',
+      ]) {
+        assert.ok(tableNames(upgraded.db).includes(table), `${release} missing ${table}`);
+      }
+      assert.ok(
+        upgraded.db.prepare('PRAGMA table_info(baselines)').all()
+          .some((column) => column.name === 'research_checkpoint_id'),
+      );
+      assert.equal(
+        upgraded.db.prepare('SELECT title FROM tasks WHERE id = ?')
+          .get(`task-${release}`).title,
+        `Preserve ${release} task`,
+      );
+      assert.equal(
+        upgraded.db.prepare('SELECT runtime FROM sessions WHERE sid = ?')
+          .get(`session-${release}`).runtime,
+        'codex',
+      );
+      assert.equal(
+        upgraded.db.prepare("SELECT COUNT(*) AS count FROM events WHERE type = 'legacy-event'")
+          .get().count,
+        1,
+      );
+      upgraded.db.prepare(
+        "INSERT INTO events (type, runtime) VALUES ('grok-after-upgrade', 'grok')",
+      ).run();
+      assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
+      closeStateDb(upgraded.db);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
 test('schema 13 upgrades through the current authority without demoting an established ready baseline', () => {
   const { dir, file } = tmpDbPath('ubp-schema-13-upgrade');
   try {
@@ -108,7 +199,7 @@ test('schema 13 upgrades through the current authority without demoting an estab
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0')",
+      "DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0')",
     ).run();
     initial.db.exec('ALTER TABLE baselines DROP COLUMN known_red_accepted');
     closeStateDb(initial.db);
@@ -145,7 +236,7 @@ test('schema 15 adds decision dialogue authority without forcing baseline re-ado
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0', '19.0', '20.0')",
+      "DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0')",
     ).run();
     initial.db.exec('DROP TABLE decision_items; DROP TABLE decision_threads');
     closeStateDb(initial.db);
@@ -192,7 +283,7 @@ test('schema 17 adds the unborn Git baseline state without losing established au
     initial.db.pragma('writable_schema = OFF');
     initial.db.unsafeMode(false);
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('17.0', '18.0', '19.0', '20.0')",
+      "DELETE FROM schema_version WHERE version IN ('17.0', '18.0', '19.0', '20.0', '21.0', '22.0')",
     ).run();
     closeStateDb(initial.db);
 
@@ -286,7 +377,7 @@ test('schema 18 migrates active rigid workflows into recoverable adaptive capabi
        VALUES ('legacy-context', 'adaptive-change', '.ultra/context.json', 'legacy-hash',
                'Run an owner-selected workflow.')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('18.0', '19.0', '20.0')").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('18.0', '19.0', '20.0', '21.0', '22.0')").run();
     initial.db.prepare("DELETE FROM migration_history WHERE to_version IN ('18.0', '19.0', '20.0')").run();
     closeStateDb(initial.db);
 
@@ -431,7 +522,7 @@ test('schema 19 completes settled decision threads without fabricating approval 
         ON decision_threads(baseline_id, change_id, workflow_run_id, status);
     `);
     initial.db.pragma('foreign_keys = ON');
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('19.0', '20.0')").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('19.0', '20.0', '21.0', '22.0')").run();
     initial.db.prepare("DELETE FROM migration_history WHERE to_version IN ('19.0', '20.0')").run();
     closeStateDb(initial.db);
 
@@ -723,7 +814,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
     legacy.exec(legacySchema);
     legacy.prepare(
-      "DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0')",
+      "DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0')",
     ).run();
     legacy.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
@@ -988,7 +1079,7 @@ test('schema 19 artifact rows migrate losslessly into the typed registry with a 
          '{"legacy":true}', 'current');
       DROP TABLE artifacts_current;
       CREATE INDEX artifacts_change ON artifacts(change_id, kind);
-      DELETE FROM schema_version WHERE version = '20.0';
+      DELETE FROM schema_version WHERE version IN ('20.0', '21.0', '22.0');
     `);
     db.pragma('foreign_keys = ON');
     closeStateDb(db);
@@ -1078,7 +1169,7 @@ test('artifact migration preflight reports canonical duplicate authority without
          'current');
       DROP TABLE artifacts_current;
       CREATE INDEX artifacts_change ON artifacts(change_id, kind);
-      DELETE FROM schema_version WHERE version = '20.0';
+      DELETE FROM schema_version WHERE version IN ('20.0', '21.0', '22.0');
     `);
     db.pragma('foreign_keys = ON');
     closeStateDb(db);

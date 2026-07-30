@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write a recovery projection of the canonical DB breadcrumb before compaction."""
+"""Write an advisory recovery copy of the live Context Envelope before compaction."""
 
 import json
 import os
@@ -8,11 +8,11 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from context_spine import (
-    ContextSpineError,
+from context_envelope import (
+    ContextEnvelopeError,
     find_root_for_hook,
-    read_breadcrumb,
-    render_breadcrumb,
+    read_context_envelope,
+    render_context_envelope,
 )
 from runtime_paths import RuntimePathError, validate_project_layout
 
@@ -32,12 +32,12 @@ def main() -> None:
         print(json.dumps({}))
         return
     try:
-        breadcrumb = read_breadcrumb(root)
-    except ContextSpineError as exc:
-        print(f"[workflow_checkpoint] cannot inspect Context Spine: {exc}", file=sys.stderr)
+        envelope = read_context_envelope(root)
+    except ContextEnvelopeError as exc:
+        print(f"[workflow_checkpoint] cannot inspect Context Envelope: {exc}", file=sys.stderr)
         print(json.dumps({}))
         return
-    if not breadcrumb or not breadcrumb.get("workflow"):
+    if not envelope:
         print(json.dumps({}))
         return
 
@@ -53,11 +53,12 @@ def main() -> None:
     runtime_dir = root / ".ultra" / ".runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
     checkpoint = {
-        "schema": 2,
+        "schema": 3,
         "captured_at": datetime.now(timezone.utc).isoformat(),
         "session_id": data.get("session_id", ""),
-        "breadcrumb": dict(breadcrumb),
-        "rendered": render_breadcrumb(root, breadcrumb),
+        "context_digest": envelope.get("digest"),
+        "context": dict(envelope),
+        "rendered": render_context_envelope(root, envelope),
     }
     fd, temp_name = tempfile.mkstemp(prefix="checkpoint.", suffix=".json", dir=runtime_dir)
     try:
@@ -68,7 +69,7 @@ def main() -> None:
     finally:
         if os.path.exists(temp_name):
             os.unlink(temp_name)
-    print(json.dumps({"systemMessage": "Ultra workflow checkpoint saved."}))
+    print(json.dumps({"systemMessage": "Ultra Context Envelope checkpoint saved."}))
 
 
 if __name__ == "__main__":

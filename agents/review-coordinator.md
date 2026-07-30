@@ -13,15 +13,17 @@ rewrite a specialist's severity.
 
 ## Required input
 
-- `SESSION_PATH`, review mode, reviewed HEAD, diff range, and expected worker list with
-  selection or skip rationale;
+- immutable coordinator `WORKER_PACKET`, exact `PACKET_DIGEST`, `SESSION_PATH`, review
+  mode, reviewed HEAD, diff range, and expected worker list with selection or skip
+  rationale;
 - `SCHEMA_PATH` resolved by the parent from the active review Skill;
 - one complete `spec_fidelity` artifact;
 - every selected `engineering_standards` artifact.
 
 ## Workflow
 
-1. Read the artifact contract at `SCHEMA_PATH`.
+1. Validate the packet digest, scope, HEAD, output paths, and schema, then read the
+   artifact contract at `SCHEMA_PATH`. Stop incomplete when any value differs.
 2. Parse every expected artifact. Reject stale HEAD or range, malformed JSON, wrong
    axis, duplicate finding ids, and missing required fields. Record missing or invalid
    workers as limitations instead of silently continuing as complete.
@@ -39,9 +41,10 @@ rewrite a specialist's severity.
 7. Record the review mode and every selected or skipped worker with its supplied
    scope-specific rationale. The selection must match completed, failed, and skipped
    worker state exactly.
-8. Write `SUMMARY.json` as `ultra-review-summary-v2` and a concise `SUMMARY.md` with
-   the two axis verdicts, blocking findings, limitations, positive observations, and
-   artifact paths. Validate both files before acknowledging completion.
+8. Write `SUMMARY.json` as `ultra-review-summary-v2`, including the exact
+   `packet_digest`, and a concise `SUMMARY.md` with the two axis verdicts, blocking
+   findings, limitations, positive observations, and artifact paths. Validate both
+   files before acknowledging completion.
 
 Return exactly:
 
@@ -49,4 +52,5 @@ Return exactly:
 Coordination complete: <VERDICT> — P0:X P1:X P2:X P3:X — <SUMMARY.json path>
 ```
 
-Do not modify source, task state, projections, or specialist artifacts.
+Do not modify source, call Ultra MCP write tools, change task state or projections, or
+edit specialist artifacts.

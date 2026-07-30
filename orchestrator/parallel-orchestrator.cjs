@@ -2,13 +2,13 @@
 
 // Phase 8B.2 — Parallel orchestrator.
 //
-// Consumes the current Change-scoped plan.json (built by the plan workflow) and
+// Consumes the current Change-scoped plan.json (published by a Plan checkpoint) and
 // drives resumable per-wave session spawning. Each wave is either parallel
 // (batch Promise.all on proc exit) or serial (await per task) based on the
 // file-overlap detection already done by plan-builder.
 //
 // Responsibilities:
-//   • resolve the canonical Change plan (or an explicit legacy object/path)
+//   • resolve the canonical accepted Change plan
 //   • for each ready wave: evaluate dispatch-rules per task → spawn sessions
 //     via session-runner → wait for transport exit → preserve task-gate state
 //   • stop at the first non-converged wave and resume safely on the next call
@@ -25,43 +25,47 @@ const path = require('node:path');
 const { isDeepStrictEqual } = require('node:util');
 
 const planStore = require('../mcp-server/lib/plan-store.cjs');
-const contextSpine = require('../mcp-server/lib/context-spine.cjs');
 const ops = require('../mcp-server/lib/state-ops.cjs');
-const workflows = require('../mcp-server/lib/workflow-state.cjs');
+const checkpoints = require('../mcp-server/lib/stage-checkpoints.cjs');
+const workerPackets = require('../mcp-server/lib/worker-packet.cjs');
 const runner = require('./session-runner.cjs');
 const dispatchRules = require('./dispatch-rules.cjs');
 
 const TERMINAL_TASK_STATUSES = new Set(['completed', 'expanded']);
 
 function resolvePlan({ db, plan, planPath, repoRoot, changeId = null }) {
-  if (plan) return plan;
-  if (planPath) {
-    const legacy = JSON.parse(fs.readFileSync(planPath, 'utf8'));
-    if (legacy?.change_id) {
+  if (plan) {
+    if (!plan.change_id) {
       throw planError(
         'PLAN_CHANGE_SCOPED_REQUIRED',
-        'change-bound plans must be resolved from their canonical Change artifact root',
+        'orchestrator execution requires an accepted Change-scoped Plan checkpoint',
       );
     }
-    return legacy;
+    return plan;
+  }
+  if (planPath) {
+    throw planError(
+      'PLAN_LEGACY_RETIRED',
+      'explicit planPath execution is retired; migrate the project and use its accepted Change Plan',
+    );
   }
   let candidates;
   if (changeId) {
     candidates = db.prepare(
       `SELECT id, artifact_root, status
        FROM changes
-       WHERE id = ? AND status IN ('active', 'blocked')`,
+       WHERE id = ? AND status = 'active'`,
     ).all(changeId);
   } else {
     candidates = db.prepare(
-      `SELECT c.id, c.artifact_root, c.status, MAX(w.completed_at) AS planned_at
-       FROM changes c
-       JOIN workflow_runs w ON w.change_id = c.id
-       WHERE c.status IN ('active', 'blocked')
-         AND w.kind = 'plan' AND w.status = 'completed'
-       GROUP BY c.id, c.artifact_root, c.status
-       ORDER BY planned_at DESC, c.id ASC`,
-    ).all();
+      `SELECT id, artifact_root, status
+       FROM changes WHERE status = 'active' ORDER BY updated_at DESC, id ASC`,
+    ).all().filter((candidate) => checkpoints.currentCheckpoint(
+      db,
+      'plan',
+      { change_id: candidate.id },
+      { includeDraft: false },
+    ));
   }
   if (candidates.length > 1) {
     throw planError(
@@ -78,7 +82,7 @@ function resolvePlan({ db, plan, planPath, repoRoot, changeId = null }) {
     const err = new Error(
       changeId
         ? `runPlan: no current scoped plan found for change ${changeId}`
-        : 'runPlan: no current Change-scoped plan found; pass an explicit legacy planPath only for migration compatibility',
+        : 'runPlan: no current accepted Change-scoped Plan found',
     );
     err.code = 'PLAN_NOT_FOUND';
     throw err;
@@ -159,13 +163,10 @@ function assertPlanAuthority(db, repoRoot, plan) {
   const taskChangeIds = new Set(taskRows.map((task) => task.change_id).filter(Boolean));
 
   if (!plan.change_id) {
-    if (taskChangeIds.size > 0) {
-      throw planError(
-        'PLAN_NOT_COMPLETED',
-        'change-owned tasks require a change-bound, completed current execution plan',
-      );
-    }
-    return { mode: 'legacy-unbound', workflow_id: null };
+    throw planError(
+      'PLAN_CHANGE_SCOPED_REQUIRED',
+      'orchestrator execution requires an accepted Change-scoped Plan checkpoint',
+    );
   }
   if (taskChangeIds.size > 1 || (taskChangeIds.size === 1 && !taskChangeIds.has(plan.change_id))) {
     throw planError(
@@ -175,74 +176,89 @@ function assertPlanAuthority(db, repoRoot, plan) {
     );
   }
 
-  const completedRuns = workflows.listWorkflows(
+  const currentPlan = checkpoints.currentCheckpoint(
     db,
-    { kind: 'plan', status: 'completed', change_id: plan.change_id, limit: 100 },
-    { rootDir: repoRoot },
+    'plan',
+    { change_id: plan.change_id },
+    { includeDraft: false },
   );
-  if (completedRuns.length === 0) {
+  if (!currentPlan || checkpoints.checkpointDigest(currentPlan) !== currentPlan.digest) {
     throw planError(
       'PLAN_NOT_COMPLETED',
-      `change ${plan.change_id} has no completed plan workflow`,
+      `change ${plan.change_id} has no current accepted Plan checkpoint`,
     );
   }
-
-  let currentPlan;
+  const context = currentPlan.context_envelope_id
+    ? db.prepare('SELECT * FROM context_envelopes WHERE id = ?')
+      .get(currentPlan.context_envelope_id)
+    : null;
+  if (!context || context.stage !== 'plan' || context.scope_type !== 'change'
+      || context.scope_id !== plan.change_id) {
+    throw planError(
+      'PLAN_STALE',
+      `execution plan for ${plan.change_id} is not bound to its Context Envelope`,
+      { authority_code: 'PLAN_CONTEXT_MISMATCH' },
+    );
+  }
+  let contextPayload;
   try {
-    currentPlan = workflows.assertCurrentPlan(db, plan.change_id, repoRoot);
-  } catch (error) {
-    throw planError(
-      error.code === 'WORKFLOW_PLAN_NOT_COMPLETED' ? 'PLAN_NOT_COMPLETED' : 'PLAN_STALE',
-      error.message,
-      { authority_code: error.code || null },
-    );
-  }
-  const currentContext = contextSpine.validateContextSnapshot(db, {
-    change_id: plan.change_id,
-    task_id: null,
-    role: 'plan',
-    gate: 'planning',
-  }, {
-    rootDir: repoRoot,
-    require_current_checkout: true,
-  });
-  if (!currentContext.snapshot
-    || currentContext.snapshot.id !== currentPlan.plan.summary.plan_context_snapshot_id) {
+    contextPayload = JSON.parse(context.payload_json);
+  } catch {
     throw planError(
       'PLAN_STALE',
-      `execution plan for ${plan.change_id} was superseded by another planning context`,
-      { authority_code: 'WORKFLOW_PLAN_CONTEXT_MISMATCH' },
+      `execution plan for ${plan.change_id} has a corrupt Context Envelope`,
+      { authority_code: 'PLAN_CONTEXT_INVALID' },
     );
   }
-  if (currentContext.blockers.length > 0) {
+  const baseline = db.prepare(
+    `SELECT scope_json FROM baselines
+     WHERE status <> 'superseded' ORDER BY updated_at DESC, rowid DESC LIMIT 1`,
+  ).get();
+  const scope = baseline
+    ? JSON.parse(baseline.scope_json || '["."]')
+    : ['.'];
+  const currentCheckout = require('../mcp-server/lib/baseline-workflow.cjs')
+    .gitWorktreeSnapshot(repoRoot, scope);
+  const plannedWorktreeDigest = contextPayload.git?.scoped_worktree_digest
+    || contextPayload.git?.worktree_digest
+    || null;
+  if (plannedWorktreeDigest && currentCheckout.digest !== plannedWorktreeDigest) {
     throw planError(
       'PLAN_STALE',
-      `execution plan for ${plan.change_id} has stale planning context`,
+      `execution plan for ${plan.change_id} no longer matches the scoped checkout`,
       {
-        authority_code: 'WORKFLOW_PLAN_CONTEXT_STALE',
-        blockers: currentContext.blockers,
+        authority_code: 'PLAN_CONTEXT_STALE',
+        blockers: ['CONTEXT_WORKTREE_STALE'],
       },
     );
   }
-  const expected = planStore.buildPlan(
-    currentPlan.tasks,
-    { changeId: plan.change_id },
-  );
-  const { context, ...planCore } = plan;
+  const staleTasks = taskRows.filter((task) => task.stale);
+  if (staleTasks.length > 0) {
+    throw planError(
+      'PLAN_STALE',
+      `execution plan for ${plan.change_id} contains stale task contracts`,
+      {
+        authority_code: 'PLAN_TASK_CONTRACT_STALE',
+        task_ids: staleTasks.map((task) => task.id),
+      },
+    );
+  }
+  const expected = planStore.buildPlan(taskRows, { changeId: plan.change_id });
+  const { context: planContext, ...planCore } = plan;
   if (!isDeepStrictEqual(planCore, expected)) {
     throw planError(
       'PLAN_STALE',
       `execution plan for ${plan.change_id} does not match the current DB task graph`,
     );
   }
-  if (!context
-    || context.snapshot_id !== currentPlan.plan.summary.plan_context_snapshot_id
-    || context.manifest_path !== currentPlan.plan.summary.plan_context_path
-    || context.manifest_digest !== currentPlan.plan.summary.plan_context_digest) {
+  if (!planContext
+    || planContext.snapshot_id !== context.id
+    || planContext.manifest_path !== context.artifact_path
+    || planContext.manifest_digest !== context.digest) {
     throw planError(
       'PLAN_STALE',
       `execution plan for ${plan.change_id} does not match its planning context`,
-      { authority_code: 'WORKFLOW_PLAN_CONTEXT_MISMATCH' },
+      { authority_code: 'PLAN_CONTEXT_MISMATCH' },
     );
   }
   const change = db.prepare(
@@ -251,14 +267,6 @@ function assertPlanAuthority(db, repoRoot, plan) {
   const canonicalPaths = planStore.changePlanPaths(repoRoot, change);
   const expectedPlanPath = path.relative(repoRoot, canonicalPaths.json);
   const expectedPlanMdPath = path.relative(repoRoot, canonicalPaths.md);
-  if (currentPlan.plan.summary.plan_path !== expectedPlanPath
-    || currentPlan.plan.summary.plan_md_path !== expectedPlanMdPath) {
-    throw planError(
-      'PLAN_STALE',
-      `completed plan workflow for ${plan.change_id} is not bound to its canonical artifacts`,
-      { authority_code: 'WORKFLOW_PLAN_ARTIFACT_INVALID' },
-    );
-  }
   const canonicalPlan = planStore.loadChangePlanArtifact(
     repoRoot,
     change,
@@ -270,7 +278,7 @@ function assertPlanAuthority(db, repoRoot, plan) {
       `execution plan for ${plan.change_id} differs from its canonical Change artifact`,
     );
   }
-  return { mode: 'current-change', workflow_id: currentPlan.plan.id };
+  return { mode: 'current-change', checkpoint_id: currentPlan.id };
 }
 
 function awaitExit(proc) {
@@ -451,7 +459,27 @@ function reservePreparedTask(db, repoRoot, prepared, ctx) {
   } = prepared;
   const { onError } = ctx;
   let handle;
+  let packet = null;
   try {
+    if (!task.change_id) {
+      throw planError(
+        'TASK_CHANGE_REQUIRED',
+        `orchestrator task ${task.id} must belong to the accepted Change`,
+      );
+    }
+    packet = workerPackets.createWorkerPacket(db, {
+      role: 'implement',
+      task_id: task.id,
+      runtime: decision.runtime,
+      output_path: `.ultra/changes/active/${task.change_id}/delivery/${task.id}-outcome.json`,
+      output_schema: {
+        type: 'object',
+        required: ['packet_digest'],
+        properties: {
+          packet_digest: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+        },
+      },
+    }, { rootDir: repoRoot });
     handle = runner.spawnSession({
       db, repoRoot,
       task_id: task.id,
@@ -459,9 +487,16 @@ function reservePreparedTask(db, repoRoot, prepared, ctx) {
       command: ctx.deferStart ? null : command,
       args: ctx.deferStart ? [] : args,
       mark_task_started: true,
+      kernel_mode: true,
+      packet_digest: packet.packet_digest,
     });
     handle.task_id = task.id;
+    workerPackets.markWorkerPacketAssigned(db, packet.id);
+    handle.packet = packet;
   } catch (err) {
+    if (packet?.id) {
+      workerPackets.abandonWorkerPacket(db, packet.id, err.code || err.message);
+    }
     const authorityBlocked = authorityBlockedResult(err, task.id, {
       reservationFailed: true,
     });
@@ -755,7 +790,7 @@ async function runPlan({
     waves: resolved.waves.length,
     waves_completed: completedWaves,
     paused_wave_id: pausedWave?.id || null,
-    plan_workflow_id: planAuthority.workflow_id,
+    plan_checkpoint_id: planAuthority.checkpoint_id || null,
     awaiting_workflow_gates: awaitingWorkflowGates,
     results: allResults,
   };

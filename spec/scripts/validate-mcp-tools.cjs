@@ -15,6 +15,15 @@ const inputValidDir = path.join(root, 'fixtures', 'valid', 'mcp-tools-input');
 const outputValidDir = path.join(root, 'fixtures', 'valid', 'mcp-tools-output');
 const inputInvalidDir = path.join(root, 'fixtures', 'invalid', 'mcp-tools-input');
 const outputInvalidDir = path.join(root, 'fixtures', 'invalid', 'mcp-tools-output');
+const expectedTools = new Set([
+  'ultra.context',
+  'ultra.record',
+  'ultra.checkpoint',
+  'ultra.sync',
+  'ultra.session',
+  'ultra.archive',
+  'ultra.doctor',
+]);
 
 if (!fs.existsSync(manifestPath) || !fs.existsSync(metaSchemaPath)) {
   console.log('mcp-tools.yaml or meta-schema missing, skip');
@@ -80,7 +89,7 @@ function checkSampleDir(dir, kind, expectValid) {
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
     const toolName = file.replace(/\.json$/, '');
     const tool = manifest.tools.find((t) => t.name === toolName);
-    if (!tool) {
+  if (!tool) {
       console.error(`FAIL fixture ${kind}/${file} references unknown tool ${toolName}`);
       fail++;
       continue;
@@ -108,6 +117,26 @@ checkSampleDir(inputValidDir, 'input', true);
 checkSampleDir(outputValidDir, 'output', true);
 checkSampleDir(inputInvalidDir, 'input', false);
 checkSampleDir(outputInvalidDir, 'output', false);
+
+for (const name of expectedTools) {
+  if (!seenNames.has(name)) {
+    console.error(`FAIL required MCP tool is missing: ${name}`);
+    fail++;
+  }
+}
+for (const name of seenNames) {
+  if (!expectedTools.has(name)) {
+    console.error(`FAIL unexpected public MCP tool is published: ${name}`);
+    fail++;
+  }
+}
+if (seenNames.size !== expectedTools.size) {
+  console.error(`FAIL expected exactly ${expectedTools.size} public MCP tools, found ${seenNames.size}`);
+  fail++;
+} else {
+  console.log('ok exactly seven kernel MCP tools are published');
+  pass++;
+}
 
 console.log(`mcp-tools: ${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

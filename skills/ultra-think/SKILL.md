@@ -18,20 +18,20 @@ project-bound decision that must survive interruption or control later work.
    implementation judgment, and unresolved owner choice.
 5. Stress-test the leading answer with its strongest failure path and recovery.
 
-Read `references/decision-dialogue.md`. Reuse a clear decision already present in the
+Read `references/interaction-boundary.md`. Reuse a clear decision already present in the
 request. Decide reversible delegated implementation details yourself. When owner
 authority is necessary, ask one dependent decision through the host-native question
 surface with a recommendation, decisive evidence, and the effect of the answer.
 
 ## Persist only the normalized result
 
-Use one `ultra.record` batch for `decision.thread_start`, `decision.open`, the
-appropriate resolve/delegate/defer/supersede operation, the owning artifact mutation,
-and `decision.complete` when they are all known. Store normalized decisions and
-artifact references, never transcripts or internal reasoning.
+Use one `ultra.record` batch with `decision / accept` and, when required,
+`artifact / bind` for the owning semantic document. A revised answer carries
+`supersedes_id`; accepted records remain immutable history. Store normalized decisions
+and artifact references, never transcripts or internal reasoning.
 
-A semantic rejection remains a mutable diagnostic. Correct the record or intentionally
-abandon the draft; do not invent a new decision merely to satisfy a state machine.
+A semantic rejection remains a mutable diagnostic. Correct the record; do not invent a
+new decision merely to satisfy a state machine.
 
 Return the conclusion, decisive evidence, uncertainty, affected authority, and the
 model's recommended next explicit capability. Thinking never performs unrelated

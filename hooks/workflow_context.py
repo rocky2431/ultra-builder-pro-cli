@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Inject one compact Ultra workflow-memory position without provider payloads."""
+"""Inject one compact, read-only Ultra Context Envelope."""
 
 import json
 import sys
 from pathlib import Path
 
-from context_spine import (
-    ContextSpineError,
+from context_envelope import (
+    ContextEnvelopeError,
     find_root_for_hook,
-    read_breadcrumb,
-    render_breadcrumb,
+    read_context_envelope,
+    render_context_envelope,
 )
 
 
@@ -32,15 +32,14 @@ def main() -> None:
         print(json.dumps({}))
         return
     try:
-        breadcrumb = read_breadcrumb(root)
-    except ContextSpineError as exc:
-        print(f"[workflow_context] cannot inspect Context Spine: {exc}", file=sys.stderr)
-        breadcrumb = None
-    if breadcrumb and breadcrumb.get("workflow"):
-        context = render_breadcrumb(root, breadcrumb)
-    else:
+        envelope = read_context_envelope(root)
+    except ContextEnvelopeError as exc:
+        print(f"[workflow_context] cannot inspect Context Envelope: {exc}", file=sys.stderr)
+        envelope = None
+    if not envelope:
         print(json.dumps({}))
         return
+    context = render_context_envelope(root, envelope)
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "SessionStart",
         "additionalContext": context,

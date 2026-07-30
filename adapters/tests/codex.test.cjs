@@ -24,6 +24,25 @@ const {
 } = require('../_shared/runtime-assets.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+
+function treeDigest(root) {
+  const entries = [];
+  const pending = [root];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const file = path.join(current, entry.name);
+      if (entry.isDirectory()) pending.push(file);
+      else if (entry.isFile()) {
+        entries.push([
+          path.relative(root, file),
+          fs.readFileSync(file).toString('base64'),
+        ]);
+      }
+    }
+  }
+  return JSON.stringify(entries.sort(([left], [right]) => left.localeCompare(right)));
+}
 const COMMANDS = [
   'ultra-change',
   'ultra-deliver',
@@ -106,12 +125,12 @@ test('install builds one Codex-native plugin with complete skill and command cov
       assert.equal(commandMap[`/${command}`], `$ultra-builder-pro:${command}`);
       assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'skills', command, 'SKILL.md')));
     }
-    const dialogue = fs.readFileSync(
-      path.join(layout.pluginRoot, 'skills', 'ultra-think', 'references', 'decision-dialogue.md'),
+    const interactionBoundary = fs.readFileSync(
+      path.join(layout.pluginRoot, 'skills', 'ultra-think', 'references', 'interaction-boundary.md'),
       'utf8',
     );
-    assert.match(dialogue, /request_user_input/);
-    assert.doesNotMatch(dialogue, /host-native structured question surface declared/);
+    assert.match(interactionBoundary, /request_user_input/);
+    assert.doesNotMatch(interactionBoundary, /host-native structured question surface declared/);
     assert.ok(!fs.existsSync(path.join(layout.configDir, 'prompts')), 'deprecated Codex prompts must not be installed');
   } finally {
     cleanup(layout);
@@ -228,11 +247,11 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     ].sort());
     const serializedHooks = JSON.stringify(hooks);
     for (const feature of WORKFLOW_HOOK_FILES.filter(
-      (value) => !['context_spine.py', 'runtime_paths.py'].includes(value),
+      (value) => !['context_envelope.py', 'runtime_paths.py'].includes(value),
     )) {
       assert.match(serializedHooks, new RegExp(feature.replace('.', '\\.')));
     }
-    assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'hooks', 'context_spine.py')));
+    assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'hooks', 'context_envelope.py')));
     assert.doesNotMatch(serializedHooks, /memory|recall|journal|observation_capture|user_prompt_capture|block_dangerous|post_edit_guard/);
     assert.match(
       serializedHooks,
@@ -267,15 +286,19 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
     const server = mcp.mcpServers['ultra-builder-pro'];
     assert.equal(server.type, 'stdio');
-    assert.ok(path.isAbsolute(server.command));
-    assert.ok(path.isAbsolute(server.args[0]));
-    assert.equal(server.args[0], path.join(layout.pluginRoot, 'runtime', 'launch.cjs'));
-    assert.doesNotMatch(server.args[0], new RegExp(REPO_ROOT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.equal(server.command, process.platform === 'win32' ? 'node.exe' : '/usr/bin/env');
+    assert.deepEqual(
+      server.args,
+      process.platform === 'win32'
+        ? [path.join(layout.pluginRoot, 'runtime', 'launch.cjs')]
+        : ['node', path.join(layout.pluginRoot, 'runtime', 'launch.cjs')],
+    );
+    assert.doesNotMatch(JSON.stringify(server.args), new RegExp(REPO_ROOT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.ok(!server.env, 'MCP must use each Codex task cwd so .ultra/.runtime/state.db stays project-local');
 
     for (const rel of [
       'runtime/index.cjs',
-      'runtime/breadcrumb.cjs',
+      'runtime/hook-context.cjs',
       'runtime/hook-event.cjs',
       'runtime/launch.cjs',
       'runtime/plan-publication-worker.cjs',
@@ -283,10 +306,10 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
       'runtime/doctor-backup-worker.cjs',
       'runtime/archive-mutation-worker.py',
       'runtime/ultra-tools.cjs',
-      'runtime/build/Release/better_sqlite3.node',
+      'runtime/native-runtime.json',
+      'runtime/runtime-native.cjs',
+      'runtime/node_modules/better-sqlite3/build/Release/better_sqlite3.node',
       'spec/mcp-tools.yaml',
-      'spec/upstream-mcp-tools.yaml',
-      'spec/codex-capability-map.json',
       'spec/interaction-contract.json',
       'spec/schemas/state-db.sql',
       'templates/.ultra/tasks/tasks.json',
@@ -295,21 +318,9 @@ test('plugin declares current Codex hooks and a project-local Ultra MCP server',
     }
 
     const liveSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'mcp-tools.yaml'), 'utf8'));
-    const upstreamSpec = yaml.load(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'upstream-mcp-tools.yaml'), 'utf8'));
-    const capabilityMap = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'codex-capability-map.json'), 'utf8'));
     const interaction = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, 'spec', 'interaction-contract.json'), 'utf8'));
-    assert.equal(liveSpec.tools.length, 67);
-    assert.equal(upstreamSpec.tools.length, 67);
-    assert.deepEqual(
-      upstreamSpec.tools.map((tool) => tool.name).sort(),
-      liveSpec.tools.map((tool) => tool.name).sort(),
-    );
-    assert.equal(capabilityMap.live_mcp_tools.length, 7);
-    assert.ok(capabilityMap.live_mcp_tools.every((tool) => tool.startsWith('ultra.')));
-    assert.equal(capabilityMap.compatibility_mcp_tools.length, 60);
-    assert.equal(Object.keys(capabilityMap.codex_native_replacements).length, 9);
-    assert.equal(capabilityMap.codex_native_replacements['review.run'].surface, 'native_custom_agents');
-    assert.equal(capabilityMap.codex_native_replacements['ask.question'].surface, 'request_user_input');
+    assert.equal(liveSpec.tools.length, 7);
+    assert.ok(liveSpec.tools.every((tool) => tool.name.startsWith('ultra.')));
     assert.equal(interaction.runtime, 'codex');
     assert.equal(interaction.interaction.question_surface.primary, 'request_user_input');
     assert.equal(interaction.routing.durable_recommendation_authority, false);
@@ -361,44 +372,55 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
         'ultra.sync',
       ],
     );
-    const change = await client.callTool({
-      name: 'change.create',
-      arguments: completeChangeInput({
-        id: 'codex-bundle-change', title: 'Exercise bundled runtime', kind: 'quick',
-        intent: 'Keep task state in the Codex task working directory.',
-        docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
-      }),
+    const recorded = await client.callTool({
+      name: 'ultra.record',
+      arguments: { entries: [
+        {
+          kind: 'change_contract',
+          action: 'open',
+          data: completeChangeInput({
+            id: 'codex-bundle-change', title: 'Exercise bundled runtime', kind: 'quick',
+            intent: 'Keep task state in the Codex task working directory.',
+            docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
+          }),
+          idempotency_key: 'codex-bundle-change',
+        },
+        {
+          kind: 'task_contract',
+          action: 'define',
+          data: {
+            id: 'codex-bundle-1', title: 'bundled runtime', type: 'feature', priority: 'P1',
+            change_id: 'codex-bundle-change',
+            outcome: 'The bundled MCP persists task authority in the Codex task directory.',
+            slice_kind: 'tracer_bullet',
+            public_seam: 'bundled MCP task lifecycle',
+            verification_command: 'node --test adapters/tests/codex.test.cjs',
+            acceptance: [{
+              id: 'task-cwd-authority',
+              criterion: 'Task lifecycle state is stored under the Codex task working directory.',
+              verification: 'node --test adapters/tests/codex.test.cjs',
+            }],
+            context_refs: [{
+              ref: 'contract.md', kind: 'spec', reason: 'Bundled runtime behavior contract', required: true,
+            }],
+            docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
+            ownership: { owner: 'test-owner', reviewers: [] },
+            trace_to: 'contract.md#bundled-runtime-contract',
+          },
+          idempotency_key: 'codex-bundle-task',
+        },
+        {
+          kind: 'task_outcome',
+          action: 'start',
+          data: { id: 'codex-bundle-1' },
+          idempotency_key: 'codex-bundle-start',
+        },
+      ] },
     });
-    assert.equal(change.isError, undefined);
-    const created = await client.callTool({
-      name: 'task.create',
-      arguments: {
-        id: 'codex-bundle-1', title: 'bundled runtime', type: 'feature', priority: 'P1',
-        change_id: 'codex-bundle-change',
-        outcome: 'The bundled MCP persists task authority in the Codex task directory.',
-        slice_kind: 'tracer_bullet',
-        public_seam: 'bundled MCP task lifecycle',
-        verification_command: 'node --test adapters/tests/codex.test.cjs',
-        acceptance: [{
-          id: 'task-cwd-authority',
-          criterion: 'Task lifecycle state is stored under the Codex task working directory.',
-          verification: 'node --test adapters/tests/codex.test.cjs',
-        }],
-        context_refs: [{
-          ref: 'contract.md', kind: 'spec', reason: 'Bundled runtime behavior contract', required: true,
-        }],
-        docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
-        ownership: { owner: 'test-owner', reviewers: [] },
-        trace_to: 'contract.md#bundled-runtime-contract',
-      },
-    });
-    assert.equal(created.isError, undefined);
-    const started = await client.callTool({
-      name: 'task.update', arguments: { id: 'codex-bundle-1', patch: { status: 'in_progress' } },
-    });
-    assert.equal(started.isError, undefined);
+    assert.equal(recorded.isError, undefined, recorded.content?.[0]?.text);
+    assert.equal(recorded.structuredContent.accepted, true);
     const repaired = await client.callTool({
-      name: 'system.doctor',
+      name: 'ultra.doctor',
       arguments: { repair: true },
     });
     assert.equal(repaired.isError, undefined, repaired.content?.[0]?.text);
@@ -465,8 +487,21 @@ test('bundled plugin MCP runs outside the source checkout and keeps state in the
 
     const freshTarget = path.join(projectDir, 'fresh-project');
     const initialized = await client.callTool({
-      name: 'task.init_project',
-      arguments: { target_dir: freshTarget, project_name: 'Codex bundle', project_type: 'cli' },
+      name: 'ultra.record',
+      arguments: {
+        entries: [{
+          kind: 'baseline',
+          action: 'initialize',
+          data: {
+            target_dir: freshTarget,
+            project_name: 'Codex bundle',
+            project_type: 'cli',
+            mode: 'greenfield',
+            git_mode: 'initialize',
+          },
+          idempotency_key: 'codex-bundle-fresh-init',
+        }],
+      },
     });
     assert.equal(initialized.isError, undefined);
     assert.ok(fs.existsSync(path.join(freshTarget, '.ultra', 'tasks', 'tasks.json')));
@@ -578,5 +613,41 @@ test('doctor checks the current Codex cache hook target for a CLI-managed global
     assert.equal(codex.doctor(doctorCtx).status, 'healthy');
   } finally {
     cleanup(layout);
+  }
+});
+
+test('failed Codex rebuild preserves the previous plugin, agents, and marketplace', () => {
+  const layout = mkLayout();
+  const brokenRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-codex-broken-'));
+  try {
+    codex.install({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: false,
+    });
+    const beforePlugin = treeDigest(layout.pluginRoot);
+    const beforeAgents = treeDigest(path.join(layout.configDir, 'agents'));
+    const beforeMarketplace = fs.readFileSync(layout.marketplaceFile);
+    fs.mkdirSync(path.join(brokenRepo, 'skills', 'ultra-init'), { recursive: true });
+    fs.copyFileSync(
+      path.join(REPO_ROOT, 'skills', 'ultra-init', 'SKILL.md'),
+      path.join(brokenRepo, 'skills', 'ultra-init', 'SKILL.md'),
+    );
+
+    assert.throws(() => codex.install({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: brokenRepo,
+      runPluginCli: false,
+    }), /missing allowlisted Codex skill/);
+    assert.equal(treeDigest(layout.pluginRoot), beforePlugin);
+    assert.equal(treeDigest(path.join(layout.configDir, 'agents')), beforeAgents);
+    assert.deepEqual(fs.readFileSync(layout.marketplaceFile), beforeMarketplace);
+  } finally {
+    cleanup(layout);
+    fs.rmSync(brokenRepo, { recursive: true, force: true });
   }
 });

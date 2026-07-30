@@ -9,7 +9,7 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '20.0';
+const EXPECTED_VERSION = '22.0';
 const KIMI_SCHEMA_VERSION = '9.1';
 const CONTEXT_SCHEMA_VERSION = '10.0';
 const BASELINE_SCHEMA_VERSION = '11.0';
@@ -22,6 +22,8 @@ const GIT_AUTHORITY_SCHEMA_VERSION = '17.0';
 const ADAPTIVE_SCHEMA_VERSION = '18.0';
 const DECISION_COMPLETION_SCHEMA_VERSION = '19.0';
 const ARTIFACT_REGISTRY_SCHEMA_VERSION = '20.0';
+const KERNEL_SCHEMA_VERSION = '21.0';
+const CHECKPOINT_NATIVE_SCHEMA_VERSION = '22.0';
 
 const MIGRATED_GAPS = Object.freeze([{
   id: 'legacy-rebaseline-required',
@@ -56,6 +58,10 @@ const REQUIRED_TABLES = Object.freeze([
   'workflow_steps',
   'decision_threads',
   'decision_items',
+  'stage_checkpoints',
+  'decision_records',
+  'context_envelopes',
+  'worker_packets',
 ]);
 
 class ActiveSessionLeaseConflictError extends Error {
@@ -173,6 +179,7 @@ function applyBaselineUpgrade(db, { legacyState = false } = {}) {
       classification_json TEXT NOT NULL DEFAULT '{}',
       provider_refs_json  TEXT NOT NULL DEFAULT '{}',
       research_run_id     TEXT,
+      research_checkpoint_id TEXT,
       approved_by         TEXT,
       approval_note       TEXT,
       started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -226,6 +233,62 @@ function applyBaselineColumns(db) {
     db, 'baselines', columns, 'classification_json', "TEXT NOT NULL DEFAULT '{}'",
   ) || changed;
   changed = addColumnIfMissing(db, 'baselines', columns, 'research_run_id', 'TEXT') || changed;
+  changed = addColumnIfMissing(
+    db,
+    'baselines',
+    columns,
+    'research_checkpoint_id',
+    'TEXT',
+  ) || changed;
+  if (columns.has('research_checkpoint_id')
+      && tableNames(db).includes('stage_checkpoints')) {
+    const result = db.prepare(
+      `UPDATE baselines
+       SET research_checkpoint_id = research_run_id
+       WHERE research_checkpoint_id IS NULL
+         AND research_run_id IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM stage_checkpoints
+           WHERE stage_checkpoints.id = baselines.research_run_id
+             AND stage_checkpoints.stage = 'research'
+         )`,
+    ).run();
+    changed = result.changes > 0 || changed;
+  }
+  return changed;
+}
+
+function applyKernelIntegrityColumns(db) {
+  const tables = new Set(tableNames(db));
+  let changed = false;
+  if (tables.has('context_envelopes')) {
+    const columns = columnNames(db, 'context_envelopes');
+    changed = addColumnIfMissing(
+      db,
+      'context_envelopes',
+      columns,
+      'file_digest',
+      'TEXT',
+    ) || changed;
+  }
+  if (tables.has('worker_packets')) {
+    const columns = columnNames(db, 'worker_packets');
+    for (const [name, definition] of [
+      ['file_digest', 'TEXT'],
+      ['status', "TEXT NOT NULL DEFAULT 'assigned' CHECK (status IN ('pending', 'assigned', 'abandoned'))"],
+      ['assigned_at', 'TEXT'],
+      ['abandoned_at', 'TEXT'],
+      ['abandon_reason', 'TEXT'],
+    ]) {
+      changed = addColumnIfMissing(
+        db,
+        'worker_packets',
+        columns,
+        name,
+        definition,
+      ) || changed;
+    }
+  }
   return changed;
 }
 
@@ -422,7 +485,8 @@ function migrateAdaptiveWorkflowRuns(db, fromVersion = latestSchemaVersion(db)) 
   ).get();
   if ([
     ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
-    ARTIFACT_REGISTRY_SCHEMA_VERSION,
+    ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
+    CHECKPOINT_NATIVE_SCHEMA_VERSION,
   ].includes(fromVersion) || existing) {
     return false;
   }
@@ -538,11 +602,11 @@ function migrateAdaptiveWorkflowRuns(db, fromVersion = latestSchemaVersion(db)) 
   return true;
 }
 
-function tableSupportsKimi(db, table) {
+function tableSupportsRuntime(db, table, runtime) {
   const row = db.prepare(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
   ).get(table);
-  return typeof row?.sql === 'string' && row.sql.includes("'kimi'");
+  return typeof row?.sql === 'string' && row.sql.includes(`'${runtime}'`);
 }
 
 function baselineSupportsUnbornGit(db) {
@@ -676,6 +740,7 @@ function upgradeBaselineWorktreeConstraint(db, fromVersion = latestSchemaVersion
           classification_json TEXT NOT NULL DEFAULT '{}',
           provider_refs_json  TEXT NOT NULL DEFAULT '{}',
           research_run_id     TEXT,
+          research_checkpoint_id TEXT,
           approved_by         TEXT,
           approval_note       TEXT,
           started_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -687,7 +752,8 @@ function upgradeBaselineWorktreeConstraint(db, fromVersion = latestSchemaVersion
           repository_revision, repository_branch, worktree_state, worktree_digest,
           worktree_files_json, worktree_accepted, known_red_accepted, spec_refs_json,
           evidence_json, verification_json, unknowns_json, gaps_json, classification_json,
-          provider_refs_json, research_run_id, approved_by, approval_note, started_at,
+          provider_refs_json, research_run_id, research_checkpoint_id,
+          approved_by, approval_note, started_at,
           updated_at, converged_at
         )
         SELECT
@@ -695,7 +761,8 @@ function upgradeBaselineWorktreeConstraint(db, fromVersion = latestSchemaVersion
           repository_revision, repository_branch, worktree_state, worktree_digest,
           worktree_files_json, worktree_accepted, known_red_accepted, spec_refs_json,
           evidence_json, verification_json, unknowns_json, gaps_json, classification_json,
-          provider_refs_json, research_run_id, approved_by, approval_note, started_at,
+          provider_refs_json, research_run_id, research_checkpoint_id,
+          approved_by, approval_note, started_at,
           updated_at, converged_at
         FROM baselines;
         DROP TABLE baselines;
@@ -717,7 +784,11 @@ function upgradeBaselineWorktreeConstraint(db, fromVersion = latestSchemaVersion
 
 function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
   assertNoDuplicateActiveSessionLeases(db);
-  if (tableSupportsKimi(db, 'events') && tableSupportsKimi(db, 'sessions')) return false;
+  const missingKimi = !tableSupportsRuntime(db, 'events', 'kimi')
+    || !tableSupportsRuntime(db, 'sessions', 'kimi');
+  const missingGrok = !tableSupportsRuntime(db, 'events', 'grok')
+    || !tableSupportsRuntime(db, 'sessions', 'grok');
+  if (!missingKimi && !missingGrok) return false;
   const previousVersion = fromVersion || 'unknown';
   const foreignKeys = db.pragma('foreign_keys', { simple: true });
   db.pragma('foreign_keys = OFF');
@@ -732,7 +803,7 @@ function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
           task_id       TEXT,
           change_id     TEXT,
           session_id    TEXT,
-          runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex', 'kimi')),
+          runtime       TEXT CHECK (runtime IS NULL OR runtime IN ('claude', 'opencode', 'codex', 'kimi', 'grok')),
           payload_json  TEXT
         );
         INSERT INTO events_runtime_upgrade
@@ -749,7 +820,7 @@ function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
         CREATE TABLE sessions_runtime_upgrade (
           sid               TEXT PRIMARY KEY,
           task_id           TEXT NOT NULL REFERENCES tasks(id),
-          runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex', 'kimi')),
+          runtime           TEXT NOT NULL CHECK (runtime IN ('claude', 'opencode', 'codex', 'kimi', 'grok')),
           pid               INTEGER,
           worktree_path     TEXT NOT NULL,
           artifact_dir      TEXT NOT NULL,
@@ -771,15 +842,28 @@ function upgradeRuntimeConstraints(db, fromVersion = latestSchemaVersion(db)) {
         CREATE UNIQUE INDEX sessions_one_active_task
           ON sessions(task_id) WHERE status = 'running';
       `);
-      db.prepare(
-        `INSERT INTO migration_history
-          (from_version, to_version, direction, status, notes)
-         VALUES (?, ?, 'forward', 'success', ?)`,
-      ).run(
-        previousVersion,
-        KIMI_SCHEMA_VERSION,
-        'Add Kimi to durable event and session runtime constraints',
-      );
+      if (missingKimi) {
+        db.prepare(
+          `INSERT INTO migration_history
+            (from_version, to_version, direction, status, notes)
+           VALUES (?, ?, 'forward', 'success', ?)`,
+        ).run(
+          previousVersion,
+          KIMI_SCHEMA_VERSION,
+          'Add Kimi to durable event and session runtime constraints',
+        );
+      }
+      if (missingGrok) {
+        db.prepare(
+          `INSERT INTO migration_history
+            (from_version, to_version, direction, status, notes)
+           VALUES (?, ?, 'forward', 'success', ?)`,
+        ).run(
+          missingKimi ? KIMI_SCHEMA_VERSION : previousVersion,
+          KERNEL_SCHEMA_VERSION,
+          'Add Grok to durable event and session runtime constraints',
+        );
+      }
       const violations = db.pragma('foreign_key_check');
       if (violations.length > 0) {
         throw new Error(`runtime constraint migration produced ${violations.length} foreign key violation(s)`);
@@ -935,6 +1019,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
         WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
         DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
         DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
+        KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
       ].includes(fromVersion)
         && !contextMigration,
     );
@@ -953,6 +1038,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     applyBaselineColumns(db);
     applyChangeColumns(db);
     applySemanticAuthorityColumns(db);
+    applyKernelIntegrityColumns(db);
     const artifactRegistryChanged = applyArtifactRegistryUpgrade(db);
     const baselineMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '11.0' AND status = 'success' LIMIT 1",
@@ -962,6 +1048,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION,
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
       DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
+      KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !baselineMigration) {
       db.prepare(
@@ -993,7 +1080,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
         db.prepare(
           `UPDATE baselines SET mode = 'migrated', status = 'adopting',
            classification_json = ?, gaps_json = ?, approved_by = NULL, approval_note = ?,
-           converged_at = NULL, research_run_id = NULL, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+           converged_at = NULL, research_run_id = NULL, research_checkpoint_id = NULL,
+           updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
            WHERE id = ?`,
         ).run(
           JSON.stringify(classification), JSON.stringify(gaps),
@@ -1034,6 +1122,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
       DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
       DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
+      KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
     ].includes(fromVersion) && !workflowMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1051,7 +1140,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION,
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
-      ARTIFACT_REGISTRY_SCHEMA_VERSION,
+      ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
+      CHECKPOINT_NATIVE_SCHEMA_VERSION,
     ].includes(fromVersion) && !authorityMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1069,7 +1159,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION,
       ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
-      ARTIFACT_REGISTRY_SCHEMA_VERSION,
+      ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
+      CHECKPOINT_NATIVE_SCHEMA_VERSION,
     ].includes(fromVersion) && !semanticMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1087,6 +1178,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
       DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
+      KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !dialogueMigration) {
       db.prepare(
@@ -1104,7 +1196,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion && ![
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
-      ARTIFACT_REGISTRY_SCHEMA_VERSION,
+      ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
+      CHECKPOINT_NATIVE_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !gitStateMigration) {
       db.prepare(
@@ -1123,7 +1216,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion && ![
       ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
-      ARTIFACT_REGISTRY_SCHEMA_VERSION,
+      ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
+      CHECKPOINT_NATIVE_SCHEMA_VERSION,
     ].includes(fromVersion) && !adaptiveMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1142,6 +1236,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion && ![
       DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
+      KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
     ].includes(fromVersion) && !completionMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1159,6 +1254,8 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       "SELECT 1 FROM migration_history WHERE to_version = '20.0' AND status = 'success' LIMIT 1",
     ).get();
     if (fromVersion && fromVersion !== ARTIFACT_REGISTRY_SCHEMA_VERSION
+      && fromVersion !== KERNEL_SCHEMA_VERSION
+      && fromVersion !== CHECKPOINT_NATIVE_SCHEMA_VERSION
       && !artifactRegistryMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1172,6 +1269,39 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
           : 'Add the typed artifact registry, dependency graph, and orphan diagnostics',
       );
     }
+    const kernelMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '21.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion
+      && fromVersion !== KERNEL_SCHEMA_VERSION
+      && fromVersion !== CHECKPOINT_NATIVE_SCHEMA_VERSION
+      && !kernelMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        ARTIFACT_REGISTRY_SCHEMA_VERSION,
+        KERNEL_SCHEMA_VERSION,
+        'Add the seven-tool persistence kernel, reversible stage checkpoints, canonical context envelopes, normalized decisions, worker packets, and Grok runtime authority',
+      );
+    }
+    const checkpointNativeMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '22.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion
+      && fromVersion !== CHECKPOINT_NATIVE_SCHEMA_VERSION
+      && !checkpointNativeMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        KERNEL_SCHEMA_VERSION,
+        CHECKPOINT_NATIVE_SCHEMA_VERSION,
+        'Bind Baseline research to Stage Checkpoints and add byte digests for Context Envelopes and Worker Packets',
+      );
+    }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
     db.exec('CREATE INDEX IF NOT EXISTS events_change ON events(change_id, id)');
     ensureActiveSessionLeaseIndex(db);
@@ -1179,7 +1309,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
     ).run(
       EXPECTED_VERSION,
-      'Typed artifact registry, normalized dependency edges, and orphan diagnostics',
+      'Checkpoint-native baseline authority plus byte-bound Context Envelopes and Worker Packets',
     );
   })();
 }
@@ -1212,6 +1342,7 @@ function initStateDb(dbPath) {
         WORKFLOW_SCHEMA_VERSION, AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION,
         DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
         DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
+        KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
       ].includes(fromVersion);
     backupPath = migrationBackup(db, dbPath, fromVersion, existing);
     // This must precede every ALTER, table rebuild, or index creation. Runtime

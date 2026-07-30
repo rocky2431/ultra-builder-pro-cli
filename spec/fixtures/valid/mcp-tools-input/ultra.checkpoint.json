@@ -1,0 +1,10 @@
+{
+  "stage": "plan",
+  "scope": {
+    "change_id": "change-001"
+  },
+  "payload": {
+    "summary": "The plan is ready for implementation."
+  },
+  "idempotency_key": "checkpoint-plan-001"
+}

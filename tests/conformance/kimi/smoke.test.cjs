@@ -35,8 +35,23 @@ test('kimi smoke — native plugin registration launches the bundled MCP from pr
     const client = new Client({ name: 'kimi-smoke', version: '1.0.0' }, { capabilities: {} });
     await client.connect(transport);
     try {
-      const listed = await client.callTool({ name: 'task.list', arguments: {} });
-      assert.deepEqual(readToolPayload(listed).tasks, []);
+      const initialized = await client.callTool({
+        name: 'ultra.record',
+        arguments: {
+          entries: [{
+            kind: 'baseline',
+            action: 'initialize',
+            data: {
+              target_dir: project,
+              project_name: 'kimi-smoke',
+              mode: 'greenfield',
+              git_mode: 'initialize',
+            },
+            idempotency_key: 'kimi-smoke-init',
+          }],
+        },
+      });
+      assert.equal(readToolPayload(initialized).accepted, true);
       assert.ok(fs.existsSync(path.join(project, '.ultra', '.runtime', 'state.db')));
       assert.equal(
         fs.existsSync(path.join(report.target, '.ultra', '.runtime', 'state.db')),

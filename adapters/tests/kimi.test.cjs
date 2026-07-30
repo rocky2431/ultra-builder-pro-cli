@@ -104,11 +104,11 @@ test('Kimi manifest exposes explicit native skills, commands, hooks, and MCP wit
     const hookText = JSON.stringify(manifest.hooks);
     assert.match(hookText, /hooks\/adapters\/kimi\.py/);
     for (const hook of WORKFLOW_HOOK_FILES.filter(
-      (value) => !['context_spine.py', 'runtime_paths.py'].includes(value),
+      (value) => !['context_envelope.py', 'runtime_paths.py'].includes(value),
     )) {
       assert.match(hookText, new RegExp(hook.replace('.', '\\.')));
     }
-    assert.ok(fs.existsSync(path.join(pluginRoot, 'hooks', 'context_spine.py')));
+    assert.ok(fs.existsSync(path.join(pluginRoot, 'hooks', 'context_envelope.py')));
     assert.doesNotMatch(hookText, /memory|recall|journal|prompt[_ -]?capture|block_dangerous|post_edit_guard/i);
     const launched = spawnSync(
       'python3',
@@ -127,12 +127,12 @@ test('Kimi manifest exposes explicit native skills, commands, hooks, and MCP wit
     const interaction = readJson(path.join(pluginRoot, 'spec', 'interaction-contract.json'));
     assert.equal(interaction.interaction.question_surface.primary, 'AskUserQuestion');
     assert.equal(interaction.interaction.question_surface.availability, 'interactive_non_auto_mode');
-    const dialogue = fs.readFileSync(
-      path.join(pluginRoot, 'skills', 'ultra-think', 'references', 'decision-dialogue.md'),
+    const interactionBoundary = fs.readFileSync(
+      path.join(pluginRoot, 'skills', 'ultra-think', 'references', 'interaction-boundary.md'),
       'utf8',
     );
-    assert.match(dialogue, /AskUserQuestion/);
-    assert.doesNotMatch(dialogue, /host-native structured question surface declared/);
+    assert.match(interactionBoundary, /AskUserQuestion/);
+    assert.doesNotMatch(interactionBoundary, /host-native structured question surface declared/);
 
     const commands = fs.readdirSync(path.join(pluginRoot, 'commands')).sort();
     assert.deepEqual(commands, CORE_PUBLIC_SKILLS.map((name) => `${name}.md`).sort());
@@ -165,7 +165,7 @@ test('Kimi assets are allowlisted, explicit-only, and adapted to native tools an
     assert.match(review, /spec_fidelity/);
     assert.match(review, /engineering_standards/);
     assert.doesNotMatch(review, /background mode|run_in_background/);
-    assert.match(init, /task\.init_project/);
+    assert.match(init, /ultra\.record/);
     assert.doesNotMatch(init, /Claude Code|OpenCode|Codex/);
     assert.match(fs.readFileSync(path.join(pluginRoot, 'skills', 'codex-collab', 'SKILL.md'), 'utf8'), /--ephemeral/);
     for (const name of skillsForRuntime('kimi')) {

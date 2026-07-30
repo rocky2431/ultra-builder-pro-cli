@@ -93,7 +93,7 @@ def test_idle_project_is_a_no_op(tmp_path):
         ).fetchone()[0] == 0
 
 
-def test_active_change_without_active_workflow_is_a_no_op(tmp_path):
+def test_active_change_without_legacy_workflow_still_records_lifecycle(tmp_path):
     ultra = tmp_path / ".ultra"
     ultra.mkdir()
     with sqlite3.connect(ultra / "state.db") as conn:
@@ -110,4 +110,4 @@ def test_active_change_without_active_workflow_is_a_no_op(tmp_path):
     with sqlite3.connect(ultra / "state.db") as conn:
         assert conn.execute(
             "SELECT COUNT(*) FROM events WHERE type LIKE 'subagent_%'"
-        ).fetchone()[0] == 0
+        ).fetchone()[0] == 1

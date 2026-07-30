@@ -21,12 +21,15 @@ Keep two independent verdict axes:
 5. Always run `review-spec`. Select the smallest engineering worker set that covers
    actual risk; record selected and excluded roles with rationale.
 
-Workers are read-only and use the host-native bounded-worker mechanism. Validate their
-artifacts with `scripts/review_wait.py` and
-`references/unified-schema.md`. Preserve every finding unchanged in `SUMMARY.json`;
-group duplicates only in the human summary.
+Use the current host's native bounded-worker mechanism. Workers are read-only and
+receive one immutable Worker Packet containing the exact Context Envelope, HEAD/diff,
+decisions, acceptance, output path/schema, and `packet_digest`. Validate their artifacts with `scripts/review_wait.py` and
+`references/unified-schema.md`; reject any output that does not echo the exact packet
+digest. Preserve every finding unchanged in `SUMMARY.json`; group duplicates only in
+the human summary.
 
-Register specialist and summary artifacts through one `ultra.record` batch.
+Register specialist and summary artifacts through one `ultra.record` batch using
+`artifact / bind`.
 
 ## Checkpoint
 

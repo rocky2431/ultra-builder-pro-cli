@@ -23,17 +23,18 @@ capability.
 4. Ask the owner only when scope, healthy-authority replacement, destructive recovery,
    or another material choice cannot be derived. Reuse explicit intent.
 
-Read `../ultra-think/references/decision-dialogue.md` before asking a material
+Read `../ultra-think/references/interaction-boundary.md` before asking a material
 question.
 
 ## Initialize once
 
-Call `ultra.record` with one entry:
+Call `ultra.record` with one typed entry:
 
 ```text
-operation: task.init_project
-data: target_dir, project_name, mode=auto, git_mode=auto, optional scope
-idempotency_key: stable init attempt id
+kind: baseline
+action: initialize
+data: { target_dir, project_name, mode=auto, git_mode=auto, optional scope }
+idempotency_key: <stable init attempt id>
 ```
 
 This stateless bootstrap is the only `ultra.record` operation allowed before

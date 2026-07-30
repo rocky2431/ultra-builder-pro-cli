@@ -8,8 +8,8 @@ const Ajv = require('ajv/dist/2020');
 
 const ops = require('./state-ops.cjs');
 const artifacts = require('./artifact-registry.cjs');
-const contextSpine = require('./context-spine.cjs');
-const specLearning = require('./spec-learning.cjs');
+const canonical = require('./canonical-json.cjs');
+const { writeManagedFile } = require('./managed-file-write.cjs');
 const providerRefs = require('./provider-refs.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
@@ -20,12 +20,31 @@ const {
   readStableProjectFile,
   walkStableProjectTree,
 } = require('./safe-project-file.cjs');
-const workflows = require('./workflow-state.cjs');
-const decisions = require('./decision-dialogue.cjs');
+const stageCheckpoints = require('./stage-checkpoints.cjs');
 const reconciliationSchema = require('../../spec/schemas/baseline-reconciliation.v1.schema.json');
 
 const reconciliationAjv = new Ajv({ allErrors: true, strict: false });
 const validateReconciliationSchema = reconciliationAjv.compile(reconciliationSchema);
+
+function loadLegacyModule(filename) {
+  return module.require(path.join(__dirname, filename));
+}
+
+function legacyContextSpine() {
+  return loadLegacyModule('context-spine.cjs');
+}
+
+function legacySpecLearning() {
+  return loadLegacyModule('spec-learning.cjs');
+}
+
+function legacyWorkflows() {
+  return loadLegacyModule('workflow-state.cjs');
+}
+
+function legacyDecisions() {
+  return loadLegacyModule('decision-dialogue.cjs');
+}
 
 const CHANGE_ID = /^[a-zA-Z0-9_-]+$/;
 const CHANGE_PATCH_FIELDS = new Set([
@@ -494,7 +513,13 @@ function readReconciliationManifest(db, change, input, rootDir) {
       );
     }
     let resolved;
-    try { resolved = workflows.resolveProjectSourceRef(rootDir, item.source_ref, 'semantic_change.source_ref'); }
+    try {
+      resolved = legacyWorkflows().resolveProjectSourceRef(
+        rootDir,
+        item.source_ref,
+        'semantic_change.source_ref',
+      );
+    }
     catch (error) {
       throw new ChangeWorkflowError('BASELINE_RECONCILIATION_MANIFEST_INVALID', error.message);
     }
@@ -653,14 +678,17 @@ function upsertArtifact(
   db,
   {
     change_id, task_id = null, kind, artifactPath, contentHash, metadata,
-    workflow_id = null, terminal = false, rootDir = process.cwd(),
+    workflow_id = null, consumer_ref = null, terminal = false,
+    writer = 'change-workflow', rootDir = process.cwd(),
   },
 ) {
   const ownerType = task_id ? 'task' : 'change';
   const ownerId = task_id || change_id;
   const consumer = terminal
     ? null
-    : task_id
+    : consumer_ref
+      ? consumer_ref
+      : task_id
     ? { type: 'task', id: task_id, relation: 'consumed_by' }
     : workflow_id
       ? { type: 'workflow', id: workflow_id, relation: 'consumed_by' }
@@ -674,7 +702,7 @@ function upsertArtifact(
     source_refs: [{ type: 'change', id: change_id, relation: 'produced_for' }],
     consumer_refs: consumer ? [consumer] : [],
     provenance: {
-      writer: 'change-workflow',
+      writer,
       workflow_run_id: consumer?.type === 'workflow' ? consumer.id : null,
     },
     metadata: { ...(metadata || {}), ...(terminal ? { terminal_role: true } : {}) },
@@ -698,7 +726,10 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
     'SELECT id FROM tasks WHERE change_id = ? ORDER BY created_at ASC',
   ).all(change.id).map((task) => ops.readTask(db, task.id));
   const specs = Array.isArray(input.spec_refs) ? input.spec_refs : [];
-  const spine = contextSpine.compileRoleContext(db, { input, change, tasks, rootDir });
+  const spine = legacyContextSpine().compileRoleContext(
+    db,
+    { input, change, tasks, rootDir },
+  );
   const recommendation = spine.recommendation;
   const durableSpine = { ...spine };
   delete durableSpine.recommendation;
@@ -830,7 +861,10 @@ function compileContext(db, input, { rootDir = process.cwd() } = {}) {
   };
 }
 
-function createChange(db, input, { rootDir = process.cwd() } = {}) {
+function createChange(db, input, {
+  rootDir = process.cwd(),
+  kernelMode = false,
+} = {}) {
   const title = typeof input?.title === 'string' ? input.title.trim() : '';
   const intent = typeof input?.intent === 'string' ? input.intent.trim() : '';
   if (!input || !CHANGE_ID.test(input.id || '') || title.length < 3 || intent.length < 3) {
@@ -850,7 +884,7 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
   if (readChange(db, input.id)) throw new ChangeWorkflowError('DUPLICATE_CHANGE_ID', `change ${input.id} exists`);
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
   let baselineBypass = null;
-  if (baselineHealth.status !== 'pass') {
+  if (baselineHealth.status !== 'pass' && !kernelMode) {
     if (input.kind !== 'incident') {
       throw new ChangeWorkflowError(
         'BASELINE_NOT_READY',
@@ -864,7 +898,7 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
       'VALIDATION_ERROR', 'baseline_bypass is not valid while the project baseline is healthy',
     );
   }
-  const alignmentGate = decisions.decisionGate(
+  const alignmentGate = kernelMode ? { ready: true, blockers: [] } : legacyDecisions().decisionGate(
     db, { baseline_id: baselineHealth.baseline?.id || null }, { rootDir },
   );
   if (!alignmentGate.ready) {
@@ -882,7 +916,7 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
   let alignmentThread = null;
   if (input.alignment_thread_id !== undefined) {
     try {
-      alignmentThread = decisions.assertConfirmedDecisionCheckpoint(
+      alignmentThread = legacyDecisions().assertConfirmedDecisionCheckpoint(
         db, input.alignment_thread_id, { rootDir, requireArtifact: true },
       );
     } catch (error) {
@@ -954,7 +988,7 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
           alignment_thread_id: row.alignment_thread_id,
         },
       });
-      let workflow = workflows.startWorkflow(db, {
+      let workflow = kernelMode ? null : legacyWorkflows().startWorkflow(db, {
         kind: 'change', baseline_id: baselineHealth.baseline?.id || null,
         change_id: row.id, subject: `Establish executable readiness for ${row.title}.`,
         metadata: { change_kind: row.kind, base_commit: row.base_commit },
@@ -962,7 +996,11 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
       upsertArtifact(db, {
         change_id: row.id, kind: 'intent', artifactPath: path.relative(rootDir, intentPath),
         contentHash: crypto.createHash('sha256').update(fs.readFileSync(intentPath)).digest('hex'),
-        workflow_id: workflow.id,
+        workflow_id: workflow?.id || null,
+        consumer_ref: kernelMode
+          ? { type: 'external', id: 'ultra-plan', relation: 'consumed_by' }
+          : null,
+        writer: kernelMode ? 'ultra.record' : 'change-workflow',
         rootDir,
       });
       if (row.kind === 'incident') {
@@ -973,11 +1011,29 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
           artifactPath: path.relative(rootDir, diagnosisPath),
           contentHash: crypto.createHash('sha256').update(fs.readFileSync(diagnosisPath)).digest('hex'),
           metadata: { required_sections: INCIDENT_DIAGNOSIS_SECTIONS.map(({ key }) => key) },
-          workflow_id: workflow.id,
+          workflow_id: workflow?.id || null,
+          consumer_ref: kernelMode
+            ? { type: 'external', id: 'ultra-dev', relation: 'consumed_by' }
+            : null,
+          writer: kernelMode ? 'ultra.record' : 'change-workflow',
           rootDir,
         });
       }
-      workflow = workflows.recordWorkflowStep(db, {
+      if (kernelMode) {
+        return {
+          change: readChange(db, row.id),
+          intent_path: intentPath,
+          context_manifest_path: null,
+          workflow: null,
+          diagnostics: baselineHealth.status === 'pass'
+            ? []
+            : (baselineHealth.blockers || []).map((code) => ({
+              code,
+              severity: 'needs_attention',
+            })),
+        };
+      }
+      workflow = legacyWorkflows().recordWorkflowStep(db, {
         id: workflow.id, step_id: 'bind-baseline', status: 'completed',
         evidence: [{
           kind: 'baseline', ref: baselineHealth.baseline?.id || 'incident-break-glass',
@@ -986,14 +1042,14 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
             : 'Bound the approved incident break-glass authority.',
         }],
       }, { rootDir });
-      workflow = workflows.recordWorkflowStep(db, {
+      workflow = legacyWorkflows().recordWorkflowStep(db, {
         id: workflow.id, step_id: 'classify-change', status: 'completed',
         decisions: [{
           kind: 'change_kind', value: row.kind,
           rationale: row.classification.rationale, risk_flags: row.classification.risk_flags,
         }],
       }, { rootDir });
-      workflow = workflows.recordWorkflowStep(db, {
+      workflow = legacyWorkflows().recordWorkflowStep(db, {
         id: workflow.id, step_id: 'record-intent', status: 'completed',
         evidence: [{ kind: 'intent', ref: path.relative(rootDir, intentPath), summary: row.intent }],
         outputs: [{ path: path.relative(rootDir, intentPath), kind: 'change-intent' }],
@@ -1002,7 +1058,7 @@ function createChange(db, input, { rootDir = process.cwd() } = {}) {
           research_disposition: row.research_disposition,
         }],
       }, { rootDir });
-      workflow = workflows.completeWorkflow(db, { id: workflow.id }, { rootDir });
+      workflow = legacyWorkflows().completeWorkflow(db, { id: workflow.id }, { rootDir });
       return {
         change: readChange(db, row.id), intent_path: intentPath,
         context_manifest_path: null,
@@ -1026,7 +1082,7 @@ function assertTaskCreationAllowed(db, input = {}, { rootDir = process.cwd() } =
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
   if (baselineHealth.status === 'pass') return;
   const gate = change
-    ? contextSpine.baselineGateForChange(db, change, baselineHealth)
+    ? legacyContextSpine().baselineGateForChange(db, change, baselineHealth)
     : { blockers: baselineHealth.blockers };
   if (gate.blockers.length === 0) return;
   throw new ChangeWorkflowError(
@@ -1036,7 +1092,10 @@ function assertTaskCreationAllowed(db, input = {}, { rootDir = process.cwd() } =
   );
 }
 
-function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
+function updateChange(db, id, patch = {}, {
+  rootDir = process.cwd(),
+  kernelMode = false,
+} = {}) {
   const current = readChange(db, id);
   if (!current) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${id} not found`);
   if (['archived', 'cancelled'].includes(current.status)) {
@@ -1046,6 +1105,13 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
     if (!CHANGE_PATCH_FIELDS.has(field)) {
       throw new ChangeWorkflowError('VALIDATION_ERROR', `change field ${field} is not patchable`);
     }
+  }
+  if (kernelMode && patch.status !== undefined
+      && !['active', 'cancelled'].includes(patch.status)) {
+    throw new ChangeWorkflowError(
+      'VALIDATION_ERROR',
+      'kernel Change status may only be active or cancelled; readiness is derived from checkpoints',
+    );
   }
   const syncIntent = [
     'title', 'intent', 'docs_impact', 'contract', 'classification', 'research_disposition',
@@ -1086,14 +1152,17 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
         values.push(JSON.stringify(normalizeResearchDisposition(patch.research_disposition, current.kind)));
       }
       if (patch.status !== undefined) {
-        const allowed = CHANGE_TRANSITIONS[current.status] || new Set();
+        const allowed = kernelMode
+          ? new Set(['active', 'cancelled'])
+          : (CHANGE_TRANSITIONS[current.status] || new Set());
         if (!allowed.has(patch.status)) {
           throw new ChangeWorkflowError(
             'ILLEGAL_CHANGE_TRANSITION', `cannot transition change ${id} from ${current.status} to ${patch.status}`,
           );
         }
         sets.push('status = ?'); values.push(patch.status);
-      } else if (current.status === 'ready' && Object.keys(patch).length > 0) {
+      } else if (['ready', 'blocked'].includes(current.status)
+          && Object.keys(patch).length > 0) {
         sets.push('status = ?'); values.push('active');
       }
       if (sets.length === 0) return current;
@@ -1110,6 +1179,10 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
           kind: 'intent',
           artifactPath: path.relative(rootDir, intentPath),
           contentHash: crypto.createHash('sha256').update(fs.readFileSync(intentPath)).digest('hex'),
+          consumer_ref: kernelMode
+            ? { type: 'external', id: 'ultra-plan', relation: 'consumed_by' }
+            : null,
+          writer: kernelMode ? 'ultra.record' : 'change-workflow',
           rootDir,
         });
         intentArtifactId = recorded.artifact.id;
@@ -1118,7 +1191,8 @@ function updateChange(db, id, patch = {}, { rootDir = process.cwd() } = {}) {
       const semanticFields = Object.keys(patch)
         .filter((field) => SEMANTIC_AUTHORITY_FIELDS.has(field));
       if (semanticFields.length > 0
-        && contextSpine.changeStateDigest(current) !== contextSpine.changeStateDigest(updated)) {
+        && legacyContextSpine().changeStateDigest(current)
+          !== legacyContextSpine().changeStateDigest(updated)) {
         invalidated.push(...artifacts.invalidateConsumersFromEndpointInTx(
           db,
           { type: 'change', id },
@@ -1282,7 +1356,7 @@ function generatePacketReconciliation(db, change, packet, rootDir) {
 
 function baselineConvergenceBlockers(db, change, rootDir) {
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
-  return contextSpine.baselineGateForChange(db, change, baselineHealth).blockers;
+  return legacyContextSpine().baselineGateForChange(db, change, baselineHealth).blockers;
 }
 
 function deriveConvergenceEvidence(db, change, tasks, workflowGate, diagnosis, rootDir) {
@@ -1291,7 +1365,7 @@ function deriveConvergenceEvidence(db, change, tasks, workflowGate, diagnosis, r
      WHERE kind = 'dev' AND change_id = ? AND status = 'completed'
      ORDER BY completed_at ASC, rowid ASC`,
   ).all(change.id)
-    .filter((row) => workflows.isConsumableWorkflowAuthority({
+    .filter((row) => legacyWorkflows().isConsumableWorkflowAuthority({
       metadata: parseJson(row.metadata_json, 'workflow_runs.metadata_json'),
     }))
     .map((row) => ({
@@ -1302,7 +1376,7 @@ function deriveConvergenceEvidence(db, change, tasks, workflowGate, diagnosis, r
   const deltaPaths = deltaAuthority
     ? [deltaAuthority.path, deltaAuthority.digest]
     : [];
-  const appliedLearning = specLearning.listSpecLearning(db, change.id)
+  const appliedLearning = legacySpecLearning().listSpecLearning(db, change.id)
     .filter((candidate) => candidate.status === 'applied')
     .map((candidate) => candidate.target_ref);
   const rows = [
@@ -1364,7 +1438,11 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   const blockers = new Set();
   let workflowGate = null;
   try {
-    workflowGate = workflows.validateDeliveryPrerequisites(db, { change_id: change.id }, rootDir);
+    workflowGate = legacyWorkflows().validateDeliveryPrerequisites(
+      db,
+      { change_id: change.id },
+      rootDir,
+    );
   } catch (error) {
     blockers.add(error.code || 'WORKFLOW_GATE_UNAVAILABLE');
   }
@@ -1373,7 +1451,7 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
   if (tasks.some((task) => !['completed', 'expanded'].includes(task.status))) blockers.add('TASKS_INCOMPLETE');
   if (tasks.some((task) => Boolean(task.stale))) blockers.add('TASK_CONTEXT_STALE');
   for (const task of tasks.filter((item) => item.status !== 'expanded')) {
-    const validation = contextSpine.validateContextSnapshot(db, {
+    const validation = legacyContextSpine().validateContextSnapshot(db, {
       change_id: change.id,
       task_id: task.id,
       role: 'implement',
@@ -1394,7 +1472,7 @@ function convergeChange(db, input, { rootDir = process.cwd() } = {}) {
     }
   }
 
-  for (const candidate of specLearning.listSpecLearning(db, change.id)) {
+  for (const candidate of legacySpecLearning().listSpecLearning(db, change.id)) {
     if (candidate.status === 'proposed') blockers.add(`SPEC_LEARNING_UNRESOLVED:${candidate.id}`);
     if (candidate.status === 'approved') blockers.add(`SPEC_LEARNING_NOT_APPLIED:${candidate.id}`);
   }
@@ -1511,6 +1589,131 @@ function replaceArchiveAuthorityText(
   return result;
 }
 
+function kernelArchiveContextPath(change, id) {
+  return `${change.artifact_root}/authority/context-envelopes/${id}.json`;
+}
+
+function kernelArchiveWorkerPath(change, id) {
+  return `${change.artifact_root}/authority/worker-packets/${id}.json`;
+}
+
+function materializeKernelArchiveAuthority(db, change, rootDir) {
+  const taskIds = db.prepare(
+    'SELECT id FROM tasks WHERE change_id = ? ORDER BY id',
+  ).all(change.id).map((row) => row.id);
+  const contexts = db.prepare(
+    `SELECT * FROM context_envelopes
+     WHERE (scope_type = 'change' AND scope_id = ?)
+        OR (scope_type = 'task' AND scope_id IN (
+          SELECT id FROM tasks WHERE change_id = ?
+        ))
+     ORDER BY id`,
+  ).all(change.id, change.id);
+  for (const row of contexts) {
+    const read = readStableProjectFile(rootDir, row.artifact_path);
+    if (!row.file_digest || read.digest !== row.file_digest) {
+      throw new ChangeWorkflowError(
+        'CONTEXT_ENVELOPE_FILE_DRIFT',
+        `cannot archive unbound Context Envelope ${row.id}`,
+        {
+          path: row.artifact_path,
+          expected: row.file_digest || null,
+          actual: read.digest,
+        },
+      );
+    }
+    const target = kernelArchiveContextPath(change, row.id);
+    const published = writeManagedFile(rootDir, target, read.bytes);
+    upsertArtifact(db, {
+      change_id: change.id,
+      task_id: row.scope_type === 'task' ? row.scope_id : null,
+      kind: 'archive_context_envelope',
+      artifactPath: target,
+      contentHash: published.digest,
+      consumer_ref: {
+        type: 'external',
+        id: 'ultra.archive',
+        relation: 'archived_by',
+      },
+      writer: 'ultra.archive',
+      rootDir,
+    });
+  }
+  if (taskIds.length === 0) return;
+  const packets = db.prepare(
+    `SELECT * FROM worker_packets
+     WHERE scope_type = 'task' AND status = 'assigned'
+       AND scope_id IN (SELECT id FROM tasks WHERE change_id = ?)
+     ORDER BY id`,
+  ).all(change.id);
+  for (const row of packets) {
+    const read = readStableProjectFile(rootDir, row.packet_path);
+    if (!row.file_digest || read.digest !== row.file_digest) {
+      throw new ChangeWorkflowError(
+        'WORKER_PACKET_FILE_DRIFT',
+        `cannot archive unbound Worker Packet ${row.id}`,
+        {
+          path: row.packet_path,
+          expected: row.file_digest || null,
+          actual: read.digest,
+        },
+      );
+    }
+    const target = kernelArchiveWorkerPath(change, row.id);
+    const published = writeManagedFile(rootDir, target, read.bytes);
+    upsertArtifact(db, {
+      change_id: change.id,
+      task_id: row.scope_id,
+      kind: 'archive_worker_packet',
+      artifactPath: target,
+      contentHash: published.digest,
+      consumer_ref: {
+        type: 'external',
+        id: 'ultra.archive',
+        relation: 'archived_by',
+      },
+      writer: 'ultra.archive',
+      rootDir,
+    });
+  }
+}
+
+function normalizedArchiveDocument(bytes, intent) {
+  const text = bytes.toString('utf8');
+  if (!Buffer.from(text, 'utf8').equals(bytes)) return { bytes, semanticDigest: null };
+  let document;
+  try { document = JSON.parse(text); }
+  catch { return { bytes, semanticDigest: null }; }
+  let semanticDigest = null;
+  if (document?.schema_version === '1.0'
+      && document.detail === 'full'
+      && document.envelope
+      && document.digest) {
+    if (document.envelope.change?.id === intent.change_id) {
+      document.envelope.change.status = 'archived';
+    }
+    semanticDigest = canonical.digest(document.envelope);
+    document.digest = semanticDigest;
+  } else if (document?.packet_version && document.packet_digest) {
+    const { packet_digest: _prior, ...value } = document;
+    semanticDigest = canonical.digest(value);
+    document.packet_digest = semanticDigest;
+  } else if (document?.schema_version === '1.0'
+      && document.question
+      && document.selection
+      && document.digest) {
+    const { digest: _prior, ...value } = document;
+    semanticDigest = canonical.digest(value);
+    document.digest = semanticDigest;
+  } else if (document?.change?.id === intent.change_id) {
+    document.change.status = 'archived';
+  }
+  return {
+    bytes: Buffer.from(`${JSON.stringify(document, null, 2)}\n`),
+    semanticDigest,
+  };
+}
+
 function archiveRebindAuthorityValue(value, source, destination, digestMap) {
   if (typeof value === 'string') {
     return replaceArchiveAuthorityText(
@@ -1546,6 +1749,7 @@ function buildArchiveRebindEntries(db, intent, rootDir) {
     );
   }
   const originalByPath = new Map();
+  const semanticByPath = new Map();
   for (const artifact of db.prepare(
     'SELECT path, digest, content_hash FROM artifacts WHERE change_id = ?',
   ).all(intent.change_id)) {
@@ -1566,6 +1770,35 @@ function buildArchiveRebindEntries(db, intent, rootDir) {
       contextPaths.add(archivedPath);
       originalByPath.set(archivedPath, snapshot.manifest_hash);
     }
+  }
+  for (const row of db.prepare(
+    `SELECT id, digest FROM decision_records
+     WHERE scope_type = 'change' AND scope_id = ?`,
+  ).all(intent.change_id)) {
+    const archivedPath = `${intent.destination}/decisions/${row.id}.json`;
+    semanticByPath.set(archivedPath, row.digest);
+  }
+  for (const row of db.prepare(
+    `SELECT id, digest FROM context_envelopes
+     WHERE (scope_type = 'change' AND scope_id = ?)
+        OR (scope_type = 'task' AND scope_id IN (
+          SELECT id FROM tasks WHERE change_id = ?
+        ))`,
+  ).all(intent.change_id, intent.change_id)) {
+    semanticByPath.set(
+      `${intent.destination}/authority/context-envelopes/${row.id}.json`,
+      row.digest,
+    );
+  }
+  for (const row of db.prepare(
+    `SELECT id, packet_digest FROM worker_packets
+     WHERE scope_type = 'task' AND status = 'assigned'
+       AND scope_id IN (SELECT id FROM tasks WHERE change_id = ?)`,
+  ).all(intent.change_id)) {
+    semanticByPath.set(
+      `${intent.destination}/authority/worker-packets/${row.id}.json`,
+      row.packet_digest,
+    );
   }
   const original = new Map();
   const pathRebound = new Map();
@@ -1603,7 +1836,10 @@ function buildArchiveRebindEntries(db, intent, rootDir) {
       manifest.change.status = 'archived';
       next = `${JSON.stringify(manifest, null, 2)}\n`;
     }
-    pathRebound.set(relative, Buffer.from(next));
+    pathRebound.set(
+      relative,
+      normalizedArchiveDocument(Buffer.from(next), intent).bytes,
+    );
   }
 
   let current = new Map(pathRebound);
@@ -1618,6 +1854,14 @@ function buildArchiveRebindEntries(db, intent, rootDir) {
         );
       }
     }
+    for (const [relative, beforeDigest] of semanticByPath) {
+      const bytes = current.get(relative);
+      if (!bytes) continue;
+      const normalized = normalizedArchiveDocument(bytes, intent);
+      if (normalized.semanticDigest) {
+        digestMap.set(beforeDigest, normalized.semanticDigest);
+      }
+    }
     const next = new Map();
     let changed = false;
     for (const [relative, baseBytes] of pathRebound) {
@@ -1626,11 +1870,12 @@ function buildArchiveRebindEntries(db, intent, rootDir) {
         next.set(relative, baseBytes);
         continue;
       }
-      const bytes = Buffer.from(
+      const replaced = Buffer.from(
         replaceArchiveAuthorityText(
           text, intent.source, intent.destination, digestMap,
         ),
       );
+      const bytes = normalizedArchiveDocument(replaced, intent).bytes;
       next.set(relative, bytes);
       if (!bytes.equals(current.get(relative))) changed = true;
     }
@@ -1669,10 +1914,52 @@ function archiveRebindState(db, intent, rootDir) {
   const digestMap = new Map(journal.entries.map(
     (entry) => [entry.before_digest, entry.after_digest],
   ));
+  const semanticEntry = (relativePath) => byPath.get(relativePath);
+  for (const row of db.prepare(
+    `SELECT id, digest FROM decision_records
+     WHERE scope_type = 'change' AND scope_id = ?`,
+  ).all(intent.change_id)) {
+    const entry = semanticEntry(`${intent.destination}/decisions/${row.id}.json`);
+    if (!entry) continue;
+    const document = JSON.parse(Buffer.from(entry.after_base64, 'base64').toString('utf8'));
+    if (document.digest) digestMap.set(row.digest, document.digest);
+  }
+  for (const row of db.prepare(
+    `SELECT id, digest FROM context_envelopes
+     WHERE (scope_type = 'change' AND scope_id = ?)
+        OR (scope_type = 'task' AND scope_id IN (
+          SELECT id FROM tasks WHERE change_id = ?
+        ))`,
+  ).all(intent.change_id, intent.change_id)) {
+    const entry = semanticEntry(
+      `${intent.destination}/authority/context-envelopes/${row.id}.json`,
+    );
+    if (!entry) continue;
+    const document = JSON.parse(Buffer.from(entry.after_base64, 'base64').toString('utf8'));
+    if (document.digest) digestMap.set(row.digest, document.digest);
+  }
+  for (const row of db.prepare(
+    `SELECT id, packet_digest FROM worker_packets
+     WHERE scope_type = 'task' AND status = 'assigned'
+       AND scope_id IN (SELECT id FROM tasks WHERE change_id = ?)`,
+  ).all(intent.change_id)) {
+    const entry = semanticEntry(
+      `${intent.destination}/authority/worker-packets/${row.id}.json`,
+    );
+    if (!entry) continue;
+    const document = JSON.parse(Buffer.from(entry.after_base64, 'base64').toString('utf8'));
+    if (document.packet_digest) {
+      digestMap.set(row.packet_digest, document.packet_digest);
+    }
+  }
   return { journal, byPath, digestMap };
 }
 
-function finalizeArchive(db, intent, { rootDir, journalIntent = intent }) {
+function finalizeArchive(db, intent, {
+  rootDir,
+  journalIntent = intent,
+  kernelMode = false,
+}) {
   const change = readChange(db, intent.change_id);
   if (!change) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${intent.change_id} not found`);
   try {
@@ -1690,8 +1977,12 @@ function finalizeArchive(db, intent, { rootDir, journalIntent = intent }) {
     && artifacts.normalizeRelativePath(change.artifact_root) === relative) {
     return { change, archive_path: destination };
   }
-  if (change.status !== 'ready') {
-    throw new ChangeWorkflowError('CHANGE_NOT_READY', `change ${change.id} must be ready to finish archive`);
+  const acceptedStatuses = kernelMode ? ['active', 'ready'] : ['ready'];
+  if (!acceptedStatuses.includes(change.status)) {
+    throw new ChangeWorkflowError(
+      'CHANGE_NOT_READY',
+      `change ${change.id} must have complete accepted checkpoints to finish archive`,
+    );
   }
   const rebind = archiveRebindState(db, journalIntent, rootDir);
   const archivedReconciliationPath = rebindRegistryPath(
@@ -1836,6 +2127,210 @@ function finalizeArchive(db, intent, { rootDir, journalIntent = intent }) {
         snapshot.id,
       );
     }
+    for (const decision of db.prepare(
+      `SELECT id FROM decision_records
+       WHERE scope_type = 'change' AND scope_id = ?`,
+    ).all(change.id)) {
+      const archivedPath = `${relative}/decisions/${decision.id}.json`;
+      const rebound = rebind.byPath.get(archivedPath);
+      if (!rebound) {
+        throw new ChangeWorkflowError(
+          'ARCHIVE_DECISION_MISSING',
+          `archive is missing Decision Record ${decision.id}`,
+        );
+      }
+      const document = JSON.parse(
+        Buffer.from(rebound.after_base64, 'base64').toString('utf8'),
+      );
+      db.prepare(
+        `UPDATE decision_records
+         SET question = ?, recommendation = ?, selection = ?,
+             effects_json = ?, non_goals_json = ?, owner = ?, source = ?,
+             provenance_json = ?, applied_refs_json = ?, digest = ?,
+             artifact_path = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(
+        document.question,
+        document.recommendation,
+        document.selection,
+        JSON.stringify(document.effects || {}),
+        JSON.stringify(document.non_goals || []),
+        document.owner,
+        document.source,
+        JSON.stringify(document.provenance || {}),
+        JSON.stringify(document.applied_refs || []),
+        document.digest,
+        archivedPath,
+        nowIso(),
+        decision.id,
+      );
+    }
+    for (const envelope of db.prepare(
+      `SELECT id FROM context_envelopes
+       WHERE (scope_type = 'change' AND scope_id = ?)
+          OR (scope_type = 'task' AND scope_id IN (
+            SELECT id FROM tasks WHERE change_id = ?
+          ))`,
+    ).all(change.id, change.id)) {
+      const archivedPath = `${relative}/authority/context-envelopes/${envelope.id}.json`;
+      const rebound = rebind.byPath.get(archivedPath);
+      if (!rebound) {
+        throw new ChangeWorkflowError(
+          'ARCHIVE_CONTEXT_MISSING',
+          `archive is missing Context Envelope ${envelope.id}`,
+        );
+      }
+      const document = JSON.parse(
+        Buffer.from(rebound.after_base64, 'base64').toString('utf8'),
+      );
+      db.prepare(
+        `UPDATE context_envelopes
+         SET digest = ?, file_digest = ?, payload_json = ?, artifact_path = ?
+         WHERE id = ?`,
+      ).run(
+        document.digest,
+        rebound.after_digest,
+        JSON.stringify(document.envelope),
+        archivedPath,
+        envelope.id,
+      );
+    }
+    for (const packet of db.prepare(
+      `SELECT id FROM worker_packets
+       WHERE scope_type = 'task' AND status = 'assigned'
+         AND scope_id IN (SELECT id FROM tasks WHERE change_id = ?)`,
+    ).all(change.id)) {
+      const archivedPath = `${relative}/authority/worker-packets/${packet.id}.json`;
+      const rebound = rebind.byPath.get(archivedPath);
+      if (!rebound) {
+        throw new ChangeWorkflowError(
+          'ARCHIVE_WORKER_PACKET_MISSING',
+          `archive is missing Worker Packet ${packet.id}`,
+        );
+      }
+      const document = JSON.parse(
+        Buffer.from(rebound.after_base64, 'base64').toString('utf8'),
+      );
+      const decisionDigest = canonical.digest(
+        (document.accepted_decisions || []).map((decision) => ({
+          id: decision.id,
+          digest: decision.digest,
+          status: 'accepted',
+        })),
+      );
+      db.prepare(
+        `UPDATE worker_packets
+         SET context_digest = ?, task_digest = ?, decision_digest = ?,
+             packet_digest = ?, file_digest = ?, packet_path = ?, output_path = ?
+         WHERE id = ?`,
+      ).run(
+        document.context_envelope?.digest || null,
+        document.task?.digest || null,
+        decisionDigest,
+        document.packet_digest,
+        rebound.after_digest,
+        archivedPath,
+        document.output?.path,
+        packet.id,
+      );
+    }
+    const checkpointRows = db.prepare(
+      `SELECT *
+       FROM stage_checkpoints
+       WHERE (scope_type = 'change' AND scope_id = ?)
+          OR (scope_type = 'task' AND scope_id IN (
+            SELECT id FROM tasks WHERE change_id = ?
+          ))
+       ORDER BY revision`,
+    ).all(change.id, change.id);
+    for (const row of checkpointRows) {
+      const value = {
+        stage: row.stage,
+        scope_type: row.scope_type,
+        scope_id: row.scope_id,
+        revision: row.revision,
+        payload: archiveRebindAuthorityValue(
+          parseJson(row.payload_json || '{}', 'stage_checkpoints.payload_json'),
+          intent.source,
+          relative,
+          rebind.digestMap,
+        ),
+        evidence: archiveRebindAuthorityValue(
+          parseJson(row.evidence_json || '[]', 'stage_checkpoints.evidence_json'),
+          intent.source,
+          relative,
+          rebind.digestMap,
+        ),
+        diagnostics: archiveRebindAuthorityValue(
+          parseJson(row.diagnostics_json || '[]', 'stage_checkpoints.diagnostics_json'),
+          intent.source,
+          relative,
+          rebind.digestMap,
+        ),
+        context_envelope_id: row.context_envelope_id,
+        supersedes_id: row.supersedes_id,
+      };
+      db.prepare(
+        `UPDATE stage_checkpoints
+         SET payload_json = ?, evidence_json = ?, diagnostics_json = ?, digest = ?,
+             updated_at = ?
+         WHERE id = ?`,
+      ).run(
+        JSON.stringify(value.payload),
+        JSON.stringify(value.evidence),
+        JSON.stringify(value.diagnostics),
+        stageCheckpoints.checkpointDigest(value),
+        nowIso(),
+        row.id,
+      );
+    }
+    for (const task of db.prepare(
+      `SELECT id, context_refs_json, docs_impact_json, ownership_json
+       FROM tasks WHERE change_id = ?`,
+    ).all(change.id)) {
+      db.prepare(
+        `UPDATE tasks
+         SET context_refs_json = ?, docs_impact_json = ?, ownership_json = ?,
+             updated_at = ?
+         WHERE id = ?`,
+      ).run(
+        JSON.stringify(archiveRebindAuthorityValue(
+          parseJson(task.context_refs_json || '[]', 'tasks.context_refs_json'),
+          intent.source,
+          relative,
+          rebind.digestMap,
+        )),
+        JSON.stringify(archiveRebindAuthorityValue(
+          parseJson(task.docs_impact_json || '{}', 'tasks.docs_impact_json'),
+          intent.source,
+          relative,
+          rebind.digestMap,
+        )),
+        JSON.stringify(archiveRebindAuthorityValue(
+          parseJson(task.ownership_json || '{}', 'tasks.ownership_json'),
+          intent.source,
+          relative,
+          rebind.digestMap,
+        )),
+        nowIso(),
+        task.id,
+      );
+    }
+    for (const event of db.prepare(
+      `SELECT id, payload_json FROM events
+       WHERE change_id = ?
+          OR task_id IN (SELECT id FROM tasks WHERE change_id = ?)`,
+    ).all(change.id, change.id)) {
+      db.prepare('UPDATE events SET payload_json = ? WHERE id = ?').run(
+        JSON.stringify(archiveRebindAuthorityValue(
+          parseJson(event.payload_json || '{}', 'events.payload_json'),
+          intent.source,
+          relative,
+          rebind.digestMap,
+        )),
+        event.id,
+      );
+    }
     for (const run of db.prepare(
       `SELECT id, metadata_json, blockers_json, summary_json, approval_json
        FROM workflow_runs WHERE change_id = ?`,
@@ -1964,13 +2459,19 @@ function finalizeArchive(db, intent, { rootDir, journalIntent = intent }) {
   };
 }
 
-function archiveChange(db, input, { rootDir = process.cwd() } = {}) {
+function archiveChange(db, input, {
+  rootDir = process.cwd(),
+  kernelMode = false,
+} = {}) {
   const change = readChange(db, input.id);
   if (!change) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${input.id} not found`);
   if (!input.summary || String(input.summary).trim().length < 3) {
     throw new ChangeWorkflowError('VALIDATION_ERROR', 'archive summary required');
   }
-  if (!['ready', 'archived'].includes(change.status)) {
+  const allowedArchiveStatuses = kernelMode
+    ? ['active', 'archived']
+    : ['ready', 'archived'];
+  if (!allowedArchiveStatuses.includes(change.status)) {
     throw new ChangeWorkflowError('CHANGE_NOT_READY', `change ${input.id} must converge before archive`);
   }
   if (change.status === 'archived') {
@@ -1986,8 +2487,43 @@ function archiveChange(db, input, { rootDir = process.cwd() } = {}) {
   }
 
   let packet = null;
+  if (kernelMode) {
+    const requiredStages = ['plan', 'test', 'review', 'deliver'];
+    const missing = requiredStages.filter((stage) => !stageCheckpoints.currentCheckpoint(
+      db,
+      stage,
+      { change_id: change.id },
+      { includeDraft: false },
+    ));
+    const tasks = ops.listTasks(db, { change_id: change.id });
+    if (tasks.length === 0) missing.push('tasks');
+    for (const task of tasks.filter((item) => item.status !== 'expanded')) {
+      if (task.status !== 'completed') missing.push(`task:${task.id}:completed`);
+      if (!stageCheckpoints.currentCheckpoint(
+        db,
+        'dev',
+        { task_id: task.id },
+        { includeDraft: false },
+      )) {
+        missing.push(`task:${task.id}:dev`);
+      }
+    }
+    if (missing.length > 0) {
+      throw new ChangeWorkflowError(
+        'CHANGE_EVIDENCE_INCOMPLETE',
+        `change ${change.id} lacks accepted delivery checkpoints`,
+        { missing },
+      );
+    }
+  }
   if (changePacket.readDeltaAuthority(db, change.id)) {
-    workflows.validateDeliveryPrerequisites(db, { change_id: change.id }, rootDir);
+    if (!kernelMode) {
+      legacyWorkflows().validateDeliveryPrerequisites(
+        db,
+        { change_id: change.id },
+        rootDir,
+      );
+    }
     packet = changePacket.deliveryEntries(db, change, { rootDir });
   }
   const requestedUpdates = Array.isArray(input.baseline_updates)
@@ -2018,6 +2554,9 @@ function archiveChange(db, input, { rootDir = process.cwd() } = {}) {
   const reconciliation = packet
     ? generatePacketReconciliation(db, change, packet, rootDir)
     : readReconciliationManifest(db, change, input, rootDir);
+  if (kernelMode) {
+    materializeKernelArchiveAuthority(db, change, rootDir);
+  }
   let delivery = null;
   let prepared = null;
   try {
@@ -2070,6 +2609,7 @@ function archiveChange(db, input, { rootDir = process.cwd() } = {}) {
     result = finalizeArchive(db, authoritativeIntent, {
       rootDir,
       journalIntent: prepared.intent,
+      kernelMode,
     });
   } catch (error) {
     try { archiveJournal.rollbackArchiveIntent(rootDir, prepared.intent); }
@@ -2126,7 +2666,7 @@ function recoverInterruptedArchives(db, { rootDir = process.cwd() } = {}) {
         archiveJournal.completeArchiveIntent(rootDir, record.intent);
         result.cleaned += 1;
         result.items.push({ change_id: change.id, status: 'cleaned' });
-      } else if (change?.status === 'ready' && record.location === 'destination') {
+      } else if (['active', 'ready'].includes(change?.status) && record.location === 'destination') {
         const reconciliation = readReconciliationManifest(db, change, {
           reconciliation_path: record.intent.reconciliation_path,
           baseline_updates: record.intent.baseline_updates,
@@ -2139,6 +2679,10 @@ function recoverInterruptedArchives(db, { rootDir = process.cwd() } = {}) {
         finalizeArchive(db, authoritativeIntent, {
           rootDir,
           journalIntent: record.intent,
+          // Recovery is a mechanical continuation of an already prepared
+          // archive intent. It must never re-enter the retired semantic
+          // workflow supervisor, including for a v0.23 `ready` Change.
+          kernelMode: true,
         });
         archiveJournal.completeArchiveIntent(rootDir, record.intent);
         result.resumed += 1;
@@ -2185,10 +2729,18 @@ module.exports = {
   recordDelta,
   recordDocumentationReconciliation,
   compileContext,
-  readBreadcrumb: contextSpine.readBreadcrumb,
-  proposeSpecLearning: specLearning.proposeSpecLearning,
-  resolveSpecLearning: specLearning.resolveSpecLearning,
-  listSpecLearning: specLearning.listSpecLearning,
+  readBreadcrumb(...args) {
+    return legacyContextSpine().readBreadcrumb(...args);
+  },
+  proposeSpecLearning(...args) {
+    return legacySpecLearning().proposeSpecLearning(...args);
+  },
+  resolveSpecLearning(...args) {
+    return legacySpecLearning().resolveSpecLearning(...args);
+  },
+  listSpecLearning(...args) {
+    return legacySpecLearning().listSpecLearning(...args);
+  },
   convergeChange,
   archiveChange,
   normalizeDocsImpact,

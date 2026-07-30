@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultra-builder-pro.dev/spec/task-ledger.v2.schema.json",
+  "title": "Ultra team authority ledger v2",
+  "description": "Git-facing checkpoint ledger for durable baseline, Change, decision, Stage Checkpoint, and task authority. Live sessions, leases, worktrees, and in-progress ownership remain in .ultra/.runtime/state.db.",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "generation",
+    "parent_digest",
+    "ancestors",
+    "state_digest",
+    "published_at",
+    "reason",
+    "baseline",
+    "changes",
+    "decisions",
+    "checkpoints",
+    "tasks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "ultra-team-task-ledger" },
+    "schema_version": { "const": "2.0" },
+    "generation": { "type": "integer", "minimum": 0 },
+    "parent_digest": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ancestors": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "state_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "published_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "reason": { "type": "string", "minLength": 1 },
+    "baseline": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/baseline" }
+      ]
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "status",
+          "intent",
+          "artifact_root",
+          "revision",
+          "parent_digest",
+          "digest"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "enum": ["quick", "standard", "major", "incident"] },
+          "status": { "type": "string", "enum": ["active", "archived", "cancelled"] },
+          "intent": { "type": "string", "minLength": 1 },
+          "docs_impact": { "type": "object" },
+          "provider_refs": { "type": "object" },
+          "baseline_bypass": { "type": "object" },
+          "contract": { "type": "object" },
+          "classification": { "type": "object" },
+          "research_disposition": { "type": "object" },
+          "base_commit": { "type": "string" },
+          "artifact_root": { "type": "string", "minLength": 1 },
+          "closed_at": { "type": "string" },
+          "revision": { "type": "integer", "minimum": 1 },
+          "parent_digest": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "scope_type",
+          "scope_id",
+          "selection",
+          "effects",
+          "status",
+          "artifact_path",
+          "artifact_digest",
+          "digest"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "scope_type": { "type": "string", "enum": ["baseline", "change"] },
+          "scope_id": { "type": "string", "minLength": 1 },
+          "selection": { "type": "string", "minLength": 1 },
+          "effects": { "type": "object" },
+          "status": { "type": "string", "enum": ["accepted", "superseded"] },
+          "artifact_path": { "type": "string", "minLength": 1 },
+          "artifact_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "supersedes_id": { "type": "string" },
+          "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "checkpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "scope_type",
+          "scope_id",
+          "revision",
+          "payload",
+          "evidence",
+          "diagnostics",
+          "status",
+          "digest"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": ["init", "research", "change", "plan", "dev", "test", "review", "deliver"]
+          },
+          "scope_type": { "type": "string", "enum": ["project", "baseline", "change", "task"] },
+          "scope_id": { "type": "string", "minLength": 1 },
+          "revision": { "type": "integer", "minimum": 1 },
+          "payload": { "type": "object" },
+          "evidence": { "type": "array" },
+          "diagnostics": { "type": "array" },
+          "status": { "const": "accepted" },
+          "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/task" }
+    }
+  },
+  "$defs": {
+    "baseline": {
+      "type": "object",
+      "required": [
+        "id",
+        "project_name",
+        "mode",
+        "status",
+        "scope",
+        "worktree_accepted",
+        "known_red_accepted",
+        "spec_refs",
+        "evidence",
+        "verification",
+        "unknowns",
+        "gaps",
+        "classification",
+        "provider_refs",
+        "revision",
+        "parent_digest",
+        "digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "project_name": { "type": "string", "minLength": 1 },
+        "project_type": { "type": "string" },
+        "stack": { "type": "string" },
+        "mode": {
+          "type": "string",
+          "enum": ["greenfield", "brownfield", "migrated"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "adopting", "blocked", "ready"]
+        },
+        "scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "repository_revision": { "type": "string" },
+        "repository_branch": { "type": "string" },
+        "worktree_state": { "type": "string" },
+        "worktree_digest": { "type": "string" },
+        "worktree_accepted": { "type": "boolean" },
+        "known_red_accepted": { "type": "boolean" },
+        "spec_refs": { "type": "array" },
+        "evidence": { "type": "array" },
+        "verification": { "type": "array" },
+        "unknowns": { "type": "array" },
+        "gaps": { "type": "array" },
+        "classification": { "type": "object" },
+        "provider_refs": { "type": "object" },
+        "research_checkpoint_id": { "type": "string" },
+        "approved_by": { "type": "string" },
+        "approval_note": { "type": "string" },
+        "converged_at": { "type": "string" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "parent_digest": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "type",
+        "priority",
+        "status",
+        "deps",
+        "files_modified",
+        "stale",
+        "acceptance",
+        "context_refs",
+        "docs_impact",
+        "ownership",
+        "revision",
+        "parent_digest",
+        "digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 3 },
+        "type": { "type": "string", "enum": ["architecture", "feature", "bugfix"] },
+        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+        "complexity": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "estimated_days": { "type": "number", "exclusiveMinimum": 0 },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "completed", "blocked", "expanded"]
+        },
+        "deps": { "type": "array", "items": { "type": "string" } },
+        "files_modified": { "type": "array", "items": { "type": "string" } },
+        "stale": { "type": "boolean" },
+        "trace_to": { "type": "string" },
+        "outcome": { "type": "string" },
+        "slice_kind": {
+          "type": "string",
+          "enum": ["tracer_bullet", "expand_contract", "integration_checkpoint"]
+        },
+        "public_seam": { "type": "string" },
+        "verification_command": { "type": "string" },
+        "acceptance": { "type": "array", "items": { "type": "object" } },
+        "context_refs": { "type": "array", "items": { "type": "object" } },
+        "docs_impact": { "type": "object" },
+        "ownership": { "type": "object" },
+        "change_id": { "type": "string" },
+        "parent_id": { "type": "string" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "parent_digest": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

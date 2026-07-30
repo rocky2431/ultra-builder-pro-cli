@@ -95,11 +95,23 @@ test('codex conformance — plugin MCP has no global state override', () => {
     const mcp = JSON.parse(fs.readFileSync(path.join(layout.pluginRoot, '.mcp.json'), 'utf8'));
     const entry = mcp.mcpServers['ultra-builder-pro'];
     assert.equal(entry.type, 'stdio');
-    assert.ok(path.isAbsolute(entry.command));
-    assert.ok(path.isAbsolute(entry.args[0]));
-    assert.equal(entry.args[0], path.join(layout.pluginRoot, 'runtime', 'launch.cjs'));
+    assert.equal(entry.command, process.platform === 'win32' ? 'node.exe' : '/usr/bin/env');
+    assert.deepEqual(
+      entry.args,
+      process.platform === 'win32'
+        ? [path.join(layout.pluginRoot, 'runtime', 'launch.cjs')]
+        : ['node', path.join(layout.pluginRoot, 'runtime', 'launch.cjs')],
+    );
     assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'runtime', 'index.cjs')));
-    assert.ok(fs.existsSync(path.join(layout.pluginRoot, 'runtime', 'build', 'Release', 'better_sqlite3.node')));
+    assert.ok(fs.existsSync(path.join(
+      layout.pluginRoot,
+      'runtime',
+      'node_modules',
+      'better-sqlite3',
+      'build',
+      'Release',
+      'better_sqlite3.node',
+    )));
     assert.ok(!entry.env, 'the current task cwd must own .ultra/.runtime/state.db');
   } finally { cleanup(layout.homeDir); }
 });

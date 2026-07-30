@@ -23,8 +23,10 @@ const ops = require('../../mcp-server/lib/state-ops.cjs');
 const workflows = require('../../mcp-server/lib/workflow-state.cjs');
 const planStore = require('../../mcp-server/lib/plan-store.cjs');
 const contextSpine = require('../../mcp-server/lib/context-spine.cjs');
+const stageCheckpoints = require('../../mcp-server/lib/stage-checkpoints.cjs');
 const baselines = require('../../mcp-server/lib/baseline-workflow.cjs');
 const artifactRegistry = require('../../mcp-server/lib/artifact-registry.cjs');
+const taskLedger = require('../../mcp-server/lib/task-ledger.cjs');
 const { buildPlan } = require('../planner/plan-builder.cjs');
 const parallelOrch = require('../parallel-orchestrator.cjs');
 const sessionRunner = require('../session-runner.cjs');
@@ -44,7 +46,15 @@ function mkRepo() {
   execFileSync('git', ['config', 'user.email', 'test@ubp.dev'], { cwd: dir });
   execFileSync('git', ['config', 'user.name', 'ubp-test'], { cwd: dir });
   fs.writeFileSync(path.join(dir, 'seed.md'), '# seed\n');
-  fs.writeFileSync(path.join(dir, '.gitignore'), '!.ultra/\n!.ultra/**\n.ultra/.runtime\n');
+  fs.writeFileSync(
+    path.join(dir, '.gitignore'),
+    '!.ultra/\n'
+      + '!.ultra/**\n'
+      + '.ultra/.runtime\n'
+      + '.ultra/[s]tate.db\n'
+      + '.ultra/[s]tate.db-wal\n'
+      + '.ultra/[s]tate.db-shm\n',
+  );
   execFileSync('git', ['add', '-A'], { cwd: dir });
   execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
   return dir;
@@ -72,6 +82,24 @@ function seedTask(db, id, files_modified = [], deps = []) {
   ops.createTask(db, {
     id, title: `task ${id}`, type: 'feature', priority: 'P2',
     complexity: 2, files_modified, deps,
+    outcome: `${id} produces observable execution evidence.`,
+    slice_kind: 'tracer_bullet',
+    public_seam: `orchestrator:${id}`,
+    verification_command: 'node --test orchestrator/tests/parallel-orchestrator.test.cjs',
+    acceptance: [{
+      id: `${id}-acceptance`,
+      criterion: `${id} executes from an accepted Change Plan and Worker Packet.`,
+      verification: 'node --test orchestrator/tests/parallel-orchestrator.test.cjs',
+    }],
+    context_refs: [{
+      ref: 'seed.md',
+      reason: 'Stable orchestrator fixture Context.',
+      required: true,
+      freshness_policy: 'existence',
+    }],
+    docs_impact: { status: 'none', files: [], rationale: 'No public documentation.' },
+    ownership: { owner: 'test-owner', reviewers: [] },
+    trace_to: 'seed.md#seed',
   });
 }
 
@@ -288,34 +316,10 @@ function seedCompletedPlanWorkflow(db, repoRoot, plan, {
   const relativeMdPath = path.relative(repoRoot, planPaths.md);
   const digest = crypto.createHash('sha256').update(fs.readFileSync(planPaths.json)).digest('hex');
   const taskContractDigests = Object.fromEntries(
-    ops.listTasks(db, { change_id: plan.change_id }).map((task) => {
-      const contract = {
-        id: task.id,
-        change_id: task.change_id,
-        parent_id: task.parent_id,
-        title: task.title,
-        type: task.type,
-        priority: task.priority,
-        complexity: task.complexity,
-        estimated_days: task.estimated_days,
-        deps: task.deps || [],
-        files_modified: task.files_modified || [],
-        tag: task.tag,
-        trace_to: task.trace_to,
-        outcome: task.outcome,
-        slice_kind: task.slice_kind,
-        public_seam: task.public_seam,
-        verification_command: task.verification_command,
-        acceptance: task.acceptance || [],
-        context_refs: task.context_refs || [],
-        docs_impact: task.docs_impact || {},
-        ownership: task.ownership || {},
-      };
-      return [
-        task.id,
-        crypto.createHash('sha256').update(JSON.stringify(contract)).digest('hex'),
-      ];
-    }),
+    ops.listTasks(db, { change_id: plan.change_id }).map((task) => [
+      task.id,
+      taskLedger.durableTask(task).digest,
+    ]),
   );
   const workflowId = `completed-plan-${plan.change_id}`;
   const now = new Date().toISOString();
@@ -367,7 +371,76 @@ function seedCompletedPlanWorkflow(db, repoRoot, plan, {
       now,
     );
   });
-  return workflowId;
+  db.prepare(
+    `INSERT INTO context_envelopes
+     (id, stage, scope_type, scope_id, digest, file_digest, payload_json, artifact_path)
+     VALUES (?, 'plan', 'change', ?, ?, ?, ?, ?)`,
+  ).run(
+    contextManifest.snapshot_id,
+    plan.change_id,
+    contextDigest,
+    contextDigest,
+    JSON.stringify(contextManifest),
+    contextRelativePath,
+  );
+  const draft = stageCheckpoints.saveDraft(db, {
+    stage: 'plan',
+    scope: { change_id: plan.change_id },
+    payload: {
+      summary: `Accepted execution plan for ${plan.change_id}.`,
+      plan: {
+        task_contract_digests: taskContractDigests,
+        context_envelope_id: contextManifest.snapshot_id,
+        context_digest: contextDigest,
+      },
+    },
+    evidence: [],
+    diagnostics: [],
+    context_envelope_id: contextManifest.snapshot_id,
+    idempotency_key: `${workflowId}:checkpoint-draft`,
+  });
+  const checkpoint = stageCheckpoints.acceptDraft(db, {
+    id: draft.id,
+    idempotency_key: `${workflowId}:checkpoint-accept`,
+  });
+  return checkpoint.id;
+}
+
+let fixturePlanSequence = 0;
+
+function authorizeUnscopedPlanFixture(db, repoRoot, plan) {
+  parallelOrch._internal.validatePlanShape(plan);
+  const taskIds = plan.waves.flatMap((wave) => wave.tasks);
+  const missing = taskIds.filter((id) => !ops.readTask(db, id));
+  if (missing.length > 0) return plan;
+  fixturePlanSequence += 1;
+  const changeId = `fixture-change-${fixturePlanSequence}`;
+  db.prepare(
+    `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+     VALUES (?, ?, 'standard', 'active', ?, ?)`,
+  ).run(
+    changeId,
+    `Authorized fixture ${fixturePlanSequence}`,
+    'Exercise orchestrator mechanics through current v0.24 authority.',
+    `.ultra/changes/active/${changeId}`,
+  );
+  const assign = db.prepare('UPDATE tasks SET change_id = ? WHERE id = ?');
+  for (const taskId of taskIds) assign.run(changeId, taskId);
+  const authorized = buildPlan(
+    taskIds.map((id) => ops.readTask(db, id)),
+    { changeId },
+  );
+  Object.keys(plan).forEach((key) => delete plan[key]);
+  Object.assign(plan, authorized);
+  seedCompletedPlanWorkflow(db, repoRoot, plan);
+  return plan;
+}
+
+async function runPlan(options) {
+  if (options.plan && !options.plan.change_id) {
+    authorizeUnscopedPlanFixture(options.db, options.repoRoot, options.plan);
+  }
+  return parallelOrch.runPlan(options);
 }
 
 // ─── happy path ───────────────────────────────────────────────────────────
@@ -378,7 +451,7 @@ test('runPlan: successful execution leaves task in_progress for Ultra dev/test/r
   try {
     seedTask(db, 't1');
     const plan = buildPlan([{ id: 't1', deps: [], complexity: 2 }]);
-    await parallelOrch.runPlan({
+    await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(),
@@ -427,7 +500,7 @@ test('parallel wave reserves all tasks before start and observes all exits befor
       return originalClose(...args);
     };
 
-    await parallelOrch.runPlan({
+    await runPlan({
       db,
       repoRoot: repo,
       plan,
@@ -467,7 +540,7 @@ test('parallel wave command preparation failure leaves no leases, worktrees, or 
       { id: 'prepare-c', deps: [], files_modified: ['prepare-c.js'] },
     ]);
     await assert.rejects(
-      parallelOrch.runPlan({
+      runPlan({
         db,
         repoRoot: repo,
         plan,
@@ -520,7 +593,7 @@ test('parallel wave reservation failure unwinds every earlier reservation', asyn
       return originalSpawn(options);
     };
 
-    await parallelOrch.runPlan({
+    await runPlan({
       db,
       repoRoot: repo,
       plan,
@@ -567,7 +640,7 @@ test('runPlan: rejects empty, cyclic, and duplicate-task plans before dispatch',
     ];
     for (const plan of invalidPlans) {
       await assert.rejects(
-        parallelOrch.runPlan({
+        runPlan({
           db, repoRoot: repo, plan,
           runtimes: ['claude'],
           command: NODE, commandArgs: exitOk(),
@@ -603,7 +676,7 @@ test('runPlan: rejects a change-bound plan until its workflow is completed', asy
       { changeId: 'unapproved-change' },
     );
     await assert.rejects(
-      parallelOrch.runPlan({
+      runPlan({
         db, repoRoot: repo, plan,
         runtimes: ['claude'],
         command: NODE, commandArgs: exitOk(),
@@ -620,34 +693,36 @@ test('runPlan: dispatches the exact current plan after its workflow is completed
   const db = mkDb(repo);
   try {
     const plan = seedExecutableChangeTask(db, 'approved-change', 'approved-task');
-    const workflowId = seedCompletedPlanWorkflow(db, repo, plan);
-    const result = await parallelOrch.runPlan({
+    const checkpointId = seedCompletedPlanWorkflow(db, repo, plan);
+    const result = await runPlan({
       db, repoRoot: repo,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(),
     });
     assert.equal(result.status, 'paused');
-    assert.equal(result.plan_workflow_id, workflowId);
+    assert.equal(result.plan_checkpoint_id, checkpointId);
     assert.equal(ops.readTask(db, 'approved-task').status, 'in_progress');
   } finally { cleanup(repo, db); }
 });
 
-test('runPlan: refuses to reserve a task without its exact ready implementation Context', async () => {
+test('runPlan: compiles the exact implementation Context while reserving the Worker Packet', async () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
     const plan = seedExecutableChangeTask(db, 'missing-implementation-context', 'missing-context-task');
     seedCompletedPlanWorkflow(db, repo, plan, { implementationContexts: false });
-    const result = await parallelOrch.runPlan({
+    const result = await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(),
     });
     assert.equal(result.status, 'paused');
-    assert.equal(result.results[0].status, 'authority_blocked');
-    assert.equal(result.results[0].authority_code, 'WORKFLOW_IMPLEMENTATION_CONTEXT_REQUIRED');
-    assert.equal(ops.readTask(db, 'missing-context-task').status, 'pending');
-    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+    assert.equal(result.results[0].status, 'completed');
+    assert.equal(ops.readTask(db, 'missing-context-task').status, 'in_progress');
+    assert.equal(db.prepare(
+      `SELECT COUNT(*) AS count FROM worker_packets
+       WHERE scope_type = 'task' AND scope_id = 'missing-context-task'`,
+    ).get().count, 1);
   } finally { cleanup(repo, db); }
 });
 
@@ -659,7 +734,7 @@ test('runPlan: rejects tracked checkout drift after Plan completion before task 
     seedCompletedPlanWorkflow(db, repo, plan);
     fs.writeFileSync(path.join(repo, 'seed.md'), '# changed after planning\n');
     await assert.rejects(
-      parallelOrch.runPlan({
+      runPlan({
         db, repoRoot: repo, plan,
         runtimes: ['claude'],
         command: NODE, commandArgs: exitOk(),
@@ -687,17 +762,14 @@ test('runPlan: revalidates required task references from implementation Context 
       path.join(repo, '.ultra', 'specs', 'implementation-ref.md'),
       '# changed after implementation context compile\n',
     );
-    const result = await parallelOrch.runPlan({
+    const result = await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(),
     });
     assert.equal(result.status, 'paused');
     assert.equal(result.results[0].status, 'authority_blocked');
-    assert.equal(result.results[0].authority_code, 'WORKFLOW_IMPLEMENTATION_CONTEXT_STALE');
-    assert.ok(result.results[0].blockers.includes(
-      'CONTEXT_REQUIRED_REF_STALE:.ultra/specs/implementation-ref.md',
-    ));
+    assert.equal(result.results[0].authority_code, 'CONTEXT_REQUIRED_REF_STALE');
     assert.equal(ops.readTask(db, 'implementation-ref-task').status, 'pending');
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
   } finally { cleanup(repo, db); }
@@ -728,27 +800,51 @@ test('runPlan: rejects a completed plan when a newer planning context supersedes
     fs.writeFileSync(absolute, `${JSON.stringify(manifest, null, 2)}\n`);
     const digest = crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex');
     db.prepare(
-      `INSERT INTO context_snapshots
-       (id, change_id, task_id, manifest_path, manifest_hash, role, gate, readiness,
-        blockers_json, context_json, token_estimate, token_budget, created_at)
-       VALUES (?, ?, NULL, ?, ?, 'plan', 'planning', 'ready', '[]', ?, 0, 12000,
-               '9999-12-31T23:59:59.999Z')`,
-    ).run(manifest.snapshot_id, change.id, relative, digest, JSON.stringify(manifest));
+      `INSERT INTO context_envelopes
+       (id, stage, scope_type, scope_id, digest, file_digest, payload_json, artifact_path)
+       VALUES (?, 'plan', 'change', ?, ?, ?, ?, ?)`,
+    ).run(
+      manifest.snapshot_id,
+      change.id,
+      digest,
+      digest,
+      JSON.stringify(manifest),
+      relative,
+    );
+    const prior = stageCheckpoints.currentCheckpoint(
+      db,
+      'plan',
+      { change_id: change.id },
+      { includeDraft: false },
+    );
+    const newer = stageCheckpoints.saveDraft(db, {
+      stage: 'plan',
+      scope: { change_id: change.id },
+      payload: prior.payload,
+      evidence: [],
+      diagnostics: [],
+      context_envelope_id: manifest.snapshot_id,
+      idempotency_key: 'replanned-change:newer-draft',
+    });
+    stageCheckpoints.acceptDraft(db, {
+      id: newer.id,
+      idempotency_key: 'replanned-change:newer-accept',
+    });
 
     await assert.rejects(
-      parallelOrch.runPlan({
+      runPlan({
         db, repoRoot: repo, changeId: change.id,
         runtimes: ['claude'],
         command: NODE, commandArgs: exitOk(),
       }),
       (error) => error.code === 'PLAN_STALE'
-        && error.details.authority_code === 'WORKFLOW_PLAN_CONTEXT_MISMATCH',
+        && error.details.authority_code === 'PLAN_CONTEXT_MISMATCH',
     );
     assert.equal(ops.readTask(db, 'replanned-task').status, 'pending');
   } finally { cleanup(repo, db); }
 });
 
-test('runPlan: does not treat the legacy global plan as current authority without explicit compatibility input', async () => {
+test('runPlan: rejects the retired legacy global plan path', async () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
@@ -759,7 +855,7 @@ test('runPlan: does not treat the legacy global plan as current authority withou
     fs.writeFileSync(legacyPath, `${JSON.stringify(legacyPlan, null, 2)}\n`);
 
     await assert.rejects(
-      parallelOrch.runPlan({
+      runPlan({
         db, repoRoot: repo,
         runtimes: ['claude'],
         command: NODE, commandArgs: exitOk(),
@@ -768,13 +864,15 @@ test('runPlan: does not treat the legacy global plan as current authority withou
     );
     assert.equal(ops.readTask(db, 'legacy-task').status, 'pending');
 
-    const result = await parallelOrch.runPlan({
-      db, repoRoot: repo, planPath: legacyPath,
-      runtimes: ['claude'],
-      command: NODE, commandArgs: exitOk(),
-    });
-    assert.equal(result.status, 'paused');
-    assert.equal(ops.readTask(db, 'legacy-task').status, 'in_progress');
+    await assert.rejects(
+      runPlan({
+        db, repoRoot: repo, planPath: legacyPath,
+        runtimes: ['claude'],
+        command: NODE, commandArgs: exitOk(),
+      }),
+      (error) => error.code === 'PLAN_LEGACY_RETIRED',
+    );
+    assert.equal(ops.readTask(db, 'legacy-task').status, 'pending');
   } finally { cleanup(repo, db); }
 });
 
@@ -788,7 +886,7 @@ test('runPlan: requires a change id when more than one current scoped plan is ex
     seedCompletedPlanWorkflow(db, repo, second);
 
     await assert.rejects(
-      parallelOrch.runPlan({
+      runPlan({
         db, repoRoot: repo,
         runtimes: ['claude'],
         command: NODE, commandArgs: exitOk(),
@@ -796,7 +894,7 @@ test('runPlan: requires a change id when more than one current scoped plan is ex
       (error) => error.code === 'PLAN_CHANGE_REQUIRED',
     );
 
-    const result = await parallelOrch.runPlan({
+    const result = await runPlan({
       db, repoRoot: repo, changeId: 'first-change',
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(),
@@ -816,13 +914,13 @@ test('runPlan: authority already stale at admission is rejected without counting
     ops.patchTask(db, 'stale-task', { stale: true });
 
     await assert.rejects(
-      parallelOrch.runPlan({
+      runPlan({
         db, repoRoot: repo, plan,
         runtimes: ['claude'],
         command: NODE, commandArgs: exitOk(),
       }),
       (error) => error.code === 'PLAN_STALE'
-        && error.details.authority_code === 'WORKFLOW_PLAN_TASK_CONTRACT_STALE',
+        && error.details.authority_code === 'PLAN_TASK_CONTRACT_STALE',
     );
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
     const { events } = ops.subscribeEventsSince(db, 0);
@@ -839,7 +937,7 @@ test('runPlan: authority drift between wave admission and spawn is not a worker 
     seedCompletedPlanWorkflow(db, repo, plan);
 
     const errors = [];
-    const result = await parallelOrch.runPlan({
+    const result = await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE,
@@ -854,7 +952,7 @@ test('runPlan: authority drift between wave admission and spawn is not a worker 
 
     assert.equal(result.status, 'paused');
     assert.equal(result.results[0].status, 'authority_blocked');
-    assert.equal(result.results[0].authority_code, 'WORKFLOW_PLAN_TASK_CONTRACT_STALE');
+    assert.equal(result.results[0].authority_code, 'PLAN_TASK_CONTRACT_STALE');
     assert.equal(ops.readTask(db, 'racing-task').status, 'pending');
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
     const { events } = ops.subscribeEventsSince(db, 0);
@@ -880,7 +978,7 @@ test('runPlan treats a public session lease as retryable authority, not a task f
     });
 
     const errors = [];
-    const result = await parallelOrch.runPlan({
+    const result = await runPlan({
       db,
       repoRoot: repo,
       plan,
@@ -954,7 +1052,7 @@ test('runPlan unwraps a real migration quiescence gate without counting a worker
     assert.equal(wrapped?.cause?.code, 'RUNTIME_STATE_NOT_QUIESCENT');
 
     const errors = [];
-    const result = await parallelOrch.runPlan({
+    const result = await runPlan({
       db,
       repoRoot: repo,
       plan,
@@ -1020,7 +1118,7 @@ test('parallel deferred-start authority gates unwind leases without task failure
     };
 
     const errors = [];
-    const result = await parallelOrch.runPlan({
+    const result = await runPlan({
       db,
       repoRoot: repo,
       plan,
@@ -1081,7 +1179,7 @@ test('runPlan: a later dependency wave stays pending until the prior Ultra tasks
     assert.equal(plan.waves[0].parallel, true);
     assert.equal(plan.waves[1].parallel, true);
 
-    const first = await parallelOrch.runPlan({
+    const first = await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(30),
@@ -1110,7 +1208,7 @@ test('runPlan: 2 tasks sharing one file → plan-builder flips parallel=false �
     ]);
     assert.equal(plan.waves[0].parallel, false, 'plan-builder should detect conflict');
 
-    await parallelOrch.runPlan({
+    await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(30),
@@ -1132,7 +1230,7 @@ test('runPlan: rerun resumes at the first unfinished wave after dependency conve
     ]);
     assert.equal(plan.waves.length, 2);
 
-    const first = await parallelOrch.runPlan({
+    const first = await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(40),
@@ -1147,7 +1245,7 @@ test('runPlan: rerun resumes at the first unfinished wave after dependency conve
     );
 
     ops.updateTaskStatus(db, 'w1', 'completed');
-    const second = await parallelOrch.runPlan({
+    const second = await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(40),
@@ -1176,7 +1274,7 @@ test('runPlan: task exits non-zero → session crashed and task is blocked for r
   try {
     seedTask(db, 'fail1');
     const plan = buildPlan([{ id: 'fail1', deps: [] }]);
-    await parallelOrch.runPlan({
+    await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitFail(),
@@ -1199,7 +1297,7 @@ test('runPlan: worker spawn errors settle, block the task, and preserve failure 
     seedTask(db, 'spawn-fail');
     const plan = buildPlan([{ id: 'spawn-fail', deps: [] }]);
     const result = await Promise.race([
-      parallelOrch.runPlan({
+      runPlan({
         db, repoRoot: repo, plan,
         runtimes: ['claude'],
         command: missingExecutable(), commandArgs: [],
@@ -1218,25 +1316,21 @@ test('runPlan: worker spawn errors settle, block the task, and preserve failure 
   } finally { cleanup(repo, db); }
 });
 
-test('runPlan: a task missing from DB pauses the plan instead of fabricating completion', async () => {
+test('runPlan: rejects an unscoped plan before it can fabricate a missing task', async () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
-    const result = await parallelOrch.runPlan({
-      db,
-      repoRoot: repo,
-      plan: { waves: [{ id: 1, tasks: ['missing-task'], parallel: false }] },
-      runtimes: ['claude'],
-      command: NODE,
-      commandArgs: exitOk(),
-    });
-    assert.equal(result.status, 'paused');
-    assert.equal(result.paused_wave_id, 1);
-    assert.deepEqual(result.awaiting_workflow_gates, [{
-      id: 'missing-task',
-      status: 'missing',
-      stale: false,
-    }]);
+    await assert.rejects(
+      runPlan({
+        db,
+        repoRoot: repo,
+        plan: { waves: [{ id: 1, tasks: ['missing-task'], parallel: false }] },
+        runtimes: ['claude'],
+        command: NODE,
+        commandArgs: exitOk(),
+      }),
+      (error) => error.code === 'PLAN_CHANGE_SCOPED_REQUIRED',
+    );
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
     const { events } = ops.subscribeEventsSince(db, 0);
     assert.equal(events.some((event) => event.type === 'plan_completed'), false);
@@ -1255,7 +1349,7 @@ test('runPlan: one task fails in wave while successful executions await workflow
       { id: 'bad1', deps: [], files_modified: ['f2.js'] },
       { id: 'ok2', deps: [], files_modified: ['f3.js'] },
     ]);
-    await parallelOrch.runPlan({
+    await runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE,
@@ -1277,7 +1371,7 @@ test('runPlan: emits wave_completed and plan_completed only after DB task conver
       { id: 'e1', deps: [] },
       { id: 'e2', deps: ['e1'] },
     ]);
-    const running = parallelOrch.runPlan({
+    const running = runPlan({
       db, repoRoot: repo, plan,
       runtimes: ['claude'],
       command: NODE, commandArgs: exitOk(150),

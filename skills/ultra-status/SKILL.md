@@ -20,14 +20,14 @@ Report:
 ```text
 Ultra: <healthy|degraded> · <branch>@<head|unborn|non-git>
 Baseline: <mode>/<status> · gaps=<open>/<blocking>
-Workflow drafts: <active|blocked|ready> · accepted checkpoints=<current|stale>
+Stage checkpoints: drafts=<count> · accepted=<current|stale|none>
 Change: <id/status|none> · delta/docs=<state>
 Task: <id/status|none> · Sessions: <active>
 Evidence: plan=<state> · test=<state> · review=<axes> · delivery=<state>
 Team checkpoint: <current|drifted|revalidation_required|missing|invalid>
 Blockers: <hard mechanical blockers or none>
 Warnings: <advisory semantic diagnostics or none>
-Host recommendation: <capability and concise rationale>
+Model recommendation: <capability and concise rationale>
 ```
 
 Treat warnings and failed draft checks as information, not mechanical orders. Only

@@ -7,7 +7,9 @@ const { spawnSync } = require('node:child_process');
 
 const workflows = require('../lib/workflow-state.cjs');
 const baselines = require('../lib/baseline-workflow.cjs');
-const { semanticRecordsForStep } = require('./semantic-records.cjs');
+const checkpoints = require('../lib/stage-checkpoints.cjs');
+const runtime = require('../lib/runtime-state.cjs');
+const projector = require('../lib/projector.cjs');
 
 function write(rootDir, relative, content) {
   const file = path.join(rootDir, relative);
@@ -18,10 +20,6 @@ function write(rootDir, relative, content) {
 
 function digest(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-}
-
-function output(rootDir, relative, kind) {
-  return { path: relative, kind, digest: digest(path.join(rootDir, relative)) };
 }
 
 function seedCompletedWorkflowStructure(db, runId, kind, timestamp = new Date().toISOString()) {
@@ -62,7 +60,6 @@ function seedReadyBaseline(db, {
   for (const [kind, relative] of Object.entries(specFiles)) {
     write(rootDir, relative, `# ${kind}\n\nVerified fixture baseline.\n`);
   }
-  write(rootDir, '.ultra/specs/research-distillate.md', '# Research distillate\n\nVerified fixture synthesis.\n');
   write(rootDir, '.ultra/fixture-source.js', "'use strict';\nmodule.exports = true;\n");
 
   const specRefs = Object.entries(specFiles).map(([kind, relative]) => ({
@@ -108,64 +105,28 @@ function seedReadyBaseline(db, {
     JSON.stringify(specRefs), JSON.stringify(evidence),
     JSON.stringify(verification), JSON.stringify({ fixture: true }), researchId, now,
   );
-  db.prepare(
-    `INSERT INTO workflow_runs
-     (id, kind, mode, subject, definition_version, status, current_step,
-      baseline_id, metadata_json, blockers_json, summary_json,
-      started_at, updated_at, completed_at)
-     VALUES (?, 'research', ?, 'Complete fixture research provenance.', ?,
-             'completed', NULL, ?, ?, '[]', '{}', ?, ?, ?)`,
-  ).run(
-    researchId, mode === 'brownfield' ? 'adoption' : 'full',
-    workflows.DEFINITION_VERSION, id,
-    JSON.stringify({ selected_steps: workflows.WORKFLOW_DEFINITIONS.research.map((item) => item.id) }),
-    now, now, now,
-  );
-
-  const insertStep = db.prepare(
-    `INSERT INTO workflow_steps
-     (run_id, step_id, position, title, required, status, evidence_json,
-      outputs_json, decisions_json, semantic_records_json, blockers_json,
-      started_at, completed_at, updated_at)
-     VALUES (?, ?, ?, ?, 1, 'completed', ?, ?, '[]', ?, '[]', ?, ?, ?)`,
-  );
-  workflows.WORKFLOW_DEFINITIONS.research.forEach((definition, position) => {
-    const report = path.join('.ultra', 'docs', 'research', researchId, `${definition.id}.md`);
-    write(rootDir, report, [
-      `# ${definition.title}`,
-      '',
-      '## Evidence',
-      '',
-      'Verified fixture evidence.',
-      '',
-      '## Specification updates',
-      '',
-      'Fixture baseline specifications remain authoritative.',
-      '',
-      '## Decisions and unknowns',
-      '',
-      'No unresolved fixture decisions.',
-      '',
-    ].join('\n'));
-    const outputs = [output(rootDir, report, 'research-step-report')];
-    if (definition.id === '99-synthesis') {
-      outputs.push(
-        output(rootDir, specFiles.discovery, 'baseline-specification'),
-        output(rootDir, specFiles.product, 'baseline-specification'),
-        output(rootDir, specFiles.architecture, 'baseline-specification'),
-        output(rootDir, '.ultra/specs/research-distillate.md', 'research-distillate'),
-      );
-    }
-    const semanticRecords = semanticRecordsForStep(researchId, definition.id);
-    semanticRecords[0].source_digest = digest(path.join(rootDir, report));
-    insertStep.run(
-      researchId, definition.id, position, definition.title,
-      JSON.stringify([{
-        kind: 'test', ref: `fixture:${definition.id}`, summary: 'Verified fixture evidence.',
-      }]),
-      JSON.stringify(outputs), JSON.stringify(semanticRecords),
-      now, now, now,
-    );
+  const research = checkpoints.saveDraft(db, {
+    stage: 'research',
+    scope: { baseline_id: id },
+    payload: {
+      mode: mode === 'brownfield' ? 'adoption' : 'full',
+      summary: 'Complete fixture research provenance.',
+    },
+    evidence,
+    diagnostics: [],
+    idempotency_key: `${researchId}:draft`,
+  });
+  const acceptedResearch = checkpoints.acceptDraft(db, {
+    id: research.id,
+    idempotency_key: `${researchId}:accept`,
+  });
+  db.prepare('UPDATE baselines SET research_run_id = ? WHERE id = ?')
+    .run(acceptedResearch.id, id);
+  runtime.ensureProjectionJob(db, { tool_name: 'test.fixture' });
+  runtime.processProjectionJobs(db, {
+    rootDir,
+    project: projector.projectAll,
+    limit: 10,
   });
   return id;
 }

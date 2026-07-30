@@ -23,10 +23,15 @@ const SURFACES = Object.freeze({
     fallback: 'direct_user_interaction',
     availability: 'interactive_non_auto_mode',
   }),
+  grok: Object.freeze({
+    primary: 'AskUserQuestion',
+    fallback: 'direct_user_interaction',
+    availability: 'interactive_session',
+  }),
 });
 
 const GENERIC_QUESTION_GUIDANCE =
-  /Use the host-native structured question surface declared by the installed interaction\s+contract(?: when it exists)?\./g;
+  /Use the host-native (?:structured )?question surface declared by the installed interaction\s+contract(?: when it exists)?(?:;?\s+prefer its structured form when the host exposes one)?\./g;
 
 function interactionContract(runtime) {
   const question = SURFACES[runtime];
@@ -106,6 +111,7 @@ function interactionPrompt(runtime) {
     codex: 'Codex',
     opencode: 'OpenCode',
     kimi: 'Kimi Code',
+    grok: 'Grok Build',
   }[runtime];
   const primary = runtime === 'opencode' ? `\`${surface.primary}\`` : surface.primary;
   return `Use ${host} ${primary} when ${surface.availability.replaceAll('_', ' ')} permits it.`;

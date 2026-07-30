@@ -1,6 +1,0 @@
-{
-  "id": "alignment-change-api",
-  "purpose": "Align the owner and agent on the public API boundary.",
-  "mode": "guided",
-  "baseline_id": "baseline-current"
-}

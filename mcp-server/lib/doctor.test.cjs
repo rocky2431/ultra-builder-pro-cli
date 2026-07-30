@@ -298,24 +298,26 @@ test('doctor degrades when a ready baseline loses immutable research authority',
   const fx = fixture();
   try {
     fx.db.prepare(
-      `UPDATE workflow_steps SET outputs_json = ?, updated_at = ?
-       WHERE run_id = 'test-baseline-research' AND step_id = '00-problem-validation'`,
+      `UPDATE stage_checkpoints SET evidence_json = ?, updated_at = ?
+       WHERE id = (SELECT research_run_id FROM baselines WHERE id = 'test-baseline')`,
     ).run(JSON.stringify([{
-      path: '.ultra/docs/research/test-baseline-research/00-problem-validation.md',
-      kind: 'research-step-report', digest: '0'.repeat(64),
+      kind: 'source',
+      ref: '.ultra/fixture-source.js',
+      summary: 'Tampered research evidence.',
+      digest: '0'.repeat(64),
     }]), new Date().toISOString());
     const report = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
     assert.equal(report.status, 'degraded');
     assert.equal(report.checks.baseline.status, 'fail');
-    assert.ok(report.checks.baseline.blockers.some((item) => item.startsWith(
-      'BASELINE_RESEARCH_WORKFLOW_OUTPUT_STALE:',
-    )));
+    assert.deepEqual(report.checks.baseline.blockers, ['BASELINE_RESEARCH_RECORD_INVALID']);
+    assert.equal(report.checks.checkpoints.status, 'fail');
+    assert.equal(report.checks.checkpoints.issues[0].code, 'CHECKPOINT_DIGEST_MISMATCH');
   } finally {
     cleanup(fx);
   }
 });
 
-test('doctor exposes blocked workflow recovery without treating an expected pause as database corruption', async () => {
+test('doctor preserves legacy workflow rows as non-authoritative history', async () => {
   const fx = fixture({ baseline: false });
   try {
     const baseline = baselines.startBaseline(fx.db, {
@@ -339,14 +341,16 @@ test('doctor exposes blocked workflow recovery without treating an expected paus
 
     const report = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
     assert.equal(report.status, 'healthy');
-    assert.equal(report.checks.workflows.status, 'warning');
-    assert.equal(report.checks.workflows.blocked, 1);
+    assert.equal(report.checks.legacy_history.status, 'informational');
+    assert.equal(report.checks.legacy_history.authority, false);
+    assert.equal(report.checks.legacy_history.workflow_runs, 1);
+    assert.ok(report.checks.legacy_history.workflow_steps > 0);
   } finally {
     cleanup(fx);
   }
 });
 
-test('doctor reports an awaiting owner decision as recoverable workflow state', async () => {
+test('doctor preserves legacy decision dialogue as non-authoritative history', async () => {
   const fx = fixture();
   try {
     decisions.startDecisionThread(fx.db, {
@@ -367,9 +371,11 @@ test('doctor reports an awaiting owner decision as recoverable workflow state', 
     });
     const report = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir });
     assert.equal(report.status, 'healthy');
-    assert.equal(report.checks.decisions.status, 'warning');
-    assert.equal(report.checks.decisions.awaiting_owner, 1);
-    assert.equal(report.checks.decisions.current.id, 'doctor-api');
+    assert.equal(report.checks.decisions.status, 'pass');
+    assert.equal(report.checks.decisions.total, 0);
+    assert.equal(report.checks.legacy_history.authority, false);
+    assert.equal(report.checks.legacy_history.decision_threads, 1);
+    assert.equal(report.checks.legacy_history.decision_items, 1);
   } finally {
     cleanup(fx);
   }
@@ -382,17 +388,20 @@ test('doctor repair is backup-first and drains projection/spec-event recovery wo
       id: 'stale-target', title: 'Refresh context', type: 'feature', priority: 'P1',
       trace_to: '.ultra/specs/product.md#continuous-change',
     });
-    ops.appendEvent(fx.db, {
+    const changed = ops.appendEvent(fx.db, {
       type: 'spec_changed',
       payload: { sections: ['.ultra/specs/product.md#continuous-change'] },
     });
-    runtime.enqueueProjection(fx.db, { tool_name: 'task.append_event', event_cursor: 2 });
+    runtime.enqueueProjection(fx.db, {
+      tool_name: 'task.append_event',
+      event_cursor: changed.event_id,
+    });
 
     const report = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir, repair: true });
     assert.equal(report.repair_performed, true);
     assert.ok(fs.existsSync(report.backup_path));
     assert.equal(ops.readTask(fx.db, 'stale-target').stale, true);
-    assert.equal(runtime.readConsumerCursor(fx.db, 'spec-staleness'), 2);
+    assert.equal(runtime.readConsumerCursor(fx.db, 'spec-staleness'), changed.event_id);
     assert.equal(runtime.listProjectionJobs(fx.db, { status: 'pending' }).length, 0);
     assert.equal(report.status, 'healthy');
   } finally {
@@ -611,7 +620,7 @@ test('doctor runs close-intent recovery first and defers conflicting repairs ide
       assert.equal(report.repair.plan_publications.code, 'SESSION_CLOSE_PENDING');
       assert.equal(report.repair.plan_publications.status, 'deferred');
       assert.equal(report.repair.archives.status, 'deferred');
-      assert.equal(report.repair.workflows.status, 'deferred');
+      assert.equal(report.repair.legacy_history.status, 'deferred');
       assert.equal(report.checks.sessions.close_pending, 1);
     }
     assert.ok(closeJournal.read(fx.rootDir, 'doctor-close-order-session'));
@@ -701,7 +710,7 @@ test('doctor stops after unresolved Plan recovery and defers every later mutatio
         );
         for (const key of [
           'archives',
-          'workflows',
+          'legacy_history',
           'spec_events',
           'interrupted',
           'requeued',
@@ -795,7 +804,7 @@ test('doctor stops after unresolved archive recovery and defers every later muta
       assert.equal(report.repair.archives.code, 'ARCHIVE_RECOVERY_REQUIRED');
       assert.equal(report.repair.archives.failed, 1);
       for (const key of [
-        'workflows',
+        'legacy_history',
         'spec_events',
         'interrupted',
         'requeued',
@@ -1037,7 +1046,7 @@ test('doctor repair resumes an archive journal left after a process crash', asyn
   }
 });
 
-test('doctor repair creates a blocked recovery workflow for a legacy untracked change', async () => {
+test('doctor never invents workflow authority for a legacy untracked change', async () => {
   const fx = fixture();
   try {
     const artifactRoot = path.join(fx.rootDir, '.ultra', 'changes', 'active', 'legacy-change');
@@ -1049,19 +1058,18 @@ test('doctor repair creates a blocked recovery workflow for a legacy untracked c
                '.ultra/changes/active/legacy-change')`,
     ).run();
     const before = doctor.inspectSystem(fx.db, { rootDir: fx.rootDir });
-    assert.equal(before.status, 'degraded');
-    assert.equal(before.checks.workflows.status, 'fail');
-    assert.deepEqual(before.checks.workflows.untracked_active_changes, ['legacy-change']);
+    assert.equal(before.status, 'healthy');
+    assert.equal(before.checks.legacy_history.authority, false);
+    assert.equal(before.checks.legacy_history.workflow_runs, 0);
 
     const after = await doctor.runDoctor(fx.db, { rootDir: fx.rootDir, repair: true });
-    assert.equal(after.repair.workflows.created, 1);
-    const recovered = workflows.listWorkflows(
-      fx.db, { kind: 'change', change_id: 'legacy-change' }, { rootDir: fx.rootDir },
-    )[0];
-    assert.equal(recovered.status, 'blocked');
-    assert.equal(recovered.current_step, 'bind-baseline');
-    assert.deepEqual(recovered.blockers, ['LEGACY_CHANGE_PROVENANCE_REQUIRED']);
-    assert.deepEqual(after.checks.workflows.untracked_active_changes, []);
+    assert.equal(after.status, 'healthy');
+    assert.equal(after.checks.legacy_history.authority, false);
+    assert.equal(after.checks.legacy_history.workflow_runs, 0);
+    assert.equal(
+      fx.db.prepare('SELECT COUNT(*) AS count FROM workflow_runs').get().count,
+      0,
+    );
   } finally {
     cleanup(fx);
   }

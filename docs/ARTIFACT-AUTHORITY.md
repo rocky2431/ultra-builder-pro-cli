@@ -16,16 +16,16 @@ Semantic and evidence artifacts under `.ultra/` are trackable so reviewed intent
 verification can travel with the repository. `.ultra/.runtime/` is always ignored:
 the SQLite authority, leases, worktrees, local telemetry, and recovery snapshots remain
 checkout-local. `.ultra/tasks/tasks.json` is the narrow MCP-owned Git handoff for
-portable baseline, Change, and durable task records; it is not a copy of live runtime
-state.
+portable baseline, Change, Decision, accepted Stage Checkpoint, and durable Task
+records; it is not a copy of live runtime state.
 
 ## Artifact classes
 
 | Class | Examples | Authority |
 |---|---|---|
-| Checkout-local lifecycle and index | `.ultra/.runtime/state.db` | Operational authority for identifiers, normalized accepted intent, status, legal transitions, references, digests, freshness, provenance, locks, leases, transactions, recovery, and coordination in one checkout |
-| Git team checkpoint | `.ultra/tasks/tasks.json` | MCP-published, digest-chained handoff of portable baseline, Change, task-contract, dependency, and durable status records; never live session or lease authority |
-| Digest-bound semantic artifacts | specifications, research reports, Change intent/delta/plan, context manifests | Authoritative semantic bodies only while registered by the owning DB row or workflow step and matching its recorded digest |
+| Checkout-local persistence and safety | `.ultra/.runtime/state.db` | Operational authority for identifiers, normalized accepted intent, accepted Stage Checkpoints, references, digests, freshness, provenance, locks, leases, transactions, recovery, and coordination in one checkout; never semantic route selection |
+| Git team checkpoint | `.ultra/tasks/tasks.json` | MCP-published, digest-chained handoff of portable baseline, Change, Decision summary/reference, accepted Stage Checkpoint, Task contract, dependency, and durable outcome records; never live Session or lease authority |
+| Digest-bound semantic artifacts | specifications, research reports, Change intent/delta/plan, Context Envelopes, Decision Records | Authoritative semantic bodies only while registered by the owning record or Stage Checkpoint and matching its recorded digest |
 | Digest-bound evidence artifacts | test, review, delivery, and verification reports | Authoritative evidence bodies only while registered, immutable where required, and matching the recorded digest and scope |
 | Generated projections | `.ultra/.runtime/projections/tasks.json`, generated task contexts, activity exports | Checkout-local read-only views derived from DB authority; manual edits are overwritten and never become authority |
 | Advisory recovery | `.ultra/.runtime/checkpoint.json` | Compact recovery hint derived from DB authority; stale or missing content never overrides the DB |
@@ -43,8 +43,8 @@ these surfaces independently owns all three roles.
 | Actor | Responsible for | Must not do |
 |---|---|---|
 | Owner | Goals, acceptance, non-goals, material choices, risk acceptance, and authorization for irreversible or external effects | Supply facts the checkout or runtime can establish directly |
-| Host model | Inspect evidence, recommend a route, ask only for unresolved owner choices, normalize the answer, call the owning write, update semantic artifacts, read back the result, and present the next recommendation | Fabricate evidence, infer owner authorization, or bypass legal transitions |
-| Ultra MCP | Persist normalized inputs, validate structure and current digests, record lifecycle and provenance, enforce legal transitions, project local views, publish/import the Git checkpoint, and expose recovery | Choose product direction, prove a UI click, force a semantic route, or replace model judgment |
+| Host model | Inspect evidence, recommend a route, ask only for unresolved owner choices, normalize the answer, call the owning write, update semantic artifacts, read back the result, and present the next recommendation | Fabricate evidence, infer owner authorization, or bypass mechanical safety |
+| Ultra MCP | Persist normalized inputs, validate structure and current digests, record facts and provenance, commit Stage Checkpoints, project local views, publish/import the Git checkpoint, and expose recovery | Choose product direction, prove a UI click, pre-authorize reasoning steps, force a semantic route, or replace model judgment |
 | Host adapter | Render the shared interaction contract through the host-native question and tool surfaces | Become a second workflow authority |
 | Hook | Observe lifecycle, inject compact DB-derived recovery context, and protect MCP-owned checkpoint and generated projection paths | Select a semantic route or block ordinary development |
 
@@ -79,12 +79,12 @@ Working material becomes durable only when all applicable conditions hold:
 2. consequential claims are verified against the checkout, runtime, test result, or
    primary source;
 3. the model writes through the owning MCP operation or immutable artifact path;
-4. the DB records the owning baseline, change, workflow, task, or artifact reference;
+4. the DB records the owning baseline, Change, Stage Checkpoint, Task, Decision, or artifact reference;
 5. content-bearing files match the recorded SHA-256 digest and scope;
 6. the model reads back the resulting state before reporting completion.
 
 The durable evidence trail may include normalized decisions, delegation source,
-durable effects, typed applied references, workflow-step evidence, artifact hashes,
+durable effects, typed applied references, Stage Checkpoint evidence, artifact hashes,
 verification commands and results, provenance, events, and recovery state. It must not
 include chain-of-thought, UI-click proof, raw prompts, or conversation transcripts.
 
@@ -95,7 +95,7 @@ directory is not promotion.
 ## Change overlay authority
 
 An active Change is an isolated overlay below
-`.ultra/changes/active/<change-id>/`. Its intent, adaptive research, `findings.md`,
+`.ultra/changes/active/<change-id>/`. Its intent, normalized decisions, adaptive research,
 typed delta payloads, plan, contexts, documentation payloads, progress projection,
 test reports, review artifacts, and delivery evidence remain below that root. Change
 research never edits baseline specifications.
@@ -120,11 +120,12 @@ as delivered.
 
 ## Context and plan authority
 
-The Context compiler used by `ultra.checkpoint` reads accepted Change, task, baseline,
-checkout, and provider-reference authority and writes one immutable manifest plus its
-DB snapshot row. It never updates provider references or semantic Change fields. Each snapshot is
-identified exactly by `change_id`, nullable `task_id`, `role`, and `gate`; consumers
-must not substitute a newer snapshot from a different tuple.
+The canonical Context Envelope generator reads accepted Change, Task, baseline,
+Decision, checkout, evidence, execution, and provider-reference authority and writes
+one immutable manifest plus its DB snapshot row when persistence is requested. It
+never updates provider references or semantic Change fields. Each snapshot is
+identified by its exact scope, stage, content digest, and selected execution seam;
+consumers must not substitute a snapshot from another scope.
 
 Context refs preserve `expected_digest`, `anchor`, `scope`, and `freshness_policy`.
 Digest-bound refs are revalidated at the consuming gate, existence-bound implementation
@@ -151,7 +152,7 @@ never current write or dispatch authority.
 ## Registry contract
 
 `ultra.record` is the public writer for a semantic or evidence file that is not
-already registered by its owning workflow operation. Every managed registry row has:
+already registered by its owning typed record or Stage Checkpoint. Every managed registry row has:
 
 - a typed `owner_type` and `owner_id`;
 - an artifact `kind`, project-relative `path`, lifecycle `status`, and SHA-256
@@ -164,7 +165,7 @@ already registered by its owning workflow operation. Every managed registry row 
 The write replaces all edges for the artifact in one immediate SQLite transaction.
 It never accumulates stale edges with `INSERT OR IGNORE`. If an existing digest
 changes, the same transaction emits `spec_changed`, marks only reachable artifact
-and task consumers stale through typed artifact/task/workflow/change intermediates,
+and Task consumers stale through typed artifact, Task, checkpoint, and Change intermediates,
 and records the exact invalidated endpoints. Self-edges and dependency cycles are
 rejected without changing prior authority. A caller can provide
 `expected_before_digest`; a mismatch fails without changing the row or its edges.
@@ -176,13 +177,13 @@ all owners and kinds. Runtime, scratch, the MCP-owned team checkpoint, and gener
 task contexts cannot be promoted through this API.
 
 Owning internal writers use the same transaction contract. Change intent, delta and
-documentation packets, contexts, adaptive research, findings, incident diagnosis,
+documentation packets, Context Envelopes, adaptive research, incident diagnosis,
 plan, test, review, delivery, archive reconciliation, and specification learning
 cannot update a managed digest or provenance through a parallel SQL path.
 
 Rows migrated from pre-20 schemas remain readable and preserve their original IDs,
 paths, hashes, timestamps, and legacy change/task ownership. They are marked
-`managed = 0` until an owning workflow or `artifact.record` supplies complete
+`managed = 0` until an owning current record or `artifact.record` supplies complete
 provenance and dependency edges. This compatibility state preserves data without
 pretending that an old row satisfies the current registry contract.
 
@@ -219,8 +220,10 @@ or retired.
 contains:
 
 - one portable baseline record, when present;
-- every Change summary, including a Change that has not yet produced tasks;
-- durable task contracts, dependencies, acceptance mappings, and statuses;
+- every Change summary, including a Change that has not yet produced Tasks;
+- normalized Decision summaries, artifact references, digests, and supersession;
+- accepted Stage Checkpoint summaries and evidence references;
+- durable Task contracts, dependencies, acceptance mappings, and outcomes;
 - per-record revisions, parent digests, the checkpoint state digest, and bounded
   checkpoint ancestry.
 
@@ -268,6 +271,7 @@ carrying the generated marker may be pruned, and the removal emits
 `projection_pruned`.
 
 Model findings, decisions, or evidence discovered during development must be written
-below the owning Change root and registered through the workflow or `artifact.record`.
+below the owning Change root and registered through its typed record, checkpoint, or
+`artifact.record`.
 The next context projection references that authority. Editing the task-context body
 or an accepted baseline specification directly is neither persistence nor promotion.

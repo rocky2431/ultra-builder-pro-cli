@@ -1,8 +1,0 @@
-{
-  "id": "learning-1",
-  "change_id": "context-spine",
-  "task_id": "task-1",
-  "target_ref": "README.md#contract",
-  "summary": "Stale required context fails closed.",
-  "evidence": ["node --test context-spine.test.cjs"]
-}

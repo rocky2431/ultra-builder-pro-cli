@@ -66,7 +66,8 @@ ledger into hundreds of application tasks.
 
 ## Record authority
 
-Call `baseline.record` with full replacement arrays for:
+Use `ultra.record` with `kind: baseline`, `action: observe`, and full replacement
+arrays for:
 
 - scope and repository revision;
 - repository classification;
@@ -82,12 +83,14 @@ Use the server-returned revision, branch, worktree digest, and specification dig
 ## Obtain approval and converge
 
 Present scope, observed behavior, drift, known-red verification, unknowns, gaps, dirty
-worktree state, and material decisions to the owner. Call `baseline.converge` only after
-explicit approval. Set `accept_known_red` and `accept_dirty_worktree` only for the exact
-items the owner accepted.
+worktree state, and material decisions to the owner. Use `ultra.record` with
+`kind: baseline`, `action: accept` only after explicit approval. Set
+`accept_known_red` and `accept_dirty_worktree` only for the exact items the owner
+accepted.
 
 Resolve returned blockers through evidence or an owner decision, record the replacement
-snapshot, and retry. Adoption is complete only when `baseline.get` is `ready` and
-current, the gap ledger has no open blocker, and project doctor has no authority
-failure. Route all selected work through `ultra-change`, including work described by a
-legacy plan. Import its accepted intent into a current Change Contract before planning.
+snapshot, and retry. Adoption is complete only when `ultra.context` reports a current
+accepted baseline, the gap ledger has no open blocker, and project doctor has no
+authority failure. Route all selected work through `ultra-change`, including work
+described by a legacy plan. Import its accepted intent into a current Change Contract
+before planning.

@@ -1,178 +1,142 @@
-# Runtime Compatibility Matrix
+# Runtime compatibility matrix
 
-Current presentation contract for Ultra Builder Pro. Claude Code, OpenCode,
-Codex, and Kimi Code 0.26+ are supported native plugin hosts. The canonical
-asset boundary lives in `adapters/_shared/runtime-assets.cjs`.
+Claude Code, OpenCode, Codex, Kimi Code, and Grok Build are supported plugin
+hosts. The canonical asset boundary lives in
+`adapters/_shared/runtime-assets.cjs`.
 
-Legend: **FULL** = native host surface, **FUNCTIONAL** = the complete outcome is
-available through a different native host primitive, **DEGRADED** = supported
-but missing an equivalent lifecycle/control surface, **N/A** = intentionally
-not installed.
+Legend: **FULL** means a native equivalent exists; **FUNCTIONAL** means the same
+outcome uses a different native primitive; **DEGRADED** means the missing host
+surface is stated and the Skill-entry Context read remains authoritative; **N/A**
+means intentionally absent.
 
-## 1. Plugin and workflow surface
+## Plugin and workflow surface
 
-| Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
-|---|---|---|---|---|
-| Package form | `.claude-plugin` native plugin | native config bundle + JS plugin | personal `.codex-plugin` | managed `kimi.plugin.json` plugin |
-| Public entry | `/ultra-builder-pro:ultra-*` | `/ultra-*` | `$ultra-builder-pro:ultra-*` | `/ultra-builder-pro:ultra-*` |
-| Public Ultra capabilities | 11, model invocation disabled | 11 commands backed by private workflow assets | 11, implicit invocation disabled | 11, model invocation disabled |
-| Internal agent-rule skills | 4, non-user-facing | 4, non-user-facing | 4 with implicit invocation disabled | 4, consumed by review workers |
-| Collaboration companions | `codex-collab`, `ultra-verify` | `cc-collab`, `codex-collab`, `ultra-verify` | `cc-collab`, `ultra-verify` | `cc-collab`, `codex-collab`, `ultra-verify` |
-| Automatic workflow bootstrap | N/A | N/A | N/A | N/A |
-| External browser/deploy/framework skills | N/A | N/A | N/A | N/A |
+| Capability | Claude Code | OpenCode | Codex | Kimi Code | Grok Build |
+|---|---|---|---|---|---|
+| Package form | `.claude-plugin` | config bundle + JS plugin | personal `.codex-plugin` | managed `kimi.plugin.json` | native Grok plugin |
+| Public entry | `/ultra-builder-pro:ultra-*` | `/ultra-*` | `$ultra-builder-pro:ultra-*` | `/ultra-builder-pro:ultra-*` | native Ultra commands/Skills |
+| Public workflow Skills | 11 explicit-only | 11 command-backed private assets | 11 implicit-disabled | 11 model-disabled | 11 explicit-only |
+| Internal rule Skills | 4 worker-only | 4 worker-only | 4 implicit-disabled | 4 worker templates | 4 worker templates |
+| MCP tools | exactly 7 | exactly 7 | exactly 7 | exactly 7 | exactly 7 |
+| Automatic semantic chaining | N/A | N/A | N/A | N/A | N/A |
 
-Codex converts workflows into namespaced skills and records ten compatibility
-command mappings in `command-map.json`; `ultra-review` remains directly
-invocable as a skill. Kimi registers all eleven commands through its native
-plugin command directory and exposes the allowlisted skills independently.
+Commands are thin launchers. The Skill contains adaptable semantic workflow prose;
+the adapter contains only host metadata, translation, and wiring.
 
-## 2. Agents and collaboration
+## Agents and collaboration
 
-| Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
-|---|---|---|---|---|
-| Bundled review/debug workers | FULL, native Markdown agents | FULL, native agent frontmatter | FULL, 10 managed TOML agents | FUNCTIONAL, 10 prompt templates consumed by `Agent` / `AgentSwarm` |
-| Plugin custom-agent registration | FULL | FULL | FULL | N/A; the 0.26 manifest has no custom-agent field |
-| Native bounded delegation | native agent surface | native agent surface | native Codex subagents | native `Agent` / `AgentSwarm` |
-| Cross-host advisor | explicit and read-only | explicit and read-only | explicit and read-only | explicit and read-only |
-| Primary-agent ownership | FULL | FULL | FULL | FULL |
+| Capability | Claude Code | OpenCode | Codex | Kimi Code | Grok Build |
+|---|---|---|---|---|---|
+| Bundled review/debug workers | FULL, 10 native Markdown agents | FULL, 10 native agents | FULL, 10 managed TOML agents | FUNCTIONAL, 10 prompt templates | FUNCTIONAL, 10 prompt templates |
+| Immutable Worker Packet | FULL | FULL | FULL | FULL | FULL |
+| Native bounded delegation | native agent surface | native agent surface | native subagents | Agent/AgentSwarm | plugin agent surface |
+| Cross-host advisor | explicit read-only | explicit read-only | explicit read-only | explicit read-only | explicit read-only |
+| Final acceptance owner | primary host | primary host | primary host | primary host | primary host |
 
-No bundled worker owns private conversational memory. It receives current-checkout
-evidence and bounded context from the primary host, then returns a result for
-primary verification. On Kimi, the review workflow reads the bundled worker
-template before creating the corresponding `AgentSwarm` item; the templates are
-not presented as nonexistent custom agents.
+Every Worker Packet binds Context, decisions, Git, Task, acceptance, evidence,
+output schema, and digest. A worker cannot write SQLite or accept its own result.
 
-## 3. Workflow hooks
+## Hooks and Context
 
-| Lifecycle | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
-|---|---|---|---|---|
-| Session context/health | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, native JS plugin injects only an active-workflow breadcrumb; health via `ultra.doctor` | FULL, active-workflow breadcrumb on native `SessionStart` | FULL, active-workflow breadcrumb via native hooks |
-| Active edit boundary | FULL, `PreToolUse Edit|Write` | FULL, `tool.execute.before` rejects managed checkpoint/projection writes | FULL, `PreToolUse Edit|Write|apply_patch` | FULL, native `PreToolUse Edit|Write` deny contract |
-| Pre-compact checkpoint | FULL | FULL | FULL | FULL, native `PreCompact` |
-| Post-compact context injection | FULL | FULL, native compacting context | FULL, native `PostCompact` restore | DEGRADED; checkpoint restoration runs, but Kimi 0.26/0.27 does not reinject fire-and-forget hook text |
-| Stop lifecycle advisory | FULL, native non-blocking `Stop` | N/A, no equivalent stop event needed | FULL, native non-blocking `Stop` | FULL, native non-blocking `Stop` |
-| Subagent lifecycle evidence | FULL | DEGRADED, no equivalent packaged event | FULL | FULL, native `SubagentStart` / `SubagentStop` |
+| Lifecycle | Claude Code | OpenCode | Codex | Kimi Code | Grok Build |
+|---|---|---|---|---|---|
+| Session Context | FULL, SessionStart compact | FULL, system transform | FULL, session/prompt compact | FULL where native event consumes output | DEGRADED, ignored stdout is not claimed as injection |
+| Skill-entry Context | FULL | FULL | FULL | FULL | FULL and authoritative |
+| Managed-file protection | PreToolUse | tool.before | PreToolUse | PreToolUse | camelCase PreToolUse |
+| Compact recovery | PreCompact + SessionStart | compacting transform | pre/post compact | native pre/post where available | records lifecycle; Skill rereads Context |
+| Stop | non-blocking advisory | session.idle annotation | non-blocking advisory | non-blocking advisory | advisory only for `reason=end_turn` |
+| Subagent event | minimal ids | DEGRADED when host lacks event | minimal ids | native start/stop | minimal ids where exposed |
 
-Health/context, compact, stop, and subagent hooks remain silent unless
-`.ultra/.runtime/state.db` proves an active, blocked, or ready workflow. Managed-file
-protection applies to every initialized project because neither a hand-edited team
-checkpoint nor generated local projection may become a second authority. No host
-receives prompt capture, transcript capture,
-observation journaling, session-summary memory, generic command blocking, or
-generic post-edit policy.
-Baseline-adoption and context-budget warnings are injected as advisory context;
-they do not deny edits or stop active incident work.
+All Hook context comes from the canonical Context Envelope generator. Hooks never
+capture prompts, transcripts, general memory, observations, or code-graph payloads.
+They do not create semantic records or block ordinary work for incomplete evidence.
 
-## 4. MCP and state
+## MCP and native runtime
 
-| Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
-|---|---|---|---|---|
-| stdio MCP registration | plugin `.mcp.json` | `opencode.json` local MCP entry | plugin `.mcp.json` | plugin `mcpServers` entry |
-| Public discovered MCP tools | 7 | 7 | 7 | 7 |
-| Hidden 0.22 compatibility operations | 60 | 60 | 60 | 60 |
-| Structured user alignment | `AskUserQuestion` in interactive sessions | `question` when permission is not denied | `request_user_input` when the current mode exposes it | `AskUserQuestion` outside auto mode |
-| Greenfield/brownfield baseline adoption | FULL | FULL | FULL | FULL |
-| Context Manifest v3 / breadcrumb | FULL | FULL, same bundled read-only DB reader as every hook | FULL | FULL |
-| Approval-gated spec learning | FULL | FULL | FULL | FULL |
-| Host-native review/discovery/ask | native | native | documented in `codex-capability-map.json` | native Kimi tools and workers |
-| Workflow-memory envelope | project `.ultra/` | project `.ultra/` | project `.ultra/` | project `.ultra/` |
-| Lifecycle/index authority | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` | project `.ultra/.runtime/state.db` |
-| Git team checkpoint | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` | `.ultra/tasks/tasks.json` |
-| General memory-provider API | N/A | N/A | N/A | N/A |
+| Capability | Claude Code | OpenCode | Codex | Kimi Code | Grok Build |
+|---|---|---|---|---|---|
+| stdio registration | `.mcp.json` | local MCP entry | `.mcp.json` | `mcpServers` | native plugin MCP entry |
+| Public discovered tools | 7 | 7 | 7 | 7 | 7 |
+| Public write/read smoke | FULL | FULL | FULL | FULL | FULL |
+| Doctor backup/reopen | FULL | FULL | FULL | FULL | FULL |
+| Bundled `better-sqlite3` native | FULL | FULL | FULL | FULL | FULL |
+| ABI/provenance validation | FULL | FULL | FULL | FULL | FULL |
+| Git team checkpoint | `.ultra/tasks/tasks.json` | same | same | same | same |
+| Local authority | `.ultra/.runtime/state.db` | same | same | same | same |
 
-All hosts discover the seven `ultra.*` persistence and safety tools. The sixty
-fine-grained 0.22 operations remain callable but undiscoverable for one compatibility
-release; new Skills do not call them. Review, impact discovery, skill loading, model
-reasoning, and user interaction remain host-native surfaces.
+The installed runtime includes the externalized `better-sqlite3` package and its
+native `.node`. Provenance records native digest, platform, architecture, Node ABI,
+and runtime command. A mismatched ABI fails before authority is opened; Doctor
+repairs through staging and atomic swap.
 
-When a native structured question surface is unavailable, the shared interaction
-contract permits one concise direct question only if ordinary conversation is still
-available. A host mode that forbids interaction leaves the choice unanswered; Ultra
-does not infer consent or silently delegate the semantic route.
+Archive finalization uses a packaged Python 3 worker with identity-checked
+descriptor-relative filesystem operations on POSIX. If this prerequisite is absent,
+archive fails closed with `ARCHIVE_RUNTIME_UNAVAILABLE`; other MCP tools remain usable.
 
-Kimi starts plugin MCP processes with the managed plugin root as `cwd`. The
-generated launcher recovers the project from the inherited `PWD`, sets
-`UBP_ROOT_DIR` and `UBP_DB_PATH`, and refuses to start if that project boundary
-cannot be established. On POSIX it intentionally uses `env node` because Kimi
-0.26/0.27's embedded Node ABI differs from the ABI used to install `better-sqlite3`.
+## Structured user interaction
 
-Archive finalization and archive-journal recovery use an adjacent, explicitly
-packaged Python 3 worker. The worker accepts only bounded, basename-only
-operations and performs mutations relative to inherited, identity-checked
-directory descriptors. This boundary requires a POSIX Python runtime with
-`dir_fd`, no-follow `stat`, and `O_NOFOLLOW` support. If that prerequisite is
-missing, archive operations fail closed with `ARCHIVE_RUNTIME_UNAVAILABLE`;
-Ultra never falls back to ancestor-sensitive pathname mutation. Other MCP
-operations remain available.
+| Host | Native question surface | Fallback |
+|---|---|---|
+| Claude Code | `AskUserQuestion` | one concise direct question |
+| OpenCode | `question` | one concise direct question |
+| Codex | `request_user_input` when exposed by current mode | one concise direct question |
+| Kimi Code | `AskUserQuestion` outside auto mode | one concise direct question |
+| Grok Build | native structured question when exposed | one concise direct question |
 
-## 5. User instruction isolation
+An interaction-disabled mode leaves the choice unresolved. The adapter never infers
+consent or stores an interaction receipt.
 
-| Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
-|---|---|---|---|---|
-| Durable user file | `~/.claude/CLAUDE.md` | `~/.config/opencode/AGENTS.md` | `~/.codex/AGENTS.md` | `~/.kimi-code/AGENTS.md` |
-| Automatic overwrite by plugin install | no | no | no | no |
-| Writer shipped by Ultra | N/A | N/A | N/A | N/A |
-| Uninstall removes user instructions | no | no | no | no |
+## User instruction isolation
 
-The Kimi plugin installer also does not edit `~/.kimi-code/config.toml`. Durable
-user preferences belong to each host and remain outside Ultra's ownership.
-Legacy Ultra handbook text is not proof of plugin ownership and is never
-silently rewritten or removed.
+| Host | Durable user instruction | Installer writes it? |
+|---|---|---|
+| Claude Code | `~/.claude/CLAUDE.md` | no |
+| OpenCode | `~/.config/opencode/AGENTS.md` | no |
+| Codex | `~/.codex/AGENTS.md` | no |
+| Kimi Code | `~/.kimi-code/AGENTS.md` | no |
+| Grok Build | host-owned instruction file | no |
 
-## 6. Install, update, and uninstall
+Install, update, Doctor, and uninstall preserve user instructions, repository
+instructions, project `.ultra`, unrelated plugins, and unrelated host configuration.
 
-| Capability | Claude Code | OpenCode | Codex | Kimi Code 0.26+ |
-|---|---|---|---|---|
-| Adapter install | FULL | FULL | FULL | FULL |
-| Global install command | `ubp --claude --global` | `ubp --opencode --global` | `ubp --codex --global` | `ubp --kimi --global` |
-| Native update visibility | next host session | host restart | cachebuster + new task | `/reload` or new session |
-| Removes stale managed assets | FULL | FULL | FULL | FULL |
-| Preserves unrelated config | FULL | FULL | FULL | FULL, including `config.toml` and unrelated registry records |
-| Uninstall ownership guard | managed plugin root | sentinels + owned MCP entry | managed root/manifest/agent headers | managed root + exact registry record |
-| Normalized install provenance | FULL | FULL | FULL | FULL |
-| Local-source dirty state and worktree digest | FULL | FULL | FULL | FULL |
-| Read-only `ubp --all --global --doctor` | FULL | FULL | FULL | FULL |
-| Asset-content and host-contract drift detection | FULL | FULL | FULL | FULL |
+## Install lifecycle
 
-Package-local Git provenance never falls through to an enclosing consumer
-repository. Source installs record commit, dirty state, and a deterministic
-worktree digest; registry installs record unavailable checkout fields as
-`null`.
+| Capability | Claude Code | OpenCode | Codex | Kimi Code | Grok Build |
+|---|---|---|---|---|---|
+| Global flag | `--claude` | `--opencode` | `--codex` | `--kimi` | `--grok` |
+| Staging + atomic swap | FULL | FULL | FULL | FULL | FULL |
+| Exact-host preflight | FULL | FULL | FULL | FULL | FULL |
+| Managed uninstall guard | FULL | FULL | FULL | FULL | FULL |
+| Preserve unrelated config | FULL | FULL | FULL | FULL | FULL |
+| Read-only Doctor | FULL | FULL | FULL | FULL | FULL |
 
-Kimi's global managed root is
-`~/.kimi-code/plugins/managed/ultra-builder-pro`; its only registry mutation is
-the owned `ultra-builder-pro` entry in `~/.kimi-code/plugins/installed.json`.
-Reinstall preserves the user's enabled/capability choices and unrelated plugin
-records. Uninstall refuses an unmanaged or conflicting root.
+Preflight uses the final manifest command and verifies initialize, `tools/list == 7`,
+public write/read, Doctor backup, close/reopen consistency, native provenance, and
+lazy project initialization.
 
-## 7. Durable schema compatibility
+## Durable compatibility
 
 | Capability | Contract |
 |---|---|
-| Current state schema | `20.0` |
-| Runtime values | `claude`, `opencode`, `codex`, `kimi` |
-| Upgrade from earlier schema | preserves runtime rows, adds Context Spine state through 10.0, authoritative baseline adoption in 11.0, repository evidence in 12.0, durable workflows in 13.0, continuous baseline revalidation in 14.0, typed research semantics and verified reconciliation in 15.0, resumable owner-agent decision threads and workflow alignment gates in 16.0, explicit unborn-Git authority in 17.0, adaptive transitions and legacy workflow normalization in 18.0, non-ceremonial decision completion in 19.0, then typed artifact ownership and normalized dependency edges in 20.0 |
-| Preservation gate | rows, IDs, indexes, foreign keys, telemetry, incidents, and migration history remain intact |
-| Failure behavior | rollback; no partially upgraded authority database |
+| Current authority schema | `22.0` |
+| Runtime values | `claude`, `opencode`, `codex`, `kimi`, `grok` |
+| Legacy inputs | v4.4/v4.5 task projections, the legacy root-level state database, Task Contexts, v0.22/v0.23 DB and team ledger |
+| Preservation | exact-byte backup, row/ID/event/migration-history preservation, verified semantic promotion |
+| Failure | transactional rollback; no partial DB, ledger, native runtime, or host installation |
 
-## 8. Verification sources
+Old workflow/dialogue rows are retained as non-authoritative history. Current
+Decisions, Stage Checkpoints, Context Envelopes, Worker Packets, and team checkpoint
+are reconstructed only from verified authority.
 
-- `adapters/tests/*.test.cjs` verifies each installer and native manifest.
-- `tests/conformance/<runtime>/*.test.cjs` verifies command/skill, hook, MCP,
-  idempotency, and smoke presentation for all four hosts.
-- `tests/conformance/kimi/smoke.test.cjs` reproduces Kimi's plugin-root MCP
-  `cwd` and proves that the first state write lands in the active project.
-- `adapters/_shared/tests/runtime-assets.test.cjs` prevents retired or external
-  skills and generic/memory hooks from re-entering a package.
-- `tests/retired-runtime.test.cjs` prevents retired runtime code or prompt text
-  from re-entering active product surfaces.
-- `adapters/_shared/tests/plugin-isolation.test.cjs` and `tests/install.test.cjs`
-  verify the absence of a handbook writer and byte-preservation of all user instruction files.
-- `adapters/_shared/tests/provenance.test.cjs` verifies normalized manifests,
-  content hashes, source attribution, corruption handling, and contract drift.
-- `tests/install.test.cjs` verifies healthy four-host doctor output and
-  host-specific hook/MCP degradation after controlled tampering.
-- `tests/package-smoke.test.cjs` installs the packed tarball into a clean
-  consumer and executes a live MCP round trip through every generated launcher.
+## Verification sources
 
-Any capability claim elsewhere must match current adapter code and these tests.
+- `adapters/tests/*.test.cjs` validates every native builder and manifest.
+- `tests/conformance/<runtime>/*.test.cjs` validates all five hosts.
+- `adapters/_shared/tests/runtime-assets.test.cjs` keeps docs and asset allowlists
+  synchronized.
+- `tests/install.test.cjs` verifies atomic install, rollback, Doctor, and instruction
+  preservation.
+- `tests/package-smoke.test.cjs` installs the npm tarball and performs five real
+  launcher write/read/backup/reopen round trips.
+- Grok acceptance also runs the available native plugin validate/inspect command and
+  camelCase Hook fixtures.

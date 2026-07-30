@@ -17,6 +17,8 @@ Run tests and analyze their evidence. This assignment is read-only.
 1. Resolve the requested scope, checkout, repository guidance, and canonical command
    from package scripts, CI configuration, or framework files. Ask the parent to
    resolve ambiguity when different commands prove different contracts.
+   For an Ultra delegation, validate the immutable Worker Packet and echo its exact
+   `packet_digest` in the assigned output.
 2. Run the exact command without weakening flags, skipping failures, or changing test
    configuration. Capture exit code, duration, pass/fail/skip counts, and coverage only
    when the runner reports it.
@@ -31,5 +33,6 @@ Run tests and analyze their evidence. This assignment is read-only.
    failures, environment limitations, and residual coverage gaps. Do not paste the full
    runner transcript unless the parent requests it.
 
-Do not edit tests, production code, task state, or projections. Do not claim a green
-suite when the command did not complete successfully.
+Do not edit tests or production code, call Ultra MCP write tools, change task state, or
+edit projections. Do not claim a green suite when the command did not complete
+successfully.

@@ -9,7 +9,9 @@ const claude = require('../../../adapters/claude.js');
 const { initStateDb, closeStateDb } = require('../../../mcp-server/lib/state-db.cjs');
 const { seedReadyBaseline } = require('../../../mcp-server/test-support/ready-baseline.cjs');
 const { completeChangeInput } = require('../../../mcp-server/test-support/change-contract.cjs');
-const { REPO_ROOT, mkTarget, cleanup, withMcpClient, readToolPayload } = require('../_lib.cjs');
+const {
+  REPO_ROOT, mkTarget, cleanup, withMcpClient, readToolPayload, initializeProject,
+} = require('../_lib.cjs');
 
 test('claude native plugin — install, MCP round-trip, and scoped uninstall', async () => {
   const target = mkTarget('claude');
@@ -24,8 +26,13 @@ test('claude native plugin — install, MCP round-trip, and scoped uninstall', a
 
     const mcp = JSON.parse(fs.readFileSync(path.join(pluginRoot, '.mcp.json'), 'utf8'))
       .mcpServers[claude.MCP_SERVER_NAME];
-    assert.equal(mcp.command, process.execPath);
-    assert.equal(mcp.args[0], path.join(pluginRoot, 'runtime', 'launch.cjs'));
+    assert.equal(mcp.command, process.platform === 'win32' ? 'node.exe' : '/usr/bin/env');
+    assert.deepEqual(
+      mcp.args,
+      process.platform === 'win32'
+        ? [path.join(pluginRoot, 'runtime', 'launch.cjs')]
+        : ['node', path.join(pluginRoot, 'runtime', 'launch.cjs')],
+    );
 
     const statePath = path.join(serverHome, '.ultra', '.runtime', 'state.db');
     const initializedState = initStateDb(statePath);
@@ -35,28 +42,34 @@ test('claude native plugin — install, MCP round-trip, and scoped uninstall', a
     closeStateDb(initializedState.db);
 
     await withMcpClient({ dbPath: statePath, rootDir: serverHome }, async (client) => {
-      const initialized = await client.callTool({
-        name: 'task.init_project',
-        arguments: { target_dir: initTarget, project_name: 'claude-smoke' },
+      assert.equal((await initializeProject(client, initTarget, 'claude-smoke')).status, 'created');
+      const recorded = await client.callTool({
+        name: 'ultra.record',
+        arguments: { entries: [
+          {
+            kind: 'change_contract',
+            action: 'open',
+            data: completeChangeInput({
+              id: 'claude-smoke-change', title: 'Exercise Claude runtime', kind: 'quick',
+              intent: 'Verify the native plugin state round trip.',
+              docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
+            }),
+            idempotency_key: 'claude-smoke-change',
+          },
+          {
+            kind: 'task_contract',
+            action: 'define',
+            data: {
+              id: 'c-1', title: 'walking skeleton', type: 'architecture', priority: 'P0',
+              change_id: 'claude-smoke-change',
+            },
+            idempotency_key: 'claude-smoke-task',
+          },
+        ] },
       });
-      assert.equal(readToolPayload(initialized).status, 'created');
-      const change = await client.callTool({
-        name: 'change.create',
-        arguments: completeChangeInput({
-          id: 'claude-smoke-change', title: 'Exercise Claude runtime', kind: 'quick',
-          intent: 'Verify the native plugin state round trip.',
-          docs_impact: { status: 'none', files: [], rationale: 'Runtime smoke fixture.' },
-        }),
-      });
-      assert.equal(readToolPayload(change).change.id, 'claude-smoke-change');
-      const created = await client.callTool({
-        name: 'task.create',
-        arguments: {
-          id: 'c-1', title: 'walking skeleton', type: 'architecture', priority: 'P0',
-          change_id: 'claude-smoke-change',
-        },
-      });
-      assert.equal(readToolPayload(created).id, 'c-1');
+      const payload = readToolPayload(recorded);
+      assert.equal(payload.results[0].result.change.id, 'claude-smoke-change');
+      assert.equal(payload.results[1].result.task.id, 'c-1');
     });
 
     claude.uninstall({ configDir: target });

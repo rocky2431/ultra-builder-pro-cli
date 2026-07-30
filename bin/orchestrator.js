@@ -49,7 +49,7 @@ function optInAllowed(settings) {
 }
 
 function parseRuntimes() {
-  const raw = process.env.UBP_ORCH_RUNTIMES || 'claude,opencode,codex,kimi';
+  const raw = process.env.UBP_ORCH_RUNTIMES || 'claude,opencode,codex,kimi,grok';
   const runtimes = [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))];
   const invalid = runtimes.filter((runtime) => !isSupportedRuntime(runtime));
   if (invalid.length > 0) {
@@ -112,7 +112,6 @@ function resolveDispatchCommand(settings, env = process.env) {
 
 function parseExecutePlanArgs(argv = []) {
   const options = {
-    planPath: null,
     changeId: null,
     autoMerge: false,
     mergeBaseBranch: 'main',
@@ -123,7 +122,7 @@ function parseExecutePlanArgs(argv = []) {
       options.autoMerge = true;
       continue;
     }
-    if (arg === '--plan' || arg === '--change' || arg === '--base-branch') {
+    if (arg === '--change' || arg === '--base-branch') {
       const value = argv[index + 1];
       if (!value || value.startsWith('--')) {
         throw commandConfigError(
@@ -131,8 +130,7 @@ function parseExecutePlanArgs(argv = []) {
           `${arg} requires a value`,
         );
       }
-      if (arg === '--plan') options.planPath = value;
-      else if (arg === '--change') options.changeId = value;
+      if (arg === '--change') options.changeId = value;
       else options.mergeBaseBranch = value;
       index += 1;
       continue;
@@ -140,12 +138,6 @@ function parseExecutePlanArgs(argv = []) {
     throw commandConfigError(
       'ORCHESTRATOR_ARGUMENT_INVALID',
       `unknown execute-plan option: ${arg}`,
-    );
-  }
-  if (options.planPath && options.changeId) {
-    throw commandConfigError(
-      'ORCHESTRATOR_ARGUMENT_INVALID',
-      '--plan is explicit legacy compatibility and cannot be combined with --change',
     );
   }
   return options;
@@ -177,7 +169,6 @@ async function cmdExecutePlan(argv = []) {
     const result = await parallelOrchestrator.runPlan({
       db,
       repoRoot: REPO_ROOT,
-      planPath: options.planPath ? path.resolve(REPO_ROOT, options.planPath) : undefined,
       changeId: options.changeId,
       runtimes: parseRuntimes(),
       command: dispatch.command,
@@ -336,7 +327,7 @@ function usage() {
   process.stderr.write(
     'usage: ubp-orchestrator <execute-plan|run|start|stop|status>\n' +
     '\n' +
-    '  execute-plan  resume the first unfinished dependency wave [--change <id>] [--plan <legacy-path>] [--auto-merge] [--base-branch <name>]\n' +
+    '  execute-plan  resume an accepted Change Plan [--change <id>] [--auto-merge] [--base-branch <name>]\n' +
     '  run     foreground daemon (requires opt-in)\n' +
     '  start   detached background daemon (requires opt-in)\n' +
     '  stop    terminate running daemon\n' +

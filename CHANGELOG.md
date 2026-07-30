@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-07-30
+
+### Added
+
+- Added normalized Decision Records, reversible Stage Checkpoints, bounded Context
+  Envelopes, and immutable Worker Packets as the shared evidence and handoff model
+  across Skills, Hooks, agents, SQLite, and tracked `.ultra` artifacts.
+- Added a native Grok Build plugin so Claude Code, Codex, OpenCode, Kimi Code, and
+  Grok Build share the same eleven explicit workflows and seven-tool MCP kernel.
+- Added schema 22 backup-first migration and real-history compatibility for v4.4,
+  v4.5, v0.22, and v0.23 state and team-ledger formats.
+- Added packaged `better-sqlite3` provenance, platform and Node ABI verification,
+  and durable Doctor and archive workers for every supported host.
+
+### Changed
+
+- Completed the MCP boundary reduction: Skills own adaptive semantic procedure;
+  MCP owns persistence, identity, transactions, leases, paths, recovery, and
+  irreversible safety; Hooks only observe or inject bounded context; agents consume
+  immutable Worker Packets without writing SQLite authority.
+- Folded Plan artifact publication into the accepted Plan checkpoint so a later
+  export cannot invalidate its own authority.
+- Replaced semantic supervisor failures with mutable diagnostics and repairable
+  drafts. Only corruption, unsafe paths, concurrency conflicts, permission failures,
+  and irreversible external effects remain hard blockers.
+- Made `ultra.context`, `ultra.sync`, and `ultra.doctor` own their inspection and
+  repair preflight so an older valid ledger cannot block the tools required to
+  migrate it.
+- Reduced packaged and documented MCP contracts to the exact seven public tools;
+  removed the retired fine-grained schemas, fixtures, and command bypasses.
+
+### Fixed
+
+- Fixed accepted or stale workflow runs becoming permanently self-locked after an
+  artifact changed, and made reversible stages reopenable without rewriting
+  immutable accepted history.
+- Fixed v0.23 team ledgers using `research_run_id` being rejected under the newer
+  `research_checkpoint_id` digest contract.
+- Fixed native SQLite drivers and Doctor workers being absent or unresolved in
+  installed plugins.
+- Fixed session acquisition, archive recovery, Context identity, and Worker Packet
+  cleanup paths leaving partial authority after failure.
+- Fixed installed interaction guidance failing to render each host's native question
+  surface while keeping canonical Skills host-neutral.
+
 ## [0.23.0] — 2026-07-30
 
 ### Added

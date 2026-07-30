@@ -30,44 +30,6 @@ const {
 
 const PLUGIN_NAME = 'ultra-builder-pro';
 const MANAGED_MARKER = 'Managed by Ultra Builder Pro Codex adapter.';
-const CODEX_NATIVE_MCP_REPLACEMENTS = Object.freeze({
-  'review.run': {
-    surface: 'native_custom_agents',
-    replacement: '$ultra-builder-pro:ultra-review with the installed review-* agents',
-  },
-  'review.verdict': {
-    surface: 'native_custom_agents',
-    replacement: 'review-coordinator synthesis using the Ultra unified review artifact',
-  },
-  'impact.radius': {
-    surface: 'codex_code_discovery',
-    replacement: 'indexed code graph tools when current, otherwise targeted repository reads',
-  },
-  'impact.changes': {
-    surface: 'codex_code_discovery',
-    replacement: 'git diff plus indexed code graph tools when current',
-  },
-  'impact.dependents': {
-    surface: 'codex_code_discovery',
-    replacement: 'indexed caller/dependency tracing when current, otherwise targeted repository search',
-  },
-  'skill.resolve': {
-    surface: 'plugin_skill_discovery',
-    replacement: 'Codex plugin skill discovery with explicit $ultra-builder-pro:<skill> invocation',
-  },
-  'skill.manifest': {
-    surface: 'plugin_skill_discovery',
-    replacement: 'the installed plugin skill SKILL.md and agents/openai.yaml contract',
-  },
-  'ask.question': {
-    surface: 'request_user_input',
-    replacement: 'use request_user_input when available, otherwise ask one concise direct question',
-  },
-  'ask.menu': {
-    surface: 'request_user_input',
-    replacement: 'use request_user_input when available, otherwise present one concise direct choice',
-  },
-});
 const COMMAND_NAMES = Object.freeze(CORE_PUBLIC_SKILLS.filter((name) => name !== 'ultra-review'));
 const SKILL_REFERENCE_NAMES = Object.freeze([
   ...COMMAND_NAMES,
@@ -77,6 +39,11 @@ const SKILL_REFERENCE_NAMES = Object.freeze([
 ]);
 const CODEX_PRIMARY_SKILLS = new Set([...COMMAND_NAMES, 'ultra-review']);
 const TEXT_EXTENSIONS = new Set(['.md', '.json', '.py', '.sh', '.txt', '.yaml', '.yml']);
+const NATIVE_PACKAGES = Object.freeze([
+  'better-sqlite3',
+  'bindings',
+  'file-uri-to-path',
+]);
 
 function titleCase(name) {
   const special = { 'cc-collab': 'Claude Code Collaboration' };
@@ -273,7 +240,7 @@ function buildHooksManifest(pluginRoot) {
   };
 }
 
-function copyHooks(repoRoot, pluginRoot) {
+function copyHooks(repoRoot, pluginRoot, publishedRoot = pluginRoot) {
   const sourceRoot = path.join(repoRoot, 'hooks');
   const targetRoot = path.join(pluginRoot, 'hooks');
   ensureDir(targetRoot);
@@ -287,7 +254,7 @@ function copyHooks(repoRoot, pluginRoot) {
   );
   writeAtomic(
     path.join(targetRoot, 'hooks.json'),
-    JSON.stringify(buildHooksManifest(pluginRoot), null, 2) + '\n',
+    JSON.stringify(buildHooksManifest(publishedRoot), null, 2) + '\n',
   );
 }
 
@@ -322,6 +289,8 @@ function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {
       buildRoot,
       '--no-cache',
       '--quiet',
+      '-e',
+      'better-sqlite3',
     ], {
       cwd: repoRoot,
       encoding: 'utf8',
@@ -347,6 +316,8 @@ function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {
       cliBuildRoot,
       '--no-cache',
       '--quiet',
+      '-e',
+      'better-sqlite3',
     ], {
       cwd: repoRoot,
       encoding: 'utf8',
@@ -386,6 +357,8 @@ function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {
         workerBuildRoot,
         '--no-cache',
         '--quiet',
+        '-e',
+        'better-sqlite3',
       ], {
         cwd: repoRoot,
         encoding: 'utf8',
@@ -416,6 +389,52 @@ function buildMcpRuntime(repoRoot, pluginRoot, { runtime = 'codex' } = {}) {
     fs.copyFileSync(sourceFile, path.join(runtimeRoot, supportFile));
   }
 
+  const nodeModulesRoot = path.join(runtimeRoot, 'node_modules');
+  for (const packageName of NATIVE_PACKAGES) {
+    let packageFile;
+    try {
+      packageFile = require.resolve(`${packageName}/package.json`, { paths: [repoRoot] });
+    } catch (error) {
+      throw new Error(`Ultra native runtime dependency ${packageName} is unavailable: ${error.message}`);
+    }
+    copyTree(
+      path.dirname(packageFile),
+      path.join(nodeModulesRoot, packageName),
+    );
+  }
+  const nativeRelative = path.join(
+    'node_modules',
+    'better-sqlite3',
+    'build',
+    'Release',
+    'better_sqlite3.node',
+  );
+  const nativeFile = path.join(runtimeRoot, nativeRelative);
+  if (!fs.existsSync(nativeFile) || !fs.statSync(nativeFile).isFile()) {
+    throw new Error(`Ultra native SQLite driver is missing after staging: ${nativeFile}`);
+  }
+  const betterSqlitePackage = JSON.parse(fs.readFileSync(
+    path.join(nodeModulesRoot, 'better-sqlite3', 'package.json'),
+    'utf8',
+  ));
+  writeAtomic(path.join(runtimeRoot, 'native-runtime.json'), JSON.stringify({
+    schema_version: 1,
+    platform: process.platform,
+    arch: process.arch,
+    modules: process.versions.modules,
+    node_version: process.versions.node,
+    package: {
+      name: 'better-sqlite3',
+      version: betterSqlitePackage.version,
+    },
+    native_module: nativeRelative.split(path.sep).join('/'),
+    native_sha256: crypto.createHash('sha256').update(fs.readFileSync(nativeFile)).digest('hex'),
+  }, null, 2) + '\n');
+  fs.copyFileSync(
+    path.join(repoRoot, 'adapters', '_shared', 'runtime-native.cjs'),
+    path.join(runtimeRoot, 'runtime-native.cjs'),
+  );
+
   const runtimeBootstrap = runtime === 'kimi' ? `
 const fs = require('node:fs');
 const pluginRoot = path.resolve(__dirname, '..');
@@ -443,10 +462,12 @@ if (!process.env.UBP_ROOT_DIR) {
   const launcher = `'use strict';
 
 const path = require('node:path');
+const { inspectRuntimeNative } = require('./runtime-native.cjs');
 
 process.env.UBP_RUNTIME_ROOT = path.resolve(__dirname, '..');
 ${runtimeBootstrap}
 
+inspectRuntimeNative(__dirname);
 const { main } = require('./index.cjs');
 
 main().catch((error) => {
@@ -456,8 +477,8 @@ main().catch((error) => {
 `;
   writeAtomic(path.join(runtimeRoot, 'launch.cjs'), launcher);
   fs.copyFileSync(
-    path.join(repoRoot, 'mcp-server', 'breadcrumb.cjs'),
-    path.join(runtimeRoot, 'breadcrumb.cjs'),
+    path.join(repoRoot, 'mcp-server', 'hook-context.cjs'),
+    path.join(runtimeRoot, 'hook-context.cjs'),
   );
   fs.copyFileSync(
     path.join(repoRoot, 'mcp-server', 'hook-event.cjs'),
@@ -470,11 +491,7 @@ main().catch((error) => {
 
   const sourceToolsFile = path.join(repoRoot, 'spec', 'mcp-tools.yaml');
   const upstreamManifest = yaml.load(fs.readFileSync(sourceToolsFile, 'utf8'));
-  const {
-    LEGACY_TOOLS,
-    PUBLIC_TOOLS,
-    REGISTERED_TOOLS,
-  } = require(path.join(repoRoot, 'mcp-server', 'server.cjs'));
+  const { REGISTERED_TOOLS } = require(path.join(repoRoot, 'mcp-server', 'server.cjs'));
   const registered = new Set(REGISTERED_TOOLS);
   const liveFamilies = new Set(
     upstreamManifest.tools.filter((tool) => registered.has(tool.name)).map((tool) => tool.family),
@@ -495,15 +512,6 @@ main().catch((error) => {
     path.join(specRoot, 'interaction-contract.json'),
     JSON.stringify(interactionContract(runtime), null, 2) + '\n',
   );
-  if (runtime === 'codex') {
-    fs.copyFileSync(sourceToolsFile, path.join(specRoot, 'upstream-mcp-tools.yaml'));
-    writeAtomic(path.join(specRoot, 'codex-capability-map.json'), JSON.stringify({
-      runtime: 'codex',
-      live_mcp_tools: PUBLIC_TOOLS,
-      compatibility_mcp_tools: LEGACY_TOOLS,
-      codex_native_replacements: CODEX_NATIVE_MCP_REPLACEMENTS,
-    }, null, 2) + '\n');
-  }
   const sourceSchema = path.join(repoRoot, 'spec', 'schemas', 'state-db.sql');
   const targetSchema = path.join(specRoot, 'schemas', 'state-db.sql');
   ensureDir(path.dirname(targetSchema));
@@ -521,7 +529,47 @@ main().catch((error) => {
     launcher: path.join(runtimeRoot, 'launch.cjs'),
     bundle: path.join(runtimeRoot, 'index.cjs'),
     ultraTools: path.join(runtimeRoot, 'ultra-tools.cjs'),
+    nativeManifest: path.join(runtimeRoot, 'native-runtime.json'),
   };
+}
+
+function mcpCommand(launcher) {
+  if (process.platform === 'win32') {
+    return { command: 'node.exe', args: [launcher] };
+  }
+  return { command: '/usr/bin/env', args: ['node', launcher] };
+}
+
+function inspectInstalledRuntime(runtimeRoot) {
+  const report = {
+    status: 'healthy',
+    checks: {},
+    issues: [],
+  };
+  try {
+    const detail = require(path.join(runtimeRoot, 'runtime-native.cjs'))
+      .inspectRuntimeNative(runtimeRoot);
+    report.checks.native_runtime = { status: 'pass', ...detail };
+  } catch (error) {
+    report.status = 'degraded';
+    report.checks.native_runtime = { status: 'fail' };
+    report.issues.push({
+      code: error.code || 'RUNTIME_NATIVE_MISSING',
+      message: error.message,
+      ...(error.details || {}),
+    });
+  }
+  return report;
+}
+
+function applyNativeDoctor(report, runtimeRoot) {
+  const native = inspectInstalledRuntime(runtimeRoot);
+  report.checks = { ...(report.checks || {}), ...native.checks };
+  report.issues = [...(report.issues || []), ...native.issues];
+  if (report.status !== 'missing') {
+    report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
+  }
+  return report;
 }
 
 function pluginContentHash(pluginRoot, baseVersion) {
@@ -535,13 +583,14 @@ function pluginContentHash(pluginRoot, baseVersion) {
   return hash.digest('hex').slice(0, 12);
 }
 
-function buildPlugin({ repoRoot, pluginRoot }) {
+function buildPlugin({ repoRoot, pluginRoot, publishedRoot = pluginRoot }) {
   if (fs.existsSync(pluginRoot)) {
     const marker = path.join(pluginRoot, '.ubp-managed');
-    if (!fs.existsSync(marker)) {
+    const entries = fs.readdirSync(pluginRoot);
+    if (entries.length > 0 && !fs.existsSync(marker)) {
       throw new Error(`refusing to replace unmanaged plugin directory: ${pluginRoot}`);
     }
-    removeTree(pluginRoot);
+    if (entries.length > 0) removeTree(pluginRoot);
   }
   ensureDir(pluginRoot);
 
@@ -555,14 +604,18 @@ function buildPlugin({ repoRoot, pluginRoot }) {
     installedSkills.push(name);
   }
 
-  copyHooks(repoRoot, pluginRoot);
+  copyHooks(repoRoot, pluginRoot, publishedRoot);
   const mcpRuntime = buildMcpRuntime(repoRoot, pluginRoot);
+  const command = mcpCommand(path.join(
+    publishedRoot,
+    path.relative(pluginRoot, mcpRuntime.launcher),
+  ));
   writeAtomic(path.join(pluginRoot, '.mcp.json'), JSON.stringify({
     mcpServers: {
       [PLUGIN_NAME]: {
         type: 'stdio',
-        command: process.execPath,
-        args: [mcpRuntime.launcher],
+        command: command.command,
+        args: command.args,
       },
     },
   }, null, 2) + '\n');
@@ -576,7 +629,7 @@ function buildPlugin({ repoRoot, pluginRoot }) {
   const manifest = {
     name: PLUGIN_NAME,
     version,
-    description: 'Codex-native Ultra Builder Pro workflows, agents, hooks, and MCP task state.',
+    description: 'Codex-native Ultra Builder Pro workflows with a persistent safety kernel.',
     author: { name: typeof pkg.author === 'string' ? pkg.author : 'Ultra Builder Pro contributors' },
     homepage: pkg.homepage,
     repository: 'https://github.com/rocky2431/ultra-builder-pro-cli',
@@ -587,7 +640,7 @@ function buildPlugin({ repoRoot, pluginRoot }) {
     interface: {
       displayName: 'Ultra Builder Pro',
       shortDescription: 'Codex-native engineering workflows and verification gates.',
-      longDescription: 'Complete Codex adaptation of Ultra Builder Pro skills, command workflows, custom agents, lifecycle hooks, and project-local MCP state.',
+      longDescription: 'Complete Codex adaptation of Ultra Builder Pro skills, command workflows, custom agents, lifecycle hooks, and a project-local persistence and safety kernel.',
       developerName: typeof pkg.author === 'string' ? pkg.author : 'Ultra Builder Pro contributors',
       category: 'Developer Tools',
       capabilities: ['Interactive', 'Write'],
@@ -602,7 +655,7 @@ function buildPlugin({ repoRoot, pluginRoot }) {
   };
   writeAtomic(path.join(pluginRoot, '.codex-plugin', 'plugin.json'), JSON.stringify(manifest, null, 2) + '\n');
   writeAtomic(path.join(pluginRoot, '.ubp-managed'), JSON.stringify({ source: 'ubp', adapter: 'codex', version }, null, 2) + '\n');
-  return { root: pluginRoot, version, skills: installedSkills.sort() };
+  return { root: publishedRoot, version, skills: installedSkills.sort() };
 }
 
 function tomlMultiline(value) {
@@ -663,6 +716,9 @@ module.exports = {
   buildCommandMap,
   buildHooksManifest,
   buildMcpRuntime,
+  inspectInstalledRuntime,
+  applyNativeDoctor,
+  mcpCommand,
   buildPlugin,
   buildAgentToml,
   installAgents,

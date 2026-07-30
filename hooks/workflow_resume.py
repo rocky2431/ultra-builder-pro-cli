@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Re-inject live DB authority after compaction; checkpoints are advisory only."""
+"""Re-inject the live Context Envelope after compaction; checkpoints are advisory."""
 
 import json
 import sys
 from datetime import datetime
 from pathlib import Path
 
-from context_spine import (
-    ContextSpineError,
+from context_envelope import (
+    ContextEnvelopeError,
     find_root_for_hook,
-    read_breadcrumb,
-    render_breadcrumb,
+    read_context_envelope,
+    render_context_envelope,
 )
 
 
@@ -35,10 +35,11 @@ def _checkpoint_advisory(root: Path):
         return None
     if (
         not isinstance(value, dict)
-        or value.get("schema") != 2
-        or not isinstance(value.get("breadcrumb"), dict)
+        or value.get("schema") != 3
+        or not isinstance(value.get("context"), dict)
         or not isinstance(value.get("rendered"), str)
         or not value["rendered"].strip()
+        or value.get("context_digest") != value["context"].get("digest")
     ):
         print(f"[workflow_resume] invalid checkpoint schema in {file}", file=sys.stderr)
         return None
@@ -46,7 +47,7 @@ def _checkpoint_advisory(root: Path):
         "[Ultra checkpoint advisory]",
         "Live .ultra/.runtime/state.db could not be read; this checkpoint is not authority.",
         value["rendered"],
-        "Run ultra-doctor before mutation.",
+        "Run ultra.doctor before mutation.",
     ])
 
 
@@ -66,11 +67,11 @@ def main() -> None:
         return
     text = None
     try:
-        breadcrumb = read_breadcrumb(root)
-        if breadcrumb and breadcrumb.get("workflow"):
-            text = render_breadcrumb(root, breadcrumb)
-    except ContextSpineError as exc:
-        print(f"[workflow_resume] cannot inspect Context Spine: {exc}", file=sys.stderr)
+        envelope = read_context_envelope(root)
+        if envelope:
+            text = render_context_envelope(root, envelope)
+    except ContextEnvelopeError as exc:
+        print(f"[workflow_resume] cannot inspect Context Envelope: {exc}", file=sys.stderr)
         text = _checkpoint_advisory(root)
     if not text:
         print(json.dumps({}))

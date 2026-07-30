@@ -187,28 +187,30 @@ test('research preserves the complete semantic workflow through focused referenc
   assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
 });
 
-test('human-agent alignment uses one canonical resumable decision protocol', () => {
-  const reference = path.join(SKILLS_ROOT, 'ultra-think', 'references', 'decision-dialogue.md');
-  assert.ok(fs.existsSync(reference), 'canonical decision dialogue reference is missing');
+test('human-agent alignment uses one canonical owner interaction boundary', () => {
+  const reference = path.join(
+    SKILLS_ROOT,
+    'ultra-think',
+    'references',
+    'interaction-boundary.md',
+  );
+  assert.ok(fs.existsSync(reference), 'canonical owner interaction reference is missing');
   const protocol = fs.readFileSync(reference, 'utf8');
-  for (const tool of [
-    'decision.list', 'decision.thread_start', 'decision.open', 'decision.resolve',
-    'decision.delegate', 'decision.defer', 'decision.supersede', 'decision.complete',
-    'decision.checkpoint',
-  ]) {
-    assert.match(protocol, new RegExp(`\\b${tool.replace('.', '\\.')}\\b`), `${tool} is absent from the protocol`);
-  }
-  assert.match(protocol, /Ask one question only/i);
-  assert.match(protocol, /STOP is mandatory/i);
-  assert.match(protocol, /never store raw prompts or\s+transcripts/i);
-  assert.match(protocol, /fact acquisition autonomous and decision authority explicit/i);
-  assert.match(protocol, /inspect[\s\S]*suggest[\s\S]*ask[\s\S]*normalize[\s\S]*persist/i);
-  assert.match(protocol, /DB treats (?:the )?normalized intent as current authority/i);
-  assert.match(protocol, /does not prove that the user\s+selected it/i);
+  assert.match(protocol, /host-native question surface/i);
+  assert.match(protocol, /one unresolved owner choice at a time/i);
+  assert.match(protocol, /kind: decision[\s\S]*action: accept/i);
+  assert.match(protocol, /read `ultra\.context` back/i);
+  assert.match(protocol, /accepted records remain immutable|immutable history/i);
+  assert.match(protocol, /Never persist raw transcripts, hidden reasoning, full prompts/i);
+  assert.doesNotMatch(protocol, /\bdecision\.(?:thread_start|open|resolve|complete)\b/);
 
   for (const name of ['ultra-init', 'ultra-research', 'ultra-think', 'ultra-change', 'ultra-plan']) {
     const { text } = sourceSkill(name);
-    assert.match(text, /decision-dialogue\.md/, `${name} must use the canonical decision protocol`);
+    assert.match(
+      text,
+      /interaction-boundary\.md/,
+      `${name} must use the canonical owner interaction boundary`,
+    );
   }
   assert.match(sourceSkill('ultra-research').text, /not a questionnaire/i);
   assert.match(sourceSkill('ultra-change').text, /Ask only when\s+a choice changes accepted product intent/i);

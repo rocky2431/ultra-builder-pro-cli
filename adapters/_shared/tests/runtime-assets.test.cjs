@@ -77,7 +77,10 @@ test('runtime asset manifest exposes only Ultra-owned core and internal skills',
   assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.kimi, [
     'cc-collab', 'codex-collab', 'ultra-verify',
   ]);
-  assert.deepEqual(SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex', 'kimi']);
+  assert.deepEqual(COLLAB_SKILLS_BY_RUNTIME.grok, [
+    'cc-collab', 'codex-collab', 'ultra-verify',
+  ]);
+  assert.deepEqual(SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex', 'kimi', 'grok']);
   assert.deepEqual(RUNTIME_WORKER_FILES, [
     'session-close-journal-worker.cjs',
     'doctor-backup-worker.cjs',
@@ -141,7 +144,7 @@ test('packaged collaboration prompts use current CLI contracts and one source pr
 test('workflow hook allowlist contains no memory, prompt capture, or generic policy hook', () => {
   assert.deepEqual(WORKFLOW_HOOK_FILES, [
     'active_task_context.py',
-    'context_spine.py',
+    'context_envelope.py',
     'health_check.py',
     'pre_stop_check.py',
     'runtime_paths.py',
@@ -178,19 +181,14 @@ test('runtime documentation matches the canonical host, hook, and agent assets',
     .filter((name) => name.endsWith('.md'))
     .length;
 
-  assert.equal(workerCells.length, 5, 'runtime matrix worker row is missing or malformed');
+  assert.equal(workerCells.length, 6, 'runtime matrix worker row is missing or malformed');
   assert.match(workerCells[3], new RegExp(`\\b${bundledAgentCount}\\b managed TOML agents\\b`));
   assert.match(workerCells[4], new RegExp(`\\b${bundledAgentCount}\\b prompt templates\\b`));
+  assert.match(workerCells[5], new RegExp(`\\b${bundledAgentCount}\\b prompt templates\\b`));
 
   const roadmap = fs.readFileSync(path.join(REPO_ROOT, 'docs', 'ROADMAP.md'), 'utf8');
-  const adapterInventory = roadmap.slice(
-    roadmap.indexOf('adapters/'),
-    roadmap.indexOf('skills/'),
-  );
-  const hookInventory = roadmap.slice(
-    roadmap.indexOf('hooks/'),
-    roadmap.indexOf('docs/'),
-  );
+  const adapterInventory = roadmap;
+  const hookInventory = roadmap;
 
   for (const runtime of SUPPORTED_RUNTIMES) {
     assert.match(
@@ -231,4 +229,45 @@ test('npm publish list uses the same explicit skill boundary', () => {
   assert.deepEqual(publishedSkills, expected);
   assert.equal(pkg.dependencies['@anthropic-ai/sdk'], undefined);
   assert.equal(pkg.dependencies.openai, undefined);
+  for (const legacyModule of [
+    'workflow-state.cjs',
+    'decision-dialogue.cjs',
+    'context-spine.cjs',
+    'project-breadcrumb.cjs',
+    'spec-learning.cjs',
+  ]) {
+    assert.ok(
+      pkg.files.includes(`!mcp-server/lib/${legacyModule}`),
+      `npm package must retire mcp-server/lib/${legacyModule}`,
+    );
+  }
+});
+
+test('canonical product documents describe the v0.24 kernel and all five hosts', () => {
+  const documents = [
+    'README.md',
+    'AGENTS.md',
+    'CLAUDE.md',
+    'docs/ARCHITECTURE.md',
+    'docs/AGENT-CONTEXT.md',
+    'docs/WORKFLOW-LIFECYCLE.md',
+    'docs/RUNTIME-COMPAT-MATRIX.md',
+    'docs/PLUGIN-ISOLATION-CONTRACT.md',
+  ].map((relative) => [
+    relative,
+    fs.readFileSync(path.join(REPO_ROOT, relative), 'utf8'),
+  ]);
+  for (const [relative, text] of documents) {
+    assert.match(text, /Grok Build/, `${relative} must include Grok Build`);
+    assert.doesNotMatch(
+      text,
+      /60 (?:hidden|fine-grained|compatibility)|remain callable but undiscoverable|one compatibility release/i,
+      `${relative} must not preserve the retired hidden MCP surface`,
+    );
+    assert.doesNotMatch(
+      text,
+      /workflow\.abandon|decision-dialogue\.md/,
+      `${relative} must not route current recovery through retired semantic supervision`,
+    );
+  }
 });
