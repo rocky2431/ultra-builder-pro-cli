@@ -284,7 +284,7 @@ function startServer({
         );
         const own = processed.jobs.find((item) => item.id === job.id);
         runtimeMeta = {
-          state_commit: 'committed',
+          projection_commit: 'committed',
           projection_status: own?.status || 'failed',
           projection_job_id: job.id,
         };

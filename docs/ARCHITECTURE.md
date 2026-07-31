@@ -43,7 +43,8 @@ There is no second semantic authority:
 - MCP owns structure validation, idempotency, digests, CAS, leases, safe paths,
   filesystem journals, recovery, and accepted checkpoints.
 - Hooks own deterministic observation and bounded injection only.
-- Agents receive one immutable Worker Packet and write only the declared output.
+- Agents receive one immutable Worker Packet and write only the declared evidence
+  output; the primary host owns every source change and final judgment.
 
 SQLite never chooses the next capability and never requires a fixed sequence of
 reasoning steps. Semantic gaps appear in `diagnostics`, `warnings`, or
@@ -66,9 +67,11 @@ Every host discovers exactly seven tools:
 | `ultra.doctor` | Mechanical diagnosis and backup-first repair |
 
 Retired fine-grained tool names are not registered and return `UNKNOWN_TOOL`. The
-source repository retains migration readers and regression fixtures for old authority,
-but those modules are excluded from the npm distribution and have no live public
-consumer.
+source repository retains migration readers, an explicitly named internal Change
+compatibility implementation, and regression fixtures for old authority. The
+production Change facade exposes one Kernel behavior with no mode flag; retired
+semantic supervisors are excluded from the npm distribution and no public call can
+write their workflow/dialogue authority.
 
 ## Canonical Context Envelope
 
@@ -130,6 +133,20 @@ Every delegated worker receives a digest-bound packet containing the exact Conte
 Envelope, accepted decisions, Git boundary, Task contract, acceptance, evidence
 references, output path, and output schema. The worker must echo `packet_digest`.
 Workers do not write SQLite or accept their own result.
+Review and debug workers do not edit source; their only mutation is the assigned
+evidence artifact, and the primary host applies any accepted remediation.
+
+### Rejected attempts and projection metadata
+
+Semantic diagnostics do not disappear when a caller corrects and retries. A rejected
+public call appends an `ultra_kernel_attempt` event containing the typed operation,
+scope, idempotency key, blockers, and diagnostics without storing raw prompts or
+creating the rejected semantic row. `ultra.context` exposes a bounded recent view of
+that audit history alongside, but outside the digest-bound semantic envelope.
+
+Server metadata uses `_ultra.projection_commit` only for the deterministic
+post-mutation projection job. It must never be interpreted as proof that a semantic
+record, checkpoint, or archive was accepted.
 
 ## `.ultra` storage planes
 
@@ -210,7 +227,9 @@ Contexts, and v0.22/v0.23 database and ledger authority.
 Migration is inspectable, exact-byte backup-first, transactional, and fail-closed on
 conflict. Old workflow and dialogue rows are retained as non-authoritative history;
 current Context, Decisions, Checkpoints, and the team ledger are rebuilt from verified
-facts. No user should edit SQLite or move a legacy file manually to recover.
+facts. Current artifact invalidation may traverse legacy graph edges to reach a live
+Task, but it never rewrites the legacy workflow row. No user should edit SQLite or move
+a legacy file manually to recover.
 
 ## External boundaries
 

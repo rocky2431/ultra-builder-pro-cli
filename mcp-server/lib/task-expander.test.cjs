@@ -147,7 +147,7 @@ test('expandTask children inherit parent tag and change ownership', () => {
   } finally { cleanup(ctx); }
 });
 
-test('expandTask enforces baseline authority before writing children', () => {
+test('expandTask reports baseline health without turning it into a semantic gate', () => {
   for (const baseline of ['missing', 'draft', 'migrated']) {
     const ctx = tmpDb();
     try {
@@ -160,14 +160,12 @@ test('expandTask enforces baseline authority before writing children', () => {
           "UPDATE baselines SET mode = 'migrated', status = 'adopting' WHERE id = 'test-baseline'",
         ).run();
       }
-      assert.throws(
-        () => expandTask(ctx.db, {
-          id: 'parent-1', children: HAPPY_CHILDREN, rootDir: ctx.dir,
-        }),
-        (error) => error.code === 'BASELINE_NOT_READY',
-      );
-      assert.equal(ops.readTask(ctx.db, 'child-1'), null);
-      assert.equal(ops.readTask(ctx.db, 'parent-1').status, 'pending');
+      const result = expandTask(ctx.db, {
+        id: 'parent-1', children: HAPPY_CHILDREN, rootDir: ctx.dir,
+      });
+      assert.ok(result.diagnostics.length > 0);
+      assert.ok(ops.readTask(ctx.db, 'child-1'));
+      assert.equal(ops.readTask(ctx.db, 'parent-1').status, 'expanded');
     } finally { cleanup(ctx); }
   }
 });

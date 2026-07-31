@@ -335,6 +335,11 @@ test('agent prompts use the current evidence-based review contract', () => {
     assert.ok(fm && typeof fm.description === 'string', `${path.basename(file)} needs a concise description`);
     assert.ok(fm.description.replace(/\s+/g, ' ').trim().length <= 400, `${path.basename(file)} description is prompt-heavy`);
     assert.ok(body.split('\n').length <= 120, `${path.basename(file)} body exceeds the bounded worker prompt budget`);
+    assert.doesNotMatch(
+      String(fm.tools || ''),
+      /(?:^|,\s*)Edit(?:\s*,|$)/,
+      `${path.basename(file)} must return bounded evidence instead of editing source`,
+    );
     for (const { pattern, label } of forbidden) {
       assert.doesNotMatch(text, pattern, `${path.relative(ROOT, file)} contains ${label}`);
     }

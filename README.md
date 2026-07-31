@@ -132,6 +132,11 @@ Retired fine-grained operation names are neither discoverable nor callable. Work
 prose stays in Skills, model judgment stays with the host, and SQLite records what
 happened rather than deciding what the model is allowed to think next.
 
+Rejected semantic attempts remain visible as bounded `ultra_kernel_attempt` audit
+diagnostics in the next `ultra.context`; they do not create rejected authority.
+`_ultra.projection_commit` describes only generated-view processing, never semantic
+acceptance. The production Change API has no legacy/current mode switch.
+
 The enforcement gradient is:
 
 ```text
@@ -403,6 +408,11 @@ These eleven capabilities are the complete public Ultra command graph. The host 
 recommends the next capability from current context and owner intent; SQLite does not
 encode the semantic route. Another public capability starts only after an explicit
 user command or skill invocation.
+
+Review and debug agents are evidence-only workers. They may inspect the assigned
+checkout and write their declared report, but they never edit source or commit
+authority. The primary host evaluates the evidence, applies any repair, and records
+the verified outcome.
 
 ### Command interaction graph
 

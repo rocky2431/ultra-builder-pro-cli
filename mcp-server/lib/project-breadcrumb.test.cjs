@@ -10,7 +10,7 @@ const Database = require('better-sqlite3');
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
-const { createChange } = require('./change-workflow.cjs');
+const { createChange } = require('./legacy-change-workflow.cjs');
 const { createTask } = require('./state-ops.cjs');
 const { compileRoleContext, readBreadcrumb } = require('./context-spine.cjs');
 const {

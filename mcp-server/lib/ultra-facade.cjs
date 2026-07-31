@@ -135,6 +135,48 @@ function rememberResult(db, {
   });
 }
 
+function rememberRejectedAttempt(db, tool, input, result) {
+  if (!db || result?.accepted !== false) return result;
+  const nested = Array.isArray(result.results)
+    ? result.results.flatMap((item) => item.diagnostics || [])
+    : [];
+  const diagnostics = [...(result.diagnostics || []), ...nested]
+    .map((item) => ({
+      code: item.code || 'NEEDS_ATTENTION',
+      severity: item.severity || 'needs_attention',
+      message: item.message || null,
+      ...(item.details === undefined ? {} : { details: item.details }),
+    }));
+  const entries = Array.isArray(input.entries) ? input.entries : [];
+  const changeIds = [...new Set(entries.flatMap((entry) => [
+    entry.data?.change_id,
+    entry.kind === 'change_contract' ? entry.data?.id : null,
+  ]).filter(Boolean))];
+  const taskIds = [...new Set(entries.flatMap((entry) => [
+    entry.kind.startsWith('task_') ? entry.data?.id : null,
+    input.scope?.task_id,
+  ]).filter(Boolean))];
+  const scopeChangeId = input.scope?.change_id || input.change_id || null;
+  ops.appendEvent(db, {
+    type: 'ultra_kernel_attempt',
+    change_id: changeIds.length === 1 ? changeIds[0] : scopeChangeId,
+    task_id: taskIds.length === 1 ? taskIds[0] : null,
+    payload: {
+      tool,
+      accepted: false,
+      mutable: result.mutable !== false,
+      operations: entries.map((entry) => `${entry.kind}:${entry.action}`),
+      idempotency_keys: entries.length > 0
+        ? entries.map((entry) => entry.idempotency_key).filter(Boolean)
+        : [input.idempotency_key].filter(Boolean),
+      scope: input.scope || (input.change_id ? { change_id: input.change_id } : {}),
+      blockers: result.blockers || [],
+      diagnostics,
+    },
+  });
+  return result;
+}
+
 function diagnostic(error, severity = 'needs_attention') {
   return {
     code: errorCode(error),
@@ -142,6 +184,34 @@ function diagnostic(error, severity = 'needs_attention') {
     message: error.message,
     ...(error.details === undefined ? {} : { details: error.details }),
   };
+}
+
+function rejectedAttemptAudit(db) {
+  return db.prepare(
+    `SELECT id, ts, task_id, change_id, payload_json
+     FROM events
+     WHERE type = 'ultra_kernel_attempt'
+     ORDER BY id DESC
+     LIMIT 5`,
+  ).all().map((row) => {
+    const payload = parseJson(row.payload_json, {});
+    return {
+      event_id: row.id,
+      recorded_at: row.ts,
+      tool: payload.tool || null,
+      task_id: row.task_id || null,
+      change_id: row.change_id || null,
+      operations: (payload.operations || []).slice(0, 12),
+      blockers: (payload.blockers || []).slice(0, 12),
+      diagnostics: (payload.diagnostics || []).slice(0, 8).map((item) => ({
+        code: item.code || 'NEEDS_ATTENTION',
+        severity: item.severity || 'needs_attention',
+        message: typeof item.message === 'string'
+          ? item.message.slice(0, 500)
+          : null,
+      })),
+    };
+  });
 }
 
 function selectedScope(db, input = {}) {
@@ -197,7 +267,28 @@ function readContext(db, input = {}, {
   rootDir = process.cwd(),
   runtime = 'unknown',
 } = {}) {
-  return contextEnvelope.buildEnvelope(db, input, { rootDir, runtime });
+  const result = contextEnvelope.buildEnvelope(db, input, { rootDir, runtime });
+  const rejectedAttempts = rejectedAttemptAudit(db);
+  let visible = {
+    ...result,
+    audit: {
+      rejected_attempts: rejectedAttempts,
+    },
+  };
+  delete visible.bytes;
+  const limit = input.detail === 'full'
+    ? contextEnvelope.FULL_LIMIT
+    : contextEnvelope.SUMMARY_LIMIT;
+  while (Buffer.byteLength(JSON.stringify(visible)) > limit
+      && rejectedAttempts.length > 0) {
+    rejectedAttempts.pop();
+  }
+  if (Buffer.byteLength(JSON.stringify(visible)) > limit) {
+    visible = { ...result };
+    delete visible.bytes;
+  }
+  visible.bytes = Buffer.byteLength(JSON.stringify(visible));
+  return visible;
 }
 
 function initializeProject(data = {}) {
@@ -241,7 +332,7 @@ function baselineRecord(db, action, data, rootDir) {
 
 function changeContractRecord(db, action, data, rootDir) {
   if (action === 'open') {
-    return changes.createChange(db, data, { rootDir, kernelMode: true });
+    return changes.createChange(db, data, { rootDir });
   }
   if (action === 'revise') {
     return {
@@ -249,7 +340,7 @@ function changeContractRecord(db, action, data, rootDir) {
         db,
         data.id,
         data.patch || {},
-        { rootDir, kernelMode: true },
+        { rootDir },
       ),
     };
   }
@@ -259,7 +350,7 @@ function changeContractRecord(db, action, data, rootDir) {
         db,
         data.id,
         { status: 'cancelled' },
-        { rootDir, kernelMode: true },
+        { rootDir },
       ),
     };
   }
@@ -374,6 +465,17 @@ function applyRecord(db, entry, { rootDir }) {
   if (kind === 'task_contract') return taskContractRecord(db, action, data);
   if (kind === 'task_outcome') return taskOutcomeRecord(db, action, data, rootDir);
   if (kind === 'artifact' && action === 'bind') {
+    const legacyWorkflowReference = data.owner_type === 'workflow'
+      || [...(data.source_refs || []), ...(data.consumer_refs || [])]
+        .some((reference) => reference?.type === 'workflow');
+    if (legacyWorkflowReference) {
+      throw Object.assign(
+        new Error(
+          'workflow-owned artifact authority is retired and remains read-only history',
+        ),
+        { code: 'LEGACY_AUTHORITY_READ_ONLY' },
+      );
+    }
     return artifactRegistry.recordArtifact(db, data, { rootDir });
   }
   if (kind === 'event' && action === 'append') {
@@ -897,7 +999,7 @@ async function archive(db, input = {}, {
     const result = changes.archiveChange(
       db,
       { id: input.change_id, ...(input.payload || {}) },
-      { rootDir, kernelMode: true },
+      { rootDir },
     );
     const output = {
       accepted: true,
@@ -929,22 +1031,26 @@ async function archive(db, input = {}, {
 }
 
 async function dispatch(name, input, db, context = {}) {
-  if (name === 'ultra.context') return readContext(db, input, context);
-  if (name === 'ultra.record') return record(db, input, context);
-  if (name === 'ultra.checkpoint') return checkpoint(db, input, context);
-  if (name === 'ultra.sync') return sync(db, input, context);
-  if (name === 'ultra.session') return session(db, input, context);
-  if (name === 'ultra.archive') return archive(db, input, context);
+  let result;
+  if (name === 'ultra.context') result = readContext(db, input, context);
+  else if (name === 'ultra.record') result = await record(db, input, context);
+  else if (name === 'ultra.checkpoint') result = await checkpoint(db, input, context);
+  else if (name === 'ultra.sync') result = sync(db, input, context);
+  else if (name === 'ultra.session') result = await session(db, input, context);
+  else if (name === 'ultra.archive') result = await archive(db, input, context);
   if (name === 'ultra.doctor') {
-    return doctor.runDoctor(db, {
+    result = doctor.runDoctor(db, {
       rootDir: context.rootDir || process.cwd(),
       repair: input.repair === true,
       project: context.projector,
     });
   }
-  const error = new Error(`unhandled public tool ${name}`);
-  error.code = 'UNKNOWN_TOOL';
-  throw error;
+  if (result === undefined) {
+    const error = new Error(`unhandled public tool ${name}`);
+    error.code = 'UNKNOWN_TOOL';
+    throw error;
+  }
+  return rememberRejectedAttempt(db, name, input, result);
 }
 
 module.exports = {

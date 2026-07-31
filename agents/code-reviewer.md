@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Review an explicit diff or file set for consequential correctness, security, integration, test, and maintainability defects. Use for a bounded read-only review before commit, merge, or release.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Grep, Glob, Bash, Write
 model: opus
 maxTurns: 30
 skills:
@@ -34,10 +34,9 @@ evidence. Default to read-only analysis.
 
 ## Mutation boundary
 
-Do not edit during an ordinary review. If the parent explicitly assigns review and
-fix, modify only findings within the accepted scope, preserve unrelated changes, and
-rerun the checks invalidated by each edit. Judgment-heavy or scope-expanding fixes
-return to the primary agent for a decision.
+Do not edit source. Write only the assigned evidence artifact. If remediation is
+authorized, return the smallest verified repair instructions to the primary host,
+which owns implementation and final judgment.
 
 Use the current checkout and parent-supplied packet only. Do not call Ultra MCP write
 tools. Return a concise review, not raw tool output.

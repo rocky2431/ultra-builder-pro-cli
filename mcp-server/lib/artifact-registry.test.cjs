@@ -195,7 +195,7 @@ test('artifact.record replaces edges transactionally and invalidates only exact 
   }
 });
 
-test('updating an active draft artifact reopens its workflow instead of self-invalidating it', () => {
+test('updating a legacy workflow-owned artifact never mutates retired workflow history', () => {
   const fx = fixture();
   try {
     fx.db.prepare(
@@ -216,7 +216,7 @@ test('updating an active draft artifact reopens its workflow instead of self-inv
     }, { rootDir: fx.rootDir });
 
     write(fx.rootDir, '.ultra/changes/active/draft/plan.md', '# Plan v2\n');
-    artifacts.recordArtifact(fx.db, {
+    const second = artifacts.recordArtifact(fx.db, {
       id: 'draft-plan',
       owner_type: 'workflow',
       owner_id: 'draft-workflow',
@@ -232,9 +232,10 @@ test('updating an active draft artifact reopens its workflow instead of self-inv
       "SELECT status, metadata_json FROM workflow_runs WHERE id = 'draft-workflow'",
     ).get();
     const metadata = JSON.parse(row.metadata_json);
-    assert.equal(row.status, 'active');
-    assert.equal(metadata.draft_dirty, true);
+    assert.equal(row.status, 'ready');
+    assert.equal(metadata.draft_dirty, undefined);
     assert.equal(metadata.authority_invalidation, undefined);
+    assert.deepEqual(second.invalidated, []);
   } finally {
     cleanup(fx);
   }

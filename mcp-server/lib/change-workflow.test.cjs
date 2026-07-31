@@ -9,7 +9,7 @@ const { execFileSync } = require('node:child_process');
 
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const ops = require('./state-ops.cjs');
-const changes = require('./change-workflow.cjs');
+const changes = require('./legacy-change-workflow.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const archiveJournal = require('./archive-journal.cjs');
 const workflows = require('./workflow-state.cjs');

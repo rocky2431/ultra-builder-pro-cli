@@ -49,14 +49,7 @@ function fixture() {
       rationale: 'The public workflow contract changes.',
     },
   }), { rootDir });
-  const plan = workflows.startWorkflow(db, {
-    id: 'packet-plan',
-    kind: 'plan',
-    baseline_id: 'test-baseline',
-    change_id: created.change.id,
-    subject: 'Consume the typed Change delta.',
-  }, { rootDir });
-  return { rootDir, db, change: created.change, plan };
+  return { rootDir, db, change: created.change };
 }
 
 function cleanup(fx) {
@@ -237,7 +230,7 @@ test('typed Change delta registers overlay authority without mutating baseline s
       (ref) => ref.type === 'baseline' && ref.id === 'test-baseline',
     ));
     assert.ok(recorded.artifact.consumer_refs.some(
-      (ref) => ref.type === 'workflow' && ref.id === fx.plan.id,
+      (ref) => ref.type === 'external' && ref.id === 'ultra-deliver',
     ));
     assert.equal(
       artifacts.getArtifact(fx.db, { path: overlayPath }).kind,
@@ -295,8 +288,8 @@ test('documentation reconciliation rejects orphans and binds before/after eviden
     );
 
     reconciliation.documents[0].consumers = [{
-      type: 'workflow',
-      id: fx.plan.id,
+      type: 'external',
+      id: 'ultra-deliver',
       relation: 'explains_delivery',
     }];
     const recorded = changes.recordDocumentationReconciliation(
@@ -353,8 +346,8 @@ test('archive applies the Change overlay to baseline and documentation only at D
           evidence_refs: ['test:change-packet-delivery'],
         }],
         consumers: [{
-          type: 'workflow',
-          id: fx.plan.id,
+          type: 'external',
+          id: 'ultra-deliver',
           relation: 'explains_delivery',
         }],
       }],

@@ -9,7 +9,7 @@ const crypto = require('node:crypto');
 
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const decisions = require('./decision-dialogue.cjs');
-const changes = require('./change-workflow.cjs');
+const changes = require('./legacy-change-workflow.cjs');
 const workflows = require('./workflow-state.cjs');
 const artifacts = require('./artifact-registry.cjs');
 const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');

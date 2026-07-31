@@ -9,7 +9,7 @@ const { execFileSync } = require('node:child_process');
 const crypto = require('node:crypto');
 
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
-const changes = require('./change-workflow.cjs');
+const changes = require('./legacy-change-workflow.cjs');
 const learning = require('./spec-learning.cjs');
 const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');

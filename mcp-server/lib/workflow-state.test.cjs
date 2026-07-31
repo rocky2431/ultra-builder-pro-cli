@@ -11,7 +11,7 @@ const { execFileSync } = require('node:child_process');
 const { initStateDb, closeStateDb } = require('./state-db.cjs');
 const workflows = require('./workflow-state.cjs');
 const ops = require('./state-ops.cjs');
-const changes = require('./change-workflow.cjs');
+const changes = require('./legacy-change-workflow.cjs');
 const planStore = require('./plan-store.cjs');
 const artifactRegistry = require('./artifact-registry.cjs');
 const {
@@ -2092,7 +2092,7 @@ test('a completed candidate revision remains non-consumable until explicit super
   }
 });
 
-test('workflow.supersede preserves history and invalidates only transitive graph consumers', () => {
+test('workflow.supersede preserves legacy workflow history while invalidating current graph consumers', () => {
   const fx = fixture();
   try {
     const changeId = insertChange(fx, 'exact-supersession-change');
@@ -2227,9 +2227,21 @@ test('workflow.supersede preserves history and invalidates only transitive graph
     assert.equal(ops.readTask(fx.db, 'unrelated-task').stale, false);
     assert.equal(artifactRegistry.getArtifact(fx.db, { id: planArtifact.id }).status, 'stale');
     assert.equal(artifactRegistry.getArtifact(fx.db, { id: contextArtifact.id }).status, 'stale');
-    assert.ok(workflows.readWorkflow(
-      fx.db, 'downstream-test-v1', { rootDir: fx.rootDir },
-    ).artifact_health.blockers.includes('WORKFLOW_AUTHORITY_STALE'));
+    const downstream = fx.db.prepare(
+      "SELECT status, metadata_json FROM workflow_runs WHERE id = 'downstream-test-v1'",
+    ).get();
+    assert.equal(downstream.status, 'completed');
+    assert.equal(
+      JSON.parse(downstream.metadata_json).authority_invalidation,
+      undefined,
+      'retired workflow history must not be rewritten by current invalidation',
+    );
+    assert.equal(
+      fx.db.prepare(
+        "SELECT COUNT(*) AS count FROM events WHERE type = 'workflow_invalidated'",
+      ).get().count,
+      0,
+    );
   } finally {
     cleanup(fx);
   }

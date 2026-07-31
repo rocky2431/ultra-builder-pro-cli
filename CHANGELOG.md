@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.2] — 2026-07-31
+
+### Changed
+
+- Made the production Change facade single-mode and Kernel-only. The pre-v0.24
+  Change implementation is explicitly isolated for compatibility, while retired
+  workflow and dialogue rows remain read-only history with no public artifact owner
+  or invalidation writer.
+- Made review and debug agents evidence-only: delegated workers can write only their
+  assigned report, while the primary host owns source remediation and final judgment.
+
+### Fixed
+
+- Preserved rejected semantic calls as bounded `ultra_kernel_attempt` audit history
+  visible through `ultra.context`, without creating the rejected semantic authority.
+- Renamed misleading `_ultra.state_commit` response metadata to
+  `_ultra.projection_commit`; projection processing no longer resembles a semantic
+  acceptance receipt.
+- Removed current Change-packet decisions and artifact invalidation from retired
+  workflow/dialogue tables while retaining safe migration and historical reads.
+
 ## [0.24.1] — 2026-07-31
 
 ### Changed

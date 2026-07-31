@@ -81,7 +81,11 @@ function expandTask(db, {
   });
 
   return ops.tx(db, () => {
-    changes.assertTaskCreationAllowed(db, { change_id: parent.change_id }, { rootDir });
+    const admission = changes.assertTaskCreationAllowed(
+      db,
+      { change_id: parent.change_id },
+      { rootDir },
+    );
     for (const child of normalized) {
       ops.createTask(db, child);
     }
@@ -89,6 +93,7 @@ function expandTask(db, {
     return {
       parent_id: parent.id,
       children: normalized,
+      diagnostics: admission.diagnostics,
     };
   });
 }

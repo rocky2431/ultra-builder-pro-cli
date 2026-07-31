@@ -15,7 +15,7 @@ const {
   validateContextSnapshot,
 } = require('./context-spine.cjs');
 const { initStateDb } = require('./state-db.cjs');
-const { createChange, compileContext } = require('./change-workflow.cjs');
+const { createChange, compileContext } = require('./legacy-change-workflow.cjs');
 const { createTask, patchTask } = require('./state-ops.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const workflows = require('./workflow-state.cjs');

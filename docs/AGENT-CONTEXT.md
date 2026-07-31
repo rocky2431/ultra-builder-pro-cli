@@ -11,7 +11,7 @@ Ultra owns:
   `ultra-change`, `ultra-plan`, `ultra-dev`, `ultra-test`, `ultra-review`,
   `ultra-deliver`, `ultra-status`, and `ultra-doctor`;
 - four internal worker-rule Skills;
-- bounded review/debug workers;
+- bounded evidence-only review/debug workers;
 - deterministic workflow Hooks;
 - exactly seven public MCP tools;
 - `.ultra` project authority, team sync, recovery, and the portable installer.
@@ -51,6 +51,12 @@ Retired operation names are not callable. Semantic incompleteness is returned as
 diagnostics and leaves the draft editable. Hard errors are limited to corruption,
 unsafe paths, digest/CAS/lease conflicts, missing runtime prerequisites, permissions,
 and irreversible external effects.
+
+A rejected semantic attempt is appended as `ultra_kernel_attempt` audit history and
+appears alongside the next `ultra.context` envelope without changing its semantic
+digest. It never creates the rejected semantic row or claims that authority was
+committed. `_ultra.projection_commit` reports only the post-call generated-view cycle;
+it is not a semantic acceptance receipt.
 
 ## Context Envelope
 
@@ -121,9 +127,10 @@ The packet binds:
 - exact output path;
 - `packet_digest`.
 
-Workers may inspect and write only the declared output. They do not write SQLite,
-accept checkpoints, modify another worker's result, or decide final delivery. Output
-must echo `packet_digest`; the primary host verifies and records it.
+Workers may inspect the assigned checkout and write only the declared evidence output.
+They do not edit source, write SQLite, accept checkpoints, modify another worker's
+result, or decide final delivery. Output must echo `packet_digest`; the primary host
+verifies it, performs any source repair, and records the resulting evidence.
 
 ## Hook boundary
 
@@ -163,3 +170,8 @@ state.
 
 Every semantic file must have one writer, owner, consumer, digest, promotion gate, and
 archive rule as defined in `ARTIFACT-AUTHORITY.md`.
+
+The production Change API has one Kernel behavior and exposes no legacy/current mode
+switch. Pre-v0.24 workflow and dialogue rows remain read-only migration/audit history:
+the public kernel cannot create workflow-owned artifacts or mutate those rows during
+current invalidation.

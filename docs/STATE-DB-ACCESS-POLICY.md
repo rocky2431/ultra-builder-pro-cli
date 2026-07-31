@@ -40,6 +40,8 @@ It does not grant lifecycle authority: external writers use the published observ
 allowlist, while lifecycle event
 names are emitted only inside the mutation that owns the corresponding state change.
 Consumers must verify mutable rows rather than infer success from an event name.
+Rejected semantic calls are recorded as `ultra_kernel_attempt` observations and shown
+by `ultra.context`; they do not create the rejected row or authorize a transition.
 
 ## 2. Connection discipline
 
@@ -80,7 +82,7 @@ resolve the mount/runtime constraint before retrying.
 | `decision_records` | MCP server through `ultra.record`; normalized accepted intent and applied references are stored, never UI receipts, prompts, or transcripts |
 | `stage_checkpoints` | MCP server through `ultra.checkpoint`; mutable drafts and immutable accepted/superseded revisions, never fixed reasoning steps |
 | `context_envelopes`, `worker_packets` | MCP server through `ultra.context`, `ultra.checkpoint`, and `ultra.session`; exact digest-bound handoff authority |
-| `decision_threads`, `decision_items`, `workflow_runs`, `workflow_steps` | legacy history retained for migration and audit; no current public writer or authorization role |
+| `decision_threads`, `decision_items`, `workflow_runs`, `workflow_steps` | read-only legacy history retained for migration and audit; no current public writer, invalidation mutation, or authorization role |
 | `artifacts`, `artifact_edges` | MCP server through `ultra.record` and checkpoint-owned registration |
 | `context_snapshots`, `spec_learning_candidates`, `trace_links` | MCP server through `ultra.record` and `ultra.checkpoint` |
 | `incidents`, `projection_jobs`, `event_consumers`, `circuit_breaker` | MCP server; backup-first doctor recovery may perform only documented mechanical transitions |
@@ -124,6 +126,11 @@ performs semantic import, publication, or conflict selection.
   than the orchestrator's boot-time WAL detector.
 - **No raw SQL in command md files.** Commands call MCP tools or
   `ultra-tools …` subcommands; the SQL lives in `mcp-server/lib`.
+- **No legacy authority mode switch.** Public Change callers use the single Kernel
+  facade. New workflow-owned artifacts and workflow/dialogue writes are rejected.
+- **No semantic meaning in projection metadata.** `_ultra.projection_commit` means
+  only that the generated-view job was durably enqueued and processed; acceptance is
+  read from the typed tool result and current authority.
 - **No `vacuum` / `wal_checkpoint(TRUNCATE)` from inside a transaction.**
   Maintenance subcommands open their own connection.
 

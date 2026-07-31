@@ -77,25 +77,8 @@ function requireInside(rootDir, relative, prefix, field) {
   return resolved;
 }
 
-function latestWorkflowConsumer(db, changeId) {
-  const row = db.prepare(
-    `SELECT id FROM workflow_runs
-     WHERE change_id = ?
-     ORDER BY CASE
-       WHEN status IN ('active', 'blocked', 'ready') THEN 0
-       WHEN status = 'completed' THEN 1
-       ELSE 2 END,
-       CASE kind WHEN 'deliver' THEN 0 WHEN 'plan' THEN 1 WHEN 'research' THEN 2 ELSE 3 END,
-       updated_at DESC, rowid DESC
-     LIMIT 1`,
-  ).get(changeId);
-  if (!row) {
-    throw new ChangePacketError(
-      'ARTIFACT_CONSUMER_MISSING',
-      `change ${changeId} has no workflow consumer`,
-    );
-  }
-  return { type: 'workflow', id: row.id, relation: 'consumed_by' };
+function deliveryConsumer() {
+  return { type: 'external', id: 'ultra-deliver', relation: 'consumed_by' };
 }
 
 function readCurrentArtifact(db, changeId, kind) {
@@ -116,17 +99,6 @@ function exactBaselineAnchor(db, change, input) {
     throw new ChangePacketError(
       'BASELINE_NOT_READY',
       'typed Change delta requires one approved ready baseline',
-    );
-  }
-  const changeRun = db.prepare(
-    `SELECT baseline_id FROM workflow_runs
-     WHERE kind = 'change' AND change_id = ?
-     ORDER BY started_at DESC, rowid DESC LIMIT 1`,
-  ).get(change.id);
-  if (!changeRun || changeRun.baseline_id !== baseline.id) {
-    throw new ChangePacketError(
-      'CHANGE_BASELINE_AUTHORITY_MISMATCH',
-      `change ${change.id} is not bound to baseline ${baseline.id}`,
     );
   }
   const anchor = input.baseline_anchor;
@@ -371,7 +343,7 @@ function recordDelta(db, change, input, { rootDir = process.cwd() } = {}) {
   let rollbackProgress = null;
   try {
     const result = ops.tx(db, () => {
-      const consumer = latestWorkflowConsumer(db, change.id);
+      const consumer = deliveryConsumer();
       const payloads = delta.mutations.map((mutation) => (
         artifacts.recordArtifactInTx(db, {
           id: `change-${change.id}-delta-${mutation.id}`,
@@ -578,7 +550,7 @@ function recordDocumentationReconciliation(
   let rollbackProgress = null;
   try {
     return ops.tx(db, () => {
-      const fallbackConsumer = latestWorkflowConsumer(db, change.id);
+      const fallbackConsumer = deliveryConsumer();
       const payloads = normalized.reconciliation.documents.map((document, index) => (
         artifacts.recordArtifactInTx(db, {
           id: `change-${change.id}-documentation-${index + 1}`,

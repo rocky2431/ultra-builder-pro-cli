@@ -192,6 +192,144 @@ test('the public façade does not import the retired workflow authorization engi
   );
 });
 
+test('the production Change API exposes only kernel behavior', () => {
+  const source = fs.readFileSync(
+    path.join(ROOT, 'mcp-server', 'lib', 'change-workflow.cjs'),
+    'utf8',
+  );
+  const packetSource = fs.readFileSync(
+    path.join(ROOT, 'mcp-server', 'lib', 'change-packet.cjs'),
+    'utf8',
+  );
+  assert.doesNotMatch(source, /\bkernelMode\b/);
+  assert.doesNotMatch(source, /\blegacyMode\b/);
+  assert.doesNotMatch(source, /loadLegacyModule|legacyWorkflows|legacyDecisions|legacyContextSpine/);
+  assert.doesNotMatch(source, /compileContext|convergeChange|WORKFLOW_DEFINITIONS/);
+  assert.doesNotMatch(packetSource, /workflow_runs|workflow_steps|decision_threads/);
+  assert.ok(fs.existsSync(
+    path.join(ROOT, 'mcp-server', 'lib', 'legacy-change-workflow.cjs'),
+  ));
+});
+
+test('semantic rejection is durably audited without claiming a semantic state commit', async () => {
+  const fx = fixture();
+  try {
+    let result;
+    let priorContext;
+    let context;
+    await withClient(fx, async (client) => {
+      priorContext = await client.callTool({
+        name: 'ultra.context',
+        arguments: { detail: 'full' },
+      });
+      result = await client.callTool({
+        name: 'ultra.record',
+        arguments: { entries: [{
+          kind: 'task_contract',
+          action: 'define',
+          data: {
+            id: 'rejected-task',
+            title: 'Rejected task',
+            type: 'feature',
+            priority: 'P1',
+            change_id: 'missing-change',
+          },
+          idempotency_key: 'rejected-task:define',
+        }] },
+      });
+      context = await client.callTool({
+        name: 'ultra.context',
+        arguments: { detail: 'full' },
+      });
+    });
+
+    assert.equal(result.isError, undefined);
+    assert.equal(result.structuredContent.accepted, false);
+    assert.equal(result._meta.ultra.projection_commit, 'committed');
+    assert.equal(Object.hasOwn(result._meta.ultra, 'state_commit'), false);
+
+    const { db } = initStateDb(fx.dbPath);
+    const attempt = db.prepare(
+      `SELECT payload_json FROM events
+       WHERE type = 'ultra_kernel_attempt'
+       ORDER BY id DESC LIMIT 1`,
+    ).get();
+    assert.ok(attempt, 'the rejected semantic attempt must remain inspectable');
+    const payload = JSON.parse(attempt.payload_json);
+    assert.equal(payload.accepted, false);
+    assert.equal(payload.tool, 'ultra.record');
+    assert.deepEqual(payload.idempotency_keys, ['rejected-task:define']);
+    assert.deepEqual(payload.diagnostics.map((item) => item.code), ['CHANGE_NOT_FOUND']);
+    assert.equal(db.prepare("SELECT COUNT(*) AS count FROM tasks WHERE id = 'rejected-task'").get().count, 0);
+    assert.equal(
+      context.structuredContent.audit.rejected_attempts[0].diagnostics[0].code,
+      'CHANGE_NOT_FOUND',
+    );
+    assert.equal(
+      context.structuredContent.digest,
+      priorContext.structuredContent.digest,
+      'audit history must not churn the semantic Context Envelope digest',
+    );
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('the public kernel cannot create new authority owned by retired workflows', async () => {
+  const fx = fixture();
+  try {
+    const artifactPath = path.join(
+      fx.rootDir,
+      '.ultra',
+      'changes',
+      'active',
+      'legacy-owner',
+      'plan.md',
+    );
+    fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
+    fs.writeFileSync(artifactPath, '# Plan\n');
+
+    let result;
+    await withClient(fx, async (client) => {
+      result = await client.callTool({
+        name: 'ultra.record',
+        arguments: { entries: [{
+          kind: 'artifact',
+          action: 'bind',
+          data: {
+            id: 'legacy-workflow-artifact',
+            owner_type: 'workflow',
+            owner_id: 'retired-run',
+            kind: 'execution_plan_markdown',
+            path: '.ultra/changes/active/legacy-owner/plan.md',
+            provenance: { writer: 'test' },
+            source_refs: [],
+            consumer_refs: [],
+          },
+          idempotency_key: 'legacy-workflow-artifact:bind',
+        }] },
+      });
+    });
+
+    assert.equal(result.structuredContent.accepted, false);
+    assert.deepEqual(
+      result.structuredContent.results[0].diagnostics.map((item) => item.code),
+      ['LEGACY_AUTHORITY_READ_ONLY'],
+    );
+    const { db } = initStateDb(fx.dbPath);
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM artifacts WHERE id = 'legacy-workflow-artifact'",
+      ).get().count,
+      0,
+    );
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
 test('semantic checkpoint diagnostics remain advisory and do not reject caller acceptance', async () => {
   const fx = fixture();
   try {
