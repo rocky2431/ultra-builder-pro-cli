@@ -82,9 +82,7 @@ const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
 // to plain files must leave this list in the same change.
 const MCP_DEPENDENT_SKILLS = Object.freeze([
   'ultra-research',
-  'ultra-change',
   'ultra-plan',
-  'ultra-dev',
   'ultra-test',
   'ultra-review',
   'ultra-deliver',

@@ -25,7 +25,7 @@ const PACKAGED_SKILLS = new Set(SUPPORTED_RUNTIMES.flatMap((runtime) => skillsFo
 // Public capabilities already converted to the file-first contract. Empty means
 // nothing is converted; equal to CORE_PUBLIC_SKILLS means the MCP kernel has no
 // remaining prompt-side consumer.
-const FILE_FIRST_SKILLS = ['ultra-init'];
+const FILE_FIRST_SKILLS = ['ultra-init', 'ultra-change', 'ultra-dev'];
 const NEUTRAL_SKILLS = new Set([
   ...CORE_PUBLIC_SKILLS,
   ...INTERNAL_AGENT_SKILLS,
@@ -226,6 +226,32 @@ test('model-invoked skills are reusable file-first discipline inside the residen
   }
 });
 
+test('reconciliation and per-task evidence are checkable rather than assertions of intent', () => {
+  const change = sourceSkill('ultra-change').text;
+  // §6b.3: an unbounded whole-repository diff is unusable, so the scope is
+  // derived by four commands anyone can rerun.
+  assert.match(change, /git log/, 'ultra-change must bound reconciliation with git history');
+  assert.match(change, /git diff/, 'ultra-change must bound reconciliation with a real diff');
+  assert.match(change, /trace_to/, 'ultra-change must reach code through the specification trace');
+  for (const bucket of [/spec.*no.*code|specification.*not.*implement/i, /code.*no.*spec|implement.*not.*specif/i, /conflict/i]) {
+    assert.match(change, bucket, `ultra-change must report the ${bucket.source} bucket`);
+  }
+
+  const dev = sourceSkill('ultra-dev').text;
+  // PHILOSOPHY C4, second defence layer: the six evidence dimensions are a
+  // fixed contract — renaming one breaks every reader.
+  for (const dimension of [
+    'tests_written', 'tests_passed', 'persistence_real',
+    'feature_flags_audit', 'vertical_slice', 'spec_trace',
+  ]) {
+    assert.match(dev, new RegExp(`\\b${dimension}\\b`), `ultra-dev must carry the ${dimension} dimension`);
+  }
+  for (const delegate of [/\.\.\/ultra-tdd\/SKILL\.md/, /\.\.\/ultra-think\/references\/autonomy-boundary\.md/]) {
+    assert.match(dev, delegate, `ultra-dev must delegate to ${delegate.source}`);
+  }
+  assert.match(dev, /\bultra-review\b/, 'ultra-dev must hand the task-level review to ultra-review');
+});
+
 test('resident prompt budget holds for user-invoked capabilities and the router', () => {
   for (const name of CORE_PUBLIC_SKILLS) {
     const { file, text } = sourceSkill(name);
@@ -338,7 +364,7 @@ test('human-agent alignment uses one canonical owner interaction boundary', () =
   assert.match(protocol, /Never persist raw transcripts, hidden reasoning, full prompts/i);
   assert.doesNotMatch(protocol, /\bdecision\.(?:thread_start|open|resolve|complete)\b/);
 
-  for (const name of ['ultra-research', 'ultra-think', 'ultra-change', 'ultra-plan']) {
+  for (const name of ['ultra-research', 'ultra-think', 'ultra-plan']) {
     const { text } = sourceSkill(name);
     assert.match(
       text,
@@ -349,13 +375,14 @@ test('human-agent alignment uses one canonical owner interaction boundary', () =
   // A file-first skill reaches the owner through ultra-grilling instead: the
   // interaction boundary above is written against the MCP kernel, and one
   // interrogation protocol in one place is the reason ultra-grilling exists.
-  assert.match(
-    sourceSkill('ultra-init').text,
-    /\.\.\/ultra-grilling\/SKILL\.md/,
-    'ultra-init must delegate owner interrogation to ultra-grilling',
-  );
+  for (const name of ['ultra-init', 'ultra-change']) {
+    assert.match(
+      sourceSkill(name).text,
+      /\.\.\/ultra-grilling\/SKILL\.md/,
+      `${name} must delegate owner interrogation to ultra-grilling`,
+    );
+  }
   assert.match(sourceSkill('ultra-research').text, /not a questionnaire/i);
-  assert.match(sourceSkill('ultra-change').text, /Ask only when\s+a choice changes accepted product intent/i);
   assert.match(sourceSkill('ultra-think').text, /Reuse a clear decision/i);
   assert.match(sourceSkill('ultra-plan').text, /EXPAND[\s\S]*SELECTIVE[\s\S]*HOLD[\s\S]*REDUCE/i);
   assert.match(sourceSkill('ultra-plan').text, /host-native UI/i);

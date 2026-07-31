@@ -1,54 +1,91 @@
 ---
 name: ultra-change
-description: Capture or revise one bounded feature, fix, redesign, or incident contract against a ready Ultra baseline. Use when post-baseline work needs accepted intent before research, planning, or implementation.
+description: Open one bounded unit of work by first reconciling what the specifications promise against what the code actually does, then writing the intent that closes the gap. Use when nothing is in flight and something new is being asked for — a feature, a fix, a redesign, or an incident response.
 ---
 
-# Capture accepted Change intent
+# Reconcile first, then write down what this Change commits to
 
-A Change is the durable unit connecting research, plan, implementation, verification,
-review, documentation, and delivery. Its draft stays editable until a semantic
-checkpoint accepts the downstream authority.
+A Change is the durable unit connecting research, plan, implementation,
+verification, review and delivery. Reconciliation comes first because writing new
+intent on top of specifications that already disagree with the code buries the
+disagreement instead of resolving it.
 
-## Inspect and align
+## Before you start
 
-1. Call `ultra.context { stage: project, detail: full }`.
-2. Inspect or import the team checkpoint with `ultra.sync`. Stop only on a real
-   baseline, Change, task, ancestry, or active-session conflict.
-3. Reuse an existing matching Change. Do not duplicate authority.
-4. Convert the request into observable outcome, executable acceptance, non-goals,
-   public seams, recovery, verification, documentation impact, risk, and research
-   disposition.
-5. Recommend `quick`, `standard`, `major`, or `incident` from evidence, or record a
-   clearer bounded repository-specific kind when those profiles lose meaning. These
-   are model-owned labels, not SQLite enums. Ask only when
-   a choice changes accepted product intent, compatibility, security, material cost,
-   external effects, or recovery.
+1. Read `.ultra/tasks.json`, and the `context_file` of any task not yet finished.
+2. Read `CONTEXT.md` for vocabulary and `.ultra/decisions/` for entries in scope.
+3. Read `.ultra/north-star.md` — a Change that does not serve it is worth
+   questioning out loud before it is written down.
 
-Read `../ultra-think/references/interaction-boundary.md` before asking. MCP may report
-contradictory risk fields, but the model and owner choose the semantic correction.
+## Whether this skill applies at all
 
-## Record the contract
+| Situation | Where it goes |
+|---|---|
+| No pending or in-progress task, and something new is asked for | Here |
+| A task is in progress and the specification turns out not to match reality | Not here — the dual-write path inside `ultra-dev` |
+| The change makes no sentence in the specifications false | Neither — just make the change |
 
-Use one `ultra.record` batch with `change_contract / open` or
-`change_contract / revise`, relevant `decision / accept`, and `artifact / bind` for
-an already-known typed delta. Every entry carries a stable idempotency key. Read the
-result through `ultra.context`.
+That third row is the checkable answer to "how small is too small to deserve a
+Change file": if nothing the specifications say becomes untrue, there is nothing
+to reconcile and nothing to record.
 
-Keep every Change-owned semantic artifact below
-`.ultra/changes/active/<change-id>/`. Standard and major Changes require a typed delta
-before planning. A true no-semantic-change case records an explicit reason instead of
-manufacturing a mutation.
+## Definition of done
 
-Changing accepted intent creates a new accepted checkpoint revision and makes only
-genuinely dependent evidence stale. Readiness is derived, not a stored absorbing
-state. Semantic diagnostics remain advisory; structural, digest, path, or concurrency
-conflicts require repair and retry of the same draft.
-Use `change_contract / cancel` only when the owner intentionally abandons the Change.
-An archived or cancelled Change remains immutable history. When new evidence requires
-continued work, use `change_contract / supersede` to create one linked active successor;
-never patch SQLite, reopen the historical row, or duplicate the relationship manually.
+- `.ultra/changes/active/<id>/intent.md` states the observable outcome, the
+  executable acceptance, the non-goals, and the public seams touched.
+- Each of the three reconciliation buckets is either empty or dispositioned, with
+  the owner's answer recorded for every bucket that was not empty.
+- The draft stays editable until then; the owner's acceptance is what turns it
+  into authority.
 
-Publish the durable Change contract with `ultra.sync { action: publish }` when it is a
-useful team handoff. Recommend bounded `ultra-research` for a real evidence gap or
-`ultra-plan` when the contract is sufficiently evidenced. Do not invoke the next
-capability automatically.
+## Reconcile against a bounded scope
+
+A whole-repository diff is unusable, so derive the scope with four steps anyone
+can rerun:
+
+1. Decide which specification sections this request touches.
+2. For each section, collect the past tasks whose `trace_to` points at it, and
+   from those the set of code files they changed.
+3. `git log -- .ultra/specs/<file>` gives the commit where that specification
+   last changed.
+4. `git diff <that commit>..HEAD -- <those code files>` is the reconciliation
+   scope.
+
+Sort what you find into three buckets, each with your recommended disposition:
+
+| Bucket | Meaning |
+|---|---|
+| Specification says it, code does not implement it | Promised and missing |
+| Code implements it, no specification says so | Built and unpromised |
+| Both speak and they conflict | Contradictory |
+
+Take the buckets to the owner. This is confirmed rather than assumed, because a
+disposition can quietly be a REDUCTION.
+
+## Write the intent
+
+Follow `../ultra-grilling/SKILL.md` to settle the boundary — one question at a
+time, each with your recommendation. New domain terms go through
+`../ultra-domain-modeling/SKILL.md`.
+
+When the work is too large *and* the path itself is unclear, follow
+`../ultra-think/SKILL.md` for a decision ticket instead of forcing a task
+breakdown. What comes out is a question whose answer is a decision, not an
+implementation slice.
+
+Output is `.ultra/changes/active/<id>/intent.md`, the specification patches
+reconciliation justified, possibly a `.ultra/decisions/<id>.md`, and any
+vocabulary update. Recommend `ultra-research` for a real evidence gap or
+`ultra-plan` once the contract is evidenced enough; do not invoke either.
+
+## When the owner decides
+
+Every non-empty bucket, the Change boundary, and anything reconciliation turns up
+that shrinks a prior commitment. A change that makes no specification sentence
+false needs no permission at all.
+
+## References
+
+- `../ultra-grilling/SKILL.md` — the loop for settling the boundary.
+- `../ultra-think/references/autonomy-boundary.md` — read before dispositioning a
+  bucket in a way that removes something already promised.

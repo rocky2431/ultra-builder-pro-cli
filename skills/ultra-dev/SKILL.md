@@ -1,66 +1,90 @@
 ---
 name: ultra-dev
-description: Implement one authoritative Ultra task through a fresh-context, test-driven, review-backed live path. Use when a planned task is executable, interrupted, or ready for focused recovery.
+description: Carry one planned task from a written implementation plan through red-green development to recorded evidence and a task-level review. Use when a task in the ledger is ready to execute, was interrupted partway, or has to be picked up in a fresh session or on another host.
 ---
 
-# Implement one task
+# Take one task from plan to recorded evidence
 
-The model owns code reasoning and edits. Ultra owns the durable task contract,
-canonical Context Envelope, execution lease, immutable Worker Packet, evidence
-references, and checkpoint.
+The model owns the code reasoning and the edits. The repository owns the task
+contract, the evidence, and everything needed to resume.
 
-## Bind execution
+## Before you start
 
-1. Call `ultra.context { stage: dev, scope: { change_id, task_id }, detail: full }`.
-2. Import a newer team checkpoint with `ultra.sync`; stop on a real same-record or
-   active-session conflict.
-3. Reuse a valid lease or call `ultra.session { action: acquire }`. Acquire atomically
-   performs admission, compiles or reuses the implementation Context Envelope, mints
-   the lease/worktree, and returns the immutable Worker Packet. A separate
-   `action: admission` is an optional read-only preview, not a prerequisite.
-4. Verify the returned packet digest, purpose, acceptance, dependencies, public seam,
-   exact output path/schema, verification command,
-   non-goals, recovery, and required context refs. Update the task contract before
-   implementation when accepted intent changed.
+1. Read `.ultra/tasks.json` and pick the task; read its `context_file` end to
+   end, above all the closing `## Resume Note` — that line says where to pick up.
+2. Read `CONTEXT.md` for vocabulary, and the `.ultra/decisions/` entries the task
+   context names.
+3. Read `.ultra/north-star.md` and the task's acceptance criteria. If you cannot
+   state that acceptance in one sentence, you are not ready to start.
 
-## Implement adaptively
+## Definition of done
 
-Reproduce the failure, write a failing test, or establish a characterization signal
-before changing logic. Implement the smallest complete vertical slice. Ask the owner
-only when new evidence changes product intent, compatibility, security, material cost,
-external effects, or recovery.
+- All six evidence dimensions are answered for this task, each against the
+  checkable rule below rather than an impression.
+- `tasks.json` and the context file's header state the same status, each written
+  and then read back — a one-sided write breaks resume on another host.
+- The context file carries a Completion entry and a rewritten Resume Note.
+- A task-level review has run and its blocking findings are resolved.
 
-Use typed `ultra.record` entries for `task_outcome / start|block|complete|attest_commit`,
-`event / append`, `artifact / bind`, `decision / accept`, and corrected
-`task_contract / revise`. Every worker output must repeat the exact `packet_digest`;
-the parent registers it only after packet, output path, schema, and digest validation.
-Live ownership, `in_progress`, session ids, leases, worktrees, telemetry, and
-completion hashes remain local runtime state; durable task outcome and evidence may
-enter the team checkpoint.
+## Write the implementation plan before the code
 
-Run focused and adjacent risk-justified checks, then a task-scoped independent review.
-Fix blocking findings and refresh affected evidence.
+Fill in the task context's Implementation section as prose a person can read:
+which modules change, how the interfaces move, which seam the tests will use.
+Confirm that, then write code. Deciding the design while typing implementation
+buries the design decisions in the details.
 
-## Commit one semantic checkpoint
+## Develop through red then green
 
-Call `ultra.checkpoint` once with `stage: dev`, the exact Change/Task scope, evidence,
-and stable idempotency key. It binds the exact Context Envelope and Worker Packet and
-reports outcome diagnostics. The model decides whether the implemented slice satisfies
-the Task; semantic warnings remain visible. A rejection means the declared authority,
-path, digest, or concurrency boundary was unsafe and leaves the draft mutable.
+Follow `../ultra-tdd/SKILL.md`, writing tests only on the seams the plan already
+confirmed, one slice at a time. Do no refactoring here — `ultra-review` owns it,
+because what is worth restructuring only becomes visible after several slices.
 
-After acceptance:
+## Answer the six evidence dimensions
 
-1. Record `task_outcome / complete { id, packet_digest }`; never include a patch or SHA.
-2. Publish the durable completed status with `ultra.sync`.
-3. Create at most one authorized local task commit containing code, semantic
-   artifacts, and the team checkpoint.
-4. Record `task_outcome / attest_commit { id, completion_commit }` with that integrated
-   commit's full SHA. This is local mechanical proof and must not create another commit.
+Each has a rule you can check against the work rather than assert:
 
-Release the lease through `ultra.session`. Preserve a dirty or unintegrated worktree
-on interruption. Commit, push, tag, publish, deploy, or destructive cleanup require
-separate owner authority.
+| Dimension | Answered when |
+|---|---|
+| `tests_written` | This diff changes a test file |
+| `tests_passed` | The last test run exited zero and covered the files this diff touched |
+| `persistence_real` | On any path that stores data, the test uses real storage or a container |
+| `feature_flags_audit` | No flag this task added defaults to off |
+| `vertical_slice` | One test's execution path runs from the entry point through to persistence |
+| `spec_trace` | The anchor the task's `trace_to` names exists in the specification |
 
-Return changed paths, public seam, exact checks, review result, checkpoint, commit,
-session state, and residual risk. Do not invoke the next capability automatically.
+Record them under the task's evidence directory. They are a sensor, not a gate: a
+gap is reported and handed over, never used to block the work — a gate that can be
+escaped by damaging the work gets escaped by damaging the work.
+
+## When implementation and the specification disagree
+
+This is the one backward edge in the whole workflow. Classify before touching the
+specification, and classify by outcome rather than reason: does every commitment
+the specification already made still hold afterwards? If even one no longer holds
+it is a REDUCTION — stop and ask the owner, however good the argument. Log the
+classification in the context file's Change Log.
+
+## Close out
+
+Write the status to both places and read both back. Add the Completion entry and
+rewrite the Resume Note to say where the next session picks up. Then run the
+task-level review through `ultra-review`, resolve blocking findings, and refresh
+the evidence they touched.
+
+Report the changed paths, the seam, the exact checks run, the review result, the
+evidence gaps and the residual risk. Recommend the next capability from what the
+files now say; do not invoke it.
+
+## When the owner decides
+
+Any REDUCTION, and each external effect separately.
+At most one authorized local task commit happens here; push, tag, publish and
+deploy each need their own authorization. An interrupted task leaves its worktree
+as it stands and says so in the Resume Note instead of tidying it away.
+
+## References
+
+- `../ultra-tdd/SKILL.md` — read before the first test, for the seam and the mock
+  boundary.
+- `../ultra-think/references/autonomy-boundary.md` — read the moment the
+  specification and the implementation disagree.
