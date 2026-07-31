@@ -10,6 +10,7 @@ const { parse: parseFrontmatter } = require('../adapters/_shared/frontmatter.cjs
 const {
   CORE_PUBLIC_SKILLS,
   INTERNAL_AGENT_SKILLS,
+  MCP_DEPENDENT_SKILLS,
   MODEL_INVOKED_SKILLS,
   SUPPORTED_RUNTIMES,
   skillsForRuntime,
@@ -21,6 +22,10 @@ const AGENTS_ROOT = path.join(ROOT, 'agents');
 const TEMPLATE_ROOTS = [path.join(ROOT, '.ultra-template'), path.join(ROOT, 'templates', '.ultra')];
 const COLLAB_SKILLS = new Set(['cc-collab', 'codex-collab', 'ultra-verify']);
 const PACKAGED_SKILLS = new Set(SUPPORTED_RUNTIMES.flatMap((runtime) => skillsForRuntime(runtime)));
+// Public capabilities already converted to the file-first contract. Empty means
+// nothing is converted; equal to CORE_PUBLIC_SKILLS means the MCP kernel has no
+// remaining prompt-side consumer.
+const FILE_FIRST_SKILLS = ['ultra-init'];
 const NEUTRAL_SKILLS = new Set([
   ...CORE_PUBLIC_SKILLS,
   ...INTERNAL_AGENT_SKILLS,
@@ -221,6 +226,18 @@ test('model-invoked skills are reusable file-first discipline inside the residen
   }
 });
 
+test('resident prompt budget holds for user-invoked capabilities and the router', () => {
+  for (const name of CORE_PUBLIC_SKILLS) {
+    const { file, text } = sourceSkill(name);
+    const budget = name === 'ultra-status' ? 80 : 100;
+    const lines = text.split('\n').length;
+    assert.ok(
+      lines <= budget,
+      `${path.relative(ROOT, file)} has ${lines} lines; its resident budget is ${budget}`,
+    );
+  }
+});
+
 test('every enabling template a skill points at exists and can be copied as-is', () => {
   // PHILOSOPHY C2: a prohibition without a runnable alternative gets renamed
   // around. The recorded failure is an advisory pointing at a missing path,
@@ -321,7 +338,7 @@ test('human-agent alignment uses one canonical owner interaction boundary', () =
   assert.match(protocol, /Never persist raw transcripts, hidden reasoning, full prompts/i);
   assert.doesNotMatch(protocol, /\bdecision\.(?:thread_start|open|resolve|complete)\b/);
 
-  for (const name of ['ultra-init', 'ultra-research', 'ultra-think', 'ultra-change', 'ultra-plan']) {
+  for (const name of ['ultra-research', 'ultra-think', 'ultra-change', 'ultra-plan']) {
     const { text } = sourceSkill(name);
     assert.match(
       text,
@@ -329,6 +346,14 @@ test('human-agent alignment uses one canonical owner interaction boundary', () =
       `${name} must use the canonical owner interaction boundary`,
     );
   }
+  // A file-first skill reaches the owner through ultra-grilling instead: the
+  // interaction boundary above is written against the MCP kernel, and one
+  // interrogation protocol in one place is the reason ultra-grilling exists.
+  assert.match(
+    sourceSkill('ultra-init').text,
+    /\.\.\/ultra-grilling\/SKILL\.md/,
+    'ultra-init must delegate owner interrogation to ultra-grilling',
+  );
   assert.match(sourceSkill('ultra-research').text, /not a questionnaire/i);
   assert.match(sourceSkill('ultra-change').text, /Ask only when\s+a choice changes accepted product intent/i);
   assert.match(sourceSkill('ultra-think').text, /Reuse a clear decision/i);
@@ -337,14 +362,24 @@ test('human-agent alignment uses one canonical owner interaction boundary', () =
 });
 
 test('public workflow skills use the narrow MCP kernel and return semantic control to the host model', () => {
+  const KERNEL_CALL = /ultra\.(?:context|record|checkpoint|sync|session|archive|doctor)/;
   const graphSkills = [...CORE_PUBLIC_SKILLS];
   for (const name of graphSkills) {
     const { text } = sourceSkill(name);
-    assert.match(
-      text,
-      /ultra\.(?:context|record|checkpoint|sync|session|archive|doctor)/,
-      `${name} does not use the public MCP kernel`,
-    );
+    // FILE_FIRST_SKILLS records which public capabilities have been converted
+    // to plain files. A converted skill must have dropped its MCP declaration
+    // (the Codex adapter emits that as a tool dependency, so a leftover call
+    // would make the declaration a lie) and must open by reading the three
+    // files that replace hook injection.
+    if (FILE_FIRST_SKILLS.includes(name)) {
+      assert.ok(!MCP_DEPENDENT_SKILLS.includes(name), `${name} is file-first but still declares the kernel`);
+      assert.doesNotMatch(text, KERNEL_CALL, `${name} calls the MCP kernel it no longer declares`);
+      for (const anchor of [/`\.ultra\/tasks\.json`/, /context_file/, /`CONTEXT\.md`/]) {
+        assert.match(text, anchor, `${name} is file-first and must read ${anchor.source} to start`);
+      }
+    } else {
+      assert.match(text, KERNEL_CALL, `${name} does not use the public MCP kernel`);
+    }
     assert.match(
       text,
       /do not invoke|never invoke|not invoke/i,

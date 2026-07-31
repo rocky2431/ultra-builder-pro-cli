@@ -77,8 +77,10 @@ const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
   grok: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
 });
 
+// Skills that still reach durable state through the MCP kernel. The Codex
+// adapter turns this into a declared mcp tool dependency, so a skill converted
+// to plain files must leave this list in the same change.
 const MCP_DEPENDENT_SKILLS = Object.freeze([
-  'ultra-init',
   'ultra-research',
   'ultra-change',
   'ultra-plan',

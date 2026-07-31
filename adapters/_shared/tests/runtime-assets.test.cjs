@@ -151,6 +151,10 @@ test('host invocation and MCP metadata live outside source SKILL frontmatter', (
   }
   assert.throws(() => skillPolicy('not-packaged'), /unknown packaged Ultra skill/);
   assert.ok(MCP_DEPENDENT_SKILLS.includes('ultra-research'));
+  assert.ok(
+    !MCP_DEPENDENT_SKILLS.includes('ultra-init'),
+    'ultra-init reaches project authority through files and must not declare the kernel',
+  );
 });
 
 test('packaged collaboration prompts use current CLI contracts and one source prompt', () => {

@@ -360,7 +360,10 @@ test('Kimi assets are allowlisted, explicit-only, and adapted to native tools an
     assert.match(review, /spec_fidelity/);
     assert.match(review, /engineering_standards/);
     assert.doesNotMatch(review, /background mode|run_in_background/);
-    assert.match(init, /ultra\.record/);
+    // ultra-init is file-first: it reaches project authority through .ultra/
+    // files, so the adapted prompt must carry no kernel call at all.
+    assert.doesNotMatch(init, /ultra\.(?:context|record|checkpoint|sync|session|archive|doctor)/);
+    assert.match(init, /`\.ultra\/tasks\.json`/);
     assert.doesNotMatch(init, /Claude Code|OpenCode|Codex/);
     assert.match(fs.readFileSync(path.join(pluginRoot, 'skills', 'codex-collab', 'SKILL.md'), 'utf8'), /--ephemeral/);
     for (const name of skillsForRuntime('kimi')) {
