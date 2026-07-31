@@ -230,7 +230,7 @@ test('install builds one Codex-native plugin with complete skill and command cov
 
     const expectedSkills = skillsForRuntime('codex').sort();
     assert.deepEqual(skillNames(layout.pluginRoot), expectedSkills);
-    assert.equal(expectedSkills.length, 18);
+    assert.equal(expectedSkills.length, 19);
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'codex-collab')));
     assert.ok(!fs.existsSync(path.join(layout.pluginRoot, 'skills', 'learned')));
 

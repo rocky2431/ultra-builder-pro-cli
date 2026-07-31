@@ -58,6 +58,7 @@ const INTERNAL = [
 
 const MODEL_INVOKED = [
   'ultra-grilling',
+  'ultra-domain-modeling',
 ];
 
 test('runtime asset manifest exposes only Ultra-owned core and internal skills', () => {

@@ -64,7 +64,7 @@ test('codex conformance — complete skill and native agent packaging', () => {
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(layout.pluginRoot, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    assert.equal(skills.length, 18);
+    assert.equal(skills.length, 19);
     assert.ok(skills.includes('cc-collab'));
     assert.ok(!skills.includes('codex-collab'));
     assert.ok(!skills.includes('learned'));

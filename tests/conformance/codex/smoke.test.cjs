@@ -73,7 +73,7 @@ test('codex smoke — plugin install + MCP round-trip + scoped uninstall', async
   try {
     fs.rmSync(initTarget, { recursive: true, force: true });
     const report = install(layout);
-    assert.equal(report.plugin.skills.length, 18);
+    assert.equal(report.plugin.skills.length, 19);
     assert.equal(report.agents.installed.length, 10);
     assert.ok(report.agents.installed.includes('review-spec.toml'));
 

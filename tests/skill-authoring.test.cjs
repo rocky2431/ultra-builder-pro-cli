@@ -221,6 +221,23 @@ test('model-invoked skills are reusable file-first discipline inside the residen
   }
 });
 
+test('the ubiquitous-language file format has exactly one authority', () => {
+  const { text } = sourceSkill('ultra-domain-modeling');
+  for (const marker of [/^## Language$/m, /_Avoid_/, /^## Relationships$/m, /^## Flagged ambiguities$/m]) {
+    assert.match(text, marker, `ultra-domain-modeling must define the ${marker.source} section`);
+  }
+  for (const root of TEMPLATE_ROOTS) {
+    assert.ok(
+      !fs.existsSync(path.join(root, 'CONTEXT.md')),
+      `${path.relative(ROOT, root)}/CONTEXT.md would place the vocabulary file inside .ultra/`,
+    );
+    assert.ok(
+      !fs.existsSync(path.join(root, 'templates', 'CONTEXT.md')),
+      'a second CONTEXT.md format would compete with ultra-domain-modeling',
+    );
+  }
+});
+
 test('human-agent alignment uses one canonical owner interaction boundary', () => {
   const reference = path.join(
     SKILLS_ROOT,
