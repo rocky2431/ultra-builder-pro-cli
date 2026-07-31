@@ -43,8 +43,8 @@ hook 里也无它），Contract Table 里那两行指向的是尚未恢复的 ho
 
 ### 已完成
 
-全部设计定稿（§1–§7、§9a）＋ 切片 0 落盘并验证（§9b）＋ **切片 1 的三个 model-invoked
-skill**（步骤 1、2、4；每个都跑过完整 `npm run test:rest`）：
+全部设计定稿（§1–§7、§9a）＋ 切片 0 落盘并验证（§9b）＋ **切片 1 的步骤 1–6**
+（每个 commit 都跑过完整 `npm run test:rest`）：
 
 | commit | 内容 |
 |---|---|
@@ -52,6 +52,24 @@ skill**（步骤 1、2、4；每个都跑过完整 `npm run test:rest`）：
 | `1d6efef` | `ultra-grilling` ＋ 新增 `MODEL_INVOKED_SKILLS` 类别（第三类：模型可达、owner 不可路由、无 MCP、无 command 投影） |
 | `ae8c3b2` | `ultra-domain-modeling`；`CONTEXT.md` 格式内联于此，不建第九个固定文件 |
 | `8139641` | `ultra-tdd`；C2「每条禁令附可运行替代」由测试机械校验 |
+| `bbc41d4` | 本文进度记录与资产位置决定的提出 |
+| `d6ec70e` | Owner 定 B：规则侧资产改由 skill `references/` 随包分发；步骤 6 由此消解（不需要占位符、host-profile 表、adapter 改造） |
+| `846e07e` | `ultra-init` 改为 file-first；`MCP_DEPENDENT_SKILLS` 成为迁移进度的机械权威 |
+| `4531397` | `ultra-change`（对账优先）＋ `ultra-dev`（六维证据可核对）改为 file-first |
+
+**结构约束已成立**（§9 验收 1b/1c）：每个 model-invoked skill 都有真实调用方——grilling ←
+init/change，domain-modeling ← init/change，tdd ← dev，autonomy-boundary ← 五者；无任何
+user-invoked skill 调用另一个 user-invoked skill；纪律内容各只一份。
+
+**安装产物实证**（真实执行 `node bin/install.js --claude --global --config-dir <sandbox>`）：
+
+- 22 条跨 skill 引用（`../<skill>/SKILL.md`、`../ultra-think/references/*`、
+  `references/templates/*`）在安装产物里全部可解析，0 条悬空
+- 三个 model-invoked 的 frontmatter 是 `user-invocable: false` 且无
+  `disable-model-invocation`（模型可达、owner 不可路由）；`ultra-init` 是
+  `user-invocable: true` ＋ `disable-model-invocation: true`
+- 三个 file-first skill 的安装产物中 `grep` 不到任何 `ultra.*` kernel 调用
+- 六个可运行模板逐字保真（`diff` 一致）
 
 三条与计划的偏离，均已在对应 commit body 说明理由：
 
@@ -66,16 +84,23 @@ skill**（步骤 1、2、4；每个都跑过完整 `npm run test:rest`）：
    `subagentHow`；`register` 收敛属于第 7 步 adapter 重写。现在建表等于五个字段的装饰。
    本步只加资产解析所需的最小机制，表推迟到 adapter 重写时。
 
-### 下一步
+### 下一步：步骤 7 的后半（唯一剩下的切片 1 工作）
 
-Owner 定完上面那一个决定后：步骤 6（资产解析机制）→ 3（`ultra-init`）→ 5（`ultra-change` +
-`ultra-dev`）→ 7（本仓跑通真实小改动 + 跨宿主续接验证）。
+**未做**：用 `.ultra/` 文件在本仓驱动一个完整 task，并验证 claude 起、codex 续仅凭文件成立。
+两个前置障碍：
 
-步骤 3、5 会撞上 `tests/skill-authoring.test.cjs` 的
-`public workflow skills use the narrow MCP kernel`——它要求每个 `CORE_PUBLIC_SKILLS` 含
-`ultra.*` 调用。改写为纯文件时该断言必须迁移为「已改写的 skill 不含 MCP 调用且执行开始前三步」
-的形式（只增强不弱化），并把 `ultra-review` / `ultra-think` 从 `CORE_PUBLIC_SKILLS` 重分类进
-`MODEL_INVOKED_SKILLS`（§6b.0 定为 5 个 model-invoked，现只落了 3 个）。
+1. 本仓已有 v0.25.1 的 `.ultra/`（含 `state.db`），需先决定是在它旁边跑还是另建测试仓。
+   建议另建一个空仓跑 `ultra-init` → `ultra-change` → `ultra-dev` 的最短链条，避免把
+   v0.25.1 的运行时状态混进验证结论。
+2. **codex adapter 不遵守 `--config-dir`**（本轮实测发现）。用
+   `--config-dir <sandbox>` 装 codex 时，plugin root 仍落到真实 `$HOME/plugins/ultra-builder-pro`，
+   marketplace 仍写 `$HOME/.agents/plugins/marketplace.json`——只有 agents TOML 进了沙箱
+   （见 `install-manifest.json` 的 `plugin.root` 与 `marketplace.file` 字段）。本轮由此在真实
+   HOME 下产生了写入，已用 `--codex --uninstall --global` 清除并手工删掉两个空壳残留
+   （`$HOME/plugins/`、空的 `marketplace.json`），已核对回到原状。跨宿主验证之前必须先修这个
+   隔离缺陷，否则任何 codex 侧实验都会污染 owner 的真实环境。
+
+之后是切片 2（§8 第 2 条）：三层防御。
 
 ### 旧「已完成」记录
 
@@ -1324,13 +1349,21 @@ Out of Scope ↔ §5、Stakeholders ↔ §2，违反本文 §4.0 原则 1（一�
 
 ## 10. 刻意未做（保持更新）
 
-- **切片 1 的步骤 3、5、6、7 未做**，阻塞于 §0 那个决定。
-- `ultra-review` / `ultra-think` 仍在 `CORE_PUBLIC_SKILLS`，未重分类为 model-invoked。
-- 三个新 skill 尚无调用方：`ultra-grilling` 等 init/change，`ultra-domain-modeling` 等
-  init/research/change/dev，`ultra-tdd` 等 dev/change。它们已安装到五宿主但还没有人调用。
+- **切片 1 步骤 7 的后半未做**（见 §0「下一步」），且它被 codex `--config-dir` 隔离缺陷阻塞。
+- **codex adapter 忽略 `--config-dir`**（plugin root 与 marketplace 都落真实 HOME）。这是
+  既有缺陷，本轮发现并记录，未修——它让「沙箱安装」这个操作不可信。
+- `ultra-think` 调用 MCP kernel 却不在 `MCP_DEPENDENT_SKILLS` 中，于是 Codex 安装它时不声明
+  MCP 依赖。既有不一致，本轮由新断言暴露，未修（修它会改变 codex 安装产物）。
+- `ultra-review` / `ultra-think` 仍在 `CORE_PUBLIC_SKILLS`，未重分类为 model-invoked
+  （§6b.0 定为 5 个 model-invoked，现落了 3 个）。它们的重分类连带 `commands/` 少两个文件，
+  属独立一步。
+- 剩下五个 CORE skill（`research` / `plan` / `test` / `deliver` / `status` / `doctor`）仍是
+  MCP 版，仍在 `MCP_DEPENDENT_SKILLS`。`FILE_FIRST_SKILLS` 等于 `CORE_PUBLIC_SKILLS` 之时，
+  kernel 就没有提示词侧消费者了。
 - `adapters/_shared/path-rewrite.cjs` 的 `RUNTIME_SKILL_ROOT` 缺 grok 一行（既有缺口，未动）。
-- 除切片 0 与上述 skill 新增外，尚未修改任何生产源码；`adapters/*.js` 全部未改
-  （新 skill 的宿主适配完全走既有 `policy.userInvocable` 路径）。
+- `adapters/*.js` 五个生产 adapter 全部未改：新 skill 与 file-first 改写完全走既有
+  `policy.userInvocable` 与 `copyTree` 路径。唯一改动的生产文件是
+  `adapters/_shared/runtime-assets.cjs`（三处 allowlist）。
 - **文件布局迁移未做**：`.ultra-template/tasks/tasks.json` → `tasks.json`、
   `reports/templates/test-report.json` → `test-report.json`、删除 `delivery-report.json`
   与被取代的 `templates/task-context.md`。现在移动会先于新代码破坏既有 init 路径，
