@@ -12,8 +12,8 @@ const { parse: parseFm } = require('../_shared/frontmatter.cjs');
 const { PUBLIC_TOOLS } = require('../../mcp-server/lib/ultra-facade.cjs');
 const {
   CORE_PUBLIC_SKILLS,
-  INTERNAL_AGENT_SKILLS,
   WORKFLOW_HOOK_FILES,
+  skillPolicy,
   skillsForRuntime,
 } = require('../_shared/runtime-assets.cjs');
 
@@ -368,7 +368,7 @@ test('Kimi assets are allowlisted, explicit-only, and adapted to native tools an
       const { fm } = parseFm(contents);
       assert.equal(
         fm.disableModelInvocation,
-        INTERNAL_AGENT_SKILLS.includes(name) ? undefined : true,
+        skillPolicy(name).userInvocable ? true : undefined,
         `${name} invocation ownership`,
       );
     }

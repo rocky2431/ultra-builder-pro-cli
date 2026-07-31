@@ -10,7 +10,7 @@ const { spawnSync } = require('node:child_process');
 const claude = require('../claude.js');
 const { parse: parseFrontmatter } = require('../_shared/frontmatter.cjs');
 const {
-  INTERNAL_AGENT_SKILLS,
+  skillPolicy,
   skillsForRuntime,
   WORKFLOW_HOOK_FILES,
 } = require('../_shared/runtime-assets.cjs');
@@ -169,10 +169,11 @@ test('Claude plugin collaboration workflows are safe native plugin assets', () =
     for (const name of skillsForRuntime('claude')) {
       const contents = read(name);
       const { fm } = parseFrontmatter(contents);
-      assert.equal(fm['user-invocable'], !INTERNAL_AGENT_SKILLS.includes(name), name);
+      const { userInvocable } = skillPolicy(name);
+      assert.equal(fm['user-invocable'], userInvocable, name);
       assert.equal(
         fm['disable-model-invocation'],
-        INTERNAL_AGENT_SKILLS.includes(name) ? undefined : true,
+        userInvocable ? true : undefined,
         `${name} invocation ownership`,
       );
       assert.doesNotMatch(contents, /\bgraphify\b/i, `${name} contains an external Skill binding`);

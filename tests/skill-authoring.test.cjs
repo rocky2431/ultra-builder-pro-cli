@@ -10,6 +10,7 @@ const { parse: parseFrontmatter } = require('../adapters/_shared/frontmatter.cjs
 const {
   CORE_PUBLIC_SKILLS,
   INTERNAL_AGENT_SKILLS,
+  MODEL_INVOKED_SKILLS,
   SUPPORTED_RUNTIMES,
   skillsForRuntime,
 } = require('../adapters/_shared/runtime-assets.cjs');
@@ -20,7 +21,11 @@ const AGENTS_ROOT = path.join(ROOT, 'agents');
 const TEMPLATE_ROOTS = [path.join(ROOT, '.ultra-template'), path.join(ROOT, 'templates', '.ultra')];
 const COLLAB_SKILLS = new Set(['cc-collab', 'codex-collab', 'ultra-verify']);
 const PACKAGED_SKILLS = new Set(SUPPORTED_RUNTIMES.flatMap((runtime) => skillsForRuntime(runtime)));
-const NEUTRAL_SKILLS = new Set([...CORE_PUBLIC_SKILLS, ...INTERNAL_AGENT_SKILLS]);
+const NEUTRAL_SKILLS = new Set([
+  ...CORE_PUBLIC_SKILLS,
+  ...INTERNAL_AGENT_SKILLS,
+  ...MODEL_INVOKED_SKILLS,
+]);
 
 function walk(root, predicate = () => true) {
   const files = [];
@@ -185,6 +190,35 @@ test('research preserves the complete semantic workflow through focused referenc
   assert.doesNotMatch(skillText, /disposition for every catalog area/i);
   const skillLines = skillText.split('\n').length;
   assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
+});
+
+test('model-invoked skills are reusable file-first discipline inside the resident budget', () => {
+  const skeleton = [
+    /^## Before you start$/m,
+    /^## Definition of done$/m,
+    /^## When the owner decides$/m,
+    /^## References$/m,
+  ];
+  for (const name of MODEL_INVOKED_SKILLS) {
+    const { file, text } = sourceSkill(name);
+    const rel = path.relative(ROOT, file);
+    const { fm } = parseFrontmatter(text);
+    assert.match(
+      fm.description,
+      /another skill|a skill needs/i,
+      `${rel} description must name the calling skill, not a launcher`,
+    );
+    assert.doesNotMatch(
+      text,
+      /ultra\.(?:context|record|checkpoint|sync|session|archive|doctor)/,
+      `${rel} must reach state through repository files, not the MCP kernel`,
+    );
+    for (const heading of skeleton) {
+      assert.match(text, heading, `${rel} is missing the ${heading.source} section`);
+    }
+    const lines = text.split('\n').length;
+    assert.ok(lines <= 80, `${rel} has ${lines} lines; the model-invoked budget is 80`);
+  }
 });
 
 test('human-agent alignment uses one canonical owner interaction boundary', () => {

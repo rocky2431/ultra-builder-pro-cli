@@ -56,6 +56,15 @@ const INTERNAL_AGENT_SKILLS = Object.freeze([
   'testing-rules',
 ]);
 
+/**
+ * Reusable discipline reached by another Skill rather than by an owner launcher.
+ * These carry no MCP dependency and no command projection: the calling Skill is
+ * their only entry point, which is what keeps one discipline in one place.
+ */
+const MODEL_INVOKED_SKILLS = Object.freeze([
+  'ultra-grilling',
+]);
+
 const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok']);
 
 const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
@@ -103,7 +112,7 @@ const RUNTIME_SUPPORT_FILES = Object.freeze([
 function skillsForRuntime(runtime) {
   const collab = COLLAB_SKILLS_BY_RUNTIME[runtime];
   if (!collab) throw new Error(`unsupported Ultra runtime: ${runtime}`);
-  return [...CORE_PUBLIC_SKILLS, ...INTERNAL_AGENT_SKILLS, ...collab];
+  return [...CORE_PUBLIC_SKILLS, ...INTERNAL_AGENT_SKILLS, ...MODEL_INVOKED_SKILLS, ...collab];
 }
 
 function isSupportedRuntime(runtime) {
@@ -114,7 +123,7 @@ function skillPolicy(name) {
   const packaged = SUPPORTED_RUNTIMES.some((runtime) => skillsForRuntime(runtime).includes(name));
   if (!packaged) throw new Error(`unknown packaged Ultra skill: ${name}`);
   return {
-    userInvocable: !INTERNAL_AGENT_SKILLS.includes(name),
+    userInvocable: !INTERNAL_AGENT_SKILLS.includes(name) && !MODEL_INVOKED_SKILLS.includes(name),
     allowImplicitInvocation: false,
     requiresUltraMcp: MCP_DEPENDENT_SKILLS.includes(name),
   };
@@ -124,6 +133,7 @@ module.exports = {
   CORE_PUBLIC_SKILLS,
   PUBLIC_CAPABILITY_GRAPH,
   INTERNAL_AGENT_SKILLS,
+  MODEL_INVOKED_SKILLS,
   SUPPORTED_RUNTIMES,
   COLLAB_SKILLS_BY_RUNTIME,
   MCP_DEPENDENT_SKILLS,

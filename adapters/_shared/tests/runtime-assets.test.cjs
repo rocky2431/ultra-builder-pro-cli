@@ -56,6 +56,10 @@ const INTERNAL = [
   'testing-rules',
 ];
 
+const MODEL_INVOKED = [
+  'ultra-grilling',
+];
+
 test('runtime asset manifest exposes only Ultra-owned core and internal skills', () => {
   assert.deepEqual(CORE_PUBLIC_SKILLS, CORE);
   assert.deepEqual(INTERNAL_AGENT_SKILLS, INTERNAL);
@@ -94,8 +98,25 @@ test('runtime asset manifest exposes only Ultra-owned core and internal skills',
     assert.ok(names.every((name) => (
       CORE.includes(name)
       || INTERNAL.includes(name)
+      || MODEL_INVOKED.includes(name)
       || COLLAB_SKILLS_BY_RUNTIME[runtime].includes(name)
     )));
+  }
+});
+
+test('model-invoked skills ship on every host, stay file-first, and are never user-routed', () => {
+  assert.deepEqual(runtimeAssets.MODEL_INVOKED_SKILLS, MODEL_INVOKED);
+  for (const name of MODEL_INVOKED) {
+    assert.ok(!CORE_PUBLIC_SKILLS.includes(name), `${name} must not be a public capability`);
+    assert.ok(!INTERNAL_AGENT_SKILLS.includes(name), `${name} is reusable discipline, not a worker prompt`);
+    assert.ok(!MCP_DEPENDENT_SKILLS.includes(name), `${name} must not require the MCP kernel`);
+    const policy = skillPolicy(name);
+    assert.equal(policy.userInvocable, false, `${name} is reached by another skill, not by a launcher`);
+    assert.equal(policy.requiresUltraMcp, false, name);
+    assert.equal(policy.allowImplicitInvocation, false, name);
+    for (const runtime of SUPPORTED_RUNTIMES) {
+      assert.ok(skillsForRuntime(runtime).includes(name), `${name} is missing from ${runtime}`);
+    }
   }
 });
 
@@ -119,7 +140,11 @@ test('host invocation and MCP metadata live outside source SKILL frontmatter', (
   for (const name of all) {
     const policy = skillPolicy(name);
     assert.equal(policy.allowImplicitInvocation, false, name);
-    assert.equal(policy.userInvocable, !INTERNAL_AGENT_SKILLS.includes(name), name);
+    assert.equal(
+      policy.userInvocable,
+      !INTERNAL_AGENT_SKILLS.includes(name) && !MODEL_INVOKED.includes(name),
+      name,
+    );
     assert.equal(policy.requiresUltraMcp, MCP_DEPENDENT_SKILLS.includes(name), name);
   }
   assert.throws(() => skillPolicy('not-packaged'), /unknown packaged Ultra skill/);
@@ -215,6 +240,7 @@ test('npm publish list uses the same explicit skill boundary', () => {
   const expected = [...new Set([
     ...CORE_PUBLIC_SKILLS,
     ...INTERNAL_AGENT_SKILLS,
+    ...MODEL_INVOKED,
     ...Object.values(COLLAB_SKILLS_BY_RUNTIME).flat(),
   ])].sort();
 
