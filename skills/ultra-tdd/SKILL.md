@@ -58,12 +58,11 @@ collaborators stay real.
 
 Design for that boundary: inject dependencies, and give each external operation
 its own named function rather than one generic fetcher — mocking then needs no
-conditional logic, and which endpoints a test touches is visible.
-
-When a real dependency is the right answer, copy
-`.ultra/templates/testcontainer-postgres.ts` or
-`.ultra/templates/testcontainer-postgres.py`, and
-`.ultra/templates/vertical-slice.ts` for a path that runs end to end.
+conditional logic, and which endpoints a test touches stays visible. When a real
+dependency is the right answer, copy
+`references/templates/testcontainer-postgres.ts` or
+`references/templates/testcontainer-postgres.py`, and
+`references/templates/vertical-slice.ts` for a path that runs end to end.
 
 ## When the owner decides
 
@@ -74,5 +73,7 @@ goes to the owner as one.
 
 ## References
 
-- `.ultra/PHILOSOPHY.md` — read before replacing a real dependency with a fake,
-  or when a test stands between the work and green output.
+- `../ultra-think/references/autonomy-boundary.md` — read before replacing a real
+  dependency with a fake, or when a test stands between the work and green.
+- `references/templates/README.md` — read when choosing which enabling template
+  fits the dependency you need to make real.

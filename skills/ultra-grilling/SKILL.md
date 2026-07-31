@@ -75,5 +75,5 @@ decision file.
 
 ## References
 
-- `.ultra/PHILOSOPHY.md` — read when an answer crosses the C5 autonomy boundary,
-  above all when it removes something the specification already promised.
+- `../ultra-think/references/autonomy-boundary.md` — read when an answer removes
+  something the specification already promised, or otherwise crosses C5.

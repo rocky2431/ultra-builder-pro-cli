@@ -75,5 +75,5 @@ the first record that qualifies.
 
 ## References
 
-- `.ultra/PHILOSOPHY.md` — read when renaming a term already used in an accepted
-  specification; renaming what the specification promised is a C5 boundary.
+- `../ultra-think/references/autonomy-boundary.md` — read when renaming a term an
+  accepted specification already uses; that renaming is a C5 boundary.

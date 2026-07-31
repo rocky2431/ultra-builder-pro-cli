@@ -224,23 +224,67 @@ test('model-invoked skills are reusable file-first discipline inside the residen
 test('every enabling template a skill points at exists and can be copied as-is', () => {
   // PHILOSOPHY C2: a prohibition without a runnable alternative gets renamed
   // around. The recorded failure is an advisory pointing at a missing path,
-  // after which the agent ignores the advisory entirely.
+  // after which the agent ignores the advisory entirely. Templates travel as
+  // skill references, so they reach every host through the same copy that
+  // already carries the prompt.
   const referenced = new Set();
   for (const name of [...PACKAGED_SKILLS].sort()) {
-    for (const file of walk(path.join(SKILLS_ROOT, name), (f) => f.endsWith('.md'))) {
+    const skillRoot = path.join(SKILLS_ROOT, name);
+    for (const file of walk(skillRoot, (f) => f.endsWith('.md'))) {
       const text = fs.readFileSync(file, 'utf8');
-      for (const [, asset] of text.matchAll(/\.ultra\/templates\/([A-Za-z0-9][A-Za-z0-9._-]*)/g)) {
-        referenced.add(asset);
-        for (const root of TEMPLATE_ROOTS) {
-          assert.ok(
-            fs.existsSync(path.join(root, 'templates', asset)),
-            `${path.relative(ROOT, file)} points at .ultra/templates/${asset}, absent from ${path.relative(ROOT, root)}`,
-          );
-        }
+      for (const [, ref] of text.matchAll(/`((?:\.\.\/[a-z][a-z0-9-]*\/)?references\/templates\/[A-Za-z0-9][A-Za-z0-9._-]*)`/g)) {
+        referenced.add(ref);
+        assert.ok(
+          fs.existsSync(path.resolve(skillRoot, ref)),
+          `${path.relative(ROOT, file)} points at ${ref}, which does not resolve`,
+        );
       }
     }
   }
   assert.ok(referenced.size > 0, 'no skill offers a runnable alternative; C2 is unenforced');
+});
+
+test('rule-side assets travel with the plugin and never enter the project data template', () => {
+  // The owner's decision: .ultra/ holds project data only. A constitution and
+  // runnable reference code are rules — one copy, shipped with the package,
+  // rather than one drifting copy per project.
+  const RULE_SIDE = [
+    'PHILOSOPHY.md',
+    'templates/README.md',
+    'templates/testcontainer-postgres.ts',
+    'templates/testcontainer-postgres.py',
+    'templates/vertical-slice.ts',
+    'templates/persistence-real.ts',
+    'templates/feature-flag-default-audit.sh',
+  ];
+  for (const root of TEMPLATE_ROOTS) {
+    const rel = path.relative(ROOT, root);
+    for (const asset of RULE_SIDE) {
+      assert.ok(
+        !fs.existsSync(path.join(root, asset)),
+        `${rel}/${asset} duplicates a rule-side asset as project data`,
+      );
+    }
+    assert.ok(fs.existsSync(path.join(root, 'north-star.md')), `${rel}/north-star.md is project data and must stay`);
+  }
+
+  const philosophy = fs.readFileSync(path.join(ROOT, 'docs', 'PHILOSOPHY.md'), 'utf8');
+  assert.match(philosophy, /^## 4 Core Goals$/m);
+  assert.match(philosophy, /^## 5 Commandments$/m);
+
+  const boundary = path.join(SKILLS_ROOT, 'ultra-think', 'references', 'autonomy-boundary.md');
+  assert.ok(fs.existsSync(boundary), 'the C5 verdict rule needs one canonical location skills can reach');
+  const text = fs.readFileSync(boundary, 'utf8');
+  assert.match(text, /EXPANSION[\s\S]*CORRECTION[\s\S]*REDUCTION/);
+  assert.match(text, /follows from the outcome, never from the reason/i);
+
+  for (const name of MODEL_INVOKED_SKILLS) {
+    assert.match(
+      sourceSkill(name).text,
+      /\.\.\/ultra-think\/references\/autonomy-boundary\.md/,
+      `${name} must cite the shared C5 rule rather than a path outside the package`,
+    );
+  }
 });
 
 test('the ubiquitous-language file format has exactly one authority', () => {

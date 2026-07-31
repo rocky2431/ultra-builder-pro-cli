@@ -10,27 +10,36 @@
 
 ## 0. 下一个 session 从这里开始
 
-### 待 Owner 定的一个决定：规则侧资产住哪
+### 规则侧资产住哪：Owner 已定 B（2026-08-01）
 
-阻塞切片 1 步骤 6/3。**`PHILOSOPHY.md` 与 `templates/×6` 是否要复制进每个项目的 `.ultra/`？**
+**`.ultra/` 只装项目数据；`PHILOSOPHY.md` 与 `templates/×6` 是规则，随包走、被引用。**
 
-已认可的 §4 契约说要（切片 0 按此落盘，PHILOSOPHY Contract Table 也写了
-`post_edit_guard` advisory 指向 `.ultra/templates/testcontainer-*`）。实施时暴露的事实：
+导致这个决定的事实：五个 adapter **都不分发 `.ultra-template/`**——它今天只随 npm 包走，由
+`mcp-server` 从自己的包目录读（`init-project.cjs:31`）。纯文件 init 没有 MCP，拿不到模板源。
+而本文 §9b 自己写过「Goal 1 是规则，跟着 Ultra 走；north-star.md 是数据，跟着仓库走」，按这条
+判据宪法与可运行参考代码都在规则侧，复制进项目等于同一份宪法在 N 个项目里 N 份各自漂移。
 
-- 五个 adapter **都不分发 `.ultra-template/`**。它今天只随 npm 包走，由 `mcp-server` 从自己的
-  包目录读（`init-project.cjs:31`）。纯文件 init 没有 MCP，拿不到模板源。
-- 本文 §9b 自己写过「Goal 1 是规则，跟着 Ultra 走；north-star.md 是数据，跟着仓库走」。
-  按这条判据，`PHILOSOPHY.md`（宪法）与 `templates/×6`（可运行参考代码）都在规则侧，
-  复制进项目会让同一份宪法在 N 个项目里存在 N 份可各自漂移的副本。
+**落地不需要任何新机制。** skill 自己的 `references/` 就是「随插件走」的载体：五个 adapter 的
+`copyTree` 已经完整分发它（`ultra-research/references/` 17 个文件就这么走的，非 `.md` 原样透传
+已验证），且跨 skill 相对引用 `../<skill>/references/<file>` 是既有且被测试锁定的模式
+（`ultra-init` 引用 `../ultra-think/references/interaction-boundary.md`）。因此原计划的
+`{{ULTRA_ROOT}}` 占位符、host-profile 单表、adapter 分发改造**全部不需要**——步骤 6 由此消解。
 
-| 选项 | 做法 | 代价 |
+新位置：
+
+| 资产 | 位置 | 理由 |
 |---|---|---|
-| A 维持已认可契约 | 五个 adapter 各加一次 `.ultra-template/` 树分发＋卸载清理＋doctor 校验；skill 用 `{{ULTRA_ROOT}}` 引用它并复制进项目 | 跨五宿主的安装产物范围扩大（触及 `docs/PLUGIN-ISOLATION-CONTRACT.md`）；宪法多副本漂移 |
-| **B 收敛（推荐）** | `.ultra/` 只装项目数据；`PHILOSOPHY.md` 与 `templates/` 留在插件安装目录被引用 | 改 §4 文件契约、PHILOSOPHY Contract Table 两行、C2 断言里的引用路径；安装产物形状不变 |
-| C 经 CLI 取路径 | `ubp` 吐出资产路径，init 调它复制 | init 依赖 `ubp` 二进制；仍是多副本 |
+| `templates/×6` | `skills/ultra-tdd/references/templates/` | tdd 是唯一消费者 |
+| C5 判据（EXPANSION/CORRECTION/REDUCTION 表） | `skills/ultra-think/references/autonomy-boundary.md` | 三个 model-invoked skill 跨引用；think 已是决策类 reference 的既有归属 |
+| `PHILOSOPHY.md` 全文 | `docs/PHILOSOPHY.md` | 它是 Ultra 自己的宪法，给 owner 与开发者读；skill 运行时只需要 C5 那一段 |
 
-推荐 B：机制最少，且消除多副本漂移。会改变它的因素——若 owner 要求「项目可以修改自己的
-PHILOSOPHY」，则 B 不成立，必须走 A。
+`.ultra-template/` 保留的都是数据侧：`north-star.md`、`contexts/TEMPLATE.md`、`specs/`、
+`tasks/`、`changes/`、`reports/`、`docs/research/`、`templates/task-context.md`
+（后者仍有活消费者 `artifact-registry.cjs:36`、`migrate.cjs:249`，属第 7 步）。
+
+移动前已核实零活消费者：`hooks/` 下**没有** `post_edit_guard.py`（`WORKFLOW_HOOK_FILES` 九个
+hook 里也无它），Contract Table 里那两行指向的是尚未恢复的 hook；`grep` 全仓无任何代码读
+`PHILOSOPHY` 或 `templates/testcontainer`。
 
 ### 已完成
 

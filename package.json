@@ -47,6 +47,7 @@
     "CHANGELOG.md",
     "settings.json",
     ".ultra-template",
+    "docs/PHILOSOPHY.md",
     "docs/ROADMAP.md",
     "docs/ARCHITECTURE.md",
     "docs/ARTIFACT-AUTHORITY.md",

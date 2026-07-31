@@ -55,8 +55,9 @@ always less than the cost of drift.
 Every prohibition ships with a runnable alternative. Prohibitions without an enabling path force
 agents to find loopholes (rename `mock` to `stub`, etc.). The cheaper path must be the right path.
 
-> **Test**: scan every prohibition in every Skill; each must reference a file under
-> `.ultra/templates/` that exists and can be copied as-is.
+> **Test**: scan every prohibition in every Skill; each must reference a template that exists
+> under that Skill's `references/templates/` and can be copied as-is. The templates are rules,
+> so they ship with the package rather than being copied into each project.
 
 ### C3 — Sensors not Blockers
 
@@ -156,7 +157,7 @@ Skill instruction. Do not touch it casually.
 | `session_context` | headings `## One-line`, `## Hard Constraints` | `.ultra-template/north-star.md` | SessionStart shows no goal; C1 dies |
 | `session_context` | active `in_progress` task → `.ultra/contexts/task-{id}.md` | `tasks.json[].id` + `contexts/task-{id}.md` naming | acceptance criteria never surfaced |
 | `mid_workflow_recall` | heading `## Acceptance Criteria` | `.ultra-template/contexts/TEMPLATE.md` | hook injects nothing; C1 dies silently |
-| `post_edit_guard` mock advisory | path `.ultra/templates/testcontainer-*` | `.ultra-template/templates/testcontainer-postgres.{ts,py}` | advisory points at a missing file → agent ignores it; C2 dies |
+| `post_edit_guard` mock advisory | path `references/templates/testcontainer-*` | `skills/ultra-tdd/references/templates/testcontainer-postgres.{ts,py}` | advisory points at a missing file → agent ignores it; C2 dies |
 | `post_edit_guard` | writes `.ultra/progress/task-{id}.json` | created on demand by the hook | progress never persists; C4 dies |
 | every Skill Step 4 | 6 keys: `tests_written`, `tests_passed`, `persistence_real`, `feature_flags_audit`, `vertical_slice`, `spec_trace` | `progress.json.evidence_score` | renaming one dimension breaks every reader |
 | `ultra-plan` gate | marker `[NEEDS CLARIFICATION]` | `.ultra-template/specs/*.md` | planning proceeds on incomplete specs |
