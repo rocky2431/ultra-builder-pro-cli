@@ -5,6 +5,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const {
   copyTree,
@@ -51,6 +52,77 @@ function resolvePluginRoot(ctx = {}) {
 
 function resolveRepoRoot(ctx = {}) {
   return ctx.repoRoot || path.resolve(__dirname, '..');
+}
+
+function shouldRunHostCli(ctx = {}) {
+  if (typeof ctx.runHostCli === 'boolean') return ctx.runHostCli;
+  return ctx.scope === 'global' && !ctx.configDir;
+}
+
+function runClaudeCli(args, ctx = {}) {
+  const result = spawnSync(ctx.claudeBin || 'claude', args, {
+    encoding: 'utf8',
+    timeout: ctx.hostCliTimeoutMs || 30000,
+    killSignal: 'SIGKILL',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      CLAUDE_CONFIG_DIR: resolveTarget(ctx),
+    },
+  });
+  if (result.error) {
+    if (result.error.code === 'ETIMEDOUT') {
+      const error = new Error(`claude ${args.join(' ')} timed out`);
+      error.code = 'HOST_CLI_TIMEOUT';
+      throw error;
+    }
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim();
+    throw new Error(`claude ${args.join(' ')} failed${detail ? `: ${detail}` : ''}`);
+  }
+  return result.stdout;
+}
+
+function claudeMcpRow(output, identity) {
+  for (const rawLine of output.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.slice(0, identity.length) !== identity) continue;
+    if (line[identity.length] !== ':') continue;
+    return line;
+  }
+  return '';
+}
+
+function inspectClaudeHost(ctx = {}) {
+  const target = resolvePluginRoot(ctx);
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(target, '.claude-plugin', 'plugin.json'), 'utf8'),
+  );
+  const plugins = JSON.parse(runClaudeCli(['plugin', 'list', '--json'], ctx));
+  if (!Array.isArray(plugins)) throw new Error('claude plugin list --json did not return an array');
+  const plugin = plugins.find((entry) => entry?.id === `${PLUGIN_NAME}@skills-dir`);
+  const pluginOk = !!plugin
+    && plugin.enabled === true
+    && plugin.version === manifest.version
+    && path.resolve(plugin.installPath || '') === path.resolve(target);
+  const mcpOutput = pluginOk
+    ? runClaudeCli(['mcp', 'list'], ctx).replace(/\u001b\[[0-9;]*m/g, '')
+    : '';
+  const mcpLine = claudeMcpRow(
+    mcpOutput,
+    `plugin:${PLUGIN_NAME}:${MCP_SERVER_NAME}`,
+  );
+  const mcpOk = pluginOk
+    && !!plugin.mcpServers?.[MCP_SERVER_NAME]
+    && /\bConnected\b/i.test(mcpLine);
+  let detailsOk = false;
+  if (pluginOk) {
+    runClaudeCli(['plugin', 'details', `${PLUGIN_NAME}@skills-dir`], ctx);
+    detailsOk = true;
+  }
+  return { plugin, pluginOk, mcpOk, mcpOutput, detailsOk };
 }
 
 function copySkills(repoRoot, target, names) {
@@ -245,6 +317,37 @@ function doctor(ctx = {}) {
     expectedAdapter: 'claude',
     expectedPackageVersion: source.packageInfo.version,
   });
+  if (shouldRunHostCli(ctx)) {
+    try {
+      const host = inspectClaudeHost(ctx);
+      report.checks.host_plugin = {
+        status: host.pluginOk && host.detailsOk ? 'pass' : 'fail',
+      };
+      report.checks.host_mcp = { status: host.mcpOk ? 'pass' : 'fail' };
+      if (!host.pluginOk || !host.detailsOk) {
+        report.issues.push({
+          code: 'HOST_PLUGIN_NOT_DISCOVERED',
+          plugin_id: `${PLUGIN_NAME}@skills-dir`,
+        });
+      }
+      if (!host.mcpOk) {
+        report.issues.push({
+          code: 'HOST_MCP_NOT_DISCOVERED',
+          plugin_id: `${PLUGIN_NAME}@skills-dir`,
+          server: MCP_SERVER_NAME,
+        });
+      }
+    } catch (error) {
+      report.checks.host_plugin = { status: 'fail' };
+      report.checks.host_mcp = { status: 'fail' };
+      report.issues.push({
+        code: error.code === 'HOST_CLI_TIMEOUT'
+          ? 'HOST_CLI_TIMEOUT'
+          : 'HOST_CLI_INSPECTION_FAILED',
+        message: error.message,
+      });
+    }
+  }
   return applyNativeDoctor(report, path.join(resolvePluginRoot(ctx), 'runtime'));
 }
 
@@ -265,6 +368,7 @@ module.exports = {
   SOURCE_TAG,
   MCP_SERVER_NAME,
   buildHooksManifest,
+  inspectClaudeHost,
   resolveTarget,
   resolvePluginRoot,
   install,

@@ -13,8 +13,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+const canonical = require('./canonical-json.cjs');
 const { openStateDb } = require('./state-db.cjs');
+const {
+  TASK_CONTRACT_DEFINE_FIELDS,
+  TASK_CONTRACT_PATCH_FIELDS,
+} = require('./task-contract.cjs');
 const { isSupportedRuntime } = require('../../adapters/_shared/runtime-assets.cjs');
+const closeJournal = require('../../orchestrator/session-close-journal.cjs');
 
 const STATUS_TRANSITIONS = Object.freeze({
   pending:     new Set(['in_progress', 'blocked', 'expanded']),
@@ -35,10 +41,8 @@ const TASK_FIELDS = Object.freeze([
 ]);
 
 const PATCHABLE_FIELDS = Object.freeze([
-  'priority', 'complexity', 'estimated_days', 'deps', 'files_modified',
-  'session_id', 'stale', 'tag', 'trace_to',
-  'outcome', 'slice_kind', 'public_seam', 'verification_command',
-  'acceptance', 'context_refs', 'docs_impact', 'ownership',
+  ...TASK_CONTRACT_PATCH_FIELDS,
+  'session_id', 'stale', 'tag',
   'context_file', 'completion_commit',
   'change_id',
 ]);
@@ -48,11 +52,7 @@ const STALE_RECONCILIATION_FIELDS = Object.freeze([
   'verification_command', 'acceptance', 'context_refs', 'docs_impact', 'ownership',
 ]);
 
-const TASK_CONTRACT_PATCH_FIELDS = new Set([
-  'priority', 'complexity', 'estimated_days', 'deps', 'files_modified', 'tag',
-  'trace_to', 'outcome', 'slice_kind', 'public_seam', 'verification_command',
-  'acceptance', 'context_refs', 'docs_impact', 'ownership',
-]);
+const TASK_CONTRACT_PATCH_FIELD_SET = new Set(TASK_CONTRACT_PATCH_FIELDS);
 
 const SESSION_PATCHABLE = Object.freeze([
   'pid', 'status', 'lease_expires_at', 'heartbeat_at', 'worktree_path', 'artifact_dir',
@@ -142,7 +142,7 @@ function rowToTask(row) {
     delete out[column];
   }
   if (out.stale !== undefined && out.stale !== null) {
-    out.stale = Boolean(out.stale);
+    if (out.stale === 0 || out.stale === 1) out.stale = Boolean(out.stale);
   }
   return out;
 }
@@ -197,11 +197,17 @@ function normalizeContextRefs(value) {
         `context_refs[${index}].freshness_policy must be digest, existence, or advisory`,
       );
     }
+    if (item.required !== undefined && typeof item.required !== 'boolean') {
+      throw new StateOpsError(
+        'VALIDATION_ERROR',
+        `context_refs[${index}].required must be a boolean`,
+      );
+    }
     const normalized = {
       ref,
       reason,
       kind,
-      required: item.required !== false,
+      required: item.required === undefined ? true : item.required,
       freshness_policy: freshnessPolicy,
     };
     if (expectedDigest !== null) normalized.expected_digest = String(expectedDigest);
@@ -254,7 +260,7 @@ function normalizeOwnership(value) {
 function taskContractBlockers(task) {
   const blockers = [];
   if (!String(task?.outcome || '').trim()) blockers.push('TASK_OUTCOME_MISSING');
-  if (!['tracer_bullet', 'expand_contract', 'integration_checkpoint'].includes(task?.slice_kind)) {
+  if (!String(task?.slice_kind || '').trim()) {
     blockers.push('TASK_SLICE_KIND_MISSING');
   }
   if (!String(task?.public_seam || '').trim()) blockers.push('TASK_PUBLIC_SEAM_MISSING');
@@ -548,8 +554,6 @@ function patchTask(db, id, patch = {}) {
     params.push(id);
     db.prepare(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`).run(...params);
     const updated = readTask(db, id);
-    if (clearingStale) assertTaskExecutionContract(updated);
-
     if (nextStatus && nextStatus !== current.status) {
       appendEventInTx(db, {
         type: current.status === 'completed' && nextStatus === 'in_progress'
@@ -566,7 +570,9 @@ function patchTask(db, id, patch = {}) {
         },
       });
     }
-    const contractFields = Object.keys(patch).filter((field) => TASK_CONTRACT_PATCH_FIELDS.has(field));
+    const contractFields = Object.keys(patch).filter(
+      (field) => TASK_CONTRACT_PATCH_FIELD_SET.has(field),
+    );
     if (contractFields.length > 0) {
       appendEventInTx(db, {
         type: clearingStale ? 'task_contract_reconciled' : 'task_contract_updated',
@@ -597,37 +603,214 @@ function updateTaskStatus(db, id, nextStatus) {
   return patchTask(db, id, { status: nextStatus });
 }
 
-function deleteTask(db, id, { force = false } = {}) {
+function deleteTask(db, id, { force = false, rootDir = null } = {}) {
   return tx(db, () => {
-    const t = readTask(db, id);
-    if (!t) throw new StateOpsError('TASK_NOT_FOUND', `no task ${id}`);
-    if (t.session_id && !force) {
-      throw new StateOpsError('SESSION_ACTIVE', `task ${id} has session ${t.session_id}; pass force=true to override`);
+    const task = readTask(db, id);
+    if (!task) throw new StateOpsError('TASK_NOT_FOUND', `no task ${id}`);
+    const lifecycleEvents = db.prepare(
+      'SELECT type FROM events WHERE task_id = ? ORDER BY id',
+    ).all(id).map((row) => row.type).filter((type) => (
+      [
+        'task_started',
+        'task_completed',
+        'task_blocked',
+        'task_reopened',
+        'task_stale_marked',
+        'task_expanded',
+      ].includes(type)
+      || type.startsWith('session_')
+      || type.startsWith('worker_packet_')
+      || type.startsWith('task_failure')
+      || type.startsWith('task_circuit')
+      || type.includes('checkpoint')
+      || type.startsWith('workflow_')
+    ));
+    const references = [
+      ['sessions', db.prepare(
+        'SELECT COUNT(*) AS count FROM sessions WHERE task_id = ?',
+      ).get(id).count],
+      ['children', db.prepare(
+        'SELECT COUNT(*) AS count FROM tasks WHERE parent_id = ?',
+      ).get(id).count],
+      ['dependencies', db.prepare(
+        `SELECT COUNT(*) AS count FROM tasks
+         WHERE deps IS NOT NULL AND json_valid(deps)
+           AND EXISTS (SELECT 1 FROM json_each(tasks.deps) WHERE value = ?)`,
+      ).get(id).count],
+      ['worker_packets', db.prepare(
+        `SELECT COUNT(*) AS count FROM worker_packets
+         WHERE scope_type = 'task' AND scope_id = ?`,
+      ).get(id).count],
+      ['artifacts', db.prepare(
+        `SELECT COUNT(*) AS count FROM artifacts
+         WHERE task_id = ? OR (owner_type = 'task' AND owner_id = ?)`,
+      ).get(id, id).count],
+      ['artifact_edges', db.prepare(
+        `SELECT COUNT(*) AS count FROM artifact_edges
+         WHERE (source_type = 'task' AND source_id = ?)
+            OR (target_type = 'task' AND target_id = ?)`,
+      ).get(id, id).count],
+      ['stage_checkpoints', db.prepare(
+        `SELECT COUNT(*) AS count FROM stage_checkpoints
+         WHERE scope_type = 'task' AND scope_id = ?`,
+      ).get(id).count],
+      ['context_envelopes', db.prepare(
+        `SELECT COUNT(*) AS count FROM context_envelopes
+         WHERE scope_type = 'task' AND scope_id = ?`,
+      ).get(id).count],
+      ['workflow_runs', db.prepare(
+        'SELECT COUNT(*) AS count FROM workflow_runs WHERE task_id = ?',
+      ).get(id).count],
+      ['context_snapshots', db.prepare(
+        'SELECT COUNT(*) AS count FROM context_snapshots WHERE task_id = ?',
+      ).get(id).count],
+      ['incidents', db.prepare(
+        'SELECT COUNT(*) AS count FROM incidents WHERE task_id = ?',
+      ).get(id).count],
+      ['spec_learning_candidates', db.prepare(
+        'SELECT COUNT(*) AS count FROM spec_learning_candidates WHERE task_id = ?',
+      ).get(id).count],
+      ['trace_links', db.prepare(
+        'SELECT COUNT(*) AS count FROM trace_links WHERE task_id = ?',
+      ).get(id).count],
+      ['circuit_breaker', db.prepare(
+        'SELECT COUNT(*) AS count FROM circuit_breaker WHERE task_id = ?',
+      ).get(id).count],
+      ['session_close_journal', rootDir && closeJournal.findForTask(rootDir, id) ? 1 : 0],
+    ].filter(([, count]) => count > 0)
+      .map(([kind, count]) => ({ kind, count }));
+    if (references.length > 0) {
+      throw new StateOpsError(
+        'TASK_DELETE_REFERENCED',
+        `task ${id} cannot be deleted because durable authority still references it`,
+        { details: { task_id: id, references } },
+      );
+    }
+    if (!force && (
+      task.status !== 'pending' || task.session_id || task.completion_commit
+      || lifecycleEvents.length > 0
+    )) {
+      throw new StateOpsError(
+        'TASK_DELETE_NOT_DRAFT',
+        `task ${id} is not an unowned pending draft`,
+        {
+          details: {
+            task_id: id,
+            status: task.status,
+            session_id: task.session_id,
+            completion_commit: task.completion_commit,
+            lifecycle_events: [...new Set(lifecycleEvents)],
+          },
+        },
+      );
     }
     db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
-    return { ok: true };
+    const contract = Object.fromEntries(
+      TASK_CONTRACT_DEFINE_FIELDS
+        .filter((field) => task[field] !== undefined && task[field] !== null)
+        .map((field) => [field, task[field]]),
+    );
+    const tombstone = appendEventInTx(db, {
+      type: 'task_deleted',
+      task_id: id,
+      change_id: task.change_id,
+      payload: {
+        id: task.id,
+        title: task.title,
+        type: task.type,
+        priority: task.priority,
+        reason: 'task_contract_remove',
+        contract_digest: canonical.digest(contract),
+      },
+    });
+    return { ok: true, tombstone };
   });
 }
 
 // ─── events ──────────────────────────────────────────────────────────────
 
-function appendEventInTx(db, event) {
-  if (!event || !event.type) {
-    throw new StateOpsError('VALIDATION_ERROR', 'event.type is required');
+const EVENT_FIELDS = new Set([
+  'type', 'task_id', 'change_id', 'session_id', 'runtime', 'payload',
+]);
+
+function eventText(value, field, { nullable = false } = {}) {
+  if (value === null && nullable) return null;
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new StateOpsError(
+      'VALIDATION_ERROR',
+      `${field} must be a non-empty string${nullable ? ' or null' : ''}`,
+    );
   }
-  if (event.runtime != null && !isSupportedRuntime(event.runtime)) {
-    throw new StateOpsError('VALIDATION_ERROR', `unsupported runtime: ${event.runtime}`);
+  return value.trim();
+}
+
+function assertJsonValue(value, field, seen = new Set()) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) return;
+    throw new StateOpsError('VALIDATION_ERROR', `${field} must contain valid JSON values`);
+  }
+  if (typeof value !== 'object') {
+    throw new StateOpsError('VALIDATION_ERROR', `${field} must contain valid JSON values`);
+  }
+  if (seen.has(value)) {
+    throw new StateOpsError('VALIDATION_ERROR', `${field} must not contain circular references`);
+  }
+  if (!Array.isArray(value)) {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new StateOpsError('VALIDATION_ERROR', `${field} must contain only JSON objects`);
+    }
+  }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertJsonValue(item, `${field}[${index}]`, seen));
+  } else {
+    Object.entries(value).forEach(([key, item]) => (
+      assertJsonValue(item, `${field}.${key}`, seen)
+    ));
+  }
+  seen.delete(value);
+}
+
+function appendEventInTx(db, event) {
+  if (!event || typeof event !== 'object' || Array.isArray(event)) {
+    throw new StateOpsError('VALIDATION_ERROR', 'event must be an object');
+  }
+  const unknown = Object.keys(event).filter((field) => !EVENT_FIELDS.has(field));
+  if (unknown.length > 0) {
+    throw new StateOpsError('VALIDATION_ERROR', `event.${unknown[0]} is not allowed`);
+  }
+  const type = eventText(event.type, 'event.type');
+  const taskId = event.task_id === undefined
+    ? null : eventText(event.task_id, 'event.task_id', { nullable: true });
+  const changeId = event.change_id === undefined
+    ? null : eventText(event.change_id, 'event.change_id', { nullable: true });
+  const sessionId = event.session_id === undefined
+    ? null : eventText(event.session_id, 'event.session_id', { nullable: true });
+  const runtime = event.runtime === undefined
+    ? null : eventText(event.runtime, 'event.runtime', { nullable: true });
+  if (runtime !== null && !isSupportedRuntime(runtime)) {
+    throw new StateOpsError('VALIDATION_ERROR', `unsupported runtime: ${runtime}`);
+  }
+  let payloadJson = null;
+  if (event.payload !== undefined) {
+    if (!event.payload || typeof event.payload !== 'object' || Array.isArray(event.payload)) {
+      throw new StateOpsError('VALIDATION_ERROR', 'event.payload must be a JSON object');
+    }
+    assertJsonValue(event.payload, 'event.payload');
+    payloadJson = JSON.stringify(event.payload);
   }
   const result = db.prepare(
     `INSERT INTO events (type, task_id, change_id, session_id, runtime, payload_json)
      VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(
-    event.type,
-    event.task_id ?? null,
-    event.change_id ?? null,
-    event.session_id ?? null,
-    event.runtime ?? null,
-    event.payload === undefined ? null : JSON.stringify(event.payload),
+    type,
+    taskId,
+    changeId,
+    sessionId,
+    runtime,
+    payloadJson,
   );
   const row = db.prepare('SELECT id, ts FROM events WHERE id = ?').get(result.lastInsertRowid);
   return { event_id: Number(row.id), ts: row.ts };

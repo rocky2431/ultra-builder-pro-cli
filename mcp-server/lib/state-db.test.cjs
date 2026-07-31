@@ -97,6 +97,92 @@ test('initStateDb is idempotent — second call does not duplicate seed rows', (
   }
 });
 
+test('schema 22 semantic enums upgrade backup-first to open vocabulary and successor links', () => {
+  const { dir, file } = tmpDbPath('ubp-semantic-kernel-upgrade');
+  try {
+    const initialized = initStateDb(file);
+    initialized.db.prepare(
+      `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
+       VALUES ('legacy-change', 'Legacy change', 'standard', 'active',
+               'Preserve legacy authority.', '.ultra/changes/active/legacy-change')`,
+    ).run();
+    initialized.db.prepare(
+      `INSERT INTO tasks (id, title, type, priority, change_id)
+       VALUES ('legacy-task', 'Legacy task', 'feature', 'P1', 'legacy-change')`,
+    ).run();
+    initialized.db.prepare("DELETE FROM schema_version WHERE version = '23.0'").run();
+    initialized.db.prepare("DELETE FROM migration_history WHERE to_version = '23.0'").run();
+    const changesSql = initialized.db.prepare(
+      "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'changes'",
+    ).get().sql.replace(
+      'kind TEXT NOT NULL CHECK (length(trim(kind)) BETWEEN 1 AND 80)',
+      "kind TEXT NOT NULL CHECK (kind IN ('quick', 'standard', 'major', 'incident'))",
+    );
+    const tasksSql = initialized.db.prepare(
+      "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'tasks'",
+    ).get().sql
+      .replace(
+        'type TEXT NOT NULL CHECK (length(trim(type)) BETWEEN 1 AND 80)',
+        "type TEXT NOT NULL CHECK (type IN ('architecture', 'feature', 'bugfix'))",
+      )
+      .replace(
+        'priority TEXT NOT NULL CHECK (length(trim(priority)) BETWEEN 1 AND 80)',
+        "priority TEXT NOT NULL CHECK (priority IN ('P0', 'P1', 'P2', 'P3'))",
+      )
+      .replace(
+        /slice_kind TEXT CHECK \(\s*slice_kind IS NULL OR length\(trim\(slice_kind\)\) BETWEEN 1 AND 80\s*\)/,
+        "slice_kind TEXT CHECK (slice_kind IS NULL OR slice_kind IN ('tracer_bullet', 'integration_checkpoint'))",
+      );
+    initialized.db.unsafeMode(true);
+    initialized.db.pragma('writable_schema = ON');
+    initialized.db.prepare(
+      "UPDATE sqlite_schema SET sql = ? WHERE type = 'table' AND name = 'changes'",
+    ).run(changesSql);
+    initialized.db.prepare(
+      "UPDATE sqlite_schema SET sql = ? WHERE type = 'table' AND name = 'tasks'",
+    ).run(tasksSql);
+    initialized.db.pragma('writable_schema = OFF');
+    initialized.db.unsafeMode(false);
+    closeStateDb(initialized.db);
+
+    const upgraded = initStateDb(file);
+    assert.equal(upgraded.schema_version, EXPECTED_VERSION);
+    assert.ok(upgraded.backup_path);
+    assert.ok(fs.existsSync(upgraded.backup_path));
+    assert.equal(
+      upgraded.db.prepare('SELECT title FROM changes WHERE id = ?').get('legacy-change').title,
+      'Legacy change',
+    );
+    assert.equal(
+      upgraded.db.prepare('SELECT title FROM tasks WHERE id = ?').get('legacy-task').title,
+      'Legacy task',
+    );
+    upgraded.db.prepare(
+      `INSERT INTO changes
+       (id, title, kind, status, intent, artifact_root, supersedes_id)
+       VALUES ('custom-change', 'Custom change', 'migration-experiment', 'active',
+               'Use repository-local business vocabulary.',
+               '.ultra/changes/active/custom-change', 'legacy-change')`,
+    ).run();
+    upgraded.db.prepare(
+      `INSERT INTO tasks
+       (id, title, type, priority, slice_kind, change_id)
+       VALUES ('custom-task', 'Custom task', 'toolchain-port', 'release-blocker',
+               'compatibility-proof', 'custom-change')`,
+    ).run();
+    assert.deepEqual(upgraded.db.pragma('foreign_key_check'), []);
+    assert.match(
+      upgraded.db.prepare(
+        "SELECT notes FROM migration_history WHERE to_version = '23.0' ORDER BY id DESC LIMIT 1",
+      ).get().notes,
+      /vocabulary|successor/i,
+    );
+    closeStateDb(upgraded.db);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('v0.22 and v0.23 schema 20 authority upgrades backup-first to the v0.24 kernel', () => {
   for (const release of ['0.22.0', '0.23.0']) {
     const { dir, file } = tmpDbPath(`ubp-${release}-upgrade`);
@@ -121,7 +207,7 @@ test('v0.22 and v0.23 schema 20 authority upgrades backup-first to the v0.24 ker
         DROP TABLE decision_records;
         DROP TABLE context_envelopes;
         ALTER TABLE baselines DROP COLUMN research_checkpoint_id;
-        DELETE FROM schema_version WHERE version IN ('21.0', '22.0');
+        DELETE FROM schema_version WHERE version IN ('21.0', '22.0', '23.0');
       `);
       initialized.db.unsafeMode(true);
       initialized.db.pragma('writable_schema = ON');
@@ -199,7 +285,7 @@ test('schema 13 upgrades through the current authority without demoting an estab
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0')",
+      "DELETE FROM schema_version WHERE version IN ('14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0', '23.0')",
     ).run();
     initial.db.exec('ALTER TABLE baselines DROP COLUMN known_red_accepted');
     closeStateDb(initial.db);
@@ -236,7 +322,7 @@ test('schema 15 adds decision dialogue authority without forcing baseline re-ado
                'Previously accepted baseline.', '2026-01-01T00:00:00.000Z')`,
     ).run();
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0')",
+      "DELETE FROM schema_version WHERE version IN ('16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0', '23.0')",
     ).run();
     initial.db.exec('DROP TABLE decision_items; DROP TABLE decision_threads');
     closeStateDb(initial.db);
@@ -283,7 +369,7 @@ test('schema 17 adds the unborn Git baseline state without losing established au
     initial.db.pragma('writable_schema = OFF');
     initial.db.unsafeMode(false);
     initial.db.prepare(
-      "DELETE FROM schema_version WHERE version IN ('17.0', '18.0', '19.0', '20.0', '21.0', '22.0')",
+      "DELETE FROM schema_version WHERE version IN ('17.0', '18.0', '19.0', '20.0', '21.0', '22.0', '23.0')",
     ).run();
     closeStateDb(initial.db);
 
@@ -377,7 +463,7 @@ test('schema 18 migrates active rigid workflows into recoverable adaptive capabi
        VALUES ('legacy-context', 'adaptive-change', '.ultra/context.json', 'legacy-hash',
                'Run an owner-selected workflow.')`,
     ).run();
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('18.0', '19.0', '20.0', '21.0', '22.0')").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('18.0', '19.0', '20.0', '21.0', '22.0', '23.0')").run();
     initial.db.prepare("DELETE FROM migration_history WHERE to_version IN ('18.0', '19.0', '20.0')").run();
     closeStateDb(initial.db);
 
@@ -522,7 +608,7 @@ test('schema 19 completes settled decision threads without fabricating approval 
         ON decision_threads(baseline_id, change_id, workflow_run_id, status);
     `);
     initial.db.pragma('foreign_keys = ON');
-    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('19.0', '20.0', '21.0', '22.0')").run();
+    initial.db.prepare("DELETE FROM schema_version WHERE version IN ('19.0', '20.0', '21.0', '22.0', '23.0')").run();
     initial.db.prepare("DELETE FROM migration_history WHERE to_version IN ('19.0', '20.0')").run();
     closeStateDb(initial.db);
 
@@ -814,7 +900,7 @@ test('initStateDb migrates existing runtime constraints to Kimi without losing r
     const legacySchema = fs.readFileSync(SCHEMA_FILE, 'utf8').replaceAll(", 'kimi'", '');
     legacy.exec(legacySchema);
     legacy.prepare(
-      "DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0')",
+      "DELETE FROM schema_version WHERE version IN ('9.1', '10.0', '11.0', '12.0', '13.0', '14.0', '15.0', '16.0', '17.0', '18.0', '19.0', '20.0', '21.0', '22.0', '23.0')",
     ).run();
     legacy.prepare(
       "INSERT INTO tasks (id, title, type, priority) VALUES ('task-old', 'Old', 'feature', 'P1')",
@@ -1079,7 +1165,7 @@ test('schema 19 artifact rows migrate losslessly into the typed registry with a 
          '{"legacy":true}', 'current');
       DROP TABLE artifacts_current;
       CREATE INDEX artifacts_change ON artifacts(change_id, kind);
-      DELETE FROM schema_version WHERE version IN ('20.0', '21.0', '22.0');
+      DELETE FROM schema_version WHERE version IN ('20.0', '21.0', '22.0', '23.0');
     `);
     db.pragma('foreign_keys = ON');
     closeStateDb(db);
@@ -1169,7 +1255,7 @@ test('artifact migration preflight reports canonical duplicate authority without
          'current');
       DROP TABLE artifacts_current;
       CREATE INDEX artifacts_change ON artifacts(change_id, kind);
-      DELETE FROM schema_version WHERE version IN ('20.0', '21.0', '22.0');
+      DELETE FROM schema_version WHERE version IN ('20.0', '21.0', '22.0', '23.0');
     `);
     db.pragma('foreign_keys = ON');
     closeStateDb(db);

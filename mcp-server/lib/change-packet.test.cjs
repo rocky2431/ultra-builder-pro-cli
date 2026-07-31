@@ -14,6 +14,7 @@ const workflows = require('./workflow-state.cjs');
 const artifacts = require('./artifact-registry.cjs');
 const baselines = require('./baseline-workflow.cjs');
 const ops = require('./state-ops.cjs');
+const ultraFacade = require('./ultra-facade.cjs');
 const {
   seedReadyBaseline,
   seedCompletedWorkflowStructure,
@@ -383,6 +384,101 @@ test('archive applies the Change overlay to baseline and documentation only at D
       [],
     );
     assert.ok(fs.existsSync(archived.archive_path));
+  } finally {
+    cleanup(fx);
+  }
+});
+
+test('archive receipt failure restores an applied typed delta before an exact retry', async () => {
+  const fx = fixture();
+  try {
+    const productPath = path.join(fx.rootDir, '.ultra', 'specs', 'product.md');
+    const productBefore = fs.readFileSync(productPath);
+    const productAfter = '# product\n\nReceipt-safe typed delta.\n';
+    const productOverlay = writeOverlay(
+      fx,
+      'delta/specs/product.md',
+      productAfter,
+    );
+    const delta = changes.recordDelta(
+      fx.db,
+      deltaInput(fx, productOverlay),
+      { rootDir: fx.rootDir },
+    );
+    const docsOverlay = writeOverlay(
+      fx,
+      'documentation/docs/change-packet.md',
+      '# Change packet\n\nReceipt-safe documentation delta.\n',
+    );
+    changes.recordDocumentationReconciliation(fx.db, {
+      id: fx.change.id,
+      delta_artifact_id: delta.artifact.id,
+      delta_digest: delta.artifact.digest,
+      documents: [{
+        path: 'docs/change-packet.md',
+        action: 'add',
+        overlay_path: docsOverlay,
+        before_digest: null,
+        after_digest: digestFile(path.join(fx.rootDir, docsOverlay)),
+        delta_refs: ['update-product-contract'],
+        acceptance_refs: fx.change.contract.acceptance.map((item) => item.id),
+        verification: [{
+          command: 'node --test change-packet.test.cjs',
+          status: 'pass',
+          evidence_refs: ['test:archive-receipt-rollback'],
+        }],
+        consumers: [{
+          type: 'external',
+          id: 'ultra-deliver',
+          relation: 'explains_delivery',
+        }],
+      }],
+    }, { rootDir: fx.rootDir });
+    seedDeliveryGates(fx);
+    fx.db.prepare("UPDATE changes SET status = 'ready' WHERE id = ?").run(fx.change.id);
+    fx.db.exec(
+      `CREATE TRIGGER fail_archive_receipt_after_delta
+       BEFORE INSERT ON events
+       WHEN NEW.type = 'ultra_kernel_call'
+       BEGIN
+         SELECT RAISE(ABORT, 'injected archive receipt failure after delta apply');
+       END`,
+    );
+    const request = {
+      change_id: fx.change.id,
+      payload: { summary: 'Apply the typed delta exactly once.' },
+      idempotency_key: 'archive-delta-receipt-rollback',
+    };
+
+    await assert.rejects(
+      () => ultraFacade.dispatch('ultra.archive', request, fx.db, { rootDir: fx.rootDir }),
+      (error) => error.code === 'STATE_PERSISTENCE_FAILED',
+    );
+    assert.deepEqual(fs.readFileSync(productPath), productBefore);
+    assert.equal(fs.existsSync(path.join(fx.rootDir, 'docs', 'change-packet.md')), false);
+    assert.equal(changes.readChange(fx.db, fx.change.id).status, 'ready');
+    assert.deepEqual(
+      require('./delivery-transaction.cjs').listDeliveryTransactions(fx.rootDir),
+      [],
+    );
+
+    fx.db.exec('DROP TRIGGER fail_archive_receipt_after_delta');
+    const retried = await ultraFacade.dispatch(
+      'ultra.archive',
+      request,
+      fx.db,
+      { rootDir: fx.rootDir },
+    );
+    assert.equal(retried.accepted, true);
+    assert.equal(fs.readFileSync(productPath, 'utf8'), productAfter);
+    assert.equal(
+      fs.readFileSync(path.join(fx.rootDir, 'docs', 'change-packet.md'), 'utf8'),
+      '# Change packet\n\nReceipt-safe documentation delta.\n',
+    );
+    assert.deepEqual(
+      require('./delivery-transaction.cjs').listDeliveryTransactions(fx.rootDir),
+      [],
+    );
   } finally {
     cleanup(fx);
   }

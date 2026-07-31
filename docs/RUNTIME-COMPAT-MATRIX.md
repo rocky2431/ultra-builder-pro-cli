@@ -106,6 +106,8 @@ instructions, project `.ultra`, unrelated plugins, and unrelated host configurat
 | Global flag | `--claude` | `--opencode` | `--codex` | `--kimi` | `--grok` |
 | Staging + atomic swap | FULL | FULL | FULL | FULL | FULL |
 | Exact-host preflight | FULL | FULL | FULL | FULL | FULL |
+| Native registration truth | host manifest | host config | plugin manifest/cache | installed registry | `grok plugin list/details` |
+| Active MCP truth | host MCP config | host MCP config | plugin cache | managed plugin config | `grok inspect` + `grok mcp doctor` |
 | Managed uninstall guard | FULL | FULL | FULL | FULL | FULL |
 | Preserve unrelated config | FULL | FULL | FULL | FULL | FULL |
 | Read-only Doctor | FULL | FULL | FULL | FULL | FULL |
@@ -113,6 +115,20 @@ instructions, project `.ultra`, unrelated plugins, and unrelated host configurat
 Preflight uses the final manifest command and verifies initialize, `tools/list == 7`,
 public write/read, Doctor backup, close/reopen consistency, native provenance, and
 lazy project initialization.
+
+The Grok adapter probes the installed CLI's command and flag capabilities rather
+than branching on a Grok version number. Global installation uses Grok's native
+plugin registry, keeps a durable managed local source for native refresh, and
+resolves the MCP launcher through `${GROK_PLUGIN_ROOT}` after Grok copies the plugin
+under its dynamic `installed-plugins/<repo-key>` path. An older raw
+`$GROK_HOME/plugins/ultra-builder-pro` installation is backed up and migrated; a
+failed native install restores the prior source and registration.
+
+`grok mcp list` is not the plugin-MCP inventory surface in current Grok releases;
+it reports explicit user/project MCP configuration. Ultra therefore does not add a
+second `[mcp_servers]` entry merely to make that command display the plugin. The
+authoritative plugin consumer checks are the native plugin registry, merged
+`grok inspect` MCP source, and the live `grok mcp doctor` handshake.
 
 ## Durable compatibility
 
@@ -138,5 +154,5 @@ are reconstructed only from verified authority.
   preservation.
 - `tests/package-smoke.test.cjs` installs the npm tarball and performs five real
   launcher write/read/backup/reopen round trips.
-- Grok acceptance also runs the available native plugin validate/inspect command and
-  camelCase Hook fixtures.
+- Grok acceptance runs capability probing, native install/list/details/enable,
+  merged inspect, MCP Doctor, migration rollback, and camelCase Hook fixtures.

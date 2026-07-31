@@ -18,7 +18,9 @@ checkpoint accepts the downstream authority.
 4. Convert the request into observable outcome, executable acceptance, non-goals,
    public seams, recovery, verification, documentation impact, risk, and research
    disposition.
-5. Recommend `quick`, `standard`, `major`, or `incident` from evidence. Ask only when
+5. Recommend `quick`, `standard`, `major`, or `incident` from evidence, or record a
+   clearer bounded repository-specific kind when those profiles lose meaning. These
+   are model-owned labels, not SQLite enums. Ask only when
    a choice changes accepted product intent, compatibility, security, material cost,
    external effects, or recovery.
 
@@ -42,6 +44,9 @@ genuinely dependent evidence stale. Readiness is derived, not a stored absorbing
 state. Semantic diagnostics remain advisory; structural, digest, path, or concurrency
 conflicts require repair and retry of the same draft.
 Use `change_contract / cancel` only when the owner intentionally abandons the Change.
+An archived or cancelled Change remains immutable history. When new evidence requires
+continued work, use `change_contract / supersede` to create one linked active successor;
+never patch SQLite, reopen the historical row, or duplicate the relationship manually.
 
 Publish the durable Change contract with `ultra.sync { action: publish }` when it is a
 useful team handoff. Recommend bounded `ultra-research` for a real evidence gap or

@@ -37,6 +37,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 const pluginRoot = ${JSON.stringify(layout.pluginRoot)};
 const cacheRoot = ${JSON.stringify(layout.cacheRoot)};
+const args = process.argv.slice(2);
+if (args.join(' ') === 'plugin list --json') {
+  process.stdout.write(JSON.stringify({ installed: [], available: [] }));
+  process.exit(0);
+}
+if (args[0] === 'plugin' && args[1] === 'remove') {
+  fs.rmSync(cacheRoot, { recursive: true, force: true });
+  process.stdout.write(JSON.stringify({ removed: true }));
+  process.exit(0);
+}
+if (args[0] !== 'plugin' || args[1] !== 'add') {
+  process.stderr.write('unexpected fake Codex invocation: ' + args.join(' '));
+  process.exit(2);
+}
 fs.rmSync(cacheRoot, { recursive: true, force: true });
 if (${JSON.stringify(fail)}) {
   process.stderr.write('simulated plugin add failure');

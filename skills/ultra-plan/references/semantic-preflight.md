@@ -11,8 +11,10 @@ change-bound research records.
    Markdown anchor through `trace_to`.
 5. Check that every task reaches a public consumer and owns its error, documentation,
    verification, and recovery obligations.
-6. Validate dependencies and ensure a quick profile contains exactly one task.
+6. Validate dependencies. A `quick` profile normally has one vertical task, but the
+   model may use the smallest evidence-backed graph that satisfies the accepted Change.
 
-Treat the MCP completion result as the final planning gate. It derives the coverage
-matrix from durable records and rejects unresolved decisions, missing research,
-uncovered acceptance, orphan tasks, incomplete contracts, or invalid topology.
+Treat the MCP result as a persistence receipt plus typed diagnostics. Structural,
+digest, path, concurrency, and exact topology conflicts must be repaired. The model
+owns semantic completeness, acceptance coverage, research sufficiency, and whether a
+warning requires another planning revision before execution.

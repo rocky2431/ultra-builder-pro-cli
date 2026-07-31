@@ -17,6 +17,7 @@ const { seedReadyBaseline } = require('../test-support/ready-baseline.cjs');
 const { completeChangeInput } = require('../test-support/change-contract.cjs');
 const facade = require('../lib/ultra-facade.cjs');
 const taskLedger = require('../lib/task-ledger.cjs');
+const workerPackets = require('../lib/worker-packet.cjs');
 const sessionRunner = require('../../orchestrator/session-runner.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -38,6 +39,173 @@ function fixture() {
   seedReadyBaseline(db, { rootDir });
   closeStateDb(db);
   return { rootDir, dbPath };
+}
+
+function git(rootDir, args) {
+  return execFileSync('git', args, {
+    cwd: rootDir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+function validTaskData(id, overrides = {}) {
+  return {
+    id,
+    title: `Validate ${id}`,
+    type: 'feature',
+    priority: 'P1',
+    ...overrides,
+  };
+}
+
+function taskRows(dbPath) {
+  const { db } = initStateDb(dbPath);
+  try {
+    return db.prepare('SELECT * FROM tasks ORDER BY id').all();
+  } finally {
+    closeStateDb(db);
+  }
+}
+
+function rejectedAttempt(dbPath) {
+  const { db } = initStateDb(dbPath);
+  try {
+    const row = db.prepare(
+      `SELECT payload_json FROM events
+       WHERE type = 'ultra_kernel_attempt'
+       ORDER BY id DESC LIMIT 1`,
+    ).get();
+    return row ? JSON.parse(row.payload_json) : null;
+  } finally {
+    closeStateDb(db);
+  }
+}
+
+function assertRecordRejected(result, entries) {
+  assert.notEqual(result.isError, true, result.content?.[0]?.text);
+  assert.equal(
+    result.structuredContent.accepted,
+    false,
+    JSON.stringify(result.structuredContent, null, 2),
+  );
+  assert.deepEqual(
+    result.structuredContent.results.map((item) => item.accepted),
+    entries.map(() => false),
+  );
+}
+
+function assertRejectedAttempt(fx, entries) {
+  const attempt = rejectedAttempt(fx.dbPath);
+  assert.ok(attempt, 'the rejected Task Contract attempt must be audited');
+  assert.equal(attempt.tool, 'ultra.record');
+  assert.deepEqual(
+    attempt.operations,
+    entries.map((entry) => `${entry.kind}:${entry.action}`),
+  );
+  assert.ok(attempt.diagnostics.length >= entries.length);
+}
+
+async function callRecord(fx, entries) {
+  let result;
+  await withClient(fx, async (client) => {
+    result = await client.callTool({
+      name: 'ultra.record',
+      arguments: { entries },
+    });
+  });
+  return result;
+}
+
+function prepareCompletableTask(fx, id) {
+  const { db } = initStateDb(fx.dbPath);
+  try {
+    const changeId = `${id}-change`;
+    db.prepare(
+      `INSERT INTO changes
+       (id, title, kind, status, intent, artifact_root)
+       VALUES (?, ?, 'quick', 'active', ?, ?)`,
+    ).run(
+      changeId,
+      `Complete ${id}`,
+      'Verify the public Task outcome boundary.',
+      `.ultra/changes/active/${changeId}`,
+    );
+    ops.createTask(db, validTaskData(id, {
+      change_id: changeId,
+      outcome: 'The exact assigned Worker Packet is durably completed.',
+      slice_kind: 'tracer_bullet',
+      public_seam: 'ultra.record',
+      verification_command: 'node --test mcp-server/tests/public-facade.test.cjs',
+      acceptance: [{
+        id: `${id}-acceptance`,
+        criterion: 'The Task outcome boundary is enforced.',
+        verification: 'node --test mcp-server/tests/public-facade.test.cjs',
+      }],
+      context_refs: [],
+      docs_impact: {
+        status: 'none',
+        files: [],
+        rationale: 'No public documentation changes.',
+      },
+      ownership: { owner: 'public-facade-test', reviewers: [] },
+      trace_to: `${id}-acceptance`,
+    }));
+    ops.updateTaskStatus(db, id, 'in_progress');
+    const packet = workerPackets.createWorkerPacket(db, {
+      role: 'implement',
+      task_id: id,
+      runtime: 'codex',
+      output_path: `.ultra/changes/active/${changeId}/delivery/${id}.json`,
+    }, { rootDir: fx.rootDir });
+    workerPackets.markWorkerPacketAssigned(db, packet.id);
+    const outputFile = path.join(fx.rootDir, packet.output.path);
+    fs.mkdirSync(path.dirname(outputFile), { recursive: true });
+    fs.writeFileSync(
+      outputFile,
+      `${JSON.stringify({ packet_digest: packet.packet_digest }, null, 2)}\n`,
+    );
+    return packet;
+  } finally {
+    closeStateDb(db);
+  }
+}
+
+function prepareAttestableTask(fx, id) {
+  git(fx.rootDir, ['init', '-q']);
+  git(fx.rootDir, ['config', 'user.email', 'public-facade@test.invalid']);
+  git(fx.rootDir, ['config', 'user.name', 'Public Facade Test']);
+  fs.writeFileSync(
+    path.join(fx.rootDir, '.gitignore'),
+    '.ultra/.runtime/\n',
+  );
+  const { db } = initStateDb(fx.dbPath);
+  try {
+    ops.createTask(db, validTaskData(id));
+    ops.updateTaskStatus(db, id, 'in_progress');
+    ops.updateTaskStatus(db, id, 'completed');
+    taskLedger.publishTaskLedger(db, {
+      rootDir: fx.rootDir,
+      reason: 'prepare_commit_attestation',
+    });
+  } finally {
+    closeStateDb(db);
+  }
+  git(fx.rootDir, ['add', '-A']);
+  git(fx.rootDir, ['commit', '-q', '-m', 'test: integrate completed task']);
+  const head = git(fx.rootDir, ['rev-parse', 'HEAD']);
+  const tree = git(fx.rootDir, ['rev-parse', 'HEAD^{tree}']);
+  const divergent = git(fx.rootDir, [
+    'commit-tree',
+    tree,
+    '-m',
+    'test: divergent unattached commit',
+  ]);
+  return {
+    head,
+    divergent,
+    ledgerFile: taskLedger.ledgerPath(fx.rootDir),
+  };
 }
 
 async function withClient(fx, fn) {
@@ -181,7 +349,7 @@ test('the public façade does not import the retired workflow authorization engi
     ['-e', [
       "require('./mcp-server/lib/ultra-facade.cjs');",
       'process.stdout.write(JSON.stringify(Object.keys(require.cache)',
-      ".filter((file) => /workflow-state|decision-dialogue|context-spine|spec-learning/.test(file))));",
+      ".filter((file) => /legacy-change-workflow|workflow-state|decision-dialogue|context-spine|spec-learning/.test(file))));",
     ].join('')],
     { cwd: ROOT, encoding: 'utf8' },
   ));
@@ -203,6 +371,7 @@ test('the production Change API exposes only kernel behavior', () => {
   );
   assert.doesNotMatch(source, /\bkernelMode\b/);
   assert.doesNotMatch(source, /\blegacyMode\b/);
+  assert.doesNotMatch(source, /legacy-change-workflow/);
   assert.doesNotMatch(source, /loadLegacyModule|legacyWorkflows|legacyDecisions|legacyContextSpine/);
   assert.doesNotMatch(source, /compileContext|convergeChange|WORKFLOW_DEFINITIONS/);
   assert.doesNotMatch(packetSource, /workflow_runs|workflow_steps|decision_threads/);
@@ -269,6 +438,314 @@ test('semantic rejection is durably audited without claiming a semantic state co
       context.structuredContent.digest,
       priorContext.structuredContent.digest,
       'audit history must not churn the semantic Context Envelope digest',
+    );
+    closeStateDb(db);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_contract define rejects invalid ranges, scalar types, and string arrays without mutation', async () => {
+  const fx = fixture();
+  const cases = [
+    { label: 'complexity-range', value: { complexity: 0 } },
+    { label: 'complexity-integer', value: { complexity: 1.5 } },
+    { label: 'estimated-days-range', value: { estimated_days: 0 } },
+    { label: 'estimated-days-type', value: { estimated_days: 'soon' } },
+    { label: 'title-type', value: { title: 42 } },
+    { label: 'deps-type', value: { deps: 'task-a' } },
+    { label: 'deps-items', value: { deps: [42] } },
+    { label: 'files-type', value: { files_modified: 'src/a.js' } },
+    { label: 'files-items', value: { files_modified: [{}] } },
+  ];
+  const entries = cases.map(({ label, value }) => ({
+    kind: 'task_contract',
+    action: 'define',
+    data: validTaskData(`invalid-define-${label}`, value),
+    idempotency_key: `invalid-define-${label}`,
+  }));
+  try {
+    const before = taskRows(fx.dbPath);
+    const result = await callRecord(fx, entries);
+    assertRecordRejected(result, entries);
+    assert.deepEqual(taskRows(fx.dbPath), before);
+    assertRejectedAttempt(fx, entries);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_contract revise rejects invalid ranges, scalar types, and string arrays without mutation', async () => {
+  const fx = fixture();
+  const taskId = 'invalid-revise-target';
+  const cases = [
+    { label: 'complexity-range', patch: { complexity: 11 } },
+    { label: 'complexity-integer', patch: { complexity: 2.5 } },
+    { label: 'estimated-days-range', patch: { estimated_days: -1 } },
+    { label: 'estimated-days-type', patch: { estimated_days: 'later' } },
+    { label: 'tag-type', patch: { tag: 42 } },
+    { label: 'deps-type', patch: { deps: { id: 'task-a' } } },
+    { label: 'deps-items', patch: { deps: [42] } },
+    { label: 'files-type', patch: { files_modified: 'src/a.js' } },
+    { label: 'files-items', patch: { files_modified: [{}] } },
+  ];
+  const entries = cases.map(({ label, patch }) => ({
+    kind: 'task_contract',
+    action: 'revise',
+    data: { id: taskId, patch },
+    idempotency_key: `invalid-revise-${label}`,
+  }));
+  try {
+    const { db } = initStateDb(fx.dbPath);
+    ops.createTask(db, validTaskData(taskId));
+    closeStateDb(db);
+    const before = taskRows(fx.dbPath);
+    const result = await callRecord(fx, entries);
+    assertRecordRejected(result, entries);
+    assert.deepEqual(taskRows(fx.dbPath), before);
+    assertRejectedAttempt(fx, entries);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_contract define cannot write runtime-owned Task fields', async () => {
+  const fx = fixture();
+  const fields = [
+    ['session_id', 'model-session'],
+    ['stale', true],
+    ['context_file', '.ultra/tasks/contexts/model-owned.md'],
+    ['completion_commit', 'a'.repeat(40)],
+  ];
+  const entries = fields.map(([field, value]) => ({
+    kind: 'task_contract',
+    action: 'define',
+    data: validTaskData(`forbidden-define-${field}`, { [field]: value }),
+    idempotency_key: `forbidden-define-${field}`,
+  }));
+  try {
+    const before = taskRows(fx.dbPath);
+    const result = await callRecord(fx, entries);
+    assertRecordRejected(result, entries);
+    assert.deepEqual(taskRows(fx.dbPath), before);
+    assertRejectedAttempt(fx, entries);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_contract revise cannot write runtime-owned Task fields', async () => {
+  const fx = fixture();
+  const taskId = 'forbidden-revise-target';
+  const fields = [
+    ['session_id', 'model-session'],
+    ['stale', true],
+    ['context_file', '.ultra/tasks/contexts/model-owned.md'],
+    ['completion_commit', 'a'.repeat(40)],
+  ];
+  const entries = fields.map(([field, value]) => ({
+    kind: 'task_contract',
+    action: 'revise',
+    data: { id: taskId, patch: { [field]: value } },
+    idempotency_key: `forbidden-revise-${field}`,
+  }));
+  try {
+    const { db } = initStateDb(fx.dbPath);
+    ops.createTask(db, validTaskData(taskId));
+    closeStateDb(db);
+    const before = taskRows(fx.dbPath);
+    const result = await callRecord(fx, entries);
+    assertRecordRejected(result, entries);
+    assert.deepEqual(taskRows(fx.dbPath), before);
+    assertRejectedAttempt(fx, entries);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_outcome rejects arbitrary patch data before changing Task or artifact authority', async () => {
+  const fx = fixture();
+  const taskId = 'outcome-patch-target';
+  try {
+    const packet = prepareCompletableTask(fx, taskId);
+    const entries = [{
+      kind: 'task_outcome',
+      action: 'complete',
+      data: {
+        id: taskId,
+        packet_digest: packet.packet_digest,
+        patch: {
+          priority: 'P3',
+          completion_commit: 'a'.repeat(40),
+        },
+      },
+      idempotency_key: `${taskId}:complete-with-patch`,
+    }];
+    const beforeTasks = taskRows(fx.dbPath);
+    const beforeDb = initStateDb(fx.dbPath).db;
+    const beforeArtifacts = beforeDb.prepare('SELECT COUNT(*) AS count FROM artifacts').get().count;
+    closeStateDb(beforeDb);
+
+    const result = await callRecord(fx, entries);
+    assertRecordRejected(result, entries);
+    assert.deepEqual(taskRows(fx.dbPath), beforeTasks);
+    const afterDb = initStateDb(fx.dbPath).db;
+    assert.equal(
+      afterDb.prepare('SELECT COUNT(*) AS count FROM artifacts').get().count,
+      beforeArtifacts,
+    );
+    closeStateDb(afterDb);
+    assertRejectedAttempt(fx, entries);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_outcome complete rejects a model-supplied completion_commit', async () => {
+  const fx = fixture();
+  const taskId = 'outcome-inline-commit-target';
+  try {
+    const packet = prepareCompletableTask(fx, taskId);
+    const entries = [{
+      kind: 'task_outcome',
+      action: 'complete',
+      data: {
+        id: taskId,
+        packet_digest: packet.packet_digest,
+        completion_commit: 'a'.repeat(40),
+      },
+      idempotency_key: `${taskId}:complete-with-inline-commit`,
+    }];
+    const before = taskRows(fx.dbPath);
+    const result = await callRecord(fx, entries);
+    assertRecordRejected(result, entries);
+    assert.deepEqual(taskRows(fx.dbPath), before);
+    assertRejectedAttempt(fx, entries);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_outcome complete still accepts the assigned packet before commit attestation exists', async () => {
+  const fx = fixture();
+  const taskId = 'outcome-durable-complete';
+  try {
+    const packet = prepareCompletableTask(fx, taskId);
+    const result = await callRecord(fx, [{
+      kind: 'task_outcome',
+      action: 'complete',
+      data: {
+        id: taskId,
+        packet_digest: packet.packet_digest,
+      },
+      idempotency_key: `${taskId}:complete`,
+    }]);
+    assert.notEqual(result.isError, true, result.content?.[0]?.text);
+    assert.equal(result.structuredContent.accepted, true);
+    const task = result.structuredContent.results[0].result.task;
+    assert.equal(task.status, 'completed');
+    assert.equal(task.completion_commit, null);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_outcome attest_commit rejects invalid, missing, and non-ancestor SHAs without mutation', async () => {
+  const fx = fixture();
+  const taskId = 'commit-attestation-rejections';
+  try {
+    const prepared = prepareAttestableTask(fx, taskId);
+    const ledgerBefore = fs.readFileSync(prepared.ledgerFile);
+    const before = taskRows(fx.dbPath);
+    const entries = [
+      ['invalid-format', 'not-a-sha'],
+      ['missing-object', 'f'.repeat(40)],
+      ['non-ancestor', prepared.divergent],
+    ].map(([label, completionCommit]) => ({
+      kind: 'task_outcome',
+      action: 'attest_commit',
+      data: {
+        id: taskId,
+        completion_commit: completionCommit,
+      },
+      idempotency_key: `${taskId}:${label}`,
+    }));
+
+    const result = await callRecord(fx, entries);
+    assertRecordRejected(result, entries);
+    const diagnostics = result.structuredContent.results.map((item) => item.diagnostics[0]);
+    for (const item of diagnostics) {
+      assert.doesNotMatch(item.message, /unsupported task_outcome action/i);
+    }
+    assert.match(diagnostics[0].message, /commit|sha/i);
+    assert.match(diagnostics[1].message, /not found|does not exist|unknown/i);
+    assert.match(diagnostics[2].message, /ancestor|integrat/i);
+    assert.deepEqual(taskRows(fx.dbPath), before);
+    assert.deepEqual(fs.readFileSync(prepared.ledgerFile), ledgerBefore);
+    assertRejectedAttempt(fx, entries);
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('task_outcome attest_commit records an integrated HEAD locally without changing team authority', async () => {
+  const fx = fixture();
+  const taskId = 'commit-attestation-accepted';
+  try {
+    const prepared = prepareAttestableTask(fx, taskId);
+    const ledgerBefore = fs.readFileSync(prepared.ledgerFile);
+    assert.doesNotMatch(ledgerBefore.toString('utf8'), /completion_commit/);
+    const result = await callRecord(fx, [{
+      kind: 'task_outcome',
+      action: 'attest_commit',
+      data: {
+        id: taskId,
+        completion_commit: prepared.head,
+      },
+      idempotency_key: `${taskId}:attest-head`,
+    }]);
+
+    assert.notEqual(result.isError, true, result.content?.[0]?.text);
+    assert.equal(
+      result.structuredContent.accepted,
+      true,
+      JSON.stringify(result.structuredContent, null, 2),
+    );
+    assert.equal(
+      result.structuredContent.results[0].result.task.completion_commit,
+      prepared.head,
+    );
+    const { db } = initStateDb(fx.dbPath);
+    assert.equal(ops.readTask(db, taskId).completion_commit, prepared.head);
+    closeStateDb(db);
+    assert.deepEqual(fs.readFileSync(prepared.ledgerFile), ledgerBefore);
+    assert.equal(git(fx.rootDir, ['status', '--porcelain']), '');
+  } finally {
+    fs.rmSync(fx.rootDir, { recursive: true, force: true });
+  }
+});
+
+test('non-Task ultra.record kinds retain their existing behavior', async () => {
+  const fx = fixture();
+  try {
+    const result = await callRecord(fx, [{
+      kind: 'event',
+      action: 'append',
+      data: {
+        type: 'public_facade_boundary_probe',
+        payload: { task_contract_boundary: 'unchanged' },
+      },
+      idempotency_key: 'public-facade-boundary-probe',
+    }]);
+    assert.notEqual(result.isError, true, result.content?.[0]?.text);
+    assert.equal(result.structuredContent.accepted, true);
+    assert.equal(result.structuredContent.results[0].accepted, true);
+    const { db } = initStateDb(fx.dbPath);
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM events WHERE type = 'public_facade_boundary_probe'",
+      ).get().count,
+      1,
     );
     closeStateDb(db);
   } finally {
@@ -808,7 +1285,7 @@ test('ultra.context is a side-effect-free read of the complete project spine', a
         name: 'ultra.context',
         arguments: {
           stage: 'plan',
-          scope: { change_id: 'not-created' },
+          scope: {},
           detail: 'summary',
         },
       });
@@ -1006,7 +1483,7 @@ test('one plan checkpoint compiles context, validates authority, and publishes t
   }
 });
 
-test('failed session acquisition abandons its prepared packet without active lease authority', async () => {
+test('failed session acquisition leaves no prepared packet or active lease authority', async () => {
   const fx = fixture();
   const { db } = initStateDb(fx.dbPath);
   const originalSpawn = sessionRunner.spawnSession;
@@ -1082,8 +1559,9 @@ test('failed session acquisition abandons its prepared packet without active lea
       db.prepare(
         "SELECT COUNT(*) AS count FROM worker_packets WHERE status = 'abandoned'",
       ).get().count,
-      1,
+      0,
     );
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM worker_packets').get().count, 0);
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
   } finally {
     sessionRunner.spawnSession = originalSpawn;

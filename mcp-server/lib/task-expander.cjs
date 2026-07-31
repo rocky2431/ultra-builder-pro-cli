@@ -19,8 +19,8 @@ const CHILDREN_SHAPE = Object.freeze({
         properties: {
           id:             { type: 'string', pattern: '^[a-zA-Z0-9_\\-]+$' },
           title:          { type: 'string', minLength: 3, maxLength: 200 },
-          type:           { type: 'string', enum: ['architecture', 'feature', 'bugfix'] },
-          priority:       { type: 'string', enum: ['P0', 'P1', 'P2', 'P3'] },
+          type:           { type: 'string', minLength: 1, maxLength: 80 },
+          priority:       { type: 'string', minLength: 1, maxLength: 80 },
           complexity:     { type: 'integer', minimum: 1, maximum: 10 },
           deps:           { type: 'array', items: { type: 'string' } },
           files_modified: { type: 'array', items: { type: 'string' } },

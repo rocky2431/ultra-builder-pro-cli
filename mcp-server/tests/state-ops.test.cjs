@@ -750,14 +750,14 @@ test('one active task lease is enforced across racing processes', async () => {
   }
 });
 
-test('deleteTask refuses when a session is bound unless force=true', () => {
+test('deleteTask classifies a session-owned task as non-draft unless force=true', () => {
   const { dir, db } = freshDb();
   try {
     ops.createTask(db, { id: 'dl', title: 'd', type: 'feature', priority: 'P1' });
     ops.patchTask(db, 'dl', { session_id: 'ses_x' });
     assert.throws(
       () => ops.deleteTask(db, 'dl'),
-      (e) => e.code === 'SESSION_ACTIVE',
+      (e) => e.code === 'TASK_DELETE_NOT_DRAFT',
     );
     const r = ops.deleteTask(db, 'dl', { force: true });
     assert.equal(r.ok, true);

@@ -67,7 +67,7 @@
         "properties": {
           "id": { "type": "string" },
           "title": { "type": "string", "minLength": 1 },
-          "kind": { "type": "string", "enum": ["quick", "standard", "major", "incident"] },
+          "kind": { "type": "string", "minLength": 1, "maxLength": 80 },
           "status": { "type": "string", "enum": ["active", "archived", "cancelled"] },
           "intent": { "type": "string", "minLength": 1 },
           "docs_impact": { "type": "object" },
@@ -79,6 +79,7 @@
           "base_commit": { "type": "string" },
           "artifact_root": { "type": "string", "minLength": 1 },
           "closed_at": { "type": "string" },
+          "supersedes_id": { "type": "string", "minLength": 1 },
           "revision": { "type": "integer", "minimum": 1 },
           "parent_digest": {
             "type": ["string", "null"],
@@ -223,6 +224,7 @@
     },
     "task": {
       "type": "object",
+      "description": "Git-facing durable Task authority. Checkout-local session_id, tag, context_file, completion_commit, created_at, and updated_at are intentionally forbidden.",
       "required": [
         "id",
         "title",
@@ -244,22 +246,35 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
         "title": { "type": "string", "minLength": 3 },
-        "type": { "type": "string", "enum": ["architecture", "feature", "bugfix"] },
-        "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+        "type": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "priority": { "type": "string", "minLength": 1, "maxLength": 80 },
         "complexity": { "type": "integer", "minimum": 1, "maximum": 10 },
         "estimated_days": { "type": "number", "exclusiveMinimum": 0 },
         "status": {
           "type": "string",
-          "enum": ["pending", "completed", "blocked", "expanded"]
+          "enum": ["pending", "completed", "blocked", "expanded"],
+          "description": "Durable Task outcome. Checkout-local in_progress is never published."
         },
-        "deps": { "type": "array", "items": { "type": "string" } },
-        "files_modified": { "type": "array", "items": { "type": "string" } },
-        "stale": { "type": "boolean" },
+        "deps": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Durable dependency Task ids."
+        },
+        "files_modified": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Durable path-level conflict surface."
+        },
+        "stale": {
+          "type": "boolean",
+          "description": "Runtime-derived freshness fact published for team handoff."
+        },
         "trace_to": { "type": "string" },
         "outcome": { "type": "string" },
         "slice_kind": {
           "type": "string",
-          "enum": ["tracer_bullet", "expand_contract", "integration_checkpoint"]
+          "minLength": 1,
+          "maxLength": 80
         },
         "public_seam": { "type": "string" },
         "verification_command": { "type": "string" },

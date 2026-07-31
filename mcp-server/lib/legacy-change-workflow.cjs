@@ -26,6 +26,7 @@ const {
   walkStableProjectTree,
 } = require('./safe-project-file.cjs');
 const stageCheckpoints = require('./stage-checkpoints.cjs');
+const kernelChangeWorkflow = require('./kernel-change-workflow.cjs');
 const reconciliationSchema = require('../../spec/schemas/baseline-reconciliation.v1.schema.json');
 
 const reconciliationAjv = new Ajv({ allErrors: true, strict: false });
@@ -55,6 +56,11 @@ const CHANGE_ID = /^[a-zA-Z0-9_-]+$/;
 const CHANGE_PATCH_FIELDS = new Set([
   'title', 'intent', 'status', 'docs_impact', 'provider_refs',
   'contract', 'classification', 'research_disposition',
+]);
+const CHANGE_CREATE_FIELDS = new Set([
+  'id', 'title', 'kind', 'intent', 'docs_impact', 'provider_refs',
+  'baseline_bypass', 'contract', 'classification', 'research_disposition',
+  'base_commit', 'alignment_thread_id', 'supersedes_id',
 ]);
 const SEMANTIC_AUTHORITY_FIELDS = new Set([
   'intent', 'docs_impact', 'provider_refs', 'contract', 'classification',
@@ -126,9 +132,28 @@ function rowToChange(row) {
   return change;
 }
 
+function assertExactFields(value, allowed, field) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', `${field} must be an object`);
+  }
+  const unknown = Object.keys(value).filter((key) => !allowed.has(key));
+  if (unknown.length > 0) {
+    throw new ChangeWorkflowError(
+      'VALIDATION_ERROR', `${field}.${unknown[0]} is not allowed`,
+    );
+  }
+}
+
 function normalizeDocsImpact(value) {
-  const input = value || {};
-  const status = input.status || 'unknown';
+  const input = value === undefined ? {} : value;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', 'docs impact must be an object');
+  }
+  assertExactFields(input, new Set(['status', 'files', 'rationale']), 'docs_impact');
+  const status = input.status === undefined ? 'unknown' : input.status;
+  if (typeof status !== 'string') {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', 'docs impact status must be a string');
+  }
   if (!['unknown', 'required', 'none'].includes(status)) {
     throw new ChangeWorkflowError('VALIDATION_ERROR', `invalid docs impact status: ${status}`);
   }
@@ -136,8 +161,11 @@ function normalizeDocsImpact(value) {
   if (!Array.isArray(files) || files.some((file) => typeof file !== 'string' || !file.trim())) {
     throw new ChangeWorkflowError('VALIDATION_ERROR', 'docs impact files must be non-empty strings');
   }
-  const rationale = input.rationale == null ? null : String(input.rationale).trim();
-  return { status, files: [...new Set(files)], rationale };
+  if (input.rationale != null && typeof input.rationale !== 'string') {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', 'docs impact rationale must be a string or null');
+  }
+  const rationale = input.rationale == null ? null : input.rationale.trim();
+  return { status, files: [...new Set(files.map((file) => file.trim()))], rationale };
 }
 
 function normalizeProviderRefs(value) {
@@ -160,18 +188,58 @@ function stringList(value, field, { allowEmpty = false } = {}) {
   return [...new Set(value.map((item) => item.trim()))];
 }
 
-function normalizeChangeContract(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+function optionalTrimmedText(value, field, { maxLength = 4000 } = {}) {
+  if (value === undefined || value === null) return '';
+  if (typeof value !== 'string') {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', `${field} must be a string`);
+  }
+  const text = value.trim();
+  if (text.length > maxLength) {
+    throw new ChangeWorkflowError(
+      'VALIDATION_ERROR',
+      `${field} must not exceed ${maxLength} characters`,
+    );
+  }
+  return text;
+}
+
+function boundedVocabulary(value, field) {
+  const text = optionalTrimmedText(value, field, { maxLength: 80 });
+  if (!text) {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', `${field} is required`);
+  }
+  return text;
+}
+
+function normalizeChangeContract(value, { allowDraft = false } = {}) {
+  if ((!value || typeof value !== 'object' || Array.isArray(value)) && !allowDraft) {
     throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', 'contract is required');
   }
-  if (!Array.isArray(value.acceptance) || value.acceptance.length === 0) {
+  const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  assertExactFields(
+    input,
+    new Set([
+      'outcome', 'acceptance', 'non_goals', 'public_seams',
+      'recovery', 'unresolved_decisions',
+    ]),
+    'contract',
+  );
+  if (!allowDraft && (!Array.isArray(input.acceptance) || input.acceptance.length === 0)) {
     throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', 'contract.acceptance is required');
   }
+  if (input.acceptance !== undefined && !Array.isArray(input.acceptance)) {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', 'contract.acceptance must be an array');
+  }
   const ids = new Set();
-  const acceptance = value.acceptance.map((item, index) => {
+  const acceptance = (input.acceptance || []).map((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', `contract.acceptance[${index}] is invalid`);
     }
+    assertExactFields(
+      item,
+      new Set(['id', 'criterion', 'verification']),
+      `contract.acceptance[${index}]`,
+    );
     const id = requiredText(item.id, `contract.acceptance[${index}].id`);
     if (!CHANGE_ID.test(id) || ids.has(id)) {
       throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', `acceptance id is invalid or duplicated: ${id}`);
@@ -183,18 +251,42 @@ function normalizeChangeContract(value) {
       verification: requiredText(item.verification, `contract.acceptance[${index}].verification`),
     };
   });
-  const recovery = value.recovery;
-  if (!recovery || typeof recovery !== 'object' || Array.isArray(recovery)) {
+  const recovery = input.recovery;
+  if (!allowDraft && (!recovery || typeof recovery !== 'object' || Array.isArray(recovery))) {
     throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', 'contract.recovery is required');
   }
-  if (!Array.isArray(value.unresolved_decisions)) {
+  if (recovery !== undefined && recovery !== null) {
+    assertExactFields(
+      recovery,
+      new Set(['strategy', 'verification']),
+      'contract.recovery',
+    );
+  }
+  if (!allowDraft && !Array.isArray(input.unresolved_decisions)) {
     throw new ChangeWorkflowError(
       'CHANGE_CONTRACT_REQUIRED', 'contract.unresolved_decisions must be an explicit array',
     );
   }
-  const decisions = value.unresolved_decisions.map((item, index) => {
+  if (input.unresolved_decisions !== undefined && !Array.isArray(input.unresolved_decisions)) {
+    throw new ChangeWorkflowError(
+      'VALIDATION_ERROR',
+      'contract.unresolved_decisions must be an array',
+    );
+  }
+  const decisions = (input.unresolved_decisions || []).map((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new ChangeWorkflowError('CHANGE_CONTRACT_REQUIRED', `unresolved decision ${index} is invalid`);
+    }
+    assertExactFields(
+      item,
+      new Set(['id', 'summary', 'blocking', 'owner']),
+      `contract.unresolved_decisions[${index}]`,
+    );
+    if (item.blocking !== undefined && typeof item.blocking !== 'boolean') {
+      throw new ChangeWorkflowError(
+        'VALIDATION_ERROR',
+        `contract.unresolved_decisions[${index}].blocking must be a boolean`,
+      );
     }
     return {
       id: requiredText(item.id, `contract.unresolved_decisions[${index}].id`),
@@ -204,23 +296,55 @@ function normalizeChangeContract(value) {
     };
   });
   return {
-    outcome: requiredText(value.outcome, 'contract.outcome'),
+    outcome: allowDraft
+      ? optionalTrimmedText(input.outcome, 'contract.outcome')
+      : requiredText(input.outcome, 'contract.outcome'),
     acceptance,
-    non_goals: stringList(value.non_goals, 'contract.non_goals'),
-    public_seams: stringList(value.public_seams, 'contract.public_seams'),
-    recovery: {
-      strategy: requiredText(recovery.strategy, 'contract.recovery.strategy'),
-      verification: requiredText(recovery.verification, 'contract.recovery.verification'),
-    },
+    non_goals: stringList(
+      input.non_goals === undefined && allowDraft ? [] : input.non_goals,
+      'contract.non_goals',
+      { allowEmpty: allowDraft },
+    ),
+    public_seams: stringList(
+      input.public_seams === undefined && allowDraft ? [] : input.public_seams,
+      'contract.public_seams',
+      { allowEmpty: allowDraft },
+    ),
+    recovery: recovery
+      ? {
+        strategy: allowDraft
+          ? optionalTrimmedText(recovery.strategy, 'contract.recovery.strategy')
+          : requiredText(recovery.strategy, 'contract.recovery.strategy'),
+        verification: allowDraft
+          ? optionalTrimmedText(recovery.verification, 'contract.recovery.verification')
+          : requiredText(recovery.verification, 'contract.recovery.verification'),
+      }
+      : null,
     unresolved_decisions: decisions,
   };
 }
 
-function normalizeClassification(value, kind) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+function normalizeClassification(value, kind, { allowDraft = false } = {}) {
+  if ((!value || typeof value !== 'object' || Array.isArray(value)) && !allowDraft) {
     throw new ChangeWorkflowError('CHANGE_CLASSIFICATION_REQUIRED', 'classification is required');
   }
-  const flags = stringList(value.risk_flags, 'classification.risk_flags', { allowEmpty: true });
+  const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  assertExactFields(
+    input,
+    new Set(['rationale', 'risk_flags']),
+    'classification',
+  );
+  const flags = stringList(
+    input.risk_flags === undefined ? [] : input.risk_flags,
+    'classification.risk_flags',
+    { allowEmpty: true },
+  );
+  if (allowDraft) {
+    return {
+      rationale: optionalTrimmedText(input.rationale, 'classification.rationale'),
+      risk_flags: flags,
+    };
+  }
   const invalid = flags.filter((flag) => !CHANGE_RISK_FLAGS.has(flag));
   if (invalid.length > 0) {
     throw new ChangeWorkflowError('CHANGE_CLASSIFICATION_REQUIRED', `unknown risk flags: ${invalid.join(', ')}`);
@@ -235,23 +359,63 @@ function normalizeClassification(value, kind) {
     }
   }
   return {
-    rationale: requiredText(value.rationale, 'classification.rationale'),
+    rationale: requiredText(input.rationale, 'classification.rationale'),
     risk_flags: flags,
   };
 }
 
-function normalizeResearchDisposition(value, kind) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+function normalizeResearchDisposition(value, kind, { allowDraft = false } = {}) {
+  if ((!value || typeof value !== 'object' || Array.isArray(value)) && !allowDraft) {
     throw new ChangeWorkflowError('CHANGE_RESEARCH_DISPOSITION_REQUIRED', 'research_disposition is required');
   }
-  const status = String(value.status || '').trim();
+  const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  assertExactFields(
+    input,
+    new Set(['status', 'mode', 'selected_steps', 'rationale']),
+    'research_disposition',
+  );
+  const status = allowDraft
+    ? (input.status === undefined
+      ? 'unresolved'
+      : boundedVocabulary(input.status, 'research_disposition.status'))
+    : (typeof input.status === 'string' ? input.status.trim() : '');
+  if (allowDraft) {
+    const selectedSteps = stringList(
+      input.selected_steps === undefined ? [] : input.selected_steps,
+      'research_disposition.selected_steps',
+      { allowEmpty: true },
+    );
+    if (input.mode !== undefined && input.mode !== null && typeof input.mode !== 'string') {
+      throw new ChangeWorkflowError(
+        'VALIDATION_ERROR',
+        'research_disposition.mode must be a string or null',
+      );
+    }
+    const mode = input.mode == null
+      ? null
+      : boundedVocabulary(input.mode, 'research_disposition.mode');
+    return {
+      status,
+      mode,
+      selected_steps: selectedSteps,
+      rationale: optionalTrimmedText(input.rationale, 'research_disposition.rationale'),
+    };
+  }
   if (!RESEARCH_DISPOSITIONS.has(status)) {
     throw new ChangeWorkflowError('CHANGE_RESEARCH_DISPOSITION_REQUIRED', 'research disposition status is invalid');
   }
   const selectedSteps = stringList(
-    value.selected_steps || [], 'research_disposition.selected_steps', { allowEmpty: true },
+    input.selected_steps === undefined ? [] : input.selected_steps,
+    'research_disposition.selected_steps',
+    { allowEmpty: true },
   );
-  const mode = value.mode == null ? null : String(value.mode).trim();
+  if (input.mode != null && typeof input.mode !== 'string') {
+    throw new ChangeWorkflowError(
+      'CHANGE_RESEARCH_DISPOSITION_REQUIRED',
+      'research disposition mode must be a string or null',
+    );
+  }
+  const mode = input.mode == null ? null : input.mode.trim();
   if (status === 'none' && (mode !== null || selectedSteps.length > 0)) {
     throw new ChangeWorkflowError(
       'CHANGE_RESEARCH_DISPOSITION_REQUIRED', 'research status none cannot select a mode or steps',
@@ -274,7 +438,7 @@ function normalizeResearchDisposition(value, kind) {
   }
   return {
     status, mode, selected_steps: selectedSteps,
-    rationale: requiredText(value.rationale, 'research_disposition.rationale'),
+    rationale: requiredText(input.rationale, 'research_disposition.rationale'),
   };
 }
 
@@ -285,6 +449,11 @@ function normalizeBaselineBypass(value) {
       'incident work without a ready baseline requires an explicit baseline_bypass record',
     );
   }
+  assertExactFields(
+    value,
+    new Set(['reason', 'approved_by']),
+    'baseline_bypass',
+  );
   const reason = typeof value.reason === 'string' ? value.reason.trim() : '';
   const approvedBy = typeof value.approved_by === 'string' ? value.approved_by.trim() : '';
   if (reason.length < 3 || !approvedBy) {
@@ -579,6 +748,7 @@ function listChanges(db, { status = null, kind = null, limit = 100 } = {}) {
 
 function writeIntent(file, change) {
   const impact = change.docs_impact;
+  const recovery = change.contract.recovery;
   const lines = [
     `# ${change.title}`,
     '',
@@ -600,8 +770,8 @@ function writeIntent(file, change) {
     ]),
     '## Public seams', '', ...change.contract.public_seams.map((item) => `- ${item}`), '',
     '## Non-goals', '', ...change.contract.non_goals.map((item) => `- ${item}`), '',
-    '## Recovery', '', change.contract.recovery.strategy, '',
-    `Verification: \`${change.contract.recovery.verification}\``, '',
+    '## Recovery', '', recovery?.strategy || 'Not yet decided.', '',
+    `Verification: \`${recovery?.verification || 'not yet decided'}\``, '',
     '## Classification', '', change.classification.rationale, '',
     `Risk flags: ${change.classification.risk_flags.join(', ') || 'none'}`, '',
     '## Research routing', '', change.research_disposition.rationale, '',
@@ -870,27 +1040,54 @@ function createChange(db, input, {
   rootDir = process.cwd(),
   kernelMode = false,
 } = {}) {
+  assertExactFields(input, CHANGE_CREATE_FIELDS, 'change');
+  const id = typeof input?.id === 'string' ? input.id.trim() : '';
   const title = typeof input?.title === 'string' ? input.title.trim() : '';
   const intent = typeof input?.intent === 'string' ? input.intent.trim() : '';
-  if (!input || !CHANGE_ID.test(input.id || '') || title.length < 3 || intent.length < 3) {
+  if (!input || !CHANGE_ID.test(id) || title.length < 3 || intent.length < 3) {
     throw new ChangeWorkflowError(
       'VALIDATION_ERROR',
       'id plus non-blank title and intent of at least three characters are required',
     );
   }
-  if (!CHANGE_KINDS.has(input.kind)) {
+  if (!kernelMode && !CHANGE_KINDS.has(input.kind)) {
     throw new ChangeWorkflowError('VALIDATION_ERROR', `invalid change kind: ${input.kind}`);
   }
-  if (input.baseline_bypass !== undefined && input.kind !== 'incident') {
+  const kind = kernelMode
+    ? boundedVocabulary(input.kind, 'change.kind')
+    : input.kind;
+  if (input.base_commit !== undefined && input.base_commit !== null
+      && typeof input.base_commit !== 'string') {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', 'base_commit must be a string or null');
+  }
+  if (input.alignment_thread_id !== undefined
+      && (typeof input.alignment_thread_id !== 'string'
+        || input.alignment_thread_id.trim() === '')) {
+    throw new ChangeWorkflowError(
+      'VALIDATION_ERROR', 'alignment_thread_id must be a non-empty string',
+    );
+  }
+  if (input.supersedes_id !== undefined && input.supersedes_id !== null
+      && (typeof input.supersedes_id !== 'string'
+        || !CHANGE_ID.test(input.supersedes_id.trim()))) {
+    throw new ChangeWorkflowError(
+      'VALIDATION_ERROR',
+      'supersedes_id must be a valid Change id',
+    );
+  }
+  const baseCommit = typeof input.base_commit === 'string'
+    ? input.base_commit.trim()
+    : null;
+  if (input.baseline_bypass !== undefined && kind !== 'incident') {
     throw new ChangeWorkflowError(
       'VALIDATION_ERROR', 'baseline_bypass is valid only for incident changes',
     );
   }
-  if (readChange(db, input.id)) throw new ChangeWorkflowError('DUPLICATE_CHANGE_ID', `change ${input.id} exists`);
+  if (readChange(db, id)) throw new ChangeWorkflowError('DUPLICATE_CHANGE_ID', `change ${id} exists`);
   const baselineHealth = baselines.inspectBaseline(db, { rootDir });
   let baselineBypass = null;
   if (baselineHealth.status !== 'pass' && !kernelMode) {
-    if (input.kind !== 'incident') {
+    if (kind !== 'incident') {
       throw new ChangeWorkflowError(
         'BASELINE_NOT_READY',
         `ordinary changes require a ready baseline: ${baselineHealth.blockers.join(', ')}`,
@@ -915,9 +1112,13 @@ function createChange(db, input, {
   }
   const docsImpact = normalizeDocsImpact(input.docs_impact);
   const providers = normalizeProviderRefs(input.provider_refs);
-  const contract = normalizeChangeContract(input.contract);
-  const classification = normalizeClassification(input.classification, input.kind);
-  const researchDisposition = normalizeResearchDisposition(input.research_disposition, input.kind);
+  const contract = normalizeChangeContract(input.contract, { allowDraft: kernelMode });
+  const classification = normalizeClassification(input.classification, kind, {
+    allowDraft: kernelMode,
+  });
+  const researchDisposition = normalizeResearchDisposition(input.research_disposition, kind, {
+    allowDraft: kernelMode,
+  });
   let alignmentThread = null;
   if (input.alignment_thread_id !== undefined) {
     try {
@@ -943,18 +1144,19 @@ function createChange(db, input, {
       );
     }
   }
-  const artifactRoot = path.join('.ultra', 'changes', 'active', input.id);
+  const artifactRoot = path.join('.ultra', 'changes', 'active', id);
   const artifactDir = path.resolve(rootDir, artifactRoot);
   if (fs.existsSync(artifactDir)) {
     throw new ChangeWorkflowError('CHANGE_ARTIFACT_EXISTS', `change artifact already exists: ${artifactDir}`);
   }
   const ts = nowIso();
   const row = {
-    id: input.id, title, kind: input.kind, status: 'active',
+    id, title, kind, status: 'active',
     intent, docs_impact: docsImpact, provider_refs: providers, baseline_bypass: baselineBypass,
     contract, classification, research_disposition: researchDisposition,
     alignment_thread_id: alignmentThread?.id || null,
-    base_commit: input.base_commit || gitHead(rootDir), artifact_root: artifactRoot,
+    supersedes_id: input.supersedes_id?.trim() || null,
+    base_commit: baseCommit || gitHead(rootDir), artifact_root: artifactRoot,
     created_at: ts, updated_at: ts,
   };
   try {
@@ -963,16 +1165,16 @@ function createChange(db, input, {
         `INSERT INTO changes
          (id, title, kind, status, intent, docs_impact_json, provider_refs_json,
           baseline_bypass_json, contract_json, classification_json,
-          research_disposition_json, alignment_thread_id, base_commit, artifact_root,
+          research_disposition_json, alignment_thread_id, base_commit, supersedes_id, artifact_root,
           created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         row.id, row.title, row.kind, row.status, row.intent, JSON.stringify(row.docs_impact),
         JSON.stringify(row.provider_refs), row.baseline_bypass
           ? JSON.stringify(row.baseline_bypass) : null,
         JSON.stringify(row.contract), JSON.stringify(row.classification),
         JSON.stringify(row.research_disposition), row.alignment_thread_id,
-        row.base_commit, row.artifact_root, ts, ts,
+        row.base_commit, row.supersedes_id, row.artifact_root, ts, ts,
       );
       if (row.alignment_thread_id) {
         db.prepare(
@@ -991,6 +1193,7 @@ function createChange(db, input, {
         payload: {
           kind: row.kind, artifact_root: row.artifact_root,
           alignment_thread_id: row.alignment_thread_id,
+          supersedes_id: row.supersedes_id,
         },
       });
       let workflow = kernelMode ? null : legacyWorkflows().startWorkflow(db, {
@@ -1101,8 +1304,17 @@ function updateChange(db, id, patch = {}, {
   rootDir = process.cwd(),
   kernelMode = false,
 } = {}) {
-  const current = readChange(db, id);
-  if (!current) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${id} not found`);
+  const normalizedId = typeof id === 'string' ? id.trim() : '';
+  if (!CHANGE_ID.test(normalizedId)) {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', 'change id is invalid');
+  }
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    throw new ChangeWorkflowError('VALIDATION_ERROR', 'change patch must be an object');
+  }
+  const current = readChange(db, normalizedId);
+  if (!current) {
+    throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${normalizedId} not found`);
+  }
   if (['archived', 'cancelled'].includes(current.status)) {
     throw new ChangeWorkflowError('CHANGE_NOT_MUTABLE', `change ${id} is ${current.status}`);
   }
@@ -1130,12 +1342,12 @@ function updateChange(db, id, patch = {}, {
       const sets = [];
       const values = [];
       if (patch.title !== undefined) {
-        const title = String(patch.title).trim();
+        const title = typeof patch.title === 'string' ? patch.title.trim() : '';
         if (!title) throw new ChangeWorkflowError('VALIDATION_ERROR', 'change title cannot be empty');
         sets.push('title = ?'); values.push(title);
       }
       if (patch.intent !== undefined) {
-        const intent = String(patch.intent).trim();
+        const intent = typeof patch.intent === 'string' ? patch.intent.trim() : '';
         if (!intent) throw new ChangeWorkflowError('VALIDATION_ERROR', 'change intent cannot be empty');
         sets.push('intent = ?'); values.push(intent);
       }
@@ -1146,15 +1358,24 @@ function updateChange(db, id, patch = {}, {
         sets.push('provider_refs_json = ?'); values.push(JSON.stringify(normalizeProviderRefs(patch.provider_refs)));
       }
       if (patch.contract !== undefined) {
-        sets.push('contract_json = ?'); values.push(JSON.stringify(normalizeChangeContract(patch.contract)));
+        sets.push('contract_json = ?');
+        values.push(JSON.stringify(normalizeChangeContract(patch.contract, {
+          allowDraft: kernelMode,
+        })));
       }
       if (patch.classification !== undefined) {
         sets.push('classification_json = ?');
-        values.push(JSON.stringify(normalizeClassification(patch.classification, current.kind)));
+        values.push(JSON.stringify(normalizeClassification(patch.classification, current.kind, {
+          allowDraft: kernelMode,
+        })));
       }
       if (patch.research_disposition !== undefined) {
         sets.push('research_disposition_json = ?');
-        values.push(JSON.stringify(normalizeResearchDisposition(patch.research_disposition, current.kind)));
+        values.push(JSON.stringify(normalizeResearchDisposition(
+          patch.research_disposition,
+          current.kind,
+          { allowDraft: kernelMode },
+        )));
       }
       if (patch.status !== undefined) {
         const allowed = kernelMode
@@ -1171,16 +1392,16 @@ function updateChange(db, id, patch = {}, {
         sets.push('status = ?'); values.push('active');
       }
       if (sets.length === 0) return current;
-      sets.push('updated_at = ?'); values.push(nowIso(), id);
+      sets.push('updated_at = ?'); values.push(nowIso(), normalizedId);
       db.prepare(`UPDATE changes SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-      const updated = readChange(db, id);
+      const updated = readChange(db, normalizedId);
       const invalidated = [];
       let intentArtifactId = null;
       if (syncIntent) {
         fs.mkdirSync(path.dirname(intentPath), { recursive: true });
         writeIntent(intentPath, updated);
         const recorded = upsertArtifact(db, {
-          change_id: id,
+          change_id: normalizedId,
           kind: 'intent',
           artifactPath: path.relative(rootDir, intentPath),
           contentHash: crypto.createHash('sha256').update(fs.readFileSync(intentPath)).digest('hex'),
@@ -1200,7 +1421,7 @@ function updateChange(db, id, patch = {}, {
           !== changeAuthority.changeStateDigest(updated)) {
         invalidated.push(...artifacts.invalidateConsumersFromEndpointInTx(
           db,
-          { type: 'change', id },
+          { type: 'change', id: normalizedId },
           {
             reason: 'change_semantic_authority_updated',
             exclude: intentArtifactId ? [{ type: 'artifact', id: intentArtifactId }] : [],
@@ -1212,7 +1433,7 @@ function updateChange(db, id, patch = {}, {
       )].sort();
       ops.appendEventInTx(db, {
         type: 'change_updated',
-        change_id: id,
+        change_id: normalizedId,
         payload: {
           fields: Object.keys(patch),
           invalidated_tasks: invalidatedTasks,
@@ -2521,6 +2742,7 @@ function finalizeArchive(db, intent, {
 function archiveChange(db, input, {
   rootDir = process.cwd(),
   kernelMode = false,
+  deferDeliveryCleanup = false,
 } = {}) {
   const change = readChange(db, input.id);
   if (!change) throw new ChangeWorkflowError('CHANGE_NOT_FOUND', `change ${input.id} not found`);
@@ -2534,10 +2756,12 @@ function archiveChange(db, input, {
     throw new ChangeWorkflowError('CHANGE_NOT_READY', `change ${input.id} must converge before archive`);
   }
   if (change.status === 'archived') {
-    deliveryTransaction.completeDeliveryTransaction({
-      rootDir,
-      changeId: change.id,
-    });
+    if (!deferDeliveryCleanup) {
+      deliveryTransaction.completeDeliveryTransaction({
+        rootDir,
+        changeId: change.id,
+      });
+    }
     return {
       change,
       archive_path: safeRelativePath(rootDir, change.artifact_root),
@@ -2672,7 +2896,7 @@ function archiveChange(db, input, {
   }
   try { archiveJournal.completeArchiveIntent(rootDir, prepared.intent); }
   catch (error) { result.recovery_warning = `ARCHIVE_JOURNAL_CLEANUP_PENDING:${error.message}`; }
-  if (delivery) {
+  if (delivery && !deferDeliveryCleanup) {
     try {
       deliveryTransaction.completeDeliveryTransaction({
         rootDir,
@@ -2758,26 +2982,25 @@ function recoverInterruptedArchives(db, { rootDir = process.cwd() } = {}) {
 }
 
 function createKernelChange(db, input, options = {}) {
-  if (input?.alignment_thread_id !== undefined) {
-    throw new ChangeWorkflowError(
-      'VALIDATION_ERROR',
-      'alignment_thread_id belongs to the retired workflow supervisor; record a Decision instead',
-    );
-  }
-  return createChange(db, input, { ...options, kernelMode: true });
+  return kernelChangeWorkflow.createChange(db, input, options);
+}
+
+function supersedeKernelChange(db, input = {}, options = {}) {
+  return kernelChangeWorkflow.supersedeChange(db, input, options);
 }
 
 function updateKernelChange(db, id, patch = {}, options = {}) {
-  return updateChange(db, id, patch, { ...options, kernelMode: true });
+  return kernelChangeWorkflow.updateChange(db, id, patch, options);
 }
 
 function archiveKernelChange(db, input, options = {}) {
-  return archiveChange(db, input, { ...options, kernelMode: true });
+  return kernelChangeWorkflow.archiveChange(db, input, options);
 }
 
 module.exports = {
   ChangeWorkflowError,
   createKernelChange,
+  supersedeKernelChange,
   updateKernelChange,
   archiveKernelChange,
   createChange,

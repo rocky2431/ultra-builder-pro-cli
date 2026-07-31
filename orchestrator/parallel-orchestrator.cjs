@@ -27,6 +27,8 @@ const { isDeepStrictEqual } = require('node:util');
 const planStore = require('../mcp-server/lib/plan-store.cjs');
 const ops = require('../mcp-server/lib/state-ops.cjs');
 const checkpoints = require('../mcp-server/lib/stage-checkpoints.cjs');
+const gitBootstrap = require('../mcp-server/lib/git-bootstrap.cjs');
+const runtimePaths = require('../mcp-server/lib/runtime-paths.cjs');
 const workerPackets = require('../mcp-server/lib/worker-packet.cjs');
 const runner = require('./session-runner.cjs');
 const dispatchRules = require('./dispatch-rules.cjs');
@@ -460,6 +462,10 @@ function reservePreparedTask(db, repoRoot, prepared, ctx) {
   const { onError } = ctx;
   let handle;
   let packet = null;
+  let authority = null;
+  const priorContextIds = new Set(
+    db.prepare('SELECT id FROM context_envelopes').all().map((row) => row.id),
+  );
   try {
     if (!task.change_id) {
       throw planError(
@@ -467,36 +473,44 @@ function reservePreparedTask(db, repoRoot, prepared, ctx) {
         `orchestrator task ${task.id} must belong to the accepted Change`,
       );
     }
-    packet = workerPackets.createWorkerPacket(db, {
-      role: 'implement',
-      task_id: task.id,
-      runtime: decision.runtime,
-      output_path: `.ultra/changes/active/${task.change_id}/delivery/${task.id}-outcome.json`,
-      output_schema: {
-        type: 'object',
-        required: ['packet_digest'],
-        properties: {
-          packet_digest: { type: 'string', pattern: '^[0-9a-f]{64}$' },
-        },
-      },
-    }, { rootDir: repoRoot });
-    handle = runner.spawnSession({
-      db, repoRoot,
-      task_id: task.id,
-      runtime: decision.runtime,
-      command: ctx.deferStart ? null : command,
-      args: ctx.deferStart ? [] : args,
-      mark_task_started: true,
-      kernel_mode: true,
-      packet_digest: packet.packet_digest,
+    authority = runtimePaths.ensureRuntimeState(repoRoot, {
+      admitStorageBoundary: () => gitBootstrap.ensureExistingProjectStorageBoundary(repoRoot),
     });
-    handle.task_id = task.id;
-    workerPackets.markWorkerPacketAssigned(db, packet.id);
-    handle.packet = packet;
+    ops.tx(db, () => {
+      packet = workerPackets.createWorkerPacket(db, {
+        role: 'implement',
+        task_id: task.id,
+        runtime: decision.runtime,
+        output_path: `.ultra/changes/active/${task.change_id}/delivery/${task.id}-outcome.json`,
+        output_schema: {
+          type: 'object',
+          required: ['packet_digest'],
+          properties: {
+            packet_digest: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+          },
+        },
+      }, { rootDir: repoRoot });
+      workerPackets.markWorkerPacketAssigned(db, packet.id);
+      handle = runner.spawnSession({
+        db, repoRoot,
+        task_id: task.id,
+        runtime: decision.runtime,
+        authority,
+        command: null,
+        args: [],
+        mark_task_started: true,
+        kernel_mode: true,
+        packet_digest: packet.packet_digest,
+      });
+      handle.task_id = task.id;
+      handle.packet = packet;
+    });
   } catch (err) {
-    if (packet?.id) {
-      workerPackets.abandonWorkerPacket(db, packet.id, err.code || err.message);
-    }
+    rollbackFailedReservation(db, repoRoot, {
+      handle,
+      packet,
+      priorContextIds,
+    });
     const authorityBlocked = authorityBlockedResult(err, task.id, {
       reservationFailed: true,
     });
@@ -521,6 +535,69 @@ function reservePreparedTask(db, repoRoot, prepared, ctx) {
     command,
     args,
   };
+}
+
+function rollbackFailedReservation(db, repoRoot, {
+  handle,
+  packet,
+  priorContextIds,
+}) {
+  if (handle?.worktree_path) {
+    try {
+      runner._internal.reconcileRemovedWorktree(
+        repoRoot,
+        handle.worktree_path,
+        { sid: handle.sid },
+      );
+    } catch { /* the caller preserves the original reservation error */ }
+  }
+  if (handle?.artifact_dir) {
+    const expected = path.resolve(
+      repoRoot,
+      '.ultra',
+      '.runtime',
+      'sessions',
+      handle.sid,
+    );
+    const actual = path.resolve(handle.artifact_dir);
+    if (actual === expected) {
+      try { fs.rmSync(actual, { recursive: true, force: true }); }
+      catch { /* the caller preserves the original reservation error */ }
+    }
+  }
+  if (packet?.created && !db.prepare(
+    'SELECT 1 FROM worker_packets WHERE id = ?',
+  ).get(packet.id)) {
+    const expected = path.resolve(
+      repoRoot,
+      '.ultra',
+      '.runtime',
+      'worker-packets',
+      `${packet.id}.json`,
+    );
+    const actual = path.resolve(repoRoot, packet.packet_path);
+    if (actual === expected) {
+      try { fs.rmSync(actual, { force: true }); }
+      catch { /* the caller preserves the original reservation error */ }
+    }
+  }
+  const context = packet?.context_envelope;
+  if (context?.id
+      && !priorContextIds.has(context.id)
+      && !db.prepare('SELECT 1 FROM context_envelopes WHERE id = ?').get(context.id)) {
+    const actual = path.resolve(repoRoot, context.path);
+    const runtimeContextRoot = path.resolve(
+      repoRoot,
+      '.ultra',
+      '.runtime',
+      'contexts',
+    );
+    if (actual.startsWith(`${runtimeContextRoot}${path.sep}`)
+        && path.basename(actual) === `${context.id}.json`) {
+      try { fs.rmSync(actual, { force: true }); }
+      catch { /* the caller preserves the original reservation error */ }
+    }
+  }
 }
 
 async function runTask(db, repoRoot, task, wave, ctx) {
@@ -559,6 +636,16 @@ function unwindReservations(db, repoRoot, reservations, ctx) {
       errors.push(error);
       if (ctx.onError) ctx.onError(error);
       continue;
+    }
+    try {
+      workerPackets.abandonWorkerPacket(
+        db,
+        handle.packet?.id,
+        'parallel reservation cancelled before execution',
+      );
+    } catch (error) {
+      errors.push(error);
+      if (ctx.onError) ctx.onError(error);
     }
     const task = ops.readTask(db, handle.task_id);
     if (task?.status === 'in_progress') {

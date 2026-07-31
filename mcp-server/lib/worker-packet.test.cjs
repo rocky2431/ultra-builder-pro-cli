@@ -116,3 +116,30 @@ test('Worker Packet bytes are immutable and failed assignment is explicitly aban
     fx.close();
   }
 });
+
+test('an assigned Worker Packet can be revoked when its reservation is cancelled', () => {
+  const fx = fixture();
+  try {
+    const packet = packets.createWorkerPacket(fx.db, {
+      role: 'implement',
+      task_id: 'task-1',
+      runtime: 'codex',
+      output_path: '.ultra/changes/active/chg-1/delivery/task-1-outcome.json',
+    }, { rootDir: fx.rootDir });
+    packets.markWorkerPacketAssigned(fx.db, packet.id);
+
+    const abandoned = packets.abandonWorkerPacket(
+      fx.db,
+      packet.id,
+      'parallel reservation cancelled before execution',
+    );
+
+    assert.equal(abandoned.status, 'abandoned');
+    assert.equal(
+      fx.db.prepare('SELECT status FROM worker_packets WHERE id = ?').get(packet.id).status,
+      'abandoned',
+    );
+  } finally {
+    fx.close();
+  }
+});

@@ -9,6 +9,7 @@ const path = require('node:path');
 
 const { Client } = require('@modelcontextprotocol/client');
 const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
+const { createFakeGrok } = require('../adapters/tests/grok-cli-fixture.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PACKAGE = require(path.join(REPO_ROOT, 'package.json'));
@@ -416,9 +417,15 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
     }
 
     const configRoot = path.join(tempRoot, 'hosts');
+    const grokBinaryRoot = path.join(tempRoot, 'fake-grok-bin');
+    const grokBin = createFakeGrok(grokBinaryRoot);
     for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok']) {
       const hostRoot = path.join(configRoot, runtime);
-      const env = runtime === 'codex' ? { HOME: hostRoot } : {};
+      const env = runtime === 'codex'
+        ? { HOME: hostRoot }
+        : runtime === 'grok'
+          ? { HOME: hostRoot, GROK_BIN: grokBin }
+          : {};
       run(ubp, [`--${runtime}`, '--config-dir', hostRoot], {
         cwd: consumer,
         env,
@@ -436,7 +443,12 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
       opencode: path.join(configRoot, 'opencode', '.ultra-builder-pro'),
       codex: path.join(configRoot, 'codex', 'plugins', 'ultra-builder-pro'),
       kimi: path.join(configRoot, 'kimi', 'plugins', 'managed', 'ultra-builder-pro'),
-      grok: path.join(configRoot, 'grok', 'plugins', 'ultra-builder-pro'),
+      grok: path.join(
+        configRoot,
+        'grok',
+        'installed-plugins',
+        'ultra-builder-pro-testkey',
+      ),
     };
     for (const [runtime, root] of Object.entries(installedRoots)) {
       const contract = JSON.parse(fs.readFileSync(
@@ -466,7 +478,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
       opencode: path.join(configRoot, 'opencode', '.ultra-builder-pro', 'runtime', 'launch.cjs'),
       codex: path.join(configRoot, 'codex', 'plugins', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
       kimi: path.join(configRoot, 'kimi', 'plugins', 'managed', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
-      grok: path.join(configRoot, 'grok', 'plugins', 'ultra-builder-pro', 'runtime', 'launch.cjs'),
+      grok: path.join(installedRoots.grok, 'runtime', 'launch.cjs'),
     };
     for (const [runtime, launcher] of Object.entries(launchers)) {
       assert.ok(fs.existsSync(launcher), `${runtime} launcher missing`);
@@ -501,7 +513,7 @@ test('npm tarball installs all CLIs and builds durable native host runtimes', { 
       );
       assert.doesNotMatch(
         runtimeSource,
-        /const WORKFLOW_DEFINITIONS|function startWorkflow\(/,
+        /const WORKFLOW_DEFINITIONS|function startWorkflow\(|CHANGE_TRANSITIONS|kernelMode|validateDeliveryPrerequisites/,
         `${runtime} bundled MCP contains the retired semantic supervisor`,
       );
       invokeArchiveMutationWorker(

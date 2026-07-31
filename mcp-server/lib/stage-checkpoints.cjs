@@ -55,10 +55,10 @@ function normalizeDiagnostics(value) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new StageCheckpointError('VALIDATION_ERROR', `diagnostics[${index}] must be an object`);
     }
-    const code = String(item.code || '').trim();
-    if (!code) {
+    if (typeof item.code !== 'string' || !item.code.trim()) {
       throw new StageCheckpointError('VALIDATION_ERROR', `diagnostics[${index}].code is required`);
     }
+    const code = item.code.trim();
     const severity = item.severity || 'needs_attention';
     if (!['warning', 'needs_attention', 'hard_conflict'].includes(severity)) {
       throw new StageCheckpointError(
@@ -66,12 +66,76 @@ function normalizeDiagnostics(value) {
         `diagnostics[${index}].severity is invalid`,
       );
     }
+    if (item.message !== undefined && typeof item.message !== 'string') {
+      throw new StageCheckpointError(
+        'VALIDATION_ERROR',
+        `diagnostics[${index}].message must be a string`,
+      );
+    }
     return {
       code,
       severity,
-      ...(item.message ? { message: String(item.message) } : {}),
+      ...(item.message ? { message: item.message } : {}),
       ...(item.details === undefined ? {} : { details: item.details }),
     };
+  });
+}
+
+function normalizePayload(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new StageCheckpointError('VALIDATION_ERROR', 'checkpoint payload must be an object');
+  }
+  return value;
+}
+
+function normalizeEvidence(value) {
+  if (!Array.isArray(value)) {
+    throw new StageCheckpointError('VALIDATION_ERROR', 'evidence must be an array');
+  }
+  return value.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new StageCheckpointError('VALIDATION_ERROR', `evidence[${index}] must be an object`);
+    }
+    return item;
+  });
+}
+
+function idempotencyConflict(idempotencyKey, priorDigest, requestedDigest) {
+  return new StageCheckpointError(
+    'IDEMPOTENCY_KEY_CONFLICT',
+    `idempotency key ${idempotencyKey} was already used for another checkpoint request`,
+    {
+      idempotency_key: idempotencyKey,
+      prior_request_digest: priorDigest,
+      requested_request_digest: requestedDigest,
+    },
+  );
+}
+
+function draftRequestDigest({
+  stage,
+  scopeType,
+  scopeId,
+  payload,
+}) {
+  const requestPayload = stage === 'plan' && payload && typeof payload === 'object'
+    ? Object.fromEntries(Object.entries(payload).filter(([key]) => key !== 'plan'))
+    : payload;
+  return canonical.digest({
+    operation: 'checkpoint:draft',
+    stage,
+    scope_type: scopeType,
+    scope_id: scopeId,
+    payload: requestPayload,
+  });
+}
+
+function checkpointDraftRequestDigest(checkpoint) {
+  return draftRequestDigest({
+    stage: checkpoint.stage,
+    scopeType: checkpoint.scope_type,
+    scopeId: checkpoint.scope_id,
+    payload: checkpoint.payload,
   });
 }
 
@@ -151,6 +215,28 @@ function existingByIdempotency(db, idempotencyKey) {
   );
 }
 
+function findIdempotentDraft(db, input = {}) {
+  validateStage(input.stage);
+  const scope = normalizeScope(input.scope);
+  const idempotencyKey = String(input.idempotency_key || '').trim();
+  if (!idempotencyKey) {
+    throw new StageCheckpointError('VALIDATION_ERROR', 'idempotency_key is required');
+  }
+  const existing = existingByIdempotency(db, idempotencyKey);
+  if (!existing) return null;
+  const requestedDigest = draftRequestDigest({
+    stage: input.stage,
+    scopeType: scope.type,
+    scopeId: scope.id,
+    payload: normalizePayload(input.payload),
+  });
+  const priorDigest = checkpointDraftRequestDigest(existing);
+  if (priorDigest !== requestedDigest) {
+    throw idempotencyConflict(idempotencyKey, priorDigest, requestedDigest);
+  }
+  return existing;
+}
+
 function saveDraft(db, input = {}) {
   validateStage(input.stage);
   const scope = normalizeScope(input.scope);
@@ -158,12 +244,23 @@ function saveDraft(db, input = {}) {
   if (!idempotencyKey) {
     throw new StageCheckpointError('VALIDATION_ERROR', 'idempotency_key is required');
   }
+  const payload = normalizePayload(input.payload);
+  const evidence = normalizeEvidence(input.evidence);
+  const diagnostics = normalizeDiagnostics(input.diagnostics);
+  const requestedDigest = draftRequestDigest({
+    stage: input.stage,
+    scopeType: scope.type,
+    scopeId: scope.id,
+    payload,
+  });
   const existingRetry = existingByIdempotency(db, idempotencyKey);
-  if (existingRetry) return existingRetry;
-  const payload = input.payload && typeof input.payload === 'object' && !Array.isArray(input.payload)
-    ? input.payload : {};
-  const evidence = Array.isArray(input.evidence) ? input.evidence : [];
-  const diagnostics = normalizeDiagnostics(input.diagnostics || []);
+  if (existingRetry) {
+    const priorDigest = checkpointDraftRequestDigest(existingRetry);
+    if (priorDigest !== requestedDigest) {
+      throw idempotencyConflict(idempotencyKey, priorDigest, requestedDigest);
+    }
+    return existingRetry;
+  }
   return ops.tx(db, () => {
     const draft = db.prepare(
       `SELECT * FROM stage_checkpoints
@@ -241,6 +338,33 @@ function saveDraft(db, input = {}) {
   });
 }
 
+function acceptanceReceipt(db, idempotencyKey) {
+  if (!idempotencyKey) return null;
+  const rows = db.prepare(
+    `SELECT payload_json FROM events
+     WHERE type = 'ultra_checkpoint_accepted'
+     ORDER BY id DESC`,
+  ).all();
+  for (const row of rows) {
+    const payload = parseJson(row.payload_json, {});
+    if (payload.idempotency_key === idempotencyKey) return payload;
+  }
+  return null;
+}
+
+function acceptanceReceiptForCheckpoint(db, checkpointId) {
+  const rows = db.prepare(
+    `SELECT payload_json FROM events
+     WHERE type = 'ultra_checkpoint_accepted'
+     ORDER BY id DESC`,
+  ).all();
+  for (const row of rows) {
+    const payload = parseJson(row.payload_json, {});
+    if (payload.checkpoint_id === checkpointId && payload.idempotency_key) return payload;
+  }
+  return null;
+}
+
 function acceptDraft(db, input = {}) {
   const idempotencyKey = String(input.idempotency_key || '').trim();
   if (!idempotencyKey) {
@@ -249,7 +373,34 @@ function acceptDraft(db, input = {}) {
   return ops.tx(db, () => {
     const row = db.prepare('SELECT * FROM stage_checkpoints WHERE id = ?').get(input.id);
     if (!row) throw new StageCheckpointError('CHECKPOINT_NOT_FOUND', `checkpoint not found: ${input.id}`);
-    if (row.status === 'accepted') return rowToCheckpoint(row);
+    const checkpoint = rowToCheckpoint(row);
+    const requestedDigest = canonical.digest({
+      operation: 'checkpoint:accept',
+      checkpoint_id: checkpoint.id,
+      checkpoint_digest: checkpoint.digest,
+    });
+    const prior = acceptanceReceipt(db, idempotencyKey);
+    if (prior) {
+      if (prior.request_digest !== requestedDigest) {
+        throw idempotencyConflict(
+          idempotencyKey,
+          prior.request_digest || null,
+          requestedDigest,
+        );
+      }
+      return checkpoint;
+    }
+    if (row.status === 'accepted') {
+      const checkpointReceipt = acceptanceReceiptForCheckpoint(db, checkpoint.id);
+      if (checkpointReceipt) {
+        throw idempotencyConflict(
+          idempotencyKey,
+          checkpointReceipt.request_digest || null,
+          requestedDigest,
+        );
+      }
+      return checkpoint;
+    }
     if (row.status !== 'draft') {
       throw new StageCheckpointError(
         'CHECKPOINT_NOT_MUTABLE',
@@ -279,6 +430,8 @@ function acceptDraft(db, input = {}) {
         stage: accepted.stage,
         revision: accepted.revision,
         digest: accepted.digest,
+        idempotency_key: idempotencyKey,
+        request_digest: requestedDigest,
       },
     });
     return accepted;
@@ -303,6 +456,7 @@ module.exports = {
   readCheckpoint,
   listCheckpoints,
   saveDraft,
+  findIdempotentDraft,
   acceptDraft,
   currentCheckpoint,
   checkpointDigest,

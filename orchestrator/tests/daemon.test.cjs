@@ -42,7 +42,7 @@ function mkDb(repoRoot) {
   return db;
 }
 
-function seedUnapprovedChangeTask(db, id) {
+function seedUncheckpointedChangeTask(db, id) {
   const changeId = `${id}-change`;
   db.prepare(
     `INSERT INTO changes (id, title, kind, status, intent, artifact_root)
@@ -55,17 +55,17 @@ function seedUnapprovedChangeTask(db, id) {
   );
   ops.createTask(db, {
     id,
-    title: 'unapproved daemon task',
+    title: 'uncheckpointed daemon task',
     type: 'feature',
     priority: 'P1',
     change_id: changeId,
-    outcome: 'Daemon waits for plan approval.',
+    outcome: 'Daemon records execution without claiming semantic Plan authority.',
     slice_kind: 'tracer_bullet',
     public_seam: 'daemon admission',
     verification_command: 'node --test orchestrator/tests/daemon.test.cjs',
     acceptance: [{
       id: 'daemon-plan-gate',
-      criterion: 'Unapproved work does not dispatch.',
+      criterion: 'Mechanical dispatch does not fabricate semantic Plan authority.',
       verification: 'node --test orchestrator/tests/daemon.test.cjs',
     }],
     context_refs: [{ ref: 'spec/mcp-tools.yaml', reason: 'Daemon contract.', required: true }],
@@ -368,13 +368,13 @@ test('runDaemon does not dispatch a stale pending task', async () => {
   }
 });
 
-test('runDaemon quietly leaves a change task without a completed plan pending', async () => {
+test('runDaemon does not turn a missing semantic Plan into a mechanical dispatch gate', async () => {
   const repoRoot = mkRepo();
   const db = mkDb(repoRoot);
   const errors = [];
   let handle;
   try {
-    seedUnapprovedChangeTask(db, 'd-unapproved');
+    seedUncheckpointedChangeTask(db, 'd-unapproved');
     handle = daemon.runDaemon({
       db, repoRoot,
       runtimes: ['claude'],
@@ -383,12 +383,14 @@ test('runDaemon quietly leaves a change task without a completed plan pending', 
       commandArgs: LONG_SLEEP_ARGS,
       onError: (error) => errors.push(error),
     });
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    assert.equal(
-      db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE task_id = 'd-unapproved'").get().count,
-      0,
+    const sessionCount = await waitFor(
+      () => db.prepare(
+        "SELECT COUNT(*) AS count FROM sessions WHERE task_id = 'd-unapproved'",
+      ).get().count,
+      (count) => count === 1,
     );
-    assert.equal(ops.readTask(db, 'd-unapproved').status, 'pending');
+    assert.equal(sessionCount, 1);
+    assert.equal(ops.readTask(db, 'd-unapproved').status, 'in_progress');
     assert.deepEqual(errors, []);
   } finally {
     cleanup(repoRoot, db, handle);

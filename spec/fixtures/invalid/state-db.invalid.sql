@@ -5,12 +5,6 @@
 -- Format: one statement per line, lines starting with `--EXPECT_REJECT:`
 -- annotate the constraint that should fire.
 
---EXPECT_REJECT: type CHECK
-INSERT INTO tasks (id, title, type, priority) VALUES ('bad-1', 'wrong type', 'epic', 'P0');
-
---EXPECT_REJECT: priority CHECK
-INSERT INTO tasks (id, title, type, priority) VALUES ('bad-2', 'wrong prio', 'feature', 'P9');
-
 --EXPECT_REJECT: complexity range
 INSERT INTO tasks (id, title, type, priority, complexity) VALUES ('bad-3', 'oob', 'feature', 'P1', 99);
 

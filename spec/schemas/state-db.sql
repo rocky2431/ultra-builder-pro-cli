@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS baselines_status ON baselines(status, updated_at);
 CREATE TABLE IF NOT EXISTS changes (
   id                TEXT PRIMARY KEY,
   title             TEXT NOT NULL,
-  kind              TEXT NOT NULL CHECK (kind IN ('quick', 'standard', 'major', 'incident')),
+  kind              TEXT NOT NULL CHECK (length(trim(kind)) BETWEEN 1 AND 80),
   status            TEXT NOT NULL DEFAULT 'active'
                       CHECK (status IN ('active', 'blocked', 'ready', 'archived', 'cancelled')),
   intent            TEXT NOT NULL,
@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS changes (
   research_disposition_json TEXT NOT NULL DEFAULT '{}',
   alignment_thread_id TEXT REFERENCES decision_threads(id) ON DELETE SET NULL,
   base_commit       TEXT,
+  supersedes_id     TEXT REFERENCES changes(id) ON DELETE SET NULL,
   artifact_root     TEXT NOT NULL,
   created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -81,13 +82,14 @@ CREATE INDEX IF NOT EXISTS changes_status ON changes(status, created_at);
 CREATE INDEX IF NOT EXISTS changes_kind   ON changes(kind, created_at);
 
 -- ──────────────────────────── tasks ───────────────────────────────────────
--- Authoritative task row. tasks.json is generated from this table by the
--- projector (Phase 2.6). Manual edits to tasks.json are overwritten.
+-- Checkout-local operational task authority. The Git-facing tasks.json is a
+-- durable team checkpoint published/imported through ultra.sync; live
+-- projections stay below .ultra/.runtime and are never edited manually.
 CREATE TABLE IF NOT EXISTS tasks (
   id                TEXT PRIMARY KEY,
   title             TEXT NOT NULL,
-  type              TEXT NOT NULL CHECK (type IN ('architecture', 'feature', 'bugfix')),
-  priority          TEXT NOT NULL CHECK (priority IN ('P0', 'P1', 'P2', 'P3')),
+  type              TEXT NOT NULL CHECK (length(trim(type)) BETWEEN 1 AND 80),
+  priority          TEXT NOT NULL CHECK (length(trim(priority)) BETWEEN 1 AND 80),
   complexity        INTEGER CHECK (complexity BETWEEN 1 AND 10),
   estimated_days    REAL CHECK (estimated_days IS NULL OR estimated_days > 0),
   status            TEXT NOT NULL DEFAULT 'pending'
@@ -99,7 +101,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   tag               TEXT,                -- git branch tag (Phase 7.2)
   trace_to          TEXT,                -- spec anchor reference
   outcome           TEXT,                -- observable result owned by this task
-  slice_kind        TEXT CHECK (slice_kind IS NULL OR slice_kind IN ('tracer_bullet', 'expand_contract', 'integration_checkpoint')),
+  slice_kind        TEXT CHECK (slice_kind IS NULL OR length(trim(slice_kind)) BETWEEN 1 AND 80),
   public_seam       TEXT,                -- externally observable seam exercised by the slice
   verification_command TEXT,             -- exact task-level verification command
   acceptance_json   TEXT NOT NULL DEFAULT '[]',
@@ -635,3 +637,5 @@ INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('21.0', 'Seven-tool persistence kernel, reversible stage checkpoints, canonical context envelopes, normalized decisions, and worker packets');
 INSERT OR IGNORE INTO schema_version (version, description)
 VALUES ('22.0', 'Checkpoint-native baseline authority plus byte-bound Context Envelopes and Worker Packets');
+INSERT OR IGNORE INTO schema_version (version, description)
+VALUES ('23.0', 'Open semantic vocabularies, mutable Change drafts, and linked immutable-archive successors');

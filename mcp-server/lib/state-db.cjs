@@ -9,7 +9,7 @@ const REPO_ROOT = process.env.UBP_RUNTIME_ROOT
   ? path.resolve(process.env.UBP_RUNTIME_ROOT)
   : path.resolve(__dirname, '..', '..');
 const SCHEMA_FILE = path.join(REPO_ROOT, 'spec', 'schemas', 'state-db.sql');
-const EXPECTED_VERSION = '22.0';
+const EXPECTED_VERSION = '23.0';
 const KIMI_SCHEMA_VERSION = '9.1';
 const CONTEXT_SCHEMA_VERSION = '10.0';
 const BASELINE_SCHEMA_VERSION = '11.0';
@@ -24,6 +24,7 @@ const DECISION_COMPLETION_SCHEMA_VERSION = '19.0';
 const ARTIFACT_REGISTRY_SCHEMA_VERSION = '20.0';
 const KERNEL_SCHEMA_VERSION = '21.0';
 const CHECKPOINT_NATIVE_SCHEMA_VERSION = '22.0';
+const SEMANTIC_KERNEL_SCHEMA_VERSION = '23.0';
 
 const MIGRATED_GAPS = Object.freeze([{
   id: 'legacy-rebaseline-required',
@@ -306,7 +307,152 @@ function applyChangeColumns(db) {
     db, 'changes', columns, 'alignment_thread_id',
     'TEXT REFERENCES decision_threads(id) ON DELETE SET NULL',
   ) || changed;
+  changed = addColumnIfMissing(
+    db, 'changes', columns, 'supersedes_id',
+    'TEXT REFERENCES changes(id) ON DELETE SET NULL',
+  ) || changed;
   return changed;
+}
+
+function upgradeSemanticKernelConstraints(db) {
+  const tables = new Set(tableNames(db));
+  if (!tables.has('changes') || !tables.has('tasks')) return false;
+  const taskColumns = columnNames(db, 'tasks');
+  const preservesLegacyComplexityHint = taskColumns.has('complexity_hint');
+  const changesSql = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'changes'",
+  ).get()?.sql || '';
+  const tasksSql = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'",
+  ).get()?.sql || '';
+  const current = /length\s*\(\s*trim\s*\(\s*kind\s*\)\s*\)\s+BETWEEN\s+1\s+AND\s+80/i
+    .test(changesSql)
+    && /length\s*\(\s*trim\s*\(\s*type\s*\)\s*\)\s+BETWEEN\s+1\s+AND\s+80/i
+      .test(tasksSql)
+    && /length\s*\(\s*trim\s*\(\s*priority\s*\)\s*\)\s+BETWEEN\s+1\s+AND\s+80/i
+      .test(tasksSql)
+    && /length\s*\(\s*trim\s*\(\s*slice_kind\s*\)\s*\)\s+BETWEEN\s+1\s+AND\s+80/i
+      .test(tasksSql)
+    && columnNames(db, 'changes').has('supersedes_id');
+  if (current) return false;
+
+  const foreignKeys = db.pragma('foreign_keys', { simple: true });
+  db.pragma('foreign_keys = OFF');
+  try {
+    db.transaction(() => {
+      db.exec(`
+        DROP TABLE IF EXISTS changes_semantic_kernel_upgrade;
+        CREATE TABLE changes_semantic_kernel_upgrade (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (length(trim(kind)) BETWEEN 1 AND 80),
+          status TEXT NOT NULL DEFAULT 'active'
+            CHECK (status IN ('active', 'blocked', 'ready', 'archived', 'cancelled')),
+          intent TEXT NOT NULL,
+          docs_impact_json TEXT NOT NULL DEFAULT '{"status":"unknown","files":[],"rationale":null}',
+          provider_refs_json TEXT NOT NULL DEFAULT '{}',
+          baseline_bypass_json TEXT,
+          contract_json TEXT NOT NULL DEFAULT '{}',
+          classification_json TEXT NOT NULL DEFAULT '{}',
+          research_disposition_json TEXT NOT NULL DEFAULT '{}',
+          alignment_thread_id TEXT REFERENCES decision_threads(id) ON DELETE SET NULL,
+          base_commit TEXT,
+          supersedes_id TEXT REFERENCES changes_semantic_kernel_upgrade(id) ON DELETE SET NULL,
+          artifact_root TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          closed_at TEXT
+        );
+        INSERT INTO changes_semantic_kernel_upgrade (
+          id, title, kind, status, intent, docs_impact_json, provider_refs_json,
+          baseline_bypass_json, contract_json, classification_json,
+          research_disposition_json, alignment_thread_id, base_commit,
+          supersedes_id, artifact_root, created_at, updated_at, closed_at
+        )
+        SELECT
+          id, title, kind, status, intent, docs_impact_json, provider_refs_json,
+          baseline_bypass_json, contract_json, classification_json,
+          research_disposition_json, alignment_thread_id, base_commit,
+          supersedes_id, artifact_root, created_at, updated_at, closed_at
+        FROM changes;
+
+        DROP TABLE IF EXISTS tasks_semantic_kernel_upgrade;
+        CREATE TABLE tasks_semantic_kernel_upgrade (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          type TEXT NOT NULL CHECK (length(trim(type)) BETWEEN 1 AND 80),
+          priority TEXT NOT NULL CHECK (length(trim(priority)) BETWEEN 1 AND 80),
+          complexity INTEGER CHECK (complexity BETWEEN 1 AND 10),
+          estimated_days REAL CHECK (estimated_days IS NULL OR estimated_days > 0),
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'in_progress', 'completed', 'blocked', 'expanded')),
+          deps TEXT,
+          files_modified TEXT,
+          session_id TEXT,
+          stale INTEGER NOT NULL DEFAULT 0 CHECK (stale IN (0, 1)),
+          ${preservesLegacyComplexityHint ? 'complexity_hint TEXT,' : ''}
+          tag TEXT,
+          trace_to TEXT,
+          outcome TEXT,
+          slice_kind TEXT CHECK (
+            slice_kind IS NULL OR length(trim(slice_kind)) BETWEEN 1 AND 80
+          ),
+          public_seam TEXT,
+          verification_command TEXT,
+          acceptance_json TEXT NOT NULL DEFAULT '[]',
+          context_refs_json TEXT NOT NULL DEFAULT '[]',
+          docs_impact_json TEXT NOT NULL DEFAULT '{"status":"unknown","files":[],"rationale":null}',
+          ownership_json TEXT NOT NULL DEFAULT '{}',
+          context_file TEXT,
+          completion_commit TEXT,
+          change_id TEXT REFERENCES changes_semantic_kernel_upgrade(id) ON DELETE SET NULL,
+          parent_id TEXT REFERENCES tasks_semantic_kernel_upgrade(id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        );
+        INSERT INTO tasks_semantic_kernel_upgrade (
+          id, title, type, priority, complexity, estimated_days, status, deps,
+          files_modified, session_id, stale,
+          ${preservesLegacyComplexityHint ? 'complexity_hint,' : ''}
+          tag, trace_to, outcome, slice_kind,
+          public_seam, verification_command, acceptance_json, context_refs_json,
+          docs_impact_json, ownership_json, context_file, completion_commit,
+          change_id, parent_id, created_at, updated_at
+        )
+        SELECT
+          id, title, type, priority, complexity, estimated_days, status, deps,
+          files_modified, session_id, stale,
+          ${preservesLegacyComplexityHint ? 'complexity_hint,' : ''}
+          tag, trace_to, outcome, slice_kind,
+          public_seam, verification_command, acceptance_json, context_refs_json,
+          docs_impact_json, ownership_json, context_file, completion_commit,
+          change_id, parent_id, created_at, updated_at
+        FROM tasks;
+
+        DROP TABLE tasks;
+        DROP TABLE changes;
+        ALTER TABLE changes_semantic_kernel_upgrade RENAME TO changes;
+        ALTER TABLE tasks_semantic_kernel_upgrade RENAME TO tasks;
+        CREATE INDEX changes_status ON changes(status, created_at);
+        CREATE INDEX changes_kind ON changes(kind, created_at);
+        CREATE INDEX tasks_status ON tasks(status);
+        CREATE INDEX tasks_tag ON tasks(tag);
+        CREATE INDEX tasks_session ON tasks(session_id) WHERE session_id IS NOT NULL;
+        CREATE INDEX tasks_stale ON tasks(stale) WHERE stale = 1;
+        CREATE INDEX tasks_parent ON tasks(parent_id) WHERE parent_id IS NOT NULL;
+        CREATE INDEX tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL;
+      `);
+      const violations = db.pragma('foreign_key_check');
+      if (violations.length > 0) {
+        throw new Error(
+          `semantic kernel migration produced ${violations.length} foreign key violation(s)`,
+        );
+      }
+    })();
+  } finally {
+    db.pragma(`foreign_keys = ${foreignKeys ? 'ON' : 'OFF'}`);
+  }
+  return true;
 }
 
 function applySemanticAuthorityColumns(db) {
@@ -416,7 +562,7 @@ function applyCompatibleColumns(db) {
   }
   const taskAdditions = [
     ['outcome', 'TEXT'],
-    ['slice_kind', "TEXT CHECK (slice_kind IS NULL OR slice_kind IN ('tracer_bullet', 'expand_contract', 'integration_checkpoint'))"],
+    ['slice_kind', 'TEXT CHECK (slice_kind IS NULL OR length(trim(slice_kind)) BETWEEN 1 AND 80)'],
     ['public_seam', 'TEXT'],
     ['verification_command', 'TEXT'],
     ['acceptance_json', "TEXT NOT NULL DEFAULT '[]'"],
@@ -486,7 +632,7 @@ function migrateAdaptiveWorkflowRuns(db, fromVersion = latestSchemaVersion(db)) 
   if ([
     ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
     ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
-    CHECKPOINT_NATIVE_SCHEMA_VERSION,
+    CHECKPOINT_NATIVE_SCHEMA_VERSION, SEMANTIC_KERNEL_SCHEMA_VERSION,
   ].includes(fromVersion) || existing) {
     return false;
   }
@@ -1009,6 +1155,11 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
   const decisionCompletionChanged = upgradeDecisionThreadLifecycle(db);
   db.transaction(() => {
     applyCompatibleColumns(db);
+    applyChangeColumns(db);
+  })();
+  const semanticKernelChanged = upgradeSemanticKernelConstraints(db);
+  db.transaction(() => {
+    applyCompatibleColumns(db);
     const contextChanged = applyContextSpineUpgrade(db);
     const contextMigration = db.prepare(
       "SELECT 1 FROM migration_history WHERE to_version = '10.0' AND status = 'success' LIMIT 1",
@@ -1020,6 +1171,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
         DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
         DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
         KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
+        SEMANTIC_KERNEL_SCHEMA_VERSION,
       ].includes(fromVersion)
         && !contextMigration,
     );
@@ -1049,6 +1201,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
       DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
       KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
+      SEMANTIC_KERNEL_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !baselineMigration) {
       db.prepare(
@@ -1123,6 +1276,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
       DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
       KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
+      SEMANTIC_KERNEL_SCHEMA_VERSION,
     ].includes(fromVersion) && !workflowMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1141,7 +1295,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       AUTHORITY_SCHEMA_VERSION, SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION,
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
       ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
-      CHECKPOINT_NATIVE_SCHEMA_VERSION,
+      CHECKPOINT_NATIVE_SCHEMA_VERSION, SEMANTIC_KERNEL_SCHEMA_VERSION,
     ].includes(fromVersion) && !authorityMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1160,7 +1314,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       SEMANTIC_SCHEMA_VERSION, DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION,
       ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
       ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
-      CHECKPOINT_NATIVE_SCHEMA_VERSION,
+      CHECKPOINT_NATIVE_SCHEMA_VERSION, SEMANTIC_KERNEL_SCHEMA_VERSION,
     ].includes(fromVersion) && !semanticMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1179,6 +1333,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
       DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
       KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
+      SEMANTIC_KERNEL_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !dialogueMigration) {
       db.prepare(
@@ -1197,7 +1352,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
       ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
-      CHECKPOINT_NATIVE_SCHEMA_VERSION,
+      CHECKPOINT_NATIVE_SCHEMA_VERSION, SEMANTIC_KERNEL_SCHEMA_VERSION,
     ].includes(fromVersion)
       && !gitStateMigration) {
       db.prepare(
@@ -1217,7 +1372,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       ADAPTIVE_SCHEMA_VERSION, DECISION_COMPLETION_SCHEMA_VERSION,
       ARTIFACT_REGISTRY_SCHEMA_VERSION, KERNEL_SCHEMA_VERSION,
-      CHECKPOINT_NATIVE_SCHEMA_VERSION,
+      CHECKPOINT_NATIVE_SCHEMA_VERSION, SEMANTIC_KERNEL_SCHEMA_VERSION,
     ].includes(fromVersion) && !adaptiveMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1237,6 +1392,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && ![
       DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
       KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
+      SEMANTIC_KERNEL_SCHEMA_VERSION,
     ].includes(fromVersion) && !completionMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1256,6 +1412,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion && fromVersion !== ARTIFACT_REGISTRY_SCHEMA_VERSION
       && fromVersion !== KERNEL_SCHEMA_VERSION
       && fromVersion !== CHECKPOINT_NATIVE_SCHEMA_VERSION
+      && fromVersion !== SEMANTIC_KERNEL_SCHEMA_VERSION
       && !artifactRegistryMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1275,6 +1432,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     if (fromVersion
       && fromVersion !== KERNEL_SCHEMA_VERSION
       && fromVersion !== CHECKPOINT_NATIVE_SCHEMA_VERSION
+      && fromVersion !== SEMANTIC_KERNEL_SCHEMA_VERSION
       && !kernelMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1291,6 +1449,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
     ).get();
     if (fromVersion
       && fromVersion !== CHECKPOINT_NATIVE_SCHEMA_VERSION
+      && fromVersion !== SEMANTIC_KERNEL_SCHEMA_VERSION
       && !checkpointNativeMigration) {
       db.prepare(
         `INSERT INTO migration_history
@@ -1302,6 +1461,24 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
         'Bind Baseline research to Stage Checkpoints and add byte digests for Context Envelopes and Worker Packets',
       );
     }
+    const semanticKernelMigration = db.prepare(
+      "SELECT 1 FROM migration_history WHERE to_version = '23.0' AND status = 'success' LIMIT 1",
+    ).get();
+    if (fromVersion
+      && fromVersion !== SEMANTIC_KERNEL_SCHEMA_VERSION
+      && !semanticKernelMigration) {
+      db.prepare(
+        `INSERT INTO migration_history
+          (from_version, to_version, direction, status, notes)
+         VALUES (?, ?, 'forward', 'success', ?)`,
+      ).run(
+        CHECKPOINT_NATIVE_SCHEMA_VERSION,
+        SEMANTIC_KERNEL_SCHEMA_VERSION,
+        semanticKernelChanged
+          ? 'Move Task and Change business vocabulary out of SQLite enums and add immutable Change successor linkage'
+          : 'Record semantic-kernel vocabulary and Change successor authority',
+      );
+    }
     db.exec('CREATE INDEX IF NOT EXISTS tasks_change ON tasks(change_id) WHERE change_id IS NOT NULL');
     db.exec('CREATE INDEX IF NOT EXISTS events_change ON events(change_id, id)');
     ensureActiveSessionLeaseIndex(db);
@@ -1309,7 +1486,7 @@ function applyCompatibleUpgrades(db, fromVersion = latestSchemaVersion(db), { le
       'INSERT OR IGNORE INTO schema_version (version, description) VALUES (?, ?)',
     ).run(
       EXPECTED_VERSION,
-      'Checkpoint-native baseline authority plus byte-bound Context Envelopes and Worker Packets',
+      'Persistence and safety kernel with open semantic vocabulary and immutable Change successors',
     );
   })();
 }
@@ -1343,6 +1520,7 @@ function initStateDb(dbPath) {
         DIALOGUE_SCHEMA_VERSION, GIT_AUTHORITY_SCHEMA_VERSION, ADAPTIVE_SCHEMA_VERSION,
         DECISION_COMPLETION_SCHEMA_VERSION, ARTIFACT_REGISTRY_SCHEMA_VERSION,
         KERNEL_SCHEMA_VERSION, CHECKPOINT_NATIVE_SCHEMA_VERSION,
+        SEMANTIC_KERNEL_SCHEMA_VERSION,
       ].includes(fromVersion);
     backupPath = migrationBackup(db, dbPath, fromVersion, existing);
     // This must precede every ALTER, table rebuild, or index creation. Runtime

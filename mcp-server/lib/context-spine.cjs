@@ -15,7 +15,6 @@ const GATES = new Set([
   'alignment', 'planning', 'implementation', 'verification', 'review', 'convergence', 'recovery',
 ]);
 const CONTEXT_KINDS = new Set(['spec', 'source', 'test', 'docs', 'external']);
-const SLICE_KINDS = new Set(['tracer_bullet', 'expand_contract', 'integration_checkpoint']);
 const DEFAULT_BUDGET = Object.freeze({ max_tokens: 12_000, max_files: 12 });
 const MAX_CONTEXT_REFS = 64;
 const MAX_REF_LENGTH = 2_048;
@@ -531,15 +530,20 @@ function normalizeExecutionContract(input, inherited, { task }) {
   if (!taskId) return null;
   if (!source || typeof source !== 'object' || Array.isArray(source)) return null;
   const sliceKind = source.slice_kind || 'tracer_bullet';
-  if (!SLICE_KINDS.has(sliceKind)) {
-    throw new ContextSpineError('VALIDATION_ERROR', `unsupported slice kind: ${sliceKind}`);
+  if (typeof sliceKind !== 'string'
+      || sliceKind.trim().length < 1
+      || sliceKind.trim().length > 80) {
+    throw new ContextSpineError(
+      'VALIDATION_ERROR',
+      'slice kind must be a non-empty string of at most 80 characters',
+    );
   }
   const percent = Number(source.context_budget_percent ?? 40);
   if (!Number.isInteger(percent) || percent < 1 || percent > 100) {
     throw new ContextSpineError('VALIDATION_ERROR', 'context_budget_percent must be an integer from 1 to 100');
   }
   return {
-    slice_kind: sliceKind,
+    slice_kind: sliceKind.trim(),
     public_seam: typeof source.public_seam === 'string' ? source.public_seam.trim() : '',
     verification_command: typeof source.verification_command === 'string'
       ? source.verification_command.trim()

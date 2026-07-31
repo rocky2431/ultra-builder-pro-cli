@@ -8,25 +8,36 @@ const path = require('node:path');
 const { Client } = require('@modelcontextprotocol/client');
 const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 const grok = require('../../../adapters/grok.js');
+const { createFakeGrok } = require('../../../adapters/tests/grok-cli-fixture.cjs');
 const { REPO_ROOT, mkTarget, cleanup, readToolPayload } = require('../_lib.cjs');
 
 test('grok smoke — installed native plugin launches the seven-tool MCP', async () => {
   const configDir = mkTarget('grok-smoke-home');
   const project = mkTarget('grok-smoke-project');
+  const binaryRoot = mkTarget('grok-smoke-binary');
+  const grokBin = createFakeGrok(binaryRoot);
   let client;
   try {
     const report = grok.install({
       configDir,
       repoRoot: REPO_ROOT,
-      grokBin: path.join(configDir, 'missing-grok'),
+      grokBin,
+      scope: 'global',
     });
+    const nativeDoctor = grok.doctor({
+      configDir,
+      repoRoot: REPO_ROOT,
+      grokBin,
+      scope: 'global',
+    });
+    assert.equal(nativeDoctor.status, 'healthy', JSON.stringify(nativeDoctor, null, 2));
     const entry = JSON.parse(fs.readFileSync(
       path.join(report.target, '.mcp.json'),
       'utf8',
     )).mcpServers['ultra-builder-pro'];
     const transport = new StdioClientTransport({
       command: entry.command,
-      args: entry.args,
+      args: entry.args.map((arg) => arg.replaceAll('${GROK_PLUGIN_ROOT}', report.target)),
       cwd: project,
       stderr: 'pipe',
     });
@@ -64,5 +75,6 @@ test('grok smoke — installed native plugin launches the seven-tool MCP', async
     if (client) await client.close();
     cleanup(configDir);
     cleanup(project);
+    cleanup(binaryRoot);
   }
 });

@@ -19,6 +19,22 @@ const GAP_CATEGORIES = new Set([
   'technical_debt', 'unknown', 'future_change',
 ]);
 const GAP_STATUSES = new Set(['open', 'accepted', 'resolved', 'deferred']);
+const BASELINE_START_FIELDS = new Set([
+  'id', 'project_name', 'project_type', 'stack', 'mode', 'repository_revision',
+  'replace_migrated', 'replace_ready', 'replacement_authorization', 'scope',
+  'provider_refs', 'classification',
+]);
+const BASELINE_REFRESH_FIELDS = new Set([
+  'id', 'project_name', 'project_type', 'stack', 'classification',
+]);
+const BASELINE_RECORD_FIELDS = new Set([
+  'id', 'repository_revision', 'scope', 'spec_refs', 'evidence', 'verification',
+  'unknowns', 'gaps', 'classification', 'provider_refs',
+]);
+const BASELINE_CONVERGE_FIELDS = new Set([
+  'id', 'expected_revision', 'approved_by', 'approval_note',
+  'accept_dirty_worktree', 'accept_known_red',
+]);
 
 class BaselineWorkflowError extends Error {
   constructor(code, message, details) {
@@ -199,11 +215,58 @@ function nonEmpty(value, field) {
   return text;
 }
 
+function optionalText(value, field, { nullable = false, emptyAsNull = false } = {}) {
+  if (value === undefined) return undefined;
+  if (value === null && nullable) return null;
+  if (typeof value !== 'string') {
+    throw new BaselineWorkflowError(
+      'VALIDATION_ERROR',
+      `${field} must be a string${nullable ? ' or null' : ''}`,
+    );
+  }
+  const text = value.trim();
+  return emptyAsNull && !text ? null : text;
+}
+
+function optionalBoolean(input, field) {
+  if (Object.hasOwn(input, field) && typeof input[field] !== 'boolean') {
+    throw new BaselineWorkflowError('VALIDATION_ERROR', `${field} must be a boolean`);
+  }
+}
+
+function optionalBaselineId(value) {
+  if (value === undefined) return undefined;
+  const id = nonEmpty(value, 'id');
+  if (!BASELINE_ID.test(id)) {
+    throw new BaselineWorkflowError('VALIDATION_ERROR', 'baseline id is invalid');
+  }
+  return id;
+}
+
+function assertExactFields(value, allowed, field) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BaselineWorkflowError('VALIDATION_ERROR', `${field} must be an object`);
+  }
+  const unknown = Object.keys(value).filter((key) => !allowed.has(key));
+  if (unknown.length > 0) {
+    throw new BaselineWorkflowError(
+      'VALIDATION_ERROR', `${field}.${unknown[0]} is not allowed`,
+    );
+  }
+}
+
 function normalizeReplacementAuthorization(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new BaselineWorkflowError(
       'BASELINE_REPLACEMENT_AUTHORIZATION_REQUIRED',
       'replacing a ready baseline requires approved_by and reason',
+    );
+  }
+  const unknown = Object.keys(value).filter((key) => !['approved_by', 'reason'].includes(key));
+  if (unknown.length > 0) {
+    throw new BaselineWorkflowError(
+      'VALIDATION_ERROR',
+      `replacement_authorization.${unknown[0]} is not allowed`,
     );
   }
   let approvedBy;
@@ -245,13 +308,14 @@ function normalizeScope(value, rootDir) {
     throw new BaselineWorkflowError('VALIDATION_ERROR', 'scope must be a non-empty array');
   }
   return [...new Set(scope.map((item, index) => {
+    const relative = nonEmpty(item, `scope[${index}]`);
     const resolved = safeRelativePath(rootDir, item, `scope[${index}]`);
     if (!fs.existsSync(resolved)) {
       throw new BaselineWorkflowError(
-        'BASELINE_SCOPE_MISSING', `baseline scope does not exist: ${String(item).trim()}`,
+        'BASELINE_SCOPE_MISSING', `baseline scope does not exist: ${relative}`,
       );
     }
-    return String(item).trim();
+    return relative;
   }))];
 }
 
@@ -291,6 +355,11 @@ function normalizeSpecRefs(value, rootDir) {
     if (!item || typeof item !== 'object' || Array.isArray(item) || !SPEC_KINDS.has(item.kind)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid spec_refs[${index}]`);
     }
+    assertExactFields(
+      item,
+      new Set(['kind', 'path', 'digest']),
+      `spec_refs[${index}]`,
+    );
     const specPath = nonEmpty(item.path, `spec_refs[${index}].path`);
     const file = safeRelativePath(rootDir, specPath, `spec_refs[${index}].path`);
     if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -306,6 +375,11 @@ function normalizeEvidence(value, rootDir) {
     if (!item || typeof item !== 'object' || Array.isArray(item) || !EVIDENCE_KINDS.has(item.kind)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid evidence[${index}]`);
     }
+    assertExactFields(
+      item,
+      new Set(['kind', 'ref', 'summary', 'digest']),
+      `evidence[${index}]`,
+    );
     const normalized = {
       kind: item.kind,
       ref: nonEmpty(item.ref, `evidence[${index}].ref`),
@@ -330,6 +404,11 @@ function normalizeVerification(value) {
     if (!item || typeof item !== 'object' || Array.isArray(item) || !VERIFICATION_STATUSES.has(item.status)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid verification[${index}]`);
     }
+    assertExactFields(
+      item,
+      new Set(['name', 'command', 'status', 'evidence', 'rationale']),
+      `verification[${index}]`,
+    );
     const normalized = {
       name: nonEmpty(item.name, `verification[${index}].name`),
       command: nonEmpty(item.command, `verification[${index}].command`),
@@ -347,6 +426,16 @@ function normalizeUnknowns(value) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid unknowns[${index}]`);
     }
+    assertExactFields(
+      item,
+      new Set(['summary', 'blocking', 'owner']),
+      `unknowns[${index}]`,
+    );
+    if (item.blocking !== undefined && typeof item.blocking !== 'boolean') {
+      throw new BaselineWorkflowError(
+        'VALIDATION_ERROR', `unknowns[${index}].blocking must be a boolean`,
+      );
+    }
     const normalized = {
       summary: nonEmpty(item.summary, `unknowns[${index}].summary`),
       blocking: item.blocking === true,
@@ -363,6 +452,14 @@ function normalizeGaps(value) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid gaps[${index}]`);
     }
+    assertExactFields(
+      item,
+      new Set([
+        'id', 'category', 'status', 'blocking', 'summary',
+        'evidence_refs', 'owner', 'resolution',
+      ]),
+      `gaps[${index}]`,
+    );
     const id = nonEmpty(item.id, `gaps[${index}].id`);
     if (!BASELINE_ID.test(id) || ids.has(id)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid or duplicate gap id: ${id}`);
@@ -371,7 +468,12 @@ function normalizeGaps(value) {
     if (!GAP_CATEGORIES.has(item.category)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid gap category: ${item.category}`);
     }
-    const status = item.status || 'open';
+    if (item.blocking !== undefined && typeof item.blocking !== 'boolean') {
+      throw new BaselineWorkflowError(
+        'VALIDATION_ERROR', `gaps[${index}].blocking must be a boolean`,
+      );
+    }
+    const status = item.status === undefined ? 'open' : item.status;
     if (!GAP_STATUSES.has(status)) {
       throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid gap status: ${status}`);
     }
@@ -418,9 +520,20 @@ function summarizeGaps(gaps = []) {
 }
 
 function startBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = true } = {}) {
-  const id = input.id || 'project-baseline';
-  if (!BASELINE_ID.test(id)) throw new BaselineWorkflowError('VALIDATION_ERROR', 'baseline id is invalid');
+  assertExactFields(input, BASELINE_START_FIELDS, 'baseline.start');
+  const id = optionalBaselineId(input.id) || 'project-baseline';
   const projectName = nonEmpty(input.project_name, 'project_name');
+  const projectType = optionalText(
+    input.project_type, 'project_type', { nullable: true, emptyAsNull: true },
+  ) ?? null;
+  const stack = optionalText(input.stack, 'stack', { nullable: true, emptyAsNull: true }) ?? null;
+  const repositoryRevision = optionalText(
+    input.repository_revision,
+    'repository_revision',
+    { nullable: true, emptyAsNull: true },
+  ) ?? null;
+  optionalBoolean(input, 'replace_migrated');
+  optionalBoolean(input, 'replace_ready');
   if (!MODES.has(input.mode)) throw new BaselineWorkflowError('VALIDATION_ERROR', `invalid baseline mode: ${input.mode}`);
   if (readBaseline(db, id)) throw new BaselineWorkflowError('DUPLICATE_BASELINE_ID', `baseline ${id} exists`);
   const current = readBaseline(db);
@@ -464,7 +577,7 @@ function startBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = tr
   const providers = providerRefs.normalizeProviderRefs(input.provider_refs, BaselineWorkflowError);
   const classification = normalizeClassification(input.classification);
   const snapshot = gitWorktreeSnapshot(rootDir, scope);
-  if (snapshot.head && input.repository_revision && input.repository_revision !== snapshot.head) {
+  if (snapshot.head && repositoryRevision && repositoryRevision !== snapshot.head) {
     throw new BaselineWorkflowError(
       'BASELINE_REVISION_MISMATCH', 'repository_revision does not match current Git HEAD',
     );
@@ -483,8 +596,8 @@ function startBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = tr
         worktree_files_json, classification_json, provider_refs_json, started_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, '.', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
-      id, projectName, input.project_type || null, input.stack || null, input.mode, status,
-      JSON.stringify(scope), snapshot.head || input.repository_revision || null, snapshot.branch,
+      id, projectName, projectType, stack, input.mode, status,
+      JSON.stringify(scope), snapshot.head || repositoryRevision, snapshot.branch,
       snapshot.state, snapshot.digest, JSON.stringify(snapshot.files), JSON.stringify(classification),
       JSON.stringify(providers), ts, ts,
     );
@@ -509,7 +622,9 @@ function startBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = tr
 function refreshInProgressBaseline(db, input = {}, {
   rootDir = process.cwd(), emitEvent = true,
 } = {}) {
-  const current = readBaseline(db, input.id);
+  assertExactFields(input, BASELINE_REFRESH_FIELDS, 'baseline.refresh');
+  const id = optionalBaselineId(input.id);
+  const current = readBaseline(db, id);
   if (!current) {
     throw new BaselineWorkflowError('BASELINE_NOT_FOUND', `baseline ${input.id || '(current)'} not found`);
   }
@@ -517,8 +632,12 @@ function refreshInProgressBaseline(db, input = {}, {
   const projectName = input.project_name === undefined
     ? current.project_name
     : nonEmpty(input.project_name, 'project_name');
-  const projectType = input.project_type === undefined ? current.project_type : input.project_type;
-  const stack = input.stack === undefined ? current.stack : input.stack;
+  const projectType = input.project_type === undefined
+    ? current.project_type
+    : optionalText(input.project_type, 'project_type', { nullable: true, emptyAsNull: true });
+  const stack = input.stack === undefined
+    ? current.stack
+    : optionalText(input.stack, 'stack', { nullable: true, emptyAsNull: true });
   const classification = input.classification === undefined
     ? current.classification
     : normalizeClassification(input.classification);
@@ -533,7 +652,7 @@ function refreshInProgressBaseline(db, input = {}, {
        worktree_digest = ?, worktree_files_json = ?, classification_json = ?,
        updated_at = ? WHERE id = ?`,
     ).run(
-      projectName, projectType || null, stack || null,
+      projectName, projectType, stack,
       repositoryRevision, snapshot.branch, snapshot.state, snapshot.digest,
       JSON.stringify(snapshot.files), JSON.stringify(classification), ts, current.id,
     );
@@ -543,8 +662,8 @@ function refreshInProgressBaseline(db, input = {}, {
         payload: {
           baseline_id: current.id,
           project_name: projectName,
-          project_type: projectType || null,
-          stack: stack || null,
+          project_type: projectType,
+          stack,
           repository_revision: repositoryRevision,
           repository_branch: snapshot.branch,
           worktree_state: snapshot.state,
@@ -556,7 +675,14 @@ function refreshInProgressBaseline(db, input = {}, {
 }
 
 function recordBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = true } = {}) {
-  const current = readBaseline(db, input.id);
+  assertExactFields(input, BASELINE_RECORD_FIELDS, 'baseline.record');
+  const id = optionalBaselineId(input.id);
+  const suppliedRevision = optionalText(
+    input.repository_revision,
+    'repository_revision',
+    { nullable: true, emptyAsNull: true },
+  );
+  const current = readBaseline(db, id);
   if (!current) throw new BaselineWorkflowError('BASELINE_NOT_FOUND', `baseline ${input.id} not found`);
   if (['ready', 'superseded'].includes(current.status)) {
     throw new BaselineWorkflowError('BASELINE_NOT_MUTABLE', `baseline ${current.id} is ${current.status}`);
@@ -581,14 +707,14 @@ function recordBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = t
       'Git is initialized but has no commit; create an owner-authorized local checkpoint commit before recording the baseline',
     );
   }
-  if (snapshot.head && input.repository_revision && input.repository_revision !== snapshot.head) {
+  if (snapshot.head && suppliedRevision && suppliedRevision !== snapshot.head) {
     throw new BaselineWorkflowError(
       'BASELINE_REVISION_MISMATCH', 'repository_revision does not match current Git HEAD',
     );
   }
-  const revision = snapshot.head || (input.repository_revision === undefined
+  const revision = snapshot.head || (suppliedRevision === undefined
     ? (current.repository_revision || workspaceRevision({ scope, specs, evidence }, rootDir))
-    : nonEmpty(input.repository_revision, 'repository_revision'));
+    : (suppliedRevision || workspaceRevision({ scope, specs, evidence }, rootDir)));
   const status = current.mode === 'brownfield' ? 'adopting' : 'draft';
   const ts = nowIso();
   return ops.tx(db, () => {
@@ -823,12 +949,22 @@ function convergenceWarnings(db, baseline) {
 }
 
 function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent = true } = {}) {
-  const current = readBaseline(db, input.id);
+  assertExactFields(input, BASELINE_CONVERGE_FIELDS, 'baseline.converge');
+  const normalizedInput = {
+    ...input,
+    id: optionalBaselineId(input.id),
+    expected_revision: optionalText(input.expected_revision, 'expected_revision'),
+    approved_by: optionalText(input.approved_by, 'approved_by'),
+    approval_note: optionalText(input.approval_note, 'approval_note'),
+  };
+  optionalBoolean(input, 'accept_dirty_worktree');
+  optionalBoolean(input, 'accept_known_red');
+  const current = readBaseline(db, normalizedInput.id);
   if (!current) throw new BaselineWorkflowError('BASELINE_NOT_FOUND', `baseline ${input.id} not found`);
   if (!['draft', 'adopting', 'blocked'].includes(current.status)) {
     throw new BaselineWorkflowError('BASELINE_NOT_CONVERGEABLE', `baseline ${current.id} is ${current.status}`);
   }
-  const blockers = convergenceBlockers(db, current, input, rootDir);
+  const blockers = convergenceBlockers(db, current, normalizedInput, rootDir);
   const warnings = convergenceWarnings(db, current);
   const ts = nowIso();
   if (blockers.length > 0) {
@@ -857,9 +993,10 @@ function convergeBaseline(db, input = {}, { rootDir = process.cwd(), emitEvent =
        research_run_id = NULL,
        converged_at = ?, updated_at = ? WHERE id = ?`,
     ).run(
-      String(input.approved_by).trim(), String(input.approval_note).trim(),
-      input.accept_dirty_worktree === true ? 1 : 0,
-      input.accept_known_red === true ? 1 : 0, research?.id || null, ts, ts, current.id,
+      normalizedInput.approved_by, normalizedInput.approval_note,
+      normalizedInput.accept_dirty_worktree === true ? 1 : 0,
+      normalizedInput.accept_known_red === true ? 1 : 0,
+      research?.id || null, ts, ts, current.id,
     );
     if (emitEvent) {
       ops.appendEventInTx(db, {

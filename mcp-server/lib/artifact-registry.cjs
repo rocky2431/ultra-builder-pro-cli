@@ -17,6 +17,12 @@ const ENDPOINT_TYPES = new Set([
 ]);
 const OWNER_TYPES = new Set(['project', 'baseline', 'change', 'task', 'workflow']);
 const STATUSES = new Set(['current', 'stale', 'terminal', 'archived']);
+const ARTIFACT_INPUT_FIELDS = new Set([
+  'id', 'owner_type', 'owner_id', 'change_id', 'task_id', 'kind', 'path',
+  'content_digest', 'expected_before_digest', 'source_refs', 'consumer_refs',
+  'provenance', 'metadata', 'status',
+]);
+const DIGEST = /^[0-9a-f]{64}$/;
 const OWNER_TABLES = Object.freeze({
   baseline: 'baselines',
   change: 'changes',
@@ -46,6 +52,70 @@ class ArtifactRegistryError extends Error {
     this.code = code;
     if (details !== undefined) this.details = details;
   }
+}
+
+function artifactText(value, field, { optional = false, nullable = false } = {}) {
+  if (value === undefined && optional) return undefined;
+  if (value === null && nullable) return null;
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new ArtifactRegistryError(
+      'VALIDATION_ERROR',
+      `${field} must be a non-empty string${nullable ? ' or null' : ''}`,
+    );
+  }
+  return value.trim();
+}
+
+function artifactDigest(value, field, { nullable = false } = {}) {
+  if (value === undefined) return undefined;
+  if (value === null && nullable) return null;
+  if (typeof value !== 'string' || !DIGEST.test(value)) {
+    throw new ArtifactRegistryError(
+      'VALIDATION_ERROR',
+      `${field} must be a lowercase SHA-256 digest${nullable ? ' or null' : ''}`,
+    );
+  }
+  return value;
+}
+
+function assertJsonValue(value, field, seen = new Set()) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) return;
+    throw new ArtifactRegistryError('VALIDATION_ERROR', `${field} must contain valid JSON values`);
+  }
+  if (typeof value !== 'object') {
+    throw new ArtifactRegistryError('VALIDATION_ERROR', `${field} must contain valid JSON values`);
+  }
+  if (seen.has(value)) {
+    throw new ArtifactRegistryError('VALIDATION_ERROR', `${field} must not contain circular references`);
+  }
+  if (!Array.isArray(value)) {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new ArtifactRegistryError(
+        'VALIDATION_ERROR', `${field} must contain only JSON objects`,
+      );
+    }
+  }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertJsonValue(item, `${field}[${index}]`, seen));
+  } else {
+    Object.entries(value).forEach(([key, item]) => (
+      assertJsonValue(item, `${field}.${key}`, seen)
+    ));
+  }
+  seen.delete(value);
+}
+
+function normalizeJsonObject(value, field) {
+  if (value === undefined) return {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ArtifactRegistryError('VALIDATION_ERROR', `${field} must be a JSON object`);
+  }
+  assertJsonValue(value, field);
+  return JSON.parse(JSON.stringify(value));
 }
 
 function parseJson(value, fallback) {
@@ -302,6 +372,13 @@ function normalizeEndpoint(endpoint, field) {
   if (!endpoint || typeof endpoint !== 'object' || Array.isArray(endpoint)) {
     throw new ArtifactRegistryError('VALIDATION_ERROR', `${field} must be an object`);
   }
+  const unknown = Object.keys(endpoint)
+    .filter((key) => !['type', 'id', 'relation'].includes(key));
+  if (unknown.length > 0) {
+    throw new ArtifactRegistryError(
+      'VALIDATION_ERROR', `${field}.${unknown[0]} is not allowed`,
+    );
+  }
   const type = typeof endpoint.type === 'string' ? endpoint.type.trim() : '';
   const id = typeof endpoint.id === 'string' ? endpoint.id.trim() : '';
   const relation = typeof endpoint.relation === 'string' ? endpoint.relation.trim() : '';
@@ -311,6 +388,59 @@ function normalizeEndpoint(endpoint, field) {
     );
   }
   return { type, id, relation };
+}
+
+function normalizeArtifactInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new ArtifactRegistryError('VALIDATION_ERROR', 'artifact input is required');
+  }
+  const unknown = Object.keys(input).filter((field) => !ARTIFACT_INPUT_FIELDS.has(field));
+  if (unknown.length > 0) {
+    throw new ArtifactRegistryError(
+      'VALIDATION_ERROR', `artifact.${unknown[0]} is not allowed`,
+    );
+  }
+  const status = input.status === undefined
+    ? 'current'
+    : artifactText(input.status, 'artifact.status');
+  if (!STATUSES.has(status)) {
+    throw new ArtifactRegistryError('VALIDATION_ERROR', `invalid artifact status: ${status}`);
+  }
+  const normalizeRefs = (value, field) => {
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) {
+      throw new ArtifactRegistryError('VALIDATION_ERROR', `${field} must be an array`);
+    }
+    return value.map((item, index) => normalizeEndpoint(item, `${field}[${index}]`));
+  };
+  return {
+    id: artifactText(input.id, 'artifact.id', { optional: true }),
+    ownerType: artifactText(input.owner_type, 'artifact.owner_type'),
+    ownerId: artifactText(input.owner_id, 'artifact.owner_id'),
+    changeId: artifactText(
+      input.change_id,
+      'artifact.change_id',
+      { optional: true, nullable: true },
+    ),
+    taskId: artifactText(
+      input.task_id,
+      'artifact.task_id',
+      { optional: true, nullable: true },
+    ),
+    kind: artifactText(input.kind, 'artifact.kind'),
+    path: artifactText(input.path, 'artifact.path'),
+    status,
+    contentDigest: artifactDigest(input.content_digest, 'artifact.content_digest'),
+    expectedBeforeDigest: artifactDigest(
+      input.expected_before_digest,
+      'artifact.expected_before_digest',
+      { nullable: true },
+    ),
+    sourceRefs: normalizeRefs(input.source_refs, 'artifact.source_refs'),
+    consumerRefs: normalizeRefs(input.consumer_refs, 'artifact.consumer_refs'),
+    provenance: normalizeJsonObject(input.provenance, 'artifact.provenance'),
+    metadata: normalizeJsonObject(input.metadata, 'artifact.metadata'),
+  };
 }
 
 function assertEndpoint(db, endpoint, field) {
@@ -337,6 +467,34 @@ function assertOwner(db, ownerType, ownerId) {
       { owner_type: ownerType, owner_id: ownerId },
     );
   }
+}
+
+function assertArtifactOwner(db, ownerType, ownerId) {
+  assertOwner(db, ownerType, ownerId);
+}
+
+function assertDeclaredOwnerRefs(db, normalized) {
+  const expectedTaskId = normalized.ownerType === 'task' ? normalized.ownerId : null;
+  const expectedChangeId = normalized.ownerType === 'change'
+    ? normalized.ownerId
+    : normalized.ownerType === 'task'
+      ? db.prepare('SELECT change_id FROM tasks WHERE id = ?').get(normalized.ownerId)?.change_id || null
+      : normalized.ownerType === 'workflow'
+        ? db.prepare('SELECT change_id FROM workflow_runs WHERE id = ?').get(normalized.ownerId)?.change_id || null
+        : null;
+  for (const [field, supplied, expected] of [
+    ['change_id', normalized.changeId, expectedChangeId],
+    ['task_id', normalized.taskId, expectedTaskId],
+  ]) {
+    if (supplied !== undefined && supplied !== expected) {
+      throw new ArtifactRegistryError(
+        'ARTIFACT_AUTHORITY_CONFLICT',
+        `artifact ${field} does not match its owner authority`,
+        { field, supplied, expected },
+      );
+    }
+  }
+  return { changeId: expectedChangeId, taskId: expectedTaskId };
 }
 
 function edgesForArtifact(db, artifactId) {
@@ -527,28 +685,20 @@ function invalidateDownstreamInTx(db, artifactId, priorConsumers = []) {
 }
 
 function preflightArtifactPublication(db, input, { rootDir = process.cwd() } = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw new ArtifactRegistryError('VALIDATION_ERROR', 'artifact input is required');
-  }
-  const ownerType = typeof input.owner_type === 'string' ? input.owner_type.trim() : '';
-  const ownerId = typeof input.owner_id === 'string' ? input.owner_id.trim() : '';
-  const kind = typeof input.kind === 'string' ? input.kind.trim() : '';
-  const status = input.status || 'current';
-  if (!kind || !STATUSES.has(status)) {
-    throw new ArtifactRegistryError(
-      'VALIDATION_ERROR', 'artifact kind and valid status are required',
-    );
-  }
+  const normalized = normalizeArtifactInput(input);
+  const {
+    ownerType, ownerId, kind, status,
+  } = normalized;
   assertOwner(db, ownerType, ownerId);
-  const resolved = resolveArtifactFile(rootDir, input.path);
+  assertDeclaredOwnerRefs(db, normalized);
+  const resolved = resolveArtifactFile(rootDir, normalized.path);
   if (isExemptArtifactPath(resolved.relative) || isGeneratedProjectionPath(resolved.relative)) {
     throw new ArtifactRegistryError(
       'ARTIFACT_PATH_EXEMPT',
       `runtime, scratch, and generated projection paths are not registry authority: ${resolved.relative}`,
     );
   }
-  const explicitId = typeof input.id === 'string' && input.id.trim() !== ''
-    ? input.id.trim() : null;
+  const explicitId = normalized.id || null;
   const existingById = explicitId
     ? db.prepare('SELECT * FROM artifacts WHERE id = ?').get(explicitId)
     : null;
@@ -625,18 +775,14 @@ function preflightArtifactPublication(db, input, { rootDir = process.cwd() } = {
 }
 
 function recordArtifactInTx(db, input, { rootDir = process.cwd() } = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw new ArtifactRegistryError('VALIDATION_ERROR', 'artifact input is required');
-  }
-  const ownerType = typeof input.owner_type === 'string' ? input.owner_type.trim() : '';
-  const ownerId = typeof input.owner_id === 'string' ? input.owner_id.trim() : '';
-  const kind = typeof input.kind === 'string' ? input.kind.trim() : '';
-  const status = input.status || 'current';
-  if (!kind || !STATUSES.has(status)) {
-    throw new ArtifactRegistryError('VALIDATION_ERROR', 'artifact kind and valid status are required');
-  }
+  const normalized = normalizeArtifactInput(input);
+  const {
+    ownerType, ownerId, kind, status,
+    sourceRefs, consumerRefs, provenance, metadata,
+  } = normalized;
   assertOwner(db, ownerType, ownerId);
-  const resolved = resolveArtifactFile(rootDir, input.path);
+  const ownerRefs = assertDeclaredOwnerRefs(db, normalized);
+  const resolved = resolveArtifactFile(rootDir, normalized.path);
   if (isExemptArtifactPath(resolved.relative) || isGeneratedProjectionPath(resolved.relative)) {
     throw new ArtifactRegistryError(
       'ARTIFACT_PATH_EXEMPT',
@@ -645,18 +791,7 @@ function recordArtifactInTx(db, input, { rootDir = process.cwd() } = {}) {
   }
   const stableRead = openStableArtifactRead(resolved);
   try {
-  const sourceRefs = Array.isArray(input.source_refs)
-    ? input.source_refs.map((item, index) => normalizeEndpoint(item, `source_refs[${index}]`))
-    : [];
-  const consumerRefs = Array.isArray(input.consumer_refs)
-    ? input.consumer_refs.map((item, index) => normalizeEndpoint(item, `consumer_refs[${index}]`))
-    : [];
-  const provenance = input.provenance && typeof input.provenance === 'object'
-    && !Array.isArray(input.provenance) ? input.provenance : {};
-  const metadata = input.metadata && typeof input.metadata === 'object'
-    && !Array.isArray(input.metadata) ? input.metadata : {};
-  const explicitId = typeof input.id === 'string' && input.id.trim() !== ''
-    ? input.id.trim() : null;
+  const explicitId = normalized.id || null;
   const existingById = explicitId
     ? db.prepare('SELECT * FROM artifacts WHERE id = ?').get(explicitId)
     : null;
@@ -710,31 +845,25 @@ function recordArtifactInTx(db, input, { rootDir = process.cwd() } = {}) {
     });
   }
   const beforeDigest = existing?.digest || existing?.content_hash || null;
-  if (input.expected_before_digest !== undefined
-    && input.expected_before_digest !== beforeDigest) {
+  if (normalized.expectedBeforeDigest !== undefined
+    && normalized.expectedBeforeDigest !== beforeDigest) {
     throw new ArtifactRegistryError(
       'ARTIFACT_DIGEST_CONFLICT',
       `artifact ${artifactId} changed since it was read`,
-      { expected: input.expected_before_digest, actual: beforeDigest },
+      { expected: normalized.expectedBeforeDigest, actual: beforeDigest },
     );
   }
   const afterDigest = stableRead.digest;
-  if (input.content_digest !== undefined && input.content_digest !== afterDigest) {
+  if (normalized.contentDigest !== undefined && normalized.contentDigest !== afterDigest) {
     throw new ArtifactRegistryError(
       'ARTIFACT_DIGEST_CONFLICT',
       `artifact bytes do not match the supplied digest: ${resolved.relative}`,
-      { expected: input.content_digest, actual: afterDigest },
+      { expected: normalized.contentDigest, actual: afterDigest },
     );
   }
   const changed = beforeDigest !== afterDigest;
   const priorConsumers = existing ? edgesForArtifact(db, artifactId).consumers : [];
-  const ownerChangeId = ownerType === 'change'
-    ? ownerId
-    : ownerType === 'task'
-      ? db.prepare('SELECT change_id FROM tasks WHERE id = ?').get(ownerId)?.change_id || null
-      : ownerType === 'workflow'
-        ? db.prepare('SELECT change_id FROM workflow_runs WHERE id = ?').get(ownerId)?.change_id || null
-        : null;
+  const ownerChangeId = ownerRefs.changeId;
   const now = new Date().toISOString();
   let invalidated = [];
   db.prepare(
@@ -754,7 +883,7 @@ function recordArtifactInTx(db, input, { rootDir = process.cwd() } = {}) {
   ).run(
     artifactId, ownerType, ownerId,
     ownerChangeId,
-    ownerType === 'task' ? ownerId : null,
+    ownerRefs.taskId,
     kind, resolved.relative, afterDigest, afterDigest, beforeDigest, afterDigest,
     JSON.stringify(provenance), JSON.stringify(metadata), status,
     existing?.created_at || now, now,
@@ -1085,6 +1214,7 @@ module.exports = {
   ENDPOINT_TYPES,
   OWNER_TYPES,
   STATUSES,
+  assertArtifactOwner,
   digestFile,
   getArtifact,
   inspectArtifactHealth,

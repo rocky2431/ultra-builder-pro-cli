@@ -6,12 +6,48 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const Ajv = require('ajv/dist/2020');
+const addFormats = require('ajv-formats');
 
 const { closeStateDb, initStateDb } = require('./state-db.cjs');
 const decisions = require('./decision-records.cjs');
 const ops = require('./state-ops.cjs');
 const checkpoints = require('./stage-checkpoints.cjs');
 const ledger = require('./task-ledger.cjs');
+
+const taskLedgerSchema = JSON.parse(fs.readFileSync(
+  path.join(__dirname, '..', '..', 'spec', 'schemas', 'task-ledger.v2.schema.json'),
+  'utf8',
+));
+const taskProjectionSchema = JSON.parse(fs.readFileSync(
+  path.join(__dirname, '..', '..', 'spec', 'schemas', 'tasks.v4.5.schema.json'),
+  'utf8',
+));
+const taskContractAjv = new Ajv({ allErrors: true, strict: false });
+addFormats(taskContractAjv);
+const validateTaskLedgerSchema = taskContractAjv.compile(taskLedgerSchema);
+const TASK_CONTRACT_FIELDS = Object.freeze([
+  'id',
+  'title',
+  'type',
+  'priority',
+  'complexity',
+  'estimated_days',
+  'deps',
+  'files_modified',
+  'slice_kind',
+]);
+const INVALID_TASK_CONTRACT_CASES = Object.freeze([
+  { field: 'type', value: 'x'.repeat(81) },
+  { field: 'priority', value: 'x'.repeat(81) },
+  { field: 'complexity', value: 1.5 },
+  { field: 'estimated_days', value: 0 },
+  { field: 'slice_kind', value: 'x'.repeat(81) },
+  { field: 'id', value: 'invalid/task' },
+  { field: 'title', value: 'x' },
+  { field: 'deps', value: [42] },
+  { field: 'files_modified', value: [42] },
+]);
 
 function fixture() {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-task-ledger-'));
@@ -58,6 +94,97 @@ function executableTask(db, id, overrides = {}) {
   });
 }
 
+function sha256(value) {
+  return crypto.createHash('sha256')
+    .update(typeof value === 'string' ? value : JSON.stringify(value))
+    .digest('hex');
+}
+
+function publishContractLedger(fx, id) {
+  executableTask(fx.db, id, {
+    complexity: 5,
+    estimated_days: 2,
+    deps: [],
+    files_modified: [`src/${id}.cjs`],
+  });
+  return ledger.publishTaskLedger(fx.db, {
+    rootDir: fx.rootDir,
+    reason: 'task_contract_fixture',
+  }).ledger;
+}
+
+function resignTaskMutation(document, { field, value }) {
+  const resigned = JSON.parse(JSON.stringify(document));
+  const task = resigned.tasks[0];
+  task[field] = value;
+  task.digest = sha256(Object.fromEntries(
+    ledger.DURABLE_TASK_FIELDS
+      .filter((durableField) => task[durableField] !== undefined)
+      .map((durableField) => [durableField, task[durableField]]),
+  ));
+  resigned.state_digest = sha256({
+    baseline: resigned.baseline || null,
+    changes: resigned.changes,
+    decisions: resigned.decisions,
+    checkpoints: resigned.checkpoints,
+    tasks: resigned.tasks,
+  });
+  return resigned;
+}
+
+function writeTaskLedger(rootDir, document) {
+  const file = ledger.ledgerPath(rootDir);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(document, null, 2)}\n`);
+}
+
+function assertInvalidTaskContract(operation, field) {
+  assert.throws(
+    operation,
+    (error) => error?.code === 'TASK_LEDGER_INVALID',
+    `${field} must be rejected as TASK_LEDGER_INVALID`,
+  );
+}
+
+function schemaConstraint(schema, field) {
+  const property = schema.$defs.task.properties[field];
+  assert.ok(property, `${field} must exist in ${schema.$id}`);
+  const constraint = {};
+  for (const key of [
+    'type',
+    'pattern',
+    'minLength',
+    'maxLength',
+    'minimum',
+    'maximum',
+    'exclusiveMinimum',
+    'enum',
+  ]) {
+    if (property[key] !== undefined) constraint[key] = property[key];
+  }
+  if (property.items?.type) constraint.items = { type: property.items.type };
+  return constraint;
+}
+
+function sqlEnumConstraint(sql, field) {
+  const match = sql.match(new RegExp(`\\b${field}\\s+IN\\s*\\(([^)]*)\\)`));
+  assert.ok(match, `tasks table must constrain ${field} with an enum`);
+  return Array.from(match[1].matchAll(/'([^']+)'/g), ([, value]) => value);
+}
+
+function sqlVocabularyConstraint(sql, field) {
+  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = sql.match(new RegExp(
+    `length\\s*\\(\\s*trim\\s*\\(\\s*${escaped}\\s*\\)\\s*\\)\\s+BETWEEN\\s+(\\d+)\\s+AND\\s+(\\d+)`,
+    'i',
+  ));
+  assert.ok(match, `tasks table must bound ${field} as open vocabulary`);
+  return {
+    minLength: Number(match[1]),
+    maxLength: Number(match[2]),
+  };
+}
+
 function sharedChange(db, id, intent) {
   db.prepare(
     `INSERT INTO changes
@@ -84,6 +211,176 @@ function readyBaseline(db, {
              1, 1, '[]', '[]', '[]', '[]', '[]', 'owner', ?, ?)`,
   ).run(id, projectType, approvalNote, now);
 }
+
+test('task contract: published schemas and runtime storage constraints remain aligned', () => {
+  for (const field of TASK_CONTRACT_FIELDS) {
+    assert.deepEqual(
+      schemaConstraint(taskLedgerSchema, field),
+      schemaConstraint(taskProjectionSchema, field),
+      `${field} drifted between the Git ledger and live task projection schemas`,
+    );
+  }
+
+  const fx = fixture();
+  try {
+    const tasksTable = fx.db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'",
+    ).get().sql;
+    for (const field of ['type', 'priority', 'slice_kind']) {
+      assert.deepEqual(
+        sqlVocabularyConstraint(tasksTable, field),
+        {
+          minLength: taskLedgerSchema.$defs.task.properties[field].minLength,
+          maxLength: taskLedgerSchema.$defs.task.properties[field].maxLength,
+        },
+        `${field} drifted between SQLite and the Git ledger schema`,
+      );
+    }
+    assert.deepEqual(
+      taskLedgerSchema.$defs.task.properties.status.enum,
+      sqlEnumConstraint(tasksTable, 'status').filter((status) => status !== 'in_progress'),
+      'the durable ledger status enum must exclude checkout-local in_progress',
+    );
+    assert.deepEqual(
+      taskProjectionSchema.$defs.task.properties.status.enum,
+      sqlEnumConstraint(tasksTable, 'status'),
+      'the live projection status enum must match SQLite',
+    );
+
+    const complexity = tasksTable.match(
+      /\bcomplexity\s+BETWEEN\s+(-?\d+(?:\.\d+)?)\s+AND\s+(-?\d+(?:\.\d+)?)/,
+    );
+    assert.ok(complexity, 'tasks table must bound complexity');
+    assert.deepEqual(
+      [Number(complexity[1]), Number(complexity[2])],
+      [
+        taskLedgerSchema.$defs.task.properties.complexity.minimum,
+        taskLedgerSchema.$defs.task.properties.complexity.maximum,
+      ],
+    );
+
+    const estimatedDays = tasksTable.match(
+      /\bestimated_days\s*>\s*(-?\d+(?:\.\d+)?)/,
+    );
+    assert.ok(estimatedDays, 'tasks table must bound estimated_days');
+    assert.equal(
+      Number(estimatedDays[1]),
+      taskLedgerSchema.$defs.task.properties.estimated_days.exclusiveMinimum,
+    );
+  } finally {
+    fx.cleanup();
+  }
+});
+
+for (const invalidCase of INVALID_TASK_CONTRACT_CASES) {
+  test(`task contract: validateLedger rejects re-signed invalid ${invalidCase.field}`, () => {
+    const fx = fixture();
+    try {
+      const valid = publishContractLedger(fx, `validate-${invalidCase.field}`);
+      const invalid = resignTaskMutation(valid, invalidCase);
+      assert.equal(
+        validateTaskLedgerSchema(invalid),
+        false,
+        `published schema unexpectedly accepted invalid ${invalidCase.field}`,
+      );
+      assertInvalidTaskContract(
+        () => ledger.validateLedger(invalid),
+        invalidCase.field,
+      );
+    } finally {
+      fx.cleanup();
+    }
+  });
+
+  test(`task contract: importTaskLedger rejects re-signed invalid ${invalidCase.field} before mutation`, () => {
+    const source = fixture();
+    const target = fixture();
+    try {
+      const valid = publishContractLedger(source, `import-${invalidCase.field}`);
+      const invalid = resignTaskMutation(valid, invalidCase);
+      writeTaskLedger(target.rootDir, invalid);
+
+      assertInvalidTaskContract(
+        () => ledger.importTaskLedger(target.db, { rootDir: target.rootDir }),
+        invalidCase.field,
+      );
+      assert.equal(
+        target.db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count,
+        0,
+        `invalid ${invalidCase.field} must not mutate SQLite`,
+      );
+    } finally {
+      source.cleanup();
+      target.cleanup();
+    }
+  });
+
+  test(`task contract: publishTaskLedger rejects invalid runtime ${invalidCase.field} before replacement`, () => {
+    const fx = fixture();
+    try {
+      const taskId = `publish-${invalidCase.field}`;
+      publishContractLedger(fx, taskId);
+      const file = ledger.ledgerPath(fx.rootDir);
+      const before = fs.readFileSync(file);
+      const dbValue = Array.isArray(invalidCase.value)
+        ? JSON.stringify(invalidCase.value)
+        : invalidCase.value;
+
+      fx.db.pragma('ignore_check_constraints = ON');
+      try {
+        const result = fx.db.prepare(
+          `UPDATE tasks SET ${invalidCase.field} = ? WHERE id = ?`,
+        ).run(dbValue, taskId);
+        assert.equal(result.changes, 1);
+      } finally {
+        fx.db.pragma('ignore_check_constraints = OFF');
+      }
+
+      assertInvalidTaskContract(
+        () => ledger.publishTaskLedger(fx.db, {
+          rootDir: fx.rootDir,
+          reason: `invalid_${invalidCase.field}`,
+        }),
+        invalidCase.field,
+      );
+      assert.deepEqual(
+        fs.readFileSync(file),
+        before,
+        `invalid ${invalidCase.field} must not replace the Git ledger`,
+      );
+    } finally {
+      fx.cleanup();
+    }
+  });
+}
+
+test('task contract: valid ledger passes schema, validation, import, and publish', () => {
+  const source = fixture();
+  const target = fixture();
+  try {
+    const published = publishContractLedger(source, 'valid-contract-task');
+    assert.equal(
+      validateTaskLedgerSchema(published),
+      true,
+      taskContractAjv.errorsText(validateTaskLedgerSchema.errors),
+    );
+    assert.equal(ledger.validateLedger(published), published);
+
+    writeTaskLedger(target.rootDir, published);
+    const imported = ledger.importTaskLedger(target.db, { rootDir: target.rootDir });
+    assert.equal(imported.imported, 1);
+    assert.equal(ops.readTask(target.db, 'valid-contract-task').complexity, 5);
+
+    const republished = ledger.publishTaskLedger(target.db, {
+      rootDir: target.rootDir,
+      reason: 'valid_contract_round_trip',
+    });
+    assert.equal(republished.changed, false);
+  } finally {
+    source.cleanup();
+    target.cleanup();
+  }
+});
 
 test('published ledger is durable while in-progress session state remains local', () => {
   const fx = fixture();
@@ -128,6 +425,7 @@ test('published ledger is durable while in-progress session state remains local'
 
 test('v0.22 and v0.23 team ledger v1 migrates byte-for-byte backup-first to v2', () => {
   for (const release of ['0.22.0', '0.23.0']) {
+    const releaseKey = release.replaceAll('.', '-');
     const fx = fixture();
     try {
       readyBaseline(fx.db, {
@@ -135,7 +433,7 @@ test('v0.22 and v0.23 team ledger v1 migrates byte-for-byte backup-first to v2',
         approvalNote: `Accepted by Ultra Builder Pro ${release}.`,
       });
       sharedChange(fx.db, `change-${release}`, `Preserve ${release} authority.`);
-      executableTask(fx.db, `task-${release}`, {
+      executableTask(fx.db, `task-${releaseKey}`, {
         change_id: `change-${release}`,
       });
       const current = ledger.publishTaskLedger(fx.db, {
@@ -854,5 +1152,26 @@ test('team ledger recreates accepted decisions and Stage Checkpoints on a clean 
   } finally {
     source.cleanup();
     target.cleanup();
+  }
+});
+
+test('runtime ledger validation rejects top-level authority excluded by the exact schema', () => {
+  const fx = fixture();
+  try {
+    publishContractLedger(fx, 'ledger-exact-fields');
+    const file = ledger.ledgerPath(fx.rootDir);
+    const document = JSON.parse(fs.readFileSync(file, 'utf8'));
+    document.unexpected_authority = 'must-not-be-trusted';
+    fs.writeFileSync(file, `${JSON.stringify(document, null, 2)}\n`);
+
+    assert.throws(
+      () => ledger.readTaskLedger(fx.rootDir, { optional: false }),
+      (error) => (
+        error.code === 'TASK_LEDGER_INVALID'
+        && /unexpected_authority|additional propert/i.test(error.message)
+      ),
+    );
+  } finally {
+    fx.cleanup();
   }
 });

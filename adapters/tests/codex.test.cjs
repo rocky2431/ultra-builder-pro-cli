@@ -82,6 +82,121 @@ function cleanup(layout) {
   fs.rmSync(layout.homeDir, { recursive: true, force: true });
 }
 
+function writeFakeCodexList(layout, installed, mcp = []) {
+  const file = path.join(layout.homeDir, 'fake-codex-list.cjs');
+  fs.writeFileSync(file, `#!/usr/bin/env node
+'use strict';
+const args = process.argv.slice(2);
+if (args.join(' ') === 'plugin list --json') {
+  process.stdout.write(${JSON.stringify(JSON.stringify({ installed, available: [] }))});
+  process.exit(0);
+}
+if (args.join(' ') === 'mcp list --json') {
+  process.stdout.write(${JSON.stringify(JSON.stringify(mcp))});
+  process.exit(0);
+}
+process.stderr.write('unexpected fake Codex invocation: ' + args.join(' '));
+process.exit(2);
+`);
+  fs.chmodSync(file, 0o755);
+  return file;
+}
+
+function writeSlowCodex(layout) {
+  const file = path.join(layout.homeDir, 'slow-codex.cjs');
+  fs.writeFileSync(file, `#!/usr/bin/env node
+process.on('SIGTERM', () => {});
+setTimeout(() => process.exit(0), 750);
+`);
+  fs.chmodSync(file, 0o755);
+  return file;
+}
+
+function writeStatefulCodex(layout, {
+  installed = false,
+  enabled = true,
+} = {}) {
+  const file = path.join(layout.homeDir, 'stateful-codex.cjs');
+  const configFile = path.join(layout.configDir, 'config.toml');
+  const cacheRoot = path.join(
+    layout.configDir,
+    'plugins',
+    'cache',
+    'personal',
+    'ultra-builder-pro',
+  );
+  const selector = 'ultra-builder-pro@personal';
+  fs.mkdirSync(layout.configDir, { recursive: true });
+  if (installed) {
+    fs.writeFileSync(
+      configFile,
+      `[plugins.${JSON.stringify(selector)}]\nenabled = ${enabled}\n`,
+    );
+    const seeded = path.join(cacheRoot, 'seeded');
+    fs.mkdirSync(seeded, { recursive: true });
+    fs.writeFileSync(path.join(seeded, 'seed.txt'), 'seeded');
+  }
+  fs.writeFileSync(file, `#!/usr/bin/env node
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const args = process.argv.slice(2);
+const configFile = ${JSON.stringify(configFile)};
+const pluginRoot = ${JSON.stringify(layout.pluginRoot)};
+const cacheRoot = ${JSON.stringify(cacheRoot)};
+const selector = ${JSON.stringify(selector)};
+function state() {
+  const text = fs.existsSync(configFile) ? fs.readFileSync(configFile, 'utf8') : '';
+  const present = text.includes('[plugins."' + selector + '"]');
+  return {
+    installed: present,
+    enabled: present && /enabled\\s*=\\s*true/.test(text),
+  };
+}
+function writeState(enabled) {
+  fs.mkdirSync(path.dirname(configFile), { recursive: true });
+  fs.writeFileSync(configFile, '[plugins."' + selector + '"]\\nenabled = ' + enabled + '\\n');
+}
+if (args.join(' ') === 'plugin list --json') {
+  const current = state();
+  process.stdout.write(JSON.stringify({
+    installed: current.installed ? [{
+      pluginId: selector,
+      name: 'ultra-builder-pro',
+      marketplaceName: 'personal',
+      installed: true,
+      enabled: current.enabled,
+    }] : [],
+    available: [],
+  }));
+  process.exit(0);
+}
+if (args[0] === 'plugin' && args[1] === 'add') {
+  const manifest = JSON.parse(fs.readFileSync(
+    path.join(pluginRoot, '.codex-plugin', 'plugin.json'),
+    'utf8',
+  ));
+  const target = path.join(cacheRoot, manifest.version);
+  fs.rmSync(cacheRoot, { recursive: true, force: true });
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.cpSync(pluginRoot, target, { recursive: true });
+  writeState(true);
+  process.stdout.write(JSON.stringify({ installed: true, version: manifest.version }));
+  process.exit(0);
+}
+if (args[0] === 'plugin' && args[1] === 'remove') {
+  fs.rmSync(cacheRoot, { recursive: true, force: true });
+  if (fs.existsSync(configFile)) fs.unlinkSync(configFile);
+  process.stdout.write(JSON.stringify({ removed: true }));
+  process.exit(0);
+}
+process.stderr.write('unexpected fake Codex invocation: ' + args.join(' '));
+process.exit(2);
+`);
+  fs.chmodSync(file, 0o755);
+  return file;
+}
+
 function install(layout) {
   return codex.install({
     configDir: layout.configDir,
@@ -600,6 +715,7 @@ test('doctor checks the current Codex cache hook target for a CLI-managed global
       scope: 'global',
       repoRoot: REPO_ROOT,
       runPluginCli: true,
+      runHostCli: false,
     };
 
     const degraded = codex.doctor(doctorCtx);
@@ -611,6 +727,261 @@ test('doctor checks the current Codex cache hook target for a CLI-managed global
     fs.mkdirSync(path.dirname(cacheAdapter), { recursive: true });
     fs.copyFileSync(path.join(layout.pluginRoot, 'hooks', 'adapters', 'codex.py'), cacheAdapter);
     assert.equal(codex.doctor(doctorCtx).status, 'healthy');
+  } finally {
+    cleanup(layout);
+  }
+});
+
+test('doctor reports whether Codex actually lists the plugin as installed and enabled', () => {
+  const layout = mkLayout();
+  try {
+    const report = install(layout);
+    const baseCtx = {
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: false,
+      runHostCli: true,
+    };
+
+    const missing = codex.doctor({
+      ...baseCtx,
+      codexBin: writeFakeCodexList(layout, []),
+    });
+    assert.equal(missing.status, 'degraded');
+    assert.equal(missing.checks.host_plugin.status, 'fail');
+    assert.equal(missing.checks.host_mcp.status, 'fail');
+    assert.ok(missing.issues.some((issue) => issue.code === 'HOST_PLUGIN_NOT_DISCOVERED'));
+
+    const activeCache = path.join(
+      codex._internal.pluginCacheRoot(layout.configDir, 'personal'),
+      report.plugin.version,
+    );
+    fs.mkdirSync(path.dirname(activeCache), { recursive: true });
+    fs.cpSync(layout.pluginRoot, activeCache, { recursive: true });
+    const healthy = codex.doctor({
+      ...baseCtx,
+      codexBin: writeFakeCodexList(layout, [{
+        pluginId: 'ultra-builder-pro@personal',
+        name: 'ultra-builder-pro',
+        marketplaceName: 'personal',
+        version: report.plugin.version,
+        installed: true,
+        enabled: true,
+        source: { source: 'local', path: layout.pluginRoot },
+      }], [{
+        name: 'ultra-builder-pro',
+        enabled: true,
+        disabled_reason: null,
+        transport: {
+          type: 'stdio',
+          command: '/usr/bin/env',
+          args: ['node', path.join(layout.pluginRoot, 'runtime', 'launch.cjs')],
+        },
+      }]),
+    });
+    assert.equal(healthy.status, 'healthy', JSON.stringify(healthy, null, 2));
+    assert.equal(healthy.checks.host_plugin.status, 'pass');
+    assert.equal(healthy.checks.host_mcp.status, 'pass');
+  } finally {
+    cleanup(layout);
+  }
+});
+
+test('doctor binds a version-only Codex cachebuster to the active host cache and ignores collected history', () => {
+  const layout = mkLayout();
+  const runtimeManifestFile = path.join(
+    layout.configDir,
+    'ultra-builder-pro',
+    'install-manifest.json',
+  );
+  const retiredVersion = `${PACKAGE_VERSION}+codex.retired-fixture`;
+  try {
+    fs.mkdirSync(path.dirname(runtimeManifestFile), { recursive: true });
+    fs.writeFileSync(runtimeManifestFile, JSON.stringify({
+      source: 'ubp',
+      adapter: 'codex',
+      plugin: { root: layout.pluginRoot, version: retiredVersion },
+      marketplace: { file: layout.marketplaceFile, name: 'personal' },
+      agents: [],
+      hook_cache_versions: [retiredVersion],
+    }, null, 2) + '\n');
+
+    const installed = install(layout);
+    const sourceManifestFile = path.join(
+      layout.pluginRoot,
+      '.codex-plugin',
+      'plugin.json',
+    );
+    const sourceManifest = JSON.parse(fs.readFileSync(sourceManifestFile, 'utf8'));
+    const cachebusterVersion = `${PACKAGE_VERSION}+codex.fixture-cachebuster`;
+    sourceManifest.version = cachebusterVersion;
+    fs.writeFileSync(sourceManifestFile, JSON.stringify(sourceManifest, null, 2) + '\n');
+
+    const activeCache = path.join(
+      codex._internal.pluginCacheRoot(layout.configDir, 'personal'),
+      cachebusterVersion,
+    );
+    fs.mkdirSync(path.dirname(activeCache), { recursive: true });
+    fs.cpSync(layout.pluginRoot, activeCache, { recursive: true });
+
+    const codexBin = writeFakeCodexList(layout, [{
+      pluginId: 'ultra-builder-pro@personal',
+      name: 'ultra-builder-pro',
+      marketplaceName: 'personal',
+      version: cachebusterVersion,
+      installed: true,
+      enabled: true,
+      source: { source: 'local', path: layout.pluginRoot },
+    }], [{
+      name: 'ultra-builder-pro',
+      enabled: true,
+      disabled_reason: null,
+      transport: {
+        type: 'stdio',
+        command: '/usr/bin/env',
+        args: ['node', path.join(layout.pluginRoot, 'runtime', 'launch.cjs')],
+      },
+    }]);
+    const doctorCtx = {
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: false,
+      runHostCli: true,
+      codexBin,
+    };
+
+    const healthy = codex.doctor(doctorCtx);
+    assert.equal(healthy.status, 'healthy', JSON.stringify(healthy, null, 2));
+    assert.equal(healthy.checks.cachebuster_binding.status, 'pass');
+    assert.equal(healthy.checks.host_plugin.status, 'pass');
+    assert.ok(!healthy.issues.some((issue) => (
+      issue.code === 'HOOK_TARGET_MISSING' && issue.version === retiredVersion
+    )));
+    assert.notEqual(cachebusterVersion, installed.plugin.version);
+
+    const activeAdapter = path.join(activeCache, 'hooks', 'adapters', 'codex.py');
+    fs.unlinkSync(activeAdapter);
+    const degraded = codex.doctor(doctorCtx);
+    assert.equal(degraded.status, 'degraded');
+    assert.ok(degraded.issues.some((issue) => (
+      issue.code === 'HOOK_TARGET_MISSING'
+      && issue.version === cachebusterVersion
+      && issue.path === activeAdapter
+    )));
+
+    fs.copyFileSync(path.join(layout.pluginRoot, 'hooks', 'adapters', 'codex.py'), activeAdapter);
+    sourceManifest.description = 'Unproven manifest mutation';
+    const unprovenManifest = JSON.stringify(sourceManifest, null, 2) + '\n';
+    fs.writeFileSync(sourceManifestFile, unprovenManifest);
+    fs.writeFileSync(
+      path.join(activeCache, '.codex-plugin', 'plugin.json'),
+      unprovenManifest,
+    );
+    const unproven = codex.doctor(doctorCtx);
+    assert.equal(unproven.status, 'degraded');
+    assert.equal(unproven.checks.cachebuster_binding.status, 'fail');
+    assert.ok(unproven.issues.some((issue) => (
+      issue.code === 'ASSET_HASH_MISMATCH'
+      && issue.path === path.join('.codex-plugin', 'plugin.json')
+    )));
+  } finally {
+    cleanup(layout);
+  }
+});
+
+test('doctor bounds Codex host inspection and reports a typed timeout', () => {
+  const layout = mkLayout();
+  try {
+    install(layout);
+    const stubbornBin = writeSlowCodex(layout);
+    const probeCtx = {
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      hostCliTimeoutMs: 50,
+      codexBin: stubbornBin,
+    };
+    const startedAt = Date.now();
+    assert.throws(
+      () => codex._internal.runCodexCli(['plugin', 'list', '--json'], probeCtx),
+      (error) => error.code === 'HOST_CLI_TIMEOUT',
+    );
+    assert.ok(Date.now() - startedAt < 400, 'Codex timeout must SIGKILL a stubborn child');
+    const report = codex.doctor({
+      configDir: layout.configDir,
+      homeDir: layout.homeDir,
+      scope: 'global',
+      repoRoot: REPO_ROOT,
+      runPluginCli: false,
+      runHostCli: true,
+      hostCliTimeoutMs: 50,
+      codexBin: stubbornBin,
+    });
+    assert.ok(report.issues.some((issue) => issue.code === 'HOST_CLI_TIMEOUT'));
+  } finally {
+    cleanup(layout);
+  }
+});
+
+test('install restores an absent Codex registration after a post-registration failure', () => {
+  const layout = mkLayout();
+  try {
+    const codexBin = writeStatefulCodex(layout);
+    assert.throws(
+      () => codex.install({
+        configDir: layout.configDir,
+        homeDir: layout.homeDir,
+        scope: 'global',
+        repoRoot: REPO_ROOT,
+        runPluginCli: true,
+        codexBin,
+        afterPluginRegistration() {
+          throw new Error('injected post-registration install failure');
+        },
+      }),
+      /injected post-registration install failure/,
+    );
+    const state = JSON.parse(codex._internal.runCodexCli(
+      ['plugin', 'list', '--json'],
+      { configDir: layout.configDir, homeDir: layout.homeDir, codexBin },
+    ));
+    assert.deepEqual(state.installed, []);
+    assert.equal(fs.existsSync(layout.pluginRoot), false);
+  } finally {
+    cleanup(layout);
+  }
+});
+
+test('uninstall restores a previously disabled Codex registration after a post-registration failure', () => {
+  const layout = mkLayout();
+  try {
+    install(layout);
+    const codexBin = writeStatefulCodex(layout, { installed: true, enabled: false });
+    const configBefore = fs.readFileSync(path.join(layout.configDir, 'config.toml'));
+    assert.throws(
+      () => codex.uninstall({
+        configDir: layout.configDir,
+        homeDir: layout.homeDir,
+        scope: 'global',
+        runPluginCli: true,
+        codexBin,
+        afterPluginRegistration() {
+          throw new Error('injected post-registration uninstall failure');
+        },
+      }),
+      /injected post-registration uninstall failure/,
+    );
+    const state = JSON.parse(codex._internal.runCodexCli(
+      ['plugin', 'list', '--json'],
+      { configDir: layout.configDir, homeDir: layout.homeDir, codexBin },
+    ));
+    assert.equal(state.installed.length, 1);
+    assert.equal(state.installed[0].enabled, false);
+    assert.deepEqual(fs.readFileSync(path.join(layout.configDir, 'config.toml')), configBefore);
+    assert.ok(fs.existsSync(layout.pluginRoot));
   } finally {
     cleanup(layout);
   }

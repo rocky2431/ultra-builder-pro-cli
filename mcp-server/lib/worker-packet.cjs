@@ -121,13 +121,13 @@ function abandonWorkerPacket(db, id, reason) {
   return ops.tx(db, () => {
     const row = db.prepare('SELECT * FROM worker_packets WHERE id = ?').get(id);
     if (!row || row.status === 'abandoned') return row || null;
-    if (row.status !== 'pending') return row;
+    if (!['pending', 'assigned'].includes(row.status)) return row;
     db.prepare(
       `UPDATE worker_packets
        SET status = 'abandoned',
            abandoned_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
            abandon_reason = ?
-       WHERE id = ? AND status = 'pending'`,
+       WHERE id = ? AND status IN ('pending', 'assigned')`,
     ).run(String(reason || 'session acquisition failed'), id);
     ops.appendEventInTx(db, {
       type: 'worker_packet_abandoned',

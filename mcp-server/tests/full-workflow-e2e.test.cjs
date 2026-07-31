@@ -265,6 +265,10 @@ async function executeChange(fx, mode) {
       title: 'Implement the ready status seam',
       type: 'feature',
       priority: 'P0',
+      complexity: 2,
+      estimated_days: 1,
+      deps: [],
+      files_modified: ['src/status.js', 'test/status.test.js'],
       change_id: changeId,
       outcome: 'getStatus returns ready and the test passes.',
       slice_kind: 'tracer_bullet',
@@ -303,7 +307,7 @@ async function executeChange(fx, mode) {
   });
   assert.equal(planned.accepted, true);
   assert.equal(planned.result.team_checkpoint.ledger.tasks.length, 1);
-  commitAll(fx.rootDir, 'plan: publish status change');
+  const planHead = commitAll(fx.rootDir, 'plan: publish status change');
 
   const acquired = await facade.dispatch('ultra.session', {
     action: 'acquire',
@@ -359,7 +363,7 @@ async function executeChange(fx, mode) {
     stdio: 'pipe',
   });
   const workerHead = commitAll(acquired.worktree_path, 'feat: implement ready status seam');
-  git(fx.rootDir, ['merge', '--ff-only', workerHead]);
+  git(fx.rootDir, ['merge', '--no-ff', '--no-commit', workerHead]);
 
   const completed = await record(fx.db, fx.rootDir, [{
     kind: 'task_outcome',
@@ -367,11 +371,49 @@ async function executeChange(fx, mode) {
     data: {
       id: taskId,
       packet_digest: acquired.packet.packet_digest,
-      patch: { completion_commit: workerHead },
     },
     idempotency_key: `${taskId}:complete`,
   }]);
   assert.equal(completed.accepted, true, JSON.stringify(completed, null, 2));
+  assert.equal(completed.results[0].result.task.status, 'completed');
+  assert.equal(completed.results[0].result.task.completion_commit, null);
+
+  const completionSync = await facade.dispatch('ultra.sync', {
+    action: 'publish',
+    reason: 'task_completed',
+    idempotency_key: `${taskId}:completion-sync`,
+  }, fx.db, { rootDir: fx.rootDir, runtime: 'test' });
+  const durableTask = completionSync.ledger.tasks.find((task) => task.id === taskId);
+  assert.equal(durableTask.status, 'completed');
+  assert.equal(Object.hasOwn(durableTask, 'completion_commit'), false);
+  const ledgerFile = path.join(fx.rootDir, '.ultra', 'tasks', 'tasks.json');
+  const ledgerBeforeAttestation = fs.readFileSync(ledgerFile);
+
+  const integrationHead = commitAll(fx.rootDir, 'feat: integrate ready status seam');
+  assert.equal(
+    git(fx.rootDir, ['rev-list', '--count', '--first-parent', `${planHead}..${integrationHead}`]),
+    '1',
+    'durable completion and its team checkpoint must land in one integration commit',
+  );
+
+  const attested = await record(fx.db, fx.rootDir, [{
+    kind: 'task_outcome',
+    action: 'attest_commit',
+    data: {
+      id: taskId,
+      completion_commit: integrationHead,
+    },
+    idempotency_key: `${taskId}:attest-commit`,
+  }]);
+  assert.equal(attested.accepted, true, JSON.stringify(attested, null, 2));
+  assert.equal(
+    attested.results[0].result.task.completion_commit,
+    integrationHead,
+  );
+  assert.equal(git(fx.rootDir, ['rev-parse', 'HEAD']), integrationHead);
+  assert.equal(git(fx.rootDir, ['status', '--porcelain']), '');
+  assert.deepEqual(fs.readFileSync(ledgerFile), ledgerBeforeAttestation);
+
   const released = await facade.dispatch('ultra.session', {
     action: 'release',
     scope: { sid: acquired.sid },

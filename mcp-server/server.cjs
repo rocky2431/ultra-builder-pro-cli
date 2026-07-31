@@ -68,6 +68,24 @@ function errorResponse(code, message, retriable = false, details = undefined) {
   };
 }
 
+function publicToolError(error) {
+  const code = String(error?.code || 'STATE_DB_ERROR');
+  if (code.startsWith('SQLITE_')) {
+    return {
+      code: 'STATE_DB_ERROR',
+      message: 'Ultra state persistence failed',
+      retriable: code === 'SQLITE_BUSY' || code === 'SQLITE_LOCKED',
+      details: undefined,
+    };
+  }
+  return {
+    code,
+    message: error?.message || 'Ultra state operation failed',
+    retriable: Boolean(error?.retriable),
+    details: error?.details,
+  };
+}
+
 function isInitializeCall(name, input = {}) {
   return name === 'ultra.record'
     && Array.isArray(input.entries)
@@ -313,11 +331,12 @@ function startServer({
     } catch (error) {
       toolError = error.code || 'STATE_DB_ERROR';
       emitTelemetry();
+      const visibleError = publicToolError(error);
       return errorResponse(
-        toolError,
-        error.message,
-        Boolean(error.retriable),
-        error.details,
+        visibleError.code,
+        visibleError.message,
+        visibleError.retriable,
+        visibleError.details,
       );
     }
   });

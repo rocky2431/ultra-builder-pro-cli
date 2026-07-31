@@ -1249,8 +1249,8 @@ files_modified 重叠检测 + 自动合并。这是 "coding 工厂" 的**后端*
 CREATE TABLE tasks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
-  type TEXT,                       -- architecture|feature|bugfix
-  priority TEXT,                   -- P0-P3
+  type TEXT,                       -- bounded repository-defined label
+  priority TEXT,                   -- bounded repository-defined label
   complexity INTEGER,              -- 1-10
   status TEXT NOT NULL,            -- pending|in_progress|completed|blocked|expanded
   deps JSON,                       -- [task_id]

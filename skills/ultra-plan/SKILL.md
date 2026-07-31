@@ -22,7 +22,12 @@ digests, context, and team checkpoint in one semantic operation.
    for a material unresolved choice.
 6. Design a walking skeleton and vertical slices. Each task owns an observable outcome,
    public seam, verification command, acceptance mapping, target seams, bounded
-   context refs, documentation impact, recovery, owner, and dependencies.
+   context refs, documentation impact, recovery, owner, and dependencies. Set the
+   published `type`, `priority`, optional bounded `complexity`/`estimated_days`,
+   `slice_kind`, and string-array `deps`/`files_modified` deliberately. Prefer the
+   shared vocabulary when it communicates the work, but use a bounded
+   repository-specific label when it is clearer; SQLite validates structure and does
+   not choose business taxonomy.
 
 Large sources stay lazy. Use digest freshness for accepted inputs that must remain
 byte-current, existence for expected implementation targets, and advisory only when
@@ -34,8 +39,11 @@ question.
 ## Record and checkpoint
 
 Use one `ultra.record` batch with `task_contract / define` for new tasks and
-`task_contract / revise` for corrected contracts. Read back the draft with
-`ultra.context`.
+`task_contract / revise` for corrected contracts, including a wrong `title` or `type`,
+before accepting the Plan checkpoint. Read back the draft with `ultra.context`.
+Never write status, session, freshness, runtime tag, generated Context, or
+completion-commit fields through a Task Contract; Task outcomes and the runtime own
+them.
 Never read or write `.ultra/tasks/tasks.json`; use `ultra.sync` for the Git team
 checkpoint, and never edit the local runtime projection directly.
 
@@ -49,7 +57,8 @@ idempotency_key: stable semantic Plan checkpoint id
 ```
 
 The model decides whether decomposition, acceptance coverage, and context are
-sufficient and records any deliberate omission. The checkpoint compiles or reuses the
+sufficient and records any deliberate omission. Missing semantic detail remains a
+visible warning and does not deny an otherwise safe Session lease. The checkpoint compiles or reuses the
 content-addressed Context Envelope, reports advisory coverage diagnostics, exports
 `plan.json` and `plan.md` inside the same recoverable publication, accepts one Plan
 revision, and publishes the team checkpoint. Do not export separately.

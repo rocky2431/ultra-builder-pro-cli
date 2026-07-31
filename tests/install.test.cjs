@@ -14,12 +14,13 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const INSTALL_JS = path.join(REPO_ROOT, 'bin', 'install.js');
 const PACKAGE = require(path.join(REPO_ROOT, 'package.json'));
 const ULTRA_TOOLS = require(path.join(REPO_ROOT, 'ultra-tools', 'cli.cjs'));
+const { createFakeGrok } = require('../adapters/tests/grok-cli-fixture.cjs');
 
-function runCli(args, { cwd, homeDir } = {}) {
+function runCli(args, { cwd, homeDir, env = {} } = {}) {
   return spawnSync(process.execPath, [INSTALL_JS, ...args], {
     cwd: cwd || REPO_ROOT,
     encoding: 'utf8',
-    env: { ...process.env, ...(homeDir ? { HOME: homeDir } : {}) },
+    env: { ...process.env, ...(homeDir ? { HOME: homeDir } : {}), ...env },
   });
 }
 
@@ -84,13 +85,13 @@ const RUNTIMES = [
     flag: '--grok',
     name: 'grok',
     expectRelPaths: [
-      'plugins/ultra-builder-pro/plugin.json',
-      'plugins/ultra-builder-pro/commands',
-      'plugins/ultra-builder-pro/skills',
-      'plugins/ultra-builder-pro/agents',
-      'plugins/ultra-builder-pro/hooks/adapters/grok.py',
-      'plugins/ultra-builder-pro/runtime/launch.cjs',
-      'plugins/ultra-builder-pro/provenance.json',
+      'installed-plugins/ultra-builder-pro-testkey/plugin.json',
+      'installed-plugins/ultra-builder-pro-testkey/commands',
+      'installed-plugins/ultra-builder-pro-testkey/skills',
+      'installed-plugins/ultra-builder-pro-testkey/agents',
+      'installed-plugins/ultra-builder-pro-testkey/hooks/adapters/grok.py',
+      'installed-plugins/ultra-builder-pro-testkey/runtime/launch.cjs',
+      'installed-plugins/ultra-builder-pro-testkey/provenance.json',
     ],
   },
 ];
@@ -98,14 +99,19 @@ const RUNTIMES = [
 for (const rt of RUNTIMES) {
   test(`install.js — ${rt.name} install + uninstall round-trip (--config-dir)`, () => {
     const target = mkTarget(rt.name);
+    const fakeRoot = rt.name === 'grok' ? mkTarget('grok-bin') : null;
+    const env = fakeRoot ? { GROK_BIN: createFakeGrok(fakeRoot) } : {};
     try {
-      const installed = runCli([rt.flag, '--config-dir', target], { homeDir: target });
+      const installed = runCli([rt.flag, '--config-dir', target], { homeDir: target, env });
       assert.equal(installed.status, 0, `install stderr:\n${installed.stderr}`);
       for (const rel of rt.expectRelPaths) {
         assert.ok(fs.existsSync(path.join(target, rel)), `expected ${rel} after ${rt.name} install`);
       }
 
-      const uninstalled = runCli([rt.flag, '--config-dir', target, '--uninstall'], { homeDir: target });
+      const uninstalled = runCli(
+        [rt.flag, '--config-dir', target, '--uninstall'],
+        { homeDir: target, env },
+      );
       assert.equal(uninstalled.status, 0, `uninstall stderr:\n${uninstalled.stderr}`);
       // After uninstall, the leaf sentinel/config should either be gone or no longer
       // contain our managed block. For simplicity, assert that the primary asset
@@ -114,17 +120,24 @@ for (const rt of RUNTIMES) {
       assert.ok(!fs.existsSync(path.join(target, primary)), `expected ${primary} removed after ${rt.name} uninstall`);
     } finally {
       cleanup(target);
+      if (fakeRoot) cleanup(fakeRoot);
     }
   });
 }
 
 test('install.js — --all fans out to every supported runtime', () => {
   const target = mkTarget('all');
+  const fakeRoot = mkTarget('grok-bin');
+  const env = { GROK_BIN: createFakeGrok(fakeRoot) };
   const localRoots = {
     claude: '.claude', opencode: '.opencode', codex: '', kimi: '.kimi-code', grok: '.grok',
   };
   try {
-    const installed = runCli(['--all', '--local'], { cwd: target, homeDir: target });
+    const installed = runCli(['--all', '--local'], {
+      cwd: target,
+      homeDir: target,
+      env,
+    });
     assert.equal(installed.status, 0, `--all install stderr:\n${installed.stderr}`);
     for (const runtime of RUNTIMES) {
       assert.ok(
@@ -134,11 +147,14 @@ test('install.js — --all fans out to every supported runtime', () => {
     }
   } finally {
     cleanup(target);
+    cleanup(fakeRoot);
   }
 });
 
 test('install and uninstall never mutate host user handbooks', () => {
   const home = mkTarget('handbook-isolation');
+  const fakeRoot = mkTarget('grok-bin');
+  const env = { GROK_BIN: createFakeGrok(fakeRoot) };
   const handbooks = [
     path.join(home, '.claude', 'CLAUDE.md'),
     path.join(home, '.config', 'opencode', 'AGENTS.md'),
@@ -166,7 +182,7 @@ test('install and uninstall never mutate host user handbooks', () => {
         '--global',
         '--config-dir',
         configDirs[runtime.name],
-      ], { homeDir: home });
+      ], { homeDir: home, env });
       assert.equal(installed.status, 0, `${runtime.name}: ${installed.stderr}`);
     }
     handbooks.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
@@ -178,17 +194,20 @@ test('install and uninstall never mutate host user handbooks', () => {
         '--config-dir',
         configDirs[runtime.name],
         '--uninstall',
-      ], { homeDir: home });
+      ], { homeDir: home, env });
       assert.equal(uninstalled.status, 0, `${runtime.name}: ${uninstalled.stderr}`);
     }
     handbooks.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
   } finally {
     cleanup(home);
+    cleanup(fakeRoot);
   }
 });
 
 test('installation is project-inert before explicit ultra-init', () => {
   const home = mkTarget('project-inert');
+  const fakeRoot = mkTarget('grok-bin');
+  const env = { GROK_BIN: createFakeGrok(fakeRoot) };
   const project = path.join(home, 'project');
   const configRoot = path.join(home, 'host-config');
   const projectAgents = path.join(project, 'AGENTS.md');
@@ -206,7 +225,7 @@ test('installation is project-inert before explicit ultra-init', () => {
         runtime.flag,
         '--config-dir',
         configDir,
-      ], { cwd: project, homeDir: home });
+      ], { cwd: project, homeDir: home, env });
       assert.equal(installed.status, 0, `${runtime.name}: ${installed.stderr}`);
       assert.equal(fs.existsSync(path.join(project, '.ultra')), false, runtime.name);
       assert.deepEqual(fs.readFileSync(projectAgents), beforeAgents, runtime.name);
@@ -214,6 +233,7 @@ test('installation is project-inert before explicit ultra-init', () => {
     }
   } finally {
     cleanup(home);
+    cleanup(fakeRoot);
   }
 });
 
@@ -240,12 +260,18 @@ test('install.js — idempotent: two installs produce equal asset counts', () =>
 
 test('install.js — doctor verifies all host provenance and reports managed-asset drift', () => {
   const target = mkTarget('doctor');
+  const fakeRoot = mkTarget('grok-bin');
+  const env = { GROK_BIN: createFakeGrok(fakeRoot) };
   try {
-    const installed = runCli(['--all', '--local'], { cwd: target, homeDir: target });
+    const installed = runCli(['--all', '--local'], {
+      cwd: target,
+      homeDir: target,
+      env,
+    });
     assert.equal(installed.status, 0, installed.stderr);
 
     const healthy = runCli(['--all', '--local', '--doctor', '--json'], {
-      cwd: target, homeDir: target,
+      cwd: target, homeDir: target, env,
     });
     assert.equal(healthy.status, 0, healthy.stderr);
     const healthyReport = JSON.parse(healthy.stdout);
@@ -266,7 +292,7 @@ test('install.js — doctor verifies all host provenance and reports managed-ass
     );
     fs.appendFileSync(managedHook, '\n# drift\n');
     const degraded = runCli(['--all', '--local', '--doctor', '--json'], {
-      cwd: target, homeDir: target,
+      cwd: target, homeDir: target, env,
     });
     assert.equal(degraded.status, 2, degraded.stderr);
     const degradedReport = JSON.parse(degraded.stdout);
@@ -287,16 +313,22 @@ test('install.js — doctor verifies all host provenance and reports managed-ass
     fs.writeFileSync(codexManifestFile, `${JSON.stringify(codexManifest, null, 2)}\n`);
 
     const boundaryDrift = runCli(['--all', '--local', '--doctor', '--json'], {
-      cwd: target, homeDir: target,
+      cwd: target, homeDir: target, env,
     });
     assert.equal(boundaryDrift.status, 2, boundaryDrift.stderr);
     const boundaryReport = JSON.parse(boundaryDrift.stdout);
     const opencode = boundaryReport.reports.find((report) => report.adapter === 'opencode');
     assert.ok(opencode.issues.some((issue) => issue.code === 'MCP_REGISTRATION_INVALID'));
     const codex = boundaryReport.reports.find((report) => report.adapter === 'codex');
-    assert.ok(codex.issues.some((issue) => issue.code === 'HOOK_TARGET_MISSING'));
+    assert.equal(codex.status, 'degraded');
+    assert.ok(codex.issues.some((issue) => (
+      issue.code === 'ASSET_HASH_MISMATCH'
+      && issue.path === 'ultra-builder-pro/install-manifest.json'
+    )));
+    assert.ok(!codex.issues.some((issue) => issue.code === 'HOOK_TARGET_MISSING'));
   } finally {
     cleanup(target);
+    cleanup(fakeRoot);
   }
 });
 

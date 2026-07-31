@@ -30,7 +30,7 @@ before changing logic. Implement the smallest complete vertical slice. Ask the o
 only when new evidence changes product intent, compatibility, security, material cost,
 external effects, or recovery.
 
-Use typed `ultra.record` entries for `task_outcome / start|block|complete`,
+Use typed `ultra.record` entries for `task_outcome / start|block|complete|attest_commit`,
 `event / append`, `artifact / bind`, `decision / accept`, and corrected
 `task_contract / revise`. Every worker output must repeat the exact `packet_digest`;
 the parent registers it only after packet, output path, schema, and digest validation.
@@ -49,9 +49,14 @@ reports outcome diagnostics. The model decides whether the implemented slice sat
 the Task; semantic warnings remain visible. A rejection means the declared authority,
 path, digest, or concurrency boundary was unsafe and leaves the draft mutable.
 
-After acceptance, mark the task durably completed, publish with `ultra.sync`, and
-create at most one authorized local task commit containing code and semantic
-artifacts. Record its SHA only in local state; never create a bookkeeping commit.
+After acceptance:
+
+1. Record `task_outcome / complete { id, packet_digest }`; never include a patch or SHA.
+2. Publish the durable completed status with `ultra.sync`.
+3. Create at most one authorized local task commit containing code, semantic
+   artifacts, and the team checkpoint.
+4. Record `task_outcome / attest_commit { id, completion_commit }` with that integrated
+   commit's full SHA. This is local mechanical proof and must not create another commit.
 
 Release the lease through `ultra.session`. Preserve a dirty or unintegrated worktree
 on interruption. Commit, push, tag, publish, deploy, or destructive cleanup require

@@ -76,6 +76,17 @@ test('parsePrd normalizes optional fields', () => {
   assert.equal(result.tasks[0].change_id, null);
 });
 
+test('parsePrd preserves bounded repository-defined task vocabulary', () => {
+  const result = parsePrd([{
+    id: 'task-1',
+    title: 'Prepare the security migration',
+    type: 'security_migration',
+    priority: 'urgent-owner-review',
+  }]);
+  assert.equal(result.tasks[0].type, 'security_migration');
+  assert.equal(result.tasks[0].priority, 'urgent-owner-review');
+});
+
 test('TASK_LIST_SCHEMA remains available to MCP contract consumers', () => {
   assert.equal(TASK_LIST_SCHEMA.required[0], 'tasks');
   assert.equal(TASK_LIST_SCHEMA.properties.tasks.minItems, 1);

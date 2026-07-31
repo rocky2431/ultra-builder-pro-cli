@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { isDeepStrictEqual } = require('node:util');
 
 const {
   copyTree,
@@ -62,6 +64,79 @@ function resolveTarget(ctx = {}) {
 
 function resolveRepoRoot(ctx = {}) {
   return ctx.repoRoot || path.resolve(__dirname, '..');
+}
+
+function shouldRunHostCli(ctx = {}) {
+  if (typeof ctx.runHostCli === 'boolean') return ctx.runHostCli;
+  return ctx.scope === 'global' && !ctx.configDir;
+}
+
+function runOpenCodeCli(args, ctx = {}) {
+  const target = resolveTarget(ctx);
+  const result = spawnSync(ctx.opencodeBin || 'opencode', args, {
+    cwd: ctx.cwd || process.cwd(),
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    killSignal: 'SIGKILL',
+    env: {
+      ...process.env,
+      OPENCODE_CONFIG_DIR: target,
+    },
+    timeout: ctx.hostCliTimeoutMs || 30000,
+  });
+  if (result.error) {
+    if (result.error.code === 'ETIMEDOUT') {
+      const error = new Error(`opencode ${args.join(' ')} timed out`);
+      error.code = 'HOST_CLI_TIMEOUT';
+      throw error;
+    }
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim();
+    throw new Error(`opencode ${args.join(' ')} failed${detail ? `: ${detail}` : ''}`);
+  }
+  return result.stdout;
+}
+
+function openCodeMcpRow(output, serverName) {
+  for (const rawLine of output.split(/\r?\n/)) {
+    const tokens = rawLine.trim().split(/\s+/);
+    if (tokens.some((token) => token === serverName)) return rawLine;
+  }
+  return '';
+}
+
+function inspectOpenCodeHost(ctx = {}) {
+  const target = resolveTarget(ctx);
+  const expectedLauncher = path.join(target, BUNDLE_DIR, 'runtime', 'launch.cjs');
+  const expected = managedMcpEntry(target);
+  const config = JSON.parse(runOpenCodeCli(['debug', 'config'], ctx));
+  const entry = config?.mcp?.[MCP_SERVER_NAME];
+  const configOk = isDeepStrictEqual(entry, expected);
+  const mcpOutput = runOpenCodeCli(['mcp', 'list'], ctx)
+    .replace(/\u001b\[[0-9;]*m/g, '');
+  const mcpLine = openCodeMcpRow(mcpOutput, MCP_SERVER_NAME);
+  const mcpOk = /\bconnected\b/i.test(mcpLine);
+  return { config, configOk, mcpOutput, mcpOk };
+}
+
+function managedMcpEntry(target) {
+  const command = mcpCommand(path.join(target, BUNDLE_DIR, 'runtime', 'launch.cjs'));
+  return {
+    type: 'local',
+    enabled: true,
+    command: [command.command, ...command.args],
+  };
+}
+
+function hasManagedMcpIdentity(entry, target) {
+  return Boolean(
+    entry
+    && typeof entry === 'object'
+    && !Array.isArray(entry)
+    && isDeepStrictEqual(entry.command, managedMcpEntry(target).command),
+  );
 }
 
 function lowercaseFrontmatterTransform(buf, relPath) {
@@ -550,12 +625,7 @@ function buildStaging(repoRoot, staging, target) {
   const configFile = path.join(target, 'opencode.json');
   const existing = readJsonSafe(configFile, { rescue: true });
   const mcp = { ...(existing.mcp || {}) };
-  const command = mcpCommand(path.join(target, BUNDLE_DIR, 'runtime', 'launch.cjs'));
-  mcp[MCP_SERVER_NAME] = {
-    type: 'local',
-    enabled: true,
-    command: [command.command, ...command.args],
-  };
+  mcp[MCP_SERVER_NAME] = managedMcpEntry(target);
   const next = { ...existing, mcp };
   delete next[LEGACY_SENTINEL_KEY];
   writeAtomic(path.join(staging, 'opencode.json'), JSON.stringify(next, null, 2) + '\n');
@@ -720,12 +790,45 @@ function doctor(ctx = {}) {
     });
   }
   report.checks.registration = { status: registrationOk ? 'pass' : 'fail' };
+  if (shouldRunHostCli(ctx)) {
+    try {
+      const host = inspectOpenCodeHost(ctx);
+      report.checks.host_config = { status: host.configOk ? 'pass' : 'fail' };
+      report.checks.host_mcp = { status: host.mcpOk ? 'pass' : 'fail' };
+      if (!host.configOk) {
+        report.issues.push({
+          code: 'HOST_CONFIG_NOT_CONSUMED',
+          path: configFile,
+        });
+      }
+      if (!host.mcpOk) {
+        report.issues.push({
+          code: 'HOST_MCP_NOT_CONNECTED',
+          server: MCP_SERVER_NAME,
+        });
+      }
+    } catch (error) {
+      report.checks.host_config = { status: 'fail' };
+      report.checks.host_mcp = { status: 'fail' };
+      report.issues.push({
+        code: error.code === 'HOST_CLI_TIMEOUT'
+          ? 'HOST_CLI_TIMEOUT'
+          : 'HOST_CLI_INSPECTION_FAILED',
+        message: error.message,
+      });
+    }
+  }
   return applyNativeDoctor(report, path.join(target, BUNDLE_DIR, 'runtime'));
 }
 
 function uninstall(ctx = {}) {
   const target = resolveTarget(ctx);
-  const report = { target, removed: {}, config: { updated: false } };
+  const report = {
+    target,
+    removed: {},
+    config: { updated: false },
+    issues: [],
+  };
   const pluginFile = path.join(target, 'plugins', 'ultra-builder-pro.js');
   const bundleRoot = path.join(target, BUNDLE_DIR);
   const pluginOwned = fs.existsSync(pluginFile)
@@ -734,14 +837,31 @@ function uninstall(ctx = {}) {
   const configFile = path.join(target, 'opencode.json');
   if (fs.existsSync(configFile)) {
     const existing = readJsonSafe(configFile);
-    if (pluginOwned || bundleOwned || existing[LEGACY_SENTINEL_KEY]) {
+    const currentMcp = existing.mcp?.[MCP_SERVER_NAME];
+    const expectedMcp = managedMcpEntry(target);
+    const mcpOwned = hasManagedMcpIdentity(currentMcp, target);
+    if (currentMcp !== undefined && !mcpOwned) {
+      report.config.skipped = true;
+      report.config.reason = 'ownership-conflict';
+      report.issues.push({
+        code: 'MCP_OWNERSHIP_CONFLICT',
+        path: configFile,
+        server: MCP_SERVER_NAME,
+        expected: expectedMcp,
+        actual: currentMcp,
+      });
+      return report;
+    }
+    if (mcpOwned || existing[LEGACY_SENTINEL_KEY]) {
       const mcp = { ...(existing.mcp || {}) };
-      delete mcp[MCP_SERVER_NAME];
+      if (mcpOwned) delete mcp[MCP_SERVER_NAME];
       const next = { ...existing, mcp };
       delete next[LEGACY_SENTINEL_KEY];
       if (Object.keys(next.mcp || {}).length === 0) delete next.mcp;
-      writeAtomic(configFile, JSON.stringify(next, null, 2) + '\n');
-      report.config.updated = true;
+      if (!isDeepStrictEqual(next, existing)) {
+        writeAtomic(configFile, JSON.stringify(next, null, 2) + '\n');
+        report.config.updated = true;
+      }
     }
   }
   if (pluginOwned) {
@@ -792,6 +912,7 @@ module.exports = {
   SOURCE_TAG,
   BUNDLE_DIR,
   pluginSource,
+  inspectOpenCodeHost,
   resolveTarget,
   install,
   uninstall,

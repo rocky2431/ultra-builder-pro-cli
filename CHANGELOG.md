@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-07-31
+
+### Added
+
+- Added `task_outcome / attest_commit` as the sole model-facing path for recording
+  checkout-local integrated commit proof after durable Task completion.
+
+### Changed
+
+- Published exact Task identifier, numeric, array, object, digest, and runtime-field
+  boundaries in the seven-tool MCP contract while keeping repository-defined Task,
+  Change, priority, risk, research, and slice labels under model ownership.
+- Applied the same exact-input boundary to Baseline, Change, Decision, Artifact, Event,
+  Context, Checkpoint, Sync, Session, Archive, and Doctor calls. Unknown fields and
+  wrong scalar, enum, array, object, digest, or scope types are rejected before SQLite
+  affinity or downstream consumers can reinterpret them.
+- Made Dev delivery publish durable completion before one integration commit, then
+  attest that commit locally without changing the Git-facing team ledger.
+
+### Fixed
+
+- Removed arbitrary Task patches and model-supplied commit hashes from
+  `task_outcome / complete`, eliminating the remaining self-referential or
+  bookkeeping-commit path.
+- Fixed malformed semantic input and idempotency attempts escaping as transport or raw
+  SQLite errors. Correctable requests now return mutable diagnostics and enter bounded
+  rejected-attempt audit history without creating semantic authority.
+- Fixed record, checkpoint, team-checkpoint publication, Session lease, Worker Packet,
+  and archive receipt failures leaving database rows, managed files, worktrees, or Git
+  checkpoint bytes partially committed. Each public mutation now commits its durable
+  receipt with the owned state or compensates the external effect before retry.
+- Fixed Task deletion reporting a generic draft-state error before identifying the
+  exact durable Session, Artifact, checkpoint, Context, workflow-history, or recovery
+  reference that must be resolved.
+- Added a linked active successor path for immutable archived or cancelled Changes
+  instead of requiring history mutation or direct SQLite repair.
+- Removed the public Kernel's runtime dependency on the retired workflow supervisor;
+  the legacy Change implementation remains compatibility-only and is absent from all
+  five bundled host runtimes.
+- Revoked an assigned Worker Packet when a parallel reservation is unwound, ensuring
+  the abandoned capability cannot later complete a Task without a live Session.
+
 ## [0.24.2] — 2026-07-31
 
 ### Changed

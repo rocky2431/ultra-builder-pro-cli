@@ -8,7 +8,11 @@ const baselines = require('./baseline-workflow.cjs');
 const canonical = require('./canonical-json.cjs');
 const changes = require('./change-workflow.cjs');
 const decisions = require('./decision-records.cjs');
-const { writeManagedJson } = require('./managed-file-write.cjs');
+const {
+  restoreManagedFile,
+  snapshotManagedFile,
+  writeManagedJson,
+} = require('./managed-file-write.cjs');
 const ops = require('./state-ops.cjs');
 const { readStableProjectFile } = require('./safe-project-file.cjs');
 const checkpoints = require('./stage-checkpoints.cjs');
@@ -70,8 +74,33 @@ function selectedTask(db, taskId) {
 function resolvedScope(db, input = {}) {
   const requested = input.scope || {};
   const task = selectedTask(db, requested.task_id);
+  if (requested.task_id && !task) {
+    throw new ContextEnvelopeError(
+      'CONTEXT_SCOPE_NOT_FOUND',
+      `Context task scope does not exist: ${requested.task_id}`,
+      { scope_type: 'task', scope_id: requested.task_id },
+    );
+  }
   const changeId = requested.change_id || task?.change_id || null;
   const change = selectedChange(db, changeId);
+  if (requested.change_id && !change) {
+    throw new ContextEnvelopeError(
+      'CONTEXT_SCOPE_NOT_FOUND',
+      `Context Change scope does not exist: ${requested.change_id}`,
+      { scope_type: 'change', scope_id: requested.change_id },
+    );
+  }
+  if (task && requested.change_id && task.change_id !== requested.change_id) {
+    throw new ContextEnvelopeError(
+      'CONTEXT_SCOPE_MISMATCH',
+      `Context task ${task.id} belongs to Change ${task.change_id || '(none)'}, not ${requested.change_id}`,
+      {
+        task_id: task.id,
+        task_change_id: task.change_id || null,
+        requested_change_id: requested.change_id,
+      },
+    );
+  }
   const baseline = baselines.readBaseline(db);
   if (task) return { type: 'task', id: task.id, baseline, change, task };
   if (change) return { type: 'change', id: change.id, baseline, change, task: null };
@@ -254,6 +283,31 @@ function authorityPayload(db, input, options) {
       item.diagnostics.filter((diagnostic) => diagnostic.severity === 'hard_conflict')
     )),
   };
+  if (scope.task) {
+    diagnostics.warnings.push(...ops.taskContractBlockers(scope.task).map((code) => ({
+      code,
+      severity: 'warning',
+      message: 'Task semantics are incomplete; the active Skill and model own the decision to proceed.',
+    })));
+  }
+  if (scope.change) {
+    const advisory = [
+      [!String(scope.change.contract?.outcome || '').trim(), 'CHANGE_OUTCOME_UNRESOLVED'],
+      [!Array.isArray(scope.change.contract?.acceptance)
+        || scope.change.contract.acceptance.length === 0, 'CHANGE_ACCEPTANCE_UNRESOLVED'],
+      [!scope.change.contract?.recovery, 'CHANGE_RECOVERY_UNRESOLVED'],
+      [!String(scope.change.classification?.rationale || '').trim(), 'CHANGE_CLASSIFICATION_UNRESOLVED'],
+      [scope.change.research_disposition?.status === 'unresolved',
+        'CHANGE_RESEARCH_DISPOSITION_UNRESOLVED'],
+    ];
+    diagnostics.warnings.push(...advisory
+      .filter(([missing]) => missing)
+      .map(([, code]) => ({
+        code,
+        severity: 'warning',
+        message: 'Change semantics remain mutable; the active Skill and model own completion.',
+      })));
+  }
   for (const code of baselineHealth.blockers || []) {
     diagnostics.needs_attention.push({ code, severity: 'needs_attention' });
   }
@@ -435,58 +489,77 @@ function persistEnvelope(db, input = {}, options = {}) {
   const scope = resolvedScope(db, input);
   const id = `context-${full.digest.slice(0, 24)}`;
   const artifactPath = contextArtifactPath(scope, id);
-  const published = writeManagedJson(options.rootDir || process.cwd(), artifactPath, full);
-  ops.tx(db, () => {
-    db.prepare(
-      `INSERT INTO context_envelopes
-       (id, stage, scope_type, scope_id, digest, file_digest, payload_json, artifact_path)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      id,
-      input.stage || 'project',
-      scope.type,
-      scope.id,
-      full.digest,
-      published.digest,
-      JSON.stringify(full.envelope),
-      artifactPath,
-    );
-    if (!artifactPath.startsWith('.ultra/.runtime/')) {
-      artifactRegistry.recordArtifactInTx(db, {
-        id: `artifact-${id}`,
-        owner_type: scope.change ? 'change' : (scope.baseline ? 'baseline' : 'project'),
-        owner_id: scope.change?.id || scope.baseline?.id || 'project',
-        kind: 'context_envelope',
-        path: artifactPath,
-        content_digest: published.digest,
-        source_refs: [
-          ...(scope.change
-            ? [{ type: 'change', id: scope.change.id, relation: 'compiled_from' }]
-            : []),
-          ...(scope.task
-            ? [{ type: 'task', id: scope.task.id, relation: 'compiled_from_task_contract' }]
-            : []),
-          ...(scope.baseline && !scope.change
-            ? [{ type: 'baseline', id: scope.baseline.id, relation: 'compiled_from' }]
-            : []),
-        ],
-        consumer_refs: [{
-          type: 'external',
-          id: 'ultra-context-consumer',
-          relation: 'consumed_by',
-        }],
-        provenance: {
-          writer: 'context-envelope',
-          envelope_digest: full.digest,
-          stage: input.stage || 'project',
+  const rootDir = options.rootDir || process.cwd();
+  const snapshot = snapshotManagedFile(rootDir, artifactPath);
+  const published = writeManagedJson(rootDir, artifactPath, full);
+  try {
+    ops.tx(db, () => {
+      db.prepare(
+        `INSERT INTO context_envelopes
+         (id, stage, scope_type, scope_id, digest, file_digest, payload_json, artifact_path)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        id,
+        input.stage || 'project',
+        scope.type,
+        scope.id,
+        full.digest,
+        published.digest,
+        JSON.stringify(full.envelope),
+        artifactPath,
+      );
+      if (!artifactPath.startsWith('.ultra/.runtime/')) {
+        artifactRegistry.recordArtifactInTx(db, {
+          id: `artifact-${id}`,
+          owner_type: scope.change ? 'change' : (scope.baseline ? 'baseline' : 'project'),
+          owner_id: scope.change?.id || scope.baseline?.id || 'project',
+          kind: 'context_envelope',
+          path: artifactPath,
+          content_digest: published.digest,
+          source_refs: [
+            ...(scope.change
+              ? [{ type: 'change', id: scope.change.id, relation: 'compiled_from' }]
+              : []),
+            ...(scope.task
+              ? [{ type: 'task', id: scope.task.id, relation: 'compiled_from_task_contract' }]
+              : []),
+            ...(scope.baseline && !scope.change
+              ? [{ type: 'baseline', id: scope.baseline.id, relation: 'compiled_from' }]
+              : []),
+          ],
+          consumer_refs: [{
+            type: 'external',
+            id: 'ultra-context-consumer',
+            relation: 'consumed_by',
+          }],
+          provenance: {
+            writer: 'context-envelope',
+            envelope_digest: full.digest,
+            stage: input.stage || 'project',
+          },
+          metadata: {
+            envelope_id: id,
+            semantic_digest: full.digest,
+          },
+        }, { rootDir });
+      }
+    });
+  } catch (error) {
+    try {
+      restoreManagedFile(rootDir, snapshot);
+    } catch (rollbackError) {
+      throw new ContextEnvelopeError(
+        'STATE_CORRUPT',
+        'Context Envelope publication failed and its managed file could not be restored',
+        {
+          cause: error.code || error.message,
+          rollback: rollbackError.code || rollbackError.message,
+          path: artifactPath,
         },
-        metadata: {
-          envelope_id: id,
-          semantic_digest: full.digest,
-        },
-      }, { rootDir: options.rootDir || process.cwd() });
+      );
     }
-  });
+    throw error;
+  }
   return {
     id,
     digest: full.digest,

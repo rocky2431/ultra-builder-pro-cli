@@ -109,8 +109,64 @@ function writeManagedJson(rootDir, relativePath, value) {
   return writeManagedFile(rootDir, relativePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+function snapshotManagedFile(rootDir, relativePath) {
+  const relative = normalizeProjectRelative(relativePath);
+  const directoryRelative = path.posix.dirname(relative);
+  const basename = path.posix.basename(relative);
+  const prepared = ensureDirectory(rootDir, directoryRelative);
+  const target = path.join(prepared.directory, basename);
+  const stat = fs.lstatSync(target, { throwIfNoEntry: false });
+  if (!stat) return { path: relative, existed: false, bytes: null };
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    throw new ManagedFileWriteError(
+      'PATH_AUTHORITY_VIOLATION',
+      `managed artifact target is unsafe: ${relative}`,
+    );
+  }
+  return {
+    path: relative,
+    existed: true,
+    bytes: fs.readFileSync(target),
+  };
+}
+
+function removeManagedFile(rootDir, relativePath) {
+  const relative = normalizeProjectRelative(relativePath);
+  const directoryRelative = path.posix.dirname(relative);
+  const basename = path.posix.basename(relative);
+  const prepared = ensureDirectory(rootDir, directoryRelative);
+  const target = path.join(prepared.directory, basename);
+  const stat = fs.lstatSync(target, { throwIfNoEntry: false });
+  if (!stat) return false;
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    throw new ManagedFileWriteError(
+      'PATH_AUTHORITY_VIOLATION',
+      `managed artifact rollback target is unsafe: ${relative}`,
+    );
+  }
+  fs.unlinkSync(target);
+  return true;
+}
+
+function restoreManagedFile(rootDir, snapshot) {
+  if (!snapshot || typeof snapshot.path !== 'string') {
+    throw new ManagedFileWriteError(
+      'PATH_AUTHORITY_VIOLATION',
+      'managed artifact rollback snapshot is invalid',
+    );
+  }
+  if (snapshot.existed) {
+    return writeManagedFile(rootDir, snapshot.path, snapshot.bytes);
+  }
+  removeManagedFile(rootDir, snapshot.path);
+  return { path: snapshot.path, removed: true };
+}
+
 module.exports = {
   ManagedFileWriteError,
+  removeManagedFile,
+  restoreManagedFile,
+  snapshotManagedFile,
   writeManagedFile,
   writeManagedJson,
 };

@@ -64,12 +64,12 @@ for (const t of expectedTables) {
   }
 }
 
-const v = db.prepare("SELECT version FROM schema_version WHERE version = '22.0'").get();
-if (v && v.version === '22.0') {
-  console.log('ok schema_version includes 22.0');
+const v = db.prepare("SELECT version FROM schema_version WHERE version = '23.0'").get();
+if (v && v.version === '23.0') {
+  console.log('ok schema_version includes 23.0');
   pass++;
 } else {
-  console.error(`FAIL schema_version 22.0: got ${JSON.stringify(v)}`);
+  console.error(`FAIL schema_version 23.0: got ${JSON.stringify(v)}`);
   fail++;
 }
 

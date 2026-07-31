@@ -63,6 +63,29 @@ test('expandTask atomically persists host-derived children without a provider cl
   } finally { cleanup(ctx); }
 });
 
+test('expandTask preserves bounded repository-defined task vocabulary', () => {
+  const ctx = tmpDb();
+  try {
+    seedParent(ctx.db);
+    expandTask(ctx.db, {
+      id: 'parent-1',
+      rootDir: ctx.dir,
+      children: [{
+        id: 'custom-child',
+        title: 'Prepare the security migration',
+        type: 'security_migration',
+        priority: 'urgent-owner-review',
+        complexity: 3,
+        deps: [],
+        files_modified: ['docs/security-migration.md'],
+      }],
+    });
+    const child = ops.readTask(ctx.db, 'custom-child');
+    assert.equal(child.type, 'security_migration');
+    assert.equal(child.priority, 'urgent-owner-review');
+  } finally { cleanup(ctx); }
+});
+
 test('expandTask rejects missing and already expanded parents', () => {
   const ctx = tmpDb();
   try {

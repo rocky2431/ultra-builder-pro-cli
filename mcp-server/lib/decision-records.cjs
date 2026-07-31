@@ -3,8 +3,17 @@
 const canonical = require('./canonical-json.cjs');
 const artifactRegistry = require('./artifact-registry.cjs');
 const ops = require('./state-ops.cjs');
-const { writeManagedJson } = require('./managed-file-write.cjs');
+const {
+  restoreManagedFile,
+  snapshotManagedFile,
+  writeManagedJson,
+} = require('./managed-file-write.cjs');
 const { readStableProjectFile } = require('./safe-project-file.cjs');
+
+const DECISION_FIELDS = new Set([
+  'id', 'scope', 'question', 'recommendation', 'selection', 'effects',
+  'non_goals', 'owner', 'source', 'provenance', 'applied_refs', 'supersedes_id',
+]);
 
 class DecisionRecordError extends Error {
   constructor(code, message, details) {
@@ -21,11 +30,55 @@ function requiredText(value, field) {
   return normalized;
 }
 
+function assertExactFields(value, allowed, field) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new DecisionRecordError('VALIDATION_ERROR', `${field} must be an object`);
+  }
+  const unknown = Object.keys(value).filter((key) => !allowed.has(key));
+  if (unknown.length > 0) {
+    throw new DecisionRecordError(
+      'VALIDATION_ERROR', `${field}.${unknown[0]} is not allowed`,
+    );
+  }
+}
+
+function assertJsonValue(value, field, seen = new Set()) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) return;
+    throw new DecisionRecordError('VALIDATION_ERROR', `${field} must contain valid JSON values`);
+  }
+  if (typeof value !== 'object') {
+    throw new DecisionRecordError('VALIDATION_ERROR', `${field} must contain valid JSON values`);
+  }
+  if (seen.has(value)) {
+    throw new DecisionRecordError('VALIDATION_ERROR', `${field} must not contain circular references`);
+  }
+  if (!Array.isArray(value)) {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new DecisionRecordError(
+        'VALIDATION_ERROR', `${field} must contain only JSON objects`,
+      );
+    }
+  }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertJsonValue(item, `${field}[${index}]`, seen));
+  } else {
+    Object.entries(value).forEach(([key, item]) => (
+      assertJsonValue(item, `${field}.${key}`, seen)
+    ));
+  }
+  seen.delete(value);
+}
+
 function plainObject(value, field) {
   if (value === undefined) return {};
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new DecisionRecordError('VALIDATION_ERROR', `${field} must be an object`);
   }
+  assertJsonValue(value, field);
   return JSON.parse(JSON.stringify(value));
 }
 
@@ -38,6 +91,7 @@ function stringArray(value, field) {
 }
 
 function normalizeScope(scope = {}) {
+  assertExactFields(scope, new Set(['baseline_id', 'change_id']), 'scope');
   const baseline = typeof scope.baseline_id === 'string' ? scope.baseline_id.trim() : '';
   const change = typeof scope.change_id === 'string' ? scope.change_id.trim() : '';
   if (Boolean(baseline) === Boolean(change)) {
@@ -186,10 +240,19 @@ function normalizeAppliedRefs(value) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new DecisionRecordError('VALIDATION_ERROR', `applied_refs[${index}] must be an object`);
     }
+    assertExactFields(
+      item,
+      new Set(['ref', 'field', 'digest']),
+      `applied_refs[${index}]`,
+    );
     return {
       ref: requiredText(item.ref, `applied_refs[${index}].ref`),
-      ...(item.field ? { field: requiredText(item.field, `applied_refs[${index}].field`) } : {}),
-      ...(item.digest ? { digest: requiredText(item.digest, `applied_refs[${index}].digest`) } : {}),
+      ...(item.field !== undefined
+        ? { field: requiredText(item.field, `applied_refs[${index}].field`) }
+        : {}),
+      ...(item.digest !== undefined
+        ? { digest: requiredText(item.digest, `applied_refs[${index}].digest`) }
+        : {}),
     };
   });
 }
@@ -201,7 +264,11 @@ function artifactPath(scope, id) {
 }
 
 function acceptDecision(db, input = {}, { rootDir = process.cwd() } = {}) {
+  assertExactFields(input, DECISION_FIELDS, 'decision');
   const scope = normalizeScope(input.scope);
+  const supersedesId = input.supersedes_id === undefined || input.supersedes_id === null
+    ? null
+    : requiredText(input.supersedes_id, 'supersedes_id');
   const value = {
     schema_version: '1.0',
     id: requiredText(input.id, 'id'),
@@ -216,9 +283,7 @@ function acceptDecision(db, input = {}, { rootDir = process.cwd() } = {}) {
     provenance: plainObject(input.provenance, 'provenance'),
     applied_refs: normalizeAppliedRefs(input.applied_refs),
     status: 'accepted',
-    supersedes_id: input.supersedes_id
-      ? requiredText(input.supersedes_id, 'supersedes_id')
-      : null,
+    supersedes_id: supersedesId,
   };
   const digest = canonical.digest(value);
   const document = { ...value, digest };
@@ -247,83 +312,104 @@ function acceptDecision(db, input = {}, { rootDir = process.cwd() } = {}) {
         'a decision can only supersede another decision in the same scope',
       );
     }
-  }
-  const published = writeManagedJson(rootDir, relative, document);
-  return ops.tx(db, () => {
-    if (value.supersedes_id) {
-      db.prepare(
-        `UPDATE decision_records SET status = 'superseded',
-         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-         WHERE id = ? AND status = 'accepted'`,
-      ).run(value.supersedes_id);
+    if (prior.status !== 'accepted') {
+      throw new DecisionRecordError(
+        'DECISION_NOT_SUPERSEDEABLE',
+        `decision ${value.supersedes_id} is ${prior.status}`,
+      );
     }
-    db.prepare(
-      `INSERT INTO decision_records
-       (id, scope_type, scope_id, question, recommendation, selection,
-        effects_json, non_goals_json, owner, source, provenance_json,
-        applied_refs_json, status, digest, artifact_path, supersedes_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?, ?)`,
-    ).run(
-      value.id,
-      scope.type,
-      scope.id,
-      value.question,
-      value.recommendation,
-      value.selection,
-      JSON.stringify(value.effects),
-      JSON.stringify(value.non_goals),
-      value.owner,
-      value.source,
-      JSON.stringify(value.provenance),
-      JSON.stringify(value.applied_refs),
-      digest,
-      relative,
-      value.supersedes_id,
-    );
-    artifactRegistry.recordArtifactInTx(db, {
-      id: `artifact-decision-${value.id}`,
-      owner_type: scope.type,
-      owner_id: scope.id,
-      change_id: scope.type === 'change' ? scope.id : null,
-      kind: 'decision_record',
-      path: relative,
-      content_digest: published.digest,
-      source_refs: [{
-        type: scope.type,
-        id: scope.id,
-        relation: 'decided_for',
-      }],
-      consumer_refs: [{
-        type: 'external',
-        id: 'ultra-context-consumer',
-        relation: 'consumed_by',
-      }],
-      provenance: {
-        writer: 'decision-records',
-        decision_digest: digest,
-        owner: value.owner,
-        source: value.source,
-      },
-      metadata: {
-        decision_id: value.id,
-        status: value.status,
-        supersedes_id: value.supersedes_id,
-      },
-    }, { rootDir });
-    ops.appendEventInTx(db, {
-      type: 'decision_recorded',
-      change_id: scope.type === 'change' ? scope.id : null,
-      payload: {
-        decision_id: value.id,
-        scope_type: scope.type,
-        scope_id: scope.id,
+  }
+  artifactRegistry.assertArtifactOwner(db, scope.type, scope.id);
+  const snapshot = snapshotManagedFile(rootDir, relative);
+  const published = writeManagedJson(rootDir, relative, document);
+  try {
+    return ops.tx(db, () => {
+      if (value.supersedes_id) {
+        db.prepare(
+          `UPDATE decision_records SET status = 'superseded',
+           updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+           WHERE id = ? AND status = 'accepted'`,
+        ).run(value.supersedes_id);
+      }
+      db.prepare(
+        `INSERT INTO decision_records
+         (id, scope_type, scope_id, question, recommendation, selection,
+          effects_json, non_goals_json, owner, source, provenance_json,
+          applied_refs_json, status, digest, artifact_path, supersedes_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?, ?)`,
+      ).run(
+        value.id,
+        scope.type,
+        scope.id,
+        value.question,
+        value.recommendation,
+        value.selection,
+        JSON.stringify(value.effects),
+        JSON.stringify(value.non_goals),
+        value.owner,
+        value.source,
+        JSON.stringify(value.provenance),
+        JSON.stringify(value.applied_refs),
         digest,
-        artifact_path: relative,
-        supersedes_id: value.supersedes_id,
-      },
+        relative,
+        value.supersedes_id,
+      );
+      artifactRegistry.recordArtifactInTx(db, {
+        id: `artifact-decision-${value.id}`,
+        owner_type: scope.type,
+        owner_id: scope.id,
+        change_id: scope.type === 'change' ? scope.id : null,
+        kind: 'decision_record',
+        path: relative,
+        content_digest: published.digest,
+        source_refs: [{
+          type: scope.type,
+          id: scope.id,
+          relation: 'decided_for',
+        }],
+        consumer_refs: [{
+          type: 'external',
+          id: 'ultra-context-consumer',
+          relation: 'consumed_by',
+        }],
+        provenance: {
+          writer: 'decision-records',
+          decision_digest: digest,
+          owner: value.owner,
+          source: value.source,
+        },
+        metadata: {
+          decision_id: value.id,
+          status: value.status,
+          supersedes_id: value.supersedes_id,
+        },
+      }, { rootDir });
+      ops.appendEventInTx(db, {
+        type: 'decision_recorded',
+        change_id: scope.type === 'change' ? scope.id : null,
+        payload: {
+          decision_id: value.id,
+          scope_type: scope.type,
+          scope_id: scope.id,
+          digest,
+          artifact_path: relative,
+          supersedes_id: value.supersedes_id,
+        },
+      });
+      return readDecision(db, value.id);
     });
-    return readDecision(db, value.id);
-  });
+  } catch (error) {
+    try {
+      restoreManagedFile(rootDir, snapshot);
+    } catch (rollbackError) {
+      throw new DecisionRecordError(
+        'RECORD_FILE_ROLLBACK_REQUIRED',
+        `decision database mutation failed and managed file recovery also failed: ${relative}`,
+        { cause: error.message, rollback_error: rollbackError.message },
+      );
+    }
+    throw error;
+  }
 }
 
 module.exports = {

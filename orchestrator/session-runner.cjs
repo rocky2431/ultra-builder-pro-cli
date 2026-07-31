@@ -21,16 +21,6 @@ const runtimePaths = require('../mcp-server/lib/runtime-paths.cjs');
 const gitBootstrap = require('../mcp-server/lib/git-bootstrap.cjs');
 const closeJournal = require('./session-close-journal.cjs');
 
-function legacyContextSpine() {
-  return module.require(path.join(
-    __dirname,
-    '..',
-    'mcp-server',
-    'lib',
-    'context-spine.cjs',
-  ));
-}
-
 const EXPECTED_EXECUTION_GATE_CODES = new Set([
   'TASK_EXECUTION_CONTRACT_INCOMPLETE',
   'WORKFLOW_TASK_NOT_EXECUTABLE',
@@ -559,75 +549,10 @@ function mintSessionId() {
 function assertSessionTaskReady(db, repoRoot, taskId) {
   const task = ops.readTask(db, taskId);
   if (!task) return null; // admissionCheck reports the canonical TASK_NOT_FOUND error.
-  // Unbound rows remain readable for legacy recovery, but every current
-  // change-owned task must pass the same plan gate as a dev workflow.
-  if (!task.change_id) return task;
-  ops.assertTaskExecutionContract(task);
   if (!['pending', 'in_progress', 'blocked'].includes(task.status) || task.stale) {
     throw new SessionRunnerError(
       'TASK_NOT_EXECUTABLE',
       `task ${task.id} is not executable from status ${task.status}${task.stale ? ' (stale)' : ''}`,
-    );
-  }
-  const incompleteDependencies = (task.deps || []).filter((id) => {
-    const dependency = ops.readTask(db, id);
-    return !dependency || !['completed', 'expanded'].includes(dependency.status);
-  });
-  if (incompleteDependencies.length > 0) {
-    throw new SessionRunnerError(
-      'TASK_DEPENDENCIES_INCOMPLETE',
-      `task ${task.id} has incomplete dependencies: ${incompleteDependencies.join(', ')}`,
-    );
-  }
-  const plan = checkpoints.currentCheckpoint(
-    db,
-    'plan',
-    { change_id: task.change_id },
-    { includeDraft: false },
-  );
-  if (!plan || checkpoints.checkpointDigest(plan) !== plan.digest) {
-    throw new SessionRunnerError(
-      'PLAN_CHECKPOINT_REQUIRED',
-      `task ${task.id} requires an accepted Plan checkpoint`,
-    );
-  }
-  const implementationContext = legacyContextSpine().validateContextSnapshot(db, {
-    change_id: task.change_id,
-    task_id: task.id,
-    role: 'implement',
-    gate: 'implementation',
-  }, {
-    rootDir: repoRoot,
-    require_current_checkout: true,
-  });
-  if (!implementationContext.snapshot) {
-    throw new SessionRunnerError(
-      'IMPLEMENTATION_CONTEXT_REQUIRED',
-      `task ${task.id} requires a ready implementation Context before session admission`,
-      { blockers: implementationContext.blockers },
-    );
-  }
-  if (implementationContext.blockers.length > 0) {
-    throw new SessionRunnerError(
-      'IMPLEMENTATION_CONTEXT_STALE',
-      `task ${task.id} implementation Context is stale`,
-      { blockers: implementationContext.blockers },
-    );
-  }
-  const planningContext = legacyContextSpine().validateContextSnapshot(db, {
-    change_id: task.change_id,
-    task_id: null,
-    role: 'plan',
-    gate: 'planning',
-  }, {
-    rootDir: repoRoot,
-    require_current_checkout: true,
-  });
-  if (!planningContext.snapshot || planningContext.blockers.length > 0) {
-    throw new SessionRunnerError(
-      'PLAN_CONTEXT_STALE',
-      `change ${task.change_id} planning Context is stale at session admission`,
-      { blockers: planningContext.blockers },
     );
   }
   return task;
@@ -638,65 +563,26 @@ function assertKernelSessionTaskReady(db, repoRoot, taskId, packetDigest) {
   if (!task) {
     throw new SessionRunnerError('TASK_NOT_FOUND', `task ${taskId} not found`);
   }
-  ops.assertTaskExecutionContract(task);
   if (!['pending', 'in_progress', 'blocked'].includes(task.status) || task.stale) {
     throw new SessionRunnerError(
       'TASK_NOT_EXECUTABLE',
       `task ${task.id} is not executable from status ${task.status}${task.stale ? ' (stale)' : ''}`,
     );
   }
-  const incompleteDependencies = (task.deps || []).filter((id) => {
-    const dependency = ops.readTask(db, id);
-    return !dependency || !['completed', 'expanded'].includes(dependency.status);
-  });
-  if (incompleteDependencies.length > 0) {
+  const packet = packetDigest
+    ? db.prepare(
+      `SELECT id FROM worker_packets
+       WHERE packet_digest = ? AND scope_type = 'task' AND scope_id = ?
+         AND status IN ('pending', 'assigned')`,
+    ).get(packetDigest, task.id)
+    : null;
+  if (!packet) {
     throw new SessionRunnerError(
-      'TASK_DEPENDENCIES_INCOMPLETE',
-      `task ${task.id} has incomplete dependencies: ${incompleteDependencies.join(', ')}`,
+      'WORKER_PACKET_REQUIRED',
+      `task ${task.id} requires the exact Worker Packet prepared for this session`,
     );
   }
-  if (task.change_id) {
-    const plan = checkpoints.currentCheckpoint(
-      db,
-      'plan',
-      { change_id: task.change_id },
-      { includeDraft: false },
-    );
-    if (!plan) {
-      throw new SessionRunnerError(
-        'PLAN_CHECKPOINT_REQUIRED',
-        `task ${task.id} requires an accepted Plan checkpoint`,
-      );
-    }
-    const plannedDigest = plan.payload?.plan?.task_contract_digests?.[task.id];
-    if (!plannedDigest) {
-      throw new SessionRunnerError(
-        'PLAN_TASK_CONTRACT_MISSING',
-        `accepted Plan checkpoint does not bind task ${task.id}`,
-      );
-    }
-    const packet = packetDigest
-      ? db.prepare(
-        `SELECT id, task_digest FROM worker_packets
-         WHERE packet_digest = ? AND scope_type = 'task' AND scope_id = ?
-           AND status IN ('pending', 'assigned')`,
-      ).get(packetDigest, task.id)
-      : null;
-    if (!packet) {
-      throw new SessionRunnerError(
-        'WORKER_PACKET_REQUIRED',
-        `task ${task.id} requires the exact Worker Packet prepared for this session`,
-      );
-    }
-    workerPackets.readWorkerPacket(db, packet.id, { rootDir: repoRoot });
-    if (packet.task_digest !== plannedDigest) {
-      throw new SessionRunnerError(
-        'PLAN_TASK_CONTRACT_STALE',
-        `task ${task.id} no longer matches its accepted Plan checkpoint`,
-      );
-    }
-    return task;
-  }
+  workerPackets.readWorkerPacket(db, packet.id, { rootDir: repoRoot });
   return task;
 }
 
@@ -783,6 +669,7 @@ function spawnSession({
   repoRoot,
   task_id,
   runtime,
+  authority: preadmittedAuthority = null,
   takeover = false,
   command = null,
   args = [],
@@ -818,17 +705,19 @@ function spawnSession({
   // or any filesystem mutation creates a new worktree.
   if (kernel_mode) assertKernelSessionTaskReady(db, repoRoot, task_id, packet_digest);
   else assertSessionTaskReady(db, repoRoot, task_id);
-  let authority;
-  try {
-    authority = runtimePaths.ensureRuntimeState(repoRoot, {
-      admitStorageBoundary: () => gitBootstrap.ensureExistingProjectStorageBoundary(repoRoot),
-    });
-  } catch (error) {
-    throw new SessionRunnerError(
-      'WORKTREE_AUTHORITY_NOT_IGNORED',
-      `cannot establish the project Ultra storage boundary: ${error.message}`,
-      { cause: error },
-    );
+  let authority = preadmittedAuthority;
+  if (!authority) {
+    try {
+      authority = runtimePaths.ensureRuntimeState(repoRoot, {
+        admitStorageBoundary: () => gitBootstrap.ensureExistingProjectStorageBoundary(repoRoot),
+      });
+    } catch (error) {
+      throw new SessionRunnerError(
+        'WORKTREE_AUTHORITY_NOT_IGNORED',
+        `cannot establish the project Ultra storage boundary: ${error.message}`,
+        { cause: error },
+      );
+    }
   }
   const pendingClose = closeJournal.findForTask(repoRoot, task_id);
   if (pendingClose) {

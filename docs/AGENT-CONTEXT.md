@@ -58,6 +58,20 @@ digest. It never creates the rejected semantic row or claims that authority was
 committed. `_ultra.projection_commit` reports only the post-call generated-view cycle;
 it is not a semantic acceptance receipt.
 
+Every public input has one exact kind/action contract. Unknown fields, wrong scalar or
+container types, invalid enums, malformed digests, and mismatched scopes are diagnosed
+before SQLite affinity, filesystem writers, or host adapters can coerce them. A
+correctable rejection returns `accepted: false`, `mutable: true`, typed diagnostics,
+and bounded audit history; it is not an MCP transport failure. Reusing an idempotency
+key for a different request follows that same repairable path, while retrying the exact
+request returns the original result.
+
+Every accepted mutation and its idempotency receipt are one logical commit. DB-only
+writes share one immediate transaction. A write that also owns a managed file, team
+checkpoint, worktree, Worker Packet, or archive journal either publishes both sides or
+restores the prior bytes and rows. If compensation itself cannot be proven, the kernel
+returns a typed recovery requirement instead of reporting partial success.
+
 ## Context Envelope
 
 Every Skill begins by reading `ultra.context` for the relevant stage and scope. The

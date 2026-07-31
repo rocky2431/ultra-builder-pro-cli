@@ -4,12 +4,25 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const util = require('node:util');
+const Ajv = require('ajv/dist/2020');
+const addFormats = require('ajv-formats');
 
 const canonical = require('./canonical-json.cjs');
 const decisionRecords = require('./decision-records.cjs');
+const {
+  restoreManagedFile,
+  snapshotManagedFile,
+  writeManagedFile,
+} = require('./managed-file-write.cjs');
 const ops = require('./state-ops.cjs');
 const { readStableProjectFile } = require('./safe-project-file.cjs');
 const stageCheckpoints = require('./stage-checkpoints.cjs');
+const taskContract = require('./task-contract.cjs');
+const taskLedgerSchema = require('../../spec/schemas/task-ledger.v2.schema.json');
+
+const taskLedgerAjv = new Ajv({ allErrors: true, strict: false });
+addFormats(taskLedgerAjv);
+const validateTaskLedgerSchema = taskLedgerAjv.compile(taskLedgerSchema);
 
 const LEDGER_KIND = 'ultra-team-task-ledger';
 const LEDGER_SCHEMA_VERSION = '2.0';
@@ -17,6 +30,7 @@ const LEGACY_LEDGER_SCHEMA_VERSION = '1.0';
 const LEDGER_RELATIVE_PATH = '.ultra/tasks/tasks.json';
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
 const MAX_ANCESTORS = 64;
+const PUBLICATION_ROLLBACK = Symbol('task-ledger-publication-rollback');
 const DURABLE_BASELINE_FIELDS = Object.freeze([
   'id',
   'project_name',
@@ -48,29 +62,7 @@ const LEGACY_DURABLE_BASELINE_FIELDS = Object.freeze(
     field === 'research_checkpoint_id' ? 'research_run_id' : field
   )),
 );
-const DURABLE_TASK_FIELDS = Object.freeze([
-  'id',
-  'title',
-  'type',
-  'priority',
-  'complexity',
-  'estimated_days',
-  'status',
-  'deps',
-  'files_modified',
-  'stale',
-  'trace_to',
-  'outcome',
-  'slice_kind',
-  'public_seam',
-  'verification_command',
-  'acceptance',
-  'context_refs',
-  'docs_impact',
-  'ownership',
-  'change_id',
-  'parent_id',
-]);
+const DURABLE_TASK_FIELDS = taskContract.DURABLE_TASK_FIELDS;
 const DURABLE_CHANGE_FIELDS = Object.freeze([
   'id',
   'title',
@@ -84,6 +76,7 @@ const DURABLE_CHANGE_FIELDS = Object.freeze([
   'classification',
   'research_disposition',
   'base_commit',
+  'supersedes_id',
   'artifact_root',
   'closed_at',
 ]);
@@ -241,6 +234,7 @@ function portableChange(row) {
     ['classification', parseJson(row.classification_json, {})],
     ['research_disposition', parseJson(row.research_disposition_json, {})],
     ['base_commit', row.base_commit],
+    ['supersedes_id', row.supersedes_id],
     ['artifact_root', row.artifact_root],
     ['closed_at', row.closed_at],
   ]);
@@ -331,6 +325,20 @@ function durableStatus(task, previous) {
   return 'pending';
 }
 
+function assertValidTaskContract(entry) {
+  try {
+    taskContract.validateDurableTask(entry, { metadata: false });
+  } catch (error) {
+    if (!(error instanceof taskContract.TaskContractError)) throw error;
+    throw new TaskLedgerError(
+      'TASK_LEDGER_INVALID',
+      `task ledger entry ${entry?.id || '(unknown)'} violates the Task Contract: ${error.message}`,
+      error.details,
+    );
+  }
+  return entry;
+}
+
 function durableTask(task, previous = null) {
   const value = compactObject([
     ['id', task.id],
@@ -340,29 +348,33 @@ function durableTask(task, previous = null) {
     ['complexity', task.complexity],
     ['estimated_days', task.estimated_days],
     ['status', durableStatus(task, previous)],
-    ['deps', Array.isArray(task.deps) ? task.deps : []],
-    ['files_modified', Array.isArray(task.files_modified) ? task.files_modified : []],
-    ['stale', Boolean(task.stale)],
+    ['deps', task.deps == null ? [] : task.deps],
+    ['files_modified', task.files_modified == null ? [] : task.files_modified],
+    ['stale', task.stale == null ? false : task.stale],
     ['trace_to', task.trace_to],
     ['outcome', task.outcome],
     ['slice_kind', task.slice_kind],
     ['public_seam', task.public_seam],
     ['verification_command', task.verification_command],
-    ['acceptance', Array.isArray(task.acceptance) ? task.acceptance : []],
-    ['context_refs', Array.isArray(task.context_refs) ? task.context_refs : []],
-    ['docs_impact', task.docs_impact || { status: 'unknown', files: [], rationale: null }],
-    ['ownership', task.ownership || {}],
+    ['acceptance', task.acceptance == null ? [] : task.acceptance],
+    ['context_refs', task.context_refs == null ? [] : task.context_refs],
+    ['docs_impact', task.docs_impact == null
+      ? { status: 'unknown', files: [], rationale: null }
+      : task.docs_impact],
+    ['ownership', task.ownership == null ? {} : task.ownership],
     ['change_id', task.change_id],
     ['parent_id', task.parent_id],
   ]);
   const digest = sha256(value);
-  if (previous && previous.digest === digest) return previous;
-  return {
+  const entry = {
     ...value,
     revision: previous ? Number(previous.revision || 0) + 1 : 1,
     parent_digest: previous?.digest || null,
     digest,
   };
+  assertValidTaskContract(entry);
+  if (previous && previous.digest === digest) return previous;
+  return entry;
 }
 
 function statePayload({
@@ -385,13 +397,28 @@ function validateTask(entry) {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
     throw new TaskLedgerError('TASK_LEDGER_INVALID', 'every task ledger entry must be an object');
   }
-  for (const field of ['id', 'title', 'type', 'priority', 'status', 'revision', 'digest']) {
+  for (const field of [
+    'id', 'title', 'type', 'priority', 'status', 'revision', 'digest',
+  ]) {
     if (entry[field] === undefined || entry[field] === null || entry[field] === '') {
       throw new TaskLedgerError(
         'TASK_LEDGER_INVALID',
         `task ledger entry ${entry.id || '(unknown)'} is missing ${field}`,
       );
     }
+  }
+  if (!Object.prototype.hasOwnProperty.call(entry, 'parent_digest')) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_INVALID',
+      `task ledger entry ${entry.id || '(unknown)'} is missing parent_digest`,
+    );
+  }
+  assertValidTaskContract(entry);
+  if (!Number.isInteger(entry.revision) || entry.revision < 1) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_INVALID',
+      `task ledger entry ${entry.id} has an invalid revision`,
+    );
   }
   if (!HASH_PATTERN.test(entry.digest) || entry.digest !== sha256(
     Object.fromEntries(DURABLE_TASK_FIELDS
@@ -407,6 +434,35 @@ function validateTask(entry) {
     throw new TaskLedgerError(
       'TASK_LEDGER_INVALID',
       `task ledger entry ${entry.id} has an invalid parent_digest`,
+    );
+  }
+}
+
+function validateLegacyTask(entry) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+    throw new TaskLedgerError('TASK_LEDGER_INVALID', 'every legacy task entry must be an object');
+  }
+  for (const field of ['id', 'title', 'type', 'priority', 'status', 'revision', 'digest']) {
+    if (entry[field] === undefined || entry[field] === null || entry[field] === '') {
+      throw new TaskLedgerError(
+        'TASK_LEDGER_INVALID',
+        `legacy task entry ${entry.id || '(unknown)'} is missing ${field}`,
+      );
+    }
+  }
+  const value = Object.fromEntries(DURABLE_TASK_FIELDS
+    .filter((field) => entry[field] !== undefined)
+    .map((field) => [field, entry[field]]));
+  if (!HASH_PATTERN.test(entry.digest) || entry.digest !== sha256(value)) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_DIGEST_MISMATCH',
+      `legacy task entry ${entry.id} does not match its digest`,
+    );
+  }
+  if (entry.parent_digest != null && !HASH_PATTERN.test(entry.parent_digest)) {
+    throw new TaskLedgerError(
+      'TASK_LEDGER_INVALID',
+      `legacy task entry ${entry.id} has an invalid parent_digest`,
     );
   }
 }
@@ -571,7 +627,7 @@ function validateLegacyLedger(document, file) {
     return false;
   }
   validateLegacyBaseline(document.baseline);
-  document.tasks.forEach(validateTask);
+  document.tasks.forEach(validateLegacyTask);
   document.changes.forEach(validateChange);
   const expected = sha256({
     baseline: document.baseline || null,
@@ -613,6 +669,16 @@ function validateLedger(document, file = '(memory)') {
     throw new TaskLedgerError(
       'TASK_LEDGER_INVALID',
       `${file} is not an Ultra team task ledger v${LEDGER_SCHEMA_VERSION}`,
+    );
+  }
+  if (!validateTaskLedgerSchema(document)) {
+    const first = validateTaskLedgerSchema.errors?.[0];
+    const location = first?.instancePath || '(root)';
+    throw new TaskLedgerError(
+      'TASK_LEDGER_INVALID',
+      `${file} violates the exact v${LEDGER_SCHEMA_VERSION} schema at ${location}: `
+      + `${first?.message || 'schema validation failed'}`,
+      { errors: validateTaskLedgerSchema.errors || [] },
     );
   }
   if (document.ancestors.length > MAX_ANCESTORS
@@ -703,22 +769,12 @@ function readTaskLedger(rootDir, { optional = true } = {}) {
 }
 
 function writeLedgerAtomic(rootDir, document) {
-  const file = ledgerPath(rootDir);
-  const dir = safeDirectoryChain(rootDir, ['.ultra', 'tasks'], { create: true });
-  if (fs.existsSync(file)) {
-    const stat = fs.lstatSync(file);
-    if (stat.isSymbolicLink() || !stat.isFile()) {
-      throw new TaskLedgerError('TASK_LEDGER_UNSAFE', `task ledger target is unsafe: ${file}`);
-    }
-  }
-  const temp = `${file}.tmp-${process.pid}-${Date.now()}`;
-  try {
-    fs.writeFileSync(temp, `${JSON.stringify(document, null, 2)}\n`, { flag: 'wx' });
-    fs.renameSync(temp, file);
-  } finally {
-    try { fs.rmSync(temp, { force: true }); } catch { /* best effort */ }
-  }
-  return file;
+  writeManagedFile(
+    rootDir,
+    LEDGER_RELATIVE_PATH,
+    `${JSON.stringify(document, null, 2)}\n`,
+  );
+  return ledgerPath(rootDir);
 }
 
 function migrateLegacyProjection(db, rootDir, originalError) {
@@ -998,18 +1054,55 @@ function publishTaskLedger(db, {
     tasks,
   };
   validateLedger(document);
-  const file = writeLedgerAtomic(rootDir, document);
-  recordLedgerEvent(db, 'task_ledger_published', document, {
-    reason,
-    migrated_legacy_projection: prior.migrated,
-    legacy_backup_path: prior.backup,
-  });
-  return {
+  const snapshot = snapshotManagedFile(rootDir, LEDGER_RELATIVE_PATH);
+  let file;
+  try {
+    file = writeLedgerAtomic(rootDir, document);
+    recordLedgerEvent(db, 'task_ledger_published', document, {
+      reason,
+      migrated_legacy_projection: prior.migrated,
+      legacy_backup_path: prior.backup,
+    });
+  } catch (error) {
+    try {
+      restoreManagedFile(rootDir, snapshot);
+    } catch (rollbackError) {
+      throw new TaskLedgerError(
+        'STATE_CORRUPT',
+        'task ledger publication failed and the previous ledger bytes could not be restored',
+        {
+          cause: error.code || error.message,
+          rollback: rollbackError.code || rollbackError.message,
+          path: LEDGER_RELATIVE_PATH,
+        },
+      );
+    }
+    throw error;
+  }
+  const result = {
     changed: true,
     path: file,
     ledger: document,
     migrated_legacy_projection: prior.migrated,
     legacy_backup_path: prior.backup,
+  };
+  Object.defineProperty(result, PUBLICATION_ROLLBACK, {
+    configurable: false,
+    enumerable: false,
+    writable: false,
+    value: { rootDir: path.resolve(rootDir), snapshot },
+  });
+  return result;
+}
+
+function rollbackTaskLedgerPublication(publication) {
+  const rollback = publication?.[PUBLICATION_ROLLBACK];
+  if (!rollback) return { restored: false, reason: 'NO_PUBLICATION_ROLLBACK' };
+  restoreManagedFile(rollback.rootDir, rollback.snapshot);
+  return {
+    restored: true,
+    path: rollback.snapshot.path,
+    previous_existed: rollback.snapshot.existed,
   };
 }
 
@@ -1247,8 +1340,8 @@ function insertChange(db, change) {
     `INSERT INTO changes
      (id, title, kind, status, intent, docs_impact_json, provider_refs_json,
       baseline_bypass_json, contract_json, classification_json,
-      research_disposition_json, base_commit, artifact_root, closed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      research_disposition_json, base_commit, supersedes_id, artifact_root, closed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     change.id,
     change.title,
@@ -1262,6 +1355,7 @@ function insertChange(db, change) {
     JSON.stringify(change.classification || {}),
     JSON.stringify(change.research_disposition || {}),
     change.base_commit || null,
+    change.supersedes_id || null,
     change.artifact_root,
     change.closed_at || null,
   );
@@ -1273,7 +1367,7 @@ function updateChangeFromLedger(db, change) {
        title = ?, kind = ?, status = ?, intent = ?, docs_impact_json = ?,
        provider_refs_json = ?, baseline_bypass_json = ?, contract_json = ?,
        classification_json = ?, research_disposition_json = ?, base_commit = ?,
-       artifact_root = ?, closed_at = ?, updated_at = ?
+       supersedes_id = ?, artifact_root = ?, closed_at = ?, updated_at = ?
      WHERE id = ?`,
   ).run(
     change.title,
@@ -1287,6 +1381,7 @@ function updateChangeFromLedger(db, change) {
     JSON.stringify(change.classification || {}),
     JSON.stringify(change.research_disposition || {}),
     change.base_commit || null,
+    change.supersedes_id || null,
     change.artifact_root,
     change.closed_at || null,
     new Date().toISOString(),
@@ -1317,7 +1412,9 @@ function insertTaskFromLedger(db, task) {
     change_id: task.change_id || null,
     parent_id: null,
   });
-  if (task.status !== created.status) updateTaskFromLedger(db, task);
+  if (task.status !== created.status || Boolean(task.stale) !== created.stale) {
+    updateTaskFromLedger(db, task);
+  }
   return ops.readTask(db, task.id);
 }
 
@@ -1652,6 +1749,21 @@ function importTaskLedger(db, {
         parentUpdates.push([incoming.id, incoming.parent_id || null]);
         continue;
       }
+      const runningSession = db.prepare(
+        "SELECT sid FROM sessions WHERE task_id = ? AND status = 'running' LIMIT 1",
+      ).get(incoming.id);
+      if (current.session_id || runningSession) {
+        throw new TaskLedgerError(
+          'TASK_LEDGER_ACTIVE_TASK_CONFLICT',
+          `task ${incoming.id} changed in Git while a local session still owns it`,
+          {
+            task_id: incoming.id,
+            local_status: current.status,
+            task_session_id: current.session_id || null,
+            running_session_id: runningSession?.sid || null,
+          },
+        );
+      }
       if (current.status === 'in_progress' && last && incoming.digest !== last) {
         throw new TaskLedgerError(
           'TASK_LEDGER_ACTIVE_TASK_CONFLICT',
@@ -1717,7 +1829,7 @@ function importTaskLedger(db, {
           { task_id: id, session_count: sessionCount },
         );
       }
-      db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+      ops.deleteTask(db, id, { rootDir });
       deleted += 1;
     }
     for (const [id, parentId] of parentUpdates) {
@@ -1846,6 +1958,7 @@ module.exports = {
   ledgerPath,
   publishTaskLedger,
   readTaskLedger,
+  rollbackTaskLedgerPublication,
   syncTaskLedger,
   validateLedger,
 };

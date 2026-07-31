@@ -69,13 +69,13 @@ function seedChangeTask(db, id = 'change-task') {
     type: 'feature',
     priority: 'P1',
     change_id: changeId,
-    outcome: 'The approved task executes in one isolated worktree.',
+    outcome: 'The task executes in one mechanically isolated worktree.',
     slice_kind: 'tracer_bullet',
     public_seam: 'session worktree',
     verification_command: 'node --test orchestrator/tests/session-runner.test.cjs',
     acceptance: [{
       id: 'session-ready',
-      criterion: 'Unapproved work never spawns.',
+      criterion: 'A session lease does not fabricate semantic Plan approval.',
       verification: 'node --test orchestrator/tests/session-runner.test.cjs',
     }],
     context_refs: [{ ref: 'spec/mcp-tools.yaml', reason: 'Session contract.', required: true }],
@@ -305,20 +305,17 @@ test('spawnSession rejects an unsafe local exclude path without modifying its ta
   }
 });
 
-test('spawnSession rejects a change-owned task without a current completed plan', () => {
+test('spawnSession does not turn a missing semantic Plan into a mechanical lease gate', () => {
   const repoRoot = mkRepo();
   const { db } = mkDb(repoRoot);
   try {
     const task = seedChangeTask(db, 'r-unapproved');
-    assert.throws(
-      () => runner.spawnSession({
-        db, repoRoot,
-        task_id: task.id, runtime: 'claude',
-      }),
-      (error) => error.code === 'PLAN_CHECKPOINT_REQUIRED',
-    );
-    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
-    assert.equal(fs.existsSync(path.join(repoRoot, '.ultra', '.runtime', 'worktrees')), false);
+    const handle = runner.spawnSession({
+      db, repoRoot,
+      task_id: task.id, runtime: 'claude',
+    });
+    assert.equal(ops.readSession(db, handle.sid).task_id, task.id);
+    assert.ok(fs.existsSync(handle.worktree_path));
   } finally {
     cleanup(repoRoot, db);
   }

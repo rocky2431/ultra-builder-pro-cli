@@ -10,23 +10,34 @@ const {
   CORE_PUBLIC_SKILLS,
   skillsForRuntime,
 } = require('../../../adapters/_shared/runtime-assets.cjs');
+const { createFakeGrok } = require('../../../adapters/tests/grok-cli-fixture.cjs');
 const { REPO_ROOT, mkTarget, cleanup } = require('../_lib.cjs');
 
 function layout(prefix) {
   const configDir = mkTarget(prefix);
+  const binaryRoot = mkTarget(`${prefix}-binary`);
   return {
     configDir,
-    pluginRoot: path.join(configDir, 'plugins', 'ultra-builder-pro'),
-    missingBinary: path.join(configDir, 'missing-grok'),
+    binaryRoot,
+    grokBin: createFakeGrok(binaryRoot),
+    pluginRoot: null,
   };
 }
 
 function install(value) {
-  return grok.install({
+  const report = grok.install({
     configDir: value.configDir,
     repoRoot: REPO_ROOT,
-    grokBin: value.missingBinary,
+    grokBin: value.grokBin,
+    scope: 'global',
   });
+  value.pluginRoot = report.target;
+  return report;
+}
+
+function cleanupLayout(value) {
+  cleanup(value.configDir);
+  cleanup(value.binaryRoot);
 }
 
 test('grok conformance — commands, skills, and bounded agents are native assets', () => {
@@ -54,7 +65,7 @@ test('grok conformance — commands, skills, and bounded agents are native asset
     assert.match(agent, /packet_digest/);
     assert.doesNotMatch(agent, /^model:|^hooks:|^mcpServers:/m);
   } finally {
-    cleanup(value.configDir);
+    cleanupLayout(value);
   }
 });
 
@@ -75,6 +86,12 @@ test('grok conformance — plugin has truthful hooks and stable native MCP', () 
       'utf8',
     )).mcpServers['ultra-builder-pro'];
     assert.equal(entry.command, process.platform === 'win32' ? 'node.exe' : '/usr/bin/env');
+    assert.deepEqual(
+      entry.args,
+      process.platform === 'win32'
+        ? ['${GROK_PLUGIN_ROOT}/runtime/launch.cjs']
+        : ['node', '${GROK_PLUGIN_ROOT}/runtime/launch.cjs'],
+    );
     assert.ok(fs.existsSync(path.join(value.pluginRoot, 'runtime', 'runtime-native.cjs')));
     assert.ok(fs.existsSync(path.join(value.pluginRoot, 'runtime', 'native-runtime.json')));
     const runtimeSource = fs.readFileSync(
@@ -87,7 +104,7 @@ test('grok conformance — plugin has truthful hooks and stable native MCP', () 
       'installed runtime must not bundle the retired semantic supervisor',
     );
   } finally {
-    cleanup(value.configDir);
+    cleanupLayout(value);
   }
 });
 
@@ -105,6 +122,6 @@ test('grok conformance — install is byte-idempotent', () => {
     install(value);
     files.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), first[index]));
   } finally {
-    cleanup(value.configDir);
+    cleanupLayout(value);
   }
 });

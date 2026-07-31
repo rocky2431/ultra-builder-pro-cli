@@ -6,6 +6,10 @@ INSERT INTO tasks (id, title, type, priority, complexity, status, tag)
 VALUES ('task-001', 'Phase 1 — three-layer interface contracts', 'architecture', 'P0', 6, 'in_progress', 'main');
 
 INSERT INTO tasks (id, title, type, priority, status)
+VALUES ('task-custom-vocabulary', 'Repository-defined semantic labels',
+        'security_migration', 'urgent-owner-review', 'pending');
+
+INSERT INTO tasks (id, title, type, priority, status)
 VALUES ('task-002', 'Phase 2 — state.db', 'architecture', 'P0', 'pending');
 
 INSERT INTO sessions (sid, task_id, runtime, pid, worktree_path, artifact_dir, lease_expires_at)

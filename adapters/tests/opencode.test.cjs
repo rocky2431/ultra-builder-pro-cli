@@ -23,6 +23,36 @@ function mkTarget() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-opencode-'));
 }
 
+function writeFakeOpenCode(target, { config = {}, mcpOutput = '' } = {}) {
+  const file = path.join(target, 'fake-opencode.cjs');
+  fs.writeFileSync(file, `#!/usr/bin/env node
+'use strict';
+const args = process.argv.slice(2);
+if (args.join(' ') === 'debug config') {
+  process.stdout.write(${JSON.stringify(JSON.stringify(config))});
+  process.exit(0);
+}
+if (args.join(' ') === 'mcp list') {
+  process.stdout.write(${JSON.stringify(mcpOutput)});
+  process.exit(0);
+}
+process.stderr.write('unexpected fake OpenCode invocation: ' + args.join(' '));
+process.exit(2);
+`);
+  fs.chmodSync(file, 0o755);
+  return file;
+}
+
+function writeSlowOpenCode(target) {
+  const file = path.join(target, 'slow-opencode.cjs');
+  fs.writeFileSync(file, `#!/usr/bin/env node
+process.on('SIGTERM', () => {});
+setTimeout(() => process.exit(0), 750);
+`);
+  fs.chmodSync(file, 0o755);
+  return file;
+}
+
 function treeDigest(root) {
   const entries = [];
   const pending = [root];
@@ -526,6 +556,56 @@ test('install preserves user mcp entries; uninstall removes only owned Ultra ass
   }
 });
 
+test('uninstall removes an owned Ultra MCP entry with extra valid host settings', () => {
+  const target = mkTarget();
+  const configFile = path.join(target, 'opencode.json');
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    config.theme = 'dark';
+    config.mcp[opencode.MCP_SERVER_NAME].timeout = 30000;
+    fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
+
+    const report = opencode.uninstall({ configDir: target });
+    const after = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    assert.equal(after.theme, 'dark');
+    assert.equal(after.mcp?.[opencode.MCP_SERVER_NAME], undefined);
+    assert.equal(report.config.updated, true);
+    assert.equal(report.issues.length, 0);
+    assert.equal(fs.existsSync(path.join(target, opencode.BUNDLE_DIR)), false);
+    assert.equal(fs.existsSync(path.join(target, 'plugins', 'ultra-builder-pro.js')), false);
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('uninstall preserves a drifted Ultra MCP entry and reports an ownership conflict', () => {
+  const target = mkTarget();
+  const configFile = path.join(target, 'opencode.json');
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    const drifted = {
+      ...config.mcp[opencode.MCP_SERVER_NAME],
+      command: ['node', '/user/replacement-server.cjs'],
+    };
+    config.mcp[opencode.MCP_SERVER_NAME] = drifted;
+    fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
+    const before = treeDigest(target);
+
+    const report = opencode.uninstall({ configDir: target });
+    const after = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    assert.equal(treeDigest(target), before);
+    assert.deepEqual(after.mcp[opencode.MCP_SERVER_NAME], drifted);
+    assert.equal(report.config.updated, false);
+    assert.equal(report.config.skipped, true);
+    assert.equal(report.config.reason, 'ownership-conflict');
+    assert.ok(report.issues.some((issue) => issue.code === 'MCP_OWNERSHIP_CONFLICT'));
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
 test('shared OpenCode asset roots keep unrelated user commands, skills, agents, and runtime files', () => {
   const target = mkTarget();
   const userFiles = [
@@ -593,5 +673,94 @@ test('failed OpenCode rebuild leaves the previous managed surface byte-identical
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
     fs.rmSync(brokenRepo, { recursive: true, force: true });
+  }
+});
+
+test('doctor reports whether OpenCode resolves the plugin config and connects the MCP server', () => {
+  const target = mkTarget();
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    const missing = opencode.doctor({
+      configDir: target,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      opencodeBin: writeFakeOpenCode(target),
+    });
+    assert.equal(missing.status, 'degraded');
+    assert.equal(missing.checks.host_config.status, 'fail');
+    assert.equal(missing.checks.host_mcp.status, 'fail');
+
+    const config = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
+    const healthy = opencode.doctor({
+      configDir: target,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      opencodeBin: writeFakeOpenCode(target, {
+        config,
+        mcpOutput: 'ultra-builder-pro connected',
+      }),
+    });
+    assert.equal(healthy.status, 'healthy', JSON.stringify(healthy, null, 2));
+    assert.equal(healthy.checks.host_config.status, 'pass');
+    assert.equal(healthy.checks.host_mcp.status, 'pass');
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('doctor binds OpenCode MCP health to the Ultra server row and reports host timeouts', () => {
+  const target = mkTarget();
+  try {
+    opencode.install({ configDir: target, repoRoot: REPO_ROOT });
+    const config = JSON.parse(fs.readFileSync(path.join(target, 'opencode.json'), 'utf8'));
+    const mismatched = opencode.doctor({
+      configDir: target,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      opencodeBin: writeFakeOpenCode(target, {
+        config,
+        mcpOutput: 'ultra-builder-pro failed\nother-server connected',
+      }),
+    });
+    assert.equal(mismatched.status, 'degraded');
+    assert.equal(mismatched.checks.host_mcp.status, 'fail');
+
+    const shadowed = opencode.doctor({
+      configDir: target,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      opencodeBin: writeFakeOpenCode(target, {
+        config,
+        mcpOutput: [
+          '● ✓ ultra-builder-pro-shadow connected',
+          '● ✗ ultra-builder-pro failed',
+        ].join('\n'),
+      }),
+    });
+    assert.equal(shadowed.status, 'degraded');
+    assert.equal(shadowed.checks.host_mcp.status, 'fail');
+
+    const stubbornBin = writeSlowOpenCode(target);
+    const startedAt = Date.now();
+    assert.throws(
+      () => opencode.inspectOpenCodeHost({
+        configDir: target,
+        repoRoot: REPO_ROOT,
+        hostCliTimeoutMs: 50,
+        opencodeBin: stubbornBin,
+      }),
+      (error) => error.code === 'HOST_CLI_TIMEOUT',
+    );
+    assert.ok(Date.now() - startedAt < 400, 'OpenCode timeout must SIGKILL a stubborn child');
+    const timedOut = opencode.doctor({
+      configDir: target,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      hostCliTimeoutMs: 50,
+      opencodeBin: stubbornBin,
+    });
+    assert.ok(timedOut.issues.some((issue) => issue.code === 'HOST_CLI_TIMEOUT'));
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
   }
 });

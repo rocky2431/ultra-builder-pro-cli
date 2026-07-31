@@ -21,6 +21,40 @@ function mkTarget() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-claude-'));
 }
 
+function writeFakeClaude(parent, plugins, mcpOutput = '') {
+  const file = path.join(parent, 'fake-claude.cjs');
+  fs.writeFileSync(file, `#!/usr/bin/env node
+'use strict';
+const args = process.argv.slice(2);
+if (args.join(' ') === 'plugin list --json') {
+  process.stdout.write(${JSON.stringify(JSON.stringify(plugins))});
+  process.exit(0);
+}
+if (args.join(' ') === 'mcp list') {
+  process.stdout.write(${JSON.stringify(mcpOutput)});
+  process.exit(0);
+}
+if (args[0] === 'plugin' && args[1] === 'details') {
+  const found = ${JSON.stringify(plugins)}.some((plugin) => plugin.id === args[2]);
+  process.exit(found ? 0 : 1);
+}
+process.stderr.write('unexpected fake Claude invocation: ' + args.join(' '));
+process.exit(2);
+`);
+  fs.chmodSync(file, 0o755);
+  return file;
+}
+
+function writeSlowClaude(parent) {
+  const file = path.join(parent, 'slow-claude.cjs');
+  fs.writeFileSync(file, `#!/usr/bin/env node
+process.on('SIGTERM', () => {});
+setTimeout(() => process.exit(0), 750);
+`);
+  fs.chmodSync(file, 0o755);
+  return file;
+}
+
 function treeDigest(root) {
   const entries = [];
   const pending = [root];
@@ -216,5 +250,113 @@ test('failed Claude rebuild preserves the complete previous managed plugin', () 
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
     fs.rmSync(brokenRepo, { recursive: true, force: true });
+  }
+});
+
+test('doctor reports whether Claude Code actually discovers and enables the skills-dir plugin', () => {
+  const parent = mkTarget();
+  const pluginRoot = path.join(parent, 'skills', 'ultra-builder-pro');
+  try {
+    claude.install({ configDir: parent, repoRoot: REPO_ROOT });
+    const missing = claude.doctor({
+      configDir: parent,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      claudeBin: writeFakeClaude(parent, []),
+    });
+    assert.equal(missing.status, 'degraded');
+    assert.equal(missing.checks.host_plugin.status, 'fail');
+    assert.ok(missing.issues.some((issue) => issue.code === 'HOST_PLUGIN_NOT_DISCOVERED'));
+
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8'),
+    );
+    const healthy = claude.doctor({
+      configDir: parent,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      claudeBin: writeFakeClaude(parent, [{
+        id: 'ultra-builder-pro@skills-dir',
+        version: manifest.version,
+        scope: 'user',
+        enabled: true,
+        installPath: pluginRoot,
+        mcpServers: { 'ultra-builder-pro': {} },
+      }], 'plugin:ultra-builder-pro:ultra-builder-pro: runtime - Connected'),
+    });
+    assert.equal(healthy.status, 'healthy', JSON.stringify(healthy, null, 2));
+    assert.equal(healthy.checks.host_plugin.status, 'pass');
+    assert.equal(healthy.checks.host_mcp.status, 'pass');
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('doctor binds Claude MCP health to the Ultra server line and reports host timeouts', () => {
+  const parent = mkTarget();
+  const pluginRoot = path.join(parent, 'skills', 'ultra-builder-pro');
+  try {
+    claude.install({ configDir: parent, repoRoot: REPO_ROOT });
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8'),
+    );
+    const plugin = [{
+      id: 'ultra-builder-pro@skills-dir',
+      version: manifest.version,
+      enabled: true,
+      installPath: pluginRoot,
+      mcpServers: { 'ultra-builder-pro': {} },
+    }];
+    const mismatched = claude.doctor({
+      configDir: parent,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      claudeBin: writeFakeClaude(
+        parent,
+        plugin,
+        'plugin:ultra-builder-pro:ultra-builder-pro - failed\nother-server - Connected',
+      ),
+    });
+    assert.equal(mismatched.status, 'degraded');
+    assert.equal(mismatched.checks.host_mcp.status, 'fail');
+
+    const shadowed = claude.doctor({
+      configDir: parent,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      claudeBin: writeFakeClaude(
+        parent,
+        plugin,
+        [
+          'plugin:ultra-builder-pro:ultra-builder-pro-shadow: fake - ✔ Connected',
+          'plugin:ultra-builder-pro:ultra-builder-pro: real - ✘ Failed to connect',
+        ].join('\n'),
+      ),
+    });
+    assert.equal(shadowed.status, 'degraded');
+    assert.equal(shadowed.checks.host_mcp.status, 'fail');
+
+    const stubbornBin = writeSlowClaude(parent);
+    const startedAt = Date.now();
+    assert.throws(
+      () => claude.inspectClaudeHost({
+        configDir: parent,
+        repoRoot: REPO_ROOT,
+        hostCliTimeoutMs: 50,
+        claudeBin: stubbornBin,
+      }),
+      (error) => error.code === 'HOST_CLI_TIMEOUT',
+    );
+    assert.ok(Date.now() - startedAt < 400, 'Claude timeout must SIGKILL a stubborn child');
+    const timedOut = claude.doctor({
+      configDir: parent,
+      repoRoot: REPO_ROOT,
+      runHostCli: true,
+      hostCliTimeoutMs: 50,
+      claudeBin: stubbornBin,
+    });
+    assert.ok(timedOut.issues.some((issue) => issue.code === 'HOST_CLI_TIMEOUT'));
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
   }
 });

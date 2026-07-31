@@ -610,6 +610,20 @@ test('parallel wave reservation failure unwinds every earlier reservation', asyn
       db.prepare("SELECT COUNT(*) AS count FROM tasks WHERE status = 'in_progress'").get().count,
       0,
     );
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM worker_packets WHERE status = 'assigned'",
+      ).get().count,
+      0,
+      'cancelled reservations must not leave a usable Worker Packet capability',
+    );
+    assert.equal(
+      db.prepare(
+        "SELECT COUNT(*) AS count FROM worker_packets WHERE status = 'abandoned'",
+      ).get().count,
+      1,
+      'the cancelled packet remains as immutable audit evidence',
+    );
     assert.equal(ops.readTask(db, 'reserve-a').status, 'pending');
     assert.equal(
       execFileSync('git', ['worktree', 'list', '--porcelain'], {
@@ -929,7 +943,7 @@ test('runPlan: authority already stale at admission is rejected without counting
   } finally { cleanup(repo, db); }
 });
 
-test('runPlan: authority drift between wave admission and spawn is not a worker failure', async () => {
+test('runPlan: semantic Task drift after wave admission remains visible without denying execution', async () => {
   const repo = mkRepo();
   const db = mkDb(repo);
   try {
@@ -951,13 +965,67 @@ test('runPlan: authority drift between wave admission and spawn is not a worker 
     });
 
     assert.equal(result.status, 'paused');
-    assert.equal(result.results[0].status, 'authority_blocked');
-    assert.equal(result.results[0].authority_code, 'PLAN_TASK_CONTRACT_STALE');
-    assert.equal(ops.readTask(db, 'racing-task').status, 'pending');
-    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+    assert.equal(result.results[0].status, 'completed');
+    assert.equal(ops.readTask(db, 'racing-task').status, 'in_progress');
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 1);
     const { events } = ops.subscribeEventsSince(db, 0);
     assert.equal(events.some((event) => event.type === 'task_failure'), false);
     assert.equal(errors.length, 0);
+  } finally { cleanup(repo, db); }
+});
+
+test('runPlan: reservation failure rolls back only its packet, Context, session, and worktree', async () => {
+  const repo = mkRepo();
+  const db = mkDb(repo);
+  try {
+    const plan = seedExecutableChangeTask(
+      db,
+      'reservation-rollback-change',
+      'reservation-rollback-task',
+    );
+    seedCompletedPlanWorkflow(db, repo, plan);
+    const unrelated = ops.appendEvent(db, {
+      type: 'unrelated_reservation_evidence',
+      payload: { preserved: true },
+    });
+    const before = {
+      packets: db.prepare('SELECT COUNT(*) AS count FROM worker_packets').get().count,
+      contexts: db.prepare('SELECT COUNT(*) AS count FROM context_envelopes').get().count,
+      sessions: db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count,
+    };
+    db.exec(
+      `CREATE TRIGGER fail_reservation_task_start
+       BEFORE INSERT ON events
+       WHEN NEW.type = 'task_started'
+       BEGIN
+         SELECT RAISE(ABORT, 'injected reservation failure');
+       END`,
+    );
+
+    const result = await runPlan({
+      db,
+      repoRoot: repo,
+      plan,
+      runtimes: ['claude'],
+      command: NODE,
+      commandArgs: exitOk(),
+    });
+
+    assert.equal(result.status, 'paused');
+    assert.equal(result.results[0].status, 'spawn_failed');
+    assert.deepEqual({
+      packets: db.prepare('SELECT COUNT(*) AS count FROM worker_packets').get().count,
+      contexts: db.prepare('SELECT COUNT(*) AS count FROM context_envelopes').get().count,
+      sessions: db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count,
+    }, before);
+    assert.equal(
+      db.prepare('SELECT COUNT(*) AS count FROM events WHERE id = ?').get(unrelated.event_id).count,
+      1,
+    );
+    const packetDir = path.join(repo, '.ultra', '.runtime', 'worker-packets');
+    assert.deepEqual(fs.existsSync(packetDir) ? fs.readdirSync(packetDir) : [], []);
+    const worktreeDir = path.join(repo, '.ultra', '.runtime', 'worktrees');
+    assert.deepEqual(fs.existsSync(worktreeDir) ? fs.readdirSync(worktreeDir) : [], []);
   } finally { cleanup(repo, db); }
 });
 

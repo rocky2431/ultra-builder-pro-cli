@@ -88,6 +88,19 @@ durable effects, typed applied references, Stage Checkpoint evidence, artifact h
 verification commands and results, provenance, events, and recovery state. It must not
 include chain-of-thought, UI-click proof, raw prompts, or conversation transcripts.
 
+Public kernel inputs are exact at their owning kind/action boundary. SQLite constraints
+remain defense in depth, not the first definition of a business vocabulary: wrong
+types, unsupported enums, unknown fields, malformed references, and invalid digests
+are rejected as typed mutable diagnostics before any row or file write. The rejected
+attempt is retained as audit evidence but never becomes semantic authority.
+
+An accepted mutation and its durable idempotency receipt form one logical transaction.
+DB-only operations commit them together. Operations that also publish managed files,
+the Git team checkpoint, a Session worktree/Worker Packet, or an archive packet use a
+recoverable journal or verified compensation. Failure restores the exact prior file
+bytes, rows, ledger generation, lease, packet, and worktree where applicable; an
+unprovable rollback becomes an explicit recovery condition rather than false success.
+
 Verified conclusions from `.ultra/.runtime/collab/` or other scratch locations must be promoted
 into the invoking DB-bound workflow artifact or report. Keeping a file in the scratch
 directory is not promotion.

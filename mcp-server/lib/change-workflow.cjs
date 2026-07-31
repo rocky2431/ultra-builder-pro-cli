@@ -1,28 +1,32 @@
 'use strict';
 
 const baselines = require('./baseline-workflow.cjs');
-const compatibility = require('./legacy-change-workflow.cjs');
+const kernel = require('./kernel-change-workflow.cjs');
 
 function createChange(db, input, options = {}) {
-  return compatibility.createKernelChange(db, input, options);
+  return kernel.createChange(db, input, options);
 }
 
 function updateChange(db, id, patch = {}, options = {}) {
-  return compatibility.updateKernelChange(db, id, patch, options);
+  return kernel.updateChange(db, id, patch, options);
+}
+
+function supersedeChange(db, input = {}, options = {}) {
+  return kernel.supersedeChange(db, input, options);
 }
 
 function assertTaskCreationAllowed(db, input = {}, {
   rootDir = process.cwd(),
 } = {}) {
-  const change = input.change_id ? compatibility.readChange(db, input.change_id) : null;
+  const change = input.change_id ? kernel.readChange(db, input.change_id) : null;
   if (input.change_id && !change) {
-    throw new compatibility.ChangeWorkflowError(
+    throw new kernel.ChangeWorkflowError(
       'CHANGE_NOT_FOUND',
       `change ${input.change_id} not found`,
     );
   }
   if (change && !['active', 'blocked'].includes(change.status)) {
-    throw new compatibility.ChangeWorkflowError(
+    throw new kernel.ChangeWorkflowError(
       'CHANGE_NOT_MUTABLE',
       `change ${change.id} is ${change.status}`,
     );
@@ -40,21 +44,22 @@ function assertTaskCreationAllowed(db, input = {}, {
 }
 
 function archiveChange(db, input, options = {}) {
-  return compatibility.archiveKernelChange(db, input, options);
+  return kernel.archiveChange(db, input, options);
 }
 
 module.exports = {
-  ChangeWorkflowError: compatibility.ChangeWorkflowError,
+  ChangeWorkflowError: kernel.ChangeWorkflowError,
   createChange,
-  readChange: compatibility.readChange,
-  listChanges: compatibility.listChanges,
+  readChange: kernel.readChange,
+  listChanges: kernel.listChanges,
   updateChange,
-  recordDelta: compatibility.recordDelta,
-  recordDocumentationReconciliation: compatibility.recordDocumentationReconciliation,
+  supersedeChange,
+  recordDelta: kernel.recordDelta,
+  recordDocumentationReconciliation: kernel.recordDocumentationReconciliation,
   archiveChange,
-  normalizeDocsImpact: compatibility.normalizeDocsImpact,
-  normalizeProviderRefs: compatibility.normalizeProviderRefs,
-  normalizeBaselineBypass: compatibility.normalizeBaselineBypass,
+  normalizeDocsImpact: kernel.normalizeDocsImpact,
+  normalizeProviderRefs: kernel.normalizeProviderRefs,
+  normalizeBaselineBypass: kernel.normalizeBaselineBypass,
   assertTaskCreationAllowed,
-  recoverInterruptedArchives: compatibility.recoverInterruptedArchives,
+  recoverInterruptedArchives: kernel.recoverInterruptedArchives,
 };

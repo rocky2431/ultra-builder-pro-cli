@@ -19,6 +19,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 
 const {
@@ -177,19 +178,127 @@ function shouldRunPluginCli(ctx = {}) {
   return ctx.scope === 'global' && !ctx.configDir;
 }
 
+function shouldRunHostCli(ctx = {}) {
+  if (typeof ctx.runHostCli === 'boolean') return ctx.runHostCli;
+  return shouldRunPluginCli(ctx);
+}
+
+function runCodexCli(args, ctx = {}) {
+  const result = spawnSync(ctx.codexBin || 'codex', args, {
+    encoding: 'utf8',
+    timeout: ctx.hostCliTimeoutMs || 30000,
+    killSignal: 'SIGKILL',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      HOME: resolveHomeDir(ctx),
+      CODEX_HOME: resolveTarget(ctx),
+    },
+  });
+  if (result.error) {
+    if (result.error.code === 'ETIMEDOUT') {
+      const error = new Error(`codex ${args.join(' ')} timed out`);
+      error.code = 'HOST_CLI_TIMEOUT';
+      throw error;
+    }
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim();
+    throw new Error(`codex ${args.join(' ')} failed${detail ? `: ${detail}` : ''}`);
+  }
+  return result.stdout;
+}
+
 function runPluginCli(action, marketplaceName, ctx = {}) {
-  const codexBin = ctx.codexBin || 'codex';
   const selector = `${PLUGIN_NAME}@${marketplaceName}`;
   const args = action === 'add'
     ? ['plugin', 'add', selector, '--json']
-    : ['plugin', 'remove', selector];
-  const result = spawnSync(codexBin, args, { encoding: 'utf8' });
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    const detail = (result.stderr || result.stdout || '').trim();
-    throw new Error(`codex plugin ${action} failed${detail ? `: ${detail}` : ''}`);
+    : ['plugin', 'remove', selector, '--json'];
+  return { selector, stdout: runCodexCli(args, ctx).trim() };
+}
+
+function snapshotPluginRegistration(marketplaceName, ctx = {}) {
+  const selector = `${PLUGIN_NAME}@${marketplaceName}`;
+  const payload = JSON.parse(runCodexCli(['plugin', 'list', '--json'], ctx));
+  if (!payload || !Array.isArray(payload.installed)) {
+    throw new Error('codex plugin list --json did not return an installed array');
   }
-  return { selector, stdout: result.stdout.trim() };
+  const entry = payload.installed.find((plugin) => (
+    plugin?.pluginId === selector
+    || (plugin?.name === PLUGIN_NAME && plugin?.marketplaceName === marketplaceName)
+  )) || null;
+  return {
+    selector,
+    marketplaceName,
+    installed: !!entry && entry.installed !== false,
+    enabled: !!entry && entry.enabled === true,
+    entry,
+    config: captureFiles([path.join(resolveTarget(ctx), 'config.toml')])[0],
+  };
+}
+
+function restorePluginRegistration(snapshot, ctx = {}) {
+  const action = snapshot.installed ? 'add' : 'remove';
+  let actionError = null;
+  let result = null;
+  try {
+    result = runPluginCli(action, snapshot.marketplaceName, ctx);
+  } catch (error) {
+    actionError = error;
+  }
+  let configError = null;
+  try {
+    restoreFiles([snapshot.config]);
+  } catch (error) {
+    configError = error;
+  }
+  if (actionError || configError) {
+    throw new AggregateError(
+      [actionError, configError].filter(Boolean),
+      `Codex ${action} registration rollback failed`,
+    );
+  }
+  return {
+    ...result,
+    restored: {
+      installed: snapshot.installed,
+      enabled: snapshot.enabled,
+    },
+  };
+}
+
+function inspectCodexHost(ctx = {}, runtimeManifest = null, expectedPluginVersion = null) {
+  const payload = JSON.parse(runCodexCli(['plugin', 'list', '--json'], ctx));
+  if (!payload || !Array.isArray(payload.installed)) {
+    throw new Error('codex plugin list --json did not return an installed array');
+  }
+  const marketplaceName = runtimeManifest?.marketplace?.name || 'personal';
+  const pluginId = `${PLUGIN_NAME}@${marketplaceName}`;
+  const plugin = payload.installed.find((entry) => (
+    entry?.pluginId === pluginId
+    || (entry?.name === PLUGIN_NAME && entry?.marketplaceName === marketplaceName)
+  ));
+  const pluginOk = !!plugin
+    && plugin.installed === true
+    && plugin.enabled === true
+    && (!(expectedPluginVersion || runtimeManifest?.plugin?.version)
+      || plugin.version === (expectedPluginVersion || runtimeManifest.plugin.version));
+  const mcpPayload = JSON.parse(runCodexCli(['mcp', 'list', '--json'], ctx));
+  if (!Array.isArray(mcpPayload)) {
+    throw new Error('codex mcp list --json did not return an array');
+  }
+  const expected = JSON.parse(
+    fs.readFileSync(path.join(resolvePluginRoot(ctx), '.mcp.json'), 'utf8'),
+  ).mcpServers?.[MCP_SERVER_NAME];
+  const mcp = mcpPayload.find((entry) => entry?.name === MCP_SERVER_NAME);
+  const mcpOk = !!mcp
+    && mcp.enabled === true
+    && mcp.disabled_reason === null
+    && mcp.transport?.type === 'stdio'
+    && mcp.transport.command === expected?.command
+    && JSON.stringify(mcp.transport.args) === JSON.stringify(expected?.args);
+  return { pluginId, plugin, pluginOk, mcp, mcpOk };
 }
 
 function pluginCacheRoot(configDir, marketplaceName) {
@@ -211,14 +320,18 @@ function normalizeHookCacheVersions(versions) {
   return [...normalized].sort();
 }
 
-function listKnownHookCacheVersions(configDir, marketplaceName, manifest = null) {
+function listHookCacheVersionsOnDisk(configDir, marketplaceName) {
   const root = pluginCacheRoot(configDir, marketplaceName);
-  const versions = [];
-  if (fs.existsSync(root)) {
-    versions.push(...fs.readdirSync(root, { withFileTypes: true })
+  if (!fs.existsSync(root)) return [];
+  return normalizeHookCacheVersions(
+    fs.readdirSync(root, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
-      .map((entry) => entry.name));
-  }
+      .map((entry) => entry.name),
+  );
+}
+
+function listKnownHookCacheVersions(configDir, marketplaceName, manifest = null) {
+  const versions = listHookCacheVersionsOnDisk(configDir, marketplaceName);
 
   if (manifest && manifest.source === SOURCE_TAG && manifest.adapter === 'codex') {
     if (manifest.plugin && manifest.plugin.version !== undefined) {
@@ -232,6 +345,94 @@ function listKnownHookCacheVersions(configDir, marketplaceName, manifest = null)
     }
   }
   return normalizeHookCacheVersions(versions);
+}
+
+function readPluginManifest(pluginRoot) {
+  const file = path.join(pluginRoot, '.codex-plugin', 'plugin.json');
+  const contents = fs.readFileSync(file);
+  const manifest = JSON.parse(contents.toString('utf8'));
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)
+    || manifest.name !== PLUGIN_NAME) {
+    throw new Error(`invalid Codex plugin manifest: ${file}`);
+  }
+  normalizeHookCacheVersions([manifest.version]);
+  return { file, contents, manifest };
+}
+
+function codexVersionParts(version) {
+  if (typeof version !== 'string') return null;
+  const match = /^(.+)\+codex\.([A-Za-z0-9][A-Za-z0-9._-]*)$/.exec(version);
+  return match ? { base: match[1], cachebuster: match[2] } : null;
+}
+
+function bindCachebusterProvenance({
+  report,
+  runtimeManifest,
+  sourceManifest,
+  host,
+  configDir,
+  marketplaceName,
+}) {
+  const previousVersion = runtimeManifest?.plugin?.version;
+  const currentVersion = sourceManifest?.manifest?.version;
+  const previous = codexVersionParts(previousVersion);
+  const current = codexVersionParts(currentVersion);
+  if (!previous || !current || previous.base !== current.base
+    || previousVersion === currentVersion) {
+    return false;
+  }
+
+  const mismatch = report.issues.filter((issue) => (
+    issue.code === 'ASSET_HASH_MISMATCH'
+    && issue.root === 'plugin'
+    && issue.path === path.join('.codex-plugin', 'plugin.json')
+  ));
+  if (mismatch.length !== 1
+    || !host?.pluginOk
+    || host.plugin?.version !== currentVersion) {
+    report.checks.cachebuster_binding = { status: 'fail' };
+    return false;
+  }
+
+  const originalManifest = {
+    ...sourceManifest.manifest,
+    version: previousVersion,
+  };
+  const originalHash = crypto.createHash('sha256')
+    .update(`${JSON.stringify(originalManifest, null, 2)}\n`)
+    .digest('hex');
+  const cacheManifestFile = path.join(
+    pluginCacheRoot(configDir, marketplaceName),
+    currentVersion,
+    '.codex-plugin',
+    'plugin.json',
+  );
+  let cacheMatchesSource = false;
+  try {
+    cacheMatchesSource = crypto.createHash('sha256')
+      .update(fs.readFileSync(cacheManifestFile))
+      .digest('hex')
+      === crypto.createHash('sha256')
+        .update(sourceManifest.contents)
+        .digest('hex');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  if (originalHash !== mismatch[0].expected || !cacheMatchesSource) {
+    report.checks.cachebuster_binding = { status: 'fail' };
+    return false;
+  }
+
+  report.issues = report.issues.filter((issue) => issue !== mismatch[0]);
+  report.checks.assets.failed -= 1;
+  if (report.checks.assets.failed === 0) report.checks.assets.status = 'pass';
+  report.checks.cachebuster_binding = {
+    status: 'pass',
+    previous_version: previousVersion,
+    current_version: currentVersion,
+    cache_manifest: cacheManifestFile,
+  };
+  return true;
 }
 
 function hookAdaptersForVersions(configDir, marketplaceName, versions) {
@@ -379,6 +580,8 @@ function install(ctx = {}) {
   let movedPrevious = false;
   let published = false;
   let registration = null;
+  let registrationSnapshot = null;
+  let registrationAttempted = false;
   let hookCompatibility = null;
   let legacy = { configUpdated: false, removed: [] };
   try {
@@ -418,7 +621,16 @@ function install(ctx = {}) {
     writeAtomic(marketplaceFile, JSON.stringify(marketplacePayload, null, 2) + '\n');
 
     if (shouldRunPluginCli(ctx)) {
+      registrationSnapshot = snapshotPluginRegistration(marketplace.name, ctx);
+      registrationAttempted = true;
       registration = runPluginCli('add', marketplace.name, ctx);
+      if (typeof ctx.afterPluginRegistration === 'function') {
+        ctx.afterPluginRegistration({
+          action: 'add',
+          before: registrationSnapshot,
+          registration,
+        });
+      }
       hookCompatibility = restoreCachedHookAdapters(
         previousAdapters,
         currentHookAdapter(configDir, marketplace.name, plugin),
@@ -480,16 +692,28 @@ function install(ctx = {}) {
     if (published && fs.existsSync(pluginRoot)) removeTree(pluginRoot);
     else if (fs.existsSync(stagingRoot)) removeTree(stagingRoot);
     if (movedPrevious && fs.existsSync(backupRoot)) fs.renameSync(backupRoot, pluginRoot);
+    let rollbackError = null;
     try {
-      restoreFiles(snapshots);
       const currentCache = marketplace && plugin
         ? path.join(pluginCacheRoot(configDir, marketplace.name), plugin.version)
         : null;
       if (currentCache && !previousVersions.includes(plugin.version) && fs.existsSync(currentCache)) {
         removeTree(currentCache);
       }
+      if (registrationAttempted && registrationSnapshot) {
+        restorePluginRegistration(registrationSnapshot, ctx);
+      }
+      restoreFiles(snapshots);
+    } catch (caught) {
+      rollbackError = caught;
     } finally {
       if (fs.existsSync(agentStagingConfig)) removeTree(agentStagingConfig);
+    }
+    if (rollbackError) {
+      throw new AggregateError(
+        [error, rollbackError],
+        'Codex install and rollback both failed',
+      );
     }
     throw error;
   }
@@ -536,12 +760,82 @@ function doctor(ctx = {}) {
   }
   report.checks.marketplace = { status: marketplaceOk ? 'pass' : 'fail' };
 
+  let sourceManifest = null;
+  try {
+    sourceManifest = readPluginManifest(pluginRoot);
+  } catch (error) {
+    report.issues.push({ code: 'PLUGIN_MANIFEST_INVALID', message: error.message });
+  }
+
+  let host = null;
+  if (shouldRunHostCli(ctx)) {
+    try {
+      host = inspectCodexHost(
+        ctx,
+        runtimeManifest,
+        sourceManifest?.manifest?.version || null,
+      );
+      report.checks.host_plugin = { status: host.pluginOk ? 'pass' : 'fail' };
+      report.checks.host_mcp = { status: host.mcpOk ? 'pass' : 'fail' };
+      if (!host.pluginOk) {
+        report.issues.push({
+          code: 'HOST_PLUGIN_NOT_DISCOVERED',
+          plugin_id: host.pluginId,
+        });
+      }
+      if (!host.mcpOk) {
+        report.issues.push({
+          code: 'HOST_MCP_NOT_DISCOVERED',
+          plugin_id: host.pluginId,
+          server: MCP_SERVER_NAME,
+        });
+      }
+    } catch (error) {
+      report.checks.host_plugin = { status: 'fail' };
+      report.checks.host_mcp = { status: 'fail' };
+      report.issues.push({
+        code: error.code === 'HOST_CLI_TIMEOUT'
+          ? 'HOST_CLI_TIMEOUT'
+          : 'HOST_CLI_INSPECTION_FAILED',
+        message: error.message,
+      });
+    }
+  }
+
+  const marketplaceName = runtimeManifest?.marketplace?.name || 'personal';
+  if (runtimeManifestOk && sourceManifest && host) {
+    bindCachebusterProvenance({
+      report,
+      runtimeManifest,
+      sourceManifest,
+      host,
+      configDir,
+      marketplaceName,
+    });
+  }
+
   let hookTargetsOk = runtimeManifestOk;
   if (runtimeManifestOk) {
-    const cacheRoot = pluginCacheRoot(configDir, runtimeManifest.marketplace?.name || 'personal');
-    const currentCacheRequired = shouldRunPluginCli(ctx);
-    for (const version of runtimeManifest.hook_cache_versions || []) {
-      if (version === runtimeManifest.plugin.version && !currentCacheRequired) continue;
+    const cacheRoot = pluginCacheRoot(configDir, marketplaceName);
+    let requiredVersions = [];
+    try {
+      requiredVersions = listHookCacheVersionsOnDisk(configDir, marketplaceName);
+      const activeVersion = host?.plugin?.installed === true
+        ? host.plugin.version
+        : (shouldRunPluginCli(ctx)
+          ? sourceManifest?.manifest?.version || runtimeManifest.plugin.version
+          : null);
+      if (activeVersion) {
+        requiredVersions = normalizeHookCacheVersions([
+          ...requiredVersions,
+          activeVersion,
+        ]);
+      }
+    } catch (error) {
+      hookTargetsOk = false;
+      report.issues.push({ code: 'HOOK_CACHE_INVALID', message: error.message });
+    }
+    for (const version of requiredVersions) {
       const adapter = path.join(cacheRoot, version, HOOK_ADAPTER_RELATIVE);
       if (!fs.existsSync(adapter)) {
         hookTargetsOk = false;
@@ -586,30 +880,55 @@ function uninstall(ctx = {}) {
   const marketplaceFile = resolveMarketplaceFile(ctx);
   const manifest = readRuntimeManifest(configDir);
   const marketplaceBefore = loadMarketplace(marketplaceFile);
+  let registration = null;
+  let registrationSnapshot = null;
+  let registrationAttempted = false;
+  try {
+    if (shouldRunPluginCli(ctx)) {
+      registrationSnapshot = snapshotPluginRegistration(marketplaceBefore.name, ctx);
+      registrationAttempted = true;
+      registration = runPluginCli('remove', marketplaceBefore.name, ctx);
+      if (typeof ctx.afterPluginRegistration === 'function') {
+        ctx.afterPluginRegistration({
+          action: 'remove',
+          before: registrationSnapshot,
+          registration,
+        });
+      }
+    }
+    const agents = removeManagedAgents(configDir, manifest);
 
-  const registration = shouldRunPluginCli(ctx)
-    ? runPluginCli('remove', marketplaceBefore.name, ctx)
-    : null;
-  const agents = removeManagedAgents(configDir, manifest);
+    let pluginRemoved = false;
+    if (fs.existsSync(pluginRoot) && fs.existsSync(path.join(pluginRoot, '.ubp-managed'))) {
+      removeTree(pluginRoot);
+      pluginRemoved = true;
+    }
+    const marketplace = removeMarketplaceEntry(marketplaceFile);
+    const legacy = cleanupLegacyConfig(configDir);
+    const manifestDir = path.join(configDir, RUNTIME_MANIFEST_DIR);
+    if (fs.existsSync(manifestDir)) removeTree(manifestDir);
 
-  let pluginRemoved = false;
-  if (fs.existsSync(pluginRoot) && fs.existsSync(path.join(pluginRoot, '.ubp-managed'))) {
-    removeTree(pluginRoot);
-    pluginRemoved = true;
+    return {
+      target: configDir,
+      removed: { plugin: pluginRemoved, agents },
+      marketplace,
+      registration,
+      legacy,
+      config: { updated: legacy.configUpdated },
+    };
+  } catch (error) {
+    if (registrationAttempted && registrationSnapshot) {
+      try {
+        restorePluginRegistration(registrationSnapshot, ctx);
+      } catch (rollbackError) {
+        throw new AggregateError(
+          [error, rollbackError],
+          'Codex uninstall and registration rollback both failed',
+        );
+      }
+    }
+    throw error;
   }
-  const marketplace = removeMarketplaceEntry(marketplaceFile);
-  const legacy = cleanupLegacyConfig(configDir);
-  const manifestDir = path.join(configDir, RUNTIME_MANIFEST_DIR);
-  if (fs.existsSync(manifestDir)) removeTree(manifestDir);
-
-  return {
-    target: configDir,
-    removed: { plugin: pluginRemoved, agents },
-    marketplace,
-    registration,
-    legacy,
-    config: { updated: legacy.configUpdated },
-  };
 }
 
 module.exports = {
@@ -633,6 +952,10 @@ module.exports = {
     upsertMarketplace,
     removeMarketplaceEntry,
     runPluginCli,
+    runCodexCli,
+    snapshotPluginRegistration,
+    restorePluginRegistration,
+    inspectCodexHost,
     pluginCacheRoot,
     listKnownHookCacheVersions,
     listCachedHookAdapters,

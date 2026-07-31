@@ -52,7 +52,7 @@ tools:
 
   - name: ultra.record
     family: ultra
-    description: Record one or more typed draft facts or actions with per-entry idempotency. Semantic rejections are returned as mutable diagnostics rather than transport errors.
+    description: Record one or more typed draft facts or actions with per-entry idempotency. Entry data is checked against its kind/action contract so one invalid batch item can return a mutable diagnostic without hiding the other results.
     phase: '24'
     writer_role: mcp
     input_schema:
@@ -71,6 +71,7 @@ tools:
               kind:
                 type: string
                 enum: [baseline, change_contract, decision, task_contract, task_outcome, artifact, event]
+                description: Selects the entry data contract. Task contracts own durable intent; Task outcomes own status and post-commit attestation.
               action:
                 type: string
                 enum:
@@ -81,14 +82,80 @@ tools:
                   - open
                   - revise
                   - cancel
+                  - supersede
                   - define
                   - remove
                   - complete
                   - block
                   - reopen
+                  - attest_commit
                   - bind
                   - append
-              data: { type: object }
+                description: Valid actions are checked with kind at runtime; task_outcome uses start, block, reopen, complete, or attest_commit.
+              data:
+                type: object
+                description: |
+                  Every kind/action selects one exact data contract. Unknown fields,
+                  wrong scalar/container types, invalid closed mechanical enums,
+                  malformed digests, and mismatched authority references return an entry-level mutable
+                  VALIDATION_ERROR before SQLite or filesystem mutation.
+
+                  baseline uses mode greenfield|brownfield; spec kinds
+                  discovery|product|architecture|quality|delivery|other; evidence kinds
+                  source|docs|runtime|test|deploy|external; verification status
+                  pass|known_red|not_run; gap status open|accepted|resolved|deferred and
+                  category baseline_blocker|documentation_drift|known_defect|
+                  technical_debt|unknown|future_change. blocking and acceptance flags
+                  are booleans, never truthy strings.
+
+                  change_contract/open accepts a bounded caller-defined kind; quick,
+                  standard, major, and incident are recommended Skill-level profiles,
+                  docs_impact.status unknown|required|none, risk flags
+                  public_contract|schema_migration|data_migration|authorization|
+                  security|multi_module|external_integration|release_semantics are
+                  recommended Skill-level labels rather than a closed MCP vocabulary, and
+                  research status none|bounded|required with mode
+                  product|feature|architecture|custom are likewise recommended profiles;
+                  bounded repository-defined status, mode, and risk labels remain valid.
+                  revise uses {id, patch};
+                  cancel uses {id}. supersede uses an archived or cancelled source id,
+                  a successor_id, and optional title/kind/intent overrides. Draft
+                  semantic corrections remain reversible; immutable history creates a
+                  linked active successor instead of reopening in place.
+
+                  decision/accept has exact scope {baseline_id} or {change_id};
+                  applied_refs items are exactly {ref, field, digest?}. effects and
+                  provenance are JSON objects; non_goals is a string array.
+
+                  Task contracts are structurally exact. task_contract/define requires
+                  id, title, and bounded non-empty type and priority strings.
+                  architecture|feature|bugfix and P0|P1|P2|P3 are recommended
+                  Skill-level vocabulary, not SQLite business verdicts.
+                  id matches [A-Za-z0-9_-]+ and title has at least 3 characters.
+                  Optional complexity is integer 1..10, estimated_days is >0,
+                  slice_kind is an optional bounded caller-defined string; tracer_bullet,
+                  expand_contract, and integration_checkpoint are recommended profiles.
+                  deps/files_modified are non-empty-string arrays, and
+                  acceptance/context_refs are object arrays. task_contract/revise uses
+                  {id, patch} and permits contract fields, including corrected
+                  title/type, only. status, session_id, stale, tag, context_file, and
+                  completion_commit are runtime-owned and forbidden in Task Contracts.
+                  task_outcome start|block|reopen uses {id}. complete uses exactly
+                  {id, packet_digest} with a 64-hex packet digest; patch and
+                  completion_commit are forbidden.
+                  After durable completion is synced and committed, attest_commit uses
+                  exactly {id, completion_commit}; the commit is a full 40- or 64-hex
+                  Git object id recorded as checkout-local proof.
+
+                  artifact/bind uses owner_type project|baseline|change|task|workflow,
+                  status current|stale|terminal|archived, 64-lowercase-hex content
+                  digests, and exact reference items {type, id, relation}; type is
+                  artifact|project|baseline|change|task|workflow|external. Current
+                  public authority rejects workflow-owned legacy references.
+
+                  event/append is exactly {type, task_id?, change_id?, session_id?,
+                  runtime?, payload?}. Identifiers/runtime are strings or null and
+                  payload is a JSON object.
               idempotency_key: { type: string, minLength: 3 }
     output_schema: { type: object }
     errors:
@@ -115,7 +182,15 @@ tools:
           properties:
             change_id: { type: string, minLength: 1 }
             task_id: { type: string, minLength: 1 }
-        payload: { type: object }
+        payload:
+          type: object
+          description: |
+            Stage-specific semantic fields remain model-owned. Kernel-owned evidence
+            is an object array whose kind/ref/summary/digest/artifact_id values are
+            strings when present. diagnostics is an exact object array with required
+            string code and optional string severity/message plus JSON details.
+            Evidence authority, current bytes, scope, checkpoint identity, and the
+            accepted receipt are validated atomically.
         idempotency_key: { type: string, minLength: 3 }
     output_schema: { type: object }
     errors:
@@ -140,8 +215,13 @@ tools:
       additionalProperties: false
       properties:
         action: { type: string, enum: [inspect, import, publish, migrate] }
-        reason: { type: string }
-        idempotency_key: { type: string }
+        reason:
+          type: string
+          description: Allowed only for publish.
+        idempotency_key:
+          type: string
+          minLength: 3
+          description: Required only for publish; binds the exact request and ledger generation.
     output_schema: { type: object }
     errors:
       - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
@@ -160,9 +240,24 @@ tools:
       additionalProperties: false
       properties:
         action: { type: string, enum: [admission, acquire, get, list, heartbeat, release] }
-        scope: { type: object }
-        payload: { type: object }
-        idempotency_key: { type: string }
+        scope:
+          type: object
+          description: |
+            admission/acquire/list use task_id (list may omit it); get/heartbeat/release
+            use sid. Unknown scope fields are rejected.
+        payload:
+          type: object
+          description: |
+            admission/get/list/heartbeat accept no payload fields. acquire accepts only
+            role, runtime, output_path, output_schema, evidence_refs, diff_range,
+            changed_files, takeover, and worktree_base. release accepts status
+            completed|crashed and optional boolean remove_worktree. Acquire, heartbeat,
+            and release compensate Session, lease, Worker Packet, and worktree effects
+            if their durable receipt fails.
+        idempotency_key:
+          type: string
+          minLength: 3
+          description: Required for acquire, heartbeat, and release.
     output_schema: { type: object }
     errors:
       - { code: VALIDATION_ERROR, description: 'input failed structural validation' }
@@ -181,7 +276,17 @@ tools:
       additionalProperties: false
       properties:
         change_id: { type: string, minLength: 1 }
-        payload: { type: object }
+        payload:
+          type: object
+          additionalProperties: false
+          properties:
+            summary: { type: string }
+            baseline_updates:
+              type: array
+              items: { type: string }
+            no_baseline_change_reason: { type: string }
+            reconciliation_path: { type: string }
+          description: The payload cannot replace the caller-declared change_id.
         idempotency_key: { type: string, minLength: 3 }
     output_schema: { type: object }
     errors:
