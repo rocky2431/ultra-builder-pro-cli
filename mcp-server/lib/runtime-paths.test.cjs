@@ -883,6 +883,116 @@ test('state migration reclaims a gate whose owner was killed', async () => {
   }
 });
 
+test('state migration publishes complete gate metadata before competitors can observe it', async () => {
+  const rootDir = mkRoot();
+  let first;
+  let second;
+  try {
+    const paths = runtimePaths.pathsFor(rootDir);
+    fs.mkdirSync(paths.runtimeDir, { recursive: true });
+    const writerReady = path.join(rootDir, 'gate-writer-ready');
+    const releaseWriter = path.join(rootDir, 'release-gate-writer');
+    const modulePath = path.join(__dirname, 'runtime-paths.cjs');
+    const firstScript = [
+      "const fs = require('node:fs');",
+      'const runtimePaths = require(process.argv[1]);',
+      'const paths = runtimePaths.pathsFor(process.argv[2]);',
+      'const ready = process.argv[3];',
+      'const release = process.argv[4];',
+      'const originalOpen = fs.openSync.bind(fs);',
+      'const originalWrite = fs.writeFileSync.bind(fs);',
+      'let gateDescriptor = null;',
+      'let delayed = false;',
+      'fs.openSync = (target, flags, mode) => {',
+      '  const descriptor = originalOpen(target, flags, mode);',
+      "  if (String(target).includes('state-migration.lock') && flags === 'wx') {",
+      '    gateDescriptor = descriptor;',
+      '  }',
+      '  return descriptor;',
+      '};',
+      'fs.writeFileSync = (target, ...args) => {',
+      '  if (target === gateDescriptor && !delayed) {',
+      '    delayed = true;',
+      "    originalWrite(ready, 'ready');",
+      '    while (!fs.existsSync(release)) {',
+      '      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);',
+      '    }',
+      '  }',
+      '  return originalWrite(target, ...args);',
+      '};',
+      'try {',
+      '  const releaseGate = runtimePaths._internal.acquireStateMigrationGate(paths);',
+      '  releaseGate();',
+      '  process.stdout.write(JSON.stringify({ acquired: true }));',
+      '} catch (error) {',
+      '  process.stdout.write(JSON.stringify({ acquired: false, code: error.code || null }));',
+      '}',
+    ].join('\n');
+    const secondScript = [
+      'const runtimePaths = require(process.argv[1]);',
+      'const paths = runtimePaths.pathsFor(process.argv[2]);',
+      'try {',
+      '  const releaseGate = runtimePaths._internal.acquireStateMigrationGate(paths);',
+      '  releaseGate();',
+      '  process.stdout.write(JSON.stringify({ acquired: true }));',
+      '} catch (error) {',
+      '  process.stdout.write(JSON.stringify({ acquired: false, code: error.code || null }));',
+      '}',
+    ].join('\n');
+
+    first = spawn(
+      process.execPath,
+      ['-e', firstScript, modulePath, rootDir, writerReady, releaseWriter],
+      { cwd: path.resolve(__dirname, '..', '..'), stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    const firstDone = collectChild(first, 'delayed migration gate writer');
+    await waitForFile(writerReady, 'migration gate writer');
+
+    second = spawn(
+      process.execPath,
+      ['-e', secondScript, modulePath, rootDir],
+      { cwd: path.resolve(__dirname, '..', '..'), stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    const secondResult = await collectChild(second, 'migration gate competitor');
+    fs.writeFileSync(releaseWriter, 'release');
+    const firstResult = await firstDone;
+
+    assert.deepEqual(secondResult, { acquired: true });
+    assert.deepEqual(firstResult, { acquired: true });
+    assert.equal(
+      fs.existsSync(path.join(paths.runtimeDir, 'state-migration.lock')),
+      false,
+    );
+  } finally {
+    if (first?.exitCode === null) first.kill('SIGKILL');
+    if (second?.exitCode === null) second.kill('SIGKILL');
+    cleanup(rootDir);
+  }
+});
+
+test('state migration rejects a stable malformed gate', () => {
+  const rootDir = mkRoot();
+  try {
+    const paths = runtimePaths.pathsFor(rootDir);
+    const initialized = initStateDb(paths.legacyStateDbPath);
+    closeStateDb(initialized.db);
+    fs.mkdirSync(paths.runtimeDir, { recursive: true });
+    const gatePath = path.join(paths.runtimeDir, 'state-migration.lock');
+    fs.writeFileSync(gatePath, '{"version":');
+
+    assert.throws(
+      () => runtimePaths.ensureRuntimeState(rootDir),
+      (error) => error instanceof runtimePaths.RuntimePathError
+        && error.code === 'RUNTIME_STATE_NOT_QUIESCENT'
+        && /malformed or unsafe/.test(error.message),
+    );
+    assert.equal(fs.readFileSync(gatePath, 'utf8'), '{"version":');
+    assert.equal(fs.existsSync(paths.stateDbPath), false);
+  } finally {
+    cleanup(rootDir);
+  }
+});
+
 test('state migration leaves a gate owned by a live process fail-closed', () => {
   const rootDir = mkRoot();
   try {

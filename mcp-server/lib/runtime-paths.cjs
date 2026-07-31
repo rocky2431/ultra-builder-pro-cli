@@ -599,12 +599,34 @@ function processIsAlive(pid) {
 
 function readMigrationGate(gatePath) {
   const stat = lstatOrNull(gatePath);
-  if (!stat || stat.isSymbolicLink() || !stat.isFile()) return null;
+  if (!stat) return { missing: true };
+  if (stat.isSymbolicLink() || !stat.isFile()) return null;
   try {
     const owner = JSON.parse(fs.readFileSync(gatePath, 'utf8'));
     return { owner, stat };
-  } catch {
+  } catch (error) {
+    if (error.code === 'ENOENT') return { missing: true };
     return null;
+  }
+}
+
+function createMigrationGateCandidate(gatePath, owner) {
+  while (true) {
+    const candidatePath = `${gatePath}.candidate-${process.pid}-${randomUUID()}`;
+    let descriptor;
+    try {
+      descriptor = fs.openSync(candidatePath, 'wx', 0o600);
+      fs.writeFileSync(descriptor, `${JSON.stringify(owner)}\n`);
+      fs.fsyncSync(descriptor);
+      return { candidatePath, descriptor };
+    } catch (error) {
+      if (descriptor !== undefined) {
+        try { fs.closeSync(descriptor); } catch { /* best effort */ }
+      }
+      fs.rmSync(candidatePath, { force: true });
+      if (error.code === 'EEXIST') continue;
+      throw error;
+    }
   }
 }
 
@@ -635,28 +657,28 @@ function acquireStateMigrationGate(paths, {
 } = {}) {
   const gatePath = path.join(paths.runtimeDir, 'state-migration.lock');
   const token = randomUUID();
+  const owner = {
+    version: 2,
+    pid: process.pid,
+    owner_started_at: processStartMarker(process.pid),
+    token,
+    legacy_state_db: paths.legacyStateDbPath,
+    runtime_state_db: paths.stateDbPath,
+  };
   const deadline = Date.now() + timeoutMs;
   let descriptor;
   while (descriptor === undefined) {
+    const candidate = createMigrationGateCandidate(gatePath, owner);
+    let published = false;
     try {
-      descriptor = fs.openSync(gatePath, 'wx', 0o600);
-      fs.writeFileSync(descriptor, `${JSON.stringify({
-        version: 2,
-        pid: process.pid,
-        owner_started_at: processStartMarker(process.pid),
-        token,
-        legacy_state_db: paths.legacyStateDbPath,
-        runtime_state_db: paths.stateDbPath,
-      })}\n`);
-      fs.fsyncSync(descriptor);
+      fs.linkSync(candidate.candidatePath, gatePath);
+      descriptor = candidate.descriptor;
+      published = true;
       break;
     } catch (error) {
-      if (descriptor !== undefined) {
-        try { fs.closeSync(descriptor); } catch { /* best effort */ }
-        descriptor = undefined;
-      }
       if (error.code !== 'EEXIST') throw error;
       const observed = readMigrationGate(gatePath);
+      if (observed?.missing) continue;
       const ownerPid = Number(observed?.owner?.pid);
       const live = processIsAlive(ownerPid);
       const currentStart = live ? processStartMarker(ownerPid) : null;
@@ -684,6 +706,11 @@ function acquireStateMigrationGate(paths, {
         continue;
       }
       reclaimDeadMigrationGate(gatePath, observed);
+    } finally {
+      fs.rmSync(candidate.candidatePath, { force: true });
+      if (!published) {
+        try { fs.closeSync(candidate.descriptor); } catch { /* best effort */ }
+      }
     }
   }
   return () => {

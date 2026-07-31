@@ -1,6 +1,6 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "description": "Explicitly invoked Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, Kimi Code, and Grok Build, with a project-local MCP persistence and safety kernel.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
