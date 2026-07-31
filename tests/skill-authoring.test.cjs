@@ -221,6 +221,28 @@ test('model-invoked skills are reusable file-first discipline inside the residen
   }
 });
 
+test('every enabling template a skill points at exists and can be copied as-is', () => {
+  // PHILOSOPHY C2: a prohibition without a runnable alternative gets renamed
+  // around. The recorded failure is an advisory pointing at a missing path,
+  // after which the agent ignores the advisory entirely.
+  const referenced = new Set();
+  for (const name of [...PACKAGED_SKILLS].sort()) {
+    for (const file of walk(path.join(SKILLS_ROOT, name), (f) => f.endsWith('.md'))) {
+      const text = fs.readFileSync(file, 'utf8');
+      for (const [, asset] of text.matchAll(/\.ultra\/templates\/([A-Za-z0-9][A-Za-z0-9._-]*)/g)) {
+        referenced.add(asset);
+        for (const root of TEMPLATE_ROOTS) {
+          assert.ok(
+            fs.existsSync(path.join(root, 'templates', asset)),
+            `${path.relative(ROOT, file)} points at .ultra/templates/${asset}, absent from ${path.relative(ROOT, root)}`,
+          );
+        }
+      }
+    }
+  }
+  assert.ok(referenced.size > 0, 'no skill offers a runnable alternative; C2 is unenforced');
+});
+
 test('the ubiquitous-language file format has exactly one authority', () => {
   const { text } = sourceSkill('ultra-domain-modeling');
   for (const marker of [/^## Language$/m, /_Avoid_/, /^## Relationships$/m, /^## Flagged ambiguities$/m]) {

@@ -64,6 +64,7 @@ const INTERNAL_AGENT_SKILLS = Object.freeze([
 const MODEL_INVOKED_SKILLS = Object.freeze([
   'ultra-grilling',
   'ultra-domain-modeling',
+  'ultra-tdd',
 ]);
 
 const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok']);

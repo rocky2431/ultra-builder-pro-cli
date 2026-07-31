@@ -46,7 +46,7 @@ test('kimi conformance — complete skills plus functional worker templates', ()
       .map((entry) => entry.name)
       .sort();
     assert.deepEqual(skills, skillsForRuntime('kimi').sort());
-    assert.equal(skills.length, 20);
+    assert.equal(skills.length, 21);
     assert.equal(
       fs.readdirSync(path.join(value.pluginRoot, 'agents')).filter((name) => name.endsWith('.md')).length,
       10,
