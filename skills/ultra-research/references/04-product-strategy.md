@@ -26,7 +26,7 @@ Update `discovery.md` with:
 
 Complete the step with decision and evidence references plus the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `strategy_decision`. Record `tradeoff` and `rationale`, then link the decision
-to the problems, opportunities, or constraints that support it.
+In the area report, record `tradeoff` and `rationale`, then link the decision file or
+specification anchor to the problems, opportunities, or constraints that support it.

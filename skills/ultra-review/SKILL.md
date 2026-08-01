@@ -1,46 +1,73 @@
 ---
 name: ultra-review
-description: Independently review one current Ultra plan, task diff, or aggregate Change on specification fidelity and engineering standards. Use when current evidence needs review or focused risk analysis.
+description: Review one task diff or aggregate Change through six independent lenses, synthesize file-backed findings, and perform evidence-justified refactoring. Use when another skill needs task-level or delivery-level review without loading worker investigation into the main context.
 ---
 
-# Review one bounded scope
+# Review through six lenses without polluting the main context
 
-Keep two independent verdict axes:
+The parent owns scope and synthesis. Lens workers are read-only sensors. Refactoring
+happens here, after several slices make a useful structure visible, not inside TDD.
 
-- `spec_fidelity`: accepted intent, behavior, docs, and public seams;
-- `engineering_standards`: correctness, safety, tests, integration,
-  maintainability, observability, and recovery.
+## Before you start
 
-## Bind and review
+1. Read `.ultra/tasks.json`, the scoped task's `context_file` and `## Resume Note`.
+2. Read `CONTEXT.md`, relevant `.ultra/decisions/`, acceptance, evidence and exact diff.
+3. Create `.ultra/reviews/<session>/` and one immutable packet naming HEAD, scope,
+   output path, acceptance and public seams. Follow `references/worker-packet.md`,
+   then compute the SHA-256 of the exact packet bytes and do not edit it.
 
-1. Read `references/review-modes.md`.
-2. Call `ultra.context { stage: review, scope: { change_id, task_id? }, detail: full }`.
-3. Import a newer team checkpoint with `ultra.sync`; stop on a real conflict.
-4. Bind one explicit diff or Plan, full HEAD, worktree digest, task set, acceptance,
-   decisions, and current evidence. Empty or stale scope cannot pass.
-5. Always run `review-spec`. Select the smallest engineering worker set that covers
-   actual risk; record selected and excluded roles with rationale.
+## Definition of done
 
-Use the current host's native bounded-worker mechanism. Workers are read-only and
-receive one immutable Worker Packet containing the exact Context Envelope, HEAD/diff,
-decisions, acceptance, output path/schema, and `packet_digest`. Validate their artifacts with `scripts/review_wait.py` and
-`references/unified-schema.md`; reject any output that does not echo the exact packet
-digest. Preserve every finding unchanged in `SUMMARY.json`; group duplicates only in
-the human summary.
+- The complete six-worker roster is dispositioned; every selected lens artifact and one
+  summary exist, while skipped or failed lenses are explicit.
+- Each selected lens reports at most 12 findings, each evidence-backed. Scores never decide
+  whether an observable defect is included.
+- Findings preserve independent `spec_fidelity` and `engineering_standards` axes.
+- Refactors are justified by observed duplication or coupling and all affected checks rerun.
 
-Register specialist and summary artifacts through one `ultra.record` batch using
-`artifact / bind`.
+## Run the lenses
 
-## Checkpoint
+Use the host's native bounded subagents, in the background where available; otherwise
+run them sequentially. `review-spec` is always selected; select other lenses only when
+their evidence can change a verdict. Give each the packet path and digest,
+`references/unified-schema.md`, and exactly one lens:
 
-Call `ultra.checkpoint` once with `stage: review`, exact scope, evidence, and outputs
-tagged `spec_review`, `engineering_review`, or summary. The model and bounded review
-agents own both evidence-derived axes. The checkpoint compiles or reuses review
-context, verifies declared artifact bytes and digests, and records the supplied axes
-without overriding findings.
+- `references/code.md`
+- `references/design.md`
+- `references/errors.md`
+- `references/tests.md`
+- `references/spec.md`
+- `references/comments.md`
 
-A rejected checkpoint leaves the draft mutable. Fix the structural, digest, path, or
-concurrency fault and retry; do not open a replacement run or suppress a finding.
+Apply **Zero Context Pollution**: start the workers, immediately run
+`scripts/review_wait.py <session> agents --packet-digest <digest> <selected-stems>`,
+then read only the stable JSON files it returns. Validate `SUMMARY.json` with
+`scripts/review_wait.py <session> summary --packet-digest <digest>`. Do not read
+intermediate worker output or treat background notifications as completion. The sole
+information path is wait script to JSON artifact. These guards prevent partial results
+from becoming a semantic verdict.
 
-Return both axes, findings, reviewed scope, worker rationale, digests, and the model's
-recommended next explicit capability. Do not invoke it automatically.
+## Synthesize, repair and recheck
+
+Preserve findings unchanged in `SUMMARY.json`; group duplicates by root cause only in
+the human summary. Fix accepted P0/P1 issues and evidence-backed refactors, then rerun
+the affected lenses against the delta.
+
+Stop when P0 + P1 does not decrease between rounds. Write a stuck report separating an
+over-tight constraint from an insufficient fix and give the owner three concrete paths.
+If one file fails three consecutive repairs, treat it as an architecture concern. If
+three or more files do so, write `UNRESOLVED.md` with `ARCHITECTURAL_CONCERN` and stop.
+
+Report both axes, exact scope, checks, residual findings and any refactor performed.
+
+## When the owner decides
+
+The owner chooses risk acceptance, a scope reduction, or which stuck path to take.
+Workers never edit source, task state or another lens artifact.
+
+## References
+
+- `references/unified-schema.md` — JSON contract shared by all lenses.
+- `references/worker-packet.md` — exact immutable input packet and digest procedure.
+- `references/review-modes.md` — choose task, Change, full, or delta scope.
+- `../ultra-think/references/autonomy-boundary.md` — read before a fix reduces intent.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Kimi Code wire adapter for Ultra Builder Pro lifecycle hooks.
+"""Kimi Code wire adapter for Ultra Builder Pro's five file-first hooks.
 
-Kimi 0.26 uses snake_case JSON input compatible with the workflow hooks, but
+Kimi uses snake_case JSON input compatible with the shared hooks, but
 its output contract accepts only ``message`` plus an optional structured deny.
 This adapter preserves explicit projection denials and optional Stop decisions, converts foreign context
 fields into Kimi messages, and fails open with diagnostic evidence.
@@ -20,18 +20,16 @@ from typing import Any
 
 HOOK_ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_FEATURES = {
-    "active_task_context.py",
-    "health_check.py",
-    "pre_stop_check.py",
-    "subagent_tracker.py",
-    "workflow_checkpoint.py",
-    "workflow_context.py",
-    "workflow_resume.py",
+    "block_dangerous_commands.py",
+    "compact_context.py",
+    "mid_workflow_recall.py",
+    "post_edit_guard.py",
+    "session_context.py",
 }
 
 
 def normalize_input(payload: dict[str, Any]) -> dict[str, Any]:
-    """Add only the legacy aliases required by the shared workflow hooks."""
+    """Add only aliases required by the shared file-first hooks."""
     normalized = copy.deepcopy(payload)
     agent_name = normalized.get("agent_name")
     if isinstance(agent_name, str) and agent_name:
@@ -101,10 +99,6 @@ def run_feature(feature: str, payload: dict[str, Any], feature_args: list[str]) 
 
     event = str(payload.get("hook_event_name") or "")
     normalized = normalize_input(payload)
-    if feature == "workflow_resume.py" and event == "PostCompact":
-        normalized["hook_event_name"] = "SessionStart"
-        normalized["source"] = "compact"
-
     env = os.environ.copy()
     env["UBP_HOOK_RUNTIME"] = "kimi"
     plugin_data = env.get("PLUGIN_DATA") or env.get("KIMI_PLUGIN_ROOT")

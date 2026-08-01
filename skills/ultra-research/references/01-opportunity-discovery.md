@@ -27,7 +27,7 @@ Update `discovery.md` with:
 
 Complete the step with the evidence used and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `opportunity`. Record `actor`, `desired_outcome`, and `evidence_status`. Link
-the record to its problem when that relation is established.
+In the area report, record `actor`, `desired_outcome`, and `evidence_status`. Link the
+conclusion to its problem anchor when that relation is established.

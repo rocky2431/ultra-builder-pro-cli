@@ -2,8 +2,8 @@
 """Wait for and validate Ultra review v2 artifacts.
 
 Usage:
-    python3 review_wait.py <session_path> agents <artifact-stem> [<artifact-stem> ...]
-    python3 review_wait.py <session_path> summary
+    python3 review_wait.py <session_path> agents --packet-digest <sha256> <artifact-stem> [<artifact-stem> ...]
+    python3 review_wait.py <session_path> summary --packet-digest <sha256>
 
 The agents mode validates the exact named JSON files. The summary mode validates the
 two-axis verdict contract. Timeout and poll intervals can be shortened in tests with
@@ -96,13 +96,15 @@ def validate_finding(finding, artifact_axis: str, seen_ids):
     return None
 
 
-def validate_specialist(data):
+def validate_specialist(data, expected_packet_digest: str):
     if data.get("$schema") != FINDINGS_SCHEMA:
         return f"$schema must be {FINDINGS_SCHEMA}"
     if not nonempty_string(data.get("agent")):
         return "agent must be a non-empty string"
     if not digest_string(data.get("packet_digest")):
         return "packet_digest must be a lowercase SHA-256 digest"
+    if data["packet_digest"] != expected_packet_digest:
+        return f"packet_digest does not match expected immutable packet {expected_packet_digest}"
     axis = data.get("axis")
     if axis not in AXES:
         return "axis must be spec_fidelity or engineering_standards"
@@ -137,7 +139,7 @@ def validate_specialist(data):
     return None
 
 
-def evaluate_artifacts(session_path: Path, expected):
+def evaluate_artifacts(session_path: Path, expected, expected_packet_digest: str):
     done = []
     missing = []
     invalid = []
@@ -149,7 +151,7 @@ def evaluate_artifacts(session_path: Path, expected):
             continue
         data, error = read_json(path)
         if error is None:
-            error = validate_specialist(data)
+            error = validate_specialist(data, expected_packet_digest)
         if error:
             invalid.append(stem)
             errors[stem] = error
@@ -158,10 +160,12 @@ def evaluate_artifacts(session_path: Path, expected):
     return done, missing, invalid, errors
 
 
-def wait_for_agents(session_path: Path, expected, timeout: float) -> bool:
+def wait_for_agents(session_path: Path, expected, expected_packet_digest: str, timeout: float) -> bool:
     deadline = time.monotonic() + timeout
     while True:
-        done, missing, invalid, errors = evaluate_artifacts(session_path, expected)
+        done, missing, invalid, errors = evaluate_artifacts(
+            session_path, expected, expected_packet_digest
+        )
         if len(done) == len(expected):
             print(json.dumps({
                 "status": "complete",
@@ -195,7 +199,7 @@ def expected_overall_verdict(data) -> str:
     return "APPROVE"
 
 
-def validate_summary(data):
+def validate_summary(data, expected_packet_digest: str):
     if data.get("$schema") != SUMMARY_SCHEMA:
         return f"$schema must be {SUMMARY_SCHEMA}"
     if data.get("mode") not in REVIEW_MODES:
@@ -205,6 +209,8 @@ def validate_summary(data):
             return f"{field} must be a non-empty string"
     if not digest_string(data.get("packet_digest")):
         return "packet_digest must be a lowercase SHA-256 digest"
+    if data["packet_digest"] != expected_packet_digest:
+        return f"packet_digest does not match expected immutable packet {expected_packet_digest}"
     if data.get("worktree_digest") is not None and not nonempty_string(data.get("worktree_digest")):
         return "worktree_digest must be null or a non-empty string"
     task_ids = data.get("task_ids")
@@ -282,7 +288,7 @@ def validate_summary(data):
     return None
 
 
-def wait_for_summary(session_path: Path, timeout: float) -> bool:
+def wait_for_summary(session_path: Path, expected_packet_digest: str, timeout: float) -> bool:
     summary_path = session_path / "SUMMARY.json"
     deadline = time.monotonic() + timeout
     last_error = "SUMMARY.json is missing"
@@ -290,7 +296,7 @@ def wait_for_summary(session_path: Path, timeout: float) -> bool:
         if summary_path.exists():
             data, error = read_json(summary_path)
             if error is None:
-                error = validate_summary(data)
+                error = validate_summary(data, expected_packet_digest)
             if error is None:
                 counts = {severity: 0 for severity in sorted(SEVERITIES)}
                 for finding in data["findings"]:
@@ -319,19 +325,24 @@ def main():
         print(f"Error: session directory not found: {session_path}", file=sys.stderr)
         sys.exit(2)
 
+    if len(sys.argv) < 5 or sys.argv[3] != "--packet-digest" or not digest_string(sys.argv[4]):
+        print("Error: --packet-digest requires the expected lowercase SHA-256 digest", file=sys.stderr)
+        sys.exit(2)
+    expected_packet_digest = sys.argv[4]
+
     if mode == "agents":
-        expected = sys.argv[3:]
+        expected = sys.argv[5:]
         if not expected or len(expected) != len(set(expected)) or not all(
             ARTIFACT_STEM.fullmatch(stem) for stem in expected
         ):
             print("Error: agents mode requires unique safe artifact stems", file=sys.stderr)
             sys.exit(2)
-        ok = wait_for_agents(session_path, expected, DEFAULT_TIMEOUT)
+        ok = wait_for_agents(session_path, expected, expected_packet_digest, DEFAULT_TIMEOUT)
     elif mode == "summary":
-        if len(sys.argv) != 3:
-            print("Error: summary mode accepts no additional arguments", file=sys.stderr)
+        if len(sys.argv) != 5:
+            print("Error: summary mode accepts only --packet-digest", file=sys.stderr)
             sys.exit(2)
-        ok = wait_for_summary(session_path, DEFAULT_TIMEOUT)
+        ok = wait_for_summary(session_path, expected_packet_digest, DEFAULT_TIMEOUT)
     else:
         print(f"Error: unknown mode '{mode}'. Use 'agents' or 'summary'.", file=sys.stderr)
         sys.exit(2)

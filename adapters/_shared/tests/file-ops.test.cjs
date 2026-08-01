@@ -6,7 +6,15 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { copyTree, writeAtomic, removeTree } = require('../file-ops.cjs');
+const {
+  captureAbsent,
+  copyTree,
+  managedMetadata,
+  markManaged,
+  pruneCreatedEmpty,
+  removeTree,
+  writeAtomic,
+} = require('../file-ops.cjs');
 
 function mk(prefix = 'ubp-shared-') {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -76,4 +84,69 @@ test('removeTree refuses to wipe filesystem root without allowRoot', () => {
     () => removeTree('/', { allowRoot: false }),
     /refusing to remove filesystem root/,
   );
+});
+
+test('managed metadata survives marker updates while explicit fields are replaced', () => {
+  const dir = mk();
+  try {
+    markManaged(dir, { adapter: 'first', cleanup_absent: ['skills'] });
+    const installedAt = managedMetadata(dir).installed_at;
+    markManaged(dir, { adapter: 'second', registry_created: true });
+
+    assert.deepEqual(managedMetadata(dir), {
+      source: 'ubp',
+      installed_at: installedAt,
+      adapter: 'second',
+      cleanup_absent: ['skills'],
+      registry_created: true,
+    });
+  } finally {
+    removeTree(dir);
+  }
+});
+
+test('owned cleanup removes only paths absent before install and still empty afterward', () => {
+  const root = mk();
+  try {
+    fs.mkdirSync(path.join(root, 'preexisting'));
+    const absent = captureAbsent(root, [
+      '.',
+      'preexisting',
+      'created',
+      path.join('created', 'nested'),
+      'empty.txt',
+      'kept.txt',
+    ]);
+    assert.deepEqual(absent, [
+      'created',
+      path.join('created', 'nested'),
+      'empty.txt',
+      'kept.txt',
+    ]);
+
+    fs.mkdirSync(path.join(root, 'created', 'nested'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'empty.txt'), '');
+    fs.writeFileSync(path.join(root, 'kept.txt'), 'owner data');
+    const removed = pruneCreatedEmpty(root, absent);
+
+    assert.deepEqual(new Set(removed), new Set([
+      path.join('created', 'nested'),
+      'created',
+      'empty.txt',
+    ]));
+    assert.equal(fs.existsSync(path.join(root, 'preexisting')), true);
+    assert.equal(fs.readFileSync(path.join(root, 'kept.txt'), 'utf8'), 'owner data');
+  } finally {
+    removeTree(root);
+  }
+});
+
+test('owned cleanup rejects non-canonical and escaping paths', () => {
+  const root = mk();
+  try {
+    assert.throws(() => captureAbsent(root, ['child/../']), /escapes its root/);
+    assert.throws(() => pruneCreatedEmpty(root, ['../outside']), /escapes its root/);
+  } finally {
+    removeTree(root);
+  }
 });

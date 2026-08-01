@@ -3,10 +3,9 @@
 /**
  * ultra-builder-pro-cli — multi-runtime installer.
  *
- * Distributes Ultra Builder Pro assets — commands, agents, skills, hooks,
- * MCP server — to Claude Code, OpenCode, Codex CLI, Kimi Code, and Grok Build via
- * runtime-specific adapters under adapters/. Install is idempotent and
- * uses atomic writes; uninstall reverses via sentinel/manifest blocks.
+ * Distributes fourteen Skills and five hooks to Claude Code, OpenCode, Codex CLI,
+ * Kimi Code, and Grok Build through runtime-specific adapters under adapters/.
+ * Install is idempotent and atomic; uninstall removes only managed assets.
  *
  * Usage:
  *   npx ultra-builder-pro-cli [options]
@@ -14,7 +13,7 @@
  *   --claude / --opencode / --codex / --kimi / --grok select runtime(s)
  *   --all                                         install to all supported runtimes
  *   -g, --global                                  install to runtime's global config dir
- *   -l, --local                                   install into current working directory
+ *   -l, --local                                   project scope where the host supports it
  *   -u, --uninstall                               remove installed assets
  *   -d, --doctor                                  inspect installation provenance without mutation
  *   --json                                        emit machine-readable doctor output
@@ -77,13 +76,13 @@ function printHelp() {
 
   ${paint('yellow', 'Scope:')}
     ${paint('cyan', '-g, --global')}       install to runtime's global config directory
-    ${paint('cyan', '-l, --local')}        install to current working directory
+    ${paint('cyan', '-l, --local')}        project scope (Claude, OpenCode, and Codex)
 
   ${paint('yellow', 'Other:')}
     ${paint('cyan', '-u, --uninstall')}    remove installed assets
     ${paint('cyan', '-d, --doctor')}       verify installed version, provenance, managed assets, and live entry points
     ${paint('cyan', '--json')}             emit machine-readable doctor output (doctor only)
-    ${paint('cyan', '-c, --config-dir')}   override runtime's config directory (string path)
+    ${paint('cyan', '-c, --config-dir')}   override one runtime's config directory; multi-runtime installs use <path>/<runtime>
     ${paint('cyan', '-h, --help')}         show this help
     ${paint('cyan', '-v, --version')}      show CLI version
 
@@ -91,8 +90,8 @@ function printHelp() {
     ${paint('dim', '# Install to Claude Code globally')}
     npx ultra-builder-pro-cli --claude --global
 
-    ${paint('dim', '# Install to all supported runtimes locally in this repo')}
-    npx ultra-builder-pro-cli --all --local
+    ${paint('dim', '# Install all five native plugins in their user scopes')}
+    npx ultra-builder-pro-cli --all --global
 
     ${paint('dim', '# Uninstall from OpenCode')}
     npx ultra-builder-pro-cli --opencode --global --uninstall
@@ -192,6 +191,11 @@ function resolveScope(flags) {
 }
 
 async function main() {
+  if (process.argv[2] === 'delegate') {
+    const { handle } = require('./delegate.cjs');
+    process.stdout.write(`${JSON.stringify(handle(process.argv.slice(2)))}\n`);
+    return;
+  }
   const { runtimes, flags } = parseArgs(process.argv);
 
   if (flags.version) {
@@ -215,6 +219,10 @@ async function main() {
   const scope = resolveScope(flags);
   const repoRoot = path.resolve(__dirname, '..');
   const configDir = flags.configDir ? expandTilde(flags.configDir) : null;
+  const userScopedOnly = runtimes.filter((runtime) => ['kimi', 'grok'].includes(runtime));
+  if (scope === 'local' && !configDir && userScopedOnly.length) {
+    bail(`${userScopedOnly.join(', ')} plugins are user-scoped by their hosts; use --global or an isolated --config-dir`);
+  }
 
   if (!flags.json) printBanner();
 
@@ -223,16 +231,34 @@ async function main() {
     console.log(`  ${paint('bold', 'Mode:')}     ${mode}`);
     console.log(`  ${paint('bold', 'Scope:')}    ${scope}`);
     console.log(`  ${paint('bold', 'Runtimes:')} ${runtimes.join(', ')}`);
-    if (configDir) console.log(`  ${paint('bold', 'ConfigDir:')} ${configDir}`);
+    if (configDir) {
+      const suffix = runtimes.length > 1 ? '/<runtime>' : '';
+      console.log(`  ${paint('bold', 'ConfigDir:')} ${configDir}${suffix}`);
+    }
     console.log();
   }
 
-  const ctx = { repoRoot, scope, configDir, homeDir: os.homedir() };
+  // A config-dir override is also the isolation root for host-owned sidecars
+  // that live outside the primary config directory (for example Codex's
+  // plugin source and personal marketplace). Without this, a sandbox install
+  // can still mutate the caller's real HOME.
+  const contextFor = (runtime) => {
+    const runtimeConfigDir = configDir && runtimes.length > 1
+      ? path.join(configDir, runtime)
+      : configDir;
+    return {
+      repoRoot,
+      scope,
+      configDir: runtimeConfigDir,
+      homeDir: runtimeConfigDir || os.homedir(),
+    };
+  };
 
   if (flags.doctor) {
     const reports = [];
     for (const runtime of runtimes) {
       const adapter = loadAdapter(runtime);
+      const ctx = contextFor(runtime);
       try {
         if (typeof adapter.doctor !== 'function') throw new Error('adapter does not expose doctor()');
         reports.push(await adapter.doctor(ctx));
@@ -270,6 +296,7 @@ async function main() {
   let failed = 0;
   for (const runtime of runtimes) {
     const adapter = loadAdapter(runtime);
+    const ctx = contextFor(runtime);
     try {
       console.log(`  ${paint('cyan', '▸')} ${runtime} — starting ${mode}...`);
       await adapter[mode](ctx);

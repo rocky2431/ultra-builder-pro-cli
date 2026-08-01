@@ -1,0 +1,52 @@
+{
+  "$schema": "ultra-task-evidence-v1",
+  "task_id": "v026-agent-skill-convergence",
+  "git_head": "3f99189bc68697262cd90444685ac2d4857139c4",
+  "commands": [
+    {
+      "command": "node --test tests/skill-authoring.test.cjs tests/v026-contract.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/test-report.json"
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/skill-authoring.test.cjs", "tests/v026-contract.test.cjs"],
+      "rationale": "Tests lock the reference graph, role routing, old-Agent mapping, and absence of packaged agent projections."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/test-report.json"],
+      "rationale": "The focused Skill and role contract suite exited zero and is repeated by the release gate."
+    },
+    "persistence_real": {
+      "status": "not_applicable",
+      "evidence_refs": ["skills/ultra-review/SKILL.md"],
+      "rationale": "This task moves reusable reasoning methods and introduces no storage path."
+    },
+    "feature_flags_audit": {
+      "status": "not_applicable",
+      "evidence_refs": ["adapters/_shared/runtime-assets.cjs"],
+      "rationale": "Routing is installed metadata and caller structure, not a runtime feature flag."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/v026-adapters.test.cjs"],
+      "rationale": "Adapter tests install the portable Skill assets into every host surface and inspect the result."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/specs/architecture.md#agent-to-skill-convergence"],
+      "rationale": "The architecture maps every retired custom-agent method to its current Skill-owned home."
+    }
+  },
+  "artifacts": [
+    "skills/ultra-review/SKILL.md",
+    "skills/ultra-dev/references/debugging.md",
+    "skills/ultra-tdd/references/test-execution.md",
+    ".ultra/specs/architecture.md"
+  ],
+  "limitations": ["Host-native custom-agent UIs are intentionally not emulated across all five CLIs."],
+  "timestamp": "2026-08-01T11:47:28+08:00"
+}

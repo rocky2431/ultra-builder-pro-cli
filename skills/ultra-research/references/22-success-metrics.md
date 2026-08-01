@@ -22,7 +22,7 @@ must be recorded as a gap or explicit future change.
 
 Complete the step with evidence references and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `metric`. Record `definition`, `source`, `window`, `owner`, and
-`decision_use`.
+In the area report, record `definition`, `source`, `window`, `owner`, and
+`decision_use`, then link the metric heading in `product.md`.

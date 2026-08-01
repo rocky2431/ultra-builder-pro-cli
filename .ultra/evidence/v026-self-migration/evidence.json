@@ -1,0 +1,53 @@
+{
+  "$schema": "ultra-task-evidence-v1",
+  "task_id": "v026-self-migration",
+  "git_head": "3f99189bc68697262cd90444685ac2d4857139c4",
+  "commands": [
+    {
+      "command": "node --test tests/skill-authoring.test.cjs tests/v026-contract.test.cjs tests/project-artifacts.test.cjs tests/package-smoke.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "22 passed, 0 failed on 2026-08-01"
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/project-artifacts.test.cjs"],
+      "rationale": "The repository audit validates the layout, graph, traces, status dual writes, active Change, completed-task evidence, and retired paths."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": ["22 passed, 0 failed on 2026-08-01"],
+      "rationale": "The current artifact, Skill, contract, and packaged-init suite exited zero after migration."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/tasks.json", ".ultra/contexts/task-v026-self-migration.md"],
+      "rationale": "The migration changes real repository files and the audit reads the stored JSON and Markdown back from disk."
+    },
+    "feature_flags_audit": {
+      "status": "not_applicable",
+      "evidence_refs": [".ultra/specs/product.md"],
+      "rationale": "Repository artifact migration adds no runtime flag."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/project-artifacts.test.cjs", "tests/package-smoke.test.cjs"],
+      "rationale": "The current checkout resumes from canonical artifacts and a packed install creates the same canonical skeleton."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/specs/product.md#artifact-lifecycle"],
+      "rationale": "Every current artifact maps to the canonical lifecycle anchor and a named writer and consumer."
+    }
+  },
+  "artifacts": [
+    ".ultra/tasks.json",
+    ".ultra/contexts/task-v026-self-migration.md",
+    ".ultra/specs/product.md",
+    ".ultra/test-report.json",
+    "CONTEXT.md"
+  ],
+  "limitations": ["Archived v0.25 Changes remain historical evidence and are not current authority."],
+  "timestamp": "2026-08-01T11:47:28+08:00"
+}

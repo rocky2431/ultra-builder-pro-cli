@@ -1,8 +1,12 @@
 # Original Ultra Builder Pro to CLI crosswalk
 
+> **Archived:** this records the pre-v0.26 compatibility target. The current product is
+> file-first and has no MCP, database, command projection, custom-agent projection, or
+> orchestrator. See `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`.
+
 This document is the compatibility contract between the original
 [`rocky2431/ultra-builder-pro`](https://github.com/rocky2431/ultra-builder-pro)
-Claude Code harness and this multi-runtime CLI/MCP implementation. Comparisons and
+Claude Code harness and the former multi-runtime CLI/MCP implementation. Comparisons and
 migration rationale live here, not in runtime Skill prompts.
 
 ## Provenance

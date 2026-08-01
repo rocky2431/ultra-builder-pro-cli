@@ -13,7 +13,8 @@ the loop that supplies it, and it serves Goal 3, Production-Ready.
 1. Read the current task context for the seams already confirmed during
    planning. Tests live on those, and choosing a new one is a planning decision.
 2. Run the repository's existing test command once, unchanged, to see what
-   passing currently looks like.
+   passing currently looks like. Read `references/test-execution.md` before recording
+   that run or any red/green evidence.
 3. Read `CONTEXT.md` for vocabulary — test names carry the domain words.
 
 ## Definition of done
@@ -77,3 +78,4 @@ goes to the owner as one.
   dependency with a fake, or when a test stands between the work and green.
 - `references/templates/README.md` — read when choosing which enabling template
   fits the dependency you need to make real.
+- `references/test-execution.md` — exact command, failure and result evidence contract.

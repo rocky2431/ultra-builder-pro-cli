@@ -10,47 +10,32 @@ every write.
   acceptance, irreversible actions, external effects, and real-money commitments.
 - The host model investigates facts, recommends a direction, makes reversible
   implementation judgments, and explains uncertainty.
-- Use the host-native question surface declared by the installed interaction contract;
-  prefer its structured form when the host exposes one.
-- `ultra.record` persists only the normalized result and its provenance.
-- MCP validates structure, identity, digests, CAS, leases, paths, and recovery. It does
-  not decide whether a product answer is good.
+- Use the host-native question surface when one exists; prefer its structured form.
+- `.ultra/decisions/*.md` stores only a normalized durable result and bounded
+  provenance. Git supplies history and recovery.
 
 ## Interaction sequence
 
-1. Read `ultra.context` for the relevant scope.
-2. Inspect source, runtime, tests, accepted artifacts, and primary documentation.
+1. Read `.ultra/north-star.md`, `.ultra/tasks.json`, the active task context, relevant
+   specifications, Changes, decisions, and evidence.
+2. Inspect source, runtime, tests, and primary documentation for observable facts.
 3. Reuse an explicit choice already present in the current request or an accepted
-   Decision Record.
+   decision file.
 4. Decide a reversible delegated detail without asking.
 5. When owner authority is still required, ask one unresolved owner choice at a time
-   with:
-   - the recommendation;
-   - the discriminating evidence;
-   - the meaningful cost or failure mode;
-   - what changes when the answer changes.
-6. Normalize the answer into a deterministic Decision Record and persist it with
-   `ultra.record` using `kind: decision`, `action: accept`.
-7. Read `ultra.context` back and verify that the accepted decision is visible before
-   relying on it.
-
-## Decision Record
-
-Persist only:
-
-- normalized question;
-- recommendation and selected answer;
-- effects and non-goals;
-- owner, source, and bounded provenance;
-- applied artifact references;
-- supersession link when revising an earlier answer.
+   with the recommendation, discriminating evidence, meaningful failure mode, and what
+   changes under each viable answer.
+6. Write a qualifying durable result to `.ultra/decisions/<id>.md` with question,
+   status, selected answer, effects, non-goals, owner, date, evidence, consequences,
+   and a supersession link when applicable.
+7. Read that file back before relying on it.
 
 Never persist raw transcripts, hidden reasoning, full prompts, UI receipts, or copied
-memory-provider payloads.
+provider payloads.
 
 ## Revisions and interruptions
 
-Accepted decisions are immutable history. A changed answer creates a new Decision
-Record that supersedes the prior record. A cancelled question writes nothing. If a
-decision cannot be obtained, preserve the unresolved issue as a diagnostic or bounded
-event; do not invent an answer or block unrelated work.
+Accepted decisions are append-only history. A changed answer creates a new file that
+supersedes the prior decision. A cancelled question writes nothing. If the answer
+cannot be obtained, keep the issue open in the active task context and stop only the
+effect that requires that authority; unrelated work remains available.

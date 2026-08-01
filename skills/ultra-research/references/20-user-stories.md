@@ -24,7 +24,8 @@ writing vague acceptance.
 
 Complete the step with evidence references and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `requirement`. Record `preconditions`, `action`, `observable_result`,
-`error_recovery`, and `verification`. Link it to its accepted scenario or decision.
+In the area report, record `preconditions`, `action`, `observable_result`,
+`error_recovery`, and `verification`. Link the requirement heading to its accepted
+scenario or decision.

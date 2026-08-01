@@ -22,10 +22,10 @@ Update `discovery.md` with the assumption ledger and validation state. Map unres
 load-bearing assumptions to blocking unknowns or gaps. Keep non-blocking future work
 out of the implementation task graph until the owner selects it.
 
-Link evidence and the updated specification anchor from the immutable step report
-required by the orchestrator.
+Link evidence and the updated specification anchor from the bounded area report written
+for this research run.
 
-## Semantic record
+## Report trace
 
-Use kind `assumption`. Record `category`, `consequence`, `validation_signal`,
-`success_rule`, `failure_rule`, and `ambiguous_rule`.
+In the area report, record `category`, `consequence`, `validation_signal`,
+`success_rule`, `failure_rule`, and `ambiguous_rule`, then link the discovery anchor.

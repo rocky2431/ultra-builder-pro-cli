@@ -22,7 +22,7 @@ runtime paths, error paths, and evidence. Link each proposed block to a consumer
 
 Complete the step with source evidence and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `runtime_path`. Record `entry_point`, `state_side_effects`,
-`observable_result`, `failure_recovery`, and `consumers`.
+In the area report, record `entry_point`, `state_side_effects`, `observable_result`,
+`failure_recovery`, and `consumers`, then link the architecture heading.

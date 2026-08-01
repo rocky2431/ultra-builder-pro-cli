@@ -1,8 +1,9 @@
 # ultra-builder-pro-cli — 仓库内历史执行记录
 
-> 本文件只保留早期实现过程，既不随 npm 包发布，也不是当前 Prompt、Skill、
-> 工作流或发布状态的权威来源。当前边界见 `docs/DECISIONS.md`，当前版本见
-> `package.json`，可执行合同见 `spec/` 与源代码。
+> 本文件只保留 v0.25 及更早的实现过程，既不随 npm 包发布，也不是当前 Prompt、
+> Skill、工作流或发布状态的权威来源。v0.26 已删除下文的 MCP、SQLite、orchestrator、
+> commands 与 agents 架构；当前边界见 `docs/DECISIONS.md`、`docs/ARCHITECTURE.md`、
+> `adapters/_shared/runtime-assets.cjs` 与 `package.json`。
 
 > **2026-07-24 当前生效边界（D50-D60，覆盖下文旧 Phase 6/7 的内置图谱、memory 与 runtime 设计）**：
 > Ultra Builder Pro 不再拥有 `memory.*`、recall、prompt/transcript/observation/summary

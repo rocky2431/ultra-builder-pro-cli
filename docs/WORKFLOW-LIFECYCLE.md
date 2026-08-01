@@ -1,230 +1,134 @@
 # Ultra Builder Pro workflow lifecycle
 
-Ultra is an adaptive capability graph, not an automatically chained pipeline. The
-current Skill inspects authority and recommends a next capability. The user explicitly
-starts that capability. Skills own semantic procedure; the seven-tool MCP kernel owns
-persistence and mechanical safety across Claude Code, Codex, OpenCode, Kimi Code, and
-Grok Build.
+Ultra v0.26 has no fixed runtime state machine. Skills define checkable entry and exit
+criteria; repository files record facts; the host model chooses the route.
 
-## Capability graph
-
-```mermaid
-flowchart TD
-    START["Project"] --> INIT["ultra-init"]
-    INIT --> RESEARCH["ultra-research"]
-    RESEARCH --> THINK["ultra-think when a material decision remains"]
-    THINK --> RESEARCH
-    RESEARCH --> CHANGE["ultra-change"]
-    CHANGE --> ROUTE{"What does this Change actually need?"}
-    ROUTE -->|"Evidence gap"| CR["bounded ultra-research"]
-    CR --> ROUTE
-    ROUTE -->|"Implementation"| PLAN["ultra-plan"]
-    PLAN --> DEV["ultra-dev for one owned Task"]
-    DEV --> MORE{"More executable Tasks?"}
-    MORE -->|"Yes"| DEV
-    MORE -->|"No"| ASSESS{"What evidence is still warranted?"}
-    ROUTE -->|"No implementation; current evidence is sufficient"| ASSESS
-    ASSESS -->|"Risk-selected verification"| TEST["ultra-test"]
-    ASSESS -->|"Independent review"| REVIEW["ultra-review"]
-    ASSESS -->|"Caller accepts current packet and explicit omissions"| DELIVER["ultra-deliver"]
-    TEST -->|"implementation gap"| DEV
-    TEST -->|"review warranted"| REVIEW
-    TEST -->|"caller accepts evidence"| DELIVER
-    REVIEW -->|"implementation issue"| DEV
-    REVIEW -->|"contract issue"| PLAN
-    REVIEW -->|"accepted"| DELIVER
-    DELIVER --> CHANGE
-    STATUS["ultra-status"] -.-> INIT
-    STATUS -.-> CHANGE
-    DOCTOR["ultra-doctor"] -.-> INIT
-    DOCTOR -.-> CHANGE
-```
-
-The graph is guidance, not database authorization. The host model selects the evidence
-needed by the actual Change route and records every deliberate omission in the delivery
-handoff. When implementation occurs, its Plan, Task contract, and Context remain
-mandatory execution authority; Research, Test, and Review are used according to the
-actual evidence and risk rather than as universal archive gates. `ultra-status` is
-read-only. `ultra-doctor` repairs mechanical authority only.
-
-## Shared command contract
-
-Every public Skill follows the same boundary:
-
-1. read the current `ultra.context`;
-2. inspect checkout/runtime facts directly;
-3. identify the smallest unresolved semantic choice;
-4. recommend a route and ask only when user intent is not already explicit;
-5. persist normalized facts through typed `ultra.record`;
-6. update the owning semantic/evidence files;
-7. save or accept the stage through `ultra.checkpoint`;
-8. read back current authority;
-9. report diagnostics and recommend, but do not launch, the next Skill.
-
-No command records ceremonial steps merely to satisfy SQLite.
-
-## Capability ownership
-
-| Skill | Semantic owner | Durable output |
-|---|---|---|
-| `ultra-init` | repository classification, scope, Git/runtime bootstrap | initialized local authority and empty/imported team checkpoint |
-| `ultra-research` | adaptive evidence coverage and accepted baseline | baseline specs, research evidence, Decision Records, baseline checkpoint |
-| `ultra-think` | one load-bearing owner decision or bounded diagnosis | normalized Decision Record and applied references |
-| `ultra-change` | feature/fix/refactor/incident contract | active Change intent, classification, delta and decision scope |
-| `ultra-plan` | Task contracts, topology, ownership, acceptance coverage | accepted Plan checkpoint, deterministic plan files, team checkpoint |
-| `ultra-dev` | one owned vertical Task implementation | Worker Packet output, task outcome, implementation evidence checkpoint |
-| `ultra-test` | risk-selected executable validation | test report and accepted test checkpoint |
-| `ultra-review` | independent spec fidelity and engineering quality | specialist artifacts, coordinated summary, accepted review checkpoint |
-| `ultra-deliver` | documentation/spec reconciliation and local archive | delivery evidence, converged baseline, immutable archive, team checkpoint |
-| `ultra-status` | current Context rendering | no state mutation |
-| `ultra-doctor` | mechanical health, migration, backup and repair | diagnostic/repair report; no product decision |
-
-## Context and decisions
-
-One canonical Context Envelope flows through Skill, Hook, Session, Agent, and compact
-recovery. Accepted Decision Records are always visible, including when no workflow is
-active. A new session therefore resumes from accepted intent rather than reconstructing
-it from conversation.
-
-Decision history is append-only through supersession:
+## Capability flow
 
 ```text
-proposed -> accepted -> superseded
-         -> rejected
+ultra-init
+    ├─ unresolved external claims ─► ultra-research
+    └─ bounded requested outcome ──► ultra-change
+
+ultra-change ─► ultra-plan ─► ultra-dev (per task) ─► ultra-test ─► ultra-deliver
+                     ▲                 │                    │
+                     └── replan ◄──────┘                    └── findings return to owner/model
+
+ultra-status    read-only router at any point
+ultra-delegate  orthogonal bounded execution on another CLI
 ```
 
-The status of a proposal never grants execution authority. The accepted record, its
-digest, applied references, and the owning checkpoint do.
+Arrows are recommendations, not automatic invocation. The owner explicitly selects
+each public workflow.
 
-## Checkpoints, not fixed steps
+## Common entry contract
 
-Stage authority is revisioned:
+Every user-invoked Skill reads, in order:
 
-```text
-draft revision N
-  -> accepted revision N
-  -> accepted revision N+1 supersedes N
-```
+1. `.ultra/tasks.json`;
+2. the unfinished task's `context_file` and closing `## Resume Note`;
+3. `CONTEXT.md` and relevant `.ultra/decisions/`;
+4. the active Change, specifications, evidence, and Git state relevant to its scope.
 
-Semantic diagnostics remain recorded but do not reject the model's explicit
-checkpoint conclusion. A structural, digest, path, publication, or concurrency
-conflict keeps the same draft mutable. Plan export is part of Plan checkpoint
-publication, so changing a Task contract before acceptance cannot invalidate an
-already-recorded “export step.” There is no locked intermediate run to cancel or
-manually repair.
+Missing files produce a precise recovery or initialization recommendation. They do not
+cause the Skill to invent a state transition.
 
-Accepted checkpoints are immutable evidence. New facts create a replacement draft.
-Only archive history is terminal; subsequent product work opens a new Change.
+## Initialization
 
-## Change lifecycle
+`ultra-init` distinguishes owner authorization from claims requiring evidence. It
+creates the file skeleton, preserves unknowns as `[NEEDS CLARIFICATION]`, initializes
+Git when absent, and records only repository-observable brownfield facts. It does not
+perform research or launch another workflow.
 
-Live v0.24 writes only:
+## Research
 
-```text
-active -> archived
-   |
-   -> cancelled
-```
+`ultra-research` maps unresolved claims to the smallest useful subset of seventeen
+focused references. Reports are written immediately. Three material checkpoints can
+change later scope; the owner resolves those checkpoints. The final distillate records
+Git blob hashes of the specifications it summarizes.
 
-`blocked`, `ready`, and `needs_attention` are derived diagnostics, not absorbing Change
-states. An active Change may be revised. The Deliver Skill inspects the relevant Task,
-Context, test, review, documentation, and delivery evidence, decides semantic
-sufficiency, and records deliberate omissions. Archive validates the explicit handoff,
-current authority, reconciliation structure, and safe recoverable filesystem/DB
-transaction without enforcing a fixed stage sequence. Archived bytes remain immutable.
+## Change reconciliation
 
-Older `ready` or `blocked` rows are readable migration history. They do not authorize
-new work until migration/revalidation derives current checkpoint authority.
+`ultra-change` first compares requested behavior with product truth and current code.
+It classifies changes by the resulting commitments:
 
-## Task and Session lifecycle
+- expansion and correction may proceed inside accepted intent;
+- a reduction waits for explicit owner authority.
 
-Task durable outcomes remain portable:
+The output is one active Change intent with observable outcome, acceptance, seams,
+non-goals, and trace anchors.
 
-```text
-pending -> in_progress -> completed
-   |          |              |
-   |          -> blocked     -> in_progress (explicit reopen)
-   -> blocked
-   -> cancelled
-```
+## Planning
 
-`in_progress`, Worker ownership, leases, PIDs, heartbeats, worktrees, and completion
-commit backfill are checkout-local. They are not published to Git.
-Reopening a completed Task clears the local completion/session fields, preserves the
-prior completion commit in an append-only `task_reopened` event, and requires a new
-durable outcome before it can be completed again.
+`ultra-plan` confirms the scope posture and public seams, then writes a task graph and
+one context file per task. Feature tasks are tracer bullets. A contract task precedes
+cross-process or cross-top-level-boundary implementations; integration checkpoints
+appear after several slices. Cycles and broken trace paths are repaired before handoff.
 
-`ultra.session acquire` atomically:
+## Task development
 
-1. checks a real lease/CAS conflict;
-2. compiles or reuses the exact Context Envelope;
-3. creates an immutable Worker Packet;
-4. allocates the lease/worktree;
-5. returns packet path/digest and exact execution boundary.
+`ultra-dev` writes the implementation plan into the task context before code. It uses
+`ultra-tdd` on confirmed seams, records six evidence dimensions, and keeps ledger and
+context status synchronized. The closing Resume Note is rewritten even when work stops
+early.
 
-A missing semantic detail is diagnostic, not a transport failure. A genuine lease,
-digest, unsafe path, or concurrent authority conflict fails closed. Optional
-orchestration can dispatch only a Change-owned Task with an accepted Plan checkpoint
-and assigned Worker Packet.
+Task review uses six independent lenses. Findings move through stable JSON artifacts,
+not intermediate worker chatter. Refactoring happens after the evidence makes real
+duplication or coupling visible.
 
-## Team sync
+## Whole-system audit
 
-`.ultra/tasks/tasks.json` is a tracked, digest-chained team checkpoint. It carries
-portable baseline, Change, Decision summary/reference, accepted Stage Checkpoint, Task
-contract, dependency, and durable outcome records. It excludes local execution state.
+`ultra-test` runs once after the ledger is complete. It checks anti-patterns, coverage,
+wiring, E2E behavior, performance, and security. It names the exact Git commit and
+never turns an orphan, failed command, stub, or omission into permission to alter scope.
 
-`ultra.sync` supports:
+## Delivery
 
-- `inspect`: side-effect-free condition and migration advice;
-- `migrate`: exact-byte backup-first legacy conversion;
-- `import`: schema/digest/ancestry/CAS validation and clean fast-forward;
-- `publish`: reconcile incoming Git authority, then publish one new generation.
+`ultra-deliver` reconciles actual outcome, specifications, documentation, current test
+report, aggregate review, build, version impact, omissions, and rollback. It archives
+the Change with `git mv` after local reconciliation.
 
-Same-record concurrent edits return a typed conflict. Ultra does not silently choose
-one intent. Imported accepted baseline authority requires checkout-local source/spec
-revalidation before descendant publication.
+Commit, push, tag, publication, release, and deployment are independent external
+effects. Readiness grants none automatically.
 
-Metadata-only Ultra commits do not make a baseline stale. Source or specification
-drift remains visible and may require revalidation.
+## Status routing
 
-## Hook lifecycle
+`ultra-status` infers the smallest next route from observable files:
 
-Hooks do not drive the capability graph. They:
+- no healthy skeleton → init;
+- unresolved evidence-bearing claim → research;
+- requested outcome without active Change → change;
+- active Change without executable ledger → plan;
+- pending or in-progress task → dev;
+- completed ledger without current report → test;
+- current report and unarchived Change → deliver.
 
-- inject a bounded Context Envelope where the host consumes it;
-- protect the team checkpoint and generated projections from direct writes;
-- save/restore minimal compact recovery state;
-- record minimal lifecycle identifiers;
-- return advisory Stop context.
+It also checks installation provenance, stale reports, old in-progress work, and
+unresolved markers. It does not mutate artifacts.
 
-When a host ignores Hook stdout, the adapter records health/events only and every Skill
-reads `ultra.context` explicitly. Hook limitations are never presented as successful
-context injection.
+## Artifact closure
 
-## Recovery
+Every durable output has a later reader:
 
-Use `ultra.context` first; legacy input must return a discoverable migration action
-instead of blocking diagnosis. Use `ultra.sync migrate` for semantic conversion and
-`ultra.doctor { repair: true }` for mechanical backup/recovery.
+- init's north star and specification skeletons are read by all later workflows;
+- research reports are traced into specifications, Change reconciliation, planning,
+  and delivery;
+- Change intent is consumed through planning, development, audit, review, status, and
+  delivery;
+- task ledger and contexts are the common resume input, while task evidence feeds
+  review, whole-system audit, and delivery;
+- the current test report is consumed by status and delivery;
+- delivery moves with the Change into archive and remains historical evidence.
 
-Migration supports v4.4/v4.5 projections and v0.22/v0.23 database/ledger authority.
-It is exact-byte backup-first, transactional, and fail-closed on conflict. Legacy
-workflow/dialogue rows survive as history but do not authorize current work.
+`ultra-status` intentionally writes nothing. Review, Hook, compact, and delegation
+files are derived observations with explicit rebuild or rerun paths. No route creates
+an unowned drift log, Change plan, technical-debt report, or second delivery summary.
 
-Repair never invents a product choice, edits a semantic artifact to make it pass, or
-asks the user to hand-edit SQLite.
+## Interruption and cross-host continuation
 
-## Hard-error boundary
+Before stopping, the active task context records current facts, exact verification,
+open questions, Completion, and a closing Resume Note. The next session or host repeats
+the common entry contract and compares the working tree with those claims.
 
-Only these classes fail the tool call:
-
-- database/schema corruption;
-- unsafe path, symlink, or identity swap;
-- actual digest, CAS, or lease concurrency conflict;
-- missing/incompatible native runtime;
-- permission failure;
-- archive/publish/deploy or another irreversible external-effect failure.
-
-Evidence gaps, incomplete exploration, stale optional context, missing reports, or
-other semantic insufficiency are structured diagnostics. The model remains responsible
-for investigating, revising, accepting, or explicitly recording an omission.
+This path remains valid when hooks and `ubp` are disabled. A compact snapshot may be
+used as a hint, then checked against canonical files and Git.

@@ -24,7 +24,7 @@ the current checkout contradicts an existing diagram or claim.
 
 Complete the step with source or runtime evidence and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `architecture_context`. Record `boundary`, `inputs_outputs`,
-`trust_authority`, and `consumers`.
+In the area report, record `boundary`, `inputs_outputs`, `trust_authority`, and
+`consumers`, then link the architecture heading.

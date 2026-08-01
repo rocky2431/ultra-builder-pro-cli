@@ -49,9 +49,9 @@
 
 ## Trace
 
-**Source**: `specs/product.md#section-id`
+**Source**: `.ultra/specs/product.md#section-id`
 
-**Decisions**: [relevant `decisions/<id>.md` entries, or `none`]
+**Decisions**: [relevant `.ultra/decisions/<id>.md` entries, or `none`]
 
 ## Change Log
 

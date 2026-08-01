@@ -24,12 +24,12 @@ Write `research-distillate.md` as a navigation and traceability artifact contain
 baseline ids, source document anchors, accepted decisions, blockers, gaps, verification
 evidence, and the exact planning entry. Do not duplicate the specifications' prose.
 
-Write the immutable `99-synthesis` step report, then complete the step with that report,
-all three baseline specification paths, the distillate path, and the evidence used for
-the synthesis. Read the completed workflow back before baseline convergence.
+Write the final `99-synthesis.md` report, link all three specification paths, the
+distillate path, and the evidence used for synthesis. Read those files back before
+reporting convergence.
 
-## Semantic record
+## Report trace
 
-Use kind `synthesis_trace`. Record one verified chain through `problem_id`,
-`scenario_id`, `requirement_ids`, `architecture_path_ids`, and `verification_refs`.
-Every referenced id must exist in an earlier selected step.
+Record one verified chain through `problem_id`, `scenario_id`, `requirement_ids`,
+`architecture_path_ids`, and `verification_refs`. Every referenced id must exist in an
+earlier selected area report or specification heading.

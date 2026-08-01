@@ -1,0 +1,118 @@
+{
+  "$schema": "ultra-test-report-v1",
+  "change_id": "chg-converge",
+  "task_ids": [
+    "v026-artifact-lifecycle",
+    "v026-agent-skill-convergence",
+    "v026-delegation-contract",
+    "v026-host-adapters",
+    "v026-self-migration",
+    "v026-release-verification"
+  ],
+  "git_commit": "3f99189bc68697262cd90444685ac2d4857139c4",
+  "worktree": {
+    "dirty": true,
+    "diff_digest": "44c6e04950a80c5690d8f33fa5c5da9d16a214e2a0d72b22d6037122b0a64c2c"
+  },
+  "commands": [
+    {
+      "command": "node --test tests/delegate.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "8 passed, 0 failed"
+    },
+    {
+      "command": "node --test adapters/_shared/tests/file-ops.test.cjs tests/install.test.cjs tests/v026-adapters.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "31 passed, 0 failed"
+    },
+    {
+      "command": "node --test tests/v026-contract.test.cjs tests/project-artifacts.test.cjs tests/package-smoke.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "current artifact graph and archived Change contract passed"
+    },
+    {
+      "command": "npm run verify:release",
+      "exit_code": 0,
+      "evidence_ref": "106 Node passed, 8 Hooks passed, 0 vulnerabilities"
+    },
+    {
+      "command": "for skill in skills/*; do uv run --with pyyaml -- python <skill-creator>/quick_validate.py $skill; done",
+      "exit_code": 0,
+      "evidence_ref": "14 of 14 Skill is valid"
+    },
+    {
+      "command": "uv run --with pyyaml -- python <plugin-creator>/validate_plugin.py <isolated-codex-plugin>",
+      "exit_code": 0,
+      "evidence_ref": "Plugin validation passed"
+    },
+    {
+      "command": "npm pack --dry-run --json",
+      "exit_code": 0,
+      "evidence_ref": "111 entries; 132432 bytes packed; 445788 bytes unpacked; 0 retired runtime entries"
+    },
+    {
+      "command": "node bin/install.js --all --global --config-dir <isolated-root> && doctor && reinstall && uninstall",
+      "exit_code": 0,
+      "evidence_ref": "five healthy; Codex hook trust user_review_required; config and fake HOME zero children"
+    },
+    {
+      "command": "python3 skills/ultra-review/scripts/review_wait.py .ultra/reviews/v026-final summary --packet-digest ee2e31dbb3fff941179e13ba0d9f7c6b93ac8a047a91b5212d6e2db8e9af8404",
+      "exit_code": 0,
+      "evidence_ref": "APPROVE; P0 0, P1 0, P2 0, P3 0"
+    }
+  ],
+  "areas": {
+    "anti_patterns": {
+      "status": "passed",
+      "evidence_refs": ["tests/skill-authoring.test.cjs", "tests/fixtures/v026-three-defenses/", ".ultra/reviews/v026-final/review-tests.json"],
+      "omissions": []
+    },
+    "coverage_gaps": {
+      "status": "gap",
+      "evidence_refs": [".ultra/reviews/v026-final/review-tests.json", "docs/wip/ultra-v026-skill-first.md"],
+      "omissions": ["Authenticated Claude-to-Codex provider continuation requires separate authorization."]
+    },
+    "wiring": {
+      "status": "passed",
+      "evidence_refs": ["tests/package-smoke.test.cjs", "tests/project-artifacts.test.cjs", ".ultra/reviews/v026-final/review-code.json"],
+      "omissions": []
+    },
+    "e2e": {
+      "status": "passed",
+      "evidence_refs": ["tests/package-smoke.test.cjs", "tests/install.test.cjs", "tests/delegate.test.cjs"],
+      "omissions": ["No authenticated provider or real HOME mutation is claimed."]
+    },
+    "performance": {
+      "status": "not_applicable",
+      "evidence_refs": ["npm run verify:release completed within the local release run"],
+      "omissions": ["No latency, throughput, or scale requirement exists for this CLI release; no synthetic load benchmark was added."]
+    },
+    "security": {
+      "status": "passed",
+      "evidence_refs": ["npm audit --omit=dev --audit-level=high", "tests/delegate.test.cjs", "hooks/tests/test_v026_hooks.py", "tests/install.test.cjs"],
+      "omissions": ["Host-native sandbox implementations remain outside package source and are version-bound."]
+    }
+  },
+  "verified_seams": [
+    "npm tarball to installed Claude plugin to initialized canonical project",
+    "installer CLI to five adapters to native manifests or registries to Doctor to ownership-safe uninstall",
+    "delegate CLI to native host profile to child process to real Git diff to terminal receipt",
+    "task ledger to contexts to evidence to test report to delivery",
+    "Hook event adapters to canonical files and derived progress or compact output"
+  ],
+  "findings": [],
+  "omissions": [
+    "Authenticated provider continuation and real HOME installation are separately authorized effects."
+  ],
+  "residual_risks": [
+    "Current real HOME installations remain v0.25.1 or absent and are degraded against v0.26 inventory.",
+    "Codex Hook activation requires user review after installation.",
+    "Native sandbox and provider behavior can drift with host versions."
+  ],
+  "owner_disposition": [
+    "The owner requested comprehensive local completion; external installation, provider spend, commit, push, and publication remain separate."
+  ],
+  "passed": true,
+  "run_count": 3,
+  "timestamp": "2026-08-01T12:19:52+08:00"
+}

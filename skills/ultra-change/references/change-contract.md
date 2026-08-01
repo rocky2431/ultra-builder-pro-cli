@@ -3,7 +3,46 @@
 Create one contract before planning. Keep every field specific enough to verify and
 stable enough to survive a fresh session.
 
-## Contract
+## Exact `intent.md` structure
+
+```markdown
+# Change <id>: <title>
+
+> **Status**: draft | accepted
+> **Profile**: quick | standard | major | incident
+
+## Outcome
+<one externally observable result>
+
+## Acceptance
+| ID | Criterion | Verification | Trace |
+|---|---|---|---|
+
+## Non-goals
+- <explicit boundary>
+
+## Public Seams
+- <entry point or output>
+
+## Reconciliation
+### Promised and Missing
+### Built and Unpromised
+### Contradictory
+
+## Planning Posture
+<EXPAND | SELECTIVE | HOLD | REDUCE, rationale, and owner confirmation>
+
+## Recovery
+<reversal or recovery path and its verification>
+
+## Unresolved Decisions
+- <stable id, summary, blocking state, owner>
+```
+
+Use `[NEEDS CLARIFICATION]` for missing semantic content. Do not silently omit a
+heading, and do not add another file that restates the same contract.
+
+## Contract fields
 
 - `outcome`: one externally observable result.
 - `acceptance`: stable ids with a criterion and exact verification for each accepted

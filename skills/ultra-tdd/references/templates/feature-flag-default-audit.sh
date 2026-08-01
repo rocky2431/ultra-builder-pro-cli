@@ -6,7 +6,7 @@
 # turning the feature off" failure mode v7 fixes.
 #
 # Usage:
-#   bash .ultra/templates/feature-flag-default-audit.sh [path]
+#   bash feature-flag-default-audit.sh [path]
 #
 # Default path: src/  (override with first arg)
 #

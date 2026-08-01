@@ -22,7 +22,7 @@ behavior and documentation disagree.
 
 Complete the step with evidence references and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `scenario`. Record `actor_id`, `trigger`, `preconditions`, `flow`, `success`,
-`failure`, and `recovery`.
+In the area report, record `actor_id`, `trigger`, `preconditions`, `flow`, `success`,
+`failure`, and `recovery`, then link the scenario heading in `product.md`.

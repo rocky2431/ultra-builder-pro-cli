@@ -1,72 +1,92 @@
 ---
 name: ultra-plan
-description: Turn an accepted Ultra Change Contract into dependency-valid, DB-backed vertical task contracts. Use when research obligations are resolved and implementation needs an executable plan.
+description: Turn an evidenced Change intent into a dependency-valid task ledger, confirmed test seams, and resumable task contexts. Use when implementation needs decomposition, a wide refactor needs an expand-contract route, or an interrupted plan must be reconstructed from repository files.
 ---
 
-# Build an executable plan
+# Turn one Change into executable tracer bullets
 
-The model owns decomposition and technical design. MCP commits the accepted task graph,
-digests, context, and team checkpoint in one semantic operation.
+Planning owns decomposition and technical design. Files carry the result across
+sessions and hosts; no runtime state decides whether the plan is meaningful.
 
-## Bind and design
+## Before you start
 
-1. Call `ultra.context { stage: plan, scope: { change_id }, detail: full }`.
-2. Inspect or import the team checkpoint with `ultra.sync`. Resolve real concurrent
-   record conflicts; do not merge authority by editing JSON.
-3. Require an accepted Change contract and its current typed delta. Direct Build skips
-   extra research, never Plan or task contracts.
-4. Read `references/semantic-preflight.md`; inspect real consumers, source, tests,
-   deployment, and recovery.
-5. Recommend `EXPAND`, `SELECTIVE`, `HOLD`, or `REDUCE` only when posture changes
-   accepted scope. Reuse an explicit posture and ask through the host-native UI only
-   for a material unresolved choice.
-6. Design a walking skeleton and vertical slices. Each task owns an observable outcome,
-   public seam, verification command, acceptance mapping, target seams, bounded
-   context refs, documentation impact, recovery, owner, and dependencies. Set the
-   published `type`, `priority`, optional bounded `complexity`/`estimated_days`,
-   `slice_kind`, and string-array `deps`/`files_modified` deliberately. Prefer the
-   shared vocabulary when it communicates the work, but use a bounded
-   repository-specific label when it is clearer; SQLite validates structure and does
-   not choose business taxonomy.
+1. Read `.ultra/tasks.json`; if a task is unfinished, read its `context_file` and
+   closing `## Resume Note` before replacing or extending anything.
+2. Read `CONTEXT.md` for vocabulary and the relevant `.ultra/decisions/` entries.
+3. Read the active Change intent, its `trace_to` specification anchors, and the
+   source, tests, consumers and recovery paths those anchors describe.
 
-Large sources stay lazy. Use digest freshness for accepted inputs that must remain
-byte-current, existence for expected implementation targets, and advisory only when
-drift must be visible without blocking.
+## Definition of done
 
-Read `../ultra-think/references/interaction-boundary.md` before asking a material
-question.
+- `.ultra/tasks.json` and one `.ultra/contexts/task-<id>.md` per task agree on
+  identifiers, status, dependencies and trace anchors.
+- The owner confirmed the scope posture and the seam list.
+- Every feature task is a tracer bullet touching at least two layers, unless the
+  Change itself demonstrably touches only one layer.
+- Coverage, dependency, trace, scope and context-budget checks have concrete results.
 
-## Record and checkpoint
+## Fix the planning posture
 
-Use one `ultra.record` batch with `task_contract / define` for new tasks and
-`task_contract / revise` for corrected contracts, including a wrong `title` or `type`,
-before accepting the Plan checkpoint. Read back the draft with `ultra.context`.
-Never write status, session, freshness, runtime tag, generated Context, or
-completion-commit fields through a Task Contract; Task outcomes and the runtime own
-them.
-Never read or write `.ultra/tasks/tasks.json`; use `ultra.sync` for the Git team
-checkpoint, and never edit the local runtime projection directly.
+Choose `EXPAND`, `SELECTIVE`, `HOLD` or `REDUCE`; default to `SELECTIVE`. Once
+chosen, keep that posture visible in the active Change intent rather than silently drifting.
+Write it to the active Change `intent.md` under `## Planning Posture`; there is no
+separate `plan.md` authority.
+Use `../ultra-grilling/SKILL.md` through the host-native question surface when the
+choice remains material, one question with a recommendation at a time.
 
-Call exactly one `ultra.checkpoint`:
+If the work cannot fit in one session *and* the path itself is still unclear, use
+`../ultra-think/SKILL.md` to resolve decision tickets before decomposing tasks.
 
-```text
-stage: plan
-scope: { change_id }
-payload: planning posture, optional approval already obtained, context budget/refs
-idempotency_key: stable semantic Plan checkpoint id
-```
+## Choose the plan shape
 
-The model decides whether decomposition, acceptance coverage, and context are
-sufficient and records any deliberate omission. Missing semantic detail remains a
-visible warning and does not deny an otherwise safe Session lease. The checkpoint compiles or reuses the
-content-addressed Context Envelope, reports advisory coverage diagnostics, exports
-`plan.json` and `plan.md` inside the same recoverable publication, accepts one Plan
-revision, and publishes the team checkpoint. Do not export separately.
+Use tracer bullets for ordinary work: each slice delivers one observable path through
+the layers it changes. Use expand–contract only when one mechanical change has a
+repository-wide blast radius and no vertical slice can keep the checkout green:
+expand with old and new forms, migrate bounded batches, then contract the old form.
 
-If rejected, the same Plan draft stays mutable. Fix only the reported structural,
-digest, path, or concurrency conflict and retry. To replace an accepted Plan, submit a
-new checkpoint revision; never edit SQLite or open a parallel run to escape a
-diagnostic.
+Build the graph with these structural defences:
 
-Return topology, executable slices, public seams, exact checks, checkpoint result, and
-the model's recommended execution order. Do not invoke `ultra-dev` automatically.
+- **Walking Skeleton**: Task 1 traverses every layer this Change touches through one
+  real request and real data. A genuinely one-layer Change does not invent one.
+- **Contract task**: create it before both implementations when targets cross two top-
+  level source directories or two processes/services.
+- **Integration Checkpoint**: insert one after every three or four feature tasks.
+- A feature task that touches only one of several affected layers is merged or split
+  into a tracer bullet; moving a whole layer into one task is horizontal slicing.
+
+Confirm the seam list before tests are written. Reuse an existing public seam and use
+the highest seam that observes the behavior; one seam is ideal when it covers the path.
+
+## Write the files
+
+Each task records `id`, `title`, `type`, `priority`, `complexity`, `status`,
+`dependencies`, `context_file`, `trace_to` and `change_ref`. Complexity is only a
+splitting and context signal: 1–2 is local, 3–5 is bounded, 6–7 crosses a boundary,
+and complexity > 7 must split.
+
+Each context records Acceptance, confirmed seams, layers touched, target files,
+Implementation, verification commands, Definition of Drift, Change Log, Completion
+and Resume Note. Read every file back; task count and context count must match.
+
+## Verify the plan
+
+1. Map every in-scope user story or acceptance anchor to at least one task.
+2. Walk dependencies and repair every cycle with the exact cycle chain visible.
+3. Resolve every `trace_to` path and heading against a real file.
+4. Surface complexity, more than eight target files, or more than twenty tasks as
+   scope warnings; they are observations, not semantic verdicts.
+5. Estimate context at roughly `complexity × 5%`; surface anything above 40%.
+
+Report the graph, frontier, seams, warnings and first task. Recommend the next explicit
+capability from the files; do not invoke it.
+
+## When the owner decides
+
+The owner chooses the posture, confirms seams, resolves reductions and accepts material
+omissions. Mechanical cycles and broken paths are repaired before handoff because they
+make the written graph impossible to execute.
+
+## References
+
+- `../ultra-grilling/SKILL.md` — read before a material posture or seam question.
+- `../ultra-think/SKILL.md` — read when fog of war requires decision tickets.

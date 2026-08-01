@@ -1,7 +1,0 @@
-{
-  "change_id": "change-001",
-  "payload": {
-    "summary": "Accepted delivery evidence is complete."
-  },
-  "idempotency_key": "archive-change-001"
-}

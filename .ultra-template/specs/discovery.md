@@ -6,7 +6,7 @@ copying provider payloads or research transcripts.
 ## Scope
 
 - Repository or product boundary:
-- Baseline id and revision:
+- Inspected Git revision and dirty boundary:
 - Decision this evidence must unlock:
 - Freshness boundary:
 
@@ -67,7 +67,7 @@ decision. Include source date, segment, geography, and assumptions when applicab
 
 ## Baseline Gaps
 
-Reference authoritative gap ids from `.ultra/.runtime/state.db`.
+Assign stable ids here and cite the repository evidence that exposed each gap.
 
 | Gap id | Category | Status | Evidence | Owner |
 |---|---|---|---|---|

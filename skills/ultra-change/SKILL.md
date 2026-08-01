@@ -64,6 +64,10 @@ disposition can quietly be a REDUCTION.
 
 ## Write the intent
 
+Read `references/change-contract.md` and use its exact `intent.md` headings. The active
+Change directory contains only this accepted contract until planning or delivery adds
+its defined artifacts; do not invent a parallel semantic record.
+
 Follow `../ultra-grilling/SKILL.md` to settle the boundary — one question at a
 time, each with your recommendation. New domain terms go through
 `../ultra-domain-modeling/SKILL.md`.
@@ -72,6 +76,10 @@ When the work is too large *and* the path itself is unclear, follow
 `../ultra-think/SKILL.md` for a decision ticket instead of forcing a task
 breakdown. What comes out is a question whose answer is a decision, not an
 implementation slice.
+
+When reconciliation proves the request is a directly executable one-slice correction,
+follow `../ultra-tdd/SKILL.md` at the confirmed public seam instead of manufacturing a
+task graph merely to satisfy ceremony.
 
 Output is `.ultra/changes/active/<id>/intent.md`, the specification patches
 reconciliation justified, possibly a `.ultra/decisions/<id>.md`, and any
@@ -87,5 +95,7 @@ false needs no permission at all.
 ## References
 
 - `../ultra-grilling/SKILL.md` — the loop for settling the boundary.
+- `references/change-contract.md` — exact `intent.md` structure and profile fields.
 - `../ultra-think/references/autonomy-boundary.md` — read before dispositioning a
   bucket in a way that removes something already promised.
+- `../ultra-tdd/SKILL.md` — read for an evidenced one-slice correction.

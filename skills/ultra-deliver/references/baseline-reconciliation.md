@@ -1,20 +1,39 @@
-# Baseline reconciliation manifest
+# Delivery reconciliation contract
 
-Write a JSON file inside `.ultra/changes/active/<change-id>/` with
-`$schema: "ultra-baseline-reconciliation-v1"`.
+Write exactly one `.ultra/changes/active/<change-id>/delivery.md`. It is editable while
+the Change is active and moves with the directory when archived.
 
-Bind `change_id`, `baseline_id`, and `baseline_updates` exactly to the archive request.
-Include:
+```markdown
+# Delivery: <change-id>
 
-- `semantic_changes`: stable id, `add` or `update`, project-relative `source_ref` using
-  `path#anchor`, the prior baseline digest or `null`, and the current file digest;
-- `resolved_gap_ids`: existing baseline gaps closed by this delivery;
-- `resolved_unknowns`: exact existing unknown summaries closed by this delivery;
-- `verification`: named checks with exact commands, `pass`, and bounded evidence;
-- `semantic_no_change_reason`: an evidence-backed reason when `baseline_updates` is
-  empty.
+## Outcome Reconciliation
+<accepted outcome versus observed result, with path#anchor evidence>
 
-Every updated file needs a semantic change record and current anchor. The before digest
-must match baseline authority and the after digest must match the file. Keep the
-manifest with the change so archive recovery can replay the same transaction after an
-interrupted filesystem move.
+## Specification and Documentation Updates
+<changed files and why, or an evidence-backed no-change statement>
+
+## Verification
+| Command | Exit | Evidence | Freshness |
+|---|---:|---|---|
+
+## Review
+<SUMMARY.json path, packet digest, verdict, and unresolved findings>
+
+## Technical Debt
+<bounded debt, consequence, owner, and upgrade path; or None>
+
+## Residual Risks and Omissions
+<owner disposition for every material item>
+
+## Recovery
+<rollback or recovery procedure and verification>
+
+## External Effects
+<commit, push, tag, publish, deploy: authorized and observed status separately>
+```
+
+Every semantic update cites a repository-relative `path#anchor`. A reduction requires
+the owner decision before the affected specification changes. Exact command evidence
+must match the checkout identified by `.ultra/test-report.json`; stale results stay
+visible and never become a pass. Do not create a second JSON or Markdown delivery
+summary.

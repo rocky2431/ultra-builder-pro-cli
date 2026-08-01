@@ -4,14 +4,12 @@
 > the Claude-Code-only version of the agent engineering system before the
 > CLI distribution / multi-runtime / MCP / SQLite redesign (Phase 0-8B).
 >
-> For the current CLI-focused documentation, see [`README.md`](../README.md)
-> and [`docs/ROADMAP.md`](./ROADMAP.md). For the authoritative project plan,
-> see [`docs/PLAN.zh-CN.md`](./PLAN.zh-CN.md).
+> For the current file-first documentation, see [`README.md`](../README.md),
+> [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md), and
+> [`docs/DECISIONS.md`](./DECISIONS.md).
 >
-> This file is kept for context on the pre-CLI design; commands / skills /
-> agents / hooks referenced here still live under `commands/` `skills/`
-> `agents/` `hooks/` but are now installed via the multi-runtime adapters
-> rather than copied directly into `.claude/`.
+> This file is kept only for historical context. Commands, agents, MCP runtime, and
+> orchestrator paths referenced below were removed in v0.26.
 
 ---
 

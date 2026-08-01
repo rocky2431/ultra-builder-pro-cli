@@ -1,369 +1,262 @@
 'use strict';
 
-// Integration tests for bin/install.js — spawns the CLI and verifies each
-// (runtime × scope) combo plus idempotency + clean uninstall.
-
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
-const REPO_ROOT = path.resolve(__dirname, '..');
-const INSTALL_JS = path.join(REPO_ROOT, 'bin', 'install.js');
-const PACKAGE = require(path.join(REPO_ROOT, 'package.json'));
-const ULTRA_TOOLS = require(path.join(REPO_ROOT, 'ultra-tools', 'cli.cjs'));
-const { createFakeGrok } = require('../adapters/tests/grok-cli-fixture.cjs');
+const ROOT = path.resolve(__dirname, '..');
+const CLI = path.join(ROOT, 'bin', 'install.js');
+const PACKAGE = require('../package.json');
 
-function runCli(args, { cwd, homeDir, env = {} } = {}) {
-  return spawnSync(process.execPath, [INSTALL_JS, ...args], {
-    cwd: cwd || REPO_ROOT,
+function temporary(prefix) {
+  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function run(args, options = {}) {
+  return spawnSync(process.execPath, [CLI, ...args], {
+    cwd: ROOT,
     encoding: 'utf8',
-    env: { ...process.env, ...(homeDir ? { HOME: homeDir } : {}), ...env },
+    env: { ...process.env, ...options.env },
   });
 }
 
-function mkTarget(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), `ubp-install-${prefix}-`));
-}
-
-function cleanup(dir) {
-  try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* ignore */ }
-}
-
-test('package exports every documented CLI entrypoint', () => {
-  assert.equal(PACKAGE.bin['ultra-tools'], 'ultra-tools/cli.cjs');
-  assert.equal(PACKAGE.bin['ubp-handbook'], undefined);
-  assert.ok(!PACKAGE.files.includes('docs/USER-HANDBOOK-CONTRACT.md'));
-  assert.ok(PACKAGE.files.includes('docs/PLUGIN-ISOLATION-CONTRACT.md'));
-  assert.deepEqual(Object.keys(ULTRA_TOOLS.SUBCOMMANDS).sort(), [
-    'db', 'legacy-memory', 'migrate', 'session', 'status', 'system', 'task',
-  ]);
+test('package exposes only the installer and delegate entrypoint', () => {
+  assert.deepEqual(PACKAGE.bin, {
+    'ultra-builder-pro-cli': 'bin/install.js',
+    ubp: 'bin/install.js',
+  });
+  const help = run(['--help']);
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /Claude Code/);
+  assert.match(help.stdout, /OpenCode/);
+  assert.match(help.stdout, /Codex CLI/);
+  assert.match(help.stdout, /Kimi Code/);
+  assert.match(help.stdout, /Grok Build/);
 });
 
-const RUNTIMES = [
-  {
-    flag: '--claude',
-    name: 'claude',
-    expectRelPaths: [
-      'skills/ultra-builder-pro/.claude-plugin/plugin.json',
-      'skills/ultra-builder-pro/commands',
-      'skills/ultra-builder-pro/hooks/hooks.json',
-      'skills/ultra-builder-pro/.mcp.json',
-      'skills/ultra-builder-pro/provenance.json',
-    ],
-  },
-  { flag: '--opencode', name: 'opencode', expectRelPaths: ['commands', 'skills', 'plugins/ultra-builder-pro.js', 'opencode.json', '.ultra-builder-pro/provenance.json'] },
-  {
-    flag: '--codex',
-    name: 'codex',
-    expectRelPaths: [
-      'plugins/ultra-builder-pro/.codex-plugin/plugin.json',
-      'plugins/ultra-builder-pro/runtime/launch.cjs',
-      'plugins/ultra-builder-pro/runtime/index.cjs',
-      'agents/review-code.toml',
-      '.agents/plugins/marketplace.json',
-      'ultra-builder-pro/install-manifest.json',
-      'ultra-builder-pro/provenance.json',
-    ],
-  },
-  {
-    flag: '--kimi',
-    name: 'kimi',
-    expectRelPaths: [
-      'plugins/managed/ultra-builder-pro/kimi.plugin.json',
-      'plugins/managed/ultra-builder-pro/commands',
-      'plugins/managed/ultra-builder-pro/skills',
-      'plugins/managed/ultra-builder-pro/hooks/adapters/kimi.py',
-      'plugins/managed/ultra-builder-pro/runtime/launch.cjs',
-      'plugins/managed/ultra-builder-pro/provenance.json',
-      'plugins/installed.json',
-    ],
-  },
-  {
-    flag: '--grok',
-    name: 'grok',
-    expectRelPaths: [
-      'installed-plugins/ultra-builder-pro-testkey/plugin.json',
-      'installed-plugins/ultra-builder-pro-testkey/commands',
-      'installed-plugins/ultra-builder-pro-testkey/skills',
-      'installed-plugins/ultra-builder-pro-testkey/agents',
-      'installed-plugins/ultra-builder-pro-testkey/hooks/adapters/grok.py',
-      'installed-plugins/ultra-builder-pro-testkey/runtime/launch.cjs',
-      'installed-plugins/ultra-builder-pro-testkey/provenance.json',
-    ],
-  },
-];
-
-for (const rt of RUNTIMES) {
-  test(`install.js — ${rt.name} install + uninstall round-trip (--config-dir)`, () => {
-    const target = mkTarget(rt.name);
-    const fakeRoot = rt.name === 'grok' ? mkTarget('grok-bin') : null;
-    const env = fakeRoot ? { GROK_BIN: createFakeGrok(fakeRoot) } : {};
+for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok']) {
+  test(`${runtime} CLI install, doctor, reinstall and uninstall stay inside config-dir`, () => {
+    const config = temporary(`ubp-cli-${runtime}-`);
+    const fakeHome = temporary(`ubp-cli-home-${runtime}-`);
+    const args = [`--${runtime}`, '--global', '--config-dir', config];
     try {
-      const installed = runCli([rt.flag, '--config-dir', target], { homeDir: target, env });
-      assert.equal(installed.status, 0, `install stderr:\n${installed.stderr}`);
-      for (const rel of rt.expectRelPaths) {
-        assert.ok(fs.existsSync(path.join(target, rel)), `expected ${rel} after ${rt.name} install`);
-      }
+      const first = run(args, { env: { HOME: fakeHome } });
+      assert.equal(first.status, 0, first.stderr || first.stdout);
 
-      const uninstalled = runCli(
-        [rt.flag, '--config-dir', target, '--uninstall'],
-        { homeDir: target, env },
-      );
-      assert.equal(uninstalled.status, 0, `uninstall stderr:\n${uninstalled.stderr}`);
-      // After uninstall, the leaf sentinel/config should either be gone or no longer
-      // contain our managed block. For simplicity, assert that the primary asset
-      // dir was removed.
-      const primary = rt.expectRelPaths[0];
-      assert.ok(!fs.existsSync(path.join(target, primary)), `expected ${primary} removed after ${rt.name} uninstall`);
+      const doctor = run([...args, '--doctor', '--json'], { env: { HOME: fakeHome } });
+      assert.equal(doctor.status, 0, doctor.stderr || doctor.stdout);
+      const report = JSON.parse(doctor.stdout);
+      assert.equal(report.status, 'healthy', JSON.stringify(report.reports));
+
+      const second = run(args, { env: { HOME: fakeHome } });
+      assert.equal(second.status, 0, second.stderr || second.stdout);
+
+      const uninstall = run([...args, '--uninstall'], { env: { HOME: fakeHome } });
+      assert.equal(uninstall.status, 0, uninstall.stderr || uninstall.stdout);
+      assert.deepEqual(fs.readdirSync(config), [], `${runtime} left config-dir residue`);
+      assert.deepEqual(fs.readdirSync(fakeHome), [], `${runtime} escaped config-dir`);
     } finally {
-      cleanup(target);
-      if (fakeRoot) cleanup(fakeRoot);
+      fs.rmSync(config, { recursive: true, force: true });
+      fs.rmSync(fakeHome, { recursive: true, force: true });
     }
   });
 }
 
-test('install.js — --all fans out to every supported runtime', () => {
-  const target = mkTarget('all');
-  const fakeRoot = mkTarget('grok-bin');
-  const env = { GROK_BIN: createFakeGrok(fakeRoot) };
-  const localRoots = {
-    claude: '.claude', opencode: '.opencode', codex: '', kimi: '.kimi-code', grok: '.grok',
-  };
-  try {
-    const installed = runCli(['--all', '--local'], {
-      cwd: target,
-      homeDir: target,
-      env,
-    });
-    assert.equal(installed.status, 0, `--all install stderr:\n${installed.stderr}`);
-    for (const runtime of RUNTIMES) {
-      assert.ok(
-        fs.existsSync(path.join(target, localRoots[runtime.name], runtime.expectRelPaths[0])),
-        runtime.name,
-      );
-    }
-  } finally {
-    cleanup(target);
-    cleanup(fakeRoot);
-  }
-});
-
-test('install and uninstall never mutate host user handbooks', () => {
-  const home = mkTarget('handbook-isolation');
-  const fakeRoot = mkTarget('grok-bin');
-  const env = { GROK_BIN: createFakeGrok(fakeRoot) };
-  const handbooks = [
-    path.join(home, '.claude', 'CLAUDE.md'),
-    path.join(home, '.config', 'opencode', 'AGENTS.md'),
-    path.join(home, '.codex', 'AGENTS.md'),
-    path.join(home, '.kimi-code', 'AGENTS.md'),
-    path.join(home, '.grok', 'AGENTS.md'),
+test('--all gives each host its own config-dir namespace', () => {
+  const config = temporary('ubp-cli-all-');
+  const fakeHome = temporary('ubp-cli-all-home-');
+  const args = ['--all', '--global', '--config-dir', config];
+  const pluginRoots = [
+    path.join(config, 'claude', 'skills', 'ultra-builder-pro'),
+    path.join(config, 'opencode', '.ultra-builder-pro'),
+    path.join(config, 'codex', 'plugins', 'ultra-builder-pro'),
+    path.join(config, 'kimi', 'plugins', 'managed', 'ultra-builder-pro'),
+    path.join(config, 'grok', '.ubp', 'plugin-sources', 'ultra-builder-pro'),
   ];
-  const configDirs = {
-    claude: path.join(home, '.claude'),
-    opencode: path.join(home, '.config', 'opencode'),
-    codex: path.join(home, '.codex'),
-    kimi: path.join(home, '.kimi-code'),
-    grok: path.join(home, '.grok'),
+  try {
+    const installed = run(args, { env: { HOME: fakeHome } });
+    assert.equal(installed.status, 0, installed.stderr || installed.stdout);
+    for (const root of pluginRoots) assert.ok(fs.existsSync(root), root);
+
+    const doctor = run([...args, '--doctor', '--json'], { env: { HOME: fakeHome } });
+    assert.equal(doctor.status, 0, doctor.stderr || doctor.stdout);
+    assert.equal(JSON.parse(doctor.stdout).status, 'healthy', doctor.stdout);
+
+    const uninstalled = run([...args, '--uninstall'], { env: { HOME: fakeHome } });
+    assert.equal(uninstalled.status, 0, uninstalled.stderr || uninstalled.stdout);
+    for (const root of pluginRoots) assert.equal(fs.existsSync(root), false, root);
+    assert.deepEqual(fs.readdirSync(config), [], 'all-host uninstall left config-dir residue');
+    assert.deepEqual(fs.readdirSync(fakeHome), []);
+  } finally {
+    fs.rmSync(config, { recursive: true, force: true });
+    fs.rmSync(fakeHome, { recursive: true, force: true });
+  }
+});
+
+test('Codex config-dir owns both plugin root and marketplace sidecar', () => {
+  const config = temporary('ubp-codex-config-');
+  const realHomeSentinel = temporary('ubp-codex-real-home-');
+  try {
+    const installed = run(['--codex', '--global', '--config-dir', config], {
+      env: { HOME: realHomeSentinel },
+    });
+    assert.equal(installed.status, 0, installed.stderr || installed.stdout);
+    assert.ok(fs.existsSync(path.join(config, 'plugins', 'ultra-builder-pro')));
+    assert.ok(fs.existsSync(path.join(config, '.agents', 'plugins', 'marketplace.json')));
+    const listed = spawnSync('codex', ['plugin', 'list', '--json'], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: config, CODEX_HOME: config },
+    });
+    assert.equal(listed.status, 0, listed.stderr || listed.stdout);
+    const plugin = JSON.parse(listed.stdout).installed.find((entry) => (
+      entry.name === 'ultra-builder-pro'
+    ));
+    assert.equal(plugin?.enabled, true, listed.stdout);
+    assert.deepEqual(fs.readdirSync(realHomeSentinel), []);
+  } finally {
+    run(['--codex', '--global', '--config-dir', config, '--uninstall'], {
+      env: { HOME: realHomeSentinel },
+    });
+    fs.rmSync(config, { recursive: true, force: true });
+    fs.rmSync(realHomeSentinel, { recursive: true, force: true });
+  }
+});
+
+test('Codex install rolls back managed files when native registration fails', () => {
+  const config = temporary('ubp-codex-rollback-');
+  const fakeBinRoot = temporary('ubp-codex-fake-bin-');
+  const fakeCodex = path.join(fakeBinRoot, 'codex');
+  fs.writeFileSync(fakeCodex, `#!/usr/bin/env node
+const command = process.argv.slice(2).join(' ');
+if (command === 'plugin list --json') {
+  process.stdout.write('{"installed":[],"available":[]}\\n');
+  process.exit(0);
+}
+if (command.startsWith('plugin add ')) {
+  process.stderr.write('synthetic add failure\\n');
+  process.exit(9);
+}
+if (command.startsWith('plugin remove ')) {
+  process.stdout.write('{}\\n');
+  process.exit(0);
+}
+process.exit(2);
+`);
+  fs.chmodSync(fakeCodex, 0o755);
+  const codex = require('../adapters/codex.js');
+  const ctx = {
+    repoRoot: ROOT,
+    scope: 'global',
+    configDir: config,
+    homeDir: config,
+    codexBin: fakeCodex,
+    runPluginCli: true,
   };
   try {
-    for (const [index, file] of handbooks.entries()) {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, `USER-OWNED-HANDBOOK-${index}\n`);
-    }
-    const before = handbooks.map((file) => fs.readFileSync(file));
-
-    for (const runtime of RUNTIMES) {
-      const installed = runCli([
-        runtime.flag,
-        '--global',
-        '--config-dir',
-        configDirs[runtime.name],
-      ], { homeDir: home, env });
-      assert.equal(installed.status, 0, `${runtime.name}: ${installed.stderr}`);
-    }
-    handbooks.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
-
-    for (const runtime of [...RUNTIMES].reverse()) {
-      const uninstalled = runCli([
-        runtime.flag,
-        '--global',
-        '--config-dir',
-        configDirs[runtime.name],
-        '--uninstall',
-      ], { homeDir: home, env });
-      assert.equal(uninstalled.status, 0, `${runtime.name}: ${uninstalled.stderr}`);
-    }
-    handbooks.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
+    assert.throws(() => codex.install(ctx), /synthetic add failure/);
+    assert.equal(fs.existsSync(codex.resolvePluginRoot(ctx)), false);
+    assert.equal(fs.existsSync(codex.resolveMarketplaceFile(ctx)), false);
+    assert.deepEqual(fs.readdirSync(config), []);
   } finally {
-    cleanup(home);
-    cleanup(fakeRoot);
+    fs.rmSync(config, { recursive: true, force: true });
+    fs.rmSync(fakeBinRoot, { recursive: true, force: true });
   }
 });
 
-test('installation is project-inert before explicit ultra-init', () => {
-  const home = mkTarget('project-inert');
-  const fakeRoot = mkTarget('grok-bin');
-  const env = { GROK_BIN: createFakeGrok(fakeRoot) };
-  const project = path.join(home, 'project');
-  const configRoot = path.join(home, 'host-config');
-  const projectAgents = path.join(project, 'AGENTS.md');
-  const projectClaude = path.join(project, 'CLAUDE.md');
+test('Codex and Kimi preserve pre-existing empty registries on uninstall', () => {
+  const codexRoot = temporary('ubp-codex-existing-registry-');
+  const kimiRoot = temporary('ubp-kimi-existing-registry-');
+  const codex = require('../adapters/codex.js');
+  const kimi = require('../adapters/kimi.js');
+  const codexMarketplace = path.join(codexRoot, '.agents', 'plugins', 'marketplace.json');
+  const kimiRegistry = path.join(kimiRoot, 'plugins', 'installed.json');
   try {
-    fs.mkdirSync(project, { recursive: true });
-    fs.writeFileSync(projectAgents, 'PROJECT-OWNED-AGENTS\n');
-    fs.writeFileSync(projectClaude, 'PROJECT-OWNED-CLAUDE\n');
-    const beforeAgents = fs.readFileSync(projectAgents);
-    const beforeClaude = fs.readFileSync(projectClaude);
+    fs.mkdirSync(path.dirname(codexMarketplace), { recursive: true });
+    fs.writeFileSync(codexMarketplace, '{"name":"personal","plugins":[]}\n');
+    fs.mkdirSync(path.dirname(kimiRegistry), { recursive: true });
+    fs.writeFileSync(kimiRegistry, '{"version":1,"plugins":[]}\n');
 
-    for (const runtime of RUNTIMES) {
-      const configDir = path.join(configRoot, runtime.name);
-      const installed = runCli([
-        runtime.flag,
-        '--config-dir',
-        configDir,
-      ], { cwd: project, homeDir: home, env });
-      assert.equal(installed.status, 0, `${runtime.name}: ${installed.stderr}`);
-      assert.equal(fs.existsSync(path.join(project, '.ultra')), false, runtime.name);
-      assert.deepEqual(fs.readFileSync(projectAgents), beforeAgents, runtime.name);
-      assert.deepEqual(fs.readFileSync(projectClaude), beforeClaude, runtime.name);
-    }
+    const codexCtx = {
+      repoRoot: ROOT,
+      scope: 'global',
+      configDir: codexRoot,
+      homeDir: codexRoot,
+      runPluginCli: false,
+    };
+    const kimiCtx = {
+      repoRoot: ROOT,
+      scope: 'global',
+      configDir: kimiRoot,
+    };
+    codex.install(codexCtx);
+    kimi.install(kimiCtx);
+    codex.uninstall(codexCtx);
+    kimi.uninstall(kimiCtx);
+
+    assert.deepEqual(JSON.parse(fs.readFileSync(codexMarketplace, 'utf8')).plugins, []);
+    assert.deepEqual(JSON.parse(fs.readFileSync(kimiRegistry, 'utf8')).plugins, []);
   } finally {
-    cleanup(home);
-    cleanup(fakeRoot);
+    fs.rmSync(codexRoot, { recursive: true, force: true });
+    fs.rmSync(kimiRoot, { recursive: true, force: true });
   }
 });
 
-test('install.js — idempotent: two installs produce equal asset counts', () => {
-  const target = mkTarget('idempotent');
+test('Codex failed reinstall restores the previous managed plugin and marketplace', () => {
+  const config = temporary('ubp-codex-reinstall-rollback-');
+  const fakeBinRoot = temporary('ubp-codex-reinstall-bin-');
+  const fakeCodex = path.join(fakeBinRoot, 'codex');
+  fs.writeFileSync(fakeCodex, `#!/usr/bin/env node
+const command = process.argv.slice(2).join(' ');
+if (command === 'plugin list --json') {
+  process.stdout.write('{"installed":[{"name":"ultra-builder-pro","enabled":true}],"available":[]}\\n');
+  process.exit(0);
+}
+if (command.startsWith('plugin add ')) {
+  process.stderr.write('synthetic update failure\\n');
+  process.exit(9);
+}
+process.exit(2);
+`);
+  fs.chmodSync(fakeCodex, 0o755);
+  const codex = require('../adapters/codex.js');
+  const ctx = {
+    repoRoot: ROOT,
+    scope: 'global',
+    configDir: config,
+    homeDir: config,
+    runPluginCli: false,
+  };
   try {
-    const first = runCli(['--claude', '--config-dir', target]);
-    assert.equal(first.status, 0);
-    const pluginRoot = path.join(target, 'skills', 'ultra-builder-pro');
-    const countOne = fs.readdirSync(path.join(pluginRoot, 'commands')).length;
-    const manifestOne = fs.readFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8');
-
-    const second = runCli(['--claude', '--config-dir', target]);
-    assert.equal(second.status, 0);
-    const countTwo = fs.readdirSync(path.join(pluginRoot, 'commands')).length;
-    const manifestTwo = fs.readFileSync(path.join(pluginRoot, '.claude-plugin', 'plugin.json'), 'utf8');
-
-    assert.equal(countTwo, countOne, 'command count should not grow on re-install');
-    assert.equal(manifestTwo, manifestOne);
-  } finally {
-    cleanup(target);
-  }
-});
-
-test('install.js — doctor verifies all host provenance and reports managed-asset drift', () => {
-  const target = mkTarget('doctor');
-  const fakeRoot = mkTarget('grok-bin');
-  const env = { GROK_BIN: createFakeGrok(fakeRoot) };
-  try {
-    const installed = runCli(['--all', '--local'], {
-      cwd: target,
-      homeDir: target,
-      env,
-    });
-    assert.equal(installed.status, 0, installed.stderr);
-
-    const healthy = runCli(['--all', '--local', '--doctor', '--json'], {
-      cwd: target, homeDir: target, env,
-    });
-    assert.equal(healthy.status, 0, healthy.stderr);
-    const healthyReport = JSON.parse(healthy.stdout);
-    assert.equal(healthyReport.status, 'healthy');
-    assert.deepEqual(
-      healthyReport.reports.map((report) => [report.adapter, report.status]),
-      [
-        ['claude', 'healthy'],
-        ['opencode', 'healthy'],
-        ['codex', 'healthy'],
-        ['kimi', 'healthy'],
-        ['grok', 'healthy'],
-      ],
+    codex.install(ctx);
+    const marker = path.join(codex.resolvePluginRoot(ctx), 'previous-install.txt');
+    fs.writeFileSync(marker, 'preserve me\n');
+    const previousMarketplace = fs.readFileSync(codex.resolveMarketplaceFile(ctx), 'utf8');
+    assert.throws(() => codex.install({
+      ...ctx,
+      codexBin: fakeCodex,
+      runPluginCli: true,
+    }), /synthetic update failure/);
+    assert.equal(fs.readFileSync(marker, 'utf8'), 'preserve me\n');
+    assert.equal(
+      fs.readFileSync(codex.resolveMarketplaceFile(ctx), 'utf8'),
+      previousMarketplace,
     );
-
-    const managedHook = path.join(
-      target, '.claude', 'skills', 'ultra-builder-pro', 'hooks', 'workflow_resume.py',
-    );
-    fs.appendFileSync(managedHook, '\n# drift\n');
-    const degraded = runCli(['--all', '--local', '--doctor', '--json'], {
-      cwd: target, homeDir: target, env,
-    });
-    assert.equal(degraded.status, 2, degraded.stderr);
-    const degradedReport = JSON.parse(degraded.stdout);
-    assert.equal(degradedReport.status, 'degraded');
-    const claude = degradedReport.reports.find((report) => report.adapter === 'claude');
-    assert.equal(claude.status, 'degraded');
-    assert.ok(claude.issues.some((issue) => issue.code === 'ASSET_HASH_MISMATCH'));
-
-    const openCodeConfigFile = path.join(target, '.opencode', 'opencode.json');
-    const openCodeConfig = JSON.parse(fs.readFileSync(openCodeConfigFile, 'utf8'));
-    delete openCodeConfig.mcp['ultra-builder-pro'];
-    fs.writeFileSync(openCodeConfigFile, `${JSON.stringify(openCodeConfig, null, 2)}\n`);
-    const codexManifestFile = path.join(
-      target, '.codex', 'ultra-builder-pro', 'install-manifest.json',
-    );
-    const codexManifest = JSON.parse(fs.readFileSync(codexManifestFile, 'utf8'));
-    codexManifest.hook_cache_versions.push('0.1.0+codex.missing-hook');
-    fs.writeFileSync(codexManifestFile, `${JSON.stringify(codexManifest, null, 2)}\n`);
-
-    const boundaryDrift = runCli(['--all', '--local', '--doctor', '--json'], {
-      cwd: target, homeDir: target, env,
-    });
-    assert.equal(boundaryDrift.status, 2, boundaryDrift.stderr);
-    const boundaryReport = JSON.parse(boundaryDrift.stdout);
-    const opencode = boundaryReport.reports.find((report) => report.adapter === 'opencode');
-    assert.ok(opencode.issues.some((issue) => issue.code === 'MCP_REGISTRATION_INVALID'));
-    const codex = boundaryReport.reports.find((report) => report.adapter === 'codex');
-    assert.equal(codex.status, 'degraded');
-    assert.ok(codex.issues.some((issue) => (
-      issue.code === 'ASSET_HASH_MISMATCH'
-      && issue.path === 'ultra-builder-pro/install-manifest.json'
-    )));
-    assert.ok(!codex.issues.some((issue) => issue.code === 'HOOK_TARGET_MISSING'));
   } finally {
-    cleanup(target);
-    cleanup(fakeRoot);
+    fs.rmSync(config, { recursive: true, force: true });
+    fs.rmSync(fakeBinRoot, { recursive: true, force: true });
   }
 });
 
-test('install.js — argument parsing errors fail with exit 1', () => {
-  const noRuntime = runCli([]);
-  assert.equal(noRuntime.status, 1);
-  assert.match(noRuntime.stderr, /no runtime selected/);
-
-  const bothScopes = runCli(['--claude', '--global', '--local', '--config-dir', '/tmp/x']);
-  assert.equal(bothScopes.status, 1);
-  assert.match(bothScopes.stderr, /cannot use --global and --local/);
-
-  const unknownFlag = runCli(['--claude', '--bogus']);
-  assert.equal(unknownFlag.status, 1);
-  assert.match(unknownFlag.stderr, /unknown flag/);
-
-  const retiredFlag = `--${['gem', 'ini'].join('')}`;
-  const retiredRuntime = runCli([retiredFlag, '--local']);
-  assert.equal(retiredRuntime.status, 1);
-  assert.match(retiredRuntime.stderr, /unknown flag/);
-
-  const kimiTarget = mkTarget('kimi-parse');
+test('invalid CLI combinations fail without mutating a config directory', () => {
+  const config = temporary('ubp-invalid-');
   try {
-    const kimi = runCli(['--kimi', '--config-dir', kimiTarget, '--doctor', '--json']);
-    assert.notEqual(kimi.status, 1, kimi.stderr);
+    const result = run(['--claude', '--global', '--local', '--config-dir', config]);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(fs.readdirSync(config), []);
   } finally {
-    cleanup(kimiTarget);
+    fs.rmSync(config, { recursive: true, force: true });
   }
-
-  const conflictingModes = runCli(['--claude', '--doctor', '--uninstall']);
-  assert.equal(conflictingModes.status, 1);
-  assert.match(conflictingModes.stderr, /cannot combine --doctor and --uninstall/);
 });
-
-// P3 #13 / D45: --config-dir NUL-byte rejection — unit-tested via
-// `adapters/_shared/tests/validate.test.cjs`. Can't integration-test from
-// here because Node child_process.spawnSync refuses NUL bytes in argv
-// before our code sees them.

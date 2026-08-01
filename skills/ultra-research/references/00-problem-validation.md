@@ -26,11 +26,11 @@ Update `discovery.md` with `Observed`, `Verified`, `Decided`, and `Unknown` entr
 - the narrowest owner-approved problem boundary;
 - unresolved validation needs.
 
-Link the updated specification anchor from the immutable step report required by the
-orchestrator. A missing load-bearing fact becomes a blocker or baseline gap, not a
+Link the updated specification anchor from the bounded area report written for this
+research run. A missing load-bearing fact becomes a blocker or baseline gap, not a
 guessed answer.
 
-## Semantic record
+## Report trace
 
-Use kind `problem`. Record `actor`, `current_workaround`, `consequence`, and
-`evidence_status`.
+In the area report, record `actor`, `current_workaround`, `consequence`, and
+`evidence_status`, then link the updated specification anchor.

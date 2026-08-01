@@ -1,0 +1,53 @@
+{
+  "$schema": "ultra-task-evidence-v1",
+  "task_id": "v026-artifact-lifecycle",
+  "git_head": "3f99189bc68697262cd90444685ac2d4857139c4",
+  "commands": [
+    {
+      "command": "node --test tests/skill-authoring.test.cjs tests/v026-contract.test.cjs tests/project-artifacts.test.cjs tests/package-smoke.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/test-report.json"
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/v026-contract.test.cjs", "tests/project-artifacts.test.cjs"],
+      "rationale": "Contract tests cover the canonical template, explicit script invocation, artifact graph, and retired-path exclusion."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/test-report.json"],
+      "rationale": "The focused artifact and package suite exited zero and is repeated by the release gate."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/package-smoke.test.cjs"],
+      "rationale": "The packaged initializer copies the real installed template into a temporary filesystem project and reads it back."
+    },
+    "feature_flags_audit": {
+      "status": "not_applicable",
+      "evidence_refs": ["skills/ultra-init/scripts/init_project.cjs"],
+      "rationale": "This task adds no runtime feature flag or default-off product path."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/package-smoke.test.cjs"],
+      "rationale": "The test packs npm, installs from the tarball, installs the Claude plugin, and initializes canonical project files."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/specs/product.md#artifact-lifecycle"],
+      "rationale": "The task trace anchor exists and names every canonical artifact lifecycle."
+    }
+  },
+  "artifacts": [
+    ".ultra-template/.gitignore",
+    ".ultra-template/tasks.json",
+    "skills/ultra-init/scripts/init_project.cjs",
+    "skills/ultra-test/scripts/worktree_digest.cjs",
+    "docs/ARTIFACT-AUTHORITY.md"
+  ],
+  "limitations": ["Authenticated cross-provider behavior is outside this local artifact task."],
+  "timestamp": "2026-08-01T11:47:28+08:00"
+}

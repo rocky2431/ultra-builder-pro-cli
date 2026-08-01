@@ -1,0 +1,76 @@
+{
+  "$schema": "ultra-task-evidence-v1",
+  "task_id": "v026-release-verification",
+  "git_head": "3f99189bc68697262cd90444685ac2d4857139c4",
+  "commands": [
+    {
+      "command": "npm run verify:release",
+      "exit_code": 0,
+      "evidence_ref": "106 Node passed, 8 Hooks passed, 0 vulnerabilities on 2026-08-01"
+    },
+    {
+      "command": "for skill in skills/*; do uv run --with pyyaml -- python <skill-creator>/quick_validate.py $skill; done",
+      "exit_code": 0,
+      "evidence_ref": "14 of 14 Skills valid"
+    },
+    {
+      "command": "uv run --with pyyaml -- python <plugin-creator>/validate_plugin.py <isolated-codex-plugin>",
+      "exit_code": 0,
+      "evidence_ref": "generated Codex plugin validation passed"
+    },
+    {
+      "command": "node bin/install.js --all --global --config-dir <isolated-root> && doctor && reinstall && uninstall",
+      "exit_code": 0,
+      "evidence_ref": "five healthy reports; config and sentinel HOME empty after uninstall"
+    },
+    {
+      "command": "npm pack --dry-run --json",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/test-report.json"
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/project-artifacts.test.cjs", "tests/package-smoke.test.cjs", "tests/install.test.cjs"],
+      "rationale": "Release tests bind current artifacts, npm contents, generated host assets, native registration, and cleanup behavior."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/test-report.json"],
+      "rationale": "The aggregate release gate, native validators, isolated lifecycle, and package inspection all exited zero."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/package-smoke.test.cjs", "tests/install.test.cjs"],
+      "rationale": "The checks pack and install real package files into isolated filesystems and read the installed artifacts back."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/v026-adapters.test.cjs", "docs/RUNTIME-COMPAT-MATRIX.md"],
+      "rationale": "Installed owner/model routing and every unsupported native limitation remain explicit."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/package-smoke.test.cjs", "tests/install.test.cjs"],
+      "rationale": "The tarball installs native assets, initializes a project, passes Doctor, survives reinstall, and uninstalls without residue."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/specs/product.md#release-evidence"],
+      "rationale": "The release task and test report satisfy the FR-08 evidence contract without implying an external release effect."
+    }
+  },
+  "artifacts": [
+    ".ultra/test-report.json",
+    ".ultra/changes/archive/chg-converge/delivery.md",
+    "package.json",
+    "tests/package-smoke.test.cjs",
+    "tests/install.test.cjs",
+    "docs/wip/ultra-v026-skill-first.md"
+  ],
+  "limitations": [
+    "Authenticated provider continuation, real-HOME installation, commit, push, tag, publication, and release remain separately authorized effects."
+  ],
+  "timestamp": "2026-08-01T12:16:35+08:00"
+}

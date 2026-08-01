@@ -43,5 +43,6 @@ a REDUCTION, because a commitment stopped holding.
 
 ## Recording it
 
-A boundary crossing produces either an owner question or an entry in
-`.ultra/drift-log.md`. Silence is not one of the outcomes.
+A boundary crossing produces either an owner question, an entry in the active task
+context's `## Change Log`, or an accepted `.ultra/decisions/<id>.md` when the decision
+outlives that task. Silence and a second drift ledger are not outcomes.

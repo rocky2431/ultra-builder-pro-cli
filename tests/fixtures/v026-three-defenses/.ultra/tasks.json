@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Add order persistence",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 3,
+      "status": "pending",
+      "dependencies": [],
+      "context_file": ".ultra/contexts/task-1.md",
+      "trace_to": ".ultra/specs/product.md#checkout",
+      "change_ref": ".ultra/changes/active/C-01/intent.md"
+    }
+  ]
+}

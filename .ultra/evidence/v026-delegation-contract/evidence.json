@@ -1,0 +1,52 @@
+{
+  "$schema": "ultra-task-evidence-v1",
+  "task_id": "v026-delegation-contract",
+  "git_head": "3f99189bc68697262cd90444685ac2d4857139c4",
+  "commands": [
+    {
+      "command": "node --test tests/delegate.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/test-report.json"
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/delegate.test.cjs"],
+      "rationale": "Adversarial tests cover immutable inputs, read-only and write modes, actual changed paths, timeout, cancellation, and terminal receipts."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/test-report.json"],
+      "rationale": "All eight delegate contract tests exited zero and are repeated by the release gate."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": ["bin/delegate.cjs", "bin/delegate-worker.cjs"],
+      "rationale": "Tests use real Git worktrees, filesystem locks, immutable packet files, process termination, and atomic receipts."
+    },
+    "feature_flags_audit": {
+      "status": "not_applicable",
+      "evidence_refs": ["adapters/_shared/host-profile.cjs"],
+      "rationale": "Permissions are explicit per-run authority, not default-off feature availability."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/delegate.test.cjs"],
+      "rationale": "The public delegate entrypoint launches a child, validates native output and Git changes, and publishes a terminal receipt."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/specs/architecture.md#delegation-boundary"],
+      "rationale": "The architecture anchor defines authority, process, output, recovery, and host-profile boundaries."
+    }
+  },
+  "artifacts": [
+    "bin/delegate.cjs",
+    "bin/delegate-worker.cjs",
+    "adapters/_shared/host-profile.cjs",
+    "skills/ultra-delegate/SKILL.md"
+  ],
+  "limitations": ["No authenticated provider call is claimed; provider quality and quota behavior require separate authorization."],
+  "timestamp": "2026-08-01T11:47:28+08:00"
+}

@@ -1,75 +1,96 @@
 # Skill authoring contract
 
-Ultra Builder Pro keeps one portable source workflow and adapts only runtime metadata
-or host invocation details. This contract follows OpenAI Skills guidance and the Agent
-Skills progressive-disclosure format:
+Ultra Skills are portable model-facing methods. They describe outcomes, evidence, and
+owner boundaries; host-specific discovery and invocation policy belong in adapters.
 
-- <https://learn.chatgpt.com/docs/build-skills>
-- <https://learn.chatgpt.com/docs/customization/overview>
-- <https://agentskills.io/specification>
-- <https://agentskills.io/skill-creation/best-practices>
+## Role selection
 
-## Surface ownership
+Choose exactly one role before writing:
 
-| Content | Owner |
-|---|---|
-| Repeatable task procedure and conditional references | `skills/<name>/SKILL.md` |
-| Codex display, invocation policy, and dependencies | `skills/<name>/agents/openai.yaml` after adaptation |
-| Host launcher | `commands/<name>.md` |
-| Durable repository or user engineering policy | `AGENTS.md` or the host equivalent |
-| Deterministic lifecycle enforcement | one hook implementation |
-| Live external data or actions | MCP server or connector |
-| Bounded delegated role | `agents/<name>.md` |
+- **user-invoked**: a complete owner-selected workflow with a durable outcome;
+- **model-invoked**: a reusable discipline used by at least two canonical workflows;
+- **router**: read-only diagnosis that recommends the smallest next public route.
 
-Do not duplicate a rule across these surfaces.
+A user workflow may recommend but must not invoke another user workflow. A discipline
+with only one real caller should be inlined.
 
-## Portable `SKILL.md`
+## Portable frontmatter
 
-Source frontmatter contains only `name` and `description`. The description says what
-the Skill does and when it should activate. The body uses imperative, outcome-oriented
-steps and includes only information an agent cannot reliably infer from the task,
-repository, or host policy.
+Source `SKILL.md` frontmatter contains only:
 
-Keep the main file compact. Move conditional domain detail to `references/`, reusable
-deterministic work to `scripts/`, and output material to `assets/`. Reference a file
-only from the main workflow or one directly relevant reference.
+```yaml
+---
+name: lower-case-hyphen-name
+description: What this produces and the concrete situations that trigger it.
+---
+```
 
-## Language
+Adapters generate Claude/Grok/Kimi invocation flags and Codex `agents/openai.yaml`.
+Do not put host paths, dependency declarations, plugin policy, or release history in
+source frontmatter.
 
-The standards do not prohibit Chinese. Ultra source prompts use English as a project
-policy because one source is transformed for Claude Code, Codex, OpenCode, Kimi Code,
-and Grok Build. The host or user instruction controls the response language; a workflow must not
-hard-code the user's output language unless language is itself part of the task.
+## Required shape
 
-Maintainer documentation may use the language appropriate for its audience. English
-source prompts are a portability rule, not a claim that multilingual Skills are invalid.
+Every Skill has one outcome-led title and these semantic sections:
 
-## Content that does not belong in a Skill prompt
+```text
+## Before you start
+## Definition of done
+## <workflow-specific process>
+## When the owner decides
+## References
+```
 
-- release notes, migration history, old-version behavior, or implementation diary;
-- host tool inventories, model pins, package paths, and dependency metadata shared by
-  only one runtime;
-- generic engineering doctrine already owned by user or repository instructions;
-- one-off project facts, volatile external facts, or copied datasets;
-- duplicated command bodies, hook policy, MCP schemas, or private memory behavior;
-- arbitrary coverage, confidence, complexity, option-count, or severity thresholds;
-- pattern matching that turns TODOs, mocks, catch blocks, or line counts directly into
-  findings without a reachable impact;
-- tutorial-style old/new or good/bad comparisons that do not change the workflow;
-- menus of hypothetical alternatives when one repository default already satisfies the
-  contract.
+User workflows begin by reading `.ultra/tasks.json`, the unfinished task's
+`context_file` and Resume Note, `CONTEXT.md`, and relevant decisions. They name the
+files they write and read them back. Completion criteria must be observable without a
+semantic validator.
 
-Comparison is appropriate only when the task requires a real decision or verification:
-compare credible alternatives against shared constraints, accepted specification
-against delivered behavior, or independent analyses against authoritative evidence.
+Use positive leading words consistently: tracer bullet, seam, deep module, red,
+frontier, and fog of war. Explain a branch by its checkable result, not the model's
+reason for choosing it.
 
-## Review checklist
+## Progressive disclosure
 
-1. Does the description state a precise use condition?
-2. Is every instruction reusable for this Skill rather than copied global policy?
-3. Is host-specific metadata outside the portable prompt?
-4. Does each conditional reference earn its context cost?
-5. Are judgments evidence-based rather than threshold-based?
-6. Are commands thin and agents bounded?
-7. Do positive and negative trigger evals cover accidental activation?
-8. Do source, five generated runtimes, and package contents pass validation?
+Keep resident `SKILL.md` short enough to load on every invocation. Move focused detail
+into `references/` and deterministic validation or waiting into `scripts/`.
+
+- Load one research step or review lens at a time.
+- Keep one canonical copy of grilling, TDD, review, domain language, and autonomy rules.
+- Cross-reference another model-invoked Skill by relative path.
+- Do not hide the primary workflow in a script.
+- A script may check paths, schemas, counts, hashes, process status, or other mechanical
+  facts; it may not decide semantic completeness.
+
+Rule-side executable examples live with the consuming Skill. They are never copied
+wholesale into project authority.
+
+## Language and host neutrality
+
+Model-facing Skills, references, scripts, comments, and identifiers are English.
+Shared Skills never mention `.claude`, `.codex`, `.opencode`, `.kimi`, `.grok`, or a
+host-only question surface. Use “host-native question surface” and put the translation
+in the adapter.
+
+## Safety boundary
+
+The owner decides intent, acceptance, reductions, material risk, irreversible actions,
+and external effects. The model owns investigation, design, decomposition, evidence
+interpretation, reversible implementation detail, and final expression.
+
+Semantic gaps are diagnostics. A Skill must not invent a hard gate based on counters,
+regexes, similarity, context estimates, or workflow position. Every real hard effect
+guard names its invariant, authoritative input, blocked effect, and reachable repair.
+
+## Validation
+
+For every changed Skill:
+
+1. run the Skill Creator validator;
+2. resolve every relative reference in the source and installed artifact;
+3. verify its role metadata on all five hosts;
+4. test the accepted workflow with representative valid and adversarial inputs;
+5. confirm no retired runtime vocabulary or host-specific path entered portable text.
+
+The repository's `tests/skill-authoring.test.cjs` and
+`tests/v026-contract.test.cjs` mechanize the portable parts of this contract.

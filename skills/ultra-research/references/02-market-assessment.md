@@ -22,9 +22,10 @@ Update `discovery.md` with relevant segment boundaries, commercial or operationa
 constraints, source-backed measurements, assumptions, and unknowns. Include a sizing
 model only when the decision genuinely depends on one and the inputs are defensible.
 
-Link source references and the updated specification anchor from the immutable step
-report required by the orchestrator.
+Link source references and the updated specification anchor from the bounded area
+report written for this research run.
 
-## Semantic record
+## Report trace
 
-Use kind `market_constraint`. Record `constraint`, `decision_impact`, and `freshness`.
+In the area report, record `constraint`, `decision_impact`, and `freshness`, then link
+the updated discovery anchor.

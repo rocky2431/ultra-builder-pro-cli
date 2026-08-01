@@ -1,0 +1,76 @@
+{
+  "tasks": [
+    {
+      "id": "v026-artifact-lifecycle",
+      "title": "Close the file-first artifact lifecycle",
+      "type": "architecture",
+      "priority": "P0",
+      "complexity": 7,
+      "status": "completed",
+      "dependencies": [],
+      "context_file": ".ultra/contexts/task-v026-artifact-lifecycle.md",
+      "trace_to": ".ultra/specs/product.md#artifact-lifecycle",
+      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+    },
+    {
+      "id": "v026-agent-skill-convergence",
+      "title": "Preserve custom-agent methods as portable Skill assets",
+      "type": "refactor",
+      "priority": "P0",
+      "complexity": 5,
+      "status": "completed",
+      "dependencies": ["v026-artifact-lifecycle"],
+      "context_file": ".ultra/contexts/task-v026-agent-skill-convergence.md",
+      "trace_to": ".ultra/specs/architecture.md#agent-to-skill-convergence",
+      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+    },
+    {
+      "id": "v026-delegation-contract",
+      "title": "Make cross-CLI delegation bounded and recoverable",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 7,
+      "status": "completed",
+      "dependencies": ["v026-artifact-lifecycle"],
+      "context_file": ".ultra/contexts/task-v026-delegation-contract.md",
+      "trace_to": ".ultra/specs/architecture.md#delegation-boundary",
+      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+    },
+    {
+      "id": "v026-host-adapters",
+      "title": "Align installation and routing on all five CLIs",
+      "type": "feature",
+      "priority": "P0",
+      "complexity": 7,
+      "status": "completed",
+      "dependencies": ["v026-agent-skill-convergence", "v026-delegation-contract"],
+      "context_file": ".ultra/contexts/task-v026-host-adapters.md",
+      "trace_to": ".ultra/specs/architecture.md#adaptation-and-routing",
+      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+    },
+    {
+      "id": "v026-self-migration",
+      "title": "Migrate this repository to the canonical v0.26 artifacts",
+      "type": "migration",
+      "priority": "P0",
+      "complexity": 5,
+      "status": "completed",
+      "dependencies": ["v026-artifact-lifecycle"],
+      "context_file": ".ultra/contexts/task-v026-self-migration.md",
+      "trace_to": ".ultra/specs/product.md#artifact-lifecycle",
+      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+    },
+    {
+      "id": "v026-release-verification",
+      "title": "Validate packaged Skills, plugin artifacts, and release gates",
+      "type": "verification",
+      "priority": "P0",
+      "complexity": 5,
+      "status": "completed",
+      "dependencies": ["v026-host-adapters", "v026-self-migration"],
+      "context_file": ".ultra/contexts/task-v026-release-verification.md",
+      "trace_to": ".ultra/specs/product.md#release-evidence",
+      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+    }
+  ]
+}

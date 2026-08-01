@@ -1,120 +1,47 @@
 'use strict';
 
 /**
- * Canonical Ultra Builder Pro package boundary.
+ * Canonical v0.26 package boundary.
  *
- * Adapters must build from this allowlist. A new directory under skills/ or
- * hooks/ is not packaged until it is deliberately classified here.
+ * Skills carry semantic workflow. Hooks are optional acceleration and safety.
+ * There is no prompt projection, worker registry, MCP kernel, or runtime daemon.
  */
 
-const CORE_PUBLIC_SKILLS = Object.freeze([
+const USER_INVOKED_SKILLS = Object.freeze([
   'ultra-init',
   'ultra-research',
+  'ultra-change',
   'ultra-plan',
   'ultra-dev',
   'ultra-test',
-  'ultra-review',
   'ultra-deliver',
-  'ultra-status',
-  'ultra-think',
-  'ultra-change',
-  'ultra-doctor',
+  'ultra-delegate',
 ]);
 
-const PUBLIC_CAPABILITY_MODES = Object.freeze({
-  'ultra-init': 'setup',
-  'ultra-research': 'workflow',
-  'ultra-plan': 'workflow',
-  'ultra-dev': 'workflow',
-  'ultra-test': 'workflow',
-  'ultra-review': 'workflow',
-  'ultra-deliver': 'workflow',
-  'ultra-status': 'read_only',
-  'ultra-think': 'reasoning',
-  'ultra-change': 'workflow',
-  'ultra-doctor': 'diagnostic',
-});
-
-const PUBLIC_CAPABILITY_GRAPH = Object.freeze(Object.fromEntries(
-  CORE_PUBLIC_SKILLS.map((name) => [
-    name,
-    Object.freeze({
-      mode: PUBLIC_CAPABILITY_MODES[name],
-      activation: 'explicit_only',
-      next_capability_source: 'host_model_from_ultra_context',
-      recommendation_owner: 'host_model',
-      selection_owner: 'user',
-      automatic_invocation: false,
-    }),
-  ]),
-));
-
-const INTERNAL_AGENT_SKILLS = Object.freeze([
-  'code-review-expert',
-  'security-rules',
-  'integration-rules',
-  'testing-rules',
-]);
-
-/**
- * Reusable discipline reached by another Skill rather than by an owner launcher.
- * These carry no MCP dependency and no command projection: the calling Skill is
- * their only entry point, which is what keeps one discipline in one place.
- */
 const MODEL_INVOKED_SKILLS = Object.freeze([
   'ultra-grilling',
   'ultra-domain-modeling',
   'ultra-tdd',
+  'ultra-review',
+  'ultra-think',
 ]);
 
+const ROUTER_SKILLS = Object.freeze(['ultra-status']);
 const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok']);
 
-const COLLAB_SKILLS_BY_RUNTIME = Object.freeze({
-  claude: Object.freeze(['codex-collab', 'ultra-verify']),
-  codex: Object.freeze(['cc-collab', 'ultra-verify']),
-  opencode: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
-  kimi: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
-  grok: Object.freeze(['cc-collab', 'codex-collab', 'ultra-verify']),
-});
-
-// Skills that still reach durable state through the MCP kernel. The Codex
-// adapter turns this into a declared mcp tool dependency, so a skill converted
-// to plain files must leave this list in the same change.
-const MCP_DEPENDENT_SKILLS = Object.freeze([
-  'ultra-research',
-  'ultra-plan',
-  'ultra-test',
-  'ultra-review',
-  'ultra-deliver',
-  'ultra-status',
-  'ultra-doctor',
-]);
-
 const WORKFLOW_HOOK_FILES = Object.freeze([
-  'active_task_context.py',
-  'context_envelope.py',
-  'health_check.py',
-  'pre_stop_check.py',
-  'runtime_paths.py',
-  'subagent_tracker.py',
-  'workflow_checkpoint.py',
-  'workflow_context.py',
-  'workflow_resume.py',
-]);
-
-const RUNTIME_WORKER_FILES = Object.freeze([
-  'session-close-journal-worker.cjs',
-  'doctor-backup-worker.cjs',
-]);
-
-const RUNTIME_SUPPORT_FILES = Object.freeze([
-  'archive-mutation-worker.py',
+  'session_context.py',
+  'mid_workflow_recall.py',
+  'compact_context.py',
+  'post_edit_guard.py',
+  'block_dangerous_commands.py',
 ]);
 
 function skillsForRuntime(runtime) {
-  const collab = COLLAB_SKILLS_BY_RUNTIME[runtime];
-  if (!collab) throw new Error(`unsupported Ultra runtime: ${runtime}`);
-  return [...CORE_PUBLIC_SKILLS, ...INTERNAL_AGENT_SKILLS, ...MODEL_INVOKED_SKILLS, ...collab];
+  if (!SUPPORTED_RUNTIMES.includes(runtime)) {
+    throw new Error(`unsupported Ultra runtime: ${runtime}`);
+  }
+  return [...USER_INVOKED_SKILLS, ...MODEL_INVOKED_SKILLS, ...ROUTER_SKILLS];
 }
 
 function isSupportedRuntime(runtime) {
@@ -122,26 +49,22 @@ function isSupportedRuntime(runtime) {
 }
 
 function skillPolicy(name) {
-  const packaged = SUPPORTED_RUNTIMES.some((runtime) => skillsForRuntime(runtime).includes(name));
-  if (!packaged) throw new Error(`unknown packaged Ultra skill: ${name}`);
+  if (!skillsForRuntime(SUPPORTED_RUNTIMES[0]).includes(name)) {
+    throw new Error(`unknown packaged Ultra skill: ${name}`);
+  }
+  const modelInvoked = MODEL_INVOKED_SKILLS.includes(name);
   return {
-    userInvocable: !INTERNAL_AGENT_SKILLS.includes(name) && !MODEL_INVOKED_SKILLS.includes(name),
-    allowImplicitInvocation: false,
-    requiresUltraMcp: MCP_DEPENDENT_SKILLS.includes(name),
+    userInvocable: !modelInvoked,
+    allowImplicitInvocation: modelInvoked,
   };
 }
 
 module.exports = {
-  CORE_PUBLIC_SKILLS,
-  PUBLIC_CAPABILITY_GRAPH,
-  INTERNAL_AGENT_SKILLS,
+  USER_INVOKED_SKILLS,
   MODEL_INVOKED_SKILLS,
+  ROUTER_SKILLS,
   SUPPORTED_RUNTIMES,
-  COLLAB_SKILLS_BY_RUNTIME,
-  MCP_DEPENDENT_SKILLS,
-  RUNTIME_SUPPORT_FILES,
   WORKFLOW_HOOK_FILES,
-  RUNTIME_WORKER_FILES,
   isSupportedRuntime,
   skillPolicy,
   skillsForRuntime,

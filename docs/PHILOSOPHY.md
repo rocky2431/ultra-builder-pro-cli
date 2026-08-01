@@ -80,7 +80,7 @@ proceeds.
 
 ### C4 — Incremental Validation
 
-The agent always knows "how far from done." Each edit updates `.ultra/progress/task-{id}.json`
+The agent always knows "how far from done." Each edit updates `.ultra/progress/<task-id>.json`
 with evidence completeness across six dimensions. Final-gate audits are forbidden — if a gap
 matters at the end, it matters mid-flight.
 
@@ -89,7 +89,7 @@ matters at the end, it matters mid-flight.
 > It is a terminal **sensor**, never a gate: it reports and hands the trade-off to the owner.
 > This is the only permitted end-of-flow audit.
 
-> **Test**: at any point in a task, reading `.ultra/progress/task-{id}.json` answers "what's left."
+> **Test**: at any point in a task, reading `.ultra/progress/<task-id>.json` answers "what's left."
 
 ### C5 — Bounded Autonomy
 
@@ -119,8 +119,8 @@ not convert a REDUCTION into a CORRECTION; the rationale goes into the question 
 This is the mechanism by which specs shrink silently, so it is the one place the model must not
 be allowed to self-certify.
 
-> **Test**: any boundary-crossing action must trigger an owner question or an entry in
-> `.ultra/drift-log.md`.
+> **Test**: any boundary-crossing action must trigger an owner question, an active task
+> `## Change Log` entry, or an accepted `.ultra/decisions/<id>.md`.
 
 ---
 
@@ -137,7 +137,7 @@ Goals override commandments. Commandments override rules. Cite the higher level:
 
 Changes to PHILOSOPHY require:
 
-1. A concrete failure case the change addresses, linked in `.ultra/drift-log.md`
+1. A concrete failure case the change addresses, linked in the active Change or evidence
 2. An impact assessment on every dependent hook and Skill
 3. Migration of any dependent constraint
 
@@ -155,17 +155,17 @@ Skill instruction. Do not touch it casually.
 | Consumer | Reads | Source of truth | Failure mode if drifted |
 |---|---|---|---|
 | `session_context` | headings `## One-line`, `## Hard Constraints` | `.ultra-template/north-star.md` | SessionStart shows no goal; C1 dies |
-| `session_context` | active `in_progress` task → `.ultra/contexts/task-{id}.md` | `tasks.json[].id` + `contexts/task-{id}.md` naming | acceptance criteria never surfaced |
+| `session_context` | active `in_progress` task → its context | `tasks.json[].context_file` | acceptance criteria never surfaced |
 | `mid_workflow_recall` | heading `## Acceptance Criteria` | `.ultra-template/contexts/TEMPLATE.md` | hook injects nothing; C1 dies silently |
-| `post_edit_guard` mock advisory | path `references/templates/testcontainer-*` | `skills/ultra-tdd/references/templates/testcontainer-postgres.{ts,py}` | advisory points at a missing file → agent ignores it; C2 dies |
-| `post_edit_guard` | writes `.ultra/progress/task-{id}.json` | created on demand by the hook | progress never persists; C4 dies |
-| every Skill Step 4 | 6 keys: `tests_written`, `tests_passed`, `persistence_real`, `feature_flags_audit`, `vertical_slice`, `spec_trace` | `progress.json.evidence_score` | renaming one dimension breaks every reader |
-| `ultra-plan` gate | marker `[NEEDS CLARIFICATION]` | `.ultra-template/specs/*.md` | planning proceeds on incomplete specs |
-| `ultra-dev` / `ultra-test` | `trace_to` form `specs/file.md#anchor` | `tasks.json[].trace_to` + GFM heading slugify | every trace flagged dangling; `spec_trace` dimension unreachable |
+| `ultra-tdd` | path `references/templates/*` | `skills/ultra-tdd/references/templates/` | guidance points at a missing runnable alternative; C2 dies |
+| `post_edit_guard` | writes `.ultra/progress/<task-id>.json` | `tasks.json[].id`, created on demand | mechanical observations disappear; C4 weakens |
+| `ultra-dev` and `post_edit_guard` | 6 keys: `tests_written`, `tests_passed`, `persistence_real`, `feature_flags_audit`, `vertical_slice`, `spec_trace` | the six-dimension table in `skills/ultra-dev/SKILL.md` | sensor and workflow report different evidence |
+| planning and status | marker `[NEEDS CLARIFICATION]` | `.ultra-template/specs/*.md` | unresolved product truth is hidden |
+| `ultra-plan` / `ultra-dev` / hooks | `trace_to` form `.ultra/specs/file.md#anchor` | `tasks.json[].trace_to` + GFM heading slugify | traces appear resolved when their heading is absent |
 | `ultra-deliver` / `ultra-status` | field `git_commit` | `.ultra/test-report.json` | stale test results pass as current |
-| `pre_compact_context` / `post_compact_inject` | `.ultra/compact-snapshot.md` | written by `pre_compact_context` | compact recovery loses goal context |
+| `compact_context` | `.ultra/.runtime/compact-snapshot.md` | derived from canonical files and Git | compact recovery loses acceleration, not authority |
 | every hook | existence of `.ultra/` | the project directory | Ultra taxes projects that never opted in (see `docs/PLUGIN-ISOLATION-CONTRACT.md`) |
-| `ultra-init` | the full template copy list | `.ultra-template/` tree | hook advisories point at missing paths; C1 and C2 both die |
+| `ultra-init` | the project data skeleton | `.ultra-template/` and the exact file list in its Skill | later Skills read missing authority paths; C1 dies |
 
 ### Maintenance protocol
 

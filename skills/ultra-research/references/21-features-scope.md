@@ -24,6 +24,7 @@ exclusions and rationale, dependencies, and unresolved scope decisions.
 
 Complete the step with decision evidence and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `capability`. Record `requirement_ids`, `scope_status`, and `rationale`.
+In the area report, record `requirement_ids`, `scope_status`, and `rationale`, then link
+the capability heading in `product.md`.

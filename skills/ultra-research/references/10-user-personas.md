@@ -24,6 +24,7 @@ constraints, and evidence. Record priority only when it is an accepted decision.
 
 Complete the step with evidence references and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `actor`. Record `job`, `current_workflow`, `goal`, and `constraint`.
+In the area report, record `job`, `current_workflow`, `goal`, and `constraint`, then
+link the actor heading in `product.md`.

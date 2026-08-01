@@ -17,6 +17,9 @@ contract, the evidence, and everything needed to resume.
 3. Read `.ultra/north-star.md` and the task's acceptance criteria. If you cannot
    state that acceptance in one sentence, you are not ready to start.
 
+When this task starts from an observed error, failing check or unexpected behavior,
+read `references/debugging.md` and establish the earliest incorrect state before editing.
+
 ## Definition of done
 
 - All six evidence dimensions are answered for this task, each against the
@@ -52,9 +55,14 @@ Each has a rule you can check against the work rather than assert:
 | `vertical_slice` | One test's execution path runs from the entry point through to persistence |
 | `spec_trace` | The anchor the task's `trace_to` names exists in the specification |
 
-Record them under the task's evidence directory. They are a sensor, not a gate: a
-gap is reported and handed over, never used to block the work — a gate that can be
-escaped by damaging the work gets escaped by damaging the work.
+Record one canonical `.ultra/evidence/<task-id>/evidence.json` with
+`$schema: "ultra-task-evidence-v1"`, `task_id`, `git_head`, `commands`, the six-key
+`dimensions` object, `artifacts`, `limitations`, and `timestamp`. Raw logs and cited
+files stay beside it; no second summary restates the same evidence. Each command has
+`command`, `exit_code`, and `evidence_ref`. Each dimension has `status` (`satisfied`,
+`gap`, or `not_applicable`), `evidence_refs`, and a non-empty `rationale`. Evidence is a
+sensor, not a gate: a gap is reported and handed over, never used to block the work — a
+gate that can be escaped by damaging the work gets escaped by damaging the work.
 
 ## When implementation and the specification disagree
 
@@ -68,7 +76,7 @@ classification in the context file's Change Log.
 
 Write the status to both places and read both back. Add the Completion entry and
 rewrite the Resume Note to say where the next session picks up. Then run the
-task-level review through `ultra-review`, resolve blocking findings, and refresh
+task-level review through `../ultra-review/SKILL.md`, resolve blocking findings, and refresh
 the evidence they touched.
 
 Report the changed paths, the seam, the exact checks run, the review result, the
@@ -88,3 +96,5 @@ as it stands and says so in the Resume Note instead of tidying it away.
   boundary.
 - `../ultra-think/references/autonomy-boundary.md` — read the moment the
   specification and the implementation disagree.
+- `../ultra-review/SKILL.md` — read when implementation evidence is ready for review.
+- `references/debugging.md` — read for a reproduced failure before selecting a repair.

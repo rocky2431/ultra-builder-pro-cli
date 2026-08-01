@@ -25,7 +25,7 @@ credible alternative cannot be verified.
 
 Complete the step with evidence references and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `alternative`. Record `category`, `switching_constraint`, and
-`strategy_implication`.
+In the area report, record `category`, `switching_constraint`, and
+`strategy_implication`, then link the updated discovery anchor.

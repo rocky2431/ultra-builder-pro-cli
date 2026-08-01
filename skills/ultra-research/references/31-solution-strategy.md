@@ -22,7 +22,7 @@ unresolved decisions as blockers rather than selecting on the owner's behalf.
 
 Complete the step with decision evidence and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `architecture_decision`. Record `drivers`, `direction`, `consequences`,
-`compatibility`, and `recovery`.
+In the area report, record `drivers`, `direction`, `consequences`, `compatibility`, and
+`recovery`, then link the decision file or architecture heading.

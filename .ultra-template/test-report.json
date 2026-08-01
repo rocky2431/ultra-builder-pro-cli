@@ -1,0 +1,27 @@
+{
+  "$schema": "ultra-test-report-v1",
+  "change_id": null,
+  "task_ids": [],
+  "git_commit": null,
+  "worktree": {
+    "dirty": null,
+    "diff_digest": null
+  },
+  "commands": [],
+  "areas": {
+    "anti_patterns": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]},
+    "coverage_gaps": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]},
+    "wiring": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]},
+    "e2e": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]},
+    "performance": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]},
+    "security": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]}
+  },
+  "verified_seams": [],
+  "findings": [],
+  "omissions": ["Not yet run"],
+  "residual_risks": [],
+  "owner_disposition": [],
+  "passed": false,
+  "run_count": 0,
+  "timestamp": null
+}

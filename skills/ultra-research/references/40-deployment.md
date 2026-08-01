@@ -23,7 +23,7 @@ unknowns.
 
 Complete the step with file, runtime, or provider evidence and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `deployment`. Record `environment`, `entry_point`, `config_migration`,
-`observation`, and `rollback_recovery`.
+In the area report, record `environment`, `entry_point`, `config_migration`,
+`observation`, and `rollback_recovery`, then link the architecture heading.

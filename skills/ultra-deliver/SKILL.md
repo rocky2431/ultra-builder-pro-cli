@@ -1,46 +1,65 @@
 ---
 name: ultra-deliver
-description: Reconcile and archive an explicitly accepted Ultra Change with recoverable local evidence. Use when the caller is ready to make a local delivery handoff with current managed evidence and an explicit rationale for any omitted capability.
+description: Reconcile one completed Change, run aggregate review and refactoring, refresh release documentation, and archive the local workflow record. Use when the task ledger is complete and the owner wants a delivery handoff or separately authorized release effects.
 ---
 
-# Converge and archive local authority
+# Turn current evidence into a recoverable delivery handoff
 
-Delivery closes local Ultra authority. It never grants commit, push, tag, registry
-publication, deployment, or another external effect.
+Delivery closes the local Change. Commit, push, tag, publication and deployment remain
+separate effects; local readiness grants none of them automatically.
 
-## Prepare the packet
+## Before you start
 
-1. Call `ultra.context { stage: deliver, scope: { change_id }, detail: full }`.
-2. Import a newer team checkpoint with `ultra.sync`; stop on a real conflict.
-3. Inspect current task outcomes, tests, both review axes, accepted decisions, typed
-   delta, documentation reconciliation, and checkout evidence. Decide whether the
-   actual Change is sufficiently complete; explicitly record any omitted stage and its
-   evidence-based rationale instead of inventing a fixed recipe.
-4. Resolve every specification-learning candidate. Keep updates inside the Change
-   overlay until archive.
-5. Write and register documentation reconciliation and an
-   `ultra-delivery-report-v1` report. The report binds Change, baseline, HEAD,
-   worktree/context digests, local checks, rollback guidance, and timestamp; it contains
-   no release decision.
+1. Read `.ultra/tasks.json` and each completed task's `context_file`, Completion and
+   closing `## Resume Note`.
+2. Read `CONTEXT.md`, relevant `.ultra/decisions/`, active Change intent and evidence.
+3. Read `.ultra/test-report.json` and current `HEAD`. If `git_commit` differs from HEAD,
+   label the report stale and obtain current evidence before a release recommendation.
 
-Use one typed `ultra.record` batch for `artifact / bind`, any normalized
-`decision / accept`, and bounded `event / append` facts.
+## Definition of done
 
-## Archive once
+- Actual outcome, specifications, docs, tests and aggregate review have been reconciled.
+- Every omitted stage is explicitly recorded with its evidence-based rationale.
+- Build and release checks have exact commands and real results.
+- The Change is archived with `git mv`, and rollback remains a normal Git operation.
 
-Call `ultra.archive` once with the Change id, stable idempotency key, archive summary,
-reconciliation fields, delivery evidence steps, explicit omissions, and report output.
-The model's report is the semantic handoff. MCP validates its current registered
-authority, paths, digests, reconciliation structure, and idempotency; applies the
-overlay and archive through the recoverable filesystem/DB transaction; rebinds
-registered artifacts into a self-contained archive; and publishes the updated team
-checkpoint. It does not require a hard-coded Plan/Dev/Test/Review/Deliver sequence.
+## Review and refactor
 
-Semantic warnings remain in the archive history but do not reject an explicit local
-handoff. Corruption, unsafe paths, digest/CAS conflicts, permissions, or recovery
-failure remain fail-closed and route to `ultra-doctor`.
+Follow `../ultra-review/SKILL.md` across the aggregate Change. This is where useful
+refactoring occurs: several completed slices now reveal real duplication, coupling and
+deep-module boundaries. Rerun every check affected by a refactor and refresh the report
+against the resulting HEAD.
 
-Verify the archived packet, baseline, checkpoint, and rollback state. Handle any
-separately authorized Git or release effect only after local delivery and report it as
-external evidence, not Ultra delivery authority. Do not invoke another capability
-automatically.
+## Reconcile the handoff
+
+1. Compare accepted intent and task traces with delivered behavior.
+2. Apply justified specification corrections; route any REDUCTION to the owner.
+3. Update CHANGELOG and README when public behavior changed. Record bounded debt only
+   in the active Change `delivery.md` under `## Technical Debt`.
+4. Run the repository's build and packaging checks.
+5. Determine the version impact from the public contract and project convention.
+6. Follow `references/baseline-reconciliation.md` and write the one canonical active
+   Change `delivery.md` with exact checks, residual risks, omissions and rollback.
+
+## Archive locally
+
+Move `.ultra/changes/active/<id>` to `.ultra/changes/archive/<id>` with `git mv` only
+after local reconciliation. Do not create a second standalone delivery report: archived
+`delivery.md`, test report, evidence and Git history are the handoff.
+
+For separately authorized effects, perform and verify each independently. Ask for
+authority at the point of effect: commit, then push, then tag, package publication and
+deployment as applicable. A failure in one does not imply permission to attempt another.
+
+## When the owner decides
+
+The owner accepts residual risk, reductions, the version, and every external effect.
+Without release authority, stop after the recoverable local archive and report it.
+
+## References
+
+- `../ultra-review/SKILL.md` — read before aggregate review and refactoring.
+- `../ultra-think/SKILL.md` — read when version or release posture is a consequential
+  trade-off rather than an established repository rule.
+- `../ultra-think/references/autonomy-boundary.md` — read before scope or evidence shrinks.
+- `references/baseline-reconciliation.md` — exact `delivery.md` reconciliation contract.

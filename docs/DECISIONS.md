@@ -1,87 +1,75 @@
-# Ultra Builder Pro decision contract
+# Ultra Builder Pro v0.26 decisions
 
-This document records the current product and authority boundaries that apply to
-the distributed package. Executable behavior remains defined by source,
-`spec/mcp-tools.yaml`, and `spec/schemas/state-db.sql`; `package.json` is the
-release-version authority.
+This file records durable product-level decisions that explain the current source tree.
+Project decisions created by Ultra belong in each project's `.ultra/decisions/`.
 
-## Authority split
+## File-first authority
 
-| Layer | Owns | Must not own |
-|---|---|---|
-| User intent | Goals, acceptance, non-goals, semantic route selection, material product trade-offs, risk acceptance, and authorization for irreversible or external effects | Facts that the current checkout or runtime can establish directly |
-| Host model | Classification and route recommendations, investigation, solution design, task decomposition, context, test and review strategy, documentation impact, intent normalization, and next-action recommendations | Fabricated evidence, bypassed authorization, or durable lifecycle state |
-| Ultra MCP | IDs, checkout-local state, digests, provenance, freshness, locks, leases, transactions, recovery, legal state transitions, and Git checkpoint publish/import | Product direction, a fixed research route, technology selection, or business decisions |
-| Host adapter | Native Skill discovery, user-question surfaces, tool invocation, installation, and runtime wiring | A second project-state authority |
-| Hook | Lifecycle observation, compact DB-derived context, recovery hints, and protection of MCP-owned checkpoint/projection paths | Ordinary development blocking or semantic route selection |
+Owner-readable repository files and Git are the complete semantic authority. Ultra
+does not maintain a database, MCP kernel, workflow state machine, prompt projection, or
+daemon. The previous mechanical supervisor could make every public path unreachable
+while still reporting internally consistent state; deletion restores the host model's
+ownership of route and meaning.
 
-`.ultra/` is project-local cross-session workflow memory. `.ultra/.runtime/state.db` is
-checkout-local lifecycle, index, transition, freshness, and coordination authority.
-Registered digest-bound files carry semantic or evidence bodies.
-`.ultra/tasks/tasks.json` is the MCP-published Git handoff for portable baseline,
-Change, and durable task records, never live session state. Generated projections and
-working scratch are not authority. Prompt text, chat history, general external-memory
-payloads, and code-graph payloads are not Ultra authority. See
-[`ARTIFACT-AUTHORITY.md`](./ARTIFACT-AUTHORITY.md).
+## Three Skill roles
 
-## Research coverage
+The product exposes eight owner-invoked workflows, five model-invoked disciplines, and
+one router. Public workflows require explicit owner selection. A public workflow may
+recommend but never launch another public workflow. A model discipline needs at least
+two canonical callers or it is inlined.
 
-The research references form an optional semantic catalog. The host model
-inspects current evidence and recommends the smallest sufficient route. The
-owner selects, modifies, delegates, or defers that route through the current
-host's native question surface unless current intent already resolves it. The
-host then normalizes and records the accepted coverage with an evidence-based
-rationale and synthesis. Omitted catalog areas create no workflow rows. An
-explicit `not_applicable` or accepted `deferred` entry is recorded only when
-preserving that exclusion is useful.
+This keeps reusable reasoning in one place without turning it into another user-facing
+route or custom-agent registry.
 
-MCP validates generic invariants: selected identifiers must exist, dispositions
-must be legal, reused or excluded evidence must be referenced, synthesis must be
-active, and at least one non-synthesis area must be applicable. MCP does not
-choose the coverage set or prove how the owner answered. Once normalized intent
-is written, `.ultra/.runtime/state.db` treats it as current cross-session authority. If
-that intent changes another Ultra authority, the host applies the change,
-reads it back, and records typed applied references when completing the
-decision thread.
+## Rule-side assets travel with Skills
 
-## Lifecycle boundaries
+`.ultra/` contains project data only. Reusable executable examples live under
+`skills/ultra-tdd/references/templates/`; the reduction boundary lives under
+`skills/ultra-think/references/`; the full philosophy lives in `docs/PHILOSOPHY.md`.
 
-- `ultra-init` classifies and initializes local project authority. It does not
-  perform product research or start another workflow.
-- `ultra-research` establishes or refreshes evidence and converges a baseline
-  only after the required user decisions and local Git authority exist.
-- `ultra-change` owns post-baseline product deltas. Research, planning,
-  development, testing, review, and delivery remain separately invocable
-  capabilities with DB-enforced prerequisites.
-- `ultra-deliver` converges local Ultra evidence. Commit, push, publish, deploy,
-  messaging, and other external effects remain separately authorized host
-  actions.
+Skill `references/` is already copied by every adapter and supports relative
+cross-Skill links. No placeholder root variable or separate asset distributor is
+needed.
 
-## Package boundary
+## State is fact; route is judgment
 
-The package contains the public Ultra workflows, internal review-rule Skills,
-host-specific collaboration companions, MCP runtime, adapters, lifecycle hooks,
-and minimal project bootstrap. General browser, deployment, framework,
-discovery, memory, and graph capabilities remain owned by their separately
-installed providers. Ultra stores only bounded provider metadata references.
+Directory position and explicit fields record mechanically checkable facts. The host
+model reads those facts and chooses the next route. There is no persisted “current
+workflow stage” whose value can override the actual files.
 
-## Installation provenance
+Task status is written to both the ledger and context, then read back. Change archive
+is a `git mv`. Test-report freshness compares `git_commit` with `HEAD`.
 
-Each host installation records package identity, repository, source commit when
-available, installed-asset hashes, and contract targets. A local source checkout
-also records whether it was dirty and a deterministic worktree digest. An npm
-installation has no package-local Git repository and records those source
-checkout fields as `null`; it never inherits an enclosing consumer repository.
+## Three independent integration defences
 
-Installation and project diagnostics are read-only unless an explicit repair or
-install action is requested. No local workflow completion authorizes a remote,
-release, deployment, or destructive effect.
+Planning, task development, and final testing detect different versions of the
+locally-green/whole-system-broken failure. Their outputs remain independent sensors:
+horizontal task shape, six evidence dimensions, and final wiring/E2E audit.
 
-## Current source map
+No single sensor is promoted into a semantic completion gate.
 
-- Runtime architecture: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
-- Workflow state and invalidation: [`WORKFLOW-LIFECYCLE.md`](./WORKFLOW-LIFECYCLE.md)
-- Host compatibility: [`RUNTIME-COMPAT-MATRIX.md`](./RUNTIME-COMPAT-MATRIX.md)
-- Plugin and user-instruction boundary: [`PLUGIN-ISOLATION-CONTRACT.md`](./PLUGIN-ISOLATION-CONTRACT.md)
-- MCP interface: [`../spec/mcp-tools.yaml`](../spec/mcp-tools.yaml)
-- Database contract: [`../spec/schemas/state-db.sql`](../spec/schemas/state-db.sql)
+## Five hooks only
+
+The hook surface is session context, mid-workflow acceptance recall, compact snapshot,
+post-edit evidence observation, and dangerous-command protection. Every hook is silent
+without `.ultra/`. Only a narrow named destructive effect can be denied, and its repair
+is authorization scoped to the exact command digest.
+
+## Delegation is a process boundary
+
+`ubp delegate run` starts a supported CLI with an immutable instruction, explicit
+permission JSON, and named worktree. Files are the cross-host state. The parent reads a
+stable terminal result instead of worker chatter. Delegation adds no semantic store and
+no authority.
+
+## Installation isolation
+
+An explicit `--config-dir` owns host sidecars as well as the primary config. In
+particular, Codex plugin and personal-marketplace paths resolve inside the sandbox.
+Managed staging, provenance, doctor, and uninstall are native adapter responsibilities.
+
+## External effects
+
+Commit, push, tag, package publication, release, deployment, installation, migrations,
+and real-money effects are independent. A locally complete delivery authorizes none of
+them automatically.

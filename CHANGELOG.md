@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `ultra-delegate`, five source-backed CLI profiles, and a background worker with
+  bounded instruction, permission, worktree, logs, and three terminal result states.
+- Added five file-first hooks for session context, acceptance recall, compact recovery,
+  mechanical evidence observation, and exact-command dangerous-effect protection.
+
+### Changed
+
+- Rebuilt the product around fourteen portable Skills: eight owner workflows, five
+  model-invoked disciplines, and one router. Repository files and Git are now the
+  complete cross-session and cross-host authority.
+- Replaced all five host adapters with managed, provenance-checked file-first plugin
+  artifacts and isolated install/doctor/update/uninstall behavior.
+- Moved rule-side research, review, TDD, and autonomy material into focused Skill
+  references and reduced the project skeleton to one canonical `.ultra-template/`.
+
+### Removed
+
+- Removed the MCP server, SQLite runtime dependency, workflow state machine,
+  orchestrator, operational CLI, command projections, custom-agent projections, and
+  their obsolete schemas and tests.
+
+### Fixed
+
+- Made `--config-dir` the isolation home for Codex plugin and personal-marketplace
+  sidecars, and registered the plugin through Codex with the same isolated `HOME` and
+  `CODEX_HOME`, preventing sandbox installs from mutating the real home directory.
+- Namespaced multi-host `--config-dir` installs by runtime so one host cannot replace
+  another host's `skills/` or `plugins/` tree.
+- Made failed Codex registration restore the previous managed plugin and marketplace,
+  or remove a fresh partial install.
+- Rejected project-escaping task context and spec paths before hooks read them.
+- Rejected delegated writable roots outside the named worktree and readable roots
+  outside the current project before launching another CLI.
+- Restored independent plan, development-evidence, and final-wiring checks so a locally
+  green layer cannot stand in for an end-to-end product path.
+
 ## [0.25.1] — 2026-07-31
 
 ### Fixed

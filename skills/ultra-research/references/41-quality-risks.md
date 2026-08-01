@@ -22,7 +22,7 @@ verification, recovery, technical debt, and architecture decisions where needed.
 
 Complete the step with evidence references and the updated output path.
 
-## Semantic record
+## Report trace
 
-Use kind `risk`. Record `trigger_condition`, `expected_response`, `measurement`,
-`mitigation`, `recovery`, and `owner`.
+In the area report, record `trigger_condition`, `expected_response`, `measurement`,
+`mitigation`, `recovery`, and `owner`, then link the risk heading or decision file.

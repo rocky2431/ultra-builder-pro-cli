@@ -8,13 +8,14 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const SCRIPT = path.resolve(__dirname, '..', 'skills', 'ultra-review', 'scripts', 'review_wait.py');
+const PACKET_DIGEST = 'c'.repeat(64);
 
 function tempSession() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-review-wait-'));
 }
 
-function run(session, ...args) {
-  return spawnSync('python3', [SCRIPT, session, ...args], {
+function run(session, mode, ...args) {
+  return spawnSync('python3', [SCRIPT, session, mode, '--packet-digest', PACKET_DIGEST, ...args], {
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -29,7 +30,7 @@ function specialist(agent, axis) {
     $schema: 'ultra-review-findings-v2',
     agent,
     axis,
-    packet_digest: 'c'.repeat(64),
+    packet_digest: PACKET_DIGEST,
     session: 'review-session',
     timestamp: '2026-07-18T00:00:00Z',
     scope: {
@@ -108,6 +109,20 @@ test('review waiter rejects a specialist artifact without its Worker Packet dige
   }
 });
 
+test('review waiter rejects artifacts bound to a different immutable Worker Packet', () => {
+  const session = tempSession();
+  try {
+    const artifact = specialist('review-code', 'engineering_standards');
+    artifact.packet_digest = 'd'.repeat(64);
+    fs.writeFileSync(path.join(session, 'review-code.json'), JSON.stringify(artifact));
+    const result = run(session, 'agents', 'review-code');
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /packet_digest.*expected/i);
+  } finally {
+    fs.rmSync(session, { recursive: true, force: true });
+  }
+});
+
 test('review waiter validates the two-axis summary and derives severity counts', () => {
   const session = tempSession();
   try {
@@ -120,7 +135,7 @@ test('review waiter validates the two-axis summary and derives severity counts',
       head: '0123456789abcdef',
       worktree_digest: 'a'.repeat(64),
       context_digest: 'b'.repeat(64),
-      packet_digest: 'c'.repeat(64),
+      packet_digest: PACKET_DIGEST,
       status: 'complete',
       verdict: 'REQUEST_CHANGES',
       axes: {
@@ -164,7 +179,7 @@ test('review waiter rejects a summary without mode-bound worker selection proven
       $schema: 'ultra-review-summary-v2',
       session: 'review-session', change_id: 'review-change', task_ids: [],
       head: '0123456789abcdef', worktree_digest: null, context_digest: 'b'.repeat(64),
-      packet_digest: 'c'.repeat(64),
+      packet_digest: PACKET_DIGEST,
       status: 'complete', verdict: 'APPROVE',
       axes: {
         spec_fidelity: { verdict: 'PASS', evidence_refs: ['spec-fidelity.json'] },

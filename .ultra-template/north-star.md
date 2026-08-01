@@ -3,8 +3,8 @@
 > **Authority**: the owner's literal intent for this project, kept short enough to re-inject every
 > session. Every task must trace back here.
 >
-> **Scope**: only what cannot be derived from `specs/product.md`. Success metrics live in
-> `product.md` §6, excluded features in §5, personas in §2 — do not copy them here.
+> **Scope**: only what cannot be derived from `specs/product.md`. Success metrics,
+> excluded features, actors and scenarios stay in that file — do not copy them here.
 
 ---
 
@@ -42,5 +42,5 @@ _(not yet defined)_
 3. If your current work does not trace back here, **stop and ask**. You may be building the
    wrong thing.
 
-Injected by `session_context` at SessionStart and by `mid_workflow_recall` when source files are
-edited. See PHILOSOPHY C1.
+The One-line is injected by `session_context` at SessionStart. `mid_workflow_recall`
+re-injects the active task acceptance before relevant tool use. See PHILOSOPHY C1.

@@ -19,7 +19,8 @@ or refute. A technology choice is a claim, so it is not initialization's busines
 
 1. Read `.ultra/tasks.json` if it exists, along with the `context_file` of any
    task it names — a partial `.ultra/` means an earlier attempt stopped midway.
-2. Read `CONTEXT.md` at the repository root for vocabulary already settled.
+2. Read `CONTEXT.md` at the repository root for vocabulary already settled, and
+   `.ultra/decisions/` for any entries preserved by a partial setup.
 3. Establish the route's facts from the filesystem, not by asking.
 
 ## Definition of done
@@ -27,7 +28,7 @@ or refute. A technology choice is a claim, so it is not initialization's busines
 - `.ultra/north-star.md` carries the owner's one-line goal in their own words.
 - Every file listed under **What gets written** exists; you read each one back
   after writing and stopped at the first one missing.
-- `.git` exists and holds at least one commit.
+- `.git` exists. Any initial commit is a separately authorized delivery effect.
 - Nothing is invented: what is unknown says `[NEEDS CLARIFICATION]`.
 
 ## Which route
@@ -36,12 +37,13 @@ Check the filesystem in this order and take the first match:
 
 | Check | Route | What changes |
 |---|---|---|
-| `docs/` holds two or more non-README `.md` files, or `docs/adr/` or `doc/` exists | Follow the existing convention | Write no `.ultra/specs/`; point `trace_to` at the documents already there |
+| `docs/` holds two or more non-README `.md` files, or `docs/adr/` or `doc/` exists | Documented brownfield | Write everything; cite maintained documents as evidence and preserve their repository paths in `trace_to` when they remain authoritative |
 | A language configuration file exists and the row above did not match | Brownfield | Write everything; record what a code scan shows in `architecture.md` and `discovery.md`, marked as observed and unverified |
 | Neither | Greenfield | Write everything |
 
-Brownfield writes no separate baseline document — that is one more fixed file and
-a second authority for facts the specifications already hold.
+For either brownfield route, read `references/brownfield-adoption.md`. Existing docs
+are evidence or an explicitly retained authority; they never justify omitting the
+canonical specification skeleton that downstream workflows require.
 
 ## Draw out the intent
 
@@ -53,7 +55,7 @@ genuinely missing. Five things come out of it:
 | What you draw out | Where it lands |
 |---|---|
 | What you want to build, in one sentence, their words | `north-star.md`, `## One-line` |
-| What counts as success | `north-star.md` |
+| What counts as success | `specs/product.md`, behavioral requirements and acceptance |
 | What must never happen | `north-star.md`, `## Hard Constraints` |
 | Who uses it, and how they cope today | `discovery.md`, marked as the owner's statement |
 | **What you already know you are unsure about** | `discovery.md` — research's priority queue |
@@ -63,23 +65,32 @@ and create `CONTEXT.md` at the repository root.
 
 ## What gets written
 
+Resolve this loaded Skill's directory, then run
+`node <ultra-init-skill-dir>/scripts/init_project.cjs --project <repository-root>`. The script copies
+only missing files from `assets/project-template`, preserves every existing authority
+file byte-for-byte, and reads the resulting skeleton back. Then fill its semantic
+placeholders from verified facts and owner decisions.
+
 ```text
 .ultra/north-star.md                                ## One-line, ## Hard Constraints
 .ultra/specs/{product,architecture,discovery}.md    ## Observed, ## Decisions, ## Unknowns
 .ultra/tasks.json                                   {"tasks": []}
+.ultra/test-report.json                             not-yet-run report with git_commit
 .ultra/contexts/  .ultra/decisions/  .ultra/evidence/
 CONTEXT.md                                          repository root, once a term is settled
 ```
 
-Append `.ultra/progress/`, `.ultra/reviews/` and `.ultra/.runtime/` to
-`.gitignore`. Those headings are exact — hooks and later skills read them by
-name. Every section left unfilled carries `[NEEDS CLARIFICATION]`, and which of
-those you resolve now has a checkable rule: **what can be read out of repository
-files, you fill; what needs investigation, research fills.**
+The copied `.ultra/.gitignore` excludes `.runtime/`, `progress/`, and `reviews/`
+without editing the owner's root ignore file. Those paths are exact — hooks and later
+skills read them by name. Every section left unfilled carries
+`[NEEDS CLARIFICATION]`, and which of those you resolve now has a checkable rule:
+**what can be read out of repository files, you fill; what needs investigation,
+research fills.**
 
 Git is not a preference. Reconciliation reads `git log` and `git diff`, staleness
 detection compares against `HEAD`, archiving is a `git mv`, and rollback is Git.
-If `.git` is absent, run `git init` and make the initial commit without asking.
+If `.git` is absent, run `git init`. Report the uncommitted initialized files and ask
+for commit authority only if the owner wants that separate effect now.
 
 ## When the owner decides
 
@@ -95,5 +106,6 @@ skill asks again. Do not infer it from the directory name.
 
 - `../ultra-grilling/SKILL.md` — the loop; read it before the first question.
 - `../ultra-domain-modeling/SKILL.md` — read when the first term needs writing.
+- `references/brownfield-adoption.md` — read for either existing-code route.
 - `../ultra-think/references/autonomy-boundary.md` — read before touching
   authority that already exists.

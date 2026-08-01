@@ -1,0 +1,60 @@
+{
+  "$schema": "ultra-task-evidence-v1",
+  "task_id": "v026-host-adapters",
+  "git_head": "3f99189bc68697262cd90444685ac2d4857139c4",
+  "commands": [
+    {
+      "command": "node --test adapters/_shared/tests/file-ops.test.cjs tests/install.test.cjs tests/v026-adapters.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "31 passed, 0 failed on 2026-08-01"
+    },
+    {
+      "command": "node bin/install.js --all --global --config-dir <isolated-root> && doctor && reinstall && uninstall",
+      "exit_code": 0,
+      "evidence_ref": "five healthy reports; config_entries=[]; home_entries=[]"
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["adapters/_shared/tests/file-ops.test.cjs", "tests/install.test.cjs", "tests/v026-adapters.test.cjs"],
+      "rationale": "Tests cover five-host lifecycle, native Codex registration, rollback, zero residue, legacy upgrade, and pre-existing registry preservation."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": ["31 passed, 0 failed on 2026-08-01"],
+      "rationale": "The focused lifecycle suite and an independent CLI sandbox both exited zero."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/install.test.cjs"],
+      "rationale": "Adapters use real temporary filesystems and Codex uses its real native plugin registry inside the isolated root."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/v026-adapters.test.cjs"],
+      "rationale": "Installed owner/model visibility and host limitations are asserted directly instead of hidden behind flags."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/install.test.cjs"],
+      "rationale": "The CLI performs install, Doctor, reinstall, and uninstall for all five hosts through their adapters."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/specs/architecture.md#adaptation-and-routing"],
+      "rationale": "The architecture anchor records each native layout, routing policy, and visible limitation."
+    }
+  },
+  "artifacts": [
+    "adapters/claude.js",
+    "adapters/codex.js",
+    "adapters/opencode.js",
+    "adapters/kimi.js",
+    "adapters/grok.js",
+    "adapters/_shared/file-ops.cjs",
+    "docs/RUNTIME-COMPAT-MATRIX.md"
+  ],
+  "limitations": ["Codex Hook trust remains a user-controlled post-install action and is reported separately from installation health."],
+  "timestamp": "2026-08-01T11:47:28+08:00"
+}

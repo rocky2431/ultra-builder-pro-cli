@@ -14,11 +14,11 @@ from typing import Any
 
 HOOK_ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_FEATURES = {
-    "active_task_context.py",
-    "health_check.py",
-    "pre_stop_check.py",
-    "subagent_tracker.py",
-    "workflow_checkpoint.py",
+    "block_dangerous_commands.py",
+    "compact_context.py",
+    "mid_workflow_recall.py",
+    "post_edit_guard.py",
+    "session_context.py",
 }
 
 

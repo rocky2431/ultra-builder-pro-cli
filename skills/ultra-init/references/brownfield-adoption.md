@@ -1,99 +1,49 @@
 # Brownfield adoption
 
-Execute this procedure for a detected brownfield repository, a migrated compatibility
-baseline, or an existing adoption in `adopting` or `blocked` state.
+Use this procedure only when `ultra-init` detects an existing codebase without a
+healthy `.ultra/` authority surface. Initialization records the observable baseline;
+it does not redesign the application or accept claims the repository cannot support.
 
 ## Bind the repository boundary
 
-Record the repository root, selected scope, workspace roots, branch, HEAD, dirty files,
-generated and vendored exclusions, manifests, verification commands, and public seams.
-Use `.` for a whole-repository adoption. Use selected workspace roots only when the
-user's requested ownership is narrower than the monorepo.
+Record the repository root, selected workspace roots, branch, `HEAD`, dirty files,
+generated and vendored exclusions, manifests, verification commands, and public
+seams. Keep out-of-scope dirty files visible as context without treating them as part
+of the selected baseline.
 
-The authoritative worktree snapshot contains only selected-scope paths. Report dirty
-files outside that scope separately as repository context, but do not include them in
-the baseline digest. Require `accept_dirty_worktree: true` only after the owner confirms
-the exact in-scope `worktree_files` returned by the server.
+## Inspect the maintained system
 
-## Build the evidence model
+Trace product behavior through real entry points, runtime consumers, persistence,
+integrations, permissions, failure paths, tests, deployment, observability, and
+recovery. Classify every material statement as `Observed`, `Verified`, `Decided`, or
+`Unknown`. Record maintained-document conflicts as drift.
 
-Inspect the maintained system through its live boundaries:
+## Write the baseline once
 
-- product behavior, actors, entry points, and public acceptance;
-- runtime modules, consumers, data flow, persistence, and authority;
-- APIs, events, integrations, permissions, security, and failure paths;
-- build, test, lint, typecheck, deployment, migration, observability, and recovery;
-- maintained documents and every detected source-to-document conflict.
+- Update `.ultra/specs/product.md` with delivered behavior and acceptance.
+- Update `.ultra/specs/architecture.md` with boundaries, authority, consumers,
+  permissions, failures, and recovery.
+- Update `.ultra/specs/discovery.md` with scope evidence, known defects, drift, and
+  unresolved questions.
+- Initialize `.ultra/tasks.json` and `.ultra/test-report.json` from the packaged
+  templates without manufacturing passing results.
 
-Classify each material statement as `Observed`, `Verified`, `Decided`, or `Unknown`.
-Record document/source conflicts as drift. Keep provider payloads outside Ultra and
-record only bounded metadata references.
+Use the specifications as the canonical representation. Do not create a second
+baseline ledger, database projection, or generated semantic mirror.
 
-## Write baseline artifacts
-
-Update `.ultra/specs/product.md` with current delivered behavior and acceptance. Update
-`.ultra/specs/architecture.md` with real boundaries, owners, writers, consumers,
-consistency rules, permissions, failures, and recovery. Use `discovery.md` for scope
-evidence, decisions, and unresolved questions.
-
-Capture current facts without redesigning the application or manufacturing product
-narratives that are absent from evidence.
-
-## Run characterization verification
+## Characterize verification
 
 Run the repository's existing verification commands. Record each result as `pass`,
-`known_red`, or `not_run`. A known-red item needs evidence and a rationale; a missing
-command is not a passing result. Record a characterization gap for a critical public
-seam that has no stable verification signal; create its ordinary task only after the
-baseline is ready.
+`known_red`, or `not_run`; a missing command is not a pass. A critical public seam
+without a stable signal is an explicit gap, not an excuse to invent completion.
 
-## Maintain the gap ledger
+## Converge
 
-Record every adoption gap with a stable id, evidence references, owner, blocking flag,
-and one category:
+Read every written file back, show the owner the selected scope, observed behavior,
+drift, known-red verification, unknowns, and material decisions, and leave unresolved
+items marked `[NEEDS CLARIFICATION]`. Adoption is ready when the file set is complete,
+the recorded revision matches the inspected checkout, and every material gap remains
+visible with its evidence and owner decision where one exists.
 
-- `baseline_blocker`: the model should recommend against adoption until resolved or
-  the owner explicitly accepts the recorded risk;
-- `documentation_drift`: maintained prose conflicts with observed behavior;
-- `known_defect`: reproducible incorrect behavior;
-- `technical_debt`: accepted maintainability or quality cost;
-- `unknown`: evidence is insufficient;
-- `future_change`: desired behavior outside the current baseline.
-
-Use `open` for unresolved gaps, `accepted` for owner-accepted debt,
-`resolved` when evidence closes the gap, and `deferred` for explicitly postponed
-work. Keep every open `baseline_blocker` visible as a semantic warning. It does not
-become a SQLite hard gate: the model explains the risk, recommends resolution, and may
-record owner-authorized adoption without erasing the gap. Do not convert the ledger
-into hundreds of application tasks.
-
-## Record authority
-
-Use `ultra.record` with `kind: baseline`, `action: observe`, and full replacement
-arrays for:
-
-- scope and repository revision;
-- repository classification;
-- product and architecture specification paths;
-- bounded source, documentation, runtime, test, deployment, or external references;
-- verification results;
-- blocking and non-blocking unknowns;
-- the complete gap ledger;
-- external provider metadata references, when supplied.
-
-Use the server-returned revision, branch, worktree digest, and specification digests.
-
-## Obtain approval and converge
-
-Present scope, observed behavior, drift, known-red verification, unknowns, gaps, dirty
-worktree state, and material decisions to the owner. Use `ultra.record` with
-`kind: baseline`, `action: accept` only after explicit approval. Set
-`accept_known_red` and `accept_dirty_worktree` only for the exact items the owner
-accepted.
-
-Resolve hard authority blockers, then present semantic warnings for evidence or an
-owner decision. Adoption is complete when `ultra.context` reports a current accepted
-baseline, every material open gap is visible with its owner/risk and any acceptance is
-explicit in the approval note, and project doctor has no mechanical authority failure.
-Route all selected work through `ultra-change`, including work described by a legacy
-plan. Import its accepted intent into a current Change Contract before planning.
+Recommend `ultra-change` for subsequent work and stop; public skills do not invoke one
+another.

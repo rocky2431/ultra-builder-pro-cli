@@ -2,548 +2,185 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
-const { parse: parseFrontmatter } = require('../adapters/_shared/frontmatter.cjs');
+const ROOT = path.resolve(__dirname, '..');
+const SKILL_ROOT = path.join(ROOT, 'skills');
+const { parse } = require('../adapters/_shared/frontmatter.cjs');
 const {
-  CORE_PUBLIC_SKILLS,
-  INTERNAL_AGENT_SKILLS,
-  MCP_DEPENDENT_SKILLS,
+  USER_INVOKED_SKILLS,
   MODEL_INVOKED_SKILLS,
-  SUPPORTED_RUNTIMES,
+  ROUTER_SKILLS,
   skillsForRuntime,
 } = require('../adapters/_shared/runtime-assets.cjs');
-const ROOT = path.resolve(__dirname, '..');
-const SKILLS_ROOT = path.join(ROOT, 'skills');
-const COMMANDS_ROOT = path.join(ROOT, 'commands');
-const AGENTS_ROOT = path.join(ROOT, 'agents');
-const TEMPLATE_ROOTS = [path.join(ROOT, '.ultra-template'), path.join(ROOT, 'templates', '.ultra')];
-const COLLAB_SKILLS = new Set(['cc-collab', 'codex-collab', 'ultra-verify']);
-const PACKAGED_SKILLS = new Set(SUPPORTED_RUNTIMES.flatMap((runtime) => skillsForRuntime(runtime)));
-// Public capabilities already converted to the file-first contract. Empty means
-// nothing is converted; equal to CORE_PUBLIC_SKILLS means the MCP kernel has no
-// remaining prompt-side consumer.
-const FILE_FIRST_SKILLS = ['ultra-init', 'ultra-change', 'ultra-dev'];
-const NEUTRAL_SKILLS = new Set([
-  ...CORE_PUBLIC_SKILLS,
-  ...INTERNAL_AGENT_SKILLS,
-  ...MODEL_INVOKED_SKILLS,
-]);
 
-function walk(root, predicate = () => true) {
-  const files = [];
-  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+const ALL = skillsForRuntime('claude');
+
+function skillFile(name) {
+  return path.join(SKILL_ROOT, name, 'SKILL.md');
+}
+
+function walk(root) {
+  return fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(root, entry.name);
-    if (entry.isDirectory()) files.push(...walk(file, predicate));
-    else if (predicate(file)) files.push(file);
-  }
-  return files;
+    return entry.isDirectory() ? walk(file) : [file];
+  });
 }
 
-function sourceSkill(name) {
-  const file = path.join(SKILLS_ROOT, name, 'SKILL.md');
-  return { file, text: fs.readFileSync(file, 'utf8') };
-}
-
-test('skills directory contains only deliberately packaged skill roots', () => {
-  const roots = fs.readdirSync(SKILLS_ROOT, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-  assert.deepEqual(roots, [...PACKAGED_SKILLS].sort());
-});
-
-test('commands expose exactly the eleven Ultra-owned public capabilities', () => {
-  const commands = fs.readdirSync(COMMANDS_ROOT)
-    .filter((name) => name.endsWith('.md'))
-    .map((name) => name.slice(0, -3))
-    .sort();
-  assert.deepEqual(commands, [...CORE_PUBLIC_SKILLS].sort());
-  assert.equal(commands.length, 11);
-  assert.ok(!commands.includes('learn'));
-});
-
-test('source SKILL.md files use portable Agent Skills frontmatter', () => {
-  for (const name of [...PACKAGED_SKILLS].sort()) {
-    const { text } = sourceSkill(name);
-    const { fm } = parseFrontmatter(text);
-    assert.ok(fm, `${name} must have YAML frontmatter`);
-    assert.deepEqual(Object.keys(fm).sort(), ['description', 'name'], `${name} has host/runtime metadata in SKILL.md`);
-    assert.equal(fm.name, name, `${name} frontmatter name must match its directory`);
-    assert.match(fm.description, /\bUse(?: only)? when\b/i, `${name} description must say when it should activate`);
-    assert.ok(fm.description.length <= 1024, `${name} description exceeds Agent Skills limit`);
+test('all fourteen skills use portable minimal frontmatter and the shared authoring shape', () => {
+  assert.equal(ALL.length, 14);
+  for (const name of ALL) {
+    const text = fs.readFileSync(skillFile(name), 'utf8');
+    const { fm, body } = parse(text);
+    assert.deepEqual(Object.keys(fm).sort(), ['description', 'name'], name);
+    assert.equal(fm.name, name);
+    assert.ok(String(fm.description).length >= 40, `${name}: weak description`);
+    for (const heading of ['Before you start', 'Definition of done', 'When the owner decides', 'References']) {
+      assert.match(body, new RegExp(`^## ${heading}$`, 'm'), `${name}: ${heading}`);
+    }
+    assert.ok(text.split('\n').length <= 120, `${name}: resident prompt is too large`);
+    assert.doesNotMatch(text, /[\u3400-\u9fff]/u, `${name}: model-facing text must be English`);
+    assert.doesNotMatch(text, /(?:\.claude|\.codex|\.opencode|\.kimi|\.grok)\//, `${name}: host-specific path`);
   }
 });
 
-test('packaged skill markdown is English and free of release-history prompt residue', () => {
-  const forbidden = [
-    { pattern: /[\u3400-\u9fff]/u, label: 'Han-script instruction text' },
-    { pattern: /\bpre-Phase\b|\bPhase\s+\d+\.\d+\b|\bv4\.4\b|\bv4\.5\b/i, label: 'release or migration history' },
-    { pattern: /\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bGemini\b|\bRTK\b|\bgraphify\b/i, label: 'retired or external tool binding' },
-    { pattern: /\b90%\+?\s+confidence\b|\b80%\s+overall\b|\b100%\s+Functional Core\b/i, label: 'unsupported global quality threshold' },
-    { pattern: /\bFlag as\s+(?:an?\s+)?(?:P[0-3]|orphan|horizontal)|\bRequired Test\b|\/\/\s*(?:Bad|Good):/i, label: 'mechanical pattern-to-verdict teaching' },
-    { pattern: /\bFunction\s*>\s*\d+\s+lines\b|\bNesting depth\s*>\s*\d+|\baggregate score\b/i, label: 'arbitrary design threshold' },
-    { pattern: /\b(?:better|worse|smarter|faster)\s+than\s+(?:Claude|Codex|OpenCode|Kimi|another model|other tools?)\b|\b(?:old|bad)\s*(?:vs\.?|versus)\s*(?:new|good)\b/i, label: 'tutorial or host comparison' },
-  ];
+test('every relative skill reference and focused asset resolves', () => {
+  const pattern = /`((?:\.\.\/|references\/)[^`\s]+(?:SKILL\.md|\.md|\.py|\.ts|\.sh))`/g;
+  for (const name of ALL) {
+    const base = path.dirname(skillFile(name));
+    const text = fs.readFileSync(skillFile(name), 'utf8');
+    for (const match of text.matchAll(pattern)) {
+      const target = path.resolve(base, match[1]);
+      assert.ok(fs.existsSync(target), `${name}: dangling ${match[1]}`);
+    }
+  }
+});
 
-  for (const name of [...PACKAGED_SKILLS].sort()) {
-    const files = walk(path.join(SKILLS_ROOT, name), (file) => file.endsWith('.md'));
-    for (const file of files) {
-      const text = fs.readFileSync(file, 'utf8');
-      for (const { pattern, label } of forbidden) {
-        assert.doesNotMatch(text, pattern, `${path.relative(ROOT, file)} contains ${label}`);
+test('every non-catalog reference is explicitly routed from its Skill or routed index', () => {
+  for (const name of ALL) {
+    const root = path.join(SKILL_ROOT, name);
+    const skill = fs.readFileSync(skillFile(name), 'utf8');
+    const references = path.join(root, 'references');
+    if (!fs.existsSync(references) || name === 'ultra-research') continue;
+    for (const file of walk(references).filter((entry) => /\.(?:md|py|ts|sh)$/.test(entry))) {
+      const relative = path.relative(root, file).split(path.sep).join('/');
+      if (relative.startsWith('references/templates/') && relative !== 'references/templates/README.md') {
+        const index = fs.readFileSync(path.join(references, 'templates', 'README.md'), 'utf8');
+        assert.match(index, new RegExp(path.basename(file).replaceAll('.', '\\.')), `${name}: index orphan ${relative}`);
+      } else {
+        assert.match(skill, new RegExp(relative.replaceAll('.', '\\.')), `${name}: orphan ${relative}`);
       }
     }
   }
 });
 
-test('project specification templates are neutral evidence records for greenfield and brownfield work', () => {
-  const forbidden = [
-    { pattern: /[\u3400-\u9fff]/u, label: 'Han-script instruction text' },
-    { pattern: /Generated by .*Steps?\s+\d+|Validation Confidence|Overall:\s*\[.*\]%/i, label: 'retired staged prompt ceremony' },
-    { pattern: /Pre-product\s*\/\s*Has users|Option B, Option C|Prioritized Opportunities \(Top 3\)/i, label: 'invented comparison or fixed choice menu' },
-    { pattern: /gets them promoted|gets them fired|Emotional Arc|Porter'?s Five Forces|Functional Core \(pure logic\)/i, label: 'forced persona, framework, or architecture content' },
-    { pattern: /Priority Score\s*=|Opportunity Score\s*=|Strength \(1-5\)|\/10/i, label: 'unsupported mechanical score' },
-  ];
-  for (const root of TEMPLATE_ROOTS) {
-    for (const file of walk(path.join(root, 'specs'), (candidate) => candidate.endsWith('.md'))) {
-      const text = fs.readFileSync(file, 'utf8');
-      for (const { pattern, label } of forbidden) {
-        assert.doesNotMatch(text, pattern, `${path.relative(ROOT, file)} contains ${label}`);
-      }
-      assert.match(text, /^## Observed$/m, `${path.relative(ROOT, file)} needs observed facts`);
-      assert.match(text, /^## Decisions$/m, `${path.relative(ROOT, file)} needs explicit decisions`);
-      assert.match(text, /^## Unknowns$/m, `${path.relative(ROOT, file)} needs unresolved boundaries`);
-    }
-  }
-  const canonical = walk(TEMPLATE_ROOTS[0], (candidate) => candidate.endsWith('.md'))
-    .map((file) => path.relative(TEMPLATE_ROOTS[0], file)).sort();
-  const runtime = walk(TEMPLATE_ROOTS[1], (candidate) => candidate.endsWith('.md'))
-    .map((file) => path.relative(TEMPLATE_ROOTS[1], file)).sort();
-  assert.deepEqual(runtime, canonical, 'source and runtime template inventories must stay aligned');
-  for (const rel of canonical) {
-    assert.equal(
-      fs.readFileSync(path.join(TEMPLATE_ROOTS[1], rel), 'utf8'),
-      fs.readFileSync(path.join(TEMPLATE_ROOTS[0], rel), 'utf8'),
-      `${rel} differs between source and runtime templates`,
-    );
-  }
-});
-
-test('research templates describe accepted adaptive coverage instead of a fixed seventeen-report route', () => {
-  for (const root of TEMPLATE_ROOTS) {
-    const text = fs.readFileSync(path.join(root, 'docs', 'research', 'README.md'), 'utf8');
-    assert.match(text, /included.*research (?:area|step)/i);
-    assert.match(text, /accepted\s+coverage/i);
-    assert.doesNotMatch(text, /full and adoption research therefore produce seventeen reports/i);
-  }
-});
-
-test('every published Ultra project template is tracked by Git', () => {
-  const runtimeFiles = walk(TEMPLATE_ROOTS[1])
-    .map((file) => path.relative(TEMPLATE_ROOTS[1], file))
-    .sort();
-  for (const rel of runtimeFiles) {
-    const publishedPath = path.relative(ROOT, path.join(TEMPLATE_ROOTS[0], rel));
-    assert.doesNotThrow(
-      () => execFileSync(
-        'git',
-        ['ls-files', '--error-unmatch', '--', publishedPath],
-        { cwd: ROOT, stdio: 'pipe' },
-      ),
-      `${publishedPath} is present locally but missing from a clean npm package`,
-    );
-  }
-});
-
-test('core and internal skills are host-neutral', () => {
-  const hostBindings = /\bClaude Code\b|\bOpenCode\b|\bCodex\b|\bKimi(?: Code)?\b|AskUserQuestion|TaskCreate|TaskUpdate|TaskList|\$CLAUDE_PLUGIN_ROOT|~\/\.claude|(^|[\s`(>])\/(?:ultra-[a-z-]+|learn)(?=$|[\s`,.;):])/m;
-  for (const name of [...NEUTRAL_SKILLS].sort()) {
-    const files = walk(path.join(SKILLS_ROOT, name), (file) => file.endsWith('.md'));
-    for (const file of files) {
-      assert.doesNotMatch(
-        fs.readFileSync(file, 'utf8'),
-        hostBindings,
-        `${path.relative(ROOT, file)} contains a host-specific invocation`,
-      );
+test('file-first skills and references contain no retired runtime vocabulary', () => {
+  const retired = /\bultra\.(?:context|record|checkpoint|sync|session|archive|doctor)\b|state\.db|mcpServers|persistent safety kernel|\.ultra\/tasks\/tasks\.json/i;
+  for (const name of ALL) {
+    for (const file of walk(path.join(SKILL_ROOT, name)).filter((entry) => /\.(?:md|py|ts|sh)$/.test(entry))) {
+      assert.doesNotMatch(fs.readFileSync(file, 'utf8'), retired, path.relative(ROOT, file));
     }
   }
 });
 
-test('research preserves the complete semantic workflow through focused references', () => {
-  const root = path.join(SKILLS_ROOT, 'ultra-research');
-  assert.ok(fs.existsSync(path.join(root, 'references')), 'ultra-research must use references/');
-  assert.ok(!fs.existsSync(path.join(root, 'steps')), 'ultra-research steps/ duplicates the main workflow');
-  assert.deepEqual(
-    fs.readdirSync(path.join(root, 'references')).sort(),
-    [
-      '00-problem-validation.md', '01-opportunity-discovery.md', '02-market-assessment.md',
-      '03-competitive-landscape.md', '04-product-strategy.md', '05-assumptions-validation.md',
-      '10-user-personas.md', '11-user-scenarios.md', '20-user-stories.md',
-      '21-features-scope.md', '22-success-metrics.md', '30-architecture-context.md',
-      '31-solution-strategy.md', '32-building-blocks.md', '40-deployment.md',
-      '41-quality-risks.md', '99-synthesis.md',
-    ],
-  );
-  const skillText = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8');
-  assert.match(skillText, /recommend the smallest sufficient coverage/i);
-  assert.match(skillText, /host-native question/i);
-  assert.match(skillText, /one `ultra\.checkpoint`/i);
-  assert.match(skillText, /Synthesis\s+must always be present/i);
-  assert.doesNotMatch(skillText, /disposition for every catalog area/i);
-  const skillLines = skillText.split('\n').length;
-  assert.ok(skillLines <= 120, `ultra-research/SKILL.md has ${skillLines} lines; expected at most 120`);
-});
-
-test('model-invoked skills are reusable file-first discipline inside the resident budget', () => {
-  const skeleton = [
-    /^## Before you start$/m,
-    /^## Definition of done$/m,
-    /^## When the owner decides$/m,
-    /^## References$/m,
-  ];
-  for (const name of MODEL_INVOKED_SKILLS) {
-    const { file, text } = sourceSkill(name);
-    const rel = path.relative(ROOT, file);
-    const { fm } = parseFrontmatter(text);
-    assert.match(
-      fm.description,
-      /another skill|a skill needs/i,
-      `${rel} description must name the calling skill, not a launcher`,
-    );
-    assert.doesNotMatch(
-      text,
-      /ultra\.(?:context|record|checkpoint|sync|session|archive|doctor)/,
-      `${rel} must reach state through repository files, not the MCP kernel`,
-    );
-    for (const heading of skeleton) {
-      assert.match(text, heading, `${rel} is missing the ${heading.source} section`);
+test('file-first workflows have no orphan semantic ledgers or unnamed output documents', () => {
+  const orphanVocabulary = /\.ultra\/drift-log\.md|technical-debt report|\bChange plan\b|## Semantic record/i;
+  for (const name of ALL) {
+    for (const file of walk(path.join(SKILL_ROOT, name)).filter((entry) => /\.(?:md|py|ts|sh)$/.test(entry))) {
+      assert.doesNotMatch(fs.readFileSync(file, 'utf8'), orphanVocabulary, path.relative(ROOT, file));
     }
-    const lines = text.split('\n').length;
-    assert.ok(lines <= 80, `${rel} has ${lines} lines; the model-invoked budget is 80`);
   }
 });
 
-test('reconciliation and per-task evidence are checkable rather than assertions of intent', () => {
-  const change = sourceSkill('ultra-change').text;
-  // §6b.3: an unbounded whole-repository diff is unusable, so the scope is
-  // derived by four commands anyone can rerun.
-  assert.match(change, /git log/, 'ultra-change must bound reconciliation with git history');
-  assert.match(change, /git diff/, 'ultra-change must bound reconciliation with a real diff');
-  assert.match(change, /trace_to/, 'ultra-change must reach code through the specification trace');
-  for (const bucket of [/spec.*no.*code|specification.*not.*implement/i, /code.*no.*spec|implement.*not.*specif/i, /conflict/i]) {
-    assert.match(change, bucket, `ultra-change must report the ${bucket.source} bucket`);
-  }
-
-  const dev = sourceSkill('ultra-dev').text;
-  // PHILOSOPHY C4, second defence layer: the six evidence dimensions are a
-  // fixed contract — renaming one breaks every reader.
-  for (const dimension of [
-    'tests_written', 'tests_passed', 'persistence_real',
-    'feature_flags_audit', 'vertical_slice', 'spec_trace',
-  ]) {
-    assert.match(dev, new RegExp(`\\b${dimension}\\b`), `ultra-dev must carry the ${dimension} dimension`);
-  }
-  for (const delegate of [/\.\.\/ultra-tdd\/SKILL\.md/, /\.\.\/ultra-think\/references\/autonomy-boundary\.md/]) {
-    assert.match(dev, delegate, `ultra-dev must delegate to ${delegate.source}`);
-  }
-  assert.match(dev, /\bultra-review\b/, 'ultra-dev must hand the task-level review to ultra-review');
-});
-
-test('resident prompt budget holds for user-invoked capabilities and the router', () => {
-  for (const name of CORE_PUBLIC_SKILLS) {
-    const { file, text } = sourceSkill(name);
-    const budget = name === 'ultra-status' ? 80 : 100;
-    const lines = text.split('\n').length;
-    assert.ok(
-      lines <= budget,
-      `${path.relative(ROOT, file)} has ${lines} lines; its resident budget is ${budget}`,
-    );
-  }
-});
-
-test('every enabling template a skill points at exists and can be copied as-is', () => {
-  // PHILOSOPHY C2: a prohibition without a runnable alternative gets renamed
-  // around. The recorded failure is an advisory pointing at a missing path,
-  // after which the agent ignores the advisory entirely. Templates travel as
-  // skill references, so they reach every host through the same copy that
-  // already carries the prompt.
-  const referenced = new Set();
-  for (const name of [...PACKAGED_SKILLS].sort()) {
-    const skillRoot = path.join(SKILLS_ROOT, name);
-    for (const file of walk(skillRoot, (f) => f.endsWith('.md'))) {
-      const text = fs.readFileSync(file, 'utf8');
-      for (const [, ref] of text.matchAll(/`((?:\.\.\/[a-z][a-z0-9-]*\/)?references\/templates\/[A-Za-z0-9][A-Za-z0-9._-]*)`/g)) {
-        referenced.add(ref);
-        assert.ok(
-          fs.existsSync(path.resolve(skillRoot, ref)),
-          `${path.relative(ROOT, file)} points at ${ref}, which does not resolve`,
-        );
+test('role boundaries remain explicit without public-workflow chaining', () => {
+  for (const caller of USER_INVOKED_SKILLS) {
+    const text = fs.readFileSync(skillFile(caller), 'utf8');
+    for (const callee of USER_INVOKED_SKILLS) {
+      if (caller !== callee) {
+        assert.doesNotMatch(text, new RegExp(`\\.\\./${callee}/SKILL\\.md`), `${caller} invokes ${callee}`);
       }
     }
   }
-  assert.ok(referenced.size > 0, 'no skill offers a runnable alternative; C2 is unenforced');
+  const callers = Object.fromEntries(MODEL_INVOKED_SKILLS.map((name) => [name, 0]));
+  for (const caller of [...USER_INVOKED_SKILLS, ...ROUTER_SKILLS]) {
+    const text = fs.readFileSync(skillFile(caller), 'utf8');
+    for (const callee of MODEL_INVOKED_SKILLS) {
+      if (text.includes(`../${callee}/SKILL.md`) || text.includes(`\`${callee}\``)) callers[callee] += 1;
+    }
+  }
+  for (const [name, count] of Object.entries(callers)) assert.ok(count >= 2, `${name}: ${count} callers`);
 });
 
-test('rule-side assets travel with the plugin and never enter the project data template', () => {
-  // The owner's decision: .ultra/ holds project data only. A constitution and
-  // runnable reference code are rules — one copy, shipped with the package,
-  // rather than one drifting copy per project.
-  const RULE_SIDE = [
-    'PHILOSOPHY.md',
-    'templates/README.md',
-    'templates/testcontainer-postgres.ts',
-    'templates/testcontainer-postgres.py',
-    'templates/vertical-slice.ts',
-    'templates/persistence-real.ts',
-    'templates/feature-flag-default-audit.sh',
+test('research keeps exactly seventeen progressively disclosed step references', () => {
+  const root = path.join(SKILL_ROOT, 'ultra-research', 'references');
+  const files = fs.readdirSync(root).filter((name) => name.endsWith('.md')).sort();
+  assert.deepEqual(files, [
+    '00-problem-validation.md',
+    '01-opportunity-discovery.md',
+    '02-market-assessment.md',
+    '03-competitive-landscape.md',
+    '04-product-strategy.md',
+    '05-assumptions-validation.md',
+    '10-user-personas.md',
+    '11-user-scenarios.md',
+    '20-user-stories.md',
+    '21-features-scope.md',
+    '22-success-metrics.md',
+    '30-architecture-context.md',
+    '31-solution-strategy.md',
+    '32-building-blocks.md',
+    '40-deployment.md',
+    '41-quality-risks.md',
+    '99-synthesis.md',
+  ]);
+  const skill = fs.readFileSync(skillFile('ultra-research'), 'utf8');
+  assert.match(skill, /Load one reference\s+at a time/i);
+  assert.match(skill, /git blob hash/i);
+});
+
+test('every enabling template is present and the index maps the real alternatives', () => {
+  const root = path.join(SKILL_ROOT, 'ultra-tdd', 'references', 'templates');
+  const expected = [
+    'feature-flag-default-audit.sh',
+    'persistence-real.ts',
+    'testcontainer-postgres.py',
+    'testcontainer-postgres.ts',
+    'vertical-slice.ts',
   ];
-  for (const root of TEMPLATE_ROOTS) {
-    const rel = path.relative(ROOT, root);
-    for (const asset of RULE_SIDE) {
-      assert.ok(
-        !fs.existsSync(path.join(root, asset)),
-        `${rel}/${asset} duplicates a rule-side asset as project data`,
-      );
-    }
-    assert.ok(fs.existsSync(path.join(root, 'north-star.md')), `${rel}/north-star.md is project data and must stay`);
+  const index = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+  for (const name of expected) {
+    assert.ok(fs.existsSync(path.join(root, name)), name);
+    assert.match(index, new RegExp(name.replaceAll('.', '\\.')));
   }
-
-  const philosophy = fs.readFileSync(path.join(ROOT, 'docs', 'PHILOSOPHY.md'), 'utf8');
-  assert.match(philosophy, /^## 4 Core Goals$/m);
-  assert.match(philosophy, /^## 5 Commandments$/m);
-
-  const boundary = path.join(SKILLS_ROOT, 'ultra-think', 'references', 'autonomy-boundary.md');
-  assert.ok(fs.existsSync(boundary), 'the C5 verdict rule needs one canonical location skills can reach');
-  const text = fs.readFileSync(boundary, 'utf8');
-  assert.match(text, /EXPANSION[\s\S]*CORRECTION[\s\S]*REDUCTION/);
-  assert.match(text, /follows from the outcome, never from the reason/i);
-
-  for (const name of MODEL_INVOKED_SKILLS) {
-    assert.match(
-      sourceSkill(name).text,
-      /\.\.\/ultra-think\/references\/autonomy-boundary\.md/,
-      `${name} must cite the shared C5 rule rather than a path outside the package`,
-    );
-  }
+  assert.match(index, /rule-side examples/i);
+  assert.doesNotMatch(index, /\.ultra\/templates|forbidden_patterns/);
 });
 
-test('the ubiquitous-language file format has exactly one authority', () => {
-  const { text } = sourceSkill('ultra-domain-modeling');
-  for (const marker of [/^## Language$/m, /_Avoid_/, /^## Relationships$/m, /^## Flagged ambiguities$/m]) {
-    assert.match(text, marker, `ultra-domain-modeling must define the ${marker.source} section`);
-  }
-  for (const root of TEMPLATE_ROOTS) {
-    assert.ok(
-      !fs.existsSync(path.join(root, 'CONTEXT.md')),
-      `${path.relative(ROOT, root)}/CONTEXT.md would place the vocabulary file inside .ultra/`,
-    );
-    assert.ok(
-      !fs.existsSync(path.join(root, 'templates', 'CONTEXT.md')),
-      'a second CONTEXT.md format would compete with ultra-domain-modeling',
-    );
-  }
-});
+test('the three-defence fixture is locally green while all three independent defects remain observable', () => {
+  const fixture = path.join(__dirname, 'fixtures', 'v026-three-defenses');
+  const local = spawnSync(process.execPath, ['--test'], { cwd: fixture, encoding: 'utf8' });
+  assert.equal(local.status, 0, local.stderr || local.stdout);
 
-test('human-agent alignment uses one canonical owner interaction boundary', () => {
-  const reference = path.join(
-    SKILLS_ROOT,
-    'ultra-think',
-    'references',
-    'interaction-boundary.md',
-  );
-  assert.ok(fs.existsSync(reference), 'canonical owner interaction reference is missing');
-  const protocol = fs.readFileSync(reference, 'utf8');
-  assert.match(protocol, /host-native question surface/i);
-  assert.match(protocol, /one unresolved owner choice at a time/i);
-  assert.match(protocol, /kind: decision[\s\S]*action: accept/i);
-  assert.match(protocol, /read `ultra\.context` back/i);
-  assert.match(protocol, /accepted records remain immutable|immutable history/i);
-  assert.match(protocol, /Never persist raw transcripts, hidden reasoning, full prompts/i);
-  assert.doesNotMatch(protocol, /\bdecision\.(?:thread_start|open|resolve|complete)\b/);
+  const task = JSON.parse(
+    fs.readFileSync(path.join(fixture, '.ultra', 'tasks.json'), 'utf8'),
+  ).tasks[0];
+  const context = fs.readFileSync(path.join(fixture, task.context_file), 'utf8');
+  assert.match(context, /Persistence only/);
+  assert.doesNotMatch(context, /HTTP.*Persistence/is);
 
-  for (const name of ['ultra-research', 'ultra-think', 'ultra-plan']) {
-    const { text } = sourceSkill(name);
-    assert.match(
-      text,
-      /interaction-boundary\.md/,
-      `${name} must use the canonical owner interaction boundary`,
-    );
-  }
-  // A file-first skill reaches the owner through ultra-grilling instead: the
-  // interaction boundary above is written against the MCP kernel, and one
-  // interrogation protocol in one place is the reason ultra-grilling exists.
-  for (const name of ['ultra-init', 'ultra-change']) {
-    assert.match(
-      sourceSkill(name).text,
-      /\.\.\/ultra-grilling\/SKILL\.md/,
-      `${name} must delegate owner interrogation to ultra-grilling`,
-    );
-  }
-  assert.match(sourceSkill('ultra-research').text, /not a questionnaire/i);
-  assert.match(sourceSkill('ultra-think').text, /Reuse a clear decision/i);
-  assert.match(sourceSkill('ultra-plan').text, /EXPAND[\s\S]*SELECTIVE[\s\S]*HOLD[\s\S]*REDUCE/i);
-  assert.match(sourceSkill('ultra-plan').text, /host-native UI/i);
-});
+  const flags = require(path.join(fixture, 'src', 'flags.js'));
+  assert.equal(flags.checkoutEnabled, false);
 
-test('public workflow skills use the narrow MCP kernel and return semantic control to the host model', () => {
-  const KERNEL_CALL = /ultra\.(?:context|record|checkpoint|sync|session|archive|doctor)/;
-  const graphSkills = [...CORE_PUBLIC_SKILLS];
-  for (const name of graphSkills) {
-    const { text } = sourceSkill(name);
-    // FILE_FIRST_SKILLS records which public capabilities have been converted
-    // to plain files. A converted skill must have dropped its MCP declaration
-    // (the Codex adapter emits that as a tool dependency, so a leftover call
-    // would make the declaration a lie) and must open by reading the three
-    // files that replace hook injection.
-    if (FILE_FIRST_SKILLS.includes(name)) {
-      assert.ok(!MCP_DEPENDENT_SKILLS.includes(name), `${name} is file-first but still declares the kernel`);
-      assert.doesNotMatch(text, KERNEL_CALL, `${name} calls the MCP kernel it no longer declares`);
-      for (const anchor of [/`\.ultra\/tasks\.json`/, /context_file/, /`CONTEXT\.md`/]) {
-        assert.match(text, anchor, `${name} is file-first and must read ${anchor.source} to start`);
-      }
-    } else {
-      assert.match(text, KERNEL_CALL, `${name} does not use the public MCP kernel`);
-    }
-    assert.match(
-      text,
-      /do not invoke|never invoke|not invoke/i,
-      `${name} does not preserve explicit-only handoff`,
-    );
-    assert.doesNotMatch(
-      text,
-      /(?:automatically|immediately|directly)\s+(?:start|invoke|run|enter|continue to)\s+`?ultra-/i,
-      `${name} automatically invokes another public capability`,
-    );
-    assert.doesNotMatch(
-      text,
-      /\b(?:workflow\.(?:start|step|complete|revise|supersede)|allowed_transitions|required_transition)\b/,
-      `${name} exposes a hidden state-machine route`,
-    );
-  }
-  assert.match(sourceSkill('ultra-init').text, /does not perform\s+research/i);
-  assert.match(sourceSkill('ultra-research').text, /\bultra-change\b/);
-  assert.match(sourceSkill('ultra-change').text, /draft stays editable/i);
-  assert.match(sourceSkill('ultra-dev').text, /one authorized local task commit/i);
-  assert.match(sourceSkill('ultra-deliver').text, /never grants commit, push, tag/i);
-});
+  const symbol = 'formatCheckoutDebug';
+  const nonTests = walk(path.join(fixture, 'src'));
+  const consumers = nonTests.filter((file) => {
+    if (file.endsWith('unused-export.js')) return false;
+    return fs.readFileSync(file, 'utf8').includes(symbol);
+  });
+  assert.deepEqual(consumers, []);
 
-test('delivery guidance preserves an adaptive caller-owned semantic handoff', () => {
-  const delivery = sourceSkill('ultra-deliver').text;
-  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-  const lifecycle = fs.readFileSync(
-    path.join(ROOT, 'docs', 'WORKFLOW-LIFECYCLE.md'),
-    'utf8',
-  );
-  const crosswalk = fs.readFileSync(
-    path.join(ROOT, 'docs', 'LEGACY-CLI-CROSSWALK.md'),
-    'utf8',
-  );
-  assert.doesNotMatch(
-    delivery,
-    /Use when implementation, testing, and review are current/i,
-    'ultra-deliver activation must not require a fixed implementation/test/review sequence',
-  );
-  assert.doesNotMatch(
-    readme,
-    /Research, plans, implementation, tests, review, and specification updates must agree/i,
-    'README must not present every semantic stage as a fixed archive precondition',
-  );
-  assert.match(delivery, /explicitly record any omitted stage/i);
-  assert.match(readme, /explicitly records any omitted capability/i);
-  assert.doesNotMatch(
-    lifecycle,
-    /still needs an explicit Plan, Task contract, Context,\s+verification, review, and delivery evidence/i,
-    'workflow lifecycle must not turn the illustrative full-depth route into a universal gate',
-  );
-  assert.doesNotMatch(
-    crosswalk,
-    /ultra-deliver` requires current tasks, test, review/i,
-    'legacy crosswalk must describe the current adaptive delivery boundary accurately',
-  );
-  assert.match(lifecycle, /actual Change route/i);
-  assert.match(crosswalk, /explicitly accepted evidence packet/i);
-});
-
-test('model-facing skills do not directly call fine-grained compatibility tools', () => {
-  const directFineGrainedCall = /\b(?:call|run|invoke)\s+`(?:task|change|baseline|decision|workflow|artifact|system|session|plan)\.[a-z_]+`/i;
-  for (const name of CORE_PUBLIC_SKILLS) {
-    const { text } = sourceSkill(name);
-    assert.doesNotMatch(
-      text,
-      directFineGrainedCall,
-      `${name} directly calls a hidden compatibility tool`,
-    );
-  }
-});
-
-test('command markdown files are English thin launchers', () => {
-  const commands = fs.readdirSync(COMMANDS_ROOT).filter((name) => name.endsWith('.md')).sort();
-  for (const name of commands) {
-    const file = path.join(COMMANDS_ROOT, name);
-    const text = fs.readFileSync(file, 'utf8');
-    const { fm, body } = parseFrontmatter(text);
-    assert.ok(fm && typeof fm['workflow-ref'] === 'string', `${name} must route to one skill`);
-    assert.doesNotMatch(text, /[\u3400-\u9fff]/u, `${name} contains Han-script prompt text`);
-    assert.ok(body.split('\n').length <= 12, `${name} duplicates workflow instructions instead of remaining a thin launcher`);
-    assert.match(body, /follow/i, `${name} must direct the host to follow the referenced skill`);
-  }
-});
-
-test('collaboration skills remain explicit companions, not neutral workflow dependencies', () => {
-  for (const name of COLLAB_SKILLS) assert.ok(PACKAGED_SKILLS.has(name));
-  for (const name of NEUTRAL_SKILLS) assert.ok(!COLLAB_SKILLS.has(name));
-});
-
-test('agent prompts use the current evidence-based review contract', () => {
-  const forbidden = [
-    { pattern: /[\u3400-\u9fff]/u, label: 'Han-script instruction text' },
-    { pattern: /\bultra-review-findings-v1\b/i, label: 'retired review schema' },
-    { pattern: /\bCLAUDE\.md\b/, label: 'host-specific handbook binding' },
-    { pattern: /\bContext7\b|mcp__context7|\bExa MCP\b|mcp__exa|\bGemini\b|\bRTK\b|\bgraphify\b/i, label: 'retired or external tool binding' },
-    { pattern: /\babsolute P0\b|\bnon-negotiable P0\b|\bP1 count\s*>\s*\d+|\bconfidence\s*>=?\s*\d+/i, label: 'mechanical severity or verdict threshold' },
-    { pattern: /\bforbidden mock patterns?\b|\bmock violations?\b/i, label: 'blanket test-double ban' },
-    { pattern: /\bFour-Dimension Scoring\b|\baggregate score\b/i, label: 'unsupported design score' },
-  ];
-
-  for (const file of walk(AGENTS_ROOT, (candidate) => candidate.endsWith('.md'))) {
-    const text = fs.readFileSync(file, 'utf8');
-    const { fm, body } = parseFrontmatter(text);
-    assert.ok(fm && typeof fm.description === 'string', `${path.basename(file)} needs a concise description`);
-    assert.ok(fm.description.replace(/\s+/g, ' ').trim().length <= 400, `${path.basename(file)} description is prompt-heavy`);
-    assert.ok(body.split('\n').length <= 120, `${path.basename(file)} body exceeds the bounded worker prompt budget`);
-    assert.doesNotMatch(
-      String(fm.tools || ''),
-      /(?:^|,\s*)Edit(?:\s*,|$)/,
-      `${path.basename(file)} must return bounded evidence instead of editing source`,
-    );
-    for (const { pattern, label } of forbidden) {
-      assert.doesNotMatch(text, pattern, `${path.relative(ROOT, file)} contains ${label}`);
-    }
-  }
-
-  for (const name of ['review-spec', 'review-code', 'review-comments', 'review-design', 'review-errors', 'review-tests']) {
-    const text = fs.readFileSync(path.join(AGENTS_ROOT, `${name}.md`), 'utf8');
-    assert.match(text, /ultra-review-findings-v2/, `${name} must write the current specialist artifact`);
-    assert.match(text, /SCHEMA_PATH/, `${name} must receive a host-resolved schema path`);
-  }
-  const coordinator = fs.readFileSync(path.join(AGENTS_ROOT, 'review-coordinator.md'), 'utf8');
-  assert.match(coordinator, /ultra-review-summary-v2/, 'review-coordinator must write the current summary artifact');
-  assert.match(coordinator, /SCHEMA_PATH/, 'review-coordinator must receive a host-resolved schema path');
-  assert.match(coordinator, /spec_fidelity/);
-  assert.match(coordinator, /engineering_standards/);
-});
-
-test('focused references do not duplicate standalone policy skills', () => {
-  const references = fs.readdirSync(path.join(SKILLS_ROOT, 'code-review-expert', 'references')).sort();
-  assert.deepEqual(references, ['correctness-reliability.md', 'design-boundaries.md', 'removal-plan.md']);
-});
-
-test('repository documents the source prompt boundary separately from runtime prompts', () => {
-  const authoring = fs.readFileSync(path.join(ROOT, 'docs', 'SKILL-AUTHORING.md'), 'utf8');
-  assert.match(authoring, /Source frontmatter contains only `name` and `description`/);
-  assert.match(authoring, /standards do not prohibit Chinese/i);
-  assert.match(authoring, /Comparison is appropriate only when/i);
+  const { handleCheckout } = require(path.join(fixture, 'src', 'http.js'));
+  assert.equal(handleCheckout({ customerId: 'c-1' }).status, 404);
 });

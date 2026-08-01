@@ -6,63 +6,50 @@ not create or rewrite that file.
 
 ## Product boundary
 
-Ultra Builder Pro is a host-adapted workflow plugin for Claude Code, Codex, OpenCode,
-Kimi Code, and Grok Build. It owns durable project checkpoints, evidence, recovery, host adapters,
-and the minimal prompts required to operate them. The host model owns semantic
-reasoning and route selection; MCP is a persistence and safety kernel, not a
-fine-grained workflow supervisor.
+Ultra Builder Pro is a file-first workflow plugin for Claude Code, Codex, OpenCode,
+Kimi Code, and Grok Build. The host model owns intent interpretation, route selection,
+decomposition, semantic completeness, and final expression. Ultra supplies fourteen
+portable Skills, five optional hooks, host adapters, delegated CLI execution, and the
+repository files needed to resume work across sessions and hosts.
 
-It owns project-local cross-session workflow memory under `.ultra/`: normalized intent,
-progress, tasks, bounded context, specifications, evidence, provenance, and recovery.
-It does not own general conversational or episodic memory, code-graph payloads, general
-browsing, deployment providers, framework guidance, or unrelated productivity skills.
-Keep those capabilities in separately installed owner packages.
+Project authority is owner-readable text and JSON under `.ultra/`, plus `CONTEXT.md`
+and Git history. Ultra does not own general conversation memory, code graphs, browsing,
+deployment providers, framework guidance, or unrelated productivity capabilities.
 
 ## Sources of truth
 
-- `adapters/_shared/runtime-assets.cjs`: packaged Skill, hook, and collaboration allowlists.
-- `docs/PLUGIN-ISOLATION-CONTRACT.md`: installation, activation, idle, and ownership boundaries.
-- `mcp-server/lib/ultra-facade.cjs`: the complete seven-tool persistence and safety kernel.
-- `mcp-server/lib/stage-checkpoints.cjs`: reversible draft and immutable accepted
-  checkpoint history.
-- `mcp-server/lib/context-envelope.cjs`: the single Context Envelope generator used by
-  Skills, Hooks, Sessions, and Workers.
-- `spec/mcp-tools.yaml`: exactly seven public contracts.
-- `skills/*/SKILL.md`: reusable workflow prompts.
-- Codex plugin Skills: native `$ultra-builder-pro:<skill>` entry points.
-- `.ultra/.runtime/state.db`: checkout-local facts, index, freshness, leases, CAS,
-  journals, and coordination authority
-  at runtime.
-- `docs/ARTIFACT-AUTHORITY.md`: authority and promotion rules for every `.ultra/`
-  artifact class.
+- `adapters/_shared/runtime-assets.cjs`: the exact eight user-invoked Skills, five
+  model-invoked Skills, one router, five hosts, and five hooks.
+- `skills/*/SKILL.md`: reusable host-neutral workflow and discipline prompts.
+- `adapters/*.js`: native installation, update, doctor, and uninstall behavior.
+- `adapters/_shared/host-profile.cjs`: non-interactive delegation argv for five CLIs.
+- `hooks/*.py`: the complete hook surface; `_common.py` is a library, not a registration.
+- `.ultra-template/`: canonical new-project data skeleton.
+- `docs/ARTIFACT-AUTHORITY.md`: authority and recovery rules for project artifacts.
+- `docs/PLUGIN-ISOLATION-CONTRACT.md`: ownership, activation, and idle boundaries.
 
-Digest-bound specifications and evidence files carry semantic content; generated
-projections and working scratch do not become authority merely because they are under
-`.ultra/`.
+No database, MCP server, semantic state machine, generated prompt projection, or daemon
+is part of the product. `.ultra/.runtime/`, `.ultra/progress/`, and `.ultra/reviews/`
+are disposable or reconstructable observations, never semantic authority.
 
 ## Host adaptation
 
-Adapt semantics, not names. Codex Skills, plans, subagents, hooks, `config.toml`, plugin
-manifests, and MCP wiring must remain Codex-native. Never make a foreign prompt
-“compatible” through path or product-name substitution alone.
-
-Shared Skills must remain host-neutral. Put host-specific invocation and wiring in the
-adapter. Do not recreate deprecated prompt, user-Skill, or user-handbook projections
-outside the native plugin boundary. Public workflows require explicit owner invocation;
-one workflow may recommend but must not launch another.
+Adapt semantics, not names. Shared Skills remain host-neutral; invocation policy,
+frontmatter transformation, hooks, registries, and filesystem locations belong in the
+adapter. Public workflows require explicit owner invocation and may recommend, but may
+not launch, another public workflow. Model-invoked disciplines are reusable internal
+methods and need at least two canonical callers.
 
 ## Development workflow
 
-1. Reproduce a bug or define new behavior with a failing test.
+1. Define observable completion and write the failing regression or contract test.
 2. Change the smallest authoritative source.
-3. Update every live consumer and recovery path affected by the contract.
-4. Run the narrow test first, then the relevant package suite.
-5. Inspect the final diff and packaged artifact.
+3. Update every live consumer, install artifact, and recovery path affected.
+4. Run the narrow test, then the package suite.
+5. Inspect the final diff and packed artifact.
 
-Do not turn semantic advice, incomplete exploration, or an editable draft into a hard
-MCP failure. Failed checkpoints report mutable diagnostics. Corruption, unsafe paths,
-true concurrency conflicts, permissions, irreversible effects, and accepted evidence
-integrity remain fail-closed. Context-size guidance is advisory.
+Semantic gaps remain diagnostics. Hooks may hard-block only a named externally
+destructive effect with an authoritative input and reachable authorization path.
 
 ## Verification
 
@@ -74,15 +61,12 @@ npm pack --dry-run --json
 node bin/install.js --all --global --doctor --json
 ```
 
-Validate every changed Skill with the Skill Creator validator. Validate the Codex plugin
-artifact with the Plugin Creator validator when its manifest or marketplace surface
-changes.
+Validate every changed Skill with the Skill Creator validator. Validate a generated
+Codex plugin with the Plugin Creator validator when its manifest or marketplace surface
+changes. Use isolated config directories for mutating installation tests.
 
 ## Git and release effects
 
 Use Conventional Commits and include only authorized paths. Do not add AI co-author
-trailers; the configured Git user remains the sole commit author.
-
-Commit, push, tag, npm publication, GitHub Release, and host installation are separate
-effects. Perform only the effects explicitly authorized by the user and verify each one
-independently.
+trailers. Commit, push, tag, npm publication, GitHub Release, deployment, and host
+installation are separate effects; perform only those explicitly authorized.

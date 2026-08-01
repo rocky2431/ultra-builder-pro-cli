@@ -120,15 +120,86 @@ const UBP_SENTINEL_FILE = '.ubp-managed';
 // ownership before deleting (P1 #3).
 function markManaged(dir, meta = {}) {
   ensureDir(dir);
-  writeAtomic(path.join(dir, UBP_SENTINEL_FILE), JSON.stringify({
+  let previous = {};
+  const sentinel = path.join(dir, UBP_SENTINEL_FILE);
+  if (fs.existsSync(sentinel)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(sentinel, 'utf8'));
+      if (parsed?.source === 'ubp') previous = parsed;
+    } catch {}
+  }
+  writeAtomic(sentinel, JSON.stringify({
+    ...previous,
     source: 'ubp',
-    installed_at: new Date().toISOString(),
+    installed_at: previous.installed_at || new Date().toISOString(),
     ...meta,
   }, null, 2) + '\n');
 }
 
 function isManaged(dir) {
   return fs.existsSync(path.join(dir, UBP_SENTINEL_FILE));
+}
+
+function managedMetadata(dir) {
+  const sentinel = path.join(dir, UBP_SENTINEL_FILE);
+  if (!fs.existsSync(sentinel)) return null;
+  const value = JSON.parse(fs.readFileSync(sentinel, 'utf8'));
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`invalid managed marker: ${sentinel}`);
+  }
+  if (value.source === undefined && Object.keys(value).length === 0) return {};
+  if (value.source !== 'ubp') throw new Error(`invalid managed marker: ${sentinel}`);
+  return value;
+}
+
+function normalizeOwnedRelative(value) {
+  if (value === '.') return '.';
+  if (typeof value !== 'string' || !value || path.isAbsolute(value)) {
+    throw new Error(`owned cleanup path must be relative: ${String(value)}`);
+  }
+  const normalized = path.normalize(value);
+  if (
+    normalized !== value
+    || normalized === '.'
+    || normalized === '..'
+    || normalized.startsWith(`..${path.sep}`)
+  ) {
+    throw new Error(`owned cleanup path escapes its root: ${value}`);
+  }
+  return normalized;
+}
+
+function captureAbsent(root, relatives) {
+  const absoluteRoot = path.resolve(root);
+  return [...new Set(relatives.map(normalizeOwnedRelative))]
+    .filter((relative) => !fs.existsSync(relative === '.' ? absoluteRoot : path.join(absoluteRoot, relative)));
+}
+
+function pruneCreatedEmpty(root, relatives) {
+  const absoluteRoot = path.resolve(root);
+  const ordered = [...new Set((relatives || []).map(normalizeOwnedRelative))]
+    .sort((a, b) => {
+      const depth = (value) => (value === '.' ? 0 : value.split(path.sep).length);
+      return depth(b) - depth(a);
+    });
+  const removed = [];
+  for (const relative of ordered) {
+    const target = relative === '.' ? absoluteRoot : path.resolve(absoluteRoot, relative);
+    if (target !== absoluteRoot && !target.startsWith(`${absoluteRoot}${path.sep}`)) {
+      throw new Error(`owned cleanup path escapes its root: ${relative}`);
+    }
+    if (!fs.existsSync(target)) continue;
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink()) continue;
+    if (stat.isDirectory() && fs.readdirSync(target).length === 0) {
+      fs.rmdirSync(target);
+      removed.push(relative);
+    } else if (stat.isFile() && stat.size === 0) {
+      fs.unlinkSync(target);
+      removed.push(relative);
+    }
+  }
+  return removed;
 }
 
 function copyFlatByExt(srcDir, dstDir, ext) {
@@ -152,5 +223,8 @@ module.exports = {
   removeTree,
   markManaged,
   isManaged,
+  managedMetadata,
+  captureAbsent,
+  pruneCreatedEmpty,
   copyFlatByExt,
 };

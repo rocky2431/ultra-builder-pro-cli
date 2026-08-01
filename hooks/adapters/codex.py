@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Codex wire adapter for Ultra Builder Pro hooks.
+"""Codex wire adapter for Ultra Builder Pro's five file-first hooks.
 
 Codex and Claude Code share the JSON-on-stdin command-hook shape, but differ
 at three important boundaries:
 
 - Codex emits ``apply_patch`` with the patch text in ``tool_input.command``;
-  legacy Ultra edit hooks expect one ``Edit`` event per ``file_path``.
+  the post-edit sensor expects one ``Edit`` event per ``file_path``.
 - Codex rejects ``permissionDecision: ask`` in PreToolUse output. Ultra warning
   decisions therefore become advisory ``systemMessage`` values.
 - Each event has a strict output schema. This adapter removes foreign fields
@@ -30,13 +30,11 @@ from typing import Any
 
 HOOK_ROOT = Path(__file__).resolve().parent.parent
 ALLOWED_FEATURES = {
-    "active_task_context.py",
-    "health_check.py",
-    "pre_stop_check.py",
-    "subagent_tracker.py",
-    "workflow_checkpoint.py",
-    "workflow_context.py",
-    "workflow_resume.py",
+    "block_dangerous_commands.py",
+    "compact_context.py",
+    "mid_workflow_recall.py",
+    "post_edit_guard.py",
+    "session_context.py",
 }
 UNIVERSAL_OUTPUT_FIELDS = {"continue", "stopReason", "suppressOutput", "systemMessage"}
 PATCH_FILE_RE = re.compile(r"^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$", re.MULTILINE)
@@ -58,7 +56,7 @@ def _patch_paths(tool_input: Any) -> list[str]:
 
 
 def normalize_inputs(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Return legacy-compatible input(s) for one Codex hook payload."""
+    """Return file-first hook input(s) for one Codex hook payload."""
     normalized = copy.deepcopy(payload)
     if normalized.get("tool_response") is not None and normalized.get("tool_output") is None:
         normalized["tool_output"] = normalized["tool_response"]
@@ -90,7 +88,7 @@ def _universal(output: dict[str, Any]) -> dict[str, Any]:
 
 
 def adapt_output(output: dict[str, Any], event: str) -> dict[str, Any]:
-    """Convert a legacy hook result to the strict Codex event output schema."""
+    """Convert a shared hook result to the strict Codex event output schema."""
     if not isinstance(output, dict):
         return {}
     result = _universal(output)
@@ -239,11 +237,6 @@ def run_feature(feature: str, payload: dict[str, Any], feature_args: list[str]) 
         return {"systemMessage": f"Ultra hook feature is missing: {feature}"}
 
     event = str(payload.get("hook_event_name") or "")
-    if feature == "workflow_resume.py" and event == "PostCompact":
-        payload = dict(payload)
-        payload["hook_event_name"] = "SessionStart"
-        payload["source"] = "compact"
-
     env = os.environ.copy()
     env["UBP_HOOK_RUNTIME"] = "codex"
     plugin_data = env.get("PLUGIN_DATA") or env.get("CLAUDE_PLUGIN_DATA")

@@ -13,6 +13,7 @@ const path = require('node:path');
 const claude = require('../../../adapters/claude.js');
 const opencode = require('../../../adapters/opencode.js');
 const codex = require('../../../adapters/codex.js');
+const kimi = require('../../../adapters/kimi.js');
 
 // Stable fake values so assertions don't depend on real $HOME / $CWD.
 const FAKE_HOME = '/fake-home';
@@ -39,6 +40,7 @@ const CASES = [
   { name: 'claude',   resolve: claude.resolveTarget,   localLeaf: '.claude',   globalHome: '.claude',   envKey: 'CLAUDE_CONFIG_DIR' },
   { name: 'opencode', resolve: opencode.resolveTarget, localLeaf: '.opencode', globalHome: path.join('.config', 'opencode'), envKey: 'OPENCODE_CONFIG_DIR' },
   { name: 'codex',    resolve: codex.resolveTarget,    localLeaf: '.codex',    globalHome: '.codex',    envKey: 'CODEX_HOME' },
+  { name: 'kimi',     resolve: kimi.resolveTarget,     localLeaf: '.kimi-code', globalHome: '.kimi-code', envKey: 'KIMI_CODE_HOME' },
 ];
 
 for (const tc of CASES) {
