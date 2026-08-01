@@ -1,8 +1,8 @@
-# Ultra Builder Pro v0.26 — 仅剩外部验收
+# Ultra Builder Pro v0.26 — 仅剩认证模型验收
 
-> 状态：**本地产品改造与 package 验收完成；真实双宿主模型续接未完成。**
+> 状态：**本地产品改造、package 验收与真实五宿主安装完成；真实双宿主模型续接未完成。**
 > 最后更新：2026-08-01
-> 基线：`3f99189bc68697262cd90444685ac2d4857139c4` 之上的未提交工作区。
+> 实现基线：`d3302363d27c5bb298b72c913baeff6389e19634`。
 > 删除条件：完成 §3 的真实 Claude → Codex 续接，把结果写入正式交付证据。
 
 本文不再复制稳定产品契约。当前权威分别是：
@@ -48,16 +48,16 @@
 | `npm run verify:release` | exit 0；Node 106 pass / 0 fail；Hooks 8 pass；audit 0 vulnerabilities |
 | `npm pack --dry-run --json` | exit 0；exact inventory 见 `.ultra/test-report.json`；无 MCP、DB、orchestrator、commands 或 agents projection |
 | isolated `--all` install → Doctor → reinstall → uninstall | 5/5 healthy；Codex Hook 为 `user_review_required`；config 与 fake HOME 均 0 children |
-| `node bin/install.js --all --global --doctor --json` | exit 2；只读确认真实 HOME 尚未升级 v0.26 |
+| `node bin/install.js --all --global --doctor --json` | exit 0；真实五宿主均为 v0.26.0、healthy、0 issues |
 
-真实 HOME Doctor 的事实是：
+真实 HOME 已完成升级：
 
-- Claude、OpenCode、Kimi、Grok 仍为 v0.25.1，因此按 v0.26 inventory 检查为 degraded；
-- Codex 没有当前 v0.26 managed plugin / marketplace registration；
-- 本次没有安装、修复或删除真实 HOME 的任何文件。
+- Claude、OpenCode、Codex、Kimi、Grok 均安装 v0.26.0 managed plugin；
+- 五宿主 Skill、Hook、manifest、registration 与 provenance 检查均通过；
+- provenance 全部绑定 clean 实现基线 `d3302363d27c5bb298b72c913baeff6389e19634`；
+- Codex plugin 健康，但 Hook 信任仍为 owner-controlled `user_review_required`，需要在新会话中审阅并批准后才能依赖 Hook 加速。
 
-这组结果证明 package 和隔离安装路径已完成，不证明真实 HOME 已升级。真实安装是
-独立 external effect，仍需 owner 明确授权。
+升级前快照保存在 `~/.codex/backups/ubp-v026-20260801-1zgFC8/`，可用于恢复五宿主配置与旧全局 package。
 
 ## 3. 唯一未完成项：认证模型的跨宿主续接
 
@@ -83,11 +83,9 @@ timeout、cancel 和 receipt 已由确定性 host fixture 覆盖；provider 输�
 registered worktree 中读取 Git 与 `.ultra/`，完成实现、证据和双状态更新；最后核对
 task/context 双写、spec trace、实际 diff、tests 与两端日志。
 
-## 4. 仍需分别授权的外部效果
+## 4. 不阻塞 v0.26 发布的外部验收
 
-- 把 v0.26 安装到真实五宿主 HOME；
-- authenticated provider drill；
-- commit、push、tag、npm publish 或 GitHub Release。
+- authenticated provider drill。
 
-这些项目不是未实现源码，也不会从“本地已完成”自动获得权限。除上述外，本 WIP 不再
-保留本地实现 TODO。
+它不是未实现源码，也不属于 v0.26 package、安装或发布完整性的替代证据。除上述外，
+本 WIP 不再保留本地实现 TODO。
