@@ -135,8 +135,9 @@ It does not establish output quality for every model, host, repository, or task 
 Task-level `ultra-review` and commits were intentionally excluded from the drill so the
 two host calls tested only the handoff boundary.
 
-Two older `.ultra` evidence snapshots still name the completed WIP by its former path.
-They are bound to source commit `3f99189bc68697262cd90444685ac2d4857139c4`, where
-that file remains recoverable with `git show`; rewriting those historical snapshots
-would falsify their recorded checkout. Current readers use this section instead, and
-the live `docs/wip/` directory contains no unfinished document.
+Two older `.ultra` evidence snapshots originally named the completed WIP by its former
+path. The current-path artifact contract requires every reference to resolve in the
+checkout, so those two references now point here while their 2026-08-01 status and
+limitations remain explicitly historical. The original WIP is still recoverable from
+their pinned source commit `3f99189bc68697262cd90444685ac2d4857139c4` with
+`git show`; the live `docs/wip/` directory contains no unfinished document.

@@ -69,8 +69,8 @@
     },
     "coverage_gaps": {
       "status": "gap",
-      "evidence_refs": [".ultra/reviews/v026-final/review-tests.json", "docs/wip/ultra-v026-skill-first.md"],
-      "omissions": ["Authenticated Claude-to-Codex provider continuation requires separate authorization."]
+      "evidence_refs": [".ultra/reviews/v026-final/review-tests.json", "docs/RUNTIME-COMPAT-MATRIX.md"],
+      "omissions": ["At this 2026-08-01 report snapshot, authenticated Claude-to-Codex provider continuation had not run; it completed on 2026-08-03 as recorded in the runtime matrix."]
     },
     "wiring": {
       "status": "passed",
@@ -102,10 +102,10 @@
   ],
   "findings": [],
   "omissions": [
-    "Authenticated provider continuation and real HOME installation are separately authorized effects."
+    "At this 2026-08-01 report snapshot, authenticated provider continuation and real HOME installation were separately authorized effects; later continuation evidence is recorded in the runtime matrix."
   ],
   "residual_risks": [
-    "Current real HOME installations remain v0.25.1 or absent and are degraded against v0.26 inventory.",
+    "At this 2026-08-01 report snapshot, real HOME installations remained v0.25.1 or absent and were degraded against v0.26 inventory.",
     "Codex Hook activation requires user review after installation.",
     "Native sandbox and provider behavior can drift with host versions."
   ],

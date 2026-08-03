@@ -67,10 +67,10 @@
     "package.json",
     "tests/package-smoke.test.cjs",
     "tests/install.test.cjs",
-    "docs/wip/ultra-v026-skill-first.md"
+    "docs/RUNTIME-COMPAT-MATRIX.md"
   ],
   "limitations": [
-    "Authenticated provider continuation, real-HOME installation, commit, push, tag, publication, and release remain separately authorized effects."
+    "At this 2026-08-01 evidence snapshot, authenticated provider continuation, real-HOME installation, commit, push, tag, publication, and release remained separately authorized effects; later continuation evidence is recorded in docs/RUNTIME-COMPAT-MATRIX.md."
   ],
   "timestamp": "2026-08-01T12:16:35+08:00"
 }
