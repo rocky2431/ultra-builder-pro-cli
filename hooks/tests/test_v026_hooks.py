@@ -286,6 +286,11 @@ def test_commit_message_bodies_are_data_but_interpreter_heredocs_are_not(tmp_pat
         f"cd repo && git add -A && git commit -F - <<'MSG'\nSee {danger}.\nMSG"
     ) is None
 
+    # An unquoted delimiter expands command substitutions before git receives the
+    # message. Its body is executable shell input, not inert commit-message data.
+    assert decision(f"git commit -F - <<EOF\n$({danger})\nEOF") == "deny"
+    assert decision(f"git commit -F - <<EOF\n`{danger}`\nEOF") == "deny"
+
     # A heredoc fed to an interpreter IS executed, so its body stays in scope. Stripping
     # these would turn the quoting style into a way around the gate.
     assert decision(f"bash <<'EOF'\n{danger}\nEOF") == "deny"

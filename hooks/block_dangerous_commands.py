@@ -33,12 +33,18 @@ def strip_data_heredocs(command: str) -> str:
 
     Bodies are kept whenever they might be executed: an interpreter reading a heredoc
     runs it, so stripping there would make quoting style a way around this gate. The
-    body survives unless the segment introducing it is a listed data sink and nothing
-    on the heredoc's own line pipes it somewhere else.
+    body survives unless the delimiter is quoted, the segment introducing it is a
+    listed data sink, and nothing on the heredoc's own line pipes it somewhere else.
+    An unquoted delimiter performs parameter, command and arithmetic expansion before
+    the sink receives the data, so its body remains executable shell input.
     """
     def resolve(match: re.Match) -> str:
         segment = re.split(r"\|\||&&|[;&|\n]", command[:match.start()])[-1]
-        if "|" in match.group("rest") or not DATA_SINK.search(segment):
+        if (
+            not match.group(1)
+            or "|" in match.group("rest")
+            or not DATA_SINK.search(segment)
+        ):
             return match.group(0)
         tag = match.group("tag")
         return f"<<{tag}\n{tag}"
