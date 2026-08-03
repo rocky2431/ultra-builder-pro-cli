@@ -42,6 +42,24 @@ Follow `../ultra-tdd/SKILL.md`, writing tests only on the seams the plan already
 confirmed, one slice at a time. Do no refactoring here — `ultra-review` owns it,
 because what is worth restructuring only becomes visible after several slices.
 
+## Converge on the acceptance set
+
+Development ends when the acceptance commands pass, not when the code looks finished.
+Each criterion in the active `intent.md` carries an executable `Verification`. Run
+them, count the passes, keep working while any fail. Three exits, all mechanical:
+
+| Exit | Condition | Action |
+|---|---|---|
+| Converged | Every acceptance command for this task exits zero | Close out below |
+| Stalled | Two consecutive rounds leave the passing count unchanged | Stop; report which criteria never passed and what each attempt tried |
+| Unreachable | A verification command errors instead of asserting a failure | Stop at once — the criterion is malformed, not the code. Hand it back; spend no further round |
+
+Stalling is the three-fix rule made mechanical: repairs that each uncover a different
+cause are an architecture problem, and another round buys nothing. `ultra-review`
+stops on the same shape when P0 + P1 stops falling; the indicator here is the passing
+count. A round ending with fewer passes than it began is a regression — say so rather
+than averaging it into progress.
+
 ## Answer the six evidence dimensions
 
 Each has a rule you can check against the work rather than assert:

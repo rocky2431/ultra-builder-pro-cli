@@ -836,6 +836,14 @@ CLI v0.26 处理过这个（每个 session checkout 把自己的 `.ultra` 链接
 
 新增测试 2 个（`tests/delegate.test.cjs`），套件 106 → 107。
 
+### ✅ 第 6 项：收敛循环 — 只进 `ultra-dev`，**不进 `ultra-test`**
+
+`ultra-dev` 新增 `## Converge on the acceptance set`：开发的终点是验收命令通过，不是代码看起来写完了。三个机械出口——Converged（全部退出 0）、Stalled（连续两轮通过数不变）、Unreachable（验证命令自身报错而非断言失败 → criteria 写错了，立刻交回，不再消耗轮次）。停滞检测复用 `ultra-review` 的形状，指标从 P0+P1 换成通过的 AC 条数。另加一条：本轮通过数比上轮少就是回归，要明说，不许平均进"进度"。
+
+**推翻方案原定的「`ultra-test` 也加循环」。** 理由是 `ultra-test` 的定位：它是 C4 唯一允许的 terminal sensor，而且**它的发现是它自己产生的**（orphan、stub、coverage gap）。给自产发现加自动修复循环 = 自己出题自己答，正是 v7 那个「agent 改测试来逃脱门禁」的病换个形态。
+
+关键区分：**`ultra-dev` 的循环盯的是外部给定的 AC**（Change intent 里 owner 确认过的），目标不是它自己定的，所以循环安全；`ultra-test` 若循环，目标就是自己定的。修复动作本来就归 dev 和 review，两者都已有停滞检测，不需要第三处。
+
 ### 需要少量代码
 
 6. **收敛循环搬到 `ultra-dev` / `ultra-test`**（6.6）。**复用 `ultra-review` 已有的停滞检测**（P0+P1 不降即停、三次修复失败判架构问题），指标换成「通过的 AC 条数」。依赖第 3 项。
