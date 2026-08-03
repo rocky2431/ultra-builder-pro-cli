@@ -890,6 +890,14 @@ review 的并行是**运行时模型行为**，由 `ultra-review/SKILL.md` 的�
 
 最后一条复用 `ultra-delegate` 已有的原则（"rather than turning a vote or score into truth"），不重复造。
 
+### ✅ 第 11 项：阶段内 fan-out — 只给授权，不建机制
+
+**没有像 `ultra-review` 那样建 packet + digest + wait script 契约**，只在两个 skill 里各加一段说明哪些部分可以并行。理由是简单性阶梯：`agents-best-practices` 要求 workflow 编排层「只在更简单的活路径被证明不足之后」才加，而这两处的现有设计已经解决了正确性问题，fan-out 只提速。
+
+`ultra-research`：checkpoint **之间**的区域独立，可并行，每个 subagent 只加载一个 reference。这一点值得写明——它**强化**而不是违反第 34 行那条「Load one reference at a time；同时持有多个 step prompt 会破坏 progressive disclosure」，因为父上下文一个 step prompt 都不装。三个 checkpoint（`04-product-strategy`、`21-features-scope`、`99-synthesis`）**仍是屏障**：它们的结论会改变后续区域在问什么，所以不能跨过去并行。
+
+`ultra-test`：六个审计区域是只读的、互相独立的，可并行；但**worker 不写 `test-report.json`**，只返回发现，由父进程写那一份 canonical 报告——六个写者共写一个文件正是报告丢发现的方式。
+
 ### 需要少量代码
 
 6. **收敛循环搬到 `ultra-dev` / `ultra-test`**（6.6）。**复用 `ultra-review` 已有的停滞检测**（P0+P1 不降即停、三次修复失败判架构问题），指标换成「通过的 AC 条数」。依赖第 3 项。

@@ -45,6 +45,11 @@ the owner decides what to fix or accept.
 6. **Security**: run the repository's dependency and security checks, then inspect the
    trust boundaries changed by this Change.
 
+The six are independent read-only audits and may run in parallel through the host's
+native bounded subagents. Each returns its findings; the parent writes the one report.
+A worker never writes `.ultra/test-report.json` itself — six writers on one canonical
+file is how a report loses findings.
+
 Read `references/export-syntax.md` before collecting exports. The table finds
 candidates; repository conventions and real consumers decide what is public.
 

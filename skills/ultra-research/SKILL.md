@@ -39,6 +39,12 @@ The three checkpoints are `04-product-strategy`, `21-features-scope`, and
 recommendation, wait for the owner's decision, then continue. Other areas write their
 report and mapped section immediately without another ceremony.
 
+Areas sitting between two checkpoints are independent and may run in parallel through
+the host's native bounded subagents, each loading exactly one reference. That
+strengthens progressive disclosure rather than breaking it — the parent holds no step
+prompt at all. The checkpoints stay barriers: nothing after one starts until the owner
+has answered it, because its conclusion changes what the later areas are even asking.
+
 ## Investigate and write
 
 For each selected area:
