@@ -87,7 +87,10 @@ the parent model runs the same references sequentially.
 Five hooks read canonical files and emit bounded context or observations. Their output
 under `.ultra/.runtime/`, `.ultra/progress/`, or `.ultra/reviews/` is derived and
 disposable. The dangerous-command hook is the only hard effect guard; it classifies a
-small named set of shell effects and provides an exact-command authorization repair.
+small named destructive set and provides an exact-command authorization repair.
+Additive protected-branch publication remains advisory when portable host wiring cannot
+project a trusted owner-approval receipt; history rewrites and branch deletion remain
+guarded.
 
 ## Completion and recovery
 

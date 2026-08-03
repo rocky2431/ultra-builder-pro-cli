@@ -70,9 +70,12 @@ Every hook resolves the current project and checks for `.ultra/` before reading,
 writing, injecting context, or denying an effect. Without `.ultra/`, it emits no stdout,
 exits zero, and leaves the project untouched.
 
-The only hook denial is a named dangerous shell effect in an active Ultra project. The
-denial identifies the protected effect and supplies an exact-command SHA-256
-authorization path. All other hook failures are fail-open diagnostics.
+The only hook denial is a named destructive shell effect in an active Ultra project.
+The denial identifies the protected effect and supplies an exact-command SHA-256
+authorization path. Additive protected-branch publication is an advisory observation
+because a portable hook cannot consume every host's trusted owner-approval receipt;
+history rewrites and branch deletion remain guarded. All other hook failures are
+fail-open diagnostics.
 
 ## Project data boundary
 

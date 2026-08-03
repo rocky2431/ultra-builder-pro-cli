@@ -52,8 +52,10 @@ No single sensor is promoted into a semantic completion gate.
 
 The hook surface is session context, mid-workflow acceptance recall, compact snapshot,
 post-edit evidence observation, and dangerous-command protection. Every hook is silent
-without `.ultra/`. Only a narrow named destructive effect can be denied, and its repair
-is authorization scoped to the exact command digest.
+without `.ultra/`. Additive protected-branch publication is advisory because the
+portable hook cannot receive every host's trusted owner-approval receipt. History
+rewrites, branch deletion, and the narrower named destructive effects can be denied;
+their repair is authorization scoped to the exact command digest.
 
 ## Delegation is a process boundary
 

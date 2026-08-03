@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rest of an isolated checkout.
 - Made dangerous-command authorization reachable by hashing the protected effect
   independently of its retry spelling.
+- Kept additive protected-branch publication on the host's native authority path instead
+  of hard-blocking an already owner-authorized release, retained exact-digest guards for
+  history rewrites and branch deletion, and stopped treating inert searches as effects.
 - Kept expandable interpreter heredocs inside dangerous-effect inspection while
   continuing to treat quoted commit-message heredocs as data.
 - Required explicit owner authority before `ultra-review` can launch a cross-host

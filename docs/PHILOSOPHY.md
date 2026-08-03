@@ -61,16 +61,20 @@ agents to find loopholes (rename `mock` to `stub`, etc.). The cheaper path must 
 
 ### C3 — Sensors not Blockers
 
-Hooks emit signal; agents and users decide. Block only the **truly irreversible**:
+Hooks emit signal; agents and users decide. Block only the **truly irreversible or
+privileged destructive** effects for which the hook has an exact repair:
 
-- `git push` to protected branches
 - Funds transfer / on-chain transactions
-- DB migrations / `DROP` / `TRUNCATE`
+- Protected-branch history rewrite or deletion
+- `DROP` / `TRUNCATE`
 - Hardcoded secret commit
 - Arbitrary code execution driven by user input
 
-Everything else is advisory on stderr — the work stands, the signal is delivered, the agent
-proceeds.
+Additive protected-branch publication and database migrations are advisory: the former
+remains recoverable through Git and the portable hook cannot receive every host's
+trusted approval receipt; the latter is not mechanically classifiable as reversible or
+irreversible. The work stands, the signal is delivered, and the agent proceeds inside
+the owner's authorized frame.
 
 > **Why this is absolute**: hard final gates and hard pre-commit gates each produced the same
 > over-correction loop in v7 — the agent weakened tests to escape the gate and drifted from the

@@ -60,7 +60,7 @@ host feature OpenCode does not expose.
 | mid-workflow recall | yes | handles `apply_patch` | native bridge | normalized | executed |
 | compact context | pre/start | pre/post | native compact event | pre/post | pre-compact |
 | post-edit observation | Write/Edit | Write/Edit/`apply_patch` | write/edit/patch | Write/Edit | Write/Edit/patch |
-| dangerous command guard | Bash | Bash | bash | Bash | Bash deny mapping |
+| dangerous command guard | Bash advisory/deny | Bash advisory/deny | bash advisory/deny | Bash advisory/deny | Bash allow/deny mapping |
 
 All hooks share the same `.ultra/` idle guard. Wire adapters normalize payload and
 output fields only; they do not change semantic policy. Codex installation health and

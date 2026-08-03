@@ -78,7 +78,9 @@ artifact audit, and resume contracts.
 
 Hooks are idle when `.ultra/` is absent. Context Hooks inject bounded canonical facts;
 observation Hooks write only derived data; only named destructive effects can be denied,
-with an exact authorization repair. Verification: Python Hook suite.
+with an exact authorization repair. Recoverable additive protected-branch publication
+stays advisory when trusted host authority is not projected into the portable Hook;
+history rewrites and branch deletion remain guarded. Verification: Python Hook suite.
 
 ### Requirement FR-06: Bounded delegation
 

@@ -219,7 +219,7 @@ Five optional hooks accelerate file reading and protect a narrow effect boundary
 | `mid_workflow_recall.py` | Restate acceptance before relevant source operations |
 | `compact_context.py` | Save and restore a disposable Git/file snapshot |
 | `post_edit_guard.py` | Record mechanical evidence observations after edits |
-| `block_dangerous_commands.py` | Deny named destructive shell effects until the exact command is authorized |
+| `block_dangerous_commands.py` | Advise on additive protected-branch publication; deny history rewrites and named destructive shell effects until the exact command is authorized |
 
 All five exit silently when `.ultra/` is absent. Details are in
 [Plugin Isolation](docs/PLUGIN-ISOLATION-CONTRACT.md).

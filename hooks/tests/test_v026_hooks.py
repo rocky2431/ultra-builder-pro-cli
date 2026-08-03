@@ -197,7 +197,6 @@ def test_dangerous_command_hook_blocks_named_effects_with_exact_digest_repair(tm
     assert harmless.stdout == ""
 
     for command, threat in [
-        ("git push origin main", "protected branch"),
         ("psql app -c 'TRUNCATE users'", "destructive database"),
         ("cast send 0x123 --value 1ether", "funds or on-chain"),
         ("export API_KEY=sk-live-hardcoded", "hard-coded credential"),
@@ -232,14 +231,77 @@ def test_dangerous_command_hook_blocks_named_effects_with_exact_digest_repair(tm
     assert "database migration" in advisory["hookSpecificOutput"]["additionalContext"]
 
 
+def test_protected_branch_publication_is_advisory_when_host_authority_is_not_projected(tmp_path):
+    root = make_project(tmp_path)
+    for command in (
+        "git push origin main",
+        "git push --atomic origin main refs/tags/v0.26.1",
+    ):
+        result = run_hook("block_dangerous_commands.py", root, {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+        })
+
+        payload = json.loads(result.stdout)
+        assert payload.get("decision") != "block"
+        assert payload["hookSpecificOutput"].get("permissionDecision") != "deny"
+        assert "protected branch push" in payload["hookSpecificOutput"]["additionalContext"]
+
+
+def test_protected_branch_history_rewrite_remains_exact_digest_guarded(tmp_path):
+    root = make_project(tmp_path)
+    for command in (
+        "git push --force-with-lease origin main",
+        "git push origin +HEAD:main",
+        "git push origin --delete main",
+        "git push origin :main",
+    ):
+        result = run_hook("block_dangerous_commands.py", root, {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+        })
+
+        payload = json.loads(result.stdout)
+        assert payload["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "protected branch history rewrite" in payload["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_read_only_search_payload_is_not_classified_as_a_shell_effect(tmp_path):
+    root = make_project(tmp_path)
+    for command in (
+        "rg -n 'git push origin main' hooks",
+        'rg -n "cast send 0x123 --value 1ether" hooks',
+    ):
+        result = run_hook("block_dangerous_commands.py", root, {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+        })
+        assert result.stdout == ""
+
+    chained = run_hook("block_dangerous_commands.py", root, {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {
+            "command": (
+                "rg -n 'cast send 0x123 --value 1ether' hooks && "
+                "cast send 0x123 --value 1ether"
+            ),
+        },
+    })
+    assert json.loads(chained.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
 def test_authorization_survives_the_prefix_form_but_the_prefix_alone_never_authorizes(tmp_path):
     root = make_project(tmp_path)
-    bare = "git push origin main"
+    bare = "cast send 0x123 --value 1ether"
     digest = hashlib.sha256(bare.encode()).hexdigest()
     prefixed = f"UBP_DANGEROUS_COMMAND_APPROVED={digest} {bare}"
 
     # The digest identifies the effect, not the spelling used to rerun it. An owner who
-    # authorized `git push origin main` has authorized it however the retry is written.
+    # authorized the command has authorized it however the retry is written.
     allowed = run_hook("block_dangerous_commands.py", root, {
         "hook_event_name": "PreToolUse",
         "tool_name": "Bash",
@@ -277,7 +339,7 @@ def test_commit_message_bodies_are_data_but_interpreter_heredocs_are_not(tmp_pat
             return None
         return json.loads(result.stdout)["hookSpecificOutput"].get("permissionDecision")
 
-    danger = "git push origin main"
+    danger = "cast send 0x123 --value 1ether"
 
     # Describing an effect in a commit message is not performing it. This is the false
     # positive: the body is a payload for git, never executed.
@@ -317,6 +379,18 @@ def test_host_wrappers_allow_only_the_five_file_first_hooks(tmp_path):
         [],
     )
     assert "Ship a real checkout path." in codex_context["hookSpecificOutput"]["additionalContext"]
+    codex_publication = codex.run_feature(
+        "block_dangerous_commands.py",
+        {
+            "cwd": str(root),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "git push origin main"},
+        },
+        [],
+    )
+    assert codex_publication.get("decision") != "block"
+    assert codex_publication["hookSpecificOutput"].get("permissionDecision") != "deny"
 
     kimi = load_adapter("kimi")
     kimi_context = kimi.run_feature(
@@ -325,15 +399,39 @@ def test_host_wrappers_allow_only_the_five_file_first_hooks(tmp_path):
         [],
     )
     assert "Ship a real checkout path." in kimi_context["message"]
+    kimi_publication = kimi.run_feature(
+        "block_dangerous_commands.py",
+        {
+            "cwd": str(root),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "git push origin main"},
+        },
+        [],
+    )
+    assert "protected branch push" in kimi_publication["message"]
+    assert "hookSpecificOutput" not in kimi_publication
 
     grok = load_adapter("grok")
-    denied = grok.run_feature(
+    allowed = grok.run_feature(
         "block_dangerous_commands.py",
         {
             "cwd": str(root),
             "hookEventName": "PreToolUse",
             "toolName": "Bash",
             "toolInput": {"command": "git push origin main"},
+        },
+        [],
+    )
+    assert allowed["decision"] == "allow"
+
+    denied = grok.run_feature(
+        "block_dangerous_commands.py",
+        {
+            "cwd": str(root),
+            "hookEventName": "PreToolUse",
+            "toolName": "Bash",
+            "toolInput": {"command": "cast send 0x123 --value 1ether"},
         },
         [],
     )

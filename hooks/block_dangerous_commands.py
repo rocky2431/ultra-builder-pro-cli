@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 
 from _common import emit_context, project_root, read_payload
@@ -23,6 +24,8 @@ HEREDOC = re.compile(
 # unlisted sink keeps its body in scope, so the cost of an omission is a false positive,
 # never a missed effect.
 DATA_SINK = re.compile(r"\bgit\s+(?:commit|tag|notes)\b", re.IGNORECASE)
+SEARCH_COMMANDS = {"egrep", "fgrep", "grep", "rg"}
+SHELL_CONTROL = {";", ";;", "&", "&&", "|", "||", "(", ")", "\n"}
 
 
 def strip_data_heredocs(command: str) -> str:
@@ -69,6 +72,23 @@ def effect_of(command: str) -> str:
     return strip_data_heredocs(APPROVAL_PREFIX.sub("", command, count=1))
 
 
+def is_inert_search(command: str) -> bool:
+    """Return true when a search query is data, not executable shell input."""
+    if any(marker in command for marker in ("$(", "<(", ">(", "`")):
+        return False
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()\n")
+        lexer.whitespace = " \t\r"
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        tokens = list(lexer)
+    except ValueError:
+        return False
+    if not tokens or any(token in SHELL_CONTROL for token in tokens):
+        return False
+    return os.path.basename(tokens[0]) in SEARCH_COMMANDS
+
+
 def protected_push(command: str, root) -> bool:
     if not re.search(r"\bgit\s+push\b", command, re.IGNORECASE):
         return False
@@ -81,9 +101,26 @@ def protected_push(command: str, root) -> bool:
     return result.stdout.strip() in {"main", "master", "production", "prod"}
 
 
+def destructive_protected_push(command: str, root) -> bool:
+    """Detect history rewrites or deletion, not ordinary additive publication."""
+    if not protected_push(command, root):
+        return False
+    match = re.search(r"\bgit\s+push\b", command, re.IGNORECASE)
+    if match is None:
+        return False
+    segment = re.split(r"\|\||&&|[;&|\n]", command[match.end():], maxsplit=1)[0]
+    force_or_delete = re.search(
+        r"(?:^|\s)(?:-f|--force(?:-with-lease(?:=\S+)?|-if-includes)?|--delete)(?=\s|$)",
+        segment,
+        re.IGNORECASE,
+    )
+    forced_refspec = re.search(r"(?:^|\s)(?:\+\S+|:\S+)(?=\s|$)", segment)
+    return force_or_delete is not None or forced_refspec is not None
+
+
 def classify(command: str, root) -> str | None:
-    if protected_push(command, root):
-        return "protected branch push"
+    if destructive_protected_push(command, root):
+        return "protected branch history rewrite or deletion"
     if re.search(r"\b(?:drop\s+(?:table|database|schema)|truncate\s+(?:table\s+)?)\b", command, re.IGNORECASE):
         return "destructive database operation"
     if re.search(r"\b(?:cast\s+send|solana\s+transfer|bitcoin-cli\s+send|near\s+send|aptos\s+move\s+run)\b", command, re.IGNORECASE):
@@ -99,7 +136,14 @@ def classify(command: str, root) -> str | None:
     return None
 
 
-def advisory(command: str) -> str | None:
+def advisory(command: str, root) -> str | None:
+    if protected_push(command, root):
+        return (
+            "Ultra observed a protected branch push. This portable hook cannot receive "
+            "the host's trusted owner-approval receipt, so it does not replace the host's "
+            "native authority flow. Proceed only after explicit owner authorization and "
+            "verify the remote result."
+        )
     if re.search(
         r"\b(?:alembic\s+upgrade|prisma\s+migrate|knex\s+migrate|sequelize\s+db:migrate|rails\s+db:migrate|manage\.py\s+migrate)\b",
         command,
@@ -123,9 +167,11 @@ def main() -> int:
     if not isinstance(command, str) or not command.strip():
         return 0
     effect = effect_of(command)
+    if is_inert_search(effect):
+        return 0
     threat = classify(effect, root)
     if threat is None:
-        note = advisory(effect)
+        note = advisory(effect, root)
         if note:
             emit_context("PreToolUse", note)
         return 0

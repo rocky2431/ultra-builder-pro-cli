@@ -76,11 +76,13 @@ Adapters generate host metadata and wire payloads without editing shared workflo
 | `mid_workflow_recall.py` | active acceptance and source operation | bounded reminder | silent outside Ultra; diagnostic failure |
 | `compact_context.py` | files and Git | disposable snapshot | rebuild from authority |
 | `post_edit_guard.py` | edited path, ledger, task trace | normalized mechanical progress observation | malformed prior observation is repaired; semantic gaps stay advisory |
-| `block_dangerous_commands.py` | exact shell command and optional exact authorization digest | deny protected push, destructive data operation, funds, secret, or eval | denial names protected effect and reachable authorization path |
+| `block_dangerous_commands.py` | exact shell command and optional exact authorization digest | advise additive protected push; deny protected history rewrite/deletion, destructive data operation, funds, secret, or eval | advisory preserves the host authority path; denial names protected effect and reachable authorization path |
 
-A database migration is advisory because migration meaning and reversibility are not
-decidable from a command pattern. Only the named externally verifiable effects fail
-closed.
+An additive protected push is advisory because Git publication is recoverable and
+portable Hook wiring cannot consume every host's trusted approval receipt. History
+rewrites and branch deletion remain guarded. A database migration is also advisory
+because migration meaning and reversibility are not decidable from a command pattern.
+Only the remaining named externally verifiable destructive effects fail closed.
 
 ## Delegation Boundary
 
