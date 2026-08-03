@@ -16,6 +16,9 @@ disagreement instead of resolving it.
 2. Read `CONTEXT.md` for vocabulary and `.ultra/decisions/` for entries in scope.
 3. Read `.ultra/north-star.md` — a Change that does not serve it is worth
    questioning out loud before it is written down.
+4. Grep `.ultra/changes/archive/` for Changes that already touched this area and read
+   their `delivery.md`. The fifth compatibility branch gets added by whoever never saw
+   why the first four exist; a module that keeps reappearing is an architecture signal.
 
 ## Whether this skill applies at all
 

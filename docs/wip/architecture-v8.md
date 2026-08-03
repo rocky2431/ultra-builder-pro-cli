@@ -721,6 +721,38 @@ CLI 这批 skill 有一个统一骨架，本仓的 `commands/` 没有，建议�
 - **每个 skill 都写降级路径**：宿主没有原生提问、没有 subagent 时怎么办
 - **写下反直觉决定的理由**，例如 `ultra-dev` 的「Do no refactoring here — `ultra-review` owns it, because what is worth restructuring only becomes visible after several slices」
 
+## 十一（附）、记忆分层：看过 OptMem 之后的结论
+
+[VictorTaelin/OptMem](https://github.com/VictorTaelin/OptMem) 值得学的不是二叉树，是三条设计：
+
+1. **单一 append-only 事实源 + 可重建派生层**——`LOG.txt` 永不编辑，`TREE/` 明确是 "rebuildable cache from the log"。和 3.5 的判据是同一个东西。
+2. **读预算 + 分层下钻**——`wake` 按 token 预算给高层摘要，`zoom` 才下钻，`recall` 用 regex 精确搜。progressive disclosure 的记忆版。
+3. **没有后台进程**——"Nothing ever runs in the background. Merges arrive one at a time, in the output of `note`." 记忆系统不会背着 agent 改写记忆。
+
+### `.ultra` 按生命周期的现状
+
+| 层 | 内容 | 生命周期 |
+|---|---|---|
+| 长时 | `north-star.md`、`CONTEXT.md`、`specs/`、`decisions/`、`changes/archive/` | 项目 |
+| 短时 | `changes/active/intent.md`、`tasks.json`、`contexts/`、`evidence/` | 一个 Change |
+| 短时·易腐 | `test-report.json` | 一个 HEAD，代码一动即 stale |
+| session | `progress/`、`reviews/`、`.runtime/compact-snapshot.md` | 一次会话，gitignore |
+| 接力棒 | `contexts/<id>.md` 的 `## Resume Note` | 跨 session，短时里唯一为下个会话写的 |
+
+**OptMem 的第 1 和第 3 条我们已经做到了**（git 是 append-only 权威、派生物在 `.runtime/`、压缩由 skill 同步触发无后台进程）。
+
+### 结论：不引入 OptMem，加一步 grep
+
+缺的不是容量，是**类别**——长时记忆全是「当前状态的声明」（目标、术语、设计、决策），没有「经验」（试过什么、失败在哪、为什么绕开）。「唯一路径」痛点的根子就在这儿：加第五个兼容分支的人不知道前四个为什么加。
+
+但载体已经存在：`changes/archive/<id>/{intent.md,delivery.md}` 已经记录了每个 Change 做了什么、结果如何、留了什么债。**缺的是流程里没有「开工前查历史」这一步**。
+
+故只加一行：`ultra-change` 的 Before you start 第 4 条——grep `changes/archive/` 找碰过同一区域的历史 Change 并读其 `delivery.md`。零机制。
+
+**不引入 OptMem 的三条理由**：CLI 有意删过 general memory 且理由已记录在 `DECISIONS.md`，推翻它需要复现的失败；OptMem 解决的是「记忆太多读不完」，而我们是「有一类没记」；二叉树摘要适合 280 字节的流水账，不适合 `north-star.md` 这种不该被摘要成一行再两两合并的结构化权威。
+
+**什么时候回头认真考虑**：当 `changes/archive/` 多到一次 grep 的结果读不完时。那才是「记忆太多读不完」真实发生，分层摘要才有对应的失败可指。
+
 ## 十一、故意不做
 
 - **阶段间的 graph 调度器 / workflow state machine**。理由见 5.2。若日后要做，前置条件是一个复现过的、file-first 路径修不好的失败。
