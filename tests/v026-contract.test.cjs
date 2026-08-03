@@ -148,6 +148,16 @@ test('change history lookup supports canonical and legacy archive records', () =
   assert.match(change, /missing `delivery\.md`[^\n]+does not mean[^\n]+no history/iu);
 });
 
+test('the delivery evidence gate stays inside an explicitly invoked workflow', () => {
+  const deliver = readSkill('ultra-deliver');
+  const scripts = Object.values(JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'),
+  ).scripts || {});
+
+  assert.match(deliver, /applies only after the owner explicitly invokes `ultra-deliver`/iu);
+  assert.ok(scripts.every((command) => !command.includes('.ultra/test-report.json')));
+});
+
 test('remaining workflows preserve their accepted v0.26 contracts', () => {
   const research = readSkill('ultra-research');
   assert.match(research, /seventeen|17/i);

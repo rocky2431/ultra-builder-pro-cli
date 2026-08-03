@@ -56,6 +56,9 @@ drift behind.
 
 ## The one delivery gate
 
+This gate applies only after the owner explicitly invokes `ultra-deliver`; it does not
+attach itself to ordinary repository packaging outside this workflow.
+
 Everything else in this workflow reports and hands over. This is the exception, and it
 is deliberately narrow:
 

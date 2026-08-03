@@ -214,7 +214,7 @@ test('every completed task has one canonical six-dimension evidence record', () 
   }
 });
 
-test('the current test report is complete, current, and bound to every task', () => {
+test('the recorded test report has a complete schema and matches its task snapshot', () => {
   const ledger = JSON.parse(fs.readFileSync(path.join(ULTRA, 'tasks.json'), 'utf8'));
   const report = JSON.parse(fs.readFileSync(path.join(ULTRA, 'test-report.json'), 'utf8'));
   assert.equal(report.$schema, 'ultra-test-report-v1');
