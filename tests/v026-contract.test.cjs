@@ -122,6 +122,24 @@ test('model-invoked review requires owner authority before cross-host delegation
   assert.doesNotMatch(review, /\nDelegate a recheck[^\n]+when the Change profile/iu);
 });
 
+test('development convergence has a task-scoped target and a finite set-based exit', () => {
+  const plan = readSkill('ultra-plan');
+  const dev = readSkill('ultra-dev');
+  const contextTemplate = fs.readFileSync(
+    path.join(ROOT, '.ultra-template', 'contexts', 'TEMPLATE.md'),
+    'utf8',
+  );
+
+  assert.match(contextTemplate, /\*\*Change Acceptance IDs\*\*:/u);
+  assert.match(plan, /Change Acceptance IDs/u);
+  assert.match(plan, /Map every Change acceptance ID[^\n]+task context/iu);
+  assert.match(dev, /resolve[^\n]+Change Acceptance IDs[^\n]+active `intent\.md`/iu);
+  assert.match(dev, /best-ever passing set/iu);
+  assert.match(dev, /three repair rounds/iu);
+  assert.match(dev, /two consecutive repair rounds add no new/iu);
+  assert.match(dev, /command did not start/iu);
+});
+
 test('remaining workflows preserve their accepted v0.26 contracts', () => {
   const research = readSkill('ultra-research');
   assert.match(research, /seventeen|17/i);

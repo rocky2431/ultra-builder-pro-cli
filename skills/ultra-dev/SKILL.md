@@ -42,23 +42,26 @@ Follow `../ultra-tdd/SKILL.md`, writing tests only on the seams the plan already
 confirmed, one slice at a time. Do no refactoring here — `ultra-review` owns it,
 because what is worth restructuring only becomes visible after several slices.
 
-## Converge on the acceptance set
+## Converge on the task-scoped acceptance set
 
-Development ends when the acceptance commands pass, not when the code looks finished.
-Each criterion in the active `intent.md` carries an executable `Verification`. Run
-them, count the passes, keep working while any fail. Three exits, all mechanical:
+Development ends when the task's acceptance commands pass, not when the code looks
+finished. Resolve the context's **Change Acceptance IDs** against the active `intent.md`
+and use each named row's executable `Verification`. Commands under the context's
+Acceptance Criteria may add task-local checks; they do not replace the Change mapping.
+
+Run one baseline before repairing anything. Track the best-ever passing set of mapped
+IDs and task-local commands, the total repair rounds, and consecutive rounds that add
+nothing to that set. The loop has three explicit exits:
 
 | Exit | Condition | Action |
 |---|---|---|
-| Converged | Every acceptance command for this task exits zero | Close out below |
-| Stalled | Two consecutive rounds leave the passing count unchanged | Stop; report which criteria never passed and what each attempt tried |
-| Unreachable | A verification command errors instead of asserting a failure | Stop at once — the criterion is malformed, not the code. Hand it back; spend no further round |
+| Converged | Every mapped Change verification and task-local command exits zero | Close out below |
+| Stalled | Two consecutive repair rounds add no new item to the best-ever passing set, or three repair rounds finish without convergence | Stop; report the remaining criteria and what each repair tried |
+| Unreachable | A command did not start because its executable, fixture, service or declared environment prerequisite is unavailable | Stop that criterion; report the missing prerequisite and its repair path |
 
-Stalling is the three-fix rule made mechanical: repairs that each uncover a different
-cause are an architecture problem, and another round buys nothing. `ultra-review`
-stops on the same shape when P0 + P1 stops falling; the indicator here is the passing
-count. A round ending with fewer passes than it began is a regression — say so rather
-than averaging it into progress.
+A nonzero exit normally means a failing criterion, not an unreachable one; inspect its
+output. A regression never shrinks the best-ever set, and the total round limit stops
+oscillation where different criteria alternate between pass and fail.
 
 ## Answer the six evidence dimensions
 
@@ -110,9 +113,7 @@ as it stands and says so in the Resume Note instead of tidying it away.
 
 ## References
 
-- `../ultra-tdd/SKILL.md` — read before the first test, for the seam and the mock
-  boundary.
-- `../ultra-think/references/autonomy-boundary.md` — read the moment the
-  specification and the implementation disagree.
+- `../ultra-tdd/SKILL.md` — read before the first test, for the seam and mock boundary.
+- `../ultra-think/references/autonomy-boundary.md` — read when spec and code disagree.
 - `../ultra-review/SKILL.md` — read when implementation evidence is ready for review.
 - `references/debugging.md` — read for a reproduced failure before selecting a repair.

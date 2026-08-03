@@ -32,6 +32,8 @@
 <!-- The verifiable definition of done. Read by mid_workflow_recall and session_context, and
      injected into agent context — keep every line testable and keep noise out. -->
 
+**Change Acceptance IDs**: [`AC-1`, `AC-3`, or `none` for task-local-only work]
+
 - [ ] `exact test command`
 - [ ] Pass: [scenario 1]
 - [ ] Pass: [scenario 2]
