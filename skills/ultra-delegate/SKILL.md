@@ -21,6 +21,8 @@ semantic synthesis and remains the only writer of `.ultra/tasks.json`.
   spec digests remain unchanged.
 - The worker terminates as `finished`, `blocked` or `failed` in a schema-valid
   `result.json`; declared paths equal the actual Git diff and stay in writable roots.
+- No `writable_roots` entry is `.ultra/` or sits under it, and the actual diff touches
+  nothing there.
 - Timeout and cancellation reach a terminal failed result and release `run.lock`.
 - The primary host verifies the result against the delegated workflow's acceptance.
 
@@ -34,6 +36,11 @@ Write under `.ultra/.runtime/delegations/<id>/`:
 
 `writable_roots` is an array of existing worktree-relative directories. An empty array
 selects native read-only mode; one or more roots selects bounded write mode.
+**Neither `.ultra/` nor any path under it may appear in it.** The worktree carries a
+checkout of `.ultra` because Git tracks it, but the project's memory has exactly one
+writer. Two workers appending to `tasks.json`, `progress/` or `evidence/` in separate
+worktrees collide in the very files every later session reads to resume. Worker findings
+and state changes travel back in `result.json` and are applied by the primary host.
 `external_effects` must be empty in this portable launcher: commit, push, publish,
 deployment and other effects stay with the primary host. There is no `readable_roots`
 claim because the five host sandboxes do not share one mechanically enforceable read

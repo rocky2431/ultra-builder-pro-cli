@@ -12,8 +12,16 @@
 
 Fields are exact. Roots are normalized worktree-relative directories that already
 exist. An empty array selects native read-only mode; `.` deliberately grants the whole
-isolated checkout. Absolute paths, symlink escapes, unknown fields, `readable_roots`,
-and non-empty external effects are rejected.
+isolated checkout except `.ultra/`. Absolute paths, symlink escapes, unknown fields,
+`readable_roots`, `.ultra` or any path beneath it, and non-empty external effects are
+rejected.
+
+`.ultra/` is never writable by a worker under any root, `.` included. The project's
+memory has exactly one writer — the primary host — because two worktrees appending to
+`tasks.json`, `progress/` or `evidence/` collide in precisely the files a later session
+reads to resume. Enforced twice: the launcher rejects a `.ultra` root before the
+delegation starts, and the worker fails an actual diff that touches it with
+`unauthorized_write`.
 
 ## Model final response
 

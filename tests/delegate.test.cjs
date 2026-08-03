@@ -255,6 +255,17 @@ test('delegate rejects non-worktrees, unknown permission keys, and external effe
     const effects = start(fx, fake);
     assert.notEqual(effects.status, 0);
     assert.match(effects.stderr, /external_effects must be empty/i);
+
+    fs.mkdirSync(path.join(fx.worktree, '.ultra', 'contexts'), { recursive: true });
+    for (const root of ['.ultra', '.ultra/contexts']) {
+      fs.writeFileSync(path.join(fx.delegation, 'permission.json'), JSON.stringify({
+        $schema: 'ultra-delegation-permission-v1', writable_roots: [root],
+        external_effects: [],
+      }));
+      const guarded = start(fx, fake);
+      assert.notEqual(guarded.status, 0, `expected ${root} to be rejected`);
+      assert.match(guarded.stderr, /\.ultra/);
+    }
   } finally {
     fs.rmSync(fx.root, { recursive: true, force: true });
   }
@@ -297,6 +308,35 @@ process.exit(${scenario === 'nonzero' ? 9 : 0});
     } finally {
       fs.rmSync(fx.root, { recursive: true, force: true });
     }
+  }
+});
+
+test('.ultra stays unwritable even when the permission grants the whole checkout', () => {
+  const fx = fixture('ultra-guard');
+  try {
+    fs.writeFileSync(path.join(fx.delegation, 'permission.json'), `${JSON.stringify({
+      $schema: 'ultra-delegation-permission-v1',
+      writable_roots: ['.'],
+      external_effects: [],
+    }, null, 2)}\n`);
+    const payload = resultPayload(['.ultra/tasks.json']);
+    const fake = fakeCli(fx, `
+const fs = require('node:fs');
+const path = require('node:path');
+const dir = path.join(process.env.UBP_DELEGATE_WORKTREE, '.ultra');
+fs.mkdirSync(dir, { recursive: true });
+fs.writeFileSync(path.join(dir, 'tasks.json'), '{"tasks":[]}\\n');
+process.stdout.write(${JSON.stringify(JSON.stringify(payload))});
+process.exit(0);
+`);
+    const started = start(fx, fake);
+    assert.equal(started.status, 0, started.stderr);
+    const result = waitFor(path.join(fx.delegation, 'result.json'));
+    assert.equal(result.status, 'failed');
+    assert.equal(result.failure_type, 'unauthorized_write');
+    assert.match(result.summary, /\.ultra/);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
   }
 });
 

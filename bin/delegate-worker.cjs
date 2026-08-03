@@ -7,6 +7,7 @@ const path = require('node:path');
 const { execFileSync, spawn } = require('node:child_process');
 
 const RESULT_SCHEMA = 'ultra-delegation-result-v1';
+const PROTECTED_ROOT = '.ultra';
 const MODEL_FIELDS = new Set([
   '$schema', 'status', 'summary', 'changed_files', 'checks', 'evidence',
   'questions', 'residual_risks',
@@ -148,7 +149,11 @@ function validateModelResult(payload) {
   return null;
 }
 
+// The project's memory has exactly one writer: the primary host. A worker that edits
+// `.ultra` in its own worktree collides in the files every later session reads to
+// resume, so no permission grants it — not even `writable_roots: ["."]`.
 function authorized(spec, file) {
+  if (file === PROTECTED_ROOT || file.startsWith(`${PROTECTED_ROOT}/`)) return false;
   return spec.writable_roots.some((root) => (
     root === '.' || file === root || file.startsWith(`${root}/`)
   ));

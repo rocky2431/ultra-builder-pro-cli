@@ -821,6 +821,21 @@ CLI v0.26 处理过这个（每个 session checkout 把自己的 `.ultra` 链接
 
 写下判据时定的一条规则：**只要「可能违反」就要声明，不必等到「预计会违反」**——一行成本换一个可检查的问题，`none` 是合法答案。
 
+### ✅ 12.2 并发写 `.ultra` — 已关闭（代码 + 测试）
+
+**先前只是推荐，实际核查发现漏洞真实存在**：`writable_roots: ["."]` 在契约里被明确定义为「grants the whole isolated checkout」，而 worktree 里带着 `.ultra` 的 checkout——所以 worker 能写 `tasks.json`。写了个测试证明：worker 改 `.ultra/tasks.json` 后返回 `finished`，本该 `failed`。
+
+**双层强制**（TDD，先红后绿）：
+
+| 层 | 位置 | 行为 |
+|---|---|---|
+| 启动前 | `bin/delegate.cjs` permission 校验 | `writable_roots` 含 `.ultra` 或其子路径 → 拒绝启动 |
+| 结束时 | `bin/delegate-worker.cjs` `authorized()` | 实际 diff 触及 `.ultra` → `unauthorized_write`，**`.` 授权也不例外** |
+
+第二层是关键：第一层挡显式声明，第二层挡 `.` 和一切意外。判据是 `.ultra` 前缀匹配，纯机械。
+
+新增测试 2 个（`tests/delegate.test.cjs`），套件 106 → 107。
+
 ### 需要少量代码
 
 6. **收敛循环搬到 `ultra-dev` / `ultra-test`**（6.6）。**复用 `ultra-review` 已有的停滞检测**（P0+P1 不降即停、三次修复失败判架构问题），指标换成「通过的 AC 条数」。依赖第 3 项。

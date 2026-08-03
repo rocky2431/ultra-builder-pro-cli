@@ -12,6 +12,7 @@ const PERMISSION_SCHEMA = 'ultra-delegation-permission-v1';
 const RECEIPT_SCHEMA = 'ultra-delegation-receipt-v1';
 const RESULT_SCHEMA = 'ultra-delegation-result-v1';
 const PERMISSION_FIELDS = new Set(['$schema', 'writable_roots', 'external_effects']);
+const PROTECTED_ROOT = '.ultra';
 const RESULT_JSON_SCHEMA = Object.freeze({
   type: 'object',
   additionalProperties: false,
@@ -149,6 +150,12 @@ function readPermission(file, worktree) {
       throw new Error('permission writable_roots must not escape through symlinks');
     }
     const normalized = path.relative(worktree, real).split(path.sep).join('/') || '.';
+    // `.ultra` is the project's memory and has exactly one writer: the primary host.
+    // Rejected here so the delegation never starts, and again against the actual diff
+    // in the worker, which also covers the `.` grant.
+    if (normalized === PROTECTED_ROOT || normalized.startsWith(`${PROTECTED_ROOT}/`)) {
+      throw new Error(`permission writable_roots must not include ${PROTECTED_ROOT}; the primary host is its only writer`);
+    }
     if (!writableRoots.includes(normalized)) {
       writableRoots.push(normalized);
       writableRootPaths.push(real);
