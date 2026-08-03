@@ -12,6 +12,24 @@ import subprocess
 from _common import emit_context, project_root, read_payload
 
 
+APPROVAL_VAR = "UBP_DANGEROUS_COMMAND_APPROVED"
+APPROVAL_PREFIX = re.compile(rf"^\s*{APPROVAL_VAR}=\S*\s+")
+
+
+def effect_of(command: str) -> str:
+    """The command with any inline approval assignment removed.
+
+    The digest must identify the *effect*, not the spelling of the retry. Without this,
+    prepending the variable changes the command text, which changes the digest, which
+    means the quoted digest is never the one that matches -- the repair path is a loop.
+
+    The assigned value is discarded on purpose. Only the process environment authorizes,
+    because the command string is composed by the model and honouring an inline value
+    would let it approve itself.
+    """
+    return APPROVAL_PREFIX.sub("", command, count=1)
+
+
 def protected_push(command: str, root) -> bool:
     if not re.search(r"\bgit\s+push\b", command, re.IGNORECASE):
         return False
@@ -65,19 +83,22 @@ def main() -> int:
     command = tool_input.get("command")
     if not isinstance(command, str) or not command.strip():
         return 0
-    threat = classify(command, root)
+    effect = effect_of(command)
+    threat = classify(effect, root)
     if threat is None:
-        note = advisory(command)
+        note = advisory(effect)
         if note:
             emit_context("PreToolUse", note)
         return 0
-    digest = hashlib.sha256(command.encode()).hexdigest()
-    if os.environ.get("UBP_DANGEROUS_COMMAND_APPROVED") == digest:
+    digest = hashlib.sha256(effect.encode()).hexdigest()
+    if os.environ.get(APPROVAL_VAR) == digest:
         return 0
     reason = (
-        f"Ultra blocked {threat}. Protected effect: the exact shell command. "
-        f"After explicit owner authorization, rerun with "
-        f"UBP_DANGEROUS_COMMAND_APPROVED={digest}."
+        f"Ultra blocked {threat}. Protected effect: the exact shell command, "
+        f"digest {digest}. Authorization comes from the owner's environment, never from "
+        f"the command text. Either run it yourself, or export "
+        f"{APPROVAL_VAR}={digest} in the environment that launches the agent and ask "
+        f"again. Prefixing the assignment onto this command does not authorize it."
     )
     print(json.dumps({
         "decision": "block",

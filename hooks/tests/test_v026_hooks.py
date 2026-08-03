@@ -232,6 +232,38 @@ def test_dangerous_command_hook_blocks_named_effects_with_exact_digest_repair(tm
     assert "database migration" in advisory["hookSpecificOutput"]["additionalContext"]
 
 
+def test_authorization_survives_the_prefix_form_but_the_prefix_alone_never_authorizes(tmp_path):
+    root = make_project(tmp_path)
+    bare = "git push origin main"
+    digest = hashlib.sha256(bare.encode()).hexdigest()
+    prefixed = f"UBP_DANGEROUS_COMMAND_APPROVED={digest} {bare}"
+
+    # The digest identifies the effect, not the spelling used to rerun it. An owner who
+    # authorized `git push origin main` has authorized it however the retry is written.
+    allowed = run_hook("block_dangerous_commands.py", root, {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": prefixed},
+    }, {"UBP_DANGEROUS_COMMAND_APPROVED": digest})
+    assert allowed.stdout == ""
+
+    # The prefix on its own is not authorization. It is written by whoever composed the
+    # command -- which is the model -- so honouring it would let the model approve
+    # itself and the gate would protect nothing.
+    blocked = run_hook("block_dangerous_commands.py", root, {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": prefixed},
+    })
+    payload = json.loads(blocked.stdout)
+    assert payload["hookSpecificOutput"]["permissionDecision"] == "deny"
+    reason = payload["hookSpecificOutput"]["permissionDecisionReason"]
+    # The quoted digest stays the one for the bare command, so a second retry is not
+    # chasing a digest that changes every time the command is rewritten.
+    assert digest in reason
+    assert "environment" in reason.lower()
+
+
 def test_host_wrappers_allow_only_the_five_file_first_hooks(tmp_path):
     root = make_project(tmp_path)
     expected = set(HOOKS)
