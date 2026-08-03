@@ -164,6 +164,7 @@ test('remaining workflows preserve their accepted v0.26 contracts', () => {
 test('project template has one canonical v0.26 artifact layout', () => {
   const expectedFiles = [
     '.gitignore',
+    'changes/abandoned/.gitkeep',
     'changes/active/.gitkeep',
     'changes/archive/.gitkeep',
     'contexts/TEMPLATE.md',

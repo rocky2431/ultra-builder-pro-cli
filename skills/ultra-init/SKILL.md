@@ -81,7 +81,7 @@ placeholders from verified facts and owner decisions.
 .ultra/specs/{product,architecture,discovery}.md    ## Observed, ## Decisions, ## Unknowns
 .ultra/tasks.json                                   {"tasks": []}
 .ultra/test-report.json                             not-yet-run report with git_commit
-.ultra/contexts/  .ultra/decisions/  .ultra/evidence/
+.ultra/{contexts,decisions,evidence,research}/ and changes/{active,archive,abandoned}/
 CONTEXT.md                                          repository root, once a term is settled
 ```
 

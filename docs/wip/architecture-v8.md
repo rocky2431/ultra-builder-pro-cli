@@ -898,6 +898,25 @@ review 的并行是**运行时模型行为**，由 `ultra-review/SKILL.md` 的�
 
 `ultra-test`：六个审计区域是只读的、互相独立的，可并行；但**worker 不写 `test-report.json`**，只返回发现，由父进程写那一份 canonical 报告——六个写者共写一个文件正是报告丢发现的方式。
 
+### ❌ 第 7 项：目录重构与迁移 — 绝大部分撤回，3.5 判断有误
+
+在 CLI 上逐项核对第七节，结论是**它的布局已经是对的，方案的第七节几乎全部多余**：
+
+| 方案条目 | CLI 现状 | 结论 |
+|---|---|---|
+| `.runtime/` | 已有（`delegations/`、`worktrees/`），且 `.ultra/.gitignore` 已排除 | 无需改 |
+| 来源指纹 | `research-distillate.md` 已记录每份 spec 的 **Git blob hash**，hash 不符即判 stale | **已有，且比方案提议的更好** |
+| `relations.json` | CLI 根本没有 relations 机制（那是本仓 v7 的） | 不引入 |
+| `tasks/contexts/` 分层 | CLI 用顶层 `contexts/`，少一层 | **CLI 更好，采用它的** |
+| `CONTEXT.md` | init 已负责创建 | 无需改 |
+| 12.1 迁移路径 | **本次全部改动没有改变任何目录结构**，所以无迁移可做 | 12.1 前提（18→11 条目）是本仓情况，对 CLI 不成立 |
+
+**3.5 那条「`progress/*.json` 必须进 git」是错的**，这是本轮第四次自我推翻。CLI 有意 gitignore `progress/` 和 `reviews/`，而且 `tests/v026-contract.test.cjs` 把 `.gitignore` 内容锁成 `.runtime/\nprogress/\nreviews/\n` —— 是被测试锁定的契约，不是随手写的。
+
+理由我起初没看到：**六维证据的持久记录在 `evidence/<task-id>/evidence.json`（进 git），`progress/` 只是 hook 写的实时计数器。** 跨 agent 接手读的是 evidence（已完成）加 context 的 Resume Note（进行中），从不读 progress。`reviews/` 同理——SUMMARY 绑定特定 HEAD，代码一变即过时，修复结果体现在代码和 evidence 里。
+
+**唯一真实改动**：补上我自己在 12.3 引入的缺口。`ultra-change` 现在指示 `git mv active/<id> abandoned/<id>`，但 template 里没有 `changes/abandoned/`，而 `git mv` 到不存在的父目录会失败。已补 `.gitkeep`，同步更新 layout 契约测试，并把 `changes/` 与 `research/` 补进 `ultra-init` 的 What gets written 列表（此前遗漏，与 PHILOSOPHY Contract Table 要求的「exact file list」不符）。
+
 ### 需要少量代码
 
 6. **收敛循环搬到 `ultra-dev` / `ultra-test`**（6.6）。**复用 `ultra-review` 已有的停滞检测**（P0+P1 不降即停、三次修复失败判架构问题），指标换成「通过的 AC 条数」。依赖第 3 项。
