@@ -15,9 +15,42 @@ from _common import emit_context, project_root, read_payload
 APPROVAL_VAR = "UBP_DANGEROUS_COMMAND_APPROVED"
 APPROVAL_PREFIX = re.compile(rf"^\s*{APPROVAL_VAR}=\S*\s+")
 
+HEREDOC = re.compile(
+    r"<<-?\s*(['\"]?)(?P<tag>[A-Za-z_]\w*)\1(?P<rest>[^\n]*)\n(?P<body>.*?)^\s*(?P=tag)\s*$",
+    re.DOTALL | re.MULTILINE,
+)
+# Commands whose heredoc is a payload rather than a script. Deliberately short: an
+# unlisted sink keeps its body in scope, so the cost of an omission is a false positive,
+# never a missed effect.
+DATA_SINK = re.compile(r"\bgit\s+(?:commit|tag|notes)\b", re.IGNORECASE)
+
+
+def strip_data_heredocs(command: str) -> str:
+    """Drop heredoc bodies that are data for a known sink.
+
+    Describing an effect inside a commit message is not performing it, and a message
+    that mentions one used to be blocked as though it did.
+
+    Bodies are kept whenever they might be executed: an interpreter reading a heredoc
+    runs it, so stripping there would make quoting style a way around this gate. The
+    body survives unless the segment introducing it is a listed data sink and nothing
+    on the heredoc's own line pipes it somewhere else.
+    """
+    def resolve(match: re.Match) -> str:
+        segment = re.split(r"\|\||&&|[;&|\n]", command[:match.start()])[-1]
+        if "|" in match.group("rest") or not DATA_SINK.search(segment):
+            return match.group(0)
+        tag = match.group("tag")
+        return f"<<{tag}\n{tag}"
+
+    return HEREDOC.sub(resolve, command)
+
 
 def effect_of(command: str) -> str:
-    """The command with any inline approval assignment removed.
+    """The command reduced to what it actually does.
+
+    Strips an inline approval assignment, then any heredoc body that is data for a
+    known sink. What remains is the effect: the part worth classifying and hashing.
 
     The digest must identify the *effect*, not the spelling of the retry. Without this,
     prepending the variable changes the command text, which changes the digest, which
@@ -27,7 +60,7 @@ def effect_of(command: str) -> str:
     because the command string is composed by the model and honouring an inline value
     would let it approve itself.
     """
-    return APPROVAL_PREFIX.sub("", command, count=1)
+    return strip_data_heredocs(APPROVAL_PREFIX.sub("", command, count=1))
 
 
 def protected_push(command: str, root) -> bool:

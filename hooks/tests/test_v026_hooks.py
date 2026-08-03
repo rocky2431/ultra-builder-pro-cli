@@ -264,6 +264,40 @@ def test_authorization_survives_the_prefix_form_but_the_prefix_alone_never_autho
     assert "environment" in reason.lower()
 
 
+def test_commit_message_bodies_are_data_but_interpreter_heredocs_are_not(tmp_path):
+    root = make_project(tmp_path)
+
+    def decision(command: str):
+        result = run_hook("block_dangerous_commands.py", root, {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+        })
+        if not result.stdout:
+            return None
+        return json.loads(result.stdout)["hookSpecificOutput"].get("permissionDecision")
+
+    danger = "git push origin main"
+
+    # Describing an effect in a commit message is not performing it. This is the false
+    # positive: the body is a payload for git, never executed.
+    assert decision(f"git commit -q -F - <<'EOF'\nFixed the {danger} path.\nEOF") is None
+    assert decision(
+        f"cd repo && git add -A && git commit -F - <<'MSG'\nSee {danger}.\nMSG"
+    ) is None
+
+    # A heredoc fed to an interpreter IS executed, so its body stays in scope. Stripping
+    # these would turn the quoting style into a way around the gate.
+    assert decision(f"bash <<'EOF'\n{danger}\nEOF") == "deny"
+    assert decision(f"cat <<'EOF' | sh\n{danger}\nEOF") == "deny"
+    # Piping a commit-message heredoc elsewhere is no longer a plain payload either.
+    assert decision(f"git commit -F - <<'EOF' | bash\n{danger}\nEOF") == "deny"
+
+    # The plain effect is still blocked, and so is one that merely follows a heredoc.
+    assert decision(danger) == "deny"
+    assert decision(f"git commit -F - <<'EOF'\nnotes\nEOF\n{danger}") == "deny"
+
+
 def test_host_wrappers_allow_only_the_five_file_first_hooks(tmp_path):
     root = make_project(tmp_path)
     expected = set(HOOKS)
