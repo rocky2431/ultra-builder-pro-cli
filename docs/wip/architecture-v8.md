@@ -863,6 +863,20 @@ CLI v0.26 处理过这个（每个 session checkout 把自己的 `.ultra` 链接
 
 不需要改 PHILOSOPHY C3：C3 的自测是「统计所有 **hook** 的 blocking 输出」，这个门在 skill 里；且打包本来就已是需单独授权的外部效果，这只是加了个前置检查。
 
+### ❌ 第 8 项：Claude 侧并行编排 — 核查后撤回，无缺口
+
+判断依据错了。`adapters/claude.js`（178 行）**只做安装**，不含也不该含运行时编排；`host-profile.cjs` 里出现的 `--no-subagents` 是 delegate 给 worker 的限制参数，与 review 无关。我把「adapter 里没有代码」误读成了「能力缺失」。
+
+review 的并行是**运行时模型行为**，由 `ultra-review/SKILL.md` 的指令驱动：「Use the host's native bounded subagents, in the background where available; otherwise run them sequentially」。这句在 Claude 上模型自己就能执行。把 Claude 的 Agent 工具用法写进 shared skill，反而**违反 CLI 自己的 host-neutral 规则**（`CLAUDE.md`：Shared Skills stay host-neutral, put Claude-specific wiring in `adapters/claude.js`）。失败处理（failed lenses are explicit）与等待（`review_wait.py`）也都已存在。
+
+### 关于这几次撤回
+
+到此已撤回三项：`review-ac-coverage` 第 8 路 lens、`ultra-test` 收敛循环、Claude 并行编排。加上重命名改消歧，共四处推翻。
+
+**共同成因**：方案第一稿以本仓 v7 为观察基准，凡是「本仓没有」的都记成了缺口，而 CLI 要么已经实现（tests lens 覆盖 AC）、要么有意不做（test 保持 sensor）、要么根本不该在那一层做（host-neutral）。第九节复核表里 9 个缺陷 8 个不存在，是同一现象的另一面。
+
+**教训**：跨仓库移植方案时，缺口清单必须在目标仓库重新核一遍，不能沿用来源仓库的观察。这条已经在实施顺序开头写明「基准是 CLI v0.26，不是本仓」，但显然写得还不够早。
+
 ### 需要少量代码
 
 6. **收敛循环搬到 `ultra-dev` / `ultra-test`**（6.6）。**复用 `ultra-review` 已有的停滞检测**（P0+P1 不降即停、三次修复失败判架构问题），指标换成「通过的 AC 条数」。依赖第 3 项。
