@@ -1,8 +1,10 @@
 # Ultra Builder Pro v8 架构方案
 
-**状态**：**第一批已落地（2026-08-03，未 commit）**，见第十三节。其余待排。本文件是这轮工作的唯一落点，全部完成后折叠进正式文档并删除。
+**状态**：**第十三节全部条目已处置完毕（2026-08-03，7 个 commit，`79bf42c`..`e45c102`）**——其中 6 项落地、4 项核查后撤回、1 项降级。`npm run verify:release` 通过：Node 107 pass / 0 fail、Hooks 8 passed、audit 0 vulnerabilities。
 
-**删除条件**：第十三节 6–11 项完成，且 12.4 的场景 eval 至少跑过「换宿主接手」那一条。
+**剩余未做的只有一件**：12.4 的场景 eval，其中「换宿主接手」那条需要 owner 授权认证（见 12.4 与 `ultra-v026-skill-first.md` §3）。
+
+**删除条件**：那条 eval 跑过，结果写入正式交付证据。届时本文件的设计结论折叠进 `docs/PHILOSOPHY.md` 与各 skill，本文件删除。
 
 **落地仓库：`ultra-builder-pro-cli` (v0.26)**。本仓 `ultra-builder-pro` 冻结后归档，README 指向 CLI，**不保留 Claude 特化分支**（否则就是两套，正好违反 3.8）。本文件应随之移入 CLI 仓库的 `docs/wip/`，不留第二份。
 
