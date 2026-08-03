@@ -112,6 +112,16 @@ test('model-invoked disciplines each have at least two canonical callers', () =>
   }
 });
 
+test('model-invoked review requires owner authority before cross-host delegation', () => {
+  const review = readSkill('ultra-review');
+  assert.match(
+    review,
+    /do not\s+(?:invoke|run) `?ultra-delegate`? unless the owner has explicitly/iu,
+  );
+  assert.match(review, /recommend[^\n]+cross-family recheck[^\n]+wait/iu);
+  assert.doesNotMatch(review, /\nDelegate a recheck[^\n]+when the Change profile/iu);
+});
+
 test('remaining workflows preserve their accepted v0.26 contracts', () => {
   const research = readSkill('ultra-research');
   assert.match(research, /seventeen|17/i);

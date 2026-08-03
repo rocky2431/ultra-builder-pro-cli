@@ -68,9 +68,11 @@ Six lenses are six angles from one model family, so they share blind spots: what
 six miss, a seventh angle from the same family misses too. Independence comes from a
 different model, not from another lens.
 
-Delegate a recheck through `../ultra-delegate/SKILL.md` when the Change profile is
-`major`, or when the diff touches authorization, payments, personal data or
-migrations. For a `quick` profile, skip it and say so in the report.
+For a `major` Change, or one touching authorization, payments, personal data or
+migrations, recommend a cross-family recheck and wait for the owner's decision. Do not
+invoke `ultra-delegate` unless the owner has explicitly asked for another model or host
+for this review. Once that authority exists, follow `../ultra-delegate/SKILL.md`. For a
+`quick` profile, skip the recommendation and say so in the report.
 
 - Send the aggregated `SUMMARY.json` and the diff, **not** the raw lens artifacts. The
   worker should form its own reading rather than grade this one.
@@ -92,6 +94,5 @@ Workers never edit source, task state or another lens artifact.
 - `references/unified-schema.md` — JSON contract shared by all lenses.
 - `references/worker-packet.md` — exact immutable input packet and digest procedure.
 - `references/review-modes.md` — choose task, Change, full, or delta scope.
-- `../ultra-delegate/SKILL.md` — read before a cross-family recheck on a major or
-  security-relevant Change.
+- `../ultra-delegate/SKILL.md` — read after the owner authorizes a cross-family recheck.
 - `../ultra-think/references/autonomy-boundary.md` — read before a fix reduces intent.
