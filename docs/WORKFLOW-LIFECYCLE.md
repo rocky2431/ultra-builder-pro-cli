@@ -132,3 +132,7 @@ the common entry contract and compares the working tree with those claims.
 
 This path remains valid when hooks and `ubp` are disabled. A compact snapshot may be
 used as a hint, then checked against canonical files and Git.
+
+An authenticated Claude-to-Codex continuation using this path passed on 2026-08-03;
+the exact scope, provenance, results, and limitations are recorded in the
+[runtime compatibility matrix](RUNTIME-COMPAT-MATRIX.md#authenticated-cross-host-continuation-evidence).

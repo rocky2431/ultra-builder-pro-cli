@@ -99,3 +99,44 @@ inherits the same isolated `HOME` and `CODEX_HOME`. Grok native registration is 
 only in explicit isolated test mode. Lifecycle tests also require the isolated config
 and fake HOME to contain zero children after uninstall, while separate ownership tests
 prove that pre-existing empty Codex and Kimi registries survive.
+
+## Authenticated cross-host continuation evidence
+
+On 2026-08-03, one deliberately narrow task was run in an isolated Git repository to
+test the product's central recovery claim with real authenticated models. This was a
+continuation drill, not a full project workflow or a delegation receipt test.
+
+Both hosts used globally installed artifacts from the same clean source candidate:
+
+- source commit: `c473a248bde2afce77591f2ba382246d420b5c72`;
+- worktree digest: `e83bdcbe2905cf02cb06cb0219127f6ce0400484331a6e9fc95622bbe24b44bd`;
+- Doctor: Claude healthy with 83 assets and zero issues; Codex healthy with 99 assets
+  and zero issues, with optional hooks still `user_review_required`.
+
+The seed repository had one passing smoke test, one pending task, one mapped Change
+acceptance ID, and seed HEAD `cf27d62aeeae353e0650413de6d9a118b89a0406`.
+
+| Phase | Execution boundary | Observed result |
+|---|---|---|
+| Claude | One print-mode call, `acceptEdits`, no persistent session, empty MCP config, explicit file and local-test tools, USD 1.00 cap | Exit 0 at USD 0.741367 with zero web requests. It changed only the task ledger/context, added `test/slug.test.cjs`, and allowed the hook to write disposable progress. `src/slug.cjs` and completion evidence remained untouched. The task test exited 1 with actual `hello,-world!` versus expected `hello-world`; both task surfaces read `in_progress`, and the Resume Note named the exact next action. |
+| Codex | One ephemeral `workspace-write` call with sandbox network disabled and no conversation from Claude | Exit 0. It found and read the installed `ultra-dev` Skill, recovered the single task from Git and `.ultra/`, reproduced the same red, changed only the intended implementation, then passed the task test 1/1 and `npm test` 2/2. It wrote the three-command canonical evidence record and logs, completed both task status surfaces, and filled Completion and the final Resume Note. |
+| Independent check | Local commands after both model calls | `node --test test/slug.test.cjs` passed 1/1, `npm test` passed 2/2, `git diff --check` passed, and a structural check confirmed one completed task, six evidence dimensions, three existing command-log references, and matching ledger/context state. |
+
+The Codex process emitted non-blocking diagnostics for an older local model-cache
+schema and an unauthenticated user-config MCP startup. No MCP result was consumed and
+no external effect occurred; all task actions used local file and shell tools. This
+means the drill proves file-backed Claude-to-Codex continuation even while Codex hooks
+remain untrusted, but it does not claim that arbitrary user configuration starts
+without unrelated host diagnostics.
+
+The result establishes one real end-to-end example of cross-host resume without a
+shared conversation, database, MCP authority, daemon, or generated prompt projection.
+It does not establish output quality for every model, host, repository, or task shape.
+Task-level `ultra-review` and commits were intentionally excluded from the drill so the
+two host calls tested only the handoff boundary.
+
+Two older `.ultra` evidence snapshots still name the completed WIP by its former path.
+They are bound to source commit `3f99189bc68697262cd90444685ac2d4857139c4`, where
+that file remains recoverable with `git show`; rewriting those historical snapshots
+would falsify their recorded checkout. Current readers use this section instead, and
+the live `docs/wip/` directory contains no unfinished document.

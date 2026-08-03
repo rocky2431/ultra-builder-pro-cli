@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Kept expandable interpreter heredocs inside dangerous-effect inspection while
+  continuing to treat quoted commit-message heredocs as data.
+- Required explicit owner authority before `ultra-review` can launch a cross-host
+  model-family recheck.
+- Bound `ultra-dev` convergence to the active Change acceptance IDs, with explicit
+  stalled and unreachable exits instead of an open-ended repair loop.
+- Made `ultra-change` recover archived intent from legacy archive evidence when the
+  preferred delivery record is absent.
+- Kept the `ultra-deliver` wiring gate local to an owner-invoked delivery workflow;
+  ordinary package commands remain independent of project `.ultra/` state.
+
+### Verified
+
+- Completed an authenticated Claude-to-Codex continuation on one isolated
+  file-first task: Claude banked the failing test and Resume Note without changing
+  implementation, and Codex resumed from Git plus `.ultra/`, reached green, and
+  closed the ledger and canonical evidence without conversation transfer.
+
 ## [0.26.0] — 2026-08-01
 
 ### Added
