@@ -877,6 +877,19 @@ review 的并行是**运行时模型行为**，由 `ultra-review/SKILL.md` 的�
 
 **教训**：跨仓库移植方案时，缺口清单必须在目标仓库重新核一遍，不能沿用来源仓库的观察。这条已经在实施顺序开头写明「基准是 CLI v0.26，不是本仓」，但显然写得还不够早。
 
+### ✅ 第 10 项：跨模型家族复核（4.4 的第二段）
+
+`ultra-review` 新增 `## Recheck across model families`。论点是六 lens 同属一个模型家族、**共享盲区**——六个角度都看不见的，第七个同族角度也看不见，独立性只能来自换模型。
+
+| 决定 | 内容 |
+|---|---|
+| 何时触发 | Change profile 为 `major`，或 diff 触及授权、支付、个人数据、迁移；`quick` 跳过并在报告里写明跳过 |
+| 传什么 | 只传聚合 `SUMMARY.json` + diff，**不传原始 lens artifact**——让 worker 形成自己的判断，而不是给本地判断打分 |
+| 问什么 | 两问：哪些 finding 证据其实不支持；**这个 diff 有什么是所有 finding 都没提到的**。第二问才是这次复核值回成本的地方 |
+| 怎么处理 | 外部发现是候选不是判决，要按 lens finding 同样的方式对源码验证并记录来源；分歧是信息不是待打破的平局 |
+
+最后一条复用 `ultra-delegate` 已有的原则（"rather than turning a vote or score into truth"），不重复造。
+
 ### 需要少量代码
 
 6. **收敛循环搬到 `ultra-dev` / `ultra-test`**（6.6）。**复用 `ultra-review` 已有的停滞检测**（P0+P1 不降即停、三次修复失败判架构问题），指标换成「通过的 AC 条数」。依赖第 3 项。

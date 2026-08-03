@@ -62,6 +62,26 @@ three or more files do so, write `UNRESOLVED.md` with `ARCHITECTURAL_CONCERN` an
 
 Report both axes, exact scope, checks, residual findings and any refactor performed.
 
+## Recheck across model families
+
+Six lenses are six angles from one model family, so they share blind spots: what all
+six miss, a seventh angle from the same family misses too. Independence comes from a
+different model, not from another lens.
+
+Delegate a recheck through `../ultra-delegate/SKILL.md` when the Change profile is
+`major`, or when the diff touches authorization, payments, personal data or
+migrations. For a `quick` profile, skip it and say so in the report.
+
+- Send the aggregated `SUMMARY.json` and the diff, **not** the raw lens artifacts. The
+  worker should form its own reading rather than grade this one.
+- Ask two things: which findings the evidence does not actually support, and what this
+  diff gets wrong that no finding mentions. The second question is why the recheck is
+  worth its cost.
+- A worker finding no local lens raised is a candidate, not a verdict. Verify it
+  against the source exactly as a lens finding is verified, and record its origin.
+- Disagreement is information, not a tie to break. `ultra-delegate` already forbids
+  turning a vote or a score into truth; record both readings with their evidence.
+
 ## When the owner decides
 
 The owner chooses risk acceptance, a scope reduction, or which stuck path to take.
@@ -72,4 +92,6 @@ Workers never edit source, task state or another lens artifact.
 - `references/unified-schema.md` — JSON contract shared by all lenses.
 - `references/worker-packet.md` — exact immutable input packet and digest procedure.
 - `references/review-modes.md` — choose task, Change, full, or delta scope.
+- `../ultra-delegate/SKILL.md` — read before a cross-family recheck on a major or
+  security-relevant Change.
 - `../ultra-think/references/autonomy-boundary.md` — read before a fix reduces intent.
