@@ -16,9 +16,10 @@ disagreement instead of resolving it.
 2. Read `CONTEXT.md` for vocabulary and `.ultra/decisions/` for entries in scope.
 3. Read `.ultra/north-star.md` — a Change that does not serve it is worth
    questioning out loud before it is written down.
-4. Grep `.ultra/changes/archive/` for Changes that already touched this area and read
-   their `delivery.md`. The fifth compatibility branch gets added by whoever never saw
-   why the first four exist; a module that keeps reappearing is an architecture signal.
+4. Grep `.ultra/changes/archive/` for Changes that already touched this area. Read
+   `delivery.md` when present; otherwise read `archive-summary.md`, `verification.md` and
+   remaining owner-readable Markdown. A missing `delivery.md` does not mean no history;
+   a module that keeps reappearing is an architecture signal.
 
 ## Whether this skill applies at all
 
@@ -114,6 +115,5 @@ specification sentence false needs no permission at all.
 
 - `../ultra-grilling/SKILL.md` — the loop for settling the boundary.
 - `references/change-contract.md` — exact `intent.md` structure and profile fields.
-- `../ultra-think/references/autonomy-boundary.md` — read before dispositioning a
-  bucket in a way that removes something already promised.
+- `../ultra-think/references/autonomy-boundary.md` — read before removing a promise.
 - `../ultra-tdd/SKILL.md` — read for an evidenced one-slice correction.

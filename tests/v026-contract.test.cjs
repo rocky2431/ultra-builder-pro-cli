@@ -140,6 +140,14 @@ test('development convergence has a task-scoped target and a finite set-based ex
   assert.match(dev, /command did not start/iu);
 });
 
+test('change history lookup supports canonical and legacy archive records', () => {
+  const change = readSkill('ultra-change');
+  assert.match(change, /delivery\.md/u);
+  assert.match(change, /archive-summary\.md/u);
+  assert.match(change, /verification\.md/u);
+  assert.match(change, /missing `delivery\.md`[^\n]+does not mean[^\n]+no history/iu);
+});
+
 test('remaining workflows preserve their accepted v0.26 contracts', () => {
   const research = readSkill('ultra-research');
   assert.match(research, /seventeen|17/i);
