@@ -8,6 +8,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
+const { version: PACKAGE_VERSION } = require('../package.json');
 const { skillsForRuntime, WORKFLOW_HOOK_FILES } = require('../adapters/_shared/runtime-assets.cjs');
 
 function command(program, args, options = {}) {
@@ -54,7 +55,7 @@ test('npm tarball contains and runs only the v0.26 file-first product surface', 
     const cli = path.join(packageRoot, 'bin', 'install.js');
     const version = command(process.execPath, [cli, '--version'], { cwd: consumer });
     assert.equal(version.status, 0, version.stderr);
-    assert.match(version.stdout, /v0\.26\.0/);
+    assert.equal(version.stdout, `ultra-builder-pro-cli v${PACKAGE_VERSION}\n`);
 
     const config = path.join(sandbox, 'installed-claude');
     const install = command(process.execPath, [

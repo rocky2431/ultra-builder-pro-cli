@@ -7,8 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.1] — 2026-08-03
+
+### Added
+
+- Added reframing to `ultra-grilling`, five bounded framing questions, and checkable
+  resolved, stalled, and unavailable exits so a literal request can be translated
+  into the role and outcome the owner actually means.
+- Added `HC-<n>` hard-constraint identifiers, task-level constraint mapping,
+  executable Change verification, and a supported `changes/abandoned/` exit.
+- Added owner-authorized cross-model-family review for major or security-relevant
+  Changes, plus optional native fan-out inside independent research and test regions.
+
+### Changed
+
+- Made `ultra-dev` converge on each task's mapped Change acceptance IDs, track the
+  best-ever passing set, and stop after two no-progress rounds or three repair rounds.
+- Expanded delivery reconciliation to every repository document and kept its wiring
+  gate local to an explicitly invoked `ultra-deliver`; ordinary npm lifecycle commands
+  never depend on project `.ultra/` evidence.
+- Made `ultra-change` read relevant archive history before opening intent, preferring
+  `delivery.md` while supporting legacy archive summaries and verification records.
+- Made all six review lenses the default and required every skipped lens to preserve
+  its reason in the aggregate result.
+
 ### Fixed
 
+- Prevented delegated workers from modifying `.ultra/`, including when `.` grants the
+  rest of an isolated checkout.
+- Made dangerous-command authorization reachable by hashing the protected effect
+  independently of its retry spelling.
 - Kept expandable interpreter heredocs inside dangerous-effect inspection while
   continuing to treat quoted commit-message heredocs as data.
 - Required explicit owner authority before `ultra-review` can launch a cross-host
@@ -19,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preferred delivery record is absent.
 - Kept the `ultra-deliver` wiring gate local to an owner-invoked delivery workflow;
   ordinary package commands remain independent of project `.ultra/` state.
+- Added the missing `changes/abandoned/` template directory and migrated completed WIP
+  evidence links to their canonical runtime document.
 
 ### Verified
 
@@ -26,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file-first task: Claude banked the failing test and Resume Note without changing
   implementation, and Codex resumed from Git plus `.ultra/`, reached green, and
   closed the ledger and canonical evidence without conversation transfer.
+- Verified the release candidate with 111 Node tests, 10 Hook tests, 14 Skill Creator
+  validations, five healthy host Doctor reports, and zero audit vulnerabilities.
 
 ## [0.26.0] — 2026-08-01
 
@@ -1187,7 +1219,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.1...HEAD
+[0.26.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.0...v0.26.1
+[0.26.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.25.1...v0.26.0
+[0.25.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.25.0...v0.25.1
+[0.25.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.24.2...v0.25.0
+[0.24.2]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.24.1...v0.24.2
+[0.24.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.24.0...v0.24.1
+[0.24.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.23.0...v0.24.0
+[0.23.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.22.0...v0.23.0
+[0.22.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.21.1...v0.22.0
+[0.21.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.21.0...v0.21.1
+[0.21.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.18.0...v0.19.0
