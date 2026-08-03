@@ -51,6 +51,11 @@
 
 **Source**: `.ultra/specs/product.md#section-id`
 
+**Hard Constraints**: [`HC-1`, `HC-3`, or `none` — the north-star constraints this
+task could plausibly violate. Read them before the first edit and again before
+marking complete. Crossing one stops the work and goes to the owner, however good
+the argument.]
+
 **Decisions**: [relevant `.ultra/decisions/<id>.md` entries, or `none`]
 
 ## Change Log

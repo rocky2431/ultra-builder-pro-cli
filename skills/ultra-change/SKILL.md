@@ -92,11 +92,20 @@ reconciliation justified, possibly a `.ultra/decisions/<id>.md`, and any
 vocabulary update. Recommend `ultra-research` for a real evidence gap or
 `ultra-plan` once the contract is evidenced enough; do not invoke either.
 
+## Abandoning a Change
+
+A Change that turns out to be the wrong thing to build exits by
+`git mv .ultra/changes/active/<id> .ultra/changes/abandoned/<id>`, plus one line in
+its `intent.md` saying why. Completed tasks keep their evidence; the work is
+unlinked from the frontier, not deleted. This is the owner's call and a cheap one —
+a Change kept alive to avoid admitting it was wrong poisons every later
+reconciliation, which then measures the code against promises nobody intends to keep.
+
 ## When the owner decides
 
-Every non-empty bucket, the Change boundary, and anything reconciliation turns up
-that shrinks a prior commitment. A change that makes no specification sentence
-false needs no permission at all.
+Every non-empty bucket, the Change boundary, abandonment, and anything
+reconciliation turns up that shrinks a prior commitment. A change that makes no
+specification sentence false needs no permission at all.
 
 ## References
 

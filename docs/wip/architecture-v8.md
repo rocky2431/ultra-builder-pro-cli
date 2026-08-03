@@ -812,7 +812,14 @@ CLI v0.26 处理过这个（每个 session checkout 把自己的 `.ultra` 链接
 | 4 | **提示词六处修正** — `tests_written` 要有断言而非碰文件；`feature_flags_audit` 扩到执行路径上所有 flag；change 三桶按风险分级、低风险批量确认；review **六 lens 默认全选**，跳过要写理由进 SUMMARY（另两处并入 1、2） | `ultra-dev`、`ultra-change`、`ultra-review` |
 | 5 | **PHILOSOPHY C5 扩写** — 决策三分类表 + 「打断频率测量的是 north star 而非工作量」+ 「边界只增不改」；两处 REDUCE/REDUCTION 消歧 | `docs/PHILOSOPHY.md`、`change-contract.md` |
 
-**遗留的下一步**：`.ultra-template/contexts/TEMPLATE.md` 的 Change Log 注释仍只提三分类，未提 `HC-<n>`；`ultra-plan` 尚未要求 task context 声明触及哪几条 Hard Constraint（3.2 的另一半）。
+### ✅ 第二批：3.2 收尾 + 两个未决议题（2026-08-03，commit `<pending>`）
+
+| 内容 | 落点 |
+|---|---|
+| **3.2 另一半**：task context 新增 `**Hard Constraints**` 字段；`ultra-plan` 的 done 定义要求每个 context 声明可能违反的 `HC-<n>`，验证步骤新增「解析每个 `HC-<n>`，dangling 与 dangling `trace_to` 同罪」 | `.ultra-template/contexts/TEMPLATE.md`、`ultra-plan/SKILL.md` |
+| **12.3 放弃路径**：`git mv active/<id> abandoned/<id>` + 一行原因；已完成 task 保留 evidence；owner 决定 | `ultra-change/SKILL.md` |
+
+写下判据时定的一条规则：**只要「可能违反」就要声明，不必等到「预计会违反」**——一行成本换一个可检查的问题，`none` 是合法答案。
 
 ### 需要少量代码
 

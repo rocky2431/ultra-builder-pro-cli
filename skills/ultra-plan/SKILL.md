@@ -23,6 +23,8 @@ sessions and hosts; no runtime state decides whether the plan is meaningful.
 - The owner confirmed the scope posture and the seam list.
 - Every feature task is a tracer bullet touching at least two layers, unless the
   Change itself demonstrably touches only one layer.
+- Every context names the north-star hard constraints its work could violate, and
+  each `HC-<n>` it names resolves to a real entry in `.ultra/north-star.md`.
 - Coverage, dependency, trace, scope and context-budget checks have concrete results.
 
 ## Fix the planning posture
@@ -65,17 +67,25 @@ splitting and context signal: 1–2 is local, 3–5 is bounded, 6–7 crosses a 
 and complexity > 7 must split.
 
 Each context records Acceptance, confirmed seams, layers touched, target files,
-Implementation, verification commands, Definition of Drift, Change Log, Completion
-and Resume Note. Read every file back; task count and context count must match.
+Implementation, verification commands, the hard constraints the work could violate,
+Definition of Drift, Change Log, Completion and Resume Note. Read every file back;
+task count and context count must match.
+
+Name a hard constraint whenever the task could plausibly breach it, not only when you
+expect it to. The entry costs one line and is what makes a later breach a checkable
+question instead of a judgement call; `none` is a legitimate answer for a task that
+touches nothing constrained.
 
 ## Verify the plan
 
 1. Map every in-scope user story or acceptance anchor to at least one task.
 2. Walk dependencies and repair every cycle with the exact cycle chain visible.
 3. Resolve every `trace_to` path and heading against a real file.
-4. Surface complexity, more than eight target files, or more than twenty tasks as
+4. Resolve every `HC-<n>` against `.ultra/north-star.md`. A dangling constraint id is
+   the same defect as a dangling `trace_to`: it reads as checked and never was.
+5. Surface complexity, more than eight target files, or more than twenty tasks as
    scope warnings; they are observations, not semantic verdicts.
-5. Estimate context at roughly `complexity × 5%`; surface anything above 40%.
+6. Estimate context at roughly `complexity × 5%`; surface anything above 40%.
 
 Report the graph, frontier, seams, warnings and first task. Recommend the next explicit
 capability from the files; do not invoke it.
