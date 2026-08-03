@@ -59,8 +59,14 @@ Sort what you find into three buckets, each with your recommended disposition:
 | Code implements it, no specification says so | Built and unpromised |
 | Both speak and they conflict | Contradictory |
 
-Take the buckets to the owner. This is confirmed rather than assumed, because a
-disposition can quietly be a REDUCTION.
+Take the buckets to the owner — confirmed rather than assumed, because a
+disposition can quietly withdraw a commitment. Sort by risk first and match the
+asking to it: anything that touches a `HC-<n>` hard constraint or removes
+something already promised goes one at a time with your recommendation; the
+remaining low-risk rows go as a single list with a recommended disposition each,
+for one confirmation. Twenty separate questions about rows that change nothing
+spends the owner's attention where it was not needed, and trains them to approve
+without reading.
 
 ## Write the intent
 

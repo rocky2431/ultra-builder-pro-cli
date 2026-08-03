@@ -31,6 +31,10 @@ stable enough to survive a fresh session.
 
 ## Planning Posture
 <EXPAND | SELECTIVE | HOLD | REDUCE, rationale, and owner confirmation>
+<!-- Scope for this Change only. Not the commitment classification: REDUCE here
+     means "plan less work now", while a REDUCTION in a Change Log means "a
+     promise the specification already made no longer holds". -->
+
 
 ## Recovery
 <reversal or recovery path and its verification>
@@ -45,8 +49,10 @@ heading, and do not add another file that restates the same contract.
 ## Contract fields
 
 - `outcome`: one externally observable result.
-- `acceptance`: stable ids with a criterion and exact verification for each accepted
-  behavior.
+- `acceptance`: stable ids, one criterion each, and a `Verification` that is an
+  **executable command** — something with an exit code, not a description of an
+  intention. `curl -sf localhost:3000/health` qualifies; "check that the endpoint
+  responds" does not.
 - `non_goals`: explicit boundaries that prevent accidental scope growth.
 - `public_seams`: entry points or outputs through which acceptance is observed.
 - `recovery`: a bounded reversal or recovery strategy and its verification.
@@ -54,6 +60,26 @@ heading, and do not add another file that restates the same contract.
 
 Resolve every blocking decision before planning. Keep non-blocking uncertainty visible
 in the task and verification contracts.
+
+## Why verification has to be executable
+
+A criterion whose verification cannot be run is not acceptance, it is a wish. Three
+consumers downstream depend on it being runnable:
+
+- task development can treat passing acceptance as an exit condition only when
+  something can actually decide "passing";
+- the review tests lens maps each acceptance claim to executable evidence, and can
+  only report an honest gap when there is something to map onto;
+- delivery cannot otherwise separate "shipped" from "believed shipped".
+
+Writing the command is also the cheapest way to find out that a criterion is vague.
+"The feature is wired up" resists a command until it becomes "this export has a
+non-test importer", which is a `grep`.
+
+Where a criterion is genuinely a judgement call — visual polish, wording, feel — it
+does not belong in Acceptance at all. Record it as a taste decision for the owner and
+keep Acceptance to what a machine can settle. Mixing the two is what makes an
+acceptance set undecidable.
 
 ## Profile
 

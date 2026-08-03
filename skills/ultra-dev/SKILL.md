@@ -48,10 +48,10 @@ Each has a rule you can check against the work rather than assert:
 
 | Dimension | Answered when |
 |---|---|
-| `tests_written` | This diff changes a test file |
+| `tests_written` | This diff adds or changes at least one assertion — touching a test file is not enough |
 | `tests_passed` | The last test run exited zero and covered the files this diff touched |
 | `persistence_real` | On any path that stores data, the test uses real storage or a container |
-| `feature_flags_audit` | No flag this task added defaults to off |
+| `feature_flags_audit` | No flag on this change's execution path defaults to off, including flags this task did not add but now depends on |
 | `vertical_slice` | One test's execution path runs from the entry point through to persistence |
 | `spec_trace` | The anchor the task's `trace_to` names exists in the specification |
 

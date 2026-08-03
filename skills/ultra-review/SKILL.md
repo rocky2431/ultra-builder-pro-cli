@@ -28,8 +28,10 @@ happens here, after several slices make a useful structure visible, not inside T
 ## Run the lenses
 
 Use the host's native bounded subagents, in the background where available; otherwise
-run them sequentially. `review-spec` is always selected; select other lenses only when
-their evidence can change a verdict. Give each the packet path and digest,
+run them sequentially. **All six lenses are selected by default.** Skipping one requires
+a stated reason recorded in `SUMMARY.json` — "its evidence cannot change the verdict"
+is a judgement made before seeing the evidence, and left as a default it becomes a way
+to run less work rather than a considered choice. Give each the packet path and digest,
 `references/unified-schema.md`, and exactly one lens:
 
 - `references/code.md`

@@ -102,6 +102,27 @@ boundary surfaces to the user.
   feature flags, in-memory replacing real persistence, scope reduction, external or irreversible
   effects
 
+**Which decisions reach the owner.** Inside/Crossing above sorts actions. Read from the owner's
+side, the same boundary sorts decisions into three:
+
+| Type | Definition | Handling |
+|---|---|---|
+| taste | no objectively correct answer; only the owner's preference settles it | always ask |
+| crossing | objectively decidable, but the consequence is irreversible | always ask |
+| everything else | has an objective answer, or is cheap to reverse | decide and proceed; asking is the error |
+
+How much lands in the third row is a function of how sharp the north star is. With constraints
+that can veto a concrete decision, most execution-time questions are answered by reading them.
+With vague ones, "does this cross a boundary?" cannot be decided at all, so every question
+degrades into taste and reaches the owner. **Interrupt frequency measures the north star, not
+the work.** Frequent interruptions mean going back to sharpen constraints, not asking faster.
+
+**Boundaries grow; they do not change.** Adding a hard constraint or a non-goal mid-flight is
+routine and needs no permission — the frame got sharper and no prior promise broke. Editing or
+deleting one is a REDUCTION under the test below. This is what makes iteration five cheaper than
+iteration one: the frame accumulates, and the share of decisions the model settles alone rises
+with it.
+
 **Operational test for spec changes.** When implementation and spec disagree, classify the change
 before touching the spec. Do not classify by intent — classify by asking one question that can be
 checked against the file:
@@ -118,6 +139,12 @@ The classification follows from the outcome, never from the reason. A well-argue
 not convert a REDUCTION into a CORRECTION; the rationale goes into the question put to the owner.
 This is the mechanism by which specs shrink silently, so it is the one place the model must not
 be allowed to self-certify.
+
+**Not to be confused with Planning Posture.** A Change's `## Planning Posture` uses
+EXPAND / SELECTIVE / HOLD / REDUCE to say how much work to plan right now. That is a scope
+decision about the future and is freely reversible. The classification above is about the past:
+whether a promise already made still holds. `REDUCE` the plan is routine; a `REDUCTION` of
+commitments stops the work and goes to the owner.
 
 > **Test**: any boundary-crossing action must trigger an owner question, an active task
 > `## Change Log` entry, or an accepted `.ultra/decisions/<id>.md`.

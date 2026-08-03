@@ -26,6 +26,11 @@ or refute. A technology choice is a claim, so it is not initialization's busines
 ## Definition of done
 
 - `.ultra/north-star.md` carries the owner's one-line goal in their own words.
+- Every `## Hard Constraints` entry has a stable `HC-<n>` id and can veto a
+  concrete technical decision. "Should be usable" vetoes nothing and is not yet a
+  constraint; "first paint under two seconds" is. Same bar for the success
+  metric: a threshold, not an aspiration. See
+  `../ultra-grilling/references/reframing.md` for what counts as an answer.
 - Every file listed under **What gets written** exists; you read each one back
   after writing and stopped at the first one missing.
 - `.git` exists. Any initial commit is a separately authorized delivery effect.
@@ -56,7 +61,7 @@ genuinely missing. Five things come out of it:
 |---|---|
 | What you want to build, in one sentence, their words | `north-star.md`, `## One-line` |
 | What counts as success | `specs/product.md`, behavioral requirements and acceptance |
-| What must never happen | `north-star.md`, `## Hard Constraints` |
+| What must never happen | `north-star.md`, `## Hard Constraints`, one `HC-<n>` per line |
 | Who uses it, and how they cope today | `discovery.md`, marked as the owner's statement |
 | **What you already know you are unsure about** | `discovery.md` — research's priority queue |
 
@@ -99,8 +104,11 @@ authority that already exists and looks healthy is the owner's call, never a
 convenience on the way to a clean start — preserve it and report what you found.
 
 Where the host cannot ask at all, leave the one-line goal empty and say plainly
-that it is empty, that goal injection will therefore be empty, and that the next
-skill asks again. Do not infer it from the directory name.
+that it is empty. Do not infer it from the directory name. An empty one-line goal
+is a **blocking** state, not a note: goal injection, boundary read-back and a
+Change's touched-constraints field all read from it, so planning and development
+must not start until it is filled. Say that too, and recommend rerunning this
+skill on a host that can ask.
 
 ## References
 
