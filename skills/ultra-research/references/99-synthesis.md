@@ -20,9 +20,16 @@ creating a second condensed authority.
 
 ## Record
 
+Update `.ultra/north-star.md` with the accepted project direction, North Star outcome or
+explicit no-single-metric decision, hard constraints, exclusions, and Research trace.
+Keep raw owner wording in `project-brief.md`; do not process it in place.
+
 Write `research-distillate.md` as a navigation and traceability artifact containing
 baseline ids, source document anchors, accepted decisions, blockers, gaps, verification
-evidence, and the exact planning entry. Do not duplicate the specifications' prose.
+evidence, the exact planning entry, and the current Git blob hash from
+`git hash-object` for `product.md`, `architecture.md`, and `discovery.md`. Do not
+duplicate the specifications' prose. A later mismatch marks the distillate stale; it
+does not make the old synthesis authoritative.
 
 Write the final `99-synthesis.md` report, link all three specification paths, the
 distillate path, and the evidence used for synthesis. Read those files back before

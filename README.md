@@ -29,14 +29,14 @@ The package installs exactly fourteen Skills in three roles.
 
 | Skill | Outcome |
 |---|---|
-| `ultra-init` | Establish the project skeleton and one-line north star |
-| `ultra-research` | Verify external claims and refresh specifications |
-| `ultra-change` | Reconcile a requested change against current product truth |
+| `ultra-init` | Establish the project skeleton and raw Project Brief |
+| `ultra-research` | Establish an accepted North Star and evidence-backed baseline |
+| `ultra-change` | Reconcile one requested delta against the accepted baseline |
 | `ultra-plan` | Write tracer-bullet tasks, contexts, dependencies, and seams |
 | `ultra-dev` | Implement one task through red/green development and six evidence dimensions |
 | `ultra-test` | Audit whole-system wiring, E2E behavior, performance, and security |
 | `ultra-deliver` | Reconcile, review, document, and archive a completed Change |
-| `ultra-delegate` | Run a bounded instruction through another supported CLI |
+| `ultra-delegate` | Run bounded task work, Research evidence, or aggregate review through another supported CLI |
 
 ### Model-invoked disciplines
 
@@ -60,6 +60,14 @@ review, and a consequential unresolved decision uses think. A host with native b
 subagents may parallelize review lenses; another host runs the same lens assets
 sequentially.
 
+Inside `ultra-research`, the first six references are six semantic lenses, not six
+extra Skills: problem validation, opportunity discovery, market assessment,
+alternatives, product strategy, and assumptions validation. `wayfinding.md` chooses
+the smallest dependency-correct path through those and the later evidence lenses.
+Grilling still owns how to ask one missing question, Think owns one consequential
+trade-off, and Domain Modeling owns vocabulary; Research owns the overall question
+map, evidence convergence, owner checkpoints, and baseline promotion.
+
 ### What happened to the original Agents
 
 v0.26 does not install a custom `agents/` projection. The old review workers became the
@@ -72,12 +80,15 @@ host exposes the same custom-agent API.
 
 ## Project authority
 
-A new project uses this shape:
+A project after its first accepted Research baseline uses this shape. Immediately after
+Init, `CONTEXT.md` does not exist yet and the North Star/specification files are empty
+skeletons.
 
 ```text
 CONTEXT.md
 .ultra/
 ├── .gitignore                  # ignores only derived Ultra paths
+├── project-brief.md
 ├── north-star.md
 ├── tasks.json
 ├── test-report.json
@@ -88,15 +99,18 @@ CONTEXT.md
 │   └── research-distillate.md
 ├── changes/
 │   ├── active/<change-id>/{intent.md,delivery.md}
-│   └── archive/<change-id>/intent.md
+│   ├── archive/<change-id>/{intent.md,delivery.md}
+│   └── abandoned/<change-id>/intent.md  # includes exact Abandonment closure
 ├── contexts/<task-id>.md
 ├── decisions/<decision-id>.md
 ├── evidence/<task-id>/...
-└── research/<run-id>/...
+└── research/<run-id>/{brief.md,<step-id>.md}
 ```
 
-Canonical semantic facts live in those files. Git provides history, comparison,
-rollback, and archive moves. The following are derived and can be deleted or rebuilt:
+The optional `brief.md` is derived navigation; the selected step reports are cited
+evidence, and promoted semantic facts live in the other canonical files. Git provides
+history, comparison, rollback, and archive moves. The following additional paths are
+derived and can be deleted or rebuilt:
 
 ```text
 .ultra/.runtime/
@@ -111,13 +125,13 @@ staleness, and recovery rules.
 
 | Route | Canonical write | Who consumes it next |
 |---|---|---|
-| `ultra-init` | north star and four specification skeletons; empty task and test ledgers | every later workflow and context Hook |
-| `ultra-research` | selected cited reports plus reconciled specifications and distillate | change, plan, and delivery |
-| `ultra-change` | one active `intent.md` with exact acceptance, seams, reconciliation, and recovery | plan, dev, test, review, status, delivery |
-| `ultra-plan` | `tasks.json`, one context per task, and Planning Posture in the active intent | dev and every resume path |
+| `ultra-init` | raw `project-brief.md`, empty North Star and specification skeletons, and empty task/test ledgers | research, status, and the pre-baseline session Hook fallback |
+| `ultra-research` | accepted North Star, first domain baseline, selected cited reports, reconciled specifications, and distillate | change, plan, and delivery |
+| `ultra-change` | one active `intent.md` with stable `change_id`, Research Disposition, and only the accepted baseline sections touched by that delta; or an exact Abandonment closure before an owner-authorized move | active: research through delivery; abandoned: future Change history and status |
+| `ultra-plan` | append-only `tasks.json` rows for the active `change_id`, one context per task, and Planning Posture in the active intent | dev and every resume path |
 | `ultra-dev` | source/tests, task evidence, synchronized task/context status, Completion and Resume Note | review, test, status, delivery |
-| `ultra-test` | the one current `test-report.json` bound to HEAD and worktree digest | status and delivery |
-| `ultra-deliver` | one `delivery.md`, reconciled specs/docs, then the archived Change directory | owner and future Change history |
+| `ultra-test` | the one current `test-report.json` bound to Change id, current task ids, intent digest, HEAD, and product-worktree digest | status and delivery |
+| `ultra-deliver` | first reconciled specs/docs, then after a fresh Test snapshot one `delivery.md` and the archived Change directory | owner and future Change history |
 | `ultra-status` | none | recommends the smallest explicit route from current files |
 | `ultra-delegate` | derived runtime receipt plus an isolated worktree diff | primary host inspection and optional integration |
 
@@ -178,23 +192,37 @@ installation; all five support managed global installation and isolated
 
 ## Typical workflow
 
-1. Select `ultra-init` once. It writes the skeleton, records the owner's one-line goal,
-   initializes Git when needed, and recommends the next route.
-2. Select `ultra-research` when a product or architecture claim needs evidence.
-3. Select `ultra-change` for the requested outcome and reconcile it against current
-   specifications before planning.
-4. Select `ultra-plan` to confirm public seams and produce resumable tracer-bullet tasks.
+1. Select `ultra-init` once. It writes the skeleton, preserves the owner's raw one-line
+   request and broad outline in the Project Brief, initializes Git when needed, and
+   stops before product research.
+2. Select `ultra-research` to turn that brief into the first accepted North Star,
+   shared vocabulary, and evidence-backed product and architecture baseline. For an
+   unclear multi-lens question it first writes a derived Wayfinding brief; for one
+   bounded evidence gap it skips that extra file.
+3. Select `ultra-change` for a requested delta. It reconciles only the baseline sections
+   the delta touches before planning; it does not rebuild the project baseline. Its
+   Research Disposition either cites sufficient evidence or names the bounded question
+   and exit evidence that must return through Research. A micro edit that makes no
+   specification sentence false stays outside Ultra; an accepted quick Change still
+   receives one Plan task. While that Change remains active, reconcile its same stable
+   id; never open a second active Change for a separate request.
+4. Select `ultra-plan` to record public seams and produce resumable tracer-bullet tasks.
+   The model owns ordinary technical seams; the owner decides only a seam that changes
+   the public contract or another material trade-off.
 5. Select `ultra-dev` for one task at a time. Each task leaves a Completion entry,
    evidence, and a closing Resume Note.
-6. Select `ultra-test` once the ledger is complete. Local green tests do not substitute
-   for wiring and E2E proof.
-7. Select `ultra-deliver` to run aggregate review, reconcile documentation, and archive
-   the Change. Commit, push, tag, publication, and deployment remain separately
-   authorized effects.
+6. Select `ultra-test` once tasks for the active Change are complete. Historical ledger
+   rows do not enter this audit. Local green tests do not substitute for wiring and E2E proof.
+7. Select `ultra-deliver` to run aggregate review and reconcile documentation. If that
+   changes product or semantic files, rerun Test; re-enter Deliver on the fresh snapshot
+   to write delivery metadata and archive the stable Change id. Commit, push, tag,
+   publication, and deployment remain separately authorized effects.
 
 At any point, `ultra-status` can reconstruct the current position. A fresh session or
 different host resumes by reading `.ultra/tasks.json`, the selected `context_file`, its
-`## Resume Note`, `CONTEXT.md`, relevant decisions, the active Change, and Git.
+`## Resume Note`, `CONTEXT.md`, relevant decisions, the active Change, and Git. It first
+filters the append-only ledger to tasks whose `change_id` matches the unique active
+Change; archived and abandoned unfinished rows are history, not the frontier.
 
 ## Three independent integration defences
 
@@ -215,7 +243,7 @@ Five optional hooks accelerate file reading and protect a narrow effect boundary
 
 | Hook | Behavior |
 |---|---|
-| `session_context.py` | Inject north star and current acceptance at session start |
+| `session_context.py` | Inject the accepted North Star, or the Project Brief fallback before Research, plus current acceptance |
 | `mid_workflow_recall.py` | Restate acceptance before relevant source operations |
 | `compact_context.py` | Save and restore a disposable Git/file snapshot |
 | `post_edit_guard.py` | Record mechanical evidence observations after edits |
@@ -244,6 +272,10 @@ Use `skills/ultra-delegate/scripts/delegate_wait.py` to wait for `result.json` w
 loading intermediate worker output into the parent context. Delegation grants no new
 authority; writable roots remain inside the worktree, and its permission file must
 declare zero external effects without widening the host sandbox.
+The immutable instruction names task execution/continuation, scoped Research evidence,
+or aggregate Change review/verification. The latter two may be read-only and do not
+require a task row, keeping pre-Plan Research and post-task cross-family review
+reachable without inventing ledger work.
 
 ## Host support
 

@@ -41,14 +41,15 @@ Every Skill has one outcome-led title and these semantic sections:
 ## References
 ```
 
-User workflows begin by reading `.ultra/tasks.json`, the unfinished task's
-`context_file` and Resume Note, `CONTEXT.md`, and relevant decisions. They name the
-files they write and read them back. Completion criteria must be observable without a
-semantic validator.
+User workflows first resolve at most one active `change_id`, then read only matching
+rows from `.ultra/tasks.json`, the frontier task's `context_file` and Resume Note,
+`CONTEXT.md`, and relevant decisions. Historical or abandoned rows never become current
+from status alone. They name the files they write and read them back. Completion
+criteria must be observable without a semantic validator.
 
 Use positive leading words consistently: tracer bullet, seam, deep module, red,
-frontier, and fog of war. Explain a branch by its checkable result, not the model's
-reason for choosing it.
+frontier, and research boundary. Explain a branch by its checkable result, not the
+model's reason for choosing it.
 
 ## Progressive disclosure
 
@@ -56,6 +57,9 @@ Keep resident `SKILL.md` short enough to load on every invocation. Move focused 
 into `references/` and deterministic validation or waiting into `scripts/`.
 
 - Load one research step or review lens at a time.
+- Keep Research's semantic lenses and optional Wayfinding map inside
+  `ultra-research/references/`; they are stages of that public workflow, not reusable
+  model-invoked Skills.
 - Keep one canonical copy of grilling, TDD, review, domain language, and autonomy rules.
 - Cross-reference another model-invoked Skill by relative path.
 - Do not hide the primary workflow in a script.

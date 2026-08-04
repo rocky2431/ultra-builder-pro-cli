@@ -3,6 +3,7 @@
   "change_id": null,
   "task_ids": [],
   "git_commit": null,
+  "intent_digest": null,
   "worktree": {
     "dirty": null,
     "diff_digest": null

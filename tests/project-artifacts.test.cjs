@@ -2,8 +2,10 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const ULTRA = path.join(ROOT, '.ultra');
@@ -33,8 +35,17 @@ function contextStatus(file) {
   return match[1];
 }
 
+function changeIntent(changeId) {
+  const matches = ['active', 'archive', 'abandoned']
+    .map((state) => path.join(ULTRA, 'changes', state, changeId, 'intent.md'))
+    .filter((file) => fs.existsSync(file));
+  assert.equal(matches.length, 1, `${changeId}: expected exactly one Change intent`);
+  return matches[0];
+}
+
 test('this repository uses only the canonical v0.26 project layout', () => {
   for (const relative of [
+    'project-brief.md',
     'north-star.md',
     'tasks.json',
     'test-report.json',
@@ -45,12 +56,24 @@ test('this repository uses only the canonical v0.26 project layout', () => {
   ]) {
     assert.ok(fs.existsSync(path.join(ULTRA, relative)), relative);
   }
+  const brief = fs.readFileSync(path.join(ULTRA, 'project-brief.md'), 'utf8');
+  assert.match(brief, /^## One-line$/m);
+  assert.match(brief, /^## Open Questions for Research$/m);
+  const northStar = fs.readFileSync(path.join(ULTRA, 'north-star.md'), 'utf8');
+  assert.match(northStar, /^## Project Direction$/m);
+  assert.match(northStar, /^## North Star Outcome$/m);
+  assert.match(northStar, /^## Research Trace$/m);
+  assert.doesNotMatch(northStar, /^## One-line$/m);
   assert.ok(fs.existsSync(path.join(ROOT, 'CONTEXT.md')));
+  const context = fs.readFileSync(path.join(ROOT, 'CONTEXT.md'), 'utf8');
+  for (const heading of ['Language', 'Relationships', 'Flagged ambiguities']) {
+    assert.match(context, new RegExp(`^## ${heading}$`, 'm'), heading);
+  }
   assert.equal(
     fs.readFileSync(path.join(ULTRA, '.gitignore'), 'utf8'),
     '.runtime/\nprogress/\nreviews/\n',
   );
-  for (const directory of ['changes/active', 'changes/archive', 'contexts', 'decisions', 'evidence', 'research']) {
+  for (const directory of ['changes/active', 'changes/archive', 'changes/abandoned', 'contexts', 'decisions', 'evidence', 'research']) {
     assert.ok(fs.statSync(path.join(ULTRA, directory)).isDirectory(), directory);
   }
   for (const retired of ['tasks', 'reports/templates', 'docs/research', '.runtime/state.db']) {
@@ -64,6 +87,16 @@ test('this repository uses only the canonical v0.26 project layout', () => {
   ]) {
     assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /source:\s*\.ultra\/\.runtime\/state\.db|Gap ids? from `?\.ultra\/\.runtime\/state\.db/i);
   }
+
+  const distillate = fs.readFileSync(path.join(ULTRA, 'specs', 'research-distillate.md'), 'utf8');
+  const sourceRevisions = [...distillate.matchAll(
+    /^\| `(\.ultra\/specs\/(?:product|architecture|discovery)\.md)` \| `([0-9a-f]{40})` \|/gmu,
+  )];
+  assert.equal(sourceRevisions.length, 3, 'distillate must bind all three baseline specifications');
+  for (const [, relative, expected] of sourceRevisions) {
+    const actual = execFileSync('git', ['hash-object', relative], { cwd: ROOT, encoding: 'utf8' }).trim();
+    assert.equal(expected, actual, `${relative}: stale distillate hash`);
+  }
 });
 
 test('task ledger, contexts, dependencies, traces, and active Change cross-resolve', () => {
@@ -73,22 +106,31 @@ test('task ledger, contexts, dependencies, traces, and active Change cross-resol
 
   const ids = new Set(ledger.tasks.map((task) => task.id));
   assert.equal(ids.size, ledger.tasks.length, 'task ids must be unique');
+  const byId = new Map(ledger.tasks.map((task) => [task.id, task]));
   const contextPaths = [];
   for (const task of ledger.tasks) {
     assert.deepEqual(Object.keys(task).sort(), [
-      'change_ref', 'complexity', 'context_file', 'dependencies', 'id', 'priority',
+      'change_id', 'complexity', 'context_file', 'dependencies', 'id', 'priority',
       'status', 'title', 'trace_to', 'type',
     ]);
+    assert.match(task.change_id, /^[A-Za-z0-9][A-Za-z0-9._-]*$/, `${task.id}: invalid change_id`);
     assert.ok(['pending', 'in_progress', 'completed'].includes(task.status), task.id);
     assert.ok(task.complexity <= 7, `${task.id}: must split above complexity 7`);
-    for (const dependency of task.dependencies) assert.ok(ids.has(dependency), `${task.id}: ${dependency}`);
+    for (const dependency of task.dependencies) {
+      assert.ok(ids.has(dependency), `${task.id}: ${dependency}`);
+      assert.equal(
+        byId.get(dependency).change_id,
+        task.change_id,
+        `${task.id}: dependency ${dependency} crosses a Change boundary`,
+      );
+    }
 
     const context = path.join(ROOT, task.context_file);
     contextPaths.push(path.resolve(context));
     assert.ok(fs.existsSync(context), `${task.id}: missing context`);
     assert.equal(contextStatus(context), task.status, `${task.id}: ledger/context status mismatch`);
     assert.match(fs.readFileSync(context, 'utf8'), /^## Resume Note$/m, `${task.id}: missing Resume Note`);
-    assert.ok(fs.existsSync(path.join(ROOT, task.change_ref)), `${task.id}: missing Change`);
+    assert.ok(fs.existsSync(changeIntent(task.change_id)), `${task.id}: missing Change`);
 
     const [tracePath, anchor] = task.trace_to.split('#');
     const traceFile = path.join(ROOT, tracePath);
@@ -104,7 +146,6 @@ test('task ledger, contexts, dependencies, traces, and active Change cross-resol
 
   const visiting = new Set();
   const visited = new Set();
-  const byId = new Map(ledger.tasks.map((task) => [task.id, task]));
   function visit(id) {
     assert.equal(visiting.has(id), false, `task dependency cycle at ${id}`);
     if (visited.has(id)) return;
@@ -119,24 +160,24 @@ test('task ledger, contexts, dependencies, traces, and active Change cross-resol
   const active = fs.readdirSync(activeRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(activeRoot, entry.name, 'intent.md'));
-  const unfinished = ledger.tasks.some((task) => task.status !== 'completed');
-  assert.equal(active.length, unfinished ? 1 : 0, 'active Change count must match unfinished work');
-  const changeRefs = [...new Set(ledger.tasks.map((task) => task.change_ref))];
-  assert.equal(changeRefs.length, 1, 'all tasks in this delivery must reference one Change');
-  const intentPath = path.join(ROOT, changeRefs[0]);
-  assert.ok(fs.existsSync(intentPath), 'referenced Change intent is missing');
-  if (unfinished) {
-    assert.equal(path.resolve(intentPath), path.resolve(active[0]));
-  } else {
-    assert.match(changeRefs[0], /^\.ultra\/changes\/archive\//);
-    assert.ok(fs.existsSync(path.join(path.dirname(intentPath), 'delivery.md')));
-  }
-  const intent = fs.readFileSync(intentPath, 'utf8');
-  for (const heading of [
-    'Outcome', 'Acceptance', 'Non-goals', 'Public Seams', 'Reconciliation',
-    'Planning Posture', 'Recovery', 'Unresolved Decisions',
-  ]) {
-    assert.match(intent, new RegExp(`^## ${heading}$`, 'm'), heading);
+  assert.ok(active.length <= 1, 'at most one active Change may exist');
+  const changeIds = [...new Set(ledger.tasks.map((task) => task.change_id))];
+  for (const changeId of changeIds) {
+    const intentPath = changeIntent(changeId);
+    const state = path.basename(path.dirname(path.dirname(intentPath)));
+    const changeTasks = ledger.tasks.filter((task) => task.change_id === changeId);
+    if (state === 'archive') {
+      assert.ok(changeTasks.every((task) => task.status === 'completed'), `${changeId}: archived with unfinished tasks`);
+      assert.ok(fs.existsSync(path.join(path.dirname(intentPath), 'delivery.md')));
+    }
+    const intent = fs.readFileSync(intentPath, 'utf8');
+    if (state === 'abandoned') assert.match(intent, /^## Abandonment$/m, `${changeId}: Abandonment`);
+    for (const heading of [
+      'Outcome', 'Acceptance', 'Non-goals', 'Public Seams', 'Reconciliation',
+      'Research Disposition', 'Planning Posture', 'Recovery', 'Unresolved Decisions',
+    ]) {
+      assert.match(intent, new RegExp(`^## ${heading}$`, 'm'), `${changeId}: ${heading}`);
+    }
   }
 });
 
@@ -219,8 +260,14 @@ test('the recorded test report has a complete schema and matches its task snapsh
   const report = JSON.parse(fs.readFileSync(path.join(ULTRA, 'test-report.json'), 'utf8'));
   assert.equal(report.$schema, 'ultra-test-report-v1');
   assert.equal(report.change_id, 'chg-converge');
-  assert.deepEqual(report.task_ids, ledger.tasks.map((task) => task.id));
+  const currentTasks = ledger.tasks.filter((task) => task.change_id === report.change_id);
+  assert.deepEqual(report.task_ids, currentTasks.map((task) => task.id));
   assert.match(report.git_commit, /^[0-9a-f]{40}$/);
+  assert.match(report.intent_digest, /^[0-9a-f]{64}$/);
+  assert.equal(
+    report.intent_digest,
+    crypto.createHash('sha256').update(fs.readFileSync(changeIntent(report.change_id))).digest('hex'),
+  );
   assert.equal(typeof report.worktree.dirty, 'boolean');
   assert.match(report.worktree.diff_digest, /^[0-9a-f]{64}$/);
   assert.ok(Array.isArray(report.commands) && report.commands.length > 0);
@@ -233,17 +280,17 @@ test('the recorded test report has a complete schema and matches its task snapsh
   assert.deepEqual(Object.keys(report.areas).sort(), [
     'anti_patterns', 'coverage_gaps', 'e2e', 'performance', 'security', 'wiring',
   ]);
-  const allCompleted = ledger.tasks.every((task) => task.status === 'completed');
+  const allCompleted = currentTasks.every((task) => task.status === 'completed');
   for (const area of Object.values(report.areas)) {
     assert.ok(['passed', 'gap', 'not_applicable', 'not_run'].includes(area.status));
     assert.ok(Array.isArray(area.evidence_refs));
     assert.ok(Array.isArray(area.omissions));
-    if (allCompleted) assert.notEqual(area.status, 'not_run');
+    if (report.passed) assert.notEqual(area.status, 'not_run');
   }
   for (const field of ['verified_seams', 'findings', 'omissions', 'residual_risks', 'owner_disposition']) {
     assert.ok(Array.isArray(report[field]), field);
   }
-  assert.equal(report.passed, allCompleted);
+  if (report.passed) assert.equal(allCompleted, true);
   assert.ok(Number.isInteger(report.run_count) && report.run_count > 0);
   assert.match(report.timestamp, /^\d{4}-\d{2}-\d{2}T/);
 });

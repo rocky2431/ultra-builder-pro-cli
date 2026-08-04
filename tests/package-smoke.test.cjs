@@ -36,9 +36,25 @@ test('npm tarball contains and runs only the v0.26 file-first product surface', 
     assert.ok(paths.includes('hooks/_common.py'));
     assert.ok(paths.includes('bin/delegate.cjs'));
     assert.ok(paths.includes('bin/delegate-worker.cjs'));
+    assert.ok(paths.includes('.ultra-template/project-brief.md'));
     assert.ok(paths.includes('.ultra-template/tasks.json'));
     assert.ok(paths.includes('.ultra-template/test-report.json'));
     assert.ok(paths.includes('skills/ultra-init/scripts/init_project.cjs'));
+    for (const document of [
+      'ARCHITECTURE.md',
+      'ARTIFACT-AUTHORITY.md',
+      'DECISIONS.md',
+      'PHILOSOPHY.md',
+      'PLUGIN-ISOLATION-CONTRACT.md',
+      'RUNTIME-COMPAT-MATRIX.md',
+      'SKILL-AUTHORING.md',
+      'WORKFLOW-LIFECYCLE.md',
+    ]) {
+      assert.ok(paths.includes(`docs/${document}`), document);
+    }
+    const npmIgnore = fs.readFileSync(path.join(ROOT, '.npmignore'), 'utf8');
+    assert.doesNotMatch(npmIgnore, /^docs\/\*$/mu);
+    assert.doesNotMatch(npmIgnore, /ROADMAP\.md/u);
     assert.ok(!paths.some((file) => /^(?:commands|agents|mcp-server|orchestrator|ultra-tools|spec|docs\/wip)(?:\/|$)/.test(file)), paths.join('\n'));
     assert.ok(!paths.some((file) => /(?:state\.db|\.sqlite|\.pyc$|__pycache__)/i.test(file)), paths.join('\n'));
 
@@ -72,6 +88,7 @@ test('npm tarball contains and runs only the v0.26 file-first product surface', 
       config, 'skills', 'ultra-builder-pro', 'skills',
       'ultra-init', 'assets', 'project-template',
     );
+    assert.ok(fs.existsSync(path.join(installedTemplate, 'project-brief.md')));
     assert.ok(fs.existsSync(path.join(installedTemplate, 'north-star.md')));
     const project = path.join(sandbox, 'initialized-project');
     fs.mkdirSync(project);
@@ -84,6 +101,7 @@ test('npm tarball contains and runs only the v0.26 file-first product surface', 
       JSON.parse(fs.readFileSync(path.join(project, '.ultra', 'tasks.json'), 'utf8')),
       { tasks: [] },
     );
+    assert.ok(fs.existsSync(path.join(project, '.ultra', 'project-brief.md')));
   } finally {
     fs.rmSync(sandbox, { recursive: true, force: true });
   }

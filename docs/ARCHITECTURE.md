@@ -38,20 +38,34 @@ The exact allowlists live in `adapters/_shared/runtime-assets.cjs`. Public workf
 never invoke another public workflow. They may use model-invoked disciplines and then
 recommend the next owner route.
 
+Research's seventeen references are workflow-owned semantic lenses. Its optional
+`wayfinding.md` maps a multi-lens question without becoming a new Skill or authority.
+The reusable mechanics remain separate: Grilling owns the interaction loop, Think owns
+one consequential decision, and Domain Modeling owns vocabulary promotion.
+
 ### Authority plane
 
 Canonical semantic authority consists of:
 
-- `.ultra/north-star.md` for owner wording and hard constraints;
+- `.ultra/project-brief.md` for raw owner intake and the initial outline;
+- `.ultra/north-star.md` for the accepted direction, outcome or metric decision, hard
+  constraints, and exclusions established by Research;
 - `.ultra/specs/*.md` for product, architecture, discovery, and research distillate;
-- `.ultra/changes/{active,archive}/<id>/intent.md` for bounded outcomes;
-- `.ultra/tasks.json` plus each task's `context_file`;
+- `.ultra/changes/{active,archive,abandoned}/<id>/intent.md` for bounded outcomes with
+  one stable id across directory moves;
+- append-only `.ultra/tasks.json` rows carrying `change_id`, plus each task's `context_file`;
 - `.ultra/decisions/*.md`, `.ultra/evidence/`, `.ultra/test-report.json`, and research;
 - repository-root `CONTEXT.md` for ubiquitous language;
 - Git for revision identity, history, moves, diff, and rollback.
 
 Each semantic fact has one canonical representation. A summary can point to authority,
 but cannot become a second authority merely because it is convenient to read.
+
+One primary host model writes this authority in a worktree. Native subagents are
+read-only sensors; delegated CLIs write isolated non-`.ultra` roots and return receipts.
+Sequential Changes share the ledger by stable id, while current readers filter by the
+one unique active Change. This keeps concurrency explicit in Git instead of adding a
+semantic lock service or workflow engine.
 
 ### Adaptation plane
 
@@ -100,10 +114,11 @@ end-to-end evidence by themselves.
 
 Every user Skill starts by reading:
 
-1. `.ultra/tasks.json`;
-2. the unfinished task's `context_file` and closing `## Resume Note`;
-3. `CONTEXT.md` and relevant decisions;
-4. the active Change, specifications, evidence, and current Git state.
+1. zero or one active `change_id`, diagnosing more than one;
+2. `.ultra/tasks.json` tasks whose `change_id` matches it;
+3. the matching frontier task's `context_file` and closing `## Resume Note`;
+4. `CONTEXT.md` and relevant decisions;
+5. the active Change, specifications, evidence, and current Git state.
 
 That same sequence works after compaction, a fresh process, disabled hooks, or a host
 change. Compact snapshots can accelerate recovery but never outrank the source files.
@@ -112,10 +127,12 @@ change. Compact snapshots can accelerate recovery but never outrank the source f
 
 Three independent Skills protect the vertical path:
 
-1. `ultra-plan` confirms seams and rejects horizontal feature tasks.
+1. `ultra-plan` records model-selected technical seams, asks the owner only for a
+   public-contract or material trade-off, and rejects horizontal feature tasks.
 2. `ultra-dev` records six separate evidence dimensions, including real persistence,
    default-on behavior, vertical execution, and spec trace.
-3. `ultra-test` searches exports for real consumers and exercises the primary flow.
+3. `ultra-test` searches exports for real consumers, exercises the primary flow, and
+   binds the result to Change id, task ids, intent, HEAD, and product-worktree digest.
 
 These are independent sensors. None rewrites a finding into product truth.
 
@@ -130,6 +147,12 @@ schema-constrained final response; the Node worker validates `finished`, `blocke
 `failed` and atomically publishes `result.json` beside the instruction. The model never
 writes its own receipt; stdout, stderr, native final output, and the launch receipt
 remain diagnostic files.
+
+The instruction binds the active `change_id` and one of three semantic scopes: task
+execution/continuation, scoped Research evidence, or aggregate Change
+review/verification. Only task execution requires a task row. The read-only Research
+and aggregate scopes preserve the same process boundary without inventing work merely
+to make delegation reachable.
 
 Delegation does not grant authority or copy semantic state into another store. The
 worker reads and writes the same repository files in the specified worktree.

@@ -1,88 +1,111 @@
 ---
 name: ultra-research
-description: Turn owner claims and specification gaps into cited product and architecture evidence, then refresh the canonical specifications and research distillate. Use when initialization, brownfield adoption, or an active Change contains claims that must be verified before planning.
+description: Turn a raw Project Brief or scoped evidence gap into an accepted North Star, domain language, cited product and architecture specifications, and a hash-bound synthesis. Use after initialization, for brownfield baselining, or inside an active Change whose consequential claims are not yet evidenced.
 ---
 
-# Verify claims and fill the specification gaps they control
+# Mature a project outline into an evidence-backed baseline
 
-Research owns evidence and synthesis. The owner chooses material scope and accepts the
-three conclusions that change what later research does. Files are written immediately,
-so interruption loses no completed investigation.
+Research owns the first accepted baseline and later evidence-backed corrections. Web
+search is one evidence source, not the workflow: repository files, Git, tests, runtime,
+maintained documentation, owner decisions, and current primary sources all count.
 
 ## Before you start
 
-1. Read `.ultra/tasks.json`; if it names unfinished work, read its `context_file` and
-   closing `## Resume Note` before choosing research scope.
-2. Read `CONTEXT.md` for vocabulary and relevant `.ultra/decisions/` entries.
-3. Read `.ultra/north-star.md`, the active Change intent if any, and specification
-   sections carrying `[NEEDS CLARIFICATION]`.
+1. Resolve at most one active `change_id`, then read `.ultra/tasks.json` plus the
+   `context_file` and `## Resume Note` of unfinished tasks whose `change_id` matches it,
+   if any. Archived or abandoned unfinished rows are history, not the current frontier.
+2. Read `.ultra/project-brief.md`. For a legacy project without it, treat the exact
+   `.ultra/north-star.md` `## One-line` as raw intake until a brief is preserved.
+3. Read existing `.ultra/north-star.md`, specifications, `CONTEXT.md`, relevant
+   `.ultra/decisions/`, active Change intent, evidence, Git state, and maintained docs.
 
 ## Definition of done
 
-- Every selected area has a cited report under `.ultra/research/<run-id>/` and its
-  mapped specification section reflects the current conclusion.
-- `99-synthesis.md` states what entered a specification or decision, and what remains
-  unknown or deferred.
-- `.ultra/specs/research-distillate.md` records the Git blob hash of each specification
-  it summarizes; a hash mismatch makes the distillate stale, never authoritative.
-- Material omissions and `[UNVERIFIED: no web access]` findings stay visible.
+- Every selected lens has a cited `.ultra/research/<run-id>/<area>.md` report and its
+  canonical specification section contains the current conclusion.
+- The accepted North Star, shared vocabulary, product baseline, and architecture
+  baseline are sufficient for the current planning boundary; unknowns stay explicit.
+- `99-synthesis.md` names what was promoted, overturned, deferred, or left blocking.
+- `.ultra/specs/research-distillate.md` stores the Git blob hash of each specification
+  it summarizes. A mismatch makes the distillate stale, never authoritative.
 
-## Select the coverage once
+## Find the path before collecting evidence
 
-Scan unresolved specification headings, map them to the seventeen focused references,
-and recommend the smallest sufficient profile: Full, Product Only, Feature Only,
-Architecture Change, or Custom. Confirm the list once with the owner. Load one reference
-at a time; holding several step prompts together defeats progressive disclosure.
+When coverage spans several lenses or the path itself is unclear, read
+`references/wayfinding.md` and write `.ultra/research/<run-id>/brief.md`. Skip that file
+for one already-bounded evidence question. Wayfinding selects the smallest useful
+coverage; it does not create workflow state or another semantic authority.
 
-The three checkpoints are `04-product-strategy`, `21-features-scope`, and
-`99-synthesis`: each conclusion changes what comes next. Present its evidence and
-recommendation, wait for the owner's decision, then continue. Other areas write their
-report and mapped section immediately without another ceremony.
+Map the brief and unresolved specification sections to seventeen focused evidence
+lenses. Confirm the proposed coverage once with the owner. Load one reference
+at a time; the parent holds the question map, not every step prompt.
 
-Areas sitting between two checkpoints are independent and may run in parallel through
-the host's native bounded subagents, each loading exactly one reference. That
-strengthens progressive disclosure rather than breaking it — the parent holds no step
-prompt at all. The checkpoints stay barriers: nothing after one starts until the owner
-has answered it, because its conclusion changes what the later areas are even asking.
+The first six lenses have real semantic dependencies:
 
-## Investigate and write
+- `00-problem-validation` runs before `01-opportunity-discovery` because an opportunity must trace to a problem.
+- `02-market-assessment` and `03-alternatives` are conditional lenses and may run in parallel once the boundary is known.
+- `04-product-strategy` is the first owner checkpoint and consumes the relevant conclusions from `00` through `03`.
+- `05-assumptions-validation` extracts load-bearing assumptions from `00` through `04` after the strategy decision.
 
-For each selected area:
+The later groups turn that premise into product behavior (`10` through `22`), then an
+architecture and operating baseline (`30` through `41`). The three owner checkpoints
+remain `04-product-strategy`, `21-features-scope`, and `99-synthesis`.
 
-1. Search current primary sources and inspect relevant source, tests, runtime and docs.
-2. Separate Observed, Evidence, Inference and Unknowns; cite every external claim.
-3. For solution strategy and building blocks, cite at least one real implementation in
-   a comparable maintained project, not only an opinion article.
-4. Write `.ultra/research/<run-id>/<area>.md`, then replace the mapped specification
-   section rather than appending a second version. Git keeps the history.
-5. Follow `../ultra-domain-modeling/SKILL.md` when evidence settles a domain term. Use
-   `../ultra-think/SKILL.md` when a consequential trade-off meets the decision criteria.
+Only areas with satisfied inputs may fan out through native bounded subagents. Never
+parallelize a lens whose question depends on an unresolved earlier conclusion.
 
-If web search is unavailable, write `[UNVERIFIED: no web access]` and continue. Lack of
-a tool lowers confidence; it does not create a dead end.
+## Investigate, ask, and decide
 
-## Synthesize
+For each selected lens:
 
-Load `references/99-synthesis.md` after the selected reports are on disk. Write which
-claims were confirmed, overturned, deferred, or converted into decisions. Update the
-specification balances, then write the distillate and its three source blob hashes.
-Read all changed files back and report the exact unresolved headings.
+1. Inspect reachable facts before asking. Search current primary sources when a claim
+   depends on current external reality.
+2. Separate Observed, Verified, Decided, Inference, and Unknown; cite external claims.
+3. Follow `../ultra-grilling/SKILL.md` when a required owner field is missing. The lens
+   supplies what to ask; Grilling supplies the one-question interaction loop.
+4. Follow `../ultra-think/SKILL.md` for one consequential trade-off, not for mapping the
+   whole research frontier.
+5. Follow `../ultra-domain-modeling/SKILL.md` when evidence settles a shared term. The
+   first such term creates `CONTEXT.md`; later calls sharpen it.
+6. Write the area report, then replace the mapped specification section instead of
+   appending a second version. Git retains history.
 
-Recommend the next explicit capability from the resulting files; do not invoke it.
+For scoped Research inside an active Change, answer only its recorded `Research
+Disposition` question and produce the named exit evidence. Research writes reports and
+the mapped canonical baseline sections; it does not silently rewrite Change acceptance.
+Return the evidence paths so `ultra-change` can reconcile the accepted intent before
+planning when that contract must change.
+
+If web access is unavailable, record `[UNVERIFIED: no web access]` and continue with
+other evidence. Missing tooling lowers confidence; it does not manufacture a blocker.
+
+## Synthesize the accepted baseline
+
+`04-product-strategy` proposes the direction. `22-success-metrics` determines whether a
+single North Star metric is justified or whether an observable outcome plus guardrails
+is more honest. After the owner accepts `99-synthesis`, update `.ultra/north-star.md`,
+the three specifications, domain language, qualifying decisions, and the distillate for
+the first baseline. A scoped Research run updates only its mapped specification sections
+and then refreshes the distillate's three source hashes.
+
+Load `references/99-synthesis.md` only after selected reports exist. Read every promoted
+file back, verify trace anchors and source hashes, and report exact unresolved gaps.
+Recommend the next explicit public workflow from the resulting files; do not invoke it.
 
 ## When the owner decides
 
-The owner chooses coverage, resolves the three checkpoints, and accepts any material
-deferral. Evidence facts are yours to establish. A conclusion that removes an existing
-commitment follows the REDUCTION boundary and waits for explicit authority.
+The owner chooses coverage, resolves the three checkpoints, accepts a North Star and
+material deferrals, and authorizes any REDUCTION. The model establishes evidence facts,
+selects methods, and updates accepted files inside that frame.
 
 ## References
 
+- `references/wayfinding.md` — read only for multi-lens or unclear research paths.
 - `references/00-problem-validation.md` through `references/05-assumptions-validation.md`
-  — product premise and strategy; load only a selected area.
-- `references/10-user-personas.md` through `references/22-success-metrics.md` — users,
-  stories, scope and measurable outcomes; load only a selected area.
+  — product premise and strategy; load only a selected lens.
+- `references/10-user-personas.md` through `references/22-success-metrics.md` — actors,
+  behavior, scope, and measurements.
 - `references/30-architecture-context.md` through `references/41-quality-risks.md` —
-  system boundary, implementation evidence, deployment and risk.
+  system boundary, implementation evidence, operations, and risk.
 - `references/99-synthesis.md` — load last, after selected reports exist.
-- `../ultra-think/references/autonomy-boundary.md` — read before a specification shrinks.
+- `../ultra-think/references/autonomy-boundary.md` — read before reducing authority.

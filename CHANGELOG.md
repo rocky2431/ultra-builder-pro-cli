@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `.ultra/project-brief.md` as the raw owner-intake artifact and optional
+  Research `wayfinding.md` navigation for unclear multi-lens paths, without adding a
+  fifteenth Skill or another semantic authority.
+- Expanded Research alternatives beyond direct competitors and made a single North
+  Star metric optional when an observable outcome plus guardrails is more honest.
+
+### Changed
+
+- Narrowed `ultra-init` to the Project Brief and empty skeleton, made
+  `ultra-research` own the first accepted North Star, domain language, and
+  specification baseline, and limited `ultra-change` to touched baseline sections.
+- Made the first six Research lenses dependency-aware and kept Grilling, Think, and
+  Domain Modeling as caller-bounded reusable methods rather than Research stages or
+  owner routes.
+- Routed `ultra-status` from semantic file contents instead of a Research completion
+  bit or any single unresolved marker.
+- Gave every Change one stable id across active, archive, and abandoned positions;
+  made the task ledger append-only and every current reader active-id scoped.
+- Added explicit `none`, `bounded`, and `required` Research Disposition contracts,
+  one-task planning for quick Changes, and two-pass delivery against a fresh semantic
+  plus product snapshot.
+- Gave the exact Change Contract explicit Profile rationale and Risk flags fields so
+  its required blast-radius decision has one stable representation.
+- Kept ordinary technical seam selection model-owned and made delegation reachable for
+  task execution, scoped Research evidence, and aggregate Change review without
+  manufacturing task rows.
+
+### Fixed
+
+- Made session context prefer the accepted North Star, fall back to the Project Brief
+  before Research, retain legacy one-line compatibility, and always append active task
+  acceptance when present.
+- Bound Research distillates to the actual `git hash-object` value of all three
+  baseline specifications so staleness is mechanically observable.
+- Prevented archived or abandoned unfinished tasks, invalid Change ids, blocked
+  dependencies, and ambiguous multiple `in_progress` rows from being injected as the
+  current Hook acceptance.
+- Made canonical `change_id` override a conflicting legacy `change_ref`, so migration
+  compatibility cannot revive a historical task.
+- Bound Test reports to exact Change id, ordered task ids, intent digest, HEAD, and a
+  product-worktree digest that excludes the report and Change-directory metadata while
+  binding current intent separately, so product reconciliation requires retest while
+  delivery metadata and archive finalization do not self-invalidate.
+- Prevented a separate request from opening a second active Change, and gave abandoned
+  intents an exact owner decision, reason, reusable-evidence, and recovery closure read
+  by future Change and Status workflows.
+- Kept non-publishing package inspection diagnostic while the explicit Deliver gate
+  blocks release-package creation only for an undispositioned changed export with no
+  non-test consumer.
+- Made that gate's authorization path use the finding disposition in the current Test
+  report and carry the accepted decision into `delivery.md`.
+- Aligned `.npmignore` with the explicit package allowlist and locked all eight
+  maintained product documents into the tarball smoke contract.
+
+### Verified
+
+- Passed 119 Node tests, 21 Hook tests, 14 Skill Creator validations, five isolated
+  host install/Doctor/uninstall lifecycles, a 115-entry package dry-run inspection, and
+  an audit with zero vulnerabilities.
+
 ## [0.26.1] — 2026-08-03
 
 ### Added

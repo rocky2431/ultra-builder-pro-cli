@@ -2,6 +2,10 @@
 
 > **Status**: accepted
 > **Profile**: major
+> **Profile rationale**: Cross-host installation, delegation, Hook behavior, package
+> contracts, and the project artifact schema all changed in one release boundary.
+> **Risk flags**: multi-host installation, delegated process isolation, protected-effect
+> Hooks, package/release surface, artifact-schema migration
 
 ## Outcome
 
@@ -58,6 +62,15 @@ and Git without an Ultra database or orphan semantic document.
 - Historical documentation described an MCP/SQLite supervisor while the accepted
   v0.26 product is file-first. Historical plans remain evidence; current product docs
   and installed assets must not present those retired paths as live.
+
+## Research Disposition
+
+- Disposition: none
+- Question: none
+- Selected lenses: none
+- Existing evidence: `.ultra/specs/discovery.md`, `.ultra/specs/research-distillate.md`, and the release evidence cited by each Acceptance row
+- Required exit evidence: none beyond the accepted evidence already cited
+- Rationale: the Change migrated and verified a previously accepted product boundary; no load-bearing product or external-reality claim remained open before planning
 
 ## Planning Posture
 

@@ -4,7 +4,7 @@
 
 - **Boundary**: npm package source, five adapters, fourteen Skills, five Hooks, bounded
   delegate, canonical project assets, tests, and maintained v0.26 documentation.
-- **Revision**: base HEAD `3f99189bc68697262cd90444685ac2d4857139c4` plus the current uncommitted Change.
+- **Revision**: base HEAD `e5e6ab92fcc60b05c978d9f918bf01d2c0916eaa` plus the current uncommitted boundary reconciliation.
 - **Quality goals**: semantic agency, five-host portability, deterministic mechanical
   enforcement, truthful evidence, reversible installation, and file/Git recovery.
 
@@ -28,15 +28,34 @@ digests, process state, installed ownership, evidence identity, and recovery.
 
 | State | Authority | Writers | Readers | Recovery |
 |---|---|---|---|---|
-| Owner goal and constraints | `.ultra/north-star.md` | init, owner | workflows, session Hook | owner correction and Git |
-| Product/architecture truth | `.ultra/specs/*.md` | research/change/delivery reconciliation | all execution workflows | evidence-backed reconciliation |
-| Current outcome | active Change `intent.md` | change; plan posture | plan through delivery | preserve unknowns, repair contract |
-| Execution graph and resume | `.ultra/tasks.json` + task contexts | plan/dev dual write | workflows and Hooks | compare both, repair, read back |
-| Verification | task evidence and test report | dev/test | review/delivery/status | rerun against current Git state |
-| History | archived Changes, decisions, Git | delivery/think/Git | owner and future workflows | supersede or revert; never erase accepted history |
+| Raw owner intake | `.ultra/project-brief.md` | init, owner correction | research, status, session Hook before baseline | preserve exact wording; recover legacy one-line; Git |
+| Accepted project baseline | `.ultra/north-star.md`, `CONTEXT.md`, `.ultra/specs/*.md` | research first; change/delivery reconcile only touched sections | all execution workflows and session Hook | evidence-backed reconciliation and Git |
+| Current outcome | active Change `intent.md` with stable `change_id` and Research Disposition | change; plan posture | research when required, then plan through delivery | preserve unknowns, repair contract, move same id with Git |
+| Execution graph and resume | append-only `.ultra/tasks.json` + task contexts | plan/dev dual write | workflows and Hooks after active-id filtering | reject cross-Change dependencies; compare status, repair, read back |
+| Verification | task evidence and test report bound to Change/task/intent/HEAD/product digest | dev/test | review/delivery/status | rerun against current semantic and Git state |
+| History | archived Changes, abandoned Changes with exact closure, decisions, Git | delivery/change/think/Git | owner, status, and future Change reconciliation | supersede, recover, or revert; never erase accepted history |
 
 Derived `.ultra/.runtime/`, `.ultra/progress/`, and `.ultra/reviews/` data is disposable.
 No Ultra executable is required to reconstruct canonical state.
+
+At most one Change is active in one worktree. Every current reader resolves that
+directory name as the stable `change_id` and selects only matching task rows. Prior
+rows remain append-only history after archive or abandonment. One primary host model
+writes canonical `.ultra` files; review workers are read-only and delegated edits occur
+in isolated worktrees, so no lock service or semantic state machine is required.
+
+### Baseline maturation
+
+Init copies stable paths and preserves raw intake without promoting it. Research owns
+the semantic question map and first accepted baseline. Its optional
+`.ultra/research/<run-id>/brief.md` is derived Wayfinding navigation; the seventeen
+area reports are evidence, while promoted meaning lives in the North Star,
+`CONTEXT.md`, and specifications. Change begins from that baseline and patches only the
+sections affected by one accepted delta. A whole unclear path returns to Research; one
+consequential trade-off may use Think without manufacturing a workflow state.
+Each Change records `none`, `bounded`, or `required` Research Disposition with exact
+question, evidence, selected lenses, and exit evidence. Planning waits on unsatisfied
+exit evidence without adding a `research_complete` flag.
 
 ## Agent-to-Skill Convergence
 
@@ -72,8 +91,8 @@ Adapters generate host metadata and wire payloads without editing shared workflo
 
 | Hook | Input fact | Output/effect | Failure behavior |
 |---|---|---|---|
-| `session_context.py` | north star and active task | bounded startup context | silent outside Ultra; diagnostic failure |
-| `mid_workflow_recall.py` | active acceptance and source operation | bounded reminder | silent outside Ultra; diagnostic failure |
+| `session_context.py` | accepted North Star or Project Brief fallback, plus task selected by active `change_id` | bounded startup context | silent outside Ultra or ambiguous active Change; diagnostic failure |
+| `mid_workflow_recall.py` | active-Change acceptance and source operation | bounded reminder | silent outside Ultra or ambiguous active Change; diagnostic failure |
 | `compact_context.py` | files and Git | disposable snapshot | rebuild from authority |
 | `post_edit_guard.py` | edited path, ledger, task trace | normalized mechanical progress observation | malformed prior observation is repaired; semantic gaps stay advisory |
 | `block_dangerous_commands.py` | exact shell command and optional exact authorization digest | advise additive protected push; deny protected history rewrite/deletion, destructive data operation, funds, secret, or eval | advisory preserves the host authority path; denial names protected effect and reachable authorization path |
@@ -90,6 +109,12 @@ Only the remaining named externally verifiable destructive effects fail closed.
 `ultra-delegation-permission-v1` JSON file, a supported host, a clean registered Git
 worktree, and a timeout. It records SHA-256 digests, atomically acquires `run.lock`, and
 starts one background worker.
+
+The instruction binds the one active `change_id` and selects task execution or
+continuation, scoped Research evidence, or aggregate Change review or verification.
+Only task execution requires a task row. Research and aggregate scopes may be read-only,
+keeping pre-Plan evidence and post-task review reachable without manufacturing ledger
+work.
 
 The worker validates inputs before and after execution, invokes exactly one host profile,
 enforces timeout/cancellation, extracts one strict final result from native structured
@@ -126,6 +151,15 @@ source contract tests
 Each arrow depends on the previous artifact state but does not authorize commit, push,
 real HOME installation, provider calls, publication, or deployment.
 
+Test records the exact active Change, ordered current task ids, intent SHA-256, HEAD, and
+product-worktree digest. Deliver first reconciles review/spec/docs; any semantic or
+product change requires a fresh Test. Only a second entry with matching identities may
+apply the changed-export gate, run build and non-publishing package inspection, write
+delivery metadata, and move the same id to archive. Change-directory metadata is
+excluded from the product digest while intent bytes are checked independently. Release
+package creation remains blocked until every changed export has a non-test consumer or
+an owner disposition.
+
 ## Quality Scenarios and Risks
 
 | Trigger | Expected response | Verification | Residual limit |
@@ -135,6 +169,7 @@ real HOME installation, provider calls, publication, or deployment.
 | Child lies about success or writes elsewhere | actual Git diff/schema/digest check fails terminally | delegate regression | host-owned non-filesystem effects cannot be rolled back by Git |
 | Unsupported host scope or Hook trust | preflight/Doctor reports exact limitation | adapter tests | owner performs native trust action |
 | Cross-host resume | canonical files plus Git reconstruct current task | artifact audit | no conversational memory is promised |
+| Sequential Change after an abandoned unfinished task | active-id filtering selects only the new Change while preserving history | Hook and artifact regressions | one primary writer per worktree remains required |
 
 ## Product Traceability
 
@@ -145,3 +180,4 @@ real HOME installation, provider calls, publication, or deployment.
 | FR-05 | Hook Boundary | Python Hook suite |
 | FR-06 | Delegation Boundary | Node delegation suite |
 | FR-08 | Verification and Release | validators, full gate, dry-run package |
+| FR-09, FR-10 | Authority and Recovery; Baseline maturation | boundary, sequential lifecycle, Hook scope, and freshness tests |

@@ -113,14 +113,15 @@ test('role boundaries remain explicit without public-workflow chaining', () => {
   for (const [name, count] of Object.entries(callers)) assert.ok(count >= 2, `${name}: ${count} callers`);
 });
 
-test('research keeps exactly seventeen progressively disclosed step references', () => {
+test('research keeps seventeen evidence lenses and one progressively disclosed wayfinding method', () => {
   const root = path.join(SKILL_ROOT, 'ultra-research', 'references');
   const files = fs.readdirSync(root).filter((name) => name.endsWith('.md')).sort();
-  assert.deepEqual(files, [
+  const steps = files.filter((name) => name !== 'wayfinding.md');
+  assert.deepEqual(steps, [
     '00-problem-validation.md',
     '01-opportunity-discovery.md',
     '02-market-assessment.md',
-    '03-competitive-landscape.md',
+    '03-alternatives.md',
     '04-product-strategy.md',
     '05-assumptions-validation.md',
     '10-user-personas.md',
@@ -135,9 +136,11 @@ test('research keeps exactly seventeen progressively disclosed step references',
     '41-quality-risks.md',
     '99-synthesis.md',
   ]);
+  assert.ok(files.includes('wayfinding.md'));
   const skill = fs.readFileSync(skillFile('ultra-research'), 'utf8');
   assert.match(skill, /Load one reference\s+at a time/i);
   assert.match(skill, /git blob hash/i);
+  assert.match(skill, /references\/wayfinding\.md/);
 });
 
 test('every enabling template is present and the index maps the real alternatives', () => {

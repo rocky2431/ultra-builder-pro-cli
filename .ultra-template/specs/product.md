@@ -60,6 +60,10 @@ Scope status must reflect an explicit decision. Do not infer a reduced product p
 
 ## 22 Outcomes and Measurements
 
+The accepted project direction and any single North Star outcome or metric live in
+`.ultra/north-star.md`. Record supporting outcomes, measures, and guardrails here; do
+not force one metric when an observable outcome plus guardrails is the honest contract.
+
 | Outcome or guardrail | Definition | Evidence source | Decision use | Owner |
 |---|---|---|---|---|
 | | | | | |

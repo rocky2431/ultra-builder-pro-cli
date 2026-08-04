@@ -47,12 +47,61 @@ def read_tasks(root: Path) -> list[dict[str, Any]]:
     return [item for item in tasks if isinstance(item, dict)] if isinstance(tasks, list) else []
 
 
+def active_change_id(root: Path) -> str | None:
+    active = root / ".ultra" / "changes" / "active"
+    try:
+        change_ids = sorted(
+            entry.name
+            for entry in active.iterdir()
+            if entry.is_dir() and (entry / "intent.md").is_file()
+        )
+    except OSError:
+        return None
+    if len(change_ids) != 1:
+        return None
+    change_id = change_ids[0]
+    return change_id if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", change_id) else None
+
+
+def legacy_task_change_id(task: dict[str, Any]) -> str | None:
+    value = task.get("change_ref")
+    if not isinstance(value, str):
+        return None
+    match = re.fullmatch(
+        r"(?:\.ultra/)?changes/active/([A-Za-z0-9][A-Za-z0-9._-]*)/intent\.md",
+        value,
+    )
+    return match.group(1) if match else None
+
+
 def current_task(root: Path) -> dict[str, Any] | None:
-    tasks = read_tasks(root)
-    for status in ("in_progress", "pending"):
-        for task in tasks:
-            if task.get("status") == status:
-                return task
+    change_id = active_change_id(root)
+    if change_id is None:
+        return None
+    tasks = [
+        task for task in read_tasks(root)
+        if task.get("change_id") == change_id
+        or ("change_id" not in task and legacy_task_change_id(task) == change_id)
+    ]
+    in_progress = [task for task in tasks if task.get("status") == "in_progress"]
+    if len(in_progress) == 1:
+        return in_progress[0]
+    if len(in_progress) > 1:
+        return None
+    by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    for task in tasks:
+        if task.get("status") != "pending":
+            continue
+        dependencies = task.get("dependencies", [])
+        if not isinstance(dependencies, list):
+            continue
+        if all(
+            isinstance(dependency, str)
+            and dependency in by_id
+            and by_id[dependency].get("status") == "completed"
+            for dependency in dependencies
+        ):
+            return task
     return None
 
 

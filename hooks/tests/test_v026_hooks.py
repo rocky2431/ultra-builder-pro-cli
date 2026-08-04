@@ -42,14 +42,26 @@ def make_project(tmp_path: Path) -> Path:
     ultra = tmp_path / ".ultra"
     (ultra / "contexts").mkdir(parents=True)
     (ultra / "specs").mkdir()
+    (ultra / "changes" / "active" / "C-01").mkdir(parents=True)
+    (ultra / "changes" / "active" / "C-01" / "intent.md").write_text(
+        "# Change C-01\n\n## Acceptance\n\n- Public checkout returns 201.\n",
+        encoding="utf-8",
+    )
+    (ultra / "project-brief.md").write_text(
+        "# Project Brief\n\n## One-line\nBuild a checkout helper.\n",
+        encoding="utf-8",
+    )
     (ultra / "north-star.md").write_text(
-        "# North Star\n\n## One-line\nShip a real checkout path.\n\n## Hard Constraints\n- Never fake persistence.\n",
+        "# North Star\n\n## Project Direction\nShip a real checkout path.\n\n"
+        "## North Star Outcome\n- `NS-01` outcome: A buyer completes checkout.\n\n"
+        "## Hard Constraints\n- `HC-1`: Never fake persistence.\n",
         encoding="utf-8",
     )
     (ultra / "specs" / "product.md").write_text("# Product\n\n## Checkout\nReal checkout.\n", encoding="utf-8")
     (ultra / "tasks.json").write_text(json.dumps({
         "tasks": [{
             "id": "1",
+            "change_id": "C-01",
             "title": "Checkout",
             "status": "in_progress",
             "context_file": ".ultra/contexts/task-1.md",
@@ -82,13 +94,16 @@ def test_all_hooks_are_silent_without_ultra(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_session_and_mid_workflow_hooks_inject_only_goal_and_acceptance(tmp_path):
+def test_session_and_mid_workflow_hooks_inject_accepted_baseline_and_acceptance(tmp_path):
     root = make_project(tmp_path)
     session = run_hook("session_context.py", root, {"hook_event_name": "SessionStart"})
     assert session.returncode == 0
     payload = json.loads(session.stdout)
     context = payload["hookSpecificOutput"]["additionalContext"]
     assert "Ship a real checkout path." in context
+    assert "A buyer completes checkout." in context
+    assert "Never fake persistence." in context
+    assert "Build a checkout helper." not in context
     assert "Public checkout returns 201." in context
     assert "Write the public-seam regression" not in context
 
@@ -100,6 +115,189 @@ def test_session_and_mid_workflow_hooks_inject_only_goal_and_acceptance(tmp_path
     recall_context = json.loads(recall.stdout)["hookSpecificOutput"]["additionalContext"]
     assert "Public checkout returns 201." in recall_context
     assert "Ship a real checkout path" not in recall_context
+
+
+def test_hooks_ignore_abandoned_tasks_when_selecting_current_acceptance(tmp_path):
+    root = make_project(tmp_path)
+    ultra = root / ".ultra"
+    (ultra / "changes" / "abandoned" / "OLD").mkdir(parents=True)
+    (ultra / "changes" / "abandoned" / "OLD" / "intent.md").write_text(
+        "# Abandoned Change\n", encoding="utf-8"
+    )
+    (ultra / "contexts" / "task-old.md").write_text(
+        "# Old task\n\n> **Status**: in_progress\n\n"
+        "## Acceptance Criteria\n\n- [ ] ABANDONED-ACCEPTANCE-SENTINEL\n",
+        encoding="utf-8",
+    )
+    ledger = json.loads((ultra / "tasks.json").read_text(encoding="utf-8"))
+    ledger["tasks"].insert(0, {
+        "id": "old",
+        "change_id": "OLD",
+        "title": "Abandoned work",
+        "status": "in_progress",
+        "context_file": ".ultra/contexts/task-old.md",
+        "trace_to": ".ultra/specs/product.md#checkout",
+    })
+    (ultra / "tasks.json").write_text(json.dumps(ledger), encoding="utf-8")
+
+    session = run_hook("session_context.py", root, {"hook_event_name": "SessionStart"})
+    context = json.loads(session.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Public checkout returns 201." in context
+    assert "ABANDONED-ACCEPTANCE-SENTINEL" not in context
+
+
+def test_hooks_read_legacy_active_change_ref_without_reviving_history(tmp_path):
+    root = make_project(tmp_path)
+    ledger_file = root / ".ultra" / "tasks.json"
+    ledger = json.loads(ledger_file.read_text(encoding="utf-8"))
+    task = ledger["tasks"][0]
+    task.pop("change_id")
+    task["change_ref"] = ".ultra/changes/active/C-01/intent.md"
+    ledger_file.write_text(json.dumps(ledger), encoding="utf-8")
+
+    session = run_hook("session_context.py", root, {"hook_event_name": "SessionStart"})
+    context = json.loads(session.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Public checkout returns 201." in context
+
+
+def test_hooks_prefer_canonical_change_id_over_conflicting_legacy_change_ref(tmp_path):
+    root = make_project(tmp_path)
+    ultra = root / ".ultra"
+    ledger_file = ultra / "tasks.json"
+    ledger = json.loads(ledger_file.read_text(encoding="utf-8"))
+    current = ledger["tasks"][0]
+    current["status"] = "pending"
+    current["dependencies"] = []
+    ledger["tasks"].insert(0, {
+        "id": "historical",
+        "change_id": "OLD",
+        "change_ref": ".ultra/changes/active/C-01/intent.md",
+        "title": "Migrated historical work",
+        "status": "in_progress",
+        "dependencies": [],
+        "context_file": ".ultra/contexts/task-historical.md",
+        "trace_to": ".ultra/specs/product.md#checkout",
+    })
+    ledger_file.write_text(json.dumps(ledger), encoding="utf-8")
+    (ultra / "contexts" / "task-historical.md").write_text(
+        "# Historical\n\n> **Status**: in_progress\n\n"
+        "## Acceptance Criteria\n\n- [ ] CONFLICTING-LEGACY-SENTINEL\n",
+        encoding="utf-8",
+    )
+
+    session = run_hook("session_context.py", root, {"hook_event_name": "SessionStart"})
+    context = json.loads(session.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Public checkout returns 201." in context
+    assert "CONFLICTING-LEGACY-SENTINEL" not in context
+
+
+def test_hooks_select_only_a_dependency_ready_frontier_task(tmp_path):
+    root = make_project(tmp_path)
+    ultra = root / ".ultra"
+    ledger_file = ultra / "tasks.json"
+    ledger = json.loads(ledger_file.read_text(encoding="utf-8"))
+    ledger["tasks"][0]["status"] = "pending"
+    ledger["tasks"][0]["dependencies"] = ["dep"]
+    ledger["tasks"].append({
+        "id": "dep",
+        "change_id": "C-01",
+        "title": "Dependency",
+        "status": "pending",
+        "dependencies": [],
+        "context_file": ".ultra/contexts/task-dep.md",
+        "trace_to": ".ultra/specs/product.md#checkout",
+    })
+    ledger_file.write_text(json.dumps(ledger), encoding="utf-8")
+    (ultra / "contexts" / "task-dep.md").write_text(
+        "# Dependency\n\n> **Status**: pending\n\n"
+        "## Acceptance Criteria\n\n- [ ] DEPENDENCY-READY-SENTINEL\n",
+        encoding="utf-8",
+    )
+
+    session = run_hook("session_context.py", root, {"hook_event_name": "SessionStart"})
+    context = json.loads(session.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "DEPENDENCY-READY-SENTINEL" in context
+    assert "Public checkout returns 201." not in context
+
+
+def test_hooks_stay_task_silent_when_multiple_tasks_claim_in_progress(tmp_path):
+    root = make_project(tmp_path)
+    ultra = root / ".ultra"
+    ledger_file = ultra / "tasks.json"
+    ledger = json.loads(ledger_file.read_text(encoding="utf-8"))
+    ledger["tasks"].append({
+        "id": "also-running",
+        "change_id": "C-01",
+        "title": "Conflicting writer",
+        "status": "in_progress",
+        "dependencies": [],
+        "context_file": ".ultra/contexts/task-also-running.md",
+        "trace_to": ".ultra/specs/product.md#checkout",
+    })
+    ledger_file.write_text(json.dumps(ledger), encoding="utf-8")
+    (ultra / "contexts" / "task-also-running.md").write_text(
+        "# Conflicting writer\n\n> **Status**: in_progress\n\n"
+        "## Acceptance Criteria\n\n- [ ] CONFLICTING-WRITER-SENTINEL\n",
+        encoding="utf-8",
+    )
+
+    session = run_hook("session_context.py", root, {"hook_event_name": "SessionStart"})
+    context = json.loads(session.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Ship a real checkout path." in context
+    assert "Public checkout returns 201." not in context
+    assert "CONFLICTING-WRITER-SENTINEL" not in context
+
+
+def test_hooks_stay_task_silent_for_an_invalid_active_change_id(tmp_path):
+    root = make_project(tmp_path)
+    ultra = root / ".ultra"
+    valid = ultra / "changes" / "active" / "C-01"
+    invalid = ultra / "changes" / "active" / "bad id"
+    valid.rename(invalid)
+    ledger_file = ultra / "tasks.json"
+    ledger = json.loads(ledger_file.read_text(encoding="utf-8"))
+    ledger["tasks"][0]["change_id"] = "bad id"
+    ledger_file.write_text(json.dumps(ledger), encoding="utf-8")
+
+    session = run_hook("session_context.py", root, {"hook_event_name": "SessionStart"})
+    context = json.loads(session.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Ship a real checkout path." in context
+    assert "Public checkout returns 201." not in context
+
+
+def test_session_context_falls_back_to_project_brief_before_research(tmp_path):
+    ultra = tmp_path / ".ultra"
+    ultra.mkdir()
+    (ultra / "project-brief.md").write_text(
+        "# Project Brief\n\n## One-line\nExplore a checkout assistant.\n",
+        encoding="utf-8",
+    )
+    (ultra / "north-star.md").write_text(
+        "# North Star\n\n## Project Direction\n[NEEDS CLARIFICATION]\n",
+        encoding="utf-8",
+    )
+
+    result = run_hook("session_context.py", tmp_path, {"hook_event_name": "SessionStart"})
+    assert result.returncode == 0
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Ultra project brief" in context
+    assert "Explore a checkout assistant." in context
+    assert "NEEDS CLARIFICATION" not in context
+
+
+def test_session_context_keeps_legacy_one_line_compatible(tmp_path):
+    ultra = tmp_path / ".ultra"
+    ultra.mkdir()
+    (ultra / "north-star.md").write_text(
+        "# North Star\n\n## One-line\nKeep the legacy route alive.\n",
+        encoding="utf-8",
+    )
+
+    result = run_hook("session_context.py", tmp_path, {"hook_event_name": "SessionStart"})
+    assert result.returncode == 0
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Ultra legacy project intent" in context
+    assert "Keep the legacy route alive." in context
 
 
 def test_task_context_path_cannot_escape_the_project(tmp_path):

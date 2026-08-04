@@ -5,22 +5,26 @@ description: Turn an evidenced Change intent into a dependency-valid task ledger
 
 # Turn one Change into executable tracer bullets
 
-Planning owns decomposition and technical design. Files carry the result across
-sessions and hosts; no runtime state decides whether the plan is meaningful.
+Planning owns decomposition and technical design; files carry it across sessions and hosts.
 
 ## Before you start
 
-1. Read `.ultra/tasks.json`; if a task is unfinished, read its `context_file` and
-   closing `## Resume Note` before replacing or extending anything.
-2. Read `CONTEXT.md` for vocabulary and the relevant `.ultra/decisions/` entries.
-3. Read the active Change intent, its `trace_to` specification anchors, and the
+1. Resolve exactly one `.ultra/changes/active/<change_id>/intent.md`. If none or more
+   than one exists, stop with that file conflict. The intent must be `accepted`, every
+   blocking decision resolved, and its `## Research Disposition` exit evidence
+   satisfied before decomposition.
+2. Read `.ultra/tasks.json`; select matching tasks and read each unfinished context and
+   Resume Note. Preserve all historical tasks in the append-only ledger.
+3. Read `CONTEXT.md` for vocabulary and the relevant `.ultra/decisions/` entries.
+4. Read the active Change intent, its `trace_to` specification anchors, and the
    source, tests, consumers and recovery paths those anchors describe.
 
 ## Definition of done
 
-- `.ultra/tasks.json` and one `.ultra/contexts/task-<id>.md` per task agree on
-  identifiers, status, dependencies and trace anchors.
-- The owner confirmed the scope posture and the seam list.
+- `.ultra/tasks.json` and one `.ultra/contexts/task-<id>.md` per current-Change task
+  agree on identifiers, stable `change_id`, status, dependencies and trace anchors.
+- The owner confirmed any material posture. Seams resolve to code; technical selection
+  stays model-owned unless it changes public contract, accepted risk, or material trade-off.
 - Every feature task is a tracer bullet touching at least two layers, unless the
   Change itself demonstrably touches only one layer.
 - Every context names the north-star hard constraints its work could violate, and
@@ -38,8 +42,8 @@ separate `plan.md` authority.
 Use `../ultra-grilling/SKILL.md` through the host-native question surface when the
 choice remains material, one question with a recommendation at a time.
 
-If the work cannot fit in one session *and* the path itself is still unclear, use
-`../ultra-think/SKILL.md` to resolve decision tickets before decomposing tasks.
+When the whole path is still unclear, recommend `ultra-research`; the Change is not yet
+evidenced enough to decompose. For one consequential trade-off, use `../ultra-think/SKILL.md`.
 
 ## Choose the plan shape
 
@@ -58,15 +62,22 @@ Build the graph with these structural defences:
 - A feature task that touches only one of several affected layers is merged or split
   into a tracer bullet; moving a whole layer into one task is horizontal slicing.
 
-Confirm the seam list before tests are written. Reuse an existing public seam and use
-the highest seam that observes the behavior; one seam is ideal when it covers the path.
+Record seams before tests. The model chooses the technical seam: prefer an existing,
+highest observable public seam, ideally one. Ask the owner only when it changes the
+public contract or another material product, risk, or recovery trade-off.
 
 ## Write the files
 
 Each task records `id`, `title`, `type`, `priority`, `complexity`, `status`,
-`dependencies`, `context_file`, `trace_to` and `change_ref`. Complexity is only a
+`dependencies`, `context_file`, `trace_to` and `change_id`. Task ids are globally
+unique, and every dependency must name a task with the same `change_id`; an archived
+Change must never become an implicit prerequisite of current work. Complexity is only a
 splitting and context signal: 1–2 is local, 3–5 is bounded, 6–7 crosses a boundary,
 and complexity > 7 must split.
+
+Append new tasks or repair matching current-Change tasks in place; never replace the
+ledger with only the latest graph. A `quick` Change produces exactly one minimal task
+and context rather than bypassing the task/evidence lifecycle.
 
 Each context records Change Acceptance IDs, task-local Acceptance, confirmed seams,
 layers touched, target files, Implementation, verification commands, the hard
@@ -95,11 +106,11 @@ capability from the files; do not invoke it.
 
 ## When the owner decides
 
-The owner chooses the posture, confirms seams, resolves reductions and accepts material
-omissions. Mechanical cycles and broken paths are repaired before handoff because they
-make the written graph impossible to execute.
+The owner chooses material posture, reductions, omissions, and any seam changing public
+contract or material trade-off. The model owns technical decomposition and seams.
+Repair mechanical cycles and broken paths before handoff.
 
 ## References
 
 - `../ultra-grilling/SKILL.md` — read before a material posture or seam question.
-- `../ultra-think/SKILL.md` — read when fog of war requires decision tickets.
+- `../ultra-think/SKILL.md` — read when one evidenced decision blocks decomposition.

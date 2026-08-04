@@ -16,7 +16,8 @@ every write.
 
 ## Interaction sequence
 
-1. Read `.ultra/north-star.md`, `.ultra/tasks.json`, the active task context, relevant
+1. Read `.ultra/north-star.md`, resolve at most one active `change_id`, then read only
+   matching `.ultra/tasks.json` rows and the current task context, plus relevant
    specifications, Changes, decisions, and evidence.
 2. Inspect source, runtime, tests, and primary documentation for observable facts.
 3. Reuse an explicit choice already present in the current request or an accepted

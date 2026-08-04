@@ -1,59 +1,56 @@
 ---
 name: ultra-change
-description: Open one bounded unit of work by first reconciling what the specifications promise against what the code actually does, then writing the intent that closes the gap. Use when nothing is in flight and something new is being asked for — a feature, a fix, a redesign, or an incident response.
+description: Open or reconcile one bounded unit of work by comparing specification promises with actual code, then writing the intent that closes the gap. Use when no Change is active and a feature, fix, redesign, or incident response is requested, or when an active Change's draft, researched evidence, or accepted boundary must be reconciled.
 ---
 
 # Reconcile first, then write down what this Change commits to
 
-A Change is the durable unit connecting research, plan, implementation,
-verification, review and delivery. Reconciliation comes first because writing new
-intent on top of specifications that already disagree with the code buries the
-disagreement instead of resolving it.
+A Change connects research, plan, implementation, verification, review, and delivery.
+Reconcile first so new intent does not bury an existing specification/code conflict.
 
 ## Before you start
 
-1. Read `.ultra/tasks.json`, and the `context_file` of any task not yet finished.
-2. Read `CONTEXT.md` for vocabulary and `.ultra/decisions/` for entries in scope.
-3. Read `.ultra/north-star.md` — a Change that does not serve it is worth
-   questioning out loud before it is written down.
-4. Grep `.ultra/changes/archive/` for Changes that already touched this area. Read
-   `delivery.md` when present; otherwise read `archive-summary.md`, `verification.md` and
-   remaining owner-readable Markdown. A missing `delivery.md` does not mean no history;
-   a module that keeps reappearing is an architecture signal.
+1. List `.ultra/changes/active/`; more than one `intent.md` is a conflict, not a choice.
+   One directory name is the stable `change_id`. Read `.ultra/tasks.json`, then only its
+   unfinished `context_file` values. Update the same `change_id`; never open a second active Change.
+2. Read `.ultra/project-brief.md`, `CONTEXT.md`, relevant `.ultra/decisions/`, and
+   `.ultra/north-star.md` for raw provenance, accepted language, and direction.
+3. Grep archive and abandoned Changes that touched this area. Prefer archived
+   `delivery.md`; otherwise read `archive-summary.md`, `verification.md`, `intent.md`,
+   and remaining Markdown. Read abandoned Changes as history of rejected boundaries and
+   reusable evidence, never current intent. A missing `delivery.md` does not mean no history;
+   repeated modules are an architecture signal.
 
 ## Whether this skill applies at all
 
 | Situation | Where it goes |
 |---|---|
-| No pending or in-progress task, and something new is asked for | Here |
+| No active Change, and a new bounded request exists | Here — create one stable id |
+| One active Change needs its draft, Research evidence, or accepted boundary reconciled | Here — update the same `change_id` |
+| A separate request arrives while one Change remains active | Do not create a second Change; finish or deliver the current one, abandon it with owner authority, or explicitly fold the request into its boundary |
 | A task is in progress and the specification turns out not to match reality | Not here — the dual-write path inside `ultra-dev` |
-| The change makes no sentence in the specifications false | Neither — just make the change |
+| The change makes no sentence in the specifications false | Outside the Ultra lifecycle — use ordinary repository TDD and verification |
 
-That third row is the checkable answer to "how small is too small to deserve a
-Change file": if nothing the specifications say becomes untrue, there is nothing
-to reconcile and nothing to record.
+If no specification sentence becomes untrue, there is nothing to reconcile. Use
+`../ultra-tdd/SKILL.md` when helpful, but create no Change artifacts or Ultra
+Test/Deliver claim for that micro change.
 
 ## Definition of done
 
-- `.ultra/changes/active/<id>/intent.md` states the observable outcome, the
-  executable acceptance, the non-goals, and the public seams touched.
-- Each of the three reconciliation buckets is either empty or dispositioned, with
-  the owner's answer recorded for every bucket that was not empty.
-- The draft stays editable until then; the owner's acceptance is what turns it
-  into authority.
+- Active `intent.md` states outcome, executable acceptance, non-goals, public seams,
+  and Research Disposition.
+- Every reconciliation bucket is empty or dispositioned with the owner's answer.
+- The draft remains editable until owner acceptance makes it authority.
 
 ## Reconcile against a bounded scope
 
-A whole-repository diff is unusable, so derive the scope with four steps anyone
-can rerun:
+A Change does not rebuild the project baseline; reconcile only the touched specification sections
+and leave unrelated gaps visible with four rerunnable steps:
 
 1. Decide which specification sections this request touches.
-2. For each section, collect the past tasks whose `trace_to` points at it, and
-   from those the set of code files they changed.
-3. `git log -- .ultra/specs/<file>` gives the commit where that specification
-   last changed.
-4. `git diff <that commit>..HEAD -- <those code files>` is the reconciliation
-   scope.
+2. Collect past tasks whose `trace_to` points there and the code files they changed.
+3. Use `git log -- .ultra/specs/<file>` to find its last specification change.
+4. Inspect `git diff <that commit>..HEAD -- <those code files>`.
 
 Sort what you find into three buckets, each with your recommended disposition:
 
@@ -63,47 +60,39 @@ Sort what you find into three buckets, each with your recommended disposition:
 | Code implements it, no specification says so | Built and unpromised |
 | Both speak and they conflict | Contradictory |
 
-Take the buckets to the owner — confirmed rather than assumed, because a
-disposition can quietly withdraw a commitment. Sort by risk first and match the
-asking to it: anything that touches a `HC-<n>` hard constraint or removes
-something already promised goes one at a time with your recommendation; the
-remaining low-risk rows go as a single list with a recommended disposition each,
-for one confirmation. Twenty separate questions about rows that change nothing
-spends the owner's attention where it was not needed, and trains them to approve
-without reading.
+Take non-empty buckets to the owner because disposition can withdraw a commitment.
+Ask one recommended question per `HC-<n>` impact or removed promise; group remaining
+low-risk rows into one recommended list for confirmation.
 
 ## Write the intent
 
-Read `references/change-contract.md` and use its exact `intent.md` headings. The active
-Change directory contains only this accepted contract until planning or delivery adds
-its defined artifacts; do not invent a parallel semantic record.
+Read `references/change-contract.md` and use its exact headings. Until planning or
+delivery, the active directory contains only this contract; add no parallel record.
 
-Follow `../ultra-grilling/SKILL.md` to settle the boundary — one question at a
-time, each with your recommendation. New domain terms go through
-`../ultra-domain-modeling/SKILL.md`.
+Use `../ultra-grilling/SKILL.md` to settle the boundary and
+`../ultra-domain-modeling/SKILL.md` for new domain terms.
 
-When the work is too large *and* the path itself is unclear, follow
-`../ultra-think/SKILL.md` for a decision ticket instead of forcing a task
-breakdown. What comes out is a question whose answer is a decision, not an
-implementation slice.
+Use `../ultra-think/SKILL.md` only for one consequential evidenced trade-off. If the
+whole path is unclear, recommend Research instead of manufacturing tasks.
 
-When reconciliation proves the request is a directly executable one-slice correction,
-follow `../ultra-tdd/SKILL.md` at the confirmed public seam instead of manufacturing a
-task graph merely to satisfy ceremony.
+Record `## Research Disposition` exactly. `none` needs enough evidence to plan;
+`bounded` or `required` names one question, selected lenses, and exit evidence. After
+Research, reconcile outputs here; an unverified path or bare claim is not evidence.
 
-Output is `.ultra/changes/active/<id>/intent.md`, the specification patches
-reconciliation justified, possibly a `.ultra/decisions/<id>.md`, and any
-vocabulary update. Recommend `ultra-research` for a real evidence gap or
-`ultra-plan` once the contract is evidenced enough; do not invoke either.
+A quick active Change still goes through one-task `ultra-plan`; once durable intent
+exists, that minimal task is what binds development, evidence, audit, and delivery to
+the stable `change_id`.
+
+Output active `intent.md` under a stable id, justified specification patches, qualifying
+decision or vocabulary updates. For an evidence gap recommend `ultra-research`; when
+evidenced recommend `ultra-plan`. Invoke neither.
 
 ## Abandoning a Change
 
-A Change that turns out to be the wrong thing to build exits by
-`git mv .ultra/changes/active/<id> .ultra/changes/abandoned/<id>`, plus one line in
-its `intent.md` saying why. Completed tasks keep their evidence; the work is
-unlinked from the frontier, not deleted. This is the owner's call and a cheap one —
-a Change kept alive to avoid admitting it was wrong poisons every later
-reconciliation, which then measures the code against promises nobody intends to keep.
+Append the exact `## Abandonment` closure from `references/change-contract.md`, then
+`git mv .ultra/changes/active/<id> .ultra/changes/abandoned/<id>`. Keep completed-task
+evidence. Future Change and Status consume this history; it is neither current intent
+nor an orphan. Abandonment is the owner's call.
 
 ## When the owner decides
 

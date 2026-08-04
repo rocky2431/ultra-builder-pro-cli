@@ -3,10 +3,11 @@
 ## Scope
 
 - **Repository**: `/Users/rocky243/Context Engineering/ultra-builder-pro-cli`
-- **Baseline**: HEAD `3f99189bc68697262cd90444685ac2d4857139c4` plus uncommitted v0.26 convergence work.
-- **Decision unlocked**: whether the file-first product is complete across Skills,
-  Hooks, artifacts, delegation, and five native adapters.
-- **Freshness**: source and local CLI behavior inspected on 2026-08-01.
+- **Baseline**: HEAD `e5e6ab92fcc60b05c978d9f918bf01d2c0916eaa` plus the current uncommitted boundary reconciliation.
+- **Decision unlocked**: how Init, Research, and Change divide raw intake, accepted
+  baseline, user interaction, and later deltas without adding another public Skill.
+- **Freshness**: current Skills, templates, Hooks, maintained documentation, and
+  repository artifacts inspected through 2026-08-04.
 
 ## Observed
 
@@ -18,6 +19,10 @@
 | Local versions are Claude 2.1.220, Codex 0.144.4, OpenCode 1.18.3, Kimi 0.31.1, and Grok 0.2.118. | local `--version` and `--help` output on 2026-08-01 | Host profiles and documented limitations are tied to observed CLIs. |
 | Kimi documents `KIMI_CODE_HOME`, managed user plugins, native Skills and Hooks, and no project plugin scope. | official Kimi plugin and Skill documentation | Adapter root and scope behavior must use `.kimi-code` and reject local plugin scope. |
 | Codex plugin installation does not itself trust newly installed Hooks. | official Codex plugin documentation | Doctor must distinguish installed health from Hook activation. |
+| The released Init contract asked baseline questions and wrote North Star semantics before Research, while Research asked overlapping questions again. | HEAD versions of `skills/ultra-init/SKILL.md`, `skills/ultra-research/SKILL.md`, templates, and owner usage feedback on 2026-08-03 | The route boundary, document ownership, and session fallback were internally inconsistent. |
+| The file-first ledger used movable `change_ref` paths and Hooks selected the first globally unfinished task. | `.ultra/tasks.json`, `hooks/_common.py`, and sequential-Change failing contracts on 2026-08-04 | Archiving or abandoning one Change could dangle task identity or inject its acceptance into the next Change. |
+| Test freshness excluded only the report, while Deliver wrote docs and moved the Change after checking only HEAD. | `worktree_digest.cjs`, `ultra-deliver`, and delivery-freshness regression | A valid report could invalidate itself during normal finalization, while changed intent was not independently detected. |
+| Change entry was keyed to unfinished tasks rather than the active directory, Plan always asked the owner to confirm technical seams, and Delegate required a task even for pre-Plan evidence or aggregate review. | cross-Skill entry review and failing workflow-entry contracts on 2026-08-04 | A second Change could be opened before delivery, technical judgment was over-routed to the owner, and two advertised delegation callers were unreachable. |
 
 ## Decisions
 
@@ -27,6 +32,10 @@
 | Put the canonical project template under installed `ultra-init/assets/project-template`. | Skills already carry references/assets on every adapter; avoids five distribution mechanisms. | Owner | FR-01, FR-04 |
 | Treat Kimi and Grok plugins as user-scoped only. | Native documentation/help and registry layouts. | Owner | FR-07 |
 | Keep unsupported routing and permission granularity visible. | Adding a semantic shim would recreate the rejected supervisor. | Owner | FR-07 |
+| Keep fourteen Skills and place Wayfinding inside Research. | The six early references are Research semantic lenses; Grilling, Think, and Domain Modeling already own the reusable methods. A new public route would add navigation ceremony without a new owner outcome. | Owner | FR-09 |
+| Make Init raw-only, Research baseline-owning, and Change delta-scoped. | This prevents Init from consuming Research and gives Project Brief, North Star, `CONTEXT.md`, and specifications one primary maturation path. | Owner | FR-09 |
+| Use stable Change identity, active-scoped readers, and a two-pass Deliver. | Preserves sequential history without a database or lock service, prevents abandoned work from becoming current, and binds Test to semantic plus product snapshots without self-invalidation. | Owner | FR-10 |
+| Keep one active Change, model-owned technical seams, and three bounded delegation scopes. | This preserves semantic ownership while keeping task work, scoped Research evidence, and aggregate review reachable without synthetic ledger rows. | Owner request plus repository agency boundary | FR-03, FR-06, FR-10 |
 
 ## Unknowns
 

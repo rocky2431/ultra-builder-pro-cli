@@ -1,46 +1,35 @@
 # Project North Star
 
-> **Authority**: the owner's literal intent for this project, kept short enough to re-inject every
-> session. Every task must trace back here.
+> **Authority**: the accepted steering contract established by `ultra-research` from
+> owner decisions and cited evidence. Every Change and task must serve this contract.
 >
-> **Scope**: only what cannot be derived from `specs/product.md`. Success metrics,
-> excluded features, actors and scenarios stay in that file — do not copy them here.
+> **Scope**: this file owns the project direction, the one North Star outcome or metric
+> when one is justified, hard constraints, and explicit exclusions. Product requirements,
+> supporting measurements, actors, and scenarios stay in `specs/product.md`.
 
----
+## Project Direction
 
-## One-line
+[NEEDS CLARIFICATION]
 
-<!-- ONE sentence, in the owner's own words, describing what they want.
-     Captured by ultra-init, or from the owner's first request.
-     Do not paraphrase into product-speak: specs/product.md holds the processed version.
-     The value of this line is that it is the unprocessed baseline you check the
-     processed version against. -->
+## North Star Outcome
 
-_(not yet defined — run `ultra-init`, or the first owner request will populate this)_
+- `NS-01` outcome: [NEEDS CLARIFICATION]
+- Metric or observation contract: [NEEDS CLARIFICATION]
+- Why it represents delivered value: [NEEDS CLARIFICATION]
 
----
+A single metric is optional. When one would distort the product, record that decision and
+use an observable outcome plus guardrails instead of inventing numeric precision.
 
 ## Hard Constraints
 
-<!-- What must never happen, even when convenient. These are prohibitions, not technical
-     constraints — architecture.md holds those. Examples:
-     - Never store plaintext passwords
-     - Cannot break backwards compatibility with API v1
-     - Bundle stays under 500 KB
-     - External API cost stays under $X/month -->
+- `HC-1`: [NEEDS CLARIFICATION]
 
-_(not yet defined)_
+## Explicit Exclusions
 
----
+- [NEEDS CLARIFICATION]
 
-## Notes for agents
+## Research Trace
 
-1. Re-anchor on the One-line — that is the literal owner request. When the spec and this line
-   disagree, the spec drifted.
-2. Check Hard Constraints before any "improvement". An improvement that violates a constraint is
-   a regression.
-3. If your current work does not trace back here, **stop and ask**. You may be building the
-   wrong thing.
-
-The One-line is injected by `session_context` at SessionStart. `mid_workflow_recall`
-re-injects the active task acceptance before relevant tool use. See PHILOSOPHY C1.
+- Project brief: `project-brief.md`
+- Accepted research run: [NEEDS CLARIFICATION]
+- Decision references: [NEEDS CLARIFICATION]

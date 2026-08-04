@@ -1,6 +1,6 @@
 ---
 name: ultra-grilling
-description: Interrogate an owner request until every branch of its decision tree is resolved, one question per turn, each carrying a recommended answer. Use when another skill needs the owner's intent specific enough to build from — a new project's north star, a Change boundary, or an ask whose acceptance criteria are still implicit.
+description: Turn caller-named missing owner decisions into confirmed answers, one question per turn and each carrying a recommendation. Use when Init needs a raw brief field, Research needs an owner decision, or Change and Plan need an explicit boundary or acceptance criterion.
 ---
 
 # Turn a vague ask into a decision list the owner has explicitly confirmed
@@ -12,8 +12,8 @@ finished work proves otherwise. It serves Goal 1, Intent Fidelity.
 ## Before you start
 
 1. Reread what the owner said in the current request, verbatim.
-2. Read `.ultra/north-star.md` and `CONTEXT.md` where they exist. Established
-   wording and vocabulary are decisions that were already made.
+2. Read `.ultra/project-brief.md`, `.ultra/north-star.md`, and `CONTEXT.md` where they
+   exist. Raw intake is reusable input; accepted wording must not be re-asked.
 3. Look up every fact you can reach on your own: repository files, Git history,
    installed dependencies, tool output.
 
@@ -29,8 +29,8 @@ have answered by reading the repository spends the one input only they can give.
   never skipped because the original wording sounded clear.
 - Each answer carries the owner's confirmation, rather than something that
   sounded like agreement.
-- The calling skill holds a decision list it can write to a file: one line per
-  decision, each with the options rejected and why.
+- The caller owns the final artifact and receives a decision list it can write: one
+  line per decision, each with the options rejected and why.
 
 ## Extract, reframe, then ask
 
@@ -52,7 +52,7 @@ product. Offer the reframe, never assert it, and treat a correction as the bette
 outcome — "no, it really is just the briefing" is a constraint you did not have a
 minute ago. Read `references/reframing.md` for when it applies and how it fails.
 
-**Then ask** only what the confirmed reframe leaves open.
+**Then ask** only what the confirmed reframe leaves open; the caller sets the semantic depth, so Init stops at the raw outline and leaves baseline questions to Research.
 
 ## One question per turn
 
@@ -95,9 +95,9 @@ inferred consensus.
 
 ## How the loop ends
 
-Every ending hands back the same artifact: the decisions written one per line,
-each with the options rejected and the reason they lost. The caller chooses where
-it lands — `north-star.md`, `discovery.md`, a Change intent, or a decision file.
+Every ending hands back the same result: decisions written one per line, each with
+the options rejected and the reason they lost. The caller alone chooses the canonical
+destination; Grilling never promotes an answer into project authority by itself.
 
 - **Resolved** — every required field answered or explicitly deferred.
 - **Stalled** — two consecutive turns add no newly confirmed decision. Hand back

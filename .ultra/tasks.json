@@ -10,7 +10,7 @@
       "dependencies": [],
       "context_file": ".ultra/contexts/task-v026-artifact-lifecycle.md",
       "trace_to": ".ultra/specs/product.md#artifact-lifecycle",
-      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+      "change_id": "chg-converge"
     },
     {
       "id": "v026-agent-skill-convergence",
@@ -22,7 +22,7 @@
       "dependencies": ["v026-artifact-lifecycle"],
       "context_file": ".ultra/contexts/task-v026-agent-skill-convergence.md",
       "trace_to": ".ultra/specs/architecture.md#agent-to-skill-convergence",
-      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+      "change_id": "chg-converge"
     },
     {
       "id": "v026-delegation-contract",
@@ -34,7 +34,7 @@
       "dependencies": ["v026-artifact-lifecycle"],
       "context_file": ".ultra/contexts/task-v026-delegation-contract.md",
       "trace_to": ".ultra/specs/architecture.md#delegation-boundary",
-      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+      "change_id": "chg-converge"
     },
     {
       "id": "v026-host-adapters",
@@ -46,7 +46,7 @@
       "dependencies": ["v026-agent-skill-convergence", "v026-delegation-contract"],
       "context_file": ".ultra/contexts/task-v026-host-adapters.md",
       "trace_to": ".ultra/specs/architecture.md#adaptation-and-routing",
-      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+      "change_id": "chg-converge"
     },
     {
       "id": "v026-self-migration",
@@ -58,7 +58,7 @@
       "dependencies": ["v026-artifact-lifecycle"],
       "context_file": ".ultra/contexts/task-v026-self-migration.md",
       "trace_to": ".ultra/specs/product.md#artifact-lifecycle",
-      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+      "change_id": "chg-converge"
     },
     {
       "id": "v026-release-verification",
@@ -70,7 +70,7 @@
       "dependencies": ["v026-host-adapters", "v026-self-migration"],
       "context_file": ".ultra/contexts/task-v026-release-verification.md",
       "trace_to": ".ultra/specs/product.md#release-evidence",
-      "change_ref": ".ultra/changes/archive/chg-converge/intent.md"
+      "change_id": "chg-converge"
     }
   ]
 }

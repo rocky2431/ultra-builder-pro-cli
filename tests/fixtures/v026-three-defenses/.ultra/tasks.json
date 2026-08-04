@@ -10,7 +10,7 @@
       "dependencies": [],
       "context_file": ".ultra/contexts/task-1.md",
       "trace_to": ".ultra/specs/product.md#checkout",
-      "change_ref": ".ultra/changes/active/C-01/intent.md"
+      "change_id": "C-01"
     }
   ]
 }

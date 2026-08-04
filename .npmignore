@@ -8,9 +8,7 @@
 hooks/tests
 hooks/tests/**
 
-# Docs archive — only ROADMAP.md is shipped via the explicit "files" entry.
-docs/*
-!docs/ROADMAP.md
+# Maintained product documents are selected explicitly by package.json "files".
 
 # Local state that should never leak even if someone edits "files".
 .ultra/

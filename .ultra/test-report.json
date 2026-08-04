@@ -10,6 +10,7 @@
     "v026-release-verification"
   ],
   "git_commit": "3f99189bc68697262cd90444685ac2d4857139c4",
+  "intent_digest": "7568007fae0847ce5a7247e566f8369c34e18fe2f28a20ff5038761d83468b11",
   "worktree": {
     "dirty": true,
     "diff_digest": "44c6e04950a80c5690d8f33fa5c5da9d16a214e2a0d72b22d6037122b0a64c2c"

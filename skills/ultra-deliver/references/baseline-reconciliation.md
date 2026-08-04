@@ -34,6 +34,8 @@ the Change is active and moves with the directory when archived.
 
 Every semantic update cites a repository-relative `path#anchor`. A reduction requires
 the owner decision before the affected specification changes. Exact command evidence
-must match the checkout identified by `.ultra/test-report.json`; stale results stay
-visible and never become a pass. Do not create a second JSON or Markdown delivery
-summary.
+must match the stable Change id, exact current task ids, intent digest, HEAD, and
+product-worktree digest identified by `.ultra/test-report.json`; stale results stay
+visible and never become a pass. Reconcile before finalizing. If reconciliation changes
+semantic or product files, obtain a fresh Test snapshot before writing final delivery
+metadata or archiving. Do not create a second JSON or Markdown delivery summary.

@@ -28,6 +28,14 @@ specifications' prose.
 |---|---|---|
 | | | |
 
+## Source Revisions
+
+| Canonical source | Git blob hash from `git hash-object` | Status |
+|---|---|---|
+| `.ultra/specs/product.md` | | current or stale |
+| `.ultra/specs/architecture.md` | | current or stale |
+| `.ultra/specs/discovery.md` | | current or stale |
+
 ## End-to-End Trace
 
 | Problem or constraint | Actor and scenario | Requirement and acceptance | Architecture path | Verification |

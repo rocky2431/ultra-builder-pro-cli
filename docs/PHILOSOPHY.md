@@ -43,9 +43,11 @@ one or more.
 
 ### C1 — Goal-Always-Present
 
-The agent never stops seeing the north-star. Every hook trigger that costs context budget injects:
-the project one-liner plus the current task's acceptance criteria. The cost of repetition is
-always less than the cost of drift.
+The agent never stops seeing the current steering contract. Before Research accepts a
+baseline, the session Hook injects the raw Project Brief fallback. After Research, it
+injects the accepted North Star: Project Direction, any settled North Star Outcome, and
+Hard Constraints. Current task acceptance is appended in both cases. The cost of
+repetition is always less than the cost of drift.
 
 > **Test**: pick a random in-progress task, ask the agent "what's the acceptance criteria?" — if
 > it cannot answer in one sentence, this commandment is broken.
@@ -185,15 +187,15 @@ Skill instruction. Do not touch it casually.
 
 | Consumer | Reads | Source of truth | Failure mode if drifted |
 |---|---|---|---|
-| `session_context` | headings `## One-line`, `## Hard Constraints` | `.ultra-template/north-star.md` | SessionStart shows no goal; C1 dies |
-| `session_context` | active `in_progress` task → its context | `tasks.json[].context_file` | acceptance criteria never surfaced |
+| `session_context` | North Star headings `## Project Direction`, `## North Star Outcome`, `## Hard Constraints`; Project Brief `## One-line`, or legacy North Star `## One-line` | `.ultra-template/north-star.md`, `.ultra-template/project-brief.md`, and the Hook's legacy-read branch | SessionStart shows no accepted North Star or Project Brief fallback; C1 dies |
+| `session_context` | unique active `change_id` → one matching `in_progress` task, else first dependency-ready `pending` task → its context | active Change directory plus `tasks.json[].change_id`, dependencies, status, and `context_file` | abandoned or blocked acceptance is injected, or current acceptance never surfaces |
 | `mid_workflow_recall` | heading `## Acceptance Criteria` | `.ultra-template/contexts/TEMPLATE.md` | hook injects nothing; C1 dies silently |
 | `ultra-tdd` | path `references/templates/*` | `skills/ultra-tdd/references/templates/` | guidance points at a missing runnable alternative; C2 dies |
-| `post_edit_guard` | writes `.ultra/progress/<task-id>.json` | `tasks.json[].id`, created on demand | mechanical observations disappear; C4 weakens |
+| `post_edit_guard` | writes `.ultra/progress/<task-id>.json` for the active Change's current task | active Change directory plus `tasks.json[].change_id` and `id`, created on demand | historical work receives current observations; C4 weakens |
 | `ultra-dev` and `post_edit_guard` | 6 keys: `tests_written`, `tests_passed`, `persistence_real`, `feature_flags_audit`, `vertical_slice`, `spec_trace` | the six-dimension table in `skills/ultra-dev/SKILL.md` | sensor and workflow report different evidence |
 | planning and status | marker `[NEEDS CLARIFICATION]` | `.ultra-template/specs/*.md` | unresolved product truth is hidden |
 | `ultra-plan` / `ultra-dev` / hooks | `trace_to` form `.ultra/specs/file.md#anchor` | `tasks.json[].trace_to` + GFM heading slugify | traces appear resolved when their heading is absent |
-| `ultra-deliver` / `ultra-status` | field `git_commit` | `.ultra/test-report.json` | stale test results pass as current |
+| `ultra-deliver` / `ultra-status` | fields `change_id`, `task_ids`, `intent_digest`, `git_commit`, and `worktree.diff_digest` | `.ultra/test-report.json` plus `worktree_digest.cjs` | stale Change, intent, task set, or product results pass as current |
 | `compact_context` | `.ultra/.runtime/compact-snapshot.md` | derived from canonical files and Git | compact recovery loses acceleration, not authority |
 | every hook | existence of `.ultra/` | the project directory | Ultra taxes projects that never opted in (see `docs/PLUGIN-ISOLATION-CONTRACT.md`) |
 | `ultra-init` | the project data skeleton | `.ultra-template/` and the exact file list in its Skill | later Skills read missing authority paths; C1 dies |

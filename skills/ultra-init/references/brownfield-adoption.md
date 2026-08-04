@@ -1,49 +1,32 @@
-# Brownfield adoption
+# Brownfield initialization
 
-Use this procedure only when `ultra-init` detects an existing codebase without a
-healthy `.ultra/` authority surface. Initialization records the observable baseline;
-it does not redesign the application or accept claims the repository cannot support.
+Use this procedure only when `ultra-init` finds maintained behavior but no healthy,
+complete Ultra skeleton. Init preserves the checkout and prepares an evidence route; it
+does not establish the brownfield baseline.
 
 ## Bind the repository boundary
 
-Record the repository root, selected workspace roots, branch, `HEAD`, dirty files,
-generated and vendored exclusions, manifests, verification commands, and public
-seams. Keep out-of-scope dirty files visible as context without treating them as part
-of the selected baseline.
+Identify the repository root, selected workspace roots, branch, `HEAD`, dirty files,
+generated or vendored exclusions, manifests, maintained documents, verification
+commands, and visible public entry points. Resolve these from files and Git instead of
+asking the owner.
 
-## Inspect the maintained system
+## Preserve before interpreting
 
-Trace product behavior through real entry points, runtime consumers, persistence,
-integrations, permissions, failure paths, tests, deployment, observability, and
-recovery. Classify every material statement as `Observed`, `Verified`, `Decided`, or
-`Unknown`. Record maintained-document conflicts as drift.
+- Never replace existing `.ultra` files, `CONTEXT.md`, decisions, or maintained project
+  documents merely to obtain the current template shape.
+- Treat source, tests, runtime configuration, and documentation as evidence candidates,
+  not conclusions Init may promote.
+- Keep out-of-scope dirty files visible in the report without adding them to the
+  Project Brief or specification skeletons.
+- Record an exact legacy one-line as raw intake only when the Project Brief is empty.
 
-## Write the baseline once
+## Prepare the Research handoff
 
-- Update `.ultra/specs/product.md` with delivered behavior and acceptance.
-- Update `.ultra/specs/architecture.md` with boundaries, authority, consumers,
-  permissions, failures, and recovery.
-- Update `.ultra/specs/discovery.md` with scope evidence, known defects, drift, and
-  unresolved questions.
-- Initialize `.ultra/tasks.json` and `.ultra/test-report.json` from the packaged
-  templates without manufacturing passing results.
+List the concrete paths and live seams that can answer each open baseline question.
+`ultra-research` establishes the observed and accepted baseline from those sources. Init
+does not run verification, classify delivered behavior, reconcile documentation drift,
+or write product, discovery, or architecture conclusions.
 
-Use the specifications as the canonical representation. Do not create a second
-baseline ledger, database projection, or generated semantic mirror.
-
-## Characterize verification
-
-Run the repository's existing verification commands. Record each result as `pass`,
-`known_red`, or `not_run`; a missing command is not a pass. A critical public seam
-without a stable signal is an explicit gap, not an excuse to invent completion.
-
-## Converge
-
-Read every written file back, show the owner the selected scope, observed behavior,
-drift, known-red verification, unknowns, and material decisions, and leave unresolved
-items marked `[NEEDS CLARIFICATION]`. Adoption is ready when the file set is complete,
-the recorded revision matches the inspected checkout, and every material gap remains
-visible with its evidence and owner decision where one exists.
-
-Recommend `ultra-change` for subsequent work and stop; public skills do not invoke one
-another.
+Report the preserved files, repository boundary, candidate evidence, and unresolved
+questions. Recommend Research and stop; public workflows never invoke one another.

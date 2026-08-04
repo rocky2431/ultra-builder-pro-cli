@@ -10,7 +10,16 @@ semantic synthesis and remains the only writer of `.ultra/tasks.json`.
 
 ## Before you start
 
-1. Read `.ultra/tasks.json`, the delegated task's `context_file` and `## Resume Note`.
+1. Resolve exactly one active `change_id`, then select one scope and name it in
+   `instruction.md`:
+   - **task execution or continuation** — select one matching task and read its full
+     `context_file` and `## Resume Note`;
+   - **scoped Research evidence** — read the active intent's Research Disposition,
+     named question, sources, and required exit evidence;
+   - **aggregate Change review or verification** — read the exact matching task ids,
+     relevant contexts, current report or review summary, and Change diff.
+   Research and aggregate read-only scopes do not require a task. An archived or
+   abandoned task cannot be delegated as current work.
 2. Read `CONTEXT.md`, relevant `.ultra/decisions/`, acceptance and current evidence.
 3. Define one bounded instruction, permission set, clean Git worktree and result.
 4. Read `references/delegation-contract.md` before writing either JSON artifact.
@@ -24,13 +33,15 @@ semantic synthesis and remains the only writer of `.ultra/tasks.json`.
 - No `writable_roots` entry is `.ultra/` or sits under it, and the actual diff touches
   nothing there.
 - Timeout and cancellation reach a terminal failed result and release `run.lock`.
-- The primary host verifies the result against the delegated workflow's acceptance.
+- The primary host verifies the result against the selected scope's task acceptance,
+  Research exit evidence, or aggregate review/verification question.
 
 ## Prepare and run
 
 Write under `.ultra/.runtime/delegations/<id>/`:
 
-- `instruction.md`: bounded goal, sources, acceptance and forbidden effects;
+- `instruction.md`: scope type, stable `change_id`, optional task id, bounded goal,
+  sources, acceptance or exit evidence, and forbidden effects;
 - `permission.json`: the exact file-local boundary in the contract reference;
 - `result.json`: launcher-published terminal artifact only.
 

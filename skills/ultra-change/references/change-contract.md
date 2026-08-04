@@ -3,6 +3,10 @@
 Create one contract before planning. Keep every field specific enough to verify and
 stable enough to survive a fresh session.
 
+The directory id is globally unique across active, archive, and abandoned Changes and
+matches `[A-Za-z0-9][A-Za-z0-9._-]*`. It is the stable `change_id`; moving the directory
+never changes it.
+
 ## Exact `intent.md` structure
 
 ```markdown
@@ -10,6 +14,8 @@ stable enough to survive a fresh session.
 
 > **Status**: draft | accepted
 > **Profile**: quick | standard | major | incident
+> **Profile rationale**: <why the smallest selected profile covers the blast radius>
+> **Risk flags**: <applicable flags, or none>
 
 ## Outcome
 <one externally observable result>
@@ -28,6 +34,14 @@ stable enough to survive a fresh session.
 ### Promised and Missing
 ### Built and Unpromised
 ### Contradictory
+
+## Research Disposition
+- Disposition: none | bounded | required
+- Question: <the exact load-bearing unknown, or none>
+- Selected lenses: <reference ids, or none>
+- Existing evidence: <repository-relative paths and claims>
+- Required exit evidence: <what must exist or be resolved before planning>
+- Rationale: <why this is sufficient for this Change boundary>
 
 ## Planning Posture
 <EXPAND | SELECTIVE | HOLD | REDUCE, rationale, and owner confirmation>
@@ -93,9 +107,27 @@ acceptance set undecidable.
 Record a profile rationale and every applicable risk flag. Select the smallest profile
 whose guarantees cover the real blast radius; never use profile labels as estimates.
 
-## Research disposition
+## Research Disposition
 
-Use `none` with a rationale when accepted evidence is sufficient. Use `bounded` or
-`required` with a supported mode and the exact selected semantic steps when product,
-behavior, architecture, deployment, or risk facts remain load-bearing. The recorded
-selection is the planning gate.
+The `Disposition` value is exactly `none | bounded | required`. Use `none` with a
+rationale when accepted evidence is sufficient. Use `bounded` for one already-framed
+question whose smallest sufficient lenses are known; it skips Wayfinding. Use `required`
+when several load-bearing claims or the evidence path itself remain unclear, so Research
+may Wayfind before selecting lenses. Both name the exact question, selected or candidate
+Research lenses, existing evidence, and required exit evidence.
+The host model evaluates whether the named evidence exists and supports the claim; do
+not add a `research_complete` bit, score, or workflow state. Planning waits while the
+recorded exit evidence is unsatisfied.
+
+## Exact abandonment closure
+
+Before moving an owner-abandoned Change, append this exact structure to `intent.md`:
+
+```markdown
+## Abandonment
+- Date:
+- Owner decision:
+- Reason:
+- Reusable evidence:
+- Recovery or successor:
+```

@@ -10,7 +10,10 @@ happens here, after several slices make a useful structure visible, not inside T
 
 ## Before you start
 
-1. Read `.ultra/tasks.json`, the scoped task's `context_file` and `## Resume Note`.
+1. Resolve the review scope first. For task or active-Change review, resolve exactly one
+   active `change_id`, read `.ultra/tasks.json`, and select only matching tasks before
+   reading the scoped task's `context_file` and `## Resume Note`. Historical review must
+   name its archived Change explicitly and never infer scope from unfinished status.
 2. Read `CONTEXT.md`, relevant `.ultra/decisions/`, acceptance, evidence and exact diff.
 3. Create `.ultra/reviews/<session>/` and one immutable packet naming HEAD, scope,
    output path, acceptance and public seams. Follow `references/worker-packet.md`,

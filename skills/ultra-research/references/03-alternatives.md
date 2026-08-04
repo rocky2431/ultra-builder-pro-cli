@@ -1,25 +1,25 @@
-# Competitive landscape
+# Alternatives
 
-Use for workflow step `03-competitive-landscape`.
+Use for workflow step `03-alternatives`.
 
 ## Objective
 
 Identify the alternatives actors actually use and the consequences for strategy.
-Alternatives may include direct products, adjacent tools, manual workflows, or doing
-nothing.
+Alternatives include direct products, adjacent tools, manual workflows, or doing
+nothing; a competitor-only frame is too narrow.
 
 ## Evidence
 
 - Use current product documentation, pricing, repositories, filings, or observed user
   workflows.
 - Evaluate only criteria that change the decision at hand.
-- Do not create a ceremonial matrix, fixed competitor count, or unsupported claim of
+- Do not create a ceremonial matrix, fixed alternative count, or unsupported claim of
   superiority.
 - Distinguish a verified capability from marketing language and inference.
 
 ## Record
 
-Update `discovery.md` with the relevant alternatives, evidence, meaningful differences,
+Update `discovery.md` with relevant alternatives, evidence, meaningful differences,
 switching constraints, and durable strategy implications. Record an unknown when a
 credible alternative cannot be verified.
 

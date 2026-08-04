@@ -21,6 +21,16 @@ two canonical callers or it is inlined.
 This keeps reusable reasoning in one place without turning it into another user-facing
 route or custom-agent registry.
 
+## Intake, baseline, and delta
+
+Init preserves raw owner intake in the Project Brief; Research establishes the accepted North Star, domain language, and specification baseline; Change reconciles only the sections touched by one requested delta.
+
+The optional Research Wayfinding brief is derived navigation, not a fifteenth Skill or
+semantic authority. The first six Research references remain dependency-aware semantic
+lenses. Grilling controls how caller-named questions are asked, Think stress-tests one
+consequential decision, and Domain Modeling promotes settled vocabulary. This prevents
+Init from consuming Research while keeping reusable methods in one canonical place.
+
 ## Rule-side assets travel with Skills
 
 `.ultra/` contains project data only. Reusable executable examples live under
@@ -37,8 +47,14 @@ Directory position and explicit fields record mechanically checkable facts. The 
 model reads those facts and chooses the next route. There is no persisted “current
 workflow stage” whose value can override the actual files.
 
-Task status is written to both the ledger and context, then read back. Change archive
-is a `git mv`. Test-report freshness compares `git_commit` with `HEAD`.
+Task status is written to both the ledger and context, then read back. Tasks retain a
+stable `change_id` in an append-only ledger; current readers select only rows matching
+the one active Change. Archive or abandonment is a `git mv`. Test-report freshness
+compares Change id, current task ids, intent digest, `git_commit`, and product-worktree
+digest with the current checkout. Deliver reconciles first and finalizes only while
+that complete snapshot remains current. A separate request cannot create a second
+active Change; it waits, exits the current Change, or is explicitly reconciled into the
+same id.
 
 ## Three independent integration defences
 
@@ -62,7 +78,8 @@ their repair is authorization scoped to the exact command digest.
 `ubp delegate run` starts a supported CLI with an immutable instruction, explicit
 permission JSON, and named worktree. Files are the cross-host state. The parent reads a
 stable terminal result instead of worker chatter. Delegation adds no semantic store and
-no authority.
+no authority. The instruction selects task execution, scoped Research evidence, or
+aggregate Change review/verification; only task execution requires a task row.
 
 ## Installation isolation
 

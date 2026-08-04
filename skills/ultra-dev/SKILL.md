@@ -5,13 +5,13 @@ description: Carry one planned task from a written implementation plan through r
 
 # Take one task from plan to recorded evidence
 
-The model owns the code reasoning and the edits. The repository owns the task
-contract, the evidence, and everything needed to resume.
+The model owns code reasoning and edits; repository files own the resumable contract.
 
 ## Before you start
 
-1. Read `.ultra/tasks.json` and pick the task; read its `context_file` end to
-   end, above all the closing `## Resume Note` — that line says where to pick up.
+1. Resolve exactly one active `change_id`; more than one is a repository conflict. Read
+   `.ultra/tasks.json`, choose one matching `in_progress` or dependency-ready task, then read
+   its full `context_file`, especially `## Resume Note`.
 2. Read `CONTEXT.md` for vocabulary, and the `.ultra/decisions/` entries the task
    context names.
 3. Read `.ultra/north-star.md` and the task's acceptance criteria. If you cannot
@@ -22,10 +22,9 @@ read `references/debugging.md` and establish the earliest incorrect state before
 
 ## Definition of done
 
-- All six evidence dimensions are answered for this task, each against the
-  checkable rule below rather than an impression.
-- `tasks.json` and the context file's header state the same status, each written
-  and then read back — a one-sided write breaks resume on another host.
+- All six evidence dimensions answer the checkable rules below.
+- `tasks.json` and context status agree after write/read-back.
+- The task still names the active `change_id`; historical unfinished work stays out.
 - The context file carries a Completion entry and a rewritten Resume Note.
 - A task-level review has run and its blocking findings are resolved.
 
@@ -46,6 +45,7 @@ because what is worth restructuring only becomes visible after several slices.
 
 Development ends when the task's acceptance commands pass, not when the code looks
 finished. Resolve the context's **Change Acceptance IDs** against the active `intent.md`
+for `<change_id>`
 and use each named row's executable `Verification`. Commands under the context's
 Acceptance Criteria may add task-local checks; they do not replace the Change mapping.
 

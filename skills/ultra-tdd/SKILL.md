@@ -10,8 +10,11 @@ the loop that supplies it, and it serves Goal 3, Production-Ready.
 
 ## Before you start
 
-1. Read the current task context for the seams already confirmed during
-   planning. Tests live on those, and choosing a new one is a planning decision.
+1. When called from a planned Change, resolve the unique active `change_id` and read the
+   matching current task context for the seams already confirmed during planning. For a
+   micro edit outside the Ultra lifecycle, no active task context is required; use the
+   accepted request, maintained specification, and an existing repository seam, and
+   create no Ultra task or delivery claim.
 2. Run the repository's existing test command once, unchanged, to see what
    passing currently looks like. Read `references/test-execution.md` before recording
    that run or any red/green evidence.
