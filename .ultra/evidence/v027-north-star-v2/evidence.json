@@ -1,0 +1,162 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v027-north-star-v2",
+  "change_id": "chg-v027-lifecycle-closure",
+  "context": {
+    "path": ".ultra/contexts/task-v027-north-star-v2.md",
+    "acceptance_sha256": "fe5ae66c40863d2b1677fdfa18a914198114f52d81d72032dd18968f99343e49"
+  },
+  "subject": {
+    "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+    "worktree_digest": "307176a7bb6b746f842df705ecd84a619072f8368887dbf6b48c4b36ce82760a",
+    "observed_at": "2026-08-15T14:28:47+08:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "A-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-reporter=spec tests/north-star-v2.test.cjs tests/project-artifacts.test.cjs tests/package-smoke.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-north-star-v2/phase1-command-refresh.log",
+        "raw_evidence_sha256": "1c7a8433a2833f0dc4c79868b8b5b6f2ee2df6d4b554ab1e3c6bb74fa261f5d1",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "307176a7bb6b746f842df705ecd84a619072f8368887dbf6b48c4b36ce82760a",
+          "observed_at": "2026-08-15T14:28:47+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The retained refresh transcript records exit zero for 54 North Star, artifact, and packed-install tests, including structure, revision, ID, trace, and migration contracts."
+      }
+    },
+    {
+      "criterion_id": "A-02",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-{change,plan,status,review,test,deliver}/SKILL.md and tests/north-star-v2.test.cjs",
+        "observation": "Every later workflow resolves the accepted FP, NS, and HC identifiers and revision digest without copying a competing North Star prose mirror.",
+        "revision": "north-star-v2-r1@8a14955cb615179b2e1fc0a354eb02343de247d9"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Source inspection and the accepted trace contract tests cover every later workflow consumer."
+      }
+    },
+    {
+      "criterion_id": "A-03",
+      "verification_type": "owner-judgment",
+      "evidence": {
+        "owner_record_ref": ".ultra/decisions/2026-08-15-v027-north-star-r1.md#owner-record",
+        "owner_statement_or_disposition": "The owner accepted the synthesized direction with ‘我觉得这个是对的。’ and authorized the documented construction scope."
+      },
+      "disposition": {
+        "authority": "owner",
+        "result": "satisfied",
+        "rationale": "The durable decision record preserves the exact owner acceptance, its meaning, and its revision boundary."
+      }
+    },
+    {
+      "criterion_id": "A-04",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-research/SKILL.md, skills/ultra-change/SKILL.md, and tests/north-star-v2.test.cjs",
+        "observation": "Accepting a replacement revision invalidates the dependent active Change trace while retaining the previous decision, snapshot, task evidence, and review history.",
+        "revision": "north-star-v2-r1@8a14955cb615179b2e1fc0a354eb02343de247d9"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The writer/consumer contract and supersession regression preserve the last accepted evidence and route reconciliation through Research and Change."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/north-star-v2.test.cjs",
+        "tests/project-artifacts.test.cjs",
+        "hooks/tests/test_v026_hooks.py",
+        "tests/review-wait.test.cjs",
+        "tests/review-transport.test.cjs"
+      ],
+      "rationale": "Phase 1 added positive, negative, migration, byte-binding, Hook-consumer, review-provenance, and recovery assertions."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-v027-north-star-v2.md#resume-note",
+        ".ultra/reviews/v027-north-star-v2-complete-final/SUMMARY.json"
+      ],
+      "rationale": "The retained 54-test refresh exited zero and the final six isolated review lenses produced a zero-finding APPROVE summary."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "tests/north-star-v2.test.cjs",
+        ".ultra/research/2026-08-15-v027-north-star/north-star-v2-r1.accepted.md"
+      ],
+      "rationale": "Packed Init and migration tests use real temporary filesystems, and the repository retains the accepted immutable North Star snapshot."
+    },
+    "feature_flags_audit": {
+      "status": "not_applicable",
+      "evidence_refs": [
+        "docs/V027-LIFECYCLE-CLOSURE.zh-CN.md",
+        "skills/ultra-research/scripts/validate_north_star.cjs"
+      ],
+      "rationale": "North Star v2 adds no feature flag or disabled live path; its writer, validator, Hook consumer, and workflow traces are unconditional file-first behavior."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "hooks/tests/test_v026_hooks.py",
+        "tests/review-transport.test.cjs"
+      ],
+      "rationale": "The verified path runs from packed initialization through accepted Research authority and SessionStart consumption into strict task review and Review-to-Test transport."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/specs/product.md#north-star-v2-outcome-relations",
+        ".ultra/specs/product.md#artifact-lifecycle",
+        ".ultra/contexts/task-v027-north-star-v2.md"
+      ],
+      "rationale": "The task and all later workflow consumers resolve stable FP, NS, and HC identifiers to the accepted North Star revision without copying a prose mirror."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "pre-v1-unavailable",
+      "digest": null,
+      "limitation": "Execution Packet v1 is introduced by v027-autonomy-packet, so no bootstrap digest is fabricated for this task."
+    },
+    "session_id": "v027-north-star-v2-complete-final",
+    "summary_ref": ".ultra/reviews/v027-north-star-v2-complete-final/SUMMARY.json",
+    "summary_digest": "13d5e25a8fe6b44cbddbe0d7ed542353097a257e3c06f96cf7fdf95bdacbe3db",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict review session, including WORKER-PACKET.json, ADMISSION.json, every selected specialist artifact, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully. Premature loss requires a fresh Review and Test; never reconstruct the old receipt."
+  },
+  "artifacts": [
+    ".ultra/north-star.md",
+    ".ultra/decisions/2026-08-15-v027-north-star-r1.md",
+    ".ultra/research/2026-08-15-v027-north-star/north-star-v2-r1.accepted.md",
+    "skills/ultra-research/scripts/validate_north_star.cjs",
+    "hooks/session_context.py",
+    ".ultra/evidence/v027-north-star-v2/phase1-command-refresh.log",
+    ".ultra/reviews/v027-north-star-v2-complete-final/SUMMARY.json"
+  ],
+  "limitations": [
+    "The Phase 1 command criterion was refreshed after the v2 evidence migration; its retained transcript names the exact current command and does not relabel the earlier unretained output.",
+    "The subject worktree digest is the stable pre-publication observation captured immediately before this refreshed evidence replaced its prior bytes; evidence publication itself is not recursively self-bound.",
+    "The Git HEAD is the protected construction baseline because commit was not authorized; the subject records the observed dirty-worktree digest instead of claiming a commit.",
+    "Six-Host installation, provider readiness, and bidirectional ZCode delegation belong to later v0.27 tasks and are not claimed by this Phase 1 evidence."
+  ],
+  "timestamp": "2026-08-15T14:28:47+08:00"
+}

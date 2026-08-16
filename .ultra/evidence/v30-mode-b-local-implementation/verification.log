@@ -1,0 +1,72 @@
+# v30-mode-b-local-implementation — final closeout verification receipts (post integration repair)
+
+Date: 2026-08-17 (final refresh after the Codex-validated integration repair)
+Repository: /Users/rocky243/Context Engineering/ultra-builder-pro-cli
+HEAD: fc055021bcfeee3e8c6781b9545d267f5eb73cbd
+
+## 1. North Star stdin validator
+$ cat .ultra/north-star.md | node skills/ultra-research/scripts/validate_north_star.cjs --stdin --path .ultra/north-star.md
+exit: 0
+accepted, revision north-star-v2-r2, zero diagnostics, input sha256 18cf6dfb32df2db2428781fd5e85c46a6024e7b5e3a6b4d061d324786f98f71c
+
+## 2. Focused grant/topology/P1-C behavior tests (recorded exit for the earlier blank line: 0)
+$ node --test --test-name-pattern='Execution Grant enables bounded|dual-mode grants stop|model-selected Deliver run cannot|review topology is owner-selected' tests/v026-contract.test.cjs
+ℹ tests 4  ℹ pass 4  ℹ fail 0
+exit: 0
+
+## 3. Final integration-repair focused closeout test
+$ node --test --test-name-pattern='the superseded v0.27 route stays inert history' tests/v026-contract.test.cjs
+ℹ tests 1  ℹ pass 1  ℹ fail 0
+exit: 0
+
+## 4. Full node suite
+$ npm run test:node
+ℹ tests 577  ℹ pass 577  ℹ fail 0
+exit: 0
+
+## 5. npm run verify:release
+$ npm run verify:release
+ℹ tests 577  ℹ pass 577  ℹ fail 0   (node)
+89 passed (hooks)
+found 0 vulnerabilities
+exit: 0
+
+## 6. npm pack --dry-run --json
+entries: 126
+superseded leftovers: []
+exit: 0
+
+## 7. Isolated fake-HOME all-six install + Doctor
+$ HOME=<tmp-home> node bin/install.js --all --global --config-dir <tmp-config>
+exit: 0
+$ HOME=<tmp-home> node bin/install.js --all --global --config-dir <tmp-config> --doctor --json
+exit: 0
+overall: healthy | claude=healthy, opencode=healthy, codex=healthy, kimi=healthy, grok=healthy, zcode=healthy
+
+## 8. Official Skill Creator quick_validate.py via /opt/anaconda3/bin/python
+$ /opt/anaconda3/bin/python /Users/rocky243/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/<name>/  (x14)
+result: 14/14 valid
+exit: 0
+
+## 9. Plugin Creator validator on the isolated generated Codex plugin
+$ /opt/anaconda3/bin/python /Users/rocky243/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py <tmp-config>/plugins/ultra-builder-pro
+Plugin validation passed
+exit: 0
+
+## 10. Frozen hashes
+docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md: a91b563a48889909f80fc61f608a8198edec86c073a9b039ee57788b38483c1f (expected a91b563a...383c1f) MATCH
+.ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md: eeb86a7ca17214d2922959b4dec0396bbfe155042b3188ad43d663a44b1d029c (expected eeb86a7c...1d029c) MATCH
+
+## 11. git diff --check
+exit: 0
+clean
+
+## 12. Final frozen product subject — worktree digest captured twice
+$ node skills/ultra-test/scripts/worktree_digest.cjs --project <root> --change-id chg-ultra-3-0-mode-b   (run 1)
+$ node skills/ultra-test/scripts/worktree_digest.cjs --project <root> --change-id chg-ultra-3-0-mode-b   (run 2)
+both exit 0; tuples identical across runs:
+  head: fc055021bcfeee3e8c6781b9545d267f5eb73cbd
+  intent_digest: 6465f0aa1606b77e27207933251358d63facd8683bd961d4395aa0633496f468
+  diff_digest (worktree digest): a2025b71fc61fe5a8d519ef5ddeb6d4b5d7942bd6060fad528692e63dbc64285
+  change_id: chg-ultra-3-0-mode-b
+  dirty: true

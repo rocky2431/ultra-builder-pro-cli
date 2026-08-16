@@ -10,7 +10,11 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'install.js');
 const WAIT = path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate_wait.py');
-const { hostProfile } = require('../adapters/_shared/host-profile.cjs');
+const {
+  ZCODE_BUNDLED_CLI,
+  hostProfile,
+  zcodeBinary,
+} = require('../adapters/_shared/host-profile.cjs');
 
 function git(cwd, ...args) {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
@@ -61,9 +65,9 @@ function resultPayload(changedFiles = ['src/delegated.js']) {
   };
 }
 
-function start(fx, fake, extra = []) {
+function start(fx, fake, extra = [], runtime = 'codex') {
   return spawnSync(process.execPath, [
-    CLI, 'delegate', 'run', '--to', 'codex',
+    CLI, 'delegate', 'run', '--to', runtime,
     '--instruction', path.join(fx.delegation, 'instruction.md'),
     '--permission', path.join(fx.delegation, 'permission.json'),
     '--worktree', fx.worktree,
@@ -71,7 +75,7 @@ function start(fx, fake, extra = []) {
   ], {
     cwd: fx.root,
     encoding: 'utf8',
-    env: { ...process.env, UBP_DELEGATE_CODEX_BIN: fake },
+    env: { ...process.env, [`UBP_DELEGATE_${runtime.toUpperCase()}_BIN`]: fake },
   });
 }
 
@@ -112,8 +116,10 @@ test('host profiles use bounded native permission modes without bypass flags', (
   const opencode = hostProfile('opencode').delegateArgv(prompt, cwd, options);
   const kimi = hostProfile('kimi').delegateArgv(prompt, cwd, options);
   const grok = hostProfile('grok').delegateArgv(prompt, cwd, options);
+  const zcode = hostProfile('zcode').delegateArgv(prompt, cwd, options);
   assert.deepEqual(claude.slice(0, 2), ['-p', prompt]);
   assert.equal(claude[claude.indexOf('--tools') + 1], 'Read,Write,Edit,Grep,Glob');
+  assert.ok(!claude.includes('--json-schema'));
   assert.deepEqual(codex.slice(0, 2), ['exec', '--ephemeral']);
   assert.ok(codex.includes('--ignore-user-config'));
   assert.ok(!codex.includes('--ignore-rules'));
@@ -131,22 +137,94 @@ test('host profiles use bounded native permission modes without bypass flags', (
   assert.ok(!kimi.includes('--auto'));
   assert.ok(grok.includes('--disable-web-search'));
   assert.ok(grok.includes('--no-subagents'));
+  assert.ok(!grok.includes('--json-schema'));
+  assert.ok(grok.includes('--verbatim'));
+  assert.equal(grok[grok.indexOf('--max-turns') + 1], '12');
   assert.equal(grok[grok.indexOf('--sandbox') + 1], 'workspace');
+  assert.deepEqual(zcode.slice(0, 2), ['--cwd', cwd]);
+  assert.deepEqual(zcode.slice(-2), ['--prompt', prompt]);
+  assert.equal(zcode[zcode.indexOf('--mode') + 1], 'edit');
+  assert.ok(!zcode.includes('--max-turns'));
+  assert.ok(!zcode.includes('--allowed-tools'));
+  assert.match(zcode[zcode.indexOf('--disallowedTools') + 1], /Bash/);
 
   const readOnly = { ...options, readOnly: true, writableRoots: [] };
   const readOnlyClaude = hostProfile('claude').delegateArgv(prompt, cwd, readOnly);
   const readOnlyCodex = hostProfile('codex').delegateArgv(prompt, cwd, readOnly);
   const readOnlyKimi = hostProfile('kimi').delegateArgv(prompt, cwd, readOnly);
   const readOnlyGrok = hostProfile('grok').delegateArgv(prompt, cwd, readOnly);
+  const readOnlyZcode = hostProfile('zcode').delegateArgv(prompt, cwd, readOnly);
   assert.equal(readOnlyClaude[readOnlyClaude.indexOf('--permission-mode') + 1], 'plan');
   assert.equal(readOnlyCodex[readOnlyCodex.indexOf('--sandbox') + 1], 'read-only');
   assert.match(readOnlyKimi.at(-1), /kimi-read-only\.md$/);
   assert.equal(readOnlyGrok[readOnlyGrok.indexOf('--sandbox') + 1], 'read-only');
+  assert.equal(readOnlyZcode[readOnlyZcode.indexOf('--mode') + 1], 'plan');
+  assert.match(
+    readOnlyZcode[readOnlyZcode.indexOf('--disallowedTools') + 1],
+    /Write Edit ApplyPatch/,
+  );
   assert.equal(
     JSON.parse(hostProfile('opencode').delegateEnv(readOnly).OPENCODE_CONFIG_CONTENT)
       .permission.edit['*'],
     'deny',
   );
+
+  const selectedKimi = hostProfile('kimi').delegateArgv(prompt, cwd, {
+    ...options,
+    model: 'kimi-code/k3',
+  });
+  assert.equal(selectedKimi[selectedKimi.indexOf('--model') + 1], 'kimi-code/k3');
+});
+
+test('ZCode binary selection prefers the bundled macOS CLI before the PATH fallback', () => {
+  assert.equal(
+    zcodeBinary({
+      platform: 'darwin',
+      exists: (candidate) => candidate === ZCODE_BUNDLED_CLI,
+    }),
+    ZCODE_BUNDLED_CLI,
+  );
+  assert.equal(zcodeBinary({ platform: 'darwin', exists: () => false }), 'zcode');
+  assert.equal(zcodeBinary({ platform: 'linux', exists: () => true }), 'zcode');
+});
+
+test('delegate records and forwards an explicit Kimi model selection', () => {
+  const fx = fixture('kimi-model');
+  try {
+    const payload = JSON.stringify(resultPayload([]));
+    const fake = fakeCli(fx, `process.stdout.write(${JSON.stringify(payload)});`);
+    const started = start(fx, fake, ['--model', 'kimi-code/k3'], 'kimi');
+    assert.equal(started.status, 0, started.stderr);
+    const receipt = JSON.parse(started.stdout);
+    assert.equal(receipt.model, 'kimi-code/k3');
+    const spec = JSON.parse(fs.readFileSync(path.join(fx.delegation, 'worker-spec.json'), 'utf8'));
+    assert.equal(spec.model, 'kimi-code/k3');
+    assert.equal(spec.args[spec.args.indexOf('--model') + 1], 'kimi-code/k3');
+    const result = waitFor(path.join(fx.delegation, 'result.json'));
+    assert.equal(result.status, 'finished');
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('delegate extracts a pretty fenced result after host commentary', () => {
+  const fx = fixture('fenced-result');
+  try {
+    const payload = resultPayload([]);
+    const fake = fakeCli(fx, `
+const payload = ${JSON.stringify(payload)};
+process.stdout.write('The bounded review is complete.\\n\\n\`\`\`json\\n');
+process.stdout.write(JSON.stringify(payload, null, 2));
+process.stdout.write('\\n\`\`\`\\n');
+`);
+    const started = start(fx, fake);
+    assert.equal(started.status, 0, started.stderr);
+    const result = waitFor(path.join(fx.delegation, 'result.json'));
+    assert.equal(result.status, 'finished');
+    assert.equal(result.summary, payload.summary);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
 });
 
 test('delegate publishes a digest-bound result after enforcing the isolated Git diff', () => {
@@ -168,6 +246,23 @@ process.stdout.write(JSON.stringify({ type: 'assistant', content: ${JSON.stringi
     assert.ok(/^[0-9a-f]{64}$/.test(receipt.permission_digest));
     assert.ok(/^[0-9a-f]{64}$/.test(receipt.output_schema_digest));
     assert.equal(receipt.read_only, false);
+
+    const spec = JSON.parse(fs.readFileSync(path.join(fx.delegation, 'worker-spec.json'), 'utf8'));
+    assert.match(spec.args.at(-1), /# Task\nCreate one bounded source file\./u);
+    assert.match(spec.args.at(-1), /"writable_roots": \[\s*"src"/u);
+    assert.match(
+      spec.args.at(-1),
+      /The exact fields are \$schema, status, summary, changed_files, checks, evidence, questions, and residual_risks\./u,
+    );
+    assert.doesNotMatch(spec.args.at(-1), /Read the immutable instruction file/u);
+    const nativeSchema = JSON.parse(fs.readFileSync(
+      path.join(fx.delegation, 'result-schema.json'), 'utf8',
+    ));
+    assert.equal(nativeSchema.properties.$schema.type, 'string');
+    assert.equal(nativeSchema.properties.status.type, 'string');
+    assert.equal(nativeSchema.properties.checks.items.properties.status.type, 'string');
+    assert.ok(!('uniqueItems' in nativeSchema.properties.changed_files));
+    assert.ok(nativeSchema.properties.checks.items.required.includes('output_ref'));
 
     const resultFile = path.join(fx.delegation, 'result.json');
     const result = waitFor(resultFile);

@@ -21,28 +21,28 @@ const RESULT_JSON_SCHEMA = Object.freeze({
     'questions', 'residual_risks',
   ],
   properties: {
-    $schema: { const: RESULT_SCHEMA },
-    status: { enum: ['finished', 'blocked', 'failed'] },
-    summary: { type: 'string', minLength: 1 },
+    $schema: { type: 'string', const: RESULT_SCHEMA },
+    status: { type: 'string', enum: ['finished', 'blocked', 'failed'] },
+    summary: { type: 'string' },
     changed_files: {
-      type: 'array', uniqueItems: true, items: { type: 'string', minLength: 1 },
+      type: 'array', items: { type: 'string' },
     },
     checks: {
       type: 'array',
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['command', 'status'],
+        required: ['command', 'status', 'output_ref'],
         properties: {
-          command: { type: 'string', minLength: 1 },
-          status: { enum: ['passed', 'failed', 'not_run'] },
-          output_ref: { type: 'string', minLength: 1 },
+          command: { type: 'string' },
+          status: { type: 'string', enum: ['passed', 'failed', 'not_run'] },
+          output_ref: { type: 'string' },
         },
       },
     },
-    evidence: { type: 'array', items: { type: 'string', minLength: 1 } },
-    questions: { type: 'array', items: { type: 'string', minLength: 1 } },
-    residual_risks: { type: 'array', items: { type: 'string', minLength: 1 } },
+    evidence: { type: 'array', items: { type: 'string' } },
+    questions: { type: 'array', items: { type: 'string' } },
+    residual_risks: { type: 'array', items: { type: 'string' } },
   },
 });
 
@@ -115,8 +115,10 @@ function validateWorktree(worktree) {
 
 function readPermission(file, worktree) {
   let payload;
+  let source;
   try {
-    payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+    source = fs.readFileSync(file, 'utf8');
+    payload = JSON.parse(source);
   } catch {
     throw new Error('permission must be valid JSON');
   }
@@ -167,30 +169,50 @@ function readPermission(file, worktree) {
   if (payload.external_effects.length !== 0) {
     throw new Error('permission external_effects must be empty; the primary host performs separately authorized effects');
   }
-  return { writableRoots, writableRootPaths };
+  return {
+    writableRoots,
+    writableRootPaths,
+    source,
+    digest: crypto.createHash('sha256').update(source).digest('hex'),
+  };
 }
 
-function delegatePrompt({ instruction, permission, worktree, readOnly }) {
+function delegatePrompt({
+  instructionSource, instructionDigest, permissionSource, permissionDigest,
+  worktree, readOnly,
+}) {
   return [
     'Execute one bounded Ultra Builder Pro delegation in the isolated Git worktree.',
-    `Read the immutable instruction file: ${instruction}`,
-    `Read the immutable permission file: ${permission}`,
+    'The launcher embedded the digest-bound packet below. Do not access packet paths outside the worktree.',
+    `Instruction SHA-256: ${instructionDigest}`,
+    '--- instruction.md ---',
+    instructionSource.trimEnd(),
+    '--- end instruction.md ---',
+    `Permission SHA-256: ${permissionDigest}`,
+    '--- permission.json ---',
+    permissionSource.trimEnd(),
+    '--- end permission.json ---',
     `Use this worktree as the only filesystem boundary: ${worktree}`,
     readOnly
       ? 'This is read-only delegation. Do not create, modify, or delete any project file.'
       : 'Modify only paths covered by permission.writable_roots.',
     'Do not perform external effects, edit the primary checkout, or change Ultra task authority.',
+    'Batch independent reads in the earliest tool turn. Do not emit a preliminary result, and reserve a final turn for the one terminal JSON response.',
     `Return exactly one JSON object as the final response using $schema ${RESULT_SCHEMA}.`,
-    'The exact fields are status, summary, changed_files, checks, evidence, questions, and residual_risks.',
+    'The exact fields are $schema, status, summary, changed_files, checks, evidence, questions, and residual_risks.',
     'status is finished, blocked, or failed. blocked requires at least one question.',
     'changed_files must exactly list every repository-relative path changed in the worktree.',
-    'checks items use command, status (passed, failed, or not_run), and optional output_ref.',
+    'checks items use command, status (passed, failed, or not_run), and output_ref. Use a short evidence reference when no file exists.',
     'Do not write the receipt yourself. The launcher validates structured output, process exit, permissions, and the actual Git diff before publication.',
   ].join('\n');
 }
 
 function selectedBinary(runtime, fallback) {
   return process.env[`UBP_DELEGATE_${runtime.toUpperCase()}_BIN`] || fallback;
+}
+
+function selectedModel(runtime, explicit) {
+  return explicit || process.env[`UBP_DELEGATE_${runtime.toUpperCase()}_MODEL`] || null;
 }
 
 function parsePairs(argv, allowed) {
@@ -209,7 +231,7 @@ function parsePairs(argv, allowed) {
 
 function parseRun(argv) {
   const values = parsePairs(argv, new Set([
-    '--to', '--instruction', '--permission', '--worktree', '--timeout',
+    '--to', '--instruction', '--permission', '--worktree', '--timeout', '--model',
   ]));
   for (const key of ['--to', '--instruction', '--permission', '--worktree']) {
     if (!values[key]) throw new Error(`delegate run requires ${key}`);
@@ -221,6 +243,7 @@ function parseRun(argv) {
   return {
     to: values['--to'], instruction: values['--instruction'],
     permission: values['--permission'], worktree: values['--worktree'],
+    model: values['--model'] || null,
     timeoutMs: Math.ceil(timeout * 1000),
   };
 }
@@ -238,6 +261,10 @@ function run(argv, { projectRoot = process.cwd() } = {}) {
   const args = parseRun(argv);
   projectRoot = fs.realpathSync(projectRoot);
   const profile = hostProfile(args.to);
+  if (args.model && !profile.supportsModelSelection) {
+    throw new Error(`delegate --model is not supported by host ${args.to}`);
+  }
+  const model = profile.supportsModelSelection ? selectedModel(args.to, args.model) : null;
   const instruction = projectPath(projectRoot, args.instruction, 'instruction');
   const permission = projectPath(projectRoot, args.permission, 'permission');
   const worktree = projectPath(projectRoot, args.worktree, 'worktree', { directory: true });
@@ -248,6 +275,7 @@ function run(argv, { projectRoot = process.cwd() } = {}) {
   }
   const baseHead = validateWorktree(worktree);
   const permissionContract = readPermission(permission, worktree);
+  const instructionSource = fs.readFileSync(instruction, 'utf8');
   const delegationRoot = path.dirname(instruction);
   const delegationId = path.basename(delegationRoot);
   const result = path.join(delegationRoot, 'result.json');
@@ -272,8 +300,8 @@ function run(argv, { projectRoot = process.cwd() } = {}) {
     throw error;
   }
   const startedAt = new Date().toISOString();
-  const instructionDigest = sha256(instruction);
-  const permissionDigest = sha256(permission);
+  const instructionDigest = crypto.createHash('sha256').update(instructionSource).digest('hex');
+  const permissionDigest = permissionContract.digest;
   try {
     fs.writeFileSync(lockFd, `${JSON.stringify({ pid: process.pid, started_at: startedAt })}\n`);
     fs.closeSync(lockFd);
@@ -287,14 +315,21 @@ function run(argv, { projectRoot = process.cwd() } = {}) {
       schemaFile: outputSchema,
       schemaJson: JSON.stringify(RESULT_JSON_SCHEMA),
       hostOutput,
+      model,
     };
     const prompt = delegatePrompt({
-      instruction, permission, worktree, readOnly: profileOptions.readOnly,
+      instructionSource,
+      instructionDigest,
+      permissionSource: permissionContract.source,
+      permissionDigest,
+      worktree,
+      readOnly: profileOptions.readOnly,
     });
     const workerSpec = {
       $schema: 'ultra-delegation-worker-spec-v1',
       delegation_id: delegationId,
       host: args.to,
+      model,
       command: selectedBinary(args.to, profile.binary),
       args: profile.delegateArgv(prompt, worktree, profileOptions),
       cwd: worktree,
@@ -341,6 +376,7 @@ function run(argv, { projectRoot = process.cwd() } = {}) {
       status: 'started',
       delegation_id: delegationId,
       host: args.to,
+      model,
       worker_pid: worker.pid,
       instruction_digest: instructionDigest,
       permission_digest: permissionDigest,

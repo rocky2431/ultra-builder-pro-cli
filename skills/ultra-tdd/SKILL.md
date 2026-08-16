@@ -10,8 +10,14 @@ the loop that supplies it, and it serves Goal 3, Production-Ready.
 
 ## Before you start
 
-1. When called from a planned Change, resolve the unique active `change_id` and read the
-   matching current task context for the seams already confirmed during planning. For a
+1. When called from a planned Change, read
+   `../ultra-change/references/change-contract.md` and apply its **Active Change
+   authority resolution** before reading any active `intent.md`, resolving the current
+   `change_id` or task, reading its context, running the baseline, or executing red-green
+   product edits. A stable zero result stops with no current task; any typed diagnostic,
+   including non-unique authority, stops with its repair before the baseline, red-green,
+   or any product write. After one valid authority, read its intent, `.ultra/tasks.json`,
+   and the matching current task context for the seams confirmed during planning. For a
    micro edit outside the Ultra lifecycle, no active task context is required; use the
    accepted request, maintained specification, and an existing repository seam, and
    create no Ultra task or delivery claim.
@@ -43,8 +49,8 @@ Write the failing test first and run it, so that red is observed rather than
 assumed. Then write the smallest code that turns it green. Predict no later
 tests and add no speculative capability. Then take the next slice.
 
-Refactoring is not part of this loop; `ultra-review` owns it, because the
-restructuring worth doing only becomes visible after three or four slices.
+Refactoring is not part of this loop; `ultra-review` owns it when observed duplication,
+coupling, or a boundary defect supplies evidence that restructuring is worthwhile.
 
 ## Three patterns that produce tests worth deleting
 
@@ -77,6 +83,7 @@ goes to the owner as one.
 
 ## References
 
+- `../ultra-change/references/change-contract.md` — canonical Active Change authority resolution.
 - `../ultra-think/references/autonomy-boundary.md` — read before replacing a real
   dependency with a fake, or when a test stands between the work and green.
 - `references/templates/README.md` — read when choosing which enabling template

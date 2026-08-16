@@ -1,0 +1,191 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v027-task-acceptance-v2",
+  "change_id": "chg-v027-lifecycle-closure",
+  "context": {
+    "path": ".ultra/contexts/task-v027-task-acceptance-v2.md",
+    "acceptance_sha256": "52f43593b17a64bfc2fcaa65a78ec058a1231c37852f29bd5589595f3a44a18f"
+  },
+  "subject": {
+    "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+    "worktree_digest": "99d76932fceec0bed74465ba4e3cc3bf0c19e6b8c2c4e6e0eed130946a7a04fc",
+    "observed_at": "2026-08-16T07:51:17+08:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "A-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-reporter=dot tests/v026-contract.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-task-acceptance-v2/phase2-verification.log",
+        "raw_evidence_sha256": "10025b4d451c85b1d56cc62d838ad64ec6b067d950b93679bdc0537c31b76348",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "99d76932fceec0bed74465ba4e3cc3bf0c19e6b8c2c4e6e0eed130946a7a04fc",
+          "observed_at": "2026-08-16T07:16:35+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The retained current-worktree transcript records exit zero for all 88 v0.26 contract tests, including ledger-only status, legacy migration, current recovery, and exact closeout ordering contracts."
+      }
+    },
+    {
+      "criterion_id": "A-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-reporter=dot tests/task-evidence-v2.test.cjs tests/project-artifacts.test.cjs tests/v026-contract.test.cjs tests/skill-authoring.test.cjs tests/review-transport.test.cjs tests/package-smoke.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-task-acceptance-v2/phase2-verification.log",
+        "raw_evidence_sha256": "10025b4d451c85b1d56cc62d838ad64ec6b067d950b93679bdc0537c31b76348",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "99d76932fceec0bed74465ba4e3cc3bf0c19e6b8c2c4e6e0eed130946a7a04fc",
+          "observed_at": "2026-08-16T07:16:35+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The retained integrated run records 239 passing tests that accept valid command, inspection, owner-judgment, and external-observation records while rejecting wrong shapes, authority tokens, unsafe receipts, and stale bindings."
+      }
+    },
+    {
+      "criterion_id": "A-03",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-{change,plan,dev,review,test,deliver}/SKILL.md, skills/ultra-change/references/change-contract.md, and tests/v026-contract.test.cjs",
+        "observation": "Live workflows use counts and physical ceilings only as bounded observations; complexity, file, line, finding, question, and repair-round counts do not decide semantic quality, acceptance, or completion.",
+        "revision": "HEAD fc055021bcfeee3e8c6781b9545d267f5eb73cbd; product-worktree 99d76932fceec0bed74465ba4e3cc3bf0c19e6b8c2c4e6e0eed130946a7a04fc"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Source inspection and the retained contract regressions distinguish physical resource limits from model-owned semantic judgment across every live consumer."
+      }
+    },
+    {
+      "criterion_id": "A-04",
+      "verification_type": "owner-judgment",
+      "evidence": {
+        "owner_record_ref": ".ultra/decisions/2026-08-15-v027-north-star-r1.md#owner-record",
+        "owner_statement_or_disposition": "The owner authorized the accepted construction scope with: ‘最终施工方案先写成文档，并且一次性全部修改完成。百分之百地把它给干完，然后再和我说’"
+      },
+      "disposition": {
+        "authority": "owner",
+        "result": "satisfied",
+        "rationale": "The durable owner record preserves the exact construction authorization; the model and validator only transport its reference and do not infer or manufacture owner judgment."
+      }
+    },
+    {
+      "criterion_id": "A-05",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-plan/references/task-evidence-v2.md, skills/ultra-{dev,review,test,deliver}/SKILL.md, .ultra/contexts/task-v027-task-acceptance-v2.md, and .ultra/reviews/v027-task-acceptance-v2-final-clean-review/SUMMARY.json",
+        "observation": "The final current-subject strict review was validated as zero-finding APPROVE, its packet-recorded pre-review currency tuple was independently matched before any closeout write, and completion freshness was captured before this canonical evidence record; context publication and the ledger transition remain ordered after evidence readback.",
+        "revision": "final-clean SUMMARY f96999acd604cea8ac731e4d2f3baf2a6467797d2aa06c8cd89168b2be30c891; completion subject 99d76932fceec0bed74465ba4e3cc3bf0c19e6b8c2c4e6e0eed130946a7a04fc@2026-08-16T07:51:17+08:00"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The observed closeout follows the canonical order: validated review, exact currency comparison, independent completion subject, evidence publication/readback, then context and ledger publication/readback."
+      }
+    }
+  ],
+  "dimensions": {
+    "feature_flags_audit": {
+      "status": "not_applicable",
+      "evidence_refs": [
+        "skills/ultra-plan/references/task-evidence-v2.md",
+        "docs/V027-LIFECYCLE-CLOSURE.zh-CN.md"
+      ],
+      "rationale": "Phase 2 adds no feature flag or disabled alternate path; ledger v2, typed evidence, review transport, and Hook recovery are unconditional file-first contracts."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/task-evidence-v2.test.cjs",
+        "tests/project-artifacts.test.cjs",
+        "hooks/tests/test_v026_hooks.py"
+      ],
+      "rationale": "The retained tests exercise real temporary repositories, ordinary-file and special-file boundaries, Hook subprocesses, stable receipts, and repository artifact readback rather than a live-path in-memory substitute."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/specs/product.md#requirement-fr-10-sequential-lifecycle-continuity",
+        ".ultra/contexts/task-v027-task-acceptance-v2.md",
+        "skills/ultra-plan/references/task-evidence-v2.md"
+      ],
+      "rationale": "The task, acceptance IDs AC-04 and AC-09, canonical evidence contract, producers, consumers, recovery paths, and final review resolve to one file-first lifecycle trace."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v027-task-acceptance-v2/phase2-verification.log",
+        ".ultra/reviews/v027-task-acceptance-v2-final-clean-review/SUMMARY.json"
+      ],
+      "rationale": "The retained subject transcript records 239/239 Node and 83/83 Hook tests, and the fresh six-lens strict review independently returned zero findings with APPROVE."
+    },
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/task-evidence-v2.test.cjs",
+        "tests/project-artifacts.test.cjs",
+        "tests/v026-contract.test.cjs",
+        "tests/review-transport.test.cjs",
+        "hooks/tests/test_v026_hooks.py"
+      ],
+      "rationale": "Phase 2 retains red-first and mutation-sensitive regressions for schema authority, stable snapshots, physical limits, review currency, typed recovery, public authority, and closeout ordering."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/tasks.json",
+        "skills/ultra-plan/scripts/validate_task_evidence.cjs",
+        "hooks/_common.py",
+        "skills/ultra-test/scripts/validate_review_transport.cjs",
+        ".ultra/reviews/v027-task-acceptance-v2-final-clean-review/SUMMARY.json"
+      ],
+      "rationale": "The verified live path runs from ledger-authoritative task selection through Hook context, typed evidence production and validation, strict Review transport, completion freshness, and ordered closeout."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "pre-v1-unavailable",
+      "digest": null,
+      "limitation": "Execution Packet v1 belongs to pending task v027-autonomy-packet, so Phase 2 does not fabricate a bootstrap execution digest."
+    },
+    "session_id": "v027-task-acceptance-v2-final-clean-review",
+    "summary_ref": ".ultra/reviews/v027-task-acceptance-v2-final-clean-review/SUMMARY.json",
+    "summary_digest": "f96999acd604cea8ac731e4d2f3baf2a6467797d2aa06c8cd89168b2be30c891",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict review session, including WORKER-PACKET.json, ADMISSION.json, every selected specialist artifact, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully. Premature loss requires a fresh Review and Test; never reconstruct the old receipt."
+  },
+  "artifacts": [
+    ".ultra/tasks.json",
+    ".ultra/contexts/task-v027-task-acceptance-v2.md",
+    ".ultra/decisions/2026-08-15-v027-north-star-r1.md",
+    ".ultra/evidence/v027-task-acceptance-v2/phase2-verification.log",
+    ".ultra/reviews/v027-task-acceptance-v2-final-clean-review/SUMMARY.json",
+    "skills/ultra-plan/references/task-evidence-v2.md",
+    "skills/ultra-plan/scripts/validate_task_evidence.cjs",
+    "skills/ultra-test/scripts/worktree_digest.cjs",
+    "tests/task-evidence-v2.test.cjs",
+    "tests/project-artifacts.test.cjs",
+    "tests/v026-contract.test.cjs",
+    "hooks/tests/test_v026_hooks.py"
+  ],
+  "limitations": [
+    "The protected construction baseline remains a dirty worktree at HEAD fc055021bcfeee3e8c6781b9545d267f5eb73cbd because commit was not authorized; the evidence records the independently captured product-worktree digest instead of claiming a commit.",
+    "The final strict review used execution_mode sequential-shared-context because native fresh agent capacity was exhausted; every reused lens disclosed that limitation, rebuilt from the immutable packet, and the aggregate still completed all six required artifacts with zero findings.",
+    "The finite product snapshot is a cooperative portable sensor, not hostile operating-system isolation; an adversarial concurrent writer requires a native Host sandbox or isolated worktree.",
+    "Phase 3 through Phase 8, aggregate Change Test, Deliver reconciliation, release verification, commit, push, publication, and installation are outside this Phase 2 completion claim.",
+    "The final strict review session must remain available until future aggregate Test and Deliver both consume it successfully."
+  ],
+  "timestamp": "2026-08-16T07:51:17+08:00"
+}

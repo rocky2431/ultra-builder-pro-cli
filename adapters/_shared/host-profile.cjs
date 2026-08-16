@@ -1,8 +1,16 @@
 'use strict';
 
+const fs = require('node:fs');
 const path = require('node:path');
 
 const KIMI_PROFILE_ROOT = path.join(__dirname, 'delegate-profiles');
+const ZCODE_BUNDLED_CLI = '/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs';
+
+function zcodeBinary({ platform = process.platform, exists = fs.existsSync } = {}) {
+  return platform === 'darwin' && exists(ZCODE_BUNDLED_CLI)
+    ? ZCODE_BUNDLED_CLI
+    : 'zcode';
+}
 
 function opencodePermission(writableRoots) {
   const edit = { '*': 'deny' };
@@ -39,7 +47,6 @@ const PROFILES = Object.freeze({
       '--permission-mode', options.readOnly ? 'plan' : 'acceptEdits',
       '--no-session-persistence',
       '--output-format', 'json',
-      '--json-schema', options.schemaJson,
       '--tools', options.readOnly ? 'Read,Grep,Glob' : 'Read,Write,Edit,Grep,Glob',
     ],
   }),
@@ -66,14 +73,19 @@ const PROFILES = Object.freeze({
   }),
   kimi: Object.freeze({
     binary: 'kimi',
-    delegateArgv: (prompt, _cwd, options) => [
-      '-p', prompt,
-      '--output-format', 'stream-json',
-      '--agent-file', path.join(
-        KIMI_PROFILE_ROOT,
-        options.readOnly ? 'kimi-read-only.md' : 'kimi-write.md',
-      ),
-    ],
+    supportsModelSelection: true,
+    delegateArgv: (prompt, _cwd, options) => {
+      const args = ['-p', prompt, '--output-format', 'stream-json'];
+      if (options.model) args.push('--model', options.model);
+      args.push(
+        '--agent-file',
+        path.join(
+          KIMI_PROFILE_ROOT,
+          options.readOnly ? 'kimi-read-only.md' : 'kimi-write.md',
+        ),
+      );
+      return args;
+    },
   }),
   grok: Object.freeze({
     binary: 'grok',
@@ -82,8 +94,21 @@ const PROFILES = Object.freeze({
       '--permission-mode', options.readOnly ? 'plan' : 'acceptEdits',
       '--sandbox', options.readOnly ? 'read-only' : 'workspace',
       '--no-memory', '--no-subagents', '--disable-web-search',
-      '--json-schema', options.schemaJson,
+      '--verbatim',
+      '--max-turns', '12',
       '--output-format', 'json',
+    ],
+  }),
+  zcode: Object.freeze({
+    binary: zcodeBinary(),
+    delegateArgv: (prompt, cwd, options) => [
+      '--cwd', cwd,
+      '--mode', options.readOnly ? 'plan' : 'edit',
+      '--json', '--no-color',
+      '--disallowedTools', options.readOnly
+        ? 'Bash Write Edit ApplyPatch Agent WebFetch WebSearch'
+        : 'Bash Agent WebFetch WebSearch',
+      '--prompt', prompt,
     ],
   }),
 });
@@ -94,4 +119,10 @@ function hostProfile(runtime) {
   return profile;
 }
 
-module.exports = { PROFILES, hostProfile, opencodePermission };
+module.exports = {
+  PROFILES,
+  ZCODE_BUNDLED_CLI,
+  hostProfile,
+  opencodePermission,
+  zcodeBinary,
+};

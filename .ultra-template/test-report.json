@@ -1,7 +1,8 @@
 {
-  "$schema": "ultra-test-report-v1",
+  "$schema": "ultra-test-report-v2",
   "change_id": null,
   "task_ids": [],
+  "task_evidence": [],
   "git_commit": null,
   "intent_digest": null,
   "worktree": {
@@ -16,6 +17,21 @@
     "e2e": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]},
     "performance": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]},
     "security": {"status": "not_run", "evidence_refs": [], "omissions": ["Not yet run"]}
+  },
+  "review": {
+    "session": null,
+    "packet_digest": null,
+    "admission_digest": null,
+    "subject_digest": null,
+    "execution_mode": null,
+    "finding_schema": "ultra-review-findings-v4",
+    "summary_ref": null,
+    "summary_digest": null,
+    "context_digest": null,
+    "worktree_digest": null,
+    "verdict": "INCOMPLETE",
+    "coverage_refs": [],
+    "limitations": ["Not yet run"]
   },
   "verified_seams": [],
   "findings": [],

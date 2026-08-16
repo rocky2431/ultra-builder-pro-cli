@@ -1,10 +1,5 @@
 # Task {id}: {title}
 
-> **Status**: pending | **Priority**: {priority} | **Complexity**: {complexity}
-
-<!-- Status here and in tasks.json must always match. Both are written together, then both
-     are read back to confirm. A single-sided write breaks cross-host resume. -->
-
 ## Context
 
 **What**: [what to build or change]
@@ -17,30 +12,48 @@
 
 ## Implementation
 
-**Target Files**:
-- `path/to/file.ts` (create)
-- `path/to/existing.ts` (modify: description)
-
-**Layers touched**: [entry point / use case / domain / persistence — must be ≥2]
+**Layers touched**: [entry point / use case / domain / persistence]
 
 **Pattern**: [existing code to follow]
 
 **Tech Notes**: [framework or library specifics]
 
+## Planned Path Inventory
+
+`MODIFY`:
+
+- `path/to/existing.ts`
+
+`CREATE`:
+
+- `path/to/file.ts`
+
+Any later addition, removal, or rename in this inventory or the Public Seams below is
+plan-critical and requires a rebuilt Execution Packet plus owner reapproval before
+implementation continues.
+
+## Public Seams
+
+- `[entry point, schema, file contract, or other externally observable seam]`
+
+## Narrow Verification
+
+- `exact command for the smallest relevant contract suite`
+- `[inspection, owner record, or external observation required by the typed criteria]`
+
 ## Acceptance Criteria
 
-<!-- The verifiable definition of done. Read by mid_workflow_recall and session_context, and
-     injected into agent context — keep every line testable and keep noise out. -->
+<!-- The typed definition of done. Readers inject this section into agent context; keep
+     every criterion observable and keep noise out. The ledger is the sole Status source. -->
 
 **Change Acceptance IDs**: [`AC-1`, `AC-3`, or `none` for task-local-only work]
 
-- [ ] `exact test command`
-- [ ] Pass: [scenario 1]
-- [ ] Pass: [scenario 2]
-- [ ] Integration: [the one test proving this connects to its upstream/downstream boundary]
-
-<!-- Manual verification, deliberately outside the injected section:
-     curl -X POST localhost:3000/api/example -->
+| ID | Criterion | Verification type | Required evidence |
+|---|---|---|---|
+| A-01 | [observable criterion] | `command` | exact command, cwd, exit code, raw evidence ref, and freshness identity |
+| A-02 | [observable criterion] | `inspection` | source/path, observed fact, and revision |
+| A-03 | [owner decision when genuinely required] | `owner-judgment` | durable owner statement or explicit disposition |
+| A-04 | [external fact when genuinely required] | `external-observation` | provider, run id, timestamp, raw evidence ref, and observation |
 
 ## Definition of Drift
 
@@ -53,10 +66,17 @@
 
 **Source**: `.ultra/specs/product.md#section-id`
 
-**Hard Constraints**: [`HC-1`, `HC-3`, or `none` — the north-star constraints this
-task could plausibly violate. Read them before the first edit and again before
-marking complete. Crossing one stops the work and goes to the owner, however good
-the argument.]
+**First principles**: [`FP-1`, or every accepted principle this task relies on]
+
+**Serves**: [`NS-1`, or every accepted outcome this task causally advances]
+
+**Causal contribution**: [one task-local sentence connecting the planned seam to the
+listed outcome through the listed principles; reference IDs and do not copy North Star
+prose]
+
+**Hard constraints**: [`HC-1`, `HC-3`, or `none` — the accepted constraints this task
+could plausibly violate. Read them before the first edit and again before marking
+complete. Crossing one stops the work and goes to the owner, however good the argument.]
 
 **Decisions**: [relevant `.ultra/decisions/<id>.md` entries, or `none`]
 
@@ -77,18 +97,33 @@ the argument.]
 
 ## Resume Note
 
-<!-- The single most important line for cross-session and cross-host continuation.
-     Overwrite it whenever work pauses. Say where to pick up, not what was done. -->
+<!-- Navigational state only: the current checkpoint, the next action a higher
+     authority has already allowed, unresolved prerequisites, and the cheapest
+     safe resume command or path. It cannot override current owner authority,
+     approved scope/budget, task acceptance, or a validated Review verdict, it
+     cannot promote P2/P3 findings into blockers, and it never requires a fresh
+     zero-finding review after a current APPROVE. It never carries or re-issues
+     an execution grant: continuing under a durable work-package grant requires
+     the consuming Agent to re-verify the recorded grant itself. Overwrite it
+     whenever work pauses. Say where to pick up, not what was done. When the
+     pause is owner-facing, the note answers the checkpoint semantics: why,
+     outcome, accepted boundary, delta, reality, decision needed, next bounded
+     action, and not-done. -->
 
 _(not started)_
 
 ## Completion
 
-> _Fill when the task is complete._
+_Not completed._
 
-- **Completed**: {date}
-- **Commit**: {hash}
-- **Summary**: {what was delivered}
+## Task Review
+
+- Execution Packet state/digest/limitation: `not_run`
+- Review session identity and summary digest: `not_run`
+- Blocking findings with resolution/disposition/evidence refresh refs: `not_run`
+- Retention: retain the current strict review session until both aggregate Test and
+  Deliver consume it. Premature loss requires a fresh Review and Test; never reconstruct
+  the old receipt.
 
 ---
 *Generated by ultra-plan*

@@ -1,0 +1,145 @@
+Ultra Builder Pro v0.27 Phase 2 retained verification transcript
+Published: 2026-08-16T07:17:00+08:00
+Fresh coordinator verification captured through: 2026-08-16T07:16:35+08:00
+Working directory for every command: /Users/rocky243/Context Engineering/ultra-builder-pro-cli
+
+Review and staleness reference:
+- Session: v027-task-acceptance-v2-zero-finding-review
+- Summary: .ultra/reviews/v027-task-acceptance-v2-zero-finding-review/SUMMARY.json
+- Summary SHA-256: 326a6499fe1c1f863614bc8059867132d721546547b72c2d4ed4b17cce538540
+- Verdict: APPROVE with exact non-blocking P2 findings review-tests-001 and
+  review-comments-001.
+- review-tests-001 found that the Git-timeout regression accepted a 6000 ms runtime
+  mutant instead of pinning the accepted exact 5000 ms internal limit. The repaired
+  preload requires `options.timeout === 5000`; the isolated 6000 ms runtime mutant is
+  now RED while the product runtime remains byte-identical.
+- review-comments-001 found stale sequential-fallback wording in the adversarial task
+  context and formal lifecycle plan. Both now record
+  `execution_mode: sequential-shared-context` plus an explicit shared-context
+  limitation. Context reuse alone does not force `INCOMPLETE`; missing evidence,
+  workers, artifacts, or another schema-defined incomplete condition does.
+- Because reviewed test and documentation bytes changed after approval, this APPROVE is
+  historical provenance and cannot authorize closeout. Freeze
+  v027-task-acceptance-v2-final-clean-review before canonical evidence or ledger
+  completion.
+- Eighteen retained summaries and 162 findings are provenance only, not a semantic
+  quality gate.
+
+TDD and mutation evidence for the zero-finding-review findings:
+- Green baseline before repair:
+  node --test --test-reporter=spec --test-name-pattern='Plan and Test consume adversarial review|every Git observation is physically bounded' tests/v026-contract.test.cjs
+  Result: 6/6 passed, exit 0.
+- RED after adding the sequential-fallback contract assertions and before changing the
+  two stale documents: the same command returned 5/6 passed, exit 1; the exact failure
+  was the missing `execution_mode: sequential-shared-context` contract in
+  .ultra/contexts/task-v027-adversarial-lifecycle.md.
+- Final GREEN after updating the context, formal plan, and exact timeout preload: the
+  same command returned 6/6 passed, exit 0; its physical timeout surfaced at about 5.14
+  seconds inside the 10-second outer test bound.
+- Isolated timeout mutation: a temporary full test fixture changed only
+  `GIT_TIMEOUT_MS` from 5000 to 6000. The focused Git observation test returned exit 1;
+  the `require-timeout` subtest and parent failed while the other three subtests passed.
+  The temporary fixture was moved to Trash and the repository runtime SHA-256 remained
+  49903cd64913b00616e8ed217745f95f643963d5e2e7f7c9017384acaa706fae.
+
+Full v026 command:
+node --test --test-reporter=dot tests/v026-contract.test.cjs
+
+Exit code: 0
+Raw stdout:
+....................
+....................
+....................
+....................
+........
+Observed result: 88 tests passed; 0 failed.
+
+Exact integrated Node command:
+node --test --test-reporter=dot tests/task-evidence-v2.test.cjs tests/project-artifacts.test.cjs tests/v026-contract.test.cjs tests/skill-authoring.test.cjs tests/review-transport.test.cjs tests/package-smoke.test.cjs
+
+Exit code: 0
+Raw stdout:
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+...................
+Observed result: 239 tests passed; 0 failed.
+
+Exact Hook command:
+PYTHONDONTWRITEBYTECODE=1 pytest -q -p no:cacheprovider hooks/tests/test_v026_hooks.py
+
+Exit code: 0
+Raw stdout:
+........................................................................ [ 86%]
+...........                                                              [100%]
+83 passed in 36.90s
+
+JavaScript syntax commands:
+node --check skills/ultra-test/scripts/worktree_digest.cjs
+node --check tests/v026-contract.test.cjs
+
+Exit code: 0 for each command.
+Raw stdout: empty for each command.
+
+Diff integrity command:
+git diff --check
+
+Exit code: 0
+Raw stdout: empty.
+
+Freshness command, executed twice after the timeout regression, adversarial context,
+formal lifecycle plan, task context, WIP, and research distillate edits and before this
+transcript publication:
+node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-v027-lifecycle-closure
+
+Exit code: 0 for both captures.
+The two complete JSON outputs were identical.
+Freshness identity:
+- Schema: ultra-worktree-digest-v1
+- HEAD: fc055021bcfeee3e8c6781b9545d267f5eb73cbd
+- Change: chg-v027-lifecycle-closure
+- Intent digest: 4882713e649527b669339fe07880df99c411d1ae086fd0200b2b558f39d40cca
+- Worktree diff digest: 99d76932fceec0bed74465ba4e3cc3bf0c19e6b8c2c4e6e0eed130946a7a04fc
+- Dirty: true
+
+Stable source identities at the freshness boundary:
+- README.md SHA-256:
+  dde255b869acf4688e8bdca17b3fdf242ab64ea1699df73e83ca636f6a80be08
+- docs/WORKFLOW-LIFECYCLE.md SHA-256:
+  ca9d3efdd50b7c617617942ae59d2e5011811b29b7f5c54fcde9047c82ffeac2
+- .ultra/contexts/task-v027-adversarial-lifecycle.md SHA-256:
+  84dc59cfe60c5f2faa7201d0a9c5ef69abef9d58c7a40729b3bde155450f699a
+- docs/V027-LIFECYCLE-CLOSURE.zh-CN.md SHA-256:
+  c0954ccb0dbd33dc2e505ac125f5790db7fd6909b5cfd2d27f64b713626c6484
+- tests/v026-contract.test.cjs SHA-256:
+  947bdf8b937dff8173d40adeb75c0da58e84adb72582067e7ccd624141506d3b
+- skills/ultra-test/scripts/worktree_digest.cjs SHA-256:
+  49903cd64913b00616e8ed217745f95f643963d5e2e7f7c9017384acaa706fae
+- .ultra/contexts/task-v027-task-acceptance-v2.md SHA-256:
+  918ab5f4cd44b7c7c40abf4aab50c9492d8d5f27ce27cd0f5efa639bc32e420a
+- docs/wip/v027-lifecycle-closure.md SHA-256:
+  96b15cdce8cbfc3d34cbaa3d7571808c6b02c92100c9a45fb80649144579d6ec
+- .ultra/specs/research-distillate.md SHA-256:
+  e7945a14d06538ffbf27dab76a8344a72215a2288b74ce74e3820bcadc7ece47
+
+Current task boundary:
+- .ultra/tasks.json keeps v027-task-acceptance-v2 at in_progress.
+- .ultra/evidence/v027-task-acceptance-v2/evidence.json remains absent.
+- v027-task-acceptance-v2-final-clean-review is still required before the six-step
+  closeout recorded in the task context.
+
+Boundary statement:
+The live Test contract and runtime use exactly one fixed closing protocol: one complete
+primary observation followed by one terminal seal. Observable persistent in-seal drift
+returns ULTRA_SNAPSHOT_CHANGED_DURING_OBSERVATION. A cooperative write after the
+completed seal belongs to the next consumer's mandatory fresh recapture. Hostile writers
+require a native Host sandbox or isolated worktree; no unbounded success-seeking replay
+is permitted.

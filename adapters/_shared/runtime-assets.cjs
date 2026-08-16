@@ -27,7 +27,14 @@ const MODEL_INVOKED_SKILLS = Object.freeze([
 ]);
 
 const ROUTER_SKILLS = Object.freeze(['ultra-status']);
-const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok']);
+const GRANT_CONTINUABLE_SKILLS = Object.freeze([
+  'ultra-research',
+  'ultra-plan',
+  'ultra-dev',
+  'ultra-test',
+  'ultra-deliver',
+]);
+const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
 
 const WORKFLOW_HOOK_FILES = Object.freeze([
   'session_context.py',
@@ -53,13 +60,15 @@ function skillPolicy(name) {
     throw new Error(`unknown packaged Ultra skill: ${name}`);
   }
   const modelInvoked = MODEL_INVOKED_SKILLS.includes(name);
+  const grantContinuable = GRANT_CONTINUABLE_SKILLS.includes(name);
   return {
     userInvocable: !modelInvoked,
-    allowImplicitInvocation: modelInvoked,
+    allowImplicitInvocation: modelInvoked || grantContinuable,
   };
 }
 
 module.exports = {
+  GRANT_CONTINUABLE_SKILLS,
   USER_INVOKED_SKILLS,
   MODEL_INVOKED_SKILLS,
   ROUTER_SKILLS,

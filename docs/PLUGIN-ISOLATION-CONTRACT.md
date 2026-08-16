@@ -55,6 +55,12 @@ non-empty, modified, symlinked, or unowned path. Codex marketplace and Kimi regi
 files additionally remember whether Ultra created the registry itself, so an empty
 registry that existed before installation is retained.
 
+ZCode publishes one managed local marketplace whose nested plugin is activated through
+the host's documented `plugins.dirs` configuration. Install preserves unrelated ZCode
+configuration, and uninstall removes only Ultra's exact directory entry and restores
+the pre-install `plugins.enabled` value when that value has not since been changed by
+the owner.
+
 ## Activation
 
 Owner-invoked Skills activate only through the host's explicit Skill surface.

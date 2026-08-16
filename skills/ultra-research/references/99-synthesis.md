@@ -17,11 +17,22 @@ creating a second condensed authority.
 - Documentation conflicts, known failures, and load-bearing unknowns are in the gap
   ledger with owners or explicit decisions.
 - Verification commands and observed results are current.
+- Every accepted `FP-*` has evidence, causal consequence, and a falsifier or revisit
+  trigger; every `NS-*` has an observation contract and anti-metric; every `HC-*` names
+  the protected value or threat, authority, and revisit condition.
 
 ## Record
 
-Update `.ultra/north-star.md` with the accepted project direction, North Star outcome or
-explicit no-single-metric decision, hard constraints, exclusions, and Research trace.
+Follow `north-star-v2.md`. Validate the complete mutable candidate with
+`scripts/validate_north_star.cjs` while the previous accepted revision remains current.
+Only after the owner accepts this checkpoint and exact semantic delta, record the owner
+acceptance source and atomically replace `.ultra/north-star.md` with accepted problem
+reality, `FP-*` propositions, causal chains, `NS-*` outcomes, `HC-*` constraints,
+exclusions, uncertainties, revisit triggers, and Research trace.
+
+If this supersedes an accepted revision, preserve its Git and downstream evidence.
+Report dependent active Change traces as stale observations until Change reconciliation;
+do not silently rewrite intent or infer new execution authority.
 Keep raw owner wording in `project-brief.md`; do not process it in place.
 
 Write `research-distillate.md` as a navigation and traceability artifact containing
@@ -40,3 +51,9 @@ reporting convergence.
 Record one verified chain through `problem_id`, `scenario_id`, `requirement_ids`,
 `architecture_path_ids`, and `verification_refs`. Every referenced id must exist in an
 earlier selected area report or specification heading.
+
+## Adversarial challenge
+
+Before acceptance, challenge the strongest premise, Goodhart or proxy failure, and a
+scenario where every stated output passes while the claimed delivered value still fails.
+Record what would change the conclusion and every unresolved contradiction.

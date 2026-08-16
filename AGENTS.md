@@ -7,10 +7,16 @@ not create or rewrite that file.
 ## Product boundary
 
 Ultra Builder Pro is a file-first workflow plugin for Claude Code, Codex, OpenCode,
-Kimi Code, and Grok Build. The host model owns intent interpretation, route selection,
-decomposition, semantic completeness, and final expression. Ultra supplies fourteen
-portable Skills, five optional hooks, host adapters, delegated CLI execution, and the
-repository files needed to resume work across sessions and hosts.
+Kimi Code, Grok Build, and ZCode, implementing the provider-neutral Ultra Core
+Protocol (accepted 3.0 design: `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md`). The host
+model owns intent interpretation, route selection, decomposition, semantic
+completeness, and final expression. Ultra supplies fourteen portable Skills, five
+optional hooks, host adapters, delegated CLI execution, and the repository files
+needed to resume work across sessions and hosts. Authorization is explicit and
+dual-mode — session-local by default, durable work-package only via an exact owner
+grant recorded under `.ultra/decisions/`; no file, status, Hook, or Resume note
+implies activation. One coherent work package receives at most one initial Review
+plus two P0/P1 delta Reviews; P2/P3 findings are reported, never auto-repaired.
 
 Project authority is owner-readable text and JSON under `.ultra/`, plus `CONTEXT.md`
 and Git history. Ultra does not own general conversation memory, code graphs, browsing,
@@ -19,10 +25,10 @@ deployment providers, framework guidance, or unrelated productivity capabilities
 ## Sources of truth
 
 - `adapters/_shared/runtime-assets.cjs`: the exact eight user-invoked Skills, five
-  model-invoked Skills, one router, five hosts, and five hooks.
+  model-invoked Skills, one router, six hosts, and five hooks.
 - `skills/*/SKILL.md`: reusable host-neutral workflow and discipline prompts.
 - `adapters/*.js`: native installation, update, doctor, and uninstall behavior.
-- `adapters/_shared/host-profile.cjs`: non-interactive delegation argv for five CLIs.
+- `adapters/_shared/host-profile.cjs`: non-interactive delegation argv for six CLIs.
 - `hooks/*.py`: the complete hook surface; `_common.py` is a library, not a registration.
 - `.ultra-template/`: canonical new-project data skeleton.
 - `docs/ARTIFACT-AUTHORITY.md`: authority and recovery rules for project artifacts.

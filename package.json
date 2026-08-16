@@ -1,7 +1,7 @@
 {
   "name": "ultra-builder-pro-cli",
   "version": "0.26.2",
-  "description": "File-first Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, Kimi Code, and Grok Build.",
+  "description": "File-first Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, Kimi Code, Grok Build, and ZCode.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",
     "ubp": "bin/install.js"
@@ -38,6 +38,7 @@
     "docs/DECISIONS.md",
     "docs/PLUGIN-ISOLATION-CONTRACT.md",
     "docs/RUNTIME-COMPAT-MATRIX.md",
+    "docs/evals/*.md",
     "!**/*.pyc",
     "!**/*.pyo",
     "!**/*.test.cjs",
@@ -50,6 +51,7 @@
     "codex",
     "kimi-code",
     "grok-build",
+    "zcode",
     "agent",
     "cli",
     "multi-runtime",
@@ -81,9 +83,10 @@
     "install:claude": "node bin/install.js --claude --local",
     "install:kimi": "node bin/install.js --kimi --global",
     "install:grok": "node bin/install.js --grok --global",
+    "install:zcode": "node bin/install.js --zcode --global",
     "install:all": "node bin/install.js --all --global"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.3.1"
   }
 }

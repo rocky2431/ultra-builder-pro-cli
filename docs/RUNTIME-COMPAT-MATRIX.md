@@ -1,6 +1,6 @@
 # Runtime compatibility matrix
 
-Ultra Builder Pro adapts one fourteen-Skill, five-hook contract to five native hosts.
+Ultra Builder Pro adapts one fourteen-Skill, five-hook contract to six native hosts.
 This document records the differences that belong in adapters rather than shared
 Skills.
 
@@ -13,6 +13,7 @@ Skills.
 | OpenCode | `<config>/.ultra-builder-pro` plus `<config>/plugins/ultra-builder-pro.js` | managed `<config>/skills/<name>` | native JS events call shared Python scripts |
 | Kimi Code | `<config>/plugins/managed/ultra-builder-pro` plus `installed.json` | nested `skills/<name>` | `hooks/adapters/kimi.py` |
 | Grok Build | `<GROK_HOME>/.ubp/plugin-sources/ultra-builder-pro` | nested `skills/<name>` | `hooks/adapters/grok.py` |
+| ZCode | `~/.zcode/cli/plugins/marketplaces/ultra-builder-pro/plugin` plus managed local marketplace and `plugins.dirs` entry | nested `skills/<name>` | `hooks/adapters/zcode.py` |
 
 Every host receives the same eight owner workflows, five model disciplines, and one
 router. Codex alone needs generated `agents/openai.yaml` files to express display data
@@ -27,12 +28,13 @@ and implicit-invocation policy; those are host metadata, not custom agents.
 | OpenCode | `${XDG_CONFIG_HOME:-~/.config}/opencode` | `<cwd>/.opencode` | `OPENCODE_CONFIG_DIR` or `OPENCODE_CONFIG` |
 | Kimi Code | `~/.kimi-code` | no project plugin scope | `KIMI_CODE_HOME` |
 | Grok Build | `~/.grok` | no project plugin scope | `GROK_HOME` |
+| ZCode | `~/.zcode` | no project plugin scope | adapter `ZCODE_HOME` override |
 
 An explicit `--config-dir` wins over all defaults and becomes the home for any
 host-owned sidecar as well. This rule makes isolated installation tests trustworthy.
 With multiple selected runtimes, the CLI passes `<config-dir>/<runtime>` to each adapter
 instead of merging incompatible host layouts.
-Kimi and Grok currently expose user-scoped plugin installation only. `--local` rejects
+Kimi, Grok, and ZCode currently expose user-scoped plugin installation only. `--local` rejects
 them before mutating another host; an explicit `--config-dir` remains available for an
 isolated user-scope installation test.
 
@@ -50,17 +52,19 @@ Kimi receives its native equivalent. Codex receives
 source frontmatter and native discovery, but its current Skill schema has no equivalent
 owner/model routing bit: all fourteen Skills remain discoverable and their descriptions
 guide model selection. Ultra does not add a semantic interception hook to imitate a
-host feature OpenCode does not expose.
+host feature OpenCode does not expose. ZCode likewise discovers all plugin Skills and
+relies on their portable descriptions plus the Change-scoped execution grant rather
+than a fabricated routing flag.
 
 ## Hook compatibility
 
-| Hook | Claude | Codex | OpenCode | Kimi | Grok |
-|---|---:|---:|---:|---:|---:|
-| session context | yes | normalized | native bridge | normalized to message | executed; host stdout limits apply |
-| mid-workflow recall | yes | handles `apply_patch` | native bridge | normalized | executed |
-| compact context | pre/start | pre/post | native compact event | pre/post | pre-compact |
-| post-edit observation | Write/Edit | Write/Edit/`apply_patch` | write/edit/patch | Write/Edit | Write/Edit/patch |
-| dangerous command guard | Bash advisory/deny | Bash advisory/deny | bash advisory/deny | Bash advisory/deny | Bash allow/deny mapping |
+| Hook | Claude | Codex | OpenCode | Kimi | Grok | ZCode |
+|---|---:|---:|---:|---:|---:|---:|
+| session context | yes | normalized | native bridge | normalized to message | executed; host stdout limits apply | normalized |
+| mid-workflow recall | yes | handles `apply_patch` | native bridge | normalized | executed | handles `ApplyPatch` aliases |
+| compact context | pre/start | pre/post | native compact event | pre/post | pre-compact | `SessionStart: compact` |
+| post-edit observation | Write/Edit | Write/Edit/`apply_patch` | write/edit/patch | Write/Edit | Write/Edit/patch | Write/Edit/ApplyPatch |
+| dangerous command guard | Bash advisory/deny | Bash advisory/deny | bash advisory/deny | Bash advisory/deny | Bash allow/deny mapping | Bash advisory/deny |
 
 All hooks share the same `.ultra/` idle guard. Wire adapters normalize payload and
 output fields only; they do not change semantic policy. Codex installation health and
@@ -81,14 +85,50 @@ until the user reviews and trusts the current definition, so Doctor reports
 - Kimi prompt mode with a launch-only read or write agent profile that exposes only
   file tools and no Bash, web, MCP, Skills or subagents;
 - Grok single-turn mode with `read-only` or `workspace` OS sandbox, structured output,
-  no memory, web search or subagents.
+  no memory, web search or subagents, and a twelve-turn ceiling;
+- ZCode headless prompt mode with native `plan` or `edit`; the current CLI accepts the
+  camel-case `--disallowedTools` surface used to deny Bash, web, subagents, and (in
+  read-only mode) write tools. The launcher's timeout remains the execution bound.
+
+ZCode 0.16.3 advertises `--max-turns`, `--allowed-tools`, and `--settings` in help but
+rejects them at the live root parser. Ultra therefore does not pass those flags. ZCode
+headless delegation also requires an explicit CLI model provider; desktop provider
+state is not silently copied into `~/.zcode/cli/config.json` because provider choice and
+credentials remain owner-controlled.
+
+On macOS, the shared host profile uses
+`/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs` when that App-bundled CLI
+exists, then falls back to `zcode` on `PATH`. `UBP_DELEGATE_ZCODE_BIN` remains an explicit
+test or operator override; the normal source-to-ZCode path does not require it.
 
 The launcher accepts no external-effect authority. It binds instruction, permission and
 output-schema digests, a clean Git worktree, allowed write roots, actual changed paths,
 strict result schema, timeout and cancellation. Empty roots select read-only mode. The
 model returns structured output and never authors the receipt. Host-native permissions
 are the execution boundary; the primary host still inspects and integrates the isolated
-diff.
+diff. The launcher embeds the digest-bound packet in the prompt because OpenCode's
+correct `external_directory: deny` policy prevents reading packet paths beside the
+worktree. Codex receives a native-schema-compatible projection; the launcher separately
+enforces non-empty strings, normalized unique paths, exact fields, and the observed diff.
+
+### Authenticated delegation conformance — 2026-08-14
+
+One clean, read-only seeded repository was used to exercise the current launcher against
+all six installed CLIs. Claude Code, Codex, OpenCode, Kimi Code, and ZCode each produced
+a validated `finished` result with an empty diff and found the seeded consequential
+defect. Grok Build 1.0.3 exited zero but repeatedly emitted truncated or malformed
+structured output; the launcher correctly published `failed/missing_result` and did not
+count partial text as evidence. This is a current host-result conformance ceiling, not a
+permission bypass or a semantic review result.
+
+ZCode was also exercised as the source host: one ZCode session invoked
+`ubp delegate run --to claude`, waited for the terminal artifact, and reported Claude's
+digest-bound read-only result without changing the worktree. Separately, one bounded
+ZCode Autonomy Envelope completed Plan, Plan review, TDD, task review, Test, and aggregate
+review for one task, then stopped before ungranted delivery and Git effects. Exact
+fixtures, session boundaries, checks, and residual risks are recorded in
+`docs/evals/adversarial-review-2026-08-14.md` and
+`docs/evals/zcode-automation-2026-08-14.md`.
 
 ## Lifecycle verification
 
@@ -96,7 +136,9 @@ Each adapter must pass isolated install, doctor, reinstall, and uninstall tests.
 global doctor additionally asks the native host where supported, but never repairs or
 installs. Codex still performs native registration under `--config-dir`; its host process
 inherits the same isolated `HOME` and `CODEX_HOME`. Grok native registration is skipped
-only in explicit isolated test mode. Lifecycle tests also require the isolated config
+only in explicit isolated test mode. ZCode uses its documented inline-plugin directory
+configuration for immediate activation while also publishing an importable local
+marketplace; real global Doctor verifies the native plugin inventory. Lifecycle tests also require the isolated config
 and fake HOME to contain zero children after uninstall, while separate ownership tests
 prove that pre-existing empty Codex and Kimi registries survive.
 

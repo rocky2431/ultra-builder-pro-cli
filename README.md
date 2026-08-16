@@ -1,12 +1,18 @@
 # Ultra Builder Pro
 
 Ultra Builder Pro is a file-first engineering workflow for Claude Code, Codex,
-OpenCode, Kimi Code, and Grok Build. It keeps product intent, specifications, task
-contracts, evidence, decisions, and recovery notes in the repository, so a different
-session or host can continue by reading files and Git.
+OpenCode, Kimi Code, Grok Build, and ZCode. It implements the provider-neutral
+**Ultra Core Protocol**: owner–agent cognitive alignment, per-fact canonical
+authority, explicit session-local or durable work-package grants, typed evidence
+with recovery, and review that terminates within three rounds. It keeps product
+intent, specifications, task contracts, evidence, decisions, and recovery notes
+in the repository, so a different session or host can continue by reading files
+and Git.
 
 The host model remains the engineer. Ultra supplies reusable methods and checkable
-artifacts; it does not replace reasoning with a workflow engine.
+artifacts; it does not replace reasoning with a workflow engine. Agent topology —
+one Agent or several, which providers — is the owner's choice at every stage; the
+default is the current Agent continuing alone.
 
 ## Why it exists
 
@@ -51,14 +57,17 @@ The package installs exactly fourteen Skills in three roles.
 `ultra-status` is the single router. It infers the current route from project files,
 Git, and installation health without mutating the workflow.
 
-Public workflows are explicitly selected by the owner. One public workflow can
-recommend the next one, but does not launch it. Model-invoked disciplines remain
-available to the host model and are not separate user routes. The model selects one
-when the active task presents its trigger: incomplete intent uses grilling, competing
-terms use domain modeling, an accepted seam uses TDD, review-ready evidence uses
-review, and a consequential unresolved decision uses think. A host with native bounded
-subagents may parallelize review lenses; another host runs the same lens assets
-sequentially.
+Public workflows are explicitly selected by the owner by default. Outside a live,
+owner-activated execution grant (session-local, or a durable work-package grant), one public workflow can recommend the
+next one but does not launch it. Inside that grant, the host model may select only
+the covered Research, Plan, Dev, Test, and reconcile-only Deliver routes; Init, Change,
+Delegate, Status, final archive, and every external effect remain owner-selected.
+Model-invoked disciplines remain available to the host model and are not separate user
+routes. The model selects one when the active task presents its trigger: incomplete
+intent uses grilling, competing terms use domain modeling, an accepted seam uses TDD,
+review-ready evidence uses review, and a consequential unresolved decision uses think.
+A host with native bounded subagents may parallelize review lenses; another host runs
+the same lens assets sequentially.
 
 Inside `ultra-research`, the first six references are six semantic lenses, not six
 extra Skills: problem validation, opportunity discovery, market assessment,
@@ -75,7 +84,7 @@ six focused files under `ultra-review/references/`; review coordination and synt
 belong to the parent `ultra-review` Skill. The old debugger procedure lives under
 `ultra-dev/references/debugging.md`, and test execution lives under
 `ultra-tdd/references/test-execution.md`. These are assets of their Skills and therefore
-travel to all five hosts. They preserve a bounded role without pretending that every
+travel to all six hosts. They preserve a bounded role without pretending that every
 host exposes the same custom-agent API.
 
 ## Project authority
@@ -101,7 +110,7 @@ CONTEXT.md
 │   ├── active/<change-id>/{intent.md,delivery.md}
 │   ├── archive/<change-id>/{intent.md,delivery.md}
 │   └── abandoned/<change-id>/intent.md  # includes exact Abandonment closure
-├── contexts/<task-id>.md
+├── contexts/task-<task-id>.md
 ├── decisions/<decision-id>.md
 ├── evidence/<task-id>/...
 └── research/<run-id>/{brief.md,<step-id>.md}
@@ -110,13 +119,19 @@ CONTEXT.md
 The optional `brief.md` is derived navigation; the selected step reports are cited
 evidence, and promoted semantic facts live in the other canonical files. Git provides
 history, comparison, rollback, and archive moves. The following additional paths are
-derived and can be deleted or rebuilt:
+derived:
 
 ```text
 .ultra/.runtime/
 .ultra/progress/
 .ultra/reviews/
 ```
+
+`.ultra/.runtime/` and `.ultra/progress/` can be deleted or rebuilt from current
+authority. Retain the exact current strict review session until both Test and Deliver
+have successfully consumed it; only then may that session be garbage-collected. If it
+is lost before both consumers finish, run a fresh Review and Test and never reconstruct
+the old receipt.
 
 See [Artifact Authority](docs/ARTIFACT-AUTHORITY.md) for writer, reader, promotion,
 staleness, and recovery rules.
@@ -129,7 +144,7 @@ staleness, and recovery rules.
 | `ultra-research` | accepted North Star, first domain baseline, selected cited reports, reconciled specifications, and distillate | change, plan, and delivery |
 | `ultra-change` | one active `intent.md` with stable `change_id`, Research Disposition, and only the accepted baseline sections touched by that delta; or an exact Abandonment closure before an owner-authorized move | active: research through delivery; abandoned: future Change history and status |
 | `ultra-plan` | append-only `tasks.json` rows for the active `change_id`, one context per task, and Planning Posture in the active intent | dev and every resume path |
-| `ultra-dev` | source/tests, task evidence, synchronized task/context status, Completion and Resume Note | review, test, status, delivery |
+| `ultra-dev` | source/tests, typed task evidence, ledger-only task status, Completion, Task Review, and Resume Note | review, test, status, delivery |
 | `ultra-test` | the one current `test-report.json` bound to Change id, current task ids, intent digest, HEAD, and product-worktree digest | status and delivery |
 | `ultra-deliver` | first reconciled specs/docs, then after a fresh Test snapshot one `delivery.md` and the archived Change directory | owner and future Change history |
 | `ultra-status` | none | recommends the smallest explicit route from current files |
@@ -152,6 +167,7 @@ npx ultra-builder-pro-cli --codex --local
 npx ultra-builder-pro-cli --opencode --global
 npx ultra-builder-pro-cli --kimi --global
 npx ultra-builder-pro-cli --grok --global
+npx ultra-builder-pro-cli --zcode --global
 
 # All supported hosts
 npx ultra-builder-pro-cli --all --global
@@ -185,9 +201,9 @@ Uninstall removes the managed plugin and prunes only empty config shells that we
 absent before the first install. Pre-existing registries, directories, symlinks, and
 any path containing owner data are preserved.
 
-Kimi Code and Grok Build currently expose user-scoped plugins only, so `--local`
+Kimi Code, Grok Build, and ZCode currently expose user-scoped plugins only, so `--local`
 rejects them before mutation. Claude Code, Codex, and OpenCode support project-local
-installation; all five support managed global installation and isolated
+installation; all six support managed global installation and isolated
 `--config-dir` verification.
 
 ## Typical workflow
@@ -203,20 +219,37 @@ installation; all five support managed global installation and isolated
    the delta touches before planning; it does not rebuild the project baseline. Its
    Research Disposition either cites sufficient evidence or names the bounded question
    and exit evidence that must return through Research. A micro edit that makes no
-   specification sentence false stays outside Ultra; an accepted quick Change still
-   receives one Plan task. While that Change remains active, reconcile its same stable
-   id; never open a second active Change for a separate request.
+   specification sentence false stays outside Ultra; every accepted Change receives the
+   smallest Plan graph justified by its real seams, evidence, review, and recovery needs.
+   A profile never fixes task count. While that Change remains active, reconcile its
+   same stable id; never open a second active Change for a separate request.
 4. Select `ultra-plan` to record public seams and produce resumable tracer-bullet tasks.
    The model owns ordinary technical seams; the owner decides only a seam that changes
    the public contract or another material trade-off.
-5. Select `ultra-dev` for one task at a time. Each task leaves a Completion entry,
-   evidence, and a closing Resume Note.
-6. Select `ultra-test` once tasks for the active Change are complete. Historical ledger
-   rows do not enter this audit. Local green tests do not substitute for wiring and E2E proof.
+5. Select `ultra-dev` for one task at a time. `.ultra/tasks.json` is the sole task-status
+   authority. Dev records typed v2 evidence and completes task review while the row is
+   still `in_progress`; only after blocking findings and affected evidence are resolved
+   does it write `completed`, add Completion, and rewrite the Resume Note.
+6. Select `ultra-test` once tasks for the active Change are completed with current v2
+   evidence and retained task-review provenance. Historical ledger rows and legacy
+   context Status fields do not enter this audit. Local green tests do not substitute
+   for wiring and E2E proof.
 7. Select `ultra-deliver` to run aggregate review and reconcile documentation. If that
    changes product or semantic files, rerun Test; re-enter Deliver on the fresh snapshot
    to write delivery metadata and archive the stable Change id. Commit, push, tag,
    publication, and deployment remain separately authorized effects.
+
+For one accepted Change, the owner may activate its exact `Execution Grant` in either
+mode. A `session-local` grant lives only in the current conversation: when that
+activation is lost — a fresh session, another host, or compaction — the work stops and
+waits for a new owner activation. A `durable work-package` grant lets a fresh Agent or
+host continue one exact work package, but only after the Agent stably verifies the
+recorded grant itself. In both modes the model may select the covered Research, Plan,
+Dev, Test, and reconcile-only Deliver routes until the next semantic stop or declared
+budget, and neither mode grants finalization or archive: writing `delivery.md`, version
+or package posture, and archiving always require a current explicit owner invocation,
+as do commit, push, publication, deployment, installation, and every other external
+effect.
 
 At any point, `ultra-status` can reconstruct the current position. A fresh session or
 different host resumes by reading `.ultra/tasks.json`, the selected `context_file`, its
@@ -249,7 +282,7 @@ Five optional hooks accelerate file reading and protect a narrow effect boundary
 | `post_edit_guard.py` | Record mechanical evidence observations after edits |
 | `block_dangerous_commands.py` | Advise on additive protected-branch publication; deny history rewrites and named destructive shell effects until the exact command is authorized |
 
-All five exit silently when `.ultra/` is absent. Details are in
+All five hooks exit silently when `.ultra/` is absent. Details are in
 [Plugin Isolation](docs/PLUGIN-ISOLATION-CONTRACT.md).
 
 ## Delegation
@@ -259,7 +292,8 @@ selected CLI in the background. Empty writable roots select native read-only mod
 declared roots select bounded write mode. The model returns one schema-constrained final
 response; the launcher extracts it from native structured output, validates the actual
 Git diff, and atomically publishes a terminal `finished`, `blocked`, or `failed` result
-beside the instruction.
+beside the instruction. The digest-bound packet is embedded in the worker prompt, so a
+strict host need not read instruction files outside its isolated worktree.
 
 ```bash
 ubp delegate run --to codex \
@@ -286,6 +320,7 @@ reachable without inventing ledger work.
 | OpenCode | 14 | 5 through native JS plugin | bundle + skill directories |
 | Kimi Code | 14 | 5 through wire adapter | managed plugin registry |
 | Grok Build | 14 | 5 through wire adapter | native plugin registration when available |
+| ZCode | 14 | 5 through wire adapter | inline plugin + local marketplace + reversible config registration |
 
 See [Runtime Compatibility](docs/RUNTIME-COMPAT-MATRIX.md) for exact paths and host
 limitations.
@@ -308,7 +343,8 @@ npm pack --dry-run --json
 
 Every changed Skill is also validated with the Codex Skill Creator validator. A changed
 Codex manifest is validated against the Plugin Creator schema. No release effect is
-implied by a green verification run.
+implied by a green verification run, and validator success establishes structural
+conformance rather than semantic acceptance.
 
 ## Documentation
 
@@ -319,6 +355,8 @@ implied by a green verification run.
 - [Skill Authoring](docs/SKILL-AUTHORING.md)
 - [Plugin Isolation](docs/PLUGIN-ISOLATION-CONTRACT.md)
 - [Runtime Compatibility](docs/RUNTIME-COMPAT-MATRIX.md)
+- [Adversarial Review Evaluation](docs/evals/adversarial-review-2026-08-14.md)
+- [ZCode Automation Evaluation](docs/evals/zcode-automation-2026-08-14.md)
 
 ## License
 

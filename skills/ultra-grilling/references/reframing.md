@@ -36,13 +36,17 @@ Rules that keep this honest:
   a constraint you did not have a minute ago. Record it as a decision.
 - **Never reframe toward what is easier to build.** If your reinterpretation
   happens to shrink the work, say that out loud and let the owner weigh it.
-- **Stop after two rejected reframes.** A third is no longer listening. Take the
-  owner's framing as given and move to the framing questions below.
+- **Stop when the owner rejects the proposed role and confirms their original frame.**
+  Do not keep producing cosmetic reinterpretations. If a materially different reading
+  later becomes evidenced, present that new distinction rather than counting prior
+  attempts.
 
 ## Framing questions
 
 These refuse the owner's framing on purpose, which is how they surface what the
-request left out. Ask at most five, and stop early once the frame stops moving.
+request left out. Ask only the prompts that can distinguish a materially different
+build, and stop when the owner confirms the frame or the remaining prompts cannot
+change it.
 
 | Question | What it recovers |
 |---|---|

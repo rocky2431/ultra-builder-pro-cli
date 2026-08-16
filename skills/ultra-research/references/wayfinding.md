@@ -27,6 +27,14 @@ Write `.ultra/research/<run-id>/brief.md` with:
 - owner decisions and the checkpoint that owns each one;
 - a stop condition stated as an observable artifact or resolved decision.
 
+## North Star Working Candidate
+
+In the same brief, keep the current candidate outcome, `FP-*` propositions, causal chain,
+evidence, counter-evidence, and the accepted `.ultra/north-star.md` revision and digest it
+began from. Update
+this section as lenses refine or contradict it. It is derived navigation and not semantic
+authority; only accepted synthesis can replace the canonical North Star.
+
 The brief is derived navigation, not semantic authority. Specifications, the North Star,
 `CONTEXT.md`, and accepted decisions remain canonical. Rebuild or discard the map when
 evidence changes; never add a completion flag merely to route another Skill.

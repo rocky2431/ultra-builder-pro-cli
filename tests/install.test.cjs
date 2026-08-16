@@ -35,9 +35,10 @@ test('package exposes only the installer and delegate entrypoint', () => {
   assert.match(help.stdout, /Codex CLI/);
   assert.match(help.stdout, /Kimi Code/);
   assert.match(help.stdout, /Grok Build/);
+  assert.match(help.stdout, /ZCode/);
 });
 
-for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok']) {
+for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']) {
   test(`${runtime} CLI install, doctor, reinstall and uninstall stay inside config-dir`, () => {
     const config = temporary(`ubp-cli-${runtime}-`);
     const fakeHome = temporary(`ubp-cli-home-${runtime}-`);
@@ -75,6 +76,7 @@ test('--all gives each host its own config-dir namespace', () => {
     path.join(config, 'codex', 'plugins', 'ultra-builder-pro'),
     path.join(config, 'kimi', 'plugins', 'managed', 'ultra-builder-pro'),
     path.join(config, 'grok', '.ubp', 'plugin-sources', 'ultra-builder-pro'),
+    path.join(config, 'zcode', 'cli', 'plugins', 'marketplaces', 'ultra-builder-pro', 'plugin'),
   ];
   try {
     const installed = run(args, { env: { HOME: fakeHome } });

@@ -18,16 +18,38 @@ ultra-status    read-only router at any point
 ultra-delegate  orthogonal bounded execution on another CLI
 ```
 
-Arrows are recommendations, not automatic invocation. The owner explicitly selects
-each public workflow. Delivery archives one stable `change_id`; the next request opens
-a new active id while prior task rows remain in the append-only ledger.
+Arrows are recommendations, not automatic invocation by default. The owner explicitly
+selects each public workflow unless a live owner-activated execution grant
+(session-local activation or a stably verified durable work-package grant)
+authorizes the host model to select only the covered Research,
+Plan, Dev, Test, and reconcile-only Deliver routes. Init, Change, Delegate, Status,
+final archive, and every external effect remain owner-selected. Delivery archives one
+stable `change_id`; the next request opens a new active id while prior task rows remain
+in the append-only ledger.
+
+## Topology and checkpoints
+
+The owner chooses the Agent topology at every stage: one Agent or several, which
+providers, which write scopes, serial or parallel. The unspecified default is the
+current Agent continuing alone — no automatic spawning, delegation, or control-plane
+enablement, and no provider permanently bound to a role. One primary writer owns the
+canonical `.ultra` files in a worktree; parallel source writes use isolated worktrees
+with explicit integration.
+
+Every owner-facing checkpoint — a WIP at a stop, a closing Resume Note, a delivery
+report — carries the eight fixed semantics defined in
+[artifact authority](ARTIFACT-AUTHORITY.md#owner-checkpoint-semantics): why, outcome,
+accepted boundary, delta, reality, decision needed, next bounded action, and not-done.
+Checkpoints are cognitive interfaces, not stage markers; alignment failure stops work
+until the owner re-accepts an outcome.
 
 ## Common entry contract
 
 Every user-invoked Skill reads, in order:
 
 1. zero or one `.ultra/changes/active/<change_id>/intent.md`; more than one is a conflict;
-2. `.ultra/tasks.json`, selecting only tasks whose `change_id` matches that active id;
+2. `.ultra/tasks.json`, selecting only tasks whose `change_id` matches that active id
+   and treating its v2 row as the sole task-status authority;
 3. the matching frontier task's `context_file` and closing `## Resume Note`;
 4. `.ultra/project-brief.md`, the accepted `.ultra/north-star.md`, `CONTEXT.md`, and
    relevant `.ultra/decisions/`, where those artifacts already exist;
@@ -76,10 +98,11 @@ reconciliation before planning when the accepted contract needs an update.
 
 A micro edit that makes no specification sentence false stays outside the Ultra
 lifecycle and uses ordinary repository TDD/verification. Once an active Change exists,
-even a `quick` profile receives one minimal Plan task so evidence and delivery remain
-bound to its id. A separate request cannot open a second active Change: finish or
-deliver the current one, abandon it with owner authority, or explicitly reconcile the
-new request into the same stable id.
+Plan creates the smallest graph justified by the real seams, evidence, review, and
+recovery needs so delivery remains bound to its id; a profile never fixes task count. A
+separate request cannot open a second active Change: finish or deliver the current one,
+abandon it with owner authority, or explicitly reconcile the new request into the same
+stable id.
 
 ## Planning
 
@@ -88,27 +111,71 @@ current-Change task graph and one context file per task without deleting histori
 rows. The model chooses ordinary technical seams; the owner is asked only when a seam
 changes a public contract, accepted risk, or another material trade-off. Every task
 stores the stable `change_id`; dependencies stay inside that Change and ids remain
-globally unique. Feature tasks are tracer bullets. A contract task precedes cross-process
-or cross-top-level-boundary implementations; integration checkpoints appear after
-several slices. Cycles and broken trace paths are repaired before handoff.
+globally unique. Feature tasks are tracer bullets. A contract task precedes dependent
+implementations when a shared contract must remain valid across independently changed
+boundaries; integration checkpoints appear where slices first compose or observed
+coupling and recovery risk justify a whole-path check. Cycles and broken trace paths are
+repaired before handoff. Complexity, file, task, line, and context counts are
+observations rather than plan-quality gates.
 
 ## Task development
 
 `ultra-dev` writes the implementation plan into the task context before code. It uses
-`ultra-tdd` on confirmed seams, records six evidence dimensions, and keeps ledger and
-context status synchronized. The closing Resume Note is rewritten even when work stops
-early.
+`ultra-tdd` on confirmed seams and records `ultra-task-evidence-v2`: typed acceptance,
+six evidence dimensions, subject/context identity, limitations, and task-review
+provenance. `.ultra/tasks.json` is the sole task-status authority; a new context has no
+Status field, while legacy Status/Complexity values are migration diagnostics and the
+ledger wins. The closing Resume Note is rewritten even when work stops early.
+Before publishing that record, Dev hashes bounded stable repository-contained bytes for
+every command or external `raw_evidence_ref` into `raw_evidence_sha256` and reads both
+the raw receipt and written record back. Structural validation checks ref/digest shape
+without dereferencing the receipt.
 
-Task review uses six independent lenses. Findings move through stable JSON artifacts,
-not intermediate worker chatter. Refactoring happens after the evidence makes real
-duplication or coupling visible.
+Task review selects lenses by risk and touched seams while the ledger row remains `in_progress`.
+Its first admission binds the ledger, task context, immutable packet scope, and actual
+pre-review evidence. It does not require a final v2 record or claim a task worktree
+digest that Worker Packet v1 does not carry.
+Findings move through stable JSON artifacts, not intermediate worker chatter. Verdicts
+are terminal for the current subject: `APPROVE` ends the task review even when P2/P3
+findings are retained — they become report entries or owner-selected backlog, never a
+fresh review of the same subject. `REQUEST_CHANGES` routes only the exact current
+P0/P1 findings as one in-scope repair set followed by at most one affected-lens delta
+review; a second `REQUEST_CHANGES` is an owner checkpoint, not another automatic
+repair. Lens selection follows the review kind, never a fixed count: an initial task
+review selects `review-spec` plus the lenses justified by risk and touched seams, a
+delta review reruns only the affected lenses, and an aggregate Change review may
+default to all six only when cross-task wiring justifies it. Budget exhaustion keeps the row `in_progress` and returns
+`owner checkpoint` / `budget_exhausted` without any semantic verdict.
+After the final summary validates, Dev independently captures the `subject`
+as a completion-snapshot freshness observation and immediately writes the one canonical
+v2 record; its `task_review` separately binds the retained strict summary, which does not
+prove the subject worktree digest. Only then may the primary model write `completed` to
+the ledger. Refactoring happens
+when evidence makes real duplication, coupling, or a boundary defect visible, never
+because a slice, finding, file, or repair-round count crossed a threshold.
+
+If later work invalidates completed evidence, Dev records the affected criterion IDs and reason in the context Change Log and Resume Note before changing the
+ledger-authoritative row from `completed` to `in_progress`; there is no silent demotion.
+The old frozen review remains historical evidence while the reopened task refreshes the
+affected observations, obtains a new final review, and captures a new completion subject.
 
 ## Whole-system audit
 
-`ultra-test` runs once after tasks for the active Change are complete. It checks anti-patterns, coverage,
+`ultra-test` runs once after tasks for the active Change are completed in the ledger
+with current v2 evidence and retained task-review provenance. Historical v1 evidence is
+a migration diagnostic, not current Test input. It checks anti-patterns, coverage,
 wiring, E2E behavior, performance, and security. It names the exact Git commit and
 binds the report to `change_id`, exact current task ids, intent SHA-256, and the
-product-worktree digest. `passed: true` implies complete current tasks and no required
+product-worktree digest for the current whole Change. Each task evidence subject remains
+its independently captured completion-snapshot freshness observation rather than being
+rebound to this aggregate identity. Test independently rechecks current Acceptance bytes,
+criterion IDs and verification types, retained task-review summary, durable owner record,
+and cited affected artifacts. For command and external evidence it independently takes
+the bounded stable non-symlink raw bytes, recomputes `raw_evidence_sha256`, then recomputes
+the containing record's `evidence_digest`. `.ultra/evidence/**` is excluded from the
+product-worktree digest, so these separate exact bindings prevent a self-referential
+receipt. An invalidated task returns to the explicit Dev reopen
+path. `passed: true` implies complete current tasks and no required
 area left `not_run`; task completion does not force a pass, and dispositioned gaps stay
 visible. It never turns an orphan,
 failed command, stub, or omission into permission to alter scope.
@@ -139,13 +206,21 @@ effects. Readiness grants none automatically.
 - draft or blocking active intent → change;
 - unsatisfied Research Disposition → research;
 - active Change without matching executable tasks → plan;
-- matching pending or in-progress task → dev;
-- completed current-Change tasks without a matching fresh report → test;
+- the unique matching `in_progress` task → dev;
+- only `pending` tasks remaining → report them as frontier candidates and recommend
+  one exact task id for an explicit owner invocation of dev;
+  - a completed ledger row with missing, stale, or invalid v2 evidence/task review → dev
+    to record affected criteria and reason, explicitly reopen, and repair provenance;
+  - completed current-Change tasks with current v2 evidence and no matching fresh report → test;
 - false report → route by finding and owner disposition, not by the boolean alone;
 - fresh, dispositioned report and unarchived Change → deliver.
 
-It also checks installation provenance, stale reports, old in-progress work, and
-unresolved markers. It does not mutate artifacts.
+It also checks installation provenance, unresolved markers, broken resume paths, and
+report freshness by root Change identity, exact ordered v2 task-evidence/review
+identities, and strict aggregate Review packet/admission/subject/summary bindings. It
+replays the existing structural validators; they observe transport and freshness but
+never decide semantic acceptance. Age, complexity, and file/task counts may be reported
+as context but never decide staleness or quality. It does not mutate artifacts.
 
 ## Delegation
 
@@ -170,14 +245,19 @@ Every durable output has a later reader:
   planning, development, audit, review, status, and delivery; an abandoned intent has
   an exact `## Abandonment` closure consumed by future Change reconciliation and Status;
 - the append-only task ledger and contexts are the common resume input after filtering
-  by active `change_id`, while task evidence feeds
-  review, whole-system audit, and delivery;
+  by active `change_id`, while typed v2 task evidence and retained task-review
+  provenance feed review, whole-system audit, and delivery;
 - the current test report is consumed by status and delivery;
 - delivery moves with the Change into archive and remains historical evidence.
 
 `ultra-status` intentionally writes nothing. Review, Hook, compact, and delegation
-files are derived observations with explicit rebuild or rerun paths. No route creates
-an unowned drift log, Change plan, technical-debt report, or second delivery summary.
+files are derived observations rather than semantic authority. A current strict review
+session contains `WORKER-PACKET.json`, `ADMISSION.json`, every selected specialist
+artifact, and `SUMMARY.json`; retain it until aggregate Test and Deliver have both consumed it
+successfully, then it may be garbage-collected. Premature loss requires a fresh Review
+and Test; never reconstruct the old receipt. Other derived observations keep their
+explicit rebuild or rerun paths. No route creates an unowned drift log, Change plan,
+technical-debt report, or second delivery summary.
 
 ## Interruption and cross-host continuation
 

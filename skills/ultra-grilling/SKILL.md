@@ -67,10 +67,11 @@ Order questions so that answering one unlocks the next. Ask the framing question
 before the detail questions — a detail settled inside the wrong frame has to be
 asked again.
 
-**Framing questions** come first — at most five, from the table in
-`references/reframing.md`. They refuse the owner's framing on purpose, which is
-how they surface what the request left out. Stop early once the frame stops
-moving.
+**Framing questions** come first, selecting only prompts from
+`references/reframing.md` that can change the current frame. They refuse the owner's
+framing on purpose, which is how they surface what the request left out. Stop once the
+owner confirms the frame or further prompts cannot distinguish a materially different
+build; a question count never decides that.
 
 **Detail questions** fill in the confirmed frame:
 
@@ -100,8 +101,10 @@ the options rejected and the reason they lost. The caller alone chooses the cano
 destination; Grilling never promotes an answer into project authority by itself.
 
 - **Resolved** — every required field answered or explicitly deferred.
-- **Stalled** — two consecutive turns add no newly confirmed decision. Hand back
-  the open fields and what each one blocks.
+- **Stalled** — the evidence shows that another in-scope question cannot produce a new
+  decision without unavailable owner input or a newly framed choice. Hand back the open
+  fields, the attempted distinctions, and what each one blocks; do not infer this from
+  a turn count.
 - **Unavailable** — the host cannot ask, or the owner stopped answering. Hand back
   the last confirmed state, every unanswered field named.
 
@@ -113,6 +116,6 @@ question per turn instead.
 ## References
 
 - `references/reframing.md` — read before the first question: when to reframe,
-  how it fails, the five framing questions, and what counts as an answer.
+  how it fails, the framing prompts, and what counts as an answer.
 - `../ultra-think/references/autonomy-boundary.md` — read when an answer removes
   something the specification already promised, or otherwise crosses C5.

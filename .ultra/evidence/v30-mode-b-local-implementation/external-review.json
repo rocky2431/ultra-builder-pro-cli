@@ -1,0 +1,22 @@
+{
+  "$schema": "ultra-external-review-receipt-v1",
+  "reviewer": "Codex root",
+  "reviewer_role": "read-only",
+  "task_id": "v30-mode-b-local-implementation",
+  "change_id": "chg-ultra-3-0-mode-b",
+  "reviewer_authority": {
+    "ref": ".ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md",
+    "sha256": "eeb86a7ca17214d2922959b4dec0396bbfe155042b3188ad43d663a44b1d029c"
+  },
+  "reviewed_contract": {
+    "ref": "docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md",
+    "sha256": "a91b563a48889909f80fc61f608a8198edec86c073a9b039ee57788b38483c1f"
+  },
+  "subject": {
+    "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+    "worktree_digest": "a2025b71fc61fe5a8d519ef5ddeb6d4b5d7942bd6060fad528692e63dbc64285"
+  },
+  "verdict": "approve",
+  "findings": [],
+  "timestamp": "2026-08-17T06:08:23+08:00"
+}

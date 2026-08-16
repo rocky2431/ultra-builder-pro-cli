@@ -43,8 +43,12 @@ delegation starts, and the worker fails an actual diff that touches it with
 Fields are exact. Status is `finished`, `blocked`, or `failed`; `blocked` requires a
 question. Check status is `passed`, `failed`, or `not_run`. Changed files are unique,
 normalized repository-relative paths and must exactly equal the launcher's Git diff.
+`output_ref` is requested for every check and required in the native schema projection
+used by hosts that accept one. The launcher remains compatible with hosts that return
+the otherwise exact check without that optional evidence pointer.
 
-The launcher extracts this object from native structured output and adds
+The launcher embeds the exact instruction and permission sources with their digests in
+the host prompt, extracts this object from native structured output, and adds
 `delegation_id`, `host`, instruction, permission, and output-schema digests,
 `read_only`, `base_head`, `final_head`, timestamps, `exit_code`, and signal. Launcher
 failures also add `failure_type`. A nonzero process cannot publish `finished`.

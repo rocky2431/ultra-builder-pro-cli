@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "id": "task-adv-confirmation",
+      "title": "Require checkout confirmation",
+      "type": "feature",
+      "priority": "P1",
+      "complexity": 2,
+      "status": "complete",
+      "dependencies": [],
+      "context_file": ".ultra/contexts/task-adv-confirmation.md",
+      "trace_to": [".ultra/changes/active/C-ADV/intent.md#acceptance"],
+      "change_id": "C-ADV"
+    }
+  ]
+}

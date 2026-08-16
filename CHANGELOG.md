@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implemented the accepted Ultra Builder Pro 3.0 design as one Mode B durable
+  work-package projection: North Star revision `north-star-v2-r2` with seven first
+  principles, five observable outcomes (`NS-01`-`NS-05`), and eight hard constraints;
+  the provider-neutral Ultra Core Protocol naming across public docs; the
+  owner-facing checkpoint contract (why, outcome, accepted boundary, delta, reality,
+  decision needed, next bounded action, not-done); the per-fact artifact-authority
+  matrix with an explicit Execution Grant row and four effect classes; and the
+  optional Graph/Loop control-plane boundary documented as not integrated.
+- Added dual-mode execution grants: session-local by default, `durable work-package`
+  by exact owner record, with stable verification, invalidation, and portable
+  handoff semantics in `skills/ultra-change/references/execution-grant.md`;
+  Status reports a recorded durable grant as inactive data awaiting verification.
+- Added work-package review convergence: at most one initial Review plus two P0/P1
+  delta Reviews per coherent package, explicit terminal outcomes, and mandatory
+  stop signals when repairs expose distinct root causes.
+- Added ZCode as a sixth native host with fourteen Skills, five hook registrations, a
+  managed local marketplace, inline-plugin activation, Doctor, update, uninstall, and
+  bounded source/target delegation profiles.
+- Added canonical North Star traces from Research through Change, Plan, review, Test,
+  and delivery, plus adversarial challenges at Research checkpoints 04, 21, and 99.
+- Added review coverage references, recorded isolated-versus-sequential execution mode,
+  mandatory Plan and aggregate Test reviews, blind cross-family probes, and a seeded
+  adversarial evaluation fixture.
+
+### Changed
+
+- Made review topology owner-selected per stage with a one-reviewer default: initial
+  task review selects `review-spec` plus risk/touched-seam lenses, delta reviews rerun
+  only affected lenses, and the aggregate full-roster default applies only when
+  cross-task wiring justifies it — never a mandatory count or a quality proxy.
+- Split `ultra-deliver` entry by invocation kind: a model-selected Deliver run under a
+  grant may reconcile, review, and report, then stops before finalization; writing
+  `delivery.md`, version/package posture, and archiving require a current explicit
+  owner invocation in every grant mode.
+- Replaced the Change-scoped same-session Autonomy Envelope (superseded name,
+  historical) with the dual-mode
+  Execution Grant contract (`## Execution Grant` in every intent, `session-local`
+  default); renamed `AUTONOMY_CONTINUABLE_SKILLS` to `GRANT_CONTINUABLE_SKILLS` and
+  removed the unused `requiresAutonomyEnvelope` policy field.
+- Closed the superseded `chg-v027-lifecycle-closure` Change with an exact
+  abandonment record citing the Mode B grant and successor `chg-ultra-3-0-mode-b`;
+  its pending v0.27 task rows remain inert append-only history.
+- Made `validate_repo_path` in the review waiter reject symlink and non-directory
+  path components at validation time (Python 3.13 `resolve(strict=False)` no longer
+  raises on symlink loops).
+- Made the task-evidence audit and review-wait fixtures derive the repository
+  North Star decision, snapshot, revision, and trace IDs dynamically instead of
+  locking revision r1.
+- Raised the Grok delegation turn ceiling to twelve and retained launcher-side strict
+  result validation; Kimi delegation can now select a model explicitly.
+- Made Claude delegation rely on strict launcher validation instead of a native schema
+  option rejected by current Claude Code.
+- Embedded each digest-bound instruction and permission packet in the worker prompt so
+  OpenCode can keep external-directory access denied, and projected a Codex-compatible
+  native result schema while retaining stronger launcher validation.
+
+### Fixed
+
+- Made no-op ZCode hook adapters emit an actually empty stdout response, matching the
+  host's strict hook parser instead of intermittently failing a benign tool call on `{}`.
+- Shared the macOS App-bundled ZCode CLI fallback between native plugin lifecycle
+  checks and delegated target launches when `zcode` is not available on `PATH`.
+- Removed a delegated-result prompt contradiction by listing `$schema` in the exact
+  required field set, matching the launcher's fail-closed result validator.
+- Added a resident entry guard to every implicitly discoverable public workflow so a
+  missing live execution grant stops before workflow work begins: a session-local grant
+  requires current conversation activation, and a durable work-package grant requires
+  stable verification by the consuming Agent.
+- Raised the direct `js-yaml` floor to 4.3.1 so the release dependency audit no longer
+  includes the high-severity `!!omap` quadratic-consumption advisory.
+
+### Verified
+
+- Completed authenticated read-only target delegation with Claude Code, Codex,
+  OpenCode, Kimi Code, and ZCode; Grok Build's malformed terminal output failed closed.
+- Re-ran ZCode target delegation without a binary override on a machine where `zcode`
+  is absent from `PATH`; the App-bundled fallback returned a validated empty-diff result.
+- Completed one bounded ZCode automatic-coding run through Plan, adversarial reviews,
+  TDD, and Test with 3/3 tests passing, then stopped before ungranted delivery, commit,
+  push, publication, or deployment.
+
 ## [0.26.2] — 2026-08-04
 
 ### Added

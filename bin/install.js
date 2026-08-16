@@ -4,13 +4,13 @@
  * ultra-builder-pro-cli — multi-runtime installer.
  *
  * Distributes fourteen Skills and five hooks to Claude Code, OpenCode, Codex CLI,
- * Kimi Code, and Grok Build through runtime-specific adapters under adapters/.
+ * Kimi Code, Grok Build, and ZCode through runtime-specific adapters under adapters/.
  * Install is idempotent and atomic; uninstall removes only managed assets.
  *
  * Usage:
  *   npx ultra-builder-pro-cli [options]
  *
- *   --claude / --opencode / --codex / --kimi / --grok select runtime(s)
+ *   --claude / --opencode / --codex / --kimi / --grok / --zcode select runtime(s)
  *   --all                                         install to all supported runtimes
  *   -g, --global                                  install to runtime's global config dir
  *   -l, --local                                   project scope where the host supports it
@@ -57,7 +57,7 @@ function printBanner() {
     paint('cyan', '   ╚═════╝ ╚═════╝ ╚═╝         ╚═════╝╚══════╝╚═╝'),
     '',
     `  ${paint('bold', 'Ultra Builder Pro CLI')} ${paint('dim', 'v' + pkg.version)}`,
-    `  ${paint('dim', 'Multi-runtime installer for Claude Code, OpenCode, Codex, Kimi Code, and Grok Build')}`,
+    `  ${paint('dim', 'Multi-runtime installer for Claude Code, OpenCode, Codex, Kimi Code, Grok Build, and ZCode')}`,
     '',
   ];
   console.log(banner.join('\n'));
@@ -72,6 +72,7 @@ function printHelp() {
     ${paint('cyan', '--codex')}            Codex CLI (OpenAI)
     ${paint('cyan', '--kimi')}             Kimi Code (Moonshot AI)
     ${paint('cyan', '--grok')}             Grok Build (xAI)
+    ${paint('cyan', '--zcode')}            ZCode (Z.AI)
     ${paint('cyan', '--all')}              all supported runtimes
 
   ${paint('yellow', 'Scope:')}
@@ -90,7 +91,7 @@ function printHelp() {
     ${paint('dim', '# Install to Claude Code globally')}
     npx ultra-builder-pro-cli --claude --global
 
-    ${paint('dim', '# Install all five native plugins in their user scopes')}
+    ${paint('dim', '# Install all six native plugins in their user scopes')}
     npx ultra-builder-pro-cli --all --global
 
     ${paint('dim', '# Uninstall from OpenCode')}
@@ -101,6 +102,9 @@ function printHelp() {
 
     ${paint('dim', '# Install to Grok Build globally')}
     npx ultra-builder-pro-cli --grok --global
+
+    ${paint('dim', '# Install to ZCode globally')}
+    npx ultra-builder-pro-cli --zcode --global
 
     ${paint('dim', '# Verify all host installations without changing them')}
     npx ultra-builder-pro-cli --all --global --doctor
@@ -129,6 +133,7 @@ function parseArgs(argv) {
       case '--codex': runtimes.add('codex'); break;
       case '--kimi': runtimes.add('kimi'); break;
       case '--grok': runtimes.add('grok'); break;
+      case '--zcode': runtimes.add('zcode'); break;
       case '--all':
         SUPPORTED_RUNTIMES.forEach(r => runtimes.add(r));
         break;
@@ -213,13 +218,13 @@ async function main() {
   if (flags.json && !flags.doctor) bail('--json is available only with --doctor');
 
   if (runtimes.length === 0) {
-    bail('no runtime selected; use --claude / --opencode / --codex / --kimi / --grok / --all');
+    bail('no runtime selected; use --claude / --opencode / --codex / --kimi / --grok / --zcode / --all');
   }
 
   const scope = resolveScope(flags);
   const repoRoot = path.resolve(__dirname, '..');
   const configDir = flags.configDir ? expandTilde(flags.configDir) : null;
-  const userScopedOnly = runtimes.filter((runtime) => ['kimi', 'grok'].includes(runtime));
+  const userScopedOnly = runtimes.filter((runtime) => ['kimi', 'grok', 'zcode'].includes(runtime));
   if (scope === 'local' && !configDir && userScopedOnly.length) {
     bail(`${userScopedOnly.join(', ')} plugins are user-scoped by their hosts; use --global or an isolated --config-dir`);
   }

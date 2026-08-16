@@ -45,9 +45,35 @@ one or more.
 
 The agent never stops seeing the current steering contract. Before Research accepts a
 baseline, the session Hook injects the raw Project Brief fallback. After Research, it
-injects the accepted North Star: Project Direction, any settled North Star Outcome, and
-Hard Constraints. Current task acceptance is appended in both cases. The cost of
+requires the exact field ``- Status: `accepted``` and injects the accepted North Star v2 `## Problem Reality`,
+`## First-Principle Propositions`, `## North Star Outcomes`, and `## Hard Constraints`.
+The complete selected sections have a 32 KiB SessionStart ceiling. Above it, the Hook
+uses a reference-only fallback containing the canonical path, immutable accepted snapshot
+path, revision, status, exact validated SHA-256 and byte length, and a direct-read
+instruction that rejects different bytes as authority; semantic truncation is forbidden.
+Brownfield fallback still reads the actual v0.26 `## Project Direction`, `## North Star
+Outcome`, and `## Hard Constraints` shape, or the older `## One-line` shape, without
+misreporting either as v2. Current task acceptance is appended in every case. The cost of
 repetition is always less than the cost of drift.
+
+The publication choice is exact: inject a mechanically bound accepted North Star, otherwise use the Project Brief fallback or a recognized legacy shape.
+When selected accepted sections exceed 32 KiB, use the reference-only path instead of
+semantic truncation. A v2 file whose decision, digest, or immutable snapshot binding is
+invalid is never labelled accepted session authority.
+The Hook does not maintain a second accepted-publication grammar. It safely locates the
+installed sibling Research validator and invokes that one JavaScript report through a
+bounded argv-only subprocess. Missing Node.js, a missing validator, timeout, malformed or
+oversized output, invalid UTF-8, and repository path escape all produce a typed repair
+fallback rather than accepted authority. The report checks the complete mechanical
+structure; it does not decide whether the accepted semantics are true or valuable.
+North Star and Project Brief ingress share one bounded 8 MiB regular-file snapshot:
+repository root, parent components, and file identity are recorded, symlink components
+are rejected, and the canonical root-to-file chain is freshly reopened after the read.
+Every accepted, reference-only, legacy, or Project Brief publication consumes only those
+captured bytes. An unavailable Project Brief produces a typed repair note and is never
+reread through an unbounded path API. This detects ordinary cooperative-workspace drift;
+it is not a claim that a process can prevent malicious operating-system-level replacement.
+The v0.26 legacy branch recognizes headings `## Project Direction`, `## North Star Outcome`, `## Hard Constraints` exactly.
 
 > **Test**: pick a random in-progress task, ask the agent "what's the acceptance criteria?" — if
 > it cannot answer in one sentence, this commandment is broken.
@@ -89,6 +115,30 @@ the owner's authorized frame.
 The agent always knows "how far from done." Each edit updates `.ultra/progress/<task-id>.json`
 with evidence completeness across six dimensions. Final-gate audits are forbidden — if a gap
 matters at the end, it matters mid-flight.
+
+Canonical task evidence uses `ultra-task-evidence-v2`: command, inspection,
+owner-judgment, and external-observation retain distinct authorities, while the six
+dimensions remain independent observations. The owner alone supplies an
+owner-judgment result. Validators may check structure, identity, provenance, freshness,
+and exact references; they never decide semantic acceptance. `.ultra/tasks.json` is the
+sole task-status authority. A task remains `in_progress` through task review and becomes
+`completed` only after blocking findings are resolved or authoritatively dispositioned
+and affected evidence is refreshed. First-review admission uses the ledger, task
+context, immutable packet, and actual pre-review evidence; the one final v2 record is
+published only after its final review summary validates. Its `subject` is an independently
+captured completion-snapshot freshness observation made after that validation and
+immediately before evidence publication. Its `task_review` separately binds the retained strict summary; the summary does not prove the subject worktree digest. Aggregate Test
+recomputes each command or external receipt's bounded stable bytes against
+`raw_evidence_sha256`, then recomputes the exact record `evidence_digest`. The
+product-worktree digest excludes `.ultra/evidence/**`; these separate raw and record
+bindings make publication non-self-referential without making it invisible.
+Aggregate Test
+separately binds the current whole Change and rechecks current Acceptance, criterion and
+verification type, review summary, owner record, and cited-artifact evidence. If later work
+invalidates a completed task, Dev records affected criteria and reason in Change Log
+and Resume Note before the explicit ledger `completed` to `in_progress` transition;
+there is no silent demotion. Legacy context Status/Complexity and v1 evidence remain
+honest migration diagnostics, not alternative truth.
 
 > **Scoped exception**: whole-system wiring audit (`ultra-test`) is necessarily terminal, because
 > "this export has no non-test importer" cannot be evaluated while later tasks are still pending.
@@ -187,15 +237,16 @@ Skill instruction. Do not touch it casually.
 
 | Consumer | Reads | Source of truth | Failure mode if drifted |
 |---|---|---|---|
-| `session_context` | North Star headings `## Project Direction`, `## North Star Outcome`, `## Hard Constraints`; Project Brief `## One-line`, or legacy North Star `## One-line` | `.ultra-template/north-star.md`, `.ultra-template/project-brief.md`, and the Hook's legacy-read branch | SessionStart shows no accepted North Star or Project Brief fallback; C1 dies |
-| `session_context` | unique active `change_id` → one matching `in_progress` task, else first dependency-ready `pending` task → its context | active Change directory plus `tasks.json[].change_id`, dependencies, status, and `context_file` | abandoned or blocked acceptance is injected, or current acceptance never surfaces |
+| `session_context` | the canonical JavaScript North Star validation report; bound accepted v2 sections or the 32 KiB immutable-snapshot reference with exact validated SHA-256 and byte length, without semantic truncation; Project Brief `## One-line`; actual v0.26 `## Project Direction` / `## North Star Outcome` / `## Hard Constraints`; or older North Star `## One-line` | `skills/ultra-research/scripts/validate_north_star.cjs`, `.ultra-template/north-star.md`, `.ultra-template/project-brief.md`, accepted `.ultra/north-star.md`, its owner decision and immutable snapshot, and the validator's two legacy-read shapes | Python and JavaScript publication grammars diverge, SessionStart labels unbound or different bytes accepted, truncates steering semantics, or shows no honest Project Brief/legacy fallback; C1 dies |
+| `session_context` | unique active `change_id` → one matching ledger `in_progress` task, else first dependency-ready ledger `pending` task → its context; legacy context Status/Complexity are diagnostics only | active Change directory plus `tasks.json[].change_id`, dependencies, sole status, and `context_file` | abandoned or blocked acceptance is injected, a legacy context overrides the ledger, or current acceptance never surfaces |
 | `mid_workflow_recall` | heading `## Acceptance Criteria` | `.ultra-template/contexts/TEMPLATE.md` | hook injects nothing; C1 dies silently |
 | `ultra-tdd` | path `references/templates/*` | `skills/ultra-tdd/references/templates/` | guidance points at a missing runnable alternative; C2 dies |
-| `post_edit_guard` | writes `.ultra/progress/<task-id>.json` for the active Change's current task | active Change directory plus `tasks.json[].change_id` and `id`, created on demand | historical work receives current observations; C4 weakens |
-| `ultra-dev` and `post_edit_guard` | 6 keys: `tests_written`, `tests_passed`, `persistence_real`, `feature_flags_audit`, `vertical_slice`, `spec_trace` | the six-dimension table in `skills/ultra-dev/SKILL.md` | sensor and workflow report different evidence |
+| `post_edit_guard` | writes `.ultra/progress/<task-id>.json` for the active Change's current ledger task | active Change directory plus `tasks.json[].change_id`, `id`, and sole `status`, created on demand | historical work receives current observations or a Hook invents completion; C4 weakens |
+| `ultra-dev` and `post_edit_guard` | 6 keys: `tests_written`, `tests_passed`, `persistence_real`, `feature_flags_audit`, `vertical_slice`, `spec_trace` | the six-dimension table in `skills/ultra-dev/SKILL.md` and typed evidence contract in `skills/ultra-plan/references/task-evidence-v2.md` | sensor and workflow report different evidence or a progress observation becomes semantic acceptance |
+| plan/dev/review/test/deliver | ledger status; actual pre-review inputs; one final `ultra-task-evidence-v2` carrying an independent completion-snapshot freshness observation and separate task-review provenance; aggregate Test identity | `.ultra/tasks.json`, task context, immutable Review artifacts, and `skills/ultra-plan/references/task-evidence-v2.md` | first review requires its own final output, context becomes a second status authority, review provenance is claimed to prove the independent subject, task subject is rebound to a later aggregate worktree, or invalid evidence is silently demoted |
 | planning and status | marker `[NEEDS CLARIFICATION]` | `.ultra-template/specs/*.md` | unresolved product truth is hidden |
 | `ultra-plan` / `ultra-dev` / hooks | `trace_to` form `.ultra/specs/file.md#anchor` | `tasks.json[].trace_to` + GFM heading slugify | traces appear resolved when their heading is absent |
-| `ultra-deliver` / `ultra-status` | fields `change_id`, `task_ids`, `intent_digest`, `git_commit`, and `worktree.diff_digest` | `.ultra/test-report.json` plus `worktree_digest.cjs` | stale Change, intent, task set, or product results pass as current |
+| `ultra-deliver` / `ultra-status` | root Change identity, ordered v2 task-evidence/review identities, and strict aggregate Review packet/admission/subject/summary bindings | `.ultra/test-report.json`, retained task evidence and Review artifacts, `worktree_digest.cjs`, and existing structural validators | stale Change, intent, task set, task evidence, Review transport, or product results pass as current |
 | `compact_context` | `.ultra/.runtime/compact-snapshot.md` | derived from canonical files and Git | compact recovery loses acceleration, not authority |
 | every hook | existence of `.ultra/` | the project directory | Ultra taxes projects that never opted in (see `docs/PLUGIN-ISOLATION-CONTRACT.md`) |
 | `ultra-init` | the project data skeleton | `.ultra-template/` and the exact file list in its Skill | later Skills read missing authority paths; C1 dies |

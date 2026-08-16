@@ -1,0 +1,22 @@
+{
+  "$schema": "ultra-external-review-receipt-v1",
+  "reviewer": "Codex root",
+  "reviewer_role": "read-only",
+  "task_id": "v027-harness-loop-closure",
+  "change_id": "chg-v027-lifecycle-closure",
+  "reviewer_authority": {
+    "ref": ".ultra/decisions/2026-08-16-v027-harness-loop-closure.md",
+    "sha256": "86ff5ba7d955d3894fb0b5f12d88dca3edb7c855d9254d00db71603740670b34"
+  },
+  "reviewed_contract": {
+    "ref": "docs/V027-HARNESS-LOOP-INCIDENT-REMEDIATION.zh-CN.md",
+    "sha256": "c39347ca3553175aec06629f710a8541db8a12445e5a17dd90e62e6b75bc2acb"
+  },
+  "subject": {
+    "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+    "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa"
+  },
+  "verdict": "approve",
+  "findings": [],
+  "timestamp": "2026-08-16T15:48:30+08:00"
+}

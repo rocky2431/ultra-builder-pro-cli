@@ -13,6 +13,8 @@ excluded, deferred, or unresolved.
 - Never infer an MVP, reduced version, phase label, or omission from implementation
   convenience.
 - Trace included capabilities to requirements and observable outcomes.
+- Trace each included capability to candidate `FP-*` and `NS-*` IDs, and name every
+  candidate `HC-*` it could breach, without copying North Star prose.
 - Record dependencies, migrations, compatibility, and operational obligations inside
   the capability that owns them.
 - Keep speculative future ideas outside the active scope unless selected.
@@ -28,3 +30,9 @@ Complete the step with decision evidence and the updated output path.
 
 In the area report, record `requirement_ids`, `scope_status`, and `rationale`, then link
 the capability heading in `product.md`.
+
+## Adversarial challenge
+
+Before the owner checkpoint, challenge whether every included capability causally serves
+the working North Star, whether an exclusion breaks that outcome or a hard constraint,
+and whether the proposed scope can optimize a proxy while missing delivered value.

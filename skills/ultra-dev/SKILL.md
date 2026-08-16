@@ -9,24 +9,77 @@ The model owns code reasoning and edits; repository files own the resumable cont
 
 ## Before you start
 
-1. Resolve exactly one active `change_id`; more than one is a repository conflict. Read
-   `.ultra/tasks.json`, choose one matching `in_progress` or dependency-ready task, then read
-   its full `context_file`, especially `## Resume Note`.
-2. Read `CONTEXT.md` for vocabulary, and the `.ultra/decisions/` entries the task
+1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop.
+2. Read `../ultra-change/references/change-contract.md` and apply its **Active Change
+   authority resolution** before reading any active `intent.md` or resolving a current
+   `change_id`. Require its one valid authority; otherwise stop with its typed repair.
+   Then read `.ultra/tasks.json`. Without an exact task id in the owner invocation,
+   select only the uniquely current `in_progress` task and read its full
+   `context_file`, especially `## Resume Note`; if none exists, stop and ask
+   the owner to invoke Dev naming one exact task id — a `pending` row is a frontier
+   candidate, not active work, and Hooks will not have injected its acceptance or
+   Resume. An invocation that names one exact task id supplies invocation-local
+   selection authority for this Dev run only. If more than one row claims
+   `in_progress`, do not manufacture a unique current task; use the explicit recovery
+   below or stop with the Hook diagnostic. The ledger is the sole task-status authority;
+   legacy Status or Complexity never overrides it. A `completed` task with a current
+   invalidation observation may be selected only for the explicit reopen below; record
+   and read back that transition before repair.
+3. Read `CONTEXT.md` for vocabulary, and the `.ultra/decisions/` entries the task
    context names.
-3. Read `.ultra/north-star.md` and the task's acceptance criteria. If you cannot
-   state that acceptance in one sentence, you are not ready to start.
+4. Validate `.ultra/north-star.md` with the shipped Research structural sensor. Resolve
+   every listed `FP-*`, `NS-*`, and `HC-*` in the task and active Change against that
+   accepted authority. Compare the active Change's recorded **North Star revision** and
+   **North Star digest** with the accepted file's revision and current Git blob digest.
+   A missing ID, revision mismatch, or digest mismatch is a stale-plan observation: stop
+   before editing and recommend explicit owner invocation of `ultra-change` to reconcile
+   the active Change. Never inherit approval or silently rewrite the trace.
+5. Read the task's acceptance criteria. If you cannot state that acceptance in one
+   sentence, you are not ready to start.
+
+### Activating one named pending task
+
+When the owner invocation names a dependency-ready `pending` task, perform its
+canonical activation before any implementation work: write that row from
+`pending` to `in_progress` in `.ultra/tasks.json` and read the row back before
+the first implementation edit. This one canonical ledger write is what makes
+the named task live for the task-aware Hooks; without it Hooks correctly remain
+task-silent while you edit, because a trusted invocation is visible only to the
+invocation that carried it. The activation adds no selector, activation flag,
+or workflow state — the ledger row is the only authority — and it must respect
+the single-writer boundary: resolve any conflicting `in_progress` rows through
+the recovery below or an owner decision before writing.
+
+### Recover one exact task from an ambiguous ledger
+
+An explicit owner invocation with one exact task id supplies invocation-local selection
+authority for this Dev run even when multiple ledger rows claim `in_progress`. Before
+editing, read that exact canonical ledger row and context, especially its Resume Note,
+then inspect current Git/worktree evidence for the named task. Do not persist a new
+current-task selector, status, or workflow state to manufacture uniqueness. Hooks remain
+task-silent and progress-silent while the ledger is ambiguous.
+
+Only an explicit owner/Plan correction that establishes a conflicting task never started
+may return that row to `pending`. If multiple tasks contain real partial work, keep every
+task with real partial work `in_progress` and preserve each task's bytes. Recover them by
+separate exact task-id owner invocations or obtain owner-authorized Plan reconciliation;
+use a separate worktree when needed to keep their writes isolated. Completing the
+selected task still requires final review, canonical v2 evidence, context publication,
+ledger write, and readback.
 
 When this task starts from an observed error, failing check or unexpected behavior,
 read `references/debugging.md` and establish the earliest incorrect state before editing.
 
 ## Definition of done
 
-- All six evidence dimensions answer the checkable rules below.
-- `tasks.json` and context status agree after write/read-back.
+- All six evidence dimensions carry honest, current observations under the typed v2
+  evidence contract; a real limitation remains a gap rather than becoming a pass.
+- `.ultra/tasks.json` remains the sole task-status authority after write/read-back.
 - The task still names the active `change_id`; historical unfinished work stays out.
 - The context file carries a Completion entry and a rewritten Resume Note.
-- A task-level review has run and its blocking findings are resolved.
+- A task-level review runs while the ledger task remains `in_progress`; its blocking
+  findings are resolved or owner-dispositioned as required and affected evidence is
+  refreshed before the model writes `completed` to the ledger.
 
 ## Write the implementation plan before the code
 
@@ -38,30 +91,54 @@ buries the design decisions in the details.
 ## Develop through red then green
 
 Follow `../ultra-tdd/SKILL.md`, writing tests only on the seams the plan already
-confirmed, one slice at a time. Do no refactoring here — `ultra-review` owns it,
-because what is worth restructuring only becomes visible after several slices.
+confirmed, one slice at a time. `ultra-review` owns evidence-backed refactoring when
+observed duplication, coupling, or a boundary defect justifies it; a slice count does
+not make that decision.
 
 ## Converge on the task-scoped acceptance set
 
-Development ends when the task's acceptance commands pass, not when the code looks
+Development ends when every task-scoped criterion has its required current evidence and
+responsible semantic disposition, not merely when commands pass or the code looks
 finished. Resolve the context's **Change Acceptance IDs** against the active `intent.md`
-for `<change_id>`
-and use each named row's executable `Verification`. Commands under the context's
-Acceptance Criteria may add task-local checks; they do not replace the Change mapping.
+for `<change_id>`. For each named row consume its exact `Verification type` and
+`Required evidence`. When one outcome needs more than one authority, split it into
+independent criteria with unique IDs and preserve each authority separately; every row
+has exactly one verification type. Task-local acceptance may add evidence requirements,
+but it does not replace or narrow the Change mapping.
 
-Run one baseline before repairing anything. Track the best-ever passing set of mapped
-IDs and task-local commands, the total repair rounds, and consecutive rounds that add
-nothing to that set. The loop has three explicit exits:
+Handle the four verification types without converting one authority into another:
+
+- Execute only `command` observations. Record the exact command, working directory,
+  exit status, retained raw output reference, and its exact SHA-256.
+- For `inspection`, cite the exact source and revision or digest, then refresh the
+  observation after any touched source changes.
+- For `owner-judgment`, preserve the cited owner decision. The owner alone supplies its
+  semantic result; a model statement, validator, score, or command cannot proxy it.
+- For `external-observation`, preserve the provider or system receipt without proxying it
+  with a local command, model claim, or synthetic fixture, and bind its exact bytes by
+  SHA-256.
+
+- Missing `owner-judgment` stops at its named owner gate.
+- Missing `external-observation` stops at its named external or authorization gate.
+- If an inspection exists but its semantic implication is unresolved, stop at the
+  responsible model or owner gate; a structural citation is not an automatic acceptance
+  verdict.
+
+Run one baseline before repairing anything. Track a best-ever evidence set keyed by
+criterion, verification type, and source identity to make progress visible, plus the
+current evidence set used for convergence. Stale or regressed evidence remains history
+but cannot satisfy the current set. Do not infer semantic progress or failure from a
+round count. The loop has three explicit exits:
 
 | Exit | Condition | Action |
 |---|---|---|
-| Converged | Every mapped Change verification and task-local command exits zero | Close out below |
-| Stalled | Two consecutive repair rounds add no new item to the best-ever passing set, or three repair rounds finish without convergence | Stop; report the remaining criteria and what each repair tried |
-| Unreachable | A command did not start because its executable, fixture, service or declared environment prerequisite is unavailable | Stop that criterion; report the missing prerequisite and its repair path |
+| Converged | Every mapped and task-local criterion has current required evidence of every named type, and the responsible model or owner has made any semantic disposition | Close out below |
+| Stalled | An in-scope repair yields no new or refreshed evidence and no further evidence-producing repair is justified inside the approved task | Stop; report the missing evidence, the attempted repair, and the responsible next gate |
+| Unreachable | Required evidence cannot be observed because an executable, fixture, provider, service, declared environment prerequisite, or required authorization is unavailable | Stop that criterion; report the unavailable prerequisite or gate and its reachable repair path |
 
-A nonzero exit normally means a failing criterion, not an unreachable one; inspect its
-output. A regression never shrinks the best-ever set, and the total round limit stops
-oscillation where different criteria alternate between pass and fail.
+A nonzero command exit is an observation, not automatically `Unreachable`; inspect its
+output and repair within scope when justified. None of these exits mechanically decides
+semantic sufficiency, owner acceptance, or external truth.
 
 ## Answer the six evidence dimensions
 
@@ -76,14 +153,15 @@ Each has a rule you can check against the work rather than assert:
 | `vertical_slice` | One test's execution path runs from the entry point through to persistence |
 | `spec_trace` | The anchor the task's `trace_to` names exists in the specification |
 
-Record one canonical `.ultra/evidence/<task-id>/evidence.json` with
-`$schema: "ultra-task-evidence-v1"`, `task_id`, `git_head`, `commands`, the six-key
-`dimensions` object, `artifacts`, `limitations`, and `timestamp`. Raw logs and cited
-files stay beside it; no second summary restates the same evidence. Each command has
-`command`, `exit_code`, and `evidence_ref`. Each dimension has `status` (`satisfied`,
-`gap`, or `not_applicable`), `evidence_refs`, and a non-empty `rationale`. Evidence is a
-sensor, not a gate: a gap is reported and handed over, never used to block the work — a
-gate that can be escaped by damaging the work gets escaped by damaging the work.
+Before task review, retain the actual criterion evidence, raw logs, owner records,
+external receipts, and cited artifacts without inventing another completion record.
+Do not write `evidence.json` before the task's validated final `SUMMARY.json` exists.
+The review packet admits those actual pre-review observations together with the ledger,
+context acceptance, and packet-defined task scope. A structural validator may check
+exact fields, types, digests, paths, and freshness observations. It never supplies an
+acceptance disposition, turns a model claim into command evidence, or decides semantic pass.
+Evidence is a sensor: a gap or legacy v1 record is reported with a migration
+diagnostic, never rewritten as v2 truth.
 
 ## When implementation and the specification disagree
 
@@ -95,10 +173,49 @@ classification in the context file's Change Log.
 
 ## Close out
 
-Write the status to both places and read both back. Add the Completion entry and
-rewrite the Resume Note to say where the next session picks up. Then run the
-task-level review through `../ultra-review/SKILL.md`, resolve blocking findings, and refresh
-the evidence they touched.
+Keep the ledger row `in_progress` while running task review through
+`../ultra-review/SKILL.md`. Build its immutable packet from the ledger, task context,
+packet-defined task scope, and actual pre-review evidence; the final v2 record is not an
+admission prerequisite. Route only the exact current P0/P1 findings (or a P2 the owner
+explicitly promoted) as one in-scope repair set, followed by at most one affected-lens
+delta review; a second `REQUEST_CHANGES` returns to the owner checkpoint instead of
+another automatic repair. Budget exhaustion stops execution at `owner checkpoint` /
+`budget_exhausted` and keeps the ledger row `in_progress`.
+It never yields `APPROVE`, `REQUEST_CHANGES`, `INCOMPLETE`, pass, fail, accept, or
+abandon. If a repair changes implementation or evidence in review scope, use a new
+immutable packet and validated review summary before closeout rather than rebinding the
+old review. Worker Packet v1 and its summary do not bind a task worktree digest.
+
+After the final validated `SUMMARY.json`, write one canonical `ultra-task-evidence-v2` record only after completing the raw-receipt binding below.
+When the task's owner-designated review mode is external manual, the final review
+product is instead the external reviewer's real receipt, bound through the
+`review_mode: "external-manual"` branch of
+`../ultra-plan/references/task-evidence-v2.md`: publish that receipt under
+`.ultra/evidence/<task-id>/`, record its exact stable-byte SHA-256, and verify it
+with the sensor's `--verify-external-receipt` mode instead of inventing a strict
+session. Never fabricate one branch's artifacts to satisfy the other's shape.
+The `subject` is an independently captured completion-snapshot freshness observation.
+Before writing `evidence.json`, resolve every
+command and external-observation `raw_evidence_ref` below the real repository root and
+take bounded stable repository-contained bytes from an ordinary regular non-symlink file
+opened nonblocking and no-follow. Reject a missing, escaped, symlinked, special,
+oversized, or replaced file; otherwise compute `raw_evidence_sha256` from that one byte
+snapshot. Publish that canonical record at `.ultra/evidence/<task-id>/evidence.json`,
+read back the stable record and each raw ref,
+and require the same ref bytes and digest before continuing.
+Follow `../ultra-plan/references/task-evidence-v2.md`: `task_review` separately binds the retained strict summary; record one typed acceptance entry per criterion, all
+six dimensions, the exact Execution Packet and review identities, blocking-finding
+dispositions, evidence refresh refs, artifacts, limitations, and retention without
+claiming that the review summary proves `subject.worktree_digest`. Read the record back, then update context
+`## Task Review`, Completion, and `## Resume Note`; the context has no second status.
+Only after those facts are durable may the primary model write `completed` to the
+ledger and read the row back.
+
+If later work invalidates a completed task's criterion evidence, Dev performs an
+explicit reopen. A reopen changes the ledger row from `completed` to `in_progress`;
+Dev must never silently demote the row. Before that write, record the affected criterion IDs and reason in both the context Change Log and Resume Note, preserve the prior review as
+historical evidence, then write and read back the ledger transition. Refresh the named
+evidence, run task review for the new snapshot, and repeat this closeout sequence.
 
 Report the changed paths, the seam, the exact checks run, the review result, the
 evidence gaps and the residual risk. Recommend the next capability from what the
@@ -106,14 +223,16 @@ files now say; do not invoke it.
 
 ## When the owner decides
 
-Any REDUCTION, and each external effect separately.
-At most one authorized local task commit happens here; push, tag, publish and
-deploy each need their own authorization. An interrupted task leaves its worktree
-as it stands and says so in the Resume Note instead of tidying it away.
+The owner decides any REDUCTION and each external effect separately. At most one
+authorized local task commit happens here; push, tag, publish and deploy need separate
+authority. An interruption leaves the worktree as-is and names it in the Resume Note.
 
 ## References
 
+- `../ultra-change/references/change-contract.md` — canonical Active Change authority resolution.
 - `../ultra-tdd/SKILL.md` — read before the first test, for the seam and mock boundary.
 - `../ultra-think/references/autonomy-boundary.md` — read when spec and code disagree.
 - `../ultra-review/SKILL.md` — read when implementation evidence is ready for review.
+- `../ultra-change/references/execution-grant.md` — read only for grant-activated continuation.
+- `../ultra-plan/references/task-evidence-v2.md` — canonical evidence, disposition, and task-review shape.
 - `references/debugging.md` — read for a reproduced failure before selecting a repair.

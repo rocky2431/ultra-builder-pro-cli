@@ -40,9 +40,8 @@ test('all fourteen skills use portable minimal frontmatter and the shared author
     for (const heading of ['Before you start', 'Definition of done', 'When the owner decides', 'References']) {
       assert.match(body, new RegExp(`^## ${heading}$`, 'm'), `${name}: ${heading}`);
     }
-    assert.ok(text.split('\n').length <= 120, `${name}: resident prompt is too large`);
     assert.doesNotMatch(text, /[\u3400-\u9fff]/u, `${name}: model-facing text must be English`);
-    assert.doesNotMatch(text, /(?:\.claude|\.codex|\.opencode|\.kimi|\.grok)\//, `${name}: host-specific path`);
+    assert.doesNotMatch(text, /(?:\.claude|\.codex|\.opencode|\.kimi|\.grok|\.zcode)\//, `${name}: host-specific path`);
   }
 });
 
@@ -94,6 +93,15 @@ test('file-first workflows have no orphan semantic ledgers or unnamed output doc
   }
 });
 
+test('Skill size and semantic quality are never decided by line-count gates', () => {
+  const lineCountGate = /(?:skill|instruction|reference)[^\n]{0,80}(?:line count|(?:at most|maximum|minimum|no more than|fewer than|more than|under|over|<=|>=|<|>)[^\n]{0,20}lines?)[^\n]{0,80}(?:gate|threshold|pass|fail|reject|split|must|required)/iu;
+  for (const name of ALL) {
+    for (const file of walk(path.join(SKILL_ROOT, name)).filter((entry) => entry.endsWith('.md'))) {
+      assert.doesNotMatch(fs.readFileSync(file, 'utf8'), lineCountGate, path.relative(ROOT, file));
+    }
+  }
+});
+
 test('role boundaries remain explicit without public-workflow chaining', () => {
   for (const caller of USER_INVOKED_SKILLS) {
     const text = fs.readFileSync(skillFile(caller), 'utf8');
@@ -113,10 +121,10 @@ test('role boundaries remain explicit without public-workflow chaining', () => {
   for (const [name, count] of Object.entries(callers)) assert.ok(count >= 2, `${name}: ${count} callers`);
 });
 
-test('research keeps seventeen evidence lenses and one progressively disclosed wayfinding method', () => {
+test('research keeps seventeen evidence lenses separate from routed contract references', () => {
   const root = path.join(SKILL_ROOT, 'ultra-research', 'references');
   const files = fs.readdirSync(root).filter((name) => name.endsWith('.md')).sort();
-  const steps = files.filter((name) => name !== 'wayfinding.md');
+  const steps = files.filter((name) => !['wayfinding.md', 'north-star-v2.md'].includes(name));
   assert.deepEqual(steps, [
     '00-problem-validation.md',
     '01-opportunity-discovery.md',
@@ -137,10 +145,12 @@ test('research keeps seventeen evidence lenses and one progressively disclosed w
     '99-synthesis.md',
   ]);
   assert.ok(files.includes('wayfinding.md'));
+  assert.ok(files.includes('north-star-v2.md'));
   const skill = fs.readFileSync(skillFile('ultra-research'), 'utf8');
   assert.match(skill, /Load one reference\s+at a time/i);
   assert.match(skill, /git blob hash/i);
   assert.match(skill, /references\/wayfinding\.md/);
+  assert.match(skill, /references\/north-star-v2\.md/);
 });
 
 test('every enabling template is present and the index maps the real alternatives', () => {

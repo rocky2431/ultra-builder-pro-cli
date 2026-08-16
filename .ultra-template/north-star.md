@@ -1,35 +1,52 @@
 # Project North Star
 
-> **Authority**: the accepted steering contract established by `ultra-research` from
-> owner decisions and cited evidence. Every Change and task must serve this contract.
+> **Authority**: `ultra-research` is the first semantic writer. This placeholder is
+> owner-readable structure only; it is not an accepted direction, metric, or boundary.
 >
-> **Scope**: this file owns the project direction, the one North Star outcome or metric
-> when one is justified, hard constraints, and explicit exclusions. Product requirements,
-> supporting measurements, actors, and scenarios stay in `specs/product.md`.
+> **Adoption**: Init creates this file with status `unresearched` and no semantic IDs.
+> Research replaces it only after evidence collection and explicit owner acceptance.
 
-## Project Direction
+## Acceptance and Revision
 
-[NEEDS CLARIFICATION]
+- Schema: `north-star-v2`
+- Status: `unresearched`
+- Revision: `none`
+- Owner acceptance source: `none`
+- Acceptance time: `not-recorded`
+- Supersedes: `none`
 
-## North Star Outcome
+## Problem Reality
 
-- `NS-01` outcome: [NEEDS CLARIFICATION]
-- Metric or observation contract: [NEEDS CLARIFICATION]
-- Why it represents delivered value: [NEEDS CLARIFICATION]
+- Reality: [NEEDS RESEARCH]
+- Evidence: [NEEDS RESEARCH]
+- Unknowns: [NEEDS RESEARCH]
 
-A single metric is optional. When one would distort the product, record that decision and
-use an observable outcome plus guardrails instead of inventing numeric precision.
+## First-Principle Propositions
+
+[NEEDS RESEARCH: Research creates stable proposition IDs only after owner acceptance.]
+
+## Value Causal Chain
+
+[NEEDS RESEARCH: map accepted principles through capability and behavior to outcomes.]
+
+## North Star Outcomes
+
+[NEEDS RESEARCH: do not create an outcome ID or metric during Init.]
 
 ## Hard Constraints
 
-- `HC-1`: [NEEDS CLARIFICATION]
+[NEEDS RESEARCH: do not create a constraint ID during Init.]
 
 ## Explicit Exclusions
 
-- [NEEDS CLARIFICATION]
+- [NEEDS RESEARCH]
+
+## Uncertainties and Revisit Triggers
+
+- [NEEDS RESEARCH]
 
 ## Research Trace
 
-- Project brief: `project-brief.md`
-- Accepted research run: [NEEDS CLARIFICATION]
-- Decision references: [NEEDS CLARIFICATION]
+- Project Brief: `project-brief.md`
+- Research runs: none
+- Sources and decisions: none

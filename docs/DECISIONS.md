@@ -1,7 +1,20 @@
-# Ultra Builder Pro v0.26 decisions
+# Ultra Builder Pro decisions
 
 This file records durable product-level decisions that explain the current source tree.
 Project decisions created by Ultra belong in each project's `.ultra/decisions/`.
+
+## Ultra Core Protocol (3.0, accepted 2026-08-17)
+
+The owner accepted `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md` and projected it as North
+Star revision `north-star-v2-r2`
+(`.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md`). Ultra Builder Pro is the
+file-first, provider-neutral Ultra Core Protocol: cognitive alignment through
+checkpoints, per-fact canonical authority, explicit dual-mode authorization, typed
+evidence with recovery, and three-round review convergence. Authorization has two
+modes — `session-local` by default, `durable work-package` when the owner issues an
+exact grant (see `.ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md`); no
+file, status, Hook, or Resume note ever implies activation. Optional Graph/Loop
+coordination layers own observations only and none is integrated.
 
 ## File-first authority
 
@@ -13,13 +26,57 @@ ownership of route and meaning.
 
 ## Three Skill roles
 
-The product exposes eight owner-invoked workflows, five model-invoked disciplines, and
-one router. Public workflows require explicit owner selection. A public workflow may
-recommend but never launch another public workflow. A model discipline needs at least
-two canonical callers or it is inlined.
+The product exposes eight user workflows, five model-invoked disciplines, and one
+router. Public workflows require explicit owner selection by default. Research, Plan,
+Dev, Test, and Deliver reconciliation have one narrow exception: an activated
+Change-scoped execution grant may let the model select the next covered workflow —
+session-local activation in the current conversation, or a stably verified durable
+work-package grant. A model discipline needs at least two canonical callers or it is
+inlined.
 
 This keeps reusable reasoning in one place without turning it into another user-facing
 route or custom-agent registry.
+
+## Bounded same-session continuation
+
+The stored grant text is descriptive authority, not an executable grant. Session-local
+activation is a current owner utterance approving the exact grant and current task
+ledger; a durable work-package grant is executable only after a fresh Agent stably
+verifies its recorded subject, scope, topology, effects, budgets, expiry, revocation,
+and invalidation. A fresh session without a durable grant, host change, lost
+activation context, semantic stop, or budget ceiling pauses
+the loop. Plan, task, and aggregate reviews remain mandatory. Delivery continuation is
+reconcile-only; finalization, archive, authenticated providers, install, commit, push,
+publish, and deploy remain separately authorized.
+
+The native host model-tool loop performs the work. Existing files and Git carry
+recovery; no route position, daemon, or extra semantic store is introduced.
+
+## Review topology is owner-selected
+
+The owner chooses reviewer and provider count for each stage. The default is one reviewer:
+the current Agent. An initial task review selects `review-spec` plus the
+lenses justified by risk and touched seams; a delta review reruns only affected
+lenses; an aggregate Change review may default to the full roster only when cross-task
+wiring justifies it — never as a mandatory count or a quality proxy. Specification
+fidelity owns both accepted-behavior mapping and the challenge to a Change's claimed
+North Star contribution, with actual execution mode and coverage recorded. When
+another model family is available, a blind premise challenger is an additional probe
+rather than a voting lens.
+
+The seeded 2026-08-14 evaluation found no consequential defect class uniquely caught
+by a permanent premise lens: the strengthened specification lens, the six-concern Kimi
+probe, and the ZCode specification probe each found all five hidden classes. Grok's
+malformed terminal output was rejected and was not counted as semantic evidence. See
+`docs/evals/adversarial-review-2026-08-14.md`.
+
+## ZCode activation uses documented plugin directories
+
+ZCode receives a managed local marketplace for importability and a documented
+`plugins.dirs` entry for immediate native discovery. Ultra owns only the entry it adds,
+so reinstall is idempotent and uninstall preserves unrelated user configuration. It
+does not write ZCode's private plugin cache or copy desktop provider credentials into
+headless CLI configuration.
 
 ## Intake, baseline, and delta
 
@@ -47,14 +104,36 @@ Directory position and explicit fields record mechanically checkable facts. The 
 model reads those facts and chooses the next route. There is no persisted “current
 workflow stage” whose value can override the actual files.
 
-Task status is written to both the ledger and context, then read back. Tasks retain a
-stable `change_id` in an append-only ledger; current readers select only rows matching
-the one active Change. Archive or abandonment is a `git mv`. Test-report freshness
-compares Change id, current task ids, intent digest, `git_commit`, and product-worktree
-digest with the current checkout. Deliver reconciles first and finalizes only while
-that complete snapshot remains current. A separate request cannot create a second
-active Change; it waits, exits the current Change, or is explicitly reconciled into the
-same id.
+Task status lives only in the `ultra-task-ledger-v2` row and is read back there. New task
+contexts do not duplicate it; legacy context Status and Complexity fields remain
+migration diagnostics and the ledger wins. Tasks retain a stable `change_id` in the
+append-only ledger; current readers select only rows matching the one active Change.
+Archive or abandonment is a `git mv`. Test-report freshness is governed normatively by the complete v2 rule in [Artifact Authority](ARTIFACT-AUTHORITY.md#evidence-promotion).
+That authority binds the current Change snapshot, ordered v2 task-evidence identities,
+and strict aggregate-review packet, admission, subject, and summary bindings. This
+decision intentionally does not maintain a second field mirror. Deliver reconciles
+first and finalizes only while that complete snapshot remains current. A separate
+request cannot create a second active Change; it waits, exits the current Change, or is
+explicitly reconciled into the same id.
+
+## Typed task evidence and completion ordering
+
+Current work uses `ultra-task-evidence-v2`. Command, inspection, owner-judgment, and
+external-observation evidence retain distinct authorities; the owner alone can supply
+an owner-judgment result. Structural validators report exact fields, identities,
+digests, provenance, and freshness, never semantic acceptance. A task remains
+`in_progress` through its task review. Blocking findings and their dispositions are
+recorded and affected evidence is refreshed before the primary model writes
+`completed` to the ledger. Historical v1 evidence remains readable but cannot satisfy a
+current Change's Test or Deliver input without migration.
+
+## Counts are observations, not semantic gates
+
+Task, file, line, context, question, finding, repair-round, and complexity counts do not
+decide plan quality, review convergence, staleness, or completion. The model interprets
+concrete coupling, evidence, risk, and recovery facts. Explicit physical ceilings such
+as time, bytes, cost, provider spend, or bounded process resources still stop resource
+consumption and return a typed recovery path; exhaustion never dispositions a finding.
 
 ## Three independent integration defences
 
@@ -76,10 +155,13 @@ their repair is authorization scoped to the exact command digest.
 ## Delegation is a process boundary
 
 `ubp delegate run` starts a supported CLI with an immutable instruction, explicit
-permission JSON, and named worktree. Files are the cross-host state. The parent reads a
-stable terminal result instead of worker chatter. Delegation adds no semantic store and
-no authority. The instruction selects task execution, scoped Research evidence, or
-aggregate Change review/verification; only task execution requires a task row.
+permission JSON, and named worktree. Their exact digest-bound sources are embedded in
+the worker prompt because some native sandboxes correctly deny reads outside the
+worktree. Files remain the cross-host state; the embedded copy is transport, not another
+authority. The parent reads a stable terminal result instead of worker chatter.
+Delegation adds no semantic store and no authority. The instruction selects task
+execution, scoped Research evidence, or aggregate Change review/verification; only task
+execution requires a task row.
 
 ## Installation isolation
 

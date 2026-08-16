@@ -24,9 +24,10 @@ baseline, settle domain language, choose a Change, or start another public workf
 
 - `.ultra/project-brief.md` contains raw owner intake: one line, a broad outline,
   explicit inputs already supplied, and open questions handed to Research.
-- For a new skeleton, an empty North Star and the three specification skeletons exist.
-  Recovery preserves any populated authority; Init does not fill semantic sections or
-  create `CONTEXT.md`.
+- For a new skeleton, a structurally complete North Star v2 with status `unresearched`
+  and the three specification skeletons exist. Init does not populate `FP-*`, `NS-*`,
+  or `HC-*`; recovery preserves any populated authority, and Init does not create
+  `CONTEXT.md`.
 - Every packaged path was read back after copying, while every pre-existing file stayed
   byte-identical.
 - `.git` exists. Commit, push, remote creation, and publication remain separate effects.
@@ -59,12 +60,44 @@ unless evidence conflicts with it.
 
 Resolve this loaded Skill's directory, then run
 `node <ultra-init-skill-dir>/scripts/init_project.cjs --project <repository-root>`.
-The script copies only missing files from `assets/project-template`, preserves every
-existing file, and reads the complete result back.
+The script stages and reads back only missing files from `assets/project-template`,
+validates the staged North Star from its raw bytes, and then publishes a complete new
+`.ultra/` by atomic rename. Partial recovery publishes each staged file atomically
+without clobbering a concurrent or existing path. A validation or publication failure
+removes a published path only while its current stable identity and digest still match
+this invocation's recorded publication. A workspace edit is preserved and returns the
+typed retryable `initialization_snapshot_changed` diagnostic. Init binds every preserved
+file to one nonblocking, no-follow descriptor/path identity and SHA-256 digest, then
+rechecks all of them before staging, before publication, and before success. It likewise
+captures every staged digest before publication and compares it with a stable target
+snapshot before success. Each file publication takes fresh no-symlink parent-chain and
+resolved-root identity snapshots before and after the effect; detectable directory drift
+stops publication. A failed snapshot `lstat`, `open`, `fstat`, or `read` with no observed
+identity, type, size, or digest change instead returns the typed retryable
+`initialization_snapshot_io_error`; its sanitized `operation`, symbolic `errno`, and
+actionable permission, descriptor-limit, or storage recovery remain in the
+`ultra-init-error-v1` result. The North Star compatibility diagnostic remains
+`preserved_north_star_changed`. A malformed packaged placeholder stops before publication
+with an `ultra-init-error-v1` payload whose `code` is `north_star_template_invalid` and
+whose `diagnostics` preserve the canonical validator entries, including
+`invalid_unresearched_placeholder` for an exact-byte mismatch.
+
+This recovery contract assumes a cooperative local workspace. It detects observable
+path-identity or byte drift and preserves the current bytes for retry; it does not claim
+that Node filesystem calls can defeat a malicious operating-system-level replacement.
+Init also binds the root identity of its staging directory. Cleanup recursively removes
+that path only after a fresh no-symlink root rewalk proves the same device and inode. If
+the path was replaced, Init leaves it untouched and returns the retryable typed
+`initialization_cleanup_conflict` diagnostic with the owned identity and manual recovery
+instruction. If a typed initialization failure is already pending, that primary
+diagnostic remains the top-level `ultra-init-error-v1` result and the cleanup diagnostic
+is retained under `cleanup_conflict`, including its identity-bound manual recovery.
+On success every existing file stayed byte-identical and every new file matches its
+packaged digest.
 
 ```text
 .ultra/project-brief.md                            raw intake and initial outline
-.ultra/north-star.md                               empty Research-owned steering contract
+.ultra/north-star.md                               unresearched Research-owned placeholder
 .ultra/specs/{product,architecture,discovery}.md  empty specification skeletons
 .ultra/specs/research-distillate.md                empty Research synthesis skeleton
 .ultra/{tasks.json,test-report.json}               empty or not-yet-run ledgers
@@ -72,7 +105,11 @@ existing file, and reads the complete result back.
 .ultra/changes/{active,archive,abandoned}/
 ```
 
-For a legacy `north-star.md` containing `## One-line`, keep that file byte-identical.
+The script reports `created_unresearched` for a new placeholder. For a preserved file it
+reports exactly `preserved_unresearched`, `preserved_accepted`, `preserved_legacy`, or
+`preserved_unknown`; unknown or malformed content is never described as authority. For
+a legacy `north-star.md` containing the actual v0.26 headings or the older `## One-line`
+form, keep that file byte-identical.
 When the new Project Brief is still unresolved, copy the legacy one-line verbatim into
 it and list legacy hard constraints under Explicit Inputs without assigning new IDs.
 Research later proposes the accepted North Star; it never rewrites history silently.

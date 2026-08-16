@@ -1,0 +1,450 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v027-harness-loop-closure",
+  "change_id": "chg-v027-lifecycle-closure",
+  "context": {
+    "path": ".ultra/contexts/task-v027-harness-loop-closure.md",
+    "acceptance_sha256": "0a66ac43b7afae0907b18ab75aeefa6ddb257c18815dc7570f72c5dc51422645"
+  },
+  "subject": {
+    "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+    "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+    "observed_at": "2026-08-16T15:50:12+08:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "HL-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "APPROVE terminal with retained P2/P3 (\u00a75.3 narrow GREEN; mutant m01/m02); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "zero-finding not a completion condition (negative sweep; \u00a75.3); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "REQUEST_CHANGES routes only exact current P0/P1 (\u00a75.3; mutant m01); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-04",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "one initial + one delta review then owner checkpoint (\u00a75.3; \u00a712 m04); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-05",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "budget stops execution without semantic verdicts (\u00a75.3; \u00a712 m05); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-06",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Resume Note cannot override authority (\u00a75.3 narrow; pytest resume_navigation); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-07",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "no Hook launches or selects a review/public workflow (pytest review_route; \u00a712 m06); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-08",
+      "verification_type": "owner-judgment",
+      "evidence": {
+        "owner_record_ref": ".ultra/decisions/2026-08-16-v027-harness-loop-closure.md#owner-record",
+        "owner_statement_or_disposition": "\u6211\u63a5\u53d7\u3002\u4f60\u628a\u5b83\u4ea4\u7ed9 Zcode \u53bb\u4fee\u590d\uff0c\u8ba9 Zcode \u53bb\u6539\u5427\u3002"
+      },
+      "disposition": {
+        "authority": "owner",
+        "result": "satisfied",
+        "rationale": "The owner accepted the incident contract and its external-manual review boundary; the durable decision record names the read-only reviewer and pins the accepted contract digest."
+      }
+    },
+    {
+      "criterion_id": "HL-09",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "delta packet carries one direct parent with unresolved blockers only (\u00a75.3; \u00a710.3); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-10",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "delta lenses affected-only; aggregate may default to six (\u00a75.3; \u00a712 m08); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-11",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "out-of-PPI finding stops at scope-change proposal (\u00a75.3; \u00a712 m10); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-12",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "closeout facts do not self-invalidate (\u00a712 m11 existing freshness tests); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-13",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "task graph explicit, acyclic, no backward dependency (\u00a75.3; \u00a712 m12); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-14",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "docs/V027-HARNESS-LOOP-INCIDENT-REMEDIATION.zh-CN.md plus the final H0 diff",
+        "observation": "The completed H0 diff adds no MCP server, database, daemon, semantic registry, persistent workflow state, or semantic gate; all additions are contract text, typed validators, hooks, and tests (verification.log \u00a76 and \u00a711 scope audits).",
+        "revision": "working tree of 2026-08-16 over Git HEAD fc055021bcfeee3e8c6781b9545d267f5eb73cbd (uncommitted H0 diff)"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Inspection of the final changed-path set confirms only file-first mechanisms; no second runtime authority was introduced."
+      }
+    },
+    {
+      "criterion_id": "HL-15",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "primary path ends at first APPROVE or one repair plus delta (\u00a75.3 replay); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-16",
+      "verification_type": "owner-judgment",
+      "evidence": {
+        "owner_record_ref": ".ultra/decisions/2026-08-16-v027-harness-loop-closure.md#owner-record",
+        "owner_statement_or_disposition": "\u6211\u63a5\u53d7\u3002\u4f60\u628a\u5b83\u4ea4\u7ed9 Zcode \u53bb\u4fee\u590d\uff0c\u8ba9 Zcode \u53bb\u6539\u5427\u3002"
+      },
+      "disposition": {
+        "authority": "owner",
+        "result": "satisfied",
+        "rationale": "The owner accepted the exact contract digest, the section 10.0 path scope, and the 4-hour cumulative budget in the durable decision record."
+      }
+    },
+    {
+      "criterion_id": "HL-17",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "pending frontier not active; no live task keeps Hooks silent (\u00a72 RED; \u00a75 pytest); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "HL-18",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        "raw_evidence_sha256": "0080efba64bdc7c903dcfcbb92c3c3d133d42ef67f8e23ad86fb9f650f534c49",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "ff8a1bedd0a11bf7ff89aeb21123d2be83a0ccb63c952d99664cc4cae9d93faa",
+          "observed_at": "2026-08-16T15:50:12+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "external-manual provenance branch with mandatory verification and projection (\u00a713-14); the exact commands, exit codes, and outputs are retained in the frozen verification log bound by SHA-256."
+      }
+    }
+  ],
+  "dimensions": {
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        ".ultra/evidence/v027-harness-loop-closure/external-review.json"
+      ],
+      "rationale": "Observed feature_flags_audit through the retained command receipts and the bound external review of the H0 diff."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        ".ultra/evidence/v027-harness-loop-closure/external-review.json"
+      ],
+      "rationale": "Observed persistence_real through the retained command receipts and the bound external review of the H0 diff."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        ".ultra/evidence/v027-harness-loop-closure/external-review.json"
+      ],
+      "rationale": "Observed spec_trace through the retained command receipts and the bound external review of the H0 diff."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        ".ultra/evidence/v027-harness-loop-closure/external-review.json"
+      ],
+      "rationale": "Observed tests_passed through the retained command receipts and the bound external review of the H0 diff."
+    },
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        ".ultra/evidence/v027-harness-loop-closure/external-review.json"
+      ],
+      "rationale": "Observed tests_written through the retained command receipts and the bound external review of the H0 diff."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v027-harness-loop-closure/verification.log",
+        ".ultra/evidence/v027-harness-loop-closure/external-review.json"
+      ],
+      "rationale": "Observed vertical_slice through the retained command receipts and the bound external review of the H0 diff."
+    }
+  },
+  "task_review": {
+    "review_mode": "external-manual",
+    "execution_packet": {
+      "state": "pre-v1-unavailable",
+      "digest": null,
+      "limitation": "No Execution Packet exists; the task ran under the one-time owner bootstrap grant in the decision record."
+    },
+    "receipt_ref": ".ultra/evidence/v027-harness-loop-closure/external-review.json",
+    "receipt_sha256": "e6bd86ee319e4be91cc6addf58f02c42b8a2dac0a02096e6a9d8db718793d138",
+    "blocking_findings": [],
+    "retention": "Retain the exact external receipt bytes; it is a reconstructable observation, never semantic authority and never a strict SUMMARY/ADMISSION substitute."
+  },
+  "artifacts": [
+    "hooks/_common.py",
+    "skills/ultra-review/SKILL.md",
+    "skills/ultra-plan/scripts/validate_task_evidence.cjs",
+    "skills/ultra-plan/references/task-evidence-v2.md",
+    "tests/task-evidence-v2.test.cjs",
+    "tests/v026-contract.test.cjs",
+    "hooks/tests/test_v026_hooks.py",
+    ".ultra/tasks.json",
+    ".ultra/evidence/v027-harness-loop-closure/verification.log"
+  ],
+  "limitations": [
+    "Terminal, budget, and lens-selection semantics are owner-readable contracts enforced by source-contract tests and subprocess fixtures, not runtime code, per FP-2.",
+    "The external receipt's product-worktree digest is the completion-snapshot observation; prescribed closeout writes to the context and ledger legitimately advance the current product digest afterward.",
+    "Monetary cost of the owner-authorized ZCode model execution is unknown without a provider receipt; token usage is recorded in the verification log."
+  ],
+  "timestamp": "2026-08-16T15:50:12+08:00"
+}

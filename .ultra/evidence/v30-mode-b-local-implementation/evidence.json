@@ -1,0 +1,213 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v30-mode-b-local-implementation",
+  "change_id": "chg-ultra-3-0-mode-b",
+  "context": {
+    "path": ".ultra/contexts/task-v30-mode-b-local-implementation.md",
+    "acceptance_sha256": "855c58ae16a85462f13caeb85a2a5028fdea390ebc322b89aaa25eb760f786d5"
+  },
+  "subject": {
+    "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+    "worktree_digest": "a2025b71fc61fe5a8d519ef5ddeb6d4b5d7942bd6060fad528692e63dbc64285",
+    "observed_at": "2026-08-17T06:08:23+08:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "T3-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "cat .ultra/north-star.md | node skills/ultra-research/scripts/validate_north_star.cjs --stdin --path .ultra/north-star.md",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-mode-b-local-implementation/verification.log",
+        "raw_evidence_sha256": "437db04be4f879f7f048a830c1b411bf46393cbdb3674045da10282dc883210d",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "a2025b71fc61fe5a8d519ef5ddeb6d4b5d7942bd6060fad528692e63dbc64285",
+          "observed_at": "2026-08-17T06:08:23+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The accepted North Star revision north-star-v2-r2 validates through the canonical stdin seam (exit 0, accepted, zero diagnostics) and the superseded v0.27 Change carries the exact abandonment closure; receipts retained in the verification log."
+      }
+    },
+    {
+      "criterion_id": "T3-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-name-pattern='Execution Grant enables bounded|dual-mode grants stop|model-selected Deliver run cannot|review topology is owner-selected|the superseded v0.27 route stays inert history' tests/v026-contract.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-mode-b-local-implementation/verification.log",
+        "raw_evidence_sha256": "437db04be4f879f7f048a830c1b411bf46393cbdb3674045da10282dc883210d",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "a2025b71fc61fe5a8d519ef5ddeb6d4b5d7942bd6060fad528692e63dbc64285",
+          "observed_at": "2026-08-17T06:08:23+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The five grant/topology/P1-C/supersession behavior regressions pass (5/5: the four P1 repair regressions plus the post-closeout integration-repair frontier assertion, validated read-only by Codex) inside the full 577/577 suite; three-round convergence, P0/P1-only blocking, initial/delta separation, and the self-hosting external boundary remain contract-bound."
+      }
+    },
+    {
+      "criterion_id": "T3-03",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "docs/ARTIFACT-AUTHORITY.md",
+        "observation": "Owner checkpoint semantics (eight fixed meanings), the per-fact authority matrix with the Execution Grant row, the four effect classes, and formal-terminal precedence are canonical; revision-agnostic fixtures replaced revision-locked prose tests.",
+        "revision": "81e6c2cbd55a2e179d65596131a21673759f4fbd"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Inspection of the canonical authority doc and the migrated suite confirms the checkpoint contract and per-fact authority without prose locks."
+      }
+    },
+    {
+      "criterion_id": "T3-04",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-change/references/execution-grant.md",
+        "observation": "Dual-mode grant contract: session-local stops on lost conversation activation, durable work-package continues a fresh Agent or host only after stable verification, neither grants finalization or archive, and activation is never inferred from files, Hooks, or Resume notes.",
+        "revision": "ce4196f4b9c155b615843803145cef9d84bf3e94"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The single canonical grant contract and its five continuable-skill consumers plus hook regressions hold the no-inference boundary."
+      }
+    },
+    {
+      "criterion_id": "T3-05",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "docs/ARCHITECTURE.md",
+        "observation": "The optional Graph/Loop control-plane boundary is documented: observations-only scope, no shipped integration, no scaffolding, and the Ultra Core Protocol stays complete on files plus Git with the layer absent.",
+        "revision": "b732c5496fe774466cde29b312ec774b3d142eca"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Architecture doc and spec carry the honest not-integrated boundary; no dependency or daemon was added."
+      }
+    },
+    {
+      "criterion_id": "T3-06",
+      "verification_type": "command",
+      "evidence": {
+        "command": "npm run verify:release",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-mode-b-local-implementation/verification.log",
+        "raw_evidence_sha256": "437db04be4f879f7f048a830c1b411bf46393cbdb3674045da10282dc883210d",
+        "freshness_identity": {
+          "git_head": "fc055021bcfeee3e8c6781b9545d267f5eb73cbd",
+          "worktree_digest": "a2025b71fc61fe5a8d519ef5ddeb6d4b5d7942bd6060fad528692e63dbc64285",
+          "observed_at": "2026-08-17T06:08:23+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "verify:release exit 0 (577/577 node, 89/89 hooks, npm audit 0 vulnerabilities); pack dry-run 126 entries with no superseded files; isolated fake-HOME install and Doctor 6/6 healthy; official Skill Creator quick_validate.py 14/14 and the Plugin Creator validator passed via /opt/anaconda3/bin/python \u2014 all final receipts in the verification log."
+      }
+    },
+    {
+      "criterion_id": "T3-07",
+      "verification_type": "owner-judgment",
+      "evidence": {
+        "owner_record_ref": ".ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md#6-terminal-outcomes",
+        "owner_statement_or_disposition": "local-accepted: ZCode implementation is locally complete and Codex accepts the frozen subject (durable owner record, Mode-B grant section 6; the Codex Round-5 APPROVE with zero P0/P1 satisfied this recorded terminal rule, and the frozen report names this WIP)"
+      },
+      "disposition": {
+        "authority": "owner",
+        "result": "satisfied",
+        "rationale": "The owner's standing durable record defines local acceptance as Codex accepting the frozen subject; Codex Round 5 returned APPROVE with zero P0/P1 and the frozen WIP report enumerates paths, digests, commands, fakes, limitations, and not-done items with the no-external-effects statement."
+      }
+    }
+  ],
+  "dimensions": {
+    "feature_flags_audit": {
+      "status": "not_applicable",
+      "evidence_refs": [],
+      "rationale": "This documentation/skill/test package introduces no feature flags or runtime toggles; nothing is gated behind a flag on the live path."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-v30-mode-b-local-implementation.md",
+        ".ultra/evidence/v30-mode-b-local-implementation/verification.log"
+      ],
+      "rationale": "Every new authority persists as owner-readable repository files plus Git-observable state: North Star r2, its decision and immutable snapshot, the Change intent with the Execution Grant, the task ledger row, and this evidence directory."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/north-star.md",
+        ".ultra/changes/active/chg-ultra-3-0-mode-b/intent.md"
+      ],
+      "rationale": "The Change intent's North Star Trace resolves FP-1..FP-7, NS-01..NS-05, and HC-1..HC-8 against the accepted north-star-v2-r2 revision and digest, verified by the canonical validator."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-mode-b-local-implementation/verification.log"
+      ],
+      "rationale": "577/577 node tests, 89/89 hook tests, verify:release exit 0 with 0 vulnerabilities, pack dry-run clean, isolated install and Doctor 6/6 healthy, with exact receipts."
+    },
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/v026-contract.test.cjs",
+        "tests/review-wait.test.cjs",
+        "tests/review-transport.test.cjs"
+      ],
+      "rationale": "New behavior regressions for dual-mode grants, Deliver finalization, review topology, and the review-wait symlink-component gap were written red-first and kept green; revision-agnostic fixtures replaced revision-locked prose."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-mode-b-local-implementation/verification.log",
+        "skills/ultra-change/references/execution-grant.md",
+        "docs/ARTIFACT-AUTHORITY.md"
+      ],
+      "rationale": "The projection runs end to end from canonical files through Skills, hooks, adapters, and tests to real isolated installs and Doctor on all six hosts; the live session hooks consumed the new ledger row and North Star trace throughout."
+    }
+  },
+  "task_review": {
+    "review_mode": "external-manual",
+    "execution_packet": {
+      "state": "pre-v1-unavailable",
+      "digest": null,
+      "limitation": "No v0.27 Execution Packet v1 exists (superseded naming for the grant mechanism); this task executed under the accepted 3.0 durable work-package grant recorded in .ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md."
+    },
+    "receipt_ref": ".ultra/evidence/v30-mode-b-local-implementation/external-review.json",
+    "receipt_sha256": "8c583d3e9bad9bfac40403c417f26f7cca9db0ad79fea45de42e49d13100e3a6",
+    "blocking_findings": [],
+    "retention": "Retain the exact external-manual receipt bytes bound above; it is a reconstructable observation of the Codex Round-5 APPROVE, never semantic authority and never a strict SUMMARY/ADMISSION substitute."
+  },
+  "artifacts": [
+    ".ultra/north-star.md",
+    ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md",
+    ".ultra/changes/active/chg-ultra-3-0-mode-b/intent.md",
+    "skills/ultra-change/references/execution-grant.md",
+    "skills/ultra-review/SKILL.md",
+    "docs/ARTIFACT-AUTHORITY.md",
+    "docs/ARCHITECTURE.md",
+    "tests/v026-contract.test.cjs",
+    "docs/wip/ultra-builder-pro-3.0-implementation.md"
+  ],
+  "limitations": [
+    "Graph/Loop control-plane integration is documented but not implemented; no consumer existed, so none was faked.",
+    "The accepted 3.0 design document is repository development authority and is not part of the npm tarball.",
+    "Release versioning remains 0.26.2; release effects are deferred and unauthorized.",
+    "Released 0.26.1 changelog entries remain immutable dated history; superseded vocabulary survives only in explicitly labelled historical naming.",
+    "The local .ultra/reviews/ sessions are git-ignored local-only history and were not part of the reviewed package surface."
+  ],
+  "timestamp": "2026-08-17T06:08:23+08:00"
+}

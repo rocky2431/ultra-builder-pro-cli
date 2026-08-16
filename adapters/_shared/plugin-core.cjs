@@ -15,7 +15,6 @@ const {
 const { parse, serialize } = require('./frontmatter.cjs');
 const provenance = require('./provenance.cjs');
 const {
-  MODEL_INVOKED_SKILLS,
   WORKFLOW_HOOK_FILES,
   skillPolicy,
   skillsForRuntime,
@@ -34,13 +33,13 @@ function skillFrontmatter(runtime, name, fm) {
     return {
       ...base,
       'user-invocable': policy.userInvocable,
-      ...(policy.userInvocable ? { 'disable-model-invocation': true } : {}),
+      ...(!policy.allowImplicitInvocation ? { 'disable-model-invocation': true } : {}),
     };
   }
   if (runtime === 'kimi') {
     return {
       ...base,
-      ...(policy.userInvocable ? { disableModelInvocation: true } : {}),
+      ...(!policy.allowImplicitInvocation ? { disableModelInvocation: true } : {}),
     };
   }
   return base;
@@ -54,7 +53,7 @@ function codexMetadata(name, description) {
     `  short_description: ${JSON.stringify(short || titleCase(name))}`,
     `  default_prompt: ${JSON.stringify(`Use $ultra-builder-pro:${name} and follow its workflow.`)}`,
     'policy:',
-    `  allow_implicit_invocation: ${MODEL_INVOKED_SKILLS.includes(name) ? 'true' : 'false'}`,
+    `  allow_implicit_invocation: ${skillPolicy(name).allowImplicitInvocation ? 'true' : 'false'}`,
     '',
   ].join('\n');
 }
@@ -99,7 +98,7 @@ function copyHooks({ runtime, repoRoot, hookRoot, hooksManifest }) {
     if (!fs.existsSync(source)) throw new Error(`missing allowlisted hook: ${name}`);
     fs.copyFileSync(source, path.join(hookRoot, name));
   }
-  if (['codex', 'kimi', 'grok'].includes(runtime)) {
+  if (['codex', 'kimi', 'grok', 'zcode'].includes(runtime)) {
     ensureDir(path.join(hookRoot, 'adapters'));
     fs.copyFileSync(
       path.join(repoRoot, 'hooks', 'adapters', `${runtime}.py`),

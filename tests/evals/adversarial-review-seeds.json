@@ -1,0 +1,32 @@
+[
+  {
+    "id": "ADV-NS-01",
+    "class": "premise",
+    "evidence_path": ".ultra/changes/active/C-ADV/intent.md",
+    "expected_consequence": "The mandatory control contradicts the minimal-friction outcome without evidence."
+  },
+  {
+    "id": "ADV-CODE-01",
+    "class": "correctness",
+    "evidence_path": "src/checkout.js",
+    "expected_consequence": "A timeout after a committed charge causes a duplicate charge."
+  },
+  {
+    "id": "ADV-TEST-01",
+    "class": "test-coverage",
+    "evidence_path": "test/checkout.test.js",
+    "expected_consequence": "The green test never exercises order placement or retry behavior."
+  },
+  {
+    "id": "ADV-RECOVERY-01",
+    "class": "recovery",
+    "evidence_path": ".ultra/changes/active/C-ADV/intent.md",
+    "expected_consequence": "The stated recovery toggle has no runtime input."
+  },
+  {
+    "id": "ADV-DOC-01",
+    "class": "documentation",
+    "evidence_path": "README.md",
+    "expected_consequence": "The one-click public promise conflicts with mandatory confirmation."
+  }
+]

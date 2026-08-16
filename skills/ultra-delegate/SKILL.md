@@ -54,7 +54,7 @@ worktrees collide in the very files every later session reads to resume. Worker 
 and state changes travel back in `result.json` and are applied by the primary host.
 `external_effects` must be empty in this portable launcher: commit, push, publish,
 deployment and other effects stay with the primary host. There is no `readable_roots`
-claim because the five host sandboxes do not share one mechanically enforceable read
+claim because the six host sandboxes do not share one mechanically enforceable read
 policy.
 
 Create `.ultra/.runtime/worktrees/<id>` as a real Git worktree and run:
@@ -62,6 +62,11 @@ Create `.ultra/.runtime/worktrees/<id>` as a real Git worktree and run:
 ```text
 ubp delegate run --to <host> --instruction <file> --permission <file> --worktree <dir> --timeout <seconds>
 ```
+
+`<host>` is `claude`, `codex`, `opencode`, `kimi`, `grok`, or `zcode`. Kimi accepts an
+optional `--model <id>` when its account has no default headless model. A ZCode primary
+host uses this same command to delegate to any other installed CLI; a different primary
+host can select `--to zcode` through the ZCode headless profile.
 
 The command returns a receipt. Immediately run `scripts/delegate_wait.py`; read no
 intermediate output. Use `ubp delegate status --delegation <dir>` for a read-only state
@@ -71,7 +76,9 @@ to manufacture completion.
 The worker returns one schema-constrained JSON final response. The launcher extracts it
 from the host's native structured output, validates digests, process exit, exact schema,
 actual base-HEAD diff and writable roots, then atomically publishes `result.json`. The
-model never writes its own receipt. If owner input is needed, the worker terminates
+launcher embeds the exact digest-bound instruction and permission packet in the prompt,
+so a host that denies external-directory reads never needs authority outside the
+worktree. The model never writes its own receipt. If owner input is needed, the worker terminates
 `blocked` with questions and evidence; start a new id and fresh packet after obtaining
 the answer.
 

@@ -1,0 +1,69 @@
+Ultra retained command evidence
+Command: node --test --test-reporter=spec tests/north-star-v2.test.cjs tests/project-artifacts.test.cjs tests/package-smoke.test.cjs
+CWD: /Users/rocky243/Context Engineering/ultra-builder-pro-cli
+Exit code: 0
+Captured on: 2026-08-15
+
+Raw stdout/stderr transcript:
+✔ the packaged North Star is a structurally valid unresearched placeholder (55.083375ms)
+✔ Init materializes the unresearched placeholder and never populates semantic ids (67.240083ms)
+✔ Init snapshots large preserved non-North-Star files without retaining bytes and still detects drift (62.322833ms)
+✔ Init preserves a replacement staging directory and reports identity-bound manual recovery (56.177709ms)
+✔ Init retains a pending typed failure and nests a conflicting stage-cleanup recovery (55.942083ms)
+✔ Init reports preserved-file snapshot I/O separately and keeps cleanup recovery reachable (63.787958ms)
+✔ Init rejects a real preserved-parent replacement exposing the same final inode (55.941708ms)
+✔ Init rejects a preserved template file reached through a repository-external parent symlink (125.813417ms)
+✔ Init rejects a malformed packaged placeholder through the full North Star validator (114.44825ms)
+✔ unresearched authority permits only the exact packaged placeholder sentinels (1079.15875ms)
+✔ the migrated repository North Star is an accepted v2 revision backed by owner source (57.505958ms)
+✔ the validator checks structure and references without deciding semantic truth (233.743125ms)
+✔ accepted revisions require durable acceptance identity and accepted propositions (163.421667ms)
+✔ draft revisions are mutable, may carry semantic ids, and cannot claim owner acceptance (106.842333ms)
+✔ v2 structural validation rejects duplicate or reordered headings and misplaced definitions (172.793125ms)
+✔ accepted causal chains require a resolvable row with nonempty capability and behavior (222.210542ms)
+✔ accepted revisions reject every NEEDS RESEARCH placeholder spelling (56.079083ms)
+✔ v2 field lists reject duplicates instead of silently taking the last value (231.166583ms)
+✔ accepted revisions reject every repository unresolved marker (337.985417ms)
+✔ accepted authority resolves a repository decision anchor and exact immutable snapshot binding (738.632375ms)
+✔ accepted publication requires unique nonempty durable owner evidence inside the cited section (524.772708ms)
+✔ accepted publication rejects an Owner Record heading inside a fenced code block (118.583167ms)
+✔ North Star grammar consumes only rendered lines outside backtick and tilde fences (1018.022917ms)
+✔ bounded stdin validation binds caller-owned bytes to the canonical path with an exact receipt (173.193792ms)
+✔ the validator rejects invalid or non-round-trip UTF-8 before classifying or binding authority (111.12875ms)
+✔ accepted byte binding preserves repeated markup and repository paths containing spaces (59.632834ms)
+✔ accepted authority rejects canonical, decision, and snapshot symlink escapes (171.861416ms)
+✔ the canonical JavaScript validator classifies the strict North Star corpus (1.072208ms)
+✔ legacy North Stars remain readable for adoption without being misreported as v2 (219.175584ms)
+✔ Init classifies preserved North Stars exactly and never labels unknown content authority (381.064292ms)
+✔ Init classifies preserved authority from the canonical raw-byte validator report (125.665875ms)
+✔ Init returns a retryable conflict when preserved North Star changes before-publication (142.09775ms)
+✔ Init returns a retryable conflict when preserved North Star changes after-publication (160.759833ms)
+✔ Init preserves an ordinary edit to any pre-existing file and returns a retryable conflict (79.844917ms)
+✔ Init preserves an ordinary edit to a newly published file during retryable rollback (69.505209ms)
+✔ Init rolls back only unchanged files after an ordinary edit to a new skeleton (69.201042ms)
+✔ the accepted revision cites a stable owner decision and a complete bounded Research run (2.160833ms)
+✔ the accepted North Star decision binds current bytes and an exact historical snapshot (57.210208ms)
+✔ Research conclusions are promoted as compact resolving v2 relations (0.545833ms)
+✔ the current Change trace resolves exact v2 ids and digest without erasing supersession evidence (70.048208ms)
+✔ the review packet keeps semantic revision and product digest as separate trace facts (0.106875ms)
+✔ Research owns semantic authorship and every later workflow consumes stable trace ids (2.334125ms)
+✔ the canonical and current task contexts carry resolving causal North Star trace fields (57.305583ms)
+✔ direct path validation rejects a North Star above the bounded snapshot ceiling (54.811625ms)
+✔ direct path validation reports a bounded typed read error for a missing file (54.359958ms)
+✔ direct path validation rejects symlinks and special files without blocking (107.92575ms)
+✔ direct path validation returns a retryable observation when the path is ordinarily replaced after open (57.797125ms)
+✔ Research documents direct path validation as the bounded stable workflow entry (0.337209ms)
+✔ npm tarball contains and runs only the v0.26 file-first product surface (1139.905709ms)
+✔ this repository uses the canonical file-first project layout (97.195709ms)
+✔ task ledger, contexts, dependencies, traces, and active Change cross-resolve (8.712958ms)
+✔ retired custom-agent methods have explicit portable Skill homes (0.30275ms)
+✔ every completed task has one canonical six-dimension evidence record (343.518458ms)
+✔ the recorded test report has a complete schema and matches its task snapshot (0.82525ms)
+ℹ tests 54
+ℹ suites 0
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8028.5465

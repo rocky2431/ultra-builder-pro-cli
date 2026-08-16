@@ -70,11 +70,24 @@ function parseJson(value) {
   try { return JSON.parse(text); } catch { return null; }
 }
 
+function parseFencedJson(value) {
+  if (typeof value !== 'string') return [];
+  const parsed = [];
+  const fences = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+  for (const match of value.matchAll(fences)) {
+    try { parsed.push(JSON.parse(match[1])); } catch {}
+  }
+  return parsed;
+}
+
 function collectResultCandidates(value, candidates, depth = 0) {
   if (depth > 12 || value === null || value === undefined) return;
   if (typeof value === 'string') {
     const parsed = parseJson(value);
     if (parsed !== null) collectResultCandidates(parsed, candidates, depth + 1);
+    for (const fenced of parseFencedJson(value)) {
+      collectResultCandidates(fenced, candidates, depth + 1);
+    }
     return;
   }
   if (Array.isArray(value)) {
@@ -93,6 +106,7 @@ function extractModelResult(spec) {
   for (const file of [spec.host_output, spec.stdout]) {
     if (!file || !fs.existsSync(file) || fs.statSync(file).size === 0) continue;
     const text = fs.readFileSync(file, 'utf8');
+    collectResultCandidates(text, candidates);
     const full = parseJson(text);
     if (full !== null) collectResultCandidates(full, candidates);
     for (const line of text.split('\n')) {

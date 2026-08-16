@@ -10,9 +10,12 @@ Reconcile first so new intent does not bury an existing specification/code confl
 
 ## Before you start
 
-1. List `.ultra/changes/active/`; more than one `intent.md` is a conflict, not a choice.
-   One directory name is the stable `change_id`. Read `.ultra/tasks.json`, then only its
-   unfinished `context_file` values. Update the same `change_id`; never open a second active Change.
+1. Read `references/change-contract.md` and apply its **Active Change authority
+   resolution** before reading any active `intent.md`, relying on a current `change_id`,
+   or creating or writing a Change. Continue only from its positively observed stable
+   zero-or-one result; return its typed repair for any other result. With one active
+   Change, read `.ultra/tasks.json`, then only its unfinished `context_file` values.
+   Update the same `change_id`; never open a second active Change.
 2. Read `.ultra/project-brief.md`, `CONTEXT.md`, relevant `.ultra/decisions/`, and
    `.ultra/north-star.md` for raw provenance, accepted language, and direction.
 3. Grep archive and abandoned Changes that touched this area. Prefer archived
@@ -37,7 +40,8 @@ Test/Deliver claim for that micro change.
 
 ## Definition of done
 
-- Active `intent.md` states outcome, executable acceptance, non-goals, public seams,
+- Active `intent.md` states outcome, typed acceptance with named required evidence,
+  non-goals, public seams,
   and Research Disposition.
 - Every reconciliation bucket is empty or dispositioned with the owner's answer.
 - The draft remains editable until owner acceptance makes it authority.
@@ -78,10 +82,21 @@ whole path is unclear, recommend Research instead of manufacturing tasks.
 Record `## Research Disposition` exactly. `none` needs enough evidence to plan;
 `bounded` or `required` names one question, selected lenses, and exit evidence. After
 Research, reconcile outputs here; an unverified path or bare claim is not evidence.
+Record one `## North Star Trace` with resolving `FP-<n>`/`NS-<n>`/`HC-<n>` ids, causal
+evidence, the accepted revision, the current Git blob digest, and any contradiction
+requiring owner disposition. Reference IDs only; do not mirror North Star prose.
 
-A quick active Change still goes through one-task `ultra-plan`; once durable intent
-exists, that minimal task is what binds development, evidence, audit, and delivery to
-the stable `change_id`.
+When Research accepts a revision whose id or digest differs from an active Change trace,
+that active Change has a stale observation, not a semantic failure. Preserve its intent,
+tasks, review, Test, and delivery evidence; reconcile old IDs to the accepted revision,
+surface contradictions for owner disposition, and invalidate any plan-bound execution
+approval through its own contract. Never silently rewrite the North Star or infer that a
+replacement grants execution.
+
+Every active Change still goes through `ultra-plan`; once durable intent exists, the
+smallest evidence-backed task graph for its real seams binds development, review,
+audit, and delivery to the stable `change_id`. The profile never fixes task or context
+count.
 
 Output active `intent.md` under a stable id, justified specification patches, qualifying
 decision or vocabulary updates. For an evidence gap recommend `ultra-research`; when
@@ -103,6 +118,8 @@ specification sentence false needs no permission at all.
 ## References
 
 - `../ultra-grilling/SKILL.md` — the loop for settling the boundary.
-- `references/change-contract.md` — exact `intent.md` structure and profile fields.
+- `references/change-contract.md` — canonical Active Change authority resolution, exact
+  `intent.md` structure, and profile fields.
+- `references/execution-grant.md` — read when the owner requests bounded workflow continuation under a session-local or durable grant.
 - `../ultra-think/references/autonomy-boundary.md` — read before removing a promise.
 - `../ultra-tdd/SKILL.md` — read for an evidenced one-slice correction.

@@ -8,7 +8,11 @@ const path = require('node:path');
 const yaml = require('js-yaml');
 
 const ROOT = path.resolve(__dirname, '..');
-const { skillsForRuntime, WORKFLOW_HOOK_FILES } = require('../adapters/_shared/runtime-assets.cjs');
+const {
+  GRANT_CONTINUABLE_SKILLS,
+  skillsForRuntime,
+  WORKFLOW_HOOK_FILES,
+} = require('../adapters/_shared/runtime-assets.cjs');
 
 function sandbox(runtime) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `ubp-${runtime}-`));
@@ -52,7 +56,7 @@ function assertNoLegacy(root) {
   }
 }
 
-for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok']) {
+for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) {
   test(`${runtime} installs, diagnoses, updates and uninstalls the v0.26 asset boundary`, async () => {
     const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
     const { ctx } = sandbox(runtime);
@@ -104,7 +108,11 @@ test('Codex emits native invocation policy without an MCP dependency', async () 
       'utf8',
     ));
     const modelInvoked = ['ultra-grilling', 'ultra-domain-modeling', 'ultra-tdd', 'ultra-review', 'ultra-think'].includes(name);
-    assert.equal(metadata.policy.allow_implicit_invocation, modelInvoked, name);
+    assert.equal(
+      metadata.policy.allow_implicit_invocation,
+      modelInvoked || GRANT_CONTINUABLE_SKILLS.includes(name),
+      name,
+    );
     assert.equal(metadata.dependencies, undefined, name);
   }
 });
@@ -207,10 +215,44 @@ test('OpenCode rolls back every managed tree when plugin publication fails', asy
 });
 
 test('all hook manifests wire the five hooks and no lifecycle supervisor', async () => {
-  for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok']) {
+  for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) {
     const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
     const text = JSON.stringify(adapter.buildHooksManifest());
     for (const name of WORKFLOW_HOOK_FILES) assert.match(text, new RegExp(name.replace('.', '\\.')));
     assert.doesNotMatch(text, /workflow_checkpoint|workflow_resume|subagent_tracker|pre_stop_check|health_check/);
   }
+});
+
+test('ZCode publishes a native inline plugin and local marketplace with reversible config', async () => {
+  const zcode = require('../adapters/zcode.js');
+  const { root, ctx } = sandbox('zcode-native');
+  const configFile = path.join(root, 'cli', 'config.json');
+  fs.mkdirSync(path.dirname(configFile), { recursive: true });
+  fs.writeFileSync(configFile, `${JSON.stringify({
+    plugins: { enabled: false, dirs: ['/owner/plugin'], options: { keep: true } },
+    ui: { locale: 'zh-CN' },
+  }, null, 2)}\n`);
+
+  const installed = await zcode.install(ctx);
+  const manifest = JSON.parse(fs.readFileSync(
+    path.join(installed.pluginRoot, '.zcode-plugin', 'plugin.json'),
+    'utf8',
+  ));
+  const marketplace = JSON.parse(fs.readFileSync(installed.marketplaceFile, 'utf8'));
+  const configured = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  assert.equal(manifest.name, 'ultra-builder-pro');
+  assert.equal(manifest.skills, './skills');
+  assert.equal(manifest.hooks, './hooks/hooks.json');
+  assert.equal(marketplace.name, 'ultra-builder-pro');
+  assert.equal(marketplace.plugins[0].source, './plugin');
+  assert.equal(configured.plugins.enabled, true);
+  assert.deepEqual(configured.plugins.dirs, ['/owner/plugin', installed.pluginRoot]);
+  assert.deepEqual(configured.plugins.options, { keep: true });
+  assert.deepEqual(configured.ui, { locale: 'zh-CN' });
+
+  await zcode.uninstall(ctx);
+  assert.deepEqual(JSON.parse(fs.readFileSync(configFile, 'utf8')), {
+    plugins: { enabled: false, dirs: ['/owner/plugin'], options: { keep: true } },
+    ui: { locale: 'zh-CN' },
+  });
 });

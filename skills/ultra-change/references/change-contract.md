@@ -7,6 +7,36 @@ The directory id is globally unique across active, archive, and abandoned Change
 matches `[A-Za-z0-9][A-Za-z0-9._-]*`. It is the stable `change_id`; moving the directory
 never changes it.
 
+## Active Change authority resolution
+
+Every Skill that selects a current `change_id`, reads active intent, or creates a new
+Change must first use native host filesystem checks to apply this instruction contract.
+It is not a parser, registry, or persisted state.
+A positively observed absent `.ultra` is the existing uninitialized condition:
+`ultra-status` may recommend `ultra-init`, while writers write nothing. This known
+absence is distinct from an unavailable observation. Otherwise:
+
+1. Require `.ultra`, `.ultra/changes`, and `.ultra/changes/active` to be a stable chain
+   of ordinary non-symlink directories with the same no-follow identities before and
+   after selection.
+2. Stable-list every active-root entry without following symlinks. Only `.gitkeep`,
+   when it is an ordinary regular non-symlink file, may be ignored. A `.gitkeep` of any
+   other type is malformed, is never a Change directory, and returns a typed diagnostic
+   with repair before any candidate intent is read. Every other non-directory or symlink
+   entry returns a typed diagnostic with a reachable repair before any intent read.
+3. A positively observed stable empty root, with or without that sole marker, means no
+   active Change. Active authority exists only when exactly one ordinary non-symlink
+   Change directory remains. More than one returns a typed conflict and repair; select
+   none of them.
+4. Require the selected directory's own `intent.md` to be a stable regular non-symlink
+   file opened with no-follow behavior. Capture one bounded snapshot, then recheck the
+   directory chain, active-root entries, selected directory, and intent identity before
+   consuming its contents.
+5. On any unavailable observation or changed identity, stop with a typed diagnostic and
+   reachable retry or repair. Do not read any intent, route from it, write any workflow
+   artifact, or create a new Change. Only a positively observed stable zero-directory
+   result permits `ultra-change` to create one.
+
 ## Exact `intent.md` structure
 
 ```markdown
@@ -21,7 +51,7 @@ never changes it.
 <one externally observable result>
 
 ## Acceptance
-| ID | Criterion | Verification | Trace |
+| ID | Criterion | Verification type | Required evidence |
 |---|---|---|---|
 
 ## Non-goals
@@ -43,6 +73,28 @@ never changes it.
 - Required exit evidence: <what must exist or be resolved before planning>
 - Rationale: <why this is sufficient for this Change boundary>
 
+## North Star Trace
+- First principles: <FP-<n> ids and the causal premise>
+- Serves: <NS-<n> ids and the causal contribution>
+- Touches: <HC-<n> ids, or none>
+- Evidence: <repository-relative paths and claims>
+- North Star revision: <accepted Revision field from `.ultra/north-star.md`>
+- North Star digest: <output of `git hash-object .ultra/north-star.md`>
+- Contradictions or refinements: <none, or the owner disposition still required>
+
+## Execution Grant
+
+- Grant: `session-local` (default) | `durable work-package` <grant-id>
+- Allowed workflows: <subset of research, plan, dev, test, deliver-reconcile>
+- Agent topology: <single-Agent default, or the owner-selected providers, counts, and write scopes>
+- Allowed local effects: <exact authorized local writes, tests, and bounded verification>
+- Budgets and expiry: <time, cost, tool, provider, delegation, review-round ceilings and expiry>
+- Mandatory reviews: <plan, task, and aggregate Change requirements>
+- Stop conditions: <named semantic, evidence, recovery, and budget stops>
+- Invalidation: <conditions that end the grant and return control to the owner>
+- Never granted: <new Change, baseline checkpoint, finalization/archive, external effects, cross-family provider calls>
+- Activation: <session-local: a current-session owner utterance approving this grant and the current task ledger; durable: stable verification of the recorded grant — stored text alone is inactive>
+
 ## Planning Posture
 <EXPAND | SELECTIVE | HOLD | REDUCE, rationale, and owner confirmation>
 <!-- Scope for this Change only. Not the commitment classification: REDUCE here
@@ -63,10 +115,11 @@ heading, and do not add another file that restates the same contract.
 ## Contract fields
 
 - `outcome`: one externally observable result.
-- `acceptance`: stable ids, one criterion each, and a `Verification` that is an
-  **executable command** — something with an exit code, not a description of an
-  intention. `curl -sf localhost:3000/health` qualifies; "check that the endpoint
-  responds" does not.
+- `acceptance`: stable ids, one criterion each, one verification type, and exact
+  required evidence. The supported types are `command`, `inspection`,
+  `owner-judgment`, and `external-observation`. When one outcome needs more than one
+  authority, split it into independent criteria with unique IDs and keep one
+  verification type per criterion. A row must not carry multiple verification types.
 - `non_goals`: explicit boundaries that prevent accidental scope growth.
 - `public_seams`: entry points or outputs through which acceptance is observed.
 - `recovery`: a bounded reversal or recovery strategy and its verification.
@@ -75,37 +128,50 @@ heading, and do not add another file that restates the same contract.
 Resolve every blocking decision before planning. Keep non-blocking uncertainty visible
 in the task and verification contracts.
 
-## Why verification has to be executable
+`North Star Trace` is the Change-level semantic trace. `First principles`, `Serves`, and
+`Touches` ids must resolve in `.ultra/north-star.md`; `Evidence` explains the causal
+claim rather than merely naming the file. Revision and digest are freshness observations.
+A mismatch returns the intent to reconciliation and never mechanically declares
+alignment or contradiction. Preserve historical evidence while reconciliation maps old
+IDs, records contradictions, and obtains any material owner disposition.
 
-A criterion whose verification cannot be run is not acceptance, it is a wish. Three
-consumers downstream depend on it being runnable:
+Every Change records an `Execution Grant`; `session-local` is the default and a
+durable grant requires an exact owner record. The exact mode behavior,
+activation, and durable-verification rules live in `execution-grant.md`. The
+grant bounds native model continuation; it is not persisted route authority.
 
-- task development can treat passing acceptance as an exit condition only when
-  something can actually decide "passing";
-- the review tests lens maps each acceptance claim to executable evidence, and can
-  only report an honest gap when there is something to map onto;
-- delivery cannot otherwise separate "shipped" from "believed shipped".
+## Why verification has to name its authority
 
-Writing the command is also the cheapest way to find out that a criterion is vague.
-"The feature is wired up" resists a command until it becomes "this export has a
-non-test importer", which is a `grep`.
+Acceptance is only auditable when the observation and its authority are explicit:
 
-Where a criterion is genuinely a judgement call — visual polish, wording, feel — it
-does not belong in Acceptance at all. Record it as a taste decision for the owner and
-keep Acceptance to what a machine can settle. Mixing the two is what makes an
-acceptance set undecidable.
+- `command` records the exact command, working directory, exit status, and retained raw
+  output reference;
+- `inspection` cites the exact file, revision or digest, and the observed fact;
+- `owner-judgment` cites the durable owner disposition without replacing it with a
+  machine proxy; only the owner can supply its semantic result;
+- `external-observation` records the provider or environment, run identity, observation
+  time, and retained raw result.
+
+Development, Review, Test, and Deliver may verify that the required evidence exists,
+is fresh, and is bound to the criterion. They must not turn a command exit code, regex,
+digest, or schema result into a semantic verdict for an inspection, owner judgment, or
+external observation. Missing or stale evidence returns a typed gap to the responsible
+model or owner; it never silently deletes the criterion or manufactures acceptance.
+A validator owns exact structure, identity, and provenance only; validator success is
+never a semantic pass.
 
 ## Profile
 
-- `quick`: one low-risk task, no material risk flags, and no research dependency.
-- `standard`: a bounded change with multiple tasks or ordinary integration risk.
+- `quick`: a bounded low-risk change with no material risk flags and no research dependency.
+- `standard`: a bounded change with ordinary integration risk.
 - `major`: a broad or consequential change with material contract, migration,
   authorization, security, multi-module, external-integration, or release impact.
 - `incident`: urgent diagnosis and recovery with a reproducible symptom. Baseline
   break-glass still requires a recorded approver and recovery contract.
 
 Record a profile rationale and every applicable risk flag. Select the smallest profile
-whose guarantees cover the real blast radius; never use profile labels as estimates.
+whose guarantees cover the real blast radius; never use profile labels to prescribe a
+task count, file count, review effort, or estimate.
 
 ## Research Disposition
 

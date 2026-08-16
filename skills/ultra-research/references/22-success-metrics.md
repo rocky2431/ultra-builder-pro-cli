@@ -12,8 +12,9 @@ including signals that would reveal harmful optimization.
 - Derive measurements from accepted outcomes and available instrumentation.
 - State definition, source, observation window, owner, and decision use.
 - Separate current measurements, target decisions, and unavailable telemetry.
-- Propose one North Star outcome or metric when justified by delivered value and a
-  credible observation contract.
+- Propose one or more stable `NS-*` outcomes when justified by delivered value and a
+  credible observation contract. Each records observation method, baseline, target or
+  expected change, horizon, and anti-metric.
 - Do not force a single metric, or invent baselines and targets, when guardrails plus an
   observable outcome represent the product more honestly.
 
@@ -21,7 +22,7 @@ including signals that would reveal harmful optimization.
 
 Update `product.md` with supporting outcome measures, operational measures, guardrails,
 evidence availability, and unresolved instrumentation needs. Propose the canonical
-`NS-01` entry for `north-star.md`; it becomes authority only through accepted synthesis.
+`NS-*` entries for `north-star.md`; they become authority only through accepted synthesis.
 A metric that cannot be observed is a gap or explicit future Change.
 
 Complete the step with evidence references and the updated output path.

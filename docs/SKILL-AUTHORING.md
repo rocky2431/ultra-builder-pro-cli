@@ -25,7 +25,8 @@ description: What this produces and the concrete situations that trigger it.
 ---
 ```
 
-Adapters generate Claude/Grok/Kimi invocation flags and Codex `agents/openai.yaml`.
+Adapters generate Claude/Grok/Kimi invocation flags, Codex `agents/openai.yaml`, and
+ZCode-native plugin metadata.
 Do not put host paths, dependency declarations, plugin policy, or release history in
 source frontmatter.
 
@@ -72,7 +73,7 @@ wholesale into project authority.
 ## Language and host neutrality
 
 Model-facing Skills, references, scripts, comments, and identifiers are English.
-Shared Skills never mention `.claude`, `.codex`, `.opencode`, `.kimi`, `.grok`, or a
+Shared Skills never mention `.claude`, `.codex`, `.opencode`, `.kimi`, `.grok`, `.zcode`, or a
 host-only question surface. Use “host-native question surface” and put the translation
 in the adapter.
 
@@ -92,7 +93,7 @@ For every changed Skill:
 
 1. run the Skill Creator validator;
 2. resolve every relative reference in the source and installed artifact;
-3. verify its role metadata on all five hosts;
+3. verify its role metadata on all six hosts;
 4. test the accepted workflow with representative valid and adversarial inputs;
 5. confirm no retired runtime vocabulary or host-specific path entered portable text.
 
