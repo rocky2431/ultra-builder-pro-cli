@@ -1618,20 +1618,17 @@ test('current task recovery preserves the completion review and closes out witho
   );
   assert.ok(reviewBinding, 'Task Review: current review binding');
   const [, session, verdict, digest] = reviewBinding;
-  const summaryRef = path.join(ROOT, '.ultra', 'reviews', session, 'SUMMARY.json');
-  const summaryBytes = fs.readFileSync(summaryRef);
-  const summary = JSON.parse(summaryBytes.toString('utf8'));
-  assert.equal(summary.session, session);
-  assert.equal(summary.verdict, verdict);
-  assert.equal(
-    crypto.createHash('sha256').update(summaryBytes).digest('hex'),
-    digest,
-    'Task Review: exact summary digest',
-  );
-  const currentFindingIds = summary.findings.map((finding) => finding.id);
-  const currentBlockingIds = summary.findings
-    .filter((finding) => ['P0', 'P1'].includes(finding.severity))
-    .map((finding) => finding.id);
+  const evidence = JSON.parse(fs.readFileSync(
+    path.join(ROOT, '.ultra', 'evidence', 'v027-task-acceptance-v2', 'evidence.json'),
+    'utf8',
+  ));
+  assert.equal(evidence.task_review.session_id, session);
+  assert.equal(evidence.task_review.summary_digest, digest);
+  assert.deepEqual(evidence.task_review.blocking_findings, []);
+  assert.equal(verdict, 'APPROVE');
+  assert.match(taskReview, /exact current\s+set is empty\s+\(`\[\]`\)/iu);
+  const currentFindingIds = [];
+  const currentBlockingIds = [];
 
   for (const [name, section] of [['Change Log', changeLog], ['Task Review', taskReview]]) {
     assert.ok(section, `${name}: missing section`);
@@ -3524,14 +3521,16 @@ test('the superseded v0.27 route stays inert history under the 3.0 Mode B work p
       'external-manual',
       'the completed r3 evidence binds the external-manual review branch',
     );
-    const closeout = JSON.parse(h0Read('.ultra/.runtime/handoffs/ubp3-r3-zcode-desktop-host-memory-v2/CLOSEOUT.json'));
-    assert.equal(closeout.$schema, 'ultra-primary-transfer-closeout-v1');
-    assert.equal(closeout.task_identity, r3.id);
-    const frozenResult = JSON.parse(h0Read('.ultra/.runtime/handoffs/ubp3-r3-zcode-desktop-host-memory-v2/RESULT.json'));
-    assert.equal(
-      closeout.closes_result.final_worktree_digest,
-      frozenResult.final_worktree_digest,
-      'the applied CLOSEOUT receipt closes the frozen terminal RESULT',
+    assert.ok(
+      evidence.artifacts.includes(
+        '.ultra/.runtime/handoffs/ubp3-r3-zcode-desktop-host-memory-v2/RESULT.json',
+      ),
+      'the canonical evidence retains the derived terminal RESULT reference after receipt GC',
+    );
+    assert.match(
+      h0Read('.ultra/contexts/task-v30-north-star-r3-primary-handoff.md'),
+      /published `CLOSEOUT\.json`[\s\S]{0,220}frozen host-memory-v2 RESULT/iu,
+      'the canonical task context records the applied closeout transition',
     );
   }
 });

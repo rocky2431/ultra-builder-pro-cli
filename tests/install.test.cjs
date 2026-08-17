@@ -1,6 +1,6 @@
 'use strict';
 
-const { test } = require('node:test');
+const { after, test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -15,11 +15,54 @@ function temporary(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
+const HOST_BIN_ROOT = temporary('ubp-cli-host-bin-');
+const FAKE_CODEX = path.join(HOST_BIN_ROOT, 'codex');
+fs.writeFileSync(FAKE_CODEX, `#!/usr/bin/env node
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const root = process.env.CODEX_HOME || process.env.HOME;
+const state = path.join(root, '.ubp-test-codex-plugin.json');
+const args = process.argv.slice(2);
+if (args.join(' ') === 'plugin list --json') {
+  const installed = fs.existsSync(state)
+    ? [{ name: 'ultra-builder-pro', installed: true, enabled: true }]
+    : [];
+  process.stdout.write(JSON.stringify({ installed, available: [] }) + '\\n');
+  process.exit(0);
+}
+if (args[0] === 'plugin' && args[1] === 'add') {
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(state, '{}\\n');
+  process.stdout.write('{}\\n');
+  process.exit(0);
+}
+if (args[0] === 'plugin' && args[1] === 'remove') {
+  fs.rmSync(state, { force: true });
+  process.stdout.write('{}\\n');
+  process.exit(0);
+}
+process.stderr.write('unsupported synthetic Codex command: ' + args.join(' ') + '\\n');
+process.exit(2);
+`);
+fs.chmodSync(FAKE_CODEX, 0o755);
+after(() => fs.rmSync(HOST_BIN_ROOT, { recursive: true, force: true }));
+
+function hostTestEnv(extra = {}) {
+  return {
+    ...process.env,
+    PATH: [HOST_BIN_ROOT, path.dirname(process.execPath), process.env.PATH || '']
+      .filter(Boolean)
+      .join(path.delimiter),
+    ...extra,
+  };
+}
+
 function run(args, options = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
     cwd: ROOT,
     encoding: 'utf8',
-    env: { ...process.env, ...options.env },
+    env: hostTestEnv(options.env),
   });
 }
 
@@ -110,7 +153,7 @@ test('Codex config-dir owns both plugin root and marketplace sidecar', () => {
     assert.ok(fs.existsSync(path.join(config, '.agents', 'plugins', 'marketplace.json')));
     const listed = spawnSync('codex', ['plugin', 'list', '--json'], {
       encoding: 'utf8',
-      env: { ...process.env, HOME: config, CODEX_HOME: config },
+      env: hostTestEnv({ HOME: config, CODEX_HOME: config }),
     });
     assert.equal(listed.status, 0, listed.stderr || listed.stdout);
     const plugin = JSON.parse(listed.stdout).installed.find((entry) => (

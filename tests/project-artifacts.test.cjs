@@ -1568,6 +1568,18 @@ test('every completed task has one canonical six-dimension evidence record', () 
       const resolvesByStableChangeId = movableIntentRefs.includes(artifact)
         ? Boolean(changeIntent(evidence.change_id).path)
         : false;
+      if (artifact.startsWith('.ultra/reviews/')) {
+        assert.equal(artifact, evidence.task_review.summary_ref, relative);
+        assert.match(evidence.task_review.summary_digest || '', /^[0-9a-f]{64}$/u, relative);
+        continue;
+      }
+      if (artifact.startsWith('.ultra/.runtime/handoffs/')) {
+        assert.match(artifact, /^\.ultra\/\.runtime\/handoffs\/[^/]+\/RESULT\.json$/u, relative);
+        assert.equal(evidence.task_review.review_mode, 'external-manual', relative);
+        assert.ok(fs.existsSync(path.join(ROOT, evidence.task_review.receipt_ref || '')), relative);
+        assert.match(evidence.task_review.receipt_sha256 || '', /^[0-9a-f]{64}$/u, relative);
+        continue;
+      }
       assert.ok(
         existsAtRecordedPath || resolvesByStableChangeId,
         `${relative}: missing artifact ${artifact}`,

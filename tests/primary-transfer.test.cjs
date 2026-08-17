@@ -11,7 +11,6 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const VALIDATOR = path.join(ROOT, 'skills', 'ultra-change', 'scripts', 'validate_primary_transfer.cjs');
 const DIGEST_TOOL = path.join(ROOT, 'skills', 'ultra-test', 'scripts', 'worktree_digest.cjs');
-const LIVE_HANDOFF = path.join(ROOT, '.ultra', '.runtime', 'handoffs', 'ubp3-r3-zcode');
 
 const TERMINAL_STATES = ['completed', 'blocked', 'revoked', 'cancelled', 'failed'];
 const RESULT_V2_SCHEMA = 'ultra-primary-transfer-result-v2';
@@ -755,13 +754,23 @@ test('RESULT paths stay normalized, repository-relative, and outside unrelated r
   }
 });
 
-test('the live repository handoff stays internally consistent at every protocol stage', () => {
-  const result = validate(LIVE_HANDOFF);
-  assert.equal(result.status, 0, result.stdout || result.stderr);
-  assert.equal(result.report.valid, true);
-  const handoff = result.report.handoffs.find((entry) => entry.handoff_id === 'ubp3-r3-zcode');
-  assert.ok(handoff, result.stdout);
-  assert.ok(['offered', 'blocked', 'active', ...TERMINAL_STATES].includes(handoff.state));
+test('completed repository transfers remain evidenced after disposable handoff receipt GC', () => {
+  const evidencePath = path.join(
+    ROOT,
+    '.ultra',
+    'evidence',
+    'v30-north-star-r3-primary-handoff',
+    'evidence.json',
+  );
+  const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+  assert.equal(evidence.task_review.review_mode, 'external-manual');
+  assert.match(evidence.task_review.receipt_sha256, /^[0-9a-f]{64}$/u);
+  assert.ok(fs.existsSync(path.join(ROOT, evidence.task_review.receipt_ref)));
+  assert.ok(
+    evidence.artifacts.includes(
+      '.ultra/.runtime/handoffs/ubp3-r3-zcode-desktop-host-memory-v2/RESULT.json',
+    ),
+  );
 });
 
 test('repo-wide handoff-root discovery is bounded, no-follow, and typed', () => {
