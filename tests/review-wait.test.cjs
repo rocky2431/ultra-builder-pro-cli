@@ -445,10 +445,10 @@ function runWithEnv(session, mode, extraEnv, ...args) {
   });
 }
 
-function runAsync(session, mode, timeoutSeconds, ...args) {
+function runAsyncWithEnv(session, mode, timeoutSeconds, extraEnv, script, ...args) {
   return new Promise((resolve, reject) => {
     const child = spawn('python3', [
-      SCRIPT,
+      script,
       session.directory,
       mode,
       '--packet-digest',
@@ -459,6 +459,7 @@ function runAsync(session, mode, timeoutSeconds, ...args) {
         ...process.env,
         UBP_REVIEW_WAIT_TIMEOUT: String(timeoutSeconds),
         UBP_REVIEW_WAIT_POLL: '0.01',
+        ...extraEnv,
       },
     });
     let stdout = '';
@@ -479,8 +480,65 @@ function runAsync(session, mode, timeoutSeconds, ...args) {
   });
 }
 
+function runAsync(session, mode, timeoutSeconds, ...args) {
+  return runAsyncWithEnv(session, mode, timeoutSeconds, {}, SCRIPT, ...args);
+}
+
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function waitForFile(file, timeoutMilliseconds = 1_500) {
+  const deadline = Date.now() + timeoutMilliseconds;
+  while (Date.now() < deadline) {
+    if (fs.existsSync(file)) return;
+    await delay(10);
+  }
+  throw new Error(`timed out waiting for subprocess marker: ${file}`);
+}
+
+function runAsyncAfterAdmissionRead(session, mode, timeoutSeconds, ...args) {
+  const shim = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-review-pin-shim-'));
+  const marker = path.join(shim, 'admission-read');
+  const wrapper = path.join(shim, 'review_wait_with_marker.py');
+  fs.writeFileSync(wrapper, [
+    'import importlib.util',
+    'import os',
+    'from pathlib import Path',
+    '',
+    '_spec = importlib.util.spec_from_file_location(',
+    '    "ultra_review_wait_under_test",',
+    '    os.environ["UBP_REVIEW_WAIT_SCRIPT"],',
+    ')',
+    '_module = importlib.util.module_from_spec(_spec)',
+    '_spec.loader.exec_module(_module)',
+    '_original = _module.load_admission_receipt',
+    '_signaled = False',
+    '',
+    'def _load_admission_receipt(*args, **kwargs):',
+    '    global _signaled',
+    '    result = _original(*args, **kwargs)',
+    '    if not _signaled and result[0] is not None:',
+    '        _signaled = True',
+    '        Path(os.environ["UBP_REVIEW_WAIT_MARKER"]).write_text(',
+    '            "read\\n", encoding="utf-8"',
+    '        )',
+    '    return result',
+    '',
+    '_module.load_admission_receipt = _load_admission_receipt',
+    '_module.main()',
+    '',
+  ].join('\n'));
+  return {
+    cleanup() {
+      fs.rmSync(shim, { recursive: true, force: true });
+    },
+    pending: runAsyncWithEnv(session, mode, timeoutSeconds, {
+      UBP_REVIEW_WAIT_MARKER: marker,
+      UBP_REVIEW_WAIT_SCRIPT: SCRIPT,
+    }, wrapper, ...args),
+    ready: waitForFile(marker),
+  };
 }
 
 function specialist(session, agent, axis) {
@@ -1621,32 +1679,34 @@ test('review waiter packet admission rejects current subject claims not proven b
 test('review waiter freezes admitted subject claims while continuing to enforce packet bytes', async (t) => {
   await t.test('packet bytes', async () => {
     const session = tempSession([['review-code', 'engineering_standards']]);
+    const waiter = runAsyncAfterAdmissionRead(session, 'agents', 0.5, 'review-code');
     try {
       assert.equal(fs.existsSync(path.join(session.directory, 'ADMISSION.json')), true);
-      const pending = runAsync(session, 'agents', 0.5, 'review-code');
-      await delay(80);
+      await waiter.ready;
       fs.appendFileSync(path.join(session.directory, 'WORKER-PACKET.json'), ' ');
       writeArtifact(session, 'review-code', 'engineering_standards');
-      const result = await pending;
+      const result = await waiter.pending;
       assert.equal(result.status, 1, result.stdout + result.stderr);
       assert.match(result.stdout, /packet|digest|changed|immutable/i);
     } finally {
+      waiter.cleanup();
       fs.rmSync(session.root, { recursive: true, force: true });
     }
   });
 
   await t.test('context bytes remain historical observations', async () => {
     const session = tempSession([['review-code', 'engineering_standards']]);
+    const waiter = runAsyncAfterAdmissionRead(session, 'agents', 0.5, 'review-code');
     try {
       assert.equal(fs.existsSync(path.join(session.directory, 'ADMISSION.json')), true);
-      const pending = runAsync(session, 'agents', 0.5, 'review-code');
-      await delay(80);
+      await waiter.ready;
       fs.appendFileSync(session.subject.absoluteContext, '\nchanged while polling\n');
       writeArtifact(session, 'review-code', 'engineering_standards');
-      const result = await pending;
+      const result = await waiter.pending;
       assert.equal(result.status, 0, result.stdout + result.stderr);
       assert.equal(JSON.parse(result.stdout).status, 'complete');
     } finally {
+      waiter.cleanup();
       fs.rmSync(session.root, { recursive: true, force: true });
     }
   });
@@ -1655,30 +1715,31 @@ test('review waiter freezes admitted subject claims while continuing to enforce 
 test('strict waiters pin one admission receipt throughout polling', async (t) => {
   await t.test('agents', async () => {
     const session = tempSession([['review-code', 'engineering_standards']]);
+    const waiter = runAsyncAfterAdmissionRead(session, 'agents', 0.5, 'review-code');
     try {
-      const pending = runAsync(session, 'agents', 0.5, 'review-code');
-      await delay(80);
+      await waiter.ready;
       rewriteAdmissionWithEquivalentPacketBinding(session);
       writeArtifact(session, 'review-code', 'engineering_standards');
 
-      const result = await pending;
+      const result = await waiter.pending;
 
       assert.equal(result.status, 1, result.stdout + result.stderr);
       assert.match(result.stdout, /ADMISSION|admission|receipt.*changed|immutable/i);
     } finally {
+      waiter.cleanup();
       fs.rmSync(session.root, { recursive: true, force: true });
     }
   });
 
   await t.test('summary', async () => {
     const session = tempSession();
+    const waiter = runAsyncAfterAdmissionRead(session, 'summary', 0.5);
     try {
       let artifacts = {
         'review-spec': writeArtifact(session, 'review-spec', 'spec_fidelity'),
         'review-code': writeArtifact(session, 'review-code', 'engineering_standards'),
       };
-      const pending = runAsync(session, 'summary', 0.5);
-      await delay(80);
+      await waiter.ready;
       rewriteAdmissionWithEquivalentPacketBinding(session);
       artifacts = {
         'review-spec': writeArtifact(session, 'review-spec', 'spec_fidelity'),
@@ -1686,11 +1747,12 @@ test('strict waiters pin one admission receipt throughout polling', async (t) =>
       };
       writeSummary(session, summaryFor(session, artifacts));
 
-      const result = await pending;
+      const result = await waiter.pending;
 
       assert.equal(result.status, 1, result.stdout + result.stderr);
       assert.match(result.stdout, /ADMISSION|admission|receipt.*changed|immutable/i);
     } finally {
+      waiter.cleanup();
       fs.rmSync(session.root, { recursive: true, force: true });
     }
   });

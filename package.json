@@ -1,6 +1,6 @@
 {
   "name": "ultra-builder-pro-cli",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "File-first Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, Kimi Code, Grok Build, and ZCode.",
   "bin": {
     "ultra-builder-pro-cli": "bin/install.js",

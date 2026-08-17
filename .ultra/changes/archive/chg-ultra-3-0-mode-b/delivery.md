@@ -13,10 +13,12 @@ hard constraints are traced by all three completed Change tasks in
 Kimi Code, Grok Build, and ZCode without adding a required daemon, database, MCP
 server, Graph engine, hidden executor, or semantic state machine.
 
-The owner selected the 3.0 release line on 2026-08-18. The first `v3.0.0`
-candidate stopped before publication when its clean-checkout release gate exposed
-workstation-only test inputs; the published candidate is therefore `3.0.1`, without
-rewriting the failed tag. The intent's earlier
+The owner selected the 3.0 release line on 2026-08-18. The `v3.0.0` candidate
+stopped before publication when its clean-checkout release gate exposed
+workstation-only test inputs. The `v3.0.1` candidate stopped before publication
+when CI scheduling exposed a fixed-delay race in the Review waiter test. The current
+publish candidate is therefore `3.0.2`, without rewriting either failed tag. The
+intent's earlier
 deferred-version note and no-external-effects grant remain accurate historical
 boundaries for implementation; this finalization and its release effects proceed
 under the owner's newer explicit invocation, not by extending that expired grant.
@@ -27,10 +29,10 @@ under the owner's newer explicit invocation, not by extending that expired grant
   `.ultra/specs/architecture.md` carry the accepted r3 authority, product contract,
   and architecture boundary.
 - `README.md#ultra-builder-pro-30` now states the 3.0 cognitive-alignment promise,
-  owner-selected topology, bounded convergence, six-host support, exact 3.0.1
+  owner-selected topology, bounded convergence, six-host support, exact 3.0.2
   install commands, and honest ZCode transport maturity.
-- `CHANGELOG.md#301--2026-08-18`, `package.json`, and `package-lock.json` establish
-  the SemVer 3.0.1 release posture.
+- `CHANGELOG.md#302--2026-08-18`, `package.json`, and `package-lock.json` establish
+  the SemVer 3.0.2 release posture.
 - `tests/project-artifacts.test.cjs`, `tests/north-star-v2.test.cjs`, and
   `tests/v026-contract.test.cjs` resolve the delivered Change by stable
   `change_id` across its active-to-archive move; immutable task evidence is not
@@ -44,11 +46,11 @@ under the owner's newer explicit invocation, not by extending that expired grant
 
 | Command | Exit | Evidence | Freshness |
 |---|---:|---|---|
-| `node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-3-0-mode-b` | 0 | HEAD `53bb8f90...`; intent `9f877a8c...`; product `af6bed45...`, stable across two captures | after 3.0.1 README, changelog, package metadata, and clean-checkout gate reconciliation |
+| `node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-3-0-mode-b` | 0 | HEAD `8f9c5bf3...`; intent `9f877a8c...`; product `c6f356c2...`, stable across two captures | after 3.0.2 README, changelog, package metadata, and deterministic CI gate reconciliation |
 | `node skills/ultra-plan/scripts/validate_task_evidence.cjs <record> [--verify-external-receipt] --projection` for all three Change tasks | 0 | exact projections `a797be19...`, `24e2f95e...`, `b2930ca3...` | immediately before finalization |
 | `node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/v30-current-test-report-consumer-final-delta-review/SUMMARY.json --report .ultra/test-report.json` | 0 | `valid: true`, zero findings, SUMMARY `26854a96...` | immediately before finalization |
-| `npm run verify:release` | 0 | 615 Node tests, 89 Hook tests, 0 high-severity production dependency vulnerabilities | fresh 3.0.1 product snapshot |
-| `npm pack --dry-run --json` | 0 | `ultra-builder-pro-cli@3.0.1`, 128 files, 321334-byte tarball | fresh 3.0.1 product snapshot; no package written |
+| `npm run verify:release` | 0 | 615 Node tests, 89 Hook tests, 0 high-severity production dependency vulnerabilities | fresh 3.0.2 product snapshot |
+| `npm pack --dry-run --json` | 0 | `ultra-builder-pro-cli@3.0.2`, 128 files, 321446-byte tarball, shasum `c0353f96...` | fresh 3.0.2 product snapshot; no package written |
 | `git diff --check` | 0 | no whitespace errors | immediately before finalization |
 
 ## Review
@@ -101,8 +103,8 @@ commit; never rewrite the published tag or package bytes.
 
 | Effect | Authorization | Observed status at local archive |
 |---|---|---|
-| Commit release state | owner-authorized 2026-08-18 | release commit `2b2dc777...`; clean-checkout gate repair `53bb8f90...`; 3.0.1 metadata commit pending |
-| Fast-forward merge to `main` and push | owner-authorized 2026-08-18 | `main` pushed through `53bb8f90...`; 3.0.1 metadata push pending |
-| Annotated tags and publication | owner-authorized 2026-08-18 | `v3.0.0` preserved as a failed pre-publication candidate (workflow `32057781915`; no npm version or GitHub Release); `v3.0.1` publish pending |
-| Global install: Claude Code, Codex, OpenCode, Kimi Code, ZCode | owner-authorized 2026-08-18 | pending until published `ultra-builder-pro-cli@3.0.1` is fetched and each Doctor is healthy |
+| Commit release state | owner-authorized 2026-08-18 | release commit `2b2dc777...`; clean-checkout repair `53bb8f90...`; 3.0.1 metadata commit `8f9c5bf...`; 3.0.2 release commit pending |
+| Fast-forward merge to `main` and push | owner-authorized 2026-08-18 | `main` pushed through `8f9c5bf...`; 3.0.2 push pending |
+| Annotated tags and publication | owner-authorized 2026-08-18 | `v3.0.0` preserved after failed pre-publication workflow `32057781915`; `v3.0.1` preserved after failed pre-publication workflow `32059281917`; neither npm version nor GitHub Release exists; `v3.0.2` pending |
+| Global install: Claude Code, Codex, OpenCode, Kimi Code, ZCode | owner-authorized 2026-08-18 | pending until published `ultra-builder-pro-cli@3.0.2` is fetched and each Doctor is healthy |
 | Grok Build global install | not requested | not performed |
