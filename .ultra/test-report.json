@@ -1,119 +1,223 @@
 {
-  "$schema": "ultra-test-report-v1",
-  "change_id": "chg-converge",
+  "$schema": "ultra-test-report-v2",
+  "change_id": "chg-ultra-3-0-mode-b",
   "task_ids": [
-    "v026-artifact-lifecycle",
-    "v026-agent-skill-convergence",
-    "v026-delegation-contract",
-    "v026-host-adapters",
-    "v026-self-migration",
-    "v026-release-verification"
+    "v30-mode-b-local-implementation",
+    "v30-north-star-r3-primary-handoff",
+    "v30-current-test-report-consumer"
   ],
-  "git_commit": "3f99189bc68697262cd90444685ac2d4857139c4",
-  "intent_digest": "7568007fae0847ce5a7247e566f8369c34e18fe2f28a20ff5038761d83468b11",
+  "git_commit": "33e711c4f3a9301494e7a269e4cd0e3ed49be13d",
+  "intent_digest": "9f877a8c5c485670f4d3f75cab5448fe40918cb32863d4dae56d0408980b13c9",
   "worktree": {
     "dirty": true,
-    "diff_digest": "44c6e04950a80c5690d8f33fa5c5da9d16a214e2a0d72b22d6037122b0a64c2c"
+    "diff_digest": "52d9eba9dd0e379ce2963aaca719eb7d195485fd1065e1aa3cbce702b099a83b"
   },
+  "task_evidence": [
+    {
+      "task_id": "v30-mode-b-local-implementation",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/v30-mode-b-local-implementation/evidence.json",
+      "evidence_digest": "a797be192df2a18177142df9baa92752871bdd103b1dfb8ff633b5a1023d569b",
+      "task_review_mode": "external-manual",
+      "task_review_receipt_ref": ".ultra/evidence/v30-mode-b-local-implementation/external-review.json",
+      "task_review_receipt_digest": "8c583d3e9bad9bfac40403c417f26f7cca9db0ad79fea45de42e49d13100e3a6"
+    },
+    {
+      "task_id": "v30-north-star-r3-primary-handoff",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/v30-north-star-r3-primary-handoff/evidence.json",
+      "evidence_digest": "24e2f95ee9849d5d1081b5e550424eb405af81e5848b4b2f7d1ecfaf11e36422",
+      "task_review_mode": "external-manual",
+      "task_review_receipt_ref": ".ultra/evidence/v30-north-star-r3-primary-handoff/external-review.json",
+      "task_review_receipt_digest": "23bf0fa51c4e70f8d4faf2dfcc794485459dad45bad1dd522c569f54bf423cd1"
+    },
+    {
+      "task_id": "v30-current-test-report-consumer",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/v30-current-test-report-consumer/evidence.json",
+      "evidence_digest": "b2930ca3ca768c7c6c060111908121d5c034719e2c2309cbc7d649421157385b",
+      "task_review_session": "v30-current-test-report-consumer-final-delta-review",
+      "task_review_summary_digest": "26854a96341e9b2678bea76439e83d6e48304b8ac76b4c03b96844fb69ba6dc1"
+    }
+  ],
   "commands": [
     {
-      "command": "node --test tests/delegate.test.cjs",
+      "command": "node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-3-0-mode-b",
       "exit_code": 0,
-      "evidence_ref": "8 passed, 0 failed"
+      "evidence_ref": "head 33e711c4f3a9301494e7a269e4cd0e3ed49be13d; intent_digest 9f877a8c5c485670f4d3f75cab5448fe40918cb32863d4dae56d0408980b13c9; diff_digest 52d9eba9dd0e379ce2963aaca719eb7d195485fd1065e1aa3cbce702b099a83b (3.0.0 release metadata plus stable-id archive consumers reconciled; evidence publication and Change-directory metadata excluded by the fixed product-digest boundary)"
     },
     {
-      "command": "node --test adapters/_shared/tests/file-ops.test.cjs tests/install.test.cjs tests/v026-adapters.test.cjs",
+      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v30-mode-b-local-implementation/evidence.json --verify-external-receipt --projection",
       "exit_code": 0,
-      "evidence_ref": "31 passed, 0 failed"
+      "evidence_ref": "current-v2; external-manual receipt 8c583d3e9bad9bfac40403c417f26f7cca9db0ad79fea45de42e49d13100e3a6 verified; evidence_digest a797be192df2a18177142df9baa92752871bdd103b1dfb8ff633b5a1023d569b"
     },
     {
-      "command": "node --test tests/v026-contract.test.cjs tests/project-artifacts.test.cjs tests/package-smoke.test.cjs",
+      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v30-north-star-r3-primary-handoff/evidence.json --verify-external-receipt --projection",
       "exit_code": 0,
-      "evidence_ref": "current artifact graph and archived Change contract passed"
+      "evidence_ref": "current-v2; external-manual receipt 23bf0fa51c4e70f8d4faf2dfcc794485459dad45bad1dd522c569f54bf423cd1 verified; evidence_digest 24e2f95ee9849d5d1081b5e550424eb405af81e5848b4b2f7d1ecfaf11e36422"
+    },
+    {
+      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v30-current-test-report-consumer/evidence.json --projection",
+      "exit_code": 0,
+      "evidence_ref": "current-v2; strict-v4 projection binding session v30-current-test-report-consumer-final-delta-review and summary digest 26854a96…; evidence_digest b2930ca3ca768c7c6c060111908121d5c034719e2c2309cbc7d649421157385b"
+    },
+    {
+      "command": "node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/v30-current-test-report-consumer-final-delta-review/SUMMARY.json --report .ultra/test-report.json",
+      "exit_code": 0,
+      "evidence_ref": "valid: true; the terminal APPROVE receipt binds the current three-task subject and this report; finding_count 0"
+    },
+    {
+      "command": "node --test tests/project-artifacts.test.cjs tests/v026-contract.test.cjs tests/review-transport.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "207/207 cross-resolution: recorded-report consumer, ledger-frontier consumer, and review-transport fixtures against the completed three-task frontier"
     },
     {
       "command": "npm run verify:release",
       "exit_code": 0,
-      "evidence_ref": "106 Node passed, 8 Hooks passed, 0 vulnerabilities"
-    },
-    {
-      "command": "for skill in skills/*; do uv run --with pyyaml -- python <skill-creator>/quick_validate.py $skill; done",
-      "exit_code": 0,
-      "evidence_ref": "14 of 14 Skill is valid"
-    },
-    {
-      "command": "uv run --with pyyaml -- python <plugin-creator>/validate_plugin.py <isolated-codex-plugin>",
-      "exit_code": 0,
-      "evidence_ref": "Plugin validation passed"
+      "evidence_ref": "test:all green (615 Node, 89 Hooks); npm audit --omit=dev --audit-level=high: 0 vulnerabilities"
     },
     {
       "command": "npm pack --dry-run --json",
       "exit_code": 0,
-      "evidence_ref": "111 entries; 132432 bytes packed; 445788 bytes unpacked; 0 retired runtime entries"
+      "evidence_ref": "3.0.0 package; 128 entries; 321236 bytes; no write performed"
     },
     {
-      "command": "node bin/install.js --all --global --config-dir <isolated-root> && doctor && reinstall && uninstall",
+      "command": "git diff --check",
       "exit_code": 0,
-      "evidence_ref": "five healthy; Codex hook trust user_review_required; config and fake HOME zero children"
-    },
-    {
-      "command": "python3 skills/ultra-review/scripts/review_wait.py .ultra/reviews/v026-final summary --packet-digest ee2e31dbb3fff941179e13ba0d9f7c6b93ac8a047a91b5212d6e2db8e9af8404",
-      "exit_code": 0,
-      "evidence_ref": "APPROVE; P0 0, P1 0, P2 0, P3 0"
+      "evidence_ref": "clean"
     }
   ],
   "areas": {
     "anti_patterns": {
       "status": "passed",
-      "evidence_refs": ["tests/skill-authoring.test.cjs", "tests/fixtures/v026-three-defenses/", ".ultra/reviews/v026-final/review-tests.json"],
+      "evidence_refs": [
+        ".ultra/reviews/v30-current-test-report-consumer-final-delta-review/review-tests.json",
+        "tests/north-star-v2.test.cjs",
+        "tests/primary-transfer.test.cjs"
+      ],
       "omissions": []
     },
     "coverage_gaps": {
-      "status": "gap",
-      "evidence_refs": [".ultra/reviews/v026-final/review-tests.json", "docs/RUNTIME-COMPAT-MATRIX.md"],
-      "omissions": ["At this 2026-08-01 report snapshot, authenticated Claude-to-Codex provider continuation had not run; it completed on 2026-08-03 as recorded in the runtime matrix."]
+      "status": "passed",
+      "evidence_refs": [
+        ".ultra/reviews/v30-current-test-report-consumer-final-delta-review/review-tests.json",
+        ".ultra/reviews/v30-current-test-report-consumer-final-delta-review/review-spec.json",
+        "npm run test:node (615 passed)"
+      ],
+      "omissions": []
     },
     "wiring": {
       "status": "passed",
-      "evidence_refs": ["tests/package-smoke.test.cjs", "tests/project-artifacts.test.cjs", ".ultra/reviews/v026-final/review-code.json"],
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "tests/project-artifacts.test.cjs",
+        ".ultra/reviews/v30-current-test-report-consumer-final-delta-review/review-code.json"
+      ],
       "omissions": []
     },
     "e2e": {
       "status": "passed",
-      "evidence_refs": ["tests/package-smoke.test.cjs", "tests/install.test.cjs", "tests/delegate.test.cjs"],
-      "omissions": ["No authenticated provider or real HOME mutation is claimed."]
+      "evidence_refs": [
+        "node --test tests/project-artifacts.test.cjs tests/v026-contract.test.cjs tests/review-transport.test.cjs (207/207)",
+        "node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/v30-current-test-report-consumer-final-delta-review/SUMMARY.json --report .ultra/test-report.json (exit 0)",
+        "node skills/ultra-change/scripts/validate_primary_transfer.cjs . --live (exit 0, 2026-08-17 observation)"
+      ],
+      "omissions": [
+        "Real host installation and external release effects are deferred to the separately authorized post-commit release phase; this pre-release Test does not present them as already observed."
+      ]
     },
     "performance": {
       "status": "not_applicable",
-      "evidence_refs": ["npm run verify:release completed within the local release run"],
-      "omissions": ["No latency, throughput, or scale requirement exists for this CLI release; no synthetic load benchmark was added."]
+      "evidence_refs": [
+        "npm run verify:release completed within the local release run"
+      ],
+      "omissions": [
+        "No latency, throughput, or scale requirement exists for this CLI workflow package; no synthetic load benchmark was added."
+      ]
     },
     "security": {
       "status": "passed",
-      "evidence_refs": ["npm audit --omit=dev --audit-level=high", "tests/delegate.test.cjs", "hooks/tests/test_v026_hooks.py", "tests/install.test.cjs"],
-      "omissions": ["Host-native sandbox implementations remain outside package source and are version-bound."]
+      "evidence_refs": [
+        "npm audit --omit=dev --audit-level=high (0 vulnerabilities)",
+        "tests/delegate.test.cjs",
+        "tests/primary-transfer.test.cjs",
+        "hooks/tests/test_v026_hooks.py"
+      ],
+      "omissions": [
+        "Host-native sandbox and provider behavior remain outside package source and are version-bound."
+      ]
     }
   },
   "verified_seams": [
-    "npm tarball to installed Claude plugin to initialized canonical project",
-    "installer CLI to five adapters to native manifests or registries to Doctor to ownership-safe uninstall",
-    "delegate CLI to native host profile to child process to real Git diff to terminal receipt",
-    "task ledger to contexts to evidence to test report to delivery",
-    "Hook event adapters to canonical files and derived progress or compact output"
+    "recorded-report consumer to the report's named Change: changeIntent exactly-one resolution, active-or-archived state, all-rows task-ids binding, exact intent-digest binding, v2 schema with ordered task_evidence array",
+    "ledger-frontier consumer to the durable authority: sole active Change, no abandoned-Change re-activation, in-progress tasks cross-resolve to ordinary contexts",
+    "review transport to the terminal APPROVE SUMMARY and this v2 report (validate_review_transport exit 0, zero findings)",
+    "task-evidence sensors to all three completed v30 records with branch-specific verification (two external-manual receipts, one strict-v4 session) and verbatim projections",
+    "primary-transfer validator to live handoff receipts (repo-wide --live exit 0, 2026-08-17 observation)",
+    "package manifest to npm pack dry-run inventory (128 entries)"
   ],
   "findings": [],
   "omissions": [
-    "At this 2026-08-01 report snapshot, authenticated provider continuation and real HOME installation were separately authorized effects; later continuation evidence is recorded in the runtime matrix."
+    "The parent aggregate review's P2 (intent Recovery wording) remains report-only backlog per owner instruction; it is recorded in the parent receipt and not repaired.",
+    "Real installation on Claude Code, Codex, OpenCode, Kimi Code, and ZCode is owner-authorized as a separate post-publication effect and therefore remains outside this pre-release Test snapshot.",
+    "AC3-07 and AC3-14 owner-judgment dimensions are not re-derived by this audit; their cited durable records remain bound in the task evidence."
   ],
   "residual_risks": [
-    "At this 2026-08-01 report snapshot, real HOME installations remained v0.25.1 or absent and were degraded against v0.26 inventory.",
-    "Codex Hook activation requires user review after installation.",
-    "Native sandbox and provider behavior can drift with host versions."
+    "The owner explicitly authorized delivery finalization, commit, fast-forward merge, push, v3.0.0 tag publication, and five real host installations; none is presented as performed until independently observed after this Test snapshot.",
+    "The parent aggregate APPROVE receipt and the delta REQUEST_CHANGES receipt remain retained historical input; only the terminal APPROVE receipt binds the current subject.",
+    "ZCode app-bundled CLI transport remains experimental by accepted design.",
+    "The terminal review is sequential-shared-context and shares one model-family blind spot."
   ],
   "owner_disposition": [
-    "The owner requested comprehensive local completion; external installation, provider spend, commit, push, and publication remain separate."
+    "The parent review's P2 (intent Recovery wording) is report-only backlog per owner instruction; it was not repaired in this Change.",
+    "The repair task v30-current-test-report-consumer closed under the terminal APPROVE with zero findings; its canonical ultra-task-evidence-v2 record binds the strict final receipt.",
+    "The owner selected version 3.0.0 and separately authorized delivery finalization, commit, fast-forward merge, push, tag publication, and real installation on Claude Code, Codex, OpenCode, Kimi Code, and ZCode; each remains unperformed at this Test snapshot and requires its own observed result."
   ],
+  "review": {
+    "session": "v30-current-test-report-consumer-final-delta-review",
+    "packet_digest": "3308b5b9c39b008cb90781853a33dfd800334365e1ca7ec7352fb6cf23aa8459",
+    "execution_mode": "sequential-shared-context",
+    "verdict": "APPROVE",
+    "context_digest": "dc4ac4f1ef735ea691218045817abc19fddf0a8b4df4b18ef02f46791bbf1013",
+    "worktree_digest": null,
+    "admission_digest": "ef15914ddc9a2b7a1afbab639d120b834abdda4fc04eab0d4c7d638c4bcd7f84",
+    "subject_digest": "f85bd18059f5ca65d9f61fbfd34fcbf4b67e27d33f8e44bf034044af78e0c100",
+    "finding_schema": "ultra-review-findings-v4",
+    "summary_ref": ".ultra/reviews/v30-current-test-report-consumer-final-delta-review/SUMMARY.json",
+    "summary_digest": "26854a96341e9b2678bea76439e83d6e48304b8ac76b4c03b96844fb69ba6dc1",
+    "provenance_note": "Terminal strict receipt: APPROVE with zero findings (P0=0 P1=0 P2=0 P3=0) binding the three-task repair frontier. Retained historical receipts: parent aggregate v30-mode-b-delivery-review (c86848ec…, APPROVE with one report-only P2) and delta v3 (f1f15e01…, REQUEST_CHANGES whose P1 was repaired and closed by this APPROVE).",
+    "coverage_refs": [
+      ".ultra/test-report.json:2",
+      "tests/project-artifacts.test.cjs:1572",
+      ".ultra/specs/product.md:194",
+      ".ultra-template/test-report.json:2",
+      "node --test tests/project-artifacts.test.cjs tests/v026-contract.test.cjs tests/review-transport.test.cjs (207/207)",
+      "tests/project-artifacts.test.cjs:1572",
+      ".ultra/test-report.json#task_evidence",
+      "npm run verify:release (615 Node, 89 Hook, 0 vulnerabilities)",
+      "node --test tests/project-artifacts.test.cjs tests/v026-contract.test.cjs tests/review-transport.test.cjs (207/207)",
+      "npm run verify:release (615 Node, 89 Hook, 0 vulnerabilities)",
+      "node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/v30-current-test-report-consumer-delta-review-v3/SUMMARY.json --report .ultra/test-report.json (valid:true)",
+      "tests/project-artifacts.test.cjs:1575",
+      ".ultra/test-report.json#review",
+      "validate_review_transport valid:true",
+      ".ultra/test-report.json#task_evidence",
+      "tests/project-artifacts.test.cjs:1575",
+      ".ultra/contexts/task-v30-current-test-report-consumer.md#Task-Review",
+      ".ultra/contexts/task-v30-current-test-report-consumer.md:96",
+      ".ultra/test-report.json#owner_disposition",
+      "tests/project-artifacts.test.cjs:1578"
+    ],
+    "limitations": [
+      "This final delta review is sequential-shared-context and is limited to the exact three-file repair of review-spec-001.",
+      "No release, installation, archive, or external provider effect was exercised by this code lens.",
+      "The current report intentionally remains passed:false until this review is consumed and the repair task publishes final evidence.",
+      "Post-review evidence publication and task completion are intentionally outside this immutable review subject.",
+      "This lens evaluates the bounded repair root, not the previously reported non-blocking P2 wording backlog.",
+      "The context still describes the pre-approval state by design and must be advanced only after this frozen review receipt is complete."
+    ]
+  },
   "passed": true,
-  "run_count": 3,
-  "timestamp": "2026-08-01T12:19:52+08:00"
+  "run_count": 8,
+  "timestamp": "2026-08-18T02:57:22+08:00"
 }

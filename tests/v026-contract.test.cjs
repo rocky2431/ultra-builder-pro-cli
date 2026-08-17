@@ -3440,18 +3440,22 @@ test('the superseded v0.27 route stays inert history under the 3.0 Mode B work p
     assert.equal(byId.get(superseded).change_id, 'chg-v027-lifecycle-closure');
   }
 
-  // The one active change is the 3.0 Mode B work package; its single task row is
-  // completed after the accepted Round-5 closeout, and no v0.27 row is
-  // re-activated by the supersession.
+  // The 3.0 Mode B work package keeps one stable identity while moving from
+  // active to archive; its task row is completed after the accepted closeout,
+  // and no v0.27 row is re-activated by the supersession.
   const frontier = byId.get('v30-mode-b-local-implementation');
   assert.ok(frontier, '3.0 task row exists');
   assert.equal(frontier.status, 'completed');
   assert.equal(frontier.change_id, 'chg-ultra-3-0-mode-b');
   assert.deepEqual(frontier.dependencies, []);
   assert.ok(fs.existsSync(path.join(ROOT, frontier.context_file)), '3.0 context exists');
-  const activeIntent = h0Read('.ultra/changes/active/chg-ultra-3-0-mode-b/intent.md');
-  assert.match(activeIntent, /^## Execution Grant$/m);
-  assert.match(activeIntent, /`durable work-package` — current segment `ubp3-r3-zcode-2026-08-17`/u);
+  const intentCandidates = ['active', 'archive']
+    .map((state) => `.ultra/changes/${state}/chg-ultra-3-0-mode-b/intent.md`)
+    .filter((relative) => fs.existsSync(path.join(ROOT, relative)));
+  assert.equal(intentCandidates.length, 1, 'the stable Change id resolves in active or archive');
+  const deliveredIntent = h0Read(intentCandidates[0]);
+  assert.match(deliveredIntent, /^## Execution Grant$/m);
+  assert.match(deliveredIntent, /`durable work-package` — current segment `ubp3-r3-zcode-2026-08-17`/u);
   // The r3 primary-transfer task models both legal lifecycle states — never
   // one transient snapshot: in_progress before its prescribed closeout, or
   // completed with the canonical six-dimension evidence record and the
@@ -3469,7 +3473,44 @@ test('the superseded v0.27 route stays inert history under the 3.0 Mode B work p
     );
   } else {
     assert.equal(r3.status, 'completed', 'the r3 row is in_progress or completed, nothing else');
-    assert.deepEqual(inProgress, [], 'no task stays in progress after the r3 closeout');
+    // A completed r3 does not freeze the whole frontier: later
+    // owner-authorized repair tasks may legally run in progress. The durable
+    // invariants are that no abandoned Change's rows re-activate, and that
+    // every in-progress task belongs to the sole active Change and
+    // cross-resolves to its ordinary context file.
+    const activeChangeIds = fs
+      .readdirSync(path.join(ROOT, '.ultra', 'changes', 'active'))
+      .filter((name) => name !== '.gitkeep');
+    assert.ok(activeChangeIds.length <= 1, 'at most one Change occupies the active position');
+    if (inProgress.length > 0) {
+      assert.equal(
+        activeChangeIds.length,
+        1,
+        'an in-progress task requires exactly one active Change',
+      );
+    }
+    const abandonedChangeIds = new Set(
+      fs
+        .readdirSync(path.join(ROOT, '.ultra', 'changes', 'abandoned'))
+        .filter((name) => name !== '.gitkeep'),
+    );
+    for (const task of inProgress) {
+      assert.equal(
+        abandonedChangeIds.has(task.change_id),
+        false,
+        `${task.id}: an abandoned Change's task is never re-activated`,
+      );
+      assert.equal(
+        task.change_id,
+        activeChangeIds[0],
+        `${task.id}: an in-progress task must belong to the sole active Change`,
+      );
+      assert.equal(
+        fs.lstatSync(path.join(ROOT, task.context_file)).isFile(),
+        true,
+        `${task.id}: an in-progress task cross-resolves to its ordinary context file`,
+      );
+    }
     const evidence = JSON.parse(h0Read('.ultra/evidence/v30-north-star-r3-primary-handoff/evidence.json'));
     assert.equal(evidence.$schema, 'ultra-task-evidence-v2');
     assert.equal(evidence.task_id, r3.id);

@@ -1,0 +1,59 @@
+# v30-current-test-report-consumer — closeout verification receipt
+
+Task: v30-current-test-report-consumer (chg-ultra-3-0-mode-b)
+Captured: 2026-08-17T23:29:16+08:00
+Git HEAD: 33e711c4f3a9301494e7a269e4cd0e3ed49be13d
+Product-worktree digest (completion subject, pre-publication): 448f9f1d578e386712832869539b63a0fc0c6b214bae52073174a2da624275be
+Intent digest: 9f877a8c5c485670f4d3f75cab5448fe40918cb32863d4dae56d0408980b13c9
+Terminal review receipt: .ultra/reviews/v30-current-test-report-consumer-final-delta-review/SUMMARY.json
+  SHA-256 26854a96341e9b2678bea76439e83d6e48304b8ac76b4c03b96844fb69ba6dc1 (APPROVE, P0=0 P1=0 P2=0 P3=0)
+
+## T5-01 — recorded-report consumer validates the named current Change
+
+Command: node --test tests/project-artifacts.test.cjs
+cwd: .
+Exit code: 0
+Result: tests 80, pass 80, fail 0
+The schema test resolves the report's named Change through changeIntent
+(active or archived, never abandoned), requires ultra-test-report-v2 with an
+ordered task_evidence array, and validates the three-task all-rows binding
+and the exact resolved-intent digest against the current ledger and intent.
+
+## T5-02 — ledger-frontier durable invariants
+
+Command: node --test tests/v026-contract.test.cjs
+cwd: .
+Exit code: 0
+Result: tests 97, pass 97, fail 0
+The frontier test keeps r3's legal states and evidence checks and enforces:
+exactly one Change in the active position, no abandoned-Change task
+re-activation, and every in_progress task belonging to the sole active Change
+with an ordinary regular context file (verified with this row in_progress
+before closeout and with the completed frontier after the aggregate refresh).
+
+## T5-03 — full release gate
+
+Command: npm run verify:release
+cwd: .
+Exit code: 0
+Result: test:all green — 615 Node tests passed (including the 207/207
+three-file consumer set tests/project-artifacts.test.cjs +
+tests/v026-contract.test.cjs + tests/review-transport.test.cjs recorded in
+the repair rounds), 89 hooks passed, npm audit --omit=dev --audit-level=high
+found 0 vulnerabilities.
+
+## Review receipts consumed during the repair chain (all bytes retained)
+
+- Parent aggregate: v30-mode-b-delivery-review — APPROVE, P0=0 P1=0 P2=1 P3=0,
+  SUMMARY SHA-256 c86848ec310c16fe92dcf23782a8cbb8ea3de5c263e6ec58b152477cfbd8e197
+  (the P2 is report-only backlog, not repaired by this task).
+- Delta round: v30-current-test-report-consumer-delta-review-v3 —
+  REQUEST_CHANGES, P1 review-spec-001 repaired, SUMMARY SHA-256
+  f1f15e0146fe0253eef7ebf80cbfc054b941051b228391017a0dc4b7b3be1cfb.
+- Terminal: v30-current-test-report-consumer-final-delta-review — APPROVE,
+  zero findings, SUMMARY SHA-256
+  26854a96341e9b2678bea76439e83d6e48304b8ac76b4c03b96844fb69ba6dc1.
+
+No install command was run (owner boundary); no commit, push, tag,
+publication, or deployment effect occurred. Isolated fake-HOME install and
+Doctor coverage is retained in the completed Mode B and r3 task evidence.

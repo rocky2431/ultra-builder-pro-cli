@@ -17,6 +17,27 @@ default is the current Agent continuing alone, and handing the work package's
 writing authority to a different Agent requires an explicit verified transfer
 (OFFER → ACK → RESULT over the repository files and Git).
 
+## Ultra Builder Pro 3.0
+
+Version `3.0.0` is the first release of Ultra as a cognitive-alignment harness for
+real software engineering. It is not a decentralized multi-agent platform and it
+does not prescribe one Agent topology. Instead, it keeps five promises:
+
+- establish the owner-accepted North Star before Research becomes a plan or code;
+- let the owner choose one Agent or several, and the provider, at every stage;
+- carry canonical intent, decisions, tasks, evidence, and recovery through files
+  under `.ultra/` plus Git so another session or host can resume from the same facts;
+- automate mechanically verifiable authority, permissions, external effects,
+  evidence, physical limits, and recovery while leaving meaning and strategy to the
+  model and owner; and
+- bound Review and repair so delivery converges instead of turning every observation
+  into another automatic implementation loop.
+
+The portable protocol and native installation cover Claude Code, Codex, OpenCode,
+Kimi Code, Grok Build, and ZCode. ZCode plugin installation is supported; its
+App-bundled headless delegation transport remains explicitly `experimental` until an
+official stable interface and recovery drill satisfy the support bar.
+
 ## Why it exists
 
 Long agentic changes tend to fail in four repeatable ways:
@@ -82,7 +103,7 @@ map, evidence convergence, owner checkpoints, and baseline promotion.
 
 ### What happened to the original Agents
 
-v0.26 does not install a custom `agents/` projection. The old review workers became the
+Version 3.0.0 does not install a custom `agents/` projection. The old review workers became the
 six focused files under `ultra-review/references/`; review coordination and synthesis
 belong to the parent `ultra-review` Skill. The old debugger procedure lives under
 `ultra-dev/references/debugging.md`, and test execution lives under
@@ -163,17 +184,17 @@ Node.js 22 or newer is required.
 
 ```bash
 # Current project, one host
-npx ultra-builder-pro-cli --claude --local
-npx ultra-builder-pro-cli --codex --local
+npx ultra-builder-pro-cli@3.0.0 --claude --local
+npx ultra-builder-pro-cli@3.0.0 --codex --local
 
 # Global installation
-npx ultra-builder-pro-cli --opencode --global
-npx ultra-builder-pro-cli --kimi --global
-npx ultra-builder-pro-cli --grok --global
-npx ultra-builder-pro-cli --zcode --global
+npx ultra-builder-pro-cli@3.0.0 --opencode --global
+npx ultra-builder-pro-cli@3.0.0 --kimi --global
+npx ultra-builder-pro-cli@3.0.0 --grok --global
+npx ultra-builder-pro-cli@3.0.0 --zcode --global
 
 # All supported hosts
-npx ultra-builder-pro-cli --all --global
+npx ultra-builder-pro-cli@3.0.0 --all --global
 ```
 
 Use the host's native Skill picker or invocation syntax to select an owner workflow.
@@ -186,13 +207,13 @@ Installation is managed, atomic, and provenance-checked.
 
 ```bash
 # Re-running install updates the managed artifact
-npx ultra-builder-pro-cli --codex --global
+npx ultra-builder-pro-cli@3.0.0 --codex --global
 
 # Read-only diagnosis
-npx ultra-builder-pro-cli --all --global --doctor --json
+npx ultra-builder-pro-cli@3.0.0 --all --global --doctor --json
 
 # Remove only managed Ultra assets
-npx ultra-builder-pro-cli --all --global --uninstall
+npx ultra-builder-pro-cli@3.0.0 --all --global --uninstall
 ```
 
 `--config-dir <path>` isolates both the primary config and host-owned sidecars. It is
@@ -351,6 +372,14 @@ conformance rather than semantic acceptance.
 
 ## Documentation
 
+- [Current authority](.ultra/north-star.md) — this repository's accepted
+  North Star, revision `north-star-v2-r3`, is the canonical current authority;
+  `.ultra/tasks.json` and the stable Change under `.ultra/changes/active/` or
+  `.ultra/changes/archive/` record the current or delivered work frontier.
+- Frozen design history (immutable accepted records, not live status):
+  [3.0 North Star R3](docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md) —
+  the hash-bound accepted r3 design — and
+  [3.0 design](docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md), superseded by r3.
 - [Philosophy](docs/PHILOSOPHY.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Artifact Authority](docs/ARTIFACT-AUTHORITY.md)

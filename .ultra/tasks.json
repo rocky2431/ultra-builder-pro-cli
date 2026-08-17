@@ -231,6 +231,19 @@
       "context_file": ".ultra/contexts/task-v30-north-star-r3-primary-handoff.md",
       "trace_to": ".ultra/north-star.md#north-star-outcomes",
       "change_id": "chg-ultra-3-0-mode-b"
+    },
+    {
+      "id": "v30-current-test-report-consumer",
+      "title": "Make the recorded-report consumer validate the current Change",
+      "type": "repair",
+      "priority": "P1",
+      "status": "completed",
+      "dependencies": [
+        "v30-north-star-r3-primary-handoff"
+      ],
+      "context_file": ".ultra/contexts/task-v30-current-test-report-consumer.md",
+      "trace_to": ".ultra/specs/product.md#release-evidence",
+      "change_id": "chg-ultra-3-0-mode-b"
     }
   ]
 }

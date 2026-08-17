@@ -1939,12 +1939,16 @@ test('Research conclusions are promoted as compact resolving v2 relations', () =
   assert.match(distillate, /v027-north-star-v2/u);
 });
 
-test('the current Change trace resolves exact v2 ids and digest without erasing supersession evidence', () => {
+test('the delivered Change trace resolves exact v2 ids and digest without erasing supersession evidence', () => {
   const northStarPath = path.join(ROOT, '.ultra', 'north-star.md');
   const validation = validate(northStarPath);
   assert.equal(validation.status, 0, validation.stdout);
   const digest = spawnSync('git', ['hash-object', northStarPath], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
-  const intent = read('.ultra/changes/active/chg-ultra-3-0-mode-b/intent.md');
+  const intentCandidates = ['active', 'archive']
+    .map((state) => `.ultra/changes/${state}/chg-ultra-3-0-mode-b/intent.md`)
+    .filter((relative) => fs.existsSync(path.join(ROOT, relative)));
+  assert.equal(intentCandidates.length, 1, 'the stable Change id resolves in active or archive');
+  const intent = read(intentCandidates[0]);
   assert.match(intent, /- First principles: `FP-1`[\s\S]*`FP-7`/u);
   assert.match(intent, /- Serves: `NS-01`, `NS-02`, `NS-03`, `NS-04`, `NS-05`/u);
   assert.match(intent, /- Touches: `HC-1`[\s\S]*`HC-8`/u);

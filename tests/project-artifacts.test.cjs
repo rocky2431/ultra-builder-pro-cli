@@ -1561,7 +1561,17 @@ test('every completed task has one canonical six-dimension evidence record', () 
     assert.ok(Array.isArray(evidence.artifacts) && evidence.artifacts.length > 0, relative);
     for (const artifact of evidence.artifacts) {
       assert.equal(typeof artifact, 'string', relative);
-      assert.ok(fs.existsSync(path.join(ROOT, artifact)), `${relative}: missing artifact ${artifact}`);
+      const movableIntentRefs = ['active', 'archive', 'abandoned'].map(
+        (state) => `.ultra/changes/${state}/${evidence.change_id}/intent.md`,
+      );
+      const existsAtRecordedPath = fs.existsSync(path.join(ROOT, artifact));
+      const resolvesByStableChangeId = movableIntentRefs.includes(artifact)
+        ? Boolean(changeIntent(evidence.change_id).path)
+        : false;
+      assert.ok(
+        existsAtRecordedPath || resolvesByStableChangeId,
+        `${relative}: missing artifact ${artifact}`,
+      );
     }
     assert.ok(Array.isArray(evidence.limitations), relative);
     assert.ok(evidence.limitations.every((item) => typeof item === 'string' && item.length > 0), relative);
@@ -1572,8 +1582,17 @@ test('every completed task has one canonical six-dimension evidence record', () 
 test('the recorded test report has a complete schema and matches its task snapshot', () => {
   const ledger = JSON.parse(fs.readFileSync(path.join(ULTRA, 'tasks.json'), 'utf8'));
   const report = JSON.parse(fs.readFileSync(path.join(ULTRA, 'test-report.json'), 'utf8'));
-  assert.equal(report.$schema, 'ultra-test-report-v1');
-  assert.equal(report.change_id, 'chg-converge');
+  assert.equal(report.$schema, 'ultra-test-report-v2');
+  assert.ok(
+    Array.isArray(report.task_evidence),
+    'the current repository report must carry the ordered task_evidence projection',
+  );
+  const intent = changeIntent(report.change_id);
+  const intentState = path.relative(ULTRA, intent.path).split(path.sep)[1];
+  assert.ok(
+    intentState === 'active' || intentState === 'archive',
+    'report change_id must resolve to the active or archived Change intent it names, never an abandoned one',
+  );
   const currentTasks = ledger.tasks.filter((task) => task.change_id === report.change_id);
   assert.deepEqual(report.task_ids, currentTasks.map((task) => task.id));
   assert.match(report.git_commit, /^[0-9a-f]{40}$/);

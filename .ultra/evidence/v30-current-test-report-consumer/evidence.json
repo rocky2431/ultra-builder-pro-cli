@@ -1,0 +1,156 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v30-current-test-report-consumer",
+  "change_id": "chg-ultra-3-0-mode-b",
+  "context": {
+    "path": ".ultra/contexts/task-v30-current-test-report-consumer.md",
+    "acceptance_sha256": "df478bd84aa5c7e1913d1e0c778cb2448fa3bd1807f72423109bc8191fe37f60"
+  },
+  "subject": {
+    "git_head": "33e711c4f3a9301494e7a269e4cd0e3ed49be13d",
+    "worktree_digest": "448f9f1d578e386712832869539b63a0fc0c6b214bae52073174a2da624275be",
+    "observed_at": "2026-08-17T23:29:16+08:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "T5-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/project-artifacts.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-current-test-report-consumer/verification.log",
+        "raw_evidence_sha256": "43a037801402328087b6e91d3ab88d3fa276a47fb29fdd925f2a89513fc262bd",
+        "freshness_identity": {
+          "git_head": "33e711c4f3a9301494e7a269e4cd0e3ed49be13d",
+          "worktree_digest": "448f9f1d578e386712832869539b63a0fc0c6b214bae52073174a2da624275be",
+          "observed_at": "2026-08-17T23:29:16+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The focused consumer run records 80/80: the schema test resolves the report's named Change through changeIntent (active or archived, never abandoned), requires ultra-test-report-v2 with an ordered task_evidence array, and validates the all-rows task-ids and exact intent-digest bindings against the current ledger and intent bytes."
+      }
+    },
+    {
+      "criterion_id": "T5-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/v026-contract.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-current-test-report-consumer/verification.log",
+        "raw_evidence_sha256": "43a037801402328087b6e91d3ab88d3fa276a47fb29fdd925f2a89513fc262bd",
+        "freshness_identity": {
+          "git_head": "33e711c4f3a9301494e7a269e4cd0e3ed49be13d",
+          "worktree_digest": "448f9f1d578e386712832869539b63a0fc0c6b214bae52073174a2da624275be",
+          "observed_at": "2026-08-17T23:29:16+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The focused frontier run records 97/97 with this task's row legally in progress before closeout: r3's own legal states and evidence checks are untouched, and the durable invariants hold — one active Change, no abandoned-Change re-activation, and every in-progress task cross-resolving to an ordinary context."
+      }
+    },
+    {
+      "criterion_id": "T5-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "npm run verify:release",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-current-test-report-consumer/verification.log",
+        "raw_evidence_sha256": "43a037801402328087b6e91d3ab88d3fa276a47fb29fdd925f2a89513fc262bd",
+        "freshness_identity": {
+          "git_head": "33e711c4f3a9301494e7a269e4cd0e3ed49be13d",
+          "worktree_digest": "448f9f1d578e386712832869539b63a0fc0c6b214bae52073174a2da624275be",
+          "observed_at": "2026-08-17T23:29:16+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The full release gate exits 0 with the repair frontier in place: 615 Node tests (including the 207/207 three-file consumer set), 89 hooks, and npm audit --omit=dev --audit-level=high finding 0 vulnerabilities."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/project-artifacts.test.cjs",
+        "tests/v026-contract.test.cjs"
+      ],
+      "rationale": "The behavioral invariants are executable assertions, not prose: Change-id resolution with active-or-archived state, the v2 report schema with an ordered task_evidence array, and the durable frontier invariants (sole active Change, no abandoned re-activation, ordinary context cross-resolution), each first observed failing RED at 79/80 and 96/97 before the repair."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-current-test-report-consumer/verification.log"
+      ],
+      "rationale": "Focused consumers 80/80 and 97/97; the three-file consumer set 207/207; the full release gate green (615 Node, 89 Hooks, 0 vulnerabilities)."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/project-artifacts.test.cjs",
+        "tests/v026-contract.test.cjs",
+        ".ultra/test-report.json"
+      ],
+      "rationale": "The repaired invariants persist in the repository's ordinary test files and validate the canonical report on every suite run against the live ledger, intent bytes, and filesystem — no in-memory or transient check."
+    },
+    "feature_flags_audit": {
+      "status": "not_applicable",
+      "evidence_refs": [
+        ".ultra/contexts/task-v30-current-test-report-consumer.md"
+      ],
+      "rationale": "The repair introduces no feature flags or gated behavior; it changes only consumer assertions and canonical workflow metadata."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-current-test-report-consumer/verification.log",
+        "skills/ultra-test/scripts/validate_review_transport.cjs"
+      ],
+      "rationale": "The slice runs end-to-end through the real consumers: canonical report to recorded-report consumer to ledger and intent bytes, and report to strict review receipt through the review-transport validator, with the release gate green."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/specs/product.md#release-evidence",
+        ".ultra/contexts/task-v30-current-test-report-consumer.md#Trace"
+      ],
+      "rationale": "The task traces to the release-evidence specification (ultra-test-report-v2 with ordered task-evidence projection) and to FP-1/FP-2/FP-4, NS-03/NS-05, HC-4/HC-7 in the accepted north-star-v2-r3."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "pre-v1-unavailable",
+      "digest": null,
+      "limitation": "This repair task ran under the owner's session-local authorizations relayed in conversation; no Execution Packet v1 artifact exists, so no bootstrap digest is fabricated."
+    },
+    "session_id": "v30-current-test-report-consumer-final-delta-review",
+    "summary_ref": ".ultra/reviews/v30-current-test-report-consumer-final-delta-review/SUMMARY.json",
+    "summary_digest": "26854a96341e9b2678bea76439e83d6e48304b8ac76b4c03b96844fb69ba6dc1",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict review session bytes, including ADMISSION.json and SUMMARY.json, until aggregate Test and Deliver have both consumed them successfully; premature loss requires a fresh Review and Test, never reconstruction of the old receipt."
+  },
+  "artifacts": [
+    "tests/project-artifacts.test.cjs",
+    "tests/v026-contract.test.cjs",
+    ".ultra/test-report.json",
+    ".ultra/contexts/task-v30-current-test-report-consumer.md",
+    ".ultra/evidence/v30-current-test-report-consumer/verification.log",
+    ".ultra/reviews/v30-current-test-report-consumer-final-delta-review/SUMMARY.json"
+  ],
+  "limitations": [
+    "The completion subject is the stable pre-publication observation captured immediately before this evidence was written; evidence publication is excluded from the product digest and is not recursively self-bound.",
+    "Git HEAD remains 33e711c because commit was not authorized; the subject records the observed dirty-worktree digest instead of claiming a commit.",
+    "No install command was run (owner boundary correction of 2026-08-17); isolated fake-HOME install and Doctor coverage is retained in the completed Mode B and r3 task evidence.",
+    "The parent aggregate review's P2 (intent Recovery wording) remains report-only backlog per owner instruction and is not repaired by this task.",
+    "Delivery finalization, version selection, Change archival, and every release effect remain separate owner decisions."
+  ],
+  "timestamp": "2026-08-17T23:29:16+08:00"
+}

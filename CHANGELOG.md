@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-08-18
+
 ### Added
 
 - Implemented the r3 North Star projection under a verified primary transfer:
@@ -1437,7 +1439,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.2...v3.0.0
+[0.26.2]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.1...v0.26.2
 [0.26.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.25.0...v0.25.1
