@@ -1,0 +1,22 @@
+{
+  "$schema": "ultra-external-review-receipt-v1",
+  "reviewer": "Codex root",
+  "reviewer_role": "read-only",
+  "task_id": "v30-north-star-r3-primary-handoff",
+  "change_id": "chg-ultra-3-0-mode-b",
+  "reviewer_authority": {
+    "ref": ".ultra/decisions/2026-08-17-ultra-3-0-r3-primary-handoff.md",
+    "sha256": "446ca6e602e04590e8f6a24c94487ac88f1a0889ac86a6f65fbcdb5b5340482a"
+  },
+  "reviewed_contract": {
+    "ref": "docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md",
+    "sha256": "95e06a08ac9f3001bebaf7f5b2247aa8a5f4f0faba1da96ce86ef0dde582e694"
+  },
+  "subject": {
+    "git_head": "9a759003aa77d1a88e1275d70d2c887ee05da993",
+    "worktree_digest": "84cf4187c40ff2551ac4999a16600e5a4d8ad0780ada272c7fb49d74404866f6"
+  },
+  "verdict": "approve",
+  "findings": [],
+  "timestamp": "2026-08-17T20:42:50+08:00"
+}

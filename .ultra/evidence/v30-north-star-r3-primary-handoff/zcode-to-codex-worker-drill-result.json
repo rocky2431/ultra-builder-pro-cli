@@ -1,0 +1,30 @@
+{
+  "$schema": "ultra-delegation-result-v1",
+  "status": "finished",
+  "summary": "src/calc.js 的 add 函数错误地使用了减法运算符（a - b），应为加法运算符。",
+  "changed_files": [],
+  "checks": [
+    {
+      "command": "sed -n '1,200p' src/calc.js",
+      "status": "passed",
+      "output_ref": "Observed: module.exports = { add: (a, b) => a - b };"
+    }
+  ],
+  "evidence": [
+    "src/calc.js defines add as (a, b) => a - b."
+  ],
+  "questions": [],
+  "residual_risks": [],
+  "delegation_id": "zcode-worker-drill",
+  "host": "codex",
+  "instruction_digest": "79c49e4846eeca3555faa64baed0610dac5a527a89c130c5fbea315534db4a44",
+  "permission_digest": "96f7f8ed4ddb77e4569519d8d20ec20d2e29595c74a06b119d0dee8f3a7dd2cb",
+  "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+  "read_only": true,
+  "base_head": "89f3053ebf1ea81fa942bc14b9df1de341fc6e18",
+  "final_head": "89f3053ebf1ea81fa942bc14b9df1de341fc6e18",
+  "started_at": "2026-08-17T00:43:32.248Z",
+  "finished_at": "2026-08-17T00:43:50.090Z",
+  "exit_code": 0,
+  "signal": null
+}

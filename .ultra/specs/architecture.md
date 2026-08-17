@@ -101,10 +101,22 @@ ledger, workflow state machine, database, or MCP authority is added.
 The owner selects the Agent topology per stage — one Agent or several, which
 providers, which write scopes, serial or parallel. When unspecified, the current
 Agent continues alone: no automatic spawn, delegation, or control-plane enablement,
-and provider roles are never hard-bound to workflow stages. One coherent work
-package receives at most one initial Review plus two P0/P1 delta Reviews; a
-remaining blocker after the third returns to the owner rather than opening a
-fourth round, and P2/P3 findings are reported without automatic repair.
+and provider roles are never hard-bound to workflow stages. Changing the canonical
+writer of a work package is an owner-granted primary transfer: the sender derives
+an OFFER binding canonical refs/hashes, HEAD, and the worktree digest; the
+receiver stable-reads and answers with a ready ACK only on full match; after the
+ready ACK the receiver is the sole canonical writer and the sender stops writing;
+execution ends in a frozen terminal RESULT receipt. Receipts under
+`.ultra/.runtime/handoffs/` are derived observations, never authority, and stay
+mutually exclusive with delegated workers, who never write canonical `.ultra`
+(`skills/ultra-change/references/primary-transfer.md`).
+
+Review convergence is bounded by an owner-visible budget: exact defaults live in
+the versioned product contract and exact work-package overrides in owner grants
+(the released default is one initial Review plus two P0/P1 delta Reviews); a
+remaining blocker at budget exhaustion returns to the owner rather than opening
+another round, no Agent, reviewer, Hook, or control plane can extend the budget,
+and P2/P3 findings are reported without automatic repair.
 
 ### Optional coordination boundary
 
@@ -148,7 +160,7 @@ the same lenses sequentially when no such surface exists.
 | OpenCode | native JS plugin plus managed Skill directories | descriptions guide selection | no native owner/model routing bit |
 | Kimi Code | managed plugin registry under `KIMI_CODE_HOME` | native Skill metadata | plugin scope is user-only; unattended tool approval is coarse |
 | Grok Build | native plugin source/registration | native frontmatter | plugin scope is user-only; sandbox behavior remains host-owned |
-| ZCode | managed local marketplace plus inline plugin directory | portable descriptions and resident grant guard | plugin scope is user-only; headless provider state is separately owner-configured; macOS App bundle is the default CLI fallback when `zcode` is absent from `PATH` |
+| ZCode | managed local marketplace plus inline plugin directory | portable descriptions and resident grant guard | plugin scope is user-only; headless provider state is separately owner-configured; the App-bundled CLI fallback is a verified-local **experimental** transport — official documentation plus a full recovery drill must both hold before any `supported` claim |
 
 `adapters/_shared/runtime-assets.cjs` is the only packaged allowlist.
 `plugin-core.cjs` copies shared assets and the canonical init template.
@@ -198,7 +210,7 @@ not write its own receipt. Nonzero exit cannot become `finished`.
 | OpenCode | auto mode under inline deny-by-default permissions; external directories, Bash, web and subagents denied | inline configuration support is version-bound |
 | Kimi | prompt mode with launch-only read/write file-tool agent profile; no Bash, web, MCP or subagents | native file tools do not expose a portable per-root CLI policy |
 | Grok | single turn; read-only or workspace OS sandbox; no memory/subagents/web | sandbox profile semantics remain Grok-owned |
-| ZCode | headless plan/edit mode with Bash, web and subagents denied; write tools also denied in read-only mode; shared profile selects the macOS App-bundled CLI before `PATH` | explicit CLI provider configuration is required; current help advertises some root-parser-rejected flags |
+| ZCode | headless plan/edit mode with Bash, web and subagents denied; write tools also denied in read-only mode; shared profile selects the macOS App-bundled CLI before `PATH` | **experimental** transport (verified-local only): explicit CLI provider configuration is required, current help advertises some root-parser-rejected flags, and no public stability contract exists; a delegation receipt can never upgrade into a primary transfer |
 
 Therefore v0.26 accepts an empty `external_effects` list, removes shell, web and subagent
 tools where native surfaces permit, and combines native isolation with a verified Git

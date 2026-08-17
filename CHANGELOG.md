@@ -9,6 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Implemented the r3 North Star projection under a verified primary transfer:
+  North Star revision `north-star-v2-r3` with the new `FP-8` (Agent handover is
+  exclusive, verified, and recoverable), a new acceptance decision and immutable
+  snapshot, and the exact ZCode sole-writer durable grant
+  `ubp3-r3-zcode-2026-08-17` recorded in `.ultra/decisions/`.
+- Added the primary-transfer contract between Agents
+  (`skills/ultra-change/references/primary-transfer.md`): an owner-granted
+  OFFER → verified ACK → sole-writer execution → frozen terminal RESULT protocol
+  over canonical files and Git, mutually exclusive with delegated workers,
+  with derived receipts under `.ultra/.runtime/handoffs/` and a mechanical
+  validator (`skills/ultra-change/scripts/validate_primary_transfer.cjs`) plus
+  authority, permission, effect, stale/revoke/interrupt/resume/cancel, and
+  missing-receipt recovery regressions (`tests/primary-transfer.test.cjs`).
+  `ultra-change`, `ultra-status`, and `ultra-delegate` consume the contract.
+- Added the versioned closeout-transition contract
+  (`ultra-primary-transfer-closeout-v1` in
+  `skills/ultra-change/references/primary-transfer.md`): the immutable
+  reviewed subject of a newest completed v2 RESULT is separated from exactly
+  one uncommitted prescribed post-review closeout (final evidence record,
+  task-context closeout sections, ledger `completed`) through a CLOSEOUT
+  receipt that starts no review or handoff and never commits, while
+  implementation, Acceptance, PPI, pre-review-evidence, and unrelated-ledger
+  drift stays typed-stale; owner-authorized continuations between freeze and
+  closeout are recorded, bounded, and pinned. The closed task's ledger row is
+  bound ex-status (unique, `in_progress` → `completed`, every other field
+  structure-equivalent, re-read live), and `authorized_by` binds the existing
+  `ultra-external-review-receipt-v1` semantics (read-only reviewer, exact
+  task/change identity, authority and reviewed-contract refs by stable bytes,
+  subject equal to the closeout start, `approve` with no P0/P1). Regressions
+  cover the terminal
+  green path without RESULT edit or commit, structural and citation
+  rejections, drift during/after closeout (including current-row field drift),
+  continuation bounds, and preserved
+  history (`tests/primary-transfer.test.cjs`).
+- Repaired the contract in the owner-authorized Round 1 pass
+  (`ubp3-r3-zcode-desktop-r1`): transfer validation is now phase-correct (an
+  ACK is a pre-write boundary record, so expected receiver edits never
+  self-invalidate an active or completed transfer; a superseded or v1 terminal
+  receipt stays historical), all receipt and bound-input reads are bounded
+  ordinary-file no-follow identity-checked reads (typed rejection for symlinks,
+  FIFOs, directories, oversize, and replacement), and a v2 terminal RESULT
+  binds the recomputed final HEAD, product worktree digest, exact full product
+  path inventory, and final frozen-input digests. Review-budget precedence is
+  one rule — an exact current owner grant overrides the versioned product
+  default (one initial review plus at most two P0/P1 delta reviews); P2/P3
+  never auto-extend, and the same root surviving three failed fixes stops
+  point-patching as an architecture problem. The ZCode delegate transport now
+  requires visible `--ack-experimental` acknowledgment and stamps
+  `transport_maturity`/`transport_surface` truth on every receipt and result,
+  so an app-internal CLI run can never be presented as the documented ZCode
+  Desktop interactive surface.
+- Closed the two Round 2 misses on the same roots: transfer validation is now
+  fail-closed (an unobservable HEAD/Git is a typed `git_unavailable` error
+  instead of a green warning) and every read goes through the worktree-digest
+  tool's one shared stable snapshot primitive with parent-chain walks, exact
+  handoff-directory replay, same-subject supersession, and one finite coherent
+  digest×manifest terminal observation; every delegated ZCode terminal result
+  (finished, failed, cancelled, interrupted) now mechanically carries
+  `experimental_ack: true` when `--ack-experimental` authorized the run.
+- Closed the final Round 3 miss on the same root: repo-wide handoff-root
+  discovery reuses the one stable directory observation — a symlinked,
+  unreadable, malformed, drifting, or oversize handoffs root (or entry) fails
+  typed and closed instead of silently reading as zero handoffs with
+  `valid: true`, while an absent root still legitimately means no transfers.
 - Implemented the accepted Ultra Builder Pro 3.0 design as one Mode B durable
   work-package projection: North Star revision `north-star-v2-r2` with seven first
   principles, five observable outcomes (`NS-01`-`NS-05`), and eight hard constraints;
@@ -21,12 +85,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by exact owner record, with stable verification, invalidation, and portable
   handoff semantics in `skills/ultra-change/references/execution-grant.md`;
   Status reports a recorded durable grant as inactive data awaiting verification.
-- Added work-package review convergence: at most one initial Review plus two P0/P1
-  delta Reviews per coherent package, explicit terminal outcomes, and mandatory
-  stop signals when repairs expose distinct root causes.
+- Added work-package review convergence bounded by an owner-visible budget: the
+  released default is at most one initial Review plus two P0/P1 delta Reviews per
+  coherent package, with explicit terminal outcomes, no self-extended budget, and
+  mandatory stop signals when repairs expose distinct root causes. Exact defaults
+  live in the versioned product contract; exact overrides in owner grants.
 - Added ZCode as a sixth native host with fourteen Skills, five hook registrations, a
   managed local marketplace, inline-plugin activation, Doctor, update, uninstall, and
-  bounded source/target delegation profiles.
+  bounded source/target delegation profiles. The App-bundled headless CLI transport
+  is recorded `experimental` in the shared host profile until official documentation
+  plus a full recovery drill meet the support bar.
 - Added canonical North Star traces from Research through Change, Plan, review, Test,
   and delivery, plus adversarial challenges at Research checkpoints 04, 21, and 99.
 - Added review coverage references, recorded isolated-versus-sequential execution mode,

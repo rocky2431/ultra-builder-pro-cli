@@ -87,7 +87,13 @@ One primary host model writes this authority in a worktree. Native subagents are
 read-only sensors; delegated CLIs write isolated non-`.ultra` roots and return receipts.
 Sequential Changes share the ledger by stable id, while current readers filter by the
 one unique active Change. This keeps concurrency explicit in Git instead of adding a
-semantic lock service or workflow engine.
+semantic lock service or workflow engine. When the canonical writer itself changes
+Agent, an owner-granted primary transfer moves the role exclusively — a derived
+OFFER binding canonical refs/hashes, HEAD, and worktree digest; a receiver ACK that
+is ready only on full stable-read match; sole-writer execution; a frozen terminal
+RESULT — with receipts under `.ultra/.runtime/handoffs/` kept as rebuildable
+observations and delegated workers never acquiring canonical write authority
+(`skills/ultra-change/references/primary-transfer.md`).
 
 Autonomous coding uses the host's existing model-tool loop, one canonical writer, and
 the same task/evidence/review files. Ultra adds no persisted route position: budgets are

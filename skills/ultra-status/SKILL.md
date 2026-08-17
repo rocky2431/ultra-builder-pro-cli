@@ -51,6 +51,9 @@ persists a workflow-position field.
 | Project Brief or legacy seed exists and North Star status is `unresearched`, legacy, invalid, or not accepted for the current boundary | `ultra-research` |
 | A new request exists and no active Change exists | `ultra-change` |
 | More than one active Change exists | Diagnose the conflicting directories and ask the owner which one remains active; do not route or move either automatically |
+| A primary-transfer handoff directory exists under `.ultra/.runtime/handoffs/` | Report its protocol state read-only (`offered`, `blocked`, `active`, or a terminal state) from `OFFER.json`/`ACK.json`/`RESULT.json`, verified with `node <ultra-change-skill-dir>/scripts/validate_primary_transfer.cjs <repository-root>`; receipts are derived observations, never authority |
+| An ACK-ready handoff has no terminal RESULT | The accepted receiver is the sole canonical writer for that work package; report the in-flight transfer and never route canonical writes to another Agent |
+| A handoff is `blocked` or its live re-verification is stale | Report the mismatched observation and the recovery path (fresh handoff id after owner re-confirmation); do not repair receipts |
 | The active intent is `draft` or has a blocking unresolved decision | `ultra-change` to finish and accept the contract |
 | The active `Research Disposition` names required exit evidence that is not satisfied | `ultra-research` for the named question and selected lenses |
 | Research evidence exists but the accepted intent has not reconciled it | `ultra-change` to update the bounded contract |

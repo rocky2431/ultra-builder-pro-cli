@@ -9,7 +9,11 @@ specifications it binds.
   Star v2 and Task/Acceptance v2 reconciliation.
 - **Current reconciliation**: the accepted Ultra Builder Pro 3.0 forward design
   `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md` projected as revision `north-star-v2-r2`
-  under the Mode B grant `ubp3-mode-b-2026-08-17`; the r1 research run
+  under the Mode B grant `ubp3-mode-b-2026-08-17`; superseded for forward work on
+  2026-08-17 by the owner-directed r3 design
+  `docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md` projected as revision
+  `north-star-v2-r3` under the verified primary transfer and grant
+  `ubp3-r3-zcode-2026-08-17`; the r1 research run
   `.ultra/research/2026-08-15-v027-north-star/99-synthesis.md` remains the
   bounded historical synthesis.
 - **Mode**: bounded owner-authorized `ultra-research` run inside the abandoned
@@ -52,7 +56,8 @@ specifications it binds.
 | Revision | First principles | Outcome | Hard constraints | Research and promoted anchors |
 |---|---|---|---|---|
 | `north-star-v2-r1` | `FP-1`, `FP-2`, `FP-3`, `FP-4`, `FP-5`, `FP-6` | `NS-01` | `HC-1`, `HC-2`, `HC-3`, `HC-4`, `HC-5`, `HC-6` | `.ultra/research/2026-08-15-v027-north-star/99-synthesis.md#trace`; `discovery.md#north-star-v2-problem-relations`; `product.md#north-star-v2-outcome-relations`; `architecture.md#north-star-v2-architecture-relations` |
-| `north-star-v2-r2` (current) | `FP-1`–`FP-7` | `NS-01`–`NS-05` | `HC-1`–`HC-8` | `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md`; `.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md`; `.ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md` |
+| `north-star-v2-r2` | `FP-1`–`FP-7` | `NS-01`–`NS-05` | `HC-1`–`HC-8` | `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md`; `.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md`; `.ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md` |
+| `north-star-v2-r3` (current) | `FP-1`–`FP-8` | `NS-01`–`NS-05` | `HC-1`–`HC-8` | `docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md`; `.ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md`; `.ultra/decisions/2026-08-17-ultra-3-0-r3-primary-handoff.md`; `.ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md` |
 
 ## Unknowns
 
@@ -65,8 +70,8 @@ specifications it binds.
 
 | Canonical source | Git blob hash from `git hash-object` | Status |
 |---|---|---|
-| `.ultra/specs/product.md` | `8356e0045905c98435aef8ae14816bdd9e8d0171` | current for this worktree (3.0 projection) |
-| `.ultra/specs/architecture.md` | `53d019ad119c4532d03885ac9b49b3e43642a8b6` | current for this worktree (3.0 projection) |
+| `.ultra/specs/product.md` | `dfc91d1ca2a3cfc2b50f7c9c4367af23eaf49775` | current for this worktree (r3 projection) |
+| `.ultra/specs/architecture.md` | `ffaa7241389d88259fc9f745d7fa0bd039c782b6` | current for this worktree (r3 projection) |
 | `.ultra/specs/discovery.md` | `5d4025e7295f702d83aa04a15b731bdfd2240735` | current for this worktree |
 
 ## End-to-End Trace

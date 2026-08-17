@@ -99,7 +99,11 @@ evidence and the cheapest safe next action.
 A grant never authorizes a new Change, a baseline acceptance, scope or risk
 acceptance, finalization or archival, external or irreversible effects, or
 cross-family provider calls beyond its recorded topology. Review terminates
-under the accepted convergence contract: one initial review plus at most two
-P0/P1 delta reviews per coherent work package; P2/P3 findings are reported and
-never auto-repaired. Existing host permission and destructive-effect guards
-remain in force.
+under the accepted convergence contract, and its precedence is one rule: an
+exact current owner grant overrides the versioned product default of
+one initial review plus at most two
+P0/P1 delta reviews per coherent work package.
+P2/P3 findings are reported and never auto-repaired, no budget extends itself,
+and the same root cause surviving three failed fixes stops point-patching and
+reports an architecture problem. Existing host permission and destructive-effect
+guards remain in force.

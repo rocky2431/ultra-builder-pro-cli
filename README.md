@@ -3,8 +3,9 @@
 Ultra Builder Pro is a file-first engineering workflow for Claude Code, Codex,
 OpenCode, Kimi Code, Grok Build, and ZCode. It implements the provider-neutral
 **Ultra Core Protocol**: owner–agent cognitive alignment, per-fact canonical
-authority, explicit session-local or durable work-package grants, typed evidence
-with recovery, and review that terminates within three rounds. It keeps product
+authority, explicit session-local or durable work-package grants, exclusive
+verified handover between Agents, typed evidence with recovery, and review that
+terminates within an owner-visible budget. It keeps product
 intent, specifications, task contracts, evidence, decisions, and recovery notes
 in the repository, so a different session or host can continue by reading files
 and Git.
@@ -12,7 +13,9 @@ and Git.
 The host model remains the engineer. Ultra supplies reusable methods and checkable
 artifacts; it does not replace reasoning with a workflow engine. Agent topology —
 one Agent or several, which providers — is the owner's choice at every stage; the
-default is the current Agent continuing alone.
+default is the current Agent continuing alone, and handing the work package's
+writing authority to a different Agent requires an explicit verified transfer
+(OFFER → ACK → RESULT over the repository files and Git).
 
 ## Why it exists
 

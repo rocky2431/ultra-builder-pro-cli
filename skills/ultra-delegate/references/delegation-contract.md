@@ -23,6 +23,13 @@ reads to resume. Enforced twice: the launcher rejects a `.ultra` root before the
 delegation starts, and the worker fails an actual diff that touches it with
 `unauthorized_write`.
 
+This boundary also separates delegation from a primary transfer: a delegation result
+is a bounded observation returned to the primary host, and no delegation receipt can
+serve as, upgrade into, or substitute for the OFFER/ACK/RESULT receipts of a primary
+transfer (`../ultra-change/references/primary-transfer.md`). Widening a worker to write
+`.ultra` in order to simulate a transfer is a contract violation, not an integration
+shortcut.
+
 ## Model final response
 
 ```json
@@ -52,6 +59,15 @@ the host prompt, extracts this object from native structured output, and adds
 `delegation_id`, `host`, instruction, permission, and output-schema digests,
 `read_only`, `base_head`, `final_head`, timestamps, `exit_code`, and signal. Launcher
 failures also add `failure_type`. A nonzero process cannot publish `finished`.
+
+Every receipt, worker spec, and terminal result also records the transport truth:
+`transport_maturity` (from the shared host profile) and the exact `transport_surface`
+wording. The ZCode headless transport is `experimental` with no public stability
+contract and is not the documented ZCode Desktop interactive surface; launching it
+requires the explicit `--ack-experimental` flag, prints a stderr warning, and stamps
+`experimental_ack: true` on the receipt, so no delegation record can misrepresent an
+internal CLI run as a documented Desktop session — including failure, cancellation,
+and timeout recovery results.
 
 ## Recovery
 

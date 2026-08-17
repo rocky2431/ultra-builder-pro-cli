@@ -109,6 +109,19 @@ Append the exact `## Abandonment` closure from `references/change-contract.md`, 
 evidence. Future Change and Status consume this history; it is neither current intent
 nor an orphan. Abandonment is the owner's call.
 
+## When the primary writer changes Agent
+
+When the owner moves the canonical implementation authority of an active
+work package to another Agent, follow `references/primary-transfer.md` exactly:
+the sender writes current reality into the task context and its Resume Note,
+derives the OFFER from canonical files and Git, and stops writing after the
+receiver's ready ACK; the receiver stable-reads, verifies every digest, and
+becomes the sole canonical writer. A delegated worker slice is never a
+substitute — `ultra-delegate` owns the mutually exclusive bounded-worker path.
+Validate receipts with
+`scripts/validate_primary_transfer.cjs`; the report is structural observation,
+never an acceptance.
+
 ## When the owner decides
 
 Every non-empty bucket, the Change boundary, abandonment, and anything
@@ -121,5 +134,6 @@ specification sentence false needs no permission at all.
 - `references/change-contract.md` — canonical Active Change authority resolution, exact
   `intent.md` structure, and profile fields.
 - `references/execution-grant.md` — read when the owner requests bounded workflow continuation under a session-local or durable grant.
+- `references/primary-transfer.md` — read when the owner moves the work package's canonical writer to another Agent (OFFER → ACK → RESULT).
 - `../ultra-think/references/autonomy-boundary.md` — read before removing a promise.
 - `../ultra-tdd/SKILL.md` — read for an evidenced one-slice correction.

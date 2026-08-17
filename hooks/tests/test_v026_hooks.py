@@ -467,9 +467,10 @@ def test_session_context_live_repository_payload_contains_current_accepted_v2_tr
     assert "an automatic coding workflow can lose the owner's purpose" in context
     assert "FP-1 — Durable authority must outlive model context" in context
     assert "FP-7 — Cognitive alignment precedes state synchronization" in context
+    assert "FP-8 — Agent handover is exclusive, verified, and recoverable" in context
     assert "NS-01 — Owner–Agent cognitive alignment" in context
     assert "HC-6 — Authorize every external effect separately" in context
-    assert "HC-7 — Terminate review within three rounds" in context
+    assert "HC-7 — Terminate review within the accepted budget" in context
 
 
 def test_session_context_falls_back_for_draft_unknown_and_mixed_north_stars(tmp_path):

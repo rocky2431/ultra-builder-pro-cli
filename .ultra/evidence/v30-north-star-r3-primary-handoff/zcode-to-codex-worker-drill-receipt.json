@@ -1,0 +1,20 @@
+{
+  "$schema": "ultra-delegation-receipt-v1",
+  "status": "started",
+  "delegation_id": "zcode-worker-drill",
+  "host": "codex",
+  "model": null,
+  "worker_pid": 12074,
+  "instruction_digest": "79c49e4846eeca3555faa64baed0610dac5a527a89c130c5fbea315534db4a44",
+  "permission_digest": "96f7f8ed4ddb77e4569519d8d20ec20d2e29595c74a06b119d0dee8f3a7dd2cb",
+  "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+  "spec_digest": "01aeadcbe9349ef269a3ea9e3de45f80185457080c62561f1662e4ad74e9d33e",
+  "base_head": "89f3053ebf1ea81fa942bc14b9df1de341fc6e18",
+  "started_at": "2026-08-17T00:43:32.248Z",
+  "timeout_ms": 300000,
+  "result_file": "/private/tmp/ubp-r3-worker-drill.rV1kB4/.ultra/.runtime/delegations/zcode-worker-drill/result.json",
+  "read_only": true,
+  "stdout_file": "/private/tmp/ubp-r3-worker-drill.rV1kB4/.ultra/.runtime/delegations/zcode-worker-drill/stdout.log",
+  "stderr_file": "/private/tmp/ubp-r3-worker-drill.rV1kB4/.ultra/.runtime/delegations/zcode-worker-drill/stderr.log",
+  "cancel_command": "ubp delegate cancel --delegation /private/tmp/ubp-r3-worker-drill.rV1kB4/.ultra/.runtime/delegations/zcode-worker-drill"
+}

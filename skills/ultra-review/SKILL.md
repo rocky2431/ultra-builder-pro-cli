@@ -69,7 +69,7 @@ current Agent. Lens selection follows the review kind, never a fixed count:
   justified by the current risk and the touched seams; a major or high-risk task may
   select the full six-lens roster only with recorded owner approval.
 - A **delta review** reruns only the lenses the exact blocking repair set can affect;
-  it never re-audits the whole task and runs at most once per task.
+  it never re-audits the whole task and runs only inside the active review budget.
 - An **aggregate Change review** may default to all six only when the cross-task
   wiring justifies it; that is a selection reason, never a mandatory count or a
   quality proxy, and it never writes non-blocking refactor findings back into a
@@ -163,10 +163,11 @@ even when P2 or P3 findings are retained — they stay in the report and go to t
 owner-selected backlog, and no fresh review of the same subject may be opened after a
 current `APPROVE`. `REQUEST_CHANGES` routes only the exact current P0/P1 finding ids
 (or a P2 the owner explicitly promoted); repair them as one in-scope repair set, then
-run at most one affected-lens delta review of that exact repair set. A second
-`REQUEST_CHANGES` — or a delta that returns `INCOMPLETE` on evidence the budget cannot
-cover — is an owner checkpoint: report the exact blocking set and stop instead of
-starting another automatic repair. When evidence proves a P2 actually blocks
+run one affected-lens delta review of that exact repair set inside the active review
+budget. When another `REQUEST_CHANGES` would exceed the active budget — or a delta
+that returns `INCOMPLETE` on evidence the budget cannot cover — return to the owner
+checkpoint: report the exact blocking set and stop instead of starting another
+automatic repair. When evidence proves a P2 actually blocks
 acceptance, reclassify it as P1 in the current review rather than routing a P2 label
 as a blocker. A finding outside the packet's `diff_files` is a scope-change proposal:
 record it, do not edit that path, and return it to the owner or Plan as a new subject.
@@ -179,18 +180,25 @@ abandon, and a round, count, or budget number never measures semantic quality.
 
 ### Work-package convergence
 
-A coherent work package — one accepted outcome, scope, and terminal rule — receives
-at most three reviews: one initial review of the frozen subject, then at most two
-delta reviews that each cover only the exact P0/P1 repair set from the direct
-parent review. A finding outside the current subject is a scope-change proposal
-for the owner or a future Change, never a reason to enlarge this package.
+Review budget precedence is one rule: an exact current owner grant for this work
+package overrides the versioned product default; the released default is one initial
+review plus at most two P0/P1 delta reviews per coherent work package. Both are
+finite, owner-visible budgets, never a semantic quality measure.
 
-If a third round would still leave a P0/P1, stop repairing and return the choice
-to the owner. The legal terminal outcomes are: owner risk acceptance, owner scope
-reduction or reset, a new explicitly authorized work package, an external blocker,
-a budget stop, or abandonment. Never open an automatic fourth round, and never
-treat "all findings fixed" or "zero findings" as the completion condition —
-completion is the owner accepting the real result.
+Only actual P0/P1 findings — or a P2 the owner explicitly promoted as a direct North
+Star blocker — trigger a delta review; P2/P3 findings are reported and never
+auto-repair or auto-extend any budget. Zero findings is never the completion
+condition — completion is the owner accepting the real result. A finding outside the
+current subject is a scope-change proposal for the owner or a future Change, never a
+reason to enlarge this package.
+
+When the same root cause survives three failed repair attempts, stop point-patching
+and report an architecture boundary problem. A remaining blocker at budget
+exhaustion returns the choice to the owner with the exact blocking set; never open
+an automatic round beyond the active grant, and never extend a budget yourself. The
+legal terminal outcomes are: owner risk acceptance, owner scope reduction or reset,
+a new explicitly authorized work package, an external blocker, a budget stop, or
+abandonment.
 
 Stop repairing and return to the owner when three repairs expose three distinct
 root causes, the same path keeps gaining validators, counters, mirrors, or

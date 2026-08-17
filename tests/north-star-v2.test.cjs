@@ -930,7 +930,7 @@ test('the migrated repository North Star is an accepted v2 revision backed by ow
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.equal(result.report.valid, true);
   assert.equal(result.report.status, 'accepted');
-  assert.equal(result.report.revision, 'north-star-v2-r2');
+  assert.equal(result.report.revision, 'north-star-v2-r3');
   assert.ok(result.report.ids.FP.length >= 1);
   assert.ok(result.report.ids.NS.length >= 1);
   assert.ok(result.report.ids.HC.length >= 1);
@@ -938,10 +938,10 @@ test('the migrated repository North Star is an accepted v2 revision backed by ow
   const northStar = read('.ultra/north-star.md');
   assert.match(
     northStar,
-    /Owner acceptance source: `\.ultra\/decisions\/2026-08-17-ultra-3-0-north-star-r2\.md#owner-record`/u,
+    /Owner acceptance source: `\.ultra\/decisions\/2026-08-17-ultra-3-0-north-star-r3\.md#owner-record`/u,
   );
   assert.match(northStar, /Acceptance time: `not-recorded`/u);
-  assert.match(northStar, /Supersedes: `north-star-v2-r1`/u);
+  assert.match(northStar, /Supersedes: `north-star-v2-r2`/u);
   assert.doesNotMatch(northStar, /^## Project Direction$/mu);
   assert.doesNotMatch(northStar, /^## North Star Outcome$/mu);
 });
@@ -1842,18 +1842,21 @@ test('Init rolls back only unchanged files after an ordinary edit to a new skele
 
 test('the accepted revision cites a stable owner decision and a complete bounded Research run', () => {
   const northStar = read('.ultra/north-star.md');
-  const decisionPath = '.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md';
+  const decisionPath = '.ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md';
   assert.match(northStar, new RegExp(`Owner acceptance source: \`${decisionPath}#owner-record\``, 'u'));
   const decision = read(decisionPath);
   assert.match(decision, /## Owner Record/u);
-  assert.match(decision, /我接受这个建议先改文档，然后我们按照模式 B 把这个落地。/u);
-  assert.match(decision, /这个工作允许 Zcode 在本地完成/u);
+  assert.match(decision, /You are the sole[\s\S]{0,80}implementation writer[\s\S]{0,80}Ultra Builder Pro 3\.0 r3 work package/u);
+  assert.match(decision, /Codex performs read-only review[\s\S]{0,120}same ZCode task\./u);
   assert.match(decision, /model[\s\S]+accepted frame/iu);
   assert.match(decision, /future[\s\S]+does not inherit/iu);
   assert.doesNotMatch(decision, /Acceptance time: (?!not-recorded)/u);
-  // The r2 decision binds the accepted forward design; the r1 research run
-  // remains the bounded historical synthesis it cites.
-  assert.match(decision, /a91b563a48889909f80fc61f608a8198edec86c073a9b039ee57788b38483c1f/u);
+  // The r3 decision binds the accepted r3 design; the r1 research run
+  // remains the bounded historical synthesis it cites, and the superseded
+  // r2 decision keeps binding its own historical revision.
+  assert.match(decision, /95e06a08ac9f3001bebaf7f5b2247aa8a5f4f0faba1da96ce86ef0dde582e694/u);
+  const supersededDecision = read('.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md');
+  assert.match(supersededDecision, /a91b563a48889909f80fc61f608a8198edec86c073a9b039ee57788b38483c1f/u);
 
   const run = '.ultra/research/2026-08-15-v027-north-star';
   for (const area of [
@@ -1898,12 +1901,18 @@ test('the accepted revision cites a stable owner decision and a complete bounded
 test('the accepted North Star decision binds current bytes and an exact historical snapshot', () => {
   const northStarPath = path.join(ROOT, '.ultra', 'north-star.md');
   const bytes = fs.readFileSync(northStarPath);
-  const decision = read('.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md');
-  const snapshotPath = path.join(ROOT, '.ultra', 'research', '2026-08-17-ultra-3-0-projection', 'north-star-v2-r2.accepted.md');
+  const decision = read('.ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md');
+  const snapshotPath = path.join(ROOT, '.ultra', 'research', '2026-08-17-ultra-3-0-r3-projection', 'north-star-v2-r3.accepted.md');
   assert.ok(decision.includes(`North Star content SHA-256: \`${crypto.createHash('sha256').update(bytes).digest('hex')}\``));
   assert.ok(decision.includes(`North Star Git blob digest: \`${gitBlobDigest(bytes)}\``));
-  assert.match(decision, /Accepted snapshot: `\.ultra\/research\/2026-08-17-ultra-3-0-projection\/north-star-v2-r2\.accepted\.md`/u);
+  assert.match(decision, /Accepted snapshot: `\.ultra\/research\/2026-08-17-ultra-3-0-r3-projection\/north-star-v2-r3\.accepted\.md`/u);
   assert.deepEqual(fs.readFileSync(snapshotPath), bytes);
+  // The superseded r2 snapshot keeps binding its own historical revision bytes.
+  const r2Decision = read('.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md');
+  const r2Snapshot = path.join(ROOT, '.ultra', 'research', '2026-08-17-ultra-3-0-projection', 'north-star-v2-r2.accepted.md');
+  const r2Bytes = fs.readFileSync(r2Snapshot);
+  assert.ok(r2Decision.includes(`North Star content SHA-256: \`${crypto.createHash('sha256').update(r2Bytes).digest('hex')}\``));
+  assert.notDeepEqual(r2Bytes, bytes);
   const validation = validate(northStarPath);
   assert.equal(validation.status, 0, validation.stdout);
   assert.equal(validation.report.acceptance_binding.content_sha256, crypto.createHash('sha256').update(bytes).digest('hex'));

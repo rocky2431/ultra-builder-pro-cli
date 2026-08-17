@@ -8,15 +8,21 @@ not create or rewrite that file.
 
 Ultra Builder Pro is a file-first workflow plugin for Claude Code, Codex, OpenCode,
 Kimi Code, Grok Build, and ZCode, implementing the provider-neutral Ultra Core
-Protocol (accepted 3.0 design: `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md`). The host
+Protocol (accepted 3.0 design: `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md`; accepted r3
+revision: `docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md`). The host
 model owns intent interpretation, route selection, decomposition, semantic
 completeness, and final expression. Ultra supplies fourteen portable Skills, five
 optional hooks, host adapters, delegated CLI execution, and the repository files
 needed to resume work across sessions and hosts. Authorization is explicit and
 dual-mode — session-local by default, durable work-package only via an exact owner
 grant recorded under `.ultra/decisions/`; no file, status, Hook, or Resume note
-implies activation. One coherent work package receives at most one initial Review
-plus two P0/P1 delta Reviews; P2/P3 findings are reported, never auto-repaired.
+implies activation. Changing a work package's canonical writer to another Agent is
+a primary transfer (OFFER → verified ACK → sole writer → frozen RESULT; contract:
+`skills/ultra-change/references/primary-transfer.md`), mutually exclusive with
+delegated workers. Review converges inside an owner-visible budget — exact
+defaults in the versioned product contract, exact overrides in owner grants; the
+released default is one initial Review plus two P0/P1 delta Reviews — and P2/P3
+findings are reported, never auto-repaired.
 
 Project authority is owner-readable text and JSON under `.ultra/`, plus `CONTEXT.md`
 and Git history. Ultra does not own general conversation memory, code graphs, browsing,
@@ -28,7 +34,11 @@ deployment providers, framework guidance, or unrelated productivity capabilities
   model-invoked Skills, one router, six hosts, and five hooks.
 - `skills/*/SKILL.md`: reusable host-neutral workflow and discipline prompts.
 - `adapters/*.js`: native installation, update, doctor, and uninstall behavior.
-- `adapters/_shared/host-profile.cjs`: non-interactive delegation argv for six CLIs.
+- `adapters/_shared/host-profile.cjs`: non-interactive delegation argv for six CLIs
+  and their transport maturity (the ZCode App-bundled CLI is `experimental`).
+- `skills/ultra-change/references/primary-transfer.md` plus
+  `skills/ultra-change/scripts/validate_primary_transfer.cjs`: the primary-transfer
+  contract between Agents and its receipt validator.
 - `hooks/*.py`: the complete hook surface; `_common.py` is a library, not a registration.
 - `.ultra-template/`: canonical new-project data skeleton.
 - `docs/ARTIFACT-AUTHORITY.md`: authority and recovery rules for project artifacts.

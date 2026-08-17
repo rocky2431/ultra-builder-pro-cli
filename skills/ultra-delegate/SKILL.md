@@ -8,6 +8,12 @@ description: Delegate one bounded workflow segment to another installed CLI in a
 Delegation is an execution mode, not another workflow stage. The primary host keeps
 semantic synthesis and remains the only writer of `.ultra/tasks.json`.
 
+Delegation is also not a primary transfer. A delegated worker never becomes the
+work package's canonical writer, whatever its result says; moving that role to
+another Agent requires the owner-directed OFFER → ACK → RESULT protocol in
+`../ultra-change/references/primary-transfer.md`, which stays mutually exclusive
+with this bounded-worker path.
+
 ## Before you start
 
 1. Resolve exactly one active `change_id`, then select one scope and name it in
@@ -67,6 +73,15 @@ ubp delegate run --to <host> --instruction <file> --permission <file> --worktree
 optional `--model <id>` when its account has no default headless model. A ZCode primary
 host uses this same command to delegate to any other installed CLI; a different primary
 host can select `--to zcode` through the ZCode headless profile.
+
+The ZCode headless transport is `experimental`: it is an App-internal or PATH CLI with
+no public stability contract, and it is **not** the documented ZCode Desktop
+interactive surface. `delegate run --to zcode` refuses to launch until the invocation
+explicitly carries `--ack-experimental`; every launch then prints a stderr warning and
+records `transport_maturity: "experimental"`, the exact `transport_surface` wording,
+and `experimental_ack: true` in the receipt, the worker spec, and the terminal result
+(including failure and timeout recovery results), so no receipt can imply a documented
+Desktop session. Promotion requires official documentation plus a full recovery drill.
 
 The command returns a receipt. Immediately run `scripts/delegate_wait.py`; read no
 intermediate output. Use `ubp delegate status --delegation <dir>` for a read-only state

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync, spawn } = require('node:child_process');
 
-const { hostProfile } = require('../adapters/_shared/host-profile.cjs');
+const { hostProfile, transportSurface } = require('../adapters/_shared/host-profile.cjs');
 const { writeAtomic } = require('../adapters/_shared/file-ops.cjs');
 
 const PERMISSION_SCHEMA = 'ultra-delegation-permission-v1';
@@ -230,7 +230,11 @@ function parsePairs(argv, allowed) {
 }
 
 function parseRun(argv) {
-  const values = parsePairs(argv, new Set([
+  // --ack-experimental is the one valueless flag: launching an experimental
+  // transport must be a visible choice, never a silent default.
+  const ackExperimental = argv.includes('--ack-experimental');
+  const pairs = argv.filter((arg) => arg !== '--ack-experimental');
+  const values = parsePairs(pairs, new Set([
     '--to', '--instruction', '--permission', '--worktree', '--timeout', '--model',
   ]));
   for (const key of ['--to', '--instruction', '--permission', '--worktree']) {
@@ -245,6 +249,7 @@ function parseRun(argv) {
     permission: values['--permission'], worktree: values['--worktree'],
     model: values['--model'] || null,
     timeoutMs: Math.ceil(timeout * 1000),
+    ackExperimental,
   };
 }
 
@@ -265,6 +270,24 @@ function run(argv, { projectRoot = process.cwd() } = {}) {
     throw new Error(`delegate --model is not supported by host ${args.to}`);
   }
   const model = profile.supportsModelSelection ? selectedModel(args.to, args.model) : null;
+  const binary = selectedBinary(args.to, profile.binary);
+  const transportMaturity = profile.transportMaturity;
+  const transportSurfaceNote = transportSurface(args.to, binary);
+  if (transportMaturity === 'experimental' && !args.ackExperimental) {
+    throw new Error(
+      `delegate --to ${args.to} would launch ${transportSurfaceNote}. `
+      + 'This transport is experimental (verified-local only; the provider publishes no '
+      + 'stability contract), and it is not the documented ZCode Desktop interactive '
+      + 'surface. Acknowledge explicitly with --ack-experimental to proceed, or pick a '
+      + 'documented transport.',
+    );
+  }
+  if (transportMaturity === 'experimental') {
+    process.stderr.write(
+      `ultra-delegate: warning: host '${args.to}' runs ${transportSurfaceNote}; `
+      + `recovery: ubp delegate cancel --delegation <dir>\n`,
+    );
+  }
   const instruction = projectPath(projectRoot, args.instruction, 'instruction');
   const permission = projectPath(projectRoot, args.permission, 'permission');
   const worktree = projectPath(projectRoot, args.worktree, 'worktree', { directory: true });
@@ -330,7 +353,10 @@ function run(argv, { projectRoot = process.cwd() } = {}) {
       delegation_id: delegationId,
       host: args.to,
       model,
-      command: selectedBinary(args.to, profile.binary),
+      command: binary,
+      transport_maturity: transportMaturity,
+      transport_surface: transportSurfaceNote,
+      experimental_ack: transportMaturity === 'experimental' ? args.ackExperimental : undefined,
       args: profile.delegateArgv(prompt, worktree, profileOptions),
       cwd: worktree,
       instruction,
@@ -377,6 +403,9 @@ function run(argv, { projectRoot = process.cwd() } = {}) {
       delegation_id: delegationId,
       host: args.to,
       model,
+      transport_maturity: transportMaturity,
+      transport_surface: transportSurfaceNote,
+      ...(transportMaturity === 'experimental' ? { experimental_ack: args.ackExperimental } : {}),
       worker_pid: worker.pid,
       instruction_digest: instructionDigest,
       permission_digest: permissionDigest,
@@ -451,6 +480,10 @@ function failureFromSpec(spec, failureType, summary) {
     failure_type: failureType,
     delegation_id: spec.delegation_id,
     host: spec.host,
+    transport_maturity: spec.transport_maturity ?? null,
+    transport_surface: spec.transport_surface ?? null,
+    // Terminal recovery results carry the same transport truth as live ones.
+    ...(spec.experimental_ack === true ? { experimental_ack: true } : {}),
     instruction_digest: spec.instruction_digest,
     permission_digest: spec.permission_digest,
     output_schema_digest: spec.output_schema_digest,

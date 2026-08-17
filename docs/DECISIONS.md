@@ -3,18 +3,50 @@
 This file records durable product-level decisions that explain the current source tree.
 Project decisions created by Ultra belong in each project's `.ultra/decisions/`.
 
-## Ultra Core Protocol (3.0, accepted 2026-08-17)
+## Ultra Core Protocol (3.0, accepted 2026-08-17; r3 revision same day)
 
 The owner accepted `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md` and projected it as North
 Star revision `north-star-v2-r2`
-(`.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md`). Ultra Builder Pro is the
-file-first, provider-neutral Ultra Core Protocol: cognitive alignment through
+(`.ultra/decisions/2026-08-17-ultra-3-0-north-star-r2.md`), then converged the
+constitution with the owner-directed r3 design
+(`docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md`) as revision
+`north-star-v2-r3`
+(`.ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md`). Ultra Builder Pro is
+the file-first, provider-neutral Ultra Core Protocol: cognitive alignment through
 checkpoints, per-fact canonical authority, explicit dual-mode authorization, typed
-evidence with recovery, and three-round review convergence. Authorization has two
+evidence with recovery, exclusive verified Agent handover, and review convergence
+bounded by an owner-visible budget. The constitution itself stays count-free —
+agent counts and topology detail, Host and Skill counts, provider names, and
+exact review-round numbers live in the versioned product contract and exact
+work-package grants. Authorization has two
 modes — `session-local` by default, `durable work-package` when the owner issues an
 exact grant (see `.ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md`); no
 file, status, Hook, or Resume note ever implies activation. Optional Graph/Loop
 coordination layers own observations only and none is integrated.
+
+## Primary transfer between Agents (r3, accepted 2026-08-17)
+
+A work package's canonical writer moves to another Agent only through an
+owner-granted primary transfer: the sender writes current reality into the task
+context and Resume Note, derives an OFFER binding canonical refs/hashes, HEAD,
+and the worktree digest, and stops writing after the receiver's ready ACK; the
+receiver stable-reads, verifies every digest, becomes the sole canonical writer,
+and freezes a terminal RESULT. Receipts under `.ultra/.runtime/handoffs/` are
+derived and rebuildable, never authority; mismatches block instead of
+auto-repairing; delegated workers stay mutually exclusive with this path and
+never write canonical `.ultra`
+(`.ultra/decisions/2026-08-17-ultra-3-0-r3-primary-handoff.md`,
+`skills/ultra-change/references/primary-transfer.md`).
+
+## ZCode headless transport stays experimental (r3, accepted 2026-08-17)
+
+The ZCode app-bundled CLI is a verified-local surface — it exists, launches, and
+passed local drills — but the provider publishes no headless CLI, SDK, or
+protocol stability contract. Its transport maturity is recorded `experimental`
+in the shared host profile and compatibility matrix; promotion to `supported`
+requires both official documentation and a full recovery drill. Interactive
+Desktop use and the documented plugin surface are unaffected, and no adapter may
+pass an app-internal binary off as an official stable interface.
 
 ## File-first authority
 

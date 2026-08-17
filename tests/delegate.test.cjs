@@ -102,8 +102,7 @@ function waitForExit(pid, timeout = 2000) {
 }
 
 test('host profiles use bounded native permission modes without bypass flags', () => {
-  const prompt = 'Read the packet and write the result.';
-  const cwd = '/tmp/worktree';
+  const prompt = 'Read the packet and write the result.';  const cwd = '/tmp/worktree';
   const options = {
     readOnly: false,
     writableRoots: ['src'],
@@ -174,6 +173,95 @@ test('host profiles use bounded native permission modes without bypass flags', (
     model: 'kimi-code/k3',
   });
   assert.equal(selectedKimi[selectedKimi.indexOf('--model') + 1], 'kimi-code/k3');
+});
+
+test('the ZCode delegate transport reports experimental maturity until the support bar is met', () => {
+  assert.equal(hostProfile('zcode').transportMaturity, 'experimental');
+  for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok']) {
+    assert.notEqual(hostProfile(runtime).transportMaturity, 'experimental');
+  }
+});
+
+test('delegate run surfaces experimental transport maturity instead of silently launching it', () => {
+  const fx = fixture('zcode-experimental');
+  try {
+    fs.writeFileSync(path.join(fx.delegation, 'permission.json'), `${JSON.stringify({
+      $schema: 'ultra-delegation-permission-v1',
+      writable_roots: [],
+      external_effects: [],
+    }, null, 2)}\n`);
+    const payload = JSON.stringify(resultPayload([]));
+    const fake = fakeCli(fx, `process.stdout.write(${JSON.stringify(payload)});`);
+
+    const unacknowledged = start(fx, fake, [], 'zcode');
+    assert.notEqual(unacknowledged.status, 0);
+    assert.match(unacknowledged.stderr, /experimental/iu);
+    assert.match(unacknowledged.stderr, /--ack-experimental/u);
+    assert.match(unacknowledged.stderr, /not the documented ZCode Desktop interactive surface/iu);
+    assert.equal(fs.existsSync(path.join(fx.delegation, 'receipt.json')), false);
+
+    const started = start(fx, fake, ['--ack-experimental'], 'zcode');
+    assert.equal(started.status, 0, started.stderr);
+    assert.match(started.stderr, /experimental/iu);
+    const receipt = JSON.parse(started.stdout);
+    assert.equal(receipt.transport_maturity, 'experimental');
+    assert.equal(receipt.experimental_ack, true);
+    assert.match(receipt.transport_surface, /experimental/iu);
+    assert.match(receipt.transport_surface, /not the documented ZCode Desktop interactive surface/iu);
+
+    const spec = JSON.parse(fs.readFileSync(path.join(fx.delegation, 'worker-spec.json'), 'utf8'));
+    assert.equal(spec.transport_maturity, 'experimental');
+
+    const result = waitFor(path.join(fx.delegation, 'result.json'));
+    assert.equal(result.status, 'finished');
+    assert.equal(result.transport_maturity, 'experimental');
+    assert.match(result.transport_surface, /experimental/iu);
+    assert.match(result.transport_surface, /not the documented ZCode Desktop interactive surface/iu);
+    assert.equal(result.experimental_ack, true);
+
+    // A cancelled ZCode run is a terminal result too: it must carry the same
+    // transport truth and the explicit acknowledgment.
+    const cancelFx = fixture('zcode-cancel-ack');
+    try {
+      fs.writeFileSync(path.join(cancelFx.delegation, 'instruction.md'), '# Task\nIdle.\n');
+      fs.writeFileSync(path.join(cancelFx.delegation, 'permission.json'), `${JSON.stringify({
+        $schema: 'ultra-delegation-permission-v1',
+        writable_roots: [],
+        external_effects: [],
+      }, null, 2)}\n`);
+      const idle = fakeCli(cancelFx, 'setInterval(() => {}, 1000);');
+      const idleStart = start(cancelFx, idle, ['--timeout', '30', '--ack-experimental'], 'zcode');
+      assert.equal(idleStart.status, 0, idleStart.stderr);
+      const cancel = spawnSync(process.execPath, [
+        CLI, 'delegate', 'cancel', '--delegation', cancelFx.delegation,
+      ], { cwd: cancelFx.root, encoding: 'utf8' });
+      assert.equal(cancel.status, 0, cancel.stderr);
+      const cancelled = waitFor(path.join(cancelFx.delegation, 'result.json'));
+      assert.equal(cancelled.status, 'failed');
+      assert.equal(cancelled.failure_type, 'cancelled');
+      assert.equal(cancelled.transport_maturity, 'experimental');
+      assert.equal(cancelled.experimental_ack, true);
+    } finally {
+      fs.rmSync(cancelFx.root, { recursive: true, force: true });
+    }
+
+    const documented = fixture('codex-documented');
+    try {
+      const codexFake = fakeCli(documented, `process.stdout.write(${JSON.stringify(JSON.stringify(resultPayload([])))});`);
+      const codexStart = start(documented, codexFake);
+      assert.equal(codexStart.status, 0, codexStart.stderr);
+      assert.doesNotMatch(codexStart.stderr, /--ack-experimental/u);
+      const codexReceipt = JSON.parse(codexStart.stdout);
+      assert.equal(codexReceipt.transport_maturity, 'documented+verified');
+      assert.equal(codexReceipt.experimental_ack, undefined);
+      const codexResult = waitFor(path.join(documented.delegation, 'result.json'));
+      assert.equal(codexResult.transport_maturity, 'documented+verified');
+    } finally {
+      fs.rmSync(documented.root, { recursive: true, force: true });
+    }
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
 });
 
 test('ZCode binary selection prefers the bundled macOS CLI before the PATH fallback', () => {

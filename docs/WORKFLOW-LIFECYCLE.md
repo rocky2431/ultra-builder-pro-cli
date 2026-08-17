@@ -34,7 +34,10 @@ providers, which write scopes, serial or parallel. The unspecified default is th
 current Agent continuing alone — no automatic spawning, delegation, or control-plane
 enablement, and no provider permanently bound to a role. One primary writer owns the
 canonical `.ultra` files in a worktree; parallel source writes use isolated worktrees
-with explicit integration.
+with explicit integration. Moving the primary-writer role itself to another Agent is
+an owner-granted primary transfer — OFFER, verified ACK, sole-writer execution,
+frozen terminal RESULT — and never a widened delegation
+(`skills/ultra-change/references/primary-transfer.md`).
 
 Every owner-facing checkpoint — a WIP at a stop, a closing Resume Note, a delivery
 report — carries the eight fixed semantics defined in
@@ -139,9 +142,13 @@ Findings move through stable JSON artifacts, not intermediate worker chatter. Ve
 are terminal for the current subject: `APPROVE` ends the task review even when P2/P3
 findings are retained — they become report entries or owner-selected backlog, never a
 fresh review of the same subject. `REQUEST_CHANGES` routes only the exact current
-P0/P1 findings as one in-scope repair set followed by at most one affected-lens delta
-review; a second `REQUEST_CHANGES` is an owner checkpoint, not another automatic
-repair. Lens selection follows the review kind, never a fixed count: an initial task
+P0/P1 findings as one in-scope repair set followed by one affected-lens delta review
+per repair set inside the active review budget — an exact current owner grant
+overrides the versioned product default of one initial review plus at most two
+P0/P1 delta reviews per package; a `REQUEST_CHANGES` that would exceed the active
+budget is an owner checkpoint, not another automatic repair, and the same root
+surviving three failed fixes stops point-patching and reports an architecture
+problem. Lens selection follows the review kind, never a fixed count: an initial task
 review selects `review-spec` plus the lenses justified by risk and touched seams, a
 delta review reruns only the affected lenses, and an aggregate Change review may
 default to all six only when cross-task wiring justifies it. Budget exhaustion keeps the row `in_progress` and returns
@@ -272,6 +279,17 @@ the common entry contract and compares the working tree with those claims.
 
 This path remains valid when hooks and `ubp` are disabled. A compact snapshot may be
 used as a hint, then checked against canonical files and Git.
+
+Continuing on a different Agent — not merely a different host — additionally
+requires a primary transfer: an exact owner grant, a derived OFFER binding the
+canonical refs, HEAD, and worktree digest, the receiver's stable-read ACK, and a
+frozen terminal RESULT (`skills/ultra-change/references/primary-transfer.md`).
+Receipts are derived state; when they are lost, the owner confirms and a fresh
+handoff id is issued rather than reconstructing an old ACK. The post-review
+task closeout never refreshes that RESULT or opens a handoff for itself: beside
+a newest completed v2 RESULT it publishes the handoff's CLOSEOUT receipt — the
+one prescribed, uncommitted, review-and-handoff-free closeout transition of the
+same contract.
 
 An authenticated Claude-to-Codex continuation using this path passed on 2026-08-03;
 the exact scope, provenance, results, and limitations are recorded in the

@@ -218,6 +218,19 @@
       "context_file": ".ultra/contexts/task-v30-mode-b-local-implementation.md",
       "trace_to": ".ultra/north-star.md#north-star-outcomes",
       "change_id": "chg-ultra-3-0-mode-b"
+    },
+    {
+      "id": "v30-north-star-r3-primary-handoff",
+      "title": "Implement the r3 North Star projection under primary transfer",
+      "type": "architecture",
+      "priority": "P0",
+      "status": "completed",
+      "dependencies": [
+        "v30-mode-b-local-implementation"
+      ],
+      "context_file": ".ultra/contexts/task-v30-north-star-r3-primary-handoff.md",
+      "trace_to": ".ultra/north-star.md#north-star-outcomes",
+      "change_id": "chg-ultra-3-0-mode-b"
     }
   ]
 }

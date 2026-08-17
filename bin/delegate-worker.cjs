@@ -181,6 +181,12 @@ function mechanical(spec, exitCode, signal) {
   return {
     delegation_id: spec.delegation_id,
     host: spec.host,
+    transport_maturity: spec.transport_maturity ?? null,
+    transport_surface: spec.transport_surface ?? null,
+    // The explicit experimental acknowledgment travels to every terminal
+    // result — finished, failed, cancelled, or interrupted — so no result can
+    // imply an undocumented surface was silently launched.
+    ...(spec.experimental_ack === true ? { experimental_ack: true } : {}),
     instruction_digest: spec.instruction_digest,
     permission_digest: spec.permission_digest,
     output_schema_digest: spec.output_schema_digest,

@@ -101,6 +101,57 @@ On macOS, the shared host profile uses
 exists, then falls back to `zcode` on `PATH`. `UBP_DELEGATE_ZCODE_BIN` remains an explicit
 test or operator override; the normal source-to-ZCode path does not require it.
 
+**ZCode transport maturity is `experimental`** (recorded in
+`adapters/_shared/host-profile.cjs`): the App-bundled CLI is a verified-local
+surface — it exists, launches, and passed the 2026-08-14 conformance drills — but
+the provider publishes no headless CLI, SDK, A2A, or ZCode Protocol stability
+contract. Promotion to `supported` requires both official documentation and a
+full recovery drill; a binary's existence, working help, or zero exit status is
+never sufficient. The other five delegate transports are documented and locally
+verified through the same launcher. The maturity is live-enforced, not just
+recorded: `delegate run --to zcode` refuses to launch without the explicit
+`--ack-experimental` flag, prints a stderr warning, and stamps
+`transport_maturity`, the exact `transport_surface` wording, and
+`experimental_ack: true` onto the receipt, worker spec, and every terminal
+result (including failure, cancellation, and timeout), so no delegation record
+can present an internal CLI run as the documented ZCode Desktop interactive
+surface. The documented interactive primary path for ZCode is the Desktop task
+surface itself, not this headless transport.
+
+### ZCode Desktop Workspace Memory (post-turn host effect)
+
+ZCode Desktop ships an optional Workspace Memory feature that extracts project
+memory after a completed turn into provider-local files under
+`~/.zcode/cli/memories/projects/<project>/memory`. Corrected facts
+(2026-08-17):
+
+- the feature is operator-controlled through the documented Workspace Memory
+  setting (`memoryEnabled` in `~/.zcode/v2/setting.json`); it is not always
+  default-off — it was observed enabled on this machine, and a fresh task
+  inherits the operator's current selection;
+- `memoryEnabled=false` is the single effective master gate: the App runtime
+  injects `memory:{enabled:false}`, and every recall, root access, and
+  post-turn extraction path resolves through one enabled-root resolver that
+  returns no root while it is false. The logged `memoryExtractionEnabled` and
+  `memoryUse` values are absent-key, disable-only defaults, not independent
+  owner-facing gates;
+- the extracted files are ordinary local files outside the repository that the
+  operator can browse and clear directly; they are non-authoritative and
+  non-portable — never Git content, never shared authority, never Ultra
+  evidence;
+- when the feature is enabled, the post-turn extraction is a Host external
+  effect: an owner-authorized transfer must allow it in the OFFER `effects`
+  and disclose it in the RESULT `external_effects`
+  (`skills/ultra-change/references/primary-transfer.md`); a strict
+  zero-external-effect pass requires a fresh task with the master setting off
+  plus an independent reviewer postflight;
+- Ultra never parses or mutates the provider setting.
+
+The accepted r3 design document's section 7.1 local-memory snapshot
+("local-only, default-off, cannot be browsed or cleared") is superseded by the
+current documented UI and the observed runtime behavior above; the frozen
+design bytes stay unedited.
+
 The launcher accepts no external-effect authority. It binds instruction, permission and
 output-schema digests, a clean Git worktree, allowed write roots, actual changed paths,
 strict result schema, timeout and cancellation. Empty roots select read-only mode. The

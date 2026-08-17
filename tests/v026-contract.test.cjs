@@ -1328,7 +1328,14 @@ test('North Star stays canonical while Research, Change, Plan, and Review carry 
   assert.match(workerPacket, /"north_star_revision"/u);
   assert.match(specLens, /North Star Trace/u);
   assert.match(specLens, /causal[^\n]+evidence/iu);
-  assert.match(projectNorthStar, /Claude Code[\s\S]{0,160}ZCode/iu);
+  // r3: the constitution is provider-neutral and count-free; supported Host
+  // names live in the versioned product contract surfaces instead.
+  assert.doesNotMatch(projectNorthStar, /Claude Code|Codex\b|OpenCode|Kimi|ZCode|Grok Build/u);
+  assert.doesNotMatch(projectNorthStar, /three rounds|one initial [Rr]eview plus two/u);
+  assert.match(
+    fs.readFileSync(path.join(ROOT, 'docs', 'RUNTIME-COMPAT-MATRIX.md'), 'utf8'),
+    /Claude Code[\s\S]{0,160}ZCode/iu,
+  );
   assert.match(projectNorthStar, /^### HC-1\b/mu);
 });
 
@@ -3224,11 +3231,13 @@ test('task review APPROVE with retained P2/P3 is terminal and REQUEST_CHANGES ro
   );
   assert.match(flat(schema), /reclassified it as P1/iu);
   assert.match(flat(dev), /one in-scope repair set/iu);
-  assert.match(flat(dev), /at most one affected-lens delta review/iu);
-  assert.match(flat(dev), /second `REQUEST_CHANGES` returns to the owner checkpoint/iu);
+  assert.match(flat(dev), /one affected-lens delta review per repair set inside the active review budget/iu);
+  assert.match(flat(dev), /exact current owner grant overrides the versioned product default/iu);
+  assert.match(flat(dev), /another `REQUEST_CHANGES` would exceed the active budget, return to the owner checkpoint/iu);
+  assert.match(flat(dev), /same root surviving three failed fixes stops point-patching and reports an architecture problem/iu);
   assert.match(
     flat(review),
-    /second `REQUEST_CHANGES`[\s\S]{0,200}owner checkpoint/iu,
+    /another `REQUEST_CHANGES` would exceed the active budget[\s\S]{0,200}owner checkpoint/iu,
   );
 
   // HL-10: lens selection follows the review kind (initial / delta / aggregate),
@@ -3246,17 +3255,20 @@ test('task review APPROVE with retained P2/P3 is terminal and REQUEST_CHANGES ro
   assert.match(flat(review), /record it, do not edit that path/iu);
 
   // HL-15 replay: the documented primary path terminates at the first APPROVE
-  // or after one blocking repair plus one delta.
+  // or after a blocking repair plus its delta, with later rounds bounded by the
+  // active budget rather than an absolute count.
   const transitions = {
     'APPROVE+P0P1-free': 'close',
     'APPROVE+P2': 'close',
     'REQUEST_CHANGES': 'repair-once',
     'repair+delta:APPROVE': 'close',
-    'repair+delta:REQUEST_CHANGES': 'owner-checkpoint',
+    'repair+delta:REQUEST_CHANGES (inside the active budget)': 'second-repair-set',
+    'repair+delta:REQUEST_CHANGES (active budget exhausted)': 'owner-checkpoint',
     'repair+delta:INCOMPLETE': 'owner-checkpoint',
   };
   assert.equal(transitions['APPROVE+P2'], 'close');
-  assert.equal(transitions['repair+delta:REQUEST_CHANGES'], 'owner-checkpoint');
+  assert.equal(transitions['repair+delta:REQUEST_CHANGES (inside the active budget)'], 'second-repair-set');
+  assert.equal(transitions['repair+delta:REQUEST_CHANGES (active budget exhausted)'], 'owner-checkpoint');
 
   // HL-02: no zero-finding completion phrasing survives in the review surface.
   for (const text of [schema, review, dev]) {
@@ -3313,17 +3325,30 @@ test('Resume Note cannot override authority and never requires a fresh zero-find
   }
 });
 
-test('one blocking delta per task ends at an owner checkpoint and budgets never emit semantic verdicts', () => {
+test('review budget precedence puts an exact owner grant above the product default and budgets never emit semantic verdicts', () => {
   const review = readSkill('ultra-review');
   const dev = readSkill('ultra-dev');
+  const grant = h0Read('skills/ultra-change/references/execution-grant.md');
   const status = readSkill('ultra-status');
   const decision = h0Read('.ultra/decisions/2026-08-16-v027-harness-loop-closure.md');
 
-  // HL-04: one initial + at most one delta review, then the owner checkpoint.
-  assert.match(flat(review), /runs at most once per task/iu);
+  // HL-04 (r3): one precedence rule — exact current owner grant overrides the
+  // versioned product default; the default stays small and finite.
+  assert.match(flat(review), /runs only inside the active review budget/iu);
   assert.match(
     flat(review),
-    /A second `REQUEST_CHANGES`[\s\S]{0,200}owner checkpoint/iu,
+    /exact current owner grant for this work package overrides the versioned product default/iu,
+  );
+  assert.match(
+    flat(review),
+    /same root cause survives three failed repair attempts[\s\S]{0,160}architecture boundary problem/iu,
+  );
+  assert.match(flat(review), /never open an automatic round beyond the active grant/iu);
+  assert.match(flat(grant), /exact current owner grant overrides the versioned product default/iu);
+  assert.match(flat(grant), /one initial review plus at most two\s+P0\/P1 delta reviews/iu);
+  assert.match(
+    flat(grant),
+    /same root cause surviving three failed fixes[\s\S]{0,160}architecture problem/iu,
   );
 
   // HL-05 / RC-02: budget stops execution without any semantic verdict.
@@ -3426,11 +3451,95 @@ test('the superseded v0.27 route stays inert history under the 3.0 Mode B work p
   assert.ok(fs.existsSync(path.join(ROOT, frontier.context_file)), '3.0 context exists');
   const activeIntent = h0Read('.ultra/changes/active/chg-ultra-3-0-mode-b/intent.md');
   assert.match(activeIntent, /^## Execution Grant$/m);
-  assert.match(activeIntent, /`durable work-package` — `ubp3-mode-b-2026-08-17`/u);
+  assert.match(activeIntent, /`durable work-package` — current segment `ubp3-r3-zcode-2026-08-17`/u);
+  // The r3 primary-transfer task models both legal lifecycle states — never
+  // one transient snapshot: in_progress before its prescribed closeout, or
+  // completed with the canonical six-dimension evidence record and the
+  // applied CLOSEOUT receipt beside the newest terminal RESULT. Mode B stays
+  // completed in both branches and no v0.27 row re-activates.
+  const r3 = byId.get('v30-north-star-r3-primary-handoff');
+  assert.ok(r3, 'r3 primary-transfer task row exists');
+  assert.equal(r3.change_id, 'chg-ultra-3-0-mode-b');
   const inProgress = ledger.tasks.filter((task) => task.status === 'in_progress');
-  assert.deepEqual(
-    inProgress.map((task) => task.id),
-    [],
-    'no in-progress rows remain after the accepted closeout',
+  if (r3.status === 'in_progress') {
+    assert.deepEqual(
+      inProgress.map((task) => task.id),
+      ['v30-north-star-r3-primary-handoff'],
+      'exactly the r3 primary-transfer task is in progress pre-closeout',
+    );
+  } else {
+    assert.equal(r3.status, 'completed', 'the r3 row is in_progress or completed, nothing else');
+    assert.deepEqual(inProgress, [], 'no task stays in progress after the r3 closeout');
+    const evidence = JSON.parse(h0Read('.ultra/evidence/v30-north-star-r3-primary-handoff/evidence.json'));
+    assert.equal(evidence.$schema, 'ultra-task-evidence-v2');
+    assert.equal(evidence.task_id, r3.id);
+    assert.deepEqual(
+      Object.keys(evidence.dimensions).sort(),
+      ['feature_flags_audit', 'persistence_real', 'spec_trace', 'tests_passed', 'tests_written', 'vertical_slice'],
+      'the completed r3 task carries one canonical six-dimension evidence record',
+    );
+    assert.equal(
+      evidence.task_review.review_mode,
+      'external-manual',
+      'the completed r3 evidence binds the external-manual review branch',
+    );
+    const closeout = JSON.parse(h0Read('.ultra/.runtime/handoffs/ubp3-r3-zcode-desktop-host-memory-v2/CLOSEOUT.json'));
+    assert.equal(closeout.$schema, 'ultra-primary-transfer-closeout-v1');
+    assert.equal(closeout.task_identity, r3.id);
+    const frozenResult = JSON.parse(h0Read('.ultra/.runtime/handoffs/ubp3-r3-zcode-desktop-host-memory-v2/RESULT.json'));
+    assert.equal(
+      closeout.closes_result.final_worktree_digest,
+      frozenResult.final_worktree_digest,
+      'the applied CLOSEOUT receipt closes the frozen terminal RESULT',
+    );
+  }
+});
+
+test('ZCode Desktop Workspace Memory is an owner-controlled host external effect, never authority', () => {
+  const matrix = fs.readFileSync(path.join(ROOT, 'docs', 'RUNTIME-COMPAT-MATRIX.md'), 'utf8');
+  const transfer = fs.readFileSync(
+    path.join(SKILLS, 'ultra-change', 'references', 'primary-transfer.md'),
+    'utf8',
+  );
+  const memoryStart = matrix.search(/^### ZCode Desktop Workspace Memory/mu);
+  const memorySection = memoryStart === -1 ? '' : matrix.slice(memoryStart, matrix.indexOf('\n### ', memoryStart + 4) === -1 ? undefined : matrix.indexOf('\n### ', memoryStart + 4));
+
+  // Not "always default-off": the feature is operator-selected and was
+  // observed enabled; a fresh task inherits the operator's current choice.
+  assert.match(memorySection, /operator-controlled/u);
+  assert.match(memorySection, /was observed enabled/u);
+
+  // Not "cannot be browsed or cleared": the extracted store is ordinary
+  // operator-manageable local state outside the repository.
+  assert.match(memorySection, /browse[\s\S]{0,80}clear/iu);
+
+  // One master gate; secondary logged flags are observations, not gates.
+  assert.match(memorySection, /`memoryEnabled=false` is the single effective master gate/u);
+  assert.match(memorySection, /absent-key,\s+disable-only defaults, not independent\s+owner-facing gates/u);
+
+  // The frozen r3 design's 7.1 local-memory snapshot is marked superseded in
+  // current docs, never rewritten in place.
+  assert.match(memorySection, /section 7\.1[\s\S]{0,160}superseded/u);
+
+  // Never authority, never portable.
+  assert.match(memorySection, /non-authoritative and\s+non-portable/u);
+
+  // Receipt semantics: enabled memory is a disclosed Host external effect;
+  // strict zero-effect means fresh task + master setting off + reviewer
+  // postflight; memory is never input, authority, evidence, or completion.
+  assert.match(transfer, /Host external effect/u);
+  assert.match(
+    transfer,
+    /OFFER `effects` must allow it[\s\S]{0,140}disclose it in `external_effects`/u,
+  );
+  assert.match(transfer, /fresh task with the\s+native master setting off \(`memoryEnabled=false`/u);
+  assert.match(transfer, /reviewer postflight/u);
+  assert.match(
+    transfer,
+    /never a frozen input, shared authority, evidence substitute,\s+or completion signal/u,
+  );
+  assert.match(
+    transfer,
+    /absent-key,\s+disable-only observations, not independent owner-facing gates/u,
   );
 });

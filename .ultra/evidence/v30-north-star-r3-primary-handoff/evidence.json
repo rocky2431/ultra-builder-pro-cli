@@ -1,0 +1,230 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v30-north-star-r3-primary-handoff",
+  "change_id": "chg-ultra-3-0-mode-b",
+  "context": {
+    "path": ".ultra/contexts/task-v30-north-star-r3-primary-handoff.md",
+    "acceptance_sha256": "3ef59fd952f60313bfb0dc9e5eb5d9eae343d4d4d48221083945e3c35ce4fd4c"
+  },
+  "subject": {
+    "git_head": "9a759003aa77d1a88e1275d70d2c887ee05da993",
+    "worktree_digest": "84cf4187c40ff2551ac4999a16600e5a4d8ad0780ada272c7fb49d74404866f6",
+    "observed_at": "2026-08-17T20:50:00+08:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "T4-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        "raw_evidence_sha256": "e65af36379ed06d54453cec17d3a8c437457d43325f36c8e9a289edc8088ca2d",
+        "freshness_identity": {
+          "git_head": "9a759003aa77d1a88e1275d70d2c887ee05da993",
+          "worktree_digest": "84cf4187c40ff2551ac4999a16600e5a4d8ad0780ada272c7fb49d74404866f6",
+          "observed_at": "2026-08-17T20:50:00+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "r3 North Star revision validates accepted with its decision and byte-identical immutable snapshot; r2 history byte-stable (north-star validator exit 0 across every pass; snapshot comparison in the frozen log). Exact commands and exits are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "T4-02",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": ".ultra/decisions/2026-08-17-ultra-3-0-r3-primary-handoff.md plus the .ultra/tasks.json ledger row",
+        "observation": "The durable grant names ZCode Desktop as the exact sole writer under grant ubp3-r3-zcode-2026-08-17 with the fresh task identity v30-north-star-r3-primary-handoff; the completed Mode B task row and its grant record stay untouched (byte-verified each pass).",
+        "revision": "working tree of 2026-08-17 over Git HEAD 9a759003aa77d1a88e1275d70d2c887ee05da993 (uncommitted r3 subject)"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Grant bytes re-verified by SHA-256 at every pass boundary; the ledger row carries the fresh identity with the Mode B dependency untouched."
+      }
+    },
+    {
+      "criterion_id": "T4-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        "raw_evidence_sha256": "e65af36379ed06d54453cec17d3a8c437457d43325f36c8e9a289edc8088ca2d",
+        "freshness_identity": {
+          "git_head": "9a759003aa77d1a88e1275d70d2c887ee05da993",
+          "worktree_digest": "84cf4187c40ff2551ac4999a16600e5a4d8ad0780ada272c7fb49d74404866f6",
+          "observed_at": "2026-08-17T20:50:00+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Primary-transfer contract has a mechanical validator and live consumers; mutual exclusivity, mismatch-blocked, stale/revoke/interrupt/resume/cancel/missing-receipt recovery regressions pass (tests/primary-transfer.test.cjs 35/35 including the closeout-transition suite and its PPI-planning and exact-bullet regressions). Exact commands and exits are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "T4-04",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        "raw_evidence_sha256": "e65af36379ed06d54453cec17d3a8c437457d43325f36c8e9a289edc8088ca2d",
+        "freshness_identity": {
+          "git_head": "9a759003aa77d1a88e1275d70d2c887ee05da993",
+          "worktree_digest": "84cf4187c40ff2551ac4999a16600e5a4d8ad0780ada272c7fb49d74404866f6",
+          "observed_at": "2026-08-17T20:50:00+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "ultra-delegate worker least-authority boundary unchanged: no worker .ultra write, no delegation-to-transfer upgrade (delegation suite plus the transfer suite above). Exact commands and exits are retained in the frozen verification log bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "T4-05",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "adapters/_shared/host-profile.cjs plus docs/RUNTIME-COMPAT-MATRIX.md",
+        "observation": "The ZCode app-bundled CLI/protocol carries the experimental maturity flag with the documented support bar, including the corrected Workspace Memory contract (operator-controlled memoryEnabled master gate; enabled memory is a disclosed Host external effect).",
+        "revision": "working tree of 2026-08-17 over Git HEAD 9a759003aa77d1a88e1275d70d2c887ee05da993 (uncommitted r3 subject)"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Host profile and compatibility matrix observations re-checked at each pass; the transport receipt fields and experimental_ack regressions pin the boundary."
+      }
+    },
+    {
+      "criterion_id": "T4-06",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "zcode-desktop-local-drill",
+        "run_id": "zcode-to-codex-worker-drill",
+        "observed_at": "2026-08-17T20:50:00+08:00",
+        "raw_evidence_ref": ".ultra/evidence/v30-north-star-r3-primary-handoff/zcode-to-codex-worker-drill-receipt.json",
+        "raw_evidence_sha256": "76621b3097f81076ce94ca601fc852b712776cf0db0fc632fdaae9cf1b50d6be",
+        "observation": "Recovery drills recorded: temp-repo drill matrix inside the suite, the real ZCode primary readback (documented interactive Desktop surface), and the bounded ZCode→Codex read-only worker drill whose receipts are archived beside the frozen verification log."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The drill receipts and the readback observations are retained verbatim under the task evidence directory and bound by SHA-256."
+      }
+    },
+    {
+      "criterion_id": "T4-07",
+      "verification_type": "command",
+      "evidence": {
+        "command": "see the criterion receipt in the frozen verification log",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        "raw_evidence_sha256": "e65af36379ed06d54453cec17d3a8c437457d43325f36c8e9a289edc8088ca2d",
+        "freshness_identity": {
+          "git_head": "9a759003aa77d1a88e1275d70d2c887ee05da993",
+          "worktree_digest": "84cf4187c40ff2551ac4999a16600e5a4d8ad0780ada272c7fb49d74404866f6",
+          "observed_at": "2026-08-17T20:50:00+08:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Package verification chain passes across every pass (verify:release 615 node + hooks + 0 vulnerabilities final; Skill validators; pack dry-run 128 entries; isolated install/Doctor in the original pass) and the frozen reports enumerate paths, fakes, limitations, not-done, and external effects in the RESULT receipt and the verification log; the owner accepted the final Phase-A subject (APPROVE, external-review.json at SHA-256 23bf0fa5…). Exact commands and exits are retained in the frozen verification log bound by SHA-256."
+      }
+    }
+  ],
+  "dimensions": {
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/external-review.json"
+      ],
+      "rationale": "No flag on the execution path defaults to off; the closeout-transition contract adds no feature gate, and every gate ran in the retained command receipts and the bound external review."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/external-review.json"
+      ],
+      "rationale": "All persistence is real repository files and receipts observed through the stable bounded snapshot primitives; no fake storage on any path (retained command receipts and bound external review)."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/external-review.json"
+      ],
+      "rationale": "The task traces to .ultra/north-star.md#north-star-outcomes under the accepted r3 revision; the anchor is re-read in the retained receipts and the bound external review."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/external-review.json"
+      ],
+      "rationale": "verify:release fully green (615 node tests, hooks, 0 vulnerabilities) plus the focused suites; receipts retained in the frozen log."
+    },
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/external-review.json"
+      ],
+      "rationale": "The closeout-transition contract, its P1 root repair, the PPI-planning and exact-bullet corrections, and every r3 regression were written RED first (tests/primary-transfer.test.cjs 35/35); receipts retained in the frozen log."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+        ".ultra/evidence/v30-north-star-r3-primary-handoff/external-review.json"
+      ],
+      "rationale": "Each criterion runs from the owner-facing contract text through the validator to real repository observations; the retained receipts cover the full slice."
+    }
+  },
+  "task_review": {
+    "review_mode": "external-manual",
+    "execution_packet": {
+      "state": "pre-v1-unavailable",
+      "digest": null,
+      "limitation": "No Execution Packet exists; the work package ran under the durable owner grant ubp3-r3-zcode-2026-08-17 in .ultra/decisions/2026-08-17-ultra-3-0-r3-primary-handoff.md."
+    },
+    "receipt_ref": ".ultra/evidence/v30-north-star-r3-primary-handoff/external-review.json",
+    "receipt_sha256": "23bf0fa51c4e70f8d4faf2dfcc794485459dad45bad1dd522c569f54bf423cd1",
+    "blocking_findings": [],
+    "retention": "Retain the exact external receipt bytes; it is a reconstructable observation, never semantic authority and never a strict SUMMARY/ADMISSION substitute."
+  },
+  "artifacts": [
+    "skills/ultra-change/references/primary-transfer.md",
+    "skills/ultra-change/scripts/validate_primary_transfer.cjs",
+    "tests/primary-transfer.test.cjs",
+    "tests/v026-contract.test.cjs",
+    "skills/ultra-dev/SKILL.md",
+    "docs/ARTIFACT-AUTHORITY.md",
+    "docs/WORKFLOW-LIFECYCLE.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "adapters/_shared/host-profile.cjs",
+    "bin/delegate.cjs",
+    "bin/delegate-worker.cjs",
+    ".ultra/tasks.json",
+    ".ultra/contexts/task-v30-north-star-r3-primary-handoff.md",
+    ".ultra/evidence/v30-north-star-r3-primary-handoff/verification.log",
+    ".ultra/.runtime/handoffs/ubp3-r3-zcode-desktop-host-memory-v2/RESULT.json"
+  ],
+  "limitations": [
+    "The closeout-transition continuation records the Phase-A delta paths at their closeout-start bytes; per-path unchanged-since-freeze claims beyond the v2 RESULT aggregate digest and frozen inputs are recorded-and-reviewed observations, mechanically pinned from the closeout forward.",
+    "The completion snapshot is the reviewed closeout-start subject; the prescribed closeout writes to the context and ledger legitimately advance the current product digest afterward, and the CLOSEOUT receipt binds that end-state.",
+    "Monetary cost of the owner-authorized ZCode execution is unknown without a provider receipt; transport stays the documented interactive Desktop surface (experimental app-bundled CLI not used)."
+  ],
+  "timestamp": "2026-08-17T20:50:00+08:00"
+}

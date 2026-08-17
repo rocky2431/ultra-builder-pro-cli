@@ -72,8 +72,12 @@ host sidecars. Verification: isolated adapter lifecycle and package-smoke tests.
 The eight public workflows and `ultra-status` are owner-invocable. Init, Change,
 Delegate, and Status are never implicitly selected. Research, Plan, Dev, Test, and
 reconcile-only Deliver may be selected only when their resident entry guard verifies a
-live Change-scoped execution grant — a current session-local activation or a stably verified durable work-package grant; otherwise they stop. Verification:
-generated metadata, entry-guard, and role-boundary tests.
+live Change-scoped execution grant — a current session-local activation or a stably verified durable work-package grant; otherwise they stop. Moving a work
+package's canonical writer to another Agent is an owner-granted primary transfer
+executed through derived OFFER/ACK/RESULT receipts under
+`.ultra/.runtime/handoffs/`, mutually exclusive with delegated workers.
+Verification: generated metadata, entry-guard, role-boundary, and
+primary-transfer tests.
 
 ### Requirement FR-03: Model-owned disciplines
 
@@ -212,6 +216,7 @@ leaving every canonical artifact trackable.
 | Host adaptation | Native paths, manifests, metadata, events, lifecycle | Lowest-common-denominator emulation of missing host features |
 | Safety | Path, permission, schema, process, digest, exact effect and recovery facts | Semantic scoring or automated risk acceptance |
 | Delegation | One bounded child CLI process and validated worktree result | Autonomous orchestration, external-effect authority, automatic integration |
+| Primary transfer | Owner-granted OFFER/ACK/RESULT handoff of one work package's canonical writer role between Agents | Worker paths gaining canonical `.ultra` writes, receipt-as-authority, automatic scheduling |
 
 ## Release Evidence
 

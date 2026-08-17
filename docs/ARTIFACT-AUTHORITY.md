@@ -44,9 +44,14 @@ Hook observations are provenance only.
 
 A formal terminal outcome — an accepted result, an owner decision, an external
 blocker, a review-budget stop, or an abandonment — outranks every Resume, Hook, or
-Status suggestion that appears to continue the same work. One coherent work package
-receives at most one initial Review plus two P0/P1 delta Reviews; a third round with
-a remaining blocker returns the choice to the owner instead of opening a fourth.
+Status suggestion that appears to continue the same work. Review stays inside the
+budget accepted for the work package, under one precedence rule: an exact current
+owner grant overrides the versioned product default — the released default is one
+initial Review plus two P0/P1 delta Reviews. Budget exhaustion with a remaining
+blocker returns the choice to the owner instead of another round; no Agent,
+reviewer, Hook, or control plane extends a budget itself, and the same root
+surviving three failed fixes stops point-patching and reports an architecture
+problem.
 
 ## Effect classes
 
@@ -195,6 +200,14 @@ Parallel implementation uses separate worktrees and explicit Git integration. Ul
 does not add a lock service or semantic state machine to make concurrent canonical
 writes appear safe.
 
+The primary writer of a work package changes only through an owner-granted primary
+transfer (`skills/ultra-change/references/primary-transfer.md`): a derived OFFER
+binding canonical refs/hashes, HEAD, and worktree digest; a receiver ACK that is
+ready only on full stable-read match; sole-writer execution; and a frozen terminal
+RESULT. A delegated worker never becomes the canonical writer, and a delegation
+receipt never serves as an ACK or RESULT. While an ACK-ready transfer is open, at
+most that one receiver may write canonical files.
+
 ## Decisions and reductions
 
 Write a durable decision only when it is difficult to reverse, surprising without
@@ -243,6 +256,7 @@ These paths are intentionally non-authoritative:
 | `.ultra/research/<run-id>/brief.md` | optional Wayfinding question map for a multi-lens Research run | rebuild from Project Brief, accepted authority, evidence needs, and owner checkpoints |
 | `.ultra/.runtime/compact-snapshot.md` | compaction acceleration | rebuild from files and Git |
 | `.ultra/.runtime/delegations/` | delegated process receipts and logs | inspect result or rerun with new id |
+| `.ultra/.runtime/handoffs/` | primary-transfer OFFER/ACK/RESULT receipts, plus the optional CLOSEOUT receipt of the one prescribed post-review closeout | create a fresh handoff id from canonical authority; never reconstruct an old ACK or RESULT; close out a newest completed v2 RESULT by publishing its CLOSEOUT receipt, never by refreshing the RESULT or opening a handoff for the closeout |
 | `.ultra/.runtime/worktrees/` | delegated checkout locations | inspect Git worktrees and remove safely |
 | `.ultra/progress/<task-id>.json` | mechanical evidence observations | rerun sensors or inspect current diff |
 | `.ultra/reviews/<session>/` | `WORKER-PACKET.json`, `ADMISSION.json`, selected specialist artifacts, and `SUMMARY.json` | retain a current strict session through successful aggregate Test and Deliver consumption; after premature loss, run a fresh Review and Test and never reconstruct the old receipt |

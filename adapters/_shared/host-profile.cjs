@@ -6,6 +6,18 @@ const path = require('node:path');
 const KIMI_PROFILE_ROOT = path.join(__dirname, 'delegate-profiles');
 const ZCODE_BUNDLED_CLI = '/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs';
 
+// The ZCode app-bundled CLI is a verified-local surface, not a provider
+// stability promise: official documentation plus a full recovery drill must
+// both hold before any transport may claim 'supported'.
+const TRANSPORT_MATURITY = Object.freeze({
+  claude: 'documented+verified',
+  codex: 'documented+verified',
+  opencode: 'documented+verified',
+  kimi: 'documented+verified',
+  grok: 'documented+verified',
+  zcode: 'experimental',
+});
+
 function zcodeBinary({ platform = process.platform, exists = fs.existsSync } = {}) {
   return platform === 'darwin' && exists(ZCODE_BUNDLED_CLI)
     ? ZCODE_BUNDLED_CLI
@@ -116,13 +128,26 @@ const PROFILES = Object.freeze({
 function hostProfile(runtime) {
   const profile = PROFILES[runtime];
   if (!profile) throw new Error(`unsupported delegate host: ${runtime}`);
-  return profile;
+  return { ...profile, transportMaturity: TRANSPORT_MATURITY[runtime] };
+}
+
+// The live delegate surface names honestly what a run actually used. The ZCode
+// headless transports are app-internal surfaces, never the documented ZCode
+// Desktop interactive primary path, so every receipt that records one says so.
+function transportSurface(runtime, binary = PROFILES[runtime] ? PROFILES[runtime].binary : undefined) {
+  if (runtime === 'zcode') {
+    const source = binary === ZCODE_BUNDLED_CLI ? 'the App-bundled headless CLI' : 'the zcode headless CLI on PATH';
+    return `${source} (experimental; not the documented ZCode Desktop interactive surface)`;
+  }
+  return 'documented non-interactive CLI';
 }
 
 module.exports = {
   PROFILES,
+  TRANSPORT_MATURITY,
   ZCODE_BUNDLED_CLI,
   hostProfile,
   opencodePermission,
+  transportSurface,
   zcodeBinary,
 };

@@ -561,9 +561,16 @@ function main(options) {
   };
 }
 
-try {
-  process.stdout.write(`${JSON.stringify(main(optionsFromArgs(process.argv.slice(2))), null, 2)}\n`);
-} catch (error) {
-  process.stderr.write(`${error.message}\n`);
-  process.exitCode = 1;
+if (require.main === module) {
+  try {
+    process.stdout.write(`${JSON.stringify(main(optionsFromArgs(process.argv.slice(2))), null, 2)}\n`);
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  }
 }
+
+// The product-subject pathspec and the stable file-snapshot primitive are the
+// single bounded mechanical definitions shared with the primary-transfer
+// validator, so receipt reads and digest subject bytes can never drift.
+module.exports = { PRODUCT_PATHSPEC, streamStableRepositoryFile };

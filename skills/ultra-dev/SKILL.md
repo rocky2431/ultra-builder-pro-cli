@@ -177,9 +177,13 @@ Keep the ledger row `in_progress` while running task review through
 `../ultra-review/SKILL.md`. Build its immutable packet from the ledger, task context,
 packet-defined task scope, and actual pre-review evidence; the final v2 record is not an
 admission prerequisite. Route only the exact current P0/P1 findings (or a P2 the owner
-explicitly promoted) as one in-scope repair set, followed by at most one affected-lens
-delta review; a second `REQUEST_CHANGES` returns to the owner checkpoint instead of
-another automatic repair. Budget exhaustion stops execution at `owner checkpoint` /
+explicitly promoted) as one in-scope repair set, followed by one affected-lens delta
+review per repair set inside the active review budget — an exact current owner grant
+overrides the versioned product default of one initial review plus at most two
+P0/P1 delta reviews per package. When another `REQUEST_CHANGES` would exceed the
+active budget, return to the owner checkpoint with the exact blocking set instead of
+an automatic repair; the same root surviving three failed fixes stops point-patching
+and reports an architecture problem. Budget exhaustion stops execution at `owner checkpoint` /
 `budget_exhausted` and keeps the ledger row `in_progress`.
 It never yields `APPROVE`, `REQUEST_CHANGES`, `INCOMPLETE`, pass, fail, accept, or
 abandon. If a repair changes implementation or evidence in review scope, use a new
@@ -209,7 +213,14 @@ dispositions, evidence refresh refs, artifacts, limitations, and retention witho
 claiming that the review summary proves `subject.worktree_digest`. Read the record back, then update context
 `## Task Review`, Completion, and `## Resume Note`; the context has no second status.
 Only after those facts are durable may the primary model write `completed` to the
-ledger and read the row back.
+ledger and read the row back. When the task's work package sits under an
+ACK-ready primary transfer whose newest terminal receipt is a completed v2
+RESULT, this sequence is that contract's prescribed closeout: publish the
+handoff's `CLOSEOUT.json` beside the frozen RESULT — citing the review receipt,
+the closeout-start/end observations, and any recorded owner-authorized
+continuation — instead of refreshing the RESULT or opening a new handoff; the
+closeout starts no review and no repair round
+(`../ultra-change/references/primary-transfer.md`).
 
 If later work invalidates a completed task's criterion evidence, Dev performs an
 explicit reopen. A reopen changes the ledger row from `completed` to `in_progress`;
