@@ -16,8 +16,8 @@ server, Graph engine, hidden executor, or semantic state machine.
 The owner selected the 3.0 release line on 2026-08-18. The `v3.0.0` candidate
 stopped before publication when its clean-checkout release gate exposed
 workstation-only test inputs. The `v3.0.1` candidate stopped before publication
-when CI scheduling exposed a fixed-delay race in the Review waiter test. The current
-publish candidate is therefore `3.0.2`, without rewriting either failed tag. The
+when CI scheduling exposed a fixed-delay race in the Review waiter test. The first
+published 3.0 version is therefore `3.0.2`, without rewriting either failed tag. The
 intent's earlier
 deferred-version note and no-external-effects grant remain accurate historical
 boundaries for implementation; this finalization and its release effects proceed
@@ -51,6 +51,11 @@ under the owner's newer explicit invocation, not by extending that expired grant
 | `node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/v30-current-test-report-consumer-final-delta-review/SUMMARY.json --report .ultra/test-report.json` | 0 | `valid: true`, zero findings, SUMMARY `26854a96...` | immediately before finalization |
 | `npm run verify:release` | 0 | 615 Node tests, 89 Hook tests, 0 high-severity production dependency vulnerabilities | fresh 3.0.2 product snapshot |
 | `npm pack --dry-run --json` | 0 | `ultra-builder-pro-cli@3.0.2`, 128 files, 321446-byte tarball, shasum `c0353f96...` | fresh 3.0.2 product snapshot; no package written |
+| `gh run view 32060573849 --json status,conclusion,url,headSha,jobs` | 0 | workflow `success` at `9ca38dd...`; release gate, npm publish, and GitHub Release steps all succeeded | after remote workflow completion |
+| `npm view ultra-builder-pro-cli@3.0.2 version dist.integrity dist.shasum dist.tarball --json` | 0 | registry version `3.0.2`, integrity `sha512-X6ws/...`, shasum `d83432b5...`; `latest` is `3.0.2` | after trusted publication |
+| `gh release view v3.0.2 --json ...` | 0 | non-draft, non-prerelease release at `https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v3.0.2` | after release creation |
+| `npx --yes ultra-builder-pro-cli@3.0.2 --claude --codex --opencode --kimi --zcode --global` | 0 | all five requested adapters installed from the published package | after registry verification |
+| same published command with `--doctor --json` | 0 | overall `healthy`; Claude Code, Codex, OpenCode, Kimi Code, and ZCode each `healthy`, package `3.0.2`, source commit `9ca38dd...`, zero issues | immediately after global installation |
 | `git diff --check` | 0 | no whitespace errors | immediately before finalization |
 
 ## Review
@@ -89,6 +94,10 @@ receipt and does not reopen the completed work package.
   Code, and ZCode are the authorized real-install targets.
 - Provider-native behavior is version-bound and remains observable through Doctor;
   the package does not claim control of provider internals.
+- Codex reports `hook_activation: user_review_required` while the adapter remains
+  healthy. The owner must open a new Codex session, inspect the installed Ultra hook
+  definition, and grant native trust before relying on hook acceleration; the
+  installer intentionally cannot grant that trust on the owner's behalf.
 
 ## Recovery
 
@@ -103,8 +112,8 @@ commit; never rewrite the published tag or package bytes.
 
 | Effect | Authorization | Observed status at local archive |
 |---|---|---|
-| Commit release state | owner-authorized 2026-08-18 | release commit `2b2dc777...`; clean-checkout repair `53bb8f90...`; 3.0.1 metadata commit `8f9c5bf...`; 3.0.2 release commit pending |
-| Fast-forward merge to `main` and push | owner-authorized 2026-08-18 | `main` pushed through `8f9c5bf...`; 3.0.2 push pending |
-| Annotated tags and publication | owner-authorized 2026-08-18 | `v3.0.0` preserved after failed pre-publication workflow `32057781915`; `v3.0.1` preserved after failed pre-publication workflow `32059281917`; neither npm version nor GitHub Release exists; `v3.0.2` pending |
-| Global install: Claude Code, Codex, OpenCode, Kimi Code, ZCode | owner-authorized 2026-08-18 | pending until published `ultra-builder-pro-cli@3.0.2` is fetched and each Doctor is healthy |
+| Commit release state | owner-authorized 2026-08-18 | release commit `2b2dc777...`; clean-checkout repair `53bb8f90...`; 3.0.1 metadata commit `8f9c5bf...`; 3.0.2 release commit `9ca38dd...`; this post-release receipt commit is the final remaining local effect |
+| Fast-forward merge to `main` and push | owner-authorized 2026-08-18 | `main` and remote `main` advanced to `9ca38dd...` before tagging; remote result verified |
+| Annotated tags and publication | owner-authorized 2026-08-18 | `v3.0.0` and `v3.0.1` remain immutable failed pre-publication candidates; annotated `v3.0.2` resolves to `9ca38dd...`; workflow `32060573849` succeeded; npm `latest=3.0.2`; GitHub Release published |
+| Global install: Claude Code, Codex, OpenCode, Kimi Code, ZCode | owner-authorized 2026-08-18 | published `3.0.2` installed on all five; aggregate Doctor `healthy`, every adapter `healthy`, zero issues; Codex native hook trust remains an explicit owner action |
 | Grok Build global install | not requested | not performed |
