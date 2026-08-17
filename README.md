@@ -19,7 +19,7 @@ writing authority to a different Agent requires an explicit verified transfer
 
 ## Ultra Builder Pro 3.0
 
-Version `3.0.0` is the first release of Ultra as a cognitive-alignment harness for
+Version `3.0.1` is the first published release of Ultra as a cognitive-alignment harness for
 real software engineering. It is not a decentralized multi-agent platform and it
 does not prescribe one Agent topology. Instead, it keeps five promises:
 
@@ -103,7 +103,7 @@ map, evidence convergence, owner checkpoints, and baseline promotion.
 
 ### What happened to the original Agents
 
-Version 3.0.0 does not install a custom `agents/` projection. The old review workers became the
+Version 3.0.1 does not install a custom `agents/` projection. The old review workers became the
 six focused files under `ultra-review/references/`; review coordination and synthesis
 belong to the parent `ultra-review` Skill. The old debugger procedure lives under
 `ultra-dev/references/debugging.md`, and test execution lives under
@@ -184,17 +184,17 @@ Node.js 22 or newer is required.
 
 ```bash
 # Current project, one host
-npx ultra-builder-pro-cli@3.0.0 --claude --local
-npx ultra-builder-pro-cli@3.0.0 --codex --local
+npx ultra-builder-pro-cli@3.0.1 --claude --local
+npx ultra-builder-pro-cli@3.0.1 --codex --local
 
 # Global installation
-npx ultra-builder-pro-cli@3.0.0 --opencode --global
-npx ultra-builder-pro-cli@3.0.0 --kimi --global
-npx ultra-builder-pro-cli@3.0.0 --grok --global
-npx ultra-builder-pro-cli@3.0.0 --zcode --global
+npx ultra-builder-pro-cli@3.0.1 --opencode --global
+npx ultra-builder-pro-cli@3.0.1 --kimi --global
+npx ultra-builder-pro-cli@3.0.1 --grok --global
+npx ultra-builder-pro-cli@3.0.1 --zcode --global
 
 # All supported hosts
-npx ultra-builder-pro-cli@3.0.0 --all --global
+npx ultra-builder-pro-cli@3.0.1 --all --global
 ```
 
 Use the host's native Skill picker or invocation syntax to select an owner workflow.
@@ -207,13 +207,13 @@ Installation is managed, atomic, and provenance-checked.
 
 ```bash
 # Re-running install updates the managed artifact
-npx ultra-builder-pro-cli@3.0.0 --codex --global
+npx ultra-builder-pro-cli@3.0.1 --codex --global
 
 # Read-only diagnosis
-npx ultra-builder-pro-cli@3.0.0 --all --global --doctor --json
+npx ultra-builder-pro-cli@3.0.1 --all --global --doctor --json
 
 # Remove only managed Ultra assets
-npx ultra-builder-pro-cli@3.0.0 --all --global --uninstall
+npx ultra-builder-pro-cli@3.0.1 --all --global --uninstall
 ```
 
 `--config-dir <path>` isolates both the primary config and host-owned sidecars. It is
