@@ -1,0 +1,136 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-windows-release-gate",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-windows-release-gate.md",
+    "acceptance_sha256": "1734ad1a412b4515ccfa00c99e29e073fb27da79ec8bb5872a07dfeb858fe57e"
+  },
+  "subject": {
+    "git_head": "19ab5bed6fef65a40b682fbe77b28cf145bc9b64",
+    "worktree_digest": "20ea5657e7b9f0d2731755d195168532ed3d6554b2f17b080ba1096452bedec5",
+    "observed_at": "2026-08-26T05:56:27Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "WG-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/acp-driver.test.cjs tests/acp-conformance.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-windows-release-gate/verification.log",
+        "raw_evidence_sha256": "b838b832df14e563ddf0fb2c546c166ee75986a04dab784fac00418ea8533fb1",
+        "freshness_identity": {
+          "git_head": "19ab5bed6fef65a40b682fbe77b28cf145bc9b64",
+          "worktree_digest": "20ea5657e7b9f0d2731755d195168532ed3d6554b2f17b080ba1096452bedec5",
+          "observed_at": "2026-08-26T05:56:27Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The injected win32 regression proves taskkill.exe receives /PID, /T, and /F, skips direct-child termination on success, and retains direct-child fallback for a nonzero or throwing system command; the same named contract passed on the real Windows runner."
+      }
+    },
+    {
+      "criterion_id": "WG-02",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "GitHub Actions",
+        "run_id": "32935138736",
+        "observed_at": "2026-08-26T05:45:38Z",
+        "raw_evidence_ref": ".ultra/evidence/v50-windows-release-gate/github-actions-receipt.json",
+        "raw_evidence_sha256": "582de642dc84812a8ab2f42e3647dfc1eb99344461aefe4e3a6a389458956d26",
+        "observation": "Windows job 98074827675 passed 27/27 on the exact pushed commit, including named cancellation test 6 and timeout test 7; each test terminated the fake ACP agent's real grandchild and reached a terminal transport state."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The retained provider receipt binds both named real-grandchild cases, the successful Windows job, and the exact immutable commit rather than relying on a mocked platform branch or a local inference."
+      }
+    },
+    {
+      "criterion_id": "WG-03",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "GitHub Actions",
+        "run_id": "32935138736",
+        "observed_at": "2026-08-26T05:45:38Z",
+        "raw_evidence_ref": ".ultra/evidence/v50-windows-release-gate/github-actions-receipt.json",
+        "raw_evidence_sha256": "582de642dc84812a8ab2f42e3647dfc1eb99344461aefe4e3a6a389458956d26",
+        "observation": "The one check suite for commit 19ab5bed6fef65a40b682fbe77b28cf145bc9b64 completed successfully: Ubuntu and macOS each passed npm run verify:release with 661 Node tests, 89 Hook tests, and zero audit vulnerabilities, while Windows passed the focused real ACP driver/conformance suite 27/27."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "One retained run binds every required operating-system job to the same pushed candidate and preserves both failed predecessors that exposed and motivated the EOL and filesystem-identity repairs."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/acp-driver.test.cjs", "tests/acp-conformance.test.cjs", "tests/delegate.test.cjs"],
+      "rationale": "The task has injected taskkill RED/GREEN coverage, real cancel and timeout grandchild cases, checkout-EOL coverage, and filesystem-identity alias regressions while retaining distinct-directory and POSIX-case rejection."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/evidence/v50-windows-release-gate/verification.log", ".ultra/evidence/v50-windows-release-gate/github-actions-receipt.json", ".ultra/reviews/v50-windows-release-gate-initial-review-v1/SUMMARY.json"],
+      "rationale": "The final local focused suite passed 49/49, local release verification passed 661 Node and 89 Hook tests with zero vulnerabilities, the three required remote jobs passed, and strict Review independently returned APPROVE with zero findings."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/evidence/v50-windows-release-gate/github-actions-receipt.json", ".github/workflows/ci.yml"],
+      "rationale": "The acceptance boundary uses durable GitHub check-suite state for a pushed commit and real operating-system process descendants on windows-latest; no in-memory receipt or test-only process substitute stands in for the remote runner."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": ["skills/ultra-delegate/scripts/agent-execution-driver.cjs", ".github/workflows/ci.yml"],
+      "rationale": "Windows cleanup and the three-OS CI gate are active from platform detection and workflow configuration without a release-bypassing feature flag; the existing explicit CLI recovery override is unrelated to descendant cleanup."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["skills/ultra-delegate/scripts/agent-execution-driver.cjs", "skills/ultra-delegate/scripts/delegate.cjs", "tests/acp-driver.test.cjs", "tests/acp-conformance.test.cjs", ".github/workflows/ci.yml"],
+      "rationale": "The proven path crosses a real ACP process, cancellation and timeout control, Windows descendant-tree termination, worktree identity validation, CI checkout behavior, and one same-commit release gate."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/contexts/task-v50-windows-release-gate.md", ".ultra/changes/active/chg-ultra-5-0/intent.md", ".ultra/reviews/v50-windows-release-gate-initial-review-v1/SUMMARY.json"],
+      "rationale": "WG-01 through WG-03 project AC5-16 and AC5-17 from FP-4, FP-5, and FP-6 into NS-04 and NS-05 while preserving HC-2, HC-5, and HC-6."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "0f171c36bbeedd7323fdd7ce5bbd5e9773d2be72e743addd8ce68d4e93f2b10e",
+      "limitation": null
+    },
+    "session_id": "v50-windows-release-gate-initial-review-v1",
+    "summary_ref": ".ultra/reviews/v50-windows-release-gate-initial-review-v1/SUMMARY.json",
+    "summary_digest": "a8f4545c11e323c0a2b5b8ad1b36e78c7a30e6fd592490f652bd646142a4e615",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict Review session, ADMISSION.json, all five selected specialist artifacts, SUMMARY.json, verification log, and GitHub Actions receipt until aggregate Test and Deliver consume them successfully."
+  },
+  "artifacts": [
+    ".gitattributes",
+    ".github/workflows/ci.yml",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/delegate.test.cjs",
+    ".ultra/contexts/task-v50-windows-release-gate.md",
+    ".ultra/evidence/v50-windows-release-gate/verification.log",
+    ".ultra/evidence/v50-windows-release-gate/github-actions-receipt.json",
+    ".ultra/reviews/v50-windows-release-gate-initial-review-v1/SUMMARY.json"
+  ],
+  "limitations": [
+    "The strict Review ran sequentially in shared context and does not provide independent model-family isolation.",
+    "The Windows job intentionally exercises the real ACP vertical slice; POSIX-only special-file cases remain covered by the full Ubuntu and macOS release gates.",
+    "The direct-child fallback is reachable but cannot promise descendant cleanup if the operating-system taskkill command is unavailable.",
+    "Public npm publication, GitHub Release, registry-consumer installation, and final Change archival remain the later public-release task and are not claimed here.",
+    "No provider credentials, full GitHub job logs, prompts, or model content are retained in this evidence."
+  ],
+  "timestamp": "2026-08-26T05:56:27Z"
+}

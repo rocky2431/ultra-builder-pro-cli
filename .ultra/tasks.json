@@ -340,7 +340,7 @@
       "title": "Prove Windows descendant cleanup and three-OS CI",
       "type": "verification",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "completed",
       "dependencies": [
         "v50-real-home-activation"
       ],

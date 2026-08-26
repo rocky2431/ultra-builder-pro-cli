@@ -1,0 +1,103 @@
+{
+  "$schema": "ultra-github-actions-receipt-v1",
+  "task_id": "v50-windows-release-gate",
+  "repository": "rocky2431/ultra-builder-pro-cli",
+  "workflow": "CI",
+  "event": "push",
+  "run": {
+    "id": 32935138736,
+    "url": "https://github.com/rocky2431/ultra-builder-pro-cli/actions/runs/32935138736",
+    "head_sha": "19ab5bed6fef65a40b682fbe77b28cf145bc9b64",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-08-26T05:43:09Z",
+    "updated_at": "2026-08-26T05:45:38Z"
+  },
+  "jobs": [
+    {
+      "id": 98074827347,
+      "name": "Release gate (ubuntu-latest, Node 22)",
+      "url": "https://github.com/rocky2431/ultra-builder-pro-cli/actions/runs/32935138736/job/98074827347",
+      "status": "completed",
+      "conclusion": "success",
+      "command": "npm run verify:release",
+      "observations": {
+        "node_tests": { "passed": 661, "failed": 0 },
+        "hook_tests": { "passed": 89, "failed": 0 },
+        "npm_audit_vulnerabilities": 0
+      }
+    },
+    {
+      "id": 98074827542,
+      "name": "Release gate (macos-latest, Node 22)",
+      "url": "https://github.com/rocky2431/ultra-builder-pro-cli/actions/runs/32935138736/job/98074827542",
+      "status": "completed",
+      "conclusion": "success",
+      "command": "npm run verify:release",
+      "observations": {
+        "node_tests": { "passed": 661, "failed": 0 },
+        "hook_tests": { "passed": 89, "failed": 0 },
+        "npm_audit_vulnerabilities": 0
+      }
+    },
+    {
+      "id": 98074827675,
+      "name": "Windows ACP descendant cleanup (Node 22)",
+      "url": "https://github.com/rocky2431/ultra-builder-pro-cli/actions/runs/32935138736/job/98074827675",
+      "status": "completed",
+      "conclusion": "success",
+      "command": "node --test tests/acp-driver.test.cjs tests/acp-conformance.test.cjs",
+      "observations": {
+        "tests": { "passed": 27, "failed": 0 },
+        "named_tests": [
+          {
+            "name": "ACP conformance harness exercises the real delegation path and retains only redacted facts",
+            "tap_id": 1,
+            "status": "passed"
+          },
+          {
+            "name": "ACP cancelled reaches terminal transport state and kills the process group",
+            "tap_id": 6,
+            "status": "passed"
+          },
+          {
+            "name": "ACP timeout reaches terminal transport state and kills the process group",
+            "tap_id": 7,
+            "status": "passed"
+          },
+          {
+            "name": "ZCode bridge source binds the 0.16.5 compatibility patch by path and digest",
+            "tap_id": 23,
+            "status": "passed"
+          },
+          {
+            "name": "Windows process termination kills the descendant tree and falls back to the direct child",
+            "tap_id": 25,
+            "status": "passed"
+          }
+        ]
+      }
+    }
+  ],
+  "failed_predecessors": [
+    {
+      "run_id": 32933965899,
+      "head_sha": "870644cadaf3b2c9591e85dd7e79755606daf7f5",
+      "windows_result": { "passed": 25, "failed": 2 },
+      "retained_reason": "Exposed Windows Git path spelling and CRLF patch digest drift."
+    },
+    {
+      "run_id": 32934557386,
+      "head_sha": "710484a82df924f6d696a501697016fcd86a1bb5",
+      "windows_result": { "passed": 26, "failed": 1 },
+      "retained_reason": "Proved LF stability and exposed the remaining Windows filesystem alias identity gap."
+    }
+  ],
+  "redaction": {
+    "credentials_retained": false,
+    "provider_content_retained": false,
+    "full_job_logs_retained": false,
+    "source": "GitHub Actions run and job metadata plus bounded named-test and summary observations from gh CLI"
+  },
+  "observed_at": "2026-08-26T05:45:38Z"
+}

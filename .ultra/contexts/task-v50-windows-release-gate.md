@@ -80,19 +80,23 @@ Why: make cancellation and release verification real on Windows. Outcome: the pu
 release commit passes all three operating-system jobs and kills a real descendant.
 Reality: runs 32933965899 and 32934557386 proved both Unix release gates and both Windows
 descendant-kill tests; the second run also proved LF patch stability, then exposed a
-remaining long/short-path identity alias. The directory device/file-ID repair has a
-RED/GREEN regression; the focused suite passes 49/49 and the full local release gate
-passes 661 Node tests, 89 Hook tests, and npm audit. Decision needed: none. Next bounded
-action: commit and push the identity repair, then retain all three successful jobs for
-that commit. Not done: successful replacement Windows run, strict task Review, or final
-evidence projection.
+remaining long/short-path identity alias. Run 32935138736 on commit `19ab5bed6fef` then
+passed Ubuntu and macOS release gates at 661 Node tests, 89 Hook tests, and zero audit
+vulnerabilities, plus Windows 27/27 including both real descendant-kill cases. Decision
+needed: none. Strict Review session `v50-windows-release-gate-initial-review-v1`
+returned `APPROVE` with both axes `PASS` and zero findings. Next bounded action: publish
+the final current-v2 evidence and advance to the public-release task. Not done: public
+tag, npm publication, GitHub Release, or release-consumer verification.
 
 ## Task Review
 
-- Execution Grant state/limitation: `active`; local implementation is provisional until
-  the exact pushed commit passes the real Windows runner.
-- Review session and Summary digest: pending; no strict Review has been published.
-- Blocking findings: none classified locally; the task remains `in_progress` pending
-  the external Windows and same-commit Unix observations.
-- Retention: retain the Windows workflow run receipt and the eventual strict Review
+- Execution Grant state/limitation: `active`; the exact pushed commit passed the real
+  Windows runner and both same-commit Unix release gates.
+- Review session and Summary digest:
+  `v50-windows-release-gate-initial-review-v1` /
+  `a8f4545c11e323c0a2b5b8ad1b36e78c7a30e6fd592490f652bd646142a4e615`.
+- Blocking findings: none; strict Review returned `APPROVE`, both axes `PASS`, and zero
+  P0, P1, P2, or P3 findings.
+- Retention: retain `WORKER-PACKET.json`, `ADMISSION.json`, all five selected specialist
+  artifacts, `SUMMARY.json`, `github-actions-receipt.json`, and `verification.log`
   through aggregate Test and Deliver.
