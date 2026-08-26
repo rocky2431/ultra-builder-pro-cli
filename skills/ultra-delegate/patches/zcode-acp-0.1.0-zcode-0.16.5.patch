@@ -1,0 +1,184 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index bfadfbb..4b1d665 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2492,7 +2492,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "zcode-acp"
+-version = "0.1.0"
++version = "0.1.0+ultra.zcode.0.16.5"
+ dependencies = [
+  "aes-gcm",
+  "agent-client-protocol",
+diff --git a/Cargo.toml b/Cargo.toml
+index f096b91..4b4d985 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "zcode-acp"
+-version = "0.1.0"
++version = "0.1.0+ultra.zcode.0.16.5"
+ edition = "2024"
+ description = "ACP adapter that bridges Buzz relay events to the ZCode CLI via its stdio app-server"
+ license = "Apache-2.0"
+diff --git a/src/zcode/mod.rs b/src/zcode/mod.rs
+index 7963959..14725bb 100644
+--- a/src/zcode/mod.rs
++++ b/src/zcode/mod.rs
+@@ -266,6 +266,13 @@ impl DriverState {
+                 }
+             }
+             Some(Incoming::ServerRequest { id, method, params }) => {
++                if method == methods::SESSION_REQUEST_RUNTIME_PREFERENCES {
++                    let _ = self.write_tx.send(json!({
++                        "id": id,
++                        "result": default_runtime_preferences(),
++                    }));
++                    return;
++                }
+                 // The ACP layer answers via `reply_tx`; a side task writes the
+                 // reply back through `write_tx` echoing the wire id.
+                 let (reply_tx, reply_rx) = oneshot::channel();
+@@ -373,6 +380,32 @@ impl DriverState {
+     }
+ }
+ 
++fn default_runtime_preferences() -> Value {
++    json!({
++        "nativeSearchEnhancementsEnabled": true,
++        "memoryEnabled": false,
++        "askUserQuestionAutoResolutionEnabled": true,
++        "modelContextBudgetStrategy": "preflight-v1",
++    })
++}
++
++fn bootstrap_server_request_response(id: RequestId, method: &str) -> Value {
++    if method == methods::SESSION_REQUEST_RUNTIME_PREFERENCES {
++        json!({
++            "id": id,
++            "result": default_runtime_preferences(),
++        })
++    } else {
++        json!({
++            "id": id,
++            "error": {
++                "code": -32601,
++                "message": format!("Unsupported app-server request: {method}"),
++            },
++        })
++    }
++}
++
+ /// Run the dispatcher: read framed messages, dispatch each into shared state.
+ async fn run_dispatcher(
+     state: Arc<Mutex<DriverState>>,
+@@ -647,6 +680,15 @@ pub async fn build_session(
+                     protocol::ResponseResult::Ok(v) => break v,
+                     protocol::ResponseResult::Err(e) => return Err(SessionError::CreateFailed(e)),
+                 },
++                Some(Incoming::ServerRequest {
++                    id: request_id,
++                    method,
++                    ..
++                }) => {
++                    write_tx
++                        .send(bootstrap_server_request_response(request_id, &method))
++                        .map_err(|e| SessionError::Send(e.to_string()))?;
++                }
+                 _ => continue,
+             },
+             None => return Err(SessionError::TransportClosed),
+diff --git a/src/zcode/protocol.rs b/src/zcode/protocol.rs
+index 71fa3e9..6e3e595 100644
+--- a/src/zcode/protocol.rs
++++ b/src/zcode/protocol.rs
+@@ -138,6 +138,7 @@ impl IncomingMessage {
+ 
+ pub mod methods {
+     pub const SESSION_CREATE: &str = "session/create";
++    pub const SESSION_REQUEST_RUNTIME_PREFERENCES: &str = "session/requestRuntimePreferences";
+     pub const SESSION_RESUME: &str = "session/resume";
+     pub const SESSION_LIST: &str = "session/list";
+     pub const SESSION_SUBSCRIBE: &str = "session/subscribe";
+diff --git a/tests/acp_client.py b/tests/acp_client.py
+index a407220..0e46772 100644
+--- a/tests/acp_client.py
++++ b/tests/acp_client.py
+@@ -22,6 +22,7 @@ from __future__ import annotations
+ 
+ import json
+ import os
++import select
+ import subprocess
+ import sys
+ from pathlib import Path
+@@ -40,6 +41,9 @@ def send(proc: subprocess.Popen, obj: dict) -> None:
+ 
+ def read_message(proc: subprocess.Popen) -> dict:
+     assert proc.stdout is not None
++    readable, _, _ = select.select([proc.stdout], [], [], 5)
++    if not readable:
++        raise TimeoutError("agent did not emit an ACP message within 5 seconds")
+     raw = proc.stdout.readline()
+     if not raw:
+         raise EOFError("agent closed stdout")
+@@ -74,6 +78,7 @@ def main() -> int:
+         stdin=subprocess.PIPE,
+         stdout=subprocess.PIPE,
+         stderr=sys.stderr,  # surface shim logs inline for debugging
++        bufsize=0,
+     )
+ 
+     try:
+diff --git a/tests/fake-app-server.cjs b/tests/fake-app-server.cjs
+index f6a5991..e690fbe 100644
+--- a/tests/fake-app-server.cjs
++++ b/tests/fake-app-server.cjs
+@@ -21,6 +21,8 @@ const rl = readline.createInterface({ input: process.stdin, terminal: false });
+ let sessionIdCounter = 0;
+ let activeSession = null;
+ let seqCounter = 0;
++let pendingCreateId = null;
++let runtimePreferencesRequestId = null;
+ 
+ function send(obj) {
+   process.stdout.write(JSON.stringify(obj) + "\n");
+@@ -54,10 +56,35 @@ function handle(line) {
+     return;
+   }
+   const { id, method, params } = msg;
++  if (!method && id === runtimePreferencesRequestId) {
++    const prefs = msg.result;
++    const valid = prefs
++      && prefs.nativeSearchEnhancementsEnabled === true
++      && prefs.memoryEnabled === false
++      && prefs.askUserQuestionAutoResolutionEnabled === true
++      && prefs.modelContextBudgetStrategy === "preflight-v1";
++    if (!valid) {
++      send({
++        id: pendingCreateId,
++        error: { code: -32602, message: "Invalid runtime preferences response" },
++      });
++    } else {
++      respond(pendingCreateId, { sessionId: activeSession });
++    }
++    pendingCreateId = null;
++    runtimePreferencesRequestId = null;
++    return;
++  }
+   switch (method) {
+     case "session/create": {
+       activeSession = `sess_fake_${++sessionIdCounter}`;
+-      respond(id, { sessionId: activeSession });
++      pendingCreateId = id;
++      runtimePreferencesRequestId = "server-runtime-preferences-1";
++      send({
++        id: runtimePreferencesRequestId,
++        method: "session/requestRuntimePreferences",
++        params: { sessionId: activeSession, scope: "runtime-materialization" },
++      });
+       break;
+     }
+     case "session/subscribe": {

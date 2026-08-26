@@ -34,9 +34,10 @@ Host 模型仍然是工程师。Ultra 提供可复用的方法和可检查的产
 `AgentExecutionDriver` 来兑现这些承诺。只有某个 Host 通过有记录的 conformance
 drill 后，才优先选择 stable ACP v1；否则同一 result contract 使用明确报告原因的 CLI
 fallback。可移植协议和原生安装覆盖 Claude Code、Codex、OpenCode、Kimi Code、
-Grok Build 和 ZCode。当前发布的六个 profile 都选择 CLI fallback。ZCode 插件安装与
-installed Desktop runtime 作为 `experimental` transport 受支持，但在完整 recovery bar
-通过前，ACP bridge 明确保留为不可用。
+Grok Build 和 ZCode。六个 profile 都暴露 stable ACP v1 candidate，也都有各自当前的
+真实 provider receipt。只有对应 executable 与 candidate identity 仍匹配时才选择 ACP；
+否则返回 typed CLI fallback。ZCode 使用独立安装且锁定源码的 bridge，并保持
+`experimental`。
 
 5.0 明确不加入 daemon、workflow service、语义状态机、A2A 网络、Team Pack、remote
 marketplace 或共享权威存储。Package publication 和真实用户安装仍是独立于当前源码
@@ -197,6 +198,32 @@ npx ultra-builder-pro-cli@5.0.0 --zcode --global
 npx ultra-builder-pro-cli@5.0.0 --all --global
 ```
 
+把任务通过 ACP 派给 ZCode 还需要独立构建的 bridge 和已安装的 ZCode Desktop。
+Ultra 会随 Skill 提供 ZCode CLI 0.16.5 所需的小型 source patch，但不安装这两个依赖，
+也不会把 provider 凭据写入项目证据：
+
+```bash
+git clone https://github.com/jpalmae/zcode-acp
+git -C zcode-acp checkout 42fe149d4b501469343c01f23ba3801832306d53
+git -C zcode-acp apply \
+  /path/to/installed/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch
+cargo test --locked --manifest-path zcode-acp/Cargo.toml
+cargo install --locked --path zcode-acp
+```
+
+5.0 已验证 base commit、patch SHA-256
+`174dfd0feafe84320556a84b5ae08b10e44c5515fea4992fd1d58af54cee4e3d`、locked tests、
+fake E2E、release build 和真实 ZCode 0.16.5 session。需确保 binary 位于 `PATH`；非
+macOS 环境使用该平台实际安装的 ZCode CLI path。`--version` 必须返回
+`zcode-acp 0.1.0+ultra.zcode.0.16.5`。
+
+Host 与 provider 是两个概念：ZCode Desktop 是 runtime，模型账号可以是国内智谱
+BigModel，也可以是国际 Z.AI。国内 BigModel Coding Plan 应在
+`~/.zcode/cli/config.json` 中使用官方 Anthropic-compatible endpoint
+`https://open.bigmodel.cn/api/anthropic` 和 BigModel API Key，不能走 Z.AI OAuth。
+5.0 的真实验证使用 `builtin:bigmodel-coding-plan/GLM-5.2`。参见
+[智谱官方 Claude API 兼容文档](https://docs.bigmodel.cn/cn/guide/develop/claude/introduction)。
+
 这些固定版本的 `npx` 命令在 `5.0.0` 发布后生效。本地 release candidate 验证使用
 `node bin/install.js --config-dir <isolated-path>`，不会修改真实用户安装。
 
@@ -313,8 +340,12 @@ archive 或 abandoned Change 中未完成的历史 rows 仍不是当前 frontier
 委派会写入不可变的 instruction 和 permission envelope，然后选择一个 Host-local
 `AgentExecutionDriver` 并在后台启动。只有 executable stdio endpoint 能协商 stable
 ACP v1，且该 Host 有带 evidence 的 passed conformance record 时才选择 ACP；否则使用
-相同 result contract 的 `CliDriver`，并报告精确 fallback reason。当前发布的六个 Host
-profile 都诚实保留 CLI fallback。空 writable roots 选择原生只读模式；声明 roots 则
+相同 result contract 的 `CliDriver`，并报告精确 fallback reason。当前六个 Host row
+都已有各自真实 provider 的 passing receipt；executable 缺失或 receipt 缺失/过期时仍
+返回 typed CLI fallback；candidate identity 不匹配也同样 fallback。只有在
+`session/prompt` 之前识别到 `acp_auth_required` 时，才会执行一次有界 CLI path；其他
+ACP failure 一律不重试，因此不会重复派送 provider task。空
+writable roots 选择原生只读模式；声明 roots 则
 选择有界写入模式。模型返回一个
 受 schema 约束的最终响应；launcher 从原生结构化输出中提取它，验证真实 Git diff，
 并在 instruction 旁原子发布 terminal `finished`、`blocked` 或 `failed` result。
@@ -329,17 +360,19 @@ node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to codex \
 ```
 
 loaded Skill path 是 canonical runtime；clean `npx` plugin install 后不需要全局 `ubp`，
-也不会在每次 delegation 时再次调用 `npx`。`ubp delegate` 只保留一个版本周期的薄兼容
+也不会通过 `npx` 查找 Ultra；固定版本的 Claude/Codex ACP adapter 本身可以经 `npx`
+运行。`ubp delegate` 只保留一个版本周期的薄兼容
 wrapper。使用 installed Skill 内的 `scripts/delegate_wait.py` 等待 `result.json`，无需把
 worker 中间输出载入父上下文。委派不会授予新权限；writable roots 仍位于 worktree 内，
 permission file 必须声明零外部 effects，且不得放宽 Host sandbox。
 不可变 instruction 可指定任务执行/续做、有界 Research 取证或聚合 Change
 Review/verification。后两类可以只读，也不要求 task row，因此 pre-Plan Research 与
 post-task 跨 family Review 不需要虚构 ledger work 也能执行。
-ZCode 只解析 installed Desktop runtime（macOS 优先 App-bundled CLI，之后才是 `PATH`
-fallback），并保持 `experimental`。只有 capability、read-only、permission、
-cancel/no-orphan、cwd/diff、result parity 与 redaction drill 全部通过后，ACP bridge 才能
-提升 maturity。Doctor 分开报告 runner health、ACP capability、selected driver、
+ZCode 通过独立安装的 `zcode-acp` bridge 只解析 installed Desktop runtime（macOS
+优先 App-bundled CLI，之后才是 `PATH` fallback），并保持 `experimental`。当前
+capability、read-only、permission、cancel/no-orphan、cwd/diff、result parity 与
+redaction drill 均已通过；提升 maturity 仍需要 App-internal runtime 的官方稳定性承诺。
+Doctor 分开报告 runner health、ACP capability、candidate identity、selected driver、
 fallback reason 与 ZCode maturity。
 
 ## Host 支持

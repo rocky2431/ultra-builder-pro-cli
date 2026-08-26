@@ -98,6 +98,29 @@ function handle(message) {
       send({ id: message.id, error: { code: -32000, message: 'Authentication required' } });
       return;
     }
+    if (scenario === 'early-session-update') {
+      update({ sessionUpdate: 'available_commands_update', availableCommands: [] });
+    }
+    if (scenario === 'early-session-mismatch') {
+      send({
+        method: 'session/update',
+        params: {
+          sessionId: 'different-session',
+          update: { sessionUpdate: 'available_commands_update', availableCommands: [] },
+        },
+      });
+    }
+    if (scenario === 'early-session-message') {
+      update({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'must-not-enter-result' },
+      });
+    }
+    if (scenario === 'early-session-flood') {
+      for (let index = 0; index < 40; index += 1) {
+        update({ sessionUpdate: 'available_commands_update', availableCommands: [] });
+      }
+    }
     send({ id: message.id, result: { sessionId: 'fake-session' } });
     return;
   }
@@ -125,6 +148,16 @@ function handle(message) {
     }
     if (scenario === 'malformed-update') {
       update({ sessionUpdate: 'agent_message_chunk', content: { type: 'text' } });
+      return;
+    }
+    if (scenario === 'wrong-session-update') {
+      send({
+        method: 'session/update',
+        params: {
+          sessionId: 'different-session',
+          update: { sessionUpdate: 'plan', entries: [] },
+        },
+      });
       return;
     }
     if (scenario === 'event-flood') {
@@ -178,4 +211,4 @@ process.stdin.on('data', (chunk) => {
     handle(JSON.parse(line));
   }
 });
-process.stdin.on('end', () => process.exit(0));
+process.stdin.on('end', () => process.exit(Number(process.env.FAKE_ACP_EXIT_ON_STDIN_END || 0)));

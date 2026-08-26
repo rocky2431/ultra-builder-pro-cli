@@ -199,19 +199,36 @@ the selected project, reads a bounded instruction and permission JSON, probes th
 Skill-local Host profile, and starts the Skill-local background worker. One
 `AgentExecutionDriver` boundary selects stable ACP v1 stdio only after the exact Host's
 versioned conformance row passes with a non-empty evidence reference and the declared
-executable exists; otherwise the same packet runs through `CliDriver` and records the
-fallback reason. Capability inspection
-does not start a provider task. The
+executable and bounded candidate-identity probes succeed; otherwise the same packet
+runs through `CliDriver` and records the fallback reason. Capability inspection uses
+local version commands only and does not start a provider task. The
 one-release `ubp delegate` surface imports those same functions and owns no forked
 behavior. Declared writable roots must already exist inside the delegated
 worktree; no readable-root or external-effect grant can widen the host's native
 sandbox. Empty writable roots select native read-only mode. The model returns a
 schema-constrained final response; `AcpDriver` reconstructs only agent-message text as
-that same validator input, while ACP stop reasons remain observations. The Node worker
-validates `finished`, `blocked`, or
+that same validator input, while ACP stop reasons remain observations. It accepts a
+bounded set of creation-time session metadata that some agents emit before
+`session/new` resolves, then validates every buffered session identity before exposing
+derived events; early message/tool content and unbounded startup traffic fail closed.
+The Node worker validates `finished`, `blocked`, or
 `failed` and atomically publishes `result.json` beside the instruction. The model never
 writes its own receipt; stdout, stderr, native final output, and the launch receipt
 remain diagnostic files.
+
+`ULTRA_DELEGATE_FORCE_CLI=1` is a per-run recovery seam that selects the same bounded
+CLI validator path and records `acp_forced_cli`; it does not erase conformance evidence.
+An `acp_auth_required` error from `session/new` before `session/prompt` also selects that
+already-bound CLI path once. The terminal result retains redacted ACP fallback metadata;
+no post-prompt or other ACP failure is automatically retried.
+ZCode uses the independently installed, source-pinned `zcode-acp` bridge plus the
+digest-bound 0.16.5 runtime-preferences patch to translate stable ACP v1 to the installed
+Desktop runtime. Ultra ships only the patch, neither the bridge binary nor App bytes.
+The profile verifies an Ultra build marker on that bridge plus the exact installed
+runtime version before ACP selection.
+The Host/runtime is ZCode Desktop while provider identity remains owner-controlled; the
+verified local receipt uses domestic BigModel rather than international Z.AI OAuth. The
+headless ZCode transport remains explicitly experimental even after conformance.
 
 The instruction binds the active `change_id` and one of three semantic scopes: task
 execution/continuation, scoped Research evidence, or aggregate Change

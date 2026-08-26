@@ -308,6 +308,58 @@
       "context_file": ".ultra/contexts/task-v50-release-candidate.md",
       "trace_to": ".ultra/specs/product.md#release-evidence",
       "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v50-live-acp-activation",
+      "title": "Activate and prove all six live ACP transports",
+      "type": "feature",
+      "priority": "P0",
+      "status": "completed",
+      "dependencies": [
+        "v50-release-candidate"
+      ],
+      "context_file": ".ultra/contexts/task-v50-live-acp-activation.md",
+      "trace_to": ".ultra/specs/architecture.md#delegation-boundary",
+      "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v50-real-home-activation",
+      "title": "Install and verify 5.0 in the six real Host homes",
+      "type": "migration",
+      "priority": "P0",
+      "status": "completed",
+      "dependencies": [
+        "v50-live-acp-activation"
+      ],
+      "context_file": ".ultra/contexts/task-v50-real-home-activation.md",
+      "trace_to": ".ultra/specs/product.md#release-evidence",
+      "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v50-windows-release-gate",
+      "title": "Prove Windows descendant cleanup and three-OS CI",
+      "type": "verification",
+      "priority": "P0",
+      "status": "in_progress",
+      "dependencies": [
+        "v50-real-home-activation"
+      ],
+      "context_file": ".ultra/contexts/task-v50-windows-release-gate.md",
+      "trace_to": ".ultra/specs/product.md#release-evidence",
+      "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v50-public-release",
+      "title": "Publish and verify Ultra Builder Pro 5.0",
+      "type": "release",
+      "priority": "P0",
+      "status": "pending",
+      "dependencies": [
+        "v50-windows-release-gate"
+      ],
+      "context_file": ".ultra/contexts/task-v50-public-release.md",
+      "trace_to": ".ultra/specs/product.md#release-evidence",
+      "change_id": "chg-ultra-5-0"
     }
   ]
 }

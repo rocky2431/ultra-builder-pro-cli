@@ -83,7 +83,11 @@ function start(fx, fake, extra = [], runtime = 'codex') {
   ], {
     cwd: fx.root,
     encoding: 'utf8',
-    env: { ...process.env, [`UBP_DELEGATE_${runtime.toUpperCase()}_BIN`]: fake },
+    env: {
+      ...process.env,
+      ULTRA_DELEGATE_FORCE_CLI: '1',
+      [`UBP_DELEGATE_${runtime.toUpperCase()}_BIN`]: fake,
+    },
   });
 }
 
@@ -249,6 +253,48 @@ test('the launcher runs a conformance-passed ACP profile through the unchanged t
     assert.deepEqual(result.changed_files, []);
     assert.ok(fs.existsSync(receipt.events_file));
     assert.match(fs.readFileSync(receipt.events_file, 'utf8'), /"type":"terminal"/u);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('ACP authentication failure before prompt falls back once to the bounded CLI driver', () => {
+  const fx = fixture('acp-auth-fallback');
+  try {
+    const expected = resultPayload([]);
+    const cli = fakeCli(fx, `process.stdout.write(${JSON.stringify(JSON.stringify(expected))});`);
+    const profile = {
+      binary: cli,
+      transportMaturity: 'documented+verified',
+      acp: {
+        surface: 'fixture ACP stdio',
+        transport: 'stdio',
+        protocolVersions: [1],
+        conformance: { status: 'passed', evidence: 'tests/fixtures/fake-acp-agent.cjs' },
+        command: () => process.execPath,
+        argv: () => [FAKE_ACP_AGENT],
+      },
+      delegateArgv: () => [],
+      delegateEnv: () => ({ FAKE_ACP_SCENARIO: 'auth-required' }),
+    };
+    const receipt = runDelegate([
+      '--to', 'fixture',
+      '--instruction', path.join(fx.delegation, 'instruction.md'),
+      '--permission', path.join(fx.delegation, 'permission.json'),
+      '--worktree', fx.worktree,
+      '--timeout', '5',
+    ], {
+      projectRoot: fx.root,
+      resolveHostProfile: () => profile,
+    });
+    assert.equal(receipt.execution_driver, 'acp');
+    const result = waitFor(receipt.result_file);
+    assert.equal(result.status, 'finished', JSON.stringify(result));
+    assert.equal(result.execution_driver, 'cli');
+    assert.equal(result.driver_fallback_reason, 'acp_auth_required');
+    assert.equal(result.acp_fallback.prompt_sent, false);
+    assert.equal(result.acp_fallback.protocol_version, 1);
+    assert.deepEqual(result.changed_files, []);
   } finally {
     fs.rmSync(fx.root, { recursive: true, force: true });
   }
@@ -461,12 +507,12 @@ test('delegate run surfaces experimental transport maturity instead of silently 
       assert.equal(codexReceipt.transport_maturity, 'documented+verified');
       assert.equal(codexReceipt.experimental_ack, undefined);
       assert.equal(codexReceipt.execution_driver, 'cli');
-      assert.equal(codexReceipt.driver_fallback_reason, 'acp_not_available');
-      assert.equal(codexReceipt.acp_capability.candidate, false);
+      assert.equal(codexReceipt.driver_fallback_reason, 'acp_forced_cli');
+      assert.equal(codexReceipt.acp_capability.candidate, true);
       const codexResult = waitFor(path.join(documented.delegation, 'result.json'));
       assert.equal(codexResult.transport_maturity, 'documented+verified');
       assert.equal(codexResult.execution_driver, 'cli');
-      assert.equal(codexResult.driver_fallback_reason, 'acp_not_available');
+      assert.equal(codexResult.driver_fallback_reason, 'acp_forced_cli');
     } finally {
       fs.rmSync(documented.root, { recursive: true, force: true });
     }
@@ -497,14 +543,14 @@ test('delegate records and forwards an explicit Kimi model selection', () => {
     const receipt = JSON.parse(started.stdout);
     assert.equal(receipt.model, 'kimi-code/k3');
     assert.equal(receipt.execution_driver, 'cli');
-    assert.equal(receipt.driver_fallback_reason, 'acp_conformance_not_passed');
+    assert.equal(receipt.driver_fallback_reason, 'acp_forced_cli');
     const spec = JSON.parse(fs.readFileSync(path.join(fx.delegation, 'worker-spec.json'), 'utf8'));
     assert.equal(spec.model, 'kimi-code/k3');
     assert.equal(spec.args[spec.args.indexOf('--model') + 1], 'kimi-code/k3');
     const result = waitFor(path.join(fx.delegation, 'result.json'));
     assert.equal(result.status, 'finished');
     assert.equal(result.execution_driver, 'cli');
-    assert.equal(result.driver_fallback_reason, 'acp_conformance_not_passed');
+    assert.equal(result.driver_fallback_reason, 'acp_forced_cli');
   } finally {
     fs.rmSync(fx.root, { recursive: true, force: true });
   }

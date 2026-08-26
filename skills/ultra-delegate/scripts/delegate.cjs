@@ -387,6 +387,14 @@ function run(argv, {
     const transportSurfaceNote = driverSelection.driver === 'acp'
       ? profile.acp.surface
       : transportSurface(args.to, binary);
+    const cliFallback = driverSelection.driver === 'acp'
+      && typeof profile.delegateArgv === 'function'
+      ? {
+          command: binary,
+          args: profile.delegateArgv(prompt, worktree, profileOptions),
+          transport_surface: transportSurface(args.to, binary),
+        }
+      : null;
     if (transportMaturity === 'experimental' && !args.ackExperimental) {
       throw new Error(
         `delegate --to ${args.to} would launch ${transportSurfaceNote}. `
@@ -417,7 +425,10 @@ function run(argv, {
       args: driverSelection.driver === 'acp'
         ? driverSelection.args
         : profile.delegateArgv(prompt, worktree, profileOptions),
-      ...(driverSelection.driver === 'acp' ? { prompt } : {}),
+      ...(driverSelection.driver === 'acp' ? {
+        prompt,
+        ...(cliFallback ? { cli_fallback: cliFallback } : {}),
+      } : {}),
       cwd: worktree,
       instruction,
       permission,

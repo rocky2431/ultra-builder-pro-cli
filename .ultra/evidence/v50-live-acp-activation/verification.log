@@ -1,0 +1,95 @@
+Ultra 5.0 live ACP activation verification
+Observed at: 2026-08-26 Asia/Shanghai
+
+ZCode bridge source and installation
+- Repository: https://github.com/jpalmae/zcode-acp
+- Tag: v0.1.0
+- Commit: 42fe149d4b501469343c01f23ba3801832306d53
+- Compatibility patch:
+  skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch
+  SHA-256 174dfd0feafe84320556a84b5ae08b10e44c5515fea4992fd1d58af54cee4e3d.
+- Reproduction before the patch: the 0.16.5 fake server requested
+  `session/requestRuntimePreferences`; the upstream bridge ignored the request and
+  `session/new` timed out after five seconds.
+- `cargo test --locked`: PASS, 6 passed / 0 failed.
+- `git apply --check -R <patch>`: PASS against the patched, commit-pinned source.
+- Patched `python3 tests/acp_client.py`: PASS; initialize, runtime-preferences handshake,
+  session/new, session/prompt, streamed ToolCall/update, and session/close all completed.
+- `cargo build --release --locked`: PASS.
+- Built and installed binary SHA-256:
+  0e9c8fb2827c566c8a623f3a9706715a221ce7a9b1d3eef32c839937c62420dd
+- Installed path: /Users/rocky243/.local/bin/zcode-acp
+- Installed bridge version: zcode-acp 0.1.0+ultra.zcode.0.16.5
+- Previous patched bridge rollback:
+  /Users/rocky243/.local/bin/zcode-acp.patched-pre-marker-20260826
+  SHA-256 79e7f9529556ec877c5eb2b4c77a4602236b9c92fd588f58162eb5ee414c1375.
+- Original unpatched bridge rollback:
+  /Users/rocky243/.local/bin/zcode-acp.upstream-0.1.0-42fe149
+  SHA-256 d8f9547a5725298235cdaf048e6d0a4246eda2478e3ae2e1eb8e9946beb4b9ec.
+- Resolved ZCode Desktop runtime:
+  /Applications/ZCode.app/Contents/Resources/glm/zcode.cjs (0.16.5)
+- No ZCode application byte was copied into Ultra or the bridge installation.
+- The Desktop provider `builtin:bigmodel-coding-plan` uses the domestic endpoint
+  https://open.bigmodel.cn/api/anthropic. Its provider entry was mechanically copied
+  to the same product's headless `~/.zcode/cli/config.json`, with model
+  `builtin:bigmodel-coding-plan/GLM-5.2` and mode 0600. The opaque credential value was
+  never printed or retained in repository evidence. Rollback is
+  `~/.zcode/cli/config.json.before-domestic-acp-20260826`.
+- Direct ZCode CLI provider smoke: PASS, one request returned exact `PONG`.
+
+Kimi ACP prerequisite
+- Previous binary: Kimi CLI 0.38.0.
+- Installed official Kimi CLI 1.49.0 after verifying the official arm64 asset digest.
+- Previous binary backup: /Users/rocky243/.kimi-code/backups/ultra-5.0/kimi-0.38.0
+- Existing Kimi config and TUI config digests were unchanged by the binary replacement.
+- Owner-controlled Kimi login completed; the fresh ACP provider receipt passes.
+
+Repository ACP driver verification
+- `node --test tests/acp-driver.test.cjs tests/acp-conformance.test.cjs tests/delegate.test.cjs tests/install.test.cjs tests/v026-adapters.test.cjs`:
+  PASS, 75 passed / 0 failed. The suite covers missing bridge identity, wrong bridge
+  marker, wrong runtime version, the exact marker/runtime pair, pre-prompt auth fallback,
+  installed Skill-local patch bytes, and Windows taskkill contract behavior.
+- `node --test tests/ultra-5-journeys.test.cjs`: PASS, 5 passed / 0 failed after the
+  real ZCode receipt superseded the historical J13 STOP assertion.
+- `npm run test:hooks`: PASS, 89 passed / 0 failed.
+- `npm run test:node`: 657 passed / 2 failed before the task context advanced after
+  Review. One failure was the expected mutable context binding and was repaired.
+- `node --test tests/project-artifacts.test.cjs` after the context repair: 79 passed /
+  1 failed. The sole remaining failure is the intentionally stale aggregate
+  `.ultra/test-report.json`, which still binds the five already completed 5.0 tasks and
+  cannot be refreshed until all four newly activated tasks have their final v2 evidence.
+- The harness invokes the real Skill-local delegate launcher, worker, AcpDriver, exact
+  Ultra result validator, and Git-diff validator in a disposable read-only worktree.
+- Windows cleanup has local contract coverage; the real Windows runner remains required.
+
+Current real Host receipts
+- Claude Code: PASS, ACP v1, end_turn, exact result, clean Git, terminal worker.
+- Codex: PASS, ACP v1, end_turn, exact result, clean Git, terminal worker.
+- OpenCode: PASS, ACP v1, end_turn, exact result, clean Git, terminal worker.
+- Grok Build: PASS after bounded buffering of creation-time session metadata; every
+  buffered session ID was checked against the session/new response before use.
+- Kimi Code: PASS, ACP v1, end_turn, exact result, clean Git, terminal worker.
+- ZCode: PASS through the domestic BigModel provider and patched 0.16.5 bridge; ACP v1,
+  end_turn, exact result, clean Git, terminal worker.
+
+Receipt privacy
+- Stored receipts retain only bounded protocol/result facts and artifact hashes.
+- Prompt text, provider response text, hidden reasoning, credential values, and raw wire
+  messages are not retained; disposable fixture artifacts were removed after hashing.
+- Structural JSON parsing, six receipt-to-profile SHA-256 comparisons, the shipped patch
+  digest comparison, and a structured secret-value scan across seven JSON receipts all
+  passed.
+
+Strict task Review
+- Initial Review Summary SHA-256:
+  bafd446a97dd311f6379cbd5595c44310c67ef337f3c248597103bd2210dd375;
+  verdict REQUEST_CHANGES with review-spec-001, review-code-001, review-tests-001,
+  and review-errors-001.
+- Final affected-lens delta Review:
+  .ultra/reviews/v50-live-acp-activation-delta-review-v3/SUMMARY.json
+  SHA-256 7b5c5375c7d99f6a2866821cc477a9292bf039a22a46864da7c30cc84cad4281;
+  canonical review waiter returned APPROVE with both axes PASS and 0 findings.
+
+Not complete at this checkpoint
+- Real six-Host Ultra installation, Windows CI, final Review/Test, push, tag, npm publish,
+  and GitHub Release.

@@ -1,0 +1,54 @@
+{
+  "$schema": "ultra-acp-conformance-receipts-manifest-v1",
+  "run_id": "v50-live-acp-activation-six-host-conformance-2026-08-26",
+  "observed_at": "2026-08-26T04:45:22Z",
+  "provider_boundary": "Six owner-authenticated installed Host providers; ZCode uses domestic BigModel Coding Plan, not international Z.AI OAuth.",
+  "receipts": [
+    {
+      "host": "claude",
+      "ref": ".ultra/evidence/v50-live-acp-activation/host-claude.json",
+      "sha256": "9b1d88cbd5e5b66a56e0cf19f34e7f2107f9e4b8fde9d80b9eadcdfc8f4a25e3",
+      "observed_at": "2026-08-26T02:02:40.006Z"
+    },
+    {
+      "host": "codex",
+      "ref": ".ultra/evidence/v50-live-acp-activation/host-codex.json",
+      "sha256": "e82287609397807fb6968dff104d7f6569499b53c77be6a186aa33939a4c629e",
+      "observed_at": "2026-08-26T02:01:00.114Z"
+    },
+    {
+      "host": "opencode",
+      "ref": ".ultra/evidence/v50-live-acp-activation/host-opencode.json",
+      "sha256": "3575b148f6feb8c9f1472add705390e6d47b87be080403ec7006b66a29f7873b",
+      "observed_at": "2026-08-26T02:04:41.589Z"
+    },
+    {
+      "host": "kimi",
+      "ref": ".ultra/evidence/v50-live-acp-activation/host-kimi.json",
+      "sha256": "30d8adec2877f80fadf0b20c3cb7fa6b732dea3598d7484c143f9835770301fe",
+      "observed_at": "2026-08-26T03:15:55.061Z"
+    },
+    {
+      "host": "grok",
+      "ref": ".ultra/evidence/v50-live-acp-activation/host-grok.json",
+      "sha256": "370eeae12d63443188d519825ed8040fd8bba9b27fddb82e499d9cb590f4a33d",
+      "observed_at": "2026-08-26T02:37:04.391Z"
+    },
+    {
+      "host": "zcode",
+      "ref": ".ultra/evidence/v50-live-acp-activation/host-zcode.json",
+      "sha256": "156080f88ed84a013fb26d93e5138230732d2ef0e2b5b10a7c3deb501d3548e9",
+      "observed_at": "2026-08-26T04:25:22.681Z"
+    }
+  ],
+  "shared_observation": {
+    "status": "passed",
+    "execution_driver": "acp",
+    "protocol_version": 1,
+    "exact_result": true,
+    "git_clean": true,
+    "worker_exit_observed": true,
+    "provider_content_retained": false,
+    "credentials_retained": false
+  }
+}

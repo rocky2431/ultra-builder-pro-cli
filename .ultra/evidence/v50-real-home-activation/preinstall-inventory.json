@@ -1,0 +1,52 @@
+{
+  "schema": "ultra-real-home-preinstall-inventory-v1",
+  "captured_at": "2026-08-26T04:56:56Z",
+  "task_id": "v50-real-home-activation",
+  "package_candidate": "5.0.0",
+  "credential_values_inspected": false,
+  "preflight_doctor": {
+    "status": "degraded",
+    "exit_code": 2,
+    "expected_reason": "All six real Host installs predate Skill-local delegation assets.",
+    "hosts": {
+      "claude": { "installed_version": "3.0.2", "issues": ["PACKAGE_VERSION_MISMATCH", "DELEGATION_RUNNER_MISSING", "EXECUTION_DRIVER_INSPECTION_FAILED"] },
+      "opencode": { "installed_version": "3.0.2", "issues": ["PACKAGE_VERSION_MISMATCH", "DELEGATION_RUNNER_MISSING", "EXECUTION_DRIVER_INSPECTION_FAILED"] },
+      "codex": { "installed_version": "3.0.2", "issues": ["PACKAGE_VERSION_MISMATCH", "DELEGATION_RUNNER_MISSING", "EXECUTION_DRIVER_INSPECTION_FAILED"] },
+      "kimi": { "installed_version": "3.0.2", "issues": ["PACKAGE_VERSION_MISMATCH", "DELEGATION_RUNNER_MISSING", "EXECUTION_DRIVER_INSPECTION_FAILED"] },
+      "grok": { "installed_version": "0.26.2", "issues": ["PACKAGE_VERSION_MISMATCH", "DELEGATION_RUNNER_MISSING", "EXECUTION_DRIVER_INSPECTION_FAILED"] },
+      "zcode": { "installed_version": "3.0.2", "issues": ["PACKAGE_VERSION_MISMATCH", "DELEGATION_RUNNER_MISSING", "EXECUTION_DRIVER_INSPECTION_FAILED"] }
+    }
+  },
+  "managed_manifests": {
+    "claude": { "path": "/Users/rocky243/.claude/skills/ultra-builder-pro/provenance.json", "sha256": "370e8ae057deadfb8b326f4cd3249167b384fc89e704da7602887e44da686f6d", "mode": "0644" },
+    "opencode": { "path": "/Users/rocky243/.config/opencode/.ultra-builder-pro/provenance.json", "sha256": "e35e3e6b8c3c3d65a36e53a2109cee67ab488c888f61c816fc5db7dc1040994d", "mode": "0644" },
+    "codex": { "path": "/Users/rocky243/plugins/ultra-builder-pro/provenance.json", "sha256": "f13f21f1ee6f4d4743e2ec0ba1079a1395ad57e8ccd2b744306547326e3d0bb1", "mode": "0644" },
+    "kimi": { "path": "/Users/rocky243/.kimi-code/plugins/managed/ultra-builder-pro/provenance.json", "sha256": "2c9e41a091973e89bc23b6487eca3784f801a58aa1b90b0efa6e8618861a39c0", "mode": "0644" },
+    "grok": { "path": "/Users/rocky243/.grok/.ubp/plugin-sources/ultra-builder-pro/provenance.json", "sha256": "6bf349e5954a45f43752428c412adf157c842651a6106579b9f7cb97cf58a7f4", "mode": "0644" },
+    "zcode": { "path": "/Users/rocky243/.zcode/cli/plugins/marketplaces/ultra-builder-pro/plugin/provenance.json", "sha256": "5a839acfe3f11fda2b505071c0063e1c962f842991e1c2e210ae389e51d4339f", "mode": "0644" }
+  },
+  "recovery_backup": {
+    "root": "/Users/rocky243/.ultra-builder-pro/backups/2026-08-26-pre-5.0",
+    "manifest": "/Users/rocky243/.ultra-builder-pro/backups/2026-08-26-pre-5.0/manifest.json",
+    "manifest_sha256": "259bfd21d1b2d24757e86230b332cdd46d2ff13309f4863e891950cba63719f8",
+    "manifest_mode": "0600",
+    "credential_values_captured": false,
+    "verified_byte_identical_pairs": 22,
+    "managed_tree_sha256": {
+      "claude-plugin": "c75c39bb96272167c579f6c19ba648d517fe028ba063a43d780cf87b6990ef47",
+      "opencode-bundle": "d031c13708cd52253bcab673e7be8d0600faa2a502c72b68a971886bf664b5eb",
+      "codex-plugin": "fb36102bbe77117622514fbb05deb5db87ba58d3f4b0364a7f128bdc20690caa",
+      "kimi-plugin": "7a81670d25e592cc6ce444fda16695a1284bc53570702e31d1edeb3222cfff7e",
+      "grok-source": "4acea167eb841934b8338586d5fa2f6653bddf344c77baf6f1289f51f3fcdd86",
+      "zcode-marketplace": "bc0491720016ebeeb9d1e2ad18569c91dc6e3602dc583bbd6a2bd9eccace809d"
+    }
+  },
+  "unrelated_host_sentinels": {
+    "claude": { "kind": "raw_file", "path": "/Users/rocky243/.claude/settings.json", "mode": "0644", "sha256": "9347d3613796da2be08e222ba5236b46fb969ddafbdac22f016759804f36f6f1" },
+    "opencode": { "kind": "semantic_without_ultra", "path": "/Users/rocky243/.config/opencode/opencode.json", "mode": "0644", "raw_sha256": "e771fbf1f44b59d9baf16e578382d3d5f254c94f08b41376cbd86c63707cadd9", "semantic_sha256": "0c8b991c76edb917f7bfdc21b2271ce40032277ad7bea45aff43eaf84f502b52" },
+    "codex": { "kind": "semantic_without_ultra", "path": "/Users/rocky243/.agents/plugins/marketplace.json", "mode": "0644", "raw_sha256": "d1e39f1012b9dc13c9cf2d9fcbbcb28360fa24b96a1dbeff186cb1165ee4b218", "semantic_sha256": "b5cb38dded127c363654d86eb6e5818e6f62fad4d9183a69b6518fa3af7eaa54" },
+    "kimi": { "kind": "semantic_without_ultra", "path": "/Users/rocky243/.kimi-code/plugins/installed.json", "mode": "0644", "raw_sha256": "f697560c0fdc3bdf434724bf86f43ebf180030585416039e264653508e0a67f1", "semantic_sha256": "f1f070ab2282e63d862698d1653f206f8b54df3f0591566faaa32a6007e19c45" },
+    "grok": { "kind": "native_registry_semantic_without_ultra", "command": "grok plugin list --json", "semantic_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945" },
+    "zcode": { "kind": "semantic_without_ultra_plugin_registration", "path": "/Users/rocky243/.zcode/cli/config.json", "mode": "0600", "raw_sha256": "fef1b130ac85badcb4bb3b1b37acbd317abd84cf0f8b221be17ac1c404363968", "semantic_sha256": "95141afc614a57b9ff54c40cc5a3b697c3529bf68f5fcdb10501f6a517cd766d" }
+  }
+}

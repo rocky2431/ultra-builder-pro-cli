@@ -1,10 +1,11 @@
-# Ultra Builder Pro 5.0 journey 验收结果 — 2026-08-25
+# Ultra Builder Pro 5.0 journey 验收结果 — 2026-08-26
 
 ## 结论
 
-14 条已接受 journey 均有一个可观察的本地成功或停止点：13 条为 `PASS`，ZCode 的
-ACP promotion 为诚实的 `STOP`。`STOP` 不是“永远进行中”；它说明当前事实、未通过的
-bar 与最便宜的下一次 drill。No live provider or user-HOME execution was performed.
+14 条已接受 journey 都有可观察结果并全部为 `PASS`。2026-08-25 的初始候选曾把
+ZCode ACP promotion 记为诚实 `STOP`；2026-08-26 的 live activation 先复现并修复
+ZCode 0.16.5 runtime-preferences handshake，再通过国内 BigModel provider 完成真实
+receipt，因此该行已经由新证据取代。Real user-HOME execution 仍属于下一任务。
 
 这里的证据分为三类，不能互相冒充：
 
@@ -12,7 +13,8 @@ bar 与最便宜的下一次 drill。No live provider or user-HOME execution was
   实际表达质量；
 - `isolated-runtime`：运行真实 installer/Doctor/runner 代码，但只使用临时 config、fake
   Codex registration 或 fake ACP/CLI target；
-- `live-provider`：本轮未授权，因此没有执行，也没有被写成绿色。
+- `live-provider`：六个 Host 分别完成 one bounded read-only ACP provider session；
+  receipt 只保留协议/result/进程/Git 事实和 digest，不保留 prompt 或 provider text。
 
 ## Journey register
 
@@ -29,8 +31,8 @@ bar 与最便宜的下一次 drill。No live provider or user-HOME execution was
 | J9 | ACP happy path | PASS | stable v1 initialize -> session/new -> bounded derived updates -> exact Ultra terminal result | `tests/acp-driver.test.cjs`; `tests/delegate.test.cjs`; fake ACP agent | synthetic executable protocol evidence，不是 Host/provider conformance |
 | J10 | Permission denial | PASS | envelope 内写请求仅 `allow_once`；scope widening 立即拒绝，不能转成 successful Ultra result | `tests/acp-driver.test.cjs`; `tests/delegate.test.cjs` | fake agent；没有真实 provider permission UI |
 | J11 | Cancellation | PASS | cancel/timeout 到 typed terminal result，释放 delegation lock，POSIX process group 无 descendant orphan，可用 fresh id 重试 | `tests/delegate.test.cjs`; `tests/acp-driver.test.cjs` | Windows descendant cleanup is not proven |
-| J12 | CLI fallback | PASS | 每个 Host 独立探测 ACP；未通过 exact row 时选择 result-compatible CliDriver，并在 receipt/result/Doctor 显示 reason | `tests/acp-driver.test.cjs`; `tests/install.test.cjs`; migration Doctor scenario | all shipped Hosts remain on CLI fallback pending per-Host provider evidence |
-| J13 | ZCode bridge | STOP | installed ZCode runtime 被探测并只作为 experimental CLI thin transport；ACP v1 不可用，因此 `acp_v1_unavailable`，maturity 不提升 | `skills/ultra-delegate/scripts/host-profile.cjs`; Doctor scenario；ZCode 0.16.5 local binary inspection | ZCode installed-runtime ACP bridge was not promoted；需先实现或确认 ACP v1 seam，再获 owner 授权跑 read-only、permission、cancel/no-orphan、cwd/diff、result 与 redaction drill |
+| J12 | CLI fallback | PASS | 六个 Host 都只在自己的 current receipt、stable ACP v1 和 executable 同时成立时选择 ACP；任一条件缺失仍选择 result-compatible CliDriver，并在 receipt/result/Doctor 显示 typed reason | `tests/acp-driver.test.cjs`; `tests/install.test.cjs`; six live receipts；migration Doctor scenario | provider retry 与 fallback 不自动改变 credential 或语义 authority |
+| J13 | ZCode bridge | PASS | installed ZCode 0.16.5 通过 `zcode-acp` v0.1.0 + digest-bound compatibility patch 接入 ACP v1，并用国内 BigModel provider 返回 exact Ultra result、clean Git 与 terminal worker | `skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch`; bridge receipt；`host-zcode.json`; live conformance report | transport maturity 仍为 `experimental`，因为 `app-server` 没有公开稳定性合同；缺 bridge/executable 时仍 typed fallback |
 | J14 | 3.x migration | PASS | 18 个 seeded project-owned files（覆盖 baseline、spec、active/archive Change、decision、task/context、Research、evidence、test report 与 binary bytes）在 install -> update -> Doctor -> uninstall 前后 mode、length 与 SHA-256 全相同；六 Host Doctor healthy 且显示 driver health | `tests/ultra-5-journeys.test.cjs` before/after digest 与 Doctor diagnostic | fixture 证明 updater 的真实文件边界，不声称覆盖未知第三方 artifact 语义 |
 
 ## 可复现命令
@@ -48,13 +50,11 @@ node --test tests/ultra-5-journeys.test.cjs \
 Doctor 与 uninstall，并在 TAP diagnostic 中打印 canonical before/update/uninstall digest
 和每个 Host 的 selected driver/fallback reason。
 
-## 仍需外部授权的验证
+## 尚待后续任务完成的验证
 
 - 六个真实 Host 对同一 route fixture 的 Route Card 输出质量对比；
-- Kimi/Grok 等候选 ACP endpoint 的 credentialed provider conformance；
-- ZCode ACP bridge 的真实 read-only、permission、cancel/no-orphan 与 bounded-write drill；
 - Windows process-tree descendant cleanup proof；
-- real user-HOME install、commit、push、tag、npm publish 或 GitHub Release。
+- real user-HOME install、commit、push、tag、npm publish 与 GitHub Release。
 
-这些缺口是明确的外部 acceptance boundary，不会阻塞本地 5.0 package candidate 的
-结构、isolated lifecycle 和 synthetic transport 验证，也不会被本报告冒充为完成。
+六个 live ACP provider receipt 已完成；其余缺口分别属于后续 real-HOME、Windows 与
+public-release task，不会被本报告冒充为完成。

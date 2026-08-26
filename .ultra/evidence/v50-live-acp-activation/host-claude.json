@@ -1,0 +1,60 @@
+{
+  "$schema": "ultra-acp-conformance-receipt-v1",
+  "host": "claude",
+  "candidate": {
+    "surface": "official @agentclientprotocol/claude-agent-acp@0.70.0 stdio adapter",
+    "command": "npx",
+    "args": [
+      "--yes",
+      "@agentclientprotocol/claude-agent-acp@0.70.0"
+    ],
+    "protocol_versions": [
+      1
+    ],
+    "override_used": false
+  },
+  "result": {
+    "status": "passed",
+    "execution_driver": "acp",
+    "protocol_version": 1,
+    "stop_reason": "end_turn",
+    "adapter_exit_code": 0,
+    "adapter_exit_signal": null,
+    "git_clean": true,
+    "changed_files_count": 0,
+    "event_count": 21,
+    "worker_exit_observed": true,
+    "failure_type": null,
+    "validation_diagnostic": null
+  },
+  "artifact_digests": {
+    "result": {
+      "sha256": "3757549f23d762f811a9be9cc50fbaa654ab322a4eef93c1e06f7610eb8848f2",
+      "bytes": 2910
+    },
+    "stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "stderr": {
+      "sha256": "65efb027f42f8ca6671a733d5278a7ba91973e2fb37d2bd854357eabd618a772",
+      "bytes": 105
+    },
+    "events": {
+      "sha256": "fd17fe3422004ea56562c364494749a3b91f9e51482418f80601d8e9c569b350",
+      "bytes": 2533
+    },
+    "host_output": {
+      "sha256": "fa600d5ca90028cca29a49cd7927f34c917ca80c396514e38fdf10b53abd0f2a",
+      "bytes": 1354
+    }
+  },
+  "redaction": {
+    "provider_content_retained": false,
+    "prompt_retained": false,
+    "hidden_reasoning_retained": false,
+    "credentials_retained": false,
+    "temporary_artifacts_removed": true
+  },
+  "observed_at": "2026-08-26T02:02:40.006Z"
+}

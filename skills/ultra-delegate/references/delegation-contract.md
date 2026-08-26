@@ -5,9 +5,11 @@
 The loaded `ultra-delegate` Skill owns `scripts/delegate.cjs`,
 `scripts/delegate-worker.cjs`, `scripts/host-profile.cjs`,
 `scripts/agent-execution-driver.cjs`, `scripts/acp-driver.cjs`,
-`scripts/cli-driver.cjs`, and its launch-only profiles.
-Invoke the launcher with the loaded Skill's absolute path. It has no package-root,
-global `ubp`, or runtime `npx` dependency. The package `ubp delegate` command is a thin
+`scripts/cli-driver.cjs`, `scripts/acp-conformance.cjs`, and its launch-only profiles.
+Invoke the launcher with the loaded Skill's absolute path. It has no package-root or
+global `ubp` dependency. The Claude and Codex profiles separately invoke exact pinned
+ACP adapter packages through `npx`; no `npx` lookup is used to locate Ultra itself.
+The package `ubp delegate` command is a thin
 one-release compatibility import of the same functions; it contains no launcher or
 worker behavior of its own.
 
@@ -81,7 +83,8 @@ internal CLI run as a documented Desktop session — including failure, cancella
 and timeout recovery results.
 
 They also record `execution_driver`, `driver_fallback_reason`, and the probed
-`acp_capability`. ACP results add negotiated `acp_protocol_version`, observed
+`acp_capability`, including candidate-identity validity when the profile declares
+bounded local version probes. ACP results add negotiated `acp_protocol_version`, observed
 `acp_stop_reason`, and `events_file`. These are mechanical observations only. In
 particular, `stopReason: end_turn`, a completed tool call, an ACP plan, or process exit
 cannot synthesize the exact model response above or satisfy its Git-diff validation.
@@ -104,6 +107,13 @@ ACP `session/request_permission` uses least authority:
 - `allow_always` is never selected; cancellation answers any pending permission request
   with ACP's `cancelled` outcome.
 
+An agent may send creation-time `available_commands_update`, `current_mode_update`,
+`config_option_update`, or `session_info_update` before the `session/new` response.
+Ultra holds at most 32 such messages and 256 KiB transiently, persists no raw payload,
+and replays them only after every message session ID equals the returned session ID.
+Any other early update kind, identity mismatch, count overflow, or byte overflow is a
+typed failure; pre-session buffering cannot contribute model result text.
+
 `events.jsonl` is bounded disposable telemetry. It stores phase/update type, tool kind
 and status, counts, permission decision/scope, and terminal stop reason. It drops
 `agent_thought_chunk` entirely and never stores message text, titles, raw tool
@@ -119,5 +129,10 @@ recovery or completion.
 - `cancel` writes `cancel.request`; the worker terminates its host process, publishes a
   failed result with `failure_type: cancelled`, and removes `run.lock`.
 - `--timeout` does the same with `failure_type: timeout`.
+- `ULTRA_DELEGATE_FORCE_CLI=1` bypasses ACP selection for one operator-controlled run
+  and records `acp_forced_cli`; it does not mutate the conformance record.
+- `acp_auth_required` reported by `session/new` before any prompt was sent runs the
+  immutable bounded CLI fallback once and records `acp_fallback.prompt_sent: false`.
+  No other ACP failure is retried, preventing duplicate provider work.
 - A stopped worker with no result is recoverable through `cancel`, which finalizes the
   stale run. Retry under a new delegation id and fresh digests.

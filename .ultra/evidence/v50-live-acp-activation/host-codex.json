@@ -1,0 +1,59 @@
+{
+  "$schema": "ultra-acp-conformance-receipt-v1",
+  "host": "codex",
+  "candidate": {
+    "surface": "official @agentclientprotocol/codex-acp@1.6.2 stdio adapter",
+    "command": "npx",
+    "args": [
+      "--yes",
+      "@agentclientprotocol/codex-acp@1.6.2"
+    ],
+    "protocol_versions": [
+      1
+    ],
+    "override_used": false
+  },
+  "result": {
+    "status": "passed",
+    "execution_driver": "acp",
+    "protocol_version": 1,
+    "stop_reason": "end_turn",
+    "adapter_exit_code": null,
+    "adapter_exit_signal": "SIGTERM",
+    "git_clean": true,
+    "changed_files_count": 0,
+    "event_count": 73,
+    "worker_exit_observed": true,
+    "failure_type": null
+  },
+  "artifact_digests": {
+    "result": {
+      "sha256": "64209d26d3e33caa15915ccc0f7b70d4bf90c649f3ee7bdafb3b7702708762b5",
+      "bytes": 1873
+    },
+    "stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "events": {
+      "sha256": "45de2e2d4f06c0524349a9510ef8147a4138c6b002549462419d639936b5d002",
+      "bytes": 9382
+    },
+    "host_output": {
+      "sha256": "7c4f781e1332203c59b9ffeb4c77866f076d8d4e66465b23da82e510482fbec8",
+      "bytes": 288
+    }
+  },
+  "redaction": {
+    "provider_content_retained": false,
+    "prompt_retained": false,
+    "hidden_reasoning_retained": false,
+    "credentials_retained": false,
+    "temporary_artifacts_removed": true
+  },
+  "observed_at": "2026-08-26T02:01:00.114Z"
+}

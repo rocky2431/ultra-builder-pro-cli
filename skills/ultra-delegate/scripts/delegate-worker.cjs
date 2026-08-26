@@ -190,6 +190,11 @@ function mechanical(spec, exitCode, signal) {
     acp_capability: spec.acp_capability ?? null,
     acp_protocol_version: spec.observed_acp_protocol_version ?? null,
     acp_stop_reason: spec.observed_acp_stop_reason ?? null,
+    ...(spec.execution_driver === 'acp' ? {
+      acp_adapter_exit_code: spec.observed_acp_adapter_exit_code ?? null,
+      acp_adapter_exit_signal: spec.observed_acp_adapter_exit_signal ?? null,
+    } : {}),
+    ...(spec.observed_acp_fallback ? { acp_fallback: spec.observed_acp_fallback } : {}),
     events_file: spec.events ?? null,
     // The explicit experimental acknowledgment travels to every terminal
     // result — finished, failed, cancelled, or interrupted — so no result can
@@ -243,8 +248,14 @@ async function main() {
       terminal = failure(spec, 'cancelled', 'Delegation was cancelled before the host process started.');
     } else {
       const processResult = await runExecutionDriver(spec);
+      spec.execution_driver = processResult.executionDriver || spec.execution_driver;
+      spec.driver_fallback_reason = processResult.fallbackReason ?? spec.driver_fallback_reason;
+      spec.transport_surface = processResult.transportSurface || spec.transport_surface;
       spec.observed_acp_protocol_version = processResult.protocolVersion ?? null;
       spec.observed_acp_stop_reason = processResult.stopReason ?? null;
+      spec.observed_acp_adapter_exit_code = processResult.adapterExitCode ?? null;
+      spec.observed_acp_adapter_exit_signal = processResult.adapterExitSignal ?? null;
+      spec.observed_acp_fallback = processResult.acpFallback || null;
       let files = [];
       try { files = changedFiles(spec); } catch {}
       const unauthorized = files.filter((file) => !authorized(spec, file));

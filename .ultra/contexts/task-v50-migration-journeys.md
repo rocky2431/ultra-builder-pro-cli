@@ -97,6 +97,7 @@ usable and recoverable rather than merely present in source.
 | Date | Classification | Change | Specs updated | Reason |
 |---|---|---|---|---|
 | 2026-08-25 | — | Initial creation | `docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md` | Accepted migration/journey boundary |
+| 2026-08-26 | successor reconciliation | Recorded that `v50-live-acp-activation` superseded the journey register's ZCode STOP with a passing domestic-provider receipt | `docs/evals/ultra-5-0-journey-results.md` | Keep the completed local task's historical limit while pointing resumes at current evidence |
 
 ## Open Questions
 
@@ -108,12 +109,12 @@ Why: prove that 5.0 remains safe for accepted 3.x authority and understandable t
 the owner journeys, including degraded and fresh-session recovery. Outcome: one real
 isolated adapter lifecycle preserves eighteen seeded canonical artifacts byte-for-byte
 and mode-for-mode, all six Host Doctor rows expose exact driver/fallback health, and all
-fourteen journeys have a PASS or honest STOP. Reality: focused 5/5, project-artifact
-80/80, expanded 255/255, strict zero-finding Review, and current-v2 evidence pass;
-ZCode ACP is the intentional STOP. Decision needed: none. Next bounded action: run
-`v50-release-candidate`, bump the local package to 5.0.0, validate every changed Skill,
-and execute the complete release/package/isolated-Doctor gate. Not done: live provider
-conformance, real user-home installation, an activated ZCode ACP bridge, Windows
+fourteen journeys have a current PASS. Reality: this task's original local evidence is
+focused 5/5, project-artifact 80/80, expanded 255/255, strict zero-finding Review, and
+current-v2 evidence pass; its historical ZCode STOP was later superseded by
+`v50-live-acp-activation`, not silently rewritten as local evidence. Decision needed:
+none. Next bounded action: resume the active live-activation task, then real-HOME and
+release tasks. Not done in this completed task: real user-home installation, Windows
 descendant cleanup proof, commit, push, tag, publish, or deployment.
 
 ## Completion

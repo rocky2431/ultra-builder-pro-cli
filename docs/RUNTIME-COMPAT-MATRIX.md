@@ -89,12 +89,12 @@ until the user reviews and trusts the current definition, so Doctor reports
 
 | Host | ACP candidate observed locally | Versioned conformance | 5.0 active driver | Fallback reason |
 |---|---|---|---|---|
-| Claude Code | no native ACP stdio entrypoint in current CLI help | not available | CLI | `acp_not_available` |
-| Codex | no native ACP stdio entrypoint in current CLI help | not available | CLI | `acp_not_available` |
-| OpenCode | `opencode acp` exposes a TCP server, not stdio | not eligible | CLI | `acp_stdio_unavailable` |
-| Kimi Code | documented [`kimi acp`](https://moonshotai.github.io/kimi-code/en/reference/kimi-acp.html) stdio server | not run against a provider | CLI | `acp_conformance_not_passed` |
-| Grok Build | local `grok agent stdio` candidate | not run as verified ACP v1 | CLI | `acp_conformance_not_passed` |
-| ZCode | installed `app-server` is ZCode Protocol, not an ACP claim | not run; bridge drill absent | CLI | `acp_v1_unavailable` |
+| Claude Code | pinned `@agentclientprotocol/claude-agent-acp@0.70.0` stdio adapter | PASS, real provider receipt | ACP when `npx` exists | `acp_command_unavailable` when absent |
+| Codex | pinned `@agentclientprotocol/codex-acp@1.6.2` stdio adapter | PASS, real provider receipt | ACP when `npx` exists | `acp_command_unavailable` when absent |
+| OpenCode | native `opencode acp` stdio server | PASS, real provider receipt | ACP when executable exists | `acp_command_unavailable` when absent |
+| Kimi Code | documented [`kimi acp`](https://moonshotai.github.io/kimi-code/en/reference/kimi-acp.html) stdio server | PASS, real provider receipt | ACP when executable exists | `acp_command_unavailable` when absent |
+| Grok Build | documented [`grok agent stdio`](https://docs.x.ai/build/cli/headless-scripting) | PASS, real provider receipt | ACP when executable exists | `acp_command_unavailable` when absent |
+| ZCode | source-pinned `zcode-acp` v0.1.0 plus digest-bound 0.16.5 patch translating to installed `app-server` | PASS, domestic BigModel provider receipt | ACP when bridge exists and `--ack-experimental` is supplied | `acp_command_unavailable` when absent |
 
 Selection is ACP-first only after the exact Host row is `passed` and names a non-empty
 evidence reference: stable protocol v1, stdio, executable availability, read-only,
@@ -113,6 +113,14 @@ hidden reasoning. Status re-projects every displayed latest event through that f
 safe shape and treats a corrupted journal as unavailable. `CliDriver` bounds
 stdout/stderr while retaining the output tail so the existing exact Ultra result
 extractor remains compatible.
+
+During `session/new`, `AcpDriver` may temporarily buffer only the bounded creation-time
+metadata updates emitted by some conforming agents. It rejects message/tool content,
+wrong session identities, more than 32 updates, or more than 256 KiB before the response;
+accepted metadata is exposed only after every buffered `sessionId` matches the created
+session. `ULTRA_DELEGATE_FORCE_CLI=1` is an explicit per-run recovery seam: it selects
+the same bounded CLI result path and records `acp_forced_cli` without changing the
+Host's stored conformance status.
 
 ## CLI fallback argv
 
@@ -134,19 +142,33 @@ invocation for:
   read-only mode) write tools. The launcher's timeout remains the execution bound.
 
 The installed ZCode 0.16.5 runtime advertises `--max-turns`, `--allowed-tools`, and
-`--settings` in help but rejects them at the live root parser. Ultra therefore does not pass those flags. ZCode
-headless delegation also requires an explicit CLI model provider; desktop provider
-state is not silently copied into `~/.zcode/cli/config.json` because provider choice and
-credentials remain owner-controlled.
+`--settings` in help but rejects them at the live root parser. Ultra therefore does not
+pass those flags. ZCode headless delegation also requires an explicit CLI model
+provider. Host/runtime identity and provider identity remain separate: the verified
+local path uses ZCode Desktop with the Owner's domestic BigModel Coding Plan provider,
+not international Z.AI OAuth. Ultra's package does not silently copy Desktop credentials;
+the user controls the provider entry in `~/.zcode/cli/config.json`.
 
 On macOS, the Skill-local host profile uses
 `/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs` when that App-bundled CLI
 exists, then falls back to `zcode` on `PATH`. `UBP_DELEGATE_ZCODE_BIN` remains an explicit
 test or operator override; the normal source-to-ZCode path does not require it.
 
+The ACP bridge is independently installed from `jpalmae/zcode-acp` v0.1.0 at source
+revision `42fe149d4b501469343c01f23ba3801832306d53`, then patched by the shipped
+`zcode-acp-0.1.0-zcode-0.16.5.patch` with SHA-256
+`174dfd0feafe84320556a84b5ae08b10e44c5515fea4992fd1d58af54cee4e3d`. The patch
+answers the `session/requestRuntimePreferences` server request introduced by ZCode
+0.16.5 before and after session creation. The pinned source plus patch passes the locked
+Rust tests, reproduced RED, patched fake App-server E2E, release build, and real provider
+session before use. It stamps the bridge as
+`zcode-acp 0.1.0+ultra.zcode.0.16.5`; selection requires that marker and an installed
+runtime reporting `0.16.5`. Ultra records both source inputs and ships only the patch; it
+redistributes neither the bridge binary nor any ZCode Desktop bytes.
+
 **ZCode transport maturity is `experimental`** (recorded in
 `skills/ultra-delegate/scripts/host-profile.cjs`): the App-bundled CLI is a verified-local
-surface — it exists, launches, and passed the 2026-08-14 conformance drills — but
+surface — it exists, launches, and passed the 2026-08-26 conformance drill — but
 the provider publishes no headless CLI, SDK, A2A, or ZCode Protocol stability
 contract. Promotion to `supported` requires both official documentation and a
 full recovery drill; a binary's existence, working help, or zero exit status is
@@ -166,8 +188,10 @@ surface itself, not this headless transport.
 Every managed plugin contains `ultra-delegate/scripts/delegate.cjs`, its worker, the
 canonical Host profile, all three driver modules, and the Kimi launch-only profiles.
 The loaded Skill resolves
-that directory and invokes Node directly, so a clean `npx` install does not require a
-persisted package binary on `PATH` and never runs `npx` for each delegation. Doctor
+that directory and invokes Node directly, so a clean plugin install does not require a
+persisted Ultra package binary on `PATH` and never uses `npx` to rediscover Ultra.
+The source-pinned Claude and Codex ACP adapters may themselves run through their exact
+`npx --yes <package>@<version>` profiles. Doctor
 reports `delegation_runner`, `acp_capability`, `agent_execution_driver`, its fallback
 reason, and ZCode maturity separately from Skill discovery and Hooks. The package
 `ubp delegate` surface remains a thin one-release compatibility wrapper around the same

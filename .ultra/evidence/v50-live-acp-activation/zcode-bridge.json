@@ -1,0 +1,75 @@
+{
+  "$schema": "ultra-zcode-acp-bridge-receipt-v1",
+  "observed_at": "2026-08-26T12:26:14+08:00",
+  "source": {
+    "repository": "https://github.com/jpalmae/zcode-acp",
+    "tag": "v0.1.0",
+    "version": "0.1.0",
+    "commit": "42fe149d4b501469343c01f23ba3801832306d53",
+    "locked": true,
+    "compatibility_patch": {
+      "path": "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+      "sha256": "174dfd0feafe84320556a84b5ae08b10e44c5515fea4992fd1d58af54cee4e3d",
+      "target_runtime": "ZCode CLI 0.16.5",
+      "reason": "Answer session/requestRuntimePreferences before and after session creation."
+    }
+  },
+  "verification": {
+    "cargo_test_locked": {
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0
+    },
+    "zcode_0_16_5_regression_red": {
+      "command": "python3 tests/acp_client.py",
+      "exit_code": 1,
+      "failure": "session/new timed out while the unpatched bridge ignored session/requestRuntimePreferences"
+    },
+    "compatibility_patch_apply_check": {
+      "command": "git apply --check -R <patch>",
+      "exit_code": 0
+    },
+    "patched_fake_app_server_e2e": {
+      "command": "python3 tests/acp_client.py",
+      "exit_code": 0,
+      "initialize": true,
+      "session_new": true,
+      "session_prompt": true,
+      "tool_update": true,
+      "session_close": true
+    },
+    "cargo_build_release_locked": {
+      "exit_code": 0
+    },
+    "local_install_from_verified_source": {
+      "exit_code": 0,
+      "command_shape": "cargo build --release --locked && install -m 0755 target/release/zcode-acp <user-bin>"
+    }
+  },
+  "installed_bridge": {
+    "path": "/Users/rocky243/.local/bin/zcode-acp",
+    "version": "0.1.0+ultra.zcode.0.16.5",
+    "version_output": "zcode-acp 0.1.0+ultra.zcode.0.16.5",
+    "sha256": "0e9c8fb2827c566c8a623f3a9706715a221ce7a9b1d3eef32c839937c62420dd",
+    "previous_patched_bridge": {
+      "path": "/Users/rocky243/.local/bin/zcode-acp.patched-pre-marker-20260826",
+      "sha256": "79e7f9529556ec877c5eb2b4c77a4602236b9c92fd588f58162eb5ee414c1375"
+    },
+    "rollback": {
+      "path": "/Users/rocky243/.local/bin/zcode-acp.upstream-0.1.0-42fe149",
+      "sha256": "d8f9547a5725298235cdaf048e6d0a4246eda2478e3ae2e1eb8e9946beb4b9ec"
+    }
+  },
+  "installed_zcode_runtime": {
+    "path": "/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs",
+    "version": "0.16.5",
+    "resolved": true
+  },
+  "distribution_boundary": {
+    "zcode_application_bytes_copied": false,
+    "bridge_binary_redistributed_by_ultra": false,
+    "compatibility_patch_source_shipped_by_ultra": true,
+    "source_identity_recorded": true
+  },
+  "raw_log_ref": ".ultra/evidence/v50-live-acp-activation/verification.log"
+}

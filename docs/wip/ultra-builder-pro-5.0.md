@@ -10,32 +10,32 @@ clean npx 安装后的 bare `ubp delegate` 运行边界也已证实不可达。
 
 交付 `docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md` 定义的 Route Contract、Skill 职责、
 grant continuation、Skill-local ACP/CLI delegation、ZCode bridge、3.x migration 和
-真实 journey acceptance，形成未发布的本地 5.0 release candidate。
+真实 journey acceptance，并把六 Host ACP、真实 HOME、Windows 与公共发布闭环为
+可安装、可恢复、可核验的 5.0 release。
 
 ## Accepted boundary
 
-- Included: workflow/owner legibility, invocation repair, local multi-Agent execution,
-  migration, Doctor, tests, docs, package candidate.
-- Excluded: Team Pack, remote shared assets, Marketplace, daemon, semantic state
-  machine, commit/push/tag/publish/real install/provider spend。
+- Included: workflow/owner legibility, invocation repair, six real ACP transports,
+  pinned ZCode bridge, migration, real HOME install/Doctor, Windows cleanup, tests,
+  commit/push/tag、npm publication 和 GitHub Release。
+- Excluded: Team Pack、remote shared assets、daemon、semantic state machine、凭据导出/
+  替换、provider 充值、force-push、npm unpublish，以及仓库中不存在的服务部署。
 
 ## Current checkpoint
 
 - Route: `ultra-dev`
-- Mode: `execute` task `v50-release-candidate`
-- Position: the 5.0.0 product snapshot is frozen after Route, Skill-local delegation,
-  ACP drivers, migration journeys, versioned docs, Skill/plugin validation, full release
-  gate, dry-run pack, and isolated six-Host Doctor. Task review/evidence and aggregate
-  Test remain derived closeout work; no product file should change without rerunning the
-  release gate.
-- Exit condition: release-task evidence is current-v2, all five Change tasks are
-  completed, and one aggregate Test report binds the final candidate and retained strict
-  Reviews without performing a release effect.
+- Mode: `closeout` task `v50-real-home-activation`
+- Position: 六 Host 已从旧版本真实升级至 5.0.0；真实 Doctor 全部 `healthy`，每个已安装
+  runner 都选择 ACP，Codex Hook trust 仍如实标为 `user_review_required`。ZCode 的真卸载、
+  缺席态 Doctor、重装与最终发现均已通过，且国内 BigModel 配置字节和 0600 权限不变。
+- Exit condition: 当前任务的 v2 evidence 与 ledger closeout 完成，然后进入真实 Windows
+  descendant-cleanup release gate。
 
 ## Reality
 
-- Verified local package candidate: `5.0.0` at HEAD
-  `b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1` (dirty source snapshot; not published).
+- Verified local package candidate: `5.0.0` recovery commit `8be6f6d` (not pushed or
+  published). It passed Node/Hook tests, npm audit, pack dry-run, and changed-Skill
+  validation before the live boundary expansion.
 - Reproduced baseline gap: a clean one-shot install did not persist bare `ubp`, while the
   installed `ultra-delegate` instructed that unreachable command. The current local fix
   instead invokes its installed `scripts/delegate.cjs` path.
@@ -48,15 +48,39 @@ grant continuation、Skill-local ACP/CLI delegation、ZCode bridge、3.x migrati
 - ACP driver evidence validates as `current-v2`; 175 focused tests and its strict Review
   pass with no findings. Events are bounded/redacted at write and read, permission
   widening fails closed, and cancellation/timeout leave no POSIX descendant.
-- No shipped Host claims passed ACP conformance. ZCode resolves the installed 0.16.5
-  runtime, remains experimental, and uses `acp_v1_unavailable` CLI fallback; no provider
-  task was started.
+- All six profiles expose stable ACP v1 stdio candidates and bind their own current
+  passing receipt. A missing executable, protocol mismatch, missing evidence, or forced
+  recovery still selects typed CLI fallback.
+- Real provider conformance passes for Claude, Codex, OpenCode, Kimi, Grok, and ZCode
+  with the exact Ultra result, clean isolated Git, and observed worker termination. Grok
+  uses bounded, identity-checked creation-time metadata buffering. ZCode uses ZCode
+  Desktop as Host/runtime and the Owner's domestic BigModel Coding Plan as provider.
+- Upstream `jpalmae/zcode-acp` tag v0.1.0 resolves to commit
+  `42fe149d4b501469343c01f23ba3801832306d53`; it has no release binary assets. Its
+  installed-runtime 0.16.5 handshake drift was reproduced RED, then fixed by the shipped
+  patch SHA-256 `174dfd0feafe84320556a84b5ae08b10e44c5515fea4992fd1d58af54cee4e3d`.
+  `cargo test --locked` completed with 6/6 tests, patched fake app-server E2E passed,
+  and the release build was installed at `~/.local/bin/zcode-acp`. The built and installed
+  binary reports `zcode-acp 0.1.0+ultra.zcode.0.16.5` and has SHA-256
+  `0e9c8fb2827c566c8a623f3a9706715a221ce7a9b1d3eef32c839937c62420dd`;
+  both the previous patched binary and original upstream binary remain as explicit
+  rollbacks.
+- Kimi CLI was upgraded from 0.38.0 to official 1.49.0 after asset verification; the old
+  binary is backed up and existing config digests were unchanged.
+- ACP/launcher focused verification is 73/73 including installed patch bytes. The last
+  complete Node suite reached 656/657 and Hooks are 89/89; the sole red assertion was
+  the intentionally stale final
+  `.ultra/test-report.json`, which cannot truthfully include the four unfinished live
+  activation/release tasks yet.
+- CI now defines Ubuntu/macOS release gates plus a Windows job that exercises real
+  cancellation/timeout descendant cleanup. YAML parses successfully; the pushed Windows
+  run is still required.
 - Migration evidence validates as `current-v2`; a real isolated 3.x lifecycle preserved
   eighteen canonical artifacts with the same aggregate digest before update, after
   update, and after uninstall. The focused journey suite is 5/5, the expanded regression
   is 255/255, and its strict Review is `APPROVE` with no findings.
-- The canonical journey register reports thirteen local PASS rows and one honest STOP
-  for the unactivated ZCode ACP bridge.
+- The canonical journey register now reports fourteen PASS rows; the earlier ZCode STOP
+  is superseded by the real domestic-provider receipt and bridge compatibility evidence.
 - All nine changed Skills pass Skill Creator validation, and an isolated generated Codex
   plugin passes Plugin Creator validation.
 - `npm run verify:release` exits zero with 647 Node tests, 89 Hook tests, and zero
@@ -68,19 +92,31 @@ grant continuation、Skill-local ACP/CLI delegation、ZCode bridge、3.x migrati
   `5.0.0`, installed delegation runner present, and the exact CLI fallback reason;
   uninstall leaves the isolated root empty. Codex hook trust remains an explicit user
   review action, not an installation failure.
+- The real-HOME pre-install recovery point exists at
+  `~/.ultra-builder-pro/backups/2026-08-26-pre-5.0`: 22 managed Ultra source/backup
+  pairs are byte-identical, the directory is mode `0700`, and its redacted manifest
+  binds sidecar semantic hashes without retaining credential values.
+- `node bin/install.js --all --global` completed all six real Hosts. Final all-Host
+  Doctor is healthy, the six installed provenance manifests report package `5.0.0`,
+  and the 12 untransformed Skill-local delegation files have one exact digest across
+  source and every Host.
+- Six unrelated Host sentinels remain byte- or semantic-identical. The bounded ZCode
+  uninstall/reinstall exercise reached the expected degraded absent state and returned
+  to healthy without changing `~/.zcode/cli/config.json` bytes or mode `0600`.
+- Real-HOME strict Review `v50-real-home-activation-initial-review-v1` is `APPROVE`
+  with both axes passing and no P0-P3 findings.
 
 ## Decision needed
 
-None. The Owner accepted the 5.0 boundary and Route Card/material-checkpoint default.
+None. The Owner explicitly expanded the same Change through
+`.ultra/decisions/2026-08-26-ultra-5-0-live-activation.md`.
 
 ## Next bounded action
 
-Complete the release-task strict Review and current-v2 evidence, close its ledger row,
-then publish one aggregate Test report and rerun the affected final verification gate.
+Publish current task evidence, then commit and push the candidate so the real Windows
+runner can prove descendant cleanup before any immutable public release effect.
 
 ## Not done
 
-- task Review/evidence and aggregate Test closeout;
-- real external drills, package publication, and real user installation;
-- live Host ACP conformance, an activated ZCode ACP bridge, and Windows descendant
-  process cleanup proof.
+- real Windows runner receipt, final Review/Test and Change archive;
+- push, tag `v5.0.0`, npm publish, GitHub Release and registry verification.

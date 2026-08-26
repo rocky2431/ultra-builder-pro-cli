@@ -1,0 +1,7 @@
+[2026-08-26T04:56:56Z] RH-01 PASS: pre-install Doctor exit 2 truthfully reported the six old installs and missing Skill-local delegation assets.
+[2026-08-26T04:56:56Z] RH-01 PASS: bound six provenance manifests, recovery manifest 259bfd21d1b2d24757e86230b332cdd46d2ff13309f4863e891950cba63719f8, and six unrelated Host sentinels without emitting credential values.
+[2026-08-26T04:57:53Z] RH-02 PASS: `node bin/install.js --all --global` exited 0 and completed claude, opencode, codex, kimi, grok, and zcode.
+[2026-08-26T04:58:28Z] RH-02 PASS: all six provenance manifests report ultra-builder-pro-cli 5.0.0; 12 Skill-local script/reference/patch files match source digest 491539ca481b8c5496907647914cd172eb219461401dc049ae638e98159f4305 exactly in every Host.
+[2026-08-26T04:58:28Z] RH-03 PASS: real all-Host Doctor exited 0 and reported healthy; every installed AgentExecutionDriver selected ACP with no fallback. Codex truthfully retains REVIEW_CODEX_HOOK_TRUST as a non-failing user review action.
+[2026-08-26T04:59:05Z] RH-04 PASS: ZCode managed uninstall exited 0, absent-state Doctor exited 2/degraded, reinstall exited 0, and the final all-Host Doctor returned healthy.
+[2026-08-26T04:59:43Z] RH-04 PASS: six unrelated Host sentinels match their pre-install semantic or byte digests; ZCode config remains mode 0600 and byte-identical through install/uninstall/reinstall.

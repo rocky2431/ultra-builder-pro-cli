@@ -6,7 +6,11 @@
     "v50-skill-local-delegation",
     "v50-acp-execution-drivers",
     "v50-migration-journeys",
-    "v50-release-candidate"
+    "v50-release-candidate",
+    "v50-live-acp-activation",
+    "v50-real-home-activation",
+    "v50-windows-release-gate",
+    "v50-public-release"
   ],
   "task_evidence": [
     {
@@ -48,232 +52,84 @@
       "evidence_digest": "6d0a2a1566878ee4f925974abba4b5f7e02ab8803746e63c777c9b05e75d378a",
       "task_review_session": "v50-release-candidate-initial-review-v1",
       "task_review_summary_digest": "1cf4e9cd6516e18d6a35f0379b62ebe7fcb2b54bea0eda07cc8fef56e54d76b8"
+    },
+    {
+      "task_id": "v50-live-acp-activation",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/v50-live-acp-activation/evidence.json",
+      "evidence_digest": "c94a44bf297a51566ff8ea5cc200a9ed24282cd0b808b2d7e61e319c87845c6b",
+      "task_review_session": "v50-live-acp-activation-delta-review-v3",
+      "task_review_summary_digest": "7b5c5375c7d99f6a2866821cc477a9292bf039a22a46864da7c30cc84cad4281"
+    },
+    {
+      "task_id": "v50-real-home-activation",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/v50-real-home-activation/evidence.json",
+      "evidence_digest": "ebf4df36a5f7e246be3538d274e1ae03c506a3033ef4931861a3d85b5adee907",
+      "task_review_session": "v50-real-home-activation-initial-review-v1",
+      "task_review_summary_digest": "605147d5dd579ab1a4a1187701602771a6b2392a503ca74876dbd842e09bc143"
     }
   ],
-  "git_commit": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
-  "intent_digest": "3bdf6898f69521d1aba9052cb8e5ca84e44142d550668db75c1c0762e3231037",
+  "git_commit": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+  "intent_digest": "eba8401374dba27a697c61d2a9a4bb3b40fb055f2f8c75c028517e0ae68e9da3",
   "worktree": {
     "dirty": true,
-    "diff_digest": "5617c4a68617668b95ce8e38ae074765e96de13fef0ec7ee88338ccc77c5c879"
+    "diff_digest": "43a21a953810bc81772aa3c7cbc1c886e5753d59afbbfe9d01ac47e994fc3980"
   },
   "commands": [
     {
       "command": "node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-5-0",
       "exit_code": 0,
-      "evidence_ref": "head b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1; intent_digest 3bdf6898f69521d1aba9052cb8e5ca84e44142d550668db75c1c0762e3231037; diff_digest 5617c4a68617668b95ce8e38ae074765e96de13fef0ec7ee88338ccc77c5c879"
+      "evidence_ref": "head 8be6f6d2f8d5b367fd3fced2681240e4932242ae; intent_digest eba8401374dba27a697c61d2a9a4bb3b40fb055f2f8c75c028517e0ae68e9da3; diff_digest 43a21a953810bc81772aa3c7cbc1c886e5753d59afbbfe9d01ac47e994fc3980"
     },
     {
-      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v50-route-contract/evidence.json --projection",
+      "command": "node --test tests/acp-driver.test.cjs tests/acp-conformance.test.cjs",
       "exit_code": 0,
-      "evidence_ref": "current-v2; evidence_digest 136841c34c18601ebed9eabe7b85ae70a83d1237c6431de7bed21daa8bba4767; strict Review v50-route-contract-initial-review-v4 is APPROVE with zero findings"
-    },
-    {
-      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v50-skill-local-delegation/evidence.json --projection",
-      "exit_code": 0,
-      "evidence_ref": "current-v2; evidence_digest 0906e484fb4b11763da825306b585f4c177112f3a55a2b32f8de98f32dbf6d4c; strict Review v50-skill-local-delegation-initial-review-v1 is APPROVE with zero findings"
-    },
-    {
-      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v50-acp-execution-drivers/evidence.json --projection",
-      "exit_code": 0,
-      "evidence_ref": "current-v2; evidence_digest cb37c6b94a0f516b6993ec4bd187e94a7fe692adf6bddc958db9175fb5c7316e; strict Review v50-acp-execution-drivers-initial-review-v1 is APPROVE with zero findings"
-    },
-    {
-      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v50-migration-journeys/evidence.json --projection",
-      "exit_code": 0,
-      "evidence_ref": "current-v2; evidence_digest 4e4d6c58c64f6f904090b51153709cdc1121f6c4b896d6a94c4e92e888e48078; strict Review v50-migration-journeys-initial-review-v1 is APPROVE with zero findings"
-    },
-    {
-      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v50-release-candidate/evidence.json --projection",
-      "exit_code": 0,
-      "evidence_ref": "current-v2; evidence_digest 6d0a2a1566878ee4f925974abba4b5f7e02ab8803746e63c777c9b05e75d378a; strict Review v50-release-candidate-initial-review-v1 is APPROVE with zero findings"
-    },
-    {
-      "command": "python3 skills/ultra-review/scripts/review_wait.py .ultra/reviews/chg-ultra-5-0-aggregate-review-v1 summary --packet-digest e1a8645533cbdb694213909c3fe3c73bd5dfb411a601e55099621451a64f7398 --summary-snapshot-digest 62b718bcc12660ba4c7e2edabc64407e94ac9cdaed483be6d140b3aec703be83 < .ultra/reviews/chg-ultra-5-0-aggregate-review-v1/SUMMARY.json",
-      "exit_code": 0,
-      "evidence_ref": "APPROVE; P0=0, P1=0, P2=0, P3=0; exact caller-owned SUMMARY snapshot and admitted aggregate subject validated"
-    },
-    {
-      "command": "for skill_path in skills/ultra-change skills/ultra-delegate skills/ultra-deliver skills/ultra-dev skills/ultra-init skills/ultra-plan skills/ultra-research skills/ultra-status skills/ultra-test; do uv run --with pyyaml -- python /Users/rocky243/.codex/skills/.system/skill-creator/scripts/quick_validate.py \"$skill_path\" || exit 1; done",
-      "exit_code": 0,
-      "evidence_ref": "9/9 changed Skills valid through the Skill Creator validator"
-    },
-    {
-      "command": "uv run --with pyyaml -- python /Users/rocky243/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py /tmp/<isolated-plugin-root>/plugins/ultra-builder-pro",
-      "exit_code": 0,
-      "evidence_ref": "isolated generated Codex plugin for 5.0.0 valid; no user config or marketplace changed"
-    },
-    {
-      "command": "npm run verify:release",
-      "exit_code": 0,
-      "evidence_ref": "recorded product-snapshot run before the derived Change-level Test report: 647/647 Node tests passed; 89/89 Hook tests passed; npm audit --omit=dev --audit-level=high reported 0 configured high-severity production vulnerabilities"
-    },
-    {
-      "command": "npm run verify:release",
-      "exit_code": 1,
-      "evidence_ref": "final post-report rerun: 647/647 Node tests and 89/89 Hook tests passed; the composite command then stopped only because the npm registry audit TLS connection disconnected before establishment"
-    },
-    {
-      "command": "npm audit --omit=dev --audit-level=high",
-      "exit_code": 0,
-      "evidence_ref": "immediate post-failure retry succeeded: found 0 vulnerabilities"
-    },
-    {
-      "command": "npm run verify:release",
-      "exit_code": 0,
-      "evidence_ref": "final post-report composite retry succeeded: 647/647 Node tests passed, 89/89 Hook tests passed, and npm audit reported 0 vulnerabilities"
-    },
-    {
-      "command": "npm pack --dry-run --json",
-      "exit_code": 0,
-      "evidence_ref": "ultra-builder-pro-cli@5.0.0; 138 entries; 362686 bytes packed; 1307282 bytes unpacked; shasum 421f6a71027b2ebe346224f415aa43416bdb1ba4; no tarball written"
-    },
-    {
-      "command": "node bin/install.js --all --global --config-dir /tmp/<isolated-all-host-root> && node bin/install.js --all --global --config-dir /tmp/<isolated-all-host-root> --doctor --json && node bin/install.js --all --global --config-dir /tmp/<isolated-all-host-root> --uninstall",
-      "exit_code": 0,
-      "evidence_ref": "all six Hosts installed into an isolated root, aggregate Doctor was healthy with zero issues and installed delegation runners, uninstall left the isolated root empty"
-    },
-    {
-      "command": "git diff --check",
-      "exit_code": 0,
-      "evidence_ref": "clean"
+      "evidence_ref": "27/27 local ACP and Windows termination contract tests passed; real windows-latest observation remains pending"
     }
   ],
   "areas": {
-    "anti_patterns": {
-      "status": "passed",
-      "evidence_refs": [
-        ".ultra/reviews/chg-ultra-5-0-aggregate-review-v1/review-design.json",
-        ".ultra/reviews/chg-ultra-5-0-aggregate-review-v1/review-code.json",
-        "tests/route-contract.test.cjs",
-        "tests/acp-driver.test.cjs"
-      ],
-      "omissions": []
-    },
-    "coverage_gaps": {
-      "status": "passed",
-      "evidence_refs": [
-        ".ultra/reviews/chg-ultra-5-0-aggregate-review-v1/review-tests.json",
-        ".ultra/reviews/chg-ultra-5-0-aggregate-review-v1/review-spec.json",
-        "npm run verify:release (647 Node, 89 Hooks)"
-      ],
-      "omissions": [
-        "Live provider, real user-home, Host UI discovery, Windows cleanup, and unknown third-party migration behavior remain explicitly outside this local evidence class."
-      ]
-    },
-    "wiring": {
-      "status": "passed",
-      "evidence_refs": [
-        "tests/install.test.cjs",
-        "tests/package-smoke.test.cjs",
-        "tests/delegate.test.cjs",
-        ".ultra/evidence/v50-release-candidate/verification.log"
-      ],
-      "omissions": []
-    },
-    "e2e": {
-      "status": "passed",
-      "evidence_refs": [
-        "tests/ultra-5-journeys.test.cjs",
-        "docs/evals/ultra-5-0-journey-results.md",
-        ".ultra/evidence/v50-migration-journeys/verification.log",
-        ".ultra/evidence/v50-release-candidate/verification.log"
-      ],
-      "omissions": [
-        "The canonical journey register contains thirteen local PASS rows and one honest ZCode ACP STOP; STOP is not presented as a passing bridge."
-      ]
-    },
-    "performance": {
-      "status": "not_applicable",
-      "evidence_refs": [
-        "npm run verify:release completed successfully on the local candidate"
-      ],
-      "omissions": [
-        "No latency, throughput, or scale requirement was accepted for this file-first workflow plugin or local delegation transport."
-      ]
-    },
-    "security": {
-      "status": "passed",
-      "evidence_refs": [
-        "npm audit --omit=dev --audit-level=high retry (exit 0; found 0 vulnerabilities)",
-        "tests/acp-driver.test.cjs",
-        "tests/delegate.test.cjs",
-        ".ultra/reviews/chg-ultra-5-0-aggregate-review-v1/review-errors.json"
-      ],
-      "omissions": [
-        "Provider credentials, paid calls, Host-native sandbox behavior, and Windows descendant-process cleanup were not exercised."
-      ]
-    }
+    "anti_patterns": {"status": "not_run", "evidence_refs": [], "omissions": ["Final whole-Change audit waits for the Windows and public-release tasks."]},
+    "coverage_gaps": {"status": "not_run", "evidence_refs": [], "omissions": ["Real Windows descendant cleanup is not yet observed."]},
+    "wiring": {"status": "not_run", "evidence_refs": [], "omissions": ["Final published-package wiring is not yet observed."]},
+    "e2e": {"status": "not_run", "evidence_refs": [], "omissions": ["The exact pushed three-OS commit and immutable public release are pending."]},
+    "performance": {"status": "not_run", "evidence_refs": [], "omissions": ["No accepted performance boundary requires a pre-release run at this checkpoint."]},
+    "security": {"status": "not_run", "evidence_refs": [], "omissions": ["Final dependency audit and release provenance audit wait for the exact release subject."]}
   },
   "review": {
-    "session": "chg-ultra-5-0-aggregate-review-v1",
-    "packet_digest": "e1a8645533cbdb694213909c3fe3c73bd5dfb411a601e55099621451a64f7398",
-    "admission_digest": "2e21cb25da9d37bd4e6a08390e8688956748e8f8c84593d2cfd9a93619b3791c",
-    "subject_digest": "1784e103797d1fdda35072b7abfa9f9ba1249f5e5bff4b2463b61d7c58cf4cc2",
-    "execution_mode": "sequential-shared-context",
+    "session": null,
+    "packet_digest": null,
+    "admission_digest": null,
+    "subject_digest": null,
+    "execution_mode": null,
     "finding_schema": "ultra-review-findings-v4",
-    "summary_ref": ".ultra/reviews/chg-ultra-5-0-aggregate-review-v1/SUMMARY.json",
-    "summary_digest": "62b718bcc12660ba4c7e2edabc64407e94ac9cdaed483be6d140b3aec703be83",
-    "context_digest": "532dbc844f5c98c730cb54949c6562fdd4f3e7a6bcf36969c1063cb3a8aa05e8",
+    "summary_ref": null,
+    "summary_digest": null,
+    "context_digest": null,
     "worktree_digest": null,
-    "verdict": "APPROVE",
-    "provenance_note": "Terminal aggregate strict receipt for the five-task Ultra Builder Pro 5.0 local Change: APPROVE with zero findings; task closeout and this derived Test report remain outside the immutable reviewed product subject.",
-    "coverage_refs": [
-      ".ultra/changes/active/chg-ultra-5-0/intent.md#Acceptance AC5-01 through AC5-12",
-      "five current-v2 task evidence projections and retained zero-finding strict task Reviews",
-      "docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md",
-      "tests/route-contract.test.cjs, tests/acp-driver.test.cjs, tests/delegate.test.cjs, tests/ultra-5-journeys.test.cjs, tests/install.test.cjs, and tests/package-smoke.test.cjs",
-      "npm run verify:release on the frozen product snapshot (647 Node, 89 Hooks, 0 configured high-severity production vulnerabilities)",
-      "Skill Creator validation for nine changed Skills and Plugin Creator validation for the isolated generated Codex plugin",
-      "npm pack --dry-run --json (5.0.0, 138 entries, 362686 bytes, shasum 421f6a71027b2ebe346224f415aa43416bdb1ba4)",
-      "isolated all-Host install, healthy Doctor, uninstall, and empty-root observation",
-      "3.x migration digest d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7 before update, after update, and after uninstall",
-      "canonical fourteen-journey register: thirteen local PASS and one honest ZCode ACP STOP"
-    ],
-    "limitations": [
-      "The aggregate strict review is sequential-shared-context and has no independent model-family boundary.",
-      "No live provider task, credentials, paid call, real user-home installation, Host UI discovery, or ACP conformance drill was performed; fake and isolated evidence retain their narrower labels.",
-      "ZCode has an installed-runtime experimental CLI transport and honest ACP STOP, not an activated bridge or completed recovery drill.",
-      "No Windows descendant-process cleanup proof is claimed from the POSIX environment.",
-      "The 3.x migration fixture is finite, and thirteen PASS journey rows combine source inspection, isolated execution, and synthetic protocol evidence rather than model-quality or live-provider claims.",
-      "The npm dry run uses .gitignore fallback because .npmignore is absent; the explicit package files allowlist and inspected 138-entry inventory are the accepted local boundary.",
-      "Team Pack, remote assets/Marketplace, A2A, daemon, workflow service, shared semantic authority, commit, push, tag, npm publication, GitHub Release, deployment, and real installation remain outside this local Change."
-    ]
+    "verdict": "INCOMPLETE",
+    "coverage_refs": [],
+    "limitations": ["The earlier five-task aggregate Review is historical after the Owner expanded the same Change; a fresh aggregate Review is required after all nine tasks complete."]
   },
   "verified_seams": [
-    "one derived Route Card connects explicit invocation and mode to Position, observable Exit, material checkpoint, Next, and Not done without becoming semantic authority",
-    "Init, Change, Research, Plan, and Status have explicit responsibilities and recovery boundaries; daily feature work is Change-first and Research is bounded by a named question and exit",
-    "the canonical delegation runtime is installed under ultra-delegate/scripts and remains callable from a clean generated Host asset; ubp delegate is thin compatibility",
-    "AgentExecutionDriver selects stable ACP v1 only from per-Host evidence and otherwise selects CLI with an exact reason; all six current Host profiles honestly select CLI",
-    "ACP permission denial, malformed protocol, bounded redacted events, terminal result, timeout, cancellation, POSIX no-orphan cleanup, and no post-start automatic CLI retry are covered by synthetic protocol and process tests",
-    "delegated result authority remains the exact terminal RESULT plus Git diff; progress observations are derived and cannot activate, accept, or complete semantic work",
-    "the 18-artifact 3.x migration fixture retained digest d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7 before update, after update, and after uninstall",
-    "the fourteen-journey registry reports thirteen local PASS rows and one explicit ZCode ACP STOP without converting evidence gaps into success",
-    "package version, lockfile, READMEs, changelog, packed 138-entry inventory, generated Host assets, Doctor output, and isolated uninstall all agree on 5.0.0",
-    "five ordered current-v2 task evidence projections and the aggregate APPROVE summary bind the completed Change frontier"
+    "Seven completed tasks have current-v2 evidence and retained strict task Reviews.",
+    "All six real providers passed ACP conformance, and all six real user Host installations are healthy on 5.0.0.",
+    "The local Windows taskkill /T contract and direct-child fallback pass focused tests."
   ],
   "findings": [],
   "omissions": [
-    "No live Claude Code, Codex, OpenCode, Kimi Code, Grok Build, or ZCode provider task or ACP conformance drill was run.",
-    "No real user-home installation or Host UI discovery was performed; installation evidence uses isolated configuration roots.",
-    "The ZCode ACP bridge remains an honest STOP. Its Desktop-bundled experimental CLI is available only as the current fallback and is not proof of ACP support.",
-    "No Windows descendant-process cleanup proof is claimed, and the 3.x migration fixture does not claim unknown third-party semantic compatibility.",
-    "The package dry run warns that .npmignore is absent and falls back to .gitignore; the explicit files allowlist and inspected inventory passed.",
-    "Team Pack, remote assets or Marketplace, A2A, daemon, workflow service, shared semantic authority, commit, push, tag, npm publication, GitHub Release, deployment, and real installation were not performed."
+    "The exact pushed commit has not yet passed the real windows-latest descendant-cleanup test.",
+    "The public tag, npm package, GitHub Release, final aggregate Review/Test, Change archive, and WIP deletion are pending."
   ],
   "residual_risks": [
-    "Every Host remains on CLI until that Host's exact ACP v1 stdio conformance row passes; no cross-Host inference is accepted.",
-    "ZCode delegation depends on the app-bundled experimental CLI until a thin ACP bridge exists and passes installation, protocol, cancellation, recovery, and live conformance acceptance.",
-    "The strict aggregate Review is sequential-shared-context and therefore retains a shared model-family blind spot.",
-    "Synthetic ACP agents and isolated Host roots prove protocol and packaging behavior, not live provider quality, authentication, UI discovery, or paid-call behavior.",
-    "The active Change remains a local candidate until separately authorized Deliver effects are observed; no external release state can be inferred from this report."
+    "A local injected win32 branch cannot establish taskkill /T behavior until the GitHub Windows runner kills the fake ACP grandchild on cancel and timeout.",
+    "No immutable registry or release identity can be inferred from the local candidate."
   ],
   "owner_disposition": [
-    "The owner accepted one complete local Ultra Builder Pro 5.0 repair covering workflow clarity, Skill-local delegation, ACP execution drivers, migration journeys, and release-candidate verification.",
-    "ACP is a replaceable delegation transport under AgentExecutionDriver, not Ultra's workflow engine, semantic authority, progress database, or installation CLI replacement.",
-    "All six Hosts currently use their verified CLI fallback with an exact reason; ZCode ACP remains STOP rather than being represented as complete.",
-    "Commit, push, tag, npm publication, GitHub Release, deployment, real Host installation, credentials, and provider calls were not authorized by this local implementation scope and remain unperformed."
+    "The Owner authorized the expanded Ultra 5.0 Change through live ACP, real user installation, Windows verification, commit/push/tag, npm publication, and GitHub Release.",
+    "This checkpoint remains passed:false until the two remaining tasks and final aggregate audit are complete."
   ],
-  "passed": true,
-  "run_count": 11,
-  "timestamp": "2026-08-25T21:13:22+08:00"
+  "passed": false,
+  "run_count": 12,
+  "timestamp": "2026-08-26T05:12:19Z"
 }

@@ -98,12 +98,23 @@ test('clean PATH can run the installed Skill-local delegation entrypoint and uni
       'host-profile.cjs',
       'agent-execution-driver.cjs',
       'acp-driver.cjs',
+      'acp-conformance.cjs',
       'cli-driver.cjs',
       path.join('delegate-profiles', 'kimi-read-only.md'),
       path.join('delegate-profiles', 'kimi-write.md'),
     ]) {
       assert.ok(fs.existsSync(path.join(runnerRoot, relative)), relative);
     }
+    const installedZcodePatch = path.join(
+      runnerRoot, '..', 'patches', 'zcode-acp-0.1.0-zcode-0.16.5.patch',
+    );
+    assert.deepEqual(
+      fs.readFileSync(installedZcodePatch),
+      fs.readFileSync(path.join(
+        ROOT, 'skills', 'ultra-delegate', 'patches',
+        'zcode-acp-0.1.0-zcode-0.16.5.patch',
+      )),
+    );
 
     const direct = spawnSync(process.execPath, [runner, '--help'], {
       cwd: config,
@@ -131,8 +142,9 @@ test('clean PATH can run the installed Skill-local delegation entrypoint and uni
     const report = JSON.parse(doctor.stdout).reports[0];
     assert.equal(report.checks.delegation_runner.status, 'pass', JSON.stringify(report));
     assert.equal(report.checks.acp_capability.status, 'pass', JSON.stringify(report));
-    assert.equal(report.checks.agent_execution_driver.selected, 'cli', JSON.stringify(report));
-    assert.ok(report.checks.agent_execution_driver.fallback_reason, JSON.stringify(report));
+    assert.equal(report.checks.acp_capability.conformance_status, 'passed', JSON.stringify(report));
+    assert.equal(report.checks.agent_execution_driver.selected, 'acp', JSON.stringify(report));
+    assert.equal(report.checks.agent_execution_driver.fallback_reason, null, JSON.stringify(report));
 
     const worker = path.join(runnerRoot, 'delegate-worker.cjs');
     fs.unlinkSync(worker);

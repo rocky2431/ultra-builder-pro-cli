@@ -87,8 +87,10 @@ node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to <host> --in
 
 Resolve `<loaded-ultra-delegate-skill-dir>` from this Skill's actual loaded path. The
 Skill-local launcher and worker are the canonical runtime. Do not search `PATH` for
-`ubp`, install a global package, or invoke `npx` during delegation. `ubp delegate ...`
-is a one-release compatibility wrapper only.
+`ubp`, install a global Ultra package, or invoke `npx` to locate Ultra during
+delegation. The Claude and Codex ACP profiles may separately execute their exact pinned
+adapter packages through `npx`; that transport dependency is declared in the profile.
+`ubp delegate ...` is a one-release compatibility wrapper only.
 
 `<host>` is `claude`, `codex`, `opencode`, `kimi`, `grok`, or `zcode`. Kimi accepts an
 optional `--model <id>` when its account has no default headless model. A ZCode primary
@@ -97,12 +99,16 @@ host can select `--to zcode` through the ZCode headless profile.
 
 The launcher selects one `AgentExecutionDriver` per Host. A stable ACP v1 stdio
 candidate is preferred only when that exact Host's versioned conformance row is
-`passed`, names a non-empty evidence reference, and its executable probe succeeds. The
-probe checks declared capability and local executability without starting a provider
-task. Every other case uses the
+`passed`, names a non-empty evidence reference, and its executable and declared
+candidate-identity probes succeed. The probes are bounded local version checks; they
+inspect capability, executability, and pinned runtime identity without starting a
+provider task. Every other case uses the
 result-compatible `CliDriver` and records `execution_driver`, `acp_capability`, and the
 exact `driver_fallback_reason` in the receipt and terminal result. Do not edit a
 conformance row merely because a binary or help command exists.
+`ULTRA_DELEGATE_FORCE_CLI=1` is the explicit operator recovery switch: it selects the
+same bounded `CliDriver` with `acp_forced_cli` without deleting the ACP candidate or
+changing its evidence row.
 
 `AcpDriver` sends `initialize` with protocol v1 and no client filesystem, terminal, or
 interactive-auth capability; creates one session at the absolute isolated-worktree
@@ -111,14 +117,31 @@ permission, cancellation, and terminal messages. It retains only bounded redacte
 event metadata. An edit/delete/move request is granted with `allow_once` only when all
 declared locations are already inside `writable_roots`; scope widening and execution,
 fetch, mode-switch, or unknown operations are denied and force a typed terminal
-failure. `allow_always` is never selected. ACP authentication requirements remain a
-typed unavailable path; the driver does not copy or solicit credentials.
+failure. `allow_always` is never selected. If `session/new` reports
+`acp_auth_required` before any prompt is sent, the launcher runs the already-bound
+`CliDriver` once and records the failed ACP attempt as redacted fallback metadata. It
+never retries any post-prompt or other ACP failure, so this recovery cannot duplicate a
+provider task. The driver does not copy or solicit credentials.
+Some agents emit creation-time session metadata before their `session/new` response.
+The driver transiently buffers only a bounded set of metadata update kinds, then checks
+every buffered `sessionId` against the returned identity before publishing an event.
+Early message/tool content, an identity mismatch, or a count/byte overflow fails typed.
 
-The ZCode headless transport is `experimental`: its thin profile resolves only the
-installed ZCode Desktop runtime (or the operator's explicit PATH/test override) and
-never redistributes App bytes. The installed `app-server` is a ZCode Protocol surface,
-not evidence of ACP v1 compatibility, so the ZCode conformance row remains `not_run`
-and `CliDriver` remains active. It is an App-internal or PATH CLI with
+The ZCode headless transport is `experimental`: its thin profile invokes the
+independently installed `zcode-acp` v0.1.0 bridge, pinned to source commit
+`42fe149d4b501469343c01f23ba3801832306d53` plus the digest-bound ZCode 0.16.5
+runtime-preferences patch under this Skill's `patches/` directory, and passes only the
+installed ZCode Desktop runtime path (or the operator's explicit PATH/test override).
+Selection verifies both the bridge build marker
+`zcode-acp 0.1.0+ultra.zcode.0.16.5` and the installed runtime version `0.16.5` before
+using the passing receipt.
+Ultra ships the source patch but never redistributes the bridge binary or App bytes.
+Host identity and provider identity are separate; the verified local runtime uses the
+Owner's domestic BigModel provider rather than international Z.AI OAuth. The installed
+`app-server` remains a
+ZCode Protocol surface behind that bridge, not ACP evidence by itself; the ZCode row
+can pass only from its own provider-backed conformance receipt. The runtime remains
+an App-internal or PATH CLI with
 no public stability contract, and it is **not** the documented ZCode Desktop
 interactive surface. `delegate run --to zcode` refuses to launch until the invocation
 explicitly carries `--ack-experimental`; every launch then prints a stderr warning and

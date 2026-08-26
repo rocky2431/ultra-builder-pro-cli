@@ -43,9 +43,10 @@ delegation runtime, and a replaceable `AgentExecutionDriver`. Stable ACP v1 is p
 only after the exact Host has passed a recorded conformance drill; otherwise the same
 result contract uses a reported CLI fallback. The portable protocol and native
 installation cover Claude Code, Codex, OpenCode, Kimi Code, Grok Build, and ZCode. All
-six shipped profiles currently select CLI fallback. ZCode plugin installation and its
-installed Desktop runtime are supported as an `experimental` transport, but an ACP
-bridge is deliberately unavailable until the full recovery bar passes.
+six profiles expose stable ACP v1 candidates and have their own current real-provider
+receipt. Each selects ACP only while its recorded executable and candidate identity
+still match; otherwise it returns a typed CLI fallback. ZCode uses an independently
+installed, source-pinned bridge and remains `experimental`.
 
 5.0 deliberately does not add a daemon, workflow service, semantic state machine, A2A
 network, Team Pack, remote marketplace, or shared authority store. Package publication
@@ -215,6 +216,34 @@ npx ultra-builder-pro-cli@5.0.0 --zcode --global
 npx ultra-builder-pro-cli@5.0.0 --all --global
 ```
 
+ZCode ACP delegation additionally requires the independently built bridge and an
+installed ZCode Desktop runtime. Ultra ships the small source patch needed by ZCode
+CLI 0.16.5, but installs neither dependency and never records provider credentials:
+
+```bash
+git clone https://github.com/jpalmae/zcode-acp
+git -C zcode-acp checkout 42fe149d4b501469343c01f23ba3801832306d53
+git -C zcode-acp apply \
+  /path/to/installed/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch
+cargo test --locked --manifest-path zcode-acp/Cargo.toml
+cargo install --locked --path zcode-acp
+```
+
+The base commit, patch SHA-256
+`174dfd0feafe84320556a84b5ae08b10e44c5515fea4992fd1d58af54cee4e3d`, locked tests,
+fake E2E, release build, and real ZCode 0.16.5 session were verified for 5.0. Keep the
+binary on `PATH`; its `--version` must report
+`zcode-acp 0.1.0+ultra.zcode.0.16.5`. Use the platform's installed ZCode CLI path
+outside macOS.
+
+Provider identity is separate from the Host: ZCode Desktop is the runtime, while the
+model account may be domestic 智谱 BigModel or international Z.AI. A domestic BigModel
+Coding Plan config uses the official Anthropic-compatible endpoint
+`https://open.bigmodel.cn/api/anthropic` and a BigModel API key in
+`~/.zcode/cli/config.json`; it must not use the Z.AI OAuth login. The live 5.0 drill used
+`builtin:bigmodel-coding-plan/GLM-5.2`. See the
+[official BigModel Claude API compatibility guide](https://docs.bigmodel.cn/cn/guide/develop/claude/introduction).
+
 These pinned `npx` commands apply after `5.0.0` is published. Local release-candidate
 verification uses `node bin/install.js --config-dir <isolated-path>` and never mutates the
 real user installation.
@@ -349,8 +378,13 @@ Delegation writes an immutable instruction and permission envelope, then selects
 Host-local `AgentExecutionDriver` and starts it in the background. ACP is selected only
 for an executable stdio endpoint that negotiates stable v1 and has a passed per-Host
 conformance record with evidence; otherwise the same result contract uses `CliDriver`
-and reports the exact fallback reason. All six shipped Host profiles currently remain
-on that honest CLI fallback. Empty writable roots select native read-only mode;
+and reports the exact fallback reason. All six current Host rows have their own passing
+real-provider receipt; a missing executable, candidate-identity mismatch, or
+stale/missing receipt still returns the typed CLI fallback. An ACP authentication error
+detected before `session/prompt` runs the bounded CLI path once and records
+`acp_auth_required`; no other ACP failure is retried, so Ultra cannot duplicate a
+provider task. Empty
+writable roots select native read-only mode;
 declared roots select bounded write mode. The model returns one schema-constrained final
 response; the launcher extracts it from native structured output, validates the actual
 Git diff, and atomically publishes a terminal `finished`, `blocked`, or `failed` result
@@ -365,7 +399,8 @@ node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to codex \
 ```
 
 The loaded Skill path is canonical and works after a clean `npx` plugin install without
-a global `ubp` or another `npx` call; `ubp delegate` remains a one-release compatibility
+a global `ubp` or another `npx` lookup for Ultra; the pinned Claude/Codex ACP adapters
+may themselves run through `npx`. `ubp delegate` remains a one-release compatibility
 wrapper. Use the installed Skill's `scripts/delegate_wait.py` to wait for `result.json`
 without loading intermediate worker output into the parent context. Delegation grants no new
 authority; writable roots remain inside the worktree, and its permission file must
@@ -374,10 +409,11 @@ The immutable instruction names task execution/continuation, scoped Research evi
 or aggregate Change review/verification. The latter two may be read-only and do not
 require a task row, keeping pre-Plan Research and post-task cross-family review
 reachable without inventing ledger work.
-ZCode resolves only the installed Desktop runtime (the App-bundled CLI on macOS before
-the `PATH` fallback), remains `experimental`, and cannot promote an ACP bridge until its
-capability, read-only, permission, cancellation/no-orphan, cwd/diff, result-parity, and
-redaction drill passes. Doctor reports runner health, ACP capability, selected driver,
+ZCode resolves only the installed Desktop runtime through the independently installed
+`zcode-acp` bridge and remains `experimental`. Its capability, read-only,
+permission, cancellation/no-orphan, cwd/diff, result-parity, and redaction drills pass;
+promotion still requires an official stability contract for the App-internal runtime.
+Doctor reports runner health, ACP capability, candidate identity, selected driver,
 fallback reason, and ZCode maturity independently.
 
 ## Host support

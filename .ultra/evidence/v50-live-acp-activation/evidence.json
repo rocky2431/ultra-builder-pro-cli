@@ -1,0 +1,204 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-live-acp-activation",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-live-acp-activation.md",
+    "acceptance_sha256": "e360b31785fb6914eae7daf45326d0677178dc40671db24401ed13241ac9a07e"
+  },
+  "subject": {
+    "git_head": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+    "worktree_digest": "279cef779605ce3ea4e166bb39374f5dd09cf79e0f842b6e13db380162c7a6c4",
+    "observed_at": "2026-08-26T04:50:07Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "LA-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/acp-driver.test.cjs tests/acp-conformance.test.cjs tests/delegate.test.cjs tests/install.test.cjs tests/v026-adapters.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-live-acp-activation/verification.log",
+        "raw_evidence_sha256": "9f674a94c2ac22f7be2c7bd4f69c8a2b2585438ec3e867e8b1d628e4167ffbb2",
+        "freshness_identity": {
+          "git_head": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+          "worktree_digest": "279cef779605ce3ea4e166bb39374f5dd09cf79e0f842b6e13db380162c7a6c4",
+          "observed_at": "2026-08-26T04:50:07Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The 75/75 focused suite resolves every shipped profile, verifies exact pinned or native stdio commands, and proves bounded candidate inspection does not start a provider."
+      }
+    },
+    {
+      "criterion_id": "LA-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "cargo fmt --check; cargo test --locked; python3 tests/acp_client.py; cargo build --release --locked; git apply --check -R <compatibility-patch>",
+        "cwd": "pinned jpalmae/zcode-acp v0.1.0 source checkout",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-live-acp-activation/verification.log",
+        "raw_evidence_sha256": "9f674a94c2ac22f7be2c7bd4f69c8a2b2585438ec3e867e8b1d628e4167ffbb2",
+        "freshness_identity": {
+          "git_head": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+          "worktree_digest": "279cef779605ce3ea4e166bb39374f5dd09cf79e0f842b6e13db380162c7a6c4",
+          "observed_at": "2026-08-26T04:50:07Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The pinned source, digest-bound patch, 6/6 Rust tests, reproduced RED, patched fake E2E, release build, installed binary digest, exact build marker, and installed ZCode 0.16.5 runtime are all retained in the bridge receipt and frozen log."
+      }
+    },
+    {
+      "criterion_id": "LA-03",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "Claude Code, Codex, OpenCode, Kimi Code, Grok Build, and ZCode installed providers",
+        "run_id": "v50-live-acp-activation-six-host-conformance-2026-08-26",
+        "observed_at": "2026-08-26T04:45:22Z",
+        "raw_evidence_ref": ".ultra/evidence/v50-live-acp-activation/receipts-manifest.json",
+        "raw_evidence_sha256": "b141fd21f06ca78905b38a7c35f2a55a7258060d911f70c669f93f35b8118470",
+        "observation": "All six independently authenticated Hosts completed their own real read-only ACP v1 session with the exact Ultra result, clean isolated Git, and an observed terminal worker. ZCode used domestic BigModel Coding Plan rather than international Z.AI OAuth."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The manifest binds all six raw Host receipt byte digests, and every receipt records status passed, driver ACP, protocol v1, clean Git, terminal child state, and redacted provider output."
+      }
+    },
+    {
+      "criterion_id": "LA-04",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/acp-driver.test.cjs tests/acp-conformance.test.cjs tests/delegate.test.cjs tests/install.test.cjs tests/v026-adapters.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-live-acp-activation/verification.log",
+        "raw_evidence_sha256": "9f674a94c2ac22f7be2c7bd4f69c8a2b2585438ec3e867e8b1d628e4167ffbb2",
+        "freshness_identity": {
+          "git_head": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+          "worktree_digest": "279cef779605ce3ea4e166bb39374f5dd09cf79e0f842b6e13db380162c7a6c4",
+          "observed_at": "2026-08-26T04:50:07Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Current per-Host receipt digests select ACP only after executable and identity probes pass; missing, unavailable, mismatched, stale, or forced candidates return typed CLI reasons, while only pre-prompt acp_auth_required performs one bounded fallback."
+      }
+    },
+    {
+      "criterion_id": "LA-05",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-delegate/scripts/acp-conformance.cjs, .ultra/evidence/v50-live-acp-activation/receipts-manifest.json, and the six host-*.json receipts",
+        "observation": "The harness deletes temporary raw artifacts after hashing and stores only bounded result/protocol facts and digests. The seven-JSON structured scan found no sensitive values; all receipts explicitly record prompt, provider content, hidden reasoning, and credentials as not retained.",
+        "revision": "Git HEAD 8be6f6d2f8d5b367fd3fced2681240e4932242ae with product-worktree digest 279cef779605ce3ea4e166bb39374f5dd09cf79e0f842b6e13db380162c7a6c4"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Source inspection, receipt schemas, bounded artifact digests, and the structured secret-value scan agree that prompt, provider response, reasoning, credentials, and raw JSON-RPC are absent from retained evidence."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/acp-driver.test.cjs", "tests/acp-conformance.test.cjs", "tests/delegate.test.cjs", "tests/install.test.cjs"],
+      "rationale": "Regression coverage exercises all six candidate rows, exact bridge/runtime markers, missing and mismatched identities, pre-prompt auth fallback, no retry on other ACP failures, receipt redaction, real launcher wiring, and installed patch bytes."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/evidence/v50-live-acp-activation/verification.log", ".ultra/reviews/v50-live-acp-activation-delta-review-v3/SUMMARY.json"],
+      "rationale": "The focused ACP/install suite passed 75/75, journeys passed 5/5, Hooks passed 89/89, and the strict delta Review returned APPROVE with both axes PASS. The only repository-audit red is the deliberately stale aggregate report for four unfinished later tasks."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/evidence/v50-live-acp-activation/zcode-bridge.json", ".ultra/evidence/v50-live-acp-activation/receipts-manifest.json"],
+      "rationale": "The bridge binary, rollback copies, ZCode runtime, six raw receipts, and redacted manifest are real user-filesystem and provider observations; no mock or in-memory substitute stands at the live acceptance boundary."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": ["skills/ultra-delegate/scripts/agent-execution-driver.cjs", "tests/acp-driver.test.cjs"],
+      "rationale": "All six passing rows are active without a default-off feature flag. ULTRA_DELEGATE_FORCE_CLI is an explicit per-run recovery override that reports acp_forced_cli and does not hide or mutate conformance."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["skills/ultra-delegate/scripts/acp-conformance.cjs", ".ultra/evidence/v50-live-acp-activation/receipts-manifest.json", "tests/acp-conformance.test.cjs"],
+      "rationale": "The slice crosses the real Skill-local launcher, background worker, AgentExecutionDriver, Host ACP adapter, installed provider, exact result validator, Git-diff validator, terminal cleanup, redaction, and stored receipt."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/contexts/task-v50-live-acp-activation.md", ".ultra/changes/active/chg-ultra-5-0/intent.md", ".ultra/reviews/v50-live-acp-activation-delta-review-v3/SUMMARY.json"],
+      "rationale": "LA-01 through LA-05 project AC5-13 and AC5-14 from FP-1, FP-2, FP-5, and FP-6 into NS-02, NS-04, and NS-05 while preserving HC-1, HC-2, HC-3, HC-5, and HC-6."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "d56dd7e1391a547da7921025bac19cb52154539ea60536a97c6b9d6cf8e17777",
+      "limitation": null
+    },
+    "session_id": "v50-live-acp-activation-delta-review-v3",
+    "summary_ref": ".ultra/reviews/v50-live-acp-activation-delta-review-v3/SUMMARY.json",
+    "summary_digest": "7b5c5375c7d99f6a2866821cc477a9292bf039a22a46864da7c30cc84cad4281",
+    "blocking_findings": [
+      {
+        "id": "review-spec-001",
+        "resolution": "Implemented a one-time CLI transition only when session/new reports acp_auth_required before any prompt is sent.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": ["skills/ultra-delegate/scripts/agent-execution-driver.cjs", "tests/delegate.test.cjs", ".ultra/evidence/v50-live-acp-activation/verification.log"]
+      },
+      {
+        "id": "review-code-001",
+        "resolution": "Stamped the patched bridge with an Ultra build marker and required both that marker and installed ZCode runtime 0.16.5 before ACP selection.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": ["skills/ultra-delegate/scripts/host-profile.cjs", "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch", ".ultra/evidence/v50-live-acp-activation/zcode-bridge.json", ".ultra/evidence/v50-live-acp-activation/host-zcode.json"]
+      },
+      {
+        "id": "review-tests-001",
+        "resolution": "Added explicit missing marker, wrong bridge marker, wrong runtime, and exact pair regressions plus real selection and receipt binding checks.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": ["tests/acp-driver.test.cjs", ".ultra/evidence/v50-live-acp-activation/verification.log"]
+      },
+      {
+        "id": "review-errors-001",
+        "resolution": "Bound the immutable CLI fallback before launch and propagated final driver, reason, prompt_sent:false, protocol, adapter exit, and transport observations through the worker result.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": ["skills/ultra-delegate/scripts/delegate.cjs", "skills/ultra-delegate/scripts/delegate-worker.cjs", "skills/ultra-delegate/scripts/agent-execution-driver.cjs", "tests/delegate.test.cjs"]
+      }
+    ],
+    "retention": "Retain the exact strict review session, including WORKER-PACKET.json, ADMISSION.json, all four specialist artifacts, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully. Premature loss requires a fresh Review and Test; never reconstruct the old receipt."
+  },
+  "artifacts": [
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs",
+    "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/delegate.test.cjs",
+    ".ultra/evidence/v50-live-acp-activation/zcode-bridge.json",
+    ".ultra/evidence/v50-live-acp-activation/receipts-manifest.json",
+    ".ultra/evidence/v50-live-acp-activation/verification.log",
+    "docs/evals/ultra-5-0-live-acp-conformance.md",
+    ".ultra/reviews/v50-live-acp-activation-delta-review-v3/SUMMARY.json"
+  ],
+  "limitations": [
+    "ZCode ACP uses a verified App-internal runtime and remains experimental until the provider publishes a stability contract; the passing receipt does not promote transport maturity.",
+    "Real six-Host Ultra package activation in user directories and real Windows process-tree cleanup are separate planned tasks and are not claimed by this evidence.",
+    "The aggregate test report remains intentionally stale until all four newly activated 5.0 tasks publish final evidence; the task-specific 75/75 and strict Review are current.",
+    "Credential values, provider response text, prompts, hidden reasoning, and raw JSON-RPC were deliberately excluded from retained evidence.",
+    "Git HEAD remains the recovery commit because commit and push are later authorized release effects; this subject records the exact dirty product-worktree digest instead of claiming a commit.",
+    "The strict Review ran sequentially in shared context and has no independent model-family boundary."
+  ],
+  "timestamp": "2026-08-26T04:50:07Z"
+}

@@ -16,6 +16,8 @@ const MAX_MESSAGE_BYTES = 1024 * 1024;
 const MAX_AGENT_OUTPUT_BYTES = 1024 * 1024;
 const MAX_EVENTS = 512;
 const MAX_EVENT_BYTES = 512 * 1024;
+const MAX_EARLY_SESSION_UPDATES = 32;
+const MAX_EARLY_SESSION_UPDATE_BYTES = 256 * 1024;
 const STOP_REASONS = new Set([
   'end_turn', 'max_tokens', 'max_turn_requests', 'refusal', 'cancelled',
 ]);
@@ -24,6 +26,10 @@ const UPDATE_TYPES = new Set([
   'tool_call', 'tool_call_update', 'plan', 'available_commands_update',
   'current_mode_update', 'config_option_update', 'session_info_update',
   'usage_update',
+]);
+const EARLY_SESSION_UPDATE_TYPES = new Set([
+  'available_commands_update', 'current_mode_update', 'config_option_update',
+  'session_info_update',
 ]);
 const TOOL_KINDS = new Set([
   'read', 'edit', 'delete', 'move', 'search', 'execute', 'think', 'fetch',
@@ -407,6 +413,9 @@ class AcpDriver extends AgentExecutionDriver {
     let permissionDenied = null;
     let promptPromise = null;
     let expectedClose = false;
+    let sessionCreationPending = false;
+    let earlySessionUpdateBytes = 0;
+    let earlySessionUpdates = [];
     const pendingPermissions = new Map();
     const child = spawn(spec.command, spec.args, {
       cwd: spec.cwd,
@@ -428,8 +437,47 @@ class AcpDriver extends AgentExecutionDriver {
 
     const handleUpdate = (message) => {
       const params = message.params;
-      if (!isObject(params) || params.sessionId !== sessionId || !isObject(params.update)) {
-        throw new AcpFailure('acp_malformed_update', 'ACP session/update has an invalid session or update.');
+      const envelopeValid = isObject(params)
+        && typeof params.sessionId === 'string'
+        && params.sessionId.length > 0
+        && isObject(params.update);
+      if (!envelopeValid) {
+        throw new AcpFailure(
+          'acp_malformed_update',
+          'ACP session/update envelope is invalid '
+            + `(params_object=${isObject(params)}, session_id_type=${typeof params?.sessionId}, `
+            + `session_established=${typeof sessionId === 'string'}, `
+            + `session_matches=${params?.sessionId === sessionId}, update_object=${isObject(params?.update)}).`,
+        );
+      }
+      if (sessionId === null && sessionCreationPending) {
+        const updateType = params.update.sessionUpdate;
+        if (!EARLY_SESSION_UPDATE_TYPES.has(updateType)) {
+          throw new AcpFailure(
+            'acp_early_update_type',
+            'ACP emitted a non-metadata session update before session/new completed.',
+          );
+        }
+        const messageBytes = Buffer.byteLength(JSON.stringify(message));
+        if (earlySessionUpdates.length >= MAX_EARLY_SESSION_UPDATES
+            || earlySessionUpdateBytes + messageBytes > MAX_EARLY_SESSION_UPDATE_BYTES) {
+          throw new AcpFailure(
+            'acp_early_update_limit',
+            'ACP pre-session metadata exceeded its physical buffer limit.',
+          );
+        }
+        earlySessionUpdateBytes += messageBytes;
+        earlySessionUpdates.push(message);
+        return;
+      }
+      if (params.sessionId !== sessionId) {
+        throw new AcpFailure(
+          'acp_malformed_update',
+          'ACP session/update envelope is invalid '
+            + `(params_object=true, session_id_type=string, `
+            + `session_established=${typeof sessionId === 'string'}, `
+            + 'session_matches=false, update_object=true).',
+        );
       }
       const update = params.update;
       const updateType = update.sessionUpdate;
@@ -558,6 +606,12 @@ class AcpDriver extends AgentExecutionDriver {
         }
       }
       expectedClose = true;
+      // A Windows process tree cannot be addressed after its root PID exits. For
+      // cancellation/timeout, terminate the tree while the adapter is still alive;
+      // the earlier ACP cancel handshake has already had its bounded grace period.
+      if (!graceful && process.platform === 'win32') {
+        terminateProcessGroup(child, 'SIGTERM');
+      }
       try { child.stdin.end(); } catch {}
       if (graceful) {
         const closed = await Promise.race([childClosed.promise, delay(750).then(() => null)]);
@@ -591,6 +645,7 @@ class AcpDriver extends AgentExecutionDriver {
         auth_method_count: Array.isArray(initialized.authMethods) ? initialized.authMethods.length : 0,
       });
       let session;
+      sessionCreationPending = true;
       try {
         session = await waitStep(connection.request('session/new', {
           cwd: spec.cwd,
@@ -601,12 +656,18 @@ class AcpDriver extends AgentExecutionDriver {
           throw new AcpFailure('acp_auth_required', 'ACP agent requires authentication outside this delegation.');
         }
         throw error;
+      } finally {
+        sessionCreationPending = false;
       }
       if (!isObject(session) || typeof session.sessionId !== 'string' || !session.sessionId) {
         throw new AcpFailure('acp_malformed_session', 'ACP session/new returned no sessionId.');
       }
       sessionId = session.sessionId;
       appendEvent({ type: 'session', phase: 'created' });
+      const bufferedSessionUpdates = earlySessionUpdates;
+      earlySessionUpdates = [];
+      earlySessionUpdateBytes = 0;
+      for (const message of bufferedSessionUpdates) handleUpdate(message);
       promptPromise = connection.request('session/prompt', {
         sessionId,
         prompt: [{ type: 'text', text: spec.prompt }],
@@ -629,8 +690,14 @@ class AcpDriver extends AgentExecutionDriver {
       }
       const closed = await shutdown({ graceful: true });
       outcome = {
-        code: closed?.code ?? (outcome?.failureType ? 0 : null),
-        signal: closed?.signal || null,
+        // `session/prompt` is the ACP transport terminal. Closing stdin after
+        // that point is client-owned cleanup; adapters differ on the process
+        // exit code they use for EOF, so retain it as an observation without
+        // converting a completed turn into a task failure.
+        code: 0,
+        signal: null,
+        adapterExitCode: closed?.code ?? null,
+        adapterExitSignal: closed?.signal || null,
         termination: outcome?.termination || null,
         spawnError,
         protocolVersion,
@@ -648,6 +715,8 @@ class AcpDriver extends AgentExecutionDriver {
       outcome = {
         code: closed?.code ?? null,
         signal: closed?.signal || null,
+        adapterExitCode: closed?.code ?? null,
+        adapterExitSignal: closed?.signal || null,
         termination: wasTermination ? failure.failureType : null,
         spawnError,
         protocolVersion,
@@ -676,6 +745,8 @@ class AcpDriver extends AgentExecutionDriver {
       spawnError: null,
       protocolVersion: null,
       stopReason: null,
+      adapterExitCode: null,
+      adapterExitSignal: null,
       failureType,
       failureSummary,
     };

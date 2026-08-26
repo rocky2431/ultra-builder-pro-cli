@@ -26,7 +26,7 @@ const ACCEPTED_JOURNEYS = Object.freeze([
   ['J10', 'Permission denial', 'PASS'],
   ['J11', 'Cancellation', 'PASS'],
   ['J12', 'CLI fallback', 'PASS'],
-  ['J13', 'ZCode bridge', 'STOP'],
+  ['J13', 'ZCode bridge', 'PASS'],
   ['J14', '3.x migration', 'PASS'],
 ]);
 
@@ -241,8 +241,26 @@ test('3.x project install, update, Doctor, and uninstall preserve every seeded c
       assert.equal(report.checks.delegation_runner.status, 'pass', JSON.stringify(report));
       assert.equal(report.checks.acp_capability.status, 'pass', JSON.stringify(report));
       assert.equal(report.checks.agent_execution_driver.status, 'pass', JSON.stringify(report));
-      assert.equal(report.checks.agent_execution_driver.selected, 'cli', JSON.stringify(report));
-      assert.ok(report.checks.agent_execution_driver.fallback_reason, JSON.stringify(report));
+      const shouldSelectAcp = report.checks.acp_capability.conformance_status === 'passed'
+        && report.checks.acp_capability.executable_available === true
+        && report.checks.acp_capability.candidate_valid === true
+        && report.checks.acp_capability.candidate_identity_valid !== false;
+      assert.equal(
+        report.checks.agent_execution_driver.selected,
+        shouldSelectAcp ? 'acp' : 'cli',
+        JSON.stringify(report),
+      );
+      assert.equal(
+        report.checks.agent_execution_driver.fallback_reason,
+        shouldSelectAcp
+          ? null
+          : (report.checks.acp_capability.candidate_identity_valid === false
+            ? report.checks.acp_capability.candidate_identity_fallback_reason
+            : report.checks.acp_capability.conformance_status === 'passed'
+              ? 'acp_command_unavailable'
+            : 'acp_conformance_not_passed'),
+        JSON.stringify(report),
+      );
     }
     const zcode = health.reports.find((report) => report.adapter === 'zcode');
     assert.equal(zcode.checks.zcode_transport_maturity.status, 'experimental', doctor.stdout);
@@ -381,9 +399,9 @@ test('the accepted journey register reports one observable PASS or honest STOP p
     assert.match(design, new RegExp(`\\| ${escapeRegExp(name)} \\|`, 'u'));
     assert.match(results, new RegExp(`\\| ${id} \\| ${escapeRegExp(name)} \\| ${status} \\|`, 'u'));
   }
-  assert.match(results, /No live provider or user-HOME execution/u);
-  assert.match(results, /all shipped Hosts remain on CLI fallback/u);
-  assert.match(results, /ZCode[\s\S]*ACP bridge[\s\S]*not promoted/iu);
+  assert.match(results, /live-provider[^\n]*六个 Host/u);
+  assert.match(results, /Real user-HOME execution[^\n]*下一任务/u);
+  assert.match(results, /ZCode bridge \| PASS[\s\S]*国内 BigModel provider[\s\S]*experimental/iu);
   assert.match(results, /Windows descendant cleanup[\s\S]*not proven/iu);
 });
 

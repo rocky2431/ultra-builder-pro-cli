@@ -122,8 +122,26 @@ for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) 
     assert.equal(healthy.status, 'healthy', JSON.stringify(healthy.issues));
     assert.equal(healthy.checks.acp_capability.status, 'pass', runtime);
     assert.equal(healthy.checks.agent_execution_driver.status, 'pass', runtime);
-    assert.equal(healthy.checks.agent_execution_driver.selected, 'cli', runtime);
-    assert.ok(healthy.checks.agent_execution_driver.fallback_reason, runtime);
+    const shouldSelectAcp = healthy.checks.acp_capability.conformance_status === 'passed'
+      && healthy.checks.acp_capability.executable_available === true
+      && healthy.checks.acp_capability.candidate_valid === true
+      && healthy.checks.acp_capability.candidate_identity_valid !== false;
+    assert.equal(
+      healthy.checks.agent_execution_driver.selected,
+      shouldSelectAcp ? 'acp' : 'cli',
+      runtime,
+    );
+    assert.equal(
+      healthy.checks.agent_execution_driver.fallback_reason,
+      shouldSelectAcp
+        ? null
+        : (healthy.checks.acp_capability.candidate_identity_valid === false
+          ? healthy.checks.acp_capability.candidate_identity_fallback_reason
+          : healthy.checks.acp_capability.conformance_status === 'passed'
+            ? 'acp_command_unavailable'
+          : 'acp_conformance_not_passed'),
+      runtime,
+    );
     assert.equal(
       typeof healthy.checks.acp_capability.executable_available === 'boolean'
         || healthy.checks.acp_capability.executable_available === null,
@@ -137,11 +155,10 @@ for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) 
       runtime,
     );
     if (runtime === 'zcode') {
-      assert.equal(healthy.checks.agent_execution_driver.fallback_reason, 'acp_v1_unavailable');
       assert.deepEqual(healthy.checks.zcode_transport_maturity, {
         status: 'experimental',
         installed_runtime_only: true,
-        surface: 'installed ZCode Desktop runtime (thin ACP bridge required)',
+        surface: 'installed ZCode Desktop runtime through zcode-acp 0.1.0',
       });
     }
 

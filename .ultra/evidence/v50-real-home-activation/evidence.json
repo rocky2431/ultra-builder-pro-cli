@@ -1,0 +1,159 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-real-home-activation",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-real-home-activation.md",
+    "acceptance_sha256": "779fe90b606ec971913f4098fb245ad4328b0c8993250acc9349e43b080375b4"
+  },
+  "subject": {
+    "git_head": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+    "worktree_digest": "8f6412102b88bdf0e0e50d4cc96fd9c7daf8b99bb5192844493686e76ba8dadb",
+    "observed_at": "2026-08-26T05:08:57Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "RH-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node bin/install.js --all --global --doctor --json; bounded SHA-256 pre-install inventory capture",
+        "cwd": ".",
+        "exit_code": 2,
+        "raw_evidence_ref": ".ultra/evidence/v50-real-home-activation/verification.log",
+        "raw_evidence_sha256": "7efd4facf6dec2c11a79eef8153f7522bbe0f9aecceb038ac71fb6bcedb313d0",
+        "freshness_identity": {
+          "git_head": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+          "worktree_digest": "8f6412102b88bdf0e0e50d4cc96fd9c7daf8b99bb5192844493686e76ba8dadb",
+          "observed_at": "2026-08-26T05:08:57Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The expected degraded preflight binds six old provenance manifests, the mode-0600 backup manifest, 22 byte-identical managed backup pairs, and six redacted Host sentinels without retaining credential values."
+      }
+    },
+    {
+      "criterion_id": "RH-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node bin/install.js --all --global",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-real-home-activation/verification.log",
+        "raw_evidence_sha256": "7efd4facf6dec2c11a79eef8153f7522bbe0f9aecceb038ac71fb6bcedb313d0",
+        "freshness_identity": {
+          "git_head": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+          "worktree_digest": "8f6412102b88bdf0e0e50d4cc96fd9c7daf8b99bb5192844493686e76ba8dadb",
+          "observed_at": "2026-08-26T05:08:57Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The exact real-HOME command completed all six Hosts, every final provenance reports package 5.0.0, and the 12 untransformed Skill-local delegation files match source digest 491539ca481b8c5496907647914cd172eb219461401dc049ae638e98159f4305 in every installation."
+      }
+    },
+    {
+      "criterion_id": "RH-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node bin/install.js --all --global --doctor --json",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-real-home-activation/verification.log",
+        "raw_evidence_sha256": "7efd4facf6dec2c11a79eef8153f7522bbe0f9aecceb038ac71fb6bcedb313d0",
+        "freshness_identity": {
+          "git_head": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+          "worktree_digest": "8f6412102b88bdf0e0e50d4cc96fd9c7daf8b99bb5192844493686e76ba8dadb",
+          "observed_at": "2026-08-26T05:08:57Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The final real Doctor reports all six Hosts healthy, native discovery or registration passes, every installed AgentExecutionDriver selects ACP without fallback, and Codex Hook trust remains an explicit non-failing user_review_required action."
+      }
+    },
+    {
+      "criterion_id": "RH-04",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": ".ultra/evidence/v50-real-home-activation/preinstall-inventory.json, .ultra/evidence/v50-real-home-activation/install-receipt.json, and .ultra/evidence/v50-real-home-activation/verification.log",
+        "observation": "All six unrelated Host sentinels retain their byte or canonical non-Ultra digest. A real ZCode managed uninstall produced the expected degraded absent state, reinstall returned all Hosts to healthy, and the domestic-provider config remained byte-identical with mode 0600.",
+        "revision": "Git HEAD 8be6f6d2f8d5b367fd3fced2681240e4932242ae with product-worktree digest 8f6412102b88bdf0e0e50d4cc96fd9c7daf8b99bb5192844493686e76ba8dadb"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The retained before/after hashes distinguish expected Ultra registry metadata from unrelated Host data, and the real recovery sequence reaches both the truthful failure state and restored healthy state without config drift."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": ["tests/install.test.cjs", "tests/v026-adapters.test.cjs", "tests/acp-driver.test.cjs"],
+      "rationale": "This operational task adds no new production logic; existing adapter and ACP tests cover atomic managed replacement, ownership-preserving uninstall, Doctor, installed runner inspection, and typed ACP selection used by the real slice."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/evidence/v50-real-home-activation/verification.log", ".ultra/reviews/v50-real-home-activation-initial-review-v1/SUMMARY.json"],
+      "rationale": "The real six-Host install, final Doctor, exact asset comparison, six sentinel comparisons, and ZCode uninstall/reinstall passed; strict Review independently returned APPROVE with both axes PASS and zero findings."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/evidence/v50-real-home-activation/preinstall-inventory.json", ".ultra/evidence/v50-real-home-activation/install-receipt.json"],
+      "rationale": "All observations come from the Owner's actual user directories, native registries, installed manifests, and a durable mode-0700 recovery backup; no fixture or in-memory substitute stands at the acceptance boundary."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/evidence/v50-real-home-activation/install-receipt.json", "skills/ultra-delegate/scripts/agent-execution-driver.cjs"],
+      "rationale": "The installed 5.0 paths and ACP drivers are active by default in all six Hosts. ULTRA_DELEGATE_FORCE_CLI remains only an explicit per-run recovery override and was not used to manufacture Doctor health."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": ["bin/install.js", ".ultra/evidence/v50-real-home-activation/install-receipt.json", ".ultra/evidence/v50-real-home-activation/verification.log"],
+      "rationale": "The slice crosses the package installer, six real adapters, managed filesystem publication, native Host discovery, installed provenance, installed AgentExecutionDriver selection, uninstall, absent-state diagnostics, reinstall, and final health."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [".ultra/contexts/task-v50-real-home-activation.md", ".ultra/changes/active/chg-ultra-5-0/intent.md", ".ultra/reviews/v50-real-home-activation-initial-review-v1/SUMMARY.json"],
+      "rationale": "RH-01 through RH-04 project AC5-15 from FP-1, FP-4, and FP-5 into NS-01, NS-04, and NS-05 while preserving HC-1, HC-3, HC-4, and HC-5."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "055e9e9f3a4b1db6229513f84d94734a6478de2e994024008cd8bc6eb56b5956",
+      "limitation": null
+    },
+    "session_id": "v50-real-home-activation-initial-review-v1",
+    "summary_ref": ".ultra/reviews/v50-real-home-activation-initial-review-v1/SUMMARY.json",
+    "summary_digest": "605147d5dd579ab1a4a1187701602771a6b2392a503ca74876dbd842e09bc143",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict Review session, ADMISSION.json, all three specialist artifacts, SUMMARY.json, raw install receipts, and recovery manifest until aggregate Test and Deliver consume them successfully."
+  },
+  "artifacts": [
+    "bin/install.js",
+    "adapters/claude.js",
+    "adapters/opencode.js",
+    "adapters/codex.js",
+    "adapters/kimi.js",
+    "adapters/grok.js",
+    "adapters/zcode.js",
+    ".ultra/contexts/task-v50-real-home-activation.md",
+    ".ultra/evidence/v50-real-home-activation/preinstall-inventory.json",
+    ".ultra/evidence/v50-real-home-activation/install-receipt.json",
+    ".ultra/evidence/v50-real-home-activation/verification.log",
+    ".ultra/reviews/v50-real-home-activation-initial-review-v1/SUMMARY.json"
+  ],
+  "limitations": [
+    "The real installation was made from the honest dirty local 5.0.0 candidate at recovery HEAD 8be6f6d; registry-published immutable bytes are verified by the later public-release task.",
+    "Codex native plugin discovery passes, but Hook acceleration remains user_review_required until the Owner trusts the current definition in a new Codex session.",
+    "Windows descendant cleanup, commit/push, tag, npm publication, and GitHub Release remain separate later tasks and are not claimed here.",
+    "Credential values, provider responses, prompts, hidden reasoning, and raw Host JSON were deliberately excluded from retained evidence.",
+    "The strict Review ran sequentially in shared context and has no independent model-family boundary."
+  ],
+  "timestamp": "2026-08-26T05:08:57Z"
+}

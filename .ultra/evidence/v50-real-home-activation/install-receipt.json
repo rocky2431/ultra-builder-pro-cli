@@ -1,0 +1,71 @@
+{
+  "schema": "ultra-real-home-install-receipt-v1",
+  "captured_at": "2026-08-26T04:59:43Z",
+  "task_id": "v50-real-home-activation",
+  "acceptance_ids": ["RH-01", "RH-02", "RH-03", "RH-04"],
+  "credential_values_inspected": false,
+  "preinstall_inventory": {
+    "path": ".ultra/evidence/v50-real-home-activation/preinstall-inventory.json",
+    "sha256": "90c3a520f881394a879a234dab35dd831e28ca72f6a89cb6cb8c5679a9cdd139"
+  },
+  "recovery_backup": {
+    "path": "/Users/rocky243/.ultra-builder-pro/backups/2026-08-26-pre-5.0",
+    "manifest_sha256": "259bfd21d1b2d24757e86230b332cdd46d2ff13309f4863e891950cba63719f8",
+    "unchanged_after_install": true
+  },
+  "install": {
+    "command": "node bin/install.js --all --global",
+    "exit_code": 0,
+    "package_version": "5.0.0",
+    "source_commit": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+    "source_dirty": true,
+    "hosts_completed": ["claude", "opencode", "codex", "kimi", "grok", "zcode"]
+  },
+  "installed_manifests": {
+    "claude": { "path": "/Users/rocky243/.claude/skills/ultra-builder-pro/provenance.json", "sha256": "0b2f2dfd511a26ddde468f3240dd5fcdd9cadf7847c3d4c789a4adb795caa05b", "package_version": "5.0.0", "asset_count": 105 },
+    "opencode": { "path": "/Users/rocky243/.config/opencode/.ultra-builder-pro/provenance.json", "sha256": "09333e0278a286001baec1ca2c69ee187a93f095c7e58eb41b9ff136315008b4", "package_version": "5.0.0", "asset_count": 7 },
+    "codex": { "path": "/Users/rocky243/plugins/ultra-builder-pro/provenance.json", "sha256": "dc005d6b469d3417da6c9344044e9968a42a68dfeefb766fa5291f1ee9318c18", "package_version": "5.0.0", "asset_count": 121 },
+    "kimi": { "path": "/Users/rocky243/.kimi-code/plugins/managed/ultra-builder-pro/provenance.json", "sha256": "9cbc5f8b06acc6753be3054a79731eddd627b6b58094368c2226b04d7cb3d702", "package_version": "5.0.0", "asset_count": 106 },
+    "grok": { "path": "/Users/rocky243/.grok/.ubp/plugin-sources/ultra-builder-pro/provenance.json", "sha256": "36c886b1cbe17588fa0379fa9d4007f5597290beed3b4e8e5692496ce04457cc", "package_version": "5.0.0", "asset_count": 106 },
+    "zcode": { "path": "/Users/rocky243/.zcode/cli/plugins/marketplaces/ultra-builder-pro/plugin/provenance.json", "sha256": "9785c7382ec397a81ccf8f8a9dc0716666bb4df3087f8fdfa94312319f8e5123", "package_version": "5.0.0", "asset_count": 106 }
+  },
+  "skill_local_delegation_assets": {
+    "source_file_count": 12,
+    "source_digest": "491539ca481b8c5496907647914cd172eb219461401dc049ae638e98159f4305",
+    "exact_match_hosts": ["claude", "opencode", "codex", "kimi", "grok", "zcode"],
+    "zcode_patch_sha256": "174dfd0feafe84320556a84b5ae08b10e44c5515fea4992fd1d58af54cee4e3d"
+  },
+  "final_doctor": {
+    "command": "node bin/install.js --all --global --doctor --json",
+    "exit_code": 0,
+    "status": "healthy",
+    "hosts": {
+      "claude": { "status": "healthy", "driver": "acp", "fallback_reason": null, "native": "pass" },
+      "opencode": { "status": "healthy", "driver": "acp", "fallback_reason": null },
+      "codex": { "status": "healthy", "driver": "acp", "fallback_reason": null, "native": "pass", "hook_activation": "user_review_required" },
+      "kimi": { "status": "healthy", "driver": "acp", "fallback_reason": null, "native": "pass" },
+      "grok": { "status": "healthy", "driver": "acp", "fallback_reason": null, "native": "pass" },
+      "zcode": { "status": "healthy", "driver": "acp", "fallback_reason": null, "candidate_identity_valid": true, "native": "pass" }
+    }
+  },
+  "unrelated_host_sentinels": {
+    "claude": { "comparison": "raw", "before": "9347d3613796da2be08e222ba5236b46fb969ddafbdac22f016759804f36f6f1", "after": "9347d3613796da2be08e222ba5236b46fb969ddafbdac22f016759804f36f6f1", "match": true },
+    "opencode": { "comparison": "semantic_without_ultra", "before": "0c8b991c76edb917f7bfdc21b2271ce40032277ad7bea45aff43eaf84f502b52", "after": "0c8b991c76edb917f7bfdc21b2271ce40032277ad7bea45aff43eaf84f502b52", "match": true },
+    "codex": { "comparison": "semantic_without_ultra", "before": "b5cb38dded127c363654d86eb6e5818e6f62fad4d9183a69b6518fa3af7eaa54", "after": "b5cb38dded127c363654d86eb6e5818e6f62fad4d9183a69b6518fa3af7eaa54", "match": true },
+    "kimi": { "comparison": "semantic_without_ultra", "before": "f1f070ab2282e63d862698d1653f206f8b54df3f0591566faaa32a6007e19c45", "after": "f1f070ab2282e63d862698d1653f206f8b54df3f0591566faaa32a6007e19c45", "match": true, "managed_registry_timestamp_changed": true },
+    "grok": { "comparison": "native_registry_semantic_without_ultra", "before": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945", "after": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945", "match": true },
+    "zcode": { "comparison": "semantic_without_ultra_plugin_registration", "before": "95141afc614a57b9ff54c40cc5a3b697c3529bf68f5fcdb10501f6a517cd766d", "after": "95141afc614a57b9ff54c40cc5a3b697c3529bf68f5fcdb10501f6a517cd766d", "match": true, "raw_before": "fef1b130ac85badcb4bb3b1b37acbd317abd84cf0f8b221be17ac1c404363968", "raw_after": "fef1b130ac85badcb4bb3b1b37acbd317abd84cf0f8b221be17ac1c404363968", "mode_after": "0600" }
+  },
+  "recovery_exercise": {
+    "host": "zcode",
+    "uninstall_command": "node bin/install.js --zcode --global --uninstall",
+    "uninstall_exit_code": 0,
+    "absent_doctor_exit_code": 2,
+    "absent_doctor_status": "degraded",
+    "reinstall_command": "node bin/install.js --zcode --global",
+    "reinstall_exit_code": 0,
+    "final_doctor_status": "healthy",
+    "unrelated_configuration_restored_byte_identical": true
+  },
+  "result": "pass"
+}
