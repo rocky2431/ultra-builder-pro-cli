@@ -81,6 +81,101 @@ test('package exposes only the installer and delegate entrypoint', () => {
   assert.match(help.stdout, /ZCode/);
 });
 
+test('clean PATH can run the installed Skill-local delegation entrypoint and uninstall removes it', () => {
+  const config = temporary('ubp-skill-runner-');
+  const fakeHome = temporary('ubp-skill-runner-home-');
+  const args = ['--claude', '--global', '--config-dir', config];
+  const runnerRoot = path.join(
+    config, 'skills', 'ultra-builder-pro', 'skills', 'ultra-delegate', 'scripts',
+  );
+  const runner = path.join(runnerRoot, 'delegate.cjs');
+  try {
+    const installed = run(args, { env: { HOME: fakeHome } });
+    assert.equal(installed.status, 0, installed.stderr || installed.stdout);
+    for (const relative of [
+      'delegate.cjs',
+      'delegate-worker.cjs',
+      'host-profile.cjs',
+      'agent-execution-driver.cjs',
+      'acp-driver.cjs',
+      'cli-driver.cjs',
+      path.join('delegate-profiles', 'kimi-read-only.md'),
+      path.join('delegate-profiles', 'kimi-write.md'),
+    ]) {
+      assert.ok(fs.existsSync(path.join(runnerRoot, relative)), relative);
+    }
+
+    const direct = spawnSync(process.execPath, [runner, '--help'], {
+      cwd: config,
+      encoding: 'utf8',
+      env: { HOME: fakeHome, PATH: path.dirname(process.execPath) },
+    });
+    assert.equal(direct.status, 0, direct.stderr || direct.stdout);
+    assert.match(direct.stdout, /delegate\.cjs <run\|status\|cancel>/u);
+
+    const project = path.join(config, 'clean-path-project');
+    const delegation = path.join(project, '.ultra', '.runtime', 'delegations', 'probe');
+    fs.mkdirSync(delegation, { recursive: true });
+    const directStatus = spawnSync(process.execPath, [
+      runner, 'status', '--delegation', delegation,
+    ], {
+      cwd: project,
+      encoding: 'utf8',
+      env: { HOME: fakeHome, PATH: path.dirname(process.execPath) },
+    });
+    assert.equal(directStatus.status, 0, directStatus.stderr || directStatus.stdout);
+    assert.equal(JSON.parse(directStatus.stdout).status, 'not_started');
+
+    const doctor = run([...args, '--doctor', '--json'], { env: { HOME: fakeHome } });
+    assert.equal(doctor.status, 0, doctor.stderr || doctor.stdout);
+    const report = JSON.parse(doctor.stdout).reports[0];
+    assert.equal(report.checks.delegation_runner.status, 'pass', JSON.stringify(report));
+    assert.equal(report.checks.acp_capability.status, 'pass', JSON.stringify(report));
+    assert.equal(report.checks.agent_execution_driver.selected, 'cli', JSON.stringify(report));
+    assert.ok(report.checks.agent_execution_driver.fallback_reason, JSON.stringify(report));
+
+    const worker = path.join(runnerRoot, 'delegate-worker.cjs');
+    fs.unlinkSync(worker);
+    fs.mkdirSync(worker);
+    const degraded = run([...args, '--doctor', '--json'], { env: { HOME: fakeHome } });
+    assert.notEqual(degraded.status, 0);
+    const degradedReport = JSON.parse(degraded.stdout).reports[0];
+    assert.equal(degradedReport.checks.delegation_runner.status, 'fail');
+    assert.ok(degradedReport.issues.some((issue) => (
+      issue.code === 'DELEGATION_RUNNER_MISSING' && issue.paths.includes(worker)
+    )), JSON.stringify(degradedReport));
+
+    const repaired = run(args, { env: { HOME: fakeHome } });
+    assert.equal(repaired.status, 0, repaired.stderr || repaired.stdout);
+    assert.deepEqual(
+      fs.readFileSync(worker),
+      fs.readFileSync(path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate-worker.cjs')),
+    );
+
+    const acpDriver = path.join(runnerRoot, 'acp-driver.cjs');
+    fs.unlinkSync(acpDriver);
+    const missingAcp = run([...args, '--doctor', '--json'], { env: { HOME: fakeHome } });
+    assert.notEqual(missingAcp.status, 0);
+    const missingAcpReport = JSON.parse(missingAcp.stdout).reports[0];
+    assert.equal(missingAcpReport.checks.delegation_runner.status, 'fail');
+    assert.ok(missingAcpReport.issues.some((issue) => (
+      issue.code === 'DELEGATION_RUNNER_MISSING' && issue.paths.includes(acpDriver)
+    )), JSON.stringify(missingAcpReport));
+    assert.equal(run(args, { env: { HOME: fakeHome } }).status, 0);
+    assert.deepEqual(
+      fs.readFileSync(acpDriver),
+      fs.readFileSync(path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'acp-driver.cjs')),
+    );
+
+    const uninstalled = run([...args, '--uninstall'], { env: { HOME: fakeHome } });
+    assert.equal(uninstalled.status, 0, uninstalled.stderr || uninstalled.stdout);
+    assert.equal(fs.existsSync(runnerRoot), false);
+  } finally {
+    fs.rmSync(config, { recursive: true, force: true });
+    fs.rmSync(fakeHome, { recursive: true, force: true });
+  }
+});
+
 for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']) {
   test(`${runtime} CLI install, doctor, reinstall and uninstall stay inside config-dir`, () => {
     const config = temporary(`ubp-cli-${runtime}-`);

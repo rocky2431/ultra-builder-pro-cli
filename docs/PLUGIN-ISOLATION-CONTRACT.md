@@ -1,19 +1,25 @@
 # Plugin isolation contract
 
-Ultra Builder Pro owns a narrow install surface and becomes active only in a project
-that contains `.ultra/` or when the owner explicitly invokes an Ultra Skill.
+Ultra Builder Pro owns a narrow install surface. Installation and discovery create no
+project authority. A public workflow becomes active only through an explicit owner
+entry or one mode covered by a currently valid Execution Grant; Hooks separately use
+the presence of `.ultra/` as their idle guard.
 
 ## Owned surfaces
 
 Per host, Ultra may install:
 
 - exactly fourteen managed Skills;
+- the launcher, worker, Host profile, and launch-only profile assets below the managed
+  `ultra-delegate/scripts/` Skill directory;
 - exactly five hook scripts plus `_common.py` and any required wire adapter;
 - one native plugin manifest or entrypoint;
 - provenance and managed-ownership markers;
 - the host's native registry entry where required.
 
-The package also owns `ubp delegate run`, its worker, and rule-side Skill references.
+For one release cycle the package also owns thin `ubp delegate` launcher/worker
+compatibility imports. They execute the Skill-local implementation and contain no
+forked behavior.
 
 ## Surfaces Ultra does not own
 
@@ -29,9 +35,10 @@ Ultra must not create or rewrite:
 
 ## Installation lifecycle
 
-Install builds a complete staging tree, marks it managed, writes provenance, then
-atomically publishes it. An existing unmanaged target is never overwritten. Reinstall
-replaces only the managed tree. Doctor is read-only. Uninstall removes only assets
+Install builds a complete staging tree, including the Skill-local delegation runtime,
+marks it managed, writes provenance, then atomically publishes it. An existing unmanaged
+target is never overwritten. Reinstall replaces only the managed tree. Doctor is
+read-only and reports runner reachability separately. Uninstall removes only assets
 whose ownership can be proven.
 
 Host-owned sidecars must resolve from the same isolation root as `--config-dir`. For
@@ -63,12 +70,21 @@ the owner.
 
 ## Activation
 
-Owner-invoked Skills activate only through the host's explicit Skill surface.
-Model-invoked Skills may be selected by the host model only as methods inside the
-current authorized task. Hooks activate only through host lifecycle registrations.
+Public Skill modes are `explicit-entry`, `grant-continuable`, or read-only `router`.
+Explicit-entry modes activate only through the Host's owner-facing Skill surface.
+Grant-continuable modes may be model-selected only after the loaded Skill verifies the
+same active Change, valid grant, allowed effects, and material checkpoints. A router may
+diagnose read-only state only on explicit owner invocation and creates no continuation
+authority. Model-discipline Skills
+may be selected only as methods inside the current covered workflow.
 
-One public Skill may recommend another but never launches it. Installation does not
-create project authority or start background work.
+Host invocation metadata is a coarse discovery aid. It cannot express every per-mode
+boundary, so the in-Skill check remains mandatory and Hosts without an equivalent bit
+rely on discriminating descriptions plus that same check. A public Skill may transition
+to another only when a valid grant covers the exact next mode and effects, after showing
+the Route Card; otherwise it stops and recommends the explicit route. Installation does
+not create a grant, launch a workflow, or start background work. Hooks activate only
+through Host lifecycle registrations and retain their independent idle guard.
 
 ## Idle behavior
 

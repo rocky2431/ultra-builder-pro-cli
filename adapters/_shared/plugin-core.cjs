@@ -21,6 +21,16 @@ const {
 } = require('./runtime-assets.cjs');
 
 const PROVENANCE_FILE = 'provenance.json';
+const DELEGATION_RUNNER_FILES = Object.freeze([
+  'delegate.cjs',
+  'delegate-worker.cjs',
+  'host-profile.cjs',
+  'agent-execution-driver.cjs',
+  'acp-driver.cjs',
+  'cli-driver.cjs',
+  path.join('delegate-profiles', 'kimi-read-only.md'),
+  path.join('delegate-profiles', 'kimi-write.md'),
+]);
 
 function titleCase(name) {
   return name.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
@@ -165,6 +175,18 @@ function inspectPlugin({ adapter, repoRoot, pluginRoot, skillRoot, hookRoot, man
       issue('SKILL_MISSING', { skill: name });
     }
   }
+  const delegationRunnerRoot = path.join(skillRoot, 'ultra-delegate', 'scripts');
+  const missingDelegationRunnerFiles = DELEGATION_RUNNER_FILES.filter((relative) => {
+    const candidate = path.join(delegationRunnerRoot, relative);
+    return !fs.existsSync(candidate) || !fs.statSync(candidate).isFile();
+  });
+  if (missingDelegationRunnerFiles.length > 0) {
+    issue('DELEGATION_RUNNER_MISSING', {
+      paths: missingDelegationRunnerFiles.map((relative) => (
+        path.join(delegationRunnerRoot, relative)
+      )),
+    });
+  }
   for (const name of [...WORKFLOW_HOOK_FILES, '_common.py']) {
     if (!fs.existsSync(path.join(hookRoot, name))) issue('HOOK_MISSING', { hook: name });
   }
@@ -180,6 +202,41 @@ function inspectPlugin({ adapter, repoRoot, pluginRoot, skillRoot, hookRoot, man
   report.checks.plugin_manifest = {
     status: fs.existsSync(manifestFile) ? 'pass' : 'fail',
   };
+  report.checks.delegation_runner = {
+    status: missingDelegationRunnerFiles.length === 0 ? 'pass' : 'fail',
+    entrypoint: path.join(delegationRunnerRoot, 'delegate.cjs'),
+  };
+  try {
+    const installedProfiles = require(path.join(delegationRunnerRoot, 'host-profile.cjs'));
+    const installedDrivers = require(path.join(delegationRunnerRoot, 'agent-execution-driver.cjs'));
+    const profile = installedProfiles.hostProfile(adapter);
+    const selection = installedDrivers.selectExecutionDriver({
+      host: adapter,
+      profile,
+      cliCommand: profile.binary,
+      env: process.env,
+    });
+    report.checks.acp_capability = {
+      status: 'pass',
+      ...selection.acpCapability,
+    };
+    report.checks.agent_execution_driver = {
+      status: 'pass',
+      selected: selection.driver,
+      fallback_reason: selection.fallbackReason,
+    };
+    if (adapter === 'zcode') {
+      report.checks.zcode_transport_maturity = {
+        status: profile.transportMaturity,
+        installed_runtime_only: profile.installedRuntimeOnly === true,
+        surface: profile.acp?.surface || null,
+      };
+    }
+  } catch (error) {
+    issue('EXECUTION_DRIVER_INSPECTION_FAILED', { message: error.message });
+    report.checks.acp_capability = { status: 'fail' };
+    report.checks.agent_execution_driver = { status: 'fail' };
+  }
   report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
   return report;
 }

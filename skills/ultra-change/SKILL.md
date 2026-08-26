@@ -8,17 +8,35 @@ description: Open or reconcile one bounded unit of work by comparing specificati
 A Change connects research, plan, implementation, verification, review, and delivery.
 Reconcile first so new intent does not bury an existing specification/code conflict.
 
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `intake` | Explicit owner request with no active Change | One stable draft `change_id` captures outcome, acceptance, non-goals, seams, trace, and Research Disposition | Stay in `ultra-change` for acceptance or move to `evidence-needed` |
+| `evidence-needed` | The draft names one load-bearing question and required exit evidence | The bounded Research Disposition is owner-visible and records its return to this Change | Recommend `ultra-research/change-scoped` |
+| `reconcile` | Explicit invocation or a valid Execution Grant for the same active Change | Research or implementation evidence is dispositioned in the same intent and any material delta is accepted | Recommend or continue to `ultra-plan/decompose` when the intent is accepted |
+| `accepted` | Explicit owner acceptance of the Change outcome and boundary | Accepted intent, current trace, satisfied Research Disposition, and resolved material decisions are read back | Recommend `ultra-plan/decompose` |
+
+Follow `../ultra-status/references/route-contract.md`. A draft may be revised in place;
+an already accepted owner decision is revised by a superseding decision record so its
+history remains recoverable. Show a Route Card before each public transition. Under a
+valid grant only the non-material `reconcile` mode may continue implicitly.
+
 ## Before you start
 
-1. Read `references/change-contract.md` and apply its **Active Change authority
+1. If model-selected, require `reconcile` mode for the same active Change and verify a
+   live grant under `references/execution-grant.md`. Any intake, evidence-needed boundary,
+   acceptance, abandonment, reduction, or primary transfer stops and recommends current
+   explicit owner invocation; a coarse Host invocation bit cannot authorize it.
+2. Read `references/change-contract.md` and apply its **Active Change authority
    resolution** before reading any active `intent.md`, relying on a current `change_id`,
    or creating or writing a Change. Continue only from its positively observed stable
    zero-or-one result; return its typed repair for any other result. With one active
    Change, read `.ultra/tasks.json`, then only its unfinished `context_file` values.
    Update the same `change_id`; never open a second active Change.
-2. Read `.ultra/project-brief.md`, `CONTEXT.md`, relevant `.ultra/decisions/`, and
+3. Read `.ultra/project-brief.md`, `CONTEXT.md`, relevant `.ultra/decisions/`, and
    `.ultra/north-star.md` for raw provenance, accepted language, and direction.
-3. Grep archive and abandoned Changes that touched this area. Prefer archived
+4. Grep archive and abandoned Changes that touched this area. Prefer archived
    `delivery.md`; otherwise read `archive-summary.md`, `verification.md`, `intent.md`,
    and remaining Markdown. Read abandoned Changes as history of rejected boundaries and
    reusable evidence, never current intent. A missing `delivery.md` does not mean no history;
@@ -100,7 +118,9 @@ count.
 
 Output active `intent.md` under a stable id, justified specification patches, qualifying
 decision or vocabulary updates. For an evidence gap recommend `ultra-research`; when
-evidenced recommend `ultra-plan`. Invoke neither.
+evidenced recommend `ultra-plan`. Invoke neither without a covering grant; with a valid
+grant covering same-Change reconciliation and Plan, show the transition Route Card and
+allow Plan to re-verify its own entry contract.
 
 ## Abandoning a Change
 
@@ -128,6 +148,11 @@ Every non-empty bucket, the Change boundary, abandonment, and anything
 reconciliation turns up that shrinks a prior commitment. A change that makes no
 specification sentence false needs no permission at all.
 
+If the owner rejects the presented options or says none is adequate, preserve that
+answer as current intake and keep the intent draft or move it to `evidence-needed`.
+Gather the missing discriminating evidence or present materially different options; do
+not select the nearest rejected option, manufacture acceptance, or route to Plan.
+
 ## References
 
 - `../ultra-grilling/SKILL.md` — the loop for settling the boundary.
@@ -135,5 +160,6 @@ specification sentence false needs no permission at all.
   `intent.md` structure, and profile fields.
 - `references/execution-grant.md` — read when the owner requests bounded workflow continuation under a session-local or durable grant.
 - `references/primary-transfer.md` — read when the owner moves the work package's canonical writer to another Agent (OFFER → ACK → RESULT).
+- `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `../ultra-think/references/autonomy-boundary.md` — read before removing a promise.
 - `../ultra-tdd/SKILL.md` — read for an evidenced one-slice correction.

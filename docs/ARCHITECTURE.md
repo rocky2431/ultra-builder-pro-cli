@@ -14,14 +14,14 @@ bounded effects, and recovery.
 Owner request
     │ explicit selection or verified execution grant (session-local / durable)
     ▼
-User-invoked Skill ──────── stops at the next owner boundary
+Public Skill mode ───────── stops at the next owner boundary
     │
     ├── model-invoked disciplines (reasoning methods)
     ├── source / tests / runtime / primary documentation
     └── canonical project files + Git
              │
              ├── optional five hooks (derived context and effect guard)
-             └── optional delegate CLI (bounded external host process)
+             └── optional delegation (ACP-first driver or CLI fallback)
 ```
 
 Ultra has no semantic runtime supervisor. Reading the files is the recovery protocol;
@@ -37,15 +37,20 @@ Fourteen `skills/*/SKILL.md` files carry the workflow:
 - five model-invoked reusable disciplines;
 - one read-only router.
 
-The exact allowlists live in `adapters/_shared/runtime-assets.cjs`. Public workflows
-are explicit by default. The narrow exception is an accepted Change-scoped `Execution
-Grant` in one of two modes. `session-local`: Research, Plan, Dev, Test, and Deliver
-reconciliation may be selected by the model only while the same session still contains
-the owner's activation and approved task ledger; once that conversation activation is
-lost, the work stops. `durable work-package`: a fresh Agent or host may continue one
-exact work package, but only after stably verifying the recorded grant. Stored text
-alone grants nothing, and neither mode grants finalization or archive; owner
-checkpoints, final delivery effects, and every external effect still stop.
+The exact allowlists and per-mode invocation map live in
+`adapters/_shared/runtime-assets.cjs`. Public modes are `explicit-entry`,
+`grant-continuable`, or read-only `router`. Under an accepted Change-scoped Execution
+Grant, change-scoped Research, same-Change reconciliation, Plan, Dev, Test, and Deliver
+reconciliation may be selected by the model only while `session-local` activation is
+live or a fresh Agent has stably verified a `durable work-package` grant. Host metadata
+does not preserve session activation: a fresh session, Host switch, or compaction stops
+`session-local` continuation until the Owner activates it again. Host metadata
+is a coarse discovery bit; each loaded Skill rechecks its mode, Change, effects, and
+material checkpoints. Stored text alone grants nothing, and neither mode grants Change
+intake/acceptance, primary transfer, Deliver finalization or archive; every external
+effect still stops. The derived Route Card makes each boundary owner-visible without
+becoming workflow state or authority. The router itself remains owner-invoked; public
+Skills derive their own cards from the shared Route Contract instead of invoking it.
 
 Research's seventeen references are workflow-owned semantic lenses. Its optional
 `wayfinding.md` maps a multi-lens question without becoming a new Skill or authority.
@@ -108,9 +113,12 @@ hard ceilings, while the model interprets whether acceptance and stop conditions
 - hook command paths and wire normalization;
 - atomic managed installation, provenance, doctor, and uninstall behavior.
 
-`adapters/_shared/plugin-core.cjs` owns the common copy and managed-publication
-mechanics. `host-profile.cjs` owns the six non-interactive delegation argv contracts.
-Adapters never rewrite workflow meaning.
+`adapters/_shared/plugin-core.cjs` owns the common copy, managed publication, and
+delegation-runner inventory and driver-reporting checks. The canonical six-host
+non-interactive profile lives
+beside the installed launcher at `skills/ultra-delegate/scripts/host-profile.cjs`;
+`adapters/_shared/host-profile.cjs` is a one-release compatibility re-export. Adapters
+never rewrite workflow meaning.
 
 ### Why the old Agents are Skill assets now
 
@@ -139,6 +147,12 @@ successfully, then it may be garbage-collected. Premature loss requires a fresh 
 and Test; never reconstruct the old receipt. The dangerous-command hook is the only
 hard effect guard; it classifies a small named destructive set and provides an
 exact-command authorization repair.
+
+ACP `session/update` telemetry follows the same rule. The Skill-local driver stores only
+bounded redacted event metadata under the delegation directory, drops hidden thought
+chunks and raw tool payloads, and exposes the latest safe observation through status.
+The journal, session id, capability report, permission decision, and stop reason are all
+disposable execution observations; none can select a route or establish completion.
 Additive protected-branch publication remains advisory when portable host wiring cannot
 project a trusted owner-approval receipt; history rewrites and branch deletion remain
 guarded.
@@ -180,12 +194,21 @@ These are independent sensors. None rewrites a finding into product truth.
 
 ## Delegation
 
-`ubp delegate run` validates all paths inside the selected project, reads a bounded
-instruction and permission JSON, builds argv from one host profile, and starts a
-background worker. Declared writable roots must already exist inside the delegated
+The canonical installed `ultra-delegate/scripts/delegate.cjs` validates all paths inside
+the selected project, reads a bounded instruction and permission JSON, probes the
+Skill-local Host profile, and starts the Skill-local background worker. One
+`AgentExecutionDriver` boundary selects stable ACP v1 stdio only after the exact Host's
+versioned conformance row passes with a non-empty evidence reference and the declared
+executable exists; otherwise the same packet runs through `CliDriver` and records the
+fallback reason. Capability inspection
+does not start a provider task. The
+one-release `ubp delegate` surface imports those same functions and owns no forked
+behavior. Declared writable roots must already exist inside the delegated
 worktree; no readable-root or external-effect grant can widen the host's native
 sandbox. Empty writable roots select native read-only mode. The model returns a
-schema-constrained final response; the Node worker validates `finished`, `blocked`, or
+schema-constrained final response; `AcpDriver` reconstructs only agent-message text as
+that same validator input, while ACP stop reasons remain observations. The Node worker
+validates `finished`, `blocked`, or
 `failed` and atomically publishes `result.json` beside the instruction. The model never
 writes its own receipt; stdout, stderr, native final output, and the launch receipt
 remain diagnostic files.
@@ -226,6 +249,7 @@ The architecture does not include:
 - an MCP server or tool protocol;
 - a workflow state machine or semantic validator;
 - a background orchestration daemon;
+- a resident ACP service, ACP session store, or semantic route ledger;
 - command or custom-agent prompt projections;
 - general memory, code graph, browser, deployment, or framework packages.
 

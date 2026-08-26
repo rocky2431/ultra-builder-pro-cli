@@ -7,6 +7,20 @@ description: Carry one planned task from a written implementation plan through r
 
 The model owns code reasoning and edits; repository files own the resumable contract.
 
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `execute` | Explicit task id or a valid Execution Grant covering one dependency-ready pending task | The named task has current acceptance evidence, final task review, completion context, and a read-back `completed` ledger row | Recommend the next exact `ultra-dev/execute` task or `ultra-test/audit` |
+| `resume` | Explicit task id or a valid Execution Grant covering the unique in-progress task | Existing work is reconciled from Git, context, and Resume Note, then reaches the same completion evidence or a typed stop | Recommend the next exact task, `ultra-test/audit`, or the responsible repair route |
+| `reopen` | Explicit task id or a valid Execution Grant after current evidence invalidates a completed task | The invalidated criteria are refreshed through a new review and the task is completed again, or the remaining gate is named | Recommend the next exact task or `ultra-test/reaudit` |
+
+Follow `../ultra-status/references/route-contract.md`. Show a Route Card before the
+first implementation edit, at material checkpoints or unavailable evidence, and after
+the ledger readback. When context pressure threatens reliable continuation, finish the
+nearest safe write, refresh the Resume Note, and recommend a fresh session rather than
+pretending the task is still making invisible progress.
+
 ## Before you start
 
 1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop.
@@ -229,8 +243,9 @@ historical evidence, then write and read back the ledger transition. Refresh the
 evidence, run task review for the new snapshot, and repeat this closeout sequence.
 
 Report the changed paths, the seam, the exact checks run, the review result, the
-evidence gaps and the residual risk. Recommend the next capability from what the
-files now say; do not invoke it.
+evidence gaps and the residual risk. Recommend the next capability from what the files
+now say. Continue only when its exact mode and effects remain inside the valid grant and
+after showing the transition Route Card; otherwise do not invoke it.
 
 ## When the owner decides
 
@@ -245,5 +260,6 @@ authority. An interruption leaves the worktree as-is and names it in the Resume 
 - `../ultra-think/references/autonomy-boundary.md` — read when spec and code disagree.
 - `../ultra-review/SKILL.md` — read when implementation evidence is ready for review.
 - `../ultra-change/references/execution-grant.md` — read only for grant-activated continuation.
+- `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `../ultra-plan/references/task-evidence-v2.md` — canonical evidence, disposition, and task-review shape.
 - `references/debugging.md` — read for a reproduced failure before selecting a repair.

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Canonical v0.26 package boundary.
+ * Canonical package and invocation boundary.
  *
  * Skills carry semantic workflow. Hooks are optional acceleration and safety.
  * There is no prompt projection, worker registry, MCP kernel, or runtime daemon.
@@ -27,13 +27,54 @@ const MODEL_INVOKED_SKILLS = Object.freeze([
 ]);
 
 const ROUTER_SKILLS = Object.freeze(['ultra-status']);
-const GRANT_CONTINUABLE_SKILLS = Object.freeze([
-  'ultra-research',
-  'ultra-plan',
-  'ultra-dev',
-  'ultra-test',
-  'ultra-deliver',
-]);
+const PUBLIC_SKILL_INVOCATION_MODES = Object.freeze({
+  'ultra-init': Object.freeze({
+    create: 'explicit-entry',
+    recover: 'explicit-entry',
+  }),
+  'ultra-research': Object.freeze({
+    baseline: 'explicit-entry',
+    'change-scoped': 'grant-continuable',
+  }),
+  'ultra-change': Object.freeze({
+    intake: 'explicit-entry',
+    'evidence-needed': 'explicit-entry',
+    reconcile: 'grant-continuable',
+    accepted: 'explicit-entry',
+  }),
+  'ultra-plan': Object.freeze({
+    decompose: 'grant-continuable',
+    recover: 'grant-continuable',
+  }),
+  'ultra-dev': Object.freeze({
+    execute: 'grant-continuable',
+    resume: 'grant-continuable',
+    reopen: 'grant-continuable',
+  }),
+  'ultra-test': Object.freeze({
+    audit: 'grant-continuable',
+    reaudit: 'grant-continuable',
+  }),
+  'ultra-deliver': Object.freeze({
+    reconcile: 'grant-continuable',
+    finalize: 'explicit-entry',
+  }),
+  'ultra-delegate': Object.freeze({
+    task: 'explicit-entry',
+    research: 'explicit-entry',
+    aggregate: 'explicit-entry',
+  }),
+  'ultra-status': Object.freeze({
+    route: 'router',
+    history: 'router',
+    installation: 'router',
+    delegation: 'router',
+    recovery: 'router',
+  }),
+});
+const GRANT_CONTINUABLE_SKILLS = Object.freeze(USER_INVOKED_SKILLS.filter((name) => (
+  Object.values(PUBLIC_SKILL_INVOCATION_MODES[name]).includes('grant-continuable')
+)));
 const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
 
 const WORKFLOW_HOOK_FILES = Object.freeze([
@@ -59,11 +100,21 @@ function skillPolicy(name) {
   if (!skillsForRuntime(SUPPORTED_RUNTIMES[0]).includes(name)) {
     throw new Error(`unknown packaged Ultra skill: ${name}`);
   }
-  const modelInvoked = MODEL_INVOKED_SKILLS.includes(name);
-  const grantContinuable = GRANT_CONTINUABLE_SKILLS.includes(name);
+  if (MODEL_INVOKED_SKILLS.includes(name)) {
+    return {
+      userInvocable: false,
+      allowImplicitInvocation: true,
+      invocationClasses: ['model-discipline'],
+      modes: {},
+    };
+  }
+  const modes = PUBLIC_SKILL_INVOCATION_MODES[name];
+  const invocationClasses = [...new Set(Object.values(modes))];
   return {
-    userInvocable: !modelInvoked,
-    allowImplicitInvocation: modelInvoked || grantContinuable,
+    userInvocable: true,
+    allowImplicitInvocation: invocationClasses.includes('grant-continuable'),
+    invocationClasses,
+    modes,
   };
 }
 
@@ -71,6 +122,7 @@ module.exports = {
   GRANT_CONTINUABLE_SKILLS,
   USER_INVOKED_SKILLS,
   MODEL_INVOKED_SKILLS,
+  PUBLIC_SKILL_INVOCATION_MODES,
   ROUTER_SKILLS,
   SUPPORTED_RUNTIMES,
   WORKFLOW_HOOK_FILES,

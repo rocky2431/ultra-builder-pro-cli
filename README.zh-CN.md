@@ -15,10 +15,11 @@ Host 模型仍然是工程师。Ultra 提供可复用的方法和可检查的产
 默认由当前 Agent 单独继续。若要把工作包的写入权移交给另一个 Agent，必须通过
 仓库文件和 Git 完成显式、可验证的转移（OFFER → ACK → RESULT）。
 
-## Ultra Builder Pro 3.0
+## Ultra Builder Pro 5.0
 
-`3.0.2` 是 Ultra 作为真实软件工程认知对齐 Harness 的首个正式发布版本。它不是
-去中心化多 Agent 平台，也不规定唯一的 Agent 拓扑。它只承诺五件事：
+`5.0.0` 是 Ultra 作为真实软件工程认知对齐 Harness 的当前实现。它保留已接受的
+3.0 file-first 与 model-agency 宪法，再让工作流位置、恢复和跨 Agent 执行变得可直接
+观察。它不是去中心化多 Agent 平台，也不规定唯一的 Agent 拓扑。它只承诺五件事：
 
 - 在 Research 进入计划或代码之前，先确立所有者接受的北极星（North Star）；
 - 允许所有者在每个阶段选择一个或多个 Agent，以及所使用的提供商；
@@ -28,9 +29,18 @@ Host 模型仍然是工程师。Ultra 提供可复用的方法和可检查的产
   与策略留给模型和所有者；以及
 - 约束 Review 与修复，使交付能够收敛，而不是把每个观察都变成下一轮自动实现循环。
 
-可移植协议和原生安装覆盖 Claude Code、Codex、OpenCode、Kimi Code、Grok Build
-和 ZCode。ZCode 插件安装已受支持；其 App 内置的 headless 委派传输仍明确标记为
-`experimental`，直到官方稳定接口和恢复演练达到支持标准。
+5.0 通过一个 Route Contract、明确的 Init/Research/Change/Plan 职责、只依赖文件的
+新会话恢复、installed Skill-local delegation runtime 和可替换的
+`AgentExecutionDriver` 来兑现这些承诺。只有某个 Host 通过有记录的 conformance
+drill 后，才优先选择 stable ACP v1；否则同一 result contract 使用明确报告原因的 CLI
+fallback。可移植协议和原生安装覆盖 Claude Code、Codex、OpenCode、Kimi Code、
+Grok Build 和 ZCode。当前发布的六个 profile 都选择 CLI fallback。ZCode 插件安装与
+installed Desktop runtime 作为 `experimental` transport 受支持，但在完整 recovery bar
+通过前，ACP bridge 明确保留为不可用。
+
+5.0 明确不加入 daemon、workflow service、语义状态机、A2A 网络、Team Pack、remote
+marketplace 或共享权威存储。Package publication 和真实用户安装仍是独立于当前源码
+版本的 effects。
 
 ## 为什么需要它
 
@@ -78,8 +88,12 @@ daemon。
 默认情况下，公开工作流由所有者显式选择。在一个已激活且仍有效的所有者
 `Execution Grant`（会话级授权或持久工作包授权）之外，一个公开工作流可以推荐
 下一个工作流，但不会自行启动它。在授权范围内，Host 模型只能选择授权覆盖的
-Research、Plan、Dev、Test 和仅协调阶段的 Deliver route；Init、Change、Delegate、
-Status、最终归档以及每个外部 effect 始终由所有者选择。模型调用的纪律仍可供 Host
+Change-scoped Research、同一 Change 的 reconcile、Plan、Dev、Test 和仅协调阶段的
+Deliver route；Init、Change intake/evidence/acceptance/abandonment 或 primary transfer、
+Delegate、Deliver finalization、最终归档以及每个外部 effect 始终由所有者选择；
+Status 同样由所有者选择、保持只读且不授予 continuation。每次 public transition 都先显示 derived
+`UBP Route Card`；Host invocation metadata 只负责粗粒度发现，加载后的 Skill 会重新
+验证精确 Mode 与 Grant，而不会创建 route state。模型调用的纪律仍可供 Host
 模型使用，它们不是独立的用户 route。模型在当前任务出现相应触发条件时选择它们：
 意图不完整时使用 grilling，术语冲突时使用 domain modeling，已接受的 seam 使用
 TDD，证据已可 Review 时使用 review，重要且未解决的决策使用 think。具备原生有界
@@ -93,7 +107,7 @@ subagent 的 Host 可以并行运行 Review lens；其他 Host 则顺序运行�
 
 ### 原来的 Agents 去哪里了
 
-`3.0.2` 不安装自定义 `agents/` 投影。原来的 Review workers 变成
+`5.0.0` 不安装自定义 `agents/` 投影。原来的 Review workers 变成
 `ultra-review/references/` 下六个聚焦文件；Review 协调和综合归属于父级
 `ultra-review` Skill。原来的 debugger 流程位于
 `ultra-dev/references/debugging.md`，测试执行流程位于
@@ -170,18 +184,21 @@ receipts 都是派生证据，不是额外语义文档。
 
 ```bash
 # 当前项目，单个 Host
-npx ultra-builder-pro-cli@3.0.2 --claude --local
-npx ultra-builder-pro-cli@3.0.2 --codex --local
+npx ultra-builder-pro-cli@5.0.0 --claude --local
+npx ultra-builder-pro-cli@5.0.0 --codex --local
 
 # 全局安装
-npx ultra-builder-pro-cli@3.0.2 --opencode --global
-npx ultra-builder-pro-cli@3.0.2 --kimi --global
-npx ultra-builder-pro-cli@3.0.2 --grok --global
-npx ultra-builder-pro-cli@3.0.2 --zcode --global
+npx ultra-builder-pro-cli@5.0.0 --opencode --global
+npx ultra-builder-pro-cli@5.0.0 --kimi --global
+npx ultra-builder-pro-cli@5.0.0 --grok --global
+npx ultra-builder-pro-cli@5.0.0 --zcode --global
 
 # 所有受支持 Host
-npx ultra-builder-pro-cli@3.0.2 --all --global
+npx ultra-builder-pro-cli@5.0.0 --all --global
 ```
+
+这些固定版本的 `npx` 命令在 `5.0.0` 发布后生效。本地 release candidate 验证使用
+`node bin/install.js --config-dir <isolated-path>`，不会修改真实用户安装。
 
 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间
 的条目，例如 `$ultra-builder-pro:ultra-init`。安装后的 frontmatter 和 metadata 会
@@ -193,13 +210,13 @@ npx ultra-builder-pro-cli@3.0.2 --all --global
 
 ```bash
 # 重新执行安装会更新受管理产物
-npx ultra-builder-pro-cli@3.0.2 --codex --global
+npx ultra-builder-pro-cli@5.0.0 --codex --global
 
 # 只读诊断
-npx ultra-builder-pro-cli@3.0.2 --all --global --doctor --json
+npx ultra-builder-pro-cli@5.0.0 --all --global --doctor --json
 
 # 只移除受管理的 Ultra 资产
-npx ultra-builder-pro-cli@3.0.2 --all --global --uninstall
+npx ultra-builder-pro-cli@5.0.0 --all --global --uninstall
 ```
 
 `--config-dir <path>` 会同时隔离主配置和 Host 自有 sidecar。它是测试时的安全选择，
@@ -215,6 +232,11 @@ Kimi Code、Grok Build 和 ZCode 当前只提供用户级插件，所以 `--loca
 
 ## 典型工作流
 
+已有项目的日常工作从 `ultra-change` 开始，而不是先进入一次无边界的 Research。
+只有建立首个 baseline，或回答同一 active Change 已记录的有界证据问题时，才直接进入
+`ultra-research`。每次 public transition 都先展示派生的 Route Card，明确当前 Mode、
+Position、可观察 Exit condition、material checkpoint 和 Next route。
+
 1. 选择一次 `ultra-init`。它写入骨架，在 Project Brief 中保留所有者原始的一行请求
    和大致轮廓，在需要时初始化 Git，然后停止，不会开始产品 Research。
 2. 选择 `ultra-research`，把 brief 转化为首个已接受的 North Star、共享词汇以及有
@@ -226,7 +248,8 @@ Kimi Code、Grok Build 和 ZCode 当前只提供用户级插件，所以 `--loca
    Ultra 之外；每个被接受的 Change 都会获得由真实 seam、证据、Review 和恢复需要
    所证明的最小 Plan graph。任何 profile 都不能固定任务数量。该 Change 仍 active
    时，继续协调同一个稳定 id；不要为另一个请求开启第二个 active Change。
-4. 选择 `ultra-plan`，记录公开 seam，并生成可恢复的 tracer-bullet 任务。模型负责
+4. 选择 `ultra-plan`，记录公开 seam，并生成可恢复的 tracer-bullet 任务。最早的可观察
+   slice 必须穿过真实 consumer 和真实 data path，并写明所有者能观察到的结果。模型负责
    普通技术 seam；只有会改变公开合同或其他重大权衡的 seam 才由所有者决定。
 5. 每次为一个任务选择 `ultra-dev`。`.ultra/tasks.json` 是唯一任务状态权威。Dev 在
    row 仍为 `in_progress` 时记录类型化 v2 证据并完成 Task Review；只有解决 blocking
@@ -244,17 +267,20 @@ Kimi Code、Grok Build 和 ZCode 当前只提供用户级插件，所以 `--loca
 `session-local` grant 只存在于当前对话：当激活状态丢失——进入新会话、切换 Host
 或发生 compaction——工作会停止，等待所有者重新激活。`durable work-package`
 grant 允许新的 Agent 或 Host 继续一个精确工作包，但 Agent 必须先稳定验证所记录的
-grant 本身。在两种模式下，模型都可以选择授权覆盖的 Research、Plan、Dev、Test 和
-仅协调阶段的 Deliver route，直到下一个语义停止点或声明预算；两种模式都不授予
+grant 本身。在两种模式下，模型都可以选择授权覆盖的 Change-scoped Research、同一
+Change 的 reconcile、Plan、Dev、Test 和仅协调阶段的 Deliver route，直到下一个语义
+停止点或声明预算；两种模式都不授予
 finalization 或 archive 权限：写入 `delivery.md`、版本或 package posture，以及归档
 始终需要所有者当前显式调用；commit、push、publication、deployment、installation
 和其他任何外部 effect 也一样。
 
-任何时候，`ultra-status` 都可以重建当前位置。新会话或不同 Host 会通过读取
-`.ultra/tasks.json`、选中任务的 `context_file`、其中的 `## Resume Note`、
-`CONTEXT.md`、相关 decisions、active Change 和 Git 来恢复。它首先把 append-only
-ledger 过滤为 `change_id` 与唯一 active Change 匹配的任务；archive 或 abandoned
-Change 中未完成的历史 rows 不是当前 frontier。
+任何时候，`ultra-status` 都可以重建当前位置。新会话先从 repository root 和 `HEAD`
+开始，唯一解析 active Change，再读取 `.ultra/tasks.json`、匹配任务的 `context_file`
+和其中的 `## Resume Note`、`CONTEXT.md`、相关 decisions、specifications、evidence 与
+当前 Git diff；不会因为聊天记忆丢失而重跑已完成的 Research。如果 active authority
+歧义或不可读，Status 转入只读 recovery，指出最早的不安全事实，并给出最便宜的
+repair、retry、cancel、abandon 或 fresh-session 路径，不选择 intent，也不写语义文件。
+archive 或 abandoned Change 中未完成的历史 rows 仍不是当前 frontier。
 
 ## 三层独立集成防线
 
@@ -284,26 +310,37 @@ Change 中未完成的历史 rows 不是当前 frontier。
 
 ## 委派
 
-委派会写入不可变的 instruction 和 permission envelope，然后在后台启动所选 CLI。
-空 writable roots 选择原生只读模式；声明 roots 则选择有界写入模式。模型返回一个
+委派会写入不可变的 instruction 和 permission envelope，然后选择一个 Host-local
+`AgentExecutionDriver` 并在后台启动。只有 executable stdio endpoint 能协商 stable
+ACP v1，且该 Host 有带 evidence 的 passed conformance record 时才选择 ACP；否则使用
+相同 result contract 的 `CliDriver`，并报告精确 fallback reason。当前发布的六个 Host
+profile 都诚实保留 CLI fallback。空 writable roots 选择原生只读模式；声明 roots 则
+选择有界写入模式。模型返回一个
 受 schema 约束的最终响应；launcher 从原生结构化输出中提取它，验证真实 Git diff，
 并在 instruction 旁原子发布 terminal `finished`、`blocked` 或 `failed` result。
 绑定 digest 的 packet 会嵌入 worker prompt，因此严格 Host 不必从 isolated worktree
 之外读取 instruction files。
 
 ```bash
-ubp delegate run --to codex \
+node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to codex \
   --instruction .ultra/.runtime/delegations/D-01/instruction.md \
   --permission .ultra/.runtime/delegations/D-01/permission.json \
   --worktree .ultra/.runtime/worktrees/D-01
 ```
 
-使用 `skills/ultra-delegate/scripts/delegate_wait.py` 等待 `result.json`，无需把 worker
-中间输出载入父上下文。委派不会授予新权限；writable roots 仍位于 worktree 内，
+loaded Skill path 是 canonical runtime；clean `npx` plugin install 后不需要全局 `ubp`，
+也不会在每次 delegation 时再次调用 `npx`。`ubp delegate` 只保留一个版本周期的薄兼容
+wrapper。使用 installed Skill 内的 `scripts/delegate_wait.py` 等待 `result.json`，无需把
+worker 中间输出载入父上下文。委派不会授予新权限；writable roots 仍位于 worktree 内，
 permission file 必须声明零外部 effects，且不得放宽 Host sandbox。
 不可变 instruction 可指定任务执行/续做、有界 Research 取证或聚合 Change
 Review/verification。后两类可以只读，也不要求 task row，因此 pre-Plan Research 与
 post-task 跨 family Review 不需要虚构 ledger work 也能执行。
+ZCode 只解析 installed Desktop runtime（macOS 优先 App-bundled CLI，之后才是 `PATH`
+fallback），并保持 `experimental`。只有 capability、read-only、permission、
+cancel/no-orphan、cwd/diff、result parity 与 redaction drill 全部通过后，ACP bridge 才能
+提升 maturity。Doctor 分开报告 runner health、ACP capability、selected driver、
+fallback reason 与 ZCode maturity。
 
 ## Host 支持
 
@@ -341,6 +378,10 @@ effect；validator 成功只证明结构符合要求，不代表语义已被接�
 
 ## 文档
 
+- [5.0 设计与验收合同](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) — 5.0.0 源码候选已实现的
+  Route、Skill 职责、continuation、ACP/CLI execution、migration 与 journey 边界。
+- [5.0 journey 结果](docs/evals/ultra-5-0-journey-results.md) — 可观察的本地
+  PASS/STOP 结果与明确保留的外部验证缺口。
 - [当前权威](.ultra/north-star.md) — 本仓库已接受的 North Star
   `north-star-v2-r3` 是当前规范权威；`.ultra/tasks.json` 以及
   `.ultra/changes/active/` 或 `.ultra/changes/archive/` 下的稳定 Change 记录当前或

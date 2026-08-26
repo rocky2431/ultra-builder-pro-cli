@@ -1,0 +1,167 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-migration-journeys",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-migration-journeys.md",
+    "acceptance_sha256": "1d7bd909a76d5907cd9b5943f74d2c1ba520899ef10b9f43889d9efb4e779515"
+  },
+  "subject": {
+    "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+    "worktree_digest": "a4d8e03d19fb0bdfd77b54a5c55b5122947e672e630b4efa02f70c36bcdb830c",
+    "observed_at": "2026-08-25T12:27:01Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "M5-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/ultra-5-journeys.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-migration-journeys/verification.log",
+        "raw_evidence_sha256": "ee45216579449e7ac2b3c74d04340e71900ebfdfb63cd06b5484789a3578f74e",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "a4d8e03d19fb0bdfd77b54a5c55b5122947e672e630b4efa02f70c36bcdb830c",
+          "observed_at": "2026-08-25T12:27:01Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The real adapter install, update, Doctor, and uninstall paths ran in isolated config roots against eighteen seeded project-owned artifacts. Byte content, mode, length, and aggregate digest remained d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7 before update, after update, and after uninstall; all six Doctor rows were healthy and exposed their exact CLI fallback reason."
+      }
+    },
+    {
+      "criterion_id": "M5-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/ultra-5-journeys.test.cjs tests/route-contract.test.cjs tests/acp-driver.test.cjs tests/delegate.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs tests/project-artifacts.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs adapters/_shared/tests/runtime-assets.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-migration-journeys/verification.log",
+        "raw_evidence_sha256": "ee45216579449e7ac2b3c74d04340e71900ebfdfb63cd06b5484789a3578f74e",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "a4d8e03d19fb0bdfd77b54a5c55b5122947e672e630b4efa02f70c36bcdb830c",
+          "observed_at": "2026-08-25T12:27:01Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The final 255-test run validates the journey registry together with Route, ACP, delegation, installation, packaging, project authority, adapters, and runtime assets. Each of fourteen journeys has one observable PASS or honest STOP, an evidence class and reference, and an explicit limitation; ZCode ACP remains the one intentional STOP."
+      }
+    },
+    {
+      "criterion_id": "M5-03",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "tests/ultra-5-journeys.test.cjs, skills/ultra-status/SKILL.md, skills/ultra-status/references/route-contract.md, README.md, README.zh-CN.md, and .ultra/evidence/v50-migration-journeys/verification.log",
+        "observation": "The real SessionStart hook classified two active Changes as active_change_ambiguous, published no intent body, created no progress or semantic artifact, and named repair, retry, cancel, and abandon. Status and Review remain read-only diagnosis until authority is repaired or the owner selects an exit.",
+        "revision": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1+v50-migration-journeys-worktree-v1"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Degraded authority exposes facts and reachable recovery without selecting semantic content, activating stored text, or performing a write."
+      }
+    },
+    {
+      "criterion_id": "M5-04",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "README.md, README.zh-CN.md, .ultra-template/contexts/TEMPLATE.md, docs/evals/ultra-5-0-journey-results.md, tests/ultra-5-journeys.test.cjs, and .ultra/evidence/v50-migration-journeys/verification.log",
+        "observation": "The owner-facing daily path begins with ultra-change for an existing request; Research is invoked only for baseline or bounded evidence gaps. A fresh session starts from project root and HEAD and recovers the unique active Change, task ledger, task context, acceptance, Resume Note, and retained receipts from files. Plan records the earliest observable slice before implementation, and the isolated fresh-session scenario recovers the exact task acceptance and Resume Note without writing.",
+        "revision": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1+v50-migration-journeys-worktree-v1"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Recovery and early-value guidance now lives where an owner or model enters the workflow instead of being confined to an architecture document."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/ultra-5-journeys.test.cjs"
+      ],
+      "rationale": "Five new journey tests cover byte-preserving 3.x lifecycle, six-Host Doctor selection, degraded authority, fresh-session recovery, the fourteen-row outcome register, and point-of-use guidance. Missing guidance and records were observed RED before implementation, and later artifact failures exposed two shared-source consistency defects before repair."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v50-migration-journeys/verification.log"
+      ],
+      "rationale": "The focused journey suite passed 5/5, the repaired project-artifact suite passed 80/80, the expanded regression passed 255/255, and git diff --check exited zero."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/ultra-5-journeys.test.cjs",
+        ".ultra/evidence/v50-migration-journeys/verification.log"
+      ],
+      "rationale": "The tests create real temporary projects and six isolated Host config roots, write real canonical text and binary artifacts, execute the real installer/update/Doctor/uninstall implementations, run the real SessionStart hook, and rescan persisted bytes and modes; no in-memory store substitutes for these filesystem seams."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/ultra-5-journeys.test.cjs",
+        "docs/evals/ultra-5-0-journey-results.md"
+      ],
+      "rationale": "No feature flag, alternate semantic authority, or hidden activation was added. The journey registry is always validated, all six current Host driver choices are reported factually, and unavailable live boundaries remain explicit limitations."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/ultra-5-journeys.test.cjs",
+        "README.md",
+        "README.zh-CN.md",
+        ".ultra-template/contexts/TEMPLATE.md"
+      ],
+      "rationale": "The slice crosses a real 3.x project, package adapters, six Host installs, update, Doctor, uninstall, repository authority recovery, degraded-state diagnosis, owner-facing operating guidance, and a canonical results register."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-v50-migration-journeys.md",
+        ".ultra/changes/active/chg-ultra-5-0/intent.md",
+        "docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md#9-50-acceptance-journeys",
+        ".ultra/reviews/v50-migration-journeys-initial-review-v1/SUMMARY.json"
+      ],
+      "rationale": "M5-01 through M5-04 project AC5-05 and AC5-09 through AC5-11 from FP-1, FP-2, FP-5, and FP-7 into NS-01 through NS-04 while preserving HC-1, HC-3, HC-4, and HC-6."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "97e31b9cf71b78ac10b93dad6c25542294c121ba858bc14ea6586917898ba00c",
+      "limitation": null
+    },
+    "session_id": "v50-migration-journeys-initial-review-v1",
+    "summary_ref": ".ultra/reviews/v50-migration-journeys-initial-review-v1/SUMMARY.json",
+    "summary_digest": "3f89f8bf206657a9a99100935d240d0af89b752972245cc62a943c04a46276b2",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict review session, including WORKER-PACKET.json, ADMISSION.json, every selected specialist artifact, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully. Premature loss requires a fresh Review and Test; never reconstruct the old receipt."
+  },
+  "artifacts": [
+    "tests/ultra-5-journeys.test.cjs",
+    "docs/evals/ultra-5-0-journey-results.md",
+    "README.md",
+    "README.zh-CN.md",
+    ".ultra-template/contexts/TEMPLATE.md",
+    ".ultra/changes/active/chg-ultra-5-0/intent.md",
+    ".ultra/reviews/v50-migration-journeys-initial-review-v1/SUMMARY.json"
+  ],
+  "limitations": [
+    "No live provider task, credentials, paid call, real user-home installation, or ZCode ACP recovery drill was authorized or performed.",
+    "Thirteen PASS journey rows combine isolated execution, synthetic protocol evidence, and source-contract inspection; they do not claim fourteen live provider executions or measure model semantic quality.",
+    "The migration fixture is finite and cannot prove unknown third-party semantics beyond the exercised accepted project artifact boundary.",
+    "No Windows descendant-process cleanup claim is made from this POSIX environment.",
+    "The strict review ran sequentially in shared context and has no independent model-family boundary."
+  ],
+  "timestamp": "2026-08-25T12:27:01Z"
+}

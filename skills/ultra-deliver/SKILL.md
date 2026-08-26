@@ -7,6 +7,18 @@ description: Reconcile one Change whose matching tasks are complete, run aggrega
 
 Delivery closes the local Change; readiness grants no commit, push, tag, publish, or deploy authority.
 
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `reconcile` | Explicit invocation or a valid Execution Grant for a tested active Change | Intent, implementation, specifications, documentation, evidence, and report agree, or changed files make the exact stale evidence visible | Recommend `ultra-test/reaudit` after changes, otherwise recommend explicit `ultra-deliver/finalize` |
+| `finalize` | Current explicit owner invocation only | Fresh transport/evidence checks pass, version and package posture are owner-set, `delivery.md` is written, and the Change is locally archived | Report `idle` plus every separately authorized or unfinished release effect |
+
+Follow `../ultra-status/references/route-contract.md`. Show a Route Card at entry, after
+reconciliation, before the finalization checkpoint, and after archive or any stop.
+Grant-aware continuation ends with `reconcile`; no Host metadata bit, report, or grant
+turns `finalize` into an implicit mode.
+
 ## Before you start
 
 1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop. A model-selected Deliver run under that grant may reconcile, review, and report, and then MUST stop before finalization: its inputs, writes, and effects end at the report. Only a current explicit owner invocation of `ultra-deliver` may finalize — writing `delivery.md`, deciding the version decision and package posture, and archiving the stable Change id with `git mv` are owner-invocation-only in every grant mode, and a grant never covers them.
@@ -178,4 +190,5 @@ Without release authority, stop after the recoverable local archive and report i
   trade-off rather than an established repository rule.
 - `../ultra-think/references/autonomy-boundary.md` — read before scope or evidence shrinks.
 - `../ultra-change/references/execution-grant.md` — read only for grant-activated continuation.
+- `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `references/baseline-reconciliation.md` — exact `delivery.md` reconciliation contract.

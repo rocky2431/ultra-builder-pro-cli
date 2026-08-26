@@ -9,6 +9,18 @@ This is the one end-of-change sensor allowed by PHILOSOPHY C4: an export cannot 
 called orphaned while a later task may still wire it. It is a terminal sensor, never a gate;
 the owner decides what to fix or accept.
 
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `audit` | Explicit invocation or a valid Execution Grant after every matching task has current completion evidence | One current whole-Change report and aggregate review preserve all six audit areas, findings, omissions, identities, and dispositions | Recommend `ultra-deliver/reconcile` when current, or the owner-selected responsible route |
+| `reaudit` | Explicit invocation or a valid Execution Grant after an owner-dispositioned repair invalidates the prior report | A fresh report binds the repaired Change snapshot without hiding earlier findings | Recommend `ultra-deliver/reconcile` when current, or another bounded owner disposition |
+
+Follow `../ultra-status/references/route-contract.md`. Show a Route Card at audit entry,
+before asking for finding disposition, and at the report exit. Audit counts and review
+events populate `Position` or `Reality`; they never choose repair, convergence, or risk
+acceptance. Test does not call its own repair route.
+
 ## Before you start
 
 1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop.
@@ -209,7 +221,9 @@ disposition as separate fields. No validator result is itself semantic acceptanc
 
 Present the findings by consequence and recommend the highest-leverage response. The
 owner may fix all, fix selected findings, accept recorded risk, or reduce scope through
-the normal REDUCTION decision. Recommend the next capability; do not invoke it.
+the normal REDUCTION decision. Recommend the next capability. Continue only when the
+owner disposition or existing grant covers its exact mode and effects, and show the
+transition Route Card first; Test itself never manufactures that coverage.
 
 ## When the owner decides
 
@@ -225,5 +239,6 @@ an observation, not permission to auto-fix, weaken a test or silently change sco
 - `../ultra-review/SKILL.md` — read for aggregate Change review after the six-area audit.
 - `../ultra-plan/references/task-evidence-v2.md` — canonical current task evidence and task-review contract.
 - `../ultra-change/references/execution-grant.md` — read only for grant-activated continuation.
+- `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `../ultra-think/references/autonomy-boundary.md` — read when a proposed response
   would make an existing specification commitment stop holding.

@@ -1,0 +1,193 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-acp-execution-drivers",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-acp-execution-drivers.md",
+    "acceptance_sha256": "1b46821a3b7be0db5e33360261fea5b65cbf27d3ca41e6b1124bea3be9a09083"
+  },
+  "subject": {
+    "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+    "worktree_digest": "5fa73fa20a83a76013553ef63b1229d176ca098c0a8e73dd86e8de72bc7ccee8",
+    "observed_at": "2026-08-25T11:57:16Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "A5-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/acp-driver.test.cjs tests/delegate.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs adapters/_shared/tests/runtime-assets.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs tests/skill-authoring.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-acp-execution-drivers/verification.log",
+        "raw_evidence_sha256": "fbd2577a7e37cdf0c3fea0126d45741b0a04ae11b9a84b314bbef3725653ef8d",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "5fa73fa20a83a76013553ef63b1229d176ca098c0a8e73dd86e8de72bc7ccee8",
+          "observed_at": "2026-08-25T11:57:16Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The fake agent and launcher vertical slice exercise stable v1 initialize, capabilities, fresh absolute-cwd session, updates, permissions, cancellation, terminal stop observation, agent-message result reconstruction, and the unchanged exact Ultra result/Git-diff validator."
+      }
+    },
+    {
+      "criterion_id": "A5-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/acp-driver.test.cjs tests/delegate.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs adapters/_shared/tests/runtime-assets.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs tests/skill-authoring.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-acp-execution-drivers/verification.log",
+        "raw_evidence_sha256": "fbd2577a7e37cdf0c3fea0126d45741b0a04ae11b9a84b314bbef3725653ef8d",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "5fa73fa20a83a76013553ef63b1229d176ca098c0a8e73dd86e8de72bc7ccee8",
+          "observed_at": "2026-08-25T11:57:16Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Adversarial tests prove thought/raw content redaction at journal write and status read, immediate scope-widening denial, bounded messages/output/events, typed malformed/auth/version/process failures, and POSIX cancellation/timeout process-group cleanup with no surviving descendant."
+      }
+    },
+    {
+      "criterion_id": "A5-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/acp-driver.test.cjs tests/delegate.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs adapters/_shared/tests/runtime-assets.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs tests/skill-authoring.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-acp-execution-drivers/verification.log",
+        "raw_evidence_sha256": "fbd2577a7e37cdf0c3fea0126d45741b0a04ae11b9a84b314bbef3725653ef8d",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "5fa73fa20a83a76013553ef63b1229d176ca098c0a8e73dd86e8de72bc7ccee8",
+          "observed_at": "2026-08-25T11:57:16Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Selection tests prove no-start executable probing, stdio/v1/candidate/conformance/evidence gates, exact fallback reasons, and result-compatible CLI behavior; six isolated Host lifecycle tests verify installed Doctor reports the same capability and selected-driver facts."
+      }
+    },
+    {
+      "criterion_id": "A5-04",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-delegate/scripts/host-profile.cjs, adapters/_shared/plugin-core.cjs, docs/RUNTIME-COMPAT-MATRIX.md, and .ultra/evidence/v50-acp-execution-drivers/verification.log",
+        "observation": "The profile resolves /Applications/ZCode.app/Contents/Resources/glm/zcode.cjs when present, records installedRuntimeOnly=true, transport maturity experimental, an empty ACP protocolVersions array, conformance not_run, and acp_v1_unavailable CLI fallback. Doctor exposes those facts. The current installed file is a regular executable and reported version 0.16.5; no provider task was started.",
+        "revision": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1+v50-acp-execution-drivers-worktree-v1; local ZCode 0.16.5 observation 2026-08-25"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "ZCode uses only the installed runtime surface, never redistributed App bytes, and cannot select ACP until a stable v1 bridge has a passed non-empty conformance evidence row; current CLI execution stays explicitly experimental and acknowledgment-gated."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/acp-driver.test.cjs",
+        "tests/fixtures/fake-acp-agent.cjs",
+        "tests/delegate.test.cjs",
+        "tests/v026-adapters.test.cjs"
+      ],
+      "rationale": "New tests cover the full fake v1 flow, invalid response shape, malformed/auth/version/update/event/process cases, permission allow/deny, no-result semantics, bounded CLI output, per-Host selection, launcher/result parity, safe status projection, cancellation descendants, Doctor, install, and package assets. Missing modules, absent conformance evidence, invalid response exclusivity, and tampered-journal redaction were each observed RED before their fixes."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v50-acp-execution-drivers/verification.log"
+      ],
+      "rationale": "The final focused suite exited zero with 175 passing tests; Skill Creator validation, git diff check, and every changed Node entrypoint syntax check also exited zero."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        "tests/install.test.cjs",
+        "tests/package-smoke.test.cjs",
+        ".ultra/evidence/v50-acp-execution-drivers/verification.log"
+      ],
+      "rationale": "Tests create real temporary Git worktrees and process trees, persist receipts, worker specs, redacted events, logs, and terminal results, pack the npm artifact, copy the driver closure into isolated Host installs, inspect it with Doctor, repair a removed module by reinstall, and remove the owned runtime tree; no in-memory substitute stands in for those persistence seams."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+        "skills/ultra-delegate/scripts/host-profile.cjs",
+        "adapters/_shared/plugin-core.cjs",
+        "docs/RUNTIME-COMPAT-MATRIX.md"
+      ],
+      "rationale": "No feature flag or dormant alternate authority was added. Driver choice is always active and factual; an exact Host row must pass with evidence, while every shipped row currently selects the reachable CLI path and Doctor reports why."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        "tests/acp-driver.test.cjs",
+        "tests/install.test.cjs",
+        "tests/package-smoke.test.cjs"
+      ],
+      "rationale": "The verified ACP slice crosses immutable packet launch, no-start selection, background worker, JSON-RPC negotiation, streamed safe events, exact model result reconstruction, Git-diff validation, terminal publication, status observation, cancellation, pack, clean install, Doctor, reinstall, and uninstall."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-v50-acp-execution-drivers.md",
+        ".ultra/changes/active/chg-ultra-5-0/intent.md",
+        "docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md#72-acp-boundary",
+        ".ultra/reviews/v50-acp-execution-drivers-initial-review-v1/SUMMARY.json"
+      ],
+      "rationale": "A5-01 through A5-04 project AC5-07 through AC5-09 from FP-1, FP-2, FP-3, FP-5, and FP-6 into NS-02, NS-04, and NS-05 without giving ACP, events, or a Host session semantic authority."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "b3c49a8fc43f61cadcb0c5974900d09e4bab540af23f1e30d50b3896aa4fc952",
+      "limitation": null
+    },
+    "session_id": "v50-acp-execution-drivers-initial-review-v1",
+    "summary_ref": ".ultra/reviews/v50-acp-execution-drivers-initial-review-v1/SUMMARY.json",
+    "summary_digest": "0ae3d4f34866ded1037970f377fcf57087d44bd6df107650256a6359bafc0e58",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict review session, including WORKER-PACKET.json, ADMISSION.json, every selected specialist artifact, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully. Premature loss requires a fresh Review and Test; never reconstruct the old receipt."
+  },
+  "artifacts": [
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/acp-driver.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "adapters/_shared/plugin-core.cjs",
+    "adapters/_shared/runtime-assets.cjs",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "docs/ARCHITECTURE.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "tests/acp-driver.test.cjs",
+    "tests/fixtures/fake-acp-agent.cjs",
+    "tests/delegate.test.cjs",
+    "tests/install.test.cjs",
+    "tests/package-smoke.test.cjs",
+    "tests/v026-adapters.test.cjs",
+    ".ultra/reviews/v50-acp-execution-drivers-initial-review-v1/SUMMARY.json"
+  ],
+  "limitations": [
+    "No live provider or credentials were used; every shipped Host remains on result-compatible CLI fallback until its own exact ACP conformance row passes.",
+    "ZCode has an installed-runtime transport and experimental CLI path, not an activated ACP bridge; promotion needs a stable bridge plus an owner-authorized full recovery drill.",
+    "No Windows descendant-process cleanup claim is made from the current POSIX test environment.",
+    "The strict review ran sequentially in shared context and has no independent model-family boundary.",
+    "A started ACP run never retries automatically through CLI; retry uses a fresh delegation id to avoid duplicate effects."
+  ],
+  "timestamp": "2026-08-25T11:57:16Z"
+}

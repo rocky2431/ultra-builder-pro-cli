@@ -34,8 +34,9 @@ deployment providers, framework guidance, or unrelated productivity capabilities
   model-invoked Skills, one router, six hosts, and five hooks.
 - `skills/*/SKILL.md`: reusable host-neutral workflow and discipline prompts.
 - `adapters/*.js`: native installation, update, doctor, and uninstall behavior.
-- `adapters/_shared/host-profile.cjs`: non-interactive delegation argv for six CLIs
-  and their transport maturity (the ZCode App-bundled CLI is `experimental`).
+- `skills/ultra-delegate/scripts/host-profile.cjs`: canonical installed non-interactive
+  delegation argv for six CLIs and their transport maturity (the ZCode App-bundled CLI
+  is `experimental`); `adapters/_shared/host-profile.cjs` is a compatibility re-export.
 - `skills/ultra-change/references/primary-transfer.md` plus
   `skills/ultra-change/scripts/validate_primary_transfer.cjs`: the primary-transfer
   contract between Agents and its receipt validator.

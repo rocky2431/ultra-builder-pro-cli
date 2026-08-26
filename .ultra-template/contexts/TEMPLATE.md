@@ -18,6 +18,12 @@
 
 **Tech Notes**: [framework or library specifics]
 
+**Earliest observable slice**: [the first real consumer -> real data path ->
+owner-visible observation, or `not applicable` with the concrete reason]
+
+**Fresh-session recovery**: [repository root and HEAD -> active Change -> matching
+ledger row -> this context and Resume Note -> exact safe resume command or path]
+
 ## Planned Path Inventory
 
 `MODIFY`:

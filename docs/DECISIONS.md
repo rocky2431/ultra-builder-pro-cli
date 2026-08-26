@@ -24,6 +24,19 @@ exact grant (see `.ultra/decisions/2026-08-17-ultra-builder-pro-3.0-mode-b.md`);
 file, status, Hook, or Resume note ever implies activation. Optional Graph/Loop
 coordination layers own observations only and none is integrated.
 
+## Ultra 5.0 workflow projection (accepted 2026-08-25)
+
+The owner accepted the 5.0 scope and interaction boundary in
+`.ultra/decisions/2026-08-25-ultra-5-0-scope.md`; the versioned contract is
+`docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md`. One shared Route Contract projects the existing
+owner-checkpoint semantics into every public Skill without adding route state. Research
+has explicit baseline and grant-continuable Change-scoped modes; Change makes
+intake/evidence/reconcile/accepted visible and permits only same-Change non-material
+reconciliation under a valid grant; Plan returns product evidence gaps through Change.
+Host invocation bits remain coarse discovery metadata and every Skill rechecks mode,
+grant, effects, and material checkpoints. Team Pack, remote shared assets, a semantic
+state machine, daemon, and resident ACP service remain outside 5.0.
+
 ## Primary transfer between Agents (r3, accepted 2026-08-17)
 
 A work package's canonical writer moves to another Agent only through an
@@ -58,13 +71,13 @@ ownership of route and meaning.
 
 ## Three Skill roles
 
-The product exposes eight user workflows, five model-invoked disciplines, and one
-router. Public workflows require explicit owner selection by default. Research, Plan,
-Dev, Test, and Deliver reconciliation have one narrow exception: an activated
-Change-scoped execution grant may let the model select the next covered workflow —
-session-local activation in the current conversation, or a stably verified durable
-work-package grant. A model discipline needs at least two canonical callers or it is
-inlined.
+The product exposes eight owner-invocable public workflows, five model-invoked
+disciplines, and one router. Public modes are `explicit-entry` or
+`grant-continuable`. Scoped Research, same-Change reconciliation, Plan, Dev, Test, and
+Deliver reconciliation may be selected under an activated Change-scoped execution
+grant — session-local activation in the current conversation, or a stably verified
+durable work-package grant. All other public modes stay explicit-entry; Status stays
+owner-invoked and read-only. A model discipline needs at least two canonical callers or it is inlined.
 
 This keeps reusable reasoning in one place without turning it into another user-facing
 route or custom-agent registry.
@@ -136,6 +149,11 @@ Directory position and explicit fields record mechanically checkable facts. The 
 model reads those facts and chooses the next route. There is no persisted “current
 workflow stage” whose value can override the actual files.
 
+The `UBP Route Card` is the owner-visible projection of those facts: it adds Route,
+Mode, Position, and Exit condition around the eight accepted checkpoint semantics. It
+is derived at public boundaries, has no canonical path, and provides neither completion
+nor continuation authority.
+
 Task status lives only in the `ultra-task-ledger-v2` row and is read back there. New task
 contexts do not duplicate it; legacy context Status and Complexity fields remain
 migration diagnostics and the ledger wins. Tasks retain a stable `change_id` in the
@@ -186,11 +204,14 @@ their repair is authorization scoped to the exact command digest.
 
 ## Delegation is a process boundary
 
-`ubp delegate run` starts a supported CLI with an immutable instruction, explicit
-permission JSON, and named worktree. Their exact digest-bound sources are embedded in
+The installed `ultra-delegate/scripts/delegate.cjs` starts a supported CLI with an
+immutable instruction, explicit permission JSON, and named worktree. Its exact
+digest-bound sources are embedded in
 the worker prompt because some native sandboxes correctly deny reads outside the
 worktree. Files remain the cross-host state; the embedded copy is transport, not another
-authority. The parent reads a stable terminal result instead of worker chatter.
+authority. The parent reads a stable terminal result instead of worker chatter. The
+package `ubp delegate` surface is a one-release compatibility import of that same
+launcher, not a second implementation or a runtime installation requirement.
 Delegation adds no semantic store and no authority. The instruction selects task
 execution, scoped Research evidence, or aggregate Change review/verification; only task
 execution requires a task row.

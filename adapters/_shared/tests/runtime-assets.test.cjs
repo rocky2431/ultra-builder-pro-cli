@@ -27,9 +27,16 @@ const MODEL = [
 ];
 const ROUTER = ['ultra-status'];
 const ALL = [...USER, ...MODEL, ...ROUTER];
-const CONTINUABLE = ['ultra-research', 'ultra-plan', 'ultra-dev', 'ultra-test', 'ultra-deliver'];
+const CONTINUABLE = [
+  'ultra-research',
+  'ultra-change',
+  'ultra-plan',
+  'ultra-dev',
+  'ultra-test',
+  'ultra-deliver',
+];
 
-test('runtime asset manifest has the exact v0.26 role boundary', () => {
+test('runtime asset manifest has the exact packaged role boundary', () => {
   assert.deepEqual(assets.USER_INVOKED_SKILLS, USER);
   assert.deepEqual(assets.MODEL_INVOKED_SKILLS, MODEL);
   assert.deepEqual(assets.ROUTER_SKILLS, ROUTER);
@@ -44,19 +51,28 @@ test('runtime asset manifest has the exact v0.26 role boundary', () => {
 
 test('host invocation policy admits only envelope-bounded workflow continuation', () => {
   for (const name of USER) {
+    const modes = assets.PUBLIC_SKILL_INVOCATION_MODES[name];
+    const invocationClasses = [...new Set(Object.values(modes))];
     assert.deepEqual(assets.skillPolicy(name), {
       userInvocable: true,
       allowImplicitInvocation: CONTINUABLE.includes(name),
-          }, name);
+      invocationClasses,
+      modes,
+    }, name);
   }
+  const statusModes = assets.PUBLIC_SKILL_INVOCATION_MODES['ultra-status'];
   assert.deepEqual(assets.skillPolicy('ultra-status'), {
     userInvocable: true,
     allowImplicitInvocation: false,
+    invocationClasses: ['router'],
+    modes: statusModes,
   });
   for (const name of MODEL) {
     assert.deepEqual(assets.skillPolicy(name), {
       userInvocable: false,
       allowImplicitInvocation: true,
+      invocationClasses: ['model-discipline'],
+      modes: {},
     }, name);
   }
   assert.throws(() => assets.skillPolicy('not-packaged'), /unknown packaged Ultra skill/);

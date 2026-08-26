@@ -1,0 +1,170 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-skill-local-delegation",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-skill-local-delegation.md",
+    "acceptance_sha256": "a37ee4965ac78e2fdfda952ef054577621aee2f4985f65189ba686f88147aeb5"
+  },
+  "subject": {
+    "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+    "worktree_digest": "277a5c57f9ce82e2c840fb703eaa945108d2d4baa003edaa1b5e267ffef09f1e",
+    "observed_at": "2026-08-25T10:46:46Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "D5-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-reporter=dot tests/delegate.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs adapters/_shared/tests/runtime-assets.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs tests/skill-authoring.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-skill-local-delegation/verification.log",
+        "raw_evidence_sha256": "c9028d091349d71e2682d47436c89f0e461d44bc1712214b6f890bdd87fd4fe0",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "277a5c57f9ce82e2c840fb703eaa945108d2d4baa003edaa1b5e267ffef09f1e",
+          "observed_at": "2026-08-25T10:46:46Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The clean-PATH lifecycle fixture installs the complete runner tree, directly executes the installed help and status seams with no global ubp path, and the packed-consumer smoke executes the same packaged entrypoint."
+      }
+    },
+    {
+      "criterion_id": "D5-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-reporter=dot tests/delegate.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs adapters/_shared/tests/runtime-assets.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs tests/skill-authoring.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-skill-local-delegation/verification.log",
+        "raw_evidence_sha256": "c9028d091349d71e2682d47436c89f0e461d44bc1712214b6f890bdd87fd4fe0",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "277a5c57f9ce82e2c840fb703eaa945108d2d4baa003edaa1b5e267ffef09f1e",
+          "observed_at": "2026-08-25T10:46:46Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Wrapper identity assertions and the unchanged adversarial delegation suite prove one implementation preserves packet, permission, diff, result, timeout, cancellation, and terminal recovery behavior; receipt and stalled repair commands resolve the Skill-local path."
+      }
+    },
+    {
+      "criterion_id": "D5-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-reporter=dot tests/delegate.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs adapters/_shared/tests/runtime-assets.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs tests/skill-authoring.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-skill-local-delegation/verification.log",
+        "raw_evidence_sha256": "c9028d091349d71e2682d47436c89f0e461d44bc1712214b6f890bdd87fd4fe0",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "277a5c57f9ce82e2c840fb703eaa945108d2d4baa003edaa1b5e267ffef09f1e",
+          "observed_at": "2026-08-25T10:46:46Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The npm tarball contains all five Skill-local runtime assets; isolated install reads them, Doctor rejects a directory substituted for the worker, reinstall restores exact canonical worker bytes, and uninstall removes the owned runtime tree."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        "tests/install.test.cjs",
+        "tests/package-smoke.test.cjs"
+      ],
+      "rationale": "Regression tests cover canonical/wrapper identity, direct clean-PATH invocation, canonical receipt recovery, exact tarball assets, Doctor file identity, reinstall repair, and uninstall removal; the boundary tests and Doctor corruption case were observed RED before their fixes."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v50-skill-local-delegation/verification.log"
+      ],
+      "rationale": "The final focused suite exited zero with 155 passing tests; Skill Creator validation, git diff check, and all changed Node entrypoint syntax checks also exited zero."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/install.test.cjs",
+        "tests/package-smoke.test.cjs",
+        ".ultra/evidence/v50-skill-local-delegation/verification.log"
+      ],
+      "rationale": "The tests publish real package and Host installation trees in isolated filesystems, execute the copied entrypoint, corrupt an installed file, repair it by reinstall, read exact restored bytes, and remove the owned tree; no in-memory substitute stands in for persistence."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "adapters/_shared/plugin-core.cjs",
+        "skills/ultra-delegate/SKILL.md",
+        "docs/RUNTIME-COMPAT-MATRIX.md"
+      ],
+      "rationale": "No feature flag or dormant alternate path was added. The installed Skill-local runner is the active canonical surface, Doctor always inspects it, and compatibility imports execute that same implementation."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "tests/install.test.cjs",
+        "tests/delegate.test.cjs"
+      ],
+      "rationale": "The verified slice crosses npm packing, package installation, Host plugin installation, direct installed runner execution, canonical worker mechanics, Doctor degradation, reinstall recovery, and uninstall cleanup."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-v50-skill-local-delegation.md",
+        ".ultra/north-star.md#north-star-outcomes",
+        "docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md#7-delegation-and-agent-execution",
+        ".ultra/reviews/v50-skill-local-delegation-initial-review-v1/SUMMARY.json"
+      ],
+      "rationale": "D5-01 through D5-03 project the accepted Skill-first, host-neutral, least-authority boundary from FP-1, FP-3, FP-5, FP-6 into NS-02, NS-04, and NS-05 without changing the r3 North Star."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "f8e199a30c86811a9e385c8a38a641f47c7b9f7112e2339635f277952e193bf3",
+      "limitation": null
+    },
+    "session_id": "v50-skill-local-delegation-initial-review-v1",
+    "summary_ref": ".ultra/reviews/v50-skill-local-delegation-initial-review-v1/SUMMARY.json",
+    "summary_digest": "809e498158a9938be4af90a1bdf54ab737a9ec653051fed038e01b08da8cf98e",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict review session, including WORKER-PACKET.json, ADMISSION.json, every selected specialist artifact, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully. Premature loss requires a fresh Review and Test; never reconstruct the old receipt."
+  },
+  "artifacts": [
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "skills/ultra-delegate/scripts/delegate-profiles/kimi-read-only.md",
+    "skills/ultra-delegate/scripts/delegate-profiles/kimi-write.md",
+    "bin/delegate.cjs",
+    "bin/delegate-worker.cjs",
+    "adapters/_shared/host-profile.cjs",
+    "adapters/_shared/plugin-core.cjs",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "tests/delegate.test.cjs",
+    "tests/install.test.cjs",
+    "tests/package-smoke.test.cjs",
+    ".ultra/reviews/v50-skill-local-delegation-initial-review-v1/SUMMARY.json"
+  ],
+  "limitations": [
+    "No live provider or ACP conformance is claimed; provider execution remains synthetic and ACP belongs to v50-acp-execution-drivers.",
+    "The copied installed entrypoint is directly exercised for help and status while full worker execution is exercised against the byte-identical canonical Skill source.",
+    "The strict review ran sequentially in shared context and has no independent model-family boundary.",
+    "One-release compatibility imports remain for the migration/release task to remove or disposition."
+  ],
+  "timestamp": "2026-08-25T10:46:46Z"
+}

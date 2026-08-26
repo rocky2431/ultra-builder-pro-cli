@@ -1,6 +1,6 @@
 ---
 name: ultra-delegate
-description: Delegate one bounded workflow segment to another installed CLI in an isolated worktree and return only its stable result artifact. Use when the owner asks for another model or host to execute, review, verify, or continue a specific slice of current work.
+description: Delegate one bounded workflow segment to another installed Agent runtime through a conformance-gated ACP or CLI driver in an isolated worktree, then return only its stable result artifact. Use when the owner asks for another model or host to execute, review, verify, or continue a specific slice of current work.
 ---
 
 # Run a bounded worker without giving it project authority
@@ -13,6 +13,20 @@ work package's canonical writer, whatever its result says; moving that role to
 another Agent requires the owner-directed OFFER → ACK → RESULT protocol in
 `../ultra-change/references/primary-transfer.md`, which stays mutually exclusive
 with this bounded-worker path.
+
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `task` | Explicit owner authorization for one task execution or continuation slice | One validated terminal worker result and isolated diff are returned to the primary writer | Return to the primary `ultra-dev` task for interpretation and integration |
+| `research` | Explicit owner authorization for one active Change's bounded evidence question | One validated terminal result carries the named evidence or a bounded unavailable path | Return to `ultra-research/change-scoped` under the primary writer |
+| `aggregate` | Explicit owner authorization for one Change-level review or verification question | One validated terminal finding result is available without canonical `.ultra` writes | Return to the primary `ultra-test`, `ultra-review`, or requesting route |
+
+Follow `../ultra-status/references/route-contract.md`. Delegation always remains an
+explicit-entry capability, even when the surrounding Change has an Execution Grant.
+Show one Route Card before launch and one after the terminal result. Worker events and
+transport progress may update `Position`, `Delta`, or `Reality`; they never prove the
+delegated slice complete or select the primary route.
 
 ## Before you start
 
@@ -39,6 +53,8 @@ with this bounded-worker path.
 - No `writable_roots` entry is `.ultra/` or sits under it, and the actual diff touches
   nothing there.
 - Timeout and cancellation reach a terminal failed result and release `run.lock`.
+- ACP updates stay in a derived redacted event journal; no `agent_thought_chunk`, raw tool
+  input/output, credential, session, or stop reason can establish Ultra completion.
 - The primary host verifies the result against the selected scope's task acceptance,
   Research exit evidence, or aggregate review/verification question.
 
@@ -66,15 +82,43 @@ policy.
 Create `.ultra/.runtime/worktrees/<id>` as a real Git worktree and run:
 
 ```text
-ubp delegate run --to <host> --instruction <file> --permission <file> --worktree <dir> --timeout <seconds>
+node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to <host> --instruction <file> --permission <file> --worktree <dir> --timeout <seconds>
 ```
+
+Resolve `<loaded-ultra-delegate-skill-dir>` from this Skill's actual loaded path. The
+Skill-local launcher and worker are the canonical runtime. Do not search `PATH` for
+`ubp`, install a global package, or invoke `npx` during delegation. `ubp delegate ...`
+is a one-release compatibility wrapper only.
 
 `<host>` is `claude`, `codex`, `opencode`, `kimi`, `grok`, or `zcode`. Kimi accepts an
 optional `--model <id>` when its account has no default headless model. A ZCode primary
 host uses this same command to delegate to any other installed CLI; a different primary
 host can select `--to zcode` through the ZCode headless profile.
 
-The ZCode headless transport is `experimental`: it is an App-internal or PATH CLI with
+The launcher selects one `AgentExecutionDriver` per Host. A stable ACP v1 stdio
+candidate is preferred only when that exact Host's versioned conformance row is
+`passed`, names a non-empty evidence reference, and its executable probe succeeds. The
+probe checks declared capability and local executability without starting a provider
+task. Every other case uses the
+result-compatible `CliDriver` and records `execution_driver`, `acp_capability`, and the
+exact `driver_fallback_reason` in the receipt and terminal result. Do not edit a
+conformance row merely because a binary or help command exists.
+
+`AcpDriver` sends `initialize` with protocol v1 and no client filesystem, terminal, or
+interactive-auth capability; creates one session at the absolute isolated-worktree
+`cwd`; sends the digest-bound packet as one text prompt; and consumes `session/update`,
+permission, cancellation, and terminal messages. It retains only bounded redacted
+event metadata. An edit/delete/move request is granted with `allow_once` only when all
+declared locations are already inside `writable_roots`; scope widening and execution,
+fetch, mode-switch, or unknown operations are denied and force a typed terminal
+failure. `allow_always` is never selected. ACP authentication requirements remain a
+typed unavailable path; the driver does not copy or solicit credentials.
+
+The ZCode headless transport is `experimental`: its thin profile resolves only the
+installed ZCode Desktop runtime (or the operator's explicit PATH/test override) and
+never redistributes App bytes. The installed `app-server` is a ZCode Protocol surface,
+not evidence of ACP v1 compatibility, so the ZCode conformance row remains `not_run`
+and `CliDriver` remains active. It is an App-internal or PATH CLI with
 no public stability contract, and it is **not** the documented ZCode Desktop
 interactive surface. `delegate run --to zcode` refuses to launch until the invocation
 explicitly carries `--ack-experimental`; every launch then prints a stderr warning and
@@ -83,10 +127,14 @@ and `experimental_ack: true` in the receipt, the worker spec, and the terminal r
 (including failure and timeout recovery results), so no receipt can imply a documented
 Desktop session. Promotion requires official documentation plus a full recovery drill.
 
-The command returns a receipt. Immediately run `scripts/delegate_wait.py`; read no
-intermediate output. Use `ubp delegate status --delegation <dir>` for a read-only state
-and `ubp delegate cancel --delegation <dir>` to request termination. Never delete a lock
-to manufacture completion.
+The command returns a receipt. `status --delegation <dir>` reports the active driver,
+fallback reason, and latest safe derived ACP observation when present; that observation
+is execution telemetry, not a route or completion verdict. Immediately run
+`python3 <loaded-ultra-delegate-skill-dir>/scripts/delegate_wait.py <result.json>`; read
+no intermediate output. Use the same Skill-local Node entrypoint with `status
+--delegation <dir>` for a read-only state and `cancel --delegation <dir>` to request
+termination. The receipt carries the exact canonical cancel command. Never delete a
+lock to manufacture completion.
 
 The worker returns one schema-constrained JSON final response. The launcher extracts it
 from the host's native structured output, validates digests, process exit, exact schema,
@@ -117,6 +165,8 @@ interpretation, risk acceptance, integration and task state.
 ## References
 
 - `references/delegation-contract.md` — strict permission, receipt and result schemas.
+- `scripts/delegate.cjs` — canonical installed launcher and status/cancel entrypoint.
 - `scripts/delegate_wait.py` — run immediately after the launch receipt.
+- `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `../ultra-think/SKILL.md` — read when No Consensus exposes a consequential decision.
 - `../ultra-think/references/autonomy-boundary.md` — read before granting write effects.

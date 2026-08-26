@@ -9,6 +9,17 @@ Initialization establishes places for later authority and records raw owner inta
 does not validate the problem, establish a North Star, build a product or architecture
 baseline, settle domain language, choose a Change, or start another public workflow.
 
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `create` | Explicit owner invocation when `.ultra/` is absent | Missing skeleton files and raw Project Brief are published and read back; Git exists | Recommend `ultra-research` in `baseline` mode |
+| `recover` | Explicit owner invocation when the skeleton is partial or uncertain | Missing files are restored, preserved authority is byte-identical, and every unresolved repair is named | Recommend `ultra-research` in `baseline` mode when the brief is usable; otherwise resume `ultra-init/recover` |
+
+Follow `../ultra-status/references/route-contract.md`. Derive a Route Card before the
+first write and at the exit or any repair stop. Init never continues into Research on
+its own, and its `Position` reports observed files rather than semantic progress.
+
 ## Before you start
 
 1. If `.ultra/changes/active/` exists, resolve at most one active `change_id`. Read
@@ -128,4 +139,5 @@ usable brief exists, but do not invoke it.
 
 - `../ultra-grilling/SKILL.md` — read before the first missing brief field.
 - `references/brownfield-adoption.md` — read when maintained behavior already exists.
+- `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `../ultra-think/references/autonomy-boundary.md` — read before replacing authority.

@@ -9,22 +9,43 @@ This router is read-only. It separates verified files, model inference, and unav
 evidence, then recommends one explicit public capability without invoking it. It never
 persists a workflow-position field.
 
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `route` | Owner asks what is current or what to do next | One artifact-derived Route Card names the matched facts, unavailable evidence, and one recommended route | The named explicit route, or `idle` |
+| `history` | Owner asks what changed, was rejected, or was superseded | Relevant decisions, Git revisions, archived/abandoned Changes, and unresolved contradictions are summarized without becoming authority | Return to `route` or the owner-selected revision route |
+| `installation` | Owner asks whether Ultra is discovered and healthy on a Host | Installed version, provenance, Skill/hook discovery, drift, and reachable repair are reported read-only | Recommend the exact install/update/Doctor repair |
+| `delegation` | Owner asks about a worker, handoff, ACP/CLI event, or terminal result | Transport observations and canonical authority are shown separately with a retry/cancel/integration path | Return to the requesting primary route |
+| `recovery` | Authority is absent, ambiguous, stale, malformed, or temporarily unreadable | The earliest unsafe or unavailable fact and cheapest safe repair, retry, cancel, abandon, or fresh-session path are named | Recommend only the repair-capable explicit route |
+
+Follow `references/route-contract.md` and use its `UBP Route Card` as the default output,
+not an optional appendix. Expand history, installation, delegation, or recovery details
+only when requested or needed to explain why the normal route is unavailable. Status is
+a `router`: the Owner invokes it for read-only diagnosis, its Host implicit bit remains
+off, and it supplies no continuation authority. Other public Skills derive their own
+cards from the shared reference rather than invoking Status.
+
 ## Before you start
 
 1. Read `../ultra-change/references/change-contract.md` and apply its **Active Change
    authority resolution** before reading any active `intent.md` or relying on a current
    `change_id`. A positively observed absent `.ultra` uses the existing `ultra-init`
-   route. Otherwise continue only from the rule's stable zero-or-one result; any typed
-   diagnostic stops routing until its stated repair or retry succeeds. With one active
-   Change, read `.ultra/tasks.json`, then tasks whose `change_id` matches it and the
+   route. Otherwise continue only from the rule's stable zero-or-one result. A typed
+   diagnostic stops semantic routing from an ambiguous active Change, but it does not
+   stop Status: switch to `recovery` mode and report the diagnostic plus safe Git and
+   directory observations without reading any ambiguous `intent.md` as authority. With
+   one valid active Change, read `.ultra/tasks.json`, then tasks whose `change_id` matches it and the
    frontier task's `context_file` and `## Resume Note`. `.ultra/tasks.json` is the sole
    task-status authority. A Status or Complexity header in a legacy context is a
    migration diagnostic; the ledger wins. Historical and abandoned tasks never define
    the frontier.
-2. Read `.ultra/project-brief.md`, `.ultra/north-star.md`, `CONTEXT.md`, relevant
-   `.ultra/decisions/`, specifications, active, archived, or abandoned Changes, and
-   evidence. An abandoned Change supplies historical boundary and recovery context;
-   it never defines the current route.
+2. After stable authority resolution, read `.ultra/project-brief.md`,
+   `.ultra/north-star.md`, `CONTEXT.md`, relevant `.ultra/decisions/`, specifications,
+   active, archived, or abandoned Changes, and evidence. In `recovery` mode, read only
+   unaffected canonical files and safe directory/Git observations; do not interpret an
+   ambiguous active intent. An abandoned Change supplies historical boundary and
+   recovery context; it never defines the current route.
 3. Inspect Git `HEAD`, worktree status, and installed host manifests without repair.
 4. When the active Change records a `durable work-package` Execution Grant, report it
    as recorded authorization data — grant id, cited decision, and its recorded
@@ -36,6 +57,8 @@ persists a workflow-position field.
 
 ## Definition of done
 
+- Emit the current Route Card with an exact mode, observable exit, unfinished work, and
+  one next route or safe recovery path.
 - Evaluate the artifact route in order and name the evidence supporting the match.
 - Keep stale test evidence, dirty worktree state, baseline gaps, and task graph risks
   visible without converting them into semantic failure.
@@ -153,6 +176,12 @@ and unresolved `FP-*`/`NS-*`/`HC-*` reference. A mismatch is stale evidence, nev
 mechanical verdict about truth or permission; supersession does not delete prior task,
 review, Test, or delivery evidence.
 
+On a fresh session, use the current Change's exact matching contexts and closing Resume
+Note to reconstruct the card. Do not rerun completed Research or infer route from chat
+memory. In `history` mode, distinguish mutable draft edits from superseding accepted
+decision records and keep rejected or abandoned alternatives visible when they explain
+the current boundary.
+
 ## Surface risk and installation health
 
 List unmet task dependencies, more than one matching `in_progress` task under the
@@ -173,6 +202,7 @@ Contradictory facts remain visible instead of being resolved by routing heuristi
 ## References
 
 - `../ultra-change/references/change-contract.md` — canonical Active Change authority resolution.
+- `references/route-contract.md` — canonical Route Card, checkpoint, continuation, and recovery contract.
 - `../ultra-think/SKILL.md` — read only when contradictory evidence creates one real
   decision rather than a mechanical repair.
 - `../ultra-think/references/autonomy-boundary.md` — read before recommending a route

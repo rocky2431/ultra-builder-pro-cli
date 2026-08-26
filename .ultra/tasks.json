@@ -244,6 +244,70 @@
       "context_file": ".ultra/contexts/task-v30-current-test-report-consumer.md",
       "trace_to": ".ultra/specs/product.md#release-evidence",
       "change_id": "chg-ultra-3-0-mode-b"
+    },
+    {
+      "id": "v50-route-contract",
+      "title": "Project the Route Contract into the public workflow",
+      "type": "architecture",
+      "priority": "P0",
+      "status": "completed",
+      "dependencies": [],
+      "context_file": ".ultra/contexts/task-v50-route-contract.md",
+      "trace_to": ".ultra/north-star.md#north-star-outcomes",
+      "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v50-skill-local-delegation",
+      "title": "Make delegation reachable from an installed Skill",
+      "type": "architecture",
+      "priority": "P0",
+      "status": "completed",
+      "dependencies": [
+        "v50-route-contract"
+      ],
+      "context_file": ".ultra/contexts/task-v50-skill-local-delegation.md",
+      "trace_to": ".ultra/specs/architecture.md#delegation-boundary",
+      "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v50-acp-execution-drivers",
+      "title": "Add ACP-first conformance-gated execution drivers",
+      "type": "feature",
+      "priority": "P0",
+      "status": "completed",
+      "dependencies": [
+        "v50-skill-local-delegation"
+      ],
+      "context_file": ".ultra/contexts/task-v50-acp-execution-drivers.md",
+      "trace_to": ".ultra/specs/architecture.md#delegation-boundary",
+      "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v50-migration-journeys",
+      "title": "Prove 3.x migration and real owner journeys",
+      "type": "verification",
+      "priority": "P0",
+      "status": "completed",
+      "dependencies": [
+        "v50-route-contract",
+        "v50-acp-execution-drivers"
+      ],
+      "context_file": ".ultra/contexts/task-v50-migration-journeys.md",
+      "trace_to": ".ultra/specs/product.md#release-evidence",
+      "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v50-release-candidate",
+      "title": "Freeze and verify the local 5.0 release candidate",
+      "type": "verification",
+      "priority": "P0",
+      "status": "completed",
+      "dependencies": [
+        "v50-migration-journeys"
+      ],
+      "context_file": ".ultra/contexts/task-v50-release-candidate.md",
+      "trace_to": ".ultra/specs/product.md#release-evidence",
+      "change_id": "chg-ultra-5-0"
     }
   ]
 }

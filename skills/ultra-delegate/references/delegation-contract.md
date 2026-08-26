@@ -1,5 +1,16 @@
 # Delegation artifact contract
 
+## Runtime ownership
+
+The loaded `ultra-delegate` Skill owns `scripts/delegate.cjs`,
+`scripts/delegate-worker.cjs`, `scripts/host-profile.cjs`,
+`scripts/agent-execution-driver.cjs`, `scripts/acp-driver.cjs`,
+`scripts/cli-driver.cjs`, and its launch-only profiles.
+Invoke the launcher with the loaded Skill's absolute path. It has no package-root,
+global `ubp`, or runtime `npx` dependency. The package `ubp delegate` command is a thin
+one-release compatibility import of the same functions; it contains no launcher or
+worker behavior of its own.
+
 ## Permission
 
 ```json
@@ -61,7 +72,7 @@ the host prompt, extracts this object from native structured output, and adds
 failures also add `failure_type`. A nonzero process cannot publish `finished`.
 
 Every receipt, worker spec, and terminal result also records the transport truth:
-`transport_maturity` (from the shared host profile) and the exact `transport_surface`
+`transport_maturity` (from the Skill-local host profile) and the exact `transport_surface`
 wording. The ZCode headless transport is `experimental` with no public stability
 contract and is not the documented ZCode Desktop interactive surface; launching it
 requires the explicit `--ack-experimental` flag, prints a stderr warning, and stamps
@@ -69,9 +80,42 @@ requires the explicit `--ack-experimental` flag, prints a stderr warning, and st
 internal CLI run as a documented Desktop session — including failure, cancellation,
 and timeout recovery results.
 
+They also record `execution_driver`, `driver_fallback_reason`, and the probed
+`acp_capability`. ACP results add negotiated `acp_protocol_version`, observed
+`acp_stop_reason`, and `events_file`. These are mechanical observations only. In
+particular, `stopReason: end_turn`, a completed tool call, an ACP plan, or process exit
+cannot synthesize the exact model response above or satisfy its Git-diff validation.
+
+## ACP v1 permission and event boundary
+
+The stdio client advertises no client filesystem, terminal, or terminal-auth
+capability. It creates one fresh session with the isolated worktree as absolute `cwd`,
+an empty MCP-server list, and one digest-bound text prompt. Agent-side file tools remain
+inside the Host process and the existing worktree/diff enforcement remains final.
+
+ACP `session/request_permission` uses least authority:
+
+- read, search, and think may select an offered `allow_once`;
+- edit, delete, and move may select `allow_once` only when every non-empty absolute
+  location is already inside a granted real writable root and outside `.ultra/`;
+- execute, fetch, mode switching, unknown operations, read-only writes, symlink escape,
+  and every other widening select an offered rejection and make the run terminally
+  denied;
+- `allow_always` is never selected; cancellation answers any pending permission request
+  with ACP's `cancelled` outcome.
+
+`events.jsonl` is bounded disposable telemetry. It stores phase/update type, tool kind
+and status, counts, permission decision/scope, and terminal stop reason. It drops
+`agent_thought_chunk` entirely and never stores message text, titles, raw tool
+input/output, credentials, or protocol wire payloads. Status re-projects the latest
+record through the same fixed safe shape, so a malformed or replaced journal becomes
+`event_journal_malformed` instead of being echoed. Loss of the journal does not affect
+recovery or completion.
+
 ## Recovery
 
 - `status` distinguishes running, cancelling, stalled, and terminal artifacts.
+- ACP status may also expose the latest redacted derived event; it remains non-authoritative.
 - `cancel` writes `cancel.request`; the worker terminates its host process, publishes a
   failed result with `failure_type: cancelled`, and removes `run.lock`.
 - `--timeout` does the same with `failure_type: timeout`.

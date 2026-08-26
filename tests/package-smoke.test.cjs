@@ -19,7 +19,7 @@ function command(program, args, options = {}) {
   });
 }
 
-test('npm tarball contains and runs only the v0.26 file-first product surface', () => {
+test('npm tarball contains and runs only the file-first product surface', () => {
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-pack-'));
   try {
     const packed = command('npm', ['pack', '--json', '--pack-destination', sandbox]);
@@ -36,6 +36,14 @@ test('npm tarball contains and runs only the v0.26 file-first product surface', 
     assert.ok(paths.includes('hooks/_common.py'));
     assert.ok(paths.includes('bin/delegate.cjs'));
     assert.ok(paths.includes('bin/delegate-worker.cjs'));
+    assert.ok(paths.includes('skills/ultra-delegate/scripts/delegate.cjs'));
+    assert.ok(paths.includes('skills/ultra-delegate/scripts/delegate-worker.cjs'));
+    assert.ok(paths.includes('skills/ultra-delegate/scripts/host-profile.cjs'));
+    assert.ok(paths.includes('skills/ultra-delegate/scripts/agent-execution-driver.cjs'));
+    assert.ok(paths.includes('skills/ultra-delegate/scripts/acp-driver.cjs'));
+    assert.ok(paths.includes('skills/ultra-delegate/scripts/cli-driver.cjs'));
+    assert.ok(paths.includes('skills/ultra-delegate/scripts/delegate-profiles/kimi-read-only.md'));
+    assert.ok(paths.includes('skills/ultra-delegate/scripts/delegate-profiles/kimi-write.md'));
     assert.ok(paths.includes('.ultra-template/project-brief.md'));
     assert.ok(paths.includes('.ultra-template/tasks.json'));
     assert.ok(paths.includes('.ultra-template/test-report.json'));
@@ -89,6 +97,17 @@ test('npm tarball contains and runs only the v0.26 file-first product surface', 
     ], { cwd: consumer });
     assert.equal(doctor.status, 0, doctor.stderr || doctor.stdout);
     assert.equal(JSON.parse(doctor.stdout).status, 'healthy');
+
+    const installedDelegate = path.join(
+      config, 'skills', 'ultra-builder-pro', 'skills', 'ultra-delegate', 'scripts',
+      'delegate.cjs',
+    );
+    const directDelegate = command(process.execPath, [installedDelegate, '--help'], {
+      cwd: consumer,
+      env: { PATH: path.dirname(process.execPath) },
+    });
+    assert.equal(directDelegate.status, 0, directDelegate.stderr || directDelegate.stdout);
+    assert.match(directDelegate.stdout, /delegate\.cjs <run\|status\|cancel>/u);
 
     const installedTemplate = path.join(
       config, 'skills', 'ultra-builder-pro', 'skills',

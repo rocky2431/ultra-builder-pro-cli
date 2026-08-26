@@ -1,0 +1,63 @@
+Ultra Builder Pro 5.0 local release-candidate verification
+Timestamp: 2026-08-25T12:45:15Z
+CWD: /Users/rocky243/Context Engineering/ultra-builder-pro-cli
+HEAD: b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1
+Candidate: ultra-builder-pro-cli@5.0.0, dirty local source, not published
+
+Version-contract command
+node -e '<compare package.json, package-lock.json, English/Chinese README, and CHANGELOG to 5.0.0>'
+Result: exit 0; package 5.0.0, lock root 5.0.0, lock package 5.0.0, both README headings/install pins present, CHANGELOG 5.0.0 entry present.
+
+Changed Skill validation
+for skill_path in skills/ultra-change skills/ultra-delegate skills/ultra-deliver skills/ultra-dev skills/ultra-init skills/ultra-plan skills/ultra-research skills/ultra-status skills/ultra-test; do uv run --with pyyaml -- python /Users/rocky243/.codex/skills/.system/skill-creator/scripts/quick_validate.py "$skill_path" || exit 1; done
+Result: exit 0; 9/9 changed Skills valid.
+Note: a direct system-python invocation first reported ModuleNotFoundError: yaml; the final isolated uv invocation supplied PyYAML and passed every Skill.
+
+Generated Codex plugin validation
+node bin/install.js --codex --global --config-dir /tmp/<isolated-plugin-root>
+uv run --with pyyaml -- python /Users/rocky243/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py /tmp/<isolated-plugin-root>/plugins/ultra-builder-pro
+Result: exit 0; generated 5.0.0 Codex plugin validation passed. The isolated directory was moved to Trash; no real marketplace or user config was changed.
+
+Final product-snapshot release gate
+npm run verify:release
+Result: exit 0.
+- Node: 647 tests, 647 pass, 0 fail, 0 cancelled, 0 skipped, 0 todo.
+- Hooks: 89 passed.
+- npm audit --omit=dev --audit-level=high: 0 vulnerabilities.
+This command was rerun after the final owner-facing WIP checkpoint changed; both runs exited zero, and the recorded result is the later product snapshot.
+
+Final dry-run package inspection
+npm pack --dry-run --json
+Result: exit 0; no tarball written.
+- id: ultra-builder-pro-cli@5.0.0
+- entryCount: 138
+- size: 362686 bytes
+- unpackedSize: 1307282 bytes
+- shasum: 421f6a71027b2ebe346224f415aa43416bdb1ba4
+- integrity: sha512-+s9kPAHJ9gKzphQtrp1Gqdg/tSNDodlrGl12iqBOSV/U4WcmVZnWl39FsvM4kMqcARg2nuwrb92k8yd7zhAh+A==
+- npm warning: no .npmignore; npm used .gitignore fallback. The explicit package files allowlist and 138-entry inventory passed; no new .npmignore was added only to silence the warning.
+
+Final isolated six-Host lifecycle
+node bin/install.js --all --global --config-dir /tmp/<isolated-all-host-root>
+node bin/install.js --all --global --config-dir /tmp/<isolated-all-host-root> --doctor --json
+node bin/install.js --all --global --config-dir /tmp/<isolated-all-host-root> --uninstall
+Result: all commands exit 0; aggregate Doctor healthy; package 5.0.0; every adapter has zero issues and an installed delegation runner; uninstall leaves the isolated root empty.
+- claude: healthy; 103 assets; cli; acp_not_available.
+- opencode: healthy; 7 managed assets; cli; acp_stdio_unavailable; TCP candidate not eligible for the required stdio transport.
+- codex: healthy; 119 assets; cli; acp_not_available; hook activation remains user_review_required and is reported as an action, not an issue.
+- kimi: healthy; 104 assets; cli; acp_conformance_not_passed.
+- grok: healthy; 104 assets; cli; acp_conformance_not_passed.
+- zcode: healthy; 104 assets; cli; acp_v1_unavailable; transport maturity experimental; installed-runtime-only true.
+
+Formatting
+git diff --check
+Result: exit 0.
+
+Accepted local evidence and deliberate gaps
+- ACP protocol behavior uses tests/fixtures/fake-acp-agent.cjs and isolated Git/process fixtures; it is synthetic protocol evidence, not a live provider claim.
+- Installation and Doctor use isolated configuration roots, not the real user home. The 3.x migration fixture is finite and does not claim unknown third-party semantic compatibility.
+- Every shipped Host deliberately remains on CLI until its exact ACP row passes. A started ACP run never silently retries through CLI; retry requires a fresh delegation id.
+- ZCode uses the installed Desktop runtime only and remains experimental. No activated ZCode ACP bridge, provider task, credentials, paid call, or recovery drill is claimed.
+- No Windows descendant-process cleanup proof is claimed from this POSIX environment.
+- Review sessions are sequential-shared-context and do not provide an independent model-family boundary.
+- Team Pack, remote assets/Marketplace, daemon, workflow service, semantic state machine, shared authority store, A2A network, commit, push, tag, npm publication, GitHub Release, deployment, and real installation remain outside this local candidate.

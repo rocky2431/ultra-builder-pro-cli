@@ -4,6 +4,10 @@
 > file-first and has no MCP, database, command projection, custom-agent projection, or
 > orchestrator. See `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`.
 
+The current 5.0 transition keeps `ubp delegate` only as a thin one-release compatibility
+import. Normal runtime resolves the installed `ultra-delegate/scripts/delegate.cjs`
+entrypoint directly; the installer CLI is not a resident workflow service.
+
 This document is the compatibility contract between the original
 [`rocky2431/ultra-builder-pro`](https://github.com/rocky2431/ultra-builder-pro)
 Claude Code harness and the former multi-runtime CLI/MCP implementation. Comparisons and

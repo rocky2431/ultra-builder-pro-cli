@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] — 2026-08-25
+
+### Added
+
+- Added one owner-visible Route Contract for every public workflow transition:
+  invocation, mode, current position, observable exit condition, material checkpoint,
+  and next route are derived from repository authority rather than stored as another
+  semantic state machine.
+- Added a canonical installed Skill-local delegation runtime and one replaceable
+  `AgentExecutionDriver` boundary. The stable ACP v1 driver handles negotiation, fresh
+  absolute-cwd sessions, bounded/redacted updates, permission requests, cancellation,
+  timeouts, and terminal observation while preserving the existing immutable packet,
+  Git-diff, and exact result validator. `CliDriver` remains result-compatible fallback.
+- Added per-Host ACP capability/conformance selection and Doctor reporting for runner
+  health, selected driver, fallback reason, and transport maturity. ACP can activate
+  only for an executable stdio v1 candidate with a passed Host-specific evidence row.
+- Added a 3.x migration and fourteen-journey acceptance harness covering byte- and
+  mode-preserving install/update/Doctor/uninstall, fresh-session recovery, degraded
+  authority, early observable slices, delegation, cancellation, and truthful STOPs.
+
+### Changed
+
+- Made `ultra-change` the daily entry for an existing-project request. `ultra-research`
+  now owns the first baseline or one bounded evidence question; Change owns the delta
+  and its Research Disposition; Plan owns the smallest dependency-correct graph and the
+  earliest owner-observable vertical slice.
+- Made fresh-session recovery explicitly file-first: resolve the unique active Change,
+  task ledger and context, Acceptance, Resume Note, decisions, evidence, and Git without
+  replaying completed Research or treating conversation memory as authority.
+- Moved the canonical delegation launcher and its complete runtime closure under the
+  installed `ultra-delegate` Skill. The package-level `ubp delegate` command is a thin
+  one-release compatibility wrapper rather than a day-to-day runtime dependency.
+- Kept all six shipped Host profiles on an explicit CLI fallback until their own ACP
+  conformance row passes. ZCode resolves only the installed Desktop runtime, remains
+  `experimental`, and reports `acp_v1_unavailable`; it does not claim an activated ACP
+  bridge.
+- Kept Status and degraded Review read-only. Ambiguous authority reports the earliest
+  unsafe fact and reachable repair, retry, cancel, or abandon path without selecting an
+  intent, activating stored grant text, or writing semantic content.
+
+### Compatibility and scope
+
+- Preserved every seeded accepted 3.x project artifact byte and mode through the real
+  isolated install, update, Doctor, and uninstall lifecycle.
+- Deliberately excluded a daemon, remote workflow service, semantic state machine, A2A
+  network, Team Pack, remote marketplace, shared authority store, automatic ACP-to-CLI
+  retry after a started run, and unverified Host capability promotion.
+- Live provider calls, real user-home installation, ZCode ACP recovery, Windows
+  descendant cleanup, commit, push, tag, publication, GitHub Release, and deployment
+  remain separately authorized and are not claimed by the local 5.0 candidate.
+
 ## [3.0.2] — 2026-08-18
 
 ### Added
@@ -1446,7 +1497,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skill manifest, CLI protocol + mapping table; 5 spec validators.
 - **Phase 0 — skeleton**: multi-runtime installer scaffolding.
 
-[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v3.0.2...HEAD
+[Unreleased]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v3.0.2...v5.0.0
 [3.0.2]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.2...v3.0.2
 [0.26.2]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.1...v0.26.2
 [0.26.1]: https://github.com/rocky2431/ultra-builder-pro-cli/compare/v0.26.0...v0.26.1

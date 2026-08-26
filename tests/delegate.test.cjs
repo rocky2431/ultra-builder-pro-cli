@@ -9,7 +9,15 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const CLI = path.join(ROOT, 'bin', 'install.js');
+const COMPATIBILITY_RUNNER = path.join(ROOT, 'bin', 'delegate.cjs');
+const SKILL_RUNNER = path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate.cjs');
+const FAKE_ACP_AGENT = path.join(ROOT, 'tests', 'fixtures', 'fake-acp-agent.cjs');
 const WAIT = path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate_wait.py');
+const {
+  cancel: cancelDelegate,
+  run: runDelegate,
+  status: statusDelegate,
+} = require(SKILL_RUNNER);
 const {
   ZCODE_BUNDLED_CLI,
   hostProfile,
@@ -101,6 +109,24 @@ function waitForExit(pid, timeout = 2000) {
   throw new Error(`timed out waiting for process ${pid}`);
 }
 
+test('Skill-local delegation is canonical and the package CLI is a thin compatibility wrapper', () => {
+  assert.ok(fs.existsSync(SKILL_RUNNER), SKILL_RUNNER);
+  const canonical = require(SKILL_RUNNER);
+  const compatibility = require(COMPATIBILITY_RUNNER);
+  assert.equal(compatibility.handle, canonical.handle);
+  assert.equal(compatibility.run, canonical.run);
+  assert.equal(compatibility.status, canonical.status);
+  assert.equal(compatibility.cancel, canonical.cancel);
+
+  const help = spawnSync(process.execPath, [SKILL_RUNNER, '--help'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: path.dirname(process.execPath) },
+  });
+  assert.equal(help.status, 0, help.stderr || help.stdout);
+  assert.match(help.stdout, /delegate\.cjs <run\|status\|cancel>/u);
+});
+
 test('host profiles use bounded native permission modes without bypass flags', () => {
   const prompt = 'Read the packet and write the result.';  const cwd = '/tmp/worktree';
   const options = {
@@ -173,6 +199,186 @@ test('host profiles use bounded native permission modes without bypass flags', (
     model: 'kimi-code/k3',
   });
   assert.equal(selectedKimi[selectedKimi.indexOf('--model') + 1], 'kimi-code/k3');
+});
+
+test('the launcher runs a conformance-passed ACP profile through the unchanged terminal result validator', () => {
+  const fx = fixture('acp-integration');
+  try {
+    const expected = resultPayload([]);
+    const trace = path.join(fx.delegation, 'fake-acp-trace.jsonl');
+    const profile = {
+      binary: process.execPath,
+      transportMaturity: 'documented+verified',
+      acp: {
+        surface: 'fixture ACP stdio',
+        transport: 'stdio',
+        protocolVersions: [1],
+        conformance: { status: 'passed', evidence: 'tests/fixtures/fake-acp-agent.cjs' },
+        command: () => process.execPath,
+        argv: () => [FAKE_ACP_AGENT],
+      },
+      delegateEnv: () => ({
+        FAKE_ACP_SCENARIO: 'happy',
+        FAKE_ACP_TRACE: trace,
+        FAKE_ACP_RESULT: JSON.stringify(expected),
+      }),
+    };
+    const receipt = runDelegate([
+      '--to', 'fixture',
+      '--instruction', path.join(fx.delegation, 'instruction.md'),
+      '--permission', path.join(fx.delegation, 'permission.json'),
+      '--worktree', fx.worktree,
+      '--timeout', '5',
+    ], {
+      projectRoot: fx.root,
+      resolveHostProfile: () => profile,
+    });
+    assert.equal(receipt.execution_driver, 'acp');
+    assert.equal(receipt.driver_fallback_reason, null);
+    assert.equal(receipt.acp_capability.conformance_status, 'passed');
+    assert.equal(
+      receipt.events_file,
+      path.join(fs.realpathSync(fx.root), '.ultra', '.runtime', 'delegations', 'acp-integration', 'events.jsonl'),
+    );
+
+    const result = waitFor(receipt.result_file);
+    assert.equal(result.status, 'finished', JSON.stringify(result));
+    assert.equal(result.execution_driver, 'acp');
+    assert.equal(result.acp_protocol_version, 1);
+    assert.equal(result.acp_stop_reason, 'end_turn');
+    assert.deepEqual(result.changed_files, []);
+    assert.ok(fs.existsSync(receipt.events_file));
+    assert.match(fs.readFileSync(receipt.events_file, 'utf8'), /"type":"terminal"/u);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('an ACP end_turn without the exact Ultra result remains missing_result', () => {
+  const fx = fixture('acp-stop-is-not-complete');
+  try {
+    const profile = {
+      binary: process.execPath,
+      transportMaturity: 'documented+verified',
+      acp: {
+        surface: 'fixture ACP stdio',
+        transport: 'stdio',
+        protocolVersions: [1],
+        conformance: { status: 'passed', evidence: 'tests/fixtures/fake-acp-agent.cjs' },
+        command: () => process.execPath,
+        argv: () => [FAKE_ACP_AGENT],
+      },
+      delegateEnv: () => ({ FAKE_ACP_SCENARIO: 'no-result' }),
+    };
+    const receipt = runDelegate([
+      '--to', 'fixture',
+      '--instruction', path.join(fx.delegation, 'instruction.md'),
+      '--permission', path.join(fx.delegation, 'permission.json'),
+      '--worktree', fx.worktree,
+      '--timeout', '5',
+    ], {
+      projectRoot: fx.root,
+      resolveHostProfile: () => profile,
+    });
+    const result = waitFor(receipt.result_file);
+    assert.equal(result.status, 'failed');
+    assert.equal(result.failure_type, 'missing_result');
+    assert.equal(result.acp_stop_reason, 'end_turn');
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('ACP status exposes only the latest derived observation and cancellation leaves no orphan', () => {
+  const fx = fixture('acp-status-cancel');
+  const childPidFile = path.join(fx.delegation, 'fake-acp-child.pid');
+  try {
+    const profile = {
+      binary: process.execPath,
+      transportMaturity: 'documented+verified',
+      acp: {
+        surface: 'fixture ACP stdio',
+        transport: 'stdio',
+        protocolVersions: [1],
+        conformance: { status: 'passed', evidence: 'tests/fixtures/fake-acp-agent.cjs' },
+        command: () => process.execPath,
+        argv: () => [FAKE_ACP_AGENT],
+      },
+      delegateEnv: () => ({
+        FAKE_ACP_SCENARIO: 'cancel',
+        FAKE_ACP_CHILD_PID: childPidFile,
+      }),
+    };
+    const receipt = runDelegate([
+      '--to', 'fixture',
+      '--instruction', path.join(fx.delegation, 'instruction.md'),
+      '--permission', path.join(fx.delegation, 'permission.json'),
+      '--worktree', fx.worktree,
+      '--timeout', '10',
+    ], {
+      projectRoot: fx.root,
+      resolveHostProfile: () => profile,
+    });
+    const childPid = waitFor(childPidFile);
+    const snapshot = statusDelegate(['--delegation', fx.delegation], { projectRoot: fx.root });
+    assert.equal(snapshot.status, 'running');
+    assert.equal(snapshot.execution_driver, 'acp');
+    assert.equal(snapshot.execution_observation.status, 'observed');
+    assert.ok(snapshot.execution_observation.event_count >= 2);
+    assert.equal('content' in snapshot.execution_observation.latest, false);
+
+    cancelDelegate(['--delegation', fx.delegation], { projectRoot: fx.root });
+    const result = waitFor(receipt.result_file);
+    assert.equal(result.failure_type, 'cancelled');
+    assert.equal(result.acp_protocol_version, 1);
+    waitForExit(childPid);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('ACP status projects a fixed safe event shape even when the derived journal is tampered', () => {
+  const fx = fixture('acp-status-tampered-event');
+  try {
+    fs.writeFileSync(path.join(fx.delegation, 'receipt.json'), `${JSON.stringify({
+      $schema: 'ultra-delegation-receipt-v1',
+      status: 'started',
+      delegation_id: 'acp-status-tampered-event',
+      worker_pid: 99999999,
+      execution_driver: 'acp',
+      driver_fallback_reason: null,
+      events_file: path.join(fx.delegation, 'events.jsonl'),
+    })}\n`);
+    fs.writeFileSync(path.join(fx.delegation, 'events.jsonl'), `${JSON.stringify({
+      sequence: 1,
+      observed_at: '2026-08-25T00:00:00Z',
+      type: 'update',
+      update_type: 'tool_call',
+      tool_kind: 'read',
+      tool_status: 'completed',
+      location_count: 0,
+      content: 'journal-secret',
+      rawInput: { token: 'credential-secret' },
+    })}\n`);
+
+    const snapshot = statusDelegate(
+      ['--delegation', fx.delegation],
+      { projectRoot: fx.root },
+    );
+    assert.equal(snapshot.execution_observation.status, 'observed');
+    assert.deepEqual(snapshot.execution_observation.latest, {
+      sequence: 1,
+      observed_at: '2026-08-25T00:00:00Z',
+      type: 'update',
+      update_type: 'tool_call',
+      tool_kind: 'read',
+      tool_status: 'completed',
+      location_count: 0,
+    });
+    assert.doesNotMatch(JSON.stringify(snapshot), /journal-secret|credential-secret/u);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
 });
 
 test('the ZCode delegate transport reports experimental maturity until the support bar is met', () => {
@@ -254,8 +460,13 @@ test('delegate run surfaces experimental transport maturity instead of silently 
       const codexReceipt = JSON.parse(codexStart.stdout);
       assert.equal(codexReceipt.transport_maturity, 'documented+verified');
       assert.equal(codexReceipt.experimental_ack, undefined);
+      assert.equal(codexReceipt.execution_driver, 'cli');
+      assert.equal(codexReceipt.driver_fallback_reason, 'acp_not_available');
+      assert.equal(codexReceipt.acp_capability.candidate, false);
       const codexResult = waitFor(path.join(documented.delegation, 'result.json'));
       assert.equal(codexResult.transport_maturity, 'documented+verified');
+      assert.equal(codexResult.execution_driver, 'cli');
+      assert.equal(codexResult.driver_fallback_reason, 'acp_not_available');
     } finally {
       fs.rmSync(documented.root, { recursive: true, force: true });
     }
@@ -285,11 +496,15 @@ test('delegate records and forwards an explicit Kimi model selection', () => {
     assert.equal(started.status, 0, started.stderr);
     const receipt = JSON.parse(started.stdout);
     assert.equal(receipt.model, 'kimi-code/k3');
+    assert.equal(receipt.execution_driver, 'cli');
+    assert.equal(receipt.driver_fallback_reason, 'acp_conformance_not_passed');
     const spec = JSON.parse(fs.readFileSync(path.join(fx.delegation, 'worker-spec.json'), 'utf8'));
     assert.equal(spec.model, 'kimi-code/k3');
     assert.equal(spec.args[spec.args.indexOf('--model') + 1], 'kimi-code/k3');
     const result = waitFor(path.join(fx.delegation, 'result.json'));
     assert.equal(result.status, 'finished');
+    assert.equal(result.execution_driver, 'cli');
+    assert.equal(result.driver_fallback_reason, 'acp_conformance_not_passed');
   } finally {
     fs.rmSync(fx.root, { recursive: true, force: true });
   }
@@ -334,6 +549,11 @@ process.stdout.write(JSON.stringify({ type: 'assistant', content: ${JSON.stringi
     assert.ok(/^[0-9a-f]{64}$/.test(receipt.permission_digest));
     assert.ok(/^[0-9a-f]{64}$/.test(receipt.output_schema_digest));
     assert.equal(receipt.read_only, false);
+    assert.match(
+      receipt.cancel_command,
+      /skills[\\/]ultra-delegate[\\/]scripts[\\/]delegate\.cjs/u,
+    );
+    assert.doesNotMatch(receipt.cancel_command, /(?:^|\s)"?ubp"?\s+delegate\b/u);
 
     const spec = JSON.parse(fs.readFileSync(path.join(fx.delegation, 'worker-spec.json'), 'utf8'));
     assert.match(spec.args.at(-1), /# Task\nCreate one bounded source file\./u);
@@ -396,6 +616,18 @@ process.stdout.write(${JSON.stringify(payload)});
     waitFor(resultFile);
     waitForExit(receipt.worker_pid);
     fs.unlinkSync(resultFile);
+
+    const status = spawnSync(process.execPath, [
+      SKILL_RUNNER, 'status', '--delegation', fx.delegation,
+    ], { cwd: fx.root, encoding: 'utf8' });
+    assert.equal(status.status, 0, status.stderr);
+    const stalled = JSON.parse(status.stdout);
+    assert.equal(stalled.status, 'stalled');
+    assert.match(
+      stalled.repair,
+      /skills[\\/]ultra-delegate[\\/]scripts[\\/]delegate\.cjs/u,
+    );
+    assert.doesNotMatch(stalled.repair, /(?:^|\s)"?ubp"?\s+delegate\b/u);
 
     const cancelled = spawnSync(process.execPath, [
       CLI, 'delegate', 'cancel', '--delegation', fx.delegation,

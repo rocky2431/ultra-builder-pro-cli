@@ -19,11 +19,13 @@ default is the current Agent continuing alone, and handing the work package's
 writing authority to a different Agent requires an explicit verified transfer
 (OFFER → ACK → RESULT over the repository files and Git).
 
-## Ultra Builder Pro 3.0
+## Ultra Builder Pro 5.0
 
-Version `3.0.2` is the first published release of Ultra as a cognitive-alignment harness for
-real software engineering. It is not a decentralized multi-agent platform and it
-does not prescribe one Agent topology. Instead, it keeps five promises:
+Version `5.0.0` is the current implementation of Ultra as a cognitive-alignment harness
+for real software engineering. It preserves the accepted 3.0 file-first and model-agency
+constitution, then makes workflow position, recovery, and cross-Agent execution directly
+observable. It is not a decentralized multi-agent platform and it does not prescribe one
+Agent topology. Instead, it keeps five promises:
 
 - establish the owner-accepted North Star before Research becomes a plan or code;
 - let the owner choose one Agent or several, and the provider, at every stage;
@@ -35,10 +37,19 @@ does not prescribe one Agent topology. Instead, it keeps five promises:
 - bound Review and repair so delivery converges instead of turning every observation
   into another automatic implementation loop.
 
-The portable protocol and native installation cover Claude Code, Codex, OpenCode,
-Kimi Code, Grok Build, and ZCode. ZCode plugin installation is supported; its
-App-bundled headless delegation transport remains explicitly `experimental` until an
-official stable interface and recovery drill satisfy the support bar.
+5.0 expresses those promises through one Route Contract, explicit Init/Research/Change/
+Plan responsibilities, file-only fresh-session recovery, an installed Skill-local
+delegation runtime, and a replaceable `AgentExecutionDriver`. Stable ACP v1 is preferred
+only after the exact Host has passed a recorded conformance drill; otherwise the same
+result contract uses a reported CLI fallback. The portable protocol and native
+installation cover Claude Code, Codex, OpenCode, Kimi Code, Grok Build, and ZCode. All
+six shipped profiles currently select CLI fallback. ZCode plugin installation and its
+installed Desktop runtime are supported as an `experimental` transport, but an ACP
+bridge is deliberately unavailable until the full recovery bar passes.
+
+5.0 deliberately does not add a daemon, workflow service, semantic state machine, A2A
+network, Team Pack, remote marketplace, or shared authority store. Package publication
+and real user installation remain effects separate from this source version.
 
 ## Why it exists
 
@@ -86,8 +97,13 @@ Git, and installation health without mutating the workflow.
 Public workflows are explicitly selected by the owner by default. Outside a live,
 owner-activated execution grant (session-local, or a durable work-package grant), one public workflow can recommend the
 next one but does not launch it. Inside that grant, the host model may select only
-the covered Research, Plan, Dev, Test, and reconcile-only Deliver routes; Init, Change,
-Delegate, Status, final archive, and every external effect remain owner-selected.
+the covered change-scoped Research, same-Change reconciliation, Plan, Dev, Test, and
+reconcile-only Deliver routes. Init, Change intake/evidence/acceptance/abandonment or
+primary transfer, Delegate, Deliver finalization, archive, and every external effect
+remain owner-selected; Status also remains owner-selected, read-only, and grants no continuation.
+Every public transition first displays the derived `UBP Route Card`; Host invocation
+metadata is only coarse discovery, and the loaded Skill revalidates its exact mode and
+grant without creating route state.
 Model-invoked disciplines remain available to the host model and are not separate user
 routes. The model selects one when the active task presents its trigger: incomplete
 intent uses grilling, competing terms use domain modeling, an accepted seam uses TDD,
@@ -105,7 +121,7 @@ map, evidence convergence, owner checkpoints, and baseline promotion.
 
 ### What happened to the original Agents
 
-Version 3.0.2 does not install a custom `agents/` projection. The old review workers became the
+Version 5.0.0 does not install a custom `agents/` projection. The old review workers became the
 six focused files under `ultra-review/references/`; review coordination and synthesis
 belong to the parent `ultra-review` Skill. The old debugger procedure lives under
 `ultra-dev/references/debugging.md`, and test execution lives under
@@ -186,18 +202,22 @@ Node.js 22 or newer is required.
 
 ```bash
 # Current project, one host
-npx ultra-builder-pro-cli@3.0.2 --claude --local
-npx ultra-builder-pro-cli@3.0.2 --codex --local
+npx ultra-builder-pro-cli@5.0.0 --claude --local
+npx ultra-builder-pro-cli@5.0.0 --codex --local
 
 # Global installation
-npx ultra-builder-pro-cli@3.0.2 --opencode --global
-npx ultra-builder-pro-cli@3.0.2 --kimi --global
-npx ultra-builder-pro-cli@3.0.2 --grok --global
-npx ultra-builder-pro-cli@3.0.2 --zcode --global
+npx ultra-builder-pro-cli@5.0.0 --opencode --global
+npx ultra-builder-pro-cli@5.0.0 --kimi --global
+npx ultra-builder-pro-cli@5.0.0 --grok --global
+npx ultra-builder-pro-cli@5.0.0 --zcode --global
 
 # All supported hosts
-npx ultra-builder-pro-cli@3.0.2 --all --global
+npx ultra-builder-pro-cli@5.0.0 --all --global
 ```
+
+These pinned `npx` commands apply after `5.0.0` is published. Local release-candidate
+verification uses `node bin/install.js --config-dir <isolated-path>` and never mutates the
+real user installation.
 
 Use the host's native Skill picker or invocation syntax to select an owner workflow.
 Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. The installed
@@ -209,13 +229,13 @@ Installation is managed, atomic, and provenance-checked.
 
 ```bash
 # Re-running install updates the managed artifact
-npx ultra-builder-pro-cli@3.0.2 --codex --global
+npx ultra-builder-pro-cli@5.0.0 --codex --global
 
 # Read-only diagnosis
-npx ultra-builder-pro-cli@3.0.2 --all --global --doctor --json
+npx ultra-builder-pro-cli@5.0.0 --all --global --doctor --json
 
 # Remove only managed Ultra assets
-npx ultra-builder-pro-cli@3.0.2 --all --global --uninstall
+npx ultra-builder-pro-cli@5.0.0 --all --global --uninstall
 ```
 
 `--config-dir <path>` isolates both the primary config and host-owned sidecars. It is
@@ -234,6 +254,12 @@ installation; all six support managed global installation and isolated
 
 ## Typical workflow
 
+For day-to-day work on an existing project, a new request starts with `ultra-change`,
+not an open-ended Research run. Enter `ultra-research` directly only to establish the
+first baseline, or to answer the bounded evidence question recorded by the same active
+Change. Every public transition shows a derived Route Card with its current Mode,
+Position, observable Exit condition, material checkpoint, and Next route.
+
 1. Select `ultra-init` once. It writes the skeleton, preserves the owner's raw one-line
    request and broad outline in the Project Brief, initializes Git when needed, and
    stops before product research.
@@ -250,8 +276,9 @@ installation; all six support managed global installation and isolated
    A profile never fixes task count. While that Change remains active, reconcile its
    same stable id; never open a second active Change for a separate request.
 4. Select `ultra-plan` to record public seams and produce resumable tracer-bullet tasks.
-   The model owns ordinary technical seams; the owner decides only a seam that changes
-   the public contract or another material trade-off.
+   Its earliest observable slice must cross a real consumer and real data path and name
+   the owner-visible observation. The model owns ordinary technical seams; the owner
+   decides only a seam that changes the public contract or another material trade-off.
 5. Select `ultra-dev` for one task at a time. `.ultra/tasks.json` is the sole task-status
    authority. Dev records typed v2 evidence and completes task review while the row is
    still `in_progress`; only after blocking findings and affected evidence are resolved
@@ -270,18 +297,23 @@ mode. A `session-local` grant lives only in the current conversation: when that
 activation is lost — a fresh session, another host, or compaction — the work stops and
 waits for a new owner activation. A `durable work-package` grant lets a fresh Agent or
 host continue one exact work package, but only after the Agent stably verifies the
-recorded grant itself. In both modes the model may select the covered Research, Plan,
-Dev, Test, and reconcile-only Deliver routes until the next semantic stop or declared
-budget, and neither mode grants finalization or archive: writing `delivery.md`, version
+recorded grant itself. In both modes the model may select the covered change-scoped
+Research, same-Change reconciliation, Plan, Dev, Test, and reconcile-only Deliver
+routes until the next semantic stop or declared budget, and neither mode grants
+finalization or archive: writing `delivery.md`, version
 or package posture, and archiving always require a current explicit owner invocation,
 as do commit, push, publication, deployment, installation, and every other external
 effect.
 
-At any point, `ultra-status` can reconstruct the current position. A fresh session or
-different host resumes by reading `.ultra/tasks.json`, the selected `context_file`, its
-`## Resume Note`, `CONTEXT.md`, relevant decisions, the active Change, and Git. It first
-filters the append-only ledger to tasks whose `change_id` matches the unique active
-Change; archived and abandoned unfinished rows are history, not the frontier.
+At any point, `ultra-status` can reconstruct the current position. A fresh session
+starts from repository root and `HEAD`, resolves exactly one active Change, then reads
+`.ultra/tasks.json`, the matching `context_file` and its `## Resume Note`, `CONTEXT.md`,
+relevant decisions, specifications, evidence, and the current Git diff. It never reruns
+completed Research merely because conversation memory is gone. If active authority is
+ambiguous or unreadable, Status switches to read-only recovery, names the unsafe fact,
+and gives the cheapest repair, retry, cancel, abandon, or fresh-session path without
+choosing an intent or writing semantic files. Archived and abandoned unfinished rows
+remain history, not the frontier.
 
 ## Three independent integration defences
 
@@ -313,8 +345,12 @@ All five hooks exit silently when `.ultra/` is absent. Details are in
 
 ## Delegation
 
-Delegation writes an immutable instruction and permission envelope, then starts the
-selected CLI in the background. Empty writable roots select native read-only mode;
+Delegation writes an immutable instruction and permission envelope, then selects one
+Host-local `AgentExecutionDriver` and starts it in the background. ACP is selected only
+for an executable stdio endpoint that negotiates stable v1 and has a passed per-Host
+conformance record with evidence; otherwise the same result contract uses `CliDriver`
+and reports the exact fallback reason. All six shipped Host profiles currently remain
+on that honest CLI fallback. Empty writable roots select native read-only mode;
 declared roots select bounded write mode. The model returns one schema-constrained final
 response; the launcher extracts it from native structured output, validates the actual
 Git diff, and atomically publishes a terminal `finished`, `blocked`, or `failed` result
@@ -322,20 +358,27 @@ beside the instruction. The digest-bound packet is embedded in the worker prompt
 strict host need not read instruction files outside its isolated worktree.
 
 ```bash
-ubp delegate run --to codex \
+node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to codex \
   --instruction .ultra/.runtime/delegations/D-01/instruction.md \
   --permission .ultra/.runtime/delegations/D-01/permission.json \
   --worktree .ultra/.runtime/worktrees/D-01
 ```
 
-Use `skills/ultra-delegate/scripts/delegate_wait.py` to wait for `result.json` without
-loading intermediate worker output into the parent context. Delegation grants no new
+The loaded Skill path is canonical and works after a clean `npx` plugin install without
+a global `ubp` or another `npx` call; `ubp delegate` remains a one-release compatibility
+wrapper. Use the installed Skill's `scripts/delegate_wait.py` to wait for `result.json`
+without loading intermediate worker output into the parent context. Delegation grants no new
 authority; writable roots remain inside the worktree, and its permission file must
 declare zero external effects without widening the host sandbox.
 The immutable instruction names task execution/continuation, scoped Research evidence,
 or aggregate Change review/verification. The latter two may be read-only and do not
 require a task row, keeping pre-Plan Research and post-task cross-family review
 reachable without inventing ledger work.
+ZCode resolves only the installed Desktop runtime (the App-bundled CLI on macOS before
+the `PATH` fallback), remains `experimental`, and cannot promote an ACP bridge until its
+capability, read-only, permission, cancellation/no-orphan, cwd/diff, result-parity, and
+redaction drill passes. Doctor reports runner health, ACP capability, selected driver,
+fallback reason, and ZCode maturity independently.
 
 ## Host support
 
@@ -374,6 +417,11 @@ conformance rather than semantic acceptance.
 
 ## Documentation
 
+- [5.0 design and acceptance contract](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) —
+  Route, Skill ownership, continuation, ACP/CLI execution, migration, and journey
+  boundaries implemented by the 5.0.0 source candidate.
+- [5.0 journey results](docs/evals/ultra-5-0-journey-results.md) — observable local
+  PASS/STOP outcomes and deliberate external-validation gaps.
 - [Current authority](.ultra/north-star.md) — this repository's accepted
   North Star, revision `north-star-v2-r3`, is the canonical current authority;
   `.ultra/tasks.json` and the stable Change under `.ultra/changes/active/` or

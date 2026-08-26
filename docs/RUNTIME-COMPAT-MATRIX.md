@@ -40,21 +40,34 @@ isolated user-scope installation test.
 
 ## Invocation policy
 
-| Role | Owner can route directly | Model can select implicitly |
+| Invocation class | Owner can route directly | Model can select implicitly |
 |---|---:|---:|
-| eight user-invoked Skills | yes | no |
-| five model-invoked Skills | no | yes |
-| `ultra-status` router | yes | no |
+| `explicit-entry` public mode | yes | no |
+| `grant-continuable` public mode | yes | only under a valid Execution Grant covering that mode |
+| five `model-discipline` Skills | no | as an internal method of a covered workflow |
+| `ultra-status` `router` modes | yes | no; other Skills derive their cards directly from the shared contract |
+
+The canonical per-mode map is `PUBLIC_SKILL_INVOCATION_MODES` in
+`adapters/_shared/runtime-assets.cjs`. Init and Delegate are explicit-only. Research has
+explicit `baseline` and grant-continuable `change-scoped`; Change has explicit
+intake/evidence/acceptance and grant-continuable same-Change reconciliation; Deliver has
+grant-continuable reconciliation and explicit finalization. Plan, Dev, and Test modes
+are grant-continuable. Every public mode remains directly owner-invocable.
 
 Claude and Grok receive `user-invocable` / `disable-model-invocation` frontmatter.
 Kimi receives its native equivalent. Codex receives
-`policy.allow_implicit_invocation` in `agents/openai.yaml`. OpenCode uses portable
-source frontmatter and native discovery, but its current Skill schema has no equivalent
-owner/model routing bit: all fourteen Skills remain discoverable and their descriptions
-guide model selection. Ultra does not add a semantic interception hook to imitate a
-host feature OpenCode does not expose. ZCode likewise discovers all plugin Skills and
-relies on their portable descriptions plus the Change-scoped execution grant rather
-than a fabricated routing flag.
+`policy.allow_implicit_invocation` in `agents/openai.yaml`. Those Hosts expose only a
+coarse Skill-level bit, so a Skill with any grant-continuable mode is discoverable to the
+model; the loaded Skill must still verify the selected mode, same active `change_id`,
+grant, effects, and material checkpoints. In particular, the coarse bit does not permit
+baseline Research, Change intake/acceptance, or Deliver finalization.
+
+OpenCode uses portable source frontmatter and native discovery, but its current Skill
+schema has no equivalent owner/model routing bit: all fourteen Skills remain
+discoverable and their descriptions plus the same in-Skill guard guide selection. Ultra
+does not add a semantic interception hook to imitate a Host feature OpenCode does not
+expose. ZCode likewise discovers all plugin Skills and relies on their portable
+descriptions and runtime guard rather than a fabricated routing flag.
 
 ## Hook compatibility
 
@@ -72,9 +85,39 @@ hook activation are distinct: Codex skips newly installed non-managed plugin hoo
 until the user reviews and trusts the current definition, so Doctor reports
 `hook_activation: user_review_required` without pretending the hook already ran.
 
-## Delegation argv
+## Agent execution driver selection
 
-`adapters/_shared/host-profile.cjs` records current non-interactive invocation for:
+| Host | ACP candidate observed locally | Versioned conformance | 5.0 active driver | Fallback reason |
+|---|---|---|---|---|
+| Claude Code | no native ACP stdio entrypoint in current CLI help | not available | CLI | `acp_not_available` |
+| Codex | no native ACP stdio entrypoint in current CLI help | not available | CLI | `acp_not_available` |
+| OpenCode | `opencode acp` exposes a TCP server, not stdio | not eligible | CLI | `acp_stdio_unavailable` |
+| Kimi Code | documented [`kimi acp`](https://moonshotai.github.io/kimi-code/en/reference/kimi-acp.html) stdio server | not run against a provider | CLI | `acp_conformance_not_passed` |
+| Grok Build | local `grok agent stdio` candidate | not run as verified ACP v1 | CLI | `acp_conformance_not_passed` |
+| ZCode | installed `app-server` is ZCode Protocol, not an ACP claim | not run; bridge drill absent | CLI | `acp_v1_unavailable` |
+
+Selection is ACP-first only after the exact Host row is `passed` and names a non-empty
+evidence reference: stable protocol v1, stdio, executable availability, read-only,
+bounded write, permission denial,
+cancellation/no-orphan, cwd/diff parity, result parity, and credential/event redaction
+must all hold. Static capability inspection never starts the provider. A candidate,
+binary, help output, SDK version, or successful fake-agent suite alone cannot promote a
+Host. The stable wire contract follows the official
+[ACP v1 schema](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/schema/v1/schema.json);
+unstable v2 features are outside the 5.0 required path.
+
+All Driver receipts and terminal results expose the selected driver, ACP capability,
+and fallback reason. Doctor reports the same facts separately from installation health.
+`AcpDriver` stores a bounded redacted `events.jsonl`, never raw protocol messages or
+hidden reasoning. Status re-projects every displayed latest event through that fixed
+safe shape and treats a corrupted journal as unavailable. `CliDriver` bounds
+stdout/stderr while retaining the output tail so the existing exact Ultra result
+extractor remains compatible.
+
+## CLI fallback argv
+
+`skills/ultra-delegate/scripts/host-profile.cjs` records current non-interactive
+invocation for:
 
 - Claude print mode with structured output and an explicit file-tool allowlist; read-only
   uses `plan`, while bounded write uses `acceptEdits` without Bash or web tools;
@@ -90,19 +133,19 @@ until the user reviews and trusts the current definition, so Doctor reports
   camel-case `--disallowedTools` surface used to deny Bash, web, subagents, and (in
   read-only mode) write tools. The launcher's timeout remains the execution bound.
 
-ZCode 0.16.3 advertises `--max-turns`, `--allowed-tools`, and `--settings` in help but
-rejects them at the live root parser. Ultra therefore does not pass those flags. ZCode
+The installed ZCode 0.16.5 runtime advertises `--max-turns`, `--allowed-tools`, and
+`--settings` in help but rejects them at the live root parser. Ultra therefore does not pass those flags. ZCode
 headless delegation also requires an explicit CLI model provider; desktop provider
 state is not silently copied into `~/.zcode/cli/config.json` because provider choice and
 credentials remain owner-controlled.
 
-On macOS, the shared host profile uses
+On macOS, the Skill-local host profile uses
 `/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs` when that App-bundled CLI
 exists, then falls back to `zcode` on `PATH`. `UBP_DELEGATE_ZCODE_BIN` remains an explicit
 test or operator override; the normal source-to-ZCode path does not require it.
 
 **ZCode transport maturity is `experimental`** (recorded in
-`adapters/_shared/host-profile.cjs`): the App-bundled CLI is a verified-local
+`skills/ultra-delegate/scripts/host-profile.cjs`): the App-bundled CLI is a verified-local
 surface — it exists, launches, and passed the 2026-08-14 conformance drills — but
 the provider publishes no headless CLI, SDK, A2A, or ZCode Protocol stability
 contract. Promotion to `supported` requires both official documentation and a
@@ -117,6 +160,18 @@ result (including failure, cancellation, and timeout), so no delegation record
 can present an internal CLI run as the documented ZCode Desktop interactive
 surface. The documented interactive primary path for ZCode is the Desktop task
 surface itself, not this headless transport.
+
+## Installed delegation runner
+
+Every managed plugin contains `ultra-delegate/scripts/delegate.cjs`, its worker, the
+canonical Host profile, all three driver modules, and the Kimi launch-only profiles.
+The loaded Skill resolves
+that directory and invokes Node directly, so a clean `npx` install does not require a
+persisted package binary on `PATH` and never runs `npx` for each delegation. Doctor
+reports `delegation_runner`, `acp_capability`, `agent_execution_driver`, its fallback
+reason, and ZCode maturity separately from Skill discovery and Hooks. The package
+`ubp delegate` surface remains a thin one-release compatibility wrapper around the same
+functions; receipts and recovery commands point to the canonical Skill-local entrypoint.
 
 ### ZCode Desktop Workspace Memory (post-turn host effect)
 

@@ -6,10 +6,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const yaml = require('js-yaml');
+const { parse } = require('../adapters/_shared/frontmatter.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const {
   GRANT_CONTINUABLE_SKILLS,
+  skillPolicy,
   skillsForRuntime,
   WORKFLOW_HOOK_FILES,
 } = require('../adapters/_shared/runtime-assets.cjs');
@@ -57,7 +59,7 @@ function assertNoLegacy(root) {
 }
 
 for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) {
-  test(`${runtime} installs, diagnoses, updates and uninstalls the v0.26 asset boundary`, async () => {
+  test(`${runtime} installs, diagnoses, updates and uninstalls the packaged asset boundary`, async () => {
     const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
     const { ctx } = sandbox(runtime);
     const first = await adapter.install(ctx);
@@ -71,7 +73,37 @@ for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) 
       .sort();
     assert.deepEqual(installedSkills, skillsForRuntime(runtime).sort());
     for (const name of installedSkills) {
-      assert.ok(fs.existsSync(path.join(skillRoot, name, 'SKILL.md')), name);
+      const installedSkill = path.join(skillRoot, name, 'SKILL.md');
+      assert.ok(fs.existsSync(installedSkill), name);
+      const { fm } = parse(fs.readFileSync(installedSkill, 'utf8'));
+      const policy = skillPolicy(name);
+      if (runtime === 'claude' || runtime === 'grok') {
+        assert.equal(fm['user-invocable'], policy.userInvocable, `${runtime}:${name}:user`);
+        assert.equal(
+          fm['disable-model-invocation'],
+          policy.allowImplicitInvocation ? undefined : true,
+          `${runtime}:${name}:implicit`,
+        );
+      } else if (runtime === 'kimi') {
+        assert.equal(
+          fm.disableModelInvocation,
+          policy.allowImplicitInvocation ? undefined : true,
+          `${runtime}:${name}:implicit`,
+        );
+        assert.equal(fm['user-invocable'], undefined, `${runtime}:${name}:unsupported user bit`);
+      } else {
+        assert.equal(fm['user-invocable'], undefined, `${runtime}:${name}:unsupported user bit`);
+        assert.equal(
+          fm['disable-model-invocation'],
+          undefined,
+          `${runtime}:${name}:unsupported implicit bit`,
+        );
+        assert.equal(
+          fm.disableModelInvocation,
+          undefined,
+          `${runtime}:${name}:unsupported native bit`,
+        );
+      }
     }
     assert.deepEqual(
       treeSnapshot(path.join(skillRoot, 'ultra-init', 'assets', 'project-template')),
@@ -88,6 +120,30 @@ for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) 
 
     const healthy = await adapter.doctor(ctx);
     assert.equal(healthy.status, 'healthy', JSON.stringify(healthy.issues));
+    assert.equal(healthy.checks.acp_capability.status, 'pass', runtime);
+    assert.equal(healthy.checks.agent_execution_driver.status, 'pass', runtime);
+    assert.equal(healthy.checks.agent_execution_driver.selected, 'cli', runtime);
+    assert.ok(healthy.checks.agent_execution_driver.fallback_reason, runtime);
+    assert.equal(
+      typeof healthy.checks.acp_capability.executable_available === 'boolean'
+        || healthy.checks.acp_capability.executable_available === null,
+      true,
+      runtime,
+    );
+    assert.equal(
+      typeof healthy.checks.acp_capability.candidate_valid === 'boolean'
+        || healthy.checks.acp_capability.candidate_valid === null,
+      true,
+      runtime,
+    );
+    if (runtime === 'zcode') {
+      assert.equal(healthy.checks.agent_execution_driver.fallback_reason, 'acp_v1_unavailable');
+      assert.deepEqual(healthy.checks.zcode_transport_maturity, {
+        status: 'experimental',
+        installed_runtime_only: true,
+        surface: 'installed ZCode Desktop runtime (thin ACP bridge required)',
+      });
+    }
 
     const second = await adapter.install(ctx);
     assert.equal(second.pluginRoot || second.target, pluginRoot);

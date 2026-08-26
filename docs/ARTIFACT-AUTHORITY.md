@@ -24,7 +24,7 @@ When workflow-route signals conflict, consumers resolve them in this order:
 2. the current accepted North Star and the active Change intent;
 3. the current owner-issued Execution Grant — `session-local` while its conversation
    activation is live, or a `durable work-package` grant a fresh Agent has stably
-   verified — its scope, budget, and allowed workflows;
+   verified — its exact Change, modes, effects, topology, budget, and stop conditions;
 4. the task ledger, task acceptance, planned paths, and dependencies;
 5. the current validated Review SUMMARY verdict;
 6. current evidence and Test observations;
@@ -41,6 +41,11 @@ or path — and never route authority: it cannot rewrite acceptance, a Review ve
 scope, or budget, and it cannot promote P2/P3 findings into blockers or reopen a
 review that returned a current verdict. Historical reviews, progress records, and
 Hook observations are provenance only.
+
+The Route Card is a projection of this precedence, not another layer in it. Its Route,
+Mode, Position, Exit condition, Delta, and Next fields are recalculated from the same
+authorities and current observations whenever a public Skill enters, pauses, exits, or
+transitions.
 
 A formal terminal outcome — an accepted result, an owner decision, an external
 blocker, a review-budget stop, or an abandonment — outranks every Resume, Hook, or
@@ -81,10 +86,17 @@ whatever length keeps the owner able to judge:
 4. **Delta** — what materially changed since the last checkpoint.
 5. **Reality** — how far the live path actually works; what is still fake, unknown,
    or unverified.
-6. **Decision needed** — what the owner must decide now; omit the section when
-   nothing is genuinely blocking.
+6. **Decision needed** — what the owner must decide now; a Route Card says `none` when
+   nothing is genuinely blocking, while a free-form handoff may omit the section.
 7. **Next bounded action** — the smallest authorized next step.
 8. **Not done** — what remains owed when stopping or pausing.
+
+The canonical
+[`UBP Route Card`](../skills/ultra-status/references/route-contract.md#route-card) adds
+four navigation fields — Route, Mode, Position, and Exit condition — around these eight
+semantics. It is emitted output only: it has no canonical project path, never becomes a
+route ledger, and cannot grant continuation. Counts and transport events may explain
+Position or Reality but cannot produce a semantic completion verdict.
 
 A checkpoint is a cognitive interface, not a mechanical stage marker: no line count,
 token budget, or coverage percentage gates it, and alignment failure ("I don't know
@@ -168,6 +180,7 @@ Pure file state uses three mechanisms:
 
 A state field records a mechanically checkable fact. Route selection remains a model
 judgment. Do not add a workflow-position field merely to decide which Skill should run.
+The Route Card is derived each time and is disposable in exactly this sense.
 
 At most one Change is active in one worktree. Zero active Changes is valid before a new
 request and after delivery; completed current tasks may remain active while awaiting
@@ -275,7 +288,9 @@ decisions.
 After interruption or host change:
 
 1. identify the repository root and current `HEAD`;
-2. resolve zero or one active `change_id`, then read `.ultra/tasks.json`;
+2. resolve zero or one active `change_id`, then read `.ultra/tasks.json`; if authority
+   resolution returns a typed conflict or unavailable observation, stop semantic writes
+   but keep Status recovery diagnosis reachable without selecting an ambiguous intent;
 3. select only matching tasks and read the frontier task's full context and closing Resume Note;
 4. read the Project Brief, accepted North Star, `CONTEXT.md`, relevant decisions, active
    Change, specifications, and evidence;
@@ -283,7 +298,8 @@ After interruption or host change:
 6. rely only on ledger task status; preserve any legacy context Status or Complexity as
    a migration diagnostic, and use the explicit recorded reopen before repairing an
    invalid completed task's current v2 evidence or task-review bindings;
-7. continue through the next observable acceptance boundary.
+7. derive a fresh Route Card and continue only through the next observable acceptance
+   boundary covered by the current owner instruction or valid Execution Grant.
 
 Hooks and the `ubp` executable may be unavailable. Recovery must still work through
 these files and Git alone.

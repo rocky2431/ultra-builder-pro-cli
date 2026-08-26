@@ -1,14 +1,20 @@
 # Ultra Builder Pro workflow lifecycle
 
-Ultra v0.26 has no fixed runtime state machine. Skills define checkable entry and exit
+Ultra 5.0 has no fixed runtime state machine. Skills define checkable entry and exit
 criteria; repository files record facts; the host model chooses the route.
 
 ## Capability flow
 
 ```text
-ultra-init ──raw Project Brief──► ultra-research ──accepted baseline──► ultra-change
-                                      ▲                                  │
-                                      └──── scoped consequential evidence gap ────┘
+ultra-init/create|recover ──raw Project Brief──► ultra-research/baseline
+                                                       │
+                                                       ▼
+                                               ultra-change/intake
+                                                       │
+                   ┌── ultra-research/change-scoped ◄──┤ evidence-needed
+                   └── ultra-change/reconcile ─────────┘
+                                                       │ accepted
+                                                       ▼
 
 ultra-change ─► ultra-plan ─► ultra-dev (per task) ─► ultra-test ─► ultra-deliver
                      ▲                 │                    │
@@ -18,14 +24,16 @@ ultra-status    read-only router at any point
 ultra-delegate  orthogonal bounded execution on another CLI
 ```
 
-Arrows are recommendations, not automatic invocation by default. The owner explicitly
-selects each public workflow unless a live owner-activated execution grant
-(session-local activation or a stably verified durable work-package grant)
-authorizes the host model to select only the covered Research,
-Plan, Dev, Test, and reconcile-only Deliver routes. Init, Change, Delegate, Status,
-final archive, and every external effect remain owner-selected. Delivery archives one
-stable `change_id`; the next request opens a new active id while prior task rows remain
-in the append-only ledger.
+Arrows are recommendations unless a live owner-activated Execution Grant authorizes the
+exact next mode. Public modes are either `explicit-entry`, `grant-continuable`, or
+read-only `router`; model-only methods are `model-discipline`. Scoped Research,
+same-Change reconciliation, Plan, Dev, Test, and Deliver reconciliation may continue
+only when the grant covers the same `change_id`, mode, effects, and stop conditions.
+Init, Change intake/evidence/acceptance/abandonment/primary transfer, Delegate, Deliver
+finalization, archive, and every external effect remain explicit-entry. Status remains
+owner-invoked, read-only, and supplies no continuation authority. Delivery archives one stable
+`change_id`; the next request opens a new active id while prior task rows remain in the
+append-only ledger.
 
 ## Topology and checkpoints
 
@@ -43,10 +51,14 @@ Every owner-facing checkpoint — a WIP at a stop, a closing Resume Note, a deli
 report — carries the eight fixed semantics defined in
 [artifact authority](ARTIFACT-AUTHORITY.md#owner-checkpoint-semantics): why, outcome,
 accepted boundary, delta, reality, decision needed, next bounded action, and not-done.
-Checkpoints are cognitive interfaces, not stage markers; alignment failure stops work
-until the owner re-accepts an outcome.
+The shared [Route Contract](../skills/ultra-status/references/route-contract.md) adds
+Route, Mode, Position, and Exit condition as navigation around those semantics. Every
+public Skill shows the card at entry, a material checkpoint, pause/blocked exit, normal
+exit, and before a public transition. Cards are derived observations, not stage markers,
+permission, or persisted route state; alignment failure stops work until the owner
+re-accepts an outcome.
 
-## Common entry contract
+## Common mode-aware entry contract
 
 Every user-invoked Skill reads, in order:
 
@@ -62,6 +74,11 @@ Every user-invoked Skill reads, in order:
 Missing files produce a precise recovery or initialization recommendation. They do not
 cause the Skill to invent a state transition.
 
+After reading these facts, the Skill chooses only one mode declared in its own Route
+table and emits the entry Route Card. If model-selected, it revalidates that this mode is
+grant-continuable and that the grant covers the same Change and effects. Host metadata
+is only coarse discovery; it never substitutes for this runtime check.
+
 ## Initialization
 
 Init writes the raw Project Brief and stable empty skeleton. `ultra-init` preserves the
@@ -73,22 +90,29 @@ launch another workflow.
 
 ## Research
 
-Research turns the brief into an accepted North Star and evidence-backed baseline.
-`ultra-research` uses Wayfinding only when a multi-lens path is unclear, then maps the
+Research has two modes. `baseline` explicitly turns the brief into an accepted North
+Star and evidence-backed baseline. `change-scoped` answers only one active Change's
+recorded Research Disposition and returns named evidence to that same Change for
+reconciliation. `ultra-research` uses Wayfinding only when a multi-lens path is unclear,
+then records entry question, selected lenses, omissions, dependencies, source plan,
+material checkpoints, observable stop condition, and return route before mapping the
 question to the smallest useful subset of seventeen focused references. The first six
 are semantic lenses with real dependencies: `00` precedes `01`; conditional `02` and
 `03` may fan out after the boundary is known; `04` consumes their relevant conclusions
 and is the first owner checkpoint; `05` extracts assumptions from `00` through `04`.
 Grilling controls how missing owner inputs are asked, Think tests one consequential
 decision, and Domain Modeling writes settled vocabulary; none owns the Research route.
-The final synthesis promotes accepted conclusions into the North Star, `CONTEXT.md`,
-three specifications, and a source-hash-bound distillate.
+The baseline synthesis promotes accepted conclusions into the North Star, `CONTEXT.md`,
+three specifications, and a source-hash-bound distillate. A change-scoped run updates
+only its mapped sections and never changes Change acceptance on its own. Lens counts are
+navigation facts, not semantic progress or a completion signal.
 
 ## Change reconciliation
 
-Change updates only the touched baseline rather than rebuilding it. `ultra-change`
-first compares requested behavior with accepted product truth and current code. It
-classifies changes by the resulting commitments:
+Change updates only the touched baseline rather than rebuilding it. Its visible modes
+are `intake`, `evidence-needed`, `reconcile`, and `accepted`. `ultra-change` first
+compares requested behavior with accepted product truth and current code. It classifies
+changes by the resulting commitments:
 
 - expansion and correction may proceed inside accepted intent;
 - a reduction waits for explicit owner authority.
@@ -98,6 +122,16 @@ non-goals, trace anchors, and an explicit Research Disposition. `none` cites suf
 existing evidence; `bounded` or `required` names the exact question, lenses, and exit
 evidence. Unsatisfied exit evidence routes to Research, then back through Change
 reconciliation before planning when the accepted contract needs an update.
+
+Draft intent is mutable. Revising a consequential accepted answer creates a superseding
+decision record so Status can reconstruct history without treating an event log as
+authority. Only same-Change, non-material `reconcile` may continue under a valid grant;
+opening or accepting a boundary, abandoning it, reducing a commitment, or changing the
+canonical writer is an explicit owner checkpoint.
+
+If the owner rejects the offered options as inadequate, Change preserves that answer,
+keeps the draft unresolved, and returns to evidence or materially different options. It
+never selects the closest rejected option or advances to Plan by default.
 
 A micro edit that makes no specification sentence false stays outside the Ultra
 lifecycle and uses ordinary repository TDD/verification. Once an active Change exists,
@@ -120,6 +154,12 @@ boundaries; integration checkpoints appear where slices first compose or observe
 coupling and recovery risk justify a whole-path check. Cycles and broken trace paths are
 repaired before handoff. Complexity, file, task, line, and context counts are
 observations rather than plan-quality gates.
+
+Plan names the earliest executable tracer bullet's real consumer, real data path, and
+owner-visible observation. A product or contract evidence gap returns to
+`ultra-change/reconcile`; Change decides whether bounded Research is required. Ordinary
+technical uncertainty remains model-owned or becomes a bounded spike/tracer task, so
+Plan never bypasses Change by opening product Research directly.
 
 ## Task development
 
@@ -208,17 +248,17 @@ effects. Readiness grants none automatically.
 `ultra-status` infers the smallest next route from observable files:
 
 - no healthy skeleton or usable raw brief → init;
-- raw brief without an accepted baseline, or a consequential evidence gap → research;
+- raw brief without an accepted baseline → baseline research;
 - requested outcome without active Change → change;
 - draft or blocking active intent → change;
-- unsatisfied Research Disposition → research;
+- unsatisfied Research Disposition → change-scoped research, then the same Change reconciliation;
 - active Change without matching executable tasks → plan;
 - the unique matching `in_progress` task → dev;
 - only `pending` tasks remaining → report them as frontier candidates and recommend
   one exact task id for an explicit owner invocation of dev;
-  - a completed ledger row with missing, stale, or invalid v2 evidence/task review → dev
-    to record affected criteria and reason, explicitly reopen, and repair provenance;
-  - completed current-Change tasks with current v2 evidence and no matching fresh report → test;
+- a completed ledger row with missing, stale, or invalid v2 evidence/task review → dev
+  to record affected criteria and reason, explicitly reopen, and repair provenance;
+- completed current-Change tasks with current v2 evidence and no matching fresh report → test;
 - false report → route by finding and owner disposition, not by the boolean alone;
 - fresh, dispositioned report and unarchived Change → deliver.
 
@@ -229,6 +269,12 @@ replays the existing structural validators; they observe transport and freshness
 never decide semantic acceptance. Age, complexity, and file/task counts may be reported
 as context but never decide staleness or quality. It does not mutate artifacts.
 
+Status outputs the Route Card by default and expands `history`, `installation`,
+`delegation`, or `recovery` on request. An ambiguous or malformed active authority stops
+semantic routing and writes, but not diagnosis: recovery mode reports the typed fact,
+safe Git/directory observations, and the cheapest repair/retry/cancel/abandon path
+without selecting an ambiguous intent as truth.
+
 ## Delegation
 
 `ultra-delegate` is orthogonal to the lifecycle and requires explicit owner authority.
@@ -238,6 +284,10 @@ the latter two may be read-only and do not require a task, so both pre-Plan evid
 post-task review remain reachable. Every scope still binds the one active `change_id`, a
 clean isolated worktree, strict permission/result schemas, and primary-host inspection.
 The worker cannot write canonical `.ultra` files or perform external effects.
+Delegation itself is explicit-entry. Tool calls, plans, usage, permissions, process
+output, ACP updates, and terminal transport state remain execution observations; only
+the primary writer interprets the validated result against Research, task, review, or
+Test acceptance and selects the semantic route.
 
 ## Artifact closure
 
@@ -263,7 +313,7 @@ session contains `WORKER-PACKET.json`, `ADMISSION.json`, every selected speciali
 artifact, and `SUMMARY.json`; retain it until aggregate Test and Deliver have both consumed it
 successfully, then it may be garbage-collected. Premature loss requires a fresh Review
 and Test; never reconstruct the old receipt. Other derived observations keep their
-explicit rebuild or rerun paths. No route creates an unowned drift log, Change plan,
+explicit rebuild or rerun paths. No route creates an unowned drift log, parallel planning file,
 technical-debt report, or second delivery summary.
 
 ## Interruption and cross-host continuation
@@ -275,7 +325,11 @@ task, evidence, or report authority would lose meaning.
 
 Before stopping, the active task context records current facts, exact verification,
 open questions, Completion, and a closing Resume Note. The next session or host repeats
-the common entry contract and compares the working tree with those claims.
+the common entry contract, compares the working tree with those claims, and derives a
+fresh Route Card. It does not rerun completed Research merely because conversation
+memory is gone. When context pressure threatens a reliable continuation, the current
+Agent finishes the nearest safe write, refreshes the Resume Note, shows a stop card, and
+recommends a fresh session; context size does not become route authority.
 
 This path remains valid when hooks and `ubp` are disabled. A compact snapshot may be
 used as a hint, then checked against canonical files and Git.

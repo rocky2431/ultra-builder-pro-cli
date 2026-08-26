@@ -1,0 +1,155 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-release-candidate",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-release-candidate.md",
+    "acceptance_sha256": "1652a07e6c0aba01a2be0bcb9b640be84e368a18e4c33095f113aef0606b619e"
+  },
+  "subject": {
+    "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+    "worktree_digest": "b015ab99e5b128b6d7a8547ce2791585473d5633a16c7732c03c2c89d17893b0",
+    "observed_at": "2026-08-25T12:49:19Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "P5-01",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "package.json, package-lock.json, README.md, README.zh-CN.md, CHANGELOG.md, docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md, and .ultra/evidence/v50-release-candidate/verification.log",
+        "observation": "Package metadata and both lockfile version fields are 5.0.0; English and Chinese READMEs identify Ultra Builder Pro 5.0, pin future-publication examples to 5.0.0, and document the same Route, Skill responsibility, fresh-session, Skill-local delegation, ACP gate, CLI fallback, ZCode maturity, and exclusion contract as the 5.0 design and changelog.",
+        "revision": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1+v50-release-candidate-worktree-v1"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "One 5.0.0 product identity now spans the package, lock, public operating docs, changelog, CLI/install/package tests, and generated Host artifacts without presenting the local candidate as already published."
+      }
+    },
+    {
+      "criterion_id": "P5-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "npm run verify:release; npm pack --dry-run --json; isolated node bin/install.js --all --global install/doctor/uninstall; changed Skill Creator validators; generated Codex Plugin Creator validator; git diff --check",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-release-candidate/verification.log",
+        "raw_evidence_sha256": "5bf0a2300f3fcce2b60bf002afbe8008a24b482a47d6eccc9b18797350489dc1",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "b015ab99e5b128b6d7a8547ce2791585473d5633a16c7732c03c2c89d17893b0",
+          "observed_at": "2026-08-25T12:49:19Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "After the final product checkpoint changed, the complete gate passed 647 Node and 89 Hook tests plus a zero-result high-severity production audit; nine changed Skills and the generated Codex plugin validated; the dry-run package contained 138 entries at the stable 5.0.0 identity; all six isolated Host installs and Doctor reports were healthy, and uninstall left the root empty."
+      }
+    },
+    {
+      "criterion_id": "P5-03",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "README.md, README.zh-CN.md, CHANGELOG.md, docs/wip/ultra-builder-pro-5.0.md, docs/evals/ultra-5-0-journey-results.md, and .ultra/evidence/v50-release-candidate/verification.log",
+        "observation": "The candidate explicitly distinguishes fake ACP protocol evidence, isolated config roots, finite migration fixtures, CLI fallbacks, ZCode experimental installed-runtime transport and unavailable ACP bridge, Codex hook trust owner action, POSIX-only descendant proof, shared-context reviews, npm gitignore fallback warning, external provider drills, and every unperformed release effect.",
+        "revision": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1+v50-release-candidate-worktree-v1"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "No local, synthetic, installation, transport, or structural observation is promoted into a stronger provider, publication, platform, or semantic claim."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "tests/install.test.cjs",
+        "tests/v026-adapters.test.cjs",
+        "tests/acp-driver.test.cjs",
+        "tests/delegate.test.cjs",
+        "tests/route-contract.test.cjs",
+        "tests/ultra-5-journeys.test.cjs"
+      ],
+      "rationale": "Release metadata adds no new production algorithm, so the task uses the version-aware package, clean-consumer, install, Doctor, adapter, ACP, delegation, Route, migration, and journey contracts added or extended by this Change. These tests derive the current package version rather than hard-code the prior release."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v50-release-candidate/verification.log"
+      ],
+      "rationale": "The final product snapshot passed 647 Node tests, 89 Hook tests, the production dependency audit, nine changed Skill validators, generated Codex plugin validation, dry-run pack, isolated six-Host lifecycle, version consistency, and diff check."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "tests/install.test.cjs",
+        ".ultra/evidence/v50-release-candidate/verification.log"
+      ],
+      "rationale": "Package smoke creates and consumes a real temporary tarball; lifecycle tests and the final drill write actual generated assets to isolated Host filesystems, Doctor reads them back, reinstall paths are exercised, and uninstall proves managed cleanup."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "skills/ultra-delegate/scripts/host-profile.cjs",
+        "adapters/_shared/plugin-core.cjs",
+        "docs/RUNTIME-COMPAT-MATRIX.md",
+        ".ultra/evidence/v50-release-candidate/verification.log"
+      ],
+      "rationale": "No release flag or dormant alternate authority was introduced. Every current Host row is active and factual: all select CLI with an exact reason until their own ACP conformance evidence passes, and Doctor reports that state."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "tests/install.test.cjs",
+        ".ultra/evidence/v50-release-candidate/verification.log"
+      ],
+      "rationale": "The candidate crosses source package metadata, dry-run and real temporary package consumption, generated six-Host assets, native registration files, installed Skill-local delegation entrypoint, Doctor readback, update/reinstall contracts, and clean managed uninstall."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-v50-release-candidate.md",
+        ".ultra/changes/active/chg-ultra-5-0/intent.md",
+        "docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md#10-implementation-order-and-release-gate",
+        ".ultra/reviews/v50-release-candidate-initial-review-v1/SUMMARY.json"
+      ],
+      "rationale": "P5-01 through P5-03 project AC5-12 from FP-1, FP-2, FP-4, FP-5, and FP-7 into NS-01, NS-02, NS-03, and NS-05 while preserving HC-1, HC-3, HC-4, HC-6, and HC-7."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "f72e93fa0e8f8a60bd34ffecaa1004ae214a467d3896b6c585518e08c569d586",
+      "limitation": null
+    },
+    "session_id": "v50-release-candidate-initial-review-v1",
+    "summary_ref": ".ultra/reviews/v50-release-candidate-initial-review-v1/SUMMARY.json",
+    "summary_digest": "1cf4e9cd6516e18d6a35f0379b62ebe7fcb2b54bea0eda07cc8fef56e54d76b8",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict review session, including WORKER-PACKET.json, ADMISSION.json, every selected specialist artifact, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully. Premature loss requires a fresh Review and Test; never reconstruct the old receipt."
+  },
+  "artifacts": [
+    "package.json",
+    "package-lock.json",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "docs/wip/ultra-builder-pro-5.0.md",
+    ".ultra/reviews/v50-release-candidate-initial-review-v1/SUMMARY.json"
+  ],
+  "limitations": [
+    "This is a dirty local 5.0.0 source candidate; no commit, push, tag, npm publication, GitHub Release, deployment, or real user installation was performed.",
+    "No live provider, credentials, paid call, or Host ACP conformance drill was used; protocol execution evidence uses the fake ACP agent and every shipped Host remains on CLI fallback.",
+    "ZCode uses the installed Desktop runtime only and remains experimental; no activated ACP bridge or recovery drill is claimed.",
+    "No Windows descendant-process cleanup proof is claimed from this POSIX environment.",
+    "The npm dry run warns that .gitignore is used because .npmignore is absent; the explicit files allowlist and inspected 138-entry inventory are the accepted packaging boundary.",
+    "The strict review ran sequentially in shared context and has no independent model-family boundary."
+  ],
+  "timestamp": "2026-08-25T12:49:19Z"
+}

@@ -7,12 +7,17 @@ owner boundaries; host-specific discovery and invocation policy belong in adapte
 
 Choose exactly one role before writing:
 
-- **user-invoked**: a complete owner-selected workflow with a durable outcome;
+- **public workflow**: an owner-invocable workflow with one or more declared modes and
+  a durable outcome;
 - **model-invoked**: a reusable discipline used by at least two canonical workflows;
 - **router**: read-only diagnosis that recommends the smallest next public route.
 
-A user workflow may recommend but must not invoke another user workflow. A discipline
-with only one real caller should be inlined.
+Every public mode is `explicit-entry` or `grant-continuable`. A public workflow may
+continue to another public mode only when a currently valid Execution Grant covers the
+same Change, exact mode, effects, and stop conditions, and only after showing the Route
+Card. Otherwise it stops and recommends the owner-invoked route. Host metadata never
+substitutes for that in-Skill check. A discipline with only one real caller should be
+inlined.
 
 ## Portable frontmatter
 
@@ -41,6 +46,12 @@ Every Skill has one outcome-led title and these semantic sections:
 ## When the owner decides
 ## References
 ```
+
+Every public workflow and router also has `## Route modes` with a `Mode | Entry |
+Observable exit | Next` table and references the canonical
+`ultra-status/references/route-contract.md`. Shared card fields, material checkpoints,
+continuation, and degraded recovery live only in that reference; each Skill owns only
+its modes and workflow-specific facts.
 
 User workflows first resolve at most one active `change_id`, then read only matching
 rows from `.ultra/tasks.json`, the frontier task's `context_file` and Resume Note,
@@ -96,6 +107,7 @@ For every changed Skill:
 3. verify its role metadata on all six hosts;
 4. test the accepted workflow with representative valid and adversarial inputs;
 5. confirm no retired runtime vocabulary or host-specific path entered portable text.
+6. run the Route Contract structural test and inspect the applicable owner journey.
 
 The repository's `tests/skill-authoring.test.cjs` and
 `tests/v026-contract.test.cjs` mechanize the portable parts of this contract.

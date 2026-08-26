@@ -15,6 +15,7 @@ const {
   MODEL_INVOKED_SKILLS,
   ROUTER_SKILLS,
   GRANT_CONTINUABLE_SKILLS,
+  PUBLIC_SKILL_INVOCATION_MODES,
   WORKFLOW_HOOK_FILES,
   skillsForRuntime,
   skillPolicy,
@@ -40,7 +41,14 @@ const MODEL = [
 ];
 
 const ROUTER = ['ultra-status'];
-const CONTINUABLE = ['ultra-research', 'ultra-plan', 'ultra-dev', 'ultra-test', 'ultra-deliver'];
+const CONTINUABLE = [
+  'ultra-research',
+  'ultra-change',
+  'ultra-plan',
+  'ultra-dev',
+  'ultra-test',
+  'ultra-deliver',
+];
 const ALL = [...USER, ...MODEL, ...ROUTER].sort();
 
 function readSkill(name) {
@@ -134,7 +142,7 @@ function assertCoordinatorSummaryInvariants(summary) {
   }
 }
 
-test('v0.26 exposes exactly fourteen file-first skills in three roles', () => {
+test('the package exposes exactly fourteen file-first skills in three roles', () => {
   assert.deepEqual(USER_INVOKED_SKILLS, USER);
   assert.deepEqual(MODEL_INVOKED_SKILLS, MODEL);
   assert.deepEqual(ROUTER_SKILLS, ROUTER);
@@ -361,8 +369,12 @@ test('Execution Grant enables bounded session-local or durable coding without a 
   assert.match(grant, /one initial review plus at most two\s+P0\/P1 delta reviews/iu);
   for (const name of CONTINUABLE) {
     const skill = readSkill(name);
-    assert.match(skill, /\.\.\/ultra-change\/references\/execution-grant\.md/u, name);
-    assert.match(skill, /If model-selected[^\n]+live execution grant[^\n]+without either, stop/iu, name);
+    assert.ok(
+      Object.values(PUBLIC_SKILL_INVOCATION_MODES[name]).includes('grant-continuable'),
+      `${name}: grant-continuable mode`,
+    );
+    assert.match(skill, /references\/execution-grant\.md/u, name);
+    assert.match(skill, /model-selected[\s\S]{0,500}(?:live )?(?:execution )?grant/iu, name);
   }
   for (const maintainedArchitecture of [architecture, architectureSpec]) {
     assert.match(
@@ -1452,8 +1464,9 @@ test('downstream skills consume the accepted baseline without recreating it', ()
   assert.match(change, /evidence gap[^\n]+`ultra-research`/iu);
 
   assert.doesNotMatch(plan, /fog of war|decision tickets?/iu);
-  assert.match(plan, /whole path[^\n]+`ultra-research`/iu);
-  assert.match(plan, /one consequential trade-off[^\n]+`\.\.\/ultra-think\/SKILL\.md`/iu);
+  assert.match(plan, /product or contract evidence gap[\s\S]{0,200}`ultra-change\/reconcile`/iu);
+  assert.match(plan, /Plan does not open Research directly/iu);
+  assert.match(plan, /one consequential[\s\S]{0,80}trade-off[\s\S]{0,80}`\.\.\/ultra-think\/SKILL\.md`/iu);
 });
 
 test('workflow entry boundaries remain reachable without a second Change or owner over-routing', () => {

@@ -7,6 +7,18 @@ description: Turn an evidenced Change intent into a dependency-valid task ledger
 
 Planning owns decomposition and technical design; files carry it across sessions and hosts.
 
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `decompose` | Explicit invocation or a valid Execution Grant for one accepted, evidenced Change | A dependency-valid task graph, contexts, acceptance mapping, review, and earliest observable slice are read back | Recommend the exact first `ultra-dev/execute` task |
+| `recover` | Explicit invocation or a valid Execution Grant when the current Change's planning artifacts are incomplete or inconsistent | Ledger/context/trace defects are repaired or a bounded unavailable path is reported | Recommend the exact first `ultra-dev/execute` task, or `ultra-change/reconcile` for a product evidence gap |
+
+Follow `../ultra-status/references/route-contract.md`. Show the Route Card before
+decomposition, at any material posture decision, and after reporting the graph. The
+first executable slice must name its real consumer, real data path, and owner-visible
+observation; a task count or completed plan file is not early value.
+
 ## Before you start
 
 1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop.
@@ -47,8 +59,11 @@ Keep the posture visible rather than silently drifting.
 Use `../ultra-grilling/SKILL.md` through the host-native question surface when the
 choice remains material, one question with a recommendation at a time.
 
-When the whole path is still unclear, recommend `ultra-research`; the Change is not yet
-evidenced enough to decompose. For one consequential trade-off, use `../ultra-think/SKILL.md`.
+When a product or contract evidence gap leaves the whole path unclear, return the exact
+gap to `ultra-change/reconcile`; Plan does not open Research directly. Change decides
+whether to record a bounded Research Disposition. For ordinary technical uncertainty,
+the model resolves it or writes one bounded spike/tracer task. For one consequential
+trade-off, use `../ultra-think/SKILL.md`.
 
 ## Choose the plan shape
 
@@ -126,7 +141,9 @@ reached, preserve the findings and return the evidence to the responsible model 
 owner. Attempt and finding counts never manufacture convergence or failure.
 
 Report the graph, frontier, seams, warnings and first task. Recommend the next explicit
-capability from the files; do not invoke it.
+capability from the files. Under a valid grant covering that exact task, show the
+transition Route Card before allowing Dev to re-verify and continue; otherwise do not
+invoke it.
 
 ## When the owner decides
 
@@ -139,4 +156,5 @@ contract or material trade-off. The model owns decomposition and repairs broken 
 - `../ultra-think/SKILL.md` — read when one evidenced decision blocks decomposition.
 - `../ultra-review/SKILL.md` — read after plan files pass mechanical verification.
 - `../ultra-change/references/execution-grant.md` — read only for grant-activated continuation.
+- `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `references/task-evidence-v2.md` — canonical typed task evidence and task-review contract.

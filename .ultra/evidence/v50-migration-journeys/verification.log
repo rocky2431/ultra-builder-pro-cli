@@ -1,0 +1,64 @@
+Ultra Builder Pro 5.0 migration and journey verification
+Timestamp: 2026-08-25T12:21:52Z
+CWD: /Users/rocky243/Context Engineering/ultra-builder-pro-cli
+HEAD: b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1
+
+RED and repair history
+- The focused journey suite initially failed because the point-of-use recovery documentation and canonical journey result register did not exist.
+- The first expanded project-artifact run reported two real consistency defects: the Change grant did not state that stored text alone is inactive, and completed 5.0 task raw verification receipts were absent from Planned Path Inventory.
+- Both defects were repaired at their shared authoritative sources before the final run. No assertion was weakened or skipped.
+
+Focused journey command
+node --test tests/ultra-5-journeys.test.cjs
+Result: exit 0; tests 5, pass 5, fail 0.
+
+Migration diagnostic
+canonical_files: 18
+before_digest: d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7
+after_update_digest: d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7
+after_uninstall_digest: d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7
+Doctor: claude healthy cli acp_not_available
+Doctor: opencode healthy cli acp_stdio_unavailable
+Doctor: codex healthy cli acp_not_available
+Doctor: kimi healthy cli acp_conformance_not_passed
+Doctor: grok healthy cli acp_conformance_not_passed
+Doctor: zcode healthy cli acp_v1_unavailable
+
+Degraded-state diagnostic
+diagnostic: active_change_ambiguous
+intent_body_published: false
+semantic_write: false
+reachable_exits: repair, retry, cancel, abandon
+
+Fresh-session diagnostic
+source: repository files only
+task_id: task-resume
+acceptance_recovered: true
+resume_note_recovered: true
+semantic_write: false
+
+Project-artifact command
+node --test tests/project-artifacts.test.cjs
+Result after repair: exit 0; tests 80, pass 80, fail 0.
+
+Expanded regression command
+node --test tests/ultra-5-journeys.test.cjs tests/route-contract.test.cjs tests/acp-driver.test.cjs tests/delegate.test.cjs tests/install.test.cjs tests/package-smoke.test.cjs tests/project-artifacts.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs adapters/_shared/tests/runtime-assets.test.cjs
+Result: exit 0; tests 255, pass 255, fail 0, cancelled 0, skipped 0, todo 0.
+
+Strict review
+Session: .ultra/reviews/v50-migration-journeys-initial-review-v1
+Packet digest: 97e31b9cf71b78ac10b93dad6c25542294c121ba858bc14ea6586917898ba00c
+Admission digest: 5a8a4dc7710a4b85c72692c8a7d91586e00bc598ffc93d54738e12dc0cdce0b5
+Subject digest: 70f66109c454d3a6199839aebec3eb95aa2caa6574ad641d1d6d24dbcb60b59c
+Summary digest: 3f89f8bf206657a9a99100935d240d0af89b752972245cc62a943c04a46276b2
+Result: APPROVE; P0 0, P1 0, P2 0, P3 0.
+Snapshot validation: exit 0 with caller-owned SUMMARY bytes.
+
+Formatting command
+git diff --check
+Result: exit 0.
+
+Deliberate validation gaps
+- No provider task, credentials, paid call, real user-home installation, or ZCode ACP recovery drill was authorized or performed.
+- Thirteen PASS journey rows combine isolated execution, synthetic protocol evidence, and source-contract inspection; they are not fourteen claims of live provider execution or model semantic quality.
+- The migration fixture is finite, and no Windows descendant-process cleanup claim is made from this POSIX environment.

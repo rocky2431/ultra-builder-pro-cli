@@ -10,9 +10,26 @@ baseline plus later evidence-backed corrections. Web
 search is one evidence source, not the workflow: repository files, Git, tests, runtime,
 maintained documentation, owner decisions, and current primary sources all count.
 
+## Route modes
+
+| Mode | Entry | Observable exit | Next |
+|---|---|---|---|
+| `baseline` | Explicit owner invocation with a usable Project Brief and no accepted baseline for the boundary | Selected reports, synthesis, specifications, vocabulary, and accepted North Star are read back; unknowns and omissions remain explicit | Recommend `ultra-change` in `intake` mode for the next bounded request |
+| `change-scoped` | Explicit invocation or a valid Execution Grant for one active Change's recorded Research Disposition | The named exit evidence exists and the selected canonical sections are refreshed without changing Change acceptance | Return to the same `ultra-change` in `reconcile` mode |
+
+Follow `../ultra-status/references/route-contract.md`. At entry, name the mode, entry
+question, selected coverage, observable stop condition, and return route. Refresh the
+Route Card at each material checkpoint, pause, and exit; lens counts are navigation, not
+proof that Research is semantically complete.
+
 ## Before you start
 
-1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop.
+1. Resolve `baseline` or `change-scoped` from the artifacts and invocation. A
+   model-selected run is valid only for `change-scoped` mode under the live execution
+   grant in `../ultra-change/references/execution-grant.md` — a current session-local
+   activation or a stably verified durable work-package grant covering the same Change;
+   without it, stop and recommend explicit invocation. Baseline adoption is always an
+   explicit-entry mode.
 2. Resolve at most one active `change_id`, then read `.ultra/tasks.json` plus the
    `context_file` and `## Resume Note` of unfinished tasks whose `change_id` matches it,
    if any. Archived or abandoned unfinished rows are history, not the current frontier.
@@ -46,9 +63,15 @@ When coverage spans several lenses or the path itself is unclear, read
 for one already-bounded evidence question. Wayfinding selects the smallest useful
 coverage; it does not create workflow state or another semantic authority.
 
+The derived brief records the entry question, selected lenses, deliberate omissions,
+dependencies, source plan, material checkpoints, observable stop condition, and return
+route. Read it on a fresh session instead of restarting completed evidence collection.
+
 Map the brief and unresolved specification sections to seventeen focused evidence
-lenses. Confirm the proposed coverage once with the owner. Load one reference
-at a time; the parent holds the question map, not every step prompt.
+lenses. Show the proposed coverage once. Pause only when it expands an accepted boundary
+or creates another material checkpoint; a covering Change Research Disposition does not
+need a duplicate confirmation. Load one reference at a time; the parent holds the
+question map, not every step prompt.
 
 The first six lenses have real semantic dependencies:
 
@@ -88,7 +111,8 @@ For scoped Research inside an active Change, answer only its recorded `Research
 Disposition` question and produce the named exit evidence. Research writes reports and
 the mapped canonical baseline sections; it does not silently rewrite Change acceptance.
 Return the evidence paths so `ultra-change` can reconcile the accepted intent before
-planning when that contract must change.
+planning when that contract must change. The scoped run's return route is always the
+same stable Change, even when the evidence supports the original intent unchanged.
 
 If web access is unavailable, record `[UNVERIFIED: no web access]` and continue with
 other evidence. Missing tooling lowers confidence; it does not manufacture a blocker.
@@ -115,7 +139,10 @@ or grants execution.
 
 Load `references/99-synthesis.md` only after selected reports exist. Read every promoted
 file back, verify trace anchors and source hashes, and report exact unresolved gaps.
-Recommend the next explicit public workflow from the resulting files; do not invoke it.
+For `baseline`, recommend `ultra-change/intake`; for `change-scoped`, return the named
+evidence to `ultra-change/reconcile`. Invoke neither unless the latter continuation is
+covered by the same valid Execution Grant; when it is covered, show the transition Route
+Card first and let Change re-verify its own mode and grant.
 
 ## When the owner decides
 
@@ -136,4 +163,5 @@ selects methods, and updates accepted files inside that frame.
 - `references/north-star-v2.md` — exact semantic structure, adoption, validation, and
   supersession contract.
 - `../ultra-change/references/execution-grant.md` — read only for grant-activated continuation.
+- `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `../ultra-think/references/autonomy-boundary.md` — read before reducing authority.

@@ -1,0 +1,172 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-route-contract",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-route-contract.md",
+    "acceptance_sha256": "4f86fad8c13814297cb73c726d232b054739d68e9fe8bd7220e98e33bad80495"
+  },
+  "subject": {
+    "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+    "worktree_digest": "bb583016d52d310b4a5da597918db397baaf33c4072dfe7f74efb0fc4f7ef393",
+    "observed_at": "2026-08-25T10:21:19Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "R5-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-reporter=dot adapters/_shared/tests/runtime-assets.test.cjs tests/route-contract.test.cjs tests/skill-authoring.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-route-contract/verification.log",
+        "raw_evidence_sha256": "1ebbfc859e16bb3a9fd56a37800abf08cfcc62d58d8ebf8c2ead8b1a9a152ef8",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "bb583016d52d310b4a5da597918db397baaf33c4072dfe7f74efb0fc4f7ef393",
+          "observed_at": "2026-08-25T10:21:19Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The 130-test focused suite exited zero and its Route Contract cases verify the canonical card, nine mode tables, observable exits, continuation classes, and absence of route state."
+      }
+    },
+    {
+      "criterion_id": "R5-02",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-research/SKILL.md, skills/ultra-change/SKILL.md, skills/ultra-plan/SKILL.md, docs/WORKFLOW-LIFECYCLE.md, and docs/evals/ultra-5-0-route-journeys.md#J2--Existing-project-bounded-evidence",
+        "observation": "Research declares baseline and Change-scoped modes with selected coverage, observable stop, and return route; scoped evidence returns to the same Change, while Plan sends product or contract evidence gaps to Change reconciliation instead of opening Research.",
+        "revision": "review subject 62f177e1af2a8d6cb40b39786f0b3ca1382bdd119ee3123efe63cdac43925e3e over Git HEAD b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The source contract and J2/J4 inspections establish the non-overlapping Research, Change, and Plan responsibilities without a workflow engine."
+      }
+    },
+    {
+      "criterion_id": "R5-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test --test-reporter=dot adapters/_shared/tests/runtime-assets.test.cjs tests/route-contract.test.cjs tests/skill-authoring.test.cjs tests/v026-adapters.test.cjs tests/v026-contract.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-route-contract/verification.log",
+        "raw_evidence_sha256": "1ebbfc859e16bb3a9fd56a37800abf08cfcc62d58d8ebf8c2ead8b1a9a152ef8",
+        "freshness_identity": {
+          "git_head": "b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1",
+          "worktree_digest": "bb583016d52d310b4a5da597918db397baaf33c4072dfe7f74efb0fc4f7ef393",
+          "observed_at": "2026-08-25T10:21:19Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Runtime and six-Host isolated adapter tests verify explicit entry, grant-continuable modes, model disciplines, the explicit read-only router, supported native metadata, and intentional absence of fabricated OpenCode or ZCode bits."
+      }
+    },
+    {
+      "criterion_id": "R5-04",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "docs/evals/ultra-5-0-route-journeys.md, skills/ultra-status/SKILL.md, skills/ultra-status/references/route-contract.md, skills/ultra-change/SKILL.md, and skills/ultra-dev/SKILL.md",
+        "observation": "J3 through J7 exercise owner revision and rejected options, the earliest real consumer/data observation, repository-only fresh-session reconstruction, typed degraded diagnosis, and exact grant-aware continuation with material stops.",
+        "revision": "review subject 62f177e1af2a8d6cb40b39786f0b3ca1382bdd119ee3123efe63cdac43925e3e over Git HEAD b684f15d18ead6b5dfe6a1fc621ccc196e95cdd1"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Each required owner/recovery journey has a reachable entry, observable exit, forbidden behavior, source evidence, and an explicit source-inspection limitation."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/route-contract.test.cjs",
+        "adapters/_shared/tests/runtime-assets.test.cjs",
+        "tests/v026-adapters.test.cjs",
+        "tests/v026-contract.test.cjs"
+      ],
+      "rationale": "The canonical card, per-mode policy, mixed-mode guards, and generated six-Host metadata have direct assertions; the new route test was observed RED before implementation."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v50-route-contract/verification.log"
+      ],
+      "rationale": "The final focused suite exited zero with 130 passing tests, followed by a clean git diff check."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/v026-adapters.test.cjs",
+        ".ultra/evidence/v50-route-contract/verification.log"
+      ],
+      "rationale": "Adapter tests publish the changed Skill and native metadata into real isolated filesystem roots and read those installed bytes back; no in-memory substitute stands in for the package boundary."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "adapters/_shared/runtime-assets.cjs",
+        "docs/RUNTIME-COMPAT-MATRIX.md",
+        ".ultra/evidence/v50-route-contract/verification.log"
+      ],
+      "rationale": "No feature flag was added; invocation policy is active in the canonical asset map, generated where a Host supports it, and guarded inside each mixed Skill elsewhere."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/route-contract.test.cjs",
+        "tests/v026-adapters.test.cjs",
+        "docs/evals/ultra-5-0-route-journeys.md"
+      ],
+      "rationale": "The tested slice runs from canonical runtime policy and shared Skill source through six adapter installs to installed metadata/readback, while the accepted semantic journeys are inspected at the model-facing entry surface."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-v50-route-contract.md",
+        ".ultra/north-star.md#north-star-outcomes",
+        "docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md#3-route-contract"
+      ],
+      "rationale": "The task trace anchor exists and the accepted 5.0 contract projects NS-01 through R5-01 to R5-04 without changing the accepted r3 North Star bytes."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "e235fc087cd5a8208dc113b285d062eebdae4b2dcfd2cf6bcadfa343f70af296",
+      "limitation": null
+    },
+    "session_id": "v50-route-contract-initial-review-v4",
+    "summary_ref": ".ultra/reviews/v50-route-contract-initial-review-v4/SUMMARY.json",
+    "summary_digest": "6667617cfea23da4008aaec9721c20957fb9fd4b7dfce954872f54a3514074c5",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict review session, including WORKER-PACKET.json, ADMISSION.json, every selected specialist artifact, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully. Premature loss requires a fresh Review and Test; never reconstruct the old receipt."
+  },
+  "artifacts": [
+    "skills/ultra-status/references/route-contract.md",
+    "adapters/_shared/runtime-assets.cjs",
+    "skills/ultra-research/SKILL.md",
+    "skills/ultra-change/SKILL.md",
+    "skills/ultra-plan/SKILL.md",
+    "skills/ultra-status/SKILL.md",
+    "docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md",
+    "docs/WORKFLOW-LIFECYCLE.md",
+    "docs/evals/ultra-5-0-route-journeys.md",
+    "tests/route-contract.test.cjs",
+    "tests/v026-adapters.test.cjs",
+    ".ultra/reviews/v50-route-contract-initial-review-v4/SUMMARY.json"
+  ],
+  "limitations": [
+    "Route journey evidence is current source inspection; no six-Host model-output comparison is claimed by this task.",
+    "ACP, CLI fallback, the Skill-local runner, ZCode bridge, 3.x migration, package versioning, publication, and real installation remain later accepted tasks or separate external effects.",
+    "The strict review ran sequentially in shared context and has no independent model-family boundary."
+  ],
+  "timestamp": "2026-08-25T10:21:19Z"
+}
