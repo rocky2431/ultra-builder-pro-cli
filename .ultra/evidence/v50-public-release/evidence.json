@@ -1,0 +1,188 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v50-public-release",
+  "change_id": "chg-ultra-5-0",
+  "context": {
+    "path": ".ultra/contexts/task-v50-public-release.md",
+    "acceptance_sha256": "21a6c46737b826156b706fbe0b0b7c896c9d85b696ef95fa20c31b088cb3e316"
+  },
+  "subject": {
+    "git_head": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+    "worktree_digest": "10d10553269afa9b879ffe5693a6b7a5e8c19c690c31c8469ff5a5aa0c0a94e7",
+    "observed_at": "2026-08-26T06:42:20Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "PR-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "for task in <eight-predecessor-task-ids>; do node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/$task/evidence.json --projection; done && node --test tests/ultra-5-journeys.test.cjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v50-public-release/verification.log",
+        "raw_evidence_sha256": "ae47ef45ec8c59508d8201dd50610eb7823cc4a882fa6ba49a3bdfa976416e6e",
+        "freshness_identity": {
+          "git_head": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+          "worktree_digest": "10d10553269afa9b879ffe5693a6b7a5e8c19c690c31c8469ff5a5aa0c0a94e7",
+          "observed_at": "2026-08-26T06:42:20Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "All eight predecessor evidence records classified current-v2 with exact aggregate projections and retained zero-blocker Reviews; the pre-release checkpoint truthfully bound the exact release candidate while remaining passed:false until this task's receipt existed."
+      }
+    },
+    {
+      "criterion_id": "PR-02",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "GitHub Git and GitHub Actions",
+        "run_id": "32937491706",
+        "observed_at": "2026-08-26T06:33:17Z",
+        "raw_evidence_ref": ".ultra/evidence/v50-public-release/release-receipt.json",
+        "raw_evidence_sha256": "e3d59ed0f38bd14c96836f35e3dd73a7074156e9640298f45a71cd80f32e33f0",
+        "observation": "origin/main equals release commit bd3214e5d4bedff1e84e07ad532b9efd213426f1; the exact commit passed macOS job 98081505849, Windows cleanup job 98081505980, and Ubuntu job 98081506041 without force-push or history rewriting."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The retained source-CI run and remote ref bind all required pre-tag operating-system gates to the one published source commit."
+      }
+    },
+    {
+      "criterion_id": "PR-03",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "GitHub Git and GitHub Actions",
+        "run_id": "32937733160",
+        "observed_at": "2026-08-26T06:33:17Z",
+        "raw_evidence_ref": ".ultra/evidence/v50-public-release/release-receipt.json",
+        "raw_evidence_sha256": "e3d59ed0f38bd14c96836f35e3dd73a7074156e9640298f45a71cd80f32e33f0",
+        "observation": "Remote annotated tag object 2af62bbeb68afeb9f880d0ec30e29c9d16760229 peels to the green release commit and triggered successful trusted-publishing job 98082204081, including complete release gate, npm publish, and GitHub Release steps."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The remote tag kind, object, peeled source, and completed tag-triggered workflow are independently observed rather than inferred from a local tag."
+      }
+    },
+    {
+      "criterion_id": "PR-04",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "npm registry and GitHub Releases",
+        "run_id": "ultra-builder-pro-cli@5.0.0 / GitHub Release 376918074",
+        "observed_at": "2026-08-26T06:33:17Z",
+        "raw_evidence_ref": ".ultra/evidence/v50-public-release/release-receipt.json",
+        "raw_evidence_sha256": "e3d59ed0f38bd14c96836f35e3dd73a7074156e9640298f45a71cd80f32e33f0",
+        "observation": "npm gitHead, annotated tag, and GitHub Release resolve to the same 5.0.0 source; an independent tarball download reproduced registry SHA-1 94ec02873016f3aff675f86ee444951f36415f02 and the exact SHA-512 integrity across 141 entries, with npm publish and SLSA provenance attestations present."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Version, source identity, tarball bytes, attestations, and Release metadata converge without treating any one provider's status as proof of another."
+      }
+    },
+    {
+      "criterion_id": "PR-05",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": ".ultra/evidence/v50-public-release/release-receipt.json",
+        "observation": "The receipt identifies npm and GitHub Release as the only public delivery surfaces; records no service deployment target or service deployment; retains strict task evidence, aggregate Test, and explicit Deliver as reachable closeout; and discloses the unsigned tag, empty Release assets, Codex Hook review, experimental domestic-Zhipu ZCode transport, and credential-redaction boundaries.",
+        "revision": "release commit bd3214e5d4bedff1e84e07ad532b9efd213426f1 observed 2026-08-26T06:33:17Z"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The owner-readable receipt completes the real package delivery boundary without fabricating a deployment surface and leaves the exact local lifecycle exits required by the Change."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/ultra-5-journeys.test.cjs",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml"
+      ],
+      "rationale": "The release journey has a regression for the previously stale real-HOME and Windows status claims, while maintained workflows exercise exact-source three-OS and trusted-publication paths."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v50-public-release/verification.log",
+        ".ultra/evidence/v50-public-release/release-receipt.json",
+        ".ultra/reviews/v50-public-release-initial-review-v1/SUMMARY.json"
+      ],
+      "rationale": "Focused journey tests passed 5/5; exact-source CI passed all three required jobs; the release workflow passed its complete gate and both publication effects; post-publication invariants passed; and strict Review returned APPROVE with zero findings."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v50-public-release/release-receipt.json",
+        "https://registry.npmjs.org/ultra-builder-pro-cli/-/ultra-builder-pro-cli-5.0.0.tgz",
+        "https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v5.0.0"
+      ],
+      "rationale": "The acceptance boundary uses durable remote Git refs, GitHub runs, immutable npm registry bytes and attestations, a public GitHub Release, and real user-HOME installations rather than mocks or in-memory receipts."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".github/workflows/release.yml",
+        ".ultra/evidence/v50-public-release/release-receipt.json"
+      ],
+      "rationale": "The tag-triggered trusted publication and six-Host ACP selection are active on the shipped package without a release-bypassing or hidden enablement flag; Codex Hook review and ZCode maturity are explicit host-state limits, not feature flags."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v50-public-release/release-receipt.json",
+        ".ultra/evidence/v50-public-release/verification.log",
+        "bin/install.js"
+      ],
+      "rationale": "The proven slice crosses pushed source, three-OS CI, annotated tag, trusted npm publication, GitHub Release, independent registry bytes, npx global installation, six native Host Doctors, ACP selection, and non-Ultra ownership preservation."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-v50-public-release.md",
+        ".ultra/changes/active/chg-ultra-5-0/intent.md",
+        ".ultra/reviews/v50-public-release-initial-review-v1/SUMMARY.json"
+      ],
+      "rationale": "PR-01 through PR-05 project AC5-17 and AC5-18 from FP-1, FP-3, and FP-4 into NS-01, NS-03, and NS-05 while preserving HC-1, HC-3, HC-4, and HC-8."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "a02ae523b0bbc2d794a5abb20570abf4ef2720bc766870fed8a5d9699bd8fedd",
+      "limitation": null
+    },
+    "session_id": "v50-public-release-initial-review-v1",
+    "summary_ref": ".ultra/reviews/v50-public-release-initial-review-v1/SUMMARY.json",
+    "summary_digest": "e24467638408e7560e7ce3d1510af86248e7a2a677e8012ba282edc10cd401a1",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict Review session, ADMISSION.json, all five selected specialist artifacts, SUMMARY.json, release receipt, verification log, and public provider identities until aggregate Test and Deliver consume them successfully."
+  },
+  "artifacts": [
+    "CHANGELOG.md",
+    "README.md",
+    "README.zh-CN.md",
+    "docs/evals/ultra-5-0-journey-results.md",
+    "tests/ultra-5-journeys.test.cjs",
+    ".ultra/contexts/task-v50-public-release.md",
+    ".ultra/evidence/v50-public-release/verification.log",
+    ".ultra/evidence/v50-public-release/release-receipt.json",
+    ".ultra/reviews/v50-public-release-initial-review-v1/SUMMARY.json"
+  ],
+  "limitations": [
+    "The strict Review ran sequentially in shared context and does not provide independent model-family isolation.",
+    "External GitHub and registry observations are point-in-time receipts retained by exact IDs and digests; full provider logs and credential values are not copied into the repository.",
+    "The annotated tag is unsigned, the GitHub Release intentionally has no binary assets, Codex Hook activation remains user_review_required, and ZCode app-server stability remains experimental.",
+    "This CLI repository has no service deployment target; npm and GitHub Release are the complete public delivery surfaces.",
+    "Terminal nine-task Test, delivery metadata, WIP deletion, Change archive, and post-closeout commit/CI remain the explicit later closeout and are not claimed by this task evidence."
+  ],
+  "timestamp": "2026-08-26T06:42:20Z"
+}

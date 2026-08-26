@@ -353,7 +353,7 @@
       "title": "Publish and verify Ultra Builder Pro 5.0",
       "type": "release",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "completed",
       "dependencies": [
         "v50-windows-release-gate"
       ],

@@ -1,0 +1,240 @@
+{
+  "$schema": "ultra-public-release-receipt-v1",
+  "task_id": "v50-public-release",
+  "change_id": "chg-ultra-5-0",
+  "version": "5.0.0",
+  "observed_at": "2026-08-26T06:33:17Z",
+  "release_source": {
+    "commit": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+    "origin_main": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+    "history_rewritten": false,
+    "source_ci": {
+      "run_id": 32937491706,
+      "url": "https://github.com/rocky2431/ultra-builder-pro-cli/actions/runs/32937491706",
+      "event": "push",
+      "head_sha": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 98081505849,
+          "name": "Release gate (macos-latest, Node 22)",
+          "conclusion": "success"
+        },
+        {
+          "id": 98081505980,
+          "name": "Windows ACP descendant cleanup (Node 22)",
+          "conclusion": "success"
+        },
+        {
+          "id": 98081506041,
+          "name": "Release gate (ubuntu-latest, Node 22)",
+          "conclusion": "success"
+        }
+      ]
+    }
+  },
+  "tag": {
+    "name": "v5.0.0",
+    "kind": "annotated",
+    "object": "2af62bbeb68afeb9f880d0ec30e29c9d16760229",
+    "peeled_commit": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+    "message": "Ultra Builder Pro 5.0.0",
+    "signature": "unsigned",
+    "remote_present": true
+  },
+  "release_workflow": {
+    "run_id": 32937733160,
+    "job_id": 98082204081,
+    "url": "https://github.com/rocky2431/ultra-builder-pro-cli/actions/runs/32937733160",
+    "event": "push",
+    "head_branch": "v5.0.0",
+    "head_sha": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+    "status": "completed",
+    "conclusion": "success",
+    "required_steps": {
+      "complete_release_gate": "success",
+      "publish_npm_package": "success",
+      "create_github_release": "success"
+    },
+    "trusted_publishing": true,
+    "npm_token_added_or_inspected": false
+  },
+  "npm": {
+    "package": "ultra-builder-pro-cli",
+    "version": "5.0.0",
+    "published_at": "2026-08-26T06:22:19.922Z",
+    "git_head": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+    "integrity": "sha512-D+g2vjvpu/YfA6RzNHn2s/6M5GSr7N+ZtwwcJwlW9ojglnBi7qcq+44bAjzfVd5gRrUxOY3s+YmgUayh2Ky/PA==",
+    "shasum": "94ec02873016f3aff675f86ee444951f36415f02",
+    "tarball": "https://registry.npmjs.org/ultra-builder-pro-cli/-/ultra-builder-pro-cli-5.0.0.tgz",
+    "attestations": {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/ultra-builder-pro-cli@5.0.0",
+      "count": 2,
+      "predicate_types": [
+        "https://github.com/npm/attestation/tree/main/specs/publish/v0.1",
+        "https://slsa.dev/provenance/v1"
+      ]
+    },
+    "downloaded_tarball_verification": {
+      "sha1": "94ec02873016f3aff675f86ee444951f36415f02",
+      "integrity": "sha512-D+g2vjvpu/YfA6RzNHn2s/6M5GSr7N+ZtwwcJwlW9ojglnBi7qcq+44bAjzfVd5gRrUxOY3s+YmgUayh2Ky/PA==",
+      "registry_digests_match": true,
+      "entries": 141,
+      "bytes": 379633,
+      "package_name": "ultra-builder-pro-cli",
+      "package_version": "5.0.0",
+      "node_engine": ">=22.0.0",
+      "repository": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git"
+    }
+  },
+  "github_release": {
+    "id": 376918074,
+    "url": "https://github.com/rocky2431/ultra-builder-pro-cli/releases/tag/v5.0.0",
+    "tag": "v5.0.0",
+    "name": "v5.0.0",
+    "target_commitish": "main",
+    "published_at": "2026-08-26T06:22:21Z",
+    "draft": false,
+    "prerelease": false,
+    "assets": []
+  },
+  "published_package_install": {
+    "install_command": "npx --yes ultra-builder-pro-cli@5.0.0 --all --global",
+    "install_exit_code": 0,
+    "doctor_command": "npx --yes ultra-builder-pro-cli@5.0.0 --all --global --doctor --json",
+    "doctor_exit_code": 0,
+    "doctor_status": "healthy",
+    "package_version": "5.0.0",
+    "source_commit": "bd3214e5d4bedff1e84e07ad532b9efd213426f1",
+    "source_dirty": false,
+    "source_worktree_digest": "cb2581eda563594e021612e863264bbf22eca4a4395543a3b7e077e05de50c13",
+    "hosts": [
+      {
+        "adapter": "claude",
+        "status": "healthy",
+        "content_digest": "4b3a2446a183ab4b9472b3e2b9184e82f1332b6fba378b452a078112b9bdd07c",
+        "selected_transport": "acp",
+        "fallback_reason": null
+      },
+      {
+        "adapter": "opencode",
+        "status": "healthy",
+        "content_digest": "621ca2f3eff6d09d5b20b4b6a246336d60e348b6634e9dd0f10b0f8634fd4510",
+        "selected_transport": "acp",
+        "fallback_reason": null
+      },
+      {
+        "adapter": "codex",
+        "status": "healthy",
+        "content_digest": "12484355f97671c2ca32c5de037cfefafafb8d31bb90bb1cad33cec41abbfa92",
+        "selected_transport": "acp",
+        "fallback_reason": null,
+        "hook_activation": "user_review_required"
+      },
+      {
+        "adapter": "kimi",
+        "status": "healthy",
+        "content_digest": "f2d72dcd759051092b59b544806d7dc34983a25008ae1b17c7a0363a5f98a27f",
+        "selected_transport": "acp",
+        "fallback_reason": null
+      },
+      {
+        "adapter": "grok",
+        "status": "healthy",
+        "content_digest": "87d7c6eab495d4464abe2c31966b67ca1583fcb08b7877265e0f04ffa9adc6c4",
+        "selected_transport": "acp",
+        "fallback_reason": null
+      },
+      {
+        "adapter": "zcode",
+        "status": "healthy",
+        "content_digest": "6e2a5ce19741449aee7009457b576d01e23e7d2fa14b8bc743f5721d4f285824",
+        "selected_transport": "acp",
+        "fallback_reason": null,
+        "candidate_identity_valid": true,
+        "transport_maturity": "experimental",
+        "runtime_surface": "ZCode Desktop through zcode-acp 0.1.0",
+        "provider_path": "domestic Zhipu BigModel Coding Plan"
+      }
+    ]
+  },
+  "unrelated_host_sentinels": {
+    "credential_values_inspected": false,
+    "claude": {
+      "comparison": "raw_file",
+      "before": "9347d3613796da2be08e222ba5236b46fb969ddafbdac22f016759804f36f6f1",
+      "after": "9347d3613796da2be08e222ba5236b46fb969ddafbdac22f016759804f36f6f1",
+      "match": true,
+      "mode_after": "0644"
+    },
+    "opencode": {
+      "comparison": "semantic_without_ultra",
+      "before": "0c8b991c76edb917f7bfdc21b2271ce40032277ad7bea45aff43eaf84f502b52",
+      "after": "0c8b991c76edb917f7bfdc21b2271ce40032277ad7bea45aff43eaf84f502b52",
+      "match": true,
+      "mode_after": "0644"
+    },
+    "codex": {
+      "comparison": "semantic_without_ultra",
+      "before": "b5cb38dded127c363654d86eb6e5818e6f62fad4d9183a69b6518fa3af7eaa54",
+      "after": "b5cb38dded127c363654d86eb6e5818e6f62fad4d9183a69b6518fa3af7eaa54",
+      "match": true,
+      "mode_after": "0644"
+    },
+    "kimi": {
+      "comparison": "semantic_without_ultra",
+      "before": "f1f070ab2282e63d862698d1653f206f8b54df3f0591566faaa32a6007e19c45",
+      "after": "f1f070ab2282e63d862698d1653f206f8b54df3f0591566faaa32a6007e19c45",
+      "match": true,
+      "mode_after": "0644"
+    },
+    "grok": {
+      "comparison": "native_registry_semantic_without_ultra",
+      "before": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "after": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "match": true
+    },
+    "zcode": {
+      "comparison": "raw_file_and_semantic_without_plugin_registration",
+      "raw_before": "fef1b130ac85badcb4bb3b1b37acbd317abd84cf0f8b221be17ac1c404363968",
+      "raw_after": "fef1b130ac85badcb4bb3b1b37acbd317abd84cf0f8b221be17ac1c404363968",
+      "semantic_before": "95141afc614a57b9ff54c40cc5a3b697c3529bf68f5fcdb10501f6a517cd766d",
+      "semantic_after": "95141afc614a57b9ff54c40cc5a3b697c3529bf68f5fcdb10501f6a517cd766d",
+      "match": true,
+      "mode_after": "0600"
+    }
+  },
+  "deployment_surfaces": {
+    "inspected": [
+      "package.json",
+      "package-lock.json",
+      ".github/workflows/ci.yml",
+      ".github/workflows/release.yml"
+    ],
+    "public_delivery": [
+      "npm registry",
+      "GitHub Release"
+    ],
+    "service_deployment_target": null,
+    "service_deployment_performed": false
+  },
+  "deliberate_exclusions_and_limitations": [
+    "No service deployment was performed because this package repository has no service deployment target.",
+    "No npm token was added or inspected; the existing GitHub Actions trusted-publishing workflow performed publication.",
+    "The annotated Git tag is unsigned; the accepted contract requires an annotated tag, not a signed tag.",
+    "The GitHub Release has no attached binary assets; npm is the package artifact and the release page binds the tag.",
+    "Codex native Hook activation remains user_review_required even though package installation and ACP delegation are healthy.",
+    "ZCode transport remains experimental because the installed ZCode Desktop app-server has no public stability contract; this receipt verifies the domestic Zhipu BigModel path and does not claim international Z.AI OAuth.",
+    "No credential value or raw provider configuration is recorded in this receipt.",
+    "Aggregate nine-task Ultra Test and explicit Ultra Deliver are the remaining local closeout steps after this task publishes strict Review and current-v2 evidence."
+  ],
+  "handoff": {
+    "next": [
+      "strict task Review and current-v2 evidence for v50-public-release",
+      "terminal nine-task Ultra Test and aggregate Change Review",
+      "explicit Ultra Deliver, WIP deletion, and Change archive"
+    ],
+    "reachable": true
+  }
+}

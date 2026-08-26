@@ -86,18 +86,26 @@ future Hosts recover the exact completed workflow and transport from Git/npm.
 ## Resume Note
 
 Why: turn the green local/live candidate into one verifiable public release. Outcome:
-`origin/main`, `v5.0.0`, npm 5.0.0, and GitHub Release agree. Reality: the Windows gate
-is complete; `origin/main` commit `c39fbcd17993` has a successful three-OS CI run
-`32936156375`, while tag/npm/GitHub Release remain absent. Decision needed: none. Next
-bounded action: reconcile release documentation and publish the green release-source
-commit. Not done: tag, npm publish, GitHub Release, published-package install, strict
-task Review/evidence, terminal nine-task Test, delivery record, WIP deletion, or archive.
+`origin/main`, `v5.0.0`, npm 5.0.0, and GitHub Release agree. Reality: release-source
+commit `bd3214e5d4bedff1e84e07ad532b9efd213426f1` passed exact three-OS CI run
+`32937491706`; annotated tag `v5.0.0` triggered trusted-publishing run `32937733160`;
+npm and GitHub Release publish the same source; and the registry package installs
+healthy on all six real user Hosts with ACP selected. All unrelated Host sentinels
+still match, including the byte-identical mode-0600 domestic Zhipu ZCode config.
+Strict Review session `v50-public-release-initial-review-v1` returned `APPROVE` with
+both axes `PASS` and zero findings. Decision needed: none. Next bounded action: publish
+current-v2 evidence and run terminal nine-task Test. Not done: terminal Test, delivery
+record, WIP deletion, archive, or post-closeout commit/CI.
 
 ## Task Review
 
-- Execution Grant state/limitation: `active`; predecessor gates are complete, but no tag,
-  registry version, or release outcome is claimed before exact external observation.
-- Review session and Summary digest: pending; no strict Review has been published.
-- Blocking findings: not yet classified; the task is `in_progress`.
-- Retention: retain the final CI, tag, npm provenance, and GitHub Release receipts through
-  aggregate Test and Deliver.
+- Execution Grant state/limitation: `active`; all authorized public effects are complete
+  and bound to exact external observations, while aggregate Test and Deliver remain
+  separate local closeout routes.
+- Review session and Summary digest: `v50-public-release-initial-review-v1` /
+  `e24467638408e7560e7ce3d1510af86248e7a2a677e8012ba282edc10cd401a1`.
+- Blocking findings: none; strict Review returned `APPROVE`, both axes `PASS`, and zero
+  P0, P1, P2, or P3 findings.
+- Retention: retain `WORKER-PACKET.json`, `ADMISSION.json`, all five selected specialist
+  artifacts, `SUMMARY.json`, release receipt, final CI, tag, npm provenance, GitHub
+  Release, and published-install observations through aggregate Test and Deliver.
