@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const FAKE_AGENT = path.join(__dirname, 'fixtures', 'fake-acp-agent.cjs');
@@ -374,6 +375,11 @@ test('ZCode bridge source binds the 0.16.5 compatibility patch by path and diges
     },
   });
   const patchFile = path.join(ROOT, ZCODE_ACP_SOURCE.patch.path);
+  const eolAttribute = execFileSync('git', [
+    'check-attr', 'eol', '--', ZCODE_ACP_SOURCE.patch.path,
+  ], { cwd: ROOT, encoding: 'utf8' }).trim();
+  assert.match(eolAttribute, /: eol: lf$/u, 'the digest-bound patch must remain LF on Windows');
+  assert.doesNotMatch(fs.readFileSync(patchFile, 'utf8'), /\r\n/u);
   const digest = crypto.createHash('sha256').update(fs.readFileSync(patchFile)).digest('hex');
   assert.equal(digest, ZCODE_ACP_SOURCE.patch.sha256);
 });

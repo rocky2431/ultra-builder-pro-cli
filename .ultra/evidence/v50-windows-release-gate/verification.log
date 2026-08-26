@@ -4,3 +4,10 @@
 [2026-08-26T05:22:30Z] WG-03 LOCAL PASS: `npm run verify:release` exited 0 with Node 659 passed / 0 failed, Hook pytest 89 passed / 0 failed, and npm audit 0 vulnerabilities.
 [2026-08-26T05:22:30Z] PRE-PUSH CHECKS PASS: Skill Creator validation accepted `skills/ultra-delegate`; `npm pack --dry-run --json` produced `ultra-builder-pro-cli@5.0.0` with 141 files; real all-Host Doctor exited 0 and reported six healthy Hosts.
 [2026-08-26T05:22:30Z] REMOTE EVIDENCE PENDING: no GitHub Actions run id, pushed commit, or Windows runner result is claimed in this file yet.
+[2026-08-26T05:27:51Z] REMOTE RUN 32933965899 on commit 870644cadaf3b2c9591e85dd7e79755606daf7f5: Ubuntu release gate PASS; macOS release gate PASS; Windows focused suite FAIL with 25 passed / 2 failed.
+[2026-08-26T05:27:51Z] WG-02 OBSERVED PARTIAL PASS: Windows test `ACP cancelled reaches terminal transport state and kills the process group` passed, and `ACP timeout reaches terminal transport state and kills the process group` passed. The job remained failed and therefore did not satisfy the release gate.
+[2026-08-26T05:27:51Z] WINDOWS FAILURE CAUSE: the conformance fixture rejected Git paths that differed only by Windows drive/path spelling, and checkout converted the digest-bound `.patch` file to CRLF before SHA-256 verification.
+[2026-08-26T05:32:50Z] REGRESSION RED: the focused path-identity and patch-EOL tests failed 0 passed / 2 failed before implementation (`sameFileSystemPath` missing; Git `eol` attribute unspecified).
+[2026-08-26T05:32:50Z] REGRESSION GREEN: Windows path identity now compares normalized platform-relative identities while POSIX remains case-sensitive; the compatibility patch has repository-enforced `eol=lf`. The two focused tests passed 2/2 and `git diff --check` passed.
+[2026-08-26T05:32:50Z] POST-FIX LOCAL PASS: ACP/conformance/delegation suite passed 48/48. `npm run verify:release` passed with Node 660/660, Hook pytest 89/89, and npm audit 0 vulnerabilities.
+[2026-08-26T05:32:50Z] REMOTE RE-PROOF PENDING: the repaired candidate has not yet been committed or pushed; no successful replacement Windows run is claimed.

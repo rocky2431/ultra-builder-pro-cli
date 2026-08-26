@@ -96,6 +96,11 @@ function atOrInside(root, candidate) {
   return candidate === root || inside(root, candidate);
 }
 
+function sameFileSystemPath(left, right, platform = process.platform) {
+  const pathApi = platform === 'win32' ? path.win32 : path.posix;
+  return pathApi.relative(left, right) === '' && pathApi.relative(right, left) === '';
+}
+
 function projectPath(projectRoot, value, label, { directory = false } = {}) {
   const lexical = path.resolve(projectRoot, value);
   const resolved = fs.existsSync(lexical) ? fs.realpathSync(lexical) : lexical;
@@ -139,13 +144,15 @@ function validateWorktree(worktree) {
   } catch {
     throw new Error('worktree must be a real Git worktree');
   }
-  if (top !== worktree) throw new Error('worktree must be the root of a real Git worktree');
+  if (!sameFileSystemPath(top, worktree)) {
+    throw new Error('worktree must be the root of a real Git worktree');
+  }
   const registered = git(worktree, ['worktree', 'list', '--porcelain'])
     .split('\n')
     .filter((line) => line.startsWith('worktree '))
     .map((line) => line.slice('worktree '.length))
     .some((entry) => {
-      try { return fs.realpathSync(entry) === worktree; } catch { return false; }
+      try { return sameFileSystemPath(fs.realpathSync(entry), worktree); } catch { return false; }
     });
   if (!registered) throw new Error('worktree is not registered as a Git worktree');
   const dirty = git(worktree, ['status', '--porcelain=v1', '--untracked-files=all']);
@@ -664,4 +671,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { handle, run, status, cancel, main };
+module.exports = { handle, run, sameFileSystemPath, status, cancel, main };

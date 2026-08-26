@@ -16,6 +16,7 @@ const WAIT = path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate_wa
 const {
   cancel: cancelDelegate,
   run: runDelegate,
+  sameFileSystemPath,
   status: statusDelegate,
 } = require(SKILL_RUNNER);
 const {
@@ -112,6 +113,13 @@ function waitForExit(pid, timeout = 2000) {
   }
   throw new Error(`timed out waiting for process ${pid}`);
 }
+
+test('Windows canonical path identity ignores drive casing and separator spelling only', () => {
+  assert.equal(sameFileSystemPath('D:\\a\\Repo\\Tree', 'd:/a/repo/tree', 'win32'), true);
+  assert.equal(sameFileSystemPath('D:\\a\\Repo\\Tree', 'D:\\a\\Repo\\Tree\\', 'win32'), true);
+  assert.equal(sameFileSystemPath('D:\\a\\Repo\\Tree', 'D:\\a\\Repo\\Other', 'win32'), false);
+  assert.equal(sameFileSystemPath('/tmp/Repo', '/tmp/repo', 'linux'), false);
+});
 
 test('Skill-local delegation is canonical and the package CLI is a thin compatibility wrapper', () => {
   assert.ok(fs.existsSync(SKILL_RUNNER), SKILL_RUNNER);
