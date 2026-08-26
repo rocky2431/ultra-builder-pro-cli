@@ -21,7 +21,7 @@ writing authority to a different Agent requires an explicit verified transfer
 
 ## Ultra Builder Pro 5.0
 
-Version `5.0.0` is the current implementation of Ultra as a cognitive-alignment harness
+Version `5.0.1` is the current implementation of Ultra as a cognitive-alignment harness
 for real software engineering. It preserves the accepted 3.0 file-first and model-agency
 constitution, then makes workflow position, recovery, and cross-Agent execution directly
 observable. It is not a decentralized multi-agent platform and it does not prescribe one
@@ -123,7 +123,7 @@ map, evidence convergence, owner checkpoints, and baseline promotion.
 
 ### What happened to the original Agents
 
-Version 5.0.0 does not install a custom `agents/` projection. The old review workers became the
+Version 5.0.1 does not install a custom `agents/` projection. The old review workers became the
 six focused files under `ultra-review/references/`; review coordination and synthesis
 belong to the parent `ultra-review` Skill. The old debugger procedure lives under
 `ultra-dev/references/debugging.md`, and test execution lives under
@@ -204,17 +204,17 @@ Node.js 22 or newer is required.
 
 ```bash
 # Current project, one host
-npx ultra-builder-pro-cli@5.0.0 --claude --local
-npx ultra-builder-pro-cli@5.0.0 --codex --local
+npx ultra-builder-pro-cli@5.0.1 --claude --local
+npx ultra-builder-pro-cli@5.0.1 --codex --local
 
 # Global installation
-npx ultra-builder-pro-cli@5.0.0 --opencode --global
-npx ultra-builder-pro-cli@5.0.0 --kimi --global
-npx ultra-builder-pro-cli@5.0.0 --grok --global
-npx ultra-builder-pro-cli@5.0.0 --zcode --global
+npx ultra-builder-pro-cli@5.0.1 --opencode --global
+npx ultra-builder-pro-cli@5.0.1 --kimi --global
+npx ultra-builder-pro-cli@5.0.1 --grok --global
+npx ultra-builder-pro-cli@5.0.1 --zcode --global
 
 # All supported hosts
-npx ultra-builder-pro-cli@5.0.0 --all --global
+npx ultra-builder-pro-cli@5.0.1 --all --global
 ```
 
 ZCode ACP delegation additionally requires the independently built bridge and an
@@ -261,13 +261,13 @@ Installation is managed, atomic, and provenance-checked.
 
 ```bash
 # Re-running install updates the managed artifact
-npx ultra-builder-pro-cli@5.0.0 --codex --global
+npx ultra-builder-pro-cli@5.0.1 --codex --global
 
 # Read-only diagnosis
-npx ultra-builder-pro-cli@5.0.0 --all --global --doctor --json
+npx ultra-builder-pro-cli@5.0.1 --all --global --doctor --json
 
 # Remove only managed Ultra assets
-npx ultra-builder-pro-cli@5.0.0 --all --global --uninstall
+npx ultra-builder-pro-cli@5.0.1 --all --global --uninstall
 ```
 
 `--config-dir <path>` isolates both the primary config and host-owned sidecars. It is
@@ -458,7 +458,7 @@ conformance rather than semantic acceptance.
 
 - [5.0 design and acceptance contract](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) —
   Route, Skill ownership, continuation, ACP/CLI execution, migration, and journey
-  boundaries implemented by 5.0.0.
+  boundaries implemented by 5.0.1.
 - [5.0 journey results](docs/evals/ultra-5-0-journey-results.md) — observable source,
   isolated-runtime, real-provider, real-HOME, and cross-platform outcomes plus the
   deliberately excluded service-deployment boundary.

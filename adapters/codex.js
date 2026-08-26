@@ -370,13 +370,10 @@ function doctor(ctx = {}) {
     if (!discovered) report.issues.push({ code: 'HOST_PLUGIN_NOT_DISCOVERED' });
   }
   report.checks.hook_activation = {
-    status: 'user_review_required',
-    reason: 'Codex does not trust non-managed plugin hooks merely because the plugin is installed or enabled.',
+    status: 'host_managed',
+    observable: false,
+    reason: 'Codex owns persisted Hook trust, and its CLI does not expose the live trust decision to plugins.',
   };
-  report.actions = [{
-    code: 'REVIEW_CODEX_HOOK_TRUST',
-    message: 'Open a new Codex session, review the current Ultra hook definition, and trust it before relying on hook acceleration.',
-  }];
   report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
   return report;
 }

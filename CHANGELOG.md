@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1] — 2026-08-26
+
+### Fixed
+
+- Corrected Codex Doctor's Hook-trust observation. Codex owns persisted Hook trust but
+  does not expose the live decision through its plugin CLI, so Doctor now reports
+  `hook_activation: host_managed` with `observable: false` instead of permanently
+  claiming `user_review_required` and instructing already-trusted users to review again.
+  This changes no Hook registration, ACP transport, installation, or permission behavior.
+
 ## [5.0.0] — 2026-08-26
 
 ### Added

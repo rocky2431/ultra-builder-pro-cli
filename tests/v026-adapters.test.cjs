@@ -207,14 +207,18 @@ test('Codex plugin manifest satisfies the native presentation contract', async (
   assert.ok(manifest.interface.defaultPrompt.every((prompt) => prompt.length <= 128));
 });
 
-test('Codex doctor distinguishes healthy installation from user-controlled hook trust', async () => {
+test('Codex doctor leaves unobservable hook trust with the Host', async () => {
   const codex = require('../adapters/codex.js');
   const { ctx } = sandbox('codex-hook-trust');
   await codex.install(ctx);
   const report = await codex.doctor(ctx);
   assert.equal(report.status, 'healthy');
-  assert.equal(report.checks.hook_activation.status, 'user_review_required');
-  assert.ok(report.actions.some((action) => action.code === 'REVIEW_CODEX_HOOK_TRUST'));
+  assert.deepEqual(report.checks.hook_activation, {
+    status: 'host_managed',
+    observable: false,
+    reason: 'Codex owns persisted Hook trust, and its CLI does not expose the live trust decision to plugins.',
+  });
+  assert.equal(report.actions, undefined);
 });
 
 test('OpenCode upgrades a managed v0.25 surface without touching user assets', async () => {

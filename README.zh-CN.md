@@ -17,7 +17,7 @@ Host 模型仍然是工程师。Ultra 提供可复用的方法和可检查的产
 
 ## Ultra Builder Pro 5.0
 
-`5.0.0` 是 Ultra 作为真实软件工程认知对齐 Harness 的当前实现。它保留已接受的
+`5.0.1` 是 Ultra 作为真实软件工程认知对齐 Harness 的当前实现。它保留已接受的
 3.0 file-first 与 model-agency 宪法，再让工作流位置、恢复和跨 Agent 执行变得可直接
 观察。它不是去中心化多 Agent 平台，也不规定唯一的 Agent 拓扑。它只承诺五件事：
 
@@ -108,7 +108,7 @@ subagent 的 Host 可以并行运行 Review lens；其他 Host 则顺序运行�
 
 ### 原来的 Agents 去哪里了
 
-`5.0.0` 不安装自定义 `agents/` 投影。原来的 Review workers 变成
+`5.0.1` 不安装自定义 `agents/` 投影。原来的 Review workers 变成
 `ultra-review/references/` 下六个聚焦文件；Review 协调和综合归属于父级
 `ultra-review` Skill。原来的 debugger 流程位于
 `ultra-dev/references/debugging.md`，测试执行流程位于
@@ -185,17 +185,17 @@ receipts 都是派生证据，不是额外语义文档。
 
 ```bash
 # 当前项目，单个 Host
-npx ultra-builder-pro-cli@5.0.0 --claude --local
-npx ultra-builder-pro-cli@5.0.0 --codex --local
+npx ultra-builder-pro-cli@5.0.1 --claude --local
+npx ultra-builder-pro-cli@5.0.1 --codex --local
 
 # 全局安装
-npx ultra-builder-pro-cli@5.0.0 --opencode --global
-npx ultra-builder-pro-cli@5.0.0 --kimi --global
-npx ultra-builder-pro-cli@5.0.0 --grok --global
-npx ultra-builder-pro-cli@5.0.0 --zcode --global
+npx ultra-builder-pro-cli@5.0.1 --opencode --global
+npx ultra-builder-pro-cli@5.0.1 --kimi --global
+npx ultra-builder-pro-cli@5.0.1 --grok --global
+npx ultra-builder-pro-cli@5.0.1 --zcode --global
 
 # 所有受支持 Host
-npx ultra-builder-pro-cli@5.0.0 --all --global
+npx ultra-builder-pro-cli@5.0.1 --all --global
 ```
 
 把任务通过 ACP 派给 ZCode 还需要独立构建的 bridge 和已安装的 ZCode Desktop。
@@ -239,13 +239,13 @@ ZCode uninstall 与 reinstall。
 
 ```bash
 # 重新执行安装会更新受管理产物
-npx ultra-builder-pro-cli@5.0.0 --codex --global
+npx ultra-builder-pro-cli@5.0.1 --codex --global
 
 # 只读诊断
-npx ultra-builder-pro-cli@5.0.0 --all --global --doctor --json
+npx ultra-builder-pro-cli@5.0.1 --all --global --doctor --json
 
 # 只移除受管理的 Ultra 资产
-npx ultra-builder-pro-cli@5.0.0 --all --global --uninstall
+npx ultra-builder-pro-cli@5.0.1 --all --global --uninstall
 ```
 
 `--config-dir <path>` 会同时隔离主配置和 Host 自有 sidecar。它是测试时的安全选择，
@@ -413,7 +413,7 @@ effect；validator 成功只证明结构符合要求，不代表语义已被接�
 
 ## 文档
 
-- [5.0 设计与验收合同](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) — 5.0.0 已实现的
+- [5.0 设计与验收合同](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) — 5.0.1 已实现的
   Route、Skill 职责、continuation、ACP/CLI execution、migration 与 journey 边界。
 - [5.0 journey 结果](docs/evals/ultra-5-0-journey-results.md) — 可观察的 source、
   isolated-runtime、real-provider、real-HOME 与跨平台结果，以及明确排除的服务部署边界。

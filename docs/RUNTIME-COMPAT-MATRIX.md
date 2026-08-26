@@ -81,9 +81,10 @@ descriptions and runtime guard rather than a fabricated routing flag.
 
 All hooks share the same `.ultra/` idle guard. Wire adapters normalize payload and
 output fields only; they do not change semantic policy. Codex installation health and
-hook activation are distinct: Codex skips newly installed non-managed plugin hooks
-until the user reviews and trusts the current definition, so Doctor reports
-`hook_activation: user_review_required` without pretending the hook already ran.
+Hook trust are distinct. Codex owns the persisted trust decision, while its plugin CLI
+does not expose that live decision to Ultra. Doctor therefore reports
+`hook_activation: host_managed` with `observable: false`; it claims neither trusted nor
+untrusted and emits no remediation action without an authoritative Host observation.
 
 ## Agent execution driver selection
 
