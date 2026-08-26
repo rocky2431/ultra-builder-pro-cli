@@ -68,6 +68,7 @@ and prevents a published Windows installation from leaving delegated work runnin
 |---|---|---|---|---|
 | 2026-08-26 | boundary expansion | Initial Windows release-gate task | Change intent | Owner requested Windows cleanup proof |
 | 2026-08-26 | implementation repair | Normalize Windows Git path identity and force LF for the digest-bound bridge patch | Planned Path Inventory and tests | First real Windows run exposed path spelling and checkout EOL drift after both descendant tests passed |
+| 2026-08-26 | implementation repair | Compare canonical worktree directories by device and file ID before path fallback | Tests and implementation | Second Windows run proved normalized strings still diverge across Windows long, short, or namespace aliases |
 
 ## Open Questions
 
@@ -77,13 +78,14 @@ and prevents a published Windows installation from leaving delegated work runnin
 
 Why: make cancellation and release verification real on Windows. Outcome: the pushed
 release commit passes all three operating-system jobs and kills a real descendant.
-Reality: run 32933965899 proved both Unix release gates and both Windows descendant-kill
-tests, but the Windows job failed on Git path spelling and CRLF patch digest drift. Both
-failures now have RED/GREEN regressions; the repaired focused suite passes 48/48 and the
-full local release gate passes 660 Node tests, 89 Hook tests, and npm audit. Decision
-needed: none. Next bounded action: commit and push the repair, then retain all three
-successful job results for the replacement commit. Not done: successful replacement
-Windows run, strict task Review, or final evidence projection.
+Reality: runs 32933965899 and 32934557386 proved both Unix release gates and both Windows
+descendant-kill tests; the second run also proved LF patch stability, then exposed a
+remaining long/short-path identity alias. The directory device/file-ID repair has a
+RED/GREEN regression; the focused suite passes 49/49 and the full local release gate
+passes 661 Node tests, 89 Hook tests, and npm audit. Decision needed: none. Next bounded
+action: commit and push the identity repair, then retain all three successful jobs for
+that commit. Not done: successful replacement Windows run, strict task Review, or final
+evidence projection.
 
 ## Task Review
 

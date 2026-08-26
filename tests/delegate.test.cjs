@@ -16,6 +16,7 @@ const WAIT = path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate_wa
 const {
   cancel: cancelDelegate,
   run: runDelegate,
+  sameFileSystemEntry,
   sameFileSystemPath,
   status: statusDelegate,
 } = require(SKILL_RUNNER);
@@ -119,6 +120,25 @@ test('Windows canonical path identity ignores drive casing and separator spellin
   assert.equal(sameFileSystemPath('D:\\a\\Repo\\Tree', 'D:\\a\\Repo\\Tree\\', 'win32'), true);
   assert.equal(sameFileSystemPath('D:\\a\\Repo\\Tree', 'D:\\a\\Repo\\Other', 'win32'), false);
   assert.equal(sameFileSystemPath('/tmp/Repo', '/tmp/repo', 'linux'), false);
+});
+
+test('Windows worktree aliases resolve by filesystem identity before path spelling', () => {
+  const identities = new Map([
+    ['C:\\Users\\RUNNER~1\\worktree', { dev: 7n, ino: 42n }],
+    ['C:\\Users\\runneradmin\\worktree', { dev: 7n, ino: 42n }],
+    ['C:\\Users\\runneradmin\\other', { dev: 7n, ino: 43n }],
+  ]);
+  const stat = (value) => identities.get(value);
+  assert.equal(sameFileSystemEntry(
+    'C:\\Users\\RUNNER~1\\worktree',
+    'C:\\Users\\runneradmin\\worktree',
+    { platform: 'win32', stat },
+  ), true);
+  assert.equal(sameFileSystemEntry(
+    'C:\\Users\\RUNNER~1\\worktree',
+    'C:\\Users\\runneradmin\\other',
+    { platform: 'win32', stat },
+  ), false);
 });
 
 test('Skill-local delegation is canonical and the package CLI is a thin compatibility wrapper', () => {
