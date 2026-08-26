@@ -400,9 +400,12 @@ test('the accepted journey register reports one observable PASS or honest STOP p
     assert.match(results, new RegExp(`\\| ${id} \\| ${escapeRegExp(name)} \\| ${status} \\|`, 'u'));
   }
   assert.match(results, /live-provider[^\n]*六个 Host/u);
-  assert.match(results, /Real user-HOME execution[^\n]*下一任务/u);
+  assert.match(results, /real user-HOME install\/Doctor[\s\S]*完成/iu);
+  assert.match(results, /J8 \| Clean install delegation \| PASS[\s\S]*v50-real-home-activation/iu);
   assert.match(results, /ZCode bridge \| PASS[\s\S]*国内 BigModel provider[\s\S]*experimental/iu);
-  assert.match(results, /Windows descendant cleanup[\s\S]*not proven/iu);
+  assert.match(results, /J11 \| Cancellation \| PASS[\s\S]*windows-latest[\s\S]*真实 grandchild/iu);
+  assert.match(results, /GitHub Actions run `32935138736`/u);
+  assert.match(results, /剩余 registry\/release 缺口属于 public-release task/u);
 });
 
 test('daily entry, fresh-session recovery, and earliest observable slice are documented at use sites', () => {

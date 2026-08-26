@@ -50,7 +50,8 @@ installed, source-pinned bridge and remains `experimental`.
 
 5.0 deliberately does not add a daemon, workflow service, semantic state machine, A2A
 network, Team Pack, remote marketplace, or shared authority store. Package publication
-and real user installation remain effects separate from this source version.
+and real user installation remain independently verifiable effects; a source version
+alone never proves either one occurred.
 
 ## Why it exists
 
@@ -244,9 +245,11 @@ Coding Plan config uses the official Anthropic-compatible endpoint
 `builtin:bigmodel-coding-plan/GLM-5.2`. See the
 [official BigModel Claude API compatibility guide](https://docs.bigmodel.cn/cn/guide/develop/claude/introduction).
 
-These pinned `npx` commands apply after `5.0.0` is published. Local release-candidate
-verification uses `node bin/install.js --config-dir <isolated-path>` and never mutates the
-real user installation.
+These pinned `npx` commands resolve the immutable registry version after publication.
+Source-tree verification uses `node bin/install.js --config-dir <isolated-path>` when
+it must not mutate the real user installation; the separate 5.0 release drill also
+verified an ownership-safe install, Doctor, ZCode uninstall, and reinstall in all six
+real Host homes.
 
 Use the host's native Skill picker or invocation syntax to select an owner workflow.
 Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. The installed
@@ -455,9 +458,10 @@ conformance rather than semantic acceptance.
 
 - [5.0 design and acceptance contract](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) —
   Route, Skill ownership, continuation, ACP/CLI execution, migration, and journey
-  boundaries implemented by the 5.0.0 source candidate.
-- [5.0 journey results](docs/evals/ultra-5-0-journey-results.md) — observable local
-  PASS/STOP outcomes and deliberate external-validation gaps.
+  boundaries implemented by 5.0.0.
+- [5.0 journey results](docs/evals/ultra-5-0-journey-results.md) — observable source,
+  isolated-runtime, real-provider, real-HOME, and cross-platform outcomes plus the
+  deliberately excluded service-deployment boundary.
 - [Current authority](.ultra/north-star.md) — this repository's accepted
   North Star, revision `north-star-v2-r3`, is the canonical current authority;
   `.ultra/tasks.json` and the stable Change under `.ultra/changes/active/` or

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [5.0.0] — 2026-08-25
+## [5.0.0] — 2026-08-26
 
 ### Added
 
@@ -39,10 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved the canonical delegation launcher and its complete runtime closure under the
   installed `ultra-delegate` Skill. The package-level `ubp delegate` command is a thin
   one-release compatibility wrapper rather than a day-to-day runtime dependency.
-- Kept all six shipped Host profiles on an explicit CLI fallback until their own ACP
-  conformance row passes. ZCode resolves only the installed Desktop runtime, remains
-  `experimental`, and reports `acp_v1_unavailable`; it does not claim an activated ACP
-  bridge.
+- Activated ACP-first delivery for all six shipped Host profiles only while each exact
+  executable, candidate identity, protocol version, and current conformance receipt
+  remain valid. Any unavailable or stale boundary still returns the typed,
+  result-compatible CLI fallback without an automatic provider retry.
+- Connected ZCode Desktop through the independently built `zcode-acp` v0.1.0 bridge at
+  commit `42fe149d4b501469343c01f23ba3801832306d53` plus the shipped digest-bound ZCode
+  0.16.5 runtime-preferences patch. The verified provider path is domestic 智谱
+  BigModel Coding Plan, not international Z.AI OAuth; transport maturity remains
+  `experimental` and requires explicit acknowledgment.
 - Kept Status and degraded Review read-only. Ambiguous authority reports the earliest
   unsafe fact and reachable repair, retry, cancel, or abandon path without selecting an
   intent, activating stored grant text, or writing semantic content.
@@ -54,9 +59,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deliberately excluded a daemon, remote workflow service, semantic state machine, A2A
   network, Team Pack, remote marketplace, shared authority store, automatic ACP-to-CLI
   retry after a started run, and unverified Host capability promotion.
-- Live provider calls, real user-home installation, ZCode ACP recovery, Windows
-  descendant cleanup, commit, push, tag, publication, GitHub Release, and deployment
-  remain separately authorized and are not claimed by the local 5.0 candidate.
+- This package has no service deployment target. npm publication and GitHub Release are
+  the only release surfaces; Team Pack, a daemon, remote workflow service, provider
+  purchase, credential export, force-push, and npm unpublish remain excluded.
+
+### Verified
+
+- Completed one bounded real ACP v1 provider session for Claude Code, Codex, OpenCode,
+  Kimi Code, Grok Build, and ZCode. Every receipt binds the exact Host candidate, clean
+  isolated Git subject, terminal worker observation, and redacted result facts.
+- Installed 5.0.0 into all six real user Host homes after a mode-0700 recovery backup.
+  Final Doctor reports six healthy adapters, installed Skill-local ACP selection, and
+  ownership-safe ZCode uninstall/reinstall without changing the domestic-provider config.
+- Passed the same-commit GitHub Actions matrix on Ubuntu and macOS with 661 Node tests,
+  89 Hook tests, and zero production dependency vulnerabilities, plus Windows 27/27
+  real ACP tests including cancel and timeout cleanup of an actual grandchild process.
+- Reproduced Windows checkout EOL and worktree-alias failures before fixing them with
+  LF-bound bridge patches and filesystem device/file-ID comparison; both failed
+  predecessor runs remain retained in the release evidence.
 
 ## [3.0.2] — 2026-08-18
 

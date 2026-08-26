@@ -40,8 +40,8 @@ Grok Build 和 ZCode。六个 profile 都暴露 stable ACP v1 candidate，也都
 `experimental`。
 
 5.0 明确不加入 daemon、workflow service、语义状态机、A2A 网络、Team Pack、remote
-marketplace 或共享权威存储。Package publication 和真实用户安装仍是独立于当前源码
-版本的 effects。
+marketplace 或共享权威存储。Package publication 和真实用户安装仍是需要独立核验的
+effects；仅凭 source version 不能证明任一 effect 已经发生。
 
 ## 为什么需要它
 
@@ -224,8 +224,10 @@ BigModel，也可以是国际 Z.AI。国内 BigModel Coding Plan 应在
 5.0 的真实验证使用 `builtin:bigmodel-coding-plan/GLM-5.2`。参见
 [智谱官方 Claude API 兼容文档](https://docs.bigmodel.cn/cn/guide/develop/claude/introduction)。
 
-这些固定版本的 `npx` 命令在 `5.0.0` 发布后生效。本地 release candidate 验证使用
-`node bin/install.js --config-dir <isolated-path>`，不会修改真实用户安装。
+这些固定版本的 `npx` 命令在发布后解析 registry 中不可变的版本。需要避免修改真实
+用户安装时，源码验证使用 `node bin/install.js --config-dir <isolated-path>`；独立的
+5.0 release drill 还在六个真实 Host home 中验证了 ownership-safe install、Doctor、
+ZCode uninstall 与 reinstall。
 
 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间
 的条目，例如 `$ultra-builder-pro:ultra-init`。安装后的 frontmatter 和 metadata 会
@@ -411,10 +413,10 @@ effect；validator 成功只证明结构符合要求，不代表语义已被接�
 
 ## 文档
 
-- [5.0 设计与验收合同](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) — 5.0.0 源码候选已实现的
+- [5.0 设计与验收合同](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) — 5.0.0 已实现的
   Route、Skill 职责、continuation、ACP/CLI execution、migration 与 journey 边界。
-- [5.0 journey 结果](docs/evals/ultra-5-0-journey-results.md) — 可观察的本地
-  PASS/STOP 结果与明确保留的外部验证缺口。
+- [5.0 journey 结果](docs/evals/ultra-5-0-journey-results.md) — 可观察的 source、
+  isolated-runtime、real-provider、real-HOME 与跨平台结果，以及明确排除的服务部署边界。
 - [当前权威](.ultra/north-star.md) — 本仓库已接受的 North Star
   `north-star-v2-r3` 是当前规范权威；`.ultra/tasks.json` 以及
   `.ultra/changes/active/` 或 `.ultra/changes/archive/` 下的稳定 Change 记录当前或

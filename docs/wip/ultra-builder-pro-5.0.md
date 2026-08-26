@@ -24,18 +24,19 @@ grant continuation、Skill-local ACP/CLI delegation、ZCode bridge、3.x migrati
 ## Current checkpoint
 
 - Route: `ultra-dev`
-- Mode: `closeout` task `v50-real-home-activation`
-- Position: 六 Host 已从旧版本真实升级至 5.0.0；真实 Doctor 全部 `healthy`，每个已安装
-  runner 都选择 ACP，Codex Hook trust 仍如实标为 `user_review_required`。ZCode 的真卸载、
-  缺席态 Doctor、重装与最终发现均已通过，且国内 BigModel 配置字节和 0600 权限不变。
-- Exit condition: 当前任务的 v2 evidence 与 ledger closeout 完成，然后进入真实 Windows
-  descendant-cleanup release gate。
+- Mode: `release` task `v50-public-release`
+- Position: 六 Host real ACP、真实 HOME activation 和 Windows descendant cleanup 已完成；
+  `origin/main` 的证据提交 `c39fbcd17993` 在 GitHub Actions run `32936156375` 上通过
+  Ubuntu/macOS 完整 release gate 与 Windows focused ACP gate。当前正在冻结可 tag 的
+  release-source commit，尚未声称 registry 或 GitHub Release 已存在。
+- Exit condition: 绿色 release-source commit 被 annotated tag `v5.0.0` 精确引用，trusted
+  workflow 完成 npm/GitHub publication，published package 真实安装通过；随后本 task
+  发布 strict Review/evidence，九任务 aggregate Test 与 explicit Deliver 完成 archive。
 
 ## Reality
 
-- Verified local package candidate: `5.0.0` recovery commit `8be6f6d` (not pushed or
-  published). It passed Node/Hook tests, npm audit, pack dry-run, and changed-Skill
-  validation before the live boundary expansion.
+- Verified source line: recovery commit `8be6f6d` plus the live ACP/Windows repair chain
+  has been pushed through `c39fbcd17993`; the package is not yet tagged or published.
 - Reproduced baseline gap: a clean one-shot install did not persist bare `ubp`, while the
   installed `ultra-delegate` instructed that unreachable command. The current local fix
   instead invokes its installed `scripts/delegate.cjs` path.
@@ -72,9 +73,9 @@ grant continuation、Skill-local ACP/CLI delegation、ZCode bridge、3.x migrati
   the intentionally stale final
   `.ultra/test-report.json`, which cannot truthfully include the four unfinished live
   activation/release tasks yet.
-- CI now defines Ubuntu/macOS release gates plus a Windows job that exercises real
-  cancellation/timeout descendant cleanup. YAML parses successfully; the pushed Windows
-  run is still required.
+- GitHub Actions run `32935138736` first proved the implementation commit across Ubuntu,
+  macOS, and Windows. Run `32936156375` then reproved the committed Windows evidence
+  closeout itself: both Unix release gates and Windows descendant cleanup are green.
 - Migration evidence validates as `current-v2`; a real isolated 3.x lifecycle preserved
   eighteen canonical artifacts with the same aggregate digest before update, after
   update, and after uninstall. The focused journey suite is 5/5, the expanded regression
@@ -85,9 +86,9 @@ grant continuation、Skill-local ACP/CLI delegation、ZCode bridge、3.x migrati
   plugin passes Plugin Creator validation.
 - `npm run verify:release` exits zero with 647 Node tests, 89 Hook tests, and zero
   production dependency vulnerabilities at the configured high-severity threshold.
-- `npm pack --dry-run --json` reports `ultra-builder-pro-cli@5.0.0`, 138 entries,
-  362686 packed bytes, 1307282 unpacked bytes, and shasum
-  `421f6a71027b2ebe346224f415aa43416bdb1ba4`; no tarball is written.
+- The last `npm pack --dry-run --json` reports `ultra-builder-pro-cli@5.0.0` with 141
+  files; the exact final pack identity is refreshed on the release-source snapshot and
+  no dry-run tarball is written.
 - An isolated all-Host install and Doctor report every adapter `healthy`, package
   `5.0.0`, installed delegation runner present, and the exact CLI fallback reason;
   uninstall leaves the isolated root empty. Codex hook trust remains an explicit user
@@ -113,10 +114,12 @@ None. The Owner explicitly expanded the same Change through
 
 ## Next bounded action
 
-Publish current task evidence, then commit and push the candidate so the real Windows
-runner can prove descendant cleanup before any immutable public release effect.
+Finish the release-source reconciliation, run the complete local release gate and pack
+inspection, push the exact commit, and require its three operating-system CI jobs to be
+green before creating `v5.0.0`.
 
 ## Not done
 
-- real Windows runner receipt, final Review/Test and Change archive;
-- push, tag `v5.0.0`, npm publish, GitHub Release and registry verification.
+- tag `v5.0.0`, npm publish, GitHub Release, published-package install and registry proof;
+- public-release strict Review/evidence, final nine-task Review/Test, delivery record,
+  WIP deletion and Change archive.

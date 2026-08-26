@@ -68,33 +68,95 @@
       "evidence_digest": "ebf4df36a5f7e246be3538d274e1ae03c506a3033ef4931861a3d85b5adee907",
       "task_review_session": "v50-real-home-activation-initial-review-v1",
       "task_review_summary_digest": "605147d5dd579ab1a4a1187701602771a6b2392a503ca74876dbd842e09bc143"
+    },
+    {
+      "task_id": "v50-windows-release-gate",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/v50-windows-release-gate/evidence.json",
+      "evidence_digest": "f675fe71f0b47cd13a9b95132d86e8bec16fde6c95c407cd68daab7deb8d75da",
+      "task_review_session": "v50-windows-release-gate-initial-review-v1",
+      "task_review_summary_digest": "a8f4545c11e323c0a2b5b8ad1b36e78c7a30e6fd592490f652bd646142a4e615"
     }
   ],
-  "git_commit": "8be6f6d2f8d5b367fd3fced2681240e4932242ae",
+  "git_commit": "c39fbcd17993200f455ec53d72836ddeac1837bc",
   "intent_digest": "eba8401374dba27a697c61d2a9a4bb3b40fb055f2f8c75c028517e0ae68e9da3",
   "worktree": {
     "dirty": true,
-    "diff_digest": "43a21a953810bc81772aa3c7cbc1c886e5753d59afbbfe9d01ac47e994fc3980"
+    "diff_digest": "40e0457858b2f246cb561d4642ac8047f54e1c7b39186ec01c804539c47a066a"
   },
   "commands": [
     {
       "command": "node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-5-0",
       "exit_code": 0,
-      "evidence_ref": "head 8be6f6d2f8d5b367fd3fced2681240e4932242ae; intent_digest eba8401374dba27a697c61d2a9a4bb3b40fb055f2f8c75c028517e0ae68e9da3; diff_digest 43a21a953810bc81772aa3c7cbc1c886e5753d59afbbfe9d01ac47e994fc3980"
+      "evidence_ref": "head c39fbcd17993200f455ec53d72836ddeac1837bc; intent_digest eba8401374dba27a697c61d2a9a4bb3b40fb055f2f8c75c028517e0ae68e9da3; pre-release product diff_digest 40e0457858b2f246cb561d4642ac8047f54e1c7b39186ec01c804539c47a066a"
     },
     {
-      "command": "node --test tests/acp-driver.test.cjs tests/acp-conformance.test.cjs",
+      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/<predecessor-task>/evidence.json --projection",
       "exit_code": 0,
-      "evidence_ref": "27/27 local ACP and Windows termination contract tests passed; real windows-latest observation remains pending"
+      "evidence_ref": "all eight predecessor records classify current-v2 and emit the exact ordered projections retained in task_evidence"
+    },
+    {
+      "command": "node --test tests/ultra-5-journeys.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "5/5 after the live-scope status regression was first reproduced against the stale real-HOME and Windows assertions"
+    },
+    {
+      "command": "npm run verify:release",
+      "exit_code": 0,
+      "evidence_ref": "661/661 Node tests, 89/89 Hook tests, and npm audit found 0 vulnerabilities"
+    },
+    {
+      "command": "npm pack --dry-run --json",
+      "exit_code": 0,
+      "evidence_ref": "ultra-builder-pro-cli@5.0.0; 141 files; 378744 packed bytes; 1354463 unpacked bytes; shasum e42591f56440c6be255b54a09407d488966a9bb6; no tarball written"
+    },
+    {
+      "command": "git diff --check && git merge-base --is-ancestor v3.0.2 HEAD",
+      "exit_code": 0,
+      "evidence_ref": "no whitespace errors and the release line is a non-rewritten descendant of v3.0.2"
+    },
+    {
+      "command": "git ls-remote origin refs/heads/main refs/tags/v5.0.0; npm view ultra-builder-pro-cli@5.0.0 ...; gh release view v5.0.0 ...",
+      "exit_code": 0,
+      "evidence_ref": "origin/main=c39fbcd17993200f455ec53d72836ddeac1837bc; remote tag absent; npm 5.0.0 returned E404; GitHub Release absent — no future external result is claimed"
+    },
+    {
+      "command": "repository deployment-surface inspection",
+      "exit_code": 0,
+      "evidence_ref": "only package.json/package-lock.json and the CI/Release workflows exist; no Dockerfile, service Procfile, Railway, Vercel, Fly, or Serverless target exists"
     }
   ],
   "areas": {
-    "anti_patterns": {"status": "not_run", "evidence_refs": [], "omissions": ["Final whole-Change audit waits for the Windows and public-release tasks."]},
-    "coverage_gaps": {"status": "not_run", "evidence_refs": [], "omissions": ["Real Windows descendant cleanup is not yet observed."]},
-    "wiring": {"status": "not_run", "evidence_refs": [], "omissions": ["Final published-package wiring is not yet observed."]},
-    "e2e": {"status": "not_run", "evidence_refs": [], "omissions": ["The exact pushed three-OS commit and immutable public release are pending."]},
-    "performance": {"status": "not_run", "evidence_refs": [], "omissions": ["No accepted performance boundary requires a pre-release run at this checkpoint."]},
-    "security": {"status": "not_run", "evidence_refs": [], "omissions": ["Final dependency audit and release provenance audit wait for the exact release subject."]}
+    "anti_patterns": {
+      "status": "passed",
+      "evidence_refs": ["npm run verify:release (661 Node, 89 Hook)", "tests/ultra-5-journeys.test.cjs"],
+      "omissions": []
+    },
+    "coverage_gaps": {
+      "status": "passed",
+      "evidence_refs": ["eight current-v2 predecessor projections", ".ultra/evidence/v50-windows-release-gate/github-actions-receipt.json", "docs/evals/ultra-5-0-journey-results.md"],
+      "omissions": ["Immutable tag, registry, GitHub Release, and published-consumer observations do not exist before the release effect and remain assigned to v50-public-release."]
+    },
+    "wiring": {
+      "status": "passed",
+      "evidence_refs": ["tests/package-smoke.test.cjs", "npm pack --dry-run --json (141 files)", "node bin/install.js --all --global --doctor --json (six healthy, retained real-HOME evidence)"],
+      "omissions": []
+    },
+    "e2e": {
+      "status": "gap",
+      "evidence_refs": ["six live ACP receipts", ".ultra/evidence/v50-real-home-activation/evidence.json", "GitHub Actions runs 32935138736 and 32936156375"],
+      "omissions": ["The published-registry install and npm/GitHub source-integrity comparison are necessarily post-tag observations."]
+    },
+    "performance": {
+      "status": "not_applicable",
+      "evidence_refs": ["npm run verify:release completed within the bounded local release run"],
+      "omissions": ["No accepted latency, throughput, or scale requirement exists for this file-first CLI package."]
+    },
+    "security": {
+      "status": "passed",
+      "evidence_refs": ["npm audit --omit=dev --audit-level=high (0 vulnerabilities)", "tests/acp-driver.test.cjs", "tests/delegate.test.cjs", ".github/workflows/release.yml"],
+      "omissions": ["npm trusted-publishing provenance can be observed only after the authorized tag starts the workflow; no token is added or inspected locally."]
+    }
   },
   "review": {
     "session": null,
@@ -109,27 +171,32 @@
     "worktree_digest": null,
     "verdict": "INCOMPLETE",
     "coverage_refs": [],
-    "limitations": ["The earlier five-task aggregate Review is historical after the Owner expanded the same Change; a fresh aggregate Review is required after all nine tasks complete."]
+    "limitations": ["This is the current pre-release checkpoint, not the terminal Ultra Test claim. The strict aggregate Change Review follows v50-public-release Review/evidence so it can bind all nine completed task records without circular evidence."]
   },
   "verified_seams": [
-    "Seven completed tasks have current-v2 evidence and retained strict task Reviews.",
-    "All six real providers passed ACP conformance, and all six real user Host installations are healthy on 5.0.0.",
-    "The local Windows taskkill /T contract and direct-child fallback pass focused tests."
+    "Eight predecessor tasks have current-v2 evidence and retained strict task Reviews with zero blocking findings.",
+    "All six real providers passed ACP conformance, and all six real user Host installations are healthy on source version 5.0.0 with ACP selected.",
+    "Windows cancellation and timeout each terminate a real grandchild; the same pushed candidate passed Ubuntu, macOS, and Windows CI.",
+    "The 141-file dry-run package contains the exact installer, fourteen Skills, five Hooks, six adapters, ZCode compatibility patch, docs, and template without a service deployment artifact.",
+    "The remote tag, npm 5.0.0, and GitHub Release are all absent at this checkpoint, preserving the pre-tag gate."
   ],
   "findings": [],
   "omissions": [
-    "The exact pushed commit has not yet passed the real windows-latest descendant-cleanup test.",
-    "The public tag, npm package, GitHub Release, final aggregate Review/Test, Change archive, and WIP deletion are pending."
+    "v50-public-release remains in_progress until tag, trusted publication, GitHub Release, published-package installation, strict task Review, and current-v2 evidence are observed.",
+    "The terminal aggregate Test/Review, delivery record, WIP deletion, and Change archive follow that ninth evidence record and are not represented by this checkpoint.",
+    "Six-host comparison of model-authored Route Card expression is not mechanized; source contracts and real transport behavior are verified instead."
   ],
   "residual_risks": [
-    "A local injected win32 branch cannot establish taskkill /T behavior until the GitHub Windows runner kills the fake ACP grandchild on cancel and timeout.",
-    "No immutable registry or release identity can be inferred from the local candidate."
+    "ZCode transport remains experimental because app-server has no public stability contract; explicit acknowledgment and typed fallback remain required.",
+    "If Windows taskkill is unavailable, the reachable fallback can terminate only the direct child rather than promising descendant cleanup.",
+    "The registry version will be immutable once published; any publication defect must be repaired in a new version, never by force-push or unpublish."
   ],
   "owner_disposition": [
-    "The Owner authorized the expanded Ultra 5.0 Change through live ACP, real user installation, Windows verification, commit/push/tag, npm publication, and GitHub Release.",
-    "This checkpoint remains passed:false until the two remaining tasks and final aggregate audit are complete."
+    "The Owner authorized the expanded 5.0 Change through tag, npm trusted publication, GitHub Release, published installation, and final local closeout.",
+    "The task/Test/Deliver sequencing correction preserves the accepted outcome while removing a circular dependency: release evidence precedes the ninth task record, which precedes terminal aggregate Test and explicit archive.",
+    "This checkpoint remains passed:false and makes no publication claim before the exact external observations exist."
   ],
   "passed": false,
-  "run_count": 12,
-  "timestamp": "2026-08-26T05:12:19Z"
+  "run_count": 13,
+  "timestamp": "2026-08-26T06:13:08Z"
 }
