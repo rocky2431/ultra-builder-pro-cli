@@ -12,6 +12,13 @@ excluded, deferred, or unresolved.
 - Preserve the owner's stated product and release posture.
 - Never infer an MVP, reduced version, phase label, or omission from implementation
   convenience.
+- Attribute every recorded boundary, exclusion, and constraint to its true source:
+  owner-stated (with the owner's actual words cited), code-observed, or selected for
+  this run. A model-selected technical default or a current not-implementing choice is
+  recorded as exactly that — never as an owner constraint — and an exclusion's
+  rationale states its actual nature: an owner decision, a current scope choice, or a
+  deferral. Never upgrade a current scope choice into a permanent contradiction of the
+  product frame.
 - Trace included capabilities to requirements and observable outcomes.
 - Trace each included capability to candidate `FP-*` and `NS-*` IDs, and name every
   candidate `HC-*` it could breach, without copying North Star prose.

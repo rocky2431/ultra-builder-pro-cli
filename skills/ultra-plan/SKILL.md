@@ -21,14 +21,21 @@ observation; a task count or completed plan file is not early value.
 
 ## Before you start
 
-1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop.
+1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop. A current explicit owner request naming this work is Owner entry under the Route Contract and needs no grant.
 2. Read `../ultra-change/references/change-contract.md` and apply its **Active Change
    authority resolution** before reading any active `intent.md` or resolving a current
    `change_id`. This workflow requires its one valid active authority; any zero result
    or typed diagnostic stops before decomposition until the stated repair or retry
-   succeeds. The intent must be `accepted`, every blocking decision resolved, its
-   `## Research Disposition` exit evidence satisfied, and its `## North Star Trace`
-   current before decomposition.
+   succeeds. Decompose from an `accepted` intent whose blocking decisions are resolved,
+   whose `## Research Disposition` exit evidence is satisfied, and whose
+   `## North Star Trace` resolves against the accepted revision. When the owner's
+   current request is itself the authority for this work, decompose under that request
+   and carry what is still missing — an unaccepted intent boundary, unsatisfied exit
+   evidence, or a trace with no accepted revision to resolve against — as the Route
+   Contract's open closeout obligations, named in `## Unresolved Decisions` and in the
+   card's `Not done`. Never mark the intent or the North Star accepted to get past this.
+   A blocking decision the owner has not answered is asked, not carried; work that would
+   breach an accepted constraint returns to `ultra-change/reconcile` first.
 3. Read `.ultra/tasks.json`; select matching tasks and read each unfinished context and
    Resume Note. Preserve all historical tasks in the append-only ledger.
 4. Read `CONTEXT.md` for vocabulary and the relevant `.ultra/decisions/` entries.
@@ -126,7 +133,9 @@ touches nothing constrained.
 3. Resolve every `trace_to` path and heading against a real file.
 4. Resolve the Change and task `North Star Trace` `FP-<n>`/`NS-<n>`/`HC-<n>` ids
    against `.ultra/north-star.md`. A revision mismatch is a stale observation that
-   returns to Change reconciliation, not a semantic verdict about alignment.
+   returns to Change reconciliation, not a semantic verdict about alignment. With no
+   accepted revision to resolve against, the unresolved ids stay an open closeout
+   obligation rather than a decomposition stop.
 5. Surface concrete scope pressure: unresolved dependencies, duplicated ownership,
    boundaries that cannot be tested independently, evidence that cannot fit the named
    seam, or a context that no longer supports a reliable resume. File, task, line, and
@@ -136,14 +145,36 @@ touches nothing constrained.
    the decomposition, criterion, evidence, or plan is semantically sufficient.
 Follow `../ultra-review/SKILL.md` in plan mode. Require a validated current
 `SUMMARY.json`; resolve every blocking finding and refresh affected evidence before
-handoff. If further repair is not justified or an authorized resource ceiling is
-reached, preserve the findings and return the evidence to the responsible model or
-owner. Attempt and finding counts never manufacture convergence or failure.
+handoff. Plan-mode review admission binds the canonical accepted North Star report, so a
+Change still carrying that acceptance as an open closeout obligation cannot be admitted
+at all. Keep the exact typed admission error in `## Unresolved Decisions` and the card's
+`Not done`; never write, claim, or infer a `SUMMARY.json` that admission did not produce.
+Apply the same plan-mode scrutiny yourself against the plan files and report what it
+finds in the plan's own sections — not a second review artifact, schema, or verdict.
+Unavailable admission gates the canonical closeout that needs it, not this handoff: real
+plan-mode Review still has to run on this Change once the North Star is accepted, and
+until then the obligation stays open instead of blocking implementation the current
+authority already covers. If further repair is not justified or an authorized resource
+ceiling is reached, preserve the findings and return the evidence to the responsible
+model or owner. Attempt and finding counts never manufacture convergence or failure.
 
 Report the graph, frontier, seams, warnings and first task. Recommend the next explicit
-capability from the files. Under a valid grant covering that exact task, show the
-transition Route Card before allowing Dev to re-verify and continue; otherwise do not
-invoke it.
+capability from the files. Under covering authority for that exact task — the owner's
+current request for this work, or a valid grant — show the transition Route Card before
+allowing Dev to re-verify and continue; otherwise do not invoke it. Select that
+frontier on reconciled implementation evidence: a same-Change dependency counts as
+satisfied when it is `completed`, or when it is still `in_progress` and its
+implementation verifies current from its canonical context, evidence, and Git/worktree
+state with only formal closeout open — then its row, its owed task review, and its open
+closeout stay exactly as they are and travel in the transition card's `Not done`. A
+dependency without current implementation evidence, or one invalidated after
+completion, is not satisfied: do not select its dependent; report the gap instead.
+Never write `completed` for such a row, never claim its review ran, and never declare
+the ledger unique to justify the selection. Carry the one exact
+task id you selected into that Dev run: it is this decomposition's own frontier choice,
+travels as invocation-local selection for that run, and is reported as model-selected —
+never written back as a selector and never restated as an id the owner supplied. Do not
+send the owner back to name a technical id this decomposition has only just generated.
 
 ## When the owner decides
 

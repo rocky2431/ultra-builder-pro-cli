@@ -4370,3 +4370,47 @@ def test_host_wrappers_allow_only_the_five_file_first_hooks(tmp_path):
     )
     assert harmless_wire.returncode == 0, harmless_wire.stderr
     assert harmless_wire.stdout == ""
+
+
+def test_zcode_adapter_preserves_advisory_pretooluse_context(tmp_path):
+    root = make_project(tmp_path)
+    ledger = json.loads((root / ".ultra" / "tasks.json").read_text(encoding="utf-8"))
+    write_v2_ledger(root, ledger["tasks"])
+    write_typed_task_context(root, "1")
+    adapter_file = HOOK_ROOT / "adapters" / "zcode.py"
+
+    def wire(feature, payload):
+        return subprocess.run(
+            [sys.executable, str(adapter_file), feature],
+            input=json.dumps({"cwd": str(root), **payload}),
+            text=True,
+            capture_output=True,
+            cwd=root,
+            check=False,
+        )
+
+    reminder_payload = {
+        "hookEventName": "PreToolUse",
+        "sessionId": "session-a",
+        "toolName": "Edit",
+        "toolInput": {"file_path": "src/http.js"},
+    }
+    reminder = wire("mid_workflow_recall.py", reminder_payload)
+    assert reminder.returncode == 0, reminder.stderr
+    specific = json.loads(reminder.stdout)["hookSpecificOutput"]
+    assert specific["hookEventName"] == "PreToolUse"
+    assert "acceptance reminder" in specific["additionalContext"]
+    assert "permissionDecision" not in specific
+
+    # The identical reminder stays suppressed through the same host wire.
+    repeated = wire("mid_workflow_recall.py", reminder_payload)
+    assert repeated.returncode == 0, repeated.stderr
+    assert repeated.stdout == ""
+
+    denied = wire("block_dangerous_commands.py", {
+        "hookEventName": "PreToolUse",
+        "toolName": "Bash",
+        "toolInput": {"command": "cast send 0x123 --value 1ether"},
+    })
+    assert denied.returncode == 0, denied.stderr
+    assert json.loads(denied.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"

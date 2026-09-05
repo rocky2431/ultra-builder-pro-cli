@@ -11,9 +11,9 @@ The model owns code reasoning and edits; repository files own the resumable cont
 
 | Mode | Entry | Observable exit | Next |
 |---|---|---|---|
-| `execute` | Explicit task id or a valid Execution Grant covering one dependency-ready pending task | The named task has current acceptance evidence, final task review, completion context, and a read-back `completed` ledger row | Recommend the next exact `ultra-dev/execute` task or `ultra-test/audit` |
-| `resume` | Explicit task id or a valid Execution Grant covering the unique in-progress task | Existing work is reconciled from Git, context, and Resume Note, then reaches the same completion evidence or a typed stop | Recommend the next exact task, `ultra-test/audit`, or the responsible repair route |
-| `reopen` | Explicit task id or a valid Execution Grant after current evidence invalidates a completed task | The invalidated criteria are refreshed through a new review and the task is completed again, or the remaining gate is named | Recommend the next exact task or `ultra-test/reaudit` |
+| `execute` | One exact task id carried by this invocation, or a valid Execution Grant covering one dependency-ready pending task | The named task has current acceptance evidence, final task review, completion context, and a read-back `completed` ledger row | Recommend the next exact `ultra-dev/execute` task or `ultra-test/audit` |
+| `resume` | One exact task id carried by this invocation, or a valid Execution Grant covering the unique in-progress task | Existing work is reconciled from Git, context, and Resume Note, then reaches the same completion evidence or a typed stop | Recommend the next exact task, `ultra-test/audit`, or the responsible repair route |
+| `reopen` | One exact task id carried by this invocation, or a valid Execution Grant after current evidence invalidates a completed task | The invalidated criteria are refreshed through a new review and the task is completed again, or the remaining gate is named | Recommend the next exact task or `ultra-test/reaudit` |
 
 Follow `../ultra-status/references/route-contract.md`. Show a Route Card before the
 first implementation edit, at material checkpoints or unavailable evidence, and after
@@ -23,19 +23,31 @@ pretending the task is still making invisible progress.
 
 ## Before you start
 
-1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop.
+1. If model-selected, verify the live execution grant in `../ultra-change/references/execution-grant.md` — a current session-local activation or a stably verified durable work-package grant; without either, stop. A current explicit owner request naming this work is Owner entry under the Route Contract and needs no grant.
 2. Read `../ultra-change/references/change-contract.md` and apply its **Active Change
    authority resolution** before reading any active `intent.md` or resolving a current
    `change_id`. Require its one valid authority; otherwise stop with its typed repair.
-   Then read `.ultra/tasks.json`. Without an exact task id in the owner invocation,
-   select only the uniquely current `in_progress` task and read its full
-   `context_file`, especially `## Resume Note`; if none exists, stop and ask
-   the owner to invoke Dev naming one exact task id — a `pending` row is a frontier
-   candidate, not active work, and Hooks will not have injected its acceptance or
-   Resume. An invocation that names one exact task id supplies invocation-local
-   selection authority for this Dev run only. If more than one row claims
-   `in_progress`, do not manufacture a unique current task; use the explicit recovery
-   below or stop with the Hook diagnostic. The ledger is the sole task-status authority;
+   Then read `.ultra/tasks.json`. One exact task id carried into this run supplies
+   invocation-local selection authority for this Dev run only: the owner named it, or
+   the Plan handoff that covering authority already permits selected it as the frontier
+   task. A model-selected id is reported as the model's selection and never attributed
+   to the owner, and it never resolves an ambiguous ledger. More than one `in_progress`
+   row does not by itself prove more than one live writer: reconcile each other
+   `in_progress` row against its canonical context, Resume Note, and current
+   Git/worktree evidence before concluding anything. A row that proves to be this same
+   covering authority's own earlier task — implementation evidence current, only formal
+   closeout still open — is preserved exactly as it is: never demoted, never written
+   `completed` early, its owed task review unchanged. Only a row this reconciliation
+   cannot prove — an unknown or overlapping writer, unrelated partial work, or evidence
+   that does not hold — makes the ledger ambiguous for this run. Without such an id,
+   select only the uniquely current `in_progress` task and read its full `context_file`,
+   especially `## Resume Note`; if none exists, stop and either ask the owner to invoke
+   Dev naming one exact task id or return to `ultra-plan` to select the frontier under
+   covering authority — a `pending` row is a frontier candidate, not active work, and
+   Hooks will not have injected its acceptance or Resume before the activation below.
+   If any row stays unproven after that reconciliation, do not manufacture a unique
+   current task; use the explicit recovery below or stop with the Hook diagnostic.
+   The ledger is the sole task-status authority;
    legacy Status or Complexity never overrides it. A `completed` task with a current
    invalidation observation may be selected only for the explicit reopen below; record
    and read back that transition before repair.
@@ -45,24 +57,42 @@ pretending the task is still making invisible progress.
    every listed `FP-*`, `NS-*`, and `HC-*` in the task and active Change against that
    accepted authority. Compare the active Change's recorded **North Star revision** and
    **North Star digest** with the accepted file's revision and current Git blob digest.
-   A missing ID, revision mismatch, or digest mismatch is a stale-plan observation: stop
-   before editing and recommend explicit owner invocation of `ultra-change` to reconcile
-   the active Change. Never inherit approval or silently rewrite the trace.
+   A missing ID, revision mismatch, digest mismatch, or a baseline carrying no accepted
+   revision at all is a stale-trace observation, not a semantic verdict. When this task's
+   edits would breach a constraint that accepted authority actually carries, stop before
+   editing and recommend explicit owner invocation of `ultra-change` to reconcile the
+   active Change. Otherwise carry the unresolved trace as the Route Contract's open
+   closeout obligation — visible in the card's `Not done`, the context Trace, and the
+   task evidence limitations — and implement the work the current authority covers.
+   Never inherit approval, publish an acceptance the owner did not give, or silently
+   rewrite the trace.
 5. Read the task's acceptance criteria. If you cannot state that acceptance in one
    sentence, you are not ready to start.
 
 ### Activating one named pending task
 
-When the owner invocation names a dependency-ready `pending` task, perform its
-canonical activation before any implementation work: write that row from
+When the exact task id this run carries names a dependency-ready `pending` task,
+perform its canonical activation before any implementation work: write that row from
 `pending` to `in_progress` in `.ultra/tasks.json` and read the row back before
-the first implementation edit. This one canonical ledger write is what makes
-the named task live for the task-aware Hooks; without it Hooks correctly remain
-task-silent while you edit, because a trusted invocation is visible only to the
-invocation that carried it. The activation adds no selector, activation flag,
+the first implementation edit. Dependency-ready means reconciled implementation
+evidence, not only a status word: each same-Change dependency is `completed`, or is an
+`in_progress` row whose implementation this run verifies current from its canonical
+context, evidence, and Git/worktree state with only formal closeout open — a satisfied
+implementation dependency whose row stays `in_progress`, whose owed task review is
+unchanged, and whose open closeout travels in the card's `Not done`. A dependency
+without current implementation evidence, or one invalidated after completion, is not
+satisfied: do not activate; return to `ultra-plan` or report the gap. The automatic
+frontier stays narrower — it still requires all-`completed` dependencies. This one
+canonical ledger write is what makes the named task live for the task-aware Hooks;
+without it Hooks correctly remain task-silent while you edit, because a trusted
+invocation is visible only to the invocation that carried it. While preserved rows
+remain, Hooks correctly keep their ambiguity observation advisory and stay task-silent
+toward this run; the run's authority is the invocation-local id it carries, not Hook
+injection. The activation adds no selector, activation flag,
 or workflow state — the ledger row is the only authority — and it must respect
 the single-writer boundary: resolve any conflicting `in_progress` rows through
-the recovery below or an owner decision before writing.
+the recovery below or an owner decision before writing. A row the entry
+reconciliation preserved is not a conflicting row; one it could not prove is.
 
 ### Recover one exact task from an ambiguous ledger
 
@@ -244,8 +274,9 @@ evidence, run task review for the new snapshot, and repeat this closeout sequenc
 
 Report the changed paths, the seam, the exact checks run, the review result, the
 evidence gaps and the residual risk. Recommend the next capability from what the files
-now say. Continue only when its exact mode and effects remain inside the valid grant and
-after showing the transition Route Card; otherwise do not invoke it.
+now say. Continue only when its exact mode and effects remain inside the covering
+authority — the owner's current request for this work, or a valid grant — and after
+showing the transition Route Card; otherwise do not invoke it.
 
 ## When the owner decides
 

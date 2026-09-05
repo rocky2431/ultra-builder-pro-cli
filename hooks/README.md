@@ -6,7 +6,7 @@ directory and exits silently when the workflow is not active.
 | Hook | Lifecycle | Purpose |
 |---|---|---|
 | `session_context.py` | Session start | Inject the accepted North Star or Project Brief fallback, plus acceptance from the unique active Change's current task |
-| `mid_workflow_recall.py` | Before source reads or edits | Restate acceptance only for a task matching the unique active `change_id` |
+| `mid_workflow_recall.py` | Before source reads or edits | Restate acceptance only for a task matching the unique active `change_id`; when the event carries a usable `session_id`, a reminder identical to the one delivered consecutively before it in that same session is suppressed |
 | `compact_context.py` | Before/after compaction | Save and restore a disposable snapshot derived from files and Git |
 | `post_edit_guard.py` | After edits | Record mechanical evidence observations without deciding completion |
 | `block_dangerous_commands.py` | Before shell execution | Advise on additive protected-branch publication; block history rewrites and a narrow destructive set until the exact command is owner-authorized |
@@ -14,6 +14,16 @@ directory and exits silently when the workflow is not active.
 `_common.py` is a shared library, not a lifecycle registration. Compact snapshots and
 progress observations live under ignored `.ultra/.runtime/` or `.ultra/progress/`; the
 canonical semantic facts remain the owner-readable files and Git.
+`mid_workflow_recall.py` deduplicates only its own repeated acceptance reminder, and only
+when the host supplies a usable `session_id`: the key is the exact session, Change, task,
+and acceptance bytes, and only a reminder identical to that session's most recent
+delivery is suppressed, so a task switch, an acceptance change (including a change back
+to an earlier value), or a fresh session delivers the reminder again, and a missing or
+malformed session identity never suppresses one.
+The delivery record is the disposable `.ultra/.runtime/mid-workflow-recall-state.json`,
+one last-delivered key per session; it is never authority, an unreadable or foreign
+record disables suppression rather than the reminder, and live diagnostics always pass
+through unchanged.
 Legacy task rows with no `change_id` remain readable from an active-path `change_ref`
 during migration; a present canonical `change_id` always wins, and archived or
 abandoned paths are never revived as current work. `.ultra/tasks.json` is the sole

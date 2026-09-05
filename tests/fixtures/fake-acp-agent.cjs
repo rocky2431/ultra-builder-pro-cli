@@ -134,7 +134,10 @@ function handle(message) {
   if (message.method === 'session/prompt') {
     promptRequestId = message.id;
     if (scenario === 'hang' || scenario === 'cancel') {
-      startGrandchild();
+      // `hang` already owns a descendant from startup; only the cancel
+      // scenario creates one here, so cancellation still interrupts a prompt
+      // that spawned its writer mid-turn.
+      if (scenario === 'cancel') startGrandchild();
       update({
         sessionUpdate: 'agent_thought_chunk',
         content: { type: 'text', text: 'hidden-cancel-secret' },
@@ -219,6 +222,13 @@ function handle(message) {
     finishPrompt();
   }
 }
+
+// The driver arms its whole-run deadline at spawn. A descendant created only
+// when `session/prompt` arrives would have to win a race against that same
+// deadline across three JSON-RPC round trips, so the deadline scenario creates
+// its descendant at startup: whether the deadline fires during the handshake
+// or during the hang, the process group always has a descendant to terminate.
+if (scenario === 'hang') startGrandchild();
 
 let buffered = '';
 process.stdin.setEncoding('utf8');

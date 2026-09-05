@@ -119,6 +119,16 @@ def adapt_output(output: dict[str, Any], event: str) -> dict[str, Any]:
                     "permissionDecisionReason": reason,
                 }
             }
+        if context:
+            # ZCode's PreToolUse contract makes additionalContext and
+            # permissionDecision independently optional, so advisory context
+            # passes through without manufacturing a permission decision.
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": str(context),
+                }
+            }
         return {}
 
     if event in {

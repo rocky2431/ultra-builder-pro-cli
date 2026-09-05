@@ -63,6 +63,10 @@ DERIVED_FILE_PREFIXES = {
     (".ultra", ".runtime"),
     (".ultra", "progress"),
 }
+DERIVED_RUNTIME_FILENAMES = frozenset({
+    "compact-snapshot.md",
+    "mid-workflow-recall-state.json",
+})
 
 
 def read_payload() -> dict[str, Any]:
@@ -1520,8 +1524,9 @@ def _normalized_derived_path(relative_file: Path | str) -> Path | None:
         filename = relative.parts[2]
         if not filename.endswith(".json") or normalized_task_id(filename[:-5]) is None:
             return None
-    elif relative.parts != (".ultra", ".runtime", "compact-snapshot.md"):
-        return None
+    elif relative.parts[:2] == (".ultra", ".runtime"):
+        if relative.parts[2] not in DERIVED_RUNTIME_FILENAMES:
+            return None
     return relative
 
 

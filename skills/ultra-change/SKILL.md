@@ -19,7 +19,8 @@ Reconcile first so new intent does not bury an existing specification/code confl
 
 Follow `../ultra-status/references/route-contract.md`. A draft may be revised in place;
 an already accepted owner decision is revised by a superseding decision record so its
-history remains recoverable. Show a Route Card before each public transition. Under a
+history remains recoverable. Show a Route Card before each public transition; ordinary
+progress reporting defaults to the contract's compact progress expression. Under a
 valid grant only the non-material `reconcile` mode may continue implicitly.
 
 ## Before you start
@@ -27,7 +28,11 @@ valid grant only the non-material `reconcile` mode may continue implicitly.
 1. If model-selected, require `reconcile` mode for the same active Change and verify a
    live grant under `references/execution-grant.md`. Any intake, evidence-needed boundary,
    acceptance, abandonment, reduction, or primary transfer stops and recommends current
-   explicit owner invocation; a coarse Host invocation bit cannot authorize it.
+   explicit owner invocation; a coarse Host invocation bit cannot authorize it. A
+   current explicit owner request already is that invocation for the work it names:
+   executing it never waits for grant re-activation or for an earlier work package's
+   unfinished closeout, which gate only their own review, finalization, archive, and
+   effect steps under their own contracts.
 2. Read `references/change-contract.md` and apply its **Active Change authority
    resolution** before reading any active `intent.md`, relying on a current `change_id`,
    or creating or writing a Change. Continue only from its positively observed stable
@@ -51,6 +56,19 @@ valid grant only the non-material `reconcile` mode may continue implicitly.
 | A separate request arrives while one Change remains active | Do not create a second Change; finish or deliver the current one, abandon it with owner authority, or explicitly fold the request into its boundary |
 | A task is in progress and the specification turns out not to match reality | Not here — the dual-write path inside `ultra-dev` |
 | The change makes no sentence in the specifications false | Outside the Ultra lifecycle — use ordinary repository TDD and verification |
+
+A request that arrives while one Change remains active is routed by that table, but its
+execution authority comes from the request itself: the owner's current message is the
+current owner invocation for the work it names. Folding it into the active Change's
+boundary is a `reconcile` under that authority; finishing, delivering, or abandoning the
+active Change first is a genuine routing choice only when the two scopes cannot share
+one boundary, and it goes to the owner only then. The active Change's expired
+session-local grant, missing North Star acceptance, or unfinished closeout gates exactly
+those closeout, review, finalization, and archive steps under their own contracts —
+never this request's intake, reconcile, implementation, or the product questions it
+genuinely leaves open, such as how a newly requested concept should be represented.
+Ask those questions on their own merit with a recommendation; do not queue them or the
+implementation behind re-activation or acceptance of the older work.
 
 If no specification sentence becomes untrue, there is nothing to reconcile. Use
 `../ultra-tdd/SKILL.md` when helpful, but create no Change artifacts or Ultra
@@ -118,9 +136,10 @@ count.
 
 Output active `intent.md` under a stable id, justified specification patches, qualifying
 decision or vocabulary updates. For an evidence gap recommend `ultra-research`; when
-evidenced recommend `ultra-plan`. Invoke neither without a covering grant; with a valid
-grant covering same-Change reconciliation and Plan, show the transition Route Card and
-allow Plan to re-verify its own entry contract.
+evidenced recommend `ultra-plan`. Invoke neither without covering authority — the
+owner's current request for this work, or a valid grant covering same-Change
+reconciliation and Plan; with either, show the transition Route Card and allow Plan to
+re-verify its own entry contract.
 
 ## Abandoning a Change
 

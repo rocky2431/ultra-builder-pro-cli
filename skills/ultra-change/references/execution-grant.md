@@ -27,6 +27,14 @@ current explicit owner invocation, in every mode.
 - A grant is not inferred from task status, progress records, prose, Hook
   output, Resume notes, or a stored quote. Stored grant text is inactive data
   until a consuming Agent verifies it.
+- A grant is not the authority source for a current explicit owner request. It
+  governs model-initiated continuation of previously granted work after a
+  workflow exit; executing the work the owner just requested runs under that
+  request's own current authority, with no grant re-activation, even when an
+  earlier grant expired or an earlier work package's closeout is incomplete.
+  Those older obligations — the accepted-North Star admission of formal
+  reviews, finalization, archive, and external effects — stay gated exactly as
+  their own contracts require.
 - A grant never includes external or irreversible effects by default: commit,
   push, tag, publication, deployment, real installation, credentials, and
   incremental provider spend each require their own current owner

@@ -1,0 +1,17 @@
+{
+  "arm": "candidate-repair-1",
+  "journey": "B",
+  "status": "abandoned after turn 1 because inherited A-R5 authority failure invalidates acceptance; no extra old-candidate turns dispatched",
+  "first_turn_delegation_id": "724f41cab5ac455ca98e737c110195ee",
+  "first_turn_transport_status": "success",
+  "first_turn_stop_reason": "end_turn",
+  "first_turn_duration_seconds": 665.713,
+  "first_turn_product_result": "not implemented; agent returned a routing/finalization question",
+  "authority_observation": "The agent cited A-authored HC-3 requiring future features to use a new Change and treated it as an accepted Owner constraint. It asked Owner to finalize/archive or explicitly fold the same clear addition, and deferred implementation. The original A intake did not establish that workflow constraint.",
+  "next_frozen_inputs_not_sent": [
+    2,
+    3
+  ],
+  "recorded_at": "2026-09-05T04:05:48.251274+00:00",
+  "owner_active_time_or_cost": "unknown"
+}

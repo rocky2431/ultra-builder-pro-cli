@@ -22,6 +22,16 @@ question, selected coverage, observable stop condition, and return route. Refres
 Route Card at each material checkpoint, pause, and exit; lens counts are navigation, not
 proof that Research is semantically complete.
 
+Expose the question frontier at entry and keep it current: the one question this run
+exists to answer, the known facts already on record with their sources, the owner
+decisions that block the exit, the unknowns that are safely deferrable, and the useful
+exit — the caller action unlocked the moment the stop condition is met. An owner-stated
+fact is reusable as-is; acceptance of a candidate this run composes is a separate open
+decision until the owner accepts that displayed candidate. Reuse the run brief
+(multi-lens runs) or the Change's recorded Research Disposition (change-scoped runs) as
+the carrier; create no second registry, and reuse answered content instead of re-asking
+it.
+
 ## Before you start
 
 1. Resolve `baseline` or `change-scoped` from the artifacts and invocation. A
@@ -98,8 +108,12 @@ For each selected lens:
 2. Separate Observed, Verified, Decided, Inference, and Unknown; cite external claims.
    Record `north_star_effect: supports | refines | contradicts | independent` and
    `north_star_claim: <the evidenced causal relation>` in the area report.
-3. Follow `../ultra-grilling/SKILL.md` when a required owner field is missing. The lens
-   supplies what to ask; Grilling supplies the one-question interaction loop.
+3. Follow `../ultra-grilling/SKILL.md` only for decisions the current exit depends on.
+   Ask when a blocking owner decision prevents the named exit evidence, reuse an answer
+   the owner already gave explicitly, and record a non-blocking unknown as explicitly
+   deferred instead of asking it. Technical facts and method choices inside the
+   accepted scope are yours to establish; only owner-owned decisions are questions.
+   Once the blocking decisions resolve, head for the exit rather than broadening.
 4. Follow `../ultra-think/SKILL.md` for one consequential trade-off, not for mapping the
    whole research frontier.
 5. Follow `../ultra-domain-modeling/SKILL.md` when evidence settles a shared term. The
@@ -129,7 +143,14 @@ record with the owner's exact words, conversation scope, the model's responsibil
 final wording, and no invented timestamp or inheritance by a future revision. Only after
 the owner accepts the candidate, atomically replace `.ultra/north-star.md`, then update the three
 specifications, domain language, qualifying decisions, and distillate for the first
-baseline. A scoped Research run updates only its mapped specification sections and then
+baseline. That acceptance is the owner responding to the displayed candidate —
+plain-language acceptance, a revision, or a rejection; an acceptance on record for the
+same unchanged candidate is reused, never re-approved. The Project Brief, a request to
+build, permission to run this workflow, an unavailable question channel, and your own
+conclusion that the candidate traces to the owner's words are not acceptance of the
+candidate you composed: while it is missing, keep the draft beside the last genuinely
+accepted revision and surface the open acceptance decision once in plain language
+instead of publishing an acceptance record. A scoped Research run updates only its mapped specification sections and then
 refreshes the distillate's three source hashes.
 
 When an accepted revision supersedes another, preserve prior evidence and report every
@@ -149,6 +170,17 @@ Card first and let Change re-verify its own mode and grant.
 The owner chooses coverage, resolves the three checkpoints, accepts a North Star and
 material deferrals, and authorizes any REDUCTION. The model establishes evidence facts,
 selects methods, and updates accepted files inside that frame.
+
+A missing North Star acceptance does not suspend authorized work: implementation and
+verification inside the current boundary proceed, and the missing acceptance is
+reported as the open workflow closeout it is — distinct from real product progress,
+never a completion claim, and never a blanket stop. A revised or rejected candidate
+starts from its own acceptance; it never inherits the earlier candidate's.
+
+Technical methods and defaults you select inside the authorized scope — storage
+layout, matching rules, local-first execution — stay model-owned choices recorded as
+such: never promote one into an owner-accepted hard constraint, and never turn a
+trivial implementation choice into a new acceptance gate.
 
 ## References
 

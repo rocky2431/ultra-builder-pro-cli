@@ -1,0 +1,169 @@
+{
+  "$schema": "ultra-owner-journey-eval-v1",
+  "eval_id": "owner-journeys-2026-09-05",
+  "created": "2026-09-05",
+  "entry_doc": "docs/evals/owner-journey-eval-2026-09-05.md",
+  "purpose": "Measure the Stage A owner-experience changes (evidence-triggered Grilling, Research question frontier, compact progress expression, mid-workflow reminder dedup) on three real product paths without self-certification.",
+  "evidence_classes": {
+    "source-contract-test": "Deterministic repository tests that pin the source contracts (tests/route-contract.test.cjs, hooks/tests/test_mid_workflow_recall_dedup.py, tests/owner-journeys-eval.test.cjs). No model in the loop. Execution-kind axis: deterministic.",
+    "scripted-owner-replay": "Input-source axis: the run is driven only by the frozen owner_messages below, one turn at a time, in an isolated project. Deterministic inputs, non-deterministic model. Compatible with actual provider execution; recorded as the input axis, never as evidence of live human behavior.",
+    "live-provider-run": "Execution-kind axis: an actual session on an already configured, owner-authorized provider, including ordinary authentication, metered entitlement use, and native session/receipt caches. May be driven by frozen scripted inputs. Coordinated by Codex on the frozen candidate before stage acceptance and commit.",
+    "live-human-observation": "Input and judgment both come from the human owner driving or watching a run and judging checkpoints. Never simulated by the scripted inputs."
+  },
+  "common_environment": {
+    "candidate_freeze": "The candidate is frozen as the baseline commit (git rev-parse HEAD) plus two bound manifests: the raw content hashes of the uncommitted candidate files listed below, and the expected generated installed hashes produced from that exact source by the canonical adapter — the adapter re-serializes Skill frontmatter while installing, so an installed SKILL.md legitimately differs in bytes from its raw source. Journeys run on that frozen uncommitted candidate before stage acceptance and commit; the stage commit follows acceptance — never the reverse.",
+    "isolation": "Isolated temporary project directory and isolated host config per journey; never this repository's canonical .ultra. An isolated cwd is not an OS sandbox claim. Ordinary authenticated use of an already configured provider and its native session/receipt caches are allowed runtime behavior; real-HOME configuration or installation changes are not.",
+    "same_conditions": "One frozen host + model + installed plugin version for all three journeys; fresh session per journey; no cross-journey context carryover.",
+    "record_before_each_run": [
+      "git rev-parse HEAD of the baseline commit of the ultra-builder-pro-cli checkout that produced the installed plugin (the candidate itself is uncommitted; the content manifest below is the freeze)",
+      "git hash-object of every installed copy of skills/ultra-grilling/SKILL.md, skills/ultra-grilling/references/reframing.md, skills/ultra-research/SKILL.md, skills/ultra-research/references/wayfinding.md, skills/ultra-status/SKILL.md, skills/ultra-status/references/route-contract.md, skills/ultra-change/SKILL.md, hooks/mid_workflow_recall.py, hooks/_common.py, hooks/adapters/zcode.py, judged against the frozen dual manifest: verbatim-copied files (references, hooks) must equal the frozen source hash, while each installed SKILL.md must equal the frozen expected generated installed hash for the installed host's adapter, because the canonical adapter normalizes Skill frontmatter during install",
+      "installed plugin version and install path",
+      "host name and model id",
+      "node and python versions",
+      "short TMPDIR (for example /tmp) for any socket-bearing check"
+    ],
+    "abort_rules": [
+      "Stop the journey on an unexpected mismatch against the frozen generated manifest: an installed file that equals neither the frozen source hash (verbatim-copied reference and hook files) nor the frozen expected generated installed hash for that host (adapter-normalized SKILL.md files); record the drift, do not proceed. The adapter's known frontmatter normalization is an expected generated difference, never drift.",
+      "Stop on any real-HOME configuration or installation change, credential mutation or disclosure, purchase or top-up, or publication/production attempt; record it as a boundary violation. Ordinary authenticated use of an already configured provider, metered entitlement consumption, and native session/receipt caches are authorized runtime behavior, not violations.",
+      "An abandoned run is recorded as abandoned, never deleted."
+    ]
+  },
+  "metrics": [
+    "duplicate_questions",
+    "missing_necessary_decisions",
+    "verified_usable_output",
+    "wrong_completion",
+    "wrong_refusal",
+    "recovery_interruption_observations",
+    "machine_wall_time",
+    "owner_active_time_or_cost"
+  ],
+  "metrics_notes": {
+    "duplicate_questions": "Count every turn that re-asks a fact or decision the owner already answered explicitly (see each journey's duplicate_probe).",
+    "missing_necessary_decisions": "Count every probe in missing_probes that never reached the owner as one question or one recorded explicit deferral.",
+    "verified_usable_output": "The journey's acceptance list verified by actually running the artifact; record the commands.",
+    "wrong_completion": "Work declared done while an acceptance item fails on execution.",
+    "wrong_refusal": "Work refused or re-asked although the answer was on record and inside the accepted boundary.",
+    "recovery_interruption_observations": "Any session break, task switch, or recovery during the journey and what the owner saw after it.",
+    "machine_wall_time": "Clock time from journey start to exit.",
+    "owner_active_time_or_cost": "Unknown unless actually timed or billed; record unknown rather than estimating."
+  },
+  "journeys": [
+    {
+      "id": "A",
+      "name_zh": "模糊想法到首个可用本地产品",
+      "starting_state": "Empty isolated directory. No .ultra, no code. Owner speaks Chinese.",
+      "owner_messages": [
+        {
+          "turn": 1,
+          "text": "帮我做个小工具，管理我收藏的菜谱。能在终端里用就行，先做到能记录、能查找。数据就我一个人用。"
+        },
+        {
+          "turn": 2,
+          "text": "查找就用名字的一部分匹配。存储格式你定，别用数据库。"
+        },
+        {
+          "turn": 3,
+          "text": "继续，把它做完。"
+        }
+      ],
+      "expected_route": [
+        "ultra-init/create",
+        "ultra-research/baseline (light)",
+        "ultra-change/intake then accepted",
+        "ultra-plan/decompose",
+        "ultra-dev/execute",
+        "ultra-test/audit",
+        "recommend ultra-deliver (finalize stays owner-invoked)"
+      ],
+      "duplicate_probe": [
+        "turn 1 answered: single user only",
+        "turn 1 implied + turn 2 answered: terminal tool, name-substring search",
+        "turn 2 answered: local files, no database"
+      ],
+      "missing_probes": [
+        "Whether entries need tags or grouping (changes the data schema and search semantics) must reach the owner once, or be recorded as an explicit deferral with a reason."
+      ],
+      "acceptance": [
+        "add and search commands run successfully in the isolated directory",
+        "data survives process restart from plain local files (no database service)",
+        "regression tests pass on a clean checkout of the delivered artifact",
+        "no mock or stub on the live path of the two commands",
+        "delivery claim names the evidence (commands and outputs) that verifies it"
+      ]
+    },
+    {
+      "id": "B",
+      "name_zh": "既有项目小改动加跨模块迭代",
+      "starting_state": "Journey A's delivered project, still installed, fresh session. Baseline and decisions from Journey A remain on record.",
+      "owner_messages": [
+        {
+          "turn": 1,
+          "text": "在这个菜谱工具上加：搜索可以按食材过滤。"
+        },
+        {
+          "turn": 2,
+          "text": "再加一个命令：把当前搜索结果导出成 Markdown 文件，导出的列要和终端显示一致。顺手更新 --help 里的例子。"
+        },
+        {
+          "turn": 3,
+          "text": "确认一下上一版加的按食材过滤还在，原来按名字搜也没坏。"
+        }
+      ],
+      "expected_route": [
+        "ultra-change/intake for the bounded request (no second Change)",
+        "ultra-plan/decompose then ultra-dev/execute for the ingredient filter",
+        "a second bounded iteration covering export + docs",
+        "ultra-test/audit covering old and new behavior"
+      ],
+      "duplicate_probe": [
+        "single user (answered in Journey A)",
+        "no database (answered in Journey A turn 2)",
+        "name-substring matching (answered in Journey A turn 2)"
+      ],
+      "missing_probes": [
+        "Whether exporting overwrites an existing file must reach the owner once, or use a stated non-destructive default (for example refuse to overwrite without an explicit flag)."
+      ],
+      "acceptance": [
+        "ingredient filter and export commands run successfully",
+        "export columns equal the terminal display columns for the same query",
+        "--help examples match the actual commands",
+        "the Journey A regression tests still pass unmodified",
+        "turn 3's verification answers from executed evidence, not from memory"
+      ]
+    },
+    {
+      "id": "C",
+      "name_zh": "棕地接管与复现修 bug",
+      "starting_state": "Fresh copy of tests/evals/fixtures/journey-c-brownfield from the frozen source. No .ultra yet. The frozen tests are red.",
+      "owner_messages": [
+        {
+          "turn": 1,
+          "text": "接手这个仓库。先把测试跑起来，然后修这个 bug：按月筛选的时候，下个月的第一天会被算进上个月。修完给我证据。"
+        },
+        {
+          "turn": 2,
+          "text": "好。再确认导出 Markdown 用的是同一份筛选逻辑，两边行为一致。"
+        }
+      ],
+      "expected_route": [
+        "ultra-init/create then a bounded brownfield baseline or direct ultra-change/intake (either is acceptable if the boundary is honest)",
+        "reproduce first: the frozen tests fail before the fix",
+        "ultra-plan/decompose and ultra-dev/execute for the repair",
+        "ultra-test/audit before the delivery claim"
+      ],
+      "duplicate_probe": [
+        "the bug symptom is fully described in turn 1; any later turn re-asking what the bug is counts once"
+      ],
+      "missing_probes": [],
+      "acceptance": [
+        "before the fix, the frozen tests demonstrably fail (record the red output)",
+        "after the fix, all tests pass without editing the frozen test assertions",
+        "the export module is shown to share the repaired filter (test or read-back evidence)",
+        "the delivery claim quotes the green test run",
+        "the fixture-in-repo copy is not modified by the journey (work happened in the isolated copy)"
+      ]
+    }
+  ],
+  "results_policy": "Append-only results live in the entry doc. Failures, wrong completions, wrong refusals, interruptions, and abandoned runs are preserved verbatim. A small sample locates mechanisms; it never supports a general productivity-gain claim. Owner active time and cost stay unknown unless actually measured."
+}

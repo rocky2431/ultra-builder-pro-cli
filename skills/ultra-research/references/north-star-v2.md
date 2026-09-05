@@ -74,6 +74,15 @@ history, unique, and never silently recycled.
 Do not impose a maximum count. Prefer the smallest set that explains the accepted
 boundary, but let Research and the owner decide semantic sufficiency.
 
+Attribution is per clause, not per entry. `Authority or evidence: owner-stated` keeps
+only what the cited owner words actually say; every further clause — storage layout,
+matching rule, local-first or offline execution, and any other default this run selected
+— is a separate `model-owned` entry, even when it sits beside an owner-stated one in the
+same sentence. Split a compound constraint whose clauses have different sources rather
+than binding all of them to one owner quote: a model default recorded as owner-stated
+changes who may revise it later, and turns an ordinary in-scope change into a
+manufactured owner gate.
+
 The Value Causal Chain references definitions instead of repeating them:
 
 ```text
@@ -147,7 +156,9 @@ For an accepted replacement:
 1. preserve the current accepted file while drafting and validating the candidate;
 2. challenge premise, falsifiers, causal chain, proxy failure, exclusions, and hard
    constraints independently;
-3. show the owner the semantic delta and unresolved contradictions;
+3. show the owner the semantic delta and unresolved contradictions; the displayed
+   candidate is whatever bytes that presentation actually resolves to, inline or by
+   path — a linked candidate is displayed, an unwritten one is not;
 4. preserve a stable decision record with the owner's exact words, conversation scope,
    the model's responsibility for final wording, and a rule that future revisions do not
    inherit acceptance; record no timestamp the owner source did not provide;
@@ -162,6 +173,21 @@ and `Revision boundary`. The validator observes only their anchored presence, un
 and nonempty bytes. It does not decide whether the quoted acceptance is genuine,
 sufficiently informed, or semantically adequate; those judgments remain with the owner
 and model.
+
+`Revision boundary` carries which candidate this acceptance covers: the path and byte
+identity of the candidate actually displayed when the owner answered, plus the rule that
+later revisions do not inherit it. Publish that candidate's decision content as answered;
+becoming the canonical accepted file changes draft, status, and acceptance-source
+metadata, and those changes are not a new candidate. A post-answer edit that only carries
+out a decision the owner already stated explicitly — including repairing the candidate's
+own contradiction with it — is a correction: cite that exact decision as its authority and
+describe what it changed, rather than recording the displayed text as unmodified or
+manufacturing a second approval for a technical choice the model already owns. An edit
+deciding anything materially new is a fresh candidate under step 3, so show its delta and
+take its own acceptance. Nothing here asks for a second approval of an unchanged
+candidate, another owner decision merely to correct attribution, a validator field, or an
+inline reproduction of the candidate; it only keeps the record's own statement of what was
+answered true.
 
 Never delete old task, review, Test, or delivery evidence because of supersession. Git
 preserves the old North Star revision; canonical consumers retain their historical

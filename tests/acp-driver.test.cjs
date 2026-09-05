@@ -190,14 +190,22 @@ test('ACP envelope widening is denied and cannot be converted into a successful 
   assert.match(fs.readFileSync(fx.spec.events, 'utf8'), /outside_envelope/u);
 });
 
+// The deadline budget must contain everything that has to happen before the
+// descendant can be observed alive: the fixture's own process startup plus one
+// polled observation. A 180 ms budget left roughly 2x headroom over a measured
+// 31-72 ms startup under load, which is why the deadline could fire before any
+// descendant existed. The termination assertion held in that case, but the
+// process-group assertions had nothing to observe.
 for (const [scenario, expectedTermination, timeoutMs] of [
   ['cancel', 'cancelled', 3000],
-  ['hang', 'timeout', 180],
+  ['hang', 'timeout', 1000],
 ]) {
   test(`ACP ${expectedTermination} reaches terminal transport state and kills the process group`, async (t) => {
     const fx = fixture(scenario, { timeout_ms: timeoutMs });
     t.after(() => fs.rmSync(fx.root, { recursive: true, force: true }));
     const running = new AcpDriver(fx.spec).run();
+    // Non-vacuity gate: a run that terminated without ever creating the
+    // descendant fails here rather than silently asserting nothing.
     await waitForFile(fx.spec.env.FAKE_ACP_CHILD_PID);
     const childPid = Number(fs.readFileSync(fx.spec.env.FAKE_ACP_CHILD_PID, 'utf8'));
     assert.equal(processAlive(childPid), true);

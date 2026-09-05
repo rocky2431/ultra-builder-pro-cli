@@ -1,0 +1,797 @@
+{
+  "status": "Stage A accepted for implemented experience mechanisms and independently verified assisted feedback/recovery; original failures and limitations retained. Stage A commit pending; factory B/C/D/E not implemented.",
+  "recorded_at": "2026-09-05T03:52:31.998502+00:00",
+  "comparability_limits": [
+    "Single sample per arm and journey; not randomized or blinded",
+    "First turns bounded at 1800 seconds; native followups retain actual timing rather than asserting equal duration",
+    "B starts from its own arm verified A product with a Codex-created input snapshot; A/C strict HEAD omissions are not erased",
+    "Frozen source and generated install bytes have distinct manifests because canonical adapters normalize frontmatter",
+    "Provider process duration sum excludes operator analysis gaps and is not Owner active time or billing cost"
+  ],
+  "journeys": [
+    {
+      "arm": "baseline",
+      "journey": "A",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX first turn",
+          "delegation_id": "8f8ef334948b4702926d29e0a5c81bb1",
+          "process_seconds": 1492.077,
+          "status": "success",
+          "stop_reason": "end_turn",
+          "protocol_errors": []
+        },
+        {
+          "turn": 2,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_c2463f27-3135-497b-80cb-72a10faf175c",
+          "process_seconds": 362.3937377911061,
+          "exit_code": 0
+        },
+        {
+          "turn": 3,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_c2463f27-3135-497b-80cb-72a10faf175c",
+          "process_seconds": 251.0457451660186,
+          "exit_code": 0
+        }
+      ],
+      "provider_process_seconds_sum": 2105.516482957125,
+      "product_outcome": "pass",
+      "independent_evidence_file": "baseline-A-independent-product-final.json",
+      "independent_evidence_sha256": "df971c915aa2f604929fc4676a1ec5e97a4670496334948966a3092df72ed1c1",
+      "workflow_closeout": "incomplete: draft North Star and strict HEAD/evidence prerequisites",
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 0,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "owner_active_time_or_cost": "unknown",
+      "scoring_basis": "Manual review of frozen probe facts, visible replies, recorded deferral/question and independent command results. Workflow admission/ledger omissions remain a separate axis. These are mechanism observations, not general productivity evidence.",
+      "first_turn_started_at": "2026-09-05T02:33:19.393883+00:00",
+      "last_turn_ended_at_derived_from_process_measurement": "2026-09-05T03:29:09.274741+00:00",
+      "journey_wall_seconds_including_operator_gaps": 3349.880858,
+      "machine_wall_time_note": "Process-sum and elapsed journey wall time are both reported. Elapsed time includes operator verification/gaps; neither is Owner active time or billing."
+    },
+    {
+      "arm": "baseline",
+      "journey": "C",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX first turn",
+          "delegation_id": "a75c630e53474f21b30ec88b078b21fc",
+          "process_seconds": 1395.297,
+          "status": "success",
+          "stop_reason": "end_turn",
+          "protocol_errors": []
+        },
+        {
+          "turn": 2,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_95e59d92-1b4b-4d10-8238-0fe7a56bd925",
+          "process_seconds": 128.22088620765135,
+          "exit_code": 0
+        }
+      ],
+      "provider_process_seconds_sum": 1523.5178862076514,
+      "product_outcome": "pass",
+      "independent_evidence_file": "baseline-C-independent-product.json",
+      "independent_evidence_sha256": "e006ed1275b2bf057bb2ff0666ceaca0606c5f22b5df9fea2a763ce517a375a4",
+      "workflow_closeout": "incomplete; no Git HEAD / strict evidence / independent protocol Review. Report explicitly discloses this.",
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 0,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "owner_active_time_or_cost": "unknown",
+      "scoring_basis": "Manual review of frozen probe facts, visible replies, recorded deferral/question and independent command results. Workflow admission/ledger omissions remain a separate axis. These are mechanism observations, not general productivity evidence.",
+      "first_turn_started_at": "2026-09-05T02:33:20.696090+00:00",
+      "last_turn_ended_at_derived_from_process_measurement": "2026-09-05T03:01:50.906886+00:00",
+      "journey_wall_seconds_including_operator_gaps": 1710.210796,
+      "machine_wall_time_note": "Process-sum and elapsed journey wall time are both reported. Elapsed time includes operator verification/gaps; neither is Owner active time or billing."
+    },
+    {
+      "arm": "candidate",
+      "journey": "A",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX first turn",
+          "delegation_id": "16c670fcd010469fb9dc6ba2aef39cab",
+          "process_seconds": 1801.29,
+          "status": "error",
+          "stop_reason": null,
+          "protocol_errors": [
+            "Timed out after 1800000ms"
+          ]
+        },
+        {
+          "turn": 2,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_0e91fc64-8cd5-4d3d-ac9b-fb01ce90c160",
+          "process_seconds": 745.2927869581617,
+          "exit_code": 0
+        },
+        {
+          "turn": 3,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_0e91fc64-8cd5-4d3d-ac9b-fb01ce90c160",
+          "process_seconds": 303.025888083037,
+          "exit_code": 0
+        }
+      ],
+      "provider_process_seconds_sum": 2849.6086750411987,
+      "product_outcome": "pass",
+      "independent_evidence_file": "candidate-A-independent-product-final.json",
+      "independent_evidence_sha256": "8d66f17e3f2b4977b11fa557de346221ad4a8bfc6ecb9b7caf247b0151873431",
+      "workflow_closeout": "incomplete: strict HEAD/evidence prerequisites; source product outcome independently verified",
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 0,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "owner_active_time_or_cost": "unknown",
+      "scoring_basis": "Manual review of frozen probe facts, visible replies, recorded deferral/question and independent command results. Workflow admission/ledger omissions remain a separate axis. These are mechanism observations, not general productivity evidence.",
+      "authority_verdict": "FAIL: A-R5 premature candidate acceptance from generic execution authorization before Owner saw candidate",
+      "stage_acceptance": "blocked by A-R5 despite product outcome pass",
+      "first_turn_started_at": "2026-09-05T02:52:44.238685+00:00",
+      "last_turn_ended_at_derived_from_process_measurement": "2026-09-05T03:44:04.580761+00:00",
+      "journey_wall_seconds_including_operator_gaps": 3080.342076,
+      "machine_wall_time_note": "Process-sum and elapsed journey wall time are both reported. Elapsed time includes operator verification/gaps; neither is Owner active time or billing."
+    },
+    {
+      "arm": "candidate",
+      "journey": "C",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX first turn",
+          "delegation_id": "d7f6d7149aad4fd38b898c7197f86625",
+          "process_seconds": 1318.527,
+          "status": "success",
+          "stop_reason": "end_turn",
+          "protocol_errors": []
+        },
+        {
+          "turn": 2,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_cc98a501-b8d5-41f6-8f3a-7b3a47bf79c4",
+          "process_seconds": 77.410885584075,
+          "exit_code": 0
+        }
+      ],
+      "provider_process_seconds_sum": 1395.937885584075,
+      "product_outcome": "pass",
+      "independent_evidence_file": "candidate-C-independent-product-final.json",
+      "independent_evidence_sha256": "8ff5e4bf3f4e480d05d80a19901bcb723a5d0381afc2035256b32bc7029678be",
+      "workflow_closeout": "not claimed; unborn HEAD blocks strict identity/review path",
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 0,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "owner_active_time_or_cost": "unknown",
+      "scoring_basis": "Manual review of frozen probe facts, visible replies, recorded deferral/question and independent command results. Workflow admission/ledger omissions remain a separate axis. These are mechanism observations, not general productivity evidence.",
+      "first_turn_started_at": "2026-09-05T02:59:59.402384+00:00",
+      "last_turn_ended_at_derived_from_process_measurement": "2026-09-05T03:26:16.926465+00:00",
+      "journey_wall_seconds_including_operator_gaps": 1577.524081,
+      "machine_wall_time_note": "Process-sum and elapsed journey wall time are both reported. Elapsed time includes operator verification/gaps; neither is Owner active time or billing."
+    },
+    {
+      "arm": "baseline",
+      "journey": "B",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "delegation_id": "ef8bd480547b4248855122d6b947801d",
+          "status": "success",
+          "stop_reason": "end_turn",
+          "process_seconds": 1430.613
+        },
+        {
+          "turn": 2,
+          "native_session_id": "sess_d7969ddf-b217-4c70-b5cb-4bff51cdf46c",
+          "exit_code": 0,
+          "process_seconds": 841.0550487921573
+        },
+        {
+          "turn": 3,
+          "native_session_id": "sess_d7969ddf-b217-4c70-b5cb-4bff51cdf46c",
+          "exit_code": 0,
+          "process_seconds": 88.19686241587624
+        }
+      ],
+      "provider_process_seconds_sum": 2359.864911208034,
+      "product_outcome": "pass for observed normal-name add/search/ingredient/export paths",
+      "overall_journey_verdict": "FAIL: frozen overwrite decision probe missed despite functional paths passing",
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 1,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "independent_evidence_file": "baseline-B-independent-product-final.json",
+      "independent_evidence_sha256": "e458dd6c30a54e5b0147ac5f3d88b4fb8d4a9490960a4b778e9b84c65a34c671",
+      "workflow_closeout": "incomplete: draft North Star has no acceptance binding for strict Review; task ledger says completed but report passed:false exposes omissions",
+      "owner_active_time_or_cost": "unknown",
+      "first_turn_started_at": "2026-09-05T03:30:47.180002+00:00",
+      "last_turn_ended_at_derived_from_process_measurement": "2026-09-05T04:20:04.686078+00:00",
+      "journey_wall_seconds_including_operator_gaps": 2957.506076,
+      "machine_wall_time_note": "Process-sum and elapsed journey wall time are both reported. Elapsed time includes operator verification/gaps; neither is Owner active time or billing."
+    },
+    {
+      "arm": "candidate2",
+      "journey": "A",
+      "recorded_at": "2026-09-05T06:21:43.314511+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX first turn",
+          "delegation_id": "7d9e2c27fa944ada9db82e34e7ab2f61",
+          "process_seconds": 337.854,
+          "status": "success",
+          "stop_reason": "end_turn",
+          "protocol_errors": []
+        },
+        {
+          "turn": 2,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_02593284-77ab-4bfe-b335-5601011bc887",
+          "process_seconds": 287.0337146250531,
+          "exit_code": 0,
+          "finished_at": "2026-09-05T05:10:13.291940+00:00"
+        },
+        {
+          "turn": 3,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_02593284-77ab-4bfe-b335-5601011bc887",
+          "process_seconds": 1055.0481567918323,
+          "exit_code": 0,
+          "finished_at": "2026-09-05T05:29:56.814203+00:00"
+        }
+      ],
+      "provider_process_seconds_sum": 1679.9358714168854,
+      "product_outcome": "pass",
+      "stage_acceptance": "not_accepted",
+      "independent_evidence_file": "candidate2-A-independent-product-final.json",
+      "independent_evidence_sha256": "33962379e7bc2643934c537f4834f87a065bc2d4fdc12ff6d3adab682b9aec73",
+      "workflow_closeout": "incomplete: unaccepted North Star and/or formal evidence prerequisites; not a product result",
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 1,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "owner_active_time_or_cost": "unknown",
+      "scoring_basis": "Read actual visible output and source artifacts; independent product commands for A/C, read-only input/source comparison for B. Current findings take precedence over earlier simulated forward pass. Not general productivity evidence.",
+      "authority_attribution_error": 1,
+      "new_north_star_acceptance_fabricated": false,
+      "boundary_incident": "Real HOME data file written and removed during negative test; prior state unknown; final implementation guard verified, test isolation unresolved.",
+      "unsupported_restoration_claim": 1,
+      "probe_note": "Tags/grouping not asked or explicitly deferred with reason; P2 reported, not an automatic repair gate."
+    },
+    {
+      "arm": "candidate2",
+      "journey": "B",
+      "recorded_at": "2026-09-05T06:21:43.314511+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX first turn",
+          "delegation_id": "58a79097bba34a05a97ae13a96d52a06",
+          "process_seconds": 547.442,
+          "status": "success",
+          "stop_reason": "end_turn",
+          "protocol_errors": []
+        }
+      ],
+      "provider_process_seconds_sum": 547.442,
+      "product_outcome": "incomplete",
+      "stage_acceptance": "not_accepted",
+      "independent_evidence_file": "candidate2-B-independent-disposition.json",
+      "independent_evidence_sha256": "1d148454ef2631d6a271c5d486f79e9319ebebb052e9048740ed620d9e451d64",
+      "workflow_closeout": "incomplete: unaccepted North Star and/or formal evidence prerequisites; not a product result",
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": null,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 1,
+      "owner_active_time_or_cost": "unknown",
+      "scoring_basis": "Read actual visible output and source artifacts; independent product commands for A/C, read-only input/source comparison for B. Current findings take precedence over earlier simulated forward pass. Not general productivity evidence.",
+      "execution_disposition": "abandoned_after_turn1",
+      "turns_not_run": [
+        2,
+        3
+      ],
+      "unmeasured_probes": [
+        "export overwrite decision"
+      ],
+      "note": "Wrong refusal is confirmed; no claim that later turns could never recover. Current implementation authority is not formal North Star acceptance. Ingredient representation is a reasonable product question."
+    },
+    {
+      "arm": "candidate2",
+      "journey": "C",
+      "recorded_at": "2026-09-05T06:21:43.314511+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX first turn",
+          "delegation_id": "2c9a6f62fbc1455aab5da7874b7b0394",
+          "process_seconds": 784.391,
+          "status": "success",
+          "stop_reason": "end_turn",
+          "protocol_errors": []
+        },
+        {
+          "turn": 2,
+          "transport": "native same-session operator resume",
+          "native_session_id": "sess_06ffa241-36dd-47a1-b890-e459b69bdcfc",
+          "process_seconds": 132.94899079203606,
+          "exit_code": 0,
+          "finished_at": "2026-09-05T05:14:35.939908+00:00"
+        }
+      ],
+      "provider_process_seconds_sum": 917.339990792036,
+      "product_outcome": "pass",
+      "stage_acceptance": "not_accepted",
+      "independent_evidence_file": "candidate2-C-independent-product-final.json",
+      "independent_evidence_sha256": "0151fe27319cf15e045b3ac9ae244bb684301c18426c721711fc841b6333602c",
+      "workflow_closeout": "incomplete: unaccepted North Star and/or formal evidence prerequisites; not a product result",
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 0,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "owner_active_time_or_cost": "unknown",
+      "scoring_basis": "Read actual visible output and source artifacts; independent product commands for A/C, read-only input/source comparison for B. Current findings take precedence over earlier simulated forward pass. Not general productivity evidence.",
+      "new_north_star_acceptance_fabricated": false,
+      "note": "Accepted bounded Change directly projects explicit Owner bug request; not a fabricated new strategic acceptance."
+    },
+    {
+      "arm": "candidate",
+      "journey": "B",
+      "historical_result_added_at": "2026-09-05T06:25:53.872758+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "delegation_id": "724f41cab5ac455ca98e737c110195ee",
+          "status": "success",
+          "stop_reason": "end_turn",
+          "process_seconds": 665.713
+        }
+      ],
+      "provider_process_seconds_sum": 665.713,
+      "execution_disposition": "abandoned_after_turn1",
+      "turns_not_run": [
+        2,
+        3
+      ],
+      "product_outcome": "incomplete",
+      "wrong_refusal": 1,
+      "duplicate_probe_questions": null,
+      "missing_necessary_decisions": null,
+      "owner_active_time_or_cost": "unknown",
+      "scoring_basis": "Original delta-1 live findings and preserved actual receipt; fabricated upstream HC-3 drove the route/closeout refusal. No claim about unexecuted B2/B3.",
+      "evidence_file": "candidate-B-turn1-receipt.json",
+      "evidence_sha256": "fa531c7a16e05d9f02d29fec3dffe444918a7660bf865ff19a13ad2b99ad71b0"
+    },
+    {
+      "arm": "candidate3",
+      "journey": "A",
+      "recorded_at": "2026-09-05T12:34:34.663429+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX",
+          "delegation_id": "a3003271342a47838ed152d5647aa042",
+          "status": "error",
+          "stop_reason": null,
+          "process_seconds": 1801.489
+        },
+        {
+          "turn": 2,
+          "transport": "native same-session operator resume",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 550.0372111247852,
+          "finished_at": "2026-09-05T11:55:24.327311+00:00",
+          "pid": 67989
+        },
+        {
+          "turn": 3,
+          "transport": "native same-session operator resume",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 545.7630572919734,
+          "finished_at": "2026-09-05T12:13:06.653459+00:00",
+          "pid": 71485
+        }
+      ],
+      "product_outcome": "pass",
+      "independent_evidence_file": "candidate3-A-independent/result.json",
+      "independent_tests": 17,
+      "source_unchanged_by_independent_checks": true,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 1,
+      "workflow_closeout": "A3 marked accepted; independent authority adjudication pending, strict HEAD closeout not finished",
+      "residual_observation": "Tags/grouping not asked or explicitly deferred; mixed-source HC-2 now in accepted document; ordinary-language acceptance under separate review",
+      "owner_active_time_or_cost": "unknown",
+      "comparability": "Candidate3 adds independently qualified HOME-write containment; not a like-for-like speed comparison with earlier unwrapped runs",
+      "workflow_acceptance_error": 1,
+      "authority_attribution_error": 1,
+      "workflow_refresh_claim_error": 1,
+      "stage_acceptance": "not_accepted",
+      "authority_review": "stage-a-review-delta-3.zh-CN.md"
+    },
+    {
+      "arm": "candidate3",
+      "journey": "C",
+      "recorded_at": "2026-09-05T12:34:34.663429+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "turns": [
+        {
+          "turn": 1,
+          "transport": "agent-delegate/ACPX",
+          "delegation_id": "431c21c31189426bb618c36b05833196",
+          "status": "success",
+          "stop_reason": "end_turn",
+          "process_seconds": 1027.614
+        },
+        {
+          "turn": 2,
+          "transport": "native same-session operator resume",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 95.8412789166905,
+          "finished_at": "2026-09-05T11:35:41.915029+00:00",
+          "pid": 62407
+        }
+      ],
+      "product_outcome": "pass",
+      "independent_evidence_file": "candidate3-C-independent-product-final.json",
+      "independent_tests": 4,
+      "source_unchanged_by_independent_checks": true,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 0,
+      "workflow_closeout": "Not accepted; no HEAD and no accepted North Star; no invented acceptance",
+      "residual_observation": "C1 initial-commit recovery option omits second known prerequisite; P3 wording, no effect",
+      "owner_active_time_or_cost": "unknown",
+      "comparability": "Candidate3 adds independently qualified HOME-write containment; not a like-for-like speed comparison with earlier unwrapped runs"
+    },
+    {
+      "arm": "candidate3",
+      "journey": "B",
+      "recorded_at": "2026-09-05T13:23:47.706263+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "native_session_id": "sess_44d38174-61ee-4d30-8b20-d1f6a5b0677a",
+      "turns": [
+        {
+          "turn": 1,
+          "delegation_id": "260fa84ebee746038e826d77aaff0d42",
+          "status": "success",
+          "duration_seconds": 919.179
+        },
+        {
+          "turn": 2,
+          "native_session_id": "sess_44d38174-61ee-4d30-8b20-d1f6a5b0677a",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 801.0490061254241,
+          "finished_at": "2026-09-05T13:02:39.938037+00:00"
+        },
+        {
+          "turn": 3,
+          "native_session_id": "sess_44d38174-61ee-4d30-8b20-d1f6a5b0677a",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 71.06774108437821,
+          "finished_at": "2026-09-05T13:13:41.670224+00:00"
+        }
+      ],
+      "independent_tests": 43,
+      "original_17_tests_unchanged": true,
+      "normal_product_flows": "pass: add, name-only, ingredient, AND, export columns, help",
+      "product_outcome": "failed data protection: output path equal to input silently overwrites JSON with Markdown",
+      "wrong_product_completion": 1,
+      "wrong_product_completion_basis": "claimed data file remains read-only, falsified by actual successful export with identical source/output path in temporary copy",
+      "missing_necessary_decisions": 1,
+      "missing_decision_basis": "overwrite policy not asked and default destructive; B frozen probe failed",
+      "wrong_refusal": 0,
+      "duplicate_probe_questions": "B1 repeats flag-versus-broader-keyword distinction already constrained by A2; nonblocking choice preserves name-only behavior. Exact count pending final comparative adjudication.",
+      "workflow_authority": "r3 mechanical binding valid; accepted HC2 and Scale retain false owner attribution inherited from A",
+      "product_source_unchanged_by_turn3": true,
+      "independent_evidence_file": "candidate3-B2-independent/result.json",
+      "owner_active_time_or_cost": "unknown",
+      "workflow_closeout": "remains in_progress and not formally accepted; no forged final review"
+    },
+    {
+      "arm": "candidate5",
+      "journey": "C",
+      "recorded_at": "2026-09-05T14:05:54.332905+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "provider": "builtin:bigmodel-coding-plan",
+      "native_session_id": "sess_4bc1dd5d-1f7f-4b6e-8c5c-6f6de3d61a2e",
+      "turns": [
+        {
+          "turn": 1,
+          "delegation_id": "ce5b23459c214bfc8871ccba04c3b1b1",
+          "status": "success",
+          "stop_reason": "end_turn",
+          "duration_seconds": 393.959
+        },
+        {
+          "turn": 2,
+          "native_session_id": "sess_4bc1dd5d-1f7f-4b6e-8c5c-6f6de3d61a2e",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 99.23693116661161,
+          "finished_at": "2026-09-05T14:01:58.441778+00:00"
+        }
+      ],
+      "product_outcome": "pass",
+      "independent_tests": 4,
+      "independent_evidence_file": "candidate5-C-independent-product-final.json",
+      "source_unchanged_by_independent_checks": true,
+      "wrong_product_completion": 0,
+      "wrong_refusal": 0,
+      "duplicate_probe_questions": 0,
+      "missing_necessary_decisions": 0,
+      "workflow_route": "Micro-change outside lifecycle after init/intake applicability check: no existing specifications to contradict, exact repair covered by Owner request; actual TDD and evidence, no invented Change or accepted North Star",
+      "workflow_closeout": "No formal Ultra task/delivery claim, empty ledger and unresearched North Star preserved",
+      "owner_active_time_or_cost": "unknown",
+      "comparability": "Process durations separated from driver delay. First turn loaded old wrapper; native continuation bypasses wrapper normally. No general speed claim."
+    },
+    {
+      "arm": "candidate5",
+      "journey": "A",
+      "recorded_at": "2026-09-05T15:17:30.697759+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "native_session_id": "sess_e45ec042-900a-476b-8c00-a5ddd9edb783",
+      "turns": [
+        {
+          "turn": 1,
+          "status": "error",
+          "timed_out": true,
+          "duration_seconds": 1801.802,
+          "delegation_id": "cf8230459344486f83671e861caa1734"
+        },
+        {
+          "turn": 2,
+          "native_session_id": "sess_e45ec042-900a-476b-8c00-a5ddd9edb783",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 709.8656776668504,
+          "finished_at": "2026-09-05T14:36:20.677733+00:00"
+        },
+        {
+          "turn": 3,
+          "native_session_id": "sess_e45ec042-900a-476b-8c00-a5ddd9edb783",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 463.74915637494996,
+          "finished_at": "2026-09-05T14:55:34.982600+00:00"
+        }
+      ],
+      "product_outcome": "pass",
+      "independent_tests": 15,
+      "independent_evidence_file": "candidate5-A2-independent-product.json",
+      "A3_product_files_unchanged_since_independent_check": [
+        "recipe.py",
+        "tests/test_recipe.py",
+        "README.md",
+        "CONTEXT.md"
+      ],
+      "workflow_outcome": "request_changes",
+      "findings": [
+        "Sequential open-closeout source gap in Plan/Dev; repaired source now separately qualifying actual recovery.",
+        "Accepted HC-2 falsely attributes model-proposed boundaries to original Owner words.",
+        "Acceptance record fails to distinguish displayed draft and publication/correction bytes accurately."
+      ],
+      "final_review_obligations": "Preserved open; no HEAD and no fabricated formal Review/completed ledger",
+      "owner_active_time_or_cost": "unknown",
+      "targeted_feedback_repair": "Separate run from preserved A3 copy; not an unassisted pass or replacement of this failure."
+    },
+    {
+      "arm": "candidate5",
+      "journey": "B",
+      "recorded_at": "2026-09-05T16:46:03.559473+00:00",
+      "input_source": "scripted-owner-replay",
+      "execution_kind": "live-provider-run",
+      "host": "ZCode 0.16.5",
+      "model": "GLM-5.2",
+      "native_session_id": "sess_47f9b4b2-7470-41e3-b95f-e67b1fc24598",
+      "turns": [
+        {
+          "turn": 1,
+          "delegation_id": "02eb7914fe1d4261b8f515ff0990848f",
+          "status": "success",
+          "duration_seconds": 1492.319
+        },
+        {
+          "turn": 2,
+          "native_session_id": "sess_47f9b4b2-7470-41e3-b95f-e67b1fc24598",
+          "exit_code": -15,
+          "timed_out": true,
+          "duration_seconds": 1800.0085867079906,
+          "finished_at": "2026-09-05T16:27:15.265057+00:00"
+        },
+        {
+          "turn": 3,
+          "native_session_id": "sess_47f9b4b2-7470-41e3-b95f-e67b1fc24598",
+          "exit_code": 0,
+          "timed_out": false,
+          "duration_seconds": 101.63020749995485,
+          "finished_at": "2026-09-05T16:38:24.659674+00:00"
+        }
+      ],
+      "normal_product_flows": "pass: name-only, ingredient, AND, new export columns, help",
+      "independent_tests": "37/38 with RECIPE_DB bound to a fresh disposable path; existing direct cmd_export fault test depends on ambient data",
+      "product_outcome": "REQUEST_CHANGES: existing default/explicit outputs and collection alias are overwritten",
+      "wrong_product_completion": 1,
+      "wrong_product_completion_basis": "README says collection is never modified by export, falsified by actual out==RECIPE_DB; B3 accurately discloses open T006 closeout",
+      "missing_necessary_decisions": 1,
+      "missing_decision_basis": "frozen overwrite-policy probe; no non-destructive default or question",
+      "wrong_refusal": 0,
+      "duplicate_probe_questions": 0,
+      "product_source_unchanged_by_turn3": true,
+      "independent_evidence_file": "candidate5-B2-independent-result.json",
+      "workflow_closeout": "T005 task complete, T006 in_progress after timeout; original T001-T004 and owed PlanReview open; inherited A3 provenance defect not ratified by operator input commit",
+      "owner_active_time_or_cost": "unknown",
+      "targeted_feedback_repair": "separate actual ZCode c6e9d1447c0a4750a2cde9b17768006a from frozen B2, no rewrite of scripted result"
+    }
+  ],
+  "last_appended_at": "2026-09-05T17:10:28.564844+00:00",
+  "corrections": [
+    {
+      "at": "2026-09-05T06:21:43.314511+00:00",
+      "subject": "Baseline C and candidate2 actual behavior",
+      "facts": [
+        "Independent actual baseline C review confirmed North Star acceptance was fabricated from the initial grant; previous product PASS does not imply semantic authority PASS.",
+        "Candidate2 A/C preserve North Star unresearched/draft. A still misattributes no-network to Owner and has one missed tags/grouping probe.",
+        "Candidate2 B fresh current authorization was rejected as missing. B2/B3 not run.",
+        "Candidate2 A context claim of complete HOME restoration lacks before-state evidence; current absence alone cannot establish it."
+      ]
+    }
+  ],
+  "status_history": [
+    {
+      "status": "Stage A final delta Review REQUEST_CHANGES; owner checkpoint / review budget exhausted. All active provider runs ended. Candidate2 B abandoned after turn1; no Stage A commit.",
+      "superseded_at": "2026-09-05T12:34:34.663429+00:00",
+      "reason": "Latest explicit Owner instruction authorizes full implementation and required repair/review; old count checkpoint is historical."
+    },
+    {
+      "status": "Stage A delta3 REQUEST_CHANGES: A3 acceptance/source defect and Plan/Dev current-authorization consumer gap. CC repair4 active; candidate3 B still running frozen inputs. No Stage A commit.",
+      "superseded_at": "2026-09-05T13:23:47.706263+00:00",
+      "reason": "CC repair4 completed and candidate3 B finished; live effect and remaining Dev activation defects require repair5."
+    },
+    {
+      "status": "Stage A delta4 REQUEST_CHANGES. Repair4 independent full suite passed, but Dev task activation and destructive technical default remain; actual CC repair5 active. Candidate4 prepared but not launched. No Stage A commit.",
+      "superseded_at": "2026-09-05T13:52:14.444613+00:00",
+      "reason": "Repair5 source review and independent release passed; fresh candidate5 A/C are now running."
+    },
+    {
+      "status": "Repair5 source accepted, independent 728 Node +104 Hook green. Candidate5 A/C active, B not started. Stage A not yet accepted or committed.",
+      "superseded_at": "2026-09-05T14:51:14.400534+00:00",
+      "reason": "Candidate5 C passed; A2 ended and A3 active; sequential handoff P1 confirmed and Kimi repair6 active after CC startup failure."
+    }
+  ],
+  "targeted_qualifications": [
+    {
+      "id": "candidate5-A-feedback-repair",
+      "at": "2026-09-05T16:00:42.903150+00:00",
+      "kind": "explicit independent Review feedback recovery",
+      "delegation_id": "717d5d4f79244493aa2c9597906125a2",
+      "provider_duration_seconds": 1105.911,
+      "outcome": "pass",
+      "independent_result": "candidate5-A-feedback-independent-final.json",
+      "original_failure_retained": true,
+      "not_unassisted": true
+    },
+    {
+      "id": "candidate6-sequential-resume",
+      "at": "2026-09-05T16:26:54.852228+00:00",
+      "outcome": "pass with corrective continuation",
+      "initial_delegation_id": "c70713374f83485fbfca731a84b6055f",
+      "initial_provider_duration_seconds": 574.597,
+      "initial_not_done": "Recovered T002 but prematurely stopped before the pending task required in the mission; preserved.",
+      "continuation": {
+        "native_session_id": "sess_073ed7d7-c039-433d-8d86-da8e428a4bfb",
+        "exit_code": 0,
+        "timed_out": false,
+        "duration_seconds": 499.7571979579516,
+        "finished_at": "2026-09-05T16:05:34.957325+00:00"
+      },
+      "independent_tests": 15,
+      "independent_result": "candidate6-sequential-independent-result.json",
+      "proved": "Model selected T003, reconciled T001 implementation evidence, activated pending to in_progress before implementation, preserved T001 evidence/context/North Star and all open Review obligations.",
+      "not_unassisted": true
+    },
+    {
+      "kind": "B export separate explicit Review feedback repair",
+      "original_scripted_journey_verdict": "REQUEST_CHANGES, unchanged",
+      "startup_attempt": {
+        "delegation_id": "c6e9d1447c0a4750a2cde9b17768006a",
+        "status": "error before model execution",
+        "cause": "named ACPX persistence blocked by qualified HOME-write sandbox",
+        "duration_seconds": 1.304
+      },
+      "actual_repair": {
+        "delegation_id": "38526cb9e0af4a1ea29e65db0c95fd06",
+        "native_session_id": "sess_f95c0c18-73e2-4572-b3d6-f2496a58633d",
+        "status": "success/end_turn",
+        "duration_seconds": 552.348
+      },
+      "independent_verdict": "PASS:40tests and15 current behavior checks",
+      "independent_evidence": "candidate5-B-feedback-independent-final.json",
+      "independent_sha256": "5f95024726946ecca9e611fc93396c02b36ca4df4d2e72f1e44b0f5e02ac53c3",
+      "scope": "normalquery/export/help and safe collision outcomes; original15+10tests unchanged; no whole-workflow or unassisted reliability claim",
+      "retained_obligations": "inherited A3 provenance in B not repaired or ratified; original task/PlanReview obligations remain visible"
+    }
+  ],
+  "stage_a_final_acceptance": {
+    "verdict": "accepted within stated scope",
+    "report": "work/owner-factory-implementation-20260905/stage-a-final-acceptance.zh-CN.md",
+    "report_sha256": "63c106d2b707f968dedeee8a689098934bc27ed5876ddbdeb906b68662ad3d88",
+    "at": "2026-09-05T17:10:28.564844+00:00"
+  }
+}

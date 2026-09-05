@@ -181,6 +181,17 @@ function waitForExit(pid, timeout = 2000) {
   throw new Error(`timed out waiting for process ${pid}`);
 }
 
+// The worker publishes its terminal result inside `try` and only then unlinks
+// the lock and releases the fence inside `finally`, so a readable result.json
+// is the terminal proof, not the release proof: at that instant the lock and
+// fence are still held by construction. A test that asserts the released
+// boundary must synchronize on the worker actually finishing.
+function waitForWorkerFinalized(delegation, timeout = 15000) {
+  const receipt = JSON.parse(fs.readFileSync(path.join(delegation, 'receipt.json'), 'utf8'));
+  waitForExit(receipt.worker_pid, timeout);
+  return receipt;
+}
+
 // The observation moves not_started -> launching -> started; a writer test may
 // only trust it once the started phase with a real PID is durably present.
 function waitForWriterStarted(file, timeout = 7000) {
@@ -1164,6 +1175,7 @@ process.stdout.write(JSON.stringify({ type: 'assistant', content: ${JSON.stringi
     assert.deepEqual(result.changed_files, ['src/delegated.js']);
     assert.equal(typeof result.base_head, 'string');
     assert.equal(typeof result.final_head, 'string');
+    waitForWorkerFinalized(fx.delegation);
     assert.equal(fs.existsSync(path.join(fx.delegation, 'run.lock')), false);
 
     const waited = spawnSync('python3', [WAIT, resultFile, '--interval', '0.01', '--timeout', '2'], { encoding: 'utf8' });
@@ -2410,6 +2422,10 @@ test('post-spawn launcher loss retains a bound lock and never trusts the launche
       assert.equal(cancel.status, 0, cancel.stderr);
       const result = waitFor(path.join(fx.delegation, 'result.json'), 15000);
       assert.equal(result.failure_type, 'cancelled', seam);
+      // Terminal result is not release proof: the worker unlinks the lock and
+      // releases the fence in its own `finally`. This seam faults the launcher
+      // receipt write, so synchronize on the pid the worker claimed in the lock.
+      waitForExit(claimed.pid, 15000);
       const registry = fenceRegistryOf(fx.root);
       assert.equal(fs.readdirSync(registry).filter((name) => name.endsWith('.json')).length, 0, seam);
     } finally {
@@ -2631,6 +2647,7 @@ test('spec drift never blocks signalling a live worker', () => {
     const result = waitFor(path.join(fx.delegation, 'result.json'), 15000);
     assert.equal(result.failure_type, 'cancelled');
     assert.equal(fs.readFileSync(sentinel, 'utf8'), 'sentinel-payload\n');
+    waitForWorkerFinalized(fx.delegation);
     assert.equal(heldFenceCount(fx.root), 0, 'the worker releases its own proven-safe fence');
   } finally {
     try { fs.rmSync(sentinel, { force: true }); } catch {}
@@ -3064,6 +3081,7 @@ test('a missing host binary publishes a truthful releasable spawn_error', () => 
     const result = waitFor(path.join(fx.delegation, 'result.json'), 15000);
     assert.equal(result.status, 'failed');
     assert.equal(result.failure_type, 'spawn_error');
+    waitForWorkerFinalized(fx.delegation);
     // The OS-confirmed no-pid failure restored a releasable boundary: no
     // impossible writer is frozen behind a spawn that never existed.
     assert.equal(fs.existsSync(path.join(fx.delegation, 'run.lock')), false);

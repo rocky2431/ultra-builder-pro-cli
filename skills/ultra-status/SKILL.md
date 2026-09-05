@@ -13,15 +13,23 @@ persists a workflow-position field.
 
 | Mode | Entry | Observable exit | Next |
 |---|---|---|---|
-| `route` | Owner asks what is current or what to do next | One artifact-derived Route Card names the matched facts, unavailable evidence, and one recommended route | The named explicit route, or `idle` |
+| `route` | Owner asks what is current or what to do next | One artifact-derived route answer — the contract's compact progress expression by default — names the matched facts, unavailable evidence, and one recommended route | The named explicit route, or `idle` |
 | `history` | Owner asks what changed, was rejected, or was superseded | Relevant decisions, Git revisions, archived/abandoned Changes, and unresolved contradictions are summarized without becoming authority | Return to `route` or the owner-selected revision route |
 | `installation` | Owner asks whether Ultra is discovered and healthy on a Host | Installed version, provenance, Skill/hook discovery, drift, and reachable repair are reported read-only | Recommend the exact install/update/Doctor repair |
 | `delegation` | Owner asks about a worker, handoff, ACP/CLI event, or terminal result | Transport observations and canonical authority are shown separately with a retry/cancel/integration path | Return to the requesting primary route |
 | `recovery` | Authority is absent, ambiguous, stale, malformed, or temporarily unreadable | The earliest unsafe or unavailable fact and cheapest safe repair, retry, cancel, abandon, or fresh-session path are named | Recommend only the repair-capable explicit route |
 
-Follow `references/route-contract.md` and use its `UBP Route Card` as the default output,
-not an optional appendix. Expand history, installation, delegation, or recovery details
-only when requested or needed to explain why the normal route is unavailable. Status is
+Follow `references/route-contract.md`. The default output is its compact progress
+expression — goal, verified result, gap, next action, owner decision needed — derived
+from the same artifact evidence, and that default covers an ordinary `route`-mode
+answer, which is itself the entry and exit of a read-only route; show the full
+`UBP Route Card` when the contract requires it (a material checkpoint, pause or block,
+or a transition the accepted boundary does not cover) and whenever the owner asks for
+route, grant, or authority detail. An unresolved decision, a material boundary change,
+or missing authorization stays visible in the compact lines, expanding detail whenever
+they cannot carry it truthfully. Expand history, installation, delegation, or recovery
+details only when requested or needed to explain why the normal route is unavailable.
+Status is
 a `router`: the Owner invokes it for read-only diagnosis, its Host implicit bit remains
 off, and it supplies no continuation authority. Other public Skills derive their own
 cards from the shared reference rather than invoking Status.
@@ -57,8 +65,9 @@ cards from the shared reference rather than invoking Status.
 
 ## Definition of done
 
-- Emit the current Route Card with an exact mode, observable exit, unfinished work, and
-  one next route or safe recovery path.
+- Emit the current route answer with an exact mode, observable exit, unfinished work, and
+  one next route or safe recovery path, defaulting to the compact progress expression
+  and showing the full card only when the contract requires it.
 - Evaluate the artifact route in order and name the evidence supporting the match.
 - Keep stale test evidence, dirty worktree state, baseline gaps, and task graph risks
   visible without converting them into semantic failure.

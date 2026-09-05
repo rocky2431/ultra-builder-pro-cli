@@ -2,29 +2,51 @@
 
 An owner fluent in their own domain still describes a **form** when what they
 want is a **role**. They are not being vague; they are naming the nearest thing
-they can picture. Taken at face value, that name produces a specification that is
-internally consistent and builds the wrong product.
+they can picture. Taken at face value, that name can produce a specification
+that is internally consistent and builds the wrong product — but most asks do
+not need a reframe to avoid that, and an unrequested one costs trust. The
+evidence in front of you decides.
 
 ## When to reframe
 
-Most first asks qualify. Any one of these is enough:
+Reframe only when the evidence shows the named form and the intended outcome can
+come apart. Any one of these is enough:
 
-- the request names an artifact — an app, a dashboard, a bot, a script — rather
-  than an outcome;
-- the request names a solution whose problem has not been stated;
-- the request would be satisfied by something far smaller, or is impossible as
-  worded;
 - two readings of the request would lead to materially different builds;
-- the request describes what a competitor has, rather than what the owner needs.
+- the request names a solution whose problem has not been stated, and the build
+  would change with the problem;
+- the request is impossible as worded, or would be satisfied by something far
+  smaller than it asks for;
+- the request describes what a competitor or another team has, rather than what
+  the owner needs.
+
+## When not to reframe
+
+Most asks do not need one. Do not reframe when:
+
+- the request names a concrete, bounded deliverable whose success is checkable
+  as worded — a simple deliverable stays simple, and is never broadened into a
+  grander product by default;
+- the owner has already rejected a reframing of this request — their original
+  frame is now a recorded constraint, not an opening bid;
+- the open point is a detail inside a workable frame; that is a detail
+  question, not a frame challenge;
+- the only thing your reinterpretation would change is how easy the work is to
+  build. A reframe is a hypothesis about their intent, never about your
+  convenience.
+
+When you are unsure whether a trigger is met, ask the detail question first; a
+frame challenge built on a misread costs more trust than one deferred question.
 
 ## How to put it
 
 State what you believe they want, name the gap against the words they used, and
 end on a question:
 
-> You said a daily briefing app. What you described is a personal chief of staff
-> — the briefing is one of its outputs, not the thing itself. Have I got that
-> right?
+> You asked for a daily 9 a.m. email digest of deploy health. Everything you
+> described reacting to arrived in channels you already watch hourly. What you
+> described looks like an alert when health changes, not a scheduled digest.
+> Have I got that right?
 
 Rules that keep this honest:
 
@@ -32,7 +54,10 @@ Rules that keep this honest:
   quiz, and the owner will pick the one that sounds more flattering.
 - **Offer it, never assert it.** A reframe is a hypothesis about their intent,
   and they are the only authority on it.
-- **A correction is the better outcome.** "No, it really is just the briefing" is
+- **Name the size and direction of the change.** If your reading enlarges the
+  work, say so; if it shrinks the work, say that too. The owner weighs either
+  trade-off — but only when it is said out loud.
+- **A correction is the better outcome.** "No, it really is just the digest" is
   a constraint you did not have a minute ago. Record it as a decision.
 - **Never reframe toward what is easier to build.** If your reinterpretation
   happens to shrink the work, say that out loud and let the owner weigh it.
@@ -44,9 +69,9 @@ Rules that keep this honest:
 ## Framing questions
 
 These refuse the owner's framing on purpose, which is how they surface what the
-request left out. Ask only the prompts that can distinguish a materially different
-build, and stop when the owner confirms the frame or the remaining prompts cannot
-change it.
+request left out. Ask them only while the frame itself is genuinely open, select
+only the prompts that can distinguish a materially different build, and stop
+when the owner confirms the frame or the remaining prompts cannot change it.
 
 | Question | What it recovers |
 |---|---|

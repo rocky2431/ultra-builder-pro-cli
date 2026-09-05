@@ -14,6 +14,15 @@ creating a second condensed authority.
   requirement, acceptance, architecture, quality, and delivery evidence.
 - Current behavior and proposed behavior are not silently merged.
 - Scope reflects owner decisions and never an inferred MVP or reduction.
+- Every recorded boundary, exclusion, guardrail, and measurement keeps its true source:
+  owner-stated facts stay owner-stated with the owner's actual words, and
+  model-selected technical defaults or per-run implementation restrictions stay
+  model-owned — never recorded as owner constraints, and never re-submitted as a new
+  technical-choice approval. Read this attribution back clause by clause together with
+  the specifications before reporting convergence: an entry citing one owner quote keeps
+  only what that quote actually says, and each remaining clause moves to its own entry
+  under its own source. A misattributed constraint is a
+  correction to make, not a closeout blocker to escalate.
 - Documentation conflicts, known failures, and load-bearing unknowns are in the gap
   ledger with owners or explicit decisions.
 - Verification commands and observed results are current.

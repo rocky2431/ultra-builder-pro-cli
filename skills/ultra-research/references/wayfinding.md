@@ -20,12 +20,18 @@ question whose answer is reachable in those sources.
 Write `.ultra/research/<run-id>/brief.md` with:
 
 - entry question and planning boundary;
-- known facts and their sources;
-- unknowns, each with the decision it can change;
+- known facts already on record, with their sources, so answered content is reused
+  rather than re-asked;
+- unknowns, each with the decision it can change, split into blocking decisions and
+  safely deferrable unknowns;
 - selected lenses, semantic dependencies, and explicit omissions;
 - likely evidence sources and current freshness limits;
-- owner decisions and the checkpoint that owns each one;
-- a stop condition stated as an observable artifact or resolved decision.
+- owner decisions that block the exit, and the checkpoint that owns each one —
+  keeping an owner-stated fact, which is reusable input, distinct from acceptance
+  of a candidate this run composes, which stays open until the owner accepts the
+  displayed candidate;
+- a stop condition stated as an observable artifact or resolved decision;
+- the useful exit — the caller action unlocked the moment the stop condition is met.
 
 ## North Star Working Candidate
 
