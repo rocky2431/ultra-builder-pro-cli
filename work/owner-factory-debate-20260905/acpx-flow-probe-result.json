@@ -1,0 +1,11 @@
+{
+  "kind": "compute-only research probe",
+  "acpx_version": "0.13.2",
+  "loop_iterations": 3,
+  "steps": 4,
+  "checkpoint_status": "waiting",
+  "agent_sessions": 0,
+  "multiple_outgoing_edges": "rejected",
+  "run_dir": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/owner-factory-debate-20260905/flow-probe-artifacts/2026-09-04T233629366Z-research-compute-loop-c0236152",
+  "limits": "Does not qualify agent execution, parallel workers, resume, permissions, cancellation, or a software factory."
+}

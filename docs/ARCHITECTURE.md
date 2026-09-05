@@ -89,7 +89,7 @@ record `evidence_digest`. The product-worktree digest excludes `.ultra/evidence/
 evidence publication cannot invalidate the freshness value it records.
 
 One primary host model writes this authority in a worktree. Native subagents are
-read-only sensors; delegated CLIs write isolated non-`.ultra` roots and return receipts.
+read-only sensors; delegated Agent runtimes write isolated non-`.ultra` roots and return receipts.
 Sequential Changes share the ledger by stable id, while current readers filter by the
 one unique active Change. This keeps concurrency explicit in Git instead of adding a
 semantic lock service or workflow engine. When the canonical writer itself changes
@@ -197,10 +197,11 @@ These are independent sensors. None rewrites a finding into product truth.
 The canonical installed `ultra-delegate/scripts/delegate.cjs` validates all paths inside
 the selected project, reads a bounded instruction and permission JSON, probes the
 Skill-local Host profile, and starts the Skill-local background worker. One
-`AgentExecutionDriver` boundary selects stable ACP v1 stdio only after the exact Host's
-versioned conformance row passes with a non-empty evidence reference and the declared
-executable and bounded candidate-identity probes succeed; otherwise the same packet
-runs through `CliDriver` and records the fallback reason. Capability inspection uses
+`AgentExecutionDriver` boundary is ACP-first: it selects stable ACP v1 stdio only after
+the exact Host's versioned conformance row passes with a non-empty evidence reference,
+the executable resolves, and any bounded candidate-identity probes declared by that
+profile succeed; otherwise the same packet runs through the typed result-compatible
+CLI fallback and records the reason. Capability inspection uses
 local version commands only and does not start a provider task. The
 one-release `ubp delegate` surface imports those same functions and owns no forked
 behavior. Declared writable roots must already exist inside the delegated
@@ -228,7 +229,21 @@ The profile verifies an Ultra build marker on that bridge plus the exact install
 runtime version before ACP selection.
 The Host/runtime is ZCode Desktop while provider identity remains owner-controlled; the
 verified local receipt uses domestic BigModel rather than international Z.AI OAuth. The
-headless ZCode transport remains explicitly experimental even after conformance.
+headless ZCode transport remains explicitly experimental even after conformance, and
+every launch requires `--ack-experimental`.
+
+Host enforcement admission is a separate pre-launch gate: before the worktree fence, the
+worker spec, or any Host process exists, the retained host enforcement qualification
+compares the Packet's required enforcement dimensions against the exact Host capability
+facts recorded for the selected transport and installed identity. The one retained
+record binds `zcode-acp 0.1.0+ultra.zcode.0.16.5` over runtime `0.16.5`; it observed
+`writable_scope` unsupported and every later effect dimension unobserved, so both ZCode
+transports answer every delegation Packet with one typed
+`host_enforcement_unavailable` diagnostic and no silent fallback, while the five
+documented transports keep their conformance-gated admission with no new capability
+claim. Separately authorized provider transport, adapter preinstallation, env-key
+isolation, credential-value redaction and receipt truth are recorded as distinct facts,
+never as Worker effect authority.
 
 The instruction binds the active `change_id` and one of three semantic scopes: task
 execution/continuation, scoped Research evidence, or aggregate Change

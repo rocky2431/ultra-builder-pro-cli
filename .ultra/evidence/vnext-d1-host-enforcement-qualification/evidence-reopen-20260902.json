@@ -1,0 +1,306 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "vnext-d1-host-enforcement-qualification",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "context": {
+    "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+    "acceptance_sha256": "e5a8b33d17c7b2bed30fa351f59f83b5d0169418d16eecc977e6f18987ff2914"
+  },
+  "subject": {
+    "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "worktree_digest": "6c46f1d04bff499ea89cb60d114cefc91b84bed864eef41d5806b56efb00e2b0",
+    "observed_at": "2026-09-01T17:07:41Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "D1Q-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/v026-contract.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log",
+        "raw_evidence_sha256": "1871491e43afcfa8c7899e94f56bf069c051872b74bb1416ec65b0a11e644a0f",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "6c46f1d04bff499ea89cb60d114cefc91b84bed864eef41d5806b56efb00e2b0",
+          "observed_at": "2026-09-01T17:07:41Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The current admission path compares required dimensions with the retained exact-identity Host record before any executable candidate probe. Missing, unknown, mismatched and unsupported dimensions return one typed redacted host_enforcement_unavailable diagnostic at both public process boundaries, with no silent fallback or provider-brand semantic branch."
+      }
+    },
+    {
+      "criterion_id": "D1Q-02",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "ZCode 0.16.5 via zcode-acp 0.1.0+ultra.zcode.0.16.5",
+        "run_id": "d1q-61ca5157911e4f61866cff5452bc942d",
+        "observed_at": "2026-09-01T14:40:23Z",
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json",
+        "raw_evidence_sha256": "936c77949630c52a7ca128c0f780cc98b2f3a046e5ff8d500bb41cd145bdde01",
+        "observation": "The exact ACP route reached one separately authorized provider call, but its first edit carried no mechanically provable location. Ultra rejected it outside the envelope, retained zero changed files and a stopped writer boundary, and observed no outside marker, loopback hit or prohibited synthetic canary. Because later outside-root, shell, Web/network and composite effect attempts never occurred, those dimensions remain unsupported rather than inferred from zero effects; the route is unavailable and no retry, fallback or maturity change occurred."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "gap",
+        "rationale": "The retained receipt is a truthful negative qualification: ZCode could not prove the requested in-root location, and later denied-effect dimensions were not observed. D1Q-02 is an unconditional positive criterion, and the task context states that only the positive branch satisfies D1-AC03 for ZCode. D1Q-01 safely closes the current route but cannot substitute for D1Q-02."
+      }
+    },
+    {
+      "criterion_id": "D1Q-03",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-attempt.json, .ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json, and skills/ultra-delegate/scripts/host-profile.cjs",
+        "observation": "The attempt and receipt separately record provider transport authority, false Worker-effect authority, exact preinstalled adapter/runtime identities and direct launch argv. No package manager or runtime fetch appears in the launch path. The retained qualification is negative and keeps ZCode experimental.",
+        "revision": "adb7bfe89f40e107d0c9c490076a6e74294b9337+936c77949630c52a7ca128c0f780cc98b2f3a046e5ff8d500bb41cd145bdde01"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The immutable attempt/receipt pair binds exact adapter and runtime hashes, the consumed one-call budget, separately authorized provider transport, no Worker effect grant, and the truthful unavailable disposition without hiding a fetch or credential operation."
+      }
+    },
+    {
+      "criterion_id": "D1Q-04",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": ".ultra/specs/product.md, .ultra/specs/architecture.md, .ultra/specs/research-distillate.md, skills/ultra-delegate/SKILL.md, skills/ultra-delegate/references/delegation-contract.md, docs/ARCHITECTURE.md, docs/ARTIFACT-AUTHORITY.md, docs/RUNTIME-COMPAT-MATRIX.md, and the retained delta Review",
+        "observation": "The maintained surfaces state dimension-specific exact-identity admission, provider-transport separation, pre-launch unavailable behavior, outcome_unknown and writer fencing without claiming positive ZCode writable-scope, shell, Web/network, outside-root or point-of-use enforcement. Skill Creator validation passes and the current strict delta Review is APPROVE with no current P0-P3 finding.",
+        "revision": "adb7bfe89f40e107d0c9c490076a6e74294b9337+6c46f1d04bff499ea89cb60d114cefc91b84bed864eef41d5806b56efb00e2b0"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The exact current product/spec/Skill/docs subject remains capability-driven, fail-closed and provider-neutral. The delta Review validates the ten repaired P1 dispositions and retains five direct-parent P2 findings instead of auto-repairing or suppressing them."
+      }
+    },
+    {
+      "criterion_id": "D1Q-05",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/v026-contract.test.cjs; npm run verify:release; npm pack --dry-run --json; git diff --check",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log",
+        "raw_evidence_sha256": "1871491e43afcfa8c7899e94f56bf069c051872b74bb1416ec65b0a11e644a0f",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "6c46f1d04bff499ea89cb60d114cefc91b84bed864eef41d5806b56efb00e2b0",
+          "observed_at": "2026-09-01T17:07:41Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The final focused gate passes 194/194 on two consecutive compact reruns; the full release gate passes Node 712/712, Hooks 89/89 and audit with zero vulnerabilities; changed-Skill validation, the 141-file package dry run and full diff hygiene check also pass. Existing N=1 delegation and package contents remain green."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        "tests/acp-driver.test.cjs",
+        "tests/v026-contract.test.cjs"
+      ],
+      "rationale": "Deterministic fixtures cover exact qualification binding, pure pre-admission rejection before executable probes, missing/unknown/mismatched dimensions, both public typed diagnostics, no silent fallback and retained contract projection."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+      ],
+      "rationale": "Two consecutive focused reruns pass 194/194, the final full release gate passes 712 Node plus 89 Hook tests with zero audit vulnerabilities, and Skill, pack and diff gates pass."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-attempt.json",
+        ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json"
+      ],
+      "rationale": "The consumed exact Host call, immutable attempt transition, redacted terminal receipt, real isolated worktree, process boundary, permission denial, marker/sink observations and stopped writer boundary are retained as ordinary files with exact digests rather than mocked completion."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "skills/ultra-delegate/scripts/host-profile.cjs",
+        "skills/ultra-delegate/scripts/delegate.cjs",
+        ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/SUMMARY.json"
+      ],
+      "rationale": "No new feature flag, dependency, hidden fallback, provider-brand semantic branch or maturity promotion was added. Existing legacy N=1 admission stays separate from the exact retained enforcement gate."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json",
+        "skills/ultra-delegate/scripts/delegate.cjs",
+        "tests/delegate.test.cjs",
+        ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+      ],
+      "rationale": "The slice crosses reserved/dispatched/terminal call state, exact installed ACP adapter and App runtime, real provider turn, product permission gate, persisted receipt, retained qualification, pre-launch admission and both public process diagnostics. Its negative outcome is consumed directly rather than upgraded into a fake positive capability."
+    },
+    "spec_trace": {
+      "status": "gap",
+      "evidence_refs": [
+        ".ultra/specs/product.md#requirement-fr-06-bounded-delegation",
+        ".ultra/specs/architecture.md#delegation-boundary",
+        ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+        ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+        ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/SUMMARY.json"
+      ],
+      "rationale": "D1Q-01 and D1Q-03 through D1Q-05 remain supported, but D1Q-02 is reopened by aggregate Review review-spec-001. The negative receipt proves fail-closed unavailability, not the positive exact-Host effect qualification required to close D1-AC03."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "152a8f45453d42744e7faca1fd7f2048c24ec2f892fdc036e89968e374755930",
+      "limitation": null
+    },
+    "session_id": "vnext-d1-host-enforcement-delta-1-review-20260902",
+    "summary_ref": ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/SUMMARY.json",
+    "summary_digest": "62b04ccd3840d8acd4f7b25f44d3e97fe05d48f5d382ef1f96d47f9c482e21bb",
+    "blocking_findings": [
+      {
+        "id": "review-spec-001",
+        "resolution": "Moved a pure all-transports-unavailable capability admission ahead of executable candidate identity probes.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "skills/ultra-delegate/scripts/delegate.cjs",
+          "tests/delegate.test.cjs",
+          ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+        ]
+      },
+      {
+        "id": "review-code-001",
+        "resolution": "The shared launch path now refuses an unsupported exact Host before any adapter or runtime identity command executes.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "skills/ultra-delegate/scripts/delegate.cjs",
+          "tests/delegate.test.cjs"
+        ]
+      },
+      {
+        "id": "review-tests-001",
+        "resolution": "Added a process-boundary regression proving refusal precedes an executable identity probe and leaves no launch artifact.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "tests/delegate.test.cjs",
+          ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+        ]
+      },
+      {
+        "id": "review-errors-002",
+        "resolution": "Pre-admission now preserves the exact typed unsupported-dimension recovery path without crossing an unqualified executable boundary.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "skills/ultra-delegate/scripts/delegate.cjs",
+          "tests/delegate.test.cjs"
+        ]
+      },
+      {
+        "id": "review-design-001",
+        "resolution": "Reused the existing capability record and admission helper as a provider-neutral preflight instead of adding a second policy engine.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "skills/ultra-delegate/scripts/delegate.cjs",
+          ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/SUMMARY.json"
+        ]
+      },
+      {
+        "id": "review-spec-003",
+        "resolution": "Both public process boundaries now emit one stable redacted diagnostic carrying the error code and admission object.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "skills/ultra-delegate/scripts/delegate.cjs",
+          "bin/install.js",
+          "tests/delegate.test.cjs"
+        ]
+      },
+      {
+        "id": "review-code-002",
+        "resolution": "Centralized the existing error projection so direct Skill and compatibility launchers preserve typed enforcement state.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "skills/ultra-delegate/scripts/delegate.cjs",
+          "bin/install.js",
+          "tests/delegate.test.cjs"
+        ]
+      },
+      {
+        "id": "review-tests-002",
+        "resolution": "Added exact public-process tests for the typed, redacted unavailable diagnostic at both launcher seams.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "tests/delegate.test.cjs",
+          ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+        ]
+      },
+      {
+        "id": "review-errors-001",
+        "resolution": "The process error contract now remains machine-readable without exposing environment values, paths outside retained policy facts or provider output.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          "skills/ultra-delegate/scripts/delegate.cjs",
+          "bin/install.js",
+          "tests/delegate.test.cjs"
+        ]
+      },
+      {
+        "id": "review-spec-002",
+        "resolution": "Refreshed only the two stale product and architecture source blob bindings in the canonical research distillate.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          ".ultra/specs/research-distillate.md",
+          ".ultra/specs/product.md",
+          ".ultra/specs/architecture.md",
+          ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+        ]
+      }
+    ],
+    "retention": "Retain the exact initial REQUEST_CHANGES and delta-1 APPROVE strict Review sessions, including each WORKER-PACKET.json, ADMISSION.json, selected specialist artifact and SUMMARY.json, until aggregate Test and Deliver have consumed Task 2 successfully."
+  },
+  "artifacts": [
+    ".ultra/specs/research-distillate.md",
+    ".ultra/specs/architecture.md",
+    ".ultra/specs/product.md",
+    "bin/install.js",
+    "docs/ARCHITECTURE.md",
+    "docs/ARTIFACT-AUTHORITY.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/delegate.test.cjs",
+    "tests/v026-contract.test.cjs",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-attempt.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json",
+    "work/vnext-d1-zcode-host-enforcement-qualification.md",
+    "work/vnext-d1-zcode-host-enforcement-repair-1.md",
+    ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/SUMMARY.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+  ],
+  "limitations": [
+    "The installed diagnostic cites a source-repository-only .ultra/evidence receipt that is absent from the npm package; this retained review-code-003 P2 is not auto-repaired.",
+    "A future positive qualification still compares retained expected profile identity constants rather than a concrete just-observed candidate identity; retained review-code-004 P2.",
+    "The current package-reference regression accepts the unshipped source evidence reference; retained review-tests-003 P2.",
+    "Installed admission policy remains coupled to a development-repository provenance record; retained review-design-002 P2.",
+    "Hosts without an enforcement qualification record retain admitted/null legacy N=1 semantics; a future factory consumer must explicitly require the qualified gate; retained review-design-003 P2.",
+    "A Host-created session may escape portable PID/process-group observation; the exact selected route is unavailable rather than positively qualified.",
+    "Start-identity proof remains weaker on non-Linux platforms; conservative unknown recovery prevents unsafe cleanup but does not invent a stronger portable identity.",
+    "A crash while holding the fence-registry .lock may leave that registry lock stale; no TTL or generic lease mechanism was added.",
+    "The Task Review ran sequentially in shared Codex context and is not the later Codex plus Claude stage-level joint Review.",
+    "Aggregate Review vnext-d1-aggregate-review-20260902 supersedes the prior completion claim with open P1 review-spec-001; D1Q-02 remains a gap and the task is in_progress pending an Owner-authorized positive qualification retry or explicit criterion revision.",
+    "No commit, push, tag, publish, deploy, real-HOME installation, credential access/change, package fetch, production operation, purchase, or other external effect was authorized or performed."
+  ],
+  "timestamp": "2026-09-01T17:36:37Z"
+}

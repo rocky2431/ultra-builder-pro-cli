@@ -1,11 +1,23 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ACP_PROTOCOL_VERSION = 1;
 const DEFAULT_CAPTURE_LIMIT_BYTES = 4 * 1024 * 1024;
+const WRITER_OBSERVATION_SCHEMA = 'ultra-delegation-writer-v2';
+const WRITER_OBSERVATION_PHASES = new Set(['not_started', 'launching', 'started']);
+const WRITER_OBSERVATION_FIELDS = Object.freeze([
+  '$schema', 'delegation_id', 'launch_id', 'phase', 'pid', 'pgid', 'platform',
+  'command', 'argv_digest', 'started_at', 'start_identity',
+]);
+// Test-scoped deterministic fault injection for the writer-observation
+// transition seams. The delegated worker environment is rebuilt from the
+// launcher policy and never carries this key, so no installed run path can
+// trigger it.
+const OBSERVATION_FAULT_ENV = 'UBP_DELEGATE_TEST_FAULT_OBSERVATION';
 
 class AgentExecutionDriver {
   constructor(spec) {
@@ -99,6 +111,323 @@ function executablePath(command, env = process.env) {
     } catch {}
   }
   return null;
+}
+
+// The final Host environment is rebuilt from the digest-bound spec alone: the
+// key names the launcher recorded plus the launcher-authorized spec.env. A
+// driver must never merge its own full process.env back into a descendant.
+function descendantSpawnEnv(spec) {
+  const env = {};
+  if (Array.isArray(spec?.env_keys)) {
+    for (const key of spec.env_keys) {
+      if (typeof key === 'string' && process.env[key] !== undefined) env[key] = process.env[key];
+    }
+  }
+  return Object.assign(env, spec?.env && typeof spec.env === 'object' ? spec.env : {});
+}
+
+function writeObservationAtomic(file, payload) {
+  const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`;
+  try {
+    fs.writeFileSync(temporary, `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
+    fs.renameSync(temporary, file);
+  } finally {
+    try { fs.unlinkSync(temporary); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+}
+
+function readWriterObservationFile(file) {
+  try {
+    const value = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writerIdentity(spec) {
+  const delegationId = typeof spec?.delegation_id === 'string' && spec.delegation_id
+    ? spec.delegation_id
+    : null;
+  const launchId = typeof spec?.launch_id === 'string' && spec.launch_id
+    ? spec.launch_id
+    : null;
+  return delegationId && launchId ? { delegationId, launchId } : null;
+}
+
+// The exact observation schema plus the delegation/launch identity binding.
+// Evidence that does not match this contract proves nothing and must be
+// treated as an unknown boundary, never as a stopped one. Each phase also
+// carries exact invariants: not_started has no process identity at all,
+// launching has command/argv identity but no pid/pgid/start identity, and
+// started has a real pid with its detached-POSIX pgid (or a null pgid on
+// Windows). An observation in an impossible state proves nothing.
+function validateWriterObservation(observation, identity, { platform = process.platform } = {}) {
+  if (!observation || typeof observation !== 'object' || Array.isArray(observation)) return null;
+  const keys = Object.keys(observation);
+  if (keys.length !== WRITER_OBSERVATION_FIELDS.length
+      || !WRITER_OBSERVATION_FIELDS.every((field) => keys.includes(field))) {
+    return null;
+  }
+  if (observation.$schema !== WRITER_OBSERVATION_SCHEMA) return null;
+  if (typeof observation.delegation_id !== 'string' || !observation.delegation_id) return null;
+  if (typeof observation.launch_id !== 'string' || !observation.launch_id) return null;
+  if (!WRITER_OBSERVATION_PHASES.has(observation.phase)) return null;
+  const hasCommandIdentity = typeof observation.command === 'string' && !!observation.command
+    && /^[0-9a-f]{64}$/u.test(observation.argv_digest);
+  if (observation.phase === 'not_started') {
+    if (observation.pid !== null || observation.pgid !== null
+        || observation.command !== null || observation.argv_digest !== null
+        || observation.start_identity !== null) {
+      return null;
+    }
+  } else if (observation.phase === 'launching') {
+    if (observation.pid !== null || observation.pgid !== null
+        || observation.start_identity !== null || !hasCommandIdentity) {
+      return null;
+    }
+  } else {
+    if (!Number.isInteger(observation.pid) || observation.pid <= 0) return null;
+    if (platform === 'win32') {
+      if (observation.pgid !== null) return null;
+    } else if (observation.pgid !== observation.pid) {
+      return null;
+    }
+    if (!hasCommandIdentity) return null;
+  }
+  if (!(observation.pgid === null || (Number.isInteger(observation.pgid) && observation.pgid > 0))) {
+    return null;
+  }
+  if (typeof observation.platform !== 'string' || observation.platform !== platform) return null;
+  if (!(observation.command === null || typeof observation.command === 'string')) return null;
+  if (!(observation.argv_digest === null || /^[0-9a-f]{64}$/u.test(observation.argv_digest))) {
+    return null;
+  }
+  if (typeof observation.started_at !== 'string' || !observation.started_at) return null;
+  if (observation.start_identity !== null) {
+    const recorded = observation.start_identity;
+    if (typeof recorded !== 'object' || Array.isArray(recorded)
+        || Object.keys(recorded).length !== 2
+        || typeof recorded.type !== 'string' || !recorded.type
+        || typeof recorded.value !== 'string' || !recorded.value) {
+      return null;
+    }
+  }
+  if (identity) {
+    if (observation.delegation_id !== identity.delegationId
+        || observation.launch_id !== identity.launchId) {
+      return null;
+    }
+  }
+  return observation;
+}
+
+// Linux exposes a kernel start time per PID; a stable read makes PID reuse
+// distinguishable from a still-running writer. Other platforms carry null and
+// rely on the liveness probes alone.
+function processStartIdentity(pid, {
+  platform = process.platform,
+  readFileSync = fs.readFileSync,
+} = {}) {
+  if (platform === 'linux' && Number.isInteger(pid) && pid > 0) {
+    try {
+      const stat = String(readFileSync(`/proc/${pid}/stat`, 'utf8'));
+      const afterComm = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+      const starttime = afterComm[19];
+      if (starttime && /^\d+$/.test(starttime)) {
+        return { type: 'linux_procfs_starttime', value: starttime };
+      }
+    } catch {}
+  }
+  return null;
+}
+
+function observationFaultActive(seam) {
+  return process.env[OBSERVATION_FAULT_ENV] === seam;
+}
+
+function writeObservationPhase(file, {
+  identity,
+  phase,
+  pid = null,
+  pgid = null,
+  platform = process.platform,
+  command = null,
+  argv = null,
+  startIdentity = null,
+  now = () => new Date().toISOString(),
+}) {
+  const observation = {
+    $schema: WRITER_OBSERVATION_SCHEMA,
+    delegation_id: identity?.delegationId ?? null,
+    launch_id: identity?.launchId ?? null,
+    phase,
+    pid,
+    pgid,
+    platform,
+    command: typeof command === 'string' ? command : null,
+    argv_digest: Array.isArray(argv)
+      ? crypto.createHash('sha256').update(JSON.stringify(argv)).digest('hex')
+      : null,
+    started_at: now(),
+    start_identity: startIdentity,
+  };
+  writeObservationAtomic(file, observation);
+  return observation;
+}
+
+// The conservative pre-spawn transition: no Host may exist until this phase is
+// durably persisted for the exact launch identity. The transition is only
+// valid from an existing identity-bound not_started observation — evidence
+// from another identity or a skipped phase is refused, never overwritten.
+function markWriterLaunching(spec, {
+  platform = process.platform,
+  now = () => new Date().toISOString(),
+} = {}) {
+  if (!spec?.writer_observation) return false;
+  const identity = writerIdentity(spec);
+  if (!identity) return false;
+  if (!fs.existsSync(spec.writer_observation)) return false;
+  const existing = validateWriterObservation(
+    readWriterObservationFile(spec.writer_observation),
+    identity,
+    { platform },
+  );
+  if (!existing || existing.phase !== 'not_started') return false;
+  if (typeof spec.command !== 'string' || !spec.command
+      || !Array.isArray(spec.args) || !spec.args.every((item) => typeof item === 'string')) {
+    return false;
+  }
+  if (observationFaultActive('launching')) return false;
+  try {
+    const observation = writeObservationPhase(spec.writer_observation, {
+      identity,
+      phase: 'launching',
+      platform,
+      command: spec.command,
+      argv: spec.args,
+      now,
+    });
+    return validateWriterObservation(observation, identity, { platform }) !== null;
+  } catch {
+    return false;
+  }
+}
+
+// The post-spawn transition: once a real child PID exists, the started
+// observation must be durably persisted or the caller must treat the launch as
+// unobservable. Only a valid identity-bound launching observation may advance.
+function observeWriterStart(spec, child, {
+  now = () => new Date().toISOString(),
+  platform = process.platform,
+  readFileSync = fs.readFileSync,
+} = {}) {
+  if (!spec?.writer_observation || !child || !Number.isInteger(child.pid) || child.pid <= 0) {
+    return null;
+  }
+  const identity = writerIdentity(spec);
+  if (!identity) return null;
+  if (!fs.existsSync(spec.writer_observation)) return null;
+  const existing = validateWriterObservation(
+    readWriterObservationFile(spec.writer_observation),
+    identity,
+    { platform },
+  );
+  if (!existing || existing.phase !== 'launching') return null;
+  if (observationFaultActive('started')) return null;
+  try {
+    const observation = writeObservationPhase(spec.writer_observation, {
+      identity,
+      phase: 'started',
+      pid: child.pid,
+      // Both drivers launch the Host detached, so on POSIX the child is its own
+      // process-group leader and the group id equals the pid.
+      pgid: platform === 'win32' ? null : child.pid,
+      platform,
+      command: typeof spec.command === 'string' ? spec.command : null,
+      argv: Array.isArray(spec.args) ? spec.args : null,
+      startIdentity: processStartIdentity(child.pid, { platform, readFileSync }),
+      now,
+    });
+    return validateWriterObservation(observation, identity, { platform });
+  } catch {
+    return null;
+  }
+}
+
+// The explicit proven-safe restoration to not_started: an OS-confirmed spawn
+// failure with no child PID, or a proven-stopped boundary before a relaunch.
+// It is a caller-owned truth decision, never a default transition.
+function rewindWriterNotStarted(spec, {
+  platform = process.platform,
+  allowedPriorPhases = ['launching'],
+  now = () => new Date().toISOString(),
+} = {}) {
+  if (!spec?.writer_observation) return false;
+  const identity = writerIdentity(spec);
+  if (!identity) return false;
+  if (!fs.existsSync(spec.writer_observation)) return false;
+  const existing = validateWriterObservation(
+    readWriterObservationFile(spec.writer_observation),
+    identity,
+    { platform },
+  );
+  if (!existing || !allowedPriorPhases.includes(existing.phase)) return false;
+  try {
+    const observation = writeObservationPhase(spec.writer_observation, {
+      identity,
+      phase: 'not_started',
+      platform,
+      now,
+    });
+    return validateWriterObservation(observation, identity, { platform }) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function probeProcessAlive(target, kill = process.kill) {
+  try {
+    kill(target, 0);
+    return true;
+  } catch (error) {
+    // EPERM means the target exists but is not ours; that is liveness.
+    return error && error.code === 'EPERM';
+  }
+}
+
+// stopped requires an explicit valid not_started observation or a started
+// observation whose writer and process group are gone with a matching start
+// identity. Missing, unreadable, invalid, mismatched, or launching evidence is
+// unknown — never proof of a stop.
+function deriveWriterState(observation, {
+  platform = process.platform,
+  kill = process.kill,
+  readFileSync = fs.readFileSync,
+  identity = null,
+} = {}) {
+  const validated = validateWriterObservation(observation, identity, { platform });
+  if (!validated) return 'unknown';
+  if (validated.phase === 'not_started') return 'stopped';
+  if (validated.phase === 'launching') return 'unknown';
+  if (probeProcessAlive(validated.pid, kill)) {
+    const recorded = validated.start_identity && typeof validated.start_identity === 'object'
+      && !Array.isArray(validated.start_identity)
+      ? validated.start_identity
+      : null;
+    if (recorded) {
+      const current = processStartIdentity(validated.pid, { platform, readFileSync });
+      if (!current || current.type !== recorded.type || current.value !== recorded.value) {
+        return 'unknown';
+      }
+    }
+    return 'alive';
+  }
+  if (Number.isInteger(validated.pgid) && validated.pgid > 0
+      && probeProcessAlive(-validated.pgid, kill)) {
+    return 'unknown';
+  }
+  return 'stopped';
 }
 
 function capability(acp, probe = {}) {
@@ -264,6 +593,16 @@ function selectExecutionDriver({
   };
 }
 
+// The one launch-bound writer-boundary view consumed by launch decisions
+// (the ACP-to-CLI fallback): missing evidence is unknown, never stopped.
+function launchBoundWriterState(spec) {
+  return spec?.writer_observation && fs.existsSync(spec.writer_observation)
+    ? deriveWriterState(readWriterObservationFile(spec.writer_observation), {
+      identity: writerIdentity(spec),
+    })
+    : 'unknown';
+}
+
 async function runExecutionDriver(spec) {
   if (spec.execution_driver === 'acp') {
     const { AcpDriver } = require('./acp-driver.cjs');
@@ -272,6 +611,26 @@ async function runExecutionDriver(spec) {
     if (acpResult.failureType === 'acp_auth_required'
         && fallback && typeof fallback.command === 'string'
         && Array.isArray(fallback.args)) {
+      // The fallback is a second Host launch on the same root. It may only
+      // start once the first ACP boundary is proven stopped; an alive or
+      // unprovable boundary keeps the outcome unknown and the fence retained.
+      const boundary = launchBoundWriterState(spec);
+      if (boundary !== 'stopped') {
+        return {
+          ...acpResult,
+          failureType: 'outcome_unknown',
+          failureSummary: `ACP authentication fallback was blocked: the first ACP launch boundary is ${boundary}; the CLI fallback was not started and the worktree fence is retained.`,
+        };
+      }
+      // The proven-stopped first boundary is explicitly restored to
+      // not_started so the second launch traverses the full valid transition.
+      if (!rewindWriterNotStarted(spec, { allowedPriorPhases: ['started'] })) {
+        return {
+          ...acpResult,
+          failureType: 'outcome_unknown',
+          failureSummary: 'ACP authentication fallback was blocked: the stopped first boundary could not be restored to a not_started proof; the CLI fallback was not started and the worktree fence is retained.',
+        };
+      }
       const { CliDriver } = require('./cli-driver.cjs');
       const cliResult = await new CliDriver({
         ...spec,
@@ -312,9 +671,21 @@ module.exports = {
   AgentExecutionDriver,
   BoundedCapture,
   DEFAULT_CAPTURE_LIMIT_BYTES,
+  WRITER_OBSERVATION_SCHEMA,
+  deriveWriterState,
+  descendantSpawnEnv,
   executablePath,
   inspectCandidateIdentity,
+  launchBoundWriterState,
+  markWriterLaunching,
+  observeWriterStart,
+  processStartIdentity,
+  readWriterObservationFile,
+  rewindWriterNotStarted,
   runExecutionDriver,
   selectExecutionDriver,
   terminateProcessGroup,
+  validateWriterObservation,
+  writeObservationPhase,
+  writerIdentity,
 };

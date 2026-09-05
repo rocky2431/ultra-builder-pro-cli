@@ -72,7 +72,7 @@ function printHelp() {
     ${paint('cyan', '--codex')}            Codex CLI (OpenAI)
     ${paint('cyan', '--kimi')}             Kimi Code (Moonshot AI)
     ${paint('cyan', '--grok')}             Grok Build (xAI)
-    ${paint('cyan', '--zcode')}            ZCode (Z.AI)
+    ${paint('cyan', '--zcode')}            ZCode Desktop
     ${paint('cyan', '--all')}              all supported runtimes
 
   ${paint('yellow', 'Scope:')}
@@ -323,7 +323,19 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error(paint('red', '  Fatal: ') + err.message);
+  // Delegate-origin typed failures reuse the Skill-local projection so the
+  // compatibility boundary emits the same one stable diagnostic; every other
+  // error keeps the generic installer failure line.
+  let diagnosticLine = null;
+  try {
+    const { failureDiagnosticLine } = require('./delegate.cjs');
+    diagnosticLine = failureDiagnosticLine(err);
+  } catch { /* fall through to the generic installer failure */ }
+  if (diagnosticLine) {
+    process.stderr.write(diagnosticLine);
+  } else {
+    console.error(paint('red', '  Fatal: ') + err.message);
+  }
   if (process.env.UBP_DEBUG) console.error(err.stack);
   process.exit(1);
 });

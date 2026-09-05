@@ -1,4 +1,4 @@
-# Ultra Builder PHILOSOPHY (v0.26)
+# Ultra Builder Pro Philosophy
 
 **Authority**: This document defines the harness design philosophy. Every hook, Skill, template,
 and CLI behavior must be justifiable by these principles. Conflicts → cite the principle, not the

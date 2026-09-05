@@ -21,7 +21,7 @@ writing authority to a different Agent requires an explicit verified transfer
 
 ## Ultra Builder Pro 5.0
 
-Version `5.0.1` is the current implementation of Ultra as a cognitive-alignment harness
+Version `5.0.2` is the current implementation of Ultra as a cognitive-alignment harness
 for real software engineering. It preserves the accepted 3.0 file-first and model-agency
 constitution, then makes workflow position, recovery, and cross-Agent execution directly
 observable. It is not a decentralized multi-agent platform and it does not prescribe one
@@ -44,8 +44,9 @@ only after the exact Host has passed a recorded conformance drill; otherwise the
 result contract uses a reported CLI fallback. The portable protocol and native
 installation cover Claude Code, Codex, OpenCode, Kimi Code, Grok Build, and ZCode. All
 six profiles expose stable ACP v1 candidates and have their own current real-provider
-receipt. Each selects ACP only while its recorded executable and candidate identity
-still match; otherwise it returns a typed CLI fallback. ZCode uses an independently
+receipt. Each selects ACP only while its recorded executable, protocol/receipt binding,
+and any candidate-identity probes declared by that profile still match; otherwise it
+returns a typed CLI fallback. ZCode uses an independently
 installed, source-pinned bridge and remains `experimental`.
 
 5.0 deliberately does not add a daemon, workflow service, semantic state machine, A2A
@@ -78,10 +79,10 @@ The package installs exactly fourteen Skills in three roles.
 | `ultra-research` | Establish an accepted North Star and evidence-backed baseline |
 | `ultra-change` | Reconcile one requested delta against the accepted baseline |
 | `ultra-plan` | Write tracer-bullet tasks, contexts, dependencies, and seams |
-| `ultra-dev` | Implement one task through red/green development and six evidence dimensions |
+| `ultra-dev` | Implement one task through red/green development and the six evidence dimensions `tests_written`, `tests_passed`, `persistence_real`, `feature_flags_audit`, `vertical_slice`, and `spec_trace` |
 | `ultra-test` | Audit whole-system wiring, E2E behavior, performance, and security |
 | `ultra-deliver` | Reconcile, review, document, and archive a completed Change |
-| `ultra-delegate` | Run bounded task work, Research evidence, or aggregate review through another supported CLI |
+| `ultra-delegate` | Delegate bounded task work, Research evidence, or aggregate Review to another installed Agent runtime through ACP-first stable v1 with a typed CLI fallback |
 
 ### Model-invoked disciplines
 
@@ -123,7 +124,7 @@ map, evidence convergence, owner checkpoints, and baseline promotion.
 
 ### What happened to the original Agents
 
-Version 5.0.1 does not install a custom `agents/` projection. The old review workers became the
+Version 5.0.2 does not install a custom `agents/` projection. The old review workers became the
 six focused files under `ultra-review/references/`; review coordination and synthesis
 belong to the parent `ultra-review` Skill. The old debugger procedure lives under
 `ultra-dev/references/debugging.md`, and test execution lives under
@@ -204,17 +205,17 @@ Node.js 22 or newer is required.
 
 ```bash
 # Current project, one host
-npx ultra-builder-pro-cli@5.0.1 --claude --local
-npx ultra-builder-pro-cli@5.0.1 --codex --local
+npx ultra-builder-pro-cli@5.0.2 --claude --local
+npx ultra-builder-pro-cli@5.0.2 --codex --local
 
 # Global installation
-npx ultra-builder-pro-cli@5.0.1 --opencode --global
-npx ultra-builder-pro-cli@5.0.1 --kimi --global
-npx ultra-builder-pro-cli@5.0.1 --grok --global
-npx ultra-builder-pro-cli@5.0.1 --zcode --global
+npx ultra-builder-pro-cli@5.0.2 --opencode --global
+npx ultra-builder-pro-cli@5.0.2 --kimi --global
+npx ultra-builder-pro-cli@5.0.2 --grok --global
+npx ultra-builder-pro-cli@5.0.2 --zcode --global
 
 # All supported hosts
-npx ultra-builder-pro-cli@5.0.1 --all --global
+npx ultra-builder-pro-cli@5.0.2 --all --global
 ```
 
 ZCode ACP delegation additionally requires the independently built bridge and an
@@ -238,12 +239,29 @@ binary on `PATH`; its `--version` must report
 outside macOS.
 
 Provider identity is separate from the Host: ZCode Desktop is the runtime, while the
-model account may be domestic 智谱 BigModel or international Z.AI. A domestic BigModel
-Coding Plan config uses the official Anthropic-compatible endpoint
-`https://open.bigmodel.cn/api/anthropic` and a BigModel API key in
-`~/.zcode/cli/config.json`; it must not use the Z.AI OAuth login. The live 5.0 drill used
-`builtin:bigmodel-coding-plan/GLM-5.2`. See the
-[official BigModel Claude API compatibility guide](https://docs.bigmodel.cn/cn/guide/develop/claude/introduction).
+model account may be domestic 智谱 BigModel, international Z.AI, or another configured
+provider. Current model connections belong in the ZCode UI and
+`~/.zcode/v2/config.json`; `~/.zcode/cli/config.json` owns CLI plugins, Hooks, MCP, and
+other headless-runtime settings, not the canonical model-account configuration.
+BigModel account authorization needs no manually entered URL. A BigModel Coding Plan
+API key uses the OpenAI-compatible coding endpoint
+`https://open.bigmodel.cn/api/coding/paas/v4`; the Anthropic-compatible
+`https://open.bigmodel.cn/api/anthropic` endpoint applies to the separate resource-package
+or prepaid-balance path. Follow the current
+[ZCode model configuration](https://zcode.z.ai/en/docs/configuration),
+[ZCode provider Q&A](https://zcode.z.ai/en/docs/qa), and
+[BigModel Claude compatibility guide](https://docs.bigmodel.cn/cn/guide/develop/claude/introduction).
+The dated ZCode 0.16.5 conformance drill used
+`builtin:bigmodel-coding-plan/GLM-5.2` through its pinned headless configuration; that
+receipt is historical compatibility evidence, not universal setup guidance.
+
+Because the ZCode transport remains `experimental`, every actual delegation launch
+must acknowledge that boundary explicitly:
+
+```bash
+node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to zcode \
+  --ack-experimental --instruction <file> --permission <file> --worktree <dir>
+```
 
 These pinned `npx` commands resolve the immutable registry version after publication.
 Source-tree verification uses `node bin/install.js --config-dir <isolated-path>` when
@@ -261,13 +279,13 @@ Installation is managed, atomic, and provenance-checked.
 
 ```bash
 # Re-running install updates the managed artifact
-npx ultra-builder-pro-cli@5.0.1 --codex --global
+npx ultra-builder-pro-cli@5.0.2 --codex --global
 
 # Read-only diagnosis
-npx ultra-builder-pro-cli@5.0.1 --all --global --doctor --json
+npx ultra-builder-pro-cli@5.0.2 --all --global --doctor --json
 
 # Remove only managed Ultra assets
-npx ultra-builder-pro-cli@5.0.1 --all --global --uninstall
+npx ultra-builder-pro-cli@5.0.2 --all --global --uninstall
 ```
 
 `--config-dir <path>` isolates both the primary config and host-owned sidecars. It is
@@ -352,8 +370,8 @@ remain history, not the frontier.
 The workflow does not treat “tests pass” as an end-to-end verdict.
 
 - `ultra-plan` rejects horizontal feature slicing and confirms observable seams.
-- `ultra-dev` records tests, persistence, feature flags, vertical execution, and spec
-  trace as six separate observations.
+- `ultra-dev` records the six separate observations `tests_written`, `tests_passed`,
+  `persistence_real`, `feature_flags_audit`, `vertical_slice`, and `spec_trace`.
 - `ultra-test` searches changed exports for real non-test consumers and runs the
   smallest primary flow through its boundary.
 
@@ -382,8 +400,8 @@ Host-local `AgentExecutionDriver` and starts it in the background. ACP is select
 for an executable stdio endpoint that negotiates stable v1 and has a passed per-Host
 conformance record with evidence; otherwise the same result contract uses `CliDriver`
 and reports the exact fallback reason. All six current Host rows have their own passing
-real-provider receipt; a missing executable, candidate-identity mismatch, or
-stale/missing receipt still returns the typed CLI fallback. An ACP authentication error
+real-provider receipt; a missing executable, a failed declared candidate-identity probe
+(when present), or a stale/missing receipt still returns the typed CLI fallback. An ACP authentication error
 detected before `session/prompt` runs the bounded CLI path once and records
 `acp_auth_required`; no other ACP failure is retried, so Ultra cannot duplicate a
 provider task. Empty
@@ -416,8 +434,8 @@ ZCode resolves only the installed Desktop runtime through the independently inst
 `zcode-acp` bridge and remains `experimental`. Its capability, read-only,
 permission, cancellation/no-orphan, cwd/diff, result-parity, and redaction drills pass;
 promotion still requires an official stability contract for the App-internal runtime.
-Doctor reports runner health, ACP capability, candidate identity, selected driver,
-fallback reason, and ZCode maturity independently.
+Doctor reports runner health, ACP capability, declared candidate identity when present,
+selected driver, fallback reason, and ZCode maturity independently.
 
 ## Host support
 
@@ -456,20 +474,20 @@ conformance rather than semantic acceptance.
 
 ## Documentation
 
-- [5.0 design and acceptance contract](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) —
+- [5.0 design and acceptance contract](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) —
   Route, Skill ownership, continuation, ACP/CLI execution, migration, and journey
-  boundaries implemented by 5.0.1.
+  boundaries implemented by 5.0.2.
 - [5.0 journey results](docs/evals/ultra-5-0-journey-results.md) — observable source,
   isolated-runtime, real-provider, real-HOME, and cross-platform outcomes plus the
   deliberately excluded service-deployment boundary.
-- [Current authority](.ultra/north-star.md) — this repository's accepted
+- [Current authority](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/.ultra/north-star.md) — this repository's accepted
   North Star, revision `north-star-v2-r3`, is the canonical current authority;
   `.ultra/tasks.json` and the stable Change under `.ultra/changes/active/` or
   `.ultra/changes/archive/` record the current or delivered work frontier.
 - Frozen design history (immutable accepted records, not live status):
-  [3.0 North Star R3](docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md) —
+  [3.0 North Star R3](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md) —
   the hash-bound accepted r3 design — and
-  [3.0 design](docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md), superseded by r3.
+  [3.0 design](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md), superseded by r3.
 - [Philosophy](docs/PHILOSOPHY.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Artifact Authority](docs/ARTIFACT-AUTHORITY.md)

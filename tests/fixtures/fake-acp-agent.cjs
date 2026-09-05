@@ -4,11 +4,18 @@
 const fs = require('node:fs');
 const { spawn } = require('node:child_process');
 
-const scenario = process.env.FAKE_ACP_SCENARIO || 'happy';
-const traceFile = process.env.FAKE_ACP_TRACE;
-const childPidFile = process.env.FAKE_ACP_CHILD_PID;
-const result = process.env.FAKE_ACP_RESULT || '{}';
-const location = process.env.FAKE_ACP_LOCATION || process.cwd();
+// A delegation-scoped config file keeps fixture behavior reachable when the
+// sanitized descendant environment no longer forwards launcher env keys.
+const config = process.argv[2]
+  ? JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+  : null;
+const scenario = config?.scenario ?? process.env.FAKE_ACP_SCENARIO ?? 'happy';
+const traceFile = config?.trace ?? process.env.FAKE_ACP_TRACE;
+const childPidFile = config?.childPidFile ?? process.env.FAKE_ACP_CHILD_PID;
+const result = config ? JSON.stringify(config.result ?? {}) : (process.env.FAKE_ACP_RESULT || '{}');
+const location = config?.location ?? process.env.FAKE_ACP_LOCATION ?? process.cwd();
+const envCapture = config?.envCapture ?? process.env.FAKE_ACP_ENV_CAPTURE;
+if (envCapture) fs.writeFileSync(envCapture, `${Object.keys(process.env).sort().join('\n')}\n`);
 let promptRequestId = null;
 let permissionRequestId = null;
 
@@ -144,6 +151,21 @@ function handle(message) {
     }
     if (scenario === 'no-result') {
       send({ id: promptRequestId, result: { stopReason: 'end_turn' } });
+      return;
+    }
+    if (scenario === 'finish-live-group') {
+      // A syntactically valid finished turn whose same-process-group descendant
+      // keeps writing after the adapter exits: the boundary is not provable.
+      startGrandchild();
+      update({
+        sessionUpdate: 'plan',
+        entries: [{ content: 'Finish while a descendant keeps running', priority: 'high', status: 'in_progress' }],
+      });
+      finishPrompt();
+      return;
+    }
+    if (scenario === 'env-capture') {
+      finishPrompt();
       return;
     }
     if (scenario === 'malformed-update') {

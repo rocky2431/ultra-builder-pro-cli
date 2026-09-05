@@ -202,10 +202,12 @@ portable hook cannot receive every host's trusted owner-approval receipt. Histor
 rewrites, branch deletion, and the narrower named destructive effects can be denied;
 their repair is authorization scoped to the exact command digest.
 
-## Delegation is a process boundary
+## Delegation is an Agent execution boundary
 
-The installed `ultra-delegate/scripts/delegate.cjs` starts a supported CLI with an
-immutable instruction, explicit permission JSON, and named worktree. Its exact
+The installed `ultra-delegate/scripts/delegate.cjs` selects an installed Agent runtime
+through conformance-gated ACP-first stable v1 or a typed result-compatible CLI fallback,
+then starts it with an immutable instruction, explicit permission JSON, and named
+worktree. Its exact
 digest-bound sources are embedded in
 the worker prompt because some native sandboxes correctly deny reads outside the
 worktree. Files remain the cross-host state; the embedded copy is transport, not another

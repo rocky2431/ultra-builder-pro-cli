@@ -12,7 +12,8 @@ Protocol (accepted 3.0 design: `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md`; accepted r
 revision: `docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md`). The host
 model owns intent interpretation, route selection, decomposition, semantic
 completeness, and final expression. Ultra supplies fourteen portable Skills, five
-optional hooks, host adapters, delegated CLI execution, and the repository files
+optional hooks, host adapters, Skill-local ACP-first delegated Agent execution with a
+typed result-compatible CLI fallback, and the repository files
 needed to resume work across sessions and hosts. Authorization is explicit and
 dual-mode — session-local by default, durable work-package only via an exact owner
 grant recorded under `.ultra/decisions/`; no file, status, Hook, or Resume note
@@ -34,9 +35,10 @@ deployment providers, framework guidance, or unrelated productivity capabilities
   model-invoked Skills, one router, six hosts, and five hooks.
 - `skills/*/SKILL.md`: reusable host-neutral workflow and discipline prompts.
 - `adapters/*.js`: native installation, update, doctor, and uninstall behavior.
-- `skills/ultra-delegate/scripts/host-profile.cjs`: canonical installed non-interactive
-  delegation argv for six CLIs and their transport maturity (the ZCode App-bundled CLI
-  is `experimental`); `adapters/_shared/host-profile.cjs` is a compatibility re-export.
+- `skills/ultra-delegate/scripts/host-profile.cjs`: canonical installed ACP candidates,
+  compatibility CLI profiles, candidate-identity probes, and transport maturity for six
+  Hosts (the ZCode App-bundled runtime is `experimental`);
+  `adapters/_shared/host-profile.cjs` is a compatibility re-export.
 - `skills/ultra-change/references/primary-transfer.md` plus
   `skills/ultra-change/scripts/validate_primary_transfer.cjs`: the primary-transfer
   contract between Agents and its receipt validator.
@@ -53,9 +55,12 @@ are disposable or reconstructable observations, never semantic authority.
 
 Adapt semantics, not names. Shared Skills remain host-neutral; invocation policy,
 frontmatter transformation, hooks, registries, and filesystem locations belong in the
-adapter. Public workflows require explicit owner invocation and may recommend, but may
-not launch, another public workflow. Model-invoked disciplines are reusable internal
-methods and need at least two canonical callers.
+adapter. Public modes are either `explicit-only`, `grant-continuable`, or the read-only
+router: explicit-only modes require a current owner selection, while grant-continuable
+modes may transition only under a verified live Execution Grant for that exact Change.
+One public workflow may recommend the next; it does not bypass the resident mode and
+grant guard by directly launching another public workflow. Model-invoked disciplines
+are reusable internal methods and need at least two canonical callers.
 
 ## Development workflow
 

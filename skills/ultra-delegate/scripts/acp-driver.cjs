@@ -9,6 +9,10 @@ const {
   AgentExecutionDriver,
   BoundedCapture,
   DEFAULT_CAPTURE_LIMIT_BYTES,
+  descendantSpawnEnv,
+  markWriterLaunching,
+  observeWriterStart,
+  rewindWriterNotStarted,
   terminateProcessGroup,
 } = require('./agent-execution-driver.cjs');
 
@@ -398,6 +402,14 @@ class AcpDriver extends AgentExecutionDriver {
     if (!path.isAbsolute(spec.cwd)) {
       return this.failure('acp_invalid_cwd', 'ACP cwd must be absolute.');
     }
+    // A Host that cannot be observed must not be launched: without a durable
+    // launching observation the writer boundary would stay unknowable.
+    if (!markWriterLaunching(spec)) {
+      return this.failure(
+        'writer_observation_unavailable',
+        'The ACP host was not launched because its writer observation could not be persisted.',
+      );
+    }
     const journal = new DerivedEventJournal(spec.events);
     const stderr = new BoundedCapture(spec.capture_limit_bytes || DEFAULT_CAPTURE_LIMIT_BYTES);
     const protocolStdout = new BoundedCapture(spec.capture_limit_bytes || DEFAULT_CAPTURE_LIMIT_BYTES);
@@ -419,10 +431,27 @@ class AcpDriver extends AgentExecutionDriver {
     const pendingPermissions = new Map();
     const child = spawn(spec.command, spec.args, {
       cwd: spec.cwd,
-      env: { ...process.env, ...spec.env },
+      env: descendantSpawnEnv(spec),
       detached: process.platform !== 'win32',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
+    // A real adapter PID that was not durably recorded can never be proven
+    // stopped later: the known child boundary is terminated immediately and
+    // the driver fails before any protocol handshake or useful Host work.
+    if (Number.isInteger(child.pid) && child.pid > 0 && !observeWriterStart(spec, child)) {
+      child.on('error', () => {});
+      child.stdout.on('data', () => {});
+      child.stderr.on('data', (chunk) => stderr.append(chunk));
+      child.stdin.on('error', () => {});
+      terminateProcessGroup(child, 'SIGKILL');
+      try { child.stdin.end(); } catch {}
+      protocolStdout.write(spec.stdout);
+      stderr.write(spec.stderr);
+      return this.failure(
+        'writer_start_unobserved',
+        'The ACP host PID existed but its started writer observation could not be persisted; the child boundary was terminated and no host work was performed.',
+      );
+    }
     child.stderr.on('data', (chunk) => stderr.append(chunk));
     child.on('error', (error) => {
       spawnError = error;
@@ -711,6 +740,12 @@ class AcpDriver extends AgentExecutionDriver {
           ? new AcpFailure('acp_rpc_error', 'ACP request returned a JSON-RPC error.')
           : new AcpFailure('acp_protocol_error', 'ACP transport failed.');
       const wasTermination = ['cancelled', 'timeout'].includes(failure.failureType);
+      if (spawnError && !Number.isInteger(child.pid)) {
+        // An OS-confirmed spawn failure with no child PID restores an explicit
+        // releasable not_started proof instead of freezing an impossible
+        // writer behind an adapter that never existed.
+        rewindWriterNotStarted(spec, { allowedPriorPhases: ['launching'] });
+      }
       const closed = await shutdown({ cancel: wasTermination || !!sessionId });
       outcome = {
         code: closed?.code ?? null,

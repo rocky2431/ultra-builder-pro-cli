@@ -2,8 +2,9 @@
 
 ## Scope
 
-- **Boundary**: npm package source, six adapters, fourteen Skills, five Hooks, bounded
-  delegate, canonical project assets, tests, and maintained v0.26 documentation.
+- **Boundary**: Ultra Builder Pro 5.0.2 npm package source, six adapters, fourteen
+  Skills, five Hooks, installed Skill-local ACP-first delegation with a typed CLI
+  fallback, canonical project assets, tests, and maintained documentation.
 - **Revision**: base HEAD `fc055021bcfeee3e8c6781b9545d267f5eb73cbd` plus the current owner-accepted reconciliation.
 - **Quality goals**: semantic agency, six-host portability, deterministic mechanical
   enforcement, truthful evidence, reversible installation, and file/Git recovery.
@@ -15,7 +16,7 @@ Owner ──explicit route or verified grant──> owner workflow ──writes�
                               │
                               ├── model discipline (method, selected by host model)
                               ├── Hook (bounded context/observation/effect guard)
-                              └── delegate CLI ──isolated worktree──> validated receipt
+                              └── delegated Agent runtime ──ACP-first / typed CLI fallback──> isolated worktree + validated receipt
 
 Installer ──host adapter──> native managed plugin/bundle + provenance + Doctor
 ```
@@ -88,7 +89,7 @@ exit evidence without adding a `research_complete` flag.
 
 ### Bounded automatic coding
 
-Five public workflows may be discoverable to the host model, but each resident entry
+Six public Skills contain grant-continuable modes discoverable to the host model, but each resident entry
 guard first requires a live execution grant in one of two modes. A `session-local`
 grant stops as soon as its conversation activation is lost; a `durable work-package`
 grant lets a fresh Agent or host continue only after the Agent stably verifies the
@@ -137,8 +138,9 @@ with a live consumer.
 
 ## Agent-to-Skill Convergence
 
-The original package installed ten host-specific custom agents. v0.26 removes that
-projection and preserves the useful method at the smallest portable surface:
+The original package installed ten host-specific custom agents. The historical v0.26
+transition removed that projection and preserved each useful method at the smallest
+portable surface; 5.0.2 retains this boundary:
 
 | Retired agent | Current canonical home | Relationship to whole workflow |
 |---|---|---|
@@ -156,11 +158,11 @@ the same lenses sequentially when no such surface exists.
 | Host | Managed surface | Owner/model policy | Known native boundary |
 |---|---|---|---|
 | Claude Code | managed Skill plugin with direct Hooks | frontmatter separates explicit and implicit routes | native permission mode controls delegate tools |
-| Codex | plugin root, marketplace entry, Skills plus `agents/openai.yaml` metadata | `allow_implicit_invocation` expresses role | installed Hooks require separate user review/trust |
+| Codex | plugin root, marketplace entry, Skills plus `agents/openai.yaml` metadata | `allow_implicit_invocation` expresses role | Hook trust is Host-owned; Doctor reports `host_managed` with `observable: false` instead of requesting repeated user trust |
 | OpenCode | native JS plugin plus managed Skill directories | descriptions guide selection | no native owner/model routing bit |
 | Kimi Code | managed plugin registry under `KIMI_CODE_HOME` | native Skill metadata | plugin scope is user-only; unattended tool approval is coarse |
 | Grok Build | native plugin source/registration | native frontmatter | plugin scope is user-only; sandbox behavior remains host-owned |
-| ZCode | managed local marketplace plus inline plugin directory | portable descriptions and resident grant guard | plugin scope is user-only; headless provider state is separately owner-configured; the App-bundled CLI fallback is a verified-local **experimental** transport — official documentation plus a full recovery drill must both hold before any `supported` claim |
+| ZCode | managed local marketplace plus inline plugin directory | portable descriptions and resident grant guard | plugin scope is user-only; the source-pinned ACP bridge uses an App-internal runtime and remains **experimental**, requires `--ack-experimental`, and keeps Host/provider configuration separate |
 
 `adapters/_shared/runtime-assets.cjs` is the only packaged allowlist.
 `plugin-core.cjs` copies shared assets and the canonical init template.
@@ -184,10 +186,11 @@ Only the remaining named externally verifiable destructive effects fail closed.
 
 ## Delegation Boundary
 
-`ubp delegate run` requires one immutable instruction file, a strict
-`ultra-delegation-permission-v1` JSON file, a supported host, a clean registered Git
-worktree, and a timeout. It records SHA-256 digests, atomically acquires `run.lock`, and
-starts one background worker. The exact digest-bound instruction and permission sources
+The canonical installed `ultra-delegate/scripts/delegate.cjs` runner requires one
+immutable instruction file, a strict `ultra-delegation-permission-v1` JSON file, a
+supported Host, a clean registered Git worktree, and a timeout. `ubp delegate` is a
+one-release compatibility wrapper, not the canonical entry. The runner records SHA-256
+digests, atomically acquires `run.lock`, and starts one background worker. The exact digest-bound instruction and permission sources
 are embedded in the prompt, so a strict native sandbox need not read outside the
 worktree; the files remain canonical and the embedded copy is transport only.
 
@@ -197,22 +200,40 @@ Only task execution requires a task row. Research and aggregate scopes may be re
 keeping pre-Plan evidence and post-task review reachable without manufacturing ledger
 work.
 
-The worker validates inputs before and after execution, invokes exactly one host profile,
+`AgentExecutionDriver` selects conformance-gated ACP-first stable v1 when the executable,
+current passed receipt, protocol binding, and any identity probes declared by that Host
+all pass. Every unavailable or stale condition selects the typed result-compatible CLI
+fallback and records the exact reason; a started provider task is never retried across
+drivers. Before the worktree fence, the worker spec, or any Host process exists, packet
+admission through the retained host enforcement qualification compares the Packet's
+required enforcement dimensions — `writable_scope` for write packets plus
+`outside_root_denial`, `shell_tool_denial`, `agent_tool_network_denial`, and
+`point_of_use_effect_boundary` for every packet — with the exact Host capability facts
+for the selected transport and installed identity. A qualification record exists only
+where an exact-version coordinator-owned observation was retained; a missing, unknown,
+unsupported, or version-mismatched dimension returns one typed
+`host_enforcement_unavailable` diagnostic, creates no Host process, and never falls
+back silently. The retained ZCode 0.16.5 ACP qualification observed `writable_scope`
+unsupported and every later effect dimension unobserved, so both ZCode transports stay
+unavailable for delegation packets without changing their experimental maturity;
+separately authorized provider transport, adapter preinstallation, env-key isolation,
+credential-value redaction and receipt truth are recorded as distinct facts and never
+satisfy a Packet enforcement dimension. The worker validates inputs before and after execution, invokes exactly one Host profile,
 enforces timeout/cancellation, extracts one strict final result from native structured
 output, computes the actual Git diff from base HEAD including untracked files, rejects
 undeclared or escaped writes, and atomically writes the terminal receipt. The model does
 not write its own receipt. Nonzero exit cannot become `finished`.
 
-| Host | Fitted invocation | Deliberate limitation |
+| Host | ACP-first candidate and compatibility CLI profile | Deliberate limitation |
 |---|---|---|
 | Claude | structured print mode; plan/read tools or acceptEdits/file tools; no Bash or web | native workspace path policy remains Claude-owned |
 | Codex | ephemeral exec; read-only or workspace-write; user config ignored, project rules preserved, network disabled | native sandbox permits the whole worktree rather than individual declared roots |
 | OpenCode | auto mode under inline deny-by-default permissions; external directories, Bash, web and subagents denied | inline configuration support is version-bound |
 | Kimi | prompt mode with launch-only read/write file-tool agent profile; no Bash, web, MCP or subagents | native file tools do not expose a portable per-root CLI policy |
 | Grok | single turn; read-only or workspace OS sandbox; no memory/subagents/web | sandbox profile semantics remain Grok-owned |
-| ZCode | headless plan/edit mode with Bash, web and subagents denied; write tools also denied in read-only mode; shared profile selects the macOS App-bundled CLI before `PATH` | **experimental** transport (verified-local only): explicit CLI provider configuration is required, current help advertises some root-parser-rejected flags, and no public stability contract exists; a delegation receipt can never upgrade into a primary transfer |
+| ZCode | source-pinned `zcode-acp` bridge over the installed App-internal runtime; headless plan/edit compatibility profile remains result-compatible | **experimental** transport (verified-local only): launch requires `--ack-experimental`; the retained host enforcement qualification refuses both transports before launch for every delegation Packet; current model configuration belongs in the ZCode UI or `~/.zcode/v2/config.json`; no public runtime stability contract exists; a delegation receipt can never upgrade into a primary transfer |
 
-Therefore v0.26 accepts an empty `external_effects` list, removes shell, web and subagent
+Therefore the current portable launcher accepts an empty `external_effects` list, removes shell, web and subagent
 tools where native surfaces permit, and combines native isolation with a verified Git
 diff. It does not falsely claim a per-root OS sandbox on hosts that do not expose one.
 The parent treats the isolated diff and receipt as untrusted input, inspects them, and

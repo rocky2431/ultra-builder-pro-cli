@@ -2,6 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -13,10 +14,43 @@ const HARNESS = path.join(
 );
 const FAKE_AGENT = path.join(__dirname, 'fixtures', 'fake-acp-agent.cjs');
 
-test('ACP conformance harness exercises the real delegation path and retains only redacted facts', (t) => {
+function canary(label) {
+  return `ubp-d1-${label}-${crypto.randomUUID()}`;
+}
+
+function runHarness(root, scenario, extras = {}) {
+  const output = path.join(root, `receipt-${scenario}.json`);
+  const hostEnvKeys = path.join(root, `host-env-keys-${scenario}.txt`);
+  const configPath = path.join(root, `agent-config-${scenario}.json`);
+  const canaries = [
+    { label: 'primary control', name: 'CLAUDE_CODE_SESSION_TOKEN', value: canary('primary'), prohibitName: true },
+    { label: 'unrelated provider', name: 'ANTHROPIC_API_KEY', value: canary('unrelated'), prohibitName: true },
+    { label: 'same-provider decoy', name: 'OPENAI_WEBHOOK_SECRET', value: canary('webhook'), prohibitName: true },
+    { label: 'provider-namespace decoy', name: 'ANTHROPIC_ADMIN_API_KEY', value: canary('admin'), prohibitName: true },
+    { label: 'selected host auth', name: 'OPENAI_API_KEY', value: canary('selected') },
+  ];
+  fs.writeFileSync(configPath, JSON.stringify({ scenario, envCapture: hostEnvKeys, ...extras }));
+  const env = { ...process.env };
+  for (const item of canaries) env[item.name] = item.value;
+  const run = spawnSync(process.execPath, [
+    HARNESS,
+    '--host', 'codex',
+    '--output', output,
+    '--timeout', '10',
+    '--command', process.execPath,
+    '--args-json', JSON.stringify([FAKE_AGENT, configPath]),
+  ], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 30000,
+    env,
+  });
+  return { run, output, hostEnvKeys, canaries };
+}
+
+test('ACP conformance exercises the real delegation path with a sanitized Host environment and retains only redacted facts', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-acp-conformance-test-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const output = path.join(root, 'receipt.json');
   const result = {
     $schema: 'ultra-delegation-result-v1',
     status: 'finished',
@@ -27,24 +61,8 @@ test('ACP conformance harness exercises the real delegation path and retains onl
     questions: [],
     residual_risks: [],
   };
+  const { run, output, hostEnvKeys, canaries } = runHarness(root, 'happy', { result });
 
-  const run = spawnSync(process.execPath, [
-    HARNESS,
-    '--host', 'codex',
-    '--output', output,
-    '--timeout', '10',
-    '--command', process.execPath,
-    '--args-json', JSON.stringify([FAKE_AGENT]),
-  ], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    timeout: 20000,
-    env: {
-      ...process.env,
-      FAKE_ACP_SCENARIO: 'happy',
-      FAKE_ACP_RESULT: JSON.stringify(result),
-    },
-  });
   assert.equal(run.status, 0, run.stderr || run.stdout);
   const receipt = JSON.parse(fs.readFileSync(output, 'utf8'));
   assert.equal(receipt.$schema, 'ultra-acp-conformance-receipt-v1');
@@ -73,4 +91,97 @@ test('ACP conformance harness exercises the real delegation path and retains onl
     status: 'passed',
     receipt: output,
   }));
+
+  const hostKeys = fs.readFileSync(hostEnvKeys, 'utf8').split('\n').filter(Boolean);
+  assert.ok(hostKeys.includes('PATH'), 'runtime PATH must reach the conformance Host');
+  assert.ok(hostKeys.includes('OPENAI_API_KEY'), 'the selected-Host auth input must reach the conformance Host');
+  for (const banned of [
+    'CLAUDE_CODE_SESSION_TOKEN', 'ANTHROPIC_API_KEY',
+    'OPENAI_WEBHOOK_SECRET', 'ANTHROPIC_ADMIN_API_KEY',
+    'UBP_DELEGATE_INSTRUCTION_FILE', 'UBP_DELEGATE_PERMISSION_FILE', 'UBP_DELEGATE_WORKTREE',
+  ]) {
+    assert.ok(!hostKeys.includes(banned), `conformance Host seam leaked ${banned}`);
+  }
+  for (const item of canaries) {
+    assert.ok(!source.includes(item.value), `the receipt retained the ${item.label} canary value`);
+    if (item.prohibitName) {
+      assert.ok(!source.includes(item.name), `the receipt retained the ${item.label} canary key name`);
+    }
+  }
+});
+
+test('ACP conformance receipts classify failure types without inventing diagnostics', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-acp-conformance-test-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  // `missing_result` and `outcome_unknown` occupy the same receipt branch: a
+  // failure_type is copied verbatim and neither diagnostic claims it. The
+  // `acp_`-prefixed transport failures are the only ones routed to
+  // transport_diagnostic, so an outcome_unknown conformance failure can never
+  // masquerade as a provider transport defect.
+  const missing = runHarness(root, 'no-result');
+  assert.notEqual(missing.run.status, 0, 'a missing terminal result must fail conformance');
+  const missingReceipt = JSON.parse(fs.readFileSync(missing.output, 'utf8'));
+  assert.equal(missingReceipt.result.status, 'failed');
+  assert.equal(missingReceipt.result.failure_type, 'missing_result');
+  assert.equal(missingReceipt.result.validation_diagnostic, null);
+  assert.equal(missingReceipt.result.transport_diagnostic, null);
+  assert.equal(missingReceipt.result.worker_exit_observed, true);
+
+  const malformed = runHarness(root, 'malformed');
+  assert.notEqual(malformed.run.status, 0);
+  const malformedReceipt = JSON.parse(fs.readFileSync(malformed.output, 'utf8'));
+  assert.equal(malformedReceipt.result.failure_type, 'acp_malformed_message');
+  assert.equal(malformedReceipt.result.validation_diagnostic, null);
+  assert.equal(typeof malformedReceipt.result.transport_diagnostic, 'string');
+  assert.ok(malformedReceipt.result.transport_diagnostic.length > 0);
+});
+
+test('ACP conformance consumes the literal outcome_unknown branch without provider content', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-acp-conformance-unknown-'));
+  const childPidFile = path.join(root, 'live-descendant.pid');
+  let childPid = null;
+  t.after(() => {
+    if (childPid) {
+      try { process.kill(childPid, 'SIGKILL'); } catch {}
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const result = {
+    $schema: 'ultra-delegation-result-v1',
+    status: 'finished',
+    summary: 'secret provider response must not persist',
+    changed_files: [],
+    checks: [],
+    evidence: [],
+    questions: [],
+    residual_risks: [],
+  };
+  const { run, output, canaries } = runHarness(root, 'finish-live-group', {
+    result,
+    childPidFile,
+  });
+
+  // The adapter returned a syntactically valid finished turn, but a
+  // same-process-group descendant stayed alive: conformance must fail through
+  // the literal outcome_unknown branch, not a provider transport branch.
+  assert.notEqual(run.status, 0, 'an unproven writer boundary must fail conformance');
+  const receipt = JSON.parse(fs.readFileSync(output, 'utf8'));
+  assert.equal(receipt.result.status, 'failed');
+  assert.equal(receipt.result.failure_type, 'outcome_unknown');
+  assert.equal(receipt.result.validation_diagnostic, null);
+  assert.equal(receipt.result.transport_diagnostic, null);
+  assert.equal(receipt.result.stop_reason, 'end_turn');
+  childPid = Number(fs.readFileSync(childPidFile, 'utf8'));
+  assert.ok(Number.isInteger(childPid) && childPid > 0);
+  try { process.kill(childPid, 0); } catch { assert.fail('the live descendant must still be alive'); }
+
+  const source = fs.readFileSync(output, 'utf8');
+  assert.doesNotMatch(source, /secret provider response|Execute one bounded|raw-secret/u);
+  for (const item of canaries) {
+    assert.ok(!source.includes(item.value), `the receipt retained the ${item.label} canary value`);
+    if (item.prohibitName) {
+      assert.ok(!source.includes(item.name), `the receipt retained the ${item.label} canary key name`);
+    }
+  }
 });

@@ -1,0 +1,11 @@
+{
+  "runId": "2026-09-04T233548172Z-research-compute-loop-b7bc153d",
+  "flowName": "research-compute-loop",
+  "startedAt": "2026-09-04T23:35:48.174Z",
+  "finishedAt": "2026-09-04T23:35:48.179Z",
+  "updatedAt": "2026-09-04T23:35:48.179Z",
+  "status": "failed",
+  "statusDetail": "Unsupported JSON path: next",
+  "error": "Unsupported JSON path: next",
+  "sessionBindings": {}
+}

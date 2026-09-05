@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.2] — 2026-08-26
+
+### Fixed
+
+- Reconciled every maintained delegation surface around the installed Skill-local,
+  ACP-first `AgentExecutionDriver`; the result-compatible CLI driver is now described
+  consistently as a typed fallback rather than as the product definition.
+- Corrected current six-Host authority: candidate-identity probes are required when a
+  profile declares them, Codex Hook trust is host-managed and not observable through
+  Doctor, and explicit-only versus grant-continuable public modes match runtime metadata.
+- Named all six task-evidence dimensions exactly and closed every relative README link
+  inside the npm package.
+- Separated ZCode Desktop Host configuration from provider identity, documented the
+  current ZCode model-provider location and BigModel Coding Plan endpoint, preserved
+  the pinned 0.16.5 drill as historical evidence, and exposed the required
+  `--ack-experimental` launch acknowledgement.
+
 ## [5.0.1] — 2026-08-26
 
 ### Fixed
@@ -50,8 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installed `ultra-delegate` Skill. The package-level `ubp delegate` command is a thin
   one-release compatibility wrapper rather than a day-to-day runtime dependency.
 - Activated ACP-first delivery for all six shipped Host profiles only while each exact
-  executable, candidate identity, protocol version, and current conformance receipt
-  remain valid. Any unavailable or stale boundary still returns the typed,
+  executable, protocol version, current conformance receipt, and any candidate-identity
+  probe declared by that profile remain valid. Any unavailable or stale boundary still returns the typed,
   result-compatible CLI fallback without an automatic provider retry.
 - Connected ZCode Desktop through the independently built `zcode-acp` v0.1.0 bridge at
   commit `42fe149d4b501469343c01f23ba3801832306d53` plus the shipped digest-bound ZCode

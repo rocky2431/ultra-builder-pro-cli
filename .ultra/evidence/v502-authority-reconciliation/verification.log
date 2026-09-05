@@ -1,0 +1,79 @@
+Ultra Builder Pro 5.0.2 authority-reconciliation verification
+Timestamp: 2026-08-31T20:56:39Z
+CWD: /Users/rocky243/Context Engineering/ultra-builder-pro-cli
+HEAD: adb7bfe89f40e107d0c9c490076a6e74294b9337
+Change: chg-ultra-5-0-2-authority-reconciliation
+Completion product-worktree digest: 730b202d0b9e2e5d18a7baff606216f46a653d1631940c467cdcd29c403b7cd6
+Candidate: ultra-builder-pro-cli@5.0.2, dirty local source, not published
+
+Focused maintained-authority and package contract
+Command: node --test tests/v026-contract.test.cjs tests/package-smoke.test.cjs
+Result: exit 0; 100 tests, 100 passed, 0 failed, 0 skipped.
+Observed coverage includes ACP-first delegation wording, Host/provider guidance,
+README/package closure, explicit Deliver authority, task-evidence/review consumption,
+and bounded worktree-digest behavior.
+
+Full local release gate
+Command: npm run verify:release
+Result: exit 0.
+- Node: 663 tests, 663 passed, 0 failed, 0 cancelled, 0 skipped, 0 todo.
+- Hooks: 89 passed.
+- npm audit --omit=dev --audit-level=high: 0 vulnerabilities.
+
+Dry-run package inspection
+Command: npm pack --dry-run --json
+Result: exit 0; no tarball written.
+- id: ultra-builder-pro-cli@5.0.2
+- entryCount: 141
+- size: 381113 bytes
+- unpackedSize: 1359775 bytes
+- shasum: 85ebf158928da5d781833e3489af9f56079a190f
+- integrity: sha512-1uX5/xvOIdRKKtrQwtJ/xzmkLB+HgTPu+wRpK3Dqi24IsYisSPk7I/0Hhjkk//d12gy87oc5GK4IdYdUk6q5Ow==
+
+Changed Skill validation
+Commands:
+- uv run --offline --with pyyaml -- python /Users/rocky243/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/ultra-delegate
+- uv run --offline --with pyyaml -- python /Users/rocky243/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/ultra-status
+Result: both commands exit 0; both Skills report "Skill is valid!". Offline mode was
+used; no package installation or publication occurred.
+
+Isolated six-Host lifecycle
+Commands:
+- node bin/install.js --all --global --config-dir /tmp/ubp-v502-doctor.6W5X4F
+- node bin/install.js --all --global --config-dir /tmp/ubp-v502-doctor.6W5X4F --doctor --json
+- node bin/install.js --all --global --config-dir /tmp/ubp-v502-doctor.6W5X4F --uninstall
+- find /tmp/ubp-v502-doctor.6W5X4F -mindepth 1 -print
+Result: exit 0; aggregate Doctor healthy; all six Host reports healthy at package
+5.0.2; every AgentExecutionDriver selected ACP with fallback_reason null; Codex Hook
+trust remained host-managed; ZCode transport remained experimental and
+installed-runtime-only. Uninstall completed for all six Hosts and the final find emitted
+no entries. The real HOME was not mutated.
+
+Current real-HOME read-only Doctor observation
+Command: node bin/install.js --all --global --doctor --json
+Result: exit 2 with expected aggregate degraded status; this was an observation, not
+an installation. All six installed packages remain 5.0.1 and report
+PACKAGE_VERSION_MISMATCH against the 5.0.2 source candidate. Every Host still selects
+ACP with fallback_reason null. Codex additionally reports HOST_PLUGIN_NOT_DISCOVERED;
+its Hook activation remains host_managed and unobservable. ZCode remains experimental.
+
+Current real-HOME Doctor assertion
+Command: node -e '<run bin/install.js --all --global --doctor --json; require child exit
+2, aggregate degraded, six installed 5.0.1 reports, ACP selected with null fallback,
+PACKAGE_VERSION_MISMATCH on all six, and HOST_PLUGIN_NOT_DISCOVERED on Codex>'
+Result: exit 0; the expected degraded observation and exact issue projection matched.
+
+Retained task Review replay
+Command: python3 skills/ultra-review/scripts/review_wait.py .ultra/reviews/v502-authority-reconciliation-final-review-20260901 summary --packet-digest 1f5fa1ae90e6a8e402e2e52960f4860e684b6af2e48f1217ccb4b5d2e282c175
+Result: exit 0; APPROVE; P0=0, P1=0, P2=2, P3=0; admission digest
+12b8b1b2d8e13d548311a863fad3bcaac8e4a963ceea37052605573767dc8704;
+subject digest 21e0236fb04825841906dd6f4db4bdda98daabafbf9e41d3d90c6ed39ffe4e10;
+summary digest 80d99b24366d09adcf09c61dc2a8a4d103f25b322a6beafd802a866704de92c0.
+Owner disposition retains review-spec-001 and review-comments-001 as non-blocking P2.
+
+Formatting and scope
+Command: git diff --check
+Result: exit 0; no whitespace errors.
+
+No commit, push, tag, publish, deploy, real-HOME installation, credential operation,
+provider purchase, or other external effect was performed.

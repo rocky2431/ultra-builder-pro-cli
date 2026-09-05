@@ -1,0 +1,60 @@
+Task: vnext-d1-host-enforcement-qualification
+Change: chg-ultra-vnext-d1-delegation-safety
+Completion subject:
+  git_head: adb7bfe89f40e107d0c9c490076a6e74294b9337
+  worktree_digest: 6c46f1d04bff499ea89cb60d114cefc91b84bed864eef41d5806b56efb00e2b0
+  observed_at: 2026-09-01T17:07:41Z
+
+[focused gate]
+command: node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/v026-contract.test.cjs
+cwd: /Users/rocky243/Context Engineering/ultra-builder-pro-cli
+result: PASS, 194 tests, 0 failures
+
+[focused repeat after an unlocalized transient]
+observation: An earlier TAP-tail run reported 193 pass and 1 failure without retaining the failing subtest name. No product or test source changed afterward. Two immediate identical compact reruns each completed with 194 tests, 0 failures, and exit code 0. The unlocalized result was not treated as a reproducible defect and did not consume Repair 2.
+command: node --test --test-reporter=dot tests/delegate.test.cjs tests/acp-driver.test.cjs tests/v026-contract.test.cjs
+repeat_1: PASS, FOCUSED_EXIT=0
+repeat_2: PASS, FOCUSED_REPEAT_EXIT=0
+
+[full release gate]
+command: npm run verify:release
+cwd: /Users/rocky243/Context Engineering/ultra-builder-pro-cli
+result: PASS
+node_tests: 712 passed, 0 failed, 0 skipped
+hook_tests: 89 passed
+npm_audit: found 0 vulnerabilities
+
+[changed Skill validation]
+command: /Users/rocky243/.local/pipx/venvs/agent-reach/bin/python /Users/rocky243/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/ultra-delegate
+result: PASS, Skill is valid!
+environment_note: Two prior attempts with Python interpreters that did not expose the already-required PyYAML module failed before validation with ModuleNotFoundError. No dependency was installed; the same canonical validator then passed under an existing local interpreter with PyYAML.
+
+[package dry run]
+command: npm pack --dry-run --json
+result: PASS
+package: ultra-builder-pro-cli@5.0.2
+filename: ultra-builder-pro-cli-5.0.2.tgz
+package_size: 403051
+unpacked_size: 1438101
+files: 141
+
+[diff hygiene]
+command: git diff --check
+result: PASS, DIFF_CHECK_EXIT=0
+
+[strict Task Review]
+session: vnext-d1-host-enforcement-delta-1-review-20260902
+packet_sha256: 152a8f45453d42744e7faca1fd7f2048c24ec2f892fdc036e89968e374755930
+summary_sha256: 62b04ccd3840d8acd4f7b25f44d3e97fe05d48f5d382ef1f96d47f9c482e21bb
+verdict: APPROVE
+current_findings: 0
+retained_non_blocking_findings: 5 Task 2 P2 plus 3 Task 1 P2 limitations
+
+[selected Host observation]
+attempt_id: d1q-61ca5157911e4f61866cff5452bc942d
+attempt_sha256: 87b71b641d204907b8368b834db2093fb3cbb384e6023f8181c236d7972e0897
+receipt_sha256: 936c77949630c52a7ca128c0f780cc98b2f3a046e5ff8d500bb41cd145bdde01
+result: The exact ZCode ACP route reached one separately authorized provider call but could not prove the requested in-root edit location. The product denied the first edit, retained zero changed files and a stopped writer boundary, and classified writable scope plus all later unattempted effect dimensions as unsupported. Admission therefore remains fail-closed unavailable with no silent fallback, retry, or maturity change.
+
+[authority exclusions]
+No commit, push, tag, publish, deploy, real-HOME installation, credential access or mutation, package fetch, production operation, purchase, or other external effect was performed.

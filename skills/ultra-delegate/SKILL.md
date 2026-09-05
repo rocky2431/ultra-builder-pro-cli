@@ -1,6 +1,6 @@
 ---
 name: ultra-delegate
-description: Delegate one bounded workflow segment to another installed Agent runtime through a conformance-gated ACP or CLI driver in an isolated worktree, then return only its stable result artifact. Use when the owner asks for another model or host to execute, review, verify, or continue a specific slice of current work.
+description: Delegate one bounded workflow segment to another installed Agent runtime through conformance-gated ACP-first stable v1 with a typed result-compatible CLI fallback, then return only its stable isolated-worktree result. Use when the owner asks another model or host to execute, review, verify, or continue a specific slice of current work.
 ---
 
 # Run a bounded worker without giving it project authority
@@ -94,8 +94,8 @@ adapter packages through `npx`; that transport dependency is declared in the pro
 
 `<host>` is `claude`, `codex`, `opencode`, `kimi`, `grok`, or `zcode`. Kimi accepts an
 optional `--model <id>` when its account has no default headless model. A ZCode primary
-host uses this same command to delegate to any other installed CLI; a different primary
-host can select `--to zcode` through the ZCode headless profile.
+host uses this same command to delegate to any other installed Agent runtime; a different
+primary host can select `--to zcode --ack-experimental` through the ZCode headless profile.
 
 The launcher selects one `AgentExecutionDriver` per Host. A stable ACP v1 stdio
 candidate is preferred only when that exact Host's versioned conformance row is
@@ -109,6 +109,34 @@ conformance row merely because a binary or help command exists.
 `ULTRA_DELEGATE_FORCE_CLI=1` is the explicit operator recovery switch: it selects the
 same bounded `CliDriver` with `acp_forced_cli` without deleting the ACP candidate or
 changing its evidence row.
+
+Before the worktree fence, the worker spec, the worker, or any Host process exists,
+the launcher also admits the selected transport through the retained host enforcement
+qualification: it compares this Packet's required enforcement dimensions —
+`writable_scope` for a write packet, plus `outside_root_denial`, `shell_tool_denial`,
+`agent_tool_network_denial`, and `point_of_use_effect_boundary` for every packet —
+against the exact Host capability facts recorded for that transport and exact installed
+identity. A record exists only where an exact-version, coordinator-owned, redacted,
+no-production observation was retained; a Host without one makes no capability claim
+and keeps its conformance-gated admission. A missing, unknown, unsupported, or
+version-mismatched dimension returns one typed `host_enforcement_unavailable`
+diagnostic that creates no Host process and never falls back silently to another
+transport or Host.
+
+The one retained record binds the installed `zcode-acp 0.1.0+ultra.zcode.0.16.5`
+bridge over ZCode runtime `0.16.5`. Its single authorized call observed `writable_scope`
+unsupported — the ACP edit request carried no provable location, so the product denied
+it before any write — and every later effect dimension unobserved, so they stay
+unsupported rather than inferred from zero side effects. Both ZCode transports
+therefore answer any delegation Packet — read-only or write — with the typed
+unavailable diagnostic before launch, with no silent fallback to the CLI transport or
+another Host; analysis and other delegation stay available through their own qualified
+profiles, and the transport maturity stays `experimental`. Provider transport for the
+qualification call was separately authorized only and never grants Worker effects;
+adapter preinstallation (no runtime package fetch), env-key isolation,
+credential-value redaction and receipt truth are recorded as separate product-side
+facts that never satisfy a Packet enforcement dimension. The redacted receipt is
+retained under `.ultra/evidence/vnext-d1-host-enforcement-qualification/`.
 
 `AcpDriver` sends `initialize` with protocol v1 and no client filesystem, terminal, or
 interactive-auth capability; creates one session at the absolute isolated-worktree
@@ -144,7 +172,10 @@ can pass only from its own provider-backed conformance receipt. The runtime rema
 an App-internal or PATH CLI with
 no public stability contract, and it is **not** the documented ZCode Desktop
 interactive surface. `delegate run --to zcode` refuses to launch until the invocation
-explicitly carries `--ack-experimental`; every launch then prints a stderr warning and
+explicitly carries `--ack-experimental`; since the retained host enforcement
+qualification, an acknowledged ZCode invocation is still refused before launch by the
+typed `host_enforcement_unavailable` diagnostic. Any admitted experimental launch
+prints a stderr warning and
 records `transport_maturity: "experimental"`, the exact `transport_surface` wording,
 and `experimental_ack: true` in the receipt, the worker spec, and the terminal result
 (including failure and timeout recovery results), so no receipt can imply a documented
@@ -176,7 +207,7 @@ auto-merges or writes canonical task/evidence files.
 
 Three agreeing results are Consensus. Two of three are Majority and require examining
 the dissent. Three different results are No Consensus: narrow the question or add
-evidence. A failed external CLI does not block the underlying workflow; report the
+evidence. A failed delegated Agent runtime does not block the underlying workflow; report the
 missing evidence rather than turning a vote or score into truth.
 
 ## When the owner decides

@@ -1,0 +1,207 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "vnext-d1-runtime-safety-boundary",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "context": {
+    "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+    "acceptance_sha256": "5d8cda45a87088bd082e74dc84230333fad8567d5b022212000cf16157a9cb5e"
+  },
+  "subject": {
+    "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "worktree_digest": "08b259313b64823ec4e93ac75ba7833385f65d9dd2b2f3e249a455a709f7aabc",
+    "observed_at": "2026-09-01T16:41:17Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "D1R-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/verification.log",
+        "raw_evidence_sha256": "0aee78134b0cc7f9eb0e8034a2361d91eb491bdb909e2708ba2be1273d4a29f7",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "08b259313b64823ec4e93ac75ba7833385f65d9dd2b2f3e249a455a709f7aabc",
+          "observed_at": "2026-09-01T16:41:17Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "gap",
+        "rationale": "Aggregate Review review-tests-001 showed that the current gate inspects the derived worker environment object and real probe, ACP Host and CLI Host processes, but never observes the actual detached delegate-worker process. The production worker seam is therefore not protected against a future process.env regression, so D1R-01 remains open."
+      }
+    },
+    {
+      "criterion_id": "D1R-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/verification.log",
+        "raw_evidence_sha256": "0aee78134b0cc7f9eb0e8034a2361d91eb491bdb909e2708ba2be1273d4a29f7",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "08b259313b64823ec4e93ac75ba7833385f65d9dd2b2f3e249a455a709f7aabc",
+          "observed_at": "2026-09-01T16:41:17Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "gap",
+        "rationale": "Aggregate Review review-errors-001 reproduced outer-worker kill(0) EPERM as stopped because processAlive catches every error as false. Cancel or terminal recovery can therefore authorize cleanup without proof that the outer worker stopped, so D1R-02 remains open despite the existing green matrix."
+      }
+    },
+    {
+      "criterion_id": "D1R-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/verification.log",
+        "raw_evidence_sha256": "0aee78134b0cc7f9eb0e8034a2361d91eb491bdb909e2708ba2be1273d4a29f7",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "08b259313b64823ec4e93ac75ba7833385f65d9dd2b2f3e249a455a709f7aabc",
+          "observed_at": "2026-09-01T16:41:17Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Atomic fixtures reject exact and parent-child overlap, symlink/filesystem aliases and Windows case/separator aliases while admitting disjoint roots. Lock-claim readback now binds the exact start identity and every release path requires matching writer-stop proof."
+      }
+    },
+    {
+      "criterion_id": "D1R-04",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs; node --check skills/ultra-delegate/scripts/delegate.cjs; node --check skills/ultra-delegate/scripts/delegate-worker.cjs; node --check tests/delegate.test.cjs; git diff --check -- skills/ultra-delegate/scripts/agent-execution-driver.cjs skills/ultra-delegate/scripts/delegate.cjs skills/ultra-delegate/scripts/delegate-worker.cjs skills/ultra-delegate/scripts/acp-driver.cjs skills/ultra-delegate/scripts/cli-driver.cjs skills/ultra-delegate/scripts/host-profile.cjs tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs tests/fixtures/fake-acp-agent.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/verification.log",
+        "raw_evidence_sha256": "0aee78134b0cc7f9eb0e8034a2361d91eb491bdb909e2708ba2be1273d4a29f7",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "08b259313b64823ec4e93ac75ba7833385f65d9dd2b2f3e249a455a709f7aabc",
+          "observed_at": "2026-09-01T16:41:17Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "All 97 current targeted tests, three syntax checks and the scoped diff check pass. Proven-stopped cancellation/timeout, ACP-first selection, typed fallback/results, actual changed-path enforcement, explicit outcome_unknown conformance and the prior N=1 path remain green with no leaked process."
+      }
+    },
+    {
+      "criterion_id": "D1R-05",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-delegate/scripts/agent-execution-driver.cjs, skills/ultra-delegate/scripts/delegate.cjs, skills/ultra-delegate/scripts/delegate-worker.cjs, skills/ultra-delegate/scripts/acp-driver.cjs, skills/ultra-delegate/scripts/cli-driver.cjs, skills/ultra-delegate/scripts/host-profile.cjs, tests/delegate.test.cjs, tests/acp-driver.test.cjs, tests/acp-conformance.test.cjs, tests/fixtures/fake-acp-agent.cjs, and the retained strict evidence-reopen Task Review",
+        "observation": "The current integrated subject retains the planned target-aware environment, identity-bound writer/fence recovery and focused fixtures while the later Host admission repair adds no semantic next-step logic, durable lease, new result status, provider-brand policy branch, daemon, database, workflow engine or dependency. The evidence reopen itself changed no Task 1 implementation path.",
+        "revision": "adb7bfe89f40e107d0c9c490076a6e74294b9337+08b259313b64823ec4e93ac75ba7833385f65d9dd2b2f3e249a455a709f7aabc"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Codex's fresh focused evidence-reopen Review is APPROVE with no current P0-P3 finding, and the current integrated 97-test, syntax and scoped-diff checks found no Task 1 regression or unplanned orchestration surface."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "gap",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        "tests/acp-driver.test.cjs",
+        "tests/acp-conformance.test.cjs",
+        "tests/fixtures/fake-acp-agent.cjs"
+      ],
+      "rationale": "The task has broad deterministic coverage, but aggregate Review proved that it lacks a real detached delegate-worker environment capture and an outer-worker EPERM recovery regression. Those two missing tests leave D1R-01 and D1R-02 open."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/vnext-d1-runtime-safety-boundary/verification.log"
+      ],
+      "rationale": "The exact current focused gate passed 97 of 97 tests with zero failure or skip; syntax, scoped diff and strict Review replay also exited cleanly."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        ".ultra/evidence/vnext-d1-runtime-safety-boundary/verification.log"
+      ],
+      "rationale": "The fixtures use real temporary Git worktrees, ordinary files, atomic lock/fence readback and real child processes/process groups. Recovery is re-read from persisted facts rather than accepted from an in-memory mock."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+        "skills/ultra-delegate/scripts/host-profile.cjs",
+        ".ultra/reviews/vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902/SUMMARY.json"
+      ],
+      "rationale": "No new flag, dormant route, dependency or provider branch was added. Existing ACP-first selection and the already-explicit typed CLI fallback remain the only transport routes."
+    },
+    "vertical_slice": {
+      "status": "gap",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        "tests/acp-conformance.test.cjs",
+        ".ultra/evidence/vnext-d1-runtime-safety-boundary/verification.log"
+      ],
+      "rationale": "The gate crosses the normal launcher and Host lifecycle, but it does not independently observe the real detached delegate-worker environment and misclassifies an unprovable EPERM outer-worker state. The required D1 safety slice is therefore incomplete."
+    },
+    "spec_trace": {
+      "status": "gap",
+      "evidence_refs": [
+        ".ultra/specs/architecture.md#delegation-boundary",
+        ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+        ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+        ".ultra/reviews/vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902/SUMMARY.json"
+      ],
+      "rationale": "D1R-01 and D1R-02 are reopened by aggregate Review findings review-tests-001 and review-errors-001, so the Task 1 contribution to D1-AC01 and D1-AC02 is not closed. D1R-03 through D1R-05 remain supported and no Step 1 orchestration was introduced."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "95ea15a75a0a61792f38f11e6222c0f08a0deab86eef17243b20622f71ef26e5",
+      "limitation": null
+    },
+    "session_id": "vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902",
+    "summary_ref": ".ultra/reviews/vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902/SUMMARY.json",
+    "summary_digest": "752708c7a8d6b53871ef0b749e10d04ba980cfea69996387f7f3c3366bb8b89b",
+    "blocking_findings": [],
+    "retention": "Retain the exact initial, delta-1 and evidence-reopen delta-2 strict Review sessions, including every WORKER-PACKET.json and ADMISSION.json, selected specialist artifact and SUMMARY.json, until aggregate Test and Deliver have consumed Task 1 successfully."
+  },
+  "artifacts": [
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/acp-driver.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/delegate.test.cjs",
+    "tests/fixtures/fake-acp-agent.cjs",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+    "work/vnext-d1-zcode-runtime-safety-boundary-repair-2-timeout-continuation-delta-1.md",
+    ".ultra/reviews/vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902/SUMMARY.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/verification.log"
+  ],
+  "limitations": [
+    "A Host-created session may escape portable PID/process-group observation. The exact selected-Host enforcement observation is intentionally owned by D1 Task 2, not inferred from this fake-Host gate.",
+    "Start-identity proof remains weaker on non-Linux platforms; the conservative unknown path prevents unsafe cleanup but does not invent a portable stronger identity.",
+    "A crash while holding the fence registry .lock may leave that registry lock stale; no TTL or generic lease mechanism was added.",
+    "The task Review ran sequentially in shared Codex context and is not the later Codex plus Claude stage-level joint Review.",
+    "Aggregate Review vnext-d1-aggregate-review-20260902 supersedes the prior completion claim with open P1 findings review-tests-001 and review-errors-001; the task remains in_progress pending newly authorized repair and Review budget.",
+    "The selected real Host qualification and Task 2 Repair 1 are complete; the full aggregate release gate must be rerun after this replacement evidence is structurally validated.",
+    "No commit, push, tag, publish, deploy, real-HOME installation, credential access/change, package fetch, production operation, purchase, or other external effect was authorized or performed."
+  ],
+  "timestamp": "2026-09-01T17:36:37Z"
+}

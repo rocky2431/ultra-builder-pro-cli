@@ -6,7 +6,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
-const { runExecutionDriver } = require('./agent-execution-driver.cjs');
+const {
+  deriveWriterState,
+  processStartIdentity,
+  readWriterObservationFile,
+  runExecutionDriver,
+} = require('./agent-execution-driver.cjs');
+const { fenceHeldForLaunch, releaseWorktreeFence } = require('./delegate.cjs');
 
 const RESULT_SCHEMA = 'ultra-delegation-result-v1';
 const PROTECTED_ROOT = '.ultra';
@@ -228,6 +234,89 @@ function failure(spec, type, summary, exitCode = null, signal = null, files = []
   };
 }
 
+const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+// Boundary truth is derived only from an exact-schema observation bound to
+// this delegation and launch identity. Missing, unreadable, invalid,
+// mismatched, or still-launching evidence is unknown, never stopped.
+async function boundaryProof(spec, { waitMs = 3000, stepMs = 100 } = {}) {
+  const identity = { delegationId: spec.delegation_id, launchId: spec.launch_id };
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const observation = fs.existsSync(spec.writer_observation)
+      ? readWriterObservationFile(spec.writer_observation)
+      : null;
+    const state = deriveWriterState(observation, { identity });
+    if (state === 'stopped' || Date.now() + stepMs >= deadline) return state;
+    await delay(stepMs);
+  }
+}
+
+// The exact launch-bound lock claim: before any Host launch, the worker
+// durably binds its own PID and start identity to the lock that already
+// carries the delegation/launch identity and spec digest. A lock that does
+// not match this exact launch, or a claim that cannot be persisted and read
+// back, refuses the Host entirely.
+function claimWorkerLock(spec, expectedSpecDigest) {
+  let lock;
+  try {
+    lock = JSON.parse(fs.readFileSync(spec.lock, 'utf8'));
+  } catch {
+    return false;
+  }
+  if (!lock || typeof lock !== 'object' || Array.isArray(lock)) return false;
+  if (lock.delegation_id !== spec.delegation_id) return false;
+  if (lock.launch_id !== spec.launch_id) return false;
+  if (lock.spec_digest !== expectedSpecDigest) return false;
+  if (!(lock.pid === null || lock.pid === undefined || lock.pid === process.pid)) return false;
+  const claimed = {
+    delegation_id: spec.delegation_id,
+    launch_id: spec.launch_id,
+    started_at: typeof lock.started_at === 'string' && lock.started_at ? lock.started_at : spec.started_at,
+    spec_digest: expectedSpecDigest,
+    pid: process.pid,
+    worker_start_identity: processStartIdentity(process.pid),
+  };
+  try {
+    writeAtomic(spec.lock, claimed);
+    const persisted = JSON.parse(fs.readFileSync(spec.lock, 'utf8'));
+    // The readback must prove the exact identity just claimed — including an
+    // exact null where the platform records no stronger identity — so a lock
+    // replaced or altered between the atomic write and the readback, dropping
+    // or changing worker_start_identity, refuses the Host launch.
+    const identityProven = claimed.worker_start_identity === null
+      ? persisted.worker_start_identity === null
+      : !!persisted.worker_start_identity && typeof persisted.worker_start_identity === 'object'
+        && !Array.isArray(persisted.worker_start_identity)
+        && persisted.worker_start_identity.type === claimed.worker_start_identity.type
+        && persisted.worker_start_identity.value === claimed.worker_start_identity.value;
+    return persisted && typeof persisted === 'object'
+      && persisted.delegation_id === claimed.delegation_id
+      && persisted.launch_id === claimed.launch_id
+      && persisted.spec_digest === claimed.spec_digest
+      && persisted.pid === process.pid
+      && identityProven;
+  } catch {
+    return false;
+  }
+}
+
+// The published terminal decides retention: a result that parses but carries
+// no failure_type is a safe terminal, while an unreadable published result
+// counts as frozen because it cannot prove anything safe.
+function publishedFailureType(spec, terminal) {
+  try {
+    if (fs.existsSync(spec.result)) {
+      const published = JSON.parse(fs.readFileSync(spec.result, 'utf8'));
+      if (!published || typeof published !== 'object') return 'outcome_unknown';
+      return typeof published.failure_type === 'string' ? published.failure_type : null;
+    }
+  } catch {
+    return 'outcome_unknown';
+  }
+  return terminal?.failure_type ?? null;
+}
+
 async function main() {
   const specFile = process.argv[2];
   const expectedSpecDigest = process.argv[3];
@@ -237,6 +326,8 @@ async function main() {
   if (sha256(specFile) !== expectedSpecDigest) throw new Error('worker spec digest mismatch before launch');
   const spec = JSON.parse(fs.readFileSync(specFile, 'utf8'));
   let terminal;
+  let hostOutcome = null;
+  let hostFiles = [];
   try {
     if (sha256(spec.instruction) !== spec.instruction_digest) {
       terminal = failure(spec, 'instruction_changed', 'Instruction digest changed before delegation started.');
@@ -244,10 +335,25 @@ async function main() {
       terminal = failure(spec, 'permission_changed', 'Permission digest changed before delegation started.');
     } else if (sha256(spec.output_schema) !== spec.output_schema_digest) {
       terminal = failure(spec, 'output_schema_changed', 'Output schema digest changed before delegation started.');
+    } else if (!fenceHeldForLaunch(spec.project_root, spec.delegation_id, spec.launch_id)) {
+      // The physical fence is the only barrier against a second writer, so a
+      // Host may never run without the matching retained fence.
+      terminal = failure(
+        spec, 'fence_lost',
+        'The delegation worktree fence is missing or does not match this launch; the host was not started.',
+      );
     } else if (fs.existsSync(spec.cancel)) {
       terminal = failure(spec, 'cancelled', 'Delegation was cancelled before the host process started.');
+    } else if (!claimWorkerLock(spec, expectedSpecDigest)) {
+      // No Host may run behind a lock this worker cannot durably claim; the
+      // tampered lock itself stays behind as evidence for inspection.
+      terminal = failure(
+        spec, 'worker_lock_unbound',
+        'The worker could not bind its identity to the launch-bound lock; the host was not started.',
+      );
     } else {
       const processResult = await runExecutionDriver(spec);
+      hostOutcome = processResult;
       spec.execution_driver = processResult.executionDriver || spec.execution_driver;
       spec.driver_fallback_reason = processResult.fallbackReason ?? spec.driver_fallback_reason;
       spec.transport_surface = processResult.transportSurface || spec.transport_surface;
@@ -258,11 +364,16 @@ async function main() {
       spec.observed_acp_fallback = processResult.acpFallback || null;
       let files = [];
       try { files = changedFiles(spec); } catch {}
+      hostFiles = files;
       const unauthorized = files.filter((file) => !authorized(spec, file));
-      if (processResult.termination === 'cancelled') {
-        terminal = failure(spec, 'cancelled', 'Delegation cancelled by request.', processResult.code, processResult.signal, files);
-      } else if (processResult.termination === 'timeout') {
-        terminal = failure(spec, 'timeout', 'Delegation timed out and the host process was terminated.', processResult.code, processResult.signal, files);
+      if (processResult.termination === 'cancelled' || processResult.termination === 'timeout') {
+        terminal = failure(
+          spec, processResult.termination,
+          processResult.termination === 'cancelled'
+            ? 'Delegation cancelled by request.'
+            : 'Delegation timed out and the host process was terminated.',
+          processResult.code, processResult.signal, files,
+        );
       } else if (sha256(specFile) !== expectedSpecDigest) {
         terminal = failure(spec, 'worker_spec_changed', 'Worker specification changed during delegation.', processResult.code, processResult.signal, files);
       } else if (sha256(spec.instruction) !== spec.instruction_digest) {
@@ -316,9 +427,49 @@ async function main() {
         }
       }
     }
+    // After any Host launch, every terminal publication that could imply safe
+    // completion or retry is gated on the matching boundary proof. A live or
+    // unprovable writer overrides success, ordinary failure, timeout, and
+    // cancellation with launcher-side outcome_unknown and keeps the fence.
+    if (hostOutcome) {
+      const boundary = await boundaryProof(spec);
+      if (boundary !== 'stopped') {
+        terminal = failure(
+          spec, 'outcome_unknown',
+          `Delegation cannot prove its complete writer boundary stopped (writer state: ${boundary}); the worktree fence is retained.`,
+          hostOutcome.code, hostOutcome.signal, hostFiles,
+        );
+      }
+    }
     if (!fs.existsSync(spec.result)) writeAtomic(spec.result, terminal);
   } finally {
-    try { fs.unlinkSync(spec.lock); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    // The lock leaves with the run except in two states: a frozen
+    // outcome_unknown terminal retains its launch-bound identity for explicit
+    // matching recovery, and an unbound lock stays behind as evidence.
+    const published = publishedFailureType(spec, terminal);
+    if (published !== 'outcome_unknown' && terminal?.failure_type !== 'worker_lock_unbound') {
+      try { fs.unlinkSync(spec.lock); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+    if (spec.fence) {
+      if (published === 'outcome_unknown') {
+        // Frozen terminal: neither worker cleanup nor elapsed time may release
+        // the fence; only explicit recovery after a current matching stop
+        // proof can. The retained lock keeps that repair reachable.
+      } else {
+        // The worktree fence releases only with a proven-stopped writer
+        // boundary, through the derived registry path rather than any
+        // spec-named path; an unprovable boundary leaves the root frozen for
+        // launcher-side repair.
+        const proven = await boundaryProof(spec, { waitMs: 1500 });
+        if (proven === 'stopped') {
+          try {
+            releaseWorktreeFence(spec.project_root, spec.delegation_id, { launchId: spec.launch_id });
+          } catch (error) {
+            process.stderr.write(`ultra-delegate: fence release refused: ${error.message}\n`);
+          }
+        }
+      }
+    }
   }
 }
 

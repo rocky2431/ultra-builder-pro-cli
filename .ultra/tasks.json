@@ -360,6 +360,41 @@
       "context_file": ".ultra/contexts/task-v50-public-release.md",
       "trace_to": ".ultra/specs/product.md#release-evidence",
       "change_id": "chg-ultra-5-0"
+    },
+    {
+      "id": "v502-authority-reconciliation",
+      "title": "Reconcile the current ACP-first authority surface",
+      "type": "repair",
+      "priority": "P1",
+      "status": "completed",
+      "dependencies": [],
+      "context_file": ".ultra/contexts/task-v502-authority-reconciliation.md",
+      "trace_to": ".ultra/specs/product.md#requirement-fr-06-bounded-delegation",
+      "change_id": "chg-ultra-5-0-2-authority-reconciliation"
+    },
+    {
+      "id": "vnext-d1-runtime-safety-boundary",
+      "title": "Close descendant environment and writer-truth gaps",
+      "type": "repair",
+      "priority": "P0",
+      "status": "in_progress",
+      "dependencies": [],
+      "context_file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "trace_to": ".ultra/specs/architecture.md#delegation-boundary",
+      "change_id": "chg-ultra-vnext-d1-delegation-safety"
+    },
+    {
+      "id": "vnext-d1-host-enforcement-qualification",
+      "title": "Qualify fail-closed Host enforcement and close D1",
+      "type": "verification",
+      "priority": "P0",
+      "status": "in_progress",
+      "dependencies": [
+        "vnext-d1-runtime-safety-boundary"
+      ],
+      "context_file": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "trace_to": ".ultra/specs/product.md#requirement-fr-06-bounded-delegation",
+      "change_id": "chg-ultra-vnext-d1-delegation-safety"
     }
   ]
 }

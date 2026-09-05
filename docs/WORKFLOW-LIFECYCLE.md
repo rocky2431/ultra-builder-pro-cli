@@ -21,7 +21,7 @@ ultra-change ─► ultra-plan ─► ultra-dev (per task) ─► ultra-test ─
                      └── replan ◄──────┘                    └── findings return to owner/model
 
 ultra-status    read-only router at any point
-ultra-delegate  orthogonal bounded execution on another CLI
+ultra-delegate  orthogonal bounded execution on another Agent runtime via ACP-first transport and typed CLI fallback
 ```
 
 Arrows are recommendations unless a live owner-activated Execution Grant authorizes the

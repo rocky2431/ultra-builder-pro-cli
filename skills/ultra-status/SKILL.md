@@ -167,7 +167,7 @@ verdict from a budget stop, and never treats a pending frontier row as the activ
 task behind one.
 
 The repository has one primary writer for canonical `.ultra` files. Native review
-workers and delegated CLIs may inspect or write isolated source roots, but their results
+workers and delegated Agent runtimes may inspect or write isolated source roots, but their results
 return to that writer. Concurrent canonical writes require separate worktrees and
 explicit integration; this router does not invent locks or silently merge ledgers.
 

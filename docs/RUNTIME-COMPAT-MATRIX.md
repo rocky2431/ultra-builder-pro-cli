@@ -95,7 +95,7 @@ untrusted and emits no remediation action without an authoritative Host observat
 | OpenCode | native `opencode acp` stdio server | PASS, real provider receipt | ACP when executable exists | `acp_command_unavailable` when absent |
 | Kimi Code | documented [`kimi acp`](https://moonshotai.github.io/kimi-code/en/reference/kimi-acp.html) stdio server | PASS, real provider receipt | ACP when executable exists | `acp_command_unavailable` when absent |
 | Grok Build | documented [`grok agent stdio`](https://docs.x.ai/build/cli/headless-scripting) | PASS, real provider receipt | ACP when executable exists | `acp_command_unavailable` when absent |
-| ZCode | source-pinned `zcode-acp` v0.1.0 plus digest-bound 0.16.5 patch translating to installed `app-server` | PASS, domestic BigModel provider receipt | ACP when bridge exists and `--ack-experimental` is supplied | `acp_command_unavailable` when absent |
+| ZCode | source-pinned `zcode-acp` v0.1.0 plus digest-bound 0.16.5 patch translating to installed `app-server` | PASS, domestic BigModel provider receipt | ACP when bridge exists and `--ack-experimental` is supplied; host enforcement admission then refuses both ZCode transports before launch (see below) | `acp_command_unavailable` when absent |
 
 Selection is ACP-first only after the exact Host row is `passed` and names a non-empty
 evidence reference: stable protocol v1, stdio, executable availability, read-only,
@@ -142,13 +142,19 @@ invocation for:
   camel-case `--disallowedTools` surface used to deny Bash, web, subagents, and (in
   read-only mode) write tools. The launcher's timeout remains the execution bound.
 
-The installed ZCode 0.16.5 runtime advertises `--max-turns`, `--allowed-tools`, and
-`--settings` in help but rejects them at the live root parser. Ultra therefore does not
-pass those flags. ZCode headless delegation also requires an explicit CLI model
-provider. Host/runtime identity and provider identity remain separate: the verified
-local path uses ZCode Desktop with the Owner's domestic BigModel Coding Plan provider,
-not international Z.AI OAuth. Ultra's package does not silently copy Desktop credentials;
-the user controls the provider entry in `~/.zcode/cli/config.json`.
+The pinned ZCode 0.16.5 historical conformance drill observed `--max-turns`,
+`--allowed-tools`, and `--settings` in help but rejection at the live root parser, so the
+locked compatibility profile does not pass those flags. That drill copied a bounded
+headless provider entry through `~/.zcode/cli/config.json`; this is dated evidence for
+the pinned runtime, not current universal setup guidance. Host/runtime identity and
+provider identity remain separate: the verified path used ZCode Desktop with the
+Owner's domestic BigModel Coding Plan provider, not international Z.AI OAuth. Current
+model connections belong in the ZCode UI or `~/.zcode/v2/config.json`; the CLI config
+owns plugins, Hooks, MCP, and other headless-runtime settings. BigModel Coding Plan API
+keys use `https://open.bigmodel.cn/api/coding/paas/v4`; the Anthropic-compatible endpoint
+belongs to the separate resource-package/prepaid-balance path. Ultra never copies
+credentials. See the official [ZCode configuration](https://zcode.z.ai/en/docs/configuration)
+and [provider Q&A](https://zcode.z.ai/en/docs/qa).
 
 On macOS, the Skill-local host profile uses
 `/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs` when that App-bundled CLI
@@ -198,6 +204,34 @@ reason, and ZCode maturity separately from Skill discovery and Hooks. The packag
 `ubp delegate` surface remains a thin one-release compatibility wrapper around the same
 functions; receipts and recovery commands point to the canonical Skill-local entrypoint.
 
+### Host enforcement qualification (fail-closed admission)
+
+`skills/ultra-delegate/scripts/host-profile.cjs` also records the exact-version Host
+enforcement qualifications the launcher admits. A qualification exists only where a
+coordinator-owned, redacted, no-production observation was retained; a Host without one
+makes no capability claim and keeps its conformance-gated admission path. The launcher
+compares the Packet's required dimensions — `writable_scope` for write packets, plus
+`outside_root_denial`, `shell_tool_denial`, `agent_tool_network_denial`, and
+`point_of_use_effect_boundary` for every packet — against the selected transport's
+facts before the worktree fence, the worker spec, or any Host process exists, and
+returns one typed `host_enforcement_unavailable` diagnostic without silent fallback.
+
+The one retained record binds the installed `zcode-acp 0.1.0+ultra.zcode.0.16.5`
+bridge over ZCode runtime `0.16.5` (evidence:
+`.ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json`).
+Its single authorized no-production call observed `writable_scope` unsupported — the
+ACP edit request carried no provable location, so the product denied it as
+`outside_envelope` before any write — and every later effect dimension unobserved, so
+they stay unsupported rather than inferred from zero side effects. Provider transport
+for the qualification call was separately authorized only and never grants Worker
+effects. Adapter
+preinstallation (the installed adapter invoked directly, no runtime package fetch),
+env-key isolation, credential-value redaction and receipt truth were separately
+observed supported. The disposition is route `unavailable` with no silent fallback and
+no maturity change: ZCode stays `experimental`, both ZCode transports are unavailable
+for delegation packets, and the five documented transports keep their existing
+conformance-gated admission with no new capability claim.
+
 ### ZCode Desktop Workspace Memory (post-turn host effect)
 
 ZCode Desktop ships an optional Workspace Memory feature that extracts project
@@ -242,19 +276,21 @@ correct `external_directory: deny` policy prevents reading packet paths beside t
 worktree. Codex receives a native-schema-compatible projection; the launcher separately
 enforces non-empty strings, normalized unique paths, exact fields, and the observed diff.
 
-### Authenticated delegation conformance — 2026-08-14
+### Historical authenticated CLI-fallback conformance — 2026-08-14
 
-One clean, read-only seeded repository was used to exercise the current launcher against
-all six installed CLIs. Claude Code, Codex, OpenCode, Kimi Code, and ZCode each produced
-a validated `finished` result with an empty diff and found the seeded consequential
-defect. Grok Build 1.0.3 exited zero but repeatedly emitted truncated or malformed
-structured output; the launcher correctly published `failed/missing_result` and did not
-count partial text as evidence. This is a current host-result conformance ceiling, not a
-permission bypass or a semantic review result.
+Before ACP activation, one clean, read-only seeded repository exercised the then-current
+CLI driver against all six installed Host CLIs. Claude Code, Codex, OpenCode, Kimi Code,
+and ZCode each produced a validated `finished` result with an empty diff and found the
+seeded consequential defect. Grok Build 1.0.3 exited zero but repeatedly emitted
+truncated or malformed structured output; the launcher correctly published
+`failed/missing_result` and did not count partial text as evidence. This dated drill
+proves the retained typed fallback behavior; it is not the current primary transport,
+a permission bypass, or a semantic Review result.
 
-ZCode was also exercised as the source host: one ZCode session invoked
-`ubp delegate run --to claude`, waited for the terminal artifact, and reported Claude's
-digest-bound read-only result without changing the worktree. Separately, one bounded
+ZCode was also exercised as the source host: one historical ZCode session invoked the
+then-current compatibility wrapper `ubp delegate run --to claude`, waited for the
+terminal artifact, and reported Claude's digest-bound read-only result without changing
+the worktree. Separately, one bounded
 ZCode Autonomy Envelope completed Plan, Plan review, TDD, task review, Test, and aggregate
 review for one task, then stopped before ungranted delivery and Git effects. Exact
 fixtures, session boundaries, checks, and residual risks are recorded in

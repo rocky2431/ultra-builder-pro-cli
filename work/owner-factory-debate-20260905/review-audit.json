@@ -1,0 +1,131 @@
+{
+  "schema": "research-review-audit/v1",
+  "runs": [
+    {
+      "round": 1,
+      "agent": "zcode",
+      "delegation_id": "66fd0d18c0a5442fa6ba71ce21d45fc9",
+      "status": "success",
+      "stop_reason": "end_turn",
+      "duration_seconds": 998.198,
+      "protocol_error_counts": {},
+      "observed_public_web_tool_calls": 19,
+      "web_tool_names": {
+        "WebFetch": 18,
+        "WebSearch": 1
+      },
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260904T233316Z-66fd0d18c0a5442fa6ba71ce21d45fc9",
+      "report": "docs/wip/owner-factory-debate-20260905/r1-zcode.zh-CN.md",
+      "report_sha256": "4254fd5eade3978079963c01fd12bfe9873fdde111dd36d3a1561279e21fc17b",
+      "limits": "Tool calls prove retrieval attempts, not that each source succeeded or each argument is correct; see report limits and Codex adjudication."
+    },
+    {
+      "round": 1,
+      "agent": "kimi",
+      "delegation_id": "7286efccf4d24f4bb42049fc34191c11",
+      "status": "success",
+      "stop_reason": "end_turn",
+      "duration_seconds": 794.278,
+      "protocol_error_counts": {
+        "Internal error": 164
+      },
+      "observed_public_web_tool_calls": 21,
+      "web_tool_names": {
+        "FetchURL": 17,
+        "WebSearch": 4
+      },
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260904T233317Z-7286efccf4d24f4bb42049fc34191c11",
+      "report": "docs/wip/owner-factory-debate-20260905/r1-kimi.zh-CN.md",
+      "report_sha256": "701dadd33a0b7a7ac325b75491e983fbc71f810fa26b683d9315faca1de0e3c9",
+      "limits": "Tool calls prove retrieval attempts, not that each source succeeded or each argument is correct; see report limits and Codex adjudication."
+    },
+    {
+      "round": 2,
+      "agent": "zcode",
+      "delegation_id": "e30c20f724a64760974cccb5ae04493b",
+      "status": "success",
+      "stop_reason": "end_turn",
+      "duration_seconds": 462.978,
+      "protocol_error_counts": {},
+      "observed_web_api_tool_calls": 3,
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260904T235459Z-e30c20f724a64760974cccb5ae04493b",
+      "report": "docs/wip/owner-factory-debate-20260905/r2-zcode.zh-CN.md",
+      "report_sha256": "7689d4eee1fc4ee236819ed57280d6960d81d6d9c3e769f40ac6e4eeff328462",
+      "limits": "Actual tool calls establish independent retrieval attempts; individual successes/limitations and argument corrections are documented in the reports."
+    },
+    {
+      "round": 2,
+      "agent": "kimi",
+      "delegation_id": "3ab2d8d2535340ce91094f59ee916e92",
+      "status": "success",
+      "stop_reason": "end_turn",
+      "duration_seconds": 436.213,
+      "protocol_error_counts": {
+        "Internal error": 77
+      },
+      "observed_web_api_tool_calls": 0,
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260904T235500Z-3ab2d8d2535340ce91094f59ee916e92",
+      "report": "docs/wip/owner-factory-debate-20260905/r2-kimi.zh-CN.md",
+      "report_sha256": "67c916ad96b4e4c1404ffef3c5bebaf387ae866f20e7f4a8812a9e2423d3d4cb",
+      "observed_curl_requests": [
+        "https://arxiv.org/html/2311.17371v3",
+        "https://arxiv.org/html/2507.02825v5",
+        "https://www.anthropic.com/engineering/harness-design-long-running-apps",
+        "https://code.claude.com/docs/en/workflows"
+      ],
+      "native_wire": "/Users/rocky243/.kimi-code/sessions/wd_owner-factory-debate-20260905_86652c025d51/session_2db78b71-f3c7-410f-8d38-1bbe55c0fb25/agents/main/wire.jsonl",
+      "limits": "Actual tool calls establish independent retrieval attempts; individual successes/limitations and argument corrections are documented in the reports."
+    },
+    {
+      "round": 3,
+      "agent": "zcode",
+      "delegation_id": "ab38aebe81514ab793f6659e9257af8f",
+      "status": "success",
+      "stop_reason": "end_turn",
+      "duration_seconds": 514.932,
+      "protocol_error_counts": {},
+      "observed_web_api_tool_calls": 5,
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T000700Z-ab38aebe81514ab793f6659e9257af8f",
+      "report": "docs/wip/owner-factory-debate-20260905/r3-zcode.zh-CN.md",
+      "report_sha256": "39cfa4d1dcde0658666e4631a63ed046e245fda9456151c3ac66260d2cb7d60a",
+      "limits": "Actual retrieval attempts are independently observed, not proof of claim correctness or runtime qualification; report limits and Codex final adjudication govern."
+    },
+    {
+      "round": 3,
+      "agent": "kimi",
+      "delegation_id": "ebfcd575af574a3e803d446865e04955",
+      "status": "success",
+      "stop_reason": "end_turn",
+      "duration_seconds": 686.115,
+      "protocol_error_counts": {
+        "Internal error": 78
+      },
+      "observed_web_api_tool_calls": 0,
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T000702Z-ebfcd575af574a3e803d446865e04955",
+      "report": "docs/wip/owner-factory-debate-20260905/r3-kimi.zh-CN.md",
+      "report_sha256": "05e82a804bed216885fdb84c5a57d4101c0b2620a74a1cc17e79afabcce3d9ce",
+      "observed_curl_requests": [
+        "https://arxiv.org/html/2507.02825v5",
+        "https://arxiv.org/html/2411.15114v2"
+      ],
+      "native_wire": "/Users/rocky243/.kimi-code/sessions/wd_owner-factory-debate-20260905_86652c025d51/session_30654bae-691c-4d2a-b9b3-a035bbb32ed7/agents/main/wire.jsonl",
+      "source_scope_correction": "Some local evidence was from the installed Kimi plugin, not current checkout; see r3-codex-adjudication.zh-CN.md.",
+      "limits": "Actual retrieval attempts are independently observed, not proof of claim correctness or runtime qualification; report limits and Codex final adjudication govern."
+    }
+  ],
+  "completed_rounds": 3,
+  "participants": [
+    "codex",
+    "zcode",
+    "kimi"
+  ],
+  "prior_claude_attempt": "Incomplete quota-limited attempt, not counted as a review round; see round1-receipt.json and 01-claude-round1-incomplete.zh-CN.md.",
+  "codex_records": [
+    "docs/wip/owner-factory-debate-20260905/00-codex-position.zh-CN.md",
+    "docs/wip/owner-factory-debate-20260905/02-codex-working-plan.zh-CN.md",
+    "docs/wip/owner-factory-debate-20260905/evidence-codex.zh-CN.md",
+    "docs/wip/owner-factory-debate-20260905/r1-codex-response.zh-CN.md",
+    "docs/wip/owner-factory-debate-20260905/r2-codex-revision.zh-CN.md",
+    "docs/wip/owner-factory-debate-20260905/r3-codex-adjudication.zh-CN.md"
+  ]
+}

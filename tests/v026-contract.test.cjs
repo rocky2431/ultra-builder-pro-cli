@@ -1490,6 +1490,160 @@ test('workflow entry boundaries remain reachable without a second Change or owne
   assert.match(deliver, /release package/iu);
 });
 
+test('current authority surfaces define installed ACP-first Agent delegation coherently', () => {
+  const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+  const readme = read('README.md');
+  const readmeZh = read('README.zh-CN.md');
+  const delegate = readSkill('ultra-delegate');
+  const status = readSkill('ultra-status');
+  const context = read('CONTEXT.md');
+  const agents = read('AGENTS.md');
+  const claude = read('CLAUDE.md');
+  const product = read('.ultra/specs/product.md');
+  const architecture = read('.ultra/specs/architecture.md');
+  const distillate = read('.ultra/specs/research-distillate.md');
+
+  assert.equal(require('../package.json').version, '5.0.2');
+  for (const [label, source] of [
+    ['README', readme],
+    ['README zh-CN', readmeZh],
+    ['ultra-delegate', delegate],
+    ['CONTEXT', context],
+    ['AGENTS', agents],
+    ['CLAUDE', claude],
+    ['product spec', product],
+    ['architecture spec', architecture],
+    ['research distillate', distillate],
+  ]) {
+    assert.match(source, /ACP-first|ACP 优先/iu, `${label}: ACP-first primary path`);
+    assert.match(source, /typed[\s\S]{0,120}(?:CLI fallback|CLI 回退)|类型化[\s\S]{0,120}CLI fallback/iu, `${label}: typed fallback`);
+  }
+
+  const delegateDescription = delegate.match(/^description: .*$/mu)?.[0] || '';
+  assert.match(delegateDescription, /ACP-first/u);
+  assert.match(delegateDescription, /Agent runtime/u);
+  assert.match(delegateDescription, /CLI fallback/u);
+  for (const [label, source] of [['README', readme], ['README zh-CN', readmeZh]]) {
+    const delegateRow = source.match(/^\| `ultra-delegate` \| .*\|$/mu)?.[0] || '';
+    assert.match(delegateRow, /ACP/u, `${label}: delegate row ACP`);
+    assert.match(delegateRow, /Agent runtime/u, `${label}: delegate row Agent runtime`);
+    assert.match(delegateRow, /CLI fallback/u, `${label}: delegate row fallback`);
+  }
+  assert.match(context, /Agent runtime[^\r\n]+ACP-first[^\r\n]+typed CLI fallback/iu);
+  assert.match(status, /delegated Agent (?:workers|runtimes)/iu);
+
+  const maintained = [readme, readmeZh, delegate, context, agents, claude, product, architecture, distillate];
+  for (const source of maintained) {
+    assert.doesNotMatch(source, /through another supported CLI|另一个受支持的 CLI/iu);
+    assert.doesNotMatch(source, /A bounded invocation of another supported CLI/iu);
+    assert.doesNotMatch(source, /delegated CLI execution/iu);
+    assert.doesNotMatch(source, /Delegate CLI/iu);
+  }
+
+  assert.match(agents, /six hosts/iu);
+  assert.match(claude, /six hosts/iu);
+  for (const guide of [agents, claude]) {
+    assert.match(guide, /explicit-only/iu);
+    assert.match(guide, /grant-continuable/iu);
+    assert.doesNotMatch(guide, /Public workflows (?:require explicit owner invocation|are owner-invoked)/iu);
+  }
+  assert.match(product, /5\.0\.2/u);
+  assert.match(architecture, /5\.0\.2/u);
+  assert.match(distillate, /5\.0\.2/u);
+  assert.match(product, /Codex[^\r\n]+host_managed[^\r\n]+observable[^\r\n]+false/iu);
+});
+
+test('public Host guidance names exact evidence, identity, and ZCode boundaries', () => {
+  const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+  const readme = read('README.md');
+  const readmeZh = read('README.zh-CN.md');
+  const matrix = read('docs/RUNTIME-COMPAT-MATRIX.md');
+
+  for (const [label, source] of [['README', readme], ['README zh-CN', readmeZh]]) {
+    for (const dimension of [
+      'tests_written',
+      'tests_passed',
+      'persistence_real',
+      'feature_flags_audit',
+      'vertical_slice',
+      'spec_trace',
+    ]) {
+      assert.match(source, new RegExp(`\\b${dimension}\\b`, 'u'), `${label}: ${dimension}`);
+    }
+    assert.match(source, /candidate identity[^\r\n]*(?:when present|如有声明|若有声明)/iu);
+    assert.match(source, /--ack-experimental/u);
+    assert.match(source, /https:\/\/zcode\.z\.ai\/en\/docs\/configuration/u);
+    assert.match(source, /~\/\.zcode\/v2\/config\.json/u);
+    assert.match(source, /https:\/\/open\.bigmodel\.cn\/api\/coding\/paas\/v4/u);
+    assert.doesNotMatch(source, /BigModel Coding Plan[^.\r\n]*(?:uses|使用)[^.\r\n]*api\/anthropic/iu);
+  }
+
+  assert.match(matrix, /0\.16\.5[\s\S]{0,500}historical|历史[\s\S]{0,500}0\.16\.5/iu);
+  assert.match(matrix, /~\/\.zcode\/v2\/config\.json/u);
+
+  const help = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'install.js'), '--help'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  assert.equal(help.status, 0, help.stderr || help.stdout);
+  assert.match(help.stdout, /--zcode[^\r\n]+ZCode Desktop/u);
+  assert.doesNotMatch(help.stdout, /ZCode \(Z\.AI\)/u);
+});
+
+test('delegation surfaces admit a Host transport only through exact retained enforcement facts', () => {
+  const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+  const skill = readSkill('ultra-delegate');
+  const contract = fs.readFileSync(
+    path.join(SKILLS, 'ultra-delegate', 'references', 'delegation-contract.md'), 'utf8',
+  );
+  const matrix = read('docs/RUNTIME-COMPAT-MATRIX.md');
+  const product = read('.ultra/specs/product.md');
+  const architectureSpec = read('.ultra/specs/architecture.md');
+  const architecture = read('docs/ARCHITECTURE.md');
+  const authority = read('docs/ARTIFACT-AUTHORITY.md');
+
+  for (const [label, source] of [
+    ['ultra-delegate Skill', skill],
+    ['delegation contract', contract],
+    ['compatibility matrix', matrix],
+    ['product spec', product],
+    ['architecture spec', architectureSpec],
+  ]) {
+    assert.match(source, /host\s+enforcement\s+qualification/iu, `${label}: names the qualification gate`);
+    assert.match(source, /host_enforcement_unavailable/u, `${label}: names the typed diagnostic`);
+    assert.match(source, /no\s+silent\s+fallback|never\s+falls\s+back\s+silently|without\s+silent\s+fallback/iu, `${label}: no silent fallback`);
+    for (const dimension of [
+      'writable_scope', 'outside_root_denial', 'shell_tool_denial',
+      'agent_tool_network_denial', 'point_of_use_effect_boundary',
+    ]) {
+      assert.ok(source.includes(dimension), `${label}: dimension ${dimension}`);
+    }
+  }
+
+  // The maintained surfaces state only the enforcement actually proven.
+  for (const [label, source] of [
+    ['ultra-delegate Skill', skill],
+    ['delegation contract', contract],
+    ['compatibility matrix', matrix],
+  ]) {
+    assert.match(source, /`writable_scope`[\s\S]{0,60}unsupported/u, `${label}: unsupported observation stated`);
+    assert.match(source, /unobserved/u, `${label}: unobserved stays stated`);
+    assert.match(source, /unavailable/iu, `${label}: unavailable route stated`);
+    assert.match(source, /experimental/iu, `${label}: experimental maturity unchanged`);
+    assert.doesNotMatch(source, /ZCode\s+(?:delegation|transport|enforcement)\s+is\s+supported/iu, `${label}: no support claim`);
+    assert.match(source, /separately\s+authorized/iu, `${label}: provider transport stays separate`);
+    assert.match(source, /adapter\s+preinstallation/iu, `${label}: preinstallation stays a separate fact`);
+  }
+  assert.match(matrix, /\.ultra\/evidence\/vnext-d1-host-enforcement-qualification\/host-enforcement-receipt\.json/u);
+  assert.match(matrix, /zcode-acp 0\.1\.0\+ultra\.zcode\.0\.16\.5/u);
+  assert.match(matrix, /no runtime package fetch|no package manager or runtime fetch/u);
+  assert.match(product, /ZCode\s+also\s+requires\s+`--ack-experimental`/u);
+  assert.match(architectureSpec, /delegation receipt can never upgrade into a primary transfer/u);
+  assert.match(architecture, /host enforcement admission|enforcement dimensions/iu);
+  assert.match(authority, /host enforcement admission|enforcement qualification/iu);
+  assert.match(authority, /\.ultra\/evidence\//u);
+});
+
 test('maintained documentation assigns Init, Research, and Change one non-overlapping authority boundary', () => {
   const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
   const readme = read('README.md');

@@ -1,0 +1,24 @@
+[
+  {
+    "attemptId": "step#1",
+    "nodeId": "step",
+    "nodeType": "compute",
+    "outcome": "ok",
+    "startedAt": "2026-09-04T23:35:48.177Z",
+    "finishedAt": "2026-09-04T23:35:48.178Z",
+    "promptText": null,
+    "rawText": null,
+    "output": {
+      "n": 1,
+      "next": "again"
+    },
+    "session": null,
+    "agent": null,
+    "trace": {
+      "outputInline": {
+        "n": 1,
+        "next": "again"
+      }
+    }
+  }
+]

@@ -66,6 +66,16 @@ test('npm tarball contains and runs only the file-first product surface', () => 
     }
     assert.ok(paths.includes('docs/evals/adversarial-review-2026-08-14.md'));
     assert.ok(paths.includes('docs/evals/zcode-automation-2026-08-14.md'));
+    for (const readmeName of ['README.md', 'README.zh-CN.md']) {
+      const markdown = fs.readFileSync(path.join(ROOT, readmeName), 'utf8');
+      for (const match of markdown.matchAll(/\[[^\]]*\]\(([^)]+)\)/gu)) {
+        let target = match[1].trim().replace(/^<|>$/gu, '');
+        if (/^(?:#|[a-z][a-z+.-]*:|\/)/iu.test(target)) continue;
+        target = target.split('#', 1)[0].split('?', 1)[0];
+        if (!target) continue;
+        assert.ok(paths.includes(target), `${readmeName}: packed relative link ${target}`);
+      }
+    }
     const npmIgnore = fs.readFileSync(path.join(ROOT, '.npmignore'), 'utf8');
     assert.doesNotMatch(npmIgnore, /^docs\/\*$/mu);
     assert.doesNotMatch(npmIgnore, /ROADMAP\.md/u);

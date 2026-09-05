@@ -2,10 +2,11 @@
 
 ## Scope
 
-- **Product**: Ultra Builder Pro v0.26, a file-first engineering workflow plugin for
+- **Product**: Ultra Builder Pro 5.0.2, a file-first engineering workflow plugin for
   Claude Code, Codex, OpenCode, Kimi Code, Grok Build, and ZCode.
 - **Outcome**: one portable fourteen-Skill workflow, five optional Hooks, one bounded
-  cross-CLI delegate, and one canonical project artifact lifecycle.
+  installed Skill-local ACP-first Agent delegation path with a typed result-compatible
+  CLI fallback, and one canonical project artifact lifecycle.
 - **Non-goals**: general memory, browsing, deployment, code-graph storage, a semantic
   supervisor, or uniform emulation of host capabilities.
 
@@ -15,8 +16,8 @@
 |---|---|---|
 | The package allowlist contains eight owner workflows, five model disciplines, and one router. | `adapters/_shared/runtime-assets.cjs` | The installed product is exactly fourteen Skills. |
 | Each adapter installs the common Skill and Hook allowlists into a native managed surface. | `adapters/*.js`, `tests/v026-adapters.test.cjs` | Six hosts consume the same workflow meaning. |
-| The accepted v0.26 checkout contains no MCP server, runtime database, orchestration daemon, commands, or installed agents. | `tests/v026-contract.test.cjs` | Files and Git are sufficient for recovery. |
-| Kimi, Grok, and ZCode expose user-scoped plugin installation; OpenCode lacks a native owner/model Skill routing bit; Codex requires separate Hook trust. | `docs/RUNTIME-COMPAT-MATRIX.md` | Limitations remain explicit rather than being hidden behind a semantic shim. |
+| The current checkout contains no MCP server, runtime database, orchestration daemon, or installed custom-agent projection; `ultra-builder-pro-cli` owns lifecycle operations and `ubp delegate` is only a compatibility wrapper. | `package.json`, `tests/v026-contract.test.cjs` | Files and Git are sufficient for recovery; the package CLI does not become workflow authority. |
+| Kimi, Grok, and ZCode expose user-scoped plugin installation; OpenCode lacks a native owner/model Skill routing bit; Codex Hook trust is `host_managed` with `observable: false`. | `docs/RUNTIME-COMPAT-MATRIX.md`, Doctor JSON | Limitations remain explicit rather than being hidden behind a semantic shim or repeated trust prompt. |
 | Init previously mixed raw owner intake with North Star and baseline semantics. | pre-change `skills/ultra-init/SKILL.md`, `.ultra-template/north-star.md`, and owner review on 2026-08-03 | Init, Research, and Change need separate writer boundaries. |
 
 ## Decisions
@@ -25,8 +26,8 @@
 |---|---|---|---|
 | Use native Skills as the common product surface. | All six hosts discover Skills; custom-agent APIs and routing metadata differ. | Reusable methods must live in Skills or references. | Owner |
 | Keep project truth in owner-readable files and Git. | Cross-session and cross-host recovery must not depend on Ultra runtime availability. | Every canonical artifact needs a writer, consumer, freshness signal, and repair. | Owner |
-| Keep public workflows explicit by default and allow only Change-scoped grant continuation — session-local by default, durable work-package when the owner issues one. | The owner selects outcomes; a live execution grant may authorize bounded local continuation, while stored text grants nothing. | Adapters expose only the five continuable workflows implicitly; each resident Skill stops without a live session-local activation or a stably verified durable grant. | Owner |
-| Accept no external-effect authority through delegation. | A child CLI must not widen the parent's authority. | External effects remain blocked by contract and require a separate primary-host action. | Owner |
+| Keep public workflows explicit by default and allow only Change-scoped grant continuation — session-local by default, durable work-package when the owner issues one. | The owner selects outcomes; a live execution grant may authorize bounded local continuation, while stored text grants nothing. | Runtime metadata marks grant-continuable modes across six public Skills; each resident mode still stops without a live session-local activation or a stably verified durable grant. | Owner |
+| Accept no external-effect authority through delegation. | A delegated Agent runtime must not widen the parent's authority. | External effects remain blocked by contract and require a separate primary-host action. | Owner |
 | Separate raw intake, baseline maturation, and bounded deltas. | Init questions were consuming Research before Research began. | Init owns the Project Brief and empty skeleton; Research owns the first accepted North Star, domain language, and specifications; Change reconciles only touched baseline sections. | Owner |
 | Keep sequential Change identity stable and scope every current reader explicitly. | A movable `intent.md` path and global unfinished-task scan made archived or abandoned work look current and made the next Change overwrite history. | `change_id` survives active/archive/abandoned moves; `tasks.json` is append-only; current readers filter by the unique active id. | Owner |
 
@@ -37,7 +38,7 @@
 | Owner | Select an outcome, confirm material trade-offs, accept risk, authorize external effects. | Native Skill picker or direct request. | Must not be replaced by model or mechanical routing. |
 | Host model | Interpret intent, design, implement, evaluate evidence, and express results. | Selected owner workflow. | Operates inside owner authority and repository guidance. |
 | Model discipline | Supply a focused reusable method such as TDD, review, or domain modeling. | Implicit selection by the host model inside an active task. | Is not a standalone owner route or authority holder. |
-| Delegate CLI | Execute one immutable task, Research-evidence, or aggregate-review instruction in a clean registered worktree. | `ubp delegate run`. | May write only declared worktree roots and returns a validated receipt. |
+| Delegated Agent runtime | Execute one immutable task, Research-evidence, or aggregate-review instruction in a clean registered worktree. | Installed `ultra-delegate` Skill-local runner; `ubp delegate` is compatibility only. | ACP-first stable v1 is conformance-gated; the typed CLI fallback preserves the result contract; writes stay in declared roots. |
 | Maintainer | Install, diagnose, update, uninstall, validate, and package Ultra. | `ultra-builder-pro-cli` and repository scripts. | Managed files only; release effects remain separate. |
 
 ## User Scenarios
@@ -48,10 +49,10 @@
 | S-02 | Owner selects `ultra-init` in a project. | Missing canonical files are copied, raw intake is preserved in the Project Brief, baseline skeletons stay empty, existing authority is preserved, and Git exists. | Partial initialization can rerun idempotently; unknown semantics remain Research inputs. |
 | S-03 | Owner selects Research, then proceeds through change, plan, development, audit, and delivery. | Research establishes the accepted baseline; each later route updates only its owned artifact or touched baseline. By default it recommends and stops; a live Change-scoped grant may continue only to its next named boundary. Deliver archives only against a fresh Test snapshot. | `ultra-status` reconstructs position from semantic file contents and Git, not a workflow state bit; lost activation stops continuation. |
 | S-04 | Host model encounters ambiguity, a seam, review need, or consequential decision. | It uses grilling, domain modeling, TDD, review, or think as an internal method. | If host routing metadata cannot enforce visibility, descriptions and docs state the limitation. |
-| S-05 | Primary host delegates task execution, scoped Research evidence, or aggregate Change review to another CLI. | Terminal result binds the active Change, selected scope, inputs, actual Git changes, process state, and recovery; read-only Research/review needs no synthetic task. | Invalid scope, mutation, timeout, cancellation, or nonzero exit produces a typed terminal failure. |
+| S-05 | Primary Host delegates task execution, scoped Research evidence, or aggregate Change review to another installed Agent runtime. | The Skill-local `AgentExecutionDriver` selects conformance-gated ACP-first stable v1 or a typed result-compatible CLI fallback; the terminal result binds the active Change, selected scope, inputs, actual Git changes, process state, and recovery. Read-only Research/review needs no synthetic task. | Invalid scope, mutation, timeout, cancellation, transport unavailability, or nonzero exit produces a typed terminal result and reachable recovery. |
 | S-06 | A fresh session or another host resumes. | Resolving the unique active `change_id`, then reading only matching task contexts, Resume Note, canonical specs, evidence, and Git reconstructs work. | More than one active Change is diagnosed; archived or abandoned unfinished tasks remain historical. |
 | S-07 | The owner completes or abandons one Change and later opens another. | Prior task/evidence rows remain intact while the new Change receives globally unique tasks bound to its own stable id. | Cross-Change dependencies are rejected; Git can restore any directory move. |
-| S-08 | Owner activates a bounded execution grant for one accepted Change — session-local, or durable for an exact work package. | The native model-tool loop performs covered Research, Plan, Dev, Test, and reconcile-only Deliver work one canonical writer at a time, including mandatory reviews; a model-selected Deliver run stops before finalization. | Semantic stops, budgets, residual-risk acceptance, and every external effect return control to the owner; a lost conversation activation stops a session-local grant, a fresh Agent or host continues a durable grant only after exact durable verification, and neither mode grants finalization or archive. |
+| S-08 | Owner activates a bounded execution grant for one accepted Change — session-local, or durable for an exact work package. | The native model-tool loop performs covered Change-scoped Research, same-Change reconciliation, Plan, Dev, Test, and reconcile-only Deliver work one canonical writer at a time, including mandatory reviews; a model-selected Deliver run stops before finalization. | Semantic stops, budgets, residual-risk acceptance, and every external effect return control to the owner; a lost conversation activation stops a session-local grant, a fresh Agent or host continues a durable grant only after exact durable verification, and neither mode grants finalization or archive. |
 
 ## North Star v2 Outcome Relations
 
@@ -69,10 +70,13 @@ host sidecars. Verification: isolated adapter lifecycle and package-smoke tests.
 
 ### Requirement FR-02: Explicit owner routes
 
-The eight public workflows and `ultra-status` are owner-invocable. Init, Change,
-Delegate, and Status are never implicitly selected. Research, Plan, Dev, Test, and
-reconcile-only Deliver may be selected only when their resident entry guard verifies a
-live Change-scoped execution grant — a current session-local activation or a stably verified durable work-package grant; otherwise they stop. Moving a work
+The eight public workflows and `ultra-status` are owner-invocable. Init, baseline
+Research, Change intake/evidence/acceptance/abandonment/primary transfer, Delegate,
+Deliver finalization/archive, and Status are explicit-only. Change-scoped Research,
+same-Change reconciliation, Plan, Dev, Test, and reconcile-only Deliver may be selected
+only when their resident entry guard verifies a live Change-scoped execution grant — a
+current session-local activation or a stably verified durable work-package grant;
+otherwise they stop. Moving a work
 package's canonical writer to another Agent is an owner-granted primary transfer
 executed through derived OFFER/ACK/RESULT receipts under
 `.ultra/.runtime/handoffs/`, mutually exclusive with delegated workers.
@@ -101,11 +105,27 @@ history rewrites and branch deletion remain guarded. Verification: Python Hook s
 
 ### Requirement FR-06: Bounded delegation
 
+The installed `ultra-delegate` Skill-local runner uses one `AgentExecutionDriver` to
+select conformance-gated ACP-first stable v1 or the typed result-compatible CLI fallback.
 Delegation uses immutable input digests, strict permission and result schemas, a clean
-registered worktree, native host permission mode, observed Git changes, timeout,
-cancellation, and atomic terminal receipt. Its instruction selects task execution,
-scoped Research evidence, or aggregate Change review/verification; only the first
-requires a task row. Verification: delegation and workflow-entry regression suites.
+registered worktree, native Host permission mode, observed Git changes, timeout,
+cancellation, and atomic terminal receipt. A Host selects ACP only when the candidate is
+executable, the stable-v1 receipt is current, and any identity probes declared by that
+profile pass. Before the worktree fence, the worker spec, or any Host process exists,
+the retained host enforcement qualification also compares the Packet's required
+enforcement dimensions — `writable_scope` for write packets plus `outside_root_denial`,
+`shell_tool_denial`, `agent_tool_network_denial`, and `point_of_use_effect_boundary`
+for every packet — against the exact Host capability facts for the selected transport
+and installed identity; a missing, unknown, unsupported, or version-mismatched
+dimension returns one typed `host_enforcement_unavailable` diagnostic that creates no
+Host process, with no silent fallback. The retained ZCode 0.16.5 ACP qualification
+observed `writable_scope` unsupported and every later effect dimension unobserved, so
+both ZCode transports stay unavailable for delegation Packets while remaining
+`experimental`; Hosts without a retained qualification make no capability claim. Its
+instruction selects task execution, scoped Research evidence, or aggregate Change
+review/verification; only the first requires a task row. ZCode also
+requires `--ack-experimental`. Verification: driver, delegation, Doctor, and
+workflow-entry regression suites.
 
 ### Requirement FR-07: Honest host adaptation
 
@@ -215,7 +235,7 @@ leaving every canonical artifact trackable.
 | Project workflow | Raw Project Brief, accepted baseline, bounded Change deltas, task contexts, evidence, review, delivery, recovery | General chat memory or product-management database |
 | Host adaptation | Native paths, manifests, metadata, events, lifecycle | Lowest-common-denominator emulation of missing host features |
 | Safety | Path, permission, schema, process, digest, exact effect and recovery facts | Semantic scoring or automated risk acceptance |
-| Delegation | One bounded child CLI process and validated worktree result | Autonomous orchestration, external-effect authority, automatic integration |
+| Delegation | One bounded installed Agent runtime through ACP-first stable v1 or typed CLI fallback, plus a validated worktree result | Autonomous orchestration, external-effect authority, automatic integration |
 | Primary transfer | Owner-granted OFFER/ACK/RESULT handoff of one work package's canonical writer role between Agents | Worker paths gaining canonical `.ultra` writes, receipt-as-authority, automatic scheduling |
 
 ## Release Evidence

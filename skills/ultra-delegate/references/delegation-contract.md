@@ -122,6 +122,33 @@ record through the same fixed safe shape, so a malformed or replaced journal bec
 `event_journal_malformed` instead of being echoed. Loss of the journal does not affect
 recovery or completion.
 
+## Host enforcement admission
+
+Before the worktree fence, the worker spec, the worker, or any Host process exists,
+the retained host enforcement qualification drives admission: the launcher compares the
+Packet's required enforcement dimensions with the exact Host capability facts retained
+for the selected transport. A record exists only where an
+exact-version, coordinator-owned, redacted, no-production observation was retained; a
+Host without a record makes no capability claim and keeps its conformance-gated
+admission path. A write Packet requires `writable_scope` in addition to the dimensions
+every Packet requires: `outside_root_denial`, `shell_tool_denial`,
+`agent_tool_network_denial`, and `point_of_use_effect_boundary`. A missing, unknown,
+unsupported, or version-mismatched dimension produces one typed
+`host_enforcement_unavailable` diagnostic that creates no Host process, never falls
+back silently to another transport or Host, and names each failing dimension with its
+observed status and the retained evidence binding.
+
+The retained ZCode 0.16.5 ACP qualification observed `writable_scope` unsupported —
+edit requests carried no provable location, so the product denied them as
+`outside_envelope` before any write — and every later effect dimension unobserved, so
+both ZCode transports stay unavailable for delegation Packets while the transport
+remains `experimental`. Provider transport for the qualification call was separately
+authorized only and is never Worker effect authority; adapter preinstallation (the
+installed adapter invoked directly, no runtime package fetch), env-key isolation,
+credential-value redaction and receipt truth are recorded as separate product-side
+facts and never satisfy a Packet enforcement dimension. The redacted receipt is
+retained under `.ultra/evidence/vnext-d1-host-enforcement-qualification/`.
+
 ## Recovery
 
 - `status` distinguishes running, cancelling, stalled, and terminal artifacts.

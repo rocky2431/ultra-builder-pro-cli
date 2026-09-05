@@ -17,7 +17,7 @@ Host 模型仍然是工程师。Ultra 提供可复用的方法和可检查的产
 
 ## Ultra Builder Pro 5.0
 
-`5.0.1` 是 Ultra 作为真实软件工程认知对齐 Harness 的当前实现。它保留已接受的
+`5.0.2` 是 Ultra 作为真实软件工程认知对齐 Harness 的当前实现。它保留已接受的
 3.0 file-first 与 model-agency 宪法，再让工作流位置、恢复和跨 Agent 执行变得可直接
 观察。它不是去中心化多 Agent 平台，也不规定唯一的 Agent 拓扑。它只承诺五件事：
 
@@ -35,8 +35,9 @@ Host 模型仍然是工程师。Ultra 提供可复用的方法和可检查的产
 drill 后，才优先选择 stable ACP v1；否则同一 result contract 使用明确报告原因的 CLI
 fallback。可移植协议和原生安装覆盖 Claude Code、Codex、OpenCode、Kimi Code、
 Grok Build 和 ZCode。六个 profile 都暴露 stable ACP v1 candidate，也都有各自当前的
-真实 provider receipt。只有对应 executable 与 candidate identity 仍匹配时才选择 ACP；
-否则返回 typed CLI fallback。ZCode 使用独立安装且锁定源码的 bridge，并保持
+真实 provider receipt。只有对应 executable、protocol/receipt binding，以及该 profile
+的 candidate identity probe（如有声明）仍匹配时才选择 ACP；否则返回 typed CLI fallback。
+ZCode 使用独立安装且锁定源码的 bridge，并保持
 `experimental`。
 
 5.0 明确不加入 daemon、workflow service、语义状态机、A2A 网络、Team Pack、remote
@@ -68,10 +69,10 @@ daemon。
 | `ultra-research` | 建立已接受的 North Star 和有证据支撑的基线 |
 | `ultra-change` | 将一次请求的增量与已接受基线进行协调 |
 | `ultra-plan` | 编写 tracer-bullet 任务、上下文、依赖与 seam |
-| `ultra-dev` | 通过红/绿开发和六个证据维度实现一个任务 |
+| `ultra-dev` | 通过红/绿开发和六个证据维度 `tests_written`、`tests_passed`、`persistence_real`、`feature_flags_audit`、`vertical_slice`、`spec_trace` 实现一个任务 |
 | `ultra-test` | 审计全系统接线、E2E 行为、性能和安全性 |
 | `ultra-deliver` | 协调、Review、记录并归档一个已完成的 Change |
-| `ultra-delegate` | 通过另一个受支持的 CLI 执行有界任务、Research 取证或聚合 Review |
+| `ultra-delegate` | 通过 ACP-first stable v1 把有界任务、Research 取证或聚合 Review 派给另一个 installed Agent runtime，并保留 typed CLI fallback |
 
 ### 模型调用的纪律
 
@@ -108,7 +109,7 @@ subagent 的 Host 可以并行运行 Review lens；其他 Host 则顺序运行�
 
 ### 原来的 Agents 去哪里了
 
-`5.0.1` 不安装自定义 `agents/` 投影。原来的 Review workers 变成
+`5.0.2` 不安装自定义 `agents/` 投影。原来的 Review workers 变成
 `ultra-review/references/` 下六个聚焦文件；Review 协调和综合归属于父级
 `ultra-review` Skill。原来的 debugger 流程位于
 `ultra-dev/references/debugging.md`，测试执行流程位于
@@ -185,17 +186,17 @@ receipts 都是派生证据，不是额外语义文档。
 
 ```bash
 # 当前项目，单个 Host
-npx ultra-builder-pro-cli@5.0.1 --claude --local
-npx ultra-builder-pro-cli@5.0.1 --codex --local
+npx ultra-builder-pro-cli@5.0.2 --claude --local
+npx ultra-builder-pro-cli@5.0.2 --codex --local
 
 # 全局安装
-npx ultra-builder-pro-cli@5.0.1 --opencode --global
-npx ultra-builder-pro-cli@5.0.1 --kimi --global
-npx ultra-builder-pro-cli@5.0.1 --grok --global
-npx ultra-builder-pro-cli@5.0.1 --zcode --global
+npx ultra-builder-pro-cli@5.0.2 --opencode --global
+npx ultra-builder-pro-cli@5.0.2 --kimi --global
+npx ultra-builder-pro-cli@5.0.2 --grok --global
+npx ultra-builder-pro-cli@5.0.2 --zcode --global
 
 # 所有受支持 Host
-npx ultra-builder-pro-cli@5.0.1 --all --global
+npx ultra-builder-pro-cli@5.0.2 --all --global
 ```
 
 把任务通过 ACP 派给 ZCode 还需要独立构建的 bridge 和已安装的 ZCode Desktop。
@@ -218,11 +219,25 @@ macOS 环境使用该平台实际安装的 ZCode CLI path。`--version` 必须�
 `zcode-acp 0.1.0+ultra.zcode.0.16.5`。
 
 Host 与 provider 是两个概念：ZCode Desktop 是 runtime，模型账号可以是国内智谱
-BigModel，也可以是国际 Z.AI。国内 BigModel Coding Plan 应在
-`~/.zcode/cli/config.json` 中使用官方 Anthropic-compatible endpoint
-`https://open.bigmodel.cn/api/anthropic` 和 BigModel API Key，不能走 Z.AI OAuth。
-5.0 的真实验证使用 `builtin:bigmodel-coding-plan/GLM-5.2`。参见
-[智谱官方 Claude API 兼容文档](https://docs.bigmodel.cn/cn/guide/develop/claude/introduction)。
+BigModel、国际 Z.AI 或其他已配置 provider。当前模型连接应通过 ZCode UI 或
+`~/.zcode/v2/config.json` 配置；`~/.zcode/cli/config.json` 管理 CLI plugin、Hooks、
+MCP 和其他 headless-runtime 设置，不是模型账号的规范配置文件。BigModel 账号授权
+不需要手工填写 URL；BigModel Coding Plan 的 API Key 使用 OpenAI-compatible coding
+endpoint `https://open.bigmodel.cn/api/coding/paas/v4`。Anthropic-compatible endpoint
+`https://open.bigmodel.cn/api/anthropic` 适用于另一个资源包或预付费余额路径。请以当前
+[ZCode 模型配置文档](https://zcode.z.ai/en/docs/configuration)、
+[ZCode provider Q&A](https://zcode.z.ai/en/docs/qa) 和
+[智谱 Claude API 兼容文档](https://docs.bigmodel.cn/cn/guide/develop/claude/introduction)
+为准。带日期的 ZCode 0.16.5 conformance drill 使用了
+`builtin:bigmodel-coding-plan/GLM-5.2` 及其锁定的 headless 配置；该 receipt 是历史
+兼容性证据，不是通用安装说明。
+
+由于 ZCode transport 仍为 `experimental`，每次真实派送都必须显式确认这个边界：
+
+```bash
+node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to zcode \
+  --ack-experimental --instruction <file> --permission <file> --worktree <dir>
+```
 
 这些固定版本的 `npx` 命令在发布后解析 registry 中不可变的版本。需要避免修改真实
 用户安装时，源码验证使用 `node bin/install.js --config-dir <isolated-path>`；独立的
@@ -239,13 +254,13 @@ ZCode uninstall 与 reinstall。
 
 ```bash
 # 重新执行安装会更新受管理产物
-npx ultra-builder-pro-cli@5.0.1 --codex --global
+npx ultra-builder-pro-cli@5.0.2 --codex --global
 
 # 只读诊断
-npx ultra-builder-pro-cli@5.0.1 --all --global --doctor --json
+npx ultra-builder-pro-cli@5.0.2 --all --global --doctor --json
 
 # 只移除受管理的 Ultra 资产
-npx ultra-builder-pro-cli@5.0.1 --all --global --uninstall
+npx ultra-builder-pro-cli@5.0.2 --all --global --uninstall
 ```
 
 `--config-dir <path>` 会同时隔离主配置和 Host 自有 sidecar。它是测试时的安全选择，
@@ -316,7 +331,8 @@ archive 或 abandoned Change 中未完成的历史 rows 仍不是当前 frontier
 工作流不会把“测试通过”等同于端到端结论。
 
 - `ultra-plan` 拒绝横向 feature slicing，并确认可观察 seam。
-- `ultra-dev` 把测试、持久化、feature flags、垂直执行和 spec trace 记录为六个独立观察。
+- `ultra-dev` 记录六个独立观察：`tests_written`、`tests_passed`、
+  `persistence_real`、`feature_flags_audit`、`vertical_slice`、`spec_trace`。
 - `ultra-test` 为 changed exports 查找真实的非测试消费者，并让最小 primary flow 穿过边界。
 
 每层防线都可以独立报告缺陷。这些报告是 sensors，不是语义 gates；模型和所有者在
@@ -343,8 +359,8 @@ archive 或 abandoned Change 中未完成的历史 rows 仍不是当前 frontier
 `AgentExecutionDriver` 并在后台启动。只有 executable stdio endpoint 能协商 stable
 ACP v1，且该 Host 有带 evidence 的 passed conformance record 时才选择 ACP；否则使用
 相同 result contract 的 `CliDriver`，并报告精确 fallback reason。当前六个 Host row
-都已有各自真实 provider 的 passing receipt；executable 缺失或 receipt 缺失/过期时仍
-返回 typed CLI fallback；candidate identity 不匹配也同样 fallback。只有在
+都已有各自真实 provider 的 passing receipt；executable 缺失、candidate identity
+probe（如有声明）不匹配，或 receipt 缺失/过期时，仍返回 typed CLI fallback。只有在
 `session/prompt` 之前识别到 `acp_auth_required` 时，才会执行一次有界 CLI path；其他
 ACP failure 一律不重试，因此不会重复派送 provider task。空
 writable roots 选择原生只读模式；声明 roots 则
@@ -374,8 +390,8 @@ ZCode 通过独立安装的 `zcode-acp` bridge 只解析 installed Desktop runti
 优先 App-bundled CLI，之后才是 `PATH` fallback），并保持 `experimental`。当前
 capability、read-only、permission、cancel/no-orphan、cwd/diff、result parity 与
 redaction drill 均已通过；提升 maturity 仍需要 App-internal runtime 的官方稳定性承诺。
-Doctor 分开报告 runner health、ACP capability、candidate identity、selected driver、
-fallback reason 与 ZCode maturity。
+Doctor 分开报告 runner health、ACP capability、candidate identity（如有声明）、
+selected driver、fallback reason 与 ZCode maturity。
 
 ## Host 支持
 
@@ -413,18 +429,18 @@ effect；validator 成功只证明结构符合要求，不代表语义已被接�
 
 ## 文档
 
-- [5.0 设计与验收合同](docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) — 5.0.1 已实现的
+- [5.0 设计与验收合同](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/docs/ULTRA-BUILDER-PRO-5.0.zh-CN.md) — 5.0.2 已实现的
   Route、Skill 职责、continuation、ACP/CLI execution、migration 与 journey 边界。
 - [5.0 journey 结果](docs/evals/ultra-5-0-journey-results.md) — 可观察的 source、
   isolated-runtime、real-provider、real-HOME 与跨平台结果，以及明确排除的服务部署边界。
-- [当前权威](.ultra/north-star.md) — 本仓库已接受的 North Star
+- [当前权威](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/.ultra/north-star.md) — 本仓库已接受的 North Star
   `north-star-v2-r3` 是当前规范权威；`.ultra/tasks.json` 以及
   `.ultra/changes/active/` 或 `.ultra/changes/archive/` 下的稳定 Change 记录当前或
   已交付的工作 frontier。
 - 冻结的设计历史（不可变的已接受记录，不是实时状态）：
-  [3.0 North Star R3](docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md) —
+  [3.0 North Star R3](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md) —
   绑定 hash 的已接受 r3 设计；以及已被 r3 取代的
-  [3.0 design](docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md)。
+  [3.0 design](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md)。
 - [理念](docs/PHILOSOPHY.md)
 - [架构](docs/ARCHITECTURE.md)
 - [产物权威](docs/ARTIFACT-AUTHORITY.md)

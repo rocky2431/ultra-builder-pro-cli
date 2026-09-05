@@ -1,0 +1,28 @@
+{
+  "schema": "acpx.flow-definition-snapshot.v1",
+  "name": "research-compute-loop",
+  "startAt": "step",
+  "nodes": {
+    "step": {
+      "nodeType": "compute",
+      "hasRun": true
+    },
+    "pause": {
+      "nodeType": "checkpoint",
+      "summary": "Research probe paused",
+      "hasRun": false
+    }
+  },
+  "edges": [
+    {
+      "from": "step",
+      "switch": {
+        "on": "next",
+        "cases": {
+          "again": "step",
+          "pause": "pause"
+        }
+      }
+    }
+  ]
+}

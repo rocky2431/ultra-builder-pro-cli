@@ -1,0 +1,90 @@
+[
+  {
+    "attemptId": "step#1",
+    "nodeId": "step",
+    "nodeType": "compute",
+    "outcome": "ok",
+    "startedAt": "2026-09-04T23:58:13.511Z",
+    "finishedAt": "2026-09-04T23:58:13.513Z",
+    "promptText": null,
+    "rawText": null,
+    "output": {
+      "n": 1,
+      "next": "again"
+    },
+    "session": null,
+    "agent": null,
+    "trace": {
+      "outputInline": {
+        "n": 1,
+        "next": "again"
+      }
+    }
+  },
+  {
+    "attemptId": "step#2",
+    "nodeId": "step",
+    "nodeType": "compute",
+    "outcome": "ok",
+    "startedAt": "2026-09-04T23:58:13.514Z",
+    "finishedAt": "2026-09-04T23:58:13.515Z",
+    "promptText": null,
+    "rawText": null,
+    "output": {
+      "n": 2,
+      "next": "again"
+    },
+    "session": null,
+    "agent": null,
+    "trace": {
+      "outputInline": {
+        "n": 2,
+        "next": "again"
+      }
+    }
+  },
+  {
+    "attemptId": "step#3",
+    "nodeId": "step",
+    "nodeType": "compute",
+    "outcome": "ok",
+    "startedAt": "2026-09-04T23:58:13.516Z",
+    "finishedAt": "2026-09-04T23:58:13.516Z",
+    "promptText": null,
+    "rawText": null,
+    "output": {
+      "n": 3,
+      "next": "pause"
+    },
+    "session": null,
+    "agent": null,
+    "trace": {
+      "outputInline": {
+        "n": 3,
+        "next": "pause"
+      }
+    }
+  },
+  {
+    "attemptId": "pause#1",
+    "nodeId": "pause",
+    "nodeType": "checkpoint",
+    "outcome": "ok",
+    "startedAt": "2026-09-04T23:58:13.517Z",
+    "finishedAt": "2026-09-04T23:58:13.518Z",
+    "promptText": null,
+    "rawText": null,
+    "output": {
+      "checkpoint": "pause",
+      "summary": "Research probe paused"
+    },
+    "session": null,
+    "agent": null,
+    "trace": {
+      "outputInline": {
+        "checkpoint": "pause",
+        "summary": "Research probe paused"
+      }
+    }
+  }
+]

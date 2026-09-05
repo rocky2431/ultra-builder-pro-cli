@@ -1,0 +1,19 @@
+{
+  "schema": "acpx.flow-run-bundle.v1",
+  "runId": "2026-09-04T233548172Z-research-compute-loop-b7bc153d",
+  "flowName": "research-compute-loop",
+  "startedAt": "2026-09-04T23:35:48.174Z",
+  "finishedAt": "2026-09-04T23:35:48.179Z",
+  "status": "failed",
+  "traceSchema": "acpx.flow-trace-event.v1",
+  "paths": {
+    "flow": "flow.json",
+    "trace": "trace.ndjson",
+    "runProjection": "projections/run.json",
+    "liveProjection": "projections/live.json",
+    "stepsProjection": "projections/steps.json",
+    "sessionsDir": "sessions",
+    "artifactsDir": "artifacts"
+  },
+  "sessions": []
+}

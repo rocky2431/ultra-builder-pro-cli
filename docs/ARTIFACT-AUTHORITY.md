@@ -207,11 +207,18 @@ transition. New evidence and review close the task again through the same path.
 ## Single-writer boundary
 
 One primary host model writes canonical `.ultra` files in a worktree. Native review
-workers are read-only sensors, and delegated CLIs write only declared non-`.ultra`
+workers are read-only sensors, and delegated Agent runtimes write only declared non-`.ultra`
 roots in isolated registered worktrees; their findings return to the primary writer.
 Parallel implementation uses separate worktrees and explicit Git integration. Ultra
 does not add a lock service or semantic state machine to make concurrent canonical
 writes appear safe.
+
+The launcher's host enforcement admission reads versioned product facts recorded in the
+installed host profile; those facts cite a retained, redacted qualification receipt
+under `.ultra/evidence/` and are evidence-bound observations, not authority. A missing,
+unsupported, unobserved, or version-mismatched enforcement dimension refuses a
+delegation launch before any worker exists, and separately authorized provider
+transport is never recorded as Worker effect authority.
 
 The primary writer of a work package changes only through an owner-granted primary
 transfer (`skills/ultra-change/references/primary-transfer.md`): a derived OFFER

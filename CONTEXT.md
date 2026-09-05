@@ -16,9 +16,9 @@
 | Hook | A deterministic lifecycle sensor or narrow effect guard registered by a host adapter. | A semantic completion judge. |
 | Canonical artifact | The single owner-readable file that carries one class of accepted semantic truth. | A cache, transcript, generated projection, or database row. |
 | Derived artifact | Disposable observation or navigation under `.ultra/.runtime/`, `.ultra/progress/`, `.ultra/reviews/`, or `.ultra/research/<run-id>/brief.md`. | Product intent, accepted specification, or task authority. |
-| Delegate | A bounded invocation of another supported CLI in an isolated registered Git worktree. | A new workflow owner or an authority-escalation channel. |
+| Delegate | A bounded invocation of another installed Agent runtime through conformance-gated ACP-first stable v1, with a typed CLI fallback, in an isolated registered Git worktree. | A new workflow owner, a provider-specific semantic protocol, or an authority-escalation channel. |
 | Worker Packet | Immutable, digest-bound input that fixes a review or delegation worker's scope and output path. | Mutable shared conversation state. |
-| Permission envelope | A strict declaration of writable worktree roots and external effects; v0.26 accepts no external-effect grant. | A promise that can override the host's native sandbox. |
+| Permission envelope | A strict declaration of writable worktree roots and external effects; the portable launcher accepts no external-effect grant. | A promise that can override the host's native sandbox. |
 | Receipt | A terminal, mechanically validated record of what a delegated process observed and changed. | Proof that the semantic result is correct or accepted. |
 
 ## Relationships
@@ -30,14 +30,15 @@
   only the bounded delta against that baseline.
 - Hooks may read canonical artifacts and write derived observations. Derived artifacts
   never flow back into authority without model interpretation and an authorized writer.
-- A delegate reads an immutable instruction and permission envelope, changes only its
-  registered worktree, and returns a receipt. The primary host inspects and integrates
-  the diff.
+- A delegate reads an immutable instruction and permission envelope. The installed
+  Skill-local runner selects ACP-first execution or its typed CLI fallback, confines
+  writes to the registered worktree, and returns one result-compatible receipt. The
+  primary host inspects and integrates the diff.
 - Git binds every artifact and receipt to observable source state and supplies recovery.
 
 ## Flagged ambiguities
 
 - Do not call model-invoked disciplines “background agents”; they are methods and may
   run sequentially when a host has no subagent surface.
-- Do not call `tasks.json` a projection; in v0.26 it is the canonical task ledger.
+- Do not call `tasks.json` a projection; it is the canonical task ledger.
 - Do not call a Hook or Doctor result “workflow truth”; it is an observation.

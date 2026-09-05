@@ -1,0 +1,10 @@
+{
+  "runId": "2026-09-04T235813508Z-research-compute-loop-c25d2154",
+  "flowName": "research-compute-loop",
+  "startedAt": "2026-09-04T23:58:13.509Z",
+  "updatedAt": "2026-09-04T23:58:13.518Z",
+  "status": "waiting",
+  "statusDetail": "Research probe paused",
+  "waitingOn": "pause",
+  "sessionBindings": {}
+}

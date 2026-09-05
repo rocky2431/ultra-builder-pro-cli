@@ -1,0 +1,186 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "v502-authority-reconciliation",
+  "change_id": "chg-ultra-5-0-2-authority-reconciliation",
+  "context": {
+    "path": ".ultra/contexts/task-v502-authority-reconciliation.md",
+    "acceptance_sha256": "300a33a8eb55c48142ec7a3b7eac0e138f29b04c8a85c1a029e00e81d5f64c78"
+  },
+  "subject": {
+    "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "worktree_digest": "8245fd002634bc2475331534595582a8b0ec5d9a9b4c66ca80ec1e4ab22e3e55",
+    "observed_at": "2026-08-31T21:40:20Z"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "T502-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/v026-contract.test.cjs tests/package-smoke.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log",
+        "raw_evidence_sha256": "3488ab9d4f74e670edf07244abd9e392600764c0b07efb8dabeb11f63b623a5c",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "8245fd002634bc2475331534595582a8b0ec5d9a9b4c66ca80ec1e4ab22e3e55",
+          "observed_at": "2026-08-31T21:40:20Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The focused 100-test run exercises the maintained ACP-first delegation, Host/provider guidance, package closure, explicit Deliver authority, and evidence-consumption contracts without finding a stale primary-path regression."
+      }
+    },
+    {
+      "criterion_id": "T502-02",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": ".ultra/specs/product.md, .ultra/specs/architecture.md, .ultra/specs/research-distillate.md, adapters/_shared/runtime-assets.cjs, skills/ultra-delegate/scripts/host-profile.cjs, skills/ultra-delegate/SKILL.md, skills/ultra-status/SKILL.md, README.md, README.zh-CN.md, docs/RUNTIME-COMPAT-MATRIX.md, and the final 5.0.2 diff",
+        "observation": "The current surfaces agree on six Hosts, installed Skill-local ACP-first delegation, typed CLI fallback, mode-aware invocation, Codex host-managed trust, conditional identity probes, all six task-evidence dimensions, and the split between the ZCode Host, current provider configuration, and dated 0.16.5 drill evidence.",
+        "revision": "adb7bfe89f40e107d0c9c490076a6e74294b9337+8245fd002634bc2475331534595582a8b0ec5d9a9b4c66ca80ec1e4ab22e3e55"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The inspected runtime authorities, current specifications, bilingual guidance, and focused contracts project one consistent maintained product without changing the underlying transport or Host maturity."
+      }
+    },
+    {
+      "criterion_id": "T502-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/v026-contract.test.cjs tests/package-smoke.test.cjs; npm pack --dry-run --json",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log",
+        "raw_evidence_sha256": "3488ab9d4f74e670edf07244abd9e392600764c0b07efb8dabeb11f63b623a5c",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "8245fd002634bc2475331534595582a8b0ec5d9a9b4c66ca80ec1e4ab22e3e55",
+          "observed_at": "2026-08-31T21:40:20Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The package contract passed and the dry-run produced a coherent unpublished ultra-builder-pro-cli@5.0.2 artifact with 141 entries and closed packaged README links."
+      }
+    },
+    {
+      "criterion_id": "T502-04",
+      "verification_type": "command",
+      "evidence": {
+        "command": "npm run verify:release; validate skills/ultra-delegate and skills/ultra-status with Skill Creator; isolated six-Host install/Doctor/uninstall; assert the current read-only real-HOME Doctor projection; git diff --check",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log",
+        "raw_evidence_sha256": "3488ab9d4f74e670edf07244abd9e392600764c0b07efb8dabeb11f63b623a5c",
+        "freshness_identity": {
+          "git_head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+          "worktree_digest": "8245fd002634bc2475331534595582a8b0ec5d9a9b4c66ca80ec1e4ab22e3e55",
+          "observed_at": "2026-08-31T21:40:20Z"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The final gate passed 663 Node tests, 89 Hook tests, zero high-severity production vulnerabilities, both changed-Skill validators, an isolated healthy six-Host lifecycle, the expected current real-HOME Doctor projection, and the diff check."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/v026-contract.test.cjs",
+        "tests/package-smoke.test.cjs"
+      ],
+      "rationale": "The Change adds and updates assertions for maintained authority wording, ZCode guidance, version coherence, and packaged relative-link closure rather than relying on documentation inspection alone."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/v502-authority-reconciliation/verification.log"
+      ],
+      "rationale": "The focused 100-test contract run and the complete 663-Node/89-Hook release gate passed on the completion snapshot, with zero reported production dependency vulnerabilities."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "tests/install.test.cjs",
+        ".ultra/evidence/v502-authority-reconciliation/verification.log"
+      ],
+      "rationale": "The package smoke and isolated six-Host lifecycle use real temporary package and filesystem writes, Doctor reads them back, and uninstall proves managed cleanup; no real HOME mutation was needed or performed."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "skills/ultra-delegate/scripts/host-profile.cjs",
+        "skills/ultra-delegate/SKILL.md",
+        "docs/RUNTIME-COMPAT-MATRIX.md",
+        ".ultra/evidence/v502-authority-reconciliation/verification.log"
+      ],
+      "rationale": "No new flag or dormant route was introduced. The explicit CLI force fallback remains opt-in, all six current Host rows select ACP with null fallback, and ZCode remains visibly experimental."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/package-smoke.test.cjs",
+        "tests/install.test.cjs",
+        ".ultra/evidence/v502-authority-reconciliation/verification.log"
+      ],
+      "rationale": "The verified path crosses package metadata, packed READMEs and Skills, six generated Host installations, delegation-driver Doctor selection, readback, and managed uninstall on a real isolated filesystem."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/specs/product.md#requirement-fr-06-bounded-delegation",
+        ".ultra/contexts/task-v502-authority-reconciliation.md",
+        ".ultra/changes/active/chg-ultra-5-0-2-authority-reconciliation/intent.md",
+        ".ultra/reviews/v502-authority-reconciliation-reopen-final-review-20260901/SUMMARY.json"
+      ],
+      "rationale": "T502-01 through T502-04 resolve AC502-01 through AC502-05 and the accepted FP-1/FP-2/FP-5/FP-6/FP-7, NS-01 through NS-04, and HC-1/HC-3/HC-4/HC-5/HC-6 trace without changing the accepted North Star."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "e7de7cc48448b5137800e3aab492fdbca424439f68cd0167351f3fa3e61b0b0a",
+      "limitation": null
+    },
+    "session_id": "v502-authority-reconciliation-reopen-final-review-20260901",
+    "summary_ref": ".ultra/reviews/v502-authority-reconciliation-reopen-final-review-20260901/SUMMARY.json",
+    "summary_digest": "c9f2a08aae1751537f5e58b60af1bab166236db71cb1bb5b5cd55e3b9da1e15e",
+    "blocking_findings": [],
+    "retention": "Retain the exact strict Review session, including WORKER-PACKET.json, ADMISSION.json, all four specialist artifacts, and SUMMARY.json, until aggregate Test and Deliver have both consumed it successfully."
+  },
+  "artifacts": [
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "package.json",
+    "package-lock.json",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-status/SKILL.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    ".ultra/specs/product.md",
+    ".ultra/specs/architecture.md",
+    ".ultra/specs/research-distillate.md",
+    "tests/v026-contract.test.cjs",
+    "tests/package-smoke.test.cjs",
+    ".ultra/decisions/2026-09-01-v502-deliver-finalization.md",
+    ".ultra/reviews/v502-authority-reconciliation-reopen-final-review-20260901/SUMMARY.json"
+  ],
+  "limitations": [
+    "This is a dirty local 5.0.2 candidate. No commit, push, tag, publication, deployment, real-HOME installation, credential operation, provider purchase, or other external effect was authorized or performed.",
+    "The current real-HOME packages remain at 5.0.1. Their read-only Doctor reports the expected version mismatch on all six Hosts and the separate current Codex HOST_PLUGIN_NOT_DISCOVERED limitation; this Change neither installs nor repairs that Host state.",
+    "ZCode transport remains experimental and installed-runtime-only; this wording reconciliation does not change its maturity or conformance contract.",
+    "The strict task Review ran sequentially in shared context and therefore does not provide independent model-family isolation.",
+    "Owner-retained P2 review-spec-001 records the stale 0.26.2 base statement in the current architecture specification.",
+    "Owner-retained P2 review-comments-001 records mutable blob/main links in versioned or frozen README documentation."
+  ],
+  "timestamp": "2026-08-31T21:40:20Z"
+}
