@@ -1,0 +1,9 @@
+{
+  "observation": "Root replaced PATH when pinning Node and accidentally selected system Python 3.9.6 instead of the existing Python 3.12.10. Union type annotations failed before assertions. Original raw failure retained; rerun preserves existing PATH and only prefixes Node. No source or test changes for this correction.",
+  "failed_log": "step1-preflight-release.log",
+  "failed_log_sha256": "733edd0984871b1dbbb55bc8790912fa5f5ac79341d621963fecc5c097cede66",
+  "retry_log": "step1-preflight-release-runtime-corrected.log",
+  "retry_status": "success",
+  "recorded_at": "2026-09-08T23:49:40.554198+00:00",
+  "retry_exit_code": 0
+}

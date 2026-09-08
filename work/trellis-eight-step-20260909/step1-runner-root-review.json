@@ -1,0 +1,23 @@
+{
+  "source": "tests/owner-journeys-eval.test.cjs",
+  "source_sha256": "a726a152d7691cc75759b3553430820a073065b4c0f2504d8b06526214144366",
+  "all_assertion_lines_preserved": 59,
+  "old_frozen_fixture_diff_empty": true,
+  "checks": [
+    {
+      "node_major": "25",
+      "command": "/opt/homebrew/Cellar/node/25.7.0/bin/node --test tests/owner-journeys-eval.test.cjs",
+      "exit_code": 0,
+      "log": "work/trellis-eight-step-20260909/step1-runner-root-node25.log",
+      "sha256": "ab595f20b4c10528ceb8d3268f65f727d7cea4142d71e9d21c3f6956d41b9141"
+    },
+    {
+      "node_major": "26",
+      "command": "/Users/rocky243/.hermes/node/bin/node --test tests/owner-journeys-eval.test.cjs",
+      "exit_code": 0,
+      "log": "work/trellis-eight-step-20260909/step1-runner-root-node26.log",
+      "sha256": "fcdc9ee50c90f3f47f466494d1e41ff03167281575dfe89f250f2e4ef9a75fce"
+    }
+  ],
+  "author_delegation": "fb8502f225fa42138d3e437bfff1171e"
+}

@@ -1,0 +1,13 @@
+✔ the frozen owner-journey spec is complete and self-consistent (1.528375ms)
+✔ the protocol is runnable before stage acceptance and commit (0.276417ms)
+✔ installed-copy comparison binds the frozen dual manifest, not raw-source bytes (0.268083ms)
+✔ the journey C fixture stays red: the seeded bug remains reproducible (149.289917ms)
+✔ the frozen fixture asserts the boundary without repairing itself (0.184792ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 227.044125

@@ -139,13 +139,14 @@ test('installed-copy comparison binds the frozen dual manifest, not raw-source b
 });
 
 test('the journey C fixture stays red: the seeded bug remains reproducible', () => {
-  for (const file of [
+  const fixtureFiles = [
     'package.json',
     'src/filter.js',
     'src/export.js',
     'test/month-filter.test.js',
     'test/export-markdown.test.js',
-  ]) {
+  ];
+  for (const file of fixtureFiles) {
     assert.ok(fs.existsSync(path.join(FIXTURE, file)), file);
   }
   // Strip the parent runner's NODE_TEST* environment so the child test
@@ -154,7 +155,12 @@ test('the journey C fixture stays red: the seeded bug remains reproducible', () 
   for (const key of Object.keys(env)) {
     if (key.startsWith('NODE_TEST')) delete env[key];
   }
-  const run = spawnSync(process.execPath, ['--test', 'test/'], {
+  // Name the fixture's test files instead of passing the `test/` directory:
+  // directory positionals are not portable across the supported Node range
+  // (>=22). On v25.7.0 `--test test/` resolves the directory as a module entry
+  // and reports MODULE_NOT_FOUND instead of running the seeded failures.
+  const fixtureTests = fixtureFiles.filter((file) => file.startsWith('test/'));
+  const run = spawnSync(process.execPath, ['--test', ...fixtureTests], {
     cwd: FIXTURE,
     encoding: 'utf8',
     env,

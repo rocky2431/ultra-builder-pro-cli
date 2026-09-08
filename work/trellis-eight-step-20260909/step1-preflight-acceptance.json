@@ -1,0 +1,69 @@
+{
+  "accepted_at": "2026-09-08T23:52:49.701242+00:00",
+  "scope": "baseline test runner and js-yaml patch only; not Step 1 or factory acceptance",
+  "source_base": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "verification_checkout": "/tmp/ubp-trellis-preflight-S5arL2",
+  "release": {
+    "exit_code": 0,
+    "node": 729,
+    "hooks": 104,
+    "audit_vulnerabilities": 0
+  },
+  "pack": {
+    "exit_code": 0,
+    "files": 142
+  },
+  "home_doctor": {
+    "exit_code": 2,
+    "status": "degraded",
+    "limitation": "existing absent or older host installs; no real HOME installation performed"
+  },
+  "accepted_files": [
+    {
+      "path": "package.json",
+      "sha256": "6bc1b5af4112dac7b7a9a30e3a6d0d901a6b4013e2e3046393bad407d9e9a5f8"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "454029f29e33984d796936f6b6d0ca8532d9ff1c439bc60faccbfd1c7dde5004"
+    },
+    {
+      "path": "tests/owner-journeys-eval.test.cjs",
+      "sha256": "a726a152d7691cc75759b3553430820a073065b4c0f2504d8b06526214144366"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "step1-preflight-release-runtime-corrected.log",
+      "sha256": "e76d7f5f9cf233845ddd70ede70b834c5d7d7d46f5e0517b1d7ed73aae1f9ea6"
+    },
+    {
+      "path": "step1-preflight-release.log",
+      "sha256": "733edd0984871b1dbbb55bc8790912fa5f5ac79341d621963fecc5c097cede66"
+    },
+    {
+      "path": "step1-preflight-pack.json",
+      "sha256": "566c337d0c6e73e769d04c2f14956c16057fe38cb656867eed793bbc588c0418"
+    },
+    {
+      "path": "step1-preflight-doctor.json",
+      "sha256": "b3f6e16daf5a824448ee08c548dfb4b8cfcd5d04358c0a8d2aca8172949461a2"
+    },
+    {
+      "path": "step1-runner-root-node25.log",
+      "sha256": "ab595f20b4c10528ceb8d3268f65f727d7cea4142d71e9d21c3f6956d41b9141"
+    },
+    {
+      "path": "step1-runner-root-node26.log",
+      "sha256": "fcdc9ee50c90f3f47f466494d1e41ff03167281575dfe89f250f2e4ef9a75fce"
+    },
+    {
+      "path": "step1-runner-root-review.json",
+      "sha256": "c4b97f610837d13c32f82fefb3ab5757de14d1280786e3f7398ca22a0962ed9a"
+    },
+    {
+      "path": "step1-preflight-runtime-correction.json",
+      "sha256": "049efb9f61b0ccd70ded5ac1a2a96b1676f22eb954116dc6d85b480fa0574324"
+    }
+  ]
+}
