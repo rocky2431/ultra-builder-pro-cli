@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "node",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/source/bin/install.js",
+    "run",
+    "--host",
+    "pi",
+    "--cwd",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial/D3-workspace",
+    "--host-arg=--mode",
+    "--host-arg=json",
+    "--host-arg=--print",
+    "--host-arg=--append-system-prompt",
+    "--host-arg=Work only on the supplied request within the current project directory and temporary scratch space. Read the loaded Ultra Skills as needed, but do not inspect personal documents or other workspaces. Existing provider authentication and native session caches are available runtime facilities. Do not install or change real HOME configuration, credentials, publish, purchase or touch production. Keep product files and sample data inside this project.",
+    "--resume",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial/D3-switch.session.jsonl",
+    "--",
+    "等一下，先放放。我另一个分账的小工具那边更急：平摊的时候如果人数填错了（比如 0），我想要个说得清的提示。先把这个处理掉。"
+  ],
+  "cwd": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial/D3-workspace",
+  "owner_message": "等一下，先放放。我另一个分账的小工具那边更急：平摊的时候如果人数填错了（比如 0），我想要个说得清的提示。先把这个处理掉。",
+  "session_file": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial/D3-switch.session.jsonl"
+}

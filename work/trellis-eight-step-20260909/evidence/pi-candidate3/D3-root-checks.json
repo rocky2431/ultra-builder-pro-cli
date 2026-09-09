@@ -1,0 +1,52 @@
+{
+  "meeting-notes": {
+    "exit_code": 0,
+    "log_tail": "n_it_is_only_a_date (test_mnotes.TestImport.test_title_keeps_the_stem_when_it_is_only_a_date) ... ok\n\n----------------------------------------------------------------------\nRan 26 tests in 0.064s\n\nOK\n"
+  },
+  "money-split": {
+    "exit_code": 0,
+    "log_tail": "le sharing the bill (0.225042ms)\n✔ a non-integer amount or a bad head count is rejected (0.181584ms)\nℹ tests 17\nℹ suites 0\nℹ pass 17\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 42.47175\n"
+  },
+  "frozen_money_test_unchanged": true,
+  "original_note_methods_preserved": true,
+  "missing": [],
+  "changed": [],
+  "turn_changes": [
+    {
+      "turn": 1,
+      "exit_code": 0,
+      "elapsed_seconds": 61.81972433300689,
+      "changed_paths": [
+        "meeting-notes/test_mnotes.py"
+      ]
+    },
+    {
+      "turn": 2,
+      "exit_code": 0,
+      "elapsed_seconds": 54.96160962479189,
+      "changed_paths": [
+        "money-split/src/money.js",
+        "money-split/test/split.test.js"
+      ]
+    },
+    {
+      "turn": 3,
+      "exit_code": 0,
+      "elapsed_seconds": 42.73847441608086,
+      "changed_paths": [
+        "meeting-notes/README.md"
+      ]
+    }
+  ],
+  "native_session_id": "01a08499-24f0-74dd-a7fa-12898d4ace97",
+  "native_models": [
+    {
+      "type": "model_change",
+      "id": "11d29b85",
+      "parentId": null,
+      "timestamp": "2026-09-09T05:17:04.154Z",
+      "provider": "openai-codex",
+      "modelId": "gpt-5.6-luna"
+    }
+  ]
+}

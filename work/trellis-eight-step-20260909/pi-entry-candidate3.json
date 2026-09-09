@@ -1,0 +1,22 @@
+{
+  "created_at": "2026-09-09T04:50:00.721184+00:00",
+  "base_commit": "0e814bed1cc79ffb8f9ccbe542fe5d3063e7024b",
+  "source": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/source",
+  "trial": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial",
+  "changed_paths": {
+    "bin/run.cjs": "62390a2355b22700974ae7275f2178b1939983136035572fd6de55966cfe5f9e",
+    "bin/unified-entry.md": "59b150bc8bb3e4dcb15608fd8e33bce28b5d5dac9bff1cdd5f2d1981753cfe4c",
+    "tests/unified-entry.test.cjs": "1a4bd756c3d5b21e8f7203c87fb04e982c78cc298da41573c5336697104b182f",
+    "skills/ultra-init/SKILL.md": "d678e61e47b4b7330b54cb964266e3acdfba8469f1c4dae6328759338b0e6b6d",
+    "README.md": "3ee3ad9b183aa23d69c308c59ff08338232f76b584b55898d7a16255f1a8ec11",
+    "README.zh-CN.md": "e80e1172a4f00c0cca78cca52ead5b267cc35f9bec10e41a5021a7a5c410685d",
+    "docs/RUNTIME-COMPAT-MATRIX.md": "9933ff9eac8d02ccd4ef630bbcb2c7c3eb5a8f0690b094956a8e8cbf177c7e51"
+  },
+  "node": "/Users/rocky243/.local/bin/node",
+  "pi": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+  "pi_version": "0.85.1",
+  "runtime_scope": "Pi native foreground entry only; shared Skills, native session storage; six installation/delegation hosts unchanged",
+  "source_author": "Codex",
+  "acceptance_status": "frozen before fresh recovery request selection",
+  "delta": "Candidate2 D4 removed an original regression while adding tests. Preserve relevant old checks and compare final files to starting contents; no new gate or state. Fresh confirmation input chosen by independent QA after this freeze."
+}

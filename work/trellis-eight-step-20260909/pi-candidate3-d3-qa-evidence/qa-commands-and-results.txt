@@ -1,0 +1,90 @@
+# Candidate3 D3 bounded independent QA
+
+Trial: `/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial`
+Subject: `D3-workspace/meeting-notes`, `D3-workspace/money-split`
+
+## Root operational records consumed
+
+Read `D3-before.json`, `D3-root-checks.json`, and the public D3 turn result exports. Root reports 26 meeting-note checks and 17 money checks passing, original note methods preserved, and frozen `money.test.js` unchanged. No private reasoning/signature/session content was read.
+
+## Disposable notes operation
+
+Copy command:
+
+```sh
+QA=$(mktemp -d /tmp/ubp-pi-candidate3-d3-qa2.XXXXXX)
+cp -a <trial>/D3-workspace/meeting-notes "$QA/meeting-notes"
+DB="$QA/meeting-notes/qa-notes.db"
+```
+
+Commands, each in a fresh process:
+
+```sh
+python3 "$QA/meeting-notes/mnotes.py" --db "$DB" add -d 2026-09-01 -t '预算决定' -m '决定：保留预算，供应商确认'
+python3 "$QA/meeting-notes/mnotes.py" --db "$DB" add -d 2026-09-05 -t '预算复盘' -m '决定：预算复盘下周完成'
+python3 "$QA/meeting-notes/mnotes.py" --db "$DB" find 决定
+python3 "$QA/meeting-notes/mnotes.py" --db "$DB" list -n 20
+python3 - <<'PY'
+import sqlite3
+rows=sqlite3.connect('$DB').execute('select id,occurred_on,title from notes order by occurred_on desc,id desc').fetchall()
+print(rows)
+assert rows == [(2,'2026-09-05','预算复盘'),(1,'2026-09-01','预算决定')]
+PY
+```
+
+Observed:
+
+```text
+#2  2026-09-05  预算复盘
+    决定：预算复盘下周完成
+#1  2026-09-01  预算决定
+    决定：保留预算，供应商确认
+共 2 条。
+#2  2026-09-05  预算复盘
+#1  2026-09-01  预算决定
+[(2, '2026-09-05', '预算复盘'), (1, '2026-09-01', '预算决定')]
+```
+
+Status: **PASS** — same-keyword search is newest-to-oldest and persists across fresh processes.
+
+## Disposable money operation
+
+The first attempt had an operator error: the Node command used `require(process.env.MONEY_JS)` without exporting `MONEY_JS`, so Node returned `TypeError [ERR_INVALID_ARG_TYPE]` before loading the product. No source or fixture was changed. It was corrected by setting `MONEY_JS="$QA/money-split/src/money.js"` for the same operation.
+
+Corrected command:
+
+```sh
+MONEY_JS="$QA/money-split/src/money.js" node - <<'JS'
+const {splitAmount, formatAmount, summarizeSplit} = require(process.env.MONEY_JS);
+try { splitAmount(1000, 0); } catch (e) {
+  console.log('zero_error', e.name, e.message);
+  if (!(e instanceof RangeError) || !e.message.includes('大于 0')) process.exit(1);
+}
+const shares = splitAmount(1000, 3);
+console.log('shares', shares, 'sum', shares.reduce((a,b)=>a+b,0),
+  'formatted', shares.map(formatAmount), 'summary', summarizeSplit(1000,3));
+if (JSON.stringify(shares)!=='[334,333,333]' || shares.reduce((a,b)=>a+b,0)!==1000) process.exit(1);
+JS
+```
+
+Observed:
+
+```text
+zero_error RangeError 人数必须是大于 0 的整数（当前输入：0）
+shares [ 334, 333, 333 ] sum 1000 formatted [ '3.34', '3.33', '3.33' ] summary 合计 10.00，3 人平摊：1 人 3.34，2 人 3.33
+```
+
+Status: **PASS** — zero has a clear Chinese RangeError; 1000 minor units are conserved and split as 334+333+333.
+
+## Hash and cross-product checks
+
+Compared D3-workspace against all entries in `D3-before.json`:
+
+- `money-split/test/money.test.js`: exact frozen hash `e31293a0332d84e523edc94dceae948087c37597c15f24f92cced448e758a428`; **PASS / byte-identical**.
+- Meeting product changes are confined to its README/test fixture expected by the three messages; `meeting-notes/mnotes.py` and its database retained their before hashes. No money source/test was changed by the meeting operation.
+- Money product changes are confined to `src/money.js` and `test/split.test.js` expected by the split request; README, authoritative decision, notes, package and `money.test.js` retain before hashes. No meeting implementation was changed by the money operation.
+- `D3-root-checks.json`: original meeting methods preserved; no cross-product edit reported.
+
+## Limits
+
+No full repository suite was repeated; Root’s 26/17 logs were consumed. This is a bounded disposable operation, not a reliability statistic or causal claim. No implementation, test edit, provider call, worker, install, real-HOME change, commit or publication was performed.

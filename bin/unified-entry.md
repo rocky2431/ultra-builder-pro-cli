@@ -33,6 +33,12 @@ continue the requested product work when its purpose and scope are clear; report
 the actual usable result or the material unanswered question. Never end a build request
 with only a skeleton and a recommendation that the owner select another Ultra workflow.
 
+Before reporting ordinary work complete, compare the changed files with their starting
+contents for accidental deletions, including existing regression checks. Add coverage
+without replacing relevant old checks. Change an old assertion only when the requested
+behavior makes it obsolete, and explain that change; a green suite alone cannot show
+that a check was not lost.
+
 The owner's answers and this repository are the sources of fact. Ask about the owner's own
 material — which existing real source of their data to use, an input you cannot observe
 anywhere, any access, integration, or write outside this project — and never invent it or

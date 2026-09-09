@@ -103,5 +103,26 @@
     "owner_active_time": "unknown; scripted operator",
     "source_input": "scripted owner replay",
     "host": "Pi 0.85.1"
+  },
+  "candidate3/D3-switch.session.jsonl": {
+    "native_session_id": "01a08499-24f0-74dd-a7fa-12898d4ace97",
+    "models": [
+      {
+        "type": "model_change",
+        "id": "11d29b85",
+        "parentId": null,
+        "timestamp": "2026-09-09T05:17:04.154Z",
+        "provider": "openai-codex",
+        "modelId": "gpt-5.6-luna"
+      }
+    ],
+    "first_timestamp": "2026-09-09T05:17:04.113Z",
+    "last_timestamp": "2026-09-09T05:19:40.178Z",
+    "assistant_messages": 26,
+    "native_reported_cost_total": 0.03771848,
+    "cost_scope": "native provider list-price accounting, not actual bill; zero is not evidence of free usage",
+    "owner_active_time": "unknown; scripted operator",
+    "source_input": "scripted owner replay",
+    "host": "Pi 0.85.1"
   }
 }

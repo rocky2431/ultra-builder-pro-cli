@@ -1,0 +1,11 @@
+{
+  "original_methods_preserved": true,
+  "missing": [],
+  "changed": [],
+  "new": [
+    "TestAddAndFind.test_edit_date_updates_selected_record",
+    "TestAddAndFind.test_edit_date_rejects_invalid_date",
+    "TestAddAndFind.test_edit_date_reports_unknown_record"
+  ],
+  "tests_exit": 0
+}

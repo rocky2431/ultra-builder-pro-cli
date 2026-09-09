@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "node",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/source/bin/install.js",
+    "run",
+    "--host",
+    "pi",
+    "--cwd",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial/D3-workspace",
+    "--host-arg=--mode",
+    "--host-arg=json",
+    "--host-arg=--print",
+    "--host-arg=--append-system-prompt",
+    "--host-arg=Work only on the supplied request within the current project directory and temporary scratch space. Read the loaded Ultra Skills as needed, but do not inspect personal documents or other workspaces. Existing provider authentication and native session caches are available runtime facilities. Do not install or change real HOME configuration, credentials, publish, purchase or touch production. Keep product files and sample data inside this project.",
+    "--resume",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial/D3-switch.session.jsonl",
+    "--",
+    "好了，回到会议记录那个，把刚才排序的事做完，然后告诉我现在两边各是什么状态。"
+  ],
+  "cwd": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial/D3-workspace",
+  "owner_message": "好了，回到会议记录那个，把刚才排序的事做完，然后告诉我现在两边各是什么状态。",
+  "session_file": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial/D3-switch.session.jsonl"
+}

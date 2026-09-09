@@ -1,0 +1,97 @@
+# Candidate3 recovery QA evidence
+
+Trial: `/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/trial`
+Candidate source: `/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry3-k556s70z/source`
+
+## Native recovery records
+
+Read, without reading private reasoning/signature content:
+- `D4-interrupt-request.json`
+- `D4-interrupt-observation.json`
+- `D4-resume-request.json`
+- `D4-resume-result.json`
+- `D4-root-checks.json`
+- `pi-candidate3-recovery-case.json`
+
+Results: first successful tool result was a read; 10-second dwell; process group was empty after one SIGINT; before/pre-signal/stopped manifests were identical. Resume used the same native session with the frozen continuation and no repeated original request. Native exit code 0. Root result reports the truthful final statement: `edit-date <id> <YYYY-MM-DD>` works, invalid date and unknown id are rejected, 28 tests pass, original tests retained, not half-finished.
+
+## Disposable operation
+
+Created a disposable copy with:
+
+```sh
+QA=$(mktemp -d /tmp/ubp-pi-candidate3-recovery-qa2.XXXXXX)
+cp -a <trial>/D4-date-correction/. "$QA/"
+DB="$QA/qa.db"
+```
+
+Commands executed in fresh Python processes:
+
+```sh
+python3 "$QA/mnotes.py" --db "$DB" add -d 2026-09-01 -t '预算会议' -m '决定：保留预算，供应商下周确认'
+python3 "$QA/mnotes.py" --db "$DB" add -d 2026-09-02 -t '设计会议' -m '界面调整，周五复核'
+python3 "$QA/mnotes.py" --db "$DB" edit-date 1 2026-02-30
+python3 "$QA/mnotes.py" --db "$DB" edit-date 999 2026-09-10
+python3 "$QA/mnotes.py" --db "$DB" edit-date 1 2026-09-10
+python3 "$QA/mnotes.py" --db "$DB" show 1
+python3 "$QA/mnotes.py" --db "$DB" show 2
+python3 "$QA/mnotes.py" --db "$DB" find 供应商
+python3 "$QA/mnotes.py" --db "$DB" list -n 20
+python3 - <<'PY'
+import sqlite3
+c=sqlite3.connect('$DB')
+print(c.execute('select id,occurred_on,title,body from notes order by id').fetchall())
+PY
+```
+
+Observed:
+- Two records were added.
+- Real invalid date returned exit 2; unknown id returned exit 1.
+- Database SHA-256 before either rejected operation and after both: `aa78e1bee6e0257713d06450efeab4bff38909d55fb2972afefbc87e3c353839` (unchanged).
+- Only record #1 changed from 2026-09-01 to 2026-09-10.
+- Record #1 body/title and record #2 body/title/date were unchanged.
+- Fresh-process `show`, `find 供应商`, `list -n 20`, and direct SQLite read reflected the corrected date and persistence.
+
+Status: **PASS**.
+
+## Existing suite and AST preservation
+
+```sh
+cp -a <trial>/D4-date-correction/. "$TMP/"
+(cd "$TMP" && python3 -m unittest test_mnotes -v)
+```
+
+Status: **PASS**, 28/28.
+
+Independent AST comparison:
+
+```python
+# parsed D4-stopped-artifact/test_mnotes.py and D4-date-correction/test_mnotes.py
+# ast.dump(..., include_attributes=False) for every original function/method
+```
+
+Result: baseline methods 29, result methods 32, missing `[]`, changed `[]`; all original methods preserved. Three new methods were the edit-date checks. Status: **PASS**.
+
+## Frozen hashes and original fixture
+
+Candidate3 manifest changed paths: **7/7 SHA-256 match** `pi-entry-candidate3.json`:
+
+- `bin/run.cjs` `62390a2355b22700974ae7275f2178b1939983136035572fd6de55966cfe5f9e`
+- `bin/unified-entry.md` `59b150bc8bb3e4dcb15608fd8e33bce28b5d5dac9bff1cdd5f2d1981753cfe4c`
+- `tests/unified-entry.test.cjs` `1a4bd756c3d5b21e8f7203c87fb04e982c78cc298da41573c5336697104b182f`
+- `skills/ultra-init/SKILL.md` `d678e61e47b4b7330b54cb964266e3acdfba8469f1c4dae6328759338b0e6b6d`
+- `README.md` `3ee3ad9b183aa23d69c308c59ff08338232f76b584b55898d7a16255f1a8ec11`
+- `README.zh-CN.md` `e80e1172a4f00c0cca78cca52ead5b267cc35f9bec10e41a5021a7a5c410685d`
+- `docs/RUNTIME-COMPAT-MATRIX.md` `9933ff9eac8d02ccd4ef630bbcb2c7c3eb5a8f0690b094956a8e8cbf177c7e51`
+
+All stopped-artifact files listed by `D4-interrupt-observation.json` also matched their recorded hashes, including original `mnotes.py`, `test_mnotes.py`, `data/notes.db`, and `.ultra` authority files.
+
+Duplicate-update inspection: one `cmd_edit_date`, one `UPDATE notes SET occurred_on = ? WHERE id = ?`, and one `edit-date` parser registration; no second update implementation found. Status: **PASS**.
+
+## Entry delta review
+
+Reviewed only candidate3's final ordinary-entry paragraph: it requires comparing changed files to starting contents, preserving existing regression checks, and explaining justified assertion changes. With the previous launcher source review and successful final764Node/104Hook evidence, no concrete P0/P1 regression was found. The paragraph adds discipline, not a new mode/grant/state path.
+
+## Limits
+
+This is one bounded fresh recovery confirmation, not a reliability statistic or causal claim. It verifies active-turn recovery only, not recovery of partially written product files, and says nothing about W4. The prior candidate2 D4 deletion failure and its append-only correction remain preserved in the prior QA report. No implementation, test edits, provider calls, workers, installs, publication, commits, or full-suite rerun were performed.

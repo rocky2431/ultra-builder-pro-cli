@@ -1,0 +1,27 @@
+{
+  "exit_code": 0,
+  "elapsed_seconds": 99.3628942919895,
+  "final_manifest": {
+    ".gitignore": "f8a3dc49e69bd7ffe406105da6cdca49f35a01036dcbc0d8b806e58b4953d452",
+    ".ultra/.gitignore": "e36fe232dffd56cf0e340c89c4d6306787a712fedd140b84ed13a43133bc5aae",
+    ".ultra/changes/abandoned/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".ultra/changes/active/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    ".ultra/changes/archive/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    ".ultra/contexts/TEMPLATE.md": "cac945e6ac2ac0b71cf8e05eb753924e1995c2800c5dc060373b36bf8044f66a",
+    ".ultra/decisions/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    ".ultra/evidence/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    ".ultra/north-star.md": "7fb743650b3f520eb1880cd0cc5ef31957f0719d24585ca1447cb1e2cc7c3000",
+    ".ultra/project-brief.md": "ad42b474fcfee62e58541a0ca9b936635be21518f598d419ca2f229e676adec2",
+    ".ultra/research/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    ".ultra/specs/architecture.md": "6b00a7d817302e96ae5aa4febba96d0305d883dd24d381ad63b5eafec4e928bc",
+    ".ultra/specs/discovery.md": "aae17466710aa4aed7efd848b96608eabd1a910bab3b9dda1c50f9b4b9f4837e",
+    ".ultra/specs/product.md": "74cddfd6863c15adbb7d0073e30e3354ad2ba6a6f6db69e42af9924c2682bbe6",
+    ".ultra/specs/research-distillate.md": "ba2eec3e963d0a505fc76a3182f52786cd012243a4a320a6398fb6b4f2a64115",
+    ".ultra/tasks.json": "06f8ad96ead4e8f59abbf385e86aab7f97006f7043ccc40f027b36dd4ad56ff9",
+    ".ultra/test-report.json": "3ef33609063338027df513adeab4a41f098ccc7ab0e823af7c9da43017e9dbd1",
+    "README.md": "a7f3d01231eff650c04bd6f370647d756343dc043d2a80ee2aae70c28fe23e0a",
+    "data/notes.db": "8ac743f6257cd6eaa5e69f6961cf7f38756dd28bf18427da0fa00269ad538900",
+    "mnotes.py": "5d67505d3b83b8270fd1287aaa1965c63c7f05e96c83a1c07c03513eb05a6ebd",
+    "test_mnotes.py": "dca2187876fde58fc202bf52beebebe214de92ec2fbeb2efd0daa1ae6fc2e588"
+  }
+}

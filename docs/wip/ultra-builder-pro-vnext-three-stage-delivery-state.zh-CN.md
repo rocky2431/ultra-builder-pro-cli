@@ -1,6 +1,6 @@
 # Ultra Builder Pro 工厂交付状态
 
-状态：**全部八步继续实施；Codex独占实现和测试，Pi仅作QA或实际样例执行者。步骤1、2、3完成；Pi入口与用途澄清已实测并独立QA。步骤4的Pi真实恢复发现原测试被意外删除，保留失败并验证最小修正；Stage B待资格，C/D/E尚未开始，全部尚未完成。**
+状态：**全部八步继续实施；Codex独占实现和测试，Pi仅作QA或实际样例执行者。步骤1–4日常开发闭环完成并分段提交；原Pi测试删除失败保留，candidate3新恢复与任务切换经独立QA通过。Stage B待资格，C/D/E尚未开始，全部八步尚未完成。**
 
 ## 最新作者分工
 
@@ -12,9 +12,11 @@ Owner 最新明确要求“接下来不用交给claude实现了 全部你自己�
 
 ## 当前 Pi 增量（2026-09-09）
 
+第二步提交`c0371d2`，失败产物归档修正`a29415a`；步骤1–4已完成，接着实施第五步。
+
 Owner已明确授权补Pi原生公共入口和续接，见`work/trellis-eight-step-20260909/pi-entry-authorization.md`。六Host安装/委派资格保持原边界，Pi前台入口不代表Pi ACP qualified。candidate2：F1、F2用途与功能、D2通过；Root真实浏览器操作通过；764Node/104Hook/audit0及pack/Skill通过，HOME只读doctor既有degraded。
 
-D4实际SIGINT后同会话续接完成，但删除了一条原有回归测试；原始+新测试独立合跑51项通过不替代保留断言要求。Root拒绝独立QA对D4的误判PASS，旧产物与失败完整保留。candidate3补普通工作收尾的起始文件差异核对，冻结后另选新确认请求。当前仍不能宣称第4步或全部完成。详见`pi-candidate2-root-consumption.zh-CN.md`。
+D4实际SIGINT后同会话续接完成，但删除了一条原有回归测试；原始+新测试独立合跑51项通过不替代保留断言要求。Root拒绝独立QA对D4的误判PASS，旧产物与失败完整保留。candidate3补普通工作收尾差异核对，冻结后独立另选日期更正请求；真实中断/同会话续接、28项检查、全部原方法保持及独立操作通过。另补最终Pi D3三轮切换、26/17检查及独立操作通过。第4步现已验收，完整八步尚未完成。详见`step4-acceptance.zh-CN.md`。
 
 ## 历史阻断与恢复点（2026-09-09）
 
@@ -45,7 +47,7 @@ F2批处理运行虽实际调用正确ultra-init，仍先构建后问个人数�
 | 1 行为基线与真实缺口 | done | 三类五次真实调用、独立验收与原始证据齐备；见 step1-acceptance.zh-CN.md，commit `47f7911` |
 | 2 自然语言与相称工作路径 | done（Pi增量） | Pi candidate2真实用途澄清与产品交付、F1/D2及独立QA通过；原Claude429保留，见step2-acceptance |
 | 3 上下文与知识往返 | done | candidate2及公共入口candidate4四环实证；保留现有机制，见step3-acceptance |
-| 4 日常完整体验 | partially verified / Pi recovery correction | D1自验、D2/D3通过；D4纠正运行的最终收尾被429中断，见step4-current-observation |
+| 4 日常完整体验 | done（显式恢复范围） | 最终Pi D3、独立选择的新D4及QA通过；无半写/后台W4主张，见step4-acceptance |
 | 5 合格委派与首条工厂 | pending | 先接受 B，再完成 C / R2 Step 1 |
 | 6 可运营工厂 | pending | 原 D / R2 Step 2 全部退出条件 |
 | 7 跨会话持续运行 | pending | 原 E 耐久部分，Primary 与 Supervisor 结束后真实恢复 |

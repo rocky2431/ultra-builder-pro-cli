@@ -1,0 +1,31 @@
+test_ascii_keyword_is_case_insensitive (test_mnotes.TestAddAndFind.test_ascii_keyword_is_case_insensitive) ... ok
+test_defaults_to_today_when_no_date_given (test_mnotes.TestAddAndFind.test_defaults_to_today_when_no_date_given) ... ok
+test_find_reports_the_day_it_was_recorded (test_mnotes.TestAddAndFind.test_find_reports_the_day_it_was_recorded) ... ok
+test_find_shows_newest_day_first (test_mnotes.TestAddAndFind.test_find_shows_newest_day_first) ... ok
+test_find_two_character_chinese_keyword (test_mnotes.TestAddAndFind.test_find_two_character_chinese_keyword) ... ok
+test_list_shows_newest_day_first (test_mnotes.TestAddAndFind.test_list_shows_newest_day_first) ... ok
+test_multiple_keywords_must_all_match (test_mnotes.TestAddAndFind.test_multiple_keywords_must_all_match) ... ok
+test_no_match_says_so_and_exits_nonzero (test_mnotes.TestAddAndFind.test_no_match_says_so_and_exits_nonzero) ... ok
+test_rejects_empty_note (test_mnotes.TestAddAndFind.test_rejects_empty_note) ... ok
+test_rejects_malformed_date (test_mnotes.TestAddAndFind.test_rejects_malformed_date) ... ok
+test_show_prints_the_full_body (test_mnotes.TestAddAndFind.test_show_prints_the_full_body) ... ok
+test_show_unknown_id_exits_nonzero (test_mnotes.TestAddAndFind.test_show_unknown_id_exits_nonzero) ... ok
+test_title_falls_back_to_first_line (test_mnotes.TestAddAndFind.test_title_falls_back_to_first_line) ... ok
+test_shows_only_the_matching_lines_of_a_long_note (test_mnotes.TestFindOutput.test_shows_only_the_matching_lines_of_a_long_note) ... ok
+test_compact_date_in_filename_is_understood (test_mnotes.TestImport.test_compact_date_in_filename_is_understood) ... ok
+test_date_comes_from_the_filename_when_present (test_mnotes.TestImport.test_date_comes_from_the_filename_when_present) ... ok
+test_edited_source_file_is_added_as_a_new_version_not_an_overwrite (test_mnotes.TestImport.test_edited_source_file_is_added_as_a_new_version_not_an_overwrite) ... ok
+test_falls_back_to_file_mtime_when_filename_has_no_date (test_mnotes.TestImport.test_falls_back_to_file_mtime_when_filename_has_no_date) ... ok
+test_import_never_modifies_the_source_files (test_mnotes.TestImport.test_import_never_modifies_the_source_files) ... ok
+test_importing_a_single_file_works (test_mnotes.TestImport.test_importing_a_single_file_works) ... ok
+test_imports_markdown_and_text_files (test_mnotes.TestImport.test_imports_markdown_and_text_files) ... ok
+test_missing_path_exits_nonzero (test_mnotes.TestImport.test_missing_path_exits_nonzero) ... ok
+test_reimport_is_idempotent (test_mnotes.TestImport.test_reimport_is_idempotent) ... ok
+test_skips_unreadable_binary_and_reports_it (test_mnotes.TestImport.test_skips_unreadable_binary_and_reports_it) ... ok
+test_title_drops_the_date_prefix_the_heading_already_shows (test_mnotes.TestImport.test_title_drops_the_date_prefix_the_heading_already_shows) ... ok
+test_title_keeps_the_stem_when_it_is_only_a_date (test_mnotes.TestImport.test_title_keeps_the_stem_when_it_is_only_a_date) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.064s
+
+OK

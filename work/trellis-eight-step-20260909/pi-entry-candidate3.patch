@@ -1,0 +1,279 @@
+diff --git a/README.md b/README.md
+index 529b4b2..8f0895e 100644
+--- a/README.md
++++ b/README.md
+@@ -275,6 +275,7 @@ real Host homes.
+ # Say what you want; the host model picks the route
+ ubp run "fix the CSV export mojibake in the report writer"
+ ubp run "build me something to tidy the notes I take in meetings"
++ubp run --host pi "build me something to organize my receipts"
+ 
+ # See the exact command and first prompt without starting anything
+ ubp run --dry-run "..."
+@@ -287,20 +288,24 @@ an Ultra mode, phase, or Skill name. Stop and exit stay native. Use
+ `ubp run --resume <session-id> "finish the interrupted change"` to resume with the
+ plugin loaded again. Keep the same working directory and plugin selection.
+ 
+-Useful flags: `--config-dir <dir>` or `--plugin-dir <dir>` to bind a specific managed
++Useful flags: `--config-dir <dir>` (Claude) or `--plugin-dir <dir>` to bind a specific managed
+ plugin for the session, `--cwd <dir>` to run somewhere else,
+ `--host-arg <arg>` to pass a native host flag
+ through, and `-` to read the goal from stdin. `ubp run --help` lists them.
+ 
+-Use the interactive terminal form above when the purpose needs an answer. Native
++Use the interactive terminal form above when the purpose needs an answer. Claude
+ `--print` mode has no interactive question tool; a batch run is not evidence that
+ intake worked. Piped input also does not provide a terminal for later replies.
+ The host may ask once to read a reference under the selected plugin directory;
+ that is native file access, separate from deciding the product's purpose.
+ 
+-Interactive launch is implemented for Claude Code today; other hosts are reported as
+-unsupported by name rather than approximated, and their installation, Doctor, update, and
+-uninstall behavior is unchanged.
++Interactive launch supports Claude Code and Pi. `--host pi` loads the portable Skills
++from this package for the session, so it needs an installed `pi` CLI but no separate
++Ultra installation in Pi. Use `ubp run --host pi --continue "..."` or
++`ubp run --host pi --resume <session-id-or-path> "..."` to reload the same Skills
++and continue through Pi's native session storage. `--plugin-dir` can select an existing
++generated portable plugin instead. Pi does not load Ultra's optional Claude hooks.
++The six-host installation and delegated-execution qualification surfaces are unchanged.
+ 
+ Use the host's native Skill picker or invocation syntax to select an owner workflow.
+ Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. Discovery in
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index a151627..8c7a8cf 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -261,17 +261,21 @@ ubp run --dry-run "..."
+ `ubp run --resume <session-id> "完成刚才中断的改动"` 续接，同时重新加载插件；
+ 保留同一工作目录和插件选择。
+ 
+-常用参数：`--config-dir <dir>` 或 `--plugin-dir <dir>` 为本次会话绑定指定的受管插件，
++常用参数：`--config-dir <dir>`（Claude）或 `--plugin-dir <dir>` 为本次会话绑定指定的受管插件，
+ `--cwd <dir>` 换工作目录，
+ `--host-arg <arg>` 透传一个原生宿主参数，`-` 从 stdin 读取目标。`ubp run --help` 列出全部。
+ 
+-用途尚待回答时，使用上面的交互终端形式。原生 `--print` 模式没有交互提问工具，
++用途尚待回答时，使用上面的交互终端形式。Claude 原生 `--print` 模式没有交互提问工具，
+ 批处理跑完不能证明用途澄清成功；管道输入也不提供后续回答所需的终端。
+ 宿主可能要求确认读取所选插件目录里的参考文件，这是原生文件访问确认，
+ 与决定产品用途是两件事。
+ 
+-交互式启动目前只实现了 Claude Code；其他宿主会按名称明确报告为暂不支持，而不是近似冒充，
+-它们的安装、Doctor、更新与卸载行为不变。
++交互式启动支持 Claude Code 和 Pi。`ubp run --host pi "帮我整理收据"` 会为当前会话
++加载包内现有 Skills；需要本机有 `pi`，无需另给 Pi 安装 Ultra。用
++`ubp run --host pi --continue "继续"` 或
++`ubp run --host pi --resume <session-id-or-path> "完成刚才中断的改动"`
++续接并重新加载同一组 Skills。`--plugin-dir` 也可选择已有的生成插件目录。
++Pi 不加载 Ultra 的可选 Claude hooks。原六宿主的安装与委派资格支持保持原有范围。
+ 
+ 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间
+ 的条目，例如 `$ultra-builder-pro:ultra-init`。普通宿主聊天的自动发现属于尽力支持；
+diff --git a/bin/run.cjs b/bin/run.cjs
+index 86e7243..ca585f0 100644
+--- a/bin/run.cjs
++++ b/bin/run.cjs
+@@ -43,6 +43,14 @@ const HOSTS = Object.freeze({
+     ],
+     resume: 'ubp run --continue "<follow-up>" (keep the same plugin and working directory)',
+   }),
++  pi: Object.freeze({
++    binary: 'pi',
++    // Explicit Skills are session-local; Pi owns discovery, questions and storage.
++    argv: ({ pluginRoot, prompt, hostArgs }) => [
++      '--skill', path.join(pluginRoot, 'skills'), ...hostArgs, '--', prompt,
++    ],
++    resume: 'ubp run --host pi --continue "<follow-up>" (or --resume <session-id-or-path>)',
++  }),
+ });
+ 
+ class RunError extends Error {
+@@ -60,9 +68,9 @@ function usage() {
+   route; you never choose an Ultra mode or Skill.
+ 
+   Options:
+-    --host <name>        interactive host to start (default: claude)
++    --host <name>        claude (default) or pi
+     -c, --config-dir <dir>
+-                         find the managed plugin under this config directory
++                         find the managed Claude plugin under this config directory
+     --plugin-dir <dir>   use this managed plugin directory
+     --continue          continue the last native session in the working directory
+     --resume <id>       resume a named native session, loading the same plugin
+@@ -75,6 +83,7 @@ function usage() {
+ 
+   Examples:
+     ubp run "fix the CSV export mojibake in the report writer"
++    ubp run --host pi "build me something to tidy my notes"
+     ubp run --config-dir ./.ubp-isolated "build me something to tidy my notes"
+     echo "$GOAL" | ubp run -
+     ubp run --dry-run --json "..." | jq .
+@@ -158,7 +167,9 @@ function parseRunArgs(input) {
+     throw new RunError('use either --continue or --resume, not both');
+   }
+   if (options.continue) options.hostArgs.push('--continue');
+-  if (options.resume !== null) options.hostArgs.push('--resume', options.resume);
++  if (options.resume !== null) {
++    options.hostArgs.push(options.host === 'pi' ? '--session' : '--resume', options.resume);
++  }
+   options.goal = goalWords.join(' ');
+   return options;
+ }
+@@ -189,13 +200,19 @@ function resolveGoal(options, io) {
+ 
+ function resolvePlugin(options) {
+   const host = HOSTS[options.host];
++  if (options.host === 'pi' && options.configDir) {
++    throw new RunError('Pi uses the packaged Skills, not --config-dir', 'use --plugin-dir for a generated portable plugin');
++  }
++  const bundled = options.host === 'pi' && !options.pluginDir;
+   const explicit = options.pluginDir
+     ? path.resolve(options.pluginDir)
+-    : host.adapter.resolvePluginRoot({
++    : bundled ? path.resolve(__dirname, '..') : host.adapter.resolvePluginRoot({
+       configDir: options.configDir ? path.resolve(options.configDir) : undefined,
+       scope: 'global',
+     });
+-  const manifestFile = path.join(explicit, '.claude-plugin', 'plugin.json');
++  const manifestFile = bundled
++    ? path.join(explicit, 'package.json')
++    : path.join(explicit, '.claude-plugin', 'plugin.json');
+   if (!fs.existsSync(manifestFile)) {
+     throw new RunError(
+       `no managed Ultra plugin at ${explicit}`,
+@@ -209,9 +226,10 @@ function resolvePlugin(options) {
+     throw new RunError(`unreadable plugin manifest at ${manifestFile}: ${error.message}`);
+   }
+   const managed = managedMetadata(explicit);
+-  if (manifest.name !== host.adapter.PLUGIN_NAME) {
++  const expectedName = bundled ? pkg.name : claudeAdapter.PLUGIN_NAME;
++  if (manifest.name !== expectedName) {
+     throw new RunError(
+-      `${manifestFile} declares plugin "${manifest.name}", not ${host.adapter.PLUGIN_NAME}`,
++      `${manifestFile} declares plugin "${manifest.name}", not ${expectedName}`,
+     );
+   }
+   return {
+diff --git a/bin/unified-entry.md b/bin/unified-entry.md
+index 5768f56..4fe0429 100644
+--- a/bin/unified-entry.md
++++ b/bin/unified-entry.md
+@@ -24,6 +24,21 @@ Route by what the request actually is:
+ - Real consequential uncertainty about a product commitment — establish the evidence
+   before committing to it.
+ 
++For a new product, a storage or input method is not its purpose. If the owner has only
++named material to organize, first ask what they need to accomplish with it. Do this
++before creating even the project skeleton. Do not supply a likely purpose on their behalf.
++
++An internal Skill's exit is not the owner's completion condition. After Init returns,
++continue the requested product work when its purpose and scope are clear; report only
++the actual usable result or the material unanswered question. Never end a build request
++with only a skeleton and a recommendation that the owner select another Ultra workflow.
++
++Before reporting ordinary work complete, compare the changed files with their starting
++contents for accidental deletions, including existing regression checks. Add coverage
++without replacing relevant old checks. Change an old assertion only when the requested
++behavior makes it obsolete, and explain that change; a green suite alone cannot show
++that a check was not lost.
++
+ The owner's answers and this repository are the sources of fact. Ask about the owner's own
+ material — which existing real source of their data to use, an input you cannot observe
+ anywhere, any access, integration, or write outside this project — and never invent it or
+diff --git a/docs/RUNTIME-COMPAT-MATRIX.md b/docs/RUNTIME-COMPAT-MATRIX.md
+index aaa2599..7443453 100644
+--- a/docs/RUNTIME-COMPAT-MATRIX.md
++++ b/docs/RUNTIME-COMPAT-MATRIX.md
+@@ -62,8 +62,10 @@ coarse Skill-level bit, and that bit is discovery, not authority: it is withheld
+ requires the Owner to name explicitly. Every other public Skill is discoverable,
+ including the `ultra-init` entry route before `.ultra/` exists. Ordinary host-chat
+ discovery is best-effort; `ubp run` explicitly enters Ultra and lets the host model
+-select the route. Its foreground launch currently supports Claude Code; other hosts'
+-installation and Skill surfaces are unchanged. The loaded Skill must still verify the selected mode, same
++select the route. Its foreground launch supports Claude Code and Pi. Pi loads the packaged portable
++Skills through native `--skill` and resumes through native `--session`; it does not
++load Claude hooks or gain delegated-execution qualification from this entry. The six
++installation adapters and their Skill surfaces are unchanged. The loaded Skill must still verify the selected mode, same
+ active `change_id`, grant, effects, and material checkpoints. In particular, the coarse
+ bit does not permit baseline Research, Change intake/acceptance, or Deliver finalization
+ without the Owner's current request naming that work, and it never turns an installation
+diff --git a/skills/ultra-init/SKILL.md b/skills/ultra-init/SKILL.md
+index a3420eb..4e65a1e 100644
+--- a/skills/ultra-init/SKILL.md
++++ b/skills/ultra-init/SKILL.md
+@@ -37,6 +37,14 @@ the repository already answer, and then either ask the few answers that would ch
+ you build or record what was already given and continue. A broad complaint is a need, not
+ a settled purpose; presuming one is how the wrong product gets built.
+ 
++An input source, import method or storage choice does not settle that purpose. When the
++request only names material to organize, ask what the owner needs to accomplish with it
++before the first write, including skeleton creation. Do not substitute your own likely
++use case. This Skill's definition of done covers intake only: return to the calling
++agent, which still owns the requested product outcome. Once purpose and scope are clear,
++the caller continues the already requested ordinary implementation; an Init exit alone
++is never the final answer to a request for a working product.
++
+ A coarse Host discovery bit never authorizes this route. A model-selected entry is valid
+ only when the owner's current request asks for that work, and that request is itself the
+ owner entry for it — the route needs no separate confirmation. An installation, a
+diff --git a/tests/unified-entry.test.cjs b/tests/unified-entry.test.cjs
+index ee7814f..e240eb8 100644
+--- a/tests/unified-entry.test.cjs
++++ b/tests/unified-entry.test.cjs
+@@ -46,6 +46,8 @@ fi
+ exit "\${UBP_TEST_EXIT_CODE:-0}"
+ `);
+ fs.chmodSync(path.join(HOST_BIN, 'claude'), 0o755);
++fs.copyFileSync(path.join(HOST_BIN, 'claude'), path.join(HOST_BIN, 'pi'));
++fs.chmodSync(path.join(HOST_BIN, 'pi'), 0o755);
+ 
+ function run(args, options = {}) {
+   return spawnSync(process.execPath, [CLI, 'run', ...args], {
+@@ -154,6 +156,46 @@ test('continuation and named resume keep loading the selected plugin', () => {
+   assert.match(conflicting.stderr, /--continue or --resume/u);
+ });
+ 
++test('Pi starts with the packaged Skills without a separate host installation', () => {
++  const goal = '整理我的收据，先弄清楚用途';
++  const result = run(['--host', 'pi', '--dry-run', '--json', goal]);
++  assert.equal(result.status, 0, result.stderr);
++  const planned = JSON.parse(result.stdout);
++  assert.equal(planned.command, 'pi');
++  assert.equal(planned.plugin.root, ROOT);
++  assert.deepEqual(planned.args, ['--skill', path.join(ROOT, 'skills'), '--', planned.prompt]);
++  assert.ok(planned.prompt.endsWith(`\n\n${goal}`));
++  assert.match(planned.resume, /--host pi --continue/u);
++
++  const started = run(['--host', 'pi', goal], {
++    env: { UBP_TEST_READ_STDIN: '1', UBP_TEST_EXIT_CODE: '3' },
++    input: 'personal bookkeeping only\n',
++  });
++  assert.equal(started.status, 3);
++  assert.deepEqual(receipt().args, planned.args);
++  assert.equal(receipt().answer, 'personal bookkeeping only');
++});
++
++test('Pi reloads the chosen portable Skills and uses its native session selector', () => {
++  const continued = dryRun(['--host', 'pi', '--continue', 'continue']);
++  assert.deepEqual(continued.args, [
++    '--skill', path.join(PLUGIN_ROOT, 'skills'), '--continue', '--', continued.prompt,
++  ]);
++  const resumed = dryRun(['--host', 'pi', '--resume', '/tmp/pi-session.jsonl', 'finish']);
++  assert.deepEqual(resumed.args, [
++    '--skill', path.join(PLUGIN_ROOT, 'skills'), '--session', '/tmp/pi-session.jsonl', '--', resumed.prompt,
++  ]);
++  assert.ok(!resumed.args.includes('--resume'), 'Pi --resume opens a chooser rather than naming the session');
++});
++
++test('Pi does not interpret a Claude config directory as a Pi installation', () => {
++  fs.rmSync(RECEIPT, { force: true });
++  const refused = run(['--host', 'pi', '--config-dir', CONFIG_DIR, 'a goal']);
++  assert.notEqual(refused.status, 0);
++  assert.match(refused.stderr, /Pi.*--config-dir/u);
++  assert.equal(fs.existsSync(RECEIPT), false);
++});
++
+ test('unsupported hosts, missing plugins, and bad options fail before any launch', () => {
+   fs.rmSync(RECEIPT, { force: true });
+ 

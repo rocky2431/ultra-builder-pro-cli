@@ -1,0 +1,29 @@
+
+> trellis-daily-f3-shared-expenses@1.0.0 test
+> node --test test/
+
+✔ amounts add up in minor units (0.363792ms)
+✔ formatting happens only at the display boundary (0.071958ms)
+✔ a non-integer amount is rejected instead of silently rounded (0.2405ms)
+✔ an evenly divisible amount splits into equal shares (0.664541ms)
+✔ the remainder is handed out, never dropped (0.075917ms)
+✔ shares always add back up to the original amount (0.142917ms)
+✔ a negative amount splits without gaining or losing a minor unit (0.128583ms)
+✔ shares differ by at most one minor unit (0.09775ms)
+✔ a non-integer amount or a bad head count is rejected (0.28925ms)
+✔ a split share is displayed through the shared display boundary (0.082583ms)
+✔ an even split collapses to a single per-person figure (0.461917ms)
+✔ an uneven split names how many people pay each share (0.084667ms)
+✔ the summary stays one line however many people share the bill (0.092666ms)
+✔ a negative amount is summarized without losing a minor unit (0.04975ms)
+✔ every amount in the summary comes from the shared display boundary (0.594666ms)
+✔ the head counts in the summary add up to the people sharing the bill (0.225042ms)
+✔ a non-integer amount or a bad head count is rejected (0.181584ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 42.47175

@@ -1,0 +1,46 @@
+[
+  {
+    "check": "release",
+    "argv": [
+      "npm",
+      "run",
+      "verify:release"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 160.06990520795807
+  },
+  {
+    "check": "pack",
+    "argv": [
+      "npm",
+      "pack",
+      "--dry-run",
+      "--json"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.2768651661463082
+  },
+  {
+    "check": "doctor",
+    "argv": [
+      "node",
+      "bin/install.js",
+      "--all",
+      "--global",
+      "--doctor",
+      "--json"
+    ],
+    "exit_code": 2,
+    "elapsed_seconds": 3.569814917165786
+  },
+  {
+    "check": "skill",
+    "argv": [
+      "python3",
+      "/Users/rocky243/.codex/skills/.system/skill-creator/scripts/quick_validate.py",
+      "skills/ultra-init"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.04069483419880271
+  }
+]
