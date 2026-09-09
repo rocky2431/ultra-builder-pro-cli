@@ -1,8 +1,8 @@
 # Ultra artifact authority
 
 This document defines which project artifacts carry semantic authority, who may change
-them, how staleness is detected, and how recovery works in Ultra Builder Pro. Since the
-accepted 3.0 design it is the per-fact expression of the Ultra Core Protocol: one
+them, how staleness is detected, and how recovery works in Ultra Builder Pro. It
+expresses the Ultra Core Protocol as one
 canonical representation per semantic fact, explicit authorization, bounded effects,
 and reachable recovery, on files plus Git alone.
 

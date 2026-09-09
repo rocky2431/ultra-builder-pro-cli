@@ -1,7 +1,10 @@
 # Ultra Builder Pro workflow lifecycle
 
-Ultra 5.0 has no fixed runtime state machine. Skills define checkable entry and exit
-criteria; repository files record facts; the host model chooses the route.
+Skills define checkable entry and exit criteria; repository files record facts;
+the host model chooses the route. A clear, bounded fix can stay ordinary work.
+The lifecycle below applies when the request needs project-level coordination;
+it is not a mandatory sequence for every task. For examples and commands, see
+the [usage guide](USAGE.md).
 
 ## Capability flow
 

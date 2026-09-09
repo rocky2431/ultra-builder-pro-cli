@@ -1,12 +1,14 @@
 # Ultra Builder Pro architecture
 
-Ultra Builder Pro is a file-first workflow asset package for six coding-agent hosts,
-implementing the provider-neutral **Ultra Core Protocol**: cognitive alignment,
-per-fact authority, explicit work-package grants, typed evidence, bounded effects,
-checkpoints, and terminal review convergence — carried entirely by Skills,
-owner-readable files, Git, host adapters, and optional Hooks. The host model owns
-meaning and strategy; Ultra mechanizes only portable prompts, observable files,
-bounded effects, and recovery.
+Ultra Builder Pro adds engineering methods and project records to a coding-agent
+host. The model interprets the request, chooses the approach, and judges the
+result. Skills describe the methods; files and Git preserve project facts;
+adapters connect to native host features. Optional execution tools manage scoped
+workers, waiting, cancellation, and result delivery.
+
+The shared rules are called the Ultra Core Protocol. This reference describes
+their implementation. For installation and everyday use, read the
+[usage guide](USAGE.md).
 
 ## System boundary
 
@@ -33,9 +35,25 @@ editing the files is the state transition; Git is the journal and rollback mecha
 
 Fourteen `skills/*/SKILL.md` files carry the workflow:
 
-- eight owner-invoked workflows;
-- five model-invoked reusable disciplines;
-- one read-only router.
+| Skill | Outcome |
+|---|---|
+| `ultra-init` | Establish the project skeleton and raw Project Brief |
+| `ultra-research` | Establish an accepted North Star and evidence-backed baseline |
+| `ultra-change` | Reconcile a request with the accepted product baseline |
+| `ultra-plan` | Write tasks, contexts, dependencies, and observable integration seams |
+| `ultra-dev` | Implement a task and record `tests_written`, `tests_passed`, `persistence_real`, `feature_flags_audit`, `vertical_slice`, and `spec_trace` |
+| `ultra-test` | Check system wiring, end-to-end behavior, performance, and security |
+| `ultra-deliver` | Review, reconcile documentation, and finalize an authorized Change |
+| `ultra-delegate` | Delegate bounded work to another installed Agent runtime through ACP-first transport with a typed CLI fallback |
+| `ultra-grilling` | Clarify incomplete intent one material question at a time |
+| `ultra-domain-modeling` | Maintain shared vocabulary in `CONTEXT.md` |
+| `ultra-tdd` | Verify one confirmed seam through red/green development |
+| `ultra-review` | Select review lenses and synthesize findings within the review budget |
+| `ultra-think` | Examine a consequential decision and record an accepted result |
+| `ultra-status` | Reconstruct position from files without changing workflow state |
+
+The first eight are public workflows. The next five are methods the model uses
+inside those workflows. Status is the read-only router.
 
 The exact allowlists and per-mode invocation map live in
 `adapters/_shared/runtime-assets.cjs`. Public modes are `explicit-entry`,
@@ -58,6 +76,30 @@ The reusable mechanics remain separate: Grilling owns the interaction loop, Thin
 one consequential decision, and Domain Modeling owns vocabulary promotion.
 
 ### Authority plane
+
+After the first accepted Research baseline, project records use this layout.
+Immediately after Init, North Star and specification files are empty skeletons;
+Research creates `CONTEXT.md` when it establishes the domain vocabulary.
+
+```text
+CONTEXT.md
+.ultra/
+├── project-brief.md
+├── north-star.md
+├── tasks.json
+├── test-report.json
+├── specs/{product,architecture,discovery,research-distillate}.md
+├── changes/{active,archive,abandoned}/<change-id>/intent.md
+├── contexts/task-<task-id>.md
+├── decisions/<decision-id>.md
+├── evidence/<task-id>/
+└── research/<run-id>/{brief.md,<step-id>.md}
+```
+
+The optional research `brief.md` is derived navigation. Selected step reports
+are cited evidence; accepted conclusions belong in the canonical project files.
+The [artifact reference](ARTIFACT-AUTHORITY.md) lists the complete writer, reader,
+staleness, and recovery rules, including delivery records and derived runtime files.
 
 Canonical semantic authority consists of:
 
@@ -120,17 +162,15 @@ beside the installed launcher at `skills/ultra-delegate/scripts/host-profile.cjs
 `adapters/_shared/host-profile.cjs` is a one-release compatibility re-export. Adapters
 never rewrite workflow meaning.
 
-### Why the old Agents are Skill assets now
+### Supporting methods
 
-The retired custom-agent files did not own product authority. They contained reusable
-review lenses, debugging, test execution, and review coordination. v0.26 keeps those
-methods on the common surface all six hosts actually share:
+Review, debugging, and test execution methods are assets of their parent Skills:
 
-- six review workers map to `ultra-review/references/{code,design,errors,tests,spec,comments}.md`;
-- review coordination and the former general code reviewer map to the parent
+- review lenses live in `ultra-review/references/{code,design,errors,tests,spec,comments}.md`;
+- review coordination belongs to the parent
   `ultra-review` workflow, immutable Worker Packet, and shared schemas;
-- debugging maps to `ultra-dev/references/debugging.md`;
-- test execution maps to `ultra-tdd/references/test-execution.md`.
+- debugging lives in `ultra-dev/references/debugging.md`;
+- test execution lives in `ultra-tdd/references/test-execution.md`.
 
 The references are copied as assets of their parent Skill. Native bounded subagents are
 an execution option, not an installed Ultra authority. When a host has no equivalent,
@@ -142,9 +182,10 @@ Five hooks read canonical files and emit bounded context or observations. Their 
 under `.ultra/.runtime/` and `.ultra/progress/`, and review artifacts under
 `.ultra/reviews/`, are derived rather than semantic authority. A current strict review
 session contains `WORKER-PACKET.json`, `ADMISSION.json`, every selected specialist
-artifact, and `SUMMARY.json`; retain it until aggregate Test and Deliver have both consumed it
-successfully, then it may be garbage-collected. Premature loss requires a fresh Review
-and Test; never reconstruct the old receipt. The dangerous-command hook is the only
+artifact, and `SUMMARY.json`. Retain the exact current strict review session until both
+Test and Deliver have successfully consumed it; only then may it be garbage-collected.
+If it is lost before both consumers finish, run a fresh Review and Test and never reconstruct
+the old receipt. The dangerous-command hook is the only
 hard effect guard; it classifies a small named destructive set and provides an
 exact-command authorization repair.
 

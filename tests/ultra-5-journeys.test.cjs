@@ -416,13 +416,20 @@ test('the accepted journey register reports one observable PASS or honest STOP p
 test('daily entry, fresh-session recovery, and earliest observable slice are documented at use sites', () => {
   const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   const readmeZh = fs.readFileSync(path.join(ROOT, 'README.zh-CN.md'), 'utf8');
+  const usage = fs.readFileSync(path.join(ROOT, 'docs', 'USAGE.md'), 'utf8');
   const lifecycle = fs.readFileSync(path.join(ROOT, 'docs', 'WORKFLOW-LIFECYCLE.md'), 'utf8');
   const template = fs.readFileSync(path.join(ROOT, '.ultra-template', 'contexts', 'TEMPLATE.md'), 'utf8');
 
-  assert.match(readme, /For day-to-day work on an existing project,[\s\S]*starts with `ultra-change`/u);
-  assert.match(readme, /A fresh session\s+starts from repository root and `HEAD`/u);
-  assert.match(readmeZh, /已有项目的日常工作[\s\S]*从 `ultra-change` 开始/u);
-  assert.match(readmeZh, /新会话先从 repository root 和 `HEAD`\s*开始/u);
+  // The reader-facing overview links to the detailed use site instead of
+  // duplicating its route vocabulary and recovery procedure in both languages.
+  for (const overview of [readme, readmeZh]) {
+    assert.match(overview, /\]\(docs\/USAGE\.md\)/u);
+    assert.match(overview, /\]\(docs\/USAGE\.md#workflow-and-recovery\)/u);
+  }
+  assert.match(usage, /For day-to-day work on an existing project,[\s\S]*starts with `ultra-change`/u);
+  assert.match(usage, /A fresh session\s+starts from repository root and `HEAD`/u);
+  assert.match(readmeZh, /清楚的小修可以直接调查[\s\S]{0,100}不必/u);
+  assert.match(readmeZh, /换个会话或宿主也能\s*恢复项目上下文/u);
   assert.match(lifecycle, /Plan names the earliest executable tracer bullet's real consumer, real data path, and\s+owner-visible observation/u);
   assert.match(lifecycle, /It does not rerun completed Research merely because conversation\s+memory is gone/u);
   assert.match(template, /\*\*Earliest observable slice\*\*/u);

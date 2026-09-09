@@ -327,6 +327,7 @@ test('Plan and Test consume adversarial review with explicit execution evidence'
 });
 
 test('Execution Grant enables bounded session-local or durable coding without a workflow engine', () => {
+  const usage = fs.readFileSync(path.join(ROOT, 'docs', 'USAGE.md'), 'utf8');
   const change = readSkill('ultra-change');
   const contract = fs.readFileSync(
     path.join(SKILLS, 'ultra-change', 'references', 'change-contract.md'),
@@ -396,12 +397,14 @@ test('Execution Grant enables bounded session-local or durable coding without a 
   // their behavior tests here and in
   // `adapters/_shared/tests/runtime-assets.test.cjs`. The maintained docs get
   // a smoke check only: they exist and mention the Execution Grant.
-  for (const doc of [readme, lifecycle]) {
+  assert.match(readme, /\]\(docs\/USAGE\.md#workflow-and-recovery\)/u);
+  for (const doc of [usage, lifecycle]) {
     assert.match(doc, /execution grant/iu);
   }
 });
 
 test('dual-mode grants stop or continue by mode and never reach finalization without an owner invocation', () => {
+  const usage = fs.readFileSync(path.join(ROOT, 'docs', 'USAGE.md'), 'utf8');
   const grantReference = fs.readFileSync(
     path.join(SKILLS, 'ultra-change', 'references', 'execution-grant.md'),
     'utf8',
@@ -426,6 +429,7 @@ test('dual-mode grants stop or continue by mode and never reach finalization wit
   // pre-3.0 Execution Packet / Autonomy Envelope vocabulary.
   for (const [label, text] of [
     ['README', readme],
+    ['usage guide', usage],
     ['ARCHITECTURE', architecture],
     ['architecture spec', architectureSpec],
     ['product spec', productSpec],
@@ -464,13 +468,14 @@ test('dual-mode grants stop or continue by mode and never reach finalization wit
   }
 
   // The durable continuation rule is stated where readers decide.
-  assert.match(readme, /durable[\s\S]{0,200}fresh (?:session|Agent|host)[\s\S]{0,200}verif/iu);
+  assert.match(readme, /\]\(docs\/USAGE\.md#workflow-and-recovery\)/u);
+  assert.match(usage, /durable[\s\S]{0,200}fresh (?:session|Agent|host)[\s\S]{0,200}verif/iu);
   assert.match(architectureSpec, /durable work-package`?\s+grant[^.]{0,140}continue only after[^.]{0,60}stably verif/iu);
   assert.match(artifactAuthority, /session-local` default or `durable work-package`/iu);
 
   // Mode-aware stop/continue wording exists in the maintained docs.
   for (const [label, text] of [
-    ['README', readme],
+    ['usage guide', usage],
     ['ARCHITECTURE', architecture],
     ['product spec S-08', productSpec],
   ]) {
@@ -1499,6 +1504,8 @@ test('current authority surfaces define installed ACP-first Agent delegation coh
   const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
   const readme = read('README.md');
   const readmeZh = read('README.zh-CN.md');
+  const usage = read('docs/USAGE.md');
+  const reference = read('docs/ARCHITECTURE.md');
   const delegate = readSkill('ultra-delegate');
   const status = readSkill('ultra-status');
   const context = read('CONTEXT.md');
@@ -1510,8 +1517,8 @@ test('current authority surfaces define installed ACP-first Agent delegation coh
 
   assert.equal(require('../package.json').version, '5.0.2');
   for (const [label, source] of [
-    ['README', readme],
-    ['README zh-CN', readmeZh],
+    ['usage guide', usage],
+    ['architecture reference', reference],
     ['ultra-delegate', delegate],
     ['CONTEXT', context],
     ['AGENTS', agents],
@@ -1528,16 +1535,18 @@ test('current authority surfaces define installed ACP-first Agent delegation coh
   assert.match(delegateDescription, /ACP-first/u);
   assert.match(delegateDescription, /Agent runtime/u);
   assert.match(delegateDescription, /CLI fallback/u);
-  for (const [label, source] of [['README', readme], ['README zh-CN', readmeZh]]) {
-    const delegateRow = source.match(/^\| `ultra-delegate` \| .*\|$/mu)?.[0] || '';
-    assert.match(delegateRow, /ACP/u, `${label}: delegate row ACP`);
-    assert.match(delegateRow, /Agent runtime/u, `${label}: delegate row Agent runtime`);
-    assert.match(delegateRow, /CLI fallback/u, `${label}: delegate row fallback`);
+  for (const overview of [readme, readmeZh]) {
+    assert.match(overview, /\]\(docs\/ARCHITECTURE\.md\)/u);
+    assert.match(overview, /\]\(docs\/USAGE\.md\)/u);
   }
+  const delegateRow = reference.match(/^\| `ultra-delegate` \| .*\|$/mu)?.[0] || '';
+  assert.match(delegateRow, /ACP/u, 'delegate row ACP');
+  assert.match(delegateRow, /Agent runtime/u, 'delegate row Agent runtime');
+  assert.match(delegateRow, /CLI fallback/u, 'delegate row fallback');
   assert.match(context, /Agent runtime[^\r\n]+ACP-first[^\r\n]+typed CLI fallback/iu);
   assert.match(status, /delegated Agent (?:workers|runtimes)/iu);
 
-  const maintained = [readme, readmeZh, delegate, context, agents, claude, product, architecture, distillate];
+  const maintained = [readme, readmeZh, usage, reference, delegate, context, agents, claude, product, architecture, distillate];
   for (const source of maintained) {
     assert.doesNotMatch(source, /through another supported CLI|另一个受支持的 CLI/iu);
     assert.doesNotMatch(source, /A bounded invocation of another supported CLI/iu);
@@ -1563,25 +1572,29 @@ test('public Host guidance names exact evidence, identity, and ZCode boundaries'
   const readme = read('README.md');
   const readmeZh = read('README.zh-CN.md');
   const matrix = read('docs/RUNTIME-COMPAT-MATRIX.md');
+  const reference = read('docs/ARCHITECTURE.md');
 
   for (const [label, source] of [['README', readme], ['README zh-CN', readmeZh]]) {
-    for (const dimension of [
-      'tests_written',
-      'tests_passed',
-      'persistence_real',
-      'feature_flags_audit',
-      'vertical_slice',
-      'spec_trace',
-    ]) {
-      assert.match(source, new RegExp(`\\b${dimension}\\b`, 'u'), `${label}: ${dimension}`);
-    }
-    assert.match(source, /candidate identity[^\r\n]*(?:when present|如有声明|若有声明)/iu);
-    assert.match(source, /--ack-experimental/u);
-    assert.match(source, /https:\/\/zcode\.z\.ai\/en\/docs\/configuration/u);
-    assert.match(source, /~\/\.zcode\/v2\/config\.json/u);
-    assert.match(source, /https:\/\/open\.bigmodel\.cn\/api\/coding\/paas\/v4/u);
-    assert.doesNotMatch(source, /BigModel Coding Plan[^.\r\n]*(?:uses|使用)[^.\r\n]*api\/anthropic/iu);
+    assert.match(source, /\]\(docs\/RUNTIME-COMPAT-MATRIX\.md\)/u, label);
+    assert.match(source, /\]\(docs\/ARCHITECTURE\.md\)/u, label);
+    assert.match(source, /ZCode[^\r\n]*(?:delegation is currently unavailable|当前委派路径不可用)/u, label);
   }
+  for (const dimension of [
+    'tests_written',
+    'tests_passed',
+    'persistence_real',
+    'feature_flags_audit',
+    'vertical_slice',
+    'spec_trace',
+  ]) {
+    assert.match(reference, new RegExp(`\\b${dimension}\\b`, 'u'), `architecture reference: ${dimension}`);
+  }
+  assert.match(matrix, /candidate identity[^\r\n]*(?:when present|如有声明|若有声明)/iu);
+  assert.match(matrix, /--ack-experimental/u);
+  assert.match(matrix, /https:\/\/zcode\.z\.ai\/en\/docs\/configuration/u);
+  assert.match(matrix, /~\/\.zcode\/v2\/config\.json/u);
+  assert.match(matrix, /https:\/\/open\.bigmodel\.cn\/api\/coding\/paas\/v4/u);
+  assert.doesNotMatch(matrix, /BigModel Coding Plan[^.\r\n]*(?:uses|使用)[^.\r\n]*api\/anthropic/iu);
 
   assert.match(matrix, /0\.16\.5[\s\S]{0,500}historical|历史[\s\S]{0,500}0\.16\.5/iu);
   assert.match(matrix, /~\/\.zcode\/v2\/config\.json/u);
@@ -1651,7 +1664,7 @@ test('delegation surfaces admit a Host transport only through exact retained enf
 
 test('maintained documentation assigns Init, Research, and Change one non-overlapping authority boundary', () => {
   const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
-  const readme = read('README.md');
+  const overview = read('README.md');
   const authority = read('docs/ARTIFACT-AUTHORITY.md');
   const lifecycle = read('docs/WORKFLOW-LIFECYCLE.md');
   const architecture = read('docs/ARCHITECTURE.md');
@@ -1662,10 +1675,11 @@ test('maintained documentation assigns Init, Research, and Change one non-overla
   const product = read('.ultra/specs/product.md');
   const architectureSpec = read('.ultra/specs/architecture.md');
 
-  assert.match(readme, /`ultra-init` \| Establish the project skeleton and raw Project Brief/u);
-  assert.match(readme, /`ultra-research` \| Establish an accepted North Star/iu);
-  assert.match(readme, /├── project-brief\.md/u);
-  assert.match(readme, /`brief\.md`[^\n]+derived navigation/iu);
+  assert.match(overview, /\]\(docs\/ARCHITECTURE\.md\)/u);
+  assert.match(architecture, /`ultra-init` \| Establish the project skeleton and raw Project Brief/u);
+  assert.match(architecture, /`ultra-research` \| Establish an accepted North Star/iu);
+  assert.match(architecture, /├── project-brief\.md/u);
+  assert.match(architecture, /`brief\.md`[^\n]+derived navigation/iu);
   assert.match(authority, /`\.ultra\/project-brief\.md`[^\n]+raw owner intake[^\n]+`ultra-init`/iu);
   assert.match(authority, /`\.ultra\/north-star\.md`[^\n]+accepted[^\n]+`ultra-research`/iu);
   assert.match(authority, /stable `change_id`/iu);
@@ -1694,19 +1708,20 @@ test('maintained documentation assigns Init, Research, and Change one non-overla
 
 test('public documentation names the exact v2 authority paths and final candidate identity', () => {
   const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
-  const readme = read('README.md');
+  const reference = read('docs/ARCHITECTURE.md');
   const decisions = read('docs/DECISIONS.md');
   const migration = read('.ultra/contexts/task-v027-migration-acceptance.md');
   const adversarial = read('.ultra/contexts/task-v027-adversarial-lifecycle.md');
 
-  assert.match(readme, /├── contexts\/task-<task-id>\.md/u);
-  assert.doesNotMatch(readme, /├── contexts\/<task-id>\.md/u);
+  assert.match(read('README.md'), /\]\(docs\/ARCHITECTURE\.md\)/u);
+  assert.match(reference, /├── contexts\/task-<task-id>\.md/u);
+  assert.doesNotMatch(reference, /├── contexts\/<task-id>\.md/u);
   assert.match(
-    readme,
+    reference,
     /retain the exact current strict review session[\s\S]{0,220}Test and Deliver[\s\S]{0,220}garbage-collected/iu,
   );
   assert.match(
-    readme,
+    reference,
     /lost before both consumers[\s\S]{0,180}fresh Review and Test[\s\S]{0,180}(?:never reconstruct|not reconstruct)/iu,
   );
 

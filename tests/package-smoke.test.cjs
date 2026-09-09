@@ -53,6 +53,8 @@ test('npm tarball contains and runs only the file-first product surface', () => 
     assert.ok(paths.includes('skills/ultra-plan/scripts/validate_task_evidence.cjs'));
     assert.ok(paths.includes('skills/ultra-test/scripts/validate_review_transport.cjs'));
     for (const document of [
+      'README.md',
+      'USAGE.md',
       'ARCHITECTURE.md',
       'ARTIFACT-AUTHORITY.md',
       'DECISIONS.md',
@@ -66,13 +68,14 @@ test('npm tarball contains and runs only the file-first product surface', () => 
     }
     assert.ok(paths.includes('docs/evals/adversarial-review-2026-08-14.md'));
     assert.ok(paths.includes('docs/evals/zcode-automation-2026-08-14.md'));
-    for (const readmeName of ['README.md', 'README.zh-CN.md']) {
+    for (const readmeName of ['README.md', 'README.zh-CN.md', 'docs/README.md', 'docs/USAGE.md']) {
       const markdown = fs.readFileSync(path.join(ROOT, readmeName), 'utf8');
       for (const match of markdown.matchAll(/\[[^\]]*\]\(([^)]+)\)/gu)) {
         let target = match[1].trim().replace(/^<|>$/gu, '');
         if (/^(?:#|[a-z][a-z+.-]*:|\/)/iu.test(target)) continue;
         target = target.split('#', 1)[0].split('?', 1)[0];
         if (!target) continue;
+        target = path.posix.normalize(path.posix.join(path.posix.dirname(readmeName), target));
         assert.ok(paths.includes(target), `${readmeName}: packed relative link ${target}`);
       }
     }

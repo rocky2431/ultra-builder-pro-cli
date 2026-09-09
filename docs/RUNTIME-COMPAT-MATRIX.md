@@ -105,7 +105,11 @@ untrusted and emits no remediation action without an authoritative Host observat
 
 ## Agent execution driver selection
 
-| Host | ACP candidate observed locally | Versioned conformance | 5.0 active driver | Fallback reason |
+Doctor reports candidate identity when present, independently from installation
+health. These records describe runtime compatibility; release history belongs
+in the [changelog](../CHANGELOG.md).
+
+| Host | ACP candidate observed locally | Versioned conformance | Selected driver | Fallback reason |
 |---|---|---|---|---|
 | Claude Code | preinstalled `@agentclientprotocol/claude-agent-acp` stdio adapter from the managed agent-delegation registry (registry-declared version + `CLAUDE_CODE_EXECUTABLE` native binding, launcher-injected from the one selection resolution — adapter argv, probes, runtime file, and env binding come from the same registry read, so an update between selection and launch keeps executing the originally bound files or refuses typed); pinned `npx` fallback without a registry binding. A future retained positive qualification must additionally bind the execution-site native permission configuration and the Claude SDK package metadata, and does not transfer to a worktree or SDK install that changed them | PASS, real provider receipt (earned on the `npx` route; the installed route's conformance is not separately re-earned) | ACP when the registry adapter or `npx` exists | `acp_command_unavailable` when absent |
 | Codex | pinned `@agentclientprotocol/codex-acp@1.6.2` stdio adapter | PASS, real provider receipt | ACP when `npx` exists | `acp_command_unavailable` when absent |

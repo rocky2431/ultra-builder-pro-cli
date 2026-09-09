@@ -7,9 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [5.0.2] — 2026-08-26
+The source checkout includes changes that are not on npm. On 2026-09-10, the
+registry's `latest` tag resolves to `5.0.1`; the source package declares `5.0.2`,
+which is not published. The fixes previously listed under a dated `5.0.2` heading
+below belong to this unreleased work.
+
+### Added
+
+- A natural-language goal entry for Claude Code and Pi, with native session
+  continuation. The host model selects the appropriate workflow.
+- Qualified Pi delegation, finite parallel batches, role profiles, worktree
+  management, and result notifications to the main session.
+- Opt-in durable checkpoints that permit at most one fresh Pi turn after the
+  previous session exits, with expiry, revocation, and no replay of unknown delivery.
+- A usage guide, a documentation index, and bilingual diagrams explaining the
+  relationship between the owner, coding agent, project records, and optional workers.
+
+### Changed
+
+- Rewrote both READMEs around the problems Ultra addresses, first use, and everyday
+  examples. Moved protocol details to their reference pages and release history here.
+- Clarified that small fixes can stay ordinary work and that product-building
+  requests continue beyond the initial skeleton once their purpose is settled.
+
+### Validation limits
+
+- Finite Pi work and selected continuation, cancellation, revocation, process-death,
+  and duplicate-event paths have retained native evidence. This does not establish
+  complete machine-restart or network-partition recovery.
+- Repeated Factory efficiency gains over comparable Solo/manual work remain
+  unproven. Strategy candidates have not been promoted; the owner's promote/reject
+  decision remains open.
+- Stage E's additional final review returned `INCOMPLETE` with no new P0/P1 findings.
+  Formal acceptance remains open in the
+  [development record](https://github.com/rocky2431/ultra-builder-pro-cli/blob/main/docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md).
 
 ### Fixed
+
+- Corrected protected authority path aliases and retained fresh-turn expiry and
+  revocation checks at consumption.
+- Replaced README installation commands targeting the unpublished package with
+  `@latest`, and separated registry installation from source-checkout usage.
 
 - Reconciled every maintained delegation surface around the installed Skill-local,
   ACP-first `AgentExecutionDriver`; the result-compatible CLI driver is now described
