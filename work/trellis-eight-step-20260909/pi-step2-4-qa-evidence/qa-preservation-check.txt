@@ -1,0 +1,12 @@
+$ sha256sum source/test files (archive vs disposable copy)
+mnotes.py archive=63aa45e923cb51e77a09957e88b4fb781f88055cc9b3cab410d6276ffc8d6798
+mnotes.py temp=63aa45e923cb51e77a09957e88b4fb781f88055cc9b3cab410d6276ffc8d6798
+test_mnotes.py archive=4982571eb6ba77cc82e88d5766a61245ba7ffcb55f76b4a75322b4974b6b6d4d
+test_mnotes.py temp=4982571eb6ba77cc82e88d5766a61245ba7ffcb55f76b4a75322b4974b6b6d4d
+README.md archive=08ebeff1ee1ae1e774d141f7fb98bb86d3d7fa29c6bf6a23b1f3cb573b9a6983
+README.md temp=08ebeff1ee1ae1e774d141f7fb98bb86d3d7fa29c6bf6a23b1f3cb573b9a6983
+money test archive=e31293a0332d84e523edc94dceae948087c37597c15f24f92cced448e758a428
+money test temp=e31293a0332d84e523edc94dceae948087c37597c15f24f92cced448e758a428
+$ git status --short -- report/evidence
+?? work/trellis-eight-step-20260909/pi-step2-4-qa-evidence/
+?? work/trellis-eight-step-20260909/pi-step2-4-qa.zh-CN.md

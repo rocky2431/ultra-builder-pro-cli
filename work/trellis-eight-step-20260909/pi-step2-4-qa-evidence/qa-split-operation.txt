@@ -1,0 +1,53 @@
+TMP=/tmp/pi-qa-2EFzq1
+$ npm test
+
+> trellis-daily-f3-shared-expenses@1.0.0 test
+> node --test test/
+
+✔ amounts add up in minor units (0.389791ms)
+✔ formatting happens only at the display boundary (0.086166ms)
+✔ a non-integer amount is rejected instead of silently rounded (0.169584ms)
+✔ an evenly divisible amount splits into equal shares (0.728292ms)
+✔ the remainder is handed out, never dropped (0.081292ms)
+✔ shares always add back up to the original amount (0.721417ms)
+✔ a negative amount splits without gaining or losing a minor unit (0.082583ms)
+✔ shares differ by at most one minor unit (0.101167ms)
+✔ a non-integer amount or a bad head count is rejected (0.35475ms)
+✔ a head count of zero says a split needs at least one person (0.159167ms)
+✔ a negative head count is told apart from a fractional one (0.153958ms)
+✔ a head count that is not a number reports the value it received (0.129166ms)
+✔ a split share is displayed through the shared display boundary (0.115375ms)
+✔ an even split collapses to a single per-person figure (0.776958ms)
+✔ an uneven split names how many people pay each share (0.110875ms)
+✔ the summary stays one line however many people share the bill (0.184333ms)
+✔ a negative amount is summarized without losing a minor unit (0.085ms)
+✔ every amount in the summary comes from the shared display boundary (1.082125ms)
+✔ the head counts in the summary add up to the people sharing the bill (0.368833ms)
+✔ a non-integer amount or a bad head count is rejected (0.243875ms)
+✔ the summary reports a bad head count in the same words as the split (0.200667ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53.421334
+$ node -e direct public API checks
+{
+  "split1000": [
+    334,
+    333,
+    333
+  ],
+  "sum1000": 1000,
+  "formatted": "10.00",
+  "summary": "合计 10.00，3 人平摊：1 人 3.34，2 人 3.33",
+  "negative": [
+    -34,
+    -33,
+    -33
+  ],
+  "negativeSum": -100
+}
+zero: RangeError 平摊至少需要 1 个人，收到的是 0

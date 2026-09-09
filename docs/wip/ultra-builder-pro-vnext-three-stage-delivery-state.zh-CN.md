@@ -4,9 +4,15 @@
 
 ## 最新作者分工
 
+最新明确分工：全部八步继续；Codex独占代码、测试及全部实现修改，并逐步验收、commit、更新文档。允许Pi或其他Agent参与委派试验及独立QA，QA只验证并报告，修复仍由Codex负责。具体原话见`.ultra/decisions/2026-09-09-root-independent-implementation.md`追加澄清。
+
+Owner澄清“换成pi”指当前验证阶段，不是移交后续实现。Codex先前扩大为八步实现任务的派发已撤回，Pi及其测试子进程均已停止；HEAD仍为6663a24，运行记录只包含读取、检查与诊断日志，没有产品实现修改或commit。后续实现分工不因这次Pi验证请求而改变。原错误任务书标记WITHDRAWN并只作诊断留存。
+
 Owner 最新明确要求“接下来不用交给claude实现了 全部你自己来独立完成”。以 `.ultra/decisions/2026-09-09-root-independent-implementation.md` 为准：Codex 亲自完成后续实现与测试，不再委派实现。原Claude入口任务已cancelled/native cancelled；已有部分改动保留，由Codex检查后接着完成。下文旧分工及任务描述均为历史，不能覆盖新指令。全部八步与分段提交仍继续。
 
 ## 最新阻断与恢复点（2026-09-09）
+
+独立QA：Pi仅验证的任务已success/end_turn，原生会话`01a08461-707b-7323-8681-493be3b2f793`，实际默认模型openai-codex/gpt-5.6-luna。25/35/21项样例检查与公共操作通过，未发现确定P0/P1；Root消费日志及hash检查。F2-res和D4仍BLOCKED，QA任务完成不等于第二/第四步完成。详见`work/trellis-eight-step-20260909/pi-step2-4-qa.zh-CN.md`。
 
 已分段提交：`9c7817d` 为统一入口与原生续接实现及当前实跑证据；`3bbef76` 为第三步知识回写四环验收、fixture和证据。最终隔离源码检查为761项Node测试、104项Hook测试、audit0；pack与Skill校验已通过，真实HOME doctor的既有degraded状态仍保留。提交没有改变第二、第四步的待验收状态。
 

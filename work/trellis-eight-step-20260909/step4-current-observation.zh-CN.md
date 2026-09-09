@@ -15,3 +15,5 @@ D4纠正运行：以成功执行的Bash工具结果触发，实际dwell>=10秒�
 恢复现场：trial_root见step2-candidate4.json；D4-interrupt-r2-04yth2n1为项目目录，session=3f05a86a-82e4-4cf8-8533-df00ea35b986。D4-resume-r2-request.json给出原始公共命令和冻结续接话语；恢复额度后继续同会话，不重新造任务。后续应使用candidate5 launcher并记录仅参数终止符这一差异。
 
 全部请求、停止前manifest、工具事件、残留进程复查、产物和错误在step2-4-current-evidence-index.json及其归档。无购买/重置额度、无生产或HOME安装变更。第五至八步尚未开始。
+
+Pi独立QA补充：D1、D2及D3分账公共API在副本上操作通过（25/35/21项既有检查），无产品/测试修改。D3整体切换和D4仅核对既有证据，不声称新跑；D4-r2的后代清理已证实，但原生续接最终仍未结束。Root已消费报告`pi-step2-4-qa.zh-CN.md`，第四步继续标记未完成。

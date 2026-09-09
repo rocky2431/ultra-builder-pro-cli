@@ -1,0 +1,56 @@
+TMP=/tmp/pi-qa-2EFzq1
+$ python3 mnotes.py add -d 2026-09-01 -m 范围一
+已存 #5  2026-09-01  范围一
+$ python3 mnotes.py add -d 2026-09-05 -m 范围二
+已存 #6  2026-09-05  范围二
+$ python3 mnotes.py add -d 2026-09-09 -m 范围三
+已存 #7  2026-09-09  范围三
+$ python3 mnotes.py list --since 2026-09-01 --until 2026-09-05
+#6  2026-09-05  范围二
+#5  2026-09-01  范围一
+#2  2026-09-01  架构评审
+2026-09-01 ~ 2026-09-05 共 3 条。
+$ fresh process: python3 mnotes.py list --since 2026-09-05 --until 2026-09-05
+#6  2026-09-05  范围二
+2026-09-05 ~ 2026-09-05 共 1 条。
+$ python3 -m unittest test_mnotes -v
+test_ascii_keyword_is_case_insensitive (test_mnotes.TestAddAndFind.test_ascii_keyword_is_case_insensitive) ... ok
+test_defaults_to_today_when_no_date_given (test_mnotes.TestAddAndFind.test_defaults_to_today_when_no_date_given) ... ok
+test_find_reports_the_day_it_was_recorded (test_mnotes.TestAddAndFind.test_find_reports_the_day_it_was_recorded) ... ok
+test_find_two_character_chinese_keyword (test_mnotes.TestAddAndFind.test_find_two_character_chinese_keyword) ... ok
+test_list_shows_newest_day_first (test_mnotes.TestAddAndFind.test_list_shows_newest_day_first) ... ok
+test_multiple_keywords_must_all_match (test_mnotes.TestAddAndFind.test_multiple_keywords_must_all_match) ... ok
+test_no_match_says_so_and_exits_nonzero (test_mnotes.TestAddAndFind.test_no_match_says_so_and_exits_nonzero) ... ok
+test_rejects_empty_note (test_mnotes.TestAddAndFind.test_rejects_empty_note) ... ok
+test_rejects_malformed_date (test_mnotes.TestAddAndFind.test_rejects_malformed_date) ... ok
+test_show_prints_the_full_body (test_mnotes.TestAddAndFind.test_show_prints_the_full_body) ... ok
+test_show_unknown_id_exits_nonzero (test_mnotes.TestAddAndFind.test_show_unknown_id_exits_nonzero) ... ok
+test_title_falls_back_to_first_line (test_mnotes.TestAddAndFind.test_title_falls_back_to_first_line) ... ok
+test_shows_only_the_matching_lines_of_a_long_note (test_mnotes.TestFindOutput.test_shows_only_the_matching_lines_of_a_long_note) ... ok
+test_compact_date_in_filename_is_understood (test_mnotes.TestImport.test_compact_date_in_filename_is_understood) ... ok
+test_date_comes_from_the_filename_when_present (test_mnotes.TestImport.test_date_comes_from_the_filename_when_present) ... ok
+test_edited_source_file_is_added_as_a_new_version_not_an_overwrite (test_mnotes.TestImport.test_edited_source_file_is_added_as_a_new_version_not_an_overwrite) ... ok
+test_falls_back_to_file_mtime_when_filename_has_no_date (test_mnotes.TestImport.test_falls_back_to_file_mtime_when_filename_has_no_date) ... ok
+test_import_never_modifies_the_source_files (test_mnotes.TestImport.test_import_never_modifies_the_source_files) ... ok
+test_importing_a_single_file_works (test_mnotes.TestImport.test_importing_a_single_file_works) ... ok
+test_imports_markdown_and_text_files (test_mnotes.TestImport.test_imports_markdown_and_text_files) ... ok
+test_missing_path_exits_nonzero (test_mnotes.TestImport.test_missing_path_exits_nonzero) ... ok
+test_reimport_is_idempotent (test_mnotes.TestImport.test_reimport_is_idempotent) ... ok
+test_skips_unreadable_binary_and_reports_it (test_mnotes.TestImport.test_skips_unreadable_binary_and_reports_it) ... ok
+test_title_drops_the_date_prefix_the_heading_already_shows (test_mnotes.TestImport.test_title_drops_the_date_prefix_the_heading_already_shows) ... ok
+test_title_keeps_the_stem_when_it_is_only_a_date (test_mnotes.TestImport.test_title_keeps_the_stem_when_it_is_only_a_date) ... ok
+test_a_range_is_not_silently_cut_at_the_default_limit (test_mnotes.TestListDayRange.test_a_range_is_not_silently_cut_at_the_default_limit) ... ok
+test_empty_range_says_so_and_exits_nonzero (test_mnotes.TestListDayRange.test_empty_range_says_so_and_exits_nonzero) ... ok
+test_explicit_limit_still_caps_and_says_it_was_cut (test_mnotes.TestListDayRange.test_explicit_limit_still_caps_and_says_it_was_cut) ... ok
+test_plain_list_output_is_unchanged (test_mnotes.TestListDayRange.test_plain_list_output_is_unchanged) ... ok
+test_range_is_inclusive_on_both_ends (test_mnotes.TestListDayRange.test_range_is_inclusive_on_both_ends) ... ok
+test_range_reports_how_many_were_recorded (test_mnotes.TestListDayRange.test_range_reports_how_many_were_recorded) ... ok
+test_rejects_a_reversed_range (test_mnotes.TestListDayRange.test_rejects_a_reversed_range) ... ok
+test_rejects_malformed_range_date (test_mnotes.TestListDayRange.test_rejects_malformed_range_date) ... ok
+test_since_alone_keeps_that_day_and_everything_after (test_mnotes.TestListDayRange.test_since_alone_keeps_that_day_and_everything_after) ... ok
+test_until_alone_keeps_that_day_and_everything_before (test_mnotes.TestListDayRange.test_until_alone_keeps_that_day_and_everything_before) ... ok
+
+----------------------------------------------------------------------
+Ran 35 tests in 0.152s
+
+OK

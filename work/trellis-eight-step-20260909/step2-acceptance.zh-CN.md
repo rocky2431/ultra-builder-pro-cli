@@ -1,6 +1,6 @@
 # 第二步验收：统一自然语言入口与相称路径
 
-结论：**候选4交互行为已确认；最终提交待candidate5参数边界修复的实跑与检查完成。**Owner 的目标原样经 `ubp run` 进入所选插件，模型选择工作路径；普通宿主聊天的自动发现只作尽力支持。原三个 descriptor 候选与 candidate4 批处理 F2 的失败仍保留，未改判。
+结论：**统一入口candidate5已实现、检查通过并提交9c7817d；F2-res实际行为仍被Claude周额度阻断，第二步整体未验收。**Owner 的目标原样经 `ubp run` 进入所选插件，模型选择工作路径；普通宿主聊天的自动发现只作尽力支持。原三个 descriptor 候选与 candidate4 批处理 F2 的失败仍保留，未改判。
 
 授权与分工：统一入口决定在 `.ultra/decisions/2026-09-09-unified-ultra-entry.md`；后续由 Codex 亲自实现的最新要求在 `2026-09-09-root-independent-implementation.md`。Claude 的未完入口改动被取消后由 Codex 接完。这里的原生 Claude 会话是实际产品试用，不是委派它开发 Ultra。Codex 同时作操作验收，不声称作者与验收者独立。
 
@@ -46,3 +46,7 @@ D3后续发现F2样例工具把不同日期、相同正文的手记判重，这�
 candidate5只在native prompt前加`--`，修复最后一个`--allowedTools <tools...>`吞掉目标的真实错误；原生help明确plugin-dir是单值，不能把错误泛化到它。新增及更新argv窄检查红→11/11绿。运行后目标原样出现在native会话，继而因周额度429停止；F2-res尚未验收，第二步整体仍未完成。
 
 最终candidate5隔离全套：**761 Node / 104 Hook / audit0，exit0**；pack通过，日志step2-candidate5-release.log、step2-candidate5-pack.json。此前760检查与失败日志仍是candidate4历史。此次提交是完成的入口实现单元，非第二步整体验收通过。额度恢复后续接F2-res；不购买额度、不静默换provider凑通过。
+
+## Pi 独立 QA 补充（2026-09-09）
+
+Pi只负责验证，未写Ultra实现或测试。独立在归档产物的副本上操作，会议记录25项、时间范围35项、分账21项既有检查通过，并实际验证新进程持久化、关键词和日期、范围端点、整数分守恒。报告`pi-step2-4-qa.zh-CN.md`及对应证据保留了第一次把D2接口用于D1的操作错误；不计为产品失败。Root核对操作日志与源码/冻结断言hash一致。未发现确定的P0/P1产品缺陷。此结果补独立操作证据，不替代F2-res的新产品用途澄清，也不把Claude429改为通过。

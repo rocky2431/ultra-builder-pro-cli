@@ -1,0 +1,42 @@
+{
+  "verdict": "independent sample operation accepted; steps2/4 remain blocked",
+  "inventory": [
+    {
+      "path": "work/trellis-eight-step-20260909/pi-step2-4-qa.zh-CN.md",
+      "sha256": "a987d312ede36486af75d17e74b4c9bbec78ffe72db6900bcb1990bd91be7b90",
+      "bytes": 8440
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/pi-step2-4-qa-mission.md",
+      "sha256": "ff880b8b3857624f4f7da2f93d8039232f830e244d15e5df2d0306ed620e4470",
+      "bytes": 3949
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/pi-step2-4-qa-dispatch.json",
+      "sha256": "572e2a4571c92273fc0509a4b118efd3a794da63d1393a20e1ad0e5d167894cf",
+      "bytes": 717
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/pi-step2-4-qa-evidence/qa-notes-operation.txt",
+      "sha256": "6140c14e80fa548576d5b1236bf01ba35b736452aa45e880c860536c4a66598b",
+      "bytes": 3692
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/pi-step2-4-qa-evidence/qa-preservation-check.txt",
+      "sha256": "1ac3bc22e3ea5d76a787fcc90bbae031c141f836db1f37abcc8fe15c3632d279",
+      "bytes": 882
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/pi-step2-4-qa-evidence/qa-range-operation.txt",
+      "sha256": "628edfc5d80fa81fa786a3840aa5896a2f45a8fddc38e365a4537cbecdfe0e87",
+      "bytes": 4872
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/pi-step2-4-qa-evidence/qa-split-operation.txt",
+      "sha256": "55c72b84d9abe8630ddea61f24535535cb995879e643e30a3ae0a648c892a243",
+      "bytes": 2071
+    }
+  ],
+  "no_product_code_change": true,
+  "report_correction": "F2-res is an incomplete new-product purpose case, not itself a same-session continuation acceptance; D4 is the same-session continuation case."
+}
