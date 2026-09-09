@@ -11,6 +11,12 @@ const { spawn, spawnSync } = require('node:child_process');
 const ROOT = path.resolve(__dirname, '..');
 const REVIEW_SUBPROCESS_TIMEOUT_MS = 5_000;
 const SCRIPT = path.resolve(__dirname, '..', 'skills', 'ultra-review', 'scripts', 'review_wait.py');
+test('review wait help works without a session and missing arguments still fail', () => {
+  const help = spawnSync('python3', [SCRIPT, '--help'], { encoding: 'utf8' });
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /--packet-digest/);
+  assert.equal(spawnSync('python3', [SCRIPT], { encoding: 'utf8' }).status, 2);
+});
 const REVIEW_WORKERS = [
   ['review-spec', 'spec_fidelity'],
   ['review-code', 'engineering_standards'],
