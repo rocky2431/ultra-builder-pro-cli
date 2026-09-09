@@ -8,6 +8,8 @@ Owner 最新明确要求“接下来不用交给claude实现了 全部你自己�
 
 ## 最新阻断与恢复点（2026-09-09）
 
+已分段提交：`9c7817d` 为统一入口与原生续接实现及当前实跑证据；`3bbef76` 为第三步知识回写四环验收、fixture和证据。最终隔离源码检查为761项Node测试、104项Hook测试、audit0；pack与Skill校验已通过，真实HOME doctor的既有degraded状态仍保留。提交没有改变第二、第四步的待验收状态。
+
 Claude 已实际返回429周额度耗尽，提示2026-09-13 01:00 Asia/Shanghai恢复；不再反复调用，不购买或切换凭据。F2-res在candidate5下目标已正确进入会话，但无法执行；D4-r2在真实中断后同UUID续接中被额度打断。所有进程已结束，现场与准确命令保留在step2-4-current-evidence-index及其trial。
 
 candidate5仅修正原生可变参数吞掉prompt：在prompt前加入`--`。确切触发为最后的`--allowedTools <tools...>`，native `--plugin-dir` 是单值；未证明无透传参数的默认命令同样会吞目标。11项窄测试通过，最终完整检查与pack单独留证。新代码是已完成的实现单元，提交不代表第二/第四步整体验收通过。第五至八步未开始；额度恢复后续接D4-r2及F2-res，不能宣称八步已完成。
