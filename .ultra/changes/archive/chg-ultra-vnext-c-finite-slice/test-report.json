@@ -1,0 +1,175 @@
+{
+  "$schema": "ultra-test-report-v2",
+  "change_id": "chg-ultra-vnext-c-finite-slice",
+  "task_ids": [
+    "vnext-c-finite-slice"
+  ],
+  "task_evidence": [
+    {
+      "task_id": "vnext-c-finite-slice",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/vnext-c-finite-slice/evidence.json",
+      "evidence_digest": "bfdc2663755b9084091bcac90e7536897fd24ee49480554ab027c82a00f52fdd",
+      "task_review_session": "vnext-c-finite-slice-review-20260909",
+      "task_review_summary_digest": "78c0bf057ab6c5d630e0acf9115f840770538e8b5772839f898c57201b59b259"
+    }
+  ],
+  "git_commit": "c8eb8a2788471638de708cebe72232c7ac75b0ae",
+  "intent_digest": "b7cfab39029f1d4e7c9a9e20ce20ec50b700478373e538fd59240302c805b3b4",
+  "worktree": {
+    "dirty": true,
+    "diff_digest": "da72d377eb8594f78ea2bb05015dbe0cc886ccc55e49027651df920b413dfad1"
+  },
+  "commands": [
+    {
+      "command": "npm run verify:release",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-current-release.log"
+    },
+    {
+      "command": "UBP_TEST_ACPX_ENTRY=<qualified entry> node --test tests/acpx-entry.test.cjs tests/acp-conformance.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-current-acpx-optin.log"
+    },
+    {
+      "command": "UBP_TEST_ACPX_ENTRY=<qualified entry> node --test --test-name-pattern \"the real public entry refuses\" tests/acp-driver.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-current-acpx-negotiation.log"
+    },
+    {
+      "command": "node --test tests/run-slice.test.cjs tests/pi-primary.test.cjs tests/unified-entry.test.cjs tests/install.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-final-narrow.log"
+    },
+    {
+      "command": "node --test tests/project-artifacts.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-artifact-closure-pass.log"
+    },
+    {
+      "command": "npm pack --dry-run --json",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-final-pack.json"
+    },
+    {
+      "command": "node bin/install.js --all --global --doctor --json",
+      "exit_code": 2,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-current-doctor.json"
+    },
+    {
+      "command": "Skill Creator quick_validate.py skills/ultra-delegate",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-final-skill.log"
+    }
+  ],
+  "areas": {
+    "anti_patterns": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-final-audit.json"
+      ],
+      "omissions": []
+    },
+    "coverage_gaps": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-final-audit.json"
+      ],
+      "omissions": []
+    },
+    "wiring": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-final-audit.json"
+      ],
+      "omissions": []
+    },
+    "e2e": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-final-audit.json"
+      ],
+      "omissions": []
+    },
+    "performance": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-final-audit.json"
+      ],
+      "omissions": [
+        "No repeated efficiency benefit on this task shape; Stage D remains separate."
+      ]
+    },
+    "security": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-final-audit.json"
+      ],
+      "omissions": []
+    }
+  },
+  "review": {
+    "session": "vnext-c-aggregate-20260909-r2",
+    "packet_digest": "1e4a9299bcf99572f813e33d42f5e142c62ba9abaf320ccd51407884bc9af6b9",
+    "admission_digest": "d66eb52289f8e41603c6cdca80079bd2f0646405c86860779f75ff7e84753404",
+    "subject_digest": "d309884d804f65e08b3dd0e75bdedc0ab2de7ac5d2fb7d6e078d22e9b7891fb6",
+    "execution_mode": "isolated",
+    "context_digest": "1e8d321eff3d7911a30d26fd3ab5ae87815313579f92f1bc3f7cbb811fecf443",
+    "worktree_digest": null,
+    "verdict": "APPROVE",
+    "coverage_refs": [
+      "review-spec.json",
+      "review-tests.json",
+      "review-errors.json"
+    ],
+    "limitations": [
+      "Read-only inspection; providers and live executions were not run.",
+      "Ancillary evidence was inspected for support but excluded from scope.files_analyzed.",
+      "The current HOME doctor state remains pre-existing degraded status and is not treated as a Stage C acceptance failure.",
+      "Current evidence supports Stage C only; D/E remain separate.",
+      "Ancillary native raw sessions and retained task-review artifacts were inspected for support but excluded from scope.files_analyzed.",
+      "Read-only inspection; no providers or live executions were run.",
+      "Only P0/P1 findings that block aggregate acceptance were retained.",
+      "Three actual fresh native Pi contexts reviewed Codex-authored source/tests; no provider experiments were repeated during QA.",
+      "Strict packet v1 binds the recorded subjects and context, not an exact product worktree digest.",
+      "Current canonical product evidence supports only Stage C; this task shape showed no speed/cost benefit, and Stage D/E remain outstanding."
+    ],
+    "finding_schema": "ultra-review-findings-v4",
+    "summary_ref": ".ultra/reviews/vnext-c-aggregate-20260909-r2/SUMMARY.json",
+    "summary_digest": "9bf0c4d80acece6130c48b75a5ca1a882941101a9e713c481b18e0d6ce32c4d7"
+  },
+  "verified_seams": [
+    "Public ubp slice to exact qualified concurrent delegate launch/status/cancel",
+    "Public ubp run --host pi to native W1/W2/ack and lifecycle events",
+    "Installed standalone Skill runtime, profiles and native extension assets",
+    "Actual two-worker product integration, reproduced repair, current E2E and independent Task QA",
+    "Task v2 raw/acceptance/Review and aggregate strict transport consumed"
+  ],
+  "findings": [],
+  "omissions": [
+    "No D/E completion, other-platform W2, real-HOME installation, push or publication.",
+    "HOME doctor is previously degraded; no healthy installation claim."
+  ],
+  "residual_risks": [
+    "Read-only inspection; providers and live executions were not run.",
+    "Ancillary evidence was inspected for support but excluded from scope.files_analyzed.",
+    "The current HOME doctor state remains pre-existing degraded status and is not treated as a Stage C acceptance failure.",
+    "Current evidence supports Stage C only; D/E remain separate.",
+    "Ancillary native raw sessions and retained task-review artifacts were inspected for support but excluded from scope.files_analyzed.",
+    "Read-only inspection; no providers or live executions were run.",
+    "Only P0/P1 findings that block aggregate acceptance were retained.",
+    "Three actual fresh native Pi contexts reviewed Codex-authored source/tests; no provider experiments were repeated during QA.",
+    "Strict packet v1 binds the recorded subjects and context, not an exact product worktree digest.",
+    "Current canonical product evidence supports only Stage C; this task shape showed no speed/cost benefit, and Stage D/E remain outstanding.",
+    "Current product trial modified the initial fixture; no held-out generalization claim. Earlier failed trials and costs remain frozen.",
+    "Factory slower and more expensive in this matched trial.",
+    "Pi permission qualification remains exact-runtime and cooperative-workspace scoped."
+  ],
+  "owner_disposition": [
+    "Accepted eight-step local implementation and per-part commit; Codex alone authors Ultra source/tests.",
+    "No automatic promotion of strategy or P2/P3 repair."
+  ],
+  "passed": true,
+  "run_count": 1,
+  "timestamp": "2026-09-09T10:54:37.642637+00:00"
+}

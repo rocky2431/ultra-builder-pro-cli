@@ -13,7 +13,7 @@ const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8',
 const save = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
 const sha = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 
-async function main() {
+async function main({ prefix = 'step5' } = {}) {
   const qualified = process.argv.includes('--qualified');
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-pi-product-')));
   git(root, 'init', '-b', 'main');
@@ -29,8 +29,8 @@ async function main() {
   await new Promise((resolve) => sink.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${sink.address().port}`;
   const location = { root, started_at: new Date().toISOString(), bootstrap_override: qualified ? null : 'Remove only the unqualified Pi enforcement record; production selection, permissions, worker and result consumers remain unchanged.' };
-  save(path.join(__dirname, 'step5-pi-product-probe-location.json'), location);
-  fs.appendFileSync(path.join(__dirname, 'step5-pi-product-probe-attempts.jsonl'), JSON.stringify(location) + '\n');
+  save(path.join(__dirname, `${prefix}-pi-product-probe-location.json`), location);
+  fs.appendFileSync(path.join(__dirname, `${prefix}-pi-product-probe-attempts.jsonl`), JSON.stringify(location) + '\n');
   console.log(JSON.stringify(location));
   const files = ['pi-native-runtime.cjs', 'pi-native-permissions.cjs', 'host-profile.cjs', 'agent-execution-driver.cjs', 'cli-driver.cjs', 'delegate.cjs', 'delegate-worker.cjs', 'acp-driver.cjs'];
   const sourceDir = path.resolve(__dirname, '../../skills/ultra-delegate/scripts');
@@ -78,4 +78,5 @@ async function main() {
     }
   } finally { sink.closeAllConnections(); sink.close(); }
 }
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+if (require.main === module) main().catch((error) => { console.error(error); process.exitCode = 1; });
+module.exports = { main };

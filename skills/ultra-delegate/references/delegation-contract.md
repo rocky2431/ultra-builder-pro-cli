@@ -267,3 +267,10 @@ retained under `.ultra/evidence/vnext-d1-host-enforcement-qualification/`.
   pid dead. `EPERM` means the target exists but is not signalable by the observer and
   stays alive; any other signal outcome is unprovable and stays unknown. Neither may
   synthesize a terminal, delete `run.lock`, or release the worktree fence.
+## Finite composition
+
+An explicitly authorized wave can compose this same single-worker boundary through
+[RunSlice v1](finite-run-slice.md). It requires positive exact Host qualification for
+every attempt, preserves permissions, writer observations and fences, and adds only
+whole-wave admission, finite waiting and one mechanical attention. It does not grant
+new effects, replace the result contract or transfer the canonical writer role.

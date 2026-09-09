@@ -1,0 +1,80 @@
+{
+  "reason": "Binary raw traces exceed the physical 16MiB product snapshot when staged as product files. Retain their exact bytes with the archived Change; source coverage and snapshot limits are unchanged.",
+  "archives": [
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-aggregate-qa-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-aggregate-qa-raw.tar.gz",
+      "sha256": "08578b28f643868c848cd2343d20027f3d6159aa4f7b01e50bdd426d45fbf8c2"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-native-slice-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-native-slice-raw.tar.gz",
+      "sha256": "29e6f2fee6e9644474d0e8c6e2595e0395948d4b6f115691f03cc5917ff6c73f"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-native-ubp-native-slice-5vPdi6-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-native-ubp-native-slice-5vPdi6-raw.tar.gz",
+      "sha256": "034c21598da0f64281473b14e2a255fcb64b30a69f80bb99200fc93c713ec033"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-native-ubp-native-slice-OYxECw-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-native-ubp-native-slice-OYxECw-raw.tar.gz",
+      "sha256": "9a26c3f9a69d910876bbdcee5664f5db5db6770e8a799b4c764ee1f6d6a6cd03"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-native-ubp-native-slice-pfXWMH-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-native-ubp-native-slice-pfXWMH-raw.tar.gz",
+      "sha256": "72a8e8660803b4880201bcc0137769482b89a480f223ac9a47937563d244ce68"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-pi-qualification-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-pi-qualification-raw.tar.gz",
+      "sha256": "ee7ef4a8c93f71dcfdc77e73b4879438c0ec51057d9c8b975e51120f42eb20e2"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-pi-wake-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-pi-wake-raw.tar.gz",
+      "sha256": "3899046d688536156b9d4ea12e47ab05977e5fb354a04e9cfb783303c623f36c"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-product-canonical-factory-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-product-canonical-factory-raw.tar.gz",
+      "sha256": "188f2de3081ddb20a1a558af32313b2ec634368127b7bdf21ed0b782eebce7e5"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-product-canonical-solo-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-product-canonical-solo-raw.tar.gz",
+      "sha256": "963c274cf88176a21a4cf8faf029daa6471a70097c8ddfb8d9f03f204d9fa53c"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-product-factory-closeout-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-product-factory-closeout-raw.tar.gz",
+      "sha256": "b5010628c0ab6cb6e19e5d4e0600f8ebf435aa0909845facdd4c01da701e65c1"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-product-factory-final-reconcile-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-product-factory-final-reconcile-raw.tar.gz",
+      "sha256": "c1fcac8a6f68d42a7f5db987b287b96bbd3ae0c9c1e83372d8c12d336e2818ad"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-product-factory-initial-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-product-factory-initial-raw.tar.gz",
+      "sha256": "042a007d64e509fc90607cdead98eac20257b7ae4210e4ad9104575d75bf4c19"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-product-solo-closeout-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-product-solo-closeout-raw.tar.gz",
+      "sha256": "02943959801a442d37ade8718f942285ef40e6e4cb9a4d98a5a2bb640641391c"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-product-solo-initial-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-product-solo-initial-raw.tar.gz",
+      "sha256": "671eed11114f88fbd2cf2cac31d2f34c169d84ecc7131fffb73a7940df91c58e"
+    },
+    {
+      "observed_path": "work/trellis-eight-step-20260909/stage-c-task-qa-raw.tar.gz",
+      "retained_path": ".ultra/changes/archive/chg-ultra-vnext-c-finite-slice/raw/stage-c-task-qa-raw.tar.gz",
+      "sha256": "f0785c23f12bf94d1cf370eb158a282ff940211e2303bc3564944c7b2c9e12a3"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "observed_at": "2026-09-09T09:55:21.066561+00:00",
+  "release": {
+    "command": "npm run verify:release",
+    "exit_code": 0,
+    "node": {
+      "total": 812,
+      "passed": 808,
+      "failed": 0,
+      "skipped": 4
+    },
+    "hooks_passed": 104,
+    "audit_vulnerabilities": 0
+  },
+  "opt_in_completion": {
+    "entry": "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs",
+    "entry_sha256": "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd",
+    "commands": [
+      {
+        "command": "UBP_TEST_ACPX_ENTRY=<entry> node --test tests/acpx-entry.test.cjs tests/acp-conformance.test.cjs",
+        "exit_code": 0,
+        "passed": 8,
+        "skipped": 0
+      },
+      {
+        "command": "UBP_TEST_ACPX_ENTRY=<entry> node --test --test-name-pattern \"the real public entry refuses\" tests/acp-driver.test.cjs",
+        "exit_code": 0,
+        "passed": 1,
+        "skipped": 0
+      }
+    ],
+    "note": "All four optional cases skipped by the unconfigured full invocation passed in these targeted opt-in runs; five other targeted checks overlap the full suite."
+  },
+  "pack": {
+    "exit_code": 0,
+    "entry_count": 150
+  },
+  "doctor": {
+    "exit_code": 2,
+    "status": "existing degraded HOME installation state; read-only, no installation"
+  },
+  "skill": {
+    "command": "python3 /Users/rocky243/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/ultra-delegate",
+    "exit_code": 0
+  },
+  "diff_check": {
+    "command": "git diff --check -- bin adapters skills tests README.md README.zh-CN.md docs/RUNTIME-COMPAT-MATRIX.md .ultra/specs .ultra/tasks.json",
+    "exit_code": 0
+  },
+  "raw": [
+    {
+      "path": "work/trellis-eight-step-20260909/stage-c-current-release.log",
+      "sha256": "a2748bcd3723d45f0487f3d48b0c9c9aebd8d87f2e77a61958dbea6463bbd8a1"
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/stage-c-current-pack.json",
+      "sha256": "e4a7dc670a849db8f1eb82f804c203f5d0855265bdac68c4c55afbef499129a8"
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/stage-c-current-doctor.json",
+      "sha256": "5d66b0fe63b315febdaf7832d585d2f349f1f75e099fa9ae430e6e7facd55ac8"
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/stage-c-current-acpx-optin.log",
+      "sha256": "e3c67ff29fbcfa84adce4bc782f24eb4d47feee2e58162700774903760902751"
+    },
+    {
+      "path": "work/trellis-eight-step-20260909/stage-c-current-acpx-negotiation.log",
+      "sha256": "668ffa7643d6bdaf21e7ff46e750b538250e53f6e437724c72fd525ae7753f24"
+    }
+  ]
+}

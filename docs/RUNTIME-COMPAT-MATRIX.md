@@ -70,7 +70,8 @@ requires the Owner to name explicitly. Every other public Skill is discoverable,
 including the `ultra-init` entry route before `.ultra/` exists. Ordinary host-chat
 discovery is best-effort; `ubp run` explicitly enters Ultra and lets the host model
 select the route. Its foreground launch supports Claude Code and Pi. Pi loads the packaged portable
-Skills through native `--skill` and resumes through native `--session`; it does not
+Skills through native `--skill`, the finite W1/W2 Primary extension through native
+`--extension`, and resumes through native `--session`; it does not
 load Claude hooks or gain delegated-execution qualification from this entry. The six
 installation adapters and their Skill surfaces are unchanged. The loaded Skill must still verify the selected mode, same
 active `change_id`, grant, effects, and material checkpoints. In particular, the coarse

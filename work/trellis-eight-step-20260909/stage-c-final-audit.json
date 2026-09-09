@@ -1,0 +1,93 @@
+{
+  "timestamp": "2026-09-09T10:50:19.432961+00:00",
+  "scope": "Stage C finite qualified RunSlice and native W1/W2 Change",
+  "source_files": {
+    "bin/install.js": "8739b44566057c133bef4385c87c1faf021dfc3fd2af7d116019b5a5a9c6e182",
+    "bin/run.cjs": "6d1b77bf6540b70dd9f06431eff01546ef3c11278b93495e5c0e84e7a8959f4e",
+    "bin/unified-entry.md": "2ca81c7909a2dd96ae1e2964f9b726e0a64b69ded55e4b8c2eda317737c83740",
+    "adapters/_shared/plugin-core.cjs": "d933a0638aeec1144bfdeb817591c14413d2f211a359555f769d63c99756d647",
+    "skills/ultra-delegate/SKILL.md": "5d41af61580ca576051db4e82a988a5e1f9bd50d3bdb9ab79ec52d3262983652",
+    "skills/ultra-delegate/scripts/delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+    "skills/ultra-delegate/scripts/host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+    "skills/ultra-delegate/scripts/run-slice.cjs": "0b828abad9c8718172bc4b1bbd9950afa66a6a2028cd6e32f6b73d56dda38da1",
+    "skills/ultra-delegate/scripts/pi-primary.cjs": "b898173c387ad085f77f17799819a2e289bc876fb2ed63c699087eb3b5efb0cc",
+    "skills/ultra-delegate/references/delegation-contract.md": "1d8d583478398f67b8f5803363a79e01e36f0c24674433bd8e99ea2f711d3ff0",
+    "skills/ultra-delegate/references/finite-run-slice.md": "3d0e9823c1c5dc814fd2c161b75fd680537034f4f3161b50e04c30655784ebaa",
+    "skills/ultra-delegate/references/profiles/pi-foundation-v1.json": "1c4ee34a2850fc8ab82a1a06d5e055916e13d123be5f19c3124d703afb7b8ac4",
+    "tests/run-slice.test.cjs": "102ee80498821ae0d3b8b8952e1f7bf9d9a52bd2d399379684b187fdffc2fd83",
+    "tests/pi-primary.test.cjs": "f96678191563a331fbcc84b5b826c8e8e577a59affadc160d91f18d9eb957a5d",
+    "tests/install.test.cjs": "7affc8c15651b3b7d5f20643cb43a0a15913591a6868848d8e5dcae7cd789506",
+    "tests/unified-entry.test.cjs": "64745997a2be046f0f3a4d2977a21b16c975f5446350a7955ef836dfaf0e7934",
+    "README.md": "2f89f17eb8f904ce9bc35d00420462c12b196523c952048994e0c57856ff6c3a",
+    "README.zh-CN.md": "4c60ad2e4fa250b181d4a1eff88986d0107e5482fe20c272d103850b8ae917d3"
+  },
+  "wiring": [
+    {
+      "seam": "ubp slice -> run-slice.handle",
+      "consumer": "bin/install.js",
+      "verified_by": [
+        "tests/run-slice.test.cjs",
+        "tests/unified-entry.test.cjs"
+      ]
+    },
+    {
+      "seam": "ubp run --host pi -> native pi-primary extension",
+      "consumer": "bin/run.cjs",
+      "verified_by": [
+        "tests/unified-entry.test.cjs",
+        "stage-c-native-current-raw-index.json"
+      ]
+    },
+    {
+      "seam": "RunSlice prepare/begin -> exact host admission and delegate.run/status/cancel",
+      "consumer": "skills/ultra-delegate/scripts/run-slice.cjs",
+      "verified_by": [
+        "tests/run-slice.test.cjs",
+        "stage-c-product-canonical-observation.json"
+      ]
+    },
+    {
+      "seam": "Pi ultra_slice/ultra_attention_ack -> native extension input/message_start/agent_settled/session_shutdown",
+      "consumer": "skills/ultra-delegate/scripts/pi-primary.cjs",
+      "verified_by": [
+        "tests/pi-primary.test.cjs",
+        "stage-c-native-current-raw-index.json"
+      ]
+    },
+    {
+      "seam": "installer inventory -> standalone Skill-local runtime and profile/reference assets",
+      "consumer": "adapters/_shared/plugin-core.cjs",
+      "verified_by": [
+        "tests/install.test.cjs",
+        "stage-c-final-pack.json"
+      ]
+    }
+  ],
+  "areas": {
+    "anti_patterns": "Controller returns causal facts, has no semantic route/repair/completion choice. Scope and unknown refusal are counterexample-tested.",
+    "coverage_gaps": "C01..05 have current command/native/product evidence. D/E, other platforms and repeatable performance benefits remain explicitly unverified.",
+    "wiring": "Both public entry paths and installed Skill assets have actual callers, isolated installer checks and native execution evidence. Helper exports reuse existing permission/host logic.",
+    "e2e": "Canonical matched product tasks completed true independent Task QA, current E2E and archived Deliver; exact source and raw acceptance hashes rechecked.",
+    "performance": "Complete measured Factory/Solo records include coordination, all role calls and retained earlier failures. Current Factory is slower and more expensive, not marketed as a benefit.",
+    "security": "Exact Pi policy qualification, before-launch path/digest/role/worktree checks, sticky native consumption and unknown-preserving cancellation; no hostile OS or portable-host guarantee."
+  },
+  "commands": [
+    {
+      "command": "node --test tests/run-slice.test.cjs tests/pi-primary.test.cjs tests/unified-entry.test.cjs tests/install.test.cjs",
+      "exit_code": 0,
+      "passed": 36,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-final-narrow.log"
+    },
+    {
+      "command": "node --test tests/project-artifacts.test.cjs",
+      "exit_code": 0,
+      "passed": 80,
+      "evidence_ref": "work/trellis-eight-step-20260909/stage-c-artifact-closure-pass.log"
+    }
+  ],
+  "retained_failures": [
+    "Initial canonical closeout and unauthorized old Factory continuation remain rejected.",
+    "Task closure omitted exact metadata labels and one raw observation inventory entry; source and semantic acceptance unchanged; artifact check failed, corrected and passed.",
+    "First aggregate packet referenced a foreign Task Review in diff_files and was rejected pre-launch; subsequent admission was unused after context label correction. Fresh r2 packet is current."
+  ]
+}

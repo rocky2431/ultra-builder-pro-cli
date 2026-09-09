@@ -1,0 +1,159 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-c-aggregate-20260909",
+  "mode": "change",
+  "created_at": "2026-09-09T10:48:06.178722+00:00",
+  "head": "c8eb8a2788471638de708cebe72232c7ac75b0ae",
+  "range": "Current Stage C finite RunSlice/native Pi entry and exact current product proof relative to accepted Stage B c8eb8a2",
+  "change_id": "chg-ultra-vnext-c-finite-slice",
+  "task_ids": [
+    "vnext-c-finite-slice"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-c-finite-slice/intent.md#acceptance: C-AC01 through C-AC05 require finite qualified execution, causal native attention, actual current product closure, and an honest fair Solo comparison.",
+    ".ultra/contexts/task-vnext-c-finite-slice.md#acceptance-criteria: C-01 through C-05 are the current full finite-slice task criteria.",
+    ".ultra/decisions/2026-09-09-root-independent-implementation.md#owner-clarification-implementation-versus-verification: Codex alone implements Ultra source/tests; Pi may independently review or participate in product experiments.",
+    ".ultra/decisions/2026-09-09-stage-c-native-pi-wake.md#stage-c-native-pi-wake-selection: Preserve exact qualified native lifecycle and historical failures."
+  ],
+  "public_seams": [
+    "ubp run --host pi and ubp slice",
+    "qualified delegate launch/status/cancel and native Primary W1/W2",
+    "RunSlice/Attention/role Profile and installed Skill-local assets"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-c-finite-slice/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-c-finite-slice.md",
+      "sha256": "e8a6f412fa6aa1915ad116a4442d1ef484c91338b9dcbd41b913fd6221e172ec"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-c-finite-slice/intent.md",
+      "sha256": "b7cfab39029f1d4e7c9a9e20ce20ec50b700478373e538fd59240302c805b3b4",
+      "byte_length": 7790
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-c-finite-slice/intent.md",
+      "sha256": "b7cfab39029f1d4e7c9a9e20ce20ec50b700478373e538fd59240302c805b3b4",
+      "byte_length": 7790
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-c-finite-slice.md",
+      "sha256": "e8a6f412fa6aa1915ad116a4442d1ef484c91338b9dcbd41b913fd6221e172ec",
+      "byte_length": 7668
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-09-root-independent-implementation.md",
+      "sha256": "c0657b902ecfc18f869164fe3015fd82ae53b53333921829ffeed75c63d3b4a6",
+      "byte_length": 2380
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-09-stage-c-native-pi-wake.md",
+      "sha256": "4fb0b45323fc3f4d11fb1edbaab8edc8fb4791589f37d3d805d4d65f89c5b7c0",
+      "byte_length": 3312
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-c-aggregate-20260909/review-spec.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-c-aggregate-20260909/review-tests.json"
+    },
+    {
+      "agent": "review-errors",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/errors.md",
+      "output": ".ultra/reviews/vnext-c-aggregate-20260909/review-errors.json"
+    }
+  ],
+  "diff_files": [
+    ".ultra/evidence/vnext-c-finite-slice/evidence.json",
+    "work/trellis-eight-step-20260909/stage-c-final-pack.json",
+    "bin/install.js",
+    "bin/run.cjs",
+    "bin/unified-entry.md",
+    "adapters/_shared/plugin-core.cjs",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "skills/ultra-delegate/scripts/run-slice.cjs",
+    "skills/ultra-delegate/scripts/pi-primary.cjs",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "skills/ultra-delegate/references/finite-run-slice.md",
+    "skills/ultra-delegate/references/profiles/pi-foundation-v1.json",
+    "tests/run-slice.test.cjs",
+    "tests/pi-primary.test.cjs",
+    "tests/install.test.cjs",
+    "tests/unified-entry.test.cjs",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "README.md",
+    "README.zh-CN.md",
+    ".ultra/specs/product.md",
+    ".ultra/specs/architecture.md",
+    ".ultra/specs/research-distillate.md",
+    ".ultra/contexts/task-vnext-c-finite-slice.md",
+    ".ultra/changes/active/chg-ultra-vnext-c-finite-slice/intent.md",
+    ".ultra/decisions/2026-09-09-stage-c-native-pi-wake.md",
+    ".ultra/evidence/vnext-c-finite-slice/native-qualification.json",
+    "work/trellis-eight-step-20260909/stage-c-product-comparison.zh-CN.md",
+    "work/trellis-eight-step-20260909/stage-c-product-canonical-observation.json",
+    "work/trellis-eight-step-20260909/stage-c-current-verification.json"
+  ],
+  "output_directory": ".ultra/reviews/vnext-c-aggregate-20260909",
+  "source_author": "Codex",
+  "evidence_note": "Earlier product treatment and its closeout were explicitly rejected, not retroactively qualified. Current canonical-start matched trials are distinct. Native runtime data and old errors remain separately inspectable; no W3/W4/complete factory claim."
+}

@@ -275,6 +275,9 @@ ubp run --dry-run "..."
 `ubp run --host pi --continue "继续"` 或
 `ubp run --host pi --resume <session-id-or-path> "完成刚才中断的改动"`
 续接并重新加载同一组 Skills。`--plugin-dir` 也可选择已有的生成插件目录。
+入口同时加载原生 `ultra_slice` 和 `ultra_attention_ack` 工具，用于当前明确授权的有限并行批次。
+可在当前工具轮等待（W1），或完成后在同一原生会话的新轮次接收通知（W2），无需空闲模型轮询。
+详见[有限批次契约](skills/ultra-delegate/references/finite-run-slice.md)。
 Pi 不加载 Ultra 的可选 Claude hooks。原六宿主的安装与委派资格支持保持原有范围。
 
 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间

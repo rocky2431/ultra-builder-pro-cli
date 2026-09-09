@@ -1495,9 +1495,12 @@ module.exports = {
   HostEnforcementUnavailableError,
   launchDelegateWorker,
   main,
+  readPermission,
   releaseWorktreeFence,
   run,
   sameFileSystemEntry,
   sameFileSystemPath,
   status,
+  validateWorktree,
+  writeAtomic,
 };

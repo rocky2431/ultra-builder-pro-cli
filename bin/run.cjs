@@ -47,7 +47,9 @@ const HOSTS = Object.freeze({
     binary: 'pi',
     // Explicit Skills are session-local; Pi owns discovery, questions and storage.
     argv: ({ pluginRoot, prompt, hostArgs }) => [
-      '--skill', path.join(pluginRoot, 'skills'), ...hostArgs, '--', prompt,
+      '--skill', path.join(pluginRoot, 'skills'),
+      '--extension', path.join(pluginRoot, 'skills', 'ultra-delegate', 'scripts', 'pi-primary.cjs'),
+      ...hostArgs, '--', prompt,
     ],
     resume: 'ubp run --host pi --continue "<follow-up>" (or --resume <session-id-or-path>)',
   }),

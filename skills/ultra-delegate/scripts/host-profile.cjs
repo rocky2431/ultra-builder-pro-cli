@@ -459,10 +459,10 @@ const HOST_ENFORCEMENT_QUALIFICATION = Object.freeze({
   // Positive native CLI observations remain bound to their exact runtime and policy bytes.
   pi: Object.freeze({
     "$schema": "ultra-host-enforcement-qualification-v1",
-    "attempt_id": "ubp-pi-product-NcFFGD",
-    "observed_at": "2026-09-09T07:31:01.958310+00:00",
-    "evidence": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
-    "receipt_sha256": "ac19a90c6a4e11f42501dbda7dbc2e434ed7cda145cfee2189bce9878e9cc8f8",
+    "attempt_id": "ubp-pi-product-OfQaaa",
+    "observed_at": "2026-09-09T08:40:38.965Z",
+    "evidence": ".ultra/evidence/vnext-c-finite-slice/native-qualification.json",
+    "receipt_sha256": "0f6029446dba3b4ab25e165c51ffa80d19845fdb3c4eb60adda728f9b918fdeb",
     "qualified_identity": {
       "bridge_build_marker": "pi-native-cli/v1",
       "runtime_version": "0.85.1",
@@ -473,7 +473,7 @@ const HOST_ENFORCEMENT_QUALIFICATION = Object.freeze({
         "runtime_sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
         "package_sha256": "f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c",
         "runtime_files_sha256": "fc7322d2dd04594c8792bf67284432dfcfbf6ca23955e4ee45ee7e646bb9848e",
-        "policy_files_sha256": "2e59100ac83c50e9c361512a087e8224afb249151c2fe83f633e351ac078e677"
+        "policy_files_sha256": "85d3c7f8fee66e713f17607b1dff1d11ae4ee5b73c5e546fae5fee3c041ae879"
       }
     },
     "provider_transport_admission": "separately_authorized_only",

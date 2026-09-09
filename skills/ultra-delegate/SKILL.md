@@ -35,6 +35,12 @@ plugin installation hosts. Only its retained exact runtime/policy identity is
 qualified; `--ack-experimental` alone cannot admit another installed version.
 See the delegation contract for native tool, terminal and version binding details.
 
+For a current owner-authorized parallel wave, read
+`references/finite-run-slice.md`. The native Pi entry exposes `ultra_slice` for
+one finite wave and W1/W2 attention, using the same qualified delegation boundary.
+The Primary selects the packet and role profile, interprets results and integrates.
+The controller never chooses repairs, creates a later wave or declares completion.
+
 1. Resolve exactly one active `change_id`, then select one scope and name it in
    `instruction.md`:
    - **task execution or continuation** — select one matching task and read its full
@@ -108,7 +114,7 @@ binding together, so an ordinary registry update between selection and launch
 either keeps executing the originally bound files or refuses typed — the
 launcher env never carries a different native file than the selection hashed.
 
-`<host>` is `claude`, `codex`, `opencode`, `kimi`, `grok`, or `zcode`. Kimi accepts an
+`<host>` is `claude`, `codex`, `opencode`, `kimi`, `grok`, `pi`, or `zcode`. Kimi accepts an
 optional `--model <id>` when its account has no default headless model. A ZCode primary
 host uses this same command to delegate to any other installed Agent runtime; a different
 primary host can select `--to zcode --ack-experimental` through the ZCode headless profile.

@@ -1,0 +1,109 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "change",
+  "execution_mode": "isolated",
+  "session": "vnext-c-aggregate-20260909-r2",
+  "change_id": "chg-ultra-vnext-c-finite-slice",
+  "task_ids": [
+    "vnext-c-finite-slice"
+  ],
+  "head": "c8eb8a2788471638de708cebe72232c7ac75b0ae",
+  "worktree_digest": null,
+  "context_digest": "1e8d321eff3d7911a30d26fd3ab5ae87815313579f92f1bc3f7cbb811fecf443",
+  "packet_digest": "1e4a9299bcf99572f813e33d42f5e142c62ba9abaf320ccd51407884bc9af6b9",
+  "admission_digest": "d66eb52289f8e41603c6cdca80079bd2f0646405c86860779f75ff7e84753404",
+  "subject_digest": "d309884d804f65e08b3dd0e75bdedc0ab2de7ac5d2fb7d6e078d22e9b7891fb6",
+  "status": "complete",
+  "verdict": "APPROVE",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-tests.json",
+        "review-errors.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-tests",
+      "review-errors"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-code",
+      "review-design",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Consume completed Task Evidence and verify aggregate C acceptance/public wiring."
+    },
+    {
+      "worker": "review-code",
+      "status": "skipped",
+      "rationale": "The selected spec, tests and errors lenses inspect the bounded runtime source directly; another general code lens adds no distinct requested scope."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "Verify completed task checks and current integrated installed/entry consumers."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "Verify aggregate native attention and cancellation/recovery wiring."
+    },
+    {
+      "worker": "review-design",
+      "status": "skipped",
+      "rationale": "This Change reuses the accepted finite controller/delegate boundary; no separate architecture alternative is under review."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "The selected spec lens covers the changed contract and public entry language."
+    }
+  ],
+  "findings": [],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-tests.json",
+    "review-errors.json"
+  ],
+  "positive_observations": [
+    "C-AC01 and C-AC02 are wired through the versioned finite packet, qualified disjoint worker launch, bounded reconciliation, cancellation, and no-relaunch paths.",
+    "C-AC03 is wired through native Pi W1/W2 tools with delivery uncertainty persisted before send, native input confirmation, explicit acknowledgement, deduplication, and session-death fail-closed behavior.",
+    "C-AC04 is supported by the current canonical product observation showing actual worker overlap, bounded repair, integrated E2E, fresh independent review, and delivery_ready.",
+    "C-AC05 is supported by current entry/install/Skill/release verification and an honest comparison reporting Factory slower and more expensive than Solo; D/E remain separate.",
+    "The prior retained Task Review is APPROVE with no blocking findings, and current public consumers match the retained RunSlice and native attention contracts.",
+    "Tests cover finite admission rejection, overlap, host qualification, concurrency, cancellation, unknown outcomes, restart safety, native delivery, acknowledgement, deduplication, and session death.",
+    "Install and unified-entry tests cover packaged RunSlice/native Pi assets and public Pi launch wiring.",
+    "Retained current evidence records passing narrow checks, release verification, native lifecycle proof, canonical product delivery, and honest Solo comparison.",
+    "Unknown, cancellation, timeout, and interrupted-launch paths fail closed and preserve writer uncertainty rather than relaunching.",
+    "Native Pi delivery records uncertainty before sending, deduplicates claims, distinguishes delivery from consumption, and fails closed on session shutdown.",
+    "The retained Task Review APPROVE and current native/product evidence are consistent with the changed error and recovery paths."
+  ],
+  "limitations": [
+    "Read-only inspection; providers and live executions were not run.",
+    "Ancillary evidence was inspected for support but excluded from scope.files_analyzed.",
+    "The current HOME doctor state remains pre-existing degraded status and is not treated as a Stage C acceptance failure.",
+    "Current evidence supports Stage C only; D/E remain separate.",
+    "Ancillary native raw sessions and retained task-review artifacts were inspected for support but excluded from scope.files_analyzed.",
+    "Read-only inspection; no providers or live executions were run.",
+    "Only P0/P1 findings that block aggregate acceptance were retained.",
+    "Three actual fresh native Pi contexts reviewed Codex-authored source/tests; no provider experiments were repeated during QA.",
+    "Strict packet v1 binds the recorded subjects and context, not an exact product worktree digest.",
+    "Current canonical product evidence supports only Stage C; this task shape showed no speed/cost benefit, and Stage D/E remain outstanding."
+  ]
+}

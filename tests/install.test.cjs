@@ -100,6 +100,8 @@ test('clean PATH can run the installed Skill-local delegation entrypoint and uni
     for (const relative of [
       'delegate.cjs',
       'delegate-worker.cjs',
+      'run-slice.cjs',
+      'pi-primary.cjs',
       'host-profile.cjs',
       'agent-execution-driver.cjs',
       'acp-driver.cjs',

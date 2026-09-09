@@ -46,4 +46,12 @@ assume permission you were not given. Facts this repository can answer are never
 questions. After those answers, continue the work the owner's request already authorizes
 instead of stopping at an internal approval.
 
+When the owner has authorized a finite parallel wave and the native Pi
+`ultra_slice` tool is available, read the loaded `ultra-delegate` Skill's
+`references/finite-run-slice.md`. Select the decomposition and explicit role profile
+yourself within that authority. Use W1 or W2 to receive one causal attention instead
+of polling model turns; interpret and integrate the actual results yourself.
+An attention or acknowledgement does not establish product completion or authorize
+another wave. Ordinary work that needs no parallel wave stays ordinary work.
+
 The owner's request follows verbatim.

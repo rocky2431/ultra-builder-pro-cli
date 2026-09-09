@@ -1,0 +1,19 @@
+{
+  "$schema": "ultra-task-ledger-v2",
+  "tasks": [
+    {
+      "id": "expense-ledger",
+      "title": "Implement and deliver the expense ledger",
+      "type": "feature",
+      "priority": "P1",
+      "status": "in_progress",
+      "dependencies": [],
+      "context_file": ".ultra/contexts/task-expense-ledger.md",
+      "trace_to": [
+        "GOAL.md#local-expense-ledger",
+        ".ultra/specs/product.md#behavioral-requirements-and-acceptance"
+      ],
+      "change_id": "expense-ledger"
+    }
+  ]
+}

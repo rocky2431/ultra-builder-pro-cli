@@ -1,0 +1,54 @@
+{
+  "archive": "work/trellis-eight-step-20260909/stage-c-aggregate-qa-raw.tar.gz",
+  "archive_sha256": "08578b28f643868c848cd2343d20027f3d6159aa4f7b01e50bdd426d45fbf8c2",
+  "files": [
+    {
+      "path": "errors-sessions/2026-09-09T10-49-34-933Z_01a085c9-91d5-77d6-8dcd-b701215b36e9.jsonl",
+      "sha256": "687d89cdd284a78944d8fc45f1467b7b7930444432e9da14c0856d69c40eecda"
+    },
+    {
+      "path": "errors.events.jsonl",
+      "sha256": "a80657bc86e8a6619530f515097f3a56a44043850fc5a38d3db1237aab8f84c9"
+    },
+    {
+      "path": "errors.result.json",
+      "sha256": "2225a13167eb34dc8b4b18e06be2655f321f47dff80566646ba7b63e64f130e5"
+    },
+    {
+      "path": "errors.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "spec-sessions/2026-09-09T10-49-34-934Z_01a085c9-91d6-7176-a1fb-e9949eaa4e07.jsonl",
+      "sha256": "4545395c3eec72a6e05f646c95cd29223371a13409e03ee6b44d9016335ff691"
+    },
+    {
+      "path": "spec.events.jsonl",
+      "sha256": "455d99e97668a15c64e1623352aa53188750f6e499e5b32ad2893a76e5d30d7c"
+    },
+    {
+      "path": "spec.result.json",
+      "sha256": "20fd8d32e44d810d3b1ffa1c91508a5bd9d1c0c9e292d116203e7bb11851af45"
+    },
+    {
+      "path": "spec.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests-sessions/2026-09-09T10-49-34-936Z_01a085c9-91d7-7185-9dbc-6afd2f6ae118.jsonl",
+      "sha256": "a3a0e823ae304304eac5274e754abcc5121fb09831da9fe165c06feddd238f8e"
+    },
+    {
+      "path": "tests.events.jsonl",
+      "sha256": "a9e6f5911b40b6fdc1089d4dbb92ac48564c0e6028694fd4bf7ed5e591a3f854"
+    },
+    {
+      "path": "tests.result.json",
+      "sha256": "d8944b1024140de736d9173eabd6791604f95bb7717a9dee5324b53650c17ef0"
+    },
+    {
+      "path": "tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

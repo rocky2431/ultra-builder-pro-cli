@@ -163,7 +163,7 @@ test('Pi starts with the packaged Skills without a separate host installation', 
   const planned = JSON.parse(result.stdout);
   assert.equal(planned.command, 'pi');
   assert.equal(planned.plugin.root, ROOT);
-  assert.deepEqual(planned.args, ['--skill', path.join(ROOT, 'skills'), '--', planned.prompt]);
+  assert.deepEqual(planned.args, ['--skill', path.join(ROOT, 'skills'), '--extension', path.join(ROOT, 'skills/ultra-delegate/scripts/pi-primary.cjs'), '--', planned.prompt]);
   assert.ok(planned.prompt.endsWith(`\n\n${goal}`));
   assert.match(planned.resume, /--host pi --continue/u);
 
@@ -179,11 +179,11 @@ test('Pi starts with the packaged Skills without a separate host installation', 
 test('Pi reloads the chosen portable Skills and uses its native session selector', () => {
   const continued = dryRun(['--host', 'pi', '--continue', 'continue']);
   assert.deepEqual(continued.args, [
-    '--skill', path.join(PLUGIN_ROOT, 'skills'), '--continue', '--', continued.prompt,
+    '--skill', path.join(PLUGIN_ROOT, 'skills'), '--extension', path.join(PLUGIN_ROOT, 'skills/ultra-delegate/scripts/pi-primary.cjs'), '--continue', '--', continued.prompt,
   ]);
   const resumed = dryRun(['--host', 'pi', '--resume', '/tmp/pi-session.jsonl', 'finish']);
   assert.deepEqual(resumed.args, [
-    '--skill', path.join(PLUGIN_ROOT, 'skills'), '--session', '/tmp/pi-session.jsonl', '--', resumed.prompt,
+    '--skill', path.join(PLUGIN_ROOT, 'skills'), '--extension', path.join(PLUGIN_ROOT, 'skills/ultra-delegate/scripts/pi-primary.cjs'), '--session', '/tmp/pi-session.jsonl', '--', resumed.prompt,
   ]);
   assert.ok(!resumed.args.includes('--resume'), 'Pi --resume opens a chooser rather than naming the session');
 });

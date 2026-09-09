@@ -1,0 +1,105 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "isolated",
+  "session": "vnext-c-finite-slice-review-20260909",
+  "change_id": "chg-ultra-vnext-c-finite-slice",
+  "task_ids": [
+    "vnext-c-finite-slice"
+  ],
+  "head": "c8eb8a2788471638de708cebe72232c7ac75b0ae",
+  "worktree_digest": null,
+  "context_digest": "10ca2d24afc78aa073986026a50c3bd8914ae88ed7906b4a911232e659bf6ceb",
+  "packet_digest": "0a474e9e7715cd6acacf8551111376a81d67e38514ba35b09665be75a4589c51",
+  "admission_digest": "431f9fa46322c0789938c22da1257cde89920127270f1a3977965cf92ee12f7b",
+  "subject_digest": "b9d544c005a78e16e6492c6f4cfb0bb784a3d729f8e8509479b0078868f05e6d",
+  "status": "complete",
+  "verdict": "APPROVE",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-tests.json",
+        "review-errors.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-tests",
+      "review-errors"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-code",
+      "review-design",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Current C acceptance and honest product/Solo claims require independent spec fidelity."
+    },
+    {
+      "worker": "review-code",
+      "status": "skipped",
+      "rationale": "The selected spec, tests and errors lenses inspect the bounded runtime source directly; another general code lens adds no distinct requested scope."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "Concurrent execution, death and admission depend on executable regressions and native proof."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "Cancellation, unknown writer and attention uncertainty are current failure-sensitive seams."
+    },
+    {
+      "worker": "review-design",
+      "status": "skipped",
+      "rationale": "This Change reuses the accepted finite controller/delegate boundary; no separate architecture alternative is under review."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "The selected spec lens covers the changed contract and public entry language."
+    }
+  ],
+  "findings": [],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-tests.json",
+    "review-errors.json"
+  ],
+  "positive_observations": [
+    "C-01 and C-02 are directly represented by exact packet admission, disjoint worktree validation, qualification gates, concurrent launch, bounded cancellation, immutable run identity, and no-relaunch reconciliation tests.",
+    "C-03 is consistent with the native W1/W2 implementation and focused lifecycle tests: W1 remains in the tool turn, W2 records uncertainty before send, requires native delivery and explicit consumption, deduplicates, and fails closed on session death.",
+    "The retained native qualification records actual Pi permission and effect observations, including successful in-root write/read and denied outside-root, shell, and network attempts.",
+    "The current canonical product observation records two independently completed matched trials with overlapping factory workers, current integrated acceptance, fresh independent Task QA, aggregate review, Test, and archived Deliver evidence. It reports factory slowdown and higher estimated cost without claiming D-stage repeated benefits.",
+    "Current verification records the release suite, optional targeted checks, package, Skill validation, diff check, and zero audit vulnerabilities.",
+    "Narrow tests exercise finite admission rejection, real-child overlap, cancellation, unknown outcomes, restart safety, native W1/W2 delivery, deduplication, acknowledgement, and session-death behavior.",
+    "Current product evidence records matching Factory and Solo acceptance, supplemental, and independent boundary checks with canonical delivery artifacts.",
+    "Install and unified-entry tests verify packaged RunSlice/native Pi assets and the native Pi extension launch path.",
+    "RunSlice preserves unknown outcomes, cancels unfinished attempts, and never relaunches during reconciliation.",
+    "Native Pi delivery persists uncertainty before send, requires observed native input and acknowledgement, and fails closed on session death or failed turns.",
+    "Current canonical factory evidence records actual overlap, bounded repair, independent QA, delivery_ready, and a fair Solo comparison with higher factory time and cost."
+  ],
+  "limitations": [
+    "This review used retained source, narrow-test, native-qualification, product-trial, and release evidence; it did not run providers or execute live experiments.",
+    "Read-only inspection; providers and live executions were not run.",
+    "Ancillary evidence was inspected for support but excluded from scope.files_analyzed.",
+    "Three actual fresh native Pi contexts reviewed Codex-authored source/tests; no provider experiments were repeated during QA.",
+    "Strict packet v1 binds the recorded subjects and context, not an exact product worktree digest.",
+    "Current canonical product evidence supports only Stage C; this task shape showed no speed/cost benefit, and Stage D/E remain outstanding."
+  ]
+}

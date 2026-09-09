@@ -234,6 +234,17 @@ not write its own receipt. Nonzero exit cannot become `finished`.
 | ZCode | source-pinned `zcode-acp` bridge over the installed App-internal runtime; headless plan/edit compatibility profile remains result-compatible | **experimental** transport (verified-local only): launch requires `--ack-experimental`; the retained host enforcement qualification refuses both transports before launch for every delegation Packet; current model configuration belongs in the ZCode UI or `~/.zcode/v2/config.json`; no public runtime stability contract exists; a delegation receipt can never upgrade into a primary transfer |
 | Pi | Installed native JSON CLI through the same worker; explicit pre-effect extension restores all eight actual native tools and reuses the shared permission decision | **experimental**, exact local 0.85.1 qualification only; runtime/package/launcher bytes and permission config rechecked before launch; native terminal and one-to-one decision/completion observations required; Bash network requests remain execute events |
 
+`run-slice.cjs` composes the existing launcher/status/cancel boundary for one explicit
+finite wave. Its immutable packet and attention live under `.ultra/.runtime/runs/`;
+they are execution observations, never project authority. It validates the complete
+wave before launching, preserves existing fences and never relaunches during
+reconciliation. `pi-primary.cjs`, loaded by the ordinary Pi entry, registers native
+W1/W2 tools and binds completion input to the current native session. Delivery is
+claimed before send; duplicate native extension input is handled before inference;
+consumption additionally needs model acknowledgement and remains confirmed through
+a later turn failure or session death.
+No daemon, semantic scheduler, automatic repair or durable supervisor is introduced.
+
 Therefore the current portable launcher accepts an empty `external_effects` list, removes shell, web and subagent
 tools where native surfaces permit, and combines native isolation with a verified Git
 diff. It does not falsely claim a per-root OS sandbox on hosts that do not expose one.

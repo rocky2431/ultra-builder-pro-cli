@@ -304,7 +304,11 @@ from this package for the session, so it needs an installed `pi` CLI but no sepa
 Ultra installation in Pi. Use `ubp run --host pi --continue "..."` or
 `ubp run --host pi --resume <session-id-or-path> "..."` to reload the same Skills
 and continue through Pi's native session storage. `--plugin-dir` can select an existing
-generated portable plugin instead. Pi does not load Ultra's optional Claude hooks.
+generated portable plugin instead. The entry also loads the native `ultra_slice`
+and `ultra_attention_ack` tools for an explicitly authorized finite parallel wave.
+They return one attention through a blocking tool (W1) or a later native turn (W2),
+without idle model polling. See the [finite slice contract](skills/ultra-delegate/references/finite-run-slice.md).
+Pi does not load Ultra's optional Claude hooks.
 The six-host installation and delegated-execution qualification surfaces are unchanged.
 
 Use the host's native Skill picker or invocation syntax to select an owner workflow.

@@ -201,6 +201,11 @@ function resolveScope(flags) {
 }
 
 async function main() {
+  if (process.argv[2] === 'slice') {
+    const { handle } = require('../skills/ultra-delegate/scripts/run-slice.cjs');
+    process.stdout.write(`${JSON.stringify(await handle(process.argv.slice(3)))}\n`);
+    return;
+  }
   if (process.argv[2] === 'delegate') {
     const { handle } = require('./delegate.cjs');
     process.stdout.write(`${JSON.stringify(handle(process.argv.slice(2)))}\n`);

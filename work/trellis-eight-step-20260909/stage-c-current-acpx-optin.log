@@ -1,0 +1,17 @@
+✔ ACP conformance exercises the real delegation path with a sanitized Host environment and retains only redacted facts (1076.85475ms)
+✔ ACP conformance receipts classify failure types without inventing diagnostics (1957.187541ms)
+✔ ACP conformance consumes the literal outcome_unknown branch without provider content (3381.623375ms)
+✔ worker exit observation accepts only ESRCH-proven death (104.374583ms)
+✔ ACPX entry is skipped without an explicit runtime selection (0.32375ms)
+✔ ACPX entry completes a normal turn with typed result and raw events (1137.416709ms)
+✔ ACPX entry permission probes enforce the exact option and location boundary (1110.495792ms)
+acpx-delegate-entry: invalid request: agent_argv must be a non-empty string array
+✔ ACPX entry rejects protocol misuse before any turn starts (61.965834ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6557.016833

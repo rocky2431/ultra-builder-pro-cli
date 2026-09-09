@@ -1,0 +1,185 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "vnext-c-finite-slice",
+  "change_id": "chg-ultra-vnext-c-finite-slice",
+  "context": {
+    "path": ".ultra/contexts/task-vnext-c-finite-slice.md",
+    "acceptance_sha256": "e08ae7a8e946f583b1857c452b0052fbbbff3e053f1e44c1f571d67816fcb726"
+  },
+  "subject": {
+    "git_head": "c8eb8a2788471638de708cebe72232c7ac75b0ae",
+    "worktree_digest": "17792a573fd21d76317f48c1bbf3ebbe4e719c5bc02a994cf11b5f7068647da1",
+    "observed_at": "2026-09-09T10:47:49.834266+00:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "C-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/run-slice.test.cjs tests/pi-primary.test.cjs tests/unified-entry.test.cjs tests/install.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": "work/trellis-eight-step-20260909/stage-c-final-narrow.log",
+        "raw_evidence_sha256": "b84832d7b2899f2feaa2c5e9d13175df3d5b3af0b51f6aea6e25774413f47e6f",
+        "freshness_identity": {
+          "git_head": "c8eb8a2788471638de708cebe72232c7ac75b0ae",
+          "worktree_digest": "17792a573fd21d76317f48c1bbf3ebbe4e719c5bc02a994cf11b5f7068647da1",
+          "observed_at": "2026-09-09T10:47:49.834266+00:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The 36 current narrow checks include exact admission, path-alias rejection, scoped concurrency and installed public entry."
+      }
+    },
+    {
+      "criterion_id": "C-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/run-slice.test.cjs tests/pi-primary.test.cjs tests/unified-entry.test.cjs tests/install.test.cjs",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": "work/trellis-eight-step-20260909/stage-c-final-narrow.log",
+        "raw_evidence_sha256": "b84832d7b2899f2feaa2c5e9d13175df3d5b3af0b51f6aea6e25774413f47e6f",
+        "freshness_identity": {
+          "git_head": "c8eb8a2788471638de708cebe72232c7ac75b0ae",
+          "worktree_digest": "17792a573fd21d76317f48c1bbf3ebbe4e719c5bc02a994cf11b5f7068647da1",
+          "observed_at": "2026-09-09T10:47:49.834266+00:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Real-child overlap, cancellation, duplicate identity and unknown reconciliation are tested; production worker overlap is independently retained."
+      }
+    },
+    {
+      "criterion_id": "C-03",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "native Pi 0.85.1 extension",
+        "run_id": "ubp-native-slice-5vPdi6/OYxECw/pfXWMH",
+        "observed_at": "2026-09-09T10:40:39.965968+00:00",
+        "raw_evidence_ref": "work/trellis-eight-step-20260909/stage-c-native-current-raw-index.json",
+        "raw_evidence_sha256": "5b57cdd123cac3bd5c4458c014409f863c01e275b941551f5dea4c45f1e8862a",
+        "observation": "The same current Pi extension observed complete W1/W2 and pre-ack death as delivery_unknown, post-ack death as sticky consumed, no duplicate semantic turn and no idle model polling. Later controller path-alias guard has isolated regression coverage and is used in final canonical product runs."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Exact native extension identity is unchanged; the admission-only later guard does not change these lifecycle paths."
+      }
+    },
+    {
+      "criterion_id": "C-04",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "native Pi Sol Primary; Sol Challenger; Luna/Terra workers; Astra Task QA",
+        "run_id": "ubp-product-canonical-factory-NlC7BI",
+        "observed_at": "2026-09-09T10:40:39.965968+00:00",
+        "raw_evidence_ref": "work/trellis-eight-step-20260909/stage-c-product-canonical-observation.json",
+        "raw_evidence_sha256": "f9b48498625cf43687fc79bf61f9f156790ee2aa32da0c6dc47b4c527bac1067",
+        "observation": "Two disjoint actual workers overlapped 69.663 seconds. Primary integrated, reproduced natural overflow, repaired once, passed current 8/8 E2E, obtained fresh final independent Task QA, then completed actual canonical Evidence/aggregate/Test/archived Deliver. Root verified immutable inputs, receipt origin, unchanged source and same 3+7 independent checks."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The current complete trial is distinct from retained rejected earlier trials; no Root sample code writes or postlaunch steering."
+      }
+    },
+    {
+      "criterion_id": "C-05",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "work/trellis-eight-step-20260909/stage-c-product-comparison.zh-CN.md",
+        "revision": "21efe93878fb668e04e272252416729759bd5567bc25116bde52845939993a75",
+        "observation": "Matched 35-minute canonical-start trials both completed at unchanged quality; Factory was 19.69% slower and estimated cost 17.16% higher. Current release: 808 Node plus four optional separately passed, 104 Hook, audit0; final package and 36 narrow checks pass. Read-only HOME doctor retains pre-existing degraded status."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Current C comparison and install/release compatibility are satisfied without claiming D repeated efficiency benefits."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/run-slice.test.cjs",
+        "tests/pi-primary.test.cjs"
+      ],
+      "rationale": "RED/GREEN counterexamples cover finite admission, path aliases, sticky acknowledgement and failure recovery."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-final-narrow.log",
+        "work/trellis-eight-step-20260909/stage-c-current-verification.json",
+        "work/trellis-eight-step-20260909/stage-c-final-pack.json"
+      ],
+      "rationale": "36 current narrow checks and the retained current full/opt-in release checks passed."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-native-current-raw-index.json",
+        "work/trellis-eight-step-20260909/stage-c-product-canonical-observation.json"
+      ],
+      "rationale": "Actual native sessions and Git product archives retain effects and owner inputs."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "skills/ultra-delegate/references/finite-run-slice.md"
+      ],
+      "rationale": "Explicit qualified Pi route, no activation from terminal status or auto-relaunch."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/stage-c-product-canonical-observation.json"
+      ],
+      "rationale": "Public ubp native Primary, finite delegate slices, integration and real canonical product delivery completed."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-vnext-c-finite-slice.md",
+        "work/trellis-eight-step-20260909/stage-c-product-comparison.zh-CN.md"
+      ],
+      "rationale": "C-01 through C-05 trace to current Change without reducing D/E criteria."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "0a474e9e7715cd6acacf8551111376a81d67e38514ba35b09665be75a4589c51",
+      "limitation": null
+    },
+    "session_id": "vnext-c-finite-slice-review-20260909",
+    "summary_ref": ".ultra/reviews/vnext-c-finite-slice-review-20260909/SUMMARY.json",
+    "summary_digest": "78c0bf057ab6c5d630e0acf9115f840770538e8b5772839f898c57201b59b259",
+    "blocking_findings": [],
+    "retention": "Keep packet, admission, original Pi artifacts, summary and raw sessions through aggregate Test/Deliver; retain all rejected earlier experiments."
+  },
+  "artifacts": [
+    "skills/ultra-delegate/scripts/run-slice.cjs",
+    "skills/ultra-delegate/scripts/pi-primary.cjs",
+    "work/trellis-eight-step-20260909/stage-c-native-current-raw-index.json",
+    "work/trellis-eight-step-20260909/stage-c-product-canonical-observation.json",
+    "work/trellis-eight-step-20260909/stage-c-final-narrow.log"
+  ],
+  "limitations": [
+    "This review used retained source, narrow-test, native-qualification, product-trial, and release evidence; it did not run providers or execute live experiments.",
+    "Read-only inspection; providers and live executions were not run.",
+    "Ancillary evidence was inspected for support but excluded from scope.files_analyzed.",
+    "Three actual fresh native Pi contexts reviewed Codex-authored source/tests; no provider experiments were repeated during QA.",
+    "Strict packet v1 binds the recorded subjects and context, not an exact product worktree digest.",
+    "Current canonical product evidence supports only Stage C; this task shape showed no speed/cost benefit, and Stage D/E remain outstanding.",
+    "Real HOME doctor exit2 remains degraded; no installation, publish or other external release effect.",
+    "Current canonical trials are a modified experiment, not held-out generalization. All historical failed trial costs remain in the comparison."
+  ],
+  "timestamp": "2026-09-09T10:47:49.834266+00:00"
+}

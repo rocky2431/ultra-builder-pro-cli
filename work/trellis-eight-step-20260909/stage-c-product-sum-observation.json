@@ -1,0 +1,28 @@
+[
+  {
+    "mode": "factory",
+    "source_head": "34181bee9b66bfac21ab5a234bfd18a36acca544",
+    "input_cents": [
+      9007199254740991,
+      1,
+      -1
+    ],
+    "exact_final_cents": 9007199254740991,
+    "exit_code": 0,
+    "stdout": "[{\"currency\":\"USD\",\"category\":\"Food\",\"total_cents\":9007199254740991,\"count\":3}]\n",
+    "stderr": ""
+  },
+  {
+    "mode": "solo",
+    "source_head": "e319411578613d3251b48ea87d31c8109334ab82",
+    "input_cents": [
+      9007199254740991,
+      1,
+      -1
+    ],
+    "exact_final_cents": 9007199254740991,
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "Error: unsafe report total for USD/Food\n"
+  }
+]

@@ -1,0 +1,113 @@
+▶ active Change root audit is a bounded stream with reachable recovery
+  ✔ ordinary .gitkeep and one Change are read without materialization (2.635167ms)
+  ✔ empty active root remains valid (0.845209ms)
+  ✔ marker-only active root remains valid (1.193166ms)
+  ✔ entry-set insertion after first EOF is rejected by bounded replay (1.723042ms)
+  ✔ cached regular Dirent cannot hide .gitkeep symlink replacement (1.124917ms)
+  ✔ ordinary .gitkeep identity drift after classification is rejected (1.190708ms)
+  ✔ the second non-placeholder Change stops the scan (1.369708ms)
+  ✔ a malformed .gitkeep stops before a later candidate (0.943625ms)
+  ✔ a ceiling plus one mutation fails at the physical boundary (1.29575ms)
+✔ active Change root audit is a bounded stream with reachable recovery (13.170958ms)
+▶ active Change identity is rejected before stored intent fallback
+  ✔ regular file cannot fall back to archive (1.240792ms)
+  ✔ symlink cannot fall back to abandoned (1.160875ms)
+  ✔ FIFO cannot appear absent (4.007ms)
+  ✔ AF_UNIX socket cannot fall back to archive (2.56075ms)
+  ✔ symlinked active root cannot select external intent (1.201417ms)
+  ✔ symlinked changes ancestor cannot select external intent (1.676042ms)
+  ✔ symlinked .ultra ancestor cannot select external intent (1.918667ms)
+  ✔ FIFO active root cannot fall back to archive (3.772375ms)
+  ✔ FIFO changes ancestor is rejected before lookup (3.723416ms)
+  ✔ FIFO .ultra ancestor is rejected before lookup (2.873583ms)
+  ✔ AF_UNIX socket active root cannot fall back to archive (1.672708ms)
+  ✔ AF_UNIX socket changes ancestor is rejected before lookup (1.1655ms)
+  ✔ AF_UNIX socket .ultra ancestor is rejected before lookup (0.963792ms)
+  ✔ symlinked intent cannot select external bytes (1.163708ms)
+  ✔ FIFO intent cannot fall back to archive (3.912542ms)
+  ✔ AF_UNIX socket intent cannot fall back to abandoned (2.055916ms)
+✔ active Change identity is rejected before stored intent fallback (35.89225ms)
+▶ stored Change identity is rejected before intent consumption
+  ✔ archive stateRoot symlink (1.976083ms)
+  ✔ archive stateRoot FIFO (3.439084ms)
+  ✔ archive stateRoot AF_UNIX socket (1.521792ms)
+  ✔ archive changeDirectory symlink (1.531584ms)
+  ✔ archive changeDirectory FIFO (3.374667ms)
+  ✔ archive changeDirectory AF_UNIX socket (1.682416ms)
+  ✔ archive intent symlink (1.281625ms)
+  ✔ archive intent FIFO (3.389042ms)
+  ✔ archive intent AF_UNIX socket (1.236333ms)
+  ✔ archive intent is bounded (2.51725ms)
+  ✔ archive intent replacement invalidates the snapshot (1.396125ms)
+  ✔ abandoned stateRoot symlink (3.313458ms)
+  ✔ abandoned stateRoot FIFO (3.915375ms)
+  ✔ abandoned stateRoot AF_UNIX socket (1.402667ms)
+  ✔ abandoned changeDirectory symlink (1.458417ms)
+  ✔ abandoned changeDirectory FIFO (3.027542ms)
+  ✔ abandoned changeDirectory AF_UNIX socket (1.260291ms)
+  ✔ abandoned intent symlink (1.255833ms)
+  ✔ abandoned intent FIFO (3.688625ms)
+  ✔ abandoned intent AF_UNIX socket (1.445459ms)
+  ✔ abandoned intent is bounded (2.796542ms)
+  ✔ abandoned intent replacement invalidates the snapshot (5.240916ms)
+✔ stored Change identity is rejected before intent consumption (53.102ms)
+✔ this repository uses the canonical file-first project layout (71.231542ms)
+✖ task ledger, contexts, dependencies, traces, and active Change cross-resolve (13.904834ms)
+✔ retired custom-agent methods have explicit portable Skill homes (0.276792ms)
+▶ artifact audit distinguishes final evidence from planned in-progress raw receipts
+  ✔ planned ordinary completed-task raw receipt (2.636167ms)
+  ✔ pending raw-only task (1.763792ms)
+  ✔ unknown raw-only task status (1.571958ms)
+  ✔ orphan evidence directory (2.272583ms)
+  ✔ unplanned raw receipt (1.871666ms)
+  ✔ final evidence for an in-progress task (1.990958ms)
+  ✔ nested raw evidence directory (1.68875ms)
+  ✔ symlinked canonical evidence root (2.000791ms)
+  ✔ symlinked .ultra evidence ancestor (2.686583ms)
+  ✔ nested completed-task raw receipt (1.58625ms)
+  ✔ unplanned completed-task raw receipt (1.62275ms)
+  ✔ symlink task evidence directory (2.116875ms)
+  ✔ symlink raw-only evidence entry (1.927375ms)
+  ✔ symlink completed-task raw evidence entry (1.531875ms)
+  ✔ symlink canonical evidence.json (1.794083ms)
+  ✔ FIFO task evidence directory (3.880958ms)
+  ✔ FIFO raw-only evidence entry (3.3665ms)
+  ✔ FIFO completed-task raw evidence entry (3.315791ms)
+  ✔ FIFO canonical evidence.json (3.40175ms)
+  ✔ AF_UNIX socket task evidence directory (1.49825ms)
+  ✔ AF_UNIX socket raw-only evidence entry (1.628792ms)
+  ✔ AF_UNIX socket completed-task raw evidence entry (2.149375ms)
+  ✔ AF_UNIX socket canonical evidence.json (2.031542ms)
+✔ artifact audit distinguishes final evidence from planned in-progress raw receipts (51.50925ms)
+✔ every completed task has one canonical six-dimension evidence record (703.450333ms)
+✔ the recorded test report has a complete schema and matches its task snapshot (1.685792ms)
+✔ Harness Loop Closure binds the accepted incident contract and one-time bootstrap grant (0.574166ms)
+ℹ tests 80
+ℹ suites 0
+ℹ pass 79
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 987.790041
+
+✖ failing tests:
+
+test at tests/project-artifacts.test.cjs:1126:1
+✖ task ledger, contexts, dependencies, traces, and active Change cross-resolve (13.904834ms)
+  AssertionError [ERR_ASSERTION]: vnext-c-finite-slice: review retention
+      at TestContext.<anonymous> (/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/project-artifacts.test.cjs:1192:14)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '\n- Execution Packet state: available; limitation: none; SHA `0a474e9e7715cd6acacf8551111376a81d67e38514ba35b09665be75a4589c51`.\n- Review session: `vnext-c-finite-slice-review-20260909`; summary digest: `78c0bf057ab6c5d630e0acf9115f840770538e8b5772839f898c57201b59b259`.\n- Blocking findings: none. Three fresh read-only native Pi contexts; APPROVE, zero findings. No semantic repair was required.\n- Retain exact packet/admission/artifact/summary bytes and raw sessions through Change Test/Deliver.\n',
+    expected: /Retention/iu,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,0 +1,57 @@
+{
+  "archive": "work/trellis-eight-step-20260909/stage-c-task-qa-raw.tar.gz",
+  "archive_sha256": "f0785c23f12bf94d1cf370eb158a282ff940211e2303bc3564944c7b2c9e12a3",
+  "files": [
+    {
+      "path": "errors-sessions/2026-09-09T10-44-28-752Z_01a085c4-e5d0-71d7-8927-0b1e1a20debd.jsonl",
+      "sha256": "8c3e3d000c493e8a63068ba2fd5dd1ed838f61be4b7cdbc75e37236d5ce10391"
+    },
+    {
+      "path": "errors.events.jsonl",
+      "sha256": "6865ab4f47c9e6ce46b08e03b13ee0892bdca6dcf4a007a4ea8e34ead7226ea4"
+    },
+    {
+      "path": "errors.result.json",
+      "sha256": "cc2904ce14f3db450e23e3e961ed384010c3c62cb9c987f2f4a3630f36e87fc6"
+    },
+    {
+      "path": "errors.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "spec-sessions/2026-09-09T10-44-28-753Z_01a085c4-e5d0-75da-a2d6-e31297923ccd.jsonl",
+      "sha256": "a186ad922985b8178583e16a0499559b5bbd94d96fda7293c6c9e85d5bea5fea"
+    },
+    {
+      "path": "spec.events.jsonl",
+      "sha256": "b61683c0f736aac1685a8e4aa322d23deaad7922a3f16b24bdf03c7b8c684678"
+    },
+    {
+      "path": "spec.result.json",
+      "sha256": "4aa4ccc6be7a07cf261457a8644a8b75dae91691e0124fb37df8628240745aa1"
+    },
+    {
+      "path": "spec.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests-sessions/2026-09-09T10-44-28-772Z_01a085c4-e5e4-75ca-b6a8-52d09c33570b.jsonl",
+      "sha256": "58fe05c06638c5a626c83ff3a23d71cfd65186bb24f05079ac924894f1eaca70"
+    },
+    {
+      "path": "tests.events.jsonl",
+      "sha256": "bdff67d61be3a84e333b2d78c6fa5725f640d0f8a3e06714fc9ddd3866c7c4a8"
+    },
+    {
+      "path": "tests.result.json",
+      "sha256": "0ddca5c9b8b7f11eb15d6c329bece63ce08baeab7ec2473cfb8bfcab405f84a8"
+    },
+    {
+      "path": "tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "source_author": "Codex",
+  "review": "Three fresh native Pi read-only contexts",
+  "packet_preflight_failure": "Initial local packet omitted output_directory; admission refused before any lens launch. Corrected pre-output packet admitted successfully."
+}

@@ -1,0 +1,204 @@
+{
+  "archive": "stage-c-pi-wake-raw.tar.gz",
+  "sha256": "3899046d688536156b9d4ea12e47ab05977e5fb354a04e9cfb783303c623f36c",
+  "files": [
+    {
+      "root": "ubp-pi-wake-MZkziE",
+      "path": "events.jsonl",
+      "sha256": "f2b514520c145ca06e7821070e14a4f92751d23f4eea90235d15053570204d88",
+      "bytes": 18648
+    },
+    {
+      "root": "ubp-pi-wake-MZkziE",
+      "path": "left.json",
+      "sha256": "2213e8135d3edabce8cbd7c60d4fcfdda0a44f2fa1a8eebf0bd1d9dd7f774ba7",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-MZkziE",
+      "path": "right.json",
+      "sha256": "2492c46380490b905ba1f3a0ab03dd10418af31a1de64e80e114c1ea83fa39ba",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-MZkziE",
+      "path": "sessions/2026-09-09T08-11-00-301Z_01a08538-634c-7769-8edd-43fcb83d9f0e.jsonl",
+      "sha256": "9474c57064c01eef792403820b60e7e4f288def30d8fc4fb19372cca66cde560",
+      "bytes": 3730
+    },
+    {
+      "root": "ubp-pi-wake-MZkziE",
+      "path": "wait.cjs",
+      "sha256": "ba3606650a04efe50deaa96d2aa5a82917c63f601b5f50d0d2d3fb0d85627ce5",
+      "bytes": 760
+    },
+    {
+      "root": "ubp-pi-wake-SQkI2y",
+      "path": "active-tools.json",
+      "sha256": "49e22c236dd922bd9b204331485a471268387e77c97a77ae85939f37bdd05174",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-SQkI2y",
+      "path": "events.jsonl",
+      "sha256": "36bae3a4729725e7991c292383828b13b31ce9c14c6332b0fe3b672f4e971eda",
+      "bytes": 1254
+    },
+    {
+      "root": "ubp-pi-wake-SQkI2y",
+      "path": "left.json",
+      "sha256": "2213e8135d3edabce8cbd7c60d4fcfdda0a44f2fa1a8eebf0bd1d9dd7f774ba7",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-SQkI2y",
+      "path": "right.json",
+      "sha256": "2492c46380490b905ba1f3a0ab03dd10418af31a1de64e80e114c1ea83fa39ba",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-SQkI2y",
+      "path": "wait.cjs",
+      "sha256": "bd4716a2df1299183eac50c122d5422ec34a9194661cfe6ee74c0024264aeac3",
+      "bytes": 941
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "active-tools.json",
+      "sha256": "adc1cbbedff4222878649c5405459500def08bedd262cef8b6c19bda279c3b32",
+      "bytes": 37
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "coordinator-probe.cjs",
+      "sha256": "e3b2345b05f5aaf1eb294947635cec1185386117970932bbbad2525020fca1b0",
+      "bytes": 9188
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "decision.json",
+      "sha256": "a844b99e4091b12a865abd0917cefdbb63c13e0a90f5abfadf8ca03d5875db7d",
+      "bytes": 92
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "events.jsonl",
+      "sha256": "e9d4b218588c32947ff1d6dfa18c4fd77b6e115c0a2b1192acc45eca80f7c2ce",
+      "bytes": 80525
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "left.json",
+      "sha256": "2213e8135d3edabce8cbd7c60d4fcfdda0a44f2fa1a8eebf0bd1d9dd7f774ba7",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "native-history.json",
+      "sha256": "5449861a398b6c7003c3bd6c70e8dbc107e035290d2b9138f8f496449c3aa028",
+      "bytes": 12402
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "observation.json",
+      "sha256": "58e6a32779d505aceac359a03305d4001aeb18b001091bdbab3f38c20b73e4f1",
+      "bytes": 3502
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "right.json",
+      "sha256": "2492c46380490b905ba1f3a0ab03dd10418af31a1de64e80e114c1ea83fa39ba",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "sessions/2026-09-09T08-13-09-498Z_01a0853a-5bfa-77d9-9dbf-778b82bb0eaa.jsonl",
+      "sha256": "0dc20447ab59d3226239178cfd2cc72e5a1d35725a407976f5c9245ad76e2cdb",
+      "bytes": 11225
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "wait-observation.json",
+      "sha256": "4707d750f4916488c8e0219f176f3efee01b3c58f5ee3633f7dbd0a779ada667",
+      "bytes": 209
+    },
+    {
+      "root": "ubp-pi-wake-DQV2JM",
+      "path": "wait.cjs",
+      "sha256": "bd4716a2df1299183eac50c122d5422ec34a9194661cfe6ee74c0024264aeac3",
+      "bytes": 941
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "active-tools.json",
+      "sha256": "a3272f00481458f53bf22bb22ab68af757da932d857315bc1df654eb0bb7d596",
+      "bytes": 55
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "coordinator-probe.cjs",
+      "sha256": "634c93174475440626ec83e9609bdd77a717c637be6ca294a68e7cf9758a9b23",
+      "bytes": 11810
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "decision.json",
+      "sha256": "a844b99e4091b12a865abd0917cefdbb63c13e0a90f5abfadf8ca03d5875db7d",
+      "bytes": 92
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "delivery-events.jsonl",
+      "sha256": "f5ba1bd760667caaa122fa9cb657f2dabb41eede05409d305ab471358c424d38",
+      "bytes": 100
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "events.jsonl",
+      "sha256": "771499038b7a6f18d384ebca92ec633891e1c14f7dd44e3908d5ea0bfdd73874",
+      "bytes": 82689
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "left.json",
+      "sha256": "2213e8135d3edabce8cbd7c60d4fcfdda0a44f2fa1a8eebf0bd1d9dd7f774ba7",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "native-history.json",
+      "sha256": "e208ba3149770307e0b5babb24d159ce86839430c24b2fc8b0dd06bf69b6932a",
+      "bytes": 14343
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "observation.json",
+      "sha256": "3e2ad71f77c18bd30a903ea63f477f2bb5a9db25e12ece54f3329c4e44e83e40",
+      "bytes": 3341
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "right.json",
+      "sha256": "2492c46380490b905ba1f3a0ab03dd10418af31a1de64e80e114c1ea83fa39ba",
+      "bytes": 17
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "sessions/2026-09-09T08-15-21-772Z_01a0853c-60ab-71a9-8a10-36be59b5d19f.jsonl",
+      "sha256": "b9fc4698528e564a9a74f5f229f68ffbf65305d4eb7710db22cf055ec503d085",
+      "bytes": 12608
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "wait-observation.json",
+      "sha256": "e354d1b044926afd13cf8fc8ba95f16fb5282f6d510485f942d818a7b9d1404b",
+      "bytes": 209
+    },
+    {
+      "root": "ubp-pi-wake-WmtZnx",
+      "path": "wait.cjs",
+      "sha256": "4f56fa0c0f3c12424ec352d98934538b06fb0f6801f1171c09a7f7751500b436",
+      "bytes": 2218
+    }
+  ]
+}

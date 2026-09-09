@@ -1,0 +1,10 @@
+{
+  "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-slice-pfXWMH",
+  "pid": 32319,
+  "digests": {
+    "run-slice.cjs": "40c62e728b6c81612bb08d79627412bab5315d66fbc0aa8762fab8f4608e5b82",
+    "pi-primary.cjs": "b898173c387ad085f77f17799819a2e289bc876fb2ed63c699087eb3b5efb0cc",
+    "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+    "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+  }
+}

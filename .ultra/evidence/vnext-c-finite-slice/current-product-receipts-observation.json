@@ -1,0 +1,58 @@
+[
+  {
+    "mode": "factory",
+    "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-product-canonical-factory-NlC7BI",
+    "attempt": "reviewer-delta-01",
+    "observed_at": "2026-09-09T10:32:33.734004+00:00",
+    "native_terminal": {
+      "session_id": "01a085ae-6ac6-724c-9990-f31d07fbabe4",
+      "provider": "openai-codex",
+      "model": "gpt-6-astra",
+      "stop_reason": "stop"
+    },
+    "read_only": true,
+    "typed_status": "finished",
+    "exact_reviewer_bytes": true,
+    "receipt_sha256": "65fe1d18f13bda3bb92697adc2d23174a69844e946162e7d0d2aeca85443a9b8",
+    "result_sha256": "bab636abcdc4dc43c806f246b5f9470bb967b911f8fd3ec11e371e39f7609b15",
+    "reviewed_subject": {
+      "git_head": "5993205086b62a3f5ab83f56a1dbb5b72cc49495",
+      "worktree_digest": "e45d1a9327c8298766aaae5569ec1a3c93fd1d3d5a4eb3025b838b9b2c226cb2"
+    },
+    "native_base_matches_reviewed_head": true,
+    "source_unchanged_since_review_exit": 0,
+    "findings": [],
+    "limitation": "Task receipt origin and unchanged source observation only; aggregate Test/Deliver and final product acceptance are pending."
+  },
+  {
+    "mode": "solo",
+    "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-product-canonical-solo-INpJC0",
+    "attempt": "expense-review-3",
+    "observed_at": "2026-09-09T10:32:33.747219+00:00",
+    "native_terminal": {
+      "session_id": "01a085ad-afe8-77c5-b8f3-a29cc3e0943b",
+      "provider": "openai-codex",
+      "model": "gpt-6-astra",
+      "stop_reason": "stop"
+    },
+    "read_only": true,
+    "typed_status": "finished",
+    "exact_reviewer_bytes": true,
+    "receipt_sha256": "07e7c89bb96e2b6684866bb77e859a5f911e40f68c437bfabc25ab58aa932825",
+    "result_sha256": "f9aab4c84e23a9a9f9314373fe3a1ac9feddb8c8a4e76ec0393b980b8ad0f794",
+    "reviewed_subject": {
+      "git_head": "34aff0fe4fa8835b3b41e22bd174e9adc6b9a416",
+      "worktree_digest": "f41e4a4d4cf1e013e01b8d946784ca603737bdca7c06165171478818477372a4"
+    },
+    "native_base_matches_reviewed_head": true,
+    "source_unchanged_since_review_exit": 0,
+    "findings": [
+      {
+        "id": "R1",
+        "severity": "P2",
+        "title": "Currency regression uses invalid CSV."
+      }
+    ],
+    "limitation": "Task receipt origin and unchanged source observation only; aggregate Test/Deliver and final product acceptance are pending."
+  }
+]

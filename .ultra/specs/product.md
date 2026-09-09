@@ -136,6 +136,17 @@ authority, benign shell, shell side-effect and Bash network-command denials. The
 network event remains `execute`; Pi has no dedicated native fetch tool. Changed
 runtime or policy identities require requalification and never silently fall back.
 
+An explicit finite `ultra-run-slice-v1` invocation binds intent, owner grant, tasks,
+interface, role profile, native Primary session and a fixed wave of attempts. All
+attempts pass whole-wave admission, including positive exact Host qualification,
+before any Worker starts. The controller observes one barrier, bounded cancellation
+and recovery without relaunch, then returns mechanical attention only. The native Pi
+entry supports a pending tool result (W1) and one later native turn (W2), with input
+deduplication and separate delivered/consumed/unknown facts. Primary owns strategy,
+integration and product acceptance. Contract: `skills/ultra-delegate/references/finite-run-slice.md`.
+Verification: finite slice and Pi Primary tests, exact native session proof and the
+separate product/repair/Solo acceptance evidence.
+
 ### Requirement FR-07: Honest host adaptation
 
 Adapters translate paths, manifests, event wires, and invocation policy, never workflow

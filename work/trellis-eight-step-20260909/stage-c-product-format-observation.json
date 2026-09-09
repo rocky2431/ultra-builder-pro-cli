@@ -1,0 +1,66 @@
+[
+  {
+    "mode": "factory",
+    "source_head": "6a6b5c7a8b2fd8e70046349bc9668272cf9336af",
+    "checks": [
+      {
+        "name": "date-trailing-newline-rejected",
+        "passed": true,
+        "exit_code": 1,
+        "stderr": "Error: invalid CSV: record date must be a real YYYY-MM-DD date\n"
+      },
+      {
+        "name": "amount-trailing-newline-rejected",
+        "passed": true,
+        "exit_code": 1,
+        "stderr": "Error: invalid CSV: amount must be a signed decimal with exactly two fractional digits\n"
+      },
+      {
+        "name": "currency-trailing-newline-rejected",
+        "passed": true,
+        "exit_code": 1,
+        "stderr": "Error: invalid CSV: record currency must be three uppercase ASCII letters\n"
+      },
+      {
+        "name": "month-trailing-newline-rejected",
+        "passed": true,
+        "exit_code": 1,
+        "stderr": "Error: report month must be YYYY-MM\n"
+      }
+    ],
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "mode": "solo",
+    "source_head": "e319411578613d3251b48ea87d31c8109334ab82",
+    "checks": [
+      {
+        "name": "date-trailing-newline-rejected",
+        "passed": true,
+        "exit_code": 1,
+        "stderr": "Error: CSV row 2: invalid date\n"
+      },
+      {
+        "name": "amount-trailing-newline-rejected",
+        "passed": true,
+        "exit_code": 1,
+        "stderr": "Error: CSV row 2: invalid amount\n"
+      },
+      {
+        "name": "currency-trailing-newline-rejected",
+        "passed": true,
+        "exit_code": 1,
+        "stderr": "Error: CSV row 2: invalid currency\n"
+      },
+      {
+        "name": "month-trailing-newline-rejected",
+        "passed": true,
+        "exit_code": 1,
+        "stderr": "Error: month must be YYYY-MM\n"
+      }
+    ],
+    "passed": 4,
+    "total": 4
+  }
+]

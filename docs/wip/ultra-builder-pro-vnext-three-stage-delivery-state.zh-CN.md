@@ -1,6 +1,6 @@
 # Ultra Builder Pro 工厂交付状态
 
-状态：**全部八步继续。步骤1–4完成；Stage B两任务及aggregate已通过，Test/Deliver和本地提交记录见该Change归档；继续Stage C。步骤5还包含Stage C，尚未完成；步骤6–8待实施。**
+状态：**全部八步继续。步骤1–5完成；Stage B/C已通过独立Task及aggregate Review、实际产品验证和canonical交付。步骤6（D）接续，步骤7–8（E）待实施。**
 
 ## 当前授权与分工
 
@@ -16,7 +16,7 @@ Owner接受八步计划并要求“每完成一个部分 commit，并且更新�
 | 2 自然语言与相称工作路径 | done | step2-acceptance.zh-CN.md；Pi公共入口实际用途澄清和交付 |
 | 3 上下文与知识往返 | done | step3-acceptance.zh-CN.md；实际导出、维护、全新会话读回和导入 |
 | 4 日常完整体验 | done | step4-acceptance.zh-CN.md，2ce287a；显式恢复与新任务切换 |
-| 5 合格委派与首条工厂 | in_progress | Stage B已通过；Stage C待实施 |
+| 5 合格委派与首条工厂 | done | Stage B c8eb8a2；C Task/aggregate APPROVE，实际canonical产品与公平Solo，step5-acceptance.zh-CN.md及C归档 |
 | 6 可运营工厂 | pending | Stage D全部退出条件 |
 | 7 跨会话持续运行 | pending | Stage E耐久恢复和W4 |
 | 8 经评测的策略改进 | pending | baseline、held-out、Owner promote/reject与rollback-ready |
@@ -32,9 +32,20 @@ Owner接受八步计划并要求“每完成一个部分 commit，并且更新�
 - 当前源码完整检查804 Node、104 Hook、audit0；pack、Skill验证与隔离安装检查通过。真实HOME Doctor exit2为既有degraded，不代表本次安装成功。
 - agent-delegation 0.5.0共享ACPX入口已在隔离分支通过72项检查，提交`705734c`并快进合入原main；六个限定路径保留0.5.0/Pi已有行为，entry SHA f734ed38不变。未安装。Goal已有对应上游修复，当前126项相关检查通过，无重复改动。
 
+## Stage C 已完成
+
+Stage C `chg-ultra-vnext-c-finite-slice`归档；Task `vnext-c-finite-slice` completed，v2 SHA `bfdc2663755b9084091bcac90e7536897fd24ee49480554ab027c82a00f52fdd`。Task Review三个fresh Pi上下文APPROVE，SUMMARY `78c0bf057ab6c5d630e0acf9115f840770538e8b5772839f898c57201b59b259`；aggregate三个fresh Pi上下文APPROVE，SUMMARY `9bf0c4d80acece6130c48b75a5ca1a882941101a9e713c481b18e0d6ce32c4d7`。两者零记录finding，errors aggregate自述只保留阻塞项的限制原样保留。
+
+有限RunSlice整批准入后并行启动，取消/reconcile不自动重启未知writer；原生Pi W1同turn返回，W2分别绑定input/message/ack并保持sticky consumed，无空闲model轮询。正常W1/W2、重复、确认前后死亡均有实际原生证据。新增permission helper导出改变指纹后已重新做同强度Pi资格OfQaaa；原Stage B资格记录未重写。
+
+当前canonical匹配产品实验：Factory两个disjoint Worker重叠69.663秒，fresh Challenger，Primary实际集成、真实溢出复现、一次修复、最终E2E、fresh independent Task QA及canonical Evidence/aggregate/Test/archived Deliver。Factory/Solo均35分钟内正常完成，原验收8/8、补充3/3、独立边界7/7。Factory1912.134秒，Solo1597.568秒；估算成本6.02371972/5.141262。Factory本次慢19.69%、成本高17.16%，无效率收益主张。
+
+初始两组、20分钟补验和旧Factory越界续接保持失败/拒绝；新canonical实验不覆盖旧结果，也不称held-out。JavaScript末尾换行误报已由实际反例否定；Reviewer原始输出保留。详见stage-c-product-comparison.zh-CN.md及全部SHA原始归档。
+
+当前检查：808 Node通过、四项可选单独opt-in通过、104 Hook通过、audit0；最后窄检查36/36、artifact80/80、Skill和pack通过。HOME只读doctor exit2保持既有degraded，未安装。当前源指纹、native效果、Review、Task Evidence与Test/Deliver的消费链见C归档及stage-c-final-audit.json。
+
 ## 待继续的产品退出条件
 
-- C：有限RunSlice；至少两个实际Worker重叠；W1与实际qualified W2；Primary不空转轮询模型；真实失败、修复、集成E2E、fresh Review、delivery_ready；公平Solo比较。
 - D：两个task shapes和两个qualified Profiles重复；multiwave与worktrees；W3丢失/重复/session death；正确Solo选择；可量化且重复的适用任务收益。
 - E：Primary与Supervisor均结束后的fresh W4；durable Grant expiry/revoke/invalidation/dedupe/fencing/machine-loss；候选baseline/held-out完成后交Owner promote/reject，保留rollback-ready。
 
@@ -45,3 +56,6 @@ Owner接受八步计划并要求“每完成一个部分 commit，并且更新�
 此前长状态记录原字节保存在`work/trellis-eight-step-20260909/step5-pre-closure-state-history.zh-CN.md`及Git历史；其中“当前”“下一步”、旧授权和旧writer均是历史快照，不是新执行指令。
 
 已结束native流与旧QA解压缓存移至`.ultra/.runtime/trellis-eight-step-20260909/`；逐字节索引与可移植归档在`step5-native-traces-index.json`、`step5-native-traces.tar.gz`。此调整未提高物理snapshot的256文件/16MiB限制，未改product排除规则。真实资格原始归档独立冻结。当前独立Review raw流另存`step5-aggregate-qa-raw.tar.gz`。
+
+
+最新独立反例纠正：两组对date/amount/currency/月参数末尾换行均正确拒绝，Reviewer所称JavaScript `$` 绕过不成立；原finding保留并在比较报告中驳回。Factory为该误报做了不必要返工。另一个真实总额反例 `[MAX_SAFE_INTEGER,1,-1]` 在Factory成功、Solo因中间溢出失败。不能将Review输出直接当产品事实。

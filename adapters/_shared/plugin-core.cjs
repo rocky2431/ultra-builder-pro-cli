@@ -23,6 +23,8 @@ const {
 const PROVENANCE_FILE = 'provenance.json';
 const DELEGATION_RUNNER_FILES = Object.freeze([
   'delegate.cjs',
+  'run-slice.cjs',
+  'pi-primary.cjs',
   'delegate-worker.cjs',
   'host-profile.cjs',
   'agent-execution-driver.cjs',
