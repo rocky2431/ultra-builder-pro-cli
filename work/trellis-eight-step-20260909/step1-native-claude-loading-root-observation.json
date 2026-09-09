@@ -1,0 +1,25 @@
+{
+  "observed_at": "2026-09-08T23:54:23.238991+00:00",
+  "plugin_root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-trellis-daily-5bm8zhnp/claude-config/skills/ultra-builder-pro",
+  "isolated_config_auth": {
+    "loggedIn": false,
+    "authMethod": "none",
+    "exit_code": 1
+  },
+  "default_auth": {
+    "loggedIn": true,
+    "authMethod": "claude.ai",
+    "exit_code": 0
+  },
+  "selected_loading": "native --plugin-dir for this session only; keep existing auth/config; generated plugin remains isolated",
+  "native_discovery": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-trellis-daily-5bm8zhnp/native-session-plugin-discovery.json",
+  "discovered_plugin": {
+    "id": "ultra-builder-pro@inline",
+    "version": "5.0.2",
+    "scope": "session",
+    "enabled": true
+  },
+  "old_ultra_present_in_default_plugin_list": false,
+  "real_home_install_or_config_write": false,
+  "live_call_yet": false
+}

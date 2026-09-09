@@ -1,0 +1,9 @@
+{
+  "archive": "step1-baseline-native-evidence.tar.gz",
+  "sha256": "cd9452c004bfb407839a29e08524f0f7ac0ab1e7ed177793b88eecf9f6ec73f9",
+  "bytes": 521909,
+  "original_root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-trellis-daily-5bm8zhnp",
+  "created_at": "2026-09-09T00:12:05.878714+00:00",
+  "includes": "native requests, streams with hook events, terminal process receipts, generated plugin, dual manifest, frozen r2 spec, original fixture hashes, final trial artifacts and independent checks",
+  "excluded": "__pycache__ only"
+}

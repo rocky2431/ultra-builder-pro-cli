@@ -1,0 +1,11 @@
+{
+  "checkout": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-candidate-wme3iqp3",
+  "base": "ca228b0",
+  "hindsight_config": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-candidate-wme3iqp3-hindsight-disabled.json",
+  "no_reserved_fixtures_or_spec_copied": true,
+  "status": "running",
+  "delegation_id": "729580a7e0bb4a4cabbffaac8f356eee",
+  "session_name": "trellis-step2-entry-20260909",
+  "timeout_seconds": 2400,
+  "environment_inheritance_evidence": "Installed agent-delegate submit inherits env into worker; _execute_run child_env spreads os.environ; _launch preserves it into the native adapter. Fresh named session, no warm author process reused."
+}

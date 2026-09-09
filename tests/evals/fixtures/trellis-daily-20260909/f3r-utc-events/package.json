@@ -1,0 +1,9 @@
+{
+  "name": "trellis-daily-f3r-utc-events",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reserved family-3 fixture for the 2026-09-09 daily-workflow eval. Green baseline plus authoritative timestamp facts that a follow-up change must consume.",
+  "scripts": {
+    "test": "node --test test/event-log.test.js"
+  }
+}

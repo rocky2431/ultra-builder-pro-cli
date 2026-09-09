@@ -1,0 +1,121 @@
+{
+  "accepted_scope": "Step 1 observations and prioritized gap; not Step 2/3/4 product acceptance",
+  "source": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "eval_r2_sha256": "dc197177432cb5b76cf4769bb46cb8f653ac48d9c11b0970db668991011b2bc8",
+  "current_eval_r3_sha256": "31601b655d3e4c734d042bb3b6e510c287e2672702cd0bbf12206b43436faed8",
+  "r3_change": "Six obsolete command-description tokens only; baseline retains frozen r2 and uses existing fixture npm scripts",
+  "fixture_source_stable": true,
+  "source_and_install_manifest_stable": true,
+  "turns": [
+    {
+      "turn": "F1-dev-turn1",
+      "session_id": "1e5ea816-5822-4b08-af62-ac2c10d3c4fb",
+      "owner_message": "接手这个小项目。导出的 CSV 有问题：备注里带英文双引号的那一行，导进表格后列就错位了。先复现再修，修完给我证据。",
+      "model": [
+        "claude-opus-5[1m]"
+      ],
+      "stop_reason": "end_turn",
+      "process_exit": 0,
+      "wall_seconds": 97.43253624998033,
+      "provider_reported_cost_usd": 0.6054090000000001,
+      "cost_basis": "provider native list-rate accounting, not invoice proof",
+      "permission_denials": [
+        "mcp__hindsight__hindsight_list_knowledge_pages"
+      ]
+    },
+    {
+      "turn": "F1-dev-turn2",
+      "session_id": "1e5ea816-5822-4b08-af62-ac2c10d3c4fb",
+      "owner_message": "再确认整份报表的导出和单行导出行为一致，不要一个对一个错。",
+      "model": [
+        "claude-opus-5[1m]"
+      ],
+      "stop_reason": "end_turn",
+      "process_exit": 0,
+      "wall_seconds": 153.33959704218432,
+      "provider_reported_cost_usd": 0.511444,
+      "cost_basis": "provider native list-rate accounting, not invoice proof",
+      "permission_denials": [
+        "mcp__hindsight__hindsight_ingest_document"
+      ]
+    },
+    {
+      "turn": "F2-dev-turn1",
+      "session_id": "3a181037-c873-4ca4-888d-f682b8de4142",
+      "owner_message": "我每天开会记的东西到处都是，帮我弄个能整理会议记录的小东西吧。",
+      "model": [
+        "claude-opus-5[1m]"
+      ],
+      "stop_reason": "end_turn",
+      "process_exit": 0,
+      "wall_seconds": 326.70180370798334,
+      "provider_reported_cost_usd": 1.354047,
+      "cost_basis": "provider native list-rate accounting, not invoice proof",
+      "permission_denials": []
+    },
+    {
+      "turn": "F3-dev-turn1",
+      "session_id": "ac4dbcc9-7ec5-492c-8ed7-747775b80d40",
+      "owner_message": "给这个分账工具加个功能：一笔支出在几个人之间平摊。",
+      "model": [
+        "claude-opus-5[1m]"
+      ],
+      "stop_reason": "end_turn",
+      "process_exit": 0,
+      "wall_seconds": 77.2470458750613,
+      "provider_reported_cost_usd": 0.5123245,
+      "cost_basis": "provider native list-rate accounting, not invoice proof",
+      "permission_denials": [
+        "mcp__hindsight__hindsight_list_knowledge_pages"
+      ]
+    },
+    {
+      "turn": "F3-dev-session2-turn1",
+      "session_id": "b4a29d80-82f8-4037-8a96-3f1d15ef4869",
+      "owner_message": "再加一个：把平摊的结果导出成一行摘要，我好贴到群里。",
+      "model": [
+        "claude-opus-5[1m]"
+      ],
+      "stop_reason": "end_turn",
+      "process_exit": 0,
+      "wall_seconds": 95.77651187498122,
+      "provider_reported_cost_usd": 0.5155105,
+      "cost_basis": "provider native list-rate accounting, not invoice proof",
+      "permission_denials": []
+    }
+  ],
+  "findings": [
+    {
+      "id": "STEP1-F1",
+      "behavior": "pass",
+      "checks": "6/6 unchanged frozen assertions; shared serializer only; same-session follow-up verified",
+      "ultra_entry": "not invoked",
+      "product_change_required": false
+    },
+    {
+      "id": "STEP1-F2",
+      "behavior": "necessary product-use decision omitted before delivery; usable local output exists",
+      "checks": "Root capture/tidy/find/list in separate processes all exit0 with dated persisted note",
+      "diagnosis": "entry_not_loaded",
+      "precise_meaning": "Installed plugin verified, but intended Ultra Skill never entered; no evidence of a wrong decision after reading its body",
+      "causal_hypothesis": "coarse discovery metadata and entry descriptions/guards fail to bring ambiguous natural-language intake into existing semantic workflow; distinguish in Step 2"
+    },
+    {
+      "id": "STEP1-F3",
+      "behavior": "current decision consumed correctly and superseded material rejected; fresh follow-up reuses actual source",
+      "checks": "9/9 after split,12/12 after fresh summary; original frozen3 assertions unchanged",
+      "ultra_entry": "not invoked",
+      "knowledge_roundtrip_limit": "Does not yet establish a newly learned project fact was maintained in its authoritative documentation and consumed later; Step 3 remains pending"
+    }
+  ],
+  "limits": [
+    "Scripted owner input plus live provider execution, not live human observation.",
+    "Single model/host and small diagnostic sample; no productivity or reliability generalization.",
+    "Owner active time not measured; do not equate scripted input with zero human effort.",
+    "External Hindsight global hooks co-loaded. F1 resume included erroneous serializer/parser memory; model checked and rejected it. F3 fresh phase only no-information recall observed.",
+    "Memory MCP read/write permission denials retained as native host facts.",
+    "F3 trial rewrote npm test to a directory argument already known to be nonportable; trial Node26 passes do not establish Node25 compatibility.",
+    "Preexisting fixture READMEs retain that obsolete directory command; native behavior may inherit this evaluator material. Do not call it an Ultra-origin defect.",
+    "No reserved case has been sent to an evaluated model or candidate implementer."
+  ]
+}

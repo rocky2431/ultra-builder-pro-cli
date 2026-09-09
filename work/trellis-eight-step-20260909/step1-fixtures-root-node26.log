@@ -1,0 +1,17 @@
+✔ the spec names its own references, metrics and diagnosis buckets (2.459166ms)
+✔ the inherited evidence axes stay orthogonal (0.409708ms)
+✔ candidate identity binds source and generated-install manifests separately (0.183958ms)
+✔ each family separates one development case from one reserved case (0.83425ms)
+✔ the ambiguous greenfield cases score evidence, not question count or method (0.653666ms)
+✔ the iterative cases carry authoritative facts plus unambiguous counterexamples (0.694458ms)
+✔ the two red fixtures reproduce their seeded defect at the recorded counts (306.242209ms)
+✔ the two green fixtures start green at the recorded counts (197.916667ms)
+✔ the frozen fixtures assert their acceptance without repairing themselves (0.683375ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 564.47575

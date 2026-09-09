@@ -1,0 +1,242 @@
+[
+  {
+    "delegation_id": "090d3d5538fa4bbeb691548066acd24a",
+    "session_name": "trellis-step1-fixtures-20260909",
+    "acp_session_id": "5f76e40f-3881-44cc-9548-d20ff9c16ac5",
+    "terminal": true,
+    "status": "incomplete",
+    "execution_seconds": 1803.091,
+    "duration_seconds": 1804.229,
+    "stop_reason": null,
+    "exit_code": 0,
+    "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260908T232440Z-090d3d5538fa4bbeb691548066acd24a",
+    "runtime_identity": {
+      "acpx": {
+        "package": "acpx",
+        "path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "resolved_path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "version": "0.13.2"
+      },
+      "adapter": {
+        "package": "@agentclientprotocol/claude-agent-acp",
+        "path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "resolved_path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "version": "0.75.1"
+      },
+      "adapter_pid": 13218,
+      "cli": {
+        "argv": [
+          "/Users/rocky243/.local/bin/claude",
+          "--version"
+        ],
+        "path": "/Users/rocky243/.local/bin/claude",
+        "probe_error": null,
+        "probe_ok": true,
+        "resolved_path": "/Users/rocky243/.local/share/claude/versions/2.1.263",
+        "version": "2.1.263 (Claude Code)"
+      },
+      "cli_binding": {
+        "CLAUDE_CODE_EXECUTABLE": "/Users/rocky243/.local/share/claude/versions/2.1.263"
+      },
+      "launched_at": "2026-09-08T23:24:41.738419+00:00",
+      "observation": "adapter_launch",
+      "resolved_target_argv": [
+        "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"
+      ],
+      "target_argv": [
+        "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"
+      ]
+    },
+    "assistant_text": "**Notice:** UserPromptSubmit says: Hindsight · no memory this turn — see /tmp/hindsight-plugin.log我先读取任务依据的关键文件。Node v26.8.1、Intl 时区可用。开始编写 fixture。Fixture 起点状态已确认（F1 红 2/6、F1R 红 3/5、F3 与 F3R 绿），且两个红 fixture 都能被最小正确修复变绿。现在写评测规格。Now the owner-facing handover.两处失败是我在预留案例里写了省略性的“同 F2-dev / 同 F3-dev”。预留案例要能独立执行，补全原文而不是放宽断言。`/tmp/package.json`（ZCode Desktop 遗留，9-06 创建，含 `\"type\": \"module\"`）导致 install 测试写在 `/tmp` 的无扩展名 `codex` stub 被当成 ESM 加载。这是我给整套加了 `TMPDIR=/tmp` 造成的环境副作用。用默认 TMPDIR 复验：4 处失败是我给整套强加 `TMPDIR=/tmp` 引起的环境副作用；默认 TMPDIR 下 773 tests / 769 pass / 0 fail / exit 0。我的结构检查没有 socket，去掉这个不必要的 TMPDIR 耦合。`package.json`、`package-lock.json`、`tests/owner-journeys-eval.test.cjs` 在会话开始的快照里并未列为已修改。我需要查清这三处变化的来源。这三处是另一个并发 writer 的改动（js-yaml 依赖升级、以及一处“`--test test/` 目录参数在 Node 支持区间内不可移植”的修复），不是我的，按规则保留。但那条移植性修复正好命中我的检查——我用了同一个不可移植写法，需要改成显式文件名。更新交接文档中的命令与并发改动说明，再跑最终整套复验。`work/trellis-eight-step-20260909/` 里出现了并发写入的文件，其中有一份 `step1-fixtures-correction-mission.md` 直接针对本轮 fixture。我先读它。Root 已对我的草案发出 REQUEST_CHANGES（`step1-fixtures-correction-mission.md`），这是同一任务的续轮。先按要求归档 r1，再逐条修正。Now the protocol corrections. 第 1–2 条（F2 轮数上限与 web UI 矛盾、audience 澄清）：第 3 条（`你判断就好` 的覆盖范围）与 `not_scored` 的界面矛盾：第 4 条（预留案例的曝露边界，不是普遍保密；也不要求先造出产品修复）：把四条证据轴改成可机检的结构字段，这样\"轴的正交性\"不必靠正则钉死措辞：现在按\"验证要相称\"重写结构检查：去掉钉措辞和数字符数的断言，保留真实的起点状态、路径、分离与轴结构检查。两个 Node 版本都通过。跑整套复验，然后更新交接文档。Now the handover sections that the corrections invalidate."
+  },
+  {
+    "delegation_id": "dfebc5b93ba34b20b275dc152f12a934",
+    "session_name": "trellis-step1-fixtures-20260909",
+    "acp_session_id": "5f76e40f-3881-44cc-9548-d20ff9c16ac5",
+    "terminal": true,
+    "status": "success",
+    "execution_seconds": 214.194,
+    "duration_seconds": 871.514,
+    "stop_reason": "end_turn",
+    "exit_code": 0,
+    "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260908T234347Z-dfebc5b93ba34b20b275dc152f12a934",
+    "runtime_identity": {
+      "acpx": {
+        "package": "acpx",
+        "path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "resolved_path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "version": "0.13.2"
+      },
+      "adapter": {
+        "package": "@agentclientprotocol/claude-agent-acp",
+        "path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "resolved_path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "version": "0.75.1"
+      },
+      "adapter_pid": 13218,
+      "cli": {
+        "argv": [
+          "/Users/rocky243/.local/bin/claude",
+          "--version"
+        ],
+        "path": "/Users/rocky243/.local/bin/claude",
+        "probe_error": null,
+        "probe_ok": true,
+        "resolved_path": "/Users/rocky243/.local/share/claude/versions/2.1.263",
+        "version": "2.1.263 (Claude Code)"
+      },
+      "cli_binding": {
+        "CLAUDE_CODE_EXECUTABLE": "/Users/rocky243/.local/share/claude/versions/2.1.263"
+      },
+      "launched_at": "2026-09-08T23:24:41.738419+00:00",
+      "observation": "adapter_launch",
+      "resolved_target_argv": [
+        "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"
+      ],
+      "target_argv": [
+        "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"
+      ]
+    },
+    "assistant_text": "这条中途消息正是我已从 `step1-fixtures-correction-mission.md` 读到并已实施的五条意见。做最终复验。Root 在我工作期间提交了 `ca228b0`，那三个文件已入 HEAD。更正交接文档中已过时的说法。完成。以下是精确改动与验证结果。\n\n## 我写的路径\n\n**评测规格与结构检查**\n- `tests/evals/trellis-daily-20260909.json` — SHA-256 `dc197177432cb5b76cf4769bb46cb8f653ac48d9c11b0970db668991011b2bc8`\n- `tests/trellis-daily-eval.test.cjs` — SHA-256 `756dd5d052105c2c314540abecf0eebc8a7e0bd3cc215b3855182ab4a62f36cb`\n\n**Fixture**（`tests/evals/fixtures/trellis-daily-20260909/`，共 26 个文件，4 个目录）\n| 目录 | 案例 | 起点 |\n|---|---|---|\n| `f1-csv-quoting/` | F1 开发（CSV 双引号未转义；兄弟消费者 `report.js` 共用序列化函数，表头须保持不加引号） | 红 6/4/2 |\n| `f1r-note-slugs/` | F1 预留（纯中文标题塌成空 slug；兄弟 `filenames.js` 撞名；现有英文 slug 不得变） | 红 5/2/3 |\n| `f3-money-split/` | F3 开发（整数分＋平摊尾差守恒；1 份生效决定＋1 份已废弃＋1 份无关） | 绿 3/3 |\n| `f3r-utc-events/` | F3 预留（UTC 存储与展示边界；同样 1＋1＋1） | 绿 3/3 |\n\nF2 两个案例（会议记录、收据管理）从空目录起步，无 fixture，靠冻结的 `owner_answer_script`。\n\n**交接与 r1 归档**\n- `work/trellis-eight-step-20260909/step1-fixtures-handover.zh-CN.md` — SHA-256 `7143f52adea34f3dc7a9fab23f8f364b7d3dfb15a592b31374122a0cabb9adc9`\n- `work/trellis-eight-step-20260909/evidence/step1-fixtures-r1/`（r1 三件原件＋`SHA256SUMS.txt`＋字节状态说明）\n\n产品 Skill／hook／adapter、旧 fixture、旧 runner、`package.json`、`package-lock.json` 均未改动；未 stage、未 commit、未安装、未调用 provider。\n\n## 验证结果\n\n- 结构检查在**两个实际可执行文件**上均 9 tests / 9 pass / 0 fail，exit=0：`/opt/homebrew/Cellar/node/25.7.0/bin/node`(v25.7.0) 与 `/Users/rocky243/.hermes/node/bin/node`(v26.8.1)。\n- 四个 fixture 的显式文件名脚本在两个版本上行为一致：红的 exit=1（6/4/2、5/2/3），绿的 exit=0（各 3/3）。红状态原样保留。\n- `npm run test:node`（默认 TMPDIR，在 `ca228b0` 之上）：773 / 769 pass / 0 fail / 4 skipped，exit=0。\n- 两个红 fixture 的冻结断言**可达**：我在 `/tmp` 副本上各写最小正确实现，分别 6/6、5/5 全绿后删除副本；仓库内 fixture 未被触碰。这只说明验收可达。\n\n## Root 五条意见的处理\n\n1. 删除 F2 的澄清轮数上限，改为按证据判定（重复／漏问／无依据的流程停顿），新增 `legitimate_further_questions` 明确轮数不计分，并加了一条负向守卫防阈值回归。\n2. 去掉 web UI 禁令，`not_scored` 写明界面是交付方式；「谁会看这些记录」改为**合法受众澄清**（拥有记录不等于确定读者）。\n3. `out_of_script_policy` 拆成 `covers`／`does_not_cover`／`on_unscripted_material_question`／`reproducibility`：只覆盖固定本地范围的普通技术选择，不顶替实质 Owner 决定、不制造外部授权，遇到脚本未解决的实质问题保留显式评测输入限制、不判失败、不伪造 Owner 接受。\n4. 预留案例改成**曝露边界**：`authorized_readers`（作者与评测者按设计读取，不算曝露）／`withheld_from`（候选实现者与被评测会话，冻结前不给）／`exposure_record`；前置条件改为「开发案例验收后（可为『无需修复』）的候选冻结之后」，不再要求先造出产品修复。如实记录：本轮无任何预留材料到达候选或被评测会话。\n5. 移植性：我新增的所有调用方与说明改为显式列出测试文件名，并在 v25.7.0／v26.8.1 上双版本验证。\n\n另按「验证要相称」精简了检查：删掉按字符数判定长度、以及钉住 `candidate_freeze`／`isolation`／`abort_rules`／`results_policy`／`not_claimed`／轴描述文字的正则；改把 `candidate_freeze` 与 `evidence_classes` 结构化（七个具名字段；`axis`＋`compatible_with`），使双 manifest 与两轴正交可机检。\n\n## 两点须知\n\n- 本轮进行中 Root 提交了 `ca228b0`（`fix: restore portable baseline checks and patch js-yaml`），最终复验在其之上完成；交接文档已改正原先「那三个文件仍未提交」的说法。\n- 环境事实：本机 `/tmp/package.json`（ZCode Desktop 遗留，`\"type\": \"module\"`）会让 `/tmp` 下无扩展名的 CommonJS stub 被当成 ESM。我曾对整套强加 `TMPDIR=/tmp`，导致 `install.test.cjs` 与 `ultra-5-journeys.test.cjs` 共 4 项失败；默认 TMPDIR 下全绿，新增检查不依赖 TMPDIR。\n\n不主张这些 fixture 改善了产品。剩余 live 工作（候选冻结＋隔离安装件同一性记录、三个开发案例的真实 provider 运行、按七个诊断分类得出最小修改清单、验收后再跑预留案例、最终验证与 commit）全部由 Root 独立执行，本轮未做。"
+  },
+  {
+    "delegation_id": "f4dc80a149a14310969a0c4c7cde43a2",
+    "session_name": "trellis-step1-fixtures-20260909",
+    "acp_session_id": "5f76e40f-3881-44cc-9548-d20ff9c16ac5",
+    "terminal": true,
+    "status": "success",
+    "execution_seconds": 189.064,
+    "duration_seconds": 189.217,
+    "stop_reason": "end_turn",
+    "exit_code": 0,
+    "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260908T235915Z-f4dc80a149a14310969a0c4c7cde43a2",
+    "runtime_identity": {
+      "acpx": {
+        "package": "acpx",
+        "path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "resolved_path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "version": "0.13.2"
+      },
+      "adapter": {
+        "package": "@agentclientprotocol/claude-agent-acp",
+        "path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "resolved_path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+        "version": "0.75.1"
+      },
+      "adapter_pid": 13218,
+      "cli": {
+        "argv": [
+          "/Users/rocky243/.local/bin/claude",
+          "--version"
+        ],
+        "path": "/Users/rocky243/.local/bin/claude",
+        "probe_error": null,
+        "probe_ok": true,
+        "resolved_path": "/Users/rocky243/.local/share/claude/versions/2.1.263",
+        "version": "2.1.263 (Claude Code)"
+      },
+      "cli_binding": {
+        "CLAUDE_CODE_EXECUTABLE": "/Users/rocky243/.local/share/claude/versions/2.1.263"
+      },
+      "launched_at": "2026-09-08T23:24:41.738419+00:00",
+      "observation": "adapter_launch",
+      "resolved_target_argv": [
+        "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"
+      ],
+      "target_argv": [
+        "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"
+      ]
+    },
+    "assistant_text": "按 r3 只做文档更正。先找出所有残留的目录参数写法。Root 的指认成立：规格里有 6 处，其中 2 处在 `acceptance` 数组内。我先做替换。用\"回退这 6 处 token 后应还原出 r2 哈希\"来证明 r3 与 r2 只差这 6 处：Now correct the handover's false claim and record r3.`-newermt` 那条命令语法在本机 `bfs` 下失败，那个 \"0\" 无效。改用哈希逐一比对 fixture 字节。r3 完成（仅文档更正）。\n\n## 改动的路径\n\n**`tests/evals/trellis-daily-20260909.json`**\n- 旧（r2，基线引用）：`dc197177432cb5b76cf4769bb46cb8f653ac48d9c11b0970db668991011b2bc8`\n- 新（r3）：`31601b655d3e4c734d042bb3b6e510c287e2672702cd0bbf12206b43436faed8`\n\n替换的 6 处命令 token（其余字节逐字不变）：\n- `F1-dev` / `F1-res` / `F3-dev` / `F3-res` 的 `starting_state`：`` `node --test test/` `` → `` `npm test` ``\n- `F1-dev.acceptance[1]` / `F1-res.acceptance[1]`：同一 token 替换\n\n**`work/trellis-eight-step-20260909/step1-fixtures-handover.zh-CN.md`** — `760504911a14163d073e4f3247b9b82e932af09cdaa857eda836e292ca62dff6`\n- 第九节改正了那句假声明（原写「已从所有调用方与说明中移除」）\n- 新增第十二节：新旧哈希表、6 处逐一列举、可验证性、以及下面两点须知\n\n## 验证\n\n- 规格 JSON 解析通过；规格内 `--test test/` 残留 0 处。\n- **差异可证**：把 r3 的 6 处 `` `npm test` exits `` 回退成原写法，字节 SHA-256 恰为 r2 的 `dc19717…`。所以 r3 与 r2 只差这 6 处 token，验收判据、输入、诊断分类、曝露边界、证据轴均未动，基线可继续引用其 r2 快照，不被追溯重评。\n- `tests/trellis-daily-eval.test.cjs` 在 v25.7.0 与 v26.8.1 上均 9 tests / 9 pass / 0 fail，exit=0；该文件本身未改（仍 `756dd5d0…`）。\n- 26 个 fixture 文件的 `git hash-object` 与 r2 记录**逐行一致**。\n- 未 stage、未 commit、未安装、未调用模型；未重跑整套包测试（按指示）。\n\n## 两点须 Root 裁定／知悉\n\n1. **两处过时命令描述位于 `acceptance` 数组内**（`F1-dev`/`F1-res` 的第 2 条）。Root 同时写了「replace only those obsolete command descriptions」与「Do not change acceptance」。我判断替换命令 token 不改变判据（「exits 0、6/6 或 5/5 通过、未改动任何断言」原样），且不改就会留下同一个假声明，因此做了替换并显式披露。若 Root 要求字面上不动 `acceptance`，只回退那两处 token 即可。\n\n2. **另有 2 处残留未改，因 Root 禁止改动 fixture 字节**：`f3-money-split/README.md` 与 `f3r-utc-events/README.md` 的 “Starting state” 行仍写 `` `node --test test/` passes ``。它们是 README 描述，不是可执行调用方；两个 fixture 的 `npm test` 脚本本身已是显式文件名。因此「所有目录参数指令都已移除」这句在字面上仍不成立，我已按此事实修正交接文档的措辞，而不是重复该声明。"
+  },
+  {
+    "delegation_id": "ab4ac94b22694bcebd14408902b1b501",
+    "session_name": "trellis-step1-loading-20260909",
+    "acp_session_id": "session_bab27e68-ea83-4554-9978-d3da34e76922",
+    "terminal": true,
+    "status": "incomplete",
+    "execution_seconds": 1203.147,
+    "duration_seconds": 1206.346,
+    "stop_reason": null,
+    "exit_code": 0,
+    "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260908T232522Z-ab4ac94b22694bcebd14408902b1b501",
+    "runtime_identity": {
+      "acpx": {
+        "package": "acpx",
+        "path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "resolved_path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "version": "0.13.2"
+      },
+      "adapter": null,
+      "adapter_pid": 93920,
+      "cli": {
+        "argv": [
+          "/Users/rocky243/.kimi-code/bin/kimi",
+          "--version"
+        ],
+        "path": "/Users/rocky243/.kimi-code/bin/kimi",
+        "probe_error": null,
+        "probe_ok": true,
+        "resolved_path": "/Users/rocky243/.kimi-code/bin/kimi",
+        "version": "0.41.0"
+      },
+      "cli_binding": {},
+      "launched_at": "2026-09-08T23:25:26.307094+00:00",
+      "observation": "adapter_launch",
+      "resolved_target_argv": [
+        "/Users/rocky243/.kimi-code/bin/kimi",
+        "acp"
+      ],
+      "target_argv": [
+        "/Users/rocky243/.kimi-code/bin/kimi",
+        "acp"
+      ]
+    },
+    "assistant_text": "I'll start by reading the decision record, the direction RESULT (Steps 1/4), and the Stage A live-eval setup method.I've absorbed the mission context. Now let me examine the current adapter and discovery interfaces.Now the shared modules and install entry point.Now the install CLI entry and plugin-core (source → installed bytes path):I have the install/discovery path for ZCode. Now let me examine the other candidate hosts' adapters (Claude, Kimi) and the runtime-compat matrix:I have the full adapter/install picture. Now let me gather live environment evidence: git state, installed runtimes, and versions.HEAD is `b765b55` with uncommitted Stage B work — matches the decision record. All six host runtimes are installed. Now versions and CLI help surfaces (read-only):All runtimes present; ZCode is the pinned 0.16.5. Note: PATH `zcode-acp` reports the **un-suffixed** marker, not the repaired `.r1` — relevant only to ACP, but I'll record it. Now the native help surfaces (resume / plugin discovery):The prior test root survives. Let me extract its exact working recipe — the isolated config layout and the project-level `.zcode/config.json` shadowing workaround:Dedup confirmed: `plugin_duplicate_id` — \"Duplicate plugin ignored\", first candidate wins, and `config.dirs` inline entries are resolved before other sources. Now the launcher interface used by Stage A and session storage locations:All prerequisites verified. Let me look at the Stage A launch-record shape so the handover reuses the same evidence practice:All evidence gathered. Now writing the single deliverable — the handover document:"
+  },
+  {
+    "delegation_id": "04be0f79a6ff4a76b7cba5913a8133b6",
+    "session_name": "trellis-step1-loading-20260909",
+    "acp_session_id": "session_bab27e68-ea83-4554-9978-d3da34e76922",
+    "terminal": true,
+    "status": "success",
+    "execution_seconds": 836.919,
+    "duration_seconds": 837.114,
+    "stop_reason": "end_turn",
+    "exit_code": 0,
+    "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260908T234728Z-04be0f79a6ff4a76b7cba5913a8133b6",
+    "runtime_identity": {
+      "acpx": {
+        "package": "acpx",
+        "path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "resolved_path": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc/node_modules/acpx/dist/cli.js",
+        "version": "0.13.2"
+      },
+      "adapter": null,
+      "adapter_pid": 93920,
+      "cli": {
+        "argv": [
+          "/Users/rocky243/.kimi-code/bin/kimi",
+          "--version"
+        ],
+        "path": "/Users/rocky243/.kimi-code/bin/kimi",
+        "probe_error": null,
+        "probe_ok": true,
+        "resolved_path": "/Users/rocky243/.kimi-code/bin/kimi",
+        "version": "0.41.0"
+      },
+      "cli_binding": {},
+      "launched_at": "2026-09-08T23:25:26.307094+00:00",
+      "observation": "adapter_launch",
+      "resolved_target_argv": [
+        "/Users/rocky243/.kimi-code/bin/kimi",
+        "acp"
+      ],
+      "target_argv": [
+        "/Users/rocky243/.kimi-code/bin/kimi",
+        "acp"
+      ]
+    },
+    "assistant_text": "Continuing the audit for Claude. My prior handover is in context (I authored it this session). Now gathering Claude 2.1.263's native surfaces — help first:`claude` is a compiled binary (Bun bundle) at `~/.local/share/claude/versions/2.1.263`. Let me extract the auth/plugin mechanism strings from it, and check the plugin registry layout:The binary greps are slow (large bundle). Let me check the second background grep, then run targeted credential/plugin-dir string extraction while checking the adapter's test contract meanwhile:While the binary greps run, the rest of `claude --help`:`claude auth` exists — a possible read-only auth check. Let me inspect it:`claude auth status --json` is the read-only auth probe. Let me check its shape on the real config (redacting all identity values — only key names and booleans):Keychain auth confirmed in the binary: `/usr/bin/security` + \"No OAuth token in keychain\" — OAuth token lives in the login keychain, outside CLAUDE_CONFIG_DIR. Waiting for the plugin-dir extraction:All evidence is in. Writing the Claude-specific handover:One refinement — the E2 fallback should name a concrete no-model-call sync trigger (`claude doctor`), not a circular re-run:Handover written to `work/trellis-eight-step-20260909/step1-claude-loading-handover.zh-CN.md` (only file written). The narrow gap is closed with native supported surfaces:\n\n**Recommendation: Path A — full `CLAUDE_CONFIG_DIR` isolation**, no rename needed. Key observed facts driving it:\n- Real-HOME Claude has **no ultra-builder-pro** installed (`claude plugin list --json`, 16 plugins) — the ZCode-style shadowing problem does not exist here, so the plugin manifest keeps its canonical name and provenance stays byte-consistent.\n- Auth does **not** depend on CLAUDE_CONFIG_DIR on this machine: no `~/.claude/.credentials.json` exists; the binary uses `/usr/bin/security` against the login keychain for the OAuth token (\"No OAuth token in keychain\" strings), and `~/.claude.json` (onboarding/oauthAccount/projects) lives at `$HOME`, outside the redirect. `claude auth status --json` reports `loggedIn: true` on the real config — and the same read-only command lets Root **verify auth preservation under the isolated dir without a model call** (step A4).\n- Plugin registry (`installed_plugins.json`, `known_marketplaces.json`) sits under CLAUDE_CONFIG_DIR → the isolated root gets a fresh registry; real-HOME plugins can't leak in.\n- Discovery is read-only verifiable: adapter doctor's own contract (`ultra-builder-pro@skills-dir`, enabled) via `CLAUDE_CONFIG_DIR=<iso> claude plugin list --json`; plus `claude plugin validate <path>` for structure.\n- Sessions: `--session-id <uuid>` pins a fresh identity per journey, `--resume <uuid>` continues it, `--fork-session` is the identity-breaker and is banned; result JSON `session_id` + isolated `projects/` jsonl give cross-checks.\n\n**Path B fallback** (if A4's auth check fails): real config + `--plugin-dir <plugin>` on every launch including resumes — binary strings confirm id sentinel `name@inline`, enabled-by-default, and \"--plugin-dir overrides installed version\". Its costs are stated: no read-only load verification, co-loading of real-HOME plugins, and silent UBP absence if the flag is dropped once.\n\n**Observed vs expected** is separated explicitly: binary/help/registry/auth facts are observed; isolated-auth success (E1), skills-dir discovery on fresh config (E2, with `claude doctor` as the no-model-call sync trigger before falling back), `session_id` in result JSON (E3), and hook execution under `${CLAUDE_PLUGIN_ROOT}` (E4, proven at runtime via `ps`) are marked expected with exact verification steps for Root.\n\nByte verification reuses the product's own transforms (`skillFrontmatter` claude branch via `skillPolicy`, `buildHooksManifest`, template copy) — exit 0 with `failed=0` required. Trial envelope: `--permission-mode acceptEdits --allowedTools Bash` as the minimal daily-coding capability set (matching Stage A's preserved-capability choice), `--max-budget-usd` as cost guard, no `--model`. No credential reads/copies, no real-HOME writes, no model calls were made in this audit."
+  }
+]

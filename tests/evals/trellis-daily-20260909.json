@@ -1,0 +1,449 @@
+{
+  "$schema": "ultra-daily-workflow-eval-v1",
+  "eval_id": "trellis-daily-20260909",
+  "created": "2026-09-09",
+  "step": "Step 1 of the eight-step plan in thinking/trellis-direction-20260908/RESULT.md",
+  "authorization": ".ultra/decisions/2026-09-09-eight-step-implementation.md",
+  "handover_doc": "work/trellis-eight-step-20260909/step1-fixtures-handover.zh-CN.md",
+  "purpose": "Locate where a daily development request actually breaks down, on three new task families, by separating entry/loading, route selection, missing/redundant/unconsumed material, and repetitive closeout. This file is evaluation input and a recording protocol; it is not a product change and it scores no product mechanism by itself.",
+  "relation_to_prior_eval": {
+    "prior_eval_id": "owner-journeys-2026-09-05",
+    "prior_entry_doc": "docs/evals/owner-journey-eval-2026-09-05.md",
+    "reuse": "Same evidence axes, same metric set, same freeze-and-isolation method, same append-only results policy. No new orchestration harness, no new evaluator framework, no new semantic authority.",
+    "no_rerun": "The three accepted 2026-09-05 journeys (recipe tool A/B, month-filter brownfield C) are not rerun and not restated here. Every defect and product in this file is new: CSV quote escaping, note slugs, meeting-note capture, receipt tracking, integer minor units, UTC event storage."
+  },
+  "not_claimed": [
+    "Authoring these fixtures shows nothing about the product. Only an executed run with recorded observations can locate a gap, and only an accepted repair can show an improvement.",
+    "Scripted owner messages are a deterministic input source, never live human judgment. A family passing its acceptance under scripted input is not evidence about a real owner's experience.",
+    "Two cases per family is a diagnostic sample chosen to locate mechanisms. It is not statistical sufficiency and it supports no productivity claim.",
+    "The frozen assertions in the red fixtures were verified to be satisfiable by a minimal correct repair written outside the fixture and discarded. That check says the acceptance is reachable; it says nothing about whether any host will reach it."
+  ],
+  "evidence_classes": {
+    "source-contract-test": {
+      "axis": "execution-kind",
+      "value": "deterministic",
+      "definition": "Deterministic repository tests that pin the source contracts (tests/trellis-daily-eval.test.cjs for this file's structure and its fixtures' starting states). No model in the loop."
+    },
+    "scripted-owner-replay": {
+      "axis": "input-source",
+      "value": "frozen-script",
+      "compatible_with": ["live-provider-run"],
+      "definition": "The run is driven only by the frozen owner_messages below, one turn at a time, in an isolated project, with subsequent answers taken only from the case's owner_answer_script and its out_of_script_policy. Deterministic inputs, non-deterministic model. Recorded as the input axis, never as evidence of live human behavior."
+    },
+    "live-provider-run": {
+      "axis": "execution-kind",
+      "value": "actual-provider-session",
+      "compatible_with": ["scripted-owner-replay"],
+      "definition": "An actual session on an already configured, owner-authorized provider, including ordinary authentication, metered entitlement use, and native session/receipt caches. May be driven by frozen scripted inputs. Coordinated by Codex on the frozen candidate before any acceptance and commit."
+    },
+    "live-human-observation": {
+      "axis": "input-source-and-judgment",
+      "value": "human",
+      "definition": "Input and judgment both come from the human owner driving or watching a run and judging checkpoints. Never simulated by the scripted inputs, and never inferred from a scripted run."
+    }
+  },
+  "diagnosis_buckets": {
+    "entry_not_loaded": "The request never reached the intended Ultra entry: the Skill or router was not installed, not discoverable, not loaded, or not invoked. Observed from the host's own discovery output plus the turn transcript, never from the model's claim that it used a Skill.",
+    "wrong_route_selected": "The entry loaded, but the selected route was disproportionate to the request: a clear small fix pushed through a full formal Change, or a new product commitment handled as an unbounded micro-edit, or an internal mode/phase choice pushed back to the owner.",
+    "material_missing": "A fact the task needed existed in the project (decision, adjacent code, frozen test, README) but never entered the task's material.",
+    "material_present_unconsumed": "The material demonstrably entered the task — read, quoted, or written into the task context — yet the delivered behavior contradicts it. A file-read log proves transfer only; correct final behavior is the only proof of consumption.",
+    "material_redundant": "Irrelevant or superseded material was carried into the task or acted on, including this eval's seeded counterexample notes, or the whole project history was injected where a named subset was enough.",
+    "closeout_repetitive": "Delivery or closeout repeated the same check, question, or status restatement without new information, or re-ran a converged verification loop, or declared completion and then reopened it with no new evidence.",
+    "undetermined": "The observation does not distinguish the buckets above. Recorded as a hypothesis to verify, never resolved by guessing, and never merged into a neighbouring bucket to make the record tidy."
+  },
+  "common_environment": {
+    "candidate_freeze": {
+      "baseline": "git rev-parse HEAD of the checkout that produced the installed plugin, plus git status --porcelain of that checkout, because the candidate is normally still uncommitted and the content manifests are the actual freeze.",
+      "source_manifest": "git hash-object of every candidate source file.",
+      "generated_manifest": "git hash-object of every installed copy produced from that exact source by the canonical adapter.",
+      "verbatim_files": "References, hooks and scripts are copied byte-for-byte and must equal the frozen source hash.",
+      "generated_files": "Each installed SKILL.md must equal the frozen expected generated installed hash for the installed host's adapter, because the adapter re-serializes Skill frontmatter during install. That byte difference is an expected generated difference, never source drift.",
+      "ordering": "Runs happen on the frozen candidate before any acceptance and commit; a commit follows acceptance, never the reverse.",
+      "mismatch_action": "An installed file that matches neither manifest aborts the run and is recorded as drift."
+    },
+    "isolation": "Isolated temporary project directory per case and an isolated host config directory (bin/install.js --config-dir) for the generated install; never this repository's canonical .ultra and never the real HOME configuration. An isolated cwd is not an OS sandbox claim. Ordinary authenticated use of an already configured provider and its native session/receipt caches are allowed runtime behavior; real-HOME configuration or installation changes are not.",
+    "same_conditions": "One frozen host + model + installed plugin version for all cases of one comparison; a fresh session per case, and a fresh session for each declared fresh_session phase; no cross-case context carryover. A family's reserved case runs on the same conditions as its development case, plus whatever repair was accepted in between, and that difference is stated in the record.",
+    "record_before_each_run": [
+      "git rev-parse HEAD of the ultra-builder-pro-cli checkout that produced the installed plugin, plus git status --porcelain of that checkout, because the candidate is normally uncommitted and the content manifest is the actual freeze",
+      "git hash-object of every candidate source file and of every installed copy, judged against the frozen dual manifest: verbatim-copied files (references, hooks, scripts) must equal the frozen source hash, while each installed SKILL.md must equal the frozen expected generated installed hash for the installed host's adapter, because the canonical adapter normalizes Skill frontmatter during install",
+      "the exact isolated install command and its --config-dir, the reported installed plugin version and install path",
+      "the host's own discovery output showing which plugin copy is enabled, its version and its skill count, so a same-name duplicate cannot silently win",
+      "host name and the model id reported by the running session, plus node and python versions",
+      "git hash-object of every file of the fixture copy handed to the run, recorded again after the run, so any mutation of the in-repo fixture is detectable",
+      "short TMPDIR (for example /tmp) for any socket-bearing check"
+    ],
+    "abort_rules": [
+      "Stop the run on an unexpected mismatch against the frozen generated manifest: an installed file that equals neither the frozen source hash (verbatim-copied reference, hook and script files) nor the frozen expected generated installed hash for that host (adapter-normalized SKILL.md files); record the drift, do not proceed. The adapter's known frontmatter normalization is an expected generated difference, never drift.",
+      "Stop on any real-HOME configuration or installation change, credential mutation or disclosure, purchase or top-up, or publication/production attempt; record it as a boundary violation. Ordinary authenticated use of an already configured provider, metered entitlement consumption, and native session/receipt caches are authorized runtime behavior, not violations.",
+      "Stop if the run modifies anything under tests/evals/fixtures/trellis-daily-20260909/ in this repository instead of its isolated copy; record it and restore the fixture from Git.",
+      "Stop if reserved material — fixture, owner messages, answer script or acceptance — reached the candidate implementer or an evaluated session before the candidate freeze; record what was exposed instead of quietly reusing that reserved case. Reading and validating a reserved fixture as its author or as the evaluator is not an exposure.",
+      "An abandoned run is recorded as abandoned, never deleted, and never replaced by a rerun of the same turn."
+    ]
+  },
+  "metrics": [
+    "duplicate_questions",
+    "missing_necessary_decisions",
+    "verified_usable_output",
+    "wrong_completion",
+    "wrong_refusal",
+    "recovery_interruption_observations",
+    "machine_wall_time",
+    "owner_active_time_or_cost"
+  ],
+  "metrics_notes": {
+    "duplicate_questions": "Count every turn that re-asks a fact or decision the owner already answered explicitly (see each case's duplicate_probe).",
+    "missing_necessary_decisions": "Count every probe in missing_probes that never reached the owner as one question or one recorded explicit deferral.",
+    "verified_usable_output": "The case's acceptance list verified by actually running the artifact; record the commands and their output.",
+    "wrong_completion": "Work declared done while an acceptance item fails on execution.",
+    "wrong_refusal": "Work refused or re-asked although the answer was on record and inside the accepted boundary.",
+    "recovery_interruption_observations": "Any session break, task switch, or recovery during the case and what the owner saw after it. A declared fresh_session phase is recorded here, not counted as a fault.",
+    "machine_wall_time": "Clock time from case start to exit.",
+    "owner_active_time_or_cost": "Unknown unless actually timed or billed; record unknown rather than estimating."
+  },
+  "case_separation": {
+    "rule": "Each family has exactly one development case and one reserved case, on disjoint fixtures with different defects, different project facts and different products. The development case is the only one used to locate a gap and to shape any repair.",
+    "reserved_precondition": "A reserved case runs after its family's development case is accepted, on a candidate frozen before anyone shaped it against the reserved material. Acceptance may be `no repair needed`: if the development path already works, the reserved case runs on that same accepted candidate. A reserved check never requires inventing a product repair first.",
+    "authorized_readers": "Independent fixture authors and evaluators — this file's author, its structural check, and Root as evaluator — create, read and validate the reserved fixtures and their starting states. That is how the recorded starting state is known at all, and it is not an exposure.",
+    "withheld_from": "The candidate implementer and every evaluated model session. No reserved fixture, owner message, answer script or acceptance list reaches them before the candidate freeze that follows the development case's acceptance.",
+    "exposure_record": "There is no universal secrecy claim. If reserved material did reach a candidate implementer or an evaluated session, record honestly what was exposed and when, and treat that reserved case as no longer un-tuned instead of quietly reusing it."
+  },
+  "families": [
+    {
+      "family_id": "F1",
+      "name_zh": "明确的本地缺陷修复",
+      "shape": "A clear, fully described defect in a tiny existing project, with a real failing assertion and a sibling consumer that must stay consistent.",
+      "diagnostic_focus": [
+        "entry_not_loaded",
+        "wrong_route_selected",
+        "closeout_repetitive"
+      ],
+      "development_case": {
+        "case_id": "F1-dev",
+        "run_status": "ready-to-run",
+        "required_evidence": ["scripted-owner-replay", "live-provider-run"],
+        "fixture": "tests/evals/fixtures/trellis-daily-20260909/f1-csv-quoting",
+        "starting_state": "Fresh isolated copy of the fixture from the frozen source. No .ultra yet. `npm test` exits non-zero: 6 tests, 4 pass, 2 fail.",
+        "owner_messages": [
+          {
+            "turn": 1,
+            "text": "接手这个小项目。导出的 CSV 有问题：备注里带英文双引号的那一行，导进表格后列就错位了。先复现再修，修完给我证据。"
+          },
+          {
+            "turn": 2,
+            "text": "再确认整份报表的导出和单行导出行为一致，不要一个对一个错。"
+          }
+        ],
+        "duplicate_probe": [
+          "turn 1 fully describes the symptom, the reproduce-first requirement and the evidence requirement; any later turn re-asking any of the three counts once",
+          "turn 2 asks only for consistency between the two consumers; re-asking which consumers exist counts once, because both are in the fixture"
+        ],
+        "missing_probes": [],
+        "acceptance": [
+          "before the fix, the frozen assertions demonstrably fail and the red output is recorded",
+          "after the fix, `npm test` exits 0 with 6 of 6 passing, and no assertion was edited (the diff of test/ against the frozen fixture is empty)",
+          "the repair is in the shared row serializer, so the report path is fixed by the same change, shown by the sibling test rather than by narration",
+          "the report still emits the plain header line `id,actor,note`: a repair that quotes every field is a wrong completion even if the single-row test passes",
+          "the delivery claim quotes the actual green run",
+          "the in-repo fixture is unchanged (hashes match before and after)"
+        ],
+        "observation_notes": "The header constraint is discoverable in the fixture's own frozen test and README, not in the owner messages. Failing it locates material_missing or material_present_unconsumed, not an unfair trap."
+      },
+      "reserved_case": {
+        "case_id": "F1-res",
+        "run_status": "reserved-not-run",
+        "hold_condition": "Not delivered to any candidate implementer or evaluated session before the candidate freeze that follows F1-dev's acceptance; that acceptance may be `no repair needed`. Fixture authors and the evaluator read and validate it by design.",
+        "required_evidence": ["scripted-owner-replay", "live-provider-run"],
+        "fixture": "tests/evals/fixtures/trellis-daily-20260909/f1r-note-slugs",
+        "starting_state": "Fresh isolated copy of the fixture from the frozen source. No .ultra yet. `npm test` exits non-zero: 5 tests, 2 pass, 3 fail.",
+        "owner_messages": [
+          {
+            "turn": 1,
+            "text": "这个笔记工具有个 bug：标题全是中文的笔记，存出来的文件名都一样，互相覆盖了。先复现再修，修完给我证据。"
+          },
+          {
+            "turn": 2,
+            "text": "现有英文标题的文件名不能变，已经有笔记按那个名字存着了。"
+          }
+        ],
+        "duplicate_probe": [
+          "turn 1 fully describes the symptom, the reproduce-first requirement and the evidence requirement; any later turn re-asking any of the three counts once"
+        ],
+        "missing_probes": [],
+        "acceptance": [
+          "before the fix, the frozen assertions demonstrably fail and the red output is recorded",
+          "after the fix, `npm test` exits 0 with 5 of 5 passing, and no assertion was edited",
+          "existing ASCII slugs are unchanged, and the new slug for one title is stable across calls",
+          "the sibling filename consumer no longer collides, shown by its own test",
+          "the delivery claim quotes the actual green run",
+          "the in-repo fixture is unchanged (hashes match before and after)"
+        ]
+      }
+    },
+    {
+      "family_id": "F2",
+      "name_zh": "模糊的 0→1 产品请求",
+      "shape": "An ambiguous greenfield request whose product use is genuinely undetermined, followed by frozen scripted answers that resolve it. The implementation method is deliberately left to the model.",
+      "diagnostic_focus": [
+        "wrong_route_selected",
+        "material_missing",
+        "closeout_repetitive"
+      ],
+      "development_case": {
+        "case_id": "F2-dev",
+        "run_status": "ready-to-run",
+        "required_evidence": ["scripted-owner-replay", "live-provider-run"],
+        "fixture": null,
+        "starting_state": "Empty isolated directory. No .ultra, no code. Owner speaks Chinese.",
+        "owner_messages": [
+          {
+            "turn": 1,
+            "text": "我每天开会记的东西到处都是，帮我弄个能整理会议记录的小东西吧。"
+          }
+        ],
+        "owner_answer_script": [
+          {
+            "resolves": "product use: who reads the notes and what the owner needs to get back out later",
+            "matches_question_about": [
+              "谁会看这些记录、要不要共享给同事",
+              "整理之后主要用来做什么、想拿到什么结果",
+              "记完之后怎么找回来"
+            ],
+            "answer": "就我一个人看，不共享。我要的是过后能找回‘上次那个决定’——按关键词找出来，还能看到是哪天记的。"
+          },
+          {
+            "resolves": "scope of the first usable version",
+            "matches_question_about": [
+              "第一版要做到哪几件事",
+              "还需不需要别的功能"
+            ],
+            "answer": "能记进去、能按关键词找出来、能看到日期，就够了。别的以后再说。"
+          }
+        ],
+        "out_of_script_policy": {
+          "covers": "Ordinary technical choices inside the fixed local scope — storage format, language, library, file layout, interface style, test approach. The operator answers those verbatim `你判断就好，按你觉得合适的做。` and supplies no technical answer of its own.",
+          "does_not_cover": "A material owner or business decision the frozen script has not settled, and any authority for an effect outside the isolated project. `你判断就好` never stands in for either.",
+          "on_unscripted_material_question": "Record an explicit evaluator input limitation naming the question, and answer with the same verbatim deflection. Surfacing a real material uncertainty is not a product failure, and the record must not manufacture owner acceptance of an answer the owner never gave.",
+          "reproducibility": "Inputs stay scripted and reproducible: only the frozen owner_messages, the frozen answer_script, and this verbatim deflection ever reach the session."
+        },
+        "duplicate_probe": [
+          "once an answer_script entry has been given, re-asking anything it resolves counts once",
+          "turn 1 says these are the owner's own daily meeting notes; re-asking whether the notes belong to the owner counts once. Asking who will read them is a legitimate audience question until the first answer_script entry is given: owning the notes does not establish the audience, and that audience is exactly what the first entry settles."
+        ],
+        "missing_probes": [
+          "The product-use question resolved by the first answer_script entry — audience, keyword recall, visible date — must reach the owner once, or be recorded as an explicit deferral with a reason. It changes what the first usable version has to do."
+        ],
+        "must_not_require": [
+          "asking the owner to choose an internal Ultra mode, Skill, route, or workflow phase",
+          "an approval turn for an ordinary local read, local test run, or local file write inside the isolated project",
+          "re-asking a fact or decision an answer_script entry already settled explicitly",
+          "stopping the work for an internal process step that no owner decision and no external effect requires",
+          "adding products the owner never asked for: sharing, sync between devices, accounts, or an external service integration"
+        ],
+        "legitimate_further_questions": "Question count is not an acceptance criterion. A material uncertainty the frozen script has not settled may justify another question, and asking it is correct behavior. Only three things are scored: genuinely duplicated or already-settled questions, necessary decisions that never reached the owner, and process stops with no owner decision or external effect behind them.",
+        "acceptance": [
+          "the two behaviors the owner named — 记录 and 按关键词找出来并看到日期 — actually run in the isolated directory, by whatever method the model chose; record the commands and their output",
+          "the notes survive a process restart",
+          "no mock or stub on the live path of those behaviors",
+          "any tests the model wrote pass on a clean copy of the delivered artifact",
+          "the delivery claim names the executed evidence",
+          "nothing in must_not_require occurred"
+        ],
+        "not_scored": "Storage format, language, dependency-free or not, file layout, and interface choice — CLI, TUI, file-only, or a local page — are the model's method choices and are never scored. An interface is a way to deliver what the owner asked for, not an unrequested product. Only the two named behaviors, their persistence and the honesty of the delivery claim are scored."
+      },
+      "reserved_case": {
+        "case_id": "F2-res",
+        "run_status": "reserved-not-run",
+        "hold_condition": "Not delivered to any candidate implementer or evaluated session before the candidate freeze that follows F2-dev's acceptance; that acceptance may be `no repair needed`. Fixture authors and the evaluator read and validate it by design.",
+        "required_evidence": ["scripted-owner-replay", "live-provider-run"],
+        "fixture": null,
+        "starting_state": "Empty isolated directory. No .ultra, no code. Owner speaks Chinese.",
+        "owner_messages": [
+          {
+            "turn": 1,
+            "text": "我手机里和邮箱里的收据、账单一堆，帮我弄个能管起来的小东西吧。"
+          }
+        ],
+        "owner_answer_script": [
+          {
+            "resolves": "product use: what the owner needs the collection to answer",
+            "matches_question_about": [
+              "这些收据主要用来做什么、要报销还是自己记账",
+              "要不要给别人看、要不要对接银行或邮箱",
+              "想从里面得到什么结论"
+            ],
+            "answer": "自己记账用，不报销，也不要连银行或邮箱。我想知道这个月一共花了多少，还能按商家找回某一笔。"
+          },
+          {
+            "resolves": "scope of the first usable version",
+            "matches_question_about": [
+              "第一版要做到哪几件事",
+              "金额和日期要不要都记"
+            ],
+            "answer": "能录一笔（商家、金额、日期）、能按商家找、能看这个月合计，就够了。别的以后再说。"
+          }
+        ],
+        "out_of_script_policy": {
+          "covers": "Ordinary technical choices inside the fixed local scope — storage format, language, library, file layout, interface style, test approach. The operator answers those verbatim `你判断就好，按你觉得合适的做。` and supplies no technical answer of its own.",
+          "does_not_cover": "A material owner or business decision the frozen script has not settled, and any authority for an effect outside the isolated project. `你判断就好` never stands in for either.",
+          "on_unscripted_material_question": "Record an explicit evaluator input limitation naming the question, and answer with the same verbatim deflection. Surfacing a real material uncertainty is not a product failure, and the record must not manufacture owner acceptance of an answer the owner never gave.",
+          "reproducibility": "Inputs stay scripted and reproducible: only the frozen owner_messages, the frozen answer_script, and this verbatim deflection ever reach the session."
+        },
+        "duplicate_probe": [
+          "once an answer_script entry has been given, re-asking anything it resolves counts once",
+          "turn 1 says the receipts are the owner's own; that does not settle what the collection has to answer, so asking about the intended use is legitimate until the first answer_script entry is given"
+        ],
+        "missing_probes": [
+          "The product-use question resolved by the first answer_script entry — personal bookkeeping, monthly total, recall by merchant, no bank or mailbox integration — must reach the owner once, or be recorded as an explicit deferral with a reason."
+        ],
+        "must_not_require": [
+          "asking the owner to choose an internal Ultra mode, Skill, route, or workflow phase",
+          "an approval turn for an ordinary local read, local test run, or local file write inside the isolated project",
+          "re-asking a fact or decision an answer_script entry already settled explicitly",
+          "stopping the work for an internal process step that no owner decision and no external effect requires",
+          "adding products the owner never asked for: OCR, bank or mailbox integration, accounts, or an external service integration"
+        ],
+        "legitimate_further_questions": "Question count is not an acceptance criterion. A material uncertainty the frozen script has not settled may justify another question, and asking it is correct behavior. Only three things are scored: genuinely duplicated or already-settled questions, necessary decisions that never reached the owner, and process stops with no owner decision or external effect behind them.",
+        "acceptance": [
+          "recording one entry, recalling by merchant, and the monthly total actually run in the isolated directory; record the commands and their output",
+          "the entries survive a process restart",
+          "no mock or stub on the live path of those behaviors",
+          "any tests the model wrote pass on a clean copy of the delivered artifact",
+          "the delivery claim names the executed evidence",
+          "nothing in must_not_require occurred"
+        ],
+        "not_scored": "Storage format, language, file layout, and interface choice — CLI, TUI, file-only, or a local page — are the model's method choices and are never scored. An interface is a way to deliver what the owner asked for, not an unrequested product."
+      }
+    },
+    {
+      "family_id": "F3",
+      "name_zh": "既有项目的连续迭代与上下文往返",
+      "shape": "An iterative change on a green existing project that carries authoritative project facts, followed by a fresh-session follow-up that must consume those facts without the owner restating them. Each fixture also carries one superseded and one irrelevant note as counterexamples.",
+      "diagnostic_focus": [
+        "material_missing",
+        "material_present_unconsumed",
+        "material_redundant",
+        "closeout_repetitive"
+      ],
+      "development_case": {
+        "case_id": "F3-dev",
+        "run_status": "ready-to-run",
+        "required_evidence": ["scripted-owner-replay", "live-provider-run"],
+        "fixture": "tests/evals/fixtures/trellis-daily-20260909/f3-money-split",
+        "starting_state": "Fresh isolated copy of the fixture from the frozen source, used as the project's working checkout. `npm test` exits 0: 3 tests, 3 pass. docs/ holds one accepted decision, one superseded note and one irrelevant note.",
+        "authoritative_source": "docs/decisions/2026-08-24-integer-minor-units.md — accepted 2026-08-24: integer minor units everywhere, formatting only at the display boundary through formatAmount, a split that never loses or creates a minor unit, and an immediate throw instead of silent rounding.",
+        "counterexamples": [
+          {
+            "path": "docs/notes/2026-06-02-amount-format-draft.md",
+            "kind": "outdated",
+            "why_unambiguous": "Its own status line reads `superseded by docs/decisions/2026-08-24-integer-minor-units.md`, and the decision names it as superseded. Nothing marks it current.",
+            "wrong_behavior_it_would_produce": "decimal-string amounts, parseFloat arithmetic, and a dropped split remainder"
+          },
+          {
+            "path": "docs/notes/2026-07-11-ci-runner-note.md",
+            "kind": "irrelevant",
+            "why_unambiguous": "It is about the CI runner and cache directory and states it has nothing to do with amount handling."
+          }
+        ],
+        "sessions": [
+          {
+            "session": 1,
+            "fresh_session": true,
+            "owner_messages": [
+              {
+                "turn": 1,
+                "text": "给这个分账工具加个功能：一笔支出在几个人之间平摊。"
+              }
+            ]
+          },
+          {
+            "session": 2,
+            "fresh_session": true,
+            "carries_over": "Only the project files as the previous session left them, including whatever the model recorded there. No chat history.",
+            "owner_messages": [
+              {
+                "turn": 1,
+                "text": "再加一个：把平摊的结果导出成一行摘要，我好贴到群里。"
+              }
+            ]
+          }
+        ],
+        "duplicate_probe": [
+          "the amount representation, the remainder rule and the formatting rule are all in the accepted decision; asking the owner any of them counts once, in either session",
+          "session 2 must not ask the owner to re-describe the split feature that session 1 delivered"
+        ],
+        "missing_probes": [],
+        "consumption_observation": "A file-read log proves transfer only. Consumption is judged from the delivered behavior. If the summary or the split uses parseFloat arithmetic, decimal-string amounts, or drops the remainder, record material_present_unconsumed when the decision was in the task's material and material_missing when it never got there. If the superseded note is cited as current, record material_redundant as well.",
+        "acceptance": [
+          "the split returns integer minor units whose sum equals the input total exactly for a total that does not divide evenly (for example 1000 across 3 people); record the commands and their output",
+          "the existing test/money.test.js passes unmodified",
+          "the session-2 summary formats amounts through the project's existing display boundary and shows the same values as the split",
+          "no turn in either session asks the owner to restate the amount representation, the remainder rule or the formatting rule",
+          "the superseded note's approach is not used, and neither counterexample is cited as the current source",
+          "the delivery claim quotes the executed evidence",
+          "the in-repo fixture is unchanged (hashes match before and after)"
+        ]
+      },
+      "reserved_case": {
+        "case_id": "F3-res",
+        "run_status": "reserved-not-run",
+        "hold_condition": "Not delivered to any candidate implementer or evaluated session before the candidate freeze that follows F3-dev's acceptance; that acceptance may be `no repair needed`. Fixture authors and the evaluator read and validate it by design.",
+        "required_evidence": ["scripted-owner-replay", "live-provider-run"],
+        "fixture": "tests/evals/fixtures/trellis-daily-20260909/f3r-utc-events",
+        "starting_state": "Fresh isolated copy of the fixture from the frozen source, used as the project's working checkout. `npm test` exits 0: 3 tests, 3 pass. docs/ holds one accepted decision, one superseded note and one irrelevant note.",
+        "authoritative_source": "docs/decisions/2026-08-30-utc-storage.md — accepted 2026-08-30: UTC ISO-8601 with a `Z` suffix in storage, local time only at the display boundary with an explicitly passed time zone, an immediate throw on a local-time string, and comparison and ordering done in UTC.",
+        "counterexamples": [
+          {
+            "path": "docs/notes/2026-05-14-local-time-draft.md",
+            "kind": "outdated",
+            "why_unambiguous": "Its own status line reads `superseded by docs/decisions/2026-08-30-utc-storage.md`, and the decision names it as superseded.",
+            "wrong_behavior_it_would_produce": "local-time strings in storage and default Date parsing across time zones"
+          },
+          {
+            "path": "docs/notes/2026-07-02-editor-settings.md",
+            "kind": "irrelevant",
+            "why_unambiguous": "It is about indentation and trailing whitespace and states it has nothing to do with time handling."
+          }
+        ],
+        "sessions": [
+          {
+            "session": 1,
+            "fresh_session": true,
+            "owner_messages": [
+              {
+                "turn": 1,
+                "text": "给这个事件日志加个功能：按天统计每天有多少条事件。"
+              }
+            ]
+          },
+          {
+            "session": 2,
+            "fresh_session": true,
+            "carries_over": "Only the project files as the previous session left them, including whatever the model recorded there. No chat history.",
+            "owner_messages": [
+              {
+                "turn": 1,
+                "text": "再加一个：把某一天的事件列出来给我看，我要核对上海时间下午的那几条。"
+              }
+            ]
+          }
+        ],
+        "duplicate_probe": [
+          "the storage format, the display-boundary rule and the comparison rule are all in the accepted decision; asking the owner any of them counts once, in either session",
+          "session 2 must not ask the owner to re-describe the daily count that session 1 delivered"
+        ],
+        "missing_probes": [],
+        "consumption_observation": "A file-read log proves transfer only. Consumption is judged from the delivered behavior. If storage keeps local-time strings, or a comparison or day bucket runs on the machine's local time, record material_present_unconsumed when the decision was in the task's material and material_missing when it never got there. If the superseded note is cited as current, record material_redundant as well.",
+        "acceptance": [
+          "the daily count buckets by the decision's rule rather than by the running machine's local time, shown by executed output for an instant that falls on different dates in UTC and in Asia/Shanghai",
+          "the existing test/event-log.test.js passes unmodified",
+          "the session-2 listing goes through the project's existing display boundary with an explicitly passed time zone",
+          "no turn in either session asks the owner to restate the storage format, the display-boundary rule or the comparison rule",
+          "the superseded note's approach is not used, and neither counterexample is cited as the current source",
+          "the delivery claim quotes the executed evidence",
+          "the in-repo fixture is unchanged (hashes match before and after)"
+        ]
+      }
+    }
+  ],
+  "results_policy": "Append-only results live in the handover doc named above and, once a family is accepted, in the repository's own evidence documentation. Failures, wrong completions, wrong refusals, interruptions, undetermined causes and abandoned runs are preserved verbatim. Every recorded problem carries one diagnosis bucket or `undetermined`; a cause that cannot be distinguished stays a hypothesis to verify. A small sample locates mechanisms; it never supports a general productivity-gain claim. Owner active time and cost stay unknown unless actually measured."
+}
