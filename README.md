@@ -269,9 +269,47 @@ it must not mutate the real user installation; the separate 5.0 release drill al
 verified an ownership-safe install, Doctor, ZCode uninstall, and reinstall in all six
 real Host homes.
 
+### Start Ultra on a goal
+
+```bash
+# Say what you want; the host model picks the route
+ubp run "fix the CSV export mojibake in the report writer"
+ubp run "build me something to tidy the notes I take in meetings"
+
+# See the exact command and first prompt without starting anything
+ubp run --dry-run "..."
+```
+
+`ubp run` resolves the managed plugin the host would load, sends that plugin's own entry
+instructions plus your goal verbatim, and hands the session to the host. You never pick
+an Ultra mode, phase, or Skill name. Stop and exit stay native. Use
+`ubp run --continue "continue the requested change"` or
+`ubp run --resume <session-id> "finish the interrupted change"` to resume with the
+plugin loaded again. Keep the same working directory and plugin selection.
+
+Useful flags: `--config-dir <dir>` or `--plugin-dir <dir>` to bind a specific managed
+plugin for the session, `--cwd <dir>` to run somewhere else,
+`--host-arg <arg>` to pass a native host flag
+through, and `-` to read the goal from stdin. `ubp run --help` lists them.
+
+Use the interactive terminal form above when the purpose needs an answer. Native
+`--print` mode has no interactive question tool; a batch run is not evidence that
+intake worked. Piped input also does not provide a terminal for later replies.
+The host may ask once to read a reference under the selected plugin directory;
+that is native file access, separate from deciding the product's purpose.
+
+Interactive launch is implemented for Claude Code today; other hosts are reported as
+unsupported by name rather than approximated, and their installation, Doctor, update, and
+uninstall behavior is unchanged.
+
 Use the host's native Skill picker or invocation syntax to select an owner workflow.
-Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. The installed
-frontmatter and metadata keep user routes explicit and model disciplines implicit.
+Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. Discovery in
+ordinary host chat is best-effort; use the unified entry to explicitly enter Ultra
+without naming an internal route. Each workflow verifies its own entry, mode, grant,
+and effects before doing anything. The
+installed frontmatter and metadata keep the two routes you must name yourself — read-only
+`ultra-status` diagnosis and `ultra-delegate` worker topology — owner-invoked, and keep
+model disciplines internal to a workflow.
 
 ### Diagnose, update, and uninstall
 
@@ -309,6 +347,11 @@ not an open-ended Research run. Enter `ultra-research` directly only to establis
 first baseline, or to answer the bounded evidence question recorded by the same active
 Change. Every public transition shows a derived Route Card with its current Mode,
 Position, observable Exit condition, material checkpoint, and Next route.
+
+"Select" below means either naming the route or making the request it exists for: your
+current message is the entry for the work it names, and an ordinary bounded change that
+makes no specification sentence false stays ordinary repository work with no `.ultra/`
+artifacts at all.
 
 1. Select `ultra-init` once. It writes the skeleton, preserves the owner's raw one-line
    request and broad outline in the Project Brief, initializes Git when needed, and

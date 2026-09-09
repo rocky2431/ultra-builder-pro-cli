@@ -1,0 +1,1268 @@
+diff --git a/.ultra/specs/architecture.md b/.ultra/specs/architecture.md
+index 7b31402..00d732d 100644
+--- a/.ultra/specs/architecture.md
++++ b/.ultra/specs/architecture.md
+@@ -157,7 +157,7 @@ the same lenses sequentially when no such surface exists.
+ 
+ | Host | Managed surface | Owner/model policy | Known native boundary |
+ |---|---|---|---|
+-| Claude Code | managed Skill plugin with direct Hooks | frontmatter separates explicit and implicit routes | native permission mode controls delegate tools |
++| Claude Code | managed Skill plugin with direct Hooks | frontmatter separates owner-invocable routes from withheld model discovery | native permission mode controls delegate tools |
+ | Codex | plugin root, marketplace entry, Skills plus `agents/openai.yaml` metadata | `allow_implicit_invocation` expresses role | Hook trust is Host-owned; Doctor reports `host_managed` with `observable: false` instead of requesting repeated user trust |
+ | OpenCode | native JS plugin plus managed Skill directories | descriptions guide selection | no native owner/model routing bit |
+ | Kimi Code | managed plugin registry under `KIMI_CODE_HOME` | native Skill metadata | plugin scope is user-only; unattended tool approval is coarse |
+diff --git a/.ultra/specs/research-distillate.md b/.ultra/specs/research-distillate.md
+index c28be63..f42ed97 100644
+--- a/.ultra/specs/research-distillate.md
++++ b/.ultra/specs/research-distillate.md
+@@ -76,7 +76,7 @@ specifications it binds.
+ | Canonical source | Git blob hash from `git hash-object` | Status |
+ |---|---|---|
+ | `.ultra/specs/product.md` | `776bdc8136d54825248573e52729678649fddd7c` | current worktree after the D1 delegation-safety revision |
+-| `.ultra/specs/architecture.md` | `7b314022165a87f88caabd4e057c4d8b94376347` | current worktree after the D1 delegation-safety revision and the Stage A mid-workflow reminder consecutive-per-session dedup boundary note |
++| `.ultra/specs/architecture.md` | `00d732d4a97386ee43c5efecad8b2301d4b5aa04` | current worktree after the D1 delegation-safety revision, the Stage A mid-workflow reminder consecutive-per-session dedup boundary note, and the Claude row wording that separates owner-invocable routes from withheld model discovery |
+ | `.ultra/specs/discovery.md` | `5d4025e7295f702d83aa04a15b731bdfd2240735` | dated baseline evidence; current navigation is this distillate |
+ 
+ ## End-to-End Trace
+diff --git a/README.md b/README.md
+index db17c84..60bd879 100644
+--- a/README.md
++++ b/README.md
+@@ -269,9 +269,41 @@ it must not mutate the real user installation; the separate 5.0 release drill al
+ verified an ownership-safe install, Doctor, ZCode uninstall, and reinstall in all six
+ real Host homes.
+ 
++### Start Ultra on a goal
++
++```bash
++# Say what you want; the host model picks the route
++ubp run "fix the CSV export mojibake in the report writer"
++ubp run "build me something to tidy the notes I take in meetings"
++
++# See the exact command and first prompt without starting anything
++ubp run --dry-run "..."
++```
++
++`ubp run` resolves the managed plugin the host would load, sends that plugin's own entry
++instructions plus your goal verbatim, and hands the session to the host. You never pick
++an Ultra mode, phase, or Skill name. Stop and exit stay native. Use
++`ubp run --continue "continue the requested change"` or
++`ubp run --resume <session-id> "finish the interrupted change"` to resume with the
++plugin loaded again. Keep the same working directory and plugin selection.
++
++Useful flags: `--config-dir <dir>` or `--plugin-dir <dir>` to bind a specific managed
++plugin for the session, `--cwd <dir>` to run somewhere else,
++`--host-arg <arg>` to pass a native host flag
++through, and `-` to read the goal from stdin. `ubp run --help` lists them.
++
++Interactive launch is implemented for Claude Code today; other hosts are reported as
++unsupported by name rather than approximated, and their installation, Doctor, update, and
++uninstall behavior is unchanged.
++
+ Use the host's native Skill picker or invocation syntax to select an owner workflow.
+-Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. The installed
+-frontmatter and metadata keep user routes explicit and model disciplines implicit.
++Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. Discovery in
++ordinary host chat is best-effort; use the unified entry to explicitly enter Ultra
++without naming an internal route. Each workflow verifies its own entry, mode, grant,
++and effects before doing anything. The
++installed frontmatter and metadata keep the two routes you must name yourself — read-only
++`ultra-status` diagnosis and `ultra-delegate` worker topology — owner-invoked, and keep
++model disciplines internal to a workflow.
+ 
+ ### Diagnose, update, and uninstall
+ 
+@@ -310,6 +342,11 @@ first baseline, or to answer the bounded evidence question recorded by the same
+ Change. Every public transition shows a derived Route Card with its current Mode,
+ Position, observable Exit condition, material checkpoint, and Next route.
+ 
++"Select" below means either naming the route or making the request it exists for: your
++current message is the entry for the work it names, and an ordinary bounded change that
++makes no specification sentence false stays ordinary repository work with no `.ultra/`
++artifacts at all.
++
+ 1. Select `ultra-init` once. It writes the skeleton, preserves the owner's raw one-line
+    request and broad outline in the Project Brief, initializes Git when needed, and
+    stops before product research.
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index faa2982..511929c 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -244,9 +244,37 @@ node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to zcode \
+ 5.0 release drill 还在六个真实 Host home 中验证了 ownership-safe install、Doctor、
+ ZCode uninstall 与 reinstall。
+ 
++### 用一句目标启动 Ultra
++
++```bash
++# 直接说要什么，路由由宿主模型自己选
++ubp run "把报表导出的 CSV 中文乱码修好"
++ubp run "帮我做个能整理会议记录的小东西"
++
++# 只看将要执行的命令和首条 prompt，不真正启动
++ubp run --dry-run "..."
++```
++
++`ubp run` 会解析宿主将要加载的受管插件，把该插件自己的入口指令加上**原样未改**的目标
++交给宿主会话，然后把会话交回宿主。你不需要选择任何 Ultra mode、阶段或 Skill 名称。
++停止与退出保持原生。用 `ubp run --continue "继续刚才的改动"` 或
++`ubp run --resume <session-id> "完成刚才中断的改动"` 续接，同时重新加载插件；
++保留同一工作目录和插件选择。
++
++常用参数：`--config-dir <dir>` 或 `--plugin-dir <dir>` 为本次会话绑定指定的受管插件，
++`--cwd <dir>` 换工作目录，
++`--host-arg <arg>` 透传一个原生宿主参数，`-` 从 stdin 读取目标。`ubp run --help` 列出全部。
++
++交互式启动目前只实现了 Claude Code；其他宿主会按名称明确报告为暂不支持，而不是近似冒充，
++它们的安装、Doctor、更新与卸载行为不变。
++
+ 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间
+-的条目，例如 `$ultra-builder-pro:ultra-init`。安装后的 frontmatter 和 metadata 会
+-保持用户 route 显式、模型 discipline 隐式。
++的条目，例如 `$ultra-builder-pro:ultra-init`。普通宿主聊天的自动发现属于尽力支持；
++使用统一入口即可明确进入 Ultra，无须点名内部 route。工作流随后自行核对入口、
++Mode、Grant 和效果再动手。
++安装后的 frontmatter 和 metadata 只把必须由你点名的两个 route 保持为所有者调用——
++只读的 `ultra-status` 诊断与 `ultra-delegate` worker 拓扑——并把模型 discipline
++保持在工作流内部。
+ 
+ ### 诊断、更新和卸载
+ 
+@@ -281,6 +309,10 @@ Kimi Code、Grok Build 和 ZCode 当前只提供用户级插件，所以 `--loca
+ `ultra-research`。每次 public transition 都先展示派生的 Route Card，明确当前 Mode、
+ Position、可观察 Exit condition、material checkpoint 和 Next route。
+ 
++下文的“选择”既指点名该 route，也指直接提出它存在的那件事：你当前的消息就是它所指
++工作的入口；而不会让任何规格句子失真的普通有界改动仍属普通仓库工作，不产生任何
++`.ultra/` 产物。
++
+ 1. 选择一次 `ultra-init`。它写入骨架，在 Project Brief 中保留所有者原始的一行请求
+    和大致轮廓，在需要时初始化 Git，然后停止，不会开始产品 Research。
+ 2. 选择 `ultra-research`，把 brief 转化为首个已接受的 North Star、共享词汇以及有
+diff --git a/adapters/_shared/runtime-assets.cjs b/adapters/_shared/runtime-assets.cjs
+index a17710b..fcd4f97 100644
+--- a/adapters/_shared/runtime-assets.cjs
++++ b/adapters/_shared/runtime-assets.cjs
+@@ -75,6 +75,15 @@ const PUBLIC_SKILL_INVOCATION_MODES = Object.freeze({
+ const GRANT_CONTINUABLE_SKILLS = Object.freeze(USER_INVOKED_SKILLS.filter((name) => (
+   Object.values(PUBLIC_SKILL_INVOCATION_MODES[name]).includes('grant-continuable')
+ )));
++/**
++ * Coarse Host metadata is discovery, not authority. OpenCode and ZCode expose no routing
++ * bit at all, so every public mode already proves its own entry inside the Skill body.
++ * The bit is withheld only where the product requires the Owner to name the route: the
++ * read-only Status router and Delegate's owner-authorized worker topology. Every other
++ * public Skill stays discoverable, including `ultra-init` before `.ultra/` exists.
++ * Native discovery is best-effort; `ubp run` explicitly enters Ultra before routing.
++ */
++const HOST_DISCOVERY_WITHHELD_SKILLS = Object.freeze(['ultra-delegate', 'ultra-status']);
+ const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
+ 
+ const WORKFLOW_HOOK_FILES = Object.freeze([
+@@ -112,7 +121,7 @@ function skillPolicy(name) {
+   const invocationClasses = [...new Set(Object.values(modes))];
+   return {
+     userInvocable: true,
+-    allowImplicitInvocation: invocationClasses.includes('grant-continuable'),
++    allowImplicitInvocation: !HOST_DISCOVERY_WITHHELD_SKILLS.includes(name),
+     invocationClasses,
+     modes,
+   };
+@@ -120,6 +129,7 @@ function skillPolicy(name) {
+ 
+ module.exports = {
+   GRANT_CONTINUABLE_SKILLS,
++  HOST_DISCOVERY_WITHHELD_SKILLS,
+   USER_INVOKED_SKILLS,
+   MODEL_INVOKED_SKILLS,
+   PUBLIC_SKILL_INVOCATION_MODES,
+diff --git a/adapters/_shared/tests/runtime-assets.test.cjs b/adapters/_shared/tests/runtime-assets.test.cjs
+index 2567eb2..0167d60 100644
+--- a/adapters/_shared/tests/runtime-assets.test.cjs
++++ b/adapters/_shared/tests/runtime-assets.test.cjs
+@@ -35,12 +35,14 @@ const CONTINUABLE = [
+   'ultra-test',
+   'ultra-deliver',
+ ];
++const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
+ 
+ test('runtime asset manifest has the exact packaged role boundary', () => {
+   assert.deepEqual(assets.USER_INVOKED_SKILLS, USER);
+   assert.deepEqual(assets.MODEL_INVOKED_SKILLS, MODEL);
+   assert.deepEqual(assets.ROUTER_SKILLS, ROUTER);
+   assert.deepEqual(assets.GRANT_CONTINUABLE_SKILLS, CONTINUABLE);
++  assert.deepEqual(assets.HOST_DISCOVERY_WITHHELD_SKILLS, DISCOVERY_WITHHELD);
+   assert.deepEqual(assets.SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
+ 
+   for (const runtime of assets.SUPPORTED_RUNTIMES) {
+@@ -55,7 +57,7 @@ test('host invocation policy admits only envelope-bounded workflow continuation'
+     const invocationClasses = [...new Set(Object.values(modes))];
+     assert.deepEqual(assets.skillPolicy(name), {
+       userInvocable: true,
+-      allowImplicitInvocation: CONTINUABLE.includes(name),
++      allowImplicitInvocation: !DISCOVERY_WITHHELD.includes(name),
+       invocationClasses,
+       modes,
+     }, name);
+diff --git a/bin/install.js b/bin/install.js
+index 3378229..dec0ec8 100755
+--- a/bin/install.js
++++ b/bin/install.js
+@@ -65,6 +65,11 @@ function printBanner() {
+ 
+ function printHelp() {
+   console.log(`  ${paint('yellow', 'Usage:')} npx ultra-builder-pro-cli [options]
++          ${paint('cyan', 'ubp run')} "<goal in your own words>"   start Ultra on a goal
++
++  ${paint('yellow', 'Work:')}
++    ${paint('cyan', 'run')}                start a native host session on a natural-language goal;
++                       the host model picks the route (see ${paint('cyan', 'ubp run --help')})
+ 
+   ${paint('yellow', 'Runtime selection (pick ≥1, or --all):')}
+     ${paint('cyan', '--claude')}           Claude Code
+@@ -201,6 +206,18 @@ async function main() {
+     process.stdout.write(`${JSON.stringify(handle(process.argv.slice(2)))}\n`);
+     return;
+   }
++  if (process.argv[2] === 'run') {
++    const { handle, RunError } = require('./run.cjs');
++    try {
++      process.exitCode = handle(process.argv.slice(2), { isTTY: process.stdin.isTTY });
++    } catch (error) {
++      if (!(error instanceof RunError)) throw error;
++      console.error(`  ${paint('red', '✗')} ${error.message}`);
++      if (error.hint) console.error(`  ${paint('dim', 'Try:')} ${error.hint}`);
++      process.exitCode = 1;
++    }
++    return;
++  }
+   const { runtimes, flags } = parseArgs(process.argv);
+ 
+   if (flags.version) {
+diff --git a/bin/run.cjs b/bin/run.cjs
+new file mode 100644
+index 0000000..4d21b3c
+--- /dev/null
++++ b/bin/run.cjs
+@@ -0,0 +1,354 @@
++'use strict';
++
++/**
++ * `ubp run "<goal>"` — the unified Ultra entry.
++ *
++ * The owner supplies a natural-language goal and, optionally, a host. This command
++ * resolves the managed plugin that host would load, renders the packaged entry
++ * instructions for it, and starts the host's own interactive session with those
++ * instructions plus the goal verbatim. Routing, questions, and execution stay with the
++ * host model and the product's Skills; this file owns no workflow state and makes no
++ * completion claim of its own.
++ */
++
++const fs = require('node:fs');
++const { constants } = require('node:os');
++const path = require('node:path');
++const { spawnSync } = require('node:child_process');
++
++const pkg = require('../package.json');
++const claudeAdapter = require('../adapters/claude.js');
++const { managedMetadata } = require('../adapters/_shared/file-ops.cjs');
++const { validateConfigDir } = require('../adapters/_shared/validate.cjs');
++
++const ENTRY_TEMPLATE = path.join(__dirname, 'unified-entry.md');
++const PLACEHOLDERS = Object.freeze(['plugin_version', 'plugin_root', 'route_contract']);
++
++/**
++ * Interactive host surfaces this command can actually start. Each entry is limited to
++ * what the installed host CLI documents; a host is absent here until its interactive
++ * launch is substantiated, and absence is reported rather than approximated.
++ */
++const HOSTS = Object.freeze({
++  claude: Object.freeze({
++    binary: 'claude',
++    adapter: claudeAdapter,
++    // `claude [options] [prompt]` starts an interactive session with that first prompt;
++    // `--plugin-dir` loads a plugin directory for the session only.
++    argv: ({ pluginRoot, prompt, hostArgs }) => [
++      '--plugin-dir', pluginRoot,
++      ...hostArgs,
++      prompt,
++    ],
++    resume: 'ubp run --continue "<follow-up>" (keep the same plugin and working directory)',
++  }),
++});
++
++class RunError extends Error {
++  constructor(message, hint) {
++    super(message);
++    this.name = 'RunError';
++    this.hint = hint || null;
++  }
++}
++
++function usage() {
++  return `  Usage: ubp run [options] "<goal in your own words>"
++
++  Starts Ultra in a native host session with your goal. The host model picks the
++  route; you never choose an Ultra mode or Skill.
++
++  Options:
++    --host <name>        interactive host to start (default: claude)
++    -c, --config-dir <dir>
++                         find the managed plugin under this config directory
++    --plugin-dir <dir>   use this managed plugin directory
++    --continue          continue the last native session in the working directory
++    --resume <id>       resume a named native session, loading the same plugin
++    --cwd <dir>          working directory for the session (default: current)
++    --host-arg <arg>     extra native host argument (repeatable)
++    --dry-run            print the exact command and prompt without starting it
++    --json               machine-readable output (dry run only)
++    -h, --help           show this help
++    --                   everything after this is part of the goal
++
++  Examples:
++    ubp run "fix the CSV export mojibake in the report writer"
++    ubp run --config-dir ./.ubp-isolated "build me something to tidy my notes"
++    echo "$GOAL" | ubp run -
++    ubp run --dry-run --json "..." | jq .
++
++  Stop and exit stay native. Continue through this command with --continue or
++  --resume <id>, keeping the same --config-dir / --plugin-dir and --cwd options.
++`;
++}
++
++function parseRunArgs(input) {
++  const args = input.slice();
++  const options = {
++    host: 'claude',
++    configDir: null,
++    pluginDir: null,
++    continue: false,
++    resume: null,
++    cwd: null,
++    hostArgs: [],
++    dryRun: false,
++    json: false,
++    help: false,
++    goalFromStdin: false,
++  };
++  const goalWords = [];
++  let goalOnly = false;
++
++  const requireValue = (flag, value) => {
++    if (value === undefined || value === null) {
++      throw new RunError(`${flag} requires a value`);
++    }
++    return value;
++  };
++
++  for (let i = 0; i < args.length; i++) {
++    const arg = args[i];
++    if (goalOnly) { goalWords.push(arg); continue; }
++    switch (arg) {
++      case '--': goalOnly = true; break;
++      case '-h': case '--help': options.help = true; break;
++      case '--dry-run': options.dryRun = true; break;
++      case '--json': options.json = true; break;
++      case '--continue': options.continue = true; break;
++      case '--resume': options.resume = requireValue('--resume', args[++i]); break;
++      case '--host': options.host = requireValue('--host', args[++i]); break;
++      case '--cwd': options.cwd = requireValue('--cwd', args[++i]); break;
++      case '--plugin-dir': options.pluginDir = requireValue('--plugin-dir', args[++i]); break;
++      case '-c': case '--config-dir': {
++        options.configDir = requireValue('--config-dir', args[++i]);
++        const verdict = validateConfigDir(options.configDir);
++        if (!verdict.ok) throw new RunError(verdict.error);
++        break;
++      }
++      case '--host-arg':
++        options.hostArgs.push(requireValue('--host-arg', args[++i]));
++        break;
++      case '-':
++        options.goalFromStdin = true;
++        break;
++      default:
++        if (arg.startsWith('--') && arg.includes('=')) {
++          const [flag, ...rest] = arg.split('=');
++          args.splice(i, 1, flag, rest.join('='));
++          i -= 1;
++          break;
++        }
++        if (arg.startsWith('-') && arg !== '-') {
++          throw new RunError(`unknown option for ubp run: ${arg}`, 'ubp run --help');
++        }
++        goalWords.push(arg);
++    }
++  }
++
++  if (options.json && !options.dryRun) {
++    throw new RunError('--json is available only with --dry-run');
++  }
++  if (options.pluginDir && options.configDir) {
++    throw new RunError('use either --plugin-dir or --config-dir, not both');
++  }
++  if (options.continue && options.resume !== null) {
++    throw new RunError('use either --continue or --resume, not both');
++  }
++  if (options.continue) options.hostArgs.push('--continue');
++  if (options.resume !== null) options.hostArgs.push('--resume', options.resume);
++  options.goal = goalWords.join(' ');
++  return options;
++}
++
++function readStdin(stdin) {
++  if (typeof stdin === 'string') return stdin;
++  try {
++    return fs.readFileSync(0, 'utf8');
++  } catch {
++    return '';
++  }
++}
++
++function resolveGoal(options, io) {
++  const wantsStdin = options.goalFromStdin || (!options.goal && io.isTTY !== true);
++  const raw = options.goal || (wantsStdin ? readStdin(io.stdin) : '');
++  // Only the trailing newline a shell or pipe adds is removed; the owner's text,
++  // including its internal newlines and spacing, is passed through unchanged.
++  const goal = raw.replace(/\r?\n$/u, '');
++  if (!goal.trim()) {
++    throw new RunError(
++      'a goal is required',
++      'ubp run "what you want built or fixed, in your own words"',
++    );
++  }
++  return goal;
++}
++
++function resolvePlugin(options) {
++  const host = HOSTS[options.host];
++  const explicit = options.pluginDir
++    ? path.resolve(options.pluginDir)
++    : host.adapter.resolvePluginRoot({
++      configDir: options.configDir ? path.resolve(options.configDir) : undefined,
++      scope: 'global',
++    });
++  const manifestFile = path.join(explicit, '.claude-plugin', 'plugin.json');
++  if (!fs.existsSync(manifestFile)) {
++    throw new RunError(
++      `no managed Ultra plugin at ${explicit}`,
++      `ubp --${options.host} --global   (or pass --config-dir / --plugin-dir)`,
++    );
++  }
++  let manifest;
++  try {
++    manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
++  } catch (error) {
++    throw new RunError(`unreadable plugin manifest at ${manifestFile}: ${error.message}`);
++  }
++  const managed = managedMetadata(explicit);
++  if (manifest.name !== host.adapter.PLUGIN_NAME) {
++    throw new RunError(
++      `${manifestFile} declares plugin "${manifest.name}", not ${host.adapter.PLUGIN_NAME}`,
++    );
++  }
++  return {
++    root: explicit,
++    version: manifest.version || 'unknown',
++    managedBy: managed?.adapter || null,
++    routeContract: path.join(
++      explicit, 'skills', 'ultra-status', 'references', 'route-contract.md',
++    ),
++  };
++}
++
++function renderEntryInstructions(plugin, templateFile = ENTRY_TEMPLATE) {
++  let template;
++  try {
++    template = fs.readFileSync(templateFile, 'utf8');
++  } catch (error) {
++    throw new RunError(`missing packaged entry instructions: ${error.message}`);
++  }
++  const values = {
++    plugin_version: plugin.version,
++    plugin_root: plugin.root,
++    route_contract: plugin.routeContract,
++  };
++  let rendered = template.replace(/^<!--[\s\S]*?-->\s*/u, '');
++  for (const key of PLACEHOLDERS) {
++    if (!rendered.includes(`{{${key}}}`)) {
++      throw new RunError(`packaged entry instructions lost the {{${key}}} anchor`);
++    }
++    rendered = rendered.split(`{{${key}}}`).join(values[key]);
++  }
++  const leftover = rendered.match(/\{\{[a-z_]+\}\}/u);
++  if (leftover) {
++    throw new RunError(`packaged entry instructions kept an unrendered ${leftover[0]}`);
++  }
++  return rendered.trim();
++}
++
++function buildLaunch(options, io = {}) {
++  const host = HOSTS[options.host];
++  if (!host) {
++    throw new RunError(
++      `ubp run cannot start "${options.host}" yet`,
++      `supported now: ${Object.keys(HOSTS).join(', ')}; install any host with ubp --<host>`,
++    );
++  }
++  const goal = resolveGoal(options, io);
++  // The plugin is always resolved and verified: the entry instructions name its real
++  // path and version, and refusing beats starting a session that has no Ultra in it.
++  const plugin = resolvePlugin(options);
++  const prompt = `${renderEntryInstructions(plugin)}\n\n${goal}`;
++  return {
++    host: options.host,
++    command: host.binary,
++    args: host.argv({
++      pluginRoot: plugin.root,
++      prompt,
++      hostArgs: options.hostArgs,
++    }),
++    cwd: options.cwd ? path.resolve(options.cwd) : process.cwd(),
++    plugin,
++    goal,
++    prompt,
++    resume: host.resume,
++  };
++}
++
++function describe(launch) {
++  const quoted = launch.args
++    .map((arg) => (/^[\w./:@=-]+$/u.test(arg) ? arg : `'${arg.replace(/'/gu, "'\\''")}'`))
++    .join(' ');
++  return [
++    `  Host:     ${launch.host} (${launch.command})`,
++    `  Plugin:   ${launch.plugin.root} — Ultra Builder Pro ${launch.plugin.version}`,
++    `  Cwd:      ${launch.cwd}`,
++    `  Resume:   ${launch.resume}`,
++    '',
++    `  ${launch.command} ${quoted}`,
++    '',
++    '  Prompt:',
++    launch.prompt.split('\n').map((line) => `    ${line}`).join('\n'),
++    '',
++  ].join('\n');
++}
++
++function handle(argv, io = {}) {
++  const options = parseRunArgs(argv.slice(1));
++  if (options.help) {
++    process.stdout.write(usage());
++    return 0;
++  }
++  const launch = buildLaunch(options, io);
++  if (options.dryRun) {
++    process.stdout.write(options.json
++      ? `${JSON.stringify({
++        host: launch.host,
++        command: launch.command,
++        args: launch.args,
++        cwd: launch.cwd,
++        plugin: { root: launch.plugin.root, version: launch.plugin.version },
++        goal: launch.goal,
++        prompt: launch.prompt,
++        resume: launch.resume,
++        version: pkg.version,
++      }, null, 2)}\n`
++      : describe(launch));
++    return 0;
++  }
++  const result = spawnSync(launch.command, launch.args, {
++    cwd: launch.cwd,
++    stdio: 'inherit',
++  });
++  if (result.error) {
++    if (result.error.code === 'ENOENT') {
++      throw new RunError(
++        `${launch.command} is not on PATH`,
++        `install the ${launch.host} CLI, or pass --host with a supported host`,
++      );
++    }
++    throw new RunError(`${launch.command} could not start: ${result.error.message}`);
++  }
++  if (result.signal) {
++    process.stderr.write(`  ${launch.command} ended on signal ${result.signal}\n`);
++    return 128 + (constants.signals[result.signal] || 1);
++  }
++  return result.status === null ? 1 : result.status;
++}
++
++module.exports = {
++  ENTRY_TEMPLATE,
++  HOSTS,
++  RunError,
++  buildLaunch,
++  describe,
++  handle,
++  parseRunArgs,
++  renderEntryInstructions,
++  resolveGoal,
++  resolvePlugin,
++  usage,
++};
+diff --git a/bin/unified-entry.md b/bin/unified-entry.md
+new file mode 100644
+index 0000000..5768f56
+--- /dev/null
++++ b/bin/unified-entry.md
+@@ -0,0 +1,34 @@
++<!--
++Unified Ultra entry instructions. `ubp run` renders this file and sends it as the first
++message of a native host session, followed by the owner's request verbatim. It selects no
++route, executes nothing, and stores no state: the host model owns the routing decision and
++the product's own Skills own the workflows.
++-->
++
++Ultra Builder Pro {{plugin_version}} is loaded in this session from the plugin at
++{{plugin_root}}. Its Skills and the route contract at {{route_contract}} are the
++product-owned route surface for this work.
++
++The owner started this session through the Ultra entry command, so entering Ultra is
++already decided. Choose the proportionate route yourself and never ask the owner to pick
++an Ultra mode, phase, or Skill name. Read the route contract before your first write.
++
++Route by what the request actually is:
++
++- A clear, bounded change to code that already exists here — investigate, reproduce, fix,
++  and verify it as ordinary work, and create no Ultra artifacts it does not need.
++- A new product whose intended use is not settled — settle the material purpose first
++  (who it is for, what it must make possible, which result counts as working), then build
++  and verify a usable first version. The goal is the working artifact, not only a record
++  of what was asked.
++- Real consequential uncertainty about a product commitment — establish the evidence
++  before committing to it.
++
++The owner's answers and this repository are the sources of fact. Ask about the owner's own
++material — which existing real source of their data to use, an input you cannot observe
++anywhere, any access, integration, or write outside this project — and never invent it or
++assume permission you were not given. Facts this repository can answer are never
++questions. After those answers, continue the work the owner's request already authorizes
++instead of stopping at an internal approval.
++
++The owner's request follows verbatim.
+diff --git a/docs/PLUGIN-ISOLATION-CONTRACT.md b/docs/PLUGIN-ISOLATION-CONTRACT.md
+index f47fb05..2cb3df2 100644
+--- a/docs/PLUGIN-ISOLATION-CONTRACT.md
++++ b/docs/PLUGIN-ISOLATION-CONTRACT.md
+@@ -21,6 +21,10 @@ For one release cycle the package also owns thin `ubp delegate` launcher/worker
+ compatibility imports. They execute the Skill-local implementation and contain no
+ forked behavior.
+ 
++The package's `ubp run` command is a foreground entry into a native host session. It
++loads the selected installed plugin and supplies the packaged entry instructions with
++the owner's goal. It owns no background process, workflow state, or semantic routing.
++
+ ## Surfaces Ultra does not own
+ 
+ Ultra must not create or rewrite:
+@@ -71,7 +75,10 @@ the owner.
+ ## Activation
+ 
+ Public Skill modes are `explicit-entry`, `grant-continuable`, or read-only `router`.
+-Explicit-entry modes activate only through the Host's owner-facing Skill surface.
++An owner may enter through `ubp run` with a natural-language goal or through the Host's
++owner-facing Skill surface. The host model selects the internal route covered by that
++request; ordinary unselected host chat discovery is best-effort. Explicit entry does
++not authorize unrelated work or replace a mode's required owner decision.
+ Grant-continuable modes may be model-selected only after the loaded Skill verifies the
+ same active Change, valid grant, allowed effects, and material checkpoints. A router may
+ diagnose read-only state only on explicit owner invocation and creates no continuation
+diff --git a/docs/RUNTIME-COMPAT-MATRIX.md b/docs/RUNTIME-COMPAT-MATRIX.md
+index a0a8cca..aaa2599 100644
+--- a/docs/RUNTIME-COMPAT-MATRIX.md
++++ b/docs/RUNTIME-COMPAT-MATRIX.md
+@@ -42,7 +42,7 @@ isolated user-scope installation test.
+ 
+ | Invocation class | Owner can route directly | Model can select implicitly |
+ |---|---:|---:|
+-| `explicit-entry` public mode | yes | no |
++| `explicit-entry` public mode | yes | no; the Owner's current request naming that work is the entry |
+ | `grant-continuable` public mode | yes | only under a valid Execution Grant covering that mode |
+ | five `model-discipline` Skills | no | as an internal method of a covered workflow |
+ | `ultra-status` `router` modes | yes | no; other Skills derive their cards directly from the shared contract |
+@@ -57,10 +57,17 @@ are grant-continuable. Every public mode remains directly owner-invocable.
+ Claude and Grok receive `user-invocable` / `disable-model-invocation` frontmatter.
+ Kimi receives its native equivalent. Codex receives
+ `policy.allow_implicit_invocation` in `agents/openai.yaml`. Those Hosts expose only a
+-coarse Skill-level bit, so a Skill with any grant-continuable mode is discoverable to the
+-model; the loaded Skill must still verify the selected mode, same active `change_id`,
+-grant, effects, and material checkpoints. In particular, the coarse bit does not permit
+-baseline Research, Change intake/acceptance, or Deliver finalization.
++coarse Skill-level bit, and that bit is discovery, not authority: it is withheld only for
++`HOST_DISCOVERY_WITHHELD_SKILLS` — Status and Delegate, the two routes the product
++requires the Owner to name explicitly. Every other public Skill is discoverable,
++including the `ultra-init` entry route before `.ultra/` exists. Ordinary host-chat
++discovery is best-effort; `ubp run` explicitly enters Ultra and lets the host model
++select the route. Its foreground launch currently supports Claude Code; other hosts'
++installation and Skill surfaces are unchanged. The loaded Skill must still verify the selected mode, same
++active `change_id`, grant, effects, and material checkpoints. In particular, the coarse
++bit does not permit baseline Research, Change intake/acceptance, or Deliver finalization
++without the Owner's current request naming that work, and it never turns an installation
++or a file found on disk into activation.
+ 
+ OpenCode uses portable source frontmatter and native discovery, but its current Skill
+ schema has no equivalent owner/model routing bit: all fourteen Skills remain
+diff --git a/docs/SKILL-AUTHORING.md b/docs/SKILL-AUTHORING.md
+index 1bfde74..8f7e2a1 100644
+--- a/docs/SKILL-AUTHORING.md
++++ b/docs/SKILL-AUTHORING.md
+@@ -35,6 +35,16 @@ ZCode-native plugin metadata.
+ Do not put host paths, dependency declarations, plugin policy, or release history in
+ source frontmatter.
+ 
++During native Skill discovery, the description is shown before the body is loaded.
++Selection remains model-owned and best-effort. State the situation as the owner's request and the
++value in what changes for them; a description written in Ultra's artifact vocabulary can
++only match a reader who already works in Ultra. This binds hardest on a route reachable
++with no `.ultra/` record, whose opening sentence is also the Codex short description: it
++must be legible to a model that has never seen an Ultra artifact, and it must say what
++the route does for the owner before naming what it writes. Name the autonomy it does not
++take as well — a route that would be wrong for a clear bounded change says so — and never
++promise a behavior the body does not carry out.
++
+ ## Required shape
+ 
+ Every Skill has one outcome-led title and these semantic sections:
+diff --git a/skills/ultra-change/SKILL.md b/skills/ultra-change/SKILL.md
+index 392c770..a4f4e64 100644
+--- a/skills/ultra-change/SKILL.md
++++ b/skills/ultra-change/SKILL.md
+@@ -55,6 +55,7 @@ valid grant only the non-material `reconcile` mode may continue implicitly.
+ | One active Change needs its draft, Research evidence, or accepted boundary reconciled | Here — update the same `change_id` |
+ | A separate request arrives while one Change remains active | Do not create a second Change; finish or deliver the current one, abandon it with owner authority, or explicitly fold the request into its boundary |
+ | A task is in progress and the specification turns out not to match reality | Not here — the dual-write path inside `ultra-dev` |
++| The request starts a new product and the codebase has no `.ultra/` project record | Not here — `ultra-init/create` captures the raw outline and its unsettled intended use first |
+ | The change makes no sentence in the specifications false | Outside the Ultra lifecycle — use ordinary repository TDD and verification |
+ 
+ A request that arrives while one Change remains active is routed by that table, but its
+diff --git a/skills/ultra-init/SKILL.md b/skills/ultra-init/SKILL.md
+index 1570359..a3420eb 100644
+--- a/skills/ultra-init/SKILL.md
++++ b/skills/ultra-init/SKILL.md
+@@ -1,11 +1,13 @@
+ ---
+ name: ultra-init
+-description: Create or recover Ultra's repository-local skeleton and raw Project Brief without performing product research. Use when `.ultra` is absent or partial in a new or existing codebase and later workflows need stable file paths, preserved authority, and Git.
++description: Start a new app, tool, or script the codebase does not have yet. Use whenever someone asks for one from a rough need, however small or obvious the request looks — enter here first, then decide inside whether their stated need is already enough to build from or which material answers come first, keep the owner's own words, create the project's file skeleton and raw Project Brief, and hand back to ordinary implementation. Also use it to restore that project record when it is partial, uncertain, or unreadable, preserving accepted authority byte-for-byte. Not for a clear bounded change to existing code, and it performs no product research.
+ ---
+ 
+-# Create the skeleton and capture only the initial project outline
++# Settle the purpose first, then capture only the initial project outline
+ 
+-Initialization establishes places for later authority and records raw owner intake. It
++Initialization exists so that what gets built is what the owner actually wanted: it
++settles the few purposes that would otherwise be guessed, records that intake in the
++owner's own words, and establishes the places later authority will use. It
+ does not validate the problem, establish a North Star, build a product or architecture
+ baseline, settle domain language, choose a Change, or start another public workflow.
+ 
+@@ -20,6 +22,27 @@ Follow `../ultra-status/references/route-contract.md`. Derive a Route Card befor
+ first write and at the exit or any repair stop. Init never continues into Research on
+ its own, and its `Position` reports observed files rather than semantic progress.
+ 
++## Whether this skill applies at all
++
++| Situation | Where it goes |
++|---|---|
++| Someone asks for a new app, tool, or script this codebase does not have yet | Here — `create`, and settle the purpose first if it would change what you build |
++| The skeleton is partial, uncertain, or unreadable | Here — `recover` it |
++| An ordinary bounded change in an existing codebase, already clear enough to reproduce and verify | Not here — ordinary repository investigation, TDD, and verification create no `.ultra/` |
++| A one-off snippet or throwaway command nobody comes back to | Not here — write it, run it, hand it over, and create no `.ultra/` |
++
++Whether the stated need is already enough to build from is this Skill's decision, not a
++precondition for reaching it. Enter on the plain request, look at what the request and
++the repository already answer, and then either ask the few answers that would change what
++you build or record what was already given and continue. A broad complaint is a need, not
++a settled purpose; presuming one is how the wrong product gets built.
++
++A coarse Host discovery bit never authorizes this route. A model-selected entry is valid
++only when the owner's current request asks for that work, and that request is itself the
++owner entry for it — the route needs no separate confirmation. An installation, a
++historical file, or a skeleton observed on disk is never that request: report the
++observation and stop.
++
+ ## Before you start
+ 
+ 1. If `.ultra/changes/active/` exists, resolve at most one active `change_id`. Read
+@@ -61,11 +84,23 @@ Follow `../ultra-grilling/SKILL.md` with only these required fields:
+ | Constraints, materials, and decisions the owner already volunteered | `## Explicit Inputs` |
+ | Questions already visible but requiring evidence or deeper decisions | `## Open Questions for Research` |
+ 
+-Ask only enough to distinguish materially different outlines. If an answer would define
+-a problem, actor evidence, desired outcome, success measure, product strategy, accepted
+-constraint, domain term, requirement, or architecture, record it as an input or open
+-question and stop drilling. Research owns that maturation and must not re-ask an answer
+-unless evidence conflicts with it.
++Ask only enough to distinguish materially different outlines. Ask before building, not
++after: an answer that would change what you build — who it is for, what it must make
++possible later, which result counts as working — is worth one question now, and an
++unstated purpose is not a detail that implementation can settle on the owner's behalf.
++Where this project's own files live, which language and shape to use, and the rest of its
++internal design are inside the boundary in
++`../ultra-think/references/autonomy-boundary.md` — decide and proceed. What stays the
++owner's is their own material: which existing real source of their data to use, an input
++you cannot observe anywhere, and any access, integration, or write outside this project.
++Record an unknown source or missing material as unknown and ask for it once; it is never
++assumed and never turned into permission you were not given. Facts the repository can
++answer are never questions. Do not name the owner's main difficulty for them.
++
++If an answer would define a problem, actor evidence, desired outcome, success measure,
++product strategy, accepted constraint, domain term, requirement, or architecture, record
++it as an input or open question and stop drilling. Research owns that maturation and must
++not re-ask an answer unless evidence conflicts with it.
+ 
+ ## Write and recover the skeleton
+ 
+@@ -135,9 +170,16 @@ the host cannot ask, leave unresolved fields explicit and recommend resuming Ini
+ host that can; do not infer intent from the directory name. Recommend Research after a
+ usable brief exists, but do not invoke it.
+ 
++Say what that recommendation is for: `ultra-research/baseline` decides the consequential
++product commitments the brief left open, and when the settled outline is already small
++enough to build and verify directly, the owner's current request governs whether that
++baseline or the ordinary verified work comes next. Neither Init nor its recommendation
++turns a raw outline into an accepted North Star.
++
+ ## References
+ 
+ - `../ultra-grilling/SKILL.md` — read before the first missing brief field.
+ - `references/brownfield-adoption.md` — read when maintained behavior already exists.
+ - `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
+-- `../ultra-think/references/autonomy-boundary.md` — read before replacing authority.
++- `../ultra-think/references/autonomy-boundary.md` — read before replacing authority or
++  reaching outside this project for the owner's own material.
+diff --git a/skills/ultra-status/references/route-contract.md b/skills/ultra-status/references/route-contract.md
+index 35f7658..92cca06 100644
+--- a/skills/ultra-status/references/route-contract.md
++++ b/skills/ultra-status/references/route-contract.md
+@@ -117,6 +117,15 @@ never permits an explicit-entry mode. Without a covering grant, stop with a Rout
+ and recommend the exact explicit route; never invoke another public Skill merely because
+ its files appear ready.
+ 
++Discovery is not authority, and withheld discovery is not a guard. Two Hosts expose no
++routing bit at all, so a public route is discoverable to the model wherever the Owner
++could reach it in one request — including a route whose modes are all `explicit-entry`.
++Loading such a Skill only lets it check its own entry: it proceeds when the Owner's
++current request names that work, and otherwise reports what it observed and stops. The
++bit stays off only where the product requires the Owner to name the route explicitly —
++read-only Status diagnosis and Delegate's owner-authorized worker topology — and on a
++Host without the bit those two routes rest on the same in-Skill check.
++
+ A current explicit owner request is Owner entry for the work it names even when an
+ active Change, an expired grant, or an unfinished closeout exists: those are older
+ obligations of the older work, reported in `Not done` and gated only at their own
+diff --git a/tests/route-contract.test.cjs b/tests/route-contract.test.cjs
+index 3a9ba3b..0134836 100644
+--- a/tests/route-contract.test.cjs
++++ b/tests/route-contract.test.cjs
+@@ -54,6 +54,10 @@ const PUBLIC_MODES = Object.freeze({
+   },
+ });
+ 
++// Coarse Host discovery stays off only for the routes the product requires the Owner to
++// name: read-only Status diagnosis and owner-authorized Delegate topology.
++const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
++
+ function read(relative) {
+   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
+ }
+@@ -144,7 +148,7 @@ test('runtime invocation policy preserves mode distinctions behind coarse Host m
+     const invocationClasses = [...new Set(Object.values(modes))];
+     assert.deepEqual(policy, {
+       userInvocable: true,
+-      allowImplicitInvocation: invocationClasses.includes('grant-continuable'),
++      allowImplicitInvocation: !DISCOVERY_WITHHELD.includes(name),
+       invocationClasses,
+       modes,
+     }, name);
+@@ -162,6 +166,23 @@ test('runtime invocation policy preserves mode distinctions behind coarse Host m
+   assert.equal(assets.skillPolicy('ultra-status').allowImplicitInvocation, false);
+ });
+ 
++test('Init permits native discovery without granting authority', () => {
++  assert.deepEqual(assets.HOST_DISCOVERY_WITHHELD_SKILLS, DISCOVERY_WITHHELD);
++
++  // This checks metadata, not whether a host model will actually select the Skill.
++  const init = assets.skillPolicy('ultra-init');
++  assert.deepEqual(init.invocationClasses, ['explicit-entry']);
++  assert.equal(init.allowImplicitInvocation, true);
++  assert.equal(assets.skillPolicy('ultra-delegate').allowImplicitInvocation, false);
++  assert.equal(assets.skillPolicy('ultra-status').allowImplicitInvocation, false);
++
++  // The now-discoverable route guards its own entry, exactly as the mixed public Skills
++  // below already do; nothing on disk may activate work.
++  const source = read('skills/ultra-init/SKILL.md');
++  assert.match(source, /coarse Host discovery bit never authorizes this route/i);
++  assert.match(source, /installation[\s\S]{0,160}never that request/i);
++});
++
+ test('mixed public Skills guard explicit modes after coarse Host discovery', () => {
+   const research = read('skills/ultra-research/SKILL.md');
+   const change = read('skills/ultra-change/SKILL.md');
+diff --git a/tests/unified-entry.test.cjs b/tests/unified-entry.test.cjs
+new file mode 100644
+index 0000000..e0a0570
+--- /dev/null
++++ b/tests/unified-entry.test.cjs
+@@ -0,0 +1,248 @@
++'use strict';
++
++const { after, test } = require('node:test');
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const os = require('node:os');
++const path = require('node:path');
++const { spawnSync } = require('node:child_process');
++
++const ROOT = path.resolve(__dirname, '..');
++const CLI = path.join(ROOT, 'bin', 'install.js');
++
++function temporary(prefix) {
++  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
++}
++
++const SANDBOX = temporary('ubp-run-');
++after(() => fs.rmSync(SANDBOX, { recursive: true, force: true }));
++
++// One real managed plugin, generated by the production adapter, is the fixture: the
++// entry must describe the plugin that a host would actually load.
++const CONFIG_DIR = path.join(SANDBOX, 'config');
++const PLUGIN_ROOT = path.join(CONFIG_DIR, 'skills', 'ultra-builder-pro');
++require('../adapters/claude.js').install({ repoRoot: ROOT, configDir: CONFIG_DIR, scope: 'global' });
++
++// A stand-in for the host binary records how it was actually invoked and controls its
++// own exit code. It is a PATH stub for `claude`, not a fake model or permission
++// callback: nothing about Ultra's behaviour is simulated by it.
++const HOST_BIN = path.join(SANDBOX, 'bin');
++const RECEIPT = path.join(SANDBOX, 'host-receipt.txt');
++fs.mkdirSync(HOST_BIN, { recursive: true });
++fs.writeFileSync(path.join(HOST_BIN, 'claude'), `#!/bin/sh
++{
++  echo "cwd=$PWD"
++  for arg in "$@"; do
++    printf 'arg<%s>\\n' "$arg"
++  done
++  if [ -n "$UBP_TEST_READ_STDIN" ]; then
++    IFS= read -r answer
++    printf 'answer<%s>\\n' "$answer"
++  fi
++} > "$UBP_TEST_RECEIPT"
++if [ -n "$UBP_TEST_SIGNAL" ]; then
++  kill -s "$UBP_TEST_SIGNAL" "$$"
++fi
++exit "\${UBP_TEST_EXIT_CODE:-0}"
++`);
++fs.chmodSync(path.join(HOST_BIN, 'claude'), 0o755);
++
++function run(args, options = {}) {
++  return spawnSync(process.execPath, [CLI, 'run', ...args], {
++    cwd: options.cwd || ROOT,
++    encoding: 'utf8',
++    input: options.input,
++    env: {
++      ...process.env,
++      PATH: [HOST_BIN, path.dirname(process.execPath), process.env.PATH || '']
++        .filter(Boolean)
++        .join(path.delimiter),
++      UBP_TEST_RECEIPT: RECEIPT,
++      ...options.env,
++    },
++  });
++}
++
++function dryRun(args, options) {
++  const result = run(['--dry-run', '--json', '--plugin-dir', PLUGIN_ROOT, ...args], options);
++  assert.equal(result.status, 0, result.stderr || result.stdout);
++  return JSON.parse(result.stdout);
++}
++
++function receipt() {
++  const text = fs.readFileSync(RECEIPT, 'utf8');
++  const answer = /^answer<([\s\S]*?)>$/mu.exec(text);
++  return {
++    cwd: /^cwd=(.*)$/mu.exec(text)[1],
++    args: [...text.matchAll(/^arg<([\s\S]*?)>$/gmu)].map((match) => match[1]),
++    answer: answer ? answer[1] : null,
++  };
++}
++
++test('the goal reaches the host verbatim, with the real plugin named for it', () => {
++  const goal = 'fix the CSV export mojibake in the report writer';
++  const observed = dryRun([goal]);
++
++  assert.equal(observed.goal, goal);
++  assert.ok(observed.prompt.endsWith(`\n\n${goal}`), 'goal must be the final prompt segment');
++  assert.equal(observed.prompt.split(goal).length, 2, 'goal must appear once, unaltered');
++  assert.equal(observed.command, 'claude');
++  assert.deepEqual(observed.args, ['--plugin-dir', PLUGIN_ROOT, observed.prompt]);
++  assert.equal(observed.plugin.root, PLUGIN_ROOT);
++  assert.equal(observed.plugin.version, require('../package.json').version);
++  // Entry instructions are the packaged asset rendered against that plugin, never a
++  // template left unrendered or a path the caller cannot verify.
++  assert.doesNotMatch(observed.prompt, /\{\{[a-z_]+\}\}/u);
++  assert.ok(observed.prompt.includes(PLUGIN_ROOT));
++  assert.ok(fs.existsSync(path.join(
++    PLUGIN_ROOT, 'skills', 'ultra-status', 'references', 'route-contract.md',
++  )));
++});
++
++test('multi-word, quoted, and option-shaped goals survive argv without being dropped', () => {
++  const spaced = dryRun(['tidy', 'my', 'scattered', 'meeting', 'notes']);
++  assert.equal(spaced.goal, 'tidy my scattered meeting notes');
++
++  const multiline = dryRun(['line one\nline two  with  spacing']);
++  assert.equal(multiline.goal, 'line one\nline two  with  spacing');
++
++  const dashed = dryRun(['--', '--not-a-flag but a goal']);
++  assert.equal(dashed.goal, '--not-a-flag but a goal');
++
++  const unicode = dryRun(['把导出的 CSV 乱码修好']);
++  assert.equal(unicode.goal, '把导出的 CSV 乱码修好');
++});
++
++test('a goal can arrive on stdin, and an empty request is refused', () => {
++  const piped = dryRun(['-'], { input: 'build me something to tidy my notes\n' });
++  assert.equal(piped.goal, 'build me something to tidy my notes');
++
++  const implicit = dryRun([], { input: 'goal without a dash\n' });
++  assert.equal(implicit.goal, 'goal without a dash');
++
++  const empty = run(['--plugin-dir', PLUGIN_ROOT], { input: '   \n' });
++  assert.notEqual(empty.status, 0);
++  assert.match(empty.stderr, /goal is required/u);
++  assert.equal(empty.stdout, '');
++});
++
++test('native host arguments pass through in order, before the prompt', () => {
++  const observed = dryRun(['--host-arg', '--permission-mode', '--host-arg', 'plan', 'read only please']);
++  assert.deepEqual(observed.args, [
++    '--plugin-dir', PLUGIN_ROOT, '--permission-mode', 'plan', observed.prompt,
++  ]);
++  assert.match(observed.resume, /ubp run --continue/u);
++});
++
++test('continuation and named resume keep loading the selected plugin', () => {
++  const continued = dryRun(['--continue', 'continue the requested change']);
++  assert.deepEqual(continued.args, ['--plugin-dir', PLUGIN_ROOT, '--continue', continued.prompt]);
++
++  const resumed = dryRun(['--resume', 'recorded-session', 'finish the interrupted change']);
++  assert.deepEqual(resumed.args, [
++    '--plugin-dir', PLUGIN_ROOT, '--resume', 'recorded-session', resumed.prompt,
++  ]);
++  const conflicting = run(['--plugin-dir', PLUGIN_ROOT, '--continue', '--resume', 'id', 'finish']);
++  assert.notEqual(conflicting.status, 0);
++  assert.match(conflicting.stderr, /--continue or --resume/u);
++});
++
++test('unsupported hosts, missing plugins, and bad options fail before any launch', () => {
++  fs.rmSync(RECEIPT, { force: true });
++
++  const host = run(['--host', 'codex', 'a goal']);
++  assert.notEqual(host.status, 0);
++  assert.match(host.stderr, /cannot start "codex"/u);
++  assert.match(host.stderr, /claude/u);
++
++  const missing = run(['--plugin-dir', path.join(SANDBOX, 'absent'), 'a goal']);
++  assert.notEqual(missing.status, 0);
++  assert.match(missing.stderr, /no managed Ultra plugin/u);
++
++  const unknown = run(['--plugin-dir', PLUGIN_ROOT, '--nope', 'a goal']);
++  assert.notEqual(unknown.status, 0);
++  assert.match(unknown.stderr, /unknown option for ubp run/u);
++
++  const conflicting = run(['--plugin-dir', PLUGIN_ROOT, '--config-dir', CONFIG_DIR, 'a goal']);
++  assert.notEqual(conflicting.status, 0);
++  assert.match(conflicting.stderr, /--plugin-dir or --config-dir/u);
++
++  const jsonOnly = run(['--plugin-dir', PLUGIN_ROOT, '--json', 'a goal']);
++  assert.notEqual(jsonOnly.status, 0);
++  assert.match(jsonOnly.stderr, /--json is available only with --dry-run/u);
++
++  assert.equal(fs.existsSync(RECEIPT), false, 'no host process may start on a refusal');
++});
++
++test('a dry run prints the command it would start and starts nothing', () => {
++  fs.rmSync(RECEIPT, { force: true });
++  const observed = run(['--dry-run', '--plugin-dir', PLUGIN_ROOT, 'a goal']);
++  assert.equal(observed.status, 0, observed.stderr);
++  assert.match(observed.stdout, /claude --plugin-dir/u);
++  assert.match(observed.stdout, /Resume:/u);
++  assert.equal(fs.existsSync(RECEIPT), false);
++});
++
++test('the real command starts the host with the dry-run argv and returns its exit code', () => {
++  const goal = 'add a --since flag to the export command';
++  const planned = dryRun([goal]);
++  const cwd = path.join(SANDBOX, 'project');
++  fs.mkdirSync(cwd, { recursive: true });
++
++  const started = run(['--plugin-dir', PLUGIN_ROOT, '--cwd', cwd, goal]);
++  assert.equal(started.status, 0, started.stderr);
++  const first = receipt();
++  assert.deepEqual(first.args, planned.args);
++  assert.equal(first.cwd, fs.realpathSync(cwd));
++  assert.ok(first.args[first.args.length - 1].endsWith(goal));
++
++  const failed = run(['--plugin-dir', PLUGIN_ROOT, goal], { env: { UBP_TEST_EXIT_CODE: '3' } });
++  assert.equal(failed.status, 3, 'the host exit code is the command exit code');
++
++  const signalled = run(['--plugin-dir', PLUGIN_ROOT, goal], { env: { UBP_TEST_SIGNAL: 'TERM' } });
++  assert.equal(signalled.status, 143, 'native termination stays distinguishable from a launch error');
++
++  const absentHost = run(['--plugin-dir', PLUGIN_ROOT, goal], {
++    env: { PATH: path.dirname(process.execPath) },
++  });
++  assert.notEqual(absentHost.status, 0);
++  assert.match(absentHost.stderr, /not on PATH/u);
++});
++
++test('the started host owns the terminal, so the owner can answer its questions', () => {
++  // Ultra does not answer for the owner: the command inherits stdio and the host reads
++  // the reply itself. This observes that inheritance at the process boundary.
++  const answered = run(['--plugin-dir', PLUGIN_ROOT, 'build a small notes tool'], {
++    env: { UBP_TEST_READ_STDIN: '1' },
++    input: 'just for me, and I need to find past decisions by keyword\n',
++  });
++  assert.equal(answered.status, 0, answered.stderr);
++  assert.equal(receipt().answer, 'just for me, and I need to find past decisions by keyword');
++});
++
++test('run is a subcommand and the installer argv contract is unchanged', () => {
++  const help = spawnSync(process.execPath, [CLI, '--help'], { cwd: ROOT, encoding: 'utf8' });
++  assert.equal(help.status, 0, help.stderr);
++  assert.match(help.stdout, /ubp run/u);
++
++  const runHelp = run(['--help']);
++  assert.equal(runHelp.status, 0, runHelp.stderr);
++  assert.match(runHelp.stdout, /Usage: ubp run/u);
++
++  const version = spawnSync(process.execPath, [CLI, '--version'], { cwd: ROOT, encoding: 'utf8' });
++  assert.equal(version.status, 0, version.stderr);
++
++  // `run` is only a subcommand in first position; elsewhere it stays the pre-existing
++  // rejected positional, so no installed invocation changes meaning.
++  const positional = spawnSync(process.execPath, [CLI, '--claude', 'run'], {
++    cwd: ROOT, encoding: 'utf8',
++  });
++  assert.notEqual(positional.status, 0);
++  assert.match(positional.stderr, /unexpected positional argument: run/u);
++
++  const doctor = spawnSync(process.execPath, [
++    CLI, '--claude', '--global', '--config-dir', CONFIG_DIR, '--doctor', '--json',
++  ], { cwd: ROOT, encoding: 'utf8' });
++  assert.equal(doctor.status, 0, doctor.stderr || doctor.stdout);
++  assert.equal(JSON.parse(doctor.stdout).status, 'healthy');
++});
+diff --git a/tests/v026-adapters.test.cjs b/tests/v026-adapters.test.cjs
+index 07d0bc6..e366c64 100644
+--- a/tests/v026-adapters.test.cjs
++++ b/tests/v026-adapters.test.cjs
+@@ -10,7 +10,7 @@ const { parse } = require('../adapters/_shared/frontmatter.cjs');
+ 
+ const ROOT = path.resolve(__dirname, '..');
+ const {
+-  GRANT_CONTINUABLE_SKILLS,
++  HOST_DISCOVERY_WITHHELD_SKILLS,
+   skillPolicy,
+   skillsForRuntime,
+   WORKFLOW_HOOK_FILES,
+@@ -180,16 +180,73 @@ test('Codex emits native invocation policy without an MCP dependency', async ()
+       path.join(report.skillRoot, name, 'agents', 'openai.yaml'),
+       'utf8',
+     ));
+-    const modelInvoked = ['ultra-grilling', 'ultra-domain-modeling', 'ultra-tdd', 'ultra-review', 'ultra-think'].includes(name);
+     assert.equal(
+       metadata.policy.allow_implicit_invocation,
+-      modelInvoked || GRANT_CONTINUABLE_SKILLS.includes(name),
++      skillPolicy(name).allowImplicitInvocation,
+       name,
+     );
+     assert.equal(metadata.dependencies, undefined, name);
+   }
+ });
+ 
++test('installed Host metadata leaves the entry route discoverable to the model', async () => {
++  assert.deepEqual(HOST_DISCOVERY_WITHHELD_SKILLS, ['ultra-delegate', 'ultra-status']);
++  for (const runtime of ['claude', 'grok', 'kimi']) {
++    const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
++    const { ctx } = sandbox(`${runtime}-entry-discovery`);
++    const report = await adapter.install(ctx);
++    const key = runtime === 'kimi' ? 'disableModelInvocation' : 'disable-model-invocation';
++    const blocked = skillsForRuntime(runtime).filter((name) => {
++      const installed = path.join(report.skillRoot, name, 'SKILL.md');
++      return parse(fs.readFileSync(installed, 'utf8')).fm[key] === true;
++    });
++    assert.deepEqual(blocked, HOST_DISCOVERY_WITHHELD_SKILLS, runtime);
++  }
++
++  const codex = require('../adapters/codex.js');
++  const { ctx } = sandbox('codex-entry-discovery');
++  const report = await codex.install(ctx);
++  const blocked = skillsForRuntime('codex').filter((name) => yaml.load(fs.readFileSync(
++    path.join(report.skillRoot, name, 'agents', 'openai.yaml'),
++    'utf8',
++  )).policy.allow_implicit_invocation === false);
++  assert.deepEqual(blocked, HOST_DISCOVERY_WITHHELD_SKILLS);
++});
++
++test('every Host receives each whole source description, and Codex shortens only its own', async () => {
++  // What a Host lists is the description verbatim: no adapter may shorten, reflow or
++  // rewrite it, because that listing is the only surface a model sees before the body
++  // loads. Codex additionally derives a bounded short description, which stays a prefix
++  // of that same text. Where that prefix falls inside a word is pre-existing Codex
++  // presentation behaviour, observed but not asserted here.
++  const source = Object.fromEntries(skillsForRuntime('claude').map((name) => [
++    name,
++    String(parse(fs.readFileSync(path.join(ROOT, 'skills', name, 'SKILL.md'), 'utf8')).fm.description),
++  ]));
++
++  for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']) {
++    const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
++    const { ctx } = sandbox(`${runtime}-description-fidelity`);
++    const report = await adapter.install(ctx);
++    const skillRoot = report.skillRoot || path.join(report.pluginRoot || report.target, 'skills');
++    for (const name of skillsForRuntime(runtime)) {
++      const installed = parse(fs.readFileSync(path.join(skillRoot, name, 'SKILL.md'), 'utf8'));
++      assert.equal(String(installed.fm.description), source[name], `${runtime}:${name}`);
++    }
++    if (runtime !== 'codex') continue;
++    for (const name of skillsForRuntime(runtime)) {
++      const metadata = yaml.load(fs.readFileSync(
++        path.join(skillRoot, name, 'agents', 'openai.yaml'),
++        'utf8',
++      ));
++      const short = String(metadata.interface.short_description);
++      const collapsed = source[name].replace(/\s+/gu, ' ').trim();
++      assert.ok(short.length > 0 && short.length <= 64, `${name}: short ${short.length}`);
++      assert.ok(collapsed.startsWith(short), `${name}: short description is not a prefix`);
++    }
++  }
++});
++
+ test('Codex plugin manifest satisfies the native presentation contract', async () => {
+   const codex = require('../adapters/codex.js');
+   const { ctx } = sandbox('codex-manifest');
+diff --git a/tests/v026-contract.test.cjs b/tests/v026-contract.test.cjs
+index b736621..ec3b2ca 100644
+--- a/tests/v026-contract.test.cjs
++++ b/tests/v026-contract.test.cjs
+@@ -49,6 +49,7 @@ const CONTINUABLE = [
+   'ultra-test',
+   'ultra-deliver',
+ ];
++const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
+ const ALL = [...USER, ...MODEL, ...ROUTER].sort();
+ 
+ function readSkill(name) {
+@@ -159,7 +160,11 @@ test('the package exposes exactly fourteen file-first skills in three roles', ()
+   }
+   for (const name of USER) {
+     assert.equal(skillPolicy(name).userInvocable, true, name);
+-    assert.equal(skillPolicy(name).allowImplicitInvocation, CONTINUABLE.includes(name), name);
++    assert.equal(
++      skillPolicy(name).allowImplicitInvocation,
++      !DISCOVERY_WITHHELD.includes(name),
++      name,
++    );
+   }
+   for (const name of MODEL) {
+     assert.equal(skillPolicy(name).userInvocable, false, name);

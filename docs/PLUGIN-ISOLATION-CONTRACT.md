@@ -21,6 +21,10 @@ For one release cycle the package also owns thin `ubp delegate` launcher/worker
 compatibility imports. They execute the Skill-local implementation and contain no
 forked behavior.
 
+The package's `ubp run` command is a foreground entry into a native host session. It
+loads the selected installed plugin and supplies the packaged entry instructions with
+the owner's goal. It owns no background process, workflow state, or semantic routing.
+
 ## Surfaces Ultra does not own
 
 Ultra must not create or rewrite:
@@ -71,7 +75,10 @@ the owner.
 ## Activation
 
 Public Skill modes are `explicit-entry`, `grant-continuable`, or read-only `router`.
-Explicit-entry modes activate only through the Host's owner-facing Skill surface.
+An owner may enter through `ubp run` with a natural-language goal or through the Host's
+owner-facing Skill surface. The host model selects the internal route covered by that
+request; ordinary unselected host chat discovery is best-effort. Explicit entry does
+not authorize unrelated work or replace a mode's required owner decision.
 Grant-continuable modes may be model-selected only after the loaded Skill verifies the
 same active Change, valid grant, allowed effects, and material checkpoints. A router may
 diagnose read-only state only on explicit owner invocation and creates no continuation

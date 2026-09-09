@@ -42,7 +42,7 @@ isolated user-scope installation test.
 
 | Invocation class | Owner can route directly | Model can select implicitly |
 |---|---:|---:|
-| `explicit-entry` public mode | yes | no |
+| `explicit-entry` public mode | yes | no; the Owner's current request naming that work is the entry |
 | `grant-continuable` public mode | yes | only under a valid Execution Grant covering that mode |
 | five `model-discipline` Skills | no | as an internal method of a covered workflow |
 | `ultra-status` `router` modes | yes | no; other Skills derive their cards directly from the shared contract |
@@ -57,10 +57,17 @@ are grant-continuable. Every public mode remains directly owner-invocable.
 Claude and Grok receive `user-invocable` / `disable-model-invocation` frontmatter.
 Kimi receives its native equivalent. Codex receives
 `policy.allow_implicit_invocation` in `agents/openai.yaml`. Those Hosts expose only a
-coarse Skill-level bit, so a Skill with any grant-continuable mode is discoverable to the
-model; the loaded Skill must still verify the selected mode, same active `change_id`,
-grant, effects, and material checkpoints. In particular, the coarse bit does not permit
-baseline Research, Change intake/acceptance, or Deliver finalization.
+coarse Skill-level bit, and that bit is discovery, not authority: it is withheld only for
+`HOST_DISCOVERY_WITHHELD_SKILLS` — Status and Delegate, the two routes the product
+requires the Owner to name explicitly. Every other public Skill is discoverable,
+including the `ultra-init` entry route before `.ultra/` exists. Ordinary host-chat
+discovery is best-effort; `ubp run` explicitly enters Ultra and lets the host model
+select the route. Its foreground launch currently supports Claude Code; other hosts'
+installation and Skill surfaces are unchanged. The loaded Skill must still verify the selected mode, same
+active `change_id`, grant, effects, and material checkpoints. In particular, the coarse
+bit does not permit baseline Research, Change intake/acceptance, or Deliver finalization
+without the Owner's current request naming that work, and it never turns an installation
+or a file found on disk into activation.
 
 OpenCode uses portable source frontmatter and native discovery, but its current Skill
 schema has no equivalent owner/model routing bit: all fourteen Skills remain

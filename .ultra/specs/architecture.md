@@ -157,7 +157,7 @@ the same lenses sequentially when no such surface exists.
 
 | Host | Managed surface | Owner/model policy | Known native boundary |
 |---|---|---|---|
-| Claude Code | managed Skill plugin with direct Hooks | frontmatter separates explicit and implicit routes | native permission mode controls delegate tools |
+| Claude Code | managed Skill plugin with direct Hooks | frontmatter separates owner-invocable routes from withheld model discovery | native permission mode controls delegate tools |
 | Codex | plugin root, marketplace entry, Skills plus `agents/openai.yaml` metadata | `allow_implicit_invocation` expresses role | Hook trust is Host-owned; Doctor reports `host_managed` with `observable: false` instead of requesting repeated user trust |
 | OpenCode | native JS plugin plus managed Skill directories | descriptions guide selection | no native owner/model routing bit |
 | Kimi Code | managed plugin registry under `KIMI_CODE_HOME` | native Skill metadata | plugin scope is user-only; unattended tool approval is coarse |

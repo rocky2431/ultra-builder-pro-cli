@@ -90,7 +90,7 @@ function turnGroups(evalCase) {
   return evalCase.sessions.map((session) => session.owner_messages);
 }
 
-function runFixtureSuite(name) {
+function runFixtureSuite(name, files = FIXTURE_STATES[name].files) {
   // Strip the parent runner's NODE_TEST* environment so the child test
   // process actually executes instead of deferring to the parent runner.
   const env = { ...process.env };
@@ -100,7 +100,6 @@ function runFixtureSuite(name) {
   // Name the fixture's test files instead of passing the `test/` directory:
   // a directory positional is not portable across the supported Node range
   // (on v25.7.0 it resolves as a module entry and reports MODULE_NOT_FOUND).
-  const files = FIXTURE_STATES[name].files;
   for (const file of files) {
     assert.ok(fs.existsSync(path.join(FIXTURE_ROOT, name, file)), `${name}/${file}`);
   }
@@ -397,4 +396,43 @@ test('the frozen fixtures assert their acceptance without repairing themselves',
     assert.equal(manifest.scripts.test, `node --test ${state.files.join(' ')}`,
       `${fixture}: portable test script`);
   }
+});
+
+// The public-entry confirmation copy documented in
+// work/trellis-eight-step-20260909/step2-public-entry-evaluation.zh-CN.md.
+// It is an explicitly versioned working copy of the F1-res fixture whose
+// README drops the evaluator-only preservation instructions that the recorded
+// trial showed leaking into the evaluated session. It is a separate case: the
+// original fixture, its case id and its criteria stay untouched above.
+const WORKCOPY = 'f1r-note-slugs-workcopy-v1';
+const WORKCOPY_SOURCE = 'f1r-note-slugs';
+
+test('the public-entry working copy keeps the product surface and the red start', () => {
+  const state = FIXTURE_STATES[WORKCOPY_SOURCE];
+  const read = (fixture, file) => fs.readFileSync(path.join(FIXTURE_ROOT, fixture, file), 'utf8');
+
+  // Product surface byte-identical: same sources, same frozen assertions, same script.
+  for (const file of ['package.json', 'src/slug.js', 'src/filenames.js', ...state.files]) {
+    assert.equal(read(WORKCOPY, file), read(WORKCOPY_SOURCE, file),
+      `${WORKCOPY}/${file} must be byte-identical to the original`);
+  }
+
+  // Only the README differs, and only by dropping the evaluator-only framing
+  // while keeping every product constraint.
+  const readme = read(WORKCOPY, 'README.md');
+  assert.notEqual(readme, read(WORKCOPY_SOURCE, 'README.md'));
+  assert.doesNotMatch(readme, /reserved|held back|un-tuned|never repair it in place|frozen|seeded/i,
+    'evaluator-only framing must be gone');
+  assert.doesNotMatch(readme, /trellis-daily-20260909\.json/, 'no pointer back to the eval spec');
+  assert.match(readme, /without editing\s+any assertion/, 'product constraint kept');
+  assert.match(readme, /changes existing slugs is not acceptable/, 'product constraint kept');
+
+  // Same measured starting state as the original: 5 tests, 2 pass, 3 fail.
+  const { run, counts } = runFixtureSuite(WORKCOPY, state.files);
+  assert.notEqual(run.status, 0, `${WORKCOPY}: must start red`);
+  assert.deepEqual(
+    counts,
+    { tests: state.tests, pass: state.pass, fail: state.fail },
+    `${WORKCOPY}: recorded starting state`,
+  );
 });

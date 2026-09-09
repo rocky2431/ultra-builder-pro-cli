@@ -35,12 +35,14 @@ const CONTINUABLE = [
   'ultra-test',
   'ultra-deliver',
 ];
+const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
 
 test('runtime asset manifest has the exact packaged role boundary', () => {
   assert.deepEqual(assets.USER_INVOKED_SKILLS, USER);
   assert.deepEqual(assets.MODEL_INVOKED_SKILLS, MODEL);
   assert.deepEqual(assets.ROUTER_SKILLS, ROUTER);
   assert.deepEqual(assets.GRANT_CONTINUABLE_SKILLS, CONTINUABLE);
+  assert.deepEqual(assets.HOST_DISCOVERY_WITHHELD_SKILLS, DISCOVERY_WITHHELD);
   assert.deepEqual(assets.SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
 
   for (const runtime of assets.SUPPORTED_RUNTIMES) {
@@ -55,7 +57,7 @@ test('host invocation policy admits only envelope-bounded workflow continuation'
     const invocationClasses = [...new Set(Object.values(modes))];
     assert.deepEqual(assets.skillPolicy(name), {
       userInvocable: true,
-      allowImplicitInvocation: CONTINUABLE.includes(name),
+      allowImplicitInvocation: !DISCOVERY_WITHHELD.includes(name),
       invocationClasses,
       modes,
     }, name);

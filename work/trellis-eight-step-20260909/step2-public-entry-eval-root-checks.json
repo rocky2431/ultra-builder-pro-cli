@@ -1,0 +1,12 @@
+[
+  {
+    "node": "/opt/homebrew/Cellar/node/25.7.0/bin/node",
+    "exit_code": 0,
+    "log_sha256": "8587d448b123bf33781f94c2622918afc0c8c163ac832485cb26f7bf3c3273fe"
+  },
+  {
+    "node": "/Users/rocky243/.hermes/node/bin/node",
+    "exit_code": 0,
+    "log_sha256": "c51e5a3e65352547ab248d29823155bd1dcefd2bc672eaf3e48635653ba94b2d"
+  }
+]

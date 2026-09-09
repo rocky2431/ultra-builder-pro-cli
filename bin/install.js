@@ -65,6 +65,11 @@ function printBanner() {
 
 function printHelp() {
   console.log(`  ${paint('yellow', 'Usage:')} npx ultra-builder-pro-cli [options]
+          ${paint('cyan', 'ubp run')} "<goal in your own words>"   start Ultra on a goal
+
+  ${paint('yellow', 'Work:')}
+    ${paint('cyan', 'run')}                start a native host session on a natural-language goal;
+                       the host model picks the route (see ${paint('cyan', 'ubp run --help')})
 
   ${paint('yellow', 'Runtime selection (pick ≥1, or --all):')}
     ${paint('cyan', '--claude')}           Claude Code
@@ -199,6 +204,18 @@ async function main() {
   if (process.argv[2] === 'delegate') {
     const { handle } = require('./delegate.cjs');
     process.stdout.write(`${JSON.stringify(handle(process.argv.slice(2)))}\n`);
+    return;
+  }
+  if (process.argv[2] === 'run') {
+    const { handle, RunError } = require('./run.cjs');
+    try {
+      process.exitCode = handle(process.argv.slice(2), { isTTY: process.stdin.isTTY });
+    } catch (error) {
+      if (!(error instanceof RunError)) throw error;
+      console.error(`  ${paint('red', '✗')} ${error.message}`);
+      if (error.hint) console.error(`  ${paint('dim', 'Try:')} ${error.hint}`);
+      process.exitCode = 1;
+    }
     return;
   }
   const { runtimes, flags } = parseArgs(process.argv);

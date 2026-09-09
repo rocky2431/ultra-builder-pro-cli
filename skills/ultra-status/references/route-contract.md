@@ -117,6 +117,15 @@ never permits an explicit-entry mode. Without a covering grant, stop with a Rout
 and recommend the exact explicit route; never invoke another public Skill merely because
 its files appear ready.
 
+Discovery is not authority, and withheld discovery is not a guard. Two Hosts expose no
+routing bit at all, so a public route is discoverable to the model wherever the Owner
+could reach it in one request — including a route whose modes are all `explicit-entry`.
+Loading such a Skill only lets it check its own entry: it proceeds when the Owner's
+current request names that work, and otherwise reports what it observed and stops. The
+bit stays off only where the product requires the Owner to name the route explicitly —
+read-only Status diagnosis and Delegate's owner-authorized worker topology — and on a
+Host without the bit those two routes rest on the same in-Skill check.
+
 A current explicit owner request is Owner entry for the work it names even when an
 active Change, an expired grant, or an unfinished closeout exists: those are older
 obligations of the older work, reported in `Not done` and gated only at their own

@@ -1,0 +1,562 @@
+{
+  "status": "degraded",
+  "reports": [
+    {
+      "adapter": "claude",
+      "status": "degraded",
+      "manifest_path": "/Users/rocky243/.claude/skills/ultra-builder-pro/provenance.json",
+      "package": null,
+      "source": null,
+      "content_digest": null,
+      "checks": {
+        "manifest": {
+          "status": "fail"
+        },
+        "assets": {
+          "status": "unknown",
+          "checked": 0,
+          "failed": 0
+        },
+        "contracts": {
+          "status": "unknown",
+          "checked": 0,
+          "failed": 0
+        },
+        "skill_inventory": {
+          "status": "fail"
+        },
+        "hook_inventory": {
+          "status": "fail"
+        },
+        "plugin_manifest": {
+          "status": "fail"
+        },
+        "delegation_runner": {
+          "status": "fail",
+          "entrypoint": "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/delegate.cjs"
+        },
+        "acp_capability": {
+          "status": "fail"
+        },
+        "agent_execution_driver": {
+          "status": "fail"
+        },
+        "host_plugin": {
+          "status": "fail"
+        }
+      },
+      "issues": [
+        {
+          "code": "PROVENANCE_MISSING",
+          "path": "/Users/rocky243/.claude/skills/ultra-builder-pro/provenance.json"
+        },
+        {
+          "code": "PLUGIN_MANIFEST_MISSING",
+          "path": "/Users/rocky243/.claude/skills/ultra-builder-pro/.claude-plugin/plugin.json"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-init"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-research"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-change"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-plan"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-dev"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-test"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-deliver"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-delegate"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-grilling"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-domain-modeling"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-tdd"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-review"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-think"
+        },
+        {
+          "code": "SKILL_MISSING",
+          "skill": "ultra-status"
+        },
+        {
+          "code": "DELEGATION_RUNNER_MISSING",
+          "paths": [
+            "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/delegate.cjs",
+            "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/delegate-worker.cjs",
+            "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/host-profile.cjs",
+            "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+            "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/acp-driver.cjs",
+            "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/cli-driver.cjs",
+            "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/delegate-profiles/kimi-read-only.md",
+            "/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/delegate-profiles/kimi-write.md"
+          ]
+        },
+        {
+          "code": "HOOK_MISSING",
+          "hook": "session_context.py"
+        },
+        {
+          "code": "HOOK_MISSING",
+          "hook": "mid_workflow_recall.py"
+        },
+        {
+          "code": "HOOK_MISSING",
+          "hook": "compact_context.py"
+        },
+        {
+          "code": "HOOK_MISSING",
+          "hook": "post_edit_guard.py"
+        },
+        {
+          "code": "HOOK_MISSING",
+          "hook": "block_dangerous_commands.py"
+        },
+        {
+          "code": "HOOK_MISSING",
+          "hook": "_common.py"
+        },
+        {
+          "code": "EXECUTION_DRIVER_INSPECTION_FAILED",
+          "message": "Cannot find module '/Users/rocky243/.claude/skills/ultra-builder-pro/skills/ultra-delegate/scripts/host-profile.cjs'\nRequire stack:\n- /private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-final-daily-rpzlyp5i/source/adapters/_shared/plugin-core.cjs\n- /private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-final-daily-rpzlyp5i/source/adapters/claude.js\n- /private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-final-daily-rpzlyp5i/source/bin/install.js"
+        },
+        {
+          "code": "HOST_PLUGIN_NOT_DISCOVERED"
+        }
+      ]
+    },
+    {
+      "adapter": "opencode",
+      "status": "degraded",
+      "manifest_path": "/Users/rocky243/.config/opencode/.ultra-builder-pro/provenance.json",
+      "package": {
+        "name": "ultra-builder-pro-cli",
+        "version": "5.0.1"
+      },
+      "source": {
+        "repository": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git",
+        "commit": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+        "dirty": false,
+        "worktree_digest": "421256845bb1b8ebdd041d032b3f146ad31cb32075b36abe3b559f39e0efdfd3"
+      },
+      "content_digest": "621ca2f3eff6d09d5b20b4b6a246336d60e348b6634e9dd0f10b0f8634fd4510",
+      "checks": {
+        "manifest": {
+          "status": "pass"
+        },
+        "assets": {
+          "status": "pass",
+          "checked": 7,
+          "failed": 0
+        },
+        "contracts": {
+          "status": "pass",
+          "checked": 1,
+          "failed": 0
+        },
+        "skill_inventory": {
+          "status": "pass"
+        },
+        "hook_inventory": {
+          "status": "pass"
+        },
+        "plugin_manifest": {
+          "status": "pass"
+        },
+        "delegation_runner": {
+          "status": "pass",
+          "entrypoint": "/Users/rocky243/.config/opencode/skills/ultra-delegate/scripts/delegate.cjs"
+        },
+        "acp_capability": {
+          "status": "pass",
+          "candidate": true,
+          "surface": "native OpenCode ACP stdio server",
+          "transport": "stdio",
+          "protocol_versions": [
+            1
+          ],
+          "conformance_status": "passed",
+          "conformance_evidence": "docs/evals/ultra-5-0-live-acp-conformance.md#opencode",
+          "conformance_reason": null,
+          "executable_available": true,
+          "candidate_valid": true,
+          "candidate_identity_valid": null,
+          "candidate_identity_reason": null,
+          "candidate_identity_fallback_reason": null
+        },
+        "agent_execution_driver": {
+          "status": "pass",
+          "selected": "acp",
+          "fallback_reason": null
+        },
+        "no_mcp_registration": {
+          "status": "pass"
+        }
+      },
+      "issues": [
+        {
+          "code": "PACKAGE_VERSION_MISMATCH",
+          "expected": "5.0.2",
+          "actual": "5.0.1"
+        }
+      ]
+    },
+    {
+      "adapter": "codex",
+      "status": "degraded",
+      "manifest_path": "/Users/rocky243/plugins/ultra-builder-pro/provenance.json",
+      "package": {
+        "name": "ultra-builder-pro-cli",
+        "version": "5.0.1"
+      },
+      "source": {
+        "repository": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git",
+        "commit": null,
+        "dirty": null,
+        "worktree_digest": null
+      },
+      "content_digest": "82c1e757087feed58bc5b59789ae3a4bd86829705344d9f6fca9fdb32905effd",
+      "checks": {
+        "manifest": {
+          "status": "pass"
+        },
+        "assets": {
+          "status": "pass",
+          "checked": 120,
+          "failed": 0
+        },
+        "contracts": {
+          "status": "pass",
+          "checked": 3,
+          "failed": 0
+        },
+        "skill_inventory": {
+          "status": "pass"
+        },
+        "hook_inventory": {
+          "status": "pass"
+        },
+        "plugin_manifest": {
+          "status": "pass"
+        },
+        "delegation_runner": {
+          "status": "pass",
+          "entrypoint": "/Users/rocky243/plugins/ultra-builder-pro/skills/ultra-delegate/scripts/delegate.cjs"
+        },
+        "acp_capability": {
+          "status": "pass",
+          "candidate": true,
+          "surface": "official @agentclientprotocol/codex-acp@1.6.2 stdio adapter",
+          "transport": "stdio",
+          "protocol_versions": [
+            1
+          ],
+          "conformance_status": "passed",
+          "conformance_evidence": "docs/evals/ultra-5-0-live-acp-conformance.md#codex",
+          "conformance_reason": null,
+          "executable_available": true,
+          "candidate_valid": true,
+          "candidate_identity_valid": null,
+          "candidate_identity_reason": null,
+          "candidate_identity_fallback_reason": null
+        },
+        "agent_execution_driver": {
+          "status": "pass",
+          "selected": "acp",
+          "fallback_reason": null
+        },
+        "marketplace": {
+          "status": "pass"
+        },
+        "host_plugin": {
+          "status": "fail"
+        },
+        "hook_activation": {
+          "status": "host_managed",
+          "observable": false,
+          "reason": "Codex owns persisted Hook trust, and its CLI does not expose the live trust decision to plugins."
+        }
+      },
+      "issues": [
+        {
+          "code": "PACKAGE_VERSION_MISMATCH",
+          "expected": "5.0.2",
+          "actual": "5.0.1"
+        },
+        {
+          "code": "HOST_PLUGIN_NOT_DISCOVERED"
+        }
+      ]
+    },
+    {
+      "adapter": "kimi",
+      "status": "degraded",
+      "manifest_path": "/Users/rocky243/.kimi-code/plugins/managed/ultra-builder-pro/provenance.json",
+      "package": {
+        "name": "ultra-builder-pro-cli",
+        "version": "5.0.1"
+      },
+      "source": {
+        "repository": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git",
+        "commit": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+        "dirty": false,
+        "worktree_digest": "421256845bb1b8ebdd041d032b3f146ad31cb32075b36abe3b559f39e0efdfd3"
+      },
+      "content_digest": "cb4a185a29cff07300c00344bd4d2d43e56fc5957a61486cd04fe845fc39be7f",
+      "checks": {
+        "manifest": {
+          "status": "pass"
+        },
+        "assets": {
+          "status": "pass",
+          "checked": 106,
+          "failed": 0
+        },
+        "contracts": {
+          "status": "pass",
+          "checked": 3,
+          "failed": 0
+        },
+        "skill_inventory": {
+          "status": "pass"
+        },
+        "hook_inventory": {
+          "status": "pass"
+        },
+        "plugin_manifest": {
+          "status": "pass"
+        },
+        "delegation_runner": {
+          "status": "pass",
+          "entrypoint": "/Users/rocky243/.kimi-code/plugins/managed/ultra-builder-pro/skills/ultra-delegate/scripts/delegate.cjs"
+        },
+        "acp_capability": {
+          "status": "pass",
+          "candidate": true,
+          "surface": "Kimi Code ACP stdio server",
+          "transport": "stdio",
+          "protocol_versions": [
+            1
+          ],
+          "conformance_status": "passed",
+          "conformance_evidence": "docs/evals/ultra-5-0-live-acp-conformance.md#kimi-code",
+          "conformance_reason": null,
+          "executable_available": true,
+          "candidate_valid": true,
+          "candidate_identity_valid": null,
+          "candidate_identity_reason": null,
+          "candidate_identity_fallback_reason": null
+        },
+        "agent_execution_driver": {
+          "status": "pass",
+          "selected": "acp",
+          "fallback_reason": null
+        },
+        "registration": {
+          "status": "pass"
+        }
+      },
+      "issues": [
+        {
+          "code": "PACKAGE_VERSION_MISMATCH",
+          "expected": "5.0.2",
+          "actual": "5.0.1"
+        }
+      ]
+    },
+    {
+      "adapter": "grok",
+      "status": "degraded",
+      "manifest_path": "/Users/rocky243/.grok/.ubp/plugin-sources/ultra-builder-pro/provenance.json",
+      "package": {
+        "name": "ultra-builder-pro-cli",
+        "version": "5.0.1"
+      },
+      "source": {
+        "repository": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git",
+        "commit": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+        "dirty": false,
+        "worktree_digest": "421256845bb1b8ebdd041d032b3f146ad31cb32075b36abe3b559f39e0efdfd3"
+      },
+      "content_digest": "7be73e55a1acda83e358ff5178ed9fb115a4ec009bf25039dacdd0829a334b50",
+      "checks": {
+        "manifest": {
+          "status": "pass"
+        },
+        "assets": {
+          "status": "pass",
+          "checked": 106,
+          "failed": 0
+        },
+        "contracts": {
+          "status": "pass",
+          "checked": 3,
+          "failed": 0
+        },
+        "skill_inventory": {
+          "status": "pass"
+        },
+        "hook_inventory": {
+          "status": "pass"
+        },
+        "plugin_manifest": {
+          "status": "pass"
+        },
+        "delegation_runner": {
+          "status": "pass",
+          "entrypoint": "/Users/rocky243/.grok/.ubp/plugin-sources/ultra-builder-pro/skills/ultra-delegate/scripts/delegate.cjs"
+        },
+        "acp_capability": {
+          "status": "pass",
+          "candidate": true,
+          "surface": "Grok agent stdio candidate",
+          "transport": "stdio",
+          "protocol_versions": [
+            1
+          ],
+          "conformance_status": "passed",
+          "conformance_evidence": "docs/evals/ultra-5-0-live-acp-conformance.md#grok-build",
+          "conformance_reason": null,
+          "executable_available": true,
+          "candidate_valid": true,
+          "candidate_identity_valid": null,
+          "candidate_identity_reason": null,
+          "candidate_identity_fallback_reason": null
+        },
+        "agent_execution_driver": {
+          "status": "pass",
+          "selected": "acp",
+          "fallback_reason": null
+        },
+        "native_registry": {
+          "status": "pass"
+        }
+      },
+      "issues": [
+        {
+          "code": "PACKAGE_VERSION_MISMATCH",
+          "expected": "5.0.2",
+          "actual": "5.0.1"
+        }
+      ]
+    },
+    {
+      "adapter": "zcode",
+      "status": "degraded",
+      "manifest_path": "/Users/rocky243/.zcode/cli/plugins/marketplaces/ultra-builder-pro/plugin/provenance.json",
+      "package": {
+        "name": "ultra-builder-pro-cli",
+        "version": "5.0.1"
+      },
+      "source": {
+        "repository": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git",
+        "commit": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+        "dirty": false,
+        "worktree_digest": "421256845bb1b8ebdd041d032b3f146ad31cb32075b36abe3b559f39e0efdfd3"
+      },
+      "content_digest": "2702181924293184de1169df6d52e6d7f620835aa003cd3912dacde3b485ead9",
+      "checks": {
+        "manifest": {
+          "status": "pass"
+        },
+        "assets": {
+          "status": "pass",
+          "checked": 106,
+          "failed": 0
+        },
+        "contracts": {
+          "status": "pass",
+          "checked": 3,
+          "failed": 0
+        },
+        "skill_inventory": {
+          "status": "pass"
+        },
+        "hook_inventory": {
+          "status": "pass"
+        },
+        "plugin_manifest": {
+          "status": "pass"
+        },
+        "delegation_runner": {
+          "status": "pass",
+          "entrypoint": "/Users/rocky243/.zcode/cli/plugins/marketplaces/ultra-builder-pro/plugin/skills/ultra-delegate/scripts/delegate.cjs"
+        },
+        "acp_capability": {
+          "status": "pass",
+          "candidate": true,
+          "surface": "installed ZCode Desktop runtime through zcode-acp 0.1.0",
+          "transport": "stdio",
+          "protocol_versions": [
+            1
+          ],
+          "conformance_status": "passed",
+          "conformance_evidence": "docs/evals/ultra-5-0-live-acp-conformance.md#zcode",
+          "conformance_reason": null,
+          "executable_available": true,
+          "candidate_valid": true,
+          "candidate_identity_valid": true,
+          "candidate_identity_reason": null,
+          "candidate_identity_fallback_reason": null
+        },
+        "agent_execution_driver": {
+          "status": "pass",
+          "selected": "acp",
+          "fallback_reason": null
+        },
+        "zcode_transport_maturity": {
+          "status": "experimental",
+          "installed_runtime_only": true,
+          "surface": "installed ZCode Desktop runtime through zcode-acp 0.1.0"
+        },
+        "marketplace": {
+          "status": "pass"
+        },
+        "registration": {
+          "status": "pass"
+        },
+        "native_registry": {
+          "status": "pass"
+        }
+      },
+      "issues": [
+        {
+          "code": "PACKAGE_VERSION_MISMATCH",
+          "expected": "5.0.2",
+          "actual": "5.0.1"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+[
+  {
+    "label": "F1-public-turn1",
+    "native_session": "348193b7-a2a4-4746-b647-bbb8cdfd4ed0",
+    "duration_seconds": 134.37139729131013,
+    "list_price_usd": 0.6638235,
+    "is_error": false,
+    "skill_calls": [],
+    "permission_denials": [
+      {
+        "tool_name": "Read",
+        "tool_use_id": "toolu_01Txj759jRjepB2H28dixKAa",
+        "tool_input": {
+          "file_path": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro/skills/ultra-status/references/route-contract.md"
+        }
+      }
+    ],
+    "owner_active_time": "unknown"
+  },
+  {
+    "label": "F1-public-turn2",
+    "native_session": "348193b7-a2a4-4746-b647-bbb8cdfd4ed0",
+    "duration_seconds": 113.91693754168227,
+    "list_price_usd": 0.41757900000000003,
+    "is_error": false,
+    "skill_calls": [],
+    "permission_denials": [],
+    "owner_active_time": "unknown"
+  },
+  {
+    "label": "F2-public-turn1",
+    "native_session": "bd928049-6ff9-478b-a33e-50ffc477c0a3",
+    "duration_seconds": 469.02661674981937,
+    "list_price_usd": 2.6288889999999996,
+    "is_error": false,
+    "skill_calls": [
+      {
+        "skill": "ultra-builder-pro:ultra-init",
+        "args": "我每天开会记的东西到处都是，帮我弄个能整理会议记录的小东西吧。"
+      }
+    ],
+    "permission_denials": [
+      {
+        "tool_name": "Read",
+        "tool_use_id": "toolu_01BeDNnuhJGD9gLB2mZkztP3",
+        "tool_input": {
+          "file_path": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro/skills/ultra-status/references/route-contract.md"
+        }
+      },
+      {
+        "tool_name": "Read",
+        "tool_use_id": "toolu_01FArdkSExsTmCb35FCK39Sn",
+        "tool_input": {
+          "file_path": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro/skills/ultra-status/references/route-contract.md"
+        }
+      },
+      {
+        "tool_name": "Read",
+        "tool_use_id": "toolu_01L55of3qTQgqbrpWMzBcKhQ",
+        "tool_input": {
+          "file_path": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro/skills/ultra-grilling/SKILL.md"
+        }
+      },
+      {
+        "tool_name": "Read",
+        "tool_use_id": "toolu_01AASnS7NdBfsqLPXtz9eZY4",
+        "tool_input": {
+          "file_path": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro/skills/ultra-status/references/route-contract.md"
+        }
+      }
+    ],
+    "owner_active_time": "unknown"
+  },
+  {
+    "label": "K3-public-session1",
+    "native_session": "0b9daf95-d21f-490a-8985-a221ed315377",
+    "duration_seconds": 203.6241634581238,
+    "list_price_usd": 1.0557475,
+    "is_error": false,
+    "skill_calls": [],
+    "permission_denials": [
+      {
+        "tool_name": "Read",
+        "tool_use_id": "toolu_01GLUe52HYVxsPbCfN9J7SXv",
+        "tool_input": {
+          "file_path": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro/skills/ultra-status/references/route-contract.md"
+        }
+      },
+      {
+        "tool_name": "Read",
+        "tool_use_id": "toolu_014r34aNVYt72sYovBb5xgYr",
+        "tool_input": {
+          "file_path": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro/skills/ultra-status/references/route-contract.md"
+        }
+      }
+    ],
+    "owner_active_time": "unknown"
+  },
+  {
+    "label": "K3-public-session2",
+    "native_session": "c2939f9f-9182-4011-809e-d67229a3aeb7",
+    "duration_seconds": 128.23479629214853,
+    "list_price_usd": 0.8142735,
+    "is_error": false,
+    "skill_calls": [],
+    "permission_denials": [
+      {
+        "tool_name": "Read",
+        "tool_use_id": "toolu_01FweUTxSWw3W6NSv2GfWT2V",
+        "tool_input": {
+          "file_path": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro/skills/ultra-status/references/route-contract.md"
+        }
+      }
+    ],
+    "owner_active_time": "unknown"
+  }
+]

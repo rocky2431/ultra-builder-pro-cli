@@ -75,6 +75,15 @@ const PUBLIC_SKILL_INVOCATION_MODES = Object.freeze({
 const GRANT_CONTINUABLE_SKILLS = Object.freeze(USER_INVOKED_SKILLS.filter((name) => (
   Object.values(PUBLIC_SKILL_INVOCATION_MODES[name]).includes('grant-continuable')
 )));
+/**
+ * Coarse Host metadata is discovery, not authority. OpenCode and ZCode expose no routing
+ * bit at all, so every public mode already proves its own entry inside the Skill body.
+ * The bit is withheld only where the product requires the Owner to name the route: the
+ * read-only Status router and Delegate's owner-authorized worker topology. Every other
+ * public Skill stays discoverable, including `ultra-init` before `.ultra/` exists.
+ * Native discovery is best-effort; `ubp run` explicitly enters Ultra before routing.
+ */
+const HOST_DISCOVERY_WITHHELD_SKILLS = Object.freeze(['ultra-delegate', 'ultra-status']);
 const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
 
 const WORKFLOW_HOOK_FILES = Object.freeze([
@@ -112,7 +121,7 @@ function skillPolicy(name) {
   const invocationClasses = [...new Set(Object.values(modes))];
   return {
     userInvocable: true,
-    allowImplicitInvocation: invocationClasses.includes('grant-continuable'),
+    allowImplicitInvocation: !HOST_DISCOVERY_WITHHELD_SKILLS.includes(name),
     invocationClasses,
     modes,
   };
@@ -120,6 +129,7 @@ function skillPolicy(name) {
 
 module.exports = {
   GRANT_CONTINUABLE_SKILLS,
+  HOST_DISCOVERY_WITHHELD_SKILLS,
   USER_INVOKED_SKILLS,
   MODEL_INVOKED_SKILLS,
   PUBLIC_SKILL_INVOCATION_MODES,

@@ -1,6 +1,26 @@
 # Ultra Builder Pro 工厂交付状态
 
-状态：**Owner 于 2026-09-09 接受八步计划并恢复全部实施，要求每部分验收后 commit、更新文档留证。步骤 1 已完成定位与验收，步骤 2 正在实施；全部尚未完成。Stage A 已验收并提交 `b765b55`；Stage B 待复验与资格；C/D/E 未实施或验收。**
+状态：**Owner 于 2026-09-09 接受八步计划并恢复全部实施，要求每部分验收后 commit、更新文档留证。步骤 1、3 已完成；步骤 2 已实现、最终案例验收及步骤 4 收尾被 Claude 周额度 429 阻断；全部尚未完成。Stage A 已验收并提交 `b765b55`；Stage B 待复验与资格；C/D/E 未实施或验收。**
+
+## 最新作者分工
+
+Owner 最新明确要求“接下来不用交给claude实现了 全部你自己来独立完成”。以 `.ultra/decisions/2026-09-09-root-independent-implementation.md` 为准：Codex 亲自完成后续实现与测试，不再委派实现。原Claude入口任务已cancelled/native cancelled；已有部分改动保留，由Codex检查后接着完成。下文旧分工及任务描述均为历史，不能覆盖新指令。全部八步与分段提交仍继续。
+
+## 最新阻断与恢复点（2026-09-09）
+
+Claude 已实际返回429周额度耗尽，提示2026-09-13 01:00 Asia/Shanghai恢复；不再反复调用，不购买或切换凭据。F2-res在candidate5下目标已正确进入会话，但无法执行；D4-r2在真实中断后同UUID续接中被额度打断。所有进程已结束，现场与准确命令保留在step2-4-current-evidence-index及其trial。
+
+candidate5仅修正原生可变参数吞掉prompt：在prompt前加入`--`。确切触发为最后的`--allowedTools <tools...>`，native `--plugin-dir` 是单值；未证明无透传参数的默认命令同样会吞目标。11项窄测试通过，最终完整检查与pack单独留证。新代码是已完成的实现单元，提交不代表第二/第四步整体验收通过。第五至八步未开始；额度恢复后续接D4-r2及F2-res，不能宣称八步已完成。
+
+## 历史实测（candidate4，2026-09-09）
+
+Codex 完成统一 `ubp run`、原生 continue/resume 和信号退出处理；冻结候选见 `work/trellis-eight-step-20260909/step2-candidate4.json`。精确源 742 Node / 104 Hook / audit0、pack 与两处 Skill 校验通过，尚未集成或提交为步骤2完成。
+
+公共入口实跑：F1工作副本首次修复5/5，原生resume追加ASCII兼容约束后仍5/5；K3两次新会话已完成四环，首轮维护既有tech-notes，第二轮读回并独立核对最终4/2/1共7条，原库存与断言保持。证据暂存于candidate4记录的trial_root。
+
+F2批处理运行虽实际调用正确ultra-init，仍先构建后问个人数据来源，漏问实质用途，不接受。观察到原生print无AskUserQuestion，插件参考Read被workingDir权限拒绝，正用公共命令真实交互PTY区分运行方式与指令缺陷，未修改候选源。首个PTY因operator heredoc被stdin追加进prompt已中断并标invalid；第二个从文件runner启动，输入干净，逐次只批准被请求的插件参考只读访问。不得把交互诊断追认成原批处理通过。
+
+最新作者可见性：Codex成为实现者之前已读旧预留材料，candidate4这些旧案例是确认而非盲测；未来步骤8继续保留真正未见集。五至八步仍须完成，当前不扩展到其运行。
 
 ## 八步计划当前执行
 
@@ -9,9 +29,9 @@
 | 步骤 | 当前状态 | 验收与提交 |
 |---|---|---|
 | 1 行为基线与真实缺口 | done | 三类五次真实调用、独立验收与原始证据齐备；见 step1-acceptance.zh-CN.md，commit `47f7911` |
-| 2 自然语言与相称工作路径 | in_progress | 三个descriptor候选均未解决F2；停止措辞迭代，正在区分未选择入口与加载后行为；已有正确行为不重写 |
-| 3 上下文与知识往返 | in_progress | K3四环在candidate2实跑通过；已有正确路径不强制改机制，待最终日常版本集成 |
-| 4 日常完整体验 | pending | 新项目、连续迭代、显式恢复与隔离安装件的独立验收 |
+| 2 自然语言与相称工作路径 | implemented / acceptance blocked | 统一CLI及resume、参数边界修复已实现；交互F2-dev通过，F2-res被429阻断；见step2-acceptance |
+| 3 上下文与知识往返 | done | candidate2及公共入口candidate4四环实证；保留现有机制，见step3-acceptance |
+| 4 日常完整体验 | partially verified / blocked | D1自验、D2/D3通过；D4纠正运行的最终收尾被429中断，见step4-current-observation |
 | 5 合格委派与首条工厂 | pending | 先接受 B，再完成 C / R2 Step 1 |
 | 6 可运营工厂 | pending | 原 D / R2 Step 2 全部退出条件 |
 | 7 跨会话持续运行 | pending | 原 E 耐久部分，Primary 与 Supervisor 结束后真实恢复 |
@@ -36,6 +56,8 @@ Owner 已明确接受统一 Ultra 自然语言入口（例如 `ubp run`），内
 F1/F3的开发路径在Step1已接受为无需修复，因此candidate3冻结后首次开展其reserved：F1-res首轮原cwd未改，模型遵从fixture README的“never repair in place”在另一临时副本修复5/5，等待是否回写；这是评测夹具说明泄漏引起的输入限制，不能算原cwd已修复。按冻结第二条消息原样续接中。F3-res首轮9/9，显式时区按天统计；第二阶段只复制项目文件到全新basename与session，正在运行。以上reserved从未发给候选作者；不能再说全部reserved尚未开始。D1–D4仍待最终候选。
 
 第五步只读预检实际Claude `452722586ef14f6e91aac94fb765285e` 已 success/end_turn，见 `step5-readonly-preflight.zh-CN.md`。当前事实覆盖下文旧快照：agent-delegation原checkout已到0a81753且clean；Goal原checkout7210d3a/2.16.0已采用plugin-only布局，原Goal隔离工作树及分支不在，旧2.15.4验收不得直接算当前交付；Claude默认路径已到2.1.266，原候选2.1.261仍在，可按既有冻结选择显式绑定。StageB最新9源SHA与修复作者交接一致但尚无Root独立复验；旧run的state.json停running而result.json terminal且pid已不在，以结果为终态并保留状态缺陷。不提前运行资格或C/D/E；步骤1–4完成后重新适配已推进依赖，再消费原资格标准。这些技术适配在已有授权范围内，不新增Owner逐步审批。
+
+后续只读恢复补查已定位 Goal 旧备份 Git 对象 ff9aa2a（并非源已不可恢复）；上游 ea2dfb0 已提交相应八路径 graph/review 修正，当前7210d3a保留 advisory 及相关测试。agent-delegation运行相关差异仅版本0.4.0→0.4.1，实际依赖未换。见 `step5-readonly-recovery-correction.zh-CN.md/json`；不重复实现，不借此算当前资格通过。入口决定与96文件诊断证据已commit `5c2031e`，不是Step2交付。
 
 ## 目标与完成条件
 

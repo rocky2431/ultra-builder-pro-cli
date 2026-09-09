@@ -55,6 +55,7 @@ valid grant only the non-material `reconcile` mode may continue implicitly.
 | One active Change needs its draft, Research evidence, or accepted boundary reconciled | Here — update the same `change_id` |
 | A separate request arrives while one Change remains active | Do not create a second Change; finish or deliver the current one, abandon it with owner authority, or explicitly fold the request into its boundary |
 | A task is in progress and the specification turns out not to match reality | Not here — the dual-write path inside `ultra-dev` |
+| The request starts a new product and the codebase has no `.ultra/` project record | Not here — `ultra-init/create` captures the raw outline and its unsettled intended use first |
 | The change makes no sentence in the specifications false | Outside the Ultra lifecycle — use ordinary repository TDD and verification |
 
 A request that arrives while one Change remains active is routed by that table, but its

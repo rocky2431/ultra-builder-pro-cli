@@ -10,7 +10,7 @@ const { parse } = require('../adapters/_shared/frontmatter.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const {
-  GRANT_CONTINUABLE_SKILLS,
+  HOST_DISCOVERY_WITHHELD_SKILLS,
   skillPolicy,
   skillsForRuntime,
   WORKFLOW_HOOK_FILES,
@@ -180,13 +180,70 @@ test('Codex emits native invocation policy without an MCP dependency', async () 
       path.join(report.skillRoot, name, 'agents', 'openai.yaml'),
       'utf8',
     ));
-    const modelInvoked = ['ultra-grilling', 'ultra-domain-modeling', 'ultra-tdd', 'ultra-review', 'ultra-think'].includes(name);
     assert.equal(
       metadata.policy.allow_implicit_invocation,
-      modelInvoked || GRANT_CONTINUABLE_SKILLS.includes(name),
+      skillPolicy(name).allowImplicitInvocation,
       name,
     );
     assert.equal(metadata.dependencies, undefined, name);
+  }
+});
+
+test('installed Host metadata leaves the entry route discoverable to the model', async () => {
+  assert.deepEqual(HOST_DISCOVERY_WITHHELD_SKILLS, ['ultra-delegate', 'ultra-status']);
+  for (const runtime of ['claude', 'grok', 'kimi']) {
+    const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
+    const { ctx } = sandbox(`${runtime}-entry-discovery`);
+    const report = await adapter.install(ctx);
+    const key = runtime === 'kimi' ? 'disableModelInvocation' : 'disable-model-invocation';
+    const blocked = skillsForRuntime(runtime).filter((name) => {
+      const installed = path.join(report.skillRoot, name, 'SKILL.md');
+      return parse(fs.readFileSync(installed, 'utf8')).fm[key] === true;
+    });
+    assert.deepEqual(blocked, HOST_DISCOVERY_WITHHELD_SKILLS, runtime);
+  }
+
+  const codex = require('../adapters/codex.js');
+  const { ctx } = sandbox('codex-entry-discovery');
+  const report = await codex.install(ctx);
+  const blocked = skillsForRuntime('codex').filter((name) => yaml.load(fs.readFileSync(
+    path.join(report.skillRoot, name, 'agents', 'openai.yaml'),
+    'utf8',
+  )).policy.allow_implicit_invocation === false);
+  assert.deepEqual(blocked, HOST_DISCOVERY_WITHHELD_SKILLS);
+});
+
+test('every Host receives each whole source description, and Codex shortens only its own', async () => {
+  // What a Host lists is the description verbatim: no adapter may shorten, reflow or
+  // rewrite it, because that listing is the only surface a model sees before the body
+  // loads. Codex additionally derives a bounded short description, which stays a prefix
+  // of that same text. Where that prefix falls inside a word is pre-existing Codex
+  // presentation behaviour, observed but not asserted here.
+  const source = Object.fromEntries(skillsForRuntime('claude').map((name) => [
+    name,
+    String(parse(fs.readFileSync(path.join(ROOT, 'skills', name, 'SKILL.md'), 'utf8')).fm.description),
+  ]));
+
+  for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']) {
+    const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
+    const { ctx } = sandbox(`${runtime}-description-fidelity`);
+    const report = await adapter.install(ctx);
+    const skillRoot = report.skillRoot || path.join(report.pluginRoot || report.target, 'skills');
+    for (const name of skillsForRuntime(runtime)) {
+      const installed = parse(fs.readFileSync(path.join(skillRoot, name, 'SKILL.md'), 'utf8'));
+      assert.equal(String(installed.fm.description), source[name], `${runtime}:${name}`);
+    }
+    if (runtime !== 'codex') continue;
+    for (const name of skillsForRuntime(runtime)) {
+      const metadata = yaml.load(fs.readFileSync(
+        path.join(skillRoot, name, 'agents', 'openai.yaml'),
+        'utf8',
+      ));
+      const short = String(metadata.interface.short_description);
+      const collapsed = source[name].replace(/\s+/gu, ' ').trim();
+      assert.ok(short.length > 0 && short.length <= 64, `${name}: short ${short.length}`);
+      assert.ok(collapsed.startsWith(short), `${name}: short description is not a prefix`);
+    }
   }
 });
 

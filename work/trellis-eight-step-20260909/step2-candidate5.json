@@ -1,0 +1,33 @@
+{
+  "source": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-final-entry5-08rm2b0_/source",
+  "patch": "work/trellis-eight-step-20260909/step2-candidate5.patch",
+  "patch_sha256": "122667aa8a08c3382277bca432add5cf0eba825e059ff2eeeb69f225bde7602a",
+  "created_at": "2026-09-09T02:27:14.641076+00:00",
+  "source_manifest": {
+    ".ultra/specs/architecture.md": "09bb1867cc4b34c112611b398a786062ce00d9756a0e75ef68fdd43ae1a8a3af",
+    ".ultra/specs/research-distillate.md": "3de9d096a9c67220c47190963e16d2ce8c5a7b54a71f49cda0eafe9a9735d287",
+    "README.md": "35c2581e81161ed52881be068981ca487e2756ef71ac04efd917dfd900c65140",
+    "README.zh-CN.md": "9bf18aafc327775f3c56cd9156fb8d4d80a2cef1dcf1c0825139ae7fbc35aa18",
+    "adapters/_shared/runtime-assets.cjs": "2d5f39b12464e74540526a7fc557d361d7260fb54cafd0faae068181fa28151a",
+    "adapters/_shared/tests/runtime-assets.test.cjs": "50be587984dc478024cff9c5a2183006634f91a400b92c4f1d5cd7dc9cb73369",
+    "bin/install.js": "c5fb2ee4264bebccc1186dd43915bc21216955fe67845f95ffbaa8c1cab97fb3",
+    "docs/PLUGIN-ISOLATION-CONTRACT.md": "e2b33d27e31a072e53d32c14498ea923cae5972f41ad396fef96a05793b6534b",
+    "docs/RUNTIME-COMPAT-MATRIX.md": "ae9cb7821138a05b1d4be50b67769a07366341c519a4494c7387267e6ff030a6",
+    "docs/SKILL-AUTHORING.md": "e0c872ba6de97208f494c3698a58b32f154c830a7fc19e396a5603116a4aaa0a",
+    "skills/ultra-change/SKILL.md": "a6fbfc69db9bcdeb53dfbbd3793657daf3c941e76f0c6db9296fc4fdfcb680ad",
+    "skills/ultra-init/SKILL.md": "32063e9ab652492908674da14c1f64ad9f70584b2de79ce6f11becca42298f0c",
+    "skills/ultra-status/references/route-contract.md": "5262531b27bc8646393f43fea566290b05a48e32b61c60c6e5a406639c7ffa15",
+    "tests/route-contract.test.cjs": "904390498d28b8b893f7fc658026bc5cdd74394c151350116ce2a385c238b29a",
+    "tests/v026-adapters.test.cjs": "1afe8399254eb8a673e5740eb38fb2fadd946ab770835274d455c924c5470e59",
+    "tests/v026-contract.test.cjs": "6610a4028ca63b43a5d43b68a759de0919dc2278562ea00b110cd7ddd042b063",
+    "bin/run.cjs": "468560c12fedb60964096a6b325b992335398e0a3adc53a85f79e421ec0c43aa",
+    "bin/unified-entry.md": "e37433df3a11dfd1cebba36d3fa3773ba81eb2e4da595158f6f4d59dca2b8beb",
+    "tests/unified-entry.test.cjs": "787f6160015a4bcfee8d7b498a0de6efcdb13c3b0837aa2829d57b9242f69caa"
+  },
+  "prior_candidate": "step2-candidate4.json",
+  "runtime_delta": "One native argv -- terminator before prompt; existing variadic --allowedTools could consume final prompt. No routing/Skill/entry-prompt change. New narrow test and expected argv updates.",
+  "installed_plugin": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/claude-config/skills/ultra-builder-pro",
+  "installed_manifest": "candidate4 unchanged: plugin assets do not contain CLI launcher",
+  "status": "implementation verified:761 Node,104 hooks,audit0,pack pass; F2-res live acceptance blocked429",
+  "case_visibility": "Codex has seen old development/reserved inputs and now authors code. Post-takeover old cases are confirmations, not independent held-out evidence; original candidate3 isolation facts stay historical."
+}

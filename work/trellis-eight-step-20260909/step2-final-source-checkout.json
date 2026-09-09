@@ -1,0 +1,9 @@
+{
+  "source": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-final-daily-rpzlyp5i/source",
+  "base": "5c2031eb367908f177f695e71b16385eab9a329b",
+  "patch": "work/trellis-eight-step-20260909/step2-candidate4-final-docs.patch",
+  "patch_sha256": "1447f2facfa9bf03687dad4c6d1f00ce0a7a981528058c6b0ca4258d807d6fbe",
+  "change_since_live_snapshot": "README.md and README.zh-CN.md document native print/piped-input limitation and reference reads. All runtime code matches candidate4. Includes main committed baseline tests and new K3/F1 workcopy checks.",
+  "created_at": "2026-09-09T02:07:33.928333+00:00",
+  "operator_correction": "First two full runs each failed only K3 addendum missing: the copy was omitted, then its first retry used the proof cwd as root; the corrected copy arrived after concurrent K3 test had already run. File is now verified present and narrow K3 8/8 passed before third full run. Product and test bytes never changed for this correction. First two logs retained."
+}

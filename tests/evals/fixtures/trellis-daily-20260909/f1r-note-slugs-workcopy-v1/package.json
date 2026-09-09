@@ -1,0 +1,9 @@
+{
+  "name": "trellis-daily-f1r-note-slugs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reserved family-1 fixture for the 2026-09-09 daily-workflow eval. Seeded defect: a fully non-ASCII title collapses to an empty slug, so note filenames collide.",
+  "scripts": {
+    "test": "node --test test/slug.test.js test/filenames.test.js"
+  }
+}

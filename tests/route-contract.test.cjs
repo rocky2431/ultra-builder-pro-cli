@@ -54,6 +54,10 @@ const PUBLIC_MODES = Object.freeze({
   },
 });
 
+// Coarse Host discovery stays off only for the routes the product requires the Owner to
+// name: read-only Status diagnosis and owner-authorized Delegate topology.
+const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
+
 function read(relative) {
   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
 }
@@ -144,7 +148,7 @@ test('runtime invocation policy preserves mode distinctions behind coarse Host m
     const invocationClasses = [...new Set(Object.values(modes))];
     assert.deepEqual(policy, {
       userInvocable: true,
-      allowImplicitInvocation: invocationClasses.includes('grant-continuable'),
+      allowImplicitInvocation: !DISCOVERY_WITHHELD.includes(name),
       invocationClasses,
       modes,
     }, name);
@@ -160,6 +164,23 @@ test('runtime invocation policy preserves mode distinctions behind coarse Host m
   }
 
   assert.equal(assets.skillPolicy('ultra-status').allowImplicitInvocation, false);
+});
+
+test('Init permits native discovery without granting authority', () => {
+  assert.deepEqual(assets.HOST_DISCOVERY_WITHHELD_SKILLS, DISCOVERY_WITHHELD);
+
+  // This checks metadata, not whether a host model will actually select the Skill.
+  const init = assets.skillPolicy('ultra-init');
+  assert.deepEqual(init.invocationClasses, ['explicit-entry']);
+  assert.equal(init.allowImplicitInvocation, true);
+  assert.equal(assets.skillPolicy('ultra-delegate').allowImplicitInvocation, false);
+  assert.equal(assets.skillPolicy('ultra-status').allowImplicitInvocation, false);
+
+  // The now-discoverable route guards its own entry, exactly as the mixed public Skills
+  // below already do; nothing on disk may activate work.
+  const source = read('skills/ultra-init/SKILL.md');
+  assert.match(source, /coarse Host discovery bit never authorizes this route/i);
+  assert.match(source, /installation[\s\S]{0,160}never that request/i);
 });
 
 test('mixed public Skills guard explicit modes after coarse Host discovery', () => {

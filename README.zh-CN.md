@@ -244,9 +244,42 @@ node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to zcode \
 5.0 release drill 还在六个真实 Host home 中验证了 ownership-safe install、Doctor、
 ZCode uninstall 与 reinstall。
 
+### 用一句目标启动 Ultra
+
+```bash
+# 直接说要什么，路由由宿主模型自己选
+ubp run "把报表导出的 CSV 中文乱码修好"
+ubp run "帮我做个能整理会议记录的小东西"
+
+# 只看将要执行的命令和首条 prompt，不真正启动
+ubp run --dry-run "..."
+```
+
+`ubp run` 会解析宿主将要加载的受管插件，把该插件自己的入口指令加上**原样未改**的目标
+交给宿主会话，然后把会话交回宿主。你不需要选择任何 Ultra mode、阶段或 Skill 名称。
+停止与退出保持原生。用 `ubp run --continue "继续刚才的改动"` 或
+`ubp run --resume <session-id> "完成刚才中断的改动"` 续接，同时重新加载插件；
+保留同一工作目录和插件选择。
+
+常用参数：`--config-dir <dir>` 或 `--plugin-dir <dir>` 为本次会话绑定指定的受管插件，
+`--cwd <dir>` 换工作目录，
+`--host-arg <arg>` 透传一个原生宿主参数，`-` 从 stdin 读取目标。`ubp run --help` 列出全部。
+
+用途尚待回答时，使用上面的交互终端形式。原生 `--print` 模式没有交互提问工具，
+批处理跑完不能证明用途澄清成功；管道输入也不提供后续回答所需的终端。
+宿主可能要求确认读取所选插件目录里的参考文件，这是原生文件访问确认，
+与决定产品用途是两件事。
+
+交互式启动目前只实现了 Claude Code；其他宿主会按名称明确报告为暂不支持，而不是近似冒充，
+它们的安装、Doctor、更新与卸载行为不变。
+
 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间
-的条目，例如 `$ultra-builder-pro:ultra-init`。安装后的 frontmatter 和 metadata 会
-保持用户 route 显式、模型 discipline 隐式。
+的条目，例如 `$ultra-builder-pro:ultra-init`。普通宿主聊天的自动发现属于尽力支持；
+使用统一入口即可明确进入 Ultra，无须点名内部 route。工作流随后自行核对入口、
+Mode、Grant 和效果再动手。
+安装后的 frontmatter 和 metadata 只把必须由你点名的两个 route 保持为所有者调用——
+只读的 `ultra-status` 诊断与 `ultra-delegate` worker 拓扑——并把模型 discipline
+保持在工作流内部。
 
 ### 诊断、更新和卸载
 
@@ -280,6 +313,10 @@ Kimi Code、Grok Build 和 ZCode 当前只提供用户级插件，所以 `--loca
 只有建立首个 baseline，或回答同一 active Change 已记录的有界证据问题时，才直接进入
 `ultra-research`。每次 public transition 都先展示派生的 Route Card，明确当前 Mode、
 Position、可观察 Exit condition、material checkpoint 和 Next route。
+
+下文的“选择”既指点名该 route，也指直接提出它存在的那件事：你当前的消息就是它所指
+工作的入口；而不会让任何规格句子失真的普通有界改动仍属普通仓库工作，不产生任何
+`.ultra/` 产物。
 
 1. 选择一次 `ultra-init`。它写入骨架，在 Project Brief 中保留所有者原始的一行请求
    和大致轮廓，在需要时初始化 Git，然后停止，不会开始产品 Research。

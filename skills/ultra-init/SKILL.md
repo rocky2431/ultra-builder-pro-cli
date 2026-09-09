@@ -1,11 +1,13 @@
 ---
 name: ultra-init
-description: Create or recover Ultra's repository-local skeleton and raw Project Brief without performing product research. Use when `.ultra` is absent or partial in a new or existing codebase and later workflows need stable file paths, preserved authority, and Git.
+description: Start a new app, tool, or script the codebase does not have yet. Use whenever someone asks for one from a rough need, however small or obvious the request looks — enter here first, then decide inside whether their stated need is already enough to build from or which material answers come first, keep the owner's own words, create the project's file skeleton and raw Project Brief, and hand back to ordinary implementation. Also use it to restore that project record when it is partial, uncertain, or unreadable, preserving accepted authority byte-for-byte. Not for a clear bounded change to existing code, and it performs no product research.
 ---
 
-# Create the skeleton and capture only the initial project outline
+# Settle the purpose first, then capture only the initial project outline
 
-Initialization establishes places for later authority and records raw owner intake. It
+Initialization exists so that what gets built is what the owner actually wanted: it
+settles the few purposes that would otherwise be guessed, records that intake in the
+owner's own words, and establishes the places later authority will use. It
 does not validate the problem, establish a North Star, build a product or architecture
 baseline, settle domain language, choose a Change, or start another public workflow.
 
@@ -19,6 +21,27 @@ baseline, settle domain language, choose a Change, or start another public workf
 Follow `../ultra-status/references/route-contract.md`. Derive a Route Card before the
 first write and at the exit or any repair stop. Init never continues into Research on
 its own, and its `Position` reports observed files rather than semantic progress.
+
+## Whether this skill applies at all
+
+| Situation | Where it goes |
+|---|---|
+| Someone asks for a new app, tool, or script this codebase does not have yet | Here — `create`, and settle the purpose first if it would change what you build |
+| The skeleton is partial, uncertain, or unreadable | Here — `recover` it |
+| An ordinary bounded change in an existing codebase, already clear enough to reproduce and verify | Not here — ordinary repository investigation, TDD, and verification create no `.ultra/` |
+| A one-off snippet or throwaway command nobody comes back to | Not here — write it, run it, hand it over, and create no `.ultra/` |
+
+Whether the stated need is already enough to build from is this Skill's decision, not a
+precondition for reaching it. Enter on the plain request, look at what the request and
+the repository already answer, and then either ask the few answers that would change what
+you build or record what was already given and continue. A broad complaint is a need, not
+a settled purpose; presuming one is how the wrong product gets built.
+
+A coarse Host discovery bit never authorizes this route. A model-selected entry is valid
+only when the owner's current request asks for that work, and that request is itself the
+owner entry for it — the route needs no separate confirmation. An installation, a
+historical file, or a skeleton observed on disk is never that request: report the
+observation and stop.
 
 ## Before you start
 
@@ -61,11 +84,23 @@ Follow `../ultra-grilling/SKILL.md` with only these required fields:
 | Constraints, materials, and decisions the owner already volunteered | `## Explicit Inputs` |
 | Questions already visible but requiring evidence or deeper decisions | `## Open Questions for Research` |
 
-Ask only enough to distinguish materially different outlines. If an answer would define
-a problem, actor evidence, desired outcome, success measure, product strategy, accepted
-constraint, domain term, requirement, or architecture, record it as an input or open
-question and stop drilling. Research owns that maturation and must not re-ask an answer
-unless evidence conflicts with it.
+Ask only enough to distinguish materially different outlines. Ask before building, not
+after: an answer that would change what you build — who it is for, what it must make
+possible later, which result counts as working — is worth one question now, and an
+unstated purpose is not a detail that implementation can settle on the owner's behalf.
+Where this project's own files live, which language and shape to use, and the rest of its
+internal design are inside the boundary in
+`../ultra-think/references/autonomy-boundary.md` — decide and proceed. What stays the
+owner's is their own material: which existing real source of their data to use, an input
+you cannot observe anywhere, and any access, integration, or write outside this project.
+Record an unknown source or missing material as unknown and ask for it once; it is never
+assumed and never turned into permission you were not given. Facts the repository can
+answer are never questions. Do not name the owner's main difficulty for them.
+
+If an answer would define a problem, actor evidence, desired outcome, success measure,
+product strategy, accepted constraint, domain term, requirement, or architecture, record
+it as an input or open question and stop drilling. Research owns that maturation and must
+not re-ask an answer unless evidence conflicts with it.
 
 ## Write and recover the skeleton
 
@@ -135,9 +170,16 @@ the host cannot ask, leave unresolved fields explicit and recommend resuming Ini
 host that can; do not infer intent from the directory name. Recommend Research after a
 usable brief exists, but do not invoke it.
 
+Say what that recommendation is for: `ultra-research/baseline` decides the consequential
+product commitments the brief left open, and when the settled outline is already small
+enough to build and verify directly, the owner's current request governs whether that
+baseline or the ordinary verified work comes next. Neither Init nor its recommendation
+turns a raw outline into an accepted North Star.
+
 ## References
 
 - `../ultra-grilling/SKILL.md` — read before the first missing brief field.
 - `references/brownfield-adoption.md` — read when maintained behavior already exists.
 - `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
-- `../ultra-think/references/autonomy-boundary.md` — read before replacing authority.
+- `../ultra-think/references/autonomy-boundary.md` — read before replacing authority or
+  reaching outside this project for the owner's own material.

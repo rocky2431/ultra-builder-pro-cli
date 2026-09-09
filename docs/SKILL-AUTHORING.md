@@ -35,6 +35,16 @@ ZCode-native plugin metadata.
 Do not put host paths, dependency declarations, plugin policy, or release history in
 source frontmatter.
 
+During native Skill discovery, the description is shown before the body is loaded.
+Selection remains model-owned and best-effort. State the situation as the owner's request and the
+value in what changes for them; a description written in Ultra's artifact vocabulary can
+only match a reader who already works in Ultra. This binds hardest on a route reachable
+with no `.ultra/` record, whose opening sentence is also the Codex short description: it
+must be legible to a model that has never seen an Ultra artifact, and it must say what
+the route does for the owner before naming what it writes. Name the autonomy it does not
+take as well — a route that would be wrong for a clear bounded change says so — and never
+promise a behavior the body does not carry out.
+
 ## Required shape
 
 Every Skill has one outcome-led title and these semantic sections:

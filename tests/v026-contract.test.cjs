@@ -49,6 +49,7 @@ const CONTINUABLE = [
   'ultra-test',
   'ultra-deliver',
 ];
+const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
 const ALL = [...USER, ...MODEL, ...ROUTER].sort();
 
 function readSkill(name) {
@@ -159,7 +160,11 @@ test('the package exposes exactly fourteen file-first skills in three roles', ()
   }
   for (const name of USER) {
     assert.equal(skillPolicy(name).userInvocable, true, name);
-    assert.equal(skillPolicy(name).allowImplicitInvocation, CONTINUABLE.includes(name), name);
+    assert.equal(
+      skillPolicy(name).allowImplicitInvocation,
+      !DISCOVERY_WITHHELD.includes(name),
+      name,
+    );
   }
   for (const name of MODEL) {
     assert.equal(skillPolicy(name).userInvocable, false, name);
