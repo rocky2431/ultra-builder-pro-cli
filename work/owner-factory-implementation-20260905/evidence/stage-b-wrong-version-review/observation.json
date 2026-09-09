@@ -1,0 +1,39 @@
+{
+  "schema": "ultra-review-directed-observation-v1",
+  "observed_at": "2026-09-05T21:02:22Z",
+  "operator": "review-code",
+  "authorization": "Root authorized this one existing-program, no-Provider diagnostic during the read-only review; only JSON inputs, observations and raw logs may be written.",
+  "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review",
+  "command": ["rtk", "proxy", "env", "-i", "PATH=/usr/bin:/bin:/usr/sbin:/sbin", "/Users/rocky243/.hermes/node/bin/node", "/tmp/ubp-acpx-runtime-ppTQ/runtime/acpx_delegate_entry.cjs"],
+  "stdin": "request.json",
+  "stdout": "stdout.jsonl",
+  "stderr": "stderr.log",
+  "exit_code": 0,
+  "duration_s": 1.022005291,
+  "entry_pid": 50569,
+  "entry_pid_after": "ps -p 50569 -o pid,ppid,pgid,args= returned only its header and exit code 1",
+  "node_version": "v26.8.1",
+  "acpx_version": "0.13.2",
+  "provider_calls": 0,
+  "new_implementation_or_test_scripts": [],
+  "entry_sha256_before_and_after": "99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb",
+  "source_entry": "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs",
+  "source_entry_sha256_before_and_after": "99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb",
+  "fixture_source": "tests/fixtures/fake-acp-agent.cjs",
+  "fixture_sha256_before_and_after": "3be19ae9c04ff7bac9872f74d48b901eefc5737910cfa6a3b494150c3e3c0844",
+  "fixture_response_basis": "The exact existing fixture at line 129 returns protocolVersion 2 when fixture-config.json selects wrong-version. The fixture trace records received client messages, not agent response bytes.",
+  "observed_client_methods": ["initialize", "session/new", "session/prompt"],
+  "observed_terminal": {"status": "completed", "stopReason": "end_turn"},
+  "raw_artifacts_sha256": {
+    "request.json": "7c1fe76b3744657741cbb6b85c5fa345e85310089f3b118589c5de233298bb62",
+    "fixture-config.json": "2eac4a3e2866a56307ee5cc6684d9a2e0a36e543c10c98e2ecdfefa5a195a0d8",
+    "agent-trace.jsonl": "fd2387dcfa953044095616a5e8c00a4b4a643f42919adaf3b3d1762fdf0db624",
+    "stdout.jsonl": "fd14a01c6816dd04ae3c6898ce032ac941b29cbac819bc538f38297e1b2712d3",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "limitations": [
+    "This is the real public ACPX entry with an existing local fake Agent, not real Host qualification.",
+    "The diagnostic did not rerun UBP delegate/conformance end to end. The resulting protocolVersion 1 projection and potential conformance acceptance are established from the current UBP consumer source.",
+    "Raw stdout includes only deliberately synthetic fake-Agent strings, including its hidden-reasoning and tool-payload canaries. No Provider or credential values were used."
+  ]
+}

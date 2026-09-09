@@ -1,0 +1,38 @@
+{
+  "started_at": "2026-09-05T20:08:54.742205+00:00",
+  "purpose": "actual production AcpDriver with final public entry and pinned SDK; fixture Host only, no Provider",
+  "source_entry": "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs",
+  "source_entry_sha256": "99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb",
+  "old_isolated_entry_sha256": "6eaf51eb894329f022f1d6c782d267bb341e9ae2aa969cbba5e2ed6d68e35d86",
+  "source_before": {
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/acp-driver.cjs": "72f46e166b39f468ecabcfd92dc994ab31b912bf0d4c1b4b74a9b509d35f87db",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/agent-execution-driver.cjs": "f564d8f4f7b15e5c95ed27df35d8f8daca7ad6839412cb814256335e0b598ed4",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/fixtures/fake-acp-agent.cjs": "3be19ae9c04ff7bac9872f74d48b901eefc5737910cfa6a3b494150c3e3c0844",
+    "/tmp/ubp-acpx-runtime-ppTQ/runtime/acpx_delegate_entry.cjs": "99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb"
+  },
+  "checks": [
+    {
+      "script": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/owner-factory-implementation-20260905/stage-b-acpx-production-driver-smoke.cjs",
+      "script_sha256": "f84a09331f315f1c46a7fc60f62202957e17cbe281b9679b54d3454e758fcfdb",
+      "exit_code": 0,
+      "duration_s": 3.104,
+      "log": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-driver-combination.log",
+      "log_sha256": "fbc7e86e79a4a0fc6947555b1c095bc2471feb3db0bd8ee056f10532ddcffb34"
+    },
+    {
+      "script": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/owner-factory-implementation-20260905/stage-b-acpx-production-cancel-smoke.cjs",
+      "script_sha256": "f4dcba108fb631d9544c829aa21330567fcc3791382dc648a38752acbc503188",
+      "exit_code": 0,
+      "duration_s": 2.192,
+      "log": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-cancel-combination.log",
+      "log_sha256": "4b417f6d79a00b2fd60eba2a75ccad5253328ab82bfabfa56c4107f6cdacc71b"
+    }
+  ],
+  "source_after": {
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/acp-driver.cjs": "72f46e166b39f468ecabcfd92dc994ab31b912bf0d4c1b4b74a9b509d35f87db",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/agent-execution-driver.cjs": "f564d8f4f7b15e5c95ed27df35d8f8daca7ad6839412cb814256335e0b598ed4",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/fixtures/fake-acp-agent.cjs": "3be19ae9c04ff7bac9872f74d48b901eefc5737910cfa6a3b494150c3e3c0844",
+    "/tmp/ubp-acpx-runtime-ppTQ/runtime/acpx_delegate_entry.cjs": "99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb"
+  },
+  "source_unchanged": true
+}

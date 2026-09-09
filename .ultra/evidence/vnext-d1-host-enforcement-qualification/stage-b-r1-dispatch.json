@@ -1,0 +1,63 @@
+{
+  "$schema": "ultra-d1q02-dispatch-v1",
+  "attempt_id": "d1q02-r1-20260905t220538-5d954643",
+  "state": "observed",
+  "prepared_at": "2026-09-05T22:05:38.607Z",
+  "profile": "zcode",
+  "admission_override": {
+    "removed": "HOST_ENFORCEMENT_QUALIFICATION.zcode (the enforcement admission gate)",
+    "reason": "D1Q-02 bootstrap: no positive record exists yet and admission would correctly refuse the packet. Permissions, environment filtering, digest binding and the writer lifecycle stay production code under test."
+  },
+  "deadline": {
+    "timeout_seconds": 1500,
+    "dispatched_by": "Root only, after recording this named attempt",
+    "dispatch_deadline_at": "2026-09-05T22:39:31.067Z"
+  },
+  "bindings": {
+    "product_head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+    "instruction_sha256": "3b1b49097987d37dc17168fbb196e16207a55ad61b509373caa4d813b902ad27",
+    "permission_sha256": "eba38c704f0177ed0403d7f2d71feda977bddabd915fe0802ea6b29f07007392",
+    "result_schema": "ultra-delegation-result-v1",
+    "result_template_sha256": "f3cb184219e915ad4b395c0dad70ea583032053ef66998f002b7a09656830276",
+    "ubp_source_sha256": {
+      "skills/ultra-delegate/scripts/delegate.cjs": "d29b2d0aad5815ec3da71b844bab2875f882dfb0f031078d91318590e0615639",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs": "a7ee8530346f2fb2d8868aba9c207edc5df730377e54c270fbfa8b143ffc8373",
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs": "f564d8f4f7b15e5c95ed27df35d8f8daca7ad6839412cb814256335e0b598ed4",
+      "skills/ultra-delegate/scripts/acp-driver.cjs": "2b54717dd0027c37f9427c90c37cb830358c0caeacff3b74e193517a220e9cc1",
+      "skills/ultra-delegate/scripts/cli-driver.cjs": "d301ce7df4eb617a8f700bf8454cc9c70bb7d216e49517914ab22a34698f658b",
+      "skills/ultra-delegate/scripts/host-profile.cjs": "0f330a88bb2441d445af326928ba08c2eeb2434a40c486994e85dcbd871a3681"
+    },
+    "runtime_base": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02",
+    "real_bridge": "/tmp/ubp-factory-stage-b-l7dd0y3s/zcode-acp/target/debug/zcode-acp",
+    "real_bridge_sha256": "ebc2932b0d1c6c78efe133aea68d1e6616615eed8e2c5c229a41f3ba81ca9eba",
+    "acpx_entry": "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs",
+    "acpx_entry_sha256": "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd",
+    "acpx_package": {
+      "path": "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/node_modules/acpx",
+      "real_path": "/Users/rocky243/.local/share/agent-delegation/runtime/node_modules/acpx",
+      "name": "acpx",
+      "version": "0.13.2",
+      "package_json_sha256": "365d2b9f3e260f03517e45cc7e207931644e91bfe7f66143d9aea47c95b64587"
+    },
+    "bundled_cli": "/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs",
+    "bundled_cli_sha256": "e9f1868c0fdb863537ed910ee3828b9be96b8c2fd805473f63b439e1113266b8",
+    "native_cli_override_env": "UBP_DELEGATE_ZCODE_BIN",
+    "native_cli_override_value": null,
+    "canonical_patch_path": "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+    "canonical_patch_sha256": "8c127dba648720121da9326cae721141785f03ef72bdfae2201f50e59bb9cb36",
+    "declared_candidate_identity": {
+      "bridge_build_marker": "zcode-acp 0.1.0+ultra.zcode.0.16.5.r1",
+      "runtime_version": "0.16.5"
+    },
+    "worktree": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/worktree",
+    "delegation_dir": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation",
+    "instruction_file": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/instruction.md",
+    "permission_file": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/permission.json",
+    "instruction_sha256_pre_sink": "7225bd32411c6b0294632bebd3434054f4c9b3f4ec02f790031040659ec059b5",
+    "loopback_sink_url": "http://127.0.0.1:54007/probe"
+  },
+  "note": "This record carries hashes and paths only; values elsewhere in this attempt are synthetic non-production canaries.",
+  "dispatched_at": "2026-09-05T22:14:31.067Z",
+  "observation": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/owner-factory-implementation-20260905/d1q02-r1-20260905t220538-5d954643-observation.json",
+  "observed_at": "2026-09-05T22:16:46.816Z"
+}

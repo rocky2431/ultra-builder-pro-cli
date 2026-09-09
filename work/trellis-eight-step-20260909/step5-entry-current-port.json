@@ -1,0 +1,8 @@
+{
+  "root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-agent-entry-current-no2ne2fc",
+  "head": "e6c730413452411715696c79d7c4f6bc0eeee447",
+  "branch": "codex/ubp-stage-b-entry-20260909",
+  "patch_sha256": "c73c05537db819ae5091887afc2827940748f0635331d2b38600a8e9611b5a98",
+  "check_exit": 1,
+  "diagnostic": "error: patch failed: README.md:223\nerror: README.md: patch does not apply\nerror: patch failed: scripts/install_user.py:28\nerror: scripts/install_user.py: patch does not apply\n"
+}

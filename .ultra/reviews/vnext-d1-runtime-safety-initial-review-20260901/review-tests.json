@@ -1,0 +1,69 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "packet_digest": "2aec0ea50836b8c208695ff27a34d2567b21d96645186ab42b3995dc50f9ff75",
+  "admission_digest": "d9cc6313dd147482bb22124f2165d341cbf8638a34d389327d14e328b15dd2dc",
+  "subject_digest": "e5e5aea05a47d8bc6b9a3f80044698c2816bde31d1f457141dcf18e28798cfd3",
+  "session": "vnext-d1-runtime-safety-initial-review-20260901",
+  "timestamp": "2026-09-01T13:30:48Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-runtime-safety-repair-2-candidate",
+    "files_analyzed": [
+      "tests/delegate.test.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/acp-conformance.test.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "coverage",
+      "title": "Green recovery tests omit both unsafe outer-worker evidence gaps",
+      "file": "tests/delegate.test.cjs",
+      "line": 2463,
+      "line_end": 2492,
+      "trigger": "The implementation regresses by treating the post-spawn pre-claim pid-null window or a live PID with an unsupported or unreadable bound identity as stopped.",
+      "impact": "The focused suite still reports 89 of 89 passing even though cancel can publish a safe terminal and release the writer fence while a real worker remains alive.",
+      "evidence": "The reused-PID test covers a supported Linux identity with a deliberately different value, and the worker-claim test covers a spec-digest mismatch. Neither exercises pid null after spawn, a live PID with an unknown identity type, an unavailable current identity, or exact identity readback. Independent direct fixtures reproduced cancelled, lock deletion, and fence_count 0 in the missing-identity cases.",
+      "suggestion": "Add deterministic RED cases for post-spawn pid null and live-but-unavailable or unsupported identity, asserting status unknown and that cancel signals first but creates no cancelled result, removes no lock, and releases no fence. Add a focused worker-claim readback case for changed or omitted identity without a production test backdoor.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "tests/delegate.test.cjs:2022",
+    "tests/delegate.test.cjs:2104",
+    "tests/delegate.test.cjs:2463",
+    "tests/delegate.test.cjs:2495",
+    "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs: 89 passed, 0 failed"
+  ],
+  "positive_observations": [
+    "The suite now reaches real fault seams and covers missing inner-writer evidence, conflicting recovery facts, symlink-safe cancellation, fence overlap, and frozen outcome_unknown behavior.",
+    "The exact three-file command is deterministic and passed independently outside the writer session."
+  ],
+  "limitations": [
+    "A green aggregate count is insufficient until the newly reproduced outer-worker cases become executable regressions."
+  ]
+}

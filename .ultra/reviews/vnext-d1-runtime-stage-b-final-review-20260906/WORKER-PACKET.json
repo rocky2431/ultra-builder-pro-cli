@@ -1,0 +1,168 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-d1-runtime-stage-b-final-review-20260906",
+  "mode": "task",
+  "created_at": "2026-09-05T20:50:48.700346+00:00",
+  "head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "range": "b765b55cca0e1eaacebc738a68de77906bb50756 plus current Stage B working-tree runtime migration and focused regression changes",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC01, D1-AC02 and D1-AC04 require role-scoped descendant environments, truthful complete-writer recovery, physical writer exclusion and no semantic orchestration expansion.",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#acceptance-criteria: D1R-01 through D1R-05 require actual process-spawn environment observation and canary scans, truthful nested and outer writer recovery, exclusive physical roots, N=1 selection/results/conformance compatibility, and no unplanned semantic orchestration.",
+    ".ultra/decisions/2026-09-05-owner-factory-implementation.md#owner-authorization: The current Owner approves full in-scope implementation by ZCode/Kimi/CC with Codex review and stage commits.",
+    ".ultra/decisions/2026-09-06-stage-b-implementation-scope.md#scope: Current scope includes the public ACPX consumer, UBP adapter and repaired bridge identity; old budget/no-commit statements are historical, while real qualification belongs to the next Task."
+  ],
+  "public_seams": [
+    "delegate.cjs run/status/cancel and actual detached delegate-worker spawn",
+    "public agent-delegation ACPX entry to UBP AcpDriver, pre-prompt-only typed CLI fallback and exact permissions",
+    "role-scoped environment, physical root fence and inner/outer writer stop/unknown recovery",
+    "unchanged ultra-delegation-result-v1, conformance and installed-adapter discovery"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "da7786d417393a6950236226395b4d9fefa8555dfa396c0f2839e2f8150a2cec"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "da7786d417393a6950236226395b4d9fefa8555dfa396c0f2839e2f8150a2cec",
+      "byte_length": 18932
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-05-owner-factory-implementation.md",
+      "sha256": "0300db6520062ae68d8195a7096ebbd7c6efbe7e1777d1309fc4b459a80608d3",
+      "byte_length": 5271
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-06-stage-b-implementation-scope.md",
+      "sha256": "14d603ead0ac0d381e0cae53fae3a6a87e624eebb42204db6e009c7658511951",
+      "byte_length": 5065
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906/review-spec.json"
+    },
+    {
+      "agent": "review-code",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/code.md",
+      "output": ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906/review-code.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906/review-tests.json"
+    }
+  ],
+  "diff_files": [
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/acp-driver.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "tests/delegate.test.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/acpx-entry.test.cjs",
+    "tests/fixtures/fake-acp-agent.cjs",
+    "tests/fixtures/fake-acpx-entry.cjs",
+    "tests/install.test.cjs",
+    "tests/v026-adapters.test.cjs",
+    "tests/ultra-5-journeys.test.cjs",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md"
+  ],
+  "output_directory": ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906",
+  "review_history": {
+    "parent_summary_ref": ".ultra/reviews/vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902/SUMMARY.json",
+    "parent_summary_digest": "752708c7a8d6b53871ef0b749e10d04ba980cfea69996387f7f3c3366bb8b89b",
+    "unresolved_blocking_ids": []
+  },
+  "review_questions": [
+    "Map all five D1R criteria to final source and real raw evidence. D1Q-02 belongs to the next Task; fixtures cannot establish real Provider qualification.",
+    "Trace actual OS spawn options and return PID, not only the input environment helper; EPERM and unknown signal results must never release an unproved writer.",
+    "Check public-entry migration normal/error/cancel/late-result paths, raw-output persistence, ensure_session-only auth fallback and exact permissions. Inspect only concrete reachable failures.",
+    "The first opt-in full release failed because repository-root temporary config raced installer provenance; actual ZCode isolated the fixture. Root final full release passed 736 Node +104 Hook, zero skip/failure and zero vulnerabilities, tested source unchanged. Preserve both logs and the other prior negative observations.",
+    "No code edits, Provider calls or broad new gates; preserve bounded P2/P3 separately from blockers."
+  ],
+  "evidence_refs": [
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-runtime-raw-index.json",
+    "work/owner-factory-implementation-20260905/stage-b-entry-acceptance.zh-CN.md",
+    "work/owner-factory-implementation-20260905/stage-b-entry-final-source-review.zh-CN.md",
+    "work/owner-factory-implementation-20260905/stage-b-bridge-final-source-review.zh-CN.md",
+    "work/owner-factory-implementation-20260905/stage-b-acpx-integration-repair-review.zh-CN.md",
+    "work/owner-factory-implementation-20260905/stage-b-zcode-entry-fixture-isolation-handover.zh-CN.md"
+  ]
+}

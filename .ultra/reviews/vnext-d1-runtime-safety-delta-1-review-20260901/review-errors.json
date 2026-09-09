@@ -1,0 +1,35 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "a5325d3819a883d95363a0761a123316720d5ba9a3c8d54b4c9249b2d908b16e",
+  "admission_digest": "07f3fde69dd1e75781809c741374e478624fe278b5a9a640b9859331b5b5c53b",
+  "subject_digest": "4e8b544dc624b5eb86cf55a3b71467c2c30a1588e458da7b3e69c2d8871853c3",
+  "session": "vnext-d1-runtime-safety-delta-1-review-20260901",
+  "timestamp": "2026-09-01T14:05:33Z",
+  "agent": "review-errors",
+  "axis": "engineering_standards",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-runtime-safety-review-delta-1",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "tests/delegate.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-runtime-safety-initial-review-20260901/review-errors.json#review-errors-001",
+    "skills/ultra-delegate/scripts/delegate.cjs:1211 cancel signal publication",
+    "skills/ultra-delegate/scripts/delegate.cjs:1228 proven-stopped outer gate",
+    "skills/ultra-delegate/scripts/delegate.cjs:1230 proven-stopped inner gate",
+    "tests/delegate.test.cjs:2537 cancel during the pre-claim gap"
+  ],
+  "positive_observations": [
+    "Unknown outer-worker state now returns cancel_requested after writing the signal without publishing cancelled, removing the lock, or releasing the fence.",
+    "A terminal frozen result also requires both current stop proofs before cleanup and remains immutable otherwise."
+  ],
+  "limitations": [
+    "This delta does not add a new retry, signal transport, or recovery daemon."
+  ]
+}

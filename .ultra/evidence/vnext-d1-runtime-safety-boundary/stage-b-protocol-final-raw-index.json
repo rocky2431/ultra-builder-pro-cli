@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-09-05T21:46:47.137781+00:00",
+  "files": [
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-release-final.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+      "sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5",
+      "byte_length": 65964
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-release-final.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.json",
+      "sha256": "a720a4f5a3a7f0eafa5ba55ef024e1ef5f2b1483948a9f08a7bd04e0d494df54",
+      "byte_length": 60907
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-release-final-subject-before.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final-subject-before.json",
+      "sha256": "06ce7635457352de384ad0b4f80b91dbb6d54f0cfebd46fa7cb27ea6346b5617",
+      "byte_length": 4469
+    }
+  ],
+  "prior_failed_runs": [
+    "stage-b-root-protocol-release.json",
+    "stage-b-root-protocol-release-after-evidence-reconciliation.json"
+  ],
+  "limitations": [
+    "The default-concurrency full release passed on the final unchanged implementation; the prior null child exit remains a retained, unclassified single-run failure."
+  ]
+}

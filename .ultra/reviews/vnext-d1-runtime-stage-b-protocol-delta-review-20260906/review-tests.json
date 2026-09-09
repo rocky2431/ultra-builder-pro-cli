@@ -1,0 +1,98 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "packet_digest": "f06f087cf90b8f7e959963b4bc55a6577b51f91c7220027feb29c0f14a60b093",
+  "admission_digest": "868ca62d7de9189a136fe1fd79e328ff2fbf4dc8334dc4615ec975d407449324",
+  "subject_digest": "576b56729e6e2cdd8e56b40a2f693326e0468a7f8cc47dbcd2c21974c5e18daf",
+  "session": "vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+  "timestamp": "2026-09-05T21:55:05.488235+00:00",
+  "scope": {
+    "head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+    "range": "b765b55cca0e1eaacebc738a68de77906bb50756 plus current Stage B runtime migration and the direct-parent protocol refusal repair in the working tree",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "skills/ultra-delegate/scripts/acp-conformance.cjs",
+      "skills/ultra-delegate/SKILL.md",
+      "skills/ultra-delegate/references/delegation-contract.md",
+      "tests/delegate.test.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/acpx-entry.test.cjs",
+      "tests/fixtures/fake-acp-agent.cjs",
+      "tests/fixtures/fake-acpx-entry.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "regression_coverage",
+      "title": "Retain real-entry driver combinations as executable regressions",
+      "file": "tests/acpx-entry.test.cjs",
+      "line": 137,
+      "line_end": 149,
+      "trigger": "Run the opted-in entry tests after a change in the UBP adapter or public runtime event, permission, or cancellation contract.",
+      "impact": "Outside the newly protected wrong-version case, the real-runtime tests can remain green while the integrated AcpDriver normal, sequential-denial, or cancellation path regresses. The separate entry and fake-entry driver checks provide useful coverage, but they do not assert those combinations through the actual public entry.",
+      "evidence": "This is the direct-parent nonblocking review-tests-001, retained with evidence updated for the P1 repair. tests/acpx-entry.test.cjs:49-129 still launches ENTRY directly; its normal and permission cases at 137-183 do not construct AcpDriver. tests/acp-driver.test.cjs:16 selects fake-acpx-entry.cjs for its normal, multiple-denial and cancellation cases. The new override at 292-325 exercises actual AcpDriver plus the real entry only for wrong-version. The retained stage-b-root-final-entry-combinations.json and its hash-verified logs are historical observations bound to entry SHA 99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb, not an executable regression on final entry f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd. The current repair therefore closes the specific P1 without closing this broader P2.",
+      "suggestion": "When the owner selects this P2, reuse the existing opt-in entry selection for AcpDriver normal, three sequential denial, and cancellation cases. Assert the three exact journal decisions, final output suppression, typed terminal and stopped descendant boundary with the existing fake Host and isolated cleanup. No Provider call or new dependency is needed.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-5",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-5"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "tests/acp-driver.test.cjs:292",
+    "tests/delegate.test.cjs:559",
+    "tests/fixtures/fake-acp-agent.cjs:129",
+    "tests/fixtures/fake-acpx-entry.cjs:315",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:516",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:628",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:664",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs:360",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs:210",
+    "skills/ultra-delegate/references/delegation-contract.md:87",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-root-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-final-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-narrow.log:19",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.log:17",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-relocation.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-review-timeout-replay.json",
+    "work/owner-factory-implementation-20260905/evidence/stage-b-wrong-version-review/agent-trace.jsonl"
+  ],
+  "positive_observations": [
+    "Direct-parent review-tests-002 is addressed: tests/acp-driver.test.cjs:292-325 now temporarily selects UBP_TEST_ACPX_ENTRY and constructs the production AcpDriver with the existing wrong-version Agent. It asserts acp_turn_failed, failurePhase ensure_session, observed protocolVersion 2, no session/prompt, no host_output and no terminal success event. Root ran that exact case successfully with the final real entry and pinned ACPX 0.13.2; this protection no longer depends on the stricter fake entry.",
+    "The same-root code defect review-code-001 is corroborated by the tested consumer path: the real entry observes public sessionStore.save records and checks the observed version before startTurn; AcpDriver reads the optional result-line sibling instead of synthesizing 1. The installed SDK source directly assigns record.protocolVersion from client.initializeResult. The unsupported-version outcome cannot satisfy the existing conformance requirement terminal.acp_protocol_version === 1.",
+    "The actual external entry tests cover unsupported version 2, missing protocolVersion, ordinary v1, session-creation auth failure, post-prompt auth failure and cancellation before and during a turn. Their fixture changes only the peer initialize response and uses the actual public entry and pinned SDK. Missing/auth-failure versions remain absent at the entry boundary; the UBP auth-fallback assertions now preserve null in both published version fields.",
+    "The mirrored fake entry now observes negotiation after session/new and emits the same optional version sibling. The unsupported-version check occurs before session/prompt in both entries. The real regression explicitly retains the session/new observation, so it does not claim a refusal with zero session effects.",
+    "Independently verified all 12 protocol-root and 3 protocol-final retained file hashes and byte lengths. The 105-test focused run, 58-test external-source run and final 737 Node plus 104 Hook release all have successful raw results, no skipped tests, and matching before/after source hashes. All 172 focused/release source observations and all 4 external-source observations still match current files; both real-entry copies have SHA f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd. The final release audit reports zero vulnerabilities.",
+    "The retained seven-file wrong-version relocation and 16-file previous-runtime index also match their recorded hashes. The old trace still proves initialize followed by session/new and session/prompt, and its typed result remains completed/end_turn. Those negative bytes were preserved rather than overwritten by the repair evidence."
+  ],
+  "limitations": [
+    "This is the admitted direct-parent P1 repair delta, not a new broad audit. No P0/P1 finding remains in this test lens; the parent review-code-001 and review-tests-002 describe one root cause and remain distinct historical records. The three prior P2 findings remain nonblocking retained scope; this artifact carries the test P2 and does not automatically repair any P2.",
+    "The full release and related suites were not rerun by this read-only specialist. Conclusions use inspected executable assertions, retained raw command output, and independently checked current/source-snapshot hashes, as directed by the packet.",
+    "The first protocol full release failed on evidence inventory/layout. The subsequent release retained a review-wait child exit status null rather than 1; its original output does not identify error or signal. The unchanged targeted replay passed and the final unchanged-source default-concurrency release passed, but neither result classifies the original null exit or establishes that it was harmless.",
+    "The real-entry wrong-version regression is opt-in through UBP_TEST_ACPX_ENTRY. It was actually enabled in the retained 105-test focused and 737-test final release runs; a default run without that external runtime selection skips this case and the direct-entry cases.",
+    "The final entry may create an Agent session before the negotiated version reaches sessionStore.save. The proven refusal boundary is no session/prompt or model turn; it is not zero session effects. The original trace contains client requests only, with the version-2 response established by the unchanged fixture source and bound wrong-version input.",
+    "Downstream no-v1-conformance is source-traced from the real AcpDriver rejection and version-2 assertion through the unchanged strict conformance predicate; this lens did not execute a separate full conformance run against an unsupported real Host.",
+    "External public-entry and pinned-SDK source were inspected only to establish the packet-named consumer and double-fidelity claims; scope.files_analyzed remains packet-relative. All Agents in these tests are local fixtures. No Provider qualification, installation, implementation/test edit, commit, task completion or canonical qualification publication was performed.",
+    "The author handover timestamp discrepancy remains historical evidence. Current freshness is supported by Root command times and exact byte snapshots, not the conflicting author observed_at value."
+  ]
+}

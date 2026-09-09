@@ -1,0 +1,155 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-d1-plan-review-20260901",
+  "mode": "plan",
+  "created_at": "2026-08-31T22:40:58Z",
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-plan-v1",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary",
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC01 requires one target-aware sanitized descendant environment across probe, worker, ACP and CLI launch seams",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC02 requires identity-bound writer stop proof, outcome_unknown on uncertainty and duplicate-writer prevention",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC03 requires exact selected-Host dimension qualification and fail-closed denied Agent effects with provider transport recorded separately",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC04 preserves the existing N=1 ACP-first typed delegation path and full release gate",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC05 aligns maintained contracts without claiming unsupported durable or per-root guarantees",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#acceptance-criteria: D1R-01 through D1R-05 map environment, writer truth, fencing and N=1 compatibility into one shared-boundary tracer",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-01 through D1Q-05 separately map exact Host admission, one no-production observation, contracts and the integrated gate",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md#current-authority-boundary: ZCode is sole implementation writer while Codex coordinates and reviews and Claude Code remains read-only"
+  ],
+  "public_seams": [
+    "delegate admission, driver probe, detached worker and ACP/CLI descendant environment",
+    "writer identity observation, worktree/root fence, timeout, status, cancel and outcome_unknown recovery",
+    "exact Host/version capability qualification for file, Agent-tool network, secret and point-of-use effect dimensions",
+    "installed ultra-delegate Skill, delegation contract, product and architecture specifications",
+    "current N=1 delegation suites, one bounded no-production Host smoke and full release verification"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "e3f1dece4b7a55cb28810a3978878cf8f8b02fc827d8d981957d8d24e261fee1"
+    },
+    {
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "bcc494b886e267dc54410961ebb6a78ff898267006a8ac0075a6da6fa6bbb0b5"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "d4b4b9b9c8fbbf61625b94db91ceb9d5dd7da7fce4e53fcaf00d681d6b0fb6a0",
+      "byte_length": 10766
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "d4b4b9b9c8fbbf61625b94db91ceb9d5dd7da7fce4e53fcaf00d681d6b0fb6a0",
+      "byte_length": 10766
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "e3f1dece4b7a55cb28810a3978878cf8f8b02fc827d8d981957d8d24e261fee1",
+      "byte_length": 9123
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "bcc494b886e267dc54410961ebb6a78ff898267006a8ac0075a6da6fa6bbb0b5",
+      "byte_length": 9366
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      "sha256": "dfb2aa768c1f8770e5fef5835a067f96a9966f162fe6aa507799af3e9cd63b09",
+      "byte_length": 8876
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-d1-plan-review-20260901/review-spec.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-d1-plan-review-20260901/review-tests.json"
+    },
+    {
+      "agent": "review-errors",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/errors.md",
+      "output": ".ultra/reviews/vnext-d1-plan-review-20260901/review-errors.json"
+    },
+    {
+      "agent": "review-design",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/design.md",
+      "output": ".ultra/reviews/vnext-d1-plan-review-20260901/review-design.json"
+    }
+  ],
+  "diff_files": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+    ".ultra/tasks.json",
+    "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md",
+    "work/vnext-step1-claude-architecture-discussion.md"
+  ],
+  "output_directory": ".ultra/reviews/vnext-d1-plan-review-20260901",
+  "review_questions": [
+    "Does the two-task D1 plan close only the shared delegation-safety prerequisite without leaking Step 1 Supervisor or wake work into scope?",
+    "Are environment isolation, writer stop proof, outcome_unknown, fencing and exact Host effect qualification assigned to the correct seam with no authority gap?",
+    "Can every acceptance claim be falsified by the planned RED/GREEN fixtures, bounded exact-Host observation and integrated gate while preserving current N=1 behavior?"
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-errors",
+  "axis": "engineering_standards",
+  "packet_digest": "b359abcb484ebc7ace5b32345d0088d37ec03c2ae517999c6f68b467b2cea51b",
+  "admission_digest": "1a7e60784c03b2b1fd3678ed0020fbeca6df9647939fcbb6e687f341ba78855a",
+  "subject_digest": "7ebc260a6f7f81840f3316a395cf01e3289eae572ba8b22495d029e432eb4a5a",
+  "session": "vnext-d1-aggregate-review-20260902",
+  "timestamp": "2026-09-01T17:36:37Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+chg-ultra-vnext-d1-delegation-safety",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/cli-driver.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "tests/acp-conformance.test.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/delegate.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-errors-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "unsafe_liveness_classification",
+      "title": "Outer-worker EPERM is misclassified as proven stopped",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 833,
+      "line_end": 835,
+      "trigger": "process.kill(pid, 0) raises EPERM while the outer worker exists but is not signalable by the observing process.",
+      "impact": "outerWorkerView reports stopped and cancel or terminal recovery can synthesize a safe terminal, delete run.lock, and release the worktree fence while an outer worker may still exist, creating a duplicate-writer race and violating D1R-02 and D1-AC02.",
+      "evidence": "processAlive catches every kill(0) error and returns false, while outerWorkerView line 537 maps false directly to stopped and recovery consumers at lines 1295-1302 and 1335-1348 release authority on that classification. A read-only in-memory reproduction returned {state: stopped, pid: 4242} for EPERM; the adjacent inner-writer liveness code already treats EPERM as process existence.",
+      "suggestion": "Reuse one conservative liveness helper so EPERM means alive or unknown and only ESRCH proves stopped; add a focused outer-worker EPERM regression that asserts terminal synthesis, lock deletion, and fence release do not occur.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-5"],
+        "serves": ["NS-03", "NS-05"],
+        "touches": ["HC-2", "HC-3", "HC-5", "HC-7"]
+      }
+    },
+    {
+      "id": "review-errors-002",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "future_transport_admission",
+      "title": "A future positive ACP qualification can fall back to CLI without a CLI-specific admission decision",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 951,
+      "line_end": 1012,
+      "trigger": "A future profile has a qualified ACP route but an unqualified CLI route, and ACP returns acp_auth_required during session/new before prompt delivery.",
+      "impact": "The worker can launch cli_fallback after only ACP admission, without proving that the CLI transport satisfies the retained Host enforcement dimensions. The current ZCode ACP and CLI routes are both unavailable, so the condition is not currently reachable.",
+      "evidence": "Admission validates only the selected driver before worker launch, while the digest-bound worker spec carries a CLI fallback but no separate CLI admission decision; the fallback branch checks that the prior writer boundary stopped but does not consume an exact CLI qualification.",
+      "suggestion": "Before the first positive qualification is introduced, bind exact ACP and CLI admission decisions into the worker spec and require the corresponding CLI decision before fallback launch.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-2", "FP-3"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-2", "HC-4", "HC-6"]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "skills/ultra-delegate/scripts/delegate.cjs outerWorkerView and cancel recovery consumers",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs writer observation and ACP auth fallback",
+    "tests/delegate.test.cjs cancel, timeout, recovery, pre-admission, and public diagnostic fixtures"
+  ],
+  "positive_observations": [
+    "The current exact ZCode ACP and CLI routes fail closed before identity probes, fences, worker specs, or Host launch.",
+    "ACP auth fallback remains limited to the pre-prompt boundary and requires the first writer boundary to be proven stopped."
+  ],
+  "limitations": [
+    "No live provider call was made; current Host facts come from the frozen digest-bound receipt.",
+    "The future positive cross-transport case is retained as P2 and is not an instruction to alter the current unavailable route."
+  ]
+}

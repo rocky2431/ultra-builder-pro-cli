@@ -1,0 +1,112 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "change",
+  "execution_mode": "isolated",
+  "session": "vnext-d1-aggregate-stage-b-delta-20260909",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary",
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+  "worktree_digest": null,
+  "context_digest": "5cf1bdb9d6dbcc1b11309fd6561796b45012f7078c5d08e226ca1aee3365c5da",
+  "packet_digest": "668b52984a63bf2db186ddf7a029e277ba6ecd6363c5498ef6fe8283a0af3bec",
+  "admission_digest": "f0501be92275fd0714e3ddcb2893093013f3d1b253d4a33f282d56a482ac3b81",
+  "subject_digest": "5d8afb9598876443cbba9629bf9da476294a76c2af803aa5cb0002b29a94a89a",
+  "status": "complete",
+  "verdict": "APPROVE",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-tests.json",
+        "review-errors.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-tests",
+      "review-errors"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-code",
+      "review-design",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Recheck only parent review-spec-001 against current positive qualification and task evidence."
+    },
+    {
+      "worker": "review-code",
+      "status": "skipped",
+      "rationale": "This lens has no blocker in the direct parent repair set; its retained P2/P3 findings are not re-audited."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "Recheck only parent review-tests-001 at the real detached worker environment seam."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "Recheck only parent review-errors-001 conservative EPERM and recovery consumers."
+    },
+    {
+      "worker": "review-design",
+      "status": "skipped",
+      "rationale": "This lens has no blocker in the direct parent repair set; its retained P2/P3 findings are not re-audited."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "This lens has no blocker in the direct parent repair set; its retained P2/P3 findings are not re-audited."
+    }
+  ],
+  "findings": [],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-tests.json",
+    "review-errors.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "work/trellis-eight-step-20260909/step5-pi-final-release.log",
+    "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+    "work/trellis-eight-step-20260909/step5-entry-current-tests.json"
+  ],
+  "positive_observations": [
+    "review-spec-001 is resolved: current evidence explicitly satisfies D1Q-02R3 with the retained Pi native receipt, while the historical ZCode failure remains preserved and is not reclassified as not_applicable.",
+    "The current evidence records actual in-root write/read, five attempted native denials with matching completions, sanitized environment keys, independent sink observations, and stopped writer boundaries.",
+    "The current task evidence marks D1Q-02R3 and spec_trace satisfied, and the task ledger records vnext-d1-host-enforcement-qualification as completed.",
+    "Current host admission and maintained Skill/compatibility documentation describe the exact qualified Pi identity and fail-closed unavailable behavior without claiming unsupported historical ZCode capability.",
+    "Resolved parent review-tests-001: tests/delegate.test.cjs:1901-2041 now launches the real detached delegate-worker process, captures the exact OS spawn environment, binds the observed child PID to the returned receipt, verifies the three packet path keys, selected Host authentication, and absence of primary/unrelated-secret keys and canary values.",
+    "The test also checks the actual worker's observed environment through /proc when available and verifies that packet-local keys do not reach the final ACP Host environment.",
+    "The immediate production seam in skills/ultra-delegate/scripts/delegate.cjs:840-847 and :1178-1183 passes envViews.worker directly to the detached worker launch, so the regression reaches the changed behavior rather than only testing a derived environment object.",
+    "Current Task 1 evidence records D1R-01 as satisfied on the actual detached worker spawn seam, with the final release evidence reporting passing focused and release suites.",
+    "Resolved review-errors-001: signalOutcome now treats only ESRCH as dead, EPERM as alive, and all other signal failures as unknown; outerWorkerView preserves those conservative states.",
+    "Current status and cancellation consumers release terminal authority, delete run.lock, and release the worktree fence only when both inner writerBoundaryState and outerWorkerView are proven stopped.",
+    "The focused regression covers EPERM and unsupported signal outcomes, asserting non-terminal status, cancellation without synthesized result, retained lock, retained fence, and preserved cancel signal; the ESRCH control still permits proven-stopped recovery."
+  ],
+  "limitations": [
+    "No provider call was repeated; this disposition relies on the supplied retained Pi qualification receipt and current task evidence.",
+    "The test's /proc observation is conditional on platform availability; the exact spawn options and real worker completion are asserted on all platforms.",
+    "No providers were rerun and no tests were executed during this read-only review.",
+    "The direct parent P2/P3 findings remain retained without automatic repair. Task2 Pi completion-pairing P2 remains explicit; observed qualification has complete start/end pairs.",
+    "Source and tests are Codex-authored. Three actual Pi native sessions used separate contexts, same Luna model family. The review binds packet/admission bytes, not an exact product worktree digest.",
+    "This approves only the Stage B repair and qualification subject, not Stage C/D/E or all eight steps."
+  ]
+}

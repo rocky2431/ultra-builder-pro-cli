@@ -111,7 +111,10 @@ function collectResultCandidates(value, candidates, depth = 0) {
 
 function extractModelResult(spec) {
   const candidates = [];
-  for (const file of [spec.host_output, spec.stdout]) {
+  // Pi publishes only the reconciled final assistant message to host_output;
+  // an earlier echoed result or tool payload in its native trace is not a result.
+  const resultFiles = spec.native_permission === 'pi' ? [spec.host_output] : [spec.host_output, spec.stdout];
+  for (const file of resultFiles) {
     if (!file || !fs.existsSync(file) || fs.statSync(file).size === 0) continue;
     const text = fs.readFileSync(file, 'utf8');
     collectResultCandidates(text, candidates);
@@ -201,6 +204,7 @@ function mechanical(spec, exitCode, signal) {
       acp_adapter_exit_signal: spec.observed_acp_adapter_exit_signal ?? null,
     } : {}),
     ...(spec.observed_acp_fallback ? { acp_fallback: spec.observed_acp_fallback } : {}),
+    ...(spec.observed_native_terminal ? { native_terminal: spec.observed_native_terminal } : {}),
     events_file: spec.events ?? null,
     // The explicit experimental acknowledgment travels to every terminal
     // result — finished, failed, cancelled, or interrupted — so no result can
@@ -362,6 +366,7 @@ async function main() {
       spec.observed_acp_adapter_exit_code = processResult.adapterExitCode ?? null;
       spec.observed_acp_adapter_exit_signal = processResult.adapterExitSignal ?? null;
       spec.observed_acp_fallback = processResult.acpFallback || null;
+      spec.observed_native_terminal = processResult.nativeTerminal || null;
       let files = [];
       try { files = changedFiles(spec); } catch {}
       hostFiles = files;

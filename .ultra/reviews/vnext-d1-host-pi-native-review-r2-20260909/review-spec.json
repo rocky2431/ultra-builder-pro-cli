@@ -1,0 +1,67 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "packet_digest": "4321f620b41329799e2c8bbcb5c4d4674074424edaf48dcb6fa854539f9bcf18",
+  "admission_digest": "a19f90193a2c814dd59d77d7c2af0137cb0e40e0e7a951de9af6a3e0b5dbf526",
+  "subject_digest": "45814b904a02df820105faec2f754beb4a60c1811508049ffad1c8cb6694392c",
+  "session": "vnext-d1-host-pi-native-review-r2-20260909",
+  "timestamp": "2026-09-09T08:00:00Z",
+  "scope": {
+    "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+    "range": "Current uncommitted Stage B Host qualification and exact Pi native integration, compared with bee8868",
+    "files_analyzed": [
+      "adapters/_shared/plugin-core.cjs",
+      "skills/ultra-delegate/SKILL.md",
+      "skills/ultra-delegate/references/delegation-contract.md",
+      "docs/RUNTIME-COMPAT-MATRIX.md",
+      ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+      "tests/pi-native-runtime.test.cjs",
+      "tests/pi-native-permissions.test.cjs",
+      "tests/install.test.cjs",
+      "tests/delegate.test.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/acp-conformance.test.cjs",
+      "tests/acpx-entry.test.cjs",
+      "tests/fixtures/fake-acp-agent.cjs",
+      "tests/v026-adapters.test.cjs",
+      "tests/ultra-5-journeys.test.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "skills/ultra-delegate/scripts/cli-driver.cjs",
+      "skills/ultra-delegate/scripts/acp-conformance.cjs",
+      "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+      ".ultra/specs/product.md",
+      ".ultra/specs/architecture.md",
+      ".ultra/specs/research-distillate.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+    "work/trellis-eight-step-20260909/step5-pi-final-release.log",
+    "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+    "skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md"
+  ],
+  "positive_observations": [
+    "The selected Pi native path is documented as experimental and exact-identity bound, with no silent fallback.",
+    "The receipt and public observation show legitimate in-root write/read and exact result delivery, while native outside-root, shell, protected-path, and Bash curl attempts were denied before effect.",
+    "The documentation correctly distinguishes provider transport from Worker effects and records the Bash curl probe as an execute event rather than inventing a dedicated Pi fetch callback.",
+    "The complete native tool inventory, native terminal validation, denial completion matching, and exact runtime/policy identity checks are represented in source and evidence."
+  ],
+  "limitations": [
+    "step5-pi-final-release.log ends after the Node test output and does not record completion of the subsequent npm audit or a final verify:release status; D1Q-05 full-release completion is therefore not independently evidenced by that log."
+  ]
+}

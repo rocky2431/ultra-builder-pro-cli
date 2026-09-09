@@ -1,0 +1,146 @@
+test_a_goal_with_a_cadence_needs_it (tests.test_validate_artifact.AcceptanceTests.test_a_goal_with_a_cadence_needs_it) ... ok
+test_a_line_with_no_state_is_reported (tests.test_validate_artifact.AcceptanceTests.test_a_line_with_no_state_is_reported) ... ok
+test_a_numbered_acceptance_list_is_a_plan (tests.test_validate_artifact.AcceptanceTests.test_a_numbered_acceptance_list_is_a_plan) ... ok
+test_a_one_shot_goal_still_needs_recovery (tests.test_validate_artifact.AcceptanceTests.test_a_one_shot_goal_still_needs_recovery)
+A single start can still lose context or be interrupted. ... ok
+test_both_states_are_accepted (tests.test_validate_artifact.AcceptanceTests.test_both_states_are_accepted) ... ok
+test_a_budget_above_the_hook_timeout_is_flagged_as_useless (tests.test_validate_artifact.AnchorBudgetTests.test_a_budget_above_the_hook_timeout_is_flagged_as_useless) ... ok
+test_a_budget_inside_the_ceiling_is_silent (tests.test_validate_artifact.AnchorBudgetTests.test_a_budget_inside_the_ceiling_is_silent) ... ok
+test_a_claim_the_gate_contradicts_is_reported (tests.test_validate_artifact.AuditTests.test_a_claim_the_gate_contradicts_is_reported) ... ok
+test_a_claim_with_no_check_for_that_turn_is_reported (tests.test_validate_artifact.AuditTests.test_a_claim_with_no_check_for_that_turn_is_reported) ... ok
+test_a_declared_review_with_no_artifact_is_reported (tests.test_validate_artifact.AuditTests.test_a_declared_review_with_no_artifact_is_reported)
+A delegated round can succeed and produce nothing: the round-2 ... ok
+test_a_later_commit_for_the_same_turn_wins (tests.test_validate_artifact.AuditTests.test_a_later_commit_for_the_same_turn_wins) ... ok
+test_a_moved_frozen_spec_is_reported (tests.test_validate_artifact.AuditTests.test_a_moved_frozen_spec_is_reported)
+The comparison is armed-digest-file versus artifact-on-disk now - ... ok
+test_a_review_artifact_on_disk_settles_the_finding (tests.test_validate_artifact.AuditTests.test_a_review_artifact_on_disk_settles_the_finding) ... ok
+test_a_run_that_never_started_owes_no_review_yet (tests.test_validate_artifact.AuditTests.test_a_run_that_never_started_owes_no_review_yet)
+The finding names a round that came due and left nothing. Before ... ok
+test_a_run_with_attempts_and_no_armed_baseline_is_reported (tests.test_validate_artifact.AuditTests.test_a_run_with_attempts_and_no_armed_baseline_is_reported)
+Round-4 F3, audit half: completion attempts with no arming-time ... ok
+test_a_turn_parked_on_the_continuation_budget_is_reported (tests.test_validate_artifact.AuditTests.test_a_turn_parked_on_the_continuation_budget_is_reported)
+A budget-spent release is the gate's own measurement of a run that ... ok
+test_agreeing_claim_and_measurement_report_nothing (tests.test_validate_artifact.AuditTests.test_agreeing_claim_and_measurement_report_nothing) ... ok
+test_an_unchanged_frozen_spec_is_not_reported (tests.test_validate_artifact.AuditTests.test_an_unchanged_frozen_spec_is_not_reported) ... ok
+test_audit_and_status_are_separate_reports (tests.test_validate_artifact.AuditTests.test_audit_and_status_are_separate_reports) ... ok
+test_claims_are_found_when_the_turn_never_touched_the_artifact (tests.test_validate_artifact.AuditTests.test_claims_are_found_when_the_turn_never_touched_the_artifact)
+Regression: a pathspec filter dropped 2 of 3 claims in a scratch run. ... ok
+test_claims_with_no_event_log_at_all_are_reported_as_ungated (tests.test_validate_artifact.AuditTests.test_claims_with_no_event_log_at_all_are_reported_as_ungated) ... ok
+test_no_history_is_itself_the_finding (tests.test_validate_artifact.AuditTests.test_no_history_is_itself_the_finding) ... ok
+test_work_history_refuses_a_baseline_outside_head_ancestry (tests.test_validate_artifact.AuditTests.test_work_history_refuses_a_baseline_outside_head_ancestry) ... ok
+test_work_steps_keep_their_own_snapshot_and_report_missing_evidence (tests.test_validate_artifact.AuditTests.test_work_steps_keep_their_own_snapshot_and_report_missing_evidence) ... ok
+test_any_cadence_requires_carry_over (tests.test_validate_artifact.CadenceTests.test_any_cadence_requires_carry_over) ... ok
+test_cadence_wording_is_not_pattern_matched (tests.test_validate_artifact.CadenceTests.test_cadence_wording_is_not_pattern_matched)
+No keyword list: a cadence described in any words still requires it. ... ok
+test_no_cadence_still_requires_carry_over (tests.test_validate_artifact.CadenceTests.test_no_cadence_still_requires_carry_over) ... ok
+test_an_unpruned_state_list_is_reported (tests.test_validate_artifact.CarryOverTests.test_an_unpruned_state_list_is_reported) ... ok
+test_carry_over_must_say_it_is_read_and_rewritten (tests.test_validate_artifact.CarryOverTests.test_carry_over_must_say_it_is_read_and_rewritten) ... ok
+test_carry_over_needs_both_sub_sections (tests.test_validate_artifact.CarryOverTests.test_carry_over_needs_both_sub_sections) ... ok
+test_more_than_three_lessons_is_reported (tests.test_validate_artifact.CarryOverTests.test_more_than_three_lessons_is_reported)
+Reflexion bounds its reflection memory at 1-3 entries; so do we. ... ok
+test_one_shot_goal_needs_carry_over (tests.test_validate_artifact.CarryOverTests.test_one_shot_goal_needs_carry_over) ... ok
+test_scheduled_loop_also_needs_carry_over (tests.test_validate_artifact.CarryOverTests.test_scheduled_loop_also_needs_carry_over) ... ok
+test_status_reports_state_and_lessons_separately (tests.test_validate_artifact.CarryOverTests.test_status_reports_state_and_lessons_separately) ... ok
+test_status_reports_the_cadence (tests.test_validate_artifact.CarryOverTests.test_status_reports_the_cadence) ... ok
+test_three_lessons_is_allowed (tests.test_validate_artifact.CarryOverTests.test_three_lessons_is_allowed) ... ok
+test_unattended_loop_needs_a_carry_over_section (tests.test_validate_artifact.CarryOverTests.test_unattended_loop_needs_a_carry_over_section) ... ok
+test_a_blank_cell_makes_it_a_complaint_not_an_objection (tests.test_validate_artifact.ChallengeTests.test_a_blank_cell_makes_it_a_complaint_not_an_objection) ... ok
+test_a_missing_column_is_reported (tests.test_validate_artifact.ChallengeTests.test_a_missing_column_is_reported) ... ok
+test_a_well_formed_challenge_passes (tests.test_validate_artifact.ChallengeTests.test_a_well_formed_challenge_passes) ... ok
+test_challenges_are_not_counted_as_decisions (tests.test_validate_artifact.ChallengeTests.test_challenges_are_not_counted_as_decisions) ... ok
+test_no_challenges_section_is_normal (tests.test_validate_artifact.ChallengeTests.test_no_challenges_section_is_normal) ... ok
+test_a_three_column_record_is_no_longer_enough (tests.test_validate_artifact.DecisionAuthorTests.test_a_three_column_record_is_no_longer_enough) ... ok
+test_an_agent_row_is_legitimate (tests.test_validate_artifact.DecisionAuthorTests.test_an_agent_row_is_legitimate)
+The interview cannot ask everything, and a hard prohibition on ... ok
+test_assumptions_are_counted_apart_from_decisions (tests.test_validate_artifact.DecisionAuthorTests.test_assumptions_are_counted_apart_from_decisions) ... ok
+test_who_must_be_owner_or_agent (tests.test_validate_artifact.DecisionAuthorTests.test_who_must_be_owner_or_agent) ... ok
+test_empty_why_cell_is_reported (tests.test_validate_artifact.DecisionsTests.test_empty_why_cell_is_reported) ... ok
+test_imprecise_decision_heading_is_a_finding_not_a_traceback (tests.test_validate_artifact.DecisionsTests.test_imprecise_decision_heading_is_a_finding_not_a_traceback) ... ok
+test_malformed_decisions_table_is_reported (tests.test_validate_artifact.DecisionsTests.test_malformed_decisions_table_is_reported) ... ok
+test_package_confirmation_and_digest_are_required (tests.test_validate_artifact.DecisionsTests.test_package_confirmation_and_digest_are_required) ... ok
+test_a_critic_without_the_three_classes_is_reported (tests.test_validate_artifact.DelegationTests.test_a_critic_without_the_three_classes_is_reported) ... ok
+test_a_missing_convergence_rule_is_reported (tests.test_validate_artifact.DelegationTests.test_a_missing_convergence_rule_is_reported) ... ok
+test_a_missing_critic_is_reported (tests.test_validate_artifact.DelegationTests.test_a_missing_critic_is_reported)
+A reviewer nobody audits is the shape the study found unreliable. ... ok
+test_a_missing_reviewer_is_reported (tests.test_validate_artifact.DelegationTests.test_a_missing_reviewer_is_reported) ... ok
+test_a_role_without_a_mission_is_reported (tests.test_validate_artifact.DelegationTests.test_a_role_without_a_mission_is_reported) ... ok
+test_an_unbounded_inner_loop_is_reported (tests.test_validate_artifact.DelegationTests.test_an_unbounded_inner_loop_is_reported) ... ok
+test_reviewer_and_critic_on_the_same_vendor_is_reported (tests.test_validate_artifact.DelegationTests.test_reviewer_and_critic_on_the_same_vendor_is_reported)
+Brand correlation advises; it does not fail the package. ... ok
+test_status_reports_the_two_roles (tests.test_validate_artifact.DelegationTests.test_status_reports_the_two_roles) ... ok
+test_unknown_target_is_reported (tests.test_validate_artifact.DelegationTests.test_unknown_target_is_reported) ... ok
+test_valid_triad_passes (tests.test_validate_artifact.DelegationTests.test_valid_triad_passes) ... ok
+test_cli_exits_one_and_prints_typed_findings (tests.test_validate_artifact.DirectoryAndCliTests.test_cli_exits_one_and_prints_typed_findings) ... ok
+test_cli_exits_two_on_missing_path (tests.test_validate_artifact.DirectoryAndCliTests.test_cli_exits_two_on_missing_path) ... ok
+test_cli_exits_zero_on_clean_artifact (tests.test_validate_artifact.DirectoryAndCliTests.test_cli_exits_zero_on_clean_artifact) ... ok
+test_directory_scan_finds_every_artifact (tests.test_validate_artifact.DirectoryAndCliTests.test_directory_scan_finds_every_artifact) ... ok
+test_unknown_suffix_is_reported (tests.test_validate_artifact.DirectoryAndCliTests.test_unknown_suffix_is_reported) ... ok
+test_validator_never_edits_the_artifact (tests.test_validate_artifact.DirectoryAndCliTests.test_validator_never_edits_the_artifact) ... ok
+test_a_normal_artifact_raises_nothing (tests.test_validate_artifact.FrozenSectionBudgetTests.test_a_normal_artifact_raises_nothing) ... ok
+test_an_oversized_frozen_section_is_advisory_not_error (tests.test_validate_artifact.FrozenSectionBudgetTests.test_an_oversized_frozen_section_is_advisory_not_error) ... ok
+test_anchor_without_a_command_is_reported (tests.test_validate_artifact.GoalTests.test_anchor_without_a_command_is_reported) ... ok
+test_missing_anchor_is_reported (tests.test_validate_artifact.GoalTests.test_missing_anchor_is_reported) ... ok
+test_missing_boundary_is_reported (tests.test_validate_artifact.GoalTests.test_missing_boundary_is_reported) ... ok
+test_missing_independent_verification_is_reported (tests.test_validate_artifact.GoalTests.test_missing_independent_verification_is_reported) ... ok
+test_missing_intent_is_reported (tests.test_validate_artifact.GoalTests.test_missing_intent_is_reported) ... ok
+test_missing_stop_condition_is_reported (tests.test_validate_artifact.GoalTests.test_missing_stop_condition_is_reported) ... ok
+test_unquantified_stop_condition_is_reported (tests.test_validate_artifact.GoalTests.test_unquantified_stop_condition_is_reported) ... ok
+test_valid_goal_package_passes (tests.test_validate_artifact.GoalTests.test_valid_goal_package_passes) ... ok
+test_goal_allows_one_independent_reviewer (tests.test_validate_artifact.GoalVerificationTests.test_goal_allows_one_independent_reviewer) ... ok
+test_single_check_does_not_need_an_inner_round_cap (tests.test_validate_artifact.GoalVerificationTests.test_single_check_does_not_need_an_inner_round_cap) ... ok
+test_either_label_satisfies_it (tests.test_validate_artifact.MeansTests.test_either_label_satisfies_it) ... ok
+test_missing_means_is_reported (tests.test_validate_artifact.MeansTests.test_missing_means_is_reported) ... ok
+test_unlabelled_means_is_reported (tests.test_validate_artifact.MeansTests.test_unlabelled_means_is_reported) ... ok
+test_valid_means_section_passes (tests.test_validate_artifact.MeansTests.test_valid_means_section_passes) ... ok
+test_joining_with_and_is_accepted (tests.test_validate_artifact.MultilineAnchorTests.test_joining_with_and_is_accepted) ... ok
+test_two_commands_in_the_fence_is_an_error (tests.test_validate_artifact.MultilineAnchorTests.test_two_commands_in_the_fence_is_an_error) ... ok
+test_missing_next_is_reported_with_the_other_subsections (tests.test_validate_artifact.NextTests.test_missing_next_is_reported_with_the_other_subsections) ... ok
+test_more_than_one_next_entry_is_a_plan (tests.test_validate_artifact.NextTests.test_more_than_one_next_entry_is_a_plan) ... ok
+test_leftover_placeholder_is_reported (tests.test_validate_artifact.PlaceholderTests.test_leftover_placeholder_is_reported) ... ok
+test_reviewer_without_inputs_is_reported (tests.test_validate_artifact.RoleInputTests.test_reviewer_without_inputs_is_reported) ... ok
+test_a_missing_roles_section_is_reported (tests.test_validate_artifact.RolesSectionTests.test_a_missing_roles_section_is_reported) ... ok
+test_a_role_without_a_fallback_is_reported (tests.test_validate_artifact.RolesSectionTests.test_a_role_without_a_fallback_is_reported) ... ok
+test_a_wrapped_fallback_still_counts (tests.test_validate_artifact.RolesSectionTests.test_a_wrapped_fallback_still_counts)
+The checker reads whole bullets: four correctly-written roles were ... ok
+test_fallback_none_is_a_legitimate_answer (tests.test_validate_artifact.RolesSectionTests.test_fallback_none_is_a_legitimate_answer) ... ok
+test_a_one_shot_goal_still_needs_a_handoff (tests.test_validate_artifact.RunnableHandoffTests.test_a_one_shot_goal_still_needs_a_handoff)
+The handoff is the line the owner pastes into the CLI. Always required. ... ok
+test_goal_artifact_must_have_a_handoff (tests.test_validate_artifact.RunnableHandoffTests.test_goal_artifact_must_have_a_handoff) ... ok
+test_handoff_without_a_runnable_block_is_reported (tests.test_validate_artifact.RunnableHandoffTests.test_handoff_without_a_runnable_block_is_reported) ... ok
+test_status_reports_the_start_command (tests.test_validate_artifact.RunnableHandoffTests.test_status_reports_the_start_command) ... ok
+test_an_invented_budget_is_advisory_and_does_not_fail (tests.test_validate_artifact.SeverityTests.test_an_invented_budget_is_advisory_and_does_not_fail) ... ok
+test_necessary_lessons_above_the_compact_default_remain_valid (tests.test_validate_artifact.SeverityTests.test_necessary_lessons_above_the_compact_default_remain_valid)
+A research hyperparameter must not reject necessary recovery facts. ... ok
+test_the_cli_labels_advisories_and_still_exits_zero (tests.test_validate_artifact.SeverityTests.test_the_cli_labels_advisories_and_still_exits_zero) ... ok
+test_cli_status_binding_advisory_is_visible_in_text_and_json (tests.test_validate_artifact.StatusTests.test_cli_status_binding_advisory_is_visible_in_text_and_json) ... ok
+test_cli_status_is_readable_without_json (tests.test_validate_artifact.StatusTests.test_cli_status_is_readable_without_json) ... ok
+test_cli_status_prints_json_and_exits_zero_when_clean (tests.test_validate_artifact.StatusTests.test_cli_status_prints_json_and_exits_zero_when_clean) ... ok
+test_status_carries_validation_findings (tests.test_validate_artifact.StatusTests.test_status_carries_validation_findings) ... ok
+test_status_checks_attachment_binding_without_duplicate_findings (tests.test_validate_artifact.StatusTests.test_status_checks_attachment_binding_without_duplicate_findings) ... ok
+test_status_does_not_run_anchors_by_default (tests.test_validate_artifact.StatusTests.test_status_does_not_run_anchors_by_default) ... ok
+test_status_reports_inactive_binding_without_changing_run_files (tests.test_validate_artifact.StatusTests.test_status_reports_inactive_binding_without_changing_run_files) ... ok
+test_status_reports_shape_anchor_and_stop_condition (tests.test_validate_artifact.StatusTests.test_status_reports_shape_anchor_and_stop_condition) ... ok
+test_status_runs_anchors_only_when_asked (tests.test_validate_artifact.StatusTests.test_status_runs_anchors_only_when_asked) ... ok
+test_targets_come_from_the_tool_when_it_answers (tests.test_validate_artifact.TargetDiscoveryTests.test_targets_come_from_the_tool_when_it_answers) ... ok
+test_the_fallback_is_used_and_downgraded_when_the_tool_is_absent (tests.test_validate_artifact.TargetDiscoveryTests.test_the_fallback_is_used_and_downgraded_when_the_tool_is_absent) ... ok
+test_the_shipped_vocabulary_satisfies_it (tests.test_validate_artifact.WorkerOutcomeTests.test_the_shipped_vocabulary_satisfies_it) ... ok
+test_undeclared_outcomes_are_reported (tests.test_validate_artifact.WorkerOutcomeTests.test_undeclared_outcomes_are_reported) ... ok
+test_workflow_anchor_must_name_a_command (tests.test_validate_artifact.WorkflowAnchorTests.test_workflow_anchor_must_name_a_command) ... ok
+test_workflow_without_an_anchor_comment_is_reported (tests.test_validate_artifact.WorkflowAnchorTests.test_workflow_without_an_anchor_comment_is_reported) ... ok
+test_meta_must_be_a_pure_literal (tests.test_validate_artifact.WorkflowTests.test_meta_must_be_a_pure_literal) ... ok
+test_meta_must_be_the_first_statement (tests.test_validate_artifact.WorkflowTests.test_meta_must_be_the_first_statement) ... ok
+test_meta_requires_name_and_description (tests.test_validate_artifact.WorkflowTests.test_meta_requires_name_and_description) ... ok
+test_missing_decisions_record_is_reported (tests.test_validate_artifact.WorkflowTests.test_missing_decisions_record_is_reported) ... ok
+test_phase_used_in_code_must_be_declared_in_meta (tests.test_validate_artifact.WorkflowTests.test_phase_used_in_code_must_be_declared_in_meta) ... ok
+test_syntax_error_is_reported (tests.test_validate_artifact.WorkflowTests.test_syntax_error_is_reported) ... ok
+test_valid_workflow_with_decisions_passes (tests.test_validate_artifact.WorkflowTests.test_valid_workflow_with_decisions_passes) ... ok
+test_document_system_answers_owner_when_and_relationships (tests.test_package_surface.GateAndDocumentSystemTests.test_document_system_answers_owner_when_and_relationships) ... ok
+test_every_relative_link_still_resolves (tests.test_package_surface.GateAndDocumentSystemTests.test_every_relative_link_still_resolves) ... ok
+test_interview_asks_about_surface_and_divergence (tests.test_package_surface.GateAndDocumentSystemTests.test_interview_asks_about_surface_and_divergence) ... ok
+test_the_gate_section_states_three_outcomes_and_the_escape (tests.test_package_surface.GateAndDocumentSystemTests.test_the_gate_section_states_three_outcomes_and_the_escape) ... ok
+test_the_graph_nodes_are_named_and_mapped (tests.test_package_surface.GateAndDocumentSystemTests.test_the_graph_nodes_are_named_and_mapped) ... ok
+
+----------------------------------------------------------------------
+Ran 126 tests in 5.263s
+
+OK

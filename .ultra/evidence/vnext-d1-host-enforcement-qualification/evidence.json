@@ -1,0 +1,181 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "vnext-d1-host-enforcement-qualification",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "context": {
+    "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+    "acceptance_sha256": "d5319b41c74f67da5025545067d249539e99ac1fd77893b142698b641802e3ec"
+  },
+  "subject": {
+    "git_head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+    "worktree_digest": "3a157d43ff1a5310b964523095f6640b2d8e34e09a4f5013ccd56b745de2414b",
+    "observed_at": "2026-09-09T07:49:26.602713+00:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "D1Q-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/pi-native-runtime.test.cjs tests/pi-native-permissions.test.cjs tests/delegate.test.cjs tests/acp-driver.test.cjs tests/project-artifacts.test.cjs",
+        "exit_code": 0,
+        "raw_evidence_ref": "work/trellis-eight-step-20260909/step5-task2-final-narrow.log",
+        "raw_evidence_sha256": "0ae14b6c0e8168d7eb40da08558f59313210fbc47a92509990b872219beff25f",
+        "freshness_identity": {
+          "git_head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+          "worktree_digest": "3a157d43ff1a5310b964523095f6640b2d8e34e09a4f5013ccd56b745de2414b",
+          "observed_at": "2026-09-09T07:46:54.602736+00:00"
+        },
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Current admission tests prove unavailable ACP/wrong-version paths and pre-spawn runtime/config refusal; the real public Pi gate separately completed the legal packet."
+      }
+    },
+    {
+      "criterion_id": "D1Q-02R3",
+      "verification_type": "external-observation",
+      "evidence": {
+        "provider": "native Pi openai-codex/gpt-5.6-luna",
+        "run_id": "ubp-pi-product-NcFFGD",
+        "observed_at": "2026-09-09T07:31:01.958310+00:00",
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+        "raw_evidence_sha256": "ac19a90c6a4e11f42501dbda7dbc2e434ed7cda145cfee2189bce9878e9cc8f8",
+        "observation": "Production bootstrap allowed exact in-root write/read with a validated result; five actual forbidden native requests were rejected with matching completions, no markers or worker sink hits, sanitized native env keys and stopped writers. The public admitted follow-up also finished. Bash curl remains execute."
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The current selected Host meets the revised same-effect criterion with actual attempts and independent filesystem/sink observations; old ZCode/Claude outcomes remain failed or unproven."
+      }
+    },
+    {
+      "criterion_id": "D1Q-03",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-delegate/scripts/host-profile.cjs",
+        "observation": "The selected native CLI invokes the already installed Node/Pi package and native tool definitions directly; provider access is separately authorized and no runtime installation or package fetch is invoked.",
+        "revision": "c08d6912b0bded112523b8f58d21e817f6b0b374670f75a0b54a83b3b0d96ca4"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Execution identity and native process configuration are retained, while Worker external_effects remains empty."
+      }
+    },
+    {
+      "criterion_id": "D1Q-04",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": ".ultra/reviews/vnext-d1-host-pi-native-review-r2-20260909/SUMMARY.json",
+        "observation": "Independent specification/code/tests review approved exact Pi native semantics and current consumers, with one retained P2 and explicit experimental/read/network limitations.",
+        "revision": "39638847edfbffdd31ac83789cb18c7a23875e2e930aef86147d2c6bd8a0ad0d"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Skill, contract, compatibility and canonical specs describe the observed transport without adding a Pi installer or claiming C/D/E."
+      }
+    },
+    {
+      "criterion_id": "D1Q-05",
+      "verification_type": "command",
+      "evidence": {
+        "command": "node --test tests/pi-native-runtime.test.cjs tests/pi-native-permissions.test.cjs tests/delegate.test.cjs tests/acp-driver.test.cjs tests/project-artifacts.test.cjs",
+        "exit_code": 0,
+        "raw_evidence_ref": "work/trellis-eight-step-20260909/step5-task2-final-narrow.log",
+        "raw_evidence_sha256": "0ae14b6c0e8168d7eb40da08558f59313210fbc47a92509990b872219beff25f",
+        "freshness_identity": {
+          "git_head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+          "worktree_digest": "3a157d43ff1a5310b964523095f6640b2d8e34e09a4f5013ccd56b745de2414b",
+          "observed_at": "2026-09-09T07:46:54.602736+00:00"
+        },
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The final current narrow suite passed. The complete separately retained step5-pi-final-release.log records 804 Node tests,104 Hook tests and audit0; final pack, isolated install tests and Skill validation passed. These additional logs remain explicit dimension evidence, not an inferred result from the narrow command."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/pi-native-runtime.test.cjs",
+        "tests/pi-native-permissions.test.cjs"
+      ],
+      "rationale": "Executable regressions cover path scopes, native terminal/denial reconciliation and version/config drift."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/step5-pi-final-release.log",
+        "work/trellis-eight-step-20260909/step5-task2-final-narrow.log",
+        "work/trellis-eight-step-20260909/step5-pi-final-pack.json"
+      ],
+      "rationale": "Full release, final narrow and package checks are observed; earlier parser and inventory failures remain retained."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+        "work/trellis-eight-step-20260909/step5-pi-public-observation.json"
+      ],
+      "rationale": "Actual file contents, native sessions, denied completions and writer stop observations establish real effects and non-effects."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "skills/ultra-delegate/scripts/host-profile.cjs"
+      ],
+      "rationale": "The explicit experimental acknowledgement does not bypass the exact native qualification; no alternate unqualified transport is admitted."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+        "work/trellis-eight-step-20260909/step5-pi-public-observation.json"
+      ],
+      "rationale": "The production launcher, detached worker, native Pi tool handler and typed final result consumer delivered the legitimate task."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+        ".ultra/reviews/vnext-d1-host-pi-native-review-r2-20260909/SUMMARY.json",
+        ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md"
+      ],
+      "rationale": "D1Q-02R3 is an explicit Host/effect-equivalent revision; historical failures are not converted to not_applicable."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "4321f620b41329799e2c8bbcb5c4d4674074424edaf48dcb6fa854539f9bcf18",
+      "limitation": null
+    },
+    "session_id": "vnext-d1-host-pi-native-review-r2-20260909",
+    "summary_ref": ".ultra/reviews/vnext-d1-host-pi-native-review-r2-20260909/SUMMARY.json",
+    "summary_digest": "39638847edfbffdd31ac83789cb18c7a23875e2e930aef86147d2c6bd8a0ad0d",
+    "blocking_findings": [],
+    "retention": "Retain strict packet/admission/lenses/summary through successful aggregate Test and Deliver; keep old failed receipts and historical outcomes."
+  },
+  "artifacts": [
+    "tests/pi-native-runtime.test.cjs",
+    "tests/pi-native-permissions.test.cjs",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+    ".ultra/reviews/vnext-d1-host-pi-native-review-r2-20260909/SUMMARY.json"
+  ],
+  "limitations": [
+    "P2 review-tests-001: parser does not require a start for every completion; actual qualification calls contain and independently match all starts/ends.",
+    "Exact local native Pi identity only; reads and existing HOME authentication are not isolated, external concurrent symlink swaps are outside the single-writer guarantee.",
+    "Reviewer-supplied timestamps are not used as command or native freshness.",
+    "This closes Task2 only; aggregate P1 disposition, Test/Deliver and C/D/E remain distinct.",
+    "Real HOME Doctor is previously degraded; no installation is claimed."
+  ],
+  "timestamp": "2026-09-09T07:49:26.602713+00:00"
+}

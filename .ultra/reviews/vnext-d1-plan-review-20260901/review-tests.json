@@ -1,0 +1,160 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "packet_digest": "23958fcaf6f13dbd7cda421a52ce8154c7a7fb254cc424d85433b084c251068f",
+  "admission_digest": "90f9c36d4dac83878e4b2baf66ee0b103b99eb93c0ce549fc2c3f9177b7bfeb3",
+  "subject_digest": "6ef166289eef63e44606959559dcc670bd5710f7130f9d98649db5a53611019a",
+  "session": "vnext-d1-plan-review-20260901",
+  "timestamp": "2026-08-31T22:45:20Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-plan-v1",
+    "files_analyzed": [
+      ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "security",
+      "title": "Environment test never proves secret values stay out of retained artifacts",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 108,
+      "line_end": 108,
+      "trigger": "A prohibited control or provider secret is removed from the child environment but is copied into a worker spec, diagnostic, stdout/stderr, receipt, result, event journal, or verification log.",
+      "impact": "D1R-01 can pass its key-name capture while D1-AC01's explicit no-secret-value requirement remains false, leaving Primary credentials in durable local evidence.",
+      "evidence": "D1-AC01 requires that no secret values appear in packets, receipts, or logs, but D1R-01 and Narrow Verification specify only child env key-name capture and do not bind a canary scan over every retained artifact.",
+      "suggestion": "Inject unique non-production canary values for a Primary control key, an unrelated provider key, and the selected-Host auth path; assert required key delivery without printing the value, then byte-scan every generated spec/result/receipt/log/event/evidence artifact for absence of all canaries.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-3",
+          "FP-5",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-2",
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "verification",
+      "title": "Live Host smoke has no independent proof that denied probes were attempted and blocked",
+      "file": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "line": 108,
+      "line_end": 109,
+      "trigger": "The selected ZCode run simply follows the prompt without requesting a denied tool, or reports that a probe was denied even though no mechanical enforcement event occurred.",
+      "impact": "The planned receipt can claim D1Q-02 and qualify an unenforced Host path from absence of effects or Host self-report, allowing a later Worker to perform the very outside-root, shell, network, or business effect D1 must fail closed.",
+      "evidence": "The plan rejects Host self-report at line 19, yet the required receipt binds only general run and denied-probe observations; it does not require the exact probe-instruction digest, an observed permission/tool attempt, or coordinator-owned pre/post canaries for each denied dimension.",
+      "suggestion": "Bind the exact instruction and permission digests, require an independently observed attempt-and-denial event for every tool-mediated dimension, and use coordinator-owned isolated filesystem markers and a local controlled network sink for pre/post effect checks; an unattempted or unobservable probe must remain unsupported, not pass.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-003",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "correctness",
+      "title": "Fence test does not cover physical-root aliases or overlapping roots",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 110,
+      "line_end": 110,
+      "trigger": "Two delegation packets name the same writable tree through a symlink, Windows case or separator spelling, or parent/child root overlap while a literal-path fence treats them as different owners.",
+      "impact": "Both runs can acquire fences and write concurrently, violating the zero-duplicate-writer prerequisite even though the single duplicate-launch fixture passes.",
+      "evidence": "D1R-03 asks for one atomic duplicate-launch fixture and fence identity/readback evidence but does not enumerate the alias and overlap cases that bypass a string-keyed or exact-root-only fence.",
+      "suggestion": "Make the duplicate-launch check table-driven for exact worktree, parent/child writable-root overlap, symlink or filesystem alias, and Windows case/separator aliases, and assert that disjoint registered worktrees remain independently admissible.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-6",
+          "FP-8"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-8"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-004",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "compatibility",
+      "title": "ACP conformance consumer is named but has no outcome_unknown fixture",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 95,
+      "line_end": 100,
+      "trigger": "A delegation reaches launcher-side failure_type outcome_unknown and the ACP conformance receipt or diagnostic consumes that previously unseen value.",
+      "impact": "The focused suite can stay green while the maintained conformance surface misclassifies, drops, or leaks the new recovery fact; the full gate's existing happy-path test does not exercise this transition.",
+      "evidence": "Tech Notes explicitly require checking every failure_type consumer including ACP conformance, but the Planned Path Inventory and Narrow Verification include only delegate and ACP-driver tests, with no conformance-specific fixture.",
+      "suggestion": "Add one ACP conformance fixture that consumes outcome_unknown and asserts the retained redacted receipt and diagnostic, or record source evidence that the consumer is intentionally unchanged and already covered by an executable equivalent.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md:15",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:31",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:95",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:102",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:15",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:33",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:92",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:101"
+  ],
+  "positive_observations": [
+    "The plan correctly separates deterministic fake-child and nested-writer tests from the single live Host enforcement observation.",
+    "N=1 compatibility is backed by focused driver/delegation suites and the full release and package gates.",
+    "Unsupported Host enforcement remains a typed blocker instead of being converted into a permissive fallback."
+  ],
+  "limitations": [
+    "This is a plan-only review; no D1 runtime diff, RED fixture, live ZCode smoke, or retained execution evidence exists yet."
+  ]
+}

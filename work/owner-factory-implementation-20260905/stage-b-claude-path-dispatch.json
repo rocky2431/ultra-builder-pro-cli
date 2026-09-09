@@ -1,0 +1,41 @@
+{
+  "observed_at": "2026-09-05T23:48:57.300251+00:00",
+  "delegation_id": "28122586ed9d4d11b659ee3d6723607f",
+  "target": "zcode",
+  "status": "cancelled",
+  "terminal": true,
+  "created_at": "2026-09-05T23:47:57.418392+00:00",
+  "timeout_seconds": 2400,
+  "mission": "work/owner-factory-implementation-20260905/stage-b-zcode-claude-path-mission.md",
+  "mission_sha256": "6dd6ee72631b1ac2dc6bcfac75479e376415074d86cda4918f4ea555aacef36d",
+  "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T234757Z-28122586ed9d4d11b659ee3d6723607f",
+  "execution_seconds": 205.634,
+  "exit_code": 130,
+  "stop_reason": null,
+  "receipt_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-zcode-claude-path-receipt.json",
+  "receipt_sha256": "72c56bd61c013d6c7c1f2432748fe59e04923bcc002ce084357c7cbe3ed134c7",
+  "stop_observation": "Root ps22075/22215 both absent exit1; cancellation cause unknown; 15 previous test-bound files rechecked before retry",
+  "continuation": {
+    "delegation_id": "10f28c0195a64f44aed7bc5fd0776065",
+    "created_at": "2026-09-05T23:53:09.145189+00:00",
+    "target": "zcode",
+    "status": "success",
+    "terminal": true,
+    "timeout_seconds": 2400,
+    "mission": "work/owner-factory-implementation-20260905/stage-b-zcode-claude-path-resume-mission.md",
+    "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T235309Z-10f28c0195a64f44aed7bc5fd0776065",
+    "mission_sha256": "2233c72bee4acab885ddb2e72e104a9040b07f90314224f8584c72adac0988dd",
+    "execution_seconds": 1483.512,
+    "execution_started_at": "2026-09-05T23:53:09.213685+00:00",
+    "duration_seconds": 1483.579,
+    "stop_reason": "end_turn",
+    "exit_code": 0,
+    "receipt_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-zcode-claude-path-continuation-status.json",
+    "receipt_sha256": "e6cd7d5bb7e4a25099b3a2266d2aadf819f092336cd1fd1fe708b0ead36a454d",
+    "error_counts": {
+      "rpc_errors": 0,
+      "tool_errors": 0,
+      "protocol_errors": 0
+    }
+  }
+}

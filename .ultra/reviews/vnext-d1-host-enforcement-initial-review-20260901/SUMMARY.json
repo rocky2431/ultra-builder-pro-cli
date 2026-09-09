@@ -1,0 +1,563 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "sequential-shared-context",
+  "session": "vnext-d1-host-enforcement-initial-review-20260901",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "worktree_digest": null,
+  "context_digest": "099d21a6e5595d016da5dc4089d791dfbf8715163ddab1c3adfd5c27aec459ab",
+  "packet_digest": "f2780051c8682ab43caffddd685db0ee49ab902b0bee5e80f35ab10e7bad2b48",
+  "admission_digest": "305abd7f7b8b9033d896af1fd4f77346fde6df13ec5dd0e8e75b60147df7304a",
+  "subject_digest": "e2c4aeb30459fa298747378c8296ac0c40fe7941fb6fad394c8546faba00972c",
+  "status": "complete",
+  "verdict": "REQUEST_CHANGES",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-code.json",
+        "review-tests.json",
+        "review-errors.json",
+        "review-design.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-code",
+      "review-tests",
+      "review-errors",
+      "review-design"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Task 2 changes the accepted fail-closed Host boundary, maintained specs and D1Q-01 through D1Q-05."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "The diff changes executable admission order, Host identity facts and a shared trust-boundary error type."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "The focused suite is green while the full gate is red, and test doubles can hide production process ordering."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "The new unavailable path, process-boundary projection and no-fallback recovery semantics are acceptance-critical."
+    },
+    {
+      "worker": "review-design",
+      "status": "selected",
+      "rationale": "Capability admission, driver selection, provenance and legacy N=1 compatibility cross module ownership boundaries."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "Model-facing contract wording is fully covered by the independent spec lens; comments do not add a separate risk axis for this task."
+    }
+  ],
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "authorization",
+      "title": "Effectful identity probes run before the fail-closed Host gate",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 905,
+      "line_end": 950,
+      "trigger": "A caller invokes the ordinary ACP-first ZCode route without forcing the CLI transport.",
+      "impact": "Driver selection may execute the adapter and App runtime version probes before the retained qualification rejects the Packet, so unqualified Host-side code runs outside the claimed pre-launch effect boundary and D1-AC03/D1Q-01 are not satisfied.",
+      "evidence": "run calls chooseExecutionDriver at lines 905-910 and only calls enforcementAdmission at lines 943-950. The production selector executes every identity probe with spawnSync before returning, while the new prose at lines 937-942 and product.md lines 114-121 says no Host process exists before admission.",
+      "suggestion": "Make the unavailable qualification decision before any executable identity probe, or split driver selection into a pure transport choice followed by admission and then attestation. Keep the decision capability-driven and do not add a provider-brand branch.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-2",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-3",
+          "HC-4",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "delivery",
+      "title": "The required full release gate is red after the spec update",
+      "file": ".ultra/specs/product.md",
+      "line": 108,
+      "line_end": 128,
+      "trigger": "The mandatory npm run verify:release gate validates the canonical research-distillate source bindings after the Task 2 product and architecture specs change.",
+      "impact": "The gate exits 1 because research-distillate.md still binds the dispatch-time Git blobs, so D1Q-05 and the task's definition of done are unmet even though the focused suite passes.",
+      "evidence": "The independent full run reported 708/710 with .ultra/specs/product.md actual blob d69182afca8e25e8213e9171b3fe23ac285e1e52 versus expected 776bdc8136d54825248573e52729678649fddd7c; architecture has the analogous stale row identified by the writer. research-distillate.md was frozen outside the initial twelve-path packet.",
+      "suggestion": "Record a Plan disposition that adds only .ultra/specs/research-distillate.md to the repair inventory, refresh its two exact source blob rows through the sole ZCode writer, and rerun the full release gate.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-003",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "interface_contract",
+      "title": "The public process boundary does not return the promised typed diagnostic",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 1331,
+      "line_end": 1345,
+      "trigger": "An installed Skill or the ubp delegate compatibility command hits host_enforcement_unavailable through its normal CLI process boundary.",
+      "impact": "Callers receive exit 1 plus human prose but no stable code or typed admission object, so an automated Supervisor cannot distinguish this safety gate from unrelated launch failures without parsing English text.",
+      "evidence": "HostEnforcementUnavailableError carries code and admission in memory, but main's catch writes only error.message. The test obtains the typed fields by requiring run inside a custom node -e wrapper rather than exercising either public CLI entry point.",
+      "suggestion": "Preserve the bounded human message but emit one stable machine-readable diagnostic carrying the error code and redacted admission at both direct Skill and ubp delegate process boundaries, then test those exact entry points.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-code-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "trust_boundary",
+      "title": "Admission is downstream of executable candidate inspection",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 905,
+      "line_end": 950,
+      "trigger": "selectExecutionDriver evaluates an ACP candidate that declares identityProbes before the Packet's enforcement dimensions have been admitted.",
+      "impact": "The supposedly fail-closed path can execute unqualified adapter or runtime code with the probe environment before it rejects the Packet, leaving file and network effects outside the enforcement decision.",
+      "evidence": "The call at line 905 precedes the gate at line 943. selectExecutionDriver synchronously invokes identity probes for the selected profile before returning; the gate therefore cannot make the statement at lines 939-940 true.",
+      "suggestion": "Move a provider-neutral all-transports-unavailable precheck ahead of driver selection, or split pure selection from process-backed identity attestation and run attestation only after admission permits that candidate.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-2",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-3",
+          "HC-4",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-code-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "error_contract",
+      "title": "Typed enforcement state is discarded by both CLI launchers",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 1331,
+      "line_end": 1345,
+      "trigger": "HostEnforcementUnavailableError crosses the direct delegate.cjs or bin/install.js process boundary.",
+      "impact": "Automation loses error.code, admission dimensions and the evidence digest, collapsing a recoverable capability stop into an untyped generic process error.",
+      "evidence": "The error object defines code and admission, but delegate.cjs prints only message; bin/install.js awaits handle and its top-level catch likewise prints only Fatal plus message. No canonical JSON failure projection is emitted.",
+      "suggestion": "Centralize one redacted error projection for these two existing launchers and make the process output include the stable code, admission and recovery-safe message without exposing environment values.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-code-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "observability",
+      "title": "The installed diagnostic cites evidence that is not packaged",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 173,
+      "line_end": 179,
+      "trigger": "A user invokes the installed npm package outside this development repository and receives the ZCode unavailable diagnostic.",
+      "impact": "The error cites .ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json, but npm pack excludes the repository .ultra tree, so the stated recovery and audit reference does not exist in the installed product.",
+      "evidence": "package.json publishes the ultra-delegate Skill and selected docs but no repository .ultra/evidence path; npm pack --dry-run succeeds with 141 entries and contains no host-enforcement-receipt.json.",
+      "suggestion": "When an inspectable shipped receipt is needed, place the redacted immutable observation under the existing Skill reference tree and bind that packaged path, or explicitly distinguish a source-repository-only provenance URI from an installed recovery path.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-code-004",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "identity",
+      "title": "Admission compares retained identity with expected profile constants",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 272,
+      "line_end": 278,
+      "trigger": "A later positive qualification record is evaluated after an adapter or runtime is rebuilt without changing its reported version markers.",
+      "impact": "identityMatch compares qualified_identity with profile.acp.candidateIdentity, which is another expected constant rather than the concrete observed candidate result, so a same-marker replacement can inherit a prior positive capability claim.",
+      "evidence": "The receipt retains adapter and runtime SHA-256 values, but the qualification record and identityMatch use only buildMarker/runtimeVersion fields. The current negative record remains unavailable, so this does not presently admit ZCode effects.",
+      "suggestion": "Do not promote a future supported record until admission consumes a concrete observed identity attestation appropriate to that Host; keep the current negative route simple rather than adding unused attestation machinery now.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-3",
+          "HC-4",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "coverage",
+      "title": "The no-launch tests bypass the production pre-admission probes",
+      "file": "tests/delegate.test.cjs",
+      "line": 719,
+      "line_end": 823,
+      "trigger": "A regression leaves chooseExecutionDriver and its identityProbes ahead of enforcementAdmission while the focused test suite runs.",
+      "impact": "All 192 focused tests pass even though the normal ACP-first route can execute adapter/runtime probe processes before the fail-closed gate.",
+      "evidence": "The shared start helper always sets ULTRA_DELEGATE_FORCE_CLI=1. The ACP refusal case injects chooseExecutionDriver as an already-computed object at lines 783-789, so neither branch observes whether the production selector ran a process before admission.",
+      "suggestion": "Add one deterministic regression using a fake executable identity probe that records invocation, then assert an all-transports-unavailable qualification rejects before that marker can be written. Keep provider access disabled.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-3",
+          "HC-4",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "protocol_coverage",
+      "title": "The typed-error test observes an internal wrapper instead of the public CLI",
+      "file": "tests/delegate.test.cjs",
+      "line": 775,
+      "line_end": 815,
+      "trigger": "The direct Skill entrypoint or ubp delegate drops the typed error fields while run still throws the rich Error object in process.",
+      "impact": "The test remains green and D1Q-01 appears satisfied although real automation receives only unstructured stderr.",
+      "evidence": "The fixture constructs node -e code that requires run, catches the Error itself, and manually JSON.stringify's code/name/admission. It never invokes delegate.cjs or bin/install.js as the caller would.",
+      "suggestion": "Exercise both public process entry points, require nonzero status plus one parseable bounded diagnostic with the stable code and redacted admission, and retain the existing no-artifact/no-fence assertions.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "package_coverage",
+      "title": "Contract regexes accept an evidence path absent from the tarball",
+      "file": "tests/v026-contract.test.cjs",
+      "line": 1593,
+      "line_end": 1644,
+      "trigger": "The maintained docs and profile cite a repository-local qualification receipt while npm packaging excludes that file.",
+      "impact": "The contract suite passes because it matches the literal .ultra/evidence path, but an installed user cannot resolve the evidence the diagnostic names.",
+      "evidence": "Lines 1637 and 1644 assert only that the path text appears. npm pack --dry-run includes the Skill and docs but no host-enforcement-receipt.json.",
+      "suggestion": "If the evidence ref is intended to be installed, assert its referent appears in the packed file list and its digest matches; otherwise assert source-only provenance wording and avoid presenting it as an installed recovery path.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-errors-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "diagnostic_propagation",
+      "title": "The recoverable safety stop becomes an untyped generic CLI failure",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 1340,
+      "line_end": 1345,
+      "trigger": "Host enforcement rejects a Packet and the Error leaves the JavaScript call stack through the documented command-line interface.",
+      "impact": "The next controller cannot select the unavailable-capability repair path from a stable code and may treat it like spawn, auth or malformed-input failure; machine recovery depends on parsing prose.",
+      "evidence": "HostEnforcementUnavailableError records code UBP_HOST_ENFORCEMENT_UNAVAILABLE and structured admission, but the CLI catch emits only error.message. The compatibility launcher has the same loss at its top-level catch.",
+      "suggestion": "Project this known error into one bounded JSON failure shape at the existing process boundary and keep unknown exceptions generic; add public-entrypoint tests so code and admission cannot be dropped again.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-errors-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "false_diagnostic",
+      "title": "The refusal claims no Host process after process-backed probes may run",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 937,
+      "line_end": 953,
+      "trigger": "ACP-first driver selection executes identity probes and then the enforcement decision rejects the selected route.",
+      "impact": "The source contract and resulting recovery narrative assert a stronger no-process boundary than the runtime provides, hiding the only pre-denial execution window from operators and reviewers.",
+      "evidence": "chooseExecutionDriver is called at line 905 before this block and its production identity inspection spawns commands. The comment at lines 939-940 says no Host process exists, while the error message describes a pre-launch refusal without disclosing those probes.",
+      "suggestion": "Prevent the probes before denial; if any non-provider preflight remains necessary, name it explicitly in the typed receipt rather than claiming zero Host-side process execution.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-2",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-3",
+          "HC-4",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-design-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "boundary_ordering",
+      "title": "Capability admission does not own the first executable boundary",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 905,
+      "line_end": 955,
+      "trigger": "A Host profile combines executable candidate inspection with an enforcement record that should reject the Packet before Host-side code executes.",
+      "impact": "The driver layer performs process-backed discovery before the admission layer can enforce its invariant, so the supposedly central gate is bypassed by its own upstream dependency.",
+      "evidence": "The data flow is permission -> chooseExecutionDriver -> experimental disclosure -> enforcementAdmission -> fence. chooseExecutionDriver is not pure because identityProbes execute commands; therefore admission is not the first effect boundary.",
+      "suggestion": "Use the existing two concepts in the opposite order: make a pure capability/transport eligibility decision first, then run process-backed candidate attestation only for a route that could be admitted. Do not add a workflow engine or second Host registry.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-2",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-3",
+          "HC-4",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-design-002",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "provenance_boundary",
+      "title": "Installed policy is coupled to development-only qualification provenance",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 173,
+      "line_end": 185,
+      "trigger": "The ultra-delegate Skill is installed from the npm package into another repository.",
+      "impact": "The runtime decision ships as constants while its named evidence remains only in this source checkout, so provenance ownership is ambiguous between product asset and project task evidence.",
+      "evidence": "HOST_ENFORCEMENT_QUALIFICATION embeds the local task attempt and receipt path. The package includes the Skill tree but excludes .ultra/evidence, and the record has no packaged immutable observation consumer.",
+      "suggestion": "Keep project task evidence as coordinator authority and, only if installed runtime diagnostics must cite it, ship one read-only redacted Skill-local evidence asset with the same digest. Avoid a database, registry or generated mirror.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-design-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "admission_state",
+      "title": "No-record Hosts are indistinguishable from positively admitted Hosts",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 261,
+      "line_end": 270,
+      "trigger": "A later Step 1 controller calls enforcementAdmission for a Host whose legacy N=1 conformance passed but whose factory effect dimensions were never qualified.",
+      "impact": "The returned route is admitted with gate null and no explicit not-qualified state, so a new factory consumer could mistake legacy compatibility for D1 factory admission unless it adds another check.",
+      "evidence": "The no-record branch returns admitted and the unit test explicitly preserves that behavior for five Hosts. Current docs call it conformance-gated admission with no capability claim, and Step 1 is not yet implemented, so existing N=1 compatibility is not presently broken.",
+      "suggestion": "Before Step 1 consumes this API, expose the legacy/no-claim state distinctly or require the Supervisor Profile to demand an enforcement-qualified gate; do not globally disable existing N=1 delegation in this task.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-3",
+          "HC-4",
+          "HC-7"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-code.json",
+    "review-tests.json",
+    "review-errors.json",
+    "review-design.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json",
+    "node --test --test-reporter=dot tests/delegate.test.cjs tests/acp-driver.test.cjs tests/v026-contract.test.cjs: exit 0",
+    "npm run verify:release: 708 passed, 2 failed, exit 1",
+    "npm pack --dry-run --json: exit 0",
+    "Skill Creator quick_validate.py through /opt/anaconda3/bin/python: exit 0",
+    "git diff --check over the twelve authorized paths: exit 0"
+  ],
+  "positive_observations": [
+    "The observed ZCode result is represented conservatively: unsupported and unobserved dimensions remain unavailable, transport authorization never becomes Worker effect authority, and experimental maturity is unchanged.",
+    "The implementation reuses the existing Host profile, permission, driver and result boundaries without adding a sandbox, daemon, database, retry loop or provider-brand semantic branch.",
+    "The twelve-path write scope and all fifty-five frozen outside-scope entries remained byte-identical to their admitted baselines."
+  ],
+  "limitations": [
+    "All five selected lenses ran sequentially in one Codex context; this is the continuous Task Review, not the later Codex plus Claude stage Review.",
+    "The full gate also found a Task 1 Acceptance-section hash serialized with one extra newline. That file is outside this Task 2 packet and requires an explicit coordinator-owned reopen, fresh review and evidence publication rather than an in-place rewrite.",
+    "Current P2 findings remain non-blocking and are not auto-repaired: the unshipped evidence ref, future positive-record identity attestation, package-reference coverage, development-provenance coupling and explicit no-record factory state.",
+    "The three earlier D1 P2s remain retained: Host-created sessions outside portable observation, weaker non-Linux start identity, and stale fence-registry lock cleanup after a crash.",
+    "No commit, push, tag, publish, deploy, real-HOME install, credential operation, provider retry or production effect is covered by this Review."
+  ]
+}

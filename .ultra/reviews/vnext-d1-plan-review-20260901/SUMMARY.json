@@ -1,0 +1,452 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "plan",
+  "execution_mode": "isolated",
+  "session": "vnext-d1-plan-review-20260901",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary",
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "worktree_digest": null,
+  "context_digest": "d1b4213d0a00715da20870133eb5b49dc8acfed691ab1d9b6207a41f6f596665",
+  "packet_digest": "23958fcaf6f13dbd7cda421a52ce8154c7a7fb254cc424d85433b084c251068f",
+  "admission_digest": "90f9c36d4dac83878e4b2baf66ee0b103b99eb93c0ce549fc2c3f9177b7bfeb3",
+  "subject_digest": "6ef166289eef63e44606959559dcc670bd5710f7130f9d98649db5a53611019a",
+  "status": "complete",
+  "verdict": "REQUEST_CHANGES",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-tests.json",
+        "review-errors.json",
+        "review-design.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-tests",
+      "review-errors",
+      "review-design"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-code",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Plan Review must prove that D1 acceptance, authority, task dependencies and North Star trace are mutually executable before implementation begins."
+    },
+    {
+      "worker": "review-code",
+      "status": "skipped",
+      "rationale": "The frozen subject contains no vNext runtime implementation diff; code review begins on the ZCode-authored task subject."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "D1 is accepted only through explicit RED/GREEN process, environment, fencing and exact-Host enforcement evidence, so the planned falsifiers require an independent lens."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "Cancellation, timeout, outer-worker loss, outcome_unknown and provider-dispatch recovery are central safety transitions in this plan."
+    },
+    {
+      "worker": "review-design",
+      "status": "selected",
+      "rationale": "The two-task graph crosses launcher, driver, writer-identity, fence and Host-admission ownership boundaries whose bypasses must be rejected before dispatch."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "No source comment or delivered public documentation wording is frozen yet; the plan prose is already covered by specification and design lenses."
+    }
+  ],
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "authority",
+      "title": "The single-task grant cannot execute the accepted two-task D1 graph",
+      "file": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "line": 90,
+      "line_end": 95,
+      "trigger": "The runtime-safety predecessor reaches its mandatory formal task Review APPROVE before the host-enforcement task starts.",
+      "impact": "The grant expires at that first task Review and budgets only one initial ZCode implementation attempt, while the dependent host-enforcement task explicitly requires a fresh ZCode packet after predecessor Review. D1-AC03 and D1-AC05 therefore cannot be completed under the recorded authority.",
+      "evidence": "The grant allows task and aggregate Review but expires at formal task Review APPROVE and permits one initial ZCode attempt. The ledger has two sequential tasks, and task-vnext-d1-host-enforcement-qualification.md:149-152 requires the predecessor's current Review/evidence before building a fresh ZCode packet.",
+      "suggestion": "Either bind the grant and expiry to both named task ids through aggregate D1 Review, with one initial implementation attempt and Review per task plus the separate qualification call, or merge the work into one genuinely executable task and update the dependency/evidence plan.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-5",
+          "HC-6",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "authorization",
+      "title": "The env acceptance preserves canonical packet paths in the final Host",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 108,
+      "line_end": 108,
+      "trigger": "A final ACP or CLI Host starts under D1R-01's required common descendant environment.",
+      "impact": "The delegated Host still receives absolute instruction and permission artifact paths outside its isolated worktree. On a path without proven external-directory enforcement, the Worker can read or mutate the control artifacts whose isolation D1 is meant to establish, so the accepted least-authority boundary remains open.",
+      "evidence": "D1R-01 requires probe, worker, ACP and CLI descendants to retain all three UBP_DELEGATE packet variables. The current worker spec assigns UBP_DELEGATE_INSTRUCTION_FILE and UBP_DELEGATE_PERMISSION_FILE to canonical files beside the worktree, although the maintained architecture embeds their exact bytes in the prompt specifically so the Host need not access those paths.",
+      "suggestion": "Keep canonical packet paths launcher-local. Give the final Host only its worktree/cwd, embedded digest-bound prompt, and the selected Host's minimum runtime/auth inputs; update fixtures to use cwd or a test-only capture seam instead of requiring control-artifact path variables in the Host environment.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-04"
+        ],
+        "touches": [
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-003",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "recovery",
+      "title": "The recovery state still routes to an already completed Claude call",
+      "file": "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md",
+      "line": 66,
+      "line_end": 73,
+      "trigger": "A fresh coordinator resumes from the owner-readable Next action list.",
+      "impact": "Recovery can repeat the single-budget Claude Step 1 discussion or pause waiting for a terminal result that already exists, instead of consuming the current plan Review and dispatching the reviewed ZCode packet.",
+      "evidence": "The state still says to wait for the fresh Claude terminal result, but local delegation 061674da405c4fd582f198bb1d7cbff4 is terminal success with exit_code 0 and the two D1 task contexts plus this strict plan Review session already exist.",
+      "suggestion": "Record the terminal Claude receipt and verified dispositions in Current state, then make plan Review consumption and the first reviewed ZCode packet the next action.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "security",
+      "title": "Environment test never proves secret values stay out of retained artifacts",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 108,
+      "line_end": 108,
+      "trigger": "A prohibited control or provider secret is removed from the child environment but is copied into a worker spec, diagnostic, stdout/stderr, receipt, result, event journal, or verification log.",
+      "impact": "D1R-01 can pass its key-name capture while D1-AC01's explicit no-secret-value requirement remains false, leaving Primary credentials in durable local evidence.",
+      "evidence": "D1-AC01 requires that no secret values appear in packets, receipts, or logs, but D1R-01 and Narrow Verification specify only child env key-name capture and do not bind a canary scan over every retained artifact.",
+      "suggestion": "Inject unique non-production canary values for a Primary control key, an unrelated provider key, and the selected-Host auth path; assert required key delivery without printing the value, then byte-scan every generated spec/result/receipt/log/event/evidence artifact for absence of all canaries.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-3",
+          "FP-5",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-2",
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "verification",
+      "title": "Live Host smoke has no independent proof that denied probes were attempted and blocked",
+      "file": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "line": 108,
+      "line_end": 109,
+      "trigger": "The selected ZCode run simply follows the prompt without requesting a denied tool, or reports that a probe was denied even though no mechanical enforcement event occurred.",
+      "impact": "The planned receipt can claim D1Q-02 and qualify an unenforced Host path from absence of effects or Host self-report, allowing a later Worker to perform the very outside-root, shell, network, or business effect D1 must fail closed.",
+      "evidence": "The plan rejects Host self-report at line 19, yet the required receipt binds only general run and denied-probe observations; it does not require the exact probe-instruction digest, an observed permission/tool attempt, or coordinator-owned pre/post canaries for each denied dimension.",
+      "suggestion": "Bind the exact instruction and permission digests, require an independently observed attempt-and-denial event for every tool-mediated dimension, and use coordinator-owned isolated filesystem markers and a local controlled network sink for pre/post effect checks; an unattempted or unobservable probe must remain unsupported, not pass.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-003",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "correctness",
+      "title": "Fence test does not cover physical-root aliases or overlapping roots",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 110,
+      "line_end": 110,
+      "trigger": "Two delegation packets name the same writable tree through a symlink, Windows case or separator spelling, or parent/child root overlap while a literal-path fence treats them as different owners.",
+      "impact": "Both runs can acquire fences and write concurrently, violating the zero-duplicate-writer prerequisite even though the single duplicate-launch fixture passes.",
+      "evidence": "D1R-03 asks for one atomic duplicate-launch fixture and fence identity/readback evidence but does not enumerate the alias and overlap cases that bypass a string-keyed or exact-root-only fence.",
+      "suggestion": "Make the duplicate-launch check table-driven for exact worktree, parent/child writable-root overlap, symlink or filesystem alias, and Windows case/separator aliases, and assert that disjoint registered worktrees remain independently admissible.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-6",
+          "FP-8"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-8"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-004",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "compatibility",
+      "title": "ACP conformance consumer is named but has no outcome_unknown fixture",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 95,
+      "line_end": 100,
+      "trigger": "A delegation reaches launcher-side failure_type outcome_unknown and the ACP conformance receipt or diagnostic consumes that previously unseen value.",
+      "impact": "The focused suite can stay green while the maintained conformance surface misclassifies, drops, or leaks the new recovery fact; the full gate's existing happy-path test does not exercise this transition.",
+      "evidence": "Tech Notes explicitly require checking every failure_type consumer including ACP conformance, but the Planned Path Inventory and Narrow Verification include only delegate and ACP-driver tests, with no conformance-specific fixture.",
+      "suggestion": "Add one ACP conformance fixture that consumes outcome_unknown and asserts the retained redacted receipt and diagnostic, or record source evidence that the consumer is intentionally unchanged and already covered by an executable equivalent.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-errors-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "reliability",
+      "title": "Timeout can still become a false safe terminal result",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 109,
+      "line_end": 111,
+      "trigger": "The Host timeout fires, its adapter or root process closes, but a detached nested writer remains alive or its stop identity cannot be proved.",
+      "impact": "The implementation can satisfy the listed task checks while still publishing `failure_type: timeout`, releasing the fence, and permitting a second writer against roots that may still be changing.",
+      "evidence": "D1R-02 enumerates outer-worker loss, live/stopped inner writers, cancellation acknowledgement, and stale identity, while D1R-04 requires only proven-stopped cancellation compatibility. Neither criterion or its evidence requires the timeout branch promised by D1-AC02 to prove the same writer boundary before returning a terminal timeout.",
+      "suggestion": "Add one explicit nested-writer timeout RED/GREEN case to D1R-02 and the narrow verification: a proven-stopped boundary may return `timeout`; an alive or unprovable boundary must return `outcome_unknown`, retain the fence, and remain non-retryable.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-errors-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "authorization",
+      "title": "Missing Host receipt is not proof that the one-call budget is unconsumed",
+      "file": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "line": 51,
+      "line_end": 53,
+      "trigger": "The coordinator or transport is interrupted after the selected-Host request is dispatched but before the planned raw or redacted receipt is durably published.",
+      "impact": "A fresh session can interpret the absent receipt as an unconsumed allowance and issue a second provider call, exceeding the exact one-call grant and obscuring whether the first attempt produced effects.",
+      "evidence": "Fresh-session recovery says to inspect the planned raw receipt path before deciding whether the live-call budget remains, but the plan has no pre-dispatch reservation or rule that an indeterminate dispatched attempt consumes the budget. Receipt absence therefore cannot distinguish never-launched from launched-with-unknown-outcome.",
+      "suggestion": "Reuse the existing delegation attempt identity and atomically record `dispatched` plus budget consumption before the provider request. If no bound terminal receipt arrives, retain `outcome_unknown`, treat the call as consumed, and prohibit retry until an explicit new grant or authoritative proof of non-dispatch exists.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-4",
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-design-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "authority",
+      "title": "The two-task graph is governed by a one-task grant",
+      "file": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "line": 93,
+      "line_end": 95,
+      "trigger": "The predecessor runtime-safety task reaches its mandatory formal task Review APPROVE before the dependent Host-qualification task starts.",
+      "impact": "The grant then expires after its single initial ZCode attempt and single initial task Review are consumed, while the dependent task requires a fresh ZCode packet and review; continuing would exceed authority and stopping leaves D1-AC03 and D1-AC05 undelivered.",
+      "evidence": "Line 93 authorizes one initial ZCode attempt, one initial task Review, and expiry at formal task Review APPROVE. The ledger contains two sequential tasks, and the dependent context at lines 149-153 requires a fresh ZCode packet only after predecessor evidence and Review.",
+      "suggestion": "Either grant exactly one initial implementation attempt and Review per named task and expire after aggregate D1 approval, or collapse the graph into one reviewed ZCode packet; never repurpose P0/P1 repair calls as authority for the second task.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-design-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "recovery",
+      "title": "Task 2 requires an execution packet that its inventory forbids creating",
+      "file": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "line": 149,
+      "line_end": 151,
+      "trigger": "After the predecessor completes, the coordinator follows this Resume Note and creates the required fresh ZCode packet.",
+      "impact": "That packet is an unplanned path addition which this same task classifies as plan-critical, so the sole authorized implementation writer cannot receive a digest-bound Task 2 mission without violating the accepted inventory or rebuilding the plan after execution should already begin.",
+      "evidence": "The Planned Path Inventory at lines 55-79 lists only the context, evidence, receipt, log, product surfaces and tests; it omits any Task 2 ZCode packet, while lines 80-82 require plan disposition for every later path addition and lines 149-151 require that packet.",
+      "suggestion": "Add one canonical Task 2 ZCode execution-packet path to CREATE now and require its digest to be bound before launch.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-4",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-design-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "recovery",
+      "title": "Recovery state still routes to an already consumed Claude discussion",
+      "file": "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md",
+      "line": 66,
+      "line_end": 73,
+      "trigger": "A fresh session follows the owner-readable Next action after this plan was created.",
+      "impact": "Recovery can wait indefinitely or repeat the one-budget Claude call, adding context and entitlement consumption instead of dispatching the reviewed first tracer.",
+      "evidence": "The runtime-task change log says the plan was created after the fresh Claude discussion, but this Next action still says to wait for and consume it. The retained mission also pins decision digest 9818a805... while this admitted plan binds the current decision digest dfb2aa76....",
+      "suggestion": "Record the terminal Claude delegation receipt and current digest verification, mark that discussion budget consumed, and make the next action the plan disposition followed by Task 1 dispatch; preserve the original mission as historical input rather than rewriting it.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1"
+        ],
+        "serves": [
+          "NS-02"
+        ],
+        "touches": [
+          "HC-4"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#Acceptance and #Execution-Grant",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#Implementation, #Planned-Path-Inventory, #Acceptance-Criteria and #Resume-Note",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#Implementation, #Planned-Path-Inventory, #Acceptance-Criteria and #Resume-Note",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md#Current-authority-boundary",
+    ".ultra/tasks.json dependency and trace rows for both D1 tasks",
+    "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md current evidence and next action",
+    "work/vnext-step1-claude-architecture-discussion.md retained read-only architecture mission",
+    "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs: 48 passed, 0 failed before implementation"
+  ],
+  "positive_observations": [
+    "The plan correctly keeps D1 at the existing shared delegation boundary and excludes Supervisor, wake, durable orchestration and provider-brand semantic routing.",
+    "The two-task sequence separates deterministic offline runtime repair from the sole exact-Host no-production observation.",
+    "The plan preserves the model-facing result status and uses launcher-side outcome_unknown plus frozen roots when writer stop cannot be proved."
+  ],
+  "limitations": [
+    "This is a plan-only subject; no ZCode runtime implementation, RED fixture, exact-Host enforcement observation or task evidence exists yet.",
+    "The current review intentionally blocks dispatch until every P1 is resolved and a fresh delta subject is admitted; P2 recovery clarity is retained for disposition.",
+    "The historical Claude mission predates the final decision-budget amendment and is advisory evidence only; current source and admitted decision bytes control."
+  ]
+}

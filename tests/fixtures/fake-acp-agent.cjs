@@ -16,8 +16,43 @@ const result = config ? JSON.stringify(config.result ?? {}) : (process.env.FAKE_
 const location = config?.location ?? process.env.FAKE_ACP_LOCATION ?? process.cwd();
 const envCapture = config?.envCapture ?? process.env.FAKE_ACP_ENV_CAPTURE;
 if (envCapture) fs.writeFileSync(envCapture, `${Object.keys(process.env).sort().join('\n')}\n`);
+// The worker boundary is identified by its argv (`delegate-worker.cjs`),
+// never by counting parent layers: after the ACPX entry inserts itself into
+// the chain, the immediate parent is no longer necessarily the worker. On
+// /proc-capable platforms the ancestor chain is walked to the exact worker
+// process and its OS-level environment is retained as the strongest worker
+// observation; elsewhere the file stays absent and the test skips it.
+const parentEnvCapture = config?.parentEnvCapture;
+if (parentEnvCapture) {
+  try {
+    let workerEnviron = null;
+    let current = process.pid;
+    for (let depth = 0; depth < 16 && current > 1; depth += 1) {
+      const cmdline = fs.readFileSync(`/proc/${current}/cmdline`, 'utf8');
+      if (cmdline.includes('delegate-worker.cjs')) {
+        workerEnviron = fs.readFileSync(`/proc/${current}/environ`, 'utf8');
+        break;
+      }
+      const status = fs.readFileSync(`/proc/${current}/status`, 'utf8');
+      const ppid = /\bPPid:\s+(\d+)/.exec(status);
+      if (!ppid) break;
+      current = Number(ppid[1]);
+    }
+    if (workerEnviron !== null) {
+      const keys = workerEnviron.split('\0').filter(Boolean).map((entry) => entry.split('=')[0]);
+      fs.writeFileSync(parentEnvCapture, `${keys.sort().join('\n')}\n`);
+    }
+  } catch {}
+}
 let promptRequestId = null;
 let permissionRequestId = null;
+let permissionRound = 0;
+// A denial stays recorded while the bounded turn continues to later probes:
+// each entry requests one more permission until the sequence is exhausted,
+// then the turn ends with its terminal stop reason.
+const permissionSequence = Array.isArray(config?.permissionSequence)
+  ? config.permissionSequence
+  : null;
 
 function trace(payload) {
   if (traceFile) fs.appendFileSync(traceFile, `${JSON.stringify(payload)}\n`);
@@ -43,14 +78,14 @@ function finishPrompt(stopReason = 'end_turn') {
 }
 
 function requestPermission(kind, requestedLocation) {
-  permissionRequestId = 900;
+  permissionRequestId = 900 + permissionRound;
   send({
     id: permissionRequestId,
     method: 'session/request_permission',
     params: {
       sessionId: 'fake-session',
       toolCall: {
-        toolCallId: 'tool-1',
+        toolCallId: `tool-${permissionRound + 1}`,
         kind,
         status: 'pending',
         title: 'contains-secret-title',
@@ -133,11 +168,34 @@ function handle(message) {
   }
   if (message.method === 'session/prompt') {
     promptRequestId = message.id;
-    if (scenario === 'hang' || scenario === 'cancel') {
+    if (scenario === 'auth-late') {
+      // An authentication-shaped failure arriving only after the prompt was
+      // submitted: the reverse path proving the CLI fallback must not run.
+      send({ id: promptRequestId, error: { code: -32000, message: 'Authentication required (late)' } });
+      return;
+    }
+    if (scenario === 'hang' || scenario === 'cancel' || scenario === 'cancel-with-events') {
       // `hang` already owns a descendant from startup; only the cancel
-      // scenario creates one here, so cancellation still interrupts a prompt
+      // scenarios create one here, so cancellation still interrupts a prompt
       // that spawned its writer mid-turn.
-      if (scenario === 'cancel') startGrandchild();
+      if (scenario !== 'hang') startGrandchild();
+      if (scenario === 'cancel-with-events') {
+        // Journal-visible traffic before the hang, so a mid-run status
+        // snapshot observes real derived events while the turn stays open.
+        update({
+          sessionUpdate: 'plan',
+          entries: [{ content: 'Waiting for cancellation', priority: 'high', status: 'in_progress' }],
+        });
+        update({
+          sessionUpdate: 'tool_call',
+          toolCallId: 'read-wait-1',
+          kind: 'read',
+          status: 'completed',
+          title: 'read secret title',
+          rawInput: { token: 'raw-secret-token' },
+          rawOutput: 'raw-secret-output',
+        });
+      }
       update({
         sessionUpdate: 'agent_thought_chunk',
         content: { type: 'text', text: 'hidden-cancel-secret' },
@@ -150,6 +208,11 @@ function handle(message) {
     }
     if (scenario === 'permission-widening') {
       requestPermission('edit', location);
+      return;
+    }
+    if (scenario === 'permission-multiple') {
+      const first = permissionSequence[0] || { kind: 'edit', location };
+      requestPermission(first.kind, first.location);
       return;
     }
     if (scenario === 'no-result') {
@@ -219,6 +282,14 @@ function handle(message) {
   }
   if (message.id === permissionRequestId && message.result) {
     trace({ direction: 'agent_observation', permission_response: message.result });
+    if (scenario === 'permission-multiple') {
+      permissionRound += 1;
+      if (permissionRound < permissionSequence.length) {
+        const next = permissionSequence[permissionRound];
+        requestPermission(next.kind, next.location);
+        return;
+      }
+    }
     finishPrompt();
   }
 }

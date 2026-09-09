@@ -1,0 +1,234 @@
+{
+  "$schema": "ultra-task-evidence-v2",
+  "task_id": "vnext-d1-runtime-safety-boundary",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "context": {
+    "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+    "acceptance_sha256": "5d8cda45a87088bd082e74dc84230333fad8567d5b022212000cf16157a9cb5e"
+  },
+  "subject": {
+    "git_head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+    "worktree_digest": "5e5f129f96493c0fc8e08dc5356ef6d2395c50e9a73ef85676d77e905fb5d0a2",
+    "observed_at": "2026-09-05T22:02:54.454872+00:00"
+  },
+  "acceptance": [
+    {
+      "criterion_id": "D1R-01",
+      "verification_type": "command",
+      "evidence": {
+        "command": "UBP_TEST_ACPX_ENTRY=/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs npm run verify:release",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+        "raw_evidence_sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5",
+        "freshness_identity": {
+          "git_head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+          "worktree_digest": "c1eee1175d5ca50ca45672b1ff4a53ed43a68a37a7305df6d9fdcb098f09e58e",
+          "observed_at": "2026-09-05T21:43:03.275226+00:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Current tests exercise the actual detached worker spawn environment and PID, plus probe, ACP and CLI descendants. The retained mutation RED and corrected GREEN establish the real spawn seam rather than only a derived environment object; scoped control/secret canaries and packet-path separation remain checked in the final passing suite."
+      }
+    },
+    {
+      "criterion_id": "D1R-02",
+      "verification_type": "command",
+      "evidence": {
+        "command": "UBP_TEST_ACPX_ENTRY=/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs npm run verify:release",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+        "raw_evidence_sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5",
+        "freshness_identity": {
+          "git_head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+          "worktree_digest": "c1eee1175d5ca50ca45672b1ff4a53ed43a68a37a7305df6d9fdcb098f09e58e",
+          "observed_at": "2026-09-05T21:43:03.275226+00:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The final suite covers real nested writers, cancel/timeout, late death, identity mismatch and unknown recovery. Only ESRCH proves death; EPERM stays alive and other errors stay unknown. Unproven inner or outer writer boundaries keep outcome_unknown and retain locks/fences rather than synthesizing a stopped result."
+      }
+    },
+    {
+      "criterion_id": "D1R-03",
+      "verification_type": "command",
+      "evidence": {
+        "command": "UBP_TEST_ACPX_ENTRY=/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs npm run verify:release",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+        "raw_evidence_sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5",
+        "freshness_identity": {
+          "git_head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+          "worktree_digest": "c1eee1175d5ca50ca45672b1ff4a53ed43a68a37a7305df6d9fdcb098f09e58e",
+          "observed_at": "2026-09-05T21:43:03.275226+00:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "Existing real temporary-root and process fixtures reject identical, ancestor/descendant, symlink and platform-normalized overlaps, admit disjoint roots, and require matching writer-stop/fence identity before release. The final gate passes these assertions without weakening them."
+      }
+    },
+    {
+      "criterion_id": "D1R-04",
+      "verification_type": "command",
+      "evidence": {
+        "command": "UBP_TEST_ACPX_ENTRY=/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs npm run verify:release",
+        "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+        "exit_code": 0,
+        "raw_evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+        "raw_evidence_sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5",
+        "freshness_identity": {
+          "git_head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+          "worktree_digest": "c1eee1175d5ca50ca45672b1ff4a53ed43a68a37a7305df6d9fdcb098f09e58e",
+          "observed_at": "2026-09-05T21:43:03.275226+00:00"
+        }
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The unchanged final source passed105 focused checks,58 related public-entry tests, and737 Node plus104 Hook release checks with no failure/skip and audit0. The actual public-entry/driver wrong-version regression proves typed refusal with observed2 and no prompt; unobserved/auth-failure versions remain null. Existing v1, fallback, cancellation, output-path and outcome_unknown conformance behavior stays checked."
+      }
+    },
+    {
+      "criterion_id": "D1R-05",
+      "verification_type": "inspection",
+      "evidence": {
+        "source": "skills/ultra-delegate/scripts/acp-driver.cjs, agent-execution-driver.cjs, delegate.cjs, delegate-worker.cjs, host-profile.cjs, acp-conformance.cjs; the actual public agent-delegation entry and current strict Task Review",
+        "observation": "The source reuses the existing public ACPX runtime and UBP environment, permissions, result and writer boundaries. The repair adds only actual protocol-version observation/refusal and its consumers; no semantic next-step logic, durable lease, new result status, provider-brand policy branch, daemon, database or unplanned dependency is introduced.",
+        "revision": "b765b55cca0e1eaacebc738a68de77906bb50756+5e5f129f96493c0fc8e08dc5356ef6d2395c50e9a73ef85676d77e905fb5d0a2"
+      },
+      "disposition": {
+        "authority": "model",
+        "result": "satisfied",
+        "rationale": "The fresh admitted spec/code/tests delta Review approved the current repair and retained three P2 limitations. Acceptance relies on current source inspection and existing ZCode/Kimi-authored checks, excluding the code reviewer's unauthorized ephemeral probes."
+      }
+    }
+  ],
+  "dimensions": {
+    "tests_written": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        "tests/acp-driver.test.cjs",
+        "tests/acpx-entry.test.cjs",
+        "tests/fixtures/fake-acp-agent.cjs",
+        "tests/fixtures/fake-acpx-entry.cjs"
+      ],
+      "rationale": "Actual-spawn environment and outer EPERM/unknown regressions now protect the reopened defects. An opt-in actual-entry/real-driver regression closes the reproduced wrong-version test-double gap. Broader real-entry normal/denial/cancel coverage remains a retained P2."
+    },
+    "tests_passed": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+        ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-narrow.log",
+        ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.log"
+      ],
+      "rationale": "The final default-concurrency release passed737 Node and104 Hook tests with audit0 and unchanged172-source observations.105 focused and58 related-source tests also passed. Earlier failed full runs are retained and not retroactively reclassified."
+    },
+    "persistence_real": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "tests/delegate.test.cjs",
+        ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log"
+      ],
+      "rationale": "Existing fixtures create real isolated Git worktrees, process groups, ordinary lock/fence/result files and re-read persisted observations. The real public entry and installed SDK run against local fake Agents; this is not real Host qualification."
+    },
+    "feature_flags_audit": {
+      "status": "satisfied",
+      "evidence_refs": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+        "skills/ultra-delegate/scripts/host-profile.cjs",
+        ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/SUMMARY.json"
+      ],
+      "rationale": "The existing explicit entry resolver and typed CLI fallback remain bounded transport selection. No semantic orchestration, hidden provider promotion, runtime package fetch or dormant factory route is introduced."
+    },
+    "vertical_slice": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+        "tests/acp-driver.test.cjs",
+        "tests/delegate.test.cjs"
+      ],
+      "rationale": "The actual launcher/worker/driver and public-entry refusal are covered with real local processes and independently checked raw evidence. This closes the Task1 runtime slice; real ZCode effect qualification remains a separate incomplete Task2."
+    },
+    "spec_trace": {
+      "status": "satisfied",
+      "evidence_refs": [
+        ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+        ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+        ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/SUMMARY.json"
+      ],
+      "rationale": "D1R-01 through D1R-05 are satisfied for this runtime task. Fresh strict Review approved the current subject with three retained nonblocking P2s; no C/D/E orchestration is claimed."
+    }
+  },
+  "task_review": {
+    "execution_packet": {
+      "state": "available",
+      "digest": "f06f087cf90b8f7e959963b4bc55a6577b51f91c7220027feb29c0f14a60b093",
+      "limitation": null
+    },
+    "session_id": "vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+    "summary_ref": ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/SUMMARY.json",
+    "summary_digest": "702e50fd4f7329c3eb00da7e586c9fd73911373650abe3390a30e7d2042e440f",
+    "blocking_findings": [
+      {
+        "id": "review-code-001",
+        "resolution": "Observe the negotiated version through the public session store, refuse unsupported/unproven negotiation before prompt, consume the actual result-line observation and exercise the real public entry in the driver regression.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+          "tests/acp-driver.test.cjs",
+          ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.log"
+        ]
+      },
+      {
+        "id": "review-tests-002",
+        "resolution": "Observe the negotiated version through the public session store, refuse unsupported/unproven negotiation before prompt, consume the actual result-line observation and exercise the real public entry in the driver regression.",
+        "disposition": "resolved",
+        "evidence_refresh_refs": [
+          ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+          "tests/acp-driver.test.cjs",
+          ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.log"
+        ]
+      }
+    ],
+    "retention": "Retain this exact strict packet, derived admission, three lens JSON files and summary through aggregate Test and Deliver. Preserve the earlier failed Runtime and aggregate Reviews and all original negative raw records as history; do not replace their bytes."
+  },
+  "artifacts": [
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/acp-driver.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "tests/delegate.test.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/acpx-entry.test.cjs",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+    ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/SUMMARY.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-final-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-relocation.json",
+    "work/owner-factory-implementation-20260905/stage-b-protocol-version-root-review.zh-CN.md"
+  ],
+  "limitations": [
+    "The strict Review worktree_digest is null; the independently captured completion subject below is not a cryptographic claim made by that Review. Command freshness remains its actual pre-command observation; subsequent Owner/review/completion metadata does not rebind that earlier observation.",
+    "A session may be created before the public session-store version observation becomes available. The version refusal proves no session/prompt, not zero session effects. Missing/init-auth versions remain unobserved.",
+    "Retained P2s concern new-bridge historical release/Provider wording, unproved capability-advertisement behavioral equivalence and missing broader real-entry normal/denial/cancel regression combinations. They are reported, not automatically repaired.",
+    "A Host-created session can escape portable process observation, non-Linux start identity is weaker, and a registry lock can remain after a crash; conservative unknown behavior is retained.",
+    "The earlier evidence-layout full-run failure was corrected only in artifact location/inventory. A later null child exit remains unclassified; unchanged targeted and final full replays passed but do not prove the earlier failure harmless. All raw records remain retained.",
+    "The code reviewer wrote five ephemeral inline fake-Agent probes beyond the Owner author-role boundary. This was acknowledged and stopped; those observations are excluded from formal repair, regression, qualification and acceptance evidence. Committed implementation/tests are actual ZCode/Kimi-authored.",
+    "The author timestamp conflicting with actual call time is not canonical freshness. Current values come from Root command-time and stable source/raw observations.",
+    "This closes only the runtime task. Real exact-build ZCode qualification, StageB commit, C/D/E implementation and actual factory/evolution closure remain incomplete. No installed runtime replacement, push, release, deployment or production mutation is claimed."
+  ],
+  "timestamp": "2026-09-05T22:02:54.454872+00:00"
+}

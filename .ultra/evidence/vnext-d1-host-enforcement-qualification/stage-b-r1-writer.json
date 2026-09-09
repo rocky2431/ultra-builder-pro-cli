@@ -1,0 +1,13 @@
+{
+  "$schema": "ultra-delegation-writer-v2",
+  "delegation_id": "delegation",
+  "launch_id": "c1554b28-b7ab-4688-bfe4-52251f147466",
+  "phase": "started",
+  "pid": 56527,
+  "pgid": 56527,
+  "platform": "darwin",
+  "command": "/Users/rocky243/.hermes/node/bin/node",
+  "argv_digest": "a2a8da895a462a8a6147b021000aabe966a9b85122abd123cb7c507a4913eead",
+  "started_at": "2026-09-05T22:14:32.204Z",
+  "start_identity": null
+}

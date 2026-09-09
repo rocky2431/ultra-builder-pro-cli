@@ -1,0 +1,96 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "packet_digest": "f2780051c8682ab43caffddd685db0ee49ab902b0bee5e80f35ab10e7bad2b48",
+  "admission_digest": "305abd7f7b8b9033d896af1fd4f77346fde6df13ec5dd0e8e75b60147df7304a",
+  "subject_digest": "e2c4aeb30459fa298747378c8296ac0c40fe7941fb6fad394c8546faba00972c",
+  "session": "vnext-d1-host-enforcement-initial-review-20260901",
+  "timestamp": "2026-09-01T15:52:08Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-candidate",
+    "files_analyzed": [
+      "tests/acp-driver.test.cjs",
+      "tests/delegate.test.cjs",
+      "tests/v026-contract.test.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "coverage",
+      "title": "The no-launch tests bypass the production pre-admission probes",
+      "file": "tests/delegate.test.cjs",
+      "line": 719,
+      "line_end": 823,
+      "trigger": "A regression leaves chooseExecutionDriver and its identityProbes ahead of enforcementAdmission while the focused test suite runs.",
+      "impact": "All 192 focused tests pass even though the normal ACP-first route can execute adapter/runtime probe processes before the fail-closed gate.",
+      "evidence": "The shared start helper always sets ULTRA_DELEGATE_FORCE_CLI=1. The ACP refusal case injects chooseExecutionDriver as an already-computed object at lines 783-789, so neither branch observes whether the production selector ran a process before admission.",
+      "suggestion": "Add one deterministic regression using a fake executable identity probe that records invocation, then assert an all-transports-unavailable qualification rejects before that marker can be written. Keep provider access disabled.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-3", "HC-4", "HC-7"]
+      }
+    },
+    {
+      "id": "review-tests-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "protocol_coverage",
+      "title": "The typed-error test observes an internal wrapper instead of the public CLI",
+      "file": "tests/delegate.test.cjs",
+      "line": 775,
+      "line_end": 815,
+      "trigger": "The direct Skill entrypoint or ubp delegate drops the typed error fields while run still throws the rich Error object in process.",
+      "impact": "The test remains green and D1Q-01 appears satisfied although real automation receives only unstructured stderr.",
+      "evidence": "The fixture constructs node -e code that requires run, catches the Error itself, and manually JSON.stringify's code/name/admission. It never invokes delegate.cjs or bin/install.js as the caller would.",
+      "suggestion": "Exercise both public process entry points, require nonzero status plus one parseable bounded diagnostic with the stable code and redacted admission, and retain the existing no-artifact/no-fence assertions.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-5"],
+        "serves": ["NS-02", "NS-04"],
+        "touches": ["HC-1", "HC-4", "HC-5"]
+      }
+    },
+    {
+      "id": "review-tests-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "package_coverage",
+      "title": "Contract regexes accept an evidence path absent from the tarball",
+      "file": "tests/v026-contract.test.cjs",
+      "line": 1593,
+      "line_end": 1644,
+      "trigger": "The maintained docs and profile cite a repository-local qualification receipt while npm packaging excludes that file.",
+      "impact": "The contract suite passes because it matches the literal .ultra/evidence path, but an installed user cannot resolve the evidence the diagnostic names.",
+      "evidence": "Lines 1637 and 1644 assert only that the path text appears. npm pack --dry-run includes the Skill and docs but no host-enforcement-receipt.json.",
+      "suggestion": "If the evidence ref is intended to be installed, assert its referent appears in the packed file list and its digest matches; otherwise assert source-only provenance wording and avoid presenting it as an installed recovery path.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-6"],
+        "serves": ["NS-02", "NS-04"],
+        "touches": ["HC-4", "HC-5", "HC-7"]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "node --test --test-reporter=dot tests/delegate.test.cjs tests/acp-driver.test.cjs tests/v026-contract.test.cjs: exit 0",
+    "npm run verify:release: 708 passed, 2 failed, exit 1",
+    "tests/delegate.test.cjs:79",
+    "tests/delegate.test.cjs:719",
+    "tests/v026-contract.test.cjs:1593"
+  ],
+  "positive_observations": [
+    "The focused suite covers unsupported, unobserved, missing, unknown and version-mismatched dimension decisions plus a fully supported positive fixture.",
+    "Refusal assertions verify no worker artifacts, run lock or worktree fence remain after the tested gate."
+  ],
+  "limitations": [
+    "The full release gate also exposes a completed Task 1 Acceptance-hash error outside this packet; it requires a separate explicit reopen and fresh evidence review."
+  ]
+}

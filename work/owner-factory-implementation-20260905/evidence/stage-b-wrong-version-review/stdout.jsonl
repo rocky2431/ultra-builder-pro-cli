@@ -1,0 +1,6 @@
+{"type":"started","pid":50569,"node":"v26.8.1","acpx_version":"0.13.2"}
+{"type":"event","event":{"type":"status","text":"plan: Inspect the bounded task","tag":"plan"}}
+{"type":"event","event":{"type":"text_delta","text":"hidden-reasoning-secret","stream":"thought","tag":"agent_thought_chunk"}}
+{"type":"event","event":{"type":"tool_call","text":"read secret title (completed): raw-secret-output","tag":"tool_call","title":"read secret title","toolCallId":"read-1","status":"completed","kind":"read","rawInput":{"token":"raw-secret-token"},"rawOutput":"raw-secret-output"}}
+{"type":"event","event":{"type":"text_delta","text":"{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"Existing fake Agent completed the protocol-version diagnostic.\",\"changed_files\":[],\"checks\":[],\"evidence\":[],\"questions\":[],\"residual_risks\":[]}","stream":"output","tag":"agent_message_chunk"}}
+{"type":"result","result":{"status":"completed","stopReason":"end_turn"}}

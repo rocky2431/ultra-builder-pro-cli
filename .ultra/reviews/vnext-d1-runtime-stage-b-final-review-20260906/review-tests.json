@@ -1,0 +1,167 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "packet_digest": "cacbe5387fcddce9860039cf7633be31e12e4823347440479cb759f419bd097f",
+  "admission_digest": "9bd39fb3c86f4c618f7274cb385d3a4b8b9ce34b01f530a11169c30cd34e52bd",
+  "subject_digest": "e462ceea0651bbf28d5dd8aa1bbcfe757fc9433f7b7b7159b157f5eb42fbc2c1",
+  "session": "vnext-d1-runtime-stage-b-final-review-20260906",
+  "timestamp": "2026-09-05T21:03:56.787297+00:00",
+  "scope": {
+    "head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+    "range": "b765b55cca0e1eaacebc738a68de77906bb50756 plus current Stage B working-tree runtime migration and focused regression changes",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "skills/ultra-delegate/scripts/cli-driver.cjs",
+      "skills/ultra-delegate/scripts/acp-conformance.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "skills/ultra-delegate/SKILL.md",
+      "skills/ultra-delegate/references/delegation-contract.md",
+      "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+      "docs/RUNTIME-COMPAT-MATRIX.md",
+      "tests/delegate.test.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/acp-conformance.test.cjs",
+      "tests/acpx-entry.test.cjs",
+      "tests/fixtures/fake-acp-agent.cjs",
+      "tests/fixtures/fake-acpx-entry.cjs",
+      "tests/install.test.cjs",
+      "tests/v026-adapters.test.cjs",
+      "tests/ultra-5-journeys.test.cjs",
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "regression_coverage",
+      "title": "Retain real-entry driver combinations as executable regressions",
+      "file": "tests/acpx-entry.test.cjs",
+      "line": 137,
+      "line_end": 149,
+      "trigger": "Run the opted-in entry tests after a change in the UBP adapter or public runtime event, permission, or cancellation contract.",
+      "impact": "The real-runtime tests can remain green while the integrated AcpDriver path regresses: they exercise the entry directly, whereas the driver suites unconditionally select the fake entry. Current successful combination observations reduce the immediate risk but do not protect this seam on a subsequent run.",
+      "evidence": "tests/acpx-entry.test.cjs:49-129 spawns ENTRY directly and supplies a locally written permission policy at 161-174; its three opted-in cases are normal turn, one allowed permission, and protocol misuse. tests/acp-driver.test.cjs:16 and tests/delegate.test.cjs:21 force fake-acpx-entry.cjs even when UBP_TEST_ACPX_ENTRY is provided. The retained stage-b-root-final-entry-combinations.json binds actual AcpDriver plus the final public entry, but the referenced driver/cancel smoke scripts only print summaries and contain no assertions; the multiple-denial summary does not retain the three permission events. Thus current logs are useful observations, not a reusable integrated regression.",
+      "suggestion": "When this P2 is selected, reuse the existing opt-in runtime selection to drive AcpDriver for the normal, three sequential denials, and cancellation cases. Assert the three exact journal decisions, final output suppression, typed terminal, and stopped descendant boundary. Keep the fake Host and existing isolated temporary-directory cleanup; no Provider run or new dependency is needed.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-5",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "test_double_fidelity",
+      "title": "The wrong-version regression passes only because the fake entry enforces the missing check",
+      "file": "tests/acp-driver.test.cjs",
+      "line": 269,
+      "line_end": 281,
+      "trigger": "An ACP peer responds to initialize with protocolVersion 2 while the consumer requires stable protocol v1.",
+      "impact": "The current passing regression hides a reachable production compatibility failure: the real public entry proceeds to session/new and submits the prompt despite the mismatched negotiation, while AcpDriver derives protocolVersion 1 from the mere presence of a typed result. A passing test therefore does not protect the required v1 boundary or truthful conformance reporting.",
+      "evidence": "tests/acp-driver.test.cjs:16 unconditionally selects fake-acpx-entry.cjs; its wrong-version case at 272 expects acp_turn_failed, but the fake entry itself explicitly rejects initialized.protocolVersion !== 1 at tests/fixtures/fake-acpx-entry.cjs:277. The code lens ran the final real entry (SHA 99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb) with pinned ACPX 0.13.2 and the same existing wrong-version fixture. In .ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/, fixture-config.json selects wrong-version and current fake-acp-agent.cjs:129 consequently replies protocolVersion 2; agent-trace.jsonl directly records subsequent session/new and session/prompt, and stdout.jsonl records completed/end_turn. The trace captures client requests, not the version-2 response itself; that response is established by the bound fixture/config path. I read these raw files and verified stdout SHA fd14a01c6816dd04ae3c6898ce032ac941b29cbac819bc538f38297e1b2712d3 and trace SHA fd2387dcfa953044095616a5e8c00a4b4a643f42919adaf3b3d1762fdf0db624. AcpDriver:616,620 assigns v1 without negotiation evidence. The source and test hashes still match the final green release snapshot.",
+      "suggestion": "Alongside the bounded production protocol-version repair, run the existing wrong-version fixture through the actual public entry and pinned SDK and assert a typed rejection before session/new or session/prompt, with no claimed v1 success. Keep this specific invalid-version regression separate from the broader normal/denial/cancel P2 coverage improvement; do not rely on a stricter stand-in to establish the production contract.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "tests/delegate.test.cjs:142",
+    "tests/delegate.test.cjs:1539",
+    "tests/delegate.test.cjs:1628",
+    "tests/delegate.test.cjs:1782",
+    "tests/delegate.test.cjs:1823",
+    "tests/delegate.test.cjs:2113",
+    "tests/delegate.test.cjs:2302",
+    "tests/delegate.test.cjs:2363",
+    "tests/delegate.test.cjs:2401",
+    "tests/delegate.test.cjs:2446",
+    "tests/delegate.test.cjs:2598",
+    "tests/delegate.test.cjs:3017",
+    "tests/delegate.test.cjs:559",
+    "tests/delegate.test.cjs:601",
+    "tests/acp-driver.test.cjs:110",
+    "tests/acp-driver.test.cjs:200",
+    "tests/acp-driver.test.cjs:242",
+    "tests/acp-driver.test.cjs:852",
+    "tests/acp-conformance.test.cjs:148",
+    "tests/acp-conformance.test.cjs:196",
+    "tests/acpx-entry.test.cjs:49",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:126",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:399",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:666",
+    "skills/ultra-delegate/scripts/delegate.cjs:535",
+    "skills/ultra-delegate/scripts/delegate.cjs:843",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs:442",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:435",
+    "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch:94",
+    "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch:455",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-runtime-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-release.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-entry-combinations.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-driver-combination.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-cancel-combination.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-p1-mutation-fail.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-p1-correct-pass.log",
+    ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-acpx-production-driver-smoke.cjs",
+    ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-acpx-production-cancel-smoke.cjs",
+    ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-build-identity-bridge-cargo-test.log",
+    ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-build-identity-bridge-python-e2e.log",
+    "tests/acp-driver.test.cjs:272",
+    "tests/fixtures/fake-acpx-entry.cjs:277",
+    "tests/fixtures/fake-acp-agent.cjs:129",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:616",
+    ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/request.json",
+    ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/fixture-config.json",
+    ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/stdout.jsonl",
+    ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/agent-trace.jsonl"
+  ],
+  "positive_observations": [
+    "D1R-01: The new detached-worker regression intercepts the final child_process.spawn binding while still performing the real spawn, requires exactly one detached worker, compares its actual PID with receipt.worker_pid, verifies exact packet-path values and prohibited keys, and waits for the real worker to finish. Probe, ACP Host, and CLI Host fixtures separately capture their own process.env keys. The artifact scanner checks all eight named run artifacts for prohibited canary names/values. The retained mutation log fails on an inherited CLAUDE_CODE_SESSION_TOKEN; the corrected log and final suite pass. This closes the previous helper-input-only observation gap.",
+    "D1R-02: The shared signal outcome classifies only ESRCH as dead. Nested-state table cases preserve alive/unknown for EPERM and unsupported errors. The outer-worker regression calls production status/cancel with injected EPERM and unknown outcomes and asserts no synthesized result, retained run.lock, retained fence, and a recorded cancel request; its real-ESRCH control permits the stopped terminal and releases the fence. Existing process tests kill the outer worker while the nested writer remains alive, exercise elapsed timeout and missing/reused identity, and verify outcome_unknown plus frozen roots.",
+    "D1R-03: Existing executable coverage checks exact and parent/child overlap, filesystem and symlink aliases, Windows case/separator identity fixtures, malformed and identity-mismatched fences, and concurrent disjoint worktrees. The orphan recovery case allows a new writer only after the original boundary is proven stopped, while preserving the prior outcome_unknown result.",
+    "D1R-04: The final retained narrow log records 104 passing Node tests with zero skips/failures. The current full release log records 736 passing Node tests, 104 passing Hook tests, zero skips/failures, and zero audit vulnerabilities. I checked all 16 raw-index byte lengths and SHA-256 values and matched all 19 packet executable/Skill/test/patch paths present in the release source inventory against both snapshots and current bytes. Existing lost-terminal/actual-changed-files validation, typed result checks, cancellation/timeout, and conformance outcome_unknown consumption remain exercised. These green counts do not close the strict-v1 compatibility criterion: review-tests-002 demonstrates a real-entry counterexample hidden by the stricter test double.",
+    "D1R-05: The inspected runtime diff adds entry discovery and typed result projection to the existing driver, exact pre-prompt fallback evidence, and conservative signal handling. Existing result status semantics, scope validation, and physical writer recovery stay in the same consumers. I found no added semantic next-step scheduler, lease protocol, result status, or runtime dependency in this subject.",
+    "Permission, raw-output, and fallback regressions are effective on the fixture transport: all three successive edit/execute/fetch requests have exact reject_once journal assertions, the terminal remains permission_denied, and host_output is absent. Happy-path host output must equal the structured result, thought/raw canaries must be absent from events, and stdout.log must be exactly empty. Pre-prompt auth retains one fallback; post-prompt auth asserts no CLI marker, no fallback receipt, and an ACP failure. These checks reach production AcpDriver and launcher code.",
+    "The public-entry opt-in actually ran in the retained final release using the recorded final entry and pinned ACPX 0.13.2. The separately bound real-SDK combination logs show a normal stopped boundary, a permission_denied terminal with no host output, and cancellation with the nested child no longer alive. These are fixture-Host integration observations, not real Provider qualification.",
+    "The bridge patch contains direct translator tests for native file_path in both scheduled ToolCall locations and permission requests. Its Python E2E asserts two requested denials, two bridge-authored failed updates, native cancelled, native failed, and the unchanged normal turn. The raw r1 cargo log records 8/8 and the Python log records those actual scenarios; their hashes match the reviewed evidence. UBP identity assertions retain the old negative receipt and reject the old build against the repaired r1 marker.",
+    "The prior full-release ENOENT failure remains visible and names a repository-root permission-allow-config file disappearing during installer provenance inspection. Current runEntryTurn creates and cleans its configuration under an isolated temporary directory. The final release tests this corrected source; the failure was not hidden by changing installer assertions or filtering the suite."
+  ],
+  "limitations": [
+    "This reviewer performed read-only source/evidence inspection and hash verification and did not rerun product suites, call a Provider, install a Host/runtime, or execute a real qualification. The current Task owns runtime regressions; D1Q-02 and repaired-Host qualification remain owned by the next Task.",
+    "Default driver/conformance/install tests deliberately use fake-acpx-entry.cjs. Opt-in entry tests and one-time actual-SDK combinations have the narrower coverage described in review-tests-001. In particular, the retained multi-denial summary does not by itself prove or retain each real-SDK permission event.",
+    "The mandatory worker regression observes final OS spawn options and binds the returned child PID on this macOS run. Its additional /proc ancestry/environ observation is conditional and was not established on macOS. Windows process and path behavior is covered by injected platform fixtures here, not a live Windows lifecycle run.",
+    "Bridge evidence is real bridge binary plus fake App-server and local version/identity testing, not Provider enforcement. Single-file_path assertions and two denial counts do not establish every multi-path spelling or a unique denial-ID set. The prior bridge review also records one overwritten intermediate identity-test RED log; no historical observation was reconstructed or claimed retained here.",
+    "The wrong-version runtime diagnostic was executed by the independent code lens, not repeated by this reviewer. I inspected its retained request, configuration, raw entry output, and client request trace against the existing fixture source. It used a fake Host and no Provider. The confirmed P1 supersedes any inference that the final green suite establishes complete D1R-04 compatibility."
+  ]
+}

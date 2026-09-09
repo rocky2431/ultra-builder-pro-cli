@@ -9,6 +9,11 @@ const yaml = require('js-yaml');
 const { parse } = require('../adapters/_shared/frontmatter.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
+// The generic ACP engine is the installed public entry: installer/doctor runs
+// in these tests select the repository's test-side stand-in through the same
+// runtime-discovery key the product consumes, so selection is deterministic
+// without a HOME installation.
+process.env.ULTRA_DELEGATE_ACPX_ENTRY = require('node:path').join(__dirname, 'fixtures', 'fake-acpx-entry.cjs');
 const {
   HOST_DISCOVERY_WITHHELD_SKILLS,
   skillPolicy,

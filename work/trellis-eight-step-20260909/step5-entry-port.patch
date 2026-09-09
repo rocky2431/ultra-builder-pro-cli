@@ -1,0 +1,283 @@
+diff --git a/README.md b/README.md
+index de173a6..7ea2b36 100644
+--- a/README.md
++++ b/README.md
+@@ -223,3 +223,50 @@ AGENT_DELEGATION_TEST_ACPX=/absolute/path/to/runtime/node_modules/.bin/acpx \
+ ```
+ 
+ Kimi 安装路径按原生 Kimi Code 0.41.0 核对；旧 Python `kimi-cli` 的 `~/.kimi` 目录不由此安装器迁移或删除。委派使用 `kimi acp`，本 Skill 不安装恢复 Hook。模型 API 兼容不代表客户端 Hook 行为相同。参见 [Kimi Skill 目录](https://www.kimi.com/code/docs/kimi-code-cli/customization/skills.html)。
++
++## 编程消费入口（acpx_delegate_entry）
++
++`runtime/acpx_delegate_entry.cjs` 是面向需要自持权限判定的工作流插件（例如 Ultra Builder Pro
++的委派执行边界）的薄公共入口。入口本身不携带任何策略：
++
++- 传输 permission mode 强制 `deny-all`：callback 抛错、超时或未返回决定时回退到 mode，
++  结果是拒绝而非放权（fail-closed）。
++- 权限请求只转发原始 `RequestPermissionRequest`（session id 与 toolCall 的 kind/locations/
++  options）；调用方决定必须指明请求中真实存在的 optionId，入口按该 option 的 kind 映射
++  ACP outcome，pinned runtime 再选该 kind 的第一项（与当前 UBP driver 相同），因此保证的是
++  kind 级语义而非任意重复 option 的精确 optionId；绝不把 `allow_once` 升级为 `allow_always`，
++  未知/缺失决定一律 `reject_once`。
++- 会话记录只存在本进程内存（含 runtime 并入 record 的环境视图），不写任何 transcript、
++  session record 或 env 值；不向 runtime 传 sessionOptions.env。
++- 协议协商是观测而非假设：pinned runtime 把 initialize 结果的 protocolVersion 写入公开
++  session record，并在 `ensureSession` 等待期间通过 session store 落盘该记录，因此 store
++  是实际协商版本唯一的公开观测点。除非实际观测到 stable protocol v1，入口在任何 turn 开始前
++  以类型化 `unsupported_protocol_version` 失败拒绝（`phase: ensure_session`）。pinned manager
++  在该记录持久化之前就已创建 agent 会话，所以拒绝时会话可能已存在，但绝不提交 prompt、工具
++  调用或模型 turn；result 行携带观测到的版本，未观测到（例如初始化失败）则完全省略该字段。
++- 取消是请求：SIGTERM/SIGINT 在 prompt 提交前即锁存取消（初始化期间到达的取消优先于
++  随后的 prompt），并有界等待终局，adapter 关闭仍执行；完整 writer 停止证明仍归调用方。
++
++协议为 stdio 按行 JSON（详见入口文件头注释）：一行 `acpx-delegate-turn-request/v1` 请求进，
++`started`/`event`/`permission_request`/`result` 行出（`result` 行在观测到协商版本时附带
++`protocolVersion` 兄弟字段，永不为常量）。失败结果的 `error` 带可选结构化 `phase`：
++仅当 turn 在 `runtime.startTurn` 从未被调用前被拒绝时为 `ensure_session`
++（ensureSession 失败，或入口自身的 unsupported/unproven 协议版本拒绝；prompt 未提交），
++到达 startTurn 边界后为 `turn`（工具可能已执行，writer 停止本身不构成
++重放安全证明）；phase 不从错误文本推断，缺失或未知不代表 before-prompt 证明。
++
++安装与发现契约：installer 把 reviewed 入口交付到当前选中 runtime 根目录内的
++`acpx_delegate_entry.cjs`，并在 registry（`~/.config/agent-delegation/config.json`）写入绝对路径
++键 `acpx_delegate_entry`——编程消费者（如 UBP）只读该键取入口路径。入口与选中 SDK 同目录，
++Node 从入口所在目录向上把 `require('acpx/runtime')` 解析到 `<runtime_root>/node_modules/acpx`；
++SDK 身份见 registry 的 `runtime_root`/`runtime_packages`。普通 Skill 更新只刷新该入口文件
++（字节相同则不重写、不备份），不运行 npm，也不触碰 `package.json`/`package-lock.json`/
++`node_modules`；`--update-runtime` 在 `runtimes/` 的新代目录交付当前 reviewed 入口并切换
++registry，旧代目录（含其入口与 SDK）原样保留。各新代目录的 `.agent-delegation-managed.json`
++记录 `runtime_packages`、`runtime_lock_sha256` 与 `runtime_entry_sha256`。对已安装选中
++runtime 的回归：
++
++```bash
++AGENT_DELEGATION_TEST_RUNTIME=/absolute/path/to/installed/runtime \
++  python3 -m unittest discover -s tests -p test_acpx_delegate_entry.py -v
++```
+diff --git a/scripts/install_user.py b/scripts/install_user.py
+index a360abc..1af9897 100755
+--- a/scripts/install_user.py
++++ b/scripts/install_user.py
+@@ -28,6 +28,7 @@ SKILL_SOURCE = (
+     / "skills"
+     / "agent-delegation"
+ )
++DELEGATE_ENTRY_SOURCE = REPO_ROOT / "runtime" / "acpx_delegate_entry.cjs"
+ HOSTS = ("hermes", "claude", "codex", "kimi", "zcode", "opencode")
+ RUNTIME_PACKAGES = ("acpx", "@agentclientprotocol/claude-agent-acp", "@agentclientprotocol/codex-acp")
+ LEGACY_DEFAULT_CHAR_LIMITS = {
+@@ -232,6 +233,19 @@ def _runtime_versions(runtime_root: Path) -> dict[str, str]:
+     return versions
+ 
+ 
++def _install_delegate_entry(runtime_root: Path, backup: Path) -> Path:
++    """Deliver the reviewed public delegate entry beside the selected runtime's SDK."""
++    if not DELEGATE_ENTRY_SOURCE.is_file():
++        raise InstallError(f"Missing reviewed delegate entry {DELEGATE_ENTRY_SOURCE}.")
++    entry = runtime_root / DELEGATE_ENTRY_SOURCE.name
++    if entry.exists():
++        if _sha256(entry) == _sha256(DELEGATE_ENTRY_SOURCE):
++            return entry
++        _backup_item(entry, backup / "runtime" / entry.name)
++    _atomic_write_text(entry, DELEGATE_ENTRY_SOURCE.read_text(encoding="utf-8"), 0o644)
++    return entry
++
++
+ def _install_runtime(home: Path, backup: Path, replace_existing: bool,
+                      update_runtime: bool = False) -> tuple[Path, Path]:
+     share_root = home / ".local" / "share" / "agent-delegation"
+@@ -245,6 +259,8 @@ def _install_runtime(home: Path, backup: Path, replace_existing: bool,
+     if existing_root.is_dir() and not update_runtime:
+         # Skill updates never run npm against an existing runtime, even when it is
+         # incomplete. An explicit update stages a replacement without touching it.
++        # The reviewed delegate entry still refreshes beside the selected SDK.
++        _install_delegate_entry(existing_root, backup)
+         return share_root, existing_root
+     for name in ("package.json", "package-lock.json"):
+         existing = existing_root / name
+@@ -280,10 +296,12 @@ def _install_runtime(home: Path, backup: Path, replace_existing: bool,
+             raise InstallError(f"Runtime update failed; the previous runtime is unchanged:\n{completed.stderr[-4000:]}")
+         versions = _runtime_versions(runtime_root)
+         _version_line([str(runtime_root / "node_modules/.bin/acpx"), "--version"])
++        entry = _install_delegate_entry(runtime_root, backup)
+         _atomic_write_json(runtime_root / ".agent-delegation-managed.json", {
+             "package": "agent-delegation", "installed_at": datetime.now(UTC).isoformat(),
+             "runtime_packages": versions,
+             "runtime_lock_sha256": _sha256(runtime_root / "package-lock.json"),
++            "runtime_entry_sha256": _sha256(entry),
+         })
+     except BaseException:
+         shutil.rmtree(runtime_root)
+@@ -371,6 +389,7 @@ def _merge_registry(
+             "schema_version": 1,
+             "acpx_path": str((runtime_root / "node_modules" / ".bin" / "acpx").resolve()),
+             "acpx_config_path": str(acpx_path),
++            "acpx_delegate_entry": str((runtime_root / "acpx_delegate_entry.cjs").resolve()),
+             "runtime_root": str(runtime_root),
+             "runtime_packages": _runtime_versions(runtime_root),
+             "runtime_lock_sha256": _sha256(runtime_root / "package-lock.json"),
+diff --git a/tests/test_install_user.py b/tests/test_install_user.py
+index 32fdc85..e5435c3 100644
+--- a/tests/test_install_user.py
++++ b/tests/test_install_user.py
+@@ -1,6 +1,8 @@
+ from __future__ import annotations
+ 
++import contextlib
+ import importlib.util
++import io
+ import json
+ from pathlib import Path
+ import subprocess
+@@ -201,6 +203,126 @@ class InstallerTests(unittest.TestCase):
+             self.assertEqual(acpx["defaultPermissions"], "approve-all")
+             self.assertEqual(acpx["timeout"], 7200)
+ 
++    def test_initial_install_delivers_delegate_entry_beside_the_selected_sdk(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            home = Path(temporary)
++
++            def install(argv, **kwargs):
++                self.write_runtime(kwargs["cwd"], "0.13.2")
++                return subprocess.CompletedProcess(argv, 0, "", "")
++
++            with patch.object(install_user, "_version_line", return_value="v24.0.0"), \
++                 patch.object(install_user.subprocess, "run", side_effect=install):
++                _, runtime_root = install_user._install_runtime(home, home / "backup", False)
++            entry = runtime_root / "acpx_delegate_entry.cjs"
++            self.assertEqual(entry.read_bytes(), install_user.DELEGATE_ENTRY_SOURCE.read_bytes())
++            # The entry resolves require('acpx/runtime') from its own node_modules.
++            self.assertTrue((runtime_root / "node_modules/acpx/package.json").is_file())
++            marker = json.loads((runtime_root / ".agent-delegation-managed.json").read_text())
++            self.assertEqual(marker["runtime_entry_sha256"], install_user._sha256(entry))
++            self.assertEqual(marker["runtime_packages"]["acpx"], "0.13.2")
++
++    def test_skill_update_refreshes_only_the_delegate_entry(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            home = Path(temporary)
++            share = home / ".local/share/agent-delegation"
++            old = share / "runtime"
++            self.write_runtime(old)
++            (share / ".managed.json").write_text('{"package":"agent-delegation"}')
++            registry_path = home / ".config/agent-delegation/config.json"
++            registry_path.parent.mkdir(parents=True)
++            registry_path.write_text(json.dumps({"runtime_root": str(old)}))
++            registry_before = registry_path.read_bytes()
++            lock_before = (old / "package-lock.json").read_bytes()
++            stale = old / "acpx_delegate_entry.cjs"
++            stale.write_text("// stale entry from an older source checkout\n")
++            with patch.object(install_user.subprocess, "run") as npm:
++                self.assertEqual(install_user._install_runtime(home, home / "backup", False), (share, old))
++                npm.assert_not_called()
++            self.assertEqual(stale.read_bytes(), install_user.DELEGATE_ENTRY_SOURCE.read_bytes())
++            self.assertEqual(
++                (home / "backup/runtime/acpx_delegate_entry.cjs").read_text(),
++                "// stale entry from an older source checkout\n",
++            )
++            self.assertEqual((old / "package-lock.json").read_bytes(), lock_before)
++            self.assertEqual(registry_path.read_bytes(), registry_before)
++            # A byte-identical entry is left alone: no rewrite, no extra backup.
++            with patch.object(install_user.subprocess, "run") as npm:
++                install_user._install_runtime(home, home / "backup-second", False)
++                npm.assert_not_called()
++            self.assertFalse((home / "backup-second/runtime/acpx_delegate_entry.cjs").exists())
++
++    def test_runtime_upgrade_delivers_the_entry_into_the_new_generation(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            home = Path(temporary)
++            share = home / ".local/share/agent-delegation"
++            old = share / "runtime"
++            self.write_runtime(old)
++            (share / ".managed.json").write_text('{"package":"agent-delegation"}')
++            registry_path = home / ".config/agent-delegation/config.json"
++            registry_path.parent.mkdir(parents=True)
++            registry_path.write_text(json.dumps({"runtime_root": str(old)}))
++            old_entry = old / "acpx_delegate_entry.cjs"
++            old_entry.write_text("// previous generation entry\n")
++
++            def install(argv, **kwargs):
++                self.write_runtime(kwargs["cwd"], "2.0.0")
++                return subprocess.CompletedProcess(argv, 0, "", "")
++
++            with patch.object(install_user, "_version_line", return_value="v24.0.0"), \
++                 patch.object(install_user.subprocess, "run", side_effect=install):
++                _, new = install_user._install_runtime(home, home / "backup", False, update_runtime=True)
++            self.assertNotEqual(new, old)
++            self.assertEqual(
++                (new / "acpx_delegate_entry.cjs").read_bytes(),
++                install_user.DELEGATE_ENTRY_SOURCE.read_bytes(),
++            )
++            marker = json.loads((new / ".agent-delegation-managed.json").read_text())
++            self.assertEqual(
++                marker["runtime_entry_sha256"], install_user._sha256(new / "acpx_delegate_entry.cjs"))
++            # The retired generation keeps its own entry and SDK untouched.
++            self.assertEqual(old_entry.read_text(), "// previous generation entry\n")
++
++    def test_registry_records_the_installed_delegate_entry_path(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            home = Path(temporary)
++            runtime = home / "runtime"
++            self.write_runtime(runtime)
++            entry = runtime / "acpx_delegate_entry.cjs"
++            entry.write_bytes(install_user.DELEGATE_ENTRY_SOURCE.read_bytes())
++            backup = home / "backup"
++            backup.mkdir()
++            _, registry, _ = install_user._merge_registry(home, runtime, {}, backup)
++            discovered = Path(registry["acpx_delegate_entry"])
++            self.assertEqual(discovered, entry.resolve())
++            self.assertTrue(discovered.is_file())
++            self.assertEqual(discovered.parent, Path(registry["runtime_root"]).resolve())
++
++    def test_install_runtime_only_delivers_the_discoverable_entry(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            home = Path(temporary)
++            args = install_user.argparse.Namespace(
++                home=str(home), hosts="none", targets=None,
++                replace_existing=False, update_runtime=False,
++            )
++
++            def install(argv, **kwargs):
++                self.write_runtime(kwargs["cwd"], "0.13.2")
++                return subprocess.CompletedProcess(argv, 0, "", "")
++
++            with patch.object(install_user, "_version_line", return_value="v24.0.0"), \
++                 patch.object(install_user.subprocess, "run", side_effect=install), \
++                 contextlib.redirect_stdout(io.StringIO()):
++                self.assertEqual(install_user._install(args), 0)
++            registry = json.loads(
++                (home / ".config/agent-delegation/config.json").read_text(encoding="utf-8"))
++            discovered = Path(registry["acpx_delegate_entry"])
++            self.assertTrue(discovered.is_file())
++            self.assertEqual(discovered.read_bytes(), install_user.DELEGATE_ENTRY_SOURCE.read_bytes())
++            # The discovered entry sits beside the selected runtime's installed SDK.
++            self.assertEqual(discovered.parent, Path(registry["runtime_root"]).resolve())
++            self.assertEqual(install_user._runtime_versions(discovered.parent)["acpx"], "0.13.2")
++
+ 
+ class KimiHomeTests(unittest.TestCase):
+     def test_native_default_and_custom_kimi_home(self):
+diff --git a/tests/test_package_surface.py b/tests/test_package_surface.py
+index 8999bfc..4c374e6 100644
+--- a/tests/test_package_surface.py
++++ b/tests/test_package_surface.py
+@@ -1,5 +1,6 @@
+ from __future__ import annotations
+ 
++import hashlib
+ import json
+ from pathlib import Path
+ import unittest
+@@ -75,6 +76,14 @@ class PackageSurfaceTests(unittest.TestCase):
+             self.assertEqual(lock["packages"][lock_key]["version"], version)
+             self.assertEqual(lock["packages"][lock_key]["integrity"], integrity)
+ 
++    def test_public_delegate_entry_source_is_the_accepted_pin(self) -> None:
++        entry = REPO_ROOT / "runtime/acpx_delegate_entry.cjs"
++        self.assertTrue(entry.is_file())
++        self.assertEqual(
++            hashlib.sha256(entry.read_bytes()).hexdigest(),
++            "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd",
++        )
++
+     def test_skill_is_generic_and_has_no_unfinished_scaffold(self) -> None:
+         text = (
+             REPO_ROOT

@@ -1,0 +1,9 @@
+# Continue the activated Claude ACP path implementation
+
+You are the actual ZCode implementation author. Root Codex cannot author source/tests. Execute the exact already activated mission in stage-b-zcode-claude-path-mission.md in this directory, including its constraints and writable scopes. The prior actual ZCode run28122586ed9d4d11b659ee3d6723607f was cancelled after205.634s,exit130,no end_turn; cause unknown. Root confirmed wrapper22075/native22215 absent and all15 previously test-bound sources unchanged. No implementation result from it is accepted. Preserve its receipt. This new independent run has2400s execution budget. No nested delegation, no commit/install/real qualification.
+
+Root additionally wrote stage-b-claude-native-settings-root-review.zh-CN.md. Read it early: current native Claude linked-worktree settings.local may come from the main checkout, unlike SDK resolveSettings helper. Do not overwrite real HOME/main checkout config. Use the smallest existing native configuration path whose actual first-tool consumer can be qualified. Official ask priority covers benign Shell and Hook allow; native/managed Hook effects remain a separate observable limit. Do not assume an ACP adapter _meta option is exposed by public ACPX SDK.
+
+Previous run confirmed managed adapter0.75.1,SDK0.3.257,native2.1.261 and current registry missingpublicentrykey. BothRoot /tmp entries are reviewedf734. CurrentClaude profile npx0.70 is indeed the source to replace. Kit1820lines; only addthe existingclaudeprofile path, nosecondengine. Handover and previous reviews are bounded evidence; trace live affected functions/callers then implement. Do not spend the entire budget re-reading all historical evidence or running fullrelease. Expected result is changed actual productionconsumer/tests and preparedtwo-phaseRoot command, with focusedexistingseamchecks and honestunresolvedlimitations.
+
+Activated at 2026-09-05T23:53:08.455051+00:00

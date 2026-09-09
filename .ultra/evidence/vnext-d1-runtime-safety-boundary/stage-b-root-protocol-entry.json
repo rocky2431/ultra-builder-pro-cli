@@ -1,0 +1,8 @@
+{
+  "recorded_at": "2026-09-05T21:30:48.728454+00:00",
+  "source": "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs",
+  "entry": "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs",
+  "sha256": "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd",
+  "sdk_version": "0.13.2",
+  "old_isolated_entry_preserved": "/tmp/ubp-acpx-runtime-ppTQ/runtime/acpx_delegate_entry.cjs"
+}

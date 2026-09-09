@@ -1,0 +1,118 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "isolated",
+  "session": "vnext-d1-host-pi-native-review-r2-20260909",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+  "worktree_digest": null,
+  "context_digest": "dab0a94a38f3cd43c6f9a28abf4060137bc6683181c4f649560e7d41f0a2ad7a",
+  "packet_digest": "4321f620b41329799e2c8bbcb5c4d4674074424edaf48dcb6fa854539f9bcf18",
+  "admission_digest": "a19f90193a2c814dd59d77d7c2af0137cb0e40e0e7a951de9af6a3e0b5dbf526",
+  "subject_digest": "45814b904a02df820105faec2f754beb4a60c1811508049ffad1c8cb6694392c",
+  "status": "complete",
+  "verdict": "APPROVE",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-code.json",
+        "review-tests.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-code",
+      "review-tests"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-errors",
+      "review-design",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Current selected-Host effect-equivalence and acceptance require independent specification judgment."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "Native launch, pre-effect decisions, identity and final result consumers changed."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "Counterexamples, native raw effects and current release evidence establish qualification."
+    },
+    {
+      "worker": "review-errors",
+      "status": "skipped",
+      "rationale": "The code lens covers changed terminal, denial and refusal paths; no separate recovery architecture changed."
+    },
+    {
+      "worker": "review-design",
+      "status": "skipped",
+      "rationale": "The existing CLI worker and shared permission policy are reused; spec/code cover the architectural boundary."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "Maintained contracts and host limitations are covered by specification."
+    }
+  ],
+  "findings": [
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "correctness",
+      "title": "Native result consumption does not require a matching tool start event",
+      "file": "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "line": 116,
+      "line_end": 121,
+      "trigger": "A stream contains a permission decision and a matching tool_execution_end event but no tool_execution_start event.",
+      "impact": "The parser can accept a completed native tool effect without evidence that the corresponding execution boundary was started, weakening protocol completeness and the pre-effect evidence chain.",
+      "evidence": "The completeness check only iterates over starts and verifies that each start has a later matching completion; it never verifies that every completion has a preceding matching start. The focused tests cover a completion without a decision, but not a completion without a start.",
+      "suggestion": "Require one-to-one matching start/end pairs by tool call ID and name, with each completion occurring after its start, and add a regression test for an end-only stream.",
+      "north_star_trace": {
+        "first_principles": [],
+        "serves": [],
+        "touches": []
+      }
+    }
+  ],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-code.json",
+    "review-tests.json",
+    "work/trellis-eight-step-20260909/step5-pi-final-release.log",
+    "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+    "work/trellis-eight-step-20260909/step5-native-traces-index.json"
+  ],
+  "positive_observations": [
+    "Three separate native Pi sessions independently reviewed specification, code and tests; Codex authored implementation and coordinated synthesis.",
+    "The final full release completed after reviewers read its earlier excerpt: 804 Node checks, 104 Hook checks and audit zero, observed process exit 0. Original excerpt limitations remain unchanged.",
+    "The exact local native path delivered legitimate work and denied five attempted effects through production consumers; a no-bootstrap public launch also finished with a stopped writer."
+  ],
+  "limitations": [
+    "review-tests-001 is retained P2. Actual qualification calls include matched start/end pairs independently checked by the coordinator.",
+    "Reviewer-supplied 08:00Z timestamps are not execution freshness; native sessions and operator observations are retained in the trace archive.",
+    "No C/D/E, W2-W4, parallel delivery or full eight-step outcome is established.",
+    "This qualification is not a general network sandbox, read-location isolation or Pi plugin installation claim."
+  ]
+}

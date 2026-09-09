@@ -1,0 +1,59 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "packet_digest": "4321f620b41329799e2c8bbcb5c4d4674074424edaf48dcb6fa854539f9bcf18",
+  "admission_digest": "a19f90193a2c814dd59d77d7c2af0137cb0e40e0e7a951de9af6a3e0b5dbf526",
+  "subject_digest": "45814b904a02df820105faec2f754beb4a60c1811508049ffad1c8cb6694392c",
+  "session": "vnext-d1-host-pi-native-review-r2-20260909",
+  "timestamp": "2026-09-09T08:00:00Z",
+  "scope": {
+    "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+    "range": "Current uncommitted Stage B Host qualification and exact Pi native integration, compared with bee8868",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+      "tests/pi-native-runtime.test.cjs",
+      "tests/pi-native-permissions.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "correctness",
+      "title": "Native result consumption does not require a matching tool start event",
+      "file": "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "line": 116,
+      "line_end": 121,
+      "trigger": "A stream contains a permission decision and a matching tool_execution_end event but no tool_execution_start event.",
+      "impact": "The parser can accept a completed native tool effect without evidence that the corresponding execution boundary was started, weakening protocol completeness and the pre-effect evidence chain.",
+      "evidence": "The completeness check only iterates over starts and verifies that each start has a later matching completion; it never verifies that every completion has a preceding matching start. The focused tests cover a completion without a decision, but not a completion without a start.",
+      "suggestion": "Require one-to-one matching start/end pairs by tool call ID and name, with each completion occurring after its start, and add a regression test for an end-only stream.",
+      "north_star_trace": {
+        "first_principles": [],
+        "serves": [],
+        "touches": []
+      }
+    }
+  ],
+  "coverage_refs": [
+    "tests/pi-native-runtime.test.cjs:25-57",
+    "tests/pi-native-permissions.test.cjs:11-48",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+    "work/trellis-eight-step-20260909/step5-pi-final-release.log"
+  ],
+  "positive_observations": [
+    "Focused tests cover malformed streams, terminal-state requirements, complete native tool inventory, matching permission decisions, denial outcomes, identity binding, and immutable configuration rechecks.",
+    "The retained native receipt records actual allowed write/read calls and five denied native attempts with matching permission decisions and completions.",
+    "The public no-bootstrap observation records the legitimate allowed result and absence of outside, shell, and authority markers."
+  ],
+  "limitations": [
+    "The final release log ends after the Node test suite; npm audit completion and a final full-release status were not observed.",
+    "The receipt correctly records Bash curl as an execute event; no dedicated native Pi fetch callback is claimed or reviewed."
+  ]
+}

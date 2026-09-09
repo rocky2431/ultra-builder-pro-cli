@@ -1,0 +1,51 @@
+{
+  "attempt_id": "d1q02-r1-20260905t220538-5d954643",
+  "retained_at": "2026-09-05T22:28:38.525638+00:00",
+  "files": [
+    {
+      "source": "skills/ultra-delegate/scripts/delegate.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/delegate.cjs",
+      "sha256": "d29b2d0aad5815ec3da71b844bab2875f882dfb0f031078d91318590e0615639"
+    },
+    {
+      "source": "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/delegate-worker.cjs",
+      "sha256": "a7ee8530346f2fb2d8868aba9c207edc5df730377e54c270fbfa8b143ffc8373"
+    },
+    {
+      "source": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/agent-execution-driver.cjs",
+      "sha256": "f564d8f4f7b15e5c95ed27df35d8f8daca7ad6839412cb814256335e0b598ed4"
+    },
+    {
+      "source": "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/acp-driver.cjs",
+      "sha256": "2b54717dd0027c37f9427c90c37cb830358c0caeacff3b74e193517a220e9cc1"
+    },
+    {
+      "source": "skills/ultra-delegate/scripts/cli-driver.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/cli-driver.cjs",
+      "sha256": "d301ce7df4eb617a8f700bf8454cc9c70bb7d216e49517914ab22a34698f658b"
+    },
+    {
+      "source": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/host-profile.cjs",
+      "sha256": "0f330a88bb2441d445af326928ba08c2eeb2434a40c486994e85dcbd871a3681"
+    },
+    {
+      "source": "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/zcode-acp-0.1.0-zcode-0.16.5.patch",
+      "sha256": "8c127dba648720121da9326cae721141785f03ef72bdfae2201f50e59bb9cb36"
+    },
+    {
+      "source": "work/owner-factory-implementation-20260905/stage-b-d1q02-kit/run-d1q02-observation.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/run-d1q02-observation.cjs",
+      "sha256": "fef81238a601eb056d398a8f8121d42053afeb5a8ba27d0c77444e4269f4b2ac"
+    },
+    {
+      "source": "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r1-source/acpx_delegate_entry.cjs",
+      "sha256": "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd"
+    }
+  ]
+}

@@ -30,6 +30,11 @@ delegated slice complete or select the primary route.
 
 ## Before you start
 
+Pi 0.85.1 is an experimental native CLI execution target, separate from the six
+plugin installation hosts. Only its retained exact runtime/policy identity is
+qualified; `--ack-experimental` alone cannot admit another installed version.
+See the delegation contract for native tool, terminal and version binding details.
+
 1. Resolve exactly one active `change_id`, then select one scope and name it in
    `instruction.md`:
    - **task execution or continuation** — select one matching task and read its full
@@ -88,9 +93,20 @@ node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to <host> --in
 Resolve `<loaded-ultra-delegate-skill-dir>` from this Skill's actual loaded path. The
 Skill-local launcher and worker are the canonical runtime. Do not search `PATH` for
 `ubp`, install a global Ultra package, or invoke `npx` to locate Ultra during
-delegation. The Claude and Codex ACP profiles may separately execute their exact pinned
-adapter packages through `npx`; that transport dependency is declared in the profile.
-`ubp delegate ...` is a one-release compatibility wrapper only.
+delegation. The Codex ACP profile may separately execute its exact pinned adapter
+package through `npx`; that transport dependency is declared in the profile. The Claude
+ACP profile prefers the managed agent-delegation registry's preinstalled
+`@agentclientprotocol/claude-agent-acp` adapter and injects the registry's exact
+`CLAUDE_CODE_EXECUTABLE` native binding; without a healthy registry binding it keeps the
+pinned `npx` route, and an explicit `ULTRA_CLAUDE_ACP_COMMAND` absolute override wins
+exactly like the ZCode bridge selector.
+`ubp delegate ...` is a one-release compatibility wrapper only. The Claude
+ACP profile resolves its candidate exactly once per launch: one
+override/registry resolution binds the adapter argv, the identity probe, the
+declared runtime file, and the injected `CLAUDE_CODE_EXECUTABLE` native
+binding together, so an ordinary registry update between selection and launch
+either keeps executing the originally bound files or refuses typed — the
+launcher env never carries a different native file than the selection hashed.
 
 `<host>` is `claude`, `codex`, `opencode`, `kimi`, `grok`, or `zcode`. Kimi accepts an
 optional `--model <id>` when its account has no default headless model. A ZCode primary
@@ -123,8 +139,39 @@ version-mismatched dimension returns one typed `host_enforcement_unavailable`
 diagnostic that creates no Host process and never falls back silently to another
 transport or Host.
 
+When the retained qualified identity string-matches the declared candidate, admission
+also consumes the observed execution identity rather than the declared strings alone:
+selection digests the actual adapter executable, the native runtime file, the resolved
+public ACPX entry, and the name/version/package.json SHA-256 of the public SDK package
+that entry loads (resolved exactly as Node resolves it from the entry's real path), and
+compares them with the fingerprints the qualification bound. For such a bound route the
+candidate argv is built over the exact resolved runtime path, and the binding retains
+the resolved adapter and runtime paths alongside the content digests. A
+record that could admit the ACP route without that binding, an unreadable file, or
+drifted bytes — same declared versions or not — fails closed through the typed
+candidate-identity seam before the fence, the worker spec, or any Host process. The
+verified resolution is bound into the digest-bound worker spec and rechecked at launch,
+where the bound adapter path launches directly (never re-resolved against the worker's
+PATH or cwd) and every qualified component — adapter, runtime, entry, and SDK package —
+must still match at the bound paths; changed content refuses the launch with
+`acp_execution_identity_mismatch`. Every launcher ACP selection must carry the
+launch-bound public entry it resolved, and a string-matching qualified route must carry
+the verified execution identity; a driver selection without the required binding —
+for example a command/args override chooser — is refused before any Host effect, while
+the conformance bootstrap stays the explicit no-record seam that binds the entry it
+resolved. This binds the entry file plus the SDK package
+identity only — it is not a whole-`node_modules` attestation and not a defense against
+a malicious OS writer. The same admission governs the one pre-session authentication
+fallback: the CLI fallback is bound into the worker spec only when the CLI transport
+itself is admitted against the Packet's required dimensions, so an ACP-only
+qualification binds no fallback and the typed ACP failure stands alone, while an
+unrecorded Host keeps its existing fallback behavior.
+
 The one retained record binds the installed `zcode-acp 0.1.0+ultra.zcode.0.16.5`
-bridge over ZCode runtime `0.16.5`. Its single authorized call observed `writable_scope`
+bridge over ZCode runtime `0.16.5`, retained unchanged as history: selection now
+declares the repaired `.r1` marker below, so the declared identity is version-mismatched
+against this record until a new exact-identity qualification of the repaired build is
+retained. Its single authorized call observed `writable_scope`
 unsupported — the ACP edit request carried no provable location, so the product denied
 it before any write — and every later effect dimension unobserved, so they stay
 unsupported rather than inferred from zero side effects. Both ZCode transports
@@ -138,30 +185,56 @@ credential-value redaction and receipt truth are recorded as separate product-si
 facts that never satisfy a Packet enforcement dimension. The redacted receipt is
 retained under `.ultra/evidence/vnext-d1-host-enforcement-qualification/`.
 
-`AcpDriver` sends `initialize` with protocol v1 and no client filesystem, terminal, or
-interactive-auth capability; creates one session at the absolute isolated-worktree
-`cwd`; sends the digest-bound packet as one text prompt; and consumes `session/update`,
-permission, cancellation, and terminal messages. It retains only bounded redacted
-event metadata. An edit/delete/move request is granted with `allow_once` only when all
-declared locations are already inside `writable_roots`; scope widening and execution,
-fetch, mode-switch, or unknown operations are denied and force a typed terminal
-failure. `allow_always` is never selected. If `session/new` reports
-`acp_auth_required` before any prompt is sent, the launcher runs the already-bound
-`CliDriver` once and records the failed ACP attempt as redacted fallback metadata. It
-never retries any post-prompt or other ACP failure, so this recovery cannot duplicate a
-provider task. The driver does not copy or solicit credentials.
-Some agents emit creation-time session metadata before their `session/new` response.
-The driver transiently buffers only a bounded set of metadata update kinds, then checks
-every buffered `sessionId` against the returned identity before publishing an event.
-Early message/tool content, an identity mismatch, or a count/byte overflow fails typed.
+`AcpDriver` drives the generic engine through the installed public
+agent-delegation entry (pinned ACPX runtime, selected by the explicit
+`ULTRA_DELEGATE_ACPX_ENTRY` override, then the managed installer's
+`acpx_delegate_entry` registry binding in `~/.config/agent-delegation/config.json`,
+then the legacy fixed install root for pre-registry installs; an invalid override or a
+broken registry binding fails closed, and a missing entry is the
+typed `acp_entry_unavailable` CLI fallback): Ultra launches the entry with the
+sanitized descendant environment inside its observed process group, the entry
+negotiates protocol v1 and refuses the turn with a typed
+`unsupported_protocol_version` failure before any prompt unless stable v1 was
+actually observed on the pinned runtime's public session record (the manager
+may already have created the agent session by then; no prompt, tool call, or
+model turn is submitted), creates one session at the absolute isolated-worktree
+`cwd`, sends the digest-bound packet as one text prompt, and streams runtime
+events, raw permission requests, and one typed terminal result back. The
+published `acp_protocol_version` is that observed negotiation report only —
+never a constant derived from the presence of a typed result, and unobserved
+(`null`) when initialization persisted no session record. Client-side
+filesystem and terminal callbacks stay deny-all inside the entry, so the client
+surface equals a no-fs/no-terminal advertisement; native Host tools route
+through Ultra's raw permission decision. Raw protocol traffic is never
+persisted; only bounded redacted derived-event metadata is retained. An
+edit/delete/move request is granted with `allow_once` only when all declared
+locations are already inside `writable_roots`; scope widening and execution,
+fetch, mode-switch, or unknown operations select an offered rejection, are
+recorded, and leave the bounded turn reachable for later probes — the terminal
+stays a typed `permission_denied` when any denial occurred. `allow_always` is
+never selected. Only an `acp_auth_required` failure that carries the entry's
+structured `ensure_session` phase — the proof that `startTurn` was never called
+— runs the already-bound `CliDriver` once (bound only when the CLI transport
+itself is admitted through the same Packet admission above) and records the
+failed ACP attempt as
+redacted fallback metadata. Auth-shaped failures at any later phase, and every
+other ACP failure, are never retried, so recovery cannot duplicate a provider
+task. The driver does not copy or solicit credentials.
+Creation-time session metadata before the `session/new` response is routed by the
+public entry's connection-owner logic, which buffers and folds updates per owner and
+turn without per-message session-ID comparison; the driver consumes the entry's
+public events, which carry no session ID, and adds no buffering bound, replay, or
+session-identity gate of its own.
 
 The ZCode headless transport is `experimental`: its thin profile invokes the
 independently installed `zcode-acp` v0.1.0 bridge, pinned to source commit
 `42fe149d4b501469343c01f23ba3801832306d53` plus the digest-bound ZCode 0.16.5
 runtime-preferences patch under this Skill's `patches/` directory, and passes only the
 installed ZCode Desktop runtime path (or the operator's explicit PATH/test override).
-Selection verifies both the bridge build marker
-`zcode-acp 0.1.0+ultra.zcode.0.16.5` and the installed runtime version `0.16.5` before
+Selection verifies both the repaired bridge build marker
+`zcode-acp 0.1.0+ultra.zcode.0.16.5.r1` — a revision distinct from the originally
+installed `0.1.0+ultra.zcode.0.16.5` build, which stays bound only to the retained
+negative qualification record — and the installed runtime version `0.16.5` before
 using the passing receipt.
 Ultra ships the source patch but never redistributes the bridge binary or App bytes.
 Host identity and provider identity are separate; the verified local runtime uses the

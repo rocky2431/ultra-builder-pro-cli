@@ -1,0 +1,164 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-d1-host-enforcement-initial-review-20260901",
+  "mode": "task",
+  "created_at": "2026-09-01T15:49:03Z",
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-candidate",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC03 admits the selected local Host only for mechanically qualified file, Agent-tool network, secret and point-of-use effect dimensions, and an unenforceable denied effect must fail closed before implementation",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC04 requires existing N=1 delegation, ACP-first or CLI-fallback selection, typed results, changed-path enforcement and cancellation to remain compatible",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC05 requires maintained product, architecture and model-facing delegation surfaces to state the fail-closed boundary without unsupported guarantees",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-01 requires exact Packet dimensions to be checked before launch and one stable typed unavailable diagnostic without silent fallback or provider-brand semantic policy",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-02 through D1Q-04 bind the exact retained no-production observation and require maintained surfaces to state only its supported, unsupported and unobserved facts",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-05 requires the focused and full release gates to pass with no N=1 or package-content regression",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md#d1-durable-work-package-grant: ZCode is the sole implementation writer, Codex owns Task Review, and only current P0 or P1 findings may consume a repair attempt and delta Review",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json#admission_disposition: the one consumed exact ZCode ACP observation leaves writable_scope unsupported and later effect dimensions unobserved, so the route is unavailable with no retry, silent fallback or maturity change"
+  ],
+  "public_seams": [
+    "installed ultra-delegate run admission before fence, worker spec, worker and provider session",
+    "Host profile enforcement facts, exact selected transport and installed identity binding",
+    "typed host_enforcement_unavailable diagnostic and caller-visible CLI failure contract",
+    "ACP-first selection, identity probes, compatibility CLI fallback and experimental acknowledgement",
+    "packaged ultra-delegate Skill, delegation contract and inspectable qualification evidence reference",
+    "focused delegation tests, full verify:release gate and canonical project-artifact bindings"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "099d21a6e5595d016da5dc4089d791dfbf8715163ddab1c3adfd5c27aec459ab"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "099d21a6e5595d016da5dc4089d791dfbf8715163ddab1c3adfd5c27aec459ab",
+      "byte_length": 11511
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      "sha256": "95910b47c77d69ea1f8a17db4325b7a5ce2b6d0680e63575bf606ac5fa5e1af9",
+      "byte_length": 10186
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json",
+      "sha256": "936c77949630c52a7ca128c0f780cc98b2f3a046e5ff8d500bb41cd145bdde01",
+      "byte_length": 10225
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-spec.json"
+    },
+    {
+      "agent": "review-code",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/code.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-code.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-tests.json"
+    },
+    {
+      "agent": "review-errors",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/errors.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-errors.json"
+    },
+    {
+      "agent": "review-design",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/design.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-design.json"
+    }
+  ],
+  "diff_files": [
+    ".ultra/specs/architecture.md",
+    ".ultra/specs/product.md",
+    "docs/ARCHITECTURE.md",
+    "docs/ARTIFACT-AUTHORITY.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/delegate.test.cjs",
+    "tests/v026-contract.test.cjs"
+  ],
+  "output_directory": ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901",
+  "review_questions": [
+    "Can the current driver-selection identity probes execute an unqualified adapter or runtime before host enforcement admission, and do the tests reach that production order?",
+    "Does the public CLI expose a genuinely typed host_enforcement_unavailable result, or only a human message after the Error object crosses the process boundary?",
+    "Can an installed package resolve and inspect the qualification evidence ref embedded in host-profile.cjs, and does exact identity mean observed runtime facts rather than duplicated expected profile constants?",
+    "Do both full-gate failures have a reachable in-authority repair without weakening D1Q-05 or silently rewriting completed Task 1 evidence?",
+    "Is the legacy conformance-gated path for Hosts without retained enforcement facts stated narrowly enough that Step 1 cannot mistake it for factory admission?"
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "$schema": "ultra-north-star-validation-v1",
+  "path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/north-star.md",
+  "kind": "north-star-v2",
+  "status": "accepted",
+  "revision": "north-star-v2-r3",
+  "classification": "accepted",
+  "valid": true,
+  "ids": {
+    "FP": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-4",
+      "FP-5",
+      "FP-6",
+      "FP-7",
+      "FP-8"
+    ],
+    "NS": [
+      "NS-01",
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "HC": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ]
+  },
+  "sections": {
+    "Acceptance and Revision": {
+      "body_start": 274,
+      "body_end": 1295
+    },
+    "Problem Reality": {
+      "body_start": 1314,
+      "body_end": 2411
+    },
+    "First-Principle Propositions": {
+      "body_start": 2443,
+      "body_end": 10997
+    },
+    "Value Causal Chain": {
+      "body_start": 11019,
+      "body_end": 12594
+    },
+    "North Star Outcomes": {
+      "body_start": 12617,
+      "body_end": 17140
+    },
+    "Hard Constraints": {
+      "body_start": 17160,
+      "body_end": 23249
+    },
+    "Explicit Exclusions": {
+      "body_start": 23272,
+      "body_end": 24354
+    },
+    "Uncertainties and Revisit Triggers": {
+      "body_start": 24392,
+      "body_end": 25442
+    },
+    "Research Trace": {
+      "body_start": 25460,
+      "body_end": 26480
+    }
+  },
+  "acceptance_binding": {
+    "source": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md#owner-record",
+    "content_sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+    "git_blob_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8",
+    "snapshot": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md"
+  },
+  "source_observations": [
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "diagnostics": [],
+  "input": {
+    "path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/north-star.md",
+    "byte_length": 26480,
+    "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578"
+  }
+}

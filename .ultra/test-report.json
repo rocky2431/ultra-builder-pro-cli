@@ -1,260 +1,200 @@
 {
   "$schema": "ultra-test-report-v2",
-  "change_id": "chg-ultra-5-0-2-authority-reconciliation",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
   "task_ids": [
-    "v502-authority-reconciliation"
+    "vnext-d1-runtime-safety-boundary",
+    "vnext-d1-host-enforcement-qualification"
   ],
   "task_evidence": [
     {
-      "task_id": "v502-authority-reconciliation",
+      "task_id": "vnext-d1-runtime-safety-boundary",
       "schema": "ultra-task-evidence-v2",
-      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/evidence.json",
-      "evidence_digest": "45743f378a16fb1472f37d5a05d20a4578e84b5bb8484a51cbf627b5ef9d822a",
-      "task_review_session": "v502-authority-reconciliation-reopen-final-review-20260901",
-      "task_review_summary_digest": "c9f2a08aae1751537f5e58b60af1bab166236db71cb1bb5b5cd55e3b9da1e15e"
+      "evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+      "evidence_digest": "61b076aa5d9541511cc8b8c3587ff726280cf765fc97b1117eaf3c85c40bf6ac",
+      "task_review_session": "vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+      "task_review_summary_digest": "702e50fd4f7329c3eb00da7e586c9fd73911373650abe3390a30e7d2042e440f"
+    },
+    {
+      "task_id": "vnext-d1-host-enforcement-qualification",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      "evidence_digest": "c8f1f3647f6f943f9e936420d6a9b798bf6edd63a79c03cd699285efc5a852b7",
+      "task_review_session": "vnext-d1-host-pi-native-review-r2-20260909",
+      "task_review_summary_digest": "39638847edfbffdd31ac83789cb18c7a23875e2e930aef86147d2c6bd8a0ad0d"
     }
   ],
-  "git_commit": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
-  "intent_digest": "c1f6f80265a33bd3e462a1407c75447517acb00011ca4ea07d91fe632daa81ec",
+  "git_commit": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+  "intent_digest": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
   "worktree": {
     "dirty": true,
-    "diff_digest": "ec938773875ecc1f53ba71eae4e99c531d9fd498fc69ef51f9c1a8b0d661e528"
+    "diff_digest": "8e65caf75078941b1d723a7f20aa67b4b9e13111f74d3ecd108e31e8acda94e7"
   },
   "commands": [
     {
-      "command": "node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-5-0-2-authority-reconciliation",
+      "command": "UBP_TEST_ACPX_ENTRY=/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs npm run verify:release",
       "exit_code": 0,
-      "evidence_ref": "head adb7bfe89f40e107d0c9c490076a6e74294b9337; intent c1f6f80265a33bd3e462a1407c75447517acb00011ca4ea07d91fe632daa81ec; terminal aggregate product diff ec938773875ecc1f53ba71eae4e99c531d9fd498fc69ef51f9c1a8b0d661e528"
-    },
-    {
-      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v502-authority-reconciliation/evidence.json --projection",
-      "exit_code": 0,
-      "evidence_ref": "current-v2 projection 45743f378a16fb1472f37d5a05d20a4578e84b5bb8484a51cbf627b5ef9d822a; retained strict task Review summary c9f2a08aae1751537f5e58b60af1bab166236db71cb1bb5b5cd55e3b9da1e15e"
-    },
-    {
-      "command": "node --test tests/project-artifacts.test.cjs",
-      "exit_code": 0,
-      "evidence_ref": "80/80 project-artifact checks passed after exact Planned Path Inventory and Acceptance-section binding repairs"
-    },
-    {
-      "command": "node --test tests/v026-contract.test.cjs tests/package-smoke.test.cjs",
-      "exit_code": 0,
-      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log: 100/100 focused tests passed"
-    },
-    {
-      "command": "npm run verify:release",
-      "exit_code": 0,
-      "evidence_ref": "fresh finalization run: 663/663 Node tests, 89/89 Hook tests, zero vulnerabilities"
+      "evidence_ref": "work/trellis-eight-step-20260909/step5-pi-final-release.log"
     },
     {
       "command": "npm pack --dry-run --json",
       "exit_code": 0,
-      "evidence_ref": "fresh finalization run: ultra-builder-pro-cli@5.0.2, 141 entries, 381113 packed bytes, no tarball written"
+      "evidence_ref": "work/trellis-eight-step-20260909/step5-pi-final-pack.json"
     },
     {
-      "command": "Skill Creator quick_validate.py skills/ultra-delegate; Skill Creator quick_validate.py skills/ultra-status",
-      "exit_code": 0,
-      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log: both changed Skills valid in offline mode"
+      "command": "node bin/install.js --all --global --doctor --json",
+      "exit_code": 2,
+      "evidence_ref": "work/trellis-eight-step-20260909/step5-pi-final-doctor.json"
     },
     {
-      "command": "node bin/install.js --all --global --config-dir /tmp/ubp-v502-doctor.6W5X4F; Doctor; uninstall; assert empty isolated root",
+      "command": "node --test tests/project-artifacts.test.cjs",
       "exit_code": 0,
-      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log: six healthy 5.0.2 ACP-selected Hosts, managed uninstall complete, no real-HOME mutation"
+      "evidence_ref": "work/trellis-eight-step-20260909/step5-stage-b-artifact-check.log"
     },
     {
-      "command": "node -e '<assert current read-only real-HOME Doctor projection>'",
+      "command": "Skill Creator quick_validate.py skills/ultra-delegate",
       "exit_code": 0,
-      "evidence_ref": "fresh finalization read: Doctor exit 2 degraded as expected; six 5.0.1/5.0.2 mismatches, Codex HOST_PLUGIN_NOT_DISCOVERED, ACP selected with null fallback on all six"
-    },
-    {
-      "command": "python3 skills/ultra-review/scripts/review_wait.py .ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901 summary --packet-digest a60401c4bc2cb7b971df8387ff0277e28d81a777ec15331a6b1222007367f792",
-      "exit_code": 0,
-      "evidence_ref": "fresh aggregate Change Review APPROVE; P0=0 P1=0 P2=2 P3=0; summary digest b20ade69c9ede3dc1017af17e6e0ebb635e68e985691b28c42c17104c5295281"
-    },
-    {
-      "command": "node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/SUMMARY.json --report .ultra/test-report.json",
-      "exit_code": 0,
-      "evidence_ref": "fresh strict Review-to-Test transport validation binds the exact one-task summary, admission, subject, findings, task evidence, and aggregate product worktree"
+      "evidence_ref": ".ultra/changes/archive/chg-ultra-vnext-d1-delegation-safety/stage-b-final-skill.log"
     },
     {
       "command": "git diff --check",
       "exit_code": 0,
-      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log: no whitespace errors"
+      "evidence_ref": "Current in-scope source and workflow metadata whitespace check passed."
+    },
+    {
+      "command": "node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-vnext-d1-delegation-safety",
+      "exit_code": 0,
+      "evidence_ref": "Final staged aggregate snapshot 8e65caf75078941b1d723a7f20aa67b4b9e13111f74d3ecd108e31e8acda94e7; source unchanged, retained evidence files now included in Git staging."
+    },
+    {
+      "command": "python3 skills/ultra-review/scripts/review_wait.py .ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909 summary --packet-digest 668b52984a63bf2db186ddf7a029e277ba6ecd6363c5498ef6fe8283a0af3bec",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/SUMMARY.json"
+    },
+    {
+      "command": "node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/SUMMARY.json --report .ultra/test-report.json",
+      "exit_code": 0,
+      "evidence_ref": "Strict consumer valid:true; exact summary SHA 52e5e04d366e1ae62e6123a4cd53a5c68b5bdddac7c6cd7fa54e78f4a7f9c296, zero current delta findings; full prior P2/P3 retained separately."
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit_code": 2,
+      "evidence_ref": "Retained raw logs and unified patch context contain original whitespace; exact raw evidence preserved."
+    },
+    {
+      "command": "git diff --cached --check -- skills adapters tests docs .ultra/contexts .ultra/specs .ultra/tasks.json .ultra/test-report.json .ultra/decisions .ultra/changes .ultra/reviews",
+      "exit_code": 0,
+      "evidence_ref": "All current executable source, tests, contracts, maintained documentation and workflow records pass."
     }
   ],
   "areas": {
     "anti_patterns": {
       "status": "passed",
       "evidence_refs": [
-        ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/review-code.json",
-        ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/review-tests.json",
-        "focused 100-test and full 663-test Node results"
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
       ],
       "omissions": []
     },
     "coverage_gaps": {
       "status": "passed",
       "evidence_refs": [
-        ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/review-spec.json",
-        ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/review-tests.json",
-        ".ultra/evidence/v502-authority-reconciliation/evidence.json"
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
       ],
-      "omissions": [
-        "Absolute external documentation URLs were not fetched; their mutable-main versioning defect remains owner-retained P2 review-comments-001."
-      ]
+      "omissions": []
     },
     "wiring": {
       "status": "passed",
       "evidence_refs": [
-        "bin/install.js#printHelp and its real CLI-help contract assertion",
-        "tests/package-smoke.test.cjs and the 141-entry dry-run package inventory",
-        "adapters/_shared/runtime-assets.cjs installed Skill consumers",
-        "isolated six-Host install/Doctor/uninstall"
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
       ],
-      "omissions": [
-        "No exported JavaScript symbol changed; the executable delta is the existing printHelp entry point's ZCode Desktop label."
-      ]
+      "omissions": []
     },
     "e2e": {
       "status": "passed",
       "evidence_refs": [
-        ".ultra/evidence/v502-authority-reconciliation/verification.log",
-        "isolated source-to-six-Host install, Doctor readback, and managed uninstall",
-        "package smoke consumption of the actual dry-run artifact boundary"
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
       ],
-      "omissions": [
-        "No real-HOME installation, live provider task, registry publication, deployment, or Windows execution was authorized or needed for the unchanged runtime behavior."
-      ]
+      "omissions": []
     },
     "performance": {
-      "status": "not_applicable",
+      "status": "passed",
       "evidence_refs": [
-        "The Change alters maintained wording, package metadata, one CLI help label, and structural tests; no runtime hot path, latency target, throughput target, or resource policy changes."
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
       ],
       "omissions": [
-        "No synthetic performance benchmark was added because there is no accepted performance claim for this reconciliation Change."
+        "No new throughput benchmark: D1 has no latency target; C/D performance evidence remains outstanding."
       ]
     },
     "security": {
       "status": "passed",
       "evidence_refs": [
-        "npm audit --omit=dev --audit-level=high: zero vulnerabilities",
-        "existing permission, ACP, CLI fallback, cancellation, filesystem, and effect-boundary tests within the 663-test release gate",
-        ".ultra/decisions/2026-09-01-v502-deliver-finalization.md explicit external-effect exclusions"
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
       ],
-      "omissions": [
-        "No credential, identity, provider, sandbox, permission-envelope, or external-effect implementation changed; current Host-owned boundaries remain outside Ultra authority."
-      ]
+      "omissions": []
     }
   },
   "review": {
-    "session": "chg-ultra-5-0-2-aggregate-review-final-20260901",
-    "packet_digest": "a60401c4bc2cb7b971df8387ff0277e28d81a777ec15331a6b1222007367f792",
-    "admission_digest": "cb8b6184d1eec0fd4d691186aeb22a067e09bf994f47e7caf6d0a17a910ed37c",
-    "subject_digest": "999bfcfaccb9398523e400a48477973b186128d205fb49bebc4d4f770b5e4a39",
-    "execution_mode": "sequential-shared-context",
-    "finding_schema": "ultra-review-findings-v4",
-    "summary_ref": ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/SUMMARY.json",
-    "summary_digest": "b20ade69c9ede3dc1017af17e6e0ebb635e68e985691b28c42c17104c5295281",
-    "context_digest": "5bf5a12dfacd1614b0062466d411ec062df82b1cb64e59f5683ac3c9a13c7bf0",
+    "session": "vnext-d1-aggregate-stage-b-delta-20260909",
+    "packet_digest": "668b52984a63bf2db186ddf7a029e277ba6ecd6363c5498ef6fe8283a0af3bec",
+    "admission_digest": "f0501be92275fd0714e3ddcb2893093013f3d1b253d4a33f282d56a482ac3b81",
+    "subject_digest": "5d8afb9598876443cbba9629bf9da476294a76c2af803aa5cb0002b29a94a89a",
+    "execution_mode": "isolated",
+    "context_digest": "5cf1bdb9d6dbcc1b11309fd6561796b45012f7078c5d08e226ca1aee3365c5da",
     "worktree_digest": null,
     "verdict": "APPROVE",
     "coverage_refs": [
       "review-spec.json",
-      "review-code.json",
       "review-tests.json",
-      "review-comments.json",
-      ".ultra/evidence/v502-authority-reconciliation/evidence.json",
-      ".ultra/evidence/v502-authority-reconciliation/verification.log",
-      "tests/project-artifacts.test.cjs: 80/80 passed after exact lifecycle repairs",
-      "final 5.0.2 tracked and bounded untracked product diff"
+      "review-errors.json",
+      ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+      "work/trellis-eight-step-20260909/step5-pi-final-release.log",
+      "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+      "work/trellis-eight-step-20260909/step5-entry-current-tests.json"
     ],
     "limitations": [
-      "The aggregate Review ran sequentially in shared context and does not provide an independent model-family boundary.",
-      "Current real-HOME Doctor remains degraded by six expected 5.0.1/5.0.2 version mismatches plus Codex HOST_PLUGIN_NOT_DISCOVERED; no real-HOME mutation or repair is claimed.",
-      "ZCode remains experimental and installed-runtime-only; no maturity change or new provider call is inferred.",
-      "The two retained P2 findings remain real, owner-dispositioned residual risk rather than repaired or omitted defects."
-    ]
+      "No provider call was repeated; this disposition relies on the supplied retained Pi qualification receipt and current task evidence.",
+      "The test's /proc observation is conditional on platform availability; the exact spawn options and real worker completion are asserted on all platforms.",
+      "No providers were rerun and no tests were executed during this read-only review.",
+      "The direct parent P2/P3 findings remain retained without automatic repair. Task2 Pi completion-pairing P2 remains explicit; observed qualification has complete start/end pairs.",
+      "Source and tests are Codex-authored. Three actual Pi native sessions used separate contexts, same Luna model family. The review binds packet/admission bytes, not an exact product worktree digest.",
+      "This approves only the Stage B repair and qualification subject, not Stage C/D/E or all eight steps."
+    ],
+    "finding_schema": "ultra-review-findings-v4",
+    "summary_ref": ".ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/SUMMARY.json",
+    "summary_digest": "52e5e04d366e1ae62e6123a4cd53a5c68b5bdddac7c6cd7fa54e78f4a7f9c296"
   },
   "verified_seams": [
-    "accepted Change and one completed task to current-v2 evidence and retained strict task Review",
-    "maintained public/model/spec/package surfaces to one installed Skill-local ACP-first six-Host execution contract with typed CLI fallback",
-    "ZCode Desktop Host identity to current provider guidance, dated 0.16.5 evidence, and explicit experimental acknowledgement",
-    "package metadata and README relative links to the actual 141-entry dry-run artifact",
-    "source candidate to isolated six-Host install, ACP-selected Doctor readback, and managed uninstall",
-    "current real-HOME read-only diagnosis to the exact expected version and Codex discovery limitations",
-    "aggregate strict Change Review to this Test report through admission-bound Review-to-Test transport"
+    "Four actual process environment seams with private control and unrelated-secret canaries",
+    "EPERM/unknown lifecycle preserves locks and fences until both boundaries are stopped",
+    "Negotiated protocol observed from the exact ACPX entry and refused before prompt when unsupported",
+    "Actual Pi native write/read, five native denied effects and stopped writer; no-bootstrap public completion",
+    "Shared installer packages both Pi native modules; isolated install/checks passed",
+    "Current task v2 raw/Acceptance/strict-Review evidence consumed, independent aggregate delta received"
   ],
-  "findings": [
-    {
-      "id": "review-spec-001",
-      "axis": "spec_fidelity",
-      "severity": "P2",
-      "category": "stale_operational_contract",
-      "title": "Architecture spec binds the 5.0.2 candidate to the 0.26.2 base",
-      "file": ".ultra/specs/architecture.md",
-      "line": 8,
-      "line_end": 8,
-      "trigger": "A fresh Agent uses the Architecture Scope revision to recover or audit the current 5.0.2 reconciliation.",
-      "impact": "The named base resolves to the 0.26.2 release commit instead of the clean pre-Change recovery HEAD, leaving two conflicting provenance anchors and a bounded risk of auditing or recovering from the wrong baseline.",
-      "evidence": "git show identifies fc055021bcfeee3e8c6781b9545d267f5eb73cbd as chore(release): prepare 0.26.2, while the active intent Recovery field and research-distillate Scope both identify adb7bfe89f40e107d0c9c490076a6e74294b9337 as the 5.0.2 pre-Change recovery HEAD.",
-      "suggestion": "Replace the Revision value with adb7bfe89f40e107d0c9c490076a6e74294b9337, or explicitly label fc055021bcfeee3e8c6781b9545d267f5eb73cbd as historical and separately name the current recovery HEAD.",
-      "north_star_trace": {
-        "first_principles": [
-          "FP-1"
-        ],
-        "serves": [
-          "NS-02"
-        ],
-        "touches": [
-          "HC-4"
-        ]
-      }
-    },
-    {
-      "id": "review-comments-001",
-      "axis": "engineering_standards",
-      "severity": "P2",
-      "category": "comments",
-      "title": "Versioned documentation links point at mutable main",
-      "file": "README.md",
-      "line": 477,
-      "line_end": 490,
-      "trigger": "After the repository main branch advances or one of the linked historical files moves, a consumer of the published 5.0.2 README follows the Documentation links.",
-      "impact": "The link can show later content or return 404, so the package cannot reliably reproduce the 5.0.2 contract, current North Star snapshot, or records described on the next line as frozen and hash-bound.",
-      "evidence": "Four newly externalized links use github.com/rocky2431/ultra-builder-pro-cli/blob/main, including the two links labeled frozen design history; README.zh-CN.md mirrors the same moving URLs, and the dry-run package omits these target files.",
-      "suggestion": "Use immutable commit- or release-tag-pinned GitHub URLs for versioned and frozen records, or include those files in the package; keep the English and Chinese mirrors identical.",
-      "north_star_trace": {
-        "first_principles": [
-          "FP-1"
-        ],
-        "serves": [
-          "NS-02"
-        ],
-        "touches": [
-          "HC-4"
-        ]
-      }
-    }
-  ],
+  "findings": [],
   "omissions": [
-    "No network request was made to mutable GitHub or provider documentation links; their versioning risk is retained as review-comments-001.",
-    "No real-HOME installation, live provider task, registry publication, GitHub Release, deployment, credential operation, or Windows execution was authorized or performed.",
-    "No new runtime performance benchmark was added because the Change alters no hot path or accepted performance target."
+    "No real-HOME installation, Windows execution, non-Pi positive qualification, new provider retry, push or publication.",
+    "Exact Pi native package and source identity only; provider/network transport authorization is distinct from worker effects.",
+    "The existing HOME Doctor exit2 is a diagnosed installation mismatch, not a passed healthy installation."
   ],
   "residual_risks": [
-    "The current architecture specification still names the 0.26.2 base instead of the 5.0.2 pre-Change recovery HEAD (review-spec-001).",
-    "Versioned and frozen README links use mutable GitHub main URLs and may drift or break after later repository changes (review-comments-001).",
-    "Current real-HOME installations remain at 5.0.1 and Codex reports HOST_PLUGIN_NOT_DISCOVERED; this local archive does not alter that state.",
-    "ZCode app-server stability remains outside a public contract, so the transport stays experimental and version-bound.",
-    "The strict task and aggregate Reviews share one sequential model context and therefore one model-family blind spot."
+    "No provider call was repeated; this disposition relies on the supplied retained Pi qualification receipt and current task evidence.",
+    "The test's /proc observation is conditional on platform availability; the exact spawn options and real worker completion are asserted on all platforms.",
+    "No providers were rerun and no tests were executed during this read-only review.",
+    "The direct parent P2/P3 findings remain retained without automatic repair. Task2 Pi completion-pairing P2 remains explicit; observed qualification has complete start/end pairs.",
+    "Source and tests are Codex-authored. Three actual Pi native sessions used separate contexts, same Luna model family. The review binds packet/admission bytes, not an exact product worktree digest.",
+    "This approves only the Stage B repair and qualification subject, not Stage C/D/E or all eight steps.",
+    "Parent P2/P3 are retained at .ultra/reviews/vnext-d1-aggregate-review-20260902/SUMMARY.json without reclassification.",
+    "Task2 review-code-001 P2 native completion reverse start correlation remains; actual qualification contains start/end pairs.",
+    "Qualification receipt is repository evidence rather than a portable guarantee for another machine or changed runtime."
   ],
   "owner_disposition": [
-    "The Owner explicitly invoked local evidence/ledger close, Test/Deliver consumption, finalization, and archive for chg-ultra-5-0-2-authority-reconciliation.",
-    "The Owner explicitly retained review-spec-001 and review-comments-001 as non-blocking P2 findings without repair or promotion.",
-    "Commit, push, tag, publication, deployment, real-HOME installation, credentials, provider purchase, and every other external effect remain unauthorized."
+    "Current eight-step local implementation, per-part commits and evidence updates are authorized by .ultra/decisions/2026-09-09-eight-step-implementation.md and its sole-Codex clarification.",
+    "Existing review contract retains P2/P3 for owner-visible backlog; no automatic repair or implicit promotion.",
+    "Version remains 5.0.2 development metadata; this task performs no package publication or real-HOME installation."
   ],
   "passed": true,
-  "run_count": 2,
-  "timestamp": "2026-08-31T21:51:58Z"
+  "run_count": 1,
+  "timestamp": "2026-09-09T08:04:37.722969+00:00"
 }

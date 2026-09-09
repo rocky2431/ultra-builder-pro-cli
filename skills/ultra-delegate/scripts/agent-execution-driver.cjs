@@ -2,11 +2,24 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+const {
+  CLAUDE_NATIVE_SETTINGS_RELATIVE_PATHS,
+  executionIdentityDrift,
+  requiredExecutionIdentity,
+} = require('./host-profile.cjs');
+
 const ACP_PROTOCOL_VERSION = 1;
 const DEFAULT_CAPTURE_LIMIT_BYTES = 4 * 1024 * 1024;
+// The one public programming boundary Ultra's ACP transport consumes: the
+// thin entry script of an installed agent-delegation runtime whose pinned
+// ACPX module owns every generic connection/session/turn concern. Ultra never
+// embeds a second ACP protocol implementation; it launches this entry with
+// its sanitized descendant environment and answers raw permission requests.
+const ACPX_ENTRY_ENV = 'ULTRA_DELEGATE_ACPX_ENTRY';
 const WRITER_OBSERVATION_SCHEMA = 'ultra-delegation-writer-v2';
 const WRITER_OBSERVATION_PHASES = new Set(['not_started', 'launching', 'started']);
 const WRITER_OBSERVATION_FIELDS = Object.freeze([
@@ -109,6 +122,236 @@ function executablePath(command, env = process.env) {
       fs.accessSync(candidate, process.platform === 'win32' ? fs.constants.F_OK : fs.constants.X_OK);
       return candidate;
     } catch {}
+  }
+  return null;
+}
+
+// Content digests for the execution-identity seam: raw file bytes through the
+// standard library, null when the file cannot be read — callers fail closed.
+function fileSha256(file) {
+  try {
+    return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  } catch {
+    return null;
+  }
+}
+
+// The file a runtime command actually is: an explicit path must exist as a
+// regular file (an interpreted `.cjs` runtime is never required executable);
+// a bare command resolves through PATH exactly like the launch does.
+function identityFilePath(command, env = process.env) {
+  if (typeof command !== 'string' || !command.trim()) return null;
+  if (path.isAbsolute(command) || command.includes(path.sep)) {
+    try {
+      const resolved = path.resolve(command);
+      return fs.statSync(resolved).isFile() ? resolved : null;
+    } catch {
+      return null;
+    }
+  }
+  return executablePath(command, env);
+}
+
+// The runtime file a profile declares the adapter itself will consume. Only an
+// absolute existing regular file is observable; anything else (a throwing or
+// non-path declaration, a file that vanished) is null so the identity seam
+// reports it unobserved and fails closed instead of hashing a guess.
+function declaredRuntimeFilePath(acp, context) {
+  let resolved;
+  try {
+    resolved = acp.runtimeFilePath(context);
+  } catch {
+    return null;
+  }
+  if (typeof resolved !== 'string' || !path.isAbsolute(resolved)) return null;
+  try {
+    return fs.statSync(resolved).isFile() ? resolved : null;
+  } catch {
+    return null;
+  }
+}
+
+// The public SDK package the resolved entry actually loads, resolved exactly
+// as Node resolves it when the entry runs as the main module: the main script
+// is first resolved to its real path (no --preserve-symlinks-main), then
+// require('acpx/package.json') walks the node_modules hierarchy upward from
+// the entry's real directory, and the located module file is itself realpath'd
+// at load time. Mirroring that algorithm binds the package the entry will
+// execute — never a sibling that only the lexical spelling suggests. Only
+// portable metadata is retained; install absolute paths are not product data.
+function resolveAcpxPackage(entryFile) {
+  if (typeof entryFile !== 'string' || !entryFile) return null;
+  let realEntry;
+  try {
+    realEntry = fs.realpathSync(entryFile);
+  } catch {
+    return null;
+  }
+  let packageJson;
+  try {
+    packageJson = fs.realpathSync(
+      require.resolve('acpx/package.json', { paths: [path.dirname(realEntry)] }),
+    );
+  } catch {
+    return null;
+  }
+  let payload;
+  try {
+    payload = JSON.parse(fs.readFileSync(packageJson, 'utf8'));
+  } catch {
+    return null;
+  }
+  return {
+    name: payload && typeof payload.name === 'string' ? payload.name : null,
+    version: payload && typeof payload.version === 'string' ? payload.version : null,
+    package_json_sha256: fileSha256(packageJson),
+  };
+}
+
+// The Claude SDK package the adapter actually loads, resolved with Node's own
+// algorithm from the adapter executable's real directory — the same
+// resolution the adapter performs when it requires the SDK. Only portable
+// metadata is retained; a package that cannot be resolved observes nothing so
+// the identity seam fails closed instead of guessing.
+function resolveClaudeSdkPackage(adapterPath) {
+  if (typeof adapterPath !== 'string' || !adapterPath) return null;
+  let adapterDir;
+  try {
+    adapterDir = path.dirname(fs.realpathSync(adapterPath));
+  } catch {
+    return null;
+  }
+  let modulePath;
+  try {
+    modulePath = require.resolve('@anthropic-ai/claude-agent-sdk', { paths: [adapterDir] });
+  } catch {
+    return null;
+  }
+  let packageDir;
+  try {
+    packageDir = path.dirname(fs.realpathSync(modulePath));
+  } catch {
+    return null;
+  }
+  let payload;
+  try {
+    payload = JSON.parse(fs.readFileSync(path.join(packageDir, 'package.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+  return {
+    name: payload && typeof payload.name === 'string' ? payload.name : null,
+    version: payload && typeof payload.version === 'string' ? payload.version : null,
+    package_json_sha256: fileSha256(path.join(packageDir, 'package.json')),
+  };
+}
+
+// The actual native permission configuration at one execution root: the
+// content digest over the exact declared settings files, read in their fixed
+// order. Any missing or unreadable file observes nothing (sha256 null) — an
+// execution site without the declared policy never reads as a configuration.
+function claudeNativeSettingsObservation(root, relativePaths = CLAUDE_NATIVE_SETTINGS_RELATIVE_PATHS) {
+  const files = Array.isArray(relativePaths) ? [...relativePaths] : [];
+  if (typeof root !== 'string' || !root || files.length === 0) {
+    return { files, sha256: null };
+  }
+  const hash = crypto.createHash('sha256');
+  for (const relative of files) {
+    try {
+      hash.update(fs.readFileSync(path.resolve(root, relative)));
+    } catch {
+      return { files, sha256: null };
+    }
+  }
+  return { files, sha256: hash.digest('hex') };
+}
+
+// The observed execution identity of one selected ACP route: content digests
+// of the already-resolved adapter executable, the native runtime file, the
+// public entry, and the SDK package the entry actually loads (resolved with
+// Node's own algorithm from the entry's real path). Paths may relocate
+// between qualification and launch; the content identity is what must match
+// the retained qualification facts. A profile that declares additional bound
+// components observes them too: the native permission configuration at the
+// execution root (`nativeSettingsRoot`, in the fixed file order the contract
+// names) and the Claude SDK package resolved from the adapter.
+function observeExecutionIdentity({
+  adapterPath,
+  runtimePath,
+  entryPath,
+  nativeSettingsRoot,
+  claudeSdk,
+}) {
+  const observed = {
+    adapter_sha256: adapterPath ? fileSha256(adapterPath) : null,
+    runtime_sha256: runtimePath ? fileSha256(runtimePath) : null,
+    acpx_entry_sha256: entryPath ? fileSha256(entryPath) : null,
+    acpx_package: entryPath ? resolveAcpxPackage(entryPath) : null,
+  };
+  if (nativeSettingsRoot !== undefined) {
+    const settings = claudeNativeSettingsObservation(nativeSettingsRoot);
+    observed.native_settings_files = settings.files;
+    observed.native_settings_sha256 = settings.sha256;
+  }
+  if (claudeSdk) {
+    observed.claude_sdk_package = adapterPath ? resolveClaudeSdkPackage(adapterPath) : null;
+  }
+  return observed;
+}
+
+// Launch-time recheck of the execution identity the admission bound into the
+// digest-bound worker spec: every component this boundary hands to the OS or
+// the adapter — the adapter executable, the native runtime file the adapter
+// will consume, the public entry bytes, and the SDK package metadata the entry
+// loads — rechecked at the exact resolved paths the selection retained. A
+// binding that declares the native permission configuration (the claude
+// route) re-derives its digest at the execution `cwd`, and one that declares
+// the Claude SDK package re-resolves it from the bound adapter path.
+// Returns the drifting component, or null when the observed files still match;
+// any non-null result fails the launch closed before a Host effect. A binding
+// without the resolved paths is malformed: the launch cannot prove which files
+// the OS will consume.
+function launchExecutionIdentityDrift(bound, { adapterPath, runtimePath, entryPath, cwd }) {
+  if (!bound || typeof bound !== 'object' || Array.isArray(bound)) return 'execution_identity';
+  if (typeof bound.adapter_path !== 'string' || !path.isAbsolute(bound.adapter_path)
+      || typeof bound.runtime_path !== 'string' || !path.isAbsolute(bound.runtime_path)) {
+    return 'execution_identity';
+  }
+  if (!/^[0-9a-f]{64}$/u.test(String(bound.adapter_sha256 ?? ''))
+      || !adapterPath || fileSha256(adapterPath) !== bound.adapter_sha256) return 'adapter';
+  if (!/^[0-9a-f]{64}$/u.test(String(bound.runtime_sha256 ?? ''))
+      || !runtimePath || fileSha256(runtimePath) !== bound.runtime_sha256) return 'runtime';
+  if (!/^[0-9a-f]{64}$/u.test(String(bound.acpx_entry_sha256 ?? ''))
+      || fileSha256(entryPath) !== bound.acpx_entry_sha256) return 'acpx_entry';
+  const pkg = bound.acpx_package;
+  if (!pkg || typeof pkg !== 'object' || Array.isArray(pkg)
+      || typeof pkg.name !== 'string' || !pkg.name
+      || typeof pkg.version !== 'string' || !pkg.version
+      || !/^[0-9a-f]{64}$/u.test(String(pkg.package_json_sha256 ?? ''))) return 'acpx_package';
+  const resolved = resolveAcpxPackage(entryPath);
+  if (!resolved || resolved.name !== pkg.name || resolved.version !== pkg.version
+      || resolved.package_json_sha256 !== pkg.package_json_sha256) return 'acpx_package';
+  if (bound.native_settings_sha256 !== undefined) {
+    if (!/^[0-9a-f]{64}$/u.test(String(bound.native_settings_sha256 ?? ''))
+        || !Array.isArray(bound.native_settings_files)
+        || !bound.native_settings_files.every((item) => typeof item === 'string' && item)
+        || typeof cwd !== 'string' || !cwd) return 'native_settings';
+    const settings = claudeNativeSettingsObservation(cwd, bound.native_settings_files);
+    if (!settings.sha256 || settings.sha256 !== bound.native_settings_sha256) {
+      return 'native_settings';
+    }
+  }
+  if (bound.claude_sdk_package !== undefined) {
+    const sdk = bound.claude_sdk_package;
+    if (!sdk || typeof sdk !== 'object' || Array.isArray(sdk)
+        || typeof sdk.name !== 'string' || !sdk.name
+        || typeof sdk.version !== 'string' || !sdk.version
+        || !/^[0-9a-f]{64}$/u.test(String(sdk.package_json_sha256 ?? ''))) return 'claude_sdk_package';
+    const resolvedSdk = resolveClaudeSdkPackage(adapterPath);
+    if (!resolvedSdk || resolvedSdk.name !== sdk.name || resolvedSdk.version !== sdk.version
+        || resolvedSdk.package_json_sha256 !== sdk.package_json_sha256) {
+      return 'claude_sdk_package';
+    }
   }
   return null;
 }
@@ -386,14 +629,28 @@ function rewindWriterNotStarted(spec, {
   }
 }
 
-function probeProcessAlive(target, kill = process.kill) {
+// One conservative signal outcome for every liveness consumer: 'alive' when
+// the target is signalable or proven to exist (EPERM), 'dead' only for the
+// kernel's ESRCH, and 'unknown' for any other unprovable signal outcome. No
+// consumer may treat 'unknown' as death, because that would release a writer
+// boundary whose target may still exist.
+function signalOutcome(target, kill = process.kill) {
   try {
     kill(target, 0);
-    return true;
+    return 'alive';
   } catch (error) {
-    // EPERM means the target exists but is not ours; that is liveness.
-    return error && error.code === 'EPERM';
+    if (error && error.code === 'ESRCH') return 'dead';
+    if (error && error.code === 'EPERM') return 'alive';
+    return 'unknown';
   }
+}
+
+// Proven death is exactly ESRCH. EPERM proves the target exists but is not
+// signalable by us, and any other signal outcome is unprovable; neither may
+// ever read as death, because a wrongly-dead probe would release the writer
+// boundary while the target may still exist.
+function probeProcessAlive(target, kill = process.kill) {
+  return signalOutcome(target, kill) !== 'dead';
 }
 
 // stopped requires an explicit valid not_started observation or a started
@@ -440,6 +697,7 @@ function capability(acp, probe = {}) {
     conformance_evidence: acp?.conformance?.evidence || null,
     conformance_reason: acp?.conformance?.reason || null,
     executable_available: probe.executableAvailable ?? null,
+    acp_entry_available: probe.acpEntryAvailable ?? null,
     candidate_valid: probe.candidateValid ?? null,
     candidate_identity_valid: probe.candidateIdentityValid ?? null,
     candidate_identity_reason: probe.candidateIdentityReason ?? null,
@@ -530,31 +788,80 @@ function selectExecutionDriver({
   profile,
   cliCommand,
   env = process.env,
+  cwd,
   runCandidateProbe = spawnSync,
 }) {
   const acp = profile?.acp;
-  if (!acp) return cliSelection(cliCommand, null, 'acp_not_available');
+  if (!acp) {
+    const selected = cliSelection(cliCommand, null, 'acp_not_available');
+    if (profile?.nativePermission === 'pi') {
+      const { selectPiNative } = require('./pi-native-runtime.cjs');
+      const native = selectPiNative(executablePath(cliCommand, env), env, profile);
+      return { ...selected, command: native.node_path, nativeSelection: native };
+    }
+    return selected;
+  }
   if (env.ULTRA_DELEGATE_FORCE_CLI === '1') {
     return cliSelection(cliCommand, acp, 'acp_forced_cli');
   }
+  // One selection resolution per launch: when the profile declares
+  // resolveSelection, the registry-backed candidate is resolved exactly once
+  // here and every consumer below — the candidate command/argv, the identity
+  // probes, the declared runtime file, and the launcher delegate env through
+  // the returned binding — reuses this exact result. An ordinary registry
+  // update between selection and launch therefore either still executes the
+  // originally bound files or refuses typed; it can never mix two bindings
+  // (hash one adapter/native pair while launching another).
+  let selection;
+  let selectionError = null;
+  if (typeof acp.resolveSelection === 'function') {
+    try {
+      selection = acp.resolveSelection({ host, cliCommand, env });
+    } catch (error) {
+      selectionError = error;
+    }
+  }
+  // A retained qualification whose declared strings match this candidate binds
+  // the observed execution bytes. When that binding is engaged, every consumer
+  // of the runtime command — the candidate argv the adapter will receive and
+  // the identity probes — works over the exact resolved file the selection is
+  // about to hash, so a bare or relative command can never resolve to
+  // different bytes between selection and the detached launch. Routes without
+  // a string-matching record keep the caller's spelling unchanged.
+  const requiredIdentity = requiredExecutionIdentity(profile);
+  let boundRuntimePath = null;
+  if (requiredIdentity) {
+    // A profile may declare the native runtime file the adapter itself
+    // consumes through its own binding (the managed-registry claude route):
+    // that file is what the byte binding must hash, because the
+    // PATH-spelled CLI command can name different bytes than the adapter
+    // will actually launch. An unresolvable declaration observes nothing
+    // and fails closed through the same typed identity seam.
+    boundRuntimePath = typeof acp.runtimeFilePath === 'function'
+      ? declaredRuntimeFilePath(acp, { host, cliCommand, env, selection })
+      : identityFilePath(cliCommand, env);
+  }
+  const candidateCliCommand = boundRuntimePath ?? cliCommand;
   let command;
   let args;
   let candidateValid = true;
   try {
+    if (selectionError) throw selectionError;
     command = typeof acp.command === 'function'
-      ? acp.command({ host, cliCommand, env })
+      ? acp.command({ host, cliCommand: candidateCliCommand, env, selection })
       : acp.command;
     args = typeof acp.argv === 'function'
-      ? acp.argv({ host, cliCommand, env })
+      ? acp.argv({ host, cliCommand: candidateCliCommand, env, selection })
       : acp.argv;
     candidateValid = typeof command === 'string' && command.trim()
       && Array.isArray(args) && args.every((item) => typeof item === 'string');
   } catch {
     candidateValid = false;
   }
+  const adapterPath = candidateValid ? executablePath(command, env) : null;
   const probe = {
     candidateValid: !!candidateValid,
-    executableAvailable: candidateValid ? !!executablePath(command, env) : false,
+    executableAvailable: !!adapterPath,
   };
   if (acp.transport !== 'stdio') {
     return cliSelection(cliCommand, acp, 'acp_stdio_unavailable', probe);
@@ -574,14 +881,69 @@ function selectExecutionDriver({
   if (!probe.executableAvailable) {
     return cliSelection(cliCommand, acp, 'acp_command_unavailable', probe);
   }
+  // The generic ACP engine is the installed public entry: without it no ACP
+  // transport exists at all, and the selection reports the exact typed reason
+  // rather than launching a worker that could only fail after the fact.
+  const acpEntryPath = resolveAcpEntry(env);
+  probe.acpEntryAvailable = !!acpEntryPath;
+  if (!probe.acpEntryAvailable) {
+    return cliSelection(cliCommand, acp, 'acp_entry_unavailable', probe);
+  }
   const identity = inspectCandidateIdentity(acp, {
-    host, command, args, cliCommand, env,
+    host, command, args, cliCommand: candidateCliCommand, env, selection,
   }, runCandidateProbe);
   probe.candidateIdentityValid = identity.valid;
   probe.candidateIdentityReason = identity.reason;
   probe.candidateIdentityFallbackReason = identity.fallbackReason;
   if (identity.fallbackReason) {
     return cliSelection(cliCommand, acp, identity.fallbackReason, probe);
+  }
+  // The one public entry this selection resolved is bound into the launch by
+  // content: the worker reuses and rechecks exactly it instead of resolving
+  // anew. An unreadable entry is unavailable, never silently substituted.
+  const acpEntrySha256 = fileSha256(acpEntryPath);
+  if (!acpEntrySha256) {
+    return cliSelection(cliCommand, acp, 'acp_entry_unavailable', probe);
+  }
+  // A retained qualification whose declared strings match this candidate may
+  // admit the ACP route only over the observed execution bytes: every
+  // fingerprint the record binds must be observed identically now — including
+  // the host-declared components beyond the generic four (the claude route
+  // binds the native permission configuration at the execution root and the
+  // Claude SDK package the adapter loads), so a site with missing or changed
+  // native policy, or a changed SDK inside the same adapter/native versions,
+  // never inherits a qualified result. A missing binding, an unreadable file,
+  // or drifted content fails closed through the same typed candidate-identity
+  // seam — a positive record never rests on two declared strings alone. The
+  // verified binding also retains the exact resolved adapter and runtime
+  // paths that were hashed, so the detached launch consumes and rechecks
+  // those same paths instead of re-resolving a bare or relative command
+  // against another cwd.
+  let executionIdentity = null;
+  if (requiredIdentity) {
+    const observed = observeExecutionIdentity({
+      adapterPath,
+      runtimePath: boundRuntimePath,
+      entryPath: acpEntryPath,
+      ...(requiredIdentity.native_settings_sha256 !== undefined ? { nativeSettingsRoot: cwd } : {}),
+      ...(requiredIdentity.claude_sdk_package !== undefined ? { claudeSdk: true } : {}),
+    });
+    const drift = executionIdentityDrift(requiredIdentity, observed);
+    if (drift) {
+      probe.candidateIdentityValid = false;
+      probe.candidateIdentityReason = drift.component;
+      probe.candidateIdentityFallbackReason = drift.reason === 'mismatch'
+        ? 'acp_candidate_identity_mismatch'
+        : 'acp_candidate_identity_unavailable';
+      return cliSelection(cliCommand, acp, probe.candidateIdentityFallbackReason, probe);
+    }
+    executionIdentity = Object.freeze({
+      ...observed,
+      acpx_package: Object.freeze(observed.acpx_package),
+      ...(observed.claude_sdk_package ? { claude_sdk_package: Object.freeze(observed.claude_sdk_package) } : {}),
+      adapter_path: adapterPath,
+      runtime_path: boundRuntimePath,
+    });
   }
   return {
     driver: 'acp',
@@ -590,7 +952,73 @@ function selectExecutionDriver({
     protocolVersion: ACP_PROTOCOL_VERSION,
     fallbackReason: null,
     acpCapability: capability(acp, probe),
+    acpEntry: Object.freeze({ path: acpEntryPath, sha256: acpEntrySha256 }),
+    // The one selection resolution this launch consumed; the launcher threads
+    // it into the worker spec env so spec.env carries the exact native
+    // binding these command/argv/probes came from.
+    ...(selection !== undefined ? { acpSelection: selection } : {}),
+    ...(executionIdentity ? { executionIdentity } : {}),
   };
+}
+
+// The managed agent-delegation registry: one JSON object at
+// ~/.config/agent-delegation/config.json whose `acpx_delegate_entry` key
+// publishes the absolute entry of the runtime generation the installer
+// selected. A registry without the key — or one that cannot be read as a JSON
+// object at all — carries no binding; a present binding is authoritative and
+// must be an absolute path to an existing regular file.
+function registryAcpEntry(home) {
+  let registry;
+  try {
+    registry = JSON.parse(
+      fs.readFileSync(path.join(home, '.config', 'agent-delegation', 'config.json'), 'utf8'),
+    );
+  } catch {
+    return { bound: false, entry: null };
+  }
+  if (!registry || typeof registry !== 'object' || Array.isArray(registry)) {
+    return { bound: false, entry: null };
+  }
+  const value = registry.acpx_delegate_entry;
+  if (value === undefined || value === null) return { bound: false, entry: null };
+  if (typeof value !== 'string' || !path.isAbsolute(value)) return { bound: true, entry: null };
+  try {
+    if (fs.statSync(value).isFile()) return { bound: true, entry: value };
+  } catch {}
+  return { bound: true, entry: null };
+}
+
+// Resolves the public ACPX delegate entry: an explicit absolute override first
+// (selection control, tests, and exact-version pinning), then the entry the
+// managed agent-delegation installer published in its registry, then the one
+// legacy fixed install location for runtimes installed before the registry
+// binding existed. An invalid explicit selection — or a present but broken
+// registry binding — resolves to null so callers fail closed with a typed
+// reason instead of silently substituting another runtime.
+function resolveAcpEntry(env = process.env, {
+  platform = process.platform,
+  home = os.homedir(),
+  exists = fs.existsSync,
+} = {}) {
+  const override = env[ACPX_ENTRY_ENV];
+  if (typeof override === 'string' && path.isAbsolute(override)) {
+    try {
+      if (exists(override) && fs.statSync(override).isFile()) return override;
+    } catch {}
+    return null;
+  }
+  if (typeof override === 'string' && override) return null;
+  const published = registryAcpEntry(home);
+  if (published.bound) return published.entry;
+  // The pre-registry managed installer wrote one platform-independent share
+  // root under HOME; the resolver mirrors that exact location.
+  const installed = path.join(
+    home, '.local', 'share', 'agent-delegation', 'runtime', 'acpx_delegate_entry.cjs',
+  );
+  try {
+    if (exists(installed) && fs.statSync(installed).isFile()) return installed;
+  } catch {}
+  return null;
 }
 
 // The one launch-bound writer-boundary view consumed by launch decisions
@@ -608,7 +1036,12 @@ async function runExecutionDriver(spec) {
     const { AcpDriver } = require('./acp-driver.cjs');
     const acpResult = await new AcpDriver(spec).run();
     const fallback = spec.cli_fallback;
+    // Only an authentication failure proven pre-prompt — the entry's
+    // structured ensure_session phase, which means startTurn was never
+    // called — may fall back once to the CLI. Any later auth-shaped failure
+    // kept its typed result but stays unretried: work may already exist.
     if (acpResult.failureType === 'acp_auth_required'
+        && acpResult.failurePhase === 'ensure_session'
         && fallback && typeof fallback.command === 'string'
         && Array.isArray(fallback.args)) {
       // The fallback is a second Host launch on the same root. It may only
@@ -668,18 +1101,29 @@ async function runExecutionDriver(spec) {
 
 module.exports = {
   ACP_PROTOCOL_VERSION,
+  ACPX_ENTRY_ENV,
   AgentExecutionDriver,
   BoundedCapture,
   DEFAULT_CAPTURE_LIMIT_BYTES,
   WRITER_OBSERVATION_SCHEMA,
+  claudeNativeSettingsObservation,
   deriveWriterState,
   descendantSpawnEnv,
   executablePath,
+  fileSha256,
+  identityFilePath,
   inspectCandidateIdentity,
   launchBoundWriterState,
+  launchExecutionIdentityDrift,
   markWriterLaunching,
+  observeExecutionIdentity,
   observeWriterStart,
   processStartIdentity,
+  probeProcessAlive,
+  resolveAcpEntry,
+  resolveAcpxPackage,
+  resolveClaudeSdkPackage,
+  signalOutcome,
   readWriterObservationFile,
   rewindWriterNotStarted,
   runExecutionDriver,

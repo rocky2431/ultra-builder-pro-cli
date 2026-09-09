@@ -1,0 +1,281 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "sequential-shared-context",
+  "session": "vnext-d1-runtime-safety-initial-review-20260901",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary"
+  ],
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "worktree_digest": null,
+  "context_digest": "2cd6399df1626171dd98d6e45b97dcd10ce7e7764e22296901a4334d94cf9471",
+  "packet_digest": "2aec0ea50836b8c208695ff27a34d2567b21d96645186ab42b3995dc50f9ff75",
+  "admission_digest": "d9cc6313dd147482bb22124f2165d341cbf8638a34d389327d14e328b15dd2dc",
+  "subject_digest": "e5e5aea05a47d8bc6b9a3f80044698c2816bde31d1f457141dcf18e28798cfd3",
+  "status": "complete",
+  "verdict": "REQUEST_CHANGES",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-code.json",
+        "review-tests.json",
+        "review-errors.json",
+        "review-design.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-code",
+      "review-tests",
+      "review-errors",
+      "review-design"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Every task Review must independently test the Repair 2 candidate against D1R-02, D1R-03 and the accepted definition of drift."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "The candidate changes executable identity, lock, status, cancellation and fence-release behavior at a shared trust boundary."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "The 89-of-89 green result conflicts with two independently reproduced unsafe states, so coverage fidelity can change the verdict."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "Cancellation, outcome_unknown synthesis and recovery cleanup are the direct failure paths under review."
+    },
+    {
+      "worker": "review-design",
+      "status": "selected",
+      "rationale": "Outer-worker and inner-writer state models cross one ownership boundary whose loss of unknown can admit a second writer."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "No public documentation or model-facing instruction is part of this runtime-safety candidate; inline wording does not independently change either verdict axis."
+    }
+  ],
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "recovery",
+      "title": "Unidentifiable outer workers can be treated as stopped",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 505,
+      "line_end": 516,
+      "trigger": "Cancellation lands after detached-worker spawn but before its lock claim, leaving pid null, or it observes a live PID whose recorded start-identity type is unsupported or currently unreadable.",
+      "impact": "The launcher can publish cancelled, delete run.lock, and release the physical worktree fence while the outer worker can still launch or finish a Host; a second writer can then be admitted, violating D1R-02 and D1R-03.",
+      "evidence": "outerWorkerView returns alive false for pid null and for a live PID when processStartIdentity returns null. cancel then enters the !view.alive branch and treats a valid not_started writer observation as stopped. Independent fixtures produced cancelled with lock_exists=false and fence_count=0 for both a pid-null post-spawn gap and a live Darwin worker carrying an unsupported identity.",
+      "suggestion": "Represent the outer worker as alive, stopped, or unknown. Missing PID after spawn and unavailable or unsupported identity must be unknown; only a dead PID or a supported current identity that validly proves PID reuse may be stopped. Synthesize a terminal and release the fence only on stopped.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-code-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "correctness",
+      "title": "Boolean outer-worker liveness erases the unknown state",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 505,
+      "line_end": 516,
+      "trigger": "A recovery caller observes a launch-bound outer worker with no claimed PID yet, or a live PID whose recorded start identity cannot be validated on the current platform.",
+      "impact": "status and cancel receive the same false value for both proven stopped and unprovable state, allowing recovery code to clean up evidence and roots before the worker boundary is safe.",
+      "evidence": "The function returns only alive true or false. pid null returns false at line 508; a missing current identity also returns false at line 514. Callers cannot distinguish either case from processAlive(pid) returning false at line 509.",
+      "suggestion": "Return one conservative state value from this shared function and update every caller once: alive, stopped, or unknown. Preserve raw PID liveness only for the explicitly retained unbound cross-platform P2; never convert a bound but unavailable identity into stopped.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-code-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "state_consistency",
+      "title": "Worker lock readback does not verify the persisted start identity",
+      "file": "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "line": 280,
+      "line_end": 287,
+      "trigger": "The claimed run.lock is replaced or altered between its atomic write and readback while retaining the same delegation id, launch id, spec digest, and PID but dropping or changing worker_start_identity.",
+      "impact": "claimWorkerLock returns true and launches the Host without proving that the recovery lock durably binds the exact worker start identity, recreating the identity gap that Repair 2 is intended to close.",
+      "evidence": "claimed includes worker_start_identity at line 278, but the persisted comparison checks only delegation_id, launch_id, spec_digest, and pid; it never compares the persisted identity to claimed.worker_start_identity.",
+      "suggestion": "Include worker_start_identity in the exact readback equality check, comparing both type and value or exact null. Refuse Host launch on any missing, changed, malformed, or unexpectedly supported identity.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "coverage",
+      "title": "Green recovery tests omit both unsafe outer-worker evidence gaps",
+      "file": "tests/delegate.test.cjs",
+      "line": 2463,
+      "line_end": 2492,
+      "trigger": "The implementation regresses by treating the post-spawn pre-claim pid-null window or a live PID with an unsupported or unreadable bound identity as stopped.",
+      "impact": "The focused suite still reports 89 of 89 passing even though cancel can publish a safe terminal and release the writer fence while a real worker remains alive.",
+      "evidence": "The reused-PID test covers a supported Linux identity with a deliberately different value, and the worker-claim test covers a spec-digest mismatch. Neither exercises pid null after spawn, a live PID with an unknown identity type, an unavailable current identity, or exact identity readback. Independent direct fixtures reproduced cancelled, lock deletion, and fence_count 0 in the missing-identity cases.",
+      "suggestion": "Add deterministic RED cases for post-spawn pid null and live-but-unavailable or unsupported identity, asserting status unknown and that cancel signals first but creates no cancelled result, removes no lock, and releases no fence. Add a focused worker-claim readback case for changed or omitted identity without a production test backdoor.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-errors-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "cancellation",
+      "title": "Cancel promotes unknown outer-worker evidence to cancelled",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 1193,
+      "line_end": 1206,
+      "trigger": "outerWorkerView returns false because no worker PID has been claimed yet or a live worker's current start identity cannot be read, while writer.json still contains the valid pre-Host not_started phase.",
+      "impact": "cancel reports a terminal cancellation, unlinks the launch-bound lock, and releases the fence even though asynchronous work can continue; recovery becomes false success rather than an explicit outcome_unknown freeze.",
+      "evidence": "The branch is gated by !view.alive rather than a proven-stopped outer-worker state. writerBoundaryState can legitimately return stopped for not_started even though the detached outer worker exists between spawn and lock claim. Direct fixtures observed result_failure_type cancelled, lock_exists false, and fence_count 0.",
+      "suggestion": "Keep cancel.request creation first, then branch on an explicit outer-worker state. On unknown, return cancel_requested without synthesizing a result, deleting the lock, or releasing the fence; only the stopped state may execute lines 1195 through 1206.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-design-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "state_model",
+      "title": "Recovery owns two incompatible notions of unknown",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 500,
+      "line_end": 516,
+      "trigger": "A recovery decision combines an outer-worker observation with writerBoundaryState during the launch or cancellation transition.",
+      "impact": "The inner writer boundary is modeled as stopped or unknown, but the outer worker is modeled only as alive or not alive. Combining them lets outer uncertainty authorize cleanup of the inner writer's sole fence, so the one-writer invariant is bypassable at the ownership seam.",
+      "evidence": "deriveWriterState preserves unknown for missing or unverifiable writer.json, while outerWorkerView maps pid null and unavailable identity directly to alive false. cancel then combines false with inner not_started equals stopped and performs terminal cleanup.",
+      "suggestion": "Use the same minimal three-state vocabulary at the outer boundary and centralize its interpretation. Callers may report running for alive, conservative unknown for unknown, and perform cleanup only for stopped; no new workflow engine or durable state is needed.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-code.json",
+    "review-tests.json",
+    "review-errors.json",
+    "review-design.json",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#Acceptance-Criteria",
+    "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs: 89 passed, 0 failed",
+    "Codex deterministic pid-null post-spawn and live unsupported-identity cancellation fixtures"
+  ],
+  "positive_observations": [
+    "The candidate closes the earlier environment, fence canonicalization, post-spawn artifact-loss, inner-writer truth, and outcome_unknown retention failures without adding a dependency or orchestration subsystem.",
+    "The blocking findings share one minimal root repair: preserve unknown in the existing outer-worker recovery view and verify the identity already written by the lock claim."
+  ],
+  "limitations": [
+    "All selected lenses ran sequentially in one Codex context; this is the required continuous task Review, not the later Codex plus Claude stage Review.",
+    "Three existing P2s remain retained: Host-created sessions, weaker non-Linux start identity, and stale fence-registry lock after a crash.",
+    "No commit, push, tag, publish, deploy, real-HOME install, credential operation, package fetch, or production effect is covered by this Review."
+  ]
+}

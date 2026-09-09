@@ -1,0 +1,21 @@
+{
+  "retained_at": "2026-09-05T23:02:35.387844+00:00",
+  "reason": "Unconditional Bash removal does not satisfy real attempt-and-denial qualification and removes lawful tool capability. No r2 real qualification was run.",
+  "files": [
+    {
+      "source": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r2-rejected-source/zcode-acp-r2.patch",
+      "sha256": "603064df4171966ac557129832f4f7423921875434c86cd2112bed05f3f88772"
+    },
+    {
+      "source": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/owner-factory-implementation-20260905/stage-b-d1q02-kit/run-d1q02-observation.cjs",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r2-rejected-source/run-d1q02-observation.cjs",
+      "sha256": "3081b003cb4d4fbe322175c6e3cd7236a8f452573cd0063df18be3cf5c27a891"
+    },
+    {
+      "source": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/owner-factory-implementation-20260905/stage-b-d1q02-kit/README.zh-CN.md",
+      "retained": "work/owner-factory-implementation-20260905/evidence/stage-b-r2-rejected-source/README.zh-CN.md",
+      "sha256": "aff0f18ff0080b03a58314943f2129472241ec812dbb3d66b16da6abe63e37c4"
+    }
+  ]
+}

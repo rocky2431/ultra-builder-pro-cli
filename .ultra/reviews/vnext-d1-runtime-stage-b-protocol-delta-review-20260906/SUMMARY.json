@@ -1,0 +1,183 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "isolated",
+  "session": "vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary"
+  ],
+  "head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "worktree_digest": null,
+  "context_digest": "26277f14e8313b0f1a4614a7a4194b6836d34e5acd7a49bb2bcada64b7d5224b",
+  "packet_digest": "f06f087cf90b8f7e959963b4bc55a6577b51f91c7220027feb29c0f14a60b093",
+  "admission_digest": "868ca62d7de9189a136fe1fd79e328ff2fbf4dc8334dc4615ec975d407449324",
+  "subject_digest": "576b56729e6e2cdd8e56b40a2f693326e0468a7f8cc47dbcd2c21974c5e18daf",
+  "status": "complete",
+  "verdict": "APPROVE",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-code.json",
+        "review-tests.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-code",
+      "review-tests"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-errors",
+      "review-design",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Independent mapping of the five current runtime acceptance criteria."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "Executable migration, protocol, permission, error and writer recovery paths require a production-code lens."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "Regression fidelity and the opt-in public-runtime seam require a separate test lens."
+    },
+    {
+      "worker": "review-errors",
+      "status": "skipped",
+      "rationale": "The selected code lens explicitly traced authentication, protocol failures, cancellation and unknown writer recovery; a duplicate separate error lens was not needed."
+    },
+    {
+      "worker": "review-design",
+      "status": "skipped",
+      "rationale": "The accepted change reuses the public ACPX runtime and existing UBP boundaries; code and specification lenses cover the changed design seams."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "Maintained contract wording was inspected by the selected specification lens; no separate editorial-only lens was required."
+    }
+  ],
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "documentation",
+      "title": "r1 构建段落未区分旧构建的 release 和 Provider 验证",
+      "file": "docs/RUNTIME-COMPAT-MATRIX.md",
+      "line": 186,
+      "line_end": 189,
+      "trigger": "读者依据新 patch SHA 和 .r1 marker 所在段落判断该精确构建已具备 release-build 或真实 Provider 证据。",
+      "impact": "这句话可把旧构建的验证归给新构建，误导后续 qualification 或交付说明；当前 profile 仍按旧 negative 身份拒绝新构建，因此没有观察到错误运行准入，保持 P2。",
+      "evidence": "当前 docs/RUNTIME-COMPAT-MATRIX.md:179 绑定新 patch 8c127dba648720121da9326cae721141785f03ef72bdfae2201f50e59bb9cb36，186-189 行仍将 passes ... release build, and real provider session 紧邻新 .r1 marker。该文件 240-247 行和 host-profile.cjs:181-200 仍明确新身份与旧 negative record 不匹配。已读取 stage-b-bridge-final-source-review.zh-CN.md:31 的现有证据限制：本次 r1 为 debug build，未执行 r1 Provider qualification。本 delta 未改变该文案或产生新真实资格，最终 public entry/driver 的 fixture 绿色不能把旧 release/Provider 记录归给 r1。",
+      "suggestion": "明确标注旧 marker 的历史 release/Provider 验证，并给 .r1 列出当前 Rust、fake App-server E2E 和 debug-build 证据；新 release/真实资格待取得对应原始证据后再更新这句话，无需增加运行时检查。",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "documentation",
+      "title": "客户端拒绝行为被描述为能力广告完全等价",
+      "file": "skills/ultra-delegate/references/delegation-contract.md",
+      "line": 102,
+      "line_end": 106,
+      "trigger": "Host 根据 initialize 中是否声明客户端 filesystem/terminal 能力选择工具路径，或读者把这段作为迁移后行为完全兼容的证据。",
+      "impact": "广告为 present 后再拒绝调用，与一开始不广告能力，对 Host 的工具选择可产生不同结果；文档当前把已证明的效果拒绝扩大为未证明的行为等价。没有当前真实 Host 故障或越权反例，按 P2 文档边界保留。",
+      "evidence": "当前 delegation-contract.md:102-104 明确 pinned runtime 广告 filesystem/terminal capabilities as present 并由 deny-all 拒绝，105-106 行仍写 effective client surface equals the previous no-fs/no-terminal advertisement；SKILL.md:159-160 重复该等价说法。fake-acpx-entry.cjs:288-292 仍广告 false，而保留的真实 public entry 原始 initialize 请求广告 fs/terminal 为 true。当前修复和实际入口回归证明版本拒绝、公共消费与有限的效果处理，没有建立真实 Host 对两种能力广告的相同工具选择；本 delta 未改变此既有 P2 边界。",
+      "suggestion": "将本处及 Skill 对应句限定为客户端 filesystem/terminal 效果仍被拒绝，并明确能力广告与旧引擎不同；不为该措辞恢复第二协议引擎或加入 SDK 配置。",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "regression_coverage",
+      "title": "Retain real-entry driver combinations as executable regressions",
+      "file": "tests/acpx-entry.test.cjs",
+      "line": 137,
+      "line_end": 149,
+      "trigger": "Run the opted-in entry tests after a change in the UBP adapter or public runtime event, permission, or cancellation contract.",
+      "impact": "Outside the newly protected wrong-version case, the real-runtime tests can remain green while the integrated AcpDriver normal, sequential-denial, or cancellation path regresses. The separate entry and fake-entry driver checks provide useful coverage, but they do not assert those combinations through the actual public entry.",
+      "evidence": "This is the direct-parent nonblocking review-tests-001, retained with evidence updated for the P1 repair. tests/acpx-entry.test.cjs:49-129 still launches ENTRY directly; its normal and permission cases at 137-183 do not construct AcpDriver. tests/acp-driver.test.cjs:16 selects fake-acpx-entry.cjs for its normal, multiple-denial and cancellation cases. The new override at 292-325 exercises actual AcpDriver plus the real entry only for wrong-version. The retained stage-b-root-final-entry-combinations.json and its hash-verified logs are historical observations bound to entry SHA 99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb, not an executable regression on final entry f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd. The current repair therefore closes the specific P1 without closing this broader P2.",
+      "suggestion": "When the owner selects this P2, reuse the existing opt-in entry selection for AcpDriver normal, three sequential denial, and cancellation cases. Assert the three exact journal decisions, final output suppression, typed terminal and stopped descendant boundary with the existing fake Host and isolated cleanup. No Provider call or new dependency is needed.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-5",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-5"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-code.json",
+    "review-tests.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-final-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-root-raw-index.json"
+  ],
+  "positive_observations": [
+    "The exact final release passed 736 Node tests, 104 Hook tests and the dependency audit with unchanged tested source; the earlier temporary-file race and failed run remain retained.",
+    "Actual detached worker environment and EPERM/unknown writer/fence regression paths are now covered.",
+    "All three selected lenses ran in fresh native subagent contexts after real strict packet admission."
+  ],
+  "limitations": [
+    "The two direct-parent P1 findings describe one reproduced unsupported-version root cause. The actual public entry now refuses before session/prompt and the real AcpDriver regression consumes observed version2; missing/auth-failure observations remain unknown. Their historical records are retained unchanged, not counted as separate repairs.",
+    "The public SDK may create session/new before its public record exposes the negotiated version. Approval does not claim zero session effects, broad six-Host equivalence, actual Provider qualification, updated installation or factory completion.",
+    "Three direct-parent P2 findings remain nonblocking and are retained as the unchanged union of the current lens findings. No automatic P2 repair is included.",
+    "Root independently retained105 focused,58 related-source and final737 Node plus104 Hook passing tests with zero skipped/failure, audit0 and unchanged tested source. The two preceding failed full runs remain retained: evidence-layout was corrected without implementation changes, and the null child exit remains unclassified despite unchanged targeted and full replay success.",
+    "The code reviewer exceeded the Owner author-role boundary by writing five ephemeral inline fake-Agent disconnect probes. This was acknowledged to the Owner and stopped; those observations are excluded from formal repair, regression, qualification and acceptance evidence. The approved conclusions rely on current source inspection and Root-run existing ZCode/Kimi-authored checks. No probe or implementation/test file was persisted by that reviewer.",
+    "The worker observation timestamp inconsistent with the actual coding call is preserved as non-authoritative history; canonical freshness uses Root command times and bound source bytes."
+  ]
+}

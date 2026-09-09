@@ -10,6 +10,7 @@ const {
   descendantEnvViews,
   enforcementAdmission,
   hostProfile,
+  requiredExecutionIdentity,
   requiredPacketEnforcementDimensions,
   transportSurface,
 } = require('./host-profile.cjs');
@@ -18,6 +19,7 @@ const {
   processStartIdentity,
   readWriterObservationFile,
   selectExecutionDriver,
+  signalOutcome,
   validateWriterObservation,
   writeObservationPhase,
 } = require('./agent-execution-driver.cjs');
@@ -527,14 +529,19 @@ function recoveryIdentity(root, facts) {
 // same type carries a different value (proving pid reuse), proves stopped. An
 // unavailable current identity or a type mismatch is unknown. A live pid with
 // no recorded identity keeps raw liveness as the retained weaker non-Linux
-// fallback.
-function outerWorkerView({ lock, receipt } = {}) {
+// fallback. The signal itself shares the inner-boundary outcome helper: only
+// ESRCH proves a pid dead, EPERM keeps a proven-existing worker alive, and
+// any other unprovable outcome stays unknown — none may release the boundary
+// as stopped.
+function outerWorkerView({ lock, receipt } = {}, { kill = process.kill } = {}) {
   const pid = Number.isInteger(lock?.pid) && lock.pid > 0 ? lock.pid
     : Number.isInteger(receipt?.worker_pid) && receipt.worker_pid > 0 ? receipt.worker_pid : null;
   if (pid === null) {
     return { state: lock || receipt ? 'unknown' : 'stopped', pid: null };
   }
-  if (!processAlive(pid)) return { state: 'stopped', pid };
+  const signal = signalOutcome(pid, kill);
+  if (signal === 'dead') return { state: 'stopped', pid };
+  if (signal === 'unknown') return { state: 'unknown', pid };
   const recorded = validStartIdentity(lock?.worker_start_identity)
     || validStartIdentity(receipt?.worker_start_identity) || null;
   if (recorded) {
@@ -830,15 +837,26 @@ function failureDiagnosticLine(error) {
   return diagnostic ? `${JSON.stringify(diagnostic)}\n` : null;
 }
 
-function processAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try { process.kill(pid, 0); return true; } catch { return false; }
+// The one real detached delegate-worker launch entry. The programmatic
+// `spawnWorker` option on run() may wrap this seam to observe the exact
+// environment handed to the OS for the actual launch; the default always
+// performs the real detached spawn itself.
+function launchDelegateWorker(specFile, specDigest, env, cwd) {
+  return spawn(process.execPath, [
+    path.join(__dirname, 'delegate-worker.cjs'), specFile, specDigest,
+  ], {
+    cwd,
+    detached: true,
+    stdio: 'ignore',
+    env,
+  });
 }
 
 function run(argv, {
   projectRoot = process.cwd(),
   resolveHostProfile = hostProfile,
   chooseExecutionDriver = selectExecutionDriver,
+  spawnWorker = launchDelegateWorker,
   faults = null,
 } = {}) {
   const args = parseRun(argv);
@@ -916,8 +934,10 @@ function run(argv, {
       },
     });
     const profileOptions = {
+      cwd: worktree,
       readOnly: permissionContract.writableRoots.length === 0,
       writableRoots: permissionContract.writableRoots,
+      writableRootPaths: permissionContract.writableRootPaths,
       schemaFile: outputSchema,
       schemaJson: JSON.stringify(RESULT_JSON_SCHEMA),
       hostOutput,
@@ -943,8 +963,9 @@ function run(argv, {
       throw new Error(
         `delegate --to ${args.to} would launch ${preferredSurface}. `
         + 'This transport is experimental (verified-local only; the provider publishes no '
-        + 'stability contract), and it is not the documented ZCode Desktop interactive '
-        + 'surface. Acknowledge explicitly with --ack-experimental to proceed, or pick a '
+        + 'stability contract). '
+        + (args.to === 'zcode' ? 'It is not the documented ZCode Desktop interactive surface. ' : '')
+        + 'Acknowledge explicitly with --ack-experimental to proceed, or pick a '
         + 'documented transport.',
       );
     }
@@ -978,12 +999,32 @@ function run(argv, {
       profile,
       cliCommand: binary,
       env: envViews.probe,
+      // The execution root already exists and is validated: host-declared
+      // execution-identity components (the claude native permission
+      // configuration) are observed at this exact site, so a worktree with
+      // missing or changed native policy cannot inherit a qualified result.
+      cwd: worktree,
     });
+    if (profile.nativePermission === 'pi') {
+      if (!driverSelection.nativeSelection) throw new Error('pi_native_unavailable: selected CLI lacks its native identity');
+      profileOptions.nativeSelection = driverSelection.nativeSelection;
+    }
     const transportSurfaceNote = driverSelection.driver === 'acp'
       ? profile.acp.surface
       : transportSurface(args.to, binary);
+    // The pre-session authentication fallback is a second transport launch on
+    // the same Packet, so it is bound into the worker spec only when the CLI
+    // transport itself is admitted against the same retained qualification —
+    // the launcher precheck above already computed that decision with the
+    // Packet's required dimensions. An ACP-only positive record binds no
+    // fallback: the typed ACP failure then stands alone and no unqualified
+    // CLI process is ever constructed. An unrecorded Host keeps its legacy
+    // admitted gate and existing fallback behavior.
+    const cliAdmission = preAdmissions.find((decision) => decision.transport === 'cli') ?? null;
     const cliFallback = driverSelection.driver === 'acp'
       && typeof profile.delegateArgv === 'function'
+      && cliAdmission !== null
+      && cliAdmission.route === 'admitted'
       ? {
           command: binary,
           args: profile.delegateArgv(prompt, worktree, profileOptions),
@@ -1009,6 +1050,31 @@ function run(argv, {
         transportSurface: transportSurfaceNote,
         maturity: transportMaturity,
       });
+    }
+    // The one binding enforcement for every ACP launch, at the shared
+    // launcher boundary before the fence, the worker spec, or any Host
+    // process: the selection must carry the launch-bound public entry it
+    // resolved, so the driver can never silently re-resolve another entry;
+    // and when a retained qualification string-matches the declared
+    // candidate, the selection must also carry the verified execution
+    // identity, so an override chooser (the conformance bootstrap is the
+    // canonical one) can never bypass the byte binding for a qualified route.
+    if (driverSelection.driver === 'acp') {
+      const boundEntry = driverSelection.acpEntry;
+      if (!boundEntry || typeof boundEntry !== 'object'
+          || typeof boundEntry.path !== 'string' || !path.isAbsolute(boundEntry.path)
+          || !/^[0-9a-f]{64}$/u.test(String(boundEntry.sha256 ?? ''))) {
+        throw new Error(
+          `delegate --to ${args.to} selected the ACP transport without a launch-bound public ACPX entry; `
+          + 'no worker or host was launched',
+        );
+      }
+      if (requiredExecutionIdentity(profile) && !driverSelection.executionIdentity) {
+        throw new Error(
+          `delegate --to ${args.to} selected the ACP transport without the verified execution identity `
+          + 'its retained qualification binds; no worker or host was launched',
+        );
+      }
     }
     fence = acquireWorktreeFence(projectRoot, {
       delegationId,
@@ -1038,7 +1104,20 @@ function run(argv, {
         : profile.delegateArgv(prompt, worktree, profileOptions),
       ...(driverSelection.driver === 'acp' ? {
         prompt,
+        // The selection-bound public entry — and, when a retained
+        // qualification binds them, the verified execution identity — travel
+        // digest-bound to the worker, which reuses and rechecks exactly this
+        // resolution at launch instead of freshly choosing another entry. The
+        // launcher refused the launch above when either required binding is
+        // missing, so both are guaranteed present here.
+        acp_entry: driverSelection.acpEntry,
+        ...(driverSelection.executionIdentity
+          ? { execution_identity: driverSelection.executionIdentity }
+          : {}),
         ...(cliFallback ? { cli_fallback: cliFallback } : {}),
+      } : {}),
+      ...(profile.nativePermission === 'pi' ? {
+        native_permission: 'pi', native_identity: driverSelection.nativeSelection,
       } : {}),
       cwd: worktree,
       project_root: projectRoot,
@@ -1058,7 +1137,7 @@ function run(argv, {
       result,
       stdout,
       stderr,
-      events: driverSelection.driver === 'acp' ? events : null,
+      events: driverSelection.driver === 'acp' || profile.nativePermission === 'pi' ? events : null,
       lock,
       cancel,
       writer_observation: writerObservation,
@@ -1066,9 +1145,16 @@ function run(argv, {
       // The final Host receives the named base and selected-Host keys picked
       // from the worker's own sanitized environment plus the launcher
       // delegateEnv entries below; secret values never persist in the packet.
+      // The delegateEnv consumes the ONE selection the driver resolved (when
+      // the selected route carries one), so the env binding and the launched
+      // command/argv always come from the same registry read — an ordinary
+      // registry update between selection and this spec cannot point the
+      // adapter at a different native file than the selection hashed.
       env_keys: Object.keys(envViews.host).sort(),
       env: {
-        ...(profile.delegateEnv ? profile.delegateEnv(profileOptions) : {}),
+        ...(profile.delegateEnv
+          ? profile.delegateEnv(profileOptions, { selection: driverSelection.acpSelection ?? driverSelection.nativeSelection })
+          : {}),
       },
     };
     const specBytes = `${JSON.stringify(workerSpec, null, 2)}\n`;
@@ -1089,14 +1175,7 @@ function run(argv, {
     })}\n`);
     fs.closeSync(lockFd);
     lockFd = undefined;
-    const worker = spawn(process.execPath, [
-      path.join(__dirname, 'delegate-worker.cjs'), spec, specDigest,
-    ], {
-      cwd: projectRoot,
-      detached: true,
-      stdio: 'ignore',
-      env: envViews.worker,
-    });
+    const worker = spawnWorker(spec, specDigest, envViews.worker, projectRoot);
     if (!worker.pid) throw new Error('failed to start delegation worker');
     worker.unref();
     spawned = true;
@@ -1189,7 +1268,7 @@ function latestDerivedEvent(file) {
   }
 }
 
-function status(argv, { projectRoot = process.cwd() } = {}) {
+function status(argv, { projectRoot = process.cwd(), kill = process.kill } = {}) {
   const values = parsePairs(argv, new Set(['--delegation']));
   if (!values['--delegation']) throw new Error('delegate status requires --delegation');
   projectRoot = fs.realpathSync(projectRoot);
@@ -1211,7 +1290,7 @@ function status(argv, { projectRoot = process.cwd() } = {}) {
   const hasRunArtifacts = !!(facts.lock || facts.receipt
     || fs.existsSync(path.join(root, 'worker-spec.json'))
     || fs.existsSync(path.join(root, 'writer.json')));
-  const view = outerWorkerView(facts);
+  const view = outerWorkerView(facts, { kill });
   const eventsFile = path.join(root, 'events.jsonl');
   // An unprovable outer worker projects the conservative non-terminal
   // unknown; only a proven-stopped worker may read as not_started or stalled.
@@ -1274,7 +1353,7 @@ function failureFromSpec(spec, failureType, summary, { writerState = null } = {}
   };
 }
 
-function cancel(argv, { projectRoot = process.cwd() } = {}) {
+function cancel(argv, { projectRoot = process.cwd(), kill = process.kill } = {}) {
   const values = parsePairs(argv, new Set(['--delegation']));
   if (!values['--delegation']) throw new Error('delegate cancel requires --delegation');
   projectRoot = fs.realpathSync(projectRoot);
@@ -1293,7 +1372,7 @@ function cancel(argv, { projectRoot = process.cwd() } = {}) {
     // worker spec.
     let fenceReleased = false;
     if (identity && writerBoundaryState(root, identity) === 'stopped'
-        && outerWorkerView(facts).state === 'stopped') {
+        && outerWorkerView(facts, { kill }).state === 'stopped') {
       fenceReleased = releaseWorktreeFence(projectRoot, identity.delegationId, {
         launchId: identity.launchId,
       });
@@ -1319,7 +1398,7 @@ function cancel(argv, { projectRoot = process.cwd() } = {}) {
   writeAtomic(request, `${JSON.stringify({ requested_at: new Date().toISOString() })}\n`);
   // A reused bound PID never defers cancellation through raw liveness: the
   // identity-aware view is the only worker-liveness input.
-  const view = outerWorkerView(facts);
+  const view = outerWorkerView(facts, { kill });
   // Spec drift blocks synthesized terminal fields only; it never blocks the
   // signal above or a proven-stopped fence release.
   let spec = null;
@@ -1414,6 +1493,7 @@ module.exports = {
   fencePathsOverlap,
   handle,
   HostEnforcementUnavailableError,
+  launchDelegateWorker,
   main,
   releaseWorktreeFence,
   run,

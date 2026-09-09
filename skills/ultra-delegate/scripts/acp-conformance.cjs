@@ -9,6 +9,7 @@ const { execFileSync } = require('node:child_process');
 
 const { run: runDelegate } = require('./delegate.cjs');
 const { hostProfile, ZCODE_ACP_SOURCE } = require('./host-profile.cjs');
+const { probeProcessAlive, resolveAcpEntry } = require('./agent-execution-driver.cjs');
 
 const HOSTS = new Set(['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']);
 const RECEIPT_SCHEMA = 'ultra-acp-conformance-receipt-v1';
@@ -69,9 +70,17 @@ function artifactDigest(file) {
   return { sha256: sha256(file), bytes: stat.size };
 }
 
-function processAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try { process.kill(pid, 0); return true; } catch { return false; }
+// The worker exit observation is itself a boundary claim: only ESRCH-proven
+// death counts as an observed exit, so an EPERM or otherwise unprovable
+// liveness outcome keeps the conformance receipt failing honestly instead of
+// reporting an exit that was never proven.
+async function waitForExit(pid, timeoutMs = 5000, kill = process.kill) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!probeProcessAlive(pid, kill)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return !probeProcessAlive(pid, kill);
 }
 
 async function waitForFile(file, timeoutMs) {
@@ -81,15 +90,6 @@ async function waitForFile(file, timeoutMs) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error('ACP conformance worker did not publish a terminal result before timeout');
-}
-
-async function waitForExit(pid, timeoutMs = 5000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (!processAlive(pid)) return true;
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  return !processAlive(pid);
 }
 
 function createFixture(host) {
@@ -168,24 +168,35 @@ async function runConformance(options) {
     if (profile.transportMaturity === 'experimental') runArgs.push('--ack-experimental');
     const started = runDelegate(runArgs, {
       projectRoot: fixture.root,
-      chooseExecutionDriver: () => ({
-        driver: 'acp',
-        command,
-        args,
-        protocolVersion: 1,
-        fallbackReason: null,
-        acpCapability: {
-          candidate: true,
-          surface: profile.acp.surface,
-          transport: 'stdio',
-          protocol_versions: [1],
-          conformance_status: 'probe',
-          conformance_evidence: null,
-          conformance_reason: 'Live conformance probe in progress.',
-          executable_available: true,
-          candidate_valid: true,
-        },
-      }),
+      chooseExecutionDriver: ({ env }) => {
+        // The conformance bootstrap is the explicit no-record seam: it
+        // overrides the candidate command/args to observe a live probe, but it
+        // still binds the one public entry it resolved, exactly like the
+        // product selection — the launcher refuses any ACP selection without
+        // it, and a future fingerprint-qualified profile would additionally
+        // require the verified execution identity this override cannot fake.
+        const acpEntryPath = resolveAcpEntry(env);
+        const boundEntry = acpEntryPath && sha256(acpEntryPath);
+        return {
+          driver: 'acp',
+          command,
+          args,
+          protocolVersion: 1,
+          fallbackReason: null,
+          acpCapability: {
+            candidate: true,
+            surface: profile.acp.surface,
+            transport: 'stdio',
+            protocol_versions: [1],
+            conformance_status: 'probe',
+            conformance_evidence: null,
+            conformance_reason: 'Live conformance probe in progress.',
+            executable_available: true,
+            candidate_valid: true,
+          },
+          ...(boundEntry ? { acpEntry: { path: acpEntryPath, sha256: boundEntry } } : {}),
+        };
+      },
     });
     const resultFile = path.join(fixture.delegation, 'result.json');
     await waitForFile(resultFile, (options.timeoutSeconds * 1000) + 10000);
@@ -284,4 +295,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parseArgs, runConformance };
+module.exports = { parseArgs, runConformance, waitForExit };

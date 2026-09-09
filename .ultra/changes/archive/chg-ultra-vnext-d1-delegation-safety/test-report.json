@@ -1,0 +1,200 @@
+{
+  "$schema": "ultra-test-report-v2",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary",
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "task_evidence": [
+    {
+      "task_id": "vnext-d1-runtime-safety-boundary",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+      "evidence_digest": "61b076aa5d9541511cc8b8c3587ff726280cf765fc97b1117eaf3c85c40bf6ac",
+      "task_review_session": "vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+      "task_review_summary_digest": "702e50fd4f7329c3eb00da7e586c9fd73911373650abe3390a30e7d2042e440f"
+    },
+    {
+      "task_id": "vnext-d1-host-enforcement-qualification",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      "evidence_digest": "c8f1f3647f6f943f9e936420d6a9b798bf6edd63a79c03cd699285efc5a852b7",
+      "task_review_session": "vnext-d1-host-pi-native-review-r2-20260909",
+      "task_review_summary_digest": "39638847edfbffdd31ac83789cb18c7a23875e2e930aef86147d2c6bd8a0ad0d"
+    }
+  ],
+  "git_commit": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+  "intent_digest": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+  "worktree": {
+    "dirty": true,
+    "diff_digest": "8e65caf75078941b1d723a7f20aa67b4b9e13111f74d3ecd108e31e8acda94e7"
+  },
+  "commands": [
+    {
+      "command": "UBP_TEST_ACPX_ENTRY=/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs npm run verify:release",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/step5-pi-final-release.log"
+    },
+    {
+      "command": "npm pack --dry-run --json",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/step5-pi-final-pack.json"
+    },
+    {
+      "command": "node bin/install.js --all --global --doctor --json",
+      "exit_code": 2,
+      "evidence_ref": "work/trellis-eight-step-20260909/step5-pi-final-doctor.json"
+    },
+    {
+      "command": "node --test tests/project-artifacts.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "work/trellis-eight-step-20260909/step5-stage-b-artifact-check.log"
+    },
+    {
+      "command": "Skill Creator quick_validate.py skills/ultra-delegate",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/changes/archive/chg-ultra-vnext-d1-delegation-safety/stage-b-final-skill.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "evidence_ref": "Current in-scope source and workflow metadata whitespace check passed."
+    },
+    {
+      "command": "node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-vnext-d1-delegation-safety",
+      "exit_code": 0,
+      "evidence_ref": "Final staged aggregate snapshot 8e65caf75078941b1d723a7f20aa67b4b9e13111f74d3ecd108e31e8acda94e7; source unchanged, retained evidence files now included in Git staging."
+    },
+    {
+      "command": "python3 skills/ultra-review/scripts/review_wait.py .ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909 summary --packet-digest 668b52984a63bf2db186ddf7a029e277ba6ecd6363c5498ef6fe8283a0af3bec",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/SUMMARY.json"
+    },
+    {
+      "command": "node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/SUMMARY.json --report .ultra/test-report.json",
+      "exit_code": 0,
+      "evidence_ref": "Strict consumer valid:true; exact summary SHA 52e5e04d366e1ae62e6123a4cd53a5c68b5bdddac7c6cd7fa54e78f4a7f9c296, zero current delta findings; full prior P2/P3 retained separately."
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit_code": 2,
+      "evidence_ref": "Retained raw logs and unified patch context contain original whitespace; exact raw evidence preserved."
+    },
+    {
+      "command": "git diff --cached --check -- skills adapters tests docs .ultra/contexts .ultra/specs .ultra/tasks.json .ultra/test-report.json .ultra/decisions .ultra/changes .ultra/reviews",
+      "exit_code": 0,
+      "evidence_ref": "All current executable source, tests, contracts, maintained documentation and workflow records pass."
+    }
+  ],
+  "areas": {
+    "anti_patterns": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
+      ],
+      "omissions": []
+    },
+    "coverage_gaps": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
+      ],
+      "omissions": []
+    },
+    "wiring": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
+      ],
+      "omissions": []
+    },
+    "e2e": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
+      ],
+      "omissions": []
+    },
+    "performance": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
+      ],
+      "omissions": [
+        "No new throughput benchmark: D1 has no latency target; C/D performance evidence remains outstanding."
+      ]
+    },
+    "security": {
+      "status": "passed",
+      "evidence_refs": [
+        "work/trellis-eight-step-20260909/step5-stage-b-audit.json"
+      ],
+      "omissions": []
+    }
+  },
+  "review": {
+    "session": "vnext-d1-aggregate-stage-b-delta-20260909",
+    "packet_digest": "668b52984a63bf2db186ddf7a029e277ba6ecd6363c5498ef6fe8283a0af3bec",
+    "admission_digest": "f0501be92275fd0714e3ddcb2893093013f3d1b253d4a33f282d56a482ac3b81",
+    "subject_digest": "5d8afb9598876443cbba9629bf9da476294a76c2af803aa5cb0002b29a94a89a",
+    "execution_mode": "isolated",
+    "context_digest": "5cf1bdb9d6dbcc1b11309fd6561796b45012f7078c5d08e226ca1aee3365c5da",
+    "worktree_digest": null,
+    "verdict": "APPROVE",
+    "coverage_refs": [
+      "review-spec.json",
+      "review-tests.json",
+      "review-errors.json",
+      ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+      "work/trellis-eight-step-20260909/step5-pi-final-release.log",
+      "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+      "work/trellis-eight-step-20260909/step5-entry-current-tests.json"
+    ],
+    "limitations": [
+      "No provider call was repeated; this disposition relies on the supplied retained Pi qualification receipt and current task evidence.",
+      "The test's /proc observation is conditional on platform availability; the exact spawn options and real worker completion are asserted on all platforms.",
+      "No providers were rerun and no tests were executed during this read-only review.",
+      "The direct parent P2/P3 findings remain retained without automatic repair. Task2 Pi completion-pairing P2 remains explicit; observed qualification has complete start/end pairs.",
+      "Source and tests are Codex-authored. Three actual Pi native sessions used separate contexts, same Luna model family. The review binds packet/admission bytes, not an exact product worktree digest.",
+      "This approves only the Stage B repair and qualification subject, not Stage C/D/E or all eight steps."
+    ],
+    "finding_schema": "ultra-review-findings-v4",
+    "summary_ref": ".ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/SUMMARY.json",
+    "summary_digest": "52e5e04d366e1ae62e6123a4cd53a5c68b5bdddac7c6cd7fa54e78f4a7f9c296"
+  },
+  "verified_seams": [
+    "Four actual process environment seams with private control and unrelated-secret canaries",
+    "EPERM/unknown lifecycle preserves locks and fences until both boundaries are stopped",
+    "Negotiated protocol observed from the exact ACPX entry and refused before prompt when unsupported",
+    "Actual Pi native write/read, five native denied effects and stopped writer; no-bootstrap public completion",
+    "Shared installer packages both Pi native modules; isolated install/checks passed",
+    "Current task v2 raw/Acceptance/strict-Review evidence consumed, independent aggregate delta received"
+  ],
+  "findings": [],
+  "omissions": [
+    "No real-HOME installation, Windows execution, non-Pi positive qualification, new provider retry, push or publication.",
+    "Exact Pi native package and source identity only; provider/network transport authorization is distinct from worker effects.",
+    "The existing HOME Doctor exit2 is a diagnosed installation mismatch, not a passed healthy installation."
+  ],
+  "residual_risks": [
+    "No provider call was repeated; this disposition relies on the supplied retained Pi qualification receipt and current task evidence.",
+    "The test's /proc observation is conditional on platform availability; the exact spawn options and real worker completion are asserted on all platforms.",
+    "No providers were rerun and no tests were executed during this read-only review.",
+    "The direct parent P2/P3 findings remain retained without automatic repair. Task2 Pi completion-pairing P2 remains explicit; observed qualification has complete start/end pairs.",
+    "Source and tests are Codex-authored. Three actual Pi native sessions used separate contexts, same Luna model family. The review binds packet/admission bytes, not an exact product worktree digest.",
+    "This approves only the Stage B repair and qualification subject, not Stage C/D/E or all eight steps.",
+    "Parent P2/P3 are retained at .ultra/reviews/vnext-d1-aggregate-review-20260902/SUMMARY.json without reclassification.",
+    "Task2 review-code-001 P2 native completion reverse start correlation remains; actual qualification contains start/end pairs.",
+    "Qualification receipt is repository evidence rather than a portable guarantee for another machine or changed runtime."
+  ],
+  "owner_disposition": [
+    "Current eight-step local implementation, per-part commits and evidence updates are authorized by .ultra/decisions/2026-09-09-eight-step-implementation.md and its sole-Codex clarification.",
+    "Existing review contract retains P2/P3 for owner-visible backlog; no automatic repair or implicit promotion.",
+    "Version remains 5.0.2 development metadata; this task performs no package publication or real-HOME installation."
+  ],
+  "passed": true,
+  "run_count": 1,
+  "timestamp": "2026-09-09T08:04:37.722969+00:00"
+}

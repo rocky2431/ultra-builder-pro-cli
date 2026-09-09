@@ -1,0 +1,451 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "change",
+  "execution_mode": "sequential-shared-context",
+  "session": "vnext-d1-aggregate-review-20260902",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary",
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "worktree_digest": null,
+  "context_digest": "c3b52bff06b5e42abef414ded8891c05fc471e759b22090af77c19a9c0358fb7",
+  "packet_digest": "b359abcb484ebc7ace5b32345d0088d37ec03c2ae517999c6f68b467b2cea51b",
+  "admission_digest": "1a7e60784c03b2b1fd3678ed0020fbeca6df9647939fcbb6e687f341ba78855a",
+  "subject_digest": "7ebc260a6f7f81840f3316a395cf01e3289eae572ba8b22495d029e432eb4a5a",
+  "status": "complete",
+  "verdict": "REQUEST_CHANGES",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-code.json",
+        "review-tests.json",
+        "review-errors.json",
+        "review-design.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-code",
+      "review-tests",
+      "review-errors",
+      "review-design"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "D1 closure depends on exact acceptance, Task Evidence, ledger, retained Host receipt, and North Star trace semantics."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "The Change modifies the shared delegation runtime, Host admission, environment, writer-truth, and packaging-facing paths."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "D1-AC01 through D1-AC04 rely on real process-seam and recovery regressions plus focused and full command evidence."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "Timeout, cancel, liveness, outcome_unknown, typed unavailable diagnostics, and ACP fallback are central public error paths."
+    },
+    {
+      "worker": "review-design",
+      "status": "selected",
+      "rationale": "The aggregate must confirm the safety repair remains a provider-neutral N=1 boundary and does not introduce Step 1 orchestration."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "The maintained prose and model-facing contracts are covered by the mandatory spec and design lenses; no separate comment-only seam is needed."
+    }
+  ],
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "acceptance_evidence",
+      "title": "Negative ZCode qualification was treated as not applicable to close an unconditional criterion",
+      "file": ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      "line": 37,
+      "line_end": 50,
+      "trigger": "Aggregate D1 Review or Test consumes the completed Task 2 evidence as closure evidence for D1-AC03.",
+      "impact": "A failed positive qualification is converted to not_applicable, allowing the task ledger and spec trace to claim completion although the accepted D1Q-02 criterion is unsatisfied.",
+      "evidence": "The task context states that both observation paths are truthful but only a positive in-root receipt satisfies D1-AC03 for ZCode, defines D1Q-02 as an unconditional positive criterion, and calls an unqualified result a task blocker. The retained receipt records writable_scope unsupported and all later effect dimensions unobserved or unsupported, while evidence.json marks D1Q-02 not_applicable and claims D1Q-01 through D1Q-05 close D1-AC03.",
+      "suggestion": "Reopen Task 2, record D1Q-02 as a gap, and obtain an Owner decision either to authorize one new exact-Host positive qualification or explicitly revise the accepted criterion. Do not retry the consumed provider call or infer positive support from the negative receipt.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-2",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-4",
+          "HC-6",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "recovery_context",
+      "title": "Research distillate still presents the archived 5.0.2 Change as the current frontier",
+      "file": ".ultra/specs/research-distillate.md",
+      "line": 11,
+      "line_end": 21,
+      "trigger": "A fresh Research, Plan, or recovery consumer uses the distillate as current baseline navigation.",
+      "impact": "The model receives a stale active Change, grant, and task frontier, increasing recovery-context drift even though active-root resolution currently prevents authority expansion.",
+      "evidence": "The distillate names chg-ultra-5-0-2-authority-reconciliation and v502-authority-reconciliation as current and repeats that frontier later, while the live active root is chg-ultra-vnext-d1-delegation-safety and the 5.0.2 Change is archived.",
+      "suggestion": "In a separately authorized Research or spec reconciliation, label the 5.0.2 passages as a dated historical snapshot or update them to the D1 frontier without creating a second current-state authority.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-2"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-code-001",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "legacy_admission_semantics",
+      "title": "Hosts without qualification records remain admitted with a null gate",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 263,
+      "line_end": 270,
+      "trigger": "A Packet selects Claude, Codex, OpenCode, Kimi, or Grok, whose current profiles have no enforcement qualification record.",
+      "impact": "A future caller that treats route admitted as factory qualification can launch a Host without dimension evidence. This is retained for legacy N=1 compatibility and does not block the current unavailable ZCode route.",
+      "evidence": "Only ZCode currently registers an enforcement record, host decisions add a gate only when a record exists, and tests explicitly lock the other five Hosts to admitted, gate null, and empty qualified dimensions.",
+      "suggestion": "Require gate enforcement_qualification at the future factory entry and qualify each Host and transport before admitting it there; do not change the current legacy N=1 behavior in D1.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-2",
+          "FP-3"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-4",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-code-002",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "unshipped_provenance",
+      "title": "Installed diagnostics reference Host evidence that the npm package does not ship",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 173,
+      "line_end": 179,
+      "trigger": "An npm-installed runtime returns the unavailable ZCode diagnostic and the user follows its evidence reference.",
+      "impact": "The typed diagnostic points at a source-repository-only .ultra evidence path, so installed users cannot inspect the exact receipt and the runtime policy remains coupled to development-repository provenance.",
+      "evidence": "The retained profile embeds .ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json, while the package allowlist omits .ultra and current tests validate that reference only from the source checkout.",
+      "suggestion": "Before publication that relies on this diagnostic, ship a redacted digest-bound receipt as a Skill or documentation asset and test its presence in the real tarball, or point the reference to an equivalent immutable shipped artifact.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-code-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "candidate_identity",
+      "title": "Qualification identity compares expected constants instead of a concrete observed candidate",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 272,
+      "line_end": 278,
+      "trigger": "A future positive qualification is retained and a candidate is later replaced by another build that reports the same marker and version.",
+      "impact": "Admission can match profile constants without proving that the selected binary is the artifact observed by the qualification receipt.",
+      "evidence": "The retained receipt contains a concrete artifact digest, but qualified_identity and the admission decision consume expected marker and version constants rather than that artifact identity; the live probe validates the same marker and version.",
+      "suggestion": "For a future positive qualification, bind the concrete candidate path and immutable digest or an equivalent strong identity into the selection observation and exact transport admission.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3"
+        ],
+        "serves": [
+          "NS-03"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-code-004",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "portable_process_boundary",
+      "title": "Host-created sessions or process groups can escape the portable writer observation",
+      "file": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "line": 399,
+      "line_end": 430,
+      "trigger": "A Host or adapter daemonizes, calls setsid, or moves the real writer into a new process group before the original child or group exits.",
+      "impact": "The recorded PID and process group can appear stopped while an escaped writer still writes. The current ZCode route is unavailable, and other legacy routes are not claimed as factory-qualified by this D1 smoke.",
+      "evidence": "The writer observation records one child PID and process group, and liveness and termination inspect only that group; no portable OS primitive proves arbitrary session descendants remain contained.",
+      "suggestion": "Require lifecycle qualification for every Host entering the factory and keep an unprovable route unavailable; add OS containment such as Job Objects or cgroups only when a real qualified Host requires it.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3"
+        ],
+        "serves": [
+          "NS-03"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-3"
+        ]
+      }
+    },
+    {
+      "id": "review-code-005",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "platform_identity",
+      "title": "Start identity is weaker on non-Linux platforms",
+      "file": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "line": 225,
+      "line_end": 243,
+      "trigger": "A PID is reused or an outer-worker start identity cannot be obtained on macOS or Windows.",
+      "impact": "Recovery must conservatively retain alive or unknown and may freeze a lock or fence until manual reconciliation. It does not currently misreport stopped, so this is a bounded availability risk.",
+      "evidence": "processStartIdentity returns a non-null start identity only from Linux procfs; other platforms retain the weaker liveness fallback and fail closed when identity proof is unavailable.",
+      "suggestion": "Add platform-native start identity or Job Object support only after measured recovery cost justifies it; keep the current conservative unknown behavior.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-3",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-code-006",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "registry_recovery",
+      "title": "The fence registry lock can remain stale after launcher crash",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 171,
+      "line_end": 192,
+      "trigger": "The launcher crashes or is forcibly killed after creating the registry lock directory and before its finally cleanup.",
+      "impact": "Later fence acquire and release operations time out as registry busy and require manual recovery, reducing local delegation availability.",
+      "evidence": "The lock directory has no owner PID or start identity and no proven-dead recovery path; cleanup relies on the creating process reaching finally.",
+      "suggestion": "Only after a real incident, bind the registry lock to owner and start identity and permit proven-dead cleanup; never delete it by an unverified TTL.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-3",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-code-007",
+      "axis": "engineering_standards",
+      "severity": "P3",
+      "category": "environment_minimization",
+      "title": "The ZCode bridge command selector remains visible to the final Host",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 50,
+      "line_end": 68,
+      "trigger": "A future ZCode route is admitted and the final Host receives the selected-Host environment.",
+      "impact": "The final Host sees ULTRA_ZCODE_ACP_COMMAND after launcher command resolution has already consumed it. It is not a secret and the current route is unavailable.",
+      "evidence": "The key participates in command selection and remains on the ZCode Host allowlist; the retained receipt includes it among Host environment key names.",
+      "suggestion": "After a positive route exists, keep the selector at probe or launcher scope and omit it from the final Host environment unless the runtime proves it is needed there.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1"
+        ],
+        "serves": [
+          "NS-03"
+        ],
+        "touches": [
+          "HC-2"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "missing_boundary_test",
+      "title": "The delegate-worker environment boundary lacks real child-process coverage",
+      "file": "tests/delegate.test.cjs",
+      "line": 1399,
+      "line_end": 1446,
+      "trigger": "The detached delegate-worker spawn environment regresses to process.env while the final ACP and CLI Host layers continue to filter their own environments.",
+      "impact": "Primary controls or unrelated provider secrets can reach the real worker process while all current environment tests remain green, so D1R-01 and D1-AC01 are not fully protected at the required four process seams.",
+      "evidence": "The current test at lines 1399-1446 checks only the derived envViews.worker object. The process-level tests capture the probe and ACP Host at lines 1465-1544 and the CLI Host at lines 1554-1589, but no fixture observes the actual detached delegate-worker launched by delegate.cjs lines 1092-1099.",
+      "suggestion": "Add one minimal real worker key-capture fixture that observes the spawned delegate-worker, proves only that worker receives the three packet path keys, and proves Primary and unrelated-secret keys and canary values are absent.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-errors-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "unsafe_liveness_classification",
+      "title": "Outer-worker EPERM is misclassified as proven stopped",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 833,
+      "line_end": 835,
+      "trigger": "process.kill(pid, 0) raises EPERM while the outer worker exists but is not signalable by the observing process.",
+      "impact": "outerWorkerView reports stopped and cancel or terminal recovery can synthesize a safe terminal, delete run.lock, and release the worktree fence while an outer worker may still exist, creating a duplicate-writer race and violating D1R-02 and D1-AC02.",
+      "evidence": "processAlive catches every kill(0) error and returns false, while outerWorkerView line 537 maps false directly to stopped and recovery consumers at lines 1295-1302 and 1335-1348 release authority on that classification. A read-only in-memory reproduction returned {state: stopped, pid: 4242} for EPERM; the adjacent inner-writer liveness code already treats EPERM as process existence.",
+      "suggestion": "Reuse one conservative liveness helper so EPERM means alive or unknown and only ESRCH proves stopped; add a focused outer-worker EPERM regression that asserts terminal synthesis, lock deletion, and fence release do not occur.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-3",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-errors-002",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "future_transport_admission",
+      "title": "A future positive ACP qualification can fall back to CLI without a CLI-specific admission decision",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 951,
+      "line_end": 1012,
+      "trigger": "A future profile has a qualified ACP route but an unqualified CLI route, and ACP returns acp_auth_required during session/new before prompt delivery.",
+      "impact": "The worker can launch cli_fallback after only ACP admission, without proving that the CLI transport satisfies the retained Host enforcement dimensions. The current ZCode ACP and CLI routes are both unavailable, so the condition is not currently reachable.",
+      "evidence": "Admission validates only the selected driver before worker launch, while the digest-bound worker spec carries a CLI fallback but no separate CLI admission decision; the fallback branch checks that the prior writer boundary stopped but does not consume an exact CLI qualification.",
+      "suggestion": "Before the first positive qualification is introduced, bind exact ACP and CLI admission decisions into the worker spec and require the corresponding CLI decision before fallback launch.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-2",
+          "FP-3"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-4",
+          "HC-6"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-code.json",
+    "review-tests.json",
+    "review-errors.json",
+    "review-design.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+  ],
+  "positive_observations": [
+    "The exact negative ZCode receipt and unavailable admission are truthful and do not promote unsupported Host capability, retry the provider, or hide fallback.",
+    "The current candidate preserves ACP-first or typed CLI-compatible N=1 behavior, changed-path enforcement, and both public typed redacted unavailable diagnostics.",
+    "Focused tests passed repeatedly and the final retained release gate reports Node 712/712, Hooks 89/89, audit zero vulnerabilities, a valid changed Skill, and a 141-file dry-run package.",
+    "No Supervisor, wake, graph controller, new dependency, release effect, installation, credential mutation, or production effect entered the D1 subject."
+  ],
+  "limitations": [
+    "The five selected lenses were executed across three reviewer contexts and coordinator synthesis, so execution_mode is sequential-shared-context rather than isolated.",
+    "No provider call was repeated; live Host claims remain bound to the consumed exact receipt.",
+    "One earlier focused run reported 193/194 without a named failure; three subsequent exact reruns passed 194/194, so it remains a runtime limitation rather than a separate finding.",
+    "All P2 and P3 findings remain owner-visible and are not auto-repaired.",
+    "The current P1 findings prevent aggregate Test and Deliver consumption until explicit reopen, authorized repair, fresh task evidence, and delta Review."
+  ]
+}

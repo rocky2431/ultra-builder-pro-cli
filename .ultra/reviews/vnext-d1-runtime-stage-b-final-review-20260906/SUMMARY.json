@@ -1,0 +1,233 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "isolated",
+  "session": "vnext-d1-runtime-stage-b-final-review-20260906",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary"
+  ],
+  "head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "worktree_digest": null,
+  "context_digest": "da7786d417393a6950236226395b4d9fefa8555dfa396c0f2839e2f8150a2cec",
+  "packet_digest": "cacbe5387fcddce9860039cf7633be31e12e4823347440479cb759f419bd097f",
+  "admission_digest": "9bd39fb3c86f4c618f7274cb385d3a4b8b9ce34b01f530a11169c30cd34e52bd",
+  "subject_digest": "e462ceea0651bbf28d5dd8aa1bbcfe757fc9433f7b7b7159b157f5eb42fbc2c1",
+  "status": "complete",
+  "verdict": "REQUEST_CHANGES",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-code.json",
+        "review-tests.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-code",
+      "review-tests"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-errors",
+      "review-design",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Independent mapping of the five current runtime acceptance criteria."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "Executable migration, protocol, permission, error and writer recovery paths require a production-code lens."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "Regression fidelity and the opt-in public-runtime seam require a separate test lens."
+    },
+    {
+      "worker": "review-errors",
+      "status": "skipped",
+      "rationale": "The selected code lens explicitly traced authentication, protocol failures, cancellation and unknown writer recovery; a duplicate separate error lens was not needed."
+    },
+    {
+      "worker": "review-design",
+      "status": "skipped",
+      "rationale": "The accepted change reuses the public ACPX runtime and existing UBP boundaries; code and specification lenses cover the changed design seams."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "Maintained contract wording was inspected by the selected specification lens; no separate editorial-only lens was required."
+    }
+  ],
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "documentation",
+      "title": "r1 构建段落未区分旧构建的 release 和 Provider 验证",
+      "file": "docs/RUNTIME-COMPAT-MATRIX.md",
+      "line": 186,
+      "line_end": 189,
+      "trigger": "读者依据新 patch SHA 和 .r1 marker 所在段落判断该精确构建已具备 release-build 或真实 Provider 证据。",
+      "impact": "这句话可把旧构建的验证归给新构建，误导后续 qualification 或交付说明；当前 profile 仍按旧 negative 身份拒绝新构建，因此没有观察到错误运行准入，保持 P2。",
+      "evidence": "当前第 179 行是新 patch 8c127dba648720121da9326cae721141785f03ef72bdfae2201f50e59bb9cb36，第 186-189 行却紧接 passes ... release build, and real provider session 并声明 .r1。相同文件第 240-247 行和 host-profile.cjs:185-200 明确仅保留旧 marker 的 negative 资格。packet 中 stage-b-root-final-entry-combinations.json 将真实 entry 组合标为 fixture Host only, no Provider；stage-b-bridge-final-source-review.zh-CN.md:31 明确本次 r1 产物是 debug build，作者未运行 r1 Provider qualification。Task 2 的当前资格不能由此句推定。",
+      "suggestion": "明确标注旧 marker 的历史 release/Provider 验证，并给 .r1 列出当前 Rust、fake App-server E2E 和 debug-build 证据；新 release/真实资格待取得对应原始证据后再更新这句话，无需增加运行时检查。",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "documentation",
+      "title": "客户端拒绝行为被描述为能力广告完全等价",
+      "file": "skills/ultra-delegate/references/delegation-contract.md",
+      "line": 97,
+      "line_end": 101,
+      "trigger": "Host 根据 initialize 中是否声明客户端 filesystem/terminal 能力选择工具路径，或读者把这段作为迁移后行为完全兼容的证据。",
+      "impact": "广告为 present 后再拒绝调用，与一开始不广告能力，对 Host 的工具选择可产生不同结果；文档当前把已证明的效果拒绝扩大为未证明的行为等价。没有当前真实 Host 故障或越权反例，按 P2 文档边界保留。",
+      "evidence": "第 97-99 行已明确真实 pinned runtime 广告 filesystem/terminal capabilities as present，并由 deny-all 拒绝；第 100-101 行随后写 effective client surface equals the previous no-fs/no-terminal advertisement。skills/ultra-delegate/SKILL.md:151-154 重复该等价说法。tests/acp-driver.test.cjs:128-133 所断言的 false 广告来自 tests/fixtures/fake-acpx-entry.cjs:269-274 的 stand-in；当前真实 entry 的 fixture 组合与 736 项全套通过没有建立真实 Host 对两种广告的相同工具选择。",
+      "suggestion": "将本处及 Skill 对应句限定为客户端 filesystem/terminal 效果仍被拒绝，并明确能力广告与旧引擎不同；不为该措辞恢复第二协议引擎或加入 SDK 配置。",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1"
+        ]
+      }
+    },
+    {
+      "id": "review-code-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "correctness",
+      "title": "Reject an unsupported negotiated ACP version before submitting work",
+      "file": "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "line": 613,
+      "line_end": 620,
+      "trigger": "A selected ACP candidate responds to initialize with protocolVersion 2 while this transport requires stable v1. This was reproduced with the unchanged real public entry, pinned ACPX 0.13.2, and the existing fake-acp-agent.cjs wrong-version scenario.",
+      "impact": "The real entry still sends session/new and session/prompt and returns completed/end_turn. These lines then assign protocolVersion 1 without observing negotiation; delegate-worker.cjs publishes that value as acp_protocol_version. A finished model result with clean changed paths and a stopped worker can consequently satisfy acp-conformance.cjs:210-217 for a candidate that never negotiated the required version. This loses the previous pre-work version refusal and permits false v1 conformance evidence.",
+      "evidence": "At HEAD b765b55, acp-driver.cjs:668-670 rejected initialized.protocolVersion !== ACP_PROTOCOL_VERSION before session/new. The migrated real entry at /tmp/ubp-acpx-runtime-ppTQ/runtime/acpx_delegate_entry.cjs (SHA-256 99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb, equal to the maintained source before and after the diagnostic) relies on ensureSession and reaches startTurn without that check. Existing tests/fixtures/fake-acp-agent.cjs:129 (SHA-256 3be19ae9c04ff7bac9872f74d48b901eefc5737910cfa6a3b494150c3e3c0844) returns version 2 for the retained fixture-config.json wrong-version input. In .ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/, agent-trace.jsonl:1-3 records initialize, session/new and session/prompt (SHA-256 fd2387dcfa953044095616a5e8c00a4b4a643f42919adaf3b3d1762fdf0db624); stdout.jsonl:6 records completed/end_turn (SHA-256 fd14a01c6816dd04ae3c6898ce032ac941b29cbac819bc538f38297e1b2712d3), with exit code 0 and empty stderr. request.json SHA-256 is 7c1fe76b3744657741cbb6b85c5fa345e85310089f3b118589c5de233298bb62 and fixture-config.json SHA-256 is 2eac4a3e2866a56307ee5cc6684d9a2e0a36e543c10c98e2ecdfefa5a195a0d8. observation.json retains the exact operational command and limits. The trace does not log Agent response bytes; the version-2 response is established by that exact unchanged fixture and input. The UBP publication and possible conformance acceptance are source-traced through delegate-worker.cjs:360,198 and acp-conformance.cjs:210-217,235, not claimed as a separate full conformance run. The current wrong-version unit case uses fake-acpx-entry.cjs, whose own version comparison masks this omission in the real entry.",
+      "suggestion": "Keep the public ACPX runtime and restore the required version check at its consumer boundary using the actual negotiated protocol value exposed by the existing runtime/session-store contract. Refuse unsupported or unproven negotiation before startTurn, and make UBP consume that observation instead of synthesizing 1 from any result line. Do not rebuild a second protocol engine. The minimum acceptance is the same real-entry wrong-version input yielding a typed failure with no session/prompt, no successful v1 claim and no conformance pass, while a version-1 normal turn, pre-prompt auth fallback and cancellation retain their existing behavior.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-5",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "regression_coverage",
+      "title": "Retain real-entry driver combinations as executable regressions",
+      "file": "tests/acpx-entry.test.cjs",
+      "line": 137,
+      "line_end": 149,
+      "trigger": "Run the opted-in entry tests after a change in the UBP adapter or public runtime event, permission, or cancellation contract.",
+      "impact": "The real-runtime tests can remain green while the integrated AcpDriver path regresses: they exercise the entry directly, whereas the driver suites unconditionally select the fake entry. Current successful combination observations reduce the immediate risk but do not protect this seam on a subsequent run.",
+      "evidence": "tests/acpx-entry.test.cjs:49-129 spawns ENTRY directly and supplies a locally written permission policy at 161-174; its three opted-in cases are normal turn, one allowed permission, and protocol misuse. tests/acp-driver.test.cjs:16 and tests/delegate.test.cjs:21 force fake-acpx-entry.cjs even when UBP_TEST_ACPX_ENTRY is provided. The retained stage-b-root-final-entry-combinations.json binds actual AcpDriver plus the final public entry, but the referenced driver/cancel smoke scripts only print summaries and contain no assertions; the multiple-denial summary does not retain the three permission events. Thus current logs are useful observations, not a reusable integrated regression.",
+      "suggestion": "When this P2 is selected, reuse the existing opt-in runtime selection to drive AcpDriver for the normal, three sequential denials, and cancellation cases. Assert the three exact journal decisions, final output suppression, typed terminal, and stopped descendant boundary. Keep the fake Host and existing isolated temporary-directory cleanup; no Provider run or new dependency is needed.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-5",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-tests-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "test_double_fidelity",
+      "title": "The wrong-version regression passes only because the fake entry enforces the missing check",
+      "file": "tests/acp-driver.test.cjs",
+      "line": 269,
+      "line_end": 281,
+      "trigger": "An ACP peer responds to initialize with protocolVersion 2 while the consumer requires stable protocol v1.",
+      "impact": "The current passing regression hides a reachable production compatibility failure: the real public entry proceeds to session/new and submits the prompt despite the mismatched negotiation, while AcpDriver derives protocolVersion 1 from the mere presence of a typed result. A passing test therefore does not protect the required v1 boundary or truthful conformance reporting.",
+      "evidence": "tests/acp-driver.test.cjs:16 unconditionally selects fake-acpx-entry.cjs; its wrong-version case at 272 expects acp_turn_failed, but the fake entry itself explicitly rejects initialized.protocolVersion !== 1 at tests/fixtures/fake-acpx-entry.cjs:277. The code lens ran the final real entry (SHA 99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb) with pinned ACPX 0.13.2 and the same existing wrong-version fixture. In .ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/, fixture-config.json selects wrong-version and current fake-acp-agent.cjs:129 consequently replies protocolVersion 2; agent-trace.jsonl directly records subsequent session/new and session/prompt, and stdout.jsonl records completed/end_turn. The trace captures client requests, not the version-2 response itself; that response is established by the bound fixture/config path. I read these raw files and verified stdout SHA fd14a01c6816dd04ae3c6898ce032ac941b29cbac819bc538f38297e1b2712d3 and trace SHA fd2387dcfa953044095616a5e8c00a4b4a643f42919adaf3b3d1762fdf0db624. AcpDriver:616,620 assigns v1 without negotiation evidence. The source and test hashes still match the final green release snapshot.",
+      "suggestion": "Alongside the bounded production protocol-version repair, run the existing wrong-version fixture through the actual public entry and pinned SDK and assert a typed rejection before session/new or session/prompt, with no claimed v1 success. Keep this specific invalid-version regression separate from the broader normal/denial/cancel P2 coverage improvement; do not rely on a stricter stand-in to establish the production contract.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-code.json",
+    "review-tests.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-runtime-raw-index.json"
+  ],
+  "positive_observations": [
+    "The exact final release passed 736 Node tests, 104 Hook tests and the dependency audit with unchanged tested source; the earlier temporary-file race and failed run remain retained.",
+    "Actual detached worker environment and EPERM/unknown writer/fence regression paths are now covered.",
+    "All three selected lenses ran in fresh native subagent contexts after real strict packet admission."
+  ],
+  "limitations": [
+    "Two P1 findings describe the same reproduced protocol-version root cause from code and test perspectives; their machine records are retained unchanged.",
+    "The real public entry accepted the existing wrong-version fixture and submitted a prompt; a fake-entry comparison hid the regression. No runtime task completion or real Host qualification is accepted.",
+    "Three P2 findings remain nonblocking observations; no automatic P2 repair is authorized by this summary.",
+    "The true v2 Agent response is established by the exact existing fixture and its input; the trace directly contains only client requests. Downstream conformance impact is source-traced, not a separate executed full conformance run."
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "152a8f45453d42744e7faca1fd7f2048c24ec2f892fdc036e89968e374755930",
+  "admission_digest": "9276d37119c3b8b9543119899768202af65de9f2902f813552de22dd48a8dfd8",
+  "subject_digest": "4e2dc657690ea0169f02864e9d05997a6acc814b8d2228bfd446ee45804021d5",
+  "session": "vnext-d1-host-enforcement-delta-1-review-20260902",
+  "timestamp": "2026-09-01T16:55:13Z",
+  "agent": "review-code",
+  "axis": "engineering_standards",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-repair-1",
+    "files_analyzed": [
+      "bin/install.js",
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-code.json#review-code-001 resolved by the pure preAdmissions gate at delegate.cjs:950-974 before chooseExecutionDriver at 976",
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-code.json#review-code-002 resolved by shared failureDiagnostic and failureDiagnosticLine at delegate.cjs:813-829, consumed by delegate.cjs:1402 and bin/install.js:331-337",
+    "skills/ultra-delegate/scripts/host-profile.cjs:150-295 keeps one provider-neutral dimension vocabulary and pure exact-version admission rather than adding a second policy engine",
+    "Codex source trace confirmed generic non-enforcement errors retain their previous process-boundary output and the selected route still receives exact candidate attestation before launch",
+    "git diff --check over all fifteen Repair 1 paths exited 0"
+  ],
+  "positive_observations": [
+    "The repair reuses the existing Host profile, admission error, selector and compatibility shim; it adds no dependency, daemon, workflow engine or duplicated launcher policy.",
+    "Only four of fifteen authorized paths changed, and the optional execution-driver split was correctly skipped because an earlier pure precheck is sufficient.",
+    "The typed projection is narrow: only the known enforcement error is JSON-projected, so unrelated failures cannot silently masquerade as this safety gate."
+  ],
+  "limitations": [
+    "Parent review-code-003 remains: the packaged runtime cannot inspect the source-repository-only receipt path.",
+    "Parent review-code-004 remains: a future positive qualification compares candidate declarations with retained expected constants rather than a separate concrete attestation receipt."
+  ]
+}

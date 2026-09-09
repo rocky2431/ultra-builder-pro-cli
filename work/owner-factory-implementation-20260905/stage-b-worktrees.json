@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-05T17:14:43.800587+00:00",
+  "ubp_stage_a_head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "worktree_root": "/tmp/ubp-factory-stage-b-l7dd0y3s",
+  "worktrees": {
+    "agent_delegation": {
+      "repo": "/Users/rocky243/Context Engineering/agent-delegate-skill",
+      "base": "49309b202907f97f29f121f894d8b031a73bb7bd",
+      "path": "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill",
+      "branch": "codex/ubp-stage-b-acpx-runtime"
+    },
+    "goal": {
+      "repo": "/Users/rocky243/Context Engineering/ultra-goal-skill",
+      "base": "21495b62a0fc81ac5c5bf7f71dea53ab5b4a57d3",
+      "path": "/tmp/ubp-factory-stage-b-l7dd0y3s/ultra-goal-skill",
+      "branch": "codex/ubp-stage-b-goal-graph"
+    },
+    "bridge": {
+      "repo": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ultra-zcode-acp-audit.XXXXXX.6ueNA86gp4",
+      "base": "42fe149d4b501469343c01f23ba3801832306d53",
+      "path": "/tmp/ubp-factory-stage-b-l7dd0y3s/zcode-acp",
+      "branch": "codex/ubp-stage-b-zcode-locations"
+    }
+  },
+  "effects": "local isolated worktrees only; no source changes, installs or external writes"
+}

@@ -1,0 +1,260 @@
+{
+  "$schema": "ultra-test-report-v2",
+  "change_id": "chg-ultra-5-0-2-authority-reconciliation",
+  "task_ids": [
+    "v502-authority-reconciliation"
+  ],
+  "task_evidence": [
+    {
+      "task_id": "v502-authority-reconciliation",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/evidence.json",
+      "evidence_digest": "45743f378a16fb1472f37d5a05d20a4578e84b5bb8484a51cbf627b5ef9d822a",
+      "task_review_session": "v502-authority-reconciliation-reopen-final-review-20260901",
+      "task_review_summary_digest": "c9f2a08aae1751537f5e58b60af1bab166236db71cb1bb5b5cd55e3b9da1e15e"
+    }
+  ],
+  "git_commit": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "intent_digest": "c1f6f80265a33bd3e462a1407c75447517acb00011ca4ea07d91fe632daa81ec",
+  "worktree": {
+    "dirty": true,
+    "diff_digest": "ec938773875ecc1f53ba71eae4e99c531d9fd498fc69ef51f9c1a8b0d661e528"
+  },
+  "commands": [
+    {
+      "command": "node skills/ultra-test/scripts/worktree_digest.cjs --project . --change-id chg-ultra-5-0-2-authority-reconciliation",
+      "exit_code": 0,
+      "evidence_ref": "head adb7bfe89f40e107d0c9c490076a6e74294b9337; intent c1f6f80265a33bd3e462a1407c75447517acb00011ca4ea07d91fe632daa81ec; terminal aggregate product diff ec938773875ecc1f53ba71eae4e99c531d9fd498fc69ef51f9c1a8b0d661e528"
+    },
+    {
+      "command": "node skills/ultra-plan/scripts/validate_task_evidence.cjs .ultra/evidence/v502-authority-reconciliation/evidence.json --projection",
+      "exit_code": 0,
+      "evidence_ref": "current-v2 projection 45743f378a16fb1472f37d5a05d20a4578e84b5bb8484a51cbf627b5ef9d822a; retained strict task Review summary c9f2a08aae1751537f5e58b60af1bab166236db71cb1bb5b5cd55e3b9da1e15e"
+    },
+    {
+      "command": "node --test tests/project-artifacts.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": "80/80 project-artifact checks passed after exact Planned Path Inventory and Acceptance-section binding repairs"
+    },
+    {
+      "command": "node --test tests/v026-contract.test.cjs tests/package-smoke.test.cjs",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log: 100/100 focused tests passed"
+    },
+    {
+      "command": "npm run verify:release",
+      "exit_code": 0,
+      "evidence_ref": "fresh finalization run: 663/663 Node tests, 89/89 Hook tests, zero vulnerabilities"
+    },
+    {
+      "command": "npm pack --dry-run --json",
+      "exit_code": 0,
+      "evidence_ref": "fresh finalization run: ultra-builder-pro-cli@5.0.2, 141 entries, 381113 packed bytes, no tarball written"
+    },
+    {
+      "command": "Skill Creator quick_validate.py skills/ultra-delegate; Skill Creator quick_validate.py skills/ultra-status",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log: both changed Skills valid in offline mode"
+    },
+    {
+      "command": "node bin/install.js --all --global --config-dir /tmp/ubp-v502-doctor.6W5X4F; Doctor; uninstall; assert empty isolated root",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log: six healthy 5.0.2 ACP-selected Hosts, managed uninstall complete, no real-HOME mutation"
+    },
+    {
+      "command": "node -e '<assert current read-only real-HOME Doctor projection>'",
+      "exit_code": 0,
+      "evidence_ref": "fresh finalization read: Doctor exit 2 degraded as expected; six 5.0.1/5.0.2 mismatches, Codex HOST_PLUGIN_NOT_DISCOVERED, ACP selected with null fallback on all six"
+    },
+    {
+      "command": "python3 skills/ultra-review/scripts/review_wait.py .ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901 summary --packet-digest a60401c4bc2cb7b971df8387ff0277e28d81a777ec15331a6b1222007367f792",
+      "exit_code": 0,
+      "evidence_ref": "fresh aggregate Change Review APPROVE; P0=0 P1=0 P2=2 P3=0; summary digest b20ade69c9ede3dc1017af17e6e0ebb635e68e985691b28c42c17104c5295281"
+    },
+    {
+      "command": "node skills/ultra-test/scripts/validate_review_transport.cjs --summary .ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/SUMMARY.json --report .ultra/test-report.json",
+      "exit_code": 0,
+      "evidence_ref": "fresh strict Review-to-Test transport validation binds the exact one-task summary, admission, subject, findings, task evidence, and aggregate product worktree"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "evidence_ref": ".ultra/evidence/v502-authority-reconciliation/verification.log: no whitespace errors"
+    }
+  ],
+  "areas": {
+    "anti_patterns": {
+      "status": "passed",
+      "evidence_refs": [
+        ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/review-code.json",
+        ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/review-tests.json",
+        "focused 100-test and full 663-test Node results"
+      ],
+      "omissions": []
+    },
+    "coverage_gaps": {
+      "status": "passed",
+      "evidence_refs": [
+        ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/review-spec.json",
+        ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/review-tests.json",
+        ".ultra/evidence/v502-authority-reconciliation/evidence.json"
+      ],
+      "omissions": [
+        "Absolute external documentation URLs were not fetched; their mutable-main versioning defect remains owner-retained P2 review-comments-001."
+      ]
+    },
+    "wiring": {
+      "status": "passed",
+      "evidence_refs": [
+        "bin/install.js#printHelp and its real CLI-help contract assertion",
+        "tests/package-smoke.test.cjs and the 141-entry dry-run package inventory",
+        "adapters/_shared/runtime-assets.cjs installed Skill consumers",
+        "isolated six-Host install/Doctor/uninstall"
+      ],
+      "omissions": [
+        "No exported JavaScript symbol changed; the executable delta is the existing printHelp entry point's ZCode Desktop label."
+      ]
+    },
+    "e2e": {
+      "status": "passed",
+      "evidence_refs": [
+        ".ultra/evidence/v502-authority-reconciliation/verification.log",
+        "isolated source-to-six-Host install, Doctor readback, and managed uninstall",
+        "package smoke consumption of the actual dry-run artifact boundary"
+      ],
+      "omissions": [
+        "No real-HOME installation, live provider task, registry publication, deployment, or Windows execution was authorized or needed for the unchanged runtime behavior."
+      ]
+    },
+    "performance": {
+      "status": "not_applicable",
+      "evidence_refs": [
+        "The Change alters maintained wording, package metadata, one CLI help label, and structural tests; no runtime hot path, latency target, throughput target, or resource policy changes."
+      ],
+      "omissions": [
+        "No synthetic performance benchmark was added because there is no accepted performance claim for this reconciliation Change."
+      ]
+    },
+    "security": {
+      "status": "passed",
+      "evidence_refs": [
+        "npm audit --omit=dev --audit-level=high: zero vulnerabilities",
+        "existing permission, ACP, CLI fallback, cancellation, filesystem, and effect-boundary tests within the 663-test release gate",
+        ".ultra/decisions/2026-09-01-v502-deliver-finalization.md explicit external-effect exclusions"
+      ],
+      "omissions": [
+        "No credential, identity, provider, sandbox, permission-envelope, or external-effect implementation changed; current Host-owned boundaries remain outside Ultra authority."
+      ]
+    }
+  },
+  "review": {
+    "session": "chg-ultra-5-0-2-aggregate-review-final-20260901",
+    "packet_digest": "a60401c4bc2cb7b971df8387ff0277e28d81a777ec15331a6b1222007367f792",
+    "admission_digest": "cb8b6184d1eec0fd4d691186aeb22a067e09bf994f47e7caf6d0a17a910ed37c",
+    "subject_digest": "999bfcfaccb9398523e400a48477973b186128d205fb49bebc4d4f770b5e4a39",
+    "execution_mode": "sequential-shared-context",
+    "finding_schema": "ultra-review-findings-v4",
+    "summary_ref": ".ultra/reviews/chg-ultra-5-0-2-aggregate-review-final-20260901/SUMMARY.json",
+    "summary_digest": "b20ade69c9ede3dc1017af17e6e0ebb635e68e985691b28c42c17104c5295281",
+    "context_digest": "5bf5a12dfacd1614b0062466d411ec062df82b1cb64e59f5683ac3c9a13c7bf0",
+    "worktree_digest": null,
+    "verdict": "APPROVE",
+    "coverage_refs": [
+      "review-spec.json",
+      "review-code.json",
+      "review-tests.json",
+      "review-comments.json",
+      ".ultra/evidence/v502-authority-reconciliation/evidence.json",
+      ".ultra/evidence/v502-authority-reconciliation/verification.log",
+      "tests/project-artifacts.test.cjs: 80/80 passed after exact lifecycle repairs",
+      "final 5.0.2 tracked and bounded untracked product diff"
+    ],
+    "limitations": [
+      "The aggregate Review ran sequentially in shared context and does not provide an independent model-family boundary.",
+      "Current real-HOME Doctor remains degraded by six expected 5.0.1/5.0.2 version mismatches plus Codex HOST_PLUGIN_NOT_DISCOVERED; no real-HOME mutation or repair is claimed.",
+      "ZCode remains experimental and installed-runtime-only; no maturity change or new provider call is inferred.",
+      "The two retained P2 findings remain real, owner-dispositioned residual risk rather than repaired or omitted defects."
+    ]
+  },
+  "verified_seams": [
+    "accepted Change and one completed task to current-v2 evidence and retained strict task Review",
+    "maintained public/model/spec/package surfaces to one installed Skill-local ACP-first six-Host execution contract with typed CLI fallback",
+    "ZCode Desktop Host identity to current provider guidance, dated 0.16.5 evidence, and explicit experimental acknowledgement",
+    "package metadata and README relative links to the actual 141-entry dry-run artifact",
+    "source candidate to isolated six-Host install, ACP-selected Doctor readback, and managed uninstall",
+    "current real-HOME read-only diagnosis to the exact expected version and Codex discovery limitations",
+    "aggregate strict Change Review to this Test report through admission-bound Review-to-Test transport"
+  ],
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "stale_operational_contract",
+      "title": "Architecture spec binds the 5.0.2 candidate to the 0.26.2 base",
+      "file": ".ultra/specs/architecture.md",
+      "line": 8,
+      "line_end": 8,
+      "trigger": "A fresh Agent uses the Architecture Scope revision to recover or audit the current 5.0.2 reconciliation.",
+      "impact": "The named base resolves to the 0.26.2 release commit instead of the clean pre-Change recovery HEAD, leaving two conflicting provenance anchors and a bounded risk of auditing or recovering from the wrong baseline.",
+      "evidence": "git show identifies fc055021bcfeee3e8c6781b9545d267f5eb73cbd as chore(release): prepare 0.26.2, while the active intent Recovery field and research-distillate Scope both identify adb7bfe89f40e107d0c9c490076a6e74294b9337 as the 5.0.2 pre-Change recovery HEAD.",
+      "suggestion": "Replace the Revision value with adb7bfe89f40e107d0c9c490076a6e74294b9337, or explicitly label fc055021bcfeee3e8c6781b9545d267f5eb73cbd as historical and separately name the current recovery HEAD.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1"
+        ],
+        "serves": [
+          "NS-02"
+        ],
+        "touches": [
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-comments-001",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "comments",
+      "title": "Versioned documentation links point at mutable main",
+      "file": "README.md",
+      "line": 477,
+      "line_end": 490,
+      "trigger": "After the repository main branch advances or one of the linked historical files moves, a consumer of the published 5.0.2 README follows the Documentation links.",
+      "impact": "The link can show later content or return 404, so the package cannot reliably reproduce the 5.0.2 contract, current North Star snapshot, or records described on the next line as frozen and hash-bound.",
+      "evidence": "Four newly externalized links use github.com/rocky2431/ultra-builder-pro-cli/blob/main, including the two links labeled frozen design history; README.zh-CN.md mirrors the same moving URLs, and the dry-run package omits these target files.",
+      "suggestion": "Use immutable commit- or release-tag-pinned GitHub URLs for versioned and frozen records, or include those files in the package; keep the English and Chinese mirrors identical.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1"
+        ],
+        "serves": [
+          "NS-02"
+        ],
+        "touches": [
+          "HC-4"
+        ]
+      }
+    }
+  ],
+  "omissions": [
+    "No network request was made to mutable GitHub or provider documentation links; their versioning risk is retained as review-comments-001.",
+    "No real-HOME installation, live provider task, registry publication, GitHub Release, deployment, credential operation, or Windows execution was authorized or performed.",
+    "No new runtime performance benchmark was added because the Change alters no hot path or accepted performance target."
+  ],
+  "residual_risks": [
+    "The current architecture specification still names the 0.26.2 base instead of the 5.0.2 pre-Change recovery HEAD (review-spec-001).",
+    "Versioned and frozen README links use mutable GitHub main URLs and may drift or break after later repository changes (review-comments-001).",
+    "Current real-HOME installations remain at 5.0.1 and Codex reports HOST_PLUGIN_NOT_DISCOVERED; this local archive does not alter that state.",
+    "ZCode app-server stability remains outside a public contract, so the transport stays experimental and version-bound.",
+    "The strict task and aggregate Reviews share one sequential model context and therefore one model-family blind spot."
+  ],
+  "owner_disposition": [
+    "The Owner explicitly invoked local evidence/ledger close, Test/Deliver consumption, finalization, and archive for chg-ultra-5-0-2-authority-reconciliation.",
+    "The Owner explicitly retained review-spec-001 and review-comments-001 as non-blocking P2 findings without repair or promotion.",
+    "Commit, push, tag, publication, deployment, real-HOME installation, credentials, provider purchase, and every other external effect remain unauthorized."
+  ],
+  "passed": true,
+  "run_count": 2,
+  "timestamp": "2026-08-31T21:51:58Z"
+}

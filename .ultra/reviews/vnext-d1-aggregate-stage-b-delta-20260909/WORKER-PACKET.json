@@ -1,0 +1,194 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-d1-aggregate-stage-b-delta-20260909",
+  "mode": "change",
+  "created_at": "2026-09-09T07:58:24.622460+00:00",
+  "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+  "range": "Stage B aggregate P1 repair delta against the retained D1 aggregate; current integrated source at bee8868 plus uncommitted Stage B",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary",
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC03, D1-AC04 and D1-AC05 require actual selected-Host effect qualification, preserved N=1 behavior and accurate maintained contracts.",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#acceptance-criteria: D1R-01 through D1R-05 require actual worker environment, conservative writer truth and current compatible runtime evidence.",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-01, D1Q-02R3 and D1Q-03 through D1Q-05 are the current selected Pi native CLI criteria.",
+    ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md#stage-b-pi-native-candidate-and-effect-equivalent-qualification: Preserve each actual effect test and historical failed candidate; native Bash curl remains execute.",
+    ".ultra/decisions/2026-09-09-root-independent-implementation.md#owner-clarification-implementation-versus-verification: Codex alone implements source and tests; Pi may provide independent QA or participate in delegation experiments."
+  ],
+  "public_seams": [
+    "production delegate.run/status/cancel",
+    "native Pi CLI pre-effect tool policy and exact identity admission",
+    "result terminal, denial, writer boundary and install artifacts"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "1d233fd3b15439ca96d2a3e6eddfecbc5d39f6bf5ef3a34a58da77d4481a31c4"
+    },
+    {
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "12b1f09a35d38eb0e1fc1ed59c28bc27b91125cb5012e11be23a5c30bdf1158e"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "12b1f09a35d38eb0e1fc1ed59c28bc27b91125cb5012e11be23a5c30bdf1158e",
+      "byte_length": 30129
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "1d233fd3b15439ca96d2a3e6eddfecbc5d39f6bf5ef3a34a58da77d4481a31c4",
+      "byte_length": 26213
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-09-root-independent-implementation.md",
+      "sha256": "c0657b902ecfc18f869164fe3015fd82ae53b53333921829ffeed75c63d3b4a6",
+      "byte_length": 2380
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md",
+      "sha256": "9e28e23efd25414623c30110bc42afd717713e70abf6b9478af3857f161ab0bb",
+      "byte_length": 2865
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/review-spec.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/review-tests.json"
+    },
+    {
+      "agent": "review-errors",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/errors.md",
+      "output": ".ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909/review-errors.json"
+    }
+  ],
+  "diff_files": [
+    "adapters/_shared/plugin-core.cjs",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+    ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "tests/pi-native-runtime.test.cjs",
+    "tests/pi-native-permissions.test.cjs",
+    "tests/install.test.cjs",
+    "tests/delegate.test.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/acpx-entry.test.cjs",
+    "tests/fixtures/fake-acp-agent.cjs",
+    "tests/v026-adapters.test.cjs",
+    "tests/ultra-5-journeys.test.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/acp-driver.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs",
+    "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+    "skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+    ".ultra/specs/product.md",
+    ".ultra/specs/architecture.md",
+    ".ultra/specs/research-distillate.md",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+    ".ultra/tasks.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json"
+  ],
+  "output_directory": ".ultra/reviews/vnext-d1-aggregate-stage-b-delta-20260909",
+  "review_questions": [
+    "This is only the three-P1 aggregate delta. Inspect the direct parent and the current repair for your lens; record an explicit evidence-backed disposition of its matching P1 in positive_observations or retain a concrete blocker. Do not re-audit or auto-repair parent P2/P3.",
+    "Codex alone implements. Pi may read-only QA. Exact owner wording is in the cited decisions. The later owner eight-step grant supersedes the old initial intent topology and finalize exclusions within its exact local scope.",
+    "The current Task2 has actual Pi effect-equivalent qualification and completed v2 evidence; historical ZCode failure remains a failure. Check final source and evidence; no new provider test.",
+    "D1R worker environment and outer EPERM fixtures must distinguish real spawn observations from derived objects. Final release passed 804 Node, 104 Hook, audit zero; dependency entry current 0.5.0 tests passed 72, locally committed 705734c without installation. No C/D/E or all-eight completion claim."
+  ],
+  "evidence_refs": [
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "work/trellis-eight-step-20260909/step5-pi-final-release.log",
+    "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+    "work/trellis-eight-step-20260909/step5-entry-current-tests.json"
+  ],
+  "review_history": {
+    "parent_summary_ref": ".ultra/reviews/vnext-d1-aggregate-review-20260902/SUMMARY.json",
+    "parent_summary_digest": "1ce9dfed3700a1d743cdfdac6ac3dad562cf5d44fe7902cbd3f68767a064b558",
+    "unresolved_blocking_ids": [
+      "review-spec-001",
+      "review-tests-001",
+      "review-errors-001"
+    ]
+  }
+}

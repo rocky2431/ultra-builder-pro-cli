@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "tests/pi-native-runtime.test.cjs",
+    "tests/pi-native-permissions.test.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/delegate.test.cjs"
+  ],
+  "exit_code": 0,
+  "duration_seconds": 39.77171182632446
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-release-after-fixture-isolation.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.log",
+    "sha256": "875ad9dfd6d4ae45f468faf394c01a8678f8f848053cfc6dea7e391861bd1b6a",
+    "bytes": 65913
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-release-after-fixture-isolation.json",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.json",
+    "sha256": "63cd81ddecdd5b06bcc5bace7d4da09f489ec406051830fc2a384ec5b3a9c497",
+    "bytes": 60553
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-release-after-fixture-isolation-subject-before.json",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation-subject-before.json",
+    "sha256": "c02421e7d008b972d3f435d31a457f8bad0db60b07e907e6c00bd1dfb219653d",
+    "bytes": 3451
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-release.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-release.log",
+    "sha256": "89e733dc89c158a454bdbdf4c828697f6cb2cebbfb6d1e25169a0371a51c83dd",
+    "bytes": 66684
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-release.json",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-release.json",
+    "sha256": "321021a659bd54bb240729ebb87c37c333595134dccfb92ef65db50715dcfec0",
+    "bytes": 60247
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-narrow.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-narrow.log",
+    "sha256": "61e499c497bac8a4d46f956b55b89401b69f2a5b40740ea37af3b3fe14b47a06",
+    "bytes": 12877
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-narrow.json",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-narrow.json",
+    "sha256": "3fad49887131e51bbf28fd23382976890fcced0dd16b5c6db91590299d2b11d9",
+    "bytes": 5345
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-entry-combinations.json",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-entry-combinations.json",
+    "sha256": "7450138e55cdfa22101c6325dc04c71e3161d404d16cee34a64d75250bf2a5b3",
+    "bytes": 3067
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-driver-combination.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-driver-combination.log",
+    "sha256": "fbc7e86e79a4a0fc6947555b1c095bc2471feb3db0bd8ee056f10532ddcffb34",
+    "bytes": 470
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-cancel-combination.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-cancel-combination.log",
+    "sha256": "4b417f6d79a00b2fd60eba2a75ccad5253328ab82bfabfa56c4107f6cdacc71b",
+    "bytes": 111
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-p1-mutation-fail.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-p1-mutation-fail.log",
+    "sha256": "69c379a6b69c404c13f98da181ec4f622fa40ef9689ea9929a99a8ded26ac70a",
+    "bytes": 1030
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-p1-correct-pass.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-p1-correct-pass.log",
+    "sha256": "e3f92b559c6ca2898f55d1cbaec321a681a5b2b99226aba12b36f573c3102d23",
+    "bytes": 254
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-other-checks.json",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-other-checks.json",
+    "sha256": "fe18da5a5a572fcc4af7c15b1be06d9f964041681fbd1eae3670079358b71fb6",
+    "bytes": 1702
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-pack.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-pack.log",
+    "sha256": "82f8b5ba9371d112877f1b4479e2a8cd65802caa9f3699996d76d7fe686ff519",
+    "bytes": 17128
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-skill.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-skill.log",
+    "sha256": "db349825903d66adffea3ecf1bd8e1803043e8a71cf1a051235dabc5371f5bb0",
+    "bytes": 16
+  },
+  {
+    "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-final-doctor.log",
+    "retained": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-doctor.log",
+    "sha256": "5c70100e1f1a2b77ccdd996821128ccb6df8baea52b6ec7016251b0f40f5ed87",
+    "bytes": 17181
+  }
+]

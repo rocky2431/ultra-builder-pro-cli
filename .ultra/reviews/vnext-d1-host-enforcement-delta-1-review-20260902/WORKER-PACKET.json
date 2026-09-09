@@ -1,0 +1,183 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-d1-host-enforcement-delta-1-review-20260902",
+  "mode": "task",
+  "created_at": "2026-09-01T16:52:40Z",
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-repair-1",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC03 admits the selected local Host only for mechanically qualified file, Agent-tool network, secret and point-of-use effect dimensions, and an unenforceable denied effect must fail closed before implementation",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC04 requires existing N=1 delegation, ACP-first or CLI-fallback selection, typed results, changed-path enforcement and cancellation to remain compatible",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC05 requires maintained product, architecture and model-facing delegation surfaces to state the fail-closed boundary without unsupported guarantees",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-01 requires exact Packet dimensions to be checked before launch and one stable typed unavailable diagnostic without silent fallback or provider-brand semantic policy",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-02 through D1Q-04 bind the exact retained no-production observation and require maintained surfaces to state only its supported, unsupported and unobserved facts",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-05 requires the focused and full release gates to pass with no N=1 or package-content regression",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md#d1-durable-work-package-grant: ZCode is the sole implementation writer, Codex owns Task Review, and only current P0 or P1 findings may consume a repair attempt and delta Review",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json#admission_disposition: the one consumed exact ZCode ACP observation leaves writable_scope unsupported and later effect dimensions unobserved, so the route is unavailable with no retry, silent fallback or maturity change"
+  ],
+  "public_seams": [
+    "pure Host capability precheck before executable candidate identity probes",
+    "selected-transport exact-version admission before fence, worker spec, worker and provider session",
+    "direct installed Skill and ubp delegate typed failure process boundaries",
+    "Host profile enforcement facts, ACP-first selection and experimental acknowledgement",
+    "canonical research-distillate source-revision binding",
+    "focused tests, full verify:release gate and packaged Skill surface"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "f6ed56719adb4b905bade5c2c74650f2cafdd291b9f6dcf473ef90351fb46877"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "f6ed56719adb4b905bade5c2c74650f2cafdd291b9f6dcf473ef90351fb46877",
+      "byte_length": 14678
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      "sha256": "95910b47c77d69ea1f8a17db4325b7a5ce2b6d0680e63575bf606ac5fa5e1af9",
+      "byte_length": 10186
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json",
+      "sha256": "936c77949630c52a7ca128c0f780cc98b2f3a046e5ff8d500bb41cd145bdde01",
+      "byte_length": 10225
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/review-spec.json"
+    },
+    {
+      "agent": "review-code",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/code.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/review-code.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/review-tests.json"
+    },
+    {
+      "agent": "review-errors",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/errors.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/review-errors.json"
+    },
+    {
+      "agent": "review-design",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/design.md",
+      "output": ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902/review-design.json"
+    }
+  ],
+  "diff_files": [
+    ".ultra/specs/architecture.md",
+    ".ultra/specs/product.md",
+    ".ultra/specs/research-distillate.md",
+    "bin/install.js",
+    "docs/ARCHITECTURE.md",
+    "docs/ARTIFACT-AUTHORITY.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/delegate.test.cjs",
+    "tests/v026-contract.test.cjs"
+  ],
+  "output_directory": ".ultra/reviews/vnext-d1-host-enforcement-delta-1-review-20260902",
+  "review_history": {
+    "parent_summary_ref": ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/SUMMARY.json",
+    "parent_summary_digest": "92fc4435ff5a4c1be4d492be4e7b19e6ef5e589cc0b0fea53c417e783d60c5bc",
+    "unresolved_blocking_ids": [
+      "review-spec-001",
+      "review-code-001",
+      "review-tests-001",
+      "review-errors-002",
+      "review-design-001",
+      "review-spec-003",
+      "review-code-002",
+      "review-tests-002",
+      "review-errors-001",
+      "review-spec-002"
+    ]
+  },
+  "review_questions": [
+    "Does the pure multi-transport precheck resolve every pre-admission probe finding without bypassing exact candidate attestation on a potentially admissible route?",
+    "Do both actual process entry points emit exactly one stable redacted typed diagnostic while preserving nonzero exit and generic behavior for unrelated failures?",
+    "Do the two refreshed distillate rows bind exactly the current product and architecture blobs, with no unrelated distillation change?",
+    "Do current focused, full-release, Skill-validation, package and diff checks resolve D1Q-05 without weakening N=1 or the fail-closed route?",
+    "Are all five parent P2 findings still honestly retained rather than silently repaired, promoted or erased?"
+  ]
+}

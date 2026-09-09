@@ -1,0 +1,7 @@
+{
+  "$schema": "ultra-delegation-permission-v1",
+  "writable_roots": [
+    "tests/fixtures"
+  ],
+  "external_effects": []
+}

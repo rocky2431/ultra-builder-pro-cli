@@ -1,0 +1,48 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "95ea15a75a0a61792f38f11e6222c0f08a0deab86eef17243b20622f71ef26e5",
+  "admission_digest": "a6582e49ad4e23c5970d8966caa964ca375c1477eb6d602e2236032d7ccfd29a",
+  "subject_digest": "430569c98920189b1412eb7da339db911cd44d8873bc7c3d4a31aefdce2eb563",
+  "session": "vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902",
+  "timestamp": "2026-09-01T16:38:31Z",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-runtime-safety-evidence-reopen",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "skills/ultra-delegate/scripts/cli-driver.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/acp-conformance.test.cjs",
+      "tests/delegate.test.cjs",
+      "tests/fixtures/fake-acp-agent.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    "tests/delegate.test.cjs:1465 role-scoped probe and ACP Host descendant environment coverage",
+    "tests/delegate.test.cjs:1554 sanitized CLI Host descendant environment coverage",
+    "tests/delegate.test.cjs:1872 exact, overlapping, aliased and disjoint physical worktree fence matrix",
+    "tests/delegate.test.cjs:2122 live nested writer remains outcome_unknown and freezes the fence",
+    "tests/delegate.test.cjs:2771 post-spawn pre-claim launch-bound lock remains outer-worker unknown",
+    "tests/delegate.test.cjs:2863 exact writer start-identity readback refuses changed or omitted identity",
+    "Codex independent current integration gate passed 97/97 with zero fail, skip or todo; delegate.cjs, delegate-worker.cjs and tests/delegate.test.cjs syntax checks plus scoped diff check exited 0",
+    "Codex independent full release gate reached 711/712 and its only failure was the pre-publication historical Task 1 Acceptance hash mismatch; every runtime, adapter, package and project-layout behavior test passed"
+  ],
+  "positive_observations": [
+    "The current integrated suite exercises both the original Task 1 safety matrix and the later pre-admission Host refusal, so the evidence correction does not rely on the old 92-test snapshot alone.",
+    "The new Host-admission tests add two cases without weakening, skipping or replacing any Task 1 environment, writer-truth, cancellation, timeout or physical-fence regression.",
+    "No test assertion was weakened to accommodate the stale evidence record; the single full-gate failure remains explicit until the protocol-ordered republish."
+  ],
+  "limitations": [
+    "The full release gate cannot become green until the post-Review replacement evidence is written; rerunning it after publication is required before Task 2 delta Review.",
+    "The selected real-Host qualification belongs to Task 2 and does not strengthen Task 1's portable process-observation P2 limitations."
+  ]
+}

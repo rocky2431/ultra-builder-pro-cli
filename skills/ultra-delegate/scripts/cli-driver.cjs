@@ -17,6 +17,15 @@ const {
 class CliDriver extends AgentExecutionDriver {
   run() {
     const spec = this.spec;
+    const native = spec.native_permission === 'pi' ? require('./pi-native-runtime.cjs') : null;
+    const identityDrift = native ? native.piNativeIdentityDrift(spec) : null;
+    if (identityDrift) {
+      return Promise.resolve({
+        code: null, signal: null, termination: null, spawnError: null,
+        failureType: 'pi_native_identity_changed',
+        failureSummary: `Pi was not launched: ${identityDrift}`,
+      });
+    }
     // A Host that cannot be observed must not be launched: without a durable
     // launching observation the writer boundary would stay unknowable.
     if (!markWriterLaunching(spec)) {
@@ -78,7 +87,19 @@ class CliDriver extends AgentExecutionDriver {
         }
         stdout.write(spec.stdout);
         stderr.write(spec.stderr);
-        resolve({ code, signal, termination, spawnError });
+        let nativeOutcome = {};
+        if (native && !termination && !spawnError) {
+          const observed = stdout.truncated || stderr.truncated
+            ? { failureType: 'pi_native_incomplete', failureSummary: 'The native Pi trace exceeded the existing capture limit.' }
+            : native.consumePiNative(stdout.text(), stderr.text(), spec.env[native.CONFIG_ENV]);
+          const { assistantText, permissionEvents, ...facts } = observed;
+          nativeOutcome = facts;
+          fs.writeFileSync(spec.events, (permissionEvents || []).map((event) => JSON.stringify(event)).join('\n') + '\n', { mode: 0o600 });
+          if (code === 0 && !observed.failureType && typeof assistantText === 'string') {
+            fs.writeFileSync(spec.host_output, assistantText, { mode: 0o600 });
+          }
+        }
+        resolve({ code, signal, termination, spawnError, ...nativeOutcome });
       };
       child.on('error', (error) => { spawnError = error; });
       child.on('close', finish);

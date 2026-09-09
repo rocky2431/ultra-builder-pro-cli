@@ -1,0 +1,42 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "packet_digest": "668b52984a63bf2db186ddf7a029e277ba6ecd6363c5498ef6fe8283a0af3bec",
+  "admission_digest": "f0501be92275fd0714e3ddcb2893093013f3d1b253d4a33f282d56a482ac3b81",
+  "subject_digest": "5d8afb9598876443cbba9629bf9da476294a76c2af803aa5cb0002b29a94a89a",
+  "session": "vnext-d1-aggregate-stage-b-delta-20260909",
+  "timestamp": "2026-09-09T07:59:11.036310+00:00",
+  "scope": {
+    "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+    "range": "Stage B aggregate P1 repair delta against the retained D1 aggregate; current integrated source at bee8868 plus uncommitted Stage B",
+    "files_analyzed": [
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+      ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "skills/ultra-delegate/SKILL.md",
+      "docs/RUNTIME-COMPAT-MATRIX.md",
+      ".ultra/tasks.json"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    ".ultra/tasks.json"
+  ],
+  "positive_observations": [
+    "review-spec-001 is resolved: current evidence explicitly satisfies D1Q-02R3 with the retained Pi native receipt, while the historical ZCode failure remains preserved and is not reclassified as not_applicable.",
+    "The current evidence records actual in-root write/read, five attempted native denials with matching completions, sanitized environment keys, independent sink observations, and stopped writer boundaries.",
+    "The current task evidence marks D1Q-02R3 and spec_trace satisfied, and the task ledger records vnext-d1-host-enforcement-qualification as completed.",
+    "Current host admission and maintained Skill/compatibility documentation describe the exact qualified Pi identity and fail-closed unavailable behavior without claiming unsupported historical ZCode capability."
+  ],
+  "limitations": [
+    "No provider call was repeated; this disposition relies on the supplied retained Pi qualification receipt and current task evidence."
+  ]
+}

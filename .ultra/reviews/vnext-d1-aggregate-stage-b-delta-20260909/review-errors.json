@@ -1,0 +1,38 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-errors",
+  "axis": "engineering_standards",
+  "packet_digest": "668b52984a63bf2db186ddf7a029e277ba6ecd6363c5498ef6fe8283a0af3bec",
+  "admission_digest": "f0501be92275fd0714e3ddcb2893093013f3d1b253d4a33f282d56a482ac3b81",
+  "subject_digest": "5d8afb9598876443cbba9629bf9da476294a76c2af803aa5cb0002b29a94a89a",
+  "session": "vnext-d1-aggregate-stage-b-delta-20260909",
+  "timestamp": "2026-09-09T07:59:11.036667+00:00",
+  "scope": {
+    "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+    "range": "Stage B aggregate P1 repair delta against the retained D1 aggregate; current integrated source at bee8868 plus uncommitted Stage B",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "tests/delegate.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    "skills/ultra-delegate/scripts/delegate.cjs:536-554",
+    "skills/ultra-delegate/scripts/delegate.cjs:1293-1313",
+    "skills/ultra-delegate/scripts/delegate.cjs:1373-1381",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:632-646",
+    "tests/delegate.test.cjs:3290-3345",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json"
+  ],
+  "positive_observations": [
+    "Resolved review-errors-001: signalOutcome now treats only ESRCH as dead, EPERM as alive, and all other signal failures as unknown; outerWorkerView preserves those conservative states.",
+    "Current status and cancellation consumers release terminal authority, delete run.lock, and release the worktree fence only when both inner writerBoundaryState and outerWorkerView are proven stopped.",
+    "The focused regression covers EPERM and unsupported signal outcomes, asserting non-terminal status, cancellation without synthesized result, retained lock, retained fence, and preserved cancel signal; the ESRCH control still permits proven-stopped recovery."
+  ],
+  "limitations": [
+    "No providers were rerun and no tests were executed during this read-only review."
+  ]
+}

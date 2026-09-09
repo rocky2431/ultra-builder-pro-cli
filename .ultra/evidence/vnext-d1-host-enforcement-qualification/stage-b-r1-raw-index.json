@@ -1,0 +1,184 @@
+{
+  "attempt_id": "d1q02-r1-20260905t220538-5d954643",
+  "retained_at": "2026-09-05T22:24:55.047696+00:00",
+  "files": [
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/dispatch.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-dispatch.json",
+      "sha256": "f7275acb1864aea6898ecf26abc5360341fc2317793b34b766b8300942a425bf",
+      "byte_length": 4561
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/instruction.md",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-instruction.md",
+      "sha256": "3b1b49097987d37dc17168fbb196e16207a55ad61b509373caa4d813b902ad27",
+      "byte_length": 1583
+    },
+    {
+      "source_ref": ".ultra/.runtime/owner-factory-implementation-20260905/d1q02-r1-20260905t220538-5d954643-observation.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-observation.json",
+      "sha256": "0c82377930ca178477b3bf75d6c5c5bc72e8f5b612812cc9ee8908795c58215e",
+      "byte_length": 8562
+    },
+    {
+      "source_ref": ".ultra/.runtime/owner-factory-implementation-20260905/d1q02-r1-20260905t220538-5d954643-execute.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-execution.json",
+      "sha256": "9f1ef41db6268048afb7baa6d6bb4d23b22fbb90ceefe18291d7554439b40759",
+      "byte_length": 743
+    },
+    {
+      "source_ref": ".ultra/.runtime/owner-factory-implementation-20260905/d1q02-r1-20260905t220538-5d954643-execute.stdout.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-execution.stdout.log",
+      "sha256": "12b9c907a7d544e8d7316d87344754294630577f0f3a34681aab2a0ebf1970fa",
+      "byte_length": 705
+    },
+    {
+      "source_ref": ".ultra/.runtime/owner-factory-implementation-20260905/d1q02-r1-20260905t220538-5d954643-execute.stderr.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-execution.stderr.log",
+      "sha256": "003d833db0c2763e7c79baecc705ad7d27fcad0cca724bed84e2ac0c73596c25",
+      "byte_length": 296
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/final-host-env-keys.txt",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-final-host-env-keys.txt",
+      "sha256": "333f944478745292babc6766f28f08e39c6928838d406a8da22f46f899f14c8b",
+      "byte_length": 148
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/host-boundary-wrapper.sh",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-host-boundary-wrapper.sh",
+      "sha256": "2d60a183d4bd4c663b9e89231c9bc04150c80877bd96a28ef22bffc56ad2dd1d",
+      "byte_length": 273
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/worktree/tests/fixtures/d1q02-r1-20260905t220538-5d954643-allowed.txt",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-allowed.txt",
+      "sha256": "ce11b6564f979b81cf8b49e2d519187215e21e00699c8921b22421b17ac64a98",
+      "byte_length": 55
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/result.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-result.json",
+      "sha256": "ef73fdaa90f498abf755d470cc49ab6670e294a34a51ee0b405523673cebc563",
+      "byte_length": 2005
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/receipt.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-launch-receipt.json",
+      "sha256": "7b68104dfef642e315d8d62bd26b3716a1ecddd084a0c06e91b5a9e84da651f8",
+      "byte_length": 2531
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/worker-spec.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-worker-spec.json",
+      "sha256": "447487ed658ba7aca86ab6a22d0107d29b69aa184e3e86861c0948bf2c59313d",
+      "byte_length": 11599
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/writer.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-writer.json",
+      "sha256": "750e63da653bba6800dc5c47134692f57b23ff80b38c3bc0ae9277d3851152d9",
+      "byte_length": 422
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/events.jsonl",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-events.jsonl",
+      "sha256": "80e47a1243d7696535f349e8043b75a875e2d8837474b42edb5173eb9991f22d",
+      "byte_length": 4845
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/stdout.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/stderr.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0
+    },
+    {
+      "source_ref": ".ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/result-schema.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "byte_length": 1474
+    },
+    {
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-status.json",
+      "sha256": "36757bf78c5ad09a307a08d8f6af1a602924215fcc003919f18f85c2b33941b8",
+      "byte_length": 1919
+    },
+    {
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-process-observation.log",
+      "sha256": "2a3f23d516463802a07b61c42f1ac6f93aa0988dff3bc181009629315facf0d9",
+      "byte_length": 28
+    },
+    {
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-native-tool-projection.json",
+      "sha256": "d72cce7db6bbac6d9b04f6e9848fcf6b36acadae759c68f05ea41c366666deb0",
+      "byte_length": 22285
+    },
+    {
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-prepared-dispatch.json",
+      "sha256": "0b41573acf5dccc0fab7ddc3293ed39dfed34a72e3ac00cf3d8890e28a8e6f41",
+      "byte_length": 4070
+    },
+    {
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-instruction-prepared.md",
+      "sha256": "7225bd32411c6b0294632bebd3434054f4c9b3f4ec02f790031040659ec059b5",
+      "byte_length": 1595
+    },
+    {
+      "retained_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-r1-permission.json",
+      "sha256": "eba38c704f0177ed0403d7f2d71feda977bddabd915fe0802ea6b29f07007392",
+      "byte_length": 124
+    }
+  ],
+  "source_after": {
+    "skills/ultra-delegate/scripts/delegate.cjs": {
+      "sha256": "d29b2d0aad5815ec3da71b844bab2875f882dfb0f031078d91318590e0615639",
+      "unchanged": true
+    },
+    "skills/ultra-delegate/scripts/delegate-worker.cjs": {
+      "sha256": "a7ee8530346f2fb2d8868aba9c207edc5df730377e54c270fbfa8b143ffc8373",
+      "unchanged": true
+    },
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs": {
+      "sha256": "f564d8f4f7b15e5c95ed27df35d8f8daca7ad6839412cb814256335e0b598ed4",
+      "unchanged": true
+    },
+    "skills/ultra-delegate/scripts/acp-driver.cjs": {
+      "sha256": "2b54717dd0027c37f9427c90c37cb830358c0caeacff3b74e193517a220e9cc1",
+      "unchanged": true
+    },
+    "skills/ultra-delegate/scripts/cli-driver.cjs": {
+      "sha256": "d301ce7df4eb617a8f700bf8454cc9c70bb7d216e49517914ab22a34698f658b",
+      "unchanged": true
+    },
+    "skills/ultra-delegate/scripts/host-profile.cjs": {
+      "sha256": "0f330a88bb2441d445af326928ba08c2eeb2434a40c486994e85dcbd871a3681",
+      "unchanged": true
+    },
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/zcode-acp/target/debug/zcode-acp": {
+      "sha256": "ebc2932b0d1c6c78efe133aea68d1e6616615eed8e2c5c229a41f3ba81ca9eba",
+      "unchanged": true
+    },
+    "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs": {
+      "sha256": "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd",
+      "unchanged": true
+    },
+    "/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs": {
+      "sha256": "e9f1868c0fdb863537ed910ee3828b9be96b8c2fd805473f63b439e1113266b8",
+      "unchanged": true
+    },
+    "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/node_modules/acpx/package.json": {
+      "sha256": "365d2b9f3e260f03517e45cc7e207931644e91bfe7f66143d9aea47c95b64587",
+      "unchanged": true
+    }
+  },
+  "missing_runtime_artifacts": [
+    "host-result.json (not emitted after permission_denied)"
+  ],
+  "native_full_log_not_copied": "Only the whitelisted task projection is retained; full log may contain request headers or private model reasoning."
+}

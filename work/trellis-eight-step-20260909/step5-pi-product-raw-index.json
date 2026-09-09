@@ -1,0 +1,676 @@
+{
+  "archive": "work/trellis-eight-step-20260909/step5-pi-product-raw.tar.gz",
+  "archive_sha256": "59a8848a85635ed348e5cd623974138d117723129b19f40ee7572c42a94432d7",
+  "files": [
+    {
+      "path": "ubp-pi-product-RxNkvG/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/events.jsonl",
+      "byte_length": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/instruction.md",
+      "byte_length": 332,
+      "sha256": "6ed3f335f727abbd37f19ee72d2986cc959ffa84aa063abf3b2e03bc5ef031a1"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/permission.json",
+      "byte_length": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/pi-sessions/2026-09-09T07-25-57-496Z_01a0850f-2578-7635-820d-6148d327f79b.jsonl",
+      "byte_length": 9852,
+      "sha256": "621f2f58cae1e39520891d986f40c7ac0e1130c8d927e0293919931704054506"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/probe-dispatch.json",
+      "byte_length": 812,
+      "sha256": "d5eb318adb4cfc9154ea7c11bc25d7caf064c42183ee5f362283d2dd5682b177"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/probe-launch.json",
+      "byte_length": 2190,
+      "sha256": "1942209998f829517a3ef007046b00add137b34f79fd8f2543fd4ba230f12147"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/probe-observation.json",
+      "byte_length": 2497,
+      "sha256": "b146a2a1ffaae069037d297306dbc0e5c6b9dc10de4b15960cd64b5ec22a2602"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/receipt.json",
+      "byte_length": 2190,
+      "sha256": "1942209998f829517a3ef007046b00add137b34f79fd8f2543fd4ba230f12147"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/result-schema.json",
+      "byte_length": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/result.json",
+      "byte_length": 1768,
+      "sha256": "916d22950cc01fa5b104340168353fd07a1a386fb1cbf54eb79d4aa4c4e3e416"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/stderr.log",
+      "byte_length": 1073,
+      "sha256": "79539b0d7c668e691f5b8dd1b4c55d59fed9c5af428d0ccf3b666754d48adfdd"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/stdout.log",
+      "byte_length": 57569,
+      "sha256": "3738bade3ed1ab5b516a094580c9cdb67e08b61b890b71fe978b1b824c020518"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/worker-spec.json",
+      "byte_length": 7839,
+      "sha256": "12bf62071ce3912147f21c23d7fca6b2b8108d645f0c9a4479d64276f851105b"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/allowed/writer.json",
+      "byte_length": 419,
+      "sha256": "8d06b11000270a76db409e4fc969254eeaa83b01aadec00ba7e837831babfbf9"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/events.jsonl",
+      "byte_length": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/instruction.md",
+      "byte_length": 714,
+      "sha256": "2f99f257893a113c9fd4869c83100b54ab681c83c7dab8488be0ac833e8110cc"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/permission.json",
+      "byte_length": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/pi-sessions/2026-09-09T07-26-11-383Z_01a0850f-5bb7-71cd-bf03-0638172d751f.jsonl",
+      "byte_length": 13285,
+      "sha256": "143b2fe68834c2b4fedb21c71353e5e23e8f205c88a00af035ddb93899008be3"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/probe-dispatch.json",
+      "byte_length": 809,
+      "sha256": "e1bbc51471ce009899a04c1b0f705d011c90d23f95a0d4aed597395137ad666e"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/probe-launch.json",
+      "byte_length": 2185,
+      "sha256": "8b9b7e970544a4298f3c41f3948f43e5701ff7d41f20a3615c5697be33a7d630"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/probe-observation.json",
+      "byte_length": 2643,
+      "sha256": "975b318d5bc11411eed0cdbd39fee0d2b032cb64f781899b143398ade73a0d63"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/receipt.json",
+      "byte_length": 2185,
+      "sha256": "8b9b7e970544a4298f3c41f3948f43e5701ff7d41f20a3615c5697be33a7d630"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/result-schema.json",
+      "byte_length": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/result.json",
+      "byte_length": 1741,
+      "sha256": "00f149535e1d67f17fb456c5fb1903837b0a47436587afec5e0a300b5d895275"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/stderr.log",
+      "byte_length": 2056,
+      "sha256": "14d5484731155504861bf48bc0883f1784a18dda444882e2ee5785738d56559a"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/stdout.log",
+      "byte_length": 109187,
+      "sha256": "89d0e1e33bbe3a06436442291cc96903b63ca7b2dc0f6e23115723bfac29d45b"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/worker-spec.json",
+      "byte_length": 8202,
+      "sha256": "035dd3736495544fe46fe1973b5d216143f7bb5bfeeccff354ff763a0c5db6ab"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/delegations/denied/writer.json",
+      "byte_length": 418,
+      "sha256": "c9fcf987c04e2d263acdb9fa24db49ada8583cd5e38fb9f10e6b4a41717b1d84"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/worktrees/allowed/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/worktrees/allowed/src/allowed.txt",
+      "byte_length": 14,
+      "sha256": "6a523674d6580780e8b86c754daf5f36b4684a155ff55dd5f74b1ceac3085a99"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/worktrees/allowed/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/worktrees/denied/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/.ultra/.runtime/worktrees/denied/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source/acp-driver.cjs",
+      "byte_length": 31858,
+      "sha256": "8e5fb511f0b5834d6e1fcef998a6d3e14d64f3c2ae3d0e74ee199fcceb839059"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source/agent-execution-driver.cjs",
+      "byte_length": 45585,
+      "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source/cli-driver.cjs",
+      "byte_length": 5114,
+      "sha256": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source/delegate-worker.cjs",
+      "byte_length": 21760,
+      "sha256": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source/delegate.cjs",
+      "byte_length": 64356,
+      "sha256": "49d01d3c431b498fa8a5074fd9391925fdb0c9315842deed8bf5802ca51d8287"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source/host-profile.cjs",
+      "byte_length": 43766,
+      "sha256": "951068604c0a5dee609b29a35eefa735e06f1937f1d00d4eca0a5ddc7171c391"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source/pi-native-permissions.cjs",
+      "byte_length": 4086,
+      "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source/pi-native-runtime.cjs",
+      "byte_length": 8924,
+      "sha256": "b909205ee8f8e11d5a9134f73306fa6f967d740771b9b8396fac871fc93e37ff"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/source-digests.json",
+      "byte_length": 742,
+      "sha256": "b5379cc4e9fd40bb0add3791b95cf96e1c6d50c806712e83efea90c0815a1bf8"
+    },
+    {
+      "path": "ubp-pi-product-RxNkvG/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/events.jsonl",
+      "byte_length": 1073,
+      "sha256": "aac9837da7b82f5976f4e61d60b3043814137c5829d2adb4939c9fa60fc466d2"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/host-result.json",
+      "byte_length": 247,
+      "sha256": "43b2227865cee747db5c247fe5df32874583d5dfab9fa08db46e996235b31602"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/instruction.md",
+      "byte_length": 332,
+      "sha256": "6ed3f335f727abbd37f19ee72d2986cc959ffa84aa063abf3b2e03bc5ef031a1"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/permission.json",
+      "byte_length": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/pi-sessions/2026-09-09T07-27-09-228Z_01a08510-3dab-73c5-96e1-6d5e2c85f660.jsonl",
+      "byte_length": 9775,
+      "sha256": "453fa57cd0557668b0fd2d585ea69bba1f2d42b2402c1f38ed954e93d030dab3"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/probe-dispatch.json",
+      "byte_length": 812,
+      "sha256": "4b124cbe80050ec9c5e642a0f42a4e26565807a4abd4104aa660af2e1c852c19"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/probe-launch.json",
+      "byte_length": 2190,
+      "sha256": "3b4385422516bf91e9ac8dd43a5406d045772ff9c3d0a51f6f0b6d416ce50573"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/probe-observation.json",
+      "byte_length": 2665,
+      "sha256": "d89b20dff97c1b83728274a0dec8baaba7bbe9862aa99c08a3dbeb8676f66f29"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/receipt.json",
+      "byte_length": 2190,
+      "sha256": "3b4385422516bf91e9ac8dd43a5406d045772ff9c3d0a51f6f0b6d416ce50573"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/result-schema.json",
+      "byte_length": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/result.json",
+      "byte_length": 1922,
+      "sha256": "9595142e4f49f461ff1ed736255d79c26b2d3d4a77ebebe9eb2df3200fe63872"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/stderr.log",
+      "byte_length": 1073,
+      "sha256": "aac9837da7b82f5976f4e61d60b3043814137c5829d2adb4939c9fa60fc466d2"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/stdout.log",
+      "byte_length": 55023,
+      "sha256": "5cc261c00e1f14d59d4578f05703e0713ece2bb526e27e2ba931f02b5ab93962"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/worker-spec.json",
+      "byte_length": 7839,
+      "sha256": "3e22b12bd27d26993408daa9ee151b878239a8ada0c911076aa1623c2e84a0cd"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/allowed/writer.json",
+      "byte_length": 419,
+      "sha256": "bce2e0dda442d6dfb85b1d2f7573dca662ed88d208494f9652a06c29de2f262a"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/events.jsonl",
+      "byte_length": 2056,
+      "sha256": "78abf1f7d7bbcfa8a182b27732cf1ded5f956309a6069ec45deb519a3c19f5a5"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/instruction.md",
+      "byte_length": 714,
+      "sha256": "060a3df4383c1a77f9248f6f6da9e2cb36b316b76ff70359ed220c92bad873fb"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/permission.json",
+      "byte_length": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/pi-sessions/2026-09-09T07-27-25-069Z_01a08510-7b8c-72c1-ac89-85106baba1b3.jsonl",
+      "byte_length": 14651,
+      "sha256": "8baaa4dc0267d064bb2093842af85f59354f3d72ac77ad955c25754392755dda"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/probe-dispatch.json",
+      "byte_length": 809,
+      "sha256": "c5825da2ffeca399ff31f893578c743773ef068a3027c60ec2556a170c820f84"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/probe-launch.json",
+      "byte_length": 2185,
+      "sha256": "9f278b45a9d37b279ebeead2748e2571fa16fedd4c83016276419748eac5c04f"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/probe-observation.json",
+      "byte_length": 2831,
+      "sha256": "c13d04e962386699cf70aee35d42ef1b18b824c0ed3a2f4d7aba11fdf31054d2"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/receipt.json",
+      "byte_length": 2185,
+      "sha256": "9f278b45a9d37b279ebeead2748e2571fa16fedd4c83016276419748eac5c04f"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/result-schema.json",
+      "byte_length": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/result.json",
+      "byte_length": 1917,
+      "sha256": "7681ab0f97240a3803383a84a3911320b1bf0b399b5251bf0f0bb5c450530b86"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/stderr.log",
+      "byte_length": 2056,
+      "sha256": "78abf1f7d7bbcfa8a182b27732cf1ded5f956309a6069ec45deb519a3c19f5a5"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/stdout.log",
+      "byte_length": 111799,
+      "sha256": "0d66a5324e12c3c5e2e1016c157573385001791a5d80d08d0789344856563e9e"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/worker-spec.json",
+      "byte_length": 8202,
+      "sha256": "80e77b5b85cf13909e8aae0be4c3916dc9a1a990784e40c434702f0cd0ac8fb6"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/delegations/denied/writer.json",
+      "byte_length": 418,
+      "sha256": "7f1947ace03189b55d787f6150c021eea44df932651495fe4f3d5cf6d5b436c3"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/worktrees/allowed/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/worktrees/allowed/src/allowed.txt",
+      "byte_length": 14,
+      "sha256": "6a523674d6580780e8b86c754daf5f36b4684a155ff55dd5f74b1ceac3085a99"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/worktrees/allowed/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/worktrees/denied/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/.ultra/.runtime/worktrees/denied/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source/acp-driver.cjs",
+      "byte_length": 31858,
+      "sha256": "8e5fb511f0b5834d6e1fcef998a6d3e14d64f3c2ae3d0e74ee199fcceb839059"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source/agent-execution-driver.cjs",
+      "byte_length": 45585,
+      "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source/cli-driver.cjs",
+      "byte_length": 5114,
+      "sha256": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source/delegate-worker.cjs",
+      "byte_length": 21760,
+      "sha256": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source/delegate.cjs",
+      "byte_length": 64356,
+      "sha256": "49d01d3c431b498fa8a5074fd9391925fdb0c9315842deed8bf5802ca51d8287"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source/host-profile.cjs",
+      "byte_length": 43766,
+      "sha256": "951068604c0a5dee609b29a35eefa735e06f1937f1d00d4eca0a5ddc7171c391"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source/pi-native-permissions.cjs",
+      "byte_length": 4086,
+      "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source/pi-native-runtime.cjs",
+      "byte_length": 9101,
+      "sha256": "d1e2c0f9c99544907dd2391aeae4005e74f6efd987265706877a3c982b08c0ca"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/source-digests.json",
+      "byte_length": 742,
+      "sha256": "89d6ca5396cb10f2a0952a26197098707190088551361ea3a29e93c4fca362ef"
+    },
+    {
+      "path": "ubp-pi-product-QOBUV0/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/events.jsonl",
+      "byte_length": 1073,
+      "sha256": "c68c5f060090d59a70a7bd01f75d55f8ada001d1257bc6828d8fdeb3db29d2c2"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/host-result.json",
+      "byte_length": 244,
+      "sha256": "d64c2d2da71b571d986db5c139f81db2ab6d1f90db09e5fa277886b87ce93e3d"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/instruction.md",
+      "byte_length": 332,
+      "sha256": "6ed3f335f727abbd37f19ee72d2986cc959ffa84aa063abf3b2e03bc5ef031a1"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/permission.json",
+      "byte_length": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/pi-sessions/2026-09-09T07-29-07-551Z_01a08512-0bde-7193-b77b-560d148d2bfc.jsonl",
+      "byte_length": 9972,
+      "sha256": "4af4e4517b2d3688c1a58a06bf580f0b9bc237b433d1eab809607552e4d57f91"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/probe-dispatch.json",
+      "byte_length": 812,
+      "sha256": "3630b9b00f4219f53a4a9211f29b2dfdefc315d8771285fcd4acbb568cc6776e"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/probe-launch.json",
+      "byte_length": 2190,
+      "sha256": "3a7a222fe52bc450ddb8f5ef4a3737007fe68c1439708d338f09b3540526fe50"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/probe-observation.json",
+      "byte_length": 2662,
+      "sha256": "dc622bdcba264574387982a0c395fa897887c222df69f20f5fd032b4291aeb31"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/receipt.json",
+      "byte_length": 2190,
+      "sha256": "3a7a222fe52bc450ddb8f5ef4a3737007fe68c1439708d338f09b3540526fe50"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/result-schema.json",
+      "byte_length": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/result.json",
+      "byte_length": 1919,
+      "sha256": "3edbff858be37b8d78cc457a0c3893fec5b9c1d5df5a7d4b85b77a04fb2a98f3"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/stderr.log",
+      "byte_length": 1073,
+      "sha256": "c68c5f060090d59a70a7bd01f75d55f8ada001d1257bc6828d8fdeb3db29d2c2"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/stdout.log",
+      "byte_length": 55881,
+      "sha256": "963bd73418e15aa4c809fe3c01b8a65396ede5950fd760c028a189176e8f52b9"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/worker-spec.json",
+      "byte_length": 7839,
+      "sha256": "a09bb73e54e8c7329246f61fe827bec79c8a33a5d628b582736a1648b6b48a3a"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/allowed/writer.json",
+      "byte_length": 419,
+      "sha256": "5ca6fb75bc2c00721a73f19d0c1abaf3f44e83a0c05f4445e1a7e742f32a0197"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/events.jsonl",
+      "byte_length": 2056,
+      "sha256": "88fac7a40c71d107ec98c86cea2ad21e088e38a4f2e9a5be4b5809a0e2318a6f"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/instruction.md",
+      "byte_length": 714,
+      "sha256": "4e9aa12d7c0827550fdcde1eff9e37d6a8517a8ec22f680abf94473b1a71a1a4"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/permission.json",
+      "byte_length": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/pi-sessions/2026-09-09T07-29-24-340Z_01a08512-4d74-76f9-b2d8-6c50b53bca9f.jsonl",
+      "byte_length": 13980,
+      "sha256": "bb4fcde8096084709f4b615934f1dce00b54102307ea5ff6b92c6c8dfe01eb87"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/probe-dispatch.json",
+      "byte_length": 809,
+      "sha256": "67c2f6b68cde7c08e6daf5c5d8c271ebb6c79891ffea647d5daad3e2261e0b04"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/probe-launch.json",
+      "byte_length": 2185,
+      "sha256": "76ba54833da365792f62c5d9b8512eb4e5ad8ab64cdf433a8db996ca66389146"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/probe-observation.json",
+      "byte_length": 2831,
+      "sha256": "1224443e3a50be6ced5c4b7aec92e14fd5e2c686804434901a4806b4892e81ab"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/receipt.json",
+      "byte_length": 2185,
+      "sha256": "76ba54833da365792f62c5d9b8512eb4e5ad8ab64cdf433a8db996ca66389146"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/result-schema.json",
+      "byte_length": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/result.json",
+      "byte_length": 1917,
+      "sha256": "815d422627958f0d37a87c1ae1e0395da8a0fdd0e05dcbb7440357f44415bc8b"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/stderr.log",
+      "byte_length": 2056,
+      "sha256": "88fac7a40c71d107ec98c86cea2ad21e088e38a4f2e9a5be4b5809a0e2318a6f"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/stdout.log",
+      "byte_length": 104316,
+      "sha256": "e9235633aa645f9ec77a91aa8ec63112ab14d47fa650f14fc4f62811307cc41f"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/worker-spec.json",
+      "byte_length": 8202,
+      "sha256": "5d2bec59bdc0233300b5693c57c7ce966a0b0ad0198ef525e61b0b1e38dc0030"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/delegations/denied/writer.json",
+      "byte_length": 418,
+      "sha256": "fecddac7fdfc454aecef62de489ce592d3121a30115b984615f8685ec4a76ba6"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/worktrees/allowed/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/worktrees/allowed/src/allowed.txt",
+      "byte_length": 14,
+      "sha256": "6a523674d6580780e8b86c754daf5f36b4684a155ff55dd5f74b1ceac3085a99"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/worktrees/allowed/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/worktrees/denied/.gitignore",
+      "byte_length": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/.ultra/.runtime/worktrees/denied/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source/acp-driver.cjs",
+      "byte_length": 31858,
+      "sha256": "8e5fb511f0b5834d6e1fcef998a6d3e14d64f3c2ae3d0e74ee199fcceb839059"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source/agent-execution-driver.cjs",
+      "byte_length": 45585,
+      "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source/cli-driver.cjs",
+      "byte_length": 5114,
+      "sha256": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source/delegate-worker.cjs",
+      "byte_length": 21760,
+      "sha256": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source/delegate.cjs",
+      "byte_length": 64356,
+      "sha256": "49d01d3c431b498fa8a5074fd9391925fdb0c9315842deed8bf5802ca51d8287"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source/host-profile.cjs",
+      "byte_length": 43766,
+      "sha256": "951068604c0a5dee609b29a35eefa735e06f1937f1d00d4eca0a5ddc7171c391"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source/pi-native-permissions.cjs",
+      "byte_length": 4086,
+      "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source/pi-native-runtime.cjs",
+      "byte_length": 9210,
+      "sha256": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/source-digests.json",
+      "byte_length": 742,
+      "sha256": "89180b8b6b196eef479fe2edcaede0908c893090732b9b6a153ca820dfec6b9d"
+    },
+    {
+      "path": "ubp-pi-product-NcFFGD/src/base.txt",
+      "byte_length": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    }
+  ]
+}

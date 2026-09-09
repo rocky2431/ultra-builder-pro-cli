@@ -1,0 +1,131 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "packet_digest": "23958fcaf6f13dbd7cda421a52ce8154c7a7fb254cc424d85433b084c251068f",
+  "admission_digest": "90f9c36d4dac83878e4b2baf66ee0b103b99eb93c0ce549fc2c3f9177b7bfeb3",
+  "subject_digest": "6ef166289eef63e44606959559dcc670bd5710f7130f9d98649db5a53611019a",
+  "session": "vnext-d1-plan-review-20260901",
+  "timestamp": "2026-08-31T22:46:31Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-plan-v1",
+    "files_analyzed": [
+      ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      ".ultra/tasks.json",
+      "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md",
+      "work/vnext-step1-claude-architecture-discussion.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "authority",
+      "title": "The single-task grant cannot execute the accepted two-task D1 graph",
+      "file": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "line": 90,
+      "line_end": 95,
+      "trigger": "The runtime-safety predecessor reaches its mandatory formal task Review APPROVE before the host-enforcement task starts.",
+      "impact": "The grant expires at that first task Review and budgets only one initial ZCode implementation attempt, while the dependent host-enforcement task explicitly requires a fresh ZCode packet after predecessor Review. D1-AC03 and D1-AC05 therefore cannot be completed under the recorded authority.",
+      "evidence": "The grant allows task and aggregate Review but expires at formal task Review APPROVE and permits one initial ZCode attempt. The ledger has two sequential tasks, and task-vnext-d1-host-enforcement-qualification.md:149-152 requires the predecessor's current Review/evidence before building a fresh ZCode packet.",
+      "suggestion": "Either bind the grant and expiry to both named task ids through aggregate D1 Review, with one initial implementation attempt and Review per task plus the separate qualification call, or merge the work into one genuinely executable task and update the dependency/evidence plan.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-5",
+          "HC-6",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "authorization",
+      "title": "The env acceptance preserves canonical packet paths in the final Host",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 108,
+      "line_end": 108,
+      "trigger": "A final ACP or CLI Host starts under D1R-01's required common descendant environment.",
+      "impact": "The delegated Host still receives absolute instruction and permission artifact paths outside its isolated worktree. On a path without proven external-directory enforcement, the Worker can read or mutate the control artifacts whose isolation D1 is meant to establish, so the accepted least-authority boundary remains open.",
+      "evidence": "D1R-01 requires probe, worker, ACP and CLI descendants to retain all three UBP_DELEGATE packet variables. The current worker spec assigns UBP_DELEGATE_INSTRUCTION_FILE and UBP_DELEGATE_PERMISSION_FILE to canonical files beside the worktree, although the maintained architecture embeds their exact bytes in the prompt specifically so the Host need not access those paths.",
+      "suggestion": "Keep canonical packet paths launcher-local. Give the final Host only its worktree/cwd, embedded digest-bound prompt, and the selected Host's minimum runtime/auth inputs; update fixtures to use cwd or a test-only capture seam instead of requiring control-artifact path variables in the Host environment.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-04"
+        ],
+        "touches": [
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-003",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "recovery",
+      "title": "The recovery state still routes to an already completed Claude call",
+      "file": "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md",
+      "line": 66,
+      "line_end": 73,
+      "trigger": "A fresh coordinator resumes from the owner-readable Next action list.",
+      "impact": "Recovery can repeat the single-budget Claude Step 1 discussion or pause waiting for a terminal result that already exists, instead of consuming the current plan Review and dispatching the reviewed ZCode packet.",
+      "evidence": "The state still says to wait for the fresh Claude terminal result, but local delegation 061674da405c4fd582f198bb1d7cbff4 is terminal success with exit_code 0 and the two D1 task contexts plus this strict plan Review session already exist.",
+      "suggestion": "Record the terminal Claude receipt and verified dispositions in Current state, then make plan Review consumption and the first reviewed ZCode packet the next action.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-4"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md:8-117",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:1-167",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:1-167",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md:1-150",
+    ".ultra/tasks.json:375-398",
+    "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md:1-84",
+    "work/vnext-step1-claude-architecture-discussion.md:1-57",
+    "WORKER-PACKET.json and ADMISSION.json digest verification"
+  ],
+  "positive_observations": [
+    "The two-task decomposition keeps the offline shared-boundary repair separate from the sole external-observation checkpoint and does not pull Supervisor or wake work into D1.",
+    "The accepted decision distinguishes replaceable product Profiles from this repository's current ZCode-only implementation topology.",
+    "The planned recovery result reuses status failed plus launcher-side failure_type outcome_unknown instead of changing the model-facing result status enum."
+  ],
+  "limitations": [
+    "The retained Claude mission binds the predecessor decision digest 9818a805fa37cdc974dd3434bfcf8e1b79d3a8022adc361ce6c1bc38859025fd; the current decision digest is dfb2aa768c1f8770e5fef5835a067f96a9966f162fe6aa507799af3e9cd63b09 after the qualification-budget amendment, so that historical discussion is advisory rather than current alignment evidence.",
+    "This is a plan-mode review; no runtime implementation or live Host enforcement evidence exists in the frozen subject."
+  ]
+}

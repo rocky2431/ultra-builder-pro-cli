@@ -1,0 +1,53 @@
+{
+  "observed_at": "2026-09-05T23:35:52.304749+00:00",
+  "runs": [
+    {
+      "delegation_id": "6f427666c99c4a86804642a1c49f7d8f",
+      "status": "timeout",
+      "terminal": true,
+      "target": "kimi",
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T230504Z-6f427666c99c4a86804642a1c49f7d8f",
+      "execution_seconds": 1804.95,
+      "queue_wait_seconds": 0.0,
+      "created_at": "2026-09-05T23:05:04.658920+00:00",
+      "mission": "work/owner-factory-implementation-20260905/stage-b-kimi-launch-binding-mission.md",
+      "mission_sha256": "442929c3b8731d393baec5c7aeab8d7e09c4957bf3fae9e5d3b393225fc21c46",
+      "timeout_seconds": 1800,
+      "status_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-kimi-launch-binding-status.json",
+      "stop_reason": null,
+      "duration_seconds": 1805.014,
+      "execution_started_at": "2026-09-05T23:05:04.724951+00:00",
+      "receipt_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-kimi-launch-binding-receipt.json",
+      "receipt_sha256": "47ace0db1ab3dbde7fd3d4a5e30c9839b48a69d2aee7ce2257c033d2a6e243bd",
+      "error_counts": {
+        "rpc_errors": 569,
+        "tool_errors": 568,
+        "protocol_errors": 1
+      }
+    },
+    {
+      "delegation_id": "e2ee0fa454a84eb4875baeb2f610d674",
+      "status": "success",
+      "terminal": true,
+      "target": "zcode",
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T230504Z-e2ee0fa454a84eb4875baeb2f610d674",
+      "execution_seconds": 1424.286,
+      "queue_wait_seconds": 0.0,
+      "created_at": "2026-09-05T23:05:04.990521+00:00",
+      "mission": "work/owner-factory-implementation-20260905/stage-b-zcode-kimi-kit-mission.md",
+      "mission_sha256": "be010e5dbe866168acbb81a262df60f0be06450bf781c9b8c272842aa21d3414",
+      "timeout_seconds": 1800,
+      "status_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-zcode-kimi-kit-status.json",
+      "stop_reason": "end_turn",
+      "duration_seconds": 1424.349,
+      "execution_started_at": "2026-09-05T23:05:05.055461+00:00",
+      "receipt_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-zcode-kimi-kit-receipt.json",
+      "receipt_sha256": "a08814c1f3564a3af08cf6b4e0def065843e388c3946d379adc7a9b8b6ac1df0",
+      "error_counts": {
+        "rpc_errors": 0,
+        "tool_errors": 0,
+        "protocol_errors": 0
+      }
+    }
+  ]
+}

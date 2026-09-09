@@ -1,0 +1,729 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index bfadfbb..6419792 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2492,7 +2492,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "zcode-acp"
+-version = "0.1.0"
++version = "0.1.0+ultra.zcode.0.16.5.r1"
+ dependencies = [
+  "aes-gcm",
+  "agent-client-protocol",
+diff --git a/Cargo.toml b/Cargo.toml
+index f096b91..e91f538 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "zcode-acp"
+-version = "0.1.0"
++version = "0.1.0+ultra.zcode.0.16.5.r1"
+ edition = "2024"
+ description = "ACP adapter that bridges Buzz relay events to the ZCode CLI via its stdio app-server"
+ license = "Apache-2.0"
+diff --git a/src/acp_translator.rs b/src/acp_translator.rs
+index da3b99d..286b3ad 100644
+--- a/src/acp_translator.rs
++++ b/src/acp_translator.rs
+@@ -118,6 +118,7 @@ pub fn tool_updated_to_calls(
+     }
+ }
+ 
++#[derive(Debug)]
+ pub enum ToolEventTranslation {
+     New(ToolCall),
+     Update(ToolCallUpdate),
+@@ -140,12 +141,18 @@ fn tool_kind_for(name: &str) -> ToolKind {
+     }
+ }
+ 
+-/// Pull file paths out of a tool input for ACP `ToolCallLocation`s.
++/// Pull file paths out of a tool input for ACP `ToolCallLocation`s. ZCode's
++/// native file tools name their target `file_path`; other surfaces use
++/// `path`/`file`/`files`. Locations are the only path authority the ACP host
++/// consumes — it must not parse `raw_input` to recover them.
+ fn extract_locations(input: &Option<Value>) -> Vec<ToolCallLocation> {
+     let Some(v) = input else {
+         return vec![];
+     };
+     let mut out = vec![];
++    if let Some(path) = v.get("file_path").and_then(|p| p.as_str()) {
++        out.push(ToolCallLocation::new(path.to_string()));
++    }
+     if let Some(path) = v.get("path").and_then(|p| p.as_str()) {
+         out.push(ToolCallLocation::new(path.to_string()));
+     }
+@@ -179,12 +186,15 @@ fn tool_text_content(v: Option<&Value>) -> Vec<ToolCallContent> {
+ }
+ 
+ /// Convert a ZCode `permission.requested` payload into the data needed to ask
+-/// the ACP host via `session/requestPermission`.
++/// the ACP host via `session/requestPermission`. `locations` carries the same
++/// native file paths the tool-call updates expose, so a host enforces its
++/// writable-root boundary from locations without trusting `raw_input`.
+ pub struct AcpPermissionRequest {
+     pub tool_call_id: String,
+     pub title: String,
+     pub kind: ToolKind,
+-    pub raw_input: String,
++    pub raw_input: Option<Value>,
++    pub locations: Vec<ToolCallLocation>,
+     pub options: Vec<AcpPermissionOption>,
+ }
+ 
+@@ -201,11 +211,8 @@ pub fn permission_to_acp(payload: &PermissionPayload) -> AcpPermissionRequest {
+         tool_call_id: payload.tool_call_id.clone(),
+         title: tool_name.clone(),
+         kind: tool_kind_for(&tool_name),
+-        raw_input: payload
+-            .input
+-            .as_ref()
+-            .map(|v| v.to_string())
+-            .unwrap_or_default(),
++        raw_input: payload.input.clone(),
++        locations: extract_locations(&payload.input),
+         options: payload
+             .options
+             .iter()
+@@ -257,6 +264,53 @@ mod tests {
+         ));
+     }
+ 
++    #[test]
++    fn native_file_path_becomes_locations() {
++        let mut seen = std::collections::HashMap::new();
++        let scheduled = ToolUpdatedPayload {
++            tool_call_id: "c-edit".into(),
++            tool_name: Some("Edit".into()),
++            parent_tool_call_id: None,
++            description: None,
++            kind: ZToolKind::Scheduled,
++            input: Some(serde_json::json!({ "file_path": "/tmp/root/src/a.rs" })),
++            result: None,
++            error: None,
++            started_at: None,
++            completed_at: None,
++            stdout_tail: None,
++            stderr_tail: None,
++        };
++        match tool_updated_to_calls(&scheduled, &mut seen) {
++            ToolEventTranslation::New(call) => {
++                let locations = call.locations.as_slice();
++                assert_eq!(locations.len(), 1);
++                assert_eq!(locations[0].path.display().to_string(), "/tmp/root/src/a.rs");
++            }
++            other => panic!("expected new tool call, got {other:?}"),
++        }
++    }
++
++    #[test]
++    fn permission_request_carries_locations_and_raw_input() {
++        let payload = PermissionPayload {
++            request_id: None,
++            tool_call_id: "c-edit".into(),
++            tool_name: Some("Edit".into()),
++            risk_level: "medium".into(),
++            reason: "edit file".into(),
++            input: Some(serde_json::json!({ "file_path": "/tmp/root/src/a.rs" })),
++            options: vec![],
++        };
++        let acp = permission_to_acp(&payload);
++        assert_eq!(acp.locations.len(), 1);
++        assert_eq!(acp.locations[0].path.display().to_string(), "/tmp/root/src/a.rs");
++        assert_eq!(
++            acp.raw_input.as_ref().and_then(|v| v.get("file_path")),
++            Some(&serde_json::json!("/tmp/root/src/a.rs"))
++        );
++    }
++
+     #[test]
+     fn scheduled_then_result_emit_call_then_update() {
+         let mut seen = std::collections::HashMap::new();
+diff --git a/src/agent.rs b/src/agent.rs
+index 4e11f76..6563bad 100644
+--- a/src/agent.rs
++++ b/src/agent.rs
+@@ -11,7 +11,7 @@ use std::sync::Arc;
+ 
+ use acp::schema::{
+     AgentAuthCapabilities, AgentCapabilities, AuthMethod, AuthMethodAgent, CancelNotification,
+-    CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk, Implementation,
++    CloseSessionRequest, CloseSessionResponse, ContentBlock, Implementation,
+     InitializeRequest, InitializeResponse, ListSessionsResponse, LoadSessionRequest,
+     LoadSessionResponse, LogoutCapabilities, LogoutRequest, LogoutResponse, NewSessionRequest,
+     NewSessionResponse, PermissionOption, PermissionOptionId, PermissionOptionKind,
+@@ -430,7 +430,7 @@ impl ZcodeAgent {
+     async fn prompt(
+         self: Arc<Self>,
+         req: PromptRequest,
+-        cx: ConnectionTo<Client>,
++        _cx: ConnectionTo<Client>,
+     ) -> Result<PromptResponse> {
+         let session_id = req.session_id.clone();
+ 
+@@ -466,15 +466,20 @@ impl ZcodeAgent {
+             Ok(Ok(Ok(outcome))) => Ok(PromptResponse::new(map_stop_reason(outcome.stop_reason))),
+             Ok(Ok(Err(e))) => {
+                 tracing::warn!(?session_id, "turn failed: {e}");
+-                let stop = match e {
+-                    TurnError::Transport(_) => StopReason::Cancelled,
+-                    _ => StopReason::EndTurn,
+-                };
+-                let _ = cx.send_notification(acp::schema::SessionNotification::new(
+-                    session_id.clone(),
+-                    SessionUpdate::AgentMessageChunk(ContentChunk::new(format!("⚠️ {e}\n").into())),
+-                ));
+-                Ok(PromptResponse::new(stop))
++                match e {
++                    // A closed transport means the turn cannot complete; the
++                    // honest ACP terminal is cancelled, not a fake success.
++                    TurnError::Transport(_) => Ok(PromptResponse::new(StopReason::Cancelled)),
++                    // Native turn failures and RPC errors stay failures: the
++                    // prompt resolves through ACP error semantics instead of a
++                    // warning chunk plus a synthetic end_turn.
++                    TurnError::Failed(message) => {
++                        Err(Error::internal_error().data(format!("turn failed: {message}")))
++                    }
++                    TurnError::Rpc { code, message } => {
++                        Err(Error::internal_error().data(format!("rpc error {code}: {message}")))
++                    }
++                }
+             }
+             Ok(Err(_)) => Err(Error::internal_error().data("prompt channel closed")),
+             Err(_) => {
+@@ -666,12 +671,17 @@ fn handle_server_request(
+             let acp_req = acp_translator::permission_to_acp(&req);
+ 
+             let tool_call_id: ToolCallId = acp_req.tool_call_id.clone().into();
++            // Locations carry the native `file_path` so the host enforces its
++            // writable-root boundary from structured locations; `raw_input`
++            // stays a raw view, never path authority.
+             let tool_call_update = ToolCallUpdate::new(
+-                tool_call_id,
++                tool_call_id.clone(),
+                 ToolCallUpdateFields::new()
+                     .title(acp_req.title.clone())
+                     .kind(acp_req.kind)
+-                    .status(ToolCallStatus::Pending),
++                    .status(ToolCallStatus::Pending)
++                    .locations(acp_req.locations.clone())
++                    .raw_input(acp_req.raw_input.clone()),
+             );
+ 
+             // Build ACP permission options from ZCode's. ZCode pre-builds a
+@@ -701,31 +711,47 @@ fn handle_server_request(
+             // Capture the original ZCode options so the response handler can
+             // look up the pre-built `qg` for the chosen option id, then move
+             // `reply_tx` into the callback so it owns the answer delivery.
++            // A denial is also recorded as a failed tool-call update so the
++            // host sees it in the session stream; the turn itself continues,
++            // letting later probes in the same bounded turn be denied too.
+             let zcode_options = req.options.clone();
++            let record_cx = cx.clone();
++            let record_session = session_id.clone();
++            let record_title = acp_req.title.clone();
+             let result = cx.send_request(request).on_receiving_result(
+                 move |resp: std::result::Result<RequestPermissionResponse, Error>| async move {
+-                    let qg = match resp {
++                    let (qg, denied) = match resp {
+                         Ok(r) => match r.outcome {
+                             acp::schema::RequestPermissionOutcome::Selected(sel) => {
+                                 let opt_id = sel.option_id.to_string();
+-                                zcode_options
++                                let qg = zcode_options
+                                     .iter()
+                                     .find(|o| o.option_id == opt_id)
+                                     .map(|o| o.response.clone())
+                                     .unwrap_or_else(|| {
+                                         serde_json::json!({"decision":"deny","reason":"option not found"})
+-                                    })
++                                    });
++                                let denied = opt_id.starts_with("deny");
++                                (qg, denied)
+                             }
+                             acp::schema::RequestPermissionOutcome::Cancelled => {
+-                                serde_json::json!({"decision":"deny","reason":"cancelled"})
++                                (serde_json::json!({"decision":"deny","reason":"cancelled"}), true)
+                             }
+-                            _ => serde_json::json!({"decision":"deny","reason":"unknown outcome"}),
++                            _ => (serde_json::json!({"decision":"deny","reason":"unknown outcome"}), true),
+                         },
+                         Err(e) => {
+                             tracing::warn!("host denied permission request: {e:?}");
+-                            serde_json::json!({"decision":"deny","reason":"host unavailable"})
++                            (serde_json::json!({"decision":"deny","reason":"host unavailable"}), true)
+                         }
+                     };
++                    if denied {
++                        record_permission_denial(
++                            &record_cx,
++                            &record_session,
++                            &tool_call_id,
++                            &record_title,
++                        );
++                    }
+                     let _ = reply_tx.send(qg);
+                     Ok::<(), Error>(())
+                 },
+@@ -747,6 +773,31 @@ fn handle_server_request(
+     }
+ }
+ 
++/// Record a host-denied operation as a failed tool-call update so the denial
++/// stays visible in the ACP session stream. The underlying turn is not cut
++/// short here: later permission probes in the same bounded turn remain
++/// reachable, and the terminal stop reason keeps its own truth.
++fn record_permission_denial(
++    cx: &ConnectionTo<Client>,
++    session_id: &SessionId,
++    tool_call_id: &ToolCallId,
++    title: &str,
++) {
++    let content_block: ContentBlock = "denied by the ACP host".to_string().into();
++    let _ = cx.send_notification(acp::schema::SessionNotification::new(
++        session_id.clone(),
++        SessionUpdate::ToolCallUpdate(ToolCallUpdate::new(
++            tool_call_id.clone(),
++            ToolCallUpdateFields::new()
++                .title(title.to_string())
++                .status(ToolCallStatus::Failed)
++                .content(vec![acp::schema::ToolCallContent::Content(
++                    acp::schema::Content::new(content_block),
++                )]),
++        )),
++    ));
++}
++
+ /// Concatenate the text of every `ContentBlock::Text` in a prompt.
+ fn collect_prompt_text(blocks: &[ContentBlock]) -> String {
+     let mut out = String::new();
+diff --git a/src/zcode/mod.rs b/src/zcode/mod.rs
+index 7963959..fe634c1 100644
+--- a/src/zcode/mod.rs
++++ b/src/zcode/mod.rs
+@@ -266,6 +266,13 @@ impl DriverState {
+                 }
+             }
+             Some(Incoming::ServerRequest { id, method, params }) => {
++                if method == methods::SESSION_REQUEST_RUNTIME_PREFERENCES {
++                    let _ = self.write_tx.send(json!({
++                        "id": id,
++                        "result": default_runtime_preferences(),
++                    }));
++                    return;
++                }
+                 // The ACP layer answers via `reply_tx`; a side task writes the
+                 // reply back through `write_tx` echoing the wire id.
+                 let (reply_tx, reply_rx) = oneshot::channel();
+@@ -318,13 +325,21 @@ impl DriverState {
+                 }
+             }
+             "turn.completed" => {
+-                let text = ev.payload.as_ref().and_then(|p| {
+-                    serde_json::from_value::<protocol::TurnCompletedPayload>(p.clone())
+-                        .ok()
+-                        .and_then(|c| c.response)
++                let completed = ev.payload.as_ref().and_then(|p| {
++                    serde_json::from_value::<protocol::TurnCompletedPayload>(p.clone()).ok()
+                 });
++                let text = completed.as_ref().and_then(|c| c.response.clone());
++                // Only the native cancelled fact is reclassified; every other
++                // or absent resultType stays a normal end-of-turn.
++                let stop_reason = match completed
++                    .as_ref()
++                    .and_then(|c| c.result_type.as_deref())
++                {
++                    Some("cancelled") => protocol::StopReason::Cancelled,
++                    _ => protocol::StopReason::EndTurn,
++                };
+                 self.end_turn(Ok(TurnOutcome {
+-                    stop_reason: protocol::StopReason::EndTurn,
++                    stop_reason,
+                     final_text: text,
+                 }));
+             }
+@@ -373,6 +388,32 @@ impl DriverState {
+     }
+ }
+ 
++fn default_runtime_preferences() -> Value {
++    json!({
++        "nativeSearchEnhancementsEnabled": true,
++        "memoryEnabled": false,
++        "askUserQuestionAutoResolutionEnabled": true,
++        "modelContextBudgetStrategy": "preflight-v1",
++    })
++}
++
++fn bootstrap_server_request_response(id: RequestId, method: &str) -> Value {
++    if method == methods::SESSION_REQUEST_RUNTIME_PREFERENCES {
++        json!({
++            "id": id,
++            "result": default_runtime_preferences(),
++        })
++    } else {
++        json!({
++            "id": id,
++            "error": {
++                "code": -32601,
++                "message": format!("Unsupported app-server request: {method}"),
++            },
++        })
++    }
++}
++
+ /// Run the dispatcher: read framed messages, dispatch each into shared state.
+ async fn run_dispatcher(
+     state: Arc<Mutex<DriverState>>,
+@@ -647,6 +688,15 @@ pub async fn build_session(
+                     protocol::ResponseResult::Ok(v) => break v,
+                     protocol::ResponseResult::Err(e) => return Err(SessionError::CreateFailed(e)),
+                 },
++                Some(Incoming::ServerRequest {
++                    id: request_id,
++                    method,
++                    ..
++                }) => {
++                    write_tx
++                        .send(bootstrap_server_request_response(request_id, &method))
++                        .map_err(|e| SessionError::Send(e.to_string()))?;
++                }
+                 _ => continue,
+             },
+             None => return Err(SessionError::TransportClosed),
+diff --git a/src/zcode/protocol.rs b/src/zcode/protocol.rs
+index 71fa3e9..1dda0a1 100644
+--- a/src/zcode/protocol.rs
++++ b/src/zcode/protocol.rs
+@@ -138,6 +138,7 @@ impl IncomingMessage {
+ 
+ pub mod methods {
+     pub const SESSION_CREATE: &str = "session/create";
++    pub const SESSION_REQUEST_RUNTIME_PREFERENCES: &str = "session/requestRuntimePreferences";
+     pub const SESSION_RESUME: &str = "session/resume";
+     pub const SESSION_LIST: &str = "session/list";
+     pub const SESSION_SUBSCRIBE: &str = "session/subscribe";
+@@ -442,6 +443,11 @@ pub struct TurnStartedPayload {
+ pub struct TurnCompletedPayload {
+     #[serde(default)]
+     pub response: Option<String>,
++    /// Native terminal classification observed on `turn.completed`; the
++    /// local bundle sends `"cancelled"` for cancelled turns and omits it for
++    /// normal completion. Unknown values stay end-of-turn observations.
++    #[serde(default)]
++    pub result_type: Option<String>,
+     #[serde(default)]
+     pub token_count: Option<u64>,
+     #[serde(default)]
+diff --git a/tests/acp_client.py b/tests/acp_client.py
+index a407220..e674428 100644
+--- a/tests/acp_client.py
++++ b/tests/acp_client.py
+@@ -22,6 +22,7 @@ from __future__ import annotations
+ 
+ import json
+ import os
++import select
+ import subprocess
+ import sys
+ from pathlib import Path
+@@ -40,6 +41,9 @@ def send(proc: subprocess.Popen, obj: dict) -> None:
+ 
+ def read_message(proc: subprocess.Popen) -> dict:
+     assert proc.stdout is not None
++    readable, _, _ = select.select([proc.stdout], [], [], 5)
++    if not readable:
++        raise TimeoutError("agent did not emit an ACP message within 5 seconds")
+     raw = proc.stdout.readline()
+     if not raw:
+         raise EOFError("agent closed stdout")
+@@ -74,6 +78,7 @@ def main() -> int:
+         stdin=subprocess.PIPE,
+         stdout=subprocess.PIPE,
+         stderr=sys.stderr,  # surface shim logs inline for debugging
++        bufsize=0,
+     )
+ 
+     try:
+@@ -141,6 +146,110 @@ def main() -> int:
+         print(f"[ok] session/prompt -> stop={stop}, text={''.join(chunks)!r}")
+         print(f"[ok] streamed {len(tool_calls)} ToolCall(s) + {len(tool_updates)} update(s)")
+ 
++        # 3b. DENY-PROBES: a native file_path edit is scheduled, two
++        # permission probes both get rejected, each denial is recorded as a
++        # failed tool-call update, and the bounded turn still ends end_turn.
++        send(proc, {
++            "jsonrpc": "2.0", "id": 5, "method": "session/prompt",
++            "params": {
++                "sessionId": session_id,
++                "prompt": [{"type": "text", "text": "DENY-PROBES"}],
++            },
++        })
++        deny_tool_calls: list[dict] = []
++        deny_updates: list[dict] = []
++        permission_requests: list[dict] = []
++        deny_stop = None
++        while deny_stop is None:
++            msg = read_message(proc)
++            if msg.get("id") == 5:
++                if "error" in msg:
++                    raise RuntimeError(f"session/prompt error: {msg['error']}")
++                deny_stop = msg["result"]["stopReason"]
++                continue
++            method = msg.get("method", "")
++            if method == "session/update":
++                update = msg["params"]["update"]
++                kind = update.get("sessionUpdate")
++                if kind == "tool_call":
++                    deny_tool_calls.append(update)
++                elif kind == "tool_call_update":
++                    deny_updates.append(update)
++            elif method == "session/request_permission":
++                permission_requests.append(msg)
++                # Reject through the exact reject_once option the request
++                # offers; never synthesize an option id.
++                options = msg["params"]["options"]
++                reject = next(o for o in options if o["kind"] == "reject_once")
++                send(proc, {
++                    "jsonrpc": "2.0", "id": msg["id"],
++                    "result": {"outcome": {"outcome": "selected", "optionId": reject["optionId"]}},
++                })
++
++        assert len(permission_requests) == 2, (
++            f"expected two denial probes, got {len(permission_requests)}"
++        )
++        for request in permission_requests:
++            tool_call = request["params"]["toolCall"]
++            locations = tool_call.get("locations") or []
++            assert locations and locations[0]["path"] == "/tmp/root/outside.rs", (
++                f"permission probe missing native file_path location: {tool_call!r}"
++            )
++            kinds = {o["kind"] for o in request["params"]["options"]}
++            assert "reject_once" in kinds and "allow_once" in kinds
++        scheduled = [t for t in deny_tool_calls if t.get("locations")]
++        assert any(
++            t["locations"][0]["path"] == "/tmp/root/src/a.rs" for t in scheduled
++        ), f"scheduled edit missing file_path location: {deny_tool_calls!r}"
++        denied = [u for u in deny_updates if u.get("status") == "failed"]
++        # Each denial is recorded twice: once by the bridge ("denied by the
++        # ACP host") and once by the app-server's own tool error event.
++        bridge_denied = [
++            u for u in denied
++            if "denied by the ACP host" in json.dumps(u.get("content", []))
++        ]
++        assert len(bridge_denied) == 2, (
++            f"expected two bridge-recorded denials, got {len(bridge_denied)}: {deny_updates!r}"
++        )
++        assert len(denied) >= 2, f"denials missing from the session stream: {deny_updates!r}"
++        assert deny_stop == "end_turn", f"denial turn must stay terminal: {deny_stop!r}"
++        print("[ok] DENY-PROBES -> 2 probes rejected, 2 recorded denials, end_turn kept")
++
++        # 3c. NATIVE-CANCELLED: turn.completed carrying resultType "cancelled"
++        # must surface as ACP stopReason cancelled.
++        send(proc, {
++            "jsonrpc": "2.0", "id": 6, "method": "session/prompt",
++            "params": {
++                "sessionId": session_id,
++                "prompt": [{"type": "text", "text": "NATIVE-CANCELLED"}],
++            },
++        })
++        cancelled_stop = None
++        while cancelled_stop is None:
++            msg = read_message(proc)
++            if msg.get("id") == 6:
++                cancelled_stop = msg["result"]["stopReason"]
++        assert cancelled_stop == "cancelled", f"unexpected stopReason={cancelled_stop!r}"
++        print("[ok] NATIVE-CANCELLED -> stop=cancelled")
++
++        # 3d. NATIVE-FAILED: turn.failed must resolve session/prompt through
++        # ACP error semantics, never a synthetic end_turn.
++        send(proc, {
++            "jsonrpc": "2.0", "id": 7, "method": "session/prompt",
++            "params": {
++                "sessionId": session_id,
++                "prompt": [{"type": "text", "text": "NATIVE-FAILED"}],
++            },
++        })
++        failure = None
++        while failure is None:
++            msg = read_message(proc)
++            if msg.get("id") == 7:
++                failure = msg
++        assert "error" in failure, f"expected a JSON-RPC error, got {failure!r}"
++        assert "native turn failed" in failure["error"].get("data", ""), failure
++        print("[ok] NATIVE-FAILED -> prompt resolved through ACP error")
++
+         # 4. session/close (clean teardown)
+         send(proc, {
+             "jsonrpc": "2.0", "id": 4, "method": "session/close",
+diff --git a/tests/fake-app-server.cjs b/tests/fake-app-server.cjs
+index f6a5991..ba175fc 100644
+--- a/tests/fake-app-server.cjs
++++ b/tests/fake-app-server.cjs
+@@ -21,6 +21,10 @@ const rl = readline.createInterface({ input: process.stdin, terminal: false });
+ let sessionIdCounter = 0;
+ let activeSession = null;
+ let seqCounter = 0;
++let permSeq = 0;
++let pendingCreateId = null;
++let runtimePreferencesRequestId = null;
++const permissionWaiters = new Map();
+ 
+ function send(obj) {
+   process.stdout.write(JSON.stringify(obj) + "\n");
+@@ -30,6 +34,10 @@ function respond(id, result) {
+   send({ id, result });
+ }
+ 
++function request(id, method, params) {
++  send({ id, method, params });
++}
++
+ function event(sessionId, type, payload) {
+   // Server-pushed notification (no id).
+   send({
+@@ -45,6 +53,65 @@ function event(sessionId, type, payload) {
+   });
+ }
+ 
++// The DENY-PROBES scenario: a native edit is scheduled with a `file_path`,
++// the server probes permissions twice, both probes are denied by the host,
++// each denial is recorded, and the bounded turn still reaches its terminal.
++function sendPermissionProbe(sid, toolCallId) {
++  permSeq += 1;
++  const permId = `perm_${permSeq}`;
++  permissionWaiters.set(permId, (result) => {
++    const denied = !result || result.decision !== "allow";
++    if (!denied) {
++      event(sid, "turn.completed", { response: "unexpected allow", resultType: "success" });
++      return;
++    }
++    event(sid, "tool.updated", {
++      toolCallId,
++      toolName: "Edit",
++      kind: "error",
++      error: { message: "permission denied" },
++    });
++    if (permissionWaiters.size === 0 && permSeq < 2) {
++      // The turn stays alive after a recorded denial: the next probe runs.
++      event(sid, "tool.updated", {
++        toolCallId: "call_edit_2",
++        toolName: "Edit",
++        kind: "scheduled",
++        input: { file_path: "/tmp/root/src/b.rs" },
++      });
++      sendPermissionProbe(sid, "call_edit_2");
++      return;
++    }
++    event(sid, "turn.completed", {
++      response: "all probes denied",
++      resultType: "success",
++      usage: { totalTokens: 42 },
++    });
++  });
++  request(permId, "interaction/requestPermission", {
++    requestId: permId,
++    toolCallId,
++    toolName: "Edit",
++    riskLevel: "medium",
++    reason: "edit outside the granted root",
++    input: { file_path: "/tmp/root/outside.rs" },
++    options: [
++      { optionId: "allow-once", kind: "allow", name: "Allow", response: { decision: "allow" } },
++      { optionId: "deny-once", kind: "deny", name: "Deny", response: { decision: "deny" } },
++    ],
++  });
++}
++
++function denyProbesScenario(sid) {
++  event(sid, "tool.updated", {
++    toolCallId: "call_edit",
++    toolName: "Edit",
++    kind: "scheduled",
++    input: { file_path: "/tmp/root/src/a.rs" },
++  });
++  sendPermissionProbe(sid, "call_edit");
++}
++
+ function handle(line) {
+   let msg;
+   try {
+@@ -54,10 +121,45 @@ function handle(line) {
+     return;
+   }
+   const { id, method, params } = msg;
++  // The runtime-preferences handshake from the compatibility patch: the
++  // deferred session/create response depends on its validated reply.
++  if (!method && id === runtimePreferencesRequestId) {
++    const prefs = msg.result;
++    const valid = prefs
++      && prefs.nativeSearchEnhancementsEnabled === true
++      && prefs.memoryEnabled === false
++      && prefs.askUserQuestionAutoResolutionEnabled === true
++      && prefs.modelContextBudgetStrategy === "preflight-v1";
++    if (!valid) {
++      send({
++        id: pendingCreateId,
++        error: { code: -32602, message: "Invalid runtime preferences response" },
++      });
++    } else {
++      respond(pendingCreateId, { sessionId: activeSession });
++    }
++    pendingCreateId = null;
++    runtimePreferencesRequestId = null;
++    return;
++  }
++  // A reply to an outstanding interaction/requestPermission probe arrives as
++  // {id, result} with no method; the bridge sends the qg decision as result.
++  if (!method && id !== undefined && permissionWaiters.has(String(id))) {
++    const waiter = permissionWaiters.get(String(id));
++    permissionWaiters.delete(String(id));
++    waiter(msg.result);
++    return;
++  }
+   switch (method) {
+     case "session/create": {
+       activeSession = `sess_fake_${++sessionIdCounter}`;
+-      respond(id, { sessionId: activeSession });
++      pendingCreateId = id;
++      runtimePreferencesRequestId = "server-runtime-preferences-1";
++      send({
++        id: runtimePreferencesRequestId,
++        method: "session/requestRuntimePreferences",
++        params: { sessionId: activeSession, scope: "runtime-materialization" },
++      });
+       break;
+     }
+     case "session/subscribe": {
+@@ -66,6 +168,29 @@ function handle(line) {
+     }
+     case "session/send": {
+       respond(id, { sessionId: activeSession, accepted: true, stateRevision: 1 });
++      const content = String(params && params.content ? params.content : "");
++      if (content.includes("DENY-PROBES")) {
++        setTimeout(() => denyProbesScenario(activeSession), 50);
++        break;
++      }
++      // Native cancelled terminal: the local bundle sends turn.completed with
++      // resultType "cancelled"; the bridge must surface ACP cancelled.
++      if (content.includes("NATIVE-CANCELLED")) {
++        setTimeout(() => {
++          event(activeSession, "turn.completed", { resultType: "cancelled" });
++        }, 50);
++        break;
++      }
++      // Native failure terminal: turn.failed must resolve session/prompt
++      // through ACP error semantics, never a synthetic end_turn.
++      if (content.includes("NATIVE-FAILED")) {
++        setTimeout(() => {
++          event(activeSession, "turn.failed", {
++            error: { message: "native turn failed" },
++          });
++        }, 50);
++        break;
++      }
+       // Stream a reply asynchronously, mirroring the real app-server's event
+       // sequence: model.streaming text deltas (kind = text_delta), then a
+       // tool.updated schedule/result pair, then turn.completed with the real

@@ -1,0 +1,97 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "packet_digest": "f2780051c8682ab43caffddd685db0ee49ab902b0bee5e80f35ab10e7bad2b48",
+  "admission_digest": "305abd7f7b8b9033d896af1fd4f77346fde6df13ec5dd0e8e75b60147df7304a",
+  "subject_digest": "e2c4aeb30459fa298747378c8296ac0c40fe7941fb6fad394c8546faba00972c",
+  "session": "vnext-d1-host-enforcement-initial-review-20260901",
+  "timestamp": "2026-09-01T15:52:08Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-candidate",
+    "files_analyzed": [
+      ".ultra/specs/product.md",
+      ".ultra/specs/architecture.md",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "tests/delegate.test.cjs",
+      "tests/v026-contract.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "authorization",
+      "title": "Effectful identity probes run before the fail-closed Host gate",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 905,
+      "line_end": 950,
+      "trigger": "A caller invokes the ordinary ACP-first ZCode route without forcing the CLI transport.",
+      "impact": "Driver selection may execute the adapter and App runtime version probes before the retained qualification rejects the Packet, so unqualified Host-side code runs outside the claimed pre-launch effect boundary and D1-AC03/D1Q-01 are not satisfied.",
+      "evidence": "run calls chooseExecutionDriver at lines 905-910 and only calls enforcementAdmission at lines 943-950. The production selector executes every identity probe with spawnSync before returning, while the new prose at lines 937-942 and product.md lines 114-121 says no Host process exists before admission.",
+      "suggestion": "Make the unavailable qualification decision before any executable identity probe, or split driver selection into a pure transport choice followed by admission and then attestation. Keep the decision capability-driven and do not add a provider-brand branch.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-2", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-1", "HC-3", "HC-4", "HC-7"]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "delivery",
+      "title": "The required full release gate is red after the spec update",
+      "file": ".ultra/specs/product.md",
+      "line": 108,
+      "line_end": 128,
+      "trigger": "The mandatory npm run verify:release gate validates the canonical research-distillate source bindings after the Task 2 product and architecture specs change.",
+      "impact": "The gate exits 1 because research-distillate.md still binds the dispatch-time Git blobs, so D1Q-05 and the task's definition of done are unmet even though the focused suite passes.",
+      "evidence": "The independent full run reported 708/710 with .ultra/specs/product.md actual blob d69182afca8e25e8213e9171b3fe23ac285e1e52 versus expected 776bdc8136d54825248573e52729678649fddd7c; architecture has the analogous stale row identified by the writer. research-distillate.md was frozen outside the initial twelve-path packet.",
+      "suggestion": "Record a Plan disposition that adds only .ultra/specs/research-distillate.md to the repair inventory, refresh its two exact source blob rows through the sole ZCode writer, and rerun the full release gate.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-6"],
+        "serves": ["NS-02", "NS-03", "NS-05"],
+        "touches": ["HC-4", "HC-5", "HC-6"]
+      }
+    },
+    {
+      "id": "review-spec-003",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "interface_contract",
+      "title": "The public process boundary does not return the promised typed diagnostic",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 1331,
+      "line_end": 1345,
+      "trigger": "An installed Skill or the ubp delegate compatibility command hits host_enforcement_unavailable through its normal CLI process boundary.",
+      "impact": "Callers receive exit 1 plus human prose but no stable code or typed admission object, so an automated Supervisor cannot distinguish this safety gate from unrelated launch failures without parsing English text.",
+      "evidence": "HostEnforcementUnavailableError carries code and admission in memory, but main's catch writes only error.message. The test obtains the typed fields by requiring run inside a custom node -e wrapper rather than exercising either public CLI entry point.",
+      "suggestion": "Preserve the bounded human message but emit one stable machine-readable diagnostic carrying the error code and redacted admission at both direct Skill and ubp delegate process boundaries, then test those exact entry points.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-5"],
+        "serves": ["NS-02", "NS-04"],
+        "touches": ["HC-1", "HC-4", "HC-5"]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "skills/ultra-delegate/scripts/delegate.cjs:905",
+    "skills/ultra-delegate/scripts/delegate.cjs:943",
+    "skills/ultra-delegate/scripts/delegate.cjs:1331",
+    ".ultra/specs/product.md:108",
+    "npm run verify:release: 708 passed, 2 failed, exit 1"
+  ],
+  "positive_observations": [
+    "The retained external receipt is conservative: the denied in-root edit is unsupported and all unattempted later dimensions remain unobserved rather than inferred from zero side effects.",
+    "Once reached, the new admission rejects both ZCode transports before fence acquisition and does not silently fall back or promote experimental maturity."
+  ],
+  "limitations": [
+    "A second full-gate failure is outside this Task 2 diff: the completed Task 1 evidence recorded one extra newline in its Acceptance-section hash and requires an explicit coordinator-owned reopen rather than an in-place rewrite."
+  ]
+}

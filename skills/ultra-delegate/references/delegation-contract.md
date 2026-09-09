@@ -5,13 +5,46 @@
 The loaded `ultra-delegate` Skill owns `scripts/delegate.cjs`,
 `scripts/delegate-worker.cjs`, `scripts/host-profile.cjs`,
 `scripts/agent-execution-driver.cjs`, `scripts/acp-driver.cjs`,
-`scripts/cli-driver.cjs`, `scripts/acp-conformance.cjs`, and its launch-only profiles.
+`scripts/cli-driver.cjs`, `scripts/pi-native-runtime.cjs`,
+`scripts/pi-native-permissions.cjs`, `scripts/acp-conformance.cjs`, and its launch-only profiles.
 Invoke the launcher with the loaded Skill's absolute path. It has no package-root or
-global `ubp` dependency. The Claude and Codex profiles separately invoke exact pinned
-ACP adapter packages through `npx`; no `npx` lookup is used to locate Ultra itself.
+global `ubp` dependency. The Codex profile invokes its exact pinned ACP adapter
+package through `npx`; the Claude profile prefers the managed agent-delegation
+registry's preinstalled adapter (with the registry's `CLAUDE_CODE_EXECUTABLE` native
+binding injected by the launcher, overridable through `ULTRA_CLAUDE_ACP_COMMAND`) and
+keeps the pinned `npx` route only without a healthy registry binding; no `npx` lookup
+is used to locate Ultra itself.
 The package `ubp delegate` command is a thin
 one-release compatibility import of the same functions; it contains no launcher or
-worker behavior of its own.
+worker behavior of its own. The Claude registry route is bound by one
+resolution per launch: adapter argv, identity probes, the declared native
+runtime file, and the injected `CLAUDE_CODE_EXECUTABLE` all come from the
+same selection, so an ordinary registry update between selection and launch
+keeps executing the originally bound files or refuses typed, never a mix.
+A retained positive Claude qualification additionally binds, beyond the
+generic adapter/runtime/entry/ACPX-package fingerprints, the actual native
+permission configuration at the execution root
+(`.claude/settings.json` and `.claude/settings.local.json`, digested as one
+composite by `claudeNativeSettingsObservation`) and the Claude SDK package
+the adapter resolves (`resolveClaudeSdkPackage`); a worktree with missing or
+changed native policy, or a changed SDK package inside the same
+adapter/native versions, does not inherit the qualified result.
+
+The experimental Pi 0.85.1 target uses the installed native JSON CLI through the
+same worker and result contract. It requires `--ack-experimental` and an exact
+retained enforcement qualification; a changed runtime or policy refuses before
+launch. The verified-local receipt is identified in the profile. This execution
+target does not add a Pi plugin installer.
+The launcher binds the installed Node/Pi runtime, permission source, tool module,
+and immutable permission envelope again immediately before spawning. Its explicit
+extension restores all eight actual native tool definitions after registering the
+shared Ultra permission decision; Bash remains available for attempted calls and
+is mechanically denied under the no-external-effects envelope. A network request
+through Bash remains an `execute` event, never a fabricated `fetch` event. Native
+completion and every tool decision must reconcile before the final assistant JSON
+can become a result. Expected denied effects produce `permission_denied`, not a
+successful deliverable. Earlier messages and process exit zero cannot substitute
+for the final native terminal.
 
 ## Permission
 
@@ -85,16 +118,42 @@ and timeout recovery results.
 They also record `execution_driver`, `driver_fallback_reason`, and the probed
 `acp_capability`, including candidate-identity validity when the profile declares
 bounded local version probes. ACP results add negotiated `acp_protocol_version`, observed
-`acp_stop_reason`, and `events_file`. These are mechanical observations only. In
+`acp_stop_reason`, and `events_file`. `acp_protocol_version` is the entry's observed
+negotiation report — the version the pinned runtime persisted on the public session
+record from the initialization result — and nothing else: a typed result line, whatever
+terminal status it carries, never turns it into 1, and an initialization that persisted
+no session record (for example an authentication failure at session creation) stays
+unobserved (`null`). These are mechanical observations only. In
 particular, `stopReason: end_turn`, a completed tool call, an ACP plan, or process exit
 cannot synthesize the exact model response above or satisfy its Git-diff validation.
 
 ## ACP v1 permission and event boundary
 
-The stdio client advertises no client filesystem, terminal, or terminal-auth
-capability. It creates one fresh session with the isolated worktree as absolute `cwd`,
-an empty MCP-server list, and one digest-bound text prompt. Agent-side file tools remain
-inside the Host process and the existing worktree/diff enforcement remains final.
+The generic stdio engine is the installed public agent-delegation entry (pinned ACPX
+runtime): the entry is resolved from the explicit `ULTRA_DELEGATE_ACPX_ENTRY`
+override, then the managed installer's `acpx_delegate_entry` registry binding in
+`~/.config/agent-delegation/config.json`, then the legacy fixed install root; an
+invalid override or a present-but-broken registry binding fails closed rather than
+substituting another runtime. Ultra launches it with the sanitized descendant
+environment, the entry starts
+the Host inside its process group, and Ultra never ships a second protocol
+implementation. The pinned runtime advertises client filesystem and terminal
+capabilities as present, but the entry hard-requires `deny-all`, so every client-side
+`fs/read_text_file`, `fs/write_text_file`, and `terminal/create` is denied at the
+client; the effective client surface equals the previous no-fs/no-terminal
+advertisement. Native Host tools route through the raw `session/request_permission`
+callback below. The engine creates one fresh session with the isolated worktree as
+absolute `cwd`, an empty MCP-server list, and one digest-bound text prompt. Before that
+prompt, the entry verifies the actual negotiation through the pinned runtime's public
+session record: unless stable protocol v1 was observed there, it refuses the turn with a
+typed `unsupported_protocol_version` failure carrying the structured `ensure_session`
+phase. The pinned manager creates the agent session before that record is persisted, so
+an unproven or unsupported session may already exist at refusal, but no prompt, tool
+call, or model turn is ever submitted on it, and the refusal's observed version (when
+one was observed) is what `acp_protocol_version` reports. Agent-side
+file tools remain inside the Host process and the existing worktree/diff enforcement
+remains final. When the entry is absent or unreadable, driver selection reports the
+typed `acp_entry_unavailable` CLI fallback instead of launching an ACP worker.
 
 ACP `session/request_permission` uses least authority:
 
@@ -107,12 +166,13 @@ ACP `session/request_permission` uses least authority:
 - `allow_always` is never selected; cancellation answers any pending permission request
   with ACP's `cancelled` outcome.
 
-An agent may send creation-time `available_commands_update`, `current_mode_update`,
-`config_option_update`, or `session_info_update` before the `session/new` response.
-Ultra holds at most 32 such messages and 256 KiB transiently, persists no raw payload,
-and replays them only after every message session ID equals the returned session ID.
-Any other early update kind, identity mismatch, count overflow, or byte overflow is a
-typed failure; pre-session buffering cannot contribute model result text.
+Creation-time session metadata before the `session/new` response is routed by the
+installed public entry, not by Ultra: the pinned runtime buffers and folds session
+updates per connection owner and turn without comparing a per-message session ID, and
+Ultra's driver consumes the entry's public events, which carry no session ID. Ultra
+applies no early-session buffering, replay, or session-identity validation of its
+own; the absence of the retired engine's per-message session-ID equality check is a
+limitation of that public connection routing, not an Ultra guarantee.
 
 `events.jsonl` is bounded disposable telemetry. It stores phase/update type, tool kind
 and status, counts, permission decision/scope, and terminal stop reason. It drops
@@ -138,6 +198,36 @@ unsupported, or version-mismatched dimension produces one typed
 back silently to another transport or Host, and names each failing dimension with its
 observed status and the retained evidence binding.
 
+A qualified identity that string-matches the declared candidate is also bound to the
+observed execution bytes: selection digests the actual adapter executable, the native
+runtime file, the resolved public ACPX entry, and the name/version/package.json
+SHA-256 of the public SDK package that entry loads — resolved exactly as Node resolves
+it from the entry's real path — and compares them with the
+retained fingerprints. For such a bound route the candidate argv is built over the
+exact resolved runtime path, and the binding retains the resolved adapter and runtime
+paths beside the content digests. A positive record without that binding, an
+unreadable file, or
+drifted content fails closed through the typed candidate-identity seam before any
+launch artifact; the verified resolution travels digest-bound in the worker spec and
+is rechecked at launch, where the bound adapter path launches directly (never
+re-resolved against the worker's PATH or cwd) and every qualified component — adapter,
+runtime, entry, and SDK package — must still match at the bound paths; changed or
+unprovable content refuses with
+`acp_execution_identity_mismatch`. Paths may relocate between qualification and
+selection; only the selection-retained paths and content identity bind a launch. Every
+launcher ACP selection must carry the launch-bound public entry it resolved, and a
+string-matching qualified route must carry the verified execution identity; a
+selection without the required binding — for example a command/args override chooser —
+is refused at the launcher before the fence, the worker spec, or any Host process. The
+conformance harness stays the explicit no-record bootstrap: it binds the public entry
+it resolved and cannot masquerade as a qualified route.
+This covers the entry file plus SDK package identity — not a whole-`node_modules`
+attestation and not a defense against a malicious OS writer. The same admission also
+governs the one pre-session authentication fallback: `cli_fallback` enters the worker
+spec only when the CLI transport itself is admitted against the Packet's required
+dimensions, so an ACP-only qualification binds no fallback and the typed ACP failure
+stands alone with no CLI process.
+
 The retained ZCode 0.16.5 ACP qualification observed `writable_scope` unsupported —
 edit requests carried no provable location, so the product denied them as
 `outside_envelope` before any write — and every later effect dimension unobserved, so
@@ -153,13 +243,27 @@ retained under `.ultra/evidence/vnext-d1-host-enforcement-qualification/`.
 
 - `status` distinguishes running, cancelling, stalled, and terminal artifacts.
 - ACP status may also expose the latest redacted derived event; it remains non-authoritative.
+- Denied permission requests stay recorded while the bounded turn continues toward later
+  probes; the driver's terminal stays `permission_denied` when any denial occurred.
+- Raw entry traffic is never persisted: `stdout.log` stays empty, and safe observations
+  exist only as derived events, the typed result, and `host_output`.
 - `cancel` writes `cancel.request`; the worker terminates its host process, publishes a
   failed result with `failure_type: cancelled`, and removes `run.lock`.
 - `--timeout` does the same with `failure_type: timeout`.
 - `ULTRA_DELEGATE_FORCE_CLI=1` bypasses ACP selection for one operator-controlled run
   and records `acp_forced_cli`; it does not mutate the conformance record.
-- `acp_auth_required` reported by `session/new` before any prompt was sent runs the
-  immutable bounded CLI fallback once and records `acp_fallback.prompt_sent: false`.
-  No other ACP failure is retried, preventing duplicate provider work.
+- `acp_auth_required` runs the immutable bounded CLI fallback once and records
+  `acp_fallback.prompt_sent: false` only when the entry's failed result carries the
+  structured `ensure_session` phase — the pre-prompt proof that `startTurn` was never
+  called — and only when the destination CLI transport was itself admitted through
+  the same Packet admission (an ACP-only qualification binds no fallback, so the
+  typed ACP failure stands alone and no CLI process starts). An auth-shaped failure
+  arriving at any later phase keeps its typed result,
+  never starts the CLI, and records no `prompt_sent` claim. No other ACP failure is
+  retried, preventing duplicate provider work.
 - A stopped worker with no result is recoverable through `cancel`, which finalizes the
   stale run. Retry under a new delegation id and fresh digests.
+- Liveness proofs are conservative at every seam: only the kernel's `ESRCH` proves a
+  pid dead. `EPERM` means the target exists but is not signalable by the observer and
+  stays alive; any other signal outcome is unprovable and stays unknown. Neither may
+  synthesize a terminal, delete `run.lock`, or release the worktree fence.

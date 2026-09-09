@@ -232,6 +232,7 @@ not write its own receipt. Nonzero exit cannot become `finished`.
 | Kimi | prompt mode with launch-only read/write file-tool agent profile; no Bash, web, MCP or subagents | native file tools do not expose a portable per-root CLI policy |
 | Grok | single turn; read-only or workspace OS sandbox; no memory/subagents/web | sandbox profile semantics remain Grok-owned |
 | ZCode | source-pinned `zcode-acp` bridge over the installed App-internal runtime; headless plan/edit compatibility profile remains result-compatible | **experimental** transport (verified-local only): launch requires `--ack-experimental`; the retained host enforcement qualification refuses both transports before launch for every delegation Packet; current model configuration belongs in the ZCode UI or `~/.zcode/v2/config.json`; no public runtime stability contract exists; a delegation receipt can never upgrade into a primary transfer |
+| Pi | Installed native JSON CLI through the same worker; explicit pre-effect extension restores all eight actual native tools and reuses the shared permission decision | **experimental**, exact local 0.85.1 qualification only; runtime/package/launcher bytes and permission config rechecked before launch; native terminal and one-to-one decision/completion observations required; Bash network requests remain execute events |
 
 Therefore the current portable launcher accepts an empty `external_effects` list, removes shell, web and subagent
 tools where native surfaces permit, and combines native isolation with a verified Git

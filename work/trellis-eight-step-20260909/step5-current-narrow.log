@@ -1,0 +1,387 @@
+✔ ACP conformance exercises the real delegation path with a sanitized Host environment and retains only redacted facts (1127.130875ms)
+✔ ACP conformance receipts classify failure types without inventing diagnostics (2008.430833ms)
+✔ ACP conformance consumes the literal outcome_unknown branch without provider content (3440.57525ms)
+✔ worker exit observation accepts only ESRCH-proven death (102.96375ms)
+✔ ACP drives one absolute-cwd turn through the public entry, streams derived events, and emits the existing result input (123.372417ms)
+✔ ACP records a nonzero adapter exit during client-owned shutdown without overturning a completed turn (105.915042ms)
+✔ ACP permission policy selects allow_once only for writes already inside the immutable envelope (108.913375ms)
+✔ ACP envelope widening is denied and cannot be converted into a successful Ultra result (109.394166ms)
+✔ denied operations stay recorded while the bounded turn continues to later denial probes (109.662ms)
+✔ ACP cancelled reaches terminal transport state and kills the process group (107.240791ms)
+✔ ACP timeout reaches terminal transport state and kills the process group (1008.256667ms)
+✔ ACP malformed produces typed protocol failure acp_turn_failed (151.271416ms)
+✔ ACP invalid-response-shape produces typed protocol failure acp_turn_failed (115.332458ms)
+✔ ACP wrong-version produces typed protocol failure acp_turn_failed (107.534958ms)
+✔ ACP auth-required produces typed protocol failure acp_auth_required (109.623917ms)
+✔ ACP malformed-update produces typed protocol failure acp_turn_failed (111.981166ms)
+✔ ACP event-flood produces typed protocol failure acp_event_limit (108.584ms)
+✔ ACP early-exit produces typed protocol failure acp_turn_failed (60.234167ms)
+✖ the real public entry refuses an unsupported negotiation before any prompt is submitted (32.433875ms)
+✔ ACP stopReason remains transport observation and does not synthesize an Ultra result (110.359042ms)
+✔ runtime-shaped session metadata is journaled as stable update events (106.082958ms)
+✔ driver selection prefers only executable, stdio, ACP v1 candidates with passed per-Host conformance (0.816458ms)
+✔ all six Hosts expose the exact pinned or native stable ACP v1 stdio command (0.352916ms)
+✔ ZCode bridge source binds the 0.16.5 compatibility patch by path and digest (13.6825ms)
+✔ candidate identity requires exact bridge and runtime markers without starting a provider (1.61475ms)
+✔ Windows process termination kills the descendant tree and falls back to the direct child (0.305166ms)
+✔ each shipped Host selects ACP only from its own current conformance row (2.362333ms)
+✔ the claude ACP route consumes the managed registry preinstalled adapter or fails closed (2.51125ms)
+✔ the claude installed route exposes a probed identity and keeps the adapter override inside the delegation env (2.038792ms)
+✔ the production claude native permission settings carry the native-valid schema the adapter reads (0.085209ms)
+✔ one claude selection binds adapter, argv, native file, and launcher env against a registry update (1.812916ms)
+✔ a qualified claude record additionally binds the native settings and claude SDK package it relies on (7.620167ms)
+✔ the retained enforcement qualification is bound to the exact redacted receipt it cites (0.577458ms)
+✔ packet admission compares required enforcement dimensions with exact Host facts before launch (0.501625ms)
+✔ missing, unknown and version-mismatched enforcement dimensions fail closed before launch (0.126209ms)
+✔ the repaired bridge marker is distinct and candidate selection rejects the installed unqualified build (0.285375ms)
+✔ selection consumes the observed execution identity a string-matching qualification binds (2.118583ms)
+✔ a qualified claude record byte-binds the registry native file, not the PATH CLI spelling (3.97075ms)
+✔ same-version drift of the actual adapter, runtime, entry, or SDK package fails closed at selection (12.537667ms)
+✔ a string-matching record without the full fingerprint binding fails closed at selection (2.702083ms)
+✔ a version-mismatched record never engages the execution-identity binding at selection (2.115083ms)
+✔ a byte-bound selection builds the candidate argv over the resolved runtime path (3.657375ms)
+✔ a byte-bound selection resolves a relative runtime command once, at selection (2.075375ms)
+✔ the entry resolver consumes the managed registry binding before the legacy location (2.8125ms)
+✔ the explicit entry override keeps priority and fails closed over the registry (2.300125ms)
+✔ a broken registry binding fails closed instead of substituting another runtime (3.854375ms)
+✔ the SDK package resolution follows the entry realpath like Node does (2.298708ms)
+✔ the SDK package resolution walks up node_modules exactly like the entry require (2.875417ms)
+✔ the launch reuses the selection-bound public entry instead of resolving anew (122.374458ms)
+✔ a changed bound entry refuses before any host launch (1.5675ms)
+✔ the launch rechecks the bound adapter, entry, and SDK package identity (506.33575ms)
+✔ an ordinary runtime update between selection and the detached launch refuses before any host launch (145.523542ms)
+✔ the launch consumes the selection-bound adapter path instead of re-resolving the command (242.727667ms)
+✔ a bound execution identity without the resolved paths fails closed before launch (69.754417ms)
+✔ driver descendants receive only the spec-scoped environment (112.692875ms)
+✔ CliDriver preserves result-compatible output while bounding capture (32.617458ms)
+✔ a host is never launched when its launching observation cannot be persisted (2.060417ms)
+✔ a started-observation fault terminates the CLI host boundary and publishes no success (6.364209ms)
+✔ a started-observation fault terminates the ACP host before any protocol handshake (10.851708ms)
+✔ a CLI spawn failure with no pid restores a releasable not_started boundary (6.623ms)
+✔ an unreadable ACPX entry keeps the ACP route typed-unavailable without launching a worker (2.275833ms)
+✔ an unresolvable ACP candidate command is typed-unavailable before any launch (2.952917ms)
+✔ the ACP fallback gate consumes only proven-stopped launch boundaries (23.659167ms)
+✔ ACPX entry is skipped without an explicit runtime selection (0.376125ms)
+acpx-delegate-entry: Error: Cannot find module 'acpx/runtime'
+Require stack:
+- /private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1569:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1147:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+    at Module._load (node:internal/modules/cjs/loader:1346:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at Module.require (node:internal/modules/cjs/loader:1679:12)
+    at require (node:internal/modules/helpers:196:16)
+    at main (/private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:190:16)
+    at Object.<anonymous> (/private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:492:1)
+✖ ACPX entry completes a normal turn with typed result and raw events (39.503208ms)
+acpx-delegate-entry: Error: Cannot find module 'acpx/runtime'
+Require stack:
+- /private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1569:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1147:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+    at Module._load (node:internal/modules/cjs/loader:1346:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at Module.require (node:internal/modules/cjs/loader:1679:12)
+    at require (node:internal/modules/helpers:196:16)
+    at main (/private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:190:16)
+    at Object.<anonymous> (/private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:492:1)
+✖ ACPX entry permission probes enforce the exact option and location boundary (43.681167ms)
+acpx-delegate-entry: Error: Cannot find module 'acpx/runtime'
+Require stack:
+- /private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1569:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1147:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+    at Module._load (node:internal/modules/cjs/loader:1346:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at Module.require (node:internal/modules/cjs/loader:1679:12)
+    at require (node:internal/modules/helpers:196:16)
+    at main (/private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:190:16)
+    at Object.<anonymous> (/private/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:492:1)
+✖ ACPX entry rejects protocol misuse before any turn starts (31.863ms)
+Preparing worktree (detached HEAD 909e871)
+Preparing worktree (detached HEAD 909e871)
+Preparing worktree (detached HEAD 1ceaba7)
+Preparing worktree (detached HEAD 1ceaba7)
+Preparing worktree (detached HEAD 6aa320a)
+Preparing worktree (detached HEAD 8e38436)
+Preparing worktree (detached HEAD 8e38436)
+Preparing worktree (detached HEAD 7eb6938)
+Preparing worktree (detached HEAD 7eb6938)
+Preparing worktree (detached HEAD 7eb6938)
+Preparing worktree (detached HEAD 3f27cdf)
+Preparing worktree (detached HEAD 3f27cdf)
+Preparing worktree (detached HEAD 3f27cdf)
+Preparing worktree (detached HEAD b1947a7)
+Preparing worktree (detached HEAD b1947a7)
+Preparing worktree (detached HEAD b1947a7)
+Preparing worktree (detached HEAD d20f935)
+Preparing worktree (detached HEAD d20f935)
+Preparing worktree (detached HEAD ae1cbef)
+Preparing worktree (detached HEAD d522d6d)
+Preparing worktree (detached HEAD d522d6d)
+Preparing worktree (detached HEAD df25c0d)
+Preparing worktree (detached HEAD df25c0d)
+Preparing worktree (detached HEAD 4784692)
+Preparing worktree (detached HEAD 4784692)
+Preparing worktree (detached HEAD a901443)
+Preparing worktree (detached HEAD daac7f3)
+Preparing worktree (detached HEAD daac7f3)
+Preparing worktree (detached HEAD 807da0f)
+Preparing worktree (detached HEAD 807da0f)
+Preparing worktree (detached HEAD 1dc0348)
+Preparing worktree (detached HEAD 1dc0348)
+Preparing worktree (detached HEAD 638323e)
+Preparing worktree (detached HEAD 638323e)
+Preparing worktree (detached HEAD 638323e)
+Preparing worktree (detached HEAD 638323e)
+Preparing worktree (detached HEAD e3fe888)
+Preparing worktree (detached HEAD e3fe888)
+Preparing worktree (detached HEAD bd75a67)
+Preparing worktree (detached HEAD dd895a8)
+Preparing worktree (detached HEAD dd895a8)
+Preparing worktree (detached HEAD 385fdba)
+Preparing worktree (detached HEAD 385fdba)
+Preparing worktree (detached HEAD 385fdba)
+Preparing worktree (detached HEAD 19523ef)
+Preparing worktree (detached HEAD 19523ef)
+Preparing worktree (detached HEAD bf13031)
+✔ Windows canonical path identity ignores drive casing and separator spelling only (0.677167ms)
+✔ Windows worktree aliases resolve by filesystem identity before path spelling (0.105917ms)
+✔ Skill-local delegation is canonical and the package CLI is a thin compatibility wrapper (35.7055ms)
+✔ host profiles use bounded native permission modes without bypass flags (1.903084ms)
+✔ the launcher runs a conformance-passed ACP profile through the unchanged terminal result validator (383.344417ms)
+✔ ACP authentication failure before prompt falls back once to the bounded CLI driver (917.165417ms)
+✔ an authentication failure after the prompt was submitted never falls back to the CLI driver (455.054542ms)
+✔ an ACP-only positive qualification binds no CLI fallback and keeps the typed pre-session auth failure (629.510125ms)
+✔ a CLI-admitted qualification keeps the bounded pre-session auth fallback (1107.432791ms)
+✔ the launcher refuses an ACP selection that carries no launch-bound public entry (169.242708ms)
+✔ the launcher refuses an ACP selection without the execution identity a string-matching qualification binds (246.775833ms)
+✔ an ACP end_turn without the exact Ultra result remains missing_result (435.378167ms)
+✔ ACP status exposes only the latest derived observation and cancellation leaves no orphan (360.744792ms)
+✔ ACP status projects a fixed safe event shape even when the derived journal is tampered (114.577958ms)
+✔ the ZCode delegate transport reports experimental maturity until the support bar is met (0.359625ms)
+✔ delegate run surfaces experimental maturity and fails closed on unqualified enforcement (1672.810084ms)
+✔ an all-transports-unavailable qualification rejects before any executable identity probe (194.448125ms)
+✔ both public delegate process boundaries emit one typed redacted unavailable diagnostic (286.276709ms)
+✔ ZCode binary selection prefers the bundled macOS CLI before the PATH fallback (0.127209ms)
+✔ delegate records and forwards an explicit Kimi model selection (490.92525ms)
+✔ delegate extracts a pretty fenced result after host commentary (623.882458ms)
+✔ delegate publishes a digest-bound result after enforcing the isolated Git diff (717.497917ms)
+✔ cancel reconstructs actual changed paths when a stopped worker lost its terminal result (573.620875ms)
+✔ delegate rejects non-worktrees, unknown permission keys, and external effects (514.300292ms)
+✔ delegate fails closed on unauthorized writes, packet mutation, and nonzero finished results (2520.998709ms)
+✔ .ultra stays unwritable even when the permission grants the whole checkout (632.590625ms)
+✔ an empty writable root set creates a native read-only delegation (491.412458ms)
+✔ duplicate runs are locked and cancellation reaches a terminal result (385.069417ms)
+✔ delegate timeout kills the host process and records the recovery path (495.080292ms)
+✔ one canonical environment policy derives frozen exact-key role-scoped views (0.402792ms)
+✔ descendant environments are role-scoped at the probe and ACP host seams (374.968709ms)
+✔ the real detached delegate-worker receives only worker-scope environment keys (419.397625ms)
+✔ CLI host descendants receive the sanitized selected-Host environment only (638.9515ms)
+✔ writer state derivation is truthful for alive, stopped, reused and unprovable boundaries (0.808583ms)
+✔ writer observation transitions refuse impossible or skipped phases (2.173292ms)
+✔ worktree fences reject exact, overlapping and aliased roots while admitting disjoint ones (4.76775ms)
+✔ fence admission fails closed for same-id reacquire and invalid registry entries (3.446959ms)
+✔ the fence registry refuses symlinked components and entries and never touches external targets (3.211333ms)
+✔ two delegation ids cannot concurrently write the same physical worktree (395.025416ms)
+✔ a symlinked worktree alias cannot bypass the writer fence (424.344709ms)
+✔ disjoint registered worktrees remain concurrently admissible (521.587542ms)
+✔ cancel after outer-worker loss with a live nested writer is outcome_unknown and freezes the fence (446.42525ms)
+✔ a frozen fence releases only after the orphaned writer boundary is proven stopped (658.37975ms)
+✔ an expired timeout after outer-worker loss never synthesizes a safe timeout result (1905.390709ms)
+✔ an unidentifiable nested writer keeps the outcome unknown (392.24125ms)
+✔ missing writer evidence keeps the boundary unknown instead of stopped (344.228083ms)
+✔ writer evidence from another launch identity is unknown and never proves a stop (731.913292ms)
+✔ post-spawn launcher loss retains a bound lock and never trusts the launcher pid (967.826959ms)
+✔ a finished CLI result with a live same-group descendant is outcome_unknown and freezes the fence (3721.326333ms)
+Preparing worktree (detached HEAD 7ea9c43)
+Preparing worktree (detached HEAD 7ea9c43)
+Preparing worktree (detached HEAD 7ea9c43)
+Preparing worktree (detached HEAD 2b40af9)
+Preparing worktree (detached HEAD 63effc4)
+Preparing worktree (detached HEAD 63effc4)
+Preparing worktree (detached HEAD 63effc4)
+Preparing worktree (detached HEAD 63effc4)
+Preparing worktree (detached HEAD 63effc4)
+Preparing worktree (detached HEAD af55b0a)
+Preparing worktree (detached HEAD af55b0a)
+Preparing worktree (detached HEAD af55b0a)
+Preparing worktree (detached HEAD af55b0a)
+Preparing worktree (detached HEAD af55b0a)
+Preparing worktree (detached HEAD 837999d)
+Preparing worktree (detached HEAD 6c0d185)
+Preparing worktree (detached HEAD 40fe2df)
+✔ a finished ACP result with a live same-group descendant is outcome_unknown and keeps the fence (3489.844708ms)
+✔ spec drift blocks synthesized terminal fields but never the cancel signal (408.166875ms)
+✔ spec drift never blocks signalling a live worker (401.338166ms)
+✔ recovery fails closed on conflicting or malformed lock and receipt facts (447.503916ms)
+✔ a reused bound pid is not trusted or held through a raw liveness fallback (1686.582333ms)
+✔ an unprovable outer-worker signal outcome never proves stopped or releases authority (403.058375ms)
+✔ a post-spawn pre-claim launch-bound lock stays outer-worker unknown (178.87875ms)
+✔ an unknown worker start-identity type fails closed as a malformed recovery fact (1686.820708ms)
+✔ the worker lock-claim readback refuses a changed or omitted start identity (326.943459ms)
+✔ a worker that cannot bind its identity to the launch-bound lock never launches the host (164.8535ms)
+✔ a pre-existing cancel request is a prior-run artifact that blocks a new launch (191.536792ms)
+✔ a missing host binary publishes a truthful releasable spawn_error (267.878625ms)
+✔ outcome_unknown stays frozen when the descendant dies after the first boundary proof (3725.634334ms)
+✔ a fast pre-host cancel leaves no recreated or partial fence behind (383.132917ms)
+✔ fence entries with non-absolute roots are invalid and block admission (2.792542ms)
+✔ cancel refuses a symlinked cancel request and never touches the external target (148.579958ms)
+✔ package exposes only the installer and delegate entrypoint (32.829541ms)
+✔ clean PATH can run the installed Skill-local delegation entrypoint and uninstall removes it (1361.038292ms)
+✔ claude CLI install, doctor, reinstall and uninstall stay inside config-dir (794.851917ms)
+✔ opencode CLI install, doctor, reinstall and uninstall stay inside config-dir (685.490541ms)
+✔ codex CLI install, doctor, reinstall and uninstall stay inside config-dir (1313.08125ms)
+✔ kimi CLI install, doctor, reinstall and uninstall stay inside config-dir (594.08475ms)
+✔ grok CLI install, doctor, reinstall and uninstall stay inside config-dir (634.516834ms)
+✔ zcode CLI install, doctor, reinstall and uninstall stay inside config-dir (648.025ms)
+✔ --all gives each host its own config-dir namespace (1957.402166ms)
+✔ Codex config-dir owns both plugin root and marketplace sidecar (384.289208ms)
+✔ Codex install rolls back managed files when native registration fails (857.503584ms)
+✔ Codex and Kimi preserve pre-existing empty registries on uninstall (332.4175ms)
+✔ Codex failed reinstall restores the previous managed plugin and marketplace (727.732792ms)
+✔ invalid CLI combinations fail without mutating a config directory (26.436333ms)
+✔ npm tarball contains and runs only the file-first product surface (2000.70225ms)
+✔ one canonical Route Contract defines the owner-visible card and continuation boundary (2.0315ms)
+✔ every public Skill declares its modes, observable exit, and canonical Route Contract (3.601ms)
+✔ Research is bounded and product evidence gaps return through Change before Plan (0.757167ms)
+✔ runtime invocation policy preserves mode distinctions behind coarse Host metadata (0.654166ms)
+✔ Init permits native discovery without granting authority (0.250041ms)
+✔ mixed public Skills guard explicit modes after coarse Host discovery (0.2925ms)
+✔ the Route Contract defines one compact default progress expression derived from the card (1.15975ms)
+✔ Grilling interactions are evidence-triggered and reuse explicit owner answers (1.690625ms)
+✔ Research exposes the question frontier and defers non-blocking unknowns (0.707291ms)
+✔ answered owner facts are reused while acceptance of a newly composed candidate is a separate owner act (2.662916ms)
+✔ the publish-only-after-owner-acceptance North Star contract is not weakened by the clarification (0.890875ms)
+✔ a current explicit owner request carries its own execution authority distinct from grant continuation (2.1905ms)
+✔ specification boundaries, exclusions, and guardrails keep their true source (1.304333ms)
+✔ an open closeout obligation keeps current owner-authorized work executable through Plan and Dev (4.362916ms)
+✔ the North Star record binds the answered candidate and splits compound constraint sources (1.482958ms)
+✔ a Plan handoff carries its own exact task id into Dev and activates that pending row (2.512334ms)
+✔ a satisfied implementation dependency with open formal closeout binds the Plan-carried invocation (1.447208ms)
+✔ a model-owned technical choice defaults to the non-destructive form of itself (0.830417ms)
+✔ all fourteen skills use portable minimal frontmatter and the shared authoring shape (7.437292ms)
+✔ every relative skill reference and focused asset resolves (1.884791ms)
+✔ every non-catalog reference is explicitly routed from its Skill or routed index (2.48775ms)
+✔ file-first skills and references contain no retired runtime vocabulary (13.016625ms)
+✔ file-first workflows have no orphan semantic ledgers or unnamed output documents (3.678ms)
+✔ Skill size and semantic quality are never decided by line-count gates (2.948458ms)
+✔ role boundaries remain explicit without public-workflow chaining (1.075041ms)
+✔ research keeps seventeen evidence lenses separate from routed contract references (0.233667ms)
+✔ every enabling template is present and the index maps the real alternatives (0.161625ms)
+✔ the three-defence fixture is locally green while all three independent defects remain observable (39.754375ms)
+✔ 3.x project install, update, Doctor, and uninstall preserve every seeded canonical byte (4140.515917ms)
+ℹ {"journey":"3.x migration","canonical_files":18,"before_digest":"d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7","after_update_digest":"d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7","after_uninstall_digest":"d0d5273b6ef1c35068330e5fde56a6f03c9db255bf815e792030682fe7dcb3a7","doctor":[{"host":"claude","status":"healthy","driver":"acp","fallback_reason":null},{"host":"opencode","status":"healthy","driver":"acp","fallback_reason":null},{"host":"codex","status":"healthy","driver":"acp","fallback_reason":null},{"host":"kimi","status":"healthy","driver":"acp","fallback_reason":null},{"host":"grok","status":"healthy","driver":"acp","fallback_reason":null},{"host":"zcode","status":"healthy","driver":"cli","fallback_reason":"acp_candidate_identity_mismatch"}]}
+✔ ambiguous authority remains a read-only diagnosis with reachable exits (84.881916ms)
+ℹ {"journey":"Degraded state","diagnostic":"active_change_ambiguous","intent_body_published":false,"semantic_write":false,"exits":["repair","retry","cancel","abandon"]}
+✔ a fresh session recovers the exact active task acceptance and Resume Note from files (75.270208ms)
+ℹ {"journey":"Fresh session","source":"repository files only","task_id":"task-resume","acceptance_recovered":true,"resume_note_recovered":true,"semantic_write":false}
+✔ the accepted journey register reports one observable PASS or honest STOP per journey (1.383667ms)
+✔ daily entry, fresh-session recovery, and earliest observable slice are documented at use sites (0.616208ms)
+✔ claude installs, diagnoses, updates and uninstalls the packaged asset boundary (758.114833ms)
+✔ codex installs, diagnoses, updates and uninstalls the packaged asset boundary (684.085042ms)
+✔ opencode installs, diagnoses, updates and uninstalls the packaged asset boundary (714.489959ms)
+✔ kimi installs, diagnoses, updates and uninstalls the packaged asset boundary (658.290583ms)
+✔ grok installs, diagnoses, updates and uninstalls the packaged asset boundary (672.885666ms)
+✔ zcode installs, diagnoses, updates and uninstalls the packaged asset boundary (704.86075ms)
+✔ Codex emits native invocation policy without an MCP dependency (163.886708ms)
+✔ installed Host metadata leaves the entry route discoverable to the model (605.028667ms)
+✔ every Host receives each whole source description, and Codex shortens only its own (866.963375ms)
+✔ Codex plugin manifest satisfies the native presentation contract (141.3ms)
+✔ Codex doctor leaves unobservable hook trust with the Host (273.964417ms)
+✔ OpenCode upgrades a managed v0.25 surface without touching user assets (288.0165ms)
+✔ OpenCode rejects corrupt legacy config before replacing a healthy install (145.736458ms)
+✔ OpenCode rolls back every managed tree when plugin publication fails (159.3625ms)
+✔ all hook manifests wire the five hooks and no lifecycle supervisor (0.451875ms)
+✔ ZCode publishes a native inline plugin and local marketplace with reversible config (156.844667ms)
+ℹ tests 196
+ℹ suites 0
+ℹ pass 192
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40395.320917
+
+✖ failing tests:
+
+test at tests/acp-driver.test.cjs:304:1
+✖ the real public entry refuses an unsupported negotiation before any prompt is submitted (32.433875ms)
+  AssertionError [ERR_ASSERTION]: {"code":1,"signal":null,"adapterExitCode":1,"adapterExitSignal":null,"termination":null,"spawnError":null,"protocolVersion":null,"stopReason":null,"failureType":"acp_process_exit","failureSummary":"The ACP entry exited before a terminal result (code 1, signal null)."}
+  + actual - expected
+  
+  + 'acp_process_exit'
+  - 'acp_turn_failed'
+         ^
+  
+      at TestContext.<anonymous> (/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acp-driver.test.cjs:313:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'acp_process_exit',
+    expected: 'acp_turn_failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/acpx-entry.test.cjs:137:1
+✖ ACPX entry completes a normal turn with typed result and raw events (39.503208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acpx-entry.test.cjs:140:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/acpx-entry.test.cjs:151:1
+✖ ACPX entry permission probes enforce the exact option and location boundary (43.681167ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acpx-entry.test.cjs:172:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/acpx-entry.test.cjs:185:1
+✖ ACPX entry rejects protocol misuse before any turn starts (31.863ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acpx-entry.test.cjs:198:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,63 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "packet_digest": "b359abcb484ebc7ace5b32345d0088d37ec03c2ae517999c6f68b467b2cea51b",
+  "admission_digest": "1a7e60784c03b2b1fd3678ed0020fbeca6df9647939fcbb6e687f341ba78855a",
+  "subject_digest": "7ebc260a6f7f81840f3316a395cf01e3289eae572ba8b22495d029e432eb4a5a",
+  "session": "vnext-d1-aggregate-review-20260902",
+  "timestamp": "2026-09-01T17:36:37Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+chg-ultra-vnext-d1-delegation-safety",
+    "files_analyzed": [
+      "tests/acp-conformance.test.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/delegate.test.cjs",
+      "tests/fixtures/fake-acp-agent.cjs",
+      "tests/v026-contract.test.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-tests-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "missing_boundary_test",
+      "title": "The delegate-worker environment boundary lacks real child-process coverage",
+      "file": "tests/delegate.test.cjs",
+      "line": 1399,
+      "line_end": 1446,
+      "trigger": "The detached delegate-worker spawn environment regresses to process.env while the final ACP and CLI Host layers continue to filter their own environments.",
+      "impact": "Primary controls or unrelated provider secrets can reach the real worker process while all current environment tests remain green, so D1R-01 and D1-AC01 are not fully protected at the required four process seams.",
+      "evidence": "The current test at lines 1399-1446 checks only the derived envViews.worker object. The process-level tests capture the probe and ACP Host at lines 1465-1544 and the CLI Host at lines 1554-1589, but no fixture observes the actual detached delegate-worker launched by delegate.cjs lines 1092-1099.",
+      "suggestion": "Add one minimal real worker key-capture fixture that observes the spawned delegate-worker, proves only that worker receives the three packet path keys, and proves Primary and unrelated-secret keys and canary values are absent.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-2", "HC-6"]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "focused delegation gate: 194/194 passed",
+    "Task Evidence v2 validator and projection for both D1 tasks",
+    "strict replay of both current Task Review summaries",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/verification.log"
+  ],
+  "positive_observations": [
+    "Focused delegation, ACP, conformance, and contract tests passed 194/194 in the independent review run.",
+    "Existing fixtures cover probe, ACP Host, CLI Host, pre-admission, typed diagnostics, cancellation, and retained result semantics."
+  ],
+  "limitations": [
+    "The full 712 Node and 89 Hook gates were consumed from the freshly hashed verification log rather than rerun by this lens.",
+    "One earlier unexplained 193/194 run is followed by three 194/194 passes and remains a runtime observation rather than a separate finding.",
+    "Retained Task 1 and Task 2 P2 limitations remain owner-visible and are not auto-repaired."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-agent-entry-current-no2ne2fc",
+  "runtime_root": "/Users/rocky243/.local/share/agent-delegation/runtimes/20260905T215434Z-i6ha9hqc",
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-v"
+  ],
+  "started_at": "2026-09-09T07:51:38.687839+00:00",
+  "duration_seconds": 80.60057445801795,
+  "exit_code": 0
+}

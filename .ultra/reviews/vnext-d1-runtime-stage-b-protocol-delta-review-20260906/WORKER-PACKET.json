@@ -1,0 +1,173 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+  "mode": "task",
+  "created_at": "2026-09-05T21:47:45.943506+00:00",
+  "head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "range": "b765b55cca0e1eaacebc738a68de77906bb50756 plus current Stage B runtime migration and the direct-parent protocol refusal repair in the working tree",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC01, D1-AC02 and D1-AC04 require role-scoped descendant environments, truthful complete-writer recovery, physical writer exclusion and no semantic orchestration expansion.",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#acceptance-criteria: D1R-01 through D1R-05 require actual process-spawn environment observation and canary scans, truthful nested and outer writer recovery, exclusive physical roots, N=1 selection/results/conformance compatibility, and no unplanned semantic orchestration.",
+    ".ultra/decisions/2026-09-05-owner-factory-implementation.md#owner-authorization: The current Owner approves full in-scope implementation by ZCode/Kimi/CC with Codex review and stage commits.",
+    ".ultra/decisions/2026-09-06-stage-b-implementation-scope.md#scope: Current scope includes the public ACPX consumer, UBP adapter and repaired bridge identity; old budget/no-commit statements are historical, while real qualification belongs to the next Task."
+  ],
+  "public_seams": [
+    "delegate.cjs run/status/cancel and actual detached delegate-worker spawn",
+    "public agent-delegation ACPX entry to UBP AcpDriver, pre-prompt-only typed CLI fallback and exact permissions",
+    "role-scoped environment, physical root fence and inner/outer writer stop/unknown recovery",
+    "unchanged ultra-delegation-result-v1, conformance and installed-adapter discovery"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "26277f14e8313b0f1a4614a7a4194b6836d34e5acd7a49bb2bcada64b7d5224b"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "26277f14e8313b0f1a4614a7a4194b6836d34e5acd7a49bb2bcada64b7d5224b",
+      "byte_length": 23022
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-05-owner-factory-implementation.md",
+      "sha256": "0300db6520062ae68d8195a7096ebbd7c6efbe7e1777d1309fc4b459a80608d3",
+      "byte_length": 5271
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-06-stage-b-implementation-scope.md",
+      "sha256": "a296a7edc372ba3b2c5500b16b073bd0943b94d81cdea771acf7aad8996fccc0",
+      "byte_length": 6423
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/review-spec.json"
+    },
+    {
+      "agent": "review-code",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/code.md",
+      "output": ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/review-code.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/review-tests.json"
+    }
+  ],
+  "diff_files": [
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/acp-driver.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "tests/delegate.test.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/acpx-entry.test.cjs",
+    "tests/fixtures/fake-acp-agent.cjs",
+    "tests/fixtures/fake-acpx-entry.cjs",
+    "tests/install.test.cjs",
+    "tests/v026-adapters.test.cjs",
+    "tests/ultra-5-journeys.test.cjs",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md"
+  ],
+  "output_directory": ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+  "review_history": {
+    "parent_summary_ref": ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906/SUMMARY.json",
+    "parent_summary_digest": "c98b0afca0be149f86a8307342e277e57f4272a897222f54273fd38a6c31959b",
+    "unresolved_blocking_ids": [
+      "review-code-001",
+      "review-tests-002"
+    ]
+  },
+  "review_questions": [
+    "This is the direct-parent P1 repair delta, not a new broad audit. Verify that the unsupported-version real public entry no longer submits session/prompt and that UBP consumes an observed version instead of synthesizing 1. The two parent P1 IDs describe one root cause; retain their dispositions truthfully.",
+    "The actual public entry is /tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs, final SHA f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd, root-tested copy /tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs, pinned installed SDK0.13.2. Inspect these external consumers only as needed; scope.files_analyzed remains packet-relative diff_files.",
+    "Check actual public sessionStore negotiation, truthful unobserved/auth-failure reporting, optional result-line protocolVersion, no prompt on unsupported/unproven version, and preservation of normal v1, pre-prompt fallback, cancellation and late failure. A session may already have been created before the public record is available; do not claim a zero-session-effects refusal.",
+    "Root independently passed 105 focused tests and 58 related-source tests, then the final unchanged-source full release passed 737 Node plus104 Hook, zero skip/failure and audit0. Pack142/Skill/diff passed. Preserve the earlier evidence-layout failure and unclassified null child exit; the latter passed the exact unchanged targeted replay and final full release and is not declared harmless.",
+    "Verify the new actual-entry/real-driver regression protects the reproduced defect without relying on the stricter fake entry. Broader combination coverage and the three prior P2 findings are nonblocking retained scope, not automatic repair work.",
+    "No implementation/test edits, Provider calls, installation, semantic orchestration, commits, task completion or canonical qualification publication. Read current source and retained raw evidence and write only the assigned lens JSON. No need to rerun already retained full suites."
+  ],
+  "evidence_refs": [
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-final-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-root-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-runtime-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-relocation.json",
+    "work/owner-factory-implementation-20260905/stage-b-protocol-version-root-review.zh-CN.md",
+    "work/owner-factory-implementation-20260905/stage-b-zcode-protocol-version-handover.zh-CN.md",
+    "work/owner-factory-implementation-20260905/stage-b-entry-acceptance.zh-CN.md"
+  ]
+}

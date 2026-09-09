@@ -1,0 +1,40 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "152a8f45453d42744e7faca1fd7f2048c24ec2f892fdc036e89968e374755930",
+  "admission_digest": "9276d37119c3b8b9543119899768202af65de9f2902f813552de22dd48a8dfd8",
+  "subject_digest": "4e2dc657690ea0169f02864e9d05997a6acc814b8d2228bfd446ee45804021d5",
+  "session": "vnext-d1-host-enforcement-delta-1-review-20260902",
+  "timestamp": "2026-09-01T16:55:13Z",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-repair-1",
+    "files_analyzed": [
+      "tests/acp-driver.test.cjs",
+      "tests/delegate.test.cjs",
+      "tests/v026-contract.test.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "bin/install.js"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-tests.json#review-tests-001 resolved by tests/delegate.test.cjs:904 using the production selector and two executable canaries with no injected selection shortcut",
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-tests.json#review-tests-002 resolved by tests/delegate.test.cjs:985 spawning both real public process entry points and parsing exactly one redacted diagnostic from each",
+    "Codex independent node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/v026-contract.test.cjs exited 0",
+    "Codex full release gate passed Node 712/712 and Hooks 89/89; completed-task evidence consumption, package migration and N=1 delegation contracts are green",
+    "Skill Creator validator passed and npm pack --dry-run --json returned 141 entries"
+  ],
+  "positive_observations": [
+    "The probe-order regression would fail on the original production ordering and proves the canaries were never executed, not merely that a fake selector returned unavailable.",
+    "The process-boundary regression checks nonzero exit, exact structured fields, admission dimensions and secret non-retention for both launchers.",
+    "No prior Task 1 writer-truth, environment, cancellation, timeout, fence or ACP conformance assertion was removed or weakened."
+  ],
+  "limitations": [
+    "Parent review-tests-003 remains: a prose regex can accept the source-only evidence ref even though npm pack omits that file.",
+    "The one live Host qualification is not rerun; tests consume its retained exact receipt and correctly cannot upgrade unobserved dimensions."
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-code",
+  "axis": "engineering_standards",
+  "packet_digest": "4321f620b41329799e2c8bbcb5c4d4674074424edaf48dcb6fa854539f9bcf18",
+  "admission_digest": "a19f90193a2c814dd59d77d7c2af0137cb0e40e0e7a951de9af6a3e0b5dbf526",
+  "subject_digest": "45814b904a02df820105faec2f754beb4a60c1811508049ffad1c8cb6694392c",
+  "session": "vnext-d1-host-pi-native-review-r2-20260909",
+  "timestamp": "2026-09-09T08:00:00Z",
+  "scope": {
+    "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+    "range": "Current uncommitted Stage B Host qualification and exact Pi native integration, compared with bee8868",
+    "files_analyzed": [
+      "adapters/_shared/plugin-core.cjs",
+      "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/cli-driver.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "tests/pi-native-runtime.test.cjs",
+      "tests/pi-native-permissions.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+    "skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "tests/pi-native-runtime.test.cjs",
+    "tests/pi-native-permissions.test.cjs",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "work/trellis-eight-step-20260909/step5-pi-public-observation.json"
+  ],
+  "positive_observations": [
+    "The selected Pi path is CLI-only and correctly has no dedicated ACP or Pi fetch capability claim.",
+    "Native Pi tools are restored from the installed tool inventory and mediated through the registered permission handler before execution.",
+    "Runtime, package, node, policy, launch arguments, and permission-envelope identity are rechecked before spawning.",
+    "The native receipt records successful in-root work and matching denied outside-root, protected-root, shell, and loopback attempts with truthful terminal results.",
+    "Writer-boundary, result publication, and changed-file validation remain integrated with the existing delegation worker path."
+  ],
+  "limitations": [
+    "Qualification is explicitly verified-local for the pinned Pi 0.85.1 identity and does not establish a general network sandbox or installation claim.",
+    "Read locations remain unrestricted and existing HOME-based authentication remains reachable.",
+    "The loopback curl observation is an execute denial; no nonexistent dedicated Pi fetch callback is claimed.",
+    "Concurrent external symlink swapping remains outside the isolated single-writer guarantee.",
+    "The inspected release log excerpt does not independently establish completion of the final full release rerun."
+  ]
+}

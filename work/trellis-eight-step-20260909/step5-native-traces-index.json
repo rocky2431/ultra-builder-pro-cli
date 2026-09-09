@@ -1,0 +1,122 @@
+{
+  "observed_at": "2026-09-09T07:43:38.492796+00:00",
+  "reason": "Finished native session traces are raw runtime evidence, retained byte-for-byte with a portable archive; they are not product files.",
+  "archive": "work/trellis-eight-step-20260909/step5-native-traces.tar.gz",
+  "archive_sha256": "b9fba18cd22109599a14e23d3ea8abb77dc4a95ec4a0a8e0012beeeb8d9deb2f",
+  "records": [
+    {
+      "from": "work/trellis-eight-step-20260909/step5-pi-integration-qa.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/step5-pi-integration-qa.events.jsonl",
+      "bytes": 2195616,
+      "sha256": "3f238e507fe5743529068f726570bf4e06972401b289924410a92815f46a46af"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-candidate2-qa.session.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-candidate2-qa.session.jsonl",
+      "bytes": 429885,
+      "sha256": "6e3040deda2532058b3b302702844b9686c04856daeaf49527717c2183e55d80"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-candidate3-case-selection.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-candidate3-case-selection.events.jsonl",
+      "bytes": 414268,
+      "sha256": "58468dd3e2a4b2b15adc1c700b278d415d67aaed26f94565377aa442d38bcd90"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-candidate3-recovery-qa.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-candidate3-recovery-qa.events.jsonl",
+      "bytes": 1756458,
+      "sha256": "99b3b7609af9d1dc243541e6afc9837f44fbaee549adb98124fab21bcfc5c173"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/step5-pi-strict-spec.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/step5-pi-strict-spec.events.jsonl",
+      "bytes": 1531377,
+      "sha256": "f43dec65b91889752ed98096cb25d2178d615f7d38438325a43cb84297f52ff3"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-step2-4-qa.session.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-step2-4-qa.session.jsonl",
+      "bytes": 427630,
+      "sha256": "79074d83cf3984e7a848916d53b5f1ecd8f71df9e8b3ce11def7fb6837e481aa"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-continuation.session.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-continuation.session.jsonl",
+      "bytes": 243440,
+      "sha256": "805597821c41b7865c9316cf4925d96101e1a42b6e8af27e7f55135454e92c7d"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-candidate3-d3-qa.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-candidate3-d3-qa.events.jsonl",
+      "bytes": 1250154,
+      "sha256": "7b95b7d5e4cf68fc87a48d47cdddf97235b6c257bde9f9b6bd4a74fe817690b9"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/step5-pi-strict-tests.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/step5-pi-strict-tests.events.jsonl",
+      "bytes": 1507934,
+      "sha256": "e7b9db0688f68bad571fa56e2677465141e20dd10598fac1e729e4191b9999ba"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-candidate2-qa.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-candidate2-qa.events.jsonl",
+      "bytes": 1407273,
+      "sha256": "31489889e711265fcb1f1c1a1a50377c0bc7338beb18eed8389dc69ba0047d11"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/step5-pi-strict-code.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/step5-pi-strict-code.events.jsonl",
+      "bytes": 2162933,
+      "sha256": "1a7afdd4627eae094d821de2674c6a9c347a062ed2a7e4becc8f4e748a7b49e8"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-step2-4-qa.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-step2-4-qa.events.jsonl",
+      "bytes": 3462429,
+      "sha256": "514e6c5428a801afa66c6385c6333414ba15725a5c86f64bd25f28857fc2995a"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-candidate3-case-correction.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-candidate3-case-correction.events.jsonl",
+      "bytes": 369585,
+      "sha256": "8ace57b1e4dae5f1898bb3fc0df12c4bb2cf4b4f148531ea93c15cc6e75fe32b"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-continuation.events.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-continuation.events.jsonl",
+      "bytes": 1368292,
+      "sha256": "3215b67b090f11f80e25d57d4df7ab6734f1761217d298b00bb77503e0c08cb3"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-step5-qa-sessions/2026-09-09T06-50-02-228Z_01a084ee-4274-72cf-a891-b05069ba868e.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-step5-qa-sessions/2026-09-09T06-50-02-228Z_01a084ee-4274-72cf-a891-b05069ba868e.jsonl",
+      "bytes": 617856,
+      "sha256": "069ab7cfa7893086b3db17e0cc841cea860bc7589c73944db5864df38fe64281"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-integration-qa-sessions/2026-09-09T07-22-30-667Z_01a0850b-fd8a-74c0-933d-9108267d494d.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-integration-qa-sessions/2026-09-09T07-22-30-667Z_01a0850b-fd8a-74c0-933d-9108267d494d.jsonl",
+      "bytes": 405695,
+      "sha256": "7056e31fb251fb6775233982e55cc23d12ab91ebe4759e6ae6f2f20f135edb01"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-strict-code-sessions/2026-09-09T07-40-00-656Z_01a0851c-030f-72aa-9765-b61fc899eadf.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-strict-code-sessions/2026-09-09T07-40-00-656Z_01a0851c-030f-72aa-9765-b61fc899eadf.jsonl",
+      "bytes": 396311,
+      "sha256": "6fb91be867d95cff1e7e2a741dc2806e5ffe53c7599e14cb83b2717c12b8406d"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-strict-spec-sessions/2026-09-09T07-40-00-646Z_01a0851c-0305-7468-a36e-a82fa4eb00a6.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-strict-spec-sessions/2026-09-09T07-40-00-646Z_01a0851c-0305-7468-a36e-a82fa4eb00a6.jsonl",
+      "bytes": 254665,
+      "sha256": "9402cfb09d3713fd4cca373a580d3efe184e8dec049b3eb36200bb5dd1017d60"
+    },
+    {
+      "from": "work/trellis-eight-step-20260909/pi-strict-tests-sessions/2026-09-09T07-40-00-662Z_01a0851c-0316-7082-bc71-7cb23cfcca0a.jsonl",
+      "to": ".ultra/.runtime/trellis-eight-step-20260909/native-traces/pi-strict-tests-sessions/2026-09-09T07-40-00-662Z_01a0851c-0316-7082-bc71-7cb23cfcca0a.jsonl",
+      "bytes": 262078,
+      "sha256": "c853412b6f79037253e5f9e55171077beb2ec94547403b3adbec73ebfe0cb76e"
+    }
+  ]
+}

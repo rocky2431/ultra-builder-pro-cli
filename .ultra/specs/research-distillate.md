@@ -75,8 +75,8 @@ specifications it binds.
 
 | Canonical source | Git blob hash from `git hash-object` | Status |
 |---|---|---|
-| `.ultra/specs/product.md` | `776bdc8136d54825248573e52729678649fddd7c` | current worktree after the D1 delegation-safety revision |
-| `.ultra/specs/architecture.md` | `00d732d4a97386ee43c5efecad8b2301d4b5aa04` | current worktree after the D1 delegation-safety revision, the Stage A mid-workflow reminder consecutive-per-session dedup boundary note, and the Claude row wording that separates owner-invocable routes from withheld model discovery |
+| `.ultra/specs/product.md` | `4e268fadc56808ebd3691e8e56c6750abe9086f8` | current worktree after the D1 delegation-safety revision |
+| `.ultra/specs/architecture.md` | `0f1d678605757ecd4142ad13e5842a33e53435ed` | current worktree after the D1 delegation-safety revision, the Stage A mid-workflow reminder consecutive-per-session dedup boundary note, and the Claude row wording that separates owner-invocable routes from withheld model discovery |
 | `.ultra/specs/discovery.md` | `5d4025e7295f702d83aa04a15b731bdfd2240735` | dated baseline evidence; current navigation is this distillate |
 
 ## End-to-End Trace

@@ -1,0 +1,8 @@
+{
+  "source_head_before": "e6c730413452411715696c79d7c4f6bc0eeee447",
+  "commit": "705734c",
+  "integration": "ff-only into original main",
+  "tests": 72,
+  "test_exit": 0,
+  "real_home_installation": false
+}

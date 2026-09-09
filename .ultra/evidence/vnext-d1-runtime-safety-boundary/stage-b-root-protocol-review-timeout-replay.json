@@ -1,0 +1,14 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern",
+    "packet admission never replaces a different receipt and requires a fresh session",
+    "tests/review-wait.test.cjs"
+  ],
+  "started_at": "2026-09-05T21:41:32.448216+00:00",
+  "exit_code": 0,
+  "duration_s": 0.384,
+  "sha256": "2d25de563f1a071702cd869531da6d4e1ea168d7a95bb251a2aff253024b10a1",
+  "limitation": "Unchanged targeted replay; the original full-suite failure did not print child error/signal. This replay alone cannot prove the original timeout cause."
+}

@@ -1,0 +1,49 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "tests/delegate.test.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/acpx-entry.test.cjs"
+  ],
+  "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+  "started_at": "2026-09-05T20:31:47.399225+00:00",
+  "source_before": {
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/acp-conformance.cjs": "ea189ce5e985831b3b9c8faae60b82bbbc4495c0b96dfd539535c4bb238009df",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/acp-driver.cjs": "72f46e166b39f468ecabcfd92dc994ab31b912bf0d4c1b4b74a9b509d35f87db",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/agent-execution-driver.cjs": "f564d8f4f7b15e5c95ed27df35d8f8daca7ad6839412cb814256335e0b598ed4",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/cli-driver.cjs": "d301ce7df4eb617a8f700bf8454cc9c70bb7d216e49517914ab22a34698f658b",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/delegate-worker.cjs": "a7ee8530346f2fb2d8868aba9c207edc5df730377e54c270fbfa8b143ffc8373",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/delegate.cjs": "d29b2d0aad5815ec3da71b844bab2875f882dfb0f031078d91318590e0615639",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/host-profile.cjs": "0f330a88bb2441d445af326928ba08c2eeb2434a40c486994e85dcbd871a3681",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/delegate.test.cjs": "0ea5f84a5ebd5d009bfb485f5c3ccb090e899820a28e257ffe8e1fd01be8bf49",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acp-driver.test.cjs": "9e703cd3686cc076982218bb26cfc8503b54340c670d4770e83c10ca90dc63c9",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acp-conformance.test.cjs": "a7a3bdfb12871d16238b113f679834a82200f6eb34aa66de3fac47ff24f71232",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acpx-entry.test.cjs": "c4cb2d6fdabbbde3d28a095d736c45ec6fc300c7150573b909893cf0bad2acf5",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/fixtures/fake-acp-agent.cjs": "3be19ae9c04ff7bac9872f74d48b901eefc5737910cfa6a3b494150c3e3c0844",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/fixtures/fake-acpx-entry.cjs": "4b972d76018d626a5bb0dbb765d61fc49b7542f44150ef56e7d0c1cb0473924c",
+    "/tmp/ubp-acpx-runtime-ppTQ/runtime/acpx_delegate_entry.cjs": "99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb"
+  },
+  "real_entry_opt_in": "/tmp/ubp-acpx-runtime-ppTQ/runtime/acpx_delegate_entry.cjs",
+  "exit_code": 0,
+  "duration_s": 39.056,
+  "source_after": {
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/acp-conformance.cjs": "ea189ce5e985831b3b9c8faae60b82bbbc4495c0b96dfd539535c4bb238009df",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/acp-driver.cjs": "72f46e166b39f468ecabcfd92dc994ab31b912bf0d4c1b4b74a9b509d35f87db",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/agent-execution-driver.cjs": "f564d8f4f7b15e5c95ed27df35d8f8daca7ad6839412cb814256335e0b598ed4",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/cli-driver.cjs": "d301ce7df4eb617a8f700bf8454cc9c70bb7d216e49517914ab22a34698f658b",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/delegate-worker.cjs": "a7ee8530346f2fb2d8868aba9c207edc5df730377e54c270fbfa8b143ffc8373",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/delegate.cjs": "d29b2d0aad5815ec3da71b844bab2875f882dfb0f031078d91318590e0615639",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/host-profile.cjs": "0f330a88bb2441d445af326928ba08c2eeb2434a40c486994e85dcbd871a3681",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/delegate.test.cjs": "0ea5f84a5ebd5d009bfb485f5c3ccb090e899820a28e257ffe8e1fd01be8bf49",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acp-driver.test.cjs": "9e703cd3686cc076982218bb26cfc8503b54340c670d4770e83c10ca90dc63c9",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acp-conformance.test.cjs": "a7a3bdfb12871d16238b113f679834a82200f6eb34aa66de3fac47ff24f71232",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/acpx-entry.test.cjs": "c4cb2d6fdabbbde3d28a095d736c45ec6fc300c7150573b909893cf0bad2acf5",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/fixtures/fake-acp-agent.cjs": "3be19ae9c04ff7bac9872f74d48b901eefc5737910cfa6a3b494150c3e3c0844",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/tests/fixtures/fake-acpx-entry.cjs": "4b972d76018d626a5bb0dbb765d61fc49b7542f44150ef56e7d0c1cb0473924c",
+    "/tmp/ubp-acpx-runtime-ppTQ/runtime/acpx_delegate_entry.cjs": "99049a249b8bf719914601cb82869692379e5a8bba8fff1ad51d796fe5a4c6bb"
+  },
+  "log_sha256": "61e499c497bac8a4d46f956b55b89401b69f2a5b40740ea37af3b3fe14b47a06",
+  "source_unchanged": true
+}

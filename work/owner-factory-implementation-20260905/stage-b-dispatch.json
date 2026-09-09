@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-05T17:18:15.196901+00:00",
+  "stage_a_commit": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "runs": [
+    {
+      "mission": "stage-b-zcode",
+      "status": "running",
+      "delegation_id": "6c7d0d936de44152aa98c91b41a38747",
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T171737Z-6c7d0d936de44152aa98c91b41a38747"
+    },
+    {
+      "mission": "stage-b-kimi-goal",
+      "status": "running",
+      "delegation_id": "148641921e0844158def3a8ec12858dc",
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T171738Z-148641921e0844158def3a8ec12858dc"
+    }
+  ],
+  "shell_sessions": {
+    "stage-b-zcode": 81255,
+    "stage-b-kimi-goal": 85297
+  }
+}

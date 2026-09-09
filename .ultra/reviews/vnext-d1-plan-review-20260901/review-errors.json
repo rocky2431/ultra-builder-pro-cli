@@ -1,0 +1,105 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-errors",
+  "axis": "engineering_standards",
+  "packet_digest": "23958fcaf6f13dbd7cda421a52ce8154c7a7fb254cc424d85433b084c251068f",
+  "admission_digest": "90f9c36d4dac83878e4b2baf66ee0b103b99eb93c0ce549fc2c3f9177b7bfeb3",
+  "subject_digest": "6ef166289eef63e44606959559dcc670bd5710f7130f9d98649db5a53611019a",
+  "session": "vnext-d1-plan-review-20260901",
+  "timestamp": "2026-08-31T22:49:01Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-plan-v1",
+    "files_analyzed": [
+      ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      ".ultra/tasks.json",
+      "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md",
+      "work/vnext-step1-claude-architecture-discussion.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-errors-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "reliability",
+      "title": "Timeout can still become a false safe terminal result",
+      "file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "line": 109,
+      "line_end": 111,
+      "trigger": "The Host timeout fires, its adapter or root process closes, but a detached nested writer remains alive or its stop identity cannot be proved.",
+      "impact": "The implementation can satisfy the listed task checks while still publishing `failure_type: timeout`, releasing the fence, and permitting a second writer against roots that may still be changing.",
+      "evidence": "D1R-02 enumerates outer-worker loss, live/stopped inner writers, cancellation acknowledgement, and stale identity, while D1R-04 requires only proven-stopped cancellation compatibility. Neither criterion or its evidence requires the timeout branch promised by D1-AC02 to prove the same writer boundary before returning a terminal timeout.",
+      "suggestion": "Add one explicit nested-writer timeout RED/GREEN case to D1R-02 and the narrow verification: a proven-stopped boundary may return `timeout`; an alive or unprovable boundary must return `outcome_unknown`, retain the fence, and remain non-retryable.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-03",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-errors-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "authorization",
+      "title": "Missing Host receipt is not proof that the one-call budget is unconsumed",
+      "file": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "line": 51,
+      "line_end": 53,
+      "trigger": "The coordinator or transport is interrupted after the selected-Host request is dispatched but before the planned raw or redacted receipt is durably published.",
+      "impact": "A fresh session can interpret the absent receipt as an unconsumed allowance and issue a second provider call, exceeding the exact one-call grant and obscuring whether the first attempt produced effects.",
+      "evidence": "Fresh-session recovery says to inspect the planned raw receipt path before deciding whether the live-call budget remains, but the plan has no pre-dispatch reservation or rule that an indeterminate dispatched attempt consumes the budget. Receipt absence therefore cannot distinguish never-launched from launched-with-unknown-outcome.",
+      "suggestion": "Reuse the existing delegation attempt identity and atomically record `dispatched` plus budget consumption before the provider request. If no bound terminal receipt arrives, retain `outcome_unknown`, treat the call as consumed, and prohibit retry until an explicit new grant or authoritative proof of non-dispatch exists.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-4",
+          "HC-5",
+          "HC-6"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md:15",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md:87",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:31",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:95",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:102",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:15",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:33",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:46",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:51"
+  ],
+  "positive_observations": [
+    "The plan correctly routes unproved writer termination to launcher-side `failure_type: outcome_unknown` without adding a model-facing status.",
+    "The plan preserves the writer fence on uncertainty, forbids TTL deletion, and explicitly prohibits automatic retry or fallback."
+  ],
+  "limitations": [
+    "This is a plan-mode review; no runtime implementation diff or live selected-Host qualification result exists yet."
+  ]
+}

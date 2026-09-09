@@ -1,0 +1,66 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-errors",
+  "axis": "engineering_standards",
+  "packet_digest": "2aec0ea50836b8c208695ff27a34d2567b21d96645186ab42b3995dc50f9ff75",
+  "admission_digest": "d9cc6313dd147482bb22124f2165d341cbf8638a34d389327d14e328b15dd2dc",
+  "subject_digest": "e5e5aea05a47d8bc6b9a3f80044698c2816bde31d1f457141dcf18e28798cfd3",
+  "session": "vnext-d1-runtime-safety-initial-review-20260901",
+  "timestamp": "2026-09-01T13:30:48Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-runtime-safety-repair-2-candidate",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "tests/delegate.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-errors-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "cancellation",
+      "title": "Cancel promotes unknown outer-worker evidence to cancelled",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 1193,
+      "line_end": 1206,
+      "trigger": "outerWorkerView returns false because no worker PID has been claimed yet or a live worker's current start identity cannot be read, while writer.json still contains the valid pre-Host not_started phase.",
+      "impact": "cancel reports a terminal cancellation, unlinks the launch-bound lock, and releases the fence even though asynchronous work can continue; recovery becomes false success rather than an explicit outcome_unknown freeze.",
+      "evidence": "The branch is gated by !view.alive rather than a proven-stopped outer-worker state. writerBoundaryState can legitimately return stopped for not_started even though the detached outer worker exists between spawn and lock claim. Direct fixtures observed result_failure_type cancelled, lock_exists false, and fence_count 0.",
+      "suggestion": "Keep cancel.request creation first, then branch on an explicit outer-worker state. On unknown, return cancel_requested without synthesizing a result, deleting the lock, or releasing the fence; only the stopped state may execute lines 1195 through 1206.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-4",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "skills/ultra-delegate/scripts/delegate.cjs:1141",
+    "skills/ultra-delegate/scripts/delegate.cjs:1180",
+    "skills/ultra-delegate/scripts/delegate.cjs:1193",
+    "skills/ultra-delegate/scripts/delegate.cjs:1203"
+  ],
+  "positive_observations": [
+    "The canonical cancel signal is written before mutable worker-spec consumption and refuses symlink targets.",
+    "When the inner writer observation is unknown, the candidate already publishes outcome_unknown and retains the physical fence."
+  ],
+  "limitations": [
+    "This lens did not promote the retained cross-platform raw-PID limitation beyond P2; it addresses only the newly confirmed safe-terminal release path."
+  ]
+}

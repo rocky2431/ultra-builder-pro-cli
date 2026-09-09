@@ -13,6 +13,10 @@ const HARNESS = path.join(
   ROOT, 'skills', 'ultra-delegate', 'scripts', 'acp-conformance.cjs',
 );
 const FAKE_AGENT = path.join(__dirname, 'fixtures', 'fake-acp-agent.cjs');
+// The generic ACP engine is the installed public entry: conformance harness
+// runs select the test-side stand-in through the same runtime-discovery key
+// the product consumes.
+process.env.ULTRA_DELEGATE_ACPX_ENTRY = path.join(__dirname, 'fixtures', 'fake-acpx-entry.cjs');
 
 function canary(label) {
   return `ubp-d1-${label}-${crypto.randomUUID()}`;
@@ -131,7 +135,10 @@ test('ACP conformance receipts classify failure types without inventing diagnost
   const malformed = runHarness(root, 'malformed');
   assert.notEqual(malformed.run.status, 0);
   const malformedReceipt = JSON.parse(fs.readFileSync(malformed.output, 'utf8'));
-  assert.equal(malformedReceipt.result.failure_type, 'acp_malformed_message');
+  // Agent-side wire violations are owned by the pinned entry runtime now and
+  // surface as one typed failed turn; the property under test is unchanged —
+  // an `acp_`-prefixed transport failure with a retained diagnostic.
+  assert.equal(malformedReceipt.result.failure_type, 'acp_turn_failed');
   assert.equal(malformedReceipt.result.validation_diagnostic, null);
   assert.equal(typeof malformedReceipt.result.transport_diagnostic, 'string');
   assert.ok(malformedReceipt.result.transport_diagnostic.length > 0);
@@ -184,4 +191,19 @@ test('ACP conformance consumes the literal outcome_unknown branch without provid
       assert.ok(!source.includes(item.name), `the receipt retained the ${item.label} canary key name`);
     }
   }
+});
+
+test('worker exit observation accepts only ESRCH-proven death', async () => {
+  const { waitForExit } = require(HARNESS);
+  assert.equal(typeof waitForExit, 'function');
+  const throws = (code) => () => {
+    const error = new Error(code || 'signal subsystem unavailable');
+    if (code) error.code = code;
+    throw error;
+  };
+  // EPERM and any unprovable signal outcome keep the worker alive-or-unknown:
+  // the conformance receipt must fail honestly rather than observe an exit.
+  assert.equal(await waitForExit(4242, 10, throws('ESRCH')), true);
+  assert.equal(await waitForExit(4242, 10, throws('EPERM')), false);
+  assert.equal(await waitForExit(4242, 10, throws(null)), false);
 });

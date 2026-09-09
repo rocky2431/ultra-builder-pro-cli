@@ -9,6 +9,11 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
+// The generic ACP engine is the installed public entry: installer/doctor runs
+// in these tests select the repository's test-side stand-in through the same
+// runtime-discovery key the product consumes, so selection is deterministic
+// without a HOME installation.
+process.env.ULTRA_DELEGATE_ACPX_ENTRY = require('node:path').join(__dirname, 'fixtures', 'fake-acpx-entry.cjs');
 const INSTALLER = path.join(ROOT, 'bin', 'install.js');
 const SESSION_CONTEXT = path.join(ROOT, 'hooks', 'session_context.py');
 const JOURNEY_RESULTS = path.join(ROOT, 'docs', 'evals', 'ultra-5-0-journey-results.md');

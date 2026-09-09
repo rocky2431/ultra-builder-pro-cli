@@ -1,0 +1,27 @@
+✔ package exposes only the installer and delegate entrypoint (31.253958ms)
+✔ clean PATH can run the installed Skill-local delegation entrypoint and uninstall removes it (1244.445959ms)
+✔ claude CLI install, doctor, reinstall and uninstall stay inside config-dir (580.445792ms)
+✔ opencode CLI install, doctor, reinstall and uninstall stay inside config-dir (585.958875ms)
+✔ codex CLI install, doctor, reinstall and uninstall stay inside config-dir (1629.409792ms)
+✔ kimi CLI install, doctor, reinstall and uninstall stay inside config-dir (584.641834ms)
+✔ grok CLI install, doctor, reinstall and uninstall stay inside config-dir (629.564667ms)
+✔ zcode CLI install, doctor, reinstall and uninstall stay inside config-dir (624.175542ms)
+✔ --all gives each host its own config-dir namespace (1823.8955ms)
+✔ Codex config-dir owns both plugin root and marketplace sidecar (356.718792ms)
+✔ Codex install rolls back managed files when native registration fails (585.844417ms)
+✔ Codex and Kimi preserve pre-existing empty registries on uninstall (316.010166ms)
+✔ Codex failed reinstall restores the previous managed plugin and marketplace (749.446ms)
+✔ invalid CLI combinations fail without mutating a config directory (25.87925ms)
+✔ Pi native calls use the existing immutable write envelope before execution (2.582125ms)
+✔ Pi CLI results require a real terminal and the complete active policy, not exit zero (1.151917ms)
+✔ Pi tool completions need matching pre-effect decisions and native denial outcomes (0.319666ms)
+✔ Pi is an explicitly unqualified native CLI candidate with all native tools retained (0.140125ms)
+✔ Pi launch rechecks actual runtime bytes and the immutable permission configuration before spawning (404.700083ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9806.603709

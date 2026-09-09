@@ -8,6 +8,11 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
+// The generic ACP engine is the installed public entry: installer/doctor runs
+// in these tests select the repository's test-side stand-in through the same
+// runtime-discovery key the product consumes, so selection is deterministic
+// without a HOME installation.
+process.env.ULTRA_DELEGATE_ACPX_ENTRY = require('node:path').join(__dirname, 'fixtures', 'fake-acpx-entry.cjs');
 const CLI = path.join(ROOT, 'bin', 'install.js');
 const PACKAGE = require('../package.json');
 
@@ -100,6 +105,8 @@ test('clean PATH can run the installed Skill-local delegation entrypoint and uni
       'acp-driver.cjs',
       'acp-conformance.cjs',
       'cli-driver.cjs',
+      'pi-native-runtime.cjs',
+      'pi-native-permissions.cjs',
       path.join('delegate-profiles', 'kimi-read-only.md'),
       path.join('delegate-profiles', 'kimi-write.md'),
     ]) {

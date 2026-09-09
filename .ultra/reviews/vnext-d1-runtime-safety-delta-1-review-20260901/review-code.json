@@ -1,0 +1,36 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "a5325d3819a883d95363a0761a123316720d5ba9a3c8d54b4c9249b2d908b16e",
+  "admission_digest": "07f3fde69dd1e75781809c741374e478624fe278b5a9a640b9859331b5b5c53b",
+  "subject_digest": "4e8b544dc624b5eb86cf55a3b71467c2c30a1588e458da7b3e69c2d8871853c3",
+  "session": "vnext-d1-runtime-safety-delta-1-review-20260901",
+  "timestamp": "2026-09-01T14:05:33Z",
+  "agent": "review-code",
+  "axis": "engineering_standards",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-runtime-safety-review-delta-1",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-runtime-safety-initial-review-20260901/review-code.json#review-code-001",
+    ".ultra/reviews/vnext-d1-runtime-safety-initial-review-20260901/review-code.json#review-code-002",
+    "skills/ultra-delegate/scripts/delegate.cjs:402 known start-identity type set",
+    "skills/ultra-delegate/scripts/delegate.cjs:525 outerWorkerView",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs:287 exact identity readback",
+    "rg outerWorkerView callers: status, terminal cancel, non-terminal cancel"
+  ],
+  "positive_observations": [
+    "One shared three-state function now feeds all outer-worker consumers; no duplicate caller-local liveness rules or new subsystem were added.",
+    "The worker refuses Host launch unless the persisted start identity matches the just-claimed type and value, or exact null on the retained weaker platform path."
+  ],
+  "limitations": [
+    "The review preserves raw-PID liveness for an unbound non-Linux identity as the explicitly retained P2."
+  ]
+}

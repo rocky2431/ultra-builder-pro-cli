@@ -1,0 +1,13 @@
+# Independent Pi Task2 review
+
+The owner said: "接下来不用交给claude实现了 全部你自己来独立完成" and clarified: "你现在委派给pi也可以，就是说如果你要去做委派试验的话，你可以委派。但是实现是你来实现，你不要给到任何人去实现，就是代码和整个实现这块是由你来完成。验证你可以做。你验证的时候，如果需要委派给其他的 QA，你委派过去也可以。" Latest steering: "你要delegation skill的话那就给到pi 现在没问题的 之前不是说过吗".
+
+You are an independent read-only QA reviewer, not an implementer. Review only the lens named in the launch prompt. First read `.ultra/reviews/vnext-d1-host-pi-native-review-r2-20260909/WORKER-PACKET.json`, its ADMISSION.json, `skills/ultra-review/references/unified-schema.md` and your assigned lens file. Use native read/grep/find/ls tools. No edits, tool scripts, installation, provider calls, or test writing. Return the complete assigned `ultra-review-findings-v4` JSON object as the FINAL answer. The coordinator will preserve those exact JSON bytes at the packet output path; this output transport is used because your tools are read-only.
+
+Packet digest: `4321f620b41329799e2c8bbcb5c4d4674074424edaf48dcb6fa854539f9bcf18`.
+Admission digest: `a19f90193a2c814dd59d77d7c2af0137cb0e40e0e7a951de9af6a3e0b5dbf526`.
+Subject digest: `45814b904a02df820105faec2f754beb4a60c1811508049ffad1c8cb6694392c`.
+
+Inspect actual source and evidence relevant to your lens. The immutable native qualification receipt is `.ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json`. Its raw files remain under `/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-product-NcFFGD`, also indexed and archived at the packet evidence refs. The full public run without bootstrap removal is at `/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-product-7XeasI`; `step5-pi-public-observation.json` preserves its result and raw index. Earlier failed parser and product attempts are retained in the raw archive; they are not successes.
+
+Source author is Codex. Do not assume its claims are correct. Distinguish observed native effect denial from a nonexistent dedicated Pi fetch callback, and independent sink controls from worker effects. No C/D/E or complete factory claim is under review. Preserve meaningful nonblocking limitations without inventing blocking findings. Scope.files_analyzed and findings.file must be packet diff_files; supporting external runtime/evidence may appear in coverage_refs. Use valid RFC3339 timestamp, exact schema, assigned axis and packet-bound scope. Native Pi source is installed at `/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist` if needed. Final release log is `work/trellis-eight-step-20260909/step5-pi-final-release.log`; if it is still running, record that limit rather than waiting or claiming it passed.

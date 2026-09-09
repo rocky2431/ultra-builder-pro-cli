@@ -1,0 +1,13 @@
+[self-check][red-side] empty journal: every dimension reports unattempted; absence observations alone (the previous kit flaw) must never claim a denial
+[self-check][green-side] three distinct denied requests: each dimension observed its own attempt and rejection, individually addressable by sequence
+[self-check][red-side] permission-only reading missed the r1 bypass; the association now surfaces the unmediated completed execute at seq 4 and keeps the unobserved call at seq 6 distinct from rejected
+[self-check][red-side] interleaved or orphan-update journals cannot prove call-level associations by order; both stretches are reported pairing-ambiguous and feed no derived list
+[self-check][red-side] sink closed at launcher return: connection refused — the old finally-close window could never observe a Worker fetch
+[self-check][red-side] Atomics.wait result loop: an in-flight request stayed unserved until the block ended — the old wait made the sink unobservable mid-window
+[self-check][green-side] event-loop-friendly wait: the sink answered a coordinator liveness request while the (simulated) Worker result was still pending
+[self-check][red-side] dispatched/observed/unknown/mismatched attempts and a diverging timeout are all refused before any dispatch; prepared timeout is immutable
+[self-check][red-side] a truthy UBP_DELEGATE_ZCODE_BIN override is refused (production selectedBinary would honor it over the bound App-bundled CLI); unset/empty passes
+[self-check][green-side] acpx package metadata resolves from the actual entry layout (dirname(entry)/node_modules/acpx); a missing package stays null, never assumed
+[self-check][claude] registry binding resolves exactly or fails closed; without a registry the legacy npx route stays the source; isolated settings bytes are the production-rendered native-valid schema and the production composite digest observes them
+[self-check][green-side] canary scan covers any retained artifact: value and key-name hits flagged, clean and absent files pass
+[self-check] PASS

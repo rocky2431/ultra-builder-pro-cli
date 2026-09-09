@@ -1,0 +1,37 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "a5325d3819a883d95363a0761a123316720d5ba9a3c8d54b4c9249b2d908b16e",
+  "admission_digest": "07f3fde69dd1e75781809c741374e478624fe278b5a9a640b9859331b5b5c53b",
+  "subject_digest": "4e8b544dc624b5eb86cf55a3b71467c2c30a1588e458da7b3e69c2d8871853c3",
+  "session": "vnext-d1-runtime-safety-delta-1-review-20260901",
+  "timestamp": "2026-09-01T14:05:33Z",
+  "agent": "review-tests",
+  "axis": "engineering_standards",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-runtime-safety-review-delta-1",
+    "files_analyzed": [
+      "tests/delegate.test.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-runtime-safety-initial-review-20260901/review-tests.json#review-tests-001",
+    "tests/delegate.test.cjs:2463 platform-truthful reused or unavailable identity case",
+    "tests/delegate.test.cjs:2518 post-spawn pre-claim gap",
+    "tests/delegate.test.cjs:2557 unknown identity type rejection",
+    "tests/delegate.test.cjs:2610 changed and omitted identity readback",
+    "node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs: 92 passed, 0 failed, exit 0"
+  ],
+  "positive_observations": [
+    "The four reported RED assertions reached the real production branches before implementation changes, including a separate-process lock readback interposer with no production hook.",
+    "Codex independently reran the exact suite and observed 92 tests, 92 pass, 0 fail, 0 skipped."
+  ],
+  "limitations": [
+    "No full release gate was run at this task delta because the accepted narrow gate is the focused delegation and driver suite; the integrated D1 gate remains later."
+  ]
+}

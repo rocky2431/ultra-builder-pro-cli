@@ -1,0 +1,39 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "152a8f45453d42744e7faca1fd7f2048c24ec2f892fdc036e89968e374755930",
+  "admission_digest": "9276d37119c3b8b9543119899768202af65de9f2902f813552de22dd48a8dfd8",
+  "subject_digest": "4e2dc657690ea0169f02864e9d05997a6acc814b8d2228bfd446ee45804021d5",
+  "session": "vnext-d1-host-enforcement-delta-1-review-20260902",
+  "timestamp": "2026-09-01T16:55:13Z",
+  "agent": "review-errors",
+  "axis": "engineering_standards",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-repair-1",
+    "files_analyzed": [
+      "bin/install.js",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "tests/delegate.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-errors.json#review-errors-001 resolved by the shared redacted diagnostic projection and exact public-entrypoint regression",
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-errors.json#review-errors-002 resolved because every retained candidate route is classified by pure facts before any identity-probe process can start",
+    "skills/ultra-delegate/scripts/delegate.cjs:784-829 constructs one bounded recovery message and projects only code, error, message and redacted admission",
+    "skills/ultra-delegate/scripts/delegate.cjs:967-974 throws before selector/fence/spec/worker/Host; selected-route refusal remains before launch at 1003-1008",
+    "tests/delegate.test.cjs:985 verifies nonzero exit, exactly one parseable JSON diagnostic and absence of synthetic secret values"
+  ],
+  "positive_observations": [
+    "The unavailable state is now distinguishable from generic process failure without parsing English, while the human recovery and no-silent-fallback statement remain present.",
+    "Generic direct-runner and installer failures preserve their pre-existing output paths instead of being incorrectly coerced into the enforcement schema.",
+    "An unavailable route produces no Host process and cannot recover by an unqualified transport fallback."
+  ],
+  "limitations": [
+    "The diagnostic evidence reference remains source-repository provenance rather than an installed recovery artifact, as retained in parent review-code-003 and review-tests-003.",
+    "Debug mode may add a stack after the one typed diagnostic; the structured line remains singular and redacted."
+  ]
+}

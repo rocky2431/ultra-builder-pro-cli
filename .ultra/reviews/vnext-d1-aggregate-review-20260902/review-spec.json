@@ -1,0 +1,89 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "packet_digest": "b359abcb484ebc7ace5b32345d0088d37ec03c2ae517999c6f68b467b2cea51b",
+  "admission_digest": "1a7e60784c03b2b1fd3678ed0020fbeca6df9647939fcbb6e687f341ba78855a",
+  "subject_digest": "7ebc260a6f7f81840f3316a395cf01e3289eae572ba8b22495d029e432eb4a5a",
+  "session": "vnext-d1-aggregate-review-20260902",
+  "timestamp": "2026-09-01T17:36:37Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+chg-ultra-vnext-d1-delegation-safety",
+    "files_analyzed": [
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-attempt.json",
+      ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json",
+      ".ultra/specs/architecture.md",
+      ".ultra/specs/product.md",
+      ".ultra/specs/research-distillate.md",
+      ".ultra/tasks.json",
+      "docs/ARCHITECTURE.md",
+      "docs/ARTIFACT-AUTHORITY.md",
+      "docs/RUNTIME-COMPAT-MATRIX.md",
+      "skills/ultra-delegate/SKILL.md",
+      "skills/ultra-delegate/references/delegation-contract.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "acceptance_evidence",
+      "title": "Negative ZCode qualification was treated as not applicable to close an unconditional criterion",
+      "file": ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      "line": 37,
+      "line_end": 50,
+      "trigger": "Aggregate D1 Review or Test consumes the completed Task 2 evidence as closure evidence for D1-AC03.",
+      "impact": "A failed positive qualification is converted to not_applicable, allowing the task ledger and spec trace to claim completion although the accepted D1Q-02 criterion is unsatisfied.",
+      "evidence": "The task context states that both observation paths are truthful but only a positive in-root receipt satisfies D1-AC03 for ZCode, defines D1Q-02 as an unconditional positive criterion, and calls an unqualified result a task blocker. The retained receipt records writable_scope unsupported and all later effect dimensions unobserved or unsupported, while evidence.json marks D1Q-02 not_applicable and claims D1Q-01 through D1Q-05 close D1-AC03.",
+      "suggestion": "Reopen Task 2, record D1Q-02 as a gap, and obtain an Owner decision either to authorize one new exact-Host positive qualification or explicitly revise the accepted criterion. Do not retry the consumed provider call or infer positive support from the negative receipt.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-2", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04", "NS-05"],
+        "touches": ["HC-2", "HC-4", "HC-6", "HC-7"]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "recovery_context",
+      "title": "Research distillate still presents the archived 5.0.2 Change as the current frontier",
+      "file": ".ultra/specs/research-distillate.md",
+      "line": 11,
+      "line_end": 21,
+      "trigger": "A fresh Research, Plan, or recovery consumer uses the distillate as current baseline navigation.",
+      "impact": "The model receives a stale active Change, grant, and task frontier, increasing recovery-context drift even though active-root resolution currently prevents authority expansion.",
+      "evidence": "The distillate names chg-ultra-5-0-2-authority-reconciliation and v502-authority-reconciliation as current and repeats that frontier later, while the live active root is chg-ultra-vnext-d1-delegation-safety and the 5.0.2 Change is archived.",
+      "suggestion": "In a separately authorized Research or spec reconciliation, label the 5.0.2 passages as a dated historical snapshot or update them to the D1 frontier without creating a second current-state authority.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-2"],
+        "serves": ["NS-02", "NS-03"],
+        "touches": ["HC-4"]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#Acceptance",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#Acceptance-Criteria",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#Acceptance-Criteria",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json"
+  ],
+  "positive_observations": [
+    "The retained ZCode receipt truthfully records unsupported and unobserved dimensions without promoting maturity or retrying the provider call.",
+    "Task 1 evidence, both public unavailable diagnostics, and the provider-neutral N=1 boundary remain structurally current."
+  ],
+  "limitations": [
+    "This lens did not rerun a provider or the full release gate; it used digest-bound retained command and external-observation evidence.",
+    "Worker Packet v1 binds no exact worktree digest, so that provenance field remains null."
+  ]
+}

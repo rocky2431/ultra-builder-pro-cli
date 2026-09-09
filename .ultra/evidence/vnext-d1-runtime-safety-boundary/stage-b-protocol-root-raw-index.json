@@ -1,0 +1,81 @@
+{
+  "retained_at": "2026-09-05T21:37:28.319733+00:00",
+  "files": [
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-diff.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-diff.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-entry-suite.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.json",
+      "sha256": "a792fad1cda3c982d49519549a5d7f83763b4e561a28710e6a6a4c12800e713f",
+      "byte_length": 1738
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-entry-suite.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.log",
+      "sha256": "0fcdb1ecbbb36af6172e5d528ce7fa16921c86d16d0e091a39f111276364b84d",
+      "byte_length": 9242
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-entry.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry.json",
+      "sha256": "3402ab705841147882987ca7c69c2851ccbecb56c4b26be6fac9e40abf96bddb",
+      "byte_length": 444
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-narrow.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-narrow.json",
+      "sha256": "72453cfe3a7cae3ca839b5039cdde9fe02bae471b206eb0c74de2cda82bb4fcc",
+      "byte_length": 60787
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-narrow.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-narrow.log",
+      "sha256": "604389585f541cd46d82e6a3e2634f0b3d5a87c819f446e6098c6e46bfdbb00c",
+      "byte_length": 12976
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-other-checks.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-other-checks.json",
+      "sha256": "cec423e65ad8a15927322168fe8668d985319bee6e7486765e54accc83ffbdc3",
+      "byte_length": 1325
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-pack.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-pack.log",
+      "sha256": "d178587cc4fa45f5570dc0c2768248d0d8f07de98539bbd7a6c78200659d466d",
+      "byte_length": 17128
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-release-subject-before.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-subject-before.json",
+      "sha256": "ca9b91b8e0765b0c1ac7291a3cf41b5a8bec28cf52305fe8da4004c659623c04",
+      "byte_length": 3743
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-release.json",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release.json",
+      "sha256": "81fc69daaf43c4807a13a8b2b2cb26a75e592e1ecc638e9c331b09cec17de91e",
+      "byte_length": 60906
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-release.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release.log",
+      "sha256": "1aa74db5aeb2929ce196b744da15a1f023d302d813cc31fc22a3bc77301c5685",
+      "byte_length": 66887
+    },
+    {
+      "source": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-root-protocol-skill.log",
+      "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-skill.log",
+      "sha256": "db349825903d66adffea3ecf1bd8e1803043e8a71cf1a051235dabc5371f5bb0",
+      "byte_length": 16
+    }
+  ],
+  "limits": [
+    "The first protocol full release failed on missing evidence inventory entries and a nested evidence copy. No implementation or test assertion is changed by this archive correction.",
+    "The worker observation.json timestamp 2026-09-06T05:55:00Z conflicts with the actual 2026-09-05T21:07:58Z launch and 1307.582-second duration; it is not used as canonical freshness. Root command times and byte snapshots are the current verification evidence."
+  ]
+}

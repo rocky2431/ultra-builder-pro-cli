@@ -1,5 +1,31 @@
 # Task vnext-d1-runtime-safety-boundary: Close descendant environment and writer-truth gaps
 
+## Current Stage B activation - 2026-09-06
+
+The Owner subsequently approved the complete factory implementation and all in-scope
+local repair, with actual ZCode/Kimi/CC authoring implementation/tests and Codex
+reviewing and alone committing each accepted stage. The current source of authority
+is `.ultra/decisions/2026-09-05-owner-factory-implementation.md`; the active Stage B
+scope and finite operator dispatch boundaries are recorded in
+`.ultra/decisions/2026-09-06-stage-b-implementation-scope.md`. Older retry-unavailable,
+research-only, exhausted-round and no-commit statements below describe the retained
+September 1-2 history and do not veto this current Owner request. Their failed
+observations and unclosed acceptance criteria remain binding facts.
+
+The current Stage B mission, exact writable worktrees and activated writer are in
+`work/owner-factory-implementation-20260905/stage-b-zcode-mission.md` and
+`stage-b-worktrees.json` / `stage-b-dispatch.json` in the same directory. This
+activated inventory includes the required existing ACPX public programming consumer,
+its UBP adapter, canonical ZCode patch/digest and focused regressions described there;
+it does not activate Run Slice/wake/Step 1 implementation. Original dirty bridge and
+unrelated Goal/agent-delegation checkout work stay protected.
+
+Keep this task in_progress until Codex has reviewed current source, the relevant
+independent checks and real observations, then published the fresh strict Review
+and completion evidence. Never edit the old negative qualification or promote
+unattempted dimensions. An operator-selected finite coding/qualification ceiling
+is not a numeric budget quoted from the Owner.
+
 ## Context
 
 **What**: Repair the existing single-delegation runtime so driver selection and every
@@ -96,6 +122,51 @@ Any later addition, removal, or rename in this inventory or the Public Seams bel
 plan-critical and requires a rebuilt ZCode task packet and Codex plan disposition before
 implementation continues.
 
+Stage B raw evidence retention disposition: Codex records these exact regular-file additions under the current full Owner implementation authority. They preserve original failures and independent verification; they add no runtime or semantic scope. The original grouped diagnostic is retained under work/evidence with the exact relocation record below.
+
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-p1-correct-pass.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-p1-mutation-fail.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-root-raw-index.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-cancel-combination.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-doctor.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-driver-combination.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-entry-combinations.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-narrow.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-narrow.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-other-checks.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-pack.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-release.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-release.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-skill.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-diff.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-narrow.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-narrow.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-other-checks.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-pack.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-subject-before.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-skill.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation-subject-before.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-runtime-raw-index.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-relocation.json`
+
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-after-evidence-reconciliation.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-after-evidence-reconciliation.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-after-evidence-reconciliation-subject-before.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-final-raw-index.json`
+
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-review-timeout-replay.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-review-timeout-replay.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.json`
+- `.ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final-subject-before.json`
+
 ## Public Seams
 
 - installed `ultra-delegate/scripts/delegate.cjs run|status|cancel`
@@ -165,33 +236,13 @@ truthful recovery evidence for later provider-neutral orchestration.
 
 ## Open Questions
 
-- Owner checkpoint required: Task 1 already consumed its initial implementation attempt,
-  Repair 1, Repair 2 including the bounded timeout continuation, and its initial plus two
-  delta Task Reviews. Closing the two new aggregate P1s therefore requires one newly named
-  ZCode repair attempt and one newly named Task 1 delta Review; current authority does not
-  permit either.
+No runtime-task decision is pending under the current full Owner implementation authority. Real exact-build ZCode qualification and all C/D/E work remain separate unfinished work; this runtime completion does not authorize a support claim or factory completion.
 
 ## Resume Note
 
-The admitted aggregate Review is immutable at
-`.ultra/reviews/vnext-d1-aggregate-review-20260902/SUMMARY.json`, SHA-256
-`1ce9dfed3700a1d743cdfdac6ac3dad562cf5d44fe7902cbd3f68767a064b558`, verdict
-`REQUEST_CHANGES`, with P0=0, P1=3, P2=8 and P3=1. Task 1 owns two blocking findings:
+Current runtime completion is supported by canonical Task Evidence v2 SHA `61b076aa5d9541511cc8b8c3587ff726280cf765fc97b1117eaf3c85c40bf6ac`, with completion subject HEAD `b765b55cca0e1eaacebc738a68de77906bb50756` and digest `5e5f129f96493c0fc8e08dc5356ef6d2395c50e9a73ef85676d77e905fb5d0a2` observed at `2026-09-05T22:02:54.454872+00:00`. Read the current Task Review and exact raw evidence before reuse. Acceptance SHA remains `5d8cda45a87088bd082e74dc84230333fad8567d5b022212000cf16157a9cb5e`. The ledger owns status.
 
-- `review-tests-001`: the required probe, delegate-worker, ACP and CLI process-seam matrix
-  never observes the real detached delegate-worker environment, so `D1R-01` is not fully
-  protected by a regression;
-- `review-errors-001`: `processAlive()` maps every `kill(pid, 0)` error, including
-  `EPERM`, to false, allowing outer-worker recovery to claim `stopped` and potentially
-  release a lock/fence without proof, violating `D1R-02`.
-
-No repository delegation or recent Agent-delegation run has an active `run.lock`; no
-active ZCode writer is observable. The ledger must remain `in_progress`. The prior Task
-Evidence v2 and its three Review sessions are retained as superseded completion evidence,
-not consumed as current closure. Do not edit implementation until the Owner names one
-additional ZCode repair and one additional Task 1 delta Review. Do not expand into
-Supervisor, wake, Step 1, commit, release, installation, credential, production or other
-external effects.
+The direct-parent protocol repair is approved; the two parent P1 findings describe one repaired root cause. Preserve all old failed runs, the original negative Host record, and three nonblocking P2s. Reviewer-authored ephemeral probes exceeded the Owner author-role boundary and are excluded from acceptance evidence. No actual ZCode permission qualification or Stage B commit has happened. Proceed next to the independently bounded Task 2 prepare/record/execute path with final entry f734ed38…, pinned SDK0.13.2 and repaired bridge r1; never reuse the consumed old negative attempt.
 
 ## Superseded completion snapshot
 
@@ -216,6 +267,55 @@ external effects.
   package fetch, production mutation or other external effect was performed.
 
 ## Task Review
+
+- Execution Packet: available, SHA `f06f087cf90b8f7e959963b4bc55a6577b51f91c7220027feb29c0f14a60b093`.
+- Session: `vnext-d1-runtime-stage-b-protocol-delta-review-20260906`; SUMMARY SHA `702e50fd4f7329c3eb00da7e586c9fd73911373650abe3390a30e7d2042e440f`.
+- Three isolated specification/code/test lenses; strict summary snapshot replay exited0 with APPROVE, P0=0/P1=0/P2=3/P3=0.
+- Direct-parent `review-code-001` and `review-tests-002`: resolved by actual public-store negotiation observation/refusal, truthful UBP version reporting and the real entry/driver regression. Full dispositions and raw refresh refs are in canonical evidence.
+- The code review's five ephemeral inline fake-Agent probes were a role-boundary deviation, acknowledged and stopped. They provide no formal acceptance evidence; retained source inspection and Root-run existing authored checks support approval.
+- Retain this exact packet, admission, lens union and SUMMARY plus every historical failure until aggregate Test/Deliver have consumed the task. Do not reconstruct receipts or auto-repair the retained P2s.
+
+## Completion
+
+Canonical evidence: `.ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json`, SHA `61b076aa5d9541511cc8b8c3587ff726280cf765fc97b1117eaf3c85c40bf6ac`. Root independently passed105 focused checks,58 related-source tests and final737 Node+104 Hook/audit0; pack142, changed-Skill validation and diff checks passed. Source snapshots were unchanged. Completion freshness and strict Review provenance are separate observations; later metadata or aggregate worktree changes do not rebind either.
+
+## Superseded September 2 recovery and Review text
+
+The following text is preserved history, superseded by the current Owner authority and current sections above.
+
+### Open Questions
+
+- Owner checkpoint required: Task 1 already consumed its initial implementation attempt,
+  Repair 1, Repair 2 including the bounded timeout continuation, and its initial plus two
+  delta Task Reviews. Closing the two new aggregate P1s therefore requires one newly named
+  ZCode repair attempt and one newly named Task 1 delta Review; current authority does not
+  permit either.
+
+
+### Resume Note
+
+The admitted aggregate Review is immutable at
+`.ultra/reviews/vnext-d1-aggregate-review-20260902/SUMMARY.json`, SHA-256
+`1ce9dfed3700a1d743cdfdac6ac3dad562cf5d44fe7902cbd3f68767a064b558`, verdict
+`REQUEST_CHANGES`, with P0=0, P1=3, P2=8 and P3=1. Task 1 owns two blocking findings:
+
+- `review-tests-001`: the required probe, delegate-worker, ACP and CLI process-seam matrix
+  never observes the real detached delegate-worker environment, so `D1R-01` is not fully
+  protected by a regression;
+- `review-errors-001`: `processAlive()` maps every `kill(pid, 0)` error, including
+  `EPERM`, to false, allowing outer-worker recovery to claim `stopped` and potentially
+  release a lock/fence without proof, violating `D1R-02`.
+
+No repository delegation or recent Agent-delegation run has an active `run.lock`; no
+active ZCode writer is observable. The ledger must remain `in_progress`. The prior Task
+Evidence v2 and its three Review sessions are retained as superseded completion evidence,
+not consumed as current closure. Do not edit implementation until the Owner names one
+additional ZCode repair and one additional Task 1 delta Review. Do not expand into
+Supervisor, wake, Step 1, commit, release, installation, credential, production or other
+external effects.
+
+
+### Task Review
 
 - Execution Packet state/digest/limitation: the evidence-reopen delta-2 Worker Packet is
   available at SHA-256

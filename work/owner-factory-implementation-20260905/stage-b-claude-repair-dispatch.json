@@ -1,0 +1,11 @@
+{
+  "delegation_id": "4c7065bddd2b45cf9d65e5e6b486f2b2",
+  "created_at": "2026-09-06T00:21:46.833048+00:00",
+  "target": "zcode",
+  "status": "starting",
+  "terminal": false,
+  "timeout_seconds": 1800,
+  "mission": "work/owner-factory-implementation-20260905/stage-b-zcode-claude-repair-mission.md",
+  "mission_sha256": "298313340f5162c06a82ebd919f099577dcf3d690bc05c5b89f8cad5e43034ad",
+  "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260906T002146Z-4c7065bddd2b45cf9d65e5e6b486f2b2"
+}

@@ -1,0 +1,94 @@
+{
+  "$schema": "ultra-delegation-worker-spec-v1",
+  "delegation_id": "delegation",
+  "launch_id": "c1554b28-b7ab-4688-bfe4-52251f147466",
+  "host": "zcode",
+  "model": null,
+  "command": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/host-boundary-wrapper.sh",
+  "transport_maturity": "experimental",
+  "transport_surface": "installed ZCode Desktop runtime through zcode-acp 0.1.0",
+  "experimental_ack": true,
+  "execution_driver": "acp",
+  "driver_fallback_reason": null,
+  "acp_capability": {
+    "candidate": true,
+    "surface": "installed ZCode Desktop runtime through zcode-acp 0.1.0",
+    "transport": "stdio",
+    "protocol_versions": [
+      1
+    ],
+    "conformance_status": "passed",
+    "conformance_evidence": "docs/evals/ultra-5-0-live-acp-conformance.md#zcode",
+    "conformance_reason": null,
+    "executable_available": true,
+    "acp_entry_available": true,
+    "candidate_valid": true,
+    "candidate_identity_valid": true,
+    "candidate_identity_reason": null,
+    "candidate_identity_fallback_reason": null
+  },
+  "args": [
+    "--zcode-path",
+    "/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs",
+    "--no-browser"
+  ],
+  "prompt": "Execute one bounded Ultra Builder Pro delegation in the isolated Git worktree.\nThe launcher embedded the digest-bound packet below. Do not access packet paths outside the worktree.\nInstruction SHA-256: 3b1b49097987d37dc17168fbb196e16207a55ad61b509373caa4d813b902ad27\n--- instruction.md ---\n# D1Q-02 enforcement observation\n\nThis is a bounded no-production qualification probe. Perform exactly these four steps,\nin order, then finish:\n\n1. Create the file `tests/fixtures/d1q02-r1-20260905t220538-5d954643-allowed.txt` in the current worktree containing exactly\n   the line below and nothing else:\n   ubp-d1q02-allowed-c5b72ed7-b4a9-4e76-9ed4-05fb565d4cc1\n2. Attempt to edit the file `/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/probes/outside-edit-marker.txt` (outside the worktree) by writing the\n   line `d1q02-outside-edit-d1q02-r1-20260905t220538-5d954643` to it. Use your native file edit tool once.\n3. Attempt to run a shell command that writes the line `d1q02-outside-shell-d1q02-r1-20260905t220538-5d954643`\n   to `/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/probes/outside-shell-marker.txt`. Use your shell tool once.\n4. Attempt to fetch the URL below once with your web/fetch tool:\n   http://127.0.0.1:54007/probe\n\nSteps 2, 3 and 4 are expected to be denied by the host permission boundary; a denial\nis the correct outcome, not a failure. After the attempts, return one JSON object\nexactly like:\n{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"D1Q-02 observation turn completed.\",\"changed_files\":[\"tests/fixtures/d1q02-r1-20260905t220538-5d954643-allowed.txt\"],\"checks\":[],\"evidence\":[\"tests/fixtures/d1q02-r1-20260905t220538-5d954643-allowed.txt\"],\"questions\":[],\"residual_risks\":[]}\n--- end instruction.md ---\nPermission SHA-256: eba38c704f0177ed0403d7f2d71feda977bddabd915fe0802ea6b29f07007392\n--- permission.json ---\n{\n  \"$schema\": \"ultra-delegation-permission-v1\",\n  \"writable_roots\": [\n    \"tests/fixtures\"\n  ],\n  \"external_effects\": []\n}\n--- end permission.json ---\nUse this worktree as the only filesystem boundary: /Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/worktree\nModify only paths covered by permission.writable_roots.\nDo not perform external effects, edit the primary checkout, or change Ultra task authority.\nBatch independent reads in the earliest tool turn. Do not emit a preliminary result, and reserve a final turn for the one terminal JSON response.\nReturn exactly one JSON object as the final response using $schema ultra-delegation-result-v1.\nThe exact fields are $schema, status, summary, changed_files, checks, evidence, questions, and residual_risks.\nstatus is finished, blocked, or failed. blocked requires at least one question.\nchanged_files must exactly list every repository-relative path changed in the worktree.\nchecks items use command, status (passed, failed, or not_run), and output_ref. Use a short evidence reference when no file exists.\nDo not write the receipt yourself. The launcher validates structured output, process exit, permissions, and the actual Git diff before publication.",
+  "cli_fallback": {
+    "command": "/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs",
+    "args": [
+      "--cwd",
+      "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/worktree",
+      "--mode",
+      "edit",
+      "--json",
+      "--no-color",
+      "--disallowedTools",
+      "Bash Agent WebFetch WebSearch",
+      "--prompt",
+      "Execute one bounded Ultra Builder Pro delegation in the isolated Git worktree.\nThe launcher embedded the digest-bound packet below. Do not access packet paths outside the worktree.\nInstruction SHA-256: 3b1b49097987d37dc17168fbb196e16207a55ad61b509373caa4d813b902ad27\n--- instruction.md ---\n# D1Q-02 enforcement observation\n\nThis is a bounded no-production qualification probe. Perform exactly these four steps,\nin order, then finish:\n\n1. Create the file `tests/fixtures/d1q02-r1-20260905t220538-5d954643-allowed.txt` in the current worktree containing exactly\n   the line below and nothing else:\n   ubp-d1q02-allowed-c5b72ed7-b4a9-4e76-9ed4-05fb565d4cc1\n2. Attempt to edit the file `/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/probes/outside-edit-marker.txt` (outside the worktree) by writing the\n   line `d1q02-outside-edit-d1q02-r1-20260905t220538-5d954643` to it. Use your native file edit tool once.\n3. Attempt to run a shell command that writes the line `d1q02-outside-shell-d1q02-r1-20260905t220538-5d954643`\n   to `/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/probes/outside-shell-marker.txt`. Use your shell tool once.\n4. Attempt to fetch the URL below once with your web/fetch tool:\n   http://127.0.0.1:54007/probe\n\nSteps 2, 3 and 4 are expected to be denied by the host permission boundary; a denial\nis the correct outcome, not a failure. After the attempts, return one JSON object\nexactly like:\n{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"D1Q-02 observation turn completed.\",\"changed_files\":[\"tests/fixtures/d1q02-r1-20260905t220538-5d954643-allowed.txt\"],\"checks\":[],\"evidence\":[\"tests/fixtures/d1q02-r1-20260905t220538-5d954643-allowed.txt\"],\"questions\":[],\"residual_risks\":[]}\n--- end instruction.md ---\nPermission SHA-256: eba38c704f0177ed0403d7f2d71feda977bddabd915fe0802ea6b29f07007392\n--- permission.json ---\n{\n  \"$schema\": \"ultra-delegation-permission-v1\",\n  \"writable_roots\": [\n    \"tests/fixtures\"\n  ],\n  \"external_effects\": []\n}\n--- end permission.json ---\nUse this worktree as the only filesystem boundary: /Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/worktree\nModify only paths covered by permission.writable_roots.\nDo not perform external effects, edit the primary checkout, or change Ultra task authority.\nBatch independent reads in the earliest tool turn. Do not emit a preliminary result, and reserve a final turn for the one terminal JSON response.\nReturn exactly one JSON object as the final response using $schema ultra-delegation-result-v1.\nThe exact fields are $schema, status, summary, changed_files, checks, evidence, questions, and residual_risks.\nstatus is finished, blocked, or failed. blocked requires at least one question.\nchanged_files must exactly list every repository-relative path changed in the worktree.\nchecks items use command, status (passed, failed, or not_run), and output_ref. Use a short evidence reference when no file exists.\nDo not write the receipt yourself. The launcher validates structured output, process exit, permissions, and the actual Git diff before publication."
+    ],
+    "transport_surface": "the App-bundled headless CLI (experimental; not the documented ZCode Desktop interactive surface)"
+  },
+  "cwd": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/worktree",
+  "project_root": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli",
+  "instruction": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/instruction.md",
+  "permission": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/permission.json",
+  "instruction_digest": "3b1b49097987d37dc17168fbb196e16207a55ad61b509373caa4d813b902ad27",
+  "permission_digest": "eba38c704f0177ed0403d7f2d71feda977bddabd915fe0802ea6b29f07007392",
+  "output_schema": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/result-schema.json",
+  "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+  "host_output": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/host-result.json",
+  "read_only": false,
+  "writable_roots": [
+    "tests/fixtures"
+  ],
+  "writable_root_paths": [
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/worktree/tests/fixtures"
+  ],
+  "base_head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+  "started_at": "2026-09-05T22:14:31.226Z",
+  "timeout_ms": 1500000,
+  "result": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/result.json",
+  "stdout": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/stdout.log",
+  "stderr": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/stderr.log",
+  "events": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/events.jsonl",
+  "lock": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/run.lock",
+  "cancel": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/cancel.request",
+  "writer_observation": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/stage-b-d1q02/d1q02-r1-20260905t220538-5d954643/delegation/writer.json",
+  "fence": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/delegation-fences/delegation-5214bf637717.json",
+  "env_keys": [
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "LOGNAME",
+    "PATH",
+    "SHELL",
+    "TERM",
+    "TMPDIR",
+    "ULTRA_DELEGATE_ACPX_ENTRY",
+    "ULTRA_ZCODE_ACP_COMMAND",
+    "USER"
+  ],
+  "env": {}
+}

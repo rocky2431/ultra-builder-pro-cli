@@ -1,0 +1,370 @@
+diff --git a/plugins/ultra-goal/skills/ultra-goal/SKILL.md b/plugins/ultra-goal/skills/ultra-goal/SKILL.md
+index fb47a78..c732991 100644
+--- a/plugins/ultra-goal/skills/ultra-goal/SKILL.md
++++ b/plugins/ultra-goal/skills/ultra-goal/SKILL.md
+@@ -11,9 +11,10 @@ metadata:
+ # UltraGoal
+ 
+ Turn the owner's objective into an executable goal they can start and leave running.
+-The goal is the invariant; loop and graph differ in **when routing gets decided**.
+-This skill defines the goal and hands it to the host. The host supplies execution,
+-continuation, permissions and resource controls.
++The goal is the invariant; loop and graph are two shapes it can take - a loop repeats
++against fresh feedback, a graph spells out tasks, dependencies and joins - and either
++shape can be fixed or dynamic. This skill defines the goal and hands it to the host.
++The host supplies execution, continuation, permissions and resource controls.
+ 
+ **One goal contract, whatever the execution shape.** Every run owns
+ `.goals/<slug>.goal.md` and `<slug>.decisions.md`. A workflow or delegation package
+diff --git a/plugins/ultra-goal/skills/ultra-goal/assets/workflow-script.js b/plugins/ultra-goal/skills/ultra-goal/assets/workflow-script.js
+index 7f9a978..f9ad772 100644
+--- a/plugins/ultra-goal/skills/ultra-goal/assets/workflow-script.js
++++ b/plugins/ultra-goal/skills/ultra-goal/assets/workflow-script.js
+@@ -1,4 +1,11 @@
+ // Optional execution attachment; requires the shared goal and decisions record.
++// It targets one specific workflow runtime: the host feature that provides agent(),
++// pipeline(), parallel() and the meta block. This Skill ships the sample, not the
++// engine - validate_artifact.py checks the structure and node --check parses the
++// source, and neither executes it nor proves the runtime exists in this session.
++// The returned { confirmed } object is the runtime's answer, not Goal completion:
++// completion is settled only by the shared contract below - the frozen evaluator
++// baselines, any required independent review, and the current anchor run.
+ // Use only with an installed, exercised workflow consumer. All shapes arm the
+ // same goal and submit completion candidates against that contract.
+ // goal: `review-changed-files.goal.md`
+diff --git a/plugins/ultra-goal/skills/ultra-goal/evals/evals.json b/plugins/ultra-goal/skills/ultra-goal/evals/evals.json
+index c458ace..67f0cb4 100644
+--- a/plugins/ultra-goal/skills/ultra-goal/evals/evals.json
++++ b/plugins/ultra-goal/skills/ultra-goal/evals/evals.json
+@@ -58,7 +58,7 @@
+       "id": 9,
+       "name": "single_worker_delegation_keeps_goal_contract",
+       "prompt": "Here is my graph: one worker agent, delegated from me, running until done.",
+-      "expected_output": "Keeps one shared goal contract for the delegated work. Explains that a loop is a cyclic graph and the useful distinction is when routing is decided, not whether one worker earns a graph label. Avoids unused topology machinery while preserving the actual worker and verification obligations."
++      "expected_output": "Keeps one shared goal contract for the delegated work. Explains that a loop is a cyclic graph, that a graph can be dynamic and a loop deterministic, and that one worker does not earn a graph label by itself - routing may be authored or decided at runtime in either shape. Avoids unused topology machinery while preserving the actual worker and verification obligations."
+     },
+     {
+       "id": 10,
+diff --git a/plugins/ultra-goal/skills/ultra-goal/references/agent-modes.md b/plugins/ultra-goal/skills/ultra-goal/references/agent-modes.md
+index 05bb642..acbcf29 100644
+--- a/plugins/ultra-goal/skills/ultra-goal/references/agent-modes.md
++++ b/plugins/ultra-goal/skills/ultra-goal/references/agent-modes.md
+@@ -43,6 +43,15 @@ the received caller and chain. Never substitute `human` or a renamed target to b
+ a rejection. A same-product worker can be a separate session; if the chosen bridge
+ cannot create it, use another supported path rather than claiming a circular delegation.
+ 
++The installed public release at the time of writing, `agent-delegate` 0.2.0, exposes
++**named native sessions** (`--session <name>` on `run`, continued by repeating the same
++target, directory and name), **cancellation and close** of a named session, and a private
++per-run receipt directory holding events and diagnostics during execution. Those are
++wrapper facts at that version: a wrapper that lacks a knob says nothing about what the
++underlying protocol could do, and a newer wrapper may expose more. Check the installed
++version rather than assuming either direction, and keep any platform-specific limit you
++state tied to the version you actually observed.
++
+ Give the worker a self-contained mission: accepted terms, existing authority, relevant
+ source evidence and failed attempts, actual read/write scope, result location and checks.
+ Include any required review receipt fields and the resolved checker path it needs.
+@@ -112,7 +121,12 @@ are not portable tool APIs. The optional `UG` shortcut points only to the main s
+ 
+ Decide whether review is required or useful, what each reviewer receives, and what would
+ resolve a finding. Fresh context and a different model can reduce correlated judgment;
+-neither eliminates shared errors. Select them by risk, availability and cost.
++neither eliminates shared errors. The brand correlation runs in both directions: a
++different vendor is not proof of independence, and the same vendor is not proof of
++dependence — one vendor can run two genuinely separate sessions over isolated inputs,
++and two vendors can share a model or the author's framing. What a required review's
++contract actually checks is the approved identity, a session distinct from the run's,
++and the bounded input digest. Select reviewers by risk, availability and cost.
+ 
+ For a repeated exchange, choose a round cap and stop early when the issue is settled.
+ The optional triad template uses at most five rounds. That cap does not apply to a
+@@ -127,9 +141,11 @@ their findings rather than count agreement as proof.
+ 
+ ## What is *not* on this page
+ 
+-**Loop versus graph is not a role question.** It asks when routing gets decided - at
+-authoring time or during inference - and it belongs to the shape question, not here. Putting
+-it in a list of role options was the clearest symptom of the original mistake.
++**Loop versus graph is not a role question.** A graph expresses tasks, dependencies and
++joins; a loop expresses the feedback pass that corrects the next action from the latest
++result - and either shape can fix its routing at authoring time or decide it during
++inference. That is the shape question, and it belongs to `graph-topology.md`, not here.
++Putting it in a list of role options was the clearest symptom of the original mistake.
+ 
+ ## Declared degradation
+ 
+diff --git a/plugins/ultra-goal/skills/ultra-goal/references/graph-topology.md b/plugins/ultra-goal/skills/ultra-goal/references/graph-topology.md
+index dc5fc02..1b7dede 100644
+--- a/plugins/ultra-goal/skills/ultra-goal/references/graph-topology.md
++++ b/plugins/ultra-goal/skills/ultra-goal/references/graph-topology.md
+@@ -1,23 +1,34 @@
+ # Graph topology
+ 
+-A loop is a directed cyclic graph, so the shape is not the question. The question is
+-**when the routing decision gets made**.
+-
+-| | Who decides the next step | Cache behaviour | Fails when |
++A loop is a directed cyclic graph, so the shape is not the question — and neither is
++**when the routing decision gets made**. That was this page's earlier answer, and it
++flattened two independent axes into one. A graph expresses tasks, dependencies and
++joins; a loop expresses the feedback pass that corrects the next action from the
++latest result. Either shape can be static or dynamic: a graph can be regenerated or
++extended between runs, and a loop can execute a fixed route deterministically. "Graph"
++is not a synonym for a rigid author-time route, and "loop" is not a synonym for free
++inference-time exploration.
++
++| | What it expresses | When its routing is decided | Fails when |
+ |---|---|---|---|
+-| Loop | The model, every iteration, from a rebuilt context | Prefix moves unless you pin it, so it misses | Routing tokens compound; reasoning is lost between turns |
+-| Graph | You, once, at authoring time | Each node's prompt is fixed, so it caches for free | The work needed a step or a branch you did not draw |
++| Loop | the correction process: observe, compare, act, repeat | fixed by a script, or chosen by the model from a rebuilt context each pass | the feedback signal does not measure the actual goal |
++| Graph | tasks, dependencies and joins | drawn at authoring time, or regenerated at runtime as results arrive | the work needed a step or a branch nobody drew |
+ 
+-Loops are adaptive and expensive. Graphs are cheap and rigid. Neither is a virtue by
+-itself, and the graph's cache advantage is real but secondary — it saves routing tokens
+-*and* makes the remaining tokens cheaper, because the structure now lives in code instead
+-of being re-established in the prompt every pass.
++Routing time is a design choice inside either shape, not the boundary between them.
++Author-time edges are inspectable before the run; inference-time choices adapt to what
++the last step found. What a shape costs in tokens or cache on a given host is a
++measurement, not a property of the shape: one community essay argues author-time
++routing reuses a prompt prefix better, but this project has measured no such universal
++advantage, and this page claims none.
+ 
+-## Earn the graph first
++## Earn the extra agents
+ 
+-Multiple agents cost **3-10x** the tokens of a single agent for the same work, and a full
+-orchestrator-worker research topology has measured around **15x**. Token volume alone
+-explains most of the performance difference between runs, so the budget is the design.
++The spend under discussion is additional agents, whatever shape connects them — a
++graph's nodes and a loop's delegated passes both multiply it. Anthropic measured about
++**3-10x** the tokens of a single agent for the same task, and their orchestrator-worker
++research topology about **15x ordinary chat** (the agents alone were about 4x chat in
++the same discussion). Those numbers are their workload and their models; treat them as
++a budget warning from a measured case, not a universal multiplier.
+ 
+ Only three conditions justify the spend:
+ 
+@@ -25,9 +36,8 @@ Only three conditions justify the spend:
+    worker gets a clean window focused on its own slice.
+ 2. **Parallelization** — independent paths explored at once cover more ground than one
+    agent can hold. Note that total wall-clock can still rise, because total computation does.
+-3. **Specialization** — a focused toolset (past roughly 15-20 tools reliability drops), a
+-   system prompt whose stance conflicts with another's, or domain context that would
+-   swamp a generalist.
++3. **Specialization** — a focused toolset, a system prompt whose stance conflicts with
++   another's, or domain context that would swamp a generalist.
+ 
+ If none of the three applies, better prompting on one agent usually matches an elaborate
+ topology. That outcome is common enough to expect it.
+@@ -44,8 +54,12 @@ For review, require inspection of the actual artifact and relevant checks.
+ 
+ ## Same-vendor graph: a Workflow script
+ 
+-A script is an **attachment**, not a replacement contract. It carries the same slug as the
+-`.goal.md` it serves and names it on its own line:
++A script is an **attachment**, not a replacement contract, and not a runtime. The sample
++in `assets/` targets one specific host feature — a workflow engine that provides
++`agent()`, `pipeline()`, `parallel()` and the `meta` block. This Skill ships the sample
++and the checks; it does not implement, bundle or emulate that engine, and the file is
++not a portable Goal runner. The script carries the same slug as the `.goal.md` it
++serves and names it on its own line:
+ 
+ ```js
+ // goal: `nightly-audit.goal.md`
+@@ -55,11 +69,21 @@ Acceptance, stop condition, verification and boundary are read from that file. A
+ restates them differently has created a second contract, and the weaker one is the one that
+ gets satisfied.
+ 
+-**Prove the consumer before you write the file.** Parsing is not availability: a syntax
+-check says the script is valid JavaScript, not that `agent()` or `pipeline()` exists in this
+-session. Being on a host that ships a workflow feature is not proof either — exercise the
+-entry point, or emit the goal alone. An unrunnable script is worse than none, because it
+-reads as a delivered mechanism.
++**Prove the consumer before you write the file.** What the Skill's own validator does to
++a script is structural: `validate_artifact.py` checks the `meta` literal, the declared
++phases and the `// anchor:` comment, then asks `node --check` to parse the source wrapped
++in an async function. None of that executes anything, and none of it proves `agent()` or
++`pipeline()` exists in this session. Being on a host that ships a workflow feature is not
++proof either — exercise the entry point, or emit the goal alone. An unrunnable script is
++worse than none, because it reads as a delivered mechanism.
++
++Nor is the script's own return value Goal completion. The sample ends in
++`return { confirmed }`; that object is the runtime's answer to the script, and a
++`confirmed` flag inside it is one node chain's claim about itself. Completion is settled
++only by the shared contract the script serves: the frozen specification and protected
++evaluator baselines, the required independent review where one is declared, and the
++current anchor run — the same gate every other shape submits its completion candidates
++to.
+ 
+ - `meta` is the first statement and a pure literal — no variables, calls, or interpolation.
+ - `pipeline()` streams each dimension into its own verification as soon as that dimension
+@@ -71,24 +95,40 @@ reads as a delivered mechanism.
+ 
+ ## Cross-vendor graph: a star, not a mesh
+ 
+-Cross-vendor delegation is a blocking request/response. There is no shared state, no
+-checkpoint, and no worker-to-worker channel — so every edge runs through the orchestrator,
+-and the honest name for the shape is orchestrator-worker.
++Cross-vendor delegation is a request/response through the orchestrator. The bridge this
++Skill is checked against — `agent-delegate` 0.2.0, the installed public release at the
++time of writing — supports **named native sessions** (`--session <name>`, continued by
++repeating the same target, directory and name), **cancellation and close** of a named
++session, and a private per-run receipt directory where events and diagnostics land
++during execution. So a worker can be re-entered and observed without a second
++registration. What the bridge still does not provide is a worker-to-worker channel or
++shared cross-vendor state: every edge runs through the orchestrator, and the honest
++name for the shape is orchestrator-worker. And a wrapper's exit 0 — an ACP turn that
++ended normally — says the communication finished, never that the mission's product is
++done; the result is a claim until its artifact and checks are inspected.
+ 
+ That constrains the design in three ways worth stating in the artifact:
+ 
+-- Each worker runs **its own loop internally**; the orchestrator sees the result, not the
+-  middle. Either re-delegate repeatedly and pay routing each time, or delegate once and
+-  give up visibility. There is no third option without a state file on disk.
++- Each worker runs **its own loop internally**. A named session lets the orchestrator
++  continue the same worker context instead of re-delegating cold, and the receipt's
++  events show what the turn did — but neither makes the worker's middle the
++  orchestrator's own state. Past that there is no third option without a state file on
++  disk.
+ - Handoffs must be **self-contained**: a worker does not know the others exist and cannot
+   coordinate mid-task. Vague missions produce duplicated work.
+-- Different vendors are the one real defence against conformity. Agents differ only by
+-  context, scaffolding, and underlying model — so identical agents make identical mistakes
+-  and turn what should be isolated errors into systemic ones. Heterogeneous models are
+-  therefore worth the most where independence matters: verification and cross-review.
++- Different vendors buy different blind spots, not independence. Agents differ by context,
++  scaffolding and underlying model, so identical agents make identical mistakes and turn
++  what should be isolated errors into systemic ones. But the correlation runs in both
++  directions: two brands handed the same account of why the work is correct will both
++  review the account, and one vendor can run two genuinely separate sessions over isolated
++  inputs. Heterogeneous models are worth the most where independence matters — verification
++  and cross-review — while a brand name, same or different, proves nothing by itself.
++  What a required review actually checks is the approved identity, a session distinct from
++  the run's, and the bounded input digest, not the logo.
+ 
+ Confirm the registered targets before naming any of them in the artifact rather than
+-assuming a vendor is installed. A delegation package is an attachment too: it names its
++assuming a vendor is installed — `agent-delegate list --json` answers that on a machine
++that has the bridge. A delegation package is an attachment too: it names its
+ contract with `` goal: `<slug>.goal.md` `` and adds who runs what, never its own acceptance.
+ 
+ 
+@@ -100,12 +140,17 @@ does the Stop hook compose out of them?*
+ **Nothing.** It is the wrong layer, and answering it any other way is how a loop's gate
+ turns into a graph's engine.
+ 
+-A graph decides its routing at author time, so its position lives in the runtime that walks
+-it - `workflow.js` on a host that has one, or the delegation triad's own per-worker calls.
+-Those know which node is next because the author wrote the edges. A Stop hook knows one
+-thing: whether the anchor exited 0 just now. Handing it a task list would make it read a
+-position it did not write and choose a next node the author never routed to - inference-time
+-routing over an author-time graph, which is the confusion this Skill exists to prevent.
++A graph's position lives in whatever walks it - the runtime evaluating a `workflow.js` on
++a host that has one, or the delegation triad's own per-worker calls. Those know which node
++is next because they hold the route, however it was produced: authored once, or regenerated
++between nodes. A Stop hook holds no route. What it can know at one moment is the goal's
++verification state: whether the frozen specification still matches its armed digest,
++whether the protected evaluator inputs still match their baseline, whether a required
++independent review has passed on the current input digest, and the outcome of the one
++anchor command it just ran against that state. That is a gate on a completion claim, not
++a position in a plan. Handing it a task list would make it read a position it did not
++write and choose a next node nobody routed to - a gate masquerading as an engine, which
++is the confusion this Skill exists to prevent.
+ 
+ Two consequences worth keeping:
+ 
+@@ -117,5 +162,6 @@ Two consequences worth keeping:
+   to its immediate action. The list is neither the anchor nor input for a hook scheduler.
+ 
+ 
+-The gate's power comes from being small enough to be certain. An exit code is something it
+-can know; which of eighty tasks should be next is not.
++The gate's power comes from being small enough to be certain. A current anchor outcome
++against unmoved baselines, with whatever required review the contract declares, is
++something it can check; which of eighty tasks should be next is not.
+diff --git a/plugins/ultra-goal/skills/ultra-goal/scripts/validate_artifact.py b/plugins/ultra-goal/skills/ultra-goal/scripts/validate_artifact.py
+index 9e4fbc2..7bd20c6 100755
+--- a/plugins/ultra-goal/skills/ultra-goal/scripts/validate_artifact.py
++++ b/plugins/ultra-goal/skills/ultra-goal/scripts/validate_artifact.py
+@@ -806,13 +806,24 @@ def check_delegation(path: Path, text: str, out: list[Finding]) -> None:
+                     )
+                 )
+ 
++    # Brand correlation is a hint, not a verdict, in either direction: one vendor can
++    # run two genuinely independent sessions over isolated inputs, and two vendors can
++    # share the same model or the author's framing. What a required review's independence
++    # rests on is what `goal_contract.py` checks - approved identity, distinct session,
++    # current input digest - so this observation is advisory. As an error it failed
++    # packages that could meet the owner's policy, on evidence (a target name) that
++    # proves neither dependence nor independence.
+     if len(targets) == 2 and targets["reviewer"] == targets["critic"]:
+         out.append(
+             Finding(
+                 str(path),
+                 "SAME_VENDOR_REVIEW",
+-                f"reviewer and critic are both {targets['reviewer']!r}: agents that share "
+-                "a model share its blind spots, so the critic would mostly agree",
++                f"reviewer and critic are both {targets['reviewer']!r}: a shared model or "
++                "shared scaffolding can correlate their judgment, but the brand alone "
++                "proves neither dependence nor independence - what separates them is "
++                "distinct sessions over bounded inputs, which a required review's "
++                "contract checks and a target name cannot",
++                "advisory",
+             )
+         )
+ 
+diff --git a/tests/test_package_surface.py b/tests/test_package_surface.py
+index 26695a3..1ad89a7 100644
+--- a/tests/test_package_surface.py
++++ b/tests/test_package_surface.py
+@@ -476,7 +476,9 @@ class GateAndDocumentSystemTests(unittest.TestCase):
+         # graph diagram in the entry. The executable route still shares one goal.
+         skill = " ".join(skill_text().split())
+         self.assertIn("references/document-system.md", skill)
+-        self.assertIn("loop and graph differ in **when routing gets decided**", skill)
++        # The corrected shape claim: routing time is a design choice inside either
++        # shape, not the boundary between loop and graph.
++        self.assertIn("either shape can be fixed or dynamic", skill)
+         doc = (SKILL_ROOT / "references" / "document-system.md").read_text(encoding="utf-8")
+         for node in ("<slug>.goal.md", "<slug>.decisions.md", "<slug>.events.jsonl",
+                      "## Carry-over", "## Acceptance", "required review's receipt"):
+diff --git a/tests/test_validate_artifact.py b/tests/test_validate_artifact.py
+index a744735..b36dbec 100644
+--- a/tests/test_validate_artifact.py
++++ b/tests/test_validate_artifact.py
+@@ -327,12 +327,29 @@ class DelegationTests(Harness):
+         self.assertIn("CRITIC_MISSING", self.codes(path))
+ 
+     def test_reviewer_and_critic_on_the_same_vendor_is_reported(self) -> None:
+-        """Same model, same blind spots - the critic would mostly agree."""
++        """Brand correlation advises; it does not fail the package.
++
++        Same model can mean shared blind spots, but the same vendor can also run two
++        genuinely independent sessions - and two vendors can share one model. The
++        required-review contract (approved identity, distinct session, current input
++        digest) is where independence is actually checked, so the finding is advisory
++        and validation still exits 0.
++        """
+         self.write("sv.decisions.md", GOOD_DECISIONS)
+         path = self.write(
+             "sv.delegation.md", GOOD_DELEGATION.replace("- target: kimi", "- target: codex")
+         )
+-        self.assertIn("SAME_VENDOR_REVIEW", self.codes(path))
++        report = va.validate_paths([str(path)])
++        finding = next(f for f in report.findings if f.code == "SAME_VENDOR_REVIEW")
++        self.assertEqual("advisory", finding.severity)
++        self.assertTrue(report.ok, [f.as_dict() for f in report.findings])
++        result = subprocess.run(
++            [sys.executable, str(VALIDATOR), str(self.dir)],
++            capture_output=True,
++            text=True,
++        )
++        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
++        self.assertIn("SAME_VENDOR_REVIEW", result.stdout)
+ 
+     def test_a_critic_without_the_three_classes_is_reported(self) -> None:
+         self.write("dc.decisions.md", GOOD_DECISIONS)

@@ -10,38 +10,43 @@ const {
   BoundedCapture,
   DEFAULT_CAPTURE_LIMIT_BYTES,
   descendantSpawnEnv,
+  executablePath,
+  fileSha256,
+  launchExecutionIdentityDrift,
   markWriterLaunching,
   observeWriterStart,
+  resolveAcpEntry,
   rewindWriterNotStarted,
   terminateProcessGroup,
 } = require('./agent-execution-driver.cjs');
 
+const ENTRY_REQUEST_SCHEMA = 'acpx-delegate-turn-request/v1';
 const MAX_MESSAGE_BYTES = 1024 * 1024;
 const MAX_AGENT_OUTPUT_BYTES = 1024 * 1024;
 const MAX_EVENTS = 512;
 const MAX_EVENT_BYTES = 512 * 1024;
-const MAX_EARLY_SESSION_UPDATES = 32;
-const MAX_EARLY_SESSION_UPDATE_BYTES = 256 * 1024;
+// Bounded wait for the entry's own terminal line after a driver-side
+// cancel/timeout signal; the driver's typed termination never depends on it.
+const TERMINAL_GRACE_MS = 2000;
 const STOP_REASONS = new Set([
   'end_turn', 'max_tokens', 'max_turn_requests', 'refusal', 'cancelled',
 ]);
+const EVENT_PHASES = new Set(['initialized', 'created', 'cancel_requested', 'cancel_confirmed']);
 const UPDATE_TYPES = new Set([
-  'user_message_chunk', 'agent_message_chunk', 'agent_thought_chunk',
+  'user_message_chunk', 'agent_message_chunk',
   'tool_call', 'tool_call_update', 'plan', 'available_commands_update',
   'current_mode_update', 'config_option_update', 'session_info_update',
   'usage_update',
 ]);
-const EARLY_SESSION_UPDATE_TYPES = new Set([
-  'available_commands_update', 'current_mode_update', 'config_option_update',
-  'session_info_update',
+const STATUS_TAGS = new Set([
+  'plan', 'available_commands_update', 'current_mode_update',
+  'config_option_update', 'session_info_update', 'usage_update',
 ]);
 const TOOL_KINDS = new Set([
   'read', 'edit', 'delete', 'move', 'search', 'execute', 'think', 'fetch',
   'switch_mode', 'other',
 ]);
 const TOOL_STATUSES = new Set(['pending', 'in_progress', 'completed', 'failed']);
-const EVENT_PHASES = new Set(['initialized', 'created', 'cancel_requested', 'cancel_confirmed']);
-const EVENT_METHODS = new Set(['ignored_extension', 'unsupported']);
 const PERMISSION_DECISIONS = new Set([
   'allow_once', 'reject_once', 'reject_always', 'cancelled', 'denied',
 ]);
@@ -54,13 +59,6 @@ class AcpFailure extends Error {
   constructor(failureType, message) {
     super(message);
     this.failureType = failureType;
-  }
-}
-
-class AcpRpcError extends Error {
-  constructor(error) {
-    super(typeof error?.message === 'string' ? error.message : 'ACP request failed');
-    this.code = Number.isInteger(error?.code) ? error.code : null;
   }
 }
 
@@ -233,6 +231,13 @@ function permissionOption(options, kind) {
   )) || null;
 }
 
+// The one product-owned permission decision. It consumes the raw
+// RequestPermissionRequest the entry forwarded (toolCall kind/locations plus
+// the exact options the Host offered) and answers with the exact selected
+// optionId; the entry maps that optionId back to the matching ACP outcome and
+// never upgrades allow_once to allow_always. A denied operation is recorded
+// and stays denied while the bounded turn continues toward later probes; the
+// final permission_denied terminal is published by the driver.
 function permissionDecision(spec, params) {
   if (!isObject(params) || !isObject(params.toolCall) || !Array.isArray(params.options)) {
     throw new AcpFailure('acp_malformed_permission', 'ACP permission request is malformed.');
@@ -262,6 +267,7 @@ function permissionDecision(spec, params) {
     return {
       result: { outcome: { outcome: 'cancelled' } },
       allowed: false,
+      optionId: null,
       decision: 'cancelled',
       scope: scope === 'inside_envelope' ? 'reject_option_unavailable' : scope,
       kind,
@@ -270,130 +276,112 @@ function permissionDecision(spec, params) {
   return {
     result: { outcome: { outcome: 'selected', optionId: selected.optionId } },
     allowed,
+    optionId: selected.optionId,
     decision: selected.kind,
     scope,
     kind,
   };
 }
 
-class JsonRpcConnection {
-  constructor(child, { onNotification, onRequest, onFatal }) {
-    this.child = child;
-    this.onNotification = onNotification;
-    this.onRequest = onRequest;
-    this.onFatal = onFatal;
-    this.nextId = 1;
-    this.pending = new Map();
-    this.buffer = '';
-    this.failed = false;
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => this.consume(chunk));
-    child.stdin.on('error', (error) => {
-      if (!['EPIPE', 'ERR_STREAM_DESTROYED'].includes(error.code)) this.fail(error);
-    });
+// Projects one ACPX runtime event onto the stable derived-event vocabulary.
+// Returns the journal events plus any agent-output text; unknown update tags
+// stay a typed protocol failure exactly as the stable-v1 contract requires.
+function projectRuntimeEvent(event) {
+  if (!isObject(event)) {
+    throw new AcpFailure('acp_malformed_update', 'ACP runtime event must be an object.');
   }
-
-  send(payload) {
-    if (this.failed || this.child.stdin.destroyed) return false;
-    this.child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', ...payload })}\n`);
-    return true;
-  }
-
-  request(method, params) {
-    const id = this.nextId++;
-    const pending = deferred();
-    this.pending.set(id, pending);
-    if (!this.send({ id, method, params })) {
-      this.pending.delete(id);
-      pending.reject(new AcpFailure('acp_process_exit', 'ACP process closed before request delivery.'));
+  if (event.type === 'text_delta') {
+    if (typeof event.text !== 'string') {
+      throw new AcpFailure('acp_malformed_update', 'ACP text delta must carry text.');
     }
-    return pending.promise;
+    if (event.stream === 'thought') return { events: [], text: '' };
+    const updateType = event.tag === 'user_message_chunk' ? 'user_message_chunk' : 'agent_message_chunk';
+    return {
+      events: [{ type: 'update', update_type: updateType, content_type: 'text' }],
+      text: updateType === 'agent_message_chunk' ? event.text : '',
+    };
   }
-
-  notification(method, params) {
-    this.send({ method, params });
+  if (event.type === 'tool_call') {
+    const tag = event.tag === 'tool_call_update' ? 'tool_call_update' : 'tool_call';
+    return {
+      events: [{
+        type: 'update',
+        update_type: tag,
+        tool_kind: TOOL_KINDS.has(event.kind) ? event.kind : null,
+        tool_status: typeof event.status === 'string' ? event.status : null,
+        location_count: Array.isArray(event.locations) ? event.locations.length : 0,
+      }],
+      text: '',
+    };
   }
-
-  consume(chunk) {
-    if (this.failed) return;
-    this.buffer += chunk;
-    if (Buffer.byteLength(this.buffer) > MAX_MESSAGE_BYTES && !this.buffer.includes('\n')) {
-      this.fail(new AcpFailure('acp_message_too_large', 'ACP message exceeded the physical line limit.'));
-      return;
+  if (event.type === 'status') {
+    const tag = typeof event.tag === 'string' ? event.tag : null;
+    if (tag === null) {
+      // Runtime-generated client-operation diagnostics carry no wire tag; they
+      // are ignored observations, never a stable-v1 update and never content.
+      return {
+        events: [{ type: 'notification', method: 'ignored_extension' }],
+        text: '',
+      };
     }
-    for (;;) {
-      const newline = this.buffer.indexOf('\n');
-      if (newline < 0) break;
-      const line = this.buffer.slice(0, newline);
-      this.buffer = this.buffer.slice(newline + 1);
-      if (!line.trim()) continue;
-      if (Buffer.byteLength(line) > MAX_MESSAGE_BYTES) {
-        this.fail(new AcpFailure('acp_message_too_large', 'ACP message exceeded the physical line limit.'));
-        return;
-      }
-      let message;
-      try { message = JSON.parse(line); } catch {
-        this.fail(new AcpFailure('acp_malformed_message', 'ACP emitted malformed JSON.'));
-        return;
-      }
-      try { this.handle(message); } catch (error) { this.fail(error); return; }
+    if (!STATUS_TAGS.has(tag)) {
+      throw new AcpFailure(
+        'acp_malformed_update',
+        'ACP runtime status event is not part of stable v1.',
+      );
     }
+    return {
+      events: [{
+        type: 'update',
+        update_type: tag,
+        // The public entry surfaces no plan entries at this seam; zero is the
+        // honest observation, never a synthesized count.
+        ...(tag === 'plan' ? { entry_count: 0 } : {}),
+      }],
+      text: '',
+    };
   }
+  throw new AcpFailure(
+    'acp_malformed_update',
+    `ACP runtime event type is not part of stable v1 (${String(event.type)}).`,
+  );
+}
 
-  handle(message) {
-    if (!isObject(message) || message.jsonrpc !== '2.0') {
-      throw new AcpFailure('acp_malformed_message', 'ACP message must be a JSON-RPC 2.0 object.');
+// One terminal projection of the entry's typed result line. Authentication
+// failures keep their dedicated type so the existing CLI fallback gate can
+// consume them, but only a structured `ensure_session` phase proves the
+// startTurn call never happened — every later auth-shaped failure stays a
+// plain typed failure and is never retried.
+function terminalFromResult(result) {
+  if (!isObject(result) || !['completed', 'cancelled', 'failed'].includes(result.status)) {
+    throw new AcpFailure('acp_malformed_result', 'ACP entry result line has an invalid status.');
+  }
+  if (result.status === 'failed') {
+    const message = isObject(result.error) && typeof result.error.message === 'string'
+      ? result.error.message
+      : 'ACP turn failed without an error message.';
+    const code = isObject(result.error) && typeof result.error.code === 'string'
+      ? result.error.code
+      : '';
+    const phase = isObject(result.error) && result.error.phase === 'ensure_session'
+      ? 'ensure_session'
+      : null;
+    if (/auth/iu.test(message) || /auth/iu.test(code)) {
+      throw Object.assign(
+        new AcpFailure('acp_auth_required', 'ACP agent requires authentication outside this delegation.'),
+        phase ? { failurePhase: phase } : {},
+      );
     }
-    if ('id' in message && !('method' in message) && ('result' in message || 'error' in message)) {
-      const hasResult = Object.prototype.hasOwnProperty.call(message, 'result');
-      const hasError = Object.prototype.hasOwnProperty.call(message, 'error');
-      if (hasResult === hasError) {
-        throw new AcpFailure(
-          'acp_malformed_message',
-          'ACP response must contain exactly one of result or error.',
-        );
-      }
-      if (hasError && (!isObject(message.error) || !Number.isInteger(message.error.code)
-        || typeof message.error.message !== 'string')) {
-        throw new AcpFailure('acp_malformed_message', 'ACP response error is malformed.');
-      }
-      const pending = this.pending.get(message.id);
-      if (!pending) throw new AcpFailure('acp_unknown_response', 'ACP response id was not pending.');
-      this.pending.delete(message.id);
-      if (hasError) pending.reject(new AcpRpcError(message.error));
-      else pending.resolve(message.result);
-      return;
-    }
-    if (typeof message.method === 'string' && 'id' in message) {
-      this.onRequest(message);
-      return;
-    }
-    if (typeof message.method === 'string' && !('id' in message)) {
-      this.onNotification(message);
-      return;
-    }
-    throw new AcpFailure('acp_malformed_message', 'ACP message has no valid request, response, or notification shape.');
+    throw Object.assign(
+      new AcpFailure('acp_turn_failed', `ACP entry turn failed: ${message}`),
+      phase ? { failurePhase: phase } : {},
+    );
   }
-
-  respond(id, result) {
-    this.send({ id, result });
+  const stopReason = result.status === 'cancelled' ? 'cancelled' : result.stopReason;
+  if (!STOP_REASONS.has(stopReason)) {
+    throw new AcpFailure('acp_malformed_terminal', 'ACP entry result carried an invalid stopReason.');
   }
-
-  respondError(id, code, message) {
-    this.send({ id, error: { code, message } });
-  }
-
-  close(error = new AcpFailure('acp_process_exit', 'ACP process exited before the request completed.')) {
-    for (const pending of this.pending.values()) pending.reject(error);
-    this.pending.clear();
-  }
-
-  fail(error) {
-    if (this.failed) return;
-    this.failed = true;
-    this.close(error);
-    this.onFatal(error instanceof Error ? error : new Error(String(error)));
-  }
+  return { stopReason };
 }
 
 class AcpDriver extends AgentExecutionDriver {
@@ -402,9 +390,92 @@ class AcpDriver extends AgentExecutionDriver {
     if (!path.isAbsolute(spec.cwd)) {
       return this.failure('acp_invalid_cwd', 'ACP cwd must be absolute.');
     }
+    // The launch consumes the entry selection bound into the digest-bound
+    // worker spec: the exact public entry resolved at admission, rechecked by
+    // content before any Host process exists. A missing, unreadable, or
+    // drifted entry fails closed; only a spec without the binding (built
+    // outside the launcher) falls back to resolving the installed entry.
+    let entryPath;
+    if (spec.acp_entry !== undefined) {
+      const bound = spec.acp_entry && typeof spec.acp_entry === 'object' ? spec.acp_entry : null;
+      const boundPath = bound && typeof bound.path === 'string' && path.isAbsolute(bound.path)
+        ? bound.path
+        : null;
+      const expected = bound && /^[0-9a-f]{64}$/u.test(String(bound.sha256 ?? ''))
+        ? bound.sha256
+        : null;
+      const actual = boundPath ? fileSha256(boundPath) : null;
+      if (!boundPath || !expected || !actual || actual !== expected) {
+        return this.failure(
+          'acp_execution_identity_mismatch',
+          'The launch-bound public ACPX entry is missing, unreadable, or its content changed after admission; no ACP host was launched.',
+        );
+      }
+      entryPath = boundPath;
+    } else {
+      entryPath = resolveAcpEntry();
+      if (!entryPath) {
+        return this.failure(
+          'acp_entry_unavailable',
+          'The public ACPX delegate entry is not installed or readable; no ACP host was launched.',
+        );
+      }
+    }
+    const hostEnv = descendantSpawnEnv(spec);
+    // The entry requires an absolute executable. When the admission bound an
+    // observed execution identity, the launch consumes the exact resolved
+    // paths the selection verified — the bound adapter executable launches
+    // directly instead of being re-resolved against the worker's PATH or cwd,
+    // and every qualified component (adapter, the native runtime file the
+    // adapter will consume, the entry bytes, and the SDK package metadata the
+    // entry loads) is rechecked at those same paths. Drift after admission —
+    // for example an ordinary runtime update between selection and this
+    // detached launch — fails closed before any Host effect. Only a spec
+    // without the binding (built outside the launcher) resolves the candidate
+    // against the same sanitized environment the entry will pass on.
+    let agentCommand;
+    if (spec.execution_identity !== undefined) {
+      const identity = spec.execution_identity && typeof spec.execution_identity === 'object'
+        && !Array.isArray(spec.execution_identity)
+        ? spec.execution_identity
+        : null;
+      const boundAdapter = identity
+        && typeof identity.adapter_path === 'string' && path.isAbsolute(identity.adapter_path)
+        ? identity.adapter_path
+        : null;
+      const boundRuntime = identity
+        && typeof identity.runtime_path === 'string' && path.isAbsolute(identity.runtime_path)
+        ? identity.runtime_path
+        : null;
+      const drift = launchExecutionIdentityDrift(identity, {
+        adapterPath: boundAdapter,
+        runtimePath: boundRuntime,
+        entryPath,
+        cwd: spec.cwd,
+      });
+      if (drift) {
+        return this.failure(
+          'acp_execution_identity_mismatch',
+          `The launch-bound execution identity (${drift}) no longer matches the observed files; no ACP host was launched.`,
+        );
+      }
+      agentCommand = boundAdapter;
+    } else {
+      agentCommand = executablePath(spec.command, hostEnv);
+      if (!agentCommand) {
+        return this.failure(
+          'acp_command_unavailable',
+          `The ACP candidate command ${String(spec.command)} is not executable in the sanitized delegation environment; no ACP host was launched.`,
+        );
+      }
+    }
+    // The launched writer-tree root is the entry process; the writer
+    // observation therefore binds the real spawn argv, while the agent argv
+    // travels digest-bound inside the request line.
+    const launchSpec = { ...spec, command: process.execPath, args: [entryPath] };
     // A Host that cannot be observed must not be launched: without a durable
     // launching observation the writer boundary would stay unknowable.
-    if (!markWriterLaunching(spec)) {
+    if (!markWriterLaunching(launchSpec)) {
       return this.failure(
         'writer_observation_unavailable',
         'The ACP host was not launched because its writer observation could not be persisted.',
@@ -412,40 +483,44 @@ class AcpDriver extends AgentExecutionDriver {
     }
     const journal = new DerivedEventJournal(spec.events);
     const stderr = new BoundedCapture(spec.capture_limit_bytes || DEFAULT_CAPTURE_LIMIT_BYTES);
-    const protocolStdout = new BoundedCapture(spec.capture_limit_bytes || DEFAULT_CAPTURE_LIMIT_BYTES);
     const childClosed = deferred();
     const fatal = deferred();
     const aborted = deferred();
+    const terminalLine = deferred();
     let spawnError = null;
     let termination = null;
     let protocolVersion = null;
-    let sessionId = null;
     let stopReason = null;
     let agentOutput = '';
     let permissionDenied = null;
-    let promptPromise = null;
     let expectedClose = false;
-    let sessionCreationPending = false;
-    let earlySessionUpdateBytes = 0;
-    let earlySessionUpdates = [];
-    const pendingPermissions = new Map();
-    const child = spawn(spec.command, spec.args, {
+    let sawStarted = false;
+    let transportFailed = false;
+    let terminalArrived = false;
+    // The entry reports the version its session store actually observed at
+    // negotiation. This stays null when the entry observed none — an
+    // initialization failure — and no typed result line may ever turn it
+    // into a constant.
+    let observedProtocolVersion = null;
+    const child = spawn(process.execPath, [entryPath], {
       cwd: spec.cwd,
-      env: descendantSpawnEnv(spec),
+      // The entry copies its own process environment onto every Host it
+      // starts, so the sanitized descendant view built from the digest-bound
+      // spec is the single environment truth for the whole writer tree.
+      env: hostEnv,
       detached: process.platform !== 'win32',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     // A real adapter PID that was not durably recorded can never be proven
     // stopped later: the known child boundary is terminated immediately and
     // the driver fails before any protocol handshake or useful Host work.
-    if (Number.isInteger(child.pid) && child.pid > 0 && !observeWriterStart(spec, child)) {
+    if (Number.isInteger(child.pid) && child.pid > 0 && !observeWriterStart(launchSpec, child)) {
       child.on('error', () => {});
       child.stdout.on('data', () => {});
       child.stderr.on('data', (chunk) => stderr.append(chunk));
       child.stdin.on('error', () => {});
       terminateProcessGroup(child, 'SIGKILL');
       try { child.stdin.end(); } catch {}
-      protocolStdout.write(spec.stdout);
       stderr.write(spec.stderr);
       return this.failure(
         'writer_start_unobserved',
@@ -453,199 +528,153 @@ class AcpDriver extends AgentExecutionDriver {
       );
     }
     child.stderr.on('data', (chunk) => stderr.append(chunk));
+    child.stdout.setEncoding('utf8');
+    let stdoutBuffer = '';
+    const consumeLine = (line) => {
+      if (!line.trim()) return;
+      if (Buffer.byteLength(line) > MAX_MESSAGE_BYTES) {
+        throw new AcpFailure('acp_message_too_large', 'ACP entry message exceeded the physical line limit.');
+      }
+      let message;
+      try { message = JSON.parse(line); } catch {
+        throw new AcpFailure('acp_malformed_message', 'ACP entry emitted malformed JSON.');
+      }
+      if (!isObject(message) || typeof message.type !== 'string') {
+        throw new AcpFailure('acp_malformed_message', 'ACP entry message must be a typed object.');
+      }
+      if (message.type === 'started') {
+        if (sawStarted || message.pid !== child.pid) {
+          throw new AcpFailure('acp_entry_identity', 'ACP entry started line does not match the launched boundary.');
+        }
+        sawStarted = true;
+        return;
+      }
+      if (message.type === 'event') {
+        const projected = projectRuntimeEvent(message.event);
+        for (const event of projected.events) journal.append(event);
+        if (projected.text) {
+          agentOutput += projected.text;
+          if (Buffer.byteLength(agentOutput) > MAX_AGENT_OUTPUT_BYTES) {
+            throw new AcpFailure('acp_output_limit', 'ACP agent output exceeded its physical limit.');
+          }
+        }
+        return;
+      }
+      if (message.type === 'permission_request') {
+        if (!Number.isInteger(message.id) || !isObject(message.request)) {
+          throw new AcpFailure('acp_malformed_permission', 'ACP permission request is malformed.');
+        }
+        const decision = permissionDecision(spec, message.request.raw);
+        child.stdin.write(`${JSON.stringify({
+          type: 'permission_decision',
+          id: message.id,
+          optionId: decision.optionId,
+        })}\n`);
+        journal.append({
+          type: 'permission',
+          tool_kind: decision.kind,
+          decision: decision.decision,
+          scope: decision.scope,
+        });
+        if (!decision.allowed) permissionDenied = decision;
+        return;
+      }
+      if (message.type === 'result') {
+        terminalArrived = true;
+        // The version is the entry's observed negotiation report beside its
+        // typed terminal; absent or non-numeric means unobserved, never a
+        // default, so a failed or completed line alone proves no version.
+        observedProtocolVersion = typeof message.protocolVersion === 'number'
+          ? message.protocolVersion
+          : null;
+        terminalLine.resolve(message.result);
+        return;
+      }
+      throw new AcpFailure(
+        'acp_malformed_message',
+        `ACP entry message type is not part of stable v1 (${message.type}).`,
+      );
+    };
+    child.stdout.on('data', (chunk) => {
+      if (transportFailed) return;
+      stdoutBuffer += chunk;
+      if (Buffer.byteLength(stdoutBuffer) > MAX_MESSAGE_BYTES && !stdoutBuffer.includes('\n')) {
+        transportFailed = true;
+        fatal.resolve(new AcpFailure('acp_message_too_large', 'ACP entry message exceeded the physical line limit.'));
+        return;
+      }
+      try {
+        for (;;) {
+          const newline = stdoutBuffer.indexOf('\n');
+          if (newline < 0) break;
+          const line = stdoutBuffer.slice(0, newline);
+          stdoutBuffer = stdoutBuffer.slice(newline + 1);
+          consumeLine(line);
+        }
+      } catch (error) {
+        transportFailed = true;
+        fatal.resolve(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+    child.stdin.on('error', (error) => {
+      if (!['EPIPE', 'ERR_STREAM_DESTROYED'].includes(error.code)) {
+        fatal.resolve(new AcpFailure('acp_process_exit', 'The ACP entry stdin stream failed.'));
+      }
+    });
     child.on('error', (error) => {
       spawnError = error;
       fatal.resolve(new AcpFailure('spawn_error', 'ACP host process failed to start.'));
     });
     child.on('close', (code, signal) => {
       childClosed.resolve({ code, signal });
-      if (!expectedClose) connection.close();
+      if (!expectedClose && !termination) {
+        fatal.resolve(new AcpFailure(
+          'acp_process_exit',
+          `The ACP entry exited before a terminal result (code ${code ?? 'null'}, signal ${signal || 'null'}).`,
+        ));
+      }
     });
 
-    const appendEvent = (event) => journal.append(event);
-
-    const handleUpdate = (message) => {
-      const params = message.params;
-      const envelopeValid = isObject(params)
-        && typeof params.sessionId === 'string'
-        && params.sessionId.length > 0
-        && isObject(params.update);
-      if (!envelopeValid) {
-        throw new AcpFailure(
-          'acp_malformed_update',
-          'ACP session/update envelope is invalid '
-            + `(params_object=${isObject(params)}, session_id_type=${typeof params?.sessionId}, `
-            + `session_established=${typeof sessionId === 'string'}, `
-            + `session_matches=${params?.sessionId === sessionId}, update_object=${isObject(params?.update)}).`,
-        );
-      }
-      if (sessionId === null && sessionCreationPending) {
-        const updateType = params.update.sessionUpdate;
-        if (!EARLY_SESSION_UPDATE_TYPES.has(updateType)) {
-          throw new AcpFailure(
-            'acp_early_update_type',
-            'ACP emitted a non-metadata session update before session/new completed.',
-          );
-        }
-        const messageBytes = Buffer.byteLength(JSON.stringify(message));
-        if (earlySessionUpdates.length >= MAX_EARLY_SESSION_UPDATES
-            || earlySessionUpdateBytes + messageBytes > MAX_EARLY_SESSION_UPDATE_BYTES) {
-          throw new AcpFailure(
-            'acp_early_update_limit',
-            'ACP pre-session metadata exceeded its physical buffer limit.',
-          );
-        }
-        earlySessionUpdateBytes += messageBytes;
-        earlySessionUpdates.push(message);
-        return;
-      }
-      if (params.sessionId !== sessionId) {
-        throw new AcpFailure(
-          'acp_malformed_update',
-          'ACP session/update envelope is invalid '
-            + `(params_object=true, session_id_type=string, `
-            + `session_established=${typeof sessionId === 'string'}, `
-            + 'session_matches=false, update_object=true).',
-        );
-      }
-      const update = params.update;
-      const updateType = update.sessionUpdate;
-      if (!UPDATE_TYPES.has(updateType)) {
-        throw new AcpFailure('acp_malformed_update', 'ACP session/update type is not part of stable v1.');
-      }
-      if (updateType === 'agent_thought_chunk') return;
-      if (['agent_message_chunk', 'user_message_chunk'].includes(updateType)) {
-        if (!isObject(update.content) || update.content.type !== 'text'
-          || typeof update.content.text !== 'string') {
-          throw new AcpFailure('acp_malformed_update', 'ACP message chunk must contain text content.');
-        }
-        if (updateType === 'agent_message_chunk') {
-          agentOutput += update.content.text;
-          if (Buffer.byteLength(agentOutput) > MAX_AGENT_OUTPUT_BYTES) {
-            throw new AcpFailure('acp_output_limit', 'ACP agent output exceeded its physical limit.');
-          }
-        }
-        appendEvent({ type: 'update', update_type: updateType, content_type: 'text' });
-        return;
-      }
-      if (['tool_call', 'tool_call_update'].includes(updateType)) {
-        if (typeof update.toolCallId !== 'string' || !update.toolCallId) {
-          throw new AcpFailure('acp_malformed_update', 'ACP tool update requires a toolCallId.');
-        }
-        appendEvent({
-          type: 'update',
-          update_type: updateType,
-          tool_kind: TOOL_KINDS.has(update.kind) ? update.kind : null,
-          tool_status: typeof update.status === 'string' ? update.status : null,
-          location_count: Array.isArray(update.locations) ? update.locations.length : 0,
-        });
-        return;
-      }
-      appendEvent({
-        type: 'update',
-        update_type: updateType,
-        ...(updateType === 'plan'
-          ? { entry_count: Array.isArray(update.entries) ? update.entries.length : 0 }
-          : {}),
-      });
-    };
-
-    const connection = new JsonRpcConnection(child, {
-      onFatal: (error) => fatal.resolve(error),
-      onNotification: (message) => {
-        try {
-          if (message.method === 'session/update') handleUpdate(message);
-          else appendEvent({ type: 'notification', method: 'ignored_extension' });
-        } catch (error) { fatal.resolve(error); }
-      },
-      onRequest: (message) => {
-        if (message.method !== 'session/request_permission') {
-          connection.respondError(message.id, -32601, 'Client method is not available.');
-          appendEvent({ type: 'client_request', method: 'unsupported', decision: 'denied' });
-          return;
-        }
-        const pending = { responded: false };
-        pendingPermissions.set(message.id, pending);
-        try {
-          if (message.params?.sessionId !== sessionId) {
-            throw new AcpFailure('acp_malformed_permission', 'ACP permission session does not match.');
-          }
-          const decision = permissionDecision(spec, message.params);
-          pending.responded = true;
-          connection.respond(message.id, decision.result);
-          pendingPermissions.delete(message.id);
-          appendEvent({
-            type: 'permission',
-            tool_kind: decision.kind,
-            decision: decision.decision,
-            scope: decision.scope,
-          });
-          if (!decision.allowed) {
-            permissionDenied = decision;
-            fatal.resolve(new AcpFailure(
-              'permission_denied',
-              `ACP ${decision.kind} request was denied (${decision.scope}).`,
-            ));
-          }
-        } catch (error) {
-          pendingPermissions.delete(message.id);
-          fatal.resolve(error);
-        }
-      },
-    });
-
-    const cancelPendingPermissions = () => {
-      for (const [id, pending] of pendingPermissions.entries()) {
-        if (!pending.responded) {
-          pending.responded = true;
-          connection.respond(id, { outcome: { outcome: 'cancelled' } });
-        }
-        pendingPermissions.delete(id);
-      }
-    };
-    const requestTermination = (reason) => {
-      if (termination) return;
-      termination = reason;
-      aborted.resolve(new AcpFailure(reason, `ACP delegation ${reason}.`));
-    };
     const cancelPoll = setInterval(() => {
       if (fs.existsSync(spec.cancel)) requestTermination('cancelled');
     }, 50);
     const timeout = setTimeout(() => requestTermination('timeout'), spec.timeout_ms);
     cancelPoll.unref();
     timeout.unref();
+    function requestTermination(reason) {
+      if (termination) return;
+      termination = reason;
+      aborted.resolve(new AcpFailure(reason, `ACP delegation ${reason}.`));
+    }
 
-    const waitStep = (promise) => Promise.race([
-      promise,
-      fatal.promise.then((error) => { throw error; }),
-      aborted.promise.then((error) => { throw error; }),
+    child.stdin.write(`${JSON.stringify({
+      schema: ENTRY_REQUEST_SCHEMA,
+      agent_argv: [agentCommand, ...spec.args],
+      cwd: spec.cwd,
+      prompt: spec.prompt,
+      timeout_ms: spec.timeout_ms,
+    })}\n`);
+
+    // The driver owns the typed termination; the entry's own cancelled result
+    // is a bounded transport acknowledgment, never the writer-stop proof. The
+    // step promises carry permanent swallows so a late signal can never turn
+    // into an unhandled rejection after the race has been decided.
+    const fatalStep = fatal.promise.then((error) => { throw error; });
+    const abortedStep = aborted.promise.then((error) => { throw error; });
+    fatalStep.catch(() => {});
+    abortedStep.catch(() => {});
+    const awaitTerminal = () => Promise.race([
+      terminalLine.promise,
+      abortedStep,
+      fatalStep,
     ]);
-    const shutdown = async ({ graceful = false, cancel = false } = {}) => {
-      if (cancel && sessionId) {
-        connection.notification('session/cancel', { sessionId });
-        cancelPendingPermissions();
-        try { appendEvent({ type: 'protocol', phase: 'cancel_requested' }); } catch {}
-        if (promptPromise) {
-          try {
-            const response = await Promise.race([promptPromise, delay(300).then(() => null)]);
-            if (response?.stopReason === 'cancelled') {
-              try { appendEvent({ type: 'protocol', phase: 'cancel_confirmed' }); } catch {}
-            }
-          } catch {}
-        }
-      }
+
+    const shutdown = async ({ graceful = false } = {}) => {
       expectedClose = true;
-      // A Windows process tree cannot be addressed after its root PID exits. For
-      // cancellation/timeout, terminate the tree while the adapter is still alive;
-      // the earlier ACP cancel handshake has already had its bounded grace period.
-      if (!graceful && process.platform === 'win32') {
-        terminateProcessGroup(child, 'SIGTERM');
-      }
-      try { child.stdin.end(); } catch {}
       if (graceful) {
         const closed = await Promise.race([childClosed.promise, delay(750).then(() => null)]);
         if (closed) return closed;
-      } else {
+      } else if (!termination) {
         await Promise.race([childClosed.promise, delay(150).then(() => null)]);
       }
       terminateProcessGroup(child, 'SIGTERM');
@@ -656,72 +685,32 @@ class AcpDriver extends AgentExecutionDriver {
 
     let outcome;
     try {
-      const initialized = await waitStep(connection.request('initialize', {
-        protocolVersion: ACP_PROTOCOL_VERSION,
-        clientCapabilities: {
-          fs: { readTextFile: false, writeTextFile: false },
-          terminal: false,
-          auth: { terminal: false },
-        },
-        clientInfo: { name: 'ultra-builder-pro', version: '5.0.0' },
-      }));
-      if (!isObject(initialized) || initialized.protocolVersion !== ACP_PROTOCOL_VERSION) {
-        throw new AcpFailure('acp_protocol_version', 'ACP agent did not negotiate stable protocol v1.');
-      }
-      protocolVersion = initialized.protocolVersion;
-      appendEvent({
-        type: 'protocol', phase: 'initialized', protocol_version: protocolVersion,
-        auth_method_count: Array.isArray(initialized.authMethods) ? initialized.authMethods.length : 0,
-      });
-      let session;
-      sessionCreationPending = true;
-      try {
-        session = await waitStep(connection.request('session/new', {
-          cwd: spec.cwd,
-          mcpServers: [],
-        }));
-      } catch (error) {
-        if (error instanceof AcpRpcError && (error.code === -32000 || /auth/iu.test(error.message))) {
-          throw new AcpFailure('acp_auth_required', 'ACP agent requires authentication outside this delegation.');
-        }
-        throw error;
-      } finally {
-        sessionCreationPending = false;
-      }
-      if (!isObject(session) || typeof session.sessionId !== 'string' || !session.sessionId) {
-        throw new AcpFailure('acp_malformed_session', 'ACP session/new returned no sessionId.');
-      }
-      sessionId = session.sessionId;
-      appendEvent({ type: 'session', phase: 'created' });
-      const bufferedSessionUpdates = earlySessionUpdates;
-      earlySessionUpdates = [];
-      earlySessionUpdateBytes = 0;
-      for (const message of bufferedSessionUpdates) handleUpdate(message);
-      promptPromise = connection.request('session/prompt', {
-        sessionId,
-        prompt: [{ type: 'text', text: spec.prompt }],
-      });
-      const promptResult = await waitStep(promptPromise);
-      if (!isObject(promptResult) || !STOP_REASONS.has(promptResult.stopReason)) {
-        throw new AcpFailure('acp_malformed_terminal', 'ACP session/prompt returned an invalid stopReason.');
-      }
-      stopReason = promptResult.stopReason;
-      appendEvent({ type: 'terminal', stop_reason: stopReason });
-      if (permissionDenied) {
+      await awaitTerminal();
+      // Only the entry's observed negotiation report — carried beside the
+      // typed result line — establishes the protocol version; the line
+      // itself, whatever terminal status it carries, does not.
+      if (terminalArrived) protocolVersion = observedProtocolVersion;
+      const terminal = terminalFromResult(await terminalLine.promise);
+      stopReason = terminal.stopReason;
+      journal.append({ type: 'terminal', stop_reason: stopReason });
+      protocolVersion = observedProtocolVersion;
+      if (termination) {
+        outcome = { termination };
+      } else if (stopReason === 'cancelled') {
+        outcome = { termination: 'cancelled' };
+      } else if (permissionDenied) {
         outcome = {
           failureType: 'permission_denied',
           failureSummary: `ACP ${permissionDenied.kind} request was denied (${permissionDenied.scope}).`,
         };
-      } else if (stopReason === 'cancelled') {
-        outcome = { termination: 'cancelled' };
       } else if (agentOutput) {
         fs.writeFileSync(spec.host_output, agentOutput, { mode: 0o600 });
       }
       const closed = await shutdown({ graceful: true });
       outcome = {
-        // `session/prompt` is the ACP transport terminal. Closing stdin after
-        // that point is client-owned cleanup; adapters differ on the process
-        // exit code they use for EOF, so retain it as an observation without
+        // The typed result line is the ACP transport terminal. Process exit
+        // after that point is client-owned cleanup; adapters differ on the
+        // exit code they use for EOF, so it stays an observation without
         // converting a completed turn into a task failure.
         code: 0,
         signal: null,
@@ -736,17 +725,28 @@ class AcpDriver extends AgentExecutionDriver {
     } catch (error) {
       const failure = error instanceof AcpFailure
         ? error
-        : error instanceof AcpRpcError
-          ? new AcpFailure('acp_rpc_error', 'ACP request returned a JSON-RPC error.')
-          : new AcpFailure('acp_protocol_error', 'ACP transport failed.');
+        : new AcpFailure('acp_protocol_error', 'ACP transport failed.');
       const wasTermination = ['cancelled', 'timeout'].includes(failure.failureType);
       if (spawnError && !Number.isInteger(child.pid)) {
         // An OS-confirmed spawn failure with no child PID restores an explicit
         // releasable not_started proof instead of freezing an impossible
         // writer behind an adapter that never existed.
-        rewindWriterNotStarted(spec, { allowedPriorPhases: ['launching'] });
+        rewindWriterNotStarted(launchSpec, { allowedPriorPhases: ['launching'] });
       }
-      const closed = await shutdown({ cancel: wasTermination || !!sessionId });
+      if (wasTermination) {
+        // Ask the entry to cancel its active turn through its own signal
+        // handler, then bound how long its terminal line may take. A Windows
+        // process tree cannot be addressed after its root PID exits, so the
+        // tree is terminated while the entry is still alive there.
+        if (process.platform === 'win32') {
+          terminateProcessGroup(child, 'SIGTERM');
+        } else {
+          try { child.kill('SIGTERM'); } catch {}
+        }
+        await Promise.race([terminalLine.promise, delay(TERMINAL_GRACE_MS).then(() => null)]);
+        if (terminalArrived) protocolVersion = observedProtocolVersion;
+      }
+      const closed = await shutdown({ graceful: false });
       outcome = {
         code: closed?.code ?? null,
         signal: closed?.signal || null,
@@ -756,6 +756,9 @@ class AcpDriver extends AgentExecutionDriver {
         spawnError,
         protocolVersion,
         stopReason,
+        // The only pre-prompt proof: a structured ensure_session phase from
+        // the entry's failed result, meaning startTurn was never called.
+        ...(failure.failurePhase ? { failurePhase: failure.failurePhase } : {}),
         ...(wasTermination ? {} : {
           failureType: failure.failureType,
           failureSummary: failure.message,
@@ -765,8 +768,10 @@ class AcpDriver extends AgentExecutionDriver {
     } finally {
       clearInterval(cancelPoll);
       clearTimeout(timeout);
-      connection.close();
-      protocolStdout.write(spec.stdout);
+      // Raw entry traffic is never persisted: safe observations live in the
+      // derived journal and host_output only, so stdout.log stays empty like
+      // the previous engine's protocol transcript artifact.
+      fs.writeFileSync(spec.stdout, '', { mode: 0o600 });
       stderr.write(spec.stderr);
     }
     return outcome;

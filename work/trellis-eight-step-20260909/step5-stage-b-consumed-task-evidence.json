@@ -1,0 +1,57 @@
+{
+  "projections": [
+    {
+      "task_id": "vnext-d1-runtime-safety-boundary",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/evidence.json",
+      "evidence_digest": "61b076aa5d9541511cc8b8c3587ff726280cf765fc97b1117eaf3c85c40bf6ac",
+      "task_review_session": "vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+      "task_review_summary_digest": "702e50fd4f7329c3eb00da7e586c9fd73911373650abe3390a30e7d2042e440f"
+    },
+    {
+      "task_id": "vnext-d1-host-enforcement-qualification",
+      "schema": "ultra-task-evidence-v2",
+      "evidence_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/evidence.json",
+      "evidence_digest": "c8f1f3647f6f943f9e936420d6a9b798bf6edd63a79c03cd699285efc5a852b7",
+      "task_review_session": "vnext-d1-host-pi-native-review-r2-20260909",
+      "task_review_summary_digest": "39638847edfbffdd31ac83789cb18c7a23875e2e930aef86147d2c6bd8a0ad0d"
+    }
+  ],
+  "verified_raw_observations": [
+    {
+      "criterion": "D1R-01",
+      "raw_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+      "sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5"
+    },
+    {
+      "criterion": "D1R-02",
+      "raw_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+      "sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5"
+    },
+    {
+      "criterion": "D1R-03",
+      "raw_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+      "sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5"
+    },
+    {
+      "criterion": "D1R-04",
+      "raw_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+      "sha256": "cce32146954c41a2fd5fe5e4221b2a471d0eb3448245be5d880a3276afcabeb5"
+    },
+    {
+      "criterion": "D1Q-01",
+      "raw_ref": "work/trellis-eight-step-20260909/step5-task2-final-narrow.log",
+      "sha256": "0ae14b6c0e8168d7eb40da08558f59313210fbc47a92509990b872219beff25f"
+    },
+    {
+      "criterion": "D1Q-02R3",
+      "raw_ref": ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+      "sha256": "ac19a90c6a4e11f42501dbda7dbc2e434ed7cda145cfee2189bce9878e9cc8f8"
+    },
+    {
+      "criterion": "D1Q-05",
+      "raw_ref": "work/trellis-eight-step-20260909/step5-task2-final-narrow.log",
+      "sha256": "0ae14b6c0e8168d7eb40da08558f59313210fbc47a92509990b872219beff25f"
+    }
+  ]
+}

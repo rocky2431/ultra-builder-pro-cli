@@ -1,0 +1,16 @@
+{
+  "recorded_at": "2026-09-05T21:37:28.312323+00:00",
+  "reason": "Canonical task evidence allows flat regular files; retain the grouped diagnostic under the work evidence archive. Original runtime files used by the frozen Review remain unchanged.",
+  "previous_copy_directory": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-review",
+  "retained_directory": "work/owner-factory-implementation-20260905/evidence/stage-b-wrong-version-review",
+  "files_sha256": {
+    "request.json": "7c1fe76b3744657741cbb6b85c5fa345e85310089f3b118589c5de233298bb62",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "observation.json": "909b21ec54f2b5575a0826405dfad62e7b7fc2cd1d8befd86500f0914fb62620",
+    "retention-index.json": "38c5301f1da4d9260d9cbe62b8ae11c2ccc45b9f4a02131d7cd1496dad910a79",
+    "agent-trace.jsonl": "fd2387dcfa953044095616a5e8c00a4b4a643f42919adaf3b3d1762fdf0db624",
+    "fixture-config.json": "2eac4a3e2866a56307ee5cc6684d9a2e0a36e543c10c98e2ecdfefa5a195a0d8",
+    "stdout.jsonl": "fd14a01c6816dd04ae3c6898ce032ac941b29cbac819bc538f38297e1b2712d3"
+  },
+  "historical_index_note": "The copied retention-index.json is unchanged historical data; its retained_ref paths are remapped by this relocation record."
+}

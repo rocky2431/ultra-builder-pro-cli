@@ -28,6 +28,8 @@ const DELEGATION_RUNNER_FILES = Object.freeze([
   'agent-execution-driver.cjs',
   'acp-driver.cjs',
   'cli-driver.cjs',
+  'pi-native-runtime.cjs',
+  'pi-native-permissions.cjs',
   path.join('delegate-profiles', 'kimi-read-only.md'),
   path.join('delegate-profiles', 'kimi-write.md'),
 ]);

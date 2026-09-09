@@ -1,0 +1,165 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-d1-host-pi-native-review-20260909",
+  "mode": "task",
+  "created_at": "2026-09-09T07:36:04.180019+00:00",
+  "head": "bee8868b9cc6a98149f7f428a38d29969ad45924",
+  "range": "Current uncommitted Stage B Host qualification and exact Pi native integration, compared with bee8868",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC03, D1-AC04 and D1-AC05 require actual selected-Host effect qualification, preserved N=1 behavior and accurate maintained contracts.",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md#acceptance-criteria: D1Q-01, D1Q-02R3 and D1Q-03 through D1Q-05 are the current selected Pi native CLI criteria.",
+    ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md#stage-b-pi-native-candidate-and-effect-equivalent-qualification: Preserve each actual effect test and historical failed candidate; native Bash curl remains execute.",
+    ".ultra/decisions/2026-09-09-root-independent-implementation.md#owner-clarification-implementation-versus-verification: Codex alone implements source and tests; Pi may provide independent QA or participate in delegation experiments."
+  ],
+  "public_seams": [
+    "production delegate.run/status/cancel",
+    "native Pi CLI pre-effect tool policy and exact identity admission",
+    "result terminal, denial, writer boundary and install artifacts"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "2d1e8bd5299f6708a1a8f0a5cff651df601f4511156b58613d37a4b57f380d92"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "2d1e8bd5299f6708a1a8f0a5cff651df601f4511156b58613d37a4b57f380d92",
+      "byte_length": 29802
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-09-root-independent-implementation.md",
+      "sha256": "c0657b902ecfc18f869164fe3015fd82ae53b53333921829ffeed75c63d3b4a6",
+      "byte_length": 2380
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md",
+      "sha256": "9e28e23efd25414623c30110bc42afd717713e70abf6b9478af3857f161ab0bb",
+      "byte_length": 2865
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-d1-host-pi-native-review-20260909/review-spec.json"
+    },
+    {
+      "agent": "review-code",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/code.md",
+      "output": ".ultra/reviews/vnext-d1-host-pi-native-review-20260909/review-code.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-d1-host-pi-native-review-20260909/review-tests.json"
+    }
+  ],
+  "diff_files": [
+    "adapters/_shared/plugin-core.cjs",
+    "skills/ultra-delegate/SKILL.md",
+    "skills/ultra-delegate/references/delegation-contract.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+    ".ultra/decisions/2026-09-09-stage-b-pi-native-selection.md",
+    ".ultra/evidence/vnext-d1-host-enforcement-qualification/stage-b-pi-native-receipt.json",
+    "tests/pi-native-runtime.test.cjs",
+    "tests/pi-native-permissions.test.cjs",
+    "tests/install.test.cjs",
+    "tests/delegate.test.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/acpx-entry.test.cjs",
+    "tests/fixtures/fake-acp-agent.cjs",
+    "tests/v026-adapters.test.cjs",
+    "tests/ultra-5-journeys.test.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/acp-driver.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs",
+    "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+    "skills/ultra-delegate/scripts/pi-native-permissions.cjs"
+  ],
+  "output_directory": ".ultra/reviews/vnext-d1-host-pi-native-review-20260909",
+  "review_questions": [
+    "Review the current selected Pi subject and product-bound observations. Retained ZCode/Claude failures are not renamed successes. Full source/test authorship belongs to Codex.",
+    "Verify real pre-effect mediation with the complete native tool inventory, exact byte binding, legitimate work and result delivery, and honest native terminal/denial reporting.",
+    "Check the exact current tests, raw positive/negative native evidence and no-bootstrap public run; do not infer factory C/D/E or all eight steps complete.",
+    "No source/test edits or new provider trials; return concrete findings and limitations from read-only inspection."
+  ],
+  "evidence_refs": [
+    "work/trellis-eight-step-20260909/step5-pi-product-raw-index.json",
+    "work/trellis-eight-step-20260909/step5-pi-public-observation.json",
+    "work/trellis-eight-step-20260909/step5-pi-qualified-release.log",
+    "work/trellis-eight-step-20260909/step5-pi-final-pack.json",
+    "work/trellis-eight-step-20260909/step5-pi-final-doctor.json"
+  ]
+}

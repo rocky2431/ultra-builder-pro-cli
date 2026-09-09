@@ -1,0 +1,38 @@
+[
+  {
+    "original_ref": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/request.json",
+    "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-review/request.json",
+    "sha256": "7c1fe76b3744657741cbb6b85c5fa345e85310089f3b118589c5de233298bb62",
+    "bytes": 616
+  },
+  {
+    "original_ref": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/stderr.log",
+    "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-review/stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "original_ref": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/observation.json",
+    "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-review/observation.json",
+    "sha256": "909b21ec54f2b5575a0826405dfad62e7b7fc2cd1d8befd86500f0914fb62620",
+    "bytes": 2866
+  },
+  {
+    "original_ref": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/agent-trace.jsonl",
+    "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-review/agent-trace.jsonl",
+    "sha256": "fd2387dcfa953044095616a5e8c00a4b4a643f42919adaf3b3d1762fdf0db624",
+    "bytes": 770
+  },
+  {
+    "original_ref": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/fixture-config.json",
+    "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-review/fixture-config.json",
+    "sha256": "2eac4a3e2866a56307ee5cc6684d9a2e0a36e543c10c98e2ecdfefa5a195a0d8",
+    "bytes": 423
+  },
+  {
+    "original_ref": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review/stdout.jsonl",
+    "retained_ref": ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-review/stdout.jsonl",
+    "sha256": "fd14a01c6816dd04ae3c6898ce032ac941b29cbac819bc538f38297e1b2712d3",
+    "bytes": 988
+  }
+]

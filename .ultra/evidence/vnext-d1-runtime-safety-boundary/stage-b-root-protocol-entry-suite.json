@@ -1,0 +1,31 @@
+{
+  "command": [
+    "python3",
+    "-B",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-v"
+  ],
+  "cwd": "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill",
+  "base": "0f456a0839cddeec7add09c09b4e10f202cc08ee",
+  "started_at": "2026-09-05T21:31:35.213116+00:00",
+  "source_before": {
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/README.md": "2af9aa6fcd2b4535eb752b57aabddf212075d37fd7c5d5dbd7212c5c0c6a739c",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/scripts/install_user.py": "91c93226976349c08294cf248ca76809e1dd2d703be91364040bf6b870a1691e",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs": "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/tests/test_acpx_delegate_entry.py": "2ce4af176bb33ff2a11f38cfbb6f6ff8f4660f6b2afb72ce22e7ae17980a903d"
+  },
+  "exit_code": 0,
+  "duration_s": 63.817,
+  "source_after": {
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/README.md": "2af9aa6fcd2b4535eb752b57aabddf212075d37fd7c5d5dbd7212c5c0c6a739c",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/scripts/install_user.py": "91c93226976349c08294cf248ca76809e1dd2d703be91364040bf6b870a1691e",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs": "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/tests/test_acpx_delegate_entry.py": "2ce4af176bb33ff2a11f38cfbb6f6ff8f4660f6b2afb72ce22e7ae17980a903d"
+  },
+  "log_sha256": "0fcdb1ecbbb36af6172e5d528ce7fa16921c86d16d0e091a39f111276364b84d",
+  "source_unchanged": true
+}

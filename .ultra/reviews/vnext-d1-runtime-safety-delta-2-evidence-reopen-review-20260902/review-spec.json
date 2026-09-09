@@ -1,0 +1,39 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "95ea15a75a0a61792f38f11e6222c0f08a0deab86eef17243b20622f71ef26e5",
+  "admission_digest": "a6582e49ad4e23c5970d8966caa964ca375c1477eb6d602e2236032d7ccfd29a",
+  "subject_digest": "430569c98920189b1412eb7da339db911cd44d8873bc7c3d4a31aefdce2eb563",
+  "session": "vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902",
+  "timestamp": "2026-09-01T16:38:31Z",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-runtime-safety-evidence-reopen",
+    "files_analyzed": [
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "skills/ultra-plan/references/task-evidence-v2.md",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:115 canonical D1R-01 through D1R-05 Acceptance section SHA-256 5d8cda45a87088bd082e74dc84230333fad8567d5b022212000cf16157a9cb5e",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:159 explicit evidence-correction reopen records all affected criteria and preserves both prior Review sessions",
+    "skills/ultra-plan/references/task-evidence-v2.md:247-257 requires final Review before replacement evidence and explicit completed-to-in_progress recovery",
+    ".ultra/reviews/vnext-d1-runtime-safety-delta-1-review-20260901/SUMMARY.json retained direct parent APPROVE at SHA-256 65ce7b939327267ad84c1eb05ec41908e98a8452ca06be5be0118e42703a2a3c",
+    "Codex independent current integration gate: node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs passed 97/97, exit 0"
+  ],
+  "positive_observations": [
+    "The reopen changes workflow authority and evidence identity only: no Task 1 implementation path was edited, and the canonical Acceptance bytes remain exactly the accepted D1R-01 through D1R-05 contract.",
+    "The later Host-admission repair fails before executable identity probes while preserving the existing descendant-environment, complete-writer truth and physical-fence paths that Task 1 owns.",
+    "The prior initial and delta Review sessions remain immutable history; this fresh session binds the current context and integrated subject instead of rewriting an old receipt."
+  ],
+  "limitations": [
+    "The replacement Task Evidence v2 record is intentionally published only after this final Review; the currently retained historical evidence still exposes the stale extra-LF binding until that mechanical step completes.",
+    "Three historical non-blocking P2s remain retained: Host-created sessions may escape portable observation, non-Linux start identity is weaker, and a crash may leave the fence-registry lock stale."
+  ]
+}

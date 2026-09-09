@@ -1,0 +1,71 @@
+{
+  "archive": "step5-aggregate-qa-raw.tar.gz",
+  "sha256": "61bdaaf93333826b4ec3d1a980a3ca7de0ae0da2fd85e01ab83c7fbab532af00",
+  "files": [
+    {
+      "path": "errors-sessions/2026-09-09T07-59-11-226Z_01a0852d-9179-71f0-8d95-1bc26e73c861.jsonl",
+      "sha256": "763d7b33274e1cfc32fe7331a877f08b3f1b03f41064539604b1ddd7a0fdc7e9",
+      "bytes": 149696
+    },
+    {
+      "path": "errors.events.jsonl",
+      "sha256": "37c0823b8db22e3de9b861a6f3cea77497d618bae0e2e3ec515b5af28070f735",
+      "bytes": 883081
+    },
+    {
+      "path": "errors.result.json",
+      "sha256": "64e9b30df541ad932221f035385fa29cc56c7d7b24644a1d56a409cfb25547dc",
+      "bytes": 365
+    },
+    {
+      "path": "errors.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "run.py",
+      "sha256": "19e5a0eaec29e69d05f308bad2ba6770b7f38ae23e3c6d9b9814674a2d507e84",
+      "bytes": 2195
+    },
+    {
+      "path": "spec-sessions/2026-09-09T07-59-11-241Z_01a0852d-9189-709c-993e-e63e3784ba77.jsonl",
+      "sha256": "83e9c87749a5fb815fb3a43d9d5745ecbe5c6ee2b8bbb9e613da5e953b213b8b",
+      "bytes": 255191
+    },
+    {
+      "path": "spec.events.jsonl",
+      "sha256": "606a6f7548a11d2d2568e2b5949c87841b45bbb3170a3eca35f12e881f4b4ddf",
+      "bytes": 1426481
+    },
+    {
+      "path": "spec.result.json",
+      "sha256": "ffba33d0be44d752e0b5c70e5224f370fc3d8efc6e60dfb8c6c38bff848de64f",
+      "bytes": 363
+    },
+    {
+      "path": "spec.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "tests-sessions/2026-09-09T07-59-11-222Z_01a0852d-9176-745c-ada9-628800c2c9e0.jsonl",
+      "sha256": "96e66b40adf5e562d27da50b2370bbec94e2a5a675dc3ef70c6946367c2456f9",
+      "bytes": 159582
+    },
+    {
+      "path": "tests.events.jsonl",
+      "sha256": "14813a72c87e08817a55fac9b731785973c8408a9b14b248c4757d043214cabe",
+      "bytes": 956550
+    },
+    {
+      "path": "tests.result.json",
+      "sha256": "776d5b3dfd306dfdce6d8e4b3b19108e51489a75016675f9088ab1581668cf96",
+      "bytes": 364
+    },
+    {
+      "path": "tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

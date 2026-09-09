@@ -1,0 +1,81 @@
+{
+  "started_at": "2026-09-05T22:30:03.970921+00:00",
+  "installed_wrapper_version": "0.4.0 (independent host update, not installed by this task)",
+  "negative_receipt_sha256": "04c53544528b7f35c38fbaf6ef6f3666ecc1c9d4b936024e7825467fb1f6846e",
+  "runs": [
+    {
+      "author": "zcode",
+      "delegation_id": "a24ce801d48b464598a2a02e695ea0e8",
+      "shell_session_id": 29210,
+      "mission": "stage-b-zcode-native-shell-mission.md",
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T222911Z-a24ce801d48b464598a2a02e695ea0e8",
+      "receipt_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-zcode-native-shell-receipt.json",
+      "status": "success",
+      "timeout_seconds": 2400,
+      "mission_sha256": "a2865a58def9698b70502b5fac4b19ae98d5285aca47182d20efebfb43f00b25",
+      "terminal": true,
+      "stop_reason": "end_turn",
+      "exit_code": 0,
+      "execution_seconds": 1437.417,
+      "duration_seconds": 1437.454,
+      "execution_started_at": "2026-09-05T22:29:11.667967+00:00",
+      "acp_session_id": "3e4e8df3-fef7-45aa-98eb-502a69cfc4ad",
+      "receipt_sha256": "8a15a2e9df38acc0e9ce967467ae2f4805f72ad9aa9a69acfee5ee5c3ed2c4e9",
+      "error_counts": {
+        "rpc_errors": 0,
+        "tool_errors": 0,
+        "protocol_errors": 0
+      }
+    },
+    {
+      "author": "kimi",
+      "delegation_id": "17b86b5a241d4c409939ef507c51daa7",
+      "shell_session_id": 3968,
+      "mission": "stage-b-kimi-admission-mission.md",
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T222912Z-17b86b5a241d4c409939ef507c51daa7",
+      "receipt_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-kimi-admission-receipt.json",
+      "status": "success",
+      "timeout_seconds": 2400,
+      "mission_sha256": "f7b743b2678f6c2d7d1e8ed90ae5648f1ff4e6aa848f2c37bdf7e6b8ce40956d",
+      "terminal": true,
+      "stop_reason": "end_turn",
+      "exit_code": 0,
+      "execution_seconds": 1368.518,
+      "duration_seconds": 1368.518,
+      "execution_started_at": "2026-09-05T22:29:12.424761+00:00",
+      "acp_session_id": "session_da8274b3-6c39-4665-a993-f0bc8455658f",
+      "receipt_sha256": "e701bff1b7ea0cdfea01dc9be3ee5959dff8a6cd16e20f2613b35715240bdbba",
+      "error_counts": {
+        "rpc_errors": 410,
+        "tool_errors": 410,
+        "protocol_errors": 0
+      }
+    },
+    {
+      "author": "kimi",
+      "delegation_id": "b653c69f13794a9f8b0b9e5a85f47d36",
+      "shell_session_id": 92400,
+      "mission": "stage-b-kimi-entry-0.4-integration-mission.md",
+      "mission_sha256": "1a424f61eed74f067fe3c4906037c4ff9fc3281bf337acc571379c7c9bdb273e",
+      "receipt_dir": "/Users/rocky243/.local/state/agent-delegation/runs/20260905T223246Z-b653c69f13794a9f8b0b9e5a85f47d36",
+      "receipt_file": ".ultra/.runtime/owner-factory-implementation-20260905/stage-b-kimi-entry-0.4-integration-receipt.json",
+      "status": "success",
+      "timeout_seconds": 1200,
+      "cwd": "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill",
+      "terminal": true,
+      "stop_reason": "end_turn",
+      "exit_code": 0,
+      "execution_seconds": 723.213,
+      "duration_seconds": 723.214,
+      "execution_started_at": "2026-09-05T22:32:46.082569+00:00",
+      "acp_session_id": "session_1e5e1d5b-04de-4e08-98fe-2c8b525409b1",
+      "receipt_sha256": "e2c6e6e34800a108261a80e0a11bda4e62ba02ca2b44f27400e34c38be113b57",
+      "error_counts": {
+        "rpc_errors": 216,
+        "tool_errors": 216,
+        "protocol_errors": 0
+      }
+    }
+  ],
+  "terminal_readback_at": "2026-09-05T23:02:35.387844+00:00"
+}

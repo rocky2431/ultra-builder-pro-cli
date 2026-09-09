@@ -1,0 +1,132 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "plan",
+  "execution_mode": "isolated",
+  "session": "vnext-d1-plan-review-delta-1-20260901",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary",
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "worktree_digest": null,
+  "context_digest": "d93d19a64fe251e7f1bd108e0c0d960d433d521d9bd16635387ee8f6c077e778",
+  "packet_digest": "9e2e75d1ca258b9ed8ac26584d389cb8d5265f9408af2978c936a88486235798",
+  "admission_digest": "2dc66288159d2c43723883c494b29388027eac51457205e54981bafb1972a994",
+  "subject_digest": "604c9ec6554d13ba5698d902c5e927eaaf5efeef1dd50cb9a2813120ff6a1be2",
+  "status": "complete",
+  "verdict": "REQUEST_CHANGES",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "FAIL",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-tests.json",
+        "review-errors.json",
+        "review-design.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-tests",
+      "review-errors",
+      "review-design"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-code",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "The delta changes the canonical grant, active authorization and exact acceptance wording that were the parent specification blockers."
+    },
+    {
+      "worker": "review-code",
+      "status": "skipped",
+      "rationale": "The delta contains no runtime implementation; its exact P1 repair set is limited to grant and plan artifacts."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "The parent blocking set required new falsifiers for secret retention, denial observation, timeout, root aliases and conformance."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "The parent blocking set included timeout truth and provider-dispatch budget recovery."
+    },
+    {
+      "worker": "review-design",
+      "status": "selected",
+      "rationale": "The parent blocking set crossed two-task grant ownership, execution-packet inventory and environment boundary ownership."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "No source comments or final public documentation were changed in the exact P1 repair set."
+    }
+  ],
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P1",
+      "category": "authority",
+      "title": "Per-task grant budgets still lack exact task identities",
+      "file": ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      "line": 133,
+      "line_end": 140,
+      "trigger": "A fresh Agent verifies the durable grant before dispatching either D1 task, or the mutable D1 ledger later gains another named task.",
+      "impact": "The Agent cannot determine from the exact owner grant bytes which two tasks may consume the separate ZCode and Review budgets. Durable-grant verification must stop on that ambiguity, while treating every currently or subsequently named D1 task as covered could silently widen authority.",
+      "evidence": "The canonical D1 grant allocates attempts and Reviews to 'each named D1 task' but never lists either task id. The two current ids appear only in separate task contexts and the derived Review packet, neither of which can supply or widen the exact owner grant.",
+      "suggestion": "List `vnext-d1-runtime-safety-boundary` and `vnext-d1-host-enforcement-qualification` explicitly in the canonical D1 grant as the complete per-task budget set, and keep aggregate expiry unchanged.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-plan-review-20260901/SUMMARY.json direct parent and exact unresolved P1 ids",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md#D1-durable-work-package-grant",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#Acceptance and #Execution-Grant",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md role-scoped environment, canary, timeout, physical-root and conformance repair set",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md denial-observation, attempt-reservation and packet-inventory repair set",
+    "node --test tests/project-artifacts.test.cjs: 80 passed, 0 failed after plan repair",
+    "git diff --check over the repaired plan and authority artifacts"
+  ],
+  "positive_observations": [
+    "Tests, errors and design lenses found no remaining blocker in their exact parent repair sets.",
+    "The final Host no longer receives canonical packet paths, and the planned evidence now covers secret canaries, nested timeout, physical-root aliases and ACP conformance.",
+    "The exact-Host call now requires independent denial observations and consumes its one-call budget at dispatch, while Task 2 has a planned packet and attempt record."
+  ],
+  "limitations": [
+    "One P1 remains: the canonical durable grant refers to each named D1 task but does not list the two task ids in the grant bytes.",
+    "The exact owner grant allows only one Plan delta Review; this REQUEST_CHANGES therefore routes to an owner checkpoint rather than another automatic repair or ZCode dispatch.",
+    "The parent Review's three P2 findings remain retained and were not promoted or used to expand this delta."
+  ]
+}

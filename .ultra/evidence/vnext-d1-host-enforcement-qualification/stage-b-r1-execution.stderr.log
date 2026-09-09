@@ -1,0 +1,1 @@
+ultra-delegate: warning: host 'zcode' runs installed ZCode Desktop runtime through zcode-acp 0.1.0; recovery: "/Users/rocky243/.hermes/node/bin/node" "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/delegate.cjs" "cancel" "--delegation" "<delegation-dir>"

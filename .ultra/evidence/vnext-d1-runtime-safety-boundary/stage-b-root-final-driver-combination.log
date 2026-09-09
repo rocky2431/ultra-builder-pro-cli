@@ -1,0 +1,25 @@
+REAL happy: {
+ "outcome": {
+  "code": 0,
+  "termination": null,
+  "protocolVersion": 1,
+  "stopReason": "end_turn",
+  "adapterExitCode": 0
+ },
+ "boundary": "stopped",
+ "hostOutput": "written",
+ "stderrTail": ""
+}
+REAL multi-denial: {
+ "outcome": {
+  "code": 0,
+  "termination": null,
+  "protocolVersion": 1,
+  "stopReason": "end_turn",
+  "failureType": "permission_denied",
+  "adapterExitCode": 0
+ },
+ "boundary": "stopped",
+ "hostOutput": "absent",
+ "stderrTail": ""
+}

@@ -1,0 +1,105 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "sequential-shared-context",
+  "session": "vnext-d1-runtime-safety-delta-1-review-20260901",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary"
+  ],
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "worktree_digest": null,
+  "context_digest": "183f0dd1e8e8337ccf2964d9f90954f2a886b2f24907532a95187919da95450e",
+  "packet_digest": "a5325d3819a883d95363a0761a123316720d5ba9a3c8d54b4c9249b2d908b16e",
+  "admission_digest": "07f3fde69dd1e75781809c741374e478624fe278b5a9a640b9859331b5b5c53b",
+  "subject_digest": "4e8b544dc624b5eb86cf55a3b71467c2c30a1588e458da7b3e69c2d8871853c3",
+  "status": "complete",
+  "verdict": "APPROVE",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-code.json",
+        "review-tests.json",
+        "review-errors.json",
+        "review-design.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-code",
+      "review-tests",
+      "review-errors",
+      "review-design"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "The delta must prove that all six direct-parent P1 findings now satisfy D1R-02, D1R-03 and the accepted no-false-stop boundary."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "The repair changes executable identity parsing, shared recovery state, cleanup callers and the pre-Host lock claim."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "The parent finding was hidden by a green suite, so the direct RED/GREEN regressions and independent 92-of-92 run are verdict-critical."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "Cancellation and terminal recovery cleanup were the reachable unsafe error paths in the parent."
+    },
+    {
+      "worker": "review-design",
+      "status": "selected",
+      "rationale": "The repair reconciles outer-worker and inner-writer state ownership at the physical fence boundary."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "No public documentation or model-facing instruction changed in this three-file P0/P1-only delta."
+    }
+  ],
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-runtime-safety-initial-review-20260901/SUMMARY.json direct parent and six unresolved blocking ids",
+    "review-spec.json",
+    "review-code.json",
+    "review-tests.json",
+    "review-errors.json",
+    "review-design.json",
+    "ZCode delegation 4d4b239c257d47fc8e496aef206ddc6a: four valid RED assertions and 92-of-92 green",
+    "Codex independent node --test tests/delegate.test.cjs tests/acp-driver.test.cjs tests/acp-conformance.test.cjs: 92 passed, 0 failed, exit 0",
+    "Codex node --check and git diff --check over the three writable paths: exit 0",
+    "52 Git-visible outside-scope entries, eight parent Review artifacts and seven read-only subject paths: zero digest mismatch"
+  ],
+  "positive_observations": [
+    "The shared outer-worker view now preserves unknown for the post-spawn pid-null gap and unavailable identity while retaining truthful same-type PID-reuse proof.",
+    "Both cancel paths require proven-stopped outer and inner boundaries before deleting the lock or releasing the physical fence.",
+    "The worker proves the identity written to run.lock before Host launch, and the regression uses a separate test process rather than a production fault hook.",
+    "The repair changed only the three authorized paths and added no dependency, daemon, database, lease, workflow engine or Step 1 behavior."
+  ],
+  "limitations": [
+    "The task Review used one Codex context and is not the future Codex plus Claude stage-level Review.",
+    "Three non-blocking P2s remain retained: Host-created sessions, weaker non-Linux start identity, and stale registry .lock after crash.",
+    "The full release gate and exact selected-Host enforcement observation remain D1 integration and Task 2 work; this delta ran the accepted narrow gate only.",
+    "No commit, push, tag, publish, deploy, real-HOME installation, credential access, package fetch or production effect is included."
+  ]
+}

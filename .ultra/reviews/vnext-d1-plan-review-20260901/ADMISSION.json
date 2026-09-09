@@ -1,0 +1,78 @@
+{
+  "$schema": "ultra-review-admission-v2",
+  "version": 2,
+  "session": "vnext-d1-plan-review-20260901",
+  "packet_digest": "23958fcaf6f13dbd7cda421a52ce8154c7a7fb254cc424d85433b084c251068f",
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "observations": [
+    {
+      "role": "context",
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "e3f1dece4b7a55cb28810a3978878cf8f8b02fc827d8d981957d8d24e261fee1",
+      "byte_length": 9123
+    },
+    {
+      "role": "context",
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "bcc494b886e267dc54410961ebb6a78ff898267006a8ac0075a6da6fa6bbb0b5",
+      "byte_length": 9366
+    },
+    {
+      "role": "north_star",
+      "path": ".ultra/north-star.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    },
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "d4b4b9b9c8fbbf61625b94db91ceb9d5dd7da7fce4e53fcaf00d681d6b0fb6a0",
+      "byte_length": 10766
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "d4b4b9b9c8fbbf61625b94db91ceb9d5dd7da7fce4e53fcaf00d681d6b0fb6a0",
+      "byte_length": 10766
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "sha256": "e3f1dece4b7a55cb28810a3978878cf8f8b02fc827d8d981957d8d24e261fee1",
+      "byte_length": 9123
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "bcc494b886e267dc54410961ebb6a78ff898267006a8ac0075a6da6fa6bbb0b5",
+      "byte_length": 9366
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      "sha256": "dfb2aa768c1f8770e5fef5835a067f96a9966f162fe6aa507799af3e9cd63b09",
+      "byte_length": 8876
+    }
+  ],
+  "north_star_report": {
+    "schema": "ultra-north-star-validation-v1",
+    "sha256": "597d01186e52db9ec4851585e68077e4b50ef4781bb3303ddce20ced1b9f7426",
+    "input_sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+    "input_byte_length": 26480,
+    "source_observations": [
+      {
+        "role": "decision",
+        "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+        "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+        "byte_length": 4747
+      },
+      {
+        "role": "snapshot",
+        "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+        "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+        "byte_length": 26480
+      }
+    ]
+  },
+  "subject_digest": "6ef166289eef63e44606959559dcc670bd5710f7130f9d98649db5a53611019a"
+}

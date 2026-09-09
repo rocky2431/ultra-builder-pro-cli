@@ -1,0 +1,131 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-design",
+  "axis": "engineering_standards",
+  "packet_digest": "23958fcaf6f13dbd7cda421a52ce8154c7a7fb254cc424d85433b084c251068f",
+  "admission_digest": "90f9c36d4dac83878e4b2baf66ee0b103b99eb93c0ce549fc2c3f9177b7bfeb3",
+  "subject_digest": "6ef166289eef63e44606959559dcc670bd5710f7130f9d98649db5a53611019a",
+  "session": "vnext-d1-plan-review-20260901",
+  "timestamp": "2026-08-31T22:46:16Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-plan-v1",
+    "files_analyzed": [
+      ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      ".ultra/tasks.json",
+      "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md",
+      "work/vnext-step1-claude-architecture-discussion.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-design-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "authority",
+      "title": "The two-task graph is governed by a one-task grant",
+      "file": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "line": 93,
+      "line_end": 95,
+      "trigger": "The predecessor runtime-safety task reaches its mandatory formal task Review APPROVE before the dependent Host-qualification task starts.",
+      "impact": "The grant then expires after its single initial ZCode attempt and single initial task Review are consumed, while the dependent task requires a fresh ZCode packet and review; continuing would exceed authority and stopping leaves D1-AC03 and D1-AC05 undelivered.",
+      "evidence": "Line 93 authorizes one initial ZCode attempt, one initial task Review, and expiry at formal task Review APPROVE. The ledger contains two sequential tasks, and the dependent context at lines 149-153 requires a fresh ZCode packet only after predecessor evidence and Review.",
+      "suggestion": "Either grant exactly one initial implementation attempt and Review per named task and expire after aggregate D1 approval, or collapse the graph into one reviewed ZCode packet; never repurpose P0/P1 repair calls as authority for the second task.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04",
+          "NS-05"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-5",
+          "HC-7"
+        ]
+      }
+    },
+    {
+      "id": "review-design-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "recovery",
+      "title": "Task 2 requires an execution packet that its inventory forbids creating",
+      "file": ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md",
+      "line": 149,
+      "line_end": 151,
+      "trigger": "After the predecessor completes, the coordinator follows this Resume Note and creates the required fresh ZCode packet.",
+      "impact": "That packet is an unplanned path addition which this same task classifies as plan-critical, so the sole authorized implementation writer cannot receive a digest-bound Task 2 mission without violating the accepted inventory or rebuilding the plan after execution should already begin.",
+      "evidence": "The Planned Path Inventory at lines 55-79 lists only the context, evidence, receipt, log, product surfaces and tests; it omits any Task 2 ZCode packet, while lines 80-82 require plan disposition for every later path addition and lines 149-151 require that packet.",
+      "suggestion": "Add one canonical Task 2 ZCode execution-packet path to CREATE now and require its digest to be bound before launch.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1",
+          "FP-3",
+          "FP-6"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-04"
+        ],
+        "touches": [
+          "HC-2",
+          "HC-4",
+          "HC-5"
+        ]
+      }
+    },
+    {
+      "id": "review-design-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "recovery",
+      "title": "Recovery state still routes to an already consumed Claude discussion",
+      "file": "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md",
+      "line": 66,
+      "line_end": 73,
+      "trigger": "A fresh session follows the owner-readable Next action after this plan was created.",
+      "impact": "Recovery can wait indefinitely or repeat the one-budget Claude call, adding context and entitlement consumption instead of dispatching the reviewed first tracer.",
+      "evidence": "The runtime-task change log says the plan was created after the fresh Claude discussion, but this Next action still says to wait for and consume it. The retained mission also pins decision digest 9818a805... while this admitted plan binds the current decision digest dfb2aa76....",
+      "suggestion": "Record the terminal Claude delegation receipt and current digest verification, mark that discussion budget consumed, and make the next action the plan disposition followed by Task 1 dispatch; preserve the original mission as historical input rather than rewriting it.",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-1"
+        ],
+        "serves": [
+          "NS-02"
+        ],
+        "touches": [
+          "HC-4"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md:87",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:22",
+    ".ultra/contexts/task-vnext-d1-host-enforcement-qualification.md:23",
+    ".ultra/tasks.json:375",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md:123",
+    "docs/wip/ultra-builder-pro-vnext-three-stage-delivery-state.zh-CN.md:25",
+    "work/vnext-step1-claude-architecture-discussion.md:10"
+  ],
+  "positive_observations": [
+    "The plan keeps D1 limited to the shared delegation-safety prerequisite and explicitly excludes Supervisor, wake and durable workflow machinery.",
+    "The two tasks separate offline runtime truth from the exact-Host external observation, and both reuse existing runner, driver, permission and receipt seams instead of introducing a second execution engine.",
+    "The plan preserves the model-facing result status and routes unproved writer state through launcher-side outcome_unknown while freezing affected roots."
+  ],
+  "limitations": [
+    "This is a plan-only review; no runtime implementation, process-tree fixture or exact-Host enforcement result exists yet.",
+    "Cross-platform writer identity and ZCode enforcement feasibility remain intentionally unproven until their named RED fixture and bounded qualification observation."
+  ]
+}

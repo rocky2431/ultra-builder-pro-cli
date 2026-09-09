@@ -1,0 +1,172 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "packet_digest": "f06f087cf90b8f7e959963b4bc55a6577b51f91c7220027feb29c0f14a60b093",
+  "admission_digest": "868ca62d7de9189a136fe1fd79e328ff2fbf4dc8334dc4615ec975d407449324",
+  "subject_digest": "576b56729e6e2cdd8e56b40a2f693326e0468a7f8cc47dbcd2c21974c5e18daf",
+  "session": "vnext-d1-runtime-stage-b-protocol-delta-review-20260906",
+  "timestamp": "2026-09-05T21:56:21.584693+00:00",
+  "scope": {
+    "head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+    "range": "b765b55cca0e1eaacebc738a68de77906bb50756 plus current Stage B runtime migration and the direct-parent protocol refusal repair in the working tree",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "skills/ultra-delegate/scripts/acp-conformance.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "skills/ultra-delegate/SKILL.md",
+      "skills/ultra-delegate/references/delegation-contract.md",
+      "docs/RUNTIME-COMPAT-MATRIX.md",
+      "tests/delegate.test.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/acpx-entry.test.cjs",
+      "tests/fixtures/fake-acp-agent.cjs",
+      "tests/fixtures/fake-acpx-entry.cjs",
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "documentation",
+      "title": "r1 构建段落未区分旧构建的 release 和 Provider 验证",
+      "file": "docs/RUNTIME-COMPAT-MATRIX.md",
+      "line": 186,
+      "line_end": 189,
+      "trigger": "读者依据新 patch SHA 和 .r1 marker 所在段落判断该精确构建已具备 release-build 或真实 Provider 证据。",
+      "impact": "这句话可把旧构建的验证归给新构建，误导后续 qualification 或交付说明；当前 profile 仍按旧 negative 身份拒绝新构建，因此没有观察到错误运行准入，保持 P2。",
+      "evidence": "当前 docs/RUNTIME-COMPAT-MATRIX.md:179 绑定新 patch 8c127dba648720121da9326cae721141785f03ef72bdfae2201f50e59bb9cb36，186-189 行仍将 passes ... release build, and real provider session 紧邻新 .r1 marker。该文件 240-247 行和 host-profile.cjs:181-200 仍明确新身份与旧 negative record 不匹配。已读取 stage-b-bridge-final-source-review.zh-CN.md:31 的现有证据限制：本次 r1 为 debug build，未执行 r1 Provider qualification。本 delta 未改变该文案或产生新真实资格，最终 public entry/driver 的 fixture 绿色不能把旧 release/Provider 记录归给 r1。",
+      "suggestion": "明确标注旧 marker 的历史 release/Provider 验证，并给 .r1 列出当前 Rust、fake App-server E2E 和 debug-build 证据；新 release/真实资格待取得对应原始证据后再更新这句话，无需增加运行时检查。",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "documentation",
+      "title": "客户端拒绝行为被描述为能力广告完全等价",
+      "file": "skills/ultra-delegate/references/delegation-contract.md",
+      "line": 102,
+      "line_end": 106,
+      "trigger": "Host 根据 initialize 中是否声明客户端 filesystem/terminal 能力选择工具路径，或读者把这段作为迁移后行为完全兼容的证据。",
+      "impact": "广告为 present 后再拒绝调用，与一开始不广告能力，对 Host 的工具选择可产生不同结果；文档当前把已证明的效果拒绝扩大为未证明的行为等价。没有当前真实 Host 故障或越权反例，按 P2 文档边界保留。",
+      "evidence": "当前 delegation-contract.md:102-104 明确 pinned runtime 广告 filesystem/terminal capabilities as present 并由 deny-all 拒绝，105-106 行仍写 effective client surface equals the previous no-fs/no-terminal advertisement；SKILL.md:159-160 重复该等价说法。fake-acpx-entry.cjs:288-292 仍广告 false，而保留的真实 public entry 原始 initialize 请求广告 fs/terminal 为 true。当前修复和实际入口回归证明版本拒绝、公共消费与有限的效果处理，没有建立真实 Host 对两种能力广告的相同工具选择；本 delta 未改变此既有 P2 边界。",
+      "suggestion": "将本处及 Skill 对应句限定为客户端 filesystem/terminal 效果仍被拒绝，并明确能力广告与旧引擎不同；不为该措辞恢复第二协议引擎或加入 SDK 配置。",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/WORKER-PACKET.json",
+    ".ultra/reviews/vnext-d1-runtime-stage-b-protocol-delta-review-20260906/ADMISSION.json",
+    ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906/SUMMARY.json",
+    ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906/review-spec.json",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:187",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md:15",
+    ".ultra/decisions/2026-09-06-stage-b-implementation-scope.md",
+    ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+    ".ultra/north-star.md:49",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:348",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:388",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:445",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:521",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:623",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:661",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:125",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:285",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:669",
+    "skills/ultra-delegate/scripts/delegate.cjs:535",
+    "skills/ultra-delegate/scripts/delegate.cjs:839",
+    "skills/ultra-delegate/scripts/delegate.cjs:1083",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs:197",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs:355",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs:210",
+    "skills/ultra-delegate/scripts/host-profile.cjs:40",
+    "skills/ultra-delegate/scripts/host-profile.cjs:181",
+    "skills/ultra-delegate/references/delegation-contract.md:85",
+    "skills/ultra-delegate/references/delegation-contract.md:99",
+    "skills/ultra-delegate/SKILL.md:143",
+    "docs/RUNTIME-COMPAT-MATRIX.md:176",
+    "docs/RUNTIME-COMPAT-MATRIX.md:240",
+    "tests/acp-driver.test.cjs:290",
+    "tests/delegate.test.cjs:594",
+    "tests/delegate.test.cjs:605",
+    "tests/acpx-entry.test.cjs:47",
+    "tests/fixtures/fake-acp-agent.cjs:129",
+    "tests/fixtures/fake-acpx-entry.cjs:314",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:308",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:357",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/runtime/acpx_delegate_entry.cjs:472",
+    "/tmp/ubp-factory-stage-b-l7dd0y3s/agent-delegate-skill/tests/test_acpx_delegate_entry.py:318",
+    "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/node_modules/acpx/dist/runtime.js:1057",
+    "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/node_modules/acpx/dist/runtime.js:1109",
+    "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/node_modules/acpx/dist/runtime.js:1128",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-final-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-protocol-root-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-runtime-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-narrow.log:19",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-entry-suite.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-final.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release.log:868",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-release-after-evidence-reconciliation.log:868",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-review-timeout-replay.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-review-timeout-replay.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-protocol-other-checks.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-wrong-version-relocation.json",
+    "work/owner-factory-implementation-20260905/evidence/stage-b-wrong-version-review/agent-trace.jsonl",
+    "work/owner-factory-implementation-20260905/evidence/stage-b-wrong-version-review/stdout.jsonl",
+    "work/owner-factory-implementation-20260905/stage-b-protocol-version-root-review.zh-CN.md",
+    "work/owner-factory-implementation-20260905/stage-b-zcode-protocol-version-handover.zh-CN.md",
+    "work/owner-factory-implementation-20260905/stage-b-bridge-final-source-review.zh-CN.md:31"
+  ],
+  "positive_observations": [
+    "当前 direct-parent review-code-001 与 review-tests-002 是同一个版本协商根因的两个 P1 记录。本 spec delta 的处置为该根因已由当前源码与实际-entry/实际-driver回归支持关闭：entry 从公开 sessionStore.save 的 AcpSessionRecord.protocolVersion 观察协商数值，ensureSession 返回后、startTurn 前拒绝非 1 或未观察版本；结构化错误为 unsupported_protocol_version/ensure_session。UBP 仅从 result 行的可选 protocolVersion 兄弟字段读取数值，不再由 terminal 合成 1。两个父 P1 ID 均保留其历史失败事实，未合并或改写父 SUMMARY。",
+    "D1R-04 / D1-AC04：实际 entry 源和 Root 独立副本 SHA 都是 f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd，解析 SDK 0.13.2。已读取 pinned runtime 的 createOwnedRuntimeSession、prepareInitialRuntimeRecord 和 retainInitializedSessionOwner，确认版本来自 initializeResult 且首次 record save 在 ensureSession 完成前发生。新 tests/acp-driver.test.cjs:296 起的 opt-in 回归实际选择该 entry，经同一 wrong-version Agent 断言 protocolVersion=2、acp_turn_failed、ensure_session、无 session/prompt、无 host_output 和无成功 terminal 事件；聚焦及完整 release raw 均记录它实际通过，未靠更严格的 fake entry 代证。",
+    "D1R-04 的相邻兼容路径保持：初始化 auth 失败没有保存 session record，entry 省略 protocolVersion，driver/fallback 元数据为 null。agent-execution-driver 仍同时要求 acp_auth_required、结构化 ensure_session 与已停止的首个 writer 才允许一次既有 CLI fallback；迟期或无 phase auth 失败不重放。delegate-worker 消费观察版本，acp-conformance 仍要求 acp_protocol_version===1；版本 2 不再可能靠合成 v1 满足该门。version-1正常、未观察版本拒绝、取消、迟期失败和既有 close/drain 测试在相关原始日志通过。",
+    "D1R-01 / D1-AC01：本协议 delta 没有改变冻结的 role-scoped env policy、真实 detached worker spawn 或 canary 断言。当前读取的 host-profile.descendantEnvViews、delegate.launchDelegateWorker、digest-bound env_keys 和 descendantSpawnEnv 仍把 launcher-local packet paths留给 worker，AcpDriver 仅向 entry 传入同一 sanitized hostEnv；entry 的 sessionStore 只存内存，不添加环境持久化路径。当前聚焦/最终全套继续包含真实 child-process 环境捕获和产物 canary 检查，父轮该项覆盖没有因本修复回退。",
+    "D1R-02 与 D1R-03 / D1-AC02：本 delta 未修改 writer/fence 源。当前 AcpDriver 仍在真实 entry spawn 前后记录 launch identity，取消回执仍与进程停止证明分离；fallback 先验证 stopped，delegate.outerWorkerView 继续消费保守 signalOutcome。父轮独立 spec 对 inner/outer未知恢复、物理 root 冲突、真实第二 writer拒绝的覆盖被保留；与父轮最后成功 release 的逐文件 SHA 比较确认这些源和测试不变，当前105项及737项日志继续覆盖它们。本次不另行宣称重新执行全套跨平台生命周期。",
+    "D1R-05：相对直接父轮最终成功源码，变化限于 public entry版本观察及其 UBP acp-driver、协议文案、fake-entry镜像和两个直接测试消费者；tests/delegate.test.cjs 的 auth版本断言由旧合成 1 改为 null，有当前范围澄清。没有新增语义 next-step、Run Slice、wake、重试编排、持久 lease、结果状态或依赖；通用连接/会话仍由既有公共 ACPX runtime 承担。当前新 r1身份仍与旧 negative qualification分开，真实资格留在下一 Task。",
+    "验证绑定：重新核对packet/admission SHA、全部receipt observation SHA/长度、直接父 SUMMARY SHA和North Star blob均一致，所有 FP/NS/HC ID在接受的 north-star-v2-r3文本中有对应条目，blob为439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8。协议拒绝和真实版本报告直接支持NS-02/NS-03，保守writer恢复继续支持NS-04；没有把通过测试数量当作NS-05语义收敛。",
+    "保留证据完整性：三个 raw-index中的31条SHA/长度全部匹配，wrong-version搬迁记录的7个文件SHA也全部匹配。Root聚焦105/105、公共入口58/58、最终release737 Node+104 Hook、0失败/跳过、audit0；聚焦和最终release的172项源/entry前后及当前SHA完全一致，公共入口4项受测源也无漂移。pack142、Skill validator和diff检查的原始摘要均为exit0。"
+  ],
+  "limitations": [
+    "这是当前 admitted packet的直接父 P1修复 delta，只读源与保留的原始证据；没有运行Provider、安装、提交、任务完成或资格发布，也没有重新运行已保留的全套。scope.files_analyzed只列packet允许的仓库路径；外部entry/SDK只作为公共消费边界证据读取。",
+    "拒绝边界是no session/prompt，不是零会话效果：pinned manager先session/new后保存记录，因此unsupported/unproven拒绝时session可能已建立。旧失败trace确实包含initialize、session/new和session/prompt；新真实driver回归明确允许并断言session/new存在，阻断prompt。没有把session创建或本地fixture称为Provider调用。",
+    "保留两次早期release失败：首轮737中736pass/1fail是新增证据不在精确Planned Path Inventory且canonical证据布局需平铺；归档协调没有改实现/测试或Acceptance语义。第二轮737中736pass/1fail为review-wait子进程status=null，原始输出没有error/signal，原因未分类；同源同断言定向1/1及最终默认并行全套成功不证明该失败无害，也不删除旧失败。",
+    "作者observation时间2026-09-06T05:55:00Z与实际launch和1307.582秒持续时长冲突，不用作freshness；以Root命令时刻和源码快照为证。最终全套的command前subject与之后Review元数据必须分开，不能把后加元数据伪装为测试前字节。",
+    "父轮三个P2仍非阻塞且不授权自动修复：本镜头保留review-spec-001与review-spec-002（第二项当前行号已随版本说明插入而更新）；review-tests-001的一般实际-entry/driver normal、多拒绝与取消组合覆盖由测试镜头保留。本轮新增实际wrong-version回归只关闭同根因P1，不能当作所有组合已经加入正式断言。",
+    "Task2/D1Q-02真实Host enforcement qualification仍未建立，当前测试的Host是本地fixture，不能提升桥接maturity、支持状态或宣称Stage B/整个工厂完成。保留的doctor是degraded/exit2，不等于真实HOME已安装这些新entry字节。",
+    "父轮未变的平台与观测限制继续有效：新session/process-group逃逸、非Linux start identity强度、registry锁崩溃清理、HOME文件认证可达性、公共entry缺少旧引擎逐消息sessionId等值检查，以及first-kind而非任意重复-kind optionId语义。它们未由本协议delta扩大或消除；当前审查不声称通用sandbox或完整Host资格。"
+  ]
+}

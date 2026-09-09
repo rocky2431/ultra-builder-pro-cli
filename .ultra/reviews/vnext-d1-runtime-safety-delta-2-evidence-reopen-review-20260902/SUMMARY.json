@@ -1,0 +1,97 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "sequential-shared-context",
+  "session": "vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary"
+  ],
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "worktree_digest": null,
+  "context_digest": "443eb109cdddf70f737bc1d69a5ab9e7c2eb30b82a1982718df95d1ffc669f29",
+  "packet_digest": "95ea15a75a0a61792f38f11e6222c0f08a0deab86eef17243b20622f71ef26e5",
+  "admission_digest": "a6582e49ad4e23c5970d8966caa964ca375c1477eb6d602e2236032d7ccfd29a",
+  "subject_digest": "430569c98920189b1412eb7da339db911cd44d8873bc7c3d4a31aefdce2eb563",
+  "status": "complete",
+  "verdict": "APPROVE",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-tests.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-tests"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-code",
+      "review-errors",
+      "review-design",
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "Every Review requires the specification axis, and this reopen must distinguish an exact evidence-identity repair from a semantic acceptance or implementation change."
+    },
+    {
+      "worker": "review-code",
+      "status": "skipped",
+      "rationale": "No Task 1 implementation repair was made; the later four-path Task 2 code delta receives its own current code Review, while this focused session verifies Task 1 integration through the tests lens."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "The replacement evidence must bind a current integrated subject, so the exact 97-test Task 1 gate, syntax checks and full-suite signal are verdict-critical."
+    },
+    {
+      "worker": "review-errors",
+      "status": "skipped",
+      "rationale": "The reopen changes no cancellation, timeout, fallback or recovery implementation; those paths are exercised by the selected current tests lens."
+    },
+    {
+      "worker": "review-design",
+      "status": "skipped",
+      "rationale": "The evidence correction adds no module, state owner, data flow or runtime boundary."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "No maintained model-facing instruction, API documentation or implementation comment changed for Task 1."
+    }
+  ],
+  "findings": [],
+  "coverage_refs": [
+    "review-spec.json",
+    "review-tests.json",
+    ".ultra/reviews/vnext-d1-runtime-safety-delta-1-review-20260901/SUMMARY.json direct parent with zero unresolved blocking ids",
+    "Canonical Acceptance-section SHA-256 5d8cda45a87088bd082e74dc84230333fad8567d5b022212000cf16157a9cb5e",
+    "Codex independent Task 1 current integration gate: 97 passed, 0 failed, 0 skipped, exit 0",
+    "Codex independent full release gate before evidence publication: 711 passed, 1 failed only on the historical extra-LF Acceptance binding"
+  ],
+  "positive_observations": [
+    "The owner-readable Change Log and Resume Note record D1R-01 through D1R-05, the exact hash mismatch, the completed-to-in_progress transition and the protocol-ordered recovery path.",
+    "The current integrated runtime retains the original environment, writer-truth and fence acceptance while the later Host gate rejects earlier and adds no competing writer or recovery owner.",
+    "Both prior Task 1 Review sessions remain immutable; this fresh admitted packet binds the current context and accepted North Star sources."
+  ],
+  "limitations": [
+    "The replacement evidence and ledger completion occur after this Review by contract and still require read-back plus a green full release gate.",
+    "Three retained Task 1 P2s remain non-blocking: Host-created sessions may escape portable observation, non-Linux start identity is weaker, and a crash may leave the fence-registry lock stale.",
+    "This focused Review runs in shared Codex context and is not the later Codex plus Claude stage-level joint Review.",
+    "No commit, push, tag, publish, deploy, real-HOME installation, credential operation, package fetch, production mutation or other external effect is included."
+  ]
+}

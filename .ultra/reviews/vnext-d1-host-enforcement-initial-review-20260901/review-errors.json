@@ -1,0 +1,72 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-errors",
+  "axis": "engineering_standards",
+  "packet_digest": "f2780051c8682ab43caffddd685db0ee49ab902b0bee5e80f35ab10e7bad2b48",
+  "admission_digest": "305abd7f7b8b9033d896af1fd4f77346fde6df13ec5dd0e8e75b60147df7304a",
+  "subject_digest": "e2c4aeb30459fa298747378c8296ac0c40fe7941fb6fad394c8546faba00972c",
+  "session": "vnext-d1-host-enforcement-initial-review-20260901",
+  "timestamp": "2026-09-01T15:52:08Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-candidate",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "tests/delegate.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-errors-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "diagnostic_propagation",
+      "title": "The recoverable safety stop becomes an untyped generic CLI failure",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 1340,
+      "line_end": 1345,
+      "trigger": "Host enforcement rejects a Packet and the Error leaves the JavaScript call stack through the documented command-line interface.",
+      "impact": "The next controller cannot select the unavailable-capability repair path from a stable code and may treat it like spawn, auth or malformed-input failure; machine recovery depends on parsing prose.",
+      "evidence": "HostEnforcementUnavailableError records code UBP_HOST_ENFORCEMENT_UNAVAILABLE and structured admission, but the CLI catch emits only error.message. The compatibility launcher has the same loss at its top-level catch.",
+      "suggestion": "Project this known error into one bounded JSON failure shape at the existing process boundary and keep unknown exceptions generic; add public-entrypoint tests so code and admission cannot be dropped again.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-5"],
+        "serves": ["NS-02", "NS-04"],
+        "touches": ["HC-1", "HC-4", "HC-5"]
+      }
+    },
+    {
+      "id": "review-errors-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "false_diagnostic",
+      "title": "The refusal claims no Host process after process-backed probes may run",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 937,
+      "line_end": 953,
+      "trigger": "ACP-first driver selection executes identity probes and then the enforcement decision rejects the selected route.",
+      "impact": "The source contract and resulting recovery narrative assert a stronger no-process boundary than the runtime provides, hiding the only pre-denial execution window from operators and reviewers.",
+      "evidence": "chooseExecutionDriver is called at line 905 before this block and its production identity inspection spawns commands. The comment at lines 939-940 says no Host process exists, while the error message describes a pre-launch refusal without disclosing those probes.",
+      "suggestion": "Prevent the probes before denial; if any non-provider preflight remains necessary, name it explicitly in the typed receipt rather than claiming zero Host-side process execution.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-2", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-1", "HC-3", "HC-4", "HC-7"]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "skills/ultra-delegate/scripts/delegate.cjs:784",
+    "skills/ultra-delegate/scripts/delegate.cjs:905",
+    "skills/ultra-delegate/scripts/delegate.cjs:937",
+    "skills/ultra-delegate/scripts/delegate.cjs:1340",
+    "tests/delegate.test.cjs:775"
+  ],
+  "positive_observations": [
+    "The in-process Error preserves redacted dimension statuses and a receipt digest without carrying credential values.",
+    "There is no automatic retry or silent fallback after the enforcement decision itself rejects."
+  ],
+  "limitations": []
+}

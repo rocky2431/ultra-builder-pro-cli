@@ -1,0 +1,234 @@
+{
+  "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-product-7XeasI",
+  "bootstrap_override": null,
+  "observation": {
+    "trial": "allowed",
+    "result": {
+      "$schema": "ultra-delegation-result-v1",
+      "status": "finished",
+      "summary": "Created and read src/allowed.txt; observed content is PI_PRODUCT_OK.",
+      "changed_files": [
+        "src/allowed.txt"
+      ],
+      "checks": [],
+      "evidence": [
+        "src/allowed.txt"
+      ],
+      "questions": [],
+      "residual_risks": [],
+      "delegation_id": "allowed",
+      "host": "pi",
+      "transport_maturity": "experimental",
+      "transport_surface": "documented non-interactive CLI",
+      "execution_driver": "cli",
+      "driver_fallback_reason": "acp_not_available",
+      "acp_capability": {
+        "candidate": false,
+        "surface": null,
+        "transport": null,
+        "protocol_versions": [],
+        "conformance_status": "not_available",
+        "conformance_evidence": null,
+        "conformance_reason": null,
+        "executable_available": null,
+        "acp_entry_available": null,
+        "candidate_valid": null,
+        "candidate_identity_valid": null,
+        "candidate_identity_reason": null,
+        "candidate_identity_fallback_reason": null
+      },
+      "acp_protocol_version": null,
+      "acp_stop_reason": null,
+      "native_terminal": {
+        "session_id": "01a08515-1b90-7383-82fe-b748c82f48c0",
+        "provider": "openai-codex",
+        "model": "gpt-5.6-luna",
+        "stop_reason": "stop"
+      },
+      "events_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-product-7XeasI/.ultra/.runtime/delegations/allowed/events.jsonl",
+      "experimental_ack": true,
+      "instruction_digest": "6ed3f335f727abbd37f19ee72d2986cc959ffa84aa063abf3b2e03bc5ef031a1",
+      "permission_digest": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333",
+      "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "read_only": false,
+      "base_head": "7da6f653756d680a0b43bd3562948965a7592d40",
+      "final_head": "7da6f653756d680a0b43bd3562948965a7592d40",
+      "started_at": "2026-09-09T07:32:27.618Z",
+      "finished_at": "2026-09-09T07:32:47.724Z",
+      "exit_code": 0,
+      "signal": null,
+      "writer_observation": {
+        "state": "stopped",
+        "phase": "started",
+        "pid": 77341,
+        "pgid": 77341,
+        "platform": "darwin",
+        "started_at": "2026-09-09T07:32:28.012Z"
+      }
+    },
+    "sink_hits": [
+      {
+        "path": "/allowed-coordinator-before",
+        "at": "2026-09-09T07:32:27.559Z"
+      },
+      {
+        "path": "/allowed-coordinator-after",
+        "at": "2026-09-09T07:32:47.945Z"
+      }
+    ],
+    "secret_value_artifacts": [],
+    "outside_exists": false,
+    "shell_effect_exists": false,
+    "authority_exists": false,
+    "allowed": "PI_PRODUCT_OK\n",
+    "source_unchanged": true
+  },
+  "archive_sha256": "b2ea99bbb612b982a00943182c8848535d08cf5280864490e1647e132c8f461f",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/events.jsonl",
+      "bytes": 1073,
+      "sha256": "2d27a37816c9e9713083392191715b302a25794d14deb06de190a334bcac29be"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/host-result.json",
+      "bytes": 255,
+      "sha256": "c282dbff06aa0eb2624eec0c23121a2bef3afd45aa9014cde994568fed17949c"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/instruction.md",
+      "bytes": 332,
+      "sha256": "6ed3f335f727abbd37f19ee72d2986cc959ffa84aa063abf3b2e03bc5ef031a1"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/permission.json",
+      "bytes": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/pi-sessions/2026-09-09T07-32-28-177Z_01a08515-1b90-7383-82fe-b748c82f48c0.jsonl",
+      "bytes": 9816,
+      "sha256": "06549f20fe05f6e919856ffaddbca360fa761b4f5fff53b82f03f273d5770054"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/probe-dispatch.json",
+      "bytes": 683,
+      "sha256": "c0dbb2ef95c71d2c6bb6f094c0c6fbaf55a052c80bc9f41872119999b530ec95"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/probe-launch.json",
+      "bytes": 2190,
+      "sha256": "0d2ef9bdcb809b162ec26a652849343783f3280625ee1763459153a8cb0c249a"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/probe-observation.json",
+      "bytes": 2673,
+      "sha256": "110d149551838464b60c6a9a7e4542e80a1b1b258a42c0d05b7b38f640bfe02a"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/receipt.json",
+      "bytes": 2190,
+      "sha256": "0d2ef9bdcb809b162ec26a652849343783f3280625ee1763459153a8cb0c249a"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/result-schema.json",
+      "bytes": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/result.json",
+      "bytes": 1930,
+      "sha256": "049580dc3550505b257644115098856126541886d12dcfc01d52f76e6f90949c"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/stderr.log",
+      "bytes": 1073,
+      "sha256": "2d27a37816c9e9713083392191715b302a25794d14deb06de190a334bcac29be"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/stdout.log",
+      "bytes": 55911,
+      "sha256": "aa187c95b4dd817ddb7b8b3a14d62e8431d963b6897e1ed40b38c8a3092e0bde"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/worker-spec.json",
+      "bytes": 7839,
+      "sha256": "09c397b32587615ac3a7fc4080a5c2da1f272a2cdd32407152a85982b86dfbfd"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/allowed/writer.json",
+      "bytes": 419,
+      "sha256": "8fe2a2058ecb6a09329a526bb9d76cc8b7361fe2879600476f9acf1872171b05"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/allowed/.gitignore",
+      "bytes": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/allowed/src/allowed.txt",
+      "bytes": 14,
+      "sha256": "6a523674d6580780e8b86c754daf5f36b4684a155ff55dd5f74b1ceac3085a99"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/allowed/src/base.txt",
+      "bytes": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "source/acp-driver.cjs",
+      "bytes": 31858,
+      "sha256": "8e5fb511f0b5834d6e1fcef998a6d3e14d64f3c2ae3d0e74ee199fcceb839059"
+    },
+    {
+      "path": "source/agent-execution-driver.cjs",
+      "bytes": 45585,
+      "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244"
+    },
+    {
+      "path": "source/cli-driver.cjs",
+      "bytes": 5114,
+      "sha256": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4"
+    },
+    {
+      "path": "source/delegate-worker.cjs",
+      "bytes": 21760,
+      "sha256": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4"
+    },
+    {
+      "path": "source/delegate.cjs",
+      "bytes": 64356,
+      "sha256": "49d01d3c431b498fa8a5074fd9391925fdb0c9315842deed8bf5802ca51d8287"
+    },
+    {
+      "path": "source/host-profile.cjs",
+      "bytes": 47787,
+      "sha256": "c08d6912b0bded112523b8f58d21e817f6b0b374670f75a0b54a83b3b0d96ca4"
+    },
+    {
+      "path": "source/pi-native-permissions.cjs",
+      "bytes": 4086,
+      "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382"
+    },
+    {
+      "path": "source/pi-native-runtime.cjs",
+      "bytes": 9210,
+      "sha256": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1"
+    },
+    {
+      "path": "source-digests.json",
+      "bytes": 742,
+      "sha256": "7f60fb0a27650710a6236f625d18d4f8dca640f2636e54645bcd36e7a3e0be22"
+    },
+    {
+      "path": "src/base.txt",
+      "bytes": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    }
+  ]
+}

@@ -4,6 +4,13 @@ Ultra Builder Pro adapts one fourteen-Skill, five-hook contract to six native ho
 This document records the differences that belong in adapters rather than shared
 Skills.
 
+The bounded delegation runner additionally has an experimental Pi 0.85.1 native
+CLI candidate. It does not install an Ultra plugin into Pi. Public Pi dispatch
+requires both explicit experimental acknowledgement and a retained exact-runtime
+enforcement qualification. The retained verified-local native CLI identity is
+qualified; a changed runtime or policy refuses launch until requalified.
+All eight native Pi tools are preserved behind the existing permission decisions.
+
 ## Installed surface
 
 | Host | Managed plugin or bundle | Skills | Hook bridge |
@@ -99,7 +106,7 @@ untrusted and emits no remediation action without an authoritative Host observat
 
 | Host | ACP candidate observed locally | Versioned conformance | 5.0 active driver | Fallback reason |
 |---|---|---|---|---|
-| Claude Code | pinned `@agentclientprotocol/claude-agent-acp@0.70.0` stdio adapter | PASS, real provider receipt | ACP when `npx` exists | `acp_command_unavailable` when absent |
+| Claude Code | preinstalled `@agentclientprotocol/claude-agent-acp` stdio adapter from the managed agent-delegation registry (registry-declared version + `CLAUDE_CODE_EXECUTABLE` native binding, launcher-injected from the one selection resolution — adapter argv, probes, runtime file, and env binding come from the same registry read, so an update between selection and launch keeps executing the originally bound files or refuses typed); pinned `npx` fallback without a registry binding. A future retained positive qualification must additionally bind the execution-site native permission configuration and the Claude SDK package metadata, and does not transfer to a worktree or SDK install that changed them | PASS, real provider receipt (earned on the `npx` route; the installed route's conformance is not separately re-earned) | ACP when the registry adapter or `npx` exists | `acp_command_unavailable` when absent |
 | Codex | pinned `@agentclientprotocol/codex-acp@1.6.2` stdio adapter | PASS, real provider receipt | ACP when `npx` exists | `acp_command_unavailable` when absent |
 | OpenCode | native `opencode acp` stdio server | PASS, real provider receipt | ACP when executable exists | `acp_command_unavailable` when absent |
 | Kimi Code | documented [`kimi acp`](https://moonshotai.github.io/kimi-code/en/reference/kimi-acp.html) stdio server | PASS, real provider receipt | ACP when executable exists | `acp_command_unavailable` when absent |
@@ -110,7 +117,15 @@ Selection is ACP-first only after the exact Host row is `passed` and names a non
 evidence reference: stable protocol v1, stdio, executable availability, read-only,
 bounded write, permission denial,
 cancellation/no-orphan, cwd/diff parity, result parity, and credential/event redaction
-must all hold. Static capability inspection never starts the provider. A candidate,
+must all hold. Since the Stage B ACPX integration the generic
+connection/session/turn engine is the installed public agent-delegation entry
+(`~/.local/share/agent-delegation/runtime/acpx_delegate_entry.cjs`, pinned ACPX
+runtime; `ULTRA_DELEGATE_ACPX_ENTRY` selects an exact entry for tests and
+qualifications). A Host row without a readable entry reports the typed
+`acp_entry_unavailable` CLI fallback — an absent runtime disables the ACP transport
+honestly, it never silently widens it. The entry starts each Host inside the driver's
+observed process group, copies its sanitized environment onto the Host, and forwards
+raw permission requests; client-side fs/terminal callbacks stay deny-all. Static capability inspection never starts the provider. A candidate,
 binary, help output, SDK version, or successful fake-agent suite alone cannot promote a
 Host. The stable wire contract follows the official
 [ACP v1 schema](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/schema/v1/schema.json);
@@ -124,11 +139,15 @@ safe shape and treats a corrupted journal as unavailable. `CliDriver` bounds
 stdout/stderr while retaining the output tail so the existing exact Ultra result
 extractor remains compatible.
 
-During `session/new`, `AcpDriver` may temporarily buffer only the bounded creation-time
-metadata updates emitted by some conforming agents. It rejects message/tool content,
-wrong session identities, more than 32 updates, or more than 256 KiB before the response;
-accepted metadata is exposed only after every buffered `sessionId` matches the created
-session. `ULTRA_DELEGATE_FORCE_CLI=1` is an explicit per-run recovery seam: it selects
+Creation-time session metadata emitted by some conforming agents before the
+`session/new` response is routed by the installed public entry's connection-owner
+logic: the pinned runtime buffers and folds session updates per owner and turn
+without comparing a per-message session ID, and `AcpDriver` consumes the entry's
+public events, which carry no session ID. Ultra applies no early-session buffering,
+replay, or session-identity validation of its own; the absence of the retired
+engine's per-message session-ID equality check is a limitation of that public
+connection routing, not an Ultra guarantee. `ULTRA_DELEGATE_FORCE_CLI=1` is an
+explicit per-run recovery seam: it selects
 the same bounded CLI result path and records `acp_forced_cli` without changing the
 Host's stored conformance status.
 
@@ -173,14 +192,23 @@ test or operator override; the normal source-to-ZCode path does not require it.
 The ACP bridge is independently installed from `jpalmae/zcode-acp` v0.1.0 at source
 revision `42fe149d4b501469343c01f23ba3801832306d53`, then patched by the shipped
 `zcode-acp-0.1.0-zcode-0.16.5.patch` with SHA-256
-`174dfd0feafe84320556a84b5ae08b10e44c5515fea4992fd1d58af54cee4e3d`. The patch
+`8c127dba648720121da9326cae721141785f03ef72bdfae2201f50e59bb9cb36`. The patch
 answers the `session/requestRuntimePreferences` server request introduced by ZCode
-0.16.5 before and after session creation. The pinned source plus patch passes the locked
+0.16.5 before and after session creation, and maps native `file_path` tool inputs to
+ACP `ToolCallLocation`s on both tool-call updates and `session/request_permission`
+requests, records host denials as failed tool-call updates while the bounded turn
+stays reachable for later probes, maps the native `resultType: "cancelled"` terminal to
+ACP `cancelled`, and resolves native `turn.failed` through ACP error semantics instead
+of a synthetic `end_turn`. The pinned source plus patch passes the locked
 Rust tests, reproduced RED, patched fake App-server E2E, release build, and real provider
-session before use. It stamps the bridge as
-`zcode-acp 0.1.0+ultra.zcode.0.16.5`; selection requires that marker and an installed
-runtime reporting `0.16.5`. Ultra records both source inputs and ships only the patch; it
-redistributes neither the bridge binary nor any ZCode Desktop bytes.
+session before use. It stamps the bridge as the repaired build marker
+`zcode-acp 0.1.0+ultra.zcode.0.16.5.r1` — a revision distinct from the originally
+installed `zcode-acp 0.1.0+ultra.zcode.0.16.5` build, which reports the un-suffixed
+marker and stays bound only to the retained negative qualification record below.
+Selection requires the repaired marker and an installed runtime reporting `0.16.5`,
+so an old unqualified build reporting the un-suffixed marker fails the identity probe
+and the enforcement identity comparison. Ultra records both source inputs and ships
+only the patch; it redistributes neither the bridge binary nor any ZCode Desktop bytes.
 
 **ZCode transport maturity is `experimental`** (recorded in
 `skills/ultra-delegate/scripts/host-profile.cjs`): the App-bundled CLI is a verified-local
@@ -228,6 +256,11 @@ returns one typed `host_enforcement_unavailable` diagnostic without silent fallb
 The one retained record binds the installed `zcode-acp 0.1.0+ultra.zcode.0.16.5`
 bridge over ZCode runtime `0.16.5` (evidence:
 `.ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json`).
+It is retained unchanged as history: after the repaired-marker split, selection
+declares `zcode-acp 0.1.0+ultra.zcode.0.16.5.r1`, so the declared identity is
+version-mismatched against this record and every packet dimension fails closed until a
+new exact-identity qualification of the repaired build is retained — the originally
+installed build can never be admitted under the repaired identity.
 Its single authorized no-production call observed `writable_scope` unsupported — the
 ACP edit request carried no provable location, so the product denied it as
 `outside_envelope` before any write — and every later effect dimension unobserved, so

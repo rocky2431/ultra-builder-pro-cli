@@ -1,0 +1,114 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-code",
+  "axis": "engineering_standards",
+  "packet_digest": "f2780051c8682ab43caffddd685db0ee49ab902b0bee5e80f35ab10e7bad2b48",
+  "admission_digest": "305abd7f7b8b9033d896af1fd4f77346fde6df13ec5dd0e8e75b60147df7304a",
+  "subject_digest": "e2c4aeb30459fa298747378c8296ac0c40fe7941fb6fad394c8546faba00972c",
+  "session": "vnext-d1-host-enforcement-initial-review-20260901",
+  "timestamp": "2026-09-01T15:52:08Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-candidate",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/delegate.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-code-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "trust_boundary",
+      "title": "Admission is downstream of executable candidate inspection",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 905,
+      "line_end": 950,
+      "trigger": "selectExecutionDriver evaluates an ACP candidate that declares identityProbes before the Packet's enforcement dimensions have been admitted.",
+      "impact": "The supposedly fail-closed path can execute unqualified adapter or runtime code with the probe environment before it rejects the Packet, leaving file and network effects outside the enforcement decision.",
+      "evidence": "The call at line 905 precedes the gate at line 943. selectExecutionDriver synchronously invokes identity probes for the selected profile before returning; the gate therefore cannot make the statement at lines 939-940 true.",
+      "suggestion": "Move a provider-neutral all-transports-unavailable precheck ahead of driver selection, or split pure selection from process-backed identity attestation and run attestation only after admission permits that candidate.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-2", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-1", "HC-3", "HC-4", "HC-7"]
+      }
+    },
+    {
+      "id": "review-code-002",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "error_contract",
+      "title": "Typed enforcement state is discarded by both CLI launchers",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 1331,
+      "line_end": 1345,
+      "trigger": "HostEnforcementUnavailableError crosses the direct delegate.cjs or bin/install.js process boundary.",
+      "impact": "Automation loses error.code, admission dimensions and the evidence digest, collapsing a recoverable capability stop into an untyped generic process error.",
+      "evidence": "The error object defines code and admission, but delegate.cjs prints only message; bin/install.js awaits handle and its top-level catch likewise prints only Fatal plus message. No canonical JSON failure projection is emitted.",
+      "suggestion": "Centralize one redacted error projection for these two existing launchers and make the process output include the stable code, admission and recovery-safe message without exposing environment values.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-5"],
+        "serves": ["NS-02", "NS-04"],
+        "touches": ["HC-1", "HC-4", "HC-5"]
+      }
+    },
+    {
+      "id": "review-code-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "observability",
+      "title": "The installed diagnostic cites evidence that is not packaged",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 173,
+      "line_end": 179,
+      "trigger": "A user invokes the installed npm package outside this development repository and receives the ZCode unavailable diagnostic.",
+      "impact": "The error cites .ultra/evidence/vnext-d1-host-enforcement-qualification/host-enforcement-receipt.json, but npm pack excludes the repository .ultra tree, so the stated recovery and audit reference does not exist in the installed product.",
+      "evidence": "package.json publishes the ultra-delegate Skill and selected docs but no repository .ultra/evidence path; npm pack --dry-run succeeds with 141 entries and contains no host-enforcement-receipt.json.",
+      "suggestion": "When an inspectable shipped receipt is needed, place the redacted immutable observation under the existing Skill reference tree and bind that packaged path, or explicitly distinguish a source-repository-only provenance URI from an installed recovery path.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-6"],
+        "serves": ["NS-02", "NS-04"],
+        "touches": ["HC-4", "HC-5", "HC-7"]
+      }
+    },
+    {
+      "id": "review-code-004",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "identity",
+      "title": "Admission compares retained identity with expected profile constants",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 272,
+      "line_end": 278,
+      "trigger": "A later positive qualification record is evaluated after an adapter or runtime is rebuilt without changing its reported version markers.",
+      "impact": "identityMatch compares qualified_identity with profile.acp.candidateIdentity, which is another expected constant rather than the concrete observed candidate result, so a same-marker replacement can inherit a prior positive capability claim.",
+      "evidence": "The receipt retains adapter and runtime SHA-256 values, but the qualification record and identityMatch use only buildMarker/runtimeVersion fields. The current negative record remains unavailable, so this does not presently admit ZCode effects.",
+      "suggestion": "Do not promote a future supported record until admission consumes a concrete observed identity attestation appropriate to that Host; keep the current negative route simple rather than adding unused attestation machinery now.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-3", "HC-4", "HC-7"]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "skills/ultra-delegate/scripts/delegate.cjs:905",
+    "skills/ultra-delegate/scripts/delegate.cjs:1331",
+    "skills/ultra-delegate/scripts/host-profile.cjs:173",
+    "skills/ultra-delegate/scripts/host-profile.cjs:261",
+    "npm pack --dry-run --json: exit 0, no .ultra/evidence receipt"
+  ],
+  "positive_observations": [
+    "The admission function is pure, provider-neutral and reuses the existing Host profile instead of introducing a second policy engine.",
+    "Unsupported, unobserved, missing, unknown and version-mismatched facts remain distinct in the in-process decision."
+  ],
+  "limitations": [
+    "The same-version identity concern is non-blocking for the current negative ZCode record and becomes material before any future positive capability promotion."
+  ]
+}

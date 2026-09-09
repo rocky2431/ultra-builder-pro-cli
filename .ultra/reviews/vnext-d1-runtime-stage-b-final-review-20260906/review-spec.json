@@ -1,0 +1,161 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "packet_digest": "cacbe5387fcddce9860039cf7633be31e12e4823347440479cb759f419bd097f",
+  "admission_digest": "9bd39fb3c86f4c618f7274cb385d3a4b8b9ce34b01f530a11169c30cd34e52bd",
+  "subject_digest": "e462ceea0651bbf28d5dd8aa1bbcfe757fc9433f7b7b7159b157f5eb42fbc2c1",
+  "session": "vnext-d1-runtime-stage-b-final-review-20260906",
+  "timestamp": "2026-09-05T21:00:08.169395+00:00",
+  "scope": {
+    "head": "b765b55cca0e1eaacebc738a68de77906bb50756",
+    "range": "b765b55cca0e1eaacebc738a68de77906bb50756 plus current Stage B working-tree runtime migration and focused regression changes",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/delegate-worker.cjs",
+      "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "skills/ultra-delegate/scripts/cli-driver.cjs",
+      "skills/ultra-delegate/scripts/acp-conformance.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      "skills/ultra-delegate/SKILL.md",
+      "skills/ultra-delegate/references/delegation-contract.md",
+      "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+      "docs/RUNTIME-COMPAT-MATRIX.md",
+      "tests/delegate.test.cjs",
+      "tests/acp-driver.test.cjs",
+      "tests/acp-conformance.test.cjs",
+      "tests/acpx-entry.test.cjs",
+      "tests/fixtures/fake-acp-agent.cjs",
+      "tests/fixtures/fake-acpx-entry.cjs",
+      "tests/install.test.cjs",
+      "tests/v026-adapters.test.cjs",
+      "tests/ultra-5-journeys.test.cjs",
+      ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-spec-001",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "documentation",
+      "title": "r1 构建段落未区分旧构建的 release 和 Provider 验证",
+      "file": "docs/RUNTIME-COMPAT-MATRIX.md",
+      "line": 186,
+      "line_end": 189,
+      "trigger": "读者依据新 patch SHA 和 .r1 marker 所在段落判断该精确构建已具备 release-build 或真实 Provider 证据。",
+      "impact": "这句话可把旧构建的验证归给新构建，误导后续 qualification 或交付说明；当前 profile 仍按旧 negative 身份拒绝新构建，因此没有观察到错误运行准入，保持 P2。",
+      "evidence": "当前第 179 行是新 patch 8c127dba648720121da9326cae721141785f03ef72bdfae2201f50e59bb9cb36，第 186-189 行却紧接 passes ... release build, and real provider session 并声明 .r1。相同文件第 240-247 行和 host-profile.cjs:185-200 明确仅保留旧 marker 的 negative 资格。packet 中 stage-b-root-final-entry-combinations.json 将真实 entry 组合标为 fixture Host only, no Provider；stage-b-bridge-final-source-review.zh-CN.md:31 明确本次 r1 产物是 debug build，作者未运行 r1 Provider qualification。Task 2 的当前资格不能由此句推定。",
+      "suggestion": "明确标注旧 marker 的历史 release/Provider 验证，并给 .r1 列出当前 Rust、fake App-server E2E 和 debug-build 证据；新 release/真实资格待取得对应原始证据后再更新这句话，无需增加运行时检查。",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1",
+          "HC-4"
+        ]
+      }
+    },
+    {
+      "id": "review-spec-002",
+      "axis": "spec_fidelity",
+      "severity": "P2",
+      "category": "documentation",
+      "title": "客户端拒绝行为被描述为能力广告完全等价",
+      "file": "skills/ultra-delegate/references/delegation-contract.md",
+      "line": 97,
+      "line_end": 101,
+      "trigger": "Host 根据 initialize 中是否声明客户端 filesystem/terminal 能力选择工具路径，或读者把这段作为迁移后行为完全兼容的证据。",
+      "impact": "广告为 present 后再拒绝调用，与一开始不广告能力，对 Host 的工具选择可产生不同结果；文档当前把已证明的效果拒绝扩大为未证明的行为等价。没有当前真实 Host 故障或越权反例，按 P2 文档边界保留。",
+      "evidence": "第 97-99 行已明确真实 pinned runtime 广告 filesystem/terminal capabilities as present，并由 deny-all 拒绝；第 100-101 行随后写 effective client surface equals the previous no-fs/no-terminal advertisement。skills/ultra-delegate/SKILL.md:151-154 重复该等价说法。tests/acp-driver.test.cjs:128-133 所断言的 false 广告来自 tests/fixtures/fake-acpx-entry.cjs:269-274 的 stand-in；当前真实 entry 的 fixture 组合与 736 项全套通过没有建立真实 Host 对两种广告的相同工具选择。",
+      "suggestion": "将本处及 Skill 对应句限定为客户端 filesystem/terminal 效果仍被拒绝，并明确能力广告与旧引擎不同；不为该措辞恢复第二协议引擎或加入 SDK 配置。",
+      "north_star_trace": {
+        "first_principles": [
+          "FP-2",
+          "FP-5"
+        ],
+        "serves": [
+          "NS-02",
+          "NS-03"
+        ],
+        "touches": [
+          "HC-1"
+        ]
+      }
+    }
+  ],
+  "coverage_refs": [
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md:142-153",
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md:19-22",
+    ".ultra/decisions/2026-09-06-stage-b-implementation-scope.md",
+    ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906/WORKER-PACKET.json",
+    ".ultra/reviews/vnext-d1-runtime-stage-b-final-review-20260906/ADMISSION.json",
+    "skills/ultra-delegate/scripts/host-profile.cjs:39-120",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:125-136",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:285-450",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:510-549",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs:662-721",
+    "skills/ultra-delegate/scripts/delegate.cjs:171-385",
+    "skills/ultra-delegate/scripts/delegate.cjs:535-554",
+    "skills/ultra-delegate/scripts/delegate.cjs:843-851",
+    "skills/ultra-delegate/scripts/delegate.cjs:926-1110",
+    "skills/ultra-delegate/scripts/delegate.cjs:1202-1385",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs:135-182",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs:242-477",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:208-281",
+    "skills/ultra-delegate/scripts/acp-driver.cjs:388-704",
+    "skills/ultra-delegate/scripts/cli-driver.cjs:20-98",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs:73-87",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs:186-264",
+    "tests/delegate.test.cjs:142-165",
+    "tests/delegate.test.cjs:1473-1830",
+    "tests/delegate.test.cjs:2113-2361",
+    "tests/delegate.test.cjs:2363-2589",
+    "tests/delegate.test.cjs:2666-2801",
+    "tests/delegate.test.cjs:3017-3075",
+    "tests/delegate.test.cjs:3384-3448",
+    "tests/acp-driver.test.cjs:109-261",
+    "tests/acp-conformance.test.cjs:147-209",
+    "tests/acpx-entry.test.cjs:47-137",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-runtime-raw-index.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-p1-mutation-fail.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-p1-correct-pass.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-narrow.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-entry-combinations.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-driver-combination.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-cancel-combination.log",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-release.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.json",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.log:170-223",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-release-after-fixture-isolation.log:856-871",
+    ".ultra/evidence/vnext-d1-runtime-safety-boundary/stage-b-root-final-other-checks.json",
+    "work/owner-factory-implementation-20260905/stage-b-bridge-final-source-review.zh-CN.md:27-34"
+  ],
+  "positive_observations": [
+    "D1R-01 已有当前路径证据：host-profile 的单一 exact-key policy 构造冻结 probe/worker/host views；delegate run 仅给 worker 加三项 UBP_DELEGATE_* packet 路径，spec 只存最终 Host key names 与明确 delegateEnv。candidate probe、实际 detached worker、ACP entry 与 CLI 均使用该视图。tests/delegate.test.cjs:1628-1781 在真实 child_process.spawn 的最终 options 截获 keys、argv、detached/stdio/cwd，并将返回真实 PID 与 receipt.worker_pid 比较，实际 worker 完成任务；Linux 额外从 /proc 按 argv 找真实 worker。probe/ACP/CLI 子进程 key capture 与八类运行产物 canary scans 在最终 release 中通过。保留 mutation-fail 和 correct-pass raw：恢复 banned Primary key 会让该真实 spawn 回归失败，现状通过；没有打印 canary 值。",
+    "D1R-02 已有当前路径证据：signalOutcome 仅把 ESRCH 当死亡，EPERM 仍 alive，其余信号错误保守 unknown；outerWorkerView、status/cancel、conformance exit 共用该事实。完整 launch identity/phase/start identity 与 POSIX process group 决定 writer proof，started 持久化失败、PID 缺失、外 worker 丢失、活 nested writer、取消、timeout、身份漂移均不凭终态文件推断安全。worker 的 terminal publication 和 launcher cancel 在未证明停止时保留 outcome_unknown 与 fence；最终 release 中对应恢复矩阵全部通过，真实 entry 取消组合另外观察到 boundary stopped 和 grandchildAliveAfter false。",
+    "D1R-03 已有当前路径证据：delegate.cjs 使用既有目录原子锁串行化 fence 比较与 wx 建立，realpath、dev/ino 和平台路径归一化覆盖同一或父子 roots、symlink/文件系统别名、Windows 大小写/分隔符；同 delegation id 不能重入，无 TTL。worker 验证 launch fence 后才启动，当前 cancel recovery 只在 inner 和 outer 两边均停止后释放匹配 launch 的 fence。最终 release 保留 exact/overlap/alias、非法/篡改 fence、真实并发第二 writer 拒绝及 disjoint-worktree 正例，冻结 result 在后代之后退出时也不会被静默重写。",
+    "D1R-04 已有当前兼容证据：ultra-delegation-result-v1 及 finished/blocked/failed 模型枚举保持不变，实际 Git changed_paths 和 envelope 校验仍由 delegate-worker 执行。ACP 优先和 typed CLI fallback 保留；新增 acp_entry_unavailable 明确外部 runtime 缺失，auth fallback 必须同时具有 ensure_session 结构化前置证明和首个 writer 停止证明，post-prompt/missing phase 不重发。真实 entry happy、多拒绝、cancel 组合通过；Literal outcome_unknown conformance 测试仍失败并正确保留该 failure_type，不冒充 transport failure。最终 opt-in npm run verify:release 为 736/736 Node、104/104 Hooks、零跳过/失败和零漏洞；读取的 171 项受测源与前后 hash 均相同。pack dry-run 与 Skill validator 通过。",
+    "D1R-05 当前 packet diff 未加入 Run Slice、wake、语义 next-step/重试编排、daemon、数据库、TTL lease、模型结果状态或 package dependency。generic ACP connection/session/turn 转移到 Owner 已激活的公共 agent-delegation/ACPX consumer，UBP 保留权限决定、env、writer proof、结果与 Git delta；ZCode 的确切 marker/locations 修复位于既有 Host adapter/规范 patch。当前代码仍将新 r1 身份与旧 negative record 区分，未把下一 Task 的真实 Host 资格提升为通过。",
+    "当前 HEAD、packet/admission SHA、receipt 中全部冻结 observation SHA/长度均重新只读核对一致；North Star revision 为 north-star-v2-r3，Git blob 439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8 与 packet 一致，所有 FP/NS/HC ID 在当前接受文本中解析。隔离权限、真实失败和保守恢复对 claimed NS-02/03/04 有直接因果支撑；没有把测试数量作为 NS-05 的语义收敛判定。"
+  ],
+  "limitations": [
+    "本镜头只读检查当前 packet source 与保留证据，没有复跑整套测试、Provider、安装、提交或改变 Task 状态。16 份 raw-index 条目的 SHA 和字节数全部核对通过；其结果仍是此前实际执行的保留证据。",
+    "最终全套是 20:45:44 启动的 stage-b-root-release-after-fixture-isolation；名称含 final 的 20:37:38 release 实际 exit 1，必须同时保留。后者及较早 narrow 与当前仅 tests/acpx-entry.test.cjs 不同，当前 fixture 已移到临时目录；最后成功全套与当前 171 项受测源均无漂移。",
+    "Task 2/D1Q-02 的真实 Provider enforcement qualification 未由这里建立。真实 public entry 加 fixture Host、debug bridge 及 --version 观察不能替代真实 Host 的允许写入/独立拒绝/完整停止等正向资格；当前旧 negative record 和 unobserved dimensions 保留。",
+    "既有非阻塞边界继续保留：Host 自建新 session/process group 可能超出 portable writer 观察，非 Linux 平台没有同等强度的 start identity，持 registry .lock 时进程崩溃可能需要显式清理。当前测试证明所命名 process/group 与 alias 场景，不证明任意逃逸后代或真实 Windows Host 生命周期。",
+    "HOME 的文件认证可达性未被隔离；本次证据证明 env 控制键与唯一 synthetic canary 的范围，并非任意 Host 自行输出秘密的通用脱敏保证。",
+    "公共 entry 的连接 owner/turn 路由没有旧引擎逐消息 sessionId 等值检查，当前 Skill/contract/matrix 已诚实写出；不要求为既有 P2 边界恢复第二协议引擎。精确 optionId 语义受 pinned runtime first-kind 限制，当前 UBP 选择同 kind 第一项，未证明任意后续重复-kind 选项皆等价。",
+    "doctor 的保留观察是 exit 2，不能宣称六个真实 HOME 安装全部同步。安装消费者的 fake-entry 测试及 pack 通过建立安装布局兼容，不等于真实 HOME 已安装/升级 public entry。",
+    "stage-b-bridge-final-source-review.zh-CN.md:32 保留一份中间 RED raw 曾被覆盖的事实；本审查不将其还原或伪称所有失败原始日志都存在。",
+    "两项 P2 仅记录当前维护文案的证据边界，不作为本 Task 阻断，也不授权自动修复或新 Review 回合。旧预算/no-code/no-commit 文段由当前 Owner 明确实施授权覆盖，没有作为当前审查的审批停点。"
+  ]
+}

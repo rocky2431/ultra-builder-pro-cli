@@ -377,7 +377,7 @@
       "title": "Close descendant environment and writer-truth gaps",
       "type": "repair",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "completed",
       "dependencies": [],
       "context_file": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
       "trace_to": ".ultra/specs/architecture.md#delegation-boundary",
@@ -388,7 +388,7 @@
       "title": "Qualify fail-closed Host enforcement and close D1",
       "type": "verification",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "completed",
       "dependencies": [
         "vnext-d1-runtime-safety-boundary"
       ],

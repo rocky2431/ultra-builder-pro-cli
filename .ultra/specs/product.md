@@ -127,6 +127,15 @@ review/verification; only the first requires a task row. ZCode also
 requires `--ack-experimental`. Verification: driver, delegation, Doctor, and
 workflow-entry regression suites.
 
+Pi 0.85.1 is an additional experimental delegation target through the same native
+CLI driver, not a seventh plugin installer. Its retained local qualification binds
+the actual Node/Pi package and permission/launcher bytes. All eight native tools
+remain active behind the shared pre-effect permission decision. A legal write/read
+and public final result are observed separately from actual outside-root, protected
+authority, benign shell, shell side-effect and Bash network-command denials. The
+network event remains `execute`; Pi has no dedicated native fetch tool. Changed
+runtime or policy identities require requalification and never silently fall back.
+
 ### Requirement FR-07: Honest host adaptation
 
 Adapters translate paths, manifests, event wires, and invocation policy, never workflow

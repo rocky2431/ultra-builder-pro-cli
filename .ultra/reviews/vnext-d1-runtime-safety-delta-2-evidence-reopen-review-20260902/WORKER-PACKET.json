@@ -1,0 +1,144 @@
+{
+  "$schema": "ultra-review-worker-packet-v1",
+  "admission_contract": "ultra-review-admission-required-v2",
+  "session": "vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902",
+  "mode": "task",
+  "created_at": "2026-09-01T16:36:47Z",
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-runtime-safety-evidence-reopen",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-runtime-safety-boundary"
+  ],
+  "acceptance": [
+    ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#acceptance: D1-AC01, D1-AC02 and D1-AC04 require role-scoped descendant environments, truthful complete-writer recovery, physical writer exclusion and no semantic orchestration expansion",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#acceptance-criteria: D1R-01 through D1R-05 define the exact runtime, recovery, compatibility and no-drift acceptance for Task 1",
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md#resume-note: the stale extra-LF Acceptance binding requires an explicit reopen, fresh focused Review and replacement current completion evidence without an implementation repair",
+    ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md#d1-durable-work-package-grant: Codex owns Task Review and may consume the remaining bounded Task 1 delta Review while ZCode remains the sole implementation writer",
+    "skills/ultra-plan/references/task-evidence-v2.md#task-completion: an invalidated completed task must record affected criteria, move completed to in_progress, preserve historical Review, obtain a new final Review and only then publish a new completion subject"
+  ],
+  "public_seams": [
+    "role-scoped probe, delegate-worker, ACP and CLI descendant environments",
+    "outer-worker and nested-writer alive, stopped or unknown recovery truth",
+    "physical worktree fence acquisition and proof-bound release",
+    "Task Evidence v2 Acceptance-section identity and explicit reopen lifecycle"
+  ],
+  "north_star_trace": {
+    "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md#north-star-trace",
+    "first_principles": [
+      "FP-1",
+      "FP-2",
+      "FP-3",
+      "FP-5",
+      "FP-6",
+      "FP-8"
+    ],
+    "serves": [
+      "NS-02",
+      "NS-03",
+      "NS-04",
+      "NS-05"
+    ],
+    "touches": [
+      "HC-1",
+      "HC-2",
+      "HC-3",
+      "HC-4",
+      "HC-5",
+      "HC-6",
+      "HC-7",
+      "HC-8"
+    ],
+    "north_star_revision": "north-star-v2-r3",
+    "north_star_digest": "439b7838e2a672fd2d2cb6e0f11e94a61d0f76c8"
+  },
+  "context_files": [
+    {
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "443eb109cdddf70f737bc1d69a5ab9e7c2eb30b82a1982718df95d1ffc669f29"
+    }
+  ],
+  "subject_observations": [
+    {
+      "role": "change",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/changes/active/chg-ultra-vnext-d1-delegation-safety/intent.md",
+      "sha256": "facd82839282352c100e432c4d13720de98bcc1a6d17f8a9e57c01d659a6e437",
+      "byte_length": 12052
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+      "sha256": "443eb109cdddf70f737bc1d69a5ab9e7c2eb30b82a1982718df95d1ffc669f29",
+      "byte_length": 15196
+    },
+    {
+      "role": "acceptance_source",
+      "path": ".ultra/decisions/2026-09-01-vnext-r2-three-stage-goal.md",
+      "sha256": "95910b47c77d69ea1f8a17db4325b7a5ce2b6d0680e63575bf606ac5fa5e1af9",
+      "byte_length": 10186
+    },
+    {
+      "role": "acceptance_source",
+      "path": "skills/ultra-plan/references/task-evidence-v2.md",
+      "sha256": "36f1dc023351fcb9de0cb438397796142de5113e59ab94c0624d67ee22c15a2a",
+      "byte_length": 15477
+    },
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/2026-08-17-ultra-3-0-north-star-r3.md",
+      "sha256": "87d4a4311be3073694e86484f7f31dd8cbbe64447358b70b14ce16db99953ceb",
+      "byte_length": 4747
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/2026-08-17-ultra-3-0-r3-projection/north-star-v2-r3.accepted.md",
+      "sha256": "cfd1a9c2d19421fbe01b02bb33d94cf04485f87539edc79abb32c3c3583fc578",
+      "byte_length": 26480
+    }
+  ],
+  "workers": [
+    {
+      "agent": "review-spec",
+      "axis": "spec_fidelity",
+      "lens": "skills/ultra-review/references/spec.md",
+      "output": ".ultra/reviews/vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902/review-spec.json"
+    },
+    {
+      "agent": "review-tests",
+      "axis": "engineering_standards",
+      "lens": "skills/ultra-review/references/tests.md",
+      "output": ".ultra/reviews/vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902/review-tests.json"
+    }
+  ],
+  "diff_files": [
+    ".ultra/contexts/task-vnext-d1-runtime-safety-boundary.md",
+    "skills/ultra-plan/references/task-evidence-v2.md",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+    "skills/ultra-delegate/scripts/delegate.cjs",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs",
+    "skills/ultra-delegate/scripts/acp-driver.cjs",
+    "skills/ultra-delegate/scripts/cli-driver.cjs",
+    "skills/ultra-delegate/scripts/host-profile.cjs",
+    "tests/acp-driver.test.cjs",
+    "tests/acp-conformance.test.cjs",
+    "tests/delegate.test.cjs",
+    "tests/fixtures/fake-acp-agent.cjs"
+  ],
+  "output_directory": ".ultra/reviews/vnext-d1-runtime-safety-delta-2-evidence-reopen-review-20260902",
+  "review_history": {
+    "parent_summary_ref": ".ultra/reviews/vnext-d1-runtime-safety-delta-1-review-20260901/SUMMARY.json",
+    "parent_summary_digest": "65ce7b939327267ad84c1eb05ec41908e98a8452ca06be5be0118e42703a2a3c",
+    "unresolved_blocking_ids": []
+  },
+  "review_questions": [
+    "Does the explicit reopen preserve the prior Review history and bind the exact canonical Acceptance bytes without turning evidence repair into an implementation change?",
+    "Does the current integrated runtime still satisfy D1R-01 through D1R-05 after the later Host-admission repair, with the exact 97-test gate green?",
+    "Can one replacement evidence record be published after this Review while retaining the three historical P2 limitations and all external-effect exclusions?"
+  ]
+}

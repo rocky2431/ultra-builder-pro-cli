@@ -1,0 +1,95 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "agent": "review-design",
+  "axis": "engineering_standards",
+  "packet_digest": "f2780051c8682ab43caffddd685db0ee49ab902b0bee5e80f35ab10e7bad2b48",
+  "admission_digest": "305abd7f7b8b9033d896af1fd4f77346fde6df13ec5dd0e8e75b60147df7304a",
+  "subject_digest": "e2c4aeb30459fa298747378c8296ac0c40fe7941fb6fad394c8546faba00972c",
+  "session": "vnext-d1-host-enforcement-initial-review-20260901",
+  "timestamp": "2026-09-01T15:52:08Z",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-candidate",
+    "files_analyzed": [
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "skills/ultra-delegate/scripts/host-profile.cjs",
+      ".ultra/specs/architecture.md",
+      "docs/ARCHITECTURE.md"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [
+    {
+      "id": "review-design-001",
+      "axis": "engineering_standards",
+      "severity": "P1",
+      "category": "boundary_ordering",
+      "title": "Capability admission does not own the first executable boundary",
+      "file": "skills/ultra-delegate/scripts/delegate.cjs",
+      "line": 905,
+      "line_end": 955,
+      "trigger": "A Host profile combines executable candidate inspection with an enforcement record that should reject the Packet before Host-side code executes.",
+      "impact": "The driver layer performs process-backed discovery before the admission layer can enforce its invariant, so the supposedly central gate is bypassed by its own upstream dependency.",
+      "evidence": "The data flow is permission -> chooseExecutionDriver -> experimental disclosure -> enforcementAdmission -> fence. chooseExecutionDriver is not pure because identityProbes execute commands; therefore admission is not the first effect boundary.",
+      "suggestion": "Use the existing two concepts in the opposite order: make a pure capability/transport eligibility decision first, then run process-backed candidate attestation only for a route that could be admitted. Do not add a workflow engine or second Host registry.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-2", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-1", "HC-3", "HC-4", "HC-7"]
+      }
+    },
+    {
+      "id": "review-design-002",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "provenance_boundary",
+      "title": "Installed policy is coupled to development-only qualification provenance",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 173,
+      "line_end": 185,
+      "trigger": "The ultra-delegate Skill is installed from the npm package into another repository.",
+      "impact": "The runtime decision ships as constants while its named evidence remains only in this source checkout, so provenance ownership is ambiguous between product asset and project task evidence.",
+      "evidence": "HOST_ENFORCEMENT_QUALIFICATION embeds the local task attempt and receipt path. The package includes the Skill tree but excludes .ultra/evidence, and the record has no packaged immutable observation consumer.",
+      "suggestion": "Keep project task evidence as coordinator authority and, only if installed runtime diagnostics must cite it, ship one read-only redacted Skill-local evidence asset with the same digest. Avoid a database, registry or generated mirror.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-6"],
+        "serves": ["NS-02", "NS-04"],
+        "touches": ["HC-4", "HC-5", "HC-7"]
+      }
+    },
+    {
+      "id": "review-design-003",
+      "axis": "engineering_standards",
+      "severity": "P2",
+      "category": "admission_state",
+      "title": "No-record Hosts are indistinguishable from positively admitted Hosts",
+      "file": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "line": 261,
+      "line_end": 270,
+      "trigger": "A later Step 1 controller calls enforcementAdmission for a Host whose legacy N=1 conformance passed but whose factory effect dimensions were never qualified.",
+      "impact": "The returned route is admitted with gate null and no explicit not-qualified state, so a new factory consumer could mistake legacy compatibility for D1 factory admission unless it adds another check.",
+      "evidence": "The no-record branch returns admitted and the unit test explicitly preserves that behavior for five Hosts. Current docs call it conformance-gated admission with no capability claim, and Step 1 is not yet implemented, so existing N=1 compatibility is not presently broken.",
+      "suggestion": "Before Step 1 consumes this API, expose the legacy/no-claim state distinctly or require the Supervisor Profile to demand an enforcement-qualified gate; do not globally disable existing N=1 delegation in this task.",
+      "north_star_trace": {
+        "first_principles": ["FP-1", "FP-3", "FP-6"],
+        "serves": ["NS-03", "NS-04"],
+        "touches": ["HC-3", "HC-4", "HC-7"]
+      }
+    }
+  ],
+  "coverage_refs": [
+    "skills/ultra-delegate/scripts/delegate.cjs:905",
+    "skills/ultra-delegate/scripts/delegate.cjs:943",
+    "skills/ultra-delegate/scripts/host-profile.cjs:173",
+    "skills/ultra-delegate/scripts/host-profile.cjs:261",
+    ".ultra/specs/architecture.md:203"
+  ],
+  "positive_observations": [
+    "The implementation reuses the existing Host profile and permission/result path rather than introducing a generic sandbox or orchestration subsystem.",
+    "Legacy N=1 compatibility is deliberately separated from a positive factory-enforcement claim in the maintained prose."
+  ],
+  "limitations": [
+    "The no-record admission risk becomes blocking only when a Step 1 Supervisor consumes this API; it is retained as P2 under the current D1 scope."
+  ]
+}

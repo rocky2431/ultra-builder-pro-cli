@@ -1,0 +1,1242 @@
+{
+  "timestamp": "2026-09-09T08:03:13.962164+00:00",
+  "scope": "Stage B D1 aggregate",
+  "source_files": {
+    "skills/ultra-delegate/scripts/host-profile.cjs": "c08d6912b0bded112523b8f58d21e817f6b0b374670f75a0b54a83b3b0d96ca4",
+    "skills/ultra-delegate/scripts/agent-execution-driver.cjs": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244",
+    "skills/ultra-delegate/scripts/acp-driver.cjs": "8e5fb511f0b5834d6e1fcef998a6d3e14d64f3c2ae3d0e74ee199fcceb839059",
+    "skills/ultra-delegate/scripts/acp-conformance.cjs": "c6c280135eede3dbb79dde724776f5e71a8d5c807c5901bbf47a054c2519be60",
+    "skills/ultra-delegate/scripts/cli-driver.cjs": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4",
+    "skills/ultra-delegate/scripts/delegate.cjs": "49d01d3c431b498fa8a5074fd9391925fdb0c9315842deed8bf5802ca51d8287",
+    "skills/ultra-delegate/scripts/delegate-worker.cjs": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4",
+    "skills/ultra-delegate/scripts/pi-native-runtime.cjs": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1",
+    "skills/ultra-delegate/scripts/pi-native-permissions.cjs": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382",
+    "adapters/_shared/plugin-core.cjs": "263e090363136c20eec25d03cdb5fcc7f5c52a81c044e82f955624d5e5d71d01"
+  },
+  "wiring": [
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "ACP_CONFORMANCE",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:128: const ACP_CONFORMANCE = Object.freeze({",
+        "skills/ultra-delegate/scripts/host-profile.cjs:744: conformance: ACP_CONFORMANCE.claude,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:795: conformance: ACP_CONFORMANCE.codex,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:816: conformance: ACP_CONFORMANCE.opencode,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:835: conformance: ACP_CONFORMANCE.kimi,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:859: conformance: ACP_CONFORMANCE.grok,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:908: conformance: ACP_CONFORMANCE.zcode,"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "BASE_ENV_KEYS",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:52: const BASE_ENV_KEYS = Object.freeze([",
+        "skills/ultra-delegate/scripts/host-profile.cjs:113: const base = pickEnvByPolicy(source, (key) => envPolicyMatches(key, { exact: BASE_ENV_KEYS, prefixes: BASE_ENV_PREFIXES }, platform)"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "CLAUDE_ACP_ADAPTER_PACKAGE",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:9: const CLAUDE_ACP_ADAPTER_PACKAGE = '@agentclientprotocol/claude-agent-acp';",
+        "skills/ultra-delegate/scripts/host-profile.cjs:207: const declaredVersion = typeof packages[CLAUDE_ACP_ADAPTER_PACKAGE] === 'string'",
+        "skills/ultra-delegate/scripts/host-profile.cjs:208: && packages[CLAUDE_ACP_ADAPTER_PACKAGE]",
+        "skills/ultra-delegate/scripts/host-profile.cjs:209: ? packages[CLAUDE_ACP_ADAPTER_PACKAGE]",
+        "skills/ultra-delegate/scripts/host-profile.cjs:229: adapterPackage: `${CLAUDE_ACP_ADAPTER_PACKAGE}@${declaredVersion}`,"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "CLAUDE_ACP_COMMAND_ENV",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:13: const CLAUDE_ACP_COMMAND_ENV = 'ULTRA_CLAUDE_ACP_COMMAND';",
+        "skills/ultra-delegate/scripts/host-profile.cjs:77: claude: Object.freeze({ exact: Object.freeze(['CLAUDE_CONFIG_DIR', CLAUDE_ACP_COMMAND_ENV]) }),",
+        "skills/ultra-delegate/scripts/host-profile.cjs:245: const override = env?.[CLAUDE_ACP_COMMAND_ENV];"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "CLAUDE_ACP_PACKAGE",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:8: const CLAUDE_ACP_PACKAGE = '@agentclientprotocol/claude-agent-acp@0.70.0';",
+        "skills/ultra-delegate/scripts/host-profile.cjs:262: return Object.freeze({ command: 'npx', args: Object.freeze(['--yes', CLAUDE_ACP_PACKAGE]), installed: null });",
+        "skills/ultra-delegate/scripts/host-profile.cjs:741: surface: `official ${CLAUDE_ACP_PACKAGE} stdio adapter`,"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "CLAUDE_NATIVE_SETTINGS_RELATIVE_PATHS",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:270: const CLAUDE_NATIVE_SETTINGS_RELATIVE_PATHS = Object.freeze(['.claude/settings.json', '.claude/settings.local.json']);",
+        "skills/ultra-delegate/scripts/host-profile.cjs:273: // writes into every CLAUDE_NATIVE_SETTINGS_RELATIVE_PATHS file. The schema is",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:253: function claudeNativeSettingsObservation(root, relativePaths = CLAUDE_NATIVE_SETTINGS_RELATIVE_PATHS) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "CODEX_ACP_PACKAGE",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:14: const CODEX_ACP_PACKAGE = '@agentclientprotocol/codex-acp@1.6.2';",
+        "skills/ultra-delegate/scripts/host-profile.cjs:792: surface: `official ${CODEX_ACP_PACKAGE} stdio adapter`,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:797: argv: () => ['--yes', CODEX_ACP_PACKAGE],"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "ENFORCEMENT_QUALIFICATION_SCHEMA",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:298: const ENFORCEMENT_QUALIFICATION_SCHEMA = 'ultra-host-enforcement-qualification-v1';",
+        "skills/ultra-delegate/scripts/host-profile.cjs:539: $schema: ENFORCEMENT_QUALIFICATION_SCHEMA,"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "EXECUTION_IDENTITY_FILE_FIELDS",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:323: const EXECUTION_IDENTITY_FILE_FIELDS = Object.freeze([",
+        "skills/ultra-delegate/scripts/host-profile.cjs:415: for (const field of EXECUTION_IDENTITY_FILE_FIELDS) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "HOST_ENFORCEMENT_QUALIFICATION",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:458: const HOST_ENFORCEMENT_QUALIFICATION = Object.freeze({",
+        "skills/ultra-delegate/scripts/host-profile.cjs:952: ...(HOST_ENFORCEMENT_QUALIFICATION[runtime]",
+        "skills/ultra-delegate/scripts/host-profile.cjs:953: ? { enforcement: HOST_ENFORCEMENT_QUALIFICATION[runtime] }"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "HOST_ENV_DISCOVERY",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:76: const HOST_ENV_DISCOVERY = Object.freeze({",
+        "skills/ultra-delegate/scripts/host-profile.cjs:739: envDiscovery: HOST_ENV_DISCOVERY.claude,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:790: envDiscovery: HOST_ENV_DISCOVERY.codex,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:811: envDiscovery: HOST_ENV_DISCOVERY.opencode,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:829: envDiscovery: HOST_ENV_DISCOVERY.kimi,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:854: envDiscovery: HOST_ENV_DISCOVERY.grok,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:875: envDiscovery: HOST_ENV_DISCOVERY.pi,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:902: envDiscovery: HOST_ENV_DISCOVERY.zcode,"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "PACKET_ALWAYS_DIMENSIONS",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:300: const PACKET_ALWAYS_DIMENSIONS = Object.freeze([",
+        "skills/ultra-delegate/scripts/host-profile.cjs:309: ? [...PACKET_ALWAYS_DIMENSIONS]",
+        "skills/ultra-delegate/scripts/host-profile.cjs:310: : [PACKET_WRITE_DIMENSION, ...PACKET_ALWAYS_DIMENSIONS];"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "PACKET_WRITE_DIMENSION",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:299: const PACKET_WRITE_DIMENSION = 'writable_scope';",
+        "skills/ultra-delegate/scripts/host-profile.cjs:310: : [PACKET_WRITE_DIMENSION, ...PACKET_ALWAYS_DIMENSIONS];"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "PROFILES",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:736: const PROFILES = Object.freeze({",
+        "skills/ultra-delegate/scripts/host-profile.cjs:945: const profile = PROFILES[runtime];",
+        "skills/ultra-delegate/scripts/host-profile.cjs:1008: function transportSurface(runtime, binary = PROFILES[runtime] ? PROFILES[runtime].binary : undefined) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "TRANSPORT_MATURITY",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:36: const TRANSPORT_MATURITY = Object.freeze({",
+        "skills/ultra-delegate/scripts/host-profile.cjs:949: transportMaturity: TRANSPORT_MATURITY[runtime],"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "ZCODE_BUNDLED_CLI",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:7: const ZCODE_BUNDLED_CLI = '/Applications/ZCode.app/Contents/Resources/glm/zcode.cjs';",
+        "skills/ultra-delegate/scripts/host-profile.cjs:162: return platform === 'darwin' && exists(ZCODE_BUNDLED_CLI)",
+        "skills/ultra-delegate/scripts/host-profile.cjs:163: ? ZCODE_BUNDLED_CLI",
+        "skills/ultra-delegate/scripts/host-profile.cjs:1010: const source = binary === ZCODE_BUNDLED_CLI ? 'the App-bundled headless CLI' : 'the zcode headless CLI on PATH';"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "ZCODE_ACP_SOURCE",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:15: const ZCODE_ACP_SOURCE = Object.freeze({",
+        "skills/ultra-delegate/scripts/host-profile.cjs:905: surface: `installed ZCode Desktop runtime through zcode-acp ${ZCODE_ACP_SOURCE.version}`,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:914: bridge_build_marker: ZCODE_ACP_SOURCE.buildMarker,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:915: runtime_version: ZCODE_ACP_SOURCE.runtimeVersion,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:922: expectedStdout: ZCODE_ACP_SOURCE.buildMarker,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:928: expectedStdout: ZCODE_ACP_SOURCE.runtimeVersion,",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:11: const { hostProfile, ZCODE_ACP_SOURCE } = require('./host-profile.cjs');",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:239: bridge_source: ZCODE_ACP_SOURCE,"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "claudeAcpSelection",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:244: function claudeAcpSelection(env = process.env, deps) {",
+        "skills/ultra-delegate/scripts/host-profile.cjs:750: resolveSelection: ({ env }) => claudeAcpSelection(env),",
+        "skills/ultra-delegate/scripts/host-profile.cjs:751: command: ({ env, selection }) => (selection ?? claudeAcpSelection(env)).command,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:752: argv: ({ env, selection }) => [...(selection ?? claudeAcpSelection(env)).args],",
+        "skills/ultra-delegate/scripts/host-profile.cjs:980: const bound = selection ?? claudeAcpSelection(probeEnv);",
+        "skills/ultra-delegate/scripts/host-profile.cjs:996: const bound = selection ?? claudeAcpSelection(probeEnv);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "claudeInstalledAcp",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:178: function claudeInstalledAcp(env = process.env, { exists = fs.existsSync } = {}) {",
+        "skills/ultra-delegate/scripts/host-profile.cjs:252: installed = claudeInstalledAcp(env, deps);",
+        "skills/ultra-delegate/scripts/host-profile.cjs:258: const installed = claudeInstalledAcp(env, deps);",
+        "skills/ultra-delegate/scripts/host-profile.cjs:781: const installed = claudeInstalledAcp(process.env);",
+        "skills/ultra-delegate/scripts/host-profile.cjs:963: const installed = claudeInstalledAcp(env);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "descendantEnvViews",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:109: function descendantEnvViews(source, profile, { platform = process.platform, packetEnv = {} } = {}) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:929: const envViews = descendantEnvViews(process.env, profile, {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "enforcementAdmission",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:625: function enforcementAdmission(profile, { required, driver }) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:984: .map((driver) => enforcementAdmission(profile, {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1044: const admission = enforcementAdmission(profile, {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "executionIdentityDrift",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:413: function executionIdentityDrift(required, observed) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:931: const drift = executionIdentityDrift(requiredIdentity, observed);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "hostProfile",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:944: function hostProfile(runtime, { env = process.env } = {}) {",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:11: const { hostProfile, ZCODE_ACP_SOURCE } = require('./host-profile.cjs');",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:143: const profile = hostProfile(options.host);",
+        "skills/ultra-delegate/scripts/delegate.cjs:857: resolveHostProfile = hostProfile,",
+        "adapters/_shared/plugin-core.cjs:214: const profile = installedProfiles.hostProfile(adapter);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "opencodePermission",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:709: function opencodePermission(writableRoots) {",
+        "skills/ultra-delegate/scripts/host-profile.cjs:824: OPENCODE_CONFIG_CONTENT: opencodePermission(options.writableRoots),"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "renderClaudeNativePermissionSettings",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:281: function renderClaudeNativePermissionSettings() {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "requiredExecutionIdentity",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:372: function requiredExecutionIdentity(profile) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:831: const requiredIdentity = requiredExecutionIdentity(profile);",
+        "skills/ultra-delegate/scripts/delegate.cjs:1072: if (requiredExecutionIdentity(profile) && !driverSelection.executionIdentity) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "requiredPacketEnforcementDimensions",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:307: function requiredPacketEnforcementDimensions({ readOnly } = {}) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:980: const requiredDimensions = requiredPacketEnforcementDimensions({"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "transportSurface",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:1008: function transportSurface(runtime, binary = PROFILES[runtime] ? PROFILES[runtime].binary : undefined) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1090: transportSurface: fallback.transport_surface || spec.transport_surface,",
+        "skills/ultra-delegate/scripts/delegate.cjs:792: constructor(host, admission, { transportSurface: surface = null, maturity = null } = {}) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:807: this.transportSurface = surface;",
+        "skills/ultra-delegate/scripts/delegate.cjs:961: : transportSurface(args.to, binary);",
+        "skills/ultra-delegate/scripts/delegate.cjs:990: transportSurface: preferredSurface,",
+        "skills/ultra-delegate/scripts/delegate.cjs:1014: : transportSurface(args.to, binary);",
+        "skills/ultra-delegate/scripts/delegate.cjs:1031: transport_surface: transportSurface(args.to, binary),",
+        "skills/ultra-delegate/scripts/delegate.cjs:1050: transportSurface: transportSurfaceNote,",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:363: spec.transport_surface = processResult.transportSurface || spec.transport_surface;"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "symbol": "zcodeBinary",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:161: function zcodeBinary({ platform = process.platform, exists = fs.existsSync } = {}) {",
+        "skills/ultra-delegate/scripts/host-profile.cjs:901: binary: zcodeBinary(),"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "ACP_PROTOCOL_VERSION",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:15: const ACP_PROTOCOL_VERSION = 1;",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:869: if (!Array.isArray(acp.protocolVersions) || !acp.protocolVersions.includes(ACP_PROTOCOL_VERSION)) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:952: protocolVersion: ACP_PROTOCOL_VERSION,",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:87: if (value.protocol_version !== ACP_PROTOCOL_VERSION"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "ACPX_ENTRY_ENV",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:22: const ACPX_ENTRY_ENV = 'ULTRA_DELEGATE_ACPX_ENTRY';",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1003: const override = env[ACPX_ENTRY_ENV];"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "AgentExecutionDriver",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:35: class AgentExecutionDriver {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:41: throw new Error('AgentExecutionDriver.run() must be implemented by a concrete driver');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:387: class AcpDriver extends AgentExecutionDriver {",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:17: class CliDriver extends AgentExecutionDriver {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "BoundedCapture",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:45: class BoundedCapture {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:485: const stderr = new BoundedCapture(spec.capture_limit_bytes || DEFAULT_CAPTURE_LIMIT_BYTES);",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:42: const stdout = new BoundedCapture(limit);",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:43: const stderr = new BoundedCapture(limit);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "DEFAULT_CAPTURE_LIMIT_BYTES",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:16: const DEFAULT_CAPTURE_LIMIT_BYTES = 4 * 1024 * 1024;",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:46: constructor(limitBytes = DEFAULT_CAPTURE_LIMIT_BYTES) {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:485: const stderr = new BoundedCapture(spec.capture_limit_bytes || DEFAULT_CAPTURE_LIMIT_BYTES);",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:41: const limit = spec.capture_limit_bytes || DEFAULT_CAPTURE_LIMIT_BYTES;"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "WRITER_OBSERVATION_SCHEMA",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:23: const WRITER_OBSERVATION_SCHEMA = 'ultra-delegation-writer-v2';",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:415: if (observation.$schema !== WRITER_OBSERVATION_SCHEMA) return null;",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:504: $schema: WRITER_OBSERVATION_SCHEMA,"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "claudeNativeSettingsObservation",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:253: function claudeNativeSettingsObservation(root, relativePaths = CLAUDE_NATIVE_SETTINGS_RELATIVE_PATHS) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:292: const settings = claudeNativeSettingsObservation(nativeSettingsRoot);",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:339: const settings = claudeNativeSettingsObservation(cwd, bound.native_settings_files);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "deriveWriterState",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:660: function deriveWriterState(observation, {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1028: ? deriveWriterState(readWriterObservationFile(spec.writer_observation), {",
+        "skills/ultra-delegate/scripts/delegate.cjs:388: return deriveWriterState(observation, { identity });",
+        "skills/ultra-delegate/scripts/delegate.cjs:397: state: deriveWriterState(validated, { identity }),",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:253: const state = deriveWriterState(observation, { identity });"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "descendantSpawnEnv",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:362: function descendantSpawnEnv(spec) {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:424: const hostEnv = descendantSpawnEnv(spec);",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:46: env: descendantSpawnEnv(spec),"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "executablePath",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:101: function executablePath(command, env = process.env) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:152: return executablePath(command, env);",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:799: const native = selectPiNative(executablePath(cliCommand, env), env, profile);",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:861: const adapterPath = candidateValid ? executablePath(command, env) : null;",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:464: agentCommand = executablePath(spec.command, hostEnv);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "fileSha256",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:131: function fileSha256(file) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:207: package_json_sha256: fileSha256(packageJson),",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:245: package_json_sha256: fileSha256(path.join(packageDir, 'package.json')),",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:286: adapter_sha256: adapterPath ? fileSha256(adapterPath) : null,",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:287: runtime_sha256: runtimePath ? fileSha256(runtimePath) : null,",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:288: acpx_entry_sha256: entryPath ? fileSha256(entryPath) : null,",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:321: || !adapterPath || fileSha256(adapterPath) !== bound.adapter_sha256) return 'adapter';",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:323: || !runtimePath || fileSha256(runtimePath) !== bound.runtime_sha256) return 'runtime';",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:325: || fileSha256(entryPath) !== bound.acpx_entry_sha256) return 'acpx_entry';",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:904: const acpEntrySha256 = fileSha256(acpEntryPath);",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:407: const actual = boundPath ? fileSha256(boundPath) : null;"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "identityFilePath",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:142: function identityFilePath(command, env = process.env) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:842: : identityFilePath(cliCommand, env);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "inspectCandidateIdentity",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:719: function inspectCandidateIdentity(acp, context, runCandidateProbe) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:892: const identity = inspectCandidateIdentity(acp, {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "launchBoundWriterState",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1026: function launchBoundWriterState(spec) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1050: const boundary = launchBoundWriterState(spec);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "launchExecutionIdentityDrift",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:314: function launchExecutionIdentityDrift(bound, { adapterPath, runtimePath, entryPath, cwd }) {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:450: const drift = launchExecutionIdentityDrift(identity, {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "markWriterLaunching",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:526: function markWriterLaunching(spec, {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:478: if (!markWriterLaunching(launchSpec)) {",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:31: if (!markWriterLaunching(spec)) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "observeExecutionIdentity",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:278: function observeExecutionIdentity({",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:924: const observed = observeExecutionIdentity({"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "observeWriterStart",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:563: function observeWriterStart(spec, child, {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:517: if (Number.isInteger(child.pid) && child.pid > 0 && !observeWriterStart(launchSpec, child)) {",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:53: if (Number.isInteger(child.pid) && child.pid > 0 && !observeWriterStart(spec, child)) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "processStartIdentity",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:471: function processStartIdentity(pid, {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:592: startIdentity: processStartIdentity(child.pid, { platform, readFileSync }),",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:676: const current = processStartIdentity(validated.pid, { platform, readFileSync });",
+        "skills/ultra-delegate/scripts/delegate.cjs:548: const current = processStartIdentity(pid);",
+        "skills/ultra-delegate/scripts/delegate.cjs:1183: const workerStartIdentity = processStartIdentity(worker.pid);",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:282: worker_start_identity: processStartIdentity(process.pid),"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "probeProcessAlive",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:652: function probeProcessAlive(target, kill = process.kill) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:670: if (probeProcessAlive(validated.pid, kill)) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:684: && probeProcessAlive(-validated.pgid, kill)) {",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:12: const { probeProcessAlive, resolveAcpEntry } = require('./agent-execution-driver.cjs');",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:80: if (!probeProcessAlive(pid, kill)) return true;",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:83: return !probeProcessAlive(pid, kill);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "resolveAcpEntry",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:887: const acpEntryPath = resolveAcpEntry(env);",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:998: function resolveAcpEntry(env = process.env, {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:416: entryPath = resolveAcpEntry();",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:12: const { probeProcessAlive, resolveAcpEntry } = require('./agent-execution-driver.cjs');",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:178: const acpEntryPath = resolveAcpEntry(env);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "resolveAcpxPackage",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:182: function resolveAcpxPackage(entryFile) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:289: acpx_package: entryPath ? resolveAcpxPackage(entryPath) : null,",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:331: const resolved = resolveAcpxPackage(entryPath);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "resolveClaudeSdkPackage",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:216: function resolveClaudeSdkPackage(adapterPath) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:297: observed.claude_sdk_package = adapterPath ? resolveClaudeSdkPackage(adapterPath) : null;",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:350: const resolvedSdk = resolveClaudeSdkPackage(adapterPath);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "signalOutcome",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:637: function signalOutcome(target, kill = process.kill) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:653: return signalOutcome(target, kill) !== 'dead';",
+        "skills/ultra-delegate/scripts/delegate.cjs:542: const signal = signalOutcome(pid, kill);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "readWriterObservationFile",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:382: function readWriterObservationFile(file) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:535: readWriterObservationFile(spec.writer_observation),",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:575: readWriterObservationFile(spec.writer_observation),",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:614: readWriterObservationFile(spec.writer_observation),",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1028: ? deriveWriterState(readWriterObservationFile(spec.writer_observation), {",
+        "skills/ultra-delegate/scripts/delegate.cjs:379: return readWriterObservationFile(file);",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:251: ? readWriterObservationFile(spec.writer_observation)"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "rewindWriterNotStarted",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:604: function rewindWriterNotStarted(spec, {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1060: if (!rewindWriterNotStarted(spec, { allowedPriorPhases: ['started'] })) {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:734: rewindWriterNotStarted(launchSpec, { allowedPriorPhases: ['launching'] });",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:86: rewindWriterNotStarted(spec, { allowedPriorPhases: ['launching'] });"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "runExecutionDriver",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1034: async function runExecutionDriver(spec) {",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:359: const processResult = await runExecutionDriver(spec);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "selectExecutionDriver",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:786: function selectExecutionDriver({",
+        "skills/ultra-delegate/scripts/delegate.cjs:858: chooseExecutionDriver = selectExecutionDriver,",
+        "adapters/_shared/plugin-core.cjs:215: const selection = installedDrivers.selectExecutionDriver({"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "terminateProcessGroup",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:83: function terminateProcessGroup(child, signal = 'SIGTERM', options = {}) {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:522: terminateProcessGroup(child, 'SIGKILL');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:680: terminateProcessGroup(child, 'SIGTERM');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:682: terminateProcessGroup(child, 'SIGKILL');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:742: terminateProcessGroup(child, 'SIGTERM');",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:57: terminateProcessGroup(child, 'SIGKILL');",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:109: terminateProcessGroup(child);",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:110: hardKill = setTimeout(() => terminateProcessGroup(child, 'SIGKILL'), 1500);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "validateWriterObservation",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:408: function validateWriterObservation(observation, identity, { platform = process.platform } = {}) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:534: const existing = validateWriterObservation(",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:554: return validateWriterObservation(observation, identity, { platform }) !== null;",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:574: const existing = validateWriterObservation(",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:595: return validateWriterObservation(observation, identity, { platform });",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:613: const existing = validateWriterObservation(",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:626: return validateWriterObservation(observation, identity, { platform }) !== null;",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:666: const validated = validateWriterObservation(observation, identity, { platform });",
+        "skills/ultra-delegate/scripts/delegate.cjs:394: const validated = validateWriterObservation(observation, identity);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "writeObservationPhase",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:492: function writeObservationPhase(file, {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:546: const observation = writeObservationPhase(spec.writer_observation, {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:582: const observation = writeObservationPhase(spec.writer_observation, {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:620: const observation = writeObservationPhase(spec.writer_observation, {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1088: writeObservationPhase(writerObservation, { identity, phase: 'not_started' });"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+      "symbol": "writerIdentity",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:391: function writerIdentity(spec) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:531: const identity = writerIdentity(spec);",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:571: const identity = writerIdentity(spec);",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:610: const identity = writerIdentity(spec);",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1029: identity: writerIdentity(spec),"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "symbol": "AcpDriver",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1036: const { AcpDriver } = require('./acp-driver.cjs');",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1037: const acpResult = await new AcpDriver(spec).run();",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:387: class AcpDriver extends AgentExecutionDriver {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "symbol": "AcpFailure",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/acp-driver.cjs:58: class AcpFailure extends Error {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:157: throw new AcpFailure('acp_event_limit', 'ACP derived event journal exceeded its physical limit.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:166: throw new AcpFailure('acp_event_shape', 'ACP derived event has an invalid safe shape.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:171: throw new AcpFailure('acp_event_limit', 'ACP derived event journal exceeded its physical limit.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:243: throw new AcpFailure('acp_malformed_permission', 'ACP permission request is malformed.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:291: throw new AcpFailure('acp_malformed_update', 'ACP runtime event must be an object.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:295: throw new AcpFailure('acp_malformed_update', 'ACP text delta must carry text.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:328: throw new AcpFailure(",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:344: throw new AcpFailure(",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:357: throw new AcpFailure('acp_malformed_result', 'ACP entry result line has an invalid status.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:371: new AcpFailure('acp_auth_required', 'ACP agent requires authentication outside this delegation.'),",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:376: new AcpFailure('acp_turn_failed', `ACP entry turn failed: ${message}`),",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:382: throw new AcpFailure('acp_malformed_terminal', 'ACP entry result carried an invalid stopReason.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:536: throw new AcpFailure('acp_message_too_large', 'ACP entry message exceeded the physical line limit.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:540: throw new AcpFailure('acp_malformed_message', 'ACP entry emitted malformed JSON.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:543: throw new AcpFailure('acp_malformed_message', 'ACP entry message must be a typed object.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:547: throw new AcpFailure('acp_entry_identity', 'ACP entry started line does not match the launched boundary.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:558: throw new AcpFailure('acp_output_limit', 'ACP agent output exceeded its physical limit.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:565: throw new AcpFailure('acp_malformed_permission', 'ACP permission request is malformed.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:593: throw new AcpFailure(",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:603: fatal.resolve(new AcpFailure('acp_message_too_large', 'ACP entry message exceeded the physical line limit.'));",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:621: fatal.resolve(new AcpFailure('acp_process_exit', 'The ACP entry stdin stream failed.'));",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:626: fatal.resolve(new AcpFailure('spawn_error', 'ACP host process failed to start.'));",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:631: fatal.resolve(new AcpFailure(",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:647: aborted.resolve(new AcpFailure(reason, `ACP delegation ${reason}.`));",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:726: const failure = error instanceof AcpFailure",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:728: : new AcpFailure('acp_protocol_error', 'ACP transport failed.');"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "symbol": "DerivedEventJournal",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/acp-driver.cjs:147: class DerivedEventJournal {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:484: const journal = new DerivedEventJournal(spec.events);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "symbol": "permissionDecision",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/acp-driver.cjs:241: function permissionDecision(spec, params) {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:567: const decision = permissionDecision(spec, message.request.raw);",
+        "skills/ultra-delegate/scripts/pi-native-permissions.cjs:7: const { permissionDecision } = require('./acp-driver.cjs');",
+        "skills/ultra-delegate/scripts/pi-native-permissions.cjs:34: return permissionDecision(spec, { toolCall: { kind, locations }, options: OPTIONS });"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/acp-driver.cjs",
+      "symbol": "projectedDerivedEvent",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/acp-driver.cjs:69: function projectedDerivedEvent(value) {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:164: const projected = projectedDerivedEvent(payload);",
+        "skills/ultra-delegate/scripts/delegate.cjs:1261: const { projectedDerivedEvent } = require('./acp-driver.cjs');",
+        "skills/ultra-delegate/scripts/delegate.cjs:1262: const latest = projectedDerivedEvent(JSON.parse(lines.at(-1)));"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/acp-conformance.cjs",
+      "symbol": "parseArgs",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:17: function parseArgs(argv) {",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:282: const options = parseArgs(argv);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/acp-conformance.cjs",
+      "symbol": "runConformance",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:142: async function runConformance(options) {",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:283: const receipt = await runConformance(options);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/acp-conformance.cjs",
+      "symbol": "waitForExit",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:77: async function waitForExit(pid, timeoutMs = 5000, kill = process.kill) {",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:204: const workerExitObserved = await waitForExit(started.worker_pid);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/cli-driver.cjs",
+      "symbol": "CliDriver",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1067: const { CliDriver } = require('./cli-driver.cjs');",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1068: const cliResult = await new CliDriver({",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1096: const { CliDriver } = require('./cli-driver.cjs');",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1097: return new CliDriver(spec).run();",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:17: class CliDriver extends AgentExecutionDriver {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "acquireWorktreeFence",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:256: function acquireWorktreeFence(projectRoot, entry, {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1079: fence = acquireWorktreeFence(projectRoot, {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "cancel",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/acp-driver.cjs:29: // cancel/timeout signal; the driver's typed termination never depends on it.",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:639: if (fs.existsSync(spec.cancel)) requestTermination('cancelled');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:737: // Ask the entry to cancel its active turn through its own signal",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:114: if (fs.existsSync(spec.cancel)) requestTermination('cancelled');",
+        "skills/ultra-delegate/scripts/delegate.cjs:273: + 'cancel it or use a new delegation id',",
+        "skills/ultra-delegate/scripts/delegate.cjs:282: + 'wait for it, cancel it, or use a disjoint worktree',",
+        "skills/ultra-delegate/scripts/delegate.cjs:298: + 'cancel it or use a new delegation id',",
+        "skills/ultra-delegate/scripts/delegate.cjs:421: // cancel, or spec consumption may act on the facts.",
+        "skills/ultra-delegate/scripts/delegate.cjs:430: // before status, cancel, or spec consumption may act on them. Absent optional",
+        "skills/ultra-delegate/scripts/delegate.cjs:893: const cancel = path.join(delegationRoot, 'cancel.request');",
+        "skills/ultra-delegate/scripts/delegate.cjs:897: // A leftover cancel request is a prior run's artifact: a new launch would",
+        "skills/ultra-delegate/scripts/delegate.cjs:901: || fs.existsSync(cancel)) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:902: throw new Error('delegation id already has run artifacts; cancel or use a new delegation id');",
+        "skills/ultra-delegate/scripts/delegate.cjs:1037: + `recovery: ${runnerCommand('cancel')}\\n`,",
+        "skills/ultra-delegate/scripts/delegate.cjs:1211: cancel_command: runnerCommand('cancel', delegationRoot),",
+        "skills/ultra-delegate/scripts/delegate.cjs:1243: // The only recovery path is the canonical cancel command.",
+        "skills/ultra-delegate/scripts/delegate.cjs:1245: `${error.message}; the delegation worker may already be running \u2014 recover with ${runnerCommand('cancel', delegationRoot)}`,",
+        "skills/ultra-delegate/scripts/delegate.cjs:1277: // The same conservative recovery view as cancel: conflicting or malformed",
+        "skills/ultra-delegate/scripts/delegate.cjs:1289: // conservative and the canonical cancel repair is always offered.",
+        "skills/ultra-delegate/scripts/delegate.cjs:1299: status: fs.existsSync(path.join(root, 'cancel.request'))",
+        "skills/ultra-delegate/scripts/delegate.cjs:1313: repair: hasRunArtifacts ? runnerCommand('cancel', root) : null,",
+        "skills/ultra-delegate/scripts/delegate.cjs:1356: function cancel(argv, { projectRoot = process.cwd(), kill = process.kill } = {}) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1358: if (!values['--delegation']) throw new Error('delegate cancel requires --delegation');",
+        "skills/ultra-delegate/scripts/delegate.cjs:1384: $schema: 'ultra-delegation-cancel-v1',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1393: if (!fs.existsSync(specFile)) throw new Error('delegation has no worker spec to cancel');",
+        "skills/ultra-delegate/scripts/delegate.cjs:1397: const request = path.join(root, 'cancel.request');",
+        "skills/ultra-delegate/scripts/delegate.cjs:1440: $schema: 'ultra-delegation-cancel-v1',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1451: if (argv[1] === 'cancel') return cancel(argv.slice(2), options);",
+        "skills/ultra-delegate/scripts/delegate.cjs:1453: 'usage: delegate.cjs <run|status|cancel> ... '",
+        "skills/ultra-delegate/scripts/delegate.cjs:1454: + '(compatibility: ubp delegate <run|status|cancel> ...)',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1460: 'Usage: node <ultra-delegate-skill-dir>/scripts/delegate.cjs <run|status|cancel> ...',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1463: 'Compatibility for one release cycle: ubp delegate <run|status|cancel> ...',",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:349: } else if (fs.existsSync(spec.cancel)) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "failureDiagnostic",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:820: function failureDiagnostic(error) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:836: const diagnostic = failureDiagnostic(error);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "failureDiagnosticLine",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:835: function failureDiagnosticLine(error) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1481: process.stderr.write(failureDiagnosticLine(error) ?? `${error.message}\\n`);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "fenceFileName",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:137: function fenceFileName(delegationId) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:288: const file = path.join(registry, fenceFileName(entry.delegationId));",
+        "skills/ultra-delegate/scripts/delegate.cjs:323: const file = path.join(registry, fenceFileName(delegationId));",
+        "skills/ultra-delegate/scripts/delegate.cjs:334: const file = path.join(registry, fenceFileName(delegationId));"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "fenceHeldForLaunch",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:331: function fenceHeldForLaunch(projectRoot, delegationId, launchId) {",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:15: const { fenceHeldForLaunch, releaseWorktreeFence } = require('./delegate.cjs');",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:342: } else if (!fenceHeldForLaunch(spec.project_root, spec.delegation_id, spec.launch_id)) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "fencePathsOverlap",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:279: if (fencePathsOverlap(existing, candidate, { platform, stat })) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:351: function fencePathsOverlap(left, right, { platform = process.platform, stat = fs.statSync } = {}) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "handle",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:1447: function handle(argv, options) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1473: const result = handle(['delegate', ...argv]);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "HostEnforcementUnavailableError",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:791: class HostEnforcementUnavailableError extends Error {",
+        "skills/ultra-delegate/scripts/delegate.cjs:804: this.name = 'HostEnforcementUnavailableError';",
+        "skills/ultra-delegate/scripts/delegate.cjs:989: throw new HostEnforcementUnavailableError(args.to, preAdmissions[0], {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1049: throw new HostEnforcementUnavailableError(args.to, admission, {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "launchDelegateWorker",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:844: function launchDelegateWorker(specFile, specDigest, env, cwd) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:859: spawnWorker = launchDelegateWorker,"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "main",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:175: // as Node resolves it when the entry runs as the main module: the main script",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:176: // is first resolved to its real path (no --preserve-symlinks-main), then",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:97: git(root, ['init', '-b', 'main']);",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:281: async function main(argv = process.argv.slice(2)) {",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:291: if (require.main === module) {",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:292: main().catch((error) => {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1468: function main(argv = process.argv.slice(2)) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1477: if (require.main === module) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1479: main();",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:324: async function main() {",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:481: main().catch((error) => {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "releaseWorktreeFence",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:320: function releaseWorktreeFence(projectRoot, delegationId, { launchId = null } = {}) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1234: try { releaseWorktreeFence(projectRoot, delegationId, { launchId }); } catch { /* the fence stays held */ }",
+        "skills/ultra-delegate/scripts/delegate.cjs:1376: fenceReleased = releaseWorktreeFence(projectRoot, identity.delegationId, {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1426: releaseWorktreeFence(projectRoot, identity.delegationId, { launchId: identity.launchId });",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:15: const { fenceHeldForLaunch, releaseWorktreeFence } = require('./delegate.cjs');",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:471: releaseWorktreeFence(spec.project_root, spec.delegation_id, { launchId: spec.launch_id });"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "run",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:491: \"basis\": \"Synthetic unrelated-provider and Primary-control values were absent from all retained native-run artifacts; HOME remains available for existing authentication.\"",
+        "skills/ultra-delegate/scripts/host-profile.cjs:587: basis: 'The run terminated at the first intended in-root edit denial before the outside-root edit attempt.',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:592: basis: 'The run terminated before the requested shell attempt; zero marker and sink effects are absence observations, not denial proof.',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:597: basis: 'The run terminated before the requested WebFetch/loopback attempts; zero sink hits are not an attempt-and-denial event.',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:821: 'run', '--dir', cwd, '--format', 'json', '--auto', prompt,",
+        "skills/ultra-delegate/scripts/host-profile.cjs:1005: // The live delegate surface names honestly what a run actually used. The ZCode",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:31: // launcher policy and never carries this key, so no installed run path can",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:40: async run() {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:41: throw new Error('AgentExecutionDriver.run() must be implemented by a concrete driver');",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1037: const acpResult = await new AcpDriver(spec).run();",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1073: }).run();",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:1097: return new CliDriver(spec).run();",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:388: async run() {",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:10: const { run: runDelegate } = require('./delegate.cjs');",
+        "skills/ultra-delegate/scripts/cli-driver.cjs:18: run() {",
+        "skills/ultra-delegate/scripts/delegate.cjs:434: const lockFile = path.join(root, 'run.lock');",
+        "skills/ultra-delegate/scripts/delegate.cjs:445: throw invalid('run.lock is malformed');",
+        "skills/ultra-delegate/scripts/delegate.cjs:448: throw invalid('run.lock is malformed');",
+        "skills/ultra-delegate/scripts/delegate.cjs:607: const run = (args) => execFileSync('git', args, {",
+        "skills/ultra-delegate/scripts/delegate.cjs:614: ...run(['diff', '--name-only', '-z', baseHead, '--']),",
+        "skills/ultra-delegate/scripts/delegate.cjs:615: ...run(['ls-files', '--others', '--exclude-standard', '-z']),",
+        "skills/ultra-delegate/scripts/delegate.cjs:767: if (!values[key]) throw new Error(`delegate run requires ${key}`);",
+        "skills/ultra-delegate/scripts/delegate.cjs:841: // `spawnWorker` option on run() may wrap this seam to observe the exact",
+        "skills/ultra-delegate/scripts/delegate.cjs:855: function run(argv, {",
+        "skills/ultra-delegate/scripts/delegate.cjs:892: const lock = path.join(delegationRoot, 'run.lock');",
+        "skills/ultra-delegate/scripts/delegate.cjs:897: // A leftover cancel request is a prior run's artifact: a new launch would",
+        "skills/ultra-delegate/scripts/delegate.cjs:902: throw new Error('delegation id already has run artifacts; cancel or use a new delegation id');",
+        "skills/ultra-delegate/scripts/delegate.cjs:955: // fire before driver selection can run any process-backed identity",
+        "skills/ultra-delegate/scripts/delegate.cjs:975: // driver selection can run any process-backed identity probe, the",
+        "skills/ultra-delegate/scripts/delegate.cjs:1231: // Pre-spawn: nothing was launched, so the run directory can be cleaned.",
+        "skills/ultra-delegate/scripts/delegate.cjs:1287: // A run with spec/lock/writer artifacts but no receipt is never",
+        "skills/ultra-delegate/scripts/delegate.cjs:1449: if (argv[1] === 'run') return run(argv.slice(2), options);",
+        "skills/ultra-delegate/scripts/delegate.cjs:1453: 'usage: delegate.cjs <run|status|cancel> ... '",
+        "skills/ultra-delegate/scripts/delegate.cjs:1454: + '(compatibility: ubp delegate <run|status|cancel> ...)',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1460: 'Usage: node <ultra-delegate-skill-dir>/scripts/delegate.cjs <run|status|cancel> ...',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1463: 'Compatibility for one release cycle: ubp delegate <run|status|cancel> ...',",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:344: // Host may never run without the matching retained fence.",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:352: // No Host may run behind a lock this worker cannot durably claim; the",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:451: // The lock leaves with the run except in two states: a frozen"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "sameFileSystemEntry",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:118: function sameFileSystemEntry(left, right, {",
+        "skills/ultra-delegate/scripts/delegate.cjs:352: if (sameFileSystemEntry(left, right, { platform, stat })) return true;",
+        "skills/ultra-delegate/scripts/delegate.cjs:626: if (!sameFileSystemEntry(top, worktree)) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:634: try { return sameFileSystemEntry(fs.realpathSync(entry), worktree); } catch { return false; }"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "sameFileSystemPath",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/delegate.cjs:113: function sameFileSystemPath(left, right, platform = process.platform) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:129: return sameFileSystemPath(left, right, platform);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/delegate.cjs",
+      "symbol": "status",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/host-profile.cjs:130: status: 'passed',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:135: status: 'passed',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:140: status: 'passed',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:145: status: 'passed',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:150: status: 'passed',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:155: status: 'passed',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:649: status: 'version_mismatch',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:661: status: 'missing',",
+        "skills/ultra-delegate/scripts/host-profile.cjs:668: dimensions.push({ dimension, status: 'unobserved', basis: String(fact.basis ?? '') });",
+        "skills/ultra-delegate/scripts/host-profile.cjs:672: dimensions.push({ dimension, status: 'unsupported', basis: String(fact.basis ?? '') });",
+        "skills/ultra-delegate/scripts/host-profile.cjs:677: status: 'unknown',",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:91: if (result?.status === 0) return;",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:696: conformance_status: acp?.conformance?.status || 'not_available',",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:768: if (result?.error || result?.status !== 0) {",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:872: if (acp.conformance?.status !== 'passed') {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:311: tool_status: typeof event.status === 'string' ? event.status : null,",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:317: if (event.type === 'status') {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:330: 'ACP runtime status event is not part of stable v1.',",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:356: if (!isObject(result) || !['completed', 'cancelled', 'failed'].includes(result.status)) {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:357: throw new AcpFailure('acp_malformed_result', 'ACP entry result line has an invalid status.');",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:359: if (result.status === 'failed') {",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:380: const stopReason = result.status === 'cancelled' ? 'cancelled' : result.stopReason;",
+        "skills/ultra-delegate/scripts/acp-driver.cjs:691: // itself, whatever terminal status it carries, does not.",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:113: status: 'finished',",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:206: const gitClean = git(fixture.worktree, ['status', '--porcelain=v1', '--untracked-files=all']) === '';",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:221: const passed = terminal.status === 'finished'",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:244: status: passed ? 'passed' : 'failed',",
+        "skills/ultra-delegate/scripts/acp-conformance.cjs:286: status: receipt.result.status,",
+        "skills/ultra-delegate/scripts/delegate.cjs:37: '$schema', 'status', 'summary', 'changed_files', 'checks', 'evidence',",
+        "skills/ultra-delegate/scripts/delegate.cjs:42: status: { type: 'string', enum: ['finished', 'blocked', 'failed'] },",
+        "skills/ultra-delegate/scripts/delegate.cjs:52: required: ['command', 'status', 'output_ref'],",
+        "skills/ultra-delegate/scripts/delegate.cjs:55: status: { type: 'string', enum: ['passed', 'failed', 'not_run'] },",
+        "skills/ultra-delegate/scripts/delegate.cjs:420: // schema type; anything else is malformed and fails closed before status,",
+        "skills/ultra-delegate/scripts/delegate.cjs:430: // before status, cancel, or spec consumption may act on them. Absent optional",
+        "skills/ultra-delegate/scripts/delegate.cjs:637: const dirty = git(worktree, ['status', '--porcelain=v1', '--untracked-files=all']);",
+        "skills/ultra-delegate/scripts/delegate.cjs:728: 'The exact fields are $schema, status, summary, changed_files, checks, evidence, questions, and residual_risks.',",
+        "skills/ultra-delegate/scripts/delegate.cjs:729: 'status is finished, blocked, or failed. blocked requires at least one question.',",
+        "skills/ultra-delegate/scripts/delegate.cjs:731: 'checks items use command, status (passed, failed, or not_run), and output_ref. Use a short evidence reference when no file exists.',",
+        "skills/ultra-delegate/scripts/delegate.cjs:794: .map((entry) => `${entry.dimension} (${entry.status})`)",
+        "skills/ultra-delegate/scripts/delegate.cjs:1186: status: 'started',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1257: if (Buffer.byteLength(source) > 512 * 1024) return { status: 'unavailable', reason: 'event_journal_limit' };",
+        "skills/ultra-delegate/scripts/delegate.cjs:1264: ? { status: 'observed', event_count: lines.length, latest }",
+        "skills/ultra-delegate/scripts/delegate.cjs:1265: : { status: 'unavailable', reason: 'event_journal_malformed' };",
+        "skills/ultra-delegate/scripts/delegate.cjs:1267: return { status: 'unavailable', reason: 'event_journal_malformed' };",
+        "skills/ultra-delegate/scripts/delegate.cjs:1271: function status(argv, { projectRoot = process.cwd(), kill = process.kill } = {}) {",
+        "skills/ultra-delegate/scripts/delegate.cjs:1273: if (!values['--delegation']) throw new Error('delegate status requires --delegation');",
+        "skills/ultra-delegate/scripts/delegate.cjs:1283: // A terminal outcome_unknown keeps its immutable result while status",
+        "skills/ultra-delegate/scripts/delegate.cjs:1298: $schema: 'ultra-delegation-status-v1',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1299: status: fs.existsSync(path.join(root, 'cancel.request'))",
+        "skills/ultra-delegate/scripts/delegate.cjs:1324: status: 'failed',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1385: status: 'already_terminal',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1441: status: 'cancel_requested',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1450: if (argv[1] === 'status') return status(argv.slice(2), options);",
+        "skills/ultra-delegate/scripts/delegate.cjs:1453: 'usage: delegate.cjs <run|status|cancel> ... '",
+        "skills/ultra-delegate/scripts/delegate.cjs:1454: + '(compatibility: ubp delegate <run|status|cancel> ...)',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1460: 'Usage: node <ultra-delegate-skill-dir>/scripts/delegate.cjs <run|status|cancel> ...',",
+        "skills/ultra-delegate/scripts/delegate.cjs:1463: 'Compatibility for one release cycle: ubp delegate <run|status|cancel> ...',",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:20: '$schema', 'status', 'summary', 'changed_files', 'checks', 'evidence',",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:141: if (!['finished', 'blocked', 'failed'].includes(payload.status)) {",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:142: return 'status must be finished, blocked, or failed';",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:156: if (!keys.every((key) => ['command', 'status', 'output_ref'].includes(key))) {",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:160: if (!['passed', 'failed', 'not_run'].includes(check.status)) return 'checks.status is invalid';",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:170: if (payload.status === 'blocked' && payload.questions.length === 0) {",
+        "skills/ultra-delegate/scripts/delegate-worker.cjs:229: status: 'failed',",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:61: if (version.status !== 0 || version.stdout.trim() !== bound.fingerprint.runtime_version",
+        "adapters/_shared/plugin-core.cjs:199: status: report.issues.some((entry) => entry.code === 'SKILL_MISSING') ? 'fail' : 'pass',",
+        "adapters/_shared/plugin-core.cjs:202: status: report.issues.some((entry) => entry.code === 'HOOK_MISSING') ? 'fail' : 'pass',",
+        "adapters/_shared/plugin-core.cjs:205: status: fs.existsSync(manifestFile) ? 'pass' : 'fail',",
+        "adapters/_shared/plugin-core.cjs:208: status: missingDelegationRunnerFiles.length === 0 ? 'pass' : 'fail',",
+        "adapters/_shared/plugin-core.cjs:222: status: 'pass',",
+        "adapters/_shared/plugin-core.cjs:226: status: 'pass',",
+        "adapters/_shared/plugin-core.cjs:232: status: profile.transportMaturity,",
+        "adapters/_shared/plugin-core.cjs:239: report.checks.acp_capability = { status: 'fail' };",
+        "adapters/_shared/plugin-core.cjs:240: report.checks.agent_execution_driver = { status: 'fail' };",
+        "adapters/_shared/plugin-core.cjs:242: report.status = report.issues.length === 0 ? 'healthy' : 'degraded';"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "symbol": "CONFIG_ENV",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/cli-driver.cjs:94: : native.consumePiNative(stdout.text(), stderr.text(), spec.env[native.CONFIG_ENV]);",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:9: const CONFIG_ENV = 'UBP_PI_PERMISSION_CONFIG';",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:88: const config = JSON.parse(spec.env?.[CONFIG_ENV] || 'null');",
+        "skills/ultra-delegate/scripts/pi-native-permissions.cjs:9: const CONFIG_ENV = 'UBP_PI_PERMISSION_CONFIG';",
+        "skills/ultra-delegate/scripts/pi-native-permissions.cjs:42: const encoded = process.env[CONFIG_ENV];"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "symbol": "POLICY_PATH",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:10: const POLICY_PATH = path.join(__dirname, 'pi-native-permissions.cjs');",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:44: policy_path: POLICY_PATH,",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:82: || spec.args[spec.args.indexOf('--extension') + 1] !== POLICY_PATH"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "symbol": "consumePiNative",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/cli-driver.cjs:94: : native.consumePiNative(stdout.text(), stderr.text(), spec.env[native.CONFIG_ENV]);",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:105: function consumePiNative(stdout, stderr, config) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "symbol": "observePiIdentity",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:21: function observePiIdentity(runtimePath, nodePath = process.execPath) {",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:57: const bound = observePiIdentity(runtimePath);",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:86: const observed = observePiIdentity(bound.runtime_path, bound.node_path);"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "symbol": "piNativeIdentityDrift",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/cli-driver.cjs:21: const identityDrift = native ? native.piNativeIdentityDrift(spec) : null;",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:78: function piNativeIdentityDrift(spec) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "skills/ultra-delegate/scripts/pi-native-runtime.cjs",
+      "symbol": "selectPiNative",
+      "non_test_references": [
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:798: const { selectPiNative } = require('./pi-native-runtime.cjs');",
+        "skills/ultra-delegate/scripts/agent-execution-driver.cjs:799: const native = selectPiNative(executablePath(cliCommand, env), env, profile);",
+        "skills/ultra-delegate/scripts/pi-native-runtime.cjs:55: function selectPiNative(runtimePath, env, profile) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "adapters/_shared/plugin-core.cjs",
+      "symbol": "PROVENANCE_FILE",
+      "non_test_references": [
+        "adapters/_shared/plugin-core.cjs:23: const PROVENANCE_FILE = 'provenance.json';",
+        "adapters/_shared/plugin-core.cjs:127: file: path.join(stagingRoot, PROVENANCE_FILE),",
+        "adapters/_shared/plugin-core.cjs:133: exclude: ['.ubp-managed', PROVENANCE_FILE],",
+        "adapters/_shared/plugin-core.cjs:169: file: path.join(pluginRoot, PROVENANCE_FILE),"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "adapters/_shared/plugin-core.cjs",
+      "symbol": "copySkills",
+      "non_test_references": [
+        "adapters/_shared/plugin-core.cjs:73: function copySkills({ runtime, repoRoot, skillRoot }) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "adapters/_shared/plugin-core.cjs",
+      "symbol": "copyHooks",
+      "non_test_references": [
+        "adapters/_shared/plugin-core.cjs:106: function copyHooks({ runtime, repoRoot, hookRoot, hooksManifest }) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "adapters/_shared/plugin-core.cjs",
+      "symbol": "inspectPlugin",
+      "non_test_references": [
+        "adapters/_shared/plugin-core.cjs:166: function inspectPlugin({ adapter, repoRoot, pluginRoot, skillRoot, hookRoot, manifestFile }) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "adapters/_shared/plugin-core.cjs",
+      "symbol": "markManaged",
+      "non_test_references": [],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "adapters/_shared/plugin-core.cjs",
+      "symbol": "publishManagedTrees",
+      "non_test_references": [
+        "adapters/_shared/plugin-core.cjs:139: function publishManagedTrees(entries) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "adapters/_shared/plugin-core.cjs",
+      "symbol": "removeManaged",
+      "non_test_references": [
+        "adapters/_shared/plugin-core.cjs:246: function removeManaged(target, label) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    },
+    {
+      "module": "adapters/_shared/plugin-core.cjs",
+      "symbol": "writePluginProvenance",
+      "non_test_references": [
+        "adapters/_shared/plugin-core.cjs:124: function writePluginProvenance({ adapter, repoRoot, stagingRoot, publishedRoot, contracts = {} }) {"
+      ],
+      "interpretation": "Internal native/shared runtime consumer or public CLI method; source references inspected, export presence alone is not reachability."
+    }
+  ],
+  "registration_notes": [
+    "pi-native-permissions module default is loaded by the actual native --extension argv. Its tool_call/session_start handlers register the native eight-tool definitions; permissionForTool and CONFIG_ENV are consumed internally.",
+    "host-profile renderClaudeNativePermissionSettings is consumed by the bounded Stage B qualification kit; it is not claimed as an automatic Claude configuration writer.",
+    "run/status/cancel/main and other existing CLI exports are consumed by native CLI entry and retained public dispatch; acp-conformance.runConformance is its require.main entry.",
+    "plugin-core exported installation methods remain adapter consumers; new Pi files are copied by the existing installDelegateAssets inventory and tested in isolated installations."
+  ],
+  "areas": {
+    "anti_patterns": "Inspected real worker spawn environment test and retained mutation RED/GREEN. Temporary child fixtures exercise actual launch and lifecycle boundaries.",
+    "coverage_gaps": "D1-AC01 through D1-AC05 map to task evidence, current 804 Node/104 Hook suite and native production observations. Windows execution and broader native versions are omitted explicitly.",
+    "wiring": "Collected changed module exports and inspected their native/shared consumers. No newly orphaned behavior found; internal helper exports are consumed within their module, not advertised as separate workflows.",
+    "e2e": "Retained native Pi production qualification NcFFGD and no-bootstrap public run 7XeasI prove legal write/read, typed final result, stopped boundary, plus denied actual effects in the qualification trial. No new provider trial needed for unchanged source.",
+    "performance": "Finite real provider runs and suite durations retained; no D1 throughput/latency threshold exists. Repeatable parallel-versus-solo performance belongs to C/D and remains unverified.",
+    "security": "Final release dependency audit0 plus exact runtime/config refusal, true worker env canaries, nested writer cancellation and native denied effects. Current cooperative file observations are not hostile OS containment."
+  }
+}

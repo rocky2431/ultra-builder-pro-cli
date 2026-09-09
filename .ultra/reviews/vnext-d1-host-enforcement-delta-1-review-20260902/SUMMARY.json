@@ -1,0 +1,105 @@
+{
+  "$schema": "ultra-review-summary-v4",
+  "mode": "task",
+  "execution_mode": "sequential-shared-context",
+  "session": "vnext-d1-host-enforcement-delta-1-review-20260902",
+  "change_id": "chg-ultra-vnext-d1-delegation-safety",
+  "task_ids": [
+    "vnext-d1-host-enforcement-qualification"
+  ],
+  "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+  "worktree_digest": null,
+  "context_digest": "f6ed56719adb4b905bade5c2c74650f2cafdd291b9f6dcf473ef90351fb46877",
+  "packet_digest": "152a8f45453d42744e7faca1fd7f2048c24ec2f892fdc036e89968e374755930",
+  "admission_digest": "9276d37119c3b8b9543119899768202af65de9f2902f813552de22dd48a8dfd8",
+  "subject_digest": "4e2dc657690ea0169f02864e9d05997a6acc814b8d2228bfd446ee45804021d5",
+  "status": "complete",
+  "verdict": "APPROVE",
+  "axes": {
+    "spec_fidelity": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-spec.json"
+      ]
+    },
+    "engineering_standards": {
+      "verdict": "PASS",
+      "evidence_refs": [
+        "review-code.json",
+        "review-tests.json",
+        "review-errors.json",
+        "review-design.json"
+      ]
+    }
+  },
+  "workers": {
+    "completed": [
+      "review-spec",
+      "review-code",
+      "review-tests",
+      "review-errors",
+      "review-design"
+    ],
+    "failed": [],
+    "skipped": [
+      "review-comments"
+    ]
+  },
+  "worker_selection": [
+    {
+      "worker": "review-spec",
+      "status": "selected",
+      "rationale": "The direct-parent P1 set includes executable-order, typed public-contract and canonical distillate fidelity failures across D1Q-01 through D1Q-05."
+    },
+    {
+      "worker": "review-code",
+      "status": "selected",
+      "rationale": "Repair 1 changes executable admission ordering and the shared process-boundary failure projection."
+    },
+    {
+      "worker": "review-tests",
+      "status": "selected",
+      "rationale": "The parent suite hid production probe ordering and bypassed both actual CLI boundaries, so the RED/GREEN regressions and full gate are verdict-critical."
+    },
+    {
+      "worker": "review-errors",
+      "status": "selected",
+      "rationale": "The repair must preserve a stable redacted typed refusal with nonzero exit and no unqualified fallback at both public launchers."
+    },
+    {
+      "worker": "review-design",
+      "status": "selected",
+      "rationale": "The root fix separates pure capability impossibility from process-backed identity attestation while preserving one provider-neutral selector and policy owner."
+    },
+    {
+      "worker": "review-comments",
+      "status": "skipped",
+      "rationale": "The affected model-facing and public contract language is fully covered by the required specification lens; no separate comment-only risk remains."
+    }
+  ],
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/SUMMARY.json direct parent and exact ten unresolved P1 ids",
+    "review-spec.json",
+    "review-code.json",
+    "review-tests.json",
+    "review-errors.json",
+    "review-design.json",
+    "ZCode Repair 1 delegation afb36c4c722e4214838a195bee9f3ba4 terminal result SHA-256 88c88c95fb87d99305f5a9bd80986d58cee9e1d2ffbda36a9ba7d9d493eefa9e",
+    "Codex independent focused test, source/diff, exact-writer, 55-entry outside-scope, Skill-validation and 141-entry pack checks",
+    "Codex independent full release gate: Node 712/712, Hooks 89/89, npm audit zero vulnerabilities"
+  ],
+  "positive_observations": [
+    "The pure all-transports-unavailable precheck now precedes every executable identity probe; any potentially admissible transport keeps exact attestation before selected-route launch admission.",
+    "Direct Skill and ubp delegate process boundaries share one narrow redacted typed failure projection and preserve generic handling for unrelated errors.",
+    "The two canonical source-revision rows equal current product and architecture blobs, and no unrelated distillation content changed in Repair 1.",
+    "Repair 1 changed only four authorized paths, added no dependency or new runtime owner, did not retry the qualification, and preserved Task 1 plus N=1 behavior."
+  ],
+  "limitations": [
+    "Five direct-parent P2s remain retained and non-blocking: source-only evidence is absent from the package, exact identity compares retained profile constants, a contract regex accepts the unshipped ref, installed policy is coupled to development provenance, and no-record Hosts expose admitted/null legacy semantics.",
+    "The exact ZCode ACP/CLI route remains fail-closed unavailable and experimental; no unobserved denial or maturity improvement is claimed.",
+    "Three Task 1 P2 limitations also remain: Host-created sessions may escape portable observation, non-Linux start identity is weaker, and a crash may leave the fence-registry lock stale.",
+    "This Task Review runs in shared Codex context and is not the later Codex plus Claude stage-level joint Review.",
+    "No commit, push, tag, publish, deploy, real-HOME installation, credential operation, package fetch, production mutation or other external effect is included."
+  ]
+}

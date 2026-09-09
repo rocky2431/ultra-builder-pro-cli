@@ -1,0 +1,14 @@
+{
+  "entry": "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs",
+  "entry_sha256": "f734ed38cce00f14aa3229a6b21f8c7a452d6f7c2ef46f6b362907ba6aacecbd",
+  "resolved_runtime": "/Users/rocky243/.local/share/agent-delegation/runtime/node_modules/acpx/dist/runtime.js",
+  "argv": [
+    "node",
+    "--test",
+    "tests/acp-driver.test.cjs",
+    "tests/acpx-entry.test.cjs"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 4.612349499948323,
+  "previous_failure": "old source-only entry directory had no resolvable acpx runtime; no product/test assertion changes"
+}

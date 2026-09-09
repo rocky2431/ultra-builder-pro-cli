@@ -1,0 +1,47 @@
+{
+  "$schema": "ultra-review-findings-v4",
+  "packet_digest": "152a8f45453d42744e7faca1fd7f2048c24ec2f892fdc036e89968e374755930",
+  "admission_digest": "9276d37119c3b8b9543119899768202af65de9f2902f813552de22dd48a8dfd8",
+  "subject_digest": "4e2dc657690ea0169f02864e9d05997a6acc814b8d2228bfd446ee45804021d5",
+  "session": "vnext-d1-host-enforcement-delta-1-review-20260902",
+  "timestamp": "2026-09-01T16:55:13Z",
+  "agent": "review-spec",
+  "axis": "spec_fidelity",
+  "scope": {
+    "head": "adb7bfe89f40e107d0c9c490076a6e74294b9337",
+    "range": "adb7bfe89f40e107d0c9c490076a6e74294b9337+vnext-d1-host-enforcement-repair-1",
+    "files_analyzed": [
+      ".ultra/specs/architecture.md",
+      ".ultra/specs/product.md",
+      ".ultra/specs/research-distillate.md",
+      "docs/ARCHITECTURE.md",
+      "docs/ARTIFACT-AUTHORITY.md",
+      "docs/RUNTIME-COMPAT-MATRIX.md",
+      "skills/ultra-delegate/SKILL.md",
+      "skills/ultra-delegate/references/delegation-contract.md",
+      "skills/ultra-delegate/scripts/delegate.cjs",
+      "tests/delegate.test.cjs",
+      "tests/v026-contract.test.cjs"
+    ],
+    "diff_only": true
+  },
+  "status": "complete",
+  "findings": [],
+  "coverage_refs": [
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-spec.json#review-spec-001 resolved by skills/ultra-delegate/scripts/delegate.cjs:950-976 and tests/delegate.test.cjs:904",
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-spec.json#review-spec-002 resolved by .ultra/specs/research-distillate.md:78-79 matching current product and architecture Git blobs",
+    ".ultra/reviews/vnext-d1-host-enforcement-initial-review-20260901/review-spec.json#review-spec-003 resolved by skills/ultra-delegate/scripts/delegate.cjs:813-829 and both process boundaries at delegate.cjs:1402 and bin/install.js:325-337",
+    "tests/delegate.test.cjs:904 zero executable identity-probe invocation before retained all-transports-unavailable refusal",
+    "tests/delegate.test.cjs:985 exact direct Skill and ubp delegate typed diagnostic boundary coverage",
+    "Codex independent focused gate passed; full release gate passed Node 712/712, Hooks 89/89 and npm audit"
+  ],
+  "positive_observations": [
+    "The implementation now matches the maintained pre-launch claim: pure retained facts reject the exact unavailable route before executable identity attestation, while a potentially admissible route keeps attestation before selected-transport admission.",
+    "The public contract has one stable machine-readable failure projection at both actual process boundaries and retains the bounded human recovery message.",
+    "Only the two stale canonical source-revision rows were refreshed, and both equal the current Git blob identities."
+  ],
+  "limitations": [
+    "Parent P2s remain intentionally retained: the installed diagnostic cites source-repository evidence absent from the package, the contract regex accepts that unshipped ref, and no-record Hosts keep legacy admitted/null semantics.",
+    "The exact ZCode route remains unavailable and experimental; this Review does not promote maturity or infer any unobserved effect guarantee."
+  ]
+}

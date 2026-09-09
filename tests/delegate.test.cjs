@@ -13,7 +13,12 @@ const CLI = path.join(ROOT, 'bin', 'install.js');
 const COMPATIBILITY_RUNNER = path.join(ROOT, 'bin', 'delegate.cjs');
 const SKILL_RUNNER = path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate.cjs');
 const FAKE_ACP_AGENT = path.join(ROOT, 'tests', 'fixtures', 'fake-acp-agent.cjs');
+const FAKE_ACPX_ENTRY = path.join(ROOT, 'tests', 'fixtures', 'fake-acpx-entry.cjs');
 const WAIT = path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate_wait.py');
+// The generic ACP engine is the installed public entry: every ACP-path test
+// selects the test-side entry stand-in through the same runtime-discovery key
+// the product consumes, so no test depends on a HOME installation.
+process.env.ULTRA_DELEGATE_ACPX_ENTRY = FAKE_ACPX_ENTRY;
 const {
   cancel: cancelDelegate,
   run: runDelegate,
@@ -586,8 +591,324 @@ test('ACP authentication failure before prompt falls back once to the bounded CL
     assert.equal(result.execution_driver, 'cli');
     assert.equal(result.driver_fallback_reason, 'acp_auth_required');
     assert.equal(result.acp_fallback.prompt_sent, false);
-    assert.equal(result.acp_fallback.protocol_version, 1);
+    // The failed ACP attempt never persisted a session record, so no
+    // negotiation was observed: the version stays unobserved (null), never
+    // a synthesized 1 carried over from a mere typed result line.
+    assert.equal(result.acp_fallback.protocol_version, null);
+    assert.equal(result.acp_protocol_version, null);
     assert.deepEqual(result.changed_files, []);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('an authentication failure after the prompt was submitted never falls back to the CLI driver', () => {
+  const fx = fixture('acp-auth-late');
+  let cliRuns = 0;
+  try {
+    const expected = resultPayload([]);
+    const cli = fakeCli(fx, [
+      `require('node:fs').writeFileSync(${JSON.stringify(path.join(fx.root, 'cli-ran.marker'))}, '1');`,
+      `process.stdout.write(${JSON.stringify(JSON.stringify(expected))});`,
+    ].join(' '));
+    const profile = {
+      binary: cli,
+      transportMaturity: 'documented+verified',
+      acp: {
+        surface: 'fixture ACP stdio',
+        transport: 'stdio',
+        protocolVersions: [1],
+        conformance: { status: 'passed', evidence: 'tests/fixtures/fake-acp-agent.cjs' },
+        command: () => process.execPath,
+        argv: () => [FAKE_ACP_AGENT],
+      },
+      delegateArgv: () => [],
+      delegateEnv: () => ({ FAKE_ACP_SCENARIO: 'auth-late' }),
+    };
+    const receipt = runDelegate([
+      '--to', 'fixture',
+      '--instruction', path.join(fx.delegation, 'instruction.md'),
+      '--permission', path.join(fx.delegation, 'permission.json'),
+      '--worktree', fx.worktree,
+      '--timeout', '5',
+    ], {
+      projectRoot: fx.root,
+      resolveHostProfile: () => profile,
+    });
+    assert.equal(receipt.execution_driver, 'acp');
+    const result = waitFor(receipt.result_file);
+    // The auth-shaped failure stays a typed terminal on the ACP transport:
+    // no second launch, no prompt_sent:false record, no CLI execution.
+    assert.equal(result.status, 'failed', JSON.stringify(result));
+    assert.equal(result.execution_driver, 'acp');
+    assert.equal(result.failure_type, 'acp_auth_required');
+    assert.equal(result.acp_fallback, undefined);
+    assert.equal(result.driver_fallback_reason, null);
+    assert.equal(fs.existsSync(path.join(fx.root, 'cli-ran.marker')), false);
+    cliRuns += 1;
+    assert.equal(cliRuns, 1);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+// One fixture-grade positive qualification record bound to the exact files the
+// real selection resolves: adapter = process.execPath, runtime = the fake CLI,
+// public entry = a fixture copy with its SDK package beside it. This seam
+// exercises the admission consumers only; it never asserts the live negative
+// ZCode record is positive.
+function gatedIdentityFixture(fx, { cliBody }) {
+  const runtimeDir = path.join(fx.root, 'acpx-runtime');
+  fs.mkdirSync(path.join(runtimeDir, 'node_modules', 'acpx'), { recursive: true });
+  const entry = path.join(runtimeDir, 'acpx_delegate_entry.cjs');
+  fs.copyFileSync(FAKE_ACPX_ENTRY, entry);
+  const packageFile = path.join(runtimeDir, 'node_modules', 'acpx', 'package.json');
+  fs.writeFileSync(packageFile, `${JSON.stringify({ name: 'acpx', version: '0.13.2' })}\n`);
+  const cli = fakeCli(fx, cliBody);
+  const sha = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const declared = { bridge_build_marker: 'fixture-acp 1.0.0+ultra.fixture.2.0.0', runtime_version: '2.0.0' };
+  const profile = {
+    binary: cli,
+    transportMaturity: 'documented+verified',
+    acp: {
+      surface: 'fixture ACP stdio',
+      transport: 'stdio',
+      protocolVersions: [1],
+      conformance: { status: 'passed', evidence: 'tests/fixtures/fake-acp-agent.cjs' },
+      command: () => process.execPath,
+      argv: () => [FAKE_ACP_AGENT],
+      candidateIdentity: declared,
+    },
+    delegateArgv: () => [],
+    delegateEnv: () => ({ FAKE_ACP_SCENARIO: 'auth-required' }),
+  };
+  const dimensions = {};
+  for (const name of ['writable_scope', 'outside_root_denial', 'shell_tool_denial',
+    'agent_tool_network_denial', 'point_of_use_effect_boundary']) {
+    dimensions[name] = { observation: 'supported', admission: 'supported', basis: 'fixture: exact observed support' };
+  }
+  const record = {
+    $schema: 'ultra-host-enforcement-qualification-v1',
+    attempt_id: 'fixture-gated-identity',
+    observed_at: '2026-09-06T00:00:00Z',
+    evidence: 'tests/delegate.test.cjs#gated-identity-fixture',
+    receipt_sha256: '0'.repeat(64),
+    qualified_identity: {
+      ...declared,
+      adapter_sha256: sha(process.execPath),
+      runtime_sha256: sha(cli),
+      acpx_entry_sha256: sha(entry),
+      acpx_package: { name: 'acpx', version: '0.13.2', package_json_sha256: sha(packageFile) },
+    },
+    provider_transport_admission: 'separately_authorized_only',
+    disposition: { route: 'admitted', reason: 'fixture', silent_fallback: false, maturity_change: false },
+  };
+  return { cli, entry, packageFile, profile, record, sha, dimensions };
+}
+
+test('an ACP-only positive qualification binds no CLI fallback and keeps the typed pre-session auth failure', () => {
+  const fx = fixture('acp-only-auth-fallback');
+  try {
+    const marker = path.join(fx.root, 'cli-ran.marker');
+    const gated = gatedIdentityFixture(fx, {
+      cliBody: `require('node:fs').writeFileSync(${JSON.stringify(marker)}, '1');`,
+    });
+    const profile = {
+      ...gated.profile,
+      // The ACP transport carries every required dimension; the CLI transport
+      // stays unlisted, so it can never satisfy a Packet dimension by
+      // implication and no fallback may be bound.
+      enforcement: { ...gated.record, transports: { 'acp-stdio': { dimensions: gated.dimensions } } },
+    };
+    const savedEntry = process.env.ULTRA_DELEGATE_ACPX_ENTRY;
+    process.env.ULTRA_DELEGATE_ACPX_ENTRY = gated.entry;
+    let receipt;
+    try {
+      receipt = runDelegate([
+        '--to', 'fixture',
+        '--instruction', path.join(fx.delegation, 'instruction.md'),
+        '--permission', path.join(fx.delegation, 'permission.json'),
+        '--worktree', fx.worktree,
+        '--timeout', '5',
+      ], {
+        projectRoot: fx.root,
+        resolveHostProfile: () => profile,
+      });
+    } finally {
+      process.env.ULTRA_DELEGATE_ACPX_ENTRY = savedEntry;
+    }
+    assert.equal(receipt.execution_driver, 'acp');
+    // The worker spec binds the verified execution identity and no fallback.
+    const spec = JSON.parse(fs.readFileSync(path.join(fx.delegation, 'worker-spec.json'), 'utf8'));
+    assert.equal(spec.cli_fallback, undefined);
+    assert.deepEqual(spec.acp_entry, { path: gated.entry, sha256: gated.sha(gated.entry) });
+    assert.equal(spec.execution_identity.adapter_sha256, gated.sha(process.execPath));
+    assert.equal(spec.execution_identity.runtime_sha256, gated.sha(gated.cli));
+    assert.equal(spec.execution_identity.acpx_entry_sha256, gated.sha(gated.entry));
+    // The exact resolved paths the selection hashed travel with the binding so
+    // the detached launch consumes and rechecks those same paths.
+    assert.equal(spec.execution_identity.adapter_path, process.execPath);
+    assert.equal(spec.execution_identity.runtime_path, gated.cli);
+    assert.deepEqual(spec.execution_identity.acpx_package, {
+      name: 'acpx', version: '0.13.2', package_json_sha256: gated.sha(gated.packageFile),
+    });
+    // The typed ACP auth failure stands alone: no CLI process, no marker, no
+    // acp_fallback record.
+    const result = waitFor(receipt.result_file);
+    assert.equal(result.status, 'failed', JSON.stringify(result));
+    assert.equal(result.execution_driver, 'acp');
+    assert.equal(result.failure_type, 'acp_auth_required');
+    assert.equal(result.acp_fallback, undefined);
+    assert.equal(result.driver_fallback_reason, null);
+    assert.equal(fs.existsSync(marker), false, 'an unqualified CLI transport must never run');
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('a CLI-admitted qualification keeps the bounded pre-session auth fallback', () => {
+  const fx = fixture('cli-admitted-auth-fallback');
+  try {
+    const expected = resultPayload([]);
+    const gated = gatedIdentityFixture(fx, {
+      cliBody: `process.stdout.write(${JSON.stringify(JSON.stringify(expected))});`,
+    });
+    const profile = {
+      ...gated.profile,
+      enforcement: {
+        ...gated.record,
+        transports: {
+          'acp-stdio': { dimensions: gated.dimensions },
+          cli: { dimensions: gated.dimensions },
+        },
+      },
+    };
+    const savedEntry = process.env.ULTRA_DELEGATE_ACPX_ENTRY;
+    process.env.ULTRA_DELEGATE_ACPX_ENTRY = gated.entry;
+    let receipt;
+    try {
+      receipt = runDelegate([
+        '--to', 'fixture',
+        '--instruction', path.join(fx.delegation, 'instruction.md'),
+        '--permission', path.join(fx.delegation, 'permission.json'),
+        '--worktree', fx.worktree,
+        '--timeout', '5',
+      ], {
+        projectRoot: fx.root,
+        resolveHostProfile: () => profile,
+      });
+    } finally {
+      process.env.ULTRA_DELEGATE_ACPX_ENTRY = savedEntry;
+    }
+    assert.equal(receipt.execution_driver, 'acp');
+    const spec = JSON.parse(fs.readFileSync(path.join(fx.delegation, 'worker-spec.json'), 'utf8'));
+    assert.equal(spec.cli_fallback.command, gated.cli);
+    const result = waitFor(receipt.result_file);
+    assert.equal(result.status, 'finished', JSON.stringify(result));
+    assert.equal(result.execution_driver, 'cli');
+    assert.equal(result.driver_fallback_reason, 'acp_auth_required');
+    assert.equal(result.acp_fallback.prompt_sent, false);
+    assert.deepEqual(result.changed_files, []);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('the launcher refuses an ACP selection that carries no launch-bound public entry', () => {
+  const fx = fixture('acp-entry-binding-required');
+  try {
+    const expected = resultPayload([]);
+    const cli = fakeCli(fx, `process.stdout.write(${JSON.stringify(JSON.stringify(expected))});`);
+    const profile = {
+      binary: cli,
+      transportMaturity: 'documented+verified',
+      acp: {
+        surface: 'fixture ACP stdio',
+        transport: 'stdio',
+        protocolVersions: [1],
+        conformance: { status: 'passed', evidence: 'tests/fixtures/fake-acp-agent.cjs' },
+        command: () => process.execPath,
+        argv: () => [FAKE_ACP_AGENT],
+      },
+      delegateArgv: () => [],
+      delegateEnv: () => ({ FAKE_ACP_SCENARIO: 'happy' }),
+    };
+    // A chooser (the conformance bootstrap is the canonical one) that selects
+    // the ACP transport without binding the entry it resolved would let the
+    // driver silently re-resolve a legacy entry. The shared launcher boundary
+    // refuses before the fence, the worker spec, or any Host process.
+    assert.throws(() => runDelegate([
+      '--to', 'fixture',
+      '--instruction', path.join(fx.delegation, 'instruction.md'),
+      '--permission', path.join(fx.delegation, 'permission.json'),
+      '--worktree', fx.worktree,
+      '--timeout', '5',
+    ], {
+      projectRoot: fx.root,
+      resolveHostProfile: () => profile,
+      chooseExecutionDriver: () => ({
+        driver: 'acp', command: process.execPath, args: [FAKE_ACP_AGENT], protocolVersion: 1,
+        fallbackReason: null, acpCapability: {},
+      }),
+    }), /launch-bound public ACPX entry/u);
+    for (const artifact of [
+      ...delegationArtifacts(fx.delegation),
+      path.join(fx.delegation, 'result-schema.json'),
+      path.join(fx.delegation, 'run.lock'),
+    ]) {
+      assert.equal(fs.existsSync(artifact), false, `${artifact} must not exist after the binding refusal`);
+    }
+    assert.equal(heldFenceCount(fx.root), 0);
+  } finally {
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('the launcher refuses an ACP selection without the execution identity a string-matching qualification binds', () => {
+  const fx = fixture('acp-identity-binding-required');
+  try {
+    const expected = resultPayload([]);
+    const gated = gatedIdentityFixture(fx, {
+      cliBody: `process.stdout.write(${JSON.stringify(JSON.stringify(expected))});`,
+    });
+    const profile = {
+      ...gated.profile,
+      enforcement: { ...gated.record, transports: { 'acp-stdio': { dimensions: gated.dimensions } } },
+    };
+    // The retained record string-matches the declared candidate, so the route
+    // may only launch over the verified execution-identity binding. A chooser
+    // that overrides command/args without it — the conformance bypass vector —
+    // is refused before any Host effect; the entry binding alone is not
+    // enough.
+    const savedEntry = process.env.ULTRA_DELEGATE_ACPX_ENTRY;
+    process.env.ULTRA_DELEGATE_ACPX_ENTRY = gated.entry;
+    try {
+      assert.throws(() => runDelegate([
+        '--to', 'fixture',
+        '--instruction', path.join(fx.delegation, 'instruction.md'),
+        '--permission', path.join(fx.delegation, 'permission.json'),
+        '--worktree', fx.worktree,
+        '--timeout', '5',
+      ], {
+        projectRoot: fx.root,
+        resolveHostProfile: () => profile,
+        chooseExecutionDriver: () => ({
+          driver: 'acp', command: process.execPath, args: [FAKE_ACP_AGENT], protocolVersion: 1,
+          fallbackReason: null, acpCapability: {},
+          acpEntry: { path: gated.entry, sha256: gated.sha(gated.entry) },
+        }),
+      }), /verified execution identity/u);
+    } finally {
+      process.env.ULTRA_DELEGATE_ACPX_ENTRY = savedEntry;
+    }
+    for (const artifact of [
+      ...delegationArtifacts(fx.delegation),
+      path.join(fx.delegation, 'result-schema.json'),
+      path.join(fx.delegation, 'run.lock'),
+    ]) {
+      assert.equal(fs.existsSync(artifact), false, `${artifact} must not exist after the binding refusal`);
+    }
+    assert.equal(heldFenceCount(fx.root), 0);
   } finally {
     fs.rmSync(fx.root, { recursive: true, force: true });
   }
@@ -644,7 +965,7 @@ test('ACP status exposes only the latest derived observation and cancellation le
         argv: () => [FAKE_ACP_AGENT],
       },
       delegateEnv: () => ({
-        FAKE_ACP_SCENARIO: 'cancel',
+        FAKE_ACP_SCENARIO: 'cancel-with-events',
         FAKE_ACP_CHILD_PID: childPidFile,
       }),
     };
@@ -780,9 +1101,12 @@ test('delegate run surfaces experimental maturity and fails closed on unqualifie
       fs.rmSync(writeFx.root, { recursive: true, force: true });
     }
 
-    // The ACP transport the qualification observed fails closed with the
-    // observed unsupported/unobserved statuses through one typed error, again
-    // before the fence, the worker spec, or any Host process.
+    // The ACP transport the qualification observed still fails closed through
+    // one typed error. After the repaired-marker split the retained negative
+    // record binds the originally installed identity, so the declared repaired
+    // identity is version-mismatched for every dimension — the old build's
+    // observed statuses stay in the retained record as history, and again no
+    // fence, worker spec, or Host process exists behind the refusal.
     const acpProbe = [
       `const { run } = require(${JSON.stringify(SKILL_RUNNER)});`,
       'try {',
@@ -814,11 +1138,12 @@ test('delegate run surfaces experimental maturity and fails closed on unqualifie
     assert.equal(refusal.name, 'HostEnforcementUnavailableError');
     assert.equal(refusal.admission.route, 'unavailable');
     assert.equal(refusal.admission.transport, 'acp-stdio');
+    assert.equal(refusal.admission.identity.match, false);
     assert.deepEqual(refusal.admission.dimensions.map((entry) => [entry.dimension, entry.status]), [
-      ['outside_root_denial', 'unobserved'],
-      ['shell_tool_denial', 'unobserved'],
-      ['agent_tool_network_denial', 'unobserved'],
-      ['point_of_use_effect_boundary', 'unobserved'],
+      ['outside_root_denial', 'version_mismatch'],
+      ['shell_tool_denial', 'version_mismatch'],
+      ['agent_tool_network_denial', 'version_mismatch'],
+      ['point_of_use_effect_boundary', 'version_mismatch'],
     ]);
     assert.equal(refusal.admission.evidence.receipt_sha256, sha256File(path.join(
       ROOT, '.ultra', 'evidence', 'vnext-d1-host-enforcement-qualification', 'host-enforcement-receipt.json',
@@ -856,7 +1181,10 @@ process.stdout.write(${JSON.stringify(JSON.stringify(resultPayload(['src/delegat
         '}',
         'const profile = {',
         '  ...hostProfile("zcode"),',
-        '  enforcement: { ...record, transports: { "acp-stdio": { dimensions }, cli: { dimensions } } },',
+        // The hypothetical positive record qualifies the identity the live
+        // profile declares: the repaired build marker, never the originally
+        // installed build that the retained negative record still binds.
+        '  enforcement: { ...record, qualified_identity: hostProfile("zcode").acp.candidateIdentity, transports: { "acp-stdio": { dimensions }, cli: { dimensions } } },',
         '};',
         'try {',
         '  const receipt = run([',
@@ -930,7 +1258,7 @@ test('an all-transports-unavailable qualification rejects before any executable 
       `fs.writeFileSync(${JSON.stringify(marker)}, 'invoked');`,
       `process.stdout.write(${JSON.stringify(stdout)});`,
     ].join('\n');
-    const bridge = fakeCli(fx, canaryBody('zcode-acp 0.1.0+ultra.zcode.0.16.5'));
+    const bridge = fakeCli(fx, canaryBody('zcode-acp 0.1.0+ultra.zcode.0.16.5.r1'));
     const runtime = fakeCli(fx, canaryBody('0.16.5'));
     // The ordinary ACP-first route with the production selector: no forced
     // CLI, no injected driver, and both probe executables would pass.
@@ -966,10 +1294,10 @@ test('an all-transports-unavailable qualification rejects before any executable 
     assert.equal(refusal.admission.route, 'unavailable');
     assert.equal(refusal.admission.transport, 'acp-stdio');
     assert.deepEqual(refusal.admission.dimensions.map((entry) => [entry.dimension, entry.status]), [
-      ['outside_root_denial', 'unobserved'],
-      ['shell_tool_denial', 'unobserved'],
-      ['agent_tool_network_denial', 'unobserved'],
-      ['point_of_use_effect_boundary', 'unobserved'],
+      ['outside_root_denial', 'version_mismatch'],
+      ['shell_tool_denial', 'version_mismatch'],
+      ['agent_tool_network_denial', 'version_mismatch'],
+      ['point_of_use_effect_boundary', 'version_mismatch'],
     ]);
     // The retained capability facts alone decide the refusal: no
     // process-backed identity probe, fence, worker spec, worker, or Host
@@ -1458,9 +1786,16 @@ test('one canonical environment policy derives frozen exact-key role-scoped view
   assert.ok(Object.isFrozen(views.probe) && Object.isFrozen(views.host) && Object.isFrozen(views.worker));
 
   const claudeViews = descendantEnvViews({
-    ...source, CLAUDE_CONFIG_DIR: '/home/u/.claude',
+    ...source, CLAUDE_CONFIG_DIR: '/home/u/.claude', ULTRA_CLAUDE_ACP_COMMAND: '/home/u/adapters/claude-agent-acp',
   }, hostProfile('claude'));
   assert.ok('CLAUDE_CONFIG_DIR' in claudeViews.host, 'the selected Host keeps its evidenced config-root key');
+  // The installed-adapter override crosses exactly like the ZCode bridge
+  // selector, while the adapter's native-executable env stays out of the
+  // inherited environment: the launcher injects it from the managed registry
+  // binding alone, so an inherited control var can never select other bytes.
+  assert.ok('ULTRA_CLAUDE_ACP_COMMAND' in claudeViews.probe, 'the probe seam keeps the claude adapter override');
+  assert.ok('ULTRA_CLAUDE_ACP_COMMAND' in claudeViews.host, 'the claude host seam keeps the adapter override');
+  assert.ok(!('CLAUDE_CODE_EXECUTABLE' in claudeViews.host), 'the claude host seam admitted an inherited native executable override');
   for (const banned of ['ANTHROPIC_API_KEY', 'ANTHROPIC_ADMIN_API_KEY', 'OPENAI_API_KEY', 'OPENAI_WEBHOOK_SECRET']) {
     assert.ok(!(banned in claudeViews.host), `claude host seam admitted ${banned}`);
   }
@@ -1555,6 +1890,160 @@ test('descendant environments are role-scoped at the probe and ACP host seams', 
 
     scanArtifactsForCanaries(delegationArtifacts(fx.delegation), canaries);
   } finally {
+    for (const item of canaries) {
+      if (saved[item.name] === undefined) delete process.env[item.name];
+      else process.env[item.name] = saved[item.name];
+    }
+    fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('the real detached delegate-worker receives only worker-scope environment keys', () => {
+  const fx = fixture('env-scoped-worker');
+  const canaries = [
+    { label: 'primary control', name: 'CLAUDE_CODE_SESSION_TOKEN', value: canary('primary'), prohibitName: true },
+    { label: 'unrelated provider', name: 'ANTHROPIC_API_KEY', value: canary('unrelated'), prohibitName: true },
+    { label: 'same-provider decoy', name: 'FIXTURE_WEBHOOK_SECRET', value: canary('fixture-decoy'), prohibitName: true },
+    { label: 'selected host auth', name: 'FIXTURE_API_KEY', value: canary('selected') },
+  ];
+  const bannedKeys = [
+    'CLAUDE_CODE_SESSION_TOKEN', 'ANTHROPIC_API_KEY', 'FIXTURE_WEBHOOK_SECRET',
+    'ULTRA_DELEGATE_FORCE_CLI',
+  ];
+  const packetKeys = [
+    'UBP_DELEGATE_INSTRUCTION_FILE', 'UBP_DELEGATE_PERMISSION_FILE', 'UBP_DELEGATE_WORKTREE',
+  ];
+  const hostKeys = path.join(fx.root, 'acp-host-env-keys.txt');
+  const parentKeys = path.join(fx.root, 'worker-parent-env-keys.txt');
+  const configPath = path.join(fx.root, 'agent-config.json');
+  fs.writeFileSync(configPath, JSON.stringify({
+    scenario: 'env-capture',
+    result: resultPayload([]),
+    envCapture: hostKeys,
+    parentEnvCapture: parentKeys,
+  }));
+  const profile = {
+    binary: process.execPath,
+    transportMaturity: 'documented+verified',
+    envDiscovery: { exact: ['FIXTURE_API_KEY'] },
+    acp: {
+      surface: 'fixture ACP stdio',
+      transport: 'stdio',
+      protocolVersions: [1],
+      conformance: { status: 'passed', evidence: 'tests/fixtures/fake-acp-agent.cjs' },
+      command: () => process.execPath,
+      argv: () => [FAKE_ACP_AGENT, configPath],
+    },
+    delegateEnv: () => ({ FIXTURE_DELEGATE_CONFIG: 'bounded' }),
+  };
+  const saved = {};
+  for (const item of canaries) saved[item.name] = process.env[item.name];
+  // The observation seam is the final child_process.spawn options of the real
+  // detached worker launch — not the environment handed into the launcher's
+  // launch entry, which a regression inside the launcher could widen without
+  // changing that input object. A fresh module instance of the launcher is
+  // required under an intercepting spawn binding, and the real spawn still
+  // happens: the delegation must finish through the actual worker process.
+  const realChildProcess = require('node:child_process');
+  const realSpawn = realChildProcess.spawn;
+  const runnerId = require.resolve(SKILL_RUNNER);
+  const originalRunnerModule = require.cache[runnerId];
+  const workerSpawns = [];
+  let scopedRun;
+  try {
+    for (const item of canaries) process.env[item.name] = item.value;
+    realChildProcess.spawn = (command, args, options) => {
+      const workerLaunch = Array.isArray(args)
+        && args.some((item) => typeof item === 'string' && path.basename(item) === 'delegate-worker.cjs');
+      if (!workerLaunch) return realSpawn(command, args, options);
+      const child = realSpawn(command, args, options);
+      workerSpawns.push({
+        command,
+        args,
+        detached: options?.detached,
+        stdio: options?.stdio,
+        cwd: options?.cwd,
+        child,
+        keys: Object.keys(options?.env ?? {}).sort(),
+        packetPaths: Object.fromEntries(packetKeys.map((key) => [key, options?.env?.[key]])),
+        leakedValues: canaries
+          .filter((item) => bannedKeys.includes(item.name))
+          .map((item) => options?.env?.[item.name])
+          .filter((value) => value !== undefined),
+      });
+      return child;
+    };
+    delete require.cache[runnerId];
+    scopedRun = require(SKILL_RUNNER).run;
+    const receipt = scopedRun([
+      '--to', 'fixture',
+      '--instruction', path.join(fx.delegation, 'instruction.md'),
+      '--permission', path.join(fx.delegation, 'permission.json'),
+      '--worktree', fx.worktree,
+      '--timeout', '10',
+    ], {
+      projectRoot: fx.root,
+      resolveHostProfile: () => profile,
+    });
+    assert.equal(receipt.execution_driver, 'acp');
+    // The real delegate-worker process itself completed the delegation.
+    const result = waitFor(receipt.result_file);
+    assert.equal(result.status, 'finished', JSON.stringify(result));
+
+    assert.equal(workerSpawns.length, 1, 'exactly one real worker spawn must be observed');
+    const capturedLaunch = workerSpawns[0];
+    assert.equal(capturedLaunch.command, process.execPath);
+    assert.deepEqual(capturedLaunch.args, [
+      path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate-worker.cjs'),
+      path.join(fs.realpathSync(fx.delegation), 'worker-spec.json'),
+      capturedLaunch.args[2],
+    ]);
+    assert.match(capturedLaunch.args[2], /^[0-9a-f]{64}$/u);
+    assert.equal(capturedLaunch.detached, true, 'the worker launch must stay detached');
+    assert.equal(capturedLaunch.stdio, 'ignore');
+    assert.equal(capturedLaunch.cwd, fs.realpathSync(fx.root));
+    // The observed OS-launch options are bound to the exact worker PID the
+    // receipt reports — the observation cannot describe another process.
+    assert.ok(Number.isInteger(capturedLaunch.child.pid) && capturedLaunch.child.pid > 0);
+    assert.equal(receipt.worker_pid, capturedLaunch.child.pid);
+    // The worker carries the launch-bound packet path keys with real values.
+    const realDelegation = fs.realpathSync(fx.delegation);
+    assert.equal(capturedLaunch.packetPaths.UBP_DELEGATE_INSTRUCTION_FILE, path.join(realDelegation, 'instruction.md'));
+    assert.equal(capturedLaunch.packetPaths.UBP_DELEGATE_PERMISSION_FILE, path.join(realDelegation, 'permission.json'));
+    assert.equal(capturedLaunch.packetPaths.UBP_DELEGATE_WORKTREE, fs.realpathSync(fx.worktree));
+    // The selected-Host auth input reaches the worker; prohibited names never do.
+    assert.ok(capturedLaunch.keys.includes('FIXTURE_API_KEY'), 'selected-Host auth must reach the worker');
+    for (const banned of bannedKeys) {
+      assert.ok(!capturedLaunch.keys.includes(banned), `worker launch admitted the banned key ${banned}`);
+    }
+    assert.deepEqual(capturedLaunch.leakedValues, [], 'no canary value may ride the worker environment');
+
+    // Descendant exclusion: the packet path keys are worker-local and never
+    // reach the final ACP Host environment derived inside the worker.
+    const host = readEnvKeys(hostKeys);
+    for (const packet of packetKeys) {
+      assert.ok(!host.includes(packet), `the ACP host seam leaked the worker-only key ${packet}`);
+    }
+    assert.ok(host.includes('FIXTURE_API_KEY'), 'the selected-Host key must survive to the host view');
+
+    // On /proc-capable platforms the fixture also observed the actual worker
+    // process environment through the OS, locating the worker by its argv
+    // rather than by counting parent layers: the two observations must agree.
+    if (fs.existsSync(parentKeys)) {
+      const parent = readEnvKeys(parentKeys);
+      for (const key of capturedLaunch.keys) {
+        assert.ok(parent.includes(key), `the OS-observed worker env is missing the launched key ${key}`);
+      }
+      for (const banned of [...bannedKeys]) {
+        assert.ok(!parent.includes(banned), `the OS-observed worker env admitted the banned key ${banned}`);
+      }
+    }
+
+    scanArtifactsForCanaries(delegationArtifacts(fx.delegation), canaries);
+  } finally {
+    realChildProcess.spawn = realSpawn;
+    if (originalRunnerModule) require.cache[runnerId] = originalRunnerModule;
+    else delete require.cache[runnerId];
     for (const item of canaries) {
       if (saved[item.name] === undefined) delete process.env[item.name];
       else process.env[item.name] = saved[item.name];
@@ -1669,6 +2158,19 @@ test('writer state derivation is truthful for alive, stopped, reused and unprova
       observation: observation(),
       kill: () => { const error = new Error('EPERM'); error.code = 'EPERM'; throw error; },
       options: linux, expected: 'alive',
+    },
+    {
+      name: 'unprovable signal error with a matching identity is alive, never stopped',
+      observation: observation(),
+      kill: () => { throw new Error('signal subsystem unavailable'); },
+      options: linux, expected: 'alive',
+    },
+    {
+      name: 'unprovable signal error with an unreadable identity is unknown, never stopped',
+      observation: observation(),
+      kill: () => { throw new Error('signal subsystem unavailable'); },
+      options: { platform: 'linux', readFileSync: () => { const e = new Error('ENOENT'); e.code = 'ENOENT'; throw e; } },
+      expected: 'unknown',
     },
     {
       name: 'windows observation without pgid degrades to the pid boundary',
@@ -2782,6 +3284,67 @@ test('a reused bound pid is not trusted or held through a raw liveness fallback'
   } finally {
     try { process.kill(sleeper.pid, 'SIGKILL'); waitForExit(sleeper.pid, 1500); } catch {}
     fs.rmSync(fx.root, { recursive: true, force: true });
+  }
+});
+
+test('an unprovable outer-worker signal outcome never proves stopped or releases authority', () => {
+  const unprovableKill = (code) => () => {
+    const error = new Error('signal probe refused');
+    if (code) error.code = code;
+    throw error;
+  };
+  // Each probe gets its own fixture (root, worktree, and fence) because a
+  // cancel signal itself changes status and a fabricated fence holds one root.
+  const probes = [
+    { name: 'EPERM', code: 'EPERM', status: 'running' },
+    { name: 'unsupported', code: null, status: 'unknown' },
+  ];
+  const roots = [];
+  try {
+    for (const probe of probes) {
+      const fx = fixture(`unprovable-${probe.name}`);
+      roots.push(fx.root);
+      // A recorded-but-unallocated worker pid: the injected signal outcome
+      // decides liveness, and only ESRCH may ever read as death.
+      const fabricated = fabricateCancellableRun(fx, fx.delegation, {
+        workerPid: 99999999,
+        workerStartIdentity: null,
+      });
+      const kill = unprovableKill(probe.code);
+      const observed = statusDelegate(['--delegation', fx.delegation], { projectRoot: fx.root, kill });
+      assert.equal(observed.status, probe.status, `${probe.name}: status must stay non-terminal`);
+      assert.notEqual(observed.status, 'stalled', `${probe.name}: an unprovable worker is never stopped`);
+      const cancelled = cancelDelegate(['--delegation', fx.delegation], { projectRoot: fx.root, kill });
+      assert.equal(cancelled.status, 'cancel_requested', `${probe.name}: cancel signals without repairing`);
+      assert.equal(
+        fs.existsSync(fabricated.files.result), false,
+        `${probe.name}: no terminal result may be synthesized from an unprovable worker`,
+      );
+      assert.equal(
+        fs.existsSync(fabricated.files.lock), true,
+        `${probe.name}: the launch-bound lock must be retained`,
+      );
+      assert.equal(heldFenceCount(fx.root), 1, `${probe.name}: the worktree fence must be retained`);
+      assert.equal(fs.existsSync(fabricated.files.cancel), true, `${probe.name}: the cancel signal is still recorded`);
+    }
+    // Control on fresh facts: a proven-dead pid (ESRCH from the real
+    // process.kill) still releases exactly the proven-stopped boundary.
+    const fx = fixture('unprovable-control');
+    roots.push(fx.root);
+    const fabricated = fabricateCancellableRun(fx, fx.delegation, {
+      workerPid: 99999999,
+      workerStartIdentity: null,
+    });
+    const observed = statusDelegate(['--delegation', fx.delegation], { projectRoot: fx.root });
+    assert.equal(observed.status, 'stalled');
+    const cancelled = cancelDelegate(['--delegation', fx.delegation], { projectRoot: fx.root });
+    assert.equal(cancelled.status, 'cancel_requested');
+    const result = waitFor(fabricated.files.result);
+    assert.equal(result.failure_type, 'cancelled');
+    assert.equal(fs.existsSync(fabricated.files.lock), false);
+    assert.equal(heldFenceCount(fx.root), 0);
+  } finally {
+    for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

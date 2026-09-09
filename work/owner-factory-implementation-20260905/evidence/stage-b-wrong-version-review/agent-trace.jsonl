@@ -1,0 +1,3 @@
+{"direction":"client_to_agent","message":{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{"fs":{"readTextFile":true,"writeTextFile":true},"terminal":true},"clientInfo":{"name":"acpx","version":"0.13.2"}}}}
+{"direction":"client_to_agent","message":{"jsonrpc":"2.0","id":1,"method":"session/new","params":{"cwd":"/Users/rocky243/Context Engineering/ultra-builder-pro-cli/.ultra/.runtime/owner-factory-implementation-20260905/stage-b-wrong-version-review","mcpServers":[]}}}
+{"direction":"client_to_agent","message":{"jsonrpc":"2.0","id":2,"method":"session/prompt","params":{"sessionId":"fake-session","prompt":[{"type":"text","text":"Return the existing fake Agent result for this protocol compatibility diagnostic."}]}}}
