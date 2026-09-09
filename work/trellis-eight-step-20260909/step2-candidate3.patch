@@ -1,0 +1,499 @@
+diff --git a/.ultra/specs/architecture.md b/.ultra/specs/architecture.md
+index 7b31402..00d732d 100644
+--- a/.ultra/specs/architecture.md
++++ b/.ultra/specs/architecture.md
+@@ -157,7 +157,7 @@ the same lenses sequentially when no such surface exists.
+ 
+ | Host | Managed surface | Owner/model policy | Known native boundary |
+ |---|---|---|---|
+-| Claude Code | managed Skill plugin with direct Hooks | frontmatter separates explicit and implicit routes | native permission mode controls delegate tools |
++| Claude Code | managed Skill plugin with direct Hooks | frontmatter separates owner-invocable routes from withheld model discovery | native permission mode controls delegate tools |
+ | Codex | plugin root, marketplace entry, Skills plus `agents/openai.yaml` metadata | `allow_implicit_invocation` expresses role | Hook trust is Host-owned; Doctor reports `host_managed` with `observable: false` instead of requesting repeated user trust |
+ | OpenCode | native JS plugin plus managed Skill directories | descriptions guide selection | no native owner/model routing bit |
+ | Kimi Code | managed plugin registry under `KIMI_CODE_HOME` | native Skill metadata | plugin scope is user-only; unattended tool approval is coarse |
+diff --git a/.ultra/specs/research-distillate.md b/.ultra/specs/research-distillate.md
+index c28be63..f42ed97 100644
+--- a/.ultra/specs/research-distillate.md
++++ b/.ultra/specs/research-distillate.md
+@@ -76,7 +76,7 @@ specifications it binds.
+ | Canonical source | Git blob hash from `git hash-object` | Status |
+ |---|---|---|
+ | `.ultra/specs/product.md` | `776bdc8136d54825248573e52729678649fddd7c` | current worktree after the D1 delegation-safety revision |
+-| `.ultra/specs/architecture.md` | `7b314022165a87f88caabd4e057c4d8b94376347` | current worktree after the D1 delegation-safety revision and the Stage A mid-workflow reminder consecutive-per-session dedup boundary note |
++| `.ultra/specs/architecture.md` | `00d732d4a97386ee43c5efecad8b2301d4b5aa04` | current worktree after the D1 delegation-safety revision, the Stage A mid-workflow reminder consecutive-per-session dedup boundary note, and the Claude row wording that separates owner-invocable routes from withheld model discovery |
+ | `.ultra/specs/discovery.md` | `5d4025e7295f702d83aa04a15b731bdfd2240735` | dated baseline evidence; current navigation is this distillate |
+ 
+ ## End-to-End Trace
+diff --git a/README.md b/README.md
+index db17c84..db01bc1 100644
+--- a/README.md
++++ b/README.md
+@@ -270,8 +270,12 @@ verified an ownership-safe install, Doctor, ZCode uninstall, and reinstall in al
+ real Host homes.
+ 
+ Use the host's native Skill picker or invocation syntax to select an owner workflow.
+-Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. The installed
+-frontmatter and metadata keep user routes explicit and model disciplines implicit.
++Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. You do not have
++to name a route: an ordinary request in your own words can reach the matching workflow,
++which then verifies its own entry, mode, grant, and effects before doing anything. The
++installed frontmatter and metadata keep the two routes you must name yourself — read-only
++`ultra-status` diagnosis and `ultra-delegate` worker topology — owner-invoked, and keep
++model disciplines internal to a workflow.
+ 
+ ### Diagnose, update, and uninstall
+ 
+@@ -310,6 +314,11 @@ first baseline, or to answer the bounded evidence question recorded by the same
+ Change. Every public transition shows a derived Route Card with its current Mode,
+ Position, observable Exit condition, material checkpoint, and Next route.
+ 
++"Select" below means either naming the route or making the request it exists for: your
++current message is the entry for the work it names, and an ordinary bounded change that
++makes no specification sentence false stays ordinary repository work with no `.ultra/`
++artifacts at all.
++
+ 1. Select `ultra-init` once. It writes the skeleton, preserves the owner's raw one-line
+    request and broad outline in the Project Brief, initializes Git when needed, and
+    stops before product research.
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index faa2982..79af567 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -245,8 +245,11 @@ node <loaded-ultra-delegate-skill-dir>/scripts/delegate.cjs run --to zcode \
+ ZCode uninstall 与 reinstall。
+ 
+ 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间
+-的条目，例如 `$ultra-builder-pro:ultra-init`。安装后的 frontmatter 和 metadata 会
+-保持用户 route 显式、模型 discipline 隐式。
++的条目，例如 `$ultra-builder-pro:ultra-init`。你不必先说出 route 名称：用自己的话
++提出的普通请求就能到达相应工作流，它随后自行核对入口、Mode、Grant 和效果再动手。
++安装后的 frontmatter 和 metadata 只把必须由你点名的两个 route 保持为所有者调用——
++只读的 `ultra-status` 诊断与 `ultra-delegate` worker 拓扑——并把模型 discipline
++保持在工作流内部。
+ 
+ ### 诊断、更新和卸载
+ 
+@@ -281,6 +284,10 @@ Kimi Code、Grok Build 和 ZCode 当前只提供用户级插件，所以 `--loca
+ `ultra-research`。每次 public transition 都先展示派生的 Route Card，明确当前 Mode、
+ Position、可观察 Exit condition、material checkpoint 和 Next route。
+ 
++下文的“选择”既指点名该 route，也指直接提出它存在的那件事：你当前的消息就是它所指
++工作的入口；而不会让任何规格句子失真的普通有界改动仍属普通仓库工作，不产生任何
++`.ultra/` 产物。
++
+ 1. 选择一次 `ultra-init`。它写入骨架，在 Project Brief 中保留所有者原始的一行请求
+    和大致轮廓，在需要时初始化 Git，然后停止，不会开始产品 Research。
+ 2. 选择 `ultra-research`，把 brief 转化为首个已接受的 North Star、共享词汇以及有
+diff --git a/adapters/_shared/runtime-assets.cjs b/adapters/_shared/runtime-assets.cjs
+index a17710b..d48c184 100644
+--- a/adapters/_shared/runtime-assets.cjs
++++ b/adapters/_shared/runtime-assets.cjs
+@@ -75,6 +75,16 @@ const PUBLIC_SKILL_INVOCATION_MODES = Object.freeze({
+ const GRANT_CONTINUABLE_SKILLS = Object.freeze(USER_INVOKED_SKILLS.filter((name) => (
+   Object.values(PUBLIC_SKILL_INVOCATION_MODES[name]).includes('grant-continuable')
+ )));
++/**
++ * Coarse Host metadata is discovery, not authority. OpenCode and ZCode expose no routing
++ * bit at all, so every public mode already proves its own entry inside the Skill body.
++ * The bit is withheld only where the product requires the Owner to name the route: the
++ * read-only Status router and Delegate's owner-authorized worker topology. Every other
++ * public Skill stays discoverable, including the `ultra-init` entry route, which is the
++ * only route that can run before `.ultra/` exists and would otherwise be unreachable
++ * from an ordinary natural-language request for new work.
++ */
++const HOST_DISCOVERY_WITHHELD_SKILLS = Object.freeze(['ultra-delegate', 'ultra-status']);
+ const SUPPORTED_RUNTIMES = Object.freeze(['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
+ 
+ const WORKFLOW_HOOK_FILES = Object.freeze([
+@@ -112,7 +122,7 @@ function skillPolicy(name) {
+   const invocationClasses = [...new Set(Object.values(modes))];
+   return {
+     userInvocable: true,
+-    allowImplicitInvocation: invocationClasses.includes('grant-continuable'),
++    allowImplicitInvocation: !HOST_DISCOVERY_WITHHELD_SKILLS.includes(name),
+     invocationClasses,
+     modes,
+   };
+@@ -120,6 +130,7 @@ function skillPolicy(name) {
+ 
+ module.exports = {
+   GRANT_CONTINUABLE_SKILLS,
++  HOST_DISCOVERY_WITHHELD_SKILLS,
+   USER_INVOKED_SKILLS,
+   MODEL_INVOKED_SKILLS,
+   PUBLIC_SKILL_INVOCATION_MODES,
+diff --git a/adapters/_shared/tests/runtime-assets.test.cjs b/adapters/_shared/tests/runtime-assets.test.cjs
+index 2567eb2..0167d60 100644
+--- a/adapters/_shared/tests/runtime-assets.test.cjs
++++ b/adapters/_shared/tests/runtime-assets.test.cjs
+@@ -35,12 +35,14 @@ const CONTINUABLE = [
+   'ultra-test',
+   'ultra-deliver',
+ ];
++const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
+ 
+ test('runtime asset manifest has the exact packaged role boundary', () => {
+   assert.deepEqual(assets.USER_INVOKED_SKILLS, USER);
+   assert.deepEqual(assets.MODEL_INVOKED_SKILLS, MODEL);
+   assert.deepEqual(assets.ROUTER_SKILLS, ROUTER);
+   assert.deepEqual(assets.GRANT_CONTINUABLE_SKILLS, CONTINUABLE);
++  assert.deepEqual(assets.HOST_DISCOVERY_WITHHELD_SKILLS, DISCOVERY_WITHHELD);
+   assert.deepEqual(assets.SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
+ 
+   for (const runtime of assets.SUPPORTED_RUNTIMES) {
+@@ -55,7 +57,7 @@ test('host invocation policy admits only envelope-bounded workflow continuation'
+     const invocationClasses = [...new Set(Object.values(modes))];
+     assert.deepEqual(assets.skillPolicy(name), {
+       userInvocable: true,
+-      allowImplicitInvocation: CONTINUABLE.includes(name),
++      allowImplicitInvocation: !DISCOVERY_WITHHELD.includes(name),
+       invocationClasses,
+       modes,
+     }, name);
+diff --git a/docs/RUNTIME-COMPAT-MATRIX.md b/docs/RUNTIME-COMPAT-MATRIX.md
+index a0a8cca..a97564d 100644
+--- a/docs/RUNTIME-COMPAT-MATRIX.md
++++ b/docs/RUNTIME-COMPAT-MATRIX.md
+@@ -42,7 +42,7 @@ isolated user-scope installation test.
+ 
+ | Invocation class | Owner can route directly | Model can select implicitly |
+ |---|---:|---:|
+-| `explicit-entry` public mode | yes | no |
++| `explicit-entry` public mode | yes | no; the Owner's current request naming that work is the entry |
+ | `grant-continuable` public mode | yes | only under a valid Execution Grant covering that mode |
+ | five `model-discipline` Skills | no | as an internal method of a covered workflow |
+ | `ultra-status` `router` modes | yes | no; other Skills derive their cards directly from the shared contract |
+@@ -57,10 +57,16 @@ are grant-continuable. Every public mode remains directly owner-invocable.
+ Claude and Grok receive `user-invocable` / `disable-model-invocation` frontmatter.
+ Kimi receives its native equivalent. Codex receives
+ `policy.allow_implicit_invocation` in `agents/openai.yaml`. Those Hosts expose only a
+-coarse Skill-level bit, so a Skill with any grant-continuable mode is discoverable to the
+-model; the loaded Skill must still verify the selected mode, same active `change_id`,
+-grant, effects, and material checkpoints. In particular, the coarse bit does not permit
+-baseline Research, Change intake/acceptance, or Deliver finalization.
++coarse Skill-level bit, and that bit is discovery, not authority: it is withheld only for
++`HOST_DISCOVERY_WITHHELD_SKILLS` — Status and Delegate, the two routes the product
++requires the Owner to name explicitly. Every other public Skill is discoverable,
++including the `ultra-init` entry route, which is the only route that runs before
++`.ultra/` exists and is therefore the sole way an ordinary natural-language request for
++new work reaches Ultra at all. The loaded Skill must still verify the selected mode, same
++active `change_id`, grant, effects, and material checkpoints. In particular, the coarse
++bit does not permit baseline Research, Change intake/acceptance, or Deliver finalization
++without the Owner's current request naming that work, and it never turns an installation
++or a file found on disk into activation.
+ 
+ OpenCode uses portable source frontmatter and native discovery, but its current Skill
+ schema has no equivalent owner/model routing bit: all fourteen Skills remain
+diff --git a/docs/SKILL-AUTHORING.md b/docs/SKILL-AUTHORING.md
+index 1bfde74..8041b68 100644
+--- a/docs/SKILL-AUTHORING.md
++++ b/docs/SKILL-AUTHORING.md
+@@ -35,6 +35,16 @@ ZCode-native plugin metadata.
+ Do not put host paths, dependency declarations, plugin policy, or release history in
+ source frontmatter.
+ 
++The description is the only surface a Host shows before the Skill body is loaded, so it
++is where selection is won or lost. State the situation as the owner's own request and the
++value in what changes for them; a description written in Ultra's artifact vocabulary can
++only match a reader who already works in Ultra. This binds hardest on a route reachable
++with no `.ultra/` record, whose opening sentence is also the Codex short description: it
++must be legible to a model that has never seen an Ultra artifact, and it must say what
++the route does for the owner before naming what it writes. Name the autonomy it does not
++take as well — a route that would be wrong for a clear bounded change says so — and never
++promise a behavior the body does not carry out.
++
+ ## Required shape
+ 
+ Every Skill has one outcome-led title and these semantic sections:
+diff --git a/skills/ultra-change/SKILL.md b/skills/ultra-change/SKILL.md
+index 392c770..a4f4e64 100644
+--- a/skills/ultra-change/SKILL.md
++++ b/skills/ultra-change/SKILL.md
+@@ -55,6 +55,7 @@ valid grant only the non-material `reconcile` mode may continue implicitly.
+ | One active Change needs its draft, Research evidence, or accepted boundary reconciled | Here — update the same `change_id` |
+ | A separate request arrives while one Change remains active | Do not create a second Change; finish or deliver the current one, abandon it with owner authority, or explicitly fold the request into its boundary |
+ | A task is in progress and the specification turns out not to match reality | Not here — the dual-write path inside `ultra-dev` |
++| The request starts a new product and the codebase has no `.ultra/` project record | Not here — `ultra-init/create` captures the raw outline and its unsettled intended use first |
+ | The change makes no sentence in the specifications false | Outside the Ultra lifecycle — use ordinary repository TDD and verification |
+ 
+ A request that arrives while one Change remains active is routed by that table, but its
+diff --git a/skills/ultra-init/SKILL.md b/skills/ultra-init/SKILL.md
+index 1570359..23dcf9a 100644
+--- a/skills/ultra-init/SKILL.md
++++ b/skills/ultra-init/SKILL.md
+@@ -1,11 +1,13 @@
+ ---
+ name: ultra-init
+-description: Create or recover Ultra's repository-local skeleton and raw Project Brief without performing product research. Use when `.ultra` is absent or partial in a new or existing codebase and later workflows need stable file paths, preserved authority, and Git.
++description: Start a new app, tool, or script the codebase does not have yet. Use whenever someone asks for one from a rough need, however small or obvious the request looks — enter here first, then decide inside whether their stated need is already enough to build from or whether one or two answers come first, keep the owner's own words, create the project's file skeleton and raw Project Brief, and hand back to ordinary implementation. Also use it to restore that project record when it is partial, uncertain, or unreadable, preserving accepted authority byte-for-byte. Not for a clear bounded change to existing code, and it performs no product research.
+ ---
+ 
+-# Create the skeleton and capture only the initial project outline
++# Settle the purpose first, then capture only the initial project outline
+ 
+-Initialization establishes places for later authority and records raw owner intake. It
++Initialization exists so that what gets built is what the owner actually wanted: it
++settles the few purposes that would otherwise be guessed, records that intake in the
++owner's own words, and establishes the places later authority will use. It
+ does not validate the problem, establish a North Star, build a product or architecture
+ baseline, settle domain language, choose a Change, or start another public workflow.
+ 
+@@ -20,6 +22,27 @@ Follow `../ultra-status/references/route-contract.md`. Derive a Route Card befor
+ first write and at the exit or any repair stop. Init never continues into Research on
+ its own, and its `Position` reports observed files rather than semantic progress.
+ 
++## Whether this skill applies at all
++
++| Situation | Where it goes |
++|---|---|
++| Someone asks for a new app, tool, or script this codebase does not have yet | Here — `create`, and settle the purpose first if it would change what you build |
++| The skeleton is partial, uncertain, or unreadable | Here — `recover` it |
++| An ordinary bounded change in an existing codebase, already clear enough to reproduce and verify | Not here — ordinary repository investigation, TDD, and verification create no `.ultra/` |
++| A one-off snippet or throwaway command nobody comes back to | Not here — write it, run it, hand it over, and create no `.ultra/` |
++
++Whether the stated need is already enough to build from is this Skill's decision, not a
++precondition for reaching it. Enter on the plain request, look at what the request and
++the repository already answer, and then either ask the few answers that would change what
++you build or record what was already given and continue. A broad complaint is a need, not
++a settled purpose; presuming one is how the wrong product gets built.
++
++A coarse Host discovery bit never authorizes this route. A model-selected entry is valid
++only when the owner's current request asks for that work, and that request is itself the
++owner entry for it — the route needs no separate confirmation. An installation, a
++historical file, or a skeleton observed on disk is never that request: report the
++observation and stop.
++
+ ## Before you start
+ 
+ 1. If `.ultra/changes/active/` exists, resolve at most one active `change_id`. Read
+@@ -61,11 +84,23 @@ Follow `../ultra-grilling/SKILL.md` with only these required fields:
+ | Constraints, materials, and decisions the owner already volunteered | `## Explicit Inputs` |
+ | Questions already visible but requiring evidence or deeper decisions | `## Open Questions for Research` |
+ 
+-Ask only enough to distinguish materially different outlines. If an answer would define
+-a problem, actor evidence, desired outcome, success measure, product strategy, accepted
+-constraint, domain term, requirement, or architecture, record it as an input or open
+-question and stop drilling. Research owns that maturation and must not re-ask an answer
+-unless evidence conflicts with it.
++Ask only enough to distinguish materially different outlines. Ask before building, not
++after: an answer that would change what you build — who it is for, what it must make
++possible later, which result counts as working — is worth one question now, and an
++unstated purpose is not a detail that implementation can settle on the owner's behalf.
++Where this project's own files live, which language and shape to use, and the rest of its
++internal design are inside the boundary in
++`../ultra-think/references/autonomy-boundary.md` — decide and proceed. What stays the
++owner's is their own material: which existing real source of their data to use, an input
++you cannot observe anywhere, and any access, integration, or write outside this project.
++Record an unknown source or missing material as unknown and ask for it once; it is never
++assumed and never turned into permission you were not given. Facts the repository can
++answer are never questions. Do not name the owner's main difficulty for them.
++
++If an answer would define a problem, actor evidence, desired outcome, success measure,
++product strategy, accepted constraint, domain term, requirement, or architecture, record
++it as an input or open question and stop drilling. Research owns that maturation and must
++not re-ask an answer unless evidence conflicts with it.
+ 
+ ## Write and recover the skeleton
+ 
+@@ -135,9 +170,16 @@ the host cannot ask, leave unresolved fields explicit and recommend resuming Ini
+ host that can; do not infer intent from the directory name. Recommend Research after a
+ usable brief exists, but do not invoke it.
+ 
++Say what that recommendation is for: `ultra-research/baseline` decides the consequential
++product commitments the brief left open, and when the settled outline is already small
++enough to build and verify directly, the owner's current request governs whether that
++baseline or the ordinary verified work comes next. Neither Init nor its recommendation
++turns a raw outline into an accepted North Star.
++
+ ## References
+ 
+ - `../ultra-grilling/SKILL.md` — read before the first missing brief field.
+ - `references/brownfield-adoption.md` — read when maintained behavior already exists.
+ - `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
+-- `../ultra-think/references/autonomy-boundary.md` — read before replacing authority.
++- `../ultra-think/references/autonomy-boundary.md` — read before replacing authority or
++  reaching outside this project for the owner's own material.
+diff --git a/skills/ultra-status/references/route-contract.md b/skills/ultra-status/references/route-contract.md
+index 35f7658..92cca06 100644
+--- a/skills/ultra-status/references/route-contract.md
++++ b/skills/ultra-status/references/route-contract.md
+@@ -117,6 +117,15 @@ never permits an explicit-entry mode. Without a covering grant, stop with a Rout
+ and recommend the exact explicit route; never invoke another public Skill merely because
+ its files appear ready.
+ 
++Discovery is not authority, and withheld discovery is not a guard. Two Hosts expose no
++routing bit at all, so a public route is discoverable to the model wherever the Owner
++could reach it in one request — including a route whose modes are all `explicit-entry`.
++Loading such a Skill only lets it check its own entry: it proceeds when the Owner's
++current request names that work, and otherwise reports what it observed and stops. The
++bit stays off only where the product requires the Owner to name the route explicitly —
++read-only Status diagnosis and Delegate's owner-authorized worker topology — and on a
++Host without the bit those two routes rest on the same in-Skill check.
++
+ A current explicit owner request is Owner entry for the work it names even when an
+ active Change, an expired grant, or an unfinished closeout exists: those are older
+ obligations of the older work, reported in `Not done` and gated only at their own
+diff --git a/tests/route-contract.test.cjs b/tests/route-contract.test.cjs
+index 3a9ba3b..9f7c1f6 100644
+--- a/tests/route-contract.test.cjs
++++ b/tests/route-contract.test.cjs
+@@ -54,6 +54,10 @@ const PUBLIC_MODES = Object.freeze({
+   },
+ });
+ 
++// Coarse Host discovery stays off only for the routes the product requires the Owner to
++// name: read-only Status diagnosis and owner-authorized Delegate topology.
++const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
++
+ function read(relative) {
+   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
+ }
+@@ -144,7 +148,7 @@ test('runtime invocation policy preserves mode distinctions behind coarse Host m
+     const invocationClasses = [...new Set(Object.values(modes))];
+     assert.deepEqual(policy, {
+       userInvocable: true,
+-      allowImplicitInvocation: invocationClasses.includes('grant-continuable'),
++      allowImplicitInvocation: !DISCOVERY_WITHHELD.includes(name),
+       invocationClasses,
+       modes,
+     }, name);
+@@ -162,6 +166,25 @@ test('runtime invocation policy preserves mode distinctions behind coarse Host m
+   assert.equal(assets.skillPolicy('ultra-status').allowImplicitInvocation, false);
+ });
+ 
++test('an uninitialized natural-language request can still reach the entry route', () => {
++  assert.deepEqual(assets.HOST_DISCOVERY_WITHHELD_SKILLS, DISCOVERY_WITHHELD);
++
++  // Init is the only public route that runs before `.ultra/` exists, so withholding its
++  // coarse Host discovery bit leaves an ordinary natural-language request for new work
++  // with no reachable Ultra route at all on the Hosts that expose the bit.
++  const init = assets.skillPolicy('ultra-init');
++  assert.deepEqual(init.invocationClasses, ['explicit-entry']);
++  assert.equal(init.allowImplicitInvocation, true);
++  assert.equal(assets.skillPolicy('ultra-delegate').allowImplicitInvocation, false);
++  assert.equal(assets.skillPolicy('ultra-status').allowImplicitInvocation, false);
++
++  // The now-discoverable route guards its own entry, exactly as the mixed public Skills
++  // below already do; nothing on disk may activate work.
++  const source = read('skills/ultra-init/SKILL.md');
++  assert.match(source, /coarse Host discovery bit never authorizes this route/i);
++  assert.match(source, /installation[\s\S]{0,160}never that request/i);
++});
++
+ test('mixed public Skills guard explicit modes after coarse Host discovery', () => {
+   const research = read('skills/ultra-research/SKILL.md');
+   const change = read('skills/ultra-change/SKILL.md');
+diff --git a/tests/v026-adapters.test.cjs b/tests/v026-adapters.test.cjs
+index 07d0bc6..e366c64 100644
+--- a/tests/v026-adapters.test.cjs
++++ b/tests/v026-adapters.test.cjs
+@@ -10,7 +10,7 @@ const { parse } = require('../adapters/_shared/frontmatter.cjs');
+ 
+ const ROOT = path.resolve(__dirname, '..');
+ const {
+-  GRANT_CONTINUABLE_SKILLS,
++  HOST_DISCOVERY_WITHHELD_SKILLS,
+   skillPolicy,
+   skillsForRuntime,
+   WORKFLOW_HOOK_FILES,
+@@ -180,16 +180,73 @@ test('Codex emits native invocation policy without an MCP dependency', async ()
+       path.join(report.skillRoot, name, 'agents', 'openai.yaml'),
+       'utf8',
+     ));
+-    const modelInvoked = ['ultra-grilling', 'ultra-domain-modeling', 'ultra-tdd', 'ultra-review', 'ultra-think'].includes(name);
+     assert.equal(
+       metadata.policy.allow_implicit_invocation,
+-      modelInvoked || GRANT_CONTINUABLE_SKILLS.includes(name),
++      skillPolicy(name).allowImplicitInvocation,
+       name,
+     );
+     assert.equal(metadata.dependencies, undefined, name);
+   }
+ });
+ 
++test('installed Host metadata leaves the entry route discoverable to the model', async () => {
++  assert.deepEqual(HOST_DISCOVERY_WITHHELD_SKILLS, ['ultra-delegate', 'ultra-status']);
++  for (const runtime of ['claude', 'grok', 'kimi']) {
++    const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
++    const { ctx } = sandbox(`${runtime}-entry-discovery`);
++    const report = await adapter.install(ctx);
++    const key = runtime === 'kimi' ? 'disableModelInvocation' : 'disable-model-invocation';
++    const blocked = skillsForRuntime(runtime).filter((name) => {
++      const installed = path.join(report.skillRoot, name, 'SKILL.md');
++      return parse(fs.readFileSync(installed, 'utf8')).fm[key] === true;
++    });
++    assert.deepEqual(blocked, HOST_DISCOVERY_WITHHELD_SKILLS, runtime);
++  }
++
++  const codex = require('../adapters/codex.js');
++  const { ctx } = sandbox('codex-entry-discovery');
++  const report = await codex.install(ctx);
++  const blocked = skillsForRuntime('codex').filter((name) => yaml.load(fs.readFileSync(
++    path.join(report.skillRoot, name, 'agents', 'openai.yaml'),
++    'utf8',
++  )).policy.allow_implicit_invocation === false);
++  assert.deepEqual(blocked, HOST_DISCOVERY_WITHHELD_SKILLS);
++});
++
++test('every Host receives each whole source description, and Codex shortens only its own', async () => {
++  // What a Host lists is the description verbatim: no adapter may shorten, reflow or
++  // rewrite it, because that listing is the only surface a model sees before the body
++  // loads. Codex additionally derives a bounded short description, which stays a prefix
++  // of that same text. Where that prefix falls inside a word is pre-existing Codex
++  // presentation behaviour, observed but not asserted here.
++  const source = Object.fromEntries(skillsForRuntime('claude').map((name) => [
++    name,
++    String(parse(fs.readFileSync(path.join(ROOT, 'skills', name, 'SKILL.md'), 'utf8')).fm.description),
++  ]));
++
++  for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']) {
++    const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
++    const { ctx } = sandbox(`${runtime}-description-fidelity`);
++    const report = await adapter.install(ctx);
++    const skillRoot = report.skillRoot || path.join(report.pluginRoot || report.target, 'skills');
++    for (const name of skillsForRuntime(runtime)) {
++      const installed = parse(fs.readFileSync(path.join(skillRoot, name, 'SKILL.md'), 'utf8'));
++      assert.equal(String(installed.fm.description), source[name], `${runtime}:${name}`);
++    }
++    if (runtime !== 'codex') continue;
++    for (const name of skillsForRuntime(runtime)) {
++      const metadata = yaml.load(fs.readFileSync(
++        path.join(skillRoot, name, 'agents', 'openai.yaml'),
++        'utf8',
++      ));
++      const short = String(metadata.interface.short_description);
++      const collapsed = source[name].replace(/\s+/gu, ' ').trim();
++      assert.ok(short.length > 0 && short.length <= 64, `${name}: short ${short.length}`);
++      assert.ok(collapsed.startsWith(short), `${name}: short description is not a prefix`);
++    }
++  }
++});
++
+ test('Codex plugin manifest satisfies the native presentation contract', async () => {
+   const codex = require('../adapters/codex.js');
+   const { ctx } = sandbox('codex-manifest');
+diff --git a/tests/v026-contract.test.cjs b/tests/v026-contract.test.cjs
+index b736621..ec3b2ca 100644
+--- a/tests/v026-contract.test.cjs
++++ b/tests/v026-contract.test.cjs
+@@ -49,6 +49,7 @@ const CONTINUABLE = [
+   'ultra-test',
+   'ultra-deliver',
+ ];
++const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
+ const ALL = [...USER, ...MODEL, ...ROUTER].sort();
+ 
+ function readSkill(name) {
+@@ -159,7 +160,11 @@ test('the package exposes exactly fourteen file-first skills in three roles', ()
+   }
+   for (const name of USER) {
+     assert.equal(skillPolicy(name).userInvocable, true, name);
+-    assert.equal(skillPolicy(name).allowImplicitInvocation, CONTINUABLE.includes(name), name);
++    assert.equal(
++      skillPolicy(name).allowImplicitInvocation,
++      !DISCOVERY_WITHHELD.includes(name),
++      name,
++    );
+   }
+   for (const name of MODEL) {
+     assert.equal(skillPolicy(name).userInvocable, false, name);

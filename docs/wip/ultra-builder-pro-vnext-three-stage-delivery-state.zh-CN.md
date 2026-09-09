@@ -8,9 +8,9 @@
 
 | 步骤 | 当前状态 | 验收与提交 |
 |---|---|---|
-| 1 行为基线与真实缺口 | done | 三类五次真实调用、独立验收与原始证据齐备；见 step1-acceptance.zh-CN.md，提交中 |
-| 2 自然语言与相称工作路径 | in_progress | 实际 Claude `729580a7e0bb4a4cabbffaac8f356eee` 在独立工作树修复 F2 未进入入口的路径；已有正确行为不重写 |
-| 3 上下文与知识往返 | pending | 须证明后续任务实际应用，并处理过时/无关材料 |
+| 1 行为基线与真实缺口 | done | 三类五次真实调用、独立验收与原始证据齐备；见 step1-acceptance.zh-CN.md，commit `47f7911` |
+| 2 自然语言与相称工作路径 | in_progress | 三个descriptor候选均未解决F2；停止措辞迭代，正在区分未选择入口与加载后行为；已有正确行为不重写 |
+| 3 上下文与知识往返 | in_progress | K3四环在candidate2实跑通过；已有正确路径不强制改机制，待最终日常版本集成 |
 | 4 日常完整体验 | pending | 新项目、连续迭代、显式恢复与隔离安装件的独立验收 |
 | 5 合格委派与首条工厂 | pending | 先接受 B，再完成 C / R2 Step 1 |
 | 6 可运营工厂 | pending | 原 D / R2 Step 2 全部退出条件 |
@@ -21,7 +21,21 @@
 
 步骤1已完成：三类五次 native Claude 调用，精确安装/来源、原始回合、产物和独立检查均在 `work/trellis-eight-step-20260909/step1-acceptance.zh-CN.md` 及其证据索引。F1修复6/6、F3前后9/9→12/12；F2有可用功能但漏问实质用途，且五次均没有进入Ultra Skill。因此首项修复是自然语言入口，不是重做Stage A或全量增加上下文。Root隔离完整检查738 Node/104 Hook/audit0；前置runner/yaml修复已commit `ca228b0`。原作者timeout、r1、Node/Python环境错误与所有失败仍保留。预留模型试跑尚未开始。
 
-步骤2当前作者：`729580a7e0bb4a4cabbffaac8f356eee`，actual Claude，session `trellis-step2-entry-20260909`，2400s；独立checkout与临时禁用作者Hindsight的配置见 `step2-author-checkout.json`（base ca228b0，无Stage B及新评测资料）。任务书与开发证据在该checkout `work/step2-entry/`。只给开发案例，不给预留材料；工作树共享同一memory bank，所以仅改目录名不足隔离，已用支持的HINDSIGHT_CONFIG临时disabled配置并核对wrapper继承环境。Root负责最终冻结、隔离安装与预留验收，作者不运行评测provider、不commit、不改真实HOME。
+步骤2作者首轮 `729580a7e0bb4a4cabbffaac8f356eee` 已 success/end_turn；独立checkout、作者进程 HINDSIGHT_CONFIG disabled 及任务书见 `step2-author-checkout.json` 与该checkout `work/step2-entry/`。Root冻结候选1（`step2-candidate1.json`），窄检查、两个Skill Creator验证、隔离Doctor与原生inline discovery均通过，但真实F2调用仍未调用Skill、未解决用途就实现并宣告完成。失败详见 `step2-candidate1-observation.json`，211.295s，list-rate $0.9001915；不接受为步骤2完成。原生Claude从基线2.1.263自动更新为2.1.266，此次不能作公平成本比较；已固定原生2.1.263在新目录复核同一冻结候选，保留两次观察。作者同会话修正 `de55ad81a15e448ab46c50d46efac993`（1800s），只接收开发反馈，预留样例未暴露、未运行。
+
+步骤2第二轮正文审查另排队同会话 `75cf9c1a6fc1417e9a56d089bf97d180`（600s）：技术方法自主不能写成永不提问未知个人数据来源/范围外效果，需保留现有边界。第四步准备由原独立fixture作者实际Claude `ae6a8103059d4f33a59eb96aa92ff0cc`（session `trellis-step1-fixtures-20260909`，900s）只写 `step4-evaluation.zh-CN.md`，复用现有旅程补实际中断、任务切换与显式resume；不改候选、不运行provider、不另建框架。
+
+固定2.1.263复核候选1已结束（411.341s，primary-only list-rate $1.2026095，另有未合并计价的nested CLI调用），同样零Skill调用、漏问用途且加入外部提取功能。最终回执暴露真实HOME安装与Vault测试写入；Root保留证据并撤回可验证的三个新路径，详见 `step2-evaluation-boundary-correction.zh-CN.md`、`step2-candidate1-pinned263-observation.json`。原“未见Vault写入”是检查不完整的错误陈述，已纠正。下一次模型实跑前须带已冻结的operator边界文本；旧运行不充当边界已告知的资格证据，也不与新边界运行混算公平成本。作者r2已完成；边界措辞修正75cf与去掉无依据语义/长度代理测试991f97387bd3423d96c2a30e8a6c473b依次续接，不能因静态新措辞测试绿宣称产品行为通过。
+
+第三步Kimi评测作者187bf与修正da842均已success/end_turn（900.012s、593.233s）。r1三缺陷已保留原样后修正；Root两Node版本17/17通过。K3两次native真实调用已结束并独立检查通过，见 `step3-k3-observation.zh-CN.md/json`。四环完整：实际导出→维护现有tech-notes→全新session通过Bash读回→导入与核对正确，原库存与测试保留；不需要凭阶段名新增知识机制。candidate2的F2仍失败，metadata完整可见43条列表中仍未进入Skill；作者同会话新修正 `d3db4a3a7ac644a0bfc9f71a6b3f5724`（1200s）正在处理选择触发边界。当前没有任何预留模型试跑，Step4实际中断验收未运行。
+
+Owner 已明确接受统一 Ultra 自然语言入口（例如 `ubp run`），内部流程由 Agent 决定，普通宿主聊天自动发现为尽力支持。精确问答与新边界见 `.ultra/decisions/2026-09-09-unified-ultra-entry.md`。不降低用途/交付判据、不把旧失败改判通过；后续冻结实际公共入口重新验收。实际Kimi诊断 fd0ba 已 success/end_turn421.335s；显式诊断先问用途，但只到brief与未提供个人数据来源，未交付产品。下一实现转向现有CLI的薄入口，停止descriptor迭代。实际Claude同作者会话 `2f264c631bcb4a3c803197aae6226fde`（1800s）已开始薄入口实现；独立fixture作者同会话 `077526b57e1a4a9d9b1a86b96c570451`（900s）只补新入口评测条件与F1可写副本，不改旧冻结样例/失败。
+
+步骤2最新观察（2026-09-09 01:14 UTC）：candidate3冻结patch `e11fc674b391a786d7971dd1d154eba5eb785bb020d8855866df8399497e4a30` 后，F2仍零Skill调用、漏问用途；第三次descriptor修订未被接受。停止继续调措辞，独立实际Kimi只读诊断 `fd0ba4e0628048f8981bbaa60b480bce`（600s、禁用共享Hindsight）检查自然对话、显式选择与CLI入口合同，不读任何reserved材料。另启动显式 `/ultra-builder-pro:ultra-init` 诊断，只定位加载后的行为，改变过输入，绝不计入原F2自动入口验收。
+
+F1/F3的开发路径在Step1已接受为无需修复，因此candidate3冻结后首次开展其reserved：F1-res首轮原cwd未改，模型遵从fixture README的“never repair in place”在另一临时副本修复5/5，等待是否回写；这是评测夹具说明泄漏引起的输入限制，不能算原cwd已修复。按冻结第二条消息原样续接中。F3-res首轮9/9，显式时区按天统计；第二阶段只复制项目文件到全新basename与session，正在运行。以上reserved从未发给候选作者；不能再说全部reserved尚未开始。D1–D4仍待最终候选。
+
+第五步只读预检实际Claude `452722586ef14f6e91aac94fb765285e` 已 success/end_turn，见 `step5-readonly-preflight.zh-CN.md`。当前事实覆盖下文旧快照：agent-delegation原checkout已到0a81753且clean；Goal原checkout7210d3a/2.16.0已采用plugin-only布局，原Goal隔离工作树及分支不在，旧2.15.4验收不得直接算当前交付；Claude默认路径已到2.1.266，原候选2.1.261仍在，可按既有冻结选择显式绑定。StageB最新9源SHA与修复作者交接一致但尚无Root独立复验；旧run的state.json停running而result.json terminal且pid已不在，以结果为终态并保留状态缺陷。不提前运行资格或C/D/E；步骤1–4完成后重新适配已推进依赖，再消费原资格标准。这些技术适配在已有授权范围内，不新增Owner逐步审批。
 
 ## 目标与完成条件
 

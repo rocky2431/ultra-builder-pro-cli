@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-09-09T01:04:14.178877+00:00",
+  "author_checkout": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-candidate-wme3iqp3",
+  "snapshot": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-snapshot3-1zb_ll89",
+  "source_base": "ca228b0",
+  "patch_sha256": "e11fc674b391a786d7971dd1d154eba5eb785bb020d8855866df8399497e4a30",
+  "trial_root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-trial3-cspikud8",
+  "plugin_root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-trial3-cspikud8/claude-config/skills/ultra-builder-pro",
+  "install_argv": [
+    "node",
+    "bin/install.js",
+    "--claude",
+    "--config-dir",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-trial3-cspikud8/claude-config"
+  ],
+  "dual_manifest_sha256": "5402302248a3c9d7150bbc1f5633f1df0e1820d9a8e496ff104628e9f4b4211e",
+  "native_cli": "/Users/rocky243/.local/share/claude/versions/2.1.263",
+  "native_sha256": "ef5d2909c8af49f31ab6d5487e90316777bc2fac170adfe8160716caa8aaf4f9",
+  "operator_boundary_sha256": "7393453a0c48713a7d0cdd5cacaafb9696bf79adce1308f6f9b7c00535a9a712",
+  "status": "frozen before any candidate3 live run; not accepted"
+}
