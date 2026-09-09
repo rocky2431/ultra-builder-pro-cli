@@ -459,10 +459,10 @@ const HOST_ENFORCEMENT_QUALIFICATION = Object.freeze({
   // Positive native CLI observations remain bound to their exact runtime and policy bytes.
   pi: Object.freeze({
     "$schema": "ultra-host-enforcement-qualification-v1",
-    "attempt_id": "ubp-pi-product-OfQaaa",
-    "observed_at": "2026-09-09T08:40:38.965Z",
-    "evidence": ".ultra/evidence/vnext-c-finite-slice/native-qualification.json",
-    "receipt_sha256": "0f6029446dba3b4ab25e165c51ffa80d19845fdb3c4eb60adda728f9b918fdeb",
+    "attempt_id": "ubp-pi-product-x1g7Nn",
+    "observed_at": "2026-09-09T16:15:01.661Z",
+    "evidence": ".ultra/evidence/vnext-d-operational/native-qualification.json",
+    "receipt_sha256": "1c0fd373ced30e713f22236575f6a37b1a0aea192e4c3413ee79485f4d877901",
     "qualified_identity": {
       "bridge_build_marker": "pi-native-cli/v1",
       "runtime_version": "0.85.1",
@@ -473,7 +473,7 @@ const HOST_ENFORCEMENT_QUALIFICATION = Object.freeze({
         "runtime_sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
         "package_sha256": "f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c",
         "runtime_files_sha256": "fc7322d2dd04594c8792bf67284432dfcfbf6ca23955e4ee45ee7e646bb9848e",
-        "policy_files_sha256": "85d3c7f8fee66e713f17607b1dff1d11ae4ee5b73c5e546fae5fee3c041ae879"
+        "policy_files_sha256": "7aaabc111b06462b89b402e38716c3431b1342133a1ed21aa61a434c50095859"
       }
     },
     "provider_transport_admission": "separately_authorized_only",
@@ -498,7 +498,7 @@ const HOST_ENFORCEMENT_QUALIFICATION = Object.freeze({
           "receipt_truth": {
             "observation": "supported",
             "admission": "supported",
-            "basis": "Legal write returned finished with exact diff; five actual denied operations returned permission_denied; both native turns stopped and both writers were proven stopped."
+            "basis": "Legal write/read returned finished with exact changed path; seven actual denied operations returned permission_denied; both native turns and writer process groups stopped."
           },
           "writable_scope": {
             "observation": "supported",
@@ -508,7 +508,7 @@ const HOST_ENFORCEMENT_QUALIFICATION = Object.freeze({
           "outside_root_denial": {
             "observation": "supported",
             "admission": "supported",
-            "basis": "Actual outside-root and protected .ultra writes each received a pre-effect rejection and matching native denied completion; neither marker exists."
+            "basis": "Actual outside-root, protected .ultra, case-insensitive .ULTRA and internal symlink-to-.ultra writes each received pre-effect rejection and matching native denied completion under a whole-worktree grant; no forbidden effects and sentinel KEEP."
           },
           "shell_tool_denial": {
             "observation": "supported",

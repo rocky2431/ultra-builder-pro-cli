@@ -204,7 +204,7 @@ function atOrInside(root, candidate) {
 function nearestExistingAncestor(candidate) {
   let current = candidate;
   for (;;) {
-    if (fs.existsSync(current)) return fs.realpathSync(current);
+    if (fs.existsSync(current)) return fs.realpathSync.native(current);
     const parent = path.dirname(current);
     if (parent === current) return null;
     current = parent;
@@ -220,9 +220,13 @@ function authorizedLocation(spec, value) {
   const authorizedRoot = spec.writable_root_paths.find((root) => atOrInside(root, value));
   if (!authorizedRoot) return false;
   const ancestor = nearestExistingAncestor(value);
-  let realRoot;
-  try { realRoot = fs.realpathSync(authorizedRoot); } catch { return false; }
-  return !!ancestor && atOrInside(realRoot, ancestor);
+  let realRoot, realProtectedRoot;
+  try {
+    realRoot = fs.realpathSync.native(authorizedRoot);
+    realProtectedRoot = fs.existsSync(protectedRoot) ? fs.realpathSync.native(protectedRoot)
+      : path.join(fs.realpathSync.native(spec.cwd), '.ultra');
+  } catch { return false; }
+  return !!ancestor && atOrInside(realRoot, ancestor) && !atOrInside(realProtectedRoot, ancestor);
 }
 
 function permissionOption(options, kind) {

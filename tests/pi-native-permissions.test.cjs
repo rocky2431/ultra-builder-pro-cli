@@ -24,6 +24,12 @@ test('Pi native calls use the existing immutable write envelope before execution
   assert.equal(decide('write', { path: '../outside.txt' }).allowed, false);
   assert.equal(decide('write', { path: pathToFileURL(path.join(root, 'outside.txt')).href }).allowed, false);
   assert.equal(decide('write', { path: '.ultra/authority.json' }, { ...spec, writable_root_paths: [cwd] }).allowed, false);
+  fs.mkdirSync(path.join(cwd, '.ultra', '.runtime'), { recursive: true });
+  fs.symlinkSync(path.join(cwd, '.ultra'), path.join(writable, 'authority-alias'), 'dir');
+  assert.equal(decide('write', { path: 'src/authority-alias/.runtime/marker' }, { ...spec, writable_root_paths: [cwd] }).allowed, false);
+  if (fs.existsSync(path.join(cwd, '.ULTRA'))) {
+    assert.equal(decide('write', { path: '.ULTRA/.runtime/marker' }, { ...spec, writable_root_paths: [cwd] }).allowed, false);
+  }
   assert.equal(decide('write', { path: 'src/result.txt' }, { ...spec, read_only: true }).allowed, false);
   fs.symlinkSync(root, path.join(writable, 'escape'), 'dir');
   assert.equal(decide('write', { path: 'src/escape/outside.txt' }).allowed, false);

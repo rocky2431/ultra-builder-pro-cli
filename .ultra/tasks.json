@@ -406,6 +406,17 @@
       "context_file": ".ultra/contexts/task-vnext-c-finite-slice.md",
       "trace_to": ".ultra/specs/product.md#requirement-fr-06-bounded-delegation",
       "change_id": "chg-ultra-vnext-c-finite-slice"
+    },
+    {
+      "id": "vnext-d-operational",
+      "title": "Deliver operational bounded factory execution",
+      "type": "feature",
+      "priority": "P0",
+      "status": "in_progress",
+      "dependencies": [],
+      "context_file": ".ultra/contexts/task-vnext-d-operational.md",
+      "trace_to": ".ultra/specs/product.md#requirement-fr-06-bounded-delegation",
+      "change_id": "chg-ultra-vnext-d-operational"
     }
   ]
 }

@@ -8,7 +8,7 @@
       "authority": "read-only",
       "host": "pi",
       "model": "gpt-5.6-sol",
-      "qualification_sha256": "aca139e0e7bd89af788f2865b8ba379ff819c0db7d3be4ecaac93f38c0468bd8"
+      "qualification_sha256": "7b8de936cea42a34d96291e5953a2e0bb43590e90faf0deeea767df2a2bc621b"
     },
     {
       "role_id": "worker-left",
@@ -16,7 +16,7 @@
       "authority": "scoped-write",
       "host": "pi",
       "model": "gpt-5.6-luna",
-      "qualification_sha256": "aca139e0e7bd89af788f2865b8ba379ff819c0db7d3be4ecaac93f38c0468bd8"
+      "qualification_sha256": "7b8de936cea42a34d96291e5953a2e0bb43590e90faf0deeea767df2a2bc621b"
     },
     {
       "role_id": "worker-right",
@@ -24,7 +24,7 @@
       "authority": "scoped-write",
       "host": "pi",
       "model": "gpt-5.6-terra",
-      "qualification_sha256": "aca139e0e7bd89af788f2865b8ba379ff819c0db7d3be4ecaac93f38c0468bd8"
+      "qualification_sha256": "7b8de936cea42a34d96291e5953a2e0bb43590e90faf0deeea767df2a2bc621b"
     },
     {
       "role_id": "reviewer",
@@ -32,7 +32,7 @@
       "authority": "read-only",
       "host": "pi",
       "model": "gpt-6-astra",
-      "qualification_sha256": "aca139e0e7bd89af788f2865b8ba379ff819c0db7d3be4ecaac93f38c0468bd8"
+      "qualification_sha256": "7b8de936cea42a34d96291e5953a2e0bb43590e90faf0deeea767df2a2bc621b"
     }
   ]
 }

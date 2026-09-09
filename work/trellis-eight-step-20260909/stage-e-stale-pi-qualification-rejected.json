@@ -1,0 +1,6 @@
+{
+  "status": "rejected_before_provider",
+  "code": "pi_native_unavailable",
+  "message": "pi_native_unavailable: the current Pi runtime or permission code does not match its qualification",
+  "qualification_attempt": "ubp-pi-product-OfQaaa"
+}
