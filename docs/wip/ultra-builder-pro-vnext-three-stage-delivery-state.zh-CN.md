@@ -12,6 +12,10 @@ Owner 最新明确要求“接下来不用交给claude实现了 全部你自己�
 
 ## 当前 Pi 增量（2026-09-09）
 
+第五步现已恢复。当前组合源的完整检查为799 Node/104 Hook/audit0、pack通过；HOME只读doctor仍为既有degraded。修复了一处把真实工作区全部未提交验收材料作为输入、触发256文件物理上限的测试：复用既有隔离项目fixture，保留全部原断言，未改变产品快照上限。详情见`work/trellis-eight-step-20260909/step5-digest-isolation-acceptance.zh-CN.md`。此修复不代表Stage B验收或任何Host已qualified。
+
+Owner再次明确委派试验/QA沿用Pi，Codex独占实现。实际Pi只读QA已成功（openai-codex/gpt-5.6-luna，71.366s），确认原生`tool_call`支持执行前阻断、现有Ultra尚缺消费接线；精确结论及限制见`step5-pi-capability-qa.zh-CN.md`。PATH中的旧agent-delegate registry无Pi目标，不代表Pi原生不可用。OpenCode临时诊断因token-refresh 401结束，无允许写入、无残留进程；已按Owner纠正停止该分支，不将诊断算资格。第五步仍须保留合法能力与逐项真实拒绝观察，之后才进入C/D/E。
+
 第二步提交`c0371d2`，失败产物归档修正`a29415a`；步骤1–4已完成，接着实施第五步。
 
 Owner已明确授权补Pi原生公共入口和续接，见`work/trellis-eight-step-20260909/pi-entry-authorization.md`。六Host安装/委派资格保持原边界，Pi前台入口不代表Pi ACP qualified。candidate2：F1、F2用途与功能、D2通过；Root真实浏览器操作通过；764Node/104Hook/audit0及pack/Skill通过，HOME只读doctor既有degraded。

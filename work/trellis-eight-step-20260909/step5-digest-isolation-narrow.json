@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "tests/v026-contract.test.cjs"
+  ],
+  "exit_code": 0,
+  "duration_seconds": 18.918246030807495,
+  "acpx_entry": "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs"
+}

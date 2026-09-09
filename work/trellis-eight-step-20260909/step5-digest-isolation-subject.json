@@ -1,0 +1,7 @@
+{
+  "base_head": "2ce287a89f981e2227b7704de0297fe5c8b7c09f",
+  "patch_sha256": "2a9f1295f2813eb4b7d3b77972a2d5743dd47cd42c29bb8863ca6f3fec1cbbf4",
+  "patch": "step5-digest-isolation-subject.patch.gz",
+  "note": "Combined checked source includes retained uncommitted Stage B work; scoped commit accepts only digest test isolation.",
+  "encoding": "gzip; patch_sha256 binds decompressed bytes"
+}

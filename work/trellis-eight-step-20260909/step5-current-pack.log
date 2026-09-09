@@ -1,0 +1,736 @@
+[
+  {
+    "id": "ultra-builder-pro-cli@5.0.2",
+    "name": "ultra-builder-pro-cli",
+    "version": "5.0.2",
+    "size": 463510,
+    "unpackedSize": 1607067,
+    "shasum": "26544daafff94e1c2cb4e8d7c743a3ecbefa0cd2",
+    "integrity": "sha512-k4zpcdtMJfHl3Yt+c6fBWbMTJXGI5iwWmxrMkW8v1NUg44gANs7bL+R84/jx6UPm9hb08Ty3rdT/NWIEG7XP4A==",
+    "filename": "ultra-builder-pro-cli-5.0.2.tgz",
+    "files": [
+      {
+        "path": ".ultra-template/changes/abandoned/.gitkeep",
+        "size": 0,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/changes/active/.gitkeep",
+        "size": 1,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/changes/archive/.gitkeep",
+        "size": 1,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/contexts/TEMPLATE.md",
+        "size": 4952,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/decisions/.gitkeep",
+        "size": 1,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/evidence/.gitkeep",
+        "size": 1,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/north-star.md",
+        "size": 1282,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/project-brief.md",
+        "size": 781,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/research/.gitkeep",
+        "size": 1,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/specs/architecture.md",
+        "size": 2134,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/specs/discovery.md",
+        "size": 1739,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/specs/product.md",
+        "size": 1974,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/specs/research-distillate.md",
+        "size": 1253,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/tasks.json",
+        "size": 55,
+        "mode": 420
+      },
+      {
+        "path": ".ultra-template/test-report.json",
+        "size": 1379,
+        "mode": 420
+      },
+      {
+        "path": "CHANGELOG.md",
+        "size": 86770,
+        "mode": 420
+      },
+      {
+        "path": "LICENSE",
+        "size": 1087,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 31119,
+        "mode": 420
+      },
+      {
+        "path": "README.zh-CN.md",
+        "size": 29779,
+        "mode": 420
+      },
+      {
+        "path": "adapters/_shared/file-ops.cjs",
+        "size": 7101,
+        "mode": 420
+      },
+      {
+        "path": "adapters/_shared/frontmatter.cjs",
+        "size": 1750,
+        "mode": 420
+      },
+      {
+        "path": "adapters/_shared/host-profile.cjs",
+        "size": 261,
+        "mode": 420
+      },
+      {
+        "path": "adapters/_shared/plugin-core.cjs",
+        "size": 9194,
+        "mode": 420
+      },
+      {
+        "path": "adapters/_shared/provenance.cjs",
+        "size": 13462,
+        "mode": 420
+      },
+      {
+        "path": "adapters/_shared/runtime-assets.cjs",
+        "size": 4144,
+        "mode": 420
+      },
+      {
+        "path": "adapters/_shared/validate.cjs",
+        "size": 825,
+        "mode": 420
+      },
+      {
+        "path": "adapters/claude.js",
+        "size": 5850,
+        "mode": 420
+      },
+      {
+        "path": "adapters/codex.js",
+        "size": 15694,
+        "mode": 420
+      },
+      {
+        "path": "adapters/grok.js",
+        "size": 8672,
+        "mode": 420
+      },
+      {
+        "path": "adapters/kimi.js",
+        "size": 8496,
+        "mode": 420
+      },
+      {
+        "path": "adapters/opencode.js",
+        "size": 14960,
+        "mode": 420
+      },
+      {
+        "path": "adapters/zcode.js",
+        "size": 14144,
+        "mode": 420
+      },
+      {
+        "path": "bin/delegate-worker.cjs",
+        "size": 177,
+        "mode": 420
+      },
+      {
+        "path": "bin/delegate.cjs",
+        "size": 242,
+        "mode": 420
+      },
+      {
+        "path": "bin/install.js",
+        "size": 13601,
+        "mode": 493
+      },
+      {
+        "path": "bin/run.cjs",
+        "size": 12768,
+        "mode": 420
+      },
+      {
+        "path": "bin/unified-entry.md",
+        "size": 2920,
+        "mode": 420
+      },
+      {
+        "path": "docs/ARCHITECTURE.md",
+        "size": 16964,
+        "mode": 420
+      },
+      {
+        "path": "docs/ARTIFACT-AUTHORITY.md",
+        "size": 23694,
+        "mode": 420
+      },
+      {
+        "path": "docs/DECISIONS.md",
+        "size": 13551,
+        "mode": 420
+      },
+      {
+        "path": "docs/evals/adversarial-review-2026-08-14.md",
+        "size": 4709,
+        "mode": 420
+      },
+      {
+        "path": "docs/evals/owner-journey-eval-2026-09-05.md",
+        "size": 24307,
+        "mode": 420
+      },
+      {
+        "path": "docs/evals/ultra-5-0-journey-results.md",
+        "size": 7173,
+        "mode": 420
+      },
+      {
+        "path": "docs/evals/ultra-5-0-live-acp-conformance.md",
+        "size": 5221,
+        "mode": 420
+      },
+      {
+        "path": "docs/evals/ultra-5-0-route-journeys.md",
+        "size": 8450,
+        "mode": 420
+      },
+      {
+        "path": "docs/evals/zcode-automation-2026-08-14.md",
+        "size": 5728,
+        "mode": 420
+      },
+      {
+        "path": "docs/PHILOSOPHY.md",
+        "size": 17976,
+        "mode": 420
+      },
+      {
+        "path": "docs/PLUGIN-ISOLATION-CONTRACT.md",
+        "size": 6180,
+        "mode": 420
+      },
+      {
+        "path": "docs/RUNTIME-COMPAT-MATRIX.md",
+        "size": 28605,
+        "mode": 420
+      },
+      {
+        "path": "docs/SKILL-AUTHORING.md",
+        "size": 5618,
+        "mode": 420
+      },
+      {
+        "path": "docs/WORKFLOW-LIFECYCLE.md",
+        "size": 22441,
+        "mode": 420
+      },
+      {
+        "path": "hooks/_common.py",
+        "size": 69680,
+        "mode": 420
+      },
+      {
+        "path": "hooks/adapters/codex.py",
+        "size": 11357,
+        "mode": 420
+      },
+      {
+        "path": "hooks/adapters/grok.py",
+        "size": 4207,
+        "mode": 420
+      },
+      {
+        "path": "hooks/adapters/kimi.py",
+        "size": 5406,
+        "mode": 420
+      },
+      {
+        "path": "hooks/adapters/zcode.py",
+        "size": 8666,
+        "mode": 420
+      },
+      {
+        "path": "hooks/block_dangerous_commands.py",
+        "size": 7943,
+        "mode": 420
+      },
+      {
+        "path": "hooks/compact_context.py",
+        "size": 7756,
+        "mode": 420
+      },
+      {
+        "path": "hooks/mid_workflow_recall.py",
+        "size": 6134,
+        "mode": 420
+      },
+      {
+        "path": "hooks/post_edit_guard.py",
+        "size": 7207,
+        "mode": 420
+      },
+      {
+        "path": "hooks/README.md",
+        "size": 4856,
+        "mode": 420
+      },
+      {
+        "path": "hooks/session_context.py",
+        "size": 26936,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 2609,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-change/references/change-contract.md",
+        "size": 9860,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-change/references/execution-grant.md",
+        "size": 6113,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-change/references/primary-transfer.md",
+        "size": 17056,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-change/scripts/validate_primary_transfer.cjs",
+        "size": 87660,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-change/SKILL.md",
+        "size": 11850,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/patches/zcode-acp-0.1.0-zcode-0.16.5.patch",
+        "size": 30555,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/references/delegation-contract.md",
+        "size": 15982,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/acp-conformance.cjs",
+        "size": 11783,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/acp-driver.cjs",
+        "size": 31858,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/agent-execution-driver.cjs",
+        "size": 45257,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/cli-driver.cjs",
+        "size": 3848,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/delegate_wait.py",
+        "size": 3642,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/delegate-profiles/kimi-read-only.md",
+        "size": 446,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/delegate-profiles/kimi-write.md",
+        "size": 515,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/delegate-worker.cjs",
+        "size": 21335,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/delegate.cjs",
+        "size": 63767,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/scripts/host-profile.cjs",
+        "size": 42255,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-delegate/SKILL.md",
+        "size": 20084,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-deliver/references/baseline-reconciliation.md",
+        "size": 1510,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-deliver/SKILL.md",
+        "size": 13323,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-dev/references/debugging.md",
+        "size": 1242,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-dev/SKILL.md",
+        "size": 21101,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-domain-modeling/SKILL.md",
+        "size": 3253,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-grilling/references/reframing.md",
+        "size": 5166,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-grilling/SKILL.md",
+        "size": 8375,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-init/references/brownfield-adoption.md",
+        "size": 1583,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-init/scripts/init_project.cjs",
+        "size": 30990,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-init/SKILL.md",
+        "size": 12956,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-plan/references/task-evidence-v2.md",
+        "size": 15477,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-plan/scripts/validate_task_evidence.cjs",
+        "size": 35383,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-plan/SKILL.md",
+        "size": 13224,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/00-problem-validation.md",
+        "size": 1342,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/01-opportunity-discovery.md",
+        "size": 1129,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/02-market-assessment.md",
+        "size": 1180,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/03-alternatives.md",
+        "size": 1072,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/04-product-strategy.md",
+        "size": 1654,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/05-assumptions-validation.md",
+        "size": 1142,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/10-user-personas.md",
+        "size": 1016,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/11-user-scenarios.md",
+        "size": 971,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/20-user-stories.md",
+        "size": 1040,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/21-features-scope.md",
+        "size": 1988,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/22-success-metrics.md",
+        "size": 1864,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/30-architecture-context.md",
+        "size": 1028,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/31-solution-strategy.md",
+        "size": 1040,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/32-building-blocks.md",
+        "size": 1035,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/40-deployment.md",
+        "size": 1065,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/41-quality-risks.md",
+        "size": 1061,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/99-synthesis.md",
+        "size": 3691,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/north-star-v2.md",
+        "size": 10323,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/references/wayfinding.md",
+        "size": 2648,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/scripts/validate_north_star.cjs",
+        "size": 40038,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-research/SKILL.md",
+        "size": 13236,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/adversarial-evaluation.md",
+        "size": 1708,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/code.md",
+        "size": 954,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/comments.md",
+        "size": 644,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/design.md",
+        "size": 641,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/errors.md",
+        "size": 660,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/review-modes.md",
+        "size": 1238,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/spec.md",
+        "size": 930,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/tests.md",
+        "size": 627,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/unified-schema.md",
+        "size": 13405,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/references/worker-packet.md",
+        "size": 11441,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/scripts/review_wait.py",
+        "size": 116234,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-review/SKILL.md",
+        "size": 18026,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-status/references/route-contract.md",
+        "size": 11222,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-status/SKILL.md",
+        "size": 17053,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-tdd/references/templates/feature-flag-default-audit.sh",
+        "size": 2180,
+        "mode": 493
+      },
+      {
+        "path": "skills/ultra-tdd/references/templates/persistence-real.ts",
+        "size": 2385,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-tdd/references/templates/README.md",
+        "size": 1354,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-tdd/references/templates/testcontainer-postgres.py",
+        "size": 2631,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-tdd/references/templates/testcontainer-postgres.ts",
+        "size": 2369,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-tdd/references/templates/vertical-slice.ts",
+        "size": 2315,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-tdd/references/test-execution.md",
+        "size": 1338,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-tdd/SKILL.md",
+        "size": 5336,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-test/references/export-syntax.md",
+        "size": 1186,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-test/scripts/validate_review_transport.cjs",
+        "size": 17470,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-test/scripts/worktree_digest.cjs",
+        "size": 19975,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-test/SKILL.md",
+        "size": 17741,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-think/references/autonomy-boundary.md",
+        "size": 2206,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-think/references/interaction-boundary.md",
+        "size": 2156,
+        "mode": 420
+      },
+      {
+        "path": "skills/ultra-think/SKILL.md",
+        "size": 2686,
+        "mode": 420
+      }
+    ],
+    "entryCount": 144,
+    "bundled": []
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "command": [
+    "npm",
+    "run",
+    "verify:release"
+  ],
+  "exit_code": 1,
+  "duration_seconds": 104.74770307540894,
+  "acpx_entry": "/tmp/ubp-acpx-protocol-root-z4cncgah/runtime/acpx_delegate_entry.cjs"
+}

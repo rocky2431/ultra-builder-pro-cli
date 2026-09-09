@@ -1,0 +1,10 @@
+{
+  "command": [
+    "npm",
+    "pack",
+    "--dry-run",
+    "--json"
+  ],
+  "exit_code": 0,
+  "duration_seconds": 0.449505090713501
+}

@@ -1998,22 +1998,24 @@ test('project template has one canonical v0.26 artifact layout', () => {
 
 test('worktree digest accepts an explicit project from outside the checkout', () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-digest-cwd-'));
+  const { project } = initializeDigestRepository('ubp-digest-explicit-', 'active', 'chg-converge');
   try {
     const result = spawnSync(process.execPath, [
       path.join(SKILLS, 'ultra-test', 'scripts', 'worktree_digest.cjs'),
-      '--project', ROOT,
+      '--project', project,
       '--change-id', 'chg-converge',
     ], { cwd, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const report = JSON.parse(result.stdout);
     assert.equal(report.$schema, 'ultra-worktree-digest-v1');
     assert.equal(report.head, execFileSync(
-      'git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' },
+      'git', ['rev-parse', 'HEAD'], { cwd: project, encoding: 'utf8' },
     ).trim());
     assert.equal(report.change_id, 'chg-converge');
     assert.match(report.intent_digest, /^[0-9a-f]{64}$/u);
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
+    fs.rmSync(project, { recursive: true, force: true });
   }
 });
 

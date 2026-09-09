@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "bin/install.js",
+    "--all",
+    "--global",
+    "--doctor",
+    "--json"
+  ],
+  "exit_code": 2,
+  "duration_seconds": 3.4883179664611816
+}
