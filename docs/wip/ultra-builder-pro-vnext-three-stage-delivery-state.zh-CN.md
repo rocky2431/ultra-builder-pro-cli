@@ -1,6 +1,6 @@
 # Ultra Builder Pro 工厂交付状态
 
-状态：**全部八步继续。步骤1–5完成；Stage B/C已通过独立Task及aggregate Review、实际产品验证和canonical交付。步骤6（D）实施中，步骤7（E）实施中，第八步评测已结束待Owner决定。**
+状态：**全部八步继续。步骤1–5完成；Stage B/C已通过独立Task及aggregate Review、实际产品验证和canonical交付。步骤6（D）与步骤7（E）的当前有界工程实现已提交，运行验收未关闭；第八步评测已结束待Owner决定。**
 
 ## 当前授权与分工
 
@@ -17,8 +17,8 @@ Owner接受八步计划并要求“每完成一个部分 commit，并且更新�
 | 3 上下文与知识往返 | done | step3-acceptance.zh-CN.md；实际导出、维护、全新会话读回和导入 |
 | 4 日常完整体验 | done | step4-acceptance.zh-CN.md，2ce287a；显式恢复与新任务切换 |
 | 5 合格委派与首条工厂 | done | Stage B c8eb8a2、C dea1da2；C Task/aggregate APPROVE，实际canonical产品与公平Solo，step5-acceptance.zh-CN.md及C归档 |
-| 6 可运营工厂 | in_progress | D机制与原生W3已验证；固定V2十次比较结束，重复成功/收益条件未通过 |
-| 7 跨会话持续运行 | in_progress | 原生W4与撤销已观察；公共入口/文档/隔离安装已检查；独立QA修复和较长任务闭环验证中 |
+| 6 可运营工厂 | in_progress（工程已落地，待运行验收） | D机制与原生W3已验证；固定V2十次比较结束，重复成功/收益条件未通过 |
+| 7 跨会话持续运行 | in_progress（工程已落地，待运行验收） | 当前源W4、撤销、去重、公共入口和隔离安装已验证；追加最终Review为INCOMPLETE，机器／网络覆盖和正式交付仍开放 |
 | 8 经评测的策略改进 | in_progress | 24次比较及独立盲审结束；建议拒绝候选，等待Owner明确决定 |
 
 以上验收文件均在`work/trellis-eight-step-20260909/`。Stage A历史接受commit为b765b55，原旅程、失败、反馈和证据不重做。

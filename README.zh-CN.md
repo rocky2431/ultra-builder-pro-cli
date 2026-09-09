@@ -15,6 +15,76 @@ Host 模型仍然是工程师。Ultra 提供可复用的方法和可检查的产
 默认由当前 Agent 单独继续。若要把工作包的写入权移交给另一个 Agent，必须通过
 仓库文件和 Git 完成显式、可验证的转移（OFFER → ACK → RESULT）。
 
+## 当前版本怎样工作
+
+先用自然语言说明目标。宿主模型选择与任务相称的路径，读取相关项目事实，然后持续
+完成请求已覆盖的工作。你不需要选择内部阶段，也不需要逐个操作 Skills。
+
+1. **理解请求。** 清楚的小修直接调查、复现、修改和验证。用途尚不明确的新产品，
+   先问清必要的用途问题，再创建文件。
+2. **使用项目知识。** 读取已接受的意图、共享词汇、决策、任务上下文和 Git diff；
+   把新确认的事实写回原有规范文档，供后续任务使用。小改不需要额外搭建项目骨架。
+3. **选择执行方式。** 默认 Solo。在所有者已授权委派的范围内，Primary 可以请
+   Challenger 检查不确定的接口，也可以对独立工作使用 Factory 批次。角色、模型、
+   可写范围、集成接口和有限预算由 Primary 明确选择。
+4. **执行并核对真实结果。** Worker 在各自 Git worktree 中按范围工作。有限控制器
+   检查准入、启动已列出的任务、等待、处理取消并返回结果。Primary 集成并验证产品，
+   再判断是否值得进入下一轮已授权工作。
+5. **审查、交付并保留连续性。** 按实际影响选择 Review 镜头，在约定预算内修复。
+   保留真实测试和审查证据，更新相关项目文档，说明实际交付。Commit、merge、发布
+   和安装分别遵循对应的所有者授权。
+
+宿主模型负责意图、分解、集成和完成判断；Skills 提供工作方法，适配器接入原生宿主
+能力，有限运行代码管理进程和效果记录。文件与 Git 让工作跨会话延续；没有另一个
+语义调度器替模型决定要做什么产品。
+
+### 这轮在 5.0 基础上增加了什么
+
+| 方面 | 原有基础 | 当前实现 |
+|---|---|---|
+| 入口 | 原生 Skill 路由与文件优先的项目生命周期 | `ubp run` 将原始目标交给 Claude Code 或 Pi，由模型选择相称路径 |
+| 日常开发 | Init / Research / Change / Plan / Dev / Test / Deliver 方法 | 清楚的小修可以保持普通工作；建产品的请求会在初始骨架之后继续推进 |
+| 项目知识 | 规范意图、词汇、决策和恢复文件 | 任务交接与完成时明确读取、维护相关的既有事实 |
+| 委派 | ACP 优先、typed CLI fallback 的有界 Agent 执行 | 已验证的 Pi 执行、角色配置、有限并行批次、工作树管理及模型决定的后续批次 |
+| 等待 | 保留结果供 Primary 检查 | 阻塞返回、同会话通知、独立有限控制器消息；无需空闲模型轮询 |
+| 续接 | 从项目文件和原生会话显式恢复 | 可选持久检查点在旧 Primary 与 Supervisor 停止后，发起一次新 Pi 轮次 |
+
+### 显式续接与无人值守检查点
+
+`--continue` 或 `--resume` 会续接宿主原有会话并重新加载 Ultra。无人值守续接是
+另一条需要明确选择的路径：必须有精确的 durable work-package grant、有效期、撤销
+方式、绑定输入和允许的本地写入范围。当前实现支持**每份 grant 一个检查点、最多
+一次 fresh Pi 轮次**；下一个检查点需要它自身当前有效的授权与预算。
+
+| 返回路径 | Primary 何时收到结果 |
+|---|---|
+| W1 | 当前工具调用等待批次结束并返回 |
+| W2 | 后台等待完成后，在同一存活 Pi 会话里开始新轮次 |
+| W3 | 独立有限控制器向该存活 Pi 会话发送通知 |
+| W4 | 旧 Primary 和 Supervisor 均停止后，有效持久授权允许一个新 Pi 会话消费原结果 |
+
+当前原生批次和检查点资格只覆盖已测试的 Pi runtime／policy 身份。其他宿主安装了
+Skills，不等于获得同样的资格。交付状态未知时会保留事实，不自动重投。明确启用
+macOS 通知时，运行代码记录一次 OS 请求；它不能证明所有者看到了通知。
+
+精确输入和恢复规则见[有限批次](skills/ultra-delegate/references/finite-run-slice.md)、
+[工厂运行方法](skills/ultra-delegate/references/operational-factory.md)与
+[持久授权合同](skills/ultra-delegate/references/durable-checkpoint.md)。
+
+### 工程实现与运行验收状态
+
+当前源码已包含有界工作流和检查点实现、回归检查及隔离安装支持。真实 Pi 运行已
+覆盖并行工作、会话续接、撤销、进程退出及重复事件处理。工程实现、运行验收和发布
+分别记录：
+
+- 在已评测任务上，Factory 相对公平 Solo／手工基线的可重复收益**尚未建立**。
+  按任务是否适合分工决定委派，不宣称普遍更快或更省钱。
+- 完整机器重启与网络分区覆盖、Stage E 正式交付仍未闭合。追加的最终评审返回
+  `INCOMPLETE`，未报告新 P0/P1；这不是验收批准。
+- 已评测策略候选尚未采用，所有者 promote/reject 决定仍待完成；评测不会自行改变默认策略。
+- Package 仍声明 `5.0.2`。这些源码变化不代表已经发布新 npm 包，也不代表已有宿主
+  安装已更新。
+
 ## Ultra Builder Pro 5.0
 
 `5.0.2` 是 Ultra 作为真实软件工程认知对齐 Harness 的当前实现。它保留已接受的
@@ -40,7 +110,7 @@ Grok Build 和 ZCode。六个 profile 都暴露 stable ACP v1 candidate，也都
 ZCode 使用独立安装且锁定源码的 bridge，并保持
 `experimental`。
 
-5.0 明确不加入 daemon、workflow service、语义状态机、A2A 网络、Team Pack、remote
+5.0 明确不加入全局 daemon、workflow service、语义状态机、A2A 网络、Team Pack、remote
 marketplace 或共享权威存储。Package publication 和真实用户安装仍是需要独立核验的
 effects；仅凭 source version 不能证明任一 effect 已经发生。
 
@@ -54,8 +124,8 @@ effects；仅凭 source version 不能证明任一 effect 已经发生。
 - 安全机制开始替产品作语义决定，并把主工作流困住。
 
 Ultra 通过简短、所有者可读的文件，渐进式 Skills，真实验证证据和 Git 恢复来解决
-这些问题。产品不包含数据库、MCP server、语义状态机、生成式 prompt 投影或后台
-daemon。
+这些问题。产品不包含数据库、MCP server、语义状态机、生成式 prompt 投影或默认
+全局 daemon。明确激活的批次与持久检查点使用有限本地进程。
 
 ## 产品表面
 
@@ -81,7 +151,7 @@ daemon。
 | `ultra-grilling` | 每次只问一个关键问题，补齐所有者未明确的意图 |
 | `ultra-domain-modeling` | 在 `CONTEXT.md` 中维护精确的统一语言 |
 | `ultra-tdd` | 证明一条已确认 seam 先红后绿 |
-| `ultra-review` | 运行六个独立 Review lens 并综合 findings |
+| `ultra-review` | 按当前变更选择独立 Review 镜头，在预算内综合 findings |
 | `ultra-think` | 对重要决策进行压力测试并记录持久结果 |
 
 `ultra-status` 是唯一的 router。它根据项目文件、Git 和安装健康状态推断当前 route，
@@ -154,8 +224,10 @@ CONTEXT.md
 .ultra/reviews/
 ```
 
-`.ultra/.runtime/` 和 `.ultra/progress/` 可以从当前权威中删除或重建。精确保留当前
-strict Review session，直到 Test 和 Deliver 都成功消费它；只有在两个消费者都
+这些路径是派生观察，不是执行授权。只有保留证据足够时才能重建；删除运行中的记录
+可能留下执行未知状态，不能因此重启任务。`.ultra/evidence/durable/` 中的持久 activation／
+event claim 保留已发生事实，不授予重投权限。精确保留当前 strict Review session，
+直到 Test 和 Deliver 都成功消费它；只有在两个消费者都
 完成后，才能垃圾回收该 session。如果在两者完成前丢失，必须运行全新的 Review
 和 Test，绝不能重构旧 receipt。
 
@@ -183,6 +255,12 @@ receipts 都是派生证据，不是额外语义文档。
 ## 安装
 
 需要 Node.js 22 或更新版本。
+以下安装命令请求指定版本，不会安装这个源码目录中尚未发布的改动。使用已经安装的
+Pi 试用当前源码时，在本 checkout 中执行：
+
+```bash
+node bin/install.js run --host pi --cwd /path/to/project "说明你的目标"
+```
 
 ```bash
 # 当前项目，单个 Host
@@ -280,7 +358,8 @@ ubp run --dry-run "..."
 还可通过独立有限控制进程向当前 Pi 会话返回消息（W3）。模型选择是否分工、角色配置和下一轮，工作树与预算按当前授权处理；不自动新建会话，也不承诺并行总是更快。
 详见[有限批次契约](skills/ultra-delegate/references/finite-run-slice.md)和[运营工厂方法](skills/ultra-delegate/references/operational-factory.md)。
 明确选择 durable work-package 后，可用 `ultra_durable` 注册[一个长期检查点](skills/ultra-delegate/references/durable-checkpoint.md)：旧会话退出后最多启动一个新 Pi 轮次，受期限、撤销和本地写入范围约束；发送结果未知时不自动重投。
-Pi 不加载 Ultra 的可选 Claude hooks。原六宿主的安装与委派资格支持保持原有范围。
+Pi 不加载 Ultra 的可选 Claude hooks。Pi 是额外的会话入口与已验证原生执行路径，
+不是第七个受管理安装适配器；下文六个适配器仍各自保留精确的兼容性和权限边界。
 
 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间
 的条目，例如 `$ultra-builder-pro:ultra-init`。普通宿主聊天的自动发现属于尽力支持；
@@ -318,7 +397,10 @@ Kimi Code、Grok Build 和 ZCode 当前只提供用户级插件，所以 `--loca
 
 ## 典型工作流
 
-已有项目的日常工作从 `ultra-change` 开始，而不是先进入一次无边界的 Research。
+以下路由描述完整项目生命周期。统一入口只选择当前请求需要的部分；普通有界小修
+不需要重新建立基线，也不必走完全部七个路由。
+
+已有项目的日常工作中，改变已接受产品或规格承诺的请求从 `ultra-change` 开始。
 只有建立首个 baseline，或回答同一 active Change 已记录的有界证据问题时，才直接进入
 `ultra-research`。每次 public transition 都先展示派生的 Route Card，明确当前 Mode、
 Position、可观察 Exit condition、material checkpoint 和 Next route。

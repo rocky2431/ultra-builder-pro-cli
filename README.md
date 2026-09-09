@@ -19,6 +19,93 @@ default is the current Agent continuing alone, and handing the work package's
 writing authority to a different Agent requires an explicit verified transfer
 (OFFER → ACK → RESULT over the repository files and Git).
 
+## How the current workflow runs
+
+Start with a goal in your own words. The host model chooses the smallest useful
+path, reads the relevant project facts, and continues the work your request covers.
+You do not need to choose an internal phase or operate a sequence of Skills.
+
+1. **Understand the request.** A clear fix goes straight to investigation, a
+   reproduced failure, an edit, and verification. A new product with an unclear
+   purpose gets the necessary purpose questions before files are created.
+2. **Use the project's knowledge.** Read the accepted intent, vocabulary, decisions,
+   task context, and Git diff. Record newly established facts in their existing
+   canonical documents so a later task can use them. A small edit needs no extra
+   project scaffold.
+3. **Choose how to execute.** Solo is the default. Within owner-authorized
+   delegation, the Primary may ask a Challenger to examine an uncertain seam or
+   use a Factory wave for independent work. It selects roles, models, writable
+   scopes, the integration seam, and a finite budget.
+4. **Execute and inspect real results.** Scoped Workers use separate Git worktrees.
+   A finite controller checks admission, launches the listed attempts, waits,
+   handles cancellation, and reports their results. The Primary integrates and
+   verifies the product, then decides whether another authorized wave is useful.
+5. **Review, deliver, and preserve continuity.** Select the review lenses the change
+   needs and keep repairs within the declared budget. Retain actual test and review
+   evidence, update the relevant project documents, and report what was delivered.
+   Commits, merges, publication, and installation follow their own owner authority.
+
+The host model owns intent, decomposition, integration, and completion judgement.
+Skills provide working methods; adapters expose native host capabilities; the
+finite runtime owns process and effect bookkeeping. Files and Git carry the work
+between sessions. There is no separate semantic scheduler deciding what to build.
+
+### What this iteration adds to the 5.0 foundation
+
+| Area | Existing foundation | Current implementation |
+|---|---|---|
+| Entry | Native Skill routes and a file-first project lifecycle | `ubp run` carries the original goal into Claude Code or Pi; the model selects a proportionate path |
+| Everyday work | Init / Research / Change / Plan / Dev / Test / Deliver methods | A clear small fix can stay ordinary work; a build request continues beyond its initial scaffold |
+| Project knowledge | Canonical intent, vocabulary, decisions, and recovery files | Task handoff and completion explicitly read and update the relevant existing facts |
+| Delegation | Bounded Agent execution with ACP-first selection and typed CLI fallback | Qualified Pi execution plus role profiles, finite parallel waves, worktree management, and model-led later waves |
+| Waiting | Retained results for the Primary to inspect | Blocking return, same-session attention, and a separate finite controller message; no idle model polling |
+| Continuation | Explicit resumption from project files and native sessions | An opt-in durable checkpoint can start one fresh Pi turn after the old Primary and Supervisor stop |
+
+### Session continuation and unattended checkpoints
+
+An explicit `--continue` or `--resume` resumes the host's own session with Ultra
+loaded again. Unattended continuation is a separate, opt-in path with an exact
+durable work-package grant, expiry, revocation, bound inputs, and allowed local
+writes. The current implementation supports **one checkpoint and at most one fresh
+Pi turn per grant**. Another checkpoint needs its own current authority and budget.
+
+| Return path | When the Primary receives results |
+|---|---|
+| W1 | The current tool call waits and returns the completed wave |
+| W2 | A background wait triggers a new turn in the same live Pi session |
+| W3 | A separate finite controller sends attention to that live Pi session |
+| W4 | After the old Primary and Supervisor stop, a valid durable grant permits one fresh Pi session to consume retained results |
+
+Only the tested Pi runtime and policy identity have the current native wave and
+checkpoint qualification. Other hosts do not inherit it from having Skills
+installed. Unknown delivery is retained and never automatically replayed. With
+explicit macOS notification enabled, the runtime records one OS request; it cannot
+prove the owner saw the notification.
+
+See [finite waves](skills/ultra-delegate/references/finite-run-slice.md),
+[operational use](skills/ultra-delegate/references/operational-factory.md), and
+[the durable grant contract](skills/ultra-delegate/references/durable-checkpoint.md)
+for exact inputs and recovery rules.
+
+### Implementation and validation status
+
+This source tree contains the implemented bounded workflow and checkpoint code,
+regression checks, and isolated installation support. Real Pi runs have exercised
+parallel work, session continuation, revocation, process loss, and duplicate-event
+handling. Engineering implementation, operational acceptance, and release are
+separate states:
+
+- Repeated Factory benefit over fair Solo/manual baselines has **not** been
+  established for the evaluated tasks. Use delegation where the task warrants it;
+  no general speed or cost advantage is claimed.
+- Complete machine-restart and network-partition coverage, and formal Stage E
+  closeout, remain open. The additional final review returned `INCOMPLETE` and
+  reported no new P0/P1; it was not an acceptance approval.
+- The evaluated strategy candidates have not been adopted; their owner
+  promote/reject decision remains open. Evaluation does not rewrite defaults.
+- The package still declares `5.0.2`. These source changes do not prove that an npm
+  package was published or an existing host installation was updated.
+
 ## Ultra Builder Pro 5.0
 
 Version `5.0.2` is the current implementation of Ultra as a cognitive-alignment harness
@@ -49,7 +136,7 @@ and any candidate-identity probes declared by that profile still match; otherwis
 returns a typed CLI fallback. ZCode uses an independently
 installed, source-pinned bridge and remains `experimental`.
 
-5.0 deliberately does not add a daemon, workflow service, semantic state machine, A2A
+5.0 deliberately does not add a global daemon, workflow service, semantic state machine, A2A
 network, Team Pack, remote marketplace, or shared authority store. Package publication
 and real user installation remain independently verifiable effects; a source version
 alone never proves either one occurred.
@@ -65,7 +152,8 @@ Long agentic changes tend to fail in four repeatable ways:
 
 Ultra addresses those failures with short owner-readable files, progressive Skills,
 real verification evidence, and Git recovery. There is no database, MCP server,
-semantic state machine, generated prompt projection, or background daemon.
+semantic state machine, generated prompt projection, or default global daemon.
+Explicitly activated waves and durable checkpoints use finite local processes.
 
 ## Product surface
 
@@ -91,7 +179,7 @@ The package installs exactly fourteen Skills in three roles.
 | `ultra-grilling` | Draw out incomplete owner intent one material question at a time |
 | `ultra-domain-modeling` | Maintain precise ubiquitous language in `CONTEXT.md` |
 | `ultra-tdd` | Prove one confirmed seam red, then green |
-| `ultra-review` | Run six independent review lenses and synthesize findings |
+| `ultra-review` | Select independent review lenses for the current change and synthesize findings within its budget |
 | `ultra-think` | Stress-test consequential decisions and record durable results |
 
 `ultra-status` is the single router. It infers the current route from project files,
@@ -172,8 +260,11 @@ derived:
 .ultra/reviews/
 ```
 
-`.ultra/.runtime/` and `.ultra/progress/` can be deleted or rebuilt from current
-authority. Retain the exact current strict review session until both Test and Deliver
+These paths are derived observations, not execution authority. Rebuild them only
+where retained evidence supports it: deleting live runtime records can leave an
+unknown execution that must not restart. Durable activation/event claims under
+`.ultra/evidence/durable/` preserve occurrence facts; they never grant replay.
+Retain the exact current strict review session until both Test and Deliver
 have successfully consumed it; only then may that session be garbage-collected. If it
 is lost before both consumers finish, run a fresh Review and Test and never reconstruct
 the old receipt.
@@ -201,7 +292,13 @@ snapshots, and delegation receipts are derived evidence, not extra semantic docu
 
 ## Install
 
-Node.js 22 or newer is required.
+Node.js 22 or newer is required. The commands below request the named package
+version; they do not install unpublished changes from this source tree. To try the
+current source with an already installed Pi runtime, run from this checkout:
+
+```bash
+node bin/install.js run --host pi --cwd /path/to/project "describe your goal"
+```
 
 ```bash
 # Current project, one host
@@ -315,7 +412,9 @@ promise that parallel work is always faster. For an explicitly authorized durabl
 work-package, `ultra_durable` supports [one bounded checkpoint and fresh Pi turn](skills/ultra-delegate/references/durable-checkpoint.md),
 with expiry, revocation and no automatic replay of unknown delivery.
 Pi does not load Ultra's optional Claude hooks.
-The six-host installation and delegated-execution qualification surfaces are unchanged.
+Pi is an additional session entry and qualified native execution path; it is not
+a seventh managed installation adapter. The six adapter rows below retain their
+own exact compatibility and permission limits.
 
 Use the host's native Skill picker or invocation syntax to select an owner workflow.
 Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. Discovery in
@@ -357,8 +456,13 @@ installation; all six support managed global installation and isolated
 
 ## Typical workflow
 
-For day-to-day work on an existing project, a new request starts with `ultra-change`,
-not an open-ended Research run. Enter `ultra-research` directly only to establish the
+The routes below describe a complete project lifecycle. The unified entry chooses
+only the parts the current request needs; a routine bounded fix does not require
+a new baseline or all seven routes.
+
+For day-to-day work on an existing project, a request that changes an accepted
+product or specification commitment starts with `ultra-change`. Enter
+`ultra-research` directly only to establish the
 first baseline, or to answer the bounded evidence question recorded by the same active
 Change. Every public transition shows a derived Route Card with its current Mode,
 Position, observable Exit condition, material checkpoint, and Next route.
