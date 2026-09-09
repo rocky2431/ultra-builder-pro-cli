@@ -1,0 +1,32 @@
+* { box-sizing: border-box; }
+:root { color: #17221b; background: #f5f7f2; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { margin: 0; }
+.shell { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; }
+header { margin-bottom: 28px; }
+.eyebrow, .label { color: #597365; font-size: 12px; letter-spacing: .12em; font-weight: 700; margin: 0 0 8px; }
+h1 { font-size: clamp(32px, 7vw, 52px); line-height: 1; margin: 0 0 12px; letter-spacing: -.04em; }
+.subtitle { color: #65736a; margin: 0; }
+.card { background: white; border: 1px solid #e1e8e1; border-radius: 18px; padding: 22px; margin-top: 16px; box-shadow: 0 8px 30px #233b2810; }
+.summary { display: flex; justify-content: space-between; align-items: end; gap: 16px; background: #dcefe1; border-color: #c8e1ce; }
+.summary strong { font-size: 36px; letter-spacing: -.04em; }
+.month-picker { color: #597365; font-size: 13px; font-weight: 600; }
+h2 { font-size: 18px; margin: 0 0 18px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+label { color: #526258; font-size: 13px; font-weight: 600; display: grid; gap: 7px; }
+input { width: 100%; border: 1px solid #d6dfd7; background: #fbfcfa; border-radius: 10px; padding: 11px 12px; color: #17221b; font: inherit; font-size: 14px; }
+input:focus { outline: 3px solid #bce0c5; border-color: #65a974; }
+button { border: 0; border-radius: 10px; background: #236b38; color: white; padding: 12px 18px; font: inherit; font-weight: 700; cursor: pointer; margin-top: 18px; }
+button:hover { background: #18572c; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.section-heading h2 { margin-bottom: 0; }
+.section-heading input { max-width: 220px; }
+.expense-list { list-style: none; padding: 0; margin: 16px 0 0; }
+.expense-item { display: flex; justify-content: space-between; gap: 12px; padding: 15px 0; border-top: 1px solid #edf1ed; }
+.expense-main { min-width: 0; }
+.merchant { font-weight: 750; }
+.meta { color: #758279; font-size: 13px; margin-top: 5px; overflow-wrap: anywhere; }
+.amount { white-space: nowrap; font-weight: 750; }
+.delete { background: transparent; color: #a05252; padding: 4px 0; margin: 5px 0 0 12px; font-size: 12px; }
+.delete:hover { background: transparent; color: #7c3030; text-decoration: underline; }
+.empty { color: #758279; text-align: center; padding: 18px 0 4px; }
+@media (max-width: 560px) { .shell { padding-top: 28px; } .summary { align-items: start; flex-direction: column; } .form-grid { grid-template-columns: 1fr; } .section-heading { align-items: stretch; flex-direction: column; } .section-heading input { max-width: none; } }

@@ -1,6 +1,6 @@
 # Ultra Builder Pro 工厂交付状态
 
-状态：**Owner 于 2026-09-09 接受八步计划并恢复全部实施，要求每部分验收后 commit、更新文档留证。步骤 1、3 已完成；步骤 2 已实现、最终案例验收及步骤 4 收尾被 Claude 周额度 429 阻断；全部尚未完成。Stage A 已验收并提交 `b765b55`；Stage B 待复验与资格；C/D/E 未实施或验收。**
+状态：**全部八步继续实施；Codex独占实现和测试，Pi仅作QA或实际样例执行者。步骤1、2、3完成；Pi入口与用途澄清已实测并独立QA。步骤4的Pi真实恢复发现原测试被意外删除，保留失败并验证最小修正；Stage B待资格，C/D/E尚未开始，全部尚未完成。**
 
 ## 最新作者分工
 
@@ -10,7 +10,13 @@ Owner澄清“换成pi”指当前验证阶段，不是移交后续实现。Code
 
 Owner 最新明确要求“接下来不用交给claude实现了 全部你自己来独立完成”。以 `.ultra/decisions/2026-09-09-root-independent-implementation.md` 为准：Codex 亲自完成后续实现与测试，不再委派实现。原Claude入口任务已cancelled/native cancelled；已有部分改动保留，由Codex检查后接着完成。下文旧分工及任务描述均为历史，不能覆盖新指令。全部八步与分段提交仍继续。
 
-## 最新阻断与恢复点（2026-09-09）
+## 当前 Pi 增量（2026-09-09）
+
+Owner已明确授权补Pi原生公共入口和续接，见`work/trellis-eight-step-20260909/pi-entry-authorization.md`。六Host安装/委派资格保持原边界，Pi前台入口不代表Pi ACP qualified。candidate2：F1、F2用途与功能、D2通过；Root真实浏览器操作通过；764Node/104Hook/audit0及pack/Skill通过，HOME只读doctor既有degraded。
+
+D4实际SIGINT后同会话续接完成，但删除了一条原有回归测试；原始+新测试独立合跑51项通过不替代保留断言要求。Root拒绝独立QA对D4的误判PASS，旧产物与失败完整保留。candidate3补普通工作收尾的起始文件差异核对，冻结后另选新确认请求。当前仍不能宣称第4步或全部完成。详见`pi-candidate2-root-consumption.zh-CN.md`。
+
+## 历史阻断与恢复点（2026-09-09）
 
 独立QA：Pi仅验证的任务已success/end_turn，原生会话`01a08461-707b-7323-8681-493be3b2f793`，实际默认模型openai-codex/gpt-5.6-luna。25/35/21项样例检查与公共操作通过，未发现确定P0/P1；Root消费日志及hash检查。F2-res和D4仍BLOCKED，QA任务完成不等于第二/第四步完成。详见`work/trellis-eight-step-20260909/pi-step2-4-qa.zh-CN.md`。
 
@@ -37,15 +43,15 @@ F2批处理运行虽实际调用正确ultra-init，仍先构建后问个人数�
 | 步骤 | 当前状态 | 验收与提交 |
 |---|---|---|
 | 1 行为基线与真实缺口 | done | 三类五次真实调用、独立验收与原始证据齐备；见 step1-acceptance.zh-CN.md，commit `47f7911` |
-| 2 自然语言与相称工作路径 | implemented / acceptance blocked | 统一CLI及resume、参数边界修复已实现；交互F2-dev通过，F2-res被429阻断；见step2-acceptance |
+| 2 自然语言与相称工作路径 | done（Pi增量） | Pi candidate2真实用途澄清与产品交付、F1/D2及独立QA通过；原Claude429保留，见step2-acceptance |
 | 3 上下文与知识往返 | done | candidate2及公共入口candidate4四环实证；保留现有机制，见step3-acceptance |
-| 4 日常完整体验 | partially verified / blocked | D1自验、D2/D3通过；D4纠正运行的最终收尾被429中断，见step4-current-observation |
+| 4 日常完整体验 | partially verified / Pi recovery correction | D1自验、D2/D3通过；D4纠正运行的最终收尾被429中断，见step4-current-observation |
 | 5 合格委派与首条工厂 | pending | 先接受 B，再完成 C / R2 Step 1 |
 | 6 可运营工厂 | pending | 原 D / R2 Step 2 全部退出条件 |
 | 7 跨会话持续运行 | pending | 原 E 耐久部分，Primary 与 Supervisor 结束后真实恢复 |
 | 8 经评测的策略改进 | pending | baseline/held-out、Owner promote/reject、rollback-ready |
 
-每个部分独立验收并 commit；Codex 协调和验收，实际 CC/Kimi/ZCode 写实现和测试。执行证据写入 `work/trellis-eight-step-20260909/`，当前状态只在本文维护。原 Stage B 未提交修改保留且不混入前四步的提交。新方向不改变 C/D/E 原验收条件，也不代表未知候选已获晋升。
+每个部分独立验收并 commit；Codex亲自实现和编写测试，独立QA可委派；Pi等Agent只可作QA或实际委派试验参与者。执行证据写入 `work/trellis-eight-step-20260909/`，当前状态只在本文维护。原 Stage B 未提交修改保留且不混入前四步的提交。新方向不改变 C/D/E 原验收条件，也不代表未知候选已获晋升。
 
 步骤1已完成：三类五次 native Claude 调用，精确安装/来源、原始回合、产物和独立检查均在 `work/trellis-eight-step-20260909/step1-acceptance.zh-CN.md` 及其证据索引。F1修复6/6、F3前后9/9→12/12；F2有可用功能但漏问实质用途，且五次均没有进入Ultra Skill。因此首项修复是自然语言入口，不是重做Stage A或全量增加上下文。Root隔离完整检查738 Node/104 Hook/audit0；前置runner/yaml修复已commit `ca228b0`。原作者timeout、r1、Node/Python环境错误与所有失败仍保留。预留模型试跑尚未开始。
 
@@ -73,7 +79,7 @@ F1/F3的开发路径在Step1已接受为无需修复，因此candidate3冻结后
 
 ## 角色、授权与约束
 
-- 实现及测试由实际 ZCode、Kimi 或 CC 写；Codex 只协调、审查、运行既有验证、写 Owner/证据文档并统一 commit。同一路径一名 writer。
+- 最新Owner指令：Codex亲自完成全部实现及测试；允许独立QA与实际Agent试验。下文旧作者任务仅保留历史，不授权新的实现委派。同一路径一名writer。
 - 当前完整授权见 `.ultra/decisions/2026-09-05-owner-factory-implementation.md`；Stage B 派发边界见 `.ultra/decisions/2026-09-06-stage-b-implementation-scope.md`。旧 research-only、旧修复轮数耗尽和未授权 commit 的记录已被当前 Owner 指令覆盖，旧失败事实仍有效。
 - 不 push、发布、部署、替换真实 HOME 安装/binary、修改凭据或生产数据；保留其他 checkout 的独立工作。允许当前既有 provider/auth 读取、计费调用与原生会话缓存。
 - C/D/E 不引入语义 daemon/database；模型拥有分解、路由、集成与完成判断。当前全面实施授权不等于对未知持久策略候选的提前晋升。E 的具体候选须先完成 baseline/held-out/rollback-ready，再取得 Owner 的 promote/reject 决定。

@@ -1,0 +1,49 @@
+Pi candidate2 独立 QA 证据
+
+范围：F1-note-slugs、F2-receipts、D2-range、已完成的 D4 resume，以及冻结的 Pi launcher/Init delta。未读取 native private thinking/signature 或完整 TUI log。
+
+1. candidate identity
+- source: /var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/source
+- pi: 0.85.1
+- candidate2 changed_paths SHA-256 全部与 MAIN/pi-entry-candidate2.json 相符（7/7）。
+
+2. disposable product copies
+Commands:
+QA=$(mktemp -d /tmp/ubp-pi-candidate2-qa.XXXXXX)
+cp -a .../trial/F1-note-slugs "$QA/F1-note-slugs"
+cp -a .../trial/D2-range "$QA/D2-range"
+cp -a .../trial/D4-range "$QA/D4-range"
+(cd "$QA/F1-note-slugs" && npm test)
+(cd "$QA/D2-range" && python3 -m unittest test_mnotes -v)
+(cd "$QA/D4-range" && python3 -m unittest test_mnotes -v)
+
+Results:
+- F1: PASS, 5/5 tests; frozen slug and filename assertions were not edited.
+- D2 copy: PASS, 26/26 tests.
+- D4-range copy: PASS, 26/26 tests.
+- Source copies were disposable; originals remained untouched.
+
+3. independent D2 inclusive range operation in a disposable copy
+Created 2026-09-01, 2026-09-05, and out-of-range 2026-09-06 records, then ran:
+python3 mnotes.py --db <temp>/manual.db list --from 2026-09-01 --to 2026-09-05
+Observed only 2026-09-05 and 2026-09-01, both endpoints included; 2026-09-06 absent: PASS.
+Existing test suite also covers keyword, date, persistence/import and invalid/reversed ranges.
+
+4. F2 localStorage app inspection
+- app.js uses localStorage key personal-ledger-expenses-v1; save/load, month total by date prefix, merchant case-insensitive search, delete and HTML escaping are wired.
+- index.html exposes merchant/amount/date/note, month selector and merchant search.
+- The authorized root browser evidence actually used HTTP and observed synthetic September 12.34 + 27.66, August 100, merchant search, reload persistence and month selection. Direct file URL remained blocked by browser URL policy and is UNTESTED; no claim of direct-file browser execution.
+- No additional browser run claimed here.
+
+5. D4 resume evidence
+- D4-resume-result.json exists; no Pi process remained when checked.
+- interruption observation: first successful native tool result, 10s dwell, active process, one SIGINT, process group empty after signal, pre-signal and stopped manifests byte-identical. This proves active-turn recovery only, not partial product-file recovery.
+- Resume request uses same native session with Pi --session mapping, no repeated original task, and owner continuation.
+- D4-range/mnotes.py changed from stopped artifact and implements inclusive SQL predicates occurred_on >= start and <= end; its copied 26-test suite passed. The resulting D4 data remained valid and existing find behavior returned no false two-keyword match.
+
+6. launcher/Init checks
+Commands:
+node --test tests/unified-entry.test.cjs
+Results: PASS, 14/14, including Pi packaged Skills, --continue, native --session resume, --config-dir refusal, argv preservation and no-launch failures.
+
+Review conclusion: no concrete P0/P1 regression found in this bounded scope. P2/P3: direct-file URL behavior is UNTESTED due browser safety policy (documented limitation, not a product failure); D4 interruption does not establish recovery of partially written files (protocol limitation explicitly retained). No repairs made.

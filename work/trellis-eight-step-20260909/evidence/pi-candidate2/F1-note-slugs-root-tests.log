@@ -1,0 +1,17 @@
+
+> trellis-daily-f1r-note-slugs@1.0.0 test
+> node --test test/slug.test.js test/filenames.test.js
+
+✔ different titles never share a note filename (0.447916ms)
+✔ an ASCII title keeps its current slug (0.424542ms)
+✔ a non-ASCII title produces a non-empty slug (0.093333ms)
+✔ two different non-ASCII titles produce different slugs (0.052959ms)
+✔ the same title always produces the same slug (0.042334ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39.420125

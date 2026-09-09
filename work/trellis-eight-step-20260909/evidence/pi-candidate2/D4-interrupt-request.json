@@ -1,0 +1,26 @@
+{
+  "created_at": "2026-09-09T04:54:55.849532+00:00",
+  "argv": [
+    "node",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/source/bin/install.js",
+    "run",
+    "--host",
+    "pi",
+    "--cwd",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/D4-range",
+    "--host-arg=--mode",
+    "--host-arg=json",
+    "--host-arg=--print",
+    "--host-arg=--session",
+    "--host-arg=/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/D4-range.session.jsonl",
+    "--host-arg=--append-system-prompt",
+    "--host-arg=Work only on the supplied request within the current project directory and temporary scratch space. Read the loaded Ultra Skills as needed, but do not inspect personal documents or other workspaces. Existing provider authentication and native session caches are available runtime facilities. Do not install or change real HOME configuration, credentials, publish, purchase or touch production. Keep product files and sample data inside this project.",
+    "--",
+    "这个会议记录的小工具我用了几天了。现在攒的条数多了，我想看某一段时间里记的东西。"
+  ],
+  "cwd": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/D4-range",
+  "source_artifact": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-unified-entry-trial-04yth2n1/D1-owner-operation-clean-04yth2n1",
+  "owner_message": "这个会议记录的小工具我用了几天了。现在攒的条数多了，我想看某一段时间里记的东西。",
+  "session_file": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/D4-range.session.jsonl",
+  "purpose": "D4 real interruption, first successful tool completion plus 10 second dwell"
+}

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>我的账单</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <p class="eyebrow">PERSONAL LEDGER</p>
+      <h1>我的账单</h1>
+      <p class="subtitle">只保存在这台设备上，不连接银行或邮箱。</p>
+    </header>
+
+    <section class="summary card" aria-labelledby="summary-title">
+      <div>
+        <p id="summary-title" class="label">本月总支出</p>
+        <strong id="month-total">¥0.00</strong>
+      </div>
+      <label class="month-picker">查看月份
+        <input id="month-filter" type="month">
+      </label>
+    </section>
+
+    <section class="card" aria-labelledby="add-title">
+      <h2 id="add-title">记一笔</h2>
+      <form id="expense-form">
+        <div class="form-grid">
+          <label>商家<input name="merchant" required maxlength="80" placeholder="例如：盒马"></label>
+          <label>金额（元）<input name="amount" required inputmode="decimal" type="number" min="0.01" step="0.01" placeholder="0.00"></label>
+          <label>日期<input name="date" required type="date"></label>
+          <label>备注（可选）<input name="note" maxlength="120" placeholder="例如：晚餐"></label>
+        </div>
+        <button type="submit">保存记录</button>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="records-title">
+      <div class="section-heading">
+        <h2 id="records-title">消费记录</h2>
+        <input id="merchant-search" type="search" placeholder="按商家搜索" aria-label="按商家搜索">
+      </div>
+      <p id="empty-state" class="empty">还没有符合条件的记录。</p>
+      <ul id="expense-list" class="expense-list"></ul>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

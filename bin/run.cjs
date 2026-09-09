@@ -43,6 +43,14 @@ const HOSTS = Object.freeze({
     ],
     resume: 'ubp run --continue "<follow-up>" (keep the same plugin and working directory)',
   }),
+  pi: Object.freeze({
+    binary: 'pi',
+    // Explicit Skills are session-local; Pi owns discovery, questions and storage.
+    argv: ({ pluginRoot, prompt, hostArgs }) => [
+      '--skill', path.join(pluginRoot, 'skills'), ...hostArgs, '--', prompt,
+    ],
+    resume: 'ubp run --host pi --continue "<follow-up>" (or --resume <session-id-or-path>)',
+  }),
 });
 
 class RunError extends Error {
@@ -60,9 +68,9 @@ function usage() {
   route; you never choose an Ultra mode or Skill.
 
   Options:
-    --host <name>        interactive host to start (default: claude)
+    --host <name>        claude (default) or pi
     -c, --config-dir <dir>
-                         find the managed plugin under this config directory
+                         find the managed Claude plugin under this config directory
     --plugin-dir <dir>   use this managed plugin directory
     --continue          continue the last native session in the working directory
     --resume <id>       resume a named native session, loading the same plugin
@@ -75,6 +83,7 @@ function usage() {
 
   Examples:
     ubp run "fix the CSV export mojibake in the report writer"
+    ubp run --host pi "build me something to tidy my notes"
     ubp run --config-dir ./.ubp-isolated "build me something to tidy my notes"
     echo "$GOAL" | ubp run -
     ubp run --dry-run --json "..." | jq .
@@ -158,7 +167,9 @@ function parseRunArgs(input) {
     throw new RunError('use either --continue or --resume, not both');
   }
   if (options.continue) options.hostArgs.push('--continue');
-  if (options.resume !== null) options.hostArgs.push('--resume', options.resume);
+  if (options.resume !== null) {
+    options.hostArgs.push(options.host === 'pi' ? '--session' : '--resume', options.resume);
+  }
   options.goal = goalWords.join(' ');
   return options;
 }
@@ -189,13 +200,19 @@ function resolveGoal(options, io) {
 
 function resolvePlugin(options) {
   const host = HOSTS[options.host];
+  if (options.host === 'pi' && options.configDir) {
+    throw new RunError('Pi uses the packaged Skills, not --config-dir', 'use --plugin-dir for a generated portable plugin');
+  }
+  const bundled = options.host === 'pi' && !options.pluginDir;
   const explicit = options.pluginDir
     ? path.resolve(options.pluginDir)
-    : host.adapter.resolvePluginRoot({
+    : bundled ? path.resolve(__dirname, '..') : host.adapter.resolvePluginRoot({
       configDir: options.configDir ? path.resolve(options.configDir) : undefined,
       scope: 'global',
     });
-  const manifestFile = path.join(explicit, '.claude-plugin', 'plugin.json');
+  const manifestFile = bundled
+    ? path.join(explicit, 'package.json')
+    : path.join(explicit, '.claude-plugin', 'plugin.json');
   if (!fs.existsSync(manifestFile)) {
     throw new RunError(
       `no managed Ultra plugin at ${explicit}`,
@@ -209,9 +226,10 @@ function resolvePlugin(options) {
     throw new RunError(`unreadable plugin manifest at ${manifestFile}: ${error.message}`);
   }
   const managed = managedMetadata(explicit);
-  if (manifest.name !== host.adapter.PLUGIN_NAME) {
+  const expectedName = bundled ? pkg.name : claudeAdapter.PLUGIN_NAME;
+  if (manifest.name !== expectedName) {
     throw new RunError(
-      `${manifestFile} declares plugin "${manifest.name}", not ${host.adapter.PLUGIN_NAME}`,
+      `${manifestFile} declares plugin "${manifest.name}", not ${expectedName}`,
     );
   }
   return {

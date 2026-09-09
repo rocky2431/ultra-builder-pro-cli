@@ -1,0 +1,24 @@
+{
+  "created_at": "2026-09-09T04:47:00.871848+00:00",
+  "argv": [
+    "node",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry-klujf0kc/source/bin/install.js",
+    "run",
+    "--host",
+    "pi",
+    "--cwd",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry-klujf0kc/trial/F2-receipts",
+    "--host-arg=--mode",
+    "--host-arg=json",
+    "--host-arg=--print",
+    "--resume",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry-klujf0kc/trial/F2-receipts.session.jsonl",
+    "--host-arg=--append-system-prompt",
+    "--host-arg=Work only on the supplied request within the current project directory and temporary scratch space. Read the loaded Ultra Skills as needed, but do not inspect personal documents or other workspaces. Existing provider authentication and native session caches are available runtime facilities. Do not install or change real HOME configuration, credentials, publish, purchase or touch production. Keep product files and sample data inside this project.",
+    "--",
+    "先手动录入就好，不连邮箱，也不读取我手机或邮箱里的文件。"
+  ],
+  "owner_message": "先手动录入就好，不连邮箱，也不读取我手机或邮箱里的文件。",
+  "operator_branch": "answer only asked data-source boundary; do not supply unasked bookkeeping purpose or desired features",
+  "expected_native_session_id": "01a0847c-208c-719f-b537-3c491369c895"
+}

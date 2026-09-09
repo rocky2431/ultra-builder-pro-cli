@@ -1,0 +1,23 @@
+{
+  "created_at": "2026-09-09T04:51:46.035282+00:00",
+  "argv": [
+    "node",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/source/bin/install.js",
+    "run",
+    "--host",
+    "pi",
+    "--cwd",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/F1-note-slugs",
+    "--host-arg=--mode",
+    "--host-arg=json",
+    "--host-arg=--print",
+    "--host-arg=--session",
+    "--host-arg=/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/F1-note-slugs.session.jsonl",
+    "--",
+    "这个笔记工具有个 bug：标题全是中文的笔记，存出来的文件名都一样，互相覆盖了。先复现再修，修完给我证据。"
+  ],
+  "cwd": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/F1-note-slugs",
+  "owner_message": "这个笔记工具有个 bug：标题全是中文的笔记，存出来的文件名都一样，互相覆盖了。先复现再修，修完给我证据。",
+  "source_fixture": "f1r-note-slugs-workcopy-v1",
+  "session_file": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/F1-note-slugs.session.jsonl"
+}

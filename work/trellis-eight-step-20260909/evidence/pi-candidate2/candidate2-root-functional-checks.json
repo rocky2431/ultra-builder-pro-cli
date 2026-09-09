@@ -1,0 +1,149 @@
+{
+  "checked_at": "2026-09-09T04:59:25.178074+00:00",
+  "checks": [
+    {
+      "case": "F1-note-slugs",
+      "argv": [
+        "npm",
+        "test"
+      ],
+      "exit_code": 0
+    },
+    {
+      "case": "D2-range",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "test_mnotes",
+        "-v"
+      ],
+      "exit_code": 0
+    },
+    {
+      "case": "F1",
+      "frozen_file": "test/slug.test.js",
+      "unchanged": true
+    },
+    {
+      "case": "F1",
+      "frozen_file": "test/filenames.test.js",
+      "unchanged": true
+    },
+    {
+      "case": "D2",
+      "original_methods_preserved": 28,
+      "new_methods": 1
+    },
+    {
+      "case": "D2",
+      "independent_operations": [
+        {
+          "argv": [
+            "python3",
+            "mnotes.py",
+            "--db",
+            "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-range-qa-hps7k42l/notes.db",
+            "add",
+            "-d",
+            "2026-09-01",
+            "-m",
+            "QA first boundary"
+          ],
+          "stdout": "已存 #1  2026-09-01  QA first boundary\n",
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "python3",
+            "mnotes.py",
+            "--db",
+            "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-range-qa-hps7k42l/notes.db",
+            "add",
+            "-d",
+            "2026-09-05",
+            "-m",
+            "QA last boundary"
+          ],
+          "stdout": "已存 #2  2026-09-05  QA last boundary\n",
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "python3",
+            "mnotes.py",
+            "--db",
+            "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-range-qa-hps7k42l/notes.db",
+            "add",
+            "-d",
+            "2026-09-09",
+            "-m",
+            "QA excluded later"
+          ],
+          "stdout": "已存 #3  2026-09-09  QA excluded later\n",
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "python3",
+            "mnotes.py",
+            "--db",
+            "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-range-qa-hps7k42l/notes.db",
+            "list",
+            "--from",
+            "2026-09-01",
+            "--to",
+            "2026-09-05"
+          ],
+          "stdout": "#2  2026-09-05  QA last boundary\n#1  2026-09-01  QA first boundary\n",
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "python3",
+            "mnotes.py",
+            "--db",
+            "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-range-qa-hps7k42l/notes.db",
+            "find",
+            "first"
+          ],
+          "stdout": "#1  2026-09-01  QA first boundary\n    QA first boundary\n\n共 1 条。\n",
+          "exit_code": 0
+        }
+      ]
+    }
+  ],
+  "F2_browser": {
+    "host": "Codex in-app browser",
+    "origin": "http://127.0.0.1:56294",
+    "direct_file_url": "blocked by Browser Use URL policy; not tested or circumvented",
+    "operations": [
+      {
+        "action": "add QA咖啡 12.34 dated2026-09-03",
+        "observed": "month total¥12.34; dated row visible"
+      },
+      {
+        "action": "add QA书店27.66 dated2026-09-04",
+        "observed": "month total¥40.00"
+      },
+      {
+        "action": "add QA旧账100 dated2026-08-31",
+        "observed": "September total remains¥40.00"
+      },
+      {
+        "action": "search QA咖啡",
+        "observed": "one row with2026-09-03and¥12.34; totalstill¥40.00"
+      },
+      {
+        "action": "reload",
+        "observed": "allthree rows retained;Septembertotal¥40.00"
+      },
+      {
+        "action": "selectAugust",
+        "observed": "Augusttotal¥100.00"
+      }
+    ],
+    "visual_render_inspected": true,
+    "limitation": "Direct file launch documented by sample README is unverified due tool URL policy. Functional browser operations verified on local static HTTP origin."
+  }
+}

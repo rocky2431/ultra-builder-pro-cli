@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "pi",
+    "--mode",
+    "json",
+    "--print",
+    "--session",
+    "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/trellis-eight-step-20260909/pi-candidate2-qa.session.jsonl",
+    "--",
+    "@/Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/trellis-eight-step-20260909/pi-candidate2-qa-mission.md"
+  ],
+  "scope": "QA only, no implementation"
+}

@@ -46,6 +46,8 @@ fi
 exit "\${UBP_TEST_EXIT_CODE:-0}"
 `);
 fs.chmodSync(path.join(HOST_BIN, 'claude'), 0o755);
+fs.copyFileSync(path.join(HOST_BIN, 'claude'), path.join(HOST_BIN, 'pi'));
+fs.chmodSync(path.join(HOST_BIN, 'pi'), 0o755);
 
 function run(args, options = {}) {
   return spawnSync(process.execPath, [CLI, 'run', ...args], {
@@ -152,6 +154,46 @@ test('continuation and named resume keep loading the selected plugin', () => {
   const conflicting = run(['--plugin-dir', PLUGIN_ROOT, '--continue', '--resume', 'id', 'finish']);
   assert.notEqual(conflicting.status, 0);
   assert.match(conflicting.stderr, /--continue or --resume/u);
+});
+
+test('Pi starts with the packaged Skills without a separate host installation', () => {
+  const goal = '整理我的收据，先弄清楚用途';
+  const result = run(['--host', 'pi', '--dry-run', '--json', goal]);
+  assert.equal(result.status, 0, result.stderr);
+  const planned = JSON.parse(result.stdout);
+  assert.equal(planned.command, 'pi');
+  assert.equal(planned.plugin.root, ROOT);
+  assert.deepEqual(planned.args, ['--skill', path.join(ROOT, 'skills'), '--', planned.prompt]);
+  assert.ok(planned.prompt.endsWith(`\n\n${goal}`));
+  assert.match(planned.resume, /--host pi --continue/u);
+
+  const started = run(['--host', 'pi', goal], {
+    env: { UBP_TEST_READ_STDIN: '1', UBP_TEST_EXIT_CODE: '3' },
+    input: 'personal bookkeeping only\n',
+  });
+  assert.equal(started.status, 3);
+  assert.deepEqual(receipt().args, planned.args);
+  assert.equal(receipt().answer, 'personal bookkeeping only');
+});
+
+test('Pi reloads the chosen portable Skills and uses its native session selector', () => {
+  const continued = dryRun(['--host', 'pi', '--continue', 'continue']);
+  assert.deepEqual(continued.args, [
+    '--skill', path.join(PLUGIN_ROOT, 'skills'), '--continue', '--', continued.prompt,
+  ]);
+  const resumed = dryRun(['--host', 'pi', '--resume', '/tmp/pi-session.jsonl', 'finish']);
+  assert.deepEqual(resumed.args, [
+    '--skill', path.join(PLUGIN_ROOT, 'skills'), '--session', '/tmp/pi-session.jsonl', '--', resumed.prompt,
+  ]);
+  assert.ok(!resumed.args.includes('--resume'), 'Pi --resume opens a chooser rather than naming the session');
+});
+
+test('Pi does not interpret a Claude config directory as a Pi installation', () => {
+  fs.rmSync(RECEIPT, { force: true });
+  const refused = run(['--host', 'pi', '--config-dir', CONFIG_DIR, 'a goal']);
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /Pi.*--config-dir/u);
+  assert.equal(fs.existsSync(RECEIPT), false);
 });
 
 test('unsupported hosts, missing plugins, and bad options fail before any launch', () => {

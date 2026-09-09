@@ -1,0 +1,16 @@
+# Independent QA of new Pi daily candidate
+
+Original Owner instructions: “你现在委派给pi也可以，就是说如果你要去做委派试验的话，你可以委派。但是实现是你来实现，你不要给到任何人去实现，就是代码和整个实现这块是由你来完成。” “验证你可以做。你验证的时候，如果需要委派给其他的 QA，你委派过去也可以。” The Owner also explicitly approved adding Pi native entry/resume: “允许，允许，允许，就是要补上啊，就是要补上啊！”
+
+You are QA only. Codex authors all Ultra source and tests. Do not implement or repair anything. This is a new candidate and new Pi-host trial, not a reinterpretation of the old Claude weekly quota failures. Source is the sibling source directory of TRIAL below; hashes are in MAIN/pi-entry-candidate2.json. Read that file, its frozen patch, and TRIAL/pi-daily-protocol-delta.md first. Do not read private thinking/signature blocks in native sessions or full TUI logs. Read operational files and actual product artifacts. Existing F1/F2 cases have been seen during development; do not call them blind held-out.
+
+TRIAL = /var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial
+MAIN = /Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/trellis-eight-step-20260909
+
+Verify F1-note-slugs, F2-receipts, D2-range in disposable copies; preserve originals and assertions. F1 original request: “这个笔记工具有个 bug：标题全是中文的笔记，存出来的文件名都一样，互相覆盖了。先复现再修，修完给我证据。” F2 original request: “我手机里和邮箱里的收据、账单一堆，帮我弄个能管起来的小东西吧。” After Pi asked purpose, frozen answer was “自己记账用，不报销，也不要连银行或邮箱。我想知道这个月一共花了多少，还能按商家找回某一笔。” D2 original request: “这个会议记录的小工具我用了几天了。现在攒的条数多了，我想看某一段时间里记的东西。”
+
+Operate CLI artifacts using README/public interfaces and existing checks, including persistence, non-colliding Chinese names and unchanged ASCII compatibility, range inclusive endpoints and old keyword/date behavior. Inspect F2 localStorage app and test logic with installed tools if possible; do not claim a browser run without doing one. Root already used an actual browser on HTTP and entered synthetic 12.34+27.66 September rows and 100 August row; merchant search, reload and month selection passed. Direct file URL was denied by browser URL safety policy and remains UNTESTED; do not circumvent that policy or try alternate URL/browser routes. No need to repeat that attempted access.
+
+Review the small frozen Ultra launcher/Init delta for concrete P0/P1 regression risks, including same native Pi session continuation, scope and existing mode/grant compatibility. No whole-repo audit or full release rerun. If D4-resume-result.json exists when you reach D4, also verify D4-range in a disposable copy and inspect D4-interrupt-observation.json / D4-resume-request.json: no files had changed at interruption; this proves active-turn recovery only, not recovery of partially written product files. Native process group was empty before same-session resume. If still running, mark D4 pending without interfering.
+
+Write MAIN/pi-candidate2-qa.zh-CN.md and supporting logs only under MAIN/pi-candidate2-qa-evidence. Disposable copies under a new temp directory are allowed. Do not modify Ultra source/tests/status/other evidence, run provider calls or other workers, install, publish, commit, or change real HOME. Report PASS/FAIL/BLOCKED/UNTESTED, exact commands, artifact hashes, concrete P0/P1 or none, P2/P3 without repairs. Bound this to the stated verification and finish.

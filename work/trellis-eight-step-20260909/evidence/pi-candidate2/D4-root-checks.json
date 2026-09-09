@@ -1,0 +1,11 @@
+{
+  "original_methods_preserved": false,
+  "missing": [
+    "TestAddAndFind.test_list_shows_newest_day_first"
+  ],
+  "changed": [],
+  "tests_exit": 0,
+  "original_and_new_test_exit": 0,
+  "original_and_new_test_copy": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d4-original-check-_bsfyqt1/sample",
+  "qualification": "FAIL: removed original newest-day-first regression; functional suite checked separately, no retrospective pass"
+}

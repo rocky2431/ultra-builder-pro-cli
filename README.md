@@ -275,6 +275,7 @@ real Host homes.
 # Say what you want; the host model picks the route
 ubp run "fix the CSV export mojibake in the report writer"
 ubp run "build me something to tidy the notes I take in meetings"
+ubp run --host pi "build me something to organize my receipts"
 
 # See the exact command and first prompt without starting anything
 ubp run --dry-run "..."
@@ -287,20 +288,24 @@ an Ultra mode, phase, or Skill name. Stop and exit stay native. Use
 `ubp run --resume <session-id> "finish the interrupted change"` to resume with the
 plugin loaded again. Keep the same working directory and plugin selection.
 
-Useful flags: `--config-dir <dir>` or `--plugin-dir <dir>` to bind a specific managed
+Useful flags: `--config-dir <dir>` (Claude) or `--plugin-dir <dir>` to bind a specific managed
 plugin for the session, `--cwd <dir>` to run somewhere else,
 `--host-arg <arg>` to pass a native host flag
 through, and `-` to read the goal from stdin. `ubp run --help` lists them.
 
-Use the interactive terminal form above when the purpose needs an answer. Native
+Use the interactive terminal form above when the purpose needs an answer. Claude
 `--print` mode has no interactive question tool; a batch run is not evidence that
 intake worked. Piped input also does not provide a terminal for later replies.
 The host may ask once to read a reference under the selected plugin directory;
 that is native file access, separate from deciding the product's purpose.
 
-Interactive launch is implemented for Claude Code today; other hosts are reported as
-unsupported by name rather than approximated, and their installation, Doctor, update, and
-uninstall behavior is unchanged.
+Interactive launch supports Claude Code and Pi. `--host pi` loads the portable Skills
+from this package for the session, so it needs an installed `pi` CLI but no separate
+Ultra installation in Pi. Use `ubp run --host pi --continue "..."` or
+`ubp run --host pi --resume <session-id-or-path> "..."` to reload the same Skills
+and continue through Pi's native session storage. `--plugin-dir` can select an existing
+generated portable plugin instead. Pi does not load Ultra's optional Claude hooks.
+The six-host installation and delegated-execution qualification surfaces are unchanged.
 
 Use the host's native Skill picker or invocation syntax to select an owner workflow.
 Codex exposes namespaced entries such as `$ultra-builder-pro:ultra-init`. Discovery in

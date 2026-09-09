@@ -37,6 +37,14 @@ the repository already answer, and then either ask the few answers that would ch
 you build or record what was already given and continue. A broad complaint is a need, not
 a settled purpose; presuming one is how the wrong product gets built.
 
+An input source, import method or storage choice does not settle that purpose. When the
+request only names material to organize, ask what the owner needs to accomplish with it
+before the first write, including skeleton creation. Do not substitute your own likely
+use case. This Skill's definition of done covers intake only: return to the calling
+agent, which still owns the requested product outcome. Once purpose and scope are clear,
+the caller continues the already requested ordinary implementation; an Init exit alone
+is never the final answer to a request for a working product.
+
 A coarse Host discovery bit never authorizes this route. A model-selected entry is valid
 only when the owner's current request asks for that work, and that request is itself the
 owner entry for it — the route needs no separate confirmation. An installation, a

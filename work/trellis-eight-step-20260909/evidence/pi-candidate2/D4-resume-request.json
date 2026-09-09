@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "node",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/source/bin/install.js",
+    "run",
+    "--host",
+    "pi",
+    "--cwd",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/D4-range",
+    "--host-arg=--mode",
+    "--host-arg=json",
+    "--host-arg=--print",
+    "--resume",
+    "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/D4-range.session.jsonl",
+    "--host-arg=--append-system-prompt",
+    "--host-arg=Work only on the supplied request within the current project directory and temporary scratch space. Read the loaded Ultra Skills as needed, but do not inspect personal documents or other workspaces. Existing provider authentication and native session caches are available runtime facilities. Do not install or change real HOME configuration, credentials, publish, purchase or touch production. Keep product files and sample data inside this project.",
+    "--",
+    "我刚才把你停了。现在继续把这个改动做完，然后告诉我现在做到哪、有没有半成品。"
+  ],
+  "cwd": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/D4-range",
+  "owner_message": "我刚才把你停了。现在继续把这个改动做完，然后告诉我现在做到哪、有没有半成品。",
+  "session_file": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-entry2-14dmc1pp/trial/D4-range.session.jsonl",
+  "protocol": "R-a same native session, no original task repeated"
+}

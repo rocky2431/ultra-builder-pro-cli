@@ -24,6 +24,15 @@ Route by what the request actually is:
 - Real consequential uncertainty about a product commitment — establish the evidence
   before committing to it.
 
+For a new product, a storage or input method is not its purpose. If the owner has only
+named material to organize, first ask what they need to accomplish with it. Do this
+before creating even the project skeleton. Do not supply a likely purpose on their behalf.
+
+An internal Skill's exit is not the owner's completion condition. After Init returns,
+continue the requested product work when its purpose and scope are clear; report only
+the actual usable result or the material unanswered question. Never end a build request
+with only a skeleton and a recommendation that the owner select another Ultra workflow.
+
 The owner's answers and this repository are the sources of fact. Ask about the owner's own
 material — which existing real source of their data to use, an input you cannot observe
 anywhere, any access, integration, or write outside this project — and never invent it or

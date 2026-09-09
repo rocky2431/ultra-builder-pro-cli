@@ -1,10 +1,22 @@
 # 第二步验收：统一自然语言入口与相称路径
 
-结论：**统一入口candidate5已实现、检查通过并提交9c7817d；F2-res实际行为仍被Claude周额度阻断，第二步整体未验收。**Owner 的目标原样经 `ubp run` 进入所选插件，模型选择工作路径；普通宿主聊天的自动发现只作尽力支持。原三个 descriptor 候选与 candidate4 批处理 F2 的失败仍保留，未改判。
+结论：**第二步在新增Pi原生入口范围内验收通过；Claude历史429与失败保持原判。** Codex实现的Pi启动/续接及共享用途澄清改动已在冻结candidate2上实际运行并独立QA核对。普通宿主聊天自动发现仍只作尽力支持。第四步的原测试删除失败单列，不以第二步通过覆盖。
 
 授权与分工：统一入口决定在 `.ultra/decisions/2026-09-09-unified-ultra-entry.md`；后续由 Codex 亲自实现的最新要求在 `2026-09-09-root-independent-implementation.md`。Claude 的未完入口改动被取消后由 Codex 接完。这里的原生 Claude 会话是实际产品试用，不是委派它开发 Ultra。Codex 同时作操作验收，不声称作者与验收者独立。
 
-## 实际改变
+## 最新 Pi 验收增量（2026-09-09）
+
+Owner明确授权补Pi公共入口，见`pi-entry-authorization.md`。`ubp run --host pi`使用包内14个共享Skills，`--resume`映射到Pi原生`--session`；安装与ACP委派的六Host资格不变。Pi默认模型实际为openai-codex/gpt-5.6-luna，没有模型覆盖或凭据切换。
+
+candidate1真实失败：只问输入方式，Owner回答手动录入后写骨架并停在建议Research，未问实质用途。candidate2只修共享入口和Init中的“来源不等于用途”“Init退出不等于产品完成”，保留模式与授权合同。F2真实默认交互在首个写入前询问用途，收到原样冻结答案后交付本地记账工具。Root实际浏览器验证月合计40.00、商家检索、重载持久化及换月100.00；无个人材料或外部连接。直接file URL被浏览器策略拒绝而未测，未规避该限制。既有会议记录D1已由未参与实现的Pi独立操作，本次收据浏览器操作由Root完成，独立QA另外检查接线，二者归属不混淆。
+
+F1中文标题5/5，原断言逐字保留；D2范围26/26，原始方法AST全部保留，Root另测端点、新进程检索和日期。Pi独立QA在副本操作F1/D2并复核7个候选SHA、14项launcher检查，未发现对应P0/P1。该QA曾漏检D4删测试，已追加更正，Root不采纳原D4通过结论。
+
+精确candidate2源码：764 Node、104 Hook、audit0、pack与Init Skill验证通过；真实HOME只读doctor仍既有degraded（exit2），没有安装。包内所需入口和Skills已核对。冻结源/patch、授权、独立QA和Root消费记录分别为`pi-entry-candidate2.*`、`pi-candidate2-qa.zh-CN.md`、`pi-candidate2-root-consumption.zh-CN.md`；原始操作及产物索引`pi-candidate1-evidence-index.json`、`pi-candidate2-evidence-index.json`。计费与模型记录见`pi-daily-runtime-metrics.json`：只记原生标价口径，非实付；Owner主动投入未知，不声称跨Claude/Pi的成本或生产率改善。
+
+以下是此前Claude候选的历史过程与范围，保留原失败，不作为Pi等价性证明。
+
+## 历史实际改变
 
 - 既有 CLI 增加 `run` 子命令，解析所选受管插件并把生产入口说明与原样目标交给原生交互会话。当前启动面只承诺 Claude；六宿主既有安装支持不变。
 - 原生 `--continue` / `--resume` 继续通过相同公共命令加载插件，stdio 和退出状态由宿主返回。没有新增语义调度器、后台服务、数据库或任务权威。

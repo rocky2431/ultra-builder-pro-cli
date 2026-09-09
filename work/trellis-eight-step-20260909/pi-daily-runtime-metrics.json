@@ -1,0 +1,107 @@
+{
+  "candidate2/F1-note-slugs.session.jsonl": {
+    "native_session_id": "01a08481-fbd5-75f6-b652-ca5f1e63f165",
+    "models": [
+      {
+        "type": "model_change",
+        "id": "288ac5ec",
+        "parentId": null,
+        "timestamp": "2026-09-09T04:51:46.329Z",
+        "provider": "openai-codex",
+        "modelId": "gpt-5.6-luna"
+      }
+    ],
+    "first_timestamp": "2026-09-09T04:51:46.262Z",
+    "last_timestamp": "2026-09-09T04:52:36.433Z",
+    "assistant_messages": 7,
+    "native_reported_cost_total": 0.0078876,
+    "cost_scope": "native provider list-price accounting, not actual bill; zero is not evidence of free usage",
+    "owner_active_time": "unknown; scripted operator",
+    "source_input": "scripted owner replay",
+    "host": "Pi 0.85.1"
+  },
+  "candidate2/D2-range.session.jsonl": {
+    "native_session_id": "01a08484-e12c-71d8-a8d4-dcc9ccb39d02",
+    "models": [
+      {
+        "type": "model_change",
+        "id": "f1b4cf98",
+        "parentId": null,
+        "timestamp": "2026-09-09T04:54:56.081Z",
+        "provider": "openai-codex",
+        "modelId": "gpt-5.6-luna"
+      }
+    ],
+    "first_timestamp": "2026-09-09T04:54:56.044Z",
+    "last_timestamp": "2026-09-09T04:56:21.990Z",
+    "assistant_messages": 13,
+    "native_reported_cost_total": 0.01475772,
+    "cost_scope": "native provider list-price accounting, not actual bill; zero is not evidence of free usage",
+    "owner_active_time": "unknown; scripted operator",
+    "source_input": "scripted owner replay",
+    "host": "Pi 0.85.1"
+  },
+  "candidate2/D4-range.session.jsonl": {
+    "native_session_id": "01a0848c-5da5-75d3-807d-91ef3bc2f690",
+    "models": [
+      {
+        "type": "model_change",
+        "id": "e1a36d6b",
+        "parentId": null,
+        "timestamp": "2026-09-09T05:03:06.714Z",
+        "provider": "openai-codex",
+        "modelId": "gpt-5.6-luna"
+      }
+    ],
+    "first_timestamp": "2026-09-09T05:03:06.661Z",
+    "last_timestamp": "2026-09-09T05:05:30.845Z",
+    "assistant_messages": 16,
+    "native_reported_cost_total": 0.01881832,
+    "cost_scope": "native provider list-price accounting, not actual bill; zero is not evidence of free usage",
+    "owner_active_time": "unknown; scripted operator",
+    "source_input": "scripted owner replay",
+    "host": "Pi 0.85.1"
+  },
+  "candidate2/F2-receipts.session.jsonl": {
+    "native_session_id": "01a08481-3374-70bb-b52a-ac791737eca5",
+    "models": [
+      {
+        "type": "model_change",
+        "id": "6627b8e6",
+        "parentId": null,
+        "timestamp": "2026-09-09T04:50:55.002Z",
+        "provider": "openai-codex",
+        "modelId": "gpt-5.6-luna"
+      }
+    ],
+    "first_timestamp": "2026-09-09T04:50:54.964Z",
+    "last_timestamp": "2026-09-09T04:53:41.538Z",
+    "assistant_messages": 10,
+    "native_reported_cost_total": 0.01472968,
+    "cost_scope": "native provider list-price accounting, not actual bill; zero is not evidence of free usage",
+    "owner_active_time": "unknown; scripted operator",
+    "source_input": "scripted owner replay",
+    "host": "Pi 0.85.1"
+  },
+  "candidate3/D4-date-correction.session.jsonl": {
+    "native_session_id": "01a08494-4186-76c1-b7c4-c16d09936522",
+    "models": [
+      {
+        "type": "model_change",
+        "id": "b54bd94c",
+        "parentId": null,
+        "timestamp": "2026-09-09T05:11:43.798Z",
+        "provider": "openai-codex",
+        "modelId": "gpt-5.6-luna"
+      }
+    ],
+    "first_timestamp": "2026-09-09T05:11:43.750Z",
+    "last_timestamp": "2026-09-09T05:13:39.152Z",
+    "assistant_messages": 18,
+    "native_reported_cost_total": 0.02042936,
+    "cost_scope": "native provider list-price accounting, not actual bill; zero is not evidence of free usage",
+    "owner_active_time": "unknown; scripted operator",
+    "source_input": "scripted owner replay",
+    "host": "Pi 0.85.1"
+  }
+}

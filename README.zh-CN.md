@@ -261,17 +261,21 @@ ubp run --dry-run "..."
 `ubp run --resume <session-id> "完成刚才中断的改动"` 续接，同时重新加载插件；
 保留同一工作目录和插件选择。
 
-常用参数：`--config-dir <dir>` 或 `--plugin-dir <dir>` 为本次会话绑定指定的受管插件，
+常用参数：`--config-dir <dir>`（Claude）或 `--plugin-dir <dir>` 为本次会话绑定指定的受管插件，
 `--cwd <dir>` 换工作目录，
 `--host-arg <arg>` 透传一个原生宿主参数，`-` 从 stdin 读取目标。`ubp run --help` 列出全部。
 
-用途尚待回答时，使用上面的交互终端形式。原生 `--print` 模式没有交互提问工具，
+用途尚待回答时，使用上面的交互终端形式。Claude 原生 `--print` 模式没有交互提问工具，
 批处理跑完不能证明用途澄清成功；管道输入也不提供后续回答所需的终端。
 宿主可能要求确认读取所选插件目录里的参考文件，这是原生文件访问确认，
 与决定产品用途是两件事。
 
-交互式启动目前只实现了 Claude Code；其他宿主会按名称明确报告为暂不支持，而不是近似冒充，
-它们的安装、Doctor、更新与卸载行为不变。
+交互式启动支持 Claude Code 和 Pi。`ubp run --host pi "帮我整理收据"` 会为当前会话
+加载包内现有 Skills；需要本机有 `pi`，无需另给 Pi 安装 Ultra。用
+`ubp run --host pi --continue "继续"` 或
+`ubp run --host pi --resume <session-id-or-path> "完成刚才中断的改动"`
+续接并重新加载同一组 Skills。`--plugin-dir` 也可选择已有的生成插件目录。
+Pi 不加载 Ultra 的可选 Claude hooks。原六宿主的安装与委派资格支持保持原有范围。
 
 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间
 的条目，例如 `$ultra-builder-pro:ultra-init`。普通宿主聊天的自动发现属于尽力支持；
