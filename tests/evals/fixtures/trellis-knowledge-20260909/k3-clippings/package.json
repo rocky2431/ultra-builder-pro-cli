@@ -1,0 +1,9 @@
+{
+  "name": "mozhai-clippings",
+  "version": "1.0.0",
+  "private": true,
+  "description": "读书笔记库存：追加式 JSONL 存储、清单与按关键词搜索。",
+  "scripts": {
+    "test": "node --test test/clippings.test.js"
+  }
+}

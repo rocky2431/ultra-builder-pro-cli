@@ -1,0 +1,13 @@
+49cb0ca67b8dc8ed510dc32a4f8d7aa29f21800ea1718af86869cb6254ec5b37  ./fixture/k3-clippings/README.md
+90e93a111896bb6983b3f51053839a4f15b3bd03c66cc8cf55a1c3cfeaafacf3  ./fixture/k3-clippings/data/entries.jsonl
+4555195d082daad43e6213f94bfe1e8a1d2846bac2dd1b49c03ea569c9baf47b  ./fixture/k3-clippings/data/sample-export.txt
+86f861d89a96abf09087d4111b22266175498b1768de0ecf28cdc88de1bc630f  ./fixture/k3-clippings/docs/decisions/2026-08-20-append-only-jsonl.md
+053df7f358629dd414b96448d749d843018ac0c1911e21aa3e239f845c6a180e  ./fixture/k3-clippings/docs/notes/2026-05-09-export-format-v1.md
+56aad3f4c6285ef43a7cf894a4b17c7e663610be7a237a788d9bfbc4d1caee98  ./fixture/k3-clippings/docs/notes/2026-07-03-backup-cadence.md
+8f3cc6b134f75e9a827924e286e4c5d40f58976564abf5f89758709de93d8d89  ./fixture/k3-clippings/docs/tech-notes.md
+7db3724a9e3bc2ee910f9b2c743376b46c1eb6e1ab0e41168f7d19a3ad4f0f3e  ./fixture/k3-clippings/package.json
+ba9b6472b04191aa75f45a082fb9a42f1e7923485bbfcad5a221807abcf86d58  ./fixture/k3-clippings/session2-only/export-2026-09-08.txt
+97e4906b5e70221841da37691035a7abd9e254576b5edf68c3655f885a8bff0c  ./fixture/k3-clippings/src/store.js
+bac3c33c18bda6f5563f7473e7beca3a8e453222e4d3309018b2f95ffaf254e7  ./fixture/k3-clippings/test/clippings.test.js
+c629dae3956f00272c3bb46f5c3e8b29f05f967a5de1767603616ce17dab3ef1  ./step3-evaluation.zh-CN.md
+e6d61d2deefff0cdaa87d8e4d5ee76f2f990fe628409416e0569973c5fa78f9f  ./trellis-knowledge-eval.test.cjs

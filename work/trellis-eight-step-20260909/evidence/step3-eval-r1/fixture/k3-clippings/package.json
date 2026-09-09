@@ -1,0 +1,9 @@
+{
+  "name": "trellis-knowledge-k3-clippings",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frozen K3 fixture for the Step-3 knowledge write-back eval. Green store baseline; the export format facts live only in the data files.",
+  "scripts": {
+    "test": "node --test test/clippings.test.js"
+  }
+}

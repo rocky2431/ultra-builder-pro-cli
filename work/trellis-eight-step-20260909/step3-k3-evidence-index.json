@@ -1,0 +1,229 @@
+{
+  "created_at": "2026-09-09T01:02:35.327999+00:00",
+  "archive": "work/trellis-eight-step-20260909/evidence/step3-k3-operational-evidence.tar.gz",
+  "archive_sha256": "652b54b8cebecdb8fc83365e4193e6e119aa1a270c96a6401b64ed789b89025d",
+  "archive_bytes": 105988,
+  "inventory": [
+    {
+      "path": "runs/K3-session1-request.json",
+      "sha256": "53b43adced60e9b9bb878378f5e18ab49a52d8a6623bca8f551e52b0f136cb31",
+      "bytes": 6459
+    },
+    {
+      "path": "runs/K3-session1.process-result.json",
+      "sha256": "d9b7c591212798b3a257f79108df9c44845944af0c56f3f752ec988ba696a291",
+      "bytes": 131
+    },
+    {
+      "path": "runs/K3-session1.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/K3-session1-root-existing-tests.log",
+      "sha256": "89b0a248fdfedad3d532c2577f521da4bb5b42795bc366c600c369162c6fc433",
+      "bytes": 802
+    },
+    {
+      "path": "runs/K3-session1.operational.jsonl",
+      "sha256": "18537833faa780543267344acd81ac26f5a1ef8a4cd97fffebd19b085a387546",
+      "bytes": 172493
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/README.md",
+      "sha256": "7f71252c908ba2624b24088ada11ddba17602aba84b3a952cb534ed8b0af0ce4",
+      "bytes": 1025
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/data/entries.jsonl",
+      "sha256": "a4686d44492c75f009c9a6d7d80bf7aa4fe977f495b14a1d0d8cf9b88c4e07c7",
+      "bytes": 623
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/data/sample-export.txt",
+      "sha256": "4555195d082daad43e6213f94bfe1e8a1d2846bac2dd1b49c03ea569c9baf47b",
+      "bytes": 379
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/docs/decisions/2026-08-20-append-only-jsonl.md",
+      "sha256": "86f861d89a96abf09087d4111b22266175498b1768de0ecf28cdc88de1bc630f",
+      "bytes": 349
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/docs/notes/2026-05-09-export-format-v1.md",
+      "sha256": "053df7f358629dd414b96448d749d843018ac0c1911e21aa3e239f845c6a180e",
+      "bytes": 519
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/docs/notes/2026-07-03-backup-cadence.md",
+      "sha256": "56aad3f4c6285ef43a7cf894a4b17c7e663610be7a237a788d9bfbc4d1caee98",
+      "bytes": 190
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/docs/tech-notes.md",
+      "sha256": "0206d0789ee8b066198d34deb091dfa35c78165e4962180956db7040c14005e6",
+      "bytes": 1170
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/package.json",
+      "sha256": "f058e2ef79810f8343ea9f2405e1865386da31d5549f50a9994024448fce3091",
+      "bytes": 259
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/src/import.js",
+      "sha256": "d95ec5f9982ac903910457f72f957d68873771a6293e277d7ef364b8c3fe6168",
+      "bytes": 3697
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/src/store.js",
+      "sha256": "97e4906b5e70221841da37691035a7abd9e254576b5edf68c3655f885a8bff0c",
+      "bytes": 1026
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/test/clippings.test.js",
+      "sha256": "30776589bd3a0dd75fc58d4749acef0a2beb98c4047dba8abeb12582784d2464",
+      "bytes": 2477
+    },
+    {
+      "path": "artifacts/K3-session1-x_jye453/test/import.test.js",
+      "sha256": "e8319f3725cd0e48523f6618e7d62800d9f035860829de5d439a89514d98ef25",
+      "bytes": 3110
+    },
+    {
+      "path": "runs/K3-session2-request.json",
+      "sha256": "6ff6a83c471dc4ce8aa5c4297236d8e3ebd67bd397cdb9c195d2ddf5751a6395",
+      "bytes": 3131
+    },
+    {
+      "path": "runs/K3-session2.process-result.json",
+      "sha256": "954a2bcce74e20abc1a71349c27b881b0761ce3e87c0fb1784b4c584f1cd3f1b",
+      "bytes": 131
+    },
+    {
+      "path": "runs/K3-session2.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/K3-session2-root-existing-tests.log",
+      "sha256": "2504da52639f2907a5b102e16689917f8c08fb0ec7d5421e975c314c7775a19c",
+      "bytes": 796
+    },
+    {
+      "path": "runs/K3-session2.operational.jsonl",
+      "sha256": "803c48c0fb0c2d9a2d11303593c3edac5f087cdc5d6fceabbee7334ee00ee949",
+      "bytes": 117571
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/README.md",
+      "sha256": "7f71252c908ba2624b24088ada11ddba17602aba84b3a952cb534ed8b0af0ce4",
+      "bytes": 1025
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/data/entries.jsonl",
+      "sha256": "5bb4d2bfeb2c19eb6e7954635543b523fc8d4fd0cce944349015144f661115b7",
+      "bytes": 1081
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/data/export-2026-09-08.txt",
+      "sha256": "ba9b6472b04191aa75f45a082fb9a42f1e7923485bbfcad5a221807abcf86d58",
+      "bytes": 464
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/data/sample-export.txt",
+      "sha256": "4555195d082daad43e6213f94bfe1e8a1d2846bac2dd1b49c03ea569c9baf47b",
+      "bytes": 379
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/docs/decisions/2026-08-20-append-only-jsonl.md",
+      "sha256": "86f861d89a96abf09087d4111b22266175498b1768de0ecf28cdc88de1bc630f",
+      "bytes": 349
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/docs/notes/2026-05-09-export-format-v1.md",
+      "sha256": "053df7f358629dd414b96448d749d843018ac0c1911e21aa3e239f845c6a180e",
+      "bytes": 519
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/docs/notes/2026-07-03-backup-cadence.md",
+      "sha256": "56aad3f4c6285ef43a7cf894a4b17c7e663610be7a237a788d9bfbc4d1caee98",
+      "bytes": 190
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/docs/tech-notes.md",
+      "sha256": "0206d0789ee8b066198d34deb091dfa35c78165e4962180956db7040c14005e6",
+      "bytes": 1170
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/package.json",
+      "sha256": "f058e2ef79810f8343ea9f2405e1865386da31d5549f50a9994024448fce3091",
+      "bytes": 259
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/src/import.js",
+      "sha256": "d95ec5f9982ac903910457f72f957d68873771a6293e277d7ef364b8c3fe6168",
+      "bytes": 3697
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/src/store.js",
+      "sha256": "97e4906b5e70221841da37691035a7abd9e254576b5edf68c3655f885a8bff0c",
+      "bytes": 1026
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/test/clippings.test.js",
+      "sha256": "30776589bd3a0dd75fc58d4749acef0a2beb98c4047dba8abeb12582784d2464",
+      "bytes": 2477
+    },
+    {
+      "path": "artifacts/K3-session2-x_jye453/test/import.test.js",
+      "sha256": "e8319f3725cd0e48523f6618e7d62800d9f035860829de5d439a89514d98ef25",
+      "bytes": 3110
+    },
+    {
+      "path": "records/step3-k3-freeze.json",
+      "sha256": "35f679d162be79eb9cc39cbbe0057c4af751ac20ed1db2ce7317dfb5f592305e",
+      "bytes": 5262
+    },
+    {
+      "path": "records/step3-k3-observation.json",
+      "sha256": "af2be0295354dd5464acc3db0cfa9cb521e4efed3e5ba78f3db46fde6868546c",
+      "bytes": 13361
+    },
+    {
+      "path": "records/step3-k3-observation.zh-CN.md",
+      "sha256": "fe0d6d94ad47a65206e867496b83bcb19cbbc351c7eec777e0ed6c882790a9a7",
+      "bytes": 1719
+    },
+    {
+      "path": "records/step2-candidate2.json",
+      "sha256": "b7fc07286e6b7015ffd06ddfec69b40a67c1827c93413f27d8939a6b59d773aa",
+      "bytes": 1217
+    },
+    {
+      "path": "records/step2-candidate2.patch",
+      "sha256": "7b4bb680c232b3b8c0f922f83e5d9428954f2f022666212f1f3f440ec229c504",
+      "bytes": 27730
+    },
+    {
+      "path": "records/step2-operator-boundary.txt",
+      "sha256": "7393453a0c48713a7d0cdd5cacaafb9696bf79adce1308f6f9b7c00535a9a712",
+      "bytes": 635
+    },
+    {
+      "path": "records/step3-evaluation.zh-CN.md",
+      "sha256": "2be031f4368e6b732e8576fb2cf827097aff83325540b05e3953a5eaeec60200",
+      "bytes": 20266
+    },
+    {
+      "path": "records/dual-manifest.json",
+      "sha256": "b95ab5601d7714dcd08c4733ccd6812acc76af5280ad3a47e74a32c66b2a0531",
+      "bytes": 52997
+    },
+    {
+      "path": "records/README.txt",
+      "sha256": "12986c6d8c1d6bd9907eddca7f91000d817b47065e6a0b1b6421a9674313c99c",
+      "bytes": 256
+    }
+  ],
+  "original_native_streams": "Retained at trial root and native session cache, exact digests in observation JSON; operational export removes private reasoning/signatures"
+}

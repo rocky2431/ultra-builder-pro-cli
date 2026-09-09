@@ -1,0 +1,101 @@
+{
+  "candidate": {
+    "created_at": "2026-09-09T00:46:24.447857+00:00",
+    "author_checkout": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-candidate-wme3iqp3",
+    "snapshot": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-snapshot2-bx0p1hce",
+    "source_base": "ca228b0",
+    "patch_sha256": "7b4bb680c232b3b8c0f922f83e5d9428954f2f022666212f1f3f440ec229c504",
+    "trial_root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-trial2-x_jye453",
+    "plugin_root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-trial2-x_jye453/claude-config/skills/ultra-builder-pro",
+    "install_argv": [
+      "node",
+      "bin/install.js",
+      "--claude",
+      "--config-dir",
+      "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-trial2-x_jye453/claude-config"
+    ],
+    "dual_manifest_sha256": "b95ab5601d7714dcd08c4733ccd6812acc76af5280ad3a47e74a32c66b2a0531",
+    "native_cli": "/Users/rocky243/.local/share/claude/versions/2.1.263",
+    "native_sha256": "ef5d2909c8af49f31ab6d5487e90316777bc2fac170adfe8160716caa8aaf4f9",
+    "operator_boundary_sha256": "7393453a0c48713a7d0cdd5cacaafb9696bf79adce1308f6f9b7c00535a9a712",
+    "status": "frozen before live run; not accepted"
+  },
+  "created_at": "2026-09-09T00:49:05.732240+00:00",
+  "appendix_sha256": "2be031f4368e6b732e8576fb2cf827097aff83325540b05e3953a5eaeec60200",
+  "fixture_manifest": [
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/README.md",
+      "sha256": "4d7ffc35d2d847d8fa9c5d994e60c1224adb43cc832d89f6fdb223a81b13f44c",
+      "git_blob": "610b2c1e8abee1a4e01467c96726270fd77cb946"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/data/entries.jsonl",
+      "sha256": "90e93a111896bb6983b3f51053839a4f15b3bd03c66cc8cf55a1c3cfeaafacf3",
+      "git_blob": "8db684a74534316616e860afc1dd7c6de8486f02"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/data/sample-export.txt",
+      "sha256": "4555195d082daad43e6213f94bfe1e8a1d2846bac2dd1b49c03ea569c9baf47b",
+      "git_blob": "b543199bfdbfd1372ee52c7ca4c718df43b95187"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/docs/decisions/2026-08-20-append-only-jsonl.md",
+      "sha256": "86f861d89a96abf09087d4111b22266175498b1768de0ecf28cdc88de1bc630f",
+      "git_blob": "1dcdff834527a132bab6382529cbaa2ee0047446"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/docs/notes/2026-05-09-export-format-v1.md",
+      "sha256": "053df7f358629dd414b96448d749d843018ac0c1911e21aa3e239f845c6a180e",
+      "git_blob": "ed16aa2bb8bb5eb112da084f0c9f530932972c93"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/docs/notes/2026-07-03-backup-cadence.md",
+      "sha256": "56aad3f4c6285ef43a7cf894a4b17c7e663610be7a237a788d9bfbc4d1caee98",
+      "git_blob": "b0bec66770c4a240f70e32ee5280bace42cc406a"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/docs/tech-notes.md",
+      "sha256": "8f3cc6b134f75e9a827924e286e4c5d40f58976564abf5f89758709de93d8d89",
+      "git_blob": "06442c01cae183f646d4f2ff507dc3a7ccddc3a7"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/package.json",
+      "sha256": "de7d57cdab677173aaf29a1690c2e4f350e6ad2d92d2ac7c59b01ba85dce6075",
+      "git_blob": "d755e1e971ab988fd12f8c0c5bf11a489712fe8b"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/src/store.js",
+      "sha256": "97e4906b5e70221841da37691035a7abd9e254576b5edf68c3655f885a8bff0c",
+      "git_blob": "6a96bb4be0b40200167de69335e39de3dc9202a5"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-clippings/test/clippings.test.js",
+      "sha256": "30776589bd3a0dd75fc58d4749acef0a2beb98c4047dba8abeb12582784d2464",
+      "git_blob": "9808a8f574a69af1021ba7f3afd69a925d85d9c5"
+    },
+    {
+      "path": "tests/evals/fixtures/trellis-knowledge-20260909/k3-operator-inputs/export-2026-09-08.txt",
+      "sha256": "ba9b6472b04191aa75f45a082fb9a42f1e7923485bbfcad5a221807abcf86d58",
+      "git_blob": "4479ef6ce61798f880a679029df9cbda59adbbdf"
+    }
+  ],
+  "cwd": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-daily-entry-trial2-x_jye453/K3-session1-x_jye453",
+  "session_id": "adc0d3a3-07a2-44ca-b02a-978f719e81aa",
+  "owner_message": "我用「墨记」阅读器看书，导出文件在 data/sample-export.txt。给这个笔记工具加个导入功能：把导出里的笔记存进库存，导完给我证据。",
+  "phase2_file_withheld": true,
+  "deterministic_root_checks": {
+    "node26.8.1": {
+      "tests": 17,
+      "pass": 17,
+      "exit_code": 0
+    },
+    "node25.7.0": {
+      "tests": 17,
+      "pass": 17,
+      "exit_code": 0
+    }
+  },
+  "operator_boundary_file": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/trellis-eight-step-20260909/step2-operator-boundary.txt",
+  "operator_boundary_isolation_correction": "Applies same effect/data boundary as both Step2 paired trials; no task answers or workflow hints added",
+  "status": "prepared-not-started"
+}
