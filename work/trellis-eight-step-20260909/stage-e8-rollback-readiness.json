@@ -1,0 +1,12 @@
+{
+  "candidate": "pi-terminal-schema-context-v1",
+  "source": "skills/ultra-delegate/scripts/host-profile.cjs",
+  "baseline_sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+  "candidate_sha256": "1bea75b6835a1b9a617d293b44282e5bc14fa5f05628f0f65faa06448c67eb98",
+  "patch_sha256": "6d3f5b7d6b025b901a8cd7598c783862ab150a64720f84b3973d2a56d5dc59db",
+  "isolated_apply_reverse_exact": true,
+  "root_source_unchanged": true,
+  "scratch": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e8-rollback-m0xw21pf",
+  "promotion": "pending_owner_decision_after_evaluation",
+  "limitation": "Mechanical rollback readiness only; no adopted runtime rollback has occurred."
+}

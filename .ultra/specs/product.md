@@ -147,6 +147,24 @@ integration and product acceptance. Contract: `skills/ultra-delegate/references/
 Verification: finite slice and Pi Primary tests, exact native session proof and the
 separate product/repair/Solo acceptance evidence.
 
+Operational runs reuse this same finite contract. The Primary chooses Solo,
+Challenge or qualified Factory roles and subsequent bounded waves. Mechanical
+workspace create/register/cleanup preserves committed output and refuses dirty,
+ignored, substituted or possibly-written trees. Draft compilation captures exact
+refs without choosing semantics. A separate finite controller can send a private
+process message to the live Pi Primary (W3); native delivery and model consumption
+remain separate, and a lost channel never silently restarts a writer. No fresh
+session or cross-task strategy promotion is implied. Contract:
+`skills/ultra-delegate/references/operational-factory.md`.
+
+A separately owner-selected durable work-package may register one bounded Pi
+checkpoint, with one fresh turn after the old Primary and finite Supervisor stop.
+Exact inputs, local write scope, expiry, revocation and retained event claims
+constrain that continuation. Unknown delivery is not replayed. Optional macOS
+notifications report meaningful completion or required attention; OS acceptance
+does not prove owner delivery. Consumption is not product acceptance, another
+wave or finalization. Contract: `skills/ultra-delegate/references/durable-checkpoint.md`.
+
 ### Requirement FR-07: Honest host adaptation
 
 Adapters translate paths, manifests, event wires, and invocation policy, never workflow

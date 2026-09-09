@@ -1,0 +1,3024 @@
+{
+  "observed_at": "2026-09-09T11:17:07.421123+00:00",
+  "runs": [
+    {
+      "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-1VrMEG",
+      "archive": "work/trellis-eight-step-20260909/ubp-native-message-1VrMEG-raw.tar.gz",
+      "archive_sha256": "b3d7c1c3eda5351db8e2ade20f54612c9a145ec91b86df989a78679279e268fc",
+      "observation": {
+        "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-1VrMEG",
+        "identity": {
+          "runtime_path": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "node_path": "/Users/rocky243/.hermes/node/bin/node",
+          "package_root": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent",
+          "policy_path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+          "fingerprint": {
+            "platform": "darwin",
+            "runtime_version": "0.85.1",
+            "node_sha256": "ebd2d552c7bebde593dd0390530963ad28de56bccde6ce387cdbe55fb0b6fb8e",
+            "runtime_sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+            "package_sha256": "f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c",
+            "runtime_files_sha256": "fc7322d2dd04594c8792bf67284432dfcfbf6ca23955e4ee45ee7e646bb9848e",
+            "policy_files_sha256": "85d3c7f8fee66e713f17607b1dff1d11ae4ee5b73c5e546fae5fee3c041ae879"
+          }
+        },
+        "session_id": "01a085dc-5eab-7013-92b5-5f43e89ae1db",
+        "args": [
+          "--skill",
+          "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills",
+          "--extension",
+          "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/pi-primary.cjs",
+          "--mode",
+          "rpc",
+          "--offline",
+          "--no-extensions",
+          "--no-skills",
+          "--no-prompt-templates",
+          "--no-context-files",
+          "--tools",
+          "read,write,ultra_slice,ultra_attention_ack,pause_for_death",
+          "--extension",
+          "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-1VrMEG/replay.cjs",
+          "--session-dir",
+          "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-1VrMEG/sessions",
+          "--model",
+          "gpt-5.6-luna"
+        ],
+        "digests": {
+          "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+          "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+          "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+          "slice-workspace.cjs": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9",
+          "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+          "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        "outcomes": [
+          {
+            "controller_pid": null,
+            "primary_pid": 88250,
+            "wave": "w1",
+            "delivery": "wait",
+            "attention": {
+              "$schema": "ultra-attention-v1",
+              "event_key": "native:w1",
+              "run_id": "native",
+              "slice_id": "w1",
+              "primary_session_id": "01a085dc-5eab-7013-92b5-5f43e89ae1db",
+              "packet_sha256": "96dfd46787c384b9c978f31c1f141ab6e53eb40633ce392b25ffb400c2aa1f1d",
+              "reason": "wave_terminal",
+              "counts": {
+                "finished": 2
+              },
+              "attempts": [
+                {
+                  "attempt_id": "w1-left",
+                  "state": "finished",
+                  "result": {
+                    "path": ".ultra/.runtime/delegations/w1-left/result.json",
+                    "sha256": "b8826d42d36fbdf544b0e1aa089357df4841c644d1f74edf0883b7e59ba9906c"
+                  }
+                },
+                {
+                  "attempt_id": "w1-right",
+                  "state": "finished",
+                  "result": {
+                    "path": ".ultra/.runtime/delegations/w1-right/result.json",
+                    "sha256": "cd4223f4eb91d48156cf9568cc44c089316428b7503329921b607a61c871086d"
+                  }
+                }
+              ],
+              "observed_at": "2026-09-09T11:10:27.282Z"
+            },
+            "decision": {
+              "event_key": "native:w1",
+              "combined_total": 10,
+              "matches_target": true
+            },
+            "nativeTurns": 1,
+            "receipt": null,
+            "worker_native_sessions": [
+              {
+                "session_id": "01a085dc-7690-733f-93c7-84b0408c4e35",
+                "provider": "openai-codex",
+                "model": "gpt-5.6-luna",
+                "stop_reason": "stop"
+              },
+              {
+                "session_id": "01a085dc-76c7-7050-8e80-bda6404fdba9",
+                "provider": "openai-codex",
+                "model": "gpt-5.6-terra",
+                "stop_reason": "stop"
+              }
+            ],
+            "overlap": true
+          },
+          {
+            "controller_pid": null,
+            "primary_pid": 88250,
+            "wave": "w2",
+            "delivery": "background",
+            "attention": {
+              "$schema": "ultra-attention-v1",
+              "event_key": "native:w2",
+              "run_id": "native",
+              "slice_id": "w2",
+              "primary_session_id": "01a085dc-5eab-7013-92b5-5f43e89ae1db",
+              "packet_sha256": "97d3c88123a15adbb947a643ed96029c667c0aa2a45320f85710de010e729be7",
+              "reason": "wave_terminal",
+              "counts": {
+                "finished": 2
+              },
+              "attempts": [
+                {
+                  "attempt_id": "w2-left",
+                  "state": "finished",
+                  "result": {
+                    "path": ".ultra/.runtime/delegations/w2-left/result.json",
+                    "sha256": "0241824483dbc5528210b9be0bb8c30ee189671d5961edd422488f074148704c"
+                  }
+                },
+                {
+                  "attempt_id": "w2-right",
+                  "state": "finished",
+                  "result": {
+                    "path": ".ultra/.runtime/delegations/w2-right/result.json",
+                    "sha256": "b18b2d0b8a8eb5cce1fd1cbcc22f6284bad40612ec0db73f5459714e08914a09"
+                  }
+                }
+              ],
+              "observed_at": "2026-09-09T11:10:52.694Z"
+            },
+            "decision": {
+              "event_key": "native:w2",
+              "combined_total": 10,
+              "matches_target": true
+            },
+            "nativeTurns": 2,
+            "receipt": {
+              "$schema": "ultra-attention-delivery-v1",
+              "event_key": "native:w2",
+              "primary_session_id": "01a085dc-5eab-7013-92b5-5f43e89ae1db",
+              "transport": "native-w2",
+              "claim": "a888ff29-5bbd-4664-a524-c119d8378ded",
+              "state": "consumed",
+              "updated_at": "2026-09-09T11:11:00.478Z"
+            },
+            "worker_native_sessions": [
+              {
+                "session_id": "01a085dc-d9d4-70e8-bc79-2e497e1091d2",
+                "provider": "openai-codex",
+                "model": "gpt-5.6-luna",
+                "stop_reason": "stop"
+              },
+              {
+                "session_id": "01a085dc-da0c-726a-92ae-1d9688f2d621",
+                "provider": "openai-codex",
+                "model": "gpt-5.6-terra",
+                "stop_reason": "stop"
+              }
+            ],
+            "overlap": true
+          },
+          {
+            "controller_pid": 97124,
+            "primary_pid": 88250,
+            "wave": "w3",
+            "delivery": "message",
+            "attention": {
+              "$schema": "ultra-attention-v1",
+              "event_key": "native:w3",
+              "run_id": "native",
+              "slice_id": "w3",
+              "primary_session_id": "01a085dc-5eab-7013-92b5-5f43e89ae1db",
+              "packet_sha256": "403c5edafc0fa7979e0d853b0bbc6f7c619c73628adb41622f30a0a36dfba35f",
+              "reason": "wave_terminal",
+              "counts": {
+                "finished": 2
+              },
+              "attempts": [
+                {
+                  "attempt_id": "w3-left",
+                  "state": "finished",
+                  "result": {
+                    "path": ".ultra/.runtime/delegations/w3-left/result.json",
+                    "sha256": "ed338db8db2d858f1e8c5b6816244eb9428dd11d6c9594645cbade4fa67d0f25"
+                  }
+                },
+                {
+                  "attempt_id": "w3-right",
+                  "state": "finished",
+                  "result": {
+                    "path": ".ultra/.runtime/delegations/w3-right/result.json",
+                    "sha256": "85761a932f8da5c413261fc3a70a8e6239b48c2fbd29da171c9ab36c7e4297fb"
+                  }
+                }
+              ],
+              "observed_at": "2026-09-09T11:11:20.688Z"
+            },
+            "decision": {
+              "event_key": "native:w3",
+              "combined_total": 10,
+              "matches_target": true
+            },
+            "nativeTurns": 2,
+            "receipt": {
+              "$schema": "ultra-attention-delivery-v1",
+              "event_key": "native:w3",
+              "primary_session_id": "01a085dc-5eab-7013-92b5-5f43e89ae1db",
+              "transport": "w3-process-message",
+              "claim": "ff207c98-1c8f-401a-b9f5-17f20abe311e",
+              "state": "consumed",
+              "updated_at": "2026-09-09T11:11:28.655Z"
+            },
+            "worker_native_sessions": [
+              {
+                "session_id": "01a085dd-4c19-75a7-abc8-4156cb515f42",
+                "provider": "openai-codex",
+                "model": "gpt-5.6-luna",
+                "stop_reason": "stop"
+              },
+              {
+                "session_id": "01a085dd-4c4e-7017-862e-24509a10d625",
+                "provider": "openai-codex",
+                "model": "gpt-5.6-terra",
+                "stop_reason": "stop"
+              }
+            ],
+            "overlap": true
+          }
+        ],
+        "idle_ms": 3000,
+        "idle_model_turns": 0,
+        "source_unchanged": true,
+        "limitations": [
+          "Production lifecycle proof only; Stage D product repetition, operational repair and fair comparison remain separate.",
+          "Native exactly-once delivery is not claimed."
+        ]
+      },
+      "native_worker_env_observations": [
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".git/COMMIT_EDITMSG",
+          "sha256": "07e554d51cdebc5f27c6f1cd2418f06c4aa9eaa21c067f74d2d88ca58fa37f39"
+        },
+        {
+          "path": ".git/HEAD",
+          "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
+        },
+        {
+          "path": ".git/config",
+          "sha256": "8fcb3ebdae66dd2c321629b69d6a7bf2155eb3e2daeafb046ed55b421365cf6e"
+        },
+        {
+          "path": ".git/description",
+          "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+        },
+        {
+          "path": ".git/hooks/applypatch-msg.sample",
+          "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+        },
+        {
+          "path": ".git/hooks/commit-msg.sample",
+          "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+        },
+        {
+          "path": ".git/hooks/fsmonitor-watchman.sample",
+          "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+        },
+        {
+          "path": ".git/hooks/post-update.sample",
+          "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+        },
+        {
+          "path": ".git/hooks/pre-applypatch.sample",
+          "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+        },
+        {
+          "path": ".git/hooks/pre-commit.sample",
+          "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+        },
+        {
+          "path": ".git/hooks/pre-merge-commit.sample",
+          "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+        },
+        {
+          "path": ".git/hooks/pre-push.sample",
+          "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+        },
+        {
+          "path": ".git/hooks/pre-rebase.sample",
+          "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+        },
+        {
+          "path": ".git/hooks/pre-receive.sample",
+          "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+        },
+        {
+          "path": ".git/hooks/prepare-commit-msg.sample",
+          "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+        },
+        {
+          "path": ".git/hooks/push-to-checkout.sample",
+          "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+        },
+        {
+          "path": ".git/hooks/sendemail-validate.sample",
+          "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+        },
+        {
+          "path": ".git/hooks/update.sample",
+          "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+        },
+        {
+          "path": ".git/index",
+          "sha256": "5d56ca069ad33ced92064d0965e641c93ecd23daefecea167c6d9b313f610d7e"
+        },
+        {
+          "path": ".git/info/exclude",
+          "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+        },
+        {
+          "path": ".git/logs/HEAD",
+          "sha256": "9bb6a091076504a48f42df19988c6228585c86c53e4e117b3f0d58f0dfd86c63"
+        },
+        {
+          "path": ".git/logs/refs/heads/main",
+          "sha256": "9bb6a091076504a48f42df19988c6228585c86c53e4e117b3f0d58f0dfd86c63"
+        },
+        {
+          "path": ".git/objects/4b/36dfd79db36d8c59d1fb032de66b57f0457b65",
+          "sha256": "fe21bb30795461aedb86733f22e7033aaab8f10362720bbb846a86adf867128b"
+        },
+        {
+          "path": ".git/objects/7a/516b515f75027b5c085fb470cd00539d79baba",
+          "sha256": "206681cadce55ed109692ba74b152c32f49e68d55d359f94965592cb1bcf2e18"
+        },
+        {
+          "path": ".git/objects/d8/61466c5a6904c5da86c48ad5d77cfe01ec8aba",
+          "sha256": "998dcd783b6113f91a187725fba9052bf7bed3aaf52992702b3a330ea18757f2"
+        },
+        {
+          "path": ".git/objects/df/967b96a579e45a18b8251732d16804b2e56a55",
+          "sha256": "a68879a026ee9eaa8c8eeb0826d1bb255a36e9bb38c76b3e42d892b22d0c4728"
+        },
+        {
+          "path": ".git/objects/e2/e90af8882b9f2d83ef0a83aa2585e88c736895",
+          "sha256": "1581402f527df8145be3e22802e84c477e95ad64a8c23b34e7e82c089860da79"
+        },
+        {
+          "path": ".git/refs/heads/main",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w1-left/HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w1-left/ORIG_HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w1-left/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w1-left/gitdir",
+          "sha256": "34828b9477192d147083ae7f91aa9baaf9c0e33d1bbe14e78ef61ebbac3d72bd"
+        },
+        {
+          "path": ".git/worktrees/w1-left/index",
+          "sha256": "d5dd183c4716c37edf2bc2c242b4168c34061a82cb01d10c81140a0ff432e98b"
+        },
+        {
+          "path": ".git/worktrees/w1-left/logs/HEAD",
+          "sha256": "22bb2fa7312f27f88eac0abd89305d844592a11553e9bd7e32ba9f6110bdba42"
+        },
+        {
+          "path": ".git/worktrees/w1-right/HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w1-right/ORIG_HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w1-right/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w1-right/gitdir",
+          "sha256": "705cd3c178703ddbac2bcf0f9b3ee781482a65b25c8318a901df3886f77b622c"
+        },
+        {
+          "path": ".git/worktrees/w1-right/index",
+          "sha256": "d023c5e065c172b3b770362c2b402345a551a411d2cef4e6870ea90b1165e971"
+        },
+        {
+          "path": ".git/worktrees/w1-right/logs/HEAD",
+          "sha256": "22bb2fa7312f27f88eac0abd89305d844592a11553e9bd7e32ba9f6110bdba42"
+        },
+        {
+          "path": ".git/worktrees/w2-left/HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w2-left/ORIG_HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w2-left/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w2-left/gitdir",
+          "sha256": "12612986acc1c2c98bd3165806bb37ae6723f9058a45942d2e7ae12507d45b91"
+        },
+        {
+          "path": ".git/worktrees/w2-left/index",
+          "sha256": "7ffbf91d5fb37aa2c8c8b01dc866fe711f2179d2133ecc5a68819ec202dbd571"
+        },
+        {
+          "path": ".git/worktrees/w2-left/logs/HEAD",
+          "sha256": "3aa08996b1a6524df436d751a96a5c4c8176a9b85698a3768747f1c973020e7a"
+        },
+        {
+          "path": ".git/worktrees/w2-right/HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w2-right/ORIG_HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w2-right/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w2-right/gitdir",
+          "sha256": "e49954a4ca1412a14f53e55ff1f336c07b1f1682789676b5b49817fa8b59c942"
+        },
+        {
+          "path": ".git/worktrees/w2-right/index",
+          "sha256": "8283efd745c9b043d06f42312c085308a69bcfde392eafa53120b01229d3618c"
+        },
+        {
+          "path": ".git/worktrees/w2-right/logs/HEAD",
+          "sha256": "3aa08996b1a6524df436d751a96a5c4c8176a9b85698a3768747f1c973020e7a"
+        },
+        {
+          "path": ".git/worktrees/w3-left/HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w3-left/ORIG_HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w3-left/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-left/gitdir",
+          "sha256": "7a99b8f74cadd59b88ed853e2c7541f16163619e766dffb052dc59cc118cae98"
+        },
+        {
+          "path": ".git/worktrees/w3-left/index",
+          "sha256": "6acb9108e403393318cad57849456f361eb3bfbe1a2bfff41c4ce345df04661b"
+        },
+        {
+          "path": ".git/worktrees/w3-left/logs/HEAD",
+          "sha256": "ff920cffd7535c98c34efa811d41dc8e8637e124cae93ceed2d99300bbc8e32a"
+        },
+        {
+          "path": ".git/worktrees/w3-right/HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w3-right/ORIG_HEAD",
+          "sha256": "09acc0fc5d40026774d435e69fcfa6632a0f56a6266aa612eaba9b8b2ca3a873"
+        },
+        {
+          "path": ".git/worktrees/w3-right/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-right/gitdir",
+          "sha256": "1f814eb085f62ddc8a9df1a3aaec7128b7c3d4084ecf8fd294f834690d1ed5a4"
+        },
+        {
+          "path": ".git/worktrees/w3-right/index",
+          "sha256": "40c4c831d7f509141245bb619950a6ab4c7e2f6c8dfc7129b951dabe6b8e0c75"
+        },
+        {
+          "path": ".git/worktrees/w3-right/logs/HEAD",
+          "sha256": "ff920cffd7535c98c34efa811d41dc8e8637e124cae93ceed2d99300bbc8e32a"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/events.jsonl",
+          "sha256": "59c8e4ef4288c4ffedcfdcdded772c5324e4c66743a28421fdb5f3dfbb389c98"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/host-result.json",
+          "sha256": "07e871617bed9f428578bb42b3c3c1c8a6077d543f362648d4d5ad57011b8607"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/instruction.md",
+          "sha256": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/pi-sessions/2026-09-09T11-10-13-137Z_01a085dc-7690-733f-93c7-84b0408c4e35.jsonl",
+          "sha256": "b16bb0c04b9d24a1655cc2262025e85e5afc308cb76a6a560c15f648f47b9d67"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/receipt.json",
+          "sha256": "cd9b8deb11926cd60a062a54336e2e705c04d8a1a3b5940481ec1a99220dcc65"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/result.json",
+          "sha256": "b8826d42d36fbdf544b0e1aa089357df4841c644d1f74edf0883b7e59ba9906c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/stderr.log",
+          "sha256": "59c8e4ef4288c4ffedcfdcdded772c5324e4c66743a28421fdb5f3dfbb389c98"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/stdout.log",
+          "sha256": "f191603139748f4666eb547dd45f64c6c4d4a370a6cd8d860351e486a9a1e673"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/worker-spec.json",
+          "sha256": "53f0566a6397a57ad30017ee2943134dbd8f4e2aca7abefe909b937c3bc242e0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-left/writer.json",
+          "sha256": "f2174e41c56152abbcc8339be9b5a98dfe8ade59985536f495d828e98fc7fa6f"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/events.jsonl",
+          "sha256": "8cc565454eaae40f19b4e9a19709d0183e15af856a0f1431b9096a8f82c07535"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/host-result.json",
+          "sha256": "f644604a45978fb9b8a979cce78a686fbf645e6c997691f2a2c0dc7acc637e47"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/instruction.md",
+          "sha256": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/pi-sessions/2026-09-09T11-10-13-191Z_01a085dc-76c7-7050-8e80-bda6404fdba9.jsonl",
+          "sha256": "5a7a8389fecac32eba081dbc1622533bdc47033414c1d2bf337879e061b6ab06"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/receipt.json",
+          "sha256": "48578474879ce56959d009d3d031a676986cbf0d0df992c78ec109ffd44aafda"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/result.json",
+          "sha256": "cd4223f4eb91d48156cf9568cc44c089316428b7503329921b607a61c871086d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/stderr.log",
+          "sha256": "8cc565454eaae40f19b4e9a19709d0183e15af856a0f1431b9096a8f82c07535"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/stdout.log",
+          "sha256": "54f0656a42127bb5faeb8fb1243e403dd24eff599557cd666d417aed54af43b6"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/worker-spec.json",
+          "sha256": "453297bb156f3d51fa83e59aae868434b84a8fe06ef59f6ec4363b0c0f24c351"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w1-right/writer.json",
+          "sha256": "745ed0879e4af36ac4759045bf2364318194b30cb60827c82810b2015e688e14"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/events.jsonl",
+          "sha256": "d364f71ee1326d10542358e26235d08fc0ab55f0ffab54f4b65d90ab1d43a18d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/host-result.json",
+          "sha256": "07e871617bed9f428578bb42b3c3c1c8a6077d543f362648d4d5ad57011b8607"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/instruction.md",
+          "sha256": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/pi-sessions/2026-09-09T11-10-38-549Z_01a085dc-d9d4-70e8-bc79-2e497e1091d2.jsonl",
+          "sha256": "b47bb60a4a90b74708e55002a8e8d9d5f05dc82c013faf92821651c4cbacfec9"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/receipt.json",
+          "sha256": "e7f3c0bae5d78425f7da6aef2017a04959e29d217cddc178494512122c90a6f1"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/result.json",
+          "sha256": "0241824483dbc5528210b9be0bb8c30ee189671d5961edd422488f074148704c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/stderr.log",
+          "sha256": "d364f71ee1326d10542358e26235d08fc0ab55f0ffab54f4b65d90ab1d43a18d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/stdout.log",
+          "sha256": "ef90abd1eb850287cee87da566187fd9853b8a7674ea4c68c9d8ef0004303b32"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/worker-spec.json",
+          "sha256": "ab990d0852d772375ea7e5375600f34fa9b5911fa626c23f04df2ca0e2073357"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-left/writer.json",
+          "sha256": "f7b6d8fd4d55c96b940f9f60987d9388bf1eaeaac8c5d0c2241c34882474f838"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/events.jsonl",
+          "sha256": "061f1fab5f327b41db1ac56f28ea80485971e30efc81a6663a094f01696eef0e"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/host-result.json",
+          "sha256": "2f7b6213b92e79cb00a5e05fddb3899b65882bed8f18684ee1db48022f9f0183"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/instruction.md",
+          "sha256": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/pi-sessions/2026-09-09T11-10-38-604Z_01a085dc-da0c-726a-92ae-1d9688f2d621.jsonl",
+          "sha256": "1def3042e829cc985027e658eedeeaec6cb853ca58463dc70ce0bff75caad0c4"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/receipt.json",
+          "sha256": "6e986b376e04d0139bd9c27aedf05ba07bae051262468dd341a4a5e81f867761"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/result.json",
+          "sha256": "b18b2d0b8a8eb5cce1fd1cbcc22f6284bad40612ec0db73f5459714e08914a09"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/stderr.log",
+          "sha256": "061f1fab5f327b41db1ac56f28ea80485971e30efc81a6663a094f01696eef0e"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/stdout.log",
+          "sha256": "54540efab13b82dfb5feb2255546d3eea781e9db6182f29c1c21d2e68392bc42"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/worker-spec.json",
+          "sha256": "3a9eaab5e07a108533f8daf89aa0f571017020a592aded082159c463e2acf27e"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w2-right/writer.json",
+          "sha256": "8afd97ef2b7eecd31c8bc5c61ec3ae24a81996512f32c5118a9f16fd6e345c18"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+          "sha256": "6c7f74dfa45bc1189e66d1d81a0df9f7f4e0d52ed20c0debb7632436448a775d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/host-result.json",
+          "sha256": "07e871617bed9f428578bb42b3c3c1c8a6077d543f362648d4d5ad57011b8607"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/instruction.md",
+          "sha256": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/pi-sessions/2026-09-09T11-11-07-802Z_01a085dd-4c19-75a7-abc8-4156cb515f42.jsonl",
+          "sha256": "cf5a7046fd24dc2f8273b805612748a771a458ddbf6a9cacd12cba469b599feb"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/receipt.json",
+          "sha256": "227de3ebbd7943a809afa93b184eb82bddc537231141686cd9cba9cdb67eaee8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/result.json",
+          "sha256": "ed338db8db2d858f1e8c5b6816244eb9428dd11d6c9594645cbade4fa67d0f25"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/stderr.log",
+          "sha256": "6c7f74dfa45bc1189e66d1d81a0df9f7f4e0d52ed20c0debb7632436448a775d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/stdout.log",
+          "sha256": "7514633466e8b21fd6c82d870f4d6a45e4e43c7f19810ef09b31199509857b0c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/worker-spec.json",
+          "sha256": "28cdf7df36aa3b2301dd78e5e2427179eba575d33e3cca41156e99eca0399627"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/writer.json",
+          "sha256": "739fec49c909208efdefc7e2427680269b2fbbcb51865a5ea9557cd87af3adb5"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+          "sha256": "3873ece1212016d29710e07ed7f3f4f738567116f4cd6576409a6a89aba4bdc5"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/host-result.json",
+          "sha256": "f644604a45978fb9b8a979cce78a686fbf645e6c997691f2a2c0dc7acc637e47"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/instruction.md",
+          "sha256": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/pi-sessions/2026-09-09T11-11-07-854Z_01a085dd-4c4e-7017-862e-24509a10d625.jsonl",
+          "sha256": "6ecde59f6b2fc6a80134a93ee5ad0cb82a61da04a1378f4fded616fafee31ec1"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/receipt.json",
+          "sha256": "228ea7d049f1077bb3dbf12823baff72dc37c971fcdc8c2bb69dbe25d7b0a64a"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/result.json",
+          "sha256": "85761a932f8da5c413261fc3a70a8e6239b48c2fbd29da171c9ab36c7e4297fb"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/stderr.log",
+          "sha256": "3873ece1212016d29710e07ed7f3f4f738567116f4cd6576409a6a89aba4bdc5"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/stdout.log",
+          "sha256": "598544da6129a685991a339905de28bb347cf23928388896f57465819c453aaf"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/worker-spec.json",
+          "sha256": "e4f31845f8d9698cbfcff1be4e2349d0a1c421fa7ff790a4747ff7c2dc4853a8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/writer.json",
+          "sha256": "89aa1bc4b911f7939c26d2e726628d6174cf6fed62885dfd04a1d776ba5f305c"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w1/attention.json",
+          "sha256": "42767f692b55ea4aa9ca4f1fc46d10bac159b1e28fb04833a86f7c0f49d920bc"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w1/run-slice.json",
+          "sha256": "96dfd46787c384b9c978f31c1f141ab6e53eb40633ce392b25ffb400c2aa1f1d"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w2/attention.json",
+          "sha256": "b7ef6139b14bc06718c080ae818dc0d8513de41fd853a865dc4e04ccaa1b4448"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w2/delivery.json",
+          "sha256": "95799db25004af2aea6751f1009a7939af5bb1842474386c810ed943c4a8d999"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w2/run-slice.json",
+          "sha256": "97d3c88123a15adbb947a643ed96029c667c0aa2a45320f85710de010e729be7"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/attention.json",
+          "sha256": "f08d3958c1fa3a09d4ac49568aa3110848c47084ec60596dd2505b080174a207"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/cancel.request",
+          "sha256": "d6d62e61352dbd5f4a5881d21d7421770e779ea2d8fa3f890ae9daa97b4bf39e"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/delivery.json",
+          "sha256": "e9fb805892f020af6178ae7ab1903ee9986a38547ffe5fe2c75b4f59077037d2"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/run-slice.json",
+          "sha256": "403c5edafc0fa7979e0d853b0bbc6f7c619c73628adb41622f30a0a36dfba35f"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w1-left/.git",
+          "sha256": "7c925fcf24372666924b1ab3d28d6a48c098790bc2e492b5e42ffb07ac5280a7"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w1-left/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w1-left/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w1-left/src/value.json",
+          "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w1-right/.git",
+          "sha256": "c1d00146bf951d7252eb5c1f5d07041dacccfd8ad4c15d48bc658b1888c9ea19"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w1-right/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w1-right/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w1-right/src/value.json",
+          "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w2-left/.git",
+          "sha256": "617d559aadaafd16618a5d9a0158854780f4e468c54e78da696b17bad1429020"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w2-left/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w2-left/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w2-left/src/value.json",
+          "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w2-right/.git",
+          "sha256": "fd5eb6ed75291219677807b8fb94773c12d91e01e499bf940d43dd6d1db03ab4"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w2-right/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w2-right/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w2-right/src/value.json",
+          "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.git",
+          "sha256": "818e9a62af2da648702a9eac01c509d3a0b13b77551d79705fc5b1df00d9d9c1"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/value.json",
+          "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.git",
+          "sha256": "2cba20ff62ef17db6ffa63693042eb24ad7b9efe1c086b57215e97631ff99585"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/value.json",
+          "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519"
+        },
+        {
+          "path": ".ultra/changes/active/native-slice/intent.md",
+          "sha256": "de591ef3f5c355b3515a8a221b7414fa91d35a1f230f2cd88c5a8a4c61171793"
+        },
+        {
+          "path": ".ultra/contexts/task-native-slice.md",
+          "sha256": "e9bb74f2a9ff74e3f1b9183fd164eb477bf9a6bde4acc8f1b94e1fdd2c2157f9"
+        },
+        {
+          "path": ".ultra/decisions/native-slice.md",
+          "sha256": "c8ad1d6e7281d16704c146de64d9a08fcb0fd01d8fca89ef278812bf0e92d67e"
+        },
+        {
+          "path": ".ultra/profiles/native-pi-v1.json",
+          "sha256": "225089d5cd6a04bc2dc79e594fc17cd11e5036ca2f43692ef4fec2666cffc083"
+        },
+        {
+          "path": "coordinator.cjs",
+          "sha256": "d52337b4aed3652198c4363bd5a06c5b2b2d3c82edc367220830f7c0b805d3ec"
+        },
+        {
+          "path": "decision-w1.json",
+          "sha256": "1d7f82cad7b36bd4d3673c7759416ba4ae0ca6665748ab37f3f402c2001c5e66"
+        },
+        {
+          "path": "decision-w2.json",
+          "sha256": "654d73c4cf9a08a24121478d2cf7aca06c4cf17a2f6ed7667ce59286a218b6dd"
+        },
+        {
+          "path": "decision-w3.json",
+          "sha256": "ba1cf5525e9251e010effe74ed85dce9a2629a6bbcd6adedb9e9676c0e280428"
+        },
+        {
+          "path": "events.jsonl",
+          "sha256": "57fddf325bf3d26bccba351cd8a8ec1084b77dadb0546f4535a45037648629e9"
+        },
+        {
+          "path": "initial-state.json",
+          "sha256": "72daa42d97e4ba0710ed476fc19ecf7c4d1977ea0cd8bcf7994b9f9de479c4f2"
+        },
+        {
+          "path": "interface.md",
+          "sha256": "8d62f381efddf9a021551d3fe2bc9258d0f64b655939a15bf9e6568d09eca7d9"
+        },
+        {
+          "path": "native-history.json",
+          "sha256": "2c62b7002a3cacb4216f743aab788b8168954a2a030eecd8ca82f393297fac59"
+        },
+        {
+          "path": "observation.json",
+          "sha256": "0958e57abf0deaf3661e966d1f5b8b8474ce7ed2e2a9f60093f4d90f676e2f03"
+        },
+        {
+          "path": "replay.cjs",
+          "sha256": "a2809b1cf662d79e47a27628b59eb727bd7beac9b5d43f42682db916fcc2ff22"
+        },
+        {
+          "path": "sessions/2026-09-09T11-10-07-019Z_01a085dc-5eab-7013-92b5-5f43e89ae1db.jsonl",
+          "sha256": "03de26a77fc47c6ce3a41ad7d10628c3a9d9fdababbbe2f92b755062e1276a22"
+        },
+        {
+          "path": "source/delegate.cjs",
+          "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+        },
+        {
+          "path": "source/host-profile.cjs",
+          "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        {
+          "path": "source/pi-primary.cjs",
+          "sha256": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503"
+        },
+        {
+          "path": "source/run-slice.cjs",
+          "sha256": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd"
+        },
+        {
+          "path": "source/slice-channel.cjs",
+          "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+        },
+        {
+          "path": "source/slice-workspace.cjs",
+          "sha256": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9"
+        },
+        {
+          "path": "src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": "stderr.log",
+          "sha256": "ef368fbaf65b6ce64c5a6d58c46fd7a3b23a13e5312d637a43f55dbe58d2ccc7"
+        },
+        {
+          "path": "w1.json",
+          "sha256": "96dfd46787c384b9c978f31c1f141ab6e53eb40633ce392b25ffb400c2aa1f1d"
+        },
+        {
+          "path": "w2.json",
+          "sha256": "97d3c88123a15adbb947a643ed96029c667c0aa2a45320f85710de010e729be7"
+        },
+        {
+          "path": "w3.json",
+          "sha256": "403c5edafc0fa7979e0d853b0bbc6f7c619c73628adb41622f30a0a36dfba35f"
+        }
+      ]
+    },
+    {
+      "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-d8JQ58",
+      "archive": "work/trellis-eight-step-20260909/ubp-native-message-d8JQ58-raw.tar.gz",
+      "archive_sha256": "c6a620d63db6e5979a9c820c648775691e179c18eb3e50528e3ca6caf57fe586",
+      "observation": {
+        "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-d8JQ58",
+        "fault": "before",
+        "identity": {
+          "runtime_path": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "node_path": "/Users/rocky243/.hermes/node/bin/node",
+          "package_root": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent",
+          "policy_path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+          "fingerprint": {
+            "platform": "darwin",
+            "runtime_version": "0.85.1",
+            "node_sha256": "ebd2d552c7bebde593dd0390530963ad28de56bccde6ce387cdbe55fb0b6fb8e",
+            "runtime_sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+            "package_sha256": "f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c",
+            "runtime_files_sha256": "fc7322d2dd04594c8792bf67284432dfcfbf6ca23955e4ee45ee7e646bb9848e",
+            "policy_files_sha256": "85d3c7f8fee66e713f17607b1dff1d11ae4ee5b73c5e546fae5fee3c041ae879"
+          }
+        },
+        "digests": {
+          "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+          "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+          "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+          "slice-workspace.cjs": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9",
+          "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+          "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        "session_id": "01a085de-e7e0-72a1-b35d-84077e2e7c8d",
+        "receipt_before_death": {
+          "$schema": "ultra-attention-delivery-v1",
+          "event_key": "native:w3",
+          "primary_session_id": "01a085de-e7e0-72a1-b35d-84077e2e7c8d",
+          "transport": "w3-process-message",
+          "claim": "afe10897-7dd9-4608-8b27-5ae62ca20e76",
+          "state": "delivered",
+          "updated_at": "2026-09-09T11:13:12.858Z"
+        },
+        "derived_delivery_after_death": "delivery_unknown",
+        "native_exit": true,
+        "resend_count": 0,
+        "limitation": "Abrupt death preserves the last receipt bytes; unconsumed delivery is unknown, not a safe retry. No W4 recovery is claimed."
+      },
+      "native_worker_env_observations": [
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".git/COMMIT_EDITMSG",
+          "sha256": "07e554d51cdebc5f27c6f1cd2418f06c4aa9eaa21c067f74d2d88ca58fa37f39"
+        },
+        {
+          "path": ".git/HEAD",
+          "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
+        },
+        {
+          "path": ".git/config",
+          "sha256": "8fcb3ebdae66dd2c321629b69d6a7bf2155eb3e2daeafb046ed55b421365cf6e"
+        },
+        {
+          "path": ".git/description",
+          "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+        },
+        {
+          "path": ".git/hooks/applypatch-msg.sample",
+          "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+        },
+        {
+          "path": ".git/hooks/commit-msg.sample",
+          "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+        },
+        {
+          "path": ".git/hooks/fsmonitor-watchman.sample",
+          "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+        },
+        {
+          "path": ".git/hooks/post-update.sample",
+          "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+        },
+        {
+          "path": ".git/hooks/pre-applypatch.sample",
+          "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+        },
+        {
+          "path": ".git/hooks/pre-commit.sample",
+          "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+        },
+        {
+          "path": ".git/hooks/pre-merge-commit.sample",
+          "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+        },
+        {
+          "path": ".git/hooks/pre-push.sample",
+          "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+        },
+        {
+          "path": ".git/hooks/pre-rebase.sample",
+          "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+        },
+        {
+          "path": ".git/hooks/pre-receive.sample",
+          "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+        },
+        {
+          "path": ".git/hooks/prepare-commit-msg.sample",
+          "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+        },
+        {
+          "path": ".git/hooks/push-to-checkout.sample",
+          "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+        },
+        {
+          "path": ".git/hooks/sendemail-validate.sample",
+          "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+        },
+        {
+          "path": ".git/hooks/update.sample",
+          "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+        },
+        {
+          "path": ".git/index",
+          "sha256": "20bbe50d66e2a3ab4e9b5268ef4c34440ed661b3a02cbe5dbffb2c903ff90589"
+        },
+        {
+          "path": ".git/info/exclude",
+          "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+        },
+        {
+          "path": ".git/logs/HEAD",
+          "sha256": "8ac8a3b0d365b4fb0cd102fbb4df91ed30d835f11dccd5839deae9316a9da4ba"
+        },
+        {
+          "path": ".git/logs/refs/heads/main",
+          "sha256": "8ac8a3b0d365b4fb0cd102fbb4df91ed30d835f11dccd5839deae9316a9da4ba"
+        },
+        {
+          "path": ".git/objects/4b/36dfd79db36d8c59d1fb032de66b57f0457b65",
+          "sha256": "fe21bb30795461aedb86733f22e7033aaab8f10362720bbb846a86adf867128b"
+        },
+        {
+          "path": ".git/objects/7a/516b515f75027b5c085fb470cd00539d79baba",
+          "sha256": "206681cadce55ed109692ba74b152c32f49e68d55d359f94965592cb1bcf2e18"
+        },
+        {
+          "path": ".git/objects/d8/61466c5a6904c5da86c48ad5d77cfe01ec8aba",
+          "sha256": "998dcd783b6113f91a187725fba9052bf7bed3aaf52992702b3a330ea18757f2"
+        },
+        {
+          "path": ".git/objects/df/967b96a579e45a18b8251732d16804b2e56a55",
+          "sha256": "a68879a026ee9eaa8c8eeb0826d1bb255a36e9bb38c76b3e42d892b22d0c4728"
+        },
+        {
+          "path": ".git/objects/fa/64d82825addd2b85bdad1a95fd1855a6b8193c",
+          "sha256": "4e5207671fb0f6269b8470ed4cc447ba5cf5ea7744bf2b51190566bcc0db6d1a"
+        },
+        {
+          "path": ".git/refs/heads/main",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-left/HEAD",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-left/ORIG_HEAD",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-left/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-left/gitdir",
+          "sha256": "a02c857a75acd4d587a90325cb9ebf7591379268fa245f137685c2d8f712da99"
+        },
+        {
+          "path": ".git/worktrees/w3-left/index",
+          "sha256": "aad55766c1a2b256342b908c2fcdca20d50665939f3eadf2608ae2c18aed651d"
+        },
+        {
+          "path": ".git/worktrees/w3-left/logs/HEAD",
+          "sha256": "39389a8df9809f6464c5623b4c3ec514ef2e8ab7ca428ac1bd11e97c5d3012d9"
+        },
+        {
+          "path": ".git/worktrees/w3-right/HEAD",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-right/ORIG_HEAD",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-right/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-right/gitdir",
+          "sha256": "c9019c75011a4f03a975ff8128623c1695b64e87515fa157724578c9b779c8ad"
+        },
+        {
+          "path": ".git/worktrees/w3-right/index",
+          "sha256": "578321d5a5df4a2a3449a869ab6e406e3d4a591223a062bfeaa3245f71b1c76d"
+        },
+        {
+          "path": ".git/worktrees/w3-right/logs/HEAD",
+          "sha256": "39389a8df9809f6464c5623b4c3ec514ef2e8ab7ca428ac1bd11e97c5d3012d9"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+          "sha256": "21d96867dead361637a85026d9e645d3f505ac713bb8c69cafe01f5931b59c10"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/host-result.json",
+          "sha256": "07e871617bed9f428578bb42b3c3c1c8a6077d543f362648d4d5ad57011b8607"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/instruction.md",
+          "sha256": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/pi-sessions/2026-09-09T11-13-00-446Z_01a085df-041e-7564-8280-cdb8cc050466.jsonl",
+          "sha256": "15558efcf0790220f68c2694394d1c5953bc4bc52c701a437eb6ce13bc1e504b"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/receipt.json",
+          "sha256": "3962616cba40075cf95df3d1f427982700027b46b9e43b0e6aaf8c8ec1243e69"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/result.json",
+          "sha256": "3aa6a0ae04080c965502e26c2727a7ec0fa93c3e89bf31619eda475768d8d7bc"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/stderr.log",
+          "sha256": "21d96867dead361637a85026d9e645d3f505ac713bb8c69cafe01f5931b59c10"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/stdout.log",
+          "sha256": "98069dae942b7f6510d499cccca0d26dcb8bccb4aa8214193d3dbedfb76b4019"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/worker-spec.json",
+          "sha256": "6aa62db66adee109c67de06780ad75727d97235011389aed55417792e809fc96"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/writer.json",
+          "sha256": "cd635c1aaa927fe3eb3691ec026e1f8efa98c9d58eaf0c4bf16ec7b02b1bb297"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+          "sha256": "b3148ab041ee5f16544b656c5925bcf32bcb9691525b6ead2301acf22dc3db97"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/host-result.json",
+          "sha256": "2f7b6213b92e79cb00a5e05fddb3899b65882bed8f18684ee1db48022f9f0183"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/instruction.md",
+          "sha256": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/pi-sessions/2026-09-09T11-13-00-506Z_01a085df-0459-73c2-b1cd-b27fadd81eb3.jsonl",
+          "sha256": "396055213645f4f239ef051f61e1ba75f8331e974d6764e5592a26f6e5988d1b"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/receipt.json",
+          "sha256": "d63f602c1cf26f59829774e87aa56e912be0097714f14c923da630110a3e31d7"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/result.json",
+          "sha256": "eb0f827d10bf51ced2e9d31baa14ea8b08bea83150b59e650505ba5bce831905"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/stderr.log",
+          "sha256": "b3148ab041ee5f16544b656c5925bcf32bcb9691525b6ead2301acf22dc3db97"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/stdout.log",
+          "sha256": "e2d67a82ae2ee828099f08016fc16291bc02b5c4b9dd062c1e7251b5b294d16a"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/worker-spec.json",
+          "sha256": "753f08c2c6ec190cf3cf44bb67065650ba70dfde4d1ce2dd8afdde2355b1d54c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/writer.json",
+          "sha256": "1da05a44cf6c3209a070e5c4b0cc90012b197b623cd4ab1c7a3dc8557c4c8848"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/attention.json",
+          "sha256": "18186d883c026890b9c156875ca2c4aab4430e8f64aa7a0b20cf8d846f956295"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/cancel.request",
+          "sha256": "d6d62e61352dbd5f4a5881d21d7421770e779ea2d8fa3f890ae9daa97b4bf39e"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/delivery.json",
+          "sha256": "582bad23e44546d393ea8a465e4e501f188a42b4c81505e69e22260440cbd861"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/run-slice.json",
+          "sha256": "08488e716aef2e6ee087d0acbf1a0423f6afc7c01562b04381191230f7dcfea1"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.git",
+          "sha256": "023d67a90a6155da54bdcc8be47b76c248f0e2ff2bf8f8af4938a8f27f8d4d50"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/value.json",
+          "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.git",
+          "sha256": "5a3ec71ccf4614f62943aa26a3e51d508bada113f77b5afb8edefc47d0256a65"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/value.json",
+          "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519"
+        },
+        {
+          "path": ".ultra/changes/active/native-slice/intent.md",
+          "sha256": "de591ef3f5c355b3515a8a221b7414fa91d35a1f230f2cd88c5a8a4c61171793"
+        },
+        {
+          "path": ".ultra/contexts/task-native-slice.md",
+          "sha256": "e9bb74f2a9ff74e3f1b9183fd164eb477bf9a6bde4acc8f1b94e1fdd2c2157f9"
+        },
+        {
+          "path": ".ultra/decisions/native-slice.md",
+          "sha256": "c8ad1d6e7281d16704c146de64d9a08fcb0fd01d8fca89ef278812bf0e92d67e"
+        },
+        {
+          "path": ".ultra/profiles/native-pi-v1.json",
+          "sha256": "225089d5cd6a04bc2dc79e594fc17cd11e5036ca2f43692ef4fec2666cffc083"
+        },
+        {
+          "path": "coordinator.cjs",
+          "sha256": "d52337b4aed3652198c4363bd5a06c5b2b2d3c82edc367220830f7c0b805d3ec"
+        },
+        {
+          "path": "events.jsonl",
+          "sha256": "83e32fcf770e735023a37c61963f03056cfaa9ac7961f6af07b21aab246fa7e0"
+        },
+        {
+          "path": "initial-state.json",
+          "sha256": "dce5b41ee3b1cdd04fcb3cbd77168b98b8ac45fb6b325d1c3ca63e4db8695655"
+        },
+        {
+          "path": "interface.md",
+          "sha256": "8d62f381efddf9a021551d3fe2bc9258d0f64b655939a15bf9e6568d09eca7d9"
+        },
+        {
+          "path": "observation.json",
+          "sha256": "b599700398dab670d2fe680bb0d806307626f40e3664ca3f562cdc69df0aa5be"
+        },
+        {
+          "path": "replay.cjs",
+          "sha256": "a2809b1cf662d79e47a27628b59eb727bd7beac9b5d43f42682db916fcc2ff22"
+        },
+        {
+          "path": "sessions/2026-09-09T11-12-53-217Z_01a085de-e7e0-72a1-b35d-84077e2e7c8d.jsonl",
+          "sha256": "c07f8ee451a147aecc5790a1c149d5bc5973c28854ef0dcd2af40813e271d9f9"
+        },
+        {
+          "path": "source/delegate.cjs",
+          "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+        },
+        {
+          "path": "source/host-profile.cjs",
+          "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        {
+          "path": "source/pi-primary.cjs",
+          "sha256": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503"
+        },
+        {
+          "path": "source/run-slice.cjs",
+          "sha256": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd"
+        },
+        {
+          "path": "source/slice-channel.cjs",
+          "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+        },
+        {
+          "path": "source/slice-workspace.cjs",
+          "sha256": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9"
+        },
+        {
+          "path": "src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": "w3.json",
+          "sha256": "08488e716aef2e6ee087d0acbf1a0423f6afc7c01562b04381191230f7dcfea1"
+        }
+      ]
+    },
+    {
+      "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-ZjOszE",
+      "archive": "work/trellis-eight-step-20260909/ubp-native-message-ZjOszE-raw.tar.gz",
+      "archive_sha256": "feab14c1c0f301972e53de3a15933e990538a63ec03bc1e8d7d2485a1af963c1",
+      "observation": {
+        "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-ZjOszE",
+        "fault": "after",
+        "identity": {
+          "runtime_path": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "node_path": "/Users/rocky243/.hermes/node/bin/node",
+          "package_root": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent",
+          "policy_path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+          "fingerprint": {
+            "platform": "darwin",
+            "runtime_version": "0.85.1",
+            "node_sha256": "ebd2d552c7bebde593dd0390530963ad28de56bccde6ce387cdbe55fb0b6fb8e",
+            "runtime_sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+            "package_sha256": "f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c",
+            "runtime_files_sha256": "fc7322d2dd04594c8792bf67284432dfcfbf6ca23955e4ee45ee7e646bb9848e",
+            "policy_files_sha256": "85d3c7f8fee66e713f17607b1dff1d11ae4ee5b73c5e546fae5fee3c041ae879"
+          }
+        },
+        "digests": {
+          "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+          "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+          "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+          "slice-workspace.cjs": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9",
+          "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+          "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        "session_id": "01a085de-e7ce-73b2-b059-4df8d15596e0",
+        "receipt_before_death": {
+          "$schema": "ultra-attention-delivery-v1",
+          "event_key": "native:w3",
+          "primary_session_id": "01a085de-e7ce-73b2-b059-4df8d15596e0",
+          "transport": "w3-process-message",
+          "claim": "e261b91c-001c-4634-b9b9-3494d051e1d2",
+          "state": "consumed",
+          "updated_at": "2026-09-09T11:13:39.260Z"
+        },
+        "derived_delivery_after_death": "consumed",
+        "native_exit": true,
+        "resend_count": 0,
+        "limitation": "Abrupt death preserves the last receipt bytes; unconsumed delivery is unknown, not a safe retry. No W4 recovery is claimed."
+      },
+      "native_worker_env_observations": [
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".git/COMMIT_EDITMSG",
+          "sha256": "07e554d51cdebc5f27c6f1cd2418f06c4aa9eaa21c067f74d2d88ca58fa37f39"
+        },
+        {
+          "path": ".git/HEAD",
+          "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
+        },
+        {
+          "path": ".git/config",
+          "sha256": "8fcb3ebdae66dd2c321629b69d6a7bf2155eb3e2daeafb046ed55b421365cf6e"
+        },
+        {
+          "path": ".git/description",
+          "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+        },
+        {
+          "path": ".git/hooks/applypatch-msg.sample",
+          "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+        },
+        {
+          "path": ".git/hooks/commit-msg.sample",
+          "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+        },
+        {
+          "path": ".git/hooks/fsmonitor-watchman.sample",
+          "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+        },
+        {
+          "path": ".git/hooks/post-update.sample",
+          "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+        },
+        {
+          "path": ".git/hooks/pre-applypatch.sample",
+          "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+        },
+        {
+          "path": ".git/hooks/pre-commit.sample",
+          "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+        },
+        {
+          "path": ".git/hooks/pre-merge-commit.sample",
+          "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+        },
+        {
+          "path": ".git/hooks/pre-push.sample",
+          "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+        },
+        {
+          "path": ".git/hooks/pre-rebase.sample",
+          "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+        },
+        {
+          "path": ".git/hooks/pre-receive.sample",
+          "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+        },
+        {
+          "path": ".git/hooks/prepare-commit-msg.sample",
+          "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+        },
+        {
+          "path": ".git/hooks/push-to-checkout.sample",
+          "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+        },
+        {
+          "path": ".git/hooks/sendemail-validate.sample",
+          "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+        },
+        {
+          "path": ".git/hooks/update.sample",
+          "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+        },
+        {
+          "path": ".git/index",
+          "sha256": "191a2a8e32d7b12dacfbb725d04f3c2bc9955703e05ad878582ff01c71339683"
+        },
+        {
+          "path": ".git/info/exclude",
+          "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+        },
+        {
+          "path": ".git/logs/HEAD",
+          "sha256": "8ac8a3b0d365b4fb0cd102fbb4df91ed30d835f11dccd5839deae9316a9da4ba"
+        },
+        {
+          "path": ".git/logs/refs/heads/main",
+          "sha256": "8ac8a3b0d365b4fb0cd102fbb4df91ed30d835f11dccd5839deae9316a9da4ba"
+        },
+        {
+          "path": ".git/objects/4b/36dfd79db36d8c59d1fb032de66b57f0457b65",
+          "sha256": "fe21bb30795461aedb86733f22e7033aaab8f10362720bbb846a86adf867128b"
+        },
+        {
+          "path": ".git/objects/7a/516b515f75027b5c085fb470cd00539d79baba",
+          "sha256": "206681cadce55ed109692ba74b152c32f49e68d55d359f94965592cb1bcf2e18"
+        },
+        {
+          "path": ".git/objects/d8/61466c5a6904c5da86c48ad5d77cfe01ec8aba",
+          "sha256": "998dcd783b6113f91a187725fba9052bf7bed3aaf52992702b3a330ea18757f2"
+        },
+        {
+          "path": ".git/objects/df/967b96a579e45a18b8251732d16804b2e56a55",
+          "sha256": "a68879a026ee9eaa8c8eeb0826d1bb255a36e9bb38c76b3e42d892b22d0c4728"
+        },
+        {
+          "path": ".git/objects/fa/64d82825addd2b85bdad1a95fd1855a6b8193c",
+          "sha256": "4e5207671fb0f6269b8470ed4cc447ba5cf5ea7744bf2b51190566bcc0db6d1a"
+        },
+        {
+          "path": ".git/refs/heads/main",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-left/HEAD",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-left/ORIG_HEAD",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-left/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-left/gitdir",
+          "sha256": "9756a2a00bee2228afc177d5022f0ef843048b8981d245dd2fee01690e844f3b"
+        },
+        {
+          "path": ".git/worktrees/w3-left/index",
+          "sha256": "00e2b3138fc5eac3232b60c52898d4fe1fa6c84829748385f31628b564dd88a4"
+        },
+        {
+          "path": ".git/worktrees/w3-left/logs/HEAD",
+          "sha256": "39389a8df9809f6464c5623b4c3ec514ef2e8ab7ca428ac1bd11e97c5d3012d9"
+        },
+        {
+          "path": ".git/worktrees/w3-right/HEAD",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-right/ORIG_HEAD",
+          "sha256": "c9d00918a4d917322abf780d5f55f141cc1a2df34263c247e4dce312f4a21f60"
+        },
+        {
+          "path": ".git/worktrees/w3-right/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-right/gitdir",
+          "sha256": "b5b9f03f301ed9d3510dffbd77df47698d8f5926457ab6e96dc9317f9a673475"
+        },
+        {
+          "path": ".git/worktrees/w3-right/index",
+          "sha256": "1a2930721a544735a3d124d47475306cca1e8639f0e9f8f3286da8b6652b5fe7"
+        },
+        {
+          "path": ".git/worktrees/w3-right/logs/HEAD",
+          "sha256": "39389a8df9809f6464c5623b4c3ec514ef2e8ab7ca428ac1bd11e97c5d3012d9"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+          "sha256": "90d54ffe1cf5ca460c0ca2fc82ab9d4b0810c029dc8314edfc1a92d4eb8f4073"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/host-result.json",
+          "sha256": "07e871617bed9f428578bb42b3c3c1c8a6077d543f362648d4d5ad57011b8607"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/instruction.md",
+          "sha256": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/pi-sessions/2026-09-09T11-13-18-011Z_01a085df-48bb-7614-9167-8bbd2d9f4b31.jsonl",
+          "sha256": "eb5800a48ea8cba3e78d2879ca6d6b1ae41285d6cdf696038f00183a6db45cb9"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/receipt.json",
+          "sha256": "03b9161ea33a3d665c75145899d3d180d69e5e493b0adbd19e0f7c143ab022d8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/result.json",
+          "sha256": "0756c52bf9fdc5a02a6a1b586c9cc6d825fac7ddb2e848f3c4f6b23c39cc537c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/stderr.log",
+          "sha256": "90d54ffe1cf5ca460c0ca2fc82ab9d4b0810c029dc8314edfc1a92d4eb8f4073"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/stdout.log",
+          "sha256": "a514a81d1d20cb8310f0712e478bb7249340dbebc1d8324ab7421d2642d2b1b1"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/worker-spec.json",
+          "sha256": "a708d1c7fd5391722db81dcf5f62a42c1d0c21b6266c0326aed59903dc443f8a"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/writer.json",
+          "sha256": "6c50560a3537eed42949c89f6b0a7b2b1279292eb64af78ec2ccd2cbdfebee51"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+          "sha256": "979683a6dd49a09f69967f99c4c4a2f31540483ac70d744ea46a6e9e65ea6c9c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/host-result.json",
+          "sha256": "63e2fd4ec3ac943908d24a8c6b78dc2a376b1ca0f6dec054f210da5c88d6bb50"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/instruction.md",
+          "sha256": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/pi-sessions/2026-09-09T11-13-18-060Z_01a085df-48ec-7548-873b-f8f5cea5945d.jsonl",
+          "sha256": "bd299d4804fac4a43ce246400ae530066180f3a12e7151878726cdc336466439"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/receipt.json",
+          "sha256": "663478d94d343d04259d7bb9784954ceba8b50d0c346ef330644560e4a4e6200"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/result.json",
+          "sha256": "69bf104560478a9fe3df300949fbe7e16a774b7d8f20a8560709a9e8f94b002c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/stderr.log",
+          "sha256": "979683a6dd49a09f69967f99c4c4a2f31540483ac70d744ea46a6e9e65ea6c9c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/stdout.log",
+          "sha256": "ee3c29b0ebf93de805e17a8b28ed56fbdd0653ed092674cc690d65d4427ed7de"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/worker-spec.json",
+          "sha256": "790cf491d5ea59fa77cb5ff099ba3e575d578099ef72b22e068b05a216e8ef2f"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/writer.json",
+          "sha256": "1594f9deb5b176c51faaa38cc043f03d597046413046921ec1319853073454b8"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/attention.json",
+          "sha256": "f51adfcee5a9d652df552df7aed8f52ee48bdab731dc08872333d880625e59bb"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/cancel.request",
+          "sha256": "d6d62e61352dbd5f4a5881d21d7421770e779ea2d8fa3f890ae9daa97b4bf39e"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/delivery.json",
+          "sha256": "5b742f5fb6b103442938a3cb78bd9969e640f15857d529492fd92cb6af53ac61"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/run-slice.json",
+          "sha256": "deb115074ef5c09e33cec9ec2ad120df1f08b954f398c08b0047afce96d046f1"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.git",
+          "sha256": "f6a7015ebd45814102c441c1667e2f29254c17208107e75d45d0bf5cf8d5fe61"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/value.json",
+          "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.git",
+          "sha256": "592656097b27328abe604ce7dede9ac1ab56901cb03a0de245efa1addd34808f"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/value.json",
+          "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519"
+        },
+        {
+          "path": ".ultra/changes/active/native-slice/intent.md",
+          "sha256": "de591ef3f5c355b3515a8a221b7414fa91d35a1f230f2cd88c5a8a4c61171793"
+        },
+        {
+          "path": ".ultra/contexts/task-native-slice.md",
+          "sha256": "e9bb74f2a9ff74e3f1b9183fd164eb477bf9a6bde4acc8f1b94e1fdd2c2157f9"
+        },
+        {
+          "path": ".ultra/decisions/native-slice.md",
+          "sha256": "c8ad1d6e7281d16704c146de64d9a08fcb0fd01d8fca89ef278812bf0e92d67e"
+        },
+        {
+          "path": ".ultra/profiles/native-pi-v1.json",
+          "sha256": "225089d5cd6a04bc2dc79e594fc17cd11e5036ca2f43692ef4fec2666cffc083"
+        },
+        {
+          "path": "coordinator.cjs",
+          "sha256": "d52337b4aed3652198c4363bd5a06c5b2b2d3c82edc367220830f7c0b805d3ec"
+        },
+        {
+          "path": "decision-w3.json",
+          "sha256": "ba1cf5525e9251e010effe74ed85dce9a2629a6bbcd6adedb9e9676c0e280428"
+        },
+        {
+          "path": "events.jsonl",
+          "sha256": "8d0952d963a9c04fa2e633cf78efb7b386044607efeb1693adaf74e1630e3c47"
+        },
+        {
+          "path": "initial-state.json",
+          "sha256": "e8f0c01c5d1b414d61dad4179f2859ebd916f3f1b1177a16a0200c6eaa0ff5b9"
+        },
+        {
+          "path": "interface.md",
+          "sha256": "8d62f381efddf9a021551d3fe2bc9258d0f64b655939a15bf9e6568d09eca7d9"
+        },
+        {
+          "path": "observation.json",
+          "sha256": "a8dd584f0ef138034a1b06b48d83dfe09397f25d07d9de5a0fe226d863c1b074"
+        },
+        {
+          "path": "replay.cjs",
+          "sha256": "a2809b1cf662d79e47a27628b59eb727bd7beac9b5d43f42682db916fcc2ff22"
+        },
+        {
+          "path": "sessions/2026-09-09T11-12-53-198Z_01a085de-e7ce-73b2-b059-4df8d15596e0.jsonl",
+          "sha256": "9d0135ca603989d89848f4985d5a5fdb8347e73b7ec33173bb943c2aab272ba8"
+        },
+        {
+          "path": "source/delegate.cjs",
+          "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+        },
+        {
+          "path": "source/host-profile.cjs",
+          "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        {
+          "path": "source/pi-primary.cjs",
+          "sha256": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503"
+        },
+        {
+          "path": "source/run-slice.cjs",
+          "sha256": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd"
+        },
+        {
+          "path": "source/slice-channel.cjs",
+          "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+        },
+        {
+          "path": "source/slice-workspace.cjs",
+          "sha256": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9"
+        },
+        {
+          "path": "src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": "w3.json",
+          "sha256": "deb115074ef5c09e33cec9ec2ad120df1f08b954f398c08b0047afce96d046f1"
+        }
+      ]
+    },
+    {
+      "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-EGMbUa",
+      "archive": "work/trellis-eight-step-20260909/ubp-native-message-EGMbUa-raw.tar.gz",
+      "archive_sha256": "6748d6bd0e69d8b1d07c7ad60c1da7d295a41e0d8a014a01a63e89b1ad6c2f3a",
+      "observation": {
+        "status": "failed_observer",
+        "reason": "Observation selected the first failed ultra_slice call, before the model self-corrected to a path; raw events retained; same attempts reconciled after stopping native Primary."
+      },
+      "native_worker_env_observations": [],
+      "files": [
+        {
+          "path": ".git/COMMIT_EDITMSG",
+          "sha256": "07e554d51cdebc5f27c6f1cd2418f06c4aa9eaa21c067f74d2d88ca58fa37f39"
+        },
+        {
+          "path": ".git/HEAD",
+          "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
+        },
+        {
+          "path": ".git/config",
+          "sha256": "8fcb3ebdae66dd2c321629b69d6a7bf2155eb3e2daeafb046ed55b421365cf6e"
+        },
+        {
+          "path": ".git/description",
+          "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+        },
+        {
+          "path": ".git/hooks/applypatch-msg.sample",
+          "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+        },
+        {
+          "path": ".git/hooks/commit-msg.sample",
+          "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+        },
+        {
+          "path": ".git/hooks/fsmonitor-watchman.sample",
+          "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+        },
+        {
+          "path": ".git/hooks/post-update.sample",
+          "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+        },
+        {
+          "path": ".git/hooks/pre-applypatch.sample",
+          "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+        },
+        {
+          "path": ".git/hooks/pre-commit.sample",
+          "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+        },
+        {
+          "path": ".git/hooks/pre-merge-commit.sample",
+          "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+        },
+        {
+          "path": ".git/hooks/pre-push.sample",
+          "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+        },
+        {
+          "path": ".git/hooks/pre-rebase.sample",
+          "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+        },
+        {
+          "path": ".git/hooks/pre-receive.sample",
+          "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+        },
+        {
+          "path": ".git/hooks/prepare-commit-msg.sample",
+          "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+        },
+        {
+          "path": ".git/hooks/push-to-checkout.sample",
+          "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+        },
+        {
+          "path": ".git/hooks/sendemail-validate.sample",
+          "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+        },
+        {
+          "path": ".git/hooks/update.sample",
+          "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+        },
+        {
+          "path": ".git/index",
+          "sha256": "4cacb71328c83e7bb22d9af253bd48cf0db065d6109560c5c1e8a1cb8fc6971d"
+        },
+        {
+          "path": ".git/info/exclude",
+          "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+        },
+        {
+          "path": ".git/logs/HEAD",
+          "sha256": "3ab336f2c5bab2cb7d1e041916e34a6abdb6c5274e2632025c4fc1c3941e7380"
+        },
+        {
+          "path": ".git/logs/refs/heads/main",
+          "sha256": "3ab336f2c5bab2cb7d1e041916e34a6abdb6c5274e2632025c4fc1c3941e7380"
+        },
+        {
+          "path": ".git/objects/4b/36dfd79db36d8c59d1fb032de66b57f0457b65",
+          "sha256": "fe21bb30795461aedb86733f22e7033aaab8f10362720bbb846a86adf867128b"
+        },
+        {
+          "path": ".git/objects/7a/516b515f75027b5c085fb470cd00539d79baba",
+          "sha256": "206681cadce55ed109692ba74b152c32f49e68d55d359f94965592cb1bcf2e18"
+        },
+        {
+          "path": ".git/objects/8d/2acaf0f52457e1f1decaab5c5392b645607350",
+          "sha256": "648a5c02b75db651eb3f46d34ef8c8e556f48006966891fda0c74244dd902fa8"
+        },
+        {
+          "path": ".git/objects/d8/61466c5a6904c5da86c48ad5d77cfe01ec8aba",
+          "sha256": "998dcd783b6113f91a187725fba9052bf7bed3aaf52992702b3a330ea18757f2"
+        },
+        {
+          "path": ".git/objects/df/967b96a579e45a18b8251732d16804b2e56a55",
+          "sha256": "a68879a026ee9eaa8c8eeb0826d1bb255a36e9bb38c76b3e42d892b22d0c4728"
+        },
+        {
+          "path": ".git/refs/heads/main",
+          "sha256": "59b569a0cff7faead8e7911affa3dcf3dd99bd8d747fb0d3bb4141ea78850382"
+        },
+        {
+          "path": ".git/worktrees/w3-left/HEAD",
+          "sha256": "59b569a0cff7faead8e7911affa3dcf3dd99bd8d747fb0d3bb4141ea78850382"
+        },
+        {
+          "path": ".git/worktrees/w3-left/ORIG_HEAD",
+          "sha256": "59b569a0cff7faead8e7911affa3dcf3dd99bd8d747fb0d3bb4141ea78850382"
+        },
+        {
+          "path": ".git/worktrees/w3-left/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-left/gitdir",
+          "sha256": "1e6aec260d7f791abf75dcec99c64e0ddde5a1d3d9bc5b434709e3ba080fa7d5"
+        },
+        {
+          "path": ".git/worktrees/w3-left/index",
+          "sha256": "cb8d2b8bbcee559025e88033a4172fe7ac22fbffb54b8c96a277a21d72961070"
+        },
+        {
+          "path": ".git/worktrees/w3-left/logs/HEAD",
+          "sha256": "c594eb06cdd0147f93cb21ded2b914997464d7eaee05eea7ceb1a6a713723ff1"
+        },
+        {
+          "path": ".git/worktrees/w3-right/HEAD",
+          "sha256": "59b569a0cff7faead8e7911affa3dcf3dd99bd8d747fb0d3bb4141ea78850382"
+        },
+        {
+          "path": ".git/worktrees/w3-right/ORIG_HEAD",
+          "sha256": "59b569a0cff7faead8e7911affa3dcf3dd99bd8d747fb0d3bb4141ea78850382"
+        },
+        {
+          "path": ".git/worktrees/w3-right/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-right/gitdir",
+          "sha256": "d5a4098a647f75cc4ee8c3e0948313dd81ea096ae04fe0ce8aa975f2ef61d7cc"
+        },
+        {
+          "path": ".git/worktrees/w3-right/index",
+          "sha256": "5c676a0420c3e27a9a9ef7cab1e479acb03a47941b7f4e1744d6f5585355b1ea"
+        },
+        {
+          "path": ".git/worktrees/w3-right/logs/HEAD",
+          "sha256": "c594eb06cdd0147f93cb21ded2b914997464d7eaee05eea7ceb1a6a713723ff1"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/instruction.md",
+          "sha256": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/instruction.md",
+          "sha256": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/attention.json",
+          "sha256": "ff612a6f02761a9ae71ec20f6db2a7189084b6c8cf1a83ab351c71137ffb590c"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/run-slice.json",
+          "sha256": "e46a5c4cfc551f72c2e1eee0d077a4f460db9fd6680d62a5b882e1a679394e91"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.git",
+          "sha256": "0dec2ddd45dcc39e441036cf7b233735c1fb3075fa05a27f88d1698bfa03e3a1"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.git",
+          "sha256": "a260910902e7c0de982aa190a5c673c2ded6d838f7451a78d7a0ea3d72c32e45"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/changes/active/native-slice/intent.md",
+          "sha256": "de591ef3f5c355b3515a8a221b7414fa91d35a1f230f2cd88c5a8a4c61171793"
+        },
+        {
+          "path": ".ultra/contexts/task-native-slice.md",
+          "sha256": "e9bb74f2a9ff74e3f1b9183fd164eb477bf9a6bde4acc8f1b94e1fdd2c2157f9"
+        },
+        {
+          "path": ".ultra/decisions/native-slice.md",
+          "sha256": "c8ad1d6e7281d16704c146de64d9a08fcb0fd01d8fca89ef278812bf0e92d67e"
+        },
+        {
+          "path": ".ultra/profiles/native-pi-v1.json",
+          "sha256": "225089d5cd6a04bc2dc79e594fc17cd11e5036ca2f43692ef4fec2666cffc083"
+        },
+        {
+          "path": "coordinator.cjs",
+          "sha256": "46e53a9656c59b1a651426a452fb6dd5dd23272289d86aa394582b9b69ec497f"
+        },
+        {
+          "path": "events.jsonl",
+          "sha256": "041247ec06dc8ff801566497b956316229e37e658d5922c6a0547965bcc1e92a"
+        },
+        {
+          "path": "initial-state.json",
+          "sha256": "745abf5d3d396e7b99227dd6eac7f670849aa07c72eb0091623e17f6efebfb0e"
+        },
+        {
+          "path": "interface.md",
+          "sha256": "8d62f381efddf9a021551d3fe2bc9258d0f64b655939a15bf9e6568d09eca7d9"
+        },
+        {
+          "path": "probe-reconcile.json",
+          "sha256": "1d99ca7be61017752f584d236cc15efc1cd6664deb25302f41ad6bdc6739f7ac"
+        },
+        {
+          "path": "replay.cjs",
+          "sha256": "a2809b1cf662d79e47a27628b59eb727bd7beac9b5d43f42682db916fcc2ff22"
+        },
+        {
+          "path": "sessions/2026-09-09T11-13-08-457Z_01a085df-2369-7529-9c6b-c85d2c88755e.jsonl",
+          "sha256": "0f73ff71d37f5e1e51e79b2b3e1d450aa29d18ed7a5a3e83b5791ff61fcd5b57"
+        },
+        {
+          "path": "source/delegate.cjs",
+          "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+        },
+        {
+          "path": "source/host-profile.cjs",
+          "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        {
+          "path": "source/pi-primary.cjs",
+          "sha256": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503"
+        },
+        {
+          "path": "source/run-slice.cjs",
+          "sha256": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd"
+        },
+        {
+          "path": "source/slice-channel.cjs",
+          "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+        },
+        {
+          "path": "source/slice-workspace.cjs",
+          "sha256": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9"
+        },
+        {
+          "path": "src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": "w3.json",
+          "sha256": "e46a5c4cfc551f72c2e1eee0d077a4f460db9fd6680d62a5b882e1a679394e91"
+        }
+      ]
+    },
+    {
+      "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT",
+      "archive": "work/trellis-eight-step-20260909/ubp-native-message-2rZZTT-raw.tar.gz",
+      "archive_sha256": "2d9c7019c5a77eac075a3f379e4ee9df8b5c944124bcc513b9ae64128d4b0520",
+      "observation": {
+        "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT",
+        "fault": "lost",
+        "identity": {
+          "runtime_path": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+          "node_path": "/Users/rocky243/.hermes/node/bin/node",
+          "package_root": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent",
+          "policy_path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+          "fingerprint": {
+            "platform": "darwin",
+            "runtime_version": "0.85.1",
+            "node_sha256": "ebd2d552c7bebde593dd0390530963ad28de56bccde6ce387cdbe55fb0b6fb8e",
+            "runtime_sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+            "package_sha256": "f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c",
+            "runtime_files_sha256": "fc7322d2dd04594c8792bf67284432dfcfbf6ca23955e4ee45ee7e646bb9848e",
+            "policy_files_sha256": "85d3c7f8fee66e713f17607b1dff1d11ae4ee5b73c5e546fae5fee3c041ae879"
+          }
+        },
+        "digests": {
+          "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+          "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+          "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+          "slice-workspace.cjs": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9",
+          "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+          "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        "session_id": "01a085e1-33d4-722f-9589-d895c8bb2359",
+        "primary_pid": 96715,
+        "killed_controller_pid": 5950,
+        "initial_delivery": "unknown",
+        "lost_channel_idle_model_turns": 0,
+        "recovery": "explicit same-session reconcile",
+        "final_receipt": {
+          "$schema": "ultra-attention-delivery-v1",
+          "event_key": "native:w3",
+          "primary_session_id": "01a085e1-33d4-722f-9589-d895c8bb2359",
+          "transport": "w3-process-message",
+          "claim": "1a091aae-b9fe-4b37-9251-8d701d15a9d5",
+          "state": "consumed",
+          "updated_at": "2026-09-09T11:16:14.857Z"
+        },
+        "duplicate_workers": 0,
+        "original_receipts": [
+          {
+            "$schema": "ultra-delegation-receipt-v1",
+            "status": "started",
+            "delegation_id": "w3-left",
+            "launch_id": "5d690567-661d-4b55-bf26-a71f02cdf69d",
+            "host": "pi",
+            "model": "gpt-5.6-luna",
+            "transport_maturity": "experimental",
+            "transport_surface": "documented non-interactive CLI",
+            "experimental_ack": true,
+            "execution_driver": "cli",
+            "driver_fallback_reason": "acp_not_available",
+            "acp_capability": {
+              "candidate": false,
+              "surface": null,
+              "transport": null,
+              "protocol_versions": [],
+              "conformance_status": "not_available",
+              "conformance_evidence": null,
+              "conformance_reason": null,
+              "executable_available": null,
+              "acp_entry_available": null,
+              "candidate_valid": null,
+              "candidate_identity_valid": null,
+              "candidate_identity_reason": null,
+              "candidate_identity_fallback_reason": null
+            },
+            "worker_pid": 15919,
+            "worker_start_identity": null,
+            "instruction_digest": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0",
+            "permission_digest": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333",
+            "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+            "spec_digest": "a8b5aefa2014fe24a250be4c05e952efa6b06a32cbc5b5c4009ec2402dee559b",
+            "base_head": "c8d448a87555f35c8e4911c972ad0b1fc6a3da94",
+            "started_at": "2026-09-09T11:15:49.072Z",
+            "timeout_ms": 180000,
+            "result_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT/.ultra/.runtime/delegations/w3-left/result.json",
+            "read_only": false,
+            "stdout_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT/.ultra/.runtime/delegations/w3-left/stdout.log",
+            "stderr_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT/.ultra/.runtime/delegations/w3-left/stderr.log",
+            "events_file": null,
+            "cancel_command": "\"/Users/rocky243/.hermes/node/bin/node\" \"/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/delegate.cjs\" \"cancel\" \"--delegation\" \"/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT/.ultra/.runtime/delegations/w3-left\""
+          },
+          {
+            "$schema": "ultra-delegation-receipt-v1",
+            "status": "started",
+            "delegation_id": "w3-right",
+            "launch_id": "e8102679-1fba-45f2-9a5f-fe64bded5d3e",
+            "host": "pi",
+            "model": "gpt-5.6-terra",
+            "transport_maturity": "experimental",
+            "transport_surface": "documented non-interactive CLI",
+            "experimental_ack": true,
+            "execution_driver": "cli",
+            "driver_fallback_reason": "acp_not_available",
+            "acp_capability": {
+              "candidate": false,
+              "surface": null,
+              "transport": null,
+              "protocol_versions": [],
+              "conformance_status": "not_available",
+              "conformance_evidence": null,
+              "conformance_reason": null,
+              "executable_available": null,
+              "acp_entry_available": null,
+              "candidate_valid": null,
+              "candidate_identity_valid": null,
+              "candidate_identity_reason": null,
+              "candidate_identity_fallback_reason": null
+            },
+            "worker_pid": 16430,
+            "worker_start_identity": null,
+            "instruction_digest": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8",
+            "permission_digest": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333",
+            "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+            "spec_digest": "b6668792f6e35ca2a8cea8a4e4509daf8c99f9a3dea3af993f01a3d3c667a8c0",
+            "base_head": "c8d448a87555f35c8e4911c972ad0b1fc6a3da94",
+            "started_at": "2026-09-09T11:15:49.125Z",
+            "timeout_ms": 180000,
+            "result_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT/.ultra/.runtime/delegations/w3-right/result.json",
+            "read_only": false,
+            "stdout_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT/.ultra/.runtime/delegations/w3-right/stdout.log",
+            "stderr_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT/.ultra/.runtime/delegations/w3-right/stderr.log",
+            "events_file": null,
+            "cancel_command": "\"/Users/rocky243/.hermes/node/bin/node\" \"/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/delegate.cjs\" \"cancel\" \"--delegation\" \"/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT/.ultra/.runtime/delegations/w3-right\""
+          }
+        ],
+        "limitations": [
+          "Controller death was injected before message delivery; reconciliation was explicitly requested, not autonomous W4."
+        ]
+      },
+      "native_worker_env_observations": [
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+          "env_keys": [
+            "AI_AGENT",
+            "HOME",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "LOGNAME",
+            "PATH",
+            "PI_CODING_AGENT",
+            "PI_OFFLINE",
+            "PI_SKIP_VERSION_CHECK",
+            "PI_TELEMETRY",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "UBP_PI_PERMISSION_CONFIG",
+            "USER",
+            "__CF_USER_TEXT_ENCODING"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": ".git/COMMIT_EDITMSG",
+          "sha256": "07e554d51cdebc5f27c6f1cd2418f06c4aa9eaa21c067f74d2d88ca58fa37f39"
+        },
+        {
+          "path": ".git/HEAD",
+          "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
+        },
+        {
+          "path": ".git/config",
+          "sha256": "8fcb3ebdae66dd2c321629b69d6a7bf2155eb3e2daeafb046ed55b421365cf6e"
+        },
+        {
+          "path": ".git/description",
+          "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+        },
+        {
+          "path": ".git/hooks/applypatch-msg.sample",
+          "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+        },
+        {
+          "path": ".git/hooks/commit-msg.sample",
+          "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+        },
+        {
+          "path": ".git/hooks/fsmonitor-watchman.sample",
+          "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+        },
+        {
+          "path": ".git/hooks/post-update.sample",
+          "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+        },
+        {
+          "path": ".git/hooks/pre-applypatch.sample",
+          "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+        },
+        {
+          "path": ".git/hooks/pre-commit.sample",
+          "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+        },
+        {
+          "path": ".git/hooks/pre-merge-commit.sample",
+          "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+        },
+        {
+          "path": ".git/hooks/pre-push.sample",
+          "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+        },
+        {
+          "path": ".git/hooks/pre-rebase.sample",
+          "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+        },
+        {
+          "path": ".git/hooks/pre-receive.sample",
+          "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+        },
+        {
+          "path": ".git/hooks/prepare-commit-msg.sample",
+          "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+        },
+        {
+          "path": ".git/hooks/push-to-checkout.sample",
+          "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+        },
+        {
+          "path": ".git/hooks/sendemail-validate.sample",
+          "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+        },
+        {
+          "path": ".git/hooks/update.sample",
+          "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+        },
+        {
+          "path": ".git/index",
+          "sha256": "f53a9874e4a7474845885da417fea8524fd27552810705fc33ac6cb90ad0bbf9"
+        },
+        {
+          "path": ".git/info/exclude",
+          "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+        },
+        {
+          "path": ".git/logs/HEAD",
+          "sha256": "9afeaa49ce42c27e90b5404e07c9d79420213990a9917ac3138d478dd1eaa204"
+        },
+        {
+          "path": ".git/logs/refs/heads/main",
+          "sha256": "9afeaa49ce42c27e90b5404e07c9d79420213990a9917ac3138d478dd1eaa204"
+        },
+        {
+          "path": ".git/objects/4b/36dfd79db36d8c59d1fb032de66b57f0457b65",
+          "sha256": "fe21bb30795461aedb86733f22e7033aaab8f10362720bbb846a86adf867128b"
+        },
+        {
+          "path": ".git/objects/7a/516b515f75027b5c085fb470cd00539d79baba",
+          "sha256": "206681cadce55ed109692ba74b152c32f49e68d55d359f94965592cb1bcf2e18"
+        },
+        {
+          "path": ".git/objects/c8/d448a87555f35c8e4911c972ad0b1fc6a3da94",
+          "sha256": "e13f561c8008fe22bd6944010d69896d4c510df222d1f84c8aad8543ce88065f"
+        },
+        {
+          "path": ".git/objects/d8/61466c5a6904c5da86c48ad5d77cfe01ec8aba",
+          "sha256": "998dcd783b6113f91a187725fba9052bf7bed3aaf52992702b3a330ea18757f2"
+        },
+        {
+          "path": ".git/objects/df/967b96a579e45a18b8251732d16804b2e56a55",
+          "sha256": "a68879a026ee9eaa8c8eeb0826d1bb255a36e9bb38c76b3e42d892b22d0c4728"
+        },
+        {
+          "path": ".git/refs/heads/main",
+          "sha256": "c24d841c6fcddbc3b042d687454b1adb52dd663f3694922c43217fdf2f1a8d19"
+        },
+        {
+          "path": ".git/worktrees/w3-left/HEAD",
+          "sha256": "c24d841c6fcddbc3b042d687454b1adb52dd663f3694922c43217fdf2f1a8d19"
+        },
+        {
+          "path": ".git/worktrees/w3-left/ORIG_HEAD",
+          "sha256": "c24d841c6fcddbc3b042d687454b1adb52dd663f3694922c43217fdf2f1a8d19"
+        },
+        {
+          "path": ".git/worktrees/w3-left/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-left/gitdir",
+          "sha256": "2eb3e3d0b9bac02cb9404d1bf45553c3063e3af4fc1c7b6e30ea5e08f6749948"
+        },
+        {
+          "path": ".git/worktrees/w3-left/index",
+          "sha256": "513b2b2148958927581103ca15512042f15fbda9270c2cd8efd0760acb23d0e0"
+        },
+        {
+          "path": ".git/worktrees/w3-left/logs/HEAD",
+          "sha256": "e20a3bd85f377432cd32cf3d8ddaf7143777fab7bde176f0fd1d027cec6b9ef0"
+        },
+        {
+          "path": ".git/worktrees/w3-right/HEAD",
+          "sha256": "c24d841c6fcddbc3b042d687454b1adb52dd663f3694922c43217fdf2f1a8d19"
+        },
+        {
+          "path": ".git/worktrees/w3-right/ORIG_HEAD",
+          "sha256": "c24d841c6fcddbc3b042d687454b1adb52dd663f3694922c43217fdf2f1a8d19"
+        },
+        {
+          "path": ".git/worktrees/w3-right/commondir",
+          "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+        },
+        {
+          "path": ".git/worktrees/w3-right/gitdir",
+          "sha256": "a1cd7b5d8ea377e907fb47c29cddcdef5d72986d3a4d579a1d413fab6a46d9a2"
+        },
+        {
+          "path": ".git/worktrees/w3-right/index",
+          "sha256": "661bbad9016c647253b8070f7615996c71b7c1a13593b48042c054286f0bb606"
+        },
+        {
+          "path": ".git/worktrees/w3-right/logs/HEAD",
+          "sha256": "e20a3bd85f377432cd32cf3d8ddaf7143777fab7bde176f0fd1d027cec6b9ef0"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+          "sha256": "1f373c11b1d30e10a0cb1e6a7f9c03d8a7f57c4cdc8c9a6540ce93e0a0a92fe5"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/host-result.json",
+          "sha256": "07e871617bed9f428578bb42b3c3c1c8a6077d543f362648d4d5ad57011b8607"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/instruction.md",
+          "sha256": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/pi-sessions/2026-09-09T11-15-49-330Z_01a085e1-97d1-73da-9dbd-22d8ce3682f2.jsonl",
+          "sha256": "2dd40a18538949d3a2668721e767dbe628ef3c6bf214ad5ea8aa429eb8e797e2"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/receipt.json",
+          "sha256": "06583f93af637fdbebacc0e92e677c7298f164db724fdc162e18860cdbad2386"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/result.json",
+          "sha256": "9fe288c7deedca072074744884b79cde395d64301db26825ef4d6b2c8354f11d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/stderr.log",
+          "sha256": "1f373c11b1d30e10a0cb1e6a7f9c03d8a7f57c4cdc8c9a6540ce93e0a0a92fe5"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/stdout.log",
+          "sha256": "767835ddb59f557c6d5c7e6455f479bb00023c4e64fdc3009a27e8d92d5f8dbd"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/worker-spec.json",
+          "sha256": "a8b5aefa2014fe24a250be4c05e952efa6b06a32cbc5b5c4009ec2402dee559b"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-left/writer.json",
+          "sha256": "82580bd27b26f2ed953d4acd130ae2b2ac226deb1c378f70d0c229840fc46e62"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+          "sha256": "0c8a5f81132ab560bb1c6bfb9cb250fde6994828790b9b755e6f366c062cac00"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/host-result.json",
+          "sha256": "2f7b6213b92e79cb00a5e05fddb3899b65882bed8f18684ee1db48022f9f0183"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/instruction.md",
+          "sha256": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/permission.json",
+          "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/pi-sessions/2026-09-09T11-15-49-386Z_01a085e1-980a-7322-b9c5-2a765c7f423f.jsonl",
+          "sha256": "2365006e48ef90e3fdd62e59bf5075eef7135fb0129781bd0ff93ea6e375c566"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/receipt.json",
+          "sha256": "31204bd6d7a4442d40964865cde3adacbf3674abeaa54860c3a16234ad1add3c"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/result-schema.json",
+          "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/result.json",
+          "sha256": "211a92cba68b738571a7ca3ba663a00dbed3603e2f06dfc0c35413efc7787fed"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/stderr.log",
+          "sha256": "0c8a5f81132ab560bb1c6bfb9cb250fde6994828790b9b755e6f366c062cac00"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/stdout.log",
+          "sha256": "2a8cdc05a295ebee84b3609551e0ce0a69dc892ba908c945cc8972b137d3b542"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/worker-spec.json",
+          "sha256": "b6668792f6e35ca2a8cea8a4e4509daf8c99f9a3dea3af993f01a3d3c667a8c0"
+        },
+        {
+          "path": ".ultra/.runtime/delegations/w3-right/writer.json",
+          "sha256": "4af1b78fd27cf0f0ca61740c5d9181b253cc6136113a9ca6a451406fb62aff59"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/attention.json",
+          "sha256": "5bb296c807bb947213334bd7644f4761017f84ee89fd05b728c2b749a036cd9c"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/cancel.request",
+          "sha256": "d6d62e61352dbd5f4a5881d21d7421770e779ea2d8fa3f890ae9daa97b4bf39e"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/delivery.json",
+          "sha256": "64a256e2f4b7236596502c43ffd0f78993d08df592f57bd0325a624a7f0ffaf2"
+        },
+        {
+          "path": ".ultra/.runtime/runs/native/w3/run-slice.json",
+          "sha256": "4ef4a9d98483c44fe953fa23590656560183d9054eac39156df331c597a9a5b9"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.git",
+          "sha256": "306f145ab42b9fc9a9b59797b0646f2ff92722f6046c157ed2affaf2bc942721"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-left/src/value.json",
+          "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.git",
+          "sha256": "6058dbad9fe222a685f389077223ecd82e3bb58ebe22b03ebdde4ed4b8ec80ab"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/.gitignore",
+          "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": ".ultra/.runtime/trees/w3-right/src/value.json",
+          "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519"
+        },
+        {
+          "path": ".ultra/changes/active/native-slice/intent.md",
+          "sha256": "de591ef3f5c355b3515a8a221b7414fa91d35a1f230f2cd88c5a8a4c61171793"
+        },
+        {
+          "path": ".ultra/contexts/task-native-slice.md",
+          "sha256": "e9bb74f2a9ff74e3f1b9183fd164eb477bf9a6bde4acc8f1b94e1fdd2c2157f9"
+        },
+        {
+          "path": ".ultra/decisions/native-slice.md",
+          "sha256": "c8ad1d6e7281d16704c146de64d9a08fcb0fd01d8fca89ef278812bf0e92d67e"
+        },
+        {
+          "path": ".ultra/profiles/native-pi-v1.json",
+          "sha256": "225089d5cd6a04bc2dc79e594fc17cd11e5036ca2f43692ef4fec2666cffc083"
+        },
+        {
+          "path": "coordinator.cjs",
+          "sha256": "edef260d2fc36e46e51b53efdbf81b53af8756ca1207f42f3ede3ee1d128a7d2"
+        },
+        {
+          "path": "decision-w3.json",
+          "sha256": "ba1cf5525e9251e010effe74ed85dce9a2629a6bbcd6adedb9e9676c0e280428"
+        },
+        {
+          "path": "events.jsonl",
+          "sha256": "a20b2c11d326d566471f89c7f4c2365ee130fb739233e8b10278372ddd03e1a8"
+        },
+        {
+          "path": "initial-state.json",
+          "sha256": "60315bec422a44667b2ee1f4c92a03921b3b0e115a0eee6d87579d7250973aab"
+        },
+        {
+          "path": "interface.md",
+          "sha256": "8d62f381efddf9a021551d3fe2bc9258d0f64b655939a15bf9e6568d09eca7d9"
+        },
+        {
+          "path": "observation.json",
+          "sha256": "c53777cfe71054da63912d3cf50e9bffcd18e492170cf5ec0cbdb9d2423b4eed"
+        },
+        {
+          "path": "replay.cjs",
+          "sha256": "a2809b1cf662d79e47a27628b59eb727bd7beac9b5d43f42682db916fcc2ff22"
+        },
+        {
+          "path": "sessions/2026-09-09T11-15-23-732Z_01a085e1-33d4-722f-9589-d895c8bb2359.jsonl",
+          "sha256": "883bbe119a3c3d6907ab29c85e417b71bbc58f333437b3d80f0e7d6bda88b045"
+        },
+        {
+          "path": "source/delegate.cjs",
+          "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+        },
+        {
+          "path": "source/host-profile.cjs",
+          "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+        },
+        {
+          "path": "source/pi-primary.cjs",
+          "sha256": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503"
+        },
+        {
+          "path": "source/run-slice.cjs",
+          "sha256": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd"
+        },
+        {
+          "path": "source/slice-channel.cjs",
+          "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+        },
+        {
+          "path": "source/slice-workspace.cjs",
+          "sha256": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9"
+        },
+        {
+          "path": "src/base.txt",
+          "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+        },
+        {
+          "path": "w3.json",
+          "sha256": "4ef4a9d98483c44fe953fa23590656560183d9054eac39156df331c597a9a5b9"
+        }
+      ]
+    }
+  ],
+  "scope": "Exact Pi W1/W2/W3 lifecycle; no D product or W4 claim",
+  "qualification_sources": {
+    "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+    "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+    "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+    "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+    "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+  },
+  "workspace_note": "Git-only cleanup later gained an ignored-output refusal; it is separately checked and does not implement native IPC or attention."
+}

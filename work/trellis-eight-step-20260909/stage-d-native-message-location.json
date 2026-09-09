@@ -1,0 +1,12 @@
+{
+  "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-native-message-2rZZTT",
+  "pid": 96715,
+  "digests": {
+    "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+    "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+    "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+    "slice-workspace.cjs": "2894263f6e7912b299c89a615251ac9a60eccd89a067dd6a483e80af5fe26cb9",
+    "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+    "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+  }
+}

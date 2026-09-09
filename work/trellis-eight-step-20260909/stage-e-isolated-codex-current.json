@@ -1,0 +1,106 @@
+{
+  "root": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU",
+  "plugin": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU/plugins/ultra-builder-pro",
+  "installation": {
+    "target": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU",
+    "pluginRoot": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU/plugins/ultra-builder-pro",
+    "skillRoot": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU/plugins/ultra-builder-pro/skills",
+    "hookRoot": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU/plugins/ultra-builder-pro/hooks",
+    "marketplaceFile": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU/.agents/plugins/marketplace.json",
+    "copied": {
+      "skills": [
+        "ultra-init",
+        "ultra-research",
+        "ultra-change",
+        "ultra-plan",
+        "ultra-dev",
+        "ultra-test",
+        "ultra-deliver",
+        "ultra-delegate",
+        "ultra-grilling",
+        "ultra-domain-modeling",
+        "ultra-tdd",
+        "ultra-review",
+        "ultra-think",
+        "ultra-status"
+      ],
+      "version": "5.0.2+codex.607053b2cf59"
+    }
+  },
+  "report": {
+    "adapter": "codex",
+    "status": "healthy",
+    "manifest_path": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU/plugins/ultra-builder-pro/provenance.json",
+    "package": {
+      "name": "ultra-builder-pro-cli",
+      "version": "5.0.2"
+    },
+    "source": {
+      "repository": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git",
+      "commit": "51ab562c6283ac873d120b2f7e52c4fcb421ab34",
+      "dirty": true,
+      "worktree_digest": "303f0cf2b02b311108d29b790299257b43c7103394e1ac7386be5fa6083792b5"
+    },
+    "content_digest": "5179988d30fbc6e2352a144929c2c9be97f36a9edf169b3517b98f1947d3e5ed",
+    "checks": {
+      "manifest": {
+        "status": "pass"
+      },
+      "assets": {
+        "status": "pass",
+        "checked": 134,
+        "failed": 0
+      },
+      "contracts": {
+        "status": "pass",
+        "checked": 3,
+        "failed": 0
+      },
+      "skill_inventory": {
+        "status": "pass"
+      },
+      "hook_inventory": {
+        "status": "pass"
+      },
+      "plugin_manifest": {
+        "status": "pass"
+      },
+      "delegation_runner": {
+        "status": "pass",
+        "entrypoint": "/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-codex-5gvNGU/plugins/ultra-builder-pro/skills/ultra-delegate/scripts/delegate.cjs"
+      },
+      "acp_capability": {
+        "status": "pass",
+        "candidate": true,
+        "surface": "official @agentclientprotocol/codex-acp@1.6.2 stdio adapter",
+        "transport": "stdio",
+        "protocol_versions": [
+          1
+        ],
+        "conformance_status": "passed",
+        "conformance_evidence": "docs/evals/ultra-5-0-live-acp-conformance.md#codex",
+        "conformance_reason": null,
+        "executable_available": true,
+        "acp_entry_available": false,
+        "candidate_valid": true,
+        "candidate_identity_valid": null,
+        "candidate_identity_reason": null,
+        "candidate_identity_fallback_reason": null
+      },
+      "agent_execution_driver": {
+        "status": "pass",
+        "selected": "cli",
+        "fallback_reason": "acp_entry_unavailable"
+      },
+      "marketplace": {
+        "status": "pass"
+      },
+      "hook_activation": {
+        "status": "host_managed",
+        "observable": false,
+        "reason": "Codex owns persisted Hook trust, and its CLI does not expose the live trust decision to plugins."
+      }
+    },
+    "issues": []
+  }
+}

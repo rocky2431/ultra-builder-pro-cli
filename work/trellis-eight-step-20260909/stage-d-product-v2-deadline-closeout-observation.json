@@ -1,0 +1,15 @@
+{
+  "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-solo-qJipD4",
+  "audit_ref": "stage-d-product-v2-manifest-r2-solo-qJipD4-audit.json",
+  "events_sha256": "4402a4d58ae9902e484081fda9099b07a8f1097105ac0cd9f37373cd82f7e920",
+  "finalization_command": "git add -A && git diff --cached --check && git commit -m 'chore: finalize tree manifest delivery' && git rev-parse HEAD && git status --short",
+  "tool_call_id": "call_uOsRSgxSjXBdb1KcgbtJ3aW2|fc_073886ddf814d5a3016aa15c396a9887d08ecfe007bf52bca2",
+  "command_started_at_ms": 1788959803156,
+  "command_ended_at_ms": 1788959803261,
+  "tool_error": false,
+  "watchdog_stop_at_ms": 1788959822946,
+  "command_completed_seconds_before_stop": 19.685,
+  "formal_delivery_observed": true,
+  "native_turn_settled": false,
+  "conclusion": "Canonical delivery and finalization completed before the watchdog, but the native Primary did not settle within its wall budget. Preserve both facts; do not relabel the timeout as a normal final response."
+}

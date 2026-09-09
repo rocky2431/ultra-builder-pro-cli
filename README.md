@@ -306,8 +306,14 @@ Ultra installation in Pi. Use `ubp run --host pi --continue "..."` or
 and continue through Pi's native session storage. `--plugin-dir` can select an existing
 generated portable plugin instead. The entry also loads the native `ultra_slice`
 and `ultra_attention_ack` tools for an explicitly authorized finite parallel wave.
-They return one attention through a blocking tool (W1) or a later native turn (W2),
-without idle model polling. See the [finite slice contract](skills/ultra-delegate/references/finite-run-slice.md).
+They return attention through a blocking tool (W1), an in-process background wait
+(W2), or a separate finite controller message to the live Pi session (W3), without
+idle model polling. See the [finite slice contract](skills/ultra-delegate/references/finite-run-slice.md)
+and [operational factory](skills/ultra-delegate/references/operational-factory.md)
+for model-selected routes, profiles, worktrees and bounded waves. This does not
+promise that parallel work is always faster. For an explicitly authorized durable
+work-package, `ultra_durable` supports [one bounded checkpoint and fresh Pi turn](skills/ultra-delegate/references/durable-checkpoint.md),
+with expiry, revocation and no automatic replay of unknown delivery.
 Pi does not load Ultra's optional Claude hooks.
 The six-host installation and delegated-execution qualification surfaces are unchanged.
 

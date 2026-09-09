@@ -1,0 +1,149 @@
+{
+  "observed_at": "2026-09-09T16:36:32.213568+00:00",
+  "review_verdict": "INCOMPLETE",
+  "new_p0_p1": 0,
+  "product_result": {
+    "$schema": "ultra-delegation-result-v1",
+    "status": "failed",
+    "summary": "Pi completed the bounded turn with one or more locally denied effects.",
+    "changed_files": [
+      "review-output/final-review.json",
+      "review-output/final-review.md"
+    ],
+    "checks": [],
+    "evidence": [],
+    "questions": [],
+    "residual_risks": [],
+    "failure_type": "permission_denied",
+    "delegation_id": "final-review",
+    "host": "pi",
+    "transport_maturity": "experimental",
+    "transport_surface": "documented non-interactive CLI",
+    "execution_driver": "cli",
+    "driver_fallback_reason": "acp_not_available",
+    "acp_capability": {
+      "candidate": false,
+      "surface": null,
+      "transport": null,
+      "protocol_versions": [],
+      "conformance_status": "not_available",
+      "conformance_evidence": null,
+      "conformance_reason": null,
+      "executable_available": null,
+      "acp_entry_available": null,
+      "candidate_valid": null,
+      "candidate_identity_valid": null,
+      "candidate_identity_reason": null,
+      "candidate_identity_fallback_reason": null
+    },
+    "acp_protocol_version": null,
+    "acp_stop_reason": null,
+    "native_terminal": {
+      "session_id": "01a08704-160b-73d9-b244-1b0d88837723",
+      "provider": "openai-codex",
+      "model": "gpt-5.6-luna",
+      "stop_reason": "stop"
+    },
+    "events_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e-final-review-1f44hr4r/.ultra/.runtime/delegations/final-review/events.jsonl",
+    "experimental_ack": true,
+    "instruction_digest": "a64c09ee3f069a02adebd6691d2683f7881eaa5797e625aefa3108ce874bd700",
+    "permission_digest": "06d665677677c8dbd8bb6aa992f20ece329a4d79b49d163975108050279432e7",
+    "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+    "read_only": false,
+    "base_head": "491ff26b77fb5e9700cb5191ff30cdcc6432f262",
+    "final_head": "491ff26b77fb5e9700cb5191ff30cdcc6432f262",
+    "started_at": "2026-09-09T16:33:06.562Z",
+    "finished_at": "2026-09-09T16:34:52.365Z",
+    "exit_code": 0,
+    "signal": null
+  },
+  "source_hash_mismatches": [
+    {
+      "path": "skills/ultra-delegate/scripts/host-profile.cjs",
+      "reported": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+      "actual": "62cceb4f3e9150d420c4af6e7a6fd2e6cd1d452a32fc6ecef3fc1ae5b701c07d"
+    }
+  ],
+  "snapshot_git_changes": [
+    "?? review-output/final-review.json",
+    "?? review-output/final-review.md"
+  ],
+  "processes": [
+    {
+      "pid": 55191,
+      "state": "dead"
+    },
+    {
+      "pid": 56025,
+      "state": "dead"
+    }
+  ],
+  "archive_sha256": "be6c371ccec17490847fc16f918bed71735d7ff72721e6ea65221c5c3413b927",
+  "raw_files": [
+    {
+      "path": ".ultra/.runtime/delegations/final-review/events.jsonl",
+      "bytes": 11349,
+      "sha256": "37400962f393ce30ea7b6d1a0c538143e7cfc48f99f4f8c8ce3389ed6c90dd46"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/instruction.md",
+      "bytes": 6332,
+      "sha256": "a64c09ee3f069a02adebd6691d2683f7881eaa5797e625aefa3108ce874bd700"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/permission.json",
+      "bytes": 123,
+      "sha256": "06d665677677c8dbd8bb6aa992f20ece329a4d79b49d163975108050279432e7"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/pi-sessions/2026-09-09T16-33-07-084Z_01a08704-160b-73d9-b244-1b0d88837723.jsonl",
+      "bytes": 518760,
+      "sha256": "27b740de4f066de24c66dcc1e02fddcbeda68a8a070818b80f98869e63796ff2"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/receipt.json",
+      "bytes": 2239,
+      "sha256": "6946e59c5e8bf879ad173a6d318e5bcb06c7cdcf7b0e6466d80201f6fc16d3ec"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/result-schema.json",
+      "bytes": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/result.json",
+      "bytes": 2013,
+      "sha256": "60eb6a1f78732801a0ab89b2ca4171573537a28dfed8d732a4ec39508cfdb24f"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/stderr.log",
+      "bytes": 11349,
+      "sha256": "37400962f393ce30ea7b6d1a0c538143e7cfc48f99f4f8c8ce3389ed6c90dd46"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/stdout.log",
+      "bytes": 3273591,
+      "sha256": "c18b5d0b55b917eff6e1965f78741413976ec74a6e545cbb4206d75d0435ee0b"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/worker-spec.json",
+      "bytes": 14110,
+      "sha256": "e0d657884ac432b5937427332ddc78597ab2e298c830df489605b5a10fd9c1f4"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/final-review/writer.json",
+      "bytes": 424,
+      "sha256": "d52d26a70becd0e56c5017c7614730a00d9e6dd9774c85cc12d4adb2de9ce27b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/final-review/review-output/final-review.json",
+      "bytes": 5922,
+      "sha256": "85fe266021ad5aecb6a0c3be92cfd28dc7d261af47676f4ee91a8f2e30365e40"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/final-review/review-output/final-review.md",
+      "bytes": 2748,
+      "sha256": "ede0683f6fd7adfeee4dd6b836ec71e64ba6b38b962d2e8e0d61e32b2b754e14"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "verdict": "INCOMPLETE",
+  "mechanism_verdict": "INCOMPLETE",
+  "step7_acceptance_verdict": "INCOMPLETE",
+  "reviewed_source": [
+    {"path": "skills/ultra-delegate/scripts/durable-run.cjs", "sha256": "fe6c7c5627f9224a3defc2c7db44afa483de579b48bb5defc23d2525ff6df3cc"},
+    {"path": "skills/ultra-delegate/scripts/pi-durable-primary.cjs", "sha256": "8ce5c9b741ec1d21aab69bb86e27754e3b10d872c9edc65e65ce42ee99a6c683"},
+    {"path": "skills/ultra-delegate/scripts/pi-native-permissions.cjs", "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382"},
+    {"path": "skills/ultra-delegate/scripts/pi-native-runtime.cjs", "sha256": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1"},
+    {"path": "skills/ultra-delegate/scripts/run-slice.cjs", "sha256": "8028d28ed2cfe2e795b595707a5b7b03774c1e41562a3fa2e37c727db7f6c874"},
+    {"path": "skills/ultra-delegate/scripts/delegate.cjs", "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"},
+    {"path": "skills/ultra-delegate/scripts/agent-execution-driver.cjs", "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244"},
+    {"path": "skills/ultra-delegate/scripts/host-profile.cjs", "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"}
+  ],
+  "checks": [
+    {"command": "node --test tests/durable-run.test.cjs tests/pi-native-permissions.test.cjs tests/pi-primary.test.cjs tests/run-slice.test.cjs", "exit_code": null, "observed": "not run: this review environment cannot execute the requested test command; no tests were rewritten"},
+    {"command": "npm run verify:release", "exit_code": 0, "observed": "author-retained evidence stage-e-release-current.json: 826 passed, 5 skipped, 0 failed; 104 hooks passed; audit 0; not rerun in this review"},
+    {"command": "native W4 normal journey", "exit_code": 0, "observed": "retained latest root /private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-durable-native-zBL41n has outcome/receipt/claim and output/decision.json; this is retained evidence, not a new execution"},
+    {"command": "native physical reboot and complete network outage", "exit_code": null, "observed": "not performed; no live proof"}
+  ],
+  "findings": [
+    {"id": "FR-001", "severity": "P2", "file": "skills/ultra-delegate/scripts/durable-run.cjs", "line": 221, "evidence": "operate waits on the recorded primary PID and source comments/documentation state same-boot PID reuse can conservatively delay continuation; retained source-review disposition accepts this limitation", "consequence": "A stale/reused PID may delay wake until expiry. This is an acknowledged availability limitation, not evidence of replay or authority widening."},
+    {"id": "FR-002", "severity": "P2", "file": "skills/ultra-delegate/scripts/durable-run.cjs", "line": 270, "evidence": "notification records os_request_accepted with delivered_to_user=unverified; retained failure root /private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-durable-native-nQKQo2 reports notification=false despite notification=macos", "consequence": "An OS request or conductor failure does not prove that the Owner saw a notification; notification loss requires status/evidence inspection."}
+  ],
+  "missing_acceptance": [
+    {"criterion": "Step 7: truthful recovery after machine restart and complete network outage", "evidence_missing": "The owner/author explicitly did not perform physical reboot or complete network-outage trials. Source tests and same-machine retained journeys do not supply this live proof."},
+    {"criterion": "Step 7: current-version fresh W4 proof after all final fixes", "evidence_missing": "The successful R60vX2 source-review journey consumed a source version explicitly older than the final P1 fixes; the latest normal native journey is retained evidence but not a fresh independent acceptance of every current-version boundary."},
+    {"criterion": "Step 8 evolution exit: explicit Owner promote/reject and rollback-ready disposition", "evidence_missing": "Candidate evaluation is recorded, but Owner promote/reject remains pending. Section 12.4 requires this decision for complete Step 3."},
+    {"criterion": "Stage D repeated-benefit acceptance", "evidence_missing": "The instruction and retained dispositions state repeated-benefit acceptance remains open; no current evidence closes it."}
+  ],
+  "limitations": [
+    "No native probe scripts, providers, delegated agents, installation, credentials, commit, or source/test/config changes were used.",
+    "New narrow test execution was unavailable in this review; the release result is author-retained evidence only.",
+    "Raw evidence roots are external temporary paths indexed by stage-e-current-native-index.json and stage-e-pi-qualification-raw-index.json; the review did not merge journeys or treat pre-fix R60 evidence as current-version proof.",
+    "The qualification proves the tested protected-path and final-consumption boundaries, not an OS read sandbox or malicious same-user filesystem race resistance.",
+    "No physical reboot, complete network outage, or Owner acceptance was observed."
+  ],
+  "rationale": "源码审查显示当前实现已落实有限的一次 fresh turn、持久 event claim、未知效果不重放、撤销/过期/截止时间的最终消费前复核、源绑定、PID/进程组观察、通知记录和 Pi 原生工具逐次权限观察；既有资格证据也覆盖大小写/符号链接 protected-path 边界。没有本轮可确认的 P0/P1 源码缺陷。但 Step 7 的完整退出条件要求跨进程/机器/网络边界的真实证明，现有证据明确缺少物理重启和完整断网；且最终 P1 修复后的 fresh 独立生命周期证明不足。另有 Step 8 Owner promote/reject 和 Stage D repeated-benefit 未闭合。因此不能 APPROVE；这是证据不完整而非把作者的绿测试或源审查当作 Owner 接受。"
+}

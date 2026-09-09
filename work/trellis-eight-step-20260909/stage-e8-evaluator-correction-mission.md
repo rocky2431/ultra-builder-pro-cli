@@ -1,0 +1,7 @@
+# QA correction before any evaluated attempt
+
+This remains QA-only under the exact owner instructions and role boundary in `work/trellis-eight-step-20260909/stage-e8-evaluator-mission.md`. Do not write files or implementation/test code. Read that mission and your retained output `work/trellis-eight-step-20260909/stage-e8-independent-cases.json`.
+
+Root's original evaluation instruction was flawed: asking the evaluated worker to include exact values in its mission gives it the answers and permits parroting without deriving facts. No evaluated attempt has run. The four original data sets and expected facts are arithmetically correct. Retain every case ID, partition, shape, data, expected_status, required_facts, forbidden_facts and rationale exactly. Only revise each mission so it specifies the desired fact LABELS and derivation/comparison task but does not give computed values, expected verdict, mismatched identity or any answer. It must tell the worker to read case.json and derive the requested label=value facts itself. Do not prescribe evidence array types or otherwise favor a schema-context arm. Do not include required_facts or rationale within the mission.
+
+Return the full corrected `ubp-independent-eval-cases-v1` JSON object only, no fences. Root retains version 1 as rejected evaluator materials, freezes these exact new bytes as version 2, and will mechanically prove that only mission strings changed. This is evaluator correction before observations, not candidate tuning or held-out result-based revision.

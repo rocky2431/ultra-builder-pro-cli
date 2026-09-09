@@ -1,0 +1,12 @@
+{
+  "kind": "evaluator_ambiguity",
+  "detected_case": "audit-config-dev-01",
+  "detected_response_root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-e8-audit-config-dev-01-2-candidate-rUil7j",
+  "mission_wording": "which services are affected",
+  "required_fact": "affected_services=2",
+  "observed_fact": "affected_services=worker,scheduler",
+  "issue": "The mission can reasonably request service identities while the exact-match evaluator requires a count. A correct identity list must not be labeled a model factual error solely from this mismatch.",
+  "frozen_inputs_changed": false,
+  "runner_changed_after_first_attempt": false,
+  "disposition": "Finish the fixed campaign without replacement runs. Preserve original automated scores. Use independent blind semantic adjudication of every arm after completion; report the ambiguity and do not claim preregistered factual superiority from a post-hoc endpoint change."
+}

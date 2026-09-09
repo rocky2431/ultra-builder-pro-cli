@@ -1,0 +1,24 @@
+{
+  "schema": "ubp-offline-comparison-v1",
+  "cases_sha256": "ca18726dcb877923ee73b1df3fa88fd80956a1491354c9a64eb6377691f16105",
+  "runner_sha256": "49cbb318a40fc70114075bc5ce2086c37d5319e81d1f85d04ae662222d788463",
+  "source_hashes": {
+    "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+    "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+    "delegate-worker.cjs": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4",
+    "pi-native-permissions.cjs": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382",
+    "pi-native-runtime.cjs": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1",
+    "agent-execution-driver.cjs": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244",
+    "cli-driver.cjs": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4"
+  },
+  "arms": [
+    "current",
+    "candidate",
+    "simpler"
+  ],
+  "repetitions": 2,
+  "attempts": 24,
+  "model": "gpt-5.6-sol",
+  "attempt_timeout_seconds": 90,
+  "current_policy_unchanged": true
+}

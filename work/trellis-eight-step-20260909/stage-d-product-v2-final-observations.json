@@ -1,0 +1,241 @@
+{
+  "schema": "ubp-fixed-comparison-observations-v1",
+  "campaign": 2,
+  "fixed_attempts": 10,
+  "observed_attempts": 10,
+  "code_acceptance_passes": 10,
+  "formal_deliveries": 9,
+  "normally_settled": 8,
+  "rows": [
+    {
+      "shape": "expense",
+      "repeat": 1,
+      "mode": "factory",
+      "profile": "pi-foundation-v1",
+      "wall_seconds": 1750.913,
+      "cost_estimate": 5.937148360000003,
+      "model_calls": 104,
+      "formal_delivery_observed": true,
+      "native_settled": true,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": 57.43,
+      "review_native_origins": [
+        "reviewer-final-01"
+      ],
+      "audit_ref": "stage-d-product-v2-expense-r1-factory-YeRGol-audit.json",
+      "audit_sha256": "339253a18c5a4e40a987a9f9973125d94d1365a50401d8057da2d87f8d8809f3",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-expense-r1-factory-YeRGol-raw.tar.gz",
+      "raw_archive_sha256": "5dee9878e3572b841625a11191db7fc8a15142c287da786d67a8370bd1d66eb7"
+    },
+    {
+      "shape": "expense",
+      "repeat": 1,
+      "mode": "solo",
+      "profile": "pi-foundation-v1",
+      "wall_seconds": 1317.774,
+      "cost_estimate": 4.291545000000001,
+      "model_calls": 74,
+      "formal_delivery_observed": true,
+      "native_settled": true,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": null,
+      "review_native_origins": [
+        "task-review-1"
+      ],
+      "audit_ref": "stage-d-product-v2-expense-r1-solo-uczt6B-audit.json",
+      "audit_sha256": "952988be806700c5a5e72950102f59ccac42e547bb2812c7f2d70d7c1e1e0ce7",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-expense-r1-solo-uczt6B-raw.tar.gz",
+      "raw_archive_sha256": "21b79555d0a9f9398c80fcc9e0dff1663c2526debf1aa6882dd506faf522c495"
+    },
+    {
+      "shape": "expense",
+      "repeat": 1,
+      "mode": "step1",
+      "profile": "pi-foundation-v1",
+      "wall_seconds": 1800.774,
+      "cost_estimate": 5.345804720000002,
+      "model_calls": 99,
+      "formal_delivery_observed": true,
+      "native_settled": true,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": 77.925,
+      "review_native_origins": [
+        "task-review-retry"
+      ],
+      "audit_ref": "stage-d-product-v2-expense-r1-step1-rRJ80M-audit.json",
+      "audit_sha256": "d0a309f3377b2c8cd7c9b0c68af7256a884d740976a1dc66035870997e0694f0",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-expense-r1-step1-rRJ80M-raw.tar.gz",
+      "raw_archive_sha256": "0239d5e7689c301aaf691bcc71bd79eea38531399cafe3cf2e5827c326890b04"
+    },
+    {
+      "shape": "expense",
+      "repeat": 2,
+      "mode": "factory",
+      "profile": "pi-foundation-v1",
+      "wall_seconds": 1783.917,
+      "cost_estimate": 4.798148920000002,
+      "model_calls": 93,
+      "formal_delivery_observed": true,
+      "native_settled": true,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": 72.123,
+      "review_native_origins": [
+        "reviewer-delta-01"
+      ],
+      "audit_ref": "stage-d-product-v2-expense-r2-factory-D9r2I2-audit.json",
+      "audit_sha256": "bac2ea79e5f849b207c6f42283f51ef56ebccd63806b56f834604d4c1a9f3ea9",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-expense-r2-factory-D9r2I2-raw.tar.gz",
+      "raw_archive_sha256": "109deb317888d970423459956a6b7bd82603d72b3cd3dcebb3c9ca8de9f1e6fe"
+    },
+    {
+      "shape": "expense",
+      "repeat": 2,
+      "mode": "solo",
+      "profile": "pi-foundation-v1",
+      "wall_seconds": 1583.288,
+      "cost_estimate": 5.005366,
+      "model_calls": 83,
+      "formal_delivery_observed": true,
+      "native_settled": true,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": null,
+      "review_native_origins": [
+        "task-review-delta-1"
+      ],
+      "audit_ref": "stage-d-product-v2-expense-r2-solo-xzntqB-audit.json",
+      "audit_sha256": "fb6e459b2582c1b949cd2d78d1acf523181179634ef2adc76d57e8e6e283b01b",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-expense-r2-solo-xzntqB-raw.tar.gz",
+      "raw_archive_sha256": "b45f9798f20074ab0ea06f8b4125ba3dbb124d269cc051d61ff34e480f7e4354"
+    },
+    {
+      "shape": "expense",
+      "repeat": 2,
+      "mode": "step1",
+      "profile": "pi-foundation-v1",
+      "wall_seconds": 1681.158,
+      "cost_estimate": 4.881823959999999,
+      "model_calls": 93,
+      "formal_delivery_observed": true,
+      "native_settled": true,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": 56.55,
+      "review_native_origins": [
+        "task-review-delta-01"
+      ],
+      "audit_ref": "stage-d-product-v2-expense-r2-step1-tU3pbc-audit.json",
+      "audit_sha256": "169e7d8ba3b51125003bc6ba737edcd0f3d11330f48c199003a2b736f4fa8921",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-expense-r2-step1-tU3pbc-raw.tar.gz",
+      "raw_archive_sha256": "1ffced2952f91a10edcceb910c98ee87216ebe8300663139ac0d303301e5471d"
+    },
+    {
+      "shape": "manifest",
+      "repeat": 1,
+      "mode": "factory",
+      "profile": "pi-balanced-v1",
+      "wall_seconds": 2100.107,
+      "cost_estimate": 5.819354399999999,
+      "model_calls": 109,
+      "formal_delivery_observed": false,
+      "native_settled": false,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": 170.826,
+      "review_native_origins": [],
+      "audit_ref": "stage-d-product-v2-manifest-r1-factory-jiJb9M-audit.json",
+      "audit_sha256": "c3be04a0e81566a10fa0ceee3e9733e41389821a0404446c7e54e8a01411e82a",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-manifest-r1-factory-jiJb9M-raw.tar.gz",
+      "raw_archive_sha256": "6242275a694aed81abed3a85da193a5a89346f43590f9e170045d6d3d2c400d1"
+    },
+    {
+      "shape": "manifest",
+      "repeat": 1,
+      "mode": "solo",
+      "profile": "pi-balanced-v1",
+      "wall_seconds": 1234.833,
+      "cost_estimate": 4.046358000000001,
+      "model_calls": 72,
+      "formal_delivery_observed": true,
+      "native_settled": true,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": null,
+      "review_native_origins": [
+        "task-review-delta-1"
+      ],
+      "audit_ref": "stage-d-product-v2-manifest-r1-solo-GFQKWH-audit.json",
+      "audit_sha256": "a2e6fc2cb199584b17b551be34dbfaff2f4bfd9a4b4756328ebd56a5a1fcea2c",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-manifest-r1-solo-GFQKWH-raw.tar.gz",
+      "raw_archive_sha256": "d441fb97314c6360c784196287188747dccc192a3f6b5308dfb42fdb5f019ac7"
+    },
+    {
+      "shape": "manifest",
+      "repeat": 2,
+      "mode": "factory",
+      "profile": "pi-balanced-v1",
+      "wall_seconds": 1966.414,
+      "cost_estimate": 6.090392200000002,
+      "model_calls": 123,
+      "formal_delivery_observed": true,
+      "native_settled": true,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": 84.97,
+      "review_native_origins": [
+        "delta-reviewer-2"
+      ],
+      "audit_ref": "stage-d-product-v2-manifest-r2-factory-hu5rqu-audit.json",
+      "audit_sha256": "788413fa564493c91bc69d1489bdc8bceeb1ffaee2d3e0ce7fa56c51032ff7c0",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-manifest-r2-factory-hu5rqu-raw.tar.gz",
+      "raw_archive_sha256": "ef225b22d34d95f3527a63f19e250bd831c32874f623470c2d190dc80e16d134"
+    },
+    {
+      "shape": "manifest",
+      "repeat": 2,
+      "mode": "solo",
+      "profile": "pi-balanced-v1",
+      "wall_seconds": 2100.237,
+      "cost_estimate": 6.898028999999999,
+      "model_calls": 123,
+      "formal_delivery_observed": true,
+      "native_settled": false,
+      "acceptance_status": 0,
+      "immutable_inputs": true,
+      "source_unchanged": true,
+      "worker_overlap_seconds": null,
+      "review_native_origins": [
+        "final-delta-review-02"
+      ],
+      "audit_ref": "stage-d-product-v2-manifest-r2-solo-qJipD4-audit.json",
+      "audit_sha256": "df9937daad6449070f5533b5afcfcc141d548fdf74c33dd5fdf75395710034e9",
+      "raw_archive_ref": "work/trellis-eight-step-20260909/stage-d-product-v2-manifest-r2-solo-qJipD4-raw.tar.gz",
+      "raw_archive_sha256": "ff1a3707439a132f1eb577444417c5866327f91a91ad6833a20904ec25381fc5"
+    }
+  ],
+  "root_judgment": {
+    "D-04": "not_met: balanced manifest Factory has one canonical success in its two fixed repetitions",
+    "D-05": "not_established: no repeated advantage against the same fair baseline; preserve cost/time/quality tradeoffs",
+    "source_of_judgment": "Root assessment of the complete retained observations, not an automatic semantic validator"
+  },
+  "limitations": [
+    "Ten fixed small-task runs; no population-performance or causal Profile ranking.",
+    "Shape and Profile are paired; matched-set provider contention remains.",
+    "Costs are native estimates, not independent bills.",
+    "Manifest r2 Solo delivered before its watchdog but did not settle; see deadline closeout observation.",
+    "No strategy promotion, D acceptance or complete-eight-step claim."
+  ]
+}

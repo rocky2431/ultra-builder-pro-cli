@@ -243,7 +243,31 @@ W1/W2 tools and binds completion input to the current native session. Delivery i
 claimed before send; duplicate native extension input is handled before inference;
 consumption additionally needs model acknowledgement and remains confirmed through
 a later turn failure or session death.
-No daemon, semantic scheduler, automatic repair or durable supervisor is introduced.
+These finite W1/W2 paths introduce no daemon, semantic scheduler or automatic repair.
+
+`slice-channel.cjs` holds the same finite controller in a separate child process,
+using a dedicated IPC descriptor and filtered descendant environment. It accepts
+only the original run/slice/session and exact retained attention digest; ordinary
+delegates inherit their own explicit stdio, not the Primary message channel.
+`slice-workspace.cjs` uses ordinary Git registration and the existing delegate fence
+for lifecycle effects. Cleanup refuses dirty/ignored data and preserves exact
+clean HEAD under a retained Git ref before removal. RunSlice draft compilation
+fills current hashes only; route, profile, budgets, wave and repair remain model
+choices. Original task context and typed results remain the knowledge/recovery
+inputs; there is no parallel operational plan authority.
+
+`durable-run.cjs` adds an opt-in, single-checkpoint lifecycle under an exact owner
+durable grant. The current native Pi session registers its real identity; a finite
+process waits for the old Primary and RunSlice Supervisor to stop before claiming
+one fresh native turn. Activation and event claims are retained under
+`.ultra/evidence/durable/`; disposable cursor loss cannot authorize replay.
+Grant references, execution source, expiry, revocation, machine/boot identity,
+retained results and stopped writers are checked before dispatch. The fresh Pi
+extension repeats effect checks and retains its own deadline and abnormal-exit
+attention path. Optional local macOS notification uses one persistent request;
+OS acceptance is distinct from delivery to the owner. Unknown launch/delivery
+remains unknown, with no new semantic plan, automatic acceptance or finalization.
+Physical reboot continuation and other Host W4 paths remain unqualified.
 
 Therefore the current portable launcher accepts an empty `external_effects` list, removes shell, web and subagent
 tools where native surfaces permit, and combines native isolation with a verified Git

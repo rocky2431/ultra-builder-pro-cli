@@ -70,7 +70,7 @@ requires the Owner to name explicitly. Every other public Skill is discoverable,
 including the `ultra-init` entry route before `.ultra/` exists. Ordinary host-chat
 discovery is best-effort; `ubp run` explicitly enters Ultra and lets the host model
 select the route. Its foreground launch supports Claude Code and Pi. Pi loads the packaged portable
-Skills through native `--skill`, the finite W1/W2 Primary extension through native
+Skills through native `--skill`, the finite W1/W2/W3 Primary extension through native
 `--extension`, and resumes through native `--session`; it does not
 load Claude hooks or gain delegated-execution qualification from this entry. The six
 installation adapters and their Skill surfaces are unchanged. The loaded Skill must still verify the selected mode, same
@@ -393,3 +393,21 @@ checkout, so those two references now point here while their 2026-08-01 status a
 limitations remain explicitly historical. The original WIP is still recoverable from
 their pinned source commit `3f99189bc68697262cd90444685ac2d4857139c4` with
 `git show`; the live `docs/wip/` directory contains no unfinished document.
+
+
+## Selected Pi live message qualification
+
+The current Pi 0.85.1 entry has actual W1/W2/W3 observations, including a distinct
+finite controller process, original-session consumption, duplicate suppression,
+pre/post-acknowledgement death and lost-controller explicit reconciliation. The
+W3 channel is private process IPC with no bearer/session credential in its protocol;
+delegates retain explicit stdio and the existing filtered environment. Exact native
+raw identities and limits are retained under Stage D evidence. This is not W4,
+unattended cross-session execution or a guarantee for another Host/runtime version.
+
+The separate opt-in [durable checkpoint](../skills/ultra-delegate/references/durable-checkpoint.md)
+has isolated native Pi observations for old-session exit followed by one fresh
+consuming session, revocation before and during that turn, and conductor death
+without replay. Source-bound raw records are under Stage E evidence; public CLI
+and notification additions require their own current-version checks. Machine/boot
+change is rejected; physical reboot recovery and other Host W4 paths are unqualified.

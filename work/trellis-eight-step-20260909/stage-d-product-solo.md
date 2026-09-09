@@ -1,0 +1,9 @@
+# Solo author topology
+
+Implement and integrate the complete goal yourself with the same native tools, Primary model, canonical baseline and 35-minute budget. Do not create implementation Workers or a Challenger. Your current-Primary source authorship covers the entire importer, reporter and persistence path. Preserve the seeded and any natural failures honestly.
+
+The only permitted delegate is the final fresh read-only qualified Pi task Reviewer, plus at most two affected read-only delta Reviews when a current blocker requires an allowed repair. That QA is shared with the Factory quality standard and is counted in this run's cost. No delegate may write source or canonical records. Use the existing Pi PROFILE_ID reviewer role through `ultra_slice delivery:wait`; create a clean detached read-only review worktree at your integrated commit and bind the actual source/goal/test evidence. A denied test effect is a limitation, not permission to change the envelope. At most three review slices, one attempt each, each attempt at most 360 seconds and wave deadline at most 420 seconds within the whole-run budget.
+
+All packets use current session NATIVE_SESSION_ID, TASK_ID intent/task, `.ultra/decisions/experiment.md`, actual immutable source/base, the exact qualified reviewer profile and fresh instruction/permission directory. Use writable_roots [], external_effects [] and experimental_ack true. Do not classify your own self-review as independent. After the actual read-only task Review, complete the same canonical Task Evidence, Test, labelled aggregate Review and Deliver path described above.
+
+The same public workspace and slice compile helpers in probe/operational-factory.md are available for your read-only reviewer; use them to avoid unnecessary mechanical setup. They do not authorize an implementation delegate.

@@ -1,0 +1,78 @@
+{
+  "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-durable-native-LT35ph",
+  "old_case_result": "old_primary_did_not_settle_before_110_second_watchdog",
+  "original_probe_exit": 1,
+  "actual_recovery": "automatic fresh native session after abrupt old Primary death",
+  "outcome": {
+    "status": "consumed",
+    "grant_id": "checkpoint",
+    "session_id": "01a086b5-7277-7063-9dec-7187cdb0fb05",
+    "event_key": "durable:checkpoint",
+    "claim_nonce": "022cdbda-8b34-4650-b2ff-6bd9754e6231",
+    "result": {
+      "$schema": "ultra-durable-consumption-v1",
+      "event_key": "durable:checkpoint",
+      "claim_nonce": "022cdbda-8b34-4650-b2ff-6bd9754e6231",
+      "decision": "Wrote output/decision.json: Worker totals 6 and 4 combine to 10, matching the target. No remaining work within this grant."
+    },
+    "stopped": true,
+    "observed_at": "2026-09-09T15:08:25.990Z"
+  },
+  "decision": {
+    "combined_total": 10,
+    "matches_target": true,
+    "decision": "The target of ten is met: the finished left Worker result and its src/value.json show 6, while the finished right Worker result and its src/value.json show 4; 6 + 4 = 10."
+  },
+  "pre_dispatch": {
+    "primary_pid": 69943,
+    "primary_state": "stopped",
+    "supervisor": {
+      "registration_nonce": "9d6c0975-993d-41ad-a6f8-c996a1238717",
+      "pid": 4567,
+      "machine": {
+        "host": "rocky243deMacBook-Pro.local",
+        "boot": "DF0FA5B9-4782-423A-BB34-B1173D6364BC"
+      }
+    },
+    "supervisor_state": "stopped",
+    "machine": {
+      "host": "rocky243deMacBook-Pro.local",
+      "boot": "DF0FA5B9-4782-423A-BB34-B1173D6364BC"
+    },
+    "observed_at": "2026-09-09T15:07:13.243Z",
+    "claim_nonce": "022cdbda-8b34-4650-b2ff-6bd9754e6231"
+  },
+  "old_primary_and_supervisor_and_fresh_stopped": true,
+  "duplicate_wake_reused_outcome": true,
+  "native_turns": 1,
+  "native_tool_names": [
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "write"
+  ],
+  "source_unchanged": true,
+  "source_hashes": {
+    "durable-run.cjs": "fc8eb87a450d4f87cc6ba21a12625365a14b224bf152fd01b3c69d6b9db4df44",
+    "pi-durable-primary.cjs": "9e92aa1b309a8d4a6b698e16a094f5da73dc3e18647225f76024e7dca19aaa83",
+    "run-slice.cjs": "4af9876af29f24819e3a0164d4dec11431855df1ce3108f1236428208f414d55",
+    "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+    "pi-native-permissions.cjs": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382",
+    "pi-native-runtime.cjs": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1"
+  },
+  "limitations": [
+    "Old Primary first supplied inline JSON where a filename was required; it recovered registration without coordinator steering, then exceeded its turn budget.",
+    "This observation does not convert the failed original normal-exit probe into a passing normal-exit trial.",
+    "No physical machine reboot or complete Stage E acceptance is claimed."
+  ]
+}

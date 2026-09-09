@@ -107,3 +107,38 @@ test('cancel reaches existing workers and a dead-controller recovery never start
     assert.equal(recovered.reason, 'operator_attention'); assert.equal(recovered.counts.not_started, 2); assert.equal(fx.children.length, 2);
   } finally { fx.close(); }
 });
+
+test('a cancellation recorded during launch stops admission of the remaining attempts', async () => {
+  const fx = fixture();
+  try {
+    const launch = fx.deps.launch;
+    const options = { projectRoot: fx.root, sessionId: 'session', intervalMs: 10, ...fx.deps,
+      launch: (...args) => {
+        const result = launch(...args);
+        write(path.join(slice.directory(fx.root, 'run', 'first'), 'cancel.request'), { reason: 'grant_revoked' });
+        return result;
+      } };
+    await slice.start(fx.file, options);
+    assert.equal(fx.children.length, 1, 'The second Worker must not start after the cancellation is visible');
+  } finally { fx.close(); }
+});
+
+test('model-owned draft compilation binds current bytes without choosing roles or launching workers', () => {
+  const fx = fixture();
+  try {
+    const draft = structuredClone(fx.packet); draft.$schema = 'ultra-run-slice-draft-v1';
+    for (const key of ['intent', 'grant', 'profile', 'seam']) draft[key] = draft[key].path;
+    draft.task_refs = draft.task_refs.map(({ id, path: file }) => ({ id, path: file }));
+    draft.attempts = draft.attempts.map((a) => ({ ...a, instruction: a.instruction.path, permission: a.permission.path }));
+    const input = path.join(fx.root, 'draft.json'), output = path.join(fx.root, 'compiled.json'); write(input, draft);
+    const options = { projectRoot: fx.root, sessionId: 'session', ...fx.deps };
+    const compiled = slice.compile(input, output, options);
+    assert.equal(compiled.packet_sha256, sha(fs.readFileSync(output)));
+    assert.deepEqual(JSON.parse(fs.readFileSync(output)), fx.packet);
+    assert.equal(fx.children.length, 0);
+    assert.throws(() => slice.compile(input, output, options), /exists/);
+    draft.semantic_route = 'invented'; write(input, draft);
+    assert.throws(() => slice.compile(input, path.join(fx.root, 'bad.json'), options), /incompatible_contract/);
+    assert.ok(!fs.existsSync(path.join(fx.root, 'bad.json'))); assert.equal(fx.children.length, 0);
+  } finally { fx.close(); }
+});

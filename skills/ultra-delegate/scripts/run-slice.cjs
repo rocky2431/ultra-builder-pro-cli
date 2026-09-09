@@ -225,6 +225,8 @@ function begin(file, options = {}) {
   try {
     for (const { attempt, host, selection } of context.admitted) {
       inputs(root, packet);
+      if (fs.existsSync(local(root, path.relative(root, path.join(dir, 'cancel.request'))))
+          || Date.now() >= Date.parse(packet.budget.deadline_at)) fail('slice_stopped_before_launch');
       const argv = ['--to', attempt.host, '--instruction', attempt.instruction.path, '--permission', attempt.permission.path,
         '--worktree', attempt.worktree, '--timeout', String(packet.budget.attempt_timeout_seconds)];
       if (attempt.model !== null) argv.push('--model', attempt.model);
@@ -268,15 +270,39 @@ function status(runId, sliceId, options = {}) {
   return fs.existsSync(file) ? json(file) : { $schema: 'ultra-slice-status-v1', run_id: runId, slice_id: sliceId, status: 'attention_pending' };
 }
 
+function compile(draftFile, outputFile, options = {}) {
+  const root = fs.realpathSync(options.projectRoot || process.cwd());
+  const packet = json(local(root, path.relative(root, path.resolve(root, draftFile))));
+  if (packet.$schema !== 'ultra-run-slice-draft-v1') fail('incompatible_contract');
+  const ref = (file) => ({ path: file, sha256: sha(bytes(local(root, file))) });
+  packet.$schema = 'ultra-run-slice-v1';
+  for (const key of ['intent', 'grant', 'profile', 'seam']) packet[key] = ref(packet[key]);
+  packet.task_refs = packet.task_refs.map((task) => { fields(task, ['id', 'path']); return { id: task.id, ...ref(task.path) }; });
+  packet.attempts = packet.attempts.map((attempt) => ({ ...attempt, instruction: ref(attempt.instruction), permission: ref(attempt.permission) }));
+  const output = local(root, path.relative(root, path.resolve(root, outputFile))), temp = `${output}.${crypto.randomUUID()}.tmp`;
+  if (fs.existsSync(output)) fail('compiled_packet_exists');
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.writeFileSync(temp, `${JSON.stringify(packet, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  try {
+    prepare(temp, options); // Same whole-slice admission; compilation never launches.
+    fs.linkSync(temp, output);
+    return { packet: path.relative(root, output), packet_sha256: sha(bytes(output)), status: 'prepared' };
+  } finally { fs.unlinkSync(temp); }
+}
+
 async function handle(argv, options = {}) {
   const [action, ...args] = argv, values = {};
-  if (action === '--help' || action === 'help') return { usage: 'ubp slice run --packet <file> --session <native-id>; ubp slice status|cancel|reconcile --run <id> --slice <id> --session <native-id>' };
+  if (action === 'workspace') return require('./slice-workspace.cjs').handle(args, options);
+  if (action === 'durable') return require('./durable-run.cjs').handle(args, options);
+  if (action === '--help' || action === 'help') return { usage: 'ubp slice workspace create|register|status|cleanup --run <id> --tree <id> --session <id> [--base <revision>]; ubp slice run --packet <file> --session <native-id>; ubp slice status|cancel|reconcile --run <id> --slice <id> --session <native-id>' };
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i];
-    if (!['--packet', '--session', '--run', '--slice'].includes(key) || key in values || !args[i + 1]) fail('invalid_arguments');
+    if (!['--packet', '--session', '--run', '--slice', '--draft', '--output'].includes(key) || key in values || !args[i + 1]) fail('invalid_arguments');
     values[key] = args[i + 1];
   }
   options = { ...options, sessionId: values['--session'] };
+  if (action === 'compile' && values['--draft'] && values['--output'] && !values['--packet'] && !values['--run'] && !values['--slice']) return compile(values['--draft'], values['--output'], options);
+  if (values['--draft'] || values['--output']) fail('invalid_arguments');
   if (action === 'run' && values['--packet'] && !values['--run'] && !values['--slice']) return start(values['--packet'], options);
   if (['status', 'cancel', 'reconcile'].includes(action) && values['--run'] && values['--slice'] && !values['--packet']) {
     return ({ status, cancel, reconcile: resume })[action](values['--run'], values['--slice'], options);
@@ -287,4 +313,4 @@ async function handle(argv, options = {}) {
 if (require.main === module) handle(process.argv.slice(2)).then((value) => process.stdout.write(`${JSON.stringify(value)}\n`))
   .catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
 
-module.exports = { prepare, begin, start, resume, cancel, status, handle, directory, local, once, json };
+module.exports = { compile, prepare, begin, start, resume, cancel, status, handle, directory, local, once, json, observe };

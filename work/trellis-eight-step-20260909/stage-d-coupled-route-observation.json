@@ -1,0 +1,231 @@
+{
+  "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-coupled-route-cBvXkF",
+  "code": 0,
+  "signal": null,
+  "wall_seconds": 107.032,
+  "check": {
+    "status": 0,
+    "stdout": "PASS 6/6\n",
+    "stderr": ""
+  },
+  "immutable_acceptance": true,
+  "route": "# Route choice: Solo\n\nSolo is proportionate because the defect is confined to one small shared function with a stable numeric interface, and both callers already delegate directly to it. The acceptance check exercises both callers and the relevant validation boundaries. There are no independent implementation seams to justify Factory coordination, and no uncertain decomposition or interface decision requiring a Challenger.\n\nNo delegation or provider fallback was used. This is only a bounded implementation-and-check observation, not formal canonical delivery or independent QA.\n",
+  "tool_names": [
+    "read",
+    "bash",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "read",
+    "bash",
+    "read",
+    "read",
+    "bash",
+    "write",
+    "write",
+    "bash",
+    "write",
+    "bash",
+    "read",
+    "read"
+  ],
+  "native_slice_calls": 0,
+  "only_shared_source_changed": true,
+  "archive": "work/trellis-eight-step-20260909/stage-d-coupled-route-raw.tar.gz",
+  "archive_sha256": "44846d58318a6e0c83b8700cf7871527a2ac48906517459e66a887a9b2f74052",
+  "files": [
+    {
+      "path": ".git/COMMIT_EDITMSG",
+      "sha256": "be7bc082a1933342feeb4448e6c140b41ce29bafccd253bc810a977dd51cc1fc"
+    },
+    {
+      "path": ".git/HEAD",
+      "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
+    },
+    {
+      "path": ".git/config",
+      "sha256": "b64c7be6d436b2e7176f66a8536710d0739f54ae4ca47779c2bc9fa1229607e4"
+    },
+    {
+      "path": ".git/description",
+      "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+    },
+    {
+      "path": ".git/hooks/applypatch-msg.sample",
+      "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+    },
+    {
+      "path": ".git/hooks/commit-msg.sample",
+      "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+    },
+    {
+      "path": ".git/hooks/fsmonitor-watchman.sample",
+      "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+    },
+    {
+      "path": ".git/hooks/post-update.sample",
+      "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+    },
+    {
+      "path": ".git/hooks/pre-applypatch.sample",
+      "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+    },
+    {
+      "path": ".git/hooks/pre-commit.sample",
+      "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+    },
+    {
+      "path": ".git/hooks/pre-merge-commit.sample",
+      "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+    },
+    {
+      "path": ".git/hooks/pre-push.sample",
+      "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+    },
+    {
+      "path": ".git/hooks/pre-rebase.sample",
+      "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+    },
+    {
+      "path": ".git/hooks/pre-receive.sample",
+      "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+    },
+    {
+      "path": ".git/hooks/prepare-commit-msg.sample",
+      "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+    },
+    {
+      "path": ".git/hooks/push-to-checkout.sample",
+      "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+    },
+    {
+      "path": ".git/hooks/sendemail-validate.sample",
+      "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+    },
+    {
+      "path": ".git/hooks/update.sample",
+      "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+    },
+    {
+      "path": ".git/index",
+      "sha256": "a96dcae3e97fb56cc27bc61f744335915fac6b1ae7a3e1b4c80f23fd3b5ce403"
+    },
+    {
+      "path": ".git/info/exclude",
+      "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+    },
+    {
+      "path": ".git/logs/HEAD",
+      "sha256": "760b3399bf1dc8ead7f51b0f0ed3b53ef4311cb5c5d71be9021381f8540fd9a8"
+    },
+    {
+      "path": ".git/logs/refs/heads/main",
+      "sha256": "760b3399bf1dc8ead7f51b0f0ed3b53ef4311cb5c5d71be9021381f8540fd9a8"
+    },
+    {
+      "path": ".git/objects/12/d94d515718863b2f0688a575bf2d532e2099bb",
+      "sha256": "0111fcd56f9525909fbfd571ed794aad9b571dd18683614e1e82b83f59c802fc"
+    },
+    {
+      "path": ".git/objects/13/86ab865d8125b24640f7db1cb154d8c6c6c7bc",
+      "sha256": "c341d2ee01094eb3709a169e8d03cc31092bf5d322fc03eeb9358b148fb627ba"
+    },
+    {
+      "path": ".git/objects/2c/f56b70eccbcced1af15850e7f5811c2a1c7f8e",
+      "sha256": "756146bda96c2652128c5179f06cabac606d15a87176088a0fc600efed2529f6"
+    },
+    {
+      "path": ".git/objects/3c/23d3ff7e4fdaff7bbdd40c04f18ef2770f2e3f",
+      "sha256": "601ebea0f36fbc76e67924210eab87c9838f6c1af1962abdb3a086c9937795ec"
+    },
+    {
+      "path": ".git/objects/91/441e86657b1863348517f6bf8ecab0c20df889",
+      "sha256": "82de6821c88f0757abeed578e8e610ec826021cc60dcf71e031e518ea1b67605"
+    },
+    {
+      "path": ".git/objects/b4/055a9c49b9416bd2daf5513d16694967954d5c",
+      "sha256": "b48be713005a5be2e73e3c6347a93e386e8643825395d825474782f553c75b2b"
+    },
+    {
+      "path": ".git/objects/c9/dca0120867a6a0d595adb7a15b3ec1878e7e7d",
+      "sha256": "b3fc21eb9a53968219dc6c6689982cdc5cd995ec4c74b882ee54adb8989caa8f"
+    },
+    {
+      "path": ".git/objects/cc/416a14a0c6d0916dcd95f9c8765311078d2fe1",
+      "sha256": "e64dfdbb2186db0ca2c9c9bf416883787a12bfcaada763ae68764f59f7d61639"
+    },
+    {
+      "path": ".git/objects/e9/5cdaae5be199ab12db88b70907f60c9438fbd3",
+      "sha256": "1ab7e3edb5f3c7d834277ee2e40e41e649a8ebf6dc52e3897ccdd28d5521c0de"
+    },
+    {
+      "path": ".git/refs/heads/main",
+      "sha256": "f2cde97cad3041d02d17c9ad991622200ed619a4c43f59d8f7c42d1beeb92605"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "ad8405d421828fd5029dd2f3dcd4f2a5ecd9e0baf6cf9006b4d9cd310ec1e523"
+    },
+    {
+      "path": "GOAL.md",
+      "sha256": "a342b6c72900173cb6c57d2e61dcb24b7c2e96862770e965f56732863833c004"
+    },
+    {
+      "path": "RESULT.json",
+      "sha256": "489ee19016a3ad81b7128501025484eea47b97d0fea0edd36f2b3be42933fe8d"
+    },
+    {
+      "path": "ROUTE.md",
+      "sha256": "6fc9ad1ca4a2d2bc4dee834c869d5f250a22057f1b322e924f9355d6d024eddb"
+    },
+    {
+      "path": "acceptance.cjs",
+      "sha256": "1dff4911b5ee0c9f899e648cf503f1060cb60a3837b364f45cc37583c4050330"
+    },
+    {
+      "path": "budget.cjs",
+      "sha256": "731f4ab3a072d48c1e3d0eda41476d39c2e9515acf0d2211292236af09b32a25"
+    },
+    {
+      "path": "probe/baseline.json",
+      "sha256": "837a588a1564210681211faf17528d201f1be5ea7653fe3ebff56cd17e7a4944"
+    },
+    {
+      "path": "probe/events.jsonl",
+      "sha256": "8549b4c3371dc70970b4d4de8cba2adbe285df8a72a85d5d5caec5f374541e2c"
+    },
+    {
+      "path": "probe/observation.json",
+      "sha256": "e94e700ba59531f801a0f649f627b4f8b607a20c39b07f6de22ce506a7238f5c"
+    },
+    {
+      "path": "probe/operational-factory.md",
+      "sha256": "df1dd709d4847da40b0db59a7e93858163688c4de2e99c83b9f9cb39afc8c06a"
+    },
+    {
+      "path": "probe/prompt.md",
+      "sha256": "5e8c8c5ae4eb06843bbd1c84c4287729559d46d11a6bfe46159e873eefc55cd3"
+    },
+    {
+      "path": "probe/sessions/2026-09-09T11-33-43-054Z_01a085f1-fa0d-7352-b02b-c94cecf6e86b.jsonl",
+      "sha256": "cc677e882394a6c75e70e4aae274bba84ca5807cd16f04a17d9bb60309f073ff"
+    },
+    {
+      "path": "probe/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "report.cjs",
+      "sha256": "de5a2478dde3cf1ed1cbb170054dbccd0ac0eb68895569db937f2a0a80d87f30"
+    },
+    {
+      "path": "src/sum.cjs",
+      "sha256": "f87a9f3ccb60cca73654fe8fb0b516946f1e0efda30947bcc85949cfc32797a4"
+    }
+  ],
+  "observed_at": "2026-09-09T11:36:07.287674+00:00"
+}

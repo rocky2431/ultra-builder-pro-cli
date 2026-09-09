@@ -75,8 +75,8 @@ specifications it binds.
 
 | Canonical source | Git blob hash from `git hash-object` | Status |
 |---|---|---|
-| `.ultra/specs/product.md` | `97901b51f7d155c50b75b0d064df6424a84e61d5` | current worktree after the Stage C finite-slice and native Pi attention revision |
-| `.ultra/specs/architecture.md` | `ef759640350d9ad84c03d6679c786d1ac793b306` | current worktree after the Stage C finite-slice and native Pi attention revision |
+| `.ultra/specs/product.md` | `c1226a5700b5b910ce2519580f955c772e219aca` | current worktree after the Stage D operational worktree and process-message revision |
+| `.ultra/specs/architecture.md` | `6d324ea3ca5d8179cb204c9ce7ccbac9a6d0f7bb` | current worktree after the Stage D operational worktree and process-message revision |
 | `.ultra/specs/discovery.md` | `5d4025e7295f702d83aa04a15b731bdfd2240735` | dated baseline evidence; current navigation is this distillate |
 
 ## End-to-End Trace

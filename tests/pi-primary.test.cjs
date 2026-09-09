@@ -7,7 +7,7 @@ const { test } = require('node:test');
 const register = require('../skills/ultra-delegate/scripts/pi-primary.cjs');
 const slice = require('../skills/ultra-delegate/scripts/run-slice.cjs');
 
-function fixture() {
+function fixture({ messageChannel } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-primary-test-')));
   const handlers = {}, tools = {}, messages = [];
   const pi = { on: (name, fn) => { handlers[name] = fn; }, registerTool: (tool) => { tools[tool.name] = tool; }, sendUserMessage: (message) => messages.push(message) };
@@ -16,7 +16,7 @@ function fixture() {
   let complete, launches = 0;
   const pending = new Promise((resolve) => { complete = resolve; });
   const runtime = { ...slice, begin: () => { launches++; fs.mkdirSync(slice.directory(root, 'run', 'first'), { recursive: true }); return pending; }, status: () => attention, resume: () => Promise.resolve(attention) };
-  register(pi, { runtime });
+  register(pi, { runtime, messageChannel });
   const call = (name, params) => tools[name].execute('call', params, undefined, undefined, ctx);
   const event = (name, value = {}) => handlers[name]?.(value, ctx);
   return { root, ctx, attention, messages, tools, call, event, launches: () => launches, complete,
@@ -24,6 +24,14 @@ function fixture() {
     close: () => fs.rmSync(root, { recursive: true, force: true }) };
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test('durable registration takes an owner-grant filename, never copied JSON', async () => {
+  const f = fixture();
+  try {
+    await assert.rejects(f.call('ultra_durable', { grant: '{"mode":"durable work-package"}' }), /grant_filename_required/);
+    assert.equal(f.messages.length, 0); assert.equal(f.launches(), 0);
+  } finally { f.close(); }
+});
 
 test('W1 stays in its native tool turn, returns attention, and never sends a new input', async () => {
   const f = fixture();
@@ -84,5 +92,36 @@ test('confirmed semantic consumption stays consumed after a later turn failure a
     await f.event('message_end', { message: { role: 'assistant', stopReason: 'error' } });
     await f.event('agent_settled'); await f.event('session_shutdown');
     assert.equal(f.receipt().state, 'consumed'); assert.equal(f.messages.length, 1);
+  } finally { f.close(); }
+});
+
+
+test('W3 receives external-controller attention through the same native delivery and consumption boundary', async () => {
+  let complete, cancellations = 0;
+  const pending = new Promise((resolve) => { complete = resolve; });
+  const f = fixture({ messageChannel: { open: () => ({ attention: pending, pid: 123, cancel: () => { cancellations++; } }) } });
+  try {
+    const result = await f.call('ultra_slice', { action: 'run', packet: 'slice.json', delivery: 'message' });
+    assert.equal(JSON.parse(result.content[0].text).delivery, 'message');
+    assert.equal(f.launches(), 0, 'W3 does not start an in-process W2 controller');
+    await assert.rejects(f.call('ultra_slice', { action: 'run', packet: 'another.json', delivery: 'message' }), /background_slice_pending/);
+    fs.mkdirSync(slice.directory(f.root, 'run', 'first'), { recursive: true });
+    complete(f.attention); await tick(); await f.event('agent_settled');
+    assert.equal(f.messages.length, 1); assert.equal(f.receipt().transport, 'w3-process-message');
+    await f.event('input', { source: 'extension', text: f.messages[0] });
+    await f.event('message_start', { message: { role: 'user', content: f.messages[0] } });
+    await f.call('ultra_attention_ack', { event_key: 'run:first' });
+    await f.event('session_shutdown');
+    assert.equal(f.receipt().state, 'consumed'); assert.equal(cancellations, 0);
+  } finally { f.close(); }
+});
+
+test('W3 pending controller is cancelled on native session shutdown without semantic delivery', async () => {
+  let cancellations = 0;
+  const f = fixture({ messageChannel: { open: () => ({ attention: new Promise(() => {}), pid: 123, cancel: () => { cancellations++; } }) } });
+  try {
+    await f.call('ultra_slice', { action: 'run', packet: 'slice.json', delivery: 'message' });
+    await f.event('session_shutdown');
+    assert.equal(cancellations, 1); assert.equal(f.messages.length, 0);
   } finally { f.close(); }
 });

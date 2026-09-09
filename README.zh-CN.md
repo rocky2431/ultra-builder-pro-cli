@@ -277,7 +277,9 @@ ubp run --dry-run "..."
 续接并重新加载同一组 Skills。`--plugin-dir` 也可选择已有的生成插件目录。
 入口同时加载原生 `ultra_slice` 和 `ultra_attention_ack` 工具，用于当前明确授权的有限并行批次。
 可在当前工具轮等待（W1），或完成后在同一原生会话的新轮次接收通知（W2），无需空闲模型轮询。
-详见[有限批次契约](skills/ultra-delegate/references/finite-run-slice.md)。
+还可通过独立有限控制进程向当前 Pi 会话返回消息（W3）。模型选择是否分工、角色配置和下一轮，工作树与预算按当前授权处理；不自动新建会话，也不承诺并行总是更快。
+详见[有限批次契约](skills/ultra-delegate/references/finite-run-slice.md)和[运营工厂方法](skills/ultra-delegate/references/operational-factory.md)。
+明确选择 durable work-package 后，可用 `ultra_durable` 注册[一个长期检查点](skills/ultra-delegate/references/durable-checkpoint.md)：旧会话退出后最多启动一个新 Pi 轮次，受期限、撤销和本地写入范围约束；发送结果未知时不自动重投。
 Pi 不加载 Ultra 的可选 Claude hooks。原六宿主的安装与委派资格支持保持原有范围。
 
 使用 Host 原生 Skill picker 或调用语法选择一个所有者工作流。Codex 会暴露带命名空间

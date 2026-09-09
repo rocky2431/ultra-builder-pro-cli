@@ -1,0 +1,2976 @@
+{
+  "location": {
+    "campaign": 2,
+    "mode": "factory",
+    "shape": "manifest",
+    "repeat": 2,
+    "profile": "pi-balanced-v1",
+    "canonical": true,
+    "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu",
+    "pid": 42144,
+    "started": 1788957722571,
+    "baseline": "d7756e5e68662e06fc03bb01c1a6e67cbf667a8a",
+    "digests": {
+      "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+      "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+      "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+      "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+      "slice-workspace.cjs": "e481fd1810f226107473aa16abab97892404f4520baca63b2dbc8c98ac02c3e9",
+      "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+    }
+  },
+  "observation": {
+    "campaign": 2,
+    "mode": "factory",
+    "shape": "manifest",
+    "repeat": 2,
+    "profile": "pi-balanced-v1",
+    "canonical": true,
+    "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu",
+    "pid": 42144,
+    "started": 1788957722571,
+    "baseline": "d7756e5e68662e06fc03bb01c1a6e67cbf667a8a",
+    "digests": {
+      "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+      "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+      "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+      "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+      "slice-workspace.cjs": "e481fd1810f226107473aa16abab97892404f4520baca63b2dbc8c98ac02c3e9",
+      "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+    },
+    "finished": 1788959688985,
+    "wall_seconds": 1966.414,
+    "end": "agent_settled",
+    "session_id": "01a08630-8865-7126-b9b4-898aac9e1448",
+    "final_revision": "ce2b30624f7e9ba11a192e97a4221cd064b2b7e0",
+    "acceptance_status": 0,
+    "immutable_acceptance": true,
+    "source_unchanged": true,
+    "delivery": null
+  },
+  "primary_result": {
+    "$schema": "tree-manifest-experiment-result-v1",
+    "session_id": "01a08630-8865-7126-b9b4-898aac9e1448",
+    "change_id": "tree-manifest",
+    "source_revision": "131f8b5a4d4948e0ae99aad37cddfa58d4ee8373",
+    "product_worktree_digest": "58f4caeaad7f2932c1b45db4ef2cd4ef6cd83f8f97427cc7b3fe778dae98097f",
+    "final_local_completion_commit": "ce2b30624f7e9ba11a192e97a4221cd064b2b7e0",
+    "canonical_records": {
+      "task_evidence": ".ultra/evidence/tree-manifest/evidence.json",
+      "external_review_receipt": ".ultra/evidence/tree-manifest/external-review.json",
+      "aggregate_review": ".ultra/reviews/aggregate-tree-manifest-final/SUMMARY.json",
+      "test_report": ".ultra/test-report.json",
+      "delivery": ".ultra/changes/archive/tree-manifest/delivery.md",
+      "precommit_snapshot": ".ultra/evidence/tree-manifest/precommit-snapshot.json"
+    },
+    "review": {
+      "registered_identity": "reviewer/delta-reviewer-2",
+      "native_session_id": "01a08642-757c-7219-9fa5-1131f86aa326",
+      "provider": "openai-codex",
+      "model": "gpt-6-astra",
+      "verdict": "approve",
+      "findings": [],
+      "receipt_sha256": "e6b3d4c79cdbab7331af09ce4f6ad9963ad0be42b41c996b0e412bbc51c33f96"
+    },
+    "commands": [
+      {
+        "command": "node acceptance.cjs (baseline)",
+        "exit_code": 1,
+        "evidence": "probe/baseline.json"
+      },
+      {
+        "command": "node acceptance.cjs (final)",
+        "exit_code": 0,
+        "evidence": ".ultra/evidence/tree-manifest/aggregate/acceptance.log"
+      },
+      {
+        "command": "node focused-checks.cjs (final)",
+        "exit_code": 0,
+        "evidence": ".ultra/evidence/tree-manifest/aggregate/focused.log"
+      },
+      {
+        "command": "Task Evidence v2 validator --projection",
+        "exit_code": 0,
+        "evidence": ".ultra/evidence/tree-manifest/precommit-task-evidence-validation.json"
+      },
+      {
+        "command": "strict Review transport validator",
+        "exit_code": 0,
+        "evidence": ".ultra/evidence/tree-manifest/precommit-review-transport.json"
+      }
+    ],
+    "factory": {
+      "profile": "pi-balanced-v1",
+      "finite_slices_used": 5,
+      "finite_slice_limit": 5,
+      "worker_overlap": {
+        "left_started": "2026-09-09T12:49:06.000Z",
+        "right_started": "2026-09-09T12:49:06.056Z",
+        "overlap_proven": true
+      },
+      "repair_count": 2,
+      "repair_limit": 2,
+      "review_budget": "initial plus two blocking-only deltas, fully used",
+      "worker_cleanup": "refused for both dirty worktrees; outputs preserved"
+    },
+    "history": {
+      "seeded_failure": "case-folding sorter failure retained in probe/baseline.json and review-observations/baseline.log",
+      "malformed_review": ".ultra/evidence/tree-manifest/external-review-attempt-1-malformed.json",
+      "request_changes_review": ".ultra/evidence/tree-manifest/external-review-attempt-2-request-changes.json",
+      "subsequent_actual_failure": "review-observations/focused-repair2-initial-failure.log"
+    },
+    "limits": [
+      "Stable trees are supported; cooperative race detection is not hostile-writer OS isolation.",
+      "Read-only reviewers inspected retained Primary logs and did not execute commands.",
+      "No network, dependency, push, tag, publication, deployment, or version bump occurred."
+    ],
+    "delivery_ready": true
+  },
+  "commands": [
+    {
+      "command": [
+        "node",
+        "acceptance.cjs"
+      ],
+      "exit_code": 0,
+      "stdout": "ok 1 - seeded case-sensitive ordering\nok 2 - create exact deterministic inventory without following links\nok 3 - repeat creation has identical bytes\nok 4 - verify equal and diff equal\nok 5 - target content is not link content\nok 6 - verify identifies changes with exit 1\nok 7 - diff reports same changes and does not mutate inputs\nok 8 - reject malformed and structurally unsafe manifests\nok 9 - reject inside output and preserve existing file\nok 10 - reject output parent symlink into root\nok 11 - reject output symlink without changing target\nok 12 - failed root scan preserves output and leaves no temp files\nok 13 - reject root symlink and CLI misuse\nok 14 - type changes remain changed at existing path\nPASS 14/14\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-plan/scripts/validate_task_evidence.cjs",
+        "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/evidence/tree-manifest/evidence.json",
+        "--projection"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"valid\":true,\"classification\":\"current-v2\",\"diagnostics\":[],\"projection\":{\"task_id\":\"tree-manifest\",\"schema\":\"ultra-task-evidence-v2\",\"evidence_ref\":\".ultra/evidence/tree-manifest/evidence.json\",\"evidence_digest\":\"0e3e3ceee3be6081bc46b648ffa297ec01513ecefe206d97ac6f6c175280b035\",\"task_review_mode\":\"external-manual\",\"task_review_receipt_ref\":\".ultra/evidence/tree-manifest/external-review.json\",\"task_review_receipt_digest\":\"e6b3d4c79cdbab7331af09ce4f6ad9963ad0be42b41c996b0e412bbc51c33f96\"}}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-test/scripts/validate_review_transport.cjs",
+        "--summary",
+        "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/reviews/aggregate-tree-manifest-final/SUMMARY.json",
+        "--report",
+        "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/test-report.json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"$schema\": \"ultra-review-transport-validation-v1\",\n  \"summary\": \"/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/reviews/aggregate-tree-manifest-final/SUMMARY.json\",\n  \"report\": \"/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/test-report.json\",\n  \"summary_digest\": \"b0cfe347e17fe6c5bf90c1c03eb8bcb364e9bda79a1c00da6592c7472a1fc32f\",\n  \"finding_count\": 0,\n  \"valid\": true,\n  \"diagnostics\": []\n}\n",
+      "stderr": ""
+    }
+  ],
+  "immutable_inputs": {
+    "GOAL.md": true,
+    "acceptance.cjs": true,
+    ".ultra/decisions/experiment.md": true,
+    ".ultra/north-star.md": true
+  },
+  "raw_evidence_hashes": [
+    {
+      "id": "T-01",
+      "ref": "review-observations/current.log",
+      "matches": true
+    },
+    {
+      "id": "T-02",
+      "ref": ".ultra/evidence/tree-manifest/external-review.json",
+      "matches": true
+    }
+  ],
+  "task_evidence_present": true,
+  "task_review": {
+    "ref": ".ultra/evidence/tree-manifest/external-review.json",
+    "receipt": {
+      "$schema": "ultra-external-review-receipt-v1",
+      "reviewer": "reviewer/delta-reviewer-2",
+      "reviewer_role": "read-only",
+      "task_id": "tree-manifest",
+      "change_id": "tree-manifest",
+      "reviewer_authority": {
+        "ref": ".ultra/decisions/experiment.md",
+        "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322"
+      },
+      "reviewed_contract": {
+        "ref": "GOAL.md",
+        "sha256": "c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249"
+      },
+      "subject": {
+        "git_head": "131f8b5a4d4948e0ae99aad37cddfa58d4ee8373",
+        "worktree_digest": "0ac91e17cdcc79b9a23663fbcf79454bda1557e69ab330258cd88426c2a06442"
+      },
+      "verdict": "approve",
+      "findings": [],
+      "timestamp": "2026-09-09T13:01:30.797Z"
+    },
+    "exact_native_origins": [
+      "delta-reviewer-2"
+    ],
+    "native_base_matches": true,
+    "native_terminal": [
+      {
+        "session_id": "01a08642-757c-7219-9fa5-1131f86aa326",
+        "provider": "openai-codex",
+        "model": "gpt-6-astra",
+        "stop_reason": "stop"
+      }
+    ],
+    "source_unchanged": {
+      "command": [
+        "git",
+        "diff",
+        "--exit-code",
+        "131f8b5a4d4948e0ae99aad37cddfa58d4ee8373",
+        "--",
+        "cli.cjs",
+        "src",
+        "README.md"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  },
+  "archived_delivery": true,
+  "ledger_completed": true,
+  "actual_delegate_results": [
+    {
+      "$schema": "ultra-delegation-result-v1",
+      "status": "finished",
+      "summary": "The Worker seams are ownership-disjoint and broadly useful, but two integration-critical contracts remain underspecified.",
+      "changed_files": [],
+      "checks": [
+        {
+          "command": "No commands permitted by read-only Challenger instruction",
+          "status": "not_run",
+          "output_ref": "File inspection only"
+        }
+      ],
+      "evidence": [
+        "GOAL.md requires never following links or reading outside the requested tree and requires observable concurrent mutation not to become a silently verified snapshot. interface.md assigns this to src/scan/ but only says \u201cnever follows links\u201d and \u201cdetects observable concurrent file mutation\u201d; it does not define identity checks around directory traversal and file opening. A path can change from a checked directory/file into a symlink before a later path-based open, so independently reasonable Worker implementations can still read outside the tree or disagree about which races must reject.",
+        "interface.md makes scanTree return only entries while the Primary independently owns destination containment against the \u201creal scanned root.\u201d No canonical root identity or resolved-root result crosses the seam. Consequently, containment can be checked against one resolution of root while scanTree traverses another after a rename or ancestor-symlink race, conflicting with GOAL.md\u2019s requirement that output be outside the real tree actually scanned.",
+        "The sorting handoff is fragile but integrable: scanTree explicitly returns unsorted entries, encodeManifest merely expects sorted entries, and the Primary owns the seeded src/sort-paths.cjs repair. interface.md does not require encodeManifest to reject unsorted input, so omission of the Primary\u2019s sort step would produce a nonconforming manifest without either Worker detecting it."
+      ],
+      "questions": [],
+      "residual_risks": [
+        "Before implementation, the scan seam should define no-follow-at-open and identity/revalidation behavior for files and traversed directories, or explicitly narrow the supported concurrency model consistently with GOAL.md.",
+        "The Primary needs one root identity shared by containment and traversal, plus an explicit scan \u2192 code-unit sort \u2192 encode invariant. Otherwise the seams can integrate successfully at the API level while violating containment or deterministic ordering."
+      ],
+      "delegation_id": "challenger",
+      "host": "pi",
+      "transport_maturity": "experimental",
+      "transport_surface": "documented non-interactive CLI",
+      "execution_driver": "cli",
+      "driver_fallback_reason": "acp_not_available",
+      "acp_capability": {
+        "candidate": false,
+        "surface": null,
+        "transport": null,
+        "protocol_versions": [],
+        "conformance_status": "not_available",
+        "conformance_evidence": null,
+        "conformance_reason": null,
+        "executable_available": null,
+        "acp_entry_available": null,
+        "candidate_valid": null,
+        "candidate_identity_valid": null,
+        "candidate_identity_reason": null,
+        "candidate_identity_fallback_reason": null
+      },
+      "acp_protocol_version": null,
+      "acp_stop_reason": null,
+      "native_terminal": {
+        "session_id": "01a08633-e992-7452-9963-2098d535e974",
+        "provider": "openai-codex",
+        "model": "gpt-5.6-sol",
+        "stop_reason": "stop"
+      },
+      "events_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/.runtime/delegations/challenger/events.jsonl",
+      "experimental_ack": true,
+      "instruction_digest": "8ed5d7179ac0fde5657d01a5f9d5fa8295ed9f0b34c4db5a4ec141173dab28e5",
+      "permission_digest": "2514fba9286b6d1d46b56582b8da98d790006900b6b1223d8dc6880d2d8f3eab",
+      "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "read_only": true,
+      "base_head": "aecdfd680a73cf8b69a97e7f0aba77042cd0a63a",
+      "final_head": "aecdfd680a73cf8b69a97e7f0aba77042cd0a63a",
+      "started_at": "2026-09-09T12:45:43.942Z",
+      "finished_at": "2026-09-09T12:47:06.137Z",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "$schema": "ultra-delegation-result-v1",
+      "status": "finished",
+      "summary": "Trailing-separator symlink rejection is repaired, but lexical resolution introduces a root-selection regression requiring changes.",
+      "changed_files": [],
+      "checks": [
+        {
+          "command": "node acceptance.cjs",
+          "status": "not_run",
+          "output_ref": "review-observations/current.log (Primary execution)"
+        },
+        {
+          "command": "node focused-checks.cjs",
+          "status": "not_run",
+          "output_ref": "review-observations/focused.log (Primary execution)"
+        }
+      ],
+      "evidence": [
+        "Source reasoning supports the reported POSIX behavior: a trailing separator requires directory resolution, so lstat('link/') can dereference the directory link. Removing that separator before lstat correctly rejects the final symlink. However, path.resolve also collapses '..' before filesystem resolution. If /base/alias points to /outside/child, the supplied root /base/alias/.. denotes /outside under POSIX resolution, whereas the repaired scanner inventories /base. Rejecting such symlink-dependent input would preserve the no-follow boundary; silently scanning a different directory does not. The focused check covers trailing separators but not this regression. Surrounding scanner, CLI, manifest validation, sorting, README, GOAL.md, and retained Primary logs were inspected without executing commands.",
+        "{\"$schema\":\"ultra-external-review-receipt-v1\",\"reviewer\":\"reviewer/delta-reviewer-1\",\"reviewer_role\":\"read-only\",\"task_id\":\"tree-manifest\",\"change_id\":\"tree-manifest\",\"reviewer_authority\":{\"ref\":\".ultra/decisions/experiment.md\",\"sha256\":\"31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322\"},\"reviewed_contract\":{\"ref\":\"GOAL.md\",\"sha256\":\"c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249\"},\"subject\":{\"git_head\":\"0473496eb9ad302bba3ed4309f7ec705e9de7238\",\"worktree_digest\":\"bb4eccbf2ed4ef54de70b86c8368f2339a49c5c9aa44f3cd8e5b82c0c94665fc\"},\"verdict\":\"request_changes\",\"findings\":[{\"id\":\"R1\",\"severity\":\"P1\",\"title\":\"src/scan/index.cjs: path.resolve collapses symlink/.. lexically and can inventory a different tree than the requested root\"}],\"timestamp\":\"2026-09-09T12:57:40.348Z\"}"
+      ],
+      "questions": [],
+      "residual_risks": [
+        "Review is source-based; retained passing outputs were produced by Primary, not independently rerun.",
+        "HEAD and worktree digest are supplied dispatch bindings, not independently recomputed."
+      ],
+      "delegation_id": "delta-reviewer-1",
+      "host": "pi",
+      "transport_maturity": "experimental",
+      "transport_surface": "documented non-interactive CLI",
+      "execution_driver": "cli",
+      "driver_fallback_reason": "acp_not_available",
+      "acp_capability": {
+        "candidate": false,
+        "surface": null,
+        "transport": null,
+        "protocol_versions": [],
+        "conformance_status": "not_available",
+        "conformance_evidence": null,
+        "conformance_reason": null,
+        "executable_available": null,
+        "acp_entry_available": null,
+        "candidate_valid": null,
+        "candidate_identity_valid": null,
+        "candidate_identity_reason": null,
+        "candidate_identity_fallback_reason": null
+      },
+      "acp_protocol_version": null,
+      "acp_stop_reason": null,
+      "native_terminal": {
+        "session_id": "01a0863f-1bce-75cc-a206-f04a005b0a54",
+        "provider": "openai-codex",
+        "model": "gpt-6-astra",
+        "stop_reason": "stop"
+      },
+      "events_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/.runtime/delegations/delta-reviewer-1/events.jsonl",
+      "experimental_ack": true,
+      "instruction_digest": "33532810e1463fc259c4aff9c0978a378fa55bf5abf43135b96a2161803d2d1c",
+      "permission_digest": "2514fba9286b6d1d46b56582b8da98d790006900b6b1223d8dc6880d2d8f3eab",
+      "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "read_only": true,
+      "base_head": "0473496eb9ad302bba3ed4309f7ec705e9de7238",
+      "final_head": "0473496eb9ad302bba3ed4309f7ec705e9de7238",
+      "started_at": "2026-09-09T12:57:57.712Z",
+      "finished_at": "2026-09-09T12:58:45.468Z",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "$schema": "ultra-delegation-result-v1",
+      "status": "finished",
+      "summary": "Implemented dependency-free no-follow tree scanning with stable-observation checks.",
+      "changed_files": [
+        "src/scan/index.cjs"
+      ],
+      "checks": [
+        {
+          "command": "node acceptance.cjs",
+          "status": "not_run",
+          "output_ref": "Execution denied by delegation instruction."
+        }
+      ],
+      "evidence": [
+        "src/scan/index.cjs exports exactly scanTree and handles .git omission, POSIX paths, symlink targets, SHA-256 file hashing, and mutation checks."
+      ],
+      "questions": [],
+      "residual_risks": [
+        "Checks were not executed per instruction. Cooperative mutation detection cannot provide hostile-writer sandbox guarantees."
+      ],
+      "delegation_id": "worker-left",
+      "host": "pi",
+      "transport_maturity": "experimental",
+      "transport_surface": "documented non-interactive CLI",
+      "execution_driver": "cli",
+      "driver_fallback_reason": "acp_not_available",
+      "acp_capability": {
+        "candidate": false,
+        "surface": null,
+        "transport": null,
+        "protocol_versions": [],
+        "conformance_status": "not_available",
+        "conformance_evidence": null,
+        "conformance_reason": null,
+        "executable_available": null,
+        "acp_entry_available": null,
+        "candidate_valid": null,
+        "candidate_identity_valid": null,
+        "candidate_identity_reason": null,
+        "candidate_identity_fallback_reason": null
+      },
+      "acp_protocol_version": null,
+      "acp_stop_reason": null,
+      "native_terminal": {
+        "session_id": "01a08636-fed9-7497-ad5f-6b7043f78c9f",
+        "provider": "openai-codex",
+        "model": "gpt-5.6-terra",
+        "stop_reason": "stop"
+      },
+      "events_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/.runtime/delegations/worker-left/events.jsonl",
+      "experimental_ack": true,
+      "instruction_digest": "20cf66ad6288928181c18b90f89e0d466440631be2932d835ce0f50667850c07",
+      "permission_digest": "69eb77316847cbd250c7aa8369267696069b19458fdca0f074c69c75d71a46c0",
+      "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "read_only": false,
+      "base_head": "c0ffe38d3a1fa09475352d25470dbefad74bdd3a",
+      "final_head": "c0ffe38d3a1fa09475352d25470dbefad74bdd3a",
+      "started_at": "2026-09-09T12:49:06.000Z",
+      "finished_at": "2026-09-09T12:50:31.026Z",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "$schema": "ultra-delegation-result-v1",
+      "status": "finished",
+      "summary": "Independent read-only review found a root-symlink rejection bypass. Changes requested.",
+      "changed_files": [],
+      "checks": [
+        {
+          "command": "node acceptance.cjs",
+          "status": "not_run",
+          "output_ref": "review-observations/baseline.log; review-observations/current.log (Primary executions)"
+        },
+        {
+          "command": "node focused-checks.cjs",
+          "status": "not_run",
+          "output_ref": "review-observations/focused.log (Primary execution)"
+        }
+      ],
+      "evidence": [
+        "Inspected GOAL.md, README.md, interface.md, all implementation modules, acceptance.cjs, focused-checks.cjs, and retained observations. Primary logs show the seeded ordering failure before implementation, 14/14 acceptance checks afterward, and the focused check passing. The sorter now uses code-unit ordering.",
+        "src/scan/index.cjs calls lstat(root) without removing trailing separators. On POSIX, a root argument such as alias/ where alias is a directory symlink resolves to the target directory even for lstat. realpath and subsequent identity checks then agree, allowing create and verify to scan the linked directory. This violates the explicit requirement to reject a symlink root even for a stable tree; existing acceptance coverage uses alias without a trailing slash.",
+        "{\"$schema\":\"ultra-external-review-receipt-v1\",\"reviewer\":\"reviewer/task-reviewer\",\"reviewer_role\":\"read-only\",\"task_id\":\"tree-manifest\",\"change_id\":\"tree-manifest\",\"reviewer_authority\":{\"ref\":\".ultra/decisions/experiment.md\",\"sha256\":\"31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322\"},\"reviewed_contract\":{\"ref\":\"GOAL.md\",\"sha256\":\"c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249\"},\"subject\":{\"git_head\":\"75dc203be010244838445cb161a34a3c6ca2958d\",\"worktree_digest\":\"7d0cf3303536f555b52d9ccaccead9868d659c789c53603aa994e941a58c8ca1\"},\"verdict\":\"request_changes\",\"findings\":[{\"id\":\"R1\",\"severity\":\"high\",\"title\":\"src/scan/index.cjs: trailing slash on a symlink root bypasses lstat rejection and scans its target\"}],\"timestamp\":\"2026-09-09T12:55:02.610Z\"}"
+      ],
+      "questions": [],
+      "residual_risks": [
+        "No commands were executed; the finding is based on source inspection and POSIX pathname resolution.",
+        "The documented cooperative mutation checks are not a hostile-concurrent-writer containment guarantee."
+      ],
+      "delegation_id": "task-reviewer",
+      "host": "pi",
+      "transport_maturity": "experimental",
+      "transport_surface": "documented non-interactive CLI",
+      "execution_driver": "cli",
+      "driver_fallback_reason": "acp_not_available",
+      "acp_capability": {
+        "candidate": false,
+        "surface": null,
+        "transport": null,
+        "protocol_versions": [],
+        "conformance_status": "not_available",
+        "conformance_evidence": null,
+        "conformance_reason": null,
+        "executable_available": null,
+        "acp_entry_available": null,
+        "candidate_valid": null,
+        "candidate_identity_valid": null,
+        "candidate_identity_reason": null,
+        "candidate_identity_fallback_reason": null
+      },
+      "acp_protocol_version": null,
+      "acp_stop_reason": null,
+      "native_terminal": {
+        "session_id": "01a0863c-8469-706e-bc38-7b79c121f010",
+        "provider": "openai-codex",
+        "model": "gpt-6-astra",
+        "stop_reason": "stop"
+      },
+      "events_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/.runtime/delegations/task-reviewer/events.jsonl",
+      "experimental_ack": true,
+      "instruction_digest": "4764938e141a9908d85da33acad0acc275a391d92463539b55b8eac3394f4cc5",
+      "permission_digest": "2514fba9286b6d1d46b56582b8da98d790006900b6b1223d8dc6880d2d8f3eab",
+      "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "read_only": true,
+      "base_head": "75dc203be010244838445cb161a34a3c6ca2958d",
+      "final_head": "75dc203be010244838445cb161a34a3c6ca2958d",
+      "started_at": "2026-09-09T12:55:07.883Z",
+      "finished_at": "2026-09-09T12:55:46.893Z",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "$schema": "ultra-delegation-result-v1",
+      "status": "finished",
+      "summary": "Implemented strict manifest validation, immutable code-unit ordered comparison, and deterministic canonical encoding.",
+      "changed_files": [
+        "src/manifest/index.cjs"
+      ],
+      "checks": [
+        {
+          "command": "Execution denied by delegation instructions",
+          "status": "not_run",
+          "output_ref": "Source inspection only"
+        }
+      ],
+      "evidence": [
+        "src/manifest/index.cjs exports exactly validateManifest, diffManifests, and encodeManifest",
+        "Validation enforces exact fields, safe paths, ordering, parent directories, supported types, sizes, digests, and targets",
+        "Encoding canonicalizes field order with two-space indentation and one final newline"
+      ],
+      "questions": [],
+      "residual_risks": [
+        "No executable checks or integrated acceptance suite were run, as required by the delegation boundary."
+      ],
+      "delegation_id": "worker-right",
+      "host": "pi",
+      "transport_maturity": "experimental",
+      "transport_surface": "documented non-interactive CLI",
+      "execution_driver": "cli",
+      "driver_fallback_reason": "acp_not_available",
+      "acp_capability": {
+        "candidate": false,
+        "surface": null,
+        "transport": null,
+        "protocol_versions": [],
+        "conformance_status": "not_available",
+        "conformance_evidence": null,
+        "conformance_reason": null,
+        "executable_available": null,
+        "acp_entry_available": null,
+        "candidate_valid": null,
+        "candidate_identity_valid": null,
+        "candidate_identity_reason": null,
+        "candidate_identity_fallback_reason": null
+      },
+      "acp_protocol_version": null,
+      "acp_stop_reason": null,
+      "native_terminal": {
+        "session_id": "01a08636-ff15-7599-8662-457a991e8fae",
+        "provider": "openai-codex",
+        "model": "gpt-5.6-sol",
+        "stop_reason": "stop"
+      },
+      "events_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/.runtime/delegations/worker-right/events.jsonl",
+      "experimental_ack": true,
+      "instruction_digest": "31a43cbf30e51ac2e62668566d156dd123f0b5a3c05207e17d406c5b725a8930",
+      "permission_digest": "27995cc99632de3fc97a6fc1f5a91b30bd158fcbe65565d14567dbb79c95b0e2",
+      "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "read_only": false,
+      "base_head": "c0ffe38d3a1fa09475352d25470dbefad74bdd3a",
+      "final_head": "c0ffe38d3a1fa09475352d25470dbefad74bdd3a",
+      "started_at": "2026-09-09T12:49:06.056Z",
+      "finished_at": "2026-09-09T12:51:47.474Z",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "$schema": "ultra-delegation-result-v1",
+      "status": "finished",
+      "summary": "Approve the reviewed scan delta: suffix-only root probing rejects final symlinks while preserving filesystem resolution of dotdot. No blocking findings.",
+      "changed_files": [],
+      "checks": [
+        {
+          "command": "Independent execution prohibited by read-only delegation",
+          "status": "not_run",
+          "output_ref": "Static source/spec review and supplied Primary logs only"
+        }
+      ],
+      "evidence": [
+        "{\"$schema\":\"ultra-external-review-receipt-v1\",\"reviewer\":\"reviewer/delta-reviewer-2\",\"reviewer_role\":\"read-only\",\"task_id\":\"tree-manifest\",\"change_id\":\"tree-manifest\",\"reviewer_authority\":{\"ref\":\".ultra/decisions/experiment.md\",\"sha256\":\"31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322\"},\"reviewed_contract\":{\"ref\":\"GOAL.md\",\"sha256\":\"c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249\"},\"subject\":{\"git_head\":\"131f8b5a4d4948e0ae99aad37cddfa58d4ee8373\",\"worktree_digest\":\"0ac91e17cdcc79b9a23663fbcf79454bda1557e69ab330258cd88426c2a06442\"},\"verdict\":\"approve\",\"findings\":[],\"timestamp\":\"2026-09-09T13:01:30.797Z\"}",
+        "Inspected GOAL.md, acceptance.cjs, src/scan/index.cjs, src/manifest/index.cjs, src/sort-paths.cjs, cli.cjs, README.md and focused-checks.cjs. rootProbePath removes trailing separators and final dot components without resolving dotdot; focused-checks.cjs preserves the symlink-before-dotdot argument through string construction.",
+        "Primary evidence current.log reports PASS 14/14; focused.log reports passing ordering, root-link rejection and symlink-before-dotdot identity. Prior finding logs are consistent with the reported failures. focused-repair2-initial-failure.log records the separate containment assertion failure; that log alone does not establish the historical path.join argument.",
+        "The seeded ordering defect is corrected with code-unit comparison. This is independent read-only QA, not owner acceptance."
+      ],
+      "questions": [],
+      "residual_risks": [
+        "HEAD, cleanliness and supplied digests rely on launcher attestation: Git metadata points outside the permitted worktree boundary and was not followed.",
+        "No checks were executed independently. Historical reproduction logs contain limited setup context; the initial focused failure's attributed cause cannot be independently established from its log alone."
+      ],
+      "delegation_id": "delta-reviewer-2",
+      "host": "pi",
+      "transport_maturity": "experimental",
+      "transport_surface": "documented non-interactive CLI",
+      "execution_driver": "cli",
+      "driver_fallback_reason": "acp_not_available",
+      "acp_capability": {
+        "candidate": false,
+        "surface": null,
+        "transport": null,
+        "protocol_versions": [],
+        "conformance_status": "not_available",
+        "conformance_evidence": null,
+        "conformance_reason": null,
+        "executable_available": null,
+        "acp_entry_available": null,
+        "candidate_valid": null,
+        "candidate_identity_valid": null,
+        "candidate_identity_reason": null,
+        "candidate_identity_fallback_reason": null
+      },
+      "acp_protocol_version": null,
+      "acp_stop_reason": null,
+      "native_terminal": {
+        "session_id": "01a08642-757c-7219-9fa5-1131f86aa326",
+        "provider": "openai-codex",
+        "model": "gpt-6-astra",
+        "stop_reason": "stop"
+      },
+      "events_file": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu/.ultra/.runtime/delegations/delta-reviewer-2/events.jsonl",
+      "experimental_ack": true,
+      "instruction_digest": "890ceb292fee8d445b21e713ab9ff5677da5e0f0955a471837da188f1168ffa0",
+      "permission_digest": "2514fba9286b6d1d46b56582b8da98d790006900b6b1223d8dc6880d2d8f3eab",
+      "output_schema_digest": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "read_only": true,
+      "base_head": "131f8b5a4d4948e0ae99aad37cddfa58d4ee8373",
+      "final_head": "131f8b5a4d4948e0ae99aad37cddfa58d4ee8373",
+      "started_at": "2026-09-09T13:01:37.221Z",
+      "finished_at": "2026-09-09T13:02:19.255Z",
+      "exit_code": 0,
+      "signal": null
+    }
+  ],
+  "human_interventions_after_prompt": 0,
+  "aggregate_source_unchanged": {
+    "command": [
+      "git",
+      "diff",
+      "--exit-code",
+      "131f8b5a4d4948e0ae99aad37cddfa58d4ee8373",
+      "--",
+      "cli.cjs",
+      "src",
+      "README.md"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "metrics": {
+    "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d2-manifest-r2-factory-hu5rqu",
+    "sessions": [
+      {
+        "role": "primary",
+        "path": "probe/sessions/2026-09-09T12-42-02-725Z_01a08630-8865-7126-b9b4-898aac9e1448.jsonl",
+        "session_id": "01a08630-8865-7126-b9b4-898aac9e1448",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "model_calls": 95,
+        "input_tokens": 123070,
+        "output_tokens": 35395,
+        "cached_read_tokens": 6781952,
+        "cached_write_tokens": 0,
+        "reasoning_tokens": 6982,
+        "total_tokens": 6940417,
+        "native_estimated_cost": 5.068176000000001
+      },
+      {
+        "role": "challenger",
+        "path": ".ultra/.runtime/delegations/challenger/pi-sessions/2026-09-09T12-45-44-210Z_01a08633-e992-7452-9963-2098d535e974.jsonl",
+        "session_id": "01a08633-e992-7452-9963-2098d535e974",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "model_calls": 3,
+        "input_tokens": 12323,
+        "output_tokens": 2204,
+        "cached_read_tokens": 0,
+        "cached_write_tokens": 0,
+        "reasoning_tokens": 1616,
+        "total_tokens": 14527,
+        "native_estimated_cost": 0.127735
+      },
+      {
+        "role": "delta-reviewer-1",
+        "path": ".ultra/.runtime/delegations/delta-reviewer-1/pi-sessions/2026-09-09T12-57-57-966Z_01a0863f-1bce-75cc-a206-f04a005b0a54.jsonl",
+        "session_id": "01a0863f-1bce-75cc-a206-f04a005b0a54",
+        "models": [
+          "gpt-6-astra"
+        ],
+        "model_calls": 4,
+        "input_tokens": 12296,
+        "output_tokens": 1119,
+        "cached_read_tokens": 18816,
+        "cached_write_tokens": 0,
+        "reasoning_tokens": 182,
+        "total_tokens": 32231,
+        "native_estimated_cost": 0.197726
+      },
+      {
+        "role": "delta-reviewer-2",
+        "path": ".ultra/.runtime/delegations/delta-reviewer-2/pi-sessions/2026-09-09T13-01-37-533Z_01a08642-757c-7219-9fa5-1131f86aa326.jsonl",
+        "session_id": "01a08642-757c-7219-9fa5-1131f86aa326",
+        "models": [
+          "gpt-6-astra"
+        ],
+        "model_calls": 4,
+        "input_tokens": 12480,
+        "output_tokens": 1006,
+        "cached_read_tokens": 13952,
+        "cached_write_tokens": 0,
+        "reasoning_tokens": 35,
+        "total_tokens": 27438,
+        "native_estimated_cost": 0.18905200000000003
+      },
+      {
+        "role": "task-reviewer",
+        "path": ".ultra/.runtime/delegations/task-reviewer/pi-sessions/2026-09-09T12-55-08-138Z_01a0863c-8469-706e-bc38-7b79c121f010.jsonl",
+        "session_id": "01a0863c-8469-706e-bc38-7b79c121f010",
+        "models": [
+          "gpt-6-astra"
+        ],
+        "model_calls": 3,
+        "input_tokens": 11636,
+        "output_tokens": 946,
+        "cached_read_tokens": 6784,
+        "cached_write_tokens": 0,
+        "reasoning_tokens": 80,
+        "total_tokens": 19366,
+        "native_estimated_cost": 0.170444
+      },
+      {
+        "role": "worker-left",
+        "path": ".ultra/.runtime/delegations/worker-left/pi-sessions/2026-09-09T12-49-06-265Z_01a08636-fed9-7497-ad5f-6b7043f78c9f.jsonl",
+        "session_id": "01a08636-fed9-7497-ad5f-6b7043f78c9f",
+        "models": [
+          "gpt-5.6-terra"
+        ],
+        "model_calls": 8,
+        "input_tokens": 27948,
+        "output_tokens": 3707,
+        "cached_read_tokens": 29696,
+        "cached_write_tokens": 0,
+        "reasoning_tokens": 1402,
+        "total_tokens": 61351,
+        "native_estimated_cost": 0.1063192
+      },
+      {
+        "role": "worker-right",
+        "path": ".ultra/.runtime/delegations/worker-right/pi-sessions/2026-09-09T12-49-06-326Z_01a08636-ff15-7599-8662-457a991e8fae.jsonl",
+        "session_id": "01a08636-ff15-7599-8662-457a991e8fae",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "model_calls": 6,
+        "input_tokens": 17216,
+        "output_tokens": 4466,
+        "cached_read_tokens": 21760,
+        "cached_write_tokens": 0,
+        "reasoning_tokens": 2165,
+        "total_tokens": 43442,
+        "native_estimated_cost": 0.23094
+      }
+    ],
+    "totals": {
+      "model_calls": 123,
+      "input_tokens": 216969,
+      "output_tokens": 48843,
+      "cached_read_tokens": 6872960,
+      "cached_write_tokens": 0,
+      "reasoning_tokens": 12462,
+      "total_tokens": 7138772,
+      "native_estimated_cost": 6.090392200000002
+    },
+    "worker_overlap_seconds": 84.97,
+    "cost_note": "Native Pi usage and native configured price estimates; not a billing receipt. Total tokens include cache traffic; reasoning is a subset of output and is not added again."
+  },
+  "archive": "work/trellis-eight-step-20260909/stage-d-product-v2-manifest-r2-factory-hu5rqu-raw.tar.gz",
+  "archive_sha256": "ef225b22d34d95f3527a63f19e250bd831c32874f623470c2d190dc80e16d134",
+  "files": [
+    {
+      "path": ".git/COMMIT_EDITMSG",
+      "sha256": "9247251ce158cd6e4155a26b1b25d119a2b94c58817a45bb0e37e0351523f899"
+    },
+    {
+      "path": ".git/HEAD",
+      "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
+    },
+    {
+      "path": ".git/config",
+      "sha256": "b64c7be6d436b2e7176f66a8536710d0739f54ae4ca47779c2bc9fa1229607e4"
+    },
+    {
+      "path": ".git/description",
+      "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+    },
+    {
+      "path": ".git/hooks/applypatch-msg.sample",
+      "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+    },
+    {
+      "path": ".git/hooks/commit-msg.sample",
+      "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+    },
+    {
+      "path": ".git/hooks/fsmonitor-watchman.sample",
+      "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+    },
+    {
+      "path": ".git/hooks/post-update.sample",
+      "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+    },
+    {
+      "path": ".git/hooks/pre-applypatch.sample",
+      "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+    },
+    {
+      "path": ".git/hooks/pre-commit.sample",
+      "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+    },
+    {
+      "path": ".git/hooks/pre-merge-commit.sample",
+      "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+    },
+    {
+      "path": ".git/hooks/pre-push.sample",
+      "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+    },
+    {
+      "path": ".git/hooks/pre-rebase.sample",
+      "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+    },
+    {
+      "path": ".git/hooks/pre-receive.sample",
+      "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+    },
+    {
+      "path": ".git/hooks/prepare-commit-msg.sample",
+      "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+    },
+    {
+      "path": ".git/hooks/push-to-checkout.sample",
+      "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+    },
+    {
+      "path": ".git/hooks/sendemail-validate.sample",
+      "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+    },
+    {
+      "path": ".git/hooks/update.sample",
+      "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+    },
+    {
+      "path": ".git/index",
+      "sha256": "55b5370a9dee9e907cac2e79ba7eb92b93321e9bd850f165ffc2da37b40d6e3f"
+    },
+    {
+      "path": ".git/info/exclude",
+      "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+    },
+    {
+      "path": ".git/logs/HEAD",
+      "sha256": "d2341127226b34fdda48a369189a9ddde15bed05284a95ab52107b2daf5a8391"
+    },
+    {
+      "path": ".git/logs/refs/heads/main",
+      "sha256": "d2341127226b34fdda48a369189a9ddde15bed05284a95ab52107b2daf5a8391"
+    },
+    {
+      "path": ".git/objects/03/9626d3a52e716970a5a89c986d03e99c62c554",
+      "sha256": "faa6557d3688872d4d635d1066d9cf315b5f743a5fb182326643a47054d2cb1f"
+    },
+    {
+      "path": ".git/objects/04/73496eb9ad302bba3ed4309f7ec705e9de7238",
+      "sha256": "ec99927b99196b1fa8c03957b069acada2dca3af19efc2b703d680446c6b5101"
+    },
+    {
+      "path": ".git/objects/04/a2118394e11d0ed70ada9c8983491031920e89",
+      "sha256": "d56b804d441d4a05c7941450725527c6074e53898ae78784c68c24ac190b0e99"
+    },
+    {
+      "path": ".git/objects/07/123a3a4c9b559e86d1392b30fbbec55307096d",
+      "sha256": "3248f548433a7c3ed7de9d167a9e2b102bf1dbac4143d07a2bb7d0a2b723a613"
+    },
+    {
+      "path": ".git/objects/09/caa652c65ddbc7a31a7fbebf1d6aab0ae63b92",
+      "sha256": "74042e18678cf02294c0dab9897f1b57fdbb9108d140e2b02c378622bc086886"
+    },
+    {
+      "path": ".git/objects/09/dd6ef15e71b226f677b245c908ce852224bce0",
+      "sha256": "37cfea9b124e58fc19cf5e72cafc1beb79ee7c65c858c9e007e6f7020540226c"
+    },
+    {
+      "path": ".git/objects/0a/312685996b560cedac3c744ff672aac3def7d5",
+      "sha256": "5d6f7bcc790e605987d3eb509b479b1b2dffcbb5ef02ad6cbc097d1fdb9c0bd6"
+    },
+    {
+      "path": ".git/objects/12/a670eba2913b33da4683eb94d247c3b0836d5d",
+      "sha256": "c441423f692dafd9fb4485ed02a6353b6f36a013ec4e0ecdf7e7a8891454e427"
+    },
+    {
+      "path": ".git/objects/13/1f8b5a4d4948e0ae99aad37cddfa58d4ee8373",
+      "sha256": "6349935496f4cbc80188da6ceb4782c46104dccfff49b8e1034f272e9e52e202"
+    },
+    {
+      "path": ".git/objects/13/4e58724c0a0641807c4d19343ac18e60759dc4",
+      "sha256": "48bbd48cf56de573c87a58d413b16af49093ff3da06928b59c85e1f011939024"
+    },
+    {
+      "path": ".git/objects/13/c067025bcad6fbc311e14a143ed9e95412d452",
+      "sha256": "714001841899bc9efc3ebbf9aa68631516fe4c467c1747611dd6a1a71555faff"
+    },
+    {
+      "path": ".git/objects/15/a02b3e37a92d1470bf9f6090029035f98eefe0",
+      "sha256": "d069cb7d6e6fb47d372bd20a2b7502e345afb4a38f32af1a382171665ea9acef"
+    },
+    {
+      "path": ".git/objects/18/bff084dc7d5bff606cb588a769ccd56af7aaff",
+      "sha256": "3437ba3ba45b865334d4791ae159e26fdc4fb8394471aedfc5a349908ebabb7c"
+    },
+    {
+      "path": ".git/objects/1c/3ef2ca565dd53c8c2c070d4b2d6fc6e5d3dd58",
+      "sha256": "5df4a759e99cf3554d569cbacdb4969df2a50d0622c59df8cf36be1675d7b772"
+    },
+    {
+      "path": ".git/objects/1c/50539b5512fec90eabdcc72bb613b5de9c0ee3",
+      "sha256": "5233de225a17f7b05b6c561c63a2a56185d8b0b1299a7a7f6a7c5e9a03d2b228"
+    },
+    {
+      "path": ".git/objects/1c/aa12159bcd402842e4444603bfe54d7974c6f2",
+      "sha256": "c59cf5e5404650a1d550b54f5f6241c5e5e8e8c9c80c4b3226af122d769653a7"
+    },
+    {
+      "path": ".git/objects/1d/fd71b7b0fb7cd13ba266ee4c9c78f5515c5509",
+      "sha256": "1a662a2dca488a5a7843369af92efe9c8cf58a9e12a48cae8d38e5a1d46603b6"
+    },
+    {
+      "path": ".git/objects/22/44f0ba08c6b1485105068d285e212fbf94a698",
+      "sha256": "c4bf153d4d583eef24573b82564adb4954a54a9a4eeb9610c82774cbac016426"
+    },
+    {
+      "path": ".git/objects/24/80630645474cc805aa9bb285cf82d609db5f27",
+      "sha256": "71d6c5d166308e5553c9d819d0c5ee069726115d5aea6340e45f157abe56eb40"
+    },
+    {
+      "path": ".git/objects/24/e9a02e5f64dc64de8820f7d575dabc24bca524",
+      "sha256": "acf444f32ebf862bcb965a3bdd782624f228c22f4dbef1ad9250b1f2b2360b1e"
+    },
+    {
+      "path": ".git/objects/24/eccc0e549dca77758e15995f7e094dfb9a4d89",
+      "sha256": "74bd20914622acc76c673455a07b75ef8809f8a98d65e29071a03a9dfb6cb0be"
+    },
+    {
+      "path": ".git/objects/25/c31963c8afd0c01c0fc2056ec558b9c28f583a",
+      "sha256": "660390d847a8c615c842503a1b198fd39be948c67e1ea248911b56524d9d3cd2"
+    },
+    {
+      "path": ".git/objects/27/408b3b990e58b04f5ebd831ffcf5f669a9ecf1",
+      "sha256": "50bc2bcced1479cf39a58049f61576dfefcfebbc752159b384e9de2d900a6b03"
+    },
+    {
+      "path": ".git/objects/27/4b8030b39691f97fcb0a92eb249d56106887df",
+      "sha256": "a8f6b3f518a1e8cdeac130d6560f445d52e704ee042c189cf7ec5adc2b85e394"
+    },
+    {
+      "path": ".git/objects/2a/c941f993809787e6e38be74dc23b0f8786f359",
+      "sha256": "f1fe4fb2d126530012b5b21bbcee609c6f4561e15de4627df533e8f12cc43fd7"
+    },
+    {
+      "path": ".git/objects/2b/5eff927931eaf8733cff06bd4065f57fcf587a",
+      "sha256": "d08b7dd0aee809bcd5424f826f5f18fcfa4ab9d11f76e91af744efb9b82b3cff"
+    },
+    {
+      "path": ".git/objects/2d/a240d89875b3346c28f587be621822d71903bf",
+      "sha256": "37a3349f63348d968c50d00b7227048be541c1a96899e55f7c8b16362f41b3af"
+    },
+    {
+      "path": ".git/objects/2d/be8a9824b0c31fa0b991d00609ff6e179cf037",
+      "sha256": "263d6b3c941d1155fb45445eefaa24912a933addf742f475620cc981f2a7de62"
+    },
+    {
+      "path": ".git/objects/2e/ee3e70e6dbccb65384f8e2b96b73b67fb984da",
+      "sha256": "cf7d56b92294afbd13d4f5bba95e0780da5684890d6ae16c033d1c3b16597685"
+    },
+    {
+      "path": ".git/objects/2f/7fd4c836688858c50f9d4e17935cc1e2ec1a68",
+      "sha256": "53de751c6e6415d3a6585290e5814f533be027796010d986a1ea7ce1f16e2ba1"
+    },
+    {
+      "path": ".git/objects/2f/d6ec78907f30590b32299fefd83945f412bfa8",
+      "sha256": "f8e6a28a5cf595661e3211662fc801190c77abb48b433710493304a132460c88"
+    },
+    {
+      "path": ".git/objects/33/897e77c5eb8688055906aa30ce6777046794c6",
+      "sha256": "52fdee6bcbb2b2fa39ba0eb834c18d8bfd6d8672194726d56235750400d4b28e"
+    },
+    {
+      "path": ".git/objects/33/d718d06d7e0916b9dacf81f31f7a0d4f14fb6c",
+      "sha256": "d35e3787dcce0aa8a8b09d0091116e1be92e35651ccb4208dba8656b81b9d68c"
+    },
+    {
+      "path": ".git/objects/35/4765078f4517878a10f32f0a776b00503beb13",
+      "sha256": "4ff929a7288fa5b055dff159f24c3b352c62302174becee0def2ea9e689a0265"
+    },
+    {
+      "path": ".git/objects/37/0d9ccb7e28d646a77216b0096e5dc31caf852c",
+      "sha256": "1db26cb3557cee11ce450496aa41ce6d222b282e750a6a18d15e1c25c3ef25e8"
+    },
+    {
+      "path": ".git/objects/38/32d4057536bb284e74e162f69667aaeab0d3b0",
+      "sha256": "5eb27ab7a7f9b77ee41d798401dfa85456a6f6cad353b1e6170480c0c3a7930a"
+    },
+    {
+      "path": ".git/objects/3b/acc1082fe59d8bf6222e6226db67a826309586",
+      "sha256": "269b178e9e071be632b983212790b0b910d374e2b574a84ac943ad44d3cec8a7"
+    },
+    {
+      "path": ".git/objects/3c/2edb5d59d3af51de2d6b3388b8c0e3bd9bef8d",
+      "sha256": "8298e88c445ea361fd1c6e3cb4f5be45acd4124d72539cc75ebb040707235357"
+    },
+    {
+      "path": ".git/objects/3c/a2820a97f2d1fe136423d2c07297f3be53d58a",
+      "sha256": "95ddbffecf688755c0d39ad12d5c306e96c915fb27ba83e06d461c65b17af709"
+    },
+    {
+      "path": ".git/objects/42/87302b9087efc65405ba36a8a045b4090e7ca9",
+      "sha256": "d7061299e78431cb94fc1ba3563be80a2cfa683c774f5392e21ef448e7413a0a"
+    },
+    {
+      "path": ".git/objects/43/adc9b026b647ee8cc0564be05be945062fa11b",
+      "sha256": "5541ad71ff46c2835d6a7dfbe872b615ace6190bd38774f9c074c799766816a6"
+    },
+    {
+      "path": ".git/objects/46/ecc730743f879a5c432486da7aa6c9d3773284",
+      "sha256": "ccb28ca7dda92215a68c8f9c5a2ccb8faea0493e42727e55c52b304d86dea993"
+    },
+    {
+      "path": ".git/objects/47/4098049d947571250914c81f18ef37aa5827f2",
+      "sha256": "f49c7bd539440f622fe13b5d7566c9c655d69b40caecbb76fb5b95f4851241df"
+    },
+    {
+      "path": ".git/objects/49/654eb07fbe18193ff44b08c94b8f38e094016c",
+      "sha256": "d5d9247a7e82efb27fb4b8af81d5a1b858d0122832f909d164b3d984e28002c4"
+    },
+    {
+      "path": ".git/objects/4b/5ac203cb94b6a025e5b7cc93843fc3efaf44db",
+      "sha256": "9cb715da0d3555926b0cacde33e09728d96a6c51e0a7205935351cbfb4d14163"
+    },
+    {
+      "path": ".git/objects/4c/65d3c70dad899567474c9bf8bb0c836fc79b85",
+      "sha256": "03a962054ae2de2536ce6781b930febd497af32b460d3643fc9520985bdf8460"
+    },
+    {
+      "path": ".git/objects/50/0e478c3a4c1ebdcbcf9a85d6e96608d674a585",
+      "sha256": "a6abd63caa9f4e0b387cae01a378109d5d9da654586e574be1a3aa788b27bf28"
+    },
+    {
+      "path": ".git/objects/51/4264d896d50893463351d68655c27130655252",
+      "sha256": "015059b23f9814ea5aa1d04aa518b2cca71881a18b91826ae9a69529df354dd8"
+    },
+    {
+      "path": ".git/objects/52/8d52363b70683576e37b3c1a58cf6aa328d636",
+      "sha256": "c47eff9ac88bac26e183100b6873c5cc127c9c157a59413a127afd4da3fdc44d"
+    },
+    {
+      "path": ".git/objects/54/447c9f17487379f9dfd84b7338355eec45a574",
+      "sha256": "7a91b024d83603aa70a92c8c52145cfd75a7564164b42d72d8d50cc1189b4362"
+    },
+    {
+      "path": ".git/objects/54/e27bcf63971630dd5d132eef06f3505c26e329",
+      "sha256": "0d9229202d2f9e234c76e3f70794d95d63b608d4f8d65fdcb4a94f1e012d4706"
+    },
+    {
+      "path": ".git/objects/55/18546569919e55fcc397b7224dd40a85409577",
+      "sha256": "14672069eb4af06989ca85ca84e36243fad3ef18e2513923e6d5baf9ec98d430"
+    },
+    {
+      "path": ".git/objects/57/3541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "sha256": "41e5547adc99dc834d780122ce8a6a4fcc8eadbb221cf9759d0f1875f883c576"
+    },
+    {
+      "path": ".git/objects/57/5e1317dbd30bafe3b7fdee42ab8a34fd363aa0",
+      "sha256": "ecdc105010847d0b03370e4ca1dc1782e3d958f4e95e9a78c2f145fbbb961ffc"
+    },
+    {
+      "path": ".git/objects/57/80ac9de8d0616b4f26682dc579beb814089185",
+      "sha256": "3e1693b5c78c46abd1d350a88b62e0e4879dddfd52d7be7bad1bb9226d8e635d"
+    },
+    {
+      "path": ".git/objects/5c/fc80033ab82ff6a884df8368181e738913edff",
+      "sha256": "3146c912b2224ad098c0250f8f60dce348fb523ee153058ed44131294a9399bb"
+    },
+    {
+      "path": ".git/objects/5d/5e14ebee744d016106047bf06a1bd12e7f1491",
+      "sha256": "a5eaac16101c36fdb8d67458e39ddd90460d7ae71d6b28f1b9dc4edd9d5fef1a"
+    },
+    {
+      "path": ".git/objects/5e/845060001316844ea40f76d3d0f3a31a330e96",
+      "sha256": "b3d2b79f9d5a78f42fc864cbda4d808617726a7633570f6eeb648250e87ce39f"
+    },
+    {
+      "path": ".git/objects/5e/d629e83c84880dcdf9dcd51ff3efd9dd225b1c",
+      "sha256": "b09b9ceea4b156f8a3750d125f85b735b675d96422217961cb0914d08961fad7"
+    },
+    {
+      "path": ".git/objects/66/86285863e01ac77b9dfb0eba390875fe99e43c",
+      "sha256": "7dece5648e742c5fa4f4018a840130d8b3c43ab207db29583521446238ea0c38"
+    },
+    {
+      "path": ".git/objects/67/48df70cb15df903815f49da1acb395d601d318",
+      "sha256": "76db5f21a6b6767b2a6d01a67060250291040ef2fbbfef98ad15aa965fb050b3"
+    },
+    {
+      "path": ".git/objects/67/bd254ccbef2ab636cef758c0e5048e166755c5",
+      "sha256": "7a60d798dee277413b40868d06d9120e1673919f6840bf7e50b7febbd34605eb"
+    },
+    {
+      "path": ".git/objects/69/3695744934fc17214bb887da1d8ed5df28164b",
+      "sha256": "9a46abf6c8a7513b6bb6dc4317903cae13723da9e8674c5b37d8b272500393c2"
+    },
+    {
+      "path": ".git/objects/69/ac62e8e09741b12ab3c35f2764b0f1fba58545",
+      "sha256": "b8003d46c37020ae730e99d21c6193b9e59faac7f038b20da12589a0383b6802"
+    },
+    {
+      "path": ".git/objects/6a/13850b38fa6053e2206455ce19596d28711716",
+      "sha256": "ede5d6350c7b883b64c15e747c5b881f6fe694d1c5ce13fd9c95c776859a9482"
+    },
+    {
+      "path": ".git/objects/6c/ac16a03132db632c18f1bbee26003490ebb543",
+      "sha256": "2f1aef81c519f5bea63971765845faff00ace428dedae0ad3ca8f4074f153eaf"
+    },
+    {
+      "path": ".git/objects/73/08bb869b691a436fae65a8073199094a65fb03",
+      "sha256": "935ec8270254bf02629a1488851445a54ba64a507ab8a598af76e678648e91b4"
+    },
+    {
+      "path": ".git/objects/73/ba0d1044f9b61e9502e693af34b4421c05efeb",
+      "sha256": "a941977b6115fcd96897e5f074558fdbec2e2f1f989b09a06908b3d6d4c4c3f9"
+    },
+    {
+      "path": ".git/objects/74/38c522a7d59c0c7c00220f830cc2b47e280198",
+      "sha256": "06d6e8b1057ec8afa8388a832dfd55bf1edb8d38b008b4df9b8273a3eb1cdaa4"
+    },
+    {
+      "path": ".git/objects/74/f6ba22269dfb65863c7b842019012233750f0a",
+      "sha256": "d26bc4032f904a6af286f1421662d17ccb715002fdba91bef6f7f4ac1be83771"
+    },
+    {
+      "path": ".git/objects/75/dc203be010244838445cb161a34a3c6ca2958d",
+      "sha256": "62395df46ec01561613fded3c03ccabf5fd28d481ea03008cd4a8e22564eccbe"
+    },
+    {
+      "path": ".git/objects/76/364bdb5c21a938c5ffdbcc438b38991e1e789b",
+      "sha256": "47f9c21b10d97a4512a70855946390df3b39dfd65a2621ec75280c6eb3cd3c7c"
+    },
+    {
+      "path": ".git/objects/76/87b8987d8bd240f1553a72c572d01c24807d8f",
+      "sha256": "c58ddfdb39bc26d13f7f433914fe00bcb2ada5b5fa3724d55c32dff21b721cea"
+    },
+    {
+      "path": ".git/objects/78/ecaa56c5d0208f455f983a0d4e37ca21d82003",
+      "sha256": "ffaae913569be0037409123b4c90ec569ea45d7f68a3c1b996995be41e8e8986"
+    },
+    {
+      "path": ".git/objects/7e/2b1d248b99eb34bed1bb4f46962bdcd4a30e9b",
+      "sha256": "dd519aaf03409b0135189f06151a4a6f924e46ed0cef32c7d992e5b5e188695d"
+    },
+    {
+      "path": ".git/objects/7e/98214f2aebaedb0178559c7b2bc919c4a34ad5",
+      "sha256": "7d533bd8221ba7f87ebf92898e37371302525b936c4270b061cda8889c668cd5"
+    },
+    {
+      "path": ".git/objects/7e/e0013caa4f68af5deeac9be0f4c4014fb64e8d",
+      "sha256": "eb04507863cbd865dc8f2e8b998193fa6a245f116f7e0a5cc3e4b48631bb1cdb"
+    },
+    {
+      "path": ".git/objects/7f/0d10a4b9bb8b5251b79ed0413bdd038079d6ca",
+      "sha256": "f233752e99bf78e6378500ea505d4a1a377faa67c278f3ac2e572af18d8a18fc"
+    },
+    {
+      "path": ".git/objects/81/3c83bd901b98bd2b74b669c39e24d9d6c892ea",
+      "sha256": "04980c212f055e78f0f539b3ba453d55266a3fd03bcb37d771c3811fa6c50638"
+    },
+    {
+      "path": ".git/objects/81/65f4fc9fbed179cadb68957e5b372d87e3bd42",
+      "sha256": "71818252f41e0a40851b3606a33994638bbd1e4a17d8415bd0fb2c534e641381"
+    },
+    {
+      "path": ".git/objects/82/e16b75333e5be8960d051963b3edac86f8ff50",
+      "sha256": "ae0de65e74853c3d7454e0e888526c57ce07315477f4e79953a8de2e683ffc74"
+    },
+    {
+      "path": ".git/objects/85/1709ae9350f1bacf6c77fbc3e06106e24eca04",
+      "sha256": "d6a81a640431dfec1d22e4b7c44210a21ab26bdaa366ff921cbb9ae93981fe97"
+    },
+    {
+      "path": ".git/objects/87/47d1ccea23127ff5c0d7c5fc825111ae6bb14d",
+      "sha256": "798082490cfd2e3b5f997f9637173427f9a5fd2ce74fb03703506bc33c17d503"
+    },
+    {
+      "path": ".git/objects/89/a95907fe14468d96ff89f24886bf4436e9136b",
+      "sha256": "82b1951da623844576902fb1ad5f74c27f09eb3d201b596142026af77c413968"
+    },
+    {
+      "path": ".git/objects/8b/c96208635867973b6386cef595657cb9a795c7",
+      "sha256": "c18d74d3a11873898c42f2c55f18c407d8f4aabb8893502e75f23c5119463ad5"
+    },
+    {
+      "path": ".git/objects/91/907c11ed34561b80b9d994200ce66cfa23ce52",
+      "sha256": "a4fc35491b91983c6b9d39ced531b45267293e67ddb5b17084bf5b937bac3509"
+    },
+    {
+      "path": ".git/objects/92/14d6be92bd4174960d8c96b9fdfda74a2d2859",
+      "sha256": "6e75cdcb0fed6f6653ac61a9d7c583bc49d3326fccb021d469200bbfb12579f2"
+    },
+    {
+      "path": ".git/objects/99/0c99dc41bdc26f7382351279ad504159819e79",
+      "sha256": "0fc4cc1359f38135944848e0ab55377d199f01d687afc35584afccd8000d1f9f"
+    },
+    {
+      "path": ".git/objects/99/f4b63267246916ca09fee80cbc95c3b209cd3e",
+      "sha256": "670f2458fb2fb565ecc68e9713e23a9c260e1037c0eb484a5fef4e5dbcd4f863"
+    },
+    {
+      "path": ".git/objects/9c/0b0ebc78b71b2b9d85506ed1c8425aba941c65",
+      "sha256": "0fbd4bee9d993d7a69ccbdfbdf9fade894a8a40c43749607f89a22da2d36291b"
+    },
+    {
+      "path": ".git/objects/9c/bf0758846a921640576dbfc1dd5096c094fb2b",
+      "sha256": "a4d854e5f1ff1dae072c688bf508d9200e6b1caa32c41ba92726bab3a61adfb5"
+    },
+    {
+      "path": ".git/objects/9d/dcdc380bed9b0739c78715e6483c68269f8d67",
+      "sha256": "4d5800c812a3296685f28aa50e41e5a66b9a600f872e3e13bb051739a80871a8"
+    },
+    {
+      "path": ".git/objects/9e/d599d8cbb6faf2005008f3fc8ac8f84b6108a2",
+      "sha256": "797d02208abfacf515d3165f0c8e4952743c0fad27e0e6f2f0d255c6039bdd45"
+    },
+    {
+      "path": ".git/objects/a3/cf582f72d8fb953670639a85e744f9cc027b6f",
+      "sha256": "10e10b9c7658adb069636f4311f4a40fbc9c4e1b4a8910e2a31697f4f8ca41ac"
+    },
+    {
+      "path": ".git/objects/a4/df583bddae67c160c6021cc1ecaab5484fe9e9",
+      "sha256": "7cc2f337f2c030ff6977785bbfdcbd73aa1d41e14b1a4a9f8f203ac6ac227e02"
+    },
+    {
+      "path": ".git/objects/a7/9056430a42b9d22baa79bb6022fd5390a5cbe1",
+      "sha256": "b0357fb7ca5c8b494149792483766f4d5925bf072d1ebacea885504ffd8b7bb9"
+    },
+    {
+      "path": ".git/objects/a9/a04753a422f0796e0b81af3899073ab424912f",
+      "sha256": "a37d1ded9f7a720e6d277b73ed70f7308c2a4e85004331d87df19bff5b18e7d1"
+    },
+    {
+      "path": ".git/objects/ad/7282560a7e47af246ca1e576078dfcf6b4f292",
+      "sha256": "b65c1fb1c48230a4819c473974faf08a33625ea6c1a89188dd2ceabc7d99a5a5"
+    },
+    {
+      "path": ".git/objects/ae/cdfd680a73cf8b69a97e7f0aba77042cd0a63a",
+      "sha256": "ef4084a8f66723eb764890e385aedddd527a52234da8e78c5ec66a06ae52efe2"
+    },
+    {
+      "path": ".git/objects/af/99c3b3a559cc0207615db2e14877582076879f",
+      "sha256": "6bff33c4a33a9a551e9de554af306df461dc87a99e3f72ea5a54a1561f01ca92"
+    },
+    {
+      "path": ".git/objects/b4/2be75fe36b595b6f9765c9d5b1a5b93c14c4cc",
+      "sha256": "60b1bfbb1650f43382b7f84ce7486dfc937ab0e9a8cf52086abe21f204e584c6"
+    },
+    {
+      "path": ".git/objects/b4/41cdcf817caffaf2305ff4bdcb4c1f41277c57",
+      "sha256": "99841cb554d5efc054207ee243ab06e2ae8cb09f85706c9498fa96de8c2f80e4"
+    },
+    {
+      "path": ".git/objects/b6/bb38d1c98075e3371460a782b2fdb04f0c143e",
+      "sha256": "273adfa4c1a420f63b56fc704d9e908ffc5108411d4a179e0534ed4a885dfdb5"
+    },
+    {
+      "path": ".git/objects/b6/fe36db10417abed927e85c8cc2f0dbdd24184c",
+      "sha256": "4f5c0cfd01f5b7bb609cef06a98663e65f0ccb2c980796f971d32603978073a3"
+    },
+    {
+      "path": ".git/objects/b7/32f838cd151101ac28a6fb6c6f25731b396e6e",
+      "sha256": "deeaec3da9b39ddbe161d523eb663cb406613687b41c1b22a1ae566f8f51dd92"
+    },
+    {
+      "path": ".git/objects/b7/af87ab6c1ed9b20356cb0c4f1441382d09f355",
+      "sha256": "274e0a34fcdeb442fb874c4e501db61a96b56f2d85b4cdb7f3cae5cdd3cc21c9"
+    },
+    {
+      "path": ".git/objects/be/541e234363fb4e843531bb343fcfd2d8986eb7",
+      "sha256": "3ac4c9159c50f8a4bfb8f70f40ab1981e261fb60d7a3258e315d461cbb1de326"
+    },
+    {
+      "path": ".git/objects/c0/ffe38d3a1fa09475352d25470dbefad74bdd3a",
+      "sha256": "516aab6286b1947ecea76f6bf7ae5b2d37d05df13d7b699a163e02d55c0e92da"
+    },
+    {
+      "path": ".git/objects/c2/ce81796728a6c22a7a858bfef28a34da70a3c1",
+      "sha256": "8b0b9b3f0145a069067e43158c0aadc1a38c7c5f23e83becada3af0e743c8d10"
+    },
+    {
+      "path": ".git/objects/c5/1e003a75216c24df8d4454846f5b3f3cde370e",
+      "sha256": "9ae7df9752d6547a67e6fe5fee3dd8b9b627940d3b2707a88413370033a42926"
+    },
+    {
+      "path": ".git/objects/c7/b1dec101034dd5dd466c6ed0ede1a75d441e7c",
+      "sha256": "a2f4b665c6acda72a7895d953e9bfb2e56d32c4a4874a363ef4a174e6869dc1a"
+    },
+    {
+      "path": ".git/objects/c8/9fdec491cc767c50e810714bb30c0f23a126aa",
+      "sha256": "c37a67f5d6f513bd82b6617ec6e9029ea7c000aa3e0af56cd670431fdd186c54"
+    },
+    {
+      "path": ".git/objects/c9/4bfc63c1ddf1d311eff175a308f1fa976158b9",
+      "sha256": "6dc82310bc9d515c1b8bd55ae85ba7cc2da3f09efffbcfda97c18aaa7af6ea0f"
+    },
+    {
+      "path": ".git/objects/cb/5715e47c0178c643cee07c4f18d1554eb9cb1d",
+      "sha256": "69ef99ff5b9882707822c7dcb721d6459f4d683844a474e3eff5001e5e1dfe22"
+    },
+    {
+      "path": ".git/objects/cb/beb1399d8a35f0b5523ee3b3670202cf1e73a4",
+      "sha256": "c96a3fbad69eafb636c7d5b55a46c17525dcf546cbcaf6c62d9fb48b96b1ca33"
+    },
+    {
+      "path": ".git/objects/ce/2b30624f7e9ba11a192e97a4221cd064b2b7e0",
+      "sha256": "9888fac8fcf8d1e87cd9502c60bb2231de079dba06f818d10339984e242d1bfd"
+    },
+    {
+      "path": ".git/objects/d0/0491fd7e5bb6fa28c517a0bb32b8b506539d4d",
+      "sha256": "692d0897ea175140a35a64de98789fb0d6d3a929e1b12405bb316d6a15f72815"
+    },
+    {
+      "path": ".git/objects/d2/94a6ab1ecfbd138eca6da6e5ad256b2b843e9f",
+      "sha256": "52637fdd33f22566d95ea4ea2c86040f1ef4f14a242916c49af30da346a66649"
+    },
+    {
+      "path": ".git/objects/d3/9d023e345ec9c507d226c5f875860533089c22",
+      "sha256": "2b39aa1324988d3ca90a05ba779ca57eb924d1656c5130bd965777a81491324b"
+    },
+    {
+      "path": ".git/objects/d3/aaa2ded30b86462293d7d50d3da8c482726935",
+      "sha256": "5218e9a84e52325f6e93eb380e582a2ac5cd0d44cded5c3d8f73529f9e279971"
+    },
+    {
+      "path": ".git/objects/d4/6380047b027b22683e90b69366098d2af2f643",
+      "sha256": "15ec0e71a67cdeacef5da1583f0fe27c66c3934692cfcc47916c429b1f62fe52"
+    },
+    {
+      "path": ".git/objects/d7/756e5e68662e06fc03bb01c1a6e67cbf667a8a",
+      "sha256": "4e7b1bdd26f738301b413f1f52a49a6f35ce66faac67dd99bbe67245fb99f000"
+    },
+    {
+      "path": ".git/objects/da/84cbe271478db96e4f53084617790cc0e7440e",
+      "sha256": "6d8af7fa0316a2d4c6dd98c4f6b78fda6c5af48a56cab7da66f94f8db9419807"
+    },
+    {
+      "path": ".git/objects/df/395881f52fe440a6077346435b67aa6b0ebcd1",
+      "sha256": "49cb717ba65bcebe1a99e62cf818efe5f9fbac0003fbac6a572b658a9c9225c5"
+    },
+    {
+      "path": ".git/objects/e2/a719f7a4b24daa687431b30912da5ac3e2fd2e",
+      "sha256": "66230c06546d7ccdcc6d17e979b4099a1e10c38651e3af7c1f982aa394e55b70"
+    },
+    {
+      "path": ".git/objects/e6/9de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "sha256": "164c5fa8067facf1a43f09ce3d0e35ebf53a7f5723ecbf15a8667cfc53c26f6c"
+    },
+    {
+      "path": ".git/objects/e7/6b4fcace354ead54f485c9d62af0db14049536",
+      "sha256": "30848df8fe561f4b592a5ed8977291bbf24c752a0375c5579c33b096880a9379"
+    },
+    {
+      "path": ".git/objects/e9/3acf37df1a8a4bc76479d55fda6b8a398b0b9e",
+      "sha256": "b85495163aa86982abd3a1cfbfa9af509968b36f13ac916285abfa030cf15fb0"
+    },
+    {
+      "path": ".git/objects/e9/c7beb2cce7b82ade6c12907032e8fc691daf9d",
+      "sha256": "9bf4d2ce5996be05f823578dc41809b7205f3fd237720be6a37060e047bfd1e8"
+    },
+    {
+      "path": ".git/objects/ed/a22376f3b453128434fd2fa5d9a6444ed78d3a",
+      "sha256": "0a584e9771272a4499fdb5a35706e421e852c6f9b328e9ad9cf3ac10b80bfb97"
+    },
+    {
+      "path": ".git/objects/ee/8ce13685d20d5f153d2253faf5f4635a1d659c",
+      "sha256": "a7693fe46772ded3f71eaa002ef5ea408774e42011769d940206c91307b2c4b6"
+    },
+    {
+      "path": ".git/objects/f3/e5b4e4636983d5ddcc7bc411bad787c3c41182",
+      "sha256": "896225fc001963867784c1c26b057653c186057635169681b0332dbbda0866de"
+    },
+    {
+      "path": ".git/objects/f4/5782f51791751cdc3239dad2362759302dbce4",
+      "sha256": "f758a705d58208c996004362a544777d2e0fd878c1b18c01a91cb680d02718a3"
+    },
+    {
+      "path": ".git/objects/f4/b4707528ed81a6f556fa5ac6b2e1ce346355ae",
+      "sha256": "81005de423f691ec665af29b872d09298e3cf01bf3e9a80d92ba6fd27b7c088f"
+    },
+    {
+      "path": ".git/objects/f6/5c8d42b8a682719acf797f2f909f0ec8ef382f",
+      "sha256": "011a34067dbbc41ca2c89c341d0ef3ee35a530ba7b2d51ca1775176d84fa5362"
+    },
+    {
+      "path": ".git/objects/f7/00dafd2c43697983f6242d59f8751feed01c5f",
+      "sha256": "3f8026755863525a0ac72c15137e367a631784ae8104e7a06c17a28ce5cfc44d"
+    },
+    {
+      "path": ".git/objects/fb/e5be4f2a43521669525b02b913430d1dc44312",
+      "sha256": "6d22e797974bb4baa07d4353a5bf3523e3710d5ab6890ea35e44224fbe801aaa"
+    },
+    {
+      "path": ".git/objects/fb/f30bb7eb8093b2ffb3bad2ed740340fc6d0e4d",
+      "sha256": "9b2e374c3d012a2a1d42ba02e5df9c7837068fcb77da48fe4887da1cd7157f89"
+    },
+    {
+      "path": ".git/objects/fc/82a914fe282060d4d597e20ebededb142532cf",
+      "sha256": "50a499354790d425a1cb60f3325c3411eaad5ce0637f3422371a030a72d91f17"
+    },
+    {
+      "path": ".git/refs/heads/main",
+      "sha256": "51ab8557ce410e3b91aa25b84bca147d89985e47de0d6d24c6be111783a42bd7"
+    },
+    {
+      "path": ".git/worktrees/challenger/HEAD",
+      "sha256": "3ecc8569149537e5686f5e687f6195fee6722275e02dfc54fad9eb7b20c1c9ef"
+    },
+    {
+      "path": ".git/worktrees/challenger/ORIG_HEAD",
+      "sha256": "3ecc8569149537e5686f5e687f6195fee6722275e02dfc54fad9eb7b20c1c9ef"
+    },
+    {
+      "path": ".git/worktrees/challenger/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+    },
+    {
+      "path": ".git/worktrees/challenger/gitdir",
+      "sha256": "569b40c6cad6bd5f90b00ed3a15d0dd7ec70a18a48a2ea68e1b91379327a39e4"
+    },
+    {
+      "path": ".git/worktrees/challenger/index",
+      "sha256": "5afd061f4e2a84b2c2a62638b30efa277c47ea0bdda1c5f9b6d2f360a7773fdc"
+    },
+    {
+      "path": ".git/worktrees/challenger/logs/HEAD",
+      "sha256": "03249f63dc7d39e56f26d0da01dfcc9c83766f81211d6b072be19d48db2d942f"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-1/HEAD",
+      "sha256": "7c4c948e954f40b530c9f0d60bd2d1c7147604ea2762313822a85cf941b6f082"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-1/ORIG_HEAD",
+      "sha256": "7c4c948e954f40b530c9f0d60bd2d1c7147604ea2762313822a85cf941b6f082"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-1/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-1/gitdir",
+      "sha256": "28739229787457dde34eaa26360ddeb44361f5b4b51fb1b90663d2bf8f55066f"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-1/index",
+      "sha256": "617818669136dec7c1b117bfaf859cdb612bb75bd9a204b670cc5046f9d1adfc"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-1/logs/HEAD",
+      "sha256": "d2830fa935849632a4e8a3aa724fa558e5f4358e18a5e94d80149e9a2c58362c"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-2/HEAD",
+      "sha256": "49f7c4d7530ff4423e82687668206351f5efdd37720db398962e7cacf69e5171"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-2/ORIG_HEAD",
+      "sha256": "49f7c4d7530ff4423e82687668206351f5efdd37720db398962e7cacf69e5171"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-2/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-2/gitdir",
+      "sha256": "b351ac5fb135b2cbc9d69d2ad15f68f75be4253bf35a5eb09abf22693f702e90"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-2/index",
+      "sha256": "1db3d65da363d25755d5bed39efa331e2daa52602da64f6d9ece45220a40a856"
+    },
+    {
+      "path": ".git/worktrees/delta-reviewer-2/logs/HEAD",
+      "sha256": "429b53cc08c29d145afe0e92eda74c4b03eed1db22c8f6aa2c49dc1054ebe96e"
+    },
+    {
+      "path": ".git/worktrees/task-reviewer/HEAD",
+      "sha256": "4fb74cbb7f72389f8958d5ddd08ce851a5c30023bc970ef1475e9df42e5a14a5"
+    },
+    {
+      "path": ".git/worktrees/task-reviewer/ORIG_HEAD",
+      "sha256": "4fb74cbb7f72389f8958d5ddd08ce851a5c30023bc970ef1475e9df42e5a14a5"
+    },
+    {
+      "path": ".git/worktrees/task-reviewer/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+    },
+    {
+      "path": ".git/worktrees/task-reviewer/gitdir",
+      "sha256": "21ed874026127623539292275d40e081b421938021d51e3bc9ec2ed590e9c29b"
+    },
+    {
+      "path": ".git/worktrees/task-reviewer/index",
+      "sha256": "6d5e5002dd4f929857fb3383ed5677cd118e8da21476664181f0a366fde7fbdb"
+    },
+    {
+      "path": ".git/worktrees/task-reviewer/logs/HEAD",
+      "sha256": "b2e56e881c4f5d087703648f58c3fe54aa5d63c993eb128edc8225c3ffd54129"
+    },
+    {
+      "path": ".git/worktrees/worker-left/HEAD",
+      "sha256": "d2a2e61d22ef2f4331648674f237809780267e0078e118b25273c757147ea383"
+    },
+    {
+      "path": ".git/worktrees/worker-left/ORIG_HEAD",
+      "sha256": "d2a2e61d22ef2f4331648674f237809780267e0078e118b25273c757147ea383"
+    },
+    {
+      "path": ".git/worktrees/worker-left/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+    },
+    {
+      "path": ".git/worktrees/worker-left/gitdir",
+      "sha256": "ca41c899337f3d56f11258c73acdbe1fc7e10e768c8abaa9686888b33fe32ead"
+    },
+    {
+      "path": ".git/worktrees/worker-left/index",
+      "sha256": "89cd9436fda0be5c3921a0d80640721aa138665e9d617a776e8515b8780af4fb"
+    },
+    {
+      "path": ".git/worktrees/worker-left/logs/HEAD",
+      "sha256": "2e9a65386c0f70f329257a2706ba9836482781199a33fa62aae033c90c6c36bd"
+    },
+    {
+      "path": ".git/worktrees/worker-right/HEAD",
+      "sha256": "d2a2e61d22ef2f4331648674f237809780267e0078e118b25273c757147ea383"
+    },
+    {
+      "path": ".git/worktrees/worker-right/ORIG_HEAD",
+      "sha256": "d2a2e61d22ef2f4331648674f237809780267e0078e118b25273c757147ea383"
+    },
+    {
+      "path": ".git/worktrees/worker-right/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+    },
+    {
+      "path": ".git/worktrees/worker-right/gitdir",
+      "sha256": "e5d246ec7009d8d48e4f727001fbc7fcec5d95ca640580e713b776692408f92d"
+    },
+    {
+      "path": ".git/worktrees/worker-right/index",
+      "sha256": "3a61e5b564ef3054560de9e0b74503755e18c38e0e4cf522f172b7b0231ec7b8"
+    },
+    {
+      "path": ".git/worktrees/worker-right/logs/HEAD",
+      "sha256": "2e9a65386c0f70f329257a2706ba9836482781199a33fa62aae033c90c6c36bd"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "ea356088f947c2273fc68b1674e14764be0deac7e28b670ed7953f683c22d610"
+    },
+    {
+      "path": ".ultra/.runtime/challenger-draft.json",
+      "sha256": "9c7eb0554399018abb7661be275ee1d49580e2491793338f1774e4d8d9a894b6"
+    },
+    {
+      "path": ".ultra/.runtime/challenger-slice.json",
+      "sha256": "28eefad067b9ccbec2329f468a64198749f675c67b19e1847e76d049e6d7be85"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/events.jsonl",
+      "sha256": "f610b6d6bea1246cdc33dec79cb39b0f00aecbead00a2cd92840d1ebea56157b"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/host-result.json",
+      "sha256": "b4aa762f076e935a35a4ed321c74d987bd657932542f0e418013657a582dcbfd"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/instruction.md",
+      "sha256": "8ed5d7179ac0fde5657d01a5f9d5fa8295ed9f0b34c4db5a4ec141173dab28e5"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/permission.json",
+      "sha256": "2514fba9286b6d1d46b56582b8da98d790006900b6b1223d8dc6880d2d8f3eab"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/pi-sessions/2026-09-09T12-45-44-210Z_01a08633-e992-7452-9963-2098d535e974.jsonl",
+      "sha256": "0ab802bd29211a3ecab478b548c4198185c2645d88f583fa98bea01da5739600"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/receipt.json",
+      "sha256": "5af9b1c5213f3196a709962bd406dd9d87ca13fa483b8ac90b77136408178231"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/result.json",
+      "sha256": "def1899893bb138023e0b642d062e9573dc30141874da6fc821ce783bbf08816"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/stderr.log",
+      "sha256": "f610b6d6bea1246cdc33dec79cb39b0f00aecbead00a2cd92840d1ebea56157b"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/stdout.log",
+      "sha256": "6dc812c305d0534510faaf5013d52cf5126d667aa3b5a254b29e5e329d5ed201"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/worker-spec.json",
+      "sha256": "ee0f921dfbf69261a36aa4d7eb24ffb429efc742512518eb8faab4f3811df101"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/challenger/writer.json",
+      "sha256": "d53579a0fcc1e41f82c5065369d8dd2674eb97bc6d2f5cb62a183af46c7626c3"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/events.jsonl",
+      "sha256": "1cfdaf69e309ea41e12da0bccb7d0652aae387e861a66027d4ab34477477493f"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/host-result.json",
+      "sha256": "d2400f6fb955e4e87da653b7385ef309971240252cabc01a1a4288d1d3ede533"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/instruction.md",
+      "sha256": "33532810e1463fc259c4aff9c0978a378fa55bf5abf43135b96a2161803d2d1c"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/permission.json",
+      "sha256": "2514fba9286b6d1d46b56582b8da98d790006900b6b1223d8dc6880d2d8f3eab"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/pi-sessions/2026-09-09T12-57-57-966Z_01a0863f-1bce-75cc-a206-f04a005b0a54.jsonl",
+      "sha256": "cf1c383dff9a476900f34e7f240067e7ac7ff5aaa46dc0e7e6c8ff1a40f1ebf0"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/receipt.json",
+      "sha256": "a1fafb506b4ec5fe00be8642e0a095e5eb8d5f8d9399e0a12d061686c44329e6"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/result.json",
+      "sha256": "6e9246ff357f31ca03d1b70b0e881cc411fa8da56dbc532f17843eb692a1deae"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/stderr.log",
+      "sha256": "1cfdaf69e309ea41e12da0bccb7d0652aae387e861a66027d4ab34477477493f"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/stdout.log",
+      "sha256": "477425643cf050c5659e342f0e30c92fb63667c5b3a1d86eac90cf5bfe6dac19"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/worker-spec.json",
+      "sha256": "70efa24138018c0fa2665359a885b8023aa7372349035c1d9c4847f37076967c"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-1/writer.json",
+      "sha256": "ea21702c942bde62922500e014b94bb50e578e8758c05ab735c3308941acb29d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/events.jsonl",
+      "sha256": "10781ac2dd0c5928219b62bbc7830a41e0897589d511a2ef66ecf8b16f1bade9"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/host-result.json",
+      "sha256": "b8dbad401ba8a8bdf0aab71015f87a6cfc8da49d135832c691c00e68a177ad13"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/instruction.md",
+      "sha256": "890ceb292fee8d445b21e713ab9ff5677da5e0f0955a471837da188f1168ffa0"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/permission.json",
+      "sha256": "2514fba9286b6d1d46b56582b8da98d790006900b6b1223d8dc6880d2d8f3eab"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/pi-sessions/2026-09-09T13-01-37-533Z_01a08642-757c-7219-9fa5-1131f86aa326.jsonl",
+      "sha256": "5ab8750a856418562c22416e431dc61b17d340682a04cc6e1ff46c8862fe463b"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/receipt.json",
+      "sha256": "97b8dbde4c893138b482d91c7949cf11d8eac70c319a94fdb353167fc0e4a165"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/result.json",
+      "sha256": "90cca822e385682b04d538b1d6929155509f1ab3660c857349c3748760935b57"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/stderr.log",
+      "sha256": "10781ac2dd0c5928219b62bbc7830a41e0897589d511a2ef66ecf8b16f1bade9"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/stdout.log",
+      "sha256": "b4a388c4482ce0a442e06472a04cf51d6e326e68c4951ce5e3a9eb9e9847eade"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/worker-spec.json",
+      "sha256": "61703f738236c420bd84424c2db59f29ee85e24e02c6f4ffe77381c0e47d7d68"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/delta-reviewer-2/writer.json",
+      "sha256": "84f000a5dad79b5b0db0fd8cf249b306847535e1a77aae2c3c789a2932c10890"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/events.jsonl",
+      "sha256": "d26d47dff13d7c16a28dd2138eccf78ef6d5fd2671694eb5b7b60da81d07dd2b"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/host-result.json",
+      "sha256": "cdf7404be1d062d4e5255d38132856d69e42576d3aae04d737fb7640180db2b4"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/instruction.md",
+      "sha256": "4764938e141a9908d85da33acad0acc275a391d92463539b55b8eac3394f4cc5"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/permission.json",
+      "sha256": "2514fba9286b6d1d46b56582b8da98d790006900b6b1223d8dc6880d2d8f3eab"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/pi-sessions/2026-09-09T12-55-08-138Z_01a0863c-8469-706e-bc38-7b79c121f010.jsonl",
+      "sha256": "3d4284bca2027acda21c043246b4ac1b32f7b603790b4407b2a99b8ce309beb5"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/receipt.json",
+      "sha256": "a66a3fe77f4491701b2caf6098f7b0a1415982632dfd49482e872352b5196e30"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/result.json",
+      "sha256": "59a93cd355135cf35a08f4493989a2105a80a2e4bb9d138b6b9e8635dbb1d56f"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/stderr.log",
+      "sha256": "d26d47dff13d7c16a28dd2138eccf78ef6d5fd2671694eb5b7b60da81d07dd2b"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/stdout.log",
+      "sha256": "201808b91ccd95deba593998430adf5b44897e2a2a53e34ac85228a553d62cb2"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/worker-spec.json",
+      "sha256": "918c8f2895aa8ee1b86fcf98bb31adebb120ab654c42c94d195da3c4ff291f33"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/task-reviewer/writer.json",
+      "sha256": "34df7d3060528785f3f33ab5f1f65ca875b1da79b3f0a9f1d90c6c93410a4fe6"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/events.jsonl",
+      "sha256": "ec8b16a7977ae4db7f575b5702b01205824201e3ac2666668b47e60ac9db9710"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/host-result.json",
+      "sha256": "99e6a359db8717d76df0bfd459345376919a3c2d9f67e7fa25446aabba6c8454"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/instruction.md",
+      "sha256": "20cf66ad6288928181c18b90f89e0d466440631be2932d835ce0f50667850c07"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/permission.json",
+      "sha256": "69eb77316847cbd250c7aa8369267696069b19458fdca0f074c69c75d71a46c0"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/pi-sessions/2026-09-09T12-49-06-265Z_01a08636-fed9-7497-ad5f-6b7043f78c9f.jsonl",
+      "sha256": "f63557a1c9bc76ddd44d906adfdb55f13d55dff5573e94351b8614b0e8c0cdd6"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/receipt.json",
+      "sha256": "323333223e0d7706f6cfcb077fe41ab413b4130f213af4c81ff8a719ea13b350"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/result.json",
+      "sha256": "f69cec9a5bf85add63856cd12fc78b4cbf780522357844feb722cebb2b08a13f"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/stderr.log",
+      "sha256": "ec8b16a7977ae4db7f575b5702b01205824201e3ac2666668b47e60ac9db9710"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/stdout.log",
+      "sha256": "55ef4504fcae1b45eed27b605be9404ac19d4ab5423af299ac87fc576154d4f8"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/worker-spec.json",
+      "sha256": "0597215f8c82159bc5c10dd4e67ffa965ab0fc329b3d63f097c881b4c6b77acd"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-left/writer.json",
+      "sha256": "79e08537423d3cd635a715b95cc145906c5b62f20c03c80708870aeb485f0ebb"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/events.jsonl",
+      "sha256": "771d9e4cd88edf026b5cb45314cc58c476b51e26192fc1683f35c25f2b54246e"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/host-result.json",
+      "sha256": "6165fa943c591305c2f6c0fa7e1426eb2e5493b06de2f5000000355f34128163"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/instruction.md",
+      "sha256": "31a43cbf30e51ac2e62668566d156dd123f0b5a3c05207e17d406c5b725a8930"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/permission.json",
+      "sha256": "27995cc99632de3fc97a6fc1f5a91b30bd158fcbe65565d14567dbb79c95b0e2"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/pi-sessions/2026-09-09T12-49-06-326Z_01a08636-ff15-7599-8662-457a991e8fae.jsonl",
+      "sha256": "31f7749fd792af2178c85255c4745995d2875fa862c1dbd5cc8fe57fafce05ab"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/receipt.json",
+      "sha256": "3de7c57c56321fe9f2d7f6b92227bc7ae96f7af8c4693abac4ac6d9ed89ac39d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/result.json",
+      "sha256": "43bce4051d822c25dbedc4ab0c9ab79f52eb3ffe8365a4828e3af2867efb765c"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/stderr.log",
+      "sha256": "771d9e4cd88edf026b5cb45314cc58c476b51e26192fc1683f35c25f2b54246e"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/stdout.log",
+      "sha256": "7123fccca61ca4b6cb1b31a4067e23a9a34a34a0209e1b84766f54bb53b016fd"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/worker-spec.json",
+      "sha256": "e471baf3993c894b3de49682732297c12ee7b29da74b8478ce204fdfd910e0af"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/worker-right/writer.json",
+      "sha256": "bee6663213ff45f2bbbf9390f1d7386bff85b55ee24107d32954ca990acdfe30"
+    },
+    {
+      "path": ".ultra/.runtime/delta-reviewer-draft.json",
+      "sha256": "ab8fa3a35d543c96523c49e7310556c196f4cd0c896a2e3922bf1ecb41a9886a"
+    },
+    {
+      "path": ".ultra/.runtime/delta-reviewer-slice.json",
+      "sha256": "871aa103c2ce10e0d6656f3ed88e98efdd13dda311aad3270a95e34941a681c0"
+    },
+    {
+      "path": ".ultra/.runtime/delta-reviewer2-draft.json",
+      "sha256": "4c648ef55e3e2305b2e6111b0f0f5cdea52ed8a23f22a9700c4487fb348c3151"
+    },
+    {
+      "path": ".ultra/.runtime/delta-reviewer2-slice.json",
+      "sha256": "33d6128144503ada73b700edb09636dc4bc2f78d6d35f2302bf1d31d8c8e82da"
+    },
+    {
+      "path": ".ultra/.runtime/reviewer-draft.json",
+      "sha256": "06e79670566a3230cde734afde4559e2d35796e9643742b17044171869af542c"
+    },
+    {
+      "path": ".ultra/.runtime/reviewer-slice.json",
+      "sha256": "6edfd0c50c1bc82d5085c97a5db9e828329da2735d82c3a26b20ee3aaa8417c5"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/challenger/attention.json",
+      "sha256": "bbcb419a9f5a44bf250cd52521f020457558fe126b308be7c5c449ba0fb4e75d"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/challenger/run-slice.json",
+      "sha256": "28eefad067b9ccbec2329f468a64198749f675c67b19e1847e76d049e6d7be85"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/delta-review-1/attention.json",
+      "sha256": "2f886f78f369eabb427d699cc1fde4d73fc213f3e37815a222b19577f67cc237"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/delta-review-1/run-slice.json",
+      "sha256": "871aa103c2ce10e0d6656f3ed88e98efdd13dda311aad3270a95e34941a681c0"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/delta-review-2/attention.json",
+      "sha256": "325022f99f4168ba5e5087dd3f9a851a08c933c5a3a314b67ef273c99cacfaf2"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/delta-review-2/run-slice.json",
+      "sha256": "33d6128144503ada73b700edb09636dc4bc2f78d6d35f2302bf1d31d8c8e82da"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/task-review/attention.json",
+      "sha256": "5ce525063b984e8f2de240905ae00b12fb67714b3f65b9ceb67eb5b304653f80"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/task-review/run-slice.json",
+      "sha256": "6edfd0c50c1bc82d5085c97a5db9e828329da2735d82c3a26b20ee3aaa8417c5"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/workers/attention.json",
+      "sha256": "916b4b5a84da662d12dbabeae735fc6a7d3fd5058f1f65eabd8b006262d66056"
+    },
+    {
+      "path": ".ultra/.runtime/runs/manifest-factory/workers/run-slice.json",
+      "sha256": "f5b6b4fa7e7a7d8c705c82d9ca31aeb05428839442ccb0733bd5637801f3f53b"
+    },
+    {
+      "path": ".ultra/.runtime/workers-draft.json",
+      "sha256": "1bf0ab95372571822add1cd2a0d2b9c782f443bd4806553d7ee966a9c77c3fe3"
+    },
+    {
+      "path": ".ultra/.runtime/workers-slice.json",
+      "sha256": "f5b6b4fa7e7a7d8c705c82d9ca31aeb05428839442ccb0733bd5637801f3f53b"
+    },
+    {
+      "path": ".ultra/.runtime/workspaces/manifest-factory/challenger.json",
+      "sha256": "a17f96037cf62fe38b53ecbbf9009f838f12919ad67ecd01cacefd957ad0673f"
+    },
+    {
+      "path": ".ultra/.runtime/workspaces/manifest-factory/delta-reviewer-1.json",
+      "sha256": "cc274f685b4a3e3160fca59c89f46800050f2e26c9ff78db0997a3287816eebf"
+    },
+    {
+      "path": ".ultra/.runtime/workspaces/manifest-factory/delta-reviewer-2.json",
+      "sha256": "57b08897098911705ca517407c01b5e51d4a2848aafb3a6d15fec39fd15e9caf"
+    },
+    {
+      "path": ".ultra/.runtime/workspaces/manifest-factory/task-reviewer.json",
+      "sha256": "01b73f590a11908a39ef6b34bbd2891d301bd31db3173ffe1e51ca54f81b010a"
+    },
+    {
+      "path": ".ultra/.runtime/workspaces/manifest-factory/worker-left.json",
+      "sha256": "b7b357a2b11f30222bcbabe2d0543ffbbebb57f8da708fd0838a9682ac16ac29"
+    },
+    {
+      "path": ".ultra/.runtime/workspaces/manifest-factory/worker-right.json",
+      "sha256": "ad2ce5c1476ec50c98749dc45db407b9be2579767268eafe701d1d3a6e34abef"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.git",
+      "sha256": "630870acc1555f0ebcfda8dbdb9ce96415cfa8165bccd94ef25e8ac0e17854a4"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.gitignore",
+      "sha256": "ea356088f947c2273fc68b1674e14764be0deac7e28b670ed7953f683c22d610"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/changes/active/tree-manifest/intent.md",
+      "sha256": "63ae93785e7b5db8bc7e9702799fa8bea77c44392c158d995586b48336dde13b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/contexts/task-tree-manifest.md",
+      "sha256": "e29c4a6f5786747199059a7933b23314eed4e71457562dfbbb05ee215f380b78"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/decisions/experiment.md",
+      "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/north-star.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/profiles/pi-balanced-v1.json",
+      "sha256": "f43de0273434b87821eb136c96286a19119380695290804455716fe8def85822"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/project-brief.md",
+      "sha256": "0ef5cc7b1a0af8fb64c1adeb2f6d48af8698acefaa7b47fabe8e7bbe3408ad62"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/specs/architecture.md",
+      "sha256": "d7370faefe5d5d18eee5ed0f05255c91fe68855d2bb99dcc4e7fb79a906cf4ab"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/specs/product.md",
+      "sha256": "f7492b9e37c1fb90337ea6c0abf2f45a9fd715fec32503e400158c06b41eb521"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/tasks.json",
+      "sha256": "a75ae4fa5b300a9231fcbef6964be8c42bb2182472949aec403bdabd842093af"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/.ultra/test-report.json",
+      "sha256": "3ef33609063338027df513adeab4a41f098ccc7ab0e823af7c9da43017e9dbd1"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/CONTEXT.md",
+      "sha256": "48fec2e5707dd6f6a2b972fad2e933ee932fbbcfbb2b90984130301b37371637"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/GOAL.md",
+      "sha256": "c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/acceptance.cjs",
+      "sha256": "43311feb3bde1319efc3216ab2eda17e14debb5bc72cca0220f770eebac9703c"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/interface.md",
+      "sha256": "1c904d9f769907a555dcfbb44d041135c75b82854b8f041230e69da5bbed737a"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/review-observations/baseline.log",
+      "sha256": "b32ec135947d3b703588bd6304480ce8d0bff7f903e1779122e226accee6f7e6"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/src/manifest/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/src/scan/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/challenger/src/sort-paths.cjs",
+      "sha256": "d2ba5a36758df331addef344702d9ae455344f7a66ca0538014ee0f29c4292da"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.git",
+      "sha256": "b550bdc1d668b486f6c1e7e7c6be29b6fac054abdb466f227733abc2165e10fa"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.gitignore",
+      "sha256": "ea356088f947c2273fc68b1674e14764be0deac7e28b670ed7953f683c22d610"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/changes/active/tree-manifest/intent.md",
+      "sha256": "63ae93785e7b5db8bc7e9702799fa8bea77c44392c158d995586b48336dde13b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/contexts/task-tree-manifest.md",
+      "sha256": "e29c4a6f5786747199059a7933b23314eed4e71457562dfbbb05ee215f380b78"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/decisions/experiment.md",
+      "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/north-star.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/profiles/pi-balanced-v1.json",
+      "sha256": "f43de0273434b87821eb136c96286a19119380695290804455716fe8def85822"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/project-brief.md",
+      "sha256": "0ef5cc7b1a0af8fb64c1adeb2f6d48af8698acefaa7b47fabe8e7bbe3408ad62"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/specs/architecture.md",
+      "sha256": "d7370faefe5d5d18eee5ed0f05255c91fe68855d2bb99dcc4e7fb79a906cf4ab"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/specs/product.md",
+      "sha256": "f7492b9e37c1fb90337ea6c0abf2f45a9fd715fec32503e400158c06b41eb521"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/tasks.json",
+      "sha256": "a75ae4fa5b300a9231fcbef6964be8c42bb2182472949aec403bdabd842093af"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/.ultra/test-report.json",
+      "sha256": "3ef33609063338027df513adeab4a41f098ccc7ab0e823af7c9da43017e9dbd1"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/CONTEXT.md",
+      "sha256": "48fec2e5707dd6f6a2b972fad2e933ee932fbbcfbb2b90984130301b37371637"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/GOAL.md",
+      "sha256": "c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/README.md",
+      "sha256": "5acabff9fd40ad0043ad1803b1ecd4efd59a7609f7747a33a697741fe8bc0633"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/acceptance.cjs",
+      "sha256": "43311feb3bde1319efc3216ab2eda17e14debb5bc72cca0220f770eebac9703c"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/cli.cjs",
+      "sha256": "63f84eede63ceeba57064c7ce224f92ec2a7e73edc83169ca8fc179daf7b3b75"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/focused-checks.cjs",
+      "sha256": "209263728b2ad8b905522d4d411ded8977a03de20d869f715f7d214cdcd29a38"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/interface.md",
+      "sha256": "e0dee2d9b3010197682f4df63cc773a687b2391cba33682c60d119ba09d8aa25"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/review-observations/baseline.log",
+      "sha256": "b32ec135947d3b703588bd6304480ce8d0bff7f903e1779122e226accee6f7e6"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/review-observations/current.log",
+      "sha256": "e1ff221e073504868a66dc9498d1c8e121a2caee0517963cc99785516788e533"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/review-observations/focused.log",
+      "sha256": "e63f0da12b76c862fdb190a67e1e3753b09f50d12c6432185cc8600bab8b44d2"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/review-observations/reviewer-finding-r1.log",
+      "sha256": "71318c9f3482e58b0387bd098ee24441eeabdb35ae09813e63a92fb9eac34750"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/src/manifest/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/src/manifest/index.cjs",
+      "sha256": "232aeb5100e68b1371f286fc0ea35d3d707b2c8e627af457eebc206238e3dd6a"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/src/scan/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/src/scan/index.cjs",
+      "sha256": "8cde4ec3ce397404fe3db580a33e91e8ac3a99f2bd2ee4df59035852b54dffc8"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-1/src/sort-paths.cjs",
+      "sha256": "a131d568698b4d35b35e952a1acd7acf97728f9698d730ccfda0443b9d2c1c5f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.git",
+      "sha256": "c6e841f89738355fd760fbe60a03908ff4fde5cab9252ad68b13ab4a664214e0"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.gitignore",
+      "sha256": "ea356088f947c2273fc68b1674e14764be0deac7e28b670ed7953f683c22d610"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/changes/active/tree-manifest/intent.md",
+      "sha256": "63ae93785e7b5db8bc7e9702799fa8bea77c44392c158d995586b48336dde13b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/contexts/task-tree-manifest.md",
+      "sha256": "e29c4a6f5786747199059a7933b23314eed4e71457562dfbbb05ee215f380b78"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/decisions/experiment.md",
+      "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/north-star.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/profiles/pi-balanced-v1.json",
+      "sha256": "f43de0273434b87821eb136c96286a19119380695290804455716fe8def85822"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/project-brief.md",
+      "sha256": "0ef5cc7b1a0af8fb64c1adeb2f6d48af8698acefaa7b47fabe8e7bbe3408ad62"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/specs/architecture.md",
+      "sha256": "d7370faefe5d5d18eee5ed0f05255c91fe68855d2bb99dcc4e7fb79a906cf4ab"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/specs/product.md",
+      "sha256": "f7492b9e37c1fb90337ea6c0abf2f45a9fd715fec32503e400158c06b41eb521"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/tasks.json",
+      "sha256": "a75ae4fa5b300a9231fcbef6964be8c42bb2182472949aec403bdabd842093af"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/.ultra/test-report.json",
+      "sha256": "3ef33609063338027df513adeab4a41f098ccc7ab0e823af7c9da43017e9dbd1"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/CONTEXT.md",
+      "sha256": "48fec2e5707dd6f6a2b972fad2e933ee932fbbcfbb2b90984130301b37371637"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/GOAL.md",
+      "sha256": "c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/README.md",
+      "sha256": "5acabff9fd40ad0043ad1803b1ecd4efd59a7609f7747a33a697741fe8bc0633"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/acceptance.cjs",
+      "sha256": "43311feb3bde1319efc3216ab2eda17e14debb5bc72cca0220f770eebac9703c"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/cli.cjs",
+      "sha256": "63f84eede63ceeba57064c7ce224f92ec2a7e73edc83169ca8fc179daf7b3b75"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/focused-checks.cjs",
+      "sha256": "3743ef335852a3a9666a290285510a3eb26b47d706c83c8767f45ae71b35bedf"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/interface.md",
+      "sha256": "e0dee2d9b3010197682f4df63cc773a687b2391cba33682c60d119ba09d8aa25"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/review-observations/baseline.log",
+      "sha256": "b32ec135947d3b703588bd6304480ce8d0bff7f903e1779122e226accee6f7e6"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/review-observations/current.log",
+      "sha256": "e1ff221e073504868a66dc9498d1c8e121a2caee0517963cc99785516788e533"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/review-observations/focused-repair2-initial-failure.log",
+      "sha256": "a7c47d17b1ad8c01bc23eb8ddd7c37a2852aec917c091c066ec73726f37d035e"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/review-observations/focused.log",
+      "sha256": "148e9b47a13b3f350ff6483b233aaff0b7158d204c5926baab69daf6abccacd0"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/review-observations/reviewer-finding-r1.log",
+      "sha256": "71318c9f3482e58b0387bd098ee24441eeabdb35ae09813e63a92fb9eac34750"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/review-observations/reviewer-finding-r2.log",
+      "sha256": "8a415a69a4bbf8e71bc9365ed71c59a5fd0fa16231a4617bac2182816c9b3a95"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/src/manifest/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/src/manifest/index.cjs",
+      "sha256": "232aeb5100e68b1371f286fc0ea35d3d707b2c8e627af457eebc206238e3dd6a"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/src/scan/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/src/scan/index.cjs",
+      "sha256": "ed21ce97c6018b36cc88d47e85ddfff3c9e220c4fd7a6543c476566743dc8509"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/delta-reviewer-2/src/sort-paths.cjs",
+      "sha256": "a131d568698b4d35b35e952a1acd7acf97728f9698d730ccfda0443b9d2c1c5f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.git",
+      "sha256": "18334c92f9e2245beacac2df17a68ed07537d9df2b899087cd2f99399b14f6ad"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.gitignore",
+      "sha256": "ea356088f947c2273fc68b1674e14764be0deac7e28b670ed7953f683c22d610"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/changes/active/tree-manifest/intent.md",
+      "sha256": "63ae93785e7b5db8bc7e9702799fa8bea77c44392c158d995586b48336dde13b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/contexts/task-tree-manifest.md",
+      "sha256": "e29c4a6f5786747199059a7933b23314eed4e71457562dfbbb05ee215f380b78"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/decisions/experiment.md",
+      "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/north-star.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/profiles/pi-balanced-v1.json",
+      "sha256": "f43de0273434b87821eb136c96286a19119380695290804455716fe8def85822"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/project-brief.md",
+      "sha256": "0ef5cc7b1a0af8fb64c1adeb2f6d48af8698acefaa7b47fabe8e7bbe3408ad62"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/specs/architecture.md",
+      "sha256": "d7370faefe5d5d18eee5ed0f05255c91fe68855d2bb99dcc4e7fb79a906cf4ab"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/specs/product.md",
+      "sha256": "f7492b9e37c1fb90337ea6c0abf2f45a9fd715fec32503e400158c06b41eb521"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/tasks.json",
+      "sha256": "a75ae4fa5b300a9231fcbef6964be8c42bb2182472949aec403bdabd842093af"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/.ultra/test-report.json",
+      "sha256": "3ef33609063338027df513adeab4a41f098ccc7ab0e823af7c9da43017e9dbd1"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/CONTEXT.md",
+      "sha256": "48fec2e5707dd6f6a2b972fad2e933ee932fbbcfbb2b90984130301b37371637"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/GOAL.md",
+      "sha256": "c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/README.md",
+      "sha256": "5acabff9fd40ad0043ad1803b1ecd4efd59a7609f7747a33a697741fe8bc0633"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/acceptance.cjs",
+      "sha256": "43311feb3bde1319efc3216ab2eda17e14debb5bc72cca0220f770eebac9703c"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/cli.cjs",
+      "sha256": "63f84eede63ceeba57064c7ce224f92ec2a7e73edc83169ca8fc179daf7b3b75"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/focused-checks.cjs",
+      "sha256": "bb1d8e93bff0bf03ce42341fb9e6b584ec57fb605ae1d375c112bcf9c0d7f124"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/interface.md",
+      "sha256": "e0dee2d9b3010197682f4df63cc773a687b2391cba33682c60d119ba09d8aa25"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/review-observations/baseline.log",
+      "sha256": "b32ec135947d3b703588bd6304480ce8d0bff7f903e1779122e226accee6f7e6"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/review-observations/current.log",
+      "sha256": "e1ff221e073504868a66dc9498d1c8e121a2caee0517963cc99785516788e533"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/review-observations/focused.log",
+      "sha256": "55e66fb4e7773f00e130a4809ee3050ecaa5ba1be55d9939532771b44c82aa65"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/src/manifest/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/src/manifest/index.cjs",
+      "sha256": "232aeb5100e68b1371f286fc0ea35d3d707b2c8e627af457eebc206238e3dd6a"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/src/scan/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/src/scan/index.cjs",
+      "sha256": "9a8022a24f41bb67ae20a007a916cf43b278d7e5535503ccee486434e7e16c77"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/task-reviewer/src/sort-paths.cjs",
+      "sha256": "a131d568698b4d35b35e952a1acd7acf97728f9698d730ccfda0443b9d2c1c5f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.git",
+      "sha256": "18067be6df6d647fe1694ab92889779d49ecacfc71d77e336ac7854fec81a03e"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.gitignore",
+      "sha256": "ea356088f947c2273fc68b1674e14764be0deac7e28b670ed7953f683c22d610"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/changes/active/tree-manifest/intent.md",
+      "sha256": "63ae93785e7b5db8bc7e9702799fa8bea77c44392c158d995586b48336dde13b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/contexts/task-tree-manifest.md",
+      "sha256": "e29c4a6f5786747199059a7933b23314eed4e71457562dfbbb05ee215f380b78"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/decisions/experiment.md",
+      "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/north-star.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/profiles/pi-balanced-v1.json",
+      "sha256": "f43de0273434b87821eb136c96286a19119380695290804455716fe8def85822"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/project-brief.md",
+      "sha256": "0ef5cc7b1a0af8fb64c1adeb2f6d48af8698acefaa7b47fabe8e7bbe3408ad62"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/specs/architecture.md",
+      "sha256": "d7370faefe5d5d18eee5ed0f05255c91fe68855d2bb99dcc4e7fb79a906cf4ab"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/specs/product.md",
+      "sha256": "f7492b9e37c1fb90337ea6c0abf2f45a9fd715fec32503e400158c06b41eb521"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/tasks.json",
+      "sha256": "a75ae4fa5b300a9231fcbef6964be8c42bb2182472949aec403bdabd842093af"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/.ultra/test-report.json",
+      "sha256": "3ef33609063338027df513adeab4a41f098ccc7ab0e823af7c9da43017e9dbd1"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/CONTEXT.md",
+      "sha256": "48fec2e5707dd6f6a2b972fad2e933ee932fbbcfbb2b90984130301b37371637"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/GOAL.md",
+      "sha256": "c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/acceptance.cjs",
+      "sha256": "43311feb3bde1319efc3216ab2eda17e14debb5bc72cca0220f770eebac9703c"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/interface.md",
+      "sha256": "e0dee2d9b3010197682f4df63cc773a687b2391cba33682c60d119ba09d8aa25"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/review-observations/baseline.log",
+      "sha256": "b32ec135947d3b703588bd6304480ce8d0bff7f903e1779122e226accee6f7e6"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/src/manifest/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/src/scan/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/src/scan/index.cjs",
+      "sha256": "9a8022a24f41bb67ae20a007a916cf43b278d7e5535503ccee486434e7e16c77"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-left/src/sort-paths.cjs",
+      "sha256": "d2ba5a36758df331addef344702d9ae455344f7a66ca0538014ee0f29c4292da"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.git",
+      "sha256": "0954f46b6041731ac2e9ac4fdf301df93726c33b20365a966c1341bf0f21e061"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.gitignore",
+      "sha256": "ea356088f947c2273fc68b1674e14764be0deac7e28b670ed7953f683c22d610"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/changes/active/tree-manifest/intent.md",
+      "sha256": "63ae93785e7b5db8bc7e9702799fa8bea77c44392c158d995586b48336dde13b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/contexts/task-tree-manifest.md",
+      "sha256": "e29c4a6f5786747199059a7933b23314eed4e71457562dfbbb05ee215f380b78"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/decisions/experiment.md",
+      "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/north-star.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/profiles/pi-balanced-v1.json",
+      "sha256": "f43de0273434b87821eb136c96286a19119380695290804455716fe8def85822"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/project-brief.md",
+      "sha256": "0ef5cc7b1a0af8fb64c1adeb2f6d48af8698acefaa7b47fabe8e7bbe3408ad62"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/specs/architecture.md",
+      "sha256": "d7370faefe5d5d18eee5ed0f05255c91fe68855d2bb99dcc4e7fb79a906cf4ab"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/specs/product.md",
+      "sha256": "f7492b9e37c1fb90337ea6c0abf2f45a9fd715fec32503e400158c06b41eb521"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/tasks.json",
+      "sha256": "a75ae4fa5b300a9231fcbef6964be8c42bb2182472949aec403bdabd842093af"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/.ultra/test-report.json",
+      "sha256": "3ef33609063338027df513adeab4a41f098ccc7ab0e823af7c9da43017e9dbd1"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/CONTEXT.md",
+      "sha256": "48fec2e5707dd6f6a2b972fad2e933ee932fbbcfbb2b90984130301b37371637"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/GOAL.md",
+      "sha256": "c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/acceptance.cjs",
+      "sha256": "43311feb3bde1319efc3216ab2eda17e14debb5bc72cca0220f770eebac9703c"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/interface.md",
+      "sha256": "e0dee2d9b3010197682f4df63cc773a687b2391cba33682c60d119ba09d8aa25"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/review-observations/baseline.log",
+      "sha256": "b32ec135947d3b703588bd6304480ce8d0bff7f903e1779122e226accee6f7e6"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/src/manifest/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/src/manifest/index.cjs",
+      "sha256": "232aeb5100e68b1371f286fc0ea35d3d707b2c8e627af457eebc206238e3dd6a"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/src/scan/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": ".ultra/.runtime/worktrees/manifest-factory/worker-right/src/sort-paths.cjs",
+      "sha256": "d2ba5a36758df331addef344702d9ae455344f7a66ca0538014ee0f29c4292da"
+    },
+    {
+      "path": ".ultra/changes/archive/tree-manifest/delivery.md",
+      "sha256": "92cc7466584dad9451c426fa11d424e8a13f7bd9cffd804c4c1815387e01a9e4"
+    },
+    {
+      "path": ".ultra/changes/archive/tree-manifest/intent.md",
+      "sha256": "63ae93785e7b5db8bc7e9702799fa8bea77c44392c158d995586b48336dde13b"
+    },
+    {
+      "path": ".ultra/contexts/task-tree-manifest.md",
+      "sha256": "64b2702bf53372c547b5d04e5a9cc7989305af6010bef9527db638c3dcf0750f"
+    },
+    {
+      "path": ".ultra/decisions/experiment.md",
+      "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/acceptance.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/acceptance.log",
+      "sha256": "e1ff221e073504868a66dc9498d1c8e121a2caee0517963cc99785516788e533"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/focused.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/focused.log",
+      "sha256": "148e9b47a13b3f350ff6483b233aaff0b7158d204c5926baab69daf6abccacd0"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/node-check.exit",
+      "sha256": "32a5f4aed1fa7d00084915161bde6b6e7c2d99a8c29febed0de55e4fb6146f36"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/node-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/review-transport.log",
+      "sha256": "ef535766621305351280b399bd2177693b5d14e3b3962693637aecb09858944b"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/task-evidence-projection.json",
+      "sha256": "eb4ae82351d9dc1fcf404d6c35014f22b744dfac426b8c7f06652f05ddea9ab8"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/aggregate/worktree.json",
+      "sha256": "cbced30347dbd85471ccd79b526cf6c3b4ac64626be86e6c2a4a3650a7ddb124"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/challenger-result.json",
+      "sha256": "def1899893bb138023e0b642d062e9573dc30141874da6fc821ce783bbf08816"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/completion-observation.json",
+      "sha256": "97f46b4930bff1ba75d31bb9882afe8b5c66d02d451ae0fa01774a9e5a0edac7"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/evidence.json",
+      "sha256": "0e3e3ceee3be6081bc46b648ffa297ec01513ecefe206d97ac6f6c175280b035"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/external-review-attempt-1-malformed.json",
+      "sha256": "d978b61fcb604279f57ece250aa87aedb75bbedffb87bb5a29e1d29b910d96eb"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/external-review-attempt-2-request-changes.json",
+      "sha256": "23e964070037d63d82faa5c95073a6f43979b83a4576b020c4e9871e4d72f50a"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/external-review.json",
+      "sha256": "e6b3d4c79cdbab7331af09ce4f6ad9963ad0be42b41c996b0e412bbc51c33f96"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/precommit-review-transport.json",
+      "sha256": "ef535766621305351280b399bd2177693b5d14e3b3962693637aecb09858944b"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/precommit-snapshot.json",
+      "sha256": "595850adccc32bb56ba4aab97a56934c72f7224ea9900652f8e6d2333e0ac920"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/precommit-task-evidence-validation.json",
+      "sha256": "eb4ae82351d9dc1fcf404d6c35014f22b744dfac426b8c7f06652f05ddea9ab8"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/precommit-worktree.json",
+      "sha256": "cbced30347dbd85471ccd79b526cf6c3b4ac64626be86e6c2a4a3650a7ddb124"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/task-review-attempt-1-result.json",
+      "sha256": "59a93cd355135cf35a08f4493989a2105a80a2e4bb9d138b6b9e8635dbb1d56f"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/task-review-attempt-2-result.json",
+      "sha256": "6e9246ff357f31ca03d1b70b0e881cc411fa8da56dbc532f17843eb692a1deae"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/task-review-final-result.json",
+      "sha256": "90cca822e385682b04d538b1d6929155509f1ab3660c857349c3748760935b57"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/worker-left-cleanup.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/worker-left-cleanup.json",
+      "sha256": "d1d896c87d7b54947e7a47e2c4662b4379dfd9336234ec2a036ac45488223a66"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/worker-left-result.json",
+      "sha256": "f69cec9a5bf85add63856cd12fc78b4cbf780522357844feb722cebb2b08a13f"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/worker-left-workspace-status.json",
+      "sha256": "09e0ce85e45789b58d5f7e269f495323cef8a4bf8d54ae18973be606f82154a7"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/worker-right-cleanup.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/worker-right-cleanup.json",
+      "sha256": "d1d896c87d7b54947e7a47e2c4662b4379dfd9336234ec2a036ac45488223a66"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/worker-right-result.json",
+      "sha256": "43bce4051d822c25dbedc4ab0c9ab79f52eb3ffe8365a4828e3af2867efb765c"
+    },
+    {
+      "path": ".ultra/evidence/tree-manifest/worker-right-workspace-status.json",
+      "sha256": "af048afa33185fad8d9b7379c10af199ce2ee096ac046702e862cf794a7bcd6c"
+    },
+    {
+      "path": ".ultra/north-star.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/profiles/pi-balanced-v1.json",
+      "sha256": "f43de0273434b87821eb136c96286a19119380695290804455716fe8def85822"
+    },
+    {
+      "path": ".ultra/project-brief.md",
+      "sha256": "0ef5cc7b1a0af8fb64c1adeb2f6d48af8698acefaa7b47fabe8e7bbe3408ad62"
+    },
+    {
+      "path": ".ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest/ADMISSION.json",
+      "sha256": "88da849148cad92f97bb0d443dc9d79d5f65801fb41d2c491d01448891f7e25c"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest/WORKER-PACKET.json",
+      "sha256": "d93e26b64f13310698501e22e0343a103fa9b7b02e1129ba77738a84f027db1f"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest/review-code.json",
+      "sha256": "bedd872aa5360a1c1ed5e4b8e9a24c22c581b93275687c7e797f1ca9c6c772d6"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest/review-comments.json",
+      "sha256": "569d6196ae198a2ae36026e8441d7f29557e930679ef3f935e41f8d889bdc392"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest/review-design.json",
+      "sha256": "81ee87e0db8e96786b2b198d09456a154d293b3601de6dce3ce6beae8b9de156"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest/review-errors.json",
+      "sha256": "0f8149530c87c35b82877336a7d4e7022ce18dfdcd6fe2d535e14deed6f25766"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest/review-spec.json",
+      "sha256": "fa33c8635fa6af8c84a2546b2c7439143e9650564f950eaedf2e1568cf8eec16"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest/review-tests.json",
+      "sha256": "a2f10c67835f51bcb2622c9e859317efb332fd83c0e0e79560503f2c31e73b93"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/ADMISSION.json",
+      "sha256": "64cc4c552e7cfbb3404015ca9697162d1d35b60840a678067d1a3bf9201edad2"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/SUMMARY.json",
+      "sha256": "b0cfe347e17fe6c5bf90c1c03eb8bcb364e9bda79a1c00da6592c7472a1fc32f"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/WORKER-PACKET.json",
+      "sha256": "d4fab08146d1cf6ded50cc9da8e9aebcfdaf4fc066dd7907b700230c2786ce44"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/review-code.json",
+      "sha256": "4022d573885c957bac191d75494f6da580d69ff2b20080eae9f55180d89748b5"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/review-comments.json",
+      "sha256": "a13f85749e7bc6fa16baf029b522561bcf5e3e5e7e0b49ac018a477554b6214d"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/review-design.json",
+      "sha256": "442ede86554d05b5e761506dd3b44aeac4ab1b142733995ebe3bbfd5b19a6a4c"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/review-errors.json",
+      "sha256": "6c2a785366bd757d84d361e9825c9960ebc7f0931851cf0719f2eb3e7797bcef"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/review-spec.json",
+      "sha256": "6eccbf7f4b116bb201cee48ffb32a097152d0265b99429d5172e809a2e3f3536"
+    },
+    {
+      "path": ".ultra/reviews/aggregate-tree-manifest-final/review-tests.json",
+      "sha256": "8f6a59b9227e53e1d66adfdfdf4c851ec5ebf6776d0858402c3276f5e0ed0839"
+    },
+    {
+      "path": ".ultra/specs/architecture.md",
+      "sha256": "d7370faefe5d5d18eee5ed0f05255c91fe68855d2bb99dcc4e7fb79a906cf4ab"
+    },
+    {
+      "path": ".ultra/specs/product.md",
+      "sha256": "f7492b9e37c1fb90337ea6c0abf2f45a9fd715fec32503e400158c06b41eb521"
+    },
+    {
+      "path": ".ultra/tasks.json",
+      "sha256": "8a2ea3673b27a3b076e62740fcf950649a65590d48280d6b07494fb390809aaf"
+    },
+    {
+      "path": ".ultra/test-report.json",
+      "sha256": "e621f72e927a73ca2b2cd6d9b100fee68b7beeee3a934b08974ecf1b77efcb1e"
+    },
+    {
+      "path": "CONTEXT.md",
+      "sha256": "48fec2e5707dd6f6a2b972fad2e933ee932fbbcfbb2b90984130301b37371637"
+    },
+    {
+      "path": "GOAL.md",
+      "sha256": "c667b9227e57e1144636f9915149278c3e9d63c1ab8d73a847e2b70a45a8f249"
+    },
+    {
+      "path": "README.md",
+      "sha256": "5acabff9fd40ad0043ad1803b1ecd4efd59a7609f7747a33a697741fe8bc0633"
+    },
+    {
+      "path": "acceptance.cjs",
+      "sha256": "43311feb3bde1319efc3216ab2eda17e14debb5bc72cca0220f770eebac9703c"
+    },
+    {
+      "path": "cli.cjs",
+      "sha256": "63f84eede63ceeba57064c7ce224f92ec2a7e73edc83169ca8fc179daf7b3b75"
+    },
+    {
+      "path": "focused-checks.cjs",
+      "sha256": "3743ef335852a3a9666a290285510a3eb26b47d706c83c8767f45ae71b35bedf"
+    },
+    {
+      "path": "interface.md",
+      "sha256": "e0dee2d9b3010197682f4df63cc773a687b2391cba33682c60d119ba09d8aa25"
+    },
+    {
+      "path": "probe/baseline.json",
+      "sha256": "66659de5e9b3a83d9caca6f30cadf3454dbaa9a2654d2fe01887fc2220c3c0eb"
+    },
+    {
+      "path": "probe/coordinator.cjs",
+      "sha256": "2b92083b523016f040c57ce44daacb4edf2830c73f8bb4281df07c4e7439e9b6"
+    },
+    {
+      "path": "probe/events.jsonl",
+      "sha256": "0c95b56d5f93384ae5304868353a56cb696b5cb0df37ed1f9b64ec0619126e06"
+    },
+    {
+      "path": "probe/exit.json",
+      "sha256": "ab7ef95494b784a9e1bc84dc348e4475c1b9575cada6614e510da910265b4dc2"
+    },
+    {
+      "path": "probe/final-check.json",
+      "sha256": "f9f56a130b5cea709b8dd48ca42b40617478b0e56c0886211839641987021a31"
+    },
+    {
+      "path": "probe/finite-run-slice.md",
+      "sha256": "af6ccd8ae3d5c7cd6205b2836804819e52e41347f798c4f049132936863bc47a"
+    },
+    {
+      "path": "probe/initial-state.json",
+      "sha256": "134390bb1d7198a929ad0f18bcf1108c4cbdcac0f4ffd076249beaa83773c0f0"
+    },
+    {
+      "path": "probe/native-history.json",
+      "sha256": "bd6dc78c1cb868d2dbffcb9ba06e4e84b6a1d389d1354737f845f780627659e8"
+    },
+    {
+      "path": "probe/observation.json",
+      "sha256": "ac907123463db810de12b81f4d35e1b598f072d1241f3e258dc4b5c13fe82ec6"
+    },
+    {
+      "path": "probe/operational-factory.md",
+      "sha256": "4ecaaef8b75953e5f8ddfbb0c1f9d2bbe21be5fa8fed0f43e01dc3ec4d660778"
+    },
+    {
+      "path": "probe/prompt.md",
+      "sha256": "67bf47d6c66a669168ba6a0010c58088d99d7d67aca5edeece7208b5235fe53e"
+    },
+    {
+      "path": "probe/receipt-contract.md",
+      "sha256": "b537c9c69057ec4a37780a4c904d9fd22bbe8b5ad86389ecd48a409f4d69323b"
+    },
+    {
+      "path": "probe/result.json",
+      "sha256": "f06b00ddb84a909ddedeb324e9c0ea4ecdacf8cf1f3350a18b93b62fc2e3dd86"
+    },
+    {
+      "path": "probe/sessions/2026-09-09T12-42-02-725Z_01a08630-8865-7126-b9b4-898aac9e1448.jsonl",
+      "sha256": "a7e1b9852610fa92a1e88ef873df9289bf74fd24af881137f07bb6f2c122bf5e"
+    },
+    {
+      "path": "probe/source/delegate.cjs",
+      "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+    },
+    {
+      "path": "probe/source/host-profile.cjs",
+      "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+    },
+    {
+      "path": "probe/source/pi-primary.cjs",
+      "sha256": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503"
+    },
+    {
+      "path": "probe/source/run-slice.cjs",
+      "sha256": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd"
+    },
+    {
+      "path": "probe/source/slice-channel.cjs",
+      "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+    },
+    {
+      "path": "probe/source/slice-workspace.cjs",
+      "sha256": "e481fd1810f226107473aa16abab97892404f4520baca63b2dbc8c98ac02c3e9"
+    },
+    {
+      "path": "probe/stderr.log",
+      "sha256": "3e3e8bf1d71eda839c3064c76fe3bbbd6c2e8c074527b0385d4ecb418143a517"
+    },
+    {
+      "path": "review-observations/baseline.log",
+      "sha256": "b32ec135947d3b703588bd6304480ce8d0bff7f903e1779122e226accee6f7e6"
+    },
+    {
+      "path": "review-observations/current.log",
+      "sha256": "e1ff221e073504868a66dc9498d1c8e121a2caee0517963cc99785516788e533"
+    },
+    {
+      "path": "review-observations/focused-repair2-initial-failure.log",
+      "sha256": "a7c47d17b1ad8c01bc23eb8ddd7c37a2852aec917c091c066ec73726f37d035e"
+    },
+    {
+      "path": "review-observations/focused.log",
+      "sha256": "148e9b47a13b3f350ff6483b233aaff0b7158d204c5926baab69daf6abccacd0"
+    },
+    {
+      "path": "review-observations/reviewer-finding-r1.log",
+      "sha256": "71318c9f3482e58b0387bd098ee24441eeabdb35ae09813e63a92fb9eac34750"
+    },
+    {
+      "path": "review-observations/reviewer-finding-r2.log",
+      "sha256": "8a415a69a4bbf8e71bc9365ed71c59a5fd0fa16231a4617bac2182816c9b3a95"
+    },
+    {
+      "path": "src/manifest/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": "src/manifest/index.cjs",
+      "sha256": "232aeb5100e68b1371f286fc0ea35d3d707b2c8e627af457eebc206238e3dd6a"
+    },
+    {
+      "path": "src/scan/README.txt",
+      "sha256": "b5d89111b55b1d4387d2206f9ed55ac42f6522eeaebe584b06d85506e63a0d7f"
+    },
+    {
+      "path": "src/scan/index.cjs",
+      "sha256": "ed21ce97c6018b36cc88d47e85ddfff3c9e220c4fd7a6543c476566743dc8509"
+    },
+    {
+      "path": "src/sort-paths.cjs",
+      "sha256": "a131d568698b4d35b35e952a1acd7acf97728f9698d730ccfda0443b9d2c1c5f"
+    }
+  ],
+  "observed_at": "2026-09-09T13:16:44.700596+00:00",
+  "limitation": "Mechanical observations and bounded Root checks; no semantic acceptance or performance generalization. Failed or incomplete runs remain in the fixed experiment denominator."
+}

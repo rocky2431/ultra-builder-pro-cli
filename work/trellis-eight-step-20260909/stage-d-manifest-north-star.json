@@ -1,0 +1,85 @@
+{
+  "$schema": "ultra-north-star-validation-v1",
+  "path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/trellis-eight-step-20260909/product-manifest-canonical-fixture/.ultra/north-star.md",
+  "kind": "north-star-v2",
+  "status": "accepted",
+  "revision": "tree-manifest-r1",
+  "classification": "accepted",
+  "valid": true,
+  "ids": {
+    "FP": [
+      "FP-1",
+      "FP-2"
+    ],
+    "NS": [
+      "NS-1"
+    ],
+    "HC": [
+      "HC-1"
+    ]
+  },
+  "sections": {
+    "Acceptance and Revision": {
+      "body_start": 49,
+      "body_end": 257
+    },
+    "Problem Reality": {
+      "body_start": 276,
+      "body_end": 544
+    },
+    "First-Principle Propositions": {
+      "body_start": 576,
+      "body_end": 1434
+    },
+    "Value Causal Chain": {
+      "body_start": 1456,
+      "body_end": 1769
+    },
+    "North Star Outcomes": {
+      "body_start": 1792,
+      "body_end": 2384
+    },
+    "Hard Constraints": {
+      "body_start": 2404,
+      "body_end": 2915
+    },
+    "Explicit Exclusions": {
+      "body_start": 2938,
+      "body_end": 3033
+    },
+    "Uncertainties and Revisit Triggers": {
+      "body_start": 3071,
+      "body_end": 3164
+    },
+    "Research Trace": {
+      "body_start": 3182,
+      "body_end": 3444
+    }
+  },
+  "acceptance_binding": {
+    "source": ".ultra/decisions/experiment.md#owner-record",
+    "content_sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b",
+    "git_blob_digest": "354765078f4517878a10f32f0a776b00503beb13",
+    "snapshot": ".ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md"
+  },
+  "source_observations": [
+    {
+      "role": "decision",
+      "path": ".ultra/decisions/experiment.md",
+      "sha256": "31f9a0e27187ef85f0c71ded2c17521dad2989c44e8630d4cc1f9ef85607f322",
+      "byte_length": 2921
+    },
+    {
+      "role": "snapshot",
+      "path": ".ultra/research/fixture-intent/north-star-tree-manifest-r1.accepted.md",
+      "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b",
+      "byte_length": 3444
+    }
+  ],
+  "diagnostics": [],
+  "input": {
+    "path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/work/trellis-eight-step-20260909/product-manifest-canonical-fixture/.ultra/north-star.md",
+    "byte_length": 3444,
+    "sha256": "7c926d55cd3ef797ee1644889df060d3075ad5acb57974da1b950741ecf6202b"
+  }
+}

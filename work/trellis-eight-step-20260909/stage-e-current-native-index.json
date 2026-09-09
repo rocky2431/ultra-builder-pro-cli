@@ -1,0 +1,591 @@
+{
+  "observed_at": "2026-09-09T16:27:13.393136+00:00",
+  "roots": [
+    "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-product-wYI41n",
+    "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-durable-native-zBL41n"
+  ],
+  "archive": "work/trellis-eight-step-20260909/stage-e-current-native-raw.tar.gz",
+  "archive_sha256": "c5b0d1bcbc3bd15554ee705d7442372a0b9d246a6a26325a28c7736940592703",
+  "files": [
+    {
+      "path": "ubp-pi-product-wYI41n/.gitignore",
+      "bytes": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/events.jsonl",
+      "bytes": 1073,
+      "sha256": "8baad1df2ef66d8aa69420d7dc7bac20063590256d93aa86a34588f296eaac47"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/host-result.json",
+      "bytes": 247,
+      "sha256": "43b2227865cee747db5c247fe5df32874583d5dfab9fa08db46e996235b31602"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/instruction.md",
+      "bytes": 332,
+      "sha256": "6ed3f335f727abbd37f19ee72d2986cc959ffa84aa063abf3b2e03bc5ef031a1"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/permission.json",
+      "bytes": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/pi-sessions/2026-09-09T16-24-27-034Z_01a086fc-269a-7267-971e-7539acd48ce5.jsonl",
+      "bytes": 9913,
+      "sha256": "ddbc79d15a232fe719f287bf3d106f6641992c302f6f1cb1522e4b220b4b73c0"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/probe-dispatch.json",
+      "bytes": 712,
+      "sha256": "292f29a38cabcbc4bfa417b8772af7e4bf20a9f7869b702a8f0e916183acac90"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/probe-launch.json",
+      "bytes": 2190,
+      "sha256": "bbd575f26fee557d4b3ccc9503f0543a9432e9431b313da758697644cc4cc138"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/probe-observation.json",
+      "bytes": 2698,
+      "sha256": "247e0a7953c933d0e18db6f45da9c31c7bb8f0ad453162788ebb7c250c5d3a8e"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/receipt.json",
+      "bytes": 2190,
+      "sha256": "bbd575f26fee557d4b3ccc9503f0543a9432e9431b313da758697644cc4cc138"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/result-schema.json",
+      "bytes": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/result.json",
+      "bytes": 1922,
+      "sha256": "6c2ac9a612b4195a5e1ab05786f1d8029fa359223edb2a15b377eddaa76e79f3"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/stderr.log",
+      "bytes": 1073,
+      "sha256": "8baad1df2ef66d8aa69420d7dc7bac20063590256d93aa86a34588f296eaac47"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/stdout.log",
+      "bytes": 55465,
+      "sha256": "8c567710325c84bf3bc931f19aa755cf8f1ed61cb7024f35c641738036b484d3"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/worker-spec.json",
+      "bytes": 7839,
+      "sha256": "f40afca4a28094b8e15dec1ad1cbf3a3efed14cdc5edeb683c3dcd440b09701a"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/delegations/allowed/writer.json",
+      "bytes": 419,
+      "sha256": "83d0f9a40b738f57dc6ab1b3171aba6c30b8a377aa0e9af548d861854aab27f9"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/worktrees/allowed/.gitignore",
+      "bytes": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/worktrees/allowed/.ultra/.runtime/sentinel",
+      "bytes": 4,
+      "sha256": "1dd17190a2f261044d8e04d099db4ebe2754ff402e5c2b8b759498176ddd343a"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/worktrees/allowed/src/allowed.txt",
+      "bytes": 14,
+      "sha256": "6a523674d6580780e8b86c754daf5f36b4684a155ff55dd5f74b1ceac3085a99"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/.ultra/.runtime/worktrees/allowed/src/base.txt",
+      "bytes": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source/acp-driver.cjs",
+      "bytes": 32097,
+      "sha256": "b5dc80e9f263e9a1361bd678ab1eb35a6ffb84825640ad1f9352c7b0b7ff2759"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source/agent-execution-driver.cjs",
+      "bytes": 45585,
+      "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source/cli-driver.cjs",
+      "bytes": 5114,
+      "sha256": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source/delegate-worker.cjs",
+      "bytes": 21760,
+      "sha256": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source/delegate.cjs",
+      "bytes": 64409,
+      "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source/host-profile.cjs",
+      "bytes": 47854,
+      "sha256": "62cceb4f3e9150d420c4af6e7a6fd2e6cd1d452a32fc6ecef3fc1ae5b701c07d"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source/pi-native-permissions.cjs",
+      "bytes": 4086,
+      "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source/pi-native-runtime.cjs",
+      "bytes": 9210,
+      "sha256": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/source-digests.json",
+      "bytes": 742,
+      "sha256": "e130741914ac16bb73f401e49b1e63ad6d704e6e195d88bbcd02acfd02f5cb84"
+    },
+    {
+      "path": "ubp-pi-product-wYI41n/src/base.txt",
+      "bytes": 5,
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.gitignore",
+      "bytes": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/events.jsonl",
+      "bytes": 1073,
+      "sha256": "3425df5dd3ed51640a6881de465485f6aa6bac741bcb71f96ef36c64546a5bd0"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/host-result.json",
+      "bytes": 340,
+      "sha256": "ccc0f037fa7f5c815c6a63ac3c78047e5d92f5b39df7330f3d02dbf39135d4f4"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/instruction.md",
+      "bytes": 284,
+      "sha256": "67e5e6febedc4217782d7e25da50ab3524826a0a66eb8653c519bffff0716e82"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/permission.json",
+      "bytes": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/pi-sessions/2026-09-09T16-25-32-282Z_01a086fd-2579-7171-8bb8-38d715be8eee.jsonl",
+      "bytes": 10266,
+      "sha256": "6c29f087b48f81716bb67973a68025fb777f4e55a938aaca8aa46961ab56c9a4"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/receipt.json",
+      "bytes": 2200,
+      "sha256": "2b3e12cd1321e6ef6e1b4593c70a0dbefb3947fd0c0d2e49e4089cfae47c4812"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/result-schema.json",
+      "bytes": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/result.json",
+      "bytes": 2050,
+      "sha256": "390eac069811b788d36ff07e5a30aec16c1fe88133187934c3b6f5d22d6ae29b"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/stderr.log",
+      "bytes": 1073,
+      "sha256": "3425df5dd3ed51640a6881de465485f6aa6bac741bcb71f96ef36c64546a5bd0"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/stdout.log",
+      "bytes": 62608,
+      "sha256": "d84dfee0f2331fbfe56df8f0b6a478e16c0032d8cddd6e4baae1589730da640d"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/worker-spec.json",
+      "bytes": 7857,
+      "sha256": "1d76321f78246ae951a463c2997fa4493da216c6de83711da801f07c0f1bdf69"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/left/writer.json",
+      "bytes": 416,
+      "sha256": "4258b67a2abf49f988f38579de06ac3f4b51e4da139f55750a7c6ec7cd028c67"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/events.jsonl",
+      "bytes": 1394,
+      "sha256": "54c97ad6f64f48f710cb84000726d128a6035374954703b7411c1e8370fec91a"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/host-result.json",
+      "bytes": 347,
+      "sha256": "0c1eacf850b101630cdbd951b26a94672f909b89b772263fdf6317ef55aead27"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/instruction.md",
+      "bytes": 284,
+      "sha256": "769de778bf08f9da3b544a8ab92ba8a7d5b111cd7dbd755dd24350aab2d3b9f0"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/permission.json",
+      "bytes": 113,
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/pi-sessions/2026-09-09T16-25-32-343Z_01a086fd-25b6-74f0-82b4-c4a047f82bae.jsonl",
+      "bytes": 13376,
+      "sha256": "d68395f809be08ffafb64952c42b09f56adea1fc4a8a1788c08aac0fbea85c22"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/receipt.json",
+      "bytes": 2205,
+      "sha256": "3927776932da28dcb568141815e9b660b056554d954d0a48c5d2b7cfb2bd7d23"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/result-schema.json",
+      "bytes": 1474,
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/result.json",
+      "bytes": 2059,
+      "sha256": "162abd529a6ba2d5767c92041ae0a35479e8f24ce006493607e2789587634ac3"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/stderr.log",
+      "bytes": 1394,
+      "sha256": "54c97ad6f64f48f710cb84000726d128a6035374954703b7411c1e8370fec91a"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/stdout.log",
+      "bytes": 108427,
+      "sha256": "add3bb47cc25486b167c1716276746d4549f454a6499948d696c9248f07cf172"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/worker-spec.json",
+      "bytes": 7876,
+      "sha256": "ec9a6e2fc8dcaf015ed8f6df42dc0711ac2c3fe578ae4e60212db192459c046b"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/delegations/right/writer.json",
+      "bytes": 417,
+      "sha256": "1456dde273633aee64032f6d3d99899f87a1d4bd48293dd7d597eb147d652984"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/claim.json",
+      "bytes": 362,
+      "sha256": "b348e08bc966b2237ef076d15675181e6f2d97d97e50c4399967d5a18b6d648d"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/native-exit.json",
+      "bytes": 34,
+      "sha256": "6380f7ebf1263a94abaaef4f5a1323cf0f4fbc88e37d8f1792ae68f163e18807"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/native-start.json",
+      "bytes": 1121,
+      "sha256": "a30415d99bd03f78e2092b6ee62e54ffcf29ae600644dd62afe99a4ae37665ef"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/native-stderr.log",
+      "bytes": 2062,
+      "sha256": "5fa5a5620f19000a3d9489d8059236c80eb92cc2296ff304b331ee4ae320e04e"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/native.jsonl",
+      "bytes": 196243,
+      "sha256": "1c5cae86e2d9ae0d55343258c6d566ed71b7dbf8255d47d146555a403c8655e8"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/outcome.json",
+      "bytes": 612,
+      "sha256": "971b04d57359c0e711a6504dad19fbe8fafce5c45d8a6d4084744e69cbb08f1a"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/pre-dispatch.json",
+      "bytes": 534,
+      "sha256": "58c727a13321b70dec7a41578fb1bccef78c549e1fe05e2b26aea446d15821df"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/registration.json",
+      "bytes": 2104,
+      "sha256": "1849d0a328f1bc470fd3b65ba79a382ef0a5edc01f59efdf061468f181ae5549"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/sessions/2026-09-09T16-25-49-116Z_01a086fd-673c-7193-ba2d-77e61482225a.jsonl",
+      "bytes": 31394,
+      "sha256": "915dc1248ad303fbf195fe39c5c77f4933f29273916ebd5713ef7befd72f645a"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/supervisor-claim.json",
+      "bytes": 70,
+      "sha256": "51fe6963bc35b262447e6210cd21839775aadd4fbecc497f51c9a8e5a604815a"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/supervisor.json",
+      "bytes": 197,
+      "sha256": "71efb33f4c828cdaeacc30b19cba399f280a04cf7ebe37d0f0c8432766c65fdc"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/durable/checkpoint/supervisor.log",
+      "bytes": 1257,
+      "sha256": "0a24818a9fd2e16ab6bb656a9bceb70da4907a979c3d8689a221819ca1326da2"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/runs/durable/checkpoint/attention.json",
+      "bytes": 896,
+      "sha256": "cae3cee7cac5111da302f3ce20a3b669d6a0c437dd80bb40523b2d12d993c2fd"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/runs/durable/checkpoint/run-slice.json",
+      "bytes": 2398,
+      "sha256": "2b467f45d6194026b245640265fe05fed1696f484d8d076fa9704608286c0a02"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/left/.gitignore",
+      "bytes": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/left/output/.keep",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/left/probe-source.cjs",
+      "bytes": 18602,
+      "sha256": "bd633c6ea8ba45b94da1d8bf8f4fe7e665eba8113471c4b214b0652a590c3f25"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/left/src/base.txt",
+      "bytes": 23,
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/left/src/value.json",
+      "bytes": 12,
+      "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/right/.gitignore",
+      "bytes": 17,
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/right/output/.keep",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/right/probe-source.cjs",
+      "bytes": 18602,
+      "sha256": "bd633c6ea8ba45b94da1d8bf8f4fe7e665eba8113471c4b214b0652a590c3f25"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/right/src/base.txt",
+      "bytes": 23,
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/.runtime/worktrees/right/src/value.json",
+      "bytes": 12,
+      "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/changes/active/durable-checkpoint/intent.md",
+      "bytes": 211,
+      "sha256": "b2186aae6f62b4bb56938567ab5cf541762a7d71a81e85dee8cc5d68ee3f715c"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/contexts/fresh.md",
+      "bytes": 405,
+      "sha256": "2ad170d4a3ba0b28f437e8908d6d3b48780ed9e302a19e539f591bce8b410a32"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/contexts/task-checkpoint.md",
+      "bytes": 79,
+      "sha256": "bb2360596a97cbdf71b87c6591296b67593e530e996e26fbad6a1b7e6555d28f"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/decisions/durable-grant.json",
+      "bytes": 1447,
+      "sha256": "d1d4910e531164069584548d365a60918d6a1883be9b4acbbd693460c413c89e"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/decisions/fresh-permission.json",
+      "bytes": 116,
+      "sha256": "587341611a914022212a82077e5ba134cf35caee9a7e5cfe59c3bfb6ff38e2b0"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/decisions/owner.md",
+      "bytes": 389,
+      "sha256": "2949e78318723b44aed119efbd9a3f56ceced03c9aeb9e51da5ff2495fa3db0f"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/evidence/durable/checkpoint/activation.json",
+      "bytes": 341,
+      "sha256": "af008d470ecb6312efaa4f03bb372124489ee77012b31d50723934fb1971e803"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/evidence/durable/events/1c7b90ae77ec5e682aa9a3dc047568aa0c7ce3d547029bbf1da2f63c14f72745/claim.json",
+      "bytes": 362,
+      "sha256": "b348e08bc966b2237ef076d15675181e6f2d97d97e50c4399967d5a18b6d648d"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/.ultra/profiles/durable-native.json",
+      "bytes": 635,
+      "sha256": "ee1e3d42fd76a5f60227b6096f911a287e20f113f5aa676c0398d384c9fa21ca"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/acp-driver.cjs",
+      "bytes": 32097,
+      "sha256": "b5dc80e9f263e9a1361bd678ab1eb35a6ffb84825640ad1f9352c7b0b7ff2759"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/agent-execution-driver.cjs",
+      "bytes": 45585,
+      "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/cli-driver.cjs",
+      "bytes": 5114,
+      "sha256": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/delegate-profiles/kimi-read-only.md",
+      "bytes": 446,
+      "sha256": "98986f362bc92350f5d7317d08aee5f2fdea02236a664fdf80e0bb889c242f71"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/delegate-profiles/kimi-write.md",
+      "bytes": 515,
+      "sha256": "12b87d89c57588b609382963f93b3a2db56e6a67f7ab0cab34604129b9d6f2a1"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/delegate-worker.cjs",
+      "bytes": 21760,
+      "sha256": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/delegate.cjs",
+      "bytes": 64409,
+      "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/durable-run.cjs",
+      "bytes": 27584,
+      "sha256": "fe6c7c5627f9224a3defc2c7db44afa483de579b48bb5defc23d2525ff6df3cc"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/host-profile.cjs",
+      "bytes": 47854,
+      "sha256": "62cceb4f3e9150d420c4af6e7a6fd2e6cd1d452a32fc6ecef3fc1ae5b701c07d"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/pi-durable-primary.cjs",
+      "bytes": 4305,
+      "sha256": "8ce5c9b741ec1d21aab69bb86e27754e3b10d872c9edc65e65ce42ee99a6c683"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/pi-native-permissions.cjs",
+      "bytes": 4086,
+      "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/pi-native-runtime.cjs",
+      "bytes": 9210,
+      "sha256": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/pi-primary.cjs",
+      "bytes": 10115,
+      "sha256": "9e7c77cc3dc6eaa9eff466a451e508c730e75e2effc6ccc60da12e85812e19e3"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/run-slice.cjs",
+      "bytes": 19970,
+      "sha256": "8028d28ed2cfe2e795b595707a5b7b03774c1e41562a3fa2e37c727db7f6c874"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/slice-channel.cjs",
+      "bytes": 5114,
+      "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/bound-product-source/slice-workspace.cjs",
+      "bytes": 5911,
+      "sha256": "e481fd1810f226107473aa16abab97892404f4520baca63b2dbc8c98ac02c3e9"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/interface.md",
+      "bytes": 84,
+      "sha256": "306cc371d2686d963057fa89adbc8bfc665f0810c79bfa300a7091bdcd51211c"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/location.json",
+      "bytes": 2973,
+      "sha256": "bb28e87a36180ae1a582821f1c1917ba4bd2cd850bd798c73bedb176d40039dd"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/observation.json",
+      "bytes": 2214,
+      "sha256": "fd5d8ed851538e1ffb6b14cd197ced7bfc0dcccddcac13fcf768d2756d477398"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/old-events.jsonl",
+      "bytes": 53949,
+      "sha256": "05205e3dc30b2ed1e90985fe961b67b581f820f98efcfc8d4f62d6c62b5be5f5"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/old-exit.json",
+      "bytes": 59,
+      "sha256": "3b628dce256411db2393512cb69e7b1607b695bd8b9fb1ec99115d87edfc77d2"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/old-sessions/2026-09-09T16-25-23-843Z_01a086fd-0483-7174-8eb0-a60459982902.jsonl",
+      "bytes": 10733,
+      "sha256": "a85074ab9209bb08928e3e1f05ef46ce3ce9da077d8cb8e4f99d40123e27edec"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/output/.keep",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/output/decision.json",
+      "bytes": 253,
+      "sha256": "fc485c1c80ff441700dbcd4508b6c86516a3f7682afa813d4090fde96b495b80"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/packet.json",
+      "bytes": 2398,
+      "sha256": "2b467f45d6194026b245640265fe05fed1696f484d8d076fa9704608286c0a02"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/probe-source.cjs",
+      "bytes": 18602,
+      "sha256": "bd633c6ea8ba45b94da1d8bf8f4fe7e665eba8113471c4b214b0652a590c3f25"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/registration-result.json",
+      "bytes": 88,
+      "sha256": "7fe0ba8e85fbffdfc248f8c1c85cea19c356123c2d87f8d573e9f6978e1003b3"
+    },
+    {
+      "path": "ubp-durable-native-zBL41n/src/base.txt",
+      "bytes": 23,
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233"
+    }
+  ]
+}

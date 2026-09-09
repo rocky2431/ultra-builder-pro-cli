@@ -1,0 +1,19 @@
+# Preregistration: Pi typed-result context candidate
+
+This offline candidate is motivated by the retained real V2 expense Factory Challenger failure: evidence objects were rejected by the canonical result validator. `delegate.run` already supplies `schemaJson`, while the Pi `delegateArgv` currently drops it. Stage D's fixed experiment, budgets and source remain unchanged. This evaluation does not promote a candidate or satisfy Stage D's repeated-product-benefit gate.
+
+Fixed arms, before independent QA returns its materials:
+
+1. Current: unchanged native Pi delegation prompt.
+2. Candidate: append `\nCanonical terminal result JSON schema:\n` plus the already provided `options.schemaJson` to the native prompt. No permission, model, runtime, validator, result repair or retry change.
+3. Simpler: append `\nchanged_files, evidence, questions and residual_risks are arrays of strings; checks is an array of objects.` to the native prompt. No other change.
+
+Root is the candidate and generic runner author. Independent Pi QA provides immutable declarative task data and expected facts; no QA-authored Ultra code or test implementation. Two development and two held-out cases across two shapes; two repetitions per arm/case, 24 bounded attempts total, no replacement successes. Tasks read case.json using the qualified native read-only permission path, with no network or Bash. Existing selected Pi profile/runtime qualification must remain current. The same model, tool surface, initial source and 90-second attempt limit apply to all arms. Arm order rotates between cases/repetitions; provider contention and the small sample remain explicit limitations. Runs begin after Stage D's fixed comparisons to avoid additional provider contention.
+
+Freeze and hash the QA's exact JSON text before any attempt. Do not rewrite data, expected facts or missions to accommodate results. Validate the declarative format and independently check factual correctness before use; if materials are wrong, retain them and return the precise defect to QA before creating a new frozen version. Freeze the generic evaluator before seeing model outputs. No candidate tuning follows development observations in this version; held-out observations never become development evidence.
+
+Pre-execution evaluator correction: the first QA materials (SHA-256 `94c04201e2bf560bc470aff8ef87c025bcad5af51701019d25d8fa86c9565c0c`) followed Root's flawed request to include the expected computed values in each mission. That leaks answers and cannot test factual derivation. They are retained as rejected evaluator materials; no evaluated attempt used them. QA is asked to revise only mission strings to supply labels without answers; data and expected facts remain unchanged and independently checked. The corrected exact JSON becomes V2 only after that invariant is verified. Candidate arms are unchanged.
+
+Score actual canonical typed-result validity, expected finished status, required and forbidden facts, unchanged source, stopped writer, permissions and unresolved outcomes. Record wall time, model calls/tokens/estimated cost, owner interventions, and all failures. Do not treat transport completion as task success. No automatic repair of malformed JSON and no semantic resubmission. Timeout/unknown preserves its real lifecycle and fence; repeated observation never launches another attempt.
+
+An arm is eligible for an Owner decision only if quality/authority/recovery are not worse and its improvement is observed on development and held-out comparisons. Equal results do not establish a benefit. Weak or worse results support rejection; even all rejected is a valid Step 8 evaluation outcome only after the Owner explicitly makes that decision. Keep the exact original version and an inspectable one-line candidate patch rollback-ready; if adopted, apply only the approved candidate and verify actual rollback. No automatic default change, installation, publication or release.

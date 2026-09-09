@@ -171,7 +171,7 @@ under `.ultra/evidence/<task-id>/`, never under `.ultra/reviews/`:
 ```
 
 The receipt itself uses `$schema: ultra-external-review-receipt-v1` with exactly
-`reviewer` (identity), `reviewer_role: "read-only"`, `task_id`, `change_id`,
+`reviewer` (a nonempty identity string, not an object), `reviewer_role: "read-only"`, `task_id`, `change_id`,
 `reviewer_authority` (`ref` + `sha256` of the owner record authorizing the external
 review mode/reviewer), `reviewed_contract` (`ref` + `sha256` of the reviewed
 contract bytes), `subject` (`git_head` 40-hex + `worktree_digest` 64-hex of the
@@ -184,6 +184,16 @@ receipt findings may appear in `blocking_findings`, and the blocking disposition
 set must equal exactly the receipt's P0/P1 id set: `approve` is rejected with any
 unresolved P0/P1, `request_changes` with none, and P2/P3 stay recorded and
 non-blocking.
+
+For a read-only delegated reviewer, supply the exact factual fields in its
+instruction and place any referenced logs inside its worktree before review. The
+registered role/attempt name is a valid reviewer identity; do not invent native
+model/session metadata. A real recorded dispatch timestamp may mark the start of
+the review observation when explicitly labelled as such. Only the reviewer chooses
+`verdict` and `findings` and originates the final receipt. A raw JSON string inside
+its typed result is sufficient: publish that string unchanged, with no Base64,
+reserialization or Primary-authored repair. These transport choices do not grant
+Bash execution or access outside the review worktree.
 
 Receipt verification is mandatory: the normal canonical sensor invocation below
 verifies an external-manual record's receipt automatically, and

@@ -1,0 +1,267 @@
+{
+  "$schema": "ubp-blinded-responses-v1",
+  "blinding": "Only trial-specific path identities are replaced by <TRIAL>; facts and other response text are unchanged. Arms, costs, native wrapper outcomes and original automated scores are withheld.",
+  "cases": [
+    {
+      "case_id": "audit-config-dev-01",
+      "mission": "Read case.json and audit each service against the policy. Derive whether the configuration is consistent, which services are affected, and the mismatch counts by category. Report the resulting fact=value pairs using these exact labels: config_consistent, affected_services, replica_mismatches, timeout_mismatches, logging_mismatches. Derive every value from case.json yourself.",
+      "data": {
+        "policy": {
+          "replicas": 3,
+          "timeout_seconds": 30,
+          "log_format": "json"
+        },
+        "services": [
+          {
+            "name": "api",
+            "replicas": 3,
+            "timeout_seconds": 30,
+            "log_format": "json"
+          },
+          {
+            "name": "worker",
+            "replicas": 2,
+            "timeout_seconds": 30,
+            "log_format": "json"
+          },
+          {
+            "name": "scheduler",
+            "replicas": 3,
+            "timeout_seconds": 45,
+            "log_format": "text"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "evidence-accounting-dev-01",
+      "mission": "Read case.json and reconcile every ledger charge with its evidence amount. Derive the ledger total, evidence total, signed difference between them, and the affected entry. Report the resulting fact=value pairs using these exact labels: ledger_total, evidence_total, reconciliation_delta, mismatched_entry. Derive every value from case.json yourself.",
+      "data": {
+        "ledger": [
+          {
+            "id": "charge-a",
+            "amount": 12
+          },
+          {
+            "id": "charge-b",
+            "amount": 5
+          },
+          {
+            "id": "charge-c",
+            "amount": 8
+          }
+        ],
+        "evidence": [
+          {
+            "charge_id": "charge-a",
+            "amount": 12
+          },
+          {
+            "charge_id": "charge-b",
+            "amount": 4
+          },
+          {
+            "charge_id": "charge-c",
+            "amount": 8
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "audit-config-heldout-01",
+      "mission": "Read case.json and compare each actual service setting with its corresponding requirement. Derive whether the configuration is consistent, which services are affected, and the mismatch counts by category. Report the resulting fact=value pairs using these exact labels: config_consistent, affected_services, region_mismatches, retention_mismatches. Derive every value from case.json yourself.",
+      "data": {
+        "requirements": [
+          {
+            "service": "api",
+            "region": "us-east",
+            "retention_days": 30
+          },
+          {
+            "service": "worker",
+            "region": "eu-west",
+            "retention_days": 30
+          },
+          {
+            "service": "reports",
+            "region": "us-east",
+            "retention_days": 14
+          }
+        ],
+        "actual": [
+          {
+            "service": "api",
+            "region": "us-east",
+            "retention_days": 30
+          },
+          {
+            "service": "worker",
+            "region": "eu-central",
+            "retention_days": 30
+          },
+          {
+            "service": "reports",
+            "region": "us-east",
+            "retention_days": 30
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "evidence-accounting-heldout-01",
+      "mission": "Read case.json and reconcile invoice amounts against payments by invoice. Derive the invoice total, payment total, remaining balance, and the invoice with a short payment. Report the resulting fact=value pairs using these exact labels: invoice_total, payment_total, unpaid_balance, short_paid_invoice. Derive every value from case.json yourself.",
+      "data": {
+        "invoices": [
+          {
+            "id": "invoice-101",
+            "amount": 180
+          },
+          {
+            "id": "invoice-102",
+            "amount": 220
+          },
+          {
+            "id": "invoice-103",
+            "amount": 60
+          }
+        ],
+        "payments": [
+          {
+            "invoice_id": "invoice-101",
+            "amount": 180
+          },
+          {
+            "invoice_id": "invoice-102",
+            "amount": 200
+          },
+          {
+            "invoice_id": "invoice-103",
+            "amount": 60
+          }
+        ]
+      }
+    }
+  ],
+  "responses": [
+    {
+      "response_id": "b6622af53fc84dd6abb2ad4782429660",
+      "case_id": "audit-config-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false\\naffected_services=worker,scheduler\\nreplica_mismatches=1\\ntimeout_mismatches=1\\nlogging_mismatches=1\",\"changed_files\":[],\"checks\":[],\"evidence\":[\"case.json: api matches all policy values.\",\"case.json: worker replicas=2 mismatches policy replicas=3.\",\"case.json: scheduler timeout_seconds=45 and log_format=text mismatch policy timeout_seconds=30 and log_format=json.\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "0ac6528d1fc94aa1ab962a96fc9a0e35",
+      "case_id": "audit-config-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false; affected_services=worker,reports; region_mismatches=1; retention_mismatches=1\",\"changed_files\":[],\"checks\":[{\"command\":\"Compare each actual service setting with its matching requirement in case.json\",\"status\":\"passed\",\"output_ref\":\"case.json comparison\"}],\"evidence\":[\"worker region: required eu-west, actual eu-central\",\"reports retention_days: required 14, actual 30\",\"api matches all requirements\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "738fb7a1afe54147aab95e6b2e2a049e",
+      "case_id": "evidence-accounting-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"ledger_total=25, evidence_total=24, reconciliation_delta=1, mismatched_entry=charge-b\",\"changed_files\":[],\"checks\":[{\"command\":\"Reconcile each ledger charge against case.json evidence\",\"status\":\"passed\",\"output_ref\":\"charge-a: 12=12; charge-b: 5!=4; charge-c: 8=8\"}],\"evidence\":[\"ledger_total=25\",\"evidence_total=24\",\"reconciliation_delta=1\",\"mismatched_entry=charge-b\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "adfb0a6f5ce14192b6c711264630eaf4",
+      "case_id": "evidence-accounting-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"invoice_total=460, payment_total=440, unpaid_balance=20, short_paid_invoice=invoice-102\",\"changed_files\":[],\"checks\":[{\"command\":\"Reconcile case.json invoices against payments by invoice\",\"status\":\"passed\",\"output_ref\":\"invoice-101: 180-180=0; invoice-102: 220-200=20; invoice-103: 60-60=0\"}],\"evidence\":[\"invoice_total=460\",\"payment_total=440\",\"unpaid_balance=20\",\"short_paid_invoice=invoice-102\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "c22a635e558442c78e27304c0f055318",
+      "case_id": "evidence-accounting-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"ledger_total=25, evidence_total=24, reconciliation_delta=1, mismatched_entry=charge-b\",\"changed_files\":[],\"checks\":[{\"command\":\"Manual reconciliation of case.json ledger and evidence amounts\",\"status\":\"passed\",\"output_ref\":\"case.json: charge-a 12=12; charge-b 5\u22604; charge-c 8=8\"}],\"evidence\":[\"ledger_total=25\",\"evidence_total=24\",\"reconciliation_delta=1\",\"mismatched_entry=charge-b\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "9c1548a2990f444eab2298cdc4a808fb",
+      "case_id": "audit-config-dev-01",
+      "native_response_text": "{\n  \"$schema\": \"ultra-delegation-result-v1\",\n  \"status\": \"finished\",\n  \"summary\": \"config_consistent=false; affected_services=worker,scheduler; replica_mismatches=1; timeout_mismatches=1; logging_mismatches=1\",\n  \"changed_files\": [],\n  \"checks\": [\n    {\n      \"command\": \"Manual audit of case.json against its policy\",\n      \"status\": \"passed\",\n      \"output_ref\": \"audit-results\"\n    }\n  ],\n  \"evidence\": [\n    \"audit-results: config_consistent=false\",\n    \"audit-results: affected_services=worker,scheduler\",\n    \"audit-results: replica_mismatches=1\",\n    \"audit-results: timeout_mismatches=1\",\n    \"audit-results: logging_mismatches=1\",\n    \"worker has 2 replicas instead of 3.\",\n    \"scheduler has timeout_seconds=45 instead of 30 and log_format=text instead of json.\"\n  ],\n  \"questions\": [],\n  \"residual_risks\": []\n}"
+    },
+    {
+      "response_id": "a44e5ad6608d4ae989f8a14d84cace3a",
+      "case_id": "audit-config-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false\\naffected_services=worker,scheduler\\nreplica_mismatches=1\\ntimeout_mismatches=1\\nlogging_mismatches=1\",\"changed_files\":[],\"checks\":[{\"command\":\"Read and manually audit case.json against its policy\",\"status\":\"passed\",\"output_ref\":\"evidence-1\"},{\"command\":\"Programmatic audit and git diff verification\",\"status\":\"not_run\",\"output_ref\":\"Sandbox denied command execution\"}],\"evidence\":[{\"ref\":\"evidence-1\",\"detail\":\"api matches all policy fields; worker has replicas=2 instead of 3; scheduler has timeout_seconds=45 instead of 30 and log_format=text instead of json.\"}],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "54332789fd21431ab1b87dd83d116c12",
+      "case_id": "audit-config-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false; affected_services=worker,reports; region_mismatches=1; retention_mismatches=1\",\"changed_files\":[],\"checks\":[{\"command\":\"Compare each actual service setting with its corresponding requirement in case.json\",\"status\":\"passed\",\"output_ref\":\"evidence[0]\"}],\"evidence\":[\"config_consistent=false; affected_services=worker,reports; region_mismatches=1; retention_mismatches=1\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "513f05db7934415c96174f74ff3037f8",
+      "case_id": "audit-config-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false\\naffected_services=worker,reports\\nregion_mismatches=1\\nretention_mismatches=1\",\"changed_files\":[],\"checks\":[{\"command\":\"Compare each actual service setting against its requirement in case.json\",\"status\":\"passed\",\"output_ref\":\"evidence[0]\"}],\"evidence\":[\"worker has a region mismatch (eu-central vs eu-west); reports has a retention mismatch (30 vs 14); api matches all requirements.\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "b5a5b7ace22d4f02ac7dc606c7301771",
+      "case_id": "evidence-accounting-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"invoice_total=460, payment_total=440, unpaid_balance=20, short_paid_invoice=invoice-102\",\"changed_files\":[],\"checks\":[{\"command\":\"read case.json and reconcile payments by invoice\",\"status\":\"passed\",\"output_ref\":\"case.json values: invoices 180+220+60; payments 180+200+60\"}],\"evidence\":[\"invoice_total=460\",\"payment_total=440\",\"unpaid_balance=20\",\"short_paid_invoice=invoice-102\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "cd7047585c084d24b2d3dbdb086a26e6",
+      "case_id": "evidence-accounting-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"invoice_total=460, payment_total=440, unpaid_balance=20, short_paid_invoice=invoice-102\",\"changed_files\":[],\"checks\":[{\"command\":\"Manual reconciliation of case.json by invoice\",\"status\":\"passed\",\"output_ref\":\"invoice-101: 180-180=0; invoice-102: 220-200=20; invoice-103: 60-60=0\"}],\"evidence\":[\"case.json invoices total: 180+220+60=460\",\"case.json payments total: 180+200+60=440\",\"The sole unpaid balance is 20 on invoice-102.\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "e80565fa4c90435daa188c93dcbe70ec",
+      "case_id": "audit-config-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false\\naffected_services=worker,reports\\nregion_mismatches=1\\nretention_mismatches=1\",\"changed_files\":[],\"checks\":[{\"command\":\"Manual comparison of each actual service setting against its corresponding requirement in case.json\",\"status\":\"passed\",\"output_ref\":\"evidence:case-comparison\"}],\"evidence\":[{\"ref\":\"case-comparison\",\"detail\":\"worker region is eu-central instead of eu-west; reports retention_days is 30 instead of 14; api matches both requirements.\"}],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "a4607aaa59274be990792decd3a5f567",
+      "case_id": "evidence-accounting-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"ledger_total=25\\nevidence_total=24\\nreconciliation_delta=1\\nmismatched_entry=charge-b\",\"changed_files\":[],\"checks\":[{\"command\":\"Manual reconciliation of all ledger and evidence amounts in case.json\",\"status\":\"passed\",\"output_ref\":\"case.json: ledger 12+5+8=25; evidence 12+4+8=24; ledger minus evidence=1\"}],\"evidence\":[\"case.json: charge-a matches 12=12\",\"case.json: charge-b mismatches 5!=4\",\"case.json: charge-c matches 8=8\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "52643ca552c54475bc7952ecc19b001a",
+      "case_id": "evidence-accounting-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"invoice_total=460\\npayment_total=440\\nunpaid_balance=20\\nshort_paid_invoice=invoice-102\",\"changed_files\":[],\"checks\":[{\"command\":\"Read and reconcile case.json\",\"status\":\"passed\",\"output_ref\":\"case.json: invoices total 180+220+60=460; payments total 180+200+60=440; invoice-102 short by 20\"},{\"command\":\"Automated Python reconciliation and git status\",\"status\":\"not_run\",\"output_ref\":\"Execution denied by read-only delegation permissions\"}],\"evidence\":[\"case.json invoices: invoice-101=180, invoice-102=220, invoice-103=60\",\"case.json payments: invoice-101=180, invoice-102=200, invoice-103=60\",\"Only invoice-102 has a payment below its invoice amount, with 20 remaining\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "adb0ecd7b38a4d2d90ad67a96b5ad51f",
+      "case_id": "evidence-accounting-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"invoice_total=460, payment_total=440, unpaid_balance=20, short_paid_invoice=invoice-102\",\"changed_files\":[],\"checks\":[{\"command\":\"Reconcile case.json invoices against payments by invoice\",\"status\":\"passed\",\"output_ref\":\"invoice-101: 180-180=0; invoice-102: 220-200=20; invoice-103: 60-60=0\"}],\"evidence\":[\"invoice_total=460\",\"payment_total=440\",\"unpaid_balance=20\",\"short_paid_invoice=invoice-102\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "dd4de657af5d4a7c97a1ea6ac46fccc3",
+      "case_id": "evidence-accounting-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"ledger_total=25; evidence_total=24; reconciliation_delta=1; mismatched_entry=charge-b\",\"changed_files\":[],\"checks\":[{\"command\":\"Manual reconciliation of case.json\",\"status\":\"passed\",\"output_ref\":\"Ledger amounts 12+5+8=25; evidence amounts 12+4+8=24; ledger minus evidence=1; charge-b differs (5 vs 4).\"}],\"evidence\":[\"ledger_total=25\",\"evidence_total=24\",\"reconciliation_delta=1\",\"mismatched_entry=charge-b\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "bc5e7d246bf24e62bf8b20f9261c468a",
+      "case_id": "audit-config-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false; affected_services=worker,scheduler; replica_mismatches=1; timeout_mismatches=1; logging_mismatches=1\",\"changed_files\":[],\"checks\":[{\"command\":\"Manual audit of case.json against its policy\",\"status\":\"passed\",\"output_ref\":\"case.json evidence\"}],\"evidence\":[\"api matches all policy values.\",\"worker has replicas=2 instead of 3.\",\"scheduler has timeout_seconds=45 instead of 30 and log_format=text instead of json.\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "87fd14f0b09b4c5788ffab83272d3e3d",
+      "case_id": "audit-config-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false; affected_services=worker,reports; region_mismatches=1; retention_mismatches=1\",\"changed_files\":[],\"checks\":[{\"command\":\"Manual comparison of each requirement and actual setting in case.json by service\",\"status\":\"passed\",\"output_ref\":\"evidence[0..3]\"},{\"command\":\"git diff --exit-code -- . && git status --short\",\"status\":\"not_run\",\"output_ref\":\"Denied by read-only delegation policy\"}],\"evidence\":[\"config_consistent=false\",\"affected_services=worker,reports\",\"region_mismatches=1\",\"retention_mismatches=1\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "3520a64ff0a6420599561cd0eb134020",
+      "case_id": "evidence-accounting-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"ledger_total=25, evidence_total=24, reconciliation_delta=1, mismatched_entry=charge-b\",\"changed_files\":[],\"checks\":[{\"command\":\"Reconcile ledger entries against evidence in case.json\",\"status\":\"passed\",\"output_ref\":\"charge-a: 12=12; charge-b: 5!=4; charge-c: 8=8\"}],\"evidence\":[\"ledger_total=25\",\"evidence_total=24\",\"reconciliation_delta=1\",\"mismatched_entry=charge-b\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "5763288583e64cafb06d6d4b5b44a03a",
+      "case_id": "audit-config-dev-01",
+      "native_response_text": "{\n  \"$schema\": \"ultra-delegation-result-v1\",\n  \"status\": \"finished\",\n  \"summary\": \"config_consistent=false; affected_services=worker,scheduler; replica_mismatches=1; timeout_mismatches=1; logging_mismatches=1\",\n  \"changed_files\": [],\n  \"checks\": [\n    {\n      \"command\": \"Manual audit of every service in case.json against policy\",\n      \"status\": \"passed\",\n      \"output_ref\": \"evidence:audit-results\"\n    }\n  ],\n  \"evidence\": [\n    \"evidence:audit-results: api matches all policy values; worker has replicas=2 instead of 3; scheduler has timeout_seconds=45 instead of 30 and log_format=text instead of json.\"\n  ],\n  \"questions\": [],\n  \"residual_risks\": []\n}"
+    },
+    {
+      "response_id": "26e1bdec49e046d8b565c27b7cbcfbb3",
+      "case_id": "audit-config-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"config_consistent=false; affected_services=worker,reports; region_mismatches=1; retention_mismatches=1\",\"changed_files\":[],\"checks\":[{\"command\":\"Compare each actual service setting with its corresponding requirement in case.json\",\"status\":\"passed\",\"output_ref\":\"evidence entries\"}],\"evidence\":[\"config_consistent=false\",\"affected_services=worker,reports\",\"region_mismatches=1\",\"retention_mismatches=1\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "7c703d7132cc460691235867ee1a2061",
+      "case_id": "evidence-accounting-heldout-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"invoice_total=460, payment_total=440, unpaid_balance=20, short_paid_invoice=invoice-102\",\"changed_files\":[],\"checks\":[{\"command\":\"Independent Python reconciliation of case.json\",\"status\":\"not_run\",\"output_ref\":\"Execution denied by read-only delegation policy; values were manually reconciled from case.json.\"},{\"command\":\"git status --short && git diff --exit-code\",\"status\":\"not_run\",\"output_ref\":\"Execution denied by read-only delegation policy; no write tools were invoked.\"}],\"evidence\":[\"invoice_total=460\",\"payment_total=440\",\"unpaid_balance=20\",\"short_paid_invoice=invoice-102\",\"invoice-101: invoiced 180, paid 180; invoice-102: invoiced 220, paid 200; invoice-103: invoiced 60, paid 60\"],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "c2b96639d6bb4048b01ff46344b9ca17",
+      "case_id": "evidence-accounting-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"ledger_total=25\\nevidence_total=24\\nreconciliation_delta=1\\nmismatched_entry=charge-b\",\"changed_files\":[],\"checks\":[{\"command\":\"Manual reconciliation of every ledger charge against case.json evidence; delta calculated as ledger_total - evidence_total\",\"status\":\"passed\",\"output_ref\":\"reconciliation-results\"}],\"evidence\":[{\"ref\":\"reconciliation-results\",\"detail\":\"charge-a: 12=12; charge-b: 5\u22604; charge-c: 8=8; ledger total 25; evidence total 24; signed difference +1.\"}],\"questions\":[],\"residual_risks\":[]}"
+    },
+    {
+      "response_id": "1162d75dc93d4cb19942e399bb0f63c8",
+      "case_id": "audit-config-dev-01",
+      "native_response_text": "{\"$schema\":\"ultra-delegation-result-v1\",\"status\":\"finished\",\"summary\":\"Audited all services against the policy in case.json.\",\"changed_files\":[],\"checks\":[{\"command\":\"read case.json and compare each service with policy\",\"status\":\"passed\",\"output_ref\":\"Derived audit facts in evidence\"}],\"evidence\":[\"config_consistent=false\",\"affected_services=worker,scheduler\",\"replica_mismatches=1\",\"timeout_mismatches=1\",\"logging_mismatches=1\"],\"questions\":[],\"residual_risks\":[]}"
+    }
+  ]
+}

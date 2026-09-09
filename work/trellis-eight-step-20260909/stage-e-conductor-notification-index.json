@@ -1,0 +1,1293 @@
+{
+  "roots": [
+    "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-durable-native-nQKQo2",
+    "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-durable-native-LPyuky"
+  ],
+  "files": [
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/COMMIT_EDITMSG",
+      "sha256": "09b82ba41e7c1291e82dd0c5bd8c39bf613d3563432c839cae7e02aafa4f20ae",
+      "bytes": 29
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/HEAD",
+      "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80",
+      "bytes": 21
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/config",
+      "sha256": "16f5942997b1d8a37a4e07482855e2d74ed69701d8f621f127ca026f56ed1053",
+      "bytes": 205
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/description",
+      "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee",
+      "bytes": 73
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/applypatch-msg.sample",
+      "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+      "bytes": 478
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/commit-msg.sample",
+      "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+      "bytes": 896
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/fsmonitor-watchman.sample",
+      "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+      "bytes": 4726
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/post-update.sample",
+      "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+      "bytes": 189
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/pre-applypatch.sample",
+      "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+      "bytes": 424
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/pre-commit.sample",
+      "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+      "bytes": 1649
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/pre-merge-commit.sample",
+      "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+      "bytes": 416
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/pre-push.sample",
+      "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+      "bytes": 1374
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/pre-rebase.sample",
+      "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+      "bytes": 4898
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/pre-receive.sample",
+      "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+      "bytes": 544
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/prepare-commit-msg.sample",
+      "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+      "bytes": 1492
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/push-to-checkout.sample",
+      "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+      "bytes": 2783
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/sendemail-validate.sample",
+      "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+      "bytes": 2308
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/hooks/update.sample",
+      "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106",
+      "bytes": 3650
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/index",
+      "sha256": "a8bf3f5cfdbb90f4e6160341b0c7756d821c2189e7bf25fe35af54caf7b3c7e4",
+      "bytes": 444
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/info/exclude",
+      "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1",
+      "bytes": 240
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/logs/HEAD",
+      "sha256": "cfd4f91534d77c914e9b7168a48b43701c1f1d5f71fad410f5d654803630d392",
+      "bytes": 192
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/logs/refs/heads/main",
+      "sha256": "cfd4f91534d77c914e9b7168a48b43701c1f1d5f71fad410f5d654803630d392",
+      "bytes": 192
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/objects/26/b92296fdb016213c2ddd23e9898adc650a150f",
+      "sha256": "df577b879c17c6017104d61a50c668220a589f1614e71e84fcaf2050fa35a373",
+      "bytes": 146
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/objects/29/a422c19251aeaeb907175e9b3219a9bed6c616",
+      "sha256": "bc91394ff592d92eeffb66675019f20583324da290e10f0d5674fde864b9f854",
+      "bytes": 50
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/objects/7a/516b515f75027b5c085fb470cd00539d79baba",
+      "sha256": "206681cadce55ed109692ba74b152c32f49e68d55d359f94965592cb1bcf2e18",
+      "bytes": 33
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/objects/7c/561cb08d8ad1de871fc36ec6c3a191981ab592",
+      "sha256": "fd3a8d6fc02079c6119ba344c89c8410eafb9b49b831cde45efa15f1d6e630d8",
+      "bytes": 156
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/objects/88/00e300e0edbb72e557595c25fe2a5dd31fc6fc",
+      "sha256": "738e6eb81426136149f2d051a5ef053c7cde6eaf4610f0c69f34794ac1b54f9a",
+      "bytes": 53
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/objects/b8/4efef976ee2db1c7f10cb98f7ae8d0a3a6c37e",
+      "sha256": "719b2b041ab497174d2c04b05bd76ecc1db5372a9b138dc76f1b58b7715946c7",
+      "bytes": 39
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/objects/d9/6194c3e3dd1dd2bd70e15eb8b6be35eee72ea8",
+      "sha256": "857ce2ac3a6196c282499ad223d13028a12e923a4643b3d5b043cc28fc2cc95e",
+      "bytes": 6444
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/objects/e6/9de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "sha256": "164c5fa8067facf1a43f09ce3d0e35ebf53a7f5723ecbf15a8667cfc53c26f6c",
+      "bytes": 15
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/refs/heads/main",
+      "sha256": "8a4d59d9e63d14fb0dfac4a4bc095e30d1e45fa59b86d2f070b0e38a7d556da6",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/left/HEAD",
+      "sha256": "8a4d59d9e63d14fb0dfac4a4bc095e30d1e45fa59b86d2f070b0e38a7d556da6",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/left/ORIG_HEAD",
+      "sha256": "8a4d59d9e63d14fb0dfac4a4bc095e30d1e45fa59b86d2f070b0e38a7d556da6",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/left/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47",
+      "bytes": 6
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/left/gitdir",
+      "sha256": "6406c1995482cc0ff66eb8cb7d8aee49321fb1a8aad78894a0a9a304cd9fb1e0",
+      "bytes": 119
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/left/index",
+      "sha256": "3e4614e2b4619fc0febb39a565f57b70f97157a1e927eb761070662bccfce132",
+      "bytes": 444
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/left/logs/HEAD",
+      "sha256": "255b6ab0203d24d18fefa7deb67e3e1bbf545f32a7eec5bcca9a358563caf39a",
+      "bytes": 145
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/right/HEAD",
+      "sha256": "8a4d59d9e63d14fb0dfac4a4bc095e30d1e45fa59b86d2f070b0e38a7d556da6",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/right/ORIG_HEAD",
+      "sha256": "8a4d59d9e63d14fb0dfac4a4bc095e30d1e45fa59b86d2f070b0e38a7d556da6",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/right/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47",
+      "bytes": 6
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/right/gitdir",
+      "sha256": "f6644709fb1603325b0f6c1374841a4029561f32d65a860c6dd9cb716ca2be04",
+      "bytes": 120
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/right/index",
+      "sha256": "497a2653f60f9a44c6bf7f22fbe389a3cd735af92204bb58c6f0bb2b25bdf6e4",
+      "bytes": 444
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.git/worktrees/right/logs/HEAD",
+      "sha256": "255b6ab0203d24d18fefa7deb67e3e1bbf545f32a7eec5bcca9a358563caf39a",
+      "bytes": 145
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a",
+      "bytes": 17
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/events.jsonl",
+      "sha256": "416c2bf17c2a7dfad9f6555df470aacb67b15b40de20de5324fae10fa0396ad8",
+      "bytes": 1073
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/host-result.json",
+      "sha256": "acf4f52c79fc75a03f30b0a36a3ab51fff9c5447645dbd2bfe297c2f79d108b7",
+      "bytes": 348
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/instruction.md",
+      "sha256": "67e5e6febedc4217782d7e25da50ab3524826a0a66eb8653c519bffff0716e82",
+      "bytes": 284
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/permission.json",
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333",
+      "bytes": 113
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/pi-sessions/2026-09-09T15-49-04-125Z_01a086db-c1fd-7234-923a-87f257f65a9b.jsonl",
+      "sha256": "4d51e0131f5879a9167b14e1df76feeff5d001e4218adeda9acbde7e436577bf",
+      "bytes": 10161
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/receipt.json",
+      "sha256": "5e7cf86d69b98412596d1fe36112f17e1a227e332b47f9e9b200e38df7024222",
+      "bytes": 2200
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "bytes": 1474
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/result.json",
+      "sha256": "1845318c4ed943d97e1f59d7e378177df64a0dc8c5fbfe832f6aee5ec87b0717",
+      "bytes": 2058
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/stderr.log",
+      "sha256": "416c2bf17c2a7dfad9f6555df470aacb67b15b40de20de5324fae10fa0396ad8",
+      "bytes": 1073
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/stdout.log",
+      "sha256": "f16e7c86fcc540c01d1cfe32131a45f2433c2e1c05fd72a941ff6d8d15197d88",
+      "bytes": 61807
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/worker-spec.json",
+      "sha256": "00855a1c7525db86a7362fb73cfd1031695bca655a680dcef99badb002c8fcd2",
+      "bytes": 7857
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/left/writer.json",
+      "sha256": "c79f3d78c21f351be53314811e7cf3e3608dc10ea62fc96c08714651c5d56e6d",
+      "bytes": 416
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/events.jsonl",
+      "sha256": "3d534c2b3a797f1c1ddd311c8ba23e6d3c167033f16e713f8734c45acf821e0f",
+      "bytes": 1073
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/host-result.json",
+      "sha256": "db14cfa2f21292c47a7742ef5c43deb26e7d6a3f7d49e4d318f7b10501b0e907",
+      "bytes": 351
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/instruction.md",
+      "sha256": "769de778bf08f9da3b544a8ab92ba8a7d5b111cd7dbd755dd24350aab2d3b9f0",
+      "bytes": 284
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/permission.json",
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333",
+      "bytes": 113
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/pi-sessions/2026-09-09T15-49-04-184Z_01a086db-c237-7219-b9d6-ceca790af41f.jsonl",
+      "sha256": "16e5fc79dea8527ad6b0bd58427cb7664cdea992416378e9627e980d1e88550f",
+      "bytes": 10171
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/receipt.json",
+      "sha256": "3499819764fa9f68542b91f294d343da9eab8d5295f373774697351306221955",
+      "bytes": 2205
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "bytes": 1474
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/result.json",
+      "sha256": "25efe3ebd080381ec04cac7f50a68e72c798a84e361b11a4903a7d9b879b500b",
+      "bytes": 2063
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/stderr.log",
+      "sha256": "3d534c2b3a797f1c1ddd311c8ba23e6d3c167033f16e713f8734c45acf821e0f",
+      "bytes": 1073
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/stdout.log",
+      "sha256": "e71dc40d1a87c31b82facf3083e0e83affae38be28e0eb46bf7e74cd6dc13cba",
+      "bytes": 62090
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/worker-spec.json",
+      "sha256": "8a3e1de8e8f4447a7d06ed442ec9b93d9df33261d315d3e83de644764bc3a18b",
+      "bytes": 7876
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/delegations/right/writer.json",
+      "sha256": "f1dd09bcbf2455f8522988e63df1b381b0b12fef9e23a34c4789e3cff76d59bc",
+      "bytes": 417
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/claim.json",
+      "sha256": "f78939e8857b7cd6b74c44562ca90937926b669e11957fa29c1669bee15d7b00",
+      "bytes": 362
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/native-start.json",
+      "sha256": "28b7859a27c9e3d0f267662f701700e060a4253ee48afda9d5fe9e93b67dd8ba",
+      "bytes": 1121
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/native-stderr.log",
+      "sha256": "f2205a3d2b1c4898d8c9029248e88397272651423cc9a61d08d5964e031d5052",
+      "bytes": 1327
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/native.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/pre-dispatch.json",
+      "sha256": "3ddf97a3c1c511a4e60cbf30caff6639eb920c445485f365cee729758fdc553c",
+      "bytes": 534
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/registration.json",
+      "sha256": "a54c810abbba6c8b1af82ac4a0eb4644611233d3ec1502b4c04deea632e6f16a",
+      "bytes": 2105
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/supervisor-claim.json",
+      "sha256": "3b0e898de5770ec132b0d1e94ddfeede9d8937dee7a3a9f4145431f7b33fc9e7",
+      "bytes": 70
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/supervisor.json",
+      "sha256": "0e1a047fc963c0589951b1d285431138b1ccfde0c7996a93bf293d62bb4343f6",
+      "bytes": 197
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/durable/checkpoint/supervisor.log",
+      "sha256": "3d96b4b638a5b587d0913b48427b96b45f9b6158d550ac34900a0aea5583decd",
+      "bytes": 1257
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/runs/durable/checkpoint/attention.json",
+      "sha256": "d58073e121f7df1bc52d2fb83557bb9d97779ca9937254250e5d935beb401d5c",
+      "bytes": 896
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/runs/durable/checkpoint/run-slice.json",
+      "sha256": "683cc840277e3eccfe28a5f5ce49e432e4a38ebc15644ade0f5d1605126128fb",
+      "bytes": 2398
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/left/.git",
+      "sha256": "e7d8f397de8b6609c215cb233401846dab767b5fc3a286f6c2782f8fc7df2165",
+      "bytes": 111
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/left/.gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a",
+      "bytes": 17
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/left/output/.keep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/left/probe-source.cjs",
+      "sha256": "877b161f41356f04e9e943a45a1980b11147288e170e3fb43a97ca59f2f6e659",
+      "bytes": 17772
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/left/src/base.txt",
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233",
+      "bytes": 23
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/left/src/value.json",
+      "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c",
+      "bytes": 12
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/right/.git",
+      "sha256": "5472e7c224e74644bb0d16cb3e31612d7eefc1293c516a8f73c508486889fd29",
+      "bytes": 112
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/right/.gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a",
+      "bytes": 17
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/right/output/.keep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/right/probe-source.cjs",
+      "sha256": "877b161f41356f04e9e943a45a1980b11147288e170e3fb43a97ca59f2f6e659",
+      "bytes": 17772
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/right/src/base.txt",
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233",
+      "bytes": 23
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/.runtime/worktrees/right/src/value.json",
+      "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519",
+      "bytes": 12
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/changes/active/durable-checkpoint/intent.md",
+      "sha256": "b2186aae6f62b4bb56938567ab5cf541762a7d71a81e85dee8cc5d68ee3f715c",
+      "bytes": 211
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/contexts/fresh.md",
+      "sha256": "2ad170d4a3ba0b28f437e8908d6d3b48780ed9e302a19e539f591bce8b410a32",
+      "bytes": 405
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/contexts/task-checkpoint.md",
+      "sha256": "bb2360596a97cbdf71b87c6591296b67593e530e996e26fbad6a1b7e6555d28f",
+      "bytes": 79
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/decisions/durable-grant.json",
+      "sha256": "c5732c7db3fd958ea05c7ee3c9a36b15618580c260d6945d13366cf58690d3d5",
+      "bytes": 1474
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/decisions/fresh-permission.json",
+      "sha256": "587341611a914022212a82077e5ba134cf35caee9a7e5cfe59c3bfb6ff38e2b0",
+      "bytes": 116
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/decisions/owner.md",
+      "sha256": "2949e78318723b44aed119efbd9a3f56ceced03c9aeb9e51da5ff2495fa3db0f",
+      "bytes": 389
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/evidence/durable/checkpoint/activation.json",
+      "sha256": "eda799036f60853407a80aac841741ad3ef263ac05fedaa125c656b6ea1dab27",
+      "bytes": 341
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/evidence/durable/events/1c7b90ae77ec5e682aa9a3dc047568aa0c7ce3d547029bbf1da2f63c14f72745/claim.json",
+      "sha256": "f78939e8857b7cd6b74c44562ca90937926b669e11957fa29c1669bee15d7b00",
+      "bytes": 362
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/.ultra/profiles/durable-native.json",
+      "sha256": "5679dfcfa080d2ae179abe7e9a7856b18143d2463ad78350b50263b2d4e46e41",
+      "bytes": 635
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/acp-driver.cjs",
+      "sha256": "8e5fb511f0b5834d6e1fcef998a6d3e14d64f3c2ae3d0e74ee199fcceb839059",
+      "bytes": 31858
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/agent-execution-driver.cjs",
+      "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244",
+      "bytes": 45585
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/cli-driver.cjs",
+      "sha256": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4",
+      "bytes": 5114
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/delegate-profiles/kimi-read-only.md",
+      "sha256": "98986f362bc92350f5d7317d08aee5f2fdea02236a664fdf80e0bb889c242f71",
+      "bytes": 446
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/delegate-profiles/kimi-write.md",
+      "sha256": "12b87d89c57588b609382963f93b3a2db56e6a67f7ab0cab34604129b9d6f2a1",
+      "bytes": 515
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/delegate-worker.cjs",
+      "sha256": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4",
+      "bytes": 21760
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/delegate.cjs",
+      "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+      "bytes": 64409
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/durable-run.cjs",
+      "sha256": "8b21bf9bfff944129f8ce28d8a9af890833981b287ff2709f8afc98750635fa3",
+      "bytes": 26502
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/host-profile.cjs",
+      "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+      "bytes": 47755
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/pi-durable-primary.cjs",
+      "sha256": "96f58d64cc48940dd44e58bfa9c6f66690ea2afa49f3a50e0ee5f67d0e2dec8e",
+      "bytes": 3797
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/pi-native-permissions.cjs",
+      "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382",
+      "bytes": 4086
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/pi-native-runtime.cjs",
+      "sha256": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1",
+      "bytes": 9210
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/pi-primary.cjs",
+      "sha256": "9e7c77cc3dc6eaa9eff466a451e508c730e75e2effc6ccc60da12e85812e19e3",
+      "bytes": 10115
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/run-slice.cjs",
+      "sha256": "8028d28ed2cfe2e795b595707a5b7b03774c1e41562a3fa2e37c727db7f6c874",
+      "bytes": 19970
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/slice-channel.cjs",
+      "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+      "bytes": 5114
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/bound-product-source/slice-workspace.cjs",
+      "sha256": "e481fd1810f226107473aa16abab97892404f4520baca63b2dbc8c98ac02c3e9",
+      "bytes": 5911
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/interface.md",
+      "sha256": "306cc371d2686d963057fa89adbc8bfc665f0810c79bfa300a7091bdcd51211c",
+      "bytes": 84
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/location.json",
+      "sha256": "29bc9a91945d760efa1ae38872c321831642c3d6fb0d8e1b965804a4a0d2f685",
+      "bytes": 2982
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/observation.json",
+      "sha256": "102d0a51008d053c4da6da57aed6d63d4d334e2edc650111e063e7415c8269ff",
+      "bytes": 275
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/old-events.jsonl",
+      "sha256": "4c69a9b4cdf6ae708f78501a0aba39cd3131d3c427c43fecad5c5a7959a3ebf6",
+      "bytes": 53797
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/old-exit.json",
+      "sha256": "1e45934782a26dddbc5884413a117abd80c95875951d5c51794bf17a1035ce4e",
+      "bytes": 59
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/old-sessions/2026-09-09T15-48-55-429Z_01a086db-a005-7284-981d-2428ee7140d9.jsonl",
+      "sha256": "dc0affa37eee342d1cfddd51303aab3ed3a672ab4aa90303033d9dc1daf45427",
+      "bytes": 10671
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/output/.keep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/packet.json",
+      "sha256": "683cc840277e3eccfe28a5f5ce49e432e4a38ebc15644ade0f5d1605126128fb",
+      "bytes": 2398
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/probe-source.cjs",
+      "sha256": "877b161f41356f04e9e943a45a1980b11147288e170e3fb43a97ca59f2f6e659",
+      "bytes": 17772
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/registration-result.json",
+      "sha256": "132d9212db8164b7cdb2d14250f486a680603a5cf4cd9517ff58e76826128c6a",
+      "bytes": 88
+    },
+    {
+      "path": "ubp-durable-native-nQKQo2/src/base.txt",
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233",
+      "bytes": 23
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/COMMIT_EDITMSG",
+      "sha256": "09b82ba41e7c1291e82dd0c5bd8c39bf613d3563432c839cae7e02aafa4f20ae",
+      "bytes": 29
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/HEAD",
+      "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80",
+      "bytes": 21
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/config",
+      "sha256": "16f5942997b1d8a37a4e07482855e2d74ed69701d8f621f127ca026f56ed1053",
+      "bytes": 205
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/description",
+      "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee",
+      "bytes": 73
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/applypatch-msg.sample",
+      "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+      "bytes": 478
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/commit-msg.sample",
+      "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+      "bytes": 896
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/fsmonitor-watchman.sample",
+      "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+      "bytes": 4726
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/post-update.sample",
+      "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+      "bytes": 189
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/pre-applypatch.sample",
+      "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+      "bytes": 424
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/pre-commit.sample",
+      "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+      "bytes": 1649
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/pre-merge-commit.sample",
+      "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+      "bytes": 416
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/pre-push.sample",
+      "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+      "bytes": 1374
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/pre-rebase.sample",
+      "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+      "bytes": 4898
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/pre-receive.sample",
+      "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+      "bytes": 544
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/prepare-commit-msg.sample",
+      "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+      "bytes": 1492
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/push-to-checkout.sample",
+      "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+      "bytes": 2783
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/sendemail-validate.sample",
+      "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+      "bytes": 2308
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/hooks/update.sample",
+      "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106",
+      "bytes": 3650
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/index",
+      "sha256": "8fdb3bbb5c97aef678efc2b180ac149aa55e0849518b560137e204546e01ea6a",
+      "bytes": 444
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/info/exclude",
+      "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1",
+      "bytes": 240
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/logs/HEAD",
+      "sha256": "f7334d7330aa0475b1fd4890feb993e72f903963fd5e3349d2873aee52b92848",
+      "bytes": 192
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/logs/refs/heads/main",
+      "sha256": "f7334d7330aa0475b1fd4890feb993e72f903963fd5e3349d2873aee52b92848",
+      "bytes": 192
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/objects/29/a422c19251aeaeb907175e9b3219a9bed6c616",
+      "sha256": "bc91394ff592d92eeffb66675019f20583324da290e10f0d5674fde864b9f854",
+      "bytes": 50
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/objects/30/c248404418517f6f49b0d350895d56864631e5",
+      "sha256": "6c431368cf0909e8c37a2bf7dc1d03f42330222ea0c44a8ecdda6935de7e8dae",
+      "bytes": 146
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/objects/7a/516b515f75027b5c085fb470cd00539d79baba",
+      "sha256": "206681cadce55ed109692ba74b152c32f49e68d55d359f94965592cb1bcf2e18",
+      "bytes": 33
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/objects/88/00e300e0edbb72e557595c25fe2a5dd31fc6fc",
+      "sha256": "738e6eb81426136149f2d051a5ef053c7cde6eaf4610f0c69f34794ac1b54f9a",
+      "bytes": 53
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/objects/8e/7917038aa8cb013fc8ac8544310a2665e6fbac",
+      "sha256": "71da1e084fe818452f6ba3be33e5736152e146870dc52f83461d317fd0712450",
+      "bytes": 6512
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/objects/b8/4efef976ee2db1c7f10cb98f7ae8d0a3a6c37e",
+      "sha256": "719b2b041ab497174d2c04b05bd76ecc1db5372a9b138dc76f1b58b7715946c7",
+      "bytes": 39
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/objects/e1/446598f41c044a80e0b206531a6cdf541676df",
+      "sha256": "470f293a7c705b22ae2ece01ba47fe354fa1fe24864068afd2927815ffd26727",
+      "bytes": 155
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/objects/e6/9de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "sha256": "164c5fa8067facf1a43f09ce3d0e35ebf53a7f5723ecbf15a8667cfc53c26f6c",
+      "bytes": 15
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/refs/heads/main",
+      "sha256": "2c556a7676d9f96bc23e3ea3ccbd8dbeaa3e538e69b451167b928b9ef3e809c4",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/left/HEAD",
+      "sha256": "2c556a7676d9f96bc23e3ea3ccbd8dbeaa3e538e69b451167b928b9ef3e809c4",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/left/ORIG_HEAD",
+      "sha256": "2c556a7676d9f96bc23e3ea3ccbd8dbeaa3e538e69b451167b928b9ef3e809c4",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/left/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47",
+      "bytes": 6
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/left/gitdir",
+      "sha256": "33969e128f14ef5cd30b6477c3ecb3bc29a5326476d0c8441c0cf0c2d8ffbbfc",
+      "bytes": 119
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/left/index",
+      "sha256": "b598e68bdb1917ecc08d503c63c5ec65d4b05c88d916eebc9f49a2157e5f7a0e",
+      "bytes": 444
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/left/logs/HEAD",
+      "sha256": "a712a6d6097ccf900c5df8991c5f60d590443eb3a4297ebf7988cf4ee7e9e1b5",
+      "bytes": 145
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/right/HEAD",
+      "sha256": "2c556a7676d9f96bc23e3ea3ccbd8dbeaa3e538e69b451167b928b9ef3e809c4",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/right/ORIG_HEAD",
+      "sha256": "2c556a7676d9f96bc23e3ea3ccbd8dbeaa3e538e69b451167b928b9ef3e809c4",
+      "bytes": 41
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/right/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47",
+      "bytes": 6
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/right/gitdir",
+      "sha256": "4d6f3fa2a219214e5f3ccc6fa34c8128e282830107852054f82f9115317bae0f",
+      "bytes": 120
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/right/index",
+      "sha256": "3e270c7419c883a4c0a46d5b18bc7f08dc2d0e0b2a1e6cdfd631c83b79200d9a",
+      "bytes": 444
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.git/worktrees/right/logs/HEAD",
+      "sha256": "a712a6d6097ccf900c5df8991c5f60d590443eb3a4297ebf7988cf4ee7e9e1b5",
+      "bytes": 145
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a",
+      "bytes": 17
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/events.jsonl",
+      "sha256": "c06b69a50af03260fdb7427912ab5db850957dd545745603abac3faf7bde18bc",
+      "bytes": 1394
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/host-result.json",
+      "sha256": "9961ca5ac580de20ce6f29a73b0ee960e5896c773eb8570ac39853989a9f45ad",
+      "bytes": 309
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/instruction.md",
+      "sha256": "67e5e6febedc4217782d7e25da50ab3524826a0a66eb8653c519bffff0716e82",
+      "bytes": 284
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/permission.json",
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333",
+      "bytes": 113
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/pi-sessions/2026-09-09T15-52-50-548Z_01a086df-3674-76f3-9c92-8cb1a87a3a77.jsonl",
+      "sha256": "abad014a226e50816b091a1b922a843c144e1a2df595c9b87cf3f87b4ad36b3f",
+      "bytes": 14911
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/receipt.json",
+      "sha256": "9bb43a25b7f00deaef747cdc95a35961464a768b3102dd0b358a101c1836082c",
+      "bytes": 2200
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "bytes": 1474
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/result.json",
+      "sha256": "8fe255d9cc145c98c67ef1a292aea7bbae6d8b2ec808030071419091b55aedc0",
+      "bytes": 2019
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/stderr.log",
+      "sha256": "c06b69a50af03260fdb7427912ab5db850957dd545745603abac3faf7bde18bc",
+      "bytes": 1394
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/stdout.log",
+      "sha256": "d8d4b3e6ec2afe946e8a8c03574a50c5a7bfc32b59bd92b1654bd6620fae8a09",
+      "bytes": 79445
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/worker-spec.json",
+      "sha256": "68018cef8a098f1a41374fd7c394f52b9d17e2e80b94c3a97717ee94a620e437",
+      "bytes": 7857
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/left/writer.json",
+      "sha256": "c686d5b24e80c67721c5fc0501b654e9f50a26ccb6a5adc5f2b9964cacad92dd",
+      "bytes": 416
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/events.jsonl",
+      "sha256": "6ef72d4d553e5966c7dc571ba3bffde65d28d0bc762e12fba6ffb0363f67fc8d",
+      "bytes": 1073
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/host-result.json",
+      "sha256": "4f8ef41d1e2f3c735d9c33202f12db206327173395062b32f143909ed26bddf0",
+      "bytes": 324
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/instruction.md",
+      "sha256": "769de778bf08f9da3b544a8ab92ba8a7d5b111cd7dbd755dd24350aab2d3b9f0",
+      "bytes": 284
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/permission.json",
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333",
+      "bytes": 113
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/pi-sessions/2026-09-09T15-52-50-615Z_01a086df-36b6-75c9-88a3-45e8875eef2b.jsonl",
+      "sha256": "2fdc5148ccf53f755a6dc36453c05960994d34d37733d09cf9a64bc32daf8e93",
+      "bytes": 10036
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/receipt.json",
+      "sha256": "011ec536739c76b7dae1bfb0b056d70f48d50db4ae24e0363856e222abb60eda",
+      "bytes": 2205
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d",
+      "bytes": 1474
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/result.json",
+      "sha256": "8a2210b6ab938b0430cb279271421781a55ebe89b0baf6e1b2141b37879d83d1",
+      "bytes": 2036
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/stderr.log",
+      "sha256": "6ef72d4d553e5966c7dc571ba3bffde65d28d0bc762e12fba6ffb0363f67fc8d",
+      "bytes": 1073
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/stdout.log",
+      "sha256": "4b03b23d9b154dbfae675793dee35a37f60f2eb41f3e6225da45b8eb4860600a",
+      "bytes": 60675
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/worker-spec.json",
+      "sha256": "cae11be68d310c7f11c537e63d0ea445d73987abfae5b67ffc86f368d1353ed0",
+      "bytes": 7876
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/delegations/right/writer.json",
+      "sha256": "e7b069f66fad985d856f863c482086b7ff5cc6b58cb5dea2d54dab0451b1090c",
+      "bytes": 417
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/attention-required.json",
+      "sha256": "6a932a6df56b95844fea3f3d270bb952a3d79358e42b85a7551fdac33d0cc9a9",
+      "bytes": 135
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/claim.json",
+      "sha256": "1590d866a72eb8f9c2db70ff4717b917ff3fdb29cde88b2c2fcc7216cdb02335",
+      "bytes": 362
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/native-start.json",
+      "sha256": "b488f19a42327f955f46b6816c93901b9cebfffb0c5f9a3a16dded3e1f1f368f",
+      "bytes": 1120
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/native-stderr.log",
+      "sha256": "62831b3803d1584392fe2fb8766c794f0b6fdf15c89fca850560b3f5f0d91a95",
+      "bytes": 1327
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/native.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/notification-result.json",
+      "sha256": "f58ead58decc49a0dafb778fa8f3454723bc1fe21a71cdeab0a7eeb1b36510a6",
+      "bytes": 75
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/pre-dispatch.json",
+      "sha256": "1bef72349a1a4e62cf1755b7e416216a5086534936bb1e26aef3514dab785dd6",
+      "bytes": 534
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/registration.json",
+      "sha256": "38799020deb7e0792b33d7f56f1b946f0b13b767013644c6955ab32be496dc74",
+      "bytes": 2105
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/supervisor-claim.json",
+      "sha256": "3740c1fcba373a4da129e8f925a55a836f456c9ace1762ea24ff9faa50b97749",
+      "bytes": 70
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/supervisor.json",
+      "sha256": "3c0bcd1d049d2ba194ba778eb541b08e550103071897768e1db98c566fa71b5a",
+      "bytes": 197
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/durable/checkpoint/supervisor.log",
+      "sha256": "33e6e363a198d6fd2a1066707e6054b5cc53f00ba843786e6e0aa8d0752f6667",
+      "bytes": 1257
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/runs/durable/checkpoint/attention.json",
+      "sha256": "5037023f72d7669c9196d532117a02a6d4e1a92434ac8402db9bbd2510d0bc5a",
+      "bytes": 896
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/runs/durable/checkpoint/run-slice.json",
+      "sha256": "40c49797900c1726a5afc9018d9b2052cde5911ef304e678d80e8079909cbac4",
+      "bytes": 2398
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/left/.git",
+      "sha256": "8a229f00ed5b185de1b95f05ef846420098fed73600bc58f75c0ffa108d697c1",
+      "bytes": 111
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/left/.gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a",
+      "bytes": 17
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/left/output/.keep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/left/probe-source.cjs",
+      "sha256": "40d6f4540d5f37add3a2e1fa9161baeb0aa8532281091e3891a41b792edf8b09",
+      "bytes": 18028
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/left/src/base.txt",
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233",
+      "bytes": 23
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/left/src/value.json",
+      "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c",
+      "bytes": 12
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/right/.git",
+      "sha256": "9d4d6b3811c39dbb5c3cd8e215ce026d2b0581d5694417073ba115c560fe0be4",
+      "bytes": 112
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/right/.gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a",
+      "bytes": 17
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/right/output/.keep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/right/probe-source.cjs",
+      "sha256": "40d6f4540d5f37add3a2e1fa9161baeb0aa8532281091e3891a41b792edf8b09",
+      "bytes": 18028
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/right/src/base.txt",
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233",
+      "bytes": 23
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/.runtime/worktrees/right/src/value.json",
+      "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519",
+      "bytes": 12
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/changes/active/durable-checkpoint/intent.md",
+      "sha256": "b2186aae6f62b4bb56938567ab5cf541762a7d71a81e85dee8cc5d68ee3f715c",
+      "bytes": 211
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/contexts/fresh.md",
+      "sha256": "2ad170d4a3ba0b28f437e8908d6d3b48780ed9e302a19e539f591bce8b410a32",
+      "bytes": 405
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/contexts/task-checkpoint.md",
+      "sha256": "bb2360596a97cbdf71b87c6591296b67593e530e996e26fbad6a1b7e6555d28f",
+      "bytes": 79
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/decisions/durable-grant.json",
+      "sha256": "0e9b089c59e82824f79d4db8ff2254ed5d517b79f19f84008d6d20b33b2aef81",
+      "bytes": 1474
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/decisions/fresh-permission.json",
+      "sha256": "587341611a914022212a82077e5ba134cf35caee9a7e5cfe59c3bfb6ff38e2b0",
+      "bytes": 116
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/decisions/owner.md",
+      "sha256": "2949e78318723b44aed119efbd9a3f56ceced03c9aeb9e51da5ff2495fa3db0f",
+      "bytes": 389
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/evidence/durable/checkpoint/activation.json",
+      "sha256": "43efa8739df1f2aca7d1410cac201a4af5a972961aa675ff04ae50c5260f121b",
+      "bytes": 341
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/evidence/durable/checkpoint/notification-request.json",
+      "sha256": "243ea90b043f2326bbcf8a4a32b8d9b90f2be2d83cc0f60df70d2279a1aab99d",
+      "bytes": 195
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/evidence/durable/events/1c7b90ae77ec5e682aa9a3dc047568aa0c7ce3d547029bbf1da2f63c14f72745/claim.json",
+      "sha256": "1590d866a72eb8f9c2db70ff4717b917ff3fdb29cde88b2c2fcc7216cdb02335",
+      "bytes": 362
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/.ultra/profiles/durable-native.json",
+      "sha256": "5679dfcfa080d2ae179abe7e9a7856b18143d2463ad78350b50263b2d4e46e41",
+      "bytes": 635
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/acp-driver.cjs",
+      "sha256": "8e5fb511f0b5834d6e1fcef998a6d3e14d64f3c2ae3d0e74ee199fcceb839059",
+      "bytes": 31858
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/agent-execution-driver.cjs",
+      "sha256": "8c3241b4213db17f3ea0af92ddaef8cc9022d13e4d4453f6480312013e923244",
+      "bytes": 45585
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/cli-driver.cjs",
+      "sha256": "401a4d336d35b1300b31674335912c358243d2268d219da05fb6b2ade93e81d4",
+      "bytes": 5114
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/delegate-profiles/kimi-read-only.md",
+      "sha256": "98986f362bc92350f5d7317d08aee5f2fdea02236a664fdf80e0bb889c242f71",
+      "bytes": 446
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/delegate-profiles/kimi-write.md",
+      "sha256": "12b87d89c57588b609382963f93b3a2db56e6a67f7ab0cab34604129b9d6f2a1",
+      "bytes": 515
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/delegate-worker.cjs",
+      "sha256": "63fe0fbc46e2de82ce47f55e51e4da672c1d321924ab2324f87ef00b85370dd4",
+      "bytes": 21760
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/delegate.cjs",
+      "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+      "bytes": 64409
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/durable-run.cjs",
+      "sha256": "357dffd581fd25c69bd6302beec1e959495c0e0c67a225146b3b11305c9baa55",
+      "bytes": 26698
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/host-profile.cjs",
+      "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228",
+      "bytes": 47755
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/pi-durable-primary.cjs",
+      "sha256": "8ce5c9b741ec1d21aab69bb86e27754e3b10d872c9edc65e65ce42ee99a6c683",
+      "bytes": 4305
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/pi-native-permissions.cjs",
+      "sha256": "27d6e44ba6de29df839e072b364992e00c0636159b381f45c61af2011d353382",
+      "bytes": 4086
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/pi-native-runtime.cjs",
+      "sha256": "71c65677e0ad6ab4f97791812a9e26927ef9f463c6240f4bc1b2a81a6e9898c1",
+      "bytes": 9210
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/pi-primary.cjs",
+      "sha256": "9e7c77cc3dc6eaa9eff466a451e508c730e75e2effc6ccc60da12e85812e19e3",
+      "bytes": 10115
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/run-slice.cjs",
+      "sha256": "8028d28ed2cfe2e795b595707a5b7b03774c1e41562a3fa2e37c727db7f6c874",
+      "bytes": 19970
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/slice-channel.cjs",
+      "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+      "bytes": 5114
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/bound-product-source/slice-workspace.cjs",
+      "sha256": "e481fd1810f226107473aa16abab97892404f4520baca63b2dbc8c98ac02c3e9",
+      "bytes": 5911
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/interface.md",
+      "sha256": "306cc371d2686d963057fa89adbc8bfc665f0810c79bfa300a7091bdcd51211c",
+      "bytes": 84
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/location.json",
+      "sha256": "00636fc83b99152e4be9b392a043472334d44367300bffbf53dc25feab06e419",
+      "bytes": 2982
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/observation.json",
+      "sha256": "2162685bc3b939e46b01fa3300997e22061932f3b11ddc42d18b949fee9fad00",
+      "bytes": 375
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/old-events.jsonl",
+      "sha256": "4df70bb86f2448ddb7903abbbc4d00f3ce5313f6c3c5b94fb4313839ef4e683b",
+      "bytes": 54356
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/old-exit.json",
+      "sha256": "83a953faa1d2d8d5b18c4acad8079b80920c194ec793b5c1357ff5bc33016081",
+      "bytes": 59
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/old-sessions/2026-09-09T15-52-39-235Z_01a086df-0a42-76e1-bc11-d948093d1869.jsonl",
+      "sha256": "452328c57cbd3b99862c3fc4d8ecf1324925360a0b5df46dd2792cca6fa15a17",
+      "bytes": 10850
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/output/.keep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/packet.json",
+      "sha256": "40c49797900c1726a5afc9018d9b2052cde5911ef304e678d80e8079909cbac4",
+      "bytes": 2398
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/probe-source.cjs",
+      "sha256": "40d6f4540d5f37add3a2e1fa9161baeb0aa8532281091e3891a41b792edf8b09",
+      "bytes": 18028
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/registration-result.json",
+      "sha256": "428fb34ca162265ea4925d94fb2826bc43b189cc1c6798bf1f4ed1b841e29fcf",
+      "bytes": 88
+    },
+    {
+      "path": "ubp-durable-native-LPyuky/src/base.txt",
+      "sha256": "5324d8dcbe6d45820f03b38f8bafe2c4058182985bf7c5504ad00312ee490233",
+      "bytes": 23
+    }
+  ]
+}

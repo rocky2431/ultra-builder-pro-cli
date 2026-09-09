@@ -1,0 +1,22 @@
+{
+  "old_acceptance_sha256": "336a01442c01c974740027469809878ea47dcce367b01ab7937ee710bef732a4",
+  "new_acceptance_sha256": "43311feb3bde1319efc3216ab2eda17e14debb5bc72cca0220f770eebac9703c",
+  "change": "Four callback-based fs.symlink calls replaced with fs.symlinkSync; no assertion or product requirement changed.",
+  "verification_root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-fixture-verification-b5qc4285",
+  "retained_product_source": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-manifest-r1-solo-dWW0YX",
+  "observations": [
+    {
+      "label": "corrected fixed fixture on retained Solo implementation",
+      "exit_code": 0,
+      "stdout": "ok 1 - seeded case-sensitive ordering\nok 2 - create exact deterministic inventory without following links\nok 3 - repeat creation has identical bytes\nok 4 - verify equal and diff equal\nok 5 - target content is not link content\nok 6 - verify identifies changes with exit 1\nok 7 - diff reports same changes and does not mutate inputs\nok 8 - reject malformed and structurally unsafe manifests\nok 9 - reject inside output and preserve existing file\nok 10 - reject output parent symlink into root\nok 11 - reject output symlink without changing target\nok 12 - failed root scan preserves output and leaves no temp files\nok 13 - reject root symlink and CLI misuse\nok 14 - type changes remain changed at existing path\nPASS 14/14\n",
+      "stderr": ""
+    },
+    {
+      "label": "same corrected fixture rejects original seeded sorting defect",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "node:internal/assert/utils:146\n  throw error;\n  ^\n\nAssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'a',\n    'Z',\n-   'a'\n  ]\n\n    at /private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-fixture-verification-b5qc4285/acceptance.cjs:21:56\n    at check (/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-fixture-verification-b5qc4285/acceptance.cjs:18:31)\n    at Object.<anonymous> (/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-fixture-verification-b5qc4285/acceptance.cjs:21:3)\n    at Module._compile (node:internal/modules/cjs/loader:1934:14)\n    at Object..js (node:internal/modules/cjs/loader:2074:10)\n    at Module.load (node:internal/modules/cjs/loader:1656:32)\n    at Module._load (node:internal/modules/cjs/loader:1448:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47 {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: [ 'a', 'Z' ],\n  expected: [ 'Z', 'a' ],\n  operator: 'deepStrictEqual',\n  diff: 'simple'\n}\n\nNode.js v26.8.1\n"
+    }
+  ],
+  "limitation": "This checks fixture viability only. It does not retroactively pass the original manifest trials, which remain invalid/incomplete."
+}

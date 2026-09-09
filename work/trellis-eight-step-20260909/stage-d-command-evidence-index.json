@@ -1,0 +1,62 @@
+[
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-release.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-release.log",
+    "sha256": "884935c1f362ac16db7a08101fd1c2b60803c6513cdfdcda29cd3919357738e4"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-release-current.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-release-current.log",
+    "sha256": "22492dcca8e4f5f343b743ed04f9cf3d0e5283bad4c04ab0ad3e5ae1ecceb009"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-narrow.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-narrow.log",
+    "sha256": "9007e72cae16b8cc9b81fe9f19bc423a0eedd2257cb26cf6902a653252c3b94f"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-runtime-green.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-runtime-green.log",
+    "sha256": "261be7ae317c1c35e2a2f3c6cff4fe6eecfdfeeb0d2580f367edd762569fb93d"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-contract-red.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-contract-red.log",
+    "sha256": "07e09ff8e5660ec383daf42c3f832fa8300b28be29c751b1549cd50757cc35f5"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-contract-green.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-contract-green.log",
+    "sha256": "c934a3199604cdd61e19470776dabb4e21cabf015faeda5ea993e90c554e8aaf"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-compile-red.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-compile-red.log",
+    "sha256": "4365179847c05030c591f3f9a155b67722c3593bca961936fdac44b22de90a65"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-ignored-output-red.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-ignored-output-red.log",
+    "sha256": "c65b6ee5d3b188bd8b18c1a3535d0d90bca667d96373e25c0851c650be85fc69"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-ignored-output-green.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-ignored-output-green.log",
+    "sha256": "16c54441d04fbe9c45ae5a93cc8cbc0f5fd9eec32db810d8526e26d8d84e3684"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-artifacts-fixed.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-artifacts-fixed.log",
+    "sha256": "5897701c4b604711dfb0df6990e98fdbfbe97e122aecc88377c4fb2ba5cb9d05"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-manifest-fixture-red.log",
+    "retained": "work/trellis-eight-step-20260909/stage-d-manifest-fixture-red.log",
+    "sha256": "7c96d3983a2754b1c65f27d3e2474fea0e802244ba82e6215e2011f81ea1c2a3"
+  },
+  {
+    "source": ".ultra/.runtime/trellis-eight-step-20260909/stage-d-manifest-north-star.json",
+    "retained": "work/trellis-eight-step-20260909/stage-d-manifest-north-star.json",
+    "sha256": "405f231947b97b33b41013487d78267de232fe920751ff08eea68b7b2d7c6395"
+  }
+]

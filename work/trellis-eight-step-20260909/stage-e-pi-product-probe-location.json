@@ -1,0 +1,6 @@
+{
+  "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-pi-product-x1g7Nn",
+  "protected_aliases": true,
+  "started_at": "2026-09-09T16:14:23.845Z",
+  "bootstrap_override": "Remove only the unqualified Pi enforcement record; production selection, permissions, worker and result consumers remain unchanged."
+}

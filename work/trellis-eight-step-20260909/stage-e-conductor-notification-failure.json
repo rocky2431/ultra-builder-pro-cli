@@ -1,0 +1,24 @@
+{
+  "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-durable-native-nQKQo2",
+  "notification": "macos",
+  "attention": false,
+  "notification_request": false,
+  "processes": {
+    "old": {
+      "pid": 33623,
+      "state": "dead"
+    },
+    "supervisor": {
+      "pid": 90694,
+      "state": "dead"
+    },
+    "conductor": {
+      "pid": 90145,
+      "state": "dead"
+    },
+    "fresh": {
+      "pid": 56493,
+      "state": "dead"
+    }
+  }
+}

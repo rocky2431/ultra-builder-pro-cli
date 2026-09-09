@@ -1,0 +1,9 @@
+{
+  "sha256": "ca18726dcb877923ee73b1df3fa88fd80956a1491354c9a64eb6377691f16105",
+  "only_mission_changed": true,
+  "no_full_expected_fact_in_mission": true,
+  "model": "gpt-5.6-luna",
+  "stop": "stop",
+  "source": ".ultra/.runtime/trellis-eight-step-20260909/e8-evaluator-v2/events.jsonl",
+  "no_evaluated_attempts_before_correction": true
+}

@@ -1,0 +1,511 @@
+{
+  "observed_at": "2026-09-09T12:26:34.371481+00:00",
+  "observation": {
+    "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-w4-host-api-6EjNXF",
+    "identity": {
+      "runtime_path": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
+      "node_path": "/Users/rocky243/.hermes/node/bin/node",
+      "package_root": "/Users/rocky243/.local/lib/node_modules/@earendil-works/pi-coding-agent",
+      "policy_path": "/Users/rocky243/Context Engineering/ultra-builder-pro-cli/skills/ultra-delegate/scripts/pi-native-permissions.cjs",
+      "fingerprint": {
+        "platform": "darwin",
+        "runtime_version": "0.85.1",
+        "node_sha256": "ebd2d552c7bebde593dd0390530963ad28de56bccde6ce387cdbe55fb0b6fb8e",
+        "runtime_sha256": "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
+        "package_sha256": "f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c",
+        "runtime_files_sha256": "fc7322d2dd04594c8792bf67284432dfcfbf6ca23955e4ee45ee7e646bb9848e",
+        "policy_files_sha256": "85d3c7f8fee66e713f17607b1dff1d11ae4ee5b73c5e546fae5fee3c041ae879"
+      }
+    },
+    "digests": {
+      "run-slice.cjs": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd",
+      "pi-primary.cjs": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503",
+      "slice-channel.cjs": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9",
+      "slice-workspace.cjs": "e481fd1810f226107473aa16abab97892404f4520baca63b2dbc8c98ac02c3e9",
+      "delegate.cjs": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585",
+      "host-profile.cjs": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+    },
+    "old_primary_pid": 55632,
+    "old_controller_pid": 94016,
+    "old_session_id": "01a0861d-91c7-7254-982d-9cbabbf63a3c",
+    "old_processes_dead_before_fresh": true,
+    "api_authority": {
+      "$schema": "ultra-w4-host-api-spike-authority-v1",
+      "scope": "This owner-authorized isolated API test only",
+      "run_id": "native",
+      "slice_id": "w3",
+      "fresh_turns": 1,
+      "allowed_effects": [
+        "read retained native results",
+        "write decision-w4.json"
+      ],
+      "expires_at": "2026-09-09T12:31:19.791Z",
+      "revocation_file": "REVOKED",
+      "limitation": "Prototype observer authority; not the product durable Execution Grant or its validation."
+    },
+    "api_authority_ref": {
+      "path": ".ultra/decisions/w4-api-spike.json",
+      "sha256": "fb1cfecda2b6cd1088ee75292bb6ebe384665641ac4aa692ee706f2d5a9e2c03"
+    },
+    "fresh": {
+      "pid": 57769,
+      "session_id": "01a0861d-ed3b-7157-a579-54ed6c4ac00d",
+      "decision": {
+        "event_key": "native:w3",
+        "old_session_id": "01a0861d-91c7-7254-982d-9cbabbf63a3c",
+        "fresh_session_id": "01a0861d-ed3b-7157-a579-54ed6c4ac00d",
+        "combined_total": 10,
+        "matches_target": true,
+        "decision": "The retained W3 left and right outputs are 6 and 4, so their combined total matches the target of ten."
+      },
+      "native_model_turns": 1,
+      "duplicate_workers": 0,
+      "api": "fresh native Pi RPC process get_state -> prompt -> actual tools -> agent_settled"
+    },
+    "original_delivery_bytes_unchanged": true,
+    "original_worker_receipts_unchanged": true,
+    "limitations": [
+      "Host API characterization under a bounded explicit test only. The observer is a test scaffold, not a shipped durable conductor.",
+      "No product durable Grant, expiry/revoke restart enforcement, exactly-once or machine-loss recovery claim.",
+      "A new native prompt was programmatically issued only after both old bound processes were observed stopped; no user manually continued the old session."
+    ]
+  },
+  "current_source_matches": {
+    "run-slice.cjs": true,
+    "pi-primary.cjs": true,
+    "slice-channel.cjs": true,
+    "slice-workspace.cjs": true,
+    "delegate.cjs": true,
+    "host-profile.cjs": true
+  },
+  "fresh_actual_models": [
+    [
+      "openai-codex",
+      "gpt-5.6-sol"
+    ]
+  ],
+  "fresh_exit": {
+    "code": 143,
+    "signal": null
+  },
+  "archive": "work/trellis-eight-step-20260909/ubp-w4-host-api-6EjNXF-raw.tar.gz",
+  "archive_sha256": "ab05d10922829c0121e1d11ff79906ce08d7fb170318fe6caaa7d1a45565c63e",
+  "files": [
+    {
+      "path": ".git/COMMIT_EDITMSG",
+      "sha256": "07e554d51cdebc5f27c6f1cd2418f06c4aa9eaa21c067f74d2d88ca58fa37f39"
+    },
+    {
+      "path": ".git/HEAD",
+      "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
+    },
+    {
+      "path": ".git/config",
+      "sha256": "8fcb3ebdae66dd2c321629b69d6a7bf2155eb3e2daeafb046ed55b421365cf6e"
+    },
+    {
+      "path": ".git/description",
+      "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+    },
+    {
+      "path": ".git/hooks/applypatch-msg.sample",
+      "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+    },
+    {
+      "path": ".git/hooks/commit-msg.sample",
+      "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+    },
+    {
+      "path": ".git/hooks/fsmonitor-watchman.sample",
+      "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+    },
+    {
+      "path": ".git/hooks/post-update.sample",
+      "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+    },
+    {
+      "path": ".git/hooks/pre-applypatch.sample",
+      "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+    },
+    {
+      "path": ".git/hooks/pre-commit.sample",
+      "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+    },
+    {
+      "path": ".git/hooks/pre-merge-commit.sample",
+      "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+    },
+    {
+      "path": ".git/hooks/pre-push.sample",
+      "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+    },
+    {
+      "path": ".git/hooks/pre-rebase.sample",
+      "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+    },
+    {
+      "path": ".git/hooks/pre-receive.sample",
+      "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+    },
+    {
+      "path": ".git/hooks/prepare-commit-msg.sample",
+      "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+    },
+    {
+      "path": ".git/hooks/push-to-checkout.sample",
+      "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+    },
+    {
+      "path": ".git/hooks/sendemail-validate.sample",
+      "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+    },
+    {
+      "path": ".git/hooks/update.sample",
+      "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+    },
+    {
+      "path": ".git/index",
+      "sha256": "214bc83d3bfe367d29fcd1ff68b01ed41232c70d71ff395f746a2ac91fb50f24"
+    },
+    {
+      "path": ".git/info/exclude",
+      "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+    },
+    {
+      "path": ".git/logs/HEAD",
+      "sha256": "4bd70595b44edd266f1be408540ead9a0038a340ecda87ffb7b0358cf88e07bb"
+    },
+    {
+      "path": ".git/logs/refs/heads/main",
+      "sha256": "4bd70595b44edd266f1be408540ead9a0038a340ecda87ffb7b0358cf88e07bb"
+    },
+    {
+      "path": ".git/objects/4b/36dfd79db36d8c59d1fb032de66b57f0457b65",
+      "sha256": "fe21bb30795461aedb86733f22e7033aaab8f10362720bbb846a86adf867128b"
+    },
+    {
+      "path": ".git/objects/7a/516b515f75027b5c085fb470cd00539d79baba",
+      "sha256": "206681cadce55ed109692ba74b152c32f49e68d55d359f94965592cb1bcf2e18"
+    },
+    {
+      "path": ".git/objects/d6/52a898be0ebd4f3cd5136c19f779360b42414e",
+      "sha256": "af5e43a00d8a4dc8c1badab8135d14453b0067961eb3211ad18f03f9c266d5be"
+    },
+    {
+      "path": ".git/objects/d8/61466c5a6904c5da86c48ad5d77cfe01ec8aba",
+      "sha256": "998dcd783b6113f91a187725fba9052bf7bed3aaf52992702b3a330ea18757f2"
+    },
+    {
+      "path": ".git/objects/df/967b96a579e45a18b8251732d16804b2e56a55",
+      "sha256": "a68879a026ee9eaa8c8eeb0826d1bb255a36e9bb38c76b3e42d892b22d0c4728"
+    },
+    {
+      "path": ".git/refs/heads/main",
+      "sha256": "eb0a0325a4fd0ddb9e5c569f455ffbd532c0b59482f785977a6e0a870373de73"
+    },
+    {
+      "path": ".git/worktrees/w3-left/HEAD",
+      "sha256": "eb0a0325a4fd0ddb9e5c569f455ffbd532c0b59482f785977a6e0a870373de73"
+    },
+    {
+      "path": ".git/worktrees/w3-left/ORIG_HEAD",
+      "sha256": "eb0a0325a4fd0ddb9e5c569f455ffbd532c0b59482f785977a6e0a870373de73"
+    },
+    {
+      "path": ".git/worktrees/w3-left/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+    },
+    {
+      "path": ".git/worktrees/w3-left/gitdir",
+      "sha256": "4aa32c51df4212474adc9758d0a7da065fe0645c8ca9f089bfdf5c9cac3aa1eb"
+    },
+    {
+      "path": ".git/worktrees/w3-left/index",
+      "sha256": "93d90763d2c55eea94cec8fe28a15847ba90edf181006bb82bebf31f177b0ba8"
+    },
+    {
+      "path": ".git/worktrees/w3-left/logs/HEAD",
+      "sha256": "7dbcd9476724e59555018ab25d458d738778743f6a2d3965bb5f5c9f3aa86502"
+    },
+    {
+      "path": ".git/worktrees/w3-right/HEAD",
+      "sha256": "eb0a0325a4fd0ddb9e5c569f455ffbd532c0b59482f785977a6e0a870373de73"
+    },
+    {
+      "path": ".git/worktrees/w3-right/ORIG_HEAD",
+      "sha256": "eb0a0325a4fd0ddb9e5c569f455ffbd532c0b59482f785977a6e0a870373de73"
+    },
+    {
+      "path": ".git/worktrees/w3-right/commondir",
+      "sha256": "340ddcb67a6204f742cd1e28e5b462622dde7daaa8ee36001897196aacdc6d47"
+    },
+    {
+      "path": ".git/worktrees/w3-right/gitdir",
+      "sha256": "23ec90043f719bb7ba07ad6606b7b52178fc3e385c61196bedda528cec448d00"
+    },
+    {
+      "path": ".git/worktrees/w3-right/index",
+      "sha256": "ae6a8a82e614282613bc2dba410ad245c3c7ee60c15c89ed84dd73c3393e83f9"
+    },
+    {
+      "path": ".git/worktrees/w3-right/logs/HEAD",
+      "sha256": "735ecd2c07135e02be50155dc8e4339b3203e01cff595f3dcba38c0303b07646"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/events.jsonl",
+      "sha256": "5d3ff4ee4c58bd0774df9aa815bc11dad80f83cd1112d88a62432f270db9f3c4"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/host-result.json",
+      "sha256": "07e871617bed9f428578bb42b3c3c1c8a6077d543f362648d4d5ad57011b8607"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/instruction.md",
+      "sha256": "8f31c776b10b76c84afb6e719b189e5a4ea4108da164c98034c6deaf872360a0"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/permission.json",
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/pi-sessions/2026-09-09T12-21-25-708Z_01a0861d-a84c-7159-96ec-01f756f4bf0d.jsonl",
+      "sha256": "45abfeaa8b68706c9b14fd8d18ff00972df9a6a137ad35e8223ec8096de67b3c"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/receipt.json",
+      "sha256": "cb435d4451dca564cb112fb1092f9fa5b1e8bba111f32d788e82b7e87465b9b6"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/result.json",
+      "sha256": "a613437814bb2823fed5ae6aaa9230840a1d6fd0aecdd5b08753214dba5e82a5"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/stderr.log",
+      "sha256": "5d3ff4ee4c58bd0774df9aa815bc11dad80f83cd1112d88a62432f270db9f3c4"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/stdout.log",
+      "sha256": "9617ee9c06940baa8e5669df59f9e4f58ea86d850a39bfcd2004319178df1b91"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/worker-spec.json",
+      "sha256": "d8e1025aaa3db4c570e09dc3a3f9cbed5743e7f1f61adb8e628699b29c26883c"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-left/writer.json",
+      "sha256": "c8049c231c8a0210a986e15f711af3e2f2604fb06e6947d556db5e9b3d3d2468"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/events.jsonl",
+      "sha256": "24c1ac31071a3dda4a97da664896f5a1f68d9290c3e7a7290970bd3bcb3e4a12"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/host-result.json",
+      "sha256": "f644604a45978fb9b8a979cce78a686fbf645e6c997691f2a2c0dc7acc637e47"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/instruction.md",
+      "sha256": "f2a00b712b656c190c08a03f3e4bfad5514edb26cb79de177c4aea67038535e8"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/permission.json",
+      "sha256": "839deba28e45bd8eccb4b9874e995bf639a5764567803ae79c88939cf2c50333"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/pi-sessions/2026-09-09T12-21-25-762Z_01a0861d-a882-7508-9ca9-92c30d6f09c1.jsonl",
+      "sha256": "789b6503b8a11eeccee44fa3738c3d28202485c8c61a58bf9afabb7e08b9edfc"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/receipt.json",
+      "sha256": "e48bf908d90d08e5e5d1b91cf4fd407a6101addb07d9569541de21b0bae94756"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/result-schema.json",
+      "sha256": "723230a485136ef52d0ef6f6fcbe804fc9b13544a11b93aefb2a75fe7ce3887d"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/result.json",
+      "sha256": "e7895c4956dcc5dbc9d8ef2751c89375a96162a004a4e68c917abbf94f5231fe"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/stderr.log",
+      "sha256": "24c1ac31071a3dda4a97da664896f5a1f68d9290c3e7a7290970bd3bcb3e4a12"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/stdout.log",
+      "sha256": "6fe33c1cc73194a22b24684706c2ec96336d2aeac3778c0c6b33fcabdf50cb2b"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/worker-spec.json",
+      "sha256": "60d4a45091fbb81f5b6c653a0a74c67b09d0dc848cef62bdff970556848c0040"
+    },
+    {
+      "path": ".ultra/.runtime/delegations/w3-right/writer.json",
+      "sha256": "9244377c4d2e3a7ad9ce208d25e25bff4acb011520dbcb95be45836ca23561db"
+    },
+    {
+      "path": ".ultra/.runtime/runs/native/w3/attention.json",
+      "sha256": "f2c04c1baac93a1593f99c8acda005fc1488f74816f2e7cad9b4ebc4b88b27cf"
+    },
+    {
+      "path": ".ultra/.runtime/runs/native/w3/cancel.request",
+      "sha256": "d6d62e61352dbd5f4a5881d21d7421770e779ea2d8fa3f890ae9daa97b4bf39e"
+    },
+    {
+      "path": ".ultra/.runtime/runs/native/w3/delivery.json",
+      "sha256": "97b0be90c47807981f1c2d11fd68ccf5007004a565d81b426aa965562afa60d4"
+    },
+    {
+      "path": ".ultra/.runtime/runs/native/w3/run-slice.json",
+      "sha256": "301e868ae08ca54183ea2720f2f3d9a5833489b32e833428dcd1809264f2dfd0"
+    },
+    {
+      "path": ".ultra/.runtime/trees/w3-left/.git",
+      "sha256": "e80ee2afc5a52f9c3a7c4610b68c5a84c5045f676e9e7956b8add28fff9e3f6a"
+    },
+    {
+      "path": ".ultra/.runtime/trees/w3-left/.gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": ".ultra/.runtime/trees/w3-left/src/base.txt",
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": ".ultra/.runtime/trees/w3-left/src/value.json",
+      "sha256": "1bfe05c3802ed1ab179e7a1a2cce5f877e30aef12f31593e9cd15875a295f30c"
+    },
+    {
+      "path": ".ultra/.runtime/trees/w3-right/.git",
+      "sha256": "e20ae70e208e6cb3a12f798134c0bdc6fe8abd62270d00ac8fc91f14f4ebae34"
+    },
+    {
+      "path": ".ultra/.runtime/trees/w3-right/.gitignore",
+      "sha256": "adf0989929bba29c477fd66893935865d1715b7a96df5b81febe5c82b11e919a"
+    },
+    {
+      "path": ".ultra/.runtime/trees/w3-right/src/base.txt",
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": ".ultra/.runtime/trees/w3-right/src/value.json",
+      "sha256": "7bb5b7df2ed1bce930108b033b14cf34baa573088efd2adeab16a7bf6cc19519"
+    },
+    {
+      "path": ".ultra/changes/active/native-slice/intent.md",
+      "sha256": "de591ef3f5c355b3515a8a221b7414fa91d35a1f230f2cd88c5a8a4c61171793"
+    },
+    {
+      "path": ".ultra/contexts/task-native-slice.md",
+      "sha256": "e9bb74f2a9ff74e3f1b9183fd164eb477bf9a6bde4acc8f1b94e1fdd2c2157f9"
+    },
+    {
+      "path": ".ultra/decisions/native-slice.md",
+      "sha256": "c8ad1d6e7281d16704c146de64d9a08fcb0fd01d8fca89ef278812bf0e92d67e"
+    },
+    {
+      "path": ".ultra/decisions/w4-api-spike.json",
+      "sha256": "fb1cfecda2b6cd1088ee75292bb6ebe384665641ac4aa692ee706f2d5a9e2c03"
+    },
+    {
+      "path": ".ultra/profiles/native-pi-v1.json",
+      "sha256": "225089d5cd6a04bc2dc79e594fc17cd11e5036ca2f43692ef4fec2666cffc083"
+    },
+    {
+      "path": "coordinator.cjs",
+      "sha256": "ea918faae35248f197dfd55900adb30665a7b9417965cfe4f0abea24f5b3c759"
+    },
+    {
+      "path": "decision-w4.json",
+      "sha256": "a93ed8ab99120e1d409dc5e084aa90ae9e6263a20093f750897affb4d32e0f0f"
+    },
+    {
+      "path": "events.jsonl",
+      "sha256": "2e04febd86eb0c87e4ced9add88439e71a1d344f610df52cdd897a0a1ae70143"
+    },
+    {
+      "path": "fresh-events.jsonl",
+      "sha256": "1ebc225d726ba161912886958bcf691a06b4fe91993647aa285d84555dc2e163"
+    },
+    {
+      "path": "fresh-exit.json",
+      "sha256": "ab7ef95494b784a9e1bc84dc348e4475c1b9575cada6614e510da910265b4dc2"
+    },
+    {
+      "path": "fresh-initial-state.json",
+      "sha256": "3c6803bd5ce56790d37e5815cf79ed7213ad1b47ae0319cfc266964a807f607c"
+    },
+    {
+      "path": "fresh-prompt.md",
+      "sha256": "4bf228529c2af2ddff05d03aa7db1bf1f476d3c7a09232bbf88e6ba8c1fc24be"
+    },
+    {
+      "path": "fresh-sessions/2026-09-09T12-21-43-356Z_01a0861d-ed3b-7157-a579-54ed6c4ac00d.jsonl",
+      "sha256": "cc6b991f37c352fd9e032eda09661d6ef00f4be5e7f0c0946ba71d0f925cc7ac"
+    },
+    {
+      "path": "initial-state.json",
+      "sha256": "aff1268263d91fb0ed12a0153f39dcf80167ad281f16f0046ede593b25d83634"
+    },
+    {
+      "path": "interface.md",
+      "sha256": "8d62f381efddf9a021551d3fe2bc9258d0f64b655939a15bf9e6568d09eca7d9"
+    },
+    {
+      "path": "observation.json",
+      "sha256": "3d9d9892fc27c20bde8b570c814b9898fc6e93d9f60643425bfc8a7919b64946"
+    },
+    {
+      "path": "replay.cjs",
+      "sha256": "a2809b1cf662d79e47a27628b59eb727bd7beac9b5d43f42682db916fcc2ff22"
+    },
+    {
+      "path": "sessions/2026-09-09T12-21-19-943Z_01a0861d-91c7-7254-982d-9cbabbf63a3c.jsonl",
+      "sha256": "0271b9e3a6dfcf6de572f60c9d3246bdd7bc9d2bda5cdbd6fbcfe43653c684c1"
+    },
+    {
+      "path": "source/delegate.cjs",
+      "sha256": "31d8682b7f1afe6911e287e4858b637fd7d27de6f95d4b62ee5dddb3869e1585"
+    },
+    {
+      "path": "source/host-profile.cjs",
+      "sha256": "20c759f8595fa9ac7e4b42bdb19e001de7b09e9d8f65f77622f18d5d61c68228"
+    },
+    {
+      "path": "source/pi-primary.cjs",
+      "sha256": "bd04f2bc24061cd37ade5c963f5166e4f553aff48de72d510342e2fe6b22e503"
+    },
+    {
+      "path": "source/run-slice.cjs",
+      "sha256": "7a227599e7291bdece0a72e19769dc71770b02fb6f41db13ded5c9e6013491cd"
+    },
+    {
+      "path": "source/slice-channel.cjs",
+      "sha256": "6e213006962270c8536c544256d1b7aa376e9b00fbac079f79ce1bbc4f814fc9"
+    },
+    {
+      "path": "source/slice-workspace.cjs",
+      "sha256": "e481fd1810f226107473aa16abab97892404f4520baca63b2dbc8c98ac02c3e9"
+    },
+    {
+      "path": "src/base.txt",
+      "sha256": "f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac"
+    },
+    {
+      "path": "w3.json",
+      "sha256": "301e868ae08ca54183ea2720f2f3d9a5833489b32e833428dcd1809264f2dfd0"
+    },
+    {
+      "path": "w4-host-api-observation.json",
+      "sha256": "cebf56115e1186a199371c159b3674049b52c6e617af56307f0ef67050ccb687"
+    }
+  ]
+}

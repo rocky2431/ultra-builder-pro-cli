@@ -303,3 +303,15 @@ interpretation, risk acceptance, integration and task state.
 - `../ultra-status/references/route-contract.md` — owner-visible route, checkpoint, and recovery output.
 - `../ultra-think/SKILL.md` — read when No Consensus exposes a consequential decision.
 - `../ultra-think/references/autonomy-boundary.md` — read before granting write effects.
+
+
+For repeatable multiwave work, read [operational factory](references/operational-factory.md)
+for model-owned route/profile selection, registered Git worktrees, draft compilation,
+qualified external-controller attention, bounded partial-failure recovery and cleanup.
+This method reuses current task context and canonical consumers; it grants no new
+provider, execution, publication or cross-session authority.
+
+For an explicitly selected durable work-package that must cross the old Pi
+session's exit, read [one durable checkpoint](references/durable-checkpoint.md).
+The native `ultra_durable` tool registers one finite wave and at most one fresh
+turn under the exact owner grant; status files alone never activate it.

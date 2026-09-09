@@ -138,8 +138,9 @@ Consumption is not task or product acceptance.
 An existing claim is never resent, including after process death or an uncertain
 send. Reconciliation returns the retained facts for a model/owner decision. An idle
 or restarted process does not activate a slice from files. This finite live adapter
-does not claim W3 durable authority, W4 supervisor recovery or native exactly-once
-delivery.
+does not claim durable authority, W4 supervisor recovery or native exactly-once
+delivery. The separately qualified process-message W3 path is described in
+[operational factory](operational-factory.md).
 
 ## Product closeout
 
@@ -168,3 +169,11 @@ Use the canonical [Review](../../ultra-review/SKILL.md),
 consumers for closeout. A custom `delivery_ready` JSON, a delegate's `finished`
 result, or a consumed attention does not replace those records. Preserve the
 existing mode, owner-authority and review-budget boundaries throughout.
+
+
+## Operational preparation
+
+Use [operational factory](operational-factory.md) for model-owned draft compilation,
+registered worktree lifecycle, multiple finite waves and the separate process-message
+attention path. Compilation fills digests only; it never chooses decomposition,
+authority, route, profile, repair or product completion.

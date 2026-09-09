@@ -1,0 +1,85 @@
+{
+  "observed_at": "2026-09-09T11:47:46.568360+00:00",
+  "cause": "Root-authored synchronous acceptance fixture incorrectly called callback-based fs.symlink instead of fs.symlinkSync. This is a fixture defect on supported Node versions, not a Node 26 incompatibility or a product defect.",
+  "disposition": "Retain original fixed inputs, processes, observations and partial products; no acceptance claim from a preload shim. Terminate the remaining affected Primary. Correct fixture before any further manifest experiment.",
+  "runs": [
+    {
+      "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-manifest-r1-factory-od8k6P",
+      "pid": 64695,
+      "primary_terminated": true,
+      "writer_observations_before_stop": [
+        {
+          "path": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-manifest-r1-factory-od8k6P/.ultra/.runtime/delegations/challenger-01/writer.json",
+          "state": {
+            "$schema": "ultra-delegation-writer-v2",
+            "delegation_id": "challenger-01",
+            "launch_id": "d35493b8-4f42-432b-af16-8ef03ce2e297",
+            "phase": "started",
+            "pid": 89596,
+            "pgid": 89596,
+            "platform": "darwin",
+            "command": "/Users/rocky243/.hermes/node/bin/node",
+            "argv_digest": "f6300da6e1d826a8a37e9ae2a60a83e8bc63e973460f30eb795a999aa015d653",
+            "started_at": "2026-09-09T11:39:06.914Z",
+            "start_identity": null
+          }
+        },
+        {
+          "path": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-manifest-r1-factory-od8k6P/.ultra/.runtime/delegations/worker-left/writer.json",
+          "state": {
+            "$schema": "ultra-delegation-writer-v2",
+            "delegation_id": "worker-left",
+            "launch_id": "90719464-327d-48e2-ac35-280523c48b8c",
+            "phase": "started",
+            "pid": 15695,
+            "pgid": 15695,
+            "platform": "darwin",
+            "command": "/Users/rocky243/.hermes/node/bin/node",
+            "argv_digest": "29cdaab492bf5902270d74073d43fac69735cb409709e86c457ac269ded1ff83",
+            "started_at": "2026-09-09T11:41:29.555Z",
+            "start_identity": null
+          }
+        },
+        {
+          "path": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-manifest-r1-factory-od8k6P/.ultra/.runtime/delegations/worker-right/writer.json",
+          "state": {
+            "$schema": "ultra-delegation-writer-v2",
+            "delegation_id": "worker-right",
+            "launch_id": "c9a0a82d-24df-4acf-93e5-9182d22771f8",
+            "phase": "started",
+            "pid": 16186,
+            "pgid": 16186,
+            "platform": "darwin",
+            "command": "/Users/rocky243/.hermes/node/bin/node",
+            "argv_digest": "3e27ab14dc302d088dfc570e62155ef9fe9ed36e66f84910fd6fa5cf3f7d2550",
+            "started_at": "2026-09-09T11:41:29.614Z",
+            "start_identity": null
+          }
+        }
+      ]
+    },
+    {
+      "root": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-manifest-r1-solo-dWW0YX",
+      "pid": 65935,
+      "primary_terminated": false,
+      "writer_observations_before_stop": [
+        {
+          "path": "/private/var/folders/cm/zpwxmr512rq1qz4_0_ryz8t80000gn/T/ubp-d-manifest-r1-solo-dWW0YX/.ultra/.runtime/delegations/task-review-1/writer.json",
+          "state": {
+            "$schema": "ultra-delegation-writer-v2",
+            "delegation_id": "task-review-1",
+            "launch_id": "f83e0d23-8df3-4b0a-890d-d93dd76ed61a",
+            "phase": "started",
+            "pid": 65561,
+            "pgid": 65561,
+            "platform": "darwin",
+            "command": "/Users/rocky243/.hermes/node/bin/node",
+            "argv_digest": "08762186a0876c1103e3207efd274686fa6d182b71258569529af984df2e50cb",
+            "started_at": "2026-09-09T11:42:22.036Z",
+            "start_identity": null
+          }
+        }
+      ]
+    }
+  ]
+}

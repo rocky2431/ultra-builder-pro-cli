@@ -49,9 +49,15 @@ instead of stopping at an internal approval.
 When the owner has authorized a finite parallel wave and the native Pi
 `ultra_slice` tool is available, read the loaded `ultra-delegate` Skill's
 `references/finite-run-slice.md`. Select the decomposition and explicit role profile
-yourself within that authority. Use W1 or W2 to receive one causal attention instead
-of polling model turns; interpret and integrate the actual results yourself.
+yourself within that authority. Read `references/operational-factory.md` for proportionate Solo/Challenge/Factory
+selection, worktree preparation and later bounded waves. Use W1, W2 or the exact
+qualified live W3 message path to receive one causal attention instead of polling model turns; interpret and integrate the actual results yourself.
 An attention or acknowledgement does not establish product completion or authorize
 another wave. Ordinary work that needs no parallel wave stays ordinary work.
+
+Only when the owner explicitly selects a durable work-package for a checkpoint
+that crosses this Pi session's exit, read `references/durable-checkpoint.md` and
+use native `ultra_durable` with the exact grant filename. This authorizes at most
+one fresh turn within that grant; missing or unknown delivery never licenses replay.
 
 The owner's request follows verbatim.

@@ -1,0 +1,11 @@
+--- a/skills/ultra-delegate/scripts/host-profile.cjs
++++ b/skills/ultra-delegate/scripts/host-profile.cjs
+@@ -886,7 +886,7 @@
+       '--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files',
+       '--no-builtin-tools', '--extension', options.nativeSelection.policy_path,
+       '--session-dir', path.join(path.dirname(options.hostOutput), 'pi-sessions'),
+-      ...(options.model ? ['--model', options.model] : []), '--', prompt,
++      ...(options.model ? ['--model', options.model] : []), '--', options.schemaJson ? `${prompt}\nCanonical terminal result JSON schema:\n${options.schemaJson}` : prompt,
+     ],
+     delegateEnv: (options, context) => ({
+       PI_TELEMETRY: '0',
