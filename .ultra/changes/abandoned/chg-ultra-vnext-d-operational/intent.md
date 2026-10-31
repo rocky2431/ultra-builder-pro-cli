@@ -91,3 +91,23 @@ Start at C dea1da2, resolve this sole active Change and matching ledger/context,
 ## Unresolved Decisions
 
 Actual repeated benefit and exact W3 qualification remain to be observed. No owner input is needed before this authorized implementation. Future strategy promote/reject remains an explicit Step 8 owner choice after concrete evidence.
+
+## Abandonment
+- Date: 2026-10-31 (Asia/Shanghai).
+- Owner decision: the Owner accepted the UBP v6 plan and confirmed its execution
+  contract ("我认可这个按照 P0 到 P5 直接落地呗……", then "确认"), which closes Step 6
+  as "benefit not repeatable". Record: `.ultra/decisions/2026-10-31-ubp-v6-complete-version.md`.
+- Reason: D-04 (repeated qualified-profile success) and D-05 (repeatable benefit) were
+  not met by the fixed V2 ten-run comparison: source acceptance 10/10, formal delivery
+  9/10, normal Primary end 8/10, and Expense Factory slower than Solo in both rounds.
+  The remaining exit is a research question with no decision rule; v6 makes a single
+  writer the default and moves Factory off the default path.
+- Reusable evidence: commits dea1da2, 0306a07, c5a7fe2 and 51ab562; the Pi
+  qualification receipt in `.ultra/evidence/vnext-d-operational/`, still bound by
+  `HOST_ENFORCEMENT_QUALIFICATION` in `skills/ultra-delegate/scripts/host-profile.cjs`; the D mechanism,
+  native W3 and comparison records under `work/trellis-eight-step-20260909/stage-d-*`,
+  especially `stage-d-product-v2-comparison.zh-CN.md` and
+  `stage-d-native-w3-raw-index.json`.
+- Recovery or successor: successor is UBP v6 on branch `v6`
+  (`thinking/back-to-essentials-20261030/RESULT.md`). Source disposition: keep; the
+  Factory code stays in Git history and in 5.0.2.

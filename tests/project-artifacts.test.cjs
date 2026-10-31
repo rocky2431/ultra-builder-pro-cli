@@ -957,6 +957,63 @@ function projectPlannedPathInventory(root, tasks) {
   return inventory;
 }
 
+const ABANDONMENT_FIELDS = [
+  'Date', 'Owner decision', 'Reason', 'Reusable evidence', 'Recovery or successor',
+];
+
+// Fields of the exact `## Abandonment` closure (change-contract.md), in order;
+// indented lines continue the previous field. Fenced text is never the closure,
+// and the closure ends at the next level-1 or level-2 heading.
+function abandonmentFields(intent) {
+  const fields = new Map();
+  let found = false;
+  let inClosure = false;
+  let fenced = false;
+  let current = null;
+  for (const line of intent.split('\n')) {
+    if (/^ {0,3}(?:```|~~~)/u.test(line)) {
+      fenced = !fenced;
+      current = null;
+      continue;
+    }
+    if (fenced) continue;
+    if (/^#{1,2}(?:\s|$)/u.test(line)) {
+      if (inClosure) break;
+      inClosure = line === '## Abandonment';
+      found = inClosure;
+      continue;
+    }
+    if (!inClosure) continue;
+    const field = /^- ([^:]+):(.*)$/u.exec(line);
+    if (field) {
+      current = field[1];
+      fields.set(current, field[2].trim());
+    } else if (current && /^\s+\S/u.test(line)) {
+      fields.set(current, `${fields.get(current)} ${line.trim()}`);
+    } else {
+      current = null;
+    }
+  }
+  return found ? fields : null;
+}
+
+// An owner-abandoned Change keeps an unfinished task's raw evidence as inert
+// history only when its exact closure cites that directory as reusable evidence.
+function retainedByAbandonedChange(root, task, directoryRelative) {
+  if (task.status !== 'pending' || typeof task.change_id !== 'string') return false;
+  const candidate = storedChangeIntentCandidate(
+    'abandoned',
+    task.change_id,
+    path.join(root, '.ultra'),
+  );
+  if (!candidate) return false;
+  const fields = abandonmentFields(boundedStableFileSnapshot(candidate).toString('utf8'));
+  return fields !== null
+    && JSON.stringify([...fields.keys()]) === JSON.stringify(ABANDONMENT_FIELDS)
+    && [...fields.values()].every((value) => value.length > 0)
+    && fields.get('Reusable evidence').includes(`\`${directoryRelative}/\``);
+}
+
 function auditEvidenceDirectories(root, tasks) {
   const evidenceRoot = path.join(root, '.ultra', 'evidence');
   const directoryChain = snapshotOrdinaryDirectoryChain([
@@ -998,11 +1055,13 @@ function auditEvidenceDirectories(root, tasks) {
       );
       canonicalTaskIds.push(task.id);
     } else {
-      assert.equal(
-        task.status,
-        'in_progress',
-        `${directoryRelative}: raw-only evidence requires an in_progress task`,
-      );
+      if (!retainedByAbandonedChange(root, task, directoryRelative)) {
+        assert.equal(
+          task.status,
+          'in_progress',
+          `${directoryRelative}: raw-only evidence requires an in_progress task`,
+        );
+      }
       assert.ok(
         rawEntries.length > 0,
         `${directoryRelative}: raw-only evidence must contain at least one regular file`,
@@ -1388,6 +1447,65 @@ test('artifact audit distinguishes final evidence from planned in-progress raw r
     }
   });
 
+  const CITED_CLOSURE = '## Abandonment\n'
+    + '- Date: 2026-10-31\n'
+    + '- Owner decision: the owner stopped this work.\n'
+    + '- Reason: the benefit was not repeatable.\n'
+    + '- Reusable evidence: commit abc1234; the receipt in\n'
+    + '  `.ultra/evidence/work/`.\n'
+    + '- Recovery or successor: successor Change chg-next.\n';
+
+  function abandonWork(current, intent) {
+    const changeRoot = path.join(current.root, '.ultra', 'changes', 'abandoned', 'chg-work');
+    fs.mkdirSync(changeRoot, { recursive: true });
+    fs.writeFileSync(path.join(changeRoot, 'intent.md'), intent);
+    Object.assign(current.tasks[1], { status: 'pending', change_id: 'chg-work' });
+    return changeRoot;
+  }
+
+  await t.test('raw evidence retained by an exact abandoned-Change closure', () => {
+    const retained = fixture();
+    try {
+      abandonWork(retained, `# Work\n\n${CITED_CLOSURE}`);
+      assert.deepEqual(auditEvidenceDirectories(retained.root, retained.tasks), [
+        'done',
+      ]);
+    } finally {
+      fs.rmSync(retained.root, { recursive: true, force: true });
+    }
+  });
+  await rejects('abandoned-Change closure that does not cite the raw evidence', (current) => {
+    abandonWork(current, `# Work\n\n${CITED_CLOSURE.replace('`.ultra/evidence/work/`', 'nothing')}`);
+  }, /raw-only evidence requires an in_progress task/u);
+  await rejects('abandoned-Change closure missing a required field', (current) => {
+    abandonWork(current, `# Work\n\n${CITED_CLOSURE.replace('- Owner decision: the owner stopped this work.\n', '')}`);
+  }, /raw-only evidence requires an in_progress task/u);
+  await rejects('abandoned-Change closure with an empty required field', (current) => {
+    abandonWork(current, `# Work\n\n${CITED_CLOSURE.replace('the benefit was not repeatable.', '')}`);
+  }, /raw-only evidence requires an in_progress task/u);
+  await rejects('raw evidence cited only outside the reusable-evidence field', (current) => {
+    abandonWork(
+      current,
+      `# Work\n\n${CITED_CLOSURE.replace('`.ultra/evidence/work/`', 'nothing')}`
+        + '\n## Notes\n- See `.ultra/evidence/work/`.\n',
+    );
+  }, /raw-only evidence requires an in_progress task/u);
+  await rejects('closure fields continued under a later level-1 heading', (current) => {
+    abandonWork(
+      current,
+      `# Work\n\n${CITED_CLOSURE.replace('- Reason:', '# Notes\n- Reason:')}`,
+    );
+  }, /raw-only evidence requires an in_progress task/u);
+  await rejects('closure that exists only inside a fenced example', (current) => {
+    abandonWork(current, `# Work\n\nExample:\n\n\`\`\`markdown\n${CITED_CLOSURE}\`\`\`\n`);
+  }, /raw-only evidence requires an in_progress task/u);
+  await rejects('symlinked abandoned-Change intent', (current) => {
+    const changeRoot = abandonWork(current, '# placeholder\n');
+    const outside = path.join(current.root, 'outside-intent.md');
+    fs.writeFileSync(outside, `# Work\n\n${CITED_CLOSURE}`);
+    fs.rmSync(path.join(changeRoot, 'intent.md'));
+    fs.symlinkSync(outside, path.join(changeRoot, 'intent.md'));
+  }, /must be an ordinary non-symlink file/u);
   await rejects('pending raw-only task', ({ tasks }) => {
     tasks[1].status = 'pending';
   }, /raw-only evidence requires an in_progress task/u);
