@@ -71,6 +71,12 @@ function printHelp() {
     ${paint('cyan', 'run')}                start a native host session on a natural-language goal;
                        the host model picks the route (see ${paint('cyan', 'ubp run --help')})
 
+  ${paint('yellow', 'Progress:')}
+    ${paint('cyan', 'status')}             show progress computed from project files
+    ${paint('cyan', 'gate')}               validate the plan and record its snapshot
+    ${paint('cyan', 'check')}              run registered checks and record evidence
+    ${paint('cyan', 'node done <id>')}     complete a ready node with green requirements
+
   ${paint('yellow', 'Runtime selection (pick ≥1, or --all):')}
     ${paint('cyan', '--claude')}           Claude Code
     ${paint('cyan', '--opencode')}         OpenCode
@@ -201,6 +207,11 @@ function resolveScope(flags) {
 }
 
 async function main() {
+  if (['status', 'gate', 'check', 'node'].includes(process.argv[2])) {
+    const { handle } = require('../engine/cli.cjs');
+    process.exitCode = await handle(process.argv.slice(2));
+    return;
+  }
   if (process.argv[2] === 'slice') {
     const { handle } = require('../skills/ultra-delegate/scripts/run-slice.cjs');
     process.stdout.write(`${JSON.stringify(await handle(process.argv.slice(3)))}\n`);

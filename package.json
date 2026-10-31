@@ -8,6 +8,7 @@
   },
   "files": [
     "bin",
+    "engine",
     "adapters",
     "skills/ultra-init",
     "skills/ultra-research",

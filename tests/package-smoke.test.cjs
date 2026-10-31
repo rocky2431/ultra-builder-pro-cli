@@ -36,6 +36,11 @@ test('npm tarball contains and runs only the file-first product surface', () => 
     assert.ok(paths.includes('hooks/_common.py'));
     assert.ok(paths.includes('bin/delegate.cjs'));
     assert.ok(paths.includes('bin/delegate-worker.cjs'));
+    for (const name of ['cli.cjs', 'project.cjs', 'checks.cjs', 'formats.cjs', 'ledger.cjs',
+      'git-state.cjs', 'loading.cjs', 'plan.cjs', 'states.cjs', 'completion.cjs',
+      'expect.cjs', 'expect-worker.cjs', 'FORMATS.md']) {
+      assert.ok(paths.includes(`engine/${name}`), name);
+    }
     assert.ok(paths.includes('skills/ultra-delegate/scripts/delegate.cjs'));
     assert.ok(paths.includes('skills/ultra-delegate/scripts/delegate-worker.cjs'));
     assert.ok(paths.includes('skills/ultra-delegate/scripts/host-profile.cjs'));

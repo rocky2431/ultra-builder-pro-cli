@@ -1,0 +1,154 @@
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { object, strings, read } = require('./formats.cjs');
+
+const hashValue = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
+const hashes = (value) => object(value) && Object.values(value).every(hashValue);
+const textFields = (record, fields) => fields.every((key) => typeof record[key] === 'string');
+const checkSnapshots = (value) => object(value) && Object.values(value).every((check) =>
+  object(check) && hashValue(check.fp) && strings(check.covers));
+
+function recordTime(value) {
+  return typeof value === 'string'
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+}
+
+function validRecord(record, name) {
+  if (!object(record) || record.v !== 1 || !recordTime(record.at)) return false;
+  if (name === 'evidence') {
+    return textFields(record, ['check', 'run', 'reason', 'log'])
+      && typeof record.dirty === 'boolean' && hashValue(record.code)
+      && hashValue(record.check_fp) && hashes(record.reqs)
+      && ['pass', 'fail', 'unknown'].includes(record.outcome)
+      && (record.exit_code === null || Number.isInteger(record.exit_code))
+      && Number.isInteger(record.duration_ms) && record.duration_ms >= 0
+      && (record.error_line === null || typeof record.error_line === 'string');
+  }
+  if (name === 'plan-log') {
+    const diff = record.diff;
+    return typeof record.milestone === 'string' && hashes(record.requirements)
+      && strings(record.nodes) && checkSnapshots(record.checks)
+      && ['baseline', 'change', 'removed'].includes(record.type)
+      && (record.type !== 'removed' || (!Object.keys(record.requirements).length
+        && !record.nodes.length && !Object.keys(record.checks).length))
+      && (record.type === 'baseline' || (object(diff)
+        && ['added', 'removed', 'modified', 'nodes_added', 'nodes_removed',
+          'checks_added', 'checks_removed', 'checks_modified']
+          .every((key) => strings(diff[key]))));
+  }
+  if (name === 'nodes') return textFields(record, ['node']) && hashValue(record.code)
+    && hashes(record.reqs) && strings(record.runs);
+  return name === 'milestones' && typeof record.milestone === 'string';
+}
+
+function ledger(root, name) {
+  const file = `ledger/${name}.jsonl`;
+  const text = read(root, file, true);
+  const lines = text.split('\n');
+  const records = [];
+  const warnings = [];
+  let repairEnd = null;
+  lines.forEach((line, index) => {
+    if (!line.trim()) return;
+    let record;
+    try { record = JSON.parse(line); } catch { /* validated below */ }
+    if (validRecord(record, name)) { records.push(record); return; }
+    const location = `.ultra/${file}:${index + 1}`;
+    if (index === lines.length - 1 && !text.endsWith('\n')) {
+      repairEnd = Buffer.byteLength(text.slice(0, text.lastIndexOf('\n') + 1));
+      warnings.push(`${location}: incomplete final ledger record ignored; repaired on next append`);
+    } else throw new Error(`${location}: malformed ledger record; remove or repair that line.`);
+  });
+  return { records, warnings, repairEnd, needsNewline: !!text && !text.endsWith('\n') };
+}
+
+function latest(records, field, id) {
+  let result;
+  for (const record of records) {
+    if (record[field] === id && (!result || record.at >= result.at)) result = record;
+  }
+  return result;
+}
+
+function alive(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (error) {
+    if (error.code === 'EPERM') return true;
+    if (error.code === 'ESRCH') return false;
+    throw error;
+  }
+}
+
+function removeOwnedLock(file, pid) {
+  try {
+    if (Number(fs.readFileSync(file, 'utf8')) === pid) fs.unlinkSync(file);
+  } catch (error) { if (error.code !== 'ENOENT') throw error; }
+}
+
+function breakDeadLock(file, pid) {
+  const breaker = `${file}.break`;
+  let fd;
+  try { fd = fs.openSync(breaker, 'wx'); }
+  catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    try {
+      if (Date.now() - fs.statSync(breaker).mtimeMs > 10000) fs.unlinkSync(breaker);
+    } catch (missing) { if (missing.code !== 'ENOENT') throw missing; }
+    return;
+  }
+  try {
+    // Only one breaker rechecks and removes a dead pid; other waiters cannot race it.
+    if (!alive(pid)) removeOwnedLock(file, pid);
+  } finally {
+    fs.closeSync(fd);
+    try { fs.unlinkSync(breaker); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+}
+
+function withLock(root, action) {
+  const file = path.join(root, '.ultra', '.runtime', 'engine.lock');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const deadline = Date.now() + 30000;
+  while (true) {
+    let fd;
+    // Exclusive creation serializes ledger reads and writes across engine processes.
+    try { fd = fs.openSync(file, 'wx'); }
+    catch (error) { if (error.code !== 'EEXIST') throw error; }
+    if (fd !== undefined) {
+      try { fs.writeFileSync(fd, String(process.pid)); return action(); }
+      finally { fs.closeSync(fd); removeOwnedLock(file, process.pid); }
+    }
+    try {
+      const pid = Number(fs.readFileSync(file, 'utf8'));
+      if (Number.isInteger(pid) && pid > 0 && !alive(pid)) {
+        breakDeadLock(file, pid);
+      }
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (Date.now() >= deadline) {
+      throw new Error('.ultra/.runtime/engine.lock: lock wait exceeded 30 s; check its holder.');
+    }
+    // Sleep without polling the filesystem in a busy loop while the holder works.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+  }
+}
+
+function append(root, name, record, locked = false) {
+  const write = () => {
+    const state = ledger(root, name);
+    // Read and advance under the same lock so clock rollback cannot hide a new record.
+    const greatest = state.records.reduce((time, r) => Math.max(time, Date.parse(r.at)), -1);
+    record.at = new Date(Math.max(Date.now(), greatest + 1)).toISOString();
+    const file = path.join(root, '.ultra', 'ledger', `${name}.jsonl`);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    if (state.repairEnd !== null) fs.truncateSync(file, state.repairEnd);
+    const prefix = state.repairEnd === null && state.needsNewline ? '\n' : '';
+    fs.appendFileSync(file, `${prefix}${JSON.stringify(record)}\n`);
+  };
+  return locked ? write() : withLock(root, write);
+}
+
+module.exports = { ledger, latest, withLock, append };
