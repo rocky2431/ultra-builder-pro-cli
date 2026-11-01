@@ -240,9 +240,12 @@ The ratchet keeps old behavior working. These three keep the code from decaying 
   node with a ruling, never a large refactor. It completes only while every finished
   requirement and every invariant stays green. With `"cleanup_every": K` in `plan.json`,
   the gate requires one at the end of every milestone and after at most K other nodes.
-- **Retro.** At every milestone gate, run `ubp retro`. Each failure class seen twice or more
-  becomes a change to the environment (an invariant, a rule in the spec's interface, a
-  helper, a ruling), not another one-off fix in the code; say what you did in the demo. A
+- **Retro.** At every milestone gate, run `ubp retro` (it leaves out a check's red runs before
+  its first pass: test-first work is not a failure class; a test that turns red again because
+  a review added cases counts as a regression, since the engine cannot tell the two apart).
+  Each failure class seen twice or more becomes a change to the environment (an invariant, a
+  rule in the spec's interface, a helper, a ruling), not another one-off fix in the code; say
+  what you did in the demo. A
   lesson about this method itself is a method candidate, never a direct edit of this file.
 
 ## Parallel writers and the merge gate
@@ -262,19 +265,31 @@ reviews and test runs may run in parallel at any time.
   does not check scope or check scripts.
 - Merge with `ubp merge <branch> --expect-head "$(git rev-parse HEAD)"`: a full commit id,
   never the word `HEAD`. One merge at a time; a second is refused `merge-busy`. The engine
-  merges in a temporary work tree, refuses a merged tree that fails the plan gate
-  (`merged-gate`, for example a malformed ruling), runs every check there, and fast-forwards
-  only when every check of the current and closed milestones and every invariant passed
-  and left the tree clean.
-- On refusal: `head-moved`, re-read HEAD and retry; `merge-conflict`, the branch's writer
-  resolves it on the branch (a conflict under `.ultra/ledger/` means the `merge=union` line
-  is missing); `merged-gate`, the writer fixes the ruling on the branch; `check-not-green`
-  with `first bad commit …`, brief that branch's writer again with it; `not green at HEAD
-  before the merge`, the main line is red, fix it first; `fast-forward-failed`, the main tree
-  changed during the merge, restore it, commit `.ultra/` and retry. A `warning` names a
-  temporary tree the engine could not remove.
-- After each merge, run `ubp check` in the main tree (its evidence is stale until then) and
-  commit `.ultra/` before the next merge.
+  merges in a temporary work tree, refuses a branch that changes anything under `.ultra/`
+  except evidence and node lines, rulings and records (`truth-changed`), refuses a merged
+  tree that fails the plan gate (`merged-gate`, for example a malformed ruling), runs every
+  check there, and fast-forwards only when the finished work stayed green: every invariant,
+  every check of a closed milestone, every check of a node with a completion record (on the main
+  line or by the branch), and every check of the current milestone that passed before the merge.
+  The other writer's unfinished node only adds a `warning`; it never blocks.
+- On refusal: `head-moved`, re-read HEAD and retry; `plan-gate`, run `ubp gate` on the main
+  line, commit `.ultra/`, retry; `nothing-to-merge`, the branch is already in; `merge-busy`
+  that persists while no merge runs, delete `.ultra/.runtime/merge.lock` and retry;
+  `merge-conflict`, the branch's writer resolves it on the branch (a conflict under
+  `.ultra/ledger/` means the `merge=union` line is missing); `truth-changed`, the branch must
+  drop that change (a plan change is yours, on the main line); `merged-gate`, the writer
+  fixes the ruling on the branch; `check-not-green` with `first bad commit …` or `the branch
+  marks <node> done`, brief that branch's writer again with it; `not green at HEAD before the
+  merge`, finished work is red on the main line, fix it there first (a requirement added to
+  a closed milestone is red until built: merge the branch that builds it first);
+  `fast-forward-failed`, the main tree changed during the merge, restore it, commit `.ultra/`
+  and retry. Exit 2 is
+  not a refusal: read its `Git failed: …` reason (identity, a hook, signing) and fix that.
+  Any other `warning` names a temporary tree the engine could not remove.
+- The merged tree resolves modules from the main tree's installed dependencies: install a
+  dependency the branch adds on the main line before merging it.
+- After each merge, run `ubp check --all` in the main tree (a branch's evidence lines are
+  not trusted until then) and commit `.ultra/` before the next merge.
 
 ## Owner touches
 

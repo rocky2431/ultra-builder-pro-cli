@@ -11,7 +11,9 @@ function rules(id, checks) {
       + 'stop and escalate.',
     '- Change only files inside the scope, and commit your work: '
       + 'evidence from an uncommitted tree never counts.',
-    `- Run \`ubp check ${ids}\` until every check above is green, then \`ubp node done ${id}\`.`,
+    `- Run \`ubp check ${ids}\` until every check above is green, then \`ubp check\` `
+      + '(every stale check: invariants and finished requirements must stay green), '
+      + `then \`ubp node done ${id}\`.`,
     '- Escalate instead of deciding: a change of direction (L0) and any deletion or '
       + 'narrowing of a requirement go to the Owner.',
     '- Record every other decision you made without asking as one line in .ultra/rulings.md: '

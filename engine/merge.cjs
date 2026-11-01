@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { gitAsync, bindGit } = require('./git-state.cjs');
+const { gitAsync, bindGit, mergeOptions } = require('./git-state.cjs');
 const { problem } = require('./formats.cjs');
 const { status } = require('./states.cjs');
 const { execute } = require('./checks.cjs');
@@ -12,6 +12,7 @@ const { load } = require('./loading.cjs');
 const { planProblems } = require('./plan.cjs');
 const INTERRUPTS = require('./signals.cjs');
 
+const mergeGit = (root, args, options) => gitAsync(root, [...mergeOptions, ...args], options);
 const passing = (record) => record.outcome === 'pass' && !record.dirty;
 const text = (value) => value.toString('utf8').trim();
 const paths = (value) => value.toString('utf8').split('\0').filter(Boolean);
@@ -54,16 +55,16 @@ function makeWritable(directory) {
 }
 
 async function removeTree(root, directory, warnings) {
-  try { await gitAsync(root, ['worktree', 'remove', '--force', directory]); return; }
+  try { await mergeGit(root, ['worktree', 'remove', '--force', directory]); return; }
   catch { /* A check may have made directories read-only, or left an unregistered tree. */ }
   try {
     makeWritable(directory);
     fs.rmSync(directory, { recursive: true, force: true });
   } catch (error) { warnings.push(`Could not remove ${directory}: ${error.message}`); }
   try {
-    const registered = paths(await gitAsync(root, ['worktree', 'list', '--porcelain', '-z']))
+    const registered = paths(await mergeGit(root, ['worktree', 'list', '--porcelain', '-z']))
       .includes(`worktree ${directory}`);
-    if (registered) await gitAsync(root, ['worktree', 'remove', '--force', directory]);
+    if (registered) await mergeGit(root, ['worktree', 'remove', '--force', directory]);
   } catch (error) { warnings.push(`Could not unregister ${directory}: ${firstError(error)}`); }
 }
 
@@ -77,13 +78,12 @@ async function dirtyUltra(run, root) {
     file !== '.ultra/.runtime' && !file.startsWith('.ultra/.runtime/'));
 }
 
-async function firstBad(run, probe, root, head, branch, commits, check) {
+async function firstBad(run, probe, root, head, branch, commits, check, greenAtHead) {
   const reset = async () => {
     await run(root, ['reset', '--hard', head]);
     await run(root, ['clean', '-fdx']);
   };
-  await reset();
-  if (!passing(await probe(check))) return 'not green at HEAD before the merge';
+  if (!greenAtHead) return 'not green at HEAD before the merge';
   let left = 0;
   let right = commits.length - 1;
   while (left < right) {
@@ -105,6 +105,7 @@ async function merge(project, branch, expected) {
   }
   const root = project.root;
   const warnings = [];
+  const cleanupWarnings = [];
   const refused = (code, message, hint) => ({ ok: false, merged: null,
     problems: [problem(code, message, hint)], warnings });
   const moved = () => refused('head-moved', 'HEAD differs from --expect-head',
@@ -128,7 +129,7 @@ async function merge(project, branch, expected) {
   const run = async (directory, args) => {
     ensureRunning();
     try {
-      const result = await gitAsync(directory, args, forwarding
+      const result = await mergeGit(directory, args, forwarding
         ? { detached: true } : { signal: controller.signal });
       ensureRunning();
       return result;
@@ -150,28 +151,20 @@ async function merge(project, branch, expected) {
     const leftovers = new Set([...registered,
       ...fs.readdirSync(directory).map((entry) => path.join(directory, entry))]);
     for (const entry of leftovers) {
-      await removeTree(root, entry, warnings);
+      await removeTree(root, entry, cleanupWarnings);
       ensureRunning();
     }
     const state = status(project);
     if (await resolveCommit(run, root, 'HEAD') !== head) return moved();
     const dirty = await dirtyUltra(run, root);
     if (state.dirty || dirty.length) return refused('dirty-tree',
-      `Uncommitted code or .ultra files: ${dirty.join(', ')}`,
+      dirty.length ? `Uncommitted code or .ultra files: ${dirty.join(', ')}` : 'Uncommitted code',
       'Commit code and .ultra/ first, then retry.');
     if (state.gate !== 'pass') return refused('plan-gate', `Plan gate is ${state.gate}`,
       'Fix plan problems and rerun gate.');
     if (await ancestor(run, root, tip, head)) return refused('nothing-to-merge',
       `${branch} is already in HEAD`, 'Choose a branch with commits not yet merged.');
     const base = text(await run(root, ['merge-base', head, tip]));
-    const truth = ['.ultra/spec.md', '.ultra/checks.json', '.ultra/plan.json',
-      '.ultra/ledger/milestones.jsonl', '.ultra/ledger/approvals.jsonl'];
-    const changed = paths(await run(root,
-      ['diff', '--name-only', '-z', base, tip, '--', ...truth]));
-    const problems = truth.filter((file) => changed.includes(file)).map((file) =>
-      problem('truth-changed', `${branch} changes ${file}`,
-        'Have the planner change and gate truth files on the main line.'));
-    if (problems.length) return { ok: false, merged: null, problems, warnings };
     temporary = path.join(directory, randomUUID());
     await run(root, ['worktree', 'add', '--detach', temporary, head]);
     unbind = bindGit(temporary);
@@ -181,15 +174,32 @@ async function merge(project, branch, expected) {
       conflicts.some((file) => file.startsWith('.ultra/ledger/'))
         ? 'Add .ultra/ledger/*.jsonl merge=union to .gitattributes on the main line.'
         : 'Resolve conflicts on the branch and retry.');
-    const mergedProblems = planProblems(load(temporary));
+    const merged = await resolveCommit(run, temporary, 'HEAD');
+    const changes = paths(await run(root,
+      ['diff-tree', '-r', '--no-renames', '-z', head, merged, '--', ':(icase).ultra']));
+    const problems = [];
+    for (let i = 0; i < changes.length; i += 2) {
+      const [, mode, , , kind] = changes[i].split(' ');
+      const file = changes[i + 1];
+      const allowed = ['.ultra/ledger/evidence.jsonl', '.ultra/ledger/nodes.jsonl',
+        '.ultra/rulings.md'].includes(file) || file.startsWith('.ultra/records/');
+      if (!allowed || !['A', 'M'].includes(kind) || !['100644', '100755'].includes(mode)) {
+        problems.push(problem('truth-changed', `${branch} changes ${file}`,
+          'Have the planner or controller change protected files on the main line.'));
+      }
+    }
+    if (problems.length) return { ok: false, merged: null, problems, warnings };
+    const mergedProject = load(temporary);
+    const mergedProblems = planProblems(mergedProject);
     if (mergedProblems.length) return refused('merged-gate',
       `Merged plan problems: ${mergedProblems.map((p) => p.code).join(', ')}`,
       'Repair plan problems on the branch and retry.');
-    const merged = await resolveCommit(run, temporary, 'HEAD');
-    const closed = new Set(project.closures.map((c) => c.milestone));
-    const required = new Set(project.milestones.filter((m) => closed.has(m.id)
-      || m.id === state.milestone).flatMap((m) => m.requirements));
-    const matters = (c) => Object.hasOwn(c, 'fix') || c.covers.some((id) => required.has(id));
+    const closed = project.milestones
+      .filter((m) => project.closures.some((c) => c.milestone === m.id))
+      .flatMap((m) => m.requirements);
+    const current = project.milestones.find((m) => m.id === state.milestone)?.requirements ?? [];
+    const finished = project.nodes
+      .filter((n) => mergedProject.completions.some((c) => c.node === n.id));
     const probe = async (check) => {
       ensureRunning();
       const record = await execute({ ...project, root: temporary }, check);
@@ -199,14 +209,29 @@ async function merge(project, branch, expected) {
     const failing = [];
     for (const check of project.checks) {
       const record = await probe(check);
-      if (matters(check) && !passing(record)) failing.push({ check, record });
+      if (!passing(record)) failing.push({ check, record });
     }
     if (failing.length) {
       const history = await run(root,
         ['rev-list', '--first-parent', '--reverse', `${base}..${tip}`]);
       const commits = text(history).split('\n').filter(Boolean);
       for (const { check, record } of failing) {
-        const bad = await firstBad(run, probe, temporary, head, branch, commits, check);
+        const needed = finished.filter((n) => n.covers.some((r) => check.covers.includes(r)));
+        const fixed = Object.hasOwn(check, 'fix') || check.covers.some((r) => closed.includes(r))
+          || needed.some((n) => project.completions.some((c) => c.node === n.id));
+        const frontier = check.covers.some((r) => current.includes(r));
+        if (!fixed && !needed.length && !frontier) continue;
+        await run(temporary, ['reset', '--hard', head]);
+        await run(temporary, ['clean', '-fdx']);
+        const green = passing(await probe(check));
+        if (!fixed && !needed.length && !green) {
+          warnings.push(`${check.id} is not green after the merge and was not green before it; `
+            + 'no finished work needs it');
+          continue;
+        }
+        const bad = !fixed && needed.length && (!frontier || !green)
+          ? `the branch marks ${needed[0].id} done`
+          : await firstBad(run, probe, temporary, head, branch, commits, check, green);
         const reason = record.dirty && record.outcome === 'pass'
           ? 'dirty-run' : record.error_line || record.reason;
         problems.push(problem('check-not-green',
@@ -230,8 +255,9 @@ async function merge(project, branch, expected) {
     ensureRunning();
     throw error;
   } finally {
-    try { if (temporary) await removeTree(root, temporary, warnings); }
+    try { if (temporary) await removeTree(root, temporary, cleanupWarnings); }
     finally {
+      warnings.push(...cleanupWarnings);
       unbind?.();
       release();
       const detach = () => {

@@ -220,11 +220,18 @@ valid); the decision, the reason and the cost must each be present.
   temporary work tree, alone decides the repository. A Git hook exports those variables.
   The list includes `GIT_CONFIG_PARAMETERS` and `GIT_CONFIG_COUNT`, so configuration passed
   through the environment (`git -c`, CI settings) does not reach the engine's Git commands.
+  The engine also removes `GIT_LITERAL_PATHSPECS`, `GIT_GLOB_PATHSPECS`,
+  `GIT_NOGLOB_PATHSPECS` and `GIT_ICASE_PATHSPECS`, so its pathspecs (the merge gate's
+  `':(icase).ultra'`) mean the same in every environment.
 - The engine never limits the size of Git's output: a top-level directory with tens of
   thousands of entries, or as many modified files, must work.
 - Usage errors (exit 2), each with its own message and hint: `--root` does not exist; the
   directory is not inside a Git work tree (hint: `git init`); the repository has no commit
   (hint: commit the code first).
+- A Git command the engine expects to succeed that fails for another reason (identity,
+  a hook, signing, a broken repository) exits 2 with the message
+  `Git failed: <arguments>: <first non-empty line of Git's standard error>` (only the
+  arguments when Git wrote nothing), so the reason reaches the user.
 
 ## Running a check
 
@@ -506,7 +513,9 @@ test file; changing a check's `run` or `expect` in `checks.json` so it proves le
 a convention from the shared text. The method has the planner classify such an edit as a
 reduction and record the Owner's approval with `ubp approve` before making it; the
 milestone review reads the plan-log diffs. Approval records are checked for their shape
-only, so a hand-written line counts like one written by `ubp approve`.
+only, so a hand-written line counts like one written by `ubp approve`. An invariant belongs to
+no milestone, so removing one is no plan change: it needs no approval and leaves no
+plan-log record; the method records it as a ruling.
 
 What a passing gate records, in this order:
 
@@ -552,7 +561,7 @@ order:
 | `requirement-not-green` | a requirement of this milestone or of a closed milestone is not green; one problem per requirement |
 | `no-journey` | the milestone names no `journey` |
 | `journey-not-green` | the milestone's `journey` names a registered check whose check state is not `green` |
-| `invariant-not-green` | an invariant is not green; one problem per invariant, its hint the invariant's `fix` |
+| `invariant-not-green` | an invariant is not green; one problem per invariant, its hint the invariant's `fix` when its state is `red`, otherwise ``Run `ubp check <id>`.`` (a stale or unknown invariant has not been run on this code, so its `fix` would mislead) |
 | `review-missing` | the review cannot be read under "Reading a record file" (see "Layout"): nothing is there, or it is a symbolic link, a FIFO, a directory or another file that is not regular, or its parent directory does not exist or resolves outside the root |
 | `review-not-accepted` | the review is a regular file, but outside fences (see "Markdown rules") it does not hold exactly one line starting with `Verdict:`, or that line, without trailing whitespace, is not `Verdict: accept` (lines end at LF; a CR before it is trailing whitespace; a UTF-8 byte order mark at the start of the file is ignored) |
 
@@ -638,7 +647,7 @@ Milestone <milestone id>: <milestone title> · node state <state>
 ```text
 - Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/ledger/ or the files the checks above run. If a check or a requirement looks wrong, stop and escalate.
 - Change only files inside the scope, and commit your work: evidence from an uncommitted tree never counts.
-- Run `ubp check <checks>` until every check above is green, then `ubp node done <id>`.
+- Run `ubp check <checks>` until every check above is green, then `ubp check` (every stale check: invariants and finished requirements must stay green), then `ubp node done <id>`.
 - Escalate instead of deciding: a change of direction (L0) and any deletion or narrowing of a requirement go to the Owner.
 - Record every other decision you made without asking as one line in .ultra/rulings.md: `- YYYY-MM-DD Lx 裁决：<决定> — 因为 <理由> — 如果判断错了，代价是 <代价>`.
 - Before `ubp node done <id>`, write .ultra/records/handoffs/<id>.md: the interfaces you created, what dependent nodes must know, and what is left unfinished.
@@ -663,7 +672,12 @@ seen twice becomes a check). It reads only.
 
 - Window: evidence records whose `at` is later than the greatest `at` in
   `milestones.jsonl`; all records when there is none. `since` is that `at`, or null.
-- Failures: records in the window with `dirty: false` and outcome `fail` or `unknown`.
+- Failures: records in the window with `dirty: false` and outcome `fail` or `unknown`, except
+  the red-before-green runs of test-first work: a record whose reason is not `timeout`,
+  `expect-timeout`, `not-runnable` or `spawn-error` counts only when an earlier line of
+  `evidence.jsonl` (inside the window or before it) holds a `pass` with `dirty: false` for
+  the same check. So a check failing before it ever passed is not a failure class; a
+  regression after a pass is, and a check that cannot run or hangs always is.
 - Class: the record's `error_line` (or its `reason` when `error_line` is null or empty) with every
   run of ASCII digits replaced by `#`, every run of whitespace by one space, and the ends
   trimmed.
@@ -679,32 +693,50 @@ The method turns each class seen twice into an invariant or a ruling.
 ## Merge gate
 
 `merge <branch> --expect-head <commit>` brings a branch in only when the merged tree keeps
-the work green (RESULT §3.6: verify the expected head, run the full regression, bisect on
+the finished work green (RESULT §3.6: verify the expected head, run the full regression, bisect on
 red). `<branch>` is anything `git rev-parse --verify <x>^{commit}` resolves; `<commit>` is a
 full commit id (40 or 64 hex digits) that resolves. Anything else is a usage error: a name
 such as `HEAD` or the current branch would always match.
 
 Problems, collected in this order; the first of `merge-busy`, `head-moved`, `dirty-tree`,
-`plan-gate`, `nothing-to-merge` and `truth-changed` that applies stops the command before any
-merge is tried, and `merge-conflict` or `merged-gate` stops it before any check runs:
+`plan-gate` and `nothing-to-merge` that applies stops the command before any merge is tried,
+and `merge-conflict`, `truth-changed` or `merged-gate` (the first that applies, in that
+order) stops it before any check runs:
 
 | code | condition |
 |---|---|
 | `merge-busy` | another `ubp merge` holds `.ultra/.runtime/merge.lock`; refused at once, never a wait, and nothing under `.ultra/.runtime/merge/` is touched |
 | `head-moved` | HEAD is not the `--expect-head` commit, or it moved before the fast-forward |
-| `dirty-tree` | the tree is dirty, or a file under `.ultra/` outside `.ultra/.runtime/` differs from HEAD or is untracked and not ignored (`git ls-files --others --exclude-standard`); the message names each such `.ultra/` path (hint: commit `.ultra/` first; the merge brings the branch's ledger lines in) |
+| `dirty-tree` | the tree is dirty, or a file under `.ultra/` outside `.ultra/.runtime/` differs from HEAD or is untracked and not ignored (`git ls-files --others --exclude-standard`); the message names each such `.ultra/` path, and reads `Uncommitted code` when only code is dirty, never ending with an empty list (hint: commit `.ultra/` first; the merge brings the branch's ledger lines in) |
 | `plan-gate` | the plan gate state is not `pass` |
 | `nothing-to-merge` | the branch's commit is already an ancestor of HEAD |
-| `truth-changed` | the branch changes `.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`, `.ultra/ledger/milestones.jsonl` or `.ultra/ledger/approvals.jsonl` since its merge base with HEAD; one problem per file, in that order. A plan change is the planner's, made and gated on the main line; closures and approvals are the controller's, made on the main line |
 | `merge-conflict` | merging the branch into HEAD conflicts; the message names the conflicting paths. When one of them is under `.ultra/ledger/`, the hint says to add `.ultra/ledger/*.jsonl merge=union` to `.gitattributes` on the main line |
+| `truth-changed` | the merge commit differs from HEAD at a path that is `.ultra` or lies under `.ultra/`, other than an added or modified regular file (Git mode `100644` or `100755`) at `.ultra/ledger/evidence.jsonl`, `.ultra/ledger/nodes.jsonl`, `.ultra/rulings.md` or a path under `.ultra/records/`. Compared with `git diff-tree -r --no-renames HEAD <merge commit> -- ':(icase).ultra'`, which also lists a case variant of the directory, and paths compared exactly as Git prints them, so a case variant such as `.ULTRA/ledger/milestones.jsonl` or `.ultra/ledger/Milestones.jsonl` is not allowed, on any file system (a case-insensitive one would check it out into `.ultra/`); a symbolic link, a submodule, a type change or a deletion is refused even at an allowed path. One problem per path, in Git's order, the message naming the path. Everything else under `.ultra/` (spec, checks, plan, plan log, closures, approvals) is the planner's or the controller's, made on the main line |
 | `merged-gate` | the merged tree has plan problems, computed as `ubp gate` computes them (for example a malformed ruling the branch added); the message lists their codes |
-| `check-not-green` | after the merge, a check that matters did not pass; one problem per check, in registry order |
+| `check-not-green` | after the merge, a blocking check (below) did not pass; one problem per check, in registry order |
 | `fast-forward-failed` | the main tree could not fast-forward to the merge commit while HEAD stayed put; the message carries Git's first error line |
 
-The checks that matter are decided in the main tree, from its files and its ledger: every
-check covering a requirement of the current milestone or of a closed milestone, and every
-invariant. Each runs in the temporary tree; any outcome but `pass`, and a `pass` whose
-evidence is dirty, blocks. Checks of later milestones run too but never block.
+Every check runs in the temporary tree. A run passes when its outcome is `pass` and its
+evidence is clean. The merge keeps the finished work green (RESULT §3.6), not the unfinished
+work of other writers: a check that does not pass blocks when it is
+
+1. an invariant;
+2. a check covering a requirement of a closed milestone (closures from the main tree's
+   ledger);
+3. a check covering a requirement that a finished node covers: a node with a completion
+   record in the merged tree's `.ultra/ledger/nodes.jsonl`, whether it finished on the main
+   line or the branch brings its completion in; or
+4. any other check covering a requirement of the current milestone (decided in the main
+   tree), when it passes on HEAD alone (see "Bisect"): the branch broke what already worked.
+
+A check that does not pass and is none of these does not block. For a check of the current
+milestone (it did not pass on HEAD alone either) the merge adds the warning
+`<check> is not green after the merge and was not green before it; no finished work needs it`,
+in registry order: this is unfinished work, for example another writer's node, as at a
+milestone gate before its last node. Checks of later milestones run too but never block and
+add no warning. Ceiling: a requirement added to a closed milestone after its closure is not
+built yet, so its red check blocks, under rule 2, every merge except the one of the branch
+that builds it; build it first.
 
 Procedure: the engine first takes `.ultra/.runtime/merge.lock` (created exclusively, holding
 the merge's pid in decimal; a lock whose pid is not alive is broken through
@@ -715,7 +747,9 @@ directory; it never prunes or removes any other work tree. It adds a detached te
 `.ultra/.runtime/merge/<id>/`, merges the branch there with `git merge --no-ff --no-edit`
 (message `Merge <branch> (ubp merge gate)`, the repository's Git identity, configuration and
 hooks), and runs every
-check there. Their evidence goes to the temporary tree and is discarded. With no problem,
+check there. Every Git command of the merge runs with `-c maintenance.auto=false -c
+gc.auto=0`, so the gate never starts Git's automatic maintenance, which would expire reflog
+entries of the whole repository. Their evidence goes to the temporary tree and is discarded. With no problem,
 the main tree's current branch fast-forwards to that merge commit (`git merge --ff-only`). On
 refusal the main tree, HEAD and the branch are unchanged.
 
@@ -732,13 +766,16 @@ in `warnings`, and text mode prints `warning: <message>` after the result.
 
 An interrupt (SIGINT or SIGTERM) before the fast-forward stops the merge: the main tree,
 HEAD and the branch are unchanged, the temporary work tree is removed, and the command exits
-130 or 143. This holds whether the signal reaches the engine alone or its whole process group
+130, 143 or 129. This holds whether the signal reaches the engine alone or its whole process group
 (a terminal's Ctrl-C), and whether it arrives during a check, during a Git command or between
 them: a Git command killed by the signal never turns the exit into 2. Once the fast-forward
 has started, an interrupt no longer stops it: the fast-forward runs outside the engine's
 process group, completes, and the command exits 0.
 
-Bisect: for each failing check, the engine first tries HEAD alone; when the check does not
+Bisect, for each blocking check, in registry order: when it blocks only under rule 3 and every
+finished node covering its requirements finished on the branch (its completion record is not
+in HEAD's `nodes.jsonl`), the result is `the branch marks <node> done` (the first such node in
+plan order), with no search. Otherwise the engine first tries HEAD alone; when the check does not
 pass there either, the result is `not green at HEAD before the merge`. Otherwise the branch's
 first-parent commits after the merge base, oldest first, are searched in halves for the
 first commit whose merge into HEAD makes that check not pass; a commit whose merge conflicts
@@ -749,14 +786,22 @@ Each `check-not-green` message reads `<check> is not green: <error line of its r
 reason when there is none, or `dirty-run` for a dirty pass>; <bisect result>`.
 
 `merge --json` returns `{ ok, merged, problems, warnings }`; `merged` is the merge commit, or
-null on refusal; `warnings` is an array of strings. Text mode prints `merge <branch>: pass
+null on refusal; `warnings` is an array of strings: the non-blocking checks above, then
+any work tree the engine could not remove. Text mode prints `merge <branch>: pass
 <first 7 hex of the merge commit>`, or `merge <branch>: refused` and each problem with its
 hint.
 
-Ceilings: checks run in a fresh work tree, so a project whose checks need installed
-dependencies or generated files that Git does not track cannot use the gate yet (upgrade
-path: a setup command in `checks.json`); the main tree's checks are stale after the merge, so
-`ubp check` runs them again there; the merge holds no `engine.lock` while checks run, only
+Ceilings: checks run in a fresh work tree, so a project whose checks need generated files that
+Git does not track cannot use the gate yet (upgrade path: a setup command in `checks.json`).
+The temporary tree lies inside the main tree (`.ultra/.runtime/merge/<id>/`), so a module
+resolver that walks up parent directories, as Node's does, finds the main tree's installed
+dependencies: a dependency the branch adds but the main tree has not installed is not seen,
+and one the main tree has installed hides a missing one; install on the main line before
+merging such a branch. The forbidden paths are checked on the merged tree, so the engine
+trusts the evidence and node lines a branch brings in. A forged completion only makes more
+checks block. A forged evidence line can keep a red check green on the main line (a branch
+that changes no code leaves the fingerprint unchanged), so after each merge the method runs
+`ubp check --all`: its runs are appended after every branch record and supersede it; the merge holds no `engine.lock` while checks run, only
 `merge.lock`.
 
 ## Concurrency
@@ -811,7 +856,7 @@ fix}] }`; invariants appear in `checks` too, in registry order.
 `node done --json` returns `{ ok, node, problems }`; each refusal is a problem
 `{ code, message, hint }` with code `plan-gate`, `dirty-tree`, `dependency-not-done`,
 `requirement-not-green` (one per requirement) or `invariant-not-green` (one per invariant,
-its hint the invariant's `fix`), in that order.
+its hint as under "Milestone gate"), in that order.
 `retro --json` returns `{ since, classes }` (see "Retro"); `merge --json` returns
 `{ ok, merged, problems, warnings }` (see "Merge gate").
 `milestone close --json` returns `{ ok, milestone, problems }`, with the codes listed under
@@ -834,10 +879,11 @@ selectors only to `check`; anywhere else they are usage errors. Giving `--owner`
 or `--budget` twice is a usage error.
 
 Exit 1 only ever means that a check in scope is not green after `check`, the plan gate
-found problems, `node done` or `milestone close` refused, or a node brief does not fit its
-budget. Malformed truth files and ledgers, usage errors (an unknown command, node id,
+found problems, `node done`, `milestone close` or `merge` refused, or a node brief does not
+fit its budget. Malformed truth files and ledgers, usage errors (an unknown command, node id,
 milestone id, check id or `--req` requirement id, a missing, invalid or repeated option
-value) and every other engine failure exit 2; an interrupted engine exits 130 or 143.
+value) and every other engine failure exit 2; an interrupted engine exits 130, 143 or 129
+(SIGINT, SIGTERM or SIGHUP).
 `status` exits 0 even when the plan gate has problems; it reports them in `gate` and
 `problems`. Malformed files are named on stderr. Text-mode commands print warnings on
 stderr.

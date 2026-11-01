@@ -7,24 +7,33 @@ const { spawn, execFileSync } = require('node:child_process');
 const INTERRUPTS = require('./signals.cjs');
 let localVariables;
 const boundRoots = new Set();
+const mergeOptions = ['-c', 'maintenance.auto=false', '-c', 'gc.auto=0'];
 const bindGit = (root) => { boundRoots.add(root); return () => boundRoots.delete(root); };
 
 function gitEnvironment(root) {
   localVariables ??= execFileSync('git', ['rev-parse', '--local-env-vars'],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim().split('\n');
   const env = { ...process.env };
-  for (const name of localVariables) delete env[name];
+  for (const name of [...localVariables, 'GIT_LITERAL_PATHSPECS', 'GIT_GLOB_PATHSPECS',
+    'GIT_NOGLOB_PATHSPECS', 'GIT_ICASE_PATHSPECS']) delete env[name];
   if (boundRoots.has(root)) env.GIT_CEILING_DIRECTORIES = path.dirname(root);
   return env;
 }
 
+function gitFailure(args, error) {
+  const reason = String(error.stderr || '').split('\n').find((line) => line.trim());
+  error.message = `Git failed: ${args.join(' ')}` + (reason ? `: ${reason}` : '');
+  if (INTERRUPTS[error.signal]) error.exitCode = INTERRUPTS[error.signal];
+  return error;
+}
+
 function git(root, args) {
+  if (boundRoots.has(root)) args = [...mergeOptions, ...args];
   try {
     return execFileSync('git', args, { cwd: root, env: gitEnvironment(root), maxBuffer: Infinity,
       stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (error) {
-    if (INTERRUPTS[error.signal]) error.exitCode = INTERRUPTS[error.signal];
-    throw error;
+    throw gitFailure(args, error);
   }
 }
 
@@ -36,11 +45,11 @@ function gitAsync(root, args, options = {}) {
     const stderr = [];
     child.stdout.on('data', (chunk) => stdout.push(chunk));
     child.stderr.on('data', (chunk) => stderr.push(chunk));
-    child.on('error', reject);
+    child.on('error', (error) => reject(gitFailure(args, error)));
     child.on('close', (code, signal) => {
       if (code === 0) resolve(Buffer.concat(stdout));
-      else reject(Object.assign(new Error(`Git failed: ${args.join(' ')}`),
-        { code, signal, stderr: Buffer.concat(stderr).toString('utf8') }));
+      else reject(gitFailure(args, Object.assign(new Error(),
+        { code, signal, stderr: Buffer.concat(stderr).toString('utf8') })));
     });
   });
 }
@@ -99,4 +108,4 @@ function projectRoot(requested) {
   return top;
 }
 
-module.exports = { git, gitAsync, gitEnvironment, bindGit, codeState, projectRoot };
+module.exports = { git, gitAsync, gitEnvironment, bindGit, mergeOptions, codeState, projectRoot };

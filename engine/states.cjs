@@ -143,14 +143,20 @@ function status(project) {
 
 function invariantProblems(state) {
   return state.invariants.filter((i) => i.state !== 'green')
-    .map((i) => problem('invariant-not-green', `${i.id} is not green`, i.fix));
+    .map((i) => problem('invariant-not-green', `${i.id} is not green`,
+      i.state === 'red' ? i.fix : `Run \`ubp check ${i.id}\`.`));
 }
 
 function retro(project) {
   const since = project.closures.reduce((at, r) => !at || r.at > at ? r.at : at, null);
   const classes = new Map();
-  const records = project.evidence.filter((r) => !r.dirty && r.outcome !== 'pass'
-    && (!since || r.at > since)).sort((a, b) => a.at < b.at ? -1 : a.at > b.at ? 1 : 0);
+  const green = new Set();
+  const records = project.evidence.filter((r) => {
+    if (r.dirty) return false;
+    if (r.outcome === 'pass') { green.add(r.check); return false; }
+    return (!since || r.at > since) && (green.has(r.check)
+      || ['timeout', 'expect-timeout', 'not-runnable', 'spawn-error'].includes(r.reason));
+  }).sort((a, b) => a.at < b.at ? -1 : a.at > b.at ? 1 : 0);
   for (const r of records) {
     const key = (r.error_line || r.reason).replace(/[0-9]+/gu, '#').replace(/\s+/gu, ' ').trim();
     if (!classes.has(key)) classes.set(key, { class: key, count: 0, checks: [], runs: [] });

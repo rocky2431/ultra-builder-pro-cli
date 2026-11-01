@@ -348,6 +348,7 @@ test('cleanup_every makes the plan gate require cleanup nodes at that cadence', 
 test('retro groups the failures since the last closure by their error line', (t) => {
   const fx = project(t);
   ok(fx, ['gate']);
+  ok(fx, ['check']); // every check passed once: what follows are regressions
   breakCheck(fx, 'C-1');
   ok(fx, ['check', 'C-1'], 1);
   ok(fx, ['check', 'C-1'], 1);
@@ -414,11 +415,15 @@ test('retro starts after the latest of several closures', (t) => {
 test('retro counts unknown runs, and classes a silent failure by its reason', (t) => {
   const script = `const id = process.argv[2];
 if (id === 'C-1') setTimeout(() => {}, 60000);
+else if (require('node:fs').existsSync('.ultra/.runtime/green')) console.log('pass 1');
 else process.exit(3);
 `;
   const slow = CHECKS.map((c) => (c.id === 'C-1' ? { ...c, timeout_sec: 1 } : c));
   const fx = project(t, { 'checks/pass.cjs': script, '.ultra/checks.json': checksFile(slow) });
   ok(fx, ['gate']);
+  write(fx.root, '.ultra/.runtime/green', '');
+  ok(fx, ['check', 'C-2', 'C-3']);
+  fs.rmSync(path.join(fx.root, '.ultra/.runtime/green'));
   ok(fx, ['check', 'C-1', 'C-2', 'C-3'], 1);
   const classes = json(fx, ['retro']).classes;
   assert.deepEqual(classes.map((c) => [c.class, c.count, c.checks]), [
@@ -429,11 +434,15 @@ else process.exit(3);
 
 test('retro orders classes by count, then by class, and folds whitespace', (t) => {
   const script = `const id = process.argv[2];
+if (require('node:fs').existsSync('.ultra/.runtime/green')) { console.log('pass 1'); return; }
 console.log(id === 'C-1' ? 'Error:   timeout   after 30 ms' : id === 'C-2' ? 'Error: timeout after 5 ms' : 'Error: boom');
 process.exit(1);
 `;
   const fx = project(t, { 'checks/pass.cjs': script });
   ok(fx, ['gate']);
+  write(fx.root, '.ultra/.runtime/green', '');
+  ok(fx, ['check', 'C-1', 'C-2', 'C-3']);
+  fs.rmSync(path.join(fx.root, '.ultra/.runtime/green'));
   ok(fx, ['check', 'C-3'], 1);
   ok(fx, ['check', 'C-1', 'C-2'], 1);
   assert.deepEqual(json(fx, ['retro']).classes.map((c) => [c.class, c.count, c.checks]), [
@@ -964,7 +973,8 @@ test('a branch may not change the spec, close a milestone or approve', (t) => {
   const result = json(fx, ['merge', 'sneaky', '--expect-head', before], 1);
   assert.deepEqual(codes(result), ['truth-changed', 'truth-changed', 'truth-changed']);
   assert.deepEqual(result.problems.map((p) => p.message.match(/\.ultra\/\S+/u)[0]),
-    ['.ultra/spec.md', '.ultra/ledger/milestones.jsonl', '.ultra/ledger/approvals.jsonl']);
+    ['.ultra/ledger/approvals.jsonl', '.ultra/ledger/milestones.jsonl', '.ultra/spec.md'],
+    'one problem per path, in Git\'s order (round 4 contract)');
   assert.equal(head(fx), before);
   assert.equal(worktrees(fx), 1);
 });
@@ -1214,3 +1224,276 @@ test('Ctrl-C to the whole process group never exits 2 and never half-merges', as
     assert.deepEqual(mergeDir(fx), [], label);
   }
 });
+
+// ---------------------------------------------------------------------------------------
+// After the M-P4 gate review (.ultra/records/milestones/M-P4-review-1.md): the merge gate keeps
+// the finished work green, not every check of the current milestone (B1); a branch changes
+// .ultra only through evidence and node lines, rulings and records (B2); hints, briefs, retro
+// and Git failures (S1, S3, S4, N3, N4).
+
+const PARALLEL_SPEC = SPEC.slice(0, SPEC.indexOf('\n## REQ-003'));
+const PARALLEL_PLAN = {
+  version: 1,
+  milestones: [{ id: 'M1', title: 'Core list', requirements: ['REQ-001', 'REQ-002'],
+    journey: 'C-2' }],
+  nodes: [
+    { id: 'N-01', milestone: 'M1', title: 'Add', covers: ['REQ-001'], depends: [] },
+    { id: 'N-02', milestone: 'M1', title: 'Remove', covers: ['REQ-002'], depends: [] },
+  ],
+};
+
+// Two independent nodes whose checks are red before any code, as the method requires.
+function parallelProject(t) {
+  const fx = project(t, {
+    '.gitattributes': '.ultra/ledger/*.jsonl merge=union\n',
+    '.ultra/spec.md': PARALLEL_SPEC,
+    '.ultra/checks.json': checksFile([check('C-1', ['REQ-001']), check('C-2', ['REQ-002'])]),
+    '.ultra/plan.json': planFile(PARALLEL_PLAN),
+    'src/broken-C-1': 'not built\n',
+    'src/broken-C-2': 'not built\n',
+  });
+  ok(fx, ['gate']);
+  ok(fx, ['check'], 1);
+  return { fx, base: commitUltra(fx, 'gate and red checks') };
+}
+
+// One parallel writer: builds its node on its own branch, runs its check, completes the node
+// and commits its ledger lines and handoff (the method's parallel section).
+function writerBranch(fx, name, node, checkId, after = []) {
+  git(fx.root, ['checkout', '-q', '-b', name]);
+  git(fx.root, ['rm', '-q', '--', `src/broken-${checkId}`]);
+  git(fx.root, ['commit', '-q', '-m', `build ${node}`]);
+  ok(fx, ['check', checkId]);
+  write(fx.root, `.ultra/records/handoffs/${node}.md`, `${node} handoff\n`);
+  ok(fx, ['node', 'done', node]);
+  commitUltra(fx, `${node} ledger`);
+  for (const [file, content, message] of after) {
+    write(fx.root, file, content);
+    git(fx.root, ['add', '--', file]);
+    git(fx.root, ['commit', '-q', '-m', message]);
+  }
+  git(fx.root, ['checkout', '-q', 'main']);
+}
+
+test('two writers of one milestone merge one after the other; unfinished work warns', (t) => {
+  const { fx, base } = parallelProject(t);
+  writerBranch(fx, 'writer-a', 'N-01', 'C-1');
+  writerBranch(fx, 'writer-b', 'N-02', 'C-2');
+  const first = json(fx, ['merge', 'writer-a', '--expect-head', base]);
+  assert.equal(first.ok, true, JSON.stringify(first.problems));
+  assert.deepEqual(first.warnings, ['C-2 is not green after the merge and was not green before '
+    + 'it; no finished work needs it']);
+  assert.equal(head(fx), first.merged);
+  const second = json(fx, ['merge', 'writer-b', '--expect-head', first.merged]);
+  assert.equal(second.ok, true, JSON.stringify(second.problems));
+  assert.deepEqual(second.warnings, []);
+  assert.equal(head(fx), second.merged);
+  assert.ok(fs.existsSync(path.join(fx.root, '.ultra/records/handoffs/N-01.md')));
+  ok(fx, ['check']);
+  const state = status(fx);
+  assert.deepEqual(state.nodes.map((n) => [n.id, n.state]), [['N-01', 'done'], ['N-02', 'done']]);
+  assert.equal(state.next, '里程碑门');
+});
+
+test('merge prints the warnings of unfinished work in text mode', (t) => {
+  const { fx, base } = parallelProject(t);
+  writerBranch(fx, 'writer-a', 'N-01', 'C-1');
+  const result = ok(fx, ['merge', 'writer-a', '--expect-head', base]);
+  assert.equal(result.stdout, `merge writer-a: pass ${head(fx).slice(0, 7)}\n`);
+  assert.ok(result.stderr.includes('warning: C-2 is not green after the merge and was not green '
+    + 'before it; no finished work needs it\n'), result.stderr); // warnings go to stderr
+});
+
+test('a branch that marks a node done must bring that node\'s checks in green', (t) => {
+  const { fx, base } = parallelProject(t);
+  writerBranch(fx, 'writer-a', 'N-01', 'C-1',
+    [['src/broken-C-1', 'again\n', 'break C-1 after node done']]);
+  const result = json(fx, ['merge', 'writer-a', '--expect-head', base], 1);
+  assert.deepEqual(codes(result), ['check-not-green']);
+  assert.equal(result.problems[0].message,
+    'C-1 is not green: AssertionError: C-1 toggled off; the branch marks N-01 done');
+  assert.equal(head(fx), base);
+  assert.equal(worktrees(fx), 1);
+});
+
+test('a branch changes .ultra only through evidence, node lines, rulings and records', (t) => {
+  const fx = project(t, { '.gitattributes': '.ultra/ledger/*.jsonl merge=union\n' });
+  completeM1(fx);
+  write(fx.root, '.ultra/records/handoffs/N-01.md', 'handoff\n');
+  const before = commitUltra(fx);
+  const closure = '{"v":1,"milestone":"M1","at":"2026-11-01T00:00:00.000Z"}\n';
+  const refusedWith = (name) => {
+    const result = json(fx, ['merge', name, '--expect-head', before], 1);
+    assert.ok(result.problems.length && result.problems.every((p) => p.code === 'truth-changed'),
+      `${name}: ${JSON.stringify(result.problems)}`);
+    assert.equal(head(fx), before, name);
+    assert.equal(worktrees(fx), 1, name);
+    assert.equal(status(fx).next, '里程碑门', `${name}: M1 is not closed`);
+    return result.problems.map((p) => p.message);
+  };
+
+  branch(fx, 'case', [['.ultra/ledger/Milestones.jsonl', closure, 'close M1 by a case variant']]);
+  assert.ok(refusedWith('case').some((m) => m.includes('.ultra/ledger/Milestones.jsonl')));
+
+  const log = fs.readFileSync(path.join(fx.root, '.ultra/ledger/plan-log.jsonl'), 'utf8');
+  const forged = JSON.stringify({ ...JSON.parse(log.trim().split('\n').at(-1)),
+    at: '2026-12-01T00:00:00.000Z' });
+  branch(fx, 'planlog', [['.ultra/ledger/plan-log.jsonl', `${log}${forged}\n`, 'forge plan log']]);
+  assert.ok(refusedWith('planlog').some((m) => m.includes('.ultra/ledger/plan-log.jsonl')));
+
+  git(fx.root, ['checkout', '-q', '-b', 'link']);
+  write(fx.root, '.ultra/records/l/milestones.jsonl', closure);
+  git(fx.root, ['rm', '-r', '-q', '--', '.ultra/ledger']);
+  fs.rmSync(path.join(fx.root, '.ultra/ledger'), { recursive: true, force: true });
+  fs.symlinkSync('records/l', path.join(fx.root, '.ultra/ledger'));
+  git(fx.root, ['add', '-A', '--', '.ultra']);
+  git(fx.root, ['commit', '-q', '-m', 'the ledger through a symbolic link']);
+  git(fx.root, ['checkout', '-q', '-f', 'main']);
+  assert.ok(refusedWith('link').some((m) => /\.ultra\/ledger(?![/\w.-])/u.test(m)));
+
+  git(fx.root, ['checkout', '-q', '-b', 'forget']);
+  git(fx.root, ['rm', '-q', '--', '.ultra/records/handoffs/N-01.md']);
+  git(fx.root, ['commit', '-q', '-m', 'forget a handoff']);
+  git(fx.root, ['checkout', '-q', 'main']);
+  assert.ok(refusedWith('forget').some((m) => m.includes('.ultra/records/handoffs/N-01.md')));
+
+  // A case variant of the directory: on a case-insensitive file system (macOS by default),
+  // `.ULTRA/ledger/milestones.jsonl` is checked out into `.ultra/ledger/`.
+  const blobFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-blob-')), 'closure');
+  fs.writeFileSync(blobFile, closure);
+  const blob = git(fx.root, ['hash-object', '-w', blobFile]);
+  fs.rmSync(path.dirname(blobFile), { recursive: true, force: true });
+  git(fx.root, ['checkout', '-q', '-b', 'upper']);
+  git(fx.root, ['update-index', '--add', '--cacheinfo',
+    `100644,${blob},.ULTRA/ledger/milestones.jsonl`]);
+  git(fx.root, ['commit', '-q', '-m', 'close M1 through an upper-case directory']);
+  git(fx.root, ['checkout', '-q', '-f', 'main']);
+  assert.ok(refusedWith('upper').some((m) => m.includes('.ULTRA/ledger/milestones.jsonl')));
+
+  // Pathspec variables inherited from the caller (Git exports GIT_LITERAL_PATHSPECS to hooks
+  // and aliases under --literal-pathspecs) must not switch the allowlist off.
+  branch(fx, 'exact', [['.ultra/ledger/milestones.jsonl', closure, 'close M1 by name']]);
+  assert.ok(refusedWith('exact').some((m) => m.includes('.ultra/ledger/milestones.jsonl')));
+  for (const name of ['upper', 'exact']) {
+    for (const variable of ['GIT_LITERAL_PATHSPECS', 'GIT_NOGLOB_PATHSPECS']) {
+      const result = run(fx, ['merge', name, '--expect-head', before, '--json'], CLI,
+        { ...process.env, [variable]: '1' });
+      assert.equal(result.status, 1, `${name} with ${variable}: ${result.stdout}${result.stderr}`);
+      assert.deepEqual([...new Set(JSON.parse(result.stdout).problems.map((p) => p.code))],
+        ['truth-changed'], `${name} with ${variable}`);
+      assert.equal(head(fx), before, `${name} with ${variable}`);
+    }
+  }
+
+  // A symbolic link is refused even at an allowed path.
+  git(fx.root, ['checkout', '-q', '-b', 'records-link']);
+  fs.symlinkSync('../spec.md', path.join(fx.root, '.ultra/records/x'));
+  git(fx.root, ['add', '--', '.ultra/records/x']);
+  git(fx.root, ['commit', '-q', '-m', 'a record that is a symbolic link']);
+  git(fx.root, ['checkout', '-q', '-f', 'main']);
+  assert.ok(refusedWith('records-link').some((m) => m.includes('.ultra/records/x')));
+
+  branch(fx, 'fine', [
+    ['src/one.txt', '1\n', 'one'],
+    ['.ultra/records/handoffs/N-01.md', 'handoff, revised\n', 'revise a handoff'],
+    ['.ultra/records/notes/n.md', 'a note\n', 'add a record'],
+    ['.ultra/rulings.md',
+      '# Rulings\n\n- 2026-11-01 L2 裁决：use a map — 因为 lookups — 如果判断错了，代价是 a rewrite\n',
+      'a ruling'],
+  ]);
+  const merged = json(fx, ['merge', 'fine', '--expect-head', before]);
+  assert.equal(merged.ok, true, JSON.stringify(merged.problems));
+});
+
+test('a stale invariant\'s hint says to run it; a red one\'s says how to fix it', (t) => {
+  const fx = project(t, { '.ultra/checks.json': checksFile([...CHECKS, invariant('I-size')]) });
+  ok(fx, ['gate']);
+  ok(fx, ['check']);
+  write(fx.root, 'src/one.txt', '1\n');
+  commitAll(fx.root, 'code: every check is stale');
+  ok(fx, ['check', 'C-1', 'C-12']);
+  const stale = json(fx, ['node', 'done', 'N-01'], 1);
+  assert.deepEqual(codes(stale), ['invariant-not-green']);
+  assert.equal(stale.problems[0].hint, 'Run `ubp check I-size`.');
+  breakCheck(fx, 'I-size');
+  ok(fx, ['check', 'I-size'], 1);
+  const red = json(fx, ['node', 'done', 'N-01'], 1);
+  assert.deepEqual(codes(red), ['invariant-not-green']);
+  assert.equal(red.problems[0].hint, FIX);
+});
+
+test('retro leaves out red-before-green runs, but counts regressions and hanging checks', (t) => {
+  const script = `const fs = require('node:fs');
+const id = process.argv[2];
+if (id === 'C-3') setTimeout(() => {}, 60000);
+else if (fs.existsSync('.ultra/.runtime/fail-' + id)) {
+  console.log('AssertionError: ' + id + ' toggled off');
+  process.exit(1);
+} else console.log('pass 1');
+`;
+  const slow = CHECKS.map((c) => (c.id === 'C-3' ? { ...c, timeout_sec: 1 } : c));
+  const fx = project(t, { 'checks/pass.cjs': script, '.ultra/checks.json': checksFile(slow) });
+  ok(fx, ['gate']);
+  breakCheck(fx, 'C-1');
+  ok(fx, ['check', 'C-1'], 1);
+  ok(fx, ['check', 'C-1'], 1);
+  ok(fx, ['check', 'C-3'], 1);
+  const classes = () => json(fx, ['retro']).classes.map((c) => [c.class, c.count, c.checks]);
+  assert.deepEqual(classes(), [['timeout', 1, ['C-3']]], 'test-first red runs are not failures');
+  mendCheck(fx, 'C-1');
+  ok(fx, ['check', 'C-1']);
+  breakCheck(fx, 'C-1');
+  ok(fx, ['check', 'C-1'], 1);
+  ok(fx, ['check', 'C-1'], 1);
+  assert.deepEqual(classes(), [
+    ['AssertionError: C-# toggled off', 2, ['C-1']],
+    ['timeout', 1, ['C-3']],
+  ]);
+});
+
+test('a Git failure inside the merge exits 2 and says why', (t) => {
+  const fx = project(t);
+  completeM1(fx);
+  const before = commitUltra(fx);
+  branch(fx, 'feature', [['src/one.txt', '1\n', 'one']]);
+  const hooks = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-p4-hooks-'));
+  t.after(() => fs.rmSync(hooks, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(hooks, 'pre-merge-commit'),
+    '#!/bin/sh\necho "merges are frozen today" >&2\nexit 1\n', { mode: 0o755 });
+  git(fx.root, ['config', 'core.hooksPath', hooks]);
+  const result = run(fx, ['merge', 'feature', '--expect-head', before, '--json']);
+  assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /Git failed: [^\n]*merge[^\n]*: merges are frozen today/u);
+  assert.equal(head(fx), before);
+  assert.equal(worktrees(fx), 1);
+  assert.deepEqual(mergeDir(fx), []);
+});
+
+test('a dirty-tree refusal with only code dirty says so, without an empty list', (t) => {
+  const fx = project(t);
+  ok(fx, ['gate']);
+  const before = commitUltra(fx);
+  branch(fx, 'feature', [['src/one.txt', '1\n', 'one']]);
+  write(fx.root, 'src/app.cjs', 'module.exports = { items: [5] };\n');
+  const result = json(fx, ['merge', 'feature', '--expect-head', before], 1);
+  assert.deepEqual(codes(result), ['dirty-tree']);
+  assert.equal(result.problems[0].message, 'Uncommitted code');
+});
+
+test('HEAD reset backwards during the checks is refused head-moved, never fast-forwarded',
+  async (t) => {
+    const fx = project(t, { 'checks/pass.cjs': SLOW_C1 });
+    completeM1(fx);
+    const earlier = commitUltra(fx);
+    write(fx.root, 'src/base.txt', 'b\n');
+    const before = commitAll(fx.root, 'one more commit on the main line');
+    branch(fx, 'feature', [['src/one.txt', '1\n', 'one']]);
+    const pending = startMerge(fx, 'feature', before);
+    await until(() => mergeDir(fx).length > 0, 'the merge\'s temporary tree');
+    git(fx.root, ['reset', '-q', '--hard', earlier]);
+    const done = await pending.ended;
+    assert.equal(done.code, 1, done.stderr);
+    assert.deepEqual(codes(JSON.parse(done.stdout)), ['head-moved']);
+    assert.equal(head(fx), earlier, 'the main line stays where the person put it');
+    assert.equal(worktrees(fx), 1);
+  });

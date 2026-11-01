@@ -66,7 +66,11 @@ classes since the latest closure.
 
 ## REQ-P4-merge Parallel work comes in only through the merge gate
 `ubp merge <branch> --expect-head <full commit id>` merges in a temporary work tree, runs
-every check there, and fast-forwards the main tree only when every check of the current and
-closed milestones and every invariant is green; otherwise it names the conflicting paths or
-the first bad commit of the branch, and the main tree is unchanged. One merge runs at a
-time, and a branch never changes the truth files, closures or approvals.
+every check there, and fast-forwards the main tree only when the finished work stays green:
+every invariant, every check of a closed milestone, every check of a finished node (on the
+main line or by the branch), and every check of the current milestone that passed before the
+merge; another writer's unfinished work only warns. Otherwise it names the conflicting
+paths, the forbidden `.ultra/` paths, or the first bad commit of the branch, and the main
+tree is unchanged. One merge runs at a time, and a branch changes `.ultra/` only through
+evidence and node lines, rulings and records: never the truth files, the plan log, closures
+or approvals.

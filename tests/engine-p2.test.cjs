@@ -225,7 +225,7 @@ function refused(result, codes) {
 const RULES = (id, checkIds) => [
   '- Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/ledger/ or the files the checks above run. If a check or a requirement looks wrong, stop and escalate.',
   '- Change only files inside the scope, and commit your work: evidence from an uncommitted tree never counts.',
-  `- Run \`ubp check ${checkIds.join(' ') || '--stale'}\` until every check above is green, then \`ubp node done ${id}\`.`,
+  `- Run \`ubp check ${checkIds.join(' ') || '--stale'}\` until every check above is green, then \`ubp check\` (every stale check: invariants and finished requirements must stay green), then \`ubp node done ${id}\`.`,
   '- Escalate instead of deciding: a change of direction (L0) and any deletion or narrowing of a requirement go to the Owner.',
   '- Record every other decision you made without asking as one line in .ultra/rulings.md: `- YYYY-MM-DD Lx 裁决：<决定> — 因为 <理由> — 如果判断错了，代价是 <代价>`.',
   `- Before \`ubp node done ${id}\`, write .ultra/records/handoffs/${id}.md: the interfaces you created, what dependent nodes must know, and what is left unfinished.`,
