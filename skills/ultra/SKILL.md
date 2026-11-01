@@ -142,10 +142,23 @@ previous writer's completion notice has arrived: a progress note, a `node done` 
 quiet log is not completion, and a writer still running will commit whatever it finds in the
 tree. Parallel writers: see "Parallel writers and the merge gate".
 
-When the Owner asks for an unattended run, start
-`ubp drive --writer <cmd> --reviewer <cmd>`. Read its stop reason and act as the matching
-manual step requires: at `milestone-gate`, show the demo and ask the Owner the milestone
-question; for `ratchet-broken` or `out-of-scope`, revert in a new commit and brief again.
+When the Owner asks for an unattended run, give every node a `scope` that holds no check
+file, commit everything, and start `ubp drive --writer <cmd> --reviewer <cmd> --json`. The
+writer command hands an agent `$UBP_BRIEF`; inside the run, `ubp` is this engine. Act on
+`stop`:
+- `milestone-gate`: with `accept`, go to "Milestone gate" step 1; with `revise`, its revise
+  path; without a reviewer, have the milestone reviewed first.
+- `truth-touched`, `history-rewritten`, `out-of-scope`, `check-touched`, `ratchet-broken`,
+  `node-not-green`: undo the attempt in a new commit and restore from Git any truth file it
+  changed in the work tree. A completion it recorded stays, so take that node through the
+  node loop by hand until its checks are green before driving on.
+- `writer-left-dirty`, `dirty-tree`: commit what belongs to the node, discard the rest.
+- `attempts-exhausted`, `writer-budget`: "Escalation" (stalled); the writers' logs are in
+  `.ultra/.runtime/drive/<run>/`.
+- `review-exists`: keep the old review as `<milestone>-review-<n>.md`; `review-invalid`,
+  `reviewer-changed-tree`: fix the reviewer command and restore what it changed.
+- `scope-missing`, `plan-gate`, `brief-over-budget`, `checks-not-green`, `blocked`: the
+  matching planner step.
 
 ## Escalation (RESULT §3.2)
 
