@@ -12,7 +12,7 @@ function git(root, args) {
 
 const ownedFiles = new Set(['.ultra/spec.md', '.ultra/checks.json',
   '.ultra/plan.json', '.ultra/rulings.md']);
-const ownedDirs = ['.ultra/ledger', '.ultra/.runtime'];
+const ownedDirs = ['.ultra/ledger', '.ultra/records', '.ultra/.runtime'];
 const engineOwned = (name) => ownedFiles.has(name)
   || ownedDirs.some((dir) => name === dir || name.startsWith(`${dir}/`));
 

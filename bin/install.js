@@ -72,10 +72,12 @@ function printHelp() {
                        the host model picks the route (see ${paint('cyan', 'ubp run --help')})
 
   ${paint('yellow', 'Progress:')}
-    ${paint('cyan', 'status')}             show progress computed from project files
-    ${paint('cyan', 'gate')}               validate the plan and record its snapshot
-    ${paint('cyan', 'check')}              run registered checks and record evidence
-    ${paint('cyan', 'node done <id>')}     complete a ready node with green requirements
+    ${paint('cyan', 'status')}                show progress computed from project files
+    ${paint('cyan', 'gate')}                  validate the plan and record its snapshot
+    ${paint('cyan', 'check')}                 run registered checks and record evidence
+    ${paint('cyan', 'node done <id>')}        complete a ready node with green requirements
+    ${paint('cyan', 'milestone close <id>')}  close a milestone after its journey and review
+    ${paint('cyan', 'context <id>')}          compile the brief for a node
 
   ${paint('yellow', 'Runtime selection (pick ≥1, or --all):')}
     ${paint('cyan', '--claude')}           Claude Code
@@ -207,7 +209,7 @@ function resolveScope(flags) {
 }
 
 async function main() {
-  if (['status', 'gate', 'check', 'node'].includes(process.argv[2])) {
+  if (['status', 'gate', 'check', 'node', 'milestone', 'context'].includes(process.argv[2])) {
     const { handle } = require('../engine/cli.cjs');
     process.exitCode = await handle(process.argv.slice(2));
     return;

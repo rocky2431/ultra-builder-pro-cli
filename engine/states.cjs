@@ -84,6 +84,7 @@ function milestoneProgress(project, requirements, nodes) {
   let next = '无（受阻）';
   if (actionable) next = actionable.id;
   else if (requirements.some((r) => reqIds.has(r.id) && r.state !== 'green')) next = '检查';
+  else if (current && project.milestones.every((m) => closed.has(m.id))) next = '全部完成';
   else if (current && ownNodes.every((n) => n.state === 'done')) next = '里程碑门';
   const closedIds = new Set(project.milestones.filter((m) => closed.has(m.id)
     && m.id !== current?.id).flatMap((m) => m.requirements));
@@ -105,7 +106,9 @@ function progressLine(progress, gate, dirty) {
   line += ` · 下一项 ${next} · 本里程碑计划变更 ${plan_changes} 次`;
   if (closed_not_green) line += ` · 已关闭里程碑 ${closed_not_green} 项未绿`;
   if (dirty) line += ' · 工作区未提交';
-  if (gate !== 'pass') line += gate === 'fail' ? ' · 计划门未通过' : ' · 计划门待重跑';
+  if (gate !== 'pass') {
+    line += gate === 'fail' ? ' · 计划门未通过' : ' · 计划门待重跑';
+  }
   return line;
 }
 

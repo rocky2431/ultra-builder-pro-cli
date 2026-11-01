@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "C-engine",
+      "covers": [
+        "REQ-P1-stale",
+        "REQ-P1-line",
+        "REQ-P1-unknown",
+        "REQ-P1-counter"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p1.test.cjs tests/engine-boundaries.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-release",
+      "covers": [
+        "REQ-REL-gate"
+      ],
+      "run": "npm run verify:release",
+      "timeout_sec": 3600,
+      "expect": "found 0 vulnerabilities"
+    },
+    {
+      "id": "C-engine-p2",
+      "covers": [
+        "REQ-P2-close",
+        "REQ-P2-context",
+        "REQ-P2-records"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p2.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    }
+  ]
+}

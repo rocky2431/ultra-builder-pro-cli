@@ -7,7 +7,7 @@ const { ledger } = require('./ledger.cjs');
 function load(requested) {
   const root = projectRoot(requested);
   const code = codeState(root);
-  const reqs = requirements(read(root, 'spec.md'));
+  const { reqs, requirementText } = requirements(read(root, 'spec.md'));
   const validated = registry(root, 'checks.json', { checks: { covers: 'array', run: 'string' } });
   const checks = validated.checks.map((check) => {
     const timeout = check.timeout_sec === undefined ? 600 : check.timeout_sec;
@@ -18,7 +18,7 @@ function load(requested) {
     nodes: { milestone: 'string', title: 'string', covers: 'array', depends: 'array' },
   });
   const history = ['evidence', 'plan-log', 'nodes', 'milestones'].map((name) => ledger(root, name));
-  return { root, ...code, reqs, checks, milestones, nodes,
+  return { root, ...code, reqs, requirementText, checks, milestones, nodes,
     rulings: read(root, 'rulings.md', true), warnings: history.flatMap((h) => h.warnings),
     evidence: history[0].records, plans: history[1].records,
     completions: history[2].records, closures: history[3].records };

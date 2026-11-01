@@ -7,6 +7,7 @@ const { spawn } = require('node:child_process');
 const { codeState } = require('./git-state.cjs');
 const { append } = require('./ledger.cjs');
 const { expectOutput } = require('./expect.cjs');
+const INTERRUPTS = require('./signals.cjs');
 
 // The output tail: the last 4 MiB of the log, where `expect` and `error_line` look.
 const TAIL_BYTES = 4 * 1024 * 1024;
@@ -24,8 +25,6 @@ function killGroup(child) {
   try { process.kill(-child.pid, 'SIGKILL'); }
   catch (error) { if (error.code !== 'ESRCH') throw error; }
 }
-
-const INTERRUPTS = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129 };
 
 // The shell writes straight into the log file: no pipe is read, so output size never
 // costs memory and a descendant that escaped the group cannot keep the engine waiting.
@@ -83,7 +82,7 @@ async function execute(project, check) {
   const log = `.ultra/.runtime/checks/${run}.log`;
   fs.mkdirSync(path.dirname(path.join(project.root, log)), { recursive: true });
   const fd = fs.openSync(path.join(project.root, log), 'w+');
-  const started = Date.now();
+  const started = performance.now();
   const before = codeState(project.root);
   let exit;
   let output;
@@ -98,7 +97,7 @@ async function execute(project, check) {
   const [outcome, reason] = await outcomeFor(exit, check, output);
   const after = codeState(project.root);
   const record = { v: 1, run, check: check.id, at: new Date().toISOString(), outcome, reason,
-    exit_code: exit.code, duration_ms: Date.now() - started, code: before.code,
+    exit_code: exit.code, duration_ms: Math.round(performance.now() - started), code: before.code,
     dirty: before.dirty || after.dirty || before.code !== after.code, check_fp: check.fp,
     reqs: Object.fromEntries(check.covers.filter((id) => project.reqs.has(id))
       .map((id) => [id, project.reqs.get(id)])),

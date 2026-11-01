@@ -83,6 +83,16 @@ function planProblems(project) {
   const add = (code, message, hint) => problems.push(problem(code, message, hint));
   requirementProblems(project, add);
   nodeProblems(project, add);
+  for (const m of project.milestones) {
+    if (m.journey === undefined) continue;
+    const check = project.checks.find((c) => c.id === m.journey);
+    if (!check) add('unknown-journey', `${m.id} names unknown journey ${m.journey}`,
+      'Register the journey check in checks.json or correct its id.');
+    else if (!check.covers.some((id) => m.requirements.includes(id))) {
+      add('journey-outside-milestone', `${m.journey} covers no requirement of ${m.id}`,
+        'Choose a journey check covering a requirement of this milestone.');
+    }
+  }
   return problems.concat(rulingProblems(project.rulings));
 }
 

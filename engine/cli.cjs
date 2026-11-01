@@ -3,26 +3,46 @@
 
 const { load, status, gate, complete } = require('./project.cjs');
 const { execute } = require('./checks.cjs');
+const { close } = require('./milestone.cjs');
+const { context } = require('./context.cjs');
 
-function options(args) {
-  const result = { root: process.cwd(), json: false, words: [], selector: null, req: null };
+function options(args, command) {
+  const local = { check: ['--all', '--stale', '--req'],
+    milestone: ['--owner', '--review', '--proxy'], context: ['--budget'] };
+  const allowed = new Set(['--root', '--json', ...(local[command] || [])]);
+  const result = { root: process.cwd(), json: false, words: [], selector: null, req: null,
+    owner: null, review: null, proxy: false, budget: 32768 };
+  const seen = new Set();
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--root' || arg === '--req') {
+    if (arg.startsWith('-') && !allowed.has(arg)) {
+      throw new Error(`Option ${arg} is not valid for ${command}.`);
+    }
+    if (['--root', '--req', '--owner', '--review', '--budget'].includes(arg)) {
+      if (['--owner', '--review', '--budget'].includes(arg) && seen.has(arg)) {
+        throw new Error(`${arg} may only be given once.`);
+      }
+      seen.add(arg);
       const value = args[++i];
       if (!value || value.startsWith('--')) throw new Error(`${arg} requires a value.`);
-      if (arg === '--root') result.root = value;
-      else {
+      if (arg === '--req') {
         if (result.selector) throw new Error('Choose only one check selector.');
         result.selector = 'req';
         result.req = value;
+      } else if (arg === '--budget') {
+        if (!/^\d+$/u.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) <= 0) {
+          throw new Error('--budget requires a positive integer byte count.');
+        }
+        result.budget = Number(value);
+      } else {
+        result[arg.slice(2)] = value;
       }
     } else if (arg === '--json') result.json = true;
+    else if (arg === '--proxy') result.proxy = true;
     else if (arg === '--all' || arg === '--stale') {
       if (result.selector) throw new Error('Choose only one check selector.');
       result.selector = arg.slice(2);
-    } else if (arg.startsWith('-')) throw new Error(`Unknown option ${arg}.`);
-    else result.words.push(arg);
+    } else result.words.push(arg);
   }
   return result;
 }
@@ -61,21 +81,27 @@ async function runChecks(project, opts) {
   const after = status(load(project.root));
   const ok = after.checks.filter((c) => scope.some((check) => check.id === c.id))
     .every((c) => c.state === 'green');
-  return { result: { dirty: after.dirty, runs }, ok };
+  return { result: { dirty: after.dirty, runs }, ok, after };
 }
 
-function printResult(command, opts, result, project) {
+function printResult(command, opts, result, project, after) {
   if (opts.json) { console.log(JSON.stringify(result)); return; }
   for (const warning of project.warnings) console.error(warning);
   if (command === 'status') console.log(result.line);
+  else if (command === 'context') {
+    if (result.ok) process.stdout.write(result.brief);
+    else for (const p of result.problems) console.error(`${p.code}: ${p.message} — ${p.hint}`);
+  }
   else if (command === 'check') {
     for (const r of result.runs) {
       const reason = r.reason + (r.dirty ? ', dirty: not counted' : '');
       console.log(`${r.check}: ${r.outcome} (${reason})`);
     }
-    console.log(status(load(project.root)).line);
+    console.log(after.line);
   } else {
-    const name = command === 'node' ? `node ${result.node}` : 'gate';
+    let name = 'gate';
+    if (command === 'node') name = `node ${result.node}`;
+    if (command === 'milestone') name = `milestone ${result.milestone}`;
     console.log(`${name}: ${result.ok ? 'pass' : 'fail'}`);
     for (const p of result.problems) console.log(`${p.code}: ${p.message} — ${p.hint}`);
   }
@@ -84,31 +110,40 @@ function printResult(command, opts, result, project) {
 async function handle(args) {
   try {
     const [command, ...rest] = args;
-    if (!['status', 'gate', 'check', 'node'].includes(command)) {
-      throw new Error(`Unknown command ${command ?? ''}. Use status, gate, check or node done.`);
+    if (!['status', 'gate', 'check', 'node', 'milestone', 'context'].includes(command)) {
+      throw new Error(`Unknown command ${command ?? ''}. `
+        + 'Use status, gate, check, node done, milestone close or context.');
     }
-    const opts = options(rest);
+    const opts = options(rest, command);
     const { words } = opts;
-    if (command !== 'check' && opts.selector) {
-      throw new Error('Check selectors are only valid for check.');
-    }
     if ((['status', 'gate'].includes(command) && words.length)
-        || (command === 'node' && (words.length !== 2 || words[0] !== 'done'))) {
-      const usage = command === 'node' ? 'node done <id>' : command;
+        || (command === 'node' && (words.length !== 2 || words[0] !== 'done'))
+        || (command === 'milestone' && (words.length !== 2 || words[0] !== 'close'))
+        || (command === 'context' && words.length !== 1)) {
+      const usage = { node: 'node done <id>',
+        milestone: 'milestone close <id> --owner <words> --review <path>',
+        context: 'context <id>' }[command] || command;
       throw new Error(`Usage: ${usage} [--root <dir>] [--json]`);
+    }
+    if (command === 'milestone' && (!opts.owner?.trim() || !opts.review)) {
+      throw new Error('milestone close requires --owner <non-empty words> and --review <path>.');
     }
     const project = load(opts.root);
     let result;
     let checkPassed;
+    let after;
     if (command === 'status') result = status(project);
     if (command === 'gate') result = gate(project);
     if (command === 'node') result = complete(project, words[1]);
+    if (command === 'milestone') result = close(project, words[1], opts);
+    if (command === 'context') result = context(project, words[0], opts.budget);
     if (command === 'check') {
       const checked = await runChecks(project, opts);
       result = checked.result;
       checkPassed = checked.ok;
+      after = checked.after;
     }
-    printResult(command, opts, result, project);
+    printResult(command, opts, result, project, after);
     if (command === 'status') return 0;
     if (command === 'check') {
       return checkPassed ? 0 : 1;

@@ -4,7 +4,8 @@ The engine is deterministic code. It reads the project's truth files, runs regis
 checks, records evidence, and computes progress. The model writes intent, specification
 and plan; it never writes progress, evidence or completion records by hand.
 
-Plan of record: `thinking/back-to-essentials-20261030/RESULT.md` (§3.1, §3.3–3.5, §4, §5 P1).
+Plan of record: `thinking/back-to-essentials-20261030/RESULT.md` (§3.1, §3.3–3.5, §3.9, §4,
+§5 P1–P2).
 
 ## Layout
 
@@ -20,7 +21,10 @@ contains `.ultra/`.
 | `.ultra/ledger/evidence.jsonl` | check runs | engine only |
 | `.ultra/ledger/plan-log.jsonl` | plan snapshots and changes | engine only |
 | `.ultra/ledger/nodes.jsonl` | node completions | engine only |
-| `.ultra/ledger/milestones.jsonl` | milestone closures | engine only (writer arrives in P2) |
+| `.ultra/ledger/milestones.jsonl` | milestone closures | engine only (`milestone close`) |
+| `.ultra/records/milestones/<milestone>-review.md` | milestone review and its verdict | reviewer (never the author) |
+| `.ultra/records/handoffs/<node>.md` | what a finished node hands to its dependents | the node's writer |
+| `.ultra/records/…` | other records, such as the interview and the Owner-touch log | the method |
 | `.ultra/.runtime/checks/<run>.log` | full check output | engine; disposable |
 | `.ultra/.runtime/engine.lock` | writer lock | engine; disposable |
 | `.ultra/.runtime/engine.lock.break` | serializes breaking a dead writer's lock | engine; disposable |
@@ -29,8 +33,18 @@ Missing ledger files mean "no records". Missing `rulings.md` means "no rulings".
 `spec.md`, `checks.json` and `plan.json` are required. `.ultra/.runtime/` is never committed.
 
 The engine-owned paths are `.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`,
-`.ultra/rulings.md`, `.ultra/ledger/` and `.ultra/.runtime/`. Everything else, including
-other files under `.ultra/` such as check scripts, is code (see "Git state").
+`.ultra/rulings.md`, `.ultra/ledger/`, `.ultra/records/` and `.ultra/.runtime/`. Everything
+else, including other files under `.ultra/` such as check scripts, is code (see "Git
+state"). A check must not read files under `.ultra/records/`: editing a record never
+invalidates evidence, so a check that read one could stay green after the record changed.
+
+Reading a record file (a milestone review or a handoff): the engine reads it only when its
+parent directory exists and resolves, through symbolic links, inside the root (both paths
+compared after resolving), and the file, opened without following a symbolic link in its
+last component and without blocking, is a regular file. A symbolic link, a FIFO, a device
+or a directory at that path is never read. Git stores symbolic links, so a cloned project
+can carry one; this rule keeps a record from pulling a file from outside the project into
+the engine's output, and from making a command wait.
 
 The ledgers are committed project history, like the truth files. When two branches append
 to the same ledger, Git's union merge keeps both sides' lines; projects add this line to
@@ -45,7 +59,7 @@ records").
 
 ## Markdown rules
 
-`spec.md` and `rulings.md` are read line by line:
+`spec.md`, `rulings.md` and milestone reviews are read line by line:
 
 - A fence opens on a line indented by at most three spaces that starts with at least three
   backticks or at least three tildes. For a backtick fence, the rest of the line must not
@@ -55,6 +69,7 @@ records").
   whitespace. Lines inside a fence are ordinary text.
 - A fence still open at the end of the file is an error: `spec.md` is malformed, and in
   `rulings.md` it is a `malformed-ruling` problem. Either message names the opening line.
+  In a milestone review it is not an error; the lines after the opening are inside it.
 - Headings are ATX headings outside fences: a line indented by at most three spaces that
   starts with `#` or `##` followed by a space, a tab or the end of the line. Setext
   underlines (`---`, `===`) are ordinary text.
@@ -76,11 +91,11 @@ the block changes the hash.
 Malformed: a level-2 heading starting with `REQ-` whose id does not match the pattern; a
 duplicate id; a fence still open at the end of the file; a near-miss heading, that is a
 line outside fences, indented by at most three spaces, made of one or more `#`, then any
-whitespace (Unicode whitespace included) or none, then `REQ-`, which is not a requirement
-heading (for example `### REQ-3`, `##REQ-4`, `##　REQ-5` with an ideographic space), so
-these mistypings cannot drop a requirement from the count. Ceiling: a heading that does
-not contain `REQ-` at all, such as `## Req-7`, `## REQ 8` or `## REQ_9`, is an ordinary
-section and is not counted.
+whitespace (Unicode whitespace included) or none, then `REQ` in any letter case followed
+by `-`, by `_`, or by whitespace and a digit, which is not a requirement heading (for
+example `### REQ-3`, `##REQ-4`, `##　REQ-5` with an ideographic space, `## Req-7`,
+`## REQ 8`, `## req_9`), so these mistypings cannot drop a requirement from the count.
+Headings such as `## Requirements` or `## Req mapping` are ordinary sections.
 
 ## `.ultra/checks.json` — check registry
 
@@ -117,7 +132,8 @@ Malformed: invalid JSON, wrong types, missing fields, duplicate id, empty or inv
 {
   "version": 1,
   "milestones": [
-    { "id": "M1", "title": "Core list", "requirements": ["REQ-001", "REQ-002"] }
+    { "id": "M1", "title": "Core list", "requirements": ["REQ-001", "REQ-002"],
+      "journey": "C-add" }
   ],
   "nodes": [
     { "id": "N-01", "milestone": "M1", "title": "Add items", "covers": ["REQ-001"],
@@ -129,8 +145,15 @@ Malformed: invalid JSON, wrong types, missing fields, duplicate id, empty or inv
 - Milestone and node ids: unique within their kind, `[A-Za-z0-9][A-Za-z0-9._-]*`.
 - Array order is plan order. `requirements`, `covers` and `depends` are arrays of
   strings; `scope` is an optional array of path prefixes (recorded now, enforced later).
+- `journey`: optional check id of the milestone's end-to-end journey, the check that walks
+  the user's path through the milestone's behavior. `milestone close` requires one; the
+  plan gate requires that it names a registered check covering at least one of the
+  milestone's requirements. It is not part of the milestone's snapshot. Ceiling: switching
+  the journey to another check that already covers the milestone is not a recorded plan
+  change.
 
-Malformed: invalid JSON, wrong types, missing fields, duplicate ids.
+Malformed: invalid JSON, wrong types (including a `journey` that is not a string),
+missing fields, duplicate ids.
 
 ## `.ultra/rulings.md` — ruling log
 
@@ -143,6 +166,8 @@ this form; other lines are free text:
 ```
 
 The layer is one of `L0`–`L4`. The separators are an em dash with one space on each side.
+Spaces after `裁决：`, `因为` and `代价是` are optional (`因为两种删除路径验收不同` is
+valid); the decision, the reason and the cost must each be present.
 
 ## Git state
 
@@ -199,12 +224,10 @@ after its last newline) before the engine's next append to that file.
 `at` is ISO-8601 UTC with milliseconds (`YYYY-MM-DDTHH:MM:SS.mmmZ`), so string order is
 time order; a record whose `at` has another form is malformed. When the engine appends a
 record, its `at` is the current time or, when that is not later than the greatest `at`
-already in that file, 1 ms after it; the engine holds the lock while it reads that file
-and appends. A clock that runs fast or steps back therefore cannot make a later record
-look older than an earlier one in the same file. Ceiling: the floor is per file, so a
-comparison across files can still be skewed; the one that matters is the plan-change
-count, which compares plan-log times with closure times. It only bites once closures are
-written (P2), and P2 takes the floor across all four ledgers.
+in any of the four ledgers, 1 ms after it; the engine holds the lock while it reads the
+ledgers and appends. A clock that runs fast or steps back therefore cannot make a later
+record look older than an earlier one, in the same file or across files (the plan-change
+count compares plan-log times with closure times).
 
 Latest record: the record with the greatest `at`; ties go to the later line.
 
@@ -229,6 +252,8 @@ Evidence (`evidence.jsonl`), one per executed check:
 | the shell could not be started | unknown | `spawn-error` |
 
 `reqs` holds the current hashes of the covered requirements that exist in the spec.
+`duration_ms` is measured with a monotonic clock, so a wall clock that steps back during a
+run never makes it negative and never loses the run.
 `error_line` is null on pass; otherwise the first line of the output tail that matches
 `/^\s*(?:✖|not ok\b|FAIL(?:ED)?\b)|\b(?:[A-Z][A-Za-z]*)?Error\b/u`, else the last non-empty
 line, cut to 200 characters.
@@ -253,7 +278,25 @@ order (JavaScript's default sort). What the gate records is defined under "Plan 
 
 Node completion (`nodes.jsonl`): `{"v":1,"node":"N-01","at":"…","code":"…","reqs":{"REQ-001":"…"},"runs":["…"]}`.
 
-Milestone closure (`milestones.jsonl`): `{"v":1,"milestone":"M1","at":"…"}`.
+Milestone closure (`milestones.jsonl`), written by `milestone close`:
+
+```json
+{"v":1,"milestone":"M1","at":"<ISO time>","code":"<code fingerprint>",
+ "reqs":{"REQ-001":"<requirement hash>"},"journey":{"check":"C-add","run":"<run id>"},
+ "review":{"path":".ultra/records/milestones/M1-review.md","sha256":"<file hash>"},
+ "owner":{"words":"<the Owner's words, verbatim>","proxy":false}}
+```
+
+`reqs` holds the current hashes of the milestone's requirements; `journey.run` is the
+journey check's `last_run`; `review.sha256` is the SHA-256 hex of the review file's bytes,
+so a later edit to the review can be detected. A record holding only `v`, `milestone` and
+`at` is still valid (a closure recorded before P2); every other field, when present, must
+have the type shown. Ceiling: the engine cannot tell a hand-written closure from its own.
+
+Writing: the engine checks every record against these rules before it appends it. A record
+that would not be valid (for example an `at` past year 9999, reached through the time
+floor) is not written, and the command exits 2, so an append never leaves a ledger that
+every later command rejects.
 
 ## States
 
@@ -296,8 +339,9 @@ Next item, in this order:
 1. the first actionable node, in plan order, among the nodes of the closed milestones and
    of the current milestone;
 2. `检查` when some requirement of those milestones is not green;
-3. `里程碑门` when there is a current milestone and every one of its nodes is done;
-4. otherwise `无（受阻）`.
+3. `全部完成` when the plan has at least one milestone and every milestone is closed;
+4. `里程碑门` when there is a current milestone and every one of its nodes is done;
+5. otherwise `无（受阻）`.
 
 Closed not green: the number of requirements of closed milestones other than the current
 milestone whose state is not green.
@@ -340,6 +384,8 @@ Problems are objects `{ "code", "message", "hint" }`; the hint says how to fix i
 | `unknown-dependency` | a node depends on a node that does not exist |
 | `dependency-on-later-milestone` | a node depends on a node of a later milestone |
 | `dependency-cycle` | the dependency graph has a cycle |
+| `unknown-journey` | a milestone's `journey` names a check absent from `checks.json` |
+| `journey-outside-milestone` | a milestone's `journey` check covers none of its requirements |
 | `malformed-ruling` | a ruling entry in `rulings.md` does not have the ruling form, or a fence there is never closed |
 
 What a passing gate records, in this order:
@@ -355,12 +401,145 @@ What a passing gate records, in this order:
 A renamed milestone therefore appears as `removed` plus `baseline`, and no requirement can
 leave the plan without a record that names it.
 
+## Milestone gate
+
+`milestone close <id> --owner <words> --review <path> [--proxy]` records that the Owner let
+milestone `<id>` pass after seeing its demo, its journey result, its plan changes and the
+rulings (RESULT §3.9).
+
+- `--owner`: the Owner's words, verbatim; required, and not empty after trimming.
+- `--proxy`: the words were given by the assistant on the Owner's behalf. The closure
+  records `proxy: true`, so it reads as not validated by the real Owner.
+- `--review`: the milestone review, a path relative to the project root. An absolute path,
+  one that leaves the root, and one that names the root itself (`.`) are usage errors. The
+  reviewer is never the author of the milestone's code; the recommended place is
+  `.ultra/records/milestones/<id>-review.md`. The closure records the path relative to the
+  root without `.` or `..` segments, with `/` separators (`./.ultra/records/x.md` is
+  recorded as `.ultra/records/x.md`).
+- `--owner` and `--review` are each given once; repeating either is a usage error. An
+  option value is the next argument; a value that starts with `--` is read as a missing
+  value (ceiling: Owner words cannot start with `--`).
+
+Holding the lock, the command reloads the project and collects every problem, in this
+order:
+
+| code | condition |
+|---|---|
+| `plan-gate` | the plan gate state is not `pass` |
+| `dirty-tree` | the tree is dirty |
+| `not-current` | `<id>` is already closed, or a milestone before it in plan order is not closed |
+| `node-not-done` | a node of the milestone is not done; one problem per node |
+| `requirement-not-green` | a requirement of this milestone or of a closed milestone is not green; one problem per requirement |
+| `no-journey` | the milestone names no `journey` |
+| `journey-not-green` | the milestone's `journey` names a registered check whose check state is not `green` |
+| `review-missing` | the review cannot be read under "Reading a record file" (see "Layout"): nothing is there, or it is a symbolic link, a FIFO, a directory or another file that is not regular, or its parent directory does not exist or resolves outside the root |
+| `review-not-accepted` | the review is a regular file, but outside fences (see "Markdown rules") it does not hold exactly one line starting with `Verdict:`, or that line, without trailing whitespace, is not `Verdict: accept` (lines end at LF; a CR before it is trailing whitespace; a UTF-8 byte order mark at the start of the file is ignored) |
+
+The bytes that were checked are the bytes that are hashed. A FIFO at the review path is
+`review-missing` at once, never a wait while the lock is held. With no problem the command appends
+the closure record.
+
+The journey must be green as a check, not only through its pairs: a journey that also
+covers a requirement of a later milestone turns `stale` when that requirement is edited,
+while the pair for this milestone's requirement stays green, so `requirement-not-green`
+alone would not catch it.
+
+Ceiling: records never dirty the tree, so the engine does not require the review to be
+committed. The method commits it with the closure record; `review.sha256` lets anyone
+compare the committed file with what the gate accepted.
+
+Text output is `milestone <id>: pass` or `milestone <id>: fail` followed by one
+`<code>: <message> — <hint>` line per problem.
+
+## Node brief
+
+`context <id> [--budget <bytes>]` prints the brief a writer needs for node `<id>`, compiled
+from the truth files and records (RESULT §3.5), and nothing else. The same files give the
+same bytes. Layout, with the sections in this order:
+
+```text
+# Node <id>: <title>
+
+Milestone <milestone id>: <milestone title> · node state <state>
+
+## Requirements
+
+<requirement text>
+
+## Checks that must turn green (read-only)
+
+- <check id> · <state> · `<run>`
+
+## Scope
+
+- <prefix>
+
+## Handoffs from dependencies
+
+### <dependency id>
+
+<handoff>
+
+## Rules
+
+<rules>
+```
+
+- Milestone line: when the node's milestone is not in `plan.json`, it reads
+  `Milestone <milestone id>: not in .ultra/plan.json · node state <state>` (the plan gate
+  reports it).
+- Requirements: each covered requirement's text, as defined for its hash, in the node's
+  `covers` order, separated by one empty line. A covered id absent from the spec appears
+  as the line `<id>: not in .ultra/spec.md` (the plan gate reports it).
+- Checks: every check covering at least one of the node's requirements, in registry order,
+  with its current state; with none, the single line `None.`
+- Scope: one line per prefix; with no `scope` or an empty one, the single line
+  `Not declared: change only what the requirements need.`
+- Handoffs: one `### <dependency id>` subsection per direct dependency, in `depends` order.
+  For a dependency that names a node of the plan, it holds the text of
+  `.ultra/records/handoffs/<dependency>.md` (CRLF→LF, whitespace-only lines at the start
+  and whitespace at the end of the text removed); the line `No handoff written.` when
+  nothing is at that path and no directory on the path is a file, or when its text is
+  empty; otherwise, when it cannot be read under "Reading a record file" (see "Layout"),
+  the line `Not read: not a regular file inside the project.` For a dependency that names
+  no node, it holds the line `Not a node in .ultra/plan.json.` and no file is read, so a crafted
+  `depends` entry can never pull a file from outside the records into a brief. A node
+  without dependencies has the single line `None.` instead.
+- Rules: the fixed text below, with `<id>` replaced by the node id and `<checks>` by the
+  ids of the checks listed above, in the same order, separated by one space (`--stale`
+  when there are none).
+- Blocks are separated by exactly one empty line, as in the layout: each heading from its
+  body, each section from the next heading, and each handoff subsection from the next.
+- The brief ends with exactly one newline; text mode writes it to stdout unchanged.
+
+```text
+- Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/ledger/ or the files the checks above run. If a check or a requirement looks wrong, stop and escalate.
+- Change only files inside the scope, and commit your work: evidence from an uncommitted tree never counts.
+- Run `ubp check <checks>` until every check above is green, then `ubp node done <id>`.
+- Escalate instead of deciding: a change of direction (L0) and any deletion or narrowing of a requirement go to the Owner.
+- Record every other decision you made without asking as one line in .ultra/rulings.md: `- YYYY-MM-DD Lx 裁决：<决定> — 因为 <理由> — 如果判断错了，代价是 <代价>`.
+- Before `ubp node done <id>`, write .ultra/records/handoffs/<id>.md: the interfaces you created, what dependent nodes must know, and what is left unfinished.
+- If three attempts leave a check red, stop and report the check, its error line and what you tried.
+```
+
+Budget: the brief's size in UTF-8 bytes must not exceed the budget, 32768 by default or
+`--budget`, a positive integer. When it does, handoffs are replaced one at a time, starting
+from the last dependency, by the line
+`Omitted to fit the budget: read .ultra/records/handoffs/<dependency>.md`, until the brief
+fits. Only a handoff read from a file whose text is longer in UTF-8 bytes than its
+replacement line is replaced; the others are skipped. So every omission makes the brief
+smaller and points at a file that exists. Requirements, checks and rules are never cut:
+when the brief still does not fit, `context` writes nothing to stdout and exits 1 with the
+problem `brief-over-budget`, whose message names the size and the budget and whose hint is
+to split the node; text mode prints the problem on stderr.
+
 ## Concurrency
 
-`gate` and `node done` hold `.ultra/.runtime/engine.lock` while they read the ledgers and
-append to them; every other ledger append holds it while it reads that ledger's greatest
-`at` and appends. The lock file is created exclusively and contains the holder's pid in
-decimal. A command waits up to 30 seconds for the lock and exits 2 if it cannot get it.
+`gate`, `node done` and `milestone close` hold `.ultra/.runtime/engine.lock` while they
+read the ledgers and append to them; every other ledger append holds it while it reads the
+ledgers' greatest `at` and appends. The lock file is created exclusively and contains the
+holder's pid in decimal. A command waits up to 30 seconds for the lock and exits 2 if it
+cannot get it.
 
 A pid is alive when `kill(pid, 0)` succeeds or fails with `EPERM`. A lock whose pid is not
 alive may be broken, but only by a command that first creates
@@ -386,6 +565,8 @@ options may follow in any order. `--root` defaults to the current directory.
 | `gate` | runs the plan gate; records plan-log entries when it passes | 0 pass; 1 problems; 2 |
 | `check [--stale\|--all\|--req <id>\|<check-id>…]` | runs checks in registry order, records evidence, prints `<check>: <outcome> (<reason>)` per check (with `, dirty: not counted` inside the parentheses for a dirty run) and then the progress line; default `--stale` (checks whose state is `stale` or `unknown`) | 0 when every check in scope is green after the runs, 1 otherwise; 2. The scope is the selected checks, and for the default `--stale` every check in the registry, so `ubp check` never exits 0 while a check is red |
 | `node done <id>` | records completion when the plan gate state is `pass`, the tree is clean, every dependency is done and every covered requirement is green | 0 recorded; 1 refused with problems; 2 |
+| `milestone close <id> --owner <words> --review <path> [--proxy]` | records the closure when the milestone gate finds no problem (see "Milestone gate") | 0 recorded; 1 refused with problems; 2 |
+| `context <id> [--budget <bytes>]` | prints the node brief (see "Node brief") | 0; 1 over budget; 2 |
 
 `status --json` returns
 `{ milestone, line, counts: {total, green, red, stale, unknown, uncovered}, next,
@@ -400,10 +581,21 @@ last_run}], nodes: [{id, milestone, state, reasons}] }`.
 `node done --json` returns `{ ok, node, problems }`; each refusal is a problem
 `{ code, message, hint }` with code `plan-gate`, `dirty-tree`, `dependency-not-done` or
 `requirement-not-green`.
+`milestone close --json` returns `{ ok, milestone, problems }`, with the codes listed under
+"Milestone gate". `context --json` returns `{ ok, node, bytes, omitted, brief, problems }`:
+`omitted` lists, in omission order, the dependencies whose handoffs were omitted, and on
+refusal `brief` is null and `bytes` is the size reached after every handoff that could be
+omitted was omitted.
+
+Options belong to their command: `--owner`, `--review` and `--proxy` only to `milestone
+close`, `--budget` only to `context`, and the check selectors only to `check`; anywhere else
+they are usage errors. Giving `--owner`, `--review` or `--budget` twice is a usage error.
 
 Exit 1 only ever means that a check in scope is not green after `check`, the plan gate
-found problems, or `node done` refused. Malformed truth files and ledgers, usage errors (an
-unknown command, node id, check id or `--req` requirement id) and every other engine
-failure exit 2; an interrupted engine exits 130 or 143. `status` exits 0 even when the
-plan gate has problems; it reports them in `gate` and `problems`. Malformed files are named
-on stderr. Text-mode commands print warnings on stderr.
+found problems, `node done` or `milestone close` refused, or a node brief does not fit its
+budget. Malformed truth files and ledgers, usage errors (an unknown command, node id,
+milestone id, check id or `--req` requirement id, a missing, invalid or repeated option
+value) and every other engine failure exit 2; an interrupted engine exits 130 or 143.
+`status` exits 0 even when the plan gate has problems; it reports them in `gate` and
+`problems`. Malformed files are named on stderr. Text-mode commands print warnings on
+stderr.

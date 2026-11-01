@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "milestones": [
+    {
+      "id": "M-P1",
+      "title": "Engine core",
+      "requirements": [
+        "REQ-P1-stale",
+        "REQ-P1-line",
+        "REQ-P1-unknown",
+        "REQ-P1-counter",
+        "REQ-REL-gate"
+      ],
+      "journey": "C-engine"
+    },
+    {
+      "id": "M-P2",
+      "title": "0→1 on reference sample R",
+      "journey": "C-engine-p2",
+      "requirements": [
+        "REQ-P2-close",
+        "REQ-P2-context",
+        "REQ-P2-records"
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "N-P1-engine",
+      "milestone": "M-P1",
+      "title": "Engine core, committed as fb8ec70",
+      "covers": [
+        "REQ-P1-stale",
+        "REQ-P1-line",
+        "REQ-P1-unknown",
+        "REQ-P1-counter",
+        "REQ-REL-gate"
+      ],
+      "depends": [],
+      "scope": [
+        "engine/",
+        "tests/engine-p1.test.cjs",
+        "tests/engine-boundaries.test.cjs"
+      ]
+    },
+    {
+      "id": "N-P2-engine",
+      "milestone": "M-P2",
+      "title": "Milestone gate, node brief, records",
+      "covers": [
+        "REQ-P2-close",
+        "REQ-P2-context",
+        "REQ-P2-records"
+      ],
+      "depends": [
+        "N-P1-engine"
+      ],
+      "scope": [
+        "engine/",
+        "bin/install.js",
+        "tests/engine-p2.test.cjs",
+        "tests/package-smoke.test.cjs",
+        "method/"
+      ]
+    }
+  ]
+}

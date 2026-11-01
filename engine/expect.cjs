@@ -3,7 +3,7 @@
 const path = require('node:path');
 const { Worker } = require('node:worker_threads');
 
-const signals = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129 };
+const signals = require('./signals.cjs');
 
 function expectOutput(expect, output) {
   return new Promise((resolve, reject) => {

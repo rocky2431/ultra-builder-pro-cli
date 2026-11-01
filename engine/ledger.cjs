@@ -9,6 +9,20 @@ const hashes = (value) => object(value) && Object.values(value).every(hashValue)
 const textFields = (record, fields) => fields.every((key) => typeof record[key] === 'string');
 const checkSnapshots = (value) => object(value) && Object.values(value).every((check) =>
   object(check) && hashValue(check.fp) && strings(check.covers));
+const LEDGERS = ['evidence', 'plan-log', 'nodes', 'milestones'];
+
+function validClosure(record) {
+  const fields = {
+    code: hashValue,
+    reqs: hashes,
+    journey: (v) => object(v) && textFields(v, ['check', 'run']),
+    review: (v) => object(v) && textFields(v, ['path']) && hashValue(v.sha256),
+    owner: (v) => object(v) && textFields(v, ['words']) && typeof v.proxy === 'boolean',
+  };
+  return typeof record.milestone === 'string'
+    && Object.entries(fields).every(([key, valid]) => !Object.hasOwn(record, key)
+      || valid(record[key]));
+}
 
 function recordTime(value) {
   return typeof value === 'string'
@@ -41,7 +55,7 @@ function validRecord(record, name) {
   }
   if (name === 'nodes') return textFields(record, ['node']) && hashValue(record.code)
     && hashes(record.reqs) && strings(record.runs);
-  return name === 'milestones' && typeof record.milestone === 'string';
+  return name === 'milestones' && validClosure(record);
 }
 
 function ledger(root, name) {
@@ -138,10 +152,15 @@ function withLock(root, action) {
 
 function append(root, name, record, locked = false) {
   const write = () => {
-    const state = ledger(root, name);
+    const ledgers = new Map(LEDGERS.map((key) => [key, ledger(root, key)]));
+    const state = ledgers.get(name);
     // Read and advance under the same lock so clock rollback cannot hide a new record.
-    const greatest = state.records.reduce((time, r) => Math.max(time, Date.parse(r.at)), -1);
+    const greatest = [...ledgers.values()].flatMap((s) => s.records)
+      .reduce((time, r) => Math.max(time, Date.parse(r.at)), -1);
     record.at = new Date(Math.max(Date.now(), greatest + 1)).toISOString();
+    if (!validRecord(record, name)) {
+      throw new Error(`.ultra/ledger/${name}.jsonl: refusing to append a malformed ledger record.`);
+    }
     const file = path.join(root, '.ultra', 'ledger', `${name}.jsonl`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     if (state.repairEnd !== null) fs.truncateSync(file, state.repairEnd);
