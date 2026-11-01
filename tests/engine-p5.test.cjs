@@ -55,6 +55,7 @@ if (process.env.SLOW) {
 // - ruling: work, but also commit a malformed ruling;
 // - truth: work, but also change .ultra/checks.json's first check timeout and commit;
 // - approve: work, but also append a line to .ultra/ledger/approvals.jsonl and commit;
+// - head-only: work, but also commit a closure line that never reaches the work tree;
 // - touch:<file>: work, then append a newline to <file> without committing it;
 // - weaken: fix nothing; rewrite every check's run to pass, uncommitted; gate, check, done;
 // - forge: fix nothing; commit; check; append passing copies of the failing records; done;
@@ -130,6 +131,11 @@ if (mode === 'weaken') {
   ubp('gate');
 } else {
   git('add -A');
+  if (mode === 'head-only') {
+    const blob = execSync('git hash-object -w --stdin', { input: '{"v":1,"milestone":"M1",'
+      + '"at":"2026-11-01T00:00:00.000Z"}\\n' }).toString().trim();
+    git('update-index --add --cacheinfo 100644,' + blob + ',.ultra/ledger/milestones.jsonl');
+  }
   git('commit -q -m "work on ' + node + '"');
 }
 try { ubp('check'); } catch { /* a red check is the engine's to judge */ }
@@ -531,6 +537,14 @@ test('a writer that edits a truth file or adds an approval stops the drive', (t)
   const approval = drive(forged, [], 1);
   assert.equal(approval.stop, 'truth-touched');
   assert.match(approval.problems[0].message, /\.ultra\/ledger\/approvals\.jsonl/u);
+
+  // A closure committed without ever being in the work tree changes HEAD only.
+  const headOnly = project(t);
+  plan(headOnly, { 'N-01': ['head-only'] });
+  const closure = drive(headOnly, [], 1);
+  assert.equal(closure.stop, 'truth-touched');
+  assert.deepEqual(codes(closure), ['truth-touched']);
+  assert.match(closure.problems[0].message, /\.ultra\/ledger\/milestones\.jsonl/u);
 });
 
 test('an uncommitted change to any truth file stops the drive, before the dirty tree', (t) => {

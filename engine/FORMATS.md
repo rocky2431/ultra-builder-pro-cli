@@ -858,13 +858,17 @@ shell's exit code, `timeout`, or `signal-<NAME>`.
 After a writer attempt exits, whatever its exit code, the drive verifies, in this order,
 and the first failing step decides:
 
-1. the truth bytes are those before the attempt (`truth-touched`, one per file, in the
-   order above): a writer never plans, closes or approves;
+1. each truth file's work-tree content is the one before the attempt, and its content at
+   HEAD is either the one at HEAD before the attempt or the work-tree content before it
+   (`truth-touched`, one per file, in the order above): a writer never plans, closes or
+   approves, though it may commit what the engine or the Owner had already written, such
+   as the plan-log lines of a gate the drive ran;
 2. the HEAD before the attempt is an ancestor of the HEAD after it (`history-rewritten`);
 3. the tree is clean (`writer-left-dirty`);
-4. every path changed between the two HEADs, except `.ultra/ledger/evidence.jsonl` and
-   `.ultra/ledger/nodes.jsonl`, is named by no check (`check-touched`) and lies in the
-   node's scope, is `.ultra/rulings.md` or lies under `.ultra/records/handoffs/`
+4. every path changed between the two HEADs, except the truth files (step 1 decides them),
+   `.ultra/ledger/evidence.jsonl` and `.ultra/ledger/nodes.jsonl`, is named by no check
+   (`check-touched`) and lies in the node's scope, is `.ultra/rulings.md` or lies under
+   `.ultra/records/handoffs/`
    (`out-of-scope`), one problem per path, in path order; then every node other than this
    one that got a completion record during the attempt is `out-of-scope` (subject the node
    id), in plan order. A check names a path when the path equals a word of its `run`
