@@ -142,6 +142,11 @@ previous writer's completion notice has arrived: a progress note, a `node done` 
 quiet log is not completion, and a writer still running will commit whatever it finds in the
 tree. Parallel writers: see "Parallel writers and the merge gate".
 
+When the Owner asks for an unattended run, start
+`ubp drive --writer <cmd> --reviewer <cmd>`. Read its stop reason and act as the matching
+manual step requires: at `milestone-gate`, show the demo and ask the Owner the milestone
+question; for `ratchet-broken` or `out-of-scope`, revert in a new commit and brief again.
+
 ## Escalation (RESULT §3.2)
 
 Before acting, name the layer the problem lives in. Never change a check to get past it.

@@ -7,6 +7,8 @@ const { spawn } = require('node:child_process');
 const { codeState, gitEnvironment } = require('./git-state.cjs');
 const { append } = require('./ledger.cjs');
 const { expectOutput } = require('./expect.cjs');
+const { load } = require('./loading.cjs');
+const { status } = require('./states.cjs');
 const INTERRUPTS = require('./signals.cjs');
 
 // The output tail: the last 4 MiB of the log, where `expect` and `error_line` look.
@@ -28,10 +30,11 @@ function killGroup(child) {
 
 // The shell writes straight into the log file: no pipe is read, so output size never
 // costs memory and a descendant that escaped the group cannot keep the engine waiting.
-function runShell(root, check, fd) {
+function runShell(root, check, fd, extraEnv = {}) {
   return new Promise((resolve, reject) => {
     // A detached shell leads its own process group, which we kill as a whole.
-    const child = spawn('/bin/sh', ['-c', check.run], { cwd: root, env: gitEnvironment(root),
+    const child = spawn('/bin/sh', ['-c', check.run], { cwd: root,
+      env: { ...gitEnvironment(root), ...extraEnv },
       detached: true, stdio: ['ignore', fd, fd] });
     const result = { code: null, signal: null, timedOut: false, spawnError: false,
       interrupted: 0 };
@@ -106,4 +109,41 @@ async function execute(project, check) {
   return record;
 }
 
-module.exports = { execute };
+function selectedChecks(project, opts) {
+  const { words } = opts;
+  if (words.length && opts.selector) throw new Error('Choose check ids or a check selector.');
+  for (const id of words) {
+    if (!project.checks.some((c) => c.id === id)) {
+      throw new Error(`Unknown check ${id}. Use an id from checks.json.`);
+    }
+  }
+  if (opts.req !== null && !project.reqs.has(opts.req)) {
+    throw new Error(`Unknown requirement ${opts.req}. Use an id from spec.md.`);
+  }
+  const scope = project.checks.filter((check) => {
+    if (words.length) return words.includes(check.id);
+    if (opts.selector === 'req') return check.covers.includes(opts.req);
+    return true;
+  });
+  let selected = scope;
+  if (!words.length && (!opts.selector || opts.selector === 'stale')) {
+    const states = new Map(status(project).checks.map((c) => [c.id, c.state]));
+    selected = scope.filter((c) => ['stale', 'unknown'].includes(states.get(c.id)));
+  }
+  return { scope, selected };
+}
+
+async function runChecks(project, opts) {
+  const runs = [];
+  const { scope, selected } = selectedChecks(project, opts);
+  for (const check of selected) {
+    const { check: id, run, outcome, reason, dirty } = await execute(project, check);
+    runs.push({ check: id, run, outcome, reason, dirty });
+  }
+  const after = status(load(project.root));
+  const ok = after.checks.filter((c) => scope.some((check) => check.id === c.id))
+    .every((c) => c.state === 'green');
+  return { result: { dirty: after.dirty, runs }, ok, after };
+}
+
+module.exports = { execute, runShell, runChecks };

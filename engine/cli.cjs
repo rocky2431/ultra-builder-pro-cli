@@ -2,7 +2,8 @@
 'use strict';
 
 const { load, status, gate, complete } = require('./project.cjs');
-const { execute } = require('./checks.cjs');
+const { runChecks } = require('./checks.cjs');
+const { drive } = require('./drive.cjs');
 const { close } = require('./milestone.cjs');
 const { context } = require('./context.cjs');
 const { approve } = require('./plan.cjs');
@@ -12,18 +13,21 @@ const { merge } = require('./merge.cjs');
 function options(args, command) {
   const local = { check: ['--all', '--stale', '--req'],
     milestone: ['--owner', '--review', '--proxy'], approve: ['--owner', '--proxy'],
-    context: ['--budget'], merge: ['--expect-head'] };
+    context: ['--budget'], merge: ['--expect-head'],
+    drive: ['--writer', '--reviewer', '--attempts', '--timeout-sec'] };
   const allowed = new Set(['--root', '--json', ...(local[command] || [])]);
   const result = { root: process.cwd(), json: false, words: [], selector: null, req: null,
     owner: null, review: null, proxy: false, budget: 32768 };
+  const values = ['--root', '--req', '--owner', '--review', '--budget', '--expect-head',
+    ...local.drive];
   const seen = new Set();
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg.startsWith('-') && !allowed.has(arg)) {
       throw new Error(`Option ${arg} is not valid for ${command}.`);
     }
-    if (['--root', '--req', '--owner', '--review', '--budget', '--expect-head'].includes(arg)) {
-      if (['--owner', '--review', '--budget', '--expect-head'].includes(arg) && seen.has(arg)) {
+    if (values.includes(arg)) {
+      if (!['--root', '--req'].includes(arg) && seen.has(arg)) {
         throw new Error(`${arg} may only be given once.`);
       }
       seen.add(arg);
@@ -51,47 +55,16 @@ function options(args, command) {
   return result;
 }
 
-function selectedChecks(project, opts) {
-  const { words } = opts;
-  if (words.length && opts.selector) throw new Error('Choose check ids or a check selector.');
-  for (const id of words) {
-    if (!project.checks.some((c) => c.id === id)) {
-      throw new Error(`Unknown check ${id}. Use an id from checks.json.`);
-    }
-  }
-  if (opts.req !== null && !project.reqs.has(opts.req)) {
-    throw new Error(`Unknown requirement ${opts.req}. Use an id from spec.md.`);
-  }
-  const scope = project.checks.filter((check) => {
-    if (words.length) return words.includes(check.id);
-    if (opts.selector === 'req') return check.covers.includes(opts.req);
-    return true;
-  });
-  let selected = scope;
-  if (!words.length && (!opts.selector || opts.selector === 'stale')) {
-    const states = new Map(status(project).checks.map((c) => [c.id, c.state]));
-    selected = scope.filter((c) => ['stale', 'unknown'].includes(states.get(c.id)));
-  }
-  return { scope, selected };
-}
-
-async function runChecks(project, opts) {
-  const runs = [];
-  const { scope, selected } = selectedChecks(project, opts);
-  for (const check of selected) {
-    const { check: id, run, outcome, reason, dirty } = await execute(project, check);
-    runs.push({ check: id, run, outcome, reason, dirty });
-  }
-  const after = status(load(project.root));
-  const ok = after.checks.filter((c) => scope.some((check) => check.id === c.id))
-    .every((c) => c.state === 'green');
-  return { result: { dirty: after.dirty, runs }, ok, after };
-}
-
 function printResult(command, opts, result, project, after) {
   if (opts.json) { console.log(JSON.stringify(result)); return; }
   for (const warning of project.warnings) console.error(warning);
   if (command === 'status') console.log(result.line);
+  else if (command === 'drive') {
+    for (const s of result.steps) {
+      console.log(`drive: ${s.action} ${s.subject}: ${s.result}`);
+    }
+    console.log(`drive: stop ${result.stop}`);
+  }
   else if (command === 'approve') console.log(`approved: ${result.items.join(', ')}`);
   else if (command === 'retro') {
     for (const c of result.classes) {
@@ -129,7 +102,7 @@ async function handle(args) {
   try {
     const [command, ...rest] = args;
     const commands = ['status', 'gate', 'check', 'node', 'milestone', 'context', 'approve',
-      'retro', 'merge'];
+      'retro', 'merge', 'drive'];
     if (!commands.includes(command)) {
       throw new Error(`Unknown command ${command ?? ''}. `
         + `Use ${commands.join(', ')}.`);
@@ -159,6 +132,7 @@ async function handle(args) {
     let result;
     let checkPassed;
     let after;
+    if (command === 'drive') result = await drive(project, opts);
     if (command === 'status') result = status(project);
     if (command === 'gate') result = gate(project);
     if (command === 'node') result = complete(project, words[1]);
@@ -174,6 +148,9 @@ async function handle(args) {
       after = checked.after;
     }
     printResult(command, opts, result, project, after);
+    if (command === 'drive') {
+      return ['milestone-gate', 'all-done'].includes(result.stop) ? 0 : 1;
+    }
     if (command === 'status' || command === 'retro') return 0;
     if (command === 'check') {
       return checkPassed ? 0 : 1;

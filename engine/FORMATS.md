@@ -804,6 +804,76 @@ that changes no code leaves the fingerprint unchanged), so after each merge the 
 `ubp check --all`: its runs are appended after every branch record and supersede it; the merge holds no `engine.lock` while checks run, only
 `merge.lock`.
 
+## Drive (unattended run)
+
+`ubp drive --writer <command> [--reviewer <command>] [--attempts <n>] [--timeout-sec <s>]`
+runs the method's controller loop without a person until the next Owner touch. It is the
+same loop as "Every session starts the same way" and "Node loop" in `method/ultra.md`,
+with the judgment steps replaced by stops. `<command>` is one shell command line, run with
+`/bin/sh -c` in the project root; it is not parsed by the engine.
+
+Each round reads the state (as `status`) and acts on `next` (an actionable node comes before
+`检查`, see "States"):
+
+| State | Action |
+|---|---|
+| `dirty: true` | stop `dirty-tree` |
+| gate `stale` | run the plan gate (as `gate`); go on when it passes, else stop `plan-gate` |
+| gate `fail` | stop `plan-gate` |
+| `next` is a node id | compile its brief (as `context`, default budget) into `.ultra/.runtime/briefs/<node>.md`; over budget: stop `brief-over-budget` (its problem as `context` reports it); otherwise one writer attempt (below) |
+| `next` is `检查` | run the stale checks (as `check`); when `next` is still `检查` afterwards, stop `checks-not-green` |
+| `next` is `里程碑门` | run every check (as `check --all`); when `next` is still `里程碑门`, one reviewer run with `--reviewer` (below), then stop `milestone-gate`; otherwise go on with the next round |
+| `next` is `全部完成` | stop `all-done` |
+| `next` is `无（受阻）` | stop `blocked` |
+
+A writer attempt runs `--writer` with these environment variables, added to the engine's
+environment (without the Git repository-location variables, as for checks):
+`UBP_ROOT` (absolute project root), `UBP_NODE` (node id), `UBP_BRIEF` (absolute path of the
+brief), `UBP_ATTEMPT` (1-based), `UBP` (a shell-quoted command line that runs this engine's
+CLI, for example `node '/x/bin/install.js'`). Its stdout and stderr go to
+`.ultra/.runtime/drive/<run>/<node>-<attempt>.log`; it is stopped after `--timeout-sec`
+(default 3600) like a check (whole process group). After it exits, whatever its exit code,
+the engine verifies, in this order, and the first failure decides:
+
+1. the tree is clean (`writer-left-dirty`);
+2. `.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`,
+   `.ultra/ledger/milestones.jsonl` and `.ultra/ledger/approvals.jsonl` are byte-identical at
+   both HEADs (`truth-touched`, one per file, in that order): a writer never plans, closes or
+   approves;
+3. every other path changed between the HEAD before the attempt and the HEAD after it lies
+   under one of the node's `scope` prefixes, or is `.ultra/rulings.md`, or lies under
+   `.ultra/records/` or `.ultra/ledger/` (`out-of-scope`, one per path, in path order);
+4. the plan gate passes (`plan-gate`);
+5. every stale or unknown check is run (as `check`); a requirement of the current or a
+   closed milestone that was green before the attempt and is not green now is a
+   `ratchet-broken` problem (one per requirement, in requirement order);
+6. the node is `done` (`node-not-done`).
+
+Failures 1–5 stop the drive at once with those problems (the engine never reverts: a person
+decides). Failure 6 alone starts the next attempt with a freshly compiled brief, up to
+`--attempts` (default 3) attempts per node; after the last one the drive stops
+`attempts-exhausted`.
+
+A reviewer run happens once, at the milestone gate, with `UBP_ROOT`, `UBP`,
+`UBP_MILESTONE` (milestone id) and `UBP_REVIEW` (absolute path
+`.ultra/records/milestones/<milestone>-review.md`, which must not exist before the run;
+otherwise stop `review-exists`). The run's log is `.ultra/.runtime/drive/<run>/review.log`.
+Afterwards the file must exist and be a valid review (first line `Reviewer: ...`, exactly
+one `Verdict:` line, as for `milestone close`), else stop `review-invalid`. The drive then
+stops `milestone-gate` with the verdict. It never closes a milestone, approves anything or
+writes `.ultra/records/owner-touches.md`: those are the Owner's.
+
+`<run>` is a fresh UUID. Output: one line per action, `drive: <action> <subject>: <result>`,
+then `drive: stop <reason>`; `--json` instead prints
+`{ run, stop, verdict, steps: [{ action, subject, attempt, result, problems }], problems }`,
+where `verdict` is `accept`, `revise` or null and `problems` are those of the stopping step.
+Exit 0 when the stop is `milestone-gate` or `all-done`; 1 for every other stop; 2 for usage
+errors and engine failures; 130 or 143 when interrupted (the running writer or reviewer is
+stopped first).
+
+The drive takes no lock of its own across rounds: each step takes and releases the lock as
+the corresponding command does, so a writer can run `ubp` inside its attempt.
+
 ## Concurrency
 
 `gate`, `node done`, `milestone close` and `approve` hold `.ultra/.runtime/engine.lock` while they
@@ -838,6 +908,7 @@ options may follow in any order. `--root` defaults to the current directory.
 | `node done <id>` | records completion when the plan gate state is `pass`, the tree is clean, every dependency is done, every covered requirement is green and every invariant is green; for a cleanup node, also every node before it in its milestone (plan order) is done (`dependency-not-done`, one per node) and every requirement of a closed milestone and every requirement of its own milestone covered by a done node is green | 0 recorded; 1 refused with problems; 2 |
 | `retro` | prints the failure classes since the latest closure (see "Retro"); reads only | 0; 2 |
 | `merge <branch> --expect-head <commit>` | the merge gate (see "Merge gate") | 0 merged; 1 refused with problems; 2 |
+| `drive --writer <command> [--reviewer <command>] [--attempts <n>] [--timeout-sec <s>]` | the unattended controller loop (see "Drive (unattended run)") | 0 at `milestone-gate` or `all-done`; 1 any other stop; 2 usage or engine failure; 130/143 interrupted |
 | `milestone close <id> --owner <words> --review <path> [--proxy]` | records the closure when the milestone gate finds no problem (see "Milestone gate") | 0 recorded; 1 refused with problems; 2 |
 | `context <id> [--budget <bytes>]` | prints the node brief (see "Node brief") | 0; 1 over budget; 2 |
 | `approve <milestone>/<id>… --owner <words> [--proxy]` | records the Owner's approval of the listed reduction items | 0 recorded; 2 |
