@@ -2,14 +2,23 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { object, strings, read } = require('./formats.cjs');
+const { ID, object, strings, read } = require('./formats.cjs');
 
 const hashValue = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
 const hashes = (value) => object(value) && Object.values(value).every(hashValue);
 const textFields = (record, fields) => fields.every((key) => typeof record[key] === 'string');
 const checkSnapshots = (value) => object(value) && Object.values(value).every((check) =>
   object(check) && hashValue(check.fp) && strings(check.covers));
-const LEDGERS = ['evidence', 'plan-log', 'nodes', 'milestones'];
+const LEDGERS = ['evidence', 'plan-log', 'nodes', 'milestones', 'approvals'];
+const approvalItem = (value) => typeof value === 'string' && value.split('/').length === 2
+  && value.split('/').every((part) => ID.test(part));
+
+function validApproval(record) {
+  return strings(record.items) && record.items.length > 0
+    && record.items.every((item, i) => approvalItem(item) && (!i || record.items[i - 1] < item))
+    && object(record.owner) && typeof record.owner.words === 'string'
+    && record.owner.words.trim().length > 0 && typeof record.owner.proxy === 'boolean';
+}
 
 function validClosure(record) {
   const fields = {
@@ -32,6 +41,8 @@ function recordTime(value) {
 
 function validRecord(record, name) {
   if (!object(record) || record.v !== 1 || !recordTime(record.at)) return false;
+  if (['evidence', 'plan-log', 'nodes'].includes(name)
+      && Object.hasOwn(record, 'shared') && !hashValue(record.shared)) return false;
   if (name === 'evidence') {
     return textFields(record, ['check', 'run', 'reason', 'log'])
       && typeof record.dirty === 'boolean' && hashValue(record.code)
@@ -45,6 +56,7 @@ function validRecord(record, name) {
     const diff = record.diff;
     return typeof record.milestone === 'string' && hashes(record.requirements)
       && strings(record.nodes) && checkSnapshots(record.checks)
+      && (!object(diff) || !Object.hasOwn(diff, 'shared') || diff.shared === true)
       && ['baseline', 'change', 'removed'].includes(record.type)
       && (record.type !== 'removed' || (!Object.keys(record.requirements).length
         && !record.nodes.length && !Object.keys(record.checks).length))
@@ -55,6 +67,7 @@ function validRecord(record, name) {
   }
   if (name === 'nodes') return textFields(record, ['node']) && hashValue(record.code)
     && hashes(record.reqs) && strings(record.runs);
+  if (name === 'approvals') return validApproval(record);
   return name === 'milestones' && validClosure(record);
 }
 
@@ -170,4 +183,4 @@ function append(root, name, record, locked = false) {
   return locked ? write() : withLock(root, write);
 }
 
-module.exports = { ledger, latest, withLock, append };
+module.exports = { ledger, latest, withLock, append, approvalItem };

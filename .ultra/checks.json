@@ -32,6 +32,17 @@
       "run": "node --test --test-reporter=spec tests/engine-p2.test.cjs",
       "timeout_sec": 1200,
       "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-engine-p3",
+      "covers": [
+        "REQ-P3-precision",
+        "REQ-P3-diff",
+        "REQ-P3-reduction"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p3.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
     }
   ]
 }

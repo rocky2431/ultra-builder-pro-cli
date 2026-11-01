@@ -5,7 +5,7 @@ checks, records evidence, and computes progress. The model writes intent, specif
 and plan; it never writes progress, evidence or completion records by hand.
 
 Plan of record: `thinking/back-to-essentials-20261030/RESULT.md` (§3.1, §3.3–3.5, §3.9, §4,
-§5 P1–P2).
+§5 P1–P3).
 
 ## Layout
 
@@ -22,6 +22,7 @@ contains `.ultra/`.
 | `.ultra/ledger/plan-log.jsonl` | plan snapshots and changes | engine only |
 | `.ultra/ledger/nodes.jsonl` | node completions | engine only |
 | `.ultra/ledger/milestones.jsonl` | milestone closures | engine only (`milestone close`) |
+| `.ultra/ledger/approvals.jsonl` | the Owner's approvals of reductions | engine only (`approve`) |
 | `.ultra/records/milestones/<milestone>-review.md` | milestone review and its verdict | reviewer (never the author) |
 | `.ultra/records/handoffs/<node>.md` | what a finished node hands to its dependents | the node's writer |
 | `.ultra/records/…` | other records, such as the interview and the Owner-touch log | the method |
@@ -96,6 +97,20 @@ by `-`, by `_`, or by whitespace and a digit, which is not a requirement heading
 example `### REQ-3`, `##REQ-4`, `##　REQ-5` with an ideographic space, `## Req-7`,
 `## REQ 8`, `## req_9`), so these mistypings cannot drop a requirement from the count.
 Headings such as `## Requirements` or `## Req mapping` are ordinary sections.
+
+Shared text: every line of the spec outside the requirement blocks, that is the lines
+before the first requirement and every section under a level-1 or level-2 heading that is
+not a requirement (for example `## Direction` or `## Interface`), headings included. Its
+hash is the SHA-256 hex, in UTF-8, of those lines after CRLF→LF, each with trailing
+whitespace removed, empty lines dropped, joined with `\n`; with no such line it is the hash
+of the empty string. So blank lines and trailing spaces never change it, and any other
+edit does.
+
+The shared text holds what every requirement relies on (direction, interface
+conventions). The engine cannot tell which requirements a shared line concerns, so a
+change to it invalidates as if every requirement had changed (see "States"). A convention
+that concerns one requirement belongs in that requirement's block, where changing it
+invalidates only that requirement.
 
 ## `.ultra/checks.json` — check registry
 
@@ -224,7 +239,7 @@ after its last newline) before the engine's next append to that file.
 `at` is ISO-8601 UTC with milliseconds (`YYYY-MM-DDTHH:MM:SS.mmmZ`), so string order is
 time order; a record whose `at` has another form is malformed. When the engine appends a
 record, its `at` is the current time or, when that is not later than the greatest `at`
-in any of the four ledgers, 1 ms after it; the engine holds the lock while it reads the
+in any of the five ledgers, 1 ms after it; the engine holds the lock while it reads the
 ledgers and appends. A clock that runs fast or steps back therefore cannot make a later
 record look older than an earlier one, in the same file or across files (the plan-change
 count compares plan-log times with closure times).
@@ -237,7 +252,7 @@ Evidence (`evidence.jsonl`), one per executed check:
 {"v":1,"run":"<unique id>","check":"C-add","at":"<ISO time>","outcome":"pass|fail|unknown",
  "reason":"<see below>","exit_code":0,"duration_ms":812,"code":"<code fingerprint>",
  "dirty":false,"check_fp":"<check fingerprint>","reqs":{"REQ-001":"<requirement hash>"},
- "log":".ultra/.runtime/checks/<run>.log","error_line":null}
+ "shared":"<shared text hash>","log":".ultra/.runtime/checks/<run>.log","error_line":null}
 ```
 
 | Observation | outcome | reason |
@@ -251,7 +266,8 @@ Evidence (`evidence.jsonl`), one per executed check:
 | killed by another signal | unknown | `signal-<NAME>`, for example `signal-SIGTERM` |
 | the shell could not be started | unknown | `spawn-error` |
 
-`reqs` holds the current hashes of the covered requirements that exist in the spec.
+`reqs` holds the current hashes of the covered requirements that exist in the spec;
+`shared` holds the hash of the spec's shared text when the check ran.
 `duration_ms` is measured with a monotonic clock, so a wall clock that steps back during a
 run never makes it negative and never loses the run.
 `error_line` is null on pass; otherwise the first line of the output tail that matches
@@ -262,21 +278,48 @@ Plan log (`plan-log.jsonl`), written by a passing gate:
 
 ```json
 {"v":1,"type":"baseline|change|removed","milestone":"M1","at":"<ISO time>",
- "requirements":{"REQ-001":"<hash>"},"nodes":["N-01"],
+ "shared":"<shared text hash>","requirements":{"REQ-001":"<hash>"},"nodes":["N-01"],
  "checks":{"C-add":{"fp":"<check fingerprint>","covers":["REQ-001"]}},
  "diff":{"added":[],"removed":[],"modified":[],"nodes_added":[],"nodes_removed":[],
          "checks_added":[],"checks_removed":[],"checks_modified":[]}}
 ```
 
-A milestone's snapshot is its requirement ids mapped to current hashes; its node ids,
-sorted; and every check that covers at least one of its requirements, mapped to the
-check's fingerprint and the sorted ids of the milestone's requirements it covers. So
-removing a check, narrowing what it covers or editing it is a plan change of every
-milestone it touches: it is recorded with its diff, and until then the gate is `stale`.
-`diff` is present on `change` and `removed`; every id list in it is sorted in code-unit
-order (JavaScript's default sort). What the gate records is defined under "Plan gate".
+A milestone's snapshot is the shared text hash; its requirement ids mapped to current
+hashes; its node ids, sorted; and every check that covers at least one of its requirements,
+mapped to the check's fingerprint and the sorted ids of the milestone's requirements it
+covers. So removing a check, narrowing what it covers or editing it is a plan change of
+every milestone it touches: it is recorded with its diff, and until then the gate is
+`stale`. `diff` is present on `change` and `removed`; every id list in it is sorted in
+code-unit order (JavaScript's default sort). `diff` also holds `"shared": true` when the
+snapshot's shared hash differs from the previous record's, or the previous record has none;
+the key is absent otherwise. What the gate records is defined under "Plan gate".
 
-Node completion (`nodes.jsonl`): `{"v":1,"node":"N-01","at":"…","code":"…","reqs":{"REQ-001":"…"},"runs":["…"]}`.
+Node completion (`nodes.jsonl`):
+`{"v":1,"node":"N-01","at":"…","code":"…","reqs":{"REQ-001":"…"},"shared":"…","runs":["…"]}`.
+
+`shared` in evidence, plan-log and node completion records is optional for reading: records
+written before P3 lack it and stay valid. When present it must be a SHA-256 hex, and a
+plan-log `diff.shared`, when present, must be `true`. Every record the engine writes now
+carries `shared`.
+
+Upgrading a project whose records predate P3: its evidence, nodes and plan-log records have
+no `shared`, so every check and every done node turns `stale` (`shared-changed`) and the
+gate is `stale`. Run `ubp gate` once (it records a `change` for every milestone, with an
+otherwise empty diff and `shared: true`, which raises `本里程碑计划变更` until the next
+closure), then `ubp check`, then `ubp node done` for each node that was done, in dependency
+order. A milestone review should read those records as the upgrade, not as a change of
+intent.
+
+Approval (`approvals.jsonl`), written by `approve`:
+
+```json
+{"v":1,"items":["M2/C-delete-page","M2/REQ-delete-page"],"at":"<ISO time>",
+ "owner":{"words":"<the Owner's words, verbatim>","proxy":false}}
+```
+
+`items` is non-empty, sorted in code-unit order, without duplicates; each item is
+`<milestone id>/<requirement or check id>`, both parts matching the id pattern of
+"`.ultra/spec.md`". `owner.words` is a non-empty string and `owner.proxy` a boolean.
 
 Milestone closure (`milestones.jsonl`), written by `milestone close`:
 
@@ -308,10 +351,11 @@ Check state, and requirement-check pair state, evaluated in this order:
 1. No record → `unknown` with reason `not-run`. Latest record dirty → `unknown` with
    reason `dirty-run` (a failure observed on a dirty tree must not leave an older pass
    standing).
-2. Stale reasons are collected: `check-changed` (fingerprint differs), `code-changed`
-   (code fingerprint differs), `req-changed:<id>` (a covered requirement's hash differs
-   from, or is missing in, the record's `reqs`). For a pair, only the pair's own
-   requirement can contribute `req-changed`. Any stale reason → `stale`.
+2. Stale reasons are collected, in this order: `check-changed` (fingerprint differs),
+   `code-changed` (code fingerprint differs), `shared-changed` (the shared text hash differs
+   from the record's `shared`, or the record has none), `req-changed:<id>` (a covered
+   requirement's hash differs from, or is missing in, the record's `reqs`). For a pair, only
+   the pair's own requirement can contribute `req-changed`. Any stale reason → `stale`.
 3. Otherwise the outcome: pass → `green` with no reasons; fail → `red` and unknown →
    `unknown`, each with the record's `reason` as its only reason.
 
@@ -321,14 +365,26 @@ Only `green` counts as done; `unknown` and `uncovered` never do.
 
 Node state:
 
-- `done`: a completion record exists and every covered requirement's current hash
-  equals the hash in the node's latest record.
-- `stale`: a completion record exists but some covered requirement's hash differs or is
-  missing (reasons `req-changed:<id>`).
+- `done`: a completion record exists, its `shared` equals the current shared text hash,
+  and every covered requirement's current hash equals the hash in the node's latest
+  record.
+- `stale`: a completion record exists but its `shared` differs or is missing (reason
+  `shared-changed`, first), or some covered requirement's hash differs or is missing
+  (reasons `req-changed:<id>`).
 - `ready`: no completion record and every dependency is `done`.
 - `blocked`: otherwise.
 
 A node is actionable when it is `ready`, or `stale` with every dependency `done`.
+
+Invalidation precision: a node turns stale only when the text of a requirement it covers,
+or the shared text, changes, so only the nodes behind a changed requirement are worked
+again. A check's evidence is tied to the whole code fingerprint, so any commit to code
+makes every check stale: the engine cannot know which code a check exercises, and a
+narrower rule could keep a broken check green. After any code commit, `ubp check` reruns
+every check, which is the ratchet: a requirement of the current or a closed milestone that
+was green must be green again. Ceiling: a project whose full check run is slow pays it
+after every node; the upgrade path is per-check input prefixes, valid only where a check's
+inputs can be stated and enforced.
 
 Closed milestones: those with a closure record. Current milestone: the first milestone in
 plan order that is not closed; if all are closed, the last milestone; with no milestones,
@@ -386,7 +442,43 @@ Problems are objects `{ "code", "message", "hint" }`; the hint says how to fix i
 | `dependency-cycle` | the dependency graph has a cycle |
 | `unknown-journey` | a milestone's `journey` names a check absent from `checks.json` |
 | `journey-outside-milestone` | a milestone's `journey` check covers none of its requirements |
+| `reduction-unapproved` | the plan drops a requirement or a check from a milestone, or narrows what a check covers, without a recorded approval (below) |
 | `malformed-ruling` | a ruling entry in `rulings.md` does not have the ruling form, or a fence there is never closed |
+
+`reduction-unapproved` problems, one per unapproved item, follow every other plan problem,
+and `malformed-ruling` comes last.
+
+Reductions. For each milestone id in the plan log whose latest record is not `removed`,
+in order of first appearance in the log, compare that record's snapshot with the
+milestone's current snapshot (empty when the milestone is no longer in `plan.json`). Its
+reduction items are, requirements first, then checks, each group sorted by id:
+
+- `<milestone>/<requirement>` for every requirement in the record that the current
+  snapshot lacks (deleted from the spec, or moved to another milestone);
+- `<milestone>/<check>` for every check in the record that the current snapshot lacks, and
+  for every check in both whose current `covers` lacks a requirement that the record's
+  `covers` held and that is still in the current snapshot.
+
+An item is approved when some record in `approvals.jsonl` lists it and has an `at` later
+than both the milestone's latest plan-log record and its closure, if any: an approval
+answers the plan as it stood, so a later recorded change of that milestone, or its closure,
+leaves an unused approval behind. One item covers any reduction of what it names: approving
+`M1/C-12` to narrow it also allows deleting it. Each unapproved item is one problem; its
+message names the item and its hint names `ubp approve <item> --owner "<words>"`. Once the
+gate passes, it records the change, and the item is no longer in the latest snapshot, so
+an approval is used once. Only the Owner approves a reduction (RESULT §3.2, §3.7): the
+ratchet keeps every check of a requirement until they do.
+
+Renaming a milestone removes everything it held from the old id (see "What a passing gate
+records"), so a rename needs the same approval for each of the old milestone's items.
+
+Ceiling: the engine sees removals, not meaning. These pass the gate as modifications:
+rewording a requirement so that it asks for less; weakening the assertions inside a check's
+test file; changing a check's `run` or `expect` in `checks.json` so it proves less; deleting
+a convention from the shared text. The method has the planner classify such an edit as a
+reduction and record the Owner's approval with `ubp approve` before making it; the
+milestone review reads the plan-log diffs. Approval records are checked for their shape
+only, so a hand-written line counts like one written by `ubp approve`.
 
 What a passing gate records, in this order:
 
@@ -535,7 +627,7 @@ to split the node; text mode prints the problem on stderr.
 
 ## Concurrency
 
-`gate`, `node done` and `milestone close` hold `.ultra/.runtime/engine.lock` while they
+`gate`, `node done`, `milestone close` and `approve` hold `.ultra/.runtime/engine.lock` while they
 read the ledgers and append to them; every other ledger append holds it while it reads the
 ledgers' greatest `at` and appends. The lock file is created exclusively and contains the
 holder's pid in decimal. A command waits up to 30 seconds for the lock and exits 2 if it
@@ -567,6 +659,7 @@ options may follow in any order. `--root` defaults to the current directory.
 | `node done <id>` | records completion when the plan gate state is `pass`, the tree is clean, every dependency is done and every covered requirement is green | 0 recorded; 1 refused with problems; 2 |
 | `milestone close <id> --owner <words> --review <path> [--proxy]` | records the closure when the milestone gate finds no problem (see "Milestone gate") | 0 recorded; 1 refused with problems; 2 |
 | `context <id> [--budget <bytes>]` | prints the node brief (see "Node brief") | 0; 1 over budget; 2 |
+| `approve <milestone>/<id>… --owner <words> [--proxy]` | records the Owner's approval of the listed reduction items | 0 recorded; 2 |
 
 `status --json` returns
 `{ milestone, line, counts: {total, green, red, stale, unknown, uncovered}, next,
@@ -586,10 +679,18 @@ last_run}], nodes: [{id, milestone, state, reasons}] }`.
 `omitted` lists, in omission order, the dependencies whose handoffs were omitted, and on
 refusal `brief` is null and `bytes` is the size reached after every handoff that could be
 omitted was omitted.
+`approve --json` returns `{ ok: true, items }` with the recorded, sorted items; in text mode
+it prints `approved: <items joined by ", ">`. Each item must name a milestone whose latest
+plan-log record is not `removed` and a requirement or check in that record's snapshot, so
+an approval can be given before the edit it allows; any other item, no item, or `--owner`
+missing, repeated or blank after trimming is a usage error (exit 2) and records nothing.
+The engine cannot tell the Owner's words from words written for them; `--proxy` marks an
+answer the assistant gave for the Owner.
 
-Options belong to their command: `--owner`, `--review` and `--proxy` only to `milestone
-close`, `--budget` only to `context`, and the check selectors only to `check`; anywhere else
-they are usage errors. Giving `--owner`, `--review` or `--budget` twice is a usage error.
+Options belong to their command: `--owner` and `--proxy` only to `milestone close` and
+`approve`, `--review` only to `milestone close`, `--budget` only to `context`, and the check
+selectors only to `check`; anywhere else they are usage errors. Giving `--owner`, `--review`
+or `--budget` twice is a usage error.
 
 Exit 1 only ever means that a check in scope is not green after `check`, the plan gate
 found problems, `node done` or `milestone close` refused, or a node brief does not fit its

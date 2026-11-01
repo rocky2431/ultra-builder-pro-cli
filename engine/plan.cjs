@@ -1,7 +1,7 @@
 'use strict';
 
 const { unique, problem, rulingProblems } = require('./formats.cjs');
-const { latest, withLock, append } = require('./ledger.cjs');
+const { latest, withLock, append, approvalItem } = require('./ledger.cjs');
 const { load } = require('./loading.cjs');
 
 function requirementProblems(project, add) {
@@ -93,41 +93,75 @@ function planProblems(project) {
         'Choose a journey check covering a requirement of this milestone.');
     }
   }
+  reductionProblems(project, add);
   return problems.concat(rulingProblems(project.rulings));
 }
 
 function snapshot(project, milestone) {
+  const requirements = unique(milestone.requirements).filter((id) => project.reqs.has(id)).sort();
   return {
-    requirements: Object.fromEntries(unique(milestone.requirements).sort()
-      .map((id) => [id, project.reqs.get(id)])),
+    shared: project.shared,
+    requirements: Object.fromEntries(requirements.map((id) => [id, project.reqs.get(id)])),
     nodes: project.nodes.filter((n) => n.milestone === milestone.id).map((n) => n.id).sort(),
     checks: Object.fromEntries(project.checks.filter((check) =>
-      check.covers.some((id) => milestone.requirements.includes(id))).map((check) =>
+      check.covers.some((id) => requirements.includes(id))).map((check) =>
       [check.id, { fp: check.fp, covers: unique(check.covers.filter((id) =>
-        milestone.requirements.includes(id))).sort() }])),
+        requirements.includes(id))).sort() }])),
   };
 }
 
 function sameSnapshot(current, previous) {
   if (!previous || previous.type === 'removed') return false;
-  return Object.values(snapshotDiff(current, previous)).every((ids) => ids.length === 0);
+  return Object.values(snapshotDiff(current, previous))
+    .every((value) => Array.isArray(value) && value.length === 0);
 }
+
+const has = (object, id) => Object.hasOwn(object, id);
 
 function snapshotDiff(now, before) {
   return {
-    added: Object.keys(now.requirements).filter((id) => !(id in before.requirements)).sort(),
-    removed: Object.keys(before.requirements).filter((id) => !(id in now.requirements)).sort(),
-    modified: Object.keys(now.requirements).filter((id) => id in before.requirements
+    added: Object.keys(now.requirements).filter((id) => !has(before.requirements, id)).sort(),
+    removed: Object.keys(before.requirements).filter((id) => !has(now.requirements, id)).sort(),
+    modified: Object.keys(now.requirements).filter((id) => has(before.requirements, id)
       && now.requirements[id] !== before.requirements[id]).sort(),
     nodes_added: now.nodes.filter((id) => !before.nodes.includes(id)).sort(),
     nodes_removed: before.nodes.filter((id) => !now.nodes.includes(id)).sort(),
-    checks_added: Object.keys(now.checks).filter((id) => !(id in before.checks)).sort(),
-    checks_removed: Object.keys(before.checks).filter((id) => !(id in now.checks)).sort(),
-    checks_modified: Object.keys(now.checks).filter((id) => id in before.checks
+    checks_added: Object.keys(now.checks).filter((id) => !has(before.checks, id)).sort(),
+    checks_removed: Object.keys(before.checks).filter((id) => !has(now.checks, id)).sort(),
+    checks_modified: Object.keys(now.checks).filter((id) => has(before.checks, id)
       && (now.checks[id].fp !== before.checks[id].fp
         || JSON.stringify(now.checks[id].covers) !== JSON.stringify(before.checks[id].covers)))
       .sort(),
+    ...(now.shared !== before.shared ? { shared: true } : {}),
   };
+}
+
+function emptySnapshot(project) {
+  return { shared: project.shared, requirements: {}, nodes: [], checks: {} };
+}
+
+function reductionProblems(project, add) {
+  for (const id of unique(project.plans.map((p) => p.milestone))) {
+    const before = latest(project.plans, 'milestone', id);
+    if (before.type === 'removed') continue;
+    const milestone = project.milestones.find((m) => m.id === id);
+    const now = milestone ? snapshot(project, milestone) : emptySnapshot(project);
+    const removed = Object.keys(before.requirements)
+      .filter((req) => !Object.hasOwn(now.requirements, req)).sort();
+    const checks = Object.keys(before.checks).filter((check) =>
+      !Object.hasOwn(now.checks, check) || before.checks[check].covers.some((req) =>
+        Object.hasOwn(now.requirements, req) && !now.checks[check].covers.includes(req))).sort();
+    // An approval answers the plan as it stood: one given before a later plan change or a
+    // closure of the milestone no longer counts.
+    const closed = latest(project.closures, 'milestone', id);
+    const floor = closed && closed.at > before.at ? closed.at : before.at;
+    for (const item of unique([...removed, ...checks]).map((entry) => `${id}/${entry}`)) {
+      if (!project.approvals.some((a) => a.at > floor && a.items.includes(item))) {
+        add('reduction-unapproved', `Reduction ${item} needs the Owner's approval`,
+          `Record approval with ubp approve ${item} --owner "<words>".`);
+      }
+    }
+  }
 }
 
 function pendingPlans(project) {
@@ -145,7 +179,7 @@ function pendingPlans(project) {
   for (const id of unique(project.plans.map((p) => p.milestone))) {
     const before = latest(project.plans, 'milestone', id);
     if (before.type !== 'removed' && !project.milestones.some((m) => m.id === id)) {
-      add(id, { requirements: {}, nodes: [], checks: {} }, before, 'removed');
+      add(id, emptySnapshot(project), before, 'removed');
     }
   }
   return pending;
@@ -162,4 +196,23 @@ function gate(project) {
   });
 }
 
-module.exports = { planProblems, pendingPlans, gate };
+function approve(project, items, opts) {
+  return withLock(project.root, () => {
+    const current = load(project.root);
+    const sorted = unique(items).sort();
+    for (const item of sorted) {
+      const [milestone, id] = item.split('/');
+      const before = latest(current.plans, 'milestone', milestone);
+      if (!approvalItem(item) || !before || before.type === 'removed'
+          || !(Object.hasOwn(before.requirements, id) || Object.hasOwn(before.checks, id))) {
+        throw new Error(`Invalid approval item ${item}. Use <milestone>/<requirement or check>`
+          + ' from the milestone\'s latest plan-log snapshot.');
+      }
+    }
+    append(current.root, 'approvals', { v: 1, items: sorted,
+      owner: { words: opts.owner, proxy: opts.proxy } }, true);
+    return { ok: true, items: sorted };
+  });
+}
+
+module.exports = { planProblems, pendingPlans, gate, approve };

@@ -10,6 +10,7 @@ function checkState(project, check, record, ids = check.covers) {
   const reasons = [];
   if (check.fp !== record.check_fp) reasons.push('check-changed');
   if (project.code !== record.code) reasons.push('code-changed');
+  if (project.shared !== record.shared) reasons.push('shared-changed');
   for (const id of unique(ids)) {
     if (!project.reqs.has(id) || project.reqs.get(id) !== record.reqs[id]) {
       reasons.push(`req-changed:${id}`);
@@ -55,6 +56,7 @@ function nodeStates(project) {
     const record = latest(project.completions, 'node', id);
     const reasons = record ? unique(n.covers).filter((r) => !project.reqs.has(r)
       || project.reqs.get(r) !== record.reqs[r]).map((r) => `req-changed:${r}`) : [];
+    if (record && project.shared !== record.shared) reasons.unshift('shared-changed');
     let state = 'blocked';
     if (record) state = reasons.length ? 'stale' : 'done';
     const result = { id, milestone: n.milestone, state, reasons };

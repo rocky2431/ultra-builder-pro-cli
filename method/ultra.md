@@ -141,17 +141,19 @@ choosing a layer.
 
 When `next` is `里程碑门`:
 
-1. `ubp check --all`. Every check, including those of closed milestones, must be green.
+1. `ubp check --all`. Every check covering a requirement of this milestone or of a closed
+   milestone must be green; checks of later milestones may be red.
 2. Whole-branch review. A reviewer who wrote none of the milestone's code reads the
-   milestone's diff (from the previous closure commit, or from the start), its requirements
-   and the rulings since the previous closure. It writes
-   `.ultra/records/milestones/<milestone>-review.md`: findings, then exactly one line
-   `Verdict: accept` or `Verdict: revise`. Ask it to drive the product by hand and to run the
-   checks against deliberately broken copies of the code: a check that passes on a broken
-   copy is an acceptance gap. On `revise`, keep that review as `<milestone>-review-<n>.md`,
-   triage every finding with "Escalation" (a fix that narrows a requirement goes to the
-   Owner first), change the spec and the checks as acceptance author, `ubp gate`, rework the
-   stale nodes through the node loop, and review again.
+   milestone's diff (from the previous closure commit, or from the start), its requirements,
+   the plan-log changes and the rulings since the previous closure. It writes
+   `.ultra/records/milestones/<milestone>-review.md`: a first line `Reviewer: <who>`,
+   findings, then exactly one line `Verdict: accept` or `Verdict: revise`. Ask it to drive
+   the product by hand and to run the checks against deliberately broken copies of the code:
+   a check that passes on a broken copy is an acceptance gap. On `revise`, keep that review
+   as `<milestone>-review-<n>.md`, triage every finding with "Escalation" (a fix that
+   narrows a requirement goes to the Owner first), change the spec and the checks as
+   acceptance author, `ubp gate`, rework the stale nodes through the node loop, and review
+   again.
 3. Demo for the Owner, in this order: what to try by hand (the journey in user terms), the
    journey check's result and log path, the progress line, the plan changes since the
    previous closure (`.ultra/ledger/plan-log.jsonl`), the rulings since then, the verdict.
@@ -160,15 +162,35 @@ When `next` is `里程碑门`:
 5. `ubp milestone close <milestone> --owner "<words>" --review <review path>`, adding
    `--proxy` when you answered for the Owner. Then commit `.ultra/`.
 
-## Changes after 0→1 (draft; completed in P3)
+## Changes after 0→1
 
-An Owner message during the work is a difference in one layer. Classify it first:
+An Owner message during the work, or a finding during it, is a difference in one layer.
+Name the layer before touching any file, then follow its row. Every row ends with
+`ubp gate` passing and a commit of `.ultra/`; the plan log then holds the diff, and
+`ubp status` counts it in `本里程碑计划变更`.
 
-- L1 add or modify: edit the requirement and its checks, run `ubp gate`; only the affected
-  checks and nodes turn stale, and the plan change is logged.
-- L1 delete or narrow: get the Owner's approval before editing anything, and log the touch.
-- L2: write a ruling, change the design and the plan, run `ubp gate`.
-- L0: ask the Owner; the milestones it affects are planned again.
+| Difference | Layer | What you do | What the engine does |
+|---|---|---|---|
+| a new behavior | L1 add | spec block, a red check (commit it before code), a node; gate | new node `ready`; no other node changes state; every check is stale until `ubp check` (the new check file is code) |
+| a behavior changes | L1 modify | edit the block, its checks; gate | only nodes covering it turn `stale`; brief a writer with the new `ubp context` |
+| a behavior goes away or asks for less | L1 reduce | ask the Owner first (touch `reduction`); `ubp approve <milestone>/<id>… --owner "<words>"` (add `--proxy` when you answered for them); then edit | the gate refuses (`reduction-unapproved`) any dropped requirement, dropped check or narrowed check coverage without that record |
+| how it is built changes | L2 | a ruling; edit the design, the plan (usually a new node, or new `depends`); gate | the new node runs; requirement texts are unchanged, so no other node turns stale |
+| a shared convention changes (`## Interface`) | L2 | as above, plus edit the shared text | every node and check turns `stale` (`shared-changed`): rerun every check; a node whose checks are green again needs only `ubp node done` |
+| direction or success criteria | L0 | stop and ask the Owner | — |
+
+After any of these, the controller runs `ubp check` (every check is stale after any code
+commit: the ratchet) and confirms that no requirement of the current or a closed milestone
+went from green to red.
+
+The engine sees removals, not meaning: rewording a requirement so it asks for less,
+weakening a test inside a check's file, changing a check's `run` or `expect` so it proves
+less, or deleting a convention from the shared text all pass the gate as modifications.
+Classify such an edit as a reduction yourself and record the Owner's approval with `ubp
+approve` before making it. An approval answers the plan as it stands: gate any other change
+of that milestone, or close it, and the approval no longer counts, so approve, edit and gate
+in one go. Interface details that concern one requirement go in that requirement's block, so
+changing them stales only its nodes. A brief carries requirement text only: when the shared
+text changed, quote the changed lines in the writer's mission.
 
 ## Owner touches
 
@@ -178,10 +200,11 @@ Every question put to the Owner is one line in `.ultra/records/owner-touches.md`
 - <YYYY-MM-DD> <touchpoint> · Q: <question> · A: <answer verbatim> · proxy: yes|no
 ```
 
-Touchpoints: `interview`, `milestone-gate`, `reduction`, `L0`, `unplanned`. A run that went
-as planned has no `unplanned` line; report the count at every milestone gate. An answer the
-assistant gave for the Owner (`proxy: yes`) is not Owner validation; say so wherever it is
-reported.
+Touchpoints: `interview`, `milestone-gate`, `reduction`, `L0`, `delegation` (the Owner hands
+the remaining touchpoints to you: answer them by proxy from then on), `unplanned`. A run
+that went as planned has no `unplanned` line; report the count at every milestone gate. An
+answer the assistant gave for the Owner (`proxy: yes`) is not Owner validation; say so
+wherever it is reported.
 
 ## Rulings
 

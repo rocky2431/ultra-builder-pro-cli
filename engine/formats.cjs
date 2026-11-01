@@ -74,6 +74,7 @@ function markdown(text, visit) {
 function requirements(text) {
   const result = new Map();
   const requirementText = new Map();
+  const shared = [];
   let current = null;
   const finish = () => {
     if (!current) return;
@@ -103,10 +104,11 @@ function requirements(text) {
       }
     }
     if (current) current.lines.push(line);
+    else if (line.trimEnd()) shared.push(line.trimEnd());
   });
   assertFile(!unclosed, `.ultra/spec.md:${unclosed}`, 'unclosed fence');
   finish();
-  return { reqs: result, requirementText };
+  return { reqs: result, requirementText, shared: hash(shared.join('\n')) };
 }
 
 function validateCheck(item, valid) {
@@ -169,5 +171,5 @@ function rulingProblems(text) {
   return problems;
 }
 
-module.exports = { hash, object, strings, unique, problem, read, readRecord, markdown, requirements,
-  registry, rulingProblems };
+module.exports = { ID, hash, object, strings, unique, problem, read, readRecord, markdown,
+  requirements, registry, rulingProblems };

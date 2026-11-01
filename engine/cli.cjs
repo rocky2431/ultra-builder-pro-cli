@@ -5,10 +5,12 @@ const { load, status, gate, complete } = require('./project.cjs');
 const { execute } = require('./checks.cjs');
 const { close } = require('./milestone.cjs');
 const { context } = require('./context.cjs');
+const { approve } = require('./plan.cjs');
 
 function options(args, command) {
   const local = { check: ['--all', '--stale', '--req'],
-    milestone: ['--owner', '--review', '--proxy'], context: ['--budget'] };
+    milestone: ['--owner', '--review', '--proxy'], approve: ['--owner', '--proxy'],
+    context: ['--budget'] };
   const allowed = new Set(['--root', '--json', ...(local[command] || [])]);
   const result = { root: process.cwd(), json: false, words: [], selector: null, req: null,
     owner: null, review: null, proxy: false, budget: 32768 };
@@ -88,6 +90,7 @@ function printResult(command, opts, result, project, after) {
   if (opts.json) { console.log(JSON.stringify(result)); return; }
   for (const warning of project.warnings) console.error(warning);
   if (command === 'status') console.log(result.line);
+  else if (command === 'approve') console.log(`approved: ${result.items.join(', ')}`);
   else if (command === 'context') {
     if (result.ok) process.stdout.write(result.brief);
     else for (const p of result.problems) console.error(`${p.code}: ${p.message} — ${p.hint}`);
@@ -110,23 +113,28 @@ function printResult(command, opts, result, project, after) {
 async function handle(args) {
   try {
     const [command, ...rest] = args;
-    if (!['status', 'gate', 'check', 'node', 'milestone', 'context'].includes(command)) {
+    if (!['status', 'gate', 'check', 'node', 'milestone', 'context', 'approve'].includes(command)) {
       throw new Error(`Unknown command ${command ?? ''}. `
-        + 'Use status, gate, check, node done, milestone close or context.');
+        + 'Use status, gate, check, node done, milestone close, context or approve.');
     }
     const opts = options(rest, command);
     const { words } = opts;
     if ((['status', 'gate'].includes(command) && words.length)
         || (command === 'node' && (words.length !== 2 || words[0] !== 'done'))
         || (command === 'milestone' && (words.length !== 2 || words[0] !== 'close'))
-        || (command === 'context' && words.length !== 1)) {
+        || (command === 'context' && words.length !== 1)
+        || (command === 'approve' && !words.length)) {
       const usage = { node: 'node done <id>',
         milestone: 'milestone close <id> --owner <words> --review <path>',
-        context: 'context <id>' }[command] || command;
+        context: 'context <id>', approve: 'approve <milestone>/<id>… --owner <words>'
+      }[command] || command;
       throw new Error(`Usage: ${usage} [--root <dir>] [--json]`);
     }
     if (command === 'milestone' && (!opts.owner?.trim() || !opts.review)) {
       throw new Error('milestone close requires --owner <non-empty words> and --review <path>.');
+    }
+    if (command === 'approve' && !opts.owner?.trim()) {
+      throw new Error('approve requires --owner <non-empty words>.');
     }
     const project = load(opts.root);
     let result;
@@ -137,6 +145,7 @@ async function handle(args) {
     if (command === 'node') result = complete(project, words[1]);
     if (command === 'milestone') result = close(project, words[1], opts);
     if (command === 'context') result = context(project, words[0], opts.budget);
+    if (command === 'approve') result = approve(project, words, opts);
     if (command === 'check') {
       const checked = await runChecks(project, opts);
       result = checked.result;

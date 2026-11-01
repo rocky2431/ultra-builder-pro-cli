@@ -34,7 +34,7 @@ function recordCompletion(project, id) {
     const ids = state.requirements.filter((r) => node.covers.includes(r.id))
       .flatMap((r) => r.checks.map((c) => c.id));
     append(project.root, 'nodes', { v: 1, node: id, at: new Date().toISOString(),
-      code: project.code,
+      code: project.code, shared: project.shared,
       reqs: Object.fromEntries(node.covers.map((r) => [r, project.reqs.get(r)])),
       runs: unique(state.checks.filter((c) => ids.includes(c.id)).map((c) => c.last_run)) }, true);
   }

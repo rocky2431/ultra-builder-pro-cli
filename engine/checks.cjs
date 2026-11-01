@@ -101,7 +101,7 @@ async function execute(project, check) {
     dirty: before.dirty || after.dirty || before.code !== after.code, check_fp: check.fp,
     reqs: Object.fromEntries(check.covers.filter((id) => project.reqs.has(id))
       .map((id) => [id, project.reqs.get(id)])),
-    log, error_line: outcome === 'pass' ? null : errorLine(output) };
+    shared: project.shared, log, error_line: outcome === 'pass' ? null : errorLine(output) };
   append(project.root, 'evidence', record);
   return record;
 }

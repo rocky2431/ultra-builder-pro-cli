@@ -38,3 +38,20 @@ within a byte budget, and it reads nothing outside the project's records.
 ## REQ-P2-records Records never invalidate evidence
 Files under `.ultra/records/` (interview, reviews, handoffs, Owner touches) never make the
 tree dirty and never make a check stale.
+
+## REQ-P3-precision A change reruns only what it touches
+After one requirement's text changes, only the nodes covering it turn stale. After the
+shared text (every spec line outside requirement blocks) changes, every node and check
+turns stale with the reason `shared-changed`; an edit of whitespace alone changes nothing.
+After any code commit every check is stale until it runs again (the ratchet).
+
+## REQ-P3-diff Every change leaves a visible diff
+`ubp gate` records each plan change of a milestone in `.ultra/ledger/plan-log.jsonl` with
+its diff (requirements added, removed and modified, nodes and checks added and removed,
+narrowed coverage, shared text), and `ubp status` counts it in `本里程碑计划变更`.
+
+## REQ-P3-reduction A reduction waits for the Owner
+The plan gate refuses (`reduction-unapproved`) a requirement or a check leaving a
+milestone, or a check covering less of a milestone, until `ubp approve <milestone>/<id>
+--owner <words>` records an approval later than the milestone's latest plan change and
+its closure; `--proxy` marks words given on the Owner's behalf.

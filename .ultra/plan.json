@@ -22,6 +22,16 @@
         "REQ-P2-context",
         "REQ-P2-records"
       ]
+    },
+    {
+      "id": "M-P3",
+      "title": "1→100 on reference sample R",
+      "journey": "C-engine-p3",
+      "requirements": [
+        "REQ-P3-precision",
+        "REQ-P3-diff",
+        "REQ-P3-reduction"
+      ]
     }
   ],
   "nodes": [
@@ -60,6 +70,26 @@
         "bin/install.js",
         "tests/engine-p2.test.cjs",
         "tests/package-smoke.test.cjs",
+        "method/"
+      ]
+    },
+    {
+      "id": "N-P3-engine",
+      "milestone": "M-P3",
+      "title": "Shared text, plan diffs, reduction approvals",
+      "covers": [
+        "REQ-P3-precision",
+        "REQ-P3-diff",
+        "REQ-P3-reduction"
+      ],
+      "depends": [
+        "N-P2-engine"
+      ],
+      "scope": [
+        "engine/",
+        "bin/install.js",
+        "tests/engine-p3.test.cjs",
+        "tests/engine-p1.test.cjs",
         "method/"
       ]
     }

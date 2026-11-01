@@ -861,6 +861,9 @@ test('removing a milestone records everything that left the plan', (t) => {
   plan.milestones.pop();
   plan.nodes.pop();
   setPlan(fx, plan);
+  // P3: a reduction waits for the Owner's recorded approval.
+  assert.equal(status(fx).gate, 'fail');
+  ok(fx, ['approve', 'M2/REQ-003', 'M2/C-3', '--owner', '同意去掉 M2。']);
   assert.equal(status(fx).gate, 'stale');
   const gate = json(fx, ['gate']);
   assert.deepEqual(gate.recorded, [{ milestone: 'M2', type: 'removed' }]);
@@ -892,6 +895,10 @@ test('renaming a milestone is a removal plus a baseline, never a silent reset', 
     milestones: [{ id: 'M1b', title: 'Core list', requirements: ['REQ-001'] }, PLAN.milestones[1]],
     nodes: [{ ...PLAN.nodes[0], milestone: 'M1b' }, { ...PLAN.nodes[2], depends: ['N-01'] }],
   });
+  // P3: everything that leaves M1 is a reduction until the Owner approves it.
+  assert.equal(status(fx).gate, 'fail');
+  ok(fx, ['approve', 'M1/REQ-001', 'M1/REQ-002', 'M1/C-1', 'M1/C-12', 'M1/C-2',
+    '--owner', '同意改名并去掉 REQ-002。']);
   const gate = json(fx, ['gate']);
   assert.deepEqual(gate.recorded, [
     { milestone: 'M1b', type: 'baseline' },
@@ -920,12 +927,15 @@ test('removing or narrowing a check is a recorded plan change, never a silent tu
   let state = status(fx);
   assert.equal(byId(state.requirements)['REQ-001'].state, 'green');
   assert.equal(state.dirty, false);
-  assert.equal(state.gate, 'stale');
-  assert.equal(state.line, 'M1 · 2/2 绿 · 下一项 N-01 · 本里程碑计划变更 0 次 · 计划门待重跑');
+  // P3: dropping a check is a reduction; the gate fails until the Owner approves it.
+  assert.equal(state.gate, 'fail');
+  assert.equal(state.line, 'M1 · 2/2 绿 · 下一项 N-01 · 本里程碑计划变更 0 次 · 计划门未通过');
   const refused = json(fx, ['node', 'done', 'N-01'], 1);
   assert.deepEqual(refused.problems.map((item) => item.code), ['plan-gate']);
   assert.deepEqual(ledger(fx, 'nodes.jsonl'), []);
 
+  ok(fx, ['approve', 'M1/C-1-edge', '--owner', '同意去掉 C-1-edge。']);
+  assert.equal(status(fx).gate, 'stale');
   assert.deepEqual(json(fx, ['gate']).recorded, [{ milestone: 'M1', type: 'change' }]);
   assert.deepEqual(ledger(fx, 'plan-log.jsonl').at(-1).diff, {
     added: [], removed: [], modified: [], nodes_added: [], nodes_removed: [],
@@ -935,7 +945,9 @@ test('removing or narrowing a check is a recorded plan change, never a silent tu
 
   setChecks(fx, CHECKS.map((check) => (check.id === 'C-12' ? { ...check, covers: ['REQ-001'] } : check)));
   state = status(fx);
-  assert.equal(state.gate, 'stale');
+  assert.equal(state.gate, 'fail');
+  ok(fx, ['approve', 'M1/C-12', '--owner', '同意 C-12 只管 REQ-001。']);
+  assert.equal(status(fx).gate, 'stale');
   ok(fx, ['gate']);
   assert.deepEqual(ledger(fx, 'plan-log.jsonl').at(-1).diff.checks_modified, ['C-12']);
   assert.equal(status(fx).plan_changes, 2);
@@ -973,11 +985,16 @@ The user shares a read-only link to the list.
   editSpec(fx, 'Free text that is not part of REQ-001.', 'Changed notes.');
   editSpec(fx, 'sees it in the list.', 'sees it in the list.   ');
   editSpec(fx, '## REQ-999 Not a requirement', '## REQ-999 Still not a requirement');
-  assert.equal(status(fx).counts.green, 2);
+  // P3: the notes are shared text, so every requirement turns stale for that reason alone;
+  // none of these edits touches a requirement's own text.
+  let reqs = byId(status(fx).requirements);
+  for (const id of ['REQ-001', 'REQ-002', 'REQ-003']) {
+    assert.deepEqual(reqs[id].reasons, ['shared-changed'], id);
+  }
   editSpec(fx, 'Removal is permanent.', 'Removal can be undone.');
-  const reqs = byId(status(fx).requirements);
-  assert.equal(reqs['REQ-001'].state, 'green');
-  assert.equal(reqs['REQ-002'].state, 'stale');
+  reqs = byId(status(fx).requirements);
+  assert.deepEqual(reqs['REQ-001'].reasons, ['shared-changed']);
+  assert.deepEqual(reqs['REQ-002'].reasons, ['shared-changed', 'req-changed:REQ-002']);
 });
 
 test('malformed truth files exit 2 and name the file', async (t) => {
