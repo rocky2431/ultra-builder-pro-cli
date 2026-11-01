@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
-const { codeState } = require('./git-state.cjs');
+const { codeState, gitEnvironment } = require('./git-state.cjs');
 const { append } = require('./ledger.cjs');
 const { expectOutput } = require('./expect.cjs');
 const INTERRUPTS = require('./signals.cjs');
@@ -31,7 +31,7 @@ function killGroup(child) {
 function runShell(root, check, fd) {
   return new Promise((resolve, reject) => {
     // A detached shell leads its own process group, which we kill as a whole.
-    const child = spawn('/bin/sh', ['-c', check.run], { cwd: root, env: process.env,
+    const child = spawn('/bin/sh', ['-c', check.run], { cwd: root, env: gitEnvironment(root),
       detached: true, stdio: ['ignore', fd, fd] });
     const result = { code: null, signal: null, timedOut: false, spawnError: false,
       interrupted: 0 };

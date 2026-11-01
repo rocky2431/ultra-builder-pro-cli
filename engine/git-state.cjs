@@ -3,11 +3,46 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const { execFileSync } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
+const INTERRUPTS = require('./signals.cjs');
+let localVariables;
+const boundRoots = new Set();
+const bindGit = (root) => { boundRoots.add(root); return () => boundRoots.delete(root); };
+
+function gitEnvironment(root) {
+  localVariables ??= execFileSync('git', ['rev-parse', '--local-env-vars'],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim().split('\n');
+  const env = { ...process.env };
+  for (const name of localVariables) delete env[name];
+  if (boundRoots.has(root)) env.GIT_CEILING_DIRECTORIES = path.dirname(root);
+  return env;
+}
 
 function git(root, args) {
-  return execFileSync('git', args, { cwd: root, maxBuffer: Infinity,
-    stdio: ['ignore', 'pipe', 'pipe'] });
+  try {
+    return execFileSync('git', args, { cwd: root, env: gitEnvironment(root), maxBuffer: Infinity,
+      stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    if (INTERRUPTS[error.signal]) error.exitCode = INTERRUPTS[error.signal];
+    throw error;
+  }
+}
+
+function gitAsync(root, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('git', args, { cwd: root, env: gitEnvironment(root),
+      stdio: ['ignore', 'pipe', 'pipe'], ...options });
+    const stdout = [];
+    const stderr = [];
+    child.stdout.on('data', (chunk) => stdout.push(chunk));
+    child.stderr.on('data', (chunk) => stderr.push(chunk));
+    child.on('error', reject);
+    child.on('close', (code, signal) => {
+      if (code === 0) resolve(Buffer.concat(stdout));
+      else reject(Object.assign(new Error(`Git failed: ${args.join(' ')}`),
+        { code, signal, stderr: Buffer.concat(stderr).toString('utf8') }));
+    });
+  });
 }
 
 const ownedFiles = new Set(['.ultra/spec.md', '.ultra/checks.json',
@@ -52,10 +87,16 @@ function projectRoot(requested) {
   }
   let top;
   try { top = git(root, ['rev-parse', '--show-toplevel']).toString('utf8').replace(/\n$/u, ''); }
-  catch { throw new Error(`${root} is not inside a Git work tree. Run git init first.`); }
+  catch (error) {
+    if (error.exitCode) throw error;
+    throw new Error(`${root} is not inside a Git work tree. Run git init first.`);
+  }
   try { git(top, ['rev-parse', '--verify', 'HEAD']); }
-  catch { throw new Error(`${top} has no commit. Commit the code first.`); }
+  catch (error) {
+    if (error.exitCode) throw error;
+    throw new Error(`${top} has no commit. Commit the code first.`);
+  }
   return top;
 }
 
-module.exports = { codeState, projectRoot };
+module.exports = { git, gitAsync, gitEnvironment, bindGit, codeState, projectRoot };

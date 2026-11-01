@@ -55,3 +55,18 @@ The plan gate refuses (`reduction-unapproved`) a requirement or a check leaving 
 milestone, or a check covering less of a milestone, until `ubp approve <milestone>/<id>
 --owner <words>` records an approval later than the milestone's latest plan change and
 its closure; `--proxy` marks words given on the Owner's behalf.
+
+## REQ-P4-tidy Invariants and cleanup keep the code tidy
+A check with `fix` and no `covers` is an invariant: it belongs to no milestone, blocks
+`node done` and `milestone close` while it is not green, and `ubp check` prints its `fix`
+under a failure. A node of `kind: "cleanup"` covers nothing, waits for every earlier node of
+its milestone, and completes only while every finished requirement and every invariant is
+green; `cleanup_every` makes the plan gate require one. `ubp retro` lists the failure
+classes since the latest closure.
+
+## REQ-P4-merge Parallel work comes in only through the merge gate
+`ubp merge <branch> --expect-head <full commit id>` merges in a temporary work tree, runs
+every check there, and fast-forwards the main tree only when every check of the current and
+closed milestones and every invariant is green; otherwise it names the conflicting paths or
+the first bad commit of the branch, and the main tree is unchanged. One merge runs at a
+time, and a branch never changes the truth files, closures or approvals.

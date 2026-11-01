@@ -43,7 +43,7 @@ function nodeProblems(project, add) {
     const m = ms.get(n.milestone);
     if (!m) add('unknown-milestone', `${n.id} names unknown milestone ${n.milestone}`,
       'Correct the milestone reference or add the milestone.');
-    if (!n.covers.length) add('empty-node', `${n.id} covers no requirement`,
+    if (!n.covers.length && n.kind !== 'cleanup') add('empty-node', `${n.id} covers no requirement`,
       'Link the node to a requirement or remove it.');
     for (const id of n.covers) {
       if (m && project.reqs.has(id) && !m.requirements.includes(id)) {
@@ -91,6 +91,20 @@ function planProblems(project) {
     else if (!check.covers.some((id) => m.requirements.includes(id))) {
       add('journey-outside-milestone', `${m.journey} covers no requirement of ${m.id}`,
         'Choose a journey check covering a requirement of this milestone.');
+    }
+  }
+  if (project.cleanup_every !== undefined) {
+    for (const m of project.milestones) {
+      const nodes = project.nodes.filter((n) => n.milestone === m.id);
+      let consecutive = 0;
+      const tooMany = nodes.some((n) => {
+        consecutive = n.kind === 'cleanup' ? 0 : consecutive + 1;
+        return consecutive > project.cleanup_every;
+      });
+      if (tooMany || nodes.at(-1)?.kind !== 'cleanup') {
+        add('cleanup-missing', `${m.id} needs cleanup every ${project.cleanup_every} nodes`,
+          'End the milestone with cleanup and insert cleanup nodes at the required cadence.');
+      }
     }
   }
   reductionProblems(project, add);

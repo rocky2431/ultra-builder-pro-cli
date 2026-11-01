@@ -5,7 +5,7 @@ checks, records evidence, and computes progress. The model writes intent, specif
 and plan; it never writes progress, evidence or completion records by hand.
 
 Plan of record: `thinking/back-to-essentials-20261030/RESULT.md` (§3.1, §3.3–3.5, §3.9, §4,
-§5 P1–P3).
+§5 P1–P4).
 
 ## Layout
 
@@ -29,6 +29,9 @@ contains `.ultra/`.
 | `.ultra/.runtime/checks/<run>.log` | full check output | engine; disposable |
 | `.ultra/.runtime/engine.lock` | writer lock | engine; disposable |
 | `.ultra/.runtime/engine.lock.break` | serializes breaking a dead writer's lock | engine; disposable |
+| `.ultra/.runtime/merge/<id>/` | the merge gate's temporary work tree | engine; disposable |
+| `.ultra/.runtime/merge.lock` | held by the one running merge | engine; disposable |
+| `.ultra/.runtime/merge.lock.break` | serializes breaking a dead merge's lock | engine; disposable |
 
 Missing ledger files mean "no records". Missing `rulings.md` means "no rulings".
 `spec.md`, `checks.json` and `plan.json` are required. `.ultra/.runtime/` is never committed.
@@ -125,8 +128,12 @@ invalidates only that requirement.
 ```
 
 - `id`: unique, `[A-Za-z0-9][A-Za-z0-9._-]*`.
-- `covers`: non-empty array of requirement ids. This is the only link between checks and
-  requirements.
+- `covers`: array of requirement ids, non-empty except for an invariant. This is the only
+  link between checks and requirements.
+- `fix`: optional non-empty string. A check with `fix` is an invariant (RESULT §3.7): a
+  rule the code must always keep, such as a size limit or a forbidden import, with the
+  way to repair a violation written in `fix`. An invariant covers no requirement
+  (`covers: []`) and belongs to no milestone.
 - `run`: non-empty shell command (see "Running a check").
 - `timeout_sec`: optional positive integer, at most 86400; default 600.
 - `expect`: required, non-empty regular expression source (JavaScript, flags `mu`) that
@@ -139,7 +146,8 @@ Check fingerprint: SHA-256 hex of `JSON.stringify([run, effectiveTimeoutSec, exp
 `covers` is not part of the fingerprint; requirement links are tracked per requirement.
 
 Malformed: invalid JSON, wrong types, missing fields, duplicate id, empty or invalid
-`expect`, an `expect` that matches the empty string.
+`expect`, an `expect` that matches the empty string, an empty `covers` without `fix`, a
+`fix` that is not a non-empty string, a `fix` on a check that covers a requirement.
 
 ## `.ultra/plan.json` — milestones and nodes
 
@@ -160,6 +168,13 @@ Malformed: invalid JSON, wrong types, missing fields, duplicate id, empty or inv
 - Milestone and node ids: unique within their kind, `[A-Za-z0-9][A-Za-z0-9._-]*`.
 - Array order is plan order. `requirements`, `covers` and `depends` are arrays of
   strings; `scope` is an optional array of path prefixes (recorded now, enforced later).
+- `kind`: optional; the only value is `"cleanup"`. A cleanup node (RESULT §3.7) covers no
+  requirement (`covers: []`): the cleaner scans the code against the invariants and the
+  project's principles and turns what it finds into small nodes or fixes inside its
+  scope. Every other node covers at least one requirement (else `empty-node`).
+- `cleanup_every`: optional top-level positive integer K. When present, the plan gate
+  requires every milestone to end, in plan order, with a cleanup node, and no run of
+  more than K consecutive other nodes within a milestone (`cleanup-missing`).
 - `journey`: optional check id of the milestone's end-to-end journey, the check that walks
   the user's path through the milestone's behavior. `milestone close` requires one; the
   plan gate requires that it names a registered check covering at least one of the
@@ -168,7 +183,8 @@ Malformed: invalid JSON, wrong types, missing fields, duplicate id, empty or inv
   change.
 
 Malformed: invalid JSON, wrong types (including a `journey` that is not a string),
-missing fields, duplicate ids.
+missing fields, duplicate ids, a `kind` other than `"cleanup"`, a cleanup node that covers
+a requirement, a `cleanup_every` that is not a positive integer.
 
 ## `.ultra/rulings.md` — ruling log
 
@@ -198,6 +214,12 @@ valid); the decision, the reason and the cost must each be present.
   reports a path that is neither an engine-owned path nor inside one (for a rename or
   copy, either path). An untracked `.ultra/` directory as a whole is therefore dirty;
   the engine's own untracked ledgers and runtime files never are.
+- Environment: every Git command the engine runs, and every check it runs, gets the
+  environment without the variables `git rev-parse --local-env-vars` lists (`GIT_DIR`,
+  `GIT_WORK_TREE`, `GIT_INDEX_FILE` and the like), so `--root`, or the merge gate's
+  temporary work tree, alone decides the repository. A Git hook exports those variables.
+  The list includes `GIT_CONFIG_PARAMETERS` and `GIT_CONFIG_COUNT`, so configuration passed
+  through the environment (`git -c`, CI settings) does not reach the engine's Git commands.
 - The engine never limits the size of Git's output: a top-level directory with tens of
   thousands of entries, or as many modified files, must work.
 - Usage errors (exit 2), each with its own message and hint: `--root` does not exist; the
@@ -359,6 +381,9 @@ Check state, and requirement-check pair state, evaluated in this order:
 3. Otherwise the outcome: pass → `green` with no reasons; fail → `red` and unknown →
    `unknown`, each with the record's `reason` as its only reason.
 
+Invariant state: the check state of the invariant. An invariant is not green when its
+state is anything but `green` (`unknown`, `stale` and `red` alike).
+
 Requirement state: no covering check → `uncovered`. Otherwise over its pairs: any `red`
 → `red`; else any `unknown` → `unknown`; else any `stale` → `stale`; else `green`.
 Only `green` counts as done; `unknown` and `uncovered` never do.
@@ -371,7 +396,9 @@ Node state:
 - `stale`: a completion record exists but its `shared` differs or is missing (reason
   `shared-changed`, first), or some covered requirement's hash differs or is missing
   (reasons `req-changed:<id>`).
-- `ready`: no completion record and every dependency is `done`.
+- `ready`: no completion record and every dependency is `done`. A cleanup node's
+  dependencies are its `depends` and every node before it in its milestone (plan order),
+  as `node done` requires; here and in "actionable" below.
 - `blocked`: otherwise.
 
 A node is actionable when it is `ready`, or `stale` with every dependency `done`.
@@ -394,7 +421,7 @@ Next item, in this order:
 
 1. the first actionable node, in plan order, among the nodes of the closed milestones and
    of the current milestone;
-2. `检查` when some requirement of those milestones is not green;
+2. `检查` when some requirement of those milestones, or some invariant, is not green;
 3. `全部完成` when the plan has at least one milestone and every milestone is closed;
 4. `里程碑门` when there is a current milestone and every one of its nodes is done;
 5. otherwise `无（受阻）`.
@@ -413,7 +440,7 @@ run would record something; otherwise `pass`.
 ## Progress line
 
 ```
-<M> · <green>/<total> 绿[ · <n> 红][ · <n> 过期][ · <n> 未知][ · <n> 未覆盖] · 下一项 <next> · 本里程碑计划变更 <k> 次[ · 已关闭里程碑 <n> 项未绿][ · 工作区未提交][ · 计划门未通过| · 计划门待重跑]
+<M> · <green>/<total> 绿[ · <n> 红][ · <n> 过期][ · <n> 未知][ · <n> 未覆盖] · 下一项 <next> · 本里程碑计划变更 <k> 次[ · 不变量 <n> 未绿][ · 已关闭里程碑 <n> 项未绿][ · 工作区未提交][ · 计划门未通过| · 计划门待重跑]
 ```
 
 Counts cover the current milestone's requirements that exist in the spec; the five state
@@ -442,6 +469,7 @@ Problems are objects `{ "code", "message", "hint" }`; the hint says how to fix i
 | `dependency-cycle` | the dependency graph has a cycle |
 | `unknown-journey` | a milestone's `journey` names a check absent from `checks.json` |
 | `journey-outside-milestone` | a milestone's `journey` check covers none of its requirements |
+| `cleanup-missing` | with `cleanup_every` K: a milestone does not end with a cleanup node, or holds more than K consecutive other nodes; one problem per milestone |
 | `reduction-unapproved` | the plan drops a requirement or a check from a milestone, or narrows what a check covers, without a recorded approval (below) |
 | `malformed-ruling` | a ruling entry in `rulings.md` does not have the ruling form, or a fence there is never closed |
 
@@ -524,6 +552,7 @@ order:
 | `requirement-not-green` | a requirement of this milestone or of a closed milestone is not green; one problem per requirement |
 | `no-journey` | the milestone names no `journey` |
 | `journey-not-green` | the milestone's `journey` names a registered check whose check state is not `green` |
+| `invariant-not-green` | an invariant is not green; one problem per invariant, its hint the invariant's `fix` |
 | `review-missing` | the review cannot be read under "Reading a record file" (see "Layout"): nothing is there, or it is a symbolic link, a FIFO, a directory or another file that is not regular, or its parent directory does not exist or resolves outside the root |
 | `review-not-accepted` | the review is a regular file, but outside fences (see "Markdown rules") it does not hold exactly one line starting with `Verdict:`, or that line, without trailing whitespace, is not `Verdict: accept` (lines end at LF; a CR before it is trailing whitespace; a UTF-8 byte order mark at the start of the file is ignored) |
 
@@ -581,10 +610,12 @@ Milestone <milestone id>: <milestone title> · node state <state>
   `Milestone <milestone id>: not in .ultra/plan.json · node state <state>` (the plan gate
   reports it).
 - Requirements: each covered requirement's text, as defined for its hash, in the node's
-  `covers` order, separated by one empty line. A covered id absent from the spec appears
+  `covers` order, separated by one empty line; with none (a cleanup node), the single line
+  `None.` A covered id absent from the spec appears
   as the line `<id>: not in .ultra/spec.md` (the plan gate reports it).
 - Checks: every check covering at least one of the node's requirements, in registry order,
-  with its current state; with none, the single line `None.`
+  with its current state; for a cleanup node, every invariant instead, each line ending
+  ` · fix: <fix>`; with none, the single line `None.`
 - Scope: one line per prefix; with no `scope` or an empty one, the single line
   `Not declared: change only what the requirements need.`
 - Handoffs: one `### <dependency id>` subsection per direct dependency, in `depends` order.
@@ -625,6 +656,109 @@ when the brief still does not fit, `context` writes nothing to stdout and exits 
 problem `brief-over-budget`, whose message names the size and the budget and whose hint is
 to split the node; text mode prints the problem on stderr.
 
+## Retro
+
+`retro` lists the failure classes since the latest closure (RESULT §3.7: a mechanical error
+seen twice becomes a check). It reads only.
+
+- Window: evidence records whose `at` is later than the greatest `at` in
+  `milestones.jsonl`; all records when there is none. `since` is that `at`, or null.
+- Failures: records in the window with `dirty: false` and outcome `fail` or `unknown`.
+- Class: the record's `error_line` (or its `reason` when `error_line` is null or empty) with every
+  run of ASCII digits replaced by `#`, every run of whitespace by one space, and the ends
+  trimmed.
+- `classes`: one entry `{ class, count, checks, runs }` per class: `count` failing records,
+  `checks` their sorted unique check ids, `runs` their run ids in record order (latest
+  record order, ties by line). Sorted by `count` descending, then by `class` in code-unit
+  order.
+- Text mode prints one line per class, `<count> × <class> · <checks joined by ", ">`, then
+  `重复两次及以上：<n> 类`, where n counts classes with `count` at least 2.
+
+The method turns each class seen twice into an invariant or a ruling.
+
+## Merge gate
+
+`merge <branch> --expect-head <commit>` brings a branch in only when the merged tree keeps
+the work green (RESULT §3.6: verify the expected head, run the full regression, bisect on
+red). `<branch>` is anything `git rev-parse --verify <x>^{commit}` resolves; `<commit>` is a
+full commit id (40 or 64 hex digits) that resolves. Anything else is a usage error: a name
+such as `HEAD` or the current branch would always match.
+
+Problems, collected in this order; the first of `merge-busy`, `head-moved`, `dirty-tree`,
+`plan-gate`, `nothing-to-merge` and `truth-changed` that applies stops the command before any
+merge is tried, and `merge-conflict` or `merged-gate` stops it before any check runs:
+
+| code | condition |
+|---|---|
+| `merge-busy` | another `ubp merge` holds `.ultra/.runtime/merge.lock`; refused at once, never a wait, and nothing under `.ultra/.runtime/merge/` is touched |
+| `head-moved` | HEAD is not the `--expect-head` commit, or it moved before the fast-forward |
+| `dirty-tree` | the tree is dirty, or a file under `.ultra/` outside `.ultra/.runtime/` differs from HEAD or is untracked and not ignored (`git ls-files --others --exclude-standard`); the message names each such `.ultra/` path (hint: commit `.ultra/` first; the merge brings the branch's ledger lines in) |
+| `plan-gate` | the plan gate state is not `pass` |
+| `nothing-to-merge` | the branch's commit is already an ancestor of HEAD |
+| `truth-changed` | the branch changes `.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`, `.ultra/ledger/milestones.jsonl` or `.ultra/ledger/approvals.jsonl` since its merge base with HEAD; one problem per file, in that order. A plan change is the planner's, made and gated on the main line; closures and approvals are the controller's, made on the main line |
+| `merge-conflict` | merging the branch into HEAD conflicts; the message names the conflicting paths. When one of them is under `.ultra/ledger/`, the hint says to add `.ultra/ledger/*.jsonl merge=union` to `.gitattributes` on the main line |
+| `merged-gate` | the merged tree has plan problems, computed as `ubp gate` computes them (for example a malformed ruling the branch added); the message lists their codes |
+| `check-not-green` | after the merge, a check that matters did not pass; one problem per check, in registry order |
+| `fast-forward-failed` | the main tree could not fast-forward to the merge commit while HEAD stayed put; the message carries Git's first error line |
+
+The checks that matter are decided in the main tree, from its files and its ledger: every
+check covering a requirement of the current milestone or of a closed milestone, and every
+invariant. Each runs in the temporary tree; any outcome but `pass`, and a `pass` whose
+evidence is dirty, blocks. Checks of later milestones run too but never block.
+
+Procedure: the engine first takes `.ultra/.runtime/merge.lock` (created exclusively, holding
+the merge's pid in decimal; a lock whose pid is not alive is broken through
+`.ultra/.runtime/merge.lock.break` exactly as `engine.lock` is in "Concurrency") and holds it
+until its temporary work tree is removed. Holding it, the engine deletes the leftover
+entries under `.ultra/.runtime/merge/` and drops the registrations of work trees inside that
+directory; it never prunes or removes any other work tree. It adds a detached temporary work tree at HEAD under
+`.ultra/.runtime/merge/<id>/`, merges the branch there with `git merge --no-ff --no-edit`
+(message `Merge <branch> (ubp merge gate)`, the repository's Git identity, configuration and
+hooks), and runs every
+check there. Their evidence goes to the temporary tree and is discarded. With no problem,
+the main tree's current branch fast-forwards to that merge commit (`git merge --ff-only`). On
+refusal the main tree, HEAD and the branch are unchanged.
+
+Every Git command the engine runs in the temporary tree, including those of the checks'
+bookkeeping, is bound to that tree's own Git directory, so it can never reach the main
+repository: when the temporary tree or its `.git` file has gone, the command fails, the merge
+exits 2, and the main tree (tracked, untracked and ignored files), its index, HEAD, its reflog
+and the branch are unchanged.
+
+The temporary work tree is removed whatever the outcome: `git worktree remove --force`, and
+when that fails, making its directories writable, deleting it and dropping its registration
+(only its own). When it still cannot be removed, the result stands: `merge --json` lists the failure
+in `warnings`, and text mode prints `warning: <message>` after the result.
+
+An interrupt (SIGINT or SIGTERM) before the fast-forward stops the merge: the main tree,
+HEAD and the branch are unchanged, the temporary work tree is removed, and the command exits
+130 or 143. This holds whether the signal reaches the engine alone or its whole process group
+(a terminal's Ctrl-C), and whether it arrives during a check, during a Git command or between
+them: a Git command killed by the signal never turns the exit into 2. Once the fast-forward
+has started, an interrupt no longer stops it: the fast-forward runs outside the engine's
+process group, completes, and the command exits 0.
+
+Bisect: for each failing check, the engine first tries HEAD alone; when the check does not
+pass there either, the result is `not green at HEAD before the merge`. Otherwise the branch's
+first-parent commits after the merge base, oldest first, are searched in halves for the
+first commit whose merge into HEAD makes that check not pass; a commit whose merge conflicts
+counts as not passing. The result is `first bad commit <full sha> <subject>`. Ceiling: the
+search assumes that once a commit breaks the check, later ones keep it broken.
+
+Each `check-not-green` message reads `<check> is not green: <error line of its run, or its
+reason when there is none, or `dirty-run` for a dirty pass>; <bisect result>`.
+
+`merge --json` returns `{ ok, merged, problems, warnings }`; `merged` is the merge commit, or
+null on refusal; `warnings` is an array of strings. Text mode prints `merge <branch>: pass
+<first 7 hex of the merge commit>`, or `merge <branch>: refused` and each problem with its
+hint.
+
+Ceilings: checks run in a fresh work tree, so a project whose checks need installed
+dependencies or generated files that Git does not track cannot use the gate yet (upgrade
+path: a setup command in `checks.json`); the main tree's checks are stale after the merge, so
+`ubp check` runs them again there; the merge holds no `engine.lock` while checks run, only
+`merge.lock`.
+
 ## Concurrency
 
 `gate`, `node done`, `milestone close` and `approve` hold `.ultra/.runtime/engine.lock` while they
@@ -655,8 +789,10 @@ options may follow in any order. `--root` defaults to the current directory.
 |---|---|---|
 | `status` | prints the progress line, or with `--json` the full state | 0; 2 malformed/usage |
 | `gate` | runs the plan gate; records plan-log entries when it passes | 0 pass; 1 problems; 2 |
-| `check [--stale\|--all\|--req <id>\|<check-id>…]` | runs checks in registry order, records evidence, prints `<check>: <outcome> (<reason>)` per check (with `, dirty: not counted` inside the parentheses for a dirty run) and then the progress line; default `--stale` (checks whose state is `stale` or `unknown`) | 0 when every check in scope is green after the runs, 1 otherwise; 2. The scope is the selected checks, and for the default `--stale` every check in the registry, so `ubp check` never exits 0 while a check is red |
-| `node done <id>` | records completion when the plan gate state is `pass`, the tree is clean, every dependency is done and every covered requirement is green | 0 recorded; 1 refused with problems; 2 |
+| `check [--stale\|--all\|--req <id>\|<check-id>…]` | runs checks in registry order, records evidence, prints `<check>: <outcome> (<reason>)` per check (with `, dirty: not counted` inside the parentheses for a dirty run; for an invariant whose run did not pass, a next line `  fix: <fix>`) and then the progress line; default `--stale` (checks whose state is `stale` or `unknown`) | 0 when every check in scope is green after the runs, 1 otherwise; 2. The scope is the selected checks, and for the default `--stale` every check in the registry, so `ubp check` never exits 0 while a check is red |
+| `node done <id>` | records completion when the plan gate state is `pass`, the tree is clean, every dependency is done, every covered requirement is green and every invariant is green; for a cleanup node, also every node before it in its milestone (plan order) is done (`dependency-not-done`, one per node) and every requirement of a closed milestone and every requirement of its own milestone covered by a done node is green | 0 recorded; 1 refused with problems; 2 |
+| `retro` | prints the failure classes since the latest closure (see "Retro"); reads only | 0; 2 |
+| `merge <branch> --expect-head <commit>` | the merge gate (see "Merge gate") | 0 merged; 1 refused with problems; 2 |
 | `milestone close <id> --owner <words> --review <path> [--proxy]` | records the closure when the milestone gate finds no problem (see "Milestone gate") | 0 recorded; 1 refused with problems; 2 |
 | `context <id> [--budget <bytes>]` | prints the node brief (see "Node brief") | 0; 1 over budget; 2 |
 | `approve <milestone>/<id>… --owner <words> [--proxy]` | records the Owner's approval of the listed reduction items | 0 recorded; 2 |
@@ -665,15 +801,19 @@ options may follow in any order. `--root` defaults to the current directory.
 `{ milestone, line, counts: {total, green, red, stale, unknown, uncovered}, next,
 plan_changes, closed_not_green, gate, problems, warnings, dirty, requirements: [{id,
 milestone, state, reasons, checks: [{id, state, reasons}]}], checks: [{id, state, reasons,
-last_run}], nodes: [{id, milestone, state, reasons}] }`.
+last_run}], nodes: [{id, milestone, state, reasons}], invariants: [{id, state, reasons,
+fix}] }`; invariants appear in `checks` too, in registry order.
 
 `gate --json` returns `{ ok, problems, recorded: [{milestone, type}] }`.
 `check --json` returns `{ dirty, runs: [{check, run, outcome, reason, dirty}] }`; the top-level
 `dirty` says whether the tree is dirty after the runs (as in `status`), and each run's
 `dirty` is its evidence record's `dirty`.
 `node done --json` returns `{ ok, node, problems }`; each refusal is a problem
-`{ code, message, hint }` with code `plan-gate`, `dirty-tree`, `dependency-not-done` or
-`requirement-not-green`.
+`{ code, message, hint }` with code `plan-gate`, `dirty-tree`, `dependency-not-done`,
+`requirement-not-green` (one per requirement) or `invariant-not-green` (one per invariant,
+its hint the invariant's `fix`), in that order.
+`retro --json` returns `{ since, classes }` (see "Retro"); `merge --json` returns
+`{ ok, merged, problems, warnings }` (see "Merge gate").
 `milestone close --json` returns `{ ok, milestone, problems }`, with the codes listed under
 "Milestone gate". `context --json` returns `{ ok, node, bytes, omitted, brief, problems }`:
 `omitted` lists, in omission order, the dependencies whose handoffs were omitted, and on
@@ -688,7 +828,8 @@ The engine cannot tell the Owner's words from words written for them; `--proxy` 
 answer the assistant gave for the Owner.
 
 Options belong to their command: `--owner` and `--proxy` only to `milestone close` and
-`approve`, `--review` only to `milestone close`, `--budget` only to `context`, and the check
+`approve`, `--review` only to `milestone close`, `--expect-head` only to `merge` (given
+once), `--budget` only to `context`, and the check
 selectors only to `check`; anywhere else they are usage errors. Giving `--owner`, `--review`
 or `--budget` twice is a usage error.
 

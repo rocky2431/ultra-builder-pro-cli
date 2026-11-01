@@ -112,8 +112,12 @@ function requirements(text) {
 }
 
 function validateCheck(item, valid) {
-  valid(item.covers.length > 0 && item.run.trim().length > 0,
-    `${item.id}: covers and run must be non-empty`);
+  const invariant = Object.hasOwn(item, 'fix');
+  valid(!invariant || (typeof item.fix === 'string' && item.fix.trim().length > 0),
+    `${item.id}: fix must be a non-empty string`);
+  valid(invariant ? item.covers.length === 0 : item.covers.length > 0,
+    `${item.id}: invariants must cover nothing; other checks must cover a requirement`);
+  valid(item.run.trim().length > 0, `${item.id}: run must be non-empty`);
   const timeout = item.timeout_sec === undefined ? 600 : item.timeout_sec;
   valid(Number.isInteger(timeout) && timeout > 0 && timeout <= 86400,
     `${item.id}: invalid timeout_sec`);
@@ -129,6 +133,10 @@ function registry(root, file, kinds) {
   const data = parse(read(root, file), `.ultra/${file}`);
   const valid = (ok, message) => assertFile(ok, `.ultra/${file}`, message);
   valid(object(data) && data.version === 1, 'expected an object with version 1');
+  if (file === 'plan.json' && Object.hasOwn(data, 'cleanup_every')) {
+    valid(Number.isInteger(data.cleanup_every) && data.cleanup_every > 0,
+      'cleanup_every must be a positive integer');
+  }
   for (const [kind, fields] of Object.entries(kinds)) {
     valid(Array.isArray(data[kind]), `${kind} must be an array`);
     const ids = new Set();
@@ -144,6 +152,10 @@ function registry(root, file, kinds) {
       if (kind === 'checks') validateCheck(item, valid);
       if (kind === 'nodes' && item.scope !== undefined) {
         valid(strings(item.scope), `${item.id}: scope must be an array of strings`);
+      }
+      if (kind === 'nodes' && Object.hasOwn(item, 'kind')) {
+        valid(item.kind === 'cleanup', `${item.id}: kind must be cleanup`);
+        valid(item.covers.length === 0, `${item.id}: a cleanup node must cover nothing`);
       }
       if (kind === 'milestones' && item.journey !== undefined) {
         valid(typeof item.journey === 'string', `${item.id}: journey must be a string`);

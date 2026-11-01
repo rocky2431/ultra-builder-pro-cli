@@ -122,7 +122,10 @@ function breakDeadLock(file, pid) {
   catch (error) {
     if (error.code !== 'EEXIST') throw error;
     try {
-      if (Date.now() - fs.statSync(breaker).mtimeMs > 10000) fs.unlinkSync(breaker);
+      if (Date.now() - fs.statSync(breaker).mtimeMs > 10000) {
+        fs.unlinkSync(breaker);
+        return breakDeadLock(file, pid);
+      }
     } catch (missing) { if (missing.code !== 'ENOENT') throw missing; }
     return;
   }
@@ -136,25 +139,34 @@ function breakDeadLock(file, pid) {
   }
 }
 
-function withLock(root, action) {
-  const file = path.join(root, '.ultra', '.runtime', 'engine.lock');
+function acquireLock(root, name) {
+  const file = path.join(root, '.ultra', '.runtime', `${name}.lock`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const deadline = Date.now() + 30000;
-  while (true) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     let fd;
-    // Exclusive creation serializes ledger reads and writes across engine processes.
     try { fd = fs.openSync(file, 'wx'); }
     catch (error) { if (error.code !== 'EEXIST') throw error; }
     if (fd !== undefined) {
-      try { fs.writeFileSync(fd, String(process.pid)); return action(); }
-      finally { fs.closeSync(fd); removeOwnedLock(file, process.pid); }
+      try { fs.writeFileSync(fd, String(process.pid)); }
+      finally { fs.closeSync(fd); }
+      return () => removeOwnedLock(file, process.pid);
     }
     try {
       const pid = Number(fs.readFileSync(file, 'utf8'));
-      if (Number.isInteger(pid) && pid > 0 && !alive(pid)) {
-        breakDeadLock(file, pid);
-      }
+      if (Number.isInteger(pid) && pid > 0 && !alive(pid)) breakDeadLock(file, pid);
+      else return null;
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+  return null;
+}
+
+function withLock(root, action) {
+  const deadline = Date.now() + 30000;
+  while (true) {
+    const release = acquireLock(root, 'engine');
+    if (release) {
+      try { return action(); } finally { release(); }
+    }
     if (Date.now() >= deadline) {
       throw new Error('.ultra/.runtime/engine.lock: lock wait exceeded 30 s; check its holder.');
     }
@@ -183,4 +195,4 @@ function append(root, name, record, locked = false) {
   return locked ? write() : withLock(root, write);
 }
 
-module.exports = { ledger, latest, withLock, append, approvalItem };
+module.exports = { ledger, latest, withLock, acquireLock, append, approvalItem };

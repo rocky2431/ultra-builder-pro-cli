@@ -26,17 +26,19 @@ function rules(id, checks) {
 
 function compile(project, node, state, handoffs) {
   const milestone = project.milestones.find((m) => m.id === node.milestone);
-  const checks = project.checks.filter((c) => c.covers.some((r) => node.covers.includes(r)));
+  const checks = project.checks.filter((c) => node.kind === 'cleanup' ? Object.hasOwn(c, 'fix')
+    : c.covers.some((r) => node.covers.includes(r)));
   return [
     `# Node ${node.id}: ${node.title}`,
     `Milestone ${node.milestone}: ${milestone?.title ?? 'not in .ultra/plan.json'} · node state `
       + state.nodes.find((n) => n.id === node.id).state,
     '## Requirements',
     node.covers.map((r) => project.requirementText.get(r) ?? `${r}: not in .ultra/spec.md`)
-      .join('\n\n'),
+      .join('\n\n') || 'None.',
     '## Checks that must turn green (read-only)',
     checks.map((c) => `- ${c.id} · ${state.checks.find((s) => s.id === c.id).state} · `
-      + `\`${c.run}\``).join('\n') || 'None.',
+      + `\`${c.run}\`` + (node.kind === 'cleanup' ? ` · fix: ${c.fix}` : ''))
+      .join('\n') || 'None.',
     '## Scope',
     node.scope?.length ? node.scope.map((prefix) => `- ${prefix}`).join('\n')
       : 'Not declared: change only what the requirements need.',

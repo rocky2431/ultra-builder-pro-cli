@@ -1,0 +1,14 @@
+✔ hidden: clicks are kept when the link comes back (276.038542ms)
+✔ hidden: an existing link that expires is not reused (198.589042ms)
+✔ hidden: letter case makes a different link (175.848292ms)
+✔ hidden: the web page gives back the existing link (144.532208ms)
+✔ hidden: a deleted link can be created again as a new link (237.735667ms)
+✔ hidden: the reuse survives a restart (201.187125ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1312.441875

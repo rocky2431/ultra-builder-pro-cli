@@ -13,13 +13,13 @@ function load(requested) {
     const timeout = check.timeout_sec === undefined ? 600 : check.timeout_sec;
     return { ...check, timeout, fp: hash(JSON.stringify([check.run, timeout, check.expect])) };
   });
-  const { milestones, nodes } = registry(root, 'plan.json', {
+  const { milestones, nodes, cleanup_every } = registry(root, 'plan.json', {
     milestones: { title: 'string', requirements: 'array' },
     nodes: { milestone: 'string', title: 'string', covers: 'array', depends: 'array' },
   });
   const history = ['evidence', 'plan-log', 'nodes', 'milestones', 'approvals']
     .map((name) => ledger(root, name));
-  return { root, ...code, reqs, requirementText, shared, checks, milestones, nodes,
+  return { root, ...code, reqs, requirementText, shared, checks, milestones, nodes, cleanup_every,
     rulings: read(root, 'rulings.md', true), warnings: history.flatMap((h) => h.warnings),
     evidence: history[0].records, plans: history[1].records,
     completions: history[2].records, closures: history[3].records, approvals: history[4].records };

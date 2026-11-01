@@ -1,0 +1,14 @@
+✔ hidden: non-ASCII letters and digits are refused (98.734875ms)
+✔ hidden: a present code of the wrong type is refused, null included (67.53325ms)
+✔ hidden: the code is kept exactly, letter case included (70.158833ms)
+✔ hidden: a chosen code that matches a generated one is refused (78.753916ms)
+✔ hidden: a chosen code survives a restart and works with expiry (121.893791ms)
+✔ hidden: a bad code with a bad url reports one 400 and creates nothing (62.634875ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 565.809333

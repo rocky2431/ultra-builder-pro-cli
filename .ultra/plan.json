@@ -32,6 +32,15 @@
         "REQ-P3-diff",
         "REQ-P3-reduction"
       ]
+    },
+    {
+      "id": "M-P4",
+      "title": "Anti-entropy and parallel work",
+      "journey": "C-engine-p4",
+      "requirements": [
+        "REQ-P4-tidy",
+        "REQ-P4-merge"
+      ]
     }
   ],
   "nodes": [
@@ -90,6 +99,25 @@
         "bin/install.js",
         "tests/engine-p3.test.cjs",
         "tests/engine-p1.test.cjs",
+        "method/"
+      ]
+    },
+    {
+      "id": "N-P4-engine",
+      "milestone": "M-P4",
+      "title": "Invariants, cleanup nodes, retro, merge gate",
+      "covers": [
+        "REQ-P4-tidy",
+        "REQ-P4-merge"
+      ],
+      "depends": [
+        "N-P3-engine"
+      ],
+      "scope": [
+        "engine/",
+        "bin/install.js",
+        "tests/engine-p4.test.cjs",
+        "tests/package-smoke.test.cjs",
         "method/"
       ]
     }

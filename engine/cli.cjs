@@ -6,11 +6,13 @@ const { execute } = require('./checks.cjs');
 const { close } = require('./milestone.cjs');
 const { context } = require('./context.cjs');
 const { approve } = require('./plan.cjs');
+const { retro } = require('./states.cjs');
+const { merge } = require('./merge.cjs');
 
 function options(args, command) {
   const local = { check: ['--all', '--stale', '--req'],
     milestone: ['--owner', '--review', '--proxy'], approve: ['--owner', '--proxy'],
-    context: ['--budget'] };
+    context: ['--budget'], merge: ['--expect-head'] };
   const allowed = new Set(['--root', '--json', ...(local[command] || [])]);
   const result = { root: process.cwd(), json: false, words: [], selector: null, req: null,
     owner: null, review: null, proxy: false, budget: 32768 };
@@ -20,8 +22,8 @@ function options(args, command) {
     if (arg.startsWith('-') && !allowed.has(arg)) {
       throw new Error(`Option ${arg} is not valid for ${command}.`);
     }
-    if (['--root', '--req', '--owner', '--review', '--budget'].includes(arg)) {
-      if (['--owner', '--review', '--budget'].includes(arg) && seen.has(arg)) {
+    if (['--root', '--req', '--owner', '--review', '--budget', '--expect-head'].includes(arg)) {
+      if (['--owner', '--review', '--budget', '--expect-head'].includes(arg) && seen.has(arg)) {
         throw new Error(`${arg} may only be given once.`);
       }
       seen.add(arg);
@@ -91,6 +93,17 @@ function printResult(command, opts, result, project, after) {
   for (const warning of project.warnings) console.error(warning);
   if (command === 'status') console.log(result.line);
   else if (command === 'approve') console.log(`approved: ${result.items.join(', ')}`);
+  else if (command === 'retro') {
+    for (const c of result.classes) {
+      console.log(`${c.count} × ${c.class} · ${c.checks.join(', ')}`);
+    }
+    console.log(`重复两次及以上：${result.classes.filter((c) => c.count >= 2).length} 类`);
+  } else if (command === 'merge') {
+    const verdict = result.ok ? `pass ${result.merged.slice(0, 7)}` : 'refused';
+    console.log(`merge ${opts.words[0]}: ${verdict}`);
+    for (const p of result.problems) console.log(`${p.code}: ${p.message} — ${p.hint}`);
+    for (const warning of result.warnings) console.error(`warning: ${warning}`);
+  }
   else if (command === 'context') {
     if (result.ok) process.stdout.write(result.brief);
     else for (const p of result.problems) console.error(`${p.code}: ${p.message} — ${p.hint}`);
@@ -99,6 +112,8 @@ function printResult(command, opts, result, project, after) {
     for (const r of result.runs) {
       const reason = r.reason + (r.dirty ? ', dirty: not counted' : '');
       console.log(`${r.check}: ${r.outcome} (${reason})`);
+      const check = project.checks.find((c) => c.id === r.check);
+      if (check.fix !== undefined && r.outcome !== 'pass') console.log(`  fix: ${check.fix}`);
     }
     console.log(after.line);
   } else {
@@ -113,20 +128,24 @@ function printResult(command, opts, result, project, after) {
 async function handle(args) {
   try {
     const [command, ...rest] = args;
-    if (!['status', 'gate', 'check', 'node', 'milestone', 'context', 'approve'].includes(command)) {
+    const commands = ['status', 'gate', 'check', 'node', 'milestone', 'context', 'approve',
+      'retro', 'merge'];
+    if (!commands.includes(command)) {
       throw new Error(`Unknown command ${command ?? ''}. `
-        + 'Use status, gate, check, node done, milestone close, context or approve.');
+        + `Use ${commands.join(', ')}.`);
     }
     const opts = options(rest, command);
     const { words } = opts;
-    if ((['status', 'gate'].includes(command) && words.length)
+    if ((['status', 'gate', 'retro'].includes(command) && words.length)
         || (command === 'node' && (words.length !== 2 || words[0] !== 'done'))
         || (command === 'milestone' && (words.length !== 2 || words[0] !== 'close'))
         || (command === 'context' && words.length !== 1)
+        || (command === 'merge' && (words.length !== 1 || !opts['expect-head']))
         || (command === 'approve' && !words.length)) {
       const usage = { node: 'node done <id>',
         milestone: 'milestone close <id> --owner <words> --review <path>',
-        context: 'context <id>', approve: 'approve <milestone>/<id>… --owner <words>'
+        context: 'context <id>', approve: 'approve <milestone>/<id>… --owner <words>',
+        merge: 'merge <branch> --expect-head <commit>'
       }[command] || command;
       throw new Error(`Usage: ${usage} [--root <dir>] [--json]`);
     }
@@ -146,6 +165,8 @@ async function handle(args) {
     if (command === 'milestone') result = close(project, words[1], opts);
     if (command === 'context') result = context(project, words[0], opts.budget);
     if (command === 'approve') result = approve(project, words, opts);
+    if (command === 'retro') result = retro(project);
+    if (command === 'merge') result = await merge(project, words[0], opts['expect-head']);
     if (command === 'check') {
       const checked = await runChecks(project, opts);
       result = checked.result;
@@ -153,7 +174,7 @@ async function handle(args) {
       after = checked.after;
     }
     printResult(command, opts, result, project, after);
-    if (command === 'status') return 0;
+    if (command === 'status' || command === 'retro') return 0;
     if (command === 'check') {
       return checkPassed ? 0 : 1;
     }

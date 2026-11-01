@@ -21,7 +21,7 @@ command takes `--root <dir>` and `--json`. File formats and exit codes: `engine/
 | `gate: "fail"` | fix the reported `problems` (see "Plan") |
 | `gate: "stale"` | `ubp gate`, which records the plan change |
 | `next` is a node id | "Node loop" for that node |
-| `next` is `检查` | `ubp check`, then triage every red or unknown check with "Escalation" |
+| `next` is `检查` | `ubp check`, then triage every red or unknown check with "Escalation"; a red invariant prints its `fix` |
 | `next` is `里程碑门` | "Milestone gate" |
 | `next` is `全部完成` | report the line to the Owner; ask whether to plan another milestone |
 | `next` is `无（受阻）` | read `nodes[].state` and `reasons`; repair the plan |
@@ -34,6 +34,13 @@ Each step names a role. One agent may play several, with two exceptions: the acc
 author and the reviewer are never the writer of the code they judge. A writer is a fresh
 context: a new subagent or delegated session that sees the node brief and the repository,
 not your conversation.
+
+Per node, the default is one fresh writer followed by your verification (Node loop step 4):
+no per-node explorer, tester or second reviewer. In a measured comparison on nine nodes,
+those extra roles cost three to five times the tokens, scored no higher on hidden checks, and
+found one defect between them. Add a read, a review or a test run to a node only when you
+judge that node risky. A reviewer from another vendor, when one is available, reviews the
+whole branch at the milestone gate.
 
 ## 0→1 interview (interviewer)
 
@@ -88,6 +95,9 @@ nodes in plan order, each with `covers`, `depends` and `scope`.
   its brief. Reordering `depends` is free (L3) and is not a recorded plan change; log a
   ruling when you change it after the gate.
 - The planner does not write product code.
+- Before the gate, read the requirements against each other. Two that cannot both hold (for
+  example "each create gives a new code" and "creating the same link twice returns the first
+  code") are an L1 conflict for the Owner; a writer must never be left to pick one.
 - Run `ubp gate` until it passes; it records the plan baseline.
 - Project setup, once: `.ultra/.runtime/` in `.gitignore`, and
   `.ultra/ledger/*.jsonl merge=union` in `.gitattributes`.
@@ -108,7 +118,8 @@ nodes in plan order, each with `covers`, `depends` and `scope`.
    its brief until those checks are green, writes `.ultra/records/handoffs/<node>.md`, and
    runs `ubp node done <node>`.
 4. Verify, as controller: `ubp status --json` shows the node `done`; `git diff` of the
-   writer's commits stays inside the scope and touches no check file; `ubp gate` still passes
+   writer's commits stays inside the scope, touches no check file and adds no line to
+   `.ultra/ledger/approvals.jsonl` (a writer never approves); `ubp gate` still passes
    (it validates the rulings the writer added); `ubp check` (every stale or unknown check)
    turns no requirement of the current or a closed milestone from green to red (ratchet).
    A violation is reverted in a new commit and the node is briefed again.
@@ -120,7 +131,10 @@ code, needs no writer: the controller runs `ubp node done <node>`. When its chec
 brief a fresh writer with the new `ubp context`; the latest rulings and the review that led
 to the edit go into the mission, not into the writer's memory.
 
-One writer at a time on one work tree. Parallel writers are not part of this method yet.
+One writer at a time on one work tree. Brief the next writer on a tree only after the
+previous writer's completion notice has arrived: a progress note, a `node done` line or a
+quiet log is not completion, and a writer still running will commit whatever it finds in the
+tree. Parallel writers: see "Parallel writers and the merge gate".
 
 ## Escalation (RESULT §3.2)
 
@@ -142,7 +156,8 @@ choosing a layer.
 When `next` is `里程碑门`:
 
 1. `ubp check --all`. Every check covering a requirement of this milestone or of a closed
-   milestone must be green; checks of later milestones may be red.
+   milestone, and every invariant, must be green; checks of later milestones may be red.
+   Then `ubp retro` (see "Keeping it tidy").
 2. Whole-branch review. A reviewer who wrote none of the milestone's code reads the
    milestone's diff (from the previous closure commit, or from the start), its requirements,
    the plan-log changes and the rulings since the previous closure. It writes
@@ -156,7 +171,9 @@ When `next` is `里程碑门`:
    again.
 3. Demo for the Owner, in this order: what to try by hand (the journey in user terms), the
    journey check's result and log path, the progress line, the plan changes since the
-   previous closure (`.ultra/ledger/plan-log.jsonl`), the rulings since then, the verdict.
+   previous closure (`.ultra/ledger/plan-log.jsonl`), the rulings since then, the repeated
+   failure classes from `ubp retro` and what you changed for each, the count of `unplanned`
+   Owner touches, the verdict and which commits the accepting review read.
 4. Ask the Owner one question: let the milestone pass, or change direction. Their reply,
    verbatim, is `--owner`.
 5. `ubp milestone close <milestone> --owner "<words>" --review <review path>`, adding
@@ -183,14 +200,81 @@ commit: the ratchet) and confirms that no requirement of the current or a closed
 went from green to red.
 
 The engine sees removals, not meaning: rewording a requirement so it asks for less,
-weakening a test inside a check's file, changing a check's `run` or `expect` so it proves
-less, or deleting a convention from the shared text all pass the gate as modifications.
-Classify such an edit as a reduction yourself and record the Owner's approval with `ubp
-approve` before making it. An approval answers the plan as it stands: gate any other change
-of that milestone, or close it, and the approval no longer counts, so approve, edit and gate
-in one go. Interface details that concern one requirement go in that requirement's block, so
-changing them stales only its nodes. A brief carries requirement text only: when the shared
-text changed, quote the changed lines in the writer's mission.
+changing a check's `run` or `expect` so it proves less, or deleting a convention from the
+shared text all pass the gate as modifications. Weakening a test inside a check's file never
+reaches the gate or the plan log at all (a check's fingerprint covers only `run`,
+`timeout_sec` and `expect`); it only makes checks stale like any code commit. Classify such an
+edit as a reduction yourself and record the Owner's approval with `ubp approve` before making
+it. An approval answers the plan as it stands: gate any other change of that milestone, or
+close it, and the approval no longer counts, so approve, edit and gate in one go (approving
+after a refused gate also works).
+
+The engine does not know who approves: `ubp approve` without `--proxy` is accepted from
+anyone. Only the controller runs it, only after the matching line in
+`.ultra/records/owner-touches.md`, and with `--proxy` whenever that line says `proxy: yes`.
+
+An L2 change re-opens no finished node: the engine has no per-module invalidation, only none
+(a new node) or everything (`shared-changed`). The ratchet protects finished behavior; when
+the new design makes a finished node's code wrong without failing a check, plan a node for
+that change instead of editing the code inside another node's scope.
+
+Interface details that concern one requirement go in that requirement's block, so changing
+them stales only its nodes. A brief carries requirement text only: when the shared text
+changed, quote the changed lines in the writer's mission.
+
+## Keeping it tidy (cleaner)
+
+The ratchet keeps old behavior working. These three keep the code from decaying as it grows
+(RESULT §3.7).
+
+- **Invariants.** A rule the code must always keep (a file size limit, a forbidden import,
+  no npm dependency) is a check with `fix` and `covers: []`. `fix` says in one sentence how
+  to repair a violation, so the writer who meets it can act without asking. An invariant
+  belongs to no milestone; it blocks `node done` and `milestone close` while it is not
+  green, and `ubp check` prints its `fix` under a failure. Adding one is a ruling (L2), not
+  a plan change; break the code once and see it fail, as for any check. Removing one is a
+  reduction of what the project promises itself: log a ruling saying why.
+- **Cleanup nodes.** A node with `"kind": "cleanup"` and `covers: []`, whose writer (the
+  cleaner) reads the code against the invariants, the Direction's meaning of elegance and
+  the rulings. It fixes small things inside its scope and turns anything bigger into a new
+  node with a ruling, never a large refactor. It completes only while every finished
+  requirement and every invariant stays green. With `"cleanup_every": K` in `plan.json`,
+  the gate requires one at the end of every milestone and after at most K other nodes.
+- **Retro.** At every milestone gate, run `ubp retro`. Each failure class seen twice or more
+  becomes a change to the environment (an invariant, a rule in the spec's interface, a
+  helper, a ruling), not another one-off fix in the code; say what you did in the demo. A
+  lesson about this method itself is a method candidate, never a direct edit of this file.
+
+## Parallel writers and the merge gate
+
+The default is one writer. Run two in parallel only when the plan's frontier holds at least
+two ready nodes whose scopes do not overlap and each is a substantial piece of work; reads,
+reviews and test runs may run in parallel at any time.
+
+- Each parallel writer gets its own branch and work tree (`git worktree add`), runs its
+  checks and `ubp node done` there, and commits its ledger lines with its code. A branch never
+  changes `spec.md`, `checks.json` or `plan.json`, and never approves or closes: the merge
+  refuses it (`truth-changed`); such a change is the planner's or yours, on the main line.
+- Before merging: the project setup line `.ultra/ledger/*.jsonl merge=union` is committed in
+  `.gitattributes` (without it two writers' evidence conflicts); `.ultra/` is committed on
+  the main line (otherwise `dirty-tree`, naming the paths); and you have verified the
+  branch's commits as in Node loop step 4 (scope, no check file, no approval line). The merge
+  does not check scope or check scripts.
+- Merge with `ubp merge <branch> --expect-head "$(git rev-parse HEAD)"`: a full commit id,
+  never the word `HEAD`. One merge at a time; a second is refused `merge-busy`. The engine
+  merges in a temporary work tree, refuses a merged tree that fails the plan gate
+  (`merged-gate`, for example a malformed ruling), runs every check there, and fast-forwards
+  only when every check of the current and closed milestones and every invariant passed
+  and left the tree clean.
+- On refusal: `head-moved`, re-read HEAD and retry; `merge-conflict`, the branch's writer
+  resolves it on the branch (a conflict under `.ultra/ledger/` means the `merge=union` line
+  is missing); `merged-gate`, the writer fixes the ruling on the branch; `check-not-green`
+  with `first bad commit …`, brief that branch's writer again with it; `not green at HEAD
+  before the merge`, the main line is red, fix it first; `fast-forward-failed`, the main tree
+  changed during the merge, restore it, commit `.ultra/` and retry. A `warning` names a
+  temporary tree the engine could not remove.
+- After each merge, run `ubp check` in the main tree (its evidence is stale until then) and
+  commit `.ultra/` before the next merge.
 
 ## Owner touches
 

@@ -1,0 +1,173 @@
+[
+ {
+  "unit": "T1-A",
+  "task": "T1",
+  "arm": "A",
+  "writer_tokens": 85152,
+  "other_tokens": 0,
+  "total_tokens": 85152,
+  "codex_unknown": false,
+  "wall_ms": 254542,
+  "rework": "0",
+  "first_pass": "yes",
+  "interventions": "0",
+  "hidden": {
+   "tests": 6,
+   "pass": 6,
+   "fail": 0
+  },
+  "notes": "writer commit 115ba5c also carried 9 setup evidence lines from the setup check run"
+ },
+ {
+  "unit": "T1-B",
+  "task": "T1",
+  "arm": "B",
+  "writer_tokens": 96234,
+  "other_tokens": 227103,
+  "total_tokens": 323337,
+  "codex_unknown": false,
+  "wall_ms": 682714,
+  "rework": "0",
+  "first_pass": "yes",
+  "interventions": "0",
+  "hidden": {
+   "tests": 6,
+   "pass": 6,
+   "fail": 0
+  },
+  "notes": "tester: No findings; writer commit c8bc57a carried setup evidence lines"
+ },
+ {
+  "unit": "T1-C",
+  "task": "T1",
+  "arm": "C",
+  "writer_tokens": 85984,
+  "other_tokens": 222533,
+  "total_tokens": 308517,
+  "codex_unknown": true,
+  "wall_ms": 680908,
+  "rework": "0",
+  "first_pass": "yes",
+  "interventions": "0",
+  "hidden": {
+   "tests": 6,
+   "pass": 6,
+   "fail": 0
+  },
+  "notes": "tester and Codex: No findings (Codex could not listen on a port: 29/30 tests EPERM, reviewed by reading); map 302 words, over the 300 limit"
+ },
+ {
+  "unit": "T2-A",
+  "task": "T2",
+  "arm": "A",
+  "writer_tokens": 73110,
+  "other_tokens": 0,
+  "total_tokens": 73110,
+  "codex_unknown": false,
+  "wall_ms": 135542,
+  "rework": "0",
+  "first_pass": "yes",
+  "interventions": "0",
+  "hidden": {
+   "tests": 4,
+   "pass": 3,
+   "fail": 1
+  },
+  "notes": "writer commit 133fb46 carried the setup check evidence lines, as in T1-A"
+ },
+ {
+  "unit": "T2-B",
+  "task": "T2",
+  "arm": "B",
+  "writer_tokens": 65982,
+  "other_tokens": 175130,
+  "total_tokens": 241112,
+  "codex_unknown": false,
+  "wall_ms": 459004,
+  "rework": "0",
+  "first_pass": "no",
+  "interventions": "0",
+  "hidden": {
+   "tests": 4,
+   "pass": 3,
+   "fail": 1
+  },
+  "notes": "first node done refused: malformed ruling line (missing space before the dash), fixed by the writer in e5c076b; tester: No findings; map in Chinese, 1403 non-space characters (asked for at most 300 words)"
+ },
+ {
+  "unit": "T2-C",
+  "task": "T2",
+  "arm": "C",
+  "writer_tokens": 59413,
+  "other_tokens": 211037,
+  "total_tokens": 270450,
+  "codex_unknown": true,
+  "wall_ms": 514861,
+  "rework": "0",
+  "first_pass": "yes",
+  "interventions": "0",
+  "hidden": {
+   "tests": 4,
+   "pass": 3,
+   "fail": 1
+  },
+  "notes": "tester and Codex: No findings (Codex: 28/29 tests EPERM, reviewed by reading)"
+ },
+ {
+  "unit": "T3-A",
+  "task": "T3",
+  "arm": "A",
+  "writer_tokens": 87769,
+  "other_tokens": 0,
+  "total_tokens": 87769,
+  "codex_unknown": false,
+  "wall_ms": 202319,
+  "rework": "0",
+  "first_pass": "yes",
+  "interventions": "0",
+  "hidden": {
+   "tests": 6,
+   "pass": 6,
+   "fail": 0
+  },
+  "notes": "writer commit 15ed714 carried the setup check evidence lines; hidden check run after T3-B finished (code unchanged since the writer, a controller slip)"
+ },
+ {
+  "unit": "T3-B",
+  "task": "T3",
+  "arm": "B",
+  "writer_tokens": 98561,
+  "other_tokens": 232246,
+  "total_tokens": 330807,
+  "codex_unknown": false,
+  "wall_ms": 700563,
+  "rework": "0",
+  "first_pass": "yes",
+  "interventions": "0",
+  "hidden": {
+   "tests": 6,
+   "pass": 6,
+   "fail": 0
+  },
+  "notes": "the map said to keep the dirty evidence.jsonl out of commits, so the writer left its ledger lines uncommitted; the controller committed them; tester: No findings"
+ },
+ {
+  "unit": "T3-C",
+  "task": "T3",
+  "arm": "C",
+  "writer_tokens": 89190,
+  "other_tokens": 370240,
+  "total_tokens": 459430,
+  "codex_unknown": true,
+  "wall_ms": 913470,
+  "rework": "1",
+  "first_pass": "yes",
+  "interventions": "1",
+  "hidden": {
+   "tests": 6,
+   "pass": 6,
+   "fail": 0
+  },
+  "notes": "Codex found the form trim() gap (tester: No findings); one rework round fixed it (a6bb024); intervention = the controller sent two corrections after mis-quoting the U+00A0 escape in the rework message; rework usage is the resumed run as reported; map 309 words; the T3-C explorer flagged the REQ-create/REQ-dedupe conflict"
+ }
+]

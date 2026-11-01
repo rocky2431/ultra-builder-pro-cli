@@ -79,6 +79,8 @@ function printHelp() {
     ${paint('cyan', 'milestone close <id>')}  close a milestone after its journey and review
     ${paint('cyan', 'context <id>')}          compile the brief for a node
     ${paint('cyan', 'approve <items>')}       record the Owner's approval of reductions
+    ${paint('cyan', 'retro')}                 list failure classes since the latest closure
+    ${paint('cyan', 'merge <branch>')}        merge after verifying the expected HEAD and checks
 
   ${paint('yellow', 'Runtime selection (pick ≥1, or --all):')}
     ${paint('cyan', '--claude')}           Claude Code
@@ -210,7 +212,7 @@ function resolveScope(flags) {
 }
 
 async function main() {
-  if (['status', 'gate', 'check', 'node', 'milestone', 'context', 'approve']
+  if (['status', 'gate', 'check', 'node', 'milestone', 'context', 'approve', 'retro', 'merge']
     .includes(process.argv[2])) {
     const { handle } = require('../engine/cli.cjs');
     process.exitCode = await handle(process.argv.slice(2));

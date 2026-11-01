@@ -1,6 +1,6 @@
 'use strict';
 
-const { unique } = require('./formats.cjs');
+const { unique, problem } = require('./formats.cjs');
 const { latest } = require('./ledger.cjs');
 const { planProblems, pendingPlans } = require('./plan.cjs');
 
@@ -43,6 +43,12 @@ function requirementStates(project, evidence) {
   });
 }
 
+function dependencies(project, node) {
+  const earlier = node.kind === 'cleanup' ? project.nodes.slice(0, project.nodes.indexOf(node))
+    .filter((n) => n.milestone === node.milestone).map((n) => n.id) : [];
+  return unique([...node.depends, ...earlier]);
+}
+
 function nodeStates(project) {
   const ns = new Map(project.nodes.map((n) => [n.id, n]));
   const states = new Map();
@@ -61,7 +67,7 @@ function nodeStates(project) {
     if (record) state = reasons.length ? 'stale' : 'done';
     const result = { id, milestone: n.milestone, state, reasons };
     states.set(id, result);
-    if (!record && n.depends.every((dep) => nodeState(dep).state === 'done')) {
+    if (!record && dependencies(project, n).every((dep) => nodeState(dep).state === 'done')) {
       result.state = 'ready';
     }
     return result;
@@ -69,7 +75,7 @@ function nodeStates(project) {
   return project.nodes.map((n) => nodeState(n.id));
 }
 
-function milestoneProgress(project, requirements, nodes) {
+function milestoneProgress(project, requirements, nodes, invariants) {
   const closed = new Set(project.closures.map((c) => c.milestone));
   const current = project.milestones.find((m) => !closed.has(m.id)) || project.milestones.at(-1);
   const currentReqs = requirements.filter((r) => current?.requirements.includes(r.id));
@@ -80,12 +86,13 @@ function milestoneProgress(project, requirements, nodes) {
   const reqIds = new Set(relevant.flatMap((m) => m.requirements));
   const relevantNodes = nodes.filter((n) => relevant.some((m) => m.id === n.milestone));
   const actionable = relevantNodes.find((n) => n.state === 'ready' || (n.state === 'stale'
-    && project.nodes.find((p) => p.id === n.id).depends
+    && dependencies(project, project.nodes.find((p) => p.id === n.id))
       .every((dep) => nodes.some((d) => d.id === dep && d.state === 'done'))));
   const ownNodes = nodes.filter((n) => n.milestone === current?.id);
   let next = '无（受阻）';
   if (actionable) next = actionable.id;
-  else if (requirements.some((r) => reqIds.has(r.id) && r.state !== 'green')) next = '检查';
+  else if (requirements.some((r) => reqIds.has(r.id) && r.state !== 'green')
+      || invariants.some((i) => i.state !== 'green')) next = '检查';
   else if (current && project.milestones.every((m) => closed.has(m.id))) next = '全部完成';
   else if (current && ownNodes.every((n) => n.state === 'done')) next = '里程碑门';
   const closedIds = new Set(project.milestones.filter((m) => closed.has(m.id)
@@ -98,7 +105,7 @@ function milestoneProgress(project, requirements, nodes) {
   return { milestone: current?.id ?? null, counts, next, closed_not_green, plan_changes };
 }
 
-function progressLine(progress, gate, dirty) {
+function progressLine(progress, gate, dirty, invariants) {
   const { milestone, counts, next, plan_changes, closed_not_green } = progress;
   let line = `${milestone ?? '无'} · ${counts.green}/${counts.total} 绿`;
   for (const [key, label] of [['red', '红'], ['stale', '过期'], ['unknown', '未知'],
@@ -106,6 +113,8 @@ function progressLine(progress, gate, dirty) {
     if (counts[key]) line += ` · ${counts[key]} ${label}`;
   }
   line += ` · 下一项 ${next} · 本里程碑计划变更 ${plan_changes} 次`;
+  const notGreen = invariants.filter((i) => i.state !== 'green').length;
+  if (notGreen) line += ` · 不变量 ${notGreen} 未绿`;
   if (closed_not_green) line += ` · 已关闭里程碑 ${closed_not_green} 项未绿`;
   if (dirty) line += ' · 工作区未提交';
   if (gate !== 'pass') {
@@ -116,15 +125,44 @@ function progressLine(progress, gate, dirty) {
 
 function status(project) {
   const { evidence, checks } = checkStates(project);
+  const invariants = project.checks.filter((c) => Object.hasOwn(c, 'fix')).map((c) => {
+    const { id, state, reasons } = checks.find((s) => s.id === c.id);
+    return { id, state, reasons, fix: c.fix };
+  });
   const requirements = requirementStates(project, evidence);
   const nodes = nodeStates(project);
-  const progress = milestoneProgress(project, requirements, nodes);
+  const progress = milestoneProgress(project, requirements, nodes, invariants);
   const problems = planProblems(project);
   let gate = 'pass';
   if (problems.length) gate = 'fail';
   else if (pendingPlans(project).length) gate = 'stale';
-  return { ...progress, line: progressLine(progress, gate, project.dirty), gate, problems,
-    warnings: project.warnings, dirty: project.dirty, requirements, checks, nodes };
+  return { ...progress, line: progressLine(progress, gate, project.dirty, invariants),
+    gate, problems, warnings: project.warnings, dirty: project.dirty,
+    requirements, checks, nodes, invariants };
 }
 
-module.exports = { status };
+function invariantProblems(state) {
+  return state.invariants.filter((i) => i.state !== 'green')
+    .map((i) => problem('invariant-not-green', `${i.id} is not green`, i.fix));
+}
+
+function retro(project) {
+  const since = project.closures.reduce((at, r) => !at || r.at > at ? r.at : at, null);
+  const classes = new Map();
+  const records = project.evidence.filter((r) => !r.dirty && r.outcome !== 'pass'
+    && (!since || r.at > since)).sort((a, b) => a.at < b.at ? -1 : a.at > b.at ? 1 : 0);
+  for (const r of records) {
+    const key = (r.error_line || r.reason).replace(/[0-9]+/gu, '#').replace(/\s+/gu, ' ').trim();
+    if (!classes.has(key)) classes.set(key, { class: key, count: 0, checks: [], runs: [] });
+    const entry = classes.get(key);
+    entry.count++;
+    entry.checks.push(r.check);
+    entry.runs.push(r.run);
+  }
+  const entries = [...classes.values()];
+  for (const entry of entries) entry.checks = unique(entry.checks).sort();
+  entries.sort((a, b) => b.count - a.count || (a.class < b.class ? -1 : a.class > b.class ? 1 : 0));
+  return { since, classes: entries };
+}
+
+module.exports = { status, invariantProblems, retro, dependencies };

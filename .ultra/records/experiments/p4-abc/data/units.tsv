@@ -1,0 +1,10 @@
+unit	rework	first_pass_visible	interventions	notes
+T1-A	0	yes	0	writer commit 115ba5c also carried 9 setup evidence lines from the setup check run
+T2-A	0	yes	0	writer commit 133fb46 carried the setup check evidence lines, as in T1-A
+T1-B	0	yes	0	tester: No findings; writer commit c8bc57a carried setup evidence lines
+T1-C	0	yes	0	tester and Codex: No findings (Codex could not listen on a port: 29/30 tests EPERM, reviewed by reading); map 302 words, over the 300 limit
+T2-B	0	no	0	first node done refused: malformed ruling line (missing space before the dash), fixed by the writer in e5c076b; tester: No findings; map in Chinese, 1403 non-space characters (asked for at most 300 words)
+T2-C	0	yes	0	tester and Codex: No findings (Codex: 28/29 tests EPERM, reviewed by reading)
+T3-A	0	yes	0	writer commit 15ed714 carried the setup check evidence lines; hidden check run after T3-B finished (code unchanged since the writer, a controller slip)
+T3-B	0	yes	0	the map said to keep the dirty evidence.jsonl out of commits, so the writer left its ledger lines uncommitted; the controller committed them; tester: No findings
+T3-C	1	yes	1	Codex found the form trim() gap (tester: No findings); one rework round fixed it (a6bb024); intervention = the controller sent two corrections after mis-quoting the U+00A0 escape in the rework message; rework usage is the resumed run as reported; map 309 words; the T3-C explorer flagged the REQ-create/REQ-dedupe conflict

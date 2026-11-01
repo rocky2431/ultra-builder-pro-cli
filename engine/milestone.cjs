@@ -4,7 +4,7 @@ const path = require('node:path');
 const { hash, problem, unique, markdown, readRecord } = require('./formats.cjs');
 const { withLock, append } = require('./ledger.cjs');
 const { load } = require('./loading.cjs');
-const { status } = require('./states.cjs');
+const { status, invariantProblems } = require('./states.cjs');
 
 function reviewPath(root, requested) {
   const relative = path.relative(root, path.resolve(root, requested));
@@ -68,6 +68,7 @@ function recordClosure(project, id, opts) {
     add('journey-not-green', `${journey.id} is not green`,
       'Run the journey check on clean, current code.');
   }
+  problems.push(...invariantProblems(state));
   const review = readReview(project.root, relative, add);
   if (!problems.length) {
     append(project.root, 'milestones', { v: 1, milestone: id, code: project.code,
