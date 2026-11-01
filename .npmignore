@@ -4,10 +4,6 @@
 # of that. Use this for paths that we *do* want under "files" for local use
 # but don't want in the published tarball.
 
-# Hook unit tests — kept in the repo for contributors, not shipped.
-hooks/tests
-hooks/tests/**
-
 # Maintained product documents are selected explicitly by package.json "files".
 
 # Local state that should never leak even if someone edits "files".

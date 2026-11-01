@@ -1,94 +1,47 @@
-# Ultra Builder Pro Repository Engineering Guide — Codex
-
-This file contains repository-specific guidance for developing Ultra Builder Pro with
-Codex. General user engineering policy belongs in `~/.codex/AGENTS.md`; the plugin must
-not create or rewrite that file.
+# Ultra Builder Pro v6 Repository Guide
 
 ## Product boundary
 
-Ultra Builder Pro is a file-first workflow plugin for Claude Code, Codex, OpenCode,
-Kimi Code, Grok Build, and ZCode, implementing the provider-neutral Ultra Core
-Protocol (accepted 3.0 design: `docs/ULTRA-BUILDER-PRO-3.0.zh-CN.md`; accepted r3
-revision: `docs/ULTRA-BUILDER-PRO-3.0-NORTH-STAR-R3.zh-CN.md`). The host
-model owns intent interpretation, route selection, decomposition, semantic
-completeness, and final expression. Ultra supplies fourteen portable Skills, five
-optional hooks, host adapters, Skill-local ACP-first delegated Agent execution with a
-typed result-compatible CLI fallback, and the repository files
-needed to resume work across sessions and hosts. Authorization is explicit and
-dual-mode — session-local by default, durable work-package only via an exact owner
-grant recorded under `.ultra/decisions/`; no file, status, Hook, or Resume note
-implies activation. Changing a work package's canonical writer to another Agent is
-a primary transfer (OFFER → verified ACK → sole writer → frozen RESULT; contract:
-`skills/ultra-change/references/primary-transfer.md`), mutually exclusive with
-delegated workers. Review converges inside an owner-visible budget — exact
-defaults in the versioned product contract, exact overrides in owner grants; the
-released default is one initial Review plus two P0/P1 delta Reviews — and P2/P3
-findings are reported, never auto-repaired.
+UBP is one project method (`ultra`), a deterministic engine (`ubp`), and one advisory
+SessionStart hook for Claude Code and Codex. Intent is source code, the plan is compiled,
+progress is computed, and a change is a diff. The host model owns judgment; the engine
+owns progress and mechanical gates. No ACP runner, daemon or Python hook is shipped.
 
-Project authority is owner-readable text and JSON under `.ultra/`, plus `CONTEXT.md`
-and Git history. Ultra does not own general conversation memory, code graphs, browsing,
-deployment providers, framework guidance, or unrelated productivity capabilities.
+## Sources of truth and layout
 
-## Sources of truth
+- `skills/ultra/SKILL.md`: the host-neutral method. Its engine-path placeholder is replaced
+  only in installed copies; there is no separate method source.
+- `engine/FORMATS.md`: project file formats, evidence rules and exit codes.
+- `engine/*.cjs`: the engine; `bin/install.js` dispatches commands and installation.
+- `adapters/claude.js`, `adapters/codex.js` and `adapters/_shared/`: host packaging,
+  managed ownership, provenance and doctor. Each plugin includes its own engine copy.
+- `adapters/_shared/runtime-assets.cjs`: two hosts, one Skill and one hook.
+- `hooks/session-start.cjs`: read-only status observation, always exiting zero.
+- `.ultra/`: project specification, checks, plan, rulings, ledgers and records.
+  `.ultra/.runtime/` is disposable. Git and these files carry project truth.
+- `tests/`: engine and package contracts; `adapters/_shared/tests/`: shared install tests.
 
-- `adapters/_shared/runtime-assets.cjs`: the exact eight user-invoked Skills, five
-  model-invoked Skills, one router, six hosts, and five hooks.
-- `skills/*/SKILL.md`: reusable host-neutral workflow and discipline prompts.
-- `adapters/*.js`: native installation, update, doctor, and uninstall behavior.
-- `skills/ultra-delegate/scripts/host-profile.cjs`: canonical installed ACP candidates,
-  compatibility CLI profiles, candidate-identity probes, and transport maturity for six
-  Hosts (the ZCode App-bundled runtime is `experimental`);
-  `adapters/_shared/host-profile.cjs` is a compatibility re-export.
-- `skills/ultra-change/references/primary-transfer.md` plus
-  `skills/ultra-change/scripts/validate_primary_transfer.cjs`: the primary-transfer
-  contract between Agents and its receipt validator.
-- `hooks/*.py`: the complete hook surface; `_common.py` is a library, not a registration.
-- `.ultra-template/`: canonical new-project data skeleton.
-- `docs/ARTIFACT-AUTHORITY.md`: authority and recovery rules for project artifacts.
-- `docs/PLUGIN-ISOLATION-CONTRACT.md`: ownership, activation, and idle boundaries.
+See `docs/PLUGIN-ISOLATION-CONTRACT.md` for ownership and activation boundaries.
+Never create or rewrite the user's global `AGENTS.md` or `CLAUDE.md`.
 
-No database, MCP server, semantic state machine, generated prompt projection, or daemon
-is part of the product. `.ultra/.runtime/`, `.ultra/progress/`, and `.ultra/reviews/`
-are disposable or reconstructable observations, never semantic authority.
+## Development and release checks
 
-## Host adaptation
+Read the affected contract before editing. Preserve protected acceptance files. Change the
+smallest authoritative source and every affected consumer. Run the narrow regression first,
+then the release checks; inspect the final diff and packed paths:
 
-Adapt semantics, not names. Shared Skills remain host-neutral; invocation policy,
-frontmatter transformation, hooks, registries, and filesystem locations belong in the
-adapter. Public modes are either `explicit-only`, `grant-continuable`, or the read-only
-router: explicit-only modes require a current owner selection, while grant-continuable
-modes may transition only under a verified live Execution Grant for that exact Change.
-One public workflow may recommend the next; it does not bypass the resident mode and
-grant guard by directly launching another public workflow. Model-invoked disciplines
-are reusable internal methods and need at least two canonical callers.
-
-## Development workflow
-
-1. Define observable completion and write the failing regression or contract test.
-2. Change the smallest authoritative source.
-3. Update every live consumer, install artifact, and recovery path affected.
-4. Run the narrow test, then the package suite.
-5. Inspect the final diff and packed artifact.
-
-Semantic gaps remain diagnostics. Hooks may hard-block only a named externally
-destructive effect with an authoritative input and reachable authorization path.
-
-## Verification
-
-Before claiming repository completion, run the relevant narrow tests and:
-
-```bash
+```sh
 npm run verify:release
 npm pack --dry-run --json
 node bin/install.js --all --global --doctor --json
 ```
 
-Validate every changed Skill with the Skill Creator validator. Validate a generated
-Codex plugin with the Plugin Creator validator when its manifest or marketplace surface
-changes. Use isolated config directories for mutating installation tests.
+The release gate runs the remaining Node suites and the production dependency audit.
+Validate changed Skills with the Skill Creator validator and changed Codex manifests with
+Plugin Creator. Use temporary `--config-dir` directories for installation
+tests; never use a real HOME for a test. Report unavailable checks and failed aggregate gates
+without treating isolated retries as success.
 
-## Git and release effects
-
-Use Conventional Commits and include only authorized paths. Do not add AI co-author
-trailers. Commit, push, tag, npm publication, GitHub Release, deployment, and host
-installation are separate effects; perform only those explicitly authorized.
+Commit, push, tag, publication and real host installation are separate effects requiring
+explicit authorization. Use Conventional Commits; stage only authorized paths and omit
+AI co-author trailers. Do not change scope or acceptance to make a check pass.

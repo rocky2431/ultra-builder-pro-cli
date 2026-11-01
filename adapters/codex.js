@@ -77,6 +77,7 @@ function installCleanupRoots(ctx, pluginRoot) {
   add(resolveTarget(ctx), [
     '.', 'config.toml', 'plugins', path.join('plugins', 'cache'),
     path.join('plugins', 'cache', 'personal'), 'tmp', path.join('tmp', 'arg0'),
+    path.join('tmp', 'arg0-macos'),
   ]);
   return [...groups].map(([root, candidates]) => ({
     root,
@@ -101,31 +102,14 @@ function shellQuote(value) {
   return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
 }
 
-function hookCommand(pluginRoot, name) {
-  const adapter = path.join(pluginRoot, 'hooks', 'adapters', 'codex.py');
-  return {
-    type: 'command',
-    command: `python3 ${shellQuote(adapter)} ${shellQuote(name)}`,
-    timeout: 10,
-  };
-}
-
-function buildHooksManifest(pluginRoot = '${CODEX_PLUGIN_ROOT}') {
+function buildHooksManifest(pluginRoot) {
   return {
     hooks: {
-      SessionStart: [
-        { matcher: 'startup|resume|clear', hooks: [hookCommand(pluginRoot, 'session_context.py')] },
-        { matcher: 'compact', hooks: [hookCommand(pluginRoot, 'compact_context.py')] },
-      ],
-      PreToolUse: [
-        { matcher: 'Write|Edit|Grep|apply_patch', hooks: [hookCommand(pluginRoot, 'mid_workflow_recall.py')] },
-        { matcher: 'Bash', hooks: [hookCommand(pluginRoot, 'block_dangerous_commands.py')] },
-      ],
-      PostToolUse: [
-        { matcher: 'Write|Edit|apply_patch', hooks: [hookCommand(pluginRoot, 'post_edit_guard.py')] },
-      ],
-      PreCompact: [{ matcher: 'manual|auto', hooks: [hookCommand(pluginRoot, 'compact_context.py')] }],
-      PostCompact: [{ hooks: [hookCommand(pluginRoot, 'compact_context.py')] }],
+      SessionStart: [{ hooks: [{
+        type: 'command',
+        command: `node ${shellQuote(path.join(pluginRoot, 'hooks', 'session-start.cjs'))}`,
+        timeout: 10,
+      }] }],
     },
   };
 }
@@ -142,9 +126,9 @@ function contentHash(root, version) {
 function buildStaging(repoRoot, staging, publishedRoot) {
   const skillRoot = path.join(staging, 'skills');
   const hookRoot = path.join(staging, 'hooks');
-  const skills = copySkills({ runtime: 'codex', repoRoot, skillRoot });
+  const skills = copySkills({ runtime: 'codex', repoRoot, skillRoot, publishedRoot });
   copyHooks({
-    runtime: 'codex', repoRoot, hookRoot,
+    repoRoot, hookRoot,
     hooksManifest: buildHooksManifest(publishedRoot),
   });
   if (fs.existsSync(path.join(repoRoot, 'LICENSE'))) {
@@ -155,7 +139,7 @@ function buildStaging(repoRoot, staging, publishedRoot) {
   writeAtomic(path.join(staging, '.codex-plugin', 'plugin.json'), `${JSON.stringify({
     name: PLUGIN_NAME,
     version,
-    description: 'File-first Ultra Builder Pro workflows for Codex.',
+    description: 'UBP v6 method, engine and session status line for Codex.',
     author: { name: pkg.author },
     homepage: pkg.homepage,
     repository: pkg.repository?.url || pkg.repository,
@@ -164,16 +148,14 @@ function buildStaging(repoRoot, staging, publishedRoot) {
     skills: './skills/',
     interface: {
       displayName: 'Ultra Builder Pro',
-      shortDescription: 'File-first project workflows and evidence.',
-      longDescription: 'Resume product and engineering work across sessions and coding-agent hosts through portable Skills, repository files, and Git.',
+      shortDescription: 'UBP v6 method, engine and session status line.',
+      longDescription: 'UBP v6 method, engine and session status line for Codex.',
       developerName: pkg.author,
       category: 'Developer Tools',
       capabilities: ['Interactive', 'Write'],
       websiteURL: pkg.homepage,
       defaultPrompt: [
-        'Start a new project with $ultra-builder-pro:ultra-init.',
-        'Reconcile this change with $ultra-builder-pro:ultra-change.',
-        'Show workflow status with $ultra-builder-pro:ultra-status.',
+        'Drive this project with $ultra-builder-pro:ultra.',
       ],
     },
   }, null, 2)}\n`);
@@ -183,7 +165,6 @@ function buildStaging(repoRoot, staging, publishedRoot) {
     contracts: {
       plugin_manifest: { root: 'plugin', path: '.codex-plugin/plugin.json' },
       hooks_manifest: { root: 'plugin', path: 'hooks/hooks.json' },
-      hook_adapter: { root: 'plugin', path: 'hooks/adapters/codex.py' },
     },
   });
   return { skills, version };

@@ -1,9 +1,0 @@
-{
-  "name": "trellis-daily-f1-audit-csv",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Frozen family-1 fixture for the 2026-09-09 daily-workflow eval. Seeded defect: the CSV row serializer neither quotes nor doubles an embedded double quote.",
-  "scripts": {
-    "test": "node --test test/csv-quoting.test.js test/report-consistency.test.js"
-  }
-}

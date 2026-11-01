@@ -1,7 +1,6 @@
 'use strict';
 
 // YAML frontmatter parsing / serialization for markdown assets.
-// Every runtime adapter consumes this — OpenCode lowercases keys while
 // Claude Code and Codex preserve their native metadata contracts.
 
 const yaml = require('js-yaml');
@@ -33,20 +32,4 @@ function serialize(fm, body = '') {
   return `${DELIMITER}\n${yamlBody}\n${DELIMITER}\n${body}`;
 }
 
-function lowercaseKeys(obj) {
-  if (Array.isArray(obj)) return obj.map(lowercaseKeys);
-  if (obj === null || typeof obj !== 'object') return obj;
-  const out = {};
-  for (const [k, v] of Object.entries(obj)) {
-    out[k.toLowerCase()] = lowercaseKeys(v);
-  }
-  return out;
-}
-
-function patch(text, patchFn) {
-  const { fm, body } = parse(text);
-  const nextFm = patchFn(fm ? { ...fm } : {});
-  return serialize(nextFm, body);
-}
-
-module.exports = { parse, serialize, lowercaseKeys, patch };
+module.exports = { parse, serialize };

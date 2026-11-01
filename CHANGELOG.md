@@ -5,12 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## 6.0.0 — 2026-11-01
 
-The source checkout includes changes that are not on npm. On 2026-09-10, the
-registry's `latest` tag resolves to `5.0.1`; the source package declares `5.0.2`,
-which is not published. The fixes previously listed under a dated `5.0.2` heading
-below belong to this unreleased work.
+- Start in Claude Code with `/ultra` (full name `/ultra-builder-pro:ultra`),
+  or in Codex with `$ultra-builder-pro:ultra`.
+- Ship one `ultra` method, the deterministic `ubp` engine and one Node SessionStart
+  observer for Claude Code and Codex. Each plugin carries its own engine.
+- Remove the fourteen 5.x Skills, five Python hooks, old project template, and the
+  OpenCode, Kimi, Grok and ZCode adapters.
+- Remove `run`, `delegate`, ACP/Pi execution, durable grants and wake-up machinery,
+  together with their dedicated tests, fixtures, evaluations and obsolete documentation.
+  Multiple next-step authorities conflicted with the single v6 method and computed status.
+- Keep the old workflows recoverable from Git history and the published 5.0.2 package;
+  existing 5.x project files are not automatically migrated.
+- Decision: `.ultra/decisions/2026-11-01-v6-product-shape.md` in the source repository.
+  Release verification uses Node tests and the production dependency audit, without pytest.
+
+## 5.x source work after 5.0.1 (never published, superseded by 6.0.0)
+
+This 5.x work was in the source checkout but never on npm: on 2026-09-10 the registry's
+`latest` tag resolved to `5.0.1`, and the source package declared an unpublished `5.0.2`.
+6.0.0 removes most of what this section adds; it stays here as history.
 
 ### Added
 

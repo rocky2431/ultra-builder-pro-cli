@@ -8,11 +8,6 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-// The generic ACP engine is the installed public entry: installer/doctor runs
-// in these tests select the repository's test-side stand-in through the same
-// runtime-discovery key the product consumes, so selection is deterministic
-// without a HOME installation.
-process.env.ULTRA_DELEGATE_ACPX_ENTRY = require('node:path').join(__dirname, 'fixtures', 'fake-acpx-entry.cjs');
 const CLI = path.join(ROOT, 'bin', 'install.js');
 const PACKAGE = require('../package.json');
 
@@ -29,6 +24,7 @@ const path = require('node:path');
 const root = process.env.CODEX_HOME || process.env.HOME;
 const state = path.join(root, '.ubp-test-codex-plugin.json');
 const args = process.argv.slice(2);
+fs.mkdirSync(path.join(root, 'tmp', 'arg0-macos'), { recursive: true });
 if (args.join(' ') === 'plugin list --json') {
   const installed = fs.existsSync(state)
     ? [{ name: 'ultra-builder-pro', installed: true, enabled: true }]
@@ -65,13 +61,13 @@ function hostTestEnv(extra = {}) {
 
 function run(args, options = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
-    cwd: ROOT,
+    cwd: options.cwd || ROOT,
     encoding: 'utf8',
     env: hostTestEnv(options.env),
   });
 }
 
-test('package exposes only the installer and delegate entrypoint', () => {
+test('package exposes the installer and engine entrypoint', () => {
   assert.deepEqual(PACKAGE.bin, {
     'ultra-builder-pro-cli': 'bin/install.js',
     ubp: 'bin/install.js',
@@ -79,129 +75,10 @@ test('package exposes only the installer and delegate entrypoint', () => {
   const help = run(['--help']);
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /Claude Code/);
-  assert.match(help.stdout, /OpenCode/);
   assert.match(help.stdout, /Codex CLI/);
-  assert.match(help.stdout, /Kimi Code/);
-  assert.match(help.stdout, /Grok Build/);
-  assert.match(help.stdout, /ZCode/);
 });
 
-test('clean PATH can run the installed Skill-local delegation entrypoint and uninstall removes it', () => {
-  const config = temporary('ubp-skill-runner-');
-  const fakeHome = temporary('ubp-skill-runner-home-');
-  const args = ['--claude', '--global', '--config-dir', config];
-  const runnerRoot = path.join(
-    config, 'skills', 'ultra-builder-pro', 'skills', 'ultra-delegate', 'scripts',
-  );
-  const runner = path.join(runnerRoot, 'delegate.cjs');
-  try {
-    const installed = run(args, { env: { HOME: fakeHome } });
-    assert.equal(installed.status, 0, installed.stderr || installed.stdout);
-    for (const relative of [
-      'delegate.cjs',
-      'delegate-worker.cjs',
-      'run-slice.cjs',
-      'slice-workspace.cjs',
-      'slice-channel.cjs',
-      'pi-primary.cjs',
-      'durable-run.cjs',
-      'pi-durable-primary.cjs',
-      'host-profile.cjs',
-      'agent-execution-driver.cjs',
-      'acp-driver.cjs',
-      'acp-conformance.cjs',
-      'cli-driver.cjs',
-      'pi-native-runtime.cjs',
-      'pi-native-permissions.cjs',
-      path.join('delegate-profiles', 'kimi-read-only.md'),
-      path.join('delegate-profiles', 'kimi-write.md'),
-    ]) {
-      assert.ok(fs.existsSync(path.join(runnerRoot, relative)), relative);
-    }
-    const installedZcodePatch = path.join(
-      runnerRoot, '..', 'patches', 'zcode-acp-0.1.0-zcode-0.16.5.patch',
-    );
-    assert.deepEqual(
-      fs.readFileSync(installedZcodePatch),
-      fs.readFileSync(path.join(
-        ROOT, 'skills', 'ultra-delegate', 'patches',
-        'zcode-acp-0.1.0-zcode-0.16.5.patch',
-      )),
-    );
-
-    const direct = spawnSync(process.execPath, [runner, '--help'], {
-      cwd: config,
-      encoding: 'utf8',
-      env: { HOME: fakeHome, PATH: path.dirname(process.execPath) },
-    });
-    assert.equal(direct.status, 0, direct.stderr || direct.stdout);
-    assert.match(direct.stdout, /delegate\.cjs <run\|status\|cancel>/u);
-
-    const project = path.join(config, 'clean-path-project');
-    const delegation = path.join(project, '.ultra', '.runtime', 'delegations', 'probe');
-    fs.mkdirSync(delegation, { recursive: true });
-    const directStatus = spawnSync(process.execPath, [
-      runner, 'status', '--delegation', delegation,
-    ], {
-      cwd: project,
-      encoding: 'utf8',
-      env: { HOME: fakeHome, PATH: path.dirname(process.execPath) },
-    });
-    assert.equal(directStatus.status, 0, directStatus.stderr || directStatus.stdout);
-    assert.equal(JSON.parse(directStatus.stdout).status, 'not_started');
-
-    const doctor = run([...args, '--doctor', '--json'], { env: { HOME: fakeHome } });
-    assert.equal(doctor.status, 0, doctor.stderr || doctor.stdout);
-    const report = JSON.parse(doctor.stdout).reports[0];
-    assert.equal(report.checks.delegation_runner.status, 'pass', JSON.stringify(report));
-    assert.equal(report.checks.acp_capability.status, 'pass', JSON.stringify(report));
-    assert.equal(report.checks.acp_capability.conformance_status, 'passed', JSON.stringify(report));
-    assert.equal(report.checks.agent_execution_driver.selected, 'acp', JSON.stringify(report));
-    assert.equal(report.checks.agent_execution_driver.fallback_reason, null, JSON.stringify(report));
-
-    const worker = path.join(runnerRoot, 'delegate-worker.cjs');
-    fs.unlinkSync(worker);
-    fs.mkdirSync(worker);
-    const degraded = run([...args, '--doctor', '--json'], { env: { HOME: fakeHome } });
-    assert.notEqual(degraded.status, 0);
-    const degradedReport = JSON.parse(degraded.stdout).reports[0];
-    assert.equal(degradedReport.checks.delegation_runner.status, 'fail');
-    assert.ok(degradedReport.issues.some((issue) => (
-      issue.code === 'DELEGATION_RUNNER_MISSING' && issue.paths.includes(worker)
-    )), JSON.stringify(degradedReport));
-
-    const repaired = run(args, { env: { HOME: fakeHome } });
-    assert.equal(repaired.status, 0, repaired.stderr || repaired.stdout);
-    assert.deepEqual(
-      fs.readFileSync(worker),
-      fs.readFileSync(path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'delegate-worker.cjs')),
-    );
-
-    const acpDriver = path.join(runnerRoot, 'acp-driver.cjs');
-    fs.unlinkSync(acpDriver);
-    const missingAcp = run([...args, '--doctor', '--json'], { env: { HOME: fakeHome } });
-    assert.notEqual(missingAcp.status, 0);
-    const missingAcpReport = JSON.parse(missingAcp.stdout).reports[0];
-    assert.equal(missingAcpReport.checks.delegation_runner.status, 'fail');
-    assert.ok(missingAcpReport.issues.some((issue) => (
-      issue.code === 'DELEGATION_RUNNER_MISSING' && issue.paths.includes(acpDriver)
-    )), JSON.stringify(missingAcpReport));
-    assert.equal(run(args, { env: { HOME: fakeHome } }).status, 0);
-    assert.deepEqual(
-      fs.readFileSync(acpDriver),
-      fs.readFileSync(path.join(ROOT, 'skills', 'ultra-delegate', 'scripts', 'acp-driver.cjs')),
-    );
-
-    const uninstalled = run([...args, '--uninstall'], { env: { HOME: fakeHome } });
-    assert.equal(uninstalled.status, 0, uninstalled.stderr || uninstalled.stdout);
-    assert.equal(fs.existsSync(runnerRoot), false);
-  } finally {
-    fs.rmSync(config, { recursive: true, force: true });
-    fs.rmSync(fakeHome, { recursive: true, force: true });
-  }
-});
-
-for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']) {
+for (const runtime of ['claude', 'codex']) {
   test(`${runtime} CLI install, doctor, reinstall and uninstall stay inside config-dir`, () => {
     const config = temporary(`ubp-cli-${runtime}-`);
     const fakeHome = temporary(`ubp-cli-home-${runtime}-`);
@@ -235,11 +112,7 @@ test('--all gives each host its own config-dir namespace', () => {
   const args = ['--all', '--global', '--config-dir', config];
   const pluginRoots = [
     path.join(config, 'claude', 'skills', 'ultra-builder-pro'),
-    path.join(config, 'opencode', '.ultra-builder-pro'),
     path.join(config, 'codex', 'plugins', 'ultra-builder-pro'),
-    path.join(config, 'kimi', 'plugins', 'managed', 'ultra-builder-pro'),
-    path.join(config, 'grok', '.ubp', 'plugin-sources', 'ultra-builder-pro'),
-    path.join(config, 'zcode', 'cli', 'plugins', 'marketplaces', 'ultra-builder-pro', 'plugin'),
   ];
   try {
     const installed = run(args, { env: { HOME: fakeHome } });
@@ -331,18 +204,13 @@ process.exit(2);
   }
 });
 
-test('Codex and Kimi preserve pre-existing empty registries on uninstall', () => {
+test('Codex preserves pre-existing empty registries on uninstall', () => {
   const codexRoot = temporary('ubp-codex-existing-registry-');
-  const kimiRoot = temporary('ubp-kimi-existing-registry-');
   const codex = require('../adapters/codex.js');
-  const kimi = require('../adapters/kimi.js');
   const codexMarketplace = path.join(codexRoot, '.agents', 'plugins', 'marketplace.json');
-  const kimiRegistry = path.join(kimiRoot, 'plugins', 'installed.json');
   try {
     fs.mkdirSync(path.dirname(codexMarketplace), { recursive: true });
     fs.writeFileSync(codexMarketplace, '{"name":"personal","plugins":[]}\n');
-    fs.mkdirSync(path.dirname(kimiRegistry), { recursive: true });
-    fs.writeFileSync(kimiRegistry, '{"version":1,"plugins":[]}\n');
 
     const codexCtx = {
       repoRoot: ROOT,
@@ -351,21 +219,12 @@ test('Codex and Kimi preserve pre-existing empty registries on uninstall', () =>
       homeDir: codexRoot,
       runPluginCli: false,
     };
-    const kimiCtx = {
-      repoRoot: ROOT,
-      scope: 'global',
-      configDir: kimiRoot,
-    };
     codex.install(codexCtx);
-    kimi.install(kimiCtx);
     codex.uninstall(codexCtx);
-    kimi.uninstall(kimiCtx);
 
     assert.deepEqual(JSON.parse(fs.readFileSync(codexMarketplace, 'utf8')).plugins, []);
-    assert.deepEqual(JSON.parse(fs.readFileSync(kimiRegistry, 'utf8')).plugins, []);
   } finally {
     fs.rmSync(codexRoot, { recursive: true, force: true });
-    fs.rmSync(kimiRoot, { recursive: true, force: true });
   }
 });
 
@@ -423,5 +282,24 @@ test('invalid CLI combinations fail without mutating a config directory', () => 
     assert.deepEqual(fs.readdirSync(config), []);
   } finally {
     fs.rmSync(config, { recursive: true, force: true });
+  }
+});
+
+test('Codex defaults to user scope and rejects unisolated local scope without writes', () => {
+  const home = temporary('ubp-codex-scope-');
+  const env = { HOME: home, CODEX_HOME: path.join(home, '.codex') };
+  try {
+    const refused = run(['--claude', '--codex', '--local'], { env, cwd: home });
+    assert.notEqual(refused.status, 0);
+    assert.deepEqual(fs.readdirSync(home), []);
+    const installed = run(['--codex'], { env });
+    assert.equal(installed.status, 0, installed.stderr);
+    assert.match(installed.stdout, /global \(user\)/u);
+    assert.ok(fs.existsSync(path.join(home, '.codex', '.ubp-test-codex-plugin.json')));
+    assert.equal(run(['--codex', '--doctor', '--json'], { env }).status, 0);
+    assert.equal(run(['--codex', '--uninstall'], { env }).status, 0);
+    assert.deepEqual(fs.readdirSync(home), []);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
   }
 });

@@ -3,7 +3,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parse, serialize, lowercaseKeys, patch } = require('../frontmatter.cjs');
+const { parse, serialize } = require('../frontmatter.cjs');
 
 test('parse extracts frontmatter and body; degraded inputs survive', () => {
   const withFm = '---\ndescription: hi\nmodel: opus\n---\n\n# Hello\n';
@@ -33,15 +33,4 @@ test('serialize → parse round-trip preserves data', () => {
   const { fm: got, body: gotBody } = parse(text);
   assert.deepEqual(got, fm);
   assert.equal(gotBody, body);
-});
-
-test('lowercaseKeys normalizes nested frontmatter (OpenCode contract)', () => {
-  const input = { Name: 'X', TAGS: ['T1'], Nested: { Key: 1 } };
-  const out = lowercaseKeys(input);
-  assert.deepEqual(out, { name: 'X', tags: ['T1'], nested: { key: 1 } });
-
-  // patch() should let callers transform fm in-place
-  const patched = patch('---\nFoo: 1\n---\nbody', (fm) => ({ foo: fm.Foo }));
-  const { fm } = parse(patched);
-  assert.deepEqual(fm, { foo: 1 });
 });

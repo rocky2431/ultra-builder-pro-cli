@@ -1,2 +1,1 @@
-skills/ultra-delegate/patches/*.patch text eol=lf -whitespace
 .ultra/ledger/*.jsonl merge=union

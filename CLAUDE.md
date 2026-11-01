@@ -1,46 +1,47 @@
-# Ultra Builder Pro Repository Engineering Guide — Claude Code
-
-This repository ships the same file-first Ultra workflow to six hosts. General user
-policy belongs in `~/.claude/CLAUDE.md`; the plugin must not create or rewrite it.
+# Ultra Builder Pro v6 Repository Guide
 
 ## Product boundary
 
-The host model owns semantic reasoning and route selection. Ultra owns fourteen
-host-neutral Skills, five optional hooks, native host adapters, Skill-local ACP-first
-delegated Agent execution with a typed result-compatible CLI fallback,
-and owner-readable project authority under `.ultra/`, `CONTEXT.md`, and Git.
+UBP is one project method (`ultra`), a deterministic engine (`ubp`), and one advisory
+SessionStart hook for Claude Code and Codex. Intent is source code, the plan is compiled,
+progress is computed, and a change is a diff. The host model owns judgment; the engine
+owns progress and mechanical gates. No ACP runner, daemon or Python hook is shipped.
 
-There is no database, MCP server, semantic state machine, prompt projection, or daemon.
-Runtime observations under `.ultra/.runtime/`, `.ultra/progress/`, and `.ultra/reviews/`
-are disposable and never outrank the canonical files.
+## Sources of truth and layout
 
-## Sources of truth
+- `skills/ultra/SKILL.md`: the host-neutral method. Its engine-path placeholder is replaced
+  only in installed copies; there is no separate method source.
+- `engine/FORMATS.md`: project file formats, evidence rules and exit codes.
+- `engine/*.cjs`: the engine; `bin/install.js` dispatches commands and installation.
+- `adapters/claude.js`, `adapters/codex.js` and `adapters/_shared/`: host packaging,
+  managed ownership, provenance and doctor. Each plugin includes its own engine copy.
+- `adapters/_shared/runtime-assets.cjs`: two hosts, one Skill and one hook.
+- `hooks/session-start.cjs`: read-only status observation, always exiting zero.
+- `.ultra/`: project specification, checks, plan, rulings, ledgers and records.
+  `.ultra/.runtime/` is disposable. Git and these files carry project truth.
+- `tests/`: engine and package contracts; `adapters/_shared/tests/`: shared install tests.
 
-- `adapters/_shared/runtime-assets.cjs`: packaged Skills and hooks.
-- `skills/*/SKILL.md`: portable workflow prompts.
-- `adapters/*.js`: host-native install and lifecycle behavior.
-- `hooks/*.py`: five hook implementations plus `_common.py`.
-- `.ultra-template/`: new-project data skeleton.
-- `docs/ARTIFACT-AUTHORITY.md` and `docs/PLUGIN-ISOLATION-CONTRACT.md`: stable contracts.
+See `docs/PLUGIN-ISOLATION-CONTRACT.md` for ownership and activation boundaries.
+Never create or rewrite the user's global `AGENTS.md` or `CLAUDE.md`.
 
-Shared Skills stay host-neutral. Public modes are `explicit-only`, `grant-continuable`,
-or the read-only router. Explicit-only modes require a current owner selection;
-grant-continuable modes may transition only under a verified live Execution Grant for
-the exact Change. A public workflow may recommend the next but cannot bypass its
-resident mode and grant guard by directly launching it. Put Claude-specific wiring in
-`adapters/claude.js`.
+## Development and release checks
 
-## Development and verification
+Read the affected contract before editing. Preserve protected acceptance files. Change the
+smallest authoritative source and every affected consumer. Run the narrow regression first,
+then the release checks; inspect the final diff and packed paths:
 
-Write the failing contract first, change the smallest authority, update all live
-consumers, run the narrow test, then inspect the package. Before claiming completion:
-
-```bash
+```sh
 npm run verify:release
 npm pack --dry-run --json
 node bin/install.js --all --global --doctor --json
 ```
 
-Validate changed Skills and generated plugin artifacts with their system validators.
-Commit, push, tag, publication, deployment, and installation remain separate authorized
-effects.
+The release gate runs the remaining Node suites and the production dependency audit.
+Validate changed Skills with the Skill Creator validator and changed Codex manifests with
+Plugin Creator. Use temporary `--config-dir` directories for installation
+tests; never use a real HOME for a test. Report unavailable checks and failed aggregate gates
+without treating isolated retries as success.
+
+Commit, push, tag, publication and real host installation are separate effects requiring
+explicit authorization. Use Conventional Commits; stage only authorized paths.
+Do not change scope or acceptance to make a check pass.
