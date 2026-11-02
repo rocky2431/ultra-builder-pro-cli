@@ -21,21 +21,25 @@ each copy in a temporary directory outside the repository, never in it. A check 
 a broken copy is an acceptance gap. Run the checks once on an unmodified copy of HEAD too
 (\`git archive HEAD\`): a fix that lives only in a file Git ignores passes in the work tree.
 
-The bar for revise: the product, as HEAD builds it, breaks a requirement's \`Done when\` line
-or the Direction, or does something wrong that you can reproduce through its real interface.
-An acceptance gap where HEAD behaves correctly does not block: describe it, with the check
-that would close it, under \"What must be said to the Owner\", and keep the verdict accept. If
-.ultra/records/milestones/ holds an earlier review of this milestone
-(\`$UBP_MILESTONE-review-<n>.md\`), start from the latest one: check each of its revise findings
-and look for regressions. Only those decide your verdict; anything new you find, a defect
-included, goes under \"What must be said to the Owner\".
+The Owner's rule is that a check that could be stronger never blocks. So a finding blocks only
+when the product, as HEAD builds it, breaks a requirement's \`Done when\` line or the
+Direction, or does something wrong that you can reproduce through its real interface. Wrong
+means it contradicts the text of the spec (a requirement, the Interface or the Direction),
+loses or corrupts data, crashes, or opens a security hole. An acceptance gap does not block
+once you have driven HEAD through its real interface on the input the broken copy got wrong
+and seen it behave correctly: quote what HEAD did, name the check that would close the gap
+under \"What must be said to the Owner\", and keep the verdict accept. If the latest earlier
+review of this milestone in .ultra/records/milestones/ (\`$UBP_MILESTONE-review-<n>.md\`) ends
+with \`Verdict: revise\`, also check each of its blocking findings and look for regressions.
+Quote an earlier verdict only inside a code fence.
 
 Write $UBP_REVIEW and nothing else in the repository (no commits, no other edits): a first
 line \`Reviewer: claude -p (${UBP_REVIEWER_MODEL:-opus}), fresh session\`, then the findings
-(each with its evidence and the layer it belongs to: L4 implementation, L2 design, L1
-acceptance or requirements, L0 direction), then a section \"What must be said to the Owner\",
-then exactly one line \`Verdict: accept\` or \`Verdict: revise\`. Stop every server you start by
-its PID."
+that block (each with its evidence, the \`Done when\` line, Direction or reproduction it rests
+on, and the layer it belongs to: L4 implementation, L2 design, L1 acceptance or requirements,
+L0 direction), then a section \"What must be said to the Owner\" with everything else, then
+exactly one line \`Verdict: accept\` (no finding blocks) or \`Verdict: revise\`. Stop every
+server you start by its PID."
 exec claude -p "$PROMPT" --model "${UBP_REVIEWER_MODEL:-opus}" --output-format json \
   --setting-sources project --strict-mcp-config --disable-slash-commands \
   --no-session-persistence --permission-mode acceptEdits \

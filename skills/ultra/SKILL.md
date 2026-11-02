@@ -114,12 +114,13 @@ nodes in plan order, each with `covers`, `depends` and `scope`.
 ## Node loop (controller and writer)
 
 1. `ubp context <node> > .ultra/.runtime/briefs/<node>.md`.
-2. Start a fresh writer with that brief, the workspace path and how to call `ubp`. Nothing
-   else from your conversation goes in: what the writer needs belongs in the spec, the
-   checks, the scope or a dependency's handoff. The writer must be able to run the checks
-   where it works (a sandbox that forbids listening on a local port cannot run a server's
-   checks); a writer that cannot is the wrong writer for that node, not a reason to weaken
-   a check.
+2. Start a fresh writer with that brief, the workspace path and how to call `ubp`, and ask
+   it to say in its handoff what it noticed and left unchanged and what behavior no check
+   pins (the milestone demo lists them). Nothing else from your conversation goes in: what
+   the writer needs belongs in the spec, the checks, the scope or a dependency's handoff.
+   The writer must be able to run the checks where it works (a sandbox that forbids
+   listening on a local port cannot run a server's checks); a writer that cannot is the
+   wrong writer for that node, not a reason to weaken a check.
 3. The writer works test-first inside the scope, commits, runs the `ubp check <ids>` line of
    its brief until those checks are green, writes `.ultra/records/handoffs/<node>.md`, and
    runs `ubp node done <node>`.
@@ -203,23 +204,28 @@ When `next` is `里程碑门`:
    the file and commit it. Then `ubp retro` (see "Keeping it tidy").
 2. Whole-branch review. A reviewer who wrote none of the milestone's code reads the
    milestone's diff (from the previous closure commit, or from the start), its requirements,
-   the plan-log changes and the rulings since the previous closure. It writes
-   `.ultra/records/milestones/<milestone>-review.md`: a first line `Reviewer: <who>`,
-   findings, a section `What must be said to the Owner`, then exactly one line
-   `Verdict: accept` or `Verdict: revise`. Ask it to drive the product by hand and to run the
-   checks against deliberately broken copies of the code: a check that passes on a broken
-   copy is an acceptance gap. The bar for `revise` is the Owner's (2026-11-02): the product,
-   as HEAD builds it, breaks a requirement's `Done when` line or the Direction, or does
-   something wrong that a person can reproduce through its real interface. An acceptance gap
-   where HEAD behaves correctly does not block: the reviewer describes it, with the check that
-   would close it, under `What must be said to the Owner`, and the verdict stays `accept`.
-   On `revise`, keep that review as `<milestone>-review-<n>.md`, triage every revise finding
-   with "Escalation" (a fix that narrows a requirement goes to the Owner first), change the
-   spec and the checks as acceptance author, `ubp gate`, rework the stale nodes through the
-   node loop, and review again. A review after a `revise` starts from the latest earlier
-   review: it checks each of that review's revise findings and looks for regressions, and
-   only those decide its verdict; anything new it finds, a defect included, goes under
-   `What must be said to the Owner`.
+   the plan-log changes, the rulings and the writers' handoffs since the previous closure.
+   Ask it to drive the product by hand and to run the checks against deliberately broken
+   copies of the code: a check that passes on a broken copy is an acceptance gap. The Owner's
+   rule (2026-11-02) is that a check that could be stronger never blocks, so every round uses
+   one bar: a finding blocks only when the product, as HEAD builds it, breaks a requirement's
+   `Done when` line or the Direction, or does something wrong that a person can reproduce
+   through its real interface. Wrong means it contradicts the text of the spec (a
+   requirement, the Interface or the Direction), loses or corrupts data, crashes, or opens a
+   security hole. An acceptance gap does not block once the reviewer has driven HEAD through
+   its real interface on the input the broken copy got wrong and seen it behave correctly:
+   it quotes what HEAD did, names the check that would close the gap under
+   `What must be said to the Owner`, and the verdict stays `accept`. The review,
+   `.ultra/records/milestones/<milestone>-review.md`, holds a first line `Reviewer: <who>`,
+   the findings that block (each naming the `Done when` line, the Direction or the
+   reproduction it rests on), a section `What must be said to the Owner` with everything
+   else, then exactly one line `Verdict: accept` (no finding blocks) or `Verdict: revise`.
+   Quote an earlier verdict only inside a code fence. On `revise`, keep that review as
+   `<milestone>-review-<n>.md`, triage every blocking finding with "Escalation" (a fix that
+   narrows a requirement goes to the Owner first), change the spec and the checks as
+   acceptance author, `ubp gate`, rework the stale nodes through the node loop, and review
+   again. A review after a `revise` also checks each blocking finding of that review and
+   looks for regressions.
 3. Demo for the Owner, in this order: what to try by hand (the journey in user terms), the
    journey check's result and log path, the progress line, the plan changes since the
    previous closure (`.ultra/ledger/plan-log.jsonl`), the rulings since then, the repeated
@@ -229,8 +235,10 @@ When `next` is `里程碑门`:
    handoffs (`.ultra/records/handoffs/`) say is unfinished, noticed and left unchanged, or
    pinned by no check.
 4. Ask the Owner one question: let the milestone pass, or change direction. Their reply,
-   verbatim, is `--owner`. An item from step 3 they want done now is a change handled under
-   "Changes after 0→1".
+   verbatim, is `--owner`. Never answer this by proxy while the step-3 list holds a defect:
+   fix it first, or ask the Owner. A defect you fix, or an item the Owner wants done now, is a
+   change handled under "Changes after 0→1"; the gate then starts again at step 1, with a
+   full review.
 5. `ubp milestone close <milestone> --owner "<words>" --review <review path>`, adding
    `--proxy` when you answered for the Owner. Then commit `.ultra/`.
 

@@ -22,7 +22,8 @@ Never edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/ledger/m
 .ultra/ledger/approvals.jsonl, .ultra/ledger/plan-log.jsonl or any check's test file, and never
 run \`ubp gate\`, \`ubp approve\` or \`ubp milestone close\`: if one of them looks wrong, stop and
 say so in .ultra/records/handoffs/$UBP_NODE.md. Write that handoff and commit it with the
-code. Commit inside this repository only (local commits); leave the work tree clean; install
+code; besides what the brief asks, say in it what you noticed and left unchanged and what
+behavior no check pins. Commit inside this repository only (local commits); leave the work tree clean; install
 nothing. Stop every server you start by its PID, never with a pattern-based kill, and keep
 data files in a temp directory outside the repository. Finish with \`ubp node done $UBP_NODE\`.
 

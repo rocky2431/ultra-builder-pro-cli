@@ -154,21 +154,32 @@ test('after a drive stop the method puts truth files back before it commits the 
 test('the milestone review blocks only on a broken Done when or a reproducible wrong behavior',
   () => {
     // The Owner's rule (2026-11-02): when the code is right and only a check could be
-    // stronger, the review does not stop the milestone; it reports the gap to the Owner. A
-    // review after `revise` judges the earlier findings and regressions, so reviews converge.
-    const method = body(fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'SKILL.md'), 'utf8'))
-      .replace(/\s+/gu, ' ');
+    // stronger, the review does not stop the milestone; it reports the gap to the Owner. Every
+    // round keeps the same bar, so a real defect blocks even when a re-review finds it, and a
+    // defect left for the Owner is never passed by proxy (independent review of 768556d).
+    const flat = (text) => text.replace(/[\\`]/gu, '').replace(/\s+/gu, ' ');
+    const method = flat(body(fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'SKILL.md'),
+      'utf8')));
     const gate = method.slice(method.indexOf('## Milestone gate'),
       method.indexOf('## Changes after 0→1'));
-    const reviewer = fs.readFileSync(path.join(ROOT, 'docs', 'examples', 'drive',
-      'claude-reviewer.sh'), 'utf8').replace(/\\/gu, '').replace(/\s+/gu, ' ');
+    const example = (name) => flat(fs.readFileSync(path.join(ROOT, 'docs', 'examples', 'drive',
+      name), 'utf8'));
+    const reviewer = example('claude-reviewer.sh');
     for (const [name, text] of [['method', gate], ['example reviewer', reviewer]]) {
-      for (const want of ['Done when', 'does not block', 'What must be said to the Owner',
-        'regressions']) {
+      for (const want of ['Done when', 'never blocks', 'does not block',
+        'What must be said to the Owner', 'loses or corrupts data',
+        'on the input the broken copy got wrong', 'regressions',
+        'Quote an earlier verdict only inside a code fence']) {
         assert.ok(text.includes(want), `${name}: ${want}`);
       }
     }
+    assert.ok(reviewer.includes('ends with Verdict: revise'),
+      'the example reviewer re-checks only after a revise, as the method does');
+    assert.ok(gate.includes('Never answer this by proxy while the step-3 list holds a defect'),
+      'a defect left for the Owner is not passed by proxy');
     assert.ok(gate.includes('handoffs'), 'the demo lists what the writers left in their handoffs');
+    assert.ok(example('claude-writer.sh').includes('noticed and left unchanged'),
+      'the example writer reports what it noticed and left unchanged');
   });
 
 test('5.x-only paths are gone from the branch', () => {
