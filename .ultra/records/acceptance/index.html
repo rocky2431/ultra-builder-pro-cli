@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>UBP v6 验收包</title>
+<style>
+/* Design plan. Subject: accepting an engine that computes progress from a ledger of check
+   evidence. Paper is a cool ledger grey; the one accent is the engine's "green" (a passing
+   requirement); amber marks every proxy answer, the thing the Owner must still rule on.
+   Layout: answer and the engine's own status lines up top, then product, sample, process,
+   the decision checklist the Owner fills in, the evidence index; one column, wide tables
+   and the drive diagram sit beside their text on wide screens. */
+:root {
+  --paper: #f3f5f3;
+  --surface: #ffffff;
+  --sunk: #e7ebe8;
+  --ink: #18201c;
+  --muted: #56625c;
+  --rule: #d4dbd6;
+  --accent: #17684b;        /* green: a passing requirement, the current path */
+  --accent-soft: #dcede5;
+  --proxy: #8a5600;         /* amber: answered by proxy, not yet verified by the Owner */
+  --proxy-soft: #f6ead2;
+  --red: #a3302a;           /* red: a failing requirement */
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", monospace;
+  --step--1: 0.875rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.25rem;
+  --step-2: 1.5rem;
+  --step-3: 2rem;
+  --measure: 42em;
+  --gutter: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121614;
+    --surface: #1a1f1c;
+    --sunk: #222824;
+    --ink: #e3e8e5;
+    --muted: #9ba7a1;
+    --rule: #2e3632;
+    --accent: #6cc29d;
+    --accent-soft: #1d3329;
+    --proxy: #e2b45f;
+    --proxy-soft: #362a14;
+    --red: #f0897f;
+    color-scheme: dark;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: var(--step-0)/1.75 var(--font-body);
+  padding: 40px var(--gutter) 72px;
+}
+.page { max-width: 64rem; margin-inline: auto; display: grid; gap: 56px; }
+.page > *, main > * { min-width: 0; }
+main { display: grid; gap: 64px; }
+section { display: grid; gap: 20px; scroll-margin-top: 16px; }
+h1, h2, h3 { line-height: 1.3; margin: 0; text-wrap: balance; word-break: keep-all; }
+h1 { font-size: var(--step-3); }
+h2 { font-size: var(--step-2); padding-top: 16px; border-top: 2px solid var(--ink); }
+h3 { font-size: var(--step-1); margin-top: 8px; }
+p, li, dd { max-width: var(--measure); text-wrap: pretty; overflow-wrap: anywhere; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 1.4em; display: grid; gap: 6px; }
+.stack { display: grid; gap: 14px; align-content: start; }
+.lead { font-size: var(--step-1); line-height: 1.7; }
+.muted { color: var(--muted); }
+small, .small { font-size: var(--step--1); }
+a { color: var(--accent); text-underline-offset: 0.18em; }
+img, svg { max-width: 100%; height: auto; }
+figure { margin: 0; display: grid; gap: 8px; }
+figcaption { color: var(--muted); font-size: var(--step--1); }
+.scroll-x { overflow-x: auto; }
+code, pre, kbd { font-family: var(--font-mono); font-size: 0.88em; }
+code { overflow-wrap: anywhere; }
+pre { margin: 0; overflow-x: auto; padding: 12px 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; line-height: 1.6; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The engine's own progress line: the one thing every session starts with. */
+.ledger { display: grid; gap: 6px; }
+.ledger-line {
+  font-family: var(--font-mono); font-size: var(--step--1);
+  background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
+  padding: 10px 14px; overflow-wrap: anywhere;
+}
+.ledger-line b { color: var(--accent); font-weight: 600; }
+.ledger-line .who { color: var(--muted); }
+
+.note { border-left: 4px solid var(--proxy); background: var(--proxy-soft); padding: 12px 16px; display: grid; gap: 6px; }
+.note.plain { border-left-color: var(--rule); background: var(--sunk); }
+.note.urgent { border-left-color: var(--red); background: var(--surface); }
+.split2 { display: grid; gap: 16px; }
+@media (min-width: 760px) { .split2 { grid-template-columns: 1fr 1fr; } }
+.split2 > * { min-width: 0; }
+.tag { display: inline-block; font-size: 0.78em; line-height: 1.5; padding: 0 6px; border-radius: 3px; white-space: nowrap; vertical-align: 0.08em; font-weight: 600; }
+.tag.proxy { background: var(--proxy-soft); color: var(--proxy); border: 1px solid var(--proxy); }
+.tag.ok { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+.tag.no { color: var(--red); border: 1px solid var(--red); }
+.tag.open { color: var(--muted); border: 1px solid var(--rule); }
+
+.states { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
+.states li { font-size: var(--step--1); border: 1px solid var(--rule); background: var(--surface); padding: 2px 10px; border-radius: 3px; }
+.states li b { font-weight: 600; }
+.states .g b { color: var(--accent); }
+.states .r b { color: var(--red); }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: var(--step--1); background: var(--surface); }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+thead th { background: var(--sunk); font-weight: 600; }
+th { font-weight: 600; }
+td { overflow-wrap: break-word; }
+@media (max-width: 600px) {
+  table.stacked, table.stacked tbody, table.stacked tr, table.stacked th, table.stacked td { display: block; }
+  table.stacked thead { display: none; }
+  table.stacked tr { padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+  table.stacked th, table.stacked td { border: 0; padding: 2px 0; }
+  table.stacked [data-label]::before { content: attr(data-label) "："; color: var(--muted); font-weight: 400; }
+}
+
+.toc { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: var(--step--1); padding: 0; list-style: none; }
+.steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 10px; }
+.steps > li { counter-increment: s; display: grid; grid-template-columns: 2em 1fr; gap: 8px; }
+.steps > li::before { content: counter(s); font-family: var(--font-mono); font-weight: 600; color: var(--accent); border: 1px solid var(--accent); border-radius: 50%; width: 1.7em; height: 1.7em; display: grid; place-items: center; font-size: var(--step--1); margin-top: 0.2em; }
+
+.split { display: grid; gap: 24px; }
+@media (min-width: 900px) { .split { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; } }
+
+/* drive diagram */
+.diagram svg { display: block; width: 100%; max-width: 380px; height: auto; color: var(--ink); font: 14px var(--font-body); }
+.diagram .node rect { fill: var(--surface); stroke: currentColor; stroke-width: 1.25; }
+.diagram .node.key rect { stroke: var(--proxy); stroke-width: 2.5; fill: var(--proxy-soft); }
+.diagram .node.stop rect { stroke-dasharray: 5 4; }
+.diagram text { fill: currentColor; text-anchor: middle; dominant-baseline: middle; }
+.diagram .sub { fill: var(--muted); font-size: 12px; }
+.diagram .edge { fill: none; stroke: currentColor; stroke-width: 1.25; }
+.diagram .edge.ok { stroke: var(--accent); stroke-width: 2; }
+.diagram .arrowhead { fill: currentColor; }
+.diagram .arrowhead.ok { fill: var(--accent); }
+.diagram .edge-label { fill: var(--muted); font-size: 12px; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
+
+/* timeline of the three M3 drives */
+.runs { list-style: none; padding: 0; display: grid; gap: 0; border-left: 2px solid var(--rule); margin-left: 6px; }
+.runs > li { position: relative; padding: 0 0 18px 20px; display: grid; gap: 4px; }
+.runs > li::before { content: ""; position: absolute; left: -7px; top: 0.55em; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2px solid var(--muted); }
+.runs > li.ok::before { border-color: var(--accent); background: var(--accent); }
+.runs > li.fix::before { border-style: dashed; }
+.runs .when { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); }
+
+/* decision checklist */
+.decisions { display: grid; gap: 12px; counter-reset: d; }
+.decision { counter-increment: d; border: 1px solid var(--rule); background: var(--surface); padding: 12px 14px; display: grid; gap: 8px; margin: 0; min-width: 0; }
+.decision legend { display: contents; }
+.decision .q { display: block; position: relative; padding-left: 2.6em; }
+.decision .q::before { content: counter(d); position: absolute; left: 0; top: 0; font-family: var(--font-mono); font-weight: 600; color: var(--proxy); }
+.decision textarea[hidden] { display: none; }
+details { border: 1px solid var(--rule); background: var(--surface); padding: 10px 14px; }
+details > summary { cursor: pointer; font-weight: 600; }
+details[open] > summary { margin-bottom: 12px; }
+details > :not(summary) + :not(summary) { margin-top: 10px; }
+.decision .choices { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-left: 2.6em; }
+.decision label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--step--1); }
+.decision input[type="radio"] { accent-color: var(--accent); width: 1.05em; height: 1.05em; margin: 0; }
+.decision textarea { margin-left: 2.6em; width: calc(100% - 2.6em); min-height: 2.6em; font: var(--step--1)/1.6 var(--font-body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; padding: 6px 8px; resize: vertical; }
+.decision[data-answer="确认"] { border-left: 4px solid var(--accent); }
+.decision[data-answer="推翻"] { border-left: 4px solid var(--red); }
+.group-title { font-weight: 600; margin-top: 8px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button { font: 600 var(--step--1)/1 var(--font-body); padding: 10px 16px; border-radius: 4px; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); cursor: pointer; transition: background-color 150ms, color 150ms; }
+button.secondary { background: transparent; color: var(--accent); }
+#reply { width: 100%; min-height: 9em; font: var(--step--1)/1.6 var(--font-mono); color: var(--ink); background: var(--surface); border: 1px solid var(--rule); padding: 10px 12px; }
+
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: var(--step--1); }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { dl.kv { grid-template-columns: 1fr; } dl.kv dd { margin-bottom: 8px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+@media print {
+  body { background: #fff; color: #000; padding: 0; }
+  a { color: inherit; }
+  .actions, #reply { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="stack">
+    <p class="muted small">2026-11-02 · 按 <code>thinking/back-to-essentials-20261030/RESULT.md</code> 第 5、8 节落地 P0–P5 之后的交付</p>
+    <h1>UBP v6 验收包</h1>
+    <p class="lead">UBP v6.0.0 已在本地 <code>v6</code> 分支落地，没有推送，也没有发布到 npm。参考样本 R（短链接服务 Shortlink）用它走完了 0→1、1→100；M3 的三个节点由 <code>ubp drive</code> 无人值守写完并停在里程碑门，但让 M3 关闭的是控制者的手工工作。</p>
+    <div class="ledger" aria-label="两个项目的进度行，由引擎从检查证据算出">
+      <div class="ledger-line"><span class="who">样本 R $</span> ubp status<br><b>M3 · 3/3 绿</b> · 下一项 全部完成 · 本里程碑计划变更 0 次</div>
+      <div class="ledger-line"><span class="who">v6 自身 $</span> ubp status<br><b>M-P5 · 2/2 绿</b> · 下一项 全部完成 · 本里程碑计划变更 0 次</div>
+    </div>
+    <div class="note">
+      <p><span class="tag proxy">代答</span> 11-01 你委托“中间不再问”之后，所有需要你出面的地方都由助手代答，每条记录都标了 <code>proxy: yes</code>，对应的出口都“未经真实 Owner 验证”。<a href="#decisions">第 4 节</a>把这些代答列成清单，请逐条确认或推翻。</p>
+      <p>合同第 8 节的限定仍然成立：R 是助手自己选的题，难度低于真实项目。P5 通过只说明“可以交给你试第一个真实样本”，不说明“已经在真实项目上证明好用”。</p>
+    </div>
+    <div class="note plain">
+      <p><b>第 0 节已处理</b>：主仓库本地 <code>main</code> 上我误提交的 <code>26da9ef</code> 已按你 11-02 的决定 revert（<code>188c087</code>），没有推送。全局 <code>ubp</code> 仍是主仓库的 5.x，没有引擎命令；这一点我之前说错了，见<a href="#first">第 0 节</a>的更正。</p>
+    </div>
+    <nav aria-label="目录">
+      <ul class="toc">
+        <li><a href="#how">怎么验收</a></li>
+        <li><a href="#first">0 main 的误提交</a></li>
+        <li><a href="#product">1 成品</a></li>
+        <li><a href="#sample">2 样本 R</a></li>
+        <li><a href="#process">3 过程</a></li>
+        <li><a href="#decisions">4 待你确认</a></li>
+        <li><a href="#evidence">5 证据索引</a></li>
+        <li><a href="#notdone">6 没做的</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section id="how" aria-labelledby="h-how">
+      <h2 id="h-how">怎么验收</h2>
+      <p>全局的 <code>ubp</code> 是主仓库的 5.x，没有引擎命令（第 0 节），下面的命令都用 v6 引擎的完整路径。可以先设一个别名：</p>
+<pre><code>alias ubp6='node "/Users/rocky243/Context Engineering/ultra-builder-pro-cli-v6/bin/install.js"'</code></pre>
+      <ol class="steps">
+        <li><p>读第 0 节：误提交已 revert，以及我对全局 <code>ubp</code> 的更正。</p></li>
+        <li><p>读第 1 节，照 <code>onboarding.zh-CN.md</code> 第 2 节做一次隔离安装（<code>--config-dir</code> 指向空目录），在一个空项目里输入 <code>/ultra</code>。</p></li>
+        <li><p>打开样本 R：<code>npm start</code>，在浏览器里走一遍；在 R 目录里运行 <code>ubp6 status</code> 看进度行（第 2 节）。</p></li>
+        <li><p>在第 4 节逐条选“确认”或“推翻”，点“生成答复”，把文字发回来。推翻一条，只需改对应的真相文件，再在那个项目里跑 <code>ubp6 gate</code>。</p></li>
+        <li><p>想看原件，按第 5 节的路径找。本页的 Markdown 版是同目录的 <code>acceptance.zh-CN.md</code>。</p></li>
+      </ol>
+    </section>
+
+    <section id="first" aria-labelledby="h-first">
+      <h2 id="h-first">0 主仓库 <code>main</code> 上的误提交（已 revert）</h2>
+      <dl class="kv">
+        <dt>是什么</dt><dd><code>ultra-builder-pro-cli</code> 的本地 <code>main</code> 曾停在 <code>26da9ef</code>“chore: start the Shortlink reference sample”（2026-10-31 20:29:27），比样本 R 的第一个提交晚一秒、说明相同。它把 UBP 的 <code>package.json</code> 换成了 Shortlink 0.1.0，<code>.gitignore</code> 从 185 行删到 3 行。没有推送（<code>origin/main</code> 仍是 <code>211143d</code>），也不在 <code>v6</code> 上。</dd>
+        <dt>怎么来的</dt><dd>推断：P2 建 R 时，有一条提交命令在错误的目录里执行了。它出现在每次会话开头的 Git 状态里，我一直没注意到，是 M-P5 门评审发现的（偏差 17）。</dd>
+        <dt>已处理</dt><dd>11-02 你回“revert 吧，你直接做”。我在主仓库 <code>main</code> 上提交了 <code>188c087</code>。之后 <code>main</code> 的树和 <code>origin/main</code>（<code>211143d</code>）完全相同，多出的两个提交（误提交和它的反向提交）没有推送。未跟踪条目从 143 条降到 39 条。撤回：<code>git revert 188c087</code>。</dd>
+        <dt>更正</dt><dd>我原来写“这个误提交让全局 <code>ubp</code> 不能用”，不对。全局 <code>ubp</code> 链接到主仓库的 <code>bin/install.js</code>，主仓库是 5.x：误提交只让 <code>ubp --version</code> 显示 <code>v0.1.0</code>（drive 评审看到的就是它），并让包定义和忽略规则失效。5.x 本来就没有引擎命令，revert 之后 <code>--version</code> 是 <code>v5.0.2</code>，<code>ubp status</code> 照样报错（11-02 实测）。要直接用 <code>ubp</code> 跑 v6，按上手说明第 2 节方式 A 全局安装 v6；安装是另一项操作，我没做。</dd>
+      </dl>
+    </section>
+
+    <section id="product" aria-labelledby="h-product">
+      <h2 id="h-product">1 成品：UBP v6.0.0 是什么样</h2>
+      <p>核心想法：意图是源码，计划是编译产物，进度靠计算得出，变更就是一份 diff。</p>
+
+      <h3>装上之后，宿主里有什么</h3>
+      <table class="stacked">
+        <thead><tr><th scope="col">部件</th><th scope="col">内容</th></tr></thead>
+        <tbody>
+          <tr><th scope="row" data-label="部件">一个 Skill <code>ultra</code></th><td data-label="内容">方法全文（<code>skills/ultra/SKILL.md</code>）。Claude Code 里输入 <code>/ultra</code>，Codex 里输入 <code>$ultra-builder-pro:ultra</code>。</td></tr>
+          <tr><th scope="row" data-label="部件">一份引擎 <code>ubp</code></th><td data-label="内容"><code>engine/</code> 下 17 个 <code>.cjs</code> 文件，只用 Node 内置模块，<code>wc -l</code> 共 1983 行。受保护的预算测试按每个文件多算一行，合计正好 2000 行，即合同上限。</td></tr>
+          <tr><th scope="row" data-label="部件">一个 SessionStart hook</th><td data-label="内容">只在含 <code>.ultra/spec.md</code> 的项目里打印进度行，再加一句 <code>Use the ultra Skill to drive this project.</code>；其他地方什么都不做。</td></tr>
+          <tr><th scope="row" data-label="部件">宿主</th><td data-label="内容">只有 Claude Code 和 Codex。npm 包共 37 个文件，含 drive 的两个示例脚本。</td></tr>
+        </tbody>
+      </table>
+      <p class="muted small">移出默认路径的有：5.x 的十四个 Skill、五个 Python hook、OpenCode/Kimi/Grok/ZCode 适配器，以及 <code>run</code>、<code>delegate</code>、ACP/Pi 执行、durable grant、wake-up。它们在 Git 历史里都能找回。npm 上最后发布的 5.x 是 5.0.1（之前说明里写的“已发布的 5.0.2”有误，已更正）。</p>
+
+      <h3>用起来是什么样</h3>
+      <p>项目真相全在 <code>.ultra/</code> 下：<code>spec.md</code>（编号的需求）、<code>checks.json</code>（可执行的检查和它覆盖的需求）、<code>plan.json</code>（里程碑和节点）、<code>ledger/*.jsonl</code>（证据、完成、计划日志、批准、关闭）、<code>rulings.md</code>（裁决）、<code>records/</code>（评审、交接、Owner 介入）。进度由引擎从这些文件和检查证据算出来，不靠任何人汇报。每条需求只有五种状态：</p>
+      <ul class="states" aria-label="需求的五种状态">
+        <li class="g"><b>绿</b> 检查在当前代码上通过</li>
+        <li class="r"><b>红</b> 检查失败</li>
+        <li><b>未知</b> 没跑过，永远不算绿</li>
+        <li><b>过期</b> 需求或代码变了</li>
+        <li><b>未覆盖</b> 没有检查</li>
+      </ul>
+      <ul>
+        <li>改了需求原文，只有和它关联的检查和节点变成过期（差分失效）。</li>
+        <li>删需求、删检查、缩小覆盖范围都会被引擎拦住，要你批准（<code>ubp approve</code>）。</li>
+        <li>已经绿的需求又变红叫“棘轮破坏”。合并门、drive 和里程碑关闭会拦；手动的 <code>node done</code> 只查本节点的需求和不变量，别处变红要靠控制者在 <code>check</code> 之后发现。</li>
+        <li>需要你本人出面的有四处：0→1 访谈（为谁做、成功条件、边界）、里程碑门（看演示和评审，答“放行还是改方向”）、缩小范围、方向（L0）的变化。</li>
+      </ul>
+      <details>
+      <summary>全部 10 条命令</summary>
+      <div class="scroll-x">
+        <table class="stacked">
+          <thead><tr><th scope="col">命令</th><th scope="col">作用</th></tr></thead>
+          <tbody>
+            <tr><th scope="row" data-label="命令"><code>ubp status</code></th><td data-label="作用">算出进度和下一步</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp gate</code></th><td data-label="作用">计划门：校验计划，记下基线和变更 diff</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp check [ids]</code></th><td data-label="作用">运行检查并记证据</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp node done &lt;id&gt;</code></th><td data-label="作用">需求全绿时记节点完成</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp context &lt;id&gt;</code></th><td data-label="作用">编译节点简报（写者只看这个）</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp milestone close</code></th><td data-label="作用">带你的原话和评审文件，关闭已评审的里程碑</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp approve</code></th><td data-label="作用">记录对缩小范围的批准</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp retro</code></th><td data-label="作用">列出重复出现的失败类别</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp merge &lt;branch&gt; --expect-head &lt;sha&gt;</code></th><td data-label="作用">合并门：在干净的临时树上重跑检查，再合并并行写者的分支</td></tr>
+            <tr><th scope="row" data-label="命令"><code>ubp drive --writer … [--reviewer …]</code></th><td data-label="作用">无人值守地推进节点，直到下一个需要你的点</td></tr>
+          </tbody>
+        </table>
+      </div>
+      </details>
+
+      <h3>无人值守：<code>ubp drive</code></h3>
+      <div class="split">
+        <div class="stack">
+          <p>drive 一个节点接一个节点地跑：编译简报，交给写者，然后自己逐项核验，不信写者交来的证据：</p>
+          <ol>
+            <li>真相文件没被改；</li>
+            <li>历史没被改写；</li>
+            <li>工作区干净，包括 Git 的隐藏标记（<code>assume-unchanged</code>、<code>skip-worktree</code>）和仓库自己的 Git 设置（<code>config</code>、<code>config.worktree</code>、<code>info/exclude</code>）；</li>
+            <li>改动都在节点的 scope 内，没碰检查文件；</li>
+            <li>计划门通过；</li>
+            <li>棘轮没破（当前和已关闭的里程碑）；</li>
+            <li>节点的检查和全部不变量都是绿的。</li>
+          </ol>
+          <p>到了里程碑门，它让评审跑一次，然后停下。它<strong>从不关闭里程碑，也从不批准任何事</strong>。每个节点最多试 3 次，整次运行最多启动 10 个写者。</p>
+          <p class="muted small">无头 <code>claude -p</code> 的写者和评审示例随包发布在 <code>docs/examples/drive/</code>（安装器不复制进宿主）。它们调用引擎写成 <code>eval "$UBP &lt;参数&gt;"</code>：代理的登录 shell 里普通的 <code>ubp</code> 可能是别的程序，这台机器上就是（第 0 节）。</p>
+        </div>
+        <figure class="diagram">
+          <svg viewBox="0 0 400 576" role="img" aria-label="drive 的循环：编译简报，交给写者，写者退出后 drive 核验七项；没完成就重试，完成就去下一个节点，违规就停下；所有节点完成后评审跑一次，然后停下等你放行">
+            <defs>
+              <marker id="d1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead"/></marker>
+              <marker id="d1-arrow-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="arrowhead ok"/></marker>
+            </defs>
+            <g class="node"><rect x="104" y="16" width="192" height="48" rx="4"/><text x="200" y="40">编译节点简报</text></g>
+            <g class="node"><rect x="104" y="112" width="192" height="48" rx="4"/><text x="200" y="136">写者写代码、跑检查</text></g>
+            <g class="node"><rect x="104" y="208" width="192" height="64" rx="4"/><text x="200" y="230">drive 自己核验 7 项</text><text class="sub" x="200" y="252">真相·历史·干净·scope·棘轮…</text></g>
+            <g class="node stop"><rect x="8" y="328" width="168" height="48" rx="4"/><text x="92" y="352">违规：停下，写明原因</text></g>
+            <g class="node"><rect x="104" y="424" width="192" height="48" rx="4"/><text x="200" y="448">里程碑门：评审跑一次</text></g>
+            <g class="node key"><rect x="104" y="512" width="192" height="48" rx="4"/><text x="200" y="536">停下，等你放行</text></g>
+            <path class="edge" d="M200 64 V110" marker-end="url(#d1-arrow)"/>
+            <text class="edge-label" x="232" y="88">交给</text>
+            <path class="edge" d="M200 160 V206" marker-end="url(#d1-arrow)"/>
+            <text class="edge-label" x="240" y="184">退出后</text>
+            <path class="edge" d="M296 232 H336 V136 H298" marker-end="url(#d1-arrow)"/>
+            <text class="edge-label" x="336" y="184">重试</text>
+            <path class="edge ok" d="M296 256 H376 V40 H298" marker-end="url(#d1-arrow-ok)"/>
+            <text class="edge-label" x="376" y="96">下一节点</text>
+            <path class="edge" d="M152 272 V326" marker-end="url(#d1-arrow)"/>
+            <text class="edge-label" x="124" y="300">违规</text>
+            <path class="edge ok" d="M248 272 V422" marker-end="url(#d1-arrow-ok)"/>
+            <text class="edge-label" x="248" y="352">全部完成</text>
+            <path class="edge" d="M200 472 V510" marker-end="url(#d1-arrow)"/>
+            <text class="edge-label" x="248" y="492">写完评审</text>
+          </svg>
+          <figcaption>drive 停下的每个地方都需要人判断；放行和批准永远留给你。</figcaption>
+        </figure>
+      </div>
+
+      <h3>发布门</h3>
+      <p>跑了三次：第 1 次在 <code>5abe32d</code> 全部通过；门评审之后修了产品，第 2 次在 <code>e61f668</code>、v6 工作树之外的干净检出里跑，先用 v6 自己的锁文件 <code>npm ci</code>，下表是第 2 次。修 N1 之后（只改 Skill 文字和一条包测试）在 <code>0a49d73</code> 上跑了第 3 次：v6 里 <code>check --all</code> 7/7（含 <code>verify:release</code>），打包 37 个文件，隔离 doctor 两个宿主 healthy，Skill 校验通过；干净检出里一次 6/7（<code>C-engine-p5</code> 失败，日志随临时检出删掉了），同一 HEAD 的新干净检出单独重跑这一条 40/40。</p>
+      <table class="stacked">
+        <thead><tr><th scope="col">命令</th><th scope="col">结果</th></tr></thead>
+        <tbody>
+          <tr><th scope="row" data-label="命令"><code>npm run verify:release</code>（Node 25）</th><td data-label="结果"><span class="tag ok">✓ 通过</span> 362 个测试全过；<code>npm audit</code> 0 个漏洞</td></tr>
+          <tr><th scope="row" data-label="命令">全套测试，Node 22（CI 只用 22）</th><td data-label="结果"><span class="tag no">✗ 没有全过</span> 默认并发 356/362，按 CI 的并发 3 是 359/362。失败的都是墙钟时间断言（例如检查 1 秒超时），当时机器负载偏高（日志里记的在 4.8 到 11.4 之间）；每条单独重跑都通过。没有放宽断言，记为上限 14；CI 没有观察到</td></tr>
+          <tr><th scope="row" data-label="命令"><code>npm pack --dry-run --json</code></th><td data-label="结果"><span class="tag ok">✓ 通过</span> 6.0.0，37 个文件；含 <code>engine/drive.cjs</code> 和两个 drive 示例脚本，不含任何 <code>.py</code></td></tr>
+          <tr><th scope="row" data-label="命令">隔离安装 → <code>--doctor --json</code> → 卸载</th><td data-label="结果"><span class="tag ok">✓ 通过</span> <code>HOME</code> 和 <code>--config-dir</code> 都指向新的空目录。两个宿主都是 <code>healthy</code>（来源 <code>e61f668</code>，<code>dirty: false</code>）；Codex 的 hook 启用状态是 <code>host_managed</code>，要你在 <code>/hooks</code> 里信任一次；卸载后隔离目录里什么都没剩</td></tr>
+          <tr><th scope="row" data-label="命令">干净检出上 <code>ubp check --all</code></th><td data-label="结果"><span class="tag ok">✓ 通过</span> 7 条全过</td></tr>
+          <tr><th scope="row" data-label="命令">Skill 校验（两个 Skill Creator 校验器）</th><td data-label="结果"><span class="tag ok">✓ 通过</span> <code>Skill is valid!</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>上手说明</h3>
+      <p>同目录的 <code>onboarding.zh-CN.md</code>：怎么装、第一次会话、无人值守怎么跑、规划时要注意什么、它现在做不到的事。</p>
+    </section>
+
+    <section id="sample" aria-labelledby="h-sample">
+      <h2 id="h-sample">2 样本 R：Shortlink</h2>
+      <dl class="kv">
+        <dt>位置</dt><dd><code>../ubp-sample-shortlink</code>，本地独立仓库，没有远端</dd>
+        <dt>它是什么</dt><dd>一个人或一个小团队在自己机器上跑的短链接服务：粘贴长链接得到短链接，打开短链接跳回原地址，能看到每条链接被打开了几次。</dd>
+        <dt>“优雅”的意思</dt><dd>零 npm 依赖，<code>npm start</code> 一条命令启动，数据存在一个本地 JSON 文件里，<code>src/</code> 共 454 行，一次读完。</dd>
+        <dt>规模</dt><dd>11 条需求、12 条检查、49 个测试、3 个里程碑</dd>
+      </dl>
+      <div class="scroll-x">
+        <table class="stacked">
+          <thead><tr><th scope="col">里程碑</th><th scope="col">内容</th><th scope="col">怎么做的</th><th scope="col">门评审</th><th scope="col">状态</th></tr></thead>
+          <tbody>
+            <tr><th scope="row" data-label="里程碑">M1</th><td data-label="内容">缩短、跳转、计数、持久化、网页</td><td data-label="怎么做的">宿主内单写者，从访谈开始 0→1（P2）</td><td data-label="门评审">2 轮。第 1 轮发现约 54&nbsp;MB 的长链接会让首页崩溃，于是加了 64&nbsp;KiB 上限（缩小，代答批准）</td><td data-label="状态"><span class="tag ok">已关闭</span> <span class="tag proxy">代答</span></td></tr>
+            <tr><th scope="row" data-label="里程碑">M2</th><td data-label="内容">会过期的链接、API 删除</td><td data-label="怎么做的">进行中注入四种变更：L1 新增、修改、缩小，L2 设计变更（P3）</td><td data-label="门评审">2 轮</td><td data-label="状态"><span class="tag ok">已关闭</span> <span class="tag proxy">代答</span></td></tr>
+            <tr><th scope="row" data-label="里程碑">M3</th><td data-label="内容">自选短码、按短码查一条、同一个链接只缩短一次</td><td data-label="怎么做的"><code>ubp drive</code> 无人值守写节点（P5a），共启动 4 次（第 0 次写者没起来）</td><td data-label="门评审">2 轮 revise（都是代码对、检查弱），补 7 条断言和 6 个测试，不改代码；再一次窄核对 accept</td><td data-label="状态"><span class="tag ok">已关闭</span> <span class="tag proxy">代答</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>M3 无人值守那一段</h3>
+      <ol class="runs">
+        <li><span class="when">第 0 次 · 几秒内失败</span><p>写者脚本的路径里有空格（<code>Context Engineering</code>），命令没加引号，写者根本没启动（exit 127）。drive 却把它当成“节点没完成”，连试 3 次才停。记为上限 6，上手说明写明要加引号。</p></li>
+        <li class="ok"><span class="when">第 1 次 · 约 23 分钟 · 4.94 美元</span><p>三个节点各一次就过。写者是无头 <code>claude -p</code>（sonnet），每个 2–4.5 分钟、0.37–0.79 美元，都是先写红测试、再改代码变绿、最后工作区干净。<code>check --all</code> 全绿后，门评审（opus，12 分钟，3.18 美元）给出 revise：代码没问题，检查钉得太少，它做的 17 份故意改坏的代码里 13 份能通过全部 36 个测试。drive 停在门口，没有关闭里程碑。</p></li>
+        <li class="fix"><span class="when">修订 1 · <code>24d9f6e</code></span><p>照评审起草的 7 条断言补进三个检查文件，不改代码。之后仍能通过全部检查的坏代码只剩 3 份：单个 <code>setImmediate</code> 的并发交错（部分钉住），以及裁决定下、规格没写的“短码区分大小写”和“给回最老的那条”。</p></li>
+        <li><span class="when">第 2 次 · 评审约 18 分钟 · 3.91 美元</span><p>检查过期，drive 重跑 <code>check --all</code> 全绿后直接进门。第 2 轮评审仍是 revise，代码依然没问题，但又找到一批：大写短码、自选短码在重启和删除之后的行为、链接末尾的 <code>#片段</code>。它新做的 15 份坏代码（其中 2 份是对照）里 13 份通过全部检查。评审起草了 5+1 个测试，并说：这是第 2 轮，剩下的分歧应该交给你，不要开第 3 轮。</p></li>
+        <li class="fix"><span class="when">修订 2 · <code>49555e3</code></span><p>照草稿补进 6 个测试，不改代码。全部 33 份坏代码里 30 份变红，剩下的还是那 3 份。</p></li>
+        <li class="ok"><span class="when">第 3 次 · 窄核对 · 约 3 分钟 · 2.54 美元</span><p>评审换成 <code>claude-confirm.sh</code>，只核对四件事：草稿是否照原样补进去、有没有削弱已有断言、点名的坏代码是否都变红、HEAD 上是否全过。四件都成立，accept。HEAD 的干净检出上 12 条检查全过。代答关闭 M3（<code>aba26ad</code>）。</p></li>
+      </ol>
+      <h3>谁做了什么</h3>
+      <div class="split2">
+        <div class="stack"><p><span class="tag ok">drive 无人值守</span></p><ul><li>三个节点的写者各一次完成：先红后绿、工作区干净、<code>node done</code>；</li><li><code>check --all</code> 全绿，评审跑一次；</li><li>三次都自己停在门口，没有关闭任何东西。</li></ul></div>
+        <div class="stack"><p><span class="tag proxy">控制者手工</span></p><ul><li>drive 之前：写模拟的“Owner 消息”、红检查和计划，代答批准缩小 M1 的一条需求；</li><li>两轮 revise 后照草稿补检查，自己跑 33 份坏副本；</li><li>第 3 次把评审换成自己写的窄核对脚本，它只核对四件事；接受 M3 的是它，不是整分支评审；</li><li>干净检出、演示记录、代答关闭。</li></ul></div>
+      </div>
+      <p class="muted small">M3 本身是模拟的需求，由控制者提出和规划。每次启动的完整命令行和所用脚本在 <code>R/.ultra/records/p5/scripts/README.md</code>。</p>
+      <div class="note">
+        <p><b>窄核对顺带发现的新缺口</b>：没有任何检查删除带大写字母的短码。把删除路由改成先转小写，这份坏代码能通过全部 49 个测试和 12 条检查；而它会在 <code>Docs</code> 和 <code>docs</code> 都存在时，用 <code>DELETE /api/links/Docs</code> 删掉别人的 <code>docs</code>。HEAD 是对的。这正是第 2 轮评审预言的“下一批”，见第 3 节的方法候选。</p>
+      </div>
+      <p class="muted small">花费来自各次写者日志和 <code>review.log</code> 里 <code>claude -p</code> 的结果行：写者 1.76 美元，三次评审 9.63 美元，整个 M3 的 drive 约 11.4 美元。</p>
+
+      <h3>亲手看</h3>
+<pre><code>cd ../ubp-sample-shortlink
+npm start            # 浏览器打开 http://127.0.0.1:3000
+node ../ultra-builder-pro-cli-v6/bin/install.js status
+npm test             # 全部 49 个测试</code></pre>
+    </section>
+
+    <section id="process" aria-labelledby="h-process">
+      <h2 id="h-process">3 过程</h2>
+      <h3>阶段和出口</h3>
+      <div class="scroll-x">
+        <table class="stacked">
+          <thead><tr><th scope="col">阶段</th><th scope="col">出口（RESULT 第 5 节，按第 8 节改在 R 上观察）</th><th scope="col">结果</th><th scope="col">主要证据</th></tr></thead>
+          <tbody>
+            <tr><th scope="row" data-label="阶段">P0 收尾与决定</th><td data-label="出口">决定写进 <code>.ultra/decisions/</code></td><td data-label="结果"><span class="tag ok">达到</span></td><td data-label="证据"><code>fe439b6</code></td></tr>
+            <tr><th scope="row" data-label="阶段">P1 引擎最小核</th><td data-label="出口">改动需求原文后只有关联的节点和检查过期；进度行正确；未知不算绿；计数器有测试</td><td data-label="结果"><span class="tag ok">达到</span></td><td data-label="证据"><code>fb8ec70</code>；<code>M-P1-review.md</code></td></tr>
+            <tr><th scope="row" data-label="阶段">P2 0→1</th><td data-label="出口">R 的 M1 需求全绿，端到端旅程通过，整分支评审通过；Owner 只在计划好的点介入</td><td data-label="结果"><span class="tag ok">前三项达到</span> <span class="tag proxy">介入全部代答</span> 另有 2 次计划外介入（你因为控制者停下或不汇报主动来问）</td><td data-label="证据"><code>f903a90</code>；R 的 M1 记录</td></tr>
+            <tr><th scope="row" data-label="阶段">P3 1→100</th><td data-label="出口">四种变更都留下差分和计划日志；只有关联节点重跑；棘轮成立；缩小在批准前被拦住</td><td data-label="结果"><span class="tag ok">达到</span> <span class="tag proxy">四条消息是模拟的</span></td><td data-label="证据"><code>39edb70</code>；<code>M-P3-review.md</code></td></tr>
+            <tr><th scope="row" data-label="阶段">P4 防熵与并行</th><td data-label="出口">默认分工按数据确定，并写进决定</td><td data-label="结果"><span class="tag ok">达到</span> 默认 A：每个节点一个写者，加控制者核验</td><td data-label="证据"><code>abef67f</code>；<code>experiments/p4-abc/RESULTS.md</code></td></tr>
+            <tr><th scope="row" data-label="阶段">P5 无人值守与方法进化</th><td data-label="出口">样本无人值守完成一个里程碑；一个方法候选走完门槛</td><td data-label="结果"><span class="tag proxy">部分达到</span> 节点由 drive 无人值守写完；关闭 M3 靠控制者手工（见下）</td><td data-label="证据">R 的 <code>records/p5/</code>；<code>experiments/p5-evolution/RESULTS.md</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note plain">
+        <p><b>P5 的附带说明</b>：drive 无人值守写完 M3 三个节点并停在门口；两轮 revise 由控制者手工补检查，drive 共启动 4 次，接受 M3 的是控制者编写的窄核对，不是整分支评审；M3 是模拟需求（第 2 节“谁做了什么”）。方法候选“写者手工探测检查没覆盖的地方”走完了门槛：12 次开发集运行增益为 0，拒绝（未证实）。M-P5 门评审两轮都是 revise；第 2 轮唯一的阻断 N1 修好之后，原评审者的窄核对是 accept，M-P5 由代答放行。</p>
+      </div>
+
+      <h3>分工</h3>
+      <ul>
+        <li>Codex 实现多文件切片（引擎 P1–P5、打包）；</li>
+        <li>Claude <code>reviewer</code> 子代理做评审，作者从不评审自己的代码；</li>
+        <li>主会话写合同、测试和方法文字，负责核验和小修。</li>
+      </ul>
+      <p>评审上限两轮（合同第 8 节），至少超出五次：P4 第 3 轮只由控制者核验（偏差 8）；M-P4 门两轮后控制者又改两行，原评审者核对两次（偏差 12）；drive 第 3 轮由原评审者只核对自己的复现（偏差 16）；R 的 M3 门两轮后做了一次窄核对；M-P5 门两轮后修 N1，原评审者只做窄核对（偏差 18）。方法本身没有写评审轮数上限（上限 11），见第 4 节第 18 条。</p>
+
+      <h3>评审要你知道的事</h3>
+      <ul>
+        <li><b>M-P4 门评审</b>：A/B/C 实验里花费结论扎实、质量结论弱；合并门只在测试夹具和 v6 自己的分支上跑过；分支带进来的证据行，引擎照单全收，直到下一次 <code>check --all</code>；删一条不变量不需要批准。</li>
+        <li><b>打包评审</b>：Codex 的 hook 送达只在一次性绕过信任的条件下验证过，实际使用要先在 <code>/hooks</code> 里信任一次；产品形态是代答的。</li>
+        <li><b>drive 第 2 轮</b>：复现了一个漏洞，写者用 <code>assume-unchanged</code> 把修复只留在工作区，drive 一路跑到 exit 0；另有两条伪造证据的路径，以及写者退出后留下检查进程。它还发现代理 shell 里的 <code>ubp</code> 是 0.1.0，后来查明版本号来自 <code>main</code> 上的误提交；那个入口本身是 5.x，没有引擎命令（第 0 节）。</li>
+        <li><b>drive 第 3 轮窄核对</b> <span class="tag ok">accept</span>：四个复现都按合同停下，引擎测试 295/295。但<b>同一类问题换了条路还在</b>：修复只放在被 Git 忽略的文件里（一个提交进去的 <code>.gitignore</code> 就够，不需要恶意），drive 仍会 exit 0 停在门口，评审也写 accept，而 HEAD 是坏的，手动流程同样如此。已做两件不占引擎行数的事：FORMATS 写明这个上限；方法的里程碑门第 1 步加上“在 HEAD 的干净检出上再跑一遍 <code>ubp check --all</code>”。它顺带发现的 <code>config.worktree</code> 缺口用一个词修好了（v6 上 <code>571e263</code>）。彻底修要引擎行数，见第 4 节第 6 条。</li>
+        <li><b>R 的 M3 门评审</b>：M3 不是你提出的，是为检验 P5 模拟的；去重会让一个短链接不再属于一个人；自选短码只能在 API 里用；两次 revise 都针对检查、不是代码；三个里程碑的演示你一个都没看过。</li>
+        <li><b>M-P5 门评审第 1 轮</b> <span class="tag no">revise</span>：发布门的数字和原始日志一致，干净检出 7/7。要改的是：<code>main</code> 上的误提交（第 0 节）；P5 出口的附带说明不全；发布版的写者核验和随包示例从没和真实写者跑过；产品三处小缺口（示例没打进 npm 包、方法漏写 <code>config.worktree</code> 和“drive 停下先提交证据”、帮助文字和 README 不一致）；方法里没有评审轮数上限；本包约十处说法不准。处理：产品三处已修（npm 包加断言先红后绿），本包逐条改正，并用随包示例真跑了一次 drive。</li>
+        <li><b>用随包示例真跑一次 drive（冒烟）</b> <span class="tag ok">跑通</span>：新建极小的项目 <code>../ubp-v6-drive-smoke</code>（一条需求、一条先红的检查、一个节点），用 v6 <code>5abe32d</code> 的引擎和随包两个脚本启动 drive，约 8 分钟。写者第一次尝试就完成（1.3 分钟，0.28 美元），通过发布版的全部核验；评审（6.5 分钟，1.73 美元）也在 <code>git archive HEAD</code> 上跑了检查，给出 revise：代码没问题，检查太弱，12 份坏副本里 7 份能通过。和 R 同一个结论，是方法候选第 1 条的又一个独立证据。全局 <code>ubp</code> 会对 <code>node done</code> 报错，写者的 <code>node done</code> 成功说明它调到了 v6 引擎（日志分不出走的是 <code>eval "$UBP …"</code> 还是 shim）。它只有一个节点、一次尝试，不能替代一次真实的里程碑。</li>
+        <li><b>M-P5 门评审第 2 轮</b> <span class="tag no">revise</span>（上限内最后一轮）：第 1 轮的问题都已解决或记为上限。唯一的新阻断 N1 是我第 1 轮修复时加进方法的一句：“drive 停下后先提交 <code>.ultra/ledger/</code>，再从 Git 恢复真相文件”。这个目录里也有 <code>approvals.jsonl</code> 等真相文件，照这个顺序做，写者没提交的伪造批准行会进 HEAD。评审和我都复现了（<code>records/acceptance/n1-repro/</code>）。改成“先放回停止原因点名的东西，再提交记录”，加了先红后绿的断言，其余文字问题也已改正。之后由原评审者只做窄核对（偏差 18，评审上限第五次被超出）。窄核对结论 <span class="tag ok">accept</span>：（<code>records/milestones/M-P5-review.md</code>）。它另外指出一个修复之前就有的缺口：写者用 <code>--amend</code> 把伪造的真相行并进旧提交时，drive 只报 <code>truth-touched</code>，不报改写历史；照方法字面处理，伪造行可能留在 HEAD，也可能把旧提交的正常内容一起撤掉。补一句方法文字就能修，不占引擎行数。我没有在交付前补：评审上限已经用完，再改就是没人评审的方法变更。记为上限 15，修法和处理办法见上手说明第 6 节，由你决定（第 4 节第 20 条）。</li>
+      </ul>
+
+      <h3>偏差和上限</h3>
+      <p>完整清单在 v6 的 <code>.ultra/records/deviations.md</code>：偏差 19 条（做的和合同或方法不一样的地方），上限 15 条（引擎和方法现在做不到的事）。</p>
+      <details>
+      <summary>最值得知道的 16 条</summary>
+      <ul>
+        <li><b>偏差 1–3</b>：P3 期间写者重叠运行约一小时；P4 在 P3 出口被观察到之前就开工；控制者在阶段之间停下，害你来问了四次。</li>
+        <li><b>偏差 17、19</b>：主仓库 <code>main</code> 上的误提交，已按你的决定 revert，见第 0 节。</li>
+        <li><b>偏差 18</b>：我第 1 轮修复时加进方法的一句话本身有缺陷（N1），见上文“M-P5 门评审第 2 轮”。</li>
+        <li><b>偏差 13</b>：引擎行数预算的两种算法不一致，取了更严的一种，现在一行余量都没有。</li>
+        <li><b>偏差 14</b>：运行中机器重启过一次，工作文件按对话和评审 diff 重建。</li>
+        <li><b>偏差 15</b>：打包合入后，5.x 留下的被忽略的 Python 缓存让两条检查变红，删掉缓存后通过。从 5.x 源码工作树升级的人会遇到同样的事。</li>
+        <li><b>上限 1</b>：只有结构性的缩小会被拦住。把需求改写得要求更少，或在测试里削弱断言，引擎看不出来。</li>
+        <li><b>上限 2</b>：引擎分不清你的批准和代答的批准，只有带 <code>--proxy</code> 的记录会标出来。</li>
+        <li><b>上限 6</b>：写者命令起不来（exit 127）也会被当成“节点没完成”。</li>
+        <li><b>上限 8</b>：被 Git 忽略的文件看不见（见上）。</li>
+        <li><b>上限 10</b>：<code>claude -p</code> 写者被超时或中断时，drive 的信号只到 <code>claude</code> 本身，它的 Bash 子进程会不会被清理没有验证。</li>
+        <li><b>上限 11</b>：方法里没有评审轮数上限，也没有窄核对这一步；照方法走，每次 revise 之后都会再评审，需要你在两轮后叫停。</li>
+        <li><b>上限 12</b>：安装器不把 drive 示例复制进宿主，它们在 npm 包和仓库的 <code>docs/examples/drive/</code> 里。</li>
+        <li><b>上限 13</b>：v6 自己的 <code>.gitignore</code> 还是 5.8.0 的那份，在 v6 自己的开发里放大了上限 8。你的真实样本请用只列必要内容的 <code>.gitignore</code>。</li>
+        <li><b>上限 14</b>：测试套件里有墙钟时间断言，机器负载高时会失败（Node 22 的发布门就是这样）。单独重跑都通过，没有放宽断言；CI 没有观察到。</li>
+        <li><b>上限 15</b>：写者如果既改了真相文件，又用 <code>--amend</code> 或 rebase 改写了历史，drive 只报 <code>truth-touched</code>，不报 <code>history-rewritten</code>。处理前先确认尝试前的 HEAD 还在历史里，见上手说明第 6 节。修法是方法里补一句，由你决定。</li>
+      </ul>
+      </details>
+
+      <h3>实验</h3>
+      <p>P4 的分工实验定下默认分工 A；P5b 的方法候选被拒绝（未证实）。</p>
+      <details>
+      <summary>两个实验的数字</summary>
+      <ul>
+        <li><b>A/B/C（P4）</b>：A 单写者；B 加探索和测试角色；C 再加跨厂商评审。三组在隐藏检查上得分相同；B 的 token 是 A 的 3.3–3.8 倍，C 是 3.6–5.2 倍，默认分工因此定为 A。事先写定的推翻条件：在你的真实样本上，A 漏掉同类缺陷两次。</li>
+        <li><b>方法进化门槛（P5b）</b>：候选“写者手工探测检查没覆盖的地方”。12 次开发集运行，两组隐藏检查都是满分，增益为 0，拒绝（未证实）。按预注册规则建议不采纳，采纳与否由你决定。</li>
+      </ul>
+      </details>
+
+      <h3>下一轮方法候选（只提案，等你决定）</h3>
+      <ol>
+        <li><b>每句需求先列出它的输入类别，以及新路径经过的每条旧路由，再写检查</b>（规划时一次，节点完成时再对一次）。这是这次最重要的发现：R 的三个里程碑都是在门评审时才发现检查太弱；先红后绿的测试每句需求只钉了两三个值，每轮评审补一批，下一轮又找到下一批。漏掉的几乎都是“同一个输入走另一条旧路由”，比如大写短码在创建、跳转、查询上钉住了，删除却没钉。第 2 轮评审和窄核对都建议：与其加评审轮数，不如写检查时就逐项列举。走门槛时可以用 R 的 M3 做开发集。</li>
+        <li><b>节点完成时，规划者逐项处理交接记录里“没有检查钉住”的每一项</b>：要么补检查，要么明确排除。</li>
+        <li><b>裁决行格式是最常见的首轮失败</b>：P5b 的 14 次运行里有 6 次因此被计划门挡下；这次补记录时又碰到一次（少一个空格，计划门拦下）。</li>
+        <li><b>把“评审最多两轮；第 2 轮之后只做窄核对，剩下的分歧交给 Owner”写进方法</b>，并把 <code>claude-confirm.sh</code> 作为第三个示例随包发布。这次 drive 和 R 的 M3 都这样收尾，但方法里没有（上限 11）。</li>
+      </ol>
+    </section>
+
+    <section id="decisions" aria-labelledby="h-decisions">
+      <h2 id="h-decisions">4 需要你确认或推翻的决定</h2>
+      <p>代答的原文在对应项目的 <code>.ultra/records/owner-touches.md</code> 里，标着 <code>proxy: yes</code>；例外是第 1、2 条只在 <code>decisions/</code> 的决定文件里，第 6 条是 v6 <code>rulings.md</code> 的一条裁决，第 7、18 条是方法候选，只在本包里；第 14、16 条是样本 R <code>rulings.md</code> 里的裁决；第 15 条是 R 的 <code>M3-review.md</code> 记下的新发现，没有作为问题提出过。在这里选好，点“生成答复”，把文字发回来即可。选择只存在你这台浏览器里。第 0 节的 <code>main</code> 你已经回答（revert，已做），不在这张清单里。</p>
+      <form class="decisions" id="decision-form" onsubmit="return false">
+        <p class="group-title">产品和方法（影响最大）</p>
+        <fieldset class="decision" data-id="1"><legend><span class="q">产品形态：一个 Skill、一份引擎、一个 hook，只支持 Claude Code 和 Codex（<code>decisions/2026-11-01-v6-product-shape.md</code>）。</span></legend></fieldset>
+        <fieldset class="decision" data-id="2"><legend><span class="q">P4 默认分工 A：每个节点一个写者，加控制者核验（<code>decisions/2026-11-01-p4-default-roles.md</code>）。</span></legend></fieldset>
+        <fieldset class="decision" data-id="3"><legend><span class="q">REQ-P4-merge 放宽为“合并后已完成的工作保持绿”，别人没做完的工作只警告。</span></legend></fieldset>
+        <fieldset class="decision" data-id="4"><legend><span class="q">drive 的三条设计：检查文件放在所有 scope 之外；<code>--max-writers</code> 默认 10；评审给出 revise 时 exit 1。</span></legend></fieldset>
+        <fieldset class="decision" data-id="5"><legend><span class="q">drive 第 3 轮修复之后不再开评审，由原评审者只核对自己的复现（窄核对 accept）。</span></legend></fieldset>
+        <fieldset class="decision" data-id="6"><legend><span class="q">引擎 2000 行预算维持不变（已经用满）。“被 Git 忽略的文件”这类问题因此只靠方法里的干净检出一步缓解。推翻 = 放宽预算去彻底修，请在说明里写放宽多少。</span></legend></fieldset>
+        <fieldset class="decision" data-id="7"><legend><span class="q">方法候选“每句需求先列输入类别和经过的旧路由”暂不进入方法（采纳始终由你决定）。推翻 = 让它走一次进化门槛。</span></legend></fieldset>
+        <p class="group-title">里程碑放行（你都没看过演示）</p>
+        <fieldset class="decision" data-id="8"><legend><span class="q">v6 自己的 M-P1、M-P2、M-P3、M-P4、M-P5。</span></legend></fieldset>
+        <fieldset class="decision" data-id="9"><legend><span class="q">R 的 M1、M2、M3。M3 两轮评审之后只做了一次窄核对就关闭，没有第三轮全面评审。</span></legend></fieldset>
+        <p class="group-title">样本 R 内部</p>
+        <fieldset class="decision" data-id="10"><legend><span class="q">0→1 访谈的四个问题（为谁做、怎么切里程碑、M1 怎么算做到、边界和优雅），都是“你替我定”。</span></legend></fieldset>
+        <fieldset class="decision" data-id="11"><legend><span class="q">M1：64&nbsp;KiB 请求上限（缩小）。M2：去掉网页删除按钮（缩小，模拟消息），以及 REQ-persist 加一句“读不懂的数据文件让服务退出”。</span></legend></fieldset>
+        <fieldset class="decision" data-id="12"><legend><span class="q">M3 本身，以及为它把 REQ-create 缩小为“不同链接给不同短码”。</span></legend></fieldset>
+        <fieldset class="decision" data-id="13"><legend><span class="q">去重让一个短链接不再属于一个人（点击数共享，任何人都能删）。评审建议保留去重，页面提示从“已创建”改成“已存在”；如果每个人要有自己的点击数，就不要去重。</span></legend></fieldset>
+        <fieldset class="decision" data-id="14"><legend><span class="q">短链接可以被改指向：A 删掉自选的 <code>docs</code> 再选一次指向别处，B 手里的 <code>/docs</code> 就跳到别处。现在的规格允许这样。</span></legend></fieldset>
+        <fieldset class="decision" data-id="15"><legend><span class="q">删除时的大小写没有检查钉住（HEAD 是对的）。关闭 M3 前没补，补一个测试的代价很小。</span></legend></fieldset>
+        <fieldset class="decision" data-id="16"><legend><span class="q">三条裁决没有检查钉住：短码区分大小写、去重时给回最老的那条、并发去重（检查拦得住 20 毫秒的间隔，拦不住单个 <code>setImmediate</code> 的交错）。</span></legend></fieldset>
+        <fieldset class="decision" data-id="17"><legend><span class="q">自选短码只能在 API 里用，网页上没有入口。</span></legend></fieldset>
+        <p class="group-title">方法（续）</p>
+        <fieldset class="decision" data-id="18"><legend><span class="q">方法里不写评审轮数上限和窄核对（上限 11，候选第 4 条）。推翻 = 写进方法。</span></legend></fieldset>
+        <fieldset class="decision" data-id="19"><legend><span class="q">M-P5 门评审第 2 轮 revise 之后，修 N1（drive 停下后的提交顺序），只由原评审者做窄核对，不开第 3 轮（偏差 18）。</span></legend></fieldset>
+        <fieldset class="decision" data-id="20"><legend><span class="q">窄核对新指出的 <code>--amend</code> 缺口（上限 15）不在交付前修，只写进上限和上手说明。推翻 = 在你的第一个真实样本前，把“写者停下时先查尝试前的 HEAD 是否还是祖先，不是就先按 <code>history-rewritten</code> 处理”补进方法，并在示例写者里禁止 amend、rebase、reset。</span></legend></fieldset>
+        <div class="actions">
+          <button type="button" id="make-reply">生成答复</button>
+          <button type="button" class="secondary" id="copy-reply">复制</button>
+          <span id="status" class="muted small" aria-live="polite"></span>
+        </div>
+        <label class="muted small" for="reply">答复文字（可直接复制）</label>
+        <textarea id="reply" readonly></textarea>
+      </form>
+    </section>
+
+    <section id="evidence" aria-labelledby="h-evidence">
+      <h2 id="h-evidence">5 证据索引</h2>
+      <p><code>v6</code> 指 <code>../ultra-builder-pro-cli-v6</code>（分支 <code>v6</code>），<code>R</code> 指 <code>../ubp-sample-shortlink</code>。</p>
+      <div class="scroll-x">
+        <table class="stacked">
+          <thead><tr><th scope="col">想看什么</th><th scope="col">在哪里</th></tr></thead>
+          <tbody>
+            <tr><th scope="row" data-label="想看">意图、阶段、合同</th><td data-label="在哪里">主仓库 <code>thinking/<wbr>back-to-essentials-20261030/<wbr>RESULT.md</code></td></tr>
+            <tr><th scope="row" data-label="想看">方法全文</th><td data-label="在哪里"><code>v6/<wbr>skills/<wbr>ultra/<wbr>SKILL.md</code></td></tr>
+            <tr><th scope="row" data-label="想看">文件格式、退出码、各处 Ceiling</th><td data-label="在哪里"><code>v6/<wbr>engine/<wbr>FORMATS.md</code></td></tr>
+            <tr><th scope="row" data-label="想看">决定</th><td data-label="在哪里"><code>v6/<wbr>.ultra/<wbr>decisions/</code></td></tr>
+            <tr><th scope="row" data-label="想看">里程碑评审和演示</th><td data-label="在哪里"><code>v6/<wbr>.ultra/<wbr>records/<wbr>milestones/</code>、<code>R/<wbr>.ultra/<wbr>records/<wbr>milestones/</code></td></tr>
+            <tr><th scope="row" data-label="想看">引擎和打包评审</th><td data-label="在哪里"><code>v6/<wbr>.ultra/<wbr>records/<wbr>engine-reviews/</code></td></tr>
+            <tr><th scope="row" data-label="想看">M-P5 门评审、发布门摘要、N1 复现</th><td data-label="在哪里"><code>v6/<wbr>.ultra/<wbr>records/<wbr>milestones/<wbr>M-P5-review*.md</code>、<code>v6/<wbr>.ultra/<wbr>records/<wbr>acceptance/<wbr>release-gate.md</code>、<code>v6/<wbr>.ultra/<wbr>records/<wbr>acceptance/<wbr>n1-repro/</code></td></tr>
+            <tr><th scope="row" data-label="想看">代答和 Owner 原话</th><td data-label="在哪里">两个项目的 <code>.ultra/<wbr>records/<wbr>owner-touches.md</code></td></tr>
+            <tr><th scope="row" data-label="想看">裁决</th><td data-label="在哪里">两个项目的 <code>.ultra/<wbr>rulings.md</code></td></tr>
+            <tr><th scope="row" data-label="想看">偏差和上限</th><td data-label="在哪里"><code>v6/<wbr>.ultra/<wbr>records/<wbr>deviations.md</code></td></tr>
+            <tr><th scope="row" data-label="想看">实验</th><td data-label="在哪里"><code>v6/<wbr>.ultra/<wbr>records/<wbr>experiments/</code></td></tr>
+            <tr><th scope="row" data-label="想看">无人值守运行的原始日志、脚本和命令行</th><td data-label="在哪里"><code>R/<wbr>.ultra/<wbr>records/<wbr>p5/</code>（<code>scripts/<wbr>README.md</code>）</td></tr>
+            <tr><th scope="row" data-label="想看">随包示例的冒烟运行</th><td data-label="在哪里"><code>../<wbr>ubp-v6-drive-smoke</code>、<code>v6/<wbr>.ultra/<wbr>records/<wbr>acceptance/<wbr>drive-smoke/</code></td></tr>
+            <tr><th scope="row" data-label="想看">证据账本</th><td data-label="在哪里">两个项目的 <code>.ultra/<wbr>ledger/<wbr>evidence.jsonl</code></td></tr>
+            <tr><th scope="row" data-label="想看">任务记录</th><td data-label="在哪里">主仓库 <code>tasks/<wbr>archive/<wbr>2026-10-31-ubp-v6.md</code>（只在本机：主仓库的 <code>.gitignore</code> 忽略 <code>tasks/</code>，不入库）</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="notdone" aria-labelledby="h-notdone">
+      <h2 id="h-notdone">6 没做的、没验证的</h2>
+      <ul>
+        <li><b>按合同没做</b>：push、tag、npm 发布；在真实 HOME 里安装（只做了隔离安装检查）；修改 <code>~/.claude</code>；修改 Marketplace 的三个 skill 仓库；自动采纳方法候选。</li>
+        <li><b>没验证</b>：Codex 在 <code>/hooks</code> 里长期信任这个 hook 之后的实际送达；合并门在真实项目上的表现；<code>claude -p</code> 写者被超时或中断时它的子进程会不会被清理；不清除会话环境变量时，从 Claude Code 会话里启动 drive 会怎样；Codex 插件清单没经过 Plugin Creator 校验（这台机器上它只有脚手架脚本，没有校验器；Skill 经过两个 Skill Creator 校验器，都通过）。</li>
+        <li><b>Node 22</b>：发布门第 2 轮在 Node 22.21.0 上跑了全套。默认并发下 356/362，按 CI 的并发 3 是 359/362，失败的都是墙钟时间断言，单独重跑全过（上限 14）。CI（只用 Node 22）没有观察到，因为没有推送；“评审超时”那条在负载下用了 42.6 秒，上限 50 秒，在慢的 CI 机器上可能不稳。</li>
+        <li><b>R 上带写者的 drive 只有第 1 次，用的是第 3 轮修复之前的引擎</b>。第 3 轮同时加严了写者和评审的核验，第 3 次运行的引擎也还没有 <code>config.worktree</code> 的修复。M-P5 门评审之后，用 v6 <code>5abe32d</code> 的引擎和随包示例在一个新的小项目上真跑了一次（第 3 节“冒烟”）：写者通过了发布版的全部核验，评审跑完并给出结论；但那只有一个节点、一次尝试。</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script>
+(function () {
+  var KEY = 'ubp-v6-acceptance-2026-11-01';
+  var form = document.getElementById('decision-form');
+  var items = Array.prototype.slice.call(form.querySelectorAll('.decision'));
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
+
+  items.forEach(function (fs) {
+    var id = fs.getAttribute('data-id');
+    var choices = document.createElement('div');
+    choices.className = 'choices';
+    ['确认', '推翻'].forEach(function (v) {
+      var label = document.createElement('label');
+      var input = document.createElement('input');
+      input.type = 'radio'; input.name = 'd' + id; input.value = v;
+      if (saved[id] && saved[id].answer === v) input.checked = true;
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(v));
+      choices.appendChild(label);
+    });
+    var note = document.createElement('textarea');
+    note.setAttribute('aria-label', '第 ' + id + ' 条的说明（可选）');
+    note.placeholder = '说明（可选）';
+    note.rows = 1;
+    if (saved[id] && saved[id].note) note.value = saved[id].note;
+    // The note box appears once an answer is chosen, keeping the unanswered list short.
+    note.hidden = !(saved[id] && saved[id].answer);
+    choices.addEventListener('change', function () { note.hidden = false; });
+    fs.appendChild(choices);
+    fs.appendChild(note);
+    if (saved[id] && saved[id].answer) fs.setAttribute('data-answer', saved[id].answer);
+  });
+
+  function collect() {
+    var out = {};
+    items.forEach(function (fs) {
+      var id = fs.getAttribute('data-id');
+      var picked = fs.querySelector('input[type="radio"]:checked');
+      var note = fs.querySelector('textarea').value.trim();
+      out[id] = { answer: picked ? picked.value : '', note: note };
+      if (picked) fs.setAttribute('data-answer', picked.value); else fs.removeAttribute('data-answer');
+    });
+    return out;
+  }
+  function save() {
+    var data = collect();
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+    return data;
+  }
+  form.addEventListener('change', save);
+  form.addEventListener('input', save);
+
+  var reply = document.getElementById('reply');
+  var status = document.getElementById('status');
+  document.getElementById('make-reply').addEventListener('click', function () {
+    var data = save();
+    var lines = ['UBP v6 验收答复'];
+    var open = [];
+    Object.keys(data).sort(function (a, b) { return a - b; }).forEach(function (id) {
+      var d = data[id];
+      if (!d.answer) { open.push(id); return; }
+      lines.push(id + '. ' + d.answer + (d.note ? '：' + d.note : ''));
+    });
+    if (open.length) lines.push('未答：' + open.join('、'));
+    reply.value = lines.join('\n');
+    status.textContent = open.length ? '已生成，还有 ' + open.length + ' 条未答。' : '已生成，全部答完。';
+  });
+  document.getElementById('copy-reply').addEventListener('click', function () {
+    if (!reply.value) { status.textContent = '先点“生成答复”。'; return; }
+    function fallback() { reply.focus(); reply.select(); status.textContent = '已选中，请按 Ctrl+C 或 ⌘C 复制。'; }
+    try {
+      navigator.clipboard.writeText(reply.value).then(function () { status.textContent = '已复制。'; }, fallback);
+    } catch (e) { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
