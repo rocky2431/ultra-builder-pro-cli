@@ -24,3 +24,4 @@
 - 2026-11-02 unplanned · Q: 主仓库本地 `main` 上的误提交 `26da9ef`（偏差 17：控制者建样本 R 时在错误的目录里提交），用 `git revert` 加一个反向提交，还是把 `main` 重置到 `211143d`（破坏性）？ · A: revert 吧，你直接做 · proxy: no
 
 2026-11-02 的 `unplanned` 是控制者提问，不在计划的介入点里：起因是控制者自己的误提交（偏差 17），合同不授权控制者动 `main`。
+- 2026-11-02 milestone-gate · Q: M-P5（无人值守 drive、打包发布）放行还是改方向？门评审两轮 revise，修 N1 后窄核对 accept（`.ultra/records/milestones/M-P5-review.md`）；它新指出的 `--amend` 缺口记为上限 15、修法留给 Owner；N1 修复后的门：v6 里 `check --all` 7/7，干净检出一次 6/7（`C-engine-p5` 失败、日志丢失），同一 HEAD 的新干净检出单独重跑 40/40；Node 22 记为上限 14。 · A: 放行（代答：Owner 已委托“你快速地全部做完之后，我来验收，这个中间应该不太需要我了”；未看演示；评审要求告诉 Owner 的事进验收包） · proxy: yes

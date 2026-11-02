@@ -5,14 +5,13 @@
 #   new: put each truth file a `truth-touched` problem names back to HEAD (delete it when HEAD
 #        has none), then commit the drive's records, then undo the attempt in a new commit.
 # Variant A: the writer leaves the forged line uncommitted. Variant B: the writer commits it.
-# Everything runs in fresh clones of the smoke project under this script's run directory.
+# Everything runs in fresh clones of the smoke project under a new temporary directory. The
+# recorded result.txt came from a run whose directory sat in .ultra/.runtime/v6/p5-work.
 set -u
 V="/Users/rocky243/Context Engineering/ultra-builder-pro-cli-v6"
 S="/Users/rocky243/Context Engineering/ubp-v6-drive-smoke"
 BASE=c4228ff
-HERE="$(cd "$(dirname "$0")" && pwd)"
-RUN="$HERE/n1-repro-$(date +%Y%m%d%H%M%S)"
-mkdir "$RUN" || exit 2
+RUN=$(mktemp -d "${TMPDIR:-/tmp}/n1-repro.XXXXXX") || exit 2
 F=.ultra/ledger/approvals.jsonl
 
 cat > "$RUN/writer-a.sh" <<'EOF'
