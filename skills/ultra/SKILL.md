@@ -144,15 +144,20 @@ tree. Parallel writers: see "Parallel writers and the merge gate".
 
 When the Owner asks for an unattended run, give every node a `scope` that holds no check
 file, commit everything, and start `ubp drive --writer <cmd> --reviewer <cmd> --json`. The
-writer command hands an agent `$UBP_BRIEF`; inside the run, `ubp` is this engine. Act on
-`stop`:
+writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
+`eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Act on `stop`:
 - `milestone-gate`: with `accept`, go to "Milestone gate" step 1; with `revise`, its revise
   path; without a reviewer, have the milestone reviewed first.
-- `truth-touched`, `history-rewritten`, `out-of-scope`, `check-touched`, `ratchet-broken`,
-  `node-not-green`: undo the attempt in a new commit and restore from Git any truth file it
-  changed in the work tree. A completion it recorded stays, so take that node through the
-  node loop by hand until its checks are green before driving on.
-- `writer-left-dirty`, `dirty-tree`: commit what belongs to the node, discard the rest.
+- `truth-touched`, `out-of-scope`, `check-touched`, `ratchet-broken`, `node-not-green`:
+  undo the attempt in a new commit and restore from Git any truth file it changed in the
+  work tree. A completion it recorded stays, so take that node through the node loop by
+  hand until its checks are green before driving on.
+- `history-rewritten`: the attempt rewrote commits, which a new commit cannot undo. Find
+  the HEAD before the attempt in `git reflog`, check nothing after it needs keeping, and
+  reset the branch to it.
+- `writer-left-dirty`, `dirty-tree`: clear any assume-unchanged or skip-worktree flag
+  (`git ls-files -v` shows them), undo any change to the repository's Git `config` or
+  `info/exclude`, then commit what belongs to the node and discard the rest.
 - `attempts-exhausted`, `writer-budget`: "Escalation" (stalled); the writers' logs are in
   `.ultra/.runtime/drive/<run>/`.
 - `review-exists`: keep the old review as `<milestone>-review-<n>.md`; `review-invalid`,

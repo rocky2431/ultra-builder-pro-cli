@@ -817,9 +817,14 @@ line, run with `/bin/sh -c` in the project root; it is not parsed by the engine.
 the writer attempts of the whole run, and `--timeout-sec` (default 3600, at most 86400)
 each writer or reviewer run.
 
-The tree is *clean* for the drive when the code tree is clean (see "Git state") and no path
+The tree is *clean* for the drive when the code tree is clean (see "Git state"), no path
 under `.ultra/` outside `.ultra/.runtime/` and `.ultra/ledger/` is untracked or differs from
-HEAD. The *truth bytes* are the contents, in the work tree and at HEAD, of
+HEAD, and no index entry is marked assume-unchanged or skip-worktree (`git ls-files -v`
+shows a lowercase tag or `S`), since such an entry hides a work-tree change from Git. The
+*Git settings* are the contents of the repository's `config` and `info/exclude` (located
+with `git rev-parse --git-path`; a missing file is a content of its own). Ceiling: Git
+configuration outside the repository (global, system, or a file it includes) is not
+compared. The *truth bytes* are the contents, in the work tree and at HEAD, of
 `.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`,
 `.ultra/ledger/milestones.jsonl`, `.ultra/ledger/approvals.jsonl` and
 `.ultra/ledger/plan-log.jsonl`, in that order (a missing file is a content of its own).
@@ -841,9 +846,10 @@ Each round reads the state (as `status`) and acts on `next` (an actionable node 
 A writer or reviewer run gets the engine's environment without the Git repository-location
 variables (as for checks), plus `UBP_ROOT` (absolute project root), `UBP_DRIVE=1`, `PATH`
 with `<root>/.ultra/.runtime/drive/<run>/bin` first, where an executable `ubp` runs this
-engine (`exec '<node>' '<engine>/cli.cjs' "$@"`), and `UBP`, the same command as a
+engine (`exec '<node>' '<engine>/cli.cjs' "$@"`, written again before every run), and `UBP`, the same command as a
 shell-quoted line (for example `'/usr/bin/node' '/x/engine/cli.cjs'`; use it as
-`eval "$UBP check"`). A writer also gets `UBP_NODE` (node id), `UBP_BRIEF` (absolute path
+`eval "$UBP check"`; prefer it: a login shell may put another `ubp` before the drive's
+on `PATH`). A writer also gets `UBP_NODE` (node id), `UBP_BRIEF` (absolute path
 of the brief) and `UBP_ATTEMPT` (1-based); a reviewer gets `UBP_MILESTONE` (milestone id)
 and `UBP_REVIEW` (below). While `UBP_DRIVE` is set, `approve`, `milestone close`, `merge`
 and `drive` exit 2 with `Not allowed inside ubp drive.` and change nothing.
@@ -852,7 +858,10 @@ The run's stdout and stderr go to `.ultra/.runtime/drive/<run>/<node>-<attempt>.
 (`review.log` for the reviewer). At `--timeout-sec`, and when the drive is interrupted, the
 drive sends SIGTERM to the run's whole process group and SIGKILL to the group 5 seconds
 later, so an inner `ubp` can stop its own checks first; when the run's shell exits by
-itself, the rest of its group is killed at once, as for a check. The step's `exit` is the
+itself and its group still has members, the drive does the same to them (SIGTERM, then
+SIGKILL 5 seconds later). Ceiling: a process the run moved to another process group or
+session (a check an inner `ubp` started is one; that `ubp` stops it on SIGTERM) is not
+reached. The step's `exit` is the
 shell's exit code, `timeout`, or `signal-<NAME>`.
 
 After a writer attempt exits, whatever its exit code, the drive verifies, in this order,
@@ -864,7 +873,8 @@ and the first failing step decides:
    approves, though it may commit what the engine or the Owner had already written, such
    as the plan-log lines of a gate the drive ran;
 2. the HEAD before the attempt is an ancestor of the HEAD after it (`history-rewritten`);
-3. the tree is clean (`writer-left-dirty`);
+3. the tree is clean and the Git settings are the ones before the attempt
+   (`writer-left-dirty`);
 4. every path changed between the two HEADs, except the truth files (step 1 decides them),
    `.ultra/ledger/evidence.jsonl` and `.ultra/ledger/nodes.jsonl`, is named by no check
    (`check-touched`) and lies in the node's scope, is `.ultra/rulings.md` or lies under
@@ -877,13 +887,17 @@ and the first failing step decides:
 5. the plan gate state is `pass`, read without running the gate, so the drive never
    records a plan change for a writer (`plan-gate`, with the gate's problems);
 6. the drive runs, as `check <ids>` in registry order, the checks covering the node's
-   requirements, every check with an evidence record added during the attempt (a `run`
-   that was not in the ledger before it) and every stale or unknown check; a requirement
+   requirements, every invariant, every check with an evidence record added during the
+   attempt (a record that is not one of the records before it, compared whole, each earlier
+   record matching at most one later record, so a copy of an old record with any field
+   changed counts as added) and every stale or unknown check; a requirement
    of the current or a closed milestone that was green before the attempt (after the
    baseline run) and is not green now is `ratchet-broken` (one per requirement, in
    requirement order);
-7. the node is `done` (`node-not-done`), and every check covering its requirements is
-   green (`node-not-green`, one per check, in registry order).
+7. the node is `done` (`node-not-done`), and every check covering its requirements and
+   every invariant is green (`node-not-green`, one per check, in registry order), which
+   is what `node done` requires, so a completion record the writer wrote by hand cannot
+   pass a red invariant.
 
 Every failure stops the drive at once with its problems (the engine never reverts: a person
 decides), except `node-not-done`, which starts the next attempt with a freshly compiled
@@ -893,8 +907,8 @@ names (a helper the test imports) is not protected; keep check files outside eve
 
 A reviewer run happens once, at the milestone gate, when `--reviewer` is given. `UBP_REVIEW`
 is the absolute path of `.ultra/records/milestones/<milestone>-review.md`, which must not
-exist before the run (otherwise stop `review-exists`). Afterwards the HEAD, the truth bytes
-and `next` (`里程碑门`) must be unchanged and the tree clean apart from the review file
+exist before the run (otherwise stop `review-exists`). Afterwards the HEAD, the truth bytes,
+the Git settings and `next` (`里程碑门`) must be unchanged and the tree clean apart from the review file
 (else stop `reviewer-changed-tree`), and the file must be a valid review: its first line
 starts with `Reviewer: ` and exactly one line outside fences is `Verdict: accept` or
 `Verdict: revise` (else stop `review-invalid`). The drive then stops `milestone-gate` with

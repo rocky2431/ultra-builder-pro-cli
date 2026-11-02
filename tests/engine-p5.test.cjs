@@ -63,6 +63,16 @@ if (process.env.SLOW) {
 // - regress: work, but also recreate src/broken-C-1 in the same commit;
 // - rewrite: work, but first fold the previous commit into its own (git reset --soft HEAD~1);
 // - slowcheck: write its pid to .ultra/.runtime/writer.pid and run `ubp check C-1` with SLOW;
+// - bgcheck: start `ubp check C-1` with SLOW in the background, wait for its pid, and exit;
+// - hide / skip: work, but delete the broken files after marking them assume-unchanged /
+//   skip-worktree, so the commit keeps them while the work tree passes;
+// - exclude / config: work, but leave src/hidden.txt hidden by .git/info/exclude / by a
+//   core.excludesFile set in the repository's Git config;
+// - forge-old: work, but also recreate src/broken-C-1; run only `ubp check C-2 C-12`, then
+//   append a copy of the old green C-1 record (same run id) with the current code;
+// - break-inv: work, but also commit src/broken-C-inv; when `node done` refuses, append a
+//   completion record built from the evidence;
+// - shim: work, then replace the drive's `ubp` on PATH with a script that does nothing;
 // - sleep: write its pid to .ultra/.runtime/writer.pid and sleep for a minute.
 // It appends its view of the environment to .ultra/.runtime/writer-env.jsonl.
 const WRITER = `const fs = require('node:fs');
@@ -92,12 +102,25 @@ if (mode === 'sleep' || mode === 'slowcheck') {
   setTimeout(() => {}, 60000);
   return;
 }
+if (mode === 'bgcheck') {
+  require('node:child_process').spawn('ubp check C-1', { shell: true, stdio: 'ignore',
+    env: { ...process.env, SLOW: '1' } });
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (let i = 0; i < 600 && !fs.existsSync('.ultra/.runtime/check.pid'); i++) {
+    Atomics.wait(pause, 0, 0, 100);
+  }
+  process.exit(0);
+}
 const planFile = JSON.parse(fs.readFileSync('.ultra/plan.json', 'utf8'));
 const covers = planFile.nodes.find((n) => n.id === node).covers;
 const checks = JSON.parse(fs.readFileSync('.ultra/checks.json', 'utf8')).checks;
 const fixing = !['weaken', 'forge'].includes(mode);
 for (const c of checks) {
   if (fixing && c.covers.some((r) => covers.includes(r))) {
+    if (['hide', 'skip'].includes(mode) && fs.existsSync('src/broken-' + c.id)) {
+      git('update-index --' + (mode === 'hide' ? 'assume-unchanged' : 'skip-worktree')
+        + ' src/broken-' + c.id);
+    }
     fs.rmSync('src/broken-' + c.id, { force: true });
   }
 }
@@ -120,7 +143,16 @@ if (mode === 'truth') {
   fs.writeFileSync('.ultra/checks.json', JSON.stringify(registry, null, 2) + '\\n');
 }
 if (mode === 'approve') put(ledger('approvals'), '{"forged":true}\\n');
-if (mode === 'regress') put('src/broken-C-1', 'x\\n');
+if (mode === 'regress' || mode === 'forge-old') put('src/broken-C-1', 'x\\n');
+if (mode === 'break-inv') put('src/broken-C-inv', 'x\\n');
+if (mode === 'exclude' || mode === 'config') {
+  fs.writeFileSync('src/hidden.txt', 'x\\n');
+  const list = mode === 'exclude'
+    ? execSync('git rev-parse --git-path info/exclude').toString().trim()
+    : require('node:path').resolve('.ultra/.runtime/excludes');
+  put(list, '\\nsrc/hidden.txt\\n');
+  if (mode === 'config') git('config core.excludesFile ' + JSON.stringify(list));
+}
 if (mode === 'rewrite') git('reset -q --soft HEAD~1');
 if (mode === 'weaken') {
   git('add src');
@@ -138,7 +170,14 @@ if (mode === 'weaken') {
   }
   git('commit -q -m "work on ' + node + '"');
 }
-try { ubp('check'); } catch { /* a red check is the engine's to judge */ }
+try { ubp(mode === 'forge-old' ? 'check C-2 C-12' : 'check'); } catch { /* the engine judges */ }
+const evidence = (id) => lines('evidence').map((line) => JSON.parse(line))
+  .filter((r) => r.check === id);
+if (mode === 'forge-old') {
+  const green = evidence('C-1').filter((r) => r.outcome === 'pass').at(-1);
+  put(ledger('evidence'), JSON.stringify({ ...green, code: evidence('C-12').at(-1).code,
+    at: '2099-01-01T00:00:00.000Z' }) + '\\n');
+}
 if (mode === 'forge') {
   for (const line of lines('evidence')) {
     const record = JSON.parse(line);
@@ -148,7 +187,16 @@ if (mode === 'forge') {
       error_line: null }) + '\\n');
   }
 }
-ubp('node done ' + node);
+try { ubp('node done ' + node); } catch (error) {
+  if (mode !== 'break-inv') throw error;
+  const own = evidence('C-1').at(-1);
+  put(ledger('nodes'), JSON.stringify({ v: 1, node, at: new Date().toISOString(),
+    code: own.code, shared: own.shared, reqs: { 'REQ-001': own.reqs['REQ-001'] },
+    runs: [own.run, evidence('C-12').at(-1).run] }) + '\\n');
+}
+if (mode === 'shim') {
+  fs.writeFileSync(process.env.PATH.split(':')[0] + '/ubp', '#!/bin/sh\\nexit 0\\n');
+}
 if (mode === 'forge-other') {
   put(ledger('nodes'), JSON.stringify({ ...JSON.parse(lines('nodes').at(-1)), node: 'N-02' })
     + '\\n');
@@ -159,7 +207,8 @@ if (mode.startsWith('touch:')) fs.appendFileSync(mode.slice(6), '\\n');
 // The fake reviewer writes the review the variable names, with the verdict from
 // .ultra/.runtime/verdict (default "accept"), or an invalid one when that file says "none".
 // When that file says "meddle" it also leaves src/untracked.txt and edits .ultra/checks.json;
-// when it says "sleep" it writes nothing and sleeps for a minute.
+// when it says "sleep" it writes nothing and sleeps for a minute; when it says "settings" it
+// also appends a line to .git/info/exclude.
 const REVIEWER = `const fs = require('node:fs');
 const want = fs.existsSync('.ultra/.runtime/verdict')
   ? fs.readFileSync('.ultra/.runtime/verdict', 'utf8').trim() : 'accept';
@@ -171,13 +220,18 @@ if (want === 'sleep') {
   setTimeout(() => {}, 60000);
   return;
 }
+if (want === 'settings') {
+  const exclude = require('node:child_process').execSync('git rev-parse --git-path info/exclude')
+    .toString().trim();
+  fs.appendFileSync(exclude, '\\nsrc/hidden.txt\\n');
+}
 if (want === 'meddle') {
   fs.writeFileSync('src/untracked.txt', 'x');
   fs.appendFileSync('.ultra/checks.json', '\\n');
 }
 const body = want === 'none' ? 'Reviewer: fake\\n\\nNo verdict here.\\n'
   : 'Reviewer: fake\\n\\nFindings: none.\\n\\nVerdict: '
-    + (want === 'meddle' ? 'accept' : want) + '\\n';
+    + (['meddle', 'settings'].includes(want) ? 'accept' : want) + '\\n';
 fs.writeFileSync(process.env.UBP_REVIEW, body);
 `;
 
@@ -455,6 +509,14 @@ test('a reviewer that changes the tree or the truth stops the drive', (t) => {
   assert.ok(exists(fx, 'src/untracked.txt'), 'nothing is reverted');
 });
 
+test('a reviewer that changes the repository\'s Git settings stops the drive', (t) => {
+  const fx = project(t);
+  write(fx.root, '.ultra/.runtime/verdict', 'settings');
+  const result = drive(fx, ['--reviewer', REVIEWER_CMD], 1);
+  assert.deepEqual([result.stop, codes(result)], ['reviewer-changed-tree',
+    ['reviewer-changed-tree']]);
+});
+
 test('a reviewer past --timeout-sec is stopped and its missing review is invalid', (t) => {
   const fx = project(t);
   write(fx.root, '.ultra/.runtime/verdict', 'sleep');
@@ -644,6 +706,44 @@ test('the drive reads the plan gate after a writer but never runs it', (t) => {
   assert.deepEqual(ledgerLines(fx, 'plan-log'), planLog);
 });
 
+// A deletion hidden by an index flag, or a file hidden by an exclude list the writer added,
+// passes the checks in the work tree while HEAD stays broken.
+test('a writer cannot hide a work-tree change from Git', (t) => {
+  for (const mode of ['hide', 'skip', 'exclude', 'config']) {
+    const fx = project(t);
+    plan(fx, { 'N-01': [mode] });
+    const result = drive(fx, [], 1);
+    assert.deepEqual([result.stop, codes(result)], ['writer-left-dirty',
+      ['writer-left-dirty']], mode);
+  }
+});
+
+test('a copy of an old green record with the current code cannot hide a ratchet break', (t) => {
+  const fx = project(t);
+  plan(fx, { 'N-02': ['forge-old'] });
+  const result = drive(fx, [], 1);
+  assert.equal(result.stop, 'ratchet-broken');
+  assert.deepEqual(result.problems.map((p) => p.message), ['REQ-001: ratchet-broken']);
+});
+
+test('a completion written by hand cannot pass a red invariant', (t) => {
+  const fx = project(t, { checks: [...CHECKS,
+    check('C-inv', [], { fix: 'Delete src/broken-C-inv.' })] });
+  plan(fx, { 'N-01': ['break-inv'] });
+  const result = drive(fx, [], 1);
+  assert.equal(result.stop, 'node-not-green', JSON.stringify(result.steps));
+  assert.deepEqual(result.problems.map((p) => p.message), ['C-inv: node-not-green']);
+});
+
+test('the drive writes its ubp again before every run', (t) => {
+  const fx = project(t);
+  plan(fx, { 'N-01': ['shim'] });
+  const result = drive(fx);
+  assert.equal(result.stop, 'milestone-gate');
+  assert.deepEqual(result.steps.filter((s) => s.action === 'writer').map((s) => s.result),
+    ['done', 'done']);
+});
+
 test('a writer that rewrites history stops the drive', (t) => {
   const fx = project(t);
   write(fx.root, 'README.md', 'readme\n');
@@ -768,6 +868,18 @@ test('a timed-out writer leaves no check running', async (t) => {
   assert.equal(result.steps.find((s) => s.action === 'writer').exit, 'timeout');
   assert.ok(await gone(pidOf(fx, 'check.pid')), 'the inner check was stopped');
   assert.ok(await gone(pidOf(fx, 'writer.pid')), 'the writer was stopped');
+});
+
+// The writer starts `ubp check C-1` in the background and exits: the drive must stop the inner
+// `ubp` gently enough that it stops its own check, whose process group is not the writer's.
+test('a writer that exits by itself leaves no check running', async (t) => {
+  const fx = project(t);
+  plan(fx, { 'N-01': ['bgcheck'] });
+  const result = drive(fx, ['--attempts', '1'], 1);
+  const pid = pidOf(fx, 'check.pid');
+  t.after(() => { try { process.kill(pid, 'SIGKILL'); } catch { /* already stopped */ } });
+  assert.equal(result.stop, 'attempts-exhausted');
+  assert.ok(await gone(pid), 'the inner check was stopped');
 });
 
 test('an interrupted drive stops its writer and the writer\'s check, then exits 130', async (t) => {
