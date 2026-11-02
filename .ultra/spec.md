@@ -74,3 +74,18 @@ paths, the forbidden `.ultra/` paths, or the first bad commit of the branch, and
 tree is unchanged. One merge runs at a time, and a branch changes `.ultra/` only through
 evidence and node lines, rulings and records: never the truth files, the plan log, closures
 or approvals.
+
+## REQ-P5-drive An unattended run stops wherever a person must judge
+`ubp drive --writer <command> [--reviewer <command>]` runs the controller loop without a
+person: per node it compiles the brief, runs the writer, and verifies a clean tree, untouched
+truth files, the node's scope, the plan gate and the ratchet; a node that is not done gets up
+to `--attempts` writers. At the milestone gate it runs the reviewer once. It stops with a
+reason at every point where a person must judge, and never closes, approves, reverts or
+writes the Owner's records.
+
+## REQ-P5-package One install gives a host the method, the engine and the status line
+`npx ultra-builder-pro-cli --claude`, `--codex` or `--all` installs one Skill `ultra` (the
+method), a copy of the engine that the Skill names by absolute path, and one SessionStart hook
+that prints the `ubp status` line in a project with `.ultra/spec.md` and nothing elsewhere;
+`--doctor` reports `healthy`, `--uninstall` leaves nothing the install created, and nothing
+of 5.x ships.

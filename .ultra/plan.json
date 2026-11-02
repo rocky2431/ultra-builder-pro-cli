@@ -41,6 +41,15 @@
         "REQ-P4-tidy",
         "REQ-P4-merge"
       ]
+    },
+    {
+      "id": "M-P5",
+      "title": "Unattended run and the v6.0.0 package",
+      "journey": "C-package",
+      "requirements": [
+        "REQ-P5-drive",
+        "REQ-P5-package"
+      ]
     }
   ],
   "nodes": [
@@ -119,6 +128,56 @@
         "tests/engine-p4.test.cjs",
         "tests/package-smoke.test.cjs",
         "method/"
+      ]
+    },
+    {
+      "id": "N-P5-drive",
+      "milestone": "M-P5",
+      "title": "ubp drive",
+      "covers": [
+        "REQ-P5-drive"
+      ],
+      "depends": [
+        "N-P4-engine"
+      ],
+      "scope": [
+        "engine/",
+        "bin/install.js",
+        "tests/engine-p5.test.cjs",
+        "method/",
+        "skills/ultra/",
+        "README.md",
+        "README.zh-CN.md",
+        "CHANGELOG.md"
+      ]
+    },
+    {
+      "id": "N-P5-package",
+      "milestone": "M-P5",
+      "title": "Package v6.0.0 for Claude Code and Codex",
+      "covers": [
+        "REQ-P5-package"
+      ],
+      "depends": [
+        "N-P4-engine"
+      ],
+      "scope": [
+        "adapters/",
+        "bin/",
+        "hooks/",
+        "skills/",
+        "method/",
+        "tests/",
+        "docs/",
+        ".github/",
+        ".ultra-template/",
+        "package.json",
+        "package-lock.json",
+        "README.md",
+        "README.zh-CN.md",
+        "CHANGELOG.md",
+        "CLAUDE.md",
+        "AGENTS.md"
       ]
     }
   ]

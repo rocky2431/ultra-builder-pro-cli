@@ -53,6 +53,24 @@
       "run": "node --test --test-reporter=spec tests/engine-p4.test.cjs",
       "timeout_sec": 1200,
       "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-engine-p5",
+      "covers": [
+        "REQ-P5-drive"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p5.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-package",
+      "covers": [
+        "REQ-P5-package"
+      ],
+      "run": "node --test --test-reporter=spec tests/v6-package.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
     }
   ]
 }
