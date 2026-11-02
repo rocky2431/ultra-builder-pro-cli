@@ -15,6 +15,17 @@ function reviewPath(root, requested) {
   return relative.split(path.sep).join('/');
 }
 
+function reviewVerdict(bytes, requireReviewer = false) {
+  const text = bytes?.toString('utf8').replace(/^\uFEFF/u, '');
+  if (!text || (requireReviewer && !text.startsWith('Reviewer: '))) return null;
+  const verdicts = [];
+  markdown(text, (line, number, outside) => {
+    if (outside && line.startsWith('Verdict:')) verdicts.push(line.trimEnd());
+  });
+  return verdicts.length === 1 && /^Verdict: (accept|revise)$/u.test(verdicts[0])
+    ? verdicts[0].slice(9) : null;
+}
+
 function readReview(root, relative, add) {
   const { bytes } = readRecord(root, relative);
   if (!bytes) {
@@ -22,11 +33,7 @@ function readReview(root, relative, add) {
       'Write the milestone review as a regular file at this path.');
     return null;
   }
-  const verdicts = [];
-  markdown(bytes.toString('utf8').replace(/^\uFEFF/u, ''), (line, number, outside) => {
-    if (outside && line.startsWith('Verdict:')) verdicts.push(line);
-  });
-  if (verdicts.length !== 1 || verdicts[0].trimEnd() !== 'Verdict: accept') {
+  if (reviewVerdict(bytes) !== 'accept') {
     add('review-not-accepted', `${relative} does not hold exactly one accepting verdict`,
       'Have the reviewer write exactly one Verdict: accept line after accepting the review.');
   }
@@ -55,12 +62,10 @@ function recordClosure(project, id, opts) {
   }
   const required = unique(project.milestones.filter((m) => m.id === id || closed.has(m.id))
     .flatMap((m) => m.requirements));
-  for (const req of required) {
-    if (!state.requirements.some((r) => r.id === req && r.state === 'green')) {
-      add('requirement-not-green', `${req} is not green`,
-        'Run its checks on clean, current code.');
-    }
-  }
+  problems.push(...required.filter((req) => !state.requirements.some((r) =>
+    r.id === req && r.state === 'green'))
+    .map((req) => problem('requirement-not-green', `${req} is not green`,
+      'Run its checks on clean, current code.')));
   if (milestone.journey === undefined) add('no-journey', `${id} names no journey check`,
     'Set journey to the registered end-to-end check for this milestone.');
   const journey = state.checks.find((c) => c.id === milestone.journey);
@@ -79,8 +84,6 @@ function recordClosure(project, id, opts) {
   return { ok: !problems.length, milestone: id, problems };
 }
 
-function close(project, id, opts) {
-  return withLock(project.root, () => recordClosure(load(project.root), id, opts));
-}
+const close = ({ root }, id, opts) => withLock(root, () => recordClosure(load(root), id, opts));
 
-module.exports = { close };
+module.exports = { close, reviewVerdict };

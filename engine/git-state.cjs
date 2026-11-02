@@ -72,19 +72,20 @@ function fingerprintEntries(digest, tree, exclude) {
   }
 }
 
-function codeState(root) {
+function codeState(root, exclude = engineOwned) {
   const digest = createHash('sha256');
   fingerprintEntries(digest, git(root, ['ls-tree', '--full-tree', '-z', 'HEAD']),
     (name) => name === '.ultra');
   fingerprintEntries(digest, git(root, ['ls-tree', '--full-tree', '-z', 'HEAD', '--',
     '.ultra/']), engineOwned);
   const changes = git(root, ['--no-optional-locks', 'status', '--porcelain', '-z',
-    '--untracked-files=normal']).toString('utf8').split('\0');
+    `--untracked-files=${exclude === engineOwned ? 'normal' : 'all'}`])
+    .toString('utf8').split('\0');
   let dirty = false;
   for (let i = 0; i < changes.length; i++) {
     if (!changes[i]) continue;
-    if (!engineOwned(changes[i].slice(3).replace(/\/$/u, ''))) dirty = true;
-    if (/[RC]/u.test(changes[i].slice(0, 2)) && !engineOwned(changes[++i])) dirty = true;
+    if (!exclude(changes[i].slice(3).replace(/\/$/u, ''))) dirty = true;
+    if (/[RC]/u.test(changes[i].slice(0, 2)) && !exclude(changes[++i])) dirty = true;
   }
   return { code: digest.digest('hex'), dirty };
 }

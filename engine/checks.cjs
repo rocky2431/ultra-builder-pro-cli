@@ -12,42 +12,50 @@ const { status } = require('./states.cjs');
 const INTERRUPTS = require('./signals.cjs');
 
 // The output tail: the last 4 MiB of the log, where `expect` and `error_line` look.
-const TAIL_BYTES = 4 * 1024 * 1024;
-
 function readTail(fd) {
   const size = fs.fstatSync(fd).size;
-  const length = Math.min(size, TAIL_BYTES);
+  const length = Math.min(size, 4 * 1024 * 1024);
   const buffer = Buffer.alloc(length);
   fs.readSync(fd, buffer, 0, length, size - length);
   return buffer.toString('utf8');
 }
 
-function killGroup(child) {
+function killGroup(child, signal = 'SIGKILL') {
   if (!(child.pid > 0)) return;
-  try { process.kill(-child.pid, 'SIGKILL'); }
-  catch (error) { if (error.code !== 'ESRCH') throw error; }
+  try { process.kill(-child.pid, signal); }
+  catch (error) { if (!['ESRCH', 'EPERM'].includes(error.code)) throw error; }
 }
 
 // The shell writes straight into the log file: no pipe is read, so output size never
 // costs memory and a descendant that escaped the group cannot keep the engine waiting.
-function runShell(root, check, fd, extraEnv = {}) {
+function runShell(root, check, fd, extraEnv = {}, graceMs = 0) {
   return new Promise((resolve, reject) => {
-    // A detached shell leads its own process group, which we kill as a whole.
     const child = spawn('/bin/sh', ['-c', check.run], { cwd: root,
       env: { ...gitEnvironment(root), ...extraEnv },
       detached: true, stdio: ['ignore', fd, fd] });
     const result = { code: null, signal: null, timedOut: false, spawnError: false,
       interrupted: 0 };
+    let graceTimer, exited = false;
+    const finish = (error) => {
+      for (const t of [timer, graceTimer]) clearTimeout(t);
+      for (const [signal, handler] of handlers) process.off(signal, handler);
+      if (error) reject(error); else resolve(result);
+    };
+    const kill = (signal) => {
+      try { killGroup(child, signal); } catch (error) { finish(error); }
+    };
     const stop = () => {
-      try { killGroup(child); } catch (error) { reject(error); }
+      if (!graceMs) return kill();
+      if (graceTimer) return;
+      kill('SIGTERM');
+      graceTimer = setTimeout(() => {
+        graceTimer = null;
+        kill();
+        if (exited) finish();
+      }, graceMs);
     };
     const handlers = Object.entries(INTERRUPTS).map(([signal, exitCode]) =>
       [signal, () => { result.interrupted = exitCode; stop(); }]);
-    const finish = () => {
-      clearTimeout(timer);
-      for (const [signal, handler] of handlers) process.off(signal, handler);
-      resolve(result);
-    };
     const timer = setTimeout(() => { result.timedOut = true; stop(); }, check.timeout * 1000);
     for (const [signal, handler] of handlers) process.on(signal, handler);
     child.on('error', (error) => {
@@ -57,9 +65,9 @@ function runShell(root, check, fd, extraEnv = {}) {
     });
     child.on('exit', (code, signal) => {
       Object.assign(result, { code, signal });
-      // Kill after a normal exit too, so background children never outlive the check.
-      stop();
-      finish();
+      exited = true;
+      // A terminating agent gets its grace period even if the shell exits first.
+      if (!graceTimer) { kill(); finish(); }
     });
   });
 }
@@ -87,14 +95,11 @@ async function execute(project, check) {
   const fd = fs.openSync(path.join(project.root, log), 'w+');
   const started = performance.now();
   const before = codeState(project.root);
-  let exit;
-  let output;
+  let exit, output;
   try {
     exit = await runShell(project.root, check, fd);
     output = readTail(fd);
-  } finally {
-    fs.closeSync(fd);
-  }
+  } finally { fs.closeSync(fd); }
   if (exit.interrupted) throw Object.assign(new Error('Check interrupted.'),
     { exitCode: exit.interrupted });
   const [outcome, reason] = await outcomeFor(exit, check, output);
@@ -112,25 +117,17 @@ async function execute(project, check) {
 function selectedChecks(project, opts) {
   const { words } = opts;
   if (words.length && opts.selector) throw new Error('Choose check ids or a check selector.');
-  for (const id of words) {
-    if (!project.checks.some((c) => c.id === id)) {
-      throw new Error(`Unknown check ${id}. Use an id from checks.json.`);
-    }
-  }
+  const badId = words.find((id) => !project.checks.some((c) => c.id === id));
+  if (badId !== undefined) throw new Error(`Unknown check ${badId}. Use an id from checks.json.`);
   if (opts.req !== null && !project.reqs.has(opts.req)) {
     throw new Error(`Unknown requirement ${opts.req}. Use an id from spec.md.`);
   }
-  const scope = project.checks.filter((check) => {
-    if (words.length) return words.includes(check.id);
-    if (opts.selector === 'req') return check.covers.includes(opts.req);
-    return true;
-  });
-  let selected = scope;
-  if (!words.length && (!opts.selector || opts.selector === 'stale')) {
-    const states = new Map(status(project).checks.map((c) => [c.id, c.state]));
-    selected = scope.filter((c) => ['stale', 'unknown'].includes(states.get(c.id)));
-  }
-  return { scope, selected };
+  const scope = project.checks.filter((c) => words.length ? words.includes(c.id)
+    : opts.selector === 'req' ? c.covers.includes(opts.req) : true);
+  const stale = !words.length && (!opts.selector || opts.selector === 'stale');
+  const pending = stale ? status(project).checks
+    .filter((c) => ['stale', 'unknown'].includes(c.state)).map((c) => c.id) : null;
+  return { scope, selected: pending ? scope.filter((c) => pending.includes(c.id)) : scope };
 }
 
 async function runChecks(project, opts) {

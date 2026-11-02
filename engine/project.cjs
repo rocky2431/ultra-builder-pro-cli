@@ -1,8 +1,5 @@
 'use strict';
-
-const { load } = require('./loading.cjs');
-const { status } = require('./states.cjs');
-const { gate } = require('./plan.cjs');
-const { complete } = require('./completion.cjs');
-
-module.exports = { load, status, gate, complete };
+module.exports = {
+  load: require('./loading.cjs').load, status: require('./states.cjs').status,
+  gate: require('./plan.cjs').gate, complete: require('./completion.cjs').complete,
+};
