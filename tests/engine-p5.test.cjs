@@ -762,7 +762,8 @@ async function waitFor(fx, name) {
 test('a timed-out writer leaves no check running', async (t) => {
   const fx = project(t);
   plan(fx, { 'N-01': ['slowcheck'] });
-  const result = drive(fx, ['--timeout-sec', '3', '--attempts', '1'], 1);
+  // The writer must start its check before the timeout; 3 s was too short on a loaded machine.
+  const result = drive(fx, ['--timeout-sec', '8', '--attempts', '1'], 1);
   assert.equal(result.stop, 'attempts-exhausted');
   assert.equal(result.steps.find((s) => s.action === 'writer').exit, 'timeout');
   assert.ok(await gone(pidOf(fx, 'check.pid')), 'the inner check was stopped');
