@@ -822,9 +822,9 @@ under `.ultra/` outside `.ultra/.runtime/` and `.ultra/ledger/` is untracked or 
 HEAD, and no index entry is marked assume-unchanged or skip-worktree (`git ls-files -v`
 shows a lowercase tag or `S`), since such an entry hides a work-tree change from Git. The
 *Git settings* are the contents of the repository's `config` and `info/exclude` (located
-with `git rev-parse --git-path`; a missing file is a content of its own). Ceiling: Git
+with `git rev-parse --git-path`; a missing file is a content of its own). Ceilings: Git
 configuration outside the repository (global, system, or a file it includes) is not
-compared. The *truth bytes* are the contents, in the work tree and at HEAD, of
+compared; a sparse checkout marks paths skip-worktree, so it is never clean for the drive. The *truth bytes* are the contents, in the work tree and at HEAD, of
 `.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`,
 `.ultra/ledger/milestones.jsonl`, `.ultra/ledger/approvals.jsonl` and
 `.ultra/ledger/plan-log.jsonl`, in that order (a missing file is a content of its own).

@@ -1,5 +1,4 @@
 'use strict';
-
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
@@ -10,22 +9,18 @@ const { expectOutput } = require('./expect.cjs');
 const { load } = require('./loading.cjs');
 const { status } = require('./states.cjs');
 const INTERRUPTS = require('./signals.cjs');
-
 // The output tail: the last 4 MiB of the log, where `expect` and `error_line` look.
 function readTail(fd) {
   const size = fs.fstatSync(fd).size;
-  const length = Math.min(size, 4 * 1024 * 1024);
-  const buffer = Buffer.alloc(length);
-  fs.readSync(fd, buffer, 0, length, size - length);
+  const buffer = Buffer.alloc(Math.min(size, 4 * 1024 * 1024));
+  fs.readSync(fd, buffer, 0, buffer.length, size - buffer.length);
   return buffer.toString('utf8');
 }
-
 function killGroup(child, signal = 'SIGKILL') {
   if (!(child.pid > 0)) return;
   try { process.kill(-child.pid, signal); }
   catch (error) { if (!['ESRCH', 'EPERM'].includes(error.code)) throw error; }
 }
-
 // The shell writes straight into the log file: no pipe is read, so output size never
 // costs memory and a descendant that escaped the group cannot keep the engine waiting.
 function runShell(root, check, fd, extraEnv = {}, graceMs = 0) {
@@ -66,12 +61,16 @@ function runShell(root, check, fd, extraEnv = {}, graceMs = 0) {
     child.on('exit', (code, signal) => {
       Object.assign(result, { code, signal });
       exited = true;
-      // A terminating agent gets its grace period even if the shell exits first.
+      clearTimeout(timer);
+      // Let an inner ubp stop its detached checks even when its shell exits first.
+      if (graceMs && !graceTimer) {
+        try { process.kill(-child.pid, 0); stop(); }
+        catch (error) { if (!['ESRCH', 'EPERM'].includes(error.code)) return finish(error); }
+      }
       if (!graceTimer) { kill(); finish(); }
     });
   });
 }
-
 async function outcomeFor(exit, check, output) {
   if (exit.timedOut) return ['unknown', 'timeout'];
   if (exit.spawnError) return ['unknown', 'spawn-error'];
@@ -81,13 +80,11 @@ async function outcomeFor(exit, check, output) {
   const reason = await expectOutput(check.expect, output);
   return [reason === 'exit-0' ? 'pass' : 'unknown', reason];
 }
-
 function errorLine(output) {
   const lines = output.split(/\r?\n/u).filter((line) => line.trim());
   const pattern = /^\s*(?:✖|not ok\b|FAIL(?:ED)?\b)|\b(?:[A-Z][A-Za-z]*)?Error\b/u;
   return (lines.find((line) => pattern.test(line)) ?? lines.at(-1) ?? '').slice(0, 200);
 }
-
 async function execute(project, check) {
   const run = randomUUID();
   const log = `.ultra/.runtime/checks/${run}.log`;
@@ -113,23 +110,20 @@ async function execute(project, check) {
   append(project.root, 'evidence', record);
   return record;
 }
-
 function selectedChecks(project, opts) {
   const { words } = opts;
   if (words.length && opts.selector) throw new Error('Choose check ids or a check selector.');
   const badId = words.find((id) => !project.checks.some((c) => c.id === id));
   if (badId !== undefined) throw new Error(`Unknown check ${badId}. Use an id from checks.json.`);
-  if (opts.req !== null && !project.reqs.has(opts.req)) {
+  if (opts.req !== null && !project.reqs.has(opts.req))
     throw new Error(`Unknown requirement ${opts.req}. Use an id from spec.md.`);
-  }
   const scope = project.checks.filter((c) => words.length ? words.includes(c.id)
-    : opts.selector === 'req' ? c.covers.includes(opts.req) : true);
+    : opts.selector !== 'req' || c.covers.includes(opts.req));
   const stale = !words.length && (!opts.selector || opts.selector === 'stale');
   const pending = stale ? status(project).checks
     .filter((c) => ['stale', 'unknown'].includes(c.state)).map((c) => c.id) : null;
   return { scope, selected: pending ? scope.filter((c) => pending.includes(c.id)) : scope };
 }
-
 async function runChecks(project, opts) {
   const runs = [];
   const { scope, selected } = selectedChecks(project, opts);
@@ -142,5 +136,4 @@ async function runChecks(project, opts) {
     .every((c) => c.state === 'green');
   return { result: { dirty: after.dirty, runs }, ok, after };
 }
-
 module.exports = { execute, runShell, runChecks };

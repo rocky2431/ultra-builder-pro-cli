@@ -8,7 +8,6 @@ const { runChecks, runShell } = require('./checks.cjs');
 const { git, codeState } = require('./git-state.cjs');
 const { problem, readRecord, hash } = require('./formats.cjs');
 const { reviewVerdict } = require('./milestone.cjs');
-
 const truth = ['.ultra/spec.md', '.ultra/checks.json', '.ultra/plan.json',
   '.ultra/ledger/milestones.jsonl', '.ultra/ledger/approvals.jsonl',
   '.ultra/ledger/plan-log.jsonl'];
@@ -18,13 +17,19 @@ const issue = (code, subject) => problem(code, `${subject}: ${code}`,
   'Resolve this stop before resuming drive.');
 const paths = (root, args) => git(root, args).toString('utf8').split('\0').filter(Boolean);
 const within = (file, prefix) => file === prefix || file.startsWith(`${prefix}/`);
-const clean = (root, review) => !codeState(root, (file) => file === review
+const clean = (root, review) => !paths(root, ['ls-files', '-v', '-z'])
+  .some((entry) => /^[a-zS]/u.test(entry)) && !codeState(root, (file) => file === review
   || ['.ultra/.runtime', '.ultra/ledger'].some((dir) => within(file, dir))).dirty;
 function snapshot(root) {
   const head = git(root, ['rev-parse', 'HEAD']).toString('utf8').trim();
   const entries = new Map(paths(root, ['ls-tree', '-r', '-z', head, '--', ...truth])
     .map((entry) => [entry.slice(entry.indexOf('\t') + 1), entry.split(/[ \t]/u)[2]]));
-  return { head, truth: truth.map((file) => {
+  const settings = ['config', 'info/exclude'].map((name) => {
+    const file = git(root, ['rev-parse', '--git-path', name]).toString('utf8').trim();
+    try { return hash(fs.readFileSync(path.resolve(root, file))); }
+    catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+  });
+  return { head, settings: JSON.stringify(settings), truth: truth.map((file) => {
     const { bytes, exists } = readRecord(root, file);
     return [bytes ? hash(bytes) : exists ? 'not-regular' : null,
       entries.has(file) ? hash(git(root, ['cat-file', 'blob', entries.get(file)])) : null];
@@ -33,14 +38,15 @@ function snapshot(root) {
 const touched = (before, after) => truth.filter((file, i) =>
   after.truth[i][0] !== before.truth[i][0] || !before.truth[i].includes(after.truth[i][1]));
 function boundary(root, before, after, node, project) {
-  const changedTruth = touched(before, after).map((file) => issue('truth-touched', file));
-  if (changedTruth.length) return changedTruth;
+  const problems = touched(before, after).map((file) => issue('truth-touched', file));
+  if (problems.length) return problems;
   try { git(root, ['merge-base', '--is-ancestor', before.head, after.head]); }
   catch (error) {
     if (error.status !== 1) throw error;
     return [issue('history-rewritten', node.id)];
   }
-  if (!clean(root)) return [issue('writer-left-dirty', node.id)];
+  if (before.settings !== after.settings || !clean(root))
+    return [issue('writer-left-dirty', node.id)];
   const named = new Set(project.checks.flatMap((c) => c.run.split(/\s+/u)
     .map((word) => word.replace(/^["']|["']$/gu, '').replace(/^\.\//u, ''))));
   const scopes = [...node.scope, '.ultra/rulings.md', '.ultra/records/handoffs']
@@ -52,26 +58,29 @@ function boundary(root, before, after, node, project) {
       return code ? [issue(code, file)] : [];
     });
 }
-async function verify(project, node, before, after, baseline) {
-  const { root } = project;
-  const problems = boundary(root, before, after, node, project);
-  if (problems.some((p) => !['out-of-scope', 'check-touched'].includes(p.code))) return problems;
-  const current = load(root);
-  const previous = project.completions.map((r) => JSON.stringify(r));
-  const added = current.completions.filter((r) => {
+function additions(before, after) {
+  const previous = before.map((r) => JSON.stringify(r));
+  return after.filter((r) => {
     const index = previous.indexOf(JSON.stringify(r));
-    if (index < 0) return true;
-    previous.splice(index, 1);
-    return false;
+    if (index >= 0) previous.splice(index, 1);
+    return index < 0;
   });
+}
+async function verify(project, node, before, after, baseline) {
+  const problems = boundary(project.root, before, after, node, project);
+  if (problems.some((p) => !['out-of-scope', 'check-touched'].includes(p.code))) return problems;
+  const current = load(project.root);
+  const added = additions(project.completions, current.completions);
   problems.push(...project.nodes.filter((n) => n.id !== node.id
     && added.some((r) => r.node === n.id)).map((n) => issue('out-of-scope', n.id)));
   if (problems.length) return problems;
   const state = status(current);
   if (state.gate !== 'pass') return [issue('plan-gate', node.id), ...state.problems];
-  const runs = new Set(project.evidence.map((r) => r.run));
-  const checks = current.checks.filter((c) => c.covers.some((id) => node.covers.includes(id))
-    || current.evidence.some((r) => r.check === c.id && !runs.has(r.run))
+  const evidence = additions(project.evidence, current.evidence);
+  const requiredCheck = (c) => Object.hasOwn(c, 'fix')
+    || c.covers.some((id) => node.covers.includes(id));
+  const checks = current.checks.filter((c) => requiredCheck(c)
+    || evidence.some((r) => r.check === c.id)
     || state.checks.some((s) => s.id === c.id && ['stale', 'unknown'].includes(s.state)));
   const checked = await runChecks(current, { words: checks.map((c) => c.id), req: null });
   const required = new Set([baseline.milestone, ...project.closures.map((c) => c.milestone)]);
@@ -79,28 +88,23 @@ async function verify(project, node, before, after, baseline) {
     && r.state === 'green' && !checked.after.requirements.some((s) => s.id === r.id
       && s.state === 'green')).map((r) => issue('ratchet-broken', r.id)));
   if (problems.length) return problems;
-  if (!checked.after.nodes.some((n) => n.id === node.id && n.state === 'done')) {
+  if (!checked.after.nodes.some((n) => n.id === node.id && n.state === 'done'))
     return [issue('node-not-done', node.id)];
-  }
   return checked.after.checks.filter((s) => s.state !== 'green' && current.checks.some((c) =>
-    c.id === s.id && c.covers.some((id) => node.covers.includes(id))))
+    c.id === s.id && requiredCheck(c)))
     .map((c) => issue('node-not-green', c.id));
 }
-
 async function drive(project, opts) {
   if (opts.words.length || !opts.writer?.trim()
-      || (opts.reviewer !== undefined && !opts.reviewer.trim())) {
+      || (opts.reviewer !== undefined && !opts.reviewer.trim()))
     throw new Error('drive requires --writer <command> and an optional non-empty --reviewer.');
-  }
-  const root = project.root;
+  const { root } = project;
   const result = { run: randomUUID(), stop: null, verdict: null, steps: [], problems: [] };
   (opts.json ? console.error : console.log)(`drive: run ${result.run}`);
   const directory = path.join(root, '.ultra/.runtime/drive', result.run);
   const bin = path.join(directory, 'bin');
   const base = { UBP_ROOT: root, UBP_DRIVE: '1', PATH: `${bin}:${process.env.PATH ?? ''}`,
     UBP: [process.execPath, path.join(__dirname, 'cli.cjs')].map(quote).join(' ') };
-  fs.mkdirSync(bin, { recursive: true });
-  fs.writeFileSync(path.join(bin, 'ubp'), `#!/bin/sh\nexec ${base.UBP} "$@"\n`, { mode: 0o755 });
   const record = (action, subject, attempt, value, problems = [], exit = null) => {
     result.steps.push({ action, subject, attempt, result: value, exit, problems });
     if (!opts.json) console.log(`drive: ${action} ${subject}: ${value}`
@@ -114,6 +118,8 @@ async function drive(project, opts) {
     return Object.assign(result, { stop: reason, problems });
   };
   const shell = async (command, log, env) => {
+    fs.mkdirSync(bin, { recursive: true });
+    fs.writeFileSync(path.join(bin, 'ubp'), `#!/bin/sh\nexec ${base.UBP} "$@"\n`, { mode: 0o755 });
     const fd = fs.openSync(path.join(directory, log), 'w');
     let exit;
     try { exit = await runShell(root, { run: command, timeout: opts['timeout-sec'] }, fd,
@@ -190,7 +196,8 @@ async function drive(project, opts) {
             { UBP_MILESTONE: state.milestone, UBP_REVIEW: file });
           const after = snapshot(root);
           if (before.head !== after.head || touched(before, after).length || !clean(root, relative)
-              || status(load(root)).next !== '里程碑门') failure = 'reviewer-changed-tree';
+              || before.settings !== after.settings || status(load(root)).next !== '里程碑门')
+            failure = 'reviewer-changed-tree';
           else {
             result.verdict = reviewVerdict(readRecord(root, relative).bytes, true);
             if (!result.verdict) failure = 'review-invalid';
