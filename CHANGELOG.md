@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the code is right and only a check could be stronger is reported to the Owner and no longer
   starts another review round. The milestone demo lists those gaps and what the writers'
   handoffs left open, and a defect among them is never passed on the Owner's behalf.
+- (2026-11-02) Two requirements that cannot both hold are the Owner's call in the escalation
+  table too, as the planning step already said; the planner keeps wrong acceptances.
 
 ## 5.x source work after 5.0.1 (never published, superseded by 6.0.0)
 

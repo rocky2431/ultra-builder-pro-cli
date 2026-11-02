@@ -188,6 +188,18 @@ test('the milestone review blocks only on a broken Done when or a reproducible w
       'the example writer reports what it noticed and left unchanged');
   });
 
+test('two requirements that cannot both hold go to the Owner in the plan and the escalation table',
+  () => {
+    // The Plan section gave a requirement conflict to the Owner while the Escalation table
+    // listed it under the planner (found while writing the Owner's guide, 2026-11-02).
+    const method = body(fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'SKILL.md'), 'utf8'));
+    assert.ok(method.includes('an L1 conflict for the Owner'), 'the Plan section gives it to the Owner');
+    const escalation = method.slice(method.indexOf('## Escalation'), method.indexOf('## Milestone gate'));
+    const rows = escalation.split('\n').filter((line) => /^\|.*conflict/u.test(line));
+    assert.equal(rows.length, 1, escalation);
+    assert.equal(rows[0].split('|')[3].trim(), 'Owner', rows[0]);
+  });
+
 test('5.x-only paths are gone from the branch', () => {
   for (const gone of ['adapters/opencode.js', 'adapters/kimi.js', 'adapters/grok.js',
     'adapters/zcode.js', 'bin/run.cjs', 'bin/delegate.cjs', 'bin/delegate-worker.cjs',

@@ -184,7 +184,8 @@ Before acting, name the layer the problem lives in. Never change a check to get 
 |---|---|---|---|
 | the implementation is wrong | L4 | writer | retry inside the node, at most three attempts |
 | a design or interface does not work | L2 | planner | ruling; change the design and plan; `ubp gate` |
-| an acceptance is wrong, or requirements conflict | L1 | planner | add or modify with a ruling; edit spec and checks; `ubp gate` |
+| an acceptance is wrong | L1 | planner | add or modify with a ruling; edit spec and checks; `ubp gate` |
+| two requirements conflict (both cannot hold) | L1 | Owner | stop and ask which holds; never leave a writer to pick; narrowing the other is a reduction |
 | a requirement must be deleted or narrowed | L1 | Owner | stop and ask; act only on approval |
 | the direction or success criteria are wrong | L0 | Owner | stop and ask |
 
