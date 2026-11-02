@@ -18,7 +18,8 @@ to HEAD), .ultra/ledger/plan-log.jsonl and .ultra/rulings.md since that commit, 
 handoffs under .ultra/records/handoffs/. Then drive the product by hand through its real
 interface, and run the milestone's checks against deliberately broken copies of the code: make
 each copy in a temporary directory outside the repository, never in it. A check that passes on
-a broken copy is an acceptance gap.
+a broken copy is an acceptance gap. Run the checks once on an unmodified copy of HEAD too
+(\`git archive HEAD\`): a fix that lives only in a file Git ignores passes in the work tree.
 
 Write $UBP_REVIEW and nothing else in the repository (no commits, no other edits): a first
 line \`Reviewer: claude -p (${UBP_REVIEWER_MODEL:-opus}), fresh session\`, then the findings
