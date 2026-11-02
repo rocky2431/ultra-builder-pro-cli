@@ -16,10 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `run`, `delegate`, ACP/Pi execution, durable grants and wake-up machinery,
   together with their dedicated tests, fixtures, evaluations and obsolete documentation.
   Multiple next-step authorities conflicted with the single v6 method and computed status.
-- Keep the old workflows recoverable from Git history and the published 5.0.2 package;
+- Keep the old workflows recoverable from Git history and the published 5.0.1 package
+  (5.0.2 was never published);
   existing 5.x project files are not automatically migrated.
 - Decision: `.ultra/decisions/2026-11-01-v6-product-shape.md` in the source repository.
   Release verification uses Node tests and the production dependency audit, without pytest.
+- Add `ubp drive --writer <command> [--reviewer <command>]`: an unattended controller loop
+  that compiles each node's brief, runs the writer, verifies truth files, history, a clean
+  tree, scope, check files, the plan gate and the ratchet, runs the reviewer once at the
+  milestone gate, and stops wherever a person must judge. It never closes a milestone or
+  approves anything. Headless Claude Code writer and reviewer examples are in
+  `docs/examples/drive/`.
 
 ## 5.x source work after 5.0.1 (never published, superseded by 6.0.0)
 

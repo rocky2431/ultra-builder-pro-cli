@@ -54,6 +54,7 @@ See [Codex hook trust](https://learn.chatgpt.com/docs/hooks).
 | `ubp approve <items> --owner "words"` | Record approval of reductions |
 | `ubp retro` | Show repeated failure classes |
 | `ubp merge <branch> --expect-head <sha>` | Verify and merge a worker branch |
+| `ubp drive --writer <cmd> [--reviewer <cmd>]` | Run nodes unattended until the next Owner touch |
 
 Engine commands accept `--root <dir>` and `--json`.
 See [file formats and exit codes](engine/FORMATS.md)
@@ -67,6 +68,7 @@ Python hooks with one advisory Node hook. OpenCode, Kimi, Grok and ZCode adapter
 template are removed. These mechanisms competed for the next step; v6 derives it from the
 engine's state. Existing 5.x project records are not automatically migrated.
 
-Keep 5.0.2 in a separate configuration directory if you still need those workflows.
+Keep 5.0.1, the last published 5.x, in a separate configuration directory if you still
+need those workflows (5.0.2 was never published).
 The old source remains in Git history. See [changes](CHANGELOG.md) and the
 [plugin boundary](docs/PLUGIN-ISOLATION-CONTRACT.md).
