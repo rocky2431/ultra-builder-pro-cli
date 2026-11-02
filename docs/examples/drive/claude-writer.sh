@@ -11,11 +11,12 @@ PROMPT="# Mission: node $UBP_NODE (attempt $UBP_ATTEMPT)
 Workspace: $UBP_ROOT (a Git repository). You are the writer of one node. The brief below is
 everything you are given; the current code is in the repository.
 
-\`ubp\` on PATH is this project's engine; run it from the workspace (the current directory is
-the project root). Work test-first inside the node's scope. Run the \`ubp check\` line of the
-brief's rules for this node's checks until they are green; before \`ubp node done $UBP_NODE\`,
-also run \`ubp check\` (every stale check): invariants and checks that were green before must
-stay green. Red checks of other nodes or of later milestones are expected; leave them alone.
+Call this project's engine as \`eval \"\$UBP <args>\"\` from the workspace (the current
+directory is the project root), for example \`eval \"\$UBP check C-1\"\`; a plain \`ubp\` may be
+another install. Below, \`ubp <args>\` means exactly that. Work test-first inside the node's
+scope. Run the \`ubp check\` line of the brief's rules for this node's checks until they are
+green; before \`ubp node done $UBP_NODE\`, also run \`ubp check\` (every stale check):
+invariants and checks that were green before must stay green. Red checks of other nodes or of later milestones are expected; leave them alone.
 
 Never edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/ledger/milestones.jsonl,
 .ultra/ledger/approvals.jsonl, .ultra/ledger/plan-log.jsonl or any check's test file, and never

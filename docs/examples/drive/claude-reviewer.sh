@@ -8,8 +8,9 @@ set -eu
 cd "$UBP_ROOT"
 PROMPT="# Mission: whole-branch review of milestone $UBP_MILESTONE
 
-Workspace: $UBP_ROOT (a Git repository). You wrote none of this milestone's code. \`ubp\`
-on PATH is this project's engine; run it from the workspace.
+Workspace: $UBP_ROOT (a Git repository). You wrote none of this milestone's code. If you
+need this project's engine, call it as \`eval \"\$UBP <args>\"\` (a plain \`ubp\` may be another
+install); \`ubp check\` and \`ubp gate\` write the ledger, so prefer running tests on a copy.
 
 Read: the milestone's requirements in .ultra/spec.md (the Direction and Interface sections
 too), the milestone's diff (from the commit that last changed .ultra/ledger/milestones.jsonl
