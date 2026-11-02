@@ -21,6 +21,15 @@ each copy in a temporary directory outside the repository, never in it. A check 
 a broken copy is an acceptance gap. Run the checks once on an unmodified copy of HEAD too
 (\`git archive HEAD\`): a fix that lives only in a file Git ignores passes in the work tree.
 
+The bar for revise: the product, as HEAD builds it, breaks a requirement's \`Done when\` line
+or the Direction, or does something wrong that you can reproduce through its real interface.
+An acceptance gap where HEAD behaves correctly does not block: describe it, with the check
+that would close it, under \"What must be said to the Owner\", and keep the verdict accept. If
+.ultra/records/milestones/ holds an earlier review of this milestone
+(\`$UBP_MILESTONE-review-<n>.md\`), start from the latest one: check each of its revise findings
+and look for regressions. Only those decide your verdict; anything new you find, a defect
+included, goes under \"What must be said to the Owner\".
+
 Write $UBP_REVIEW and nothing else in the repository (no commits, no other edits): a first
 line \`Reviewer: claude -p (${UBP_REVIEWER_MODEL:-opus}), fresh session\`, then the findings
 (each with its evidence and the layer it belongs to: L4 implementation, L2 design, L1

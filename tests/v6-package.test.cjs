@@ -151,6 +151,26 @@ test('after a drive stop the method puts truth files back before it commits the 
   assert.ok(restore >= 0 && commit > restore, steps);
 });
 
+test('the milestone review blocks only on a broken Done when or a reproducible wrong behavior',
+  () => {
+    // The Owner's rule (2026-11-02): when the code is right and only a check could be
+    // stronger, the review does not stop the milestone; it reports the gap to the Owner. A
+    // review after `revise` judges the earlier findings and regressions, so reviews converge.
+    const method = body(fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'SKILL.md'), 'utf8'))
+      .replace(/\s+/gu, ' ');
+    const gate = method.slice(method.indexOf('## Milestone gate'),
+      method.indexOf('## Changes after 0→1'));
+    const reviewer = fs.readFileSync(path.join(ROOT, 'docs', 'examples', 'drive',
+      'claude-reviewer.sh'), 'utf8').replace(/\\/gu, '').replace(/\s+/gu, ' ');
+    for (const [name, text] of [['method', gate], ['example reviewer', reviewer]]) {
+      for (const want of ['Done when', 'does not block', 'What must be said to the Owner',
+        'regressions']) {
+        assert.ok(text.includes(want), `${name}: ${want}`);
+      }
+    }
+    assert.ok(gate.includes('handoffs'), 'the demo lists what the writers left in their handoffs');
+  });
+
 test('5.x-only paths are gone from the branch', () => {
   for (const gone of ['adapters/opencode.js', 'adapters/kimi.js', 'adapters/grok.js',
     'adapters/zcode.js', 'bin/run.cjs', 'bin/delegate.cjs', 'bin/delegate-worker.cjs',

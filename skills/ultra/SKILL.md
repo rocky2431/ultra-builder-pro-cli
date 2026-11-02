@@ -205,20 +205,32 @@ When `next` is `里程碑门`:
    milestone's diff (from the previous closure commit, or from the start), its requirements,
    the plan-log changes and the rulings since the previous closure. It writes
    `.ultra/records/milestones/<milestone>-review.md`: a first line `Reviewer: <who>`,
-   findings, then exactly one line `Verdict: accept` or `Verdict: revise`. Ask it to drive
-   the product by hand and to run the checks against deliberately broken copies of the code:
-   a check that passes on a broken copy is an acceptance gap. On `revise`, keep that review
-   as `<milestone>-review-<n>.md`, triage every finding with "Escalation" (a fix that
-   narrows a requirement goes to the Owner first), change the spec and the checks as
-   acceptance author, `ubp gate`, rework the stale nodes through the node loop, and review
-   again.
+   findings, a section `What must be said to the Owner`, then exactly one line
+   `Verdict: accept` or `Verdict: revise`. Ask it to drive the product by hand and to run the
+   checks against deliberately broken copies of the code: a check that passes on a broken
+   copy is an acceptance gap. The bar for `revise` is the Owner's (2026-11-02): the product,
+   as HEAD builds it, breaks a requirement's `Done when` line or the Direction, or does
+   something wrong that a person can reproduce through its real interface. An acceptance gap
+   where HEAD behaves correctly does not block: the reviewer describes it, with the check that
+   would close it, under `What must be said to the Owner`, and the verdict stays `accept`.
+   On `revise`, keep that review as `<milestone>-review-<n>.md`, triage every revise finding
+   with "Escalation" (a fix that narrows a requirement goes to the Owner first), change the
+   spec and the checks as acceptance author, `ubp gate`, rework the stale nodes through the
+   node loop, and review again. A review after a `revise` starts from the latest earlier
+   review: it checks each of that review's revise findings and looks for regressions, and
+   only those decide its verdict; anything new it finds, a defect included, goes under
+   `What must be said to the Owner`.
 3. Demo for the Owner, in this order: what to try by hand (the journey in user terms), the
    journey check's result and log path, the progress line, the plan changes since the
    previous closure (`.ultra/ledger/plan-log.jsonl`), the rulings since then, the repeated
    failure classes from `ubp retro` and what you changed for each, the count of `unplanned`
-   Owner touches, the verdict and which commits the accepting review read.
+   Owner touches, the verdict and which commits the accepting review read. Then list, defects
+   first, what the reviews put under `What must be said to the Owner` and what the writers'
+   handoffs (`.ultra/records/handoffs/`) say is unfinished, noticed and left unchanged, or
+   pinned by no check.
 4. Ask the Owner one question: let the milestone pass, or change direction. Their reply,
-   verbatim, is `--owner`.
+   verbatim, is `--owner`. An item from step 3 they want done now is a change handled under
+   "Changes after 0→1".
 5. `ubp milestone close <milestone> --owner "<words>" --review <review path>`, adding
    `--proxy` when you answered for the Owner. Then commit `.ultra/`.
 

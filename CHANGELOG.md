@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   approves anything. Headless Claude Code writer and reviewer examples ship in the package
   and the repository under `docs/examples/drive/` (the installer does not copy them into a
   host).
+- The milestone review blocks only when the product breaks a requirement's `Done when` line
+  or the Direction, or does something wrong that a person can reproduce. A gap where the code
+  is right and only a check could be stronger is reported to the Owner, and a review after
+  `revise` judges the earlier findings and regressions only, so reviews converge.
 
 ## 5.x source work after 5.0.1 (never published, superseded by 6.0.0)
 
