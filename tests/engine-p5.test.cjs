@@ -68,6 +68,7 @@ if (process.env.SLOW) {
 //   skip-worktree, so the commit keeps them while the work tree passes;
 // - exclude / config: work, but leave src/hidden.txt hidden by .git/info/exclude / by a
 //   core.excludesFile set in the repository's Git config;
+// - wtconfig: like config, but in .git/config.worktree (the test turns worktreeConfig on);
 // - forge-old: work, but also recreate src/broken-C-1; run only `ubp check C-2 C-12`, then
 //   append a copy of the old green C-1 record (same run id) with the current code;
 // - break-inv: work, but also commit src/broken-C-inv; when `node done` refuses, append a
@@ -145,13 +146,16 @@ if (mode === 'truth') {
 if (mode === 'approve') put(ledger('approvals'), '{"forged":true}\\n');
 if (mode === 'regress' || mode === 'forge-old') put('src/broken-C-1', 'x\\n');
 if (mode === 'break-inv') put('src/broken-C-inv', 'x\\n');
-if (mode === 'exclude' || mode === 'config') {
+if (['exclude', 'config', 'wtconfig'].includes(mode)) {
   fs.writeFileSync('src/hidden.txt', 'x\\n');
   const list = mode === 'exclude'
     ? execSync('git rev-parse --git-path info/exclude').toString().trim()
     : require('node:path').resolve('.ultra/.runtime/excludes');
   put(list, '\\nsrc/hidden.txt\\n');
-  if (mode === 'config') git('config core.excludesFile ' + JSON.stringify(list));
+  if (mode !== 'exclude') {
+    git('config ' + (mode === 'wtconfig' ? '--worktree ' : '') + 'core.excludesFile '
+      + JSON.stringify(list));
+  }
 }
 if (mode === 'rewrite') git('reset -q --soft HEAD~1');
 if (mode === 'weaken') {
@@ -716,6 +720,15 @@ test('a writer cannot hide a work-tree change from Git', (t) => {
     assert.deepEqual([result.stop, codes(result)], ['writer-left-dirty',
       ['writer-left-dirty']], mode);
   }
+});
+
+test('a writer cannot hide a work-tree change through .git/config.worktree', (t) => {
+  const fx = project(t);
+  git(fx.root, ['config', 'extensions.worktreeConfig', 'true']);
+  plan(fx, { 'N-01': ['wtconfig'] });
+  const result = drive(fx, [], 1);
+  assert.deepEqual([result.stop, codes(result)], ['writer-left-dirty', ['writer-left-dirty']],
+    JSON.stringify(result.steps));
 });
 
 test('a copy of an old green record with the current code cannot hide a ratchet break', (t) => {

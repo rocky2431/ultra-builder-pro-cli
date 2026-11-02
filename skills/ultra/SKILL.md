@@ -186,7 +186,11 @@ When `next` is `里程碑门`:
 
 1. `ubp check --all`. Every check covering a requirement of this milestone or of a closed
    milestone, and every invariant, must be green; checks of later milestones may be red.
-   Then `ubp retro` (see "Keeping it tidy").
+   Then repeat it in a clean checkout of HEAD (`git worktree add --detach <temp> HEAD`,
+   install what the project needs, `ubp check --all --root <temp>`, then
+   `git worktree remove --force <temp>`): a fix that lives only in a file Git ignores or
+   hides passes here while HEAD lacks it. A check green here and red there is a stop: find
+   the file and commit it. Then `ubp retro` (see "Keeping it tidy").
 2. Whole-branch review. A reviewer who wrote none of the milestone's code reads the
    milestone's diff (from the previous closure commit, or from the start), its requirements,
    the plan-log changes and the rulings since the previous closure. It writes

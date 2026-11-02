@@ -24,7 +24,7 @@ function snapshot(root) {
   const head = git(root, ['rev-parse', 'HEAD']).toString('utf8').trim();
   const entries = new Map(paths(root, ['ls-tree', '-r', '-z', head, '--', ...truth])
     .map((entry) => [entry.slice(entry.indexOf('\t') + 1), entry.split(/[ \t]/u)[2]]));
-  const settings = ['config', 'info/exclude'].map((name) => {
+  const settings = ['config', 'config.worktree', 'info/exclude'].map((name) => {
     const file = git(root, ['rev-parse', '--git-path', name]).toString('utf8').trim();
     try { return hash(fs.readFileSync(path.resolve(root, file))); }
     catch (error) { if (error.code === 'ENOENT') return null; throw error; }

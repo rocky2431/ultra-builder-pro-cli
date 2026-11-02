@@ -821,10 +821,15 @@ The tree is *clean* for the drive when the code tree is clean (see "Git state"),
 under `.ultra/` outside `.ultra/.runtime/` and `.ultra/ledger/` is untracked or differs from
 HEAD, and no index entry is marked assume-unchanged or skip-worktree (`git ls-files -v`
 shows a lowercase tag or `S`), since such an entry hides a work-tree change from Git. The
-*Git settings* are the contents of the repository's `config` and `info/exclude` (located
-with `git rev-parse --git-path`; a missing file is a content of its own). Ceilings: Git
-configuration outside the repository (global, system, or a file it includes) is not
-compared; a sparse checkout marks paths skip-worktree, so it is never clean for the drive. The *truth bytes* are the contents, in the work tree and at HEAD, of
+*Git settings* are the contents of the repository's `config`, `config.worktree` and
+`info/exclude` (located with `git rev-parse --git-path`; a missing file is a content of its
+own). Ceilings: Git configuration outside the repository (global, system, a file it includes,
+or the default excludes file `$XDG_CONFIG_HOME/git/ignore`) is not compared; a file Git
+ignores is not seen, so a fix that exists only in an ignored file (a `.gitignore` in the tree,
+committed or not, is enough, with no bad intent) passes the checks in the work tree while HEAD
+lacks it, and the drive can stop `milestone-gate` on a broken HEAD: the method runs the
+milestone's checks in a clean checkout of HEAD before the demo; a sparse checkout marks paths
+skip-worktree, so it is never clean for the drive. The *truth bytes* are the contents, in the work tree and at HEAD, of
 `.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`,
 `.ultra/ledger/milestones.jsonl`, `.ultra/ledger/approvals.jsonl` and
 `.ultra/ledger/plan-log.jsonl`, in that order (a missing file is a content of its own).
@@ -897,7 +902,10 @@ and the first failing step decides:
 7. the node is `done` (`node-not-done`), and every check covering its requirements and
    every invariant is green (`node-not-green`, one per check, in registry order), which
    is what `node done` requires, so a completion record the writer wrote by hand cannot
-   pass a red invariant.
+   pass a red invariant. Ceiling: for a cleanup node, `node done` also requires the
+   requirements of closed milestones, and those of its milestone covered by done nodes, to
+   be green; step 7 does not, so a hand-written cleanup completion over such a red
+   requirement is accepted, and the run stops later at `checks-not-green`.
 
 Every failure stops the drive at once with its problems (the engine never reverts: a person
 decides), except `node-not-done`, which starts the next attempt with a freshly compiled
