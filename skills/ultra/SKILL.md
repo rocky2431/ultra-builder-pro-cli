@@ -148,15 +148,19 @@ writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
 `eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Headless Claude
 Code examples are `docs/examples/drive/claude-writer.sh` and `claude-reviewer.sh` in the
 ultra-builder-pro-cli package and repository; `--writer` takes a shell command line, so quote
-a path that holds a space (`--writer "'<path>'"`). When the drive stops, commit the evidence
-it left in `.ultra/ledger/` first (records never dirty the tree, so the drive does not), then
-act on `stop`:
+a path that holds a space (`--writer "'<path>'"`). When the drive stops, first put back what
+the stop names: each truth file a `truth-touched` problem names to its content at HEAD
+(deleted when HEAD has none; `.ultra/ledger/` holds three, `milestones.jsonl`,
+`approvals.jsonl` and `plan-log.jsonl`), what the reviewer changed on `reviewer-changed-tree`,
+and the branch itself on `history-rewritten` (below). Only then commit the records the drive
+left in `.ultra/ledger/` (records never dirty the tree, so the drive does not), and act on
+`stop`:
 - `milestone-gate`: with `accept`, go to "Milestone gate" step 1; with `revise`, its revise
   path; without a reviewer, have the milestone reviewed first.
 - `truth-touched`, `out-of-scope`, `check-touched`, `ratchet-broken`, `node-not-green`:
-  undo the attempt in a new commit and restore from Git any truth file it changed in the
-  work tree. A completion it recorded stays, so take that node through the node loop by
-  hand until its checks are green before driving on.
+  undo the attempt in a new commit (a truth line it committed goes with it). A completion it
+  recorded stays, so take that node through the node loop by hand until its checks are green
+  before driving on.
 - `history-rewritten`: the attempt rewrote commits, which a new commit cannot undo. Find
   the HEAD before the attempt in `git reflog`, check nothing after it needs keeping, and
   reset the branch to it.

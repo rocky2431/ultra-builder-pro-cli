@@ -135,6 +135,22 @@ test('the only Skill is ultra, and its body is the method', () => {
     'the Skill is the single source of the method');
 });
 
+test('after a drive stop the method puts truth files back before it commits the ledger', () => {
+  // `.ultra/ledger/` also holds truth files, so committing it first puts a writer's
+  // uncommitted approval or closure line into HEAD (M-P5 gate review round 2, N1).
+  const text = body(fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'SKILL.md'), 'utf8'))
+    .replace(/\s+/gu, ' ');
+  const start = text.indexOf('When the drive stops');
+  assert.ok(start >= 0, 'the method says what to do when the drive stops');
+  const steps = text.slice(start, text.indexOf('act on `stop`', start));
+  for (const file of ['milestones.jsonl', 'approvals.jsonl', 'plan-log.jsonl']) {
+    assert.ok(steps.includes(file), file);
+  }
+  const restore = steps.search(/\bput back\b/u);
+  const commit = steps.search(/\bcommit\b/u);
+  assert.ok(restore >= 0 && commit > restore, steps);
+});
+
 test('5.x-only paths are gone from the branch', () => {
   for (const gone of ['adapters/opencode.js', 'adapters/kimi.js', 'adapters/grok.js',
     'adapters/zcode.js', 'bin/run.cjs', 'bin/delegate.cjs', 'bin/delegate-worker.cjs',

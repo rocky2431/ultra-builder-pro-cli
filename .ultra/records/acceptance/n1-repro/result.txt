@@ -1,0 +1,47 @@
+engine=e61f66894e418452ddbd0257710ae624e818b6c7 smoke-base=c4228ff
+## variant a, order old
+drive exit=1 stop=truth-touched ['.ultra/ledger/approvals.jsonl: truth-touched']
+status after drive:
+?? .ultra/ledger/approvals.jsonl
+?? .ultra/ledger/evidence.jsonl
+forged lines in HEAD:.ultra/ledger/approvals.jsonl = 1
+forged lines in work tree = 1
+status at end:
+log since c4228ff:
+  0321851 record drive evidence
+
+## variant a, order new
+drive exit=1 stop=truth-touched ['.ultra/ledger/approvals.jsonl: truth-touched']
+status after drive:
+?? .ultra/ledger/approvals.jsonl
+?? .ultra/ledger/evidence.jsonl
+forged lines in HEAD:.ultra/ledger/approvals.jsonl = 0
+forged lines in work tree = 0
+status at end:
+log since c4228ff:
+  f1f2ed4 record drive evidence
+
+## variant b, order old
+drive exit=1 stop=truth-touched ['.ultra/ledger/approvals.jsonl: truth-touched']
+status after drive:
+?? .ultra/ledger/evidence.jsonl
+forged lines in HEAD:.ultra/ledger/approvals.jsonl = 0
+forged lines in work tree = 0
+status at end:
+log since c4228ff:
+  fc1970e Revert "forged approval"
+  e1c4d43 record drive evidence
+  9cc8d16 forged approval
+
+## variant b, order new
+drive exit=1 stop=truth-touched ['.ultra/ledger/approvals.jsonl: truth-touched']
+status after drive:
+?? .ultra/ledger/evidence.jsonl
+forged lines in HEAD:.ultra/ledger/approvals.jsonl = 0
+forged lines in work tree = 0
+status at end:
+log since c4228ff:
+  cce1933 Revert "forged approval"
+  e715c8f record drive evidence
+  1a4f191 forged approval
+
