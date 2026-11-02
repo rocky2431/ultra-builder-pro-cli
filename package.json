@@ -1,12 +1,96 @@
 {
-  "name": "shortlink",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Reference sample R for UBP v6: a zero-dependency link shortener.",
+  "name": "ultra-builder-pro-cli",
+  "version": "5.0.2",
+  "description": "File-first Ultra Builder Pro workflows for Claude Code, OpenCode, Codex CLI, Kimi Code, Grok Build, and ZCode.",
+  "bin": {
+    "ultra-builder-pro-cli": "bin/install.js",
+    "ubp": "bin/install.js"
+  },
+  "files": [
+    "bin",
+    "adapters",
+    "skills/ultra-init",
+    "skills/ultra-research",
+    "skills/ultra-plan",
+    "skills/ultra-dev",
+    "skills/ultra-test",
+    "skills/ultra-review",
+    "skills/ultra-deliver",
+    "skills/ultra-status",
+    "skills/ultra-think",
+    "skills/ultra-change",
+    "skills/ultra-delegate",
+    "skills/ultra-grilling",
+    "skills/ultra-domain-modeling",
+    "skills/ultra-tdd",
+    "hooks/_common.py",
+    "hooks/*.py",
+    "hooks/adapters/*.py",
+    "hooks/README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "README.zh-CN.md",
+    ".ultra-template",
+    "docs/README.md",
+    "docs/USAGE.md",
+    "docs/assets/*.svg",
+    "docs/PHILOSOPHY.md",
+    "docs/ARCHITECTURE.md",
+    "docs/ARTIFACT-AUTHORITY.md",
+    "docs/WORKFLOW-LIFECYCLE.md",
+    "docs/SKILL-AUTHORING.md",
+    "docs/DECISIONS.md",
+    "docs/PLUGIN-ISOLATION-CONTRACT.md",
+    "docs/RUNTIME-COMPAT-MATRIX.md",
+    "docs/evals/*.md",
+    "!**/*.pyc",
+    "!**/*.pyo",
+    "!**/*.test.cjs",
+    "!**/tests/**",
+    "!**/__pycache__/**"
+  ],
+  "keywords": [
+    "claude-code",
+    "opencode",
+    "codex",
+    "kimi-code",
+    "grok-build",
+    "zcode",
+    "agent",
+    "cli",
+    "multi-runtime",
+    "ultra-builder-pro",
+    "file-first",
+    "meta-prompting",
+    "context-engineering"
+  ],
+  "author": "Ultra Builder Pro contributors",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "homepage": "https://github.com/rocky2431/ultra-builder-pro-cli",
+  "bugs": {
+    "url": "https://github.com/rocky2431/ultra-builder-pro-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rocky2431/ultra-builder-pro-cli.git"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
-    "start": "node src/server.cjs",
-    "test": "node --test --test-reporter=spec test/"
+    "test": "npm run test:all",
+    "test:node": "node --test adapters/_shared/tests/*.test.cjs tests/*.test.cjs",
+    "test:all": "npm run test:node && npm run test:hooks",
+    "test:hooks": "pytest hooks/tests -q",
+    "verify:release": "npm run test:all && npm audit --omit=dev --audit-level=high",
+    "prepublishOnly": "npm run verify:release",
+    "install:claude": "node bin/install.js --claude --local",
+    "install:kimi": "node bin/install.js --kimi --global",
+    "install:grok": "node bin/install.js --grok --global",
+    "install:zcode": "node bin/install.js --zcode --global",
+    "install:all": "node bin/install.js --all --global"
+  },
+  "dependencies": {
+    "js-yaml": "^4.3.2"
   }
 }

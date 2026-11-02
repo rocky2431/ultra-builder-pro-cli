@@ -1,1 +1,1 @@
-.ultra/ledger/*.jsonl merge=union
+skills/ultra-delegate/patches/*.patch text eol=lf -whitespace
