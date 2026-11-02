@@ -363,8 +363,9 @@ Every question put to the Owner is one line in `.ultra/records/owner-touches.md`
 ```
 
 Touchpoints: `interview`, `milestone-gate`, `reduction`, `L0`, `delegation` (the Owner hands
-the remaining touchpoints to you: answer them by proxy from then on), `unplanned`. A run
-that went as planned has no `unplanned` line; report the count at every milestone gate. An
+the remaining touchpoints to you: answer them by proxy from then on, except step 4 of the
+milestone gate while its list holds a defect), `unplanned`. A run that went as planned has
+no `unplanned` line; report the count at every milestone gate. An
 answer the assistant gave for the Owner (`proxy: yes`) is not Owner validation; say so
 wherever it is reported.
 

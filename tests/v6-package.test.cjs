@@ -177,6 +177,12 @@ test('the milestone review blocks only on a broken Done when or a reproducible w
       'the example reviewer re-checks only after a revise, as the method does');
     assert.ok(gate.includes('Never answer this by proxy while the step-3 list holds a defect'),
       'a defect left for the Owner is not passed by proxy');
+    assert.ok(method.includes('answer them by proxy from then on, except step 4 of the milestone '
+      + 'gate'), 'delegation does not override the milestone gate step 4 rule');
+    assert.ok(gate.includes('the gate then starts again at step 1, with a full review'),
+      'a change made at the gate gets a full review');
+    assert.ok(!reviewer.includes('a defect included'),
+      'a defect found in a re-review is not waved through to the Owner');
     assert.ok(gate.includes('handoffs'), 'the demo lists what the writers left in their handoffs');
     assert.ok(example('claude-writer.sh').includes('noticed and left unchanged'),
       'the example writer reports what it noticed and left unchanged');
