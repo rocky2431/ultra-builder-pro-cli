@@ -48,3 +48,12 @@ side by side in a different config directory.
 ## How to reverse
 
 `git revert` of the packaging commit on `v6`; nothing is published.
+
+## Correction (2026-11-01, after the package merged)
+
+The text above calls 5.0.2 "published" and offers it as the fallback. It never was:
+`npm view ultra-builder-pro-cli dist-tags` returns `latest: 5.0.1`, and the version list ends
+at 5.0.1 (checked 2026-11-01); the CHANGELOG's 5.x section already said so. The last
+published 5.x is 5.0.1; the 5.x source work after it (5.0.2 in the source tree) is
+recoverable only from Git history. README and CHANGELOG were corrected with the drive
+integration. The decision itself is unchanged.
