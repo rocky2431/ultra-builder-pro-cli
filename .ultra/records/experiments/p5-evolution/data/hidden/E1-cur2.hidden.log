@@ -1,0 +1,14 @@
+✔ hidden: an edit survives a restart (180.703959ms)
+✔ hidden: the web page shows the new target, escaped (73.641709ms)
+✔ hidden: a body without a usable link is refused and changes nothing (106.996292ms)
+✔ hidden: an oversized body answers 413, changes nothing, and the server keeps serving (78.359292ms)
+✔ hidden: odd codes answer the JSON 404 (100.721833ms)
+✔ hidden: clicks keep counting after an edit, and the old target is not used again (85.927791ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 712.473334

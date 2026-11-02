@@ -1,0 +1,121 @@
+✖ hidden: non-ASCII text matches, encoded as a browser sends it (127.707167ms)
+✖ hidden: a space arrives as %20 or as + (a GET form sends +) (84.14175ms)
+✖ hidden: text is matched literally, and special characters never break the search (76.272125ms)
+✖ hidden: the page escapes the search text and keeps the original link visible (76.566ms)
+✖ hidden: links created through the web form are found, and the page search agrees (79.865042ms)
+✔ hidden: without q, or with an empty q, the page lists every link (76.571208ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 1
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 605.677
+
+✖ failing tests:
+
+test at test/search-hidden.test.cjs:20:1
+✖ hidden: non-ASCII text matches, encoded as a browser sends it (127.707167ms)
+  AssertionError [ERR_ASSERTION]: 路径
+  + actual - expected
+  
+    [
+  +   '242cc497',
+  +   '1aa17b74',
+      '6877fd59'
+    ]
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E2-base/test/search-hidden.test.cjs:29:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '242cc497', '1aa17b74', '6877fd59' ],
+    expected: [ '6877fd59' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/search-hidden.test.cjs:34:1
+✖ hidden: a space arrives as %20 or as + (a GET form sends +) (84.14175ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '05962b49',
+      'b670cd2c'
+    ]
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E2-base/test/search-hidden.test.cjs:41:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '05962b49', 'b670cd2c' ],
+    expected: [ 'b670cd2c' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/search-hidden.test.cjs:45:1
+✖ hidden: text is matched literally, and special characters never break the search (76.272125ms)
+  AssertionError [ERR_ASSERTION]: a.b
+  + actual - expected
+  
+    [
+  +   '798b8bf9',
+  +   '495b9bce',
+      'df09ff95'
+    ]
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E2-base/test/search-hidden.test.cjs:55:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '798b8bf9', '495b9bce', 'df09ff95' ],
+    expected: [ 'df09ff95' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/search-hidden.test.cjs:59:1
+✖ hidden: the page escapes the search text and keeps the original link visible (76.566ms)
+  AssertionError [ERR_ASSERTION]: q is shown back, escaped
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E2-base/test/search-hidden.test.cjs:68:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/search-hidden.test.cjs:73:1
+✖ hidden: links created through the web form are found, and the page search agrees (79.865042ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '8c8a587a',
+      'ab80ec77'
+    ]
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E2-base/test/search-hidden.test.cjs:81:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '8c8a587a', 'ab80ec77' ],
+    expected: [ 'ab80ec77' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
