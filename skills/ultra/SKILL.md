@@ -142,6 +142,29 @@ previous writer's completion notice has arrived: a progress note, a `node done` 
 quiet log is not completion, and a writer still running will commit whatever it finds in the
 tree. Parallel writers: see "Parallel writers and the merge gate".
 
+When the Owner asks for an unattended run, give every node a `scope` that holds no check
+file, commit everything, and start `ubp drive --writer <cmd> --reviewer <cmd> --json`. The
+writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
+`eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Act on `stop`:
+- `milestone-gate`: with `accept`, go to "Milestone gate" step 1; with `revise`, its revise
+  path; without a reviewer, have the milestone reviewed first.
+- `truth-touched`, `out-of-scope`, `check-touched`, `ratchet-broken`, `node-not-green`:
+  undo the attempt in a new commit and restore from Git any truth file it changed in the
+  work tree. A completion it recorded stays, so take that node through the node loop by
+  hand until its checks are green before driving on.
+- `history-rewritten`: the attempt rewrote commits, which a new commit cannot undo. Find
+  the HEAD before the attempt in `git reflog`, check nothing after it needs keeping, and
+  reset the branch to it.
+- `writer-left-dirty`, `dirty-tree`: clear any assume-unchanged or skip-worktree flag
+  (`git ls-files -v` shows them), undo any change to the repository's Git `config` or
+  `info/exclude`, then commit what belongs to the node and discard the rest.
+- `attempts-exhausted`, `writer-budget`: "Escalation" (stalled); the writers' logs are in
+  `.ultra/.runtime/drive/<run>/`.
+- `review-exists`: keep the old review as `<milestone>-review-<n>.md`; `review-invalid`,
+  `reviewer-changed-tree`: fix the reviewer command and restore what it changed.
+- `scope-missing`, `plan-gate`, `brief-over-budget`, `checks-not-green`, `blocked`: the
+  matching planner step.
+
 ## Escalation (RESULT §3.2)
 
 Before acting, name the layer the problem lives in. Never change a check to get past it.
@@ -163,7 +186,11 @@ When `next` is `里程碑门`:
 
 1. `ubp check --all`. Every check covering a requirement of this milestone or of a closed
    milestone, and every invariant, must be green; checks of later milestones may be red.
-   Then `ubp retro` (see "Keeping it tidy").
+   Then repeat it in a clean checkout of HEAD (`git worktree add --detach <temp> HEAD`,
+   install what the project needs, `ubp check --all --root <temp>`, then
+   `git worktree remove --force <temp>`): a fix that lives only in a file Git ignores or
+   hides passes here while HEAD lacks it. A check green here and red there is a stop: find
+   the file and commit it. Then `ubp retro` (see "Keeping it tidy").
 2. Whole-branch review. A reviewer who wrote none of the milestone's code reads the
    milestone's diff (from the previous closure commit, or from the start), its requirements,
    the plan-log changes and the rulings since the previous closure. It writes

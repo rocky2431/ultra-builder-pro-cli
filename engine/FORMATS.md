@@ -167,7 +167,8 @@ Malformed: invalid JSON, wrong types, missing fields, duplicate id, empty or inv
 
 - Milestone and node ids: unique within their kind, `[A-Za-z0-9][A-Za-z0-9._-]*`.
 - Array order is plan order. `requirements`, `covers` and `depends` are arrays of
-  strings; `scope` is an optional array of path prefixes (recorded now, enforced later).
+  strings; `scope` is an optional array of path prefixes, required by `ubp drive` (see
+  "Drive (unattended run)").
 - `kind`: optional; the only value is `"cleanup"`. A cleanup node (RESULT §3.7) covers no
   requirement (`covers: []`): the cleaner scans the code against the invariants and the
   project's principles and turns what it finds into small nodes or fixes inside its
@@ -239,7 +240,8 @@ valid); the decision, the reason and the cost must each be present.
   environment, and gets its own process group.
 - When the shell exits, the engine kills that process group (a group that is already gone
   is fine), so background children never outlive the check. At the timeout it kills the
-  group the same way.
+  group the same way. A `kill` that fails with `ESRCH` or `EPERM` (macOS answers `EPERM`
+  for a group whose processes have all exited) is not an error.
 - Standard input is empty. Standard output and standard error both go straight to the log
   file, through one open file so their interleaving is kept. The engine reads no pipe, so
   a descendant that left the group cannot keep the engine waiting, and the engine's peak
@@ -804,6 +806,145 @@ that changes no code leaves the fingerprint unchanged), so after each merge the 
 `ubp check --all`: its runs are appended after every branch record and supersede it; the merge holds no `engine.lock` while checks run, only
 `merge.lock`.
 
+## Drive (unattended run)
+
+`ubp drive --writer <command> [--reviewer <command>] [--attempts <n>] [--max-writers <n>]
+[--timeout-sec <s>]` runs the method's controller loop without a person until the next
+Owner touch. It is the same loop as "Every session starts the same way" and "Node loop" in
+the method, with the judgment steps replaced by stops. `<command>` is one shell command
+line, run with `/bin/sh -c` in the project root; it is not parsed by the engine.
+`--attempts` (default 3) bounds the writer attempts per node, `--max-writers` (default 10)
+the writer attempts of the whole run, and `--timeout-sec` (default 3600, at most 86400)
+each writer or reviewer run.
+
+The tree is *clean* for the drive when the code tree is clean (see "Git state"), no path
+under `.ultra/` outside `.ultra/.runtime/` and `.ultra/ledger/` is untracked or differs from
+HEAD, and no index entry is marked assume-unchanged or skip-worktree (`git ls-files -v`
+shows a lowercase tag or `S`), since such an entry hides a work-tree change from Git. The
+*Git settings* are the contents of the repository's `config`, `config.worktree` and
+`info/exclude` (located with `git rev-parse --git-path`; a missing file is a content of its
+own). Ceilings: Git configuration outside the repository (global, system, a file it includes,
+or the default excludes file `$XDG_CONFIG_HOME/git/ignore`) is not compared; a file Git
+ignores is not seen, so a fix that exists only in an ignored file (a `.gitignore` in the tree,
+committed or not, is enough, with no bad intent) passes the checks in the work tree while HEAD
+lacks it, and the drive can stop `milestone-gate` on a broken HEAD: the method runs the
+milestone's checks in a clean checkout of HEAD before the demo; a sparse checkout marks paths
+skip-worktree, so it is never clean for the drive. The *truth bytes* are the contents, in the work tree and at HEAD, of
+`.ultra/spec.md`, `.ultra/checks.json`, `.ultra/plan.json`,
+`.ultra/ledger/milestones.jsonl`, `.ultra/ledger/approvals.jsonl` and
+`.ultra/ledger/plan-log.jsonl`, in that order (a missing file is a content of its own).
+
+Each round reads the state (as `status`) and acts on `next` (an actionable node comes before
+`检查`, see "States"):
+
+| State | Action |
+|---|---|
+| the tree is not clean | stop `dirty-tree` |
+| gate `stale` | run the plan gate (as `gate`); go on when it passes, else stop `plan-gate` |
+| gate `fail` | stop `plan-gate` |
+| `next` is a node id | in this order: a node without a non-empty `scope` stops `scope-missing`; a brief (as `context`, default budget) over budget stops `brief-over-budget` with its problem; a run that already started `--max-writers` writers stops `writer-budget`; when any check is `stale` or `unknown`, run the stale checks (as `check`), which gives the ratchet its baseline; then write the brief to `.ultra/.runtime/briefs/<node>.md` and run one writer attempt (below) |
+| `next` is `检查` | run the stale checks (as `check`); when `next` is still `检查` afterwards, stop `checks-not-green` |
+| `next` is `里程碑门` | run every check (as `check --all`); when `next` is still `里程碑门`, one reviewer run if `--reviewer` is given (below), then stop `milestone-gate`; otherwise go on with the next round |
+| `next` is `全部完成` | stop `all-done` |
+| `next` is `无（受阻）` | stop `blocked` |
+
+A writer or reviewer run gets the engine's environment without the Git repository-location
+variables (as for checks), plus `UBP_ROOT` (absolute project root), `UBP_DRIVE=1`, `PATH`
+with `<root>/.ultra/.runtime/drive/<run>/bin` first, where an executable `ubp` runs this
+engine (`exec '<node>' '<engine>/cli.cjs' "$@"`, written again before every run), and `UBP`, the same command as a
+shell-quoted line (for example `'/usr/bin/node' '/x/engine/cli.cjs'`; use it as
+`eval "$UBP check"`; prefer it: a login shell may put another `ubp` before the drive's
+on `PATH`). A writer also gets `UBP_NODE` (node id), `UBP_BRIEF` (absolute path
+of the brief) and `UBP_ATTEMPT` (1-based); a reviewer gets `UBP_MILESTONE` (milestone id)
+and `UBP_REVIEW` (below). While `UBP_DRIVE` is set, `approve`, `milestone close`, `merge`
+and `drive` exit 2 with `Not allowed inside ubp drive.` and change nothing.
+
+The run's stdout and stderr go to `.ultra/.runtime/drive/<run>/<node>-<attempt>.log`
+(`review.log` for the reviewer). At `--timeout-sec`, and when the drive is interrupted, the
+drive sends SIGTERM to the run's whole process group and SIGKILL to the group 5 seconds
+later, so an inner `ubp` can stop its own checks first; when the run's shell exits by
+itself and its group still has members, the drive does the same to them (SIGTERM, then
+SIGKILL 5 seconds later). Ceiling: a process the run moved to another process group or
+session (a check an inner `ubp` started is one; that `ubp` stops it on SIGTERM) is not
+reached. The step's `exit` is the
+shell's exit code, `timeout`, or `signal-<NAME>`.
+
+After a writer attempt exits, whatever its exit code, the drive verifies, in this order,
+and the first failing step decides:
+
+1. each truth file's work-tree content is the one before the attempt, and its content at
+   HEAD is either the one at HEAD before the attempt or the work-tree content before it
+   (`truth-touched`, one per file, in the order above): a writer never plans, closes or
+   approves, though it may commit what the engine or the Owner had already written, such
+   as the plan-log lines of a gate the drive ran;
+2. the HEAD before the attempt is an ancestor of the HEAD after it (`history-rewritten`);
+3. the tree is clean and the Git settings are the ones before the attempt
+   (`writer-left-dirty`);
+4. every path changed between the two HEADs, except the truth files (step 1 decides them),
+   `.ultra/ledger/evidence.jsonl` and `.ultra/ledger/nodes.jsonl`, is named by no check
+   (`check-touched`) and lies in the node's scope, is `.ultra/rulings.md` or lies under
+   `.ultra/records/handoffs/`
+   (`out-of-scope`), one problem per path, in path order; then every node other than this
+   one that got a completion record during the attempt is `out-of-scope` (subject the node
+   id), in plan order. A check names a path when the path equals a word of its `run`
+   (split on whitespace, with surrounding quotes and a leading `./` removed). A scope entry
+   `p` holds the path `p` and every path under `p/` (`p` without a trailing `/`);
+5. the plan gate state is `pass`, read without running the gate, so the drive never
+   records a plan change for a writer (`plan-gate`, with the gate's problems);
+6. the drive runs, as `check <ids>` in registry order, the checks covering the node's
+   requirements, every invariant, every check with an evidence record added during the
+   attempt (a record that is not one of the records before it, compared whole, each earlier
+   record matching at most one later record, so a copy of an old record with any field
+   changed counts as added) and every stale or unknown check; a requirement
+   of the current or a closed milestone that was green before the attempt (after the
+   baseline run) and is not green now is `ratchet-broken` (one per requirement, in
+   requirement order);
+7. the node is `done` (`node-not-done`), and every check covering its requirements and
+   every invariant is green (`node-not-green`, one per check, in registry order), which
+   is what `node done` requires, so a completion record the writer wrote by hand cannot
+   pass a red invariant. Ceiling: for a cleanup node, `node done` also requires the
+   requirements of closed milestones, and those of its milestone covered by done nodes, to
+   be green; step 7 does not, so a hand-written cleanup completion over such a red
+   requirement is accepted, and the run stops later at `checks-not-green`.
+
+Every failure stops the drive at once with its problems (the engine never reverts: a person
+decides), except `node-not-done`, which starts the next attempt with a freshly compiled
+brief while the node has attempts left; after the last one the drive stops
+`attempts-exhausted`. Ceiling: a check file inside a node's scope that no check's `run`
+names (a helper the test imports) is not protected; keep check files outside every scope.
+
+A reviewer run happens once, at the milestone gate, when `--reviewer` is given. `UBP_REVIEW`
+is the absolute path of `.ultra/records/milestones/<milestone>-review.md`, which must not
+exist before the run (otherwise stop `review-exists`). Afterwards the HEAD, the truth bytes,
+the Git settings and `next` (`里程碑门`) must be unchanged and the tree clean apart from the review file
+(else stop `reviewer-changed-tree`), and the file must be a valid review: its first line
+starts with `Reviewer: ` and exactly one line outside fences is `Verdict: accept` or
+`Verdict: revise` (else stop `review-invalid`). The drive then stops `milestone-gate` with
+the verdict. It never closes a milestone, approves anything or writes
+`.ultra/records/owner-touches.md`: those are the Owner's.
+
+`<run>` is a fresh UUID. The drive first prints `drive: run <run>` (on stderr with
+`--json`). In text mode it then prints each step as it ends, `drive: <action> <subject>:
+<result>`, with ` (exit <exit>)` appended for writer and reviewer steps; at the stop, the
+stopping problems as `check` prints them (`<code>: <message> — <hint>`, one per line) and
+last `drive: stop <reason>`. With `--json` it prints at the end
+`{ run, stop, verdict, steps: [{ action, subject, attempt, result, exit, problems }],
+problems }`, where `action` is `gate`, `check`, `context`, `writer` or `reviewer` (nothing
+else is a step), `exit` is null for steps without a shell, `verdict` is `accept`, `revise`
+or null, and `problems` are those of the stop. A `check` step's subject is `stale` or `all`
+and its result is `pass` when every check it ran passed, else `fail`; the checks run to
+verify a writer belong to its `writer` step. Exit 0 when the stop is `all-done`, or
+`milestone-gate` without a `revise` verdict; 1 for every other stop; 2 for usage errors and
+engine failures; 130, 143 or 129 when interrupted by SIGINT, SIGTERM or SIGHUP (the running
+writer or reviewer is stopped first; text mode has already printed the steps so far).
+Ceiling: with `--json`, an interrupted or failed drive prints no result; its run id on
+stderr locates the logs.
+
+The drive holds no lock across rounds: each step takes and releases the engine lock as the
+corresponding command does, so a writer can run `ubp` inside its attempt. `UBP_DRIVE` keeps
+a writer or reviewer from starting a drive; ceiling: two drives started by hand on one tree
+are not prevented.
+
 ## Concurrency
 
 `gate`, `node done`, `milestone close` and `approve` hold `.ultra/.runtime/engine.lock` while they
@@ -838,6 +979,7 @@ options may follow in any order. `--root` defaults to the current directory.
 | `node done <id>` | records completion when the plan gate state is `pass`, the tree is clean, every dependency is done, every covered requirement is green and every invariant is green; for a cleanup node, also every node before it in its milestone (plan order) is done (`dependency-not-done`, one per node) and every requirement of a closed milestone and every requirement of its own milestone covered by a done node is green | 0 recorded; 1 refused with problems; 2 |
 | `retro` | prints the failure classes since the latest closure (see "Retro"); reads only | 0; 2 |
 | `merge <branch> --expect-head <commit>` | the merge gate (see "Merge gate") | 0 merged; 1 refused with problems; 2 |
+| `drive --writer <command> [--reviewer <command>] [--attempts <n>] [--max-writers <n>] [--timeout-sec <s>]` | the unattended controller loop (see "Drive (unattended run)") | 0 at `all-done`, or at `milestone-gate` without a `revise` verdict; 1 any other stop; 2 usage or engine failure; 130/143/129 interrupted |
 | `milestone close <id> --owner <words> --review <path> [--proxy]` | records the closure when the milestone gate finds no problem (see "Milestone gate") | 0 recorded; 1 refused with problems; 2 |
 | `context <id> [--budget <bytes>]` | prints the node brief (see "Node brief") | 0; 1 over budget; 2 |
 | `approve <milestone>/<id>… --owner <words> [--proxy]` | records the Owner's approval of the listed reduction items | 0 recorded; 2 |
@@ -879,8 +1021,9 @@ selectors only to `check`; anywhere else they are usage errors. Giving `--owner`
 or `--budget` twice is a usage error.
 
 Exit 1 only ever means that a check in scope is not green after `check`, the plan gate
-found problems, `node done`, `milestone close` or `merge` refused, or a node brief does not
-fit its budget. Malformed truth files and ledgers, usage errors (an unknown command, node id,
+found problems, `node done`, `milestone close` or `merge` refused, a node brief does not fit
+its budget, or `drive` stopped anywhere but `all-done` or an unrevised `milestone-gate`.
+Malformed truth files and ledgers, usage errors (an unknown command, node id,
 milestone id, check id or `--req` requirement id, a missing, invalid or repeated option
 value) and every other engine failure exit 2; an interrupted engine exits 130, 143 or 129
 (SIGINT, SIGTERM or SIGHUP).

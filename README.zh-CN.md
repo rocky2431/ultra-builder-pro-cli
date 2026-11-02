@@ -51,6 +51,7 @@ Codex 用户需先在 `/hooks` 中审阅并信任插件 hook；未信任前会�
 | `ubp approve <items> --owner "原话"` | 记录缩减范围的批准 |
 | `ubp retro` | 列出重复失败类别 |
 | `ubp merge <branch> --expect-head <sha>` | 校验并合并工作分支 |
+| `ubp drive --writer <cmd> [--reviewer <cmd>]` | 无人值守地推进节点，直到下一个需要 Owner 的点 |
 
 引擎命令接受 `--root <dir>` 和 `--json`。文件格式、退出码见
 [引擎合同](engine/FORMATS.md)，工作方法与批准边界见 [ultra](skills/ultra/SKILL.md)。
@@ -62,5 +63,5 @@ v6 用一个方法替代十四个 `ultra-*` Skills，用一个 Node 提示 hook 
 wake-up 机制和旧项目模板，避免多个入口争夺下一步；下一步由引擎状态决定。
 旧项目记录不会自动转换为 v6 格式。
 
-仍需旧工作流时，在独立配置目录使用 5.0.2；旧源码可从 Git 历史恢复。
+仍需旧工作流时，在独立配置目录使用最后发布的 5.x 版本 5.0.1（5.0.2 从未发布）；旧源码可从 Git 历史恢复。
 另见 [变更记录](CHANGELOG.md) 和 [插件边界](docs/PLUGIN-ISOLATION-CONTRACT.md)。
