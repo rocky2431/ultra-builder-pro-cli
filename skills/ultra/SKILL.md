@@ -145,7 +145,12 @@ tree. Parallel writers: see "Parallel writers and the merge gate".
 When the Owner asks for an unattended run, give every node a `scope` that holds no check
 file, commit everything, and start `ubp drive --writer <cmd> --reviewer <cmd> --json`. The
 writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
-`eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Act on `stop`:
+`eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Headless Claude
+Code examples are `docs/examples/drive/claude-writer.sh` and `claude-reviewer.sh` in the
+ultra-builder-pro-cli package and repository; `--writer` takes a shell command line, so quote
+a path that holds a space (`--writer "'<path>'"`). When the drive stops, commit the evidence
+it left in `.ultra/ledger/` first (records never dirty the tree, so the drive does not), then
+act on `stop`:
 - `milestone-gate`: with `accept`, go to "Milestone gate" step 1; with `revise`, its revise
   path; without a reviewer, have the milestone reviewed first.
 - `truth-touched`, `out-of-scope`, `check-touched`, `ratchet-broken`, `node-not-green`:
@@ -156,8 +161,9 @@ writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
   the HEAD before the attempt in `git reflog`, check nothing after it needs keeping, and
   reset the branch to it.
 - `writer-left-dirty`, `dirty-tree`: clear any assume-unchanged or skip-worktree flag
-  (`git ls-files -v` shows them), undo any change to the repository's Git `config` or
-  `info/exclude`, then commit what belongs to the node and discard the rest.
+  (`git ls-files -v` shows them), undo any change to the repository's Git `config`,
+  `config.worktree` or `info/exclude`, then commit what belongs to the node and discard the
+  rest.
 - `attempts-exhausted`, `writer-budget`: "Escalation" (stalled); the writers' logs are in
   `.ultra/.runtime/drive/<run>/`.
 - `review-exists`: keep the old review as `<milestone>-review-<n>.md`; `review-invalid`,

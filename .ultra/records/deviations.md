@@ -20,6 +20,7 @@
 14. **11-01 运行中机器重启。** `/tmp` 被清空，控制者放在 `/tmp/p5` 的工作文件（无头写者/评审脚本、M-P5 真相文件脚本、上手说明草稿、产品形态决定、待记裁决）丢失，已按对话记录和评审 diff 重建到 v6 工作树的 `.ultra/.runtime/v6/p5-work/`。Codex 压行数那一轮在网络断开（`tls handshake eof`）后 2 小时超时，代码改动留在工作树，核验改由控制者在主会话做。关闭 M-P4 前的 `check --all` 里 C-release 红在一条 5.x ACP 计时测试上（当时与 Codex 的测试并发），单独重跑判定。
 15. **打包分支合入后，v6 工作树里 5.x 留下的被忽略的 Python 缓存让 C-release、C-package 变红。** 合并删掉了 `hooks/adapters/`、`skills/ultra-review/` 等受跟踪文件，但 `__pycache__` 和 `.pytest_cache` 被 `.gitignore` 忽略，目录留了下来，打包测试按文件系统判定 5.x 路径仍在。合并门在干净的临时树上跑，两条都过。处理：确认只剩 `.pyc` 和 pytest 缓存后删掉，两条重跑通过（`bef5620`）。从 5.x 源码工作树升级的人会遇到同样的事。
 16. **drive 第 2 轮评审 revise 之后又修了一轮，没有开第 3 轮评审。** 评审上限 2 轮（合同 §8）。按 M-P4 的先例代答：控制者写合同和红测试（`0520af0`），Codex 实现，原评审者只核对它自己的复现。R 上前两次 drive 用的是第 3 轮之前的集成分支引擎（`5e0aacf`），第 3 次（窄核对那次）用的是拣入第 3 轮之后的集成分支（`7faef6c`）。R 的 M3 门评审同样两轮都是 revise（检查弱），第 2 轮之后同样只做一次窄核对，评审脚本是 `claude-confirm.sh` 的一份限定范围的变体。 原评审者的窄核对 accept（`.ultra/records/engine-reviews/P5-drive-round3-confirm.md`）：四个复现都按合同停下；它另外指出 `.git/config.worktree` 仍能藏文件（已补，`0e73ba7`），以及被 Git 忽略的文件这一类（写成上限 8，并在方法的里程碑门加了“在 HEAD 的干净检出上再跑一遍检查”）。
+17. **主仓库本地 `main` 上有一个合同外的误提交 `26da9ef`。** 2026-10-31 20:29:27（-0700）建样本 R 时，“chore: start the Shortlink reference sample”在 R（`11c37dc`，20:29:26）之后一秒也提交到了主仓库 `ultra-builder-pro-cli` 的 `main`（reflog `main@{0}: commit`）：`package.json` 换成 Shortlink 0.1.0，`.gitignore` 从 186 行删到 3 行，`.gitattributes` 改了一行。没有推送（`origin/main` 仍是 `211143d`），也不在 `v6`。原因推断：建 R 的命令有一次在错误的目录里提交。后果：`/opt/homebrew/bin/ubp` 链接到主仓库的 `bin/install.js`，所以这台机器上的全局 `ubp` 不能用（`ubp status` 报 `unexpected positional argument`；drive 评审第 2 轮看到的“0.1.0”就是它）；主仓库的 5.x 包和忽略规则失效。合同只授权在 `v6` 上提交，所以修正（`git revert 26da9ef`，或把 `main` 重置到 `211143d`，后者是破坏性操作）留给 Owner，本次没有动。它出现在每次会话开头的 git 状态里，控制者一直没注意到，是 M-P5 门评审第 1 轮发现的（4.1）。
 
 ## 上限（引擎和方法现在做不到的，验收时要知道）
 
@@ -33,3 +34,6 @@
 8. **被 Git 忽略的文件看不见。** 修复只放在被忽略的文件里时，检查在工作区是绿的，HEAD 上却没有这个修复。一个提交进去的 `.gitignore` 就够了，不需要恶意（drive 窄核对已复现：exit 0，评审也写了 accept）。仓库外的 Git 配置和默认 excludes 文件（`~/.config/git/ignore`）也不比较。对策不占引擎行数：方法的里程碑门第 1 步在 HEAD 的干净检出（`git worktree`）上再跑一遍 `ubp check --all`，示例评审脚本也在 `git archive HEAD` 上跑一遍。完整修法是让门上的检查在临时 worktree 里跑（合并门已经这样做），需要引擎行数，由 Owner 决定是否放宽预算。
 9. **清理节点的手写完成记录能通过 drive 的第 7 步。** `node done` 对清理节点还要求已关闭里程碑的需求、本里程碑已完成节点覆盖的需求都是绿的，drive 第 7 步没有查；运行之后会停在 `checks-not-green`（exit 1），不会以 exit 0 结束。
 10. **`claude -p` 写者被超时或中断时，drive 的进程组信号只到 `claude` 本身**；它的 Bash 命令各自在自己的进程组里，会不会被清理没有验证（drive 评审 NS4）。样本 R 的三次运行结束后没有残留进程，这只是个例。
+11. **方法里没有评审轮数上限，也没有“窄核对”这一步。** 两轮上限来自合同 §8 和 Owner 的个人规则，不在 RESULT §3 的方法设计里；照方法走，每次 revise 之后都会再评审。M3 和 drive 用过的窄核对脚本只在 R 的记录里（`.ultra/records/p5/scripts/claude-confirm.sh`）。写进方法是方法变更，合同把采纳留给 Owner，列在验收包第 4 节。（M-P5 门评审 1.2）
+12. **安装器不把 drive 示例复制进宿主。** 示例随 npm 包和仓库发布在 `docs/examples/drive/`，方法按名字指向它们；装好的 Skill 不知道包在哪个目录。（M-P5 门评审 1.1）
+13. **v6 自己的 `.gitignore` 还是 5.8.0 的那份**（忽略 `scripts/`、`lib/`、`tasks/`、`*.log` 等），在 v6 自己的开发里让上限 8 的范围更大；它不随包发布。真实样本请用只列必要内容的 `.gitignore`。（M-P5 门评审 4.11）

@@ -57,3 +57,15 @@ at 5.0.1 (checked 2026-11-01); the CHANGELOG's 5.x section already said so. The 
 published 5.x is 5.0.1; the 5.x source work after it (5.0.2 in the source tree) is
 recoverable only from Git history. README and CHANGELOG were corrected with the drive
 integration. The decision itself is unchanged.
+
+## Correction 2 (2026-11-01, M-P5 gate review round 1)
+
+Three statements above describe the plan before packaging, not what shipped:
+- The Skill body is `skills/ultra/SKILL.md`; `method/ultra.md` was folded into it and removed
+  by the packaging branch (`37430e7`).
+- The Skill names the engine by absolute path (`node <installed engine>/cli.cjs`, substituted
+  at install); `ubp <command>` is shorthand in the text. A `ubp` on `PATH` may be another
+  program.
+- Recovery anchor: the last 5.x commit is `211143d` (equal to `origin/main`). The local `main`
+  tip `26da9ef` is a stray commit made while starting sample R (deviation 17), not 5.x work.
+The decision itself is unchanged.

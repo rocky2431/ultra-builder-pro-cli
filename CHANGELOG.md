@@ -25,8 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that compiles each node's brief, runs the writer, verifies truth files, history, a clean
   tree, scope, check files, the plan gate and the ratchet, runs the reviewer once at the
   milestone gate, and stops wherever a person must judge. It never closes a milestone or
-  approves anything. Headless Claude Code writer and reviewer examples are in
-  `docs/examples/drive/`.
+  approves anything. Headless Claude Code writer and reviewer examples ship in the package
+  and the repository under `docs/examples/drive/` (the installer does not copy them into a
+  host).
 
 ## 5.x source work after 5.0.1 (never published, superseded by 6.0.0)
 

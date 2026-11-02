@@ -71,7 +71,8 @@ function printHelp() {
   ${paint('yellow', 'Other:')}
     ${paint('cyan', '-u, --uninstall')}    remove installed assets
     ${paint('cyan', '-d, --doctor')}       verify installed version, provenance, managed assets, and live entry points
-    ${paint('cyan', '--json')}             emit machine-readable doctor output (doctor only)
+    ${paint('cyan', '--json')}             emit machine-readable output (doctor and engine commands)
+    ${paint('cyan', '--root <dir>')}       engine commands: the project root (default: current directory)
     ${paint('cyan', '-c, --config-dir')}   override one runtime's config directory; multi-runtime installs use <path>/<runtime>
     ${paint('cyan', '-h, --help')}         show this help
     ${paint('cyan', '-v, --version')}      show CLI version

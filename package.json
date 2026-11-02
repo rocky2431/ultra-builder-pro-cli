@@ -18,7 +18,8 @@
     "README.zh-CN.md",
     "CHANGELOG.md",
     "LICENSE",
-    "docs/PLUGIN-ISOLATION-CONTRACT.md"
+    "docs/PLUGIN-ISOLATION-CONTRACT.md",
+    "docs/examples/drive"
   ],
   "keywords": [
     "claude-code",

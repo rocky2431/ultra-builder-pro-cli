@@ -284,6 +284,11 @@ test('the package ships the engine, the Skill, two adapters and the hook, and no
       assert.ok(paths.includes(want), want);
     }
     assert.ok(paths.some((p) => p.startsWith('hooks/')), 'the hook is packaged');
+    // The CHANGELOG and the method point at these; an npm install must contain them.
+    for (const want of ['docs/examples/drive/claude-writer.sh',
+      'docs/examples/drive/claude-reviewer.sh']) {
+      assert.ok(paths.includes(want), want);
+    }
     for (const p of paths) {
       assert.doesNotMatch(p, /^skills\/ultra-/u);
       assert.doesNotMatch(p, /^adapters\/(opencode|kimi|grok|zcode)\.js$/u);
