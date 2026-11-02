@@ -8,42 +8,10 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const assets = require('../runtime-assets.cjs');
 
-const USER = [
-  'ultra-init',
-  'ultra-research',
-  'ultra-change',
-  'ultra-plan',
-  'ultra-dev',
-  'ultra-test',
-  'ultra-deliver',
-  'ultra-delegate',
-];
-const MODEL = [
-  'ultra-grilling',
-  'ultra-domain-modeling',
-  'ultra-tdd',
-  'ultra-review',
-  'ultra-think',
-];
-const ROUTER = ['ultra-status'];
-const ALL = [...USER, ...MODEL, ...ROUTER];
-const CONTINUABLE = [
-  'ultra-research',
-  'ultra-change',
-  'ultra-plan',
-  'ultra-dev',
-  'ultra-test',
-  'ultra-deliver',
-];
-const DISCOVERY_WITHHELD = ['ultra-delegate', 'ultra-status'];
+const ALL = ['ultra'];
 
 test('runtime asset manifest has the exact packaged role boundary', () => {
-  assert.deepEqual(assets.USER_INVOKED_SKILLS, USER);
-  assert.deepEqual(assets.MODEL_INVOKED_SKILLS, MODEL);
-  assert.deepEqual(assets.ROUTER_SKILLS, ROUTER);
-  assert.deepEqual(assets.GRANT_CONTINUABLE_SKILLS, CONTINUABLE);
-  assert.deepEqual(assets.HOST_DISCOVERY_WITHHELD_SKILLS, DISCOVERY_WITHHELD);
-  assert.deepEqual(assets.SUPPORTED_RUNTIMES, ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']);
+  assert.deepEqual(assets.SUPPORTED_RUNTIMES, ['claude', 'codex']);
 
   for (const runtime of assets.SUPPORTED_RUNTIMES) {
     assert.deepEqual(assets.skillsForRuntime(runtime), ALL, runtime);
@@ -51,49 +19,14 @@ test('runtime asset manifest has the exact packaged role boundary', () => {
   assert.throws(() => assets.skillsForRuntime('unknown'), /unsupported Ultra runtime/);
 });
 
-test('host invocation policy admits only envelope-bounded workflow continuation', () => {
-  for (const name of USER) {
-    const modes = assets.PUBLIC_SKILL_INVOCATION_MODES[name];
-    const invocationClasses = [...new Set(Object.values(modes))];
-    assert.deepEqual(assets.skillPolicy(name), {
-      userInvocable: true,
-      allowImplicitInvocation: !DISCOVERY_WITHHELD.includes(name),
-      invocationClasses,
-      modes,
-    }, name);
-  }
-  const statusModes = assets.PUBLIC_SKILL_INVOCATION_MODES['ultra-status'];
-  assert.deepEqual(assets.skillPolicy('ultra-status'), {
-    userInvocable: true,
-    allowImplicitInvocation: false,
-    invocationClasses: ['router'],
-    modes: statusModes,
-  });
-  for (const name of MODEL) {
-    assert.deepEqual(assets.skillPolicy(name), {
-      userInvocable: false,
-      allowImplicitInvocation: true,
-      invocationClasses: ['model-discipline'],
-      modes: {},
-    }, name);
-  }
-  assert.throws(() => assets.skillPolicy('not-packaged'), /unknown packaged Ultra skill/);
-});
-
-test('the hook allowlist contains the five file-first sensors and guards only', () => {
-  assert.deepEqual(assets.WORKFLOW_HOOK_FILES, [
-    'session_context.py',
-    'mid_workflow_recall.py',
-    'compact_context.py',
-    'post_edit_guard.py',
-    'block_dangerous_commands.py',
-  ]);
+test('the hook allowlist contains the SessionStart observer only', () => {
+  assert.deepEqual(assets.WORKFLOW_HOOK_FILES, ['session-start.cjs']);
   for (const name of assets.WORKFLOW_HOOK_FILES) {
     assert.ok(fs.existsSync(path.join(ROOT, 'hooks', name)), name);
   }
 });
 
-test('npm publish list is explicit and matches the fourteen skills', () => {
+test('npm publish list is explicit and matches the ultra Skill', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const published = pkg.files
     .filter((entry) => entry.startsWith('skills/'))

@@ -21,25 +21,6 @@ const {
 } = require('./runtime-assets.cjs');
 
 const PROVENANCE_FILE = 'provenance.json';
-const DELEGATION_RUNNER_FILES = Object.freeze([
-  'delegate.cjs',
-  'run-slice.cjs',
-  'slice-workspace.cjs',
-  'slice-channel.cjs',
-  'pi-primary.cjs',
-  'durable-run.cjs',
-  'pi-durable-primary.cjs',
-  'delegate-worker.cjs',
-  'host-profile.cjs',
-  'agent-execution-driver.cjs',
-  'acp-driver.cjs',
-  'cli-driver.cjs',
-  'pi-native-runtime.cjs',
-  'pi-native-permissions.cjs',
-  path.join('delegate-profiles', 'kimi-read-only.md'),
-  path.join('delegate-profiles', 'kimi-write.md'),
-]);
-
 function titleCase(name) {
   return name.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
 }
@@ -47,24 +28,20 @@ function titleCase(name) {
 function skillFrontmatter(runtime, name, fm) {
   const base = { name, description: String(fm.description || '') };
   const policy = skillPolicy(name);
-  if (runtime === 'claude' || runtime === 'grok') {
+  if (runtime === 'claude') {
     return {
       ...base,
       'user-invocable': policy.userInvocable,
       ...(!policy.allowImplicitInvocation ? { 'disable-model-invocation': true } : {}),
     };
   }
-  if (runtime === 'kimi') {
-    return {
-      ...base,
-      ...(!policy.allowImplicitInvocation ? { disableModelInvocation: true } : {}),
-    };
-  }
   return base;
 }
 
 function codexMetadata(name, description) {
-  const short = String(description).replace(/\s+/g, ' ').trim().slice(0, 64).replace(/[\s.,;:]+$/, '');
+  const full = String(description).replace(/\s+/g, ' ').trim();
+  const limit = full.length > 64 ? full.lastIndexOf(' ', 64) : full.length;
+  const short = full.slice(0, limit > 0 ? limit : 64).replace(/[\s.,;:]+$/, '');
   return [
     'interface:',
     `  display_name: ${JSON.stringify(titleCase(name))}`,
@@ -76,7 +53,11 @@ function codexMetadata(name, description) {
   ].join('\n');
 }
 
-function copySkills({ runtime, repoRoot, skillRoot }) {
+function copySkills({ runtime, repoRoot, skillRoot, publishedRoot }) {
+  copyTree(path.join(repoRoot, 'engine'), path.join(skillRoot, '..', 'engine'));
+  const cli = path.join(publishedRoot, 'engine', 'cli.cjs');
+  const formats = path.join(publishedRoot, 'engine', 'FORMATS.md');
+  const quotedCli = "'" + cli.replaceAll("'", "'\\''") + "'";
   const installed = [];
   for (const name of skillsForRuntime(runtime)) {
     const source = path.join(repoRoot, 'skills', name);
@@ -89,14 +70,13 @@ function copySkills({ runtime, repoRoot, skillRoot }) {
         if (relative !== 'SKILL.md') return buffer;
         const { fm, body } = parse(buffer.toString('utf8'));
         if (!fm) throw new Error(`missing frontmatter in ${name}`);
-        return Buffer.from(serialize(skillFrontmatter(runtime, name, fm), body));
+        return Buffer.from(serialize(
+          skillFrontmatter(runtime, name, fm), body
+            .replaceAll('__UBP_ENGINE_CLI__', quotedCli)
+            .replaceAll('__UBP_ENGINE_FORMATS__', formats),
+        ));
       },
     });
-    if (name === 'ultra-init') {
-      const template = path.join(repoRoot, '.ultra-template');
-      if (!fs.existsSync(template)) throw new Error('missing canonical .ultra-template');
-      copyTree(template, path.join(target, 'assets', 'project-template'));
-    }
     if (runtime === 'codex') {
       const { fm } = parse(fs.readFileSync(path.join(source, 'SKILL.md'), 'utf8'));
       writeAtomic(
@@ -109,19 +89,12 @@ function copySkills({ runtime, repoRoot, skillRoot }) {
   return installed;
 }
 
-function copyHooks({ runtime, repoRoot, hookRoot, hooksManifest }) {
+function copyHooks({ repoRoot, hookRoot, hooksManifest }) {
   ensureDir(hookRoot);
-  for (const name of [...WORKFLOW_HOOK_FILES, '_common.py']) {
+  for (const name of WORKFLOW_HOOK_FILES) {
     const source = path.join(repoRoot, 'hooks', name);
     if (!fs.existsSync(source)) throw new Error(`missing allowlisted hook: ${name}`);
     fs.copyFileSync(source, path.join(hookRoot, name));
-  }
-  if (['codex', 'kimi', 'grok', 'zcode'].includes(runtime)) {
-    ensureDir(path.join(hookRoot, 'adapters'));
-    fs.copyFileSync(
-      path.join(repoRoot, 'hooks', 'adapters', `${runtime}.py`),
-      path.join(hookRoot, 'adapters', `${runtime}.py`),
-    );
   }
   writeAtomic(path.join(hookRoot, 'hooks.json'), `${JSON.stringify(hooksManifest, null, 2)}\n`);
   return [...WORKFLOW_HOOK_FILES];
@@ -183,19 +156,7 @@ function inspectPlugin({ adapter, repoRoot, pluginRoot, skillRoot, hookRoot, man
       issue('SKILL_MISSING', { skill: name });
     }
   }
-  const delegationRunnerRoot = path.join(skillRoot, 'ultra-delegate', 'scripts');
-  const missingDelegationRunnerFiles = DELEGATION_RUNNER_FILES.filter((relative) => {
-    const candidate = path.join(delegationRunnerRoot, relative);
-    return !fs.existsSync(candidate) || !fs.statSync(candidate).isFile();
-  });
-  if (missingDelegationRunnerFiles.length > 0) {
-    issue('DELEGATION_RUNNER_MISSING', {
-      paths: missingDelegationRunnerFiles.map((relative) => (
-        path.join(delegationRunnerRoot, relative)
-      )),
-    });
-  }
-  for (const name of [...WORKFLOW_HOOK_FILES, '_common.py']) {
+  for (const name of WORKFLOW_HOOK_FILES) {
     if (!fs.existsSync(path.join(hookRoot, name))) issue('HOOK_MISSING', { hook: name });
   }
   for (const retired of ['commands', 'agents', 'runtime', '.mcp.json']) {
@@ -210,41 +171,6 @@ function inspectPlugin({ adapter, repoRoot, pluginRoot, skillRoot, hookRoot, man
   report.checks.plugin_manifest = {
     status: fs.existsSync(manifestFile) ? 'pass' : 'fail',
   };
-  report.checks.delegation_runner = {
-    status: missingDelegationRunnerFiles.length === 0 ? 'pass' : 'fail',
-    entrypoint: path.join(delegationRunnerRoot, 'delegate.cjs'),
-  };
-  try {
-    const installedProfiles = require(path.join(delegationRunnerRoot, 'host-profile.cjs'));
-    const installedDrivers = require(path.join(delegationRunnerRoot, 'agent-execution-driver.cjs'));
-    const profile = installedProfiles.hostProfile(adapter);
-    const selection = installedDrivers.selectExecutionDriver({
-      host: adapter,
-      profile,
-      cliCommand: profile.binary,
-      env: process.env,
-    });
-    report.checks.acp_capability = {
-      status: 'pass',
-      ...selection.acpCapability,
-    };
-    report.checks.agent_execution_driver = {
-      status: 'pass',
-      selected: selection.driver,
-      fallback_reason: selection.fallbackReason,
-    };
-    if (adapter === 'zcode') {
-      report.checks.zcode_transport_maturity = {
-        status: profile.transportMaturity,
-        installed_runtime_only: profile.installedRuntimeOnly === true,
-        surface: profile.acp?.surface || null,
-      };
-    }
-  } catch (error) {
-    issue('EXECUTION_DRIVER_INSPECTION_FAILED', { message: error.message });
-    report.checks.acp_capability = { status: 'fail' };
-    report.checks.agent_execution_driver = { status: 'fail' };
-  }
   report.status = report.issues.length === 0 ? 'healthy' : 'degraded';
   return report;
 }

@@ -41,30 +41,14 @@ function resolveRepoRoot(ctx = {}) {
   return ctx.repoRoot || path.resolve(__dirname, '..');
 }
 
-function hookCommand(name) {
-  return {
-    type: 'command',
-    command: `python3 "\${CLAUDE_PLUGIN_ROOT}/hooks/${name}"`,
-    timeout: 10,
-  };
-}
-
 function buildHooksManifest() {
   return {
-    description: 'Ultra file-first context sensors and narrow effect protection.',
     hooks: {
-      SessionStart: [
-        { matcher: 'startup|resume|clear', hooks: [hookCommand('session_context.py')] },
-        { matcher: 'compact', hooks: [hookCommand('compact_context.py')] },
-      ],
-      PreToolUse: [
-        { matcher: 'Write|Edit|Grep', hooks: [hookCommand('mid_workflow_recall.py')] },
-        { matcher: 'Bash', hooks: [hookCommand('block_dangerous_commands.py')] },
-      ],
-      PostToolUse: [
-        { matcher: 'Write|Edit', hooks: [hookCommand('post_edit_guard.py')] },
-      ],
-      PreCompact: [{ hooks: [hookCommand('compact_context.py')] }],
+      SessionStart: [{ hooks: [{
+        type: 'command',
+        command: `node "\${CLAUDE_PLUGIN_ROOT}/hooks/session-start.cjs"`,
+        timeout: 10,
+      }] }],
     },
   };
 }
@@ -73,13 +57,13 @@ function buildStaging(repoRoot, staging, publishedRoot) {
   const skillRoot = path.join(staging, 'skills');
   const hookRoot = path.join(staging, 'hooks');
   const hooks = buildHooksManifest();
-  const skills = copySkills({ runtime: 'claude', repoRoot, skillRoot });
-  copyHooks({ runtime: 'claude', repoRoot, hookRoot, hooksManifest: hooks });
+  const skills = copySkills({ runtime: 'claude', repoRoot, skillRoot, publishedRoot });
+  copyHooks({ repoRoot, hookRoot, hooksManifest: hooks });
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
   writeAtomic(path.join(staging, '.claude-plugin', 'plugin.json'), `${JSON.stringify({
     name: PLUGIN_NAME,
     version: pkg.version,
-    description: 'File-first Ultra Builder Pro workflows for Claude Code.',
+    description: 'UBP v6 method, engine and session status line for Claude Code.',
     author: { name: pkg.author },
     repository: pkg.homepage,
     license: pkg.license,

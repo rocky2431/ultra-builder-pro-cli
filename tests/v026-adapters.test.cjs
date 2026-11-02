@@ -1,6 +1,10 @@
 'use strict';
 
-const { test } = require('node:test');
+const { afterEach, test } = require('node:test');
+const sandboxes = [];
+afterEach(() => {
+  for (const root of sandboxes.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+});
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -9,13 +13,7 @@ const yaml = require('js-yaml');
 const { parse } = require('../adapters/_shared/frontmatter.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
-// The generic ACP engine is the installed public entry: installer/doctor runs
-// in these tests select the repository's test-side stand-in through the same
-// runtime-discovery key the product consumes, so selection is deterministic
-// without a HOME installation.
-process.env.ULTRA_DELEGATE_ACPX_ENTRY = require('node:path').join(__dirname, 'fixtures', 'fake-acpx-entry.cjs');
 const {
-  HOST_DISCOVERY_WITHHELD_SKILLS,
   skillPolicy,
   skillsForRuntime,
   WORKFLOW_HOOK_FILES,
@@ -23,6 +21,7 @@ const {
 
 function sandbox(runtime) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `ubp-${runtime}-`));
+  sandboxes.push(root);
   return {
     root,
     ctx: {
@@ -45,13 +44,6 @@ function walk(root) {
   });
 }
 
-function treeSnapshot(root) {
-  return Object.fromEntries(walk(root).map((file) => [
-    path.relative(root, file),
-    fs.readFileSync(file),
-  ]));
-}
-
 function assertNoLegacy(root) {
   const relative = walk(root).map((file) => path.relative(root, file));
   assert.ok(!relative.some((file) => file === '.mcp.json' || file.startsWith(`runtime${path.sep}`)));
@@ -63,7 +55,7 @@ function assertNoLegacy(root) {
   }
 }
 
-for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) {
+for (const runtime of ['claude', 'codex']) {
   test(`${runtime} installs, diagnoses, updates and uninstalls the packaged asset boundary`, async () => {
     const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
     const { ctx } = sandbox(runtime);
@@ -80,22 +72,19 @@ for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) 
     for (const name of installedSkills) {
       const installedSkill = path.join(skillRoot, name, 'SKILL.md');
       assert.ok(fs.existsSync(installedSkill), name);
-      const { fm } = parse(fs.readFileSync(installedSkill, 'utf8'));
+      const installedText = fs.readFileSync(installedSkill, 'utf8');
+      const { fm } = parse(installedText);
+      assert.ok(installedText.includes(path.join(pluginRoot, 'engine', 'cli.cjs')));
+      assert.ok(installedText.includes(path.join(pluginRoot, 'engine', 'FORMATS.md')));
+      assert.doesNotMatch(installedText, /when the command is not on PATH/u);
       const policy = skillPolicy(name);
-      if (runtime === 'claude' || runtime === 'grok') {
+      if (runtime === 'claude') {
         assert.equal(fm['user-invocable'], policy.userInvocable, `${runtime}:${name}:user`);
         assert.equal(
           fm['disable-model-invocation'],
           policy.allowImplicitInvocation ? undefined : true,
           `${runtime}:${name}:implicit`,
         );
-      } else if (runtime === 'kimi') {
-        assert.equal(
-          fm.disableModelInvocation,
-          policy.allowImplicitInvocation ? undefined : true,
-          `${runtime}:${name}:implicit`,
-        );
-        assert.equal(fm['user-invocable'], undefined, `${runtime}:${name}:unsupported user bit`);
       } else {
         assert.equal(fm['user-invocable'], undefined, `${runtime}:${name}:unsupported user bit`);
         assert.equal(
@@ -110,63 +99,14 @@ for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) 
         );
       }
     }
-    assert.deepEqual(
-      treeSnapshot(path.join(skillRoot, 'ultra-init', 'assets', 'project-template')),
-      treeSnapshot(path.join(ROOT, '.ultra-template')),
-      `${runtime}: installed ultra-init template drifted from the canonical project template`,
-    );
-
     const hookRoot = first.hookRoot || path.join(pluginRoot, 'hooks');
     for (const name of WORKFLOW_HOOK_FILES) {
       assert.ok(fs.existsSync(path.join(hookRoot, name)), `${runtime}:${name}`);
     }
-    assert.ok(fs.existsSync(path.join(hookRoot, '_common.py')), `${runtime}:hook helper`);
     assertNoLegacy(pluginRoot);
 
     const healthy = await adapter.doctor(ctx);
     assert.equal(healthy.status, 'healthy', JSON.stringify(healthy.issues));
-    assert.equal(healthy.checks.acp_capability.status, 'pass', runtime);
-    assert.equal(healthy.checks.agent_execution_driver.status, 'pass', runtime);
-    const shouldSelectAcp = healthy.checks.acp_capability.conformance_status === 'passed'
-      && healthy.checks.acp_capability.executable_available === true
-      && healthy.checks.acp_capability.candidate_valid === true
-      && healthy.checks.acp_capability.candidate_identity_valid !== false;
-    assert.equal(
-      healthy.checks.agent_execution_driver.selected,
-      shouldSelectAcp ? 'acp' : 'cli',
-      runtime,
-    );
-    assert.equal(
-      healthy.checks.agent_execution_driver.fallback_reason,
-      shouldSelectAcp
-        ? null
-        : (healthy.checks.acp_capability.candidate_identity_valid === false
-          ? healthy.checks.acp_capability.candidate_identity_fallback_reason
-          : healthy.checks.acp_capability.conformance_status === 'passed'
-            ? 'acp_command_unavailable'
-          : 'acp_conformance_not_passed'),
-      runtime,
-    );
-    assert.equal(
-      typeof healthy.checks.acp_capability.executable_available === 'boolean'
-        || healthy.checks.acp_capability.executable_available === null,
-      true,
-      runtime,
-    );
-    assert.equal(
-      typeof healthy.checks.acp_capability.candidate_valid === 'boolean'
-        || healthy.checks.acp_capability.candidate_valid === null,
-      true,
-      runtime,
-    );
-    if (runtime === 'zcode') {
-      assert.deepEqual(healthy.checks.zcode_transport_maturity, {
-        status: 'experimental',
-        installed_runtime_only: true,
-        surface: 'installed ZCode Desktop runtime through zcode-acp 0.1.0',
-      });
-    }
-
     const second = await adapter.install(ctx);
     assert.equal(second.pluginRoot || second.target, pluginRoot);
     assert.equal((await adapter.doctor(ctx)).status, 'healthy');
@@ -194,30 +134,6 @@ test('Codex emits native invocation policy without an MCP dependency', async () 
   }
 });
 
-test('installed Host metadata leaves the entry route discoverable to the model', async () => {
-  assert.deepEqual(HOST_DISCOVERY_WITHHELD_SKILLS, ['ultra-delegate', 'ultra-status']);
-  for (const runtime of ['claude', 'grok', 'kimi']) {
-    const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
-    const { ctx } = sandbox(`${runtime}-entry-discovery`);
-    const report = await adapter.install(ctx);
-    const key = runtime === 'kimi' ? 'disableModelInvocation' : 'disable-model-invocation';
-    const blocked = skillsForRuntime(runtime).filter((name) => {
-      const installed = path.join(report.skillRoot, name, 'SKILL.md');
-      return parse(fs.readFileSync(installed, 'utf8')).fm[key] === true;
-    });
-    assert.deepEqual(blocked, HOST_DISCOVERY_WITHHELD_SKILLS, runtime);
-  }
-
-  const codex = require('../adapters/codex.js');
-  const { ctx } = sandbox('codex-entry-discovery');
-  const report = await codex.install(ctx);
-  const blocked = skillsForRuntime('codex').filter((name) => yaml.load(fs.readFileSync(
-    path.join(report.skillRoot, name, 'agents', 'openai.yaml'),
-    'utf8',
-  )).policy.allow_implicit_invocation === false);
-  assert.deepEqual(blocked, HOST_DISCOVERY_WITHHELD_SKILLS);
-});
-
 test('every Host receives each whole source description, and Codex shortens only its own', async () => {
   // What a Host lists is the description verbatim: no adapter may shorten, reflow or
   // rewrite it, because that listing is the only surface a model sees before the body
@@ -229,7 +145,7 @@ test('every Host receives each whole source description, and Codex shortens only
     String(parse(fs.readFileSync(path.join(ROOT, 'skills', name, 'SKILL.md'), 'utf8')).fm.description),
   ]));
 
-  for (const runtime of ['claude', 'opencode', 'codex', 'kimi', 'grok', 'zcode']) {
+  for (const runtime of ['claude', 'codex']) {
     const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
     const { ctx } = sandbox(`${runtime}-description-fidelity`);
     const report = await adapter.install(ctx);
@@ -248,6 +164,7 @@ test('every Host receives each whole source description, and Codex shortens only
       const collapsed = source[name].replace(/\s+/gu, ' ').trim();
       assert.ok(short.length > 0 && short.length <= 64, `${name}: short ${short.length}`);
       assert.ok(collapsed.startsWith(short), `${name}: short description is not a prefix`);
+      assert.ok(!/[a-z]/iu.test(collapsed[short.length] || ''), 'do not cut inside a word');
     }
   }
 });
@@ -281,117 +198,4 @@ test('Codex doctor leaves unobservable hook trust with the Host', async () => {
     reason: 'Codex owns persisted Hook trust, and its CLI does not expose the live trust decision to plugins.',
   });
   assert.equal(report.actions, undefined);
-});
-
-test('OpenCode upgrades a managed v0.25 surface without touching user assets', async () => {
-  const opencode = require('../adapters/opencode.js');
-  const { root, ctx } = sandbox('opencode-upgrade');
-  const legacyBundle = path.join(root, '.ultra-builder-pro');
-  const legacySkill = path.join(root, 'skills', 'ultra-verify');
-  const managedCommand = path.join(root, 'commands', 'ultra-init.md');
-  const userCommand = path.join(root, 'commands', 'user.md');
-  const managedAgent = path.join(root, 'agents', 'review-code.md');
-  const userAgent = path.join(root, 'agents', 'user.md');
-  fs.mkdirSync(path.join(legacyBundle, 'runtime'), { recursive: true });
-  fs.writeFileSync(path.join(legacyBundle, '.ubp-managed'), '{}\n');
-  fs.writeFileSync(path.join(legacyBundle, 'runtime', 'launch.cjs'), 'retired\n');
-  fs.mkdirSync(legacySkill, { recursive: true });
-  fs.writeFileSync(path.join(legacySkill, '.ubp-managed'), '{}\n');
-  fs.writeFileSync(path.join(legacySkill, 'SKILL.md'), 'retired\n');
-  for (const file of [managedCommand, userCommand, managedAgent, userAgent]) {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-  }
-  fs.writeFileSync(managedCommand, '<!-- ultra-builder-pro:managed -->\nretired\n');
-  fs.writeFileSync(userCommand, 'user command\n');
-  fs.writeFileSync(managedAgent, '<!-- ultra-builder-pro:managed -->\nretired\n');
-  fs.writeFileSync(userAgent, 'user agent\n');
-  fs.mkdirSync(path.join(root, 'plugins'), { recursive: true });
-  fs.writeFileSync(
-    path.join(root, 'plugins', 'ultra-builder-pro.js'),
-    '// Managed by Ultra Builder Pro.\nretired\n',
-  );
-  fs.writeFileSync(path.join(root, 'opencode.json'), `${JSON.stringify({
-    mcp: { 'ultra-builder-pro': { command: ['retired'] }, keep: { command: ['keep'] } },
-    theme: 'user-owned',
-  }, null, 2)}\n`);
-
-  const report = await opencode.install(ctx);
-  assert.equal((await opencode.doctor(ctx)).status, 'healthy');
-  assert.equal(fs.existsSync(path.join(report.pluginRoot, 'runtime')), false);
-  assert.equal(fs.existsSync(legacySkill), false);
-  assert.equal(fs.existsSync(managedCommand), false);
-  assert.equal(fs.existsSync(managedAgent), false);
-  assert.equal(fs.readFileSync(userCommand, 'utf8'), 'user command\n');
-  assert.equal(fs.readFileSync(userAgent, 'utf8'), 'user agent\n');
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'opencode.json'), 'utf8')), {
-    mcp: { keep: { command: ['keep'] } },
-    theme: 'user-owned',
-  });
-});
-
-test('OpenCode rejects corrupt legacy config before replacing a healthy install', async () => {
-  const opencode = require('../adapters/opencode.js');
-  const { root, ctx } = sandbox('opencode-preflight');
-  const first = await opencode.install(ctx);
-  const marker = path.join(first.pluginRoot, 'previous-install.txt');
-  fs.writeFileSync(marker, 'preserve me\n');
-  fs.writeFileSync(path.join(root, 'opencode.json'), '{');
-
-  await assert.rejects(async () => opencode.install(ctx), SyntaxError);
-  assert.equal(fs.readFileSync(marker, 'utf8'), 'preserve me\n');
-});
-
-test('OpenCode rolls back every managed tree when plugin publication fails', async () => {
-  const opencode = require('../adapters/opencode.js');
-  const { root, ctx } = sandbox('opencode-rollback');
-  const ownerFile = path.join(root, 'plugins');
-  fs.writeFileSync(ownerFile, 'owner file blocks the plugin directory\n');
-
-  await assert.rejects(async () => opencode.install(ctx), /EEXIST|ENOTDIR/);
-  assert.equal(fs.readFileSync(ownerFile, 'utf8'), 'owner file blocks the plugin directory\n');
-  assert.equal(fs.existsSync(path.join(root, '.ultra-builder-pro')), false);
-  assert.equal(fs.existsSync(path.join(root, 'skills')), false);
-});
-
-test('all hook manifests wire the five hooks and no lifecycle supervisor', async () => {
-  for (const runtime of ['claude', 'codex', 'opencode', 'kimi', 'grok', 'zcode']) {
-    const adapter = require(path.join(ROOT, 'adapters', `${runtime}.js`));
-    const text = JSON.stringify(adapter.buildHooksManifest());
-    for (const name of WORKFLOW_HOOK_FILES) assert.match(text, new RegExp(name.replace('.', '\\.')));
-    assert.doesNotMatch(text, /workflow_checkpoint|workflow_resume|subagent_tracker|pre_stop_check|health_check/);
-  }
-});
-
-test('ZCode publishes a native inline plugin and local marketplace with reversible config', async () => {
-  const zcode = require('../adapters/zcode.js');
-  const { root, ctx } = sandbox('zcode-native');
-  const configFile = path.join(root, 'cli', 'config.json');
-  fs.mkdirSync(path.dirname(configFile), { recursive: true });
-  fs.writeFileSync(configFile, `${JSON.stringify({
-    plugins: { enabled: false, dirs: ['/owner/plugin'], options: { keep: true } },
-    ui: { locale: 'zh-CN' },
-  }, null, 2)}\n`);
-
-  const installed = await zcode.install(ctx);
-  const manifest = JSON.parse(fs.readFileSync(
-    path.join(installed.pluginRoot, '.zcode-plugin', 'plugin.json'),
-    'utf8',
-  ));
-  const marketplace = JSON.parse(fs.readFileSync(installed.marketplaceFile, 'utf8'));
-  const configured = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-  assert.equal(manifest.name, 'ultra-builder-pro');
-  assert.equal(manifest.skills, './skills');
-  assert.equal(manifest.hooks, './hooks/hooks.json');
-  assert.equal(marketplace.name, 'ultra-builder-pro');
-  assert.equal(marketplace.plugins[0].source, './plugin');
-  assert.equal(configured.plugins.enabled, true);
-  assert.deepEqual(configured.plugins.dirs, ['/owner/plugin', installed.pluginRoot]);
-  assert.deepEqual(configured.plugins.options, { keep: true });
-  assert.deepEqual(configured.ui, { locale: 'zh-CN' });
-
-  await zcode.uninstall(ctx);
-  assert.deepEqual(JSON.parse(fs.readFileSync(configFile, 'utf8')), {
-    plugins: { enabled: false, dirs: ['/owner/plugin'], options: { keep: true } },
-    ui: { locale: 'zh-CN' },
-  });
 });
