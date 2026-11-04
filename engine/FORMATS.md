@@ -32,6 +32,8 @@ contains `.ultra/`.
 | `.ultra/.runtime/merge/<id>/` | the merge gate's temporary work tree | engine; disposable |
 | `.ultra/.runtime/merge.lock` | held by the one running merge | engine; disposable |
 | `.ultra/.runtime/merge.lock.break` | serializes breaking a dead merge's lock | engine; disposable |
+| `.ultra/.runtime/drive.lock` | held by the one running drive | engine; disposable |
+| `.ultra/.runtime/drive.lock.break` | serializes breaking a dead drive's lock | engine; disposable |
 
 Missing ledger files mean "no records". Missing `rulings.md` means "no rulings".
 `spec.md`, `checks.json` and `plan.json` are required. `.ultra/.runtime/` is never committed.
@@ -190,16 +192,21 @@ a requirement, a `cleanup_every` that is not a positive integer.
 ## `.ultra/rulings.md` — ruling log
 
 Every line outside fences whose first non-space characters are a list marker (`-`, `*` or
-`+` followed by a space) is a ruling entry. An entry must be unindented and have exactly
-this form; other lines are free text:
+`+` followed by a space) is a ruling entry; other lines are free text. The canonical form
+is:
 
 ```
 - 2026-10-31 L1 裁决：<decision> — 因为 <reason> — 如果判断错了，代价是 <cost>
 ```
 
-The layer is one of `L0`–`L4`. The separators are an em dash with one space on each side.
-Spaces after `裁决：`, `因为` and `代价是` are optional (`因为两种删除路径验收不同` is
-valid); the decision, the reason and the cost must each be present.
+An entry is unindented and has, in this order, a date `YYYY-MM-DD`, a layer `L0`–`L4`,
+`裁决` and the decision, `因为` and the reason, and `代价` (optionally preceded by
+`如果判断错了` and followed by `是`) and the cost. The reading is tolerant: between and
+around the parts any run of spaces and punctuation (dashes `—`, `–`, `-`, colons, commas,
+full- or half-width), or none, is accepted. The decision, the reason and the cost must each
+hold a character that is neither a space nor punctuation; the line passes when some split
+gives all three such content (so a reason may start with `代价`), and a reason that is only
+`如果判断错了` is empty.
 
 ## Git state
 
@@ -449,13 +456,14 @@ run would record something; otherwise `pass`.
 ## Progress line
 
 ```
-<M> · <green>/<total> 绿[ · <n> 红][ · <n> 过期][ · <n> 未知][ · <n> 未覆盖] · 下一项 <next> · 本里程碑计划变更 <k> 次[ · 不变量 <n> 未绿][ · 已关闭里程碑 <n> 项未绿][ · 工作区未提交][ · 计划门未通过| · 计划门待重跑]
+<M> · <green>/<total> 绿[ · <n> 红][ · <n> 过期][ · <n> 未知][ · <n> 未覆盖] · 下一项 <next> · 本里程碑计划变更 <k> 次[ · 不变量 <n> 未绿][ · 已关闭里程碑 <n> 项未绿][ · 工作区未提交][ · 计划门未通过| · 计划门待重跑][ · drive 运行中]
 ```
 
 Counts cover the current milestone's requirements that exist in the spec; the five state
 counts always sum to the total. A bracketed count appears only when it is non-zero;
 `工作区未提交` appears when the tree is dirty now; the gate segment appears when the gate
-state is not `pass`. With no current milestone, `<M>` is `无`.
+state is not `pass`; `drive 运行中` appears while a live process holds
+`.ultra/.runtime/drive.lock` (see "Drive (unattended run)"). With no current milestone, `<M>` is `无`.
 
 ## Plan gate
 
@@ -940,10 +948,16 @@ writer or reviewer is stopped first; text mode has already printed the steps so 
 Ceiling: with `--json`, an interrupted or failed drive prints no result; its run id on
 stderr locates the logs.
 
-The drive holds no lock across rounds: each step takes and releases the engine lock as the
-corresponding command does, so a writer can run `ubp` inside its attempt. `UBP_DRIVE` keeps
-a writer or reviewer from starting a drive; ceiling: two drives started by hand on one tree
-are not prevented.
+Before its first round the drive takes `.ultra/.runtime/drive.lock`, created and broken as
+`engine.lock` is in "Concurrency" (with `drive.lock.break`), and it removes the lock when it
+returns, on every path, an interrupt included; a drive killed before it can clean up leaves a
+lock whose dead pid the next drive breaks. While a live process holds the lock, `drive`
+starts no writer or reviewer and stops `drive-running` with one problem `drive-running`
+(hint: wait for the running drive to exit; `ubp status` shows it). The drive holds no engine
+lock across rounds: each step takes and releases the engine lock as the corresponding
+command does, so a writer can run `ubp` inside its attempt. `UBP_DRIVE` keeps a writer or
+reviewer from starting a drive. Ceiling: a writer briefed by hand on the same tree while a
+drive runs is not prevented; `ubp status` shows the running drive so the method can wait.
 
 ## Concurrency
 
@@ -986,10 +1000,12 @@ options may follow in any order. `--root` defaults to the current directory.
 
 `status --json` returns
 `{ milestone, line, counts: {total, green, red, stale, unknown, uncovered}, next,
-plan_changes, closed_not_green, gate, problems, warnings, dirty, requirements: [{id,
+plan_changes, closed_not_green, gate, problems, warnings, dirty, drive, requirements: [{id,
 milestone, state, reasons, checks: [{id, state, reasons}]}], checks: [{id, state, reasons,
 last_run}], nodes: [{id, milestone, state, reasons}], invariants: [{id, state, reasons,
-fix}] }`; invariants appear in `checks` too, in registry order.
+fix}] }`; invariants appear in `checks` too, in registry order. `drive` is the pid of the
+live process holding `.ultra/.runtime/drive.lock`, else null; reading it never takes,
+breaks or removes the lock.
 
 `gate --json` returns `{ ok, problems, recorded: [{milestone, type}] }`.
 `check --json` returns `{ dirty, runs: [{check, run, outcome, reason, dirty}] }`; the top-level

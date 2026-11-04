@@ -36,6 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handoffs left open, and a defect among them is never passed on the Owner's behalf.
 - (2026-11-02) Two requirements that cannot both hold are the Owner's call in the escalation
   table too, as the planning step already said; the planner keeps wrong acceptances.
+- (2026-11-04) The plan gate reads ruling lines tolerantly: dashes, spaces and colons may
+  differ and `如果判断错了` may be left out, but a line still needs its date, layer, decision,
+  reason and cost. Spacing around a dash was the most frequent first-attempt refusal in real
+  runs.
+- (2026-11-04) The method starts `ubp drive` in the background, since a foreground call is
+  bounded by the host's command timeout. A running drive holds `.ultra/.runtime/drive.lock`;
+  a second drive on the same tree stops `drive-running`, and `ubp status` reports the
+  holder as `drive` (the line ends with `drive 运行中`).
+- (2026-11-04) The example drive writer and reviewer deny `git push`, `npm publish` and `gh`
+  through Claude Code permission rules. These match command prefixes, so a push made inside
+  a script still gets through; a work tree with no push remote is the stronger guard.
 
 ## 5.x source work after 5.0.1 (never published, superseded by 6.0.0)
 

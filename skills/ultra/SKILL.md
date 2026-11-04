@@ -23,6 +23,7 @@ exit codes: `__UBP_ENGINE_FORMATS__`.
 
 | Status | Step |
 |---|---|
+| `drive` is set (the line ends with `drive 运行中`) | a drive is running on this tree: brief no writer, start no drive and change no file. If this session started it, wait for its completion notice; otherwise tell the Owner it is running (its pid is `drive`) and stop |
 | `dirty: true` | commit or discard first; evidence from a dirty tree never counts |
 | `gate: "fail"` | fix the reported `problems` (see "Plan") |
 | `gate: "stale"` | `ubp gate`, which records the plan change |
@@ -144,8 +145,12 @@ quiet log is not completion, and a writer still running will commit whatever it 
 tree. Parallel writers: see "Parallel writers and the merge gate".
 
 When the Owner asks for an unattended run, give every node a `scope` that holds no check
-file, commit everything, and start `ubp drive --writer <cmd> --reviewer <cmd> --json`. The
-writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
+file, commit everything, and start `ubp drive --writer <cmd> --reviewer <cmd> --json` in the
+background, then wait for its completion notice: a drive runs for many writers, and a
+foreground call is bounded by the host's command timeout (at most 10 minutes in Claude Code).
+In Claude Code, run it with Bash `run_in_background`; on a host without background
+commands, use `nohup <drive command> > .ultra/.runtime/drive.json 2>&1 &` and read
+`ubp status` until `drive` is null. The writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
 `eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Headless Claude
 Code examples are `docs/examples/drive/claude-writer.sh` and `claude-reviewer.sh` in the
 ultra-builder-pro-cli package and repository; `--writer` takes a shell command line, so quote
@@ -175,6 +180,9 @@ left in `.ultra/ledger/` (records never dirty the tree, so the drive does not), 
   `reviewer-changed-tree`: fix the reviewer command and restore what it changed.
 - `scope-missing`, `plan-gate`, `brief-over-budget`, `checks-not-green`, `blocked`: the
   matching planner step.
+- `drive-running`: another drive holds this tree (`ubp status` shows its pid as `drive`);
+  this one started nothing. Wait for that drive to exit; never remove
+  `.ultra/.runtime/drive.lock` while its pid is alive.
 
 ## Escalation (RESULT §3.2)
 
@@ -377,5 +385,8 @@ Every decision made without asking is one line in `.ultra/rulings.md`:
 ```
 - YYYY-MM-DD Lx 裁决：<decision> — 因为 <reason> — 如果判断错了，代价是 <cost>
 ```
+
+The plan gate reads it tolerantly: dashes, spaces and colons may differ and `如果判断错了` may
+be left out, but a line without its date, layer, decision, reason or cost is refused.
 
 The Owner reads this log at milestone gates instead of being asked along the way.

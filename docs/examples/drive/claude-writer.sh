@@ -4,6 +4,11 @@
 # The writer sees the brief and the repository only, never the controller's conversation.
 # It runs with edits accepted and Bash allowed, without a sandbox: use it only on a
 # repository you are willing to let an agent change. Copy it and adjust before use.
+# Outward commands that cannot be undone are denied by Claude Code permission rules
+# (--disallowedTools below). Ceiling: they match command prefixes, so they stop `git push`,
+# `git -C <dir> push` and compound forms (checked with claude -p on 2026-11-04) but not a push
+# made inside a script. The stronger guard is a work tree with no push remote; add the
+# deploy and release CLIs your project uses to the list.
 set -eu
 cd "$UBP_ROOT"
 PROMPT="# Mission: node $UBP_NODE (attempt $UBP_ATTEMPT)
@@ -33,4 +38,5 @@ $(cat "$UBP_BRIEF")"
 exec claude -p "$PROMPT" --model "${UBP_WRITER_MODEL:-sonnet}" --output-format json \
   --setting-sources project --strict-mcp-config --disable-slash-commands \
   --no-session-persistence --permission-mode acceptEdits \
-  --allowedTools "Bash,Read,Edit,Write,Glob,Grep"
+  --allowedTools "Bash,Read,Edit,Write,Glob,Grep" \
+  --disallowedTools "Bash(git push *)" "Bash(git * push *)" "Bash(npm publish *)" "Bash(gh *)"

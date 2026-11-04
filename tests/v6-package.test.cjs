@@ -200,6 +200,35 @@ test('two requirements that cannot both hold go to the Owner in the plan and the
     assert.equal(rows[0].split('|')[3].trim(), 'Owner', rows[0]);
   });
 
+test('the method starts the drive in the background and waits while one runs', () => {
+  // A foreground drive ends at the host's command timeout; a backgrounded one makes a second
+  // drive or a hand-briefed writer on the same tree a realistic mistake (Owner, 2026-11-04).
+  const method = body(fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'SKILL.md'), 'utf8'));
+  const flat = method.replace(/\s+/gu, ' ');
+  assert.ok(flat.includes('run_in_background'), 'the method starts the drive in the background');
+  assert.ok(flat.includes('`drive-running`'), 'the method says what to do on drive-running');
+  const table = method.slice(method.indexOf('| Status | Step |'),
+    method.indexOf('Whenever you report progress'));
+  const rows = table.split('\n').filter((line) => line.startsWith('| '));
+  const running = rows.findIndex((row) => row.includes('drive 运行中'));
+  const dirty = rows.findIndex((row) => row.includes('dirty: true'));
+  assert.ok(running > 0 && running < dirty, table);
+});
+
+test('the example drive agents cannot run outward commands that cannot be undone', () => {
+  // Prefix rules split compound commands; `git * push *` also catches `git -C . push` and
+  // `git -c k=v push` (headless claude -p, 2026-11-04). A script can still push.
+  for (const name of ['claude-writer.sh', 'claude-reviewer.sh']) {
+    const text = fs.readFileSync(path.join(ROOT, 'docs', 'examples', 'drive', name), 'utf8');
+    const command = text.slice(text.indexOf('exec claude'));
+    assert.match(command, /--disallowedTools/u, name);
+    for (const denied of ['git push *', 'git * push *', 'npm publish *', 'gh *']) {
+      assert.ok(command.includes(`"Bash(${denied})"`), `${name}: ${denied}`);
+    }
+    assert.match(text, /no push remote/u, `${name} names the stronger guard`);
+  }
+});
+
 test('5.x-only paths are gone from the branch', () => {
   for (const gone of ['adapters/opencode.js', 'adapters/kimi.js', 'adapters/grok.js',
     'adapters/zcode.js', 'bin/run.cjs', 'bin/delegate.cjs', 'bin/delegate-worker.cjs',
