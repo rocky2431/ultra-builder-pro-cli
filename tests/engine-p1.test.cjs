@@ -1344,7 +1344,9 @@ test('the engine stays within its budget, has no dependencies, and keeps lines r
   for (const name of files) {
     const source = fs.readFileSync(path.join(dir, name), 'utf8');
     const sourceLines = source.split('\n');
-    lines += sourceLines.length;
+    // The Owner's budget counts real lines, as `wc -l` does: the newline that ends a file's last
+    // line does not start another one (Owner, 2026-11-04; the old count added one per file).
+    lines += sourceLines.length - (sourceLines.at(-1) === '' ? 1 : 0);
     sourceLines.forEach((line, index) => {
       assert.ok(line.length <= 100, `${name}:${index + 1} has ${line.length} characters`);
     });
