@@ -167,16 +167,16 @@ function registry(root, file, kinds) {
 
 function rulingProblems(text) {
   const problems = [];
-  const sep = '[\\s—–-]*';
-  const ruling = new RegExp(`^- ${sep}\\d{4}-\\d{2}-\\d{2}${sep}L[0-4]${sep}`
-    + `裁决[:：,，]?(.*?)${sep}因为[:：,，]?(.*?)${sep}`
-    + `(?:如果判断错了[:：,，]?${sep})?代价是?[:：,，]?(.*)$`, 'u');
+  // Each part needs a character that is neither space nor punctuation, so matching finds a
+  // split where all have content. No gap after a part: it would multiply backtracking.
+  const gap = '[\\s\\p{P}]*';
+  const part = `${gap}[^\\s\\p{P}].*?`;
+  const ruling = new RegExp(`^- ${gap}\\d{4}-\\d{2}-\\d{2}${gap}L[0-4]${gap}裁决${part}因为`
+    + `(?!${gap}如果判断错了)${part}(?:如果判断错了${gap})?代价(?:是|(?!是))${part}$`, 'u');
   const hint = 'Use: - YYYY-MM-DD L0–L4 裁决：decision — 因为 reason '
     + '— 如果判断错了，代价是 cost';
   const unclosed = markdown(text, (line, number, outside) => {
-    const match = outside && line.match(ruling);
-    if (outside && /^\s*[-*+] /u.test(line)
-        && (!match || !match.slice(1).every((part) => /[^\s\p{P}]/u.test(part)))) {
+    if (outside && /^\s*[-*+] /u.test(line) && !ruling.test(line)) {
       problems.push(problem('malformed-ruling', `.ultra/rulings.md:${number}: ${line}`, hint));
     }
   });

@@ -758,6 +758,26 @@ test('tolerant rulings still reject missing parts and punctuation-only content',
   }
 });
 
+test('a canonical ruling passes when a part starts with the next keyword', (t) => {
+  // The strict reading accepted these; a lazy tolerant one read the reason or decision as empty.
+  const lines = [
+    '- 2026-11-04 L2 裁决：不加缓存 — 因为代价太高 — 如果判断错了，代价是慢一点',
+    '- 2026-11-04 L2 裁决：因为兼容先留旧路径 — 因为调用方还在用 — 如果判断错了，代价是多一条代码',
+  ];
+  const fx = project(t, { '.ultra/rulings.md': lines.join('\n') + '\n' });
+  assert.equal(json(fx, ['gate']).ok, true);
+});
+
+test('a long malformed ruling line is read in bounded time', () => {
+  // A separator after each tolerant part made this cubic: 0.9 s at 1820 characters, and
+  // `ubp status` reads rulings for the SessionStart hook (2026-11-04).
+  const { rulingProblems } = require('../engine/formats.cjs');
+  const line = '- 2026-11-04 L2 裁决' + '因为 — '.repeat(600) + '代价' + '，'.repeat(600);
+  const start = Date.now();
+  assert.equal(rulingProblems(`${line}\n`).length, 1);
+  assert.ok(Date.now() - start < 1000, `${Date.now() - start} ms`);
+});
+
 test('a ruling still needs its decision, reason and cost', async (t) => {
   for (const [name, line] of [
     ['no decision', '- 2026-10-31 L1 裁决： — 因为两种删除路径验收不同 — 如果判断错了，代价是多维护一条检查'],
