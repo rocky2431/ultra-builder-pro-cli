@@ -12,9 +12,10 @@
   - 运行证据搬到 main 的 `.ultra/.runtime/v6/` 和 `.ultra/.runtime/checks/`（1555 个文件）。v6 里一条已提交记录引用的旧路径 `v6-p5-pkg/.ultra/.runtime/v6/p5/pkg-r2-receipt/` 现在在 `.ultra/.runtime/v6/archive/phase-worktrees/v6-p5-pkg/` 下。
   - 两个 HTML 页已更新到 `5fe3d9b`，check.py 通过，截图都看过（未提交，按约定；`.git/info/exclude` 本地忽略 `/html/`、`/docs/wip/*.html`）。
   - 收尾与发布（Owner：“我授权你，你帮我把这些收尾的工作给清理干净……并且 push tag 发布，安装不需要你安装先”，proxy: no）：发布提交 `d0466b0`（CHANGELOG 标题定为 `[6.0.0] — 2026-11-04`）；附注 tag `v6.0.0` → `d0466b0`；main 与 tag 已推送。推送 tag 触发 `.github/workflows/release.yml`（run 41868010684）：CI 上 386/386、审计 0，npm 以 trusted publishing 发布 `ultra-builder-pro-cli@6.0.0`（带 provenance，`latest` = 6.0.0），并建了 GitHub Release `v6.0.0`。下载的 npm 包 37 个文件与 `d0466b0` 逐字节相同，文件权限与本地打包相同；压缩包 shasum（`26dfc80`）与本地打包（`e8b15a0`）不同，推测是打包环境的压缩差异（CI Node 24，本地 Node 25），未深究。
+  - CI 与 Node 22（2026-11-04）：main 上 `d0466b0`、`e9747f9` 两次 CI，Ubuntu + Node 22 都通过；macOS 两次都没分到 GitHub 的 arm64 机器（“not acquired by Runner … even after multiple attempts”），排队 15 分钟后被取消，一步未跑。Owner 同意不改 CI、不手动重跑（“那就先按照你的建议来呗”），等 11 月 9 日（周一）的定时 CI。本机 nvm 的 Node 22.21.0 跑 `verify:release`：377/386，9 个失败都是计时测试的子进程超时（`null !== 0`），用时 68 分钟（Node 25 约 6 分钟）。测得本机启动这个 Node 22 每次要等 0.04–0.94 s，CPU 只用 0.01 s，所有测试都慢了 15–25 倍；文件带 `com.apple.provenance`，推测是系统在放行时检查，未证实。9 个失败所在的 3 个文件在 Node 22 下单独跑都通过：`engine-boundaries` 6/6、`session-start` 7/7、`engine-p5` 46/46（1060 s）。日志：`.ultra/.runtime/v6/scale/verify-node22-macos-e9747f9.log`。
 - 留给 Owner：`/tmp` 里本会话的临时文件（`/tmp/ubp-*`、`/tmp/formats-*.cjs`、`/tmp/drive-0888404.cjs`、`/tmp/ruling-timing.cjs`、`/tmp/b59d-result.json`、`/tmp/b333-result.json`、`/tmp/b2-submit.*`、`/tmp/v6-tracked.txt`、`/tmp/main-ignored.txt`），自动权限判断拦下了我的清理，可自行删除。9 月 5.x 实验留下的 56 个未跟踪文件已归档到被忽略的 `.ultra/.runtime/archive/untracked-5x-work-20261104/`（仓库公开，其中有从程序导出的原始字符串和本机快照，不提交）。
-- 未做：任何安装（Owner：“安装不需要你安装先”），包括从 npm 装 6.0.0 和 Codex 安装；合并后没有再跑真实的无头会话（上次在 `21d0314`）。
-- 下一步：等 Owner 在新项目里用 `/ultra` 开始 0→1；按 RESULT“交接”第 44 行，观察三件事。
+- 未做：任何安装（Owner：“安装不需要你安装先”），包括从 npm 装 6.0.0 和 Codex 安装；合并后没有再跑真实的无头会话（上次在 `21d0314`）；CI 上 macOS + Node 22 还没真正跑过；在 `CLAUDE.md` 发布段落补“推送 `v*.*.*` tag 即发布（`release.yml`）”一句，等 Owner 决定。
+- 下一步：11 月 9 日后看定时 CI 的 macOS 结果；等 Owner 在新项目里用 `/ultra` 开始 0→1；按 RESULT“交接”第 44 行，观察三件事。
 - 结果文件：`thinking/v6-remaining-problems-20261102/RESULT.md`。
 <!-- /current-state -->
 

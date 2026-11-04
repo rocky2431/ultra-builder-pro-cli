@@ -57,4 +57,4 @@ Owner：“肯定是要改的，这个东西都要改得很完善”；“不要
 - 两轮独立评审（xhigh），共 9 条发现全部采纳；`ubp check --all` 7/7，发布检查 386/386，审计 0 个问题。
 - v6 已普通合并进 main（`5fe3d9b`，父提交 `188c087`、`694ed07`），并从这个提交重新装进 `~/.claude`：doctor healthy，dirty: false。PATH 上的 `ubp` 链接到主仓库，现在就是 v6。v6 工作树与 `v6`、`v6-p*` 分支已删，SHA 记在 `THOUGHTS.md`。
 - 已发布（同日，Owner 授权“push tag 发布，安装不需要你安装先”）：发布提交 `d0466b0`，tag `v6.0.0`；推送 tag 后 `release.yml` 在 CI 上跑完 386/386、审计 0，发布 npm `ultra-builder-pro-cli@6.0.0`（带 provenance，`latest`），并建 GitHub Release `v6.0.0`。npm 包的 37 个文件与 `d0466b0` 逐字节相同。
-- 仍未做：任何安装（包括从 npm 装 6.0.0 和 Codex 安装）；合并后没有再跑真实的无头会话（上次在 `21d0314`）。
+- 仍未做：任何安装（包括从 npm 装 6.0.0 和 Codex 安装）；合并后没有再跑真实的无头会话（上次在 `21d0314`）；CI 上 macOS 两次都没分到机器、一步未跑，macOS + Node 22 等 11 月 9 日的定时 CI。本机 Node 22 整套检查因启动慢超时 9 项，这 9 项所在文件单独跑都通过（见 `THOUGHTS.md`）。
