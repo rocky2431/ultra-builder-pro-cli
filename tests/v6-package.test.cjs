@@ -215,6 +215,7 @@ test('the method starts the drive in the background and waits while one runs', (
   assert.ok(running > 0 && running < dirty, table);
   assert.ok(rows[running].includes('UBP_DRIVE'), 'a drive\'s own writer is not told to stop');
   assert.ok(flat.includes('ps -o command='), 'a lock whose pid no longer runs a drive is left over');
+  assert.ok(rows[running].includes('treat the drive as running'), 'a failed ps removes no lock');
 });
 
 test('the example drive agents cannot run outward commands that cannot be undone', () => {

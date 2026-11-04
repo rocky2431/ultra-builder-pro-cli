@@ -9,6 +9,9 @@ const { spawn, spawnSync } = require('node:child_process');
 
 const HOOK = path.resolve(__dirname, '../hooks/session-start.cjs');
 const CLI = path.resolve(__dirname, '../engine/cli.cjs');
+// The hook is silent inside a drive's writer or reviewer; these tests run it as a session
+// does, even when the suite itself runs inside a drive (review of 97e94dd, 2026-11-04).
+delete process.env.UBP_DRIVE;
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ubp-hook-'));
