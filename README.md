@@ -34,7 +34,7 @@ A project without `.ultra/spec.md` starts with an interview, then a specificatio
 milestone plan.
 
 The SessionStart hook prints progress and a reminder to use `ultra` only when
-`.ultra/spec.md` exists. It does not start work or write project files.
+`.ultra/spec.md` exists, and stays silent inside a drive's writer or reviewer (`UBP_DRIVE`). It does not start work or write project files.
 
 Codex users review and trust the plugin hook once with `/hooks`; it is skipped until then.
 Changed hook definitions need renewed trust. Without hook trust, the Skill's first step,

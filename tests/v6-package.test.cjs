@@ -213,18 +213,22 @@ test('the method starts the drive in the background and waits while one runs', (
   const running = rows.findIndex((row) => row.includes('drive 运行中'));
   const dirty = rows.findIndex((row) => row.includes('dirty: true'));
   assert.ok(running > 0 && running < dirty, table);
+  assert.ok(rows[running].includes('UBP_DRIVE'), 'a drive\'s own writer is not told to stop');
+  assert.ok(flat.includes('ps -o command='), 'a lock whose pid no longer runs a drive is left over');
 });
 
 test('the example drive agents cannot run outward commands that cannot be undone', () => {
-  // Prefix rules split compound commands; `git * push *` also catches `git -C . push` and
-  // `git -c k=v push` (headless claude -p, 2026-11-04). A script can still push.
+  // Prefix rules split compound commands (headless claude -p, 2026-11-04). A mid-command
+  // wildcard (`git * push *`) also denied commits whose message said "push" (review of
+  // 8736647), so `git -C <dir> push` and a script stay a ceiling the comment names.
   for (const name of ['claude-writer.sh', 'claude-reviewer.sh']) {
     const text = fs.readFileSync(path.join(ROOT, 'docs', 'examples', 'drive', name), 'utf8');
     const command = text.slice(text.indexOf('exec claude'));
     assert.match(command, /--disallowedTools/u, name);
-    for (const denied of ['git push *', 'git * push *', 'npm publish *', 'gh *']) {
+    for (const denied of ['git push *', 'npm publish *', 'gh *']) {
       assert.ok(command.includes(`"Bash(${denied})"`), `${name}: ${denied}`);
     }
+    assert.ok(!command.includes('git * push'), `${name}: a mid-command wildcard denies commits`);
     assert.match(text, /no push remote/u, `${name} names the stronger guard`);
   }
 });

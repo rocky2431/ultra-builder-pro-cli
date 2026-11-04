@@ -43,10 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (2026-11-04) The method starts `ubp drive` in the background, since a foreground call is
   bounded by the host's command timeout. A running drive holds `.ultra/.runtime/drive.lock`;
   a second drive on the same tree stops `drive-running`, and `ubp status` reports the
-  holder as `drive` (the line ends with `drive 运行中`).
+  holder as `drive` (the line ends with `drive 运行中`). The SessionStart hook stays silent
+  inside a drive's writer or reviewer (`UBP_DRIVE` set), so they follow their brief.
 - (2026-11-04) The example drive writer and reviewer deny `git push`, `npm publish` and `gh`
-  through Claude Code permission rules. These match command prefixes, so a push made inside
-  a script still gets through; a work tree with no push remote is the stronger guard.
+  through Claude Code permission rules. These match command prefixes, so `git -C <dir> push`
+  and a push made inside a script still get through (a mid-command wildcard would also deny
+  every commit whose message says "push"); a work tree with no push remote is the stronger
+  guard.
 
 ## 5.x source work after 5.0.1 (never published, superseded by 6.0.0)
 

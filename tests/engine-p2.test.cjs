@@ -759,9 +759,10 @@ test('tolerant rulings still reject missing parts and punctuation-only content',
 });
 
 test('a canonical ruling passes when a part starts with the next keyword', (t) => {
-  // The strict reading accepted these; a lazy tolerant one read the reason or decision as empty.
+  // The strict reading accepted these; a tolerant one must not read a part as empty.
   const lines = [
     '- 2026-11-04 L2 裁决：不加缓存 — 因为代价太高 — 如果判断错了，代价是慢一点',
+    '- 2026-11-04 L2 裁决：保留旧路径 — 因为如果判断错了也能回滚 — 如果判断错了，代价是多一条代码',
     '- 2026-11-04 L2 裁决：因为兼容先留旧路径 — 因为调用方还在用 — 如果判断错了，代价是多一条代码',
   ];
   const fx = project(t, { '.ultra/rulings.md': lines.join('\n') + '\n' });

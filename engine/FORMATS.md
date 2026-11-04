@@ -949,15 +949,18 @@ Ceiling: with `--json`, an interrupted or failed drive prints no result; its run
 stderr locates the logs.
 
 Before its first round the drive takes `.ultra/.runtime/drive.lock`, created and broken as
-`engine.lock` is in "Concurrency" (with `drive.lock.break`), and it removes the lock when it
-returns, on every path, an interrupt included; a drive killed before it can clean up leaves a
-lock whose dead pid the next drive breaks. While a live process holds the lock, `drive`
+`engine.lock` is in "Concurrency" (with `drive.lock.break`), and it removes the lock when its
+process exits, after the result is printed, on every path, an interrupt included; a drive
+killed before it can clean up leaves a lock whose dead pid the next drive breaks. While a live process holds the lock, `drive`
 starts no writer or reviewer and stops `drive-running` with one problem `drive-running`
 (hint: wait for the running drive to exit; `ubp status` shows it). The drive holds no engine
 lock across rounds: each step takes and releases the engine lock as the corresponding
 command does, so a writer can run `ubp` inside its attempt. `UBP_DRIVE` keeps a writer or
 reviewer from starting a drive. Ceiling: a writer briefed by hand on the same tree while a
-drive runs is not prevented; `ubp status` shows the running drive so the method can wait.
+drive runs is not prevented; `ubp status` shows the running drive so the method can wait. A
+left-over lock whose pid another process has reused, or an empty one (a drive killed between
+creating and writing it), blocks every drive until it is removed; the method checks the
+pid's command with `ps`.
 
 ## Concurrency
 

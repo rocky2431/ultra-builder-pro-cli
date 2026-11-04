@@ -23,7 +23,7 @@ exit codes: `__UBP_ENGINE_FORMATS__`.
 
 | Status | Step |
 |---|---|
-| `drive` is set (the line ends with `drive 运行中`) | a drive is running on this tree: brief no writer, start no drive and change no file. If this session started it, wait for its completion notice; otherwise tell the Owner it is running (its pid is `drive`) and stop |
+| `drive` is set (the line ends with `drive 运行中`) and `UBP_DRIVE` is not (you are not that drive's writer or reviewer) | a drive may be running on this tree. When `ps -o command= -p <drive>` prints a command without the word `drive`, the pid now belongs to another process and the lock is left over: remove `.ultra/.runtime/drive.lock` and read the status again. Otherwise brief no writer, start no drive and change no file: if this session started the drive, wait for its completion notice; if not, tell the Owner it is running (its pid is `drive`) and stop |
 | `dirty: true` | commit or discard first; evidence from a dirty tree never counts |
 | `gate: "fail"` | fix the reported `problems` (see "Plan") |
 | `gate: "stale"` | `ubp gate`, which records the plan change |
@@ -149,8 +149,9 @@ file, commit everything, and start `ubp drive --writer <cmd> --reviewer <cmd> --
 background, then wait for its completion notice: a drive runs for many writers, and a
 foreground call is bounded by the host's command timeout (at most 10 minutes in Claude Code).
 In Claude Code, run it with Bash `run_in_background`; on a host without background
-commands, use `nohup <drive command> > .ultra/.runtime/drive.json 2>&1 &` and read
-`ubp status` until `drive` is null. The writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
+commands, start `nohup <drive command> > .ultra/.runtime/drive.json 2> .ultra/.runtime/drive.err &`,
+tell the Owner it is running and stop: a later session sees it in `ubp status` and reads
+`drive.json` once `drive` is null. The writer command hands an agent `$UBP_BRIEF` and tells it to call the engine as
 `eval "$UBP <args>"` (a login shell can put another `ubp` first on `PATH`). Headless Claude
 Code examples are `docs/examples/drive/claude-writer.sh` and `claude-reviewer.sh` in the
 ultra-builder-pro-cli package and repository; `--writer` takes a shell command line, so quote
@@ -180,9 +181,10 @@ left in `.ultra/ledger/` (records never dirty the tree, so the drive does not), 
   `reviewer-changed-tree`: fix the reviewer command and restore what it changed.
 - `scope-missing`, `plan-gate`, `brief-over-budget`, `checks-not-green`, `blocked`: the
   matching planner step.
-- `drive-running`: another drive holds this tree (`ubp status` shows its pid as `drive`);
-  this one started nothing. Wait for that drive to exit; never remove
-  `.ultra/.runtime/drive.lock` while its pid is alive.
+- `drive-running`: another drive holds this tree; this one started nothing. Follow the
+  status table's first row. When `ubp status` shows no `drive`, the lock holds no live pid
+  (a drive killed while taking it): remove `.ultra/.runtime/drive.lock` and start the drive
+  again. Never remove it while its pid runs a drive.
 
 ## Escalation (RESULT §3.2)
 

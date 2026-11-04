@@ -104,3 +104,14 @@ test('SessionStart is silent outside a v6 project, including malformed input', (
   assert.equal(result.stdout, '');
   assert.deepEqual(fs.readdirSync(root), []);
 });
+
+test('SessionStart is silent inside a drive writer or reviewer', (t) => {
+  // A writer the drive starts follows its brief; the method's row for a running drive would
+  // tell it to stop (review of 8736647, 2026-11-04).
+  const { root } = fixture(t);
+  const result = spawnSync(process.execPath, [HOOK], {
+    cwd: root, input: '', encoding: 'utf8', env: { ...process.env, UBP_DRIVE: '1' },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, '');
+});

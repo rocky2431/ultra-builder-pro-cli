@@ -172,7 +172,7 @@ function rulingProblems(text) {
   const gap = '[\\s\\p{P}]*';
   const part = `${gap}[^\\s\\p{P}].*?`;
   const ruling = new RegExp(`^- ${gap}\\d{4}-\\d{2}-\\d{2}${gap}L[0-4]${gap}裁决${part}因为`
-    + `(?!${gap}如果判断错了)${part}(?:如果判断错了${gap})?代价(?:是|(?!是))${part}$`, 'u');
+    + `(?!${gap}如果判断错了${gap}代价)${part}(?:如果判断错了${gap})?代价(?:是|(?!是))${part}$`, 'u');
   const hint = 'Use: - YYYY-MM-DD L0–L4 裁决：decision — 因为 reason '
     + '— 如果判断错了，代价是 cost';
   const unclosed = markdown(text, (line, number, outside) => {
