@@ -95,6 +95,12 @@ const git = (args) => sh('git -c commit.gpgsign=false -c core.hooksPath=/dev/nul
 const ledger = (name) => '.ultra/ledger/' + name + '.jsonl';
 const lines = (name) => fs.existsSync(ledger(name))
   ? fs.readFileSync(ledger(name), 'utf8').split('\\n').filter(Boolean) : [];
+if (mode === 'hold') {
+  fs.writeFileSync('.ultra/.runtime/writer.pid', String(process.pid));
+  while (!fs.existsSync('.ultra/.runtime/release')) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  }
+}
 if (mode === 'idle') process.exit(0);
 if (mode === 'dirty') { fs.writeFileSync('src/untracked.txt', 'x'); process.exit(0); }
 if (mode === 'sleep' || mode === 'slowcheck') {
@@ -1009,3 +1015,94 @@ test('bin/install.js dispatches drive and lists it in the help', (t) => {
   const help = spawnSync(process.execPath, [UBP, '--help'], { encoding: 'utf8' });
   assert.match(help.stdout, /\bdrive\b/u);
 });
+
+// Drive ownership is visible to another CLI and lasts through writer cleanup.
+test('drive lock excludes another drive and status observes it without changing it', async (t) => {
+  const fx = project(t);
+  plan(fx, { 'N-01': ['hold'] });
+  const child = spawn(process.execPath, [CLI, 'drive', '--writer', WRITER_CMD,
+    '--json', '--root', fx.root], { stdio: ['ignore', 'pipe', 'pipe'] });
+  let output = '';
+  child.stdout.on('data', (chunk) => { output += chunk; });
+  child.stderr.resume();
+  const ended = new Promise((resolve) => child.on('exit', resolve));
+  try {
+    await waitFor(fx, 'writer.pid');
+    const lock = path.join(fx.root, '.ultra/.runtime/drive.lock');
+    assert.equal(fs.readFileSync(lock, 'utf8'), String(child.pid));
+    const before = fs.statSync(lock);
+    const state = status(fx);
+    assert.equal(state.drive, child.pid);
+    assert.match(state.line, / · drive 运行中$/u);
+    assert.match(ok(fx, ['status']).stdout, / · drive 运行中/u);
+    assert.equal(fs.statSync(lock).mtimeMs, before.mtimeMs);
+    const other = drive(fx, ['--reviewer', REVIEWER_CMD], 1);
+    assert.equal(other.stop, 'drive-running');
+    assert.deepEqual(codes(other), ['drive-running']);
+    assert.deepEqual(other.steps, []);
+    assert.match(other.problems[0].hint, /wait.*exit/iu);
+    assert.match(other.problems[0].hint, /ubp status/u);
+    const text = ok(fx, ['drive', '--writer', WRITER_CMD, '--reviewer', REVIEWER_CMD], 1);
+    assert.match(text.stdout, /drive-running:.*ubp status/u);
+    assert.match(text.stdout, /drive: stop drive-running\n$/u);
+    assert.equal(writerEnv(fx).length, 1);
+    assert.equal(exists(fx, '.ultra/records/milestones/M1-review.md'), false);
+    assert.equal(fs.readFileSync(lock, 'utf8'), String(child.pid));
+    write(fx.root, '.ultra/.runtime/release', 'go');
+    assert.equal(await ended, 0);
+    assert.equal(JSON.parse(output).stop, 'milestone-gate');
+    assert.equal(exists(fx, '.ultra/.runtime/drive.lock'), false);
+    assert.equal(status(fx).drive, null);
+    assert.doesNotMatch(status(fx).line, /drive 运行中/u);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+    await ended;
+  }
+});
+
+test('status leaves a dead drive lock untouched and a new drive reclaims it', (t) => {
+  const fx = project(t);
+  const dead = spawnSync(process.execPath, ['-e', ''], { encoding: 'utf8' });
+  assert.equal(dead.status, 0);
+  write(fx.root, '.ultra/.runtime/drive.lock', String(dead.pid));
+  assert.equal(status(fx).drive, null);
+  assert.doesNotMatch(status(fx).line, /drive 运行中/u);
+  assert.equal(fs.readFileSync(path.join(fx.root, '.ultra/.runtime/drive.lock'), 'utf8'),
+    String(dead.pid));
+  assert.equal(drive(fx).stop, 'milestone-gate');
+  assert.equal(exists(fx, '.ultra/.runtime/drive.lock'), false);
+});
+
+test('drive releases its lock on early stops and thrown errors', (t) => {
+  const fx = project(t);
+  write(fx.root, 'src/scratch.txt', 'dirty');
+  assert.equal(drive(fx, [], 1).stop, 'dirty-tree');
+  assert.equal(exists(fx, '.ultra/.runtime/drive.lock'), false);
+  const broken = project(t, { files: { 'tools/writer.cjs':
+    "require('node:fs').writeFileSync('.ultra/ledger/evidence.jsonl', '{}\\n');" } });
+  const failure = ok(broken, ['drive', '--writer', WRITER_CMD], 2);
+  assert.match(failure.stderr, /malformed ledger record/u);
+  assert.equal(exists(broken, '.ultra/.runtime/drive.lock'), false);
+});
+
+for (const [signal, exit] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
+  test(`drive releases its lock after ${signal}`, async (t) => {
+    const fx = project(t);
+    plan(fx, { 'N-01': ['hold'] });
+    const child = spawn(process.execPath, [CLI, 'drive', '--writer', WRITER_CMD,
+      '--root', fx.root], { stdio: 'ignore' });
+    const ended = new Promise((resolve) => child.on('exit', resolve));
+    try {
+      await waitFor(fx, 'writer.pid');
+      assert.equal(status(fx).drive, child.pid);
+      child.kill(signal);
+      assert.equal(await ended, exit);
+      assert.equal(exists(fx, '.ultra/.runtime/drive.lock'), false);
+      assert.equal(status(fx).drive, null);
+      assert.ok(await gone(pidOf(fx, 'writer.pid')));
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+      await ended;
+    }
+  });
+}

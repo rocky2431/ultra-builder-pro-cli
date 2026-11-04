@@ -720,6 +720,44 @@ test('rulings may omit the spaces after 裁决：, 因为 and 代价是', (t) =>
   assert.equal(json(fx, ['gate']).ok, true);
 });
 
+test('rulings tolerate separator spacing, dash variants and keyword punctuation', (t) => {
+  const examples = [
+    '- 2026-11-01 L2 裁决：保留旧路径 — 因为调用方还在用— 如果判断错了，代价是多一条兼容代码',
+    '- 2026-11-01 L2 裁决：保留旧路径 — 因为调用方还在用 —如果判断错了，代价是多一条兼容代码',
+    '- 2026-11-01 L2 裁决: 保留旧路径 – 因为: 调用方还在用 -- 如果判断错了, 代价是: 多一条兼容代码',
+    '- 2026-11-01 L2 裁决：保留旧路径 — 因为调用方还在用 — 代价：多一条兼容代码',
+  ];
+  for (const dash of ['—', '–', '-', '--', '']) {
+    for (const space of ['', ' ', '   ']) {
+      for (const punctuation of ['', ':', '：', ',', '，']) {
+        const sep = space + dash + space;
+        examples.push(`- 2026-11-01${sep}L2${sep}裁决${punctuation}保留旧路径`
+          + `${sep}因为${punctuation}调用方还在用${sep}代价${punctuation}多一条兼容代码`);
+      }
+    }
+  }
+  const fx = project(t, { '.ultra/rulings.md': examples.join('\n') + '\n' });
+  assert.equal(json(fx, ['gate']).ok, true);
+});
+
+test('tolerant rulings still reject missing parts and punctuation-only content', async (t) => {
+  for (const line of [
+    '- 2026-11-01 L2 裁决： — --， 因为理由 代价成本',
+    '- 2026-11-01 L2 裁决决定 因为：— --， 如果判断错了，代价成本',
+    '- 2026-11-01 L2 裁决决定 因为理由 代价是：— --，。',
+    '- 2026-11-01 L2 裁决决定 代价成本',
+    '- 2026-11-01 L2 裁决决定 因为理由',
+    '- L2 裁决决定 因为理由 代价成本',
+    '- 2026-11-01 L5 裁决决定 因为理由 代价成本',
+    '- not a ruling',
+  ]) {
+    await t.test(line, (tt) => {
+      const fx = project(tt, { '.ultra/rulings.md': line + '\n' });
+      assert.deepEqual(json(fx, ['gate'], 1).problems.map((p) => p.code), ['malformed-ruling']);
+    });
+  }
+});
+
 test('a ruling still needs its decision, reason and cost', async (t) => {
   for (const [name, line] of [
     ['no decision', '- 2026-10-31 L1 裁决： — 因为两种删除路径验收不同 — 如果判断错了，代价是多维护一条检查'],
