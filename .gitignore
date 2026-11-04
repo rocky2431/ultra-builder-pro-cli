@@ -92,11 +92,6 @@ lib/
 templates/
 !/templates/
 !/templates/**
-!/.ultra-template/reports/
-!/.ultra-template/reports/templates/
-!/.ultra-template/reports/templates/**
-!/.ultra-template/templates/
-!/.ultra-template/templates/**
 
 # npm / build artifacts
 node_modules/
@@ -123,8 +118,6 @@ paste-cache/
 # Task tracking (local)
 tasks/
 !spec/fixtures/**/tasks/
-!/.ultra-template/tasks/
-!/.ultra-template/tasks/**
 
 # Security warnings state (session-specific)
 security_warnings_state_*.json

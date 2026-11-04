@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "milestones": [
+    {
+      "id": "M-P1",
+      "title": "Engine core",
+      "requirements": [
+        "REQ-P1-stale",
+        "REQ-P1-line",
+        "REQ-P1-unknown",
+        "REQ-P1-counter",
+        "REQ-REL-gate"
+      ],
+      "journey": "C-engine"
+    },
+    {
+      "id": "M-P2",
+      "title": "0→1 on reference sample R",
+      "journey": "C-engine-p2",
+      "requirements": [
+        "REQ-P2-close",
+        "REQ-P2-context",
+        "REQ-P2-records"
+      ]
+    },
+    {
+      "id": "M-P3",
+      "title": "1→100 on reference sample R",
+      "journey": "C-engine-p3",
+      "requirements": [
+        "REQ-P3-precision",
+        "REQ-P3-diff",
+        "REQ-P3-reduction"
+      ]
+    },
+    {
+      "id": "M-P4",
+      "title": "Anti-entropy and parallel work",
+      "journey": "C-engine-p4",
+      "requirements": [
+        "REQ-P4-tidy",
+        "REQ-P4-merge"
+      ]
+    },
+    {
+      "id": "M-P5",
+      "title": "Unattended run and the v6.0.0 package",
+      "journey": "C-package",
+      "requirements": [
+        "REQ-P5-drive",
+        "REQ-P5-package"
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "N-P1-engine",
+      "milestone": "M-P1",
+      "title": "Engine core, committed as fb8ec70",
+      "covers": [
+        "REQ-P1-stale",
+        "REQ-P1-line",
+        "REQ-P1-unknown",
+        "REQ-P1-counter",
+        "REQ-REL-gate"
+      ],
+      "depends": [],
+      "scope": [
+        "engine/",
+        "tests/engine-p1.test.cjs",
+        "tests/engine-boundaries.test.cjs"
+      ]
+    },
+    {
+      "id": "N-P2-engine",
+      "milestone": "M-P2",
+      "title": "Milestone gate, node brief, records",
+      "covers": [
+        "REQ-P2-close",
+        "REQ-P2-context",
+        "REQ-P2-records"
+      ],
+      "depends": [
+        "N-P1-engine"
+      ],
+      "scope": [
+        "engine/",
+        "bin/install.js",
+        "tests/engine-p2.test.cjs",
+        "tests/package-smoke.test.cjs",
+        "method/"
+      ]
+    },
+    {
+      "id": "N-P3-engine",
+      "milestone": "M-P3",
+      "title": "Shared text, plan diffs, reduction approvals",
+      "covers": [
+        "REQ-P3-precision",
+        "REQ-P3-diff",
+        "REQ-P3-reduction"
+      ],
+      "depends": [
+        "N-P2-engine"
+      ],
+      "scope": [
+        "engine/",
+        "bin/install.js",
+        "tests/engine-p3.test.cjs",
+        "tests/engine-p1.test.cjs",
+        "method/"
+      ]
+    },
+    {
+      "id": "N-P4-engine",
+      "milestone": "M-P4",
+      "title": "Invariants, cleanup nodes, retro, merge gate",
+      "covers": [
+        "REQ-P4-tidy",
+        "REQ-P4-merge"
+      ],
+      "depends": [
+        "N-P3-engine"
+      ],
+      "scope": [
+        "engine/",
+        "bin/install.js",
+        "tests/engine-p4.test.cjs",
+        "tests/package-smoke.test.cjs",
+        "method/"
+      ]
+    },
+    {
+      "id": "N-P5-drive",
+      "milestone": "M-P5",
+      "title": "ubp drive",
+      "covers": [
+        "REQ-P5-drive"
+      ],
+      "depends": [
+        "N-P4-engine"
+      ],
+      "scope": [
+        "engine/",
+        "bin/install.js",
+        "tests/engine-p5.test.cjs",
+        "method/",
+        "skills/ultra/",
+        "README.md",
+        "README.zh-CN.md",
+        "CHANGELOG.md"
+      ]
+    },
+    {
+      "id": "N-P5-package",
+      "milestone": "M-P5",
+      "title": "Package v6.0.0 for Claude Code and Codex",
+      "covers": [
+        "REQ-P5-package"
+      ],
+      "depends": [
+        "N-P4-engine"
+      ],
+      "scope": [
+        "adapters/",
+        "bin/",
+        "hooks/",
+        "skills/",
+        "method/",
+        "tests/",
+        "docs/",
+        ".github/",
+        ".ultra-template/",
+        "package.json",
+        "package-lock.json",
+        "README.md",
+        "README.zh-CN.md",
+        "CHANGELOG.md",
+        "CLAUDE.md",
+        "AGENTS.md"
+      ]
+    }
+  ]
+}

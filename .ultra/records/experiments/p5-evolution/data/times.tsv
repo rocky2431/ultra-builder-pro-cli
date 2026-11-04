@@ -1,0 +1,15 @@
+unit	writer_tokens	duration_ms	tool_uses	node_done	notes
+E1-cur2	80216	202692	29	pass	first node done passed
+E1-cur3	96134	295053	31	pass	first node done refused (malformed ruling), fixed by writer; ledger lines left uncommitted
+E1-cand2	103164	300607	29	pass	first node done passed
+E1-cur1	93129	321459	35	pass	first node done refused (malformed ruling), fixed by writer; ledger lines left uncommitted; shared /tmp/evo-probe-n-edit with another writer
+E1-cand1	116869	363216	35	pass	first node done refused (malformed rulings), fixed by writer
+E1-cand3	133736	387947	43	pass	first node done refused (malformed rulings), fixed by writer
+E2-cur2	86276	227730	33	pass	first node done passed
+E2-cur3	90476	280160	42	pass	first node done passed; noted implementer default "do not commit" vs mission "commit locally"
+E2-cur1	108730	384461	48	pass	first node done passed
+E2-cand2	108887	392930	40	pass	first node done passed
+E2-cand1	118369	413700	56	pass	first node done refused (malformed ruling), fixed by writer (amended its docs commit)
+E2-cand3	136164	541316	52	pass	first node done passed; saw foreign files in its /tmp/ns-probe dir
+E3-cur1	78370	146044	25	pass	first node done passed
+E3-cand1	112978	333456	48	pass	first node done refused (malformed rulings), fixed by writer; flagged that Direction says no statistics beyond click count (L0 conflict in the task)

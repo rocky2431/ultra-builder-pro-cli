@@ -1,6 +1,14 @@
 # Ultra Builder Pro 工厂交付状态
 
-状态：**全部八步继续。步骤1–5完成；Stage B/C已通过独立Task及aggregate Review、实际产品验证和canonical交付。步骤6（D）与步骤7（E）的当前有界工程实现已提交，运行验收未关闭；第八步评测已结束待Owner决定。**
+状态：**已关闭（2026-10-31，Owner 决定）。步骤 1–5 完成；步骤 6 以"收益不可重复"关闭；步骤 7 停在已提交的有界实现；步骤 8 拒绝两个候选。后续工作转入 UBP v6，详见 `.ultra/decisions/2026-10-31-ubp-v6-complete-version.md`。本文件从此只作历史记录，下文中的"当前""下一步"都是关闭前的快照。**
+
+## 2026-10-31 关闭
+
+Owner 接受 v6 完整版方案（`thinking/back-to-essentials-20261030/RESULT.md`），并确认了执行合同，原话见决定记录。合同中给出的收尾方式如下：
+
+- **步骤 6**：D-04、D-05 未满足。固定 V2 十次比较的结果是：源码验收 10/10，正式交付 9/10，Primary 正常结束 8/10；Expense 的 Factory 两轮都比 Solo 慢。Change `chg-ultra-vnext-d-operational` 已移到 `changes/abandoned/`，并附上关闭说明。
+- **步骤 7**：durable Grant、机器丢失和网络中断恢复不再继续做；最终 Review 保持 INCOMPLETE。
+- **步骤 8**：current、candidate、simpler 三组分别为 2/8、5/8、1/8，候选在开发集上没有改善。5/8 对 2/8 的双侧 Fisher 精确检验 p≈0.315。不应用候选 patch。
 
 ## 当前授权与分工
 
@@ -17,9 +25,9 @@ Owner接受八步计划并要求“每完成一个部分 commit，并且更新�
 | 3 上下文与知识往返 | done | step3-acceptance.zh-CN.md；实际导出、维护、全新会话读回和导入 |
 | 4 日常完整体验 | done | step4-acceptance.zh-CN.md，2ce287a；显式恢复与新任务切换 |
 | 5 合格委派与首条工厂 | done | Stage B c8eb8a2、C dea1da2；C Task/aggregate APPROVE，实际canonical产品与公平Solo，step5-acceptance.zh-CN.md及C归档 |
-| 6 可运营工厂 | in_progress（工程已落地，待运行验收） | D机制与原生W3已验证；固定V2十次比较结束，重复成功/收益条件未通过 |
-| 7 跨会话持续运行 | in_progress（工程已落地，待运行验收） | 当前源W4、撤销、去重、公共入口和隔离安装已验证；追加最终Review为INCOMPLETE，机器／网络覆盖和正式交付仍开放 |
-| 8 经评测的策略改进 | in_progress | 24次比较及独立盲审结束；建议拒绝候选，等待Owner明确决定 |
+| 6 可运营工厂 | closed（收益不可重复，2026-10-31 Owner 决定） | D机制与原生W3已验证；固定V2十次比较结束，重复成功/收益条件未通过；Change D 已放弃 |
+| 7 跨会话持续运行 | closed（停在有界实现，2026-10-31 Owner 决定） | 当前源W4、撤销、去重、公共入口和隔离安装已验证；追加最终Review为INCOMPLETE；机器／网络覆盖不再继续 |
+| 8 经评测的策略改进 | closed（拒绝候选，2026-10-31 Owner 决定） | 24次比较及独立盲审结束；2/8、5/8、1/8，p≈0.315 |
 
 以上验收文件均在`work/trellis-eight-step-20260909/`。Stage A历史接受commit为b765b55，原旅程、失败、反馈和证据不重做。
 

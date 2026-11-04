@@ -1,25 +1,6 @@
 #!/usr/bin/env node
 
-/**
- * ultra-builder-pro-cli — multi-runtime installer.
- *
- * Distributes fourteen Skills and five hooks to Claude Code, OpenCode, Codex CLI,
- * Kimi Code, Grok Build, and ZCode through runtime-specific adapters under adapters/.
- * Install is idempotent and atomic; uninstall removes only managed assets.
- *
- * Usage:
- *   npx ultra-builder-pro-cli [options]
- *
- *   --claude / --opencode / --codex / --kimi / --grok / --zcode select runtime(s)
- *   --all                                         install to all supported runtimes
- *   -g, --global                                  install to runtime's global config dir
- *   -l, --local                                   project scope where the host supports it
- *   -u, --uninstall                               remove installed assets
- *   -d, --doctor                                  inspect installation provenance without mutation
- *   --json                                        emit machine-readable doctor output
- *   -c, --config-dir <path>                       override config directory
- *   -h, --help                                    show help
- */
+// UBP v6 installer for Claude Code and Codex; engine commands dispatch below.
 
 'use strict';
 
@@ -57,7 +38,7 @@ function printBanner() {
     paint('cyan', '   ╚═════╝ ╚═════╝ ╚═╝         ╚═════╝╚══════╝╚═╝'),
     '',
     `  ${paint('bold', 'Ultra Builder Pro CLI')} ${paint('dim', 'v' + pkg.version)}`,
-    `  ${paint('dim', 'Multi-runtime installer for Claude Code, OpenCode, Codex, Kimi Code, Grok Build, and ZCode')}`,
+    `  ${paint('dim', 'Project engine and method for Claude Code and Codex')}`,
     '',
   ];
   console.log(banner.join('\n'));
@@ -65,29 +46,33 @@ function printBanner() {
 
 function printHelp() {
   console.log(`  ${paint('yellow', 'Usage:')} npx ultra-builder-pro-cli [options]
-          ${paint('cyan', 'ubp run')} "<goal in your own words>"   start Ultra on a goal
 
-  ${paint('yellow', 'Work:')}
-    ${paint('cyan', 'run')}                start a native host session on a natural-language goal;
-                       the host model picks the route (see ${paint('cyan', 'ubp run --help')})
+  ${paint('yellow', 'Progress:')}
+    ${paint('cyan', 'status')}                show progress computed from project files
+    ${paint('cyan', 'gate')}                  validate the plan and record its snapshot
+    ${paint('cyan', 'check')}                 run registered checks and record evidence
+    ${paint('cyan', 'node done <id>')}        complete a ready node with green requirements
+    ${paint('cyan', 'milestone close <id>')}  close a milestone after its journey and review
+    ${paint('cyan', 'context <id>')}          compile the brief for a node
+    ${paint('cyan', 'approve <items>')}       record the Owner's approval of reductions
+    ${paint('cyan', 'drive')}                 run unattended until the next Owner touch
+    ${paint('cyan', 'retro')}                 list failure classes since the latest closure
+    ${paint('cyan', 'merge <branch>')}        merge after verifying the expected HEAD and checks
 
   ${paint('yellow', 'Runtime selection (pick ≥1, or --all):')}
     ${paint('cyan', '--claude')}           Claude Code
-    ${paint('cyan', '--opencode')}         OpenCode
     ${paint('cyan', '--codex')}            Codex CLI (OpenAI)
-    ${paint('cyan', '--kimi')}             Kimi Code (Moonshot AI)
-    ${paint('cyan', '--grok')}             Grok Build (xAI)
-    ${paint('cyan', '--zcode')}            ZCode Desktop
     ${paint('cyan', '--all')}              all supported runtimes
 
   ${paint('yellow', 'Scope:')}
     ${paint('cyan', '-g, --global')}       install to runtime's global config directory
-    ${paint('cyan', '-l, --local')}        project scope (Claude, OpenCode, and Codex)
+    ${paint('cyan', '-l, --local')}        project scope (Claude Code only)
 
   ${paint('yellow', 'Other:')}
     ${paint('cyan', '-u, --uninstall')}    remove installed assets
     ${paint('cyan', '-d, --doctor')}       verify installed version, provenance, managed assets, and live entry points
-    ${paint('cyan', '--json')}             emit machine-readable doctor output (doctor only)
+    ${paint('cyan', '--json')}             emit machine-readable output (doctor and engine commands)
+    ${paint('cyan', '--root <dir>')}       engine commands: the project root (default: current directory)
     ${paint('cyan', '-c, --config-dir')}   override one runtime's config directory; multi-runtime installs use <path>/<runtime>
     ${paint('cyan', '-h, --help')}         show this help
     ${paint('cyan', '-v, --version')}      show CLI version
@@ -96,20 +81,8 @@ function printHelp() {
     ${paint('dim', '# Install to Claude Code globally')}
     npx ultra-builder-pro-cli --claude --global
 
-    ${paint('dim', '# Install all six native plugins in their user scopes')}
+    ${paint('dim', '# Install both plugins in their user scopes')}
     npx ultra-builder-pro-cli --all --global
-
-    ${paint('dim', '# Uninstall from OpenCode')}
-    npx ultra-builder-pro-cli --opencode --global --uninstall
-
-    ${paint('dim', '# Install to Kimi Code globally')}
-    npx ultra-builder-pro-cli --kimi --global
-
-    ${paint('dim', '# Install to Grok Build globally')}
-    npx ultra-builder-pro-cli --grok --global
-
-    ${paint('dim', '# Install to ZCode globally')}
-    npx ultra-builder-pro-cli --zcode --global
 
     ${paint('dim', '# Verify all host installations without changing them')}
     npx ultra-builder-pro-cli --all --global --doctor
@@ -134,11 +107,7 @@ function parseArgs(argv) {
     const a = args[i];
     switch (a) {
       case '--claude': runtimes.add('claude'); break;
-      case '--opencode': runtimes.add('opencode'); break;
       case '--codex': runtimes.add('codex'); break;
-      case '--kimi': runtimes.add('kimi'); break;
-      case '--grok': runtimes.add('grok'); break;
-      case '--zcode': runtimes.add('zcode'); break;
       case '--all':
         SUPPORTED_RUNTIMES.forEach(r => runtimes.add(r));
         break;
@@ -194,33 +163,18 @@ function loadAdapter(runtime) {
   return require(adapterPath);
 }
 
-function resolveScope(flags) {
+function resolveScope(flags, runtime) {
   if (flags.global && flags.local) bail('cannot use --global and --local together');
-  if (!flags.global && !flags.local) return 'local';
+  if (!flags.global && !flags.local) return runtime === 'codex' ? 'global' : 'local';
   return flags.global ? 'global' : 'local';
 }
 
 async function main() {
-  if (process.argv[2] === 'slice') {
-    const { handle } = require('../skills/ultra-delegate/scripts/run-slice.cjs');
-    process.stdout.write(`${JSON.stringify(await handle(process.argv.slice(3)))}\n`);
-    return;
-  }
-  if (process.argv[2] === 'delegate') {
-    const { handle } = require('./delegate.cjs');
-    process.stdout.write(`${JSON.stringify(handle(process.argv.slice(2)))}\n`);
-    return;
-  }
-  if (process.argv[2] === 'run') {
-    const { handle, RunError } = require('./run.cjs');
-    try {
-      process.exitCode = handle(process.argv.slice(2), { isTTY: process.stdin.isTTY });
-    } catch (error) {
-      if (!(error instanceof RunError)) throw error;
-      console.error(`  ${paint('red', '✗')} ${error.message}`);
-      if (error.hint) console.error(`  ${paint('dim', 'Try:')} ${error.hint}`);
-      process.exitCode = 1;
-    }
+  if (['status', 'gate', 'check', 'node', 'milestone', 'context', 'approve', 'retro', 'merge',
+    'drive']
+    .includes(process.argv[2])) {
+    const { handle } = require('../engine/cli.cjs');
+    process.exitCode = await handle(process.argv.slice(2));
     return;
   }
   const { runtimes, flags } = parseArgs(process.argv);
@@ -240,22 +194,24 @@ async function main() {
   if (flags.json && !flags.doctor) bail('--json is available only with --doctor');
 
   if (runtimes.length === 0) {
-    bail('no runtime selected; use --claude / --opencode / --codex / --kimi / --grok / --zcode / --all');
+    bail('no runtime selected; use --claude / --codex / --all');
   }
 
-  const scope = resolveScope(flags);
+  const scopes = Object.fromEntries(runtimes.map((r) => [r, resolveScope(flags, r)]));
+  if (runtimes.includes('codex') && flags.local && !flags.configDir) {
+    bail('Codex is user-scope only; --local requires an isolated --config-dir');
+  }
   const repoRoot = path.resolve(__dirname, '..');
   const configDir = flags.configDir ? expandTilde(flags.configDir) : null;
-  const userScopedOnly = runtimes.filter((runtime) => ['kimi', 'grok', 'zcode'].includes(runtime));
-  if (scope === 'local' && !configDir && userScopedOnly.length) {
-    bail(`${userScopedOnly.join(', ')} plugins are user-scoped by their hosts; use --global or an isolated --config-dir`);
-  }
-
   if (!flags.json) printBanner();
 
   const mode = flags.doctor ? 'doctor' : flags.uninstall ? 'uninstall' : 'install';
   if (!flags.json) {
     console.log(`  ${paint('bold', 'Mode:')}     ${mode}`);
+    const scope = runtimes.map((r) => {
+      const label = scopes[r] === 'global' ? 'global (user)' : 'local';
+      return `${r}=${label}`;
+    }).join(', ');
     console.log(`  ${paint('bold', 'Scope:')}    ${scope}`);
     console.log(`  ${paint('bold', 'Runtimes:')} ${runtimes.join(', ')}`);
     if (configDir) {
@@ -275,7 +231,7 @@ async function main() {
       : configDir;
     return {
       repoRoot,
-      scope,
+      scope: scopes[runtime],
       configDir: runtimeConfigDir,
       homeDir: runtimeConfigDir || os.homedir(),
     };
@@ -345,19 +301,7 @@ async function main() {
 }
 
 main().catch(err => {
-  // Delegate-origin typed failures reuse the Skill-local projection so the
-  // compatibility boundary emits the same one stable diagnostic; every other
-  // error keeps the generic installer failure line.
-  let diagnosticLine = null;
-  try {
-    const { failureDiagnosticLine } = require('./delegate.cjs');
-    diagnosticLine = failureDiagnosticLine(err);
-  } catch { /* fall through to the generic installer failure */ }
-  if (diagnosticLine) {
-    process.stderr.write(diagnosticLine);
-  } else {
-    console.error(paint('red', '  Fatal: ') + err.message);
-  }
+  console.error(paint('red', '  Fatal: ') + err.message);
   if (process.env.UBP_DEBUG) console.error(err.stack);
   process.exit(1);
 });

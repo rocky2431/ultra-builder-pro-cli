@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "C-engine",
+      "covers": [
+        "REQ-P1-stale",
+        "REQ-P1-line",
+        "REQ-P1-unknown",
+        "REQ-P1-counter"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p1.test.cjs tests/engine-boundaries.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-release",
+      "covers": [
+        "REQ-REL-gate"
+      ],
+      "run": "npm run verify:release",
+      "timeout_sec": 3600,
+      "expect": "found 0 vulnerabilities"
+    },
+    {
+      "id": "C-engine-p2",
+      "covers": [
+        "REQ-P2-close",
+        "REQ-P2-context",
+        "REQ-P2-records"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p2.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-engine-p3",
+      "covers": [
+        "REQ-P3-precision",
+        "REQ-P3-diff",
+        "REQ-P3-reduction"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p3.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-engine-p4",
+      "covers": [
+        "REQ-P4-tidy",
+        "REQ-P4-merge"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p4.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-engine-p5",
+      "covers": [
+        "REQ-P5-drive"
+      ],
+      "run": "node --test --test-reporter=spec tests/engine-p5.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    },
+    {
+      "id": "C-package",
+      "covers": [
+        "REQ-P5-package"
+      ],
+      "run": "node --test --test-reporter=spec tests/v6-package.test.cjs",
+      "timeout_sec": 1200,
+      "expect": "^ℹ pass [1-9][0-9]*$"
+    }
+  ]
+}

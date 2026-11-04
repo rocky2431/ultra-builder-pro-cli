@@ -1,0 +1,150 @@
+{
+  "units": [
+    {
+      "unit": "E1-cur2",
+      "task": "E1",
+      "arm": "cur",
+      "tokens": 80216,
+      "ms": 202692,
+      "tools": 29,
+      "hidden": 6,
+      "firstPass": true
+    },
+    {
+      "unit": "E1-cur3",
+      "task": "E1",
+      "arm": "cur",
+      "tokens": 96134,
+      "ms": 295053,
+      "tools": 31,
+      "hidden": 6,
+      "firstPass": false
+    },
+    {
+      "unit": "E1-cand2",
+      "task": "E1",
+      "arm": "cand",
+      "tokens": 103164,
+      "ms": 300607,
+      "tools": 29,
+      "hidden": 6,
+      "firstPass": true
+    },
+    {
+      "unit": "E1-cur1",
+      "task": "E1",
+      "arm": "cur",
+      "tokens": 93129,
+      "ms": 321459,
+      "tools": 35,
+      "hidden": 6,
+      "firstPass": false
+    },
+    {
+      "unit": "E1-cand1",
+      "task": "E1",
+      "arm": "cand",
+      "tokens": 116869,
+      "ms": 363216,
+      "tools": 35,
+      "hidden": 6,
+      "firstPass": false
+    },
+    {
+      "unit": "E1-cand3",
+      "task": "E1",
+      "arm": "cand",
+      "tokens": 133736,
+      "ms": 387947,
+      "tools": 43,
+      "hidden": 6,
+      "firstPass": false
+    },
+    {
+      "unit": "E2-cur2",
+      "task": "E2",
+      "arm": "cur",
+      "tokens": 86276,
+      "ms": 227730,
+      "tools": 33,
+      "hidden": 6,
+      "firstPass": true
+    },
+    {
+      "unit": "E2-cur3",
+      "task": "E2",
+      "arm": "cur",
+      "tokens": 90476,
+      "ms": 280160,
+      "tools": 42,
+      "hidden": 6,
+      "firstPass": true
+    },
+    {
+      "unit": "E2-cur1",
+      "task": "E2",
+      "arm": "cur",
+      "tokens": 108730,
+      "ms": 384461,
+      "tools": 48,
+      "hidden": 6,
+      "firstPass": true
+    },
+    {
+      "unit": "E2-cand2",
+      "task": "E2",
+      "arm": "cand",
+      "tokens": 108887,
+      "ms": 392930,
+      "tools": 40,
+      "hidden": 6,
+      "firstPass": true
+    },
+    {
+      "unit": "E2-cand1",
+      "task": "E2",
+      "arm": "cand",
+      "tokens": 118369,
+      "ms": 413700,
+      "tools": 56,
+      "hidden": 6,
+      "firstPass": false
+    },
+    {
+      "unit": "E2-cand3",
+      "task": "E2",
+      "arm": "cand",
+      "tokens": 136164,
+      "ms": 541316,
+      "tools": 52,
+      "hidden": 6,
+      "firstPass": true
+    }
+  ],
+  "tasks": {
+    "E1": {
+      "band": 0,
+      "gain": 0,
+      "curTokens": 89826,
+      "candTokens": 117923,
+      "tokenRatio": 1.31,
+      "timeRatio": 1.28,
+      "firstPass": {
+        "cur": 1,
+        "cand": 1
+      }
+    },
+    "E2": {
+      "band": 0,
+      "gain": 0,
+      "curTokens": 95161,
+      "candTokens": 121140,
+      "tokenRatio": 1.27,
+      "timeRatio": 1.51,
+      "firstPass": {
+        "cur": 3,
+        "cand": 2
+      }
+    }
+  }
+}

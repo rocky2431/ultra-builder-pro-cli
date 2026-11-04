@@ -11,9 +11,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 
 const claude = require('../../../adapters/claude.js');
-const opencode = require('../../../adapters/opencode.js');
 const codex = require('../../../adapters/codex.js');
-const kimi = require('../../../adapters/kimi.js');
 
 // Stable fake values so assertions don't depend on real $HOME / $CWD.
 const FAKE_HOME = '/fake-home';
@@ -38,28 +36,26 @@ function withEnv(overrides, fn) {
 
 const CASES = [
   { name: 'claude',   resolve: claude.resolveTarget,   localLeaf: '.claude',   globalHome: '.claude',   envKey: 'CLAUDE_CONFIG_DIR' },
-  { name: 'opencode', resolve: opencode.resolveTarget, localLeaf: '.opencode', globalHome: path.join('.config', 'opencode'), envKey: 'OPENCODE_CONFIG_DIR' },
   { name: 'codex',    resolve: codex.resolveTarget,    localLeaf: '.codex',    globalHome: '.codex',    envKey: 'CODEX_HOME' },
-  { name: 'kimi',     resolve: kimi.resolveTarget,     localLeaf: '.kimi-code', globalHome: '.kimi-code', envKey: 'KIMI_CODE_HOME' },
 ];
 
 for (const tc of CASES) {
   test(`${tc.name}.resolveTarget — configDir wins over scope/env/home`, () => {
-    withEnv({ [tc.envKey]: '/env-path', XDG_CONFIG_HOME: undefined, OPENCODE_CONFIG: undefined }, () => {
+    withEnv({ [tc.envKey]: '/env-path' }, () => {
       const out = tc.resolve({ configDir: '/explicit/path', scope: 'global', homeDir: FAKE_HOME, cwd: FAKE_CWD });
       assert.equal(out, '/explicit/path');
     });
   });
 
   test(`${tc.name}.resolveTarget — global scope picks env var`, () => {
-    withEnv({ [tc.envKey]: '/env-global', XDG_CONFIG_HOME: undefined, OPENCODE_CONFIG: undefined }, () => {
+    withEnv({ [tc.envKey]: '/env-global' }, () => {
       const out = tc.resolve({ scope: 'global', homeDir: FAKE_HOME, cwd: FAKE_CWD });
       assert.equal(out, '/env-global');
     });
   });
 
   test(`${tc.name}.resolveTarget — global scope falls back to home dir when env absent`, () => {
-    withEnv({ [tc.envKey]: undefined, XDG_CONFIG_HOME: undefined, OPENCODE_CONFIG: undefined }, () => {
+    withEnv({ [tc.envKey]: undefined }, () => {
       const out = tc.resolve({ scope: 'global', homeDir: FAKE_HOME, cwd: FAKE_CWD });
       assert.equal(out, path.join(FAKE_HOME, tc.globalHome));
     });

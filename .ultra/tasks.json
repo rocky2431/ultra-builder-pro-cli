@@ -412,7 +412,7 @@
       "title": "Deliver operational bounded factory execution",
       "type": "feature",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "pending",
       "dependencies": [],
       "context_file": ".ultra/contexts/task-vnext-d-operational.md",
       "trace_to": ".ultra/specs/product.md#requirement-fr-06-bounded-delegation",

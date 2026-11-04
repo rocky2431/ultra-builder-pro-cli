@@ -1,0 +1,14 @@
+✔ hidden: non-ASCII text matches, encoded as a browser sends it (119.825ms)
+✔ hidden: a space arrives as %20 or as + (a GET form sends +) (79.146292ms)
+✔ hidden: text is matched literally, and special characters never break the search (126.21375ms)
+✔ hidden: the page escapes the search text and keeps the original link visible (66.456125ms)
+✔ hidden: links created through the web form are found, and the page search agrees (93.102708ms)
+✔ hidden: without q, or with an empty q, the page lists every link (87.80375ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 638.166417

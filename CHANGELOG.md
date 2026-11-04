@@ -5,12 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## 6.0.0 — 2026-11-01
 
-The source checkout includes changes that are not on npm. On 2026-09-10, the
-registry's `latest` tag resolves to `5.0.1`; the source package declares `5.0.2`,
-which is not published. The fixes previously listed under a dated `5.0.2` heading
-below belong to this unreleased work.
+- Start in Claude Code with `/ultra` (full name `/ultra-builder-pro:ultra`),
+  or in Codex with `$ultra-builder-pro:ultra`.
+- Ship one `ultra` method, the deterministic `ubp` engine and one Node SessionStart
+  observer for Claude Code and Codex. Each plugin carries its own engine.
+- Remove the fourteen 5.x Skills, five Python hooks, old project template, and the
+  OpenCode, Kimi, Grok and ZCode adapters.
+- Remove `run`, `delegate`, ACP/Pi execution, durable grants and wake-up machinery,
+  together with their dedicated tests, fixtures, evaluations and obsolete documentation.
+  Multiple next-step authorities conflicted with the single v6 method and computed status.
+- Keep the old workflows recoverable from Git history and the published 5.0.1 package
+  (5.0.2 was never published);
+  existing 5.x project files are not automatically migrated.
+- Decision: `.ultra/decisions/2026-11-01-v6-product-shape.md` in the source repository.
+  Release verification uses Node tests and the production dependency audit, without pytest.
+- Add `ubp drive --writer <command> [--reviewer <command>]`: an unattended controller loop
+  that compiles each node's brief, runs the writer, verifies truth files, history, a clean
+  tree, scope, check files, the plan gate and the ratchet, runs the reviewer once at the
+  milestone gate, and stops wherever a person must judge. It never closes a milestone or
+  approves anything. Headless Claude Code writer and reviewer examples ship in the package
+  and the repository under `docs/examples/drive/` (the installer does not copy them into a
+  host).
+- (2026-11-02) The milestone review blocks only when the product breaks a requirement's
+  `Done when` line or the Direction, or does something wrong that a person can reproduce
+  (contradicts the spec, loses or corrupts data, crashes, opens a security hole). A gap where
+  the code is right and only a check could be stronger is reported to the Owner and no longer
+  starts another review round. The milestone demo lists those gaps and what the writers'
+  handoffs left open, and a defect among them is never passed on the Owner's behalf.
+- (2026-11-02) Two requirements that cannot both hold are the Owner's call in the escalation
+  table too, as the planning step already said; the planner keeps wrong acceptances.
+- (2026-11-04) The plan gate reads ruling lines tolerantly: dashes, spaces and colons may
+  differ and `如果判断错了` may be left out, but a line still needs its date, layer, decision,
+  reason and cost. Spacing around a dash was the most frequent first-attempt refusal in real
+  runs.
+- (2026-11-04) The method starts `ubp drive` in the background, since a foreground call is
+  bounded by the host's command timeout. A running drive holds `.ultra/.runtime/drive.lock`;
+  a second drive on the same tree stops `drive-running`, and `ubp status` reports the
+  holder as `drive` (the line ends with `drive 运行中`). The SessionStart hook stays silent
+  inside a drive's writer or reviewer (`UBP_DRIVE` set), so they follow their brief.
+- (2026-11-04) The example drive writer and reviewer deny `git push`, `npm publish` and `gh`
+  through Claude Code permission rules. These match command prefixes, so `git -C <dir> push`
+  and a push made inside a script still get through (a mid-command wildcard would also deny
+  every commit whose message says "push"); a work tree with no push remote is the stronger
+  guard.
+
+## 5.x source work after 5.0.1 (never published, superseded by 6.0.0)
+
+This 5.x work was in the source checkout but never on npm: on 2026-09-10 the registry's
+`latest` tag resolved to `5.0.1`, and the source package declared an unpublished `5.0.2`.
+6.0.0 removes most of what this section adds; it stays here as history.
 
 ### Added
 

@@ -1,0 +1,110 @@
+✖ hidden: expired links are counted, and still counted as links (1425.499916ms)
+✖ hidden: deleting a link takes its clicks out of the totals (93.051167ms)
+✖ hidden: unknown codes add no clicks, and the totals survive a restart (68.63375ms)
+✖ hidden: the page totals agree with the API after mixed activity (102.958ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1761.794583
+
+✖ failing tests:
+
+test at test/stats-hidden.test.cjs:21:1
+✖ hidden: expired links are counted, and still counted as links (1425.499916ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>'
+  -   clicks: 1,
+  -   expired: 1,
+  -   links: 2
+    }
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E3-base/test/stats-hidden.test.cjs:27:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>' },
+    expected: { links: 2, clicks: 1, expired: 1 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/stats-hidden.test.cjs:33:1
+✖ hidden: deleting a link takes its clicks out of the totals (93.051167ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>'
+  -   clicks: 1,
+  -   expired: 0,
+  -   links: 1
+    }
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E3-base/test/stats-hidden.test.cjs:41:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>' },
+    expected: { links: 1, clicks: 1, expired: 0 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/stats-hidden.test.cjs:46:1
+✖ hidden: unknown codes add no clicks, and the totals survive a restart (68.63375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>'
+  -   clicks: 1,
+  -   expired: 0,
+  -   links: 1
+    }
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E3-base/test/stats-hidden.test.cjs:53:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>' },
+    expected: { links: 1, clicks: 1, expired: 0 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/stats-hidden.test.cjs:59:1
+✖ hidden: the page totals agree with the API after mixed activity (102.958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>'
+  -   clicks: 4,
+  -   expired: 0,
+  -   links: 3
+    }
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E3-base/test/stats-hidden.test.cjs:71:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>' },
+    expected: { links: 3, clicks: 4, expired: 0 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

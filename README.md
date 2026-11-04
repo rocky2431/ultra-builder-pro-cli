@@ -1,181 +1,74 @@
-# Ultra Builder Pro
+# Ultra Builder Pro 6
 
-**English** · [简体中文](README.zh-CN.md)
+Intent is source code, the plan is compiled, progress is computed, and a change is a diff.
 
-Give your coding agent a way to keep the goal, the project context, and the evidence together.
+UBP gives Claude Code and Codex one `ultra` Skill, a deterministic `ubp` engine, and a
+SessionStart hook. The model owns judgment; the engine computes progress from project files
+and executable checks. Node.js 22 or newer and Git are required.
 
-Ultra Builder Pro is a plugin for coding agents. It helps them clarify a request,
-work through a change, check the result, and leave enough context for the next
-session to continue. You work in your usual agent; Ultra supplies Skills, project
-files, and tools for optional delegation.
+## Install
 
-![You work with your coding agent. Ultra supplies methods and project context; other agents join only when authorized.](docs/assets/how-ultra-works.svg)
-
-[Get started](#get-started) · [Examples](#using-ultra) · [Documentation](docs/README.md) · [Changelog](CHANGELOG.md)
-
-## Why use it?
-
-If you ask for "free shipping for members" and get "half-price shipping," passing
-tests won't fix the misunderstanding. A coding agent can implement its own
-interpretation perfectly while missing what you asked for.
-
-Longer projects add another problem: decisions disappear between sessions. You
-explain an interface again, reconstruct unfinished work, or discover that the
-implementation and the spec now describe different products.
-
-Ultra gives that work a place to live in the repository:
-
-| When this happens | What Ultra asks the agent to do |
-|---|---|
-| The request leaves an important question open | Clarify the intended use before committing to a design |
-| The implementation starts drifting | Compare the change with the accepted requirements and record decisions |
-| Tests pass but the feature is unusable | Check the real caller, data path, persistence, and user-visible result |
-| A session ends halfway through | Record the current task, evidence, and next action in project files |
-| Work could benefit from another agent | Delegate a scoped task when authorized, then inspect and integrate its result |
-
-This is useful for projects you expect to revisit and change. A small, clear fix
-can stay small: the agent investigates, edits, and verifies it without creating a
-project plan or a directory of workflow records.
-
-## Get started
-
-You need Node.js 22 or newer and a coding agent you can already use. Install into
-the host you work with; these are alternatives:
-
-```bash
-# Claude Code
-npx ultra-builder-pro-cli@latest --claude --global
-
-# Codex
-npx ultra-builder-pro-cli@latest --codex --global
+```sh
+npm install -g ultra-builder-pro-cli@6.0.0
+ubp --claude --global
+ubp --codex --global
+# Or install both:
+ubp --all --global
 ```
 
-Start a new session in your project and describe the work:
+Use `--config-dir <dir>` for an isolated installation; `--all` gives each host a separate
+subdirectory. Only Claude Code supports `--local`. Codex installs are user-scope only:
+`--codex` defaults to user scope; `--codex --local` is rejected unless `--config-dir` isolates the
+install.
+Inspect an installation with `ubp --all --global --doctor --json`. Remove managed assets
+with `ubp --all --global --uninstall`.
 
-```text
-Use Ultra Builder Pro to add CSV export to this project.
-Keep the existing fields and verify that Chinese text opens correctly.
-```
+Each installed plugin carries the engine. Its Skill includes the absolute Node command to
+use for every engine command, regardless of any `ubp` on PATH. No Python runtime is needed.
 
-Natural-language discovery depends on the host. If it does not select Ultra, use
-the host's Skill picker; Codex exposes names such as
-`$ultra-builder-pro:ultra-change`. You can describe the task without learning the
-internal workflow names.
+## First session
 
-The npm commands install the published package. For the source checkout's goal
-entry, Pi setup, project-local installation, or troubleshooting, see the
-[usage guide](docs/USAGE.md). Release changes live in the [changelog](CHANGELOG.md).
+Open the project in Claude Code and invoke `/ultra` (full name `/ultra-builder-pro:ultra`);
+in Codex invoke `$ultra-builder-pro:ultra`. Run `ubp status` to see the current state.
+A project without `.ultra/spec.md` starts with an interview, then a specification, checks and a
+milestone plan.
 
-## Using Ultra
+The SessionStart hook prints progress and a reminder to use `ultra` only when
+`.ultra/spec.md` exists, and stays silent inside a drive's writer or reviewer (`UBP_DRIVE`). It does not start work or write project files.
 
-You choose the outcome and constraints. The model chooses how to work within them.
+Codex users review and trust the plugin hook once with `/hooks`; it is skipped until then.
+Changed hook definitions need renewed trust. Without hook trust, the Skill's first step,
+`ubp status`, still shows the progress line.
+See [Codex hook trust](https://learn.chatgpt.com/docs/hooks).
 
-For an existing project:
+## Commands
 
-```text
-Use Ultra to add recurring invoices. Read the current billing code first.
-Keep one-off invoices working, and ask before changing the public API.
-```
+| Command | Purpose |
+| --- | --- |
+| `ubp status` | Compute progress and the next step |
+| `ubp gate` | Validate the plan and record its baseline |
+| `ubp check [ids]` | Run checks and record evidence |
+| `ubp node done <id>` | Complete a node with green requirements |
+| `ubp context <id>` | Compile a node brief |
+| `ubp milestone close <id> --owner "words" --review <file>` | Close a reviewed milestone |
+| `ubp approve <items> --owner "words"` | Record approval of reductions |
+| `ubp retro` | Show repeated failure classes |
+| `ubp merge <branch> --expect-head <sha>` | Verify and merge a worker branch |
+| `ubp drive --writer <cmd> [--reviewer <cmd>]` | Run nodes unattended until the next Owner touch |
 
-For a new product:
+Engine commands accept `--root <dir>` and `--json`.
+See [file formats and exit codes](engine/FORMATS.md)
+and the [method](skills/ultra/SKILL.md) for required evidence and approval boundaries.
 
-```text
-Use Ultra to build a receipt organizer for reimbursements.
-I need to find original receipts by month and export a CSV for my accountant.
-```
+## Coming from 5.x
 
-For a return to unfinished work:
+Version 6 replaces the fourteen `ultra-*` Skills with one method and replaces the five
+Python hooks with one advisory Node hook. OpenCode, Kimi, Grok and ZCode adapters,
+`run`, `delegate`, ACP/Pi execution, durable grants, wake-up machinery and the old project
+template are removed. These mechanisms competed for the next step; v6 derives it from the
+engine's state. Existing 5.x project records are not automatically migrated.
 
-```text
-Use Ultra to continue the invoice task. Read the project records and current
-diff first, tell me what remains, and continue the local implementation.
-```
-
-For an independent check:
-
-```text
-Let Pi review this change for missing edge cases.
-Keep implementation and integration in this session.
-```
-
-The last example explicitly permits delegation. "Use Ultra" on its own selects
-the working method; it does not authorize other agents. You can also allow
-delegation within a scope and budget, then let the model choose the individual
-tasks. Each target still needs an available, qualified runtime.
-
-## How it works
-
-Your current agent remains in charge. In Codex, that is Codex; in a Pi session, it
-is Pi. Ultra does not require every task to pass through Pi or follow the same
-sequence of stages.
-
-The package contains fourteen Skills. They cover clarification, research,
-planning, development, testing, review, delivery, and recovery. The model reads
-the methods relevant to the task. Five optional hooks bring project context back
-into view and check a limited set of destructive commands.
-
-Most work can stay with one agent. When delegation is useful and authorized,
-workers receive a bounded task and their own Git worktree. The main agent reads
-the results, checks the actual changes, and handles integration. Review uses the
-relevant lenses within a budget; it does not automatically turn every minor
-finding into another repair cycle.
-
-For larger changes, the project keeps readable records:
-
-| Location | What the next session can find there |
-|---|---|
-| `.ultra/north-star.md` and `.ultra/specs/` | The accepted goal and product behavior |
-| `CONTEXT.md` | Shared terms and domain relationships |
-| `.ultra/tasks.json` and `.ultra/contexts/` | Tasks, acceptance criteria, and resume notes |
-| `.ultra/decisions/` and `.ultra/evidence/` | Decisions, test observations, and review evidence |
-| Git | The code, its changes, and their history |
-
-The agent reads and maintains these files as it works. They travel with the
-repository, so another session or host can recover the project context. They do
-not grant permission to resume by themselves. See [workflow and recovery](docs/USAGE.md#workflow-and-recovery)
-for session authorization and unattended continuation.
-
-## Where it runs
-
-| Host | How Ultra loads |
-|---|---|
-| Claude Code | Native plugin; project or user installation |
-| Codex | Native plugin and Skill metadata; project or user installation |
-| OpenCode | Native plugin and Skills; project or user installation |
-| Kimi Code | User plugin |
-| Grok Build | User plugin |
-| ZCode | User plugin; delegation is currently unavailable |
-| Pi | Session-loaded Skills and extension through the source goal entry |
-
-Installation support and delegated execution are separate capabilities. The
-[compatibility matrix](docs/RUNTIME-COMPAT-MATRIX.md) records the exact transport,
-permission, and host limitations.
-
-Pi's finite parallel batches and unattended checkpoints are experimental. Each
-durable checkpoint allows at most one fresh Pi turn under an explicit grant;
-unknown delivery is not retried automatically. General recovery from machine
-restarts and network partitions is not yet established. Parallel work also has
-coordination costs; Ultra does not promise that more agents will be faster or
-cheaper.
-
-## Documentation and contributing
-
-Start with the [usage guide](docs/USAGE.md) or browse the [documentation index](docs/README.md).
-For the design, read [architecture](docs/ARCHITECTURE.md) and
-[philosophy](docs/PHILOSOPHY.md). Implementation contracts live alongside their Skills.
-
-To work on Ultra itself, install Node.js 22+, Python 3, Git, and pytest. From a
-checkout:
-
-```bash
-npm ci
-npm run verify:release
-npm pack --dry-run --json
-```
-
-Keep changes focused, include the relevant checks, and describe what someone
-can now do. Bug reports are more useful with the host, the command or request,
-expected behavior, and a small reproduction. Remove credentials and private
-project data before [opening an issue](https://github.com/rocky2431/ultra-builder-pro-cli/issues).
-
-[MIT license](LICENSE)
+Keep 5.0.1, the last published 5.x, in a separate configuration directory if you still
+need those workflows (5.0.2 was never published).
+The old source remains in Git history. See [changes](CHANGELOG.md) and the
+[plugin boundary](docs/PLUGIN-ISOLATION-CONTRACT.md).

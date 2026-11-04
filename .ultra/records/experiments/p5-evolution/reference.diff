@@ -1,0 +1,115 @@
+diff --git a/src/server.cjs b/src/server.cjs
+index f4185b7..b55c4ad 100644
+--- a/src/server.cjs
++++ b/src/server.cjs
+@@ -69,7 +69,9 @@ const expiredPage = (link) => '<!doctype html><html lang="zh-CN"><meta charset="
+ // function the redirect asks). Everything that came from a user or the Host header goes
+ // through `esc`. `no-store` makes the back button show the current counts and the current
+ // expiry. `value` and `expiresIn` are the submitted fields, shown back after a refusal.
+-function page(request, response, status, { error, created, value = '', expiresIn = '' } = {}) {
++const matches = (q) => (link) => !q || link.url.toLowerCase().includes(q.toLowerCase());
++
++function page(request, response, status, { error, created, value = '', expiresIn = '', q = '' } = {}) {
+   const fresh = store.get(created);
+   let notice = '';
+   if (error) {
+@@ -78,7 +80,11 @@ function page(request, response, status, { error, created, value = '', expiresIn
+     const { short } = publicLink(fresh, request);
+     notice = `<p class="created">已创建短链接：<a href="${esc(short)}">${esc(short)}</a></p>`;
+   }
+-  const rows = store.all().reverse().map((link) => {
++  const every = store.all();
++  const totals = `<p class="totals">共 <b data-total-links>${every.length}</b> 个链接，` +
++    `<b data-total-clicks>${every.reduce((n, l) => n + l.clicks, 0)}</b> 次点击，` +
++    `<b data-total-expired>${every.filter(isExpired).length}</b> 个已过期</p>`;
++  const rows = store.all().reverse().filter(matches(q)).map((link) => {
+     const { code, short, url, clicks } = publicLink(link, request);
+     const expired = isExpired(link) ? ' <span class="expired">已过期</span>' : '';
+     return `<tr data-code="${esc(code)}"><td><a href="${esc(short)}">${esc(short)}</a>${expired}</td>` +
+@@ -117,7 +123,12 @@ th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid #ddd;
+ <input type="text" name="expires_in" inputmode="numeric" value="${esc(expiresIn)}" placeholder="有效秒数，留空永不过期" aria-label="有效秒数（留空表示永不过期）">
+ <button type="submit">缩短</button>
+ </form>
++<form action="/" method="get" role="search">
++<input type="search" name="q" value="${esc(q)}" aria-label="搜索原始链接">
++<button type="submit">搜索</button>
++</form>
+ ${notice}
++${totals}
+ ${list}
+ </body>
+ </html>
+@@ -128,7 +139,8 @@ async function handle(request, response) {
+   const [pathname, query = ''] = request.url.split('?');
+ 
+   if (pathname === '/' && request.method === 'GET') {
+-    page(request, response, 200, { created: new URLSearchParams(query).get('created') });
++    const params = new URLSearchParams(query);
++    page(request, response, 200, { created: params.get('created'), q: params.get('q') ?? '' });
+     return;
+   }
+ 
+@@ -172,7 +184,8 @@ async function handle(request, response) {
+   }
+ 
+   if (pathname === '/api/links' && request.method === 'GET') {
+-    json(response, 200, store.all().reverse().map((link) => publicLink(link, request)));
++    const q = new URLSearchParams(query).get('q') ?? '';
++    json(response, 200, store.all().reverse().filter(matches(q)).map((link) => publicLink(link, request)));
+     return;
+   }
+ 
+@@ -205,6 +218,37 @@ async function handle(request, response) {
+     return;
+   }
+ 
++  if (pathname === '/api/stats' && request.method === 'GET') {
++    const every = store.all();
++    json(response, 200, { links: every.length, clicks: every.reduce((n, l) => n + l.clicks, 0),
++      expired: every.filter(isExpired).length });
++    return;
++  }
++
++  if (pathname.startsWith('/api/links/') && request.method === 'PATCH') {
++    const code = pathname.slice('/api/links/'.length);
++    let body;
++    try {
++      body = JSON.parse(await readBody(request));
++    } catch (error) {
++      if (error instanceof BodyTooLarge) json(response, 413, { error: TOO_BIG });
++      else if (!store.get(code)) json(response, 404, { error: NO_SUCH });
++      else json(response, 400, { error: REJECT });
++      return;
++    }
++    const link = store.get(code);
++    if (!link) {
++      json(response, 404, { error: NO_SUCH });
++    } else if (!isHttpUrl(body?.url)) {
++      json(response, 400, { error: REJECT });
++    } else if (!store.retarget(link, body.url)) {
++      json(response, 500, { error: SAVE_FAILED });
++    } else {
++      json(response, 200, publicLink(link, request));
++    }
++    return;
++  }
++
+   if (pathname.startsWith('/api/links/') && request.method === 'DELETE') {
+     const code = pathname.slice('/api/links/'.length);
+     if (!store.get(code)) {
+diff --git a/src/store.cjs b/src/store.cjs
+index a0cbaeb..ab8bfe8 100644
+--- a/src/store.cjs
++++ b/src/store.cjs
+@@ -128,4 +128,10 @@ function remove(code) {
+   });
+ }
+ 
+-module.exports = { DATA, open, get, all, add, hit, remove, isExpired, isHttpUrl };
++function retarget(link, url) {
++  const before = link.url;
++  link.url = url;
++  return commit(() => { link.url = before; });
++}
++
++module.exports = { DATA, open, get, all, add, hit, remove, retarget, isExpired, isHttpUrl };

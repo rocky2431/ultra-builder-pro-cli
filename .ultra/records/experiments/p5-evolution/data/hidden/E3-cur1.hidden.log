@@ -1,0 +1,12 @@
+✔ hidden: expired links are counted, and still counted as links (1410.34075ms)
+✔ hidden: deleting a link takes its clicks out of the totals (91.382708ms)
+✔ hidden: unknown codes add no clicks, and the totals survive a restart (128.18625ms)
+✔ hidden: the page totals agree with the API after mixed activity (172.547125ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1870.172583

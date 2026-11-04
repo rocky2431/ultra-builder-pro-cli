@@ -1,0 +1,24 @@
+✔ hidden: looking a link up counts nothing (465.286958ms)
+✔ hidden: an expired link is still shown, with its expiry (1490.244458ms)
+✔ hidden: a deleted link answers 404 (349.554792ms)
+✖ hidden: odd paths answer 404, never 500 (148.316834ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2534.832
+
+✖ failing tests:
+
+test at test/link-detail-hidden.test.cjs:39:1
+✖ hidden: odd paths answer 404, never 500 (148.316834ms)
+  SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at detail (/private/tmp/abc/hidden-run-T2-B/test/link-detail-hidden.test.cjs:11:43)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/private/tmp/abc/hidden-run-T2-B/test/link-detail-hidden.test.cjs:42:17)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7)

@@ -1,9 +1,0 @@
-{
-  "name": "trellis-daily-f3-shared-expenses",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Frozen family-3 fixture for the 2026-09-09 daily-workflow eval. Green baseline plus authoritative project facts that a follow-up change must consume.",
-  "scripts": {
-    "test": "node --test test/money.test.js"
-  }
-}

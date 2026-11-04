@@ -1,0 +1,131 @@
+✖ hidden: an edit survives a restart (116.853667ms)
+✖ hidden: the web page shows the new target, escaped (78.142958ms)
+✖ hidden: a body without a usable link is refused and changes nothing (75.171083ms)
+✖ hidden: an oversized body answers 413, changes nothing, and the server keeps serving (75.534958ms)
+✖ hidden: odd codes answer the JSON 404 (73.012167ms)
+✖ hidden: clicks keep counting after an edit, and the old target is not used again (77.809417ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 577.47875
+
+✖ failing tests:
+
+test at test/edit-hidden.test.cjs:20:1
+✖ hidden: an edit survives a restart (116.853667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E1-base/test/edit-hidden.test.cjs:24:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/edit-hidden.test.cjs:31:1
+✖ hidden: the web page shows the new target, escaped (78.142958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E1-base/test/edit-hidden.test.cjs:35:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/edit-hidden.test.cjs:43:1
+✖ hidden: a body without a usable link is refused and changes nothing (75.171083ms)
+  AssertionError [ERR_ASSERTION]: {
+  
+  404 !== 400
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E1-base/test/edit-hidden.test.cjs:49:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/edit-hidden.test.cjs:55:1
+✖ hidden: an oversized body answers 413, changes nothing, and the server keeps serving (75.534958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 413
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E1-base/test/edit-hidden.test.cjs:61:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 413,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/edit-hidden.test.cjs:68:1
+✖ hidden: odd codes answer the JSON 404 (73.012167ms)
+  AssertionError [ERR_ASSERTION]: constructor
+  + actual - expected
+  
+    {
+  +   notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>'
+  -   error: '没有这个短链接。'
+    }
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E1-base/test/edit-hidden.test.cjs:73:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { notJson: '<!doctype html><html lang="en"><title>Not found</title><h1>Not found</h1></html>' },
+    expected: { error: '没有这个短链接。' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/edit-hidden.test.cjs:77:1
+✖ hidden: clicks keep counting after an edit, and the old target is not used again (77.809417ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'https://example.com/one'
+  - 'https://example.com/two'
+                         ^
+  
+      at TestContext.<anonymous> (/private/tmp/evo/hidden-run-E1-base/test/edit-hidden.test.cjs:84:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1127:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:789:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://example.com/one',
+    expected: 'https://example.com/two',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
