@@ -1,7 +1,7 @@
 'use strict';
 
 const { unique, problem } = require('./formats.cjs');
-const { latest } = require('./ledger.cjs');
+const { latest, lockPid } = require('./ledger.cjs');
 const { planProblems, pendingPlans } = require('./plan.cjs');
 
 function checkState(project, check, record, ids = check.covers) {
@@ -105,7 +105,7 @@ function milestoneProgress(project, requirements, nodes, invariants) {
   return { milestone: current?.id ?? null, counts, next, closed_not_green, plan_changes };
 }
 
-function progressLine(progress, gate, dirty, invariants) {
+function progressLine(progress, gate, dirty, invariants, drive) {
   const { milestone, counts, next, plan_changes, closed_not_green } = progress;
   let line = `${milestone ?? '无'} · ${counts.green}/${counts.total} 绿`;
   for (const [key, label] of [['red', '红'], ['stale', '过期'], ['unknown', '未知'],
@@ -120,10 +120,11 @@ function progressLine(progress, gate, dirty, invariants) {
   if (gate !== 'pass') {
     line += gate === 'fail' ? ' · 计划门未通过' : ' · 计划门待重跑';
   }
-  return line;
+  return line + (drive ? ' · drive 运行中' : '');
 }
 
 function status(project) {
+  const drive = lockPid(project.root, 'drive');
   const { evidence, checks } = checkStates(project);
   const invariants = project.checks.filter((c) => Object.hasOwn(c, 'fix')).map((c) => {
     const { id, state, reasons } = checks.find((s) => s.id === c.id);
@@ -136,8 +137,8 @@ function status(project) {
   let gate = 'pass';
   if (problems.length) gate = 'fail';
   else if (pendingPlans(project).length) gate = 'stale';
-  return { ...progress, line: progressLine(progress, gate, project.dirty, invariants),
-    gate, problems, warnings: project.warnings, dirty: project.dirty,
+  return { ...progress, line: progressLine(progress, gate, project.dirty, invariants, drive),
+    drive, gate, problems, warnings: project.warnings, dirty: project.dirty,
     requirements, checks, nodes, invariants };
 }
 

@@ -109,6 +109,13 @@ function alive(pid) {
   }
 }
 
+function lockPid(root, name) {
+  try {
+    const pid = Number(fs.readFileSync(path.join(root, '.ultra/.runtime', `${name}.lock`), 'utf8'));
+    return Number.isInteger(pid) && pid > 0 && alive(pid) ? pid : null;
+  } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+}
+
 function removeOwnedLock(file, pid) {
   try {
     if (Number(fs.readFileSync(file, 'utf8')) === pid) fs.unlinkSync(file);
@@ -195,4 +202,4 @@ function append(root, name, record, locked = false) {
   return locked ? write() : withLock(root, write);
 }
 
-module.exports = { ledger, latest, withLock, acquireLock, append, approvalItem };
+module.exports = { ledger, latest, withLock, acquireLock, lockPid, append, approvalItem };

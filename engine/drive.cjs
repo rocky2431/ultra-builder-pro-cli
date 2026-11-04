@@ -7,6 +7,7 @@ const { context } = require('./context.cjs');
 const { runChecks, runShell } = require('./checks.cjs');
 const { git, codeState } = require('./git-state.cjs');
 const { problem, readRecord, hash } = require('./formats.cjs');
+const { acquireLock } = require('./ledger.cjs');
 const { reviewVerdict } = require('./milestone.cjs');
 const truth = ['.ultra/spec.md', '.ultra/checks.json', '.ultra/plan.json',
   '.ultra/ledger/milestones.jsonl', '.ultra/ledger/approvals.jsonl',
@@ -117,6 +118,9 @@ async function drive(project, opts) {
     }
     return Object.assign(result, { stop: reason, problems });
   };
+  const release = acquireLock(root, 'drive');
+  if (!release) return stop('drive-running', [problem('drive-running', 'A drive is running.',
+    'Wait for the running drive to exit; `ubp status` shows it.')]);
   const shell = async (command, log, env) => {
     fs.mkdirSync(bin, { recursive: true });
     fs.writeFileSync(path.join(bin, 'ubp'), `#!/bin/sh\nexec ${base.UBP} "$@"\n`, { mode: 0o755 });
@@ -136,80 +140,83 @@ async function drive(project, opts) {
   };
   const tried = new Map();
   let writers = 0;
-  for (;;) {
-    if (!clean(root)) return stop('dirty-tree', [issue('dirty-tree', root)]);
-    project = load(root);
-    let state = status(project);
-    if (state.gate !== 'pass') {
-      if (state.gate === 'fail') return stop('plan-gate', state.problems);
-      const gated = gate(project);
-      record('gate', state.milestone, null, gated.ok ? 'pass' : 'fail', gated.problems);
-      if (!gated.ok) return stop('plan-gate', gated.problems);
-      continue;
-    }
-    const node = project.nodes.find((n) => n.id === state.next);
-    if (node) {
-      if (!node.scope?.length) return stop('scope-missing', [issue('scope-missing', node.id)]);
-      const brief = context(project, node.id, 32768);
-      if (!brief.ok) {
-        record('context', node.id, null, 'brief-over-budget', brief.problems);
-        return stop('brief-over-budget', brief.problems);
+  try {
+    for (;;) {
+      if (!clean(root)) return stop('dirty-tree', [issue('dirty-tree', root)]);
+      project = load(root);
+      let state = status(project);
+      if (state.gate !== 'pass') {
+        if (state.gate === 'fail') return stop('plan-gate', state.problems);
+        const gated = gate(project);
+        record('gate', state.milestone, null, gated.ok ? 'pass' : 'fail', gated.problems);
+        if (!gated.ok) return stop('plan-gate', gated.problems);
+        continue;
       }
-      if (writers >= opts['max-writers']) return stop('writer-budget',
-        [issue('writer-budget', node.id)]);
-      if (state.checks.some((c) => ['stale', 'unknown'].includes(c.state))) {
-        state = await check('stale');
-        project = load(root);
-      }
-      const file = path.join(root, '.ultra/.runtime/briefs', `${node.id}.md`);
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, brief.brief);
-      const before = snapshot(root);
-      const attempt = (tried.get(node.id) ?? 0) + 1;
-      tried.set(node.id, attempt);
-      writers++;
-      const exit = await shell(opts.writer, `${node.id}-${attempt}.log`,
-        { UBP_NODE: node.id, UBP_BRIEF: file, UBP_ATTEMPT: String(attempt) });
-      const problems = await verify(project, node, before, snapshot(root), state);
-      const failure = problems[0]?.code;
-      record('writer', node.id, attempt, failure ?? 'done', problems, exit);
-      if (failure && failure !== 'node-not-done') return stop(failure, problems);
-      if (failure && attempt >= opts.attempts) return stop('attempts-exhausted', problems);
-      continue;
-    }
-    if (state.next === '检查') {
-      if ((await check('stale')).next === '检查') return stop('checks-not-green',
-        [issue('checks-not-green', state.milestone)]);
-      continue;
-    }
-    if (state.next === '里程碑门') {
-      if ((await check('all')).next !== '里程碑门') continue;
-      if (opts.reviewer) {
-        const relative = `.ultra/records/milestones/${state.milestone}-review.md`;
-        const file = path.join(root, relative);
-        let failure = readRecord(root, relative).exists ? 'review-exists' : null;
-        let exit = null;
-        if (!failure) {
-          fs.mkdirSync(path.dirname(file), { recursive: true });
-          const before = snapshot(root);
-          exit = await shell(opts.reviewer, 'review.log',
-            { UBP_MILESTONE: state.milestone, UBP_REVIEW: file });
-          const after = snapshot(root);
-          if (before.head !== after.head || touched(before, after).length || !clean(root, relative)
-              || before.settings !== after.settings || status(load(root)).next !== '里程碑门')
-            failure = 'reviewer-changed-tree';
-          else {
-            result.verdict = reviewVerdict(readRecord(root, relative).bytes, true);
-            if (!result.verdict) failure = 'review-invalid';
-          }
+      const node = project.nodes.find((n) => n.id === state.next);
+      if (node) {
+        if (!node.scope?.length) return stop('scope-missing', [issue('scope-missing', node.id)]);
+        const brief = context(project, node.id, 32768);
+        if (!brief.ok) {
+          record('context', node.id, null, 'brief-over-budget', brief.problems);
+          return stop('brief-over-budget', brief.problems);
         }
-        const problems = failure ? [issue(failure, relative)] : [];
-        record('reviewer', state.milestone, null, failure ?? result.verdict, problems, exit);
-        if (failure) return stop(failure, problems);
+        if (writers >= opts['max-writers']) return stop('writer-budget',
+          [issue('writer-budget', node.id)]);
+        if (state.checks.some((c) => ['stale', 'unknown'].includes(c.state))) {
+          state = await check('stale');
+          project = load(root);
+        }
+        const file = path.join(root, '.ultra/.runtime/briefs', `${node.id}.md`);
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, brief.brief);
+        const before = snapshot(root);
+        const attempt = (tried.get(node.id) ?? 0) + 1;
+        tried.set(node.id, attempt);
+        writers++;
+        const exit = await shell(opts.writer, `${node.id}-${attempt}.log`,
+          { UBP_NODE: node.id, UBP_BRIEF: file, UBP_ATTEMPT: String(attempt) });
+        const problems = await verify(project, node, before, snapshot(root), state);
+        const failure = problems[0]?.code;
+        record('writer', node.id, attempt, failure ?? 'done', problems, exit);
+        if (failure && failure !== 'node-not-done') return stop(failure, problems);
+        if (failure && attempt >= opts.attempts) return stop('attempts-exhausted', problems);
+        continue;
       }
-      return stop('milestone-gate');
+      if (state.next === '检查') {
+        if ((await check('stale')).next === '检查') return stop('checks-not-green',
+          [issue('checks-not-green', state.milestone)]);
+        continue;
+      }
+      if (state.next === '里程碑门') {
+        if ((await check('all')).next !== '里程碑门') continue;
+        if (opts.reviewer) {
+          const relative = `.ultra/records/milestones/${state.milestone}-review.md`;
+          const file = path.join(root, relative);
+          let failure = readRecord(root, relative).exists ? 'review-exists' : null;
+          let exit = null;
+          if (!failure) {
+            fs.mkdirSync(path.dirname(file), { recursive: true });
+            const before = snapshot(root);
+            exit = await shell(opts.reviewer, 'review.log',
+              { UBP_MILESTONE: state.milestone, UBP_REVIEW: file });
+            const after = snapshot(root);
+            if (before.head !== after.head || touched(before, after).length
+                || !clean(root, relative) || before.settings !== after.settings
+                || status(load(root)).next !== '里程碑门')
+              failure = 'reviewer-changed-tree';
+            else {
+              result.verdict = reviewVerdict(readRecord(root, relative).bytes, true);
+              if (!result.verdict) failure = 'review-invalid';
+            }
+          }
+          const problems = failure ? [issue(failure, relative)] : [];
+          record('reviewer', state.milestone, null, failure ?? result.verdict, problems, exit);
+          if (failure) return stop(failure, problems);
+        }
+        return stop('milestone-gate');
+      }
+      return stop(state.next === '全部完成' ? 'all-done' : 'blocked');
     }
-    return stop(state.next === '全部完成' ? 'all-done' : 'blocked');
-  }
+  } finally { release(); }
 }
 module.exports = { drive };

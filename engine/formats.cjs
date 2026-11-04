@@ -167,14 +167,16 @@ function registry(root, file, kinds) {
 
 function rulingProblems(text) {
   const problems = [];
-  const ruling = new RegExp('^- \\d{4}-\\d{2}-\\d{2} L[0-4] 裁决：(.*?) — 因为(.*?)'
-    + ' — 如果判断错了，代价是(.*)$', 'u');
+  const sep = '[\\s—–-]*';
+  const ruling = new RegExp(`^- ${sep}\\d{4}-\\d{2}-\\d{2}${sep}L[0-4]${sep}`
+    + `裁决[:：,，]?(.*?)${sep}因为[:：,，]?(.*?)${sep}`
+    + `(?:如果判断错了[:：,，]?${sep})?代价是?[:：,，]?(.*)$`, 'u');
   const hint = 'Use: - YYYY-MM-DD L0–L4 裁决：decision — 因为 reason '
     + '— 如果判断错了，代价是 cost';
   const unclosed = markdown(text, (line, number, outside) => {
     const match = outside && line.match(ruling);
     if (outside && /^\s*[-*+] /u.test(line)
-        && (!match || !match.slice(1).every((part) => part.trim()))) {
+        && (!match || !match.slice(1).every((part) => /[^\s\p{P}]/u.test(part)))) {
       problems.push(problem('malformed-ruling', `.ultra/rulings.md:${number}: ${line}`, hint));
     }
   });
