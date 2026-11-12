@@ -1,18 +1,18 @@
-Reviewer: Claude reviewer subagent (fresh context), xhigh, round 2
+Reviewer: Claude reviewer subagent (fresh context), xhigh, round 3
 
-Commit reviewed: `b289adc255d3f4d540c72394c6ee8ea539efc39e` (branch `m-p6`). I started at `c65d7d3`. `b289adc` adds only nine `.ultra/ledger/evidence.jsonl` lines, so the diff under review is unchanged: `49b1e96..HEAD` without `thinking/`.
+Commit reviewed: `1f25cee6afbb9053cc7eb132375061a4dc11f92d` (branch `m-p6`). HEAD did not move while I worked. I read the diff from the previous closure (`49b1e96..HEAD`) and read the fixes after `a814f6c` line by line. I followed `skills/ultra/references/review.md` and the controller's brief.
 
-(Recorded by the controller verbatim, except that angle brackets the notification transport escaped as HTML entities are restored. Round 1 is `M-P6-review-1.md`. An API usage limit interrupted this review once; the reviewer resumed with its context.)
+(Recorded by the controller verbatim, except that angle brackets the notification transport escaped as HTML entities are restored. Round 1 is `M-P6-review-1.md`, round 2 is `M-P6-review-2.md`.)
 
-All probes ran under `/tmp/p6r2.qlhA7K`:
-- `tree/`: a `git archive` copy;
-- `clone/`: a clone for the full check run;
-- `cfg/` and `home/`: an install into a temporary `--config-dir` with a temporary `HOME`;
+All probes ran under `/tmp/p6r3.O8ESAE`:
+- `tree/`: a `git archive` of HEAD, then `git init` so the engine can run on it;
+- `clone/`: a clone at HEAD; its engine is byte-identical;
 - `s/`: scratch projects;
 - `mut/`: broken copies;
-- `probes/`: the probe scripts.
+- `probes/`: the scripts;
+- `cfg/` and `home/`: an install into a temporary `--config-dir` with a temporary `HOME`.
 
-In the repository itself I only read files and ran read-only `git` commands.
+In the repository itself I only read files and ran read-only `git` commands. I started no servers.
 
 ## Blocking findings
 
@@ -20,234 +20,220 @@ None.
 
 ## What must be said to the Owner
 
-### 1. The round-1 fix for changing a pinned behavior stalls every node planned before the change
+### 1. Round 2's "What must be said to the Owner", item by item
 
-This is a regression introduced by `d66f091`. I confirmed it by running it.
-
-- **What the method says now.** `skills/ultra/SKILL.md:70-72` has the acceptance author rewrite the pinned test to the new behavior, "committed red before the node". That test still runs inside the invariant registered at `SKILL.md:64-67`. An invariant blocks every `node done` while it is red (`SKILL.md:337-338`).
-- **Setup** (`/tmp/p6r2.qlhA7K/probes/b2.sh`):
-  - Existing slug code, with its suite registered as invariant `C-inv`.
-  - N-01 (README) comes first in plan order; N-02 changes the pinned behavior.
-  - The acceptance author rewrote the pinned test red, as the text says.
-- **By hand.** N-01's writer turned its own requirement green and then hit this:
-  ```
-  node N-01: fail
-  invariant-not-green: C-inv is not green — Keep every existing test passing.
-  M1 · 1/2 绿 · 1 红 · 下一项 N-01 · 本里程碑计划变更 0 次 · 不变量 1 未绿
-  ```
-- **Under drive** (`/tmp/p6r2.qlhA7K/probes/b2drive.sh`), the same plan used up three writer attempts on N-01:
-  ```
-  drive: writer N-01: node-not-done (exit 0)
-  drive: writer N-01: node-not-done (exit 0)
-  drive: writer N-01: node-not-done (exit 0)
-  node-not-done: N-01: node-not-done — Resolve this stop before resuming drive.
-  drive: stop attempts-exhausted
-  ```
-- **Two pinned changes in two nodes** (`/tmp/p6r2.qlhA7K/probes/b3.sh`): the first node is refused until the second node's code lands. By hand that can be recovered; under drive it ends in the same stop.
-- **Why a model following the text ends up here.**
-  - The status table says to choose the step "from the status, and from nothing else" (`SKILL.md:23`), and `next` stays N-01.
-  - The invariant's `fix` points N-01's writer at code outside its scope. The A7 trial wrote its own `fix` the same way: "repair the code, never the test".
-  - Escalation has no row for a node that is finished but refused by an invariant another node will turn green.
-  - To recover, the planner has to see the cause and add `depends: ["N-02"]` to N-01.
-- **Why it does not block.** REQ-P6-method does not mention changing a pinned behavior. Every step it does name can still be done, and the stall loses nothing. It is still the most likely way the method fails on an existing codebase, which is half of what the Owner asked for.
-- **Proposal, which I ran.** The acceptance author moves the pinned test out of the invariant's run (into another file, or with the runner's skip filter) and into the requirement's own check, rewritten to the new behavior and committed red. I reran the same plan and writer with `C-inv` run as `--test-skip-pattern="drops dashes"` (`/tmp/p6r2.qlhA7K/probes/b5drive.sh`):
-  ```
-  drive: writer N-01: done (exit 0)
-  drive: writer N-02: done (exit 0)
-  drive: check all: pass
-  drive: stop milestone-gate
-  ```
-  - Nothing that should still hold loses its check: the moved test asserted the old behavior, which the Owner asked to change. So this is an L1 modify with a ruling.
-  - The Owner may still want to rule on narrowing an invariant's run, because the method calls removing an invariant a reduction of what the project promises itself.
-  - I ran the skip filter only on Node 25.7.0. "Another file" works with any runner.
-  - The cheaper alternative needs no move: plan the changing node first, and put all pinned changes of a milestone in one node. It constrains plans, and it does not help two such changes in separate nodes.
-- **Two smaller points on the same bullet.**
-  - It says "L1 modify" during Start, where there is no requirement block yet to modify; the change is an add.
-  - It appears only in Start step 1. A later Owner request goes to "Changes after 0→1", whose row "a behavior changes" says "edit the block, its checks" and never mentions a pinned test inside the invariant. One clause there pointing to the rule would cover it.
-
-### 2. REQ-P6-status's text and HEAD disagree when every milestone is closed
-
-I confirmed this by running it and judged it non-blocking; the Owner may read it otherwise.
-
-- **The requirement:** "A requirement of a closed milestone that is stale while the latest run of every check covering it passed is to be rechecked: `ubp status --json` counts it in `closed_recheck`." The spec does not exclude the current milestone.
-- **HEAD:**
-  - When every milestone is closed, the last one is still the current milestone (FORMATS: "if all are closed, the last milestone"), and it is left out of both closed counts.
-  - Scratch project with one milestone M1, closed, then a commit of `NOTES.md`, using the installed engine: `closed_recheck 0`, `closed_not_green 0`.
-  - The line read `M1 · 0/2 绿 · 2 过期 · 下一项 检查 · 本里程碑计划变更 0 次 · 不变量 1 未绿`.
-- **Why I did not block:**
-  - The `Done when` holds: the line never says `未绿` for these requirements.
-  - `closed_not_green` has used the same scope since M-P1, and REQ-P6-status splits that count.
-  - Counting these requirements would report them twice on one line.
-  - FORMATS states the scope ("closed milestones other than the current milestone"), and both the 2026-11-12 ruling and the engine handoff record this case.
-- **Fix.** Add one clause to the requirement: "of a closed milestone other than the one the line names". It changes nothing in the engine. It is a wording edit of a requirement, so the Owner approves it.
-
-### 3. The round-1 items the controller says it fixed in `d66f091`, one by one
-
-| Round-1 item | Does the fix do what was asked? | Evidence |
+| Round-2 item | Fixed at HEAD? | Evidence |
 |---|---|---|
-| 1. Pinned behavior | Only when the changing node is first in plan order and the only such change; otherwise it stalls (point 1 above) | `/tmp/p6r2.qlhA7K/probes/b2*.sh`, `b3.sh`, `b5*.sh` |
-| 2. Drive progress in Claude Code | Yes, with three gaps | Monitor probe |
-| 3. `待复核` wording | Yes; one more cause is not named | scratch `f1`, `f3` |
-| 4. Spec without a design | Yes, with two ambiguities | reading; drive probe `d1` |
-| 5. Red, flaky or slow baseline | Partly: "fixing them is the first node" has one valid shape, and the text does not name it | `/tmp/p6r2.qlhA7K/probes/b4.sh` |
-| 6. `expect` inside `describe` | Yes | scratch checks |
-| 9. Smaller items | Partly: three of the six sub-items are done | below |
+| 1. A pinned-behavior change stalls every earlier node | **Fixed for the shape round 2 reproduced**, when the plan uses the skip filter or moves the test outside the invariant's run. The same text still allows two plans that stall (point 2 below). | Drive probes, table below |
+| 1a. "L1 modify" during Start | Fixed: the phrase is gone | `skills/ultra/SKILL.md:74-79` |
+| 1b. The "a behavior changes" row of Changes after 0→1 | Fixed | `SKILL.md:283` |
+| 2. REQ-P6-status text when every milestone is closed | Fixed. The requirement now says "other than the one the line names"; the engine is unchanged; there is a new test. | `.ultra/spec.md:125-128`. Broken copy `allclosed` fails C-engine-p6. New-user probe: a single closed M1, then a notes commit, gives `M1 · 0/1 绿 · 1 过期 · 下一项 检查`, `recheck 0 not_green 0`, as the amended text says. |
+| 3/2. Three gaps in the Monitor relay | Fixed in the text, and confirmed live (A5 below) | `references/drive.md:14-24` |
+| 3/2. Codex | Partly: the Owner is told to `tail -f .ultra/.runtime/drive.err` | `drive.md:21-25` |
+| 3/3. `待复核` did not name the shared text | Fixed | `SKILL.md:41-44`; both READMEs |
+| 3/4. Two ambiguities in the design line | Both fixed | `SKILL.md:18-21` ("registering nothing the checks already hold"; "while a drive runs, wait for it to end first") |
+| 3/5. Red baseline | Fixed. Probe `probes/cleanup.sh`, run under drive with a red baseline in the invariant and a first `"kind": "cleanup"` node: `writer N-fix: done`, `writer N-01: done`, `check all: pass`, `stop milestone-gate`. The cleaner's "never a large refactor" still has no exception (minor). | `SKILL.md:71-73` |
+| 3/9. Raw `ENOENT` before a project starts | Fixed (point 6) | `engine/git-state.cjs:109-112` |
+| 3/9. `git init` in Start | Fixed | `SKILL.md:63-64` |
+| 3/9. README review path | Fixed | README command tables |
+| 3. "each writer line" vs "each line" | Fixed | `drive.md:38-40` |
+| 4. Version | Fixed: `6.1.0-rc.0`. Doctor reports it with commit `1f25cee` and `dirty: false`. The README's install line still says 6.0.0, by ruling (point 4). | Install probe |
+| 4. This repository's own setup | Done: a Direction (a draft, point 3), `.ultra/design.md`, REQ-P6-docs, and per-test `expect` for C-engine-p6 and C-method-p6 | `.ultra/checks.json` |
+| 5. Acceptance gaps | Closed for the engine: six of seven broken copies are caught. The method checks are still structural only, by ruling (point 6). | `mut/` |
+| 6. Where a writer puts its own tests | Partly: an invariant written as a glob names no test file, so writer tests under it no longer trigger `check-touched` | `SKILL.md:68-70` |
+| 6. The gate's reviewer did not read the design | Fixed | `references/review.md:9-10` |
+| 6. Close accepts only the canonical review path | Unchanged; the ruling keeps `--review` | — |
+| The four "could be met with less" items | All done: one `review.md`, the drive row moved to `drive.md`, the measured-comparison parenthetical cut, the Start bullets merged | — |
 
-**Item 2: drive progress.**
-- I armed a Monitor with the exact command in `references/drive.md:14-18`, on a drive whose writer slept 6 s per node. It delivered every event while the drive ran, in four notifications:
-  - `drive: run …` together with `drive: check stale: pass`;
-  - `drive: writer N-01: done (exit 0)`;
-  - `drive: writer N-02: done (exit 0)`;
-  - `drive: check all: pass` together with `drive: stop milestone-gate`.
-- **Gap: duplicates on re-arm.** Re-arming the same command replays every line from the first (`tail -n +1`; on the finished file it printed all 6). The Owner gets duplicates each time the monitor expires. The tool's default timeout is 5 minutes; 30 minutes applies only when the model passes it.
-- **Gap: the monitor outlives the drive.** `tail -F` never exits. In my probe the monitor kept running until its timeout, after `drive: stop milestone-gate`. The text does not say to stop it when the drive's completion notice arrives.
-- **Gap: problem lines are filtered out.** The filter `^drive: ` drops problem lines such as `writer-left-dirty: N-01: writer-left-dirty — Resolve this stop before resuming drive.` Nothing is lost: the stop reason still arrives, and the final JSON carries the problems.
-- **Fix:** "Pass the longest timeout; on re-arm, relay only lines not yet relayed; stop the monitor at the drive's completion notice."
-- **Codex** (not checked): the text there is unchanged ("read the stderr file at each check-in"), and nothing on that host creates a check-in.
+**The pinned-behavior reproduction (brief, point 1).**
 
-**Item 3: `待复核` wording.**
-- After closure, a requirement text edit reads `已关闭里程碑 1 项待复核`, with reason `req-changed:REQ-001` and `next` N-01. That matches the new wording.
-- A Direction edit (shared text) also puts every closed requirement in `待复核` (`shared-changed`): `已关闭里程碑 2 项待复核`. The wording names only requirement and check edits; add "or the shared text".
+- **Setup.** Round 2's shape: existing slug code; invariant `C-inv`; N-01 (README) first in plan order; N-02 changes what the test `keeps dashes at the ends` pins. The invariant is registered as HEAD's Start text says: the runner and the glob `test/*.test.cjs`. The scripted writer is the same as round 2's, under `ubp drive`.
+- **Results** (`probes/mk.sh`, `probes/drive.sh`):
 
-**Item 4: a spec without `.ultra/design.md`.** `SKILL.md:19` does what was asked. Two ambiguities remain:
-- "Write the design (Start step 1)" points at the whole step. Read literally, its existing-code bullets would register the existing suite as an invariant again in a project already on UBP; in this repository that would be `npm test` alongside C-release (inferred). Saying "its survey" fixes this.
-- The line comes before the status table, so a session can act on it while a drive runs.
-  - The table says to change no file while a drive runs.
-  - An uncommitted `.ultra/design.md` stops a drive: in probe `d1`, a writer's uncommitted edit stopped it as `writer-left-dirty`.
-  - So a controller that writes the design mid-drive would stop the drive and get its writer blamed (inferred for the controller case).
+  | Plan HEAD's text allows | Drive result |
+  |---|---|
+  | Pinned test rewritten in place, invariant run with `--test-skip-pattern="drops dashes"` ("behind the runner's skip filter") | `drive: writer N-01: done (exit 0)`, `drive: writer N-02: done (exit 0)`, `drive: check all: pass`, `drive: stop milestone-gate`, on Node 25.7.0 and on 22.21.0 |
+  | "To another file", outside the glob (`acceptance/trim.test.cjs`) | The same, reaching `milestone-gate` |
+  | "To another file", inside the glob (`test/trim.test.cjs`) | Three `drive: writer N-01: node-not-done (exit 0)`, then `drive: stop attempts-exhausted`. By hand: `node N-01: fail` / `invariant-not-green: C-inv is not green — Keep every existing test passing.` |
 
-**Item 5: a red, flaky or slow baseline.**
-- A first node with `covers: []` is refused by the gate: `empty-node: N-fix covers no requirement — Link the node to a requirement or remove it.`
-- The same node as `"kind": "cleanup"` passes the gate, completes once the fix lands, and the next node follows (`/tmp/p6r2.qlhA7K/probes/b4.sh`).
-- The text should say "a cleanup node first in the milestone" or name a requirement for that node. The cleaner's "never a large refactor" may then need an exception.
+- **Conclusion.** Round 2's stall does not recur when the plan takes the test out of the invariant's run.
 
-**Item 6: `expect` inside `describe`.** In my scratch checks, `^\s*✔ <name>` matched both a top-level test (`joins words`) and a test inside `describe` (`drops dashes at the ends`). The FORMATS example escapes the pattern correctly for JSON.
+### 2. A new stall: the glob invariant picks up every red acceptance test in its directory (regression from `36a141f`)
 
-**Item 9: smaller items.**
-- **Done:**
-  - the `all-done` bullet (`drive.md:67-68`);
-  - "a check never reads … `.ultra/design.md`" (`SKILL.md:148`);
-  - the zh README's hook sentence.
-- **Not done, although the handoff says "(item 9)", and not in its not-done list:**
-  - In a committed repository without a spec, `ubp status` still prints `.ultra/spec.md: ENOENT: no such file or directory, open '…'` and exits 2, while the README says `ubp status` shows "the current state". The engine's messages before `git init` and before the first commit are clear.
-  - Start still does not mention `git init` or a first commit.
-  - The README's command table still shows `--review <file>` without saying the file must be `.ultra/records/milestones/<id>-review.md`. FORMATS, Skill gate step 5 and the refusal's hint all name the path.
-  - Heading levels inside the brief's `## Project`. These are as specified.
+I confirmed this by running it.
 
-**Regressions from the restructuring.** None beyond the above.
-- The Skill's drive and merge paragraphs now only point to the references. The rules they dropped are all in `drive.md` and `merge.md`:
-  - a node's scope holds no check file;
-  - `--expect-head` takes a full commit id;
-  - a branch never changes the truth files and never approves.
-- One harmless inconsistency: the Skill says to relay "each line a running drive prints" (`SKILL.md:37-38`, `:207`), while `drive.md:35-36` says "each writer line".
+- **What the text says.**
+  - `SKILL.md:68-70` registers the invariant as "the runner and a glob, not a list of files, so tests added later join it". This sentence is new in `36a141f`.
+  - `SKILL.md:151-153` commits every new check's tests red before any implementation.
+  - Nothing says where the acceptance author puts those red tests. In `test/`, the glob runs them.
+- **Reproduction** (`probes/mk.sh newtest`, `probes/hand.sh newtest`).
+  - Same project. The pinned test is handled with the skip filter, as the text says.
+  - In addition, REQ-003 is a new behavior. Its red test is `test/title.test.cjs`, and its node N-03 comes last.
+  - By hand: N-01's own check passed (`C-docs: pass (exit-0)`), then `node N-01: fail` / `invariant-not-green: C-inv is not green — Keep every existing test passing.`
+  - Under drive: three `node-not-done`, then `stop attempts-exhausted`.
+  - No pinned behavior is involved: every node before the last new behavior's node is refused.
+- **The second trap** is the "another file" wording for the pinned test. A file inside the glob satisfies it and stalls (table above).
+- **How A7 round 2 avoided both.** The session wrote its own ruling (`a7-start-trials-2/existing-shortlink/rulings.md:5`): skip this milestone's test-name prefixes "because they are red until their nodes land and would otherwise refuse every node". That is one sample and one model, not the method text.
+- **Why it does not block.**
+  - REQ-P6-method's new sentence is about a test that pins a behavior ("so no node before the change is refused").
+  - Its `Done when` (a headless session reaches the gate with no node refused by the invariant) holds as recorded in A7 round 2.
+  - No requirement says anything about new acceptance tests. This is the same class as round 2's point 1.
+- **Proposed fix** (an L1 modify of REQ-P6-method's method text, with a ruling): one rule in Start step 1 replacing the red-baseline and pinned-test clauses: "a test that is red now (a red baseline, a pinned test rewritten to the new behavior, or a new requirement's test) stays out of the invariant's run, behind the runner's skip filter by a name prefix or in a directory its glob does not match". Add a C-method-p6 assertion for it.
 
-### 4. Items 7 and 8, and this repository's own setup, are still the Owner's to decide
+### 3. The Direction against the Owner's words
 
-- **Version (round-1 item 8).**
-  - `package.json` and the README's install line still say `6.0.0`.
-  - My temporary install's doctor reported `claude:healthy:6.0.0 codex:healthy:6.0.0` for content that differs from npm's 6.0.0. The planned install into the real `~/.claude` after the gate will report the same.
-  - Setting a prerelease version before that install keeps `--doctor` honest.
-- **This repository (round-1 item 4; ruling 2026-11-12).**
-  - It has no `## Direction`, no `.ultra/design.md`, no interview record and no user-documentation requirement.
-  - `C-engine-p6` and `C-method-p6` still use `^ℹ pass [1-9][0-9]*$`.
-  - After the install, the first session here will reach `SKILL.md:19` and write the design before any node, with the item-4 ambiguity above.
+The 2026-11-12 L0 ruling makes this a draft for gate step 4. I compared it with:
+- `thinking/back-to-essentials-20261030/THOUGHTS.md` (10-30, 10-31);
+- `.ultra/records/owner-touches.md` (11-11);
+- the Owner-confirmed contract (§8 of `back-to-essentials` RESULT).
 
-### 5. Acceptance gaps: broken copies the P6 checks still pass
+**What is faithful:**
+- the north-star quote (`THOUGHTS.md:54`);
+- the users quote (`owner-touches.md:41`);
+- "你不知道具体进度是什么" (`THOUGHTS.md:36`);
+- "越改越乱" (`THOUGHTS.md:46`);
+- the host scope (§8: "宿主只做 Claude Code 和 Codex");
+- "Abandon: not stated by the Owner."
 
-The engine has not changed since round 1 (`git diff --stat e5db85e..HEAD -- engine/*.cjs hooks adapters tests` is empty), so round 1's six engine mutants still apply. New this round:
+**Where it departs** (none contradicts the Owner, so none blocks; each is the Owner's call at step 4):
 
-- **`待复核` printed before `未绿`.** Passes C-engine-p6 7/7, but fails C-engine (`tests/engine-p1.test.cjs`, test "closed milestones keep counting", 0/1), whose updated line assertion pins the order. The check set covers it.
-- **A closed requirement whose last run was `unknown` counted as `待复核`** (`!== 'fail'` instead of `=== 'pass'`).
-  - Passes C-engine-p6 7/7, and passes that C-engine test 1/1.
-  - HEAD on the same input: I made check C-2 come back `unknown (expect-unmet)`, then committed notes. The line read `… · 已关闭里程碑 1 项未绿 · 已关闭里程碑 1 项待复核`, with `recheck 1 not_green 1`, as the spec says.
-  - To close this gap, add a closed requirement whose last run is `unknown` to the 待复核 test.
-- **The review path checked before the review is read.** Fails C-engine-p6 6/7. Covered.
-- **Method mutants.** Each of these passes C-method-p6 9/9:
-  - removing session step 1's design line;
-  - removing the Monitor bullet;
-  - removing the `all-done` bullet;
-  - changing "a writer never edits it" to "a writer may edit it too".
+- **Elegance line.** The Owner never defined elegance. The method's own interview asks for it (`SKILL.md:93`), and the A7 new-project session asked it. Write "not stated by the Owner", or ask.
+- **Success line leaves out the Owner's own success words:**
+  - "只要最终能产出一个真正好用的东西就行" (`THOUGHTS.md:52`);
+  - "症结在于没有做出来一个真正可用的东西" (`THOUGHTS.md:38`);
+  - the contract's "完成的标准是：Owner 能把它拿去做第一个真实工程样本" and "真正的验收是 Owner 的第一个真实样本".
 
-  This is expected, since the 2026-11-12 ruling makes C-method-p6 structural only. HEAD's text is right at `SKILL.md:19`, `drive.md:14-18`, `drive.md:67-68` and `SKILL.md:106`.
+  What it lists instead are the assistant's mechanisms ("progress is computed", "touches only the layer it belongs to"). They answer the Owner's complaints, but they are not the Owner's words. "The Owner is asked only where their judgment is needed" paraphrases the 11-01 delegation ("这个中间应该不太需要我了"), not verbatim.
+- **North star.**
+  - "产生真实、优雅且非常厉害的工程样本" becomes "real, elegant software".
+  - "井井有条" and "极高的辨识度" are dropped.
+  - The Owner's two purposes from 10-30 ("1. 自动化 2. 更好、更精确的意图识别与执行") are absent.
+- **Boundary.**
+  - "no daemon, runner or Python hook" comes from the v6 product boundary (CLAUDE.md, and the Owner's 11-04 "按你的打算来"), not from the Owner's words. On 10-31 the Owner left graph plus loop and async multi-agent open ("都可以纳入考虑"). This is not a contradiction.
+  - The cost the Owner accepted, "0 到 1 阶段可能会比较重，但这是我们可以接受的", is absent.
+- **No draft marker.** The spec text does not mark the Direction as a draft. Every brief already gives it to writers as the Owner's Direction (this repository's N-P6-method brief, 9993 bytes, carries it). A "放行" that does not address it would close the milestone on an unconfirmed Direction. The step-4 question should show the Direction text itself.
 
-### 6. Smaller items
+### 4. The README installs 6.0.0, which lacks this milestone's behavior
 
-- **Where a writer puts its own tests on an existing codebase.** The method does not say. The example writer may not edit "any check's test file", and the drive stops `check-touched` on any path a check's `run` names. So an invariant that names the existing test files (as in my scratch projects) puts every existing test file out of a writer's reach, even one its refactor legitimately breaks. A7's glob `test/*.test.cjs` names no path, so it does not trigger this. Inferred.
-- **`milestone close` accepts only the canonical path.** It now refuses a review at another path that used to pass. Like round 1, I read this as covered by the contract the Owner confirmed ("核对评审路径属于该里程碑"). Every closure in this repository used the canonical path.
-- **The gate's reviewer does not read the design.** Skill gate step 2 (`SKILL.md:238-242`) does not ask the reviewer to read `.ultra/design.md`, while the example reviewer does. This is part of the three-copy problem below.
+- **The line.** `README.md:12` (and the zh copy) says `npm install -g ultra-builder-pro-cli@6.0.0`.
+- **The conflict.** REQ-P6-docs' `Done when` is "a new user can install, start a project and close a milestone by following the README". Version 6.0.0 has none of M-P6's behavior. For example, `README.md:33` says `ubp status` in a project that has not started "says so", while 6.0.0 prints the raw `ENOENT`.
+- **Why the line is there.** The L2 ruling explains it: the README should not point at a version that is not published.
+- **The gap.** Nothing checks this line at release: C-package pins only the version in `package.json` and the lock.
+- **Why it does not block.** The package is unreleased, and the Owner installs from a commit. I followed the README with the packed `6.1.0-rc.0`, using `node bin/install.js` as `ubp`, from an empty directory:
+  - before `git init`: `… is not inside a Git work tree. Run git init first.`;
+  - before a commit: `… has no commit. Commit the code first.`;
+  - after it: `… has not started: .ultra/spec.md does not exist. Start it with the ultra Skill.`;
+  - then `gate: pass`, red check, `node N-01: pass`, and `ubp milestone close M1 --owner "放行" --review .ultra/records/milestones/M1-review.md` gave `milestone M1: pass`.
+- **Fix at release:** an install line without a version, or a release check that the README's version equals `package.json`'s when it is not a prerelease.
 
-### Could the same acceptance be met with less?
+### 5. Other regressions and small items from the fixes
 
-Yes, in the method text. The engine is already close to the minimum.
+- **A copied example reviewer stops the drive.**
+  - The header says "Copy it and adjust before use" (`docs/examples/drive/claude-reviewer.sh:6`). The script now reads `review.md` relative to its own location (`:16-18`).
+  - Copied into a project (`tools/rev.sh`), the drive stopped:
+    ```
+    drive: reviewer M1: review-invalid (exit 2)
+    ```
+    and the review log said `review guide not found: …/tools/../../../skills/ultra/references/review.md (set UBP_REVIEW_GUIDE)`.
+  - It can be recovered: the `review-invalid` row of `drive.md` says to fix the reviewer command, and the comment at `:15` names the variable.
+  - Fix: `drive.md:27-31` could name `UBP_REVIEW_GUIDE` and the installed Skill's `references/review.md`.
+  - From the package or repository path it works: with a fake `claude` on PATH, the prompt has the mission lines, then the whole of `review.md`, with backticks intact, also under a path with a space.
+- **Documentation as a requirement vs the drive's `check-touched`.**
+  - A docs check whose `run` names `README.md` (for example `grep … README.md`) makes `README.md` off-limits to every drive writer. My first probe gave `drive: writer N-01: check-touched (exit 0)` / `check-touched: README.md`.
+  - The rule predates M-P6 (FORMATS, "A check names a path…"). It is newly likely because M-P6 makes the README a requirement.
+  - Fix: say that a docs check reads the README from inside a test file, as this repository's C-method-p6 does.
+- **Status-table wording.** The drive row says "change no file" (`SKILL.md:29`). `drive.md:47-49` then has you remove `.ultra/.runtime/drive.lock` when the pid belongs to another process. The reference resolves this; it is wording only.
+- **A wrong fact in this repository's design.** `.ultra/design.md:5-6` says "no runtime npm dependency". `package.json` declares `js-yaml`, which `adapters/_shared/frontmatter.cjs` requires. Every brief carries this line.
+- **The progress line now says `本里程碑计划变更 6 次`.**
+  - One Direction edit logged one `change` line per milestone (M-P1 to M-P6, all `shared: true`).
+  - Status counts every change since the latest closure, whatever its milestone (`engine/states.cjs:104-105`, unchanged since `fb8ec70`).
+  - REQ-P3-diff speaks of "each plan change of a milestone". This predates M-P6. The demo should explain the 6.
+- **Retro.** The three repeated classes are deliberate red-first runs, but two come from M-P6's opening red-first, not this round:
+  - `closed milestones keep counting`: C-engine and C-release, 08:59–09:12;
+  - `after a drive stop … truth files back`: C-package, 09:19 and 09:24;
+  - only `a project without .ultra/spec.md` (C-engine-p6, 18:15 and 18:18) is from this round.
+- **Empty directory.** "A first commit of what is there" (`SKILL.md:63-64`) fails with nothing to commit unless `--allow-empty` is used. The A7 trial made an empty commit.
+- **Codex.** There are no line notifications there. The controller tells the Owner to `tail -f` and stops (`drive.md:21-25`), so REQ-P6-method's "relays each line" holds only in Claude Code.
 
-- **Engine.**
-  - M-P6 adds 13 lines (1998 to 2011, against the 2050 cap).
-  - I would keep:
-    - the separate `sharedText`, because it keeps existing evidence hashes valid;
-    - `closed_recheck`;
-    - the stderr printer, which simplified `drive.cjs`.
-  - The one cut I would consider is the same as in round 1: drop `--review` and have `close` read the canonical path itself, as `drive` already does. That removes the path comparison and `review-not-for-milestone`. The cost is a CLI change and an edit to a closed milestone's acceptance.
-- **Method text: about 30 always-loaded lines, with no acceptance lost.**
-  - **One `references/review.md`** replacing the three copies of the reviewer instructions: gate step 2, `claude-reviewer.sh`, and the controller's brief. That takes about 22 lines out of `SKILL.md` and removes the drift already there (the design file and the `git archive` run).
-  - **The status table's drive row** (`SKILL.md:27`, the `ps` lock procedure) moves into `drive.md`, next to `drive-running`, which currently gives a different rule for removing the lock. C-package's assertion in `tests/v6-package.test.cjs` pins `ps -o command=` in that table row, so it would need rewording. That is a closed milestone's acceptance, so the Owner decides.
-  - **The measured-comparison parenthetical in Roles:** 2 lines. Keep the rule itself.
-  - **Start step 1:** with the point-1 proposal, the pinned-test bullet and the characterization bullet become one rule. Proposed text: "a behavior this work changes moves into a requirement's check before its node: a test that pins it leaves the invariant and is rewritten red; a behavior no test pins gets a characterization check, green."
-- **What the rework added that I would keep:** the Monitor bullet, with its three gaps fixed. It sits in a reference that is not always loaded, and it is the only way finding 7 is met in Claude Code.
-- **What I would not remove:**
-  - the design section;
-  - the four Start steps;
-  - the Escalation row for an unknown fact;
-  - the review against the Owner's words.
+### 6. Acceptance gaps: broken copies
+
+**Engine.** Each copy is under `mut/`; I ran `tests/engine-p6.test.cjs` against each:
+
+| Broken copy | C-engine-p6 |
+|---|---|
+| Not-started check removed | Fails "a project without .ultra/spec.md…" |
+| `=== 'pass'` changed to `!== 'fail'` (a last `unknown` counted as `待复核`) | Fails "a closed requirement is to be rechecked only when…" |
+| Current milestone included in the closed counts | Fails "when every milestone is closed…" |
+| `--json` problem lines printed to stdout | Fails "drive --json writes each problem of a stop on stderr" |
+| Review path compared by basename (accepts `docs/M2-review.md`) | Fails "a milestone closes only on its own review"; the `expect` line is gone |
+| Shared text loses its internal empty lines | Fails "the brief keeps the shared text…" |
+| Spec check moved before the no-commit check | **Passes 12/12.** No suite asserts the no-commit message. HEAD on that input: `… has no commit. Commit the code first.` (exit 2). The check that would close it: the not-started test, run once on a repository with no commit. |
+
+- So round 2's `unknown` gap is closed.
+- The not-started test covers five command forms. I drove all thirteen by hand: `status`, `status --json`, `gate`, `check`, `check --all`, `node done`, `milestone close`, `context`, `approve`, `drive`, `drive --json`, `retro`, `merge`. Each exited 2 with the exact message, and `git status --porcelain --ignored` stayed empty.
+
+**Method text.** C-method-p6 is structural only, by the 2026-11-12 ruling:
+- **Pinned test kept in the invariant.** I rewrote the Start bullet so the pinned test "is never taken out of the invariant: it stays in the invariant and is rewritten…". It passes C-method-p6 14/14 and C-package 15/15, because the phrase "out of the invariant" still appears.
+- **Blocking sentence deleted.** Deleting `review.md`'s blocking sentence (a spec or Direction that says other than the Owner said) passes both. Nothing asserts that sentence, before this round or now.
+- **README command renamed.** Renaming a README command fails C-method-p6 (the REQ-P6-docs test), as it should.
+
+HEAD's text is right at `SKILL.md:74-79` and `review.md:17-18`.
+
+### 7. Could the same acceptance be met with less?
+
+- **Start step 1.** The one rule in point 2 replaces two clauses and also removes point 2's stall.
+- **Engine.** The not-started check is 4 lines; the engine is at 2015 of 2050 lines. Nothing to cut. The ruling not to remove `--review` is fine.
+- **`claude-reviewer.sh`.** The guide lookup costs 4 lines and adds one failure mode (a copied script). Keep it, and add the documentation line from point 5.
+- **`tests/engine-p5.test.cjs`, `gone()`.** The 6 diagnostic lines leave the assertions unchanged. Remove them once the cause is known.
+- **The REQ-P6-docs test** (`tests/method-p6.test.cjs:159`) parses `--help` with a hand-written splitter. It could compare against the list the CLI prints for an unknown command ("Use status, gate, check, node, milestone, context, approve, retro, merge, drive."). The gain is small.
 
 ### Acceptance criteria
 
 - **A1: met.**
-  - Brief for N-01 on the existing-code scratch project, compiled by the installed engine: `## Project` holds the spec's title, `## Direction` and `## Interface`, then `### .ultra/design.md` and the design, all before `## Requirements`.
-  - The first rule names `.ultra/design.md`.
-  - The A7 Shortlink copy's only node compiles to 11290 bytes of the 32768 budget, with a 4127-byte design.
-- **A2: met.**
-  - C-engine-p6's design test passes.
-  - A drive writer that edited `.ultra/design.md` without committing was stopped as `writer-left-dirty` before the next node, so no later brief carried the edit.
-- **A3: met on scratch projects.**
-  - Checked there: both segments, their order, and a last-`unknown` run counted as `未绿`. The all-closed case is point 2 above.
-  - I did not rerun this repository's live line, because another process was running checks there. Round 1 quoted `… 已关闭里程碑 13 项待复核`.
-- **A4: met.** Installed engine on a scratch project:
-
-  | `--review` given | Result |
-  |---|---|
-  | `docs/M1-review.md` | `review-not-for-milestone: docs/M1-review.md is not the review for M1 — Use .ultra/records/milestones/M1-review.md for this milestone.` |
-  | lowercase `m1-review.md` | refused the same way |
-  | an absolute path | `--review must be a relative path inside the project root.` (exit 2) |
-  | a missing file | only `review-missing` |
-  | `.ultra//records/milestones/M1-review.md` | no path problem |
-  | `./.ultra/records/milestones/M1-review.md` | `milestone M1: pass` |
-- **A5: met.** The Monitor probe above; stdout held only the final JSON.
+  - This repository's N-P6-method brief compiles to 9993 bytes, with `## Project`, then the Direction, then `### .ultra/design.md`, all before `## Requirements`.
+  - C-engine-p6's shared-text test passes.
+- **A2: met.** C-engine-p6 passes.
+- **A3: met.**
+  - Checked on scratch projects.
+  - The line from this repository's committed files, read on the clone: `M-P6 · 5/5 绿 · 下一项 里程碑门 · 本里程碑计划变更 6 次`. Every closed requirement is green after the gate's check run.
+- **A4: met.**
+- **A5: met, confirmed live.**
+  - I armed a Monitor with `drive.md`'s exact command on a drive that ended in a stop.
+  - It delivered all six lines, including `node-not-done: N-01: node-not-done — Resolve this stop before resuming drive.` and `drive: stop attempts-exhausted`.
+  - I stopped the monitor at the drive's completion notice, as the text says.
 - **A6: met.**
-  - `SKILL.md` is 393 lines.
-  - Every drive stop (including `all-done`) and every merge refusal is handled in the references.
-  - C-method-p6 passes 9/9.
-- **A7: met as recorded.** Both trials ran the method at `cf0a1b0`, before `d66f091`. So no fresh session has tried any round-1 fix, and the trials' checks still use the old `pass [1-9]` expect.
+  - `SKILL.md` is 381 lines.
+  - The drive, merge and review instructions are in `references/`.
+  - C-method-p6 passes 14/14.
+- **A7: met as recorded** in `a7-start-trials-2/`.
+  - One sample per trial.
+  - The existing-codebase trial was not run under drive.
+  - It avoided point 2 through the session's own ruling, not the text.
 - **A8: met.**
-  - **Full check run.** In a clone of `c65d7d3` (the same tree as HEAD apart from evidence lines), `node engine/cli.cjs check --all` with the repository engine gave every check `pass (exit-0)`: C-engine, C-release, C-engine-p2 to p5, C-package, C-engine-p6 and C-method-p6. Exit 0, final line `M-P6 · 4/4 绿 · 下一项 里程碑门 · 本里程碑计划变更 0 次`.
-  - **Release suite.** C-release's log: `ℹ tests 402`, `ℹ pass 402`, `ℹ fail 0`, `found 0 vulnerabilities`.
-  - **Pack.** `npm pack --dry-run --json`: version 6.0.0, 39 entries, including `skills/ultra/references/drive.md`, `merge.md`, both drive examples and `engine/FORMATS.md`.
-  - **Install.** `--all --global --config-dir <tmp>` with a temporary `HOME` exited 0, and `--doctor --json` reported `healthy`. The installed engine is byte-identical to `engine/`, the installed `SKILL.md` has no `__UBP_` placeholder, and both hosts carry the references.
-  - **Skill validators.** Skill Creator `quick_validate.py` (Claude and Codex copies) on `skills/ultra`: `Skill is valid!` for both.
-  - **Plugin Creator.** Not run; no adapter or manifest changed in `49b1e96..HEAD`.
+  - **Full check run.** On the unmodified `git archive` copy, `node engine/cli.cjs check --all` gave every check `pass (exit-0)`: C-engine, C-release, C-engine-p2 to p5, C-package, C-engine-p6 and C-method-p6. Exit 0, final line `M-P6 · 5/5 绿 · 下一项 里程碑门 · 本里程碑计划变更 6 次`.
+  - **Release suite.** C-release's log: `ℹ tests 412`, `ℹ pass 412`, `ℹ fail 0`, `found 0 vulnerabilities`.
+  - **Pack.** `npm pack --dry-run --json`: version `6.1.0-rc.0`, 40 entries, including `skills/ultra/references/review.md`.
+  - **Install.** `--all --global --config-dir <tmp>` with a temporary `HOME` exited 0. `--doctor --json` reported `healthy`, `6.1.0-rc.0`, commit `1f25cee`, `dirty: false`. The installed engines are byte-identical to `engine/`, the installed Skill has no placeholder, and both hosts carry `references/review.md`.
+  - **Skill validators.** Skill Creator `quick_validate.py`, Codex and Claude copies: `Skill is valid!` for both.
+  - **Plugin Creator.** The local copy has no validator script. The new manifest version `6.1.0-rc.0+codex.3e0b413907e9` is a semantic version, which is what `plugin-json-spec.md` asks for.
+  - **Node 22.21.0.** C-engine-p6 12/12, C-method-p6 14/14, C-package 15/15, and the skip-filter drive probe reached the gate.
 - **A9:** waiting on the Owner.
 
 **Spec against the Owner's words.**
-- The four REQ-P6 blocks carry all five changes of RESULT's "统一方案" and A1–A6. I found no requirement that says other than what the Owner said.
-- The changed closed-milestone assertions (`engine-p1`, `engine-p2`, and C-package's drive-stop line) keep their strength and are covered by the 2026-11-12 L1 ruling.
-- The 2050-line budget is covered by the 2026-11-12 `reduction` touch.
-- `engine-p5.test.cjs` lost no lines.
+- The REQ-P6-status narrowing ("other than the one the line names") was named in the step-4 question the Owner answered "先修".
+- REQ-P6-method and REQ-P6-docs only add.
+- The changed C-package assertions keep their strength:
+  - the bar phrases are now asserted on the one `review.md`;
+  - the gate and the example reviewer must name it, and C-method-p6 checks that the example actually reads it (`cat "$GUIDE"`);
+  - the lock assertions moved to `drive.md`, and the status-table row must route there and say "change no file".
+- I found no spec change that leaves an input or user with less without approval. The Direction is point 3.
 
 ### Not checked
 
-- A live model session following the reworked method, in Claude Code or Codex.
-- The Monitor relay inside a real Claude Code drive with headless writers.
-- Linux and Node 22: everything ran on macOS with Node 25.7.0.
-- This repository's live status line.
-- The Plugin Creator validator.
+- A live headless model session (I ran none).
+- The Codex host.
+- Linux.
+- `engine-p5` and the full release suite on Node 22: I stopped my Node 22 `engine-p5` run so it would not overlap the full run's timing-sensitive interrupt test.
+- The Plugin Creator validator (none available).
 
 Verdict: accept
