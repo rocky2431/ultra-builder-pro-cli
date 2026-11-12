@@ -106,6 +106,10 @@ function projectRoot(requested) {
     if (error.exitCode) throw error;
     throw new Error(`${top} has no commit. Commit the code first.`);
   }
+  if (!fs.existsSync(path.join(top, '.ultra/spec.md'))) {
+    throw new Error(`${top} has not started: .ultra/spec.md does not exist. `
+      + 'Start it with the ultra Skill.');
+  }
   return top;
 }
 

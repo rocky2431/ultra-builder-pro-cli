@@ -251,6 +251,9 @@ gives all three such content (so a reason may start with `代价`), and a reason
 - Usage errors (exit 2), each with its own message and hint: `--root` does not exist; the
   directory is not inside a Git work tree (hint: `git init`); the repository has no commit
   (hint: commit the code first).
+- With a commit but no `.ultra/spec.md`, every command exits 2 with
+  `<root> has not started: .ultra/spec.md does not exist. Start it with the ultra Skill.`,
+  reports no `ENOENT` and writes nothing.
 - A Git command the engine expects to succeed that fails for another reason (identity,
   a hook, signing, a broken repository) exits 2 with the message
   `Git failed: <arguments>: <first non-empty line of Git's standard error>` (only the
