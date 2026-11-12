@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   product through its user documentation, which is now a requirement like any other; the
   controller reports the status line after every node and gate step; the handling of drive
   stops and merge refusals moved to `skills/ultra/references/`, read when needed.
+- A check's `expect` now matches a test's `✔ <name>` line in the method and
+  `engine/FORMATS.md`: `node --test` reports a file or a name filter that ran no test as one
+  passing test (Node 22 and 25), so the old `pass [1-9]` example could not tell that nothing
+  ran. Found by a headless start trial.
 - The engine's line budget is 2050 (Owner, 2026-11-12).
 
 ## [6.0.0] — 2026-11-04

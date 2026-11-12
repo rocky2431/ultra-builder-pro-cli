@@ -131,8 +131,9 @@ Checks (acceptance author, never the writer):
   first node cannot finish until the last node's interface exists.
 - Anything a check needs from the code (start command, port and data variables, a ready line,
   markers in a page) is written in the spec as interface (L2), so a writer can meet it.
-- `expect` must prove the tests ran, for example `^ℹ pass [1-9][0-9]*$` with
-  `node --test --test-reporter=spec`; a filter that matched nothing must not pass.
+- `expect` must prove the tests ran: match the line of a test the check relies on, for example
+  `^✔ an expired link answers 410` with `node --test --test-reporter=spec`. A pass count is
+  not enough: a file or a name filter that ran no test still prints `ℹ pass 1`.
 - Commit the test files before any implementation and run `ubp check`: every new check must be
   red or unknown. A check that is green before the code exists proves nothing (a
   characterization check of existing code is the one exception: it pins what already works).
