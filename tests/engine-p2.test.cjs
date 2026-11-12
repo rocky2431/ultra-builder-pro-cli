@@ -223,7 +223,7 @@ function refused(result, codes) {
 }
 
 const RULES = (id, checkIds) => [
-  '- Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/ledger/ or the files the checks above run. If a check or a requirement looks wrong, stop and escalate.',
+  '- Do not edit .ultra/spec.md, .ultra/checks.json, .ultra/plan.json, .ultra/design.md, .ultra/ledger/ or the files the checks above run. If a check or a requirement looks wrong, stop and escalate.',
   '- Change only files inside the scope, and commit your work: evidence from an uncommitted tree never counts.',
   `- Run \`ubp check ${checkIds.join(' ') || '--stale'}\` until every check above is green, then \`ubp check\` (every stale check: invariants and finished requirements must stay green), then \`ubp node done ${id}\`.`,
   '- Escalate instead of deciding: a change of direction (L0) and any deletion or narrowing of a requirement go to the Owner.',
@@ -232,11 +232,17 @@ const RULES = (id, checkIds) => [
   '- If three attempts leave a check red, stop and report the check, its error line and what you tried.',
 ].join('\n');
 
-// The brief the contract defines, built independently of the engine.
-function brief({ id, title, milestone, state, requirements, checks, scope, handoffs }) {
+// The brief the contract defines, built independently of the engine. `## Project` carries the
+// spec's shared text (here only the title) and the design (REQ-P6-knowledge).
+function brief({ id, title, milestone, state, requirements, checks, scope, handoffs,
+  shared = '# Spec', design = 'No design written.' }) {
   return [
     `# Node ${id}: ${title}`, '',
     `Milestone ${milestone} · node state ${state}`, '',
+    '## Project', '',
+    shared, '',
+    '### .ultra/design.md', '',
+    design, '',
     '## Requirements', '',
     requirements.join('\n\n'), '',
     '## Checks that must turn green (read-only)', '',

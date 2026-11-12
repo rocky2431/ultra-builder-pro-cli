@@ -138,7 +138,8 @@ test('the only Skill is ultra, and its body is the method', () => {
 test('after a drive stop the method puts truth files back before it commits the ledger', () => {
   // `.ultra/ledger/` also holds truth files, so committing it first puts a writer's
   // uncommitted approval or closure line into HEAD (M-P5 gate review round 2, N1).
-  const text = body(fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'SKILL.md'), 'utf8'))
+  // The handling of drive stops lives in the reference the Skill names (REQ-P6-method).
+  const text = fs.readFileSync(path.join(ROOT, 'skills', 'ultra', 'references', 'drive.md'), 'utf8')
     .replace(/\s+/gu, ' ');
   const start = text.indexOf('When the drive stops');
   assert.ok(start >= 0, 'the method says what to do when the drive stops');
