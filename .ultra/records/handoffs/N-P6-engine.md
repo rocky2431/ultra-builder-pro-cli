@@ -105,3 +105,79 @@ No engine implementation or required engine regression remains unfinished. The t
 remaining check failures above await the parallel method node and dependency/network
 availability. Release acceptance and host installation are outside this node. The engine
 records node completion separately after this handoff is committed.
+
+## Attempt 2 — missing-spec usage error
+
+### Change and interface
+
+`projectRoot` now rejects a Git repository with a commit but no `.ultra/spec.md` before
+loading truth files or dispatching an action. Every valid engine command exits 2 with
+`<root> has not started: .ultra/spec.md does not exist. Start it with the ultra Skill.`
+on stderr, no stdout or `ENOENT`, and no writes. The existing missing-root, non-Git and
+no-commit errors retain their priority. `engine/FORMATS.md` documents the error beside
+those usage errors. No command, option, ledger format or dependency was added.
+
+### Verification
+
+The commands below used the controller-provided bookkeeping copy. The acceptance suites
+exercise this repository's engine directly.
+
+- Baseline `56e1e0dbef1b6a3e6295d1bdcf3204f48b273f13`:
+  `ubp check C-engine-p6`, exit 1, `C-engine-p6: fail (exit-1)`,
+  `tests 12`, `pass 11`, `fail 1`, evidence `dirty: false`. The sole failure was
+  `a project without .ultra/spec.md has not started, and every command says so`;
+  its deciding error was `status: .ultra/spec.md: ENOENT: no such file or directory`.
+- Implementation `387f0f0`:
+  `ubp check C-engine-p6`, exit 0, `C-engine-p6: pass (exit-0)`,
+  `tests 12`, `pass 12`, `fail 0`, evidence `dirty: false`.
+- Required regression command:
+  `ubp check C-engine C-engine-p2 C-engine-p3 C-engine-p4 C-engine-p5`, exit 0.
+  Each deciding line was `<check>: pass (exit-0)`:
+
+  | Check | Exit | Tests passed / failed |
+  |---|---|---|
+  | C-engine | 0 | 96 / 0 |
+  | C-engine-p2 | 0 | 86 / 0 |
+  | C-engine-p3 | 0 | 26 / 0 |
+  | C-engine-p4 | 0 | 60 / 0 |
+  | C-engine-p5 | 0 | 46 / 0 |
+
+  Including P6, all 326 engine tests passed. The six passing records have `dirty: false`
+  and the same code fingerprint. The baseline failure and all six passes are committed
+  in `.ultra/ledger/evidence.jsonl`; raw logs were archived outside the repository.
+- `node engine/cli.cjs status --json`, exit 0 against this project's current files:
+  all six selected engine checks are `green`, with `dirty: false`.
+- An external, temporary CLI probe exercised all ten commands in text and JSON modes:
+  exit 0, `20/20 command variants passed`. Each variant exited 2 with the exact message
+  and empty stdout; no `.ultra` directory was created, and Git status including ignored
+  paths stayed empty. The probe fixture was removed.
+- Source limits: 2015 of 2050 engine lines, maximum line width 100, no new imports.
+
+### Noticed and left unchanged
+
+- The other P6 implementations and all acceptance files are unchanged. The expanded
+  12-case P6 suite already pins shared-text normalization between and after requirement
+  blocks, mixed latest pass/fail and unknown outcomes, the last closed milestone staying
+  current, and drive stop problems on stderr. The corresponding gaps listed in the first
+  handoff are superseded by those tests.
+- Argument validation and the restrictions inside `UBP_DRIVE` still precede project
+  loading; the missing-spec behavior applies to valid command invocations.
+- C-package, C-method-p6 and C-release were neither rerun nor repaired, as this attempt's
+  mission excludes them. No dependency was installed. No gate, approval, closure or node
+  completion command was run for this project.
+
+### Behavior not pinned by registered checks
+
+- The missing-spec acceptance test names `status`, `status --json`, `check`, `gate` and
+  `context`. The remaining commands and JSON combinations passed the external probe but
+  have no persisted missing-spec regression assertion.
+- Simultaneously nonzero historical closed counters and their displayed order, and drive
+  progress arriving before process exit, remain unpinned by the registered P6 suite.
+- The design-path record-reader and non-accepting review boundary gaps listed in the
+  first handoff remain unchanged.
+
+### Remaining work
+
+No engine repair or required regression remains. The controller, after merging, owns node
+completion; this attempt deliberately leaves that action to it. The three excluded checks
+provide no new release or method acceptance evidence from this attempt.
